@@ -1,0 +1,228 @@
+{
+  "schemaVersion": 1,
+  "state": "prepared-incomplete",
+  "authorized": false,
+  "observedAt": "2026-10-04",
+  "source": {
+    "baselineSha": "c22d448bfd8204994ba92f65b5f722762ce6f052",
+    "baselineRelease": "30.4.0",
+    "finalMaintenanceSha": null,
+    "manifestSha256": "41bb79ea07ef1d17215064924424f7affd7171536c7190e5bca32bbd8f838b62",
+    "payloadTreeSha256": null,
+    "maintenanceBaseSha": "1c5c65fe391a1db3ce2b3f7a43b39ff53dd71585",
+    "preparedAgentSourceRetained": "c22d448 is a deliberate compatible immutable contract5 trial input; later unrelated Source releases remain intact"
+  },
+  "cloud": {
+    "baselineSha": "122b4d554296b5c0c1cd93603de1f6582f435e8f",
+    "branch": "cloudflare-hosted-acceptance",
+    "finalMaintenanceSha": null,
+    "configuredStagingWorker": "wongstack-cloud-staging",
+    "stagingVersionId": "05dafc8c-77f8-451a-80f4-544fe29a9b22",
+    "stagingDbId": "1029a8e7-be64-42c0-bf9a-de49f87a2322",
+    "configSha256": "1f30ee90a219a921b2b2baeaecf1e141208188203e4ecffe2a141515063f9d03",
+    "accountId": "040f88e2bf4f25fb0b91b7cb24f3d442",
+    "stagingDeploymentId": "329439e8-c168-4e51-9f7c-974272a6d976",
+    "preflightReference": "provider-preflight.json"
+  },
+  "agent": {
+    "defaultSourceSha": "78022828c37f6cf5be01f246c5c653ef2954322a",
+    "defaultContract": 4,
+    "requiredContract": 5,
+    "preparedSourceSha": "c22d448bfd8204994ba92f65b5f722762ce6f052",
+    "actualSourceSha": null,
+    "actualRuntimeVersion": null,
+    "guard": {
+      "path": "/opt/wongstack/source/.agents/skills/save/scripts/hosted-main-pre-push.mjs",
+      "preparedSha256": "42c436fba76a7f29c32af309d94275ba0c845fa6d0cb455bbdf68f24b90477aa",
+      "actualSha256": null
+    },
+    "recipientGeneration": null,
+    "recipientMatches": false,
+    "rootOwnedRuntimeVerified": false
+  },
+  "starter": {
+    "preparerSha256": "cac921da3e8345100ed2f21426785b009d439c0dcdaa36c267fed862cb446d6c",
+    "sourceLockSha256": "f6ce167c77bd81537896e3a366ef45627677eb837b07cbb07ff8716d89eb53ca",
+    "preparedTreeSha256": null,
+    "preparedLockSha256": null,
+    "installRecordSha256": null,
+    "publishedRemote": null,
+    "publishedMainSha": null,
+    "publishedTreeVerified": false,
+    "wrangler": "4.144.0"
+  },
+  "runner": {
+    "base": "cloudflare/sandbox:0.12.1@sha256:ea9b35e61c800eddbc4450fad333e5dd26033a06f7d36624388b0711bef9f8c5",
+    "recipeSha256": "4395f5c17c1e15db688ab376a9e367553bf2923a9c9ea0fab77d42504658a97a",
+    "sourceInputsSha": "c22d448bfd8204994ba92f65b5f722762ce6f052",
+    "cloudInputsSha": null,
+    "trustedEntries": [
+      {
+        "path": "check-build.mjs",
+        "sha256": "36614eed7c060b0ca4b9f4e81073502b65545ca98273dc91ef25d7c5a8681e55"
+      },
+      {
+        "path": "context.mjs",
+        "sha256": "e71e1acc7f0015ea5ad087dd83f9dbc99c4481bd3c8546ff83e06116e7e8029b"
+      },
+      {
+        "path": "deploy-output.mjs",
+        "sha256": "7c21ae1f09ccd1d950c40bc8da519d81818278a8bf0e162c757670016d2430c8"
+      },
+      {
+        "path": "deploy-production.mjs",
+        "sha256": "3fd9bd52c923e08990f3f1965b776ded21e5d07275c2e146caecad53563b50f7"
+      },
+      {
+        "path": "inspect-output.mjs",
+        "sha256": "c519d2f9e6d0bcfb834fd19a15ae0279afcfa4e5fb8a889121665b6d10e793b3"
+      },
+      {
+        "path": "prepare-history.mjs",
+        "sha256": "548566de4f68f6424ba6c0d518ad771600c8588ca6b81e46304a2b2689e69328"
+      },
+      {
+        "path": "wrangler.fragment.jsonc",
+        "sha256": "9e349098caec29ecb8a4079e601830635722907180691aa45f454506f2765b29"
+      }
+    ],
+    "toolLockSha256": "f4d5bdcb64173dcd6d0796877c2f028364179205198498b261b940d065dd57da",
+    "sdk": {
+      "version": "0.2.0",
+      "integrity": "sha512-uAr54YhZy4sYHaJM2fYMPg2BtmS2btemBMtED59XDdYQhw08lGr29IS+njNKSWnrBGpbJuQGRWc/jWWiMgg3vg=="
+    },
+    "sandbox": {
+      "version": "0.12.1",
+      "integrity": "sha512-P1ZmNDLYtuEY1ZUcAx0OgTol98VqS617LGd4nf1RTOjSV2yHLDAp59NI36/gg3/pxkHPgmAEyFIjH/ie8FoA7g=="
+    },
+    "wrangler": {
+      "version": "4.142.0",
+      "integrity": "sha512-oqquqqtHOevn17hzI7qRzU+MiOaCU2UZRLPIZStjGlhwYbxe3hk4Stq3knfcIlGfMSfgM4iycZKeb1fEF5mRTQ=="
+    },
+    "nodeMajor": 22,
+    "nodeVersion": null,
+    "npmVersion": null,
+    "gitVersion": null,
+    "architecture": null,
+    "registry": null,
+    "publishedDigest": null,
+    "isolationVerified": false,
+    "isolationBlocker": {
+      "state": "deferred-not-a-functionality-gate",
+      "reference": "runner-containment-design.md",
+      "reason": "Internal reviewed-app functionality trial only; hostile-code isolation remains unverified and general customer creation disabled."
+    },
+    "containment": {
+      "design": "runner-containment-design.md",
+      "network": "none",
+      "separateGuestWorktree": true,
+      "sdkVersionChanged": false,
+      "preparedRecipeVerified": false,
+      "preOverlayTreeInterfaceVerifiedLive": false,
+      "guestImageDigest": null,
+      "dockerInputsSha256": null,
+      "offlineCacheSha256": null,
+      "resourceLimits": null,
+      "ciAdversarialEvidence": null,
+      "realRuntimeEvidence": null,
+      "state": "deferred"
+    }
+  },
+  "provider": {
+    "artifactsSchema": "filter.repo_name / targets / workflow_name",
+    "documentedArtifactsMinWrangler": "4.145.0",
+    "pinnedInterfaceVerifiedLive": false,
+    "inventoryReadbackComplete": false,
+    "cleanupMethodsVerified": false,
+    "artifactsNamespaceInventoryStatus": 401
+  },
+  "missingPrerequisites": [
+    "exact deployed acceptance service code/version following maintenance gate",
+    "exact owner and separately authorized disposable VM/workspace/recipient/generation, supported contract5 source preparation",
+    "workspace-specific contract5 preparation and actual root runtime/guard readback",
+    "final source/cloud maintenance heads and full payload hash",
+    "CI-generated prepared starter tree/lock/install record",
+    "pinned recipe/tools/platform architecture and CI image receipt",
+    "supported exact provider interfaces and complete inventory/cleanup",
+    "execution-day priced and bounded owner AI use",
+    "fresh authority bound to all preceding exact identities"
+  ],
+  "publishedReceipts": [],
+  "stop": "Missing exact owner/targets, prepared starter/ordinary image, passing maintenance gate, platform-credential separation, permissions, affordable bounds or supported owned cleanup blocks live actions. Nested containment is deferred; functional success cannot claim full acceptance or enable general creation.",
+  "workspace": {
+    "existingEligible": [],
+    "proposedDisposableVmCount": 1,
+    "vmCreationAuthorized": false,
+    "requiredReadyReadbackBeforeHostedUse": true,
+    "sourcePreparationSupported": false,
+    "blocker": "Exact reviewed one-VM internal staging exemption may be prepared without billing changes; actual firewall/location/price/provider/runtime and execution authority remain pending.",
+    "sourcePreparationStatus": "narrow pin and explicit test-only entitlement prepared; CI and live authority unverified",
+    "plannedId": "83ec40bf-8873-4b75-a1b5-49151f2b1b8d",
+    "ownerId": "5c5eca98-d495-45d3-9f7a-4da7b9d1b17a",
+    "ownerEmail": "operations@claymoo.com",
+    "activePaid": false,
+    "internalEntitlementExceptionPreparationAuthorized": true,
+    "internalEntitlementExceptionLiveAuthorized": false
+  },
+  "preparedChecks": {
+    "scope": "Cloud internal-functionality guard, exact test entitlement, runner recipe and existing app; preflight and CI receipt changes still pending",
+    "targetedCasesPassed": 2693,
+    "newGuardAndProvisionCoverage": {
+      "statements": 100,
+      "branches": 100,
+      "functions": 100,
+      "lines": 100
+    },
+    "targetedLint": "passed",
+    "ciGate": "unverified",
+    "live": "untouched",
+    "workingDirectory": "companion Cloud app/",
+    "commands": [
+      [
+        "node_modules/.bin/vitest",
+        "run",
+        "--coverage"
+      ],
+      [
+        "node_modules/.bin/oxlint",
+        "--deny-warnings",
+        "worker",
+        "src"
+      ],
+      [
+        "node_modules/.bin/knip"
+      ],
+      [
+        "node_modules/.bin/jscpd",
+        "--config",
+        ".jscpd.json"
+      ]
+    ],
+    "preparedInputSha256": {
+      "scripts/hosted/Dockerfile.runner": "4395f5c17c1e15db688ab376a9e367553bf2923a9c9ea0fab77d42504658a97a",
+      "app/worker/hosted-acceptance.ts": "1cbc33053fc8c6bb847b3a92731c080b1922dc00459f83b19116aeb0669755ba",
+      "app/worker/hosted-acceptance-source.ts": "2a2bca1eec31ffdbfcc0026bdeac6ac4d1026f68e8338e46676d1173d052620f"
+    },
+    "coverageReportSha256": "e1f00a400b3aa6d9484771f3d9d19766b203763ef916267f3acbb07b06c90406",
+    "fullAppCasesPassed": 2693,
+    "appFilesPassed": 97
+  },
+  "trial": {
+    "mode": "internal-functionality",
+    "ownerControlledOnly": true,
+    "liveAuthorized": false,
+    "fullAcceptanceComplete": false,
+    "deferred": [
+      "hostile-code isolation",
+      "nested Docker",
+      "general enablement"
+    ],
+    "projectId": "hp_d3fd2bfec810475cd45de5bf97eced82",
+    "repoName": "ws-d3fd2bfec810475cd45de5bf97eced82",
+    "workerName": "ws-d3fd2bfec810475cd45de5bf97eced82",
+    "namespace": "ha-83ec40bf",
+    "starterName": "starter",
+    "backupBucket": "ha-83ec40bf-backup",
+    "workflowName": "ha-83ec40bf-ci"
+  }
+}

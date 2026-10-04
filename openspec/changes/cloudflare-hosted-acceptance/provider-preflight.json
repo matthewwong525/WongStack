@@ -1,0 +1,71 @@
+{
+  "observedAt": "2026-10-04T15:20:24.301271+00:00",
+  "mode": "read-only",
+  "accountId": "040f88e2bf4f25fb0b91b7cb24f3d442",
+  "staging": {
+    "workerName": "wongstack-cloud-staging",
+    "databaseId": "1029a8e7-be64-42c0-bf9a-de49f87a2322",
+    "deploymentId": "329439e8-c168-4e51-9f7c-974272a6d976",
+    "versionId": "05dafc8c-77f8-451a-80f4-544fe29a9b22",
+    "percentage": 100,
+    "environment": "staging",
+    "hostedControlsAndExecutionBindings": "absent"
+  },
+  "selectOnlyReadbacks": {
+    "workspaceCounts": [
+      {
+        "status": "deleted",
+        "count": 7
+      }
+    ],
+    "eligibleWorkspaces": [],
+    "hostedStarterProjects": [],
+    "rowsWritten": 0
+  },
+  "artifactsNamespaceInventory": {
+    "httpStatus": 401,
+    "status": "unavailable",
+    "notAnAbsenceReceipt": true
+  },
+  "mutations": [],
+  "secretsPersisted": false,
+  "blockingPrerequisites": [
+    "No existing eligible ready staging workspace. Scope decision pending for including one disposable VM in future exact authorization request.",
+    "Artifacts namespace inventory unavailable under existing credential. No permission widening or credential issuance authorized by this readback.",
+    "No actual published starter/image or contract5 workspace identity receipt exists."
+  ],
+  "rechecks": [
+    {
+      "observedAt": "2026-10-04T16:46:19.955961+00:00",
+      "mode": "read-only",
+      "owner": {
+        "id": "5c5eca98-d495-45d3-9f7a-4da7b9d1b17a",
+        "email": "operations@claymoo.com",
+        "subscriptionStatus": "canceled",
+        "endedAt": 1791055177598,
+        "activePaid": false,
+        "liveVmCount": 0
+      },
+      "artifacts": {
+        "namespaceInventoryHttpStatus": 401,
+        "errorCodes": [
+          10000
+        ],
+        "existingTokenArtifactsPermissions": false
+      },
+      "staging": {
+        "hostedControls": [],
+        "existingSecretNames": [
+          "DATA_KEY",
+          "GITHUB_CLIENT_SECRET",
+          "HETZNER_API_TOKEN",
+          "STRIPE_SECRET_KEY",
+          "STRIPE_WEBHOOK_SECRET"
+        ]
+      },
+      "rowsWritten": 0,
+      "mutations": [],
+      "secretsPersisted": false
+    }
+  ]
+}
