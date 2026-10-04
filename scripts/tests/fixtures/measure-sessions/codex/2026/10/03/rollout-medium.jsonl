@@ -1,0 +1,15 @@
+{"timestamp":"2026-10-03T08:00:00.000Z","type":"session_meta","payload":{"id":"parent-2","cwd":"/elsewhere/worktree","source":"vscode","git":{"repository_url":"git@github.com:team/repo.git"}}}
+{"timestamp":"2026-10-03T08:00:00.000Z","type":"event_msg","payload":{"type":"task_started","turn_id":"s1"}}
+{"timestamp":"2026-10-03T08:00:00.000Z","type":"turn_context","payload":{"turn_id":"s1","model":"model-a","effort":"medium"}}
+{"timestamp":"2026-10-03T08:00:01.000Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"<environment_context>\n  <cwd>/elsewhere/worktree</cwd>"},{"type":"input_text","text":"$save now SECRET-PROMPT-TEXT"}]}}
+{"timestamp":"2026-10-03T08:00:10.000Z","type":"response_item","payload":{"type":"custom_tool_call","name":"exec","input":"text(await tools.exec_command({cmd:\"git add -A\",\"max_output_tokens\":1000}));\n"}}
+{"timestamp":"2026-10-03T08:00:15.000Z","type":"response_item","payload":{"type":"custom_tool
+{"timestamp":"2026-10-03T08:00:20.000Z","type":"response_item","payload":{"type":"custom_tool_call","name":"exec","input":"text(await tools.exec_command({cmd:\"git commit -m work\",\"max_output_tokens\":1000}));\n"}}
+{"timestamp":"2026-10-03T08:00:30.000Z","type":"response_item","payload":{"type":"custom_tool_call","name":"exec","input":"text(await tools.exec_command({cmd:\"git push\",\"max_output_tokens\":1000}));\n"}}
+{"timestamp":"2026-10-03T08:01:00.000Z","type":"event_msg","payload":{"type":"task_complete","turn_id":"s1","last_agent_message":"SECRET-PROMPT-TEXT reply"}}
+{"timestamp":"2026-10-03T08:05:00.000Z","type":"response_item","payload":{"type":"function_call","name":"exec_command","arguments":"{\"cmd\":\"git status\"}"}}
+{"timestamp":"2026-10-03T08:10:00.000Z","type":"event_msg","payload":{"type":"task_started","turn_id":"s2"}}
+{"timestamp":"2026-10-03T08:10:00.000Z","type":"turn_context","payload":{"turn_id":"s2","model":"model-a","effort":"medium"}}
+{"timestamp":"2026-10-03T08:10:04.000Z","type":"response_item","payload":{"type":"function_call","name":"exec_command","arguments":"{\"cmd\":[\"bash\",\"-lc\",\"cat AGENTS.md\"]}"}}
+{"timestamp":"2026-10-03T08:10:05.000Z","type":"response_item","payload":{"type":"function_call","name":"exec_command","arguments":"\"not an object\""}}
+{"timestamp":"2026-10-03T08:10:06.000Z","type":"response_item","payload":{"type":"function_call_output","output":"SECRET-PROMPT-TEXT page"}}

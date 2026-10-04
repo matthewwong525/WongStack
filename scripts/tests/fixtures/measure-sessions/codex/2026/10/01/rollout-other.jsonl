@@ -1,0 +1,5 @@
+{"timestamp":"2026-10-01T11:00:00.000Z","type":"session_meta","payload":{"id":"other-1","cwd":"/work/other","source":"vscode","git":{"repository_url":"https://github.com/team/other.git"}}}
+{"timestamp":"2026-10-01T11:00:00.000Z","type":"event_msg","payload":{"type":"task_started","turn_id":"o1"}}
+{"timestamp":"2026-10-01T11:00:00.000Z","type":"turn_context","payload":{"turn_id":"o1","model":"model-a","effort":"high"}}
+{"timestamp":"2026-10-01T11:00:05.000Z","type":"response_item","payload":{"type":"custom_tool_call","name":"exec","input":"text(await tools.exec_command({cmd:\"ls\",\"max_output_tokens\":1000}));\n"}}
+{"timestamp":"2026-10-01T11:00:10.000Z","type":"event_msg","payload":{"type":"task_complete","turn_id":"o1","duration_ms":10000,"last_agent_message":"SECRET-PROMPT-TEXT reply"}}
