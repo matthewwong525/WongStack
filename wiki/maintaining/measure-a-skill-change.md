@@ -84,4 +84,10 @@ When a skill's output looks too kind, check its report format first. The walk's 
 
 The same test shows the trap in measuring it. A harness whose prompt lists the new verdict hands that word to both versions, so it can't tell wording that supplies the word from wording that doesn't. Score what the skill writes for a person, such as the comment, when the format is what you're changing.
 
+## Close a list, or it reads as examples
+
+Wording that lists cases is read as a few examples of a wider idea. The struggle-note rule first said to write a note *only when the chat shows it: a correction, an offered choice answered in the person's own words, a step failing repeatedly, a long hunt*. A smooth chat still got a note, for a rework that was none of those. Saying *one of four*, and *showing none of the four*, stopped it. When a rule must not reach past its cases, count them and say what showing none of them means: [the dry run](../../openspec/changes/archive/2026-10-04-struggle-notes-for-improve/dry-run.md).
+
+That dry run is also the small way to try wording with no practice site. Reduce three past chats, read-only: two that should trigger the rule, one that should not. Hand each to a fresh agent with the candidate text, store nothing, and write [the keep rule](#the-keep-rule) first.
+
 Part of [maintaining WongStack](README.md).

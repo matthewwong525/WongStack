@@ -11,7 +11,11 @@ afterEach(() => {
 });
 
 const open = async (answer: () => Promise<Response>) => {
-  const fetchMock = vi.fn(answer);
+  const fetchMock = vi.fn(async (path: string) => {
+    if (path === "/api/access/apps") return Response.json({ state: "current", role: "employee", revision: 1, apps: ["access", "hello"] });
+    if (path.startsWith("/apps/hello/api/greeting?")) return answer();
+    throw new Error(`Unexpected example request: ${path}`);
+  });
   vi.stubGlobal("fetch", fetchMock);
   const router = createMemoryRouter(routes, { initialEntries: ["/apps/hello/"] });
   await act(async () => {

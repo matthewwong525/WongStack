@@ -62,6 +62,8 @@ export const startingPolicies = () => [
  * `repoTokens` (each `active` until revoked) are the Artifacts side; `lifecycles` holds each bucket's
  * rules; `workerSecrets` each Worker's secrets by name, readable only once the Worker exists;
  * `tokenValues` each account token's current value by id.
+ * `forbidTokens` answers every account-token call 403, as a user token narrowed back from Account API
+ * Tokens Write does.
  */
 export async function fakeCloudflare({ r2 = true, subdomain = 'ada', accounts = [{ id: ACCOUNT, name: 'Ada' }], paid = true, repos = [] } = {}) {
   const remoteOf = (namespace, name) => `https://${ACCOUNT}.artifacts.cloudflare.net/git/${namespace}/${name}.git`;
@@ -96,6 +98,7 @@ export async function fakeCloudflare({ r2 = true, subdomain = 'ada', accounts = 
     serviceTokens: [],
     workerDetails: {},
     workerSubdomains: {},
+    forbidTokens: false,
   };
   const sqlite = new Map();
   const calls = [];
@@ -291,6 +294,7 @@ export async function fakeCloudflare({ r2 = true, subdomain = 'ada', accounts = 
       state.subdomain = body.subdomain;
       return ok({ subdomain: body.subdomain });
     }
+    if (state.forbidTokens && url.pathname.startsWith(`${account}/tokens`)) return no(403, 9109, 'Unauthorized to access requested resource');
     if (route === `GET ${account}/tokens`) return ok(state.accountTokens.map(({ id, name }) => ({ id, name })));
     if (route === `POST ${account}/tokens`) {
       const value = `deploy-secret-${++serial}`;

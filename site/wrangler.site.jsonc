@@ -1,0 +1,41 @@
+// The landing page's two Workers: plain files, no server code, no bindings.
+//
+// The name is deliberate. scripts/lib-wrangler-config.mjs finds the starter
+// app's config by looking in each folder for wrangler.jsonc, wrangler.json, or
+// wrangler.toml, so this file must never take one of those names. Every
+// wrangler call passes `--config wrangler.site.jsonc`, and
+// scripts/tests/landing-site.test.mjs pins it.
+//
+// wongstack.com and www.wongstack.com are the live site's addresses: a publish
+// from the default branch attaches both, and a preview never does.
+// wiki/maintaining/landing-page.md
+{
+  "name": "wongstack-site",
+  // wrangler refuses a deploy with no date. The site runs no code, so the
+  // date changes nothing it serves.
+  "compatibility_date": "2026-07-28",
+  // Keep this: with `routes` declared and this key absent, wrangler turns the
+  // workers.dev address off, and the site loses its second way in.
+  "workers_dev": true,
+  "routes": [
+    { "pattern": "wongstack.com", "custom_domain": true },
+    { "pattern": "www.wongstack.com", "custom_domain": true }
+  ],
+  "observability": {
+    "enabled": false
+  },
+  // An address with no file, such as an old /pricing link, gets index.html,
+  // and src/App.tsx shows the landing page.
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  },
+  "env": {
+    "staging": {
+      "name": "wongstack-site-staging",
+      // An environment inherits the top-level `routes`. Without its own empty
+      // list, a branch deploy would move wongstack.com to the staging site.
+      "routes": []
+    }
+  }
+}

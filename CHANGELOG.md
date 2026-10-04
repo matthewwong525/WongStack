@@ -13,6 +13,40 @@
 - Anyone who asks for GitHub still gets it, unchanged.
 
 **Updating.** An install that uses GitHub needs to do nothing: it keeps its repository, checks, pull requests and publishing as they are. The update adds the new route's files, which stay unused, and nothing asks you to move.
+## 31.2.1 — A check that needs the live app is not a task
+
+The staging-walkthrough guide now says where a check that can only run after publishing goes: it is kept as open work in memory, not written as a task in the plan. A task like that could never be ticked before publishing, and an unticked task stops the publish.
+
+**Updating.** No action needed. The usual update delivers the new wording.
+
+## 31.2.0 — Sign in and connect your assistant
+
+- **Access opens for the owner.** A new mini app, Access, lists the people who can sign in and the apps each may use. The owner is the sign-in email setup recorded: open Access with that email and the list is there, with no hidden settings and no commands.
+- **Add person does everything in one save.** Type an email, tick the apps, save. The app records the choices and adds the email to the sign-in list itself. One line per person says whether they can sign in, and *Try again* shows only when that step failed.
+- **Nobody loses an app.** The first time the owner opens Access, everyone who could already sign in is listed with every app ticked. Until then, everyone keeps every app. A person added later starts with none, and a newly built app shows up unticked.
+- **The same choices apply everywhere.** App cards, direct visits, app calls and assistant actions all check a person's current apps. Unticking an app blocks their next request, even while they stay signed in.
+- **Removing a person blocks them at once and signs everyone out.** Their app use stops with the save. Taking them off the sign-in list ends every open session, so the people who remain sign in again. This can't be undone.
+- **A preview has its own practice list.** On a preview link the owner can add people and choose apps to try the screen. Those choices stay on previews and never touch the real sign-in list.
+- **Everyone gets the setup prompt.** Home and Access show one *Connect your assistant* box. Copy the prompt, paste it into an assistant on any computer, even in an empty folder, and approve the same sign-in there. The prompt holds no keys.
+- **Access to the project's code stays separate.** Signing in to the app gives none; the owner grants that where the code is kept. Memory setup is separate too.
+
+**Updating.** Your apps, pages, branding, customer data and memory stay as they are, and everyone who can sign in keeps every app until you untick one. The update adds your sign-in email to the app's settings file, so Access knows you are the owner. It then runs `provision.mjs access`, the setup tool's step that makes one new Cloudflare key and stores it in your live app only. The key can change sign-in rules across your Cloudflare account; the app uses it only for its own sign-in list. If your saved Cloudflare token can no longer make keys, the update still finishes: Access opens, saves app choices, and says one step is left, and the assistant sends you a private link to paste a token that can. A site that is open with no sign-in is unchanged: turn the sign-in on first.
+
+## 31.1.0 — Learn from chats where the assistant struggled
+
+- When a chat is saved, the assistant also writes a short note for each real moment of trouble: you corrected it, you typed your own answer instead of picking a choice it offered, a step failed again and again, or it hunted a long time for something. A smooth chat gets none, and a note never holds anything private.
+- `/improve` reads those notes first, so a problem a real chat showed comes before one found by reading the project alone. You run it the same way as before.
+- When the trouble is a mistake a machine could catch, `/improve` builds a check that fails, not one more written instruction. A written rule is kept for judgment calls.
+- Fixing a problem closes its note. A note nobody acts on closes by itself after 30 days.
+
+**Updating.** No action needed. The usual update delivers this, and notes begin with the next saved chat; older chats are not re-read.
+
+## 31.0.2 — A memory area for WongStack's own landing page
+
+Memory's list of areas gains one entry, for the landing page kept in the WongStack source. Your install has no such folder, so nothing changes in how memory files or finds your facts.
+
+**Updating.** No action needed.
+
 ## 31.0.1 — Read a test file before deleting it
 
 The change-loop guide now says to read a test file before deleting it along with its code: a test that guards files that stay is moved, not deleted.

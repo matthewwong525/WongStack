@@ -1,0 +1,685 @@
+<!-- wong-review:3 -->
+<!doctype html>
+<!--
+  WongStack review kit. build-review.mjs writes the proposal as static HTML at the
+  review:content marker and puts the change name in place of its token. The one
+  script adds Note buttons, drawing fit and full screen, notes, drafts, and copy. It loads nothing from the network.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Review · 2026-10-04-choose-project-in-setup</title>
+<style>
+  :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; }
+  body { margin:0; padding-bottom:76px; background:#e6e6e6; color:var(--ink); font:16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; overflow-wrap:anywhere; }
+  main { max-width:700px; margin:0 auto; padding:0 12px; }
+  a { color:inherit; }
+  code, pre, .ln { font-family:ui-monospace, Menlo, Consolas, monospace; }
+  code { background:var(--fill); border:1px solid #ddd; border-radius:3px; padding:0 3px; font-size:.88em; }
+  :focus-visible { outline:3px solid #111; outline-offset:2px; }
+  [hidden] { display:none !important; }
+  header { padding:18px 0 4px; }
+  .eyebrow { margin:0; color:var(--muted); font-size:13px; letter-spacing:.06em; text-transform:uppercase; }
+  h1 { margin:2px 0 4px; font-size:22px; line-height:1.25; }
+  .jump { display:flex; flex-wrap:wrap; gap:0 18px; margin:4px 0 0; padding:0; list-style:none; }
+  .jump a { display:inline-block; padding:8px 0; }
+  .hint, .muted { color:var(--muted); font-size:14px; margin:4px 0 0; }
+  #script-error { color:#a00; font-weight:600; }
+  section { margin:18px 0; scroll-margin-top:8px; }
+  h2 { margin:0 0 8px; color:var(--muted); font-size:13px; letter-spacing:.08em; text-transform:uppercase; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:6px; padding:12px; margin:0 0 10px; }
+  .card p { margin:0 0 10px; } .card p:last-child { margin-bottom:0; }
+  .items, .decisions, .note-list { list-style:none; margin:0; padding:0; }
+  .item { display:grid; grid-template-columns:26px minmax(0,1fr); gap:0 10px; overflow:hidden; }
+  .item, .decision { scroll-margin-top:8px; }
+  .num { flex:0 0 26px; height:26px; border-radius:50%; background:#d6d6d6; font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center; }
+  .body { flex:1; min-width:0; }
+  [data-note] { border-radius:3px; }
+  [data-note]:hover, .noting { background:#f1f1f1; }
+  .item > .drawing { position:relative; grid-column:1 / -1; margin:10px -12px 0; }
+  .item > .drawing:last-child { margin-bottom:-12px; }
+  .drawing summary { display:flex; align-items:center; gap:6px; min-height:44px; padding:0 12px; border-top:1px solid #ddd; color:var(--muted); font-size:14px; cursor:pointer; list-style:none; }
+  .drawing summary::-webkit-details-marker { display:none; }
+  .drawing summary::before { content:'\25B8'; display:inline-block; width:1em; }
+  .drawing[open] summary::before { transform:rotate(90deg); }
+  .drawing[open] .show, .drawing:not([open]) .hide { display:none; }
+  .drawing .count { color:var(--ink); font-weight:600; }
+  .frame { overflow:auto; border-top:1px solid var(--line); background:var(--fill); touch-action:pan-y; }
+  .js .frame { overflow:hidden; cursor:zoom-in; }
+  .art { display:block; width:max-content; margin:0; padding:.6em .8em; font-size:13px; line-height:1.2; white-space:pre; overflow-wrap:normal; }
+  .art .pin { min-width:1.8em; min-height:1.6em; margin-left:.4em; padding:0 .5em; border-radius:.8em; font-size:.85em; line-height:1.5em; }
+  .enlarge { position:absolute; top:6px; right:12px; min-height:32px; padding:2px 10px; font-size:13px; }
+  .add { min-width:0; min-height:34px; margin-left:6px; padding:0 12px; border-color:#aaa; border-radius:17px; color:var(--muted); font-size:13px; vertical-align:middle; }
+  .zoom { display:flex; align-items:center; gap:6px; }
+  .zoom .level { margin-right:auto; color:var(--muted); font-size:13px; }
+  #viewer { position:fixed; top:0; left:0; right:0; bottom:0; z-index:8; display:flex; flex-direction:column; background:#fff; }
+  #viewer .zoom { flex:none; padding:calc(6px + env(safe-area-inset-top)) 12px 6px; border-bottom:1px solid var(--line); }
+  #viewer .vframe { flex:1; min-height:0; overflow:auto; background:var(--fill); touch-action:pan-x pan-y; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
+  #viewer .vhint { flex:none; margin:0; padding:6px 12px calc(6px + env(safe-area-inset-bottom)); border-top:1px solid var(--line); color:var(--muted); font-size:13px; }
+  body.viewing { overflow:hidden; }
+  .meta { margin:0 0 4px !important; color:var(--muted); font-size:13px; }
+  .tag { display:inline-block; margin-right:8px; padding:0 8px; border:1px solid #777; border-radius:10px; background:#fff; color:var(--ink); font-size:12px; font-weight:700; }
+  .tag.assumed { border-style:dashed; }
+  .tag.check { border:2px dotted #333; }
+  .hit { outline:3px solid #888; outline-offset:3px; }
+  button { font:inherit; font-size:14px; min-width:40px; min-height:40px; padding:4px 12px; border:1px solid #777; border-radius:4px; background:#fff; color:var(--ink); cursor:pointer; }
+  button.primary { background:#333; border-color:#333; color:#fff; }
+  button:disabled { opacity:.45; cursor:default; }
+  .pin { min-width:24px; min-height:24px; margin-left:6px; padding:0 7px; border-radius:12px; background:#333; border-color:#333; color:#fff; font:700 12px/22px system-ui, sans-serif; vertical-align:middle; }
+  .pin.draft { background:#fff; color:var(--ink); border-style:dashed; }
+  .entry { display:block; width:100%; margin:0 0 8px; padding:8px 10px; text-align:left; }
+  .entry .where { display:block; color:var(--muted); font-size:13px; }
+  .entry .tag { margin:0 0 0 6px; }
+  #chip { position:absolute; z-index:9; box-shadow:0 2px 8px rgba(0,0,0,.3); }
+  #editor { position:absolute; z-index:6; width:260px; padding:10px; background:#fff; border:2px solid #333; border-radius:6px; box-shadow:0 4px 16px rgba(0,0,0,.25); }
+  #editor.docked { position:fixed; left:0; right:0; bottom:0; width:auto; display:flex; flex-direction:column; overflow:auto; border-width:2px 0 0; border-radius:0; padding:8px 12px max(8px, env(safe-area-inset-bottom)); }
+  #editor.docked .where { flex:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #editor.docked textarea { flex:1 1 auto; min-height:44px; }
+  #editor.docked .row { flex:none; }
+  #editor .where { margin:0 0 6px; color:var(--muted); font-size:13px; }
+  #editor .moved { margin:0 0 6px; font-size:13px; font-weight:600; }
+  #editor textarea { display:block; width:100%; min-height:76px; padding:6px 8px; border:1px solid #777; border-radius:4px; font:16px/1.4 system-ui, sans-serif; resize:vertical; }
+  #editor .row { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .bar { position:fixed; left:0; right:0; bottom:0; z-index:4; display:flex; align-items:center; gap:10px; padding:8px 12px calc(8px + env(safe-area-inset-bottom)); background:#fff; border-top:1px solid var(--line); }
+  .bar .note-count { margin-right:auto; font-size:14px; }
+  body.docked .bar, body.viewing .bar { display:none; }
+  .session, #editor .copies { color:var(--muted); font-size:13px; }
+  #editor .copies { flex:none; margin:6px 0 0; }
+  #toast { position:fixed; left:50%; bottom:72px; z-index:7; max-width:90vw; transform:translateX(-50%); padding:6px 12px; border-radius:4px; background:#222; color:#fff; font-size:14px; opacity:0; pointer-events:none; transition:opacity .2s; }
+  #toast.show { opacity:1; }
+  #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
+</style>
+</head>
+<body data-change="2026-10-04-choose-project-in-setup">
+<main>
+<header>
+  <p class="eyebrow">Review</p>
+  <h1>2026-10-04-choose-project-in-setup</h1>
+  <p class="muted"><span class="note-count">0 notes</span></p>
+  <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
+  <p class="hint">Tap + Note to comment. Saving a note copies all your notes. Open a drawing and tap it to see it full screen.</p>
+  <p id="script-error" role="alert" hidden></p>
+</header>
+<section id="why" aria-labelledby="why-h"><h2 id="why-h">Why</h2>
+<div class="card">
+<p data-note="why-1" tabindex="0">Employees should start from the business app they already use, copy one setup prompt and connect their assistant to the apps they are allowed to use. The employer should control those permissions in one small app.</p>
+<p data-note="why-2" tabindex="0">The first build could not be switched on. Access stayed locked until someone filled in five hidden settings and ran about seven commands, and it refused to work on a preview at all. The owner signed in and saw no access and no way to add anyone. This revision makes Access work the moment the owner opens it.</p>
+</div></section>
+<section id="changes" aria-labelledby="changes-h"><h2 id="changes-h">What Changes</h2>
+<ol class="items">
+<li class="item card" id="item-1"><span class="num">1</span><div class="body"><div class="text" data-note="item-1" tabindex="0"><b>Access knows the owner.</b> Setup already records the owner's email when it puts the sign-in in front of the app. Open Access with that email and the people list is there: no hidden settings, no commands.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-1-line-1" tabindex="0">  BEFORE                      AFTER</span>
+<span class="ln" data-note="item-1-line-2" tabindex="0">┌────────────────────────┐  ┌────────────────────────┐</span>
+<span class="ln" data-note="item-1-line-3" tabindex="0">│ Access                 │  │ Access   +[Add person] │</span>
+<span class="ln" data-note="item-1-line-4" tabindex="0">│ People management is   │  │ bo@example.com         │</span>
+<span class="ln" data-note="item-1-line-5" tabindex="0">│ unavailable.           │  │ Orders · Can sign in   │</span>
+<span class="ln" data-note="item-1-line-6" tabindex="0">│ [Retry people]         │  │ ana@example.com        │</span>
+<span class="ln" data-note="item-1-line-7" tabindex="0">│ [Copy private setup]   │  │ No apps · Can sign in  │</span>
+<span class="ln" data-note="item-1-line-8" tabindex="0">│ Assistant setup is     │  │ +Connect assistant     │</span>
+<span class="ln" data-note="item-1-line-9" tabindex="0">│ unavailable.           │  │ +[Copy setup prompt]   │</span>
+<span class="ln" data-note="item-1-line-10" tabindex="0">└────────────────────────┘  └────────────────────────┘</span></pre></div></details></li>
+<li class="item card" id="item-2"><span class="num">2</span><div class="body"><div class="text" data-note="item-2" tabindex="0"><b>Add person does everything in one save.</b> Type an email, tick the apps, save. The app records the choices and adds the email to the sign-in list itself. One line per person says whether they can sign in. A retry shows only when that step failed.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-2-line-1" tabindex="0">ADD PERSON</span>
+<span class="ln" data-note="item-2-line-2" tabindex="0">┌──────────────────────────────────┐</span>
+<span class="ln" data-note="item-2-line-3" tabindex="0">│ Email  [bo@example.com       ]   │</span>
+<span class="ln" data-note="item-2-line-4" tabindex="0">│ Apps   [x] Orders  [ ] Payroll   │</span>
+<span class="ln" data-note="item-2-line-5" tabindex="0">│ [Save access]         [Cancel]   │</span>
+<span class="ln" data-note="item-2-line-6" tabindex="0">└──────────────────────────────────┘</span>
+
+<span class="ln" data-note="item-2-line-8" tabindex="0">SAVED</span>
+<span class="ln" data-note="item-2-line-9" tabindex="0">┌──────────────────────────────────┐</span>
+<span class="ln" data-note="item-2-line-10" tabindex="0">│ bo@example.com                   │</span>
+<span class="ln" data-note="item-2-line-11" tabindex="0">│ Orders · Can sign in    [Edit]   │</span>
+<span class="ln" data-note="item-2-line-12" tabindex="0">│ [Copy app link]                  │</span>
+<span class="ln" data-note="item-2-line-13" tabindex="0">└──────────────────────────────────┘</span>
+
+<span class="ln" data-note="item-2-line-15" tabindex="0">SIGN-IN STEP FAILED</span>
+<span class="ln" data-note="item-2-line-16" tabindex="0">┌──────────────────────────────────┐</span>
+<span class="ln" data-note="item-2-line-17" tabindex="0">│ bo@example.com                   │</span>
+<span class="ln" data-note="item-2-line-18" tabindex="0">│ Orders · Can't sign in yet       │</span>
+<span class="ln" data-note="item-2-line-19" tabindex="0">│ [Try again]                      │</span>
+<span class="ln" data-note="item-2-line-20" tabindex="0">└──────────────────────────────────┘</span></pre></div></details></li>
+<li class="item card" id="item-3"><span class="num">3</span><div class="body"><div class="text" data-note="item-3" tabindex="0"><b>The live app holds its own key for the sign-in list.</b> Setup makes a Cloudflare key that can only edit sign-in rules and stores it in the live app, never in a preview. Cloudflare scopes that kind of key to the whole account; the app only ever edits its own list. An install made before this change gets the key the next time it updates. Until then Access still opens and saves app choices, and says one step is left.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-3-line-1" tabindex="0">ONE STEP LEFT</span>
+<span class="ln" data-note="item-3-line-2" tabindex="0">┌──────────────────────────────────┐</span>
+<span class="ln" data-note="item-3-line-3" tabindex="0">│ Access                           │</span>
+<span class="ln" data-note="item-3-line-4" tabindex="0">│ You can choose apps now. To let  │</span>
+<span class="ln" data-note="item-3-line-5" tabindex="0">│ new people sign in, ask your     │</span>
+<span class="ln" data-note="item-3-line-6" tabindex="0">│ assistant: Finish Access setup   │</span>
+<span class="ln" data-note="item-3-line-7" tabindex="0">│ [Copy that request]              │</span>
+<span class="ln" data-note="item-3-line-8" tabindex="0">└──────────────────────────────────┘</span></pre></div></details></li>
+<li class="item card" id="item-4"><span class="num">4</span><div class="body"><div class="text" data-note="item-4" tabindex="0"><b>People who can already sign in keep every app.</b> The first time the owner opens Access, it lists everyone already on the sign-in list with every app ticked. Nothing changes for them until the owner unticks something. A person added later starts with no apps.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-4-line-1" tabindex="0">FIRST OPEN</span>
+<span class="ln" data-note="item-4-line-2" tabindex="0">┌──────────────────────────────────┐</span>
+<span class="ln" data-note="item-4-line-3" tabindex="0">│ 3 people could already sign in.  │</span>
+<span class="ln" data-note="item-4-line-4" tabindex="0">│ They keep every app until you    │</span>
+<span class="ln" data-note="item-4-line-5" tabindex="0">│ change them.                     │</span>
+<span class="ln" data-note="item-4-line-6" tabindex="0">│ cy@example.com                   │</span>
+<span class="ln" data-note="item-4-line-7" tabindex="0">│ All apps · Can sign in  [Edit]   │</span>
+<span class="ln" data-note="item-4-line-8" tabindex="0">└──────────────────────────────────┘</span></pre></div></details></li>
+<li class="item card" id="item-5"><span class="num">5</span><div class="body"><div class="text" data-note="item-5" tabindex="0"><b>A new app shows up by itself.</b> When an app is built it appears in the tick list, unticked for everyone but the owner. Nobody edits a second hidden list of apps.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-5-line-1" tabindex="0">build Payroll ─▶ Access lists Payroll</span>
+<span class="ln" data-note="item-5-line-2" tabindex="0">                        │</span>
+<span class="ln" data-note="item-5-line-3" tabindex="0">                        ▼</span>
+<span class="ln" data-note="item-5-line-4" tabindex="0">              owner ticks it for Bo</span></pre></div></details></li>
+<li class="item card" id="item-6"><span class="num">6</span><div class="body"><div class="text" data-note="item-6" tabindex="0"><b>A preview has its own practice list.</b> On a preview link the owner can add people and choose apps to try the screen before publishing. Those choices stay on previews and never touch the real sign-in list.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-6-line-1" tabindex="0">ON A PREVIEW</span>
+<span class="ln" data-note="item-6-line-2" tabindex="0">┌──────────────────────────────────┐</span>
+<span class="ln" data-note="item-6-line-3" tabindex="0">│ Access · Practice list           │</span>
+<span class="ln" data-note="item-6-line-4" tabindex="0">│ Changes here stay on previews.   │</span>
+<span class="ln" data-note="item-6-line-5" tabindex="0">│ The real sign-in list is not     │</span>
+<span class="ln" data-note="item-6-line-6" tabindex="0">│ touched.          [Add person]   │</span>
+<span class="ln" data-note="item-6-line-7" tabindex="0">└──────────────────────────────────┘</span></pre></div></details></li>
+<li class="item card" id="item-7"><span class="num">7</span><div class="body"><div class="text" data-note="item-7" tabindex="0"><b>The setup prompt is always there, in one box.</b> Anyone signed in can copy it from Home or Access, paste it into their assistant and approve the same sign-in on that computer. The prompt holds no keys. If copying fails, the text stays on screen to copy by hand.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-7-line-1" tabindex="0">CONNECT YOUR ASSISTANT</span>
+<span class="ln" data-note="item-7-line-2" tabindex="0">┌──────────────────────────────────┐</span>
+<span class="ln" data-note="item-7-line-3" tabindex="0">│ Signed in as bo@example.com      │</span>
+<span class="ln" data-note="item-7-line-4" tabindex="0">│ Apps: Orders                     │</span>
+<span class="ln" data-note="item-7-line-5" tabindex="0">│ [Copy setup prompt]              │</span>
+<span class="ln" data-note="item-7-line-6" tabindex="0">│ Paste it into your assistant     │</span>
+<span class="ln" data-note="item-7-line-7" tabindex="0">│ and approve the sign-in.         │</span>
+<span class="ln" data-note="item-7-line-8" tabindex="0">└──────────────────────────────────┘</span>
+
+<span class="ln" data-note="item-7-line-10" tabindex="0">you            assistant        app</span>
+<span class="ln" data-note="item-7-line-11" tabindex="0"> │── paste ─────▶│               │</span>
+<span class="ln" data-note="item-7-line-12" tabindex="0"> │               │── sign in? ──▶│</span>
+<span class="ln" data-note="item-7-line-13" tabindex="0"> │── approve ───────────────────▶│</span>
+<span class="ln" data-note="item-7-line-14" tabindex="0"> │               │◀── allowed ───│</span></pre></div></details></li>
+<li class="item card" id="item-8"><span class="num">8</span><div class="body"><div class="text" data-note="item-8" tabindex="0"><b>The same app permissions apply everywhere.</b> App pages, direct calls and assistant actions all check the person's current apps. Unticking an app blocks their next request, even while they stay signed in.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-8-line-1" tabindex="0">Orders ticked   ─▶ page / call / assistant: yes</span>
+<span class="ln" data-note="item-8-line-2" tabindex="0">Payroll unticked ─▶ page / call / assistant: no</span></pre></div></details></li>
+<li class="item card" id="item-9"><span class="num">9</span><div class="body"><div class="text" data-note="item-9" tabindex="0"><b>Removing a person blocks them at once, and signs everyone out.</b> Their app use stops with the save. Taking them off the sign-in list also ends every open session of this app, so the people who remain sign in again. This can't be undone.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-9-line-1" tabindex="0">REMOVE PERSON</span>
+<span class="ln" data-note="item-9-line-2" tabindex="0">┌──────────────────────────────────┐</span>
+<span class="ln" data-note="item-9-line-3" tabindex="0">│ Remove bo@example.com?           │</span>
+<span class="ln" data-note="item-9-line-4" tabindex="0">│ Everyone is signed out and       │</span>
+<span class="ln" data-note="item-9-line-5" tabindex="0">│ signs in again. Can't be undone. │</span>
+<span class="ln" data-note="item-9-line-6" tabindex="0">│ [Remove access]       [Cancel]   │</span>
+<span class="ln" data-note="item-9-line-7" tabindex="0">└──────────────────────────────────┘</span></pre></div></details></li>
+<li class="item card" id="item-10"><span class="num">10</span><div class="body"><div class="text" data-note="item-10" tabindex="0"><b>Repository access stays manual.</b> Signing in to the app gives no access to the project's code. The employer grants that separately, and Access does not manage it. Memory setup also stays separate.</div></div></li>
+<li class="item card" id="item-11"><span class="num">11</span><div class="body"><div class="text" data-note="item-11" tabindex="0"><b>Build first, check at the end.</b> Finish the remaining work, then run the checks once and review the finished preview.</div></div></li>
+</ol>
+<p class="aside"><b>Non-goals:</b> repository invitations, GitHub App registration or token issuance, private Git/PR adapters, Artifacts automation, new-project setup, Cloudflare OAuth changes, hosting administration, custom invitation email, per-record business roles, fresh memory enrollment, changing who the owner is from inside the app.</p>
+
+</section>
+<section id="decisions" aria-labelledby="decisions-h"><h2 id="decisions-h">Decisions</h2>
+<ol class="decisions">
+<li class="decision card" id="decision-1" data-note="decision-1" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-04</p>Asked to support Cloudflare only and require manual GitHub access → chose manual GitHub admission/authentication, superseding automatic GitHub App registration, employee credential issuance and the special GitHub repository adapter. Cloudflare Artifacts versus app/API-only scope remains pending clarification; preserve completed source evidence without treating withdrawn GitHub features as remaining work. Remaining work should use fewer shared verification checkpoints rather than a full remote gate after each small task.</li>
+<li class="decision card" id="decision-2" data-note="decision-2" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-04</p>Asked what selecting a repository should do → chose starting a new project or opening an existing WongStack project, with customized starters separate.</li>
+<li class="decision card" id="decision-3" data-note="decision-3" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-04</p>Asked where a new Cloudflare project belongs → chose the person's own Cloudflare account.</li>
+<li class="decision card" id="decision-4" data-note="decision-4" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-04</p>Asked how to handle the overlapping managed starter work → chose to keep going here, design around it and leave it unchanged.</li>
+<li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-04</p>Asked whether setup may use a shared sign-in helper → chose yes, for sign-in only, with projects and hosting still owned by the person.</li>
+<li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-04</p>Asked how much teammate access to include → chose existing GitHub invitations and separate Artifacts repository tokens, without a new invitation flow.</li>
+<li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-04</p>Asked whether to plan this flow → chose to plan, assuming #259 will merge.</li>
+<li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: one coordinated Source/Cloud change, because replacing the picker depends on the same setup and sign-in handoff working end to end.</li>
+<li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: deterministic helpers own repeatable sign-in, selection, resume and provisioning state; the assistant explains results and carries the ordinary workflow, because API identities and retries must be consistent.</li>
+<li class="decision card" id="decision-10" data-note="decision-10" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: full personal installation for new own-account projects, because existing setup includes hosting and memory, whereas #259 deliberately defines a smaller managed starter.</li>
+<li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: source retrieval can still read the public GitHub template without GitHub sign-in on the Artifacts route; removing all GitHub network access was not requested.</li>
+<li class="decision card" id="decision-12" data-note="decision-12" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-04</p>Asked whether to add invitations and an employee setup page to this plan → chose to add them here, superseding the earlier manual-sharing scope.</li>
+<li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-04</p>Asked whether all invited employees should receive project access → chose app access by default, with project editing selected per employee.</li>
+<li class="decision card" id="decision-14" data-note="decision-14" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: the employer's own-account installation runs membership management, because the shared helper remains authorized for sign-in only.</li>
+<li class="decision card" id="decision-15" data-note="decision-15" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: employee setup consumes the published trusted-machine memory contract without a Devices UI or separate browser approval, because the owning active change explicitly replaces that flow.</li>
+<li class="decision card" id="decision-16" data-note="decision-16" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: invitation cancellation, editing removal and employee removal are in scope, because employers need to withdraw the access this flow grants.</li>
+<li class="decision card" id="decision-17" data-note="decision-17" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-04</p>Asked whether to include employee-specific app access controlling API and assistant calls → chose to include it in Team invitations and employee settings.</li>
+<li class="decision card" id="decision-18" data-note="decision-18" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: per-app access is allowed or denied, with no apps preselected and new apps denied until assigned, because that implements the selected-app choice without inventing business-specific roles or automatic access.</li>
+<li class="decision card" id="decision-19" data-note="decision-19" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: project editing and memory remain separate grants, because allowing a business app does not authorize its whole source repository or redefine the established machine-memory policy.</li>
+<li class="decision card" id="decision-20" data-note="decision-20" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-04</p>Asked to simplify setup around hosted-app login, a copyable prompt and an Access mini app → chose that entry point and a smaller setup experience, superseding the larger provider-first flow.</li>
+<li class="decision card" id="decision-21" data-note="decision-21" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-04</p>Asked whether the smaller first version should cover only an existing app and GitHub repository → chose existing app + GitHub first, leaving new-project setup, Cloudflare OAuth changes, Artifacts delivery and Cloud picker replacement for later.</li>
+<li class="decision card" id="decision-22" data-note="decision-22" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: GitHub App installation credentials authorize employee assistant operations without a separate employee GitHub login, because app login should be their single identity; native GitHub website membership remains separate.</li>
+<li class="decision card" id="decision-23" data-note="decision-23" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: add allowed emails and share the ordinary app link, with no custom invitation mail sender, because the app itself is now the starting point.</li>
+<li class="decision card" id="decision-24" data-note="decision-24" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: the copied prompt contains routing and instructions only, with credentials handed to the helper privately after app authentication, because pasting reusable keys into assistant history is unnecessary.</li>
+<li class="decision card" id="decision-25" data-note="decision-25" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: fresh memory enrollment stays out of this smaller version, because it needs the separate trusted operator contract and cannot be granted by ordinary app login.</li>
+<li class="decision card" id="decision-26" data-note="decision-26" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: checkpoint the additive owner-activation slice for its required remote checks before continuing, because task 2.1 requires that gate and leaves employee policy/issuance disabled.</li>
+<li class="decision card" id="decision-27" data-note="decision-27" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: distinguish completed source/provider-contract inventories from actual owner/provider acceptance, because the current target lacks verified owner setup and live confirmation remains in task 7.2. The activation slice passed remote app, build, payload and generated-starter checks at 8ba9ab9.</li>
+<li class="decision card" id="decision-28" data-note="decision-28" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Grouped related provider, bootstrap, UI and distribution tasks into shared remote-check slices, preserving all named checks and the separate live acceptance gate. This changes checkpoint timing only; no feature or acceptance requirement was removed.</li>
+<li class="decision card" id="decision-29" data-note="decision-29" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Task 2.2 adds current primary-snapshot membership checks and explicit route scopes. Source is ready for remote checks; runtime policy remains disabled pending reviewed owner rollout.</li>
+<li class="decision card" id="decision-30" data-note="decision-30" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Integrated merged #263 memory-recall baseline without changing independent memory authority. Remote 2.2 checks caught a fixture foreign-key cleanup error; fixed its dependent-row removal order without weakening schema or checks.</li>
+<li class="decision card" id="decision-31" data-note="decision-31" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Remote distribution checks found a wiki link to generated install-only Worker configuration. Generalized the reference to its installed path; all script and generated-starter checks passed before that documentation failure. Checks remain unchanged.</li>
+<li class="decision card" id="decision-32" data-note="decision-32" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Task 2.2 passed remote app/build/payload checks at <code>37288ef</code>, with two fixture/documentation fixes and no loosened checks. Continued to current-grant discovery/readback; the production rollout latch stays disabled.</li>
+<li class="decision card" id="decision-33" data-note="decision-33" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Task 2.3 source now filters every discovery representation with current route scopes, and reads frontend app assignments without granting a legacy caller an owner role. Kept the client-only-app test portable across payload installs rather than requiring the meta-only Tips app. Preparing its remote gate.</li>
+<li class="decision card" id="decision-34" data-note="decision-34" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Task 2.3 passed remote app/build/distribution checks at <code>40a7a4c5</code>, with no gate fixes or loosened checks. Current verification baseline #261 is retained. Continued to the shared owner/provider connection slice 3.1–3.4; rollout and issuance remain disabled.</li>
+<li class="decision card" id="decision-35" data-note="decision-35" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Primary GitHub documentation showed that publication inspection requires Secrets read and Environments read for name/metadata listings, which never expose secret values. Narrowed the earlier no-secrets wording to forbid secret modification/employee authority while allowing necessary owner-only inspection permissions in the new manifest, approved by the owner at connection. No existing live grant is expanded; unreadable or unproven publication boundaries remain blocked. Source: https://docs.github.com/en/rest/actions/secrets#list-repository-secrets.</li>
+<li class="decision card" id="decision-36" data-note="decision-36" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>The owner/provider source slice 3.1–3.4 is ready for its shared remote gate, including durable unknown-write/token outcomes and caller-only setup status. Runtime rollout/issuance remain disabled. Preserved the separate controlled provider acceptance and the production/staging secret-distribution follow-up.</li>
+<li class="decision card" id="decision-37" data-note="decision-37" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Integrated merged #265 workflow baseline <code>1c5c65fe</code>, retaining current gate diagnosis and mid-build decision handling. Added the required plain consequence of credential revocation to the existing removal description; revocation behavior and scope are unchanged.</li>
+<li class="decision card" id="decision-38" data-note="decision-38" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>The shared 3.4 gate found three oversized functions and an unescaped workflow-expression fixture. Split focused checks/owner dispatch and corrected the fixture without changing behavior or limits. Retain CI coverage metadata for precise diagnosis; all coverage requirements remain unchanged.</li>
+<li class="decision card" id="decision-39" data-note="decision-39" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-10-04</p>Check: <code>.github/workflows/test.yml</code> adds retained coverage-map diagnostics after the existing suite; no check, failure outcome or threshold is loosened. The workflow-setting detector requires this record because a diagnostic upload step changes the check configuration.</li>
+<li class="decision card" id="decision-40" data-note="decision-40" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-04</p>Asked: the person approved continuing after the stopped connection gate. Resume the same change, consolidate bounded decoding without changing wire errors or checks, then complete bootstrap, Access screens, distribution and reviewable verification.</li>
+<li class="decision card" id="decision-41" data-note="decision-41" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>The bootstrap/transport source slice uses one dependency-free Node artifact, distributed at an immutable checked public Source commit plus SHA-256 digest; no existing GitHub release asset is assumed. Private folder locators preserve the same connection after cloning. Finite owner identity supports closed-rollout resume without claiming employee readiness. The employee REST adapter keeps read-only Actions and refuses unsupported reruns/comment writes; missing log archives and thread-resolution counts require the owner path. Employee publication stops before archive/numbering. Tasks 4.1–4.3 await their shared remote gate, and live no-GitHub/provider acceptance remains 7.2.</li>
+<li class="decision card" id="decision-42" data-note="decision-42" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-04</p>Asked whether Cloudflare-only setup includes Artifacts repository automation → chose app/API access only; all repository grants and authentication stay manual. This supersedes the existing GitHub-only and automatic repository connection scope.</li>
+<li class="decision card" id="decision-43" data-note="decision-43" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-04</p>Asked to pass the findings to the other chat and to run tests only at the end → chose complete implementation followed by one final required source checkpoint and preview verification, with no per-task test or save checkpoints. Shared measured timings and this instruction with the verification and original implementation chats.</li>
+<li class="decision card" id="decision-44" data-note="decision-44" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-10-04</p>Check: remove dedicated unshipped GitHub registration/publication/token and private Git/PR adapter tests with the withdrawn implementations. Retained employee policy/discovery/login, personal GitHub delivery, app coverage, lint and distribution checks stay unchanged; author replacement API-only connection/UI/pin/staging-exclusion regression tests before the single final gate.</li>
+<li class="decision card" id="decision-45" data-note="decision-45" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: at the single final source checkpoint, create a complete source ancestor, pin its bootstrap commit/digest in the final head and push once. Final distribution checks prove ancestor bytes/digest match the checked bootstrap; public raw readback follows the successful gate. Blank pins honestly leave setup unavailable until that checkpoint.</li>
+<li class="decision card" id="decision-46" data-note="decision-46" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Completed all remaining app/API-only source, regression tests and owning documentation before any checks. Reconciled the reduced contracts, including production-only login authority in secret distribution. The single final source checkpoint will check the complete implementation; actual controlled human login/provider acceptance remains separate.</li>
+<li class="decision card" id="decision-47" data-note="decision-47" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Integrated merged #268 drawing baseline (30.9.0) and preserved its release notes. Final source head pins the unchanged standalone bootstrap to ancestor <code>3e739ca8f82f7df90916ba0d31c078948682b5ba</code> and SHA-256 <code>2182ca2abac0e9b4163b60cedac38a830e1646a76dfa4fd717a6d45a1f4e35c4</code>; final checks and public readback must establish those exact bytes before calling distribution ready.</li>
+<li class="decision card" id="decision-48" data-note="decision-48" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-10-04</p>Check: <code>app/tsconfig.worker.json</code> enables typed JSON imports for the reviewed bootstrap release pins. No type strictness, test, lint, coverage or duplication requirement is lowered. Condensed this change's payload inventory wording after the combined instruction-byte check exceeded its unchanged limit.</li>
+<li class="decision card" id="decision-49" data-note="decision-49" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>The first complete-source gate passed the build and script coverage but found two app lint errors and three precise rejection-message assertions. Repair attempt 1 keys asynchronous permission readback, extracts the existing page guard and corrects those assertions; unchanged bootstrap bytes preserve the reviewed public pin. All fixes are grouped into one recheck, with every check and limit retained.</li>
+<li class="decision card" id="decision-50" data-note="decision-50" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Repair attempt 1 passed lint, build and all 1,303 script tests. App/generated-starter failures exposed example-page permission fixtures and an Access test reading before reload finished. Repair attempt 2 updates those consumers and adds zero-app roster and disabled/missing-installation status checks; missing owner status now fails closed. Checks, bootstrap bytes and pins remain unchanged.</li>
+<li class="decision card" id="decision-51" data-note="decision-51" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Final complete-source head <code>33762826f3352c8841d96c665cb27009bb80ac8b</code> passed app/build/payload checks after two grouped repairs. Marked 2.x–5.x and 6.1 complete; finishing safe preview checks and retaining live controlled-installation acceptance pending. Keep post-gate records local until the next authorized publication checkpoint, avoiding a metadata-only repeat of the whole branch gate.</li>
+<li class="decision card" id="decision-52" data-note="decision-52" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Finished safe deployed-preview probes and browser-only owner/employee simulations at the checked source head. Actual preview denies unconfigured setup/management; simulated UI covers copying, zero-app/direct-denial, roster and removal/retry states on phone/keyboard. Current-grant deployed human API/provider acceptance remains unverified without a controlled installation and independently verified owner; requested only its URL/email. Retain 6.2/6.3 pending for those portions, and keep evidence/completion metadata local pending publication.</li>
+<li class="decision card" id="decision-53" data-note="decision-53" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>The person selected WongStack and independently confirmed themselves as owner. Public main-source readback lacks the employee-access runtime; readonly live identity/setup probes establish whether this feature is installed before requesting human login. Publishing the checked source is a prerequisite for acceptance on that existing app. Asked to publish first and continue the real login checks; no approval or signed owner authority is inferred from the target choice. Private activation remains closed pending verified session/configuration.</li>
+<li class="decision card" id="decision-54" data-note="decision-54" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-04</p>Asked whether the Access app works as intended after the owner saw no access and no way to add people → found the screen locked behind private activation, a private rollout list and a production-only rule; chose to plan five fixes: automatic owner, built app list, one-save add, a preview practice list and a simpler screen.</li>
+<li class="decision card" id="decision-55" data-note="decision-55" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-04</p>Asked how a new person's email reaches Cloudflare's sign-in list → chose the app adds them, with setup giving the live app its own narrow Cloudflare key; the account-wide scope of that key was named and accepted.</li>
+<li class="decision card" id="decision-56" data-note="decision-56" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: fold these fixes into this unpublished change, because the owner wants a fix found while checking folded into the same change, not a follow-up.</li>
+<li class="decision card" id="decision-57" data-note="decision-57" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: the owner is the email setup recorded, checked on every signed request; the signed user id is logged, not pinned, because the sign-in wall already trusts that email and the second hidden pin is what locked the screen.</li>
+<li class="decision card" id="decision-58" data-note="decision-58" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: people already on the sign-in list keep every app, and permissions start by themselves at the owner's first open, because silently taking apps from current teammates would break them and a confirm button is cheap to add later.</li>
+<li class="decision card" id="decision-59" data-note="decision-59" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: previews keep a practice list in the preview database and never touch the real sign-in list, because one sign-in wall covers live and previews and the owner wants previews to be a safe playground.</li>
+<li class="decision card" id="decision-60" data-note="decision-60" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: the key is read from the live app's private settings on each use, with no encrypted database copy, because one private place is enough and it removes a setup step.</li>
+<li class="decision card" id="decision-61" data-note="decision-61" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: an install with no key yet still opens Access and saves app choices, showing one step left, because a missing key should not lock the owner out of the screen.</li>
+<li class="decision card" id="decision-62" data-note="decision-62" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: built apps and the route rules in reviewed code replace the private rollout list, because that list only repeated what the reviewed code already says.</li>
+<li class="decision card" id="decision-63" data-note="decision-63" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: changing the owner stays outside the app, done by rerunning setup, because an in-app transfer is a takeover path nobody asked for.</li>
+<li class="decision card" id="decision-64" data-note="decision-64" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-10-04</p>Check: deleted <code>activation.test.ts</code>, <code>identity.test.ts</code>, the sealing test in <code>core.test.ts</code>, <code>employee-owner-setup.test.mjs</code> and the owner-consumer case in <code>company-api.test.mjs</code>, each with the withdrawn code it covered. Tests for the recorded-owner rule, the built catalogue, the automatic start, one-save admission, the practice list and setup's key step replace them. No lint, coverage, duplication or limit setting changed.</li>
+<li class="decision card" id="decision-65" data-note="decision-65" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: each person's sign-in status reads from the newest generation the sign-in list is known to match, kept in the existing <code>wong_access_connections</code> row, because one line per person needs it and the applied migrations stay as they are. A change to apps alone moves no sign-in work, so it never makes someone who can sign in look unfinished.</li>
+<li class="decision card" id="decision-66" data-note="decision-66" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: an earlier sign-in write of unknown outcome holds back &quot;done&quot; for 150 seconds, the lease plus the provider timeout, then the next matching readback settles it, because with no operator a lost write would leave <i>Try again</i> failing forever.</li>
+<li class="decision card" id="decision-67" data-note="decision-67" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: an open site gets a blank owner email and no key, and the key is recorded as its own <code>components.accessKey</code>, because an open site has no sign-in to know an owner by, and setup rewrites the access record whole on every run.</li>
+<li class="decision card" id="decision-68" data-note="decision-68" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: existing installs get the step as <code>provision.mjs access</code>, named in the changelog's update note and the wiki, with no new skill text beyond one clause, because the context check has under 100 bytes of headroom.</li>
+<li class="decision card" id="decision-69" data-note="decision-69" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: the sign-in list check keeps the application's id, audience and Worker destination and drops the hostname comparison, because the origin pin is gone and the Worker destination already shows the application covers this Worker.</li>
+<li class="decision card" id="decision-70" data-note="decision-70" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Removing the owner-setup operations and the identity fallback changed the bootstrap bytes (SHA-256 <code>cd03278312a8cb4a9d88552c56a675c02be5617168d49d64cb8ea477dcf31af8</code>). The pins are blank, so the copied prompt honestly reads unavailable, until the final checkpoint creates the source commit and pins it.</li>
+<li class="decision card" id="decision-71" data-note="decision-71" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-04</p>Asked what the automated checker may open once app permissions are on → chose every app, everywhere, as today, so preview checks and the look at the live app after publishing keep working; it never manages people. The risk of a leaked checker key opening every live app was named and is unchanged from today.</li>
+<li class="decision card" id="decision-72" data-note="decision-72" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Saved the owner-first revision for its one gate (task 10.1). Merged main through 31.0.1, which removed the server installer: setup alone now supplies the owner email and the key, and the server-install test went with main. The setup helper is pinned to source commit <code>a53d1e4ba3dde23098f5d6c94e6a1e3f10c2b78d</code>, SHA-256 <code>cd03278312a8cb4a9d88552c56a675c02be5617168d49d64cb8ea477dcf31af8</code>. Open before publishing: the pin test requires that commit to be an ancestor of the checked head, which a squash publish to main does not keep.</li>
+<li class="decision card" id="decision-73" data-note="decision-73" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-10-04</p>Check: <code>scripts/tests/employee-bootstrap.test.mjs</code> no longer requires the pinned helper commit to be an ancestor of the checked head, because publishing squashes the branch and that commit is never in main's history, so the test would fail on main. It still requires the pinned digest to equal the checked helper's bytes, and the pinned commit's bytes to equal them wherever the checkout holds that commit. The public address for commit <code>a53d1e4b</code> was read back on 2026-10-04 with the pinned digest.</li>
+<li class="decision card" id="decision-74" data-note="decision-74" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-04</p>Asked whether Access worked for the owner on the preview → chose yes, it worked; task 10.2 is ticked on the owner's own report plus the machine probes.</li>
+<li class="decision card" id="decision-75" data-note="decision-75" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-04</p>Asked how to handle the live-app test, which can only run after publishing → chose publish, then test: it leaves the task list and stays open work, with the owner's OK before the key step and the real second-person test.</li>
+<li class="decision card" id="decision-76" data-note="decision-76" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Archive checkpoint for publishing as 31.2.0: merged main through 31.1.0, numbered the release, archived with every task ticked. The live-app test stays open work in memory.</li>
+</ol>
+</section>
+<section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
+<p class="session" hidden>Storage is off. Notes and drafts last for this session only.</p>
+<ul class="note-list" id="note-list"></ul>
+</section>
+</main>
+<button type="button" id="chip" hidden>Add note</button>
+<div id="editor" role="dialog" aria-labelledby="editor-where" hidden>
+  <p class="where" id="editor-where"></p>
+  <p class="moved">Possibly moved: its text changed, so this note is not attached.</p>
+  <textarea aria-label="Note text" rows="3" placeholder="A question or a change"></textarea>
+  <div class="row"><button type="button" class="primary" data-act="save">Save</button><button type="button" data-act="discard">Discard</button><button type="button" data-act="delete">Delete note</button><button type="button" data-act="close">Close</button></div>
+  <p class="copies">Saving a note copies all your notes.</p>
+  <p class="session" hidden>Notes last for this session only.</p>
+</div>
+<div id="viewer" role="dialog" aria-modal="true" aria-label="Drawing, full screen" hidden>
+  <div class="zoom"><span class="level"></span><button type="button" aria-label="Zoom out">−</button><button type="button">Fit</button><button type="button" aria-label="Zoom in">+</button><button type="button" class="primary">Close</button></div>
+  <div class="vframe"></div>
+  <p class="vhint">Drag to move · pinch or + to zoom · tap a line to note it</p>
+</div>
+<div class="bar"><span class="note-count" aria-live="polite">0 notes</span><span class="session" hidden>Session only</span><button type="button" class="primary" id="copy">Copy notes</button></div>
+<div id="toast" role="status"></div>
+<textarea id="copybuf" aria-hidden="true" tabindex="-1" readonly></textarea>
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  window.addEventListener('error', function (e) {
+    $('script-error').hidden = false;
+    $('script-error').textContent = 'Review script error: ' + e.message + ' (line ' + e.lineno + ')';
+  });
+  const root = document.documentElement;
+  root.classList.add('js');
+  const CHANGE = document.body.getAttribute('data-change');
+  const KEY = 'wong-review3:' + CHANGE;
+  const phone = window.matchMedia ? window.matchMedia('(max-width: 700px)') : { matches: false };
+  const chip = $('chip'), editor = $('editor'), ta = editor.querySelector('textarea');
+  const viewer = $('viewer'), vframe = viewer.querySelector('.vframe'), vbar = viewer.querySelector('.zoom'), vb = vbar.querySelectorAll('button');
+  const all = function (sel, fn) { Array.prototype.forEach.call(document.querySelectorAll(sel), fn); };
+  const esc = function (s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
+
+  // ── storage: a refused store keeps notes for this session ──
+  let store = null, data = { notes: [], drafts: {} };
+  const ok = function (r, id) { return r && typeof r.label === 'string' && typeof r.text === 'string' && /^[\w-]+$/.test(id); };
+  try { store = window.localStorage; store.getItem(KEY); } catch (e) { store = null; }
+  try {
+    const saved = store ? JSON.parse(store.getItem(KEY) || 'null') : null;
+    if (saved && Array.isArray(saved.notes)) data.notes = saved.notes.filter(function (n) { return ok(n, n && n.id); });
+    if (saved && saved.drafts) Object.keys(saved.drafts).forEach(function (id) { if (ok(saved.drafts[id], id)) data.drafts[id] = saved.drafts[id]; });
+  } catch (e) { /* unreadable notes start empty */ }
+  function persist() {
+    if (store) { try { store.setItem(KEY, JSON.stringify(data)); } catch (e) { store = null; } }
+    render();
+  }
+
+  // ── targets: a data-note id names its location; the label pins a note to its text ──
+  function where(id) {
+    const m = /^(why|item|decision)-(\d+)(?:-line-(\d+))?$/.exec(id) || [];
+    if (m[1] === 'why') return { at: '#/why', kind: 'paragraph ' + m[2], spot: 'Why, paragraph ' + m[2] };
+    if (m[1] === 'item') return { at: '#/' + m[2], kind: m[3] ? 'drawing line ' + m[3] : 'item', spot: 'Change #' + m[2] + (m[3] ? ', drawing line ' + m[3] : '') };
+    return { at: '#/decisions/' + m[2], kind: 'decision', spot: 'Decision #' + m[2] };
+  }
+  function labelOf(el) {
+    const c = el.cloneNode(true);
+    Array.prototype.forEach.call(c.querySelectorAll('.pin, .meta, .add'), function (n) { n.parentNode.removeChild(n); });
+    const text = c.textContent.replace(/\s+/g, ' ').trim();
+    return where(el.getAttribute('data-note')).kind + ' "' + (text.length > 60 ? text.slice(0, 59) + '…' : text) + '"';
+  }
+  function find(id, label) {
+    const el = document.querySelector('[data-note="' + id + '"]');
+    return el && labelOf(el) === label ? el : null;
+  }
+  function noteOf(id) { return data.notes.filter(function (n) { return n.id === id; })[0] || null; }
+
+  // ── render pins, Note buttons, counts, and the notes list ──
+  function render() {
+    all('.pin, .add', function (p) { p.parentNode.removeChild(p); });
+    const n = data.notes.length, d = Object.keys(data.drafts).length;
+    const count = plural(n) + (d ? ' · ' + d + (d === 1 ? ' draft' : ' drafts') : '');
+    all('.note-count', function (el) { el.textContent = count; });
+    all('.session', function (el) { el.hidden = !!store; });
+    const ids = data.notes.map(function (x) { return x.id; }).concat(Object.keys(data.drafts).filter(function (id) { return !noteOf(id); }));
+    $('note-list').innerHTML = ids.length ? '' : '<li class="muted">No notes yet.</li>';
+    ids.forEach(function (id) {
+      const note = noteOf(id), draft = data.drafts[id], rec = note || draft, num = note ? data.notes.indexOf(note) + 1 : 0;
+      const el = find(id, rec.label);
+      if (el) {
+        const pin = document.createElement('button');
+        pin.type = 'button'; pin.className = draft ? 'pin draft' : 'pin'; pin.setAttribute('data-open', id);
+        pin.textContent = (num || '') + (num && draft ? ' · ' : '') + (draft ? 'Draft' : '');
+        pin.setAttribute('aria-label', (num ? 'Open note ' + num : 'Open draft') + (num && draft ? ' and its draft' : ''));
+        el.appendChild(pin);
+      }
+      const li = document.createElement('li');
+      li.innerHTML = '<button type="button" class="entry" data-open="' + id + '"><span class="where">' + (num ? num + '. ' : '')
+        + esc(where(id).at + ' · ' + rec.label) + (draft ? '<span class="tag">Draft</span>' : '') + (el ? '' : '<span class="tag">possibly moved</span>')
+        + '</span>' + esc(draft ? draft.text : note.text) + '</button>';
+      $('note-list').appendChild(li);
+    });
+    all('[data-note]', function (el) {
+      if (el.closest('.art') || el.querySelector('.pin')) return;
+      const id = el.getAttribute('data-note'), add = document.createElement('button');
+      add.type = 'button'; add.className = 'add'; add.setAttribute('data-open', id);
+      add.textContent = '+ Note'; add.setAttribute('aria-label', 'Note on ' + where(id).kind);
+      el.appendChild(add);
+    });
+    drawings.forEach(function (d) {
+      const k = d.art.querySelectorAll('.pin').length;
+      d.count.textContent = k ? ' · ' + k + (k === 1 ? ' note' : ' notes') : '';
+      fit(d);
+    });
+  }
+
+  // ── still-tap to note: a mouse on text, or any pointer on a full-screen drawing line, shows the chip ──
+  let chipFor = null, tap = null;
+  const pointers = {};
+  function showChip(el, x, y, keyboard) {
+    const id = el.getAttribute('data-note');
+    chipFor = el;
+    chip.textContent = noteOf(id) || data.drafts[id] ? 'Edit note' : 'Add note';
+    chip.hidden = false;
+    const w = chip.offsetWidth, vw = root.clientWidth;
+    chip.style.left = Math.max(8, Math.min(x - w / 2, vw - w - 8)) + window.pageXOffset + 'px';
+    chip.style.top = y + 12 + window.pageYOffset + 'px';
+    if (keyboard) chip.focus({ preventScroll: true });
+  }
+  function hideChip() { chip.hidden = true; chipFor = null; }
+  document.addEventListener('pointerdown', function (e) {
+    if (e.isPrimary) Object.keys(pointers).forEach(function (k) { delete pointers[k]; });
+    pointers[e.pointerId] = true;
+    tap = Object.keys(pointers).length === 1 && e.button === 0 ? { id: e.pointerId, x: e.clientX, y: e.clientY, t: Date.now(), target: e.target } : null;
+  });
+  document.addEventListener('pointermove', function (e) {
+    if (tap && e.pointerId === tap.id && Math.abs(e.clientX - tap.x) + Math.abs(e.clientY - tap.y) > 8) tap = null;
+  });
+  document.addEventListener('pointercancel', function (e) { delete pointers[e.pointerId]; tap = null; });
+  document.addEventListener('pointerup', function (e) {
+    const t = tap;
+    delete pointers[e.pointerId]; tap = null;
+    if (!t || t.id !== e.pointerId || Date.now() - t.t > 500) return;
+    if (t.target.closest('a, button, input, textarea, select, label, summary, #editor')) return;
+    const el = t.target.closest('[data-note]');
+    const offer = el && (el.closest('#viewer') || (e.pointerType === 'mouse' && !el.closest('.frame')));
+    if (offer) showChip(el, e.clientX, e.clientY, false); else hideChip();
+  });
+  chip.addEventListener('click', function () { if (chipFor) openEditor(chipFor.getAttribute('data-note'), chipFor); });
+  document.addEventListener('click', function (e) {
+    const t = e.target.closest ? e.target.closest('[data-open]') : null;
+    if (!t) return;
+    const id = t.getAttribute('data-open'), rec = data.drafts[id] || noteOf(id), el = rec ? find(id, rec.label) : t.closest('[data-note]');
+    if (el && t.classList.contains('entry')) { reveal(el); el.scrollIntoView({ block: 'center' }); }
+    openEditor(id, el);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      if (open) closeEditor(true);
+      else if (chipFor) { const el = chipFor; hideChip(); el.focus(); }
+      else if (view) closeViewer(true);
+    } else if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('[data-note]')) {
+      e.preventDefault();
+      const r = e.target.getBoundingClientRect();
+      showChip(e.target, r.left + 48, r.top + Math.min(r.height, 24), true);
+    }
+  });
+
+  // ── the editor: beside its target on a desktop, docked at the bottom of the visible screen on a phone ──
+  let open = null;
+  function openEditor(id, el) {
+    closeViewer(false); closeEditor(false); hideChip();
+    if (el) reveal(el);
+    const note = noteOf(id), draft = data.drafts[id];
+    const label = draft ? draft.label : note ? note.label : labelOf(el);
+    open = { id: id, label: label, el: el };
+    $('editor-where').textContent = where(id).at + ' · ' + label;
+    editor.querySelector('.moved').hidden = !!el;
+    editor.querySelector('[data-act="delete"]').hidden = !note;
+    ta.value = draft ? draft.text : note ? note.text : '';
+    editor.hidden = false;
+    if (el) el.classList.add('noting');
+    place();
+    ta.focus({ preventScroll: editor.classList.contains('docked') });
+  }
+  function closeEditor(restore) {
+    if (!open) return;
+    const el = open.el;
+    open = null; editor.hidden = true;
+    document.body.classList.remove('docked'); document.body.style.paddingBottom = '';
+    if (el) { el.classList.remove('noting'); if (restore) el.focus({ preventScroll: true }); }
+  }
+  function place() {
+    const docked = phone.matches || !open.el;
+    editor.classList.toggle('docked', docked);
+    document.body.classList.toggle('docked', docked);
+    editor.style.left = editor.style.top = editor.style.bottom = editor.style.maxHeight = '';
+    if (docked) {
+      dock();
+      document.body.style.paddingBottom = editor.offsetHeight + 24 + 'px';
+      keepVisible();
+      return;
+    }
+    const r = open.el.getBoundingClientRect(), w = editor.offsetWidth, vw = root.clientWidth;
+    let left = r.right + 12, top = r.top;
+    if (left + w > vw - 8) { left = Math.max(8, Math.min(r.left, vw - w - 8)); top = r.bottom + 8; }
+    editor.style.left = left + window.pageXOffset + 'px';
+    editor.style.top = top + window.pageYOffset + 'px';
+  }
+  // The visible screen: a phone keyboard shrinks it, and a host app may shrink the page too, so place from its top.
+  function screen() {
+    const vv = window.visualViewport;
+    return vv ? { top: vv.offsetTop, h: vv.height } : { top: 0, h: window.innerHeight };
+  }
+  function dock() {
+    if (!open || !editor.classList.contains('docked')) return;
+    const s = screen();
+    editor.style.maxHeight = s.h + 'px';
+    editor.style.bottom = 'auto';
+    editor.style.top = s.top + Math.max(0, s.h - editor.offsetHeight) + 'px';
+  }
+  function keepVisible() {
+    if (!open || !open.el) return;
+    const r = open.el.getBoundingClientRect(), s = screen(), limit = s.top + s.h - editor.offsetHeight - 8;
+    if (r.bottom > limit) window.scrollBy(0, Math.min(r.top - s.top - 8, r.bottom - limit));
+  }
+  let seen = screen().h;
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', function () {
+      const h = screen().h, keyboard = Math.abs(h - seen) > 100;
+      seen = h; dock();
+      if (keyboard) keepVisible();
+    });
+    window.visualViewport.addEventListener('scroll', dock);
+  }
+  ta.addEventListener('input', function () {
+    if (!open) return;
+    const note = noteOf(open.id), text = ta.value;
+    if (!text.trim() || (note && text === note.text)) delete data.drafts[open.id];
+    else data.drafts[open.id] = { label: open.label, text: text };
+    persist();
+  });
+  editor.addEventListener('click', function (e) {
+    const act = e.target.getAttribute('data-act');
+    if (!act || !open) return;
+    const id = open.id, note = noteOf(id), text = ta.value.trim();
+    if (act === 'save') {
+      if (!text) { ta.focus(); return; }
+      if (note) note.text = text; else data.notes.push({ id: id, label: open.label, text: text });
+    }
+    if (act === 'delete') data.notes = data.notes.filter(function (n) { return n.id !== id; });
+    if (act !== 'close') delete data.drafts[id];
+    closeEditor(true); persist();
+    if (act === 'save') {
+      const n = data.notes.length;
+      copyNotes(function () { toast('Saved and copied ' + plural(n) + '. Paste them into chat.'); },
+        function () { toast('Saved. Tap Copy notes to copy them.'); });
+    }
+  });
+
+  // ── drawings: fitted by font size on the page; a tap shows one full screen, where it zooms and scrolls natively ──
+  const BASE = 13, drawings = [];
+  let view = null;
+  const V = { f: BASE, lo: BASE, hi: BASE };
+  function size(art, f, max) {
+    art.style.fontSize = f + 'px';
+    for (let i = 0; i < 3 && art.offsetWidth > max; i += 1) { f *= max / art.offsetWidth; art.style.fontSize = f + 'px'; }
+    return f;
+  }
+  function fit(d) {
+    if (!d.fig.open || view === d) return;
+    d.art.style.fontSize = BASE + 'px';
+    const w = d.art.offsetWidth, fw = d.frame.clientWidth - 1;
+    if (w > 0 && fw > 0) size(d.art, BASE * Math.min(1.25, fw / w), fw);
+  }
+  function reveal(el) {
+    const fig = el.closest('details');
+    if (fig && !fig.open) { fig.open = true; drawings.forEach(fit); }
+  }
+  function scale(f, cx, cy) {
+    f = Math.max(V.lo, Math.min(V.hi, f));
+    const k = f / V.f, x = (vframe.scrollLeft + cx) * k - cx, y = (vframe.scrollTop + cy) * k - cy;
+    V.f = f; view.art.style.fontSize = f + 'px';
+    vframe.scrollLeft = x; vframe.scrollTop = y;
+    const atFit = f <= V.lo * 1.001;
+    vbar.firstChild.textContent = (atFit ? 'Fit · ' : '') + Math.round(f / BASE * 100) + '%';
+    vb[0].disabled = atFit; vb[2].disabled = f >= V.hi * 0.999;
+  }
+  function openViewer(d) {
+    hideChip();
+    view = d; viewer.hidden = false; document.body.classList.add('viewing');
+    vframe.appendChild(d.art);
+    d.art.style.fontSize = BASE + 'px';
+    const fw = vframe.clientWidth - 1;
+    V.lo = size(d.art, BASE * fw / Math.max(1, d.art.offsetWidth), fw);
+    V.hi = Math.max(V.lo * 4, 40); V.f = V.lo;
+    vframe.scrollLeft = vframe.scrollTop = 0;
+    scale(V.lo, 0, 0);
+    vb[3].focus({ preventScroll: true });
+  }
+  function closeViewer(restore) {
+    if (!view) return;
+    const d = view;
+    view = null;
+    d.frame.insertBefore(d.art, d.frame.firstChild);
+    viewer.hidden = true; document.body.classList.remove('viewing');
+    fit(d);
+    if (restore) d.enlarge.focus({ preventScroll: true });
+  }
+  vbar.addEventListener('click', function (e) {
+    const i = Array.prototype.indexOf.call(vb, e.target);
+    if (i === 3) closeViewer(true);
+    else if (i >= 0) scale([V.f / 1.25, V.lo, V.f * 1.25][i], vframe.clientWidth / 2, vframe.clientHeight / 2);
+  });
+  vframe.addEventListener('wheel', function (e) {
+    if (!e.ctrlKey && !e.metaKey) return;
+    e.preventDefault();
+    const r = vframe.getBoundingClientRect();
+    scale(V.f * (e.deltaY < 0 ? 1.1 : 1 / 1.1), e.clientX - r.left, e.clientY - r.top);
+  }, { passive: false });
+  // One finger scrolls natively; two fingers pinch around their midpoint.
+  let pinch = null;
+  const span = function (t) { return Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY) || 1; };
+  vframe.addEventListener('touchstart', function (e) { if (e.touches.length === 2) pinch = { f: V.f, dist: span(e.touches) }; }, { passive: true });
+  vframe.addEventListener('touchmove', function (e) {
+    if (!pinch || e.touches.length !== 2) return;
+    if (e.cancelable) e.preventDefault();
+    const r = vframe.getBoundingClientRect(), t = e.touches;
+    scale(pinch.f * span(t) / pinch.dist, (t[0].clientX + t[1].clientX) / 2 - r.left, (t[0].clientY + t[1].clientY) / 2 - r.top);
+  }, { passive: false });
+  vframe.addEventListener('touchend', function (e) { if (e.touches.length < 2) pinch = null; });
+  document.addEventListener('gesturestart', function (e) { if (view) e.preventDefault(); });
+  all('.drawing', function (fig) {
+    const frame = fig.querySelector('.frame'), enlarge = document.createElement('button');
+    enlarge.type = 'button'; enlarge.className = 'enlarge'; enlarge.textContent = 'Full screen';
+    frame.appendChild(enlarge);
+    const d = { fig: fig, frame: frame, art: fig.querySelector('.art'), count: fig.querySelector('.count'), enlarge: enlarge };
+    drawings.push(d);
+    fig.addEventListener('toggle', function () { fit(d); });
+    frame.addEventListener('click', function (e) { if (!e.target.closest('[data-open]')) openViewer(d); });
+  });
+
+  // ── direct links: #/why, #/<n>, #/decisions/<n> ──
+  function jump() {
+    const m = /^#\/(?:decisions\/(\d+)|(\d+)|(why|changes|decisions))$/.exec(location.hash);
+    const el = m ? $(m[1] ? 'decision-' + m[1] : m[2] ? 'item-' + m[2] : m[3]) : null;
+    if (!el) return;
+    all('.hit', function (n) { n.classList.remove('hit'); });
+    el.classList.add('hit');
+    el.scrollIntoView({ block: 'start' });
+  }
+
+  // ── copy: saved notes only, as notes on the plan: each asks or changes something ──
+  function notesText() {
+    const lines = ['Notes on the plan ' + CHANGE + ' from the review page. Don\'t build yet.'];
+    data.notes.forEach(function (n) {
+      const w = where(n.id);
+      lines.push('- ' + w.spot + ' (' + n.label.slice(w.kind.length + 1) + '): ' + n.text.replace(/\s*\n\s*/g, ' '));
+    });
+    return lines.join('\n');
+  }
+  function toast(text) {
+    $('toast').textContent = text; $('toast').classList.add('show');
+    setTimeout(function () { $('toast').classList.remove('show'); }, 2000);
+  }
+  function plural(n) { return n + (n === 1 ? ' note' : ' notes'); }
+  // One routine for Copy notes and Save: the Clipboard API, else select #copybuf and execCommand, then hand focus back.
+  function copyNotes(done, failed) {
+    const buf = $('copybuf');
+    buf.value = notesText();
+    const fallback = function () {
+      const back = document.activeElement;
+      buf.select();
+      const ok = document.execCommand('copy');
+      if (back && back !== buf && back.focus) back.focus({ preventScroll: true });
+      if (ok) done(); else failed();
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(buf.value).then(done, fallback); else fallback();
+  }
+  $('copy').addEventListener('click', function () {
+    const n = data.notes.length;
+    if (!n) { toast('No saved notes yet. Drafts are not copied.'); return; }
+    copyNotes(function () { toast('Copied ' + plural(n) + '. Paste them into chat.'); },
+      function () { toast('Copy failed. Copy the notes list by hand.'); });
+  });
+
+  let width = root.clientWidth;
+  window.addEventListener('resize', function () {
+    if (root.clientWidth !== width) {
+      width = root.clientWidth; hideChip();
+      if (view) { const d = view; closeViewer(false); openViewer(d); }
+    }
+    drawings.forEach(fit);
+    if (open) place();
+  });
+  window.addEventListener('hashchange', jump);
+  render();
+  jump();
+}());
+</script>
+</body>
+</html>

@@ -4,6 +4,7 @@ import { apiActions } from "./router.ts";
 import { appActions, type AppEnv } from "../apps/index.ts";
 import type { AccessIdentity } from "../access.ts";
 import { actionError, containsCredential, schemas, uniqueActions, type Registration } from "./contract.ts";
+import { currentPolicy, policyAllows, policyDenied } from "../employee-access/policy.ts";
 
 function describe({ method, path, app, action }: Registration, env: AppEnv) {
   return {
@@ -44,8 +45,11 @@ function openApi(operations: ReturnType<typeof describe>[], version: string) {
     components: { securitySchemes: { employeeLogin: { type: "apiKey", in: "header", name: "cf-access-token" } } } };
 }
 
-function discoveryJson(value: unknown, headers: Record<string, string>) {
+async function discoveryJson(request: Request, value: unknown, caller: unknown) {
   if (new TextEncoder().encode(JSON.stringify(value)).byteLength > 1048576) return actionError("internal_error");
+  const headers = { "ETag": `"${await revision({ value, caller })}"`, "Cache-Control": "private, no-cache",
+    "Vary": "Cookie, Cf-Access-Jwt-Assertion, cf-access-token" };
+  if (request.headers.get("if-none-match") === headers.ETag) return new Response(null, { status: 304, headers });
   return Response.json(value, { headers });
 }
 
@@ -54,16 +58,20 @@ export async function discovery(request: Request, env: AppEnv, identity: AccessI
   if (!identity) return actionError("authentication_required");
   const url = new URL(request.url);
   if (request.method !== "GET") return Response.json({ error: "Not found" }, { status: 404 });
-  const visible = uniqueActions(registry).filter(({ action }) => action.agentAvailable && (!action.allowed || action.allowed(identity)));
+  const policy = await currentPolicy(env, identity);
+  if (!policyAllows(policy, { kind: "self-service" })) return policyDenied(policy);
+  const visible = uniqueActions(registry).filter(({ action, access }) => policyAllows(policy, access) &&
+    action.agentAvailable && (!action.allowed || action.allowed(identity)));
   const operations = visible.map(item => describe(item, env)).sort((a, b) => a.operationId.localeCompare(b.operationId));
   if (containsCredential(operations, env)) return actionError("internal_error");
   const version = await revision(operations);
-  const headers = { "ETag": `"${version}"`, "Cache-Control": "private, no-cache", "Vary": "Cookie, Cf-Access-Jwt-Assertion, cf-access-token" };
-  if (request.headers.get("if-none-match") === headers.ETag) return new Response(null, { status: 304, headers });
-  if (url.pathname === "/api/openapi.json") return discoveryJson(openApi(operations, version), headers);
+  const caller = { identity: [identity.kind, identity.id, identity.claims.sub],
+    policy: policy.state === "current" ? policy.revision : policy.state };
+  if (url.pathname === "/api/openapi.json") return discoveryJson(request, openApi(operations, version), caller);
   if (url.searchParams.has("id")) {
     const selected = operations.find(item => item.operationId === url.searchParams.get("id"));
-    return selected ? discoveryJson({ ...selected, revision: version }, headers) : Response.json({ error: "Not found" }, { status: 404 });
+    return selected ? discoveryJson(request, { ...selected, revision: version }, caller) :
+      Response.json({ error: "Not found" }, { status: 404, headers: { "Cache-Control": "no-store" } });
   }
   const limit = Number(url.searchParams.get("limit") ?? 20);
   const offset = Number(url.searchParams.get("offset") ?? 0);
@@ -71,5 +79,5 @@ export async function discovery(request: Request, env: AppEnv, identity: AccessI
   if (!Number.isInteger(limit) || limit < 1 || limit > 50 || !Number.isInteger(offset) || offset < 0 || query.length > 200) return actionError("invalid_input");
   const selected = selectOperations(operations.map(operation => ({ ...operation, revision: version })),
     { q: query, app: url.searchParams.get("app") ?? undefined, limit, offset });
-  return discoveryJson({ revision: version, ...selected }, headers);
+  return discoveryJson(request, { revision: version, ...selected }, caller);
 }

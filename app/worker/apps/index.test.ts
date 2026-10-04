@@ -1,16 +1,18 @@
 import { afterEach, expect, it, vi } from "vitest";
 import type { AccessIdentity } from "../access";
 import { APP_API, handleApp, type AppCall } from "./index";
+import type { Route } from "../api/contract";
+import type { PolicyEnv } from "../employee-access/policy";
 
 // Hello's routes, swapped for one that records what a handler receives.
 const seen = vi.hoisted(() => [] as { env: Record<string, unknown>; call: AppCall }[]);
-vi.mock("./hello/api.ts", () => ({
-  routes: new Map([
-    ["GET peek", (_request: Request, env: Record<string, unknown>, call: AppCall) => {
+vi.mock("./hello/api.ts", async (original) => ({
+  routes: new Map((await original<{ routes: Map<string, Route> }>()).routes).set(
+    "GET peek", (_request: Request, env: Record<string, unknown>, call: AppCall) => {
       seen.push({ env, call });
       return Response.json({ ok: true });
-    }],
-  ]),
+    },
+  ),
 }));
 
 afterEach(() => {
@@ -18,7 +20,8 @@ afterEach(() => {
 });
 
 const person: AccessIdentity = { id: "owner@example.com", kind: "user", claims: { aud: "a", iss: "i", exp: 0 } };
-const env = { DB: { name: "app-db" }, ASSETS: {}, PAYMENT_KEY: "secret", MEMORY_DB: { name: "memory" }, MEMORY_BUCKET: {} } as unknown as Env;
+const env = { DB: { name: "app-db" }, ASSETS: {}, PAYMENT_KEY: "secret", MEMORY_DB: { name: "memory" }, MEMORY_BUCKET: {},
+  WONG_ACCESS_LOGIN_MANAGEMENT: "private-login" } as unknown as Env;
 const call = (path: string, method = "GET", identity: AccessIdentity | null = person) =>
   handleApp(new Request(`https://workspace.example.com${path}`, { method }), env, identity);
 
@@ -45,6 +48,9 @@ it("hands a handler the database and saved keys, but no memory binding", async (
   expect(appEnv.PAYMENT_KEY).toBe("secret");
   expect("MEMORY_DB" in appEnv).toBe(false);
   expect("MEMORY_BUCKET" in appEnv).toBe(false);
+  // The sign-in list key stays with the core: no mini app is handed it.
+  expect("WONG_ACCESS_LOGIN_MANAGEMENT" in appEnv).toBe(false);
+  expect("WONG_ACCESS_LOGIN_MANAGEMENT" in env).toBe(true);
   expect("MEMORY_DB" in env).toBe(true);
   expect(info.route).toBe("peek");
   expect(info.url.searchParams.get("x")).toBe("1");
@@ -72,4 +78,26 @@ it("does not match a property every object inherits", async () => {
     await expectNotFound(await call(`/apps/${name}/api/peek`));
   }
   expect(seen).toEqual([]);
+});
+
+it("applies the app slug to both bare and described routes before handler work", async () => {
+  const employee = { ...person, claims: { ...person.claims, sub: "employee", email: person.id,
+    iss: "https://business.cloudflareaccess.com", aud: "app", exp: 9999999999 } };
+  const row = { policy_enabled: 1, revision: 1, status: "active", apps: '[]' };
+  const first = vi.fn(async () => row);
+  const db = { withSession: vi.fn(() => ({ prepare: () => ({ bind: () => ({ first }) }) })) };
+  const bindings = { ...env, DB: db, WONG_OWNER_EMAIL: "actual-owner@example.com", CF_ACCESS_TEAM_DOMAIN: "business.cloudflareaccess.com",
+    CF_ACCESS_AUD: "app" } as unknown as Env & PolicyEnv;
+  const run = (route: string) => handleApp(new Request(`https://workspace.example.com/apps/hello/api/${route}`), bindings, employee);
+  for (const route of ["peek", "greeting"]) expect((await run(route)).status).toBe(403);
+  expect(seen).toEqual([]);
+  row.apps = '["hello"]';
+  expect((await run("peek")).status).toBe(200);
+  expect(await (await run("greeting")).json()).toEqual({ message: "Hello, world!" });
+  expect(seen).toHaveLength(1);
+  row.status = "removed";
+  for (const route of ["peek", "greeting"]) expect((await run(route)).status).toBe(403);
+  expect(seen).toHaveLength(1);
+  expect(db.withSession).toHaveBeenCalledTimes(6);
+  expect(db.withSession).toHaveBeenCalledWith("first-primary");
 });

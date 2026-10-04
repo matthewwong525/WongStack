@@ -5,7 +5,16 @@ import { handleWalkPictures, WALK_PREFIX } from "../../.agents/skills/verify/wor
 import { discovery } from "./api/discovery.ts";
 import { API_PREFIX, handleApi } from "./api/router.ts";
 import { APP_API, handleApp } from "./apps/index.ts";
-import { getAccessIdentity, type AccessEnv } from "./access.ts";
+import { getAccessIdentity, type AccessEnv, type AccessIdentity } from "./access.ts";
+import type { ConnectionEnv } from "./employee-access/core.ts";
+import { appPageDenied } from "./employee-access/apps.ts";
+import { handleAccess } from "./employee-access/router.ts";
+
+async function labelMemoryLogin(env: Env, link: string, identity: AccessIdentity | null, open: boolean): Promise<void> {
+  if (!open && env.MEMORY_DB && identity?.kind === "user") {
+    await associateLogin(env.MEMORY_DB, link, identity).catch(() => false);
+  }
+}
 
 export default {
   async fetch(request, env) {
@@ -30,6 +39,11 @@ export default {
       });
     }
 
+    // People management answers only the signed-in owner; setup readback answers each person.
+    if (url.pathname.startsWith("/api/access/")) {
+      return handleAccess(request, env, identity);
+    }
+
     // Discovery always requires company login, even on an open starter.
     if (["/api/openapi.json", "/api/actions"].includes(url.pathname)) {
       return discovery(request, env, identity);
@@ -38,9 +52,7 @@ export default {
     // A setup link labels its assistant machine after ordinary human login.
     // Always clean the URL; association failure does not interrupt the app.
     if (url.pathname === "/" && url.searchParams.has("memory_login_link")) {
-      if (!open && env.MEMORY_DB && identity?.kind === "user") {
-        await associateLogin(env.MEMORY_DB, url.searchParams.get("memory_login_link") || "", identity).catch(() => false);
-      }
+      await labelMemoryLogin(env, url.searchParams.get("memory_login_link") || "", identity, open);
       return new Response(null, { status: 303, headers: { Location: new URL("/", request.url).href, "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" } });
     }
 
@@ -65,6 +77,8 @@ export default {
     if (url.pathname.startsWith(API_PREFIX)) {
       return handleApi(request, env, identity);
     }
+    const denied = await appPageDenied(request, env, identity);
+    if (denied) return denied;
     return env.ASSETS.fetch(request);
   },
-} satisfies ExportedHandler<Env & AccessEnv>;
+} satisfies ExportedHandler<Env & AccessEnv & ConnectionEnv>;

@@ -1,0 +1,3 @@
+.assistant-setup { margin-block: 1.5rem; padding: 1rem; border: 1px solid var(--border); border-radius: .6rem; overflow-wrap: anywhere; }
+.assistant-setup h2 { margin-top: 0; }
+.assistant-setup-note { margin-bottom: 0; color: var(--muted-text); }

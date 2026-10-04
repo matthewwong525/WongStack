@@ -1,0 +1,31 @@
+<!-- The picture a shared wongstack.com link shows (site/public/share.png), 1200×630. The W is site/public/favicon.svg's stroke; the colors are site/src/index.css's --bg, --text, --muted, and --border; the phone is site/public/paseo/phone.webp. Text is Geist (Google Fonts, SIL OFL 1.1): load it before rendering, or the host's sans-serif stands in. Render it to site/public/share.png at 1200×630 and keep the PNG under 300 KB. -->
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="w-mark" x1="0" y1="10" x2="100" y2="70" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5EA8FF"/>
+      <stop offset="0.5" stop-color="#885CF5"/>
+      <stop offset="1" stop-color="#E056B8"/>
+    </linearGradient>
+    <clipPath id="phone">
+      <rect x="810" y="64" width="310" height="640" rx="40"/>
+    </clipPath>
+  </defs>
+  <rect width="1200" height="630" fill="hsl(0, 0%, 4%)"/>
+  <svg x="80" y="72" width="94" height="60" viewBox="-8 4 106 68" fill="none">
+    <path transform="skewX(-10)" d="M6 22 C9 12 16 12 17 22 L19 52 C20 66 30 66 34 54 L42 30 C44 24 49 24 51 30 L58 54 C62 66 72 66 74 52 L78 20 C79 12 86 10 92 14" stroke="url(#w-mark)" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+  <g font-family="Geist, system-ui, sans-serif">
+    <text x="186" y="118" font-size="44" font-weight="600" letter-spacing="-1.2" fill="hsl(0, 0%, 96%)">WongStack</text>
+    <text font-size="64" font-weight="600" letter-spacing="-2" fill="hsl(0, 0%, 96%)">
+      <tspan x="80" y="262">Like Grok Bot, Muse,</tspan>
+      <tspan x="80" y="340">or Dots, but yours.</tspan>
+    </text>
+    <text font-size="34" font-weight="400" fill="hsl(0, 0%, 64%)">
+      <tspan x="80" y="432">An AI that builds your business's</tspan>
+      <tspan x="80" y="478">tools, from your phone.</tspan>
+    </text>
+    <text x="80" y="566" font-size="26" font-weight="400" fill="hsl(0, 0%, 64%)">Free and open source · wongstack.com</text>
+  </g>
+  <image x="810" y="64" width="310" height="671" href="../public/paseo/phone.webp" clip-path="url(#phone)"/>
+  <rect x="810" y="64" width="310" height="640" rx="40" fill="none" stroke="hsl(0, 0%, 18%)" stroke-width="3"/>
+</svg>

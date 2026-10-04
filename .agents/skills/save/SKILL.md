@@ -71,7 +71,7 @@ Commit a one-line repo-style message via literal file/quoted heredoc, with `Co-A
 
 ## 4. Publish and wait for the gate
 
-Use [preview-url.sh](scripts/preview-url.sh), never a constructed URL. [The gate](references/git-gate.md) owns push, PR and CI wait/fixes (three attempts); [Artifacts](../../../wiki/stack/artifacts-route.md) has no PR. Save may finish unverified; UNKNOWN never means no checks.
+Use [preview-url.sh](scripts/preview-url.sh), never a constructed URL. [The gate](references/git-gate.md) owns push, PR and CI wait/fixes (three attempts). Save may finish unverified; UNKNOWN never means no checks.
 
 ## 5. Report
 
