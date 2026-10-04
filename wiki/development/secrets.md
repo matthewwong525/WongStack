@@ -1,13 +1,13 @@
 # Secrets and environment variables
 
-Real secrets never go in git; a committed **`.env.example`** does. That one file lists every environment variable the project reads, each documented and none filled in, so a new contributor can set up locally without leaking a credential into history. Not a developer? [API keys](../stack/api-keys.md) is the plain version: paste the key into the private link the assistant sends.
+Real secrets never go in git; a committed **`.env.example`** does. That one file lists every environment variable the project reads, each documented and none filled in, so a new contributor sets up locally without leaking a credential into history. Not a developer? [API keys](../stack/api-keys.md) is the plain version: paste the key into the private link the assistant sends.
 
-This is a **convention with worktree-aware consumers**, not a required dotenv implementation. WongStack ships the pattern and an example file; its credential-aware skills follow the locations below, but the toolkit does not require a particular platform or make the application read `.env`. Adopt the names as-is, or use whatever your stack already expects (a framework's own dotenv file, a platform's `.dev.vars`) and keep the same discipline. A stack can have more than one live file, one per role: the Cloudflare pack keeps tool credentials in the root `.env` and the Worker's runtime secrets in `app/.dev.vars` — [which file holds what](../stack/staging-bindings.md#env-and-devvars-are-not-interchangeable), and [how both Workers get the same secrets](../stack/staging-bindings.md#one-declared-list-of-secrets-two-workers). Every rule on this page applies to each live file at its own path.
+This is a **convention with worktree-aware consumers**, not a required dotenv implementation. WongStack ships the pattern and an example file; its credential-aware skills follow the locations below, but the toolkit does not require a particular platform or make the application read `.env`. Adopt the names as-is, or use what your stack expects (a framework's dotenv file, a platform's `.dev.vars`) with the same discipline. A stack can have several live files, one per role: the Cloudflare pack keeps tool credentials in the root `.env` and the Worker's runtime secrets in `app/.dev.vars` — [which file holds what](../stack/staging-bindings.md#env-and-devvars-are-not-interchangeable), and [how both Workers get the same secrets](../stack/staging-bindings.md#one-declared-list-of-secrets-two-workers). Every rule on this page applies to each live file at its own path.
 
 ## The two files
 
 - **`.env.example` — committed in the active branch.** Every variable the code reads appears here, blank, with a comment saying *what it is* and *where to get it*. It's a checklist, not a config: no real values ever land in it. A diff to this file shows the team that a new secret is now required.
-- **`.env` — git-ignored in the primary worktree.** The real values, filled in per machine. A normal single checkout is already the primary worktree. From a linked worktree, resolve the durable checkout from Git metadata rather than saving a second copy in the disposable checkout. Every WongStack script uses one shared lookup:
+- **`.env` — git-ignored in the primary worktree.** The real values, filled in per machine. A normal single checkout is the primary worktree. From a linked worktree, resolve the durable checkout from Git metadata rather than saving a second copy in the disposable checkout. Every WongStack script uses one shared lookup:
 
   ```bash
   PRIMARY_ROOT=$(node .claude/skills/memory/scripts/lib/primary-root.mjs)
@@ -15,7 +15,7 @@ This is a **convention with worktree-aware consumers**, not a required dotenv im
 
   Equal git and common directories mean the current checkout is the primary. Otherwise the primary is the parent of the common directory, and Git must confirm it is a checkout. When it is not (a bare repository's worktree), the lookup exits 1 instead of guessing: a save stops, and a read may fall back to the current checkout.
 
-  Setup writes the protection into [`.gitignore`](../../.gitignore) before this page can be acted on — `.env*` with a `!.env.example` negation, and the same pair for `.dev.vars` — so a per-environment variant full of live values can't be committed by accident either. Before writing a value, verify the destination from the primary worktree with `git -C "$PRIMARY_ROOT" check-ignore -q .env`. If it is not ignored, stop before accepting the secret and fix the protection first.
+  Setup writes the protection into [`.gitignore`](../../.gitignore) before this page can be acted on — `.env*` with a `!.env.example` negation, and the same pair for `.dev.vars` — so a per-environment variant full of live values can't be committed by accident. Before writing a value, verify the destination from the primary worktree with `git -C "$PRIMARY_ROOT" check-ignore -q .env`. If it is not ignored, stop before accepting the secret and fix the protection.
 
   If `.env` was already tracked before the rule existed, widening `.gitignore` does **not** untrack it: `git rm --cached .env`, and rotate whatever was in it, because it's in the history of every clone.
 
@@ -43,7 +43,7 @@ If an ordinary browsing task reaches a token step, stop before taking a picture 
 
 1. **Find the service link**: the direct token page from existing provider guidance. If the exact address is uncertain, use the known dashboard link and make the path a step; never invent an account-specific address or open the token page in the agent's browser.
 2. **Write short steps**: what to create or change, and which permissions the task needs.
-3. **Put them where the person acts, and wait.** For a new or replacement value they go on [the private key link's page](#receive-a-key-through-a-private-link), and the chat carries only that link; wait until the key is saved. For a permission edit, revocation, or other change with no new value, give them in the chat and wait for the person's confirmation.
+3. **Put them where the person acts, and wait.** For a new or replacement value they go on [the private key link's page](#receive-a-key-through-a-private-link), and the chat carries only that link; wait until the key is saved. For a permission edit, revocation, or other change with no new value, give them in the chat and wait for the person to confirm.
 
 Ordinary browsing, saved website logins, use of stored credentials, and existing authorized token management through APIs continue as usual.
 
@@ -91,7 +91,7 @@ A linked worktree works on its own **branch copy** of each live file, at the sam
 node .claude/skills/ship/scripts/worktree-secrets.mjs seed
 ```
 
-Wire that one command into your worktree tool's setup step; this repo's `paseo.json` does. `seed` copies each primary live file the worktree ignores, never overwrites a file the worktree already has, and records a baseline of key names and value hashes in the worktree's own Git directory — never in the working tree, and never a value.
+Wire that command into your worktree tool's setup step; this repo's `paseo.json` does. `seed` copies each primary live file the worktree ignores, never overwrites a file the worktree has, and records a baseline of key names and value hashes in the worktree's own Git directory — never in the working tree, and never a value.
 
 Route each edit by its kind, so `main` sees an edit only when it is safe:
 
@@ -101,13 +101,13 @@ Route each edit by its kind, so `main` sees an edit only when it is safe:
 | Rotate a value (the old one no longer works) | both, now | the primary must not keep a dead value |
 | Delete a key, or set a value only this branch needs | the branch copy only | `main` still reads the old one until the merge |
 
-[`/ship`](../../.agents/skills/ship/SKILL.md) runs `worktree-secrets.mjs promote` after the merge. It applies to the primary only what this branch changed, compared three ways against the baseline, so a key another branch added to the primary is kept and a rotation made there is not reverted. A key that both sides changed is skipped and named for you to resolve. Without a baseline it applies adds only and names the rest. Every command prints key names, never values; `status` shows what is still pending.
+[`/ship`](../../.agents/skills/ship/SKILL.md) runs `worktree-secrets.mjs promote` after the merge. It applies to the primary only what this branch changed, compared three ways against the baseline, so a key another branch added to the primary is kept and a rotation made there is not reverted. A key both sides changed is skipped and named for you to resolve. Without a baseline it applies adds only and names the rest. Every command prints key names, never values; `status` shows what is still pending.
 
-WongStack's own tools, such as the memory store, read the primary `.env` first, so keep branch-only values to the settings your app reads. Merged outside `/ship`, for example in the GitHub UI? Run `promote` yourself from the worktree before you delete it. An abandoned branch needs nothing: delete the worktree and its deferred edits go with it.
+WongStack's own tools, such as the memory store, read the primary `.env` first, so keep branch-only values to the settings your app reads. Merged outside `/ship`, for example in the GitHub UI? Run `promote` from the worktree before you delete it. An abandoned branch needs nothing: delete the worktree and its deferred edits go with it.
 
 ## Unseeded linked-worktree copies
 
-A worktree-local live file with no baseline — made by hand, or by a setup that ran before `seed` existed — is not a branch copy. If both the primary worktree and a linked worktree have such regular files, preserve both until you reconcile them. Do not print, compare in output, overwrite, delete, or bulk-merge their values. WongStack consumers prefer the primary file and report the duplicate without exposing it.
+A worktree-local live file with no baseline — made by hand, or by a setup that ran before `seed` existed — is not a branch copy. If the primary and a linked worktree both have such regular files, preserve both until you reconcile them. Do not print, compare in output, overwrite, delete, or bulk-merge their values. WongStack consumers prefer the primary file and report the duplicate without exposing it.
 
 After reconciliation, tooling that insists on finding `.env` inside the linked checkout can use an **ignored symlink** to the primary file (or the stack's equivalent configuration). Never replace an existing regular file with that link automatically: reconcile it first, then confirm the link itself remains ignored.
 

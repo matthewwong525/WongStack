@@ -16,6 +16,21 @@
 
 **Updating.** Your apps, pages, branding, customer data and memory stay as they are, and everyone who can sign in keeps every app until you untick one. The update adds your sign-in email to the app's settings file, so Access knows you are the owner. It then runs `provision.mjs access`, the setup tool's step that makes one new Cloudflare key and stores it in your live app only. The key can change sign-in rules across your Cloudflare account; the app uses it only for its own sign-in list. If your saved Cloudflare token can no longer make keys, the update still finishes: Access opens, saves app choices, and says one step is left, and the assistant sends you a private link to paste a token that can. A site that is open with no sign-in is unchanged: turn the sign-in on first.
 
+## 31.1.0 — Learn from chats where the assistant struggled
+
+- When a chat is saved, the assistant also writes a short note for each real moment of trouble: you corrected it, you typed your own answer instead of picking a choice it offered, a step failed again and again, or it hunted a long time for something. A smooth chat gets none, and a note never holds anything private.
+- `/improve` reads those notes first, so a problem a real chat showed comes before one found by reading the project alone. You run it the same way as before.
+- When the trouble is a mistake a machine could catch, `/improve` builds a check that fails, not one more written instruction. A written rule is kept for judgment calls.
+- Fixing a problem closes its note. A note nobody acts on closes by itself after 30 days.
+
+**Updating.** No action needed. The usual update delivers this, and notes begin with the next saved chat; older chats are not re-read.
+
+## 31.0.2 — A memory area for WongStack's own landing page
+
+Memory's list of areas gains one entry, for the landing page kept in the WongStack source. Your install has no such folder, so nothing changes in how memory files or finds your facts.
+
+**Updating.** No action needed.
+
 ## 31.0.1 — Read a test file before deleting it
 
 The change-loop guide now says to read a test file before deleting it along with its code: a test that guards files that stay is moved, not deleted.

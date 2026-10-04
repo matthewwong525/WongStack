@@ -1,0 +1,1009 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`offers three examples, one pressed at a time, each a sample Claymoo screen in its own browser window > Ad briefs 1`] = `
+<section
+  class="band band-shade apps"
+>
+  <h2>
+    Examples of things I've done
+  </h2>
+  <p
+    class="lede"
+  >
+    I run Claymoo, a clay-kit company, with a small team. These are three apps we use every day, built by asking. Try one.
+  </p>
+  <p
+    class="chips"
+  >
+    <button
+      aria-pressed="false"
+    >
+      Pack Station
+    </button>
+    <button
+      aria-pressed="false"
+    >
+      Profit by channel
+    </button>
+    <button
+      aria-pressed="true"
+    >
+      Ad briefs
+    </button>
+  </p>
+  <p
+    class="lede"
+  >
+    <b>
+      Ad briefs
+      .
+    </b>
+     
+    I write a brief once. The designer works from it, and the finished ad goes out to Facebook and Instagram.
+  </p>
+  <section
+    aria-label="Ad briefs app, sample data"
+    class="browser"
+  >
+    <p
+      class="browser-bar"
+    >
+      <i />
+      <i />
+      <i />
+      <span>
+        your-app.your-name.workers.dev/
+        briefs
+      </span>
+    </p>
+    <div
+      class="admin"
+    >
+      <p
+        class="admin-head"
+      >
+        <span
+          aria-hidden="true"
+          class="admin-mark"
+        >
+          C
+        </span>
+        <b>
+          Claymoo Admin
+        </b>
+        <span>
+          Docs
+        </span>
+        <span>
+          Sign out
+        </span>
+      </p>
+      <h3>
+        Ad briefs
+      </h3>
+      <p
+        class="chips"
+      >
+        <button
+          aria-pressed="true"
+        >
+          All formats
+        </button>
+        <button
+          aria-pressed="false"
+        >
+          Video
+        </button>
+        <button
+          aria-pressed="false"
+        >
+          Static
+        </button>
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>
+              Brief
+            </th>
+            <th>
+              State
+            </th>
+            <th>
+              Format
+            </th>
+            <th>
+              Items
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <button>
+                Spring kit · static
+              </button>
+            </td>
+            <td>
+              <span
+                class="badge"
+              >
+                Draft
+              </span>
+            </td>
+            <td>
+              Static
+            </td>
+            <td>
+              2 designs
+            </td>
+          </tr>
+          <tr>
+            <td>
+              Frog kit hook test
+            </td>
+            <td>
+              <span
+                class="badge badge-dark"
+              >
+                Approved
+              </span>
+            </td>
+            <td>
+              Video
+            </td>
+            <td>
+              3 variants
+            </td>
+          </tr>
+          <tr>
+            <td>
+              Holiday bundle
+            </td>
+            <td>
+              <span
+                class="badge"
+              >
+                Archived
+              </span>
+            </td>
+            <td>
+              Static
+            </td>
+            <td>
+              1 design
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+  <p
+    class="note"
+  >
+    Sample data. Nothing is saved.
+  </p>
+</section>
+`;
+
+exports[`offers three examples, one pressed at a time, each a sample Claymoo screen in its own browser window > Pack Station 1`] = `
+<section
+  class="band band-shade apps"
+>
+  <h2>
+    Examples of things I've done
+  </h2>
+  <p
+    class="lede"
+  >
+    I run Claymoo, a clay-kit company, with a small team. These are three apps we use every day, built by asking. Try one.
+  </p>
+  <p
+    class="chips"
+  >
+    <button
+      aria-pressed="true"
+    >
+      Pack Station
+    </button>
+    <button
+      aria-pressed="false"
+    >
+      Profit by channel
+    </button>
+    <button
+      aria-pressed="false"
+    >
+      Ad briefs
+    </button>
+  </p>
+  <p
+    class="lede"
+  >
+    <b>
+      Pack Station
+      .
+    </b>
+     
+    Our warehouse team packs every order with it.
+  </p>
+  <section
+    aria-label="Pack Station app, sample data"
+    class="browser"
+  >
+    <p
+      class="browser-bar"
+    >
+      <i />
+      <i />
+      <i />
+      <span>
+        your-app.your-name.workers.dev/
+        pack-station
+      </span>
+    </p>
+    <div
+      class="admin"
+    >
+      <p
+        class="admin-head"
+      >
+        <span
+          aria-hidden="true"
+          class="admin-mark"
+        >
+          C
+        </span>
+        <b>
+          Claymoo Admin
+        </b>
+        <span>
+          Docs
+        </span>
+        <span>
+          Sign out
+        </span>
+      </p>
+      <h3>
+        Pack Station
+      </h3>
+      <p
+        class="admin-tabs"
+      >
+        <b>
+          Pack
+        </b>
+        <span>
+          Flagged Orders
+        </span>
+      </p>
+      <p
+        class="admin-toolbar"
+      >
+        <input
+          aria-label="Scan packing slip"
+          placeholder="Scan packing slip…"
+          readonly=""
+        />
+        <button
+          class="button"
+        >
+          Start Packing
+        </button>
+      </p>
+      <p
+        class="chips"
+      >
+        <button
+          aria-pressed="false"
+        >
+          To Pack (3)
+        </button>
+        <button
+          aria-pressed="false"
+        >
+          Packed (0)
+        </button>
+        <button
+          aria-pressed="true"
+        >
+          All (3)
+        </button>
+      </p>
+      <table
+        class="pack-table"
+      >
+        <thead>
+          <tr>
+            <th>
+              Order #
+            </th>
+            <th>
+              Pack by
+            </th>
+            <th>
+              Items
+            </th>
+            <th>
+              Delivery
+            </th>
+            <th>
+              Status
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <button>
+                #1041
+              </button>
+            </td>
+            <td>
+              Today
+            </td>
+            <td>
+              2
+            </td>
+            <td>
+              Express
+            </td>
+            <td>
+              <span
+                class="badge"
+              >
+                To pack
+              </span>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <button>
+                #1042
+              </button>
+            </td>
+            <td>
+              Today
+            </td>
+            <td>
+              2
+            </td>
+            <td>
+              Standard
+            </td>
+            <td>
+              <span
+                class="badge"
+              >
+                To pack
+              </span>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <button>
+                #1043
+              </button>
+            </td>
+            <td>
+              Tomorrow
+            </td>
+            <td>
+              1
+            </td>
+            <td>
+              Standard
+            </td>
+            <td>
+              <span
+                class="badge"
+              >
+                To pack
+              </span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+  <p
+    class="note"
+  >
+    Sample data. Nothing is saved.
+  </p>
+</section>
+`;
+
+exports[`offers three examples, one pressed at a time, each a sample Claymoo screen in its own browser window > Profit by channel 1`] = `
+<section
+  class="band band-shade apps"
+>
+  <h2>
+    Examples of things I've done
+  </h2>
+  <p
+    class="lede"
+  >
+    I run Claymoo, a clay-kit company, with a small team. These are three apps we use every day, built by asking. Try one.
+  </p>
+  <p
+    class="chips"
+  >
+    <button
+      aria-pressed="false"
+    >
+      Pack Station
+    </button>
+    <button
+      aria-pressed="true"
+    >
+      Profit by channel
+    </button>
+    <button
+      aria-pressed="false"
+    >
+      Ad briefs
+    </button>
+  </p>
+  <p
+    class="lede"
+  >
+    <b>
+      Profit by channel
+      .
+    </b>
+     
+    I check it every morning, before I decide where to spend on ads.
+  </p>
+  <section
+    aria-label="Profit by channel app, sample data"
+    class="browser"
+  >
+    <p
+      class="browser-bar"
+    >
+      <i />
+      <i />
+      <i />
+      <span>
+        your-app.your-name.workers.dev/
+        monthly-actuals
+      </span>
+    </p>
+    <div
+      class="admin"
+    >
+      <p
+        class="admin-head"
+      >
+        <span
+          aria-hidden="true"
+          class="admin-mark"
+        >
+          C
+        </span>
+        <b>
+          Claymoo Admin
+        </b>
+        <span>
+          Docs
+        </span>
+        <span>
+          Sign out
+        </span>
+      </p>
+      <h3>
+        Monthly Actuals
+      </h3>
+      <p
+        class="note"
+      >
+        Mar 2026
+      </p>
+      <p
+        class="chips"
+      >
+        <button
+          aria-pressed="true"
+        >
+          Shopify DTC
+        </button>
+        <button
+          aria-pressed="false"
+        >
+          Faire
+        </button>
+        <button
+          aria-pressed="false"
+        >
+          Amazon
+        </button>
+      </p>
+      <div
+        class="card"
+      >
+        <h4>
+          Contribution margin — last 6 months
+        </h4>
+        <ol
+          class="admin-bars"
+        >
+          <li>
+            <span>
+              <i
+                aria-hidden="true"
+                style="height: 61%;"
+              />
+            </span>
+            <b>
+              $
+              9.1
+              k
+            </b>
+            Oct
+          </li>
+          <li>
+            <span>
+              <i
+                aria-hidden="true"
+                style="height: 69%;"
+              />
+            </span>
+            <b>
+              $
+              10.2
+              k
+            </b>
+            Nov
+          </li>
+          <li>
+            <span>
+              <i
+                aria-hidden="true"
+                style="height: 100%;"
+              />
+            </span>
+            <b>
+              $
+              14.8
+              k
+            </b>
+            Dec
+          </li>
+          <li>
+            <span>
+              <i
+                aria-hidden="true"
+                style="height: 74%;"
+              />
+            </span>
+            <b>
+              $
+              11.0
+              k
+            </b>
+            Jan
+          </li>
+          <li>
+            <span>
+              <i
+                aria-hidden="true"
+                style="height: 66%;"
+              />
+            </span>
+            <b>
+              $
+              9.7
+              k
+            </b>
+            Feb
+          </li>
+          <li>
+            <span>
+              <i
+                aria-hidden="true"
+                style="height: 84%;"
+              />
+            </span>
+            <b>
+              $
+              12.4
+              k
+            </b>
+            Mar
+          </li>
+        </ol>
+      </div>
+      <div
+        class="card"
+      >
+        <h4>
+          Shopify DTC
+           · Mar 2026
+        </h4>
+        <dl
+          class="admin-tiles"
+        >
+          <div>
+            <dt>
+              Unit cost
+            </dt>
+            <dd>
+              $34.50
+            </dd>
+          </div>
+          <div>
+            <dt>
+              Profit / kit
+            </dt>
+            <dd>
+              $13.50
+            </dd>
+          </div>
+          <div>
+            <dt>
+              Margin
+            </dt>
+            <dd>
+              28%
+            </dd>
+          </div>
+          <div>
+            <dt>
+              Breakeven CAC
+            </dt>
+            <dd>
+              $27.50
+            </dd>
+          </div>
+          <div>
+            <dt>
+              Breakeven ROAS
+            </dt>
+            <dd>
+              1.75x
+            </dd>
+          </div>
+        </dl>
+        <table>
+          <thead>
+            <tr>
+              <th>
+                Line
+              </th>
+              <th>
+                $ / kit
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                Price
+              </td>
+              <td>
+                $48.00
+              </td>
+            </tr>
+            <tr>
+              <td>
+                Product cost
+              </td>
+              <td>
+                $11.50
+              </td>
+            </tr>
+            <tr>
+              <td>
+                Shipping + fees
+              </td>
+              <td>
+                $9.00
+              </td>
+            </tr>
+            <tr>
+              <td>
+                Ads
+              </td>
+              <td>
+                $14.00
+              </td>
+            </tr>
+            <tr>
+              <td>
+                Profit
+              </td>
+              <td>
+                $13.50
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+  <p
+    class="note"
+  >
+    Sample data. Nothing is saved.
+  </p>
+</section>
+`;
+
+exports[`opens the static brief, adds a marker, and approves it into the publish queue > static brief 1`] = `
+<section
+  aria-label="Ad briefs app, sample data"
+  class="browser"
+>
+  <p
+    class="browser-bar"
+  >
+    <i />
+    <i />
+    <i />
+    <span>
+      your-app.your-name.workers.dev/
+      briefs
+    </span>
+  </p>
+  <div
+    class="admin"
+  >
+    <p
+      class="admin-head"
+    >
+      <span
+        aria-hidden="true"
+        class="admin-mark"
+      >
+        C
+      </span>
+      <b>
+        Claymoo Admin
+      </b>
+      <span>
+        Docs
+      </span>
+      <span>
+        Sign out
+      </span>
+    </p>
+    <h3>
+      Static ad brief
+    </h3>
+    <button
+      class="admin-back"
+    >
+      ← 
+      Briefs
+    </button>
+    <p
+      class="admin-title"
+    >
+      <b>
+        Spring kit · static
+      </b>
+       
+      <span
+        class="badge"
+      >
+        Static
+      </span>
+       
+      <span
+        class="badge"
+      >
+        Draft
+      </span>
+    </p>
+    <p
+      class="note"
+    >
+      2 designs · revision 1
+    </p>
+    <div
+      class="card"
+    >
+      <h4>
+        Notes
+      </h4>
+      <textarea
+        aria-label="Notes"
+      >
+        Warm light. Show hands, not faces.
+      </textarea>
+    </div>
+    <div
+      class="card"
+    >
+      <h4>
+        Variations
+      </h4>
+      <div
+        class="brief-variations"
+      >
+        <p
+          aria-label="Reference picture with 3 numbered markers"
+          class="brief-picture"
+          role="img"
+        >
+          <b>
+            1
+          </b>
+          <b>
+            2
+          </b>
+          <b>
+            3
+          </b>
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>
+                Marker
+              </th>
+              <th>
+                Variation A
+              </th>
+              <th>
+                Variation B
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <b>
+                  1
+                </b>
+                 
+                Headline
+              </td>
+              <td>
+                Your first clay figure tonight
+              </td>
+              <td>
+                Make a frog in 20 minutes
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <b>
+                  2
+                </b>
+                 
+                Primary text
+              </td>
+              <td>
+                Everything in one box.
+              </td>
+              <td>
+                No kiln. No mess.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <b>
+                  3
+                </b>
+                 
+              </td>
+              <td>
+                —
+              </td>
+              <td>
+                —
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <button
+        class="admin-back"
+      >
+        + Add marker
+      </button>
+    </div>
+    <p
+      class="brief-bar"
+    >
+      <button
+        class="button"
+      >
+        Approve
+      </button>
+    </p>
+  </div>
+</section>
+`;
+
+exports[`packs an order: scan every item, then Complete, and the list shows it packed > all scanned 1`] = `
+<div
+  class="pack-items"
+>
+  <button
+    aria-label="Scan Cow clay kit: 1 of 1"
+    class="pack-item pack-done"
+    disabled=""
+  >
+    <i
+      aria-hidden="true"
+    />
+    <span>
+      <b>
+        Cow clay kit
+      </b>
+       SKU: 
+      CK-COW
+    </span>
+    <strong>
+      1/1
+       ✓
+    </strong>
+  </button>
+  <button
+    aria-label="Scan Sculpting tools: 1 of 1"
+    class="pack-item pack-done"
+    disabled=""
+  >
+    <i
+      aria-hidden="true"
+    />
+    <span>
+      <b>
+        Sculpting tools
+      </b>
+       SKU: 
+      TL-SCULPT
+    </span>
+    <strong>
+      1/1
+       ✓
+    </strong>
+  </button>
+</div>
+`;
+
+exports[`packs an order: scan every item, then Complete, and the list shows it packed > before scanning 1`] = `
+<div
+  class="pack-items"
+>
+  <button
+    aria-label="Scan Cow clay kit: 0 of 1"
+    class="pack-item"
+  >
+    <i
+      aria-hidden="true"
+    />
+    <span>
+      <b>
+        Cow clay kit
+      </b>
+       SKU: 
+      CK-COW
+    </span>
+    <strong>
+      0/1
+    </strong>
+  </button>
+  <button
+    aria-label="Scan Sculpting tools: 0 of 1"
+    class="pack-item"
+  >
+    <i
+      aria-hidden="true"
+    />
+    <span>
+      <b>
+        Sculpting tools
+      </b>
+       SKU: 
+      TL-SCULPT
+    </span>
+    <strong>
+      0/1
+    </strong>
+  </button>
+</div>
+`;
