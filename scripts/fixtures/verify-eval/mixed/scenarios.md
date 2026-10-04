@@ -51,3 +51,26 @@ The preference pages SHALL show Saved after storing the typed title, and read th
 
 - **WHEN** a person saves a new title at `/settings/bravo`
 - **THEN** Saved appears and reopening the preference shows the saved title unchanged
+
+### Requirement: Orders can be removed
+
+The orders page SHALL list each order and the total of the listed amounts.
+
+#### Scenario: Deleting an order lowers the total
+
+- **WHEN** a person deletes an order at `/orders`
+- **THEN** the order leaves the list and the shown total drops by its amount
+
+### Requirement: Receipts reach the customer
+
+#### Scenario: Sending a receipt emails the customer
+
+- **WHEN** a person sends a receipt for an order
+- **THEN** the page says Sent and the customer receives the receipt by email
+
+### Requirement: A nightly summary counts open orders
+
+#### Scenario: The nightly summary counts open orders
+
+- **WHEN** the nightly summary job runs
+- **THEN** `/summary` shows the number of open orders

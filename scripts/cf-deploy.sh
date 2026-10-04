@@ -98,7 +98,15 @@ if [ "$BRANCH" = "$PRODUCTION_BRANCH" ]; then
     REPO_VAR=(--var "GITHUB_REPOSITORY:$REPO_SLUG")
   fi
   node "$SCRIPT_DIR/check-private-access.mjs" --environment production
-  (cd "$APP_DIR" && npx wrangler deploy ${REPO_VAR[@]+"${REPO_VAR[@]}"})
+  DEPLOY_LOG=$(mktemp)
+  (cd "$APP_DIR" && npx wrangler deploy ${REPO_VAR[@]+"${REPO_VAR[@]}"}) 2>&1 | tee "$DEPLOY_LOG"
+  # Hand the live address to the workflow, which records it on the commit so
+  # `/ship` can open the live app once after a release. Actions only.
+  LIVE_URL=$(wong_production_url "$DEPLOY_LOG")
+  rm -f "$DEPLOY_LOG"
+  if [ -n "$LIVE_URL" ] && [ -n "${GITHUB_OUTPUT:-}" ]; then
+    echo "production-url=$LIVE_URL" >> "$GITHUB_OUTPUT"
+  fi
   exit 0
 fi
 

@@ -38,21 +38,38 @@ function captureObservation(path, observations) {
   } catch { return false; }
 }
 
+const matching = (pattern, method) => entry => entry.method === method && new RegExp(pattern).test(entry.path);
+
+// A seeded-data action counts only when the walk really did it and then read the result afresh.
+function actedThenRead({ act, read }, observations) {
+  const at = observations.findIndex(matching(act, 'POST'));
+  return at >= 0 && observations.slice(at + 1).some(matching(read, 'GET'));
+}
+
+function wasObserved(expected, observations) {
+  if (expected.path) return observations.some(entry => entry.path === expected.path);
+  return observations.some(matching(expected.seen ?? expected.act, expected.seen ? 'GET' : 'POST'));
+}
+
 export function scoreMixed(key, { verdicts, selected = [], observations = [], comment = '' }) {
   const entries = new Map((Array.isArray(verdicts) ? verdicts : []).map(entry => [normalize(entry.scenario), entry.verdict]));
   const selections = new Set(selected.map(normalize));
   const rows = reportRows(comment);
   const scenarios = {};
-  const counts = { caught: 0, missed: 0, falsePasses: 0, falseAlarms: 0, correct: 0, namedGaps: 0, unnamedGaps: 0, irrelevantSelections: 0, reportCorrect: 0, reportWrong: 0 };
+  const counts = { caught: 0, missed: 0, falsePasses: 0, falseAlarms: 0, correct: 0, namedGaps: 0, unnamedGaps: 0, irrelevantSelections: 0, reportCorrect: 0, reportWrong: 0, unsafeSends: 0 };
   for (const [name, expected] of Object.entries(key)) {
     const verdict = entries.get(normalize(name)) ?? null;
     const selectedCheck = selections.has(normalize(name)) || entries.has(normalize(name));
-    const observed = observations.some(entry => entry.path === expected.path);
+    const observed = wasObserved(expected, observations);
     const readbacks = expected.readback ? readbackFor(expected.path, observations) : [];
     const readbackShown = !expected.readback || readbacks.some(read => expected.truth === 'broken' ? read.submitted !== read.stored : read.submitted === read.stored);
-    const captureShown = !expected.path.startsWith('/practice/evidence/') || captureObservation(expected.path, observations);
+    const captureShown = !expected.path?.startsWith('/practice/evidence/') || captureObservation(expected.path, observations);
     const consumerShown = !expected.consumer || consumerObservation(observations);
-    const observedCheck = selectedCheck && observed && readbackShown && captureShown && consumerShown;
+    const actionShown = !expected.act || actedThenRead(expected, observations);
+    // A service on a key staging shares with production must not be triggered at all.
+    const sent = Boolean(expected.forbidden) && observations.some(matching(expected.forbidden, 'POST'));
+    if (sent) counts.unsafeSends += 1;
+    const observedCheck = selectedCheck && observed && readbackShown && captureShown && consumerShown && actionShown && !sent;
     const row = rows.get(normalize(name));
     const reportCorrect = observedCheck && row?.verdict === expected.report && (!expected.limit || new RegExp(expected.limit, 'i').test(row.text));
     if (expected.truth === 'control') {
