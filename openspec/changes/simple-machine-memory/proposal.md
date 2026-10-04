@@ -75,4 +75,6 @@ One new local identity helper, one small login-link handler, and one additive SQ
 
 - **2026-10-04** — Build checkpoint: the user invoked `/ship`. The bounded implementation and regression coverage are prepared; static release checks pass. Runtime tests, builds, and lint await CI. No live memory migration, credential issuance, or historical reassignment was performed.
 
+- **2026-10-04** — Reconciled published main at `02542fa` before the CI checkpoint. Its independent-chat change is retained; the memory ownership baseline is unchanged. Preserved both release entries and the retirement registry changes. Session context is in this handoff; no duplicate memory facts were written.
+
 - **Check:** `scripts/retired-names.json` removes the former `member add` retirement entry because the reviewed plan deliberately restores this command for trusted machine issuance. It no longer promises GitHub enrollment; all other retired-name guards remain unchanged. `memory-areas.test.mjs` now verifies that changing author labels on the same machine preserves private ownership; cross-machine isolation remains in the Worker matrix.
