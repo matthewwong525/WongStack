@@ -1,55 +1,38 @@
 # Tasks
 
-## 1. Existing-install and provider contracts
+The user explicitly requests testing only after the full remaining implementation. Build 2.x–5.x together, author meaningful tests alongside the code but do not run tests, build, /save or intermediate preview checks between tasks. Keep those boxes unchecked until the single final source gate 6.1 passes. Previous completed source checkpoints remain historical evidence in source-checks.md; withdrawn GitHub work is not remaining feature scope.
 
-- [x] 1.1 Recheck the merged #259 records and inventory the target owner evidence, Access IDs, repository and custom routes; deliver compatibility/route findings with missing live trust recorded and no provisioning or Cloud picker changes. Actual owner/provider verification stays in 7.2.
-- [x] 1.2 Record the documented GitHub App permissions/endpoints for clone, push, PR/check/preview operations, renewal and revocation, and the required provider publication boundary. Deliver the candidate narrow manifest, primary references and known blocked cases; actual endpoint/protection proof remains in 7.2 and editing stays disabled until it passes.
+## 1. Retained completed backend baseline
 
-## 2. Core membership and app authorization
+- [x] 1.1 Trusted owner activation and additive membership migration passed the previous source checkpoint; preserve owner/session checks and customer data.
+- [x] 1.2 Current app permissions, described/bare route guards and record-check composition passed the previous source checkpoint; preserve their guarantees.
+- [x] 1.3 Discovery/cache filtering and finite authorized app readback passed the previous source checkpoint; preserve zero-app self-service and denied unknown policy.
+- [x] 1.4 Cloudflare login-policy/session reconciliation passed the previous connection source checkpoint; retain durable generation/unknown-write handling and separate provider status.
 
-- [x] 2.1 Add additive app-D1 roster/grant/revision/connection/receipt tables and trusted owner activation, preserving customer data and rejecting first-visitor/service/foreign-target owner claims. Add migration and identity tests; verify through `/save`'s remote app gate and document activation/rollback in the owning stack wiki.
+## 2. Core app/API-only scope
 
-  The first remote gate passed at `8ba9ab9`: prefixed migration, private-pinned signed-owner activation, self-identity evidence endpoint, SQLite transaction/migration tests, signed-JWT routing tests, binding exclusion and activation/rollback guidance. Policy and issuance remain disabled; the private operator command and actual owner/provider acceptance remain pending. See [the installation inventory](implementation-inventory.md) and [GitHub contract](github-contract.md).
-- [x] 2.2 Add current membership/app authorization to mini-app and main dispatch, both described and bare routes, with explicit reviewed main-route mappings, owner/self-service exceptions, no permissive fallback and authoritative read consistency. Add denied, unmapped, action/record-guard and acknowledged-removal tests; verify through `/save`'s remote gate and document custom-route mapping beside company API guidance.
+- [ ] 2.1 Remove unshipped GitHub registration, token issuance/renewal/revocation, protection inspection and project-editing runtime routes/modules/tests/config dependencies. Keep customer data/additive schema intact and existing personal GitHub workflows unchanged; no repository-provider mutations.
+- [ ] 2.2 Make trusted owner activation, private owner setup, roster forms and rollout independent of repository IDs/names or GitHub readiness. Reject owner takeover/service/foreign-session claims; preserve existing installation pins on repeated setup.
+- [ ] 2.3 Return API/current-app self-service status with manual repository and independent memory guidance. Keep finite owner roster/status/login/retry operations, current grant enforcement and production credential exclusions. Author regression coverage for denied removed employees, app deselection during a valid session and partial login removal.
 
-  The remote gate passed at `37288ef`: explicit trusted rollout latch, one primary D1 snapshot, automatic mini-app scopes, reviewed main-route mappings and conjunctive action/record guards. Synthetic removal and empty/unavailable-policy cases passed without weakening checks. No live activation was performed; complete onboarding remains dependent on later connection/setup/acceptance tasks. See [source evidence](source-checks.md).
-- [x] 2.3 Apply the same current grants to summaries, selected details, OpenAPI, conditional responses and frontend app-access readback. Test stale ETags, cross-user caching, shared-action mappings, empty/unavailable policy and new unassigned apps; verify through `/save`'s remote gate and update discovery docs.
+## 3. Standalone company setup
 
-  The remote gate passed at `40a7a4c5`: current primary authorization precedes discovery and cache responses; ETags bind caller, policy revision and response; finite app readback includes frontend-only apps and zero-app self-service. Synthetic SQLite and signed-Worker tests cover shared scopes, removals, policy failure and cache isolation. No live activation was performed. See [source evidence](source-checks.md).
+- [ ] 3.1 Trim the unfinished standalone bootstrap to app/API login, status, selective discovery and action calls from an empty folder without repo/memory imports. Keep private state, same-business browser approval, canonical target checks and refused redirects. Author expired/new-device/headless/removed/zero-app tests without executing them yet.
+- [ ] 3.2 Remove the unfinished private Git/PR adapter and git-fronting skill changes; repository access/authentication remains manual through its provider. Preserve installed company client compatibility and existing files/independent memory.
+- [ ] 3.3 Define the reviewed immutable commit/digest bootstrap distribution and prompt generation, with truthful unavailable state for missing pins. Author artifact pin/clipboard fallback/private-state tests and update actual copy/paste instructions.
 
-## 3. Owner connections and private GitHub issuance
+## 4. Access and home screens
 
-Build 3.1–3.4 as one connection slice. Keep each task unchecked until the shared remote gate at 3.4 passes; do not stop for intermediate source-only checks.
+- [ ] 4.1 Build owner Access people/add-edit/login/removal/retry/share-link states and employee own setup/status, with server-enforced owner operations and no editing checkbox or GitHub connection section. Author relevant form/identity/denial/retry tests.
+- [ ] 4.2 Home offers Copy setup prompt, allowed app list, safe pending/error/empty states and authorized direct navigation. Preserve branding and owner removable welcome; employees see setup guidance. Author clipboard/navigation/zero-app tests and ensure phone/keyboard accessibility.
 
-- [ ] 3.1 Configure separate sealed Access-only login-management authority and exact recorded-resource reconciliation in core modules; keep durable latest-generation retries and independent policy/session results. Exclude connection secrets/sealing authority from ordinary mini-app bindings, expose only finite owner-checked operations, and isolate staging from production writes. Add stale-add, partial-removal, owner-isolation and binding-exclusion tests for the shared gate at 3.4; document actual scope/private owner setup.
-- [ ] 3.2 Add customer-owned GitHub App manifest registration/install callbacks with current owner, one-use attempt and CSRF checks; seal private material and independently verify the recorded repository, granted permissions and publication boundary. Add rejected/stale/organization-pending/protection tests for the shared gate at 3.4 and document one-time owner approval and App attribution.
-- [ ] 3.3 Add private employee issuance/renewal limited to the single repository and reviewed permission subset, with per-machine receipt, pre/post authorization checks and audited nonsecret status. Add race, lost-response, expiry and foreign-target tests for the shared gate at 3.4; document that native GitHub membership is separate.
-- [ ] 3.4 Add editing/full removal and tracked GitHub-token revocation, unknown-issuance expiry deadlines and retry results without restoring stale access. Verify the full 3.1–3.4 slice through `/save` with removal-during-issuance/renewal, provider-outage and residual-access tests; document downloaded-copy, external-membership and independent-memory limits.
+## 5. Distribution and owning documentation
 
-## 4. Empty-folder assistant setup and repository workflow
+- [ ] 5.1 Ship Access/bootstrap and additive migrations explicitly through payload inventory, remove withdrawn GitHub helper/secrets/dependency entries, and enforce production login-secret exclusions in staging tooling. Preserve customized installs; revise Next minor CHANGELOG and leave VERSION unchanged.
+- [ ] 5.2 Update employee/company API/mini-app/setup/sync guidance for API-only app login and manual repository authority; reconcile stale GitHub claims in implementation inventories/contracts. Keep source-check history exact. Validate the revised plan/review and instruction/payload requirements at the final gate.
 
-Build 4.1–4.3 together, keeping all three unchecked until the shared remote script/app/payload gate at 4.3 passes.
+## 6. One final source gate and finished preview
 
-- [ ] 4.1 Factor employee company transport away from repo/memory imports and publish a standalone version/digest-pinned bootstrap artifact through the reviewed distribution machinery. Support app-only API setup before a clone, canonical-origin login, approved browser URLs and authenticated readiness. Add empty-folder, headless-login, expired-session, redirect-refusal and missing-connection tests for the shared gate at 4.3; document the actual copy/paste procedure.
-- [ ] 4.2 Add a private Git credential/provider invocation adapter using the same employee app identity, scoped renewal and no token-bearing URLs/argv/remotes or global personal-gh replacement. Verify clone/fetch/push/PR/check operations, no secret inheritance into hooks/builds and safe folder/dirty-work resume with remote tests at the shared gate at 4.3; document supported operations and owner-required publishing.
-- [ ] 4.3 Adapt git-fronting skill connection checks to accept the verified private repository adapter while preserving spec reconciliation, resume, PR update, exact-head checks, archive and publication gates. Employee `/ship` must request the existing owner publication path without bypass. Verify the full 4.1–4.3 slice, workflow regressions and payload/context checks through `/save`; keep existing personal GitHub authentication usable.
-
-## 5. Access mini app and employee home
-
-Build 5.1–5.3 together. The shared remote app/UI/script gate is at 5.3; deployed interaction checks are completed in 7.1, and controlled live copy/paste acceptance in 7.2. Keep the three source tasks unchecked until the shared gate passes.
-
-- [ ] 5.1 Build Access owner people/add-edit/connections/removal sections and employee self-service setup/status, with the proposal's empty/loading/pending/error states and server-enforced owner operations. Add colocated form/identity/copy/retry tests; include them in the shared source gate at 5.3 and phone/keyboard acceptance at 7.1, and document add-email/share-link onboarding.
-- [ ] 5.2 Add the home Copy setup prompt action, allowed-app list and denied/empty/unavailable navigation. Preserve branding and the owner's removed-or-present tutorial while hiding employer personalization guidance from employees. Test clipboard fallback, announced status, unauthorized links and zero-app self-service through `/save`; document the new employee starting point.
-- [ ] 5.3 Generate nonsecret setup/resume prompts pinned to the reviewed bootstrap release and business origin, with independent API/project readiness and honest memory-not-connected guidance. Verify the full 5.1–5.3 slice with remote UI/script tests through `/save`; actual pasted empty-folder app-only/editor instructions are checked under controlled acceptance in 7.2.
-
-## 6. Distribution and reviewed updates
-
-Build 6.1–6.2 together and verify distribution, instructions and payload checks at the shared remote gate at 6.2. Keep both unchecked until it passes.
-
-- [ ] 6.1 Explicitly ship Access and bootstrap assets in payload inventory/stack pack while leaving other meta-only mini apps unshipped. Add a Next minor CHANGELOG entry with plain owner connection/activation steps, leave VERSION unchanged, and preserve customized app/routes/login/business data on sync. Add distribution/install regression and payload links/config/retired-name/context checks for the shared gate at 6.2.
-- [ ] 6.2 Update setup/sync/company API/mini-app guidance for existing-app employee connections, private management exclusions and independent memory authority. Verify instructions against delivered artifacts and exact copied prompt; verify the full 6.1–6.2 slice through `/save` and rebuild/validate this review if implementation changes its scope. Do not implement new-project OAuth, Artifacts, memory enrollment or Cloud picker work.
-
-## 7. End-to-end acceptance
-
-- [ ] 7.1 Run `/save` for all required remote checks and a deployed preview, then verify owner/employee Access states, phone/keyboard operation and selected-app API/discovery denials with synthetic nonproduction provider bindings. Record exact evidence without local builds or weakening checks.
-- [ ] 7.2 With the required controlled-installation authority, verify actual owner registration, email admission, an employee with no GitHub account connecting from an empty folder/remote host, clone/PR/check access, expiry renewal, app deselection during a valid session, editing revocation and full removal with provider propagation. Confirm GitHub attribution, owner publishing boundary and no secret leakage. Missing authority or incomplete provider outcomes remain unchecked/pending; remote source checks alone do not establish live readiness.
+- [ ] 6.1 After 2.x–5.x implementation is complete, run one /save checkpoint with all required remote app/build/script/generated-starter/distribution checks. No checks are weakened. Read all failures and repair together; repeat affected checks only when required by new fixes. Mark the corresponding implementation tasks complete only after this final source gate passes.
+- [ ] 6.2 Verify the finished deployed preview with synthetic nonproduction identities/providers: owner/employee Access states, allowed/denied app/API/discovery calls, zero-app self-service, clipboard fallback, phone and keyboard use. Record evidence and return the reviewable preview; no production provider mutations.
+- [ ] 6.3 With verified controlled-installation authority, verify actual owner activation, email admission, empty-folder employee API connection, session expiry, app deselection and removal/provider propagation. Repository operations and memory enrollment are excluded. Missing authority or incomplete provider outcomes remain pending and must be reported honestly; source tests do not establish live readiness.

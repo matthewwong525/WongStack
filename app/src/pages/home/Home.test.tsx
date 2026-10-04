@@ -1,22 +1,25 @@
 // @vitest-environment jsdom
 
 import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, expect, it } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { apps } from "../../lib/apps";
 import { Home } from "./Home";
 
-afterEach(cleanup);
+beforeEach(() => vi.stubGlobal("fetch", vi.fn(async () => Response.json({ state: "legacy" }))));
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
-it("lists every app in this build at once, with no loading step", () => {
+it("lists every app in this build after safe app-access readback", async () => {
   render(<Home />);
 
+  await screen.findByRole("region", { name: "Make it yours" });
   expect(screen.queryAllByRole("link").map((link) => link.getAttribute("href"))).toEqual(apps.map((app) => app.href));
   expect(screen.queryByText(/Loading/)).toBeNull();
 });
 
-it("keeps the workspace heading and apps outside the removable welcome, in order", () => {
+it("keeps the workspace heading and apps outside the removable welcome, in order", async () => {
   render(<Home />);
 
+  await screen.findByRole("region", { name: "Make it yours" });
   const heading = screen.getByRole("heading", { level: 1, name: "Your workspace, shaped around you" });
   const tutorial = screen.getByRole("region", { name: "Make it yours" });
   const appHeading = screen.getByRole("heading", { level: 2, name: "Your apps" });
@@ -29,3 +32,13 @@ it("keeps the workspace heading and apps outside the removable welcome, in order
   expect(tutorial.contains(list)).toBe(false);
   expect(list.className).toMatch(/^app-list/);
 });
+
+it('the verified employer retains the welcome and the current app catalogue', async () => {
+  vi.stubGlobal('fetch', vi.fn(async (url: string) => url.endsWith('/apps')
+    ? Response.json({ state: 'current', role: 'owner', revision: 1, apps: apps.map(app => app.name) })
+    : Response.json({ role: 'owner', identity: { email: 'owner@example.com', subject: 'owner' }, apps: apps.map(app => app.name), api: 'authenticated', repository: 'manual_provider_setup', memory: 'independent_operator_setup', prompt: { state: 'unavailable', message: 'Finish reviewed setup' } })))
+  render(<Home />)
+  await screen.findByRole('region', { name: 'Make it yours' })
+  expect(screen.getAllByRole('link').map(link => link.getAttribute('href'))).toEqual(apps.map(app => app.href))
+  await screen.findByText('Finish reviewed setup')
+})

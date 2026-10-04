@@ -22,7 +22,7 @@ Only explicitly reviewed harmless infrastructure uses `{ kind: "infrastructure" 
 
 Each business call reads installation, membership and selected apps together from a D1 session beginning at the primary. The server retains no positive permission cache between requests. A request admitted before a removal may finish; the next request observes the committed removal, including with the same unexpired app login. Missing or unavailable authority returns a safe unavailable response. Preserve this mapping and every existing custom handler during updates.
 
-[Employee access activation](employee-access.md) uses private operator configuration and a verified owner session. Its core identity/activation endpoints are administration, absent from action discovery. Activation alone assigns no employee app or project access.
+[Employee access activation](employee-access.md) uses private operator configuration and a verified owner session. Its core identity/activation endpoints are administration, absent from action discovery. Activation alone assigns no employee app access. Repository authentication stays manual through its provider.
 
 ## Discover only what the task needs
 
@@ -38,7 +38,7 @@ The document and summaries carry a deterministic contract revision. Each ETag al
 
 ## Connect and call
 
-Run [the helper](../../scripts/company-api.mjs) from the repository root. It reads only public install metadata for company routing. New installs record `components.companyApi.origin` in `.claude/.wong-stack.json`, using the production Worker name and the account hostname read back during provisioning. Older records can use an explicit origin until the reviewed update fills it.
+From an empty folder, use the reviewed [employee bootstrap](employee-project.md). Installed projects run [the helper](../../scripts/company-api.mjs) from the repository root; `--state` can select the same private connection, while existing private folder locators remain compatible. It reads only public install metadata for company routing. New installs record `components.companyApi.origin` in `.claude/.wong-stack.json`, using the production Worker name and the account hostname read back during provisioning. Older records can use an explicit origin until the reviewed update fills it.
 
 ```bash
 node scripts/company-api.mjs login --origin https://company.example.com

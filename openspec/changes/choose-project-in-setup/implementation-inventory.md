@@ -2,7 +2,7 @@
 
 Read-only source inventory, 2026-10-04. No resource was provisioned, no provider policy changed, and the Cloud picker remains outside this change.
 
-The parent verified [#259](https://github.com/matthewwong525/WongStack/pull/259) merged at `2026-10-04T14:32:37Z`, head `82af26dbcbcb77c11c41fe1e3087108ae868e858`. The local setup contract in [private-access.mjs](../../../.agents/skills/wong-setup/scripts/private-access.mjs) records owned Worker/application/policy IDs and independent coverage/human-login status. This change consumes an existing protected GitHub-backed installation. It does not treat managed starter/Artifacts installs as employee-editable personal repositories.
+The parent verified [#259](https://github.com/matthewwong525/WongStack/pull/259) merged at `2026-10-04T14:32:37Z`, head `82af26dbcbcb77c11c41fe1e3087108ae868e858`. The local setup contract in [private-access.mjs](../../../.agents/skills/wong-setup/scripts/private-access.mjs) records owned Worker/application/policy IDs and independent coverage/human-login status. This change consumes an existing protected business app/API installation. Repository grants/authentication remain manual for every provider; no repository automation is required.
 
 ## Current target
 
@@ -21,7 +21,7 @@ The public `.agents/.wong-stack.json` and [production configuration](../../../ap
 | App database | `wongstack-db`, `322d78e8-19e1-4bf0-8489-faa13c66deb1` |
 | Recorded owner email | `matthewwong525@gmail.com` |
 
-The record still says `humanLogin: unverified` and has no signed owner subject or numeric GitHub repository ID. Its memory URL suggests the production address, but does not independently verify app routing. These public values are inventory, not owner authority. Private provider/session readback and an independently confirmed owner must establish the activation pin. Live onboarding readiness remains unverified. No private setup record or credential value was read for this inventory.
+The record still says `humanLogin: unverified` and has no signed owner subject. A repository ID is not an activation prerequisite. Its memory URL suggests the production address, but does not independently verify app routing. These public values are inventory, not owner authority. Private provider/session readback and an independently confirmed owner must establish the activation pin. Live onboarding readiness remains unverified. No private setup record or credential value was read for this inventory.
 
 ## Routes to preserve
 
@@ -39,6 +39,10 @@ The record still says `humanLogin: unverified` and has no signed owner subject o
 
 No other bare main business handlers exist in this source router. Installed customized routes require their own read-only inventory and reviewed app mappings before policy activation; this inventory cannot establish that for another business. New app IDs receive no automatic assignment. Existing action/record guards remain conjunctive.
 
-## First source gate
+## Retained source baseline and final acceptance
 
-Task 2.1 adds only prefixed app-D1 tables and private-pinned activation. It leaves `policy_enabled` and `issuance_enabled` false. Unit tests use actual SQLite migration/transaction behavior; Worker tests exercise signed human assertions, visitor/service denial and private-binding exclusion. Remote app checks are pending. Actual owner/provider verification and project protection remain separate acceptance work.
+Previous remote checkpoints in [source-checks.md](source-checks.md) establish trusted owner storage, current app/discovery guards and durable Cloudflare policy/session reconciliation. Their original task numbers and withdrawn GitHub evidence remain historical records.
+
+Current source removes unshipped repository registration, publication inspection, credential issuance and private Git/PR transport. Additive tables and deprecated fields remain intact; app/API-only activation uses inert placeholders for new rows and preserves existing records. Access manages exact-email app grants and independent login outcomes; employees retain own zero-app setup. Home and direct app navigation enforce current permissions while branding/tutorial customization stays intact.
+
+No live owner authority is established by this inventory or synthetic tests. Tasks 6.1–6.2 require the final source gate and finished nonproduction preview; task 6.3 requires controlled installation authority and actual human-login/provider outcomes. Production management credentials remain excluded from staging.

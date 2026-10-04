@@ -1,12 +1,12 @@
 ## Purpose
 
-Let employees connect an assistant from an existing business app using their app identity, with employer-managed app and project permissions and private, revocable repository access.
+Let employees connect an assistant from an existing business app using their app identity, with employer-managed app/API permissions. Repository access and authentication remain manual and independent.
 
-## ADDED Requirements
+## MODIFIED Requirements
 
 ### Requirement: The business app is the employee setup entry point
 
-A current employee SHALL receive a copyable assistant setup prompt and their own connection status after signing into the existing protected business app. The prompt SHALL contain nonsecret routing and instructions only, SHALL remain manually copyable after clipboard failure, and SHALL perform no work or grant access when copied. Employees SHALL require no Cloudflare administration account or separate GitHub identity for the supported assistant connection. Expired or new-device sessions SHALL use the same employee app identity for renewed approval.
+A current employee SHALL receive a copyable assistant setup prompt and their own connection status after signing into the existing protected business app. The prompt SHALL contain nonsecret routing and instructions only, SHALL remain manually copyable after clipboard failure, and SHALL perform no work or grant access when copied. Employees SHALL require no Cloudflare administration account or repository identity for the supported company API connection. Repository access SHALL be granted and authenticated separately through its provider. Expired or new-device sessions SHALL use the same employee app identity for renewed approval.
 
 #### Scenario: Employee copies setup instructions
 
@@ -20,11 +20,11 @@ A current employee SHALL receive a copyable assistant setup prompt and their own
 
 ### Requirement: The employer manages employee grants through Access
 
-Only the installation's trusted verified employer SHALL add, edit or remove employees, manage provider connections, or change selected-app and optional project-editing grants. A new employee SHALL have no business apps preselected and no project editing until granted. New apps SHALL require an explicit assignment. A current employee with no assigned business apps SHALL retain only their self-service setup/status. Public routing, service identity and first visitation SHALL establish no employer authority.
+Only the installation's trusted verified employer SHALL add, edit or remove employees, manage app-login connections, or change selected-app grants. A new employee SHALL have no business apps preselected and SHALL receive no repository authority from app login. New apps SHALL require an explicit assignment. A current employee with no assigned business apps SHALL retain only their self-service setup/status. Public routing, service identity and first visitation SHALL establish no employer authority.
 
 #### Scenario: Employer adds a person
 
-- **WHEN** the employer saves a person's email with Orders access and no project editing
+- **WHEN** the employer saves a person's email with Orders access
 - **THEN** that person is assigned Orders only and the owner receives the ordinary app link to share and the actual admission status
 
 #### Scenario: Employee attempts membership administration
@@ -46,27 +46,13 @@ The installation SHALL durably reconcile its current exact-email roster to its r
 - **WHEN** stale add work runs after the person has been removed
 - **THEN** reconciliation converges to current membership and reports any provider removal still pending
 
-### Requirement: Owner-approved GitHub access serves the existing project
-
-The employer SHALL connect the existing repository by approving a customer-owned GitHub App. A current project editor SHALL receive distinct, short-lived access limited to the recorded repository and reviewed editing permissions, with fresh employee authorization on issuance and renewal. Owner/private-App keys SHALL never reach the employee. Readiness SHALL require verified installation, repository, permissions and a provider-enforced publication boundary; insufficient protection SHALL block editing rather than imply that a UI restriction prevents publishing. GitHub App attribution and whole-repository visibility SHALL be disclosed. Native GitHub membership SHALL not be claimed created by this flow.
-
-#### Scenario: Approved employee opens the project
-
-- **WHEN** a current editor connects after the owner has approved and verified the GitHub project
-- **THEN** their assistant can clone and save supported changes without an employee GitHub sign-in, using private access restricted to that repository
-
-#### Scenario: Provider protection cannot separate publishing
-
-- **WHEN** the repository would allow the issued editing permission to bypass the required owner publication boundary
-- **THEN** project editing remains blocked with owner setup guidance and no editing token is delivered
-
 ### Requirement: Assistant setup works before a private checkout exists
 
-Published setup SHALL support an empty folder and supported remote workspace through a verified reviewed bootstrap artifact. An app-only employee SHALL obtain a usable company API client without cloning the private project; an editor SHALL additionally connect the existing repository. Interrupted setup SHALL preserve dirty work, conflicting local folders and unpushed commits and resume against the same target. API and repository readiness SHALL require actual authorized connection evidence and SHALL be reported independently.
+Published setup SHALL support an empty folder and supported remote workspace through a verified reviewed bootstrap artifact. An employee SHALL obtain a usable company API client without cloning a private project. Setup SHALL NOT issue repository credentials, register a repository integration or change repository authentication. Interrupted setup SHALL preserve dirty work, conflicting local folders and unpushed commits and resume against the same target. API readiness SHALL require actual authorized connection evidence; repository access SHALL be labeled separate manual setup.
 
 #### Scenario: App-only employee starts from an empty folder
 
-- **WHEN** an employee assigned business apps but no editing pastes the setup prompt into their assistant
+- **WHEN** an employee assigned business apps pastes the setup prompt into their assistant
 - **THEN** the assistant can bootstrap and call their approved company actions without needing access to the private project source
 
 #### Scenario: Existing local work conflicts with setup
@@ -76,17 +62,17 @@ Published setup SHALL support an empty folder and supported remote workspace thr
 
 ### Requirement: Connections remain private and destination bound
 
-Employee sessions and repository credentials SHALL remain in private OS-user state outside checkouts and SHALL not appear in prompt text, model output, token-bearing arguments, URLs, git remotes, tracked files or ordinary diagnostics. App credentials SHALL go only to the verified business origin and repository credentials only to the recorded provider destination. Owner, deployment, business-service, memory and verification credentials SHALL never substitute for employee connection. Repository credentials SHALL not be inherited by builds or unrelated commands.
+Employee sessions SHALL remain in private OS-user state outside checkouts and SHALL not appear in prompt text, model output, token-bearing arguments, URLs, git remotes, tracked files or ordinary diagnostics. App credentials SHALL go only to the verified business origin. Company API setup SHALL not receive or manage repository credentials. Owner, deployment, business-service, memory and verification credentials SHALL never substitute for employee connection. Employee sessions SHALL not be inherited by builds or unrelated commands.
 
 #### Scenario: A redirect requests credential forwarding
 
-- **WHEN** a setup or provider response redirects a credential-bearing request to another destination
+- **WHEN** a setup response redirects a credential-bearing request to another destination
 - **THEN** the helper refuses forwarding without exposing the credential
 
 #### Scenario: Project command execution begins
 
 - **WHEN** the connected assistant executes a build or unrelated business command
-- **THEN** the command does not inherit the private repository token used by selected git/provider operations
+- **THEN** the command does not inherit the employee session used by selected company API operations
 
 ### Requirement: Current app grants govern business access everywhere
 
@@ -102,25 +88,40 @@ Current employee grants SHALL govern app lists, direct app visits, associated de
 - **WHEN** app deselection is acknowledged and the employee sends their next request with the same valid session
 - **THEN** that app's request is denied without needing logout or changing other app grants
 
-### Requirement: Access removal reports each actual outcome
-
-Project-editing removal SHALL stop new issuance and renewal, revoke this flow's known repository tokens and preserve assigned app access. Full removal SHALL deny company work immediately and additionally withdraw managed app admission and revoke existing app sessions. In-flight issuance SHALL not deliver a token after revocation; unknown provider outcomes SHALL remain pending until resolved or their bounded credentials expire. Policy, session and token outcomes SHALL be reported separately and retries SHALL follow current desired state. Previously downloaded data, independently granted GitHub access and independently installed memory SHALL not be claimed revoked.
-
-#### Scenario: Editing is removed during issuance
-
-- **WHEN** the employer removes editing while GitHub access is being created
-- **THEN** setup withholds delivery, stops renewal and reports any token revocation or unknown expiry still pending, while assigned apps remain available
-
-#### Scenario: Full removal partly fails
-
-- **WHEN** local removal commits but a provider policy/session or token revocation fails
-- **THEN** new company work is denied and Access reports and retries the unresolved provider outcomes without claiming full completion
-
 ### Requirement: Existing memory authority is preserved
 
-Setup SHALL preserve the installed memory target, machine authority and private history. Fresh memory enrollment SHALL remain outside this employee connection; app login and repository access SHALL not create memory authority. Missing trusted operator setup SHALL be reported as not connected without affecting otherwise ready API or repository access.
+Setup SHALL preserve the installed memory target, machine authority and private history. Fresh memory enrollment SHALL remain outside this employee connection; app login and repository access SHALL not create memory authority. Missing trusted operator setup SHALL be reported as not connected without affecting otherwise ready API access.
 
 #### Scenario: A fresh computer has no memory grant
 
-- **WHEN** the employee connects their API and repository on a computer lacking trusted memory setup
-- **THEN** those connections report their own readiness while memory remains not connected with trusted-owner setup guidance
+- **WHEN** the employee connects their API on a computer lacking trusted memory setup
+- **THEN** API access reports its own readiness while memory remains not connected with trusted-owner setup guidance
+
+## REMOVED Requirements
+
+### Requirement: Owner-approved GitHub access serves the existing project
+
+**Reason:** The user reduced this change to app/API access only and explicitly chose manual repository access.
+**Migration:** Grant and authenticate repository access through the repository provider. Remove the unshipped automated GitHub integration and private repository helper from this branch; app login grants only authorized company API actions.
+
+### Requirement: Access removal reports each actual outcome
+
+**Reason:** Automatic repository editing and token revocation have been withdrawn; removal now manages only company app/API and Cloudflare login authority.
+**Migration:** Use the replacement app-access removal requirement. Remove manually granted repository access through its provider and manage independent memory separately.
+
+## ADDED Requirements
+
+### Requirement: App access removal reports actual login outcomes
+
+Full removal SHALL deny company work immediately, withdraw managed app admission and revoke existing app sessions. Policy and session outcomes SHALL be reported separately, remain retryable and follow current desired membership. App removal SHALL NOT claim to revoke manually granted repository access, downloaded data or independently installed memory.
+
+#### Scenario: Repository access was granted manually
+
+- **WHEN** the employer removes a person's app access
+- **THEN** company work is blocked and the app explains that repository access must be removed separately through its provider
+
+#### Scenario: Full removal partly fails
+
+- **WHEN** local removal commits but a provider policy or session revocation fails
+- **THEN** new company work is denied and Access reports and retries unresolved provider outcomes without claiming full completion
+

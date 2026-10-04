@@ -106,6 +106,7 @@
       "app/.dev.vars.example",
       "scripts/cf-preview.sh",
       "scripts/company-api.mjs",
+      "scripts/employee-bootstrap.mjs",
       "scripts/employee-owner-setup.mjs"
     ],
     "dirs": [
@@ -120,6 +121,16 @@
       "app/wrangler.jsonc",
       "app/src/apps/tips",
       "app/worker/apps/tips"
+    ],
+    "files": [
+      "app/src/apps/access/App.tsx",
+      "app/src/apps/access/People.tsx",
+      "app/src/apps/access/PersonForm.tsx",
+      "app/src/apps/access/LoginStatus.tsx",
+      "app/src/apps/access/Access.css",
+      "app/src/apps/access/app.json",
+      "app/src/apps/access/App.test.tsx",
+      "app/worker/employee-access/bootstrap-release.json"
     ]
   },
   "seededBySetup": {

@@ -1,6 +1,6 @@
 # GitHub repository contract
 
-Primary documentation checked 2026-10-04. This is the narrow adapter contract, not evidence of a live approved installation. Task 1.2 and controlled provider acceptance remain pending until its actual endpoints and publication boundary pass integration checks.
+Withdrawn scope record, 2026-10-04. The user chose app/API access only and manual repository grants/authentication. No automatic repository adapter, registration, protection inspection or token issuance from the contract below ships. It records the superseded design and is not a current integration or acceptance requirement. Existing personal GitHub workflows remain unchanged.
 
 ## Reviewed permissions and endpoints
 

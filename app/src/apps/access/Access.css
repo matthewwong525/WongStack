@@ -1,0 +1,10 @@
+.access-page { display: grid; gap: 1rem; }
+.access-page section, .access-form { min-width: 0; }
+.access-form { display: grid; gap: 1rem; }
+.access-form > label { display: grid; gap: .5rem; }
+.access-form input[type="email"] { width: 100%; box-sizing: border-box; }
+.access-choice { display: flex; align-items: center; gap: .6rem; margin-block: .6rem; }
+.access-choice input { width: auto; }
+.access-actions { display: flex; flex-wrap: wrap; gap: .6rem; }
+.access-people { list-style: none; padding: 0; display: grid; gap: 1rem; }
+.access-people li, .access-removal { padding: 1rem; border: 1px solid var(--border); border-radius: .6rem; overflow-wrap: anywhere; }

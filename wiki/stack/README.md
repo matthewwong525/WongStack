@@ -29,3 +29,5 @@ The GitHub route uses **merge = deploy**, independent staging and branch preview
 Personal installs take the pack. Standing it up is [setup's provisioning step](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md), which runs once when `/wong-setup` installs WongStack, from any folder. A login wall is [Cloudflare Access](cloudflare-access.md#turning-it-on-through-an-agent), and removing everything is the [teardown](getting-started.md#teardown). The managed starter has its [own limits and recovery](hosted-projects.md#scope-and-recovery).
 
 > [Session memory](../development/memory.md) is separate from this pack. Personal setup provisions it; the managed starter leaves it unconfigured.
+
+[Employee assistant connection](employee-project.md) covers the private company API bootstrap and separate manual repository setup.

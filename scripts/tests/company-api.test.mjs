@@ -165,7 +165,7 @@ test('private owner consumer permits only finite same-origin management calls wi
     return Response.json({ code: 'owner_activated' });
   } });
   await f.client.login(origin);
-  for (const action of ['identity', 'activate', 'connect', 'prepare', 'rollout', 'editing', 'check', 'status', 'retry']) {
+  for (const action of ['identity', 'activate', 'connect', 'prepare', 'rollout', 'status', 'retry']) {
     assert.deepEqual(await f.client.ownerSetup(action), { code: 'owner_activated' });
   }
   await assert.rejects(f.client.ownerSetup('https://foreign.example.com'), /Unsupported owner setup/);

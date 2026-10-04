@@ -78,3 +78,23 @@ The person approved continuing. The new checkpoint consolidates the bounded stre
 Continued checkpoint `d325c4cd`: app, build/staging, script checks and both generated starters passed. Payload release checks alone failed the instruction byte ceiling (`190955 >= 190845`): this branch adds owner-consumer distribution wording and merged #267 consumes the prior headroom. The first correction condenses only this change's Pack inventory sentence, retaining the helper/owner links and memory separation. This failure intersects the change; no unrelated rerun applies.
 
 The first inventory trim at `5b30f919` remained 47 bytes over the ceiling; it was pushed before that static result was correctly handled. The corrective trim was verified before commit: instruction bytes `190806 < 190845`, with all helper links retained. This is the second correction in this resumed checkpoint; no threshold changed.
+
+## Continued connection gate passed
+
+2026-10-04, exact head `512e59a8dc24e330325ec77e106121308e726655`, branch `smooth-repo-selection`, draft #264, Status `in-progress`. Integrated #267 staging baseline `da9e7895` (VERSION 30.8.0) while retaining this change's Next minor entry.
+
+- App tests/100% coverage/quality: PASS, [run](https://github.com/matthewwong525/WongStack/actions/runs/37226925438).
+- Build/staging: PASS, [run](https://github.com/matthewwong525/WongStack/actions/runs/37226925447).
+- Payload/scripts/generated starters/release checks: PASS, [run](https://github.com/matthewwong525/WongStack/actions/runs/37226925633).
+- Bounded stream reading is shared, with original caller errors preserved. Two instruction-inventory corrections kept the merged context within unchanged limits; no checks were weakened.
+
+Tasks 3.1–3.4 are complete at the source gate. Provider acceptance remains pending in 7.2; rollout and live issuance were not enabled. Bootstrap and UI follow next. Session facts remain skipped because there is no registered current session hook.
+
+
+## Bootstrap source slice 4.1–4.3
+
+Prepared a standalone built-in-only Node artifact and reused its transport from installed company calls. API setup works before a clone with zero apps; finite owner identity is distinct from authenticated employee readiness. Private state has 0700/0600 modes and lives outside checkouts. A private nonsecret folder locator preserves the canonical-origin connection after clone, including a different recorded public install alias, while later public-routing changes still require reconnection. No credential enters the prompt, Git argv/URL/remotes, tracked files or hook/build environment.
+
+Synthetic source tests cover independent app-only status, headless/expired login (the existing transport tests), missing connections, redirect refusal, issuance/renewal/removal races, same-origin employee identity changes and lost-response receipts, callback destination checks, protected private file modes, clone/fetch/feature push, conflicting/dirty folders, encoded REST lookup/create/update, exact-head checks/status pagination and settled-gate semantics, preview commit evidence, unsupported endpoints, and unchanged personal delivery gates. These tests have not been run locally. Tasks 4.1–4.3 remain unchecked until the parent completes the remote gate.
+
+Static payload links, OpenSpec configuration, JavaScript syntax and context checks pass. Instruction headroom is 121 bytes at this source state; the new transport link and employee `/ship` guard were offset inside their touched guidance. No source check was loosened. The artifact is supplied by an exact passed public source commit and digest; the later setup-prompt slice must pin that actual passed artifact. No live provider credential was read, created or changed. Controlled empty-folder/provider acceptance remains separate in 7.2.

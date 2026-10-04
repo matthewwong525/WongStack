@@ -3,17 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Connect assistants with employee access
+## Next (minor) — Connect assistants through app login
 
-Add private owner activation and separate app-database storage for employee access. Activation requires the existing app's signed owner identity and privately verified installation details. It leaves employee grants and project editing disabled until their later setup checks pass.
+Employees can copy a reviewed setup prompt from the business app and connect company APIs from an empty folder using their own app login. Access gives the employer exact-email people management and explicit per-app choices; no business app is assigned automatically.
 
-Reviewed employee policy checks current app permissions before business APIs run, including custom handlers without action descriptions. Main routes need explicit app mappings; missing or unavailable authority denies business access once the owner enables the policy.
+Current permissions govern app cards, direct visits, business APIs and assistant discovery during existing sessions. Removal blocks new company work immediately and reports login-policy/session changes separately, with durable pending outcomes and retries.
 
-Assistant discovery and frontend app-access readback use the same current grants. Removed apps disappear from action contracts on the next lookup, including cached requests; client-only apps also need explicit assignment.
+Repository grants and authentication stay manual through their provider; memory keeps its existing separate setup. Owner activation no longer needs repository metadata. Private production login-management bindings cannot be copied to staging; secret tooling validates both targets before any push.
 
-Owner connections now seal separate login-management/GitHub authority, reconcile exact recorded resources, and track per-machine short-lived repository receipts and independent removal results. Editing stays blocked until current provider protection is independently verified; ordinary shared deployment credentials do not meet that boundary.
-
-**Updating.** Keep existing apps, routes, login settings and business data. After the reviewed update deploys, verify the owner's app login and the existing repository, then configure the private owner activation record. Review app assignments and route mappings before enabling employee permissions. Login-management and GitHub connections each need the owner's separate approval; missing setup leaves those connections unavailable. Create a separate staging secret file with production connection authority explicitly empty before pushing runtime secrets. Existing memory access stays separate.
+**Updating.** Preserve custom apps, routes, branding, removed welcome guides, customer data and independent memory. Privately verify the employer's app identity and installation, review explicit apps/route mappings, then configure Access-only login management before enabling employee policy. Omit all private Access management names from a separate staging secret file/config. Setup prompts require a reviewed immutable public bootstrap commit and digest; unavailable pins or owner setup stay visibly unavailable. App removal does not withdraw manually granted repository access.
 
 ## 30.8.0 — A staging playground, and a look at the live app
 

@@ -5,7 +5,6 @@ import { readPin, ownerMatches, type ActivationEnv, type Pin } from "./activatio
 export interface ConnectionEnv extends ActivationEnv {
   WONG_ACCESS_POLICY?: string;
   WONG_ACCESS_ROLLOUT?: string;
-  WONG_GITHUB_PUBLICATION?: string;
   WONG_ACCESS_SEAL_KEY?: string;
   /** Separate account-scoped Access-only authority, provided privately by the operator. */
   WONG_ACCESS_LOGIN_MANAGEMENT?: string;
@@ -64,8 +63,7 @@ function routingMatches(request: Request, env: ConnectionEnv, pin: Pin): boolean
 }
 function installationMatches(pin: Pin, row: Record<string, unknown>): boolean {
   const columns: [keyof Pin, string][] = [["installationId", "installation_id"], ["origin", "origin"],
-    ["ownerSubject", "owner_subject"], ["ownerEmail", "owner_email"], ["repositoryId", "repository_id"],
-    ["repositoryName", "repository_name"], ["accountId", "account_id"], ["accessAppId", "access_app_id"],
+    ["ownerSubject", "owner_subject"], ["ownerEmail", "owner_email"], ["accountId", "account_id"], ["accessAppId", "access_app_id"],
     ["accessPolicyId", "access_policy_id"], ["workerId", "worker_id"], ["issuer", "issuer"], ["audience", "audience"]];
   return columns.every(([field, column]) => pin[field] === row[column]);
 }

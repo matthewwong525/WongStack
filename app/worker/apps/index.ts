@@ -6,7 +6,7 @@ import { dispatch, registrations, type Route } from "../api/contract.ts";
 import type { AccessIdentity } from "../access.ts";
 import type { PolicyEnv } from "../employee-access/policy.ts";
 
-type MemoryBindings = "MEMORY_DB" | "MEMORY_BUCKET" | "WONG_ACCESS_ACTIVATION" | "WONG_ACCESS_SEAL_KEY" | "WONG_ACCESS_LOGIN_MANAGEMENT" | "WONG_ACCESS_ROLLOUT" | "WONG_GITHUB_PUBLICATION";
+type MemoryBindings = "MEMORY_DB" | "MEMORY_BUCKET" | "WONG_ACCESS_ACTIVATION" | "WONG_ACCESS_SEAL_KEY" | "WONG_ACCESS_LOGIN_MANAGEMENT" | "WONG_ACCESS_ROLLOUT";
 
 /**
  * Everything the Worker has but the memory store: the database, saved keys, and settings.
@@ -59,6 +59,5 @@ export function handleApp(request: Request, env: Env & PolicyEnv, identity: Acce
   delete appEnv.WONG_ACCESS_SEAL_KEY;
   delete appEnv.WONG_ACCESS_LOGIN_MANAGEMENT;
   delete appEnv.WONG_ACCESS_ROLLOUT;
-  delete appEnv.WONG_GITHUB_PUBLICATION;
   return dispatch(handler, request, appEnv, { url, route, identity }, { apps: [name] });
 }

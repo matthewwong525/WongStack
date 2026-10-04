@@ -16,8 +16,6 @@ const pin = {
   audience: "business-app",
   ownerSubject: "verified-owner",
   ownerEmail: "owner@example.com",
-  repositoryId: 123,
-  repositoryName: "business/project",
 };
 const owner: AccessIdentity = { kind: "user", id: pin.ownerEmail, claims: {
   email: pin.ownerEmail, sub: pin.ownerSubject, iss: pin.issuer, aud: pin.audience,
@@ -76,7 +74,7 @@ it("adds isolated policy tables without changing business data or assigning acce
   expect(sql.prepare("SELECT * FROM orders").all()).toEqual([{ id: 1, name: "existing customer" }]);
   expect(sql.prepare("SELECT * FROM wong_access_installation").get()).toMatchObject({
     installation_id: pin.installationId, owner_subject: pin.ownerSubject, owner_email: pin.ownerEmail,
-    repository_id: pin.repositoryId, policy_enabled: 0, issuance_enabled: 0, revision: 1,
+    repository_id: 1, policy_enabled: 0, issuance_enabled: 0, revision: 1,
   });
   expect(sql.prepare("SELECT event, actor_email FROM wong_access_audit").all()).toEqual([
     { event: "owner_activated", actor_email: pin.ownerEmail },
@@ -91,8 +89,8 @@ it("keeps repeated activation idempotent and cannot transfer or repoint ownershi
   expect((await call()).status).toBe(200);
   expect(session.batch).toHaveBeenCalledTimes(1);
   for (const update of [
-    { ownerSubject: "another-owner" }, { ownerEmail: "another@example.com" }, { repositoryId: 456 },
-    { installationId: "dddddddd-dddd-4ddd-8ddd-dddddddddddd" }, { repositoryName: "another/project" },
+    { ownerSubject: "another-owner" }, { ownerEmail: "another@example.com" },
+    { installationId: "dddddddd-dddd-4ddd-8ddd-dddddddddddd" },
   ]) {
     const changed = { ...pin, ...update };
     const identity = { ...owner, id: changed.ownerEmail, claims: { ...owner.claims, sub: changed.ownerSubject, email: changed.ownerEmail } };
@@ -101,7 +99,7 @@ it("keeps repeated activation idempotent and cannot transfer or repoint ownershi
     expect(await result.json()).toEqual({ code: "installation_already_pinned" });
   }
   expect(sql.prepare("SELECT owner_subject, repository_id FROM wong_access_installation").get())
-    .toEqual({ owner_subject: pin.ownerSubject, repository_id: pin.repositoryId });
+    .toEqual({ owner_subject: pin.ownerSubject, repository_id: 1 });
 });
 
 it("requires private production configuration before any database use", async () => {
@@ -185,7 +183,7 @@ it("uses authoritative readback to reject a competing activation", async () => {
     bind: () => ({ run: async () => ({}) }),
     first: async () => ++reads === 1 ? null : sql.prepare(query).get(),
   }));
-  const changed = { ...pin, repositoryId: 999 };
+  const changed = { ...pin, installationId: "dddddddd-dddd-4ddd-8ddd-dddddddddddd" };
   expect((await call(owner, { WONG_ACCESS_ACTIVATION: JSON.stringify(changed) })).status).toBe(409);
 });
 
@@ -213,7 +211,7 @@ it("enforces normalized roster, grant references and durable removed-member rece
   sql.prepare("INSERT INTO wong_access_apps VALUES (?, ?)").run(pin.installationId, "orders");
   grant.run(pin.installationId, "employee@example.com", "orders", 1);
   sql.prepare("INSERT INTO wong_access_receipts VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
-    .run("receipt", pin.installationId, "employee@example.com", "private-machine", 1, pin.repositoryId, "unknown", null, "later", "now");
+    .run("receipt", pin.installationId, "employee@example.com", "private-machine", 1, 1, "unknown", null, "later", "now");
   sql.prepare("UPDATE wong_access_members SET status = 'removed', revision = 2 WHERE email = ?").run("employee@example.com");
   expect(sql.prepare("SELECT status, expires_at FROM wong_access_receipts").get()).toEqual({ status: "unknown", expires_at: "later" });
   expect(() => sql.prepare("DELETE FROM wong_access_members WHERE email = ?").run("employee@example.com")).toThrow();
@@ -224,4 +222,12 @@ it("rolls back a partial activation batch without altering existing customer dat
   expect((await call()).status).toBe(503);
   expect(sql.prepare("SELECT COUNT(*) AS count FROM wong_access_installation").get()).toEqual({ count: 0 });
   expect(sql.prepare("SELECT name FROM orders").get()).toEqual({ name: "existing customer" });
+});
+
+it("activates without repository metadata and preserves legacy placeholders on repeated setup", async () => {
+  expect((await call()).status).toBe(200);
+  sql.exec("UPDATE wong_access_installation SET repository_id = 123, repository_name = 'business/project'");
+  expect((await call()).status).toBe(200);
+  expect((await call(owner, { WONG_ACCESS_ACTIVATION: JSON.stringify({ ...pin, repositoryId: 123, repositoryName: 'business/project' }) })).status).toBe(200);
+  expect(sql.prepare("SELECT repository_id, repository_name FROM wong_access_installation").get()).toEqual({ repository_id: 123, repository_name: 'business/project' });
 });

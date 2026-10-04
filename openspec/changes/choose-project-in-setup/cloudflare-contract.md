@@ -9,7 +9,7 @@ Verified against primary public API documentation on 2026-10-04. This records th
 - The existing private setup keeps distinct exact-email human and verification policies. Read `.agents/skills/wong-setup/scripts/private-access.mjs` and `scripts/check-private-access.mjs` for compatibility, but this feature must not provision new apps, machine tokens or login providers.
 - Revocation can require remaining teammates to sign in again. Local member denial, policy reconciliation and session/provider outcome are separate states; a success envelope alone does not establish observed propagation.
 - Preserve durable desired generations/retries across lost responses, and converge an older external write to the latest desired generation. Never acknowledge an old job as the latest success or restore removed membership. Any in-flight request with an unknown outcome remains pending until safely reconciled.
-- No production provider writes from staging. Controlled live readback/admission/session-denial proof remains task 7.2.
+- No production provider writes from staging. Controlled live readback/admission/session-denial proof remains task 6.3.
 
 ## Delivered reconciliation
 

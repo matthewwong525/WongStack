@@ -223,3 +223,33 @@ test('shared with no .dev.vars or no wrangler config lists nothing and passes', 
   assert.equal(result.status, 0, result.out);
   assert.match(result.out, /^own: $/m);
 });
+
+test('private production login bindings cannot reach staging through fallback, override, blank declarations or config', t => {
+  for (const name of ['WONG_ACCESS_ACTIVATION', 'WONG_ACCESS_SEAL_KEY', 'WONG_ACCESS_LOGIN_MANAGEMENT', 'WONG_ACCESS_ROLLOUT', 'WONG_GITHUB_PUBLICATION']) {
+    const f = scaffold(t, { env: { staging: {} } }, { tools: { npx: logger() } });
+    f.write('app/.dev.vars', `API_KEY=synthetic\n${name}=private-synthetic\n`);
+    for (const args of [['push'], ['push', 'app/.dev.vars']]) {
+      const result = f.run('cf-secrets.mjs', args); assert.equal(result.status, 1); assert.deepEqual(result.calls, []); assert.doesNotMatch(result.out, /private-synthetic/);
+    }
+    f.write('app/.dev.vars.staging', `API_KEY=test\n${name}=\n`);
+    const invalid = f.run('cf-secrets.mjs', ['push']); assert.equal(invalid.status, 1); assert.deepEqual(invalid.calls, []);
+    f.write('app/.dev.vars.staging', 'API_KEY=test\n');
+    const valid = f.run('cf-secrets.mjs', ['push']); assert.equal(valid.status, 0, valid.out); assert.equal(valid.calls.length, 2);
+  }
+  const configured = scaffold(t, { env: { staging: { vars: { WONG_ACCESS_LOGIN_MANAGEMENT: 'synthetic' } } } }, { tools: { npx: logger() } });
+  configured.write('app/.dev.vars', 'API_KEY=synthetic\n');
+  const result = configured.run('cf-secrets.mjs', ['push']); assert.equal(result.status, 1); assert.deepEqual(result.calls, []);
+});
+test('the second invalid push source prevents any first production write', t => {
+  const f = scaffold(t, { env: { staging: {} } }, { tools: { npx: logger() } });
+  f.write('app/.dev.vars', 'API_KEY=synthetic\n'); f.write('app/.dev.vars.staging', 'CF_ACCESS_CLIENT_SECRET=synthetic\n');
+  const result = f.run('cf-secrets.mjs', ['push']); assert.equal(result.status, 1); assert.deepEqual(result.calls, []);
+});
+test('secret parity accepts private production authority only on production and preserves ordinary parity', t => {
+  const valid = checkSecrets(t, { PROD: 'API_KEY,WONG_ACCESS_LOGIN_MANAGEMENT', STAGING: 'API_KEY' }); assert.equal(valid.status, 0, valid.out);
+  for (const env of [{ PROD: 'API_KEY,WONG_ACCESS_LOGIN_MANAGEMENT', STAGING: 'API_KEY,WONG_ACCESS_LOGIN_MANAGEMENT' }, { PROD: 'API_KEY', STAGING: 'API_KEY,WONG_ACCESS_LOGIN_MANAGEMENT' }]) {
+    const result = checkSecrets(t, env); assert.equal(result.status, 1); assert.match(result.out, /must never be set on staging/);
+  }
+  const binding = check(t, { vars: { WONG_ACCESS_ACTIVATION: 'synthetic' }, env: { staging: {} } }); assert.equal(binding.status, 0, binding.output);
+  const denied = check(t, { env: { staging: { vars: { WONG_ACCESS_ACTIVATION: 'synthetic' } } } }); assert.equal(denied.status, 1); assert.match(denied.output, /private Access management authority/);
+});

@@ -1,173 +1,102 @@
-# Sign in once and connect your assistant
+# Sign in and connect your assistant
 
 **Status:** in-progress
 **Branch:** smooth-repo-selection
-**Open questions:** none about the working scope; provider permissions and the existing repository's protection must pass implementation checks before project editing is enabled.
+**Open questions:** no remaining scope choices; actual owner/login acceptance still needs controlled installation authority.
 
 ## Why
 
-Employees should start from the business app they already use, copy one setup prompt, and let their assistant connect with their approved access. The employer should control that access in one small app.
+Employees should start from the business app they already use, copy one setup prompt and connect their assistant to the apps they are allowed to use. The employer should control those permissions in one small app.
 
 ## What Changes
 
-- **Start with your existing app login.** The home page offers a setup prompt to paste into Codex or Claude Code. The assistant connects to this business with the same employee identity, including from another computer. A browser approval may be needed there, but employees need no separate Cloudflare account or GitHub sign-in for this flow.
+- **Copy a setup prompt after signing in.** Employees paste it into their assistant, approve the same business login on that computer when needed, and connect to their allowed company API actions. The prompt contains no keys. A failed clipboard action leaves the text available to copy by hand.
   ```text
-  HOME: BEFORE
-  ═════════════════════════════════════
-  Business name
-  Your apps
-  Orders                          Open
+  HOME: BEFORE          HOME: AFTER
+  ┌─────────────────┐   ┌──────────────────────┐
+  │ Your workspace  │   │ Your workspace       │
+  │ App list        │   │ Connect assistant    │
+  └─────────────────┘   │ [Copy setup prompt]  │
+                        │ Your allowed apps    │
+                        └──────────────────────┘
 
-  HOME: AFTER
-  ═════════════════════════════════════
-  Business name
-  Connect your assistant
-  [Copy setup prompt]
-  Paste it into Codex or Claude Code.
-
-  Your apps
-  Orders                          Open
-
-  COPIED: Prompt copied. Paste in chat.
-  COPY FAILED: Select and copy below.
-  CHECKING: Checking your access...
-  UNAVAILABLE: Could not load. [Retry]
-  NO APPS: Ask your employer for access.
-           Your setup prompt is available.
+  Sign in → Copy prompt → Paste → Approve
+                                      ↓
+                              Company API ready
   ```
-- **Let the assistant finish the connection.** The prompt contains the business address and setup instructions. The assistant handles credentials privately, connects approved API actions, and prepares the existing project only for people allowed to edit it. The setup page reports each connection separately and lets interrupted setup resume without replacing local work.
+- **Manage people and apps in Access.** The employer adds an email, chooses the apps that person can use and shares the ordinary business app link. No apps are selected automatically. Employees see their own setup status; the employer sees people, login setup and pending changes.
   ```text
-  YOUR SETUP
-  ═════════════════════════════════════
-  Business: Acme
-  API access: Ready
-  Project editing: Allowed
-  Project: Not connected yet
-  [Copy setup prompt]
+  ACCESS: OWNER
+  ┌──────────────────────────────────┐
+  │ Access              [Add person] │
+  │ Bo · Orders             [Edit]   │
+  │ Login management: Ready          │
+  └──────────────────────────────────┘
 
-  PROMPT
-  Connect my assistant to this business:
-  https://acme.example.com
-  Follow the published setup instructions.
-  Use my app login and assigned access.
+  ADD / EDIT PERSON
+  ┌──────────────────────────────────┐
+  │ Email  [bo@example.com       ]   │
+  │ Apps   [x] Orders  [ ] Payroll   │
+  │ [Save access]                    │
+  │ Admission pending · [Retry]      │
+  │ [Copy app link]                  │
+  └──────────────────────────────────┘
 
-  WAITING: Finish app approval to continue.
-  CONNECTING: Your assistant is connecting.
-  READY: API and project are connected.
-  APP ONLY: API ready. Editing not assigned.
-  INTERRUPTED: [Copy resume instructions]
-  DENIED: Ask your employer for access.
+  ACCESS: EMPLOYEE
+  ┌──────────────────────────────────┐
+  │ Connect your assistant           │
+  │ API: Ready                       │
+  │ Apps: Orders                     │
+  │ [Copy setup prompt]              │
+  │ Repository: Set up separately    │
+  │ Memory: Separate setup           │
+  └──────────────────────────────────┘
   ```
-- **Manage people in an Access mini app.** The employer adds an email, chooses allowed apps, and optionally enables project editing. They share the ordinary app link with that person. Adding the email also updates the app's login permissions. The Access page reports when those changes take effect.
+- **Apply the same app permissions everywhere.** App pages, direct API calls and assistant actions use the same current permissions. Removing an app permission blocks the next request, including during an existing login. Existing stricter record checks remain in force.
   ```text
-  ACCESS: EMPTY
-  ═════════════════════════════════════
-  No employees added yet.
-  [Add person]
-
-  ACCESS: PEOPLE
-  ═════════════════════════════════════
-  Ana    Orders          App access
-  Bo     Orders          Project editor
-  [Add person]
-  Person: edit access / remove
-
-  ADD OR EDIT PERSON
-  ═════════════════════════════════════
-  Email: [                            ]
-  Apps:  [ ] Orders    [ ] Payroll
-  Project editing: [ ] Allowed
-  Editors receive the whole repository.
-  [Save access]
-
-  SAVING: Updating access...
-  READY: Share the app link. [Copy link]
-  LOGIN PENDING: Permission update pending.
-                 [Retry]
-  FAILED: Could not save. [Retry]
+  Orders allowed → page / API / assistant ✓
+  Payroll denied → page / API / assistant ✕
   ```
-- **Connect GitHub once as the owner.** The employer approves access to the existing repository. Employees assigned project editing can then clone it and save changes through their assistant using privately issued, short-lived access. GitHub records those operations as the connected GitHub App; the business app records who requested access. Existing review and publishing controls still apply.
-  ```text
-  ACCESS: CONNECTIONS
-  ═════════════════════════════════════
-  App login management: Connected
-  GitHub project: Not connected
-  [Connect GitHub project]
-
-  OWNER APPROVAL
-  ═════════════════════════════════════
-  GitHub: approve the selected project.
-  Return here when finished.
-
-  CHECKING: Verifying project permissions.
-  READY: Acme / business-project
-  BLOCKED: Project protection needs setup.
-           [View instructions]
-  EXPIRED: Approval expired. [Try again]
-  FAILED: Connection failed. [Try again]
-
-  LOGIN CONNECTION MISSING
-  ═════════════════════════════════════
-  App login management needs owner setup.
-  [Copy owner setup instructions]
-  ```
-- **Apply the same permissions to apps and APIs.** Employees see their allowed apps, and their assistant can discover and call the same approved business actions. A direct API call checks those permissions too. Removing an app permission blocks subsequent calls even when the employee is still signed in; new apps require an employer's assignment.
-  ```text
-  ALLOWED: ORDERS       DENIED: PAYROLL
-  ══════════════       ════════════════
-  App: Available       App: Denied
-  API: Allowed         API: Denied
-  Assistant: Listed    Assistant: Hidden
-
-  DENIED APP LINK
-  ═════════════════════════════════════
-  You do not have access to this app.
-  [Back to your apps]
-  ```
-- **Withdraw access from the same page.** The employer can remove an app, stop project editing, or remove a person. New access is blocked immediately by the business app, while any pending login or GitHub revocation is reported honestly. Other people's access is preserved. Revoking a credential cannot be undone; renewed access uses a new credential.
+- **Show pending login changes honestly.** The app updates its recorded Cloudflare email policy and reports policy changes and session removal separately. Removal blocks company API work immediately; provider failures stay visible and retryable. Session removal can require teammates to sign in again.
   ```text
   REMOVE PERSON
-  ═════════════════════════════════════
-  Remove Bo's access?
-  [Remove access]                Cancel
-
-  REMOVING
-  ═════════════════════════════════════
-  App and API: Blocked
-  App login: Removal pending
-  GitHub: Revocation pending
-  [Retry pending removal]
-
-  REMOVED
-  ═════════════════════════════════════
-  Access removed.
-  Downloaded copies remain on the computer.
-  [Back to Access]
+  ┌──────────────────────────────────┐
+  │ Remove Bo's app access?          │
+  │ [Remove access]     [Cancel]     │
+  │ App/API: Blocked                 │
+  │ Login policy: Removal pending    │
+  │ Sessions: Removal pending        │
+  │ [Retry]                          │
+  └──────────────────────────────────┘
   ```
+- **Keep repository access manual.** App login grants no GitHub or Cloudflare Artifacts repository access. The employer grants repository access through that provider, and employees authenticate there separately. Access does not manage or revoke those grants. Existing memory setup also stays separate.
+- **Build first, verify at the end.** Complete the remaining implementation before running tests, then run the required checks and review the finished preview. Repairs repeat only the checks needed to resolve an actual failure.
 
-**Non-goals:** new-project setup, moving the wongstack-cloud repository picker, Cloudflare OAuth changes, Artifacts support or delivery work, custom invitation-email delivery, native GitHub account membership, employee hosting administration or publication authority, per-record/read-write business roles, source-folder permissions, or a new memory enrollment system.
+**Non-goals:** repository invitations, GitHub App registration or token issuance, private Git/PR adapters, Artifacts automation, new-project setup, Cloudflare OAuth changes, hosting administration, custom invitation email, per-record business roles or fresh memory enrollment.
 
 ## Capabilities
 
 ### New Capabilities
 
-- `employee-onboarding`: app-login-based assistant setup, owner-managed Access mini app, private GitHub App credentials and observable removal for an existing business app.
+None; the earlier source checkpoints already introduced employee onboarding in this branch.
 
 ### Modified Capabilities
 
-- `company-api`: enforce current selected-app permissions on both described and legacy business routes while preserving stricter checks.
-- `agent-api-discovery`: filter summaries, selected contracts and OpenAPI by the same current permissions.
-- `mini-apps`: show permitted apps and self-service setup, and keep connection-management credentials out of ordinary app bindings.
+- `employee-onboarding`: app-login-based API setup and Access permissions; remove automatic repository access and leave repository authentication manual.
+- `company-api`: current selected-app permissions govern both described and legacy business routes while preserving stricter checks.
+- `agent-api-discovery`: current permissions filter action summaries, details and OpenAPI.
+- `cloudflare-provisioning`: private production Access bindings are omitted from staging, and both push targets are validated before the first provider write; ordinary secret/binding parity remains required.
+- `mini-apps`: permitted app navigation, owner/employee Access views and private login-management binding exclusions.
 
 ## Impact
 
-Installed Source app: Access mini app, self-service setup/home action, core membership and connection modules, app-database migrations, Access policy/session reconciliation, owner-owned GitHub App registration, private standalone bootstrap/credential helper, company transport and repository workflow adapters. Update payload inventory, docs, tests and release notes when implemented. No Cloud companion or new sign-in service is required.
+Existing Source app: core authorization/login management, Access mini app, home setup action, standalone company API helper, additive migrations, payload inventory, owning documentation and tests. Remove withdrawn GitHub automation and its dependencies from this unshipped change; preserve existing personal GitHub workflows and customer data. No Cloud companion or new sign-in service is added.
 
-**Baseline:** retain the earlier assumption that [#259](https://github.com/matthewwong525/WongStack/pull/259) will merge. Recheck compatible install records against its merged result; this version consumes an already-running GitHub-backed app and does not implement its managed starter or Artifacts route.
-
-**Memory:** existing installed memory remains separate and is preserved. Fresh memory enrollment is outside this first version; report pending until the installation's trusted operator has connected that computer. This change cannot substitute app login for the authority owned by [#242](https://github.com/matthewwong525/WongStack/pull/242) or its shipped successor.
+Completed source-check evidence remains in [source-checks.md](source-checks.md). Those passes establish the earlier backend baseline, not completion of the reduced feature. Existing memory authority remains separate. Controlled live login/employee acceptance requires independently verified installation authority and must not be claimed from synthetic tests.
 
 ## Decision log
+
+- **2026-10-04** — Asked to support Cloudflare only and require manual GitHub access → chose manual GitHub admission/authentication, superseding automatic GitHub App registration, employee credential issuance and the special GitHub repository adapter. Cloudflare Artifacts versus app/API-only scope remains pending clarification; preserve completed source evidence without treating withdrawn GitHub features as remaining work. Remaining work should use fewer shared verification checkpoints rather than a full remote gate after each small task.
 
 - **2026-10-04** — Asked what selecting a repository should do → chose starting a new project or opening an existing WongStack project, with customized starters separate.
 - **2026-10-04** — Asked where a new Cloudflare project belongs → chose the person's own Cloudflare account.
@@ -223,3 +152,14 @@ Installed Source app: Access mini app, self-service setup/home action, core memb
 - **2026-10-04** — Check: `.github/workflows/test.yml` adds retained coverage-map diagnostics after the existing suite; no check, failure outcome or threshold is loosened. The workflow-setting detector requires this record because a diagnostic upload step changes the check configuration.
 
 - **2026-10-04** — Asked: the person approved continuing after the stopped connection gate. Resume the same change, consolidate bounded decoding without changing wire errors or checks, then complete bootstrap, Access screens, distribution and reviewable verification.
+
+- **2026-10-04** — The bootstrap/transport source slice uses one dependency-free Node artifact, distributed at an immutable checked public Source commit plus SHA-256 digest; no existing GitHub release asset is assumed. Private folder locators preserve the same connection after cloning. Finite owner identity supports closed-rollout resume without claiming employee readiness. The employee REST adapter keeps read-only Actions and refuses unsupported reruns/comment writes; missing log archives and thread-resolution counts require the owner path. Employee publication stops before archive/numbering. Tasks 4.1–4.3 await their shared remote gate, and live no-GitHub/provider acceptance remains 7.2.
+
+- **2026-10-04** — Asked whether Cloudflare-only setup includes Artifacts repository automation → chose app/API access only; all repository grants and authentication stay manual. This supersedes the existing GitHub-only and automatic repository connection scope.
+- **2026-10-04** — Asked to pass the findings to the other chat and to run tests only at the end → chose complete implementation followed by one final required source checkpoint and preview verification, with no per-task test or save checkpoints. Shared measured timings and this instruction with the verification and original implementation chats.
+
+- **2026-10-04** — Check: remove dedicated unshipped GitHub registration/publication/token and private Git/PR adapter tests with the withdrawn implementations. Retained employee policy/discovery/login, personal GitHub delivery, app coverage, lint and distribution checks stay unchanged; author replacement API-only connection/UI/pin/staging-exclusion regression tests before the single final gate.
+
+- **2026-10-04** — Assumed: at the single final source checkpoint, create a complete source ancestor, pin its bootstrap commit/digest in the final head and push once. Final distribution checks prove ancestor bytes/digest match the checked bootstrap; public raw readback follows the successful gate. Blank pins honestly leave setup unavailable until that checkpoint.
+
+- **2026-10-04** — Completed all remaining app/API-only source, regression tests and owning documentation before any checks. Reconciled the reduced contracts, including production-only login authority in secret distribution. The single final source checkpoint will check the complete implementation; actual controlled human login/provider acceptance remains separate.

@@ -11,6 +11,7 @@ const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 // Each script, and the arguments that reach its flag parser with an unknown flag.
 const scripts = {
   'scripts/company-api.mjs': [],
+  'scripts/employee-bootstrap.mjs': [],
   'scripts/evaluate-document-retrieval.mjs': [],
   '.agents/skills/memory/scripts/operations.mjs': [],
   'scripts/measure-context.mjs': [],

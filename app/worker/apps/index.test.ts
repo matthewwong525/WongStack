@@ -21,7 +21,7 @@ afterEach(() => {
 
 const person: AccessIdentity = { id: "owner@example.com", kind: "user", claims: { aud: "a", iss: "i", exp: 0 } };
 const env = { DB: { name: "app-db" }, ASSETS: {}, PAYMENT_KEY: "secret", MEMORY_DB: { name: "memory" }, MEMORY_BUCKET: {}, WONG_ACCESS_ACTIVATION: "private-owner", WONG_ACCESS_SEAL_KEY: "private-seal",
-  WONG_ACCESS_LOGIN_MANAGEMENT: "private-login", WONG_ACCESS_ROLLOUT: "private-rollout", WONG_GITHUB_PUBLICATION: "private-publication" } as unknown as Env;
+  WONG_ACCESS_LOGIN_MANAGEMENT: "private-login", WONG_ACCESS_ROLLOUT: "private-rollout" } as unknown as Env;
 const call = (path: string, method = "GET", identity: AccessIdentity | null = person) =>
   handleApp(new Request(`https://workspace.example.com${path}`, { method }), env, identity);
 
@@ -48,7 +48,7 @@ it("hands a handler the database and saved keys, but no memory binding", async (
   expect(appEnv.PAYMENT_KEY).toBe("secret");
   expect("MEMORY_DB" in appEnv).toBe(false);
   expect("MEMORY_BUCKET" in appEnv).toBe(false);
-  for (const name of ["WONG_ACCESS_ACTIVATION", "WONG_ACCESS_SEAL_KEY", "WONG_ACCESS_LOGIN_MANAGEMENT", "WONG_ACCESS_ROLLOUT", "WONG_GITHUB_PUBLICATION"]) {
+  for (const name of ["WONG_ACCESS_ACTIVATION", "WONG_ACCESS_SEAL_KEY", "WONG_ACCESS_LOGIN_MANAGEMENT", "WONG_ACCESS_ROLLOUT"]) {
     expect(name in appEnv).toBe(false);
     expect(name in env).toBe(true);
   }

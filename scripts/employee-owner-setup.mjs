@@ -9,12 +9,12 @@ export async function ownerSetup(client, action) {
   // pins. This command never derives an owner from a visitor or public marker.
   return action === 'identity' ? identity : client.ownerSetup(action);
 }
-const usage = 'usage: employee-owner-setup.mjs identity|activate|connect|prepare|rollout|editing|check|status|retry';
+const usage = 'usage: employee-owner-setup.mjs identity|activate|connect|prepare|rollout|status|retry';
 if (isMain(import.meta.url)) {
-  const { positionals: [action, ...extra] } = parseCli({ usage, allowPositionals: true });
+  const { positionals: [action, ...extra], values } = parseCli({ usage, allowPositionals: true, options: { state: { type: 'string' } } });
   try {
     if (extra.length) throw new Error(usage);
-    const result = await ownerSetup(companyClient({ onLoginUrl: link => console.error(`Approve your existing business app login: ${link}`) }), action);
+    const result = await ownerSetup(companyClient({ stateDir: values.state, onboarding: true, onLoginUrl: link => console.error(`Approve your existing business app login: ${link}`) }), action);
     console.log(JSON.stringify(result, null, 2));
   } catch { console.error('Owner setup did not complete. Check the private owner record and use your own business app login.'); process.exitCode = 1; }
 }

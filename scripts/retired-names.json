@@ -62,5 +62,9 @@
   {"name": "apps.json", "replacement": "the list compiled into the home page from `app/src/apps/`", "allow": [".agents/skills/wong-sync/references/catch-up.md", "scripts/tests/wong-sync-preflight.test.mjs"], "why": "the update removes an older install's reader of the old list"},
   {"name": "development/task-chats.md", "replacement": "`wiki/development/the-change-loop.md#several-parts-several-workspaces`"},
   {"name": "#chats-coordinate-directly", "replacement": "`wiki/development/the-change-loop.md#several-parts-several-workspaces`"},
-  {"name": "openspec/specs/session-coordination/", "replacement": "`openspec/specs/other-work-check/spec.md`"}
+  {"name": "openspec/specs/session-coordination/", "replacement": "`openspec/specs/other-work-check/spec.md`"},
+  {"name": "app/worker/employee-access/github-registration.ts", "replacement": "manual repository access through its provider; app/API-only Access"},
+  {"name": "app/worker/employee-access/github.ts", "replacement": "manual repository access through its provider; app/API-only Access"},
+  {"name": "app/worker/employee-access/tokens.ts", "replacement": "manual repository access through its provider; app/API-only Access"},
+  {"name": "app/worker/employee-access/publication.ts", "replacement": "manual repository access through its provider; app/API-only Access"}
 ]

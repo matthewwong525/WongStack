@@ -258,9 +258,12 @@ describe("private Worker routing", () => {
     const headers = { "Cf-Access-Jwt-Assertion": await token({ email: "human@example.com", sub: "employee" }) };
     expect((await call("/apps/hello/api/greeting", headers, bindings)).status).toBe(200);
     expect(await (await call("/api/access/apps", headers, bindings)).json())
-      .toEqual({ state: "current", role: "employee", revision: 1, apps: ["hello"] });
+      .toEqual({ state: "current", role: "employee", revision: 1, apps: ["access", "hello"] });
+    for (const path of ["/apps/hello/", "/apps/hello/subpage", "/apps/access/"]) expect((await call(path, headers, bindings)).status).toBe(200);
     row.apps = "[]";
     row.revision = 2;
+    for (const path of ["/apps/hello/", "/apps/hello/subpage"]) expect((await call(path, headers, bindings)).status).toBe(403);
+    expect((await call("/apps/access/", headers, bindings)).status).toBe(200);
     expect((await call("/apps/hello/api/greeting", headers, bindings)).status).toBe(403);
     expect((await call("/api/access/identity", headers, bindings)).status).toBe(200);
     row.status = "removed";
@@ -271,8 +274,8 @@ describe("private Worker routing", () => {
     expect((await call("/apps/hello/api/greeting", headers, bindings)).status).toBe(503);
     expect((await call("/api/health", headers, bindings)).status).toBe(200);
     expect((await call("/_memory/unknown", {}, bindings)).status).toBe(404);
-    expect(assets.fetch).not.toHaveBeenCalled();
-    expect(db.withSession).toHaveBeenCalledTimes(8);
+    expect(assets.fetch).toHaveBeenCalledTimes(4);
+    expect(db.withSession).toHaveBeenCalledTimes(14);
     expect(db.withSession).toHaveBeenCalledWith("first-primary");
   });
 

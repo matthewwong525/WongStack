@@ -24,8 +24,9 @@ const pinSchema = z.object({
   audience: z.string().min(1),
   ownerSubject: z.string().trim().min(1),
   ownerEmail: z.email().transform((email) => email.trim().toLowerCase()),
-  repositoryId: z.number().int().positive().safe(),
-  repositoryName: z.string().regex(/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/),
+  // Read old private records compatibly; repository fields confer no authority.
+  repositoryId: z.number().int().positive().safe().optional(),
+  repositoryName: z.string().regex(/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/).optional(),
 }).strict();
 
 export type Pin = z.infer<typeof pinSchema>;
@@ -75,7 +76,7 @@ export async function activateAccess(request: Request, env: ActivationEnv, ident
     const db = env.DB.withSession("first-primary");
     const values = [pin.installationId, pin.origin, pin.accountId, pin.workerId, pin.accessAppId,
       pin.accessPolicyId, pin.issuer, pin.audience, pin.ownerSubject, pin.ownerEmail,
-      pin.repositoryId, pin.repositoryName];
+      1, ""];
     const existing = await db.prepare("SELECT * FROM wong_access_installation WHERE slot = 1").first<Record<string, unknown>>();
     if (existing) return installationMatches(existing, values);
     const now = new Date().toISOString();
@@ -99,7 +100,7 @@ export async function activateAccess(request: Request, env: ActivationEnv, ident
 
 function installationMatches(row: Record<string, unknown>, values: (string | number)[]): Response {
   const columns = ["installation_id", "origin", "account_id", "worker_id", "access_app_id", "access_policy_id",
-    "issuer", "audience", "owner_subject", "owner_email", "repository_id", "repository_name"];
+    "issuer", "audience", "owner_subject", "owner_email"];
   return columns.every((column, index) => row[column] === values[index])
     ? response(200, "owner_activated") : response(409, "installation_already_pinned");
 }

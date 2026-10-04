@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { AccessError, audit, lease, leaseCurrent, ownerCore, release, reply } from "./core";
-import { decode, digest, encode, seal, unseal } from "./seal";
+import { decode, encode, seal, unseal } from "./seal";
 import { boundedJson } from "./json";
 import { provider } from "./provider";
 import { fixture, owner, employee, pin, req } from "../../tests/employee-access/connections";
@@ -27,7 +27,7 @@ it("requires independently pinned production owner even with legacy routing or d
     await expect(ownerCore(req("status", "GET"), { ...f.env, ...overrides } as typeof f.env, owner)).rejects.toBeInstanceOf(AccessError);
   }
   await expect(ownerCore(new Request("https://other.example.com/api/access/status"), f.env, owner)).rejects.toBeInstanceOf(AccessError);
-  for (const column of ["installation_id", "origin", "owner_subject", "owner_email", "repository_name", "account_id", "access_app_id",
+  for (const column of ["installation_id", "origin", "owner_subject", "owner_email", "account_id", "access_app_id",
     "access_policy_id", "worker_id", "issuer", "audience"]) {
     const saved = f.sql.prepare(`SELECT ${column} value FROM wong_access_installation`).get()!.value;
     // Installation FK references retain the original IDs for this mismatch check.
@@ -37,7 +37,7 @@ it("requires independently pinned production owner even with legacy routing or d
     f.sql.prepare(`UPDATE wong_access_installation SET ${column} = ?`).run(saved);
   }
   f.sql.exec("UPDATE wong_access_installation SET repository_id = 456");
-  await expect(ownerCore(req("status", "GET"), f.env, owner)).rejects.toMatchObject({ code: "installation_mismatch" });
+  expect((await ownerCore(req("status", "GET"), f.env, owner)).email).toBe(pin.ownerEmail);
   f.sql.exec("DELETE FROM wong_access_installation");
   await expect(ownerCore(req("status", "GET"), f.env, owner)).rejects.toMatchObject({ code: "installation_mismatch" });
 });
@@ -67,8 +67,6 @@ it("authenticates sealed material, its purpose, and its installation without dia
   await expect(unseal("invalid", f.env.WONG_ACCESS_SEAL_KEY, "x")).rejects.toMatchObject({ code: "private_material_invalid" });
   for (const secret of [undefined, encode(new Uint8Array(3)), "!"]) await expect(seal("s", secret, "x")).rejects.toThrow();
   expect(encode(decode("-_8"))).toBe("-_8");
-  expect(await digest("state")).toBe(await digest("state"));
-  expect(await digest("state")).not.toBe(await digest("other"));
   expect(reply({ code: "safe" }).headers.get("Cache-Control")).toBe("no-store");
 });
 
@@ -84,18 +82,18 @@ it("bounds JSON streams and cancels malformed, empty and oversized reads", async
 
 it("limits credentials to fixed provider destinations, refuses redirects and hides provider errors", async () => {
   const fetch = vi.fn(async () => Response.json({ ok: true })); vi.stubGlobal("fetch", fetch);
-  expect(await provider("https://api.github.com", "/app", "secret")).toEqual({ ok: true });
-  await provider("https://api.github.com", "/app", "secret", "POST", { safe: true });
-  expect(fetch.mock.calls[1]).toMatchObject(["https://api.github.com/app", { redirect: "error", body: '{"safe":true}' }]);
+  expect(await provider("https://api.cloudflare.com/client/v4", "/app", "secret")).toEqual({ ok: true });
+  await provider("https://api.cloudflare.com/client/v4", "/app", "secret", "POST", { safe: true });
+  expect(fetch.mock.calls[1]).toMatchObject(["https://api.cloudflare.com/client/v4/app", { redirect: "error", body: '{"safe":true}' }]);
   for (const path of ["https://other.example.com", "//other.example.com", "/../secret"]) {
-    await expect(provider("https://api.github.com", path, "secret")).rejects.toMatchObject({ code: "provider_destination_invalid" });
+    await expect(provider("https://api.cloudflare.com/client/v4", path, "secret")).rejects.toMatchObject({ code: "provider_destination_invalid" });
   }
   for (const status of [302, 401, 404, 500]) {
     fetch.mockImplementationOnce(async () => new Response("secret diagnostics", { status }));
-    await expect(provider("https://api.github.com", "/app", "secret")).rejects.toMatchObject({ code: status === 404 ? "provider_not_found" : "provider_unavailable" });
+    await expect(provider("https://api.cloudflare.com/client/v4", "/app", "secret")).rejects.toMatchObject({ code: status === 404 ? "provider_not_found" : "provider_unavailable" });
   }
   fetch.mockImplementationOnce(async () => new Response(null, { status: 204 }));
-  expect(await provider("https://api.github.com", "/installation/token", "secret", "DELETE")).toBeNull();
+  expect(await provider("https://api.cloudflare.com/client/v4", "/installation/token", "secret", "DELETE")).toBeNull();
   fetch.mockImplementationOnce(async () => new Response(" ".repeat(1_048_577)));
-  await expect(provider("https://api.github.com", "/app", "secret")).rejects.toMatchObject({ code: "json_body_too_large" });
+  await expect(provider("https://api.cloudflare.com/client/v4", "/app", "secret")).rejects.toMatchObject({ code: "json_body_too_large" });
 });

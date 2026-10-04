@@ -3,9 +3,6 @@ import { AccessError } from "./core.ts";
 export const encode = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes)).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
 export const decode = (value: string) => Uint8Array.from(atob(value.replaceAll("-", "+").replaceAll("_", "/")), char => char.charCodeAt(0));
 const bytes = (value: string) => new TextEncoder().encode(value);
-export async function digest(value: string): Promise<string> {
-  return encode(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes(value))));
-}
 async function key(value: string | undefined): Promise<CryptoKey> {
   if (!value) throw new AccessError("private_sealing_setup_required");
   const raw = decode(value);

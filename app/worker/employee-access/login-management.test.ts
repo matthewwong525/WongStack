@@ -35,7 +35,7 @@ beforeEach(() => {
 });
 afterEach(() => { f.sql.close(); vi.unstubAllGlobals(); vi.useRealTimers(); });
 const connect = async () => { await connectLogin(f.core); f.core.holder = await lease(f.core); };
-const change = (removed = false, editing = false, apps = ["orders"]) => changeMember(f.core, { email: employee.id, removed, editing, apps });
+const change = (removed = false, apps = ["orders"]) => changeMember(f.core, { email: employee.id, removed, apps });
 
 it("seals account-scoped authority, preserves stricter controls and applies only the exact human policy", async () => {
   await connect();
@@ -102,7 +102,7 @@ it("refuses missing authority, mismatched ownership, shared or unreviewed polici
 
 it("converges stale adds to a newer removal and never acknowledges the old generation", async () => {
   await connect();
-  await change(false, true);
+  await change(false);
   duringWrite = async () => { await change(true); };
   await reconcileLogin(f.core, "policy");
   expect(writes).toHaveLength(2);
@@ -170,18 +170,18 @@ it("bounds stale-generation retries and rejects readback that did not retain des
   await expect(reconcileLogin(f.core, "policy")).rejects.toMatchObject({ code: "login_owner_setup_required" });
 });
 
-it("commits explicit apps, editing removal, tombstones and audit atomically", async () => {
+it("commits explicit apps and tombstones atomically while preserving inert legacy data", async () => {
   await expect(changeMember(f.core, {})).rejects.toMatchObject({ code: "invalid_person" });
-  await expect(changeMember(f.core, { email: pin.ownerEmail, removed: true, editing: false, apps: [] })).rejects.toMatchObject({ code: "owner_cannot_be_changed" });
-  await expect(change(false, false, ["unassigned"])).rejects.toMatchObject({ code: "unknown_app" });
-  await change(false, true, ["orders", "orders"]);
+  await expect(changeMember(f.core, { email: pin.ownerEmail, removed: true, apps: [] })).rejects.toMatchObject({ code: "owner_cannot_be_changed" });
+  await expect(change(false, ["unassigned"])).rejects.toMatchObject({ code: "unknown_app" });
+  await change(false, ["orders", "orders"]);
   expect(f.sql.prepare("SELECT COUNT(*) count FROM wong_access_grants").get()).toEqual({ count: 1 });
   f.sql.prepare("INSERT INTO wong_access_receipts VALUES ('receipt', ?, ?, 'machine', 2, 123, 'issued', 'sealed', 'later', 'now')")
     .run(pin.installationId, employee.id);
-  await change(false, false);
-  expect(f.sql.prepare("SELECT status FROM wong_access_receipts").get()).toEqual({ status: "revoke_pending" });
+  await change(false);
+  expect(f.sql.prepare("SELECT status FROM wong_access_receipts").get()).toEqual({ status: "issued" });
   expect(f.sql.prepare("SELECT status FROM wong_access_members").get()).toEqual({ status: "active" });
-  await change(true, true);
+  await change(true);
   expect(f.sql.prepare("SELECT status, project_editing FROM wong_access_members").get()).toEqual({ status: "removed", project_editing: 0 });
   expect(f.sql.prepare("SELECT COUNT(*) count FROM wong_access_grants").get()).toEqual({ count: 0 });
   f.sql.exec("CREATE TRIGGER fail_audit BEFORE INSERT ON wong_access_audit BEGIN SELECT RAISE(ABORT, 'fail'); END");
