@@ -19,7 +19,7 @@ The first line measures [the live walkthrough reference](../../.agents/skills/ve
 
 Each line makes three runs. Add `--runs 1` for a smoke test.
 
-`--exercise mixed` adds practice CLI captures, lost and healthy saves, a connected export consumer, and an unrelated control. It scores recorded requests/readbacks and `comment.md` beside verdicts; retained run folders contain the raw evidence. Set the keep rule before running, as for browser measurements.
+`--exercise mixed` adds practice CLI captures, lost and healthy saves, a connected export consumer, and an unrelated control. It also adds seeded orders to delete, a receipt on a key shared with the live app that must not be sent, and a timed job with a manual trigger. It scores recorded requests/readbacks and `comment.md` beside verdicts; retained run folders contain the raw evidence. Set the keep rule before running, as for browser measurements.
 
 A run does this:
 
