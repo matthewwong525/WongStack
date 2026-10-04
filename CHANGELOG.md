@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Recall original wiki and OpenSpec evidence
+## 30.5.0 — Recall original wiki and OpenSpec evidence
 
 - Ask one task question to retrieve permitted live facts and cited original document passages within a shared context budget.
 - Current guidance is the default; proposed work and historical decisions keep explicit scopes and source labels. Changed sources are verified against this checkout with fresh keyword fallback.
