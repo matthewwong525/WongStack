@@ -6,8 +6,8 @@ A plain request — research, an errand, a reminder, a question — is not a cha
 
 ```
 /explore ─▶ /plan ─▶ /apply ─▶ /save ─▶ /ship ─▶ /close
- think      draft the  implement  push +    merge +   wiki +
- (no git)   change     + host     PR +      archive   close
+ think      draft the  implement  save +    publish +   wiki +
+ (no git)   change     + host     review +  archive   close
             (no git)   preview    CI
                           ▲
             /continue ────┘
@@ -71,7 +71,7 @@ Each skill owns its own procedure; this list is what each stage is for.
 - **[`/save`](../../.agents/skills/save/SKILL.md)** is the git stage: it commits code and [the synced change](#the-change-is-a-living-handoff-not-just-a-plan) together, pushes, opens or updates the PR, waits for CI when present, returns a preview URL, and records the session's facts in the [memory store](memory.md). With no plan, it authors one from the session, so nothing ships without its handoff. `/ship` reuses it for the archive, so the git, PR, and CI logic exists once.
 - **[`/continue`](../../.agents/skills/continue/SKILL.md)** resumes a change or an open non-code thread, cold, on any machine, and hands off to `/apply`.
 - **[`/ship`](../../.agents/skills/ship/SKILL.md)** archives the change, invokes `/save` once, runs [`/verify`](#verifying-the-app) once, and squash-merges on [the gate](#the-gate): one checkpoint and one CI run before the walk. A failed walk is fixed in the same PR; an unfinished change is finished through `/apply`, never archived. It only puts code live; it writes no wiki.
-- **[`/close`](../../.agents/skills/close/SKILL.md)** wraps up any finished chat, with no question. It records what the chat set out to do and what is left, keeps unfinished work saved on GitHub (or throws it away when asked), and moves the chat's and its change's repeatable facts into the wiki in their own pull request. Then it closes the Paseo workspace. A workspace closed any other way gets no wiki update; its facts stay in memory.
+- **[`/close`](../../.agents/skills/close/SKILL.md)** wraps up any finished chat, with no question. It records what the chat set out to do and what is left, keeps unfinished work saved on its current provider (or throws it away when asked), and moves the chat's and its change's repeatable facts into the wiki in their own pull request. Then it closes the Paseo workspace. A workspace closed any other way gets no wiki update; its facts stay in memory.
 
 Loop back any time: each `/save` keeps the plan and Status current and **appends** to the Decision log, never rewriting it, so the change holds the story of the work. Re-`/plan` if the spec needs to change.
 
@@ -102,17 +102,17 @@ The work decides the form; no mode or setting does.
 
 This page owns delivery; other surfaces link here.
 
-**The gate is CI when present, else PR review**: GitHub Actions is an optional accelerator on pull requests, version control, OpenSpec, and the repo. Where checks exist, push and let CI run; the skills wait and fix failures. Where they don't, a human reviews the PR, with the change and its archive. Either way, **nothing builds locally as a prerequisite**; `/apply`'s host preview gates nothing and never reaches production.
+**The GitHub gate is CI when present, else PR review**: GitHub Actions is an optional accelerator on pull requests, version control, OpenSpec, and the repo. Where checks exist, push and let CI run; the skills wait and fix failures. Where they don't, a human reviews the PR, with the change and its archive. Either way, **nothing builds locally as a prerequisite**; `/apply`'s host preview gates nothing and never reaches production.
 
-**Every file edit takes the gate**, whatever its path: a branch, a pull request, then `/ship`. Only code needs a change record; [`/save`](../../.agents/skills/save/SKILL.md) decides, and anything else gets a pull request that says what changed.
+**Every file edit takes the gate**. GitHub uses a branch and pull request; [managed delivery](../stack/hosted-projects.md#delivery-runbook) requires exact Cloudflare checks and approval. Plans and archives stay with the verbs. Only code needs a change record; [`/save`](../../.agents/skills/save/SKILL.md) decides.
 
-**The ladder is CI-when-present → merge**; a skipped rung is never a failure, and nothing else gates a merge. The app's test suite runs *inside* CI as an ordinary check, found by its `npm test` script at the repo root **or any immediate subdirectory**, so a repo without tests is not penalized and none receives a package manifest on WongStack's behalf.
+**GitHub's ladder is CI-when-present → merge**; a skipped rung is never a failure. [Managed publication](../stack/hosted-projects.md#confirm-publication) requires all three confirmations. The app's test suite runs *inside* CI as an ordinary check, found by its `npm test` script at the repo root **or any immediate subdirectory**, so a repo without tests is not penalized and none receives a package manifest on WongStack's behalf.
 
 **A branch that leaves the main app untouched skips its suite**: when every path the whole branch changes against the default branch is under `wiki/` or `openspec/`, or ends in `.md`. The Test and Deploy jobs skip inside the job and say so, so a required check still reports green. A [mini app](../stack/mini-apps.md) is main-app code, so a change to one runs the suite and deploys. The WongStack source repo's Payload checks run on every push, since skill Markdown is the payload; only a branch entirely under `wiki/` or `openspec/` skips their script tests. The other way round, the Test job skips its wiki check when the branch changes no Markdown file and removes or moves no file, since no wiki link can break.
 
 [`checks.mjs`](../../.github/scripts/checks.mjs) owns discovery, tests and quality reports on both routes. Callers give repo/base/head/default-branch; the base sets the diff and branch labels context. Missing bases run conservatively. Quality checks continue after failed installs or tests.
 
-**The staging walkthrough is no rung either.** `/ship` runs [`/verify`](#verifying-the-app) once and merges on the gate whatever the walk says; a walk that cannot run (no credential, budget spent) never blocks. Only a `FAILURE` stops `/ship`, to **ask the user** to fix or merge anyway: a human decision, with *merge anyway* always available.
+**The GitHub staging walkthrough is no rung either.** `/ship` runs [`/verify`](#verifying-the-app) once and merges on the gate whatever the walk says; a walk that cannot run (no credential, budget spent) never blocks. Only a `FAILURE` stops `/ship`, to **ask the user** to fix or merge anyway: a human decision, with *merge anyway* always available.
 
 An **unverifiable** gate is not an absent one: `/save` reports it and carries on, since it is a checkpoint, while `/ship` treats it as unmergeable and stops, never reinterpreting or repeating it.
 

@@ -10,7 +10,7 @@ Pick the target, source, tools, and token, then invoke `/explore`. An installed 
 
 ## Hosted workspace first
 
-Before choosing a personal target, read this checkout's origin and private hosted context. An Artifacts origin, `.wongstack/hosted.json`, or private handoff selects [hosted verification](../wong-sync/scripts/hosted-context.mjs): run it with the checkout's absolute path. Verified → reuse this workspace and report only established readiness; no personal provider sign-in, token or memory setup. Missing or invalid authority → stop with reconnect guidance. A marker alone grants nothing.
+Artifacts/marker/private handoff → follow [hosted verification](../../../wiki/stack/hosted-projects.md#open-the-workspace) before personal setup.
 
 ## Pick the folder
 

@@ -1,6 +1,6 @@
 # Hosted starter and workspace bootstrap preparation
 
-Tasks 2.2 and 2.3 are prepared, with the maintenance gate still pending. Neither task is checked off. This slice creates no hosted resource or credential, publishes no starter and enables no managed creation. `VERSION` remains unchanged.
+Tasks 2.2 and 2.3 passed their Source maintenance gate at exact head `80df7e81325ef4e5265f719d752578847547a176`, after one compiled-configuration repair. Both tasks are checked off; Cloud service integration and complete hosted acceptance remain pending. This slice creates no hosted resource or credential, publishes no starter and enables no managed creation. `VERSION` remains unchanged.
 
 ## Prepared behavior
 
@@ -33,11 +33,11 @@ openspec validate cloudflare-hosted-starter --strict --no-interactive
 
 The context budget remains within its limits, including startup at 2,174 words against 2,200. The script coverage inventory now includes `server/hosted/*.mjs`; no new coverage suppression or lower threshold was added.
 
-## Maintenance gate still required
+## Prepared maintenance gate
 
 Source's payload maintenance workflow adds `node scripts/check-hosted-starter.mjs`. It refuses local execution and, in maintenance CI only, prepares the real starter and runs ordinary `npm ci --no-audit --no-fund`, `npm run cf-typegen`, `npm test`, and `npm run build`. It then reads the actual Vite/Wrangler redirected config, compiled Worker identity and HTML asset output, rejecting resource bindings or missing native Preview configuration. No deploy or preview command runs in this generated-starter check.
 
-This generated app has **not** been installed, type-generated, tested or built locally. Its compilation, full app quality chain and compiled handoff require the fresh authorized Source maintenance gate. Full Source script coverage and existing app Test/Deploy/Payload checks are also still required. Existing staging authorization applied to prior prepared slices only; the parent owns the fresh checkpoint and permission boundary.
+This generated app was **not** installed, type-generated, tested or built locally. Its compilation, full app quality chain and compiled handoff awaited a fresh authorized Source maintenance gate, together with full script coverage and existing app Test/Deploy/Payload checks. The user subsequently authorized this slice's staging gate; its exact outcomes appear below.
 
 Cloud still must implement the authenticated project-scoped `POST /api/hosted/projects/:projectId/context` companion endpoint and negotiate contract 5 before dispatch. The Source helper targets the canonical service origin `https://wongstack.com`. Service integration, any noncanonical host configuration, immutable Artifacts starter staging and live acceptance remain subsequent work; no operational readiness is claimed here.
 
@@ -50,3 +50,15 @@ Config validation now rejects absent/non-string Access audiences and name inputs
 Exact Source head `bb01e066f3dd45b150e67a51c1c94c2391d44c98` passed [Test](https://github.com/matthewwong525/WongStack/actions/runs/37168659224) and [Deploy](https://github.com/matthewwong525/WongStack/actions/runs/37168659225). [Payload](https://github.com/matthewwong525/WongStack/actions/runs/37168659258) passed its full script suite, then the generated-starter step failed at `compiled_configuration`, after its awaited ordinary installation/type-generation/test/build commands returned successfully. This does not complete the starter gate.
 
 Read-only inspection of the [published Cloudflare Vite plugin 1.62.1](https://registry.npmjs.org/@cloudflare/vite-plugin/-/vite-plugin-1.62.1.tgz), its normalized Wrangler defaults and `getOutputConfig` showed nested empty resource metadata, including `durable_objects: {bindings: []}` and `queues: {producers: [], consumers: []}`. The original check treated these harmless objects as configured resources. The repair checks actual contents recursively, retains rejection of nonempty arrays/scalars, adds service/KV guards and names the failed resource category without printing values. Seven focused starter cases and focused lint pass; the orchestration fixture now uses provider-shaped nested defaults. A complete maintenance rerun remains required.
+
+## Accepted maintenance checkpoint
+
+Corrected exact Source head **`80df7e81325ef4e5265f719d752578847547a176`**, branch `spotless-panther`, [Source #259](https://github.com/matthewwong525/WongStack/pull/259):
+
+- [Test 37168956645](https://github.com/matthewwong525/WongStack/actions/runs/37168956645): success.
+- [Deploy 37168956698](https://github.com/matthewwong525/WongStack/actions/runs/37168956698): success, existing Source staging only.
+- [Payload 37168956697](https://github.com/matthewwong525/WongStack/actions/runs/37168956697): success, **1057/1057 script cases**, followed by the real generated starter's ordinary installation, type generation, full tests and build. Its compiled configuration/assets/identity checks returned `{ok:true,sourceCommit:"80df7e81325ef4e5265f719d752578847547a176"}`.
+
+The parent's maintenance wait returned `RESULT: SUCCESS` after one CI repair. Tasks 2.2 and 2.3 are complete at their Source implementation gate. Cloud's context endpoint/contract negotiation, protected native Artifacts preview, live isolation, approved publication and second-change acceptance remain pending; this success proves none of those provider facts. No Artifacts starter, project, token or new hosted resource was created. Session facts remain skipped because no current session is registered in this Source checkout.
+
+Preview discovery for the accepted head returned [the existing Source staging preview](https://spotless-panther-wongstack-staging.matthewwong525.workers.dev), via GitHub deployment `6835548645`. This is the retained GitHub staging route; it is not an immutable native Artifacts preview or hosted acceptance proof. No human login verification ran.

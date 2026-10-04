@@ -26,7 +26,7 @@ function safeFile(file,uid) {
   const info=lstatSync(file),parent=lstatSync(resolve(file,'..'));
   if(!info.isFile()||info.nlink!==1||info.uid!==uid||info.size>8192||(info.mode&0o777)!==0o600||parent.uid!==uid||(parent.mode&0o777)!==0o700)throw Error('reconnect');
 }
-export async function verifyHostedContext({dir,remote,home=process.env.HOME,uid=process.getuid(),fetch=globalThis.fetch,origin=HOSTED_ORIGIN}) {
+export async function verifyHostedAuthority({dir,remote,home=process.env.HOME,uid=process.getuid(),fetch=globalThis.fetch,origin=HOSTED_ORIGIN}) {
   const file=privateContextPath(home,dir);safeFile(file,uid);
   const context=checkedContext(JSON.parse(readFileSync(file,'utf8')));
   if(context.remote!==artifactsRemote(remote))throw Error('reconnect');
@@ -34,6 +34,10 @@ export async function verifyHostedContext({dir,remote,home=process.env.HOME,uid=
   if(!response.ok)throw Error('reconnect');
   const result=await response.json();
   if(result.ok!==true||result.projectId!==context.projectId||result.remote!==context.remote||result.generation!==context.generation||result.sourceCommit!==context.sourceCommit||result.starterCommit!==context.starterCommit)throw Error('reconnect');
+  return context;
+}
+export async function verifyHostedContext(options) {
+  const context=await verifyHostedAuthority(options);
   return {...context,token:undefined};
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href) {

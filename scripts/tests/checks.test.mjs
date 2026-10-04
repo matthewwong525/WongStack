@@ -74,6 +74,26 @@ test('a docs commit above earlier code still runs the suite for the whole change
   ranOnce(f);
 });
 
+test('the hosted trusted source command discovers the complete ordinary Git-prepared candidate', t => {
+  const f = fixture(t);
+  const code = f.commit({ 'app/index.js': 'export const x = 2;\n' });
+  const head = f.commit({ 'wiki/README.md': `${wiki}\nLatest documentation.\n` });
+  // The command comes from reviewed Source, outside the customer checkout.
+  // These are ordinary Git refs, not a provider stub or a copied check list.
+  assert.notEqual(code, head);
+  f.git('checkout', '--detach', head);
+  const result = f.run(['--discover'], { GITHUB_EVENT_NAME: '', GITHUB_REF_NAME: '', DEFAULT_BRANCH: '' });
+  passes(result);
+  const found = JSON.parse(result.stdout);
+  assert.equal(found.repo, f.work);
+  assert.equal(found.defaultBranch, 'main');
+  assert.equal(found.scope.base, f.base);
+  assert.equal(found.scope.untouched, 'false');
+  assert.equal(found.scope.wiki_affected, 'true');
+  assert.equal(found.dir, join(f.work, 'app'));
+  assert.deepEqual(f.calls(), [], 'discovery performs no customer install/test/build');
+});
+
 test('a docs-only change skips install and tests, but reports both quality checks', t => {
   const f = fixture(t);
   f.commit({ 'README.md': '# Project\n\nProject guidance.\n' });

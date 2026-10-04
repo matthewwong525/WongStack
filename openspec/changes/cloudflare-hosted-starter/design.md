@@ -74,7 +74,7 @@ Use `wrangler preview`, not a custom fetch wrapper, Worker loader or container U
 
 Keep native `previews` configuration on the new hosted starter only. Do not convert existing GitHub installations' `env.staging` or version URLs. Top-level assets remain native assets; the [configuration guide](https://developers.cloudflare.com/workers/previews/configuration/) says the preview uploads the branch's assets. The app is limited to HTTP and static assets, avoiding D1 migration and queue/cron semantics in this delivery. Later data support must use separate resources; [preview resource isolation](https://developers.cloudflare.com/workers/previews/resources/) does not automatically isolate D1, KV or R2.
 
-Protect the exact project Worker before uploading business content. Use its provider Worker ID, verified owner-email policy, and the documented `worker` Access destination for production and previews; avoid an account-wide allow policy. [Workers Access](https://developers.cloudflare.com/workers/configuration/cloudflare-access/) supports these destinations. Empty placeholder creation may establish a Worker ID before protection, but serves no customer content. Validate both policy readback and unauthenticated denial for assets/API/immutable preview. No open-install fallback on this hosted route. Customer human-login verification is distinct from machine verification and requires their participation when eventually authorized.
+Protect the exact project Worker before uploading business content. Use its provider Worker ID, verified owner-email policy and a separately owned project-specific Service Auth identity for automated observation, with the documented `worker` Access destination for production and previews; avoid an account-wide allow policy. [Workers Access](https://developers.cloudflare.com/workers/configuration/cloudflare-access/) supports these destinations. Empty placeholder creation may establish a Worker ID before protection, but serves no customer content. Validate both policy readback and unauthenticated denial for assets/API/immutable preview. No open-install fallback on this hosted route. Customer human-login verification is distinct from machine verification and requires their participation when eventually authorized.
 
 ### 6. Exact-change publication using the same supported pipeline
 
@@ -92,7 +92,7 @@ Keep three facts separate:
 
 1. Immutable provider receipt: account/project/Worker, SDK run, approved source SHA, Worker version and deployment IDs returned by publication and confirmed by provider readback.
 2. Identity observation: an authenticated live request serves the expected project/SHA and expected assets. Stamp identity during the ordinary trusted build, not with a custom runtime wrapper. Bounded propagation/readback can remain pending without redeployment.
-3. Repository acknowledgment: only after (1) and (2), the trusted Git helper advances `main` to the exact approved SHA by normal fast-forward, verifies the remote head, and records that acknowledgment. Ref changes use an expected old head and reject concurrent changes; never force-push or rewrite the workspace checkout.
+3. Repository acknowledgment: only after (1) and (2), the existing Source Git path advances `main` to the exact approved SHA by normal fast-forward with expected-old pre-push enforcement, then Cloud reads back the exact remote head and records that acknowledgment. Ref changes use an expected old head and reject concurrent changes; never force-push or rewrite the workspace checkout.
 
 The private publication record reaches `published` only when all three agree. If deployment succeeds but identity or repository acknowledgment fails, retain `deployed-awaiting-confirmation`, show incomplete publication, and recover by readback of that same operation. No second deployment, new approval/ref, automatic reservation clearing or fabricated success. A failed final record acknowledgment retries the same bounded record after independent readback.
 
@@ -106,7 +106,7 @@ The hosted owner wants to begin working with their AI without managing provider 
 
 ### Flow
 
-Existing email sign-in/service access → project name and Start project → existing setup card → existing workspace/AI sign-in flow. Setup loading, safe retry/support and ready states stay in the same card. The person reviews change previews and approves publication through the existing chat/verbs; create no additional publish dashboard in this delivery.
+Existing email sign-in/service access → Start project using the recorded project identity → existing setup card → existing workspace/AI sign-in flow. Setup loading, safe retry/support and ready states stay in the same card. The person reviews change previews and approves publication through the existing chat/verbs; create no additional publish dashboard in this delivery.
 
 ### Hierarchy
 

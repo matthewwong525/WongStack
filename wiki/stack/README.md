@@ -1,8 +1,8 @@
 # Cloudflare stack
 
-The stack every WongStack install runs on: a React + Vite SPA on Cloudflare Workers, with D1 for data, migrations applied automatically on release, and Cloudflare Access protecting pages and previews automatically. Setup runs from any folder and stands all of it up from one token.
+WongStack apps run on Cloudflare Workers with Access protecting pages and previews. [Personal GitHub setup](getting-started.md) includes D1 data and migrations; the separate [managed hosted starter](hosted-projects.md) begins with HTTP and static assets, without customer provider accounts.
 
-It fits AI-driven dev because **merge = deploy**: one runtime, cheap per-branch preview URLs, and a change that ships the moment its PR lands. [One token](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md) is all it takes to stand up.
+The GitHub route uses **merge = deploy**, independent staging and branch previews. [One token](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md) sets up a personal install. The managed route uses Cloudflare checks, exact private previews and approved publication; it remains disabled until complete acceptance.
 
 **It doesn't assume you already have an app.** Every install gets WongStack's [starter app](../../.agents/skills/wong-sync/references/payload-manifest.md#the-app-scaffold), so there is a real address people can open from day one.
 
@@ -25,6 +25,6 @@ It fits AI-driven dev because **merge = deploy**: one runtime, cheap per-branch 
 - [Cloudflare credentials](cloudflare-credentials.md) — the token screen in detail: the user-scoped token with two permission rows, how it widens itself, the narrow CI deploy token, per-environment Worker secrets, and the account-root trade-off.
 - [Manage Cloudflare with cf](cloudflare-cli.md) — optional account inspection and one-off resource work, using existing credentials while setup and app publishing keep their own workflows.
 
-Every install takes the pack. Standing it up is [setup's provisioning step](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md), which runs once when `/wong-setup` installs WongStack, from any folder. A login wall is [Cloudflare Access](cloudflare-access.md#turning-it-on-through-an-agent), and removing everything is the [teardown](getting-started.md#teardown).
+Personal installs take the pack. Standing it up is [setup's provisioning step](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md), which runs once when `/wong-setup` installs WongStack, from any folder. A login wall is [Cloudflare Access](cloudflare-access.md#turning-it-on-through-an-agent), and removing everything is the [teardown](getting-started.md#teardown). The managed starter has its [own limits and recovery](hosted-projects.md#scope-and-recovery).
 
-> Session memory is not part of this pack: every repo gets it, and [its page](../development/memory.md) lives with the core process docs.
+> [Session memory](../development/memory.md) is separate from this pack. Personal setup provisions it; the managed starter leaves it unconfigured.
