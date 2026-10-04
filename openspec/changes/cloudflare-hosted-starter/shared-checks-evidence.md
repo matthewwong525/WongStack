@@ -2,6 +2,8 @@
 
 Task 2.1 is prepared on Source main `02542fa2a8c4eb8a64266cacebee00987579564d`. Its maintenance CI gate remains pending. These local checks establish script behavior, not hosted execution or publication acceptance.
 
+The first pushed head `f840702a609715196d7172696e3ad9871c1e63fc` passed Test and Deploy, including recorded branch preview deployment `6835193877`, but [Payload checks](https://github.com/matthewwong525/WongStack/actions/runs/37166722802) failed two of 1038 script cases. The new capability needed its documentation-area mapping, and the static payload-dependency test needed to follow fixed sibling command paths in the shared script. Both are repaired without dropping checks; the complete gate remains pending a fresh push.
+
 The portable entry point requires the repository root, full base/head commits and default-branch context. It rejects a different checked-out head or nested root, evaluates the whole change, discovers the existing suite, and reports loosened checks and wiki failures even after installation or tests fail. Its fixtures use temporary repositories and an npm command double; they run no real app build, provider calls or deployed checks.
 
 Prepared checks:

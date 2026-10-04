@@ -72,9 +72,14 @@ test('shipped workflows and their local action receive every static file depende
     for (const match of text.matchAll(/(?:node|bash)\s+["']?(?:\$GITHUB_WORKSPACE\/)?((?:scripts|\.github)\/[\w./-]+\.(?:mjs|sh))/g)) check(match[1]);
     // A script's own imports from its folder ship with it.
     for (const match of text.matchAll(/from\s+['"]\.\/([\w.-]+\.mjs)['"]/g)) check(`${path.slice(0, path.lastIndexOf('/'))}/${match[1]}`);
+    // Fixed sibling command paths have the same payload dependency as imports.
+    for (const match of text.matchAll(/join\(scripts,\s*['"]([\w.-]+\.(?:mjs|sh))['"]/g)) check(`${path.slice(0, path.lastIndexOf('/'))}/${match[1]}`);
   };
   workflows.forEach(check);
   assert.ok(checked.has('.nvmrc'));
   assert.ok(checked.has('.github/scripts/app-untouched.sh'));
+  assert.ok(checked.has('.github/scripts/checks.mjs'));
+  assert.ok(checked.has('.github/scripts/loosened-checks.mjs'));
+  assert.ok(checked.has('.github/scripts/wiki-links.mjs'));
   assert.ok(checked.has('.github/scripts/test-file.mjs'));
 });
