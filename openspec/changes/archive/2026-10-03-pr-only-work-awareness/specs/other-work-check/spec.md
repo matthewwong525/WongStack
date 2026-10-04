@@ -1,9 +1,16 @@
-# other-work-check Specification
+## REMOVED Requirements
 
-## Purpose
-Before planning a change to the repo, the agent looks at the repo's other active work, so two chats don't plan the same thing without knowing it.
+### Requirement: Planning coordinates overlapping work with its owner
 
-## Requirements
+**Reason:** Restore the pre-#241 user decision instead of mandatory peer cooperation.
+**Migration:** Use the restored Planning names overlapping work and asks requirement.
+
+### Requirement: The check reads only this repo's live work
+
+**Reason:** Restore the original discovery contract without peer-session metadata.
+**Migration:** Use the restored contract under its distinct requirement name below.
+
+## ADDED Requirements
 
 ### Requirement: Planning names overlapping work and asks
 When `/explore` or `/plan` starts on work that changes repo files, the agent SHALL look at this repo's other active work before its first question: other worktrees on this computer and the plans in them, saved or not, and open pull requests. When some of it overlaps the request, the agent SHALL name that work and the overlap, and SHALL ask whether to keep going here, work there instead, or narrow this request. When nothing overlaps, it SHALL say nothing about the check. The check SHALL run once per piece of work, so `/plan` after `/explore` does not repeat it.

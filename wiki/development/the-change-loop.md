@@ -53,13 +53,9 @@ No offer after a code change you built, in an unattended run, or for a routine w
 
 One workspace holds one change. When a request has parts that could each be published alone, the agent asks once how to split them, [with these options](../../.agents/skills/plan/references/new-workspace.md#ask-once); each new [Paseo](https://paseo.sh) workspace plans its part and waits at its review link. [Open a part in a new workspace](../../.agents/skills/plan/references/new-workspace.md) owns when the ask returns, parts that build on each other, and the one-at-a-time fallback when Paseo is missing or nobody can answer.
 
-Before planning, [check other work](../../.agents/skills/explore/SKILL.md#check-for-other-work): this repo's chats, plans, and open pull requests. Owners [coordinate overlaps directly](#chats-coordinate-directly); unrelated work continues.
+Before planning, the agent [checks for other work](../../.agents/skills/explore/SKILL.md#check-for-other-work): this repo's other workspaces, their plans, and open pull requests. It speaks only when one overlaps, and asks [where to go on](../../.agents/skills/plan/references/new-workspace.md#ask-once).
 
 **Scratch files** go in the git-ignored `.scratch/` at the checkout root that [`tidy.mjs scratch`](../../.agents/skills/routine/scripts/tidy.mjs) makes and prints, not the system temp folder. It goes away with its workspace; in the main checkout, each session's tidy-up deletes scratch files older than a day.
-
-### Chats coordinate directly
-
-Owners resolve same-repo overlaps through [brief Paseo messages](task-chats.md), keeping each task and publishing approval. Existing plans retain agreements. Plan, resume, and scope changes refresh titles and context; publishing confirms agreed prerequisites. Ask only for an unresolved outcome or affected work blocked by an unreachable owner.
 
 ### Asking before drafting
 

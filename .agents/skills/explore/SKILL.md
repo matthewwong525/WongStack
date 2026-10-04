@@ -35,9 +35,9 @@ Once the work is known to change repo files, look at this repo's other work once
 node "$(git rev-parse --show-toplevel)/.claude/skills/explore/scripts/other-work.mjs"
 ```
 
-It prints same-repo workspaces, plans, changed files, pull requests, and distinct `chats` (title, exact ID, status). Compare task meaning and actual plans: titles can repeat or be stale.
+It prints this repo's other live workspaces (name, branch, active plans, changed files, `busy` when an agent runs there, `pr` when one is open) and open pull requests not opened by a bot. Compare them to the request by meaning, not file names: two plans about the installer overlap before either touches a file.
 
-- **An overlap:** [contact the verified owner](../../../wiki/development/the-change-loop.md#chats-coordinate-directly) before escalation; seek responsibility or dependency agreement. Ask only for an unresolved outcome or affected work blocked by an unreachable owner. Independent work continues.
+- **An overlap:** name the other work and why it overlaps, then put [the overlap ask](../plan/references/new-workspace.md#ask-once) in the next question group, or alone when nothing else is open.
 - **No overlap:** say nothing about the check.
 - **A `notes` line:** say it in one line and go on.
 
