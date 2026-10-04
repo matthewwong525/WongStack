@@ -42,7 +42,7 @@ export async function setupDocuments(ctx, paths, { deep = false, cpu = false, ex
       JSON.stringify(names.map(name => RUNTIME.models[name]))], { cwd: paths.runtime, env, timeout: 300000 });
     const results = JSON.parse(pulled.stdout.trim());
     if (!Array.isArray(results) || results.length !== names.length) throw new Error('Model preparation returned invalid readiness');
-    const models = { ...(previous?.models || {}) };
+    const models = { ...previous?.models };
     names.forEach((name, index) => {
       const model = results[index];
       if (!model.path || !model.path.startsWith(`${paths.models}/`) || !statSync(model.path).isFile()

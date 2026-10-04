@@ -51,11 +51,12 @@ test('QMD arguments use fixed typed fields and sanitized environment without key
 });
 test('parses pinned JSON candidates only within the manifest and rejects malformed results', t => {
   const { corpus } = fixture(t), manifest = { entries: corpus.entries };
-  for (const file of ['wiki/wiki/guide.md', 'qmd://wiki/wiki/guide.md']) {
+  for (const file of ['wiki/wiki/guide.md', 'qmd://wiki/wiki/guide.md', 'qmd://wiki/wiki/guide.md?index=wongstack']) {
     assert.equal(parseCandidates(JSON.stringify([{ file, line: 1, score: 0.8 }]), 'wiki', manifest)[0].path, 'wiki/guide.md');
   }
   assert.deepEqual(parseCandidates('[]', 'wiki', manifest), []);
   for (const value of ['bad', '{}', JSON.stringify([{ file: 'archive/wiki/guide.md', line: 1, score: 1 }]),
+    JSON.stringify([{ file: 'qmd://wiki/wiki/guide.md?index=external', line: 1, score: 1 }]),
     JSON.stringify([{ file: 'wiki/../../.env', line: 1, score: 1 }]), JSON.stringify([{ file: 'wiki/wiki/guide.md', line: 0, score: 1 }])])
     assert.throws(() => parseCandidates(value, 'wiki', manifest), /malformed|outside|external/);
 });

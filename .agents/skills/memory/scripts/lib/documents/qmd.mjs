@@ -8,6 +8,10 @@ import { validateRetrieval } from './input.mjs';
 import { redact } from '../scan.mjs';
 
 export const RUNTIME = JSON.parse(readFileSync(new URL('./runtime.json', import.meta.url), 'utf8'));
+const diagnosticText = text => Array.from(redact(String(text || '').slice(-1600), [])).filter(char => {
+  const code = char.charCodeAt(0);
+  return code === 9 || code === 10 || code >= 32 && code !== 127;
+}).join('');
 export const runtimeEntry = paths => join(paths.runtime, 'node_modules', '@tobilu', 'qmd', 'dist', 'cli', 'qmd.js');
 export function runtimeEnvironment(paths, dir, { embedding, reranking, cpu = false } = {}) {
   const home = join(paths.runtime, 'home');
@@ -26,7 +30,7 @@ export function executeFile(command, args, { signal, timeout = 15000, ...options
     const child = execFile(command, args, { ...options, signal, timeout, killSignal: 'SIGKILL', windowsHide: true,
       encoding: 'utf8', maxBuffer: 1024 * 1024 }, (error, stdout, stderr) => {
       if (error) reject(Object.assign(new Error(error.name === 'AbortError' || error.killed ? 'document backend deadline' : 'document backend failed'),
-        { code: error.code, safeDiagnostic: redact(String(stderr || '').slice(-1600), []).replace(/[\x00-\x08\x0b-\x1f\x7f]/g, '') }));
+        { code: error.code, safeDiagnostic: diagnosticText(stderr) }));
       else resolve({ stdout, stderr });
     });
     child.stdin?.end();
@@ -83,7 +87,13 @@ export function parseCandidates(stdout, role, manifest) {
   return rows.map(row => {
     if (!row || typeof row.file !== 'string' || !Number.isFinite(row.score) || !Number.isInteger(row.line) || row.line < 1)
       throw new Error('malformed QMD candidate');
-    const normalized = row.file.startsWith('qmd://') ? row.file.slice(6) : row.file;
+    const virtual = row.file.startsWith('qmd://');
+    let normalized = virtual ? row.file.slice(6) : row.file;
+    if (virtual && normalized.includes('?')) {
+      const suffix = '?index=wongstack';
+      if (!normalized.endsWith(suffix) || normalized.slice(0, -suffix.length).includes('?')) throw new Error('QMD returned an external index');
+      normalized = normalized.slice(0, -suffix.length);
+    }
     const prefix = `${role}/`;
     if (!normalized.startsWith(prefix)) throw new Error('QMD returned an external collection');
     const path = normalized.slice(prefix.length);

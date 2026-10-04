@@ -81,3 +81,7 @@ Ship modules under `.agents/skills/memory/scripts/lib/documents/`, extend the me
 - **2026-10-04** — Check: retired-name checks allow seven original retired terms only in the frozen copy of the 2026-09-25 memory proposal. Its source hash is recorded in the acceptance fixture; all live source checks remain, so historical retrieval can be tested without rewriting the record.
 
 - **2026-10-04** — Save checkpoint: implementation and focused checks are authored on merged `c22d448`; required remote checks and real CPU semantic acceptance are pending. Preserve unchecked verification tasks until actual runs pass. Session facts skipped because the diff and this handoff already retain the session-specific decisions.
+
+- **2026-10-04** — Check: `.github/workflows/qmd-retrieval.yml` limits the new native/model acceptance job to retrieval-related paths and 30 minutes, with same-repository pull-request duplicates skipped. This keeps model downloads out of unrelated work and avoids duplicate runs; existing test/payload gates stay required, and relevant pushes plus manual runs execute semantic and Windows acceptance.
+
+- **2026-10-04** — First remote run: Windows portable retrieval and the 101 app tests passed; payload lint and the new workflow explanation needed fixes. Native QMD/model setup reached original verification, exposing its managed `?index=wongstack` URI suffix. Corrected that adapter mapping with strict index/manifest checks, preserved control-character validation, and rerun the gates rather than claim semantic acceptance.
