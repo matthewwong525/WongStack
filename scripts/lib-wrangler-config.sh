@@ -189,3 +189,19 @@ wong_preview_url() {
   fi
   printf '%s\n' "$url"
 }
+
+# The live app's address, from what a production `wrangler deploy` printed: its
+# custom domain when it has one, else its workers.dev address. Harvested, never
+# constructed, for the same reason as wong_preview_url. Empty when wrangler
+# printed neither.
+#
+# Usage: wong_production_url <deploy-log>
+wong_production_url() {
+  local host
+  host=$(sed -nE 's/^[[:space:]]*([a-z0-9.-]+\.[a-z]+) \(custom domain\).*$/\1/p' "$1" | head -1)
+  if [ -n "$host" ]; then
+    printf 'https://%s\n' "$host"
+  else
+    grep -oE 'https://[a-z0-9._-]+\.workers\.dev' "$1" | head -1 || true
+  fi
+}

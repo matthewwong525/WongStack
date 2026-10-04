@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFile, execFileSync, spawnSync } from 'node:child_process';
-import { chmodSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, copyFileSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -122,7 +122,7 @@ test('default preflight still discovers the preview and checks its browser', t =
   const result = preflight();
   t.diagnostic(`preflight exit=${result.status}; stdout=${JSON.stringify(result.stdout)}`);
   assert.equal(result.status, 0);
-  assert.match(result.stdout, /^RESULT: READY\nURL=https:\/\/preview.example\/saved-head\nRUN_DIR=.+\nSHA=[a-f0-9]{40}\nBROWSER=local \(agent-browser 0.0.0\)\n$/);
+  assert.match(result.stdout, /^RESULT: READY\nURL=https:\/\/preview.example\/saved-head\nRUN_DIR=.+\nSHA=[a-f0-9]{40}\nBROWSER=local \(agent-browser 0.0.0\)\nSEEDED=no this repo has no staging database of its own to rebuild\nPLAYGROUND=no\n$/);
   assert.match(result.stdout, new RegExp(`^SHA=${sha}$`, 'm'));
   assert.equal(readFileSync(calls, 'utf8'), 'agent-browser doctor --json\nlookup\nagent-browser --version\n');
 });
@@ -172,6 +172,147 @@ test('CI-only preflight requires a saved head before allocating evidence storage
   assert.match(result.stdout, /^RESULT: UNKNOWN\n {2}no saved revision to verify\n$/);
   assert.deepEqual(readdirSync(temp), []);
   assert.equal(existsSync(calls), false);
+});
+
+// ── The staging turn and the reset ────────────────────────────────────────────
+
+// Two checkouts of one bare remote: two walks on two machines. `turn` runs the script's turn command
+// in one of them, never waiting unless a test says so.
+function turnFixture(t) {
+  const root = mkdtempSync(join(tmpdir(), 'wong-test-verify-turn-'));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const remote = join(root, 'remote.git');
+  execFileSync('git', ['init', '-q', '--bare', remote]);
+  const checkout = name => {
+    const work = join(root, name);
+    mkdirSync(work);
+    execFileSync('git', ['init', '-q'], { cwd: work });
+    execFileSync('git', ['remote', 'add', 'origin', remote], { cwd: work });
+    return work;
+  };
+  const turn = (work, args, env = {}) => spawnSync('bash', [script, 'turn', ...args],
+    { cwd: work, encoding: 'utf8', env: { ...process.env, WONG_TURN_WAIT_SECONDS: '0', WONG_TURN_POLL_SECONDS: '0', ...env } }).stdout;
+  const held = () => execFileSync('git', ['ls-remote', remote, 'refs/wong/staging-turn'], { encoding: 'utf8' }).split('\t')[0];
+  return { remote, first: checkout('first'), second: checkout('second'), turn, held };
+}
+const turnSha = stdout => stdout.match(/^TURN_SHA=([a-f0-9]{40})$/m)?.[1];
+
+test('only one of two takers holds the staging turn, and a give frees it for the other', t => {
+  const { first, second, turn, held } = turnFixture(t);
+  const mine = turn(first, ['take']);
+  assert.match(mine, /^TURN=held$/m);
+  assert.equal(held(), turnSha(mine));
+  const theirs = turn(second, ['take']);
+  assert.match(theirs, /^TURN=timeout$/m);
+  assert.equal(turnSha(theirs), undefined);
+  assert.equal(held(), turnSha(mine), 'a waiting walk moved the held turn');
+  assert.match(turn(first, ['give', turnSha(mine)]), /^TURN=given$/m);
+  assert.equal(held(), '');
+  const next = turn(second, ['take']);
+  assert.match(next, /^TURN=held$/m);
+  assert.match(turn(first, ['give', turnSha(mine)]), /^TURN=gone$/m, 'a walk gave back a turn it no longer held');
+  assert.equal(held(), turnSha(next));
+});
+
+test('a turn its holder never gave back is taken over once stale, or at once by the same checkout', t => {
+  const { first, second, turn, held } = turnFixture(t);
+  const crashed = turnSha(turn(first, ['take']));
+  const stale = turn(second, ['take'], { WONG_TURN_EXPIRY_SECONDS: '-1' });
+  assert.match(stale, /^TURN=held$/m);
+  assert.notEqual(turnSha(stale), crashed);
+  assert.equal(held(), turnSha(stale));
+  const again = turn(second, ['take']);
+  assert.match(again, /^TURN=held$/m, 'a re-walk from the same checkout waited on its own turn');
+  assert.equal(held(), turnSha(again));
+});
+
+test('a remote that refuses the turn marker, or no remote at all, reports turns unavailable', t => {
+  const { remote, first, turn, held } = turnFixture(t);
+  writeFileSync(join(remote, 'hooks/pre-receive'), '#!/usr/bin/env bash\nexit 1\n');
+  chmodSync(join(remote, 'hooks/pre-receive'), 0o755);
+  assert.match(turn(first, ['take']), /^TURN=unavailable the remote refused the turn marker$/m);
+  assert.equal(held(), '');
+  execFileSync('git', ['remote', 'remove', 'origin'], { cwd: first });
+  assert.match(turn(first, ['take']), /^TURN=unavailable this repo has no remote/m);
+});
+
+// A preflight fixture whose repo has the stack pack's staging database, a remote for the turn, and a
+// fake wrangler that logs each call and answers the reset's one read.
+function stagingFixture(t, { npxExit = 0, staging = { d1_databases: [{ binding: 'DB', database_name: 'app-db-staging', database_id: 'b' }] } } = {}) {
+  const setup = preflightFixture(t);
+  const { root, work, bin, env } = setup;
+  mkdirSync(join(work, 'scripts'));
+  for (const name of ['reset-staging-d1.mjs', 'lib-wrangler-config.mjs', 'lib-cli.mjs', 'cf-secrets.mjs']) copyFileSync(join(repo, 'scripts', name), join(work, 'scripts', name));
+  mkdirSync(join(work, 'app'));
+  writeFileSync(join(work, 'app/wrangler.jsonc'), JSON.stringify({ name: 'app', d1_databases: [{ binding: 'DB', database_name: 'app-db', database_id: 'a' }], env: { staging } }));
+  writeFileSync(join(bin, 'npx'), `#!/usr/bin/env bash\nprintf 'npx %s\\n' "$*" >> "$VERIFY_TEST_CALLS"\ncase "$*" in *--json*) echo '[{"results":[]}]' ;; esac\nexit ${npxExit}\n`);
+  chmodSync(join(bin, 'npx'), 0o755);
+  const remote = join(root, 'remote.git');
+  execFileSync('git', ['init', '-q', '--bare', remote]);
+  execFileSync('git', ['remote', 'add', 'origin', remote], { cwd: work });
+  const held = () => execFileSync('git', ['ls-remote', remote, 'refs/wong/staging-turn'], { encoding: 'utf8' }).split('\t')[0];
+  const fast = { WONG_TURN_WAIT_SECONDS: '0', WONG_TURN_POLL_SECONDS: '0' };
+  const calls = () => (existsSync(setup.calls) ? readFileSync(setup.calls, 'utf8') : '');
+  return { ...setup, env: { ...env, ...fast }, held, fast, wranglerCalls: () => calls().split('\n').filter(line => line.startsWith('npx ')) };
+}
+
+test('preflight takes the turn, rebuilds staging from the seed, and cleanup gives the turn back', t => {
+  const { work, env, held, fast, preflight, wranglerCalls } = stagingFixture(t);
+  const result = preflight(['--no-browser'], fast);
+  assert.match(result.stdout, /^RESULT: READY\n/);
+  assert.match(result.stdout, /\nTURN=held\nSEEDED=yes\nPLAYGROUND=yes\n$/);
+  assert.match(held(), /^[a-f0-9]{40}$/);
+  const calls = wranglerCalls();
+  assert.equal(calls.length, 3, calls.join('\n'));
+  assert.match(calls[1], /^npx wrangler d1 migrations apply app-db-staging --remote --env staging$/);
+  assert.match(calls[2], /^npx wrangler d1 execute app-db-staging --remote --env staging --file=.*schema\/seed\.sql$/);
+  const runDir = result.stdout.match(/^RUN_DIR=(.+)$/m)[1];
+  const cleaned = spawnSync('bash', [script, 'cleanup', runDir], { cwd: work, env, encoding: 'utf8' });
+  assert.equal(cleaned.status, 0);
+  assert.equal(held(), '', 'cleanup kept the staging turn');
+});
+
+test('a CI-only preflight takes no turn and rebuilds nothing', t => {
+  const { held, fast, preflight, wranglerCalls } = stagingFixture(t);
+  const result = preflight(['--no-preview', '--no-browser'], fast);
+  assert.match(result.stdout, /^RESULT: READY\n/);
+  assert.doesNotMatch(result.stdout, /TURN=|SEEDED=|PLAYGROUND=/);
+  assert.equal(held(), '');
+  assert.deepEqual(wranglerCalls(), []);
+});
+
+test('a held turn leaves staging alone, and a failed rebuild is named; neither stops the walk', t => {
+  const waiting = stagingFixture(t);
+  const other = join(waiting.root, 'other');
+  mkdirSync(other);
+  execFileSync('git', ['init', '-q'], { cwd: other });
+  execFileSync('git', ['remote', 'add', 'origin', join(waiting.root, 'remote.git')], { cwd: other });
+  const theirs = turnSha(spawnSync('bash', [script, 'turn', 'take'], { cwd: other, env: waiting.env, encoding: 'utf8' }).stdout);
+  const blocked = waiting.preflight(['--no-browser'], waiting.fast);
+  assert.match(blocked.stdout, /^RESULT: READY\n/);
+  assert.match(blocked.stdout, /\nTURN=timeout\nSEEDED=no another check held staging for the whole wait\nPLAYGROUND=yes\n$/);
+  assert.deepEqual(waiting.wranglerCalls(), []);
+  assert.equal(waiting.held(), theirs);
+
+  const failing = stagingFixture(t, { npxExit: 1 });
+  const failed = failing.preflight(['--no-browser'], failing.fast);
+  assert.match(failed.stdout, /^RESULT: READY\n/);
+  assert.match(failed.stdout, /\nTURN=held\nSEEDED=no the staging rebuild failed .*\nPLAYGROUND=yes\n$/);
+});
+
+test('staging bound to production\'s database, or missing a twin, is no playground', t => {
+  const same = stagingFixture(t, { staging: { d1_databases: [{ binding: 'DB', database_name: 'app-db', database_id: 'a' }] } });
+  const pointed = same.preflight(['--no-browser'], same.fast);
+  assert.match(pointed.stdout, /\nSEEDED=no this repo has no staging database of its own to rebuild\nPLAYGROUND=no\n$/);
+  assert.doesNotMatch(pointed.stdout, /TURN=/);
+  assert.deepEqual(same.wranglerCalls(), []);
+  assert.equal(same.held(), '');
+
+  const untwinned = stagingFixture(t);
+  const config = JSON.parse(readFileSync(join(untwinned.work, 'app/wrangler.jsonc'), 'utf8'));
+  config.kv_namespaces = [{ binding: 'CACHE', id: 'k' }];
+  writeFileSync(join(untwinned.work, 'app/wrangler.jsonc'), JSON.stringify(config));
+  assert.match(untwinned.preflight(['--no-browser'], untwinned.fast).stdout, /\nSEEDED=yes\nPLAYGROUND=no\n$/);
 });
 
 // The failure the scrub exists for: the driver adds the Access token to every request, a journey lists
@@ -500,4 +641,15 @@ test('pictures reports NONE for a comment with no picture, and UNKNOWN when the 
   const refused = await walk(['pictures', '7']);
   assert.match(refused.stdout, /^RESULT: UNKNOWN\n {2}the live site did not return the pictures \(HTTP 401\)\nRUN_DIR=/);
   assert.doesNotMatch(refused.stdout, /\t/);
+});
+
+test('scouting an unobservable change spends no preview, browser, staging or evidence work', t => {
+  const { work, temp, calls, env } = preflightFixture(t);
+  const result = spawnSync('bash', [script, 'scout-check'], { cwd: work, env, encoding: 'utf8' });
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /^RESULT: READY\nROOT=/);
+  assert.doesNotMatch(result.stdout, /RUN_DIR=|TURN=|SEEDED=/);
+  assert.equal(existsSync(calls), false);
+  assert.deepEqual(readdirSync(temp), []);
+  // Scenario reachability belongs to the agent scout, not this plumbing check.
 });

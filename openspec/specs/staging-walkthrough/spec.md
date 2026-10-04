@@ -45,7 +45,7 @@ The walk SHALL run only when a person invokes `/verify`, or once inside `/ship` 
 
 ### Requirement: The walk targets this commit's deployed preview
 
-When there is something to verify, `/verify` SHALL invoke `/save` first and bind evidence to that exact head revision. Deployed probes SHALL target the preview URL CI published for that revision, never a guessed URL or naming pattern. CI behavior probes SHALL use captured evidence whose actual source revision and run identity match the revision being checked. Missing evidence for one surface SHALL block only dependent checks.
+When there is something to verify, `/verify` SHALL bind evidence to the exact saved head revision, invoking `/save` only when current work is unsaved or unpushed. Deployed probes SHALL target the preview URL published for that revision through the applicable verified delivery route, never a guessed URL or naming pattern. CI behavior probes SHALL use captured evidence whose actual source revision and run identity match the revision being checked. Missing evidence for one surface SHALL block only dependent checks.
 
 #### Scenario: Uncommitted work
 
@@ -156,17 +156,17 @@ When a walk meets a Cloudflare Access login and a Cloudflare API token is availa
 
 ### Requirement: A failed walk resets staging, then fixes in scope or stops
 
-On `FAILURE` only, `/verify` SHALL reset staging to its seed only when it is an established disposable staging database, separate from production, and no overlapping work depends on its current data. Otherwise it SHALL preserve shared data and clean up only records it owns through known safe operations. It SHALL then fix a failure in this change's own scope, save, and walk again, at most twice, and SHALL report any other failure without fixing it; the report SHALL state the scope judgement. When an existing CI harness can cheaply reproduce an in-scope defect, the repair SHALL retain a focused regression check and evidence of that same check failing on the earlier source for the observed defect and passing on the repaired source. Where a lasting check is impractical, the report SHALL retain the available reproduction and explain the limitation without requiring new test infrastructure or weakening the delivery gate. A failure SHALL NOT prevent independent safe checks from completing. Additional consumer checks SHALL NOT expand repair authorization.
+On `FAILURE`, `/verify` SHALL fix a failure in this change's own scope, save, rebuild staging from the seed under its turn, and walk again, at most twice, and SHALL report any other failure without fixing it; the report SHALL state the scope judgement. When an existing CI harness can cheaply reproduce an in-scope defect, the repair SHALL retain a focused regression check and evidence of that same check failing on the earlier source for the observed defect and passing on the repaired source. Where a lasting check is impractical, the report SHALL retain the available reproduction and explain the limitation without requiring new test infrastructure or weakening the delivery gate. A failure SHALL NOT prevent independent safe checks from completing. Additional consumer checks SHALL NOT expand repair authorization.
 
 #### Scenario: An in-scope failure
 
 - **WHEN** a journey contradicts its `THEN` in this change's own code
-- **THEN** `/verify` safely restores its disposable test data, fixes, saves, and walks again, stopping after two failed attempts; a practical existing test path produces a retained regression with failing-before and passing-after evidence, otherwise the reproduction's limitation is reported
+- **THEN** `/verify` fixes, saves, rebuilds staging, and walks again, stopping after two failed attempts; a practical existing test path produces a retained regression with failing-before and passing-after evidence, otherwise the reproduction's limitation is reported
 
 #### Scenario: An out-of-scope failure
 
 - **WHEN** a journey fails on behavior this change did not introduce
-- **THEN** `/verify` preserves shared data, reports the failure, and finishes independent safe checks without a fix
+- **THEN** `/verify` reports the failure and finishes independent safe checks without a fix
 
 ### Requirement: Evidence is posted on every verdict
 
@@ -332,17 +332,17 @@ For checks that cannot be completed directly, `/verify` SHALL attempt the strong
 
 ### Requirement: Verification preserves staging and external systems
 
-Verification SHALL use staging-only bindings and known sandbox destinations for mutating checks. Reversible writes and destructive journeys SHALL be limited to disposable fixtures or records owned by the invocation with known safe cleanup. Existing shared data, production resources, access controls beyond already authorized repair, and real messages, purchases, or paid resources SHALL require explicit authorization before being changed or triggered. If isolation or safe cleanup cannot be established, the affected checks SHALL remain unverified while independent safe checks continue.
+Inside a staging environment whose every stateful binding is its own twin and whose database is not production's, verification MAY create, change, and delete any data without a prompt, without owning the records, and without cleanup: the next walk rebuilds staging. An outside service SHALL be exercised only when staging holds its own key for it, distinct from production's; a service whose staging key is production's, or whose destination cannot be established, SHALL NOT be triggered, and its checks SHALL remain unverified by name while independent checks continue. Production resources, access controls beyond already authorized repair, and paid resources SHALL still require explicit authorization. If staging's isolation cannot be established, mutating checks SHALL remain unverified.
 
 #### Scenario: A disposable delete journey
 
-- **WHEN** a delete scenario has an isolated staging fixture and a known restoration path
-- **THEN** the journey runs without a permission prompt and the fixture is safely restored afterwards
+- **WHEN** a delete scenario runs on an isolated staging environment
+- **THEN** the journey deletes seeded records without a permission prompt and restores nothing afterwards
 
 #### Scenario: Staging points at a real integration
 
-- **WHEN** a staging journey would send a real message or its integration destination cannot be established
-- **THEN** its trigger is deferred for the final authorization handoff and independent safe checks still run
+- **WHEN** a staging journey would send a message through a service whose staging key is production's, or whose destination cannot be established
+- **THEN** its trigger is not run, the report names the service and what a staging-only key would unlock, and independent checks still run
 
 ### Requirement: Reusable recipes guide capture without changing promises
 
@@ -427,3 +427,49 @@ A run combining deployed and CI behavior probes SHALL issue one final report cov
 
 - **WHEN** a selected web check lacks its preview while an independent command-line check has valid evidence
 - **THEN** the command-line check completes and the report names the web check as unverified, with overall `UNKNOWN` unless failure or timeout takes precedence
+
+### Requirement: A walk starts from the seed and holds a turn
+
+Before its first deployed check, `/verify` SHALL take the repository's single staging turn and rebuild staging from the checked-in seed, so every walk starts from the same known data on its own revision's schema. Only one walk SHALL hold the turn at a time, across machines; the turn SHALL be given back on every exit and SHALL expire on its own when its holder vanishes. A walk that cannot get the turn or cannot rebuild staging within its budget SHALL leave its staging-dependent checks unverified, name why, and still finish checks that need no staging data. A repository with no disposable staging database SHALL walk as before, with no turn and no rebuild.
+
+#### Scenario: Two walks at once
+
+- **WHEN** a second walk starts while another holds the staging turn
+- **THEN** it waits, then rebuilds staging and walks only after the first gives the turn back or the turn expires
+
+#### Scenario: No turn in time
+
+- **WHEN** the turn is still held when the walk's wait runs out
+- **THEN** the staging-dependent checks are reported unverified with the reason, and CI-only checks still finish
+
+### Requirement: Missing seed data is named
+
+A scenario whose journey needs records the seed does not hold SHALL be created by the walk where the app's own screens allow it. Where they do not, the scenario SHALL be reported unverified, naming the missing sample data, and SHALL NOT count as a pass.
+
+#### Scenario: A report page with nothing to show
+
+- **WHEN** a scenario promises a list of past orders and the seed holds none the walk can create
+- **THEN** the report names that scenario as unverified for lack of sample orders
+
+### Requirement: A scheduled job is run by its manual trigger
+
+For a scenario about work that runs on a schedule, `/verify` SHALL start that work through the project's manual trigger on staging and grade its result. Where the project offers no manual trigger, the scenario SHALL be unverified by name. The schedule's own timing SHALL stay partly shown.
+
+#### Scenario: A nightly job
+
+- **WHEN** a change's scenario promises a nightly summary and staging offers a manual trigger for it
+- **THEN** the walk runs the job once on staging, grades the summary against the `THEN`, and reports the timetable as not checked
+
+### Requirement: A saved revision is reused without another checkpoint
+
+Verification of clean, already saved work SHALL use the existing exact-revision checkpoint, without another commit, push, record-only save or request to rerun settled checks. Reuse SHALL require matching local and authoritative remote revision and the applicable gate identity; a missing, foreign or unreadable identity SHALL remain unverified. A superseding run attempt SHALL NOT be concealed by an earlier pass. A fresh invocation SHALL still produce fresh walkthrough evidence; a cached verdict SHALL NOT replace it. A source repair SHALL invalidate dependent evidence and use the newly saved revision's checks, with unchanged independent checks retained only when their conditions remain valid.
+
+#### Scenario: Ship has just saved the change
+
+- **WHEN** `/ship` passes a current exact checkpoint and the selected work stays clean at the same authoritative remote head
+- **THEN** `/verify` walks that revision without invoking `/save` again or restarting its settled checks
+
+#### Scenario: An earlier passing result belongs to different work
+
+- **WHEN** the local head, authoritative candidate, applicable run attempt or evidence revision does not match the passing result
+- **THEN** the old result is not reused as proof of the current work and missing authoritative evidence remains unverified

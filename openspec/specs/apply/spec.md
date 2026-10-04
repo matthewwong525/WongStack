@@ -31,7 +31,7 @@ When `/apply` plans first, it SHALL build exactly the change that planning produ
 
 ### Requirement: A fresh helper builds the tasks
 
-Where the host can start one, a fresh helper agent SHALL work the change's tasks, and it SHALL NOT ask the person, run git, save, or upload a preview. It SHALL return on a question, a blocker, or a task that needs the gate, and the parent SHALL handle that stop and start a new helper for the rest. A host with no helper SHALL build inline.
+Where the host can start one, a fresh helper agent SHALL work the change's implementation and test-authoring tasks, and it SHALL NOT ask the person, run git, save, execute tests, or upload a preview. It SHALL return on a question, a blocker, or completion of the whole implementation; final verification SHALL follow implementation. The parent SHALL handle a question or blocker and start a new helper for the rest when appropriate. A host with no helper SHALL build inline with the same verification timing.
 
 #### Scenario: An ambiguous task
 
@@ -41,7 +41,7 @@ Where the host can start one, a fresh helper agent SHALL work the change's tasks
 #### Scenario: No helper available
 
 - **WHEN** the host cannot start a helper agent
-- **THEN** `/apply` works the tasks inline with the same outcome
+- **THEN** `/apply` works the tasks inline with the same outcome and defers tests until implementation is complete
 
 ### Requirement: A finished change ends with a host preview
 
@@ -83,20 +83,6 @@ When `/ship` invoked `/apply`, a finished build SHALL return to `/ship` with no 
 
 - **WHEN** `/apply` stops on a blocker with tasks pending
 - **THEN** it does not save, and reports the remaining work and the `/save` option
-
-### Requirement: A task that needs the gate is done through save
-
-A task whose done state needs a passing CI run, a CI preview, or pushed browser evidence SHALL be done by invoking `/save`, then marked on success, with the build continuing. A failing or unverifiable result SHALL leave the task unchecked and stop the build. Plans SHALL name such a task as verified through `/save`.
-
-#### Scenario: A mid-list build check
-
-- **WHEN** a pending task needs CI to pass and later tasks remain
-- **THEN** `/apply` runs `/save`, marks the task on success, and builds the rest
-
-#### Scenario: The gate fails
-
-- **WHEN** that `/save` reports a failing result
-- **THEN** the task stays unchecked and `/apply` reports and stops
 
 ### Requirement: The publish question lists loosened checks
 
@@ -143,3 +129,17 @@ A proposal whose change deletes or reshapes stored data, sends a message, or rem
 
 - **WHEN** a finished change only edits text
 - **THEN** the report carries no can't-be-undone line
+
+### Requirement: Complete implementation precedes automatic verification
+
+Plans and builds SHALL prepare the whole agreed implementation and its tests before automatically executing tests, remote check waits or walkthroughs. They SHALL NOT introduce per-task verification checkpoints or approval stops. Source completion SHALL NOT be reported as a passing test result. Existing intermediate test gates SHALL be deferred to the final verification phase without dropping their acceptance obligations. Explicitly requested early saves or checks SHALL retain their reach; a substantive unavailable prerequisite SHALL be reported as a blocker rather than treated as passed.
+
+#### Scenario: A plan has several test gates between source tasks
+
+- **WHEN** a build's task list names checks after separate implementation parts and the person has not requested early checks
+- **THEN** the complete implementation and test authoring finish before those checks run together in the final verification phase, with no new approval stops
+
+#### Scenario: Final verification fails
+
+- **WHEN** final verification reveals a real defect in the completed implementation
+- **THEN** the defect is repaired and affected checks are repeated under the existing repair limits, with all final required checks preserved

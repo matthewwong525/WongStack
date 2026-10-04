@@ -260,3 +260,15 @@ test('GitHub invokes the shared script once, and staging has no dependency on th
   assert.doesNotMatch(deploy, /\bneeds:|workflow_run:|workflows:\s*\[?\s*['"]?Test/);
   assert.match(deploy, /bash scripts\/cf-deploy\.sh/);
 });
+
+test('the default-branch deploy records its outcome and live address, and a failed record never fails the job', () => {
+  const deploy = readFileSync(join(repo, '.github/workflows/deploy.yml'), 'utf8');
+  const step = deploy.slice(deploy.indexOf('- name: Record the production release'));
+  assert.match(step, /if: \$\{\{ always\(\) && .*github\.ref_name == github\.event\.repository\.default_branch \}\}/);
+  assert.match(step, /continue-on-error: true/);
+  assert.match(step, /LIVE_URL: \$\{\{ steps\.deploy\.outputs\.production-url \}\}/);
+  assert.match(step, /STATE: \$\{\{ steps\.deploy\.outcome == 'success' && 'success' \|\| 'failure' \}\}/);
+  assert.match(step, /-f ref="\$GITHUB_SHA"[\s\S]*-f environment=production[\s\S]*-f state="\$STATE"[\s\S]*environment_url="\$LIVE_URL"/);
+  // The address comes from the deploy's own output, never from a naming pattern.
+  assert.match(readFileSync(join(repo, 'scripts/cf-deploy.sh'), 'utf8'), /LIVE_URL=\$\(wong_production_url "\$DEPLOY_LOG"\)[\s\S]*production-url=\$LIVE_URL/);
+});

@@ -36,6 +36,7 @@
       "agent-browser"
     ],
     "files": [
+      ".claude/skills/save/scripts/saved-revision.mjs",
       ".claude/settings.json",
       ".claude/hooks.json",
       ".claude/config.toml",

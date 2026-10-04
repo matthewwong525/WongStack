@@ -26,18 +26,20 @@ Check `applyRequires` in `openspec status --change "<name>" --json`:
 
 `/apply` authorizes plan-then-implement. After `/plan` returns, verify the `applyRequires` closure; paused or blocked → report and stop. Otherwise announce the change's **exact name** and keep it; no other change may replace it. Then [build in a helper](#build-in-a-helper).
 
-At **all-tasks-complete**, even at invocation, [finish with a preview](#finish-with-a-preview), unless a task-driven `/save` completed the final task: then report its result and CI preview, with no upload. **When `/ship` invoked you, return instead**, with no upload and no `/save`; `/ship` archives and makes the one checkpoint.
+At **all-tasks-complete**, even at invocation, [finish with a preview](#finish-with-a-preview), unless final live acceptance already saved a CI preview: report it without another upload. **When `/ship` invoked you, return instead**, with no upload and no `/save`; `/ship` archives and makes the one checkpoint.
 
 ## Build in a helper
 
 Work the tasks in a fresh helper agent, so the build skips this conversation's planning talk: the Agent tool (`general-purpose`) in Claude Code, a sub-agent in Codex, on the parent's model. The prompt is two lines: the exact change name, and *read `$(git rev-parse --show-toplevel)/.claude/skills/apply/references/build-helper.md`, then build*. Add `store <id>` as a third line when a store was selected. [The brief](references/build-helper.md) owns what the helper does and returns.
 
-Act on each report's stop:
+Before building, move intermediate test gates to the final phase; preserve acceptance obligations and log the timing change, unasked. Finish all source/tests before automatic checks; source completion never claims tests passed. Explicit early requests stand; unavailable substantive prerequisites remain blockers.
+
+Act on reports:
 
 - **A question** → ask the person in [the shared ask format](../explore/references/asking-the-user.md), log the answer as an `Asked` [Decision-log line](../plan/SKILL.md#explore-first), then start a new helper.
-- **A gate task** → run `/save` for it by [the boundaries](#boundaries), then start a new helper.
 - **A blocker** → report it and stop.
-- **All done** → check `tasks.md` has no unticked box, then handle **all-tasks-complete** above.
+- **Final acceptance** → only after all source/tests are authored, run `/save` and retained live acceptance. Tick observed passes; blocked/failed remains unchecked and stops.
+- **All done** → confirm no unticked box, then handle **all-tasks-complete** above.
 
 When no helper can start, or this `/apply` already runs inside one, work inline by the brief's *Build* steps and handle each stop here.
 
@@ -81,6 +83,6 @@ Report the result without `/save`; nothing is committed. To stop halfway, the pe
 ## Boundaries
 
 - **Git stays with `/save`** ([the change loop](../../../wiki/development/the-change-loop.md)): no commit, push, branch, PR, or CI step here. The preview upload is not git and gates nothing.
-- **Never save to stop; save to finish a gate task** ([why](../../../wiki/development/the-change-loop.md#apply-never-saves-to-stop-but-may-save-to-finish-a-task)): report unfinished work for `/save` to checkpoint. A gate task runs `/save`: tick it on a pass; otherwise leave it unchecked, report, and stop.
+- **Never save to stop or between parts.** After source/tests are prepared, substantive live acceptance may use `/save`; tick only observed acceptance. Routine final gates belong to delivery, not implementation boxes ([why](../../../wiki/development/the-change-loop.md#apply-never-saves-to-stop-but-may-save-to-finish-a-task)).
 - **Resuming cold** → [`/continue <name>`](../continue/SKILL.md).
 - **Pause on ambiguity or blockers** (the proposal is the intent), ending with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step): ways to clear it, recommended first.

@@ -15,17 +15,16 @@ Invoking `/ship` authorizes every step below without a prompt: archive, checkpoi
 Check [preconditions](../save/references/preconditions.md) for hosted/GitHub transport; preserve steps 2–4. Otherwise:
 
 ```bash
-git rev-parse --abbrev-ref HEAD
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
 git status
 git log origin/main..HEAD --oneline
-# the default branch's own CI must be green before we add to it:
 gh api repos/:owner/:repo/commits/main/check-runs \
   --jq '[.check_runs[]] | map(.conclusion) | (if (index("failure") or index("cancelled")) then "failure" else "ok" end)'
 ```
 - Default branch with uncommitted changes → [Step 2](#step-2--archive-the-change) in the same tree; Step 3's save cuts the feature branch.
 - Clean default branch, or a clean tree 0 commits ahead → [the pull-in](#the-pull-in-nothing-to-ship-yet). A dirty feature branch with 0 commits is valid.
 - Proceed only on `ok` default-branch CI, even with an intent. **Stop** on `failure` (fix it first) or `UNKNOWN` (an empty answer or failed `gh` call; report gh's message).
-- Record `BRANCH=$(git rev-parse --abbrev-ref HEAD)`; commit, push, PR, and checks wait for `/save`.
+- Commit, push, PR, and checks wait for `/save`.
 
 ### The pull-in: nothing to ship yet
 
@@ -47,20 +46,20 @@ Resolve `CHANGE_NAME`, separate from `BRANCH`, by [the rungs](../save/references
 
 **Several active change folders** in the branch diff or tree → stop before archive, even with an explicit selection: the merge would carry them all. Ask [as options](../explore/references/asking-the-user.md), naming them: move the others off the branch *(Recommended)*, or ship all on purpose. Require `openspec/changes/$CHANGE_NAME/`; keep `CHANGE_NAME` fixed through archive and checkpoint.
 
-**Read `tasks.md` first.** Unchecked tasks (`- [ ]`) → invoke [`apply`](../apply/SKILL.md) for that change inside `/ship`, then re-read; still pending → report and stop. Never let this runbook's authorization answer the archive's incomplete-task confirmation.
+**Read `tasks.md` first.** Unchecked tasks (`- [ ]`) → invoke [`apply`](../apply/SKILL.md) for that change inside `/ship`, then re-read; still pending → report and stop.
 
 [The CLI contract](../plan/references/openspec-cli.md#validate-and-archive) owns `--skip-specs`. Stop unless `openspec status --change "$CHANGE_NAME" --json` shows every schema artifact complete or deliberately skipped and `openspec validate "$CHANGE_NAME" --strict --no-interactive` passes. Then run `openspec archive "$CHANGE_NAME" --yes`, verify exactly one `openspec/changes/archive/*-$CHANGE_NAME/` exists, and keep its path.
 
 ## Step 3 — delegate the checkpoint to /save
 
-First, number the release: a `## Next (patch|minor|major) — <Title>` entry in `CHANGELOG.md` gets its number from `main`'s version here, so two changes in flight never share one:
+First, number `CHANGELOG.md`'s `## Next (patch|minor|major) — <Title>` entry from `main`'s version, so two changes in flight never share one:
 
 ```bash
 git fetch origin main
 node "$(git rev-parse --show-toplevel)/.claude/skills/ship/scripts/number-release.mjs"
 ```
 
-- `release=none` → nothing to number (always, with no `CHANGELOG.md`).
+- `release=none` → nothing to number.
 - `release=X.Y.Z from=A.B.C` → `VERSION` and the heading are written; they ride in this checkpoint.
 - `behind=yes` → `git merge origin/main`, resolve `CHANGELOG.md` as the union of intent with this branch's entry on top, and rerun the script.
 - Exit 1 → report its message and stop before `/save`.
@@ -69,7 +68,7 @@ node "$(git rev-parse --show-toplevel)/.claude/skills/ship/scripts/number-releas
 
 ## Step 4 — verify the preview (evidence, not a gate)
 
-**Invoke the `verify` skill once**, verbatim; never skip it or rerun it for a better verdict. No `verify` skill → say so in one line and go on; never install it.
+**Invoke `verify` once with Step 3's exact checkpoint receipt.** It checks identity and reuses the gate without another save; fresh walkthrough evidence remains required. Never rerun for a better verdict. No `verify` skill → say so in one line and go on; never install it.
 
 - `SUCCESS`, `NONE`, `UNKNOWN`, `TIMEOUT` → report it and merge.
 - `FAILURE` after `/verify`'s own fixes → **stop and ask** [two options](../explore/references/asking-the-user.md#confirmations-offers-and-menus-are-asks): fix it first *(Recommended)*, or *publish anyway* and record that the walk failed. Say in [plain words](../explore/references/asking-the-user.md#write-in-plain-words) what they would see not working on the preview.
@@ -78,7 +77,7 @@ If the walk's fixes advanced `HEAD`, confirm their `/save` result is `SUCCESS` o
 
 ## Step 5 — merge and sync
 
-Run the merge script once. It merges exactly the gated commit, retargets stacked PRs **before** deleting the branch, and fast-forwards the `main` checkout:
+Run the merge script once; it merges exactly the gated commit:
 
 ```bash
 bash "$(git rev-parse --show-toplevel)/.claude/skills/ship/scripts/merge.sh"
@@ -88,14 +87,14 @@ bash "$(git rev-parse --show-toplevel)/.claude/skills/ship/scripts/merge.sh"
 - **Exit 1** → not merged, nothing deleted: report the error and stop, except the two cases below.
 - **Exit 2** → merged, but a retarget or delete failed; the branch and its stacked PRs stay. Report it.
 
-Both cases exit 1 and recover the same way: `git fetch origin main` → `git merge origin/main`, rerun the numbering script from [Step 3](#step-3--delegate-the-checkpoint-to-save), invoke ordinary `/save`, and rerun the merge script only on `SUCCESS` or `NONE`.
+Both recover the same way: `git fetch origin main` → `git merge origin/main`, rerun the numbering script from [Step 3](#step-3--delegate-the-checkpoint-to-save), invoke ordinary `/save`, and rerun the merge script only on `SUCCESS` or `NONE`.
 
-- **`stale_version=<version>`**: another release took this number meanwhile.
+- **`stale_version=<version>`**: another release took this number.
 - **A merge conflict**: merge, not rebase, unless asked; resolve each file as the **union of intent**. Never check out, switch, stash, reset, or force a branch to make the sync succeed, or delete a local branch.
 
 ### Promote the branch's secret edits
 
-From the shipped worktree, promote deferred secret edits (deletions, branch-only values) to the primary:
+From the shipped worktree, promote deferred secret edits to the primary:
 
 ```bash
 node "$(git rev-parse --show-toplevel)/.claude/skills/ship/scripts/worktree-secrets.mjs" promote
@@ -103,13 +102,23 @@ node "$(git rev-parse --show-toplevel)/.claude/skills/ship/scripts/worktree-secr
 
 It prints key names, never values, and skips and names a key the primary also changed; [the secrets convention](../../../wiki/development/secrets.md) owns the rest. An error is one report line, never a failed ship.
 
+### Look at the live app
+
+Once, after a merge; allow 12 minutes:
+
+```bash
+bash "$(git rev-parse --show-toplevel)/.claude/skills/ship/scripts/live-look.sh" "$(gh pr view <pr> --json mergeCommit --jq .mergeCommit.oid)"
+```
+
+`LIVE_LOOK=ok`/`unknown` → `REASON` as one report line. `failed` → say what is not working, then invoke [`apply`](../apply/SKILL.md) **once** with `REASON` and `URL` as the request; it ends at its preview and *publish it?*. No retry or revert.
+
 ## Step 6 — report
 
-Lead with the outcome in [plain words](../explore/references/asking-the-user.md#write-in-plain-words): *it is live*, what changed for the person, the live link, then [the plan's link](../explore/references/asking-the-user.md#print-the-plans-link) to the archived `review.html`. Always add **Checks loosened**: each `Check:` bullet in the archived Decision log, one plain line; omit when none ([why](../../../wiki/development/the-change-loop.md#a-loosened-check-needs-a-reason)). Only when asked, add `merge.sh`'s `key=value` lines (`merged`, `pr`, `url`, `retargeted`, `branch`, `synced`) and:
+Lead with the outcome in [plain words](../explore/references/asking-the-user.md#write-in-plain-words): *it is live*, what changed for the person, the live link, then [the plan's link](../explore/references/asking-the-user.md#print-the-plans-link) to the archived `review.html`. Always add **Checks loosened**: each `Check:` bullet in the archived Decision log, one plain line; omit when none ([why](../../../wiki/development/the-change-loop.md#a-loosened-check-needs-a-reason)). Only when asked, add `merge.sh`'s `key=value` lines and:
 
 - **Archived** — the path, or one line that no change was needed.
 - **Checkpoint** — `/save`'s result and CI outcome, auto-fix pushes included.
-- **Walk** — verdict and evidence link; a merged-anyway `FAILURE` says the user chose it; an absent skill is one line.
-- **Secrets** — promoted, skipped, and unresolved key names (never values), or why it was skipped.
+- **Walk** — verdict and evidence link; a merged-anyway `FAILURE` says the user chose it.
+- **Secrets** — promoted, skipped, and unresolved key names, or why it was skipped.
 
 Close with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step), whose options and order [next work](../plan/references/new-workspace.md#next-work) owns; after a stop, the ways to clear the blocker.
