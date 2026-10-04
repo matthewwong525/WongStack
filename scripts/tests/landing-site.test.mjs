@@ -1,4 +1,4 @@
-// Two guards for the landing page in site/. Meta-only, like the site itself.
+// Three guards for the landing page in site/. Meta-only, like the site itself.
 //
 // They live here, not in site/, because a change that edits only the README or
 // only a script never runs the site's own workflow (.github/workflows/site.yml).
@@ -9,7 +9,8 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { findWranglerConfigOrNull } from '../lib-wrangler-config.mjs';
+import { isDeepStrictEqual } from 'node:util';
+import { findWranglerConfigOrNull, parseConfig } from '../lib-wrangler-config.mjs';
 // The page's own message, read from the file the page reads. Node strips the
 // types, so this is the module itself, never a copy.
 import { INSTALL_PROMPT } from '../../site/src/install.ts';
@@ -159,4 +160,58 @@ test('a second findable config is refused, and so is a payload list that names s
     sitePaths({ core: { files: ['site/index.html', 'sitemap.xml'] }, pack: { dirs: ['site'], exclude: ['site/dist'] } }),
     ['site/index.html', 'site', 'site/dist'],
   );
+});
+
+// ---- Guard 3: a publish attaches wongstack.com, and a preview never does ----
+
+const DOMAINS = ['wongstack.com', 'www.wongstack.com'];
+
+// Why deploying `config` would not leave wongstack.com on the live site alone,
+// or null. A wrangler environment inherits the top-level `routes`, so one with
+// no empty list of its own takes the domain on a branch deploy.
+function domainProblem(config) {
+  const routes = DOMAINS.map(pattern => ({ pattern, custom_domain: true }));
+  if (!isDeepStrictEqual(config.routes, routes)) {
+    return `${SITE_CONFIG} must list exactly ${DOMAINS.join(' and ')} as its top-level \`routes\`, each with \`custom_domain: true\`: a publish attaches what the list names.`;
+  }
+  if (config.workers_dev !== true) {
+    return `${SITE_CONFIG} must keep \`"workers_dev": true\`: with \`routes\` declared and that key absent, wrangler turns the site's own address off.`;
+  }
+  const taker = Object.entries(config.env ?? {}).find(([, block]) => !isDeepStrictEqual(block?.routes, []));
+  if (!taker) return null;
+  return `env.${taker[0]} in ${SITE_CONFIG} must declare \`"routes": []\`: an environment inherits the top-level routes, so a preview would take ${DOMAINS[0]} from the live site.`;
+}
+
+test('the live site answers at wongstack.com and www.wongstack.com, and no environment takes either name', () => {
+  const config = parseConfig(join(repo, SITE_CONFIG));
+  assert.ok(config.env?.staging, `${SITE_CONFIG} must keep env.staging: the preview deploys it`);
+  assert.equal(domainProblem(config), null);
+});
+
+test('a config whose staging block has no routes is refused, naming the environment', () => {
+  // The real config with one thing changed, and why it is refused.
+  const broken = change => {
+    const config = parseConfig(join(repo, SITE_CONFIG));
+    change(config);
+    return domainProblem(config);
+  };
+
+  for (const [name, change] of [
+    ['staging with no routes', config => { delete config.env.staging.routes; }],
+    ['staging with a domain of its own', config => { config.env.staging.routes = [{ pattern: 'wongstack.com', custom_domain: true }]; }],
+  ]) {
+    assert.match(broken(change), /env\.staging/, name);
+    assert.match(broken(change), /"routes": \[\]/, name);
+  }
+  assert.match(broken(config => { config.env.trial = { name: 'wongstack-site-trial' }; }), /env\.trial/);
+
+  for (const [name, change] of [
+    ['no routes at all', config => { delete config.routes; }],
+    ['www left out', config => { config.routes.pop(); }],
+    ['a third name', config => { config.routes.push({ pattern: 'app.wongstack.com', custom_domain: true }); }],
+    ['a route that is not a custom domain', config => { config.routes[0] = { pattern: 'wongstack.com' }; }],
+  ]) {
+    assert.match(broken(change), /top-level `routes`/, name);
+  }
+  assert.match(broken(config => { delete config.workers_dev; }), /workers_dev/);
 });

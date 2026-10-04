@@ -4,8 +4,9 @@
 #
 # A change that touches site/ or this file tests and builds the site, then:
 #
-#   default branch   publishes the Worker `wongstack-site`, live at its own
-#                    workers.dev address.
+#   default branch   publishes the Worker `wongstack-site`, live at
+#                    wongstack.com, www.wongstack.com, and its own workers.dev
+#                    address.
 #   any other branch publishes `wongstack-site-staging`, uploads a version
 #                    under the branch's alias, and posts that address on the
 #                    commit as the `landing-preview` status.
@@ -22,8 +23,9 @@
 # takes its preview link from the first Deployment on the commit, and that one
 # belongs to the starter app (deploy.yml).
 #
-# This workflow attaches no domain. wongstack.com moves to the site only on the
-# owner's word, in a change of its own.
+# The publish attaches wongstack.com and www.wongstack.com, the top-level
+# `routes` in the config. A branch deploy attaches neither: `env.staging`
+# declares an empty list, and scripts/tests/landing-site.test.mjs pins it.
 #
 # One run per commit: see "Why one commit does not test twice" in
 # .github/workflows/test.yml.
