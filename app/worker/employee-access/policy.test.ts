@@ -129,7 +129,7 @@ it("fails closed for malformed rollout, missing migration, empty/disabled policy
   expect(await read()).toEqual({ state: "unavailable" });
   sql.exec("UPDATE wong_access_installation SET policy_enabled = 1; INSERT INTO wong_access_apps VALUES ('installation', 'bad/app'); INSERT INTO wong_access_grants VALUES ('installation', 'employee@example.com', 'bad/app', 1)");
   expect(await read()).toEqual({ state: "unavailable" });
-  sql.exec("DELETE FROM wong_access_installation");
+  sql.exec("DELETE FROM wong_access_grants; DELETE FROM wong_access_members; DELETE FROM wong_access_apps; DELETE FROM wong_access_installation");
   expect(await read()).toEqual({ state: "unavailable" });
   sql.exec("DROP TABLE wong_access_installation");
   expect(await read()).toEqual({ state: "unavailable" });
