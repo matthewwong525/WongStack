@@ -9,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · evidence-backed-memory</title>
+<title>Review · 2026-10-03-pr-only-work-awareness</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -93,11 +93,11 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="evidence-backed-memory">
+<body data-change="2026-10-03-pr-only-work-awareness">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>evidence-backed-memory</h1>
+  <h1>2026-10-03-pr-only-work-awareness</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. Saving a note copies all your notes. Open a drawing and tap it to see it full screen.</p>
@@ -105,49 +105,33 @@
 </header>
 <section id="why" aria-labelledby="why-h"><h2 id="why-h">Why</h2>
 <div class="card">
-<p data-note="why-1" tabindex="0">The assistant can remember a fact yet miss it when a question uses different words. Before adding a more complex memory system, make those misses measurable and give the assistant a short brief it can trace back to the facts behind it.</p>
+<p data-note="why-1" tabindex="0">Mandatory conversations between agents distract tasks and grow their scope. Restore the behavior we had before that requirement was introduced.</p>
 </div></section>
 <section id="changes" aria-labelledby="changes-h"><h2 id="changes-h">What Changes</h2>
 <ol class="items">
-<li class="item card" id="item-1"><span class="num">1</span><div class="body"><div class="text" data-note="item-1" tabindex="0"><b>See which questions memory answers and which it misses.</b> A repeatable report checks ordinary questions, different wording, changed decisions, and questions with no answer. Existing guarantees keep passing; harder questions show where a later improvement would help.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
-<span class="ln" data-note="item-1-line-1" tabindex="0">practice facts + questions</span>
-<span class="ln" data-note="item-1-line-2" tabindex="0">            │</span>
-<span class="ln" data-note="item-1-line-3" tabindex="0">            ▼</span>
-<span class="ln" data-note="item-1-line-4" tabindex="0">     today's memory search</span>
-<span class="ln" data-note="item-1-line-5" tabindex="0">            │</span>
-<span class="ln" data-note="item-1-line-6" tabindex="0">            ▼</span>
-<span class="ln" data-note="item-1-line-7" tabindex="0">   found / missed / wrong result</span></pre></div></details></li>
-<li class="item card" id="item-2"><span class="num">2</span><div class="body"><div class="text" data-note="item-2" tabindex="0"><b>Ask for a brief with evidence attached.</b> The brief starts with eight current facts on the requested topic, keeps the most relevant entries that fit, groups them by kind, and shows their dates and sources. An explicit request can select up to twenty facts. It uses the facts' own words, without an extra model call or new conclusions.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
-<span class="ln" data-note="item-2-line-1" tabindex="0">topic ──▶ facts you may read</span>
-<span class="ln" data-note="item-2-line-2" tabindex="0">                   │</span>
-<span class="ln" data-note="item-2-line-3" tabindex="0">                   ▼</span>
-<span class="ln" data-note="item-2-line-4" tabindex="0">             bounded brief</span>
-<span class="ln" data-note="item-2-line-5" tabindex="0">            /      │      \</span>
-<span class="ln" data-note="item-2-line-6" tabindex="0">         fact     date    source</span></pre></div></details></li>
-<li class="item card" id="item-3"><span class="num">3</span><div class="body"><div class="text" data-note="item-3" tabindex="0"><b>Keep briefs current and private.</b> Each request reads current memory and excludes replaced facts. A short brief says when it was made and when its selection is limited; following a source still obeys the source's own permissions.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
-<span class="ln" data-note="item-3-line-1" tabindex="0">old fact ──▶ replaced ──▶ left out</span>
-<span class="ln" data-note="item-3-line-2" tabindex="0">live fact ─▶ allowed  ──▶ brief</span>
-<span class="ln" data-note="item-3-line-3" tabindex="0">private source ────────▶ permission check</span></pre></div></details></li>
+<li class="item card" id="item-1"><span class="num">1</span><div class="body"><div class="text" data-note="item-1" tabindex="0"><b>Restore the previous behavior.</b> Agents still see other workspaces, their plans, and open PRs. When work overlaps, they ask you whether to keep going here, work there, or narrow the request. They no longer have instructions to contact each other, negotiate responsibilities, or recover peer conversations.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-1-line-1" tabindex="0">Your request ──▶ See other work</span>
+<span class="ln" data-note="item-1-line-2" tabindex="0">                       │</span>
+<span class="ln" data-note="item-1-line-3" tabindex="0">              ┌────────┴────────┐</span>
+<span class="ln" data-note="item-1-line-4" tabindex="0">              ▼                 ▼</span>
+<span class="ln" data-note="item-1-line-5" tabindex="0">           Overlap          No overlap</span>
+<span class="ln" data-note="item-1-line-6" tabindex="0">              │                 │</span>
+<span class="ln" data-note="item-1-line-7" tabindex="0">              ▼                 ▼</span>
+<span class="ln" data-note="item-1-line-8" tabindex="0">           Ask you           Continue</span></pre></div></details></li>
 </ol>
-<p class="aside"><b>Non-goals:</b> Installing Hindsight, adding another store, embeddings, relationship graphs, inferred beliefs, saved/generated wiki pages, changing ownership or credentials, and changing what loads automatically at session start.</p>
+<p class="aside"><b>Non-goals:</b> No new coordination policy or PR-only restriction. Keep unrelated improvements and the existing publishing process.</p>
 
 </section>
 <section id="decisions" aria-labelledby="decisions-h"><h2 id="decisions-h">Decisions</h2>
 <ol class="decisions">
-<li class="decision card" id="decision-1" data-note="decision-1" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-03</p>Asked what to do after comparing Hindsight and WongStack → chose to plan WongStack improvements, keep the current store, and scope a first change.</li>
-<li class="decision card" id="decision-2" data-note="decision-2" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-03</p>Asked how the first memory summary should work → chose selected facts with their sources, fast and predictable, with no extra model call.</li>
-<li class="decision card" id="decision-3" data-note="decision-3" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-03</p>Assumed: evaluation and the brief form one first change, because the report tests the same selection behavior the brief exposes and neither adds a second memory authority.</li>
-<li class="decision card" id="decision-4" data-note="decision-4" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-03</p>Assumed: measure semantic misses without adding embeddings yet, because the live store has 545 facts and its existing embeddings trigger is not met; this first change supplies evidence for a later decision.</li>
-<li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-03</p>Assumed: use deterministic selection, grouping, and source pointers, because the user chose factual briefs and these repeated operations need no model judgment.</li>
-<li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-03</p>Assumed: preserve all current search regression assertions and report harder diagnostic cases separately, because measuring a known limitation must not weaken a shipped guarantee.</li>
-<li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-03</p>Assumed: ownership stays outside this change. The owner of simple-machine-memory, chat bd36a0dc-c9d5-4b27-9cb8-685dbe1a4dd0, confirmed compatible boundaries through Paseo: this change owns retrieval evaluation and the brief; theirs owns identity, ownership, and credentials. Either may publish first; the later publisher reconciles shared files and reruns relevant checks. The agreement grants no building or publishing approval.</li>
-<li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-03</p>Asked what to do with the finished plan → chose build it now and review the result before publishing.</li>
-<li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-03</p>Assumed: build source, tests, and docs together, then execute all named checks at one final remote gate, because repeating a full checkpoint after each small code task adds no coverage. Every planned assertion stays required and validation-dependent tasks remain unchecked until the gate passes.</li>
-<li class="decision card" id="decision-10" data-note="decision-10" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-03</p>Assumed: checkpoint the completed implementation with validation-dependent tasks still unchecked, because syntax/static review is not behavioral evidence. Published main remains ff05dde00fb1b7ac7de467bcf5fe9adac4b68178 and contains no simple-machine-memory changes to reconcile. Shared selection, structured results, bounded original-fact briefs, synthetic evaluation, role tests, docs, and the minor release entry are ready for the remote gate.</li>
-<li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-03</p>The first remote gate failed five new assertions: four stopped because the synthetic evaluation had not created its temporary state directory; one incorrectly forbade a reader from seeing their own unshared fact. Create the isolated directory before seeding, and assert both owner access and teammate denial explicitly. Existing retrieval and brief assertions passed; rerun the full remote gate after these repairs.</li>
-<li class="decision card" id="decision-12" data-note="decision-12" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-03</p>The repaired implementation passed all 1,031 remote payload tests, app checks, deployment, strict change validation, and payload/context checks at a2f016c3646ca0d60b4d50934a2ff4a27e6e0b1b. Retained the synthetic brief and full 21-question evaluation in evidence.md and memory-evaluation.json: 13/13 regressions and 6/8 diagnostics hit, with two synonym misses and zero forbidden results. All tasks are complete; the change is ready for the user to review before publication. No main-app screen or applicable preview was added.</li>
-<li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-03</p>The user requested a second review for context efficiency, excess context, and latency. Review found that the 20-fact default was generous, repeated source instructions and default filter fields added overhead, and applying the byte budget in group order could omit a higher-ranked fact. Assumed: improve the existing unpublished slice with an eight-fact default, compact evidence formatting, relevance-first budget selection, and guidance to choose one read format. Keep the explicit 20-fact and 6,144-byte ceilings, source metadata, search behavior, and startup loading. Verify ordinary brief/search request-count parity remotely; report measured bytes separately from tokens and production latency.</li>
-<li class="decision card" id="decision-14" data-note="decision-14" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Refreshed against published main 02542fa2a8c4eb8a64266cacebee00987579564d. Its independent-task-chat release overlapped only the release-note insertion; retained both entries and the published workflow changes. No memory ownership implementation was published. The context refinements and canonical brief requirement are ready for a fresh remote gate on the integrated branch.</li>
+<li class="decision card" id="decision-1" data-note="decision-1" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-03</p>Assumed: Use open PRs as the only default source of other-task context, because the user requested seeing other work with less agent conversation and suggested restricting the channel to PRs.</li>
+<li class="decision card" id="decision-2" data-note="decision-2" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-03</p>Assumed: PR awareness is read-only, because the user asked for seeing work rather than agents talking; moving the same conversations into PR comments would keep the problem.</li>
+<li class="decision card" id="decision-3" data-note="decision-3" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-03</p>Assumed: Direct peer contact requires an explicit user request, because the existing blanket coordination authorization conflicts with the user's preference for each chat to focus on its own task.</li>
+<li class="decision card" id="decision-4" data-note="decision-4" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-03</p>Assumed: Keep real prerequisite and publishing safeguards, because reducing communication should not allow a task to publish code whose prerequisites are missing.</li>
+<li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-03</p>Assumed: Do not force tasks to create PRs earlier; unpublished work will be outside this check, which keeps this change small and follows the requested PR boundary.</li>
+<li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-03</p>Asked how to proceed with the proposed plan → chose to restore behavior before agents were required to communicate. This supersedes the earlier PR-only assumptions; use PR #241 (3d9f248) and its parent as the rollback boundary.</li>
+<li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-10-03</p>Check: <code>scripts/tests/other-work.test.mjs</code> removes the three #241-only peer-session and explicit-daemon-routing cases because that discovery behavior is retired. The original 13 cases continue to cover worktree/plan discovery, busy state, PR folding, and unavailable-service fallbacks.</li>
+<li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-03</p>Archived checkpoint: restored the pre-#241 discovery and overlap decisions; retired the mandatory coordination capability. All four tasks are complete, original discovery tests and payload validations pass, and release 29.17.0 is numbered for publication.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
