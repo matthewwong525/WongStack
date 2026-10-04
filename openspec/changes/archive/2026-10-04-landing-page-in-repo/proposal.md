@@ -1,6 +1,6 @@
 # Move the wongstack.com landing page into this repo
 
-**Status:** in-progress
+**Status:** ready-to-ship
 
 **Branch:** boring-turkey
 
@@ -122,3 +122,4 @@ None.
 - **2026-10-04** — Check: `site/tsconfig.app.json` is a new file with the same type-check strictness as the starter app's, copied unchanged.
 - **2026-10-04** — Check: `site/tsconfig.node.json` is a new file with the same strictness as the starter app's; it also covers the test settings file.
 - **2026-10-04** — Assumed: the page is saved for its automatic checks before the plan is filed away, because the last tasks can only be ticked from what those checks and the preview show. Built so far: the page, its tests, its checks, and its wiki page; the page tests have not run yet.
+- **2026-10-04** — Assumed: the plan is filed in the archive for publishing, because every task is done: the automatic checks passed, the page's 56 tests included, and the preview was opened at phone and desktop width. The copy button was checked by catching what it copies, not by reading the real clipboard.

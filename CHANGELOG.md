@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (patch) — A memory area for WongStack's own landing page
+## 31.0.2 — A memory area for WongStack's own landing page
 
 Memory's list of areas gains one entry, for the landing page kept in the WongStack source. Your install has no such folder, so nothing changes in how memory files or finds your facts.
 
