@@ -108,9 +108,9 @@ This page owns delivery; other surfaces link here.
 
 **A finished build is checked on this computer first, where its tools exist.** [`checks.mjs --worktree`](../../.github/scripts/checks.mjs) runs the checks CI would run for the files the change touches, once, before the first push, and the build repairs what fails. It is a pre-check, never the gate: it decides no save and no publish, its result is reported as local, and a computer without the tools says so in one line and goes on. Runs on one computer take turns.
 
-**Every file edit takes the gate**. GitHub uses a branch and pull request; [managed delivery](../stack/hosted-projects.md#delivery-runbook) requires exact Cloudflare checks and approval. Plans and archives stay with the verbs. Only code needs a change record; [`/save`](../../.agents/skills/save/SKILL.md) decides.
+**Every file edit takes the gate**, through a branch and pull request. Plans and archives stay with the verbs. Only code needs a change record; [`/save`](../../.agents/skills/save/SKILL.md) decides.
 
-**GitHub's ladder is CI-when-present → merge**; a skipped rung is never a failure. [Managed publication](../stack/hosted-projects.md#confirm-publication) requires all three confirmations. The app's test suite runs *inside* CI as an ordinary check, found by its `npm test` script at the repo root **or any immediate subdirectory**, so a repo without tests is not penalized and none receives a package manifest on WongStack's behalf.
+**GitHub's ladder is CI-when-present → merge**; a skipped rung is never a failure. The app's test suite runs *inside* CI as an ordinary check, found by its `npm test` script at the repo root **or any immediate subdirectory**, so a repo without tests is not penalized and none receives a package manifest on WongStack's behalf.
 
 **A branch that leaves the main app untouched skips its suite**: when every path the whole branch changes against the default branch is under `wiki/` or `openspec/`, or ends in `.md`. The Test and Deploy jobs skip inside the job and say so, so a required check still reports green. A [mini app](../stack/mini-apps.md) is main-app code, so a change to one runs the suite and deploys. The WongStack source repo's Payload checks run on every push, since skill Markdown is the payload; only a branch entirely under `wiki/` or `openspec/` skips their script tests. The other way round, the Test job skips its wiki check when the branch changes no Markdown file and removes or moves no file, since no wiki link can break.
 
@@ -123,6 +123,8 @@ An **unverifiable** gate is not an absent one: `/save` reports it and carries on
 ### A loosened check needs a reason
 
 Every check has an escape hatch, and a person who does not read code can not see one used. So the Test check, [`loosened-checks.mjs`](../../.github/scripts/loosened-checks.mjs) on every push, fails when a change loosens a check without saying why. It flags a file when the change adds a line that turns a check off (a skip comment, or a skipped, focused, or to-do test), deletes a test file other than by moving it, or changes a check's settings (a test, coverage, mutation, lint, type, duplicate-code, or unused-code config, a `package.json` `test` script or a script it runs, the Test workflow, or a script under `.github/scripts/`). Any settings change counts, stricter ones too: a script can not tell stricter from looser.
+
+**Read a test file before deleting it with its code.** One test in it may guard files that stay: move that test to the file that owns them, never delete it with the rest. A server's test file once held the only check that every place naming the OpenSpec version agreed.
 
 The reason is a Decision log bullet that starts with `Check:` and names the file:
 

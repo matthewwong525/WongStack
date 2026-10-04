@@ -52,11 +52,11 @@ jobs:
         run: npm install -g @fission-ai/openspec@1.13.2
       - name: Lint scripts
         if: ${{ steps.scope.outputs.docs_only != 'true' }}
-        run: scripts/tests/node_modules/.bin/oxlint --deny-warnings scripts .agents/skills/*/scripts .agents/skills/*/worker .github/scripts server
+        run: scripts/tests/node_modules/.bin/oxlint --deny-warnings scripts .agents/skills/*/scripts .agents/skills/*/worker .github/scripts
       # shellcheck is preinstalled on ubuntu-latest.
       - name: Check shell scripts
         if: ${{ steps.scope.outputs.docs_only != 'true' }}
-        run: shellcheck --severity=warning scripts/*.sh .github/scripts/*.sh .agents/skills/*/scripts/*.sh server/*.sh
+        run: shellcheck --severity=warning scripts/*.sh .github/scripts/*.sh .agents/skills/*/scripts/*.sh
       # c8 follows the scripts the tests spawn; the floor in .c8rc.json only rises.
       # The review page's browser tests launch the runner's Google Chrome.
       - name: Script tests and coverage
@@ -114,9 +114,6 @@ jobs:
       - name: Private-names test
         if: ${{ steps.scope.outputs.docs_only == 'true' }}
         run: node --test scripts/tests/private-names.test.mjs
-      - name: Generated hosted starter checks
-        if: ${{ steps.scope.outputs.docs_only != 'true' }}
-        run: node scripts/check-hosted-starter.mjs
       - name: Release checks
         run: |
           node scripts/check-payload-links.mjs

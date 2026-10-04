@@ -1,5 +1,5 @@
 {
-  "revision": "97bebf28d01c4de7ea2ef98966bf4ede3358b8df",
+  "revision": "1f41711f55c2d7f2f2d42d9112ae5dea019ecc8d",
   "owners": [
     "AGENTS.md",
     ".agents/skills/memory/references/writing-facts.md",
@@ -14,356 +14,180 @@
   "startupCeiling": 2200,
   "files": {
     ".agents/skills/apply/SKILL.md": {
-      "words": 946,
-      "bytes": 7314
+      "words": 971,
+      "bytes": 7117
     },
     ".agents/skills/apply/references/build-helper.md": {
-      "words": 306,
-      "bytes": 2070
-    },
-    ".agents/skills/browser/SKILL.md": {
-      "words": 99,
-      "bytes": 696
-    },
-    ".agents/skills/browser/scripts/cloud-browser.mjs": {
-      "words": 3138,
-      "bytes": 25900
-    },
-    ".agents/skills/close/SKILL.md": {
-      "words": 489,
-      "bytes": 3325
+      "words": 343,
+      "bytes": 2197
     },
     ".agents/skills/continue/SKILL.md": {
-      "words": 968,
-      "bytes": 6958
+      "words": 1141,
+      "bytes": 8104
     },
     ".agents/skills/explore/SKILL.md": {
-      "words": 581,
-      "bytes": 4818
+      "words": 593,
+      "bytes": 4308
     },
     ".agents/skills/explore/references/asking-the-user.md": {
-      "words": 1093,
-      "bytes": 6914
-    },
-    ".agents/skills/explore/scripts/other-work.mjs": {
-      "words": 1472,
-      "bytes": 11619
-    },
-    ".agents/skills/hand-over/SKILL.md": {
-      "words": 64,
-      "bytes": 602
-    },
-    ".agents/skills/hand-over/scripts/hand-over-page.html": {
-      "words": 771,
-      "bytes": 6741
-    },
-    ".agents/skills/hand-over/scripts/hand-over-page.mjs": {
-      "words": 4681,
-      "bytes": 40356
-    },
-    ".agents/skills/hand-over/scripts/hand-over.mjs": {
-      "words": 6613,
-      "bytes": 53006
-    },
-    ".agents/skills/hand-over/scripts/keys-page.html": {
-      "words": 389,
-      "bytes": 3027
-    },
-    ".agents/skills/hand-over/scripts/keys-page.mjs": {
-      "words": 1797,
-      "bytes": 13846
-    },
-    ".agents/skills/hand-over/scripts/keys.mjs": {
-      "words": 2772,
-      "bytes": 19426
-    },
-    ".agents/skills/hand-over/scripts/passwords-page.html": {
-      "words": 500,
-      "bytes": 4350
-    },
-    ".agents/skills/hand-over/scripts/passwords-page.mjs": {
-      "words": 1847,
-      "bytes": 14767
-    },
-    ".agents/skills/hand-over/scripts/passwords.mjs": {
-      "words": 1004,
-      "bytes": 7063
+      "words": 1157,
+      "bytes": 7394
     },
     ".agents/skills/improve/SKILL.md": {
-      "words": 179,
-      "bytes": 1472
+      "words": 984,
+      "bytes": 7385
+    },
+    ".agents/skills/improve/references/consolidation.md": {
+      "words": 287,
+      "bytes": 2057
+    },
+    ".agents/skills/improve/references/security.md": {
+      "words": 385,
+      "bytes": 2531
+    },
+    ".agents/skills/improve/scripts/survey.mjs": {
+      "words": 1462,
+      "bytes": 13964
     },
     ".agents/skills/memory/SKILL.md": {
-      "words": 867,
-      "bytes": 6362
+      "words": 973,
+      "bytes": 6572
     },
     ".agents/skills/memory/references/writing-facts.md": {
-      "words": 271,
-      "bytes": 1715
-    },
-    ".agents/skills/memory/scripts/before-edit.mjs": {
-      "words": 421,
-      "bytes": 3215
-    },
-    ".agents/skills/memory/scripts/lib/areas.mjs": {
-      "words": 680,
-      "bytes": 5255
-    },
-    ".agents/skills/memory/scripts/lib/brief.mjs": {
-      "words": 276,
-      "bytes": 2299
-    },
-    ".agents/skills/memory/scripts/lib/cli.mjs": {
-      "words": 186,
-      "bytes": 1319
+      "words": 301,
+      "bytes": 1843
     },
     ".agents/skills/memory/scripts/lib/digest.mjs": {
-      "words": 1618,
-      "bytes": 11709
-    },
-    ".agents/skills/memory/scripts/lib/documents/commands.mjs": {
-      "words": 603,
-      "bytes": 5584
-    },
-    ".agents/skills/memory/scripts/lib/documents/corpus.mjs": {
-      "words": 569,
-      "bytes": 4863
-    },
-    ".agents/skills/memory/scripts/lib/documents/input.mjs": {
-      "words": 245,
-      "bytes": 2127
-    },
-    ".agents/skills/memory/scripts/lib/documents/lexical.mjs": {
-      "words": 602,
-      "bytes": 4555
-    },
-    ".agents/skills/memory/scripts/lib/documents/packet.mjs": {
-      "words": 874,
-      "bytes": 8078
-    },
-    ".agents/skills/memory/scripts/lib/documents/qmd.mjs": {
-      "words": 887,
-      "bytes": 7725
-    },
-    ".agents/skills/memory/scripts/lib/documents/refresh-worker.mjs": {
-      "words": 101,
-      "bytes": 803
-    },
-    ".agents/skills/memory/scripts/lib/documents/retrieve.mjs": {
-      "words": 970,
-      "bytes": 8419
-    },
-    ".agents/skills/memory/scripts/lib/documents/setup.mjs": {
-      "words": 769,
-      "bytes": 7330
-    },
-    ".agents/skills/memory/scripts/lib/documents/state.mjs": {
-      "words": 807,
-      "bytes": 6730
-    },
-    ".agents/skills/memory/scripts/lib/extract-host.mjs": {
-      "words": 590,
-      "bytes": 5354
-    },
-    ".agents/skills/memory/scripts/lib/extract-ledger.mjs": {
-      "words": 458,
-      "bytes": 3792
-    },
-    ".agents/skills/memory/scripts/lib/extract-packet.mjs": {
-      "words": 184,
-      "bytes": 1716
-    },
-    ".agents/skills/memory/scripts/lib/extract.mjs": {
-      "words": 1019,
-      "bytes": 9559
+      "words": 1428,
+      "bytes": 10811
     },
     ".agents/skills/memory/scripts/lib/join.mjs": {
-      "words": 302,
-      "bytes": 2374
-    },
-    ".agents/skills/memory/scripts/lib/links.mjs": {
-      "words": 1160,
-      "bytes": 8605
-    },
-    ".agents/skills/memory/scripts/lib/machine-id.mjs": {
-      "words": 207,
-      "bytes": 1663
+      "words": 753,
+      "bytes": 5482
     },
     ".agents/skills/memory/scripts/lib/members.mjs": {
-      "words": 854,
-      "bytes": 6911
-    },
-    ".agents/skills/memory/scripts/lib/operations.mjs": {
-      "words": 228,
-      "bytes": 1793
+      "words": 1129,
+      "bytes": 8121
     },
     ".agents/skills/memory/scripts/lib/primary-root.mjs": {
-      "words": 296,
-      "bytes": 2251
-    },
-    ".agents/skills/memory/scripts/lib/read-facts.mjs": {
-      "words": 654,
-      "bytes": 4848
-    },
-    ".agents/skills/memory/scripts/lib/read-options.mjs": {
-      "words": 397,
-      "bytes": 3105
+      "words": 335,
+      "bytes": 2616
     },
     ".agents/skills/memory/scripts/lib/scan.mjs": {
-      "words": 231,
-      "bytes": 2051
+      "words": 227,
+      "bytes": 1993
     },
     ".agents/skills/memory/scripts/lib/store.mjs": {
-      "words": 1884,
-      "bytes": 14693
+      "words": 1859,
+      "bytes": 14418
     },
     ".agents/skills/memory/scripts/lib/transcripts.mjs": {
-      "words": 1176,
-      "bytes": 9709
-    },
-    ".agents/skills/memory/scripts/lib/upkeep.mjs": {
-      "words": 527,
-      "bytes": 4031
+      "words": 1238,
+      "bytes": 10279
     },
     ".agents/skills/memory/scripts/memory.mjs": {
-      "words": 6478,
-      "bytes": 51058
-    },
-    ".agents/skills/memory/scripts/operations.mjs": {
-      "words": 1141,
-      "bytes": 9486
+      "words": 4518,
+      "bytes": 35410
     },
     ".agents/skills/memory/scripts/run.mjs": {
-      "words": 777,
-      "bytes": 6005
+      "words": 731,
+      "bytes": 5692
     },
     ".agents/skills/memory/scripts/session-start.mjs": {
-      "words": 660,
-      "bytes": 5057
+      "words": 965,
+      "bytes": 7431
     },
     ".agents/skills/plan/SKILL.md": {
-      "words": 690,
-      "bytes": 5210
-    },
-    ".agents/skills/plan/references/drawings.md": {
-      "words": 220,
-      "bytes": 1887
+      "words": 758,
+      "bytes": 5263
     },
     ".agents/skills/plan/references/new-workspace.md": {
-      "words": 940,
-      "bytes": 6140
+      "words": 1012,
+      "bytes": 6380
     },
     ".agents/skills/plan/references/openspec-cli.md": {
-      "words": 473,
-      "bytes": 3303
+      "words": 451,
+      "bytes": 3173
     },
     ".agents/skills/plan/references/review-kit.html": {
-      "words": 3456,
-      "bytes": 29069
+      "words": 3353,
+      "bytes": 28302
     },
     ".agents/skills/plan/scripts/build-review.mjs": {
-      "words": 1535,
-      "bytes": 12933
+      "words": 1230,
+      "bytes": 11054
     },
     ".agents/skills/routine/SKILL.md": {
-      "words": 421,
-      "bytes": 3139
+      "words": 432,
+      "bytes": 3121
     },
     ".agents/skills/routine/scripts/lib/paseo.mjs": {
-      "words": 539,
-      "bytes": 3705
-    },
-    ".agents/skills/routine/scripts/presets.mjs": {
-      "words": 825,
-      "bytes": 6501
+      "words": 359,
+      "bytes": 2408
     },
     ".agents/skills/routine/scripts/routine.mjs": {
-      "words": 1635,
-      "bytes": 13296
+      "words": 1709,
+      "bytes": 13841
     },
     ".agents/skills/routine/scripts/tidy.mjs": {
-      "words": 3511,
-      "bytes": 26598
+      "words": 3300,
+      "bytes": 25126
     },
     ".agents/skills/routine/scripts/workspace.mjs": {
-      "words": 1390,
-      "bytes": 10895
+      "words": 1490,
+      "bytes": 11609
     },
     ".agents/skills/save/SKILL.md": {
-      "words": 692,
-      "bytes": 5561
+      "words": 1084,
+      "bytes": 7751
     },
     ".agents/skills/save/references/checkpoint-evidence.md": {
-      "words": 261,
-      "bytes": 1832
+      "words": 266,
+      "bytes": 1872
     },
     ".agents/skills/save/references/facts-save.md": {
-      "words": 90,
-      "bytes": 614
+      "words": 113,
+      "bytes": 709
     },
     ".agents/skills/save/references/git-gate.md": {
-      "words": 456,
-      "bytes": 2879
-    },
-    ".agents/skills/save/references/hosted-delivery.md": {
-      "words": 9,
-      "bytes": 121
+      "words": 675,
+      "bytes": 4502
     },
     ".agents/skills/save/references/named-secrets.md": {
-      "words": 300,
-      "bytes": 2219
+      "words": 315,
+      "bytes": 2294
     },
     ".agents/skills/save/references/new-plan.md": {
-      "words": 168,
-      "bytes": 1134
+      "words": 175,
+      "bytes": 1173
     },
     ".agents/skills/save/references/preconditions.md": {
-      "words": 98,
-      "bytes": 697
+      "words": 126,
+      "bytes": 801
     },
     ".agents/skills/save/scripts/change-candidates.sh": {
       "words": 26,
       "bytes": 227
     },
     ".agents/skills/save/scripts/checkpoint-evidence.mjs": {
-      "words": 696,
-      "bytes": 6320
-    },
-    ".agents/skills/save/scripts/checkpoint.mjs": {
-      "words": 2471,
-      "bytes": 19409
-    },
-    ".agents/skills/save/scripts/hosted-delivery.mjs": {
-      "words": 867,
-      "bytes": 10584
-    },
-    ".agents/skills/save/scripts/hosted-main-pre-push.mjs": {
-      "words": 216,
-      "bytes": 2959
+      "words": 701,
+      "bytes": 6377
     },
     ".agents/skills/save/scripts/preview-url.sh": {
       "words": 468,
       "bytes": 3305
     },
     ".agents/skills/save/scripts/render-pr-body.mjs": {
-      "words": 488,
-      "bytes": 4347
-    },
-    ".agents/skills/save/scripts/saved-revision.mjs": {
-      "words": 843,
-      "bytes": 8028
+      "words": 493,
+      "bytes": 4404
     },
     ".agents/skills/save/scripts/wait-for-checks.sh": {
-      "words": 1177,
-      "bytes": 7629
+      "words": 1173,
+      "bytes": 7612
     },
     ".agents/skills/ship/SKILL.md": {
-      "words": 928,
-      "bytes": 6570
-    },
-    ".agents/skills/ship/scripts/live-look.sh": {
-      "words": 977,
-      "bytes": 6979
+      "words": 1644,
+      "bytes": 11933
     },
     ".agents/skills/ship/scripts/merge.sh": {
       "words": 908,
@@ -373,141 +197,109 @@
       "words": 752,
       "bytes": 5536
     },
-    ".agents/skills/ship/scripts/ship.mjs": {
-      "words": 2281,
-      "bytes": 18222
-    },
     ".agents/skills/ship/scripts/worktree-secrets.mjs": {
-      "words": 1111,
-      "bytes": 9496
+      "words": 1054,
+      "bytes": 9104
     },
     ".agents/skills/update-dependencies/SKILL.md": {
-      "words": 264,
-      "bytes": 1990
-    },
-    ".agents/skills/update-dependencies/scripts/update.mjs": {
-      "words": 2252,
-      "bytes": 18368
+      "words": 308,
+      "bytes": 2528
     },
     ".agents/skills/verify/SKILL.md": {
-      "words": 503,
-      "bytes": 4909
-    },
-    ".agents/skills/verify/references/ci-evidence.md": {
-      "words": 91,
-      "bytes": 948
+      "words": 817,
+      "bytes": 6107
     },
     ".agents/skills/verify/references/walkthrough.md": {
-      "words": 1478,
-      "bytes": 11885
-    },
-    ".agents/skills/verify/scripts/verify-receipts.mjs": {
-      "words": 1768,
-      "bytes": 16969
+      "words": 1620,
+      "bytes": 11136
     },
     ".agents/skills/verify/scripts/verify-runner.sh": {
       "words": 1174,
       "bytes": 8527
     },
     ".agents/skills/verify/scripts/verify-staging.sh": {
-      "words": 4801,
-      "bytes": 34864
+      "words": 2133,
+      "bytes": 15644
     },
     ".agents/skills/wong-setup/SKILL.md": {
-      "words": 645,
-      "bytes": 5104
+      "words": 735,
+      "bytes": 5389
     },
     ".agents/skills/wong-setup/references/cloudflare.md": {
-      "words": 2790,
-      "bytes": 19946
+      "words": 2822,
+      "bytes": 20276
     },
     ".agents/skills/wong-setup/references/failure-map.md": {
-      "words": 1187,
-      "bytes": 7052
+      "words": 1228,
+      "bytes": 7306
     },
     ".agents/skills/wong-setup/references/permission-groups.md": {
-      "words": 968,
-      "bytes": 7067
+      "words": 951,
+      "bytes": 6794
     },
     ".agents/skills/wong-setup/references/tools.md": {
-      "words": 1282,
-      "bytes": 9213
-    },
-    ".agents/skills/wong-setup/scripts/private-access.mjs": {
-      "words": 1827,
-      "bytes": 16681
+      "words": 938,
+      "bytes": 6430
     },
     ".agents/skills/wong-setup/scripts/provision.mjs": {
-      "words": 4724,
-      "bytes": 39631
+      "words": 3782,
+      "bytes": 30791
     },
     ".agents/skills/wong-sync/SKILL.md": {
-      "words": 446,
-      "bytes": 3349
-    },
-    ".agents/skills/wong-sync/references/catch-up.md": {
-      "words": 992,
-      "bytes": 6615
+      "words": 498,
+      "bytes": 3565
     },
     ".agents/skills/wong-sync/references/latest-source.md": {
-      "words": 158,
-      "bytes": 1162
+      "words": 174,
+      "bytes": 1222
     },
     ".agents/skills/wong-sync/references/payload-manifest.md": {
-      "words": 1925,
-      "bytes": 14378
+      "words": 1499,
+      "bytes": 10888
     },
     ".agents/skills/wong-sync/references/stack-pack-fragments.md": {
-      "words": 1345,
-      "bytes": 11418
-    },
-    ".agents/skills/wong-sync/scripts/hosted-context.mjs": {
-      "words": 169,
-      "bytes": 3817
-    },
-    ".agents/skills/wong-sync/scripts/merge-check.mjs": {
-      "words": 722,
-      "bytes": 5850
+      "words": 1609,
+      "bytes": 12567
     },
     ".agents/skills/wong-sync/scripts/preflight.mjs": {
-      "words": 3028,
-      "bytes": 27648
+      "words": 2192,
+      "bytes": 20498
     },
     "AGENTS.md": {
-      "words": 694,
-      "bytes": 5635
+      "words": 905,
+      "bytes": 6542
     },
     "skill-descriptions": {
-      "words": 398,
-      "bytes": 2592
+      "words": 646,
+      "bytes": 4069
     },
     "wiki/agent-knowledge-center.md": {
-      "words": 1219,
-      "bytes": 7669
+      "words": 1195,
+      "bytes": 7517
     },
     "wiki/development/secrets.md": {
-      "words": 1954,
-      "bytes": 12495
+      "words": 1172,
+      "bytes": 7314
     },
     "wiki/development/staging-walkthrough.md": {
-      "words": 2935,
-      "bytes": 19600
+      "words": 1604,
+      "bytes": 10390
     },
     "wiki/development/the-change-loop.md": {
-      "words": 2805,
-      "bytes": 18954
+      "words": 3447,
+      "bytes": 21811
     },
     "wiki/ux-principles.md": {
-      "words": 1492,
-      "bytes": 9053
+      "words": 1380,
+      "bytes": 8343
     },
     "wiki/voice.md": {
-      "words": 257,
-      "bytes": 1453
+      "words": 341,
+      "bytes": 1918
     },
     "wiki/wiki-style.md": {
-      "words": 846,
-      "bytes": 5107
+      "words": 1709,
+      "bytes": 10188
     }
   },
   "routes": {

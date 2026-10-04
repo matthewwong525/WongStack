@@ -1,5 +1,5 @@
 import { accessConflicts } from '../../../../scripts/lib-access-config.mjs';
-// Private provisioning shared by interactive setup and the server installer.
+// Private provisioning for interactive setup.
 import { isDeepStrictEqual } from 'node:util';
 export class AccessSetupError extends Error {
   constructor(message) {
@@ -264,4 +264,39 @@ export async function provisionAccessPolicies(cf, { account, ownerEmail, teammat
   }
   await bootstrapLogin(cf, { account, access, state, checkpoint, note });
   return { ...access, ...state.access, sessionDuration: checked.session_duration };
+}
+
+/** The production Worker secret Access reads its sign-in list key from. Staging never holds it. */
+export const LOGIN_KEY_SECRET = 'WONG_ACCESS_LOGIN_MANAGEMENT';
+
+/**
+ * The live app's own key for its sign-in list: made once, stored in the production Worker alone with the
+ * account and human-policy ids, and reused on a rerun. Cloudflare scopes the key to the account; the app
+ * calls only its own application and policy. `policies` builds the key's one permission, lazily. A token
+ * that can not make keys leaves the step `missing` and stops nothing else.
+ */
+export async function loginManagementKey(cf, { account, name, worker, policyId, policies, state, checkpoint, note }) {
+  const tokens = `/accounts/${account}/tokens`;
+  const secrets = `/accounts/${account}/workers/scripts/${worker}/secrets`;
+  try {
+    const found = (await cf('GET', `${tokens}?per_page=100`)).find(token => token.name === name);
+    const held = (await cf('GET', secrets)).some(secret => secret.name === LOGIN_KEY_SECRET);
+    if (found && held && (state.loginKey?.policyId ?? policyId) === policyId && !state.loginKey?.pending) {
+      note('reused', `sign-in list key ${name}`);
+      return { status: 'ready', id: found.id };
+    }
+    state.loginKey = { name, pending: true };
+    checkpoint();
+    // A key's value can not be read back, so an interrupted run or a lost secret rolls it.
+    const minted = found ? { id: found.id, value: await cf('PUT', `${tokens}/${found.id}/value`, {}) } : await cf('POST', tokens, { name, policies: await policies() });
+    if (!minted?.id || typeof minted.value !== 'string' || !minted.value) throw new AccessSetupError('Cloudflare did not return the sign-in list key; run setup again');
+    await cf('PUT', secrets, { name: LOGIN_KEY_SECRET, type: 'secret_text', text: JSON.stringify({ version: 2, token: minted.value, accountId: account, policyId }) });
+    state.loginKey = { id: minted.id, name, policyId };
+    checkpoint();
+    note(found ? 'updated' : 'created', `sign-in list key ${name}, stored in the live app only`);
+    return { status: 'ready', id: minted.id };
+  } catch (error) {
+    if (error.status !== 401 && error.status !== 403) throw error;
+    return { status: 'missing' };
+  }
 }

@@ -14,6 +14,8 @@ test('fresh payload carries every helper dependency and memory descriptions stay
   cpSync(join(root, '.agents/skills/memory'), join(target, '.agents/skills/memory'), { recursive: true });
   mkdirSync(join(target, 'scripts'), { recursive: true });
   cpSync(join(root, 'scripts/company-api.mjs'), join(target, 'scripts/company-api.mjs'));
+  assert.ok(inventory.pack.files.includes('scripts/employee-bootstrap.mjs'));
+  cpSync(join(root, 'scripts/employee-bootstrap.mjs'), join(target, 'scripts/employee-bootstrap.mjs'));
   cpSync(join(root, 'scripts/lib-cli.mjs'), join(target, 'scripts/lib-cli.mjs'));
   // The real layout is shared by both agent aliases in every installed target.
   cpSync(join(target, '.agents'), join(target, '.claude'), { recursive: true });
@@ -26,4 +28,15 @@ test('fresh payload carries every helper dependency and memory descriptions stay
   assert.ok(!read('.agents/skills/memory/scripts/session-start.mjs').includes('company-api'));
   assert.ok(!read('.agents/skills/memory/scripts/session-start.mjs').includes('openapi.json'));
   const guide = read('wiki/stack/company-api.md'); assert.match(guide, /list.*scope company/); assert.match(guide, /describe hello.greeting/); assert.match(guide, /call hello.greeting --file -/);
+});
+
+test('explicit distribution retains Access, additive schema and a standalone API-only artifact', () => {
+  const inventory = JSON.parse(read('.agents/skills/wong-sync/references/payload-files.json'));
+  for (const path of ['scripts/employee-bootstrap.mjs', 'schema/migrations/0001_employee_access.sql', 'schema/migrations/0002_employee_connections.sql']) assert.ok(inventory.pack.files.includes(path));
+  assert.ok(inventory.scaffold.files.includes('app/src/apps/access/App.tsx'));
+  assert.ok(inventory.scaffold.files.includes('app/worker/employee-access/bootstrap-release.json'));
+  assert.ok(!inventory.scaffold.exclude.includes('app/src/apps/access'));
+  assert.ok(!JSON.parse(read('app/package.json')).dependencies.yaml);
+  for (const path of ['.env.example', 'app/.dev.vars.example']) assert.ok(!read(path).includes('WONG_GITHUB_PUBLICATION'));
+  assert.match(read('wiki/stack/employee-project.md'), /Repository access stays manual/);
 });

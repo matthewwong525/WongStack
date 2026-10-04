@@ -14,8 +14,7 @@
  * Which steps run follows the workflow's own rule: a change entirely under `wiki/` or
  * `openspec/` (--docs-only) skips lint, shell checks, and the script suite, and runs the
  * private-names test instead; the release checks always run. A step whose tool is not
- * installed here (shellcheck, openspec) is skipped with a line; CI still runs it, as it does a
- * step that refuses to run anywhere else (the hosted starter).
+ * installed here (shellcheck, openspec) is skipped with a line; CI still runs it.
  *
  * A passing step prints one line; a failing one prints its failed tests by name and file, or the
  * end of its output when it is not a test run. The last line is
@@ -61,13 +60,11 @@ export function failureDigest(output) {
 
 // when: 'code' skips on a docs-only change, 'docs' runs only on one, 'always' runs on both.
 // deps: needs scripts/tests/node_modules. tool: skipped here when that command is not installed.
-// ciOnly: the command itself refuses to run outside GitHub Actions, so it is skipped here.
 export const STEPS = [
-  { name: 'lint', when: 'code', deps: true, command: 'scripts/tests/node_modules/.bin/oxlint --deny-warnings scripts .agents/skills/*/scripts .agents/skills/*/worker .github/scripts server' },
-  { name: 'shellcheck', when: 'code', tool: 'shellcheck', command: 'shellcheck --severity=warning scripts/*.sh .github/scripts/*.sh .agents/skills/*/scripts/*.sh server/*.sh' },
+  { name: 'lint', when: 'code', deps: true, command: 'scripts/tests/node_modules/.bin/oxlint --deny-warnings scripts .agents/skills/*/scripts .agents/skills/*/worker .github/scripts' },
+  { name: 'shellcheck', when: 'code', tool: 'shellcheck', command: 'shellcheck --severity=warning scripts/*.sh .github/scripts/*.sh .agents/skills/*/scripts/*.sh' },
   { name: 'script-tests', when: 'code', deps: true, command: 'scripts/tests/node_modules/.bin/c8 --config scripts/tests/.c8rc.json node --test scripts/tests/*.test.mjs' },
   { name: 'private-names', when: 'docs', command: 'node --test scripts/tests/private-names.test.mjs' },
-  { name: 'hosted-starter', when: 'code', ciOnly: true, command: 'node scripts/check-hosted-starter.mjs' },
   { name: 'payload-links', when: 'always', command: 'node scripts/check-payload-links.mjs' },
   { name: 'openspec-config', when: 'always', command: 'node scripts/check-openspec-config.mjs' },
   { name: 'retired-names', when: 'always', command: 'node scripts/check-retired-names.mjs' },
@@ -107,7 +104,6 @@ export function runSteps(root, selected) {
   if (deps !== 'ok') notRun.push(deps === 'no-npm' ? 'npm is not installed' : 'the test tools did not install');
   for (const step of selected) {
     if (step.deps && deps !== 'ok') { console.log(`${step.name}: not run`); continue; }
-    if (step.ciOnly && process.env.GITHUB_ACTIONS !== 'true') { console.log(`${step.name}: skipped (runs only in CI)`); continue; }
     if (step.tool && !installedHere(step.tool, root)) { console.log(`${step.name}: skipped (${step.tool} is not installed here; CI runs it)`); continue; }
     const result = shell(step.command, root);
     if (result.status === 0) { console.log(`${step.name}: pass`); continue; }

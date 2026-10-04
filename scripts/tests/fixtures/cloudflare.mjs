@@ -1,5 +1,5 @@
 // A fake Cloudflare API over HTTP, with D1 on node:sqlite, and a fake `gh` on PATH, for the provisioning
-// script's and the server installer's tests. Callers spawn children asynchronously: a synchronous spawn
+// script's tests. Callers spawn children asynchronously: a synchronous spawn
 // would block the event loop this server answers on.
 import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
@@ -47,7 +47,8 @@ export const startingPolicies = () => [
  * (`403` or `401`, code `10000`), as Cloudflare does while a widen takes effect; `refusedAccessPolls` does
  * the same to the widen's Access probes, as an account without a card may; `d1Failures` fails that
  * many D1 queries. `needsOnboarding` refuses a new Zero Trust organization with a 403, as an account
- * without a card does.
+ * without a card does. `forbidTokens` answers every account-token call 403, as a user token narrowed
+ * back from Account API Tokens Write does. `workerSecrets` holds each Worker's secrets by name.
  */
 export async function fakeCloudflare({ r2 = true, subdomain = 'ada', accounts = [{ id: ACCOUNT, name: 'Ada' }] } = {}) {
   const state = {
@@ -74,6 +75,8 @@ export async function fakeCloudflare({ r2 = true, subdomain = 'ada', accounts = 
     serviceTokens: [],
     workerDetails: {},
     workerSubdomains: {},
+    workerSecrets: {},
+    forbidTokens: false,
   };
   const sqlite = new Map();
   const calls = [];
@@ -191,6 +194,13 @@ export async function fakeCloudflare({ r2 = true, subdomain = 'ada', accounts = 
       if (!state.workers.includes(name)) return no(404);
       return ok(state.workerDetails[name] ?? { id: createHash('md5').update(name).digest('hex'), name, references: { domains: [] } });
     }
+    const workerSecrets = url.pathname.match(new RegExp(`^${account}/workers/scripts/([^/]+)/secrets$`));
+    if (workerSecrets && method === 'GET') return ok(Object.keys(state.workerSecrets[workerSecrets[1]] ?? {}).map((name) => ({ name, type: 'secret_text' })));
+    if (workerSecrets && method === 'PUT') {
+      if (!state.workers.includes(workerSecrets[1])) return no(404, 10007, 'no such Worker');
+      (state.workerSecrets[workerSecrets[1]] ??= {})[body.name] = body.text;
+      return ok({ name: body.name, type: body.type });
+    }
     const workerScript = url.pathname.match(new RegExp(`^${account}/workers/scripts/([^/]+)(/subdomain)?$`));
     if (workerScript && method === 'PUT' && !workerScript[2]) {
       if (!state.workers.includes(workerScript[1])) state.workers.push(workerScript[1]);
@@ -215,6 +225,7 @@ export async function fakeCloudflare({ r2 = true, subdomain = 'ada', accounts = 
       state.subdomain = body.subdomain;
       return ok({ subdomain: body.subdomain });
     }
+    if (state.forbidTokens && url.pathname.startsWith(`${account}/tokens`)) return no(403, 9109, 'Unauthorized to access requested resource');
     if (route === `GET ${account}/tokens`) return ok(state.accountTokens.map(({ id, name }) => ({ id, name })));
     if (route === `POST ${account}/tokens`) {
       const value = `deploy-secret-${++serial}`;

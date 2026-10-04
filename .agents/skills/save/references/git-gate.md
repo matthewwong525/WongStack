@@ -38,4 +38,4 @@ The command waits up to 20 minutes and ends with `SAVE_GATE_RESULT=`; save may f
 
 `RECEIPT` is a temporary nonsecret file with the saved revision's identity and the waiter's result. Return its path and `SAVE_HEAD` inside a chain; keep `SAVE_GATE_RESULT`. UNKNOWN yields no receipt.
 
-`/verify --checkpoint <receipt>` reuses SUCCESS/NONE only for the same head and newest check/run identity; otherwise it reads the existing gate, without reruns, pushes or record edits. Delete receipts at chain end.
+`/verify --checkpoint <receipt>` reuses SUCCESS/NONE only for the same head and newest check/run identity; a new attempt invalidates it. Otherwise it reads the existing gate, without reruns, pushes or record edits. UNKNOWN is never NONE. Delete receipts at chain end.

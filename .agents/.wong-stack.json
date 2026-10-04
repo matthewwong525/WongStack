@@ -31,6 +31,10 @@
       "coverage": "configured",
       "serviceTokenId": "e7866263-6e83-4ceb-b59c-b3b8db765947",
       "sessionDuration": "720h"
+    },
+    "accessKey": {
+      "status": "ready",
+      "id": "de334e5543f81c42af89d4b72d0eb776"
     }
   }
 }

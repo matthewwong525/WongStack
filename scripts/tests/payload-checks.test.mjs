@@ -32,7 +32,7 @@ test('a command removed from the workflow, or moved to another condition, is nam
 });
 
 test('the changed paths pick the steps by the workflow\'s rule', () => {
-  assert.deepEqual(names(selectSteps()), ['lint', 'shellcheck', 'script-tests', 'hosted-starter', 'payload-links', 'openspec-config', 'retired-names', 'specs', 'context-budget']);
+  assert.deepEqual(names(selectSteps()), ['lint', 'shellcheck', 'script-tests', 'payload-links', 'openspec-config', 'retired-names', 'specs', 'context-budget']);
   assert.deepEqual(names(selectSteps({ docsOnly: true })), ['private-names', 'payload-links', 'openspec-config', 'retired-names', 'specs', 'context-budget']);
   assert.deepEqual(names(selectSteps({ docsOnly: true, only: ['lint', 'specs'] })), ['lint', 'specs']);
 });
@@ -53,7 +53,7 @@ function fixture(t, { deps = true } = {}) {
     if (mode) chmodSync(join(root, path), mode);
   };
   const stub = name => `console.log('${name} ran');\nif (process.env.FAIL === '${name}') { console.error('${name}: a problem'); process.exit(1); }\n`;
-  for (const name of ['check-hosted-starter', 'check-payload-links', 'check-openspec-config', 'check-retired-names', 'measure-context']) write(`scripts/${name}.mjs`, stub(name));
+  for (const name of ['check-payload-links', 'check-openspec-config', 'check-retired-names', 'measure-context']) write(`scripts/${name}.mjs`, stub(name));
   write('scripts/tests/private-names.test.mjs', "import test from 'node:test';\ntest('no private name', () => {});\n");
   write('scripts/tests/package.json', '{}\n');
   const tool = name => `#!/bin/sh\necho "${name} $*" >> "${join(root, 'calls')}"\n[ "$FAIL" = ${name} ] && exit 1\nexit 0\n`;
@@ -65,23 +65,18 @@ function fixture(t, { deps = true } = {}) {
   const env = { ...process.env, PATH: `${join(root, 'bin')}:${process.env.PATH}` };
   // A nested test runner must report as its own run, not as this one's child.
   delete env.NODE_TEST_CONTEXT;
-  // The same lines here and in CI: a test opts in to CI's behavior by name.
-  delete env.GITHUB_ACTIONS;
   const run = (args = [], vars = {}) => spawnSync(process.execPath, [script, '--root', root, ...args], { cwd: root, env: { ...env, ...vars }, encoding: 'utf8' });
   const calls = () => { try { return readFileSync(join(root, 'calls'), 'utf8'); } catch { return ''; } };
   return { root, run, calls };
 }
 
 const lastLine = result => result.stdout.trimEnd().split('\n').at(-1);
-const passLine = name => (STEPS.find(step => step.name === name).ciOnly ? `${name}: skipped (runs only in CI)` : `${name}: pass`);
 
 test('a code change runs lint, shell checks, the suite, and the release checks', t => {
   const f = fixture(t);
   const r = f.run();
   assert.equal(r.status, 0, `${r.stdout}${r.stderr}`);
-  assert.deepEqual(r.stdout.trimEnd().split('\n'), [...names(selectSteps()).map(passLine), 'PAYLOAD_CHECKS=pass']);
-  const ci = f.run(['--only', 'hosted-starter'], { GITHUB_ACTIONS: 'true' });
-  assert.deepEqual(ci.stdout.trimEnd().split('\n'), ['hosted-starter: pass', 'PAYLOAD_CHECKS=pass'], 'CI runs the step this computer skips');
+  assert.deepEqual(r.stdout.trimEnd().split('\n'), [...names(selectSteps()).map(name => `${name}: pass`), 'PAYLOAD_CHECKS=pass']);
   assert.match(f.calls(), /^oxlint --deny-warnings scripts /m);
   assert.match(f.calls(), /^c8 --config scripts\/tests\/\.c8rc\.json node --test /m);
   assert.doesNotMatch(f.calls(), /^npm /m, 'the test tools were already installed');

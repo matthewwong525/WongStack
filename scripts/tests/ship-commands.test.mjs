@@ -372,12 +372,8 @@ test('a failed live look hands the reason to one more build, and never fails the
   assert.match(f.run(['finish']).stdout, /^LIVE_LOOK=unknown\nREASON=the merge commit could not be read$/m);
 });
 
-test('a hosted project and bad arguments are refused; a changelog conflict keeps this branch\'s entry on top', t => {
+test('bad arguments are refused; a changelog conflict keeps this branch\'s entry on top', t => {
   const f = fixture(t);
-  f.git('remote', 'set-url', 'origin', 'https://acct.artifacts.cloudflare.net/git/team/repo.git');
-  const hosted = f.run(['finish']);
-  assert.equal(hosted.status, 1);
-  assert.match(hosted.stdout, /^NEXT: approve and confirm by wiki\/stack\/hosted-projects\.md#delivery-runbook\.$/m);
   for (const args of [[], ['publish'], ['prepare', 'extra'], ['prepare', '--change', 'a', '--no-change'], ['finish', '--sync']]) {
     assert.equal(f.run(args).status, 2, args.join(' '));
   }

@@ -371,16 +371,13 @@ test('a body that cannot be rendered stops before the push', t => {
   assert.doesNotMatch(f.calls(), /git push\n/);
 });
 
-test('an unreadable pull request, a hosted project, and bad arguments stop early', t => {
+test('an unreadable pull request and bad arguments stop early', t => {
   const f = fixture(t, { gh: { viewError: 'HTTP 401: Bad credentials' } });
   f.stage('app.txt', 'two\n');
   const unreadable = f.save();
   assert.equal(unreadable.status, 1);
   assert.match(unreadable.stderr, /^error=gh pr view: HTTP 401: Bad credentials$/m);
   assert.match(unreadable.stdout, /^NEXT: gh could not read the pull request\./m);
-  const hosted = f.save([], { FAKE_REMOTE: 'https://acct.artifacts.cloudflare.net/git/team/repo.git' });
-  assert.equal(hosted.status, 1);
-  assert.match(hosted.stdout, /^NEXT: save by wiki\/stack\/hosted-projects\.md#delivery-runbook\.$/m);
   f.write('inside.txt', 'x\n');
   for (const args of [[], ['--message-file', join(f.work, 'inside.txt'), '--summary-file', f.summary], ['--wait', '--mode', 'active'],
     ['--message-file', f.message, '--summary-file', f.summary, '--change-root', 'x', '--mode', 'other'],

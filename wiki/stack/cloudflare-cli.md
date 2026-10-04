@@ -37,7 +37,7 @@ Use the existing `CLOUDFLARE_API_TOKEN` and explicitly select `CLOUDFLARE_ACCOUN
 
 The [CLI's credential and account rules](https://developers.cloudflare.com/cf/get-started/#credential-order) give environment values priority over saved profiles and cached account choices. API commands can read `.env` in their current directory; running inside `app/` does not load the repo-root file. Explicitly loaded environment values avoid that ambiguity. An unrelated saved login, cached account, or [runtime `.dev.vars`](staging-bindings.md#env-and-devvars-are-not-interchangeable) supplies no account authorization.
 
-A hosted or scoped workspace stays within its supplied access. Missing account-admin credentials do not call for customer sign-in or a customer's account token. When authorized account work lacks a credential or permission, use the existing [credentials procedure](cloudflare-credentials.md) and [private key link](../development/secrets.md#receive-a-key-through-a-private-link). Adopting cf grants no wider permission on its own.
+A scoped workspace stays within its supplied access. Missing account-admin credentials do not call for customer sign-in or a customer's account token. When authorized account work lacks a credential or permission, use the existing [credentials procedure](cloudflare-credentials.md) and [private key link](../development/secrets.md#receive-a-key-through-a-private-link). Adopting cf grants no wider permission on its own.
 
 Never put tokens in command arguments, app runtime secrets, plan artifacts, or reports. Commands that create credentials can return their secret values: capture that output privately and report only the nonsecret fields needed to explain the result.
 

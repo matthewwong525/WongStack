@@ -74,7 +74,7 @@ test('a docs commit above earlier code still runs the suite for the whole change
   ranOnce(f);
 });
 
-test('the hosted trusted source command discovers the complete ordinary Git-prepared candidate', t => {
+test('the trusted source command discovers the complete ordinary Git-prepared candidate', t => {
   const f = fixture(t);
   const code = f.commit({ 'app/index.js': 'export const x = 2;\n' });
   const head = f.commit({ 'wiki/README.md': `${wiki}\nLatest documentation.\n` });

@@ -229,9 +229,6 @@ function checkpoint(values) {
   const branch = must('git', ['rev-parse', '--abbrev-ref', 'HEAD'], 'cannot read the current branch');
   const remote = sh('git', ['remote', 'get-url', 'origin']);
   if (remote.status !== 0) throw new Stop(1, ['error=no origin remote', 'NEXT: add the remote by .claude/skills/save/references/preconditions.md, then rerun this command.']);
-  if (remote.stdout.includes('.artifacts.cloudflare.net/')) {
-    throw new Stop(1, ['error=this project is hosted on Cloudflare, which this command does not serve', 'NEXT: save by wiki/stack/hosted-projects.md#delivery-runbook.']);
-  }
   const base = defaultBranch();
   if (branch === 'HEAD' || branch === base) {
     throw new Stop(4, [`REFUSED=HEAD is ${branch === 'HEAD' ? 'detached' : `the default branch (${base})`}`, 'NEXT: cut the feature branch (git checkout -b <name>), then rerun this command.']);

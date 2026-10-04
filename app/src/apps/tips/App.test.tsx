@@ -2,12 +2,16 @@
 
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router";
-import { afterEach, beforeEach, expect, it } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { routes } from "../../router";
 
-afterEach(cleanup);
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
 beforeEach(async () => {
+  vi.stubGlobal("fetch", vi.fn(async (path: string) => {
+    if (path === "/api/access/apps") return Response.json({ state: "current", role: "employee", revision: 1, apps: ["access", "tips"] });
+    throw new Error(`Unexpected calculator request: ${path}`);
+  }));
   const router = createMemoryRouter(routes, { initialEntries: ["/apps/tips/"] });
   await act(async () => {
     render(<RouterProvider router={router} />);

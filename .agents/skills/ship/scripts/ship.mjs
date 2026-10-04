@@ -47,7 +47,6 @@ finish   merge the gated pull request, promote secret edits, look at the live ap
 
 const here = dirname(fileURLToPath(import.meta.url));
 const SELF = 'node .claude/skills/ship/scripts/ship.mjs';
-const RUNBOOK = 'wiki/stack/hosted-projects.md#delivery-runbook';
 const MAIN_CHECKS = '[.check_runs[]] | map(.conclusion) | (if (index("failure") or index("cancelled")) then "failure" else "ok" end)';
 const MECHANICAL = new Set(['CHANGELOG.md', 'VERSION']);
 
@@ -62,10 +61,6 @@ function must(command, args, what) {
   const result = sh(command, args);
   if (result.status !== 0) throw new Stop(1, [`error=${what}: ${result.stderr.trim() || result.stdout.trim() || `exit ${result.status}`}`]);
   return result.stdout.trim();
-}
-
-function hosted() {
-  return sh('git', ['remote', 'get-url', 'origin']).stdout.includes('.artifacts.cloudflare.net/');
 }
 
 /** One OpenSpec CLI answer as JSON; a missing field is reported by the caller, never guessed. */
@@ -106,7 +101,7 @@ function mergeDefault(root, base) {
   const files = unmerged();
   if (!files.length) {
     throw new Stop(5, [`error=git merge origin/${base}: ${firstLine(merge.stderr) || firstLine(merge.stdout)}`,
-      `NEXT: git did not start the merge, so nothing changed. Save the uncommitted work with ordinary /save, then rerun: ${SELF} prepare --sync`]);
+      `NEXT: git did not start the merge, so nothing changed. Stage the intended files and commit them here, without pushing, then rerun: ${SELF} prepare --sync`]);
   }
   if (!files.every(file => MECHANICAL.has(file))) throw conflictStop(files);
   // Stage 2 is this branch's side and stage 3 the default branch's. VERSION takes the default
@@ -196,7 +191,6 @@ function prepare(values) {
   process.chdir(root);
   const branch = must('git', ['rev-parse', '--abbrev-ref', 'HEAD'], 'cannot read the current branch');
   const base = defaultBranch();
-  const isHosted = hosted();
 
   // A merge an earlier run left for the agent to resolve is concluded here.
   if (sh('git', ['rev-parse', '--verify', '--quiet', 'MERGE_HEAD']).status === 0) {
@@ -211,13 +205,11 @@ function prepare(values) {
   say(`DIRTY=${dirty ? 'yes' : 'no'}`);
   say(`AHEAD=${ahead}`);
   // A red or unreadable default branch stops every ship, a new intent included, before any build.
-  if (!isHosted) {
-    const checks = sh('gh', ['api', `repos/:owner/:repo/commits/${base}/check-runs`, '--jq', MAIN_CHECKS]);
-    const answer = checks.status === 0 ? checks.stdout.trim() : '';
-    say(`DEFAULT_CHECKS=${answer || 'unknown'}`);
-    if (answer === 'failure') throw new Stop(6, [`NEXT: ${base}'s checks are failing. Fix the default branch first; ship nothing onto it.`]);
-    if (answer !== 'ok') throw new Stop(6, [`error=${firstLine(checks.stderr) || 'gh returned no answer'}`, `NEXT: ${base}'s checks could not be read. Report gh's message and stop.`]);
-  }
+  const checks = sh('gh', ['api', `repos/:owner/:repo/commits/${base}/check-runs`, '--jq', MAIN_CHECKS]);
+  const answer = checks.status === 0 ? checks.stdout.trim() : '';
+  say(`DEFAULT_CHECKS=${answer || 'unknown'}`);
+  if (answer === 'failure') throw new Stop(6, [`NEXT: ${base}'s checks are failing. Fix the default branch first; ship nothing onto it.`]);
+  if (answer !== 'ok') throw new Stop(6, [`error=${firstLine(checks.stderr) || 'gh returned no answer'}`, `NEXT: ${base}'s checks could not be read. Report gh's message and stop.`]);
   if (!dirty && (branch === base || ahead === 0)) {
     throw new Stop(3, ['NEXT: nothing to ship yet. Take the pull-in in the ship skill: invoke apply inside /ship, or say there is nothing to continue.']);
   }
@@ -255,8 +247,7 @@ function prepare(values) {
   say(`RELEASE=${numbered.release}`);
   say(`SYNC=${synced}`);
   if (archive) say(`REVIEW=${markReady(archive)}`);
-  if (isHosted) say(`NEXT: this project is hosted on Cloudflare: finish the tracked edits, then save and approve by ${RUNBOOK}. Do not run finish.`);
-  else if (archive) say(`NEXT: invoke ordinary /save once, with change ${name} and archive path ${relative(root, archive)} (mode archive). Go on to /verify only on SUCCESS or NONE.`);
+  if (archive) say(`NEXT: invoke ordinary /save once, with change ${name} and archive path ${relative(root, archive)} (mode archive). Go on to /verify only on SUCCESS or NONE.`);
   else say('NEXT: invoke ordinary /save once, with no change. Go on to /verify only on SUCCESS or NONE.');
   return 0;
 }
@@ -269,7 +260,6 @@ function liveLook(prNumber) {
 }
 
 function finish() {
-  if (hosted()) throw new Stop(1, ['error=this project is hosted on Cloudflare, which the GitHub merge does not serve', `NEXT: approve and confirm by ${RUNBOOK}.`]);
   const merge = sh('bash', [join(here, 'merge.sh')]);
   process.stdout.write(merge.stdout);
   process.stderr.write(merge.stderr);

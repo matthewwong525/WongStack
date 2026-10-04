@@ -104,9 +104,12 @@
       ".github/workflows/deploy.yml",
       "schema/seed.sql",
       "schema/migrations/.gitkeep",
+      "schema/migrations/0001_employee_access.sql",
+      "schema/migrations/0002_employee_connections.sql",
       "app/.dev.vars.example",
       "scripts/cf-preview.sh",
-      "scripts/company-api.mjs"
+      "scripts/company-api.mjs",
+      "scripts/employee-bootstrap.mjs"
     ],
     "dirs": [
       "wiki/stack"
@@ -120,6 +123,20 @@
       "app/wrangler.jsonc",
       "app/src/apps/tips",
       "app/worker/apps/tips"
+    ],
+    "files": [
+      "app/src/apps/access/App.tsx",
+      "app/src/apps/access/People.tsx",
+      "app/src/apps/access/PersonForm.tsx",
+      "app/src/apps/access/Notices.tsx",
+      "app/src/apps/access/status.ts",
+      "app/src/apps/access/status.test.ts",
+      "app/src/components/AssistantSetup.tsx",
+      "app/src/components/AssistantSetup.css",
+      "app/src/apps/access/Access.css",
+      "app/src/apps/access/app.json",
+      "app/src/apps/access/App.test.tsx",
+      "app/worker/employee-access/bootstrap-release.json"
     ]
   },
   "seededBySetup": {

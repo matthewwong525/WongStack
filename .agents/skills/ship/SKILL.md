@@ -20,7 +20,7 @@ node "$SHIP" finish
 
 ## Step 1 — preflight
 
-Check [preconditions](../save/references/preconditions.md) for hosted/GitHub transport, then run `prepare`. Uncommitted changes on the default branch go on in the same tree; Step 3's save cuts the feature branch.
+Check [preconditions](../save/references/preconditions.md), then run `prepare`. Uncommitted changes on the default branch go on in the same tree; Step 3's save cuts the feature branch.
 
 ### The pull-in: nothing to ship yet
 

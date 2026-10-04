@@ -50,8 +50,9 @@
  * Workers: a deployed secret can not be read back, so a Worker loaded before
  * the files changed may differ until the next `push`.
  *
- * Zero-config: no Worker name, environment id, or secret key is baked in here.
- * Every repo ships this file byte-for-byte identical.
+ * Worker names and ordinary business keys come from config/files. The private
+ * Access management name is explicitly production-only. Every repo ships
+ * this file byte-for-byte identical.
  */
 
 import { execFileSync } from "node:child_process";
@@ -70,6 +71,8 @@ import { primaryRoot } from "../.claude/skills/memory/scripts/lib/primary-root.m
 import { parseCli, usageError } from "./lib-cli.mjs";
 
 const STAGING_ENV = "staging";
+// Setup stores the sign-in list key on the production Worker alone; no file here holds it.
+const PRIVATE_ACCESS = new Set(["WONG_ACCESS_LOGIN_MANAGEMENT"]);
 
 /** The file the Worker's runtime secrets are declared in. */
 const SOURCE = ".dev.vars";
@@ -305,11 +308,19 @@ function push(appDir, override) {
     },
   ];
 
+  // Validate BOTH files/config before the first provider write; no partial push
+  // can leak production login-management authority into a preview.
+  const config = parseConfig(findWranglerConfig());
+  const stagingBindings = [...bindingsIn(config.env?.[STAGING_ENV]).values()].flat();
+  if (stagingBindings.some(name => PRIVATE_ACCESS.has(name))) fail("staging must omit private Access management bindings.");
   for (const target of targets) {
     guardSourceFile(target.file);
     const names = readKeyNames(target.file);
     if (names.length === 0) {
       fail(`${basename(target.file)} declares no keys — refusing to push.`);
+    }
+    if (target.env === STAGING_ENV && names.some(name => PRIVATE_ACCESS.has(name))) {
+      fail("staging secret source must omit private Access management bindings; create a separate .dev.vars.staging before any push.");
     }
     // `secret bulk` takes at most 100 per call. Far beyond any realistic repo,
     // but say so rather than letting a truncated load look like a success.
@@ -340,6 +351,9 @@ function push(appDir, override) {
       process.exit(1);
     }
 
+  }
+  for (const target of targets) {
+    const names = readKeyNames(target.file);
     console.log(
       `cf-secrets: ${target.label} — loading ${names.length} secret(s) from ${basename(target.file)}`,
     );
@@ -410,7 +424,7 @@ function checkBindings(config) {
   for (const [key, names] of production) {
     const present = stagingBindings.get(key) ?? [];
     for (const name of names) {
-      if (!present.includes(name) && !name.startsWith(PRODUCTION_ONLY)) {
+      if (!present.includes(name) && !name.startsWith(PRODUCTION_ONLY) && !PRIVATE_ACCESS.has(name)) {
         problems.push(
           `\`${key}\` binding '${name}' is declared at the top level but absent from env.${STAGING_ENV} — an environment inherits no binding it does not redeclare, so staging simply does not have it.`,
         );
@@ -418,6 +432,9 @@ function checkBindings(config) {
     }
   }
 
+  for (const names of stagingBindings.values()) {
+    for (const name of names) if (PRIVATE_ACCESS.has(name)) problems.push(`staging binding '${name}' contains private Access management authority; remove it.`);
+  }
   problems.push(...checkQueueConsumers(config, staging));
 
   // The quiet one: copied into the environment but never repointed. A shared
@@ -482,11 +499,12 @@ function checkSecrets(appDir) {
     if (name === 'SKIP_AUTH' || name === 'WONG_ENVIRONMENT') problems.push(`secret '${name}' overrides deployed authentication configuration; remove it before deploying.`);
   }
   for (const name of production) {
-    if (!staging.includes(name)) {
+    if (!staging.includes(name) && !PRIVATE_ACCESS.has(name)) {
       problems.push(`secret '${name}' is set on production but missing from ${STAGING_ENV}.`);
     }
   }
   for (const name of staging) {
+    if (PRIVATE_ACCESS.has(name)) problems.push(`secret '${name}' must never be set on staging; remove it.`);
     if (!production.includes(name)) {
       problems.push(`secret '${name}' is set on ${STAGING_ENV} but missing from production.`);
     }
@@ -504,7 +522,8 @@ function checkSecrets(appDir) {
       }
     }
     for (const name of held) {
-      if (!declared.includes(name)) {
+      // Setup stores the Access key itself, so the example file never lists it.
+      if (!declared.includes(name) && !PRIVATE_ACCESS.has(name)) {
         warn(`secret '${name}' is set but not declared in ${EXAMPLE}.`);
       }
     }
