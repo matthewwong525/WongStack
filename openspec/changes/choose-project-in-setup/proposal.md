@@ -163,3 +163,7 @@ Completed source-check evidence remains in [source-checks.md](source-checks.md).
 - **2026-10-04** — Assumed: at the single final source checkpoint, create a complete source ancestor, pin its bootstrap commit/digest in the final head and push once. Final distribution checks prove ancestor bytes/digest match the checked bootstrap; public raw readback follows the successful gate. Blank pins honestly leave setup unavailable until that checkpoint.
 
 - **2026-10-04** — Completed all remaining app/API-only source, regression tests and owning documentation before any checks. Reconciled the reduced contracts, including production-only login authority in secret distribution. The single final source checkpoint will check the complete implementation; actual controlled human login/provider acceptance remains separate.
+
+- **2026-10-04** — Integrated merged #268 drawing baseline (30.9.0) and preserved its release notes. Final source head pins the unchanged standalone bootstrap to ancestor `3e739ca8f82f7df90916ba0d31c078948682b5ba` and SHA-256 `2182ca2abac0e9b4163b60cedac38a830e1646a76dfa4fd717a6d45a1f4e35c4`; final checks and public readback must establish those exact bytes before calling distribution ready.
+
+- **2026-10-04** — Check: `app/tsconfig.worker.json` enables typed JSON imports for the reviewed bootstrap release pins. No type strictness, test, lint, coverage or duplication requirement is lowered. Condensed this change's payload inventory wording after the combined instruction-byte check exceeded its unchanged limit.
