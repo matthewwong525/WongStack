@@ -124,4 +124,3 @@ Full removal SHALL deny company work immediately, withdraw managed app admission
 
 - **WHEN** local removal commits but a provider policy or session revocation fails
 - **THEN** new company work is denied and Access reports and retries unresolved provider outcomes without claiming full completion
-
