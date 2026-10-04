@@ -147,3 +147,5 @@ This is an additive minor release with reviewed adaptation of custom endpoints. 
 - **2026-10-04** — Remote gate attempt 2: app tests, full coverage, lint and unused-code checks passed. The build exposed a Zod overload typing issue; the field type now derives from the actual generated action schema rather than the converter’s unrelated registry overload. Runtime behavior is unchanged.
 
 - **2026-10-04** — Integrated the separately shipped memory release from main before final verification. Kept its briefs, extraction commands, cancellation/accounting and specifications; combined them with the read adapter and redirect refusal. Shortened this change’s instruction pointers to stay within the existing context budget. No memory permission or release-version change is introduced by this feature.
+
+- **2026-10-04** — Final CI fix: restored the company/memory instruction heading expected by the installed-payload fixture. The main-branch integration passed app/build checks and all other script tests; the restored wording retains the context budget without changing assertions or check settings.

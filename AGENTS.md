@@ -36,7 +36,7 @@ Credentials sit in the git-ignored `.env` at the primary worktree, mapped by the
 - **Send an improvement upstream by hand**: [contributing](wiki/contributing.md).
 - **Schedule `/improve` only from a clean, current, serialized checkout**: [repository improvement](wiki/development/repository-improvement.md).
 - **Write repeatable knowledge to the wiki when you learn it**: what will help a different, future task, placed by [the wiki rules](wiki/wiki-style.md#repeatable-knowledge). A change's specifics stay in its proposal and archive.
-- **Company APIs:** [discover actions on demand](wiki/stack/company-api.md) through the helper; employee login for company calls, installed access for memory.
+- **Company actions and memory reads:** [discover only the actions you need](wiki/stack/company-api.md) through the shared helper; company calls use employee login, memory keeps its installed access.
 - **API keys/tokens:** [human steps](wiki/development/secrets.md#api-token-website-steps); never browse.
 - **Browse as the person, one task at a time; show key moments; hand over what needs them**: [logins](wiki/development/browsing.md#saved-browser-logins), [saving passwords](wiki/development/passwords.md), [pictures](wiki/development/browsing.md#show-what-the-browser-is-doing), [hand-over](wiki/development/browsing.md#hand-the-browser-over).
 - **Path-scoped conventions load from [`.claude/rules/`](.agents/rules/)**; an agent that doesn't auto-load them reads those whose `paths:` match its files.
