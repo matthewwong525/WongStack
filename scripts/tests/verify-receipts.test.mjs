@@ -64,7 +64,7 @@ test('recipe resolves source, owning guide, workflow and qualified scenarios wit
   const { root } = setup(t);
   assert.deepEqual(checkRecipe({ root, recipePath: '.agents/verification/memory-areas.json' }), recipe);
   const file = join(root, '.agents/verification/memory-areas.json');
-  for (const change of [value => { value.format = 'future'; }, value => { delete value.id; }, value => { value.then = 'invented promise'; }, value => { value.sourcePaths = []; }, value => { value.capture.command = 'node entry'; }, value => { value.capture.workflow = '../workflow'; }, value => { value.capture.artifact = '--bad'; }, value => { value.scenarios[0].requirement = 'Absent'; }, value => { value.scenarios.push(clone(value.scenarios[0])); }, value => { value.scenarios[0].capability = '../memory'; }, value => { value.instructions = 'absent.md'; }]) {
+  for (const change of [value => { value.format = 'future'; }, value => { delete value.id; }, value => { Object.defineProperty(value, 'then', { value: 'invented promise', enumerable: true }); }, value => { value.sourcePaths = []; }, value => { value.capture.command = 'node entry'; }, value => { value.capture.workflow = '../workflow'; }, value => { value.capture.artifact = '--bad'; }, value => { value.scenarios[0].requirement = 'Absent'; }, value => { value.scenarios.push(clone(value.scenarios[0])); }, value => { value.scenarios[0].capability = '../memory'; }, value => { value.instructions = 'absent.md'; }]) {
     const changed = clone(recipe); change(changed); writeFileSync(file, JSON.stringify(changed));
     assert.throws(() => checkRecipe({ root, recipePath: '.agents/verification/memory-areas.json' }));
   }
