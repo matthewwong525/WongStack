@@ -1,0 +1,648 @@
+{
+  "version": 1,
+  "synthetic": true,
+  "selection": "keyword FTS5; top three",
+  "visibilityScope": "admin-default client scope and explicit --everyone; member/reader enforcement is tested in Worker tests",
+  "failed": false,
+  "cases": [
+    {
+      "id": "regression-1",
+      "query": "how should previews be checked",
+      "classification": "regression",
+      "category": "literal/word-form",
+      "expected": [
+        "route-probe"
+      ],
+      "targets": [
+        {
+          "key": "route-probe",
+          "rank": 2,
+          "topThree": true
+        }
+      ],
+      "returned": [
+        "squash-merge",
+        "route-probe"
+      ],
+      "topThree": [
+        "squash-merge",
+        "route-probe"
+      ],
+      "unexpected": [
+        "squash-merge"
+      ],
+      "forbidden": [],
+      "hit": true,
+      "failed": false
+    },
+    {
+      "id": "regression-2",
+      "query": "probing routes after changing the worker",
+      "classification": "regression",
+      "category": "literal/word-form",
+      "expected": [
+        "route-probe"
+      ],
+      "targets": [
+        {
+          "key": "route-probe",
+          "rank": 1,
+          "topThree": true
+        }
+      ],
+      "returned": [
+        "route-probe",
+        "window-current",
+        "squash-merge",
+        "key-renewal"
+      ],
+      "topThree": [
+        "route-probe",
+        "window-current",
+        "squash-merge"
+      ],
+      "unexpected": [
+        "window-current",
+        "squash-merge",
+        "key-renewal"
+      ],
+      "forbidden": [],
+      "hit": true,
+      "failed": false
+    },
+    {
+      "id": "regression-3",
+      "query": "how many lines does the digest show",
+      "classification": "regression",
+      "category": "literal/word-form",
+      "expected": [
+        "digest-cap"
+      ],
+      "targets": [
+        {
+          "key": "digest-cap",
+          "rank": 1,
+          "topThree": true
+        }
+      ],
+      "returned": [
+        "digest-cap"
+      ],
+      "topThree": [
+        "digest-cap"
+      ],
+      "unexpected": [],
+      "forbidden": [],
+      "hit": true,
+      "failed": false
+    },
+    {
+      "id": "regression-4",
+      "query": "capping the session starting digest",
+      "classification": "regression",
+      "category": "literal/word-form",
+      "expected": [
+        "digest-cap"
+      ],
+      "targets": [
+        {
+          "key": "digest-cap",
+          "rank": 1,
+          "topThree": true
+        }
+      ],
+      "returned": [
+        "digest-cap",
+        "key-renewal",
+        "spool",
+        "window-current",
+        "thread-tags"
+      ],
+      "topThree": [
+        "digest-cap",
+        "key-renewal",
+        "spool"
+      ],
+      "unexpected": [
+        "key-renewal",
+        "spool",
+        "window-current",
+        "thread-tags"
+      ],
+      "forbidden": [],
+      "hit": true,
+      "failed": false
+    },
+    {
+      "id": "regression-5",
+      "query": "replying shortly to owners",
+      "classification": "regression",
+      "category": "literal/word-form",
+      "expected": [
+        "short-replies"
+      ],
+      "targets": [
+        {
+          "key": "short-replies",
+          "rank": 1,
+          "topThree": true
+        }
+      ],
+      "returned": [
+        "short-replies"
+      ],
+      "topThree": [
+        "short-replies"
+      ],
+      "unexpected": [],
+      "forbidden": [],
+      "hit": true,
+      "failed": false
+    },
+    {
+      "id": "regression-6",
+      "query": "who applies migrations",
+      "classification": "regression",
+      "category": "literal/word-form",
+      "expected": [
+        "migrate-admin"
+      ],
+      "targets": [
+        {
+          "key": "migrate-admin",
+          "rank": 1,
+          "topThree": true
+        }
+      ],
+      "returned": [
+        "migrate-admin"
+      ],
+      "topThree": [
+        "migrate-admin"
+      ],
+      "unexpected": [],
+      "forbidden": [],
+      "hit": true,
+      "failed": false
+    },
+    {
+      "id": "regression-7",
+      "query": "writes spooling while offline",
+      "classification": "regression",
+      "category": "literal/word-form",
+      "expected": [
+        "spool"
+      ],
+      "targets": [
+        {
+          "key": "spool",
+          "rank": 1,
+          "topThree": true
+        }
+      ],
+      "returned": [
+        "spool"
+      ],
+      "topThree": [
+        "spool"
+      ],
+      "unexpected": [],
+      "forbidden": [],
+      "hit": true,
+      "failed": false
+    },
+    {
+      "id": "regression-8",
+      "query": "when are pull requests merged",
+      "classification": "regression",
+      "category": "literal/word-form",
+      "expected": [
+        "squash-merge"
+      ],
+      "targets": [
+        {
+          "key": "squash-merge",
+          "rank": 1,
+          "topThree": true
+        }
+      ],
+      "returned": [
+        "squash-merge"
+      ],
+      "topThree": [
+        "squash-merge"
+      ],
+      "unexpected": [],
+      "forbidden": [],
+      "hit": true,
+      "failed": false
+    },
+    {
+      "id": "regression-9",
+      "query": "renewing expired memory keys",
+      "classification": "regression",
+      "category": "literal/word-form",
+      "expected": [
+        "key-renewal"
+      ],
+      "targets": [
+        {
+          "key": "key-renewal",
+          "rank": 1,
+          "topThree": true
+        }
+      ],
+      "returned": [
+        "key-renewal",
+        "migrate-admin",
+        "secrets"
+      ],
+      "topThree": [
+        "key-renewal",
+        "migrate-admin",
+        "secrets"
+      ],
+      "unexpected": [
+        "migrate-admin",
+        "secrets"
+      ],
+      "forbidden": [],
+      "hit": true,
+      "failed": false
+    },
+    {
+      "id": "regression-10",
+      "query": "where are credentials kept",
+      "classification": "regression",
+      "category": "literal/word-form",
+      "expected": [
+        "secrets"
+      ],
+      "targets": [
+        {
+          "key": "secrets",
+          "rank": 1,
+          "topThree": true
+        }
+      ],
+      "returned": [
+        "secrets"
+      ],
+      "topThree": [
+        "secrets"
+      ],
+      "unexpected": [],
+      "forbidden": [],
+      "hit": true,
+      "failed": false
+    },
+    {
+      "id": "regression-11",
+      "query": "serving mini apps",
+      "classification": "regression",
+      "category": "literal/word-form",
+      "expected": [
+        "mini-apps"
+      ],
+      "targets": [
+        {
+          "key": "mini-apps",
+          "rank": 1,
+          "topThree": true
+        }
+      ],
+      "returned": [
+        "mini-apps",
+        "route-probe"
+      ],
+      "topThree": [
+        "mini-apps",
+        "route-probe"
+      ],
+      "unexpected": [
+        "route-probe"
+      ],
+      "forbidden": [],
+      "hit": true,
+      "failed": false
+    },
+    {
+      "id": "regression-12",
+      "query": "loading open threads when verbs start",
+      "classification": "regression",
+      "category": "literal/word-form",
+      "expected": [
+        "thread-tags"
+      ],
+      "targets": [
+        {
+          "key": "thread-tags",
+          "rank": 1,
+          "topThree": true
+        }
+      ],
+      "returned": [
+        "thread-tags",
+        "window-current",
+        "key-renewal",
+        "spool",
+        "digest-cap"
+      ],
+      "topThree": [
+        "thread-tags",
+        "window-current",
+        "key-renewal"
+      ],
+      "unexpected": [
+        "window-current",
+        "key-renewal",
+        "spool",
+        "digest-cap"
+      ],
+      "forbidden": [],
+      "hit": true,
+      "failed": false
+    },
+    {
+      "id": "regression-13",
+      "query": "how should we price the invoice templates",
+      "classification": "regression",
+      "category": "no-answer",
+      "expected": [],
+      "targets": [],
+      "returned": [],
+      "topThree": [],
+      "unexpected": [],
+      "forbidden": [],
+      "hit": true,
+      "failed": false
+    },
+    {
+      "id": "synonym-only",
+      "query": "Validate each endpoint in staging",
+      "classification": "diagnostic",
+      "category": "paraphrase",
+      "expected": [
+        "route-probe"
+      ],
+      "targets": [
+        {
+          "key": "route-probe",
+          "rank": null,
+          "topThree": false
+        }
+      ],
+      "returned": [
+        "staging-distractor",
+        "mini-apps",
+        "migrate-admin"
+      ],
+      "topThree": [
+        "staging-distractor",
+        "mini-apps",
+        "migrate-admin"
+      ],
+      "unexpected": [
+        "staging-distractor",
+        "mini-apps",
+        "migrate-admin"
+      ],
+      "forbidden": [],
+      "hit": false,
+      "failed": false
+    },
+    {
+      "id": "synonym-brief",
+      "query": "Concise language please",
+      "classification": "diagnostic",
+      "category": "paraphrase",
+      "expected": [
+        "short-replies"
+      ],
+      "targets": [
+        {
+          "key": "short-replies",
+          "rank": null,
+          "topThree": false
+        }
+      ],
+      "returned": [],
+      "topThree": [],
+      "unexpected": [],
+      "forbidden": [],
+      "hit": false,
+      "failed": false
+    },
+    {
+      "id": "corrected-window",
+      "query": "release window",
+      "classification": "diagnostic",
+      "category": "changed decision",
+      "expected": [
+        "window-current"
+      ],
+      "targets": [
+        {
+          "key": "window-current",
+          "rank": 1,
+          "topThree": true
+        }
+      ],
+      "returned": [
+        "window-current"
+      ],
+      "topThree": [
+        "window-current"
+      ],
+      "unexpected": [],
+      "forbidden": [],
+      "hit": true,
+      "failed": false
+    },
+    {
+      "id": "recent-evidence",
+      "query": "dated evidence",
+      "classification": "diagnostic",
+      "category": "time filter",
+      "expected": [
+        "dated-current"
+      ],
+      "targets": [
+        {
+          "key": "dated-current",
+          "rank": 1,
+          "topThree": true
+        }
+      ],
+      "returned": [
+        "dated-current"
+      ],
+      "topThree": [
+        "dated-current"
+      ],
+      "unexpected": [],
+      "forbidden": [],
+      "hit": true,
+      "failed": false
+    },
+    {
+      "id": "earlier-evidence",
+      "query": "dated evidence",
+      "classification": "diagnostic",
+      "category": "time filter",
+      "expected": [
+        "dated-old"
+      ],
+      "targets": [
+        {
+          "key": "dated-old",
+          "rank": 1,
+          "topThree": true
+        }
+      ],
+      "returned": [
+        "dated-old"
+      ],
+      "topThree": [
+        "dated-old"
+      ],
+      "unexpected": [],
+      "forbidden": [],
+      "hit": true,
+      "failed": false
+    },
+    {
+      "id": "admin-default",
+      "query": "visibility deploy",
+      "classification": "diagnostic",
+      "category": "visibility",
+      "expected": [
+        "visible-deploy"
+      ],
+      "targets": [
+        {
+          "key": "visible-deploy",
+          "rank": 1,
+          "topThree": true
+        }
+      ],
+      "returned": [
+        "visible-deploy"
+      ],
+      "topThree": [
+        "visible-deploy"
+      ],
+      "unexpected": [],
+      "forbidden": [],
+      "hit": true,
+      "failed": false
+    },
+    {
+      "id": "admin-everyone",
+      "query": "visibility deploy",
+      "classification": "diagnostic",
+      "category": "visibility",
+      "expected": [
+        "visible-deploy",
+        "private-feedback",
+        "private-reader"
+      ],
+      "targets": [
+        {
+          "key": "visible-deploy",
+          "rank": 2,
+          "topThree": true
+        },
+        {
+          "key": "private-feedback",
+          "rank": 3,
+          "topThree": true
+        },
+        {
+          "key": "private-reader",
+          "rank": 1,
+          "topThree": true
+        }
+      ],
+      "returned": [
+        "private-reader",
+        "visible-deploy",
+        "private-feedback"
+      ],
+      "topThree": [
+        "private-reader",
+        "visible-deploy",
+        "private-feedback"
+      ],
+      "unexpected": [],
+      "forbidden": [],
+      "hit": true,
+      "failed": false
+    },
+    {
+      "id": "unknown-answer",
+      "query": "penguin telescope warranty",
+      "classification": "diagnostic",
+      "category": "no-answer",
+      "expected": [],
+      "targets": [],
+      "returned": [],
+      "topThree": [],
+      "unexpected": [],
+      "forbidden": [],
+      "hit": true,
+      "failed": false
+    }
+  ],
+  "categories": {
+    "regression: literal/word-form": {
+      "questions": 12,
+      "hits": 12,
+      "misses": 0,
+      "failures": 0,
+      "unexpected": 15
+    },
+    "regression: no-answer": {
+      "questions": 1,
+      "hits": 1,
+      "misses": 0,
+      "failures": 0,
+      "unexpected": 0
+    },
+    "diagnostic: paraphrase": {
+      "questions": 2,
+      "hits": 0,
+      "misses": 2,
+      "failures": 0,
+      "unexpected": 3
+    },
+    "diagnostic: changed decision": {
+      "questions": 1,
+      "hits": 1,
+      "misses": 0,
+      "failures": 0,
+      "unexpected": 0
+    },
+    "diagnostic: time filter": {
+      "questions": 2,
+      "hits": 2,
+      "misses": 0,
+      "failures": 0,
+      "unexpected": 0
+    },
+    "diagnostic: visibility": {
+      "questions": 2,
+      "hits": 2,
+      "misses": 0,
+      "failures": 0,
+      "unexpected": 0
+    },
+    "diagnostic: no-answer": {
+      "questions": 1,
+      "hits": 1,
+      "misses": 0,
+      "failures": 0,
+      "unexpected": 0
+    }
+  }
+}

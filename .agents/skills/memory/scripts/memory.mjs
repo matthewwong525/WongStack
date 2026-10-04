@@ -4,8 +4,14 @@ import { existsSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
+import { createHash } from 'node:crypto';
+import { extractMemory } from './lib/extract.mjs';
+import { issueTask, scopeOf, taskIdentity } from './lib/extract-ledger.mjs';
 import { CONSOLIDATION_STATE, consolidationDue, DIFFERED, digestPlan, FACT_COLUMNS, formatFact, loadDigest, personalFilter, VERB_TAGS } from './lib/digest.mjs';
 import { areaDocs, changePaths, loadAreas, pastChanges, pathAreas, withAreaTags } from './lib/areas.mjs';
+import { ftsQuery, readFacts, stateOf, tagClause } from './lib/read-facts.mjs';
+import { BRIEF_DEFAULT_LIMIT, BRIEF_LIMIT, renderBrief, SCOPE_FILTERS } from './lib/brief.mjs';
+export { ftsQuery, tagClause } from './lib/read-facts.mjs';
 import { backlinks } from './lib/links.mjs';
 import { closingBody, tagSync, upkeepPlan } from './lib/upkeep.mjs';
 import { JOIN_COMMANDS } from './lib/join.mjs';
@@ -31,13 +37,6 @@ const readInput = file => JSON.parse(readFileSync(file === '-' || !file ? 0 : fi
 
 // ---------- small helpers ----------
 
-// Change state of every slug, from one read of the archive folder.
-function stateOf(root) {
-  const archive = join(root, 'openspec', 'changes', 'archive');
-  const shipped = new Set(existsSync(archive) ? readdirSync(archive).map(name => name.replace(/^\d{4}-\d{2}-\d{2}-/, '')) : []);
-  return slug => existsSync(join(root, 'openspec', 'changes', slug)) ? 'active' : shipped.has(slug) ? 'shipped' : 'conversation';
-}
-
 export const normalizeTag = name => name.toLowerCase().replace(/[^a-z0-9]/g, '').replace(/s$/, '');
 
 function editDistance(a, b) {
@@ -58,19 +57,6 @@ function editDistance(a, b) {
 export function nearTag(name, existing) {
   const key = normalizeTag(name);
   return existing.find(tag => tag !== name && (normalizeTag(tag) === key || (name.length >= 5 && editDistance(tag.toLowerCase(), name.toLowerCase()) <= 2))) || null;
-}
-
-// Words too common to match on their own: a fact sharing only *how* or *should* with a question is noise.
-const FILLER = new Set(('how should what when which does the and for with that this from into about have been would could there their '
-  + 'them then than also just only some any all our your you are was were can will not').split(' '));
-
-// FTS5 query: every significant word, OR-joined, so a paraphrase that shares a few words still ranks. Filler
-// words drop out, unless nothing else is left.
-export function ftsQuery(text) {
-  const all = [...new Set(text.toLowerCase().match(/[\p{L}\p{N}_]{3,}/gu) || [])];
-  const meant = all.filter(word => !FILLER.has(word));
-  const words = (meant.length ? meant : all).slice(0, 24);
-  return words.length ? words.map(word => `"${word}"`).join(' OR ') : null;
 }
 
 // ---------- the background run's tally ----------
@@ -154,13 +140,6 @@ async function checkedTags(store, facts, given, { threads = false } = {}) {
   if (errors.length) throw new StoreError(errors.join('; '));
   return newTags;
 }
-
-// Facts carrying any of these tags or their aliases, as a WHERE fragment on alias `f`.
-export const tagClause = tags => ({
-  sql: `f.id IN (SELECT fact_id FROM fact_tags WHERE tag IN (SELECT name FROM tags WHERE coalesce(alias_of, name) IN (
-    SELECT coalesce(alias_of, name) FROM tags WHERE name IN (${tags.map(() => '?').join(', ')}))))`,
-  params: tags,
-});
 
 // ---------- the one write path ----------
 
@@ -351,42 +330,19 @@ async function retagCommand(ctx, { values, tally }) {
 
 // ---------- read commands ----------
 
-async function search(ctx, { values, positionals }) {
-  const store = openStore(ctx);
-  const joins = [];
-  const where = [];
-  const params = [];
-  const match = ftsQuery(positionals.join(' '));
-  // The full-text search goes through the one fragment the memory Worker lets every key run.
-  if (match) { joins.push(`JOIN ${FTS_HITS} hits ON hits.rowid = f.id`); params.push(match); }
-  // The sessions a search reads: those that started on --branch, and those that wrote a fact on --change, so a
-  // session whose branch was renamed still counts. Both together is one set, under one limit.
-  const sessions = [];
-  if (values.branch) { sessions.push('f.session_id IN (SELECT id FROM sessions WHERE branch = ?)'); params.push(values.branch); }
-  if (values.change) { sessions.push('f.session_id IN (SELECT DISTINCT session_id FROM facts WHERE slug = ? AND session_id IS NOT NULL)'); params.push(values.change); }
-  if (sessions.length) where.push(`(${sessions.join(' OR ')})`);
-  if (!values.all) where.push('f.superseded_by IS NULL');
-  const personal = values.everyone ? null : await personalFilter(ctx, store);
-  if (personal) { where.push(personal.clause); params.push(...personal.params); }
-  const filters = { type: 'f.type = ?', slug: 'f.slug = ?', since: 'f.created_at >= ?', until: 'f.created_at <= ?', author: 'f.author LIKE ?' };
-  for (const [key, clause] of Object.entries(filters)) {
-    if (!values[key]) continue;
-    where.push(clause);
-    params.push(key === 'author' ? `%${values[key]}%` : values[key]);
+async function search(ctx, args) {
+  const result = await readFacts(ctx, args);
+  console.log(args.values.json ? JSON.stringify(result) : result.facts.length ? result.facts.map(fact => formatFact(fact)).join('\n') : 'No matching facts.');
+}
+
+async function brief(ctx, { values, positionals }) {
+  if (values.all) throw new StoreError('brief selects only live facts; omit --all');
+  if (!ftsQuery(positionals.join(' ')) && !SCOPE_FILTERS.some(key => values[key])) {
+    throw new StoreError('usage: memory.mjs brief <terms> [search filters], or brief --tag <topic>; name a topic or filter');
   }
-  if (values.tag) {
-    const tag = tagClause([values.tag]);
-    where.push(tag.sql);
-    params.push(...tag.params);
-  }
-  const limit = Number(values.limit) || 30;
-  const sql = `SELECT ${F_COLUMNS} FROM facts f ${joins.join(' ')} ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
-    ORDER BY ${match ? 'hits.rank,' : ''} f.created_at DESC${values.state ? '' : ` LIMIT ${limit}`}`;
-  const state = stateOf(ctx.root);
-  // The state comes from this checkout's change folders, not the store, so it filters before the limit here.
-  const facts = (await store.query(sql, params)).map(fact => ({ ...fact, state: state(fact.slug) }))
-    .filter(fact => !values.state || fact.state === values.state).slice(0, limit);
-  console.log(facts.length ? facts.map(fact => formatFact(fact)).join('\n') : 'No matching facts.');
+  const limit = Math.min(BRIEF_LIMIT, Math.max(1, Number(values.limit) || BRIEF_DEFAULT_LIMIT));
+  const result = await readFacts(ctx, { values: { ...values, limit, all: false }, positionals });
+  process.stdout.write(renderBrief(result));
 }
 
 // The team filter as a WHERE fragment on alias `f`, or none with --everyone or outside a team.
@@ -760,10 +716,25 @@ async function migrate(ctx) {
   if (!files.length) console.log('The store is up to date: every migration is recorded.');
 }
 
+function extractIdentity(ctx, scope) {
+  const token = process.env.CLOUDFLARE_MEMORY_TOKEN || loadEnv(ctx).CLOUDFLARE_MEMORY_TOKEN || '';
+  return taskIdentity(ctx, scope, createHash('sha256').update(token).digest('hex'));
+}
+async function extractCommand(ctx, { values, positionals }) {
+  const scope = scopeOf(values), question = positionals.join(' ').trim();
+  if (!values.task || !question) throw new StoreError('extract requires a question and --task from extract-task');
+  const loaded = values.loaded ? values.loaded.split(',').map(Number) : [];
+  if (loaded.length > 20 || loaded.some(id => !Number.isSafeInteger(id) || id <= 0)) throw new StoreError('--loaded requires at most twenty positive fact IDs');
+  const result = await extractMemory(ctx, { task: values.task, identity: extractIdentity(ctx, scope), scope, question, loaded, agent: values.agent, model: values.model, usageReport: values['usage-report'] });
+  process.stdout.write(result.text);
+  process.exitCode = result.code;
+}
 export const COMMANDS = {
-  migrate, search, show, source, tags, areas, pending: pendingCommand, strip: stripCommand, live, digest, stats, spool, due,
+  migrate, search, brief, show, source, tags, areas, pending: pendingCommand, strip: stripCommand, live, digest, stats, spool, due,
   'keep-transcript': keepTranscript,
   'recent-chats': recentChats,
+  extract: extractCommand,
+  'extract-task': (ctx, { values }) => { const scope = scopeOf(values); console.log(issueTask(ctx, extractIdentity(ctx, scope))); },
   gate: (ctx, { values }) => gateFacts(ctx, readInput(values.file)),
   'put-facts': putFactsCommand,
   retag: retagCommand,
@@ -775,15 +746,19 @@ export const COMMANDS = {
 };
 
 const OPTIONS = Object.fromEntries([
-  ...['file', 'spooled', 'days', 'tag', 'type', 'slug', 'since', 'until', 'author', 'branch', 'change', 'state', 'limit', 'exclude', 'kind', 'status', 'counts', 'reason', 'definition', 'alias-of', 'role', 'key-file', 'label'].map(name => [name, { type: 'string' }]),
-  ...['all', 'json', 'help', 'everyone', 'background', 'no-alias'].map(name => [name, { type: 'boolean' }]),
+  ...['file', 'spooled', 'days', 'tag', 'type', 'slug', 'since', 'until', 'author', 'branch', 'change', 'state', 'limit', 'exclude', 'kind', 'status', 'counts', 'reason', 'definition', 'alias-of', 'role', 'key-file', 'label', 'task', 'loaded', 'agent', 'model'].map(name => [name, { type: 'string' }]),
+  ...['all', 'json', 'help', 'everyone', 'background', 'no-alias', 'usage-report'].map(name => [name, { type: 'boolean' }]),
 ]);
 
 const USAGE = `usage: memory.mjs <command>
-  search [terms] [--tag t] [--type t] [--slug s] [--since d] [--until d] [--author a] [--branch b] [--change slug] [--state active|shipped|conversation] [--all] [--everyone] [--limit n]
+  search [terms] [--tag t] [--type t] [--slug s] [--since d] [--until d] [--author a] [--branch b] [--change slug] [--state active|shipped|conversation] [--all] [--everyone] [--limit n] [--json]
                                (--change: facts from sessions that wrote a fact on the change; with --branch, either)
                                (in a team, user and feedback facts are only yours; the admin's --everyone shows everyone's)
   show <slug> [--all] [--everyone]   a topic's open threads, then its live facts newest first
+  brief [terms] [search filters except --all]   dates and sources; default 8 facts, --limit up to 20 / 6144 bytes; requires scope
+  extract-task [scope filters]  issue an experimental task handle; reuse with exactly these filters
+  extract <question> --task <handle> [scope filters] --agent claude|codex [--model name] [--loaded ids] [--usage-report]
+                               experimental; 12 KiB model input / 3 KiB returned per task; 3 searches / 2 calls / 20 seconds per request
   source <fact-id>             the reduced transcript behind a fact
   tags                         every tag with its definition and use count
   tag <name> [--definition text] [--alias-of tag | --no-alias]   correct a tag, or merge a look-alike into another (admin)

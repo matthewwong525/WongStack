@@ -120,7 +120,7 @@ export function adminToken(ctx) {
 // `admin` opens the store straight through the Cloudflare API with the provisioning token, for
 // migrations (a Worker's D1 binding runs one statement at a time, and a migration file holds many)
 // and for memory keys (the Worker refuses the keys table to every key).
-export function openStore(ctx, { timeoutMs = 15000, admin = false, credential = null } = {}) {
+export function openStore(ctx, { timeoutMs = 15000, admin = false, credential = null, signal, onRequest = () => {} } = {}) {
   const config = loadConfig(ctx);
   const env = loadEnv(ctx);
   const token = admin ? adminToken(ctx) : credential || process.env[TOKEN_VAR] || env[TOKEN_VAR];
@@ -140,7 +140,8 @@ export function openStore(ctx, { timeoutMs = 15000, admin = false, credential = 
   async function call(path, init = {}, budget = timeoutMs) {
     let response;
     try {
-      response = await fetch(`${path === '/login-link' ? api : base}${path}`, { ...init, headers: { Authorization: `Bearer ${token}`, ...init.headers }, signal: AbortSignal.timeout(budget) });
+      onRequest();
+      response = await fetch(`${path === '/login-link' ? api : base}${path}`, { ...init, headers: { Authorization: `Bearer ${token}`, ...init.headers }, signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(budget)]) : AbortSignal.timeout(budget) });
     } catch (error) {
       throw new StoreError(`memory store unreachable (${error.name === 'TimeoutError' ? 'timeout' : 'network'})`, { kind: 'network' });
     }
