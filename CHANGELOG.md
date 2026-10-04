@@ -9,6 +9,16 @@ Add private owner activation and separate app-database storage for employee acce
 
 **Updating.** Keep existing apps, routes, login settings and business data. After the reviewed update deploys, verify the owner's app login and the existing repository, then configure the private owner activation record. Review app assignments and route mappings before enabling employee permissions. Login-management and GitHub connections each need the owner's separate approval; missing setup leaves those connections unavailable. Existing memory access stays separate.
 
+## 30.4.0 — Prepare account-free hosted projects
+
+- The test workflow uses one portable check entry point with the whole change's base and exact saved head. It keeps test discovery, documentation-only skips, and the existing check and wiki reports together.
+- Quality checks still report after failed installation or tests. The existing GitHub staging deployment runs independently.
+- Prepare a separate HTTP/static hosted starter with pinned dependencies and private native previews. A negotiated workspace job verifies the project and reuses its checkout without personal provider sign-in or memory provisioning.
+- Hosted setup requires a verified private handoff; a repository marker alone stops with reconnect guidance.
+- Delivery verbs retain their plans and archives while a small hosted adapter records the exact candidate, private preview and approval. Publication remains pending until provider, live identity and saved main all agree; existing GitHub delivery stays supported.
+
+**Updating.** The usual update adapts the test workflow and adds its shared check script. Existing GitHub projects keep their current setup and staging. Managed creation remains unavailable until the service integration and complete acceptance checks are finished; no starter is published by this update.
+
 ## 30.3.0 — Better thinking before a plan
 
 - Exploration follows the relevant work, compares distinct approaches when a choice matters, and separates facts from assumptions and missing evidence.

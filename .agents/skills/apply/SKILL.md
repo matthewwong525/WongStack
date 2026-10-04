@@ -45,6 +45,8 @@ When no helper can start, or this `/apply` already runs inside one, work inline 
 
 The work stays in this working tree until the person saves or publishes.
 
+Managed preview: [hosted delivery](../save/references/hosted-delivery.md). Otherwise:
+
 1. **Did the app change?** CI's own check:
 
    ```bash

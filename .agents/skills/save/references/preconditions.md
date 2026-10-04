@@ -1,6 +1,6 @@
 # Git preconditions
 
-`/save`, `/continue`, and `/ship` run these checks once, before their first git or GitHub action. A failed check stops the verb with its fix. Never guess: a signed-out `gh` looks like "no PR", and a missing `origin` like "nothing pushed".
+`/save`, `/continue`, `/ship`: Artifacts/private handoff → [hosted delivery](hosted-delivery.md) before mutation. Otherwise check GitHub once:
 
 | Check | Fails when | Fix |
 |---|---|---|

@@ -102,15 +102,15 @@ test("a poll sends the contract, the source commit, and health with the token, a
   pollReply = { status: 200, body: { jobs: [], interval: 2 } };
   const interval = await tick({ appUrl, token: "tok", commit: SOURCE_COMMIT, fetch, exec: fakeExec().exec, log: () => {} });
   assert.equal(interval, 2);
-  assert.equal(CONTRACT, 4);
-  assert.deepEqual(requests, [{ path: "/api/agent/poll", auth: "Bearer tok", body: { contract: 4, commit: SOURCE_COMMIT, paseo: "up" } }]);
+  assert.equal(CONTRACT, 5);
+  assert.deepEqual(requests, [{ path: "/api/agent/poll", auth: "Bearer tok", body: { contract: 5, commit: SOURCE_COMMIT, paseo: "up" } }]);
 });
 
 test("a poll sends a null commit when SOURCE_COMMIT is missing or not a full commit", async () => {
   for (const commit of [undefined, "", "abc1234", SOURCE_COMMIT.toUpperCase(), `${SOURCE_COMMIT}\n`]) {
     requests = [];
     await tick({ appUrl, token: "tok", commit, fetch, exec: fakeExec({ fail: ["is-active"] }).exec, log: () => {} });
-    assert.deepEqual(requests[0].body, { contract: 4, commit: null, paseo: "down" }, String(commit));
+    assert.deepEqual(requests[0].body, { contract: 5, commit: null, paseo: "down" }, String(commit));
   }
 });
 
@@ -174,7 +174,7 @@ test("main polls in a loop, waits the hinted interval, and keeps going after an 
   assert.deepEqual(lines, ["poll error: network down"]);
   assert.equal(requests.length, 2);
   assert.equal(requests[0].auth, "Bearer tok");
-  assert.deepEqual(requests[0].body, { contract: 4, commit: SOURCE_COMMIT, paseo: "up" });
+  assert.deepEqual(requests[0].body, { contract: 5, commit: SOURCE_COMMIT, paseo: "up" });
 });
 
 test("github signs gh in with the token on stdin, sets git up, and clones the repo", async () => {
