@@ -28,16 +28,17 @@ function inspectWorkflow(text: string, environments: ReadonlySet<string>): void 
   const jobs = record.parse(workflow.jobs);
   if (!Object.keys(jobs).length) throw new AccessError("publication_workflow_unrecognized");
   if (workflow.permissions !== undefined) permissions(workflow.permissions, false);
-  for (const value of Object.values(jobs)) {
-    const job = record.parse(value);
-    if (job.uses || job.strategy || job.container || job.services) throw new AccessError("publication_workflow_unrecognized");
-    const environment = typeof job.environment === "string" ? job.environment :
-      job.environment === undefined ? null : z.object({ name: z.string() }).strict().parse(job.environment).name;
-    const guarded = environment !== null && environments.has(environment);
-    if (environment !== null && !guarded || !guarded && /\bsecrets\b/i.test(JSON.stringify(job))) throw new AccessError("publication_job_unguarded");
-    permissions(job.permissions ?? workflow.permissions, guarded);
-    z.array(record).min(1).parse(job.steps);
-  }
+  for (const value of Object.values(jobs)) inspectJob(value, workflow.permissions, environments);
+}
+function inspectJob(value: unknown, workflowPermissions: unknown, environments: ReadonlySet<string>): void {
+  const job = record.parse(value);
+  if (job.uses || job.strategy || job.container || job.services) throw new AccessError("publication_workflow_unrecognized");
+  const environment = typeof job.environment === "string" ? job.environment :
+    job.environment === undefined ? null : z.object({ name: z.string() }).strict().parse(job.environment).name;
+  const guarded = environment !== null && environments.has(environment);
+  if (environment !== null && !guarded || !guarded && /\bsecrets\b/i.test(JSON.stringify(job))) throw new AccessError("publication_job_unguarded");
+  permissions(job.permissions ?? workflowPermissions, guarded);
+  z.array(record).min(1).parse(job.steps);
 }
 
 export async function verifyPublication(core: Core, token: string, branch: string): Promise<void> {
@@ -57,20 +58,7 @@ export async function verifyPublication(core: Core, token: string, branch: strin
     .parse(await provider(api, `${path}/environments?per_page=100`, token));
   if (listed.total_count !== reviewed.environments.length || listed.environments.length !== listed.total_count ||
     listed.environments.some(environment => !reviewed.environments.some(pin => pin.name === environment.name))) throw new AccessError("publication_environments_review_required");
-  for (const environment of reviewed.environments) {
-    const url = `${path}/environments/${encodeURIComponent(environment.name)}`;
-    const protection = z.object({ can_admins_bypass: z.literal(false), deployment_branch_policy: z.object({
-      protected_branches: z.literal(false), custom_branch_policies: z.literal(true) }),
-      protection_rules: z.array(z.object({ type: z.string(), prevent_self_review: z.boolean().optional(),
-        reviewers: z.array(z.object({ type: z.string(), reviewer: z.object({ id: z.number() }) })).optional() })) }).parse(await provider(api, url, token));
-    const required = protection.protection_rules.find(rule => rule.type === "required_reviewers");
-    if (!required?.prevent_self_review || !required.reviewers?.length || required.reviewers.some(reviewer => reviewer.type !== "User" ||
-      reviewer.reviewer.id !== reviewed.ownerGithubId)) throw new AccessError("publication_owner_approval_required");
-    const branches = z.object({ total_count: z.number(), branch_policies: z.array(z.object({ name: z.string(), type: z.literal("branch") })) })
-      .parse(await provider(api, `${url}/deployment-branch-policies?per_page=100`, token));
-    if (branches.total_count !== branches.branch_policies.length || JSON.stringify(branches.branch_policies.map(rule => rule.name).sort()) !==
-      JSON.stringify([...environment.branches].sort()) || !environment.branches.length) throw new AccessError("publication_branch_policy_unverified");
-  }
+  for (const environment of reviewed.environments) await verifyEnvironment(path, token, environment, reviewed.ownerGithubId);
   // At least one publication environment is default-branch-only; preview jobs
   // can use another owner-approved environment, never unguarded production keys.
   if (!reviewed.environments.some(environment => environment.branches.length === 1 && environment.branches[0] === branch)) throw new AccessError("publication_branch_policy_unverified");
@@ -84,6 +72,21 @@ export async function verifyPublication(core: Core, token: string, branch: strin
     if (file.sha !== workflow.sha) throw new AccessError("publication_workflow_changed");
     inspectWorkflow(new TextDecoder().decode(decode(file.content.replaceAll(/\s/g, ""))), new Set(reviewed.environments.map(environment => environment.name)));
   }
+}
+
+async function verifyEnvironment(path: string, token: string, environment: z.infer<typeof pinSchema>["environments"][number], ownerGithubId: number): Promise<void> {
+  const url = `${path}/environments/${encodeURIComponent(environment.name)}`;
+  const protection = z.object({ can_admins_bypass: z.literal(false), deployment_branch_policy: z.object({
+    protected_branches: z.literal(false), custom_branch_policies: z.literal(true) }),
+    protection_rules: z.array(z.object({ type: z.string(), prevent_self_review: z.boolean().optional(),
+      reviewers: z.array(z.object({ type: z.string(), reviewer: z.object({ id: z.number() }) })).optional() })) }).parse(await provider(api, url, token));
+  const required = protection.protection_rules.find(rule => rule.type === "required_reviewers");
+  if (!required?.prevent_self_review || !required.reviewers?.length || required.reviewers.some(reviewer => reviewer.type !== "User" ||
+    reviewer.reviewer.id !== ownerGithubId)) throw new AccessError("publication_owner_approval_required");
+  const branches = z.object({ total_count: z.number(), branch_policies: z.array(z.object({ name: z.string(), type: z.literal("branch") })) })
+    .parse(await provider(api, `${url}/deployment-branch-policies?per_page=100`, token));
+  if (branches.total_count !== branches.branch_policies.length || JSON.stringify(branches.branch_policies.map(rule => rule.name).sort()) !==
+    JSON.stringify([...environment.branches].sort()) || !environment.branches.length) throw new AccessError("publication_branch_policy_unverified");
 }
 
 export function publicationPlan(core: Core) {

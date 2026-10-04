@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: preview
     permissions: {contents: read, deployments: write}
-    env: {CLOUDFLARE_API_TOKEN: '${{ secrets.CLOUDFLARE_API_TOKEN }}'}
+    env: {CLOUDFLARE_API_TOKEN: '\${{ secrets.CLOUDFLARE_API_TOKEN }}'}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - run: bash scripts/cf-build.sh && bash scripts/cf-deploy.sh
@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     permissions: {contents: read}
-    env: {CLOUDFLARE_API_TOKEN: '${{ secrets.CLOUDFLARE_API_TOKEN }}'}
+    env: {CLOUDFLARE_API_TOKEN: '\${{ secrets.CLOUDFLARE_API_TOKEN }}'}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - run: bash scripts/cf-build.sh && bash scripts/cf-deploy.sh
