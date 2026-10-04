@@ -1,6 +1,6 @@
 # Simple machine memory
 
-**Status:** in-progress
+**Status:** ready-to-ship
 
 **Branch:** durable-beaver
 
@@ -81,4 +81,8 @@ One new local identity helper, one small login-link handler, and one additive SQ
 
 - **2026-10-04** — Payload runtime retry ran 1,039 tests with five failures. Updated the storeless recent-chat fixture's machine state, the exact empty-spool assertion, the digest line-position assertion, and the ranking fixture's known owner. The existing managed-installer test now accepts a supplied verified website owner without requiring a git email, while keeping malformed-job/clone and website-policy checks. No search-ranking expectation, privacy protection, or coverage threshold was lowered.
 
+- **2026-10-04** — CI gate passed for `722c65e` in PR #258 after two fixes: payload tests/coverage and release checks, app tests/coverage, and deployment all passed. Implementation tasks are complete. The final archive/release checkpoint will run the same gate. Production memory migration, credential replacement, and actual human email-login/provider-return verification remain rollout steps, not claimed by fixture coverage.
+
 - **Check:** `scripts/retired-names.json` removes the former `member add` retirement entry because the reviewed plan deliberately restores this command for trusted machine issuance. It no longer promises GitHub enrollment; all other retired-name guards remain unchanged. `memory-areas.test.mjs` now verifies that changing author labels on the same machine preserves private ownership; cross-machine isolation remains in the Worker matrix.
+
+- **2026-10-04** — Archive checkpoint: all implementation tasks passed the existing CI gate before archive. OpenSpec applied the memory deltas to the canonical specification; release numbering selected 30.0.0 from current main 29.17.0. The final release checkpoint runs the same CI gate. Live migration, replacement credentials, and a real human email-login return remain documented rollout checks.

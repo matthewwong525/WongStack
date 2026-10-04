@@ -9,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · simple-machine-memory</title>
+<title>Review · 2026-10-04-simple-machine-memory</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -93,11 +93,11 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="simple-machine-memory">
+<body data-change="2026-10-04-simple-machine-memory">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>simple-machine-memory</h1>
+  <h1>2026-10-04-simple-machine-memory</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. Saving a note copies all your notes. Open a drawing and tap it to see it full screen.</p>
@@ -150,7 +150,9 @@
 <li class="decision card" id="decision-14" data-note="decision-14" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Reconciled published main at <code>02542fa</code> before the CI checkpoint. Its independent-chat change is retained; the memory ownership baseline is unchanged. Preserved both release entries and the retirement registry changes. Session context is in this handoff; no duplicate memory facts were written.</li>
 <li class="decision card" id="decision-15" data-note="decision-15" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>First CI pass: app tests and deploy checks passed. Payload lint found an unused legacy prefix and a test request helper that could specify a GET body. Removed the unused constant and restricted the helper's body to PUT; checks remain unchanged. Payload runtime coverage awaits the retry.</li>
 <li class="decision card" id="decision-16" data-note="decision-16" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Payload runtime retry ran 1,039 tests with five failures. Updated the storeless recent-chat fixture's machine state, the exact empty-spool assertion, the digest line-position assertion, and the ranking fixture's known owner. The existing managed-installer test now accepts a supplied verified website owner without requiring a git email, while keeping malformed-job/clone and website-policy checks. No search-ranking expectation, privacy protection, or coverage threshold was lowered.</li>
-<li class="decision card" id="decision-17" data-note="decision-17" tabindex="0"><p class="meta"><span class="tag log">log</span></p><b>Check:</b> <code>scripts/retired-names.json</code> removes the former <code>member add</code> retirement entry because the reviewed plan deliberately restores this command for trusted machine issuance. It no longer promises GitHub enrollment; all other retired-name guards remain unchanged. <code>memory-areas.test.mjs</code> now verifies that changing author labels on the same machine preserves private ownership; cross-machine isolation remains in the Worker matrix.</li>
+<li class="decision card" id="decision-17" data-note="decision-17" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>CI gate passed for <code>722c65e</code> in PR #258 after two fixes: payload tests/coverage and release checks, app tests/coverage, and deployment all passed. Implementation tasks are complete. The final archive/release checkpoint will run the same gate. Production memory migration, credential replacement, and actual human email-login/provider-return verification remain rollout steps, not claimed by fixture coverage.</li>
+<li class="decision card" id="decision-18" data-note="decision-18" tabindex="0"><p class="meta"><span class="tag log">log</span></p><b>Check:</b> <code>scripts/retired-names.json</code> removes the former <code>member add</code> retirement entry because the reviewed plan deliberately restores this command for trusted machine issuance. It no longer promises GitHub enrollment; all other retired-name guards remain unchanged. <code>memory-areas.test.mjs</code> now verifies that changing author labels on the same machine preserves private ownership; cross-machine isolation remains in the Worker matrix.</li>
+<li class="decision card" id="decision-19" data-note="decision-19" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Archive checkpoint: all implementation tasks passed the existing CI gate before archive. OpenSpec applied the memory deltas to the canonical specification; release numbering selected 30.0.0 from current main 29.17.0. The final release checkpoint runs the same CI gate. Live migration, replacement credentials, and a real human email-login return remain documented rollout checks.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

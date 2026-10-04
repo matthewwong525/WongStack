@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (major) — Machine-owned memory
+## 30.0.0 — Machine-owned memory
 
 - Private facts and transcripts follow a stable local installation ID across chats and linked workspaces. Repository contributors use trusted machine credentials to load and contribute team knowledge automatically; reader facts remain private.
 - Normal email login through setup’s app link labels that machine, including existing machine-owned notes. Authors and permissions stay unchanged; unrelated visits identify no machine.
