@@ -9,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · choose-project-in-setup</title>
+<title>Review · 2026-10-04-choose-project-in-setup</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -93,11 +93,11 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="choose-project-in-setup">
+<body data-change="2026-10-04-choose-project-in-setup">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>choose-project-in-setup</h1>
+  <h1>2026-10-04-choose-project-in-setup</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. Saving a note copies all your notes. Open a drawing and tap it to see it full screen.</p>
@@ -279,6 +279,10 @@
 <li class="decision card" id="decision-70" data-note="decision-70" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Removing the owner-setup operations and the identity fallback changed the bootstrap bytes (SHA-256 <code>cd03278312a8cb4a9d88552c56a675c02be5617168d49d64cb8ea477dcf31af8</code>). The pins are blank, so the copied prompt honestly reads unavailable, until the final checkpoint creates the source commit and pins it.</li>
 <li class="decision card" id="decision-71" data-note="decision-71" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-04</p>Asked what the automated checker may open once app permissions are on → chose every app, everywhere, as today, so preview checks and the look at the live app after publishing keep working; it never manages people. The risk of a leaked checker key opening every live app was named and is unchanged from today.</li>
 <li class="decision card" id="decision-72" data-note="decision-72" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Saved the owner-first revision for its one gate (task 10.1). Merged main through 31.0.1, which removed the server installer: setup alone now supplies the owner email and the key, and the server-install test went with main. The setup helper is pinned to source commit <code>a53d1e4ba3dde23098f5d6c94e6a1e3f10c2b78d</code>, SHA-256 <code>cd03278312a8cb4a9d88552c56a675c02be5617168d49d64cb8ea477dcf31af8</code>. Open before publishing: the pin test requires that commit to be an ancestor of the checked head, which a squash publish to main does not keep.</li>
+<li class="decision card" id="decision-73" data-note="decision-73" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-10-04</p>Check: <code>scripts/tests/employee-bootstrap.test.mjs</code> no longer requires the pinned helper commit to be an ancestor of the checked head, because publishing squashes the branch and that commit is never in main's history, so the test would fail on main. It still requires the pinned digest to equal the checked helper's bytes, and the pinned commit's bytes to equal them wherever the checkout holds that commit. The public address for commit <code>a53d1e4b</code> was read back on 2026-10-04 with the pinned digest.</li>
+<li class="decision card" id="decision-74" data-note="decision-74" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-04</p>Asked whether Access worked for the owner on the preview → chose yes, it worked; task 10.2 is ticked on the owner's own report plus the machine probes.</li>
+<li class="decision card" id="decision-75" data-note="decision-75" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-04</p>Asked how to handle the live-app test, which can only run after publishing → chose publish, then test: it leaves the task list and stays open work, with the owner's OK before the key step and the real second-person test.</li>
+<li class="decision card" id="decision-76" data-note="decision-76" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Archive checkpoint for publishing as 31.2.0: merged main through 31.1.0, numbered the release, archived with every task ticked. The live-app test stays open work in memory.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Sign in and connect your assistant
+## 31.2.0 — Sign in and connect your assistant
 
 - **Access opens for the owner.** A new mini app, Access, lists the people who can sign in and the apps each may use. The owner is the sign-in email setup recorded: open Access with that email and the list is there, with no hidden settings and no commands.
 - **Add person does everything in one save.** Type an email, tick the apps, save. The app records the choices and adds the email to the sign-in list itself. One line per person says whether they can sign in, and *Try again* shows only when that step failed.

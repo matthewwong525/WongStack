@@ -1,8 +1,8 @@
 # Sign in and connect your assistant
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** smooth-repo-selection
-**Open questions:** None for the build. A real sign-in on the live app is still untested and waits for publishing.
+**Open questions:** The live-app test follows publishing: make the key for the live app, then check a real second person end to end.
 
 ## Why
 
@@ -248,3 +248,7 @@ Completed source-check evidence remains in [source-checks.md](source-checks.md);
 - **2026-10-04** — Removing the owner-setup operations and the identity fallback changed the bootstrap bytes (SHA-256 `cd03278312a8cb4a9d88552c56a675c02be5617168d49d64cb8ea477dcf31af8`). The pins are blank, so the copied prompt honestly reads unavailable, until the final checkpoint creates the source commit and pins it.
 - **2026-10-04** — Asked what the automated checker may open once app permissions are on → chose every app, everywhere, as today, so preview checks and the look at the live app after publishing keep working; it never manages people. The risk of a leaked checker key opening every live app was named and is unchanged from today.
 - **2026-10-04** — Saved the owner-first revision for its one gate (task 10.1). Merged main through 31.0.1, which removed the server installer: setup alone now supplies the owner email and the key, and the server-install test went with main. The setup helper is pinned to source commit `a53d1e4ba3dde23098f5d6c94e6a1e3f10c2b78d`, SHA-256 `cd03278312a8cb4a9d88552c56a675c02be5617168d49d64cb8ea477dcf31af8`. Open before publishing: the pin test requires that commit to be an ancestor of the checked head, which a squash publish to main does not keep.
+- **2026-10-04** — Check: `scripts/tests/employee-bootstrap.test.mjs` no longer requires the pinned helper commit to be an ancestor of the checked head, because publishing squashes the branch and that commit is never in main's history, so the test would fail on main. It still requires the pinned digest to equal the checked helper's bytes, and the pinned commit's bytes to equal them wherever the checkout holds that commit. The public address for commit `a53d1e4b` was read back on 2026-10-04 with the pinned digest.
+- **2026-10-04** — Asked whether Access worked for the owner on the preview → chose yes, it worked; task 10.2 is ticked on the owner's own report plus the machine probes.
+- **2026-10-04** — Asked how to handle the live-app test, which can only run after publishing → chose publish, then test: it leaves the task list and stays open work, with the owner's OK before the key step and the real second-person test.
+- **2026-10-04** — Archive checkpoint for publishing as 31.2.0: merged main through 31.1.0, numbered the release, archived with every task ticked. The live-app test stays open work in memory.

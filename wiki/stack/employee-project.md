@@ -36,7 +36,7 @@ Company login grants no new memory permission or machine enrollment. Preserve al
 
 ## Publish checked artifact pins
 
-[The committed release record](../../app/worker/employee-access/bootstrap-release.json) carries `version: 1`, a full public Source `commit` and complete `sha256`; blank pins deliberately leave prompt copying unavailable. The final source checkpoint may create a complete source commit, pin its artifact bytes in a subsequent commit, and push once. At the final checked head, distribution tests prove the pinned commit is an ancestor, its artifact digest matches and its bytes equal the bootstrap under test. Confirm the exact public raw URL after those checks pass. Commit existence alone proves no readiness.
+[The committed release record](../../app/worker/employee-access/bootstrap-release.json) carries `version: 1`, a full public Source `commit` and complete `sha256`; blank pins deliberately leave prompt copying unavailable. The final source checkpoint may create a complete source commit, pin its artifact bytes in a subsequent commit, and push once. Distribution tests prove the pinned digest is the bootstrap under test's, and that the pinned commit's bytes equal it wherever the checkout holds that commit. Publishing squashes the branch, so the commit is not in the default branch's history; its public address still serves it. Confirm the exact public raw URL after those checks pass. Commit existence alone proves no readiness.
 
 If bootstrap bytes change afterward, establish a new immutable source commit and matching digest before claiming the copied prompt ready. Never change existing pins to a mutable URL. Customized installs retain their branding, login, app routes, dirty local work and separate memory.
 

@@ -60,5 +60,7 @@ The first build's preview and live checks (formerly 6.2 and 6.3) are superseded 
 ## 10. One final gate, the preview, then the live app
 
 - [x] 10.1 After 7.x–9.x are built, run one `/save` checkpoint with all required remote checks. Weaken no check. Read every failure and repair together. Mark 7.x–9.x complete only when this gate passes.
-- [ ] 10.2 On the deployed preview, signed in as the owner: open Access, see the practice list, add a person with one app, edit and remove them, copy the setup prompt, and confirm a non-owner identity is refused management. Check phone width and keyboard use. Record the evidence and return the preview for review.
-- [ ] 10.3 After publishing, with the owner's confirm for each outward action: run the key step for this repo's live app, open Access as the owner, add a real second email with one app, have that person sign in and connect an assistant from an empty folder, untick the app, then remove them. Report each real outcome; anything not observed stays unverified.
+- [x] 10.2 On the deployed preview, signed in as the owner: open Access, see the practice list, add a person with one app, edit and remove them, copy the setup prompt, and confirm a non-owner identity is refused management. Check phone width and keyboard use. Record the evidence and return the preview for review.
+After publishing, open work kept in memory and not a build task: with the owner's confirm for each outward action: run the key step for this repo's live app, open Access as the owner, add a real second email with one app, have that person sign in and connect an assistant from an empty folder, untick the app, then remove them. Report each real outcome; anything not observed stays unverified.
+
+Task 10.2: the owner reported on 2026-10-04 that Access worked for them on the preview; machine probes are in source-checks.md. The live-app test follows the publish, with the owner's OK for each outward step.
