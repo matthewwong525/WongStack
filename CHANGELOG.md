@@ -16,6 +16,28 @@
 
 **Updating.** Your apps, pages, branding, customer data and memory stay as they are, and everyone who can sign in keeps every app until you untick one. The update adds your sign-in email to the app's settings file, so Access knows you are the owner. It then runs `provision.mjs access`, the setup tool's step that makes one new Cloudflare key and stores it in your live app only. The key can change sign-in rules across your Cloudflare account; the app uses it only for its own sign-in list. If your saved Cloudflare token can no longer make keys, the update still finishes: Access opens, saves app choices, and says one step is left, and the assistant sends you a private link to paste a token that can. A site that is open with no sign-in is unchanged: turn the sign-in on first.
 
+## 31.0.1 — Read a test file before deleting it
+
+The change-loop guide now says to read a test file before deleting it along with its code: a test that guards files that stay is moved, not deleted.
+
+**Updating.** No action needed. The usual update delivers the new wording.
+
+## 31.0.0 — One way in: your own computer
+
+- WongStack now installs one way: from your own computer, with your own GitHub and Cloudflare accounts. That route works exactly as before.
+- The `server` folder is gone: the script that turned a fresh server into a workspace, the helper that ran on that server, and the installer it used.
+- The pieces for projects hosted by wongstack.com are gone too. Setup, save, publish and resume no longer look for a hosted project first; they go straight to their GitHub steps.
+- The guides describe one route. The managed-projects page is removed, and nothing promises a hosted service.
+- The automatic checks no longer build a hosted starter or test the server pieces, so each run has less to do.
+
+**Updating.** An installed project needs no step: the usual update removes pieces it never used. If you set up servers from the `server` folder of your own copy of WongStack, keep them by staying on version 30.10.0, or by copying that folder from 30.10.0.
+
+## 30.10.0 — Build first, check once at the end
+
+Build the complete change and its tests before automatic verification. Reuse the exact saved revision for the preview walkthrough, keeping required final checks and fresh evidence. Failed checks still get repairs and affected rechecks.
+
+**Updating.** Existing per-part test checkpoints move to the end of the build. No account, credential or hosting change is needed.
+
 ## 30.9.0 — Clearer drawings in plans
 
 - A plan's drawing now fits what it explains, not one column of steps. Steps run in one straight line, with what can go wrong in a row below.

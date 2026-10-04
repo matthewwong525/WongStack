@@ -258,20 +258,6 @@ The stack section SHALL have a page for a non-developer that says to get a key f
 - **WHEN** CI runs before any wrangler config exists
 - **THEN** the check reports nothing to compare and passes
 
-### Requirement: Setup and the server installer provision the same way
-
-`/wong-setup` and the server installer SHALL create the same Cloudflare resources, names, app config, memory store, and deploy token through one shared script, so a fix to provisioning reaches both. Setup SHALL keep its questions: which account when there are several, and one ask before anything billable. The installer SHALL take those choices from its job, and SHALL pick the first free name suffix instead of asking when a derived name is taken.
-
-#### Scenario: Setup provisions
-
-- **WHEN** a person approves provisioning during `/wong-setup`
-- **THEN** setup runs the shared script and reports what it created and what it reused
-
-#### Scenario: A taken name on a server
-
-- **WHEN** the server installer finds a derived name held by another project
-- **THEN** it uses the next free suffix for every name and touches nothing it did not create
-
 ### Requirement: Workspaces are private from their first deployment
 
 Provisioning SHALL protect production and staging business content with Cloudflare Access before it becomes reachable. The owner SHALL authenticate with a reachable verified email. Missing permissions, unsupported protection, or incomplete configuration SHALL stop private setup without publishing public business content. Organization onboarding that Cloudflare withholds until the account has a payment method SHALL also stop it, except when interactive setup explicitly opts into opening without login: then provisioning SHALL record an open-without-login state in committed configuration, create no Access resources, and continue. The deployment check SHALL accept only that recorded state or complete protection. Rerunning provisioning after onboarding succeeds SHALL add the protection and replace the open state for review. An interrupted run SHALL reuse owned resources and remain recoverable.
@@ -343,9 +329,18 @@ Newly provisioned workspace Access applications and human policies SHALL issue l
 - **WHEN** a person is removed while their login/session token has not expired
 - **THEN** the normal removal and revocation flow denies that session after provider propagation without waiting for the thirty-day expiry
 
+### Requirement: Setup provisions through one shared script
+
+`/wong-setup` SHALL create its Cloudflare resources, names, app config, memory store, and deploy token through one shared script, so every install is provisioned the same way and a fix reaches all of them. Setup SHALL keep its questions: which account when there are several, and one ask before anything billable.
+
+#### Scenario: Setup provisions
+
+- **WHEN** a person approves provisioning during `/wong-setup`
+- **THEN** setup runs the shared script and reports what it created and what it reused
+
 ### Requirement: Setup supplies what Access needs
 
-Setup and the unattended installer SHALL record the owner's email as committed nonsecret configuration for both Workers, and SHALL create a key limited to Access application-and-policy writes, store it with the account and human-policy identifiers as the production Worker's login-management secret, and record the key's identifier for reuse and rotation. The key SHALL NOT be the deploy key, SHALL NOT be written to staging, and a rerun SHALL reuse it. Updating an existing installation SHALL perform the same step. When the available Cloudflare token cannot create the key, the step SHALL be reported as missing with the private key link and SHALL NOT block the rest of setup or the update.
+Setup SHALL record the owner's email as committed nonsecret configuration for both Workers, and SHALL create a key limited to Access application-and-policy writes, store it with the account and human-policy identifiers as the production Worker's login-management secret, and record the key's identifier for reuse and rotation. The key SHALL NOT be the deploy key, SHALL NOT be written to staging, and a rerun SHALL reuse it. Updating an existing installation SHALL perform the same step. When the available Cloudflare token cannot create the key, the step SHALL be reported as missing with the private key link and SHALL NOT block the rest of setup or the update.
 
 #### Scenario: A fresh install
 

@@ -1,10 +1,8 @@
 # Getting started
 
-WongStack has two explicit setup routes: a [managed hosted project](hosted-projects.md) through the service, or a personal GitHub installation through [the README's three steps](https://github.com/matthewwong525/WongStack#start-in-three-steps).
+You install WongStack from your own computer, with your own GitHub and Cloudflare accounts, through [the README's three steps](https://github.com/matthewwong525/WongStack#start-in-three-steps).
 
-Managed hosted projects use the existing email and AI sign-in steps. Once enabled, a new project can start without customer GitHub or Cloudflare accounts, tokens or dashboard visits. The first starter serves HTTP and static assets; it does not configure memory, business databases or background jobs. Existing projects keep their route, and choosing GitHub keeps the personal setup below. Managed creation remains disabled until the complete acceptance checks pass.
-
-It assumes you know nothing about Cloudflare, databases, or deployment: where a step needs one of those, the agent handles it and tells you what it did. The runbook the agent follows is [setup's provisioning runbook](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md).
+Setup assumes you know nothing about Cloudflare, databases, or deployment: where a step needs one of those, the agent handles it and tells you what it did. The runbook the agent follows is [setup's provisioning runbook](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md).
 
 Want new projects to start with your own tools and site? [Make WongStack your own](customizing-wongstack.md) explains how to customize a fork and install it through the same easy setup.
 
@@ -18,7 +16,7 @@ Want new projects to start with your own tools and site? [Make WongStack your ow
 
 ## What it costs
 
-For personal GitHub setup, Cloudflare's free tier covers the starter. You need a free Cloudflare account and a free GitHub account. Setup may also install a few free tools it needs — Git, GitHub's app, Node.js, OpenSpec, a browser for the agent, and a tool that sends you a private link to that browser — and it asks before it installs any. Managed projects use the service's platform account; this page does not promise a free managed service or sign up for a paid trial.
+Cloudflare's free tier covers the starter. You need a free Cloudflare account and a free GitHub account. Setup may also install a few free tools it needs — Git, GitHub's app, Node.js, OpenSpec, a browser for the agent, and a tool that sends you a private link to that browser — and it asks before it installs any.
 
 ## After that: how you work
 
@@ -44,7 +42,7 @@ Each change gets its own link, running against the practice data. Your real site
 
 ## Honest list of what you have to do yourself
 
-Personal GitHub setup needs these steps. Each needs you, and the ones marked *browser* open a web page:
+Setup needs these steps. Each needs you, and the ones marked *browser* open a web page:
 
 1. Install [Claude Code](https://code.claude.com/docs/en/setup) or [Codex](https://developers.openai.com/codex/cli). Its install page may ask you to run one command in a terminal.
 2. Get the free [Paseo](https://paseo.sh) app, where you chat. Setup points to it if it's missing, and never installs it for you.

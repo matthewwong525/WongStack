@@ -8,10 +8,6 @@ user-invocable: true
 
 Pick the target, source, tools, and token, then invoke `/explore`. An installed target uses `/wong-sync` and its recorded source; an install request never switches it.
 
-## Hosted workspace first
-
-Artifacts/marker/private handoff → follow [hosted verification](../../../wiki/stack/hosted-projects.md#open-the-workspace) before personal setup.
-
 ## Pick the folder
 
 Pick the target before anything else, never writing into an existing project:

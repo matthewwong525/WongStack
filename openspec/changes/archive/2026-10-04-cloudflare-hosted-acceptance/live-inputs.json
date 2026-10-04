@@ -1,0 +1,102 @@
+{
+  "schemaVersion": 1,
+  "runId": "ha-83ec40bf",
+  "mode": "internal-functionality",
+  "authorized": false,
+  "cloudHead": "8de0f017df64f1ff62507954e132b6bb981fa7a1",
+  "sourceSha": "c22d448bfd8204994ba92f65b5f722762ce6f052",
+  "accountId": "040f88e2bf4f25fb0b91b7cb24f3d442",
+  "stagingWorker": "wongstack-cloud-staging",
+  "stagingVersion": "838648ff-8449-4c41-afd7-6cdbdc5e3a38",
+  "stagingDeployment": "0aef7f42-a347-4891-9d77-db20ba48b588",
+  "stagingDatabase": "1029a8e7-be64-42c0-bf9a-de49f87a2322",
+  "ownerId": "5c5eca98-d495-45d3-9f7a-4da7b9d1b17a",
+  "ownerEmail": "operations@claymoo.com",
+  "workspaceId": "83ec40bf-8873-4b75-a1b5-49151f2b1b8d",
+  "location": "nbg1",
+  "serverType": "cpx22",
+  "existingFirewallName": "wongstack-deny-inbound",
+  "targets": {
+    "projectId": "hp_d3fd2bfec810475cd45de5bf97eced82",
+    "repoName": "ws-d3fd2bfec810475cd45de5bf97eced82",
+    "workerName": "ws-d3fd2bfec810475cd45de5bf97eced82",
+    "namespace": "ha-83ec40bf",
+    "starterName": "starter",
+    "backupBucket": "ha-83ec40bf-backup",
+    "workflowName": "ha-83ec40bf-ci"
+  },
+  "registryTag": "ha-83ec40bf-runner",
+  "accessTeamDomain": "startuptemplate.cloudflareaccess.com",
+  "ciArtifact": {
+    "repository": "matthewwong525/wongstack-cloud",
+    "headSha": "8de0f017df64f1ff62507954e132b6bb981fa7a1",
+    "runId": 37222779808,
+    "artifactId": 11311021774,
+    "name": "hosted-inputs-8de0f017df64f1ff62507954e132b6bb981fa7a1",
+    "digest": "sha256:5c8bac31bf9b5790c1c70867de4f34857fe75ba4d760f9c00f92a260fad0156c",
+    "expiresAt": "2026-10-07T18:03:38Z",
+    "sourceBranch": "main",
+    "passed": true
+  },
+  "imageId": "sha256:fbfe31b59b0d909d76b24b5e003f217572adc978e145cb299ead94fe12ef491a",
+  "imageArchiveSha256": "b125822b7a344520715698cc8b93b5295a5de7c1456b1a6e5db6a91ee9c6ec93",
+  "starterTreeSha256": "07cce5cdacf4fe211b39f0bc55529c9e54374667c6da45ce23328b7be73c6f72",
+  "limits": {
+    "usdTotal": 10,
+    "usdAdmissionStop": 8,
+    "usdVmAndIpGross": 0.3,
+    "windowSeconds": 7200,
+    "admissionSeconds": 5400,
+    "cleanupReserveSeconds": 1800,
+    "checkWorkflows": 8,
+    "publications": 2,
+    "serialRunners": 40,
+    "sdkReadGrants": 50,
+    "aggregateRunnerMinutes": 90,
+    "runnerMinutes": 5,
+    "maxInstances": 1,
+    "storageGiB": 5,
+    "egressGiB": 2,
+    "automaticSideEffectRetries": 0
+  },
+  "preparedDocumentsSha256": {
+    "live-request.md": "b9e82c1368245b2d3c7b796a054d2702721f7dcb3379d3f18014c6e38a35afd3",
+    "compatibility.json": "e010f78f63bac2a8b950309fded7e25fceee23ee980f80a309a6a53e6902b81e",
+    "ledger.md": "df9423da99907272d623b185b95a275499ec0a47dfd0fb88c948d2a23ed5ce51",
+    "cost-preflight.md": "78e4a1271027733e7deabefd7dfd9093bb0f5b02f72fb124a1301f2eb5e74501",
+    "acceptance-procedure.md": "58944acbe21124bfe7142a9e04fec963edd1ada1a2b67e92048a024e15f47029",
+    "functionality-scenarios.md": "8fe517c42cf52ae441c14f9ef5407b9269b1b52420fc474686a06fd386657dc6",
+    "maintenance-evidence.md": "a91211de728ce4a39312b6356020851cb0a0b25edf252b6f8b0ed737d46c832c"
+  },
+  "sourceHelperSha256": {
+    "evidence.mjs": "89823b88cf223442eb02ffe3861f69b6b66e66b43dbd13ad8ab95bc017f36863",
+    "probe.mjs": "8bef3a8fa0a6f89555df0970c597c05dde7c5a3504fe1d51d3299269aadcc730",
+    "acknowledgment-fault.mjs": "9d772dddf1a1c20b27ddd6050c275fc7b1e925d70c73f2dcbc090bd4688d7438"
+  },
+  "cloudPreparedFilesSha256": {
+    "scripts/hosted/acceptance.fragment.jsonc": "efb98ed10ac562f76bd08f4122abe0ae4ed2fce5d168888d83ed6a434e400a1e",
+    "scripts/hosted/Dockerfile.runner": "d3081752ac6bd26559bfb1f294b79d801e03fae3b553338b1ad55f4072c50aaa",
+    "scripts/hosted/publish-image.mjs": "7b3054de7179a28312e4d18f5dcdf99ec916f7d2861826a91480e9b0fbf42fc2",
+    ".github/workflows/hosted-runner.yml": "092d27ba3f44ec2f6bcfcdf94aab36eaed3a5a663c1c6b3fdbdf12ed0b3fb805",
+    "openspec/changes/archive/2026-10-04-cloudflare-hosted-acceptance/cleanup-procedure.md": "0c31b0283c32f954d185860cd46ef60fae4297e4dc8dc7c220a4b508519e9cc9",
+    "openspec/changes/archive/2026-10-04-cloudflare-hosted-acceptance/image-publication.md": "febe3e5b0cf804fa30895180e2df61e647cf3d10fafc1379667f2573f8f3cbcc"
+  },
+  "hostTokenDeclarationSha256": "48a3ba900e0e8e6c59d32ffa1e8b7850d8d5d5bbb554b0795537272f0b4353c4",
+  "actualReceipts": "live-receipts.json (not created before approval)",
+  "permittedRetained": [
+    "empty ha-83ec40bf namespace if provider lacks supported deletion",
+    "nonserving exact DO/D1 migration tags",
+    "exact audit/deleted-VM tombstones"
+  ],
+  "requires": [
+    "explicit user approval of this frozen batch",
+    "conditional current paid/capability/price/headroom/absence/cleanup readbacks before dependent resource creation",
+    "matching actual starter/registry/runtime receipts before app use",
+    "owner Access/AI participation and separate exact final app approvals"
+  ],
+  "notClaims": [
+    "hostile-code isolation",
+    "full customer acceptance",
+    "general enablement"
+  ]
+}

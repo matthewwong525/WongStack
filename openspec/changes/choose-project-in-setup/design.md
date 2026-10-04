@@ -44,7 +44,7 @@ Staging holds no key and the core makes no provider call outside production. A p
 
 ### 5. Setup supplies the key
 
-The provisioner mints one account-scoped key with only `Access: Apps and Policies Write`, the same way it mints the deploy key, stores it as the production Worker's `WONG_ACCESS_LOGIN_MANAGEMENT` with the account and human policy identifiers, records the key's id in the install record for rotation, and never writes it to staging. A rerun reuses a recorded key. The server installer shares the provisioner. The deploy key is not reused and gains no Access write.
+The provisioner mints one account-scoped key with only `Access: Apps and Policies Write`, the same way it mints the deploy key, stores it as the production Worker's `WONG_ACCESS_LOGIN_MANAGEMENT` with the account and human policy identifiers, records the key's id in the install record for rotation, and never writes it to staging. A rerun reuses a recorded key. The deploy key is not reused and gains no Access write.
 
 An existing install gets the same step from `/wong-sync`. When the saved Cloudflare token can not make keys, the step is declared missing and the person receives [the key link](../../../wiki/development/secrets.md#receive-a-key-through-a-private-link). For this repo's own live app the step is run once, as an outward action with a confirm, after publishing.
 

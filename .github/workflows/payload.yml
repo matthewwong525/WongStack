@@ -52,11 +52,11 @@ jobs:
         run: npm install -g @fission-ai/openspec@1.13.2
       - name: Lint scripts
         if: ${{ steps.scope.outputs.docs_only != 'true' }}
-        run: scripts/tests/node_modules/.bin/oxlint --deny-warnings scripts .agents/skills/*/scripts .agents/skills/*/worker .github/scripts server
+        run: scripts/tests/node_modules/.bin/oxlint --deny-warnings scripts .agents/skills/*/scripts .agents/skills/*/worker .github/scripts
       # shellcheck is preinstalled on ubuntu-latest.
       - name: Check shell scripts
         if: ${{ steps.scope.outputs.docs_only != 'true' }}
-        run: shellcheck --severity=warning scripts/*.sh .github/scripts/*.sh .agents/skills/*/scripts/*.sh server/*.sh
+        run: shellcheck --severity=warning scripts/*.sh .github/scripts/*.sh .agents/skills/*/scripts/*.sh
       # c8 follows the scripts the tests spawn; the floor in .c8rc.json only rises.
       # The review page's browser tests launch the runner's Google Chrome.
       - name: Script tests and coverage
@@ -95,13 +95,25 @@ jobs:
           path: ${{ runner.temp }}/verify-preflight-regression/
           if-no-files-found: error
           retention-days: 14
+      - name: Capture retained revision handoff
+        id: revision_chain
+        if: ${{ steps.scope.outputs.docs_only != 'true' }}
+        timeout-minutes: 2
+        run: node scripts/verify-revision-chain.mjs --out "$RUNNER_TEMP/verify-revision-chain"
+      - name: Keep revision handoff observations
+        if: ${{ always() && steps.revision_chain.outcome != 'skipped' && steps.revision_chain.outcome != '' }}
+        timeout-minutes: 2
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: verify-revision-chain
+          overwrite: true
+          path: ${{ runner.temp }}/verify-revision-chain/
+          if-no-files-found: error
+          retention-days: 14
       # The full suite above already includes it.
       - name: Private-names test
         if: ${{ steps.scope.outputs.docs_only == 'true' }}
         run: node --test scripts/tests/private-names.test.mjs
-      - name: Generated hosted starter checks
-        if: ${{ steps.scope.outputs.docs_only != 'true' }}
-        run: node scripts/check-hosted-starter.mjs
       - name: Release checks
         run: |
           node scripts/check-payload-links.mjs

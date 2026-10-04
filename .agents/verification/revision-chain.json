@@ -1,0 +1,8 @@
+{
+  "format": "verify-recipe-1",
+  "id": "revision-chain",
+  "sourcePaths": [".agents/skills/save/scripts/saved-revision.mjs", ".agents/skills/apply/references/build-helper.md", ".agents/skills/verify/SKILL.md"],
+  "instructions": "scripts/fixtures/verify-receipts/revision-chain.md",
+  "scenarios": [{"capability":"delivery-gate","requirement":"Ship checkpoints once through save","scenario":"A one-go ship"}],
+  "capture": {"workflow":".github/workflows/payload.yml","artifact":"verify-revision-chain"}
+}

@@ -44,7 +44,7 @@ function checker(identity: AccessIdentity | null): boolean {
 /** The identity has already passed signed Access verification in the Worker. */
 export async function currentPolicy(env: PolicyEnv, identity: AccessIdentity | null): Promise<CurrentPolicy> {
   const owner = ownerEmail(env);
-  // No migration/database/memory dependency is introduced into an old or managed starter.
+  // No migration/database/memory dependency is introduced into an older install.
   if (!owner) return { state: "legacy" };
   if (!env.DB) return { state: "unavailable" };
   const email = humanEmail(identity);
