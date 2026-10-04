@@ -26,7 +26,7 @@ export type Action = {
   limits?: { inputBytes: number; outputBytes: number; timeoutMs: number };
 };
 export type Route = AppHandler | Action;
-export type Registration = { method: string; path: string; app: string; action: Action };
+export type Registration = { method: string; path: string; app: string; action: Action; access?: RouteAccess };
 const defaults = { inputBytes: 65536, outputBytes: 262144, timeoutMs: 15000 };
 const codes: Record<string, [number, string]> = {
   invalid_input: [400, "Invalid input"], authentication_required: [401, "Company login required"],
@@ -95,7 +95,7 @@ export function defineAction(action: Action): Action {
   return action;
 }
 
-export function registrations(routes: Map<string, Route>, app = "main"): Registration[] {
+export function registrations(routes: Map<string, Route>, app = "main", access?: ReadonlyMap<string, RouteAccess>): Registration[] {
   const result: Registration[] = [];
   for (const [key, route] of routes) {
     if (typeof route === "function") continue;
@@ -105,7 +105,8 @@ export function registrations(routes: Map<string, Route>, app = "main"): Registr
     }
     const path = app === "main" ? match[2] : `/apps/${app}/api/${match[2]}`;
     if (!/^\/(?:api|apps)\/[a-zA-Z0-9/_-]+$/.test(path)) throw new Error(`Invalid route: ${key}`);
-    result.push({ method: match[1], path, app, action: defineAction(route) });
+    result.push({ method: match[1], path, app, action: defineAction(route),
+      access: app === "main" ? access?.get(key) : { apps: [app] } });
   }
   return result;
 }

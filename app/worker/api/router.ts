@@ -16,7 +16,7 @@ const routes = new Map<string, Route>([["GET /api/health", health]]);
 // Business routes list every app they serve; a missing mapping denies access.
 const routeAccess = new Map<string, RouteAccess>([["GET /api/health", { kind: "infrastructure" }]]);
 
-export const apiActions = registrations(routes);
+export const apiActions = registrations(routes, "main", routeAccess);
 
 export function handleApi(request: Request, env: Env & PolicyEnv, identity: AccessIdentity | null = null): Response | Promise<Response> {
   const url = new URL(request.url);

@@ -4,8 +4,10 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { authorizeRequest, currentPolicy, policyAllows, type PolicyEnv, type RouteAccess } from "./policy";
 import type { AccessIdentity } from "../access";
-import { defineAction, dispatch } from "../api/contract";
+import { defineAction, dispatch, registrations, type Registration } from "../api/contract";
 import { handleApi } from "../api/router";
+import { discovery } from "../api/discovery";
+import { appAccess } from "./apps";
 
 const origin = "https://business.example.com";
 const issuer = "https://business.cloudflareaccess.com";
@@ -189,4 +191,108 @@ it("keeps the reviewed harmless health exception independent of employee and dat
   const health = await handleApi(new Request(`${origin}/api/health`), failed as Env & PolicyEnv);
   expect(await health.json()).toEqual({ ok: true });
   expect(failed.DB?.withSession).not.toHaveBeenCalled();
+});
+
+function discoveryRoutes(): Registration[] {
+  const action = defineAction({ operationId: "unrelated.name", summary: "Shared report", description: "Synthetic report",
+    input: z.strictObject({}), output: z.strictObject({ ok: z.boolean() }), encoding: "none", effect: "read",
+    agentAvailable: true, errors: {}, examples: [], handler: () => Response.json({ ok: true }) });
+  const mappings = new Map<string, RouteAccess>([
+    ["GET /api/report", { apps: ["orders", "payroll"] }], ["GET /api/owner", { kind: "owner" }],
+    ["GET /api/setup", { kind: "self-service" }], ["GET /api/health", { kind: "infrastructure" }],
+  ]);
+  const main = registrations(new Map([
+    ["GET /api/report", action], ["POST /api/report", { ...action, operationId: "orders.unmapped" }],
+    ["GET /api/owner", { ...action, operationId: "owner.manage" }],
+    ["GET /api/setup", { ...action, operationId: "employee.setup" }],
+    ["GET /api/health", { ...action, operationId: "main.health" }],
+  ]), "main", mappings);
+  return [...main, ...registrations(new Map([
+    ["GET read", { ...action, operationId: "orders.read" }],
+    ["GET hidden", { ...action, operationId: "orders.hidden", allowed: () => false }],
+  ]), "orders"), ...registrations(new Map([["GET read", { ...action, operationId: "new.read" }]]), "new-app")];
+}
+
+const discover = (path = "/api/actions", headers = {}, caller = employee, bindings = env) =>
+  discovery(new Request(`${origin}${path}`, { headers }), bindings as Env & PolicyEnv, caller, discoveryRoutes());
+
+it("uses reviewed method/path scopes across summaries, details and OpenAPI without ID inference", async () => {
+  const listing = await (await discover()).json();
+  expect(listing.actions.map((item: { operationId: string }) => item.operationId))
+    .toEqual(["employee.setup", "main.health", "orders.read"]);
+  expect((await discover("/api/actions?id=unrelated.name")).status).toBe(404);
+  const document = await (await discover("/api/openapi.json")).json();
+  expect(Object.keys(document.paths)).toEqual(["/api/setup", "/api/health", "/apps/orders/api/read"]);
+  sql.exec("INSERT INTO wong_access_grants VALUES ('installation', 'employee@example.com', 'payroll', 1)");
+  expect((await discover("/api/actions?id=unrelated.name")).status).toBe(200);
+  const ownerListing = await (await discover("/api/actions", {}, owner)).json();
+  expect(ownerListing.actions.map((item: { operationId: string }) => item.operationId))
+    .toEqual(["employee.setup", "main.health", "new.read", "orders.read", "owner.manage", "unrelated.name"]);
+  expect(env.DB?.withSession).toHaveBeenCalledTimes(5);
+});
+
+it("rechecks current grants before conditional responses and isolates caller and representation caches", async () => {
+  const selected = await discover("/api/actions?id=orders.read");
+  const etag = selected.headers.get("ETag")!;
+  expect(selected.headers.get("Cache-Control")).toBe("private, no-cache");
+  expect(selected.headers.get("Vary")).toContain("cf-access-token");
+  const headers = { "if-none-match": etag };
+  expect((await discover("/api/actions?id=orders.read", headers)).status).toBe(304);
+  for (const path of ["/api/actions", "/api/openapi.json", "/api/actions?id=missing.action"]) {
+    expect((await discover(path, headers)).status).not.toBe(304);
+  }
+  sql.exec("INSERT INTO wong_access_members VALUES ('installation', 'other@example.com', 'active', 0, 1, 'now'); INSERT INTO wong_access_grants VALUES ('installation', 'other@example.com', 'orders', 1)");
+  const other = { ...employee, id: "other@example.com", claims: { ...employee.claims, email: "other@example.com", sub: "other-subject" } };
+  const otherResponse = await discover("/api/actions?id=orders.read", headers, other);
+  expect(otherResponse.status).toBe(200); expect(otherResponse.headers.get("ETag")).not.toBe(etag);
+  sql.exec("UPDATE wong_access_installation SET revision = 2");
+  const revised = await discover("/api/actions?id=orders.read", headers);
+  expect(revised.status).toBe(200); expect(revised.headers.get("ETag")).not.toBe(etag);
+  sql.exec("DELETE FROM wong_access_grants WHERE email = 'employee@example.com'; UPDATE wong_access_installation SET revision = 3");
+  const denied = await discover("/api/actions?id=orders.read", headers);
+  expect(denied.status).toBe(404); expect(denied.headers.get("Cache-Control")).toBe("no-store");
+  expect(await denied.text()).not.toContain("Synthetic report");
+  expect((await (await discover("/api/actions", headers)).json()).actions.map((item: { operationId: string }) => item.operationId))
+    .toEqual(["employee.setup", "main.health"]);
+  expect((await (await discover("/api/openapi.json", headers)).json()).paths).not.toHaveProperty("/apps/orders/api/read");
+  sql.exec("UPDATE wong_access_members SET status = 'removed' WHERE email = 'employee@example.com'");
+  for (const path of ["/api/actions", "/api/actions?id=orders.read", "/api/openapi.json"]) {
+    const response = await discover(path, headers);
+    expect(response.status).toBe(403); expect(response.headers.get("Cache-Control")).toBe("no-store");
+  }
+});
+
+it("fails discovery closed on empty, disabled or unavailable policy even for infrastructure-only catalogues", async () => {
+  const cached = (await discover()).headers.get("ETag")!;
+  const unavailable = { ...env, DB: undefined };
+  for (const path of ["/api/actions", "/api/actions?id=main.health", "/api/openapi.json"]) {
+    expect((await discover(path, { "if-none-match": cached }, employee, unavailable)).status).toBe(503);
+  }
+  sql.exec("UPDATE wong_access_installation SET policy_enabled = 0");
+  expect((await discover()).status).toBe(503);
+  sql.exec("DELETE FROM wong_access_grants; DELETE FROM wong_access_members; DELETE FROM wong_access_apps; DELETE FROM wong_access_installation");
+  expect((await discover()).status).toBe(503);
+});
+
+it("reads frontend app grants with zero-app Access self-service, owner exceptions and no permission cache", async () => {
+  const req = new Request(`${origin}/api/access/apps`);
+  const catalogue = ["access", "orders", "payroll", "new-app", "frontend-only"];
+  const readback = (caller: AccessIdentity | null = employee, bindings = env) => appAccess(req, bindings, caller, catalogue);
+  const first = await readback();
+  expect(first.headers.get("Cache-Control")).toBe("no-store");
+  expect(await first.json()).toEqual({ state: "current", role: "employee", revision: 1, apps: ["access", "orders"] });
+  expect(await (await readback(owner)).json()).toEqual({ state: "current", role: "owner", revision: 1, apps: catalogue });
+  // Client-only apps come from manifests and are allowed only when explicitly assigned.
+  const built = await (await appAccess(req, env, owner)).json();
+  expect(built.apps).toContain("hello");
+  sql.exec("INSERT INTO wong_access_apps VALUES ('installation', 'frontend-only'); INSERT INTO wong_access_grants VALUES ('installation', 'employee@example.com', 'frontend-only', 1)");
+  expect((await (await readback()).json()).apps).toEqual(["access", "orders", "frontend-only"]);
+  sql.exec("DELETE FROM wong_access_grants; UPDATE wong_access_installation SET revision = 2");
+  expect(await (await readback()).json()).toEqual({ state: "current", role: "employee", revision: 2, apps: ["access"] });
+  sql.exec("UPDATE wong_access_members SET status = 'removed'");
+  expect((await readback()).status).toBe(403);
+  expect((await readback(null)).status).toBe(403);
+  expect((await readback(employee, { ...env, DB: undefined })).status).toBe(503);
+  expect(await (await readback(null, { ...env, WONG_ACCESS_POLICY: undefined })).json()).toEqual({ state: "legacy" });
+  expect((await appAccess(new Request(req, { method: "POST" }), env, employee)).status).toBe(404);
 });

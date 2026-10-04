@@ -40,6 +40,12 @@ With the latch absent, legacy and managed HTTP/static installs keep their existi
 
 Preserve the enabled latch, database policy, route mappings and tombstones on sync and rollback. Removing the latch would restore legacy routing and is not a rollback. Preview policy checks use a separate synthetic installation and app database; they never borrow production's owner record or provider credentials. The latch is declared in the blank environment maps for discovery, but it is a committed setting, not a secret to copy between Workers.
 
+## Read current app access
+
+The core endpoint `GET /api/access/apps` supplies the frontend's current role, policy revision and allowed app slugs. It reads the same primary policy snapshot as business calls, keeps no positive permission cache and returns `Cache-Control: no-store`. Its catalogue comes from frontend app manifests, so an app with no API still needs an explicit grant. The verified owner sees the built catalogue; a current employee with no selected business apps retains Access self-service when that app is present. Removal denies the readback, and unavailable authority returns a safe retryable error.
+
+Before rollout, readback returns only `state: legacy`. It assigns no owner, employee or app grant and establishes no onboarding readiness. The frontend's existing legacy behavior remains until the reviewed policy is enabled. [Company discovery](company-api.md#discover-only-what-the-task-needs) separately filters action contracts using these same current grants. Frontend links and static bundles supply no business API permission.
+
 ## Preserve data and rollback
 
 The [app migration](../../schema/migrations/0001_employee_access.sql) adds only tables prefixed `wong_access_`. Existing business tables and the separately installed [memory store](../development/memory-key.md) are untouched. New employees begin without project editing or app grants. Removed-member rows remain as tombstones; receipt rows preserve pending revocation and bounded expiry information.

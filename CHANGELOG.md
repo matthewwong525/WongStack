@@ -9,6 +9,8 @@ Add private owner activation and separate app-database storage for employee acce
 
 Reviewed employee policy checks current app permissions before business APIs run, including custom handlers without action descriptions. Main routes need explicit app mappings; missing or unavailable authority denies business access once the owner enables the policy.
 
+Assistant discovery and frontend app-access readback use the same current grants. Removed apps disappear from action contracts on the next lookup, including cached requests; client-only apps also need explicit assignment.
+
 **Updating.** Keep existing apps, routes, login settings and business data. After the reviewed update deploys, verify the owner's app login and the existing repository, then configure the private owner activation record. Review app assignments and route mappings before enabling employee permissions. Login-management and GitHub connections each need the owner's separate approval; missing setup leaves those connections unavailable. Existing memory access stays separate.
 
 ## 30.5.0 — Recall original wiki and OpenSpec evidence

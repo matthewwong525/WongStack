@@ -78,6 +78,10 @@ export async function authorizeRequest(request: Request, env: PolicyEnv, identit
   if (access && "kind" in access && access.kind === "infrastructure") return null;
   const policy = await currentPolicy(request, env, identity);
   if (policyAllows(policy, access)) return null;
+  return policyDenied(policy);
+}
+
+export function policyDenied(policy: CurrentPolicy): Response {
   const unavailable = policy.state === "unavailable";
   return Response.json({ error: { code: unavailable ? "unavailable" : "forbidden",
     message: unavailable ? "Access unavailable" : "App access denied", requestId: crypto.randomUUID() } },
