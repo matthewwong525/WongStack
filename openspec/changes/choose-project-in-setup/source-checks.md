@@ -62,3 +62,15 @@ Second correction responds to all failing checks at that head:
 These are source-related failures; no unrelated failed run was rerun. Provider authority, local execution and task completion remain unchanged until the remote checks pass.
 
 Third correction at this shared gate fixes the two new test-fixture errors at `e20a371c`: the manifest assertion uses the helper's already-parsed response, and the deadline-race fixture advances sixty seconds beyond the ten-minute admission bound instead of depending on millisecond scheduling. Build/staging passed at that head. The app failure is limited to those two fixture errors; generated-starter checks failed on the same two fixture errors after script tests passed. All failed checks were read before this correction was pushed. Runtime authority and check thresholds are unchanged.
+
+### Shared gate stopped after three corrections
+
+At pushed head `f281e02cacaad1c72db4704a4726f675774a98f2`, all 181 app tests and all four 100% coverage metrics passed. Build/staging passed ([run](https://github.com/matthewwong525/WongStack/actions/runs/37223182155)). The app quality check failed ([run](https://github.com/matthewwong525/WongStack/actions/runs/37223182133)): `jscpd found too many duplicates (0.3%) over threshold (0.0%)`, identifying six lines in `app/worker/api/contract.ts:135` and `app/worker/employee-access/json.ts:14`. This is within the source diff, so an unrelated-run rerun is not applicable. No check was weakened.
+
+The `/save` git-gate cap of three correction attempts has been reached for this checkpoint. No fourth source fix or new checkpoint was started. Tasks 3.1–3.4 remain unchecked; next authorized continuation should consolidate bounded decoding without changing API/access error behavior, then run a fresh gate before starting 4.x. Bootstrap and Access UI are still unbuilt; the deployed preview shows the existing shell only. Controlled provider acceptance remains unchecked. This final stop record is kept locally pending the next authorized continuation.
+
+The generated-starter gate also passed all 175 tests and all four 100% coverage metrics, then failed on the same six-line duplication ([run](https://github.com/matthewwong525/WongStack/actions/runs/37223182201)). Script tests and coverage passed. Final waiter result: `FAILURE` for app test and payload checks. Exact-head deployment readback returned `https://smooth-repo-selection-wongstack-staging.matthewwong525.workers.dev` via deployment `6844702486`; this contains no Access UI/bootstrap. Branch `smooth-repo-selection`, draft PR #264, Status `in-progress`; session facts skipped because no current session hook is registered.
+
+## Authorized continuation
+
+The person approved continuing. The new checkpoint consolidates the bounded stream reader shared by API and access JSON parsing. Both callers preserve their existing size-limit and decoding errors; limits, malformed UTF-8 handling and reader cancellation remain unchanged. Existing tests exercise both wire contracts; no test or threshold was relaxed.

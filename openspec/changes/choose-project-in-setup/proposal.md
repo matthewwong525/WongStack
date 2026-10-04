@@ -221,3 +221,5 @@ Installed Source app: Access mini app, self-service setup/home action, core memb
 - **2026-10-04** — The shared 3.4 gate found three oversized functions and an unescaped workflow-expression fixture. Split focused checks/owner dispatch and corrected the fixture without changing behavior or limits. Retain CI coverage metadata for precise diagnosis; all coverage requirements remain unchanged.
 
 - **2026-10-04** — Check: `.github/workflows/test.yml` adds retained coverage-map diagnostics after the existing suite; no check, failure outcome or threshold is loosened. The workflow-setting detector requires this record because a diagnostic upload step changes the check configuration.
+
+- **2026-10-04** — Asked: the person approved continuing after the stopped connection gate. Resume the same change, consolidate bounded decoding without changing wire errors or checks, then complete bootstrap, Access screens, distribution and reviewable verification.

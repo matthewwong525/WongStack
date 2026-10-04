@@ -2,6 +2,7 @@
 import { z } from "zod";
 import type { AppCall, AppEnv, AppHandler } from "../apps/index.ts";
 import { authorizeRequest, type RouteAccess } from "../employee-access/policy.ts";
+import { boundedBytes } from "./body.ts";
 
 /** Supported wire input, also used when building an action. @public */
 export type Encoding = "none" | "query" | "json";
@@ -123,21 +124,7 @@ export function uniqueActions(items: Registration[]): Registration[] {
 // Read streams with a bound before parsing; a declared Content-Length is not trusted.
 export async function boundedText(body: ReadableStream<Uint8Array> | null, max: number): Promise<string> {
   if (!body) return "";
-  const reader = body.getReader();
-  const chunks: Uint8Array[] = [];
-  let size = 0;
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      size += value.byteLength;
-      if (size > max) throw new Error("Size limit exceeded");
-      chunks.push(value);
-    }
-  } finally { await reader.cancel(); }
-  const bytes = new Uint8Array(size);
-  let offset = 0;
-  for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+  const bytes = await boundedBytes(body, max, () => new Error("Size limit exceeded"));
   return new TextDecoder().decode(bytes);
 }
 
