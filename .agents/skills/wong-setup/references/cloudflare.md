@@ -122,20 +122,16 @@ Resolve a reachable owner email before provisioning; reject `.invalid` and GitHu
 1. **Is R2 on?** An error listing R2 buckets that says to enable R2 means no; the report says `"r2": false`. No token can turn R2 on ([without R2](../../../../wiki/development/memory.md#without-r2)), so continue without a bucket, and let [the card list](#the-card-list) at the close give the steps: *"Memory works without it; it just won't keep full session transcripts until R2 is on."*
 2. **The database.** It reuses or creates `<repo>-memory`.
 3. **The bucket, only when R2 is on.** It reuses or creates `<repo>-memory`, never with public access.
-4. **Record.** It writes `components.memory` in `.claude/.wong-stack.json`: `accountId`, `databaseId`, `database`, `bucket` (or `null`), and the memory URL as `worker`, `https://<worker>.<subdomain>.workers.dev/_memory`. An account with no `workers.dev` subdomain gets one named for the GitHub owner. None is secret.
-5. **Apply the schema.** It runs the target's `memory.mjs migrate` with `CLOUDFLARE_API_TOKEN`, retrying while the new store takes effect. On a new store, it also links the GitHub account `gh` is signed in as, making it the admin.
-6. **The admin key.** With no memory key in `.env`, it runs `memory.mjs member admin`, which writes a 30-day, self-renewing admin key, never printed, to `CLOUDFLARE_MEMORY_TOKEN` in the primary checkout's `.env`. No git email stops it with `repo`: ask the user to set one. A signed-out `gh` stops it with `cloudflare`: ask them to run `gh auth login`. Teammates [join through GitHub](../../../../wiki/development/memory-key.md#joining-through-github) once production is deployed. **Never** make the key a GitHub secret.
+4. **Record.** It writes `components.memory` in `.claude/.wong-stack.json`: `accountId`, `databaseId`, `database`, `bucket` (or `null`), and the memory URL as `worker`, `https://<worker>.<subdomain>.workers.dev/_memory`. An account with no `workers.dev` subdomain gets one named for the GitHub owner. It also records the production origin under `components.companyApi.origin`, using the account hostname read back; [company actions](../../../../wiki/stack/company-api.md) owns employee access. None is secret.
+5. **Apply the schema.** It runs the target's `memory.mjs migrate` with `CLOUDFLARE_API_TOKEN`, retrying while the new store takes effect. Historical authors and raw references remain unchanged; machine ownership is added without a backfill.
+6. **The admin key.** With no valid machine credential in `.env`, run `memory.mjs member admin`. It installs this local OS-user ID’s admin key in the primary ignored `.env`, with no memory email or GitHub prerequisite. In the same trusted issuance transaction it seeds a one-use login-marker hash, because the production deploy follows this step. The report’s `appUrl` is the normal app link to give the person: ordinary email login labels this machine automatically. Never print the reusable key or make it a CI secret. Repository contributors receive member credentials through [trusted issuance and installation](../../../../wiki/development/memory-key.md#add-or-remove-a-teammate); readers retain private-only writes.
+
 
 Memory answers once CI deploys production; until then, facts wait in the local spool. By hand, the memory commands are `$M`, with `M="node $(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/memory.mjs"`.
 
 **Re-runs.** A store that verifies is current. A store with no bucket, on an account that now has R2, gets one: the script creates and records it, adds `MEMORY_BUCKET` to the production config, and gives `<repo>-deploy` the R2 row of [the CI deploy token table](permission-groups.md#the-ci-deploy-token). The key stays. Make by hand any edit the report's `todo` lists.
 
-**Moving an older store.** A store whose `CLOUDFLARE_MEMORY_TOKEN` is an old `<repo>-memory` Cloudflare token, not a `wongm_` key, moves to the production Worker; the old token works until the last step.
-1. In the sync change: the memory route in `app/worker/index.ts` (the [app scaffold](../../wong-sync/references/payload-manifest.md#the-app-scaffold)'s one import and branch), `MEMORY_DB` and `MEMORY_BUCKET` in the production config as in 4c, `worker` in the install record as in step 4, the R2 row on `<repo>-deploy` when the store has a bucket, and `$M migrate`.
-2. Once that change merges and production deploys, run step 6's `$M member admin` by hand, then check `$M digest` through the Worker.
-3. Only when that passes, delete the old token: find `<repo>-memory` in `GET /user/tokens`, then `DELETE /user/tokens/{id}`.
-
-If the check fails, put the old token back in `.env` and stop. Teammates who held the old token get a key next session by [joining through GitHub](../../../../wiki/development/memory-key.md#joining-through-github); nobody makes one by hand, so give GitHub access to anyone who lacks it.
+**Moving an older store.** Add the production route, authenticated login callback, bindings, and install record in the update. After deployment, run `$M migrate`, replace credentials through the [key procedure](../../../../wiki/development/memory-key.md#add-or-remove-a-teammate), and check `$M digest`. Shared history stays available; private history remains unassigned. A failure pauses memory. Retire an old Cloudflare memory token only after replacement succeeds; never restore an email-only Worker after private machine writes.
 
 ### 4c. The two app databases and the config
 
@@ -196,7 +192,7 @@ State, in plain words:
 - When `command -v paseo` answers: how to chat from a phone, *"In Paseo, open Settings → your host → Pair Device."*
 - The optional card list below, when the site is open or `r2` is `false`.
 
-End on the URL and the one next step. With the starter app: open the URL (on a private site, sign in once with the email code), and copy the message in the box at the top into this chat; it walks the person through their first change. **That paste is the human check**: once it arrives from the production link, report human login verified, with no sign-in on staging or previews.
+Use `appUrl` for normal login. Check stored issuer/subject before claiming association; a paste alone proves only login. Report an unavailable association link plainly. End on the URL and the next step. With the starter app: open the URL (on a private site, sign in once with the email code), and copy the message in the box at the top into this chat; it walks the person through their first change. **That paste is the human check**: once it arrives from the production link, report human login verified, with no sign-in on staging or previews.
 
 ### The card list
 

@@ -8,7 +8,7 @@ Every install starts empty and takes **every** category.
 
 - **Core** always ships: WongStack workflow skills with their whole `references/` and `scripts/` folders, the browser discovery skill, the hidden `hand-over` skill whose scripts open the private links, the hidden `browser` skill that runs Cloudflare's cloud browser when a site blocks the agent's own, `/improve` for one useful improvement, the `/routine` Paseo scheduler and its scripts, the `memory` skill with its session-start and pre-edit hooks for Claude (`.claude/settings.json`) and Codex (`.claude/hooks.json`), Codex project settings (`.claude/config.toml`), the Paseo project file (`paseo.json`), path rules, process pages, CI's `.nvmrc`, test workflow, portable check entry point and quality scripts, and shared change-scope action, and the `WONG-STACK` block of `CLAUDE.md`.
 - **UI** adds [`ux-principles.md`](../../../../wiki/ux-principles.md) for user-facing screens.
-- **Pack** adds the pipeline scripts, workflow, schema, and `wiki/stack/` pages.
+- **Pack** adds the pipeline scripts, workflow, schema, `wiki/stack/` pages and [company helper](../../../../scripts/company-api.mjs). Core memory ships its dependency-free read descriptions and adapter with the whole skill; the helper imports them without app packages.
 - **Scaffold** adds `app/`, except `app/wrangler.jsonc`, which holds source-repo database IDs.
 
 ## The agent folder
@@ -66,7 +66,7 @@ Every `/wong-sync`, however old, reads this page from the source, so the plan's 
 
 ## The memory store and its hooks
 
-**memory** ships as one folder on OpenSpec's Node.js: script, schema migrations, the Worker's route module, runbook, and [writing bar](../../memory/references/writing-facts.md). Merge its `SessionStart` and `PreToolUse` hooks into a target's own `.claude/settings.json` or `.claude/hooks.json`; never replace the file. Codex asks once to trust a new hook. Plan the store by [setup's runbook](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4b-the-memory-store). A sync that adds a file under `migrations/` ends its plan with one admin task: run `memory.mjs migrate` after the update merges and production deploys. [The memory convention](../../../../wiki/development/memory.md) owns the rest.
+**memory** ships as one folder on OpenSpec's Node.js: script, schema migrations, the Worker's route module, runbook, and [writing bar](../../memory/references/writing-facts.md). Merge its `SessionStart` and `PreToolUse` hooks into a target's own `.claude/settings.json` or `.claude/hooks.json`; never replace the file. Codex asks once to trust a new hook. Plan the store by [setup's runbook](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4b-the-memory-store). A sync that adds a file under `migrations/` ends its plan with one admin task: run `memory.mjs migrate` after the update merges and production deploys. Machine-ownership migration also requires trusted replacement credentials; old private history stays unassigned. [The memory convention](../../../../wiki/development/memory.md) owns the rest.
 
 ## The Paseo project file
 
@@ -80,7 +80,7 @@ Create live database IDs and secrets in the target; never copy them. No copied f
 
 ## The app scaffold
 
-A starter React/Vite Worker app with its own tests and package manifest. `app/worker/index.ts` sends `/_memory/` to the memory skill's route module and, after the login check, `/_walk/` to the verify skill's, so each route updates with its skill; only those imports and branches sit in `app/`. Below its workspace heading, the [welcome](../../../../wiki/stack/mini-apps.md), `app/src/pages/home/Tutorial.tsx`, offers one chat request to name the workspace and remove the guide, with explanations and a preview before publishing. Update `Tutorial.tsx`, `.css`, and `.test.tsx` only while the target's `Home.tsx` (flat layout: `app/src/App.tsx`) renders `<Tutorial />`; otherwise it stays removed. `/apps/` redirects to `/`, whose app list is compiled in from `app/src/apps/`. The test workflow runs `npm test` at the root or one folder down, and passes with none. No root `package.json` is copied.
+A starter React/Vite Worker app with its own tests and package manifest. `app/worker/index.ts` sends `/_memory/` to the memory skill's route module and, after the login check, `/_walk/` to the verify skill's, so each route updates with its skill; only those imports and branches sit in `app/`, plus the narrow authenticated root callback for memory’s normal-login marker. Adapt that callback with the existing signed identity validator; add no page or binding. Below its workspace heading, the [welcome](../../../../wiki/stack/mini-apps.md), `app/src/pages/home/Tutorial.tsx`, offers one chat request to name the workspace and remove the guide, with explanations and a preview before publishing. Update `Tutorial.tsx`, `.css`, and `.test.tsx` only while the target's `Home.tsx` (flat layout: `app/src/App.tsx`) renders `<Tutorial />`; otherwise it stays removed. `/apps/` redirects to `/`, whose app list is compiled in from `app/src/apps/`. The test workflow runs `npm test` at the root or one folder down, and passes with none. No root `package.json` is copied.
 
 [Mini apps](../../../../wiki/stack/mini-apps.md) are part of the app scaffold: each has its page in `app/src/apps/<name>/` and its server side in `app/worker/apps/<name>/`, found by the registries beside them. Only the example, `hello`, ships; `scaffold.exclude` keeps every other app made here, such as `tips`, out of a target, so list a new source-only app there.
 
@@ -92,6 +92,10 @@ Fresh setup runs `openspec init --tools none`. The verbs call the CLI directly a
 
 Outside the target inventory: `wong-setup`, `update-dependencies`, the `server/` setup script and agent, `VERSION`, `CHANGELOG.md`, this repo's install record, and the meta-only release checks and payload CI. A target's install record never goes upstream. Old verdict files may inform exploration; nothing writes new ones.
 
+## Company action updates
+
+Review the target’s custom routes; preserve their handlers, paths and checks. Describe only the actions the owner selects, following [company actions](../../../../wiki/stack/company-api.md). Bare handlers stay usable and undiscovered. Older records can connect an explicit company origin until a reviewed update records production. Memory retains its existing target and credential; no employee receives a business or owner key.
+
 ## Install record
 
-Create a fresh `.claude/.wong-stack.json`: `upstream.repo` names the repository actually installed, including a fork; version and commit come from that checkout, and `upstream.clone` hints at its cache. Later sync follows this source. Record the target's memory store ids, local skill names, and install/update dates; never copy the source's record, memory bindings, or live config. Advance it only after agreed changes and any generated-layer migration. It holds no mode.
+Create a fresh `.claude/.wong-stack.json`: `upstream.repo` names the repository actually installed, including a fork; version and commit come from that checkout, and `upstream.clone` hints at its cache. Later sync follows this source. Record the target's memory store ids, public `components.companyApi.origin` from production readback, local skill names, and install/update dates; never copy the source's record, memory bindings, or live config. Advance it only after agreed changes and any generated-layer migration. It holds no mode.

@@ -13,7 +13,8 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual, parseArgs } from 'node:util';
 import { isMain } from '../../memory/scripts/lib/cli.mjs';
-import { parseEnv } from '../../memory/scripts/lib/store.mjs';
+import { machineId, machineIdFile } from '../../memory/scripts/lib/machine-id.mjs';
+import { keyMachine, parseEnv } from '../../memory/scripts/lib/store.mjs';
 import { PrimaryRootError, primaryRoot } from '../../memory/scripts/lib/primary-root.mjs';
 import { AccessSetupError, accessOrganization, ownerIdentity, provisionAccess, provisionAccessPolicies } from './private-access.mjs';
 import { privateDeployment } from '../../../../scripts/lib-access-config.mjs';
@@ -469,14 +470,14 @@ function migrateScripts(dir, n, note) {
   note('updated', 'app/package.json db:migrate scripts');
 }
 
-/** Merges `components.memory` into the install record, writing only on a change. */
-function recordMemory(dir, memory, note) {
+/** Merge a public component into the install record, writing only on a change. */
+function recordComponent(dir, component, data, note) {
   const file = recordFile(dir);
   const record = readJson(file, {});
-  const next = { ...record, components: { ...record.components, memory: { ...record.components?.memory, ...memory } } };
+  const next = { ...record, components: { ...record.components, [component]: { ...record.components?.[component], ...data } } };
   if (JSON.stringify(next) === JSON.stringify(record)) return;
   writeJson(file, next);
-  note('updated', '.claude/.wong-stack.json components.memory');
+  note('updated', `.claude/.wong-stack.json components.${component}`);
 }
 
 /** One allow policy on this account alone, with the named groups. */
@@ -518,7 +519,7 @@ async function deployToken(cf, account, name, rows, groups, { secretSet, setSecr
   note('updated', `deploy token ${name}: new value sent to GitHub`);
 }
 
-const hasKey = (env) => (env.CLOUDFLARE_MEMORY_TOKEN ?? '').startsWith('wongm_');
+const hasKey = (env, localId) => keyMachine(env.CLOUDFLARE_MEMORY_TOKEN) === localId;
 
 /**
  * Everything after the one billable ask, under `base`: the memory store (R2 check, database, bucket),
@@ -536,10 +537,8 @@ export async function provision({ token, api, fetch, account, repo, base, ownerE
   const note = (list, what) => report[list].push(what);
   const git = (args) => exec('git', ['-C', dir, ...args], { env });
   const envFile = durableEnv(dir);
-  const needsKey = !hasKey(readEnv(envFile));
-  const email = needsKey ? (await git(['config', 'user.email']).catch(() => ({ stdout: '' }))).stdout.trim() : null;
-  if (needsKey && !email) throw new ProvisionError('repo', 'git has no user.email here, and the admin memory key is made for it; set it with `git config --global user.email <your email>` and run again');
-  const loginEmail = ownerIdentity(ownerEmail ?? email ?? (await git(['config', 'user.email']).catch(() => ({ stdout: '' }))).stdout);
+  const needsKey = !hasKey(readEnv(envFile), machineId(machineIdFile(env)));
+  const loginEmail = ownerIdentity(ownerEmail ?? (await git(['config', 'user.email']).catch(() => ({ stdout: '' }))).stdout);
   const provisionStateFile = await stateFile(dir, exec);
   const state = readJson(provisionStateFile, {});
   if (state.account && (state.account !== account || state.repo !== repo || state.base !== base)) {
@@ -612,15 +611,19 @@ export async function provision({ token, api, fetch, account, repo, base, ownerE
     }
   }
   const worker = `https://${n.worker}.${sub}.workers.dev/_memory`;
-  recordMemory(dir, { accountId: account, databaseId: memoryId, database: n.memory, bucket, worker }, note);
+  recordComponent(dir, 'memory', { accountId: account, databaseId: memoryId, database: n.memory, bucket, worker }, note);
+  // `sub` was read back from the account; never copy an upstream installation's origin.
+  recordComponent(dir, 'companyApi', { origin: `https://${n.worker}.${sub}.workers.dev` }, note);
 
   // The schema, retried while a new database or a widened token takes effect, then the admin key.
   const memory = join(dir, '.claude', 'skills', 'memory', 'scripts', 'memory.mjs');
   const admin = { cwd: dir, env: { ...env, CLOUDFLARE_API_TOKEN: token } };
   await step('cloudflare', () => retry(() => exec('node', [memory, 'migrate'], admin), sleep, () => true));
   if (needsKey) {
-    await step('cloudflare', () => exec('node', [memory, 'member', 'admin'], admin));
-    note('created', `admin memory key for ${email}, in .env`);
+    const issued = await step('cloudflare', () => exec('node', [memory, 'member', 'admin'], admin));
+    const appUrl = issued.stdout?.match(/Open the app and sign in normally: (\S+)/)?.[1];
+    if (appUrl) report.appUrl = appUrl;
+    note('created', 'admin machine memory key in .env');
   } else note('reused', 'admin memory key in .env');
 
   // The app's databases and config.

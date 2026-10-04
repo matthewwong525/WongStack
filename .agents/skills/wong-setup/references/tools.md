@@ -56,7 +56,7 @@ After the tools pass, check `command -v paseo`. Missing → say one plain senten
 
 ## 2. The GitHub sign-in
 
-Check `gh auth status`. Setup needs the `workflow` scope, to add the publishing step, and `user:email`, to set the git email and let teammates [join memory](../../../../wiki/development/memory-key.md#joining-through-github) ([why](../../../../wiki/development/required-tools.md#gh-needs-the-workflow-scope)).
+Check `gh auth status`. Setup needs the `workflow` scope, to add the publishing step, and `user:email`, to fill git authorship ([why](../../../../wiki/development/required-tools.md#gh-needs-the-workflow-scope)).
 
 - **Signed out** → run `gh auth login --web --hostname github.com --git-protocol https --scopes workflow,user:email` in the background, output to a temporary file.
 - **Signed in, a scope missing** from the `Token scopes:` line → run `gh auth refresh --hostname github.com --scopes <every missing scope>` the same way; one refresh covers them all.
@@ -81,7 +81,7 @@ git config --global user.name "$(gh api user --jq '.name // .login')"
 git config --global user.email "$(gh api user/emails --jq '[.[] | select(.primary and .verified)][0].email')"
 ```
 
-The email must be non-empty, because memory's admin key is made for it; with no verified primary email, stop and use the failure map.
+Git authorship needs a name and email for saved changes. Memory ownership uses a local installation ID and needs no GitHub or email check.
 
 ## 4. Windows folder links
 

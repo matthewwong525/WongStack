@@ -1,17 +1,24 @@
 #!/usr/bin/env node
+import { READ_OPTIONS } from './lib/read-options.mjs';
 // The one door to the memory store. Every skill, the hook, and the background run call this script.
 import { existsSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
+import { createHash } from 'node:crypto';
+import { extractMemory } from './lib/extract.mjs';
+import { issueTask, scopeOf, taskIdentity } from './lib/extract-ledger.mjs';
 import { CONSOLIDATION_STATE, consolidationDue, DIFFERED, digestPlan, FACT_COLUMNS, formatFact, loadDigest, personalFilter, VERB_TAGS } from './lib/digest.mjs';
 import { areaDocs, changePaths, loadAreas, pastChanges, pathAreas, withAreaTags } from './lib/areas.mjs';
+import { ftsQuery, readFacts, stateOf, tagClause } from './lib/read-facts.mjs';
+import { BRIEF_DEFAULT_LIMIT, BRIEF_LIMIT, renderBrief, SCOPE_FILTERS } from './lib/brief.mjs';
+export { ftsQuery, tagClause } from './lib/read-facts.mjs';
 import { backlinks } from './lib/links.mjs';
 import { closingBody, tagSync, upkeepPlan } from './lib/upkeep.mjs';
 import { JOIN_COMMANDS } from './lib/join.mjs';
-import { githubUser, linkAdmin, MEMBER_COMMANDS } from './lib/members.mjs';
+import { MEMBER_COMMANDS } from './lib/members.mjs';
 import { findCredential, redact, secretValues } from './lib/scan.mjs';
-import { isMain, loadConfig, loadEnv, openStore, readJson, repoContext, RUN_TALLY, SCRIPT, spoolList, spoolRemove, spoolWrite, statePath, StoreError, writeJson } from './lib/store.mjs';
+import { isMain, loadEnv, openStore, readJson, repoContext, RUN_TALLY, spoolList, spoolRemove, spoolWrite, statePath, StoreError, writeJson } from './lib/store.mjs';
 import { FormatError, inside, parseTranscriptText, pending, pruneRegistry, readRegistry, recentTranscripts, sessionFile, strip } from './lib/transcripts.mjs';
 import { ADMIN_WRITES, FTS_HITS, supersedeSql, WRITES } from '../worker/statements.mjs';
 import { MAX_TRANSCRIPT_BYTES } from '../worker/memory-worker.mjs';
@@ -30,13 +37,6 @@ const megabytes = bytes => `${Math.ceil(bytes / 1024 / 1024)} MB`;
 const readInput = file => JSON.parse(readFileSync(file === '-' || !file ? 0 : file, 'utf8'));
 
 // ---------- small helpers ----------
-
-// Change state of every slug, from one read of the archive folder.
-function stateOf(root) {
-  const archive = join(root, 'openspec', 'changes', 'archive');
-  const shipped = new Set(existsSync(archive) ? readdirSync(archive).map(name => name.replace(/^\d{4}-\d{2}-\d{2}-/, '')) : []);
-  return slug => existsSync(join(root, 'openspec', 'changes', slug)) ? 'active' : shipped.has(slug) ? 'shipped' : 'conversation';
-}
 
 export const normalizeTag = name => name.toLowerCase().replace(/[^a-z0-9]/g, '').replace(/s$/, '');
 
@@ -58,19 +58,6 @@ function editDistance(a, b) {
 export function nearTag(name, existing) {
   const key = normalizeTag(name);
   return existing.find(tag => tag !== name && (normalizeTag(tag) === key || (name.length >= 5 && editDistance(tag.toLowerCase(), name.toLowerCase()) <= 2))) || null;
-}
-
-// Words too common to match on their own: a fact sharing only *how* or *should* with a question is noise.
-const FILLER = new Set(('how should what when which does the and for with that this from into about have been would could there their '
-  + 'them then than also just only some any all our your you are was were can will not').split(' '));
-
-// FTS5 query: every significant word, OR-joined, so a paraphrase that shares a few words still ranks. Filler
-// words drop out, unless nothing else is left.
-export function ftsQuery(text) {
-  const all = [...new Set(text.toLowerCase().match(/[\p{L}\p{N}_]{3,}/gu) || [])];
-  const meant = all.filter(word => !FILLER.has(word));
-  const words = (meant.length ? meant : all).slice(0, 24);
-  return words.length ? words.map(word => `"${word}"`).join(' OR ') : null;
 }
 
 // ---------- the background run's tally ----------
@@ -155,13 +142,6 @@ async function checkedTags(store, facts, given, { threads = false } = {}) {
   return newTags;
 }
 
-// Facts carrying any of these tags or their aliases, as a WHERE fragment on alias `f`.
-export const tagClause = tags => ({
-  sql: `f.id IN (SELECT fact_id FROM fact_tags WHERE tag IN (SELECT name FROM tags WHERE coalesce(alias_of, name) IN (
-    SELECT coalesce(alias_of, name) FROM tags WHERE name IN (${tags.map(() => '?').join(', ')}))))`,
-  params: tags,
-});
-
 // ---------- the one write path ----------
 
 const stripFile = (ctx, id) => statePath(ctx, 'strip', `${id.replace(':', '-')}.json`);
@@ -179,22 +159,22 @@ function sessionRecord(ctx, id) {
   return file ? recordFor(id, file, parseTranscriptText(readFileSync(file, 'utf8'))) : { id, agent: id.split(':')[0] };
 }
 
-function sessionUpsert(record, status, { reason, author, machine }) {
+function sessionUpsert(record, status, { reason, author, machine, ownerMachineId }) {
   const meta = record.meta || {};
   return [WRITES.session.sql,
   [record.id, record.agent, author || null, machine || null, meta.branch || null, meta.cwd || null, meta.startedAt || null, record.endedAt || null,
-    status, reason || null, record.readThrough == null ? null : String(record.readThrough), record.rawKey || null, record.rawBytes || null, now()]];
+    status, reason || null, record.readThrough == null ? null : String(record.readThrough), record.rawKey || null, record.rawBytes || null, now(), ownerMachineId]];
 }
 
 // Statements for one write: the session row, new tags, then each kept fact with its tags and supersedes.
 // Every fact insert returns its id, in order, so a caller can map its own keys to ids. A fact's own
 // createdAt, sessionId, or author overrides the batch's, so a restated fact keeps its origin.
-function writeStatements({ record, status, reason, newTags = [], facts, source, sessionId, createdAt, author, machine }) {
-  const statements = record ? [sessionUpsert(record, status, { reason, author, machine })] : [];
+function writeStatements({ record, status, reason, newTags = [], facts, source, sessionId, createdAt, author, machine, ownerMachineId }) {
+  const statements = record ? [sessionUpsert(record, status, { reason, author, machine, ownerMachineId })] : [];
   for (const tag of newTags) statements.push([WRITES.tag.sql, [tag.name, tag.definition, tag.aliasOf || null, author || null, now()]]);
   for (const fact of facts) {
     statements.push([WRITES.fact.sql,
-      [fact.slug, fact.type, fact.body.trim(), own(fact, 'sessionId', sessionId), source, fact.createdAt || createdAt, own(fact, 'author', author)]]);
+      [fact.slug, fact.type, fact.body.trim(), own(fact, 'sessionId', sessionId), source, fact.createdAt || createdAt, own(fact, 'author', author), own(fact, 'ownerMachineId', ownerMachineId), fact.shared ?? 1]]);
     for (const tag of fact.tags || []) statements.push([WRITES.factTag.sql, [tag]]);
     const ids = (fact.supersedes || []).map(Number).filter(Boolean);
     if (ids.length) statements.push([supersedeSql(ids.length), ids]);
@@ -217,7 +197,7 @@ export async function putFacts(ctx, input) {
   const source = input.source || 'save';
   if (!SOURCES.includes(source)) throw new StoreError(`source must be one of ${SOURCES.join(', ')}`);
   // Only retag restates a fact under its old session and author; a put-facts fact takes the batch's.
-  const facts = (input.facts || []).map(fact => ({ ...fact, slug: fact.slug || input.slug, sessionId: undefined, author: undefined }));
+  const facts = (input.facts || []).map(fact => ({ ...fact, slug: fact.slug || input.slug, sessionId: undefined, author: undefined, ownerMachineId: undefined, shared: undefined }));
   const kept = facts.filter(fact => fact.action !== 'drop');
   const secrets = secretValues(loadEnv(ctx));
   kept.forEach((fact, index) => {
@@ -229,7 +209,7 @@ export async function putFacts(ctx, input) {
   const record = input.session ? sessionRecord(ctx, input.session) : null;
   const status = facts.length ? 'captured' : 'skipped';
   const plan = await digestPlan(ctx, store);
-  const writes = writeStatements({ record, status, reason: input.reason, newTags, facts: kept, source, sessionId: input.session, createdAt: input.createdAt || now(), author: store.author, machine: ctx.machine });
+  const writes = writeStatements({ record, status, reason: input.reason, newTags, facts: kept, source, sessionId: input.session, createdAt: input.createdAt || now(), author: store.author, machine: ctx.machine, ownerMachineId: store.ownerMachineId });
   const results = await store.batch([...writes, ...plan.statements]);
   markSeen(ctx, record);
   try { plan.finish(results); } catch { /* the cache is best effort */ }
@@ -279,7 +259,8 @@ async function putFactsCommand(ctx, { values, tally }) {
 export async function retag(ctx, input, store = openStore(ctx)) {
   const asks = (input.retag || []).map(ask => ({ id: Number(ask.id), tags: ask.tags || [] })).filter(ask => ask.id);
   if (!asks.length) return { written: 0, skipped: [] };
-  const team = await teamWhere(ctx, store, {});
+  if (!store.role) await store.query('SELECT 1');
+  const team = await teamWhere(ctx, store, { everyone: store.role === 'admin' });
   const ids = asks.map(ask => ask.id);
   const list = ids.map(() => '?').join(', ');
   const [found, tagged] = await store.batch([
@@ -287,7 +268,7 @@ export async function retag(ctx, input, store = openStore(ctx)) {
     [`SELECT fact_id, tag FROM fact_tags WHERE fact_id IN (${list})`, ids],
   ]);
   const byId = new Map(found.map(fact => [fact.id, fact]));
-  const me = (store.author || '').toLowerCase();
+  const me = store.ownerMachineId;
   const skipped = [];
   const facts = [];
   for (const { id, tags } of asks) {
@@ -296,36 +277,37 @@ export async function retag(ctx, input, store = openStore(ctx)) {
     const adds = tags.filter(tag => !old.includes(tag));
     const why = !fact ? 'not found'
       : fact.superseded_by ? `superseded by #${fact.superseded_by}`
-        : store.role !== 'admin' && (fact.author || '').toLowerCase() !== me ? `${fact.author || 'no one'} wrote it, so only they or the admin can re-tag it`
+        : store.role !== 'admin' && fact.owner_machine_id !== me ? `${fact.author || 'no one'} wrote it, so only they or the admin can re-tag it`
           : !adds.length ? 'already carries every tag' : null;
     if (why) { skipped.push({ id, why }); continue; }
-    facts.push({ slug: fact.slug, type: fact.type, body: fact.body, createdAt: fact.created_at, sessionId: fact.session_id, author: fact.author, tags: [...old, ...adds], supersedes: [id] });
+    facts.push({ slug: fact.slug, type: fact.type, body: fact.body, createdAt: fact.created_at, sessionId: fact.session_id, author: fact.author, ownerMachineId: fact.owner_machine_id, shared: fact.shared, tags: [...old, ...adds], supersedes: [id] });
   }
   if (!facts.length) return { written: 0, skipped };
   const newTags = await checkedTags(store, facts, input.newTags);
-  await store.batch(writeStatements({ newTags, facts, source: 'consolidation', createdAt: now(), author: store.author }));
+  await store.batch(writeStatements({ newTags, facts, source: 'consolidation', createdAt: now(), author: store.author, ownerMachineId: store.ownerMachineId }));
   return { written: facts.length, skipped };
 }
 
 // Upkeep, by lib/upkeep.mjs's plan: one read of the live facts the key may change (a member's own only), then
 // the closing facts, the tag sync (admin only), and the re-tags. It writes no runs row.
 export async function upkeep(ctx, store = openStore(ctx)) {
-  const team = await teamWhere(ctx, store, {});
-  const live = `SELECT f.id, f.slug, f.type, f.body, f.author, f.created_at FROM facts f WHERE f.superseded_by IS NULL${team.sql}`;
+  if (!store.role) await store.query('SELECT 1');
+  const team = await teamWhere(ctx, store, { everyone: store.role === 'admin' });
+  const live = `SELECT f.id, f.slug, f.type, f.body, f.author, f.owner_machine_id, f.shared, f.created_at FROM facts f WHERE f.superseded_by IS NULL${team.sql}`;
   const [found, tagged, tagRows] = await store.batch([
     [live, team.params],
     ['SELECT fact_id, tag FROM fact_tags WHERE fact_id IN (SELECT id FROM facts WHERE superseded_by IS NULL)'],
     ['SELECT name, definition, alias_of FROM tags'],
   ]);
   const admin = store.role === 'admin';
-  const me = (store.author || '').toLowerCase();
-  const facts = found.filter(fact => admin || (fact.author || '').toLowerCase() === me)
+  const me = store.ownerMachineId;
+  const facts = found.filter(fact => admin || fact.owner_machine_id === me)
     .map(fact => ({ ...fact, tags: tagged.filter(row => row.fact_id === fact.id).map(row => row.tag) }));
   const areas = loadAreas();
   const plan = upkeepPlan(facts, tagRows, { areas, root: ctx.root });
-  const closing = plan.close.map(thread => ({ slug: thread.slug, type: 'project', body: closingBody(thread), tags: thread.tags, supersedes: [thread.id] }));
+  const closing = plan.close.map(thread => ({ slug: thread.slug, type: 'project', body: closingBody(thread), tags: thread.tags, supersedes: [thread.id], author: thread.author, ownerMachineId: thread.owner_machine_id, shared: thread.shared }));
   const tags = admin ? tagSync(tagRows, areas, { author: store.author, now: now() }) : [];
-  const writes = [...writeStatements({ facts: closing, source: 'consolidation', createdAt: now(), author: store.author }), ...tags];
+  const writes = [...writeStatements({ facts: closing, source: 'consolidation', createdAt: now(), author: store.author, ownerMachineId: store.ownerMachineId }), ...tags];
   if (writes.length) await store.batch(writes);
   const { written } = await retag(ctx, { retag: plan.retag }, store);
   return { closed: closing.length, retagged: written, tags: tags.filter(([sql]) => sql === ADMIN_WRITES.tagUpdate.sql).length };
@@ -349,42 +331,19 @@ async function retagCommand(ctx, { values, tally }) {
 
 // ---------- read commands ----------
 
-async function search(ctx, { values, positionals }) {
-  const store = openStore(ctx);
-  const joins = [];
-  const where = [];
-  const params = [];
-  const match = ftsQuery(positionals.join(' '));
-  // The full-text search goes through the one fragment the memory Worker lets every key run.
-  if (match) { joins.push(`JOIN ${FTS_HITS} hits ON hits.rowid = f.id`); params.push(match); }
-  // The sessions a search reads: those that started on --branch, and those that wrote a fact on --change, so a
-  // session whose branch was renamed still counts. Both together is one set, under one limit.
-  const sessions = [];
-  if (values.branch) { sessions.push('f.session_id IN (SELECT id FROM sessions WHERE branch = ?)'); params.push(values.branch); }
-  if (values.change) { sessions.push('f.session_id IN (SELECT DISTINCT session_id FROM facts WHERE slug = ? AND session_id IS NOT NULL)'); params.push(values.change); }
-  if (sessions.length) where.push(`(${sessions.join(' OR ')})`);
-  if (!values.all) where.push('f.superseded_by IS NULL');
-  const personal = values.everyone ? null : await personalFilter(ctx, store);
-  if (personal) { where.push(personal.clause); params.push(...personal.params); }
-  const filters = { type: 'f.type = ?', slug: 'f.slug = ?', since: 'f.created_at >= ?', until: 'f.created_at <= ?', author: 'f.author LIKE ?' };
-  for (const [key, clause] of Object.entries(filters)) {
-    if (!values[key]) continue;
-    where.push(clause);
-    params.push(key === 'author' ? `%${values[key]}%` : values[key]);
+async function search(ctx, args) {
+  const result = await readFacts(ctx, args);
+  console.log(args.values.json ? JSON.stringify(result) : result.facts.length ? result.facts.map(fact => formatFact(fact)).join('\n') : 'No matching facts.');
+}
+
+async function brief(ctx, { values, positionals }) {
+  if (values.all) throw new StoreError('brief selects only live facts; omit --all');
+  if (!ftsQuery(positionals.join(' ')) && !SCOPE_FILTERS.some(key => values[key])) {
+    throw new StoreError('usage: memory.mjs brief <terms> [search filters], or brief --tag <topic>; name a topic or filter');
   }
-  if (values.tag) {
-    const tag = tagClause([values.tag]);
-    where.push(tag.sql);
-    params.push(...tag.params);
-  }
-  const limit = Number(values.limit) || 30;
-  const sql = `SELECT ${F_COLUMNS} FROM facts f ${joins.join(' ')} ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
-    ORDER BY ${match ? 'hits.rank,' : ''} f.created_at DESC${values.state ? '' : ` LIMIT ${limit}`}`;
-  const state = stateOf(ctx.root);
-  // The state comes from this checkout's change folders, not the store, so it filters before the limit here.
-  const facts = (await store.query(sql, params)).map(fact => ({ ...fact, state: state(fact.slug) }))
-    .filter(fact => !values.state || fact.state === values.state).slice(0, limit);
-  console.log(facts.length ? facts.map(fact => formatFact(fact)).join('\n') : 'No matching facts.');
+  const limit = Math.min(BRIEF_LIMIT, Math.max(1, Number(values.limit) || BRIEF_DEFAULT_LIMIT));
+  const result = await readFacts(ctx, { values: { ...values, limit, all: false }, positionals });
+  process.stdout.write(renderBrief(result));
 }
 
 // The team filter as a WHERE fragment on alias `f`, or none with --everyone or outside a team.
@@ -412,7 +371,7 @@ async function source(ctx, { positionals: [raw] }) {
   const [row] = await store.query('SELECT f.session_id, s.raw_key, s.raw_bytes FROM facts f LEFT JOIN sessions s ON s.id = f.session_id WHERE f.id = ?', [id]);
   if (!row) throw new StoreError(`no fact #${id}`);
   const tooLarge = row.raw_bytes > MAX_TRANSCRIPT_BYTES && `the transcript was ${megabytes(row.raw_bytes)}, over the ${megabytes(MAX_TRANSCRIPT_BYTES)} limit, so it was not kept`;
-  let missing = !store.config.bucket ? 'this store has no R2 bucket, so transcripts are not stored' : !row.raw_key ? tooLarge || 'no transcript was stored for this session' : null;
+  let missing = !store.config.bucket ? 'this store has no R2 bucket, so transcripts are not stored' : !row.raw_key ? tooLarge || (row.session_id && store.role !== 'admin' ? 'only the owning machine and the admin can read this transcript' : 'no transcript was stored for this session') : null;
   let object = null;
   try { object = missing ? null : await store.getObject(row.raw_key); } catch (error) {
     if (error.kind !== 'forbidden') throw error;
@@ -538,7 +497,7 @@ async function keepRaw(store, record, raw) {
   const body = redact(raw, secretValues(store.env));
   record.rawBytes = Buffer.byteLength(body);
   if (record.rawBytes > MAX_TRANSCRIPT_BYTES) return `The full transcript is ${megabytes(record.rawBytes)}, over the ${megabytes(MAX_TRANSCRIPT_BYTES)} limit, so it is not kept`;
-  record.rawKey = `sessions/${store.email}/${record.agent}/${record.id.split(':')[1]}.jsonl`;
+  record.rawKey = `sessions/${store.ownerMachineId}/${record.agent}/${record.id.split(':')[1]}.jsonl`;
   await store.putObject(record.rawKey, body);
   return '';
 }
@@ -560,9 +519,10 @@ async function keepTranscript(ctx, { positionals: [id] }) {
     const [ledger] = await store.query('SELECT status, reason FROM sessions WHERE id = ?', [id]);
     if (ledger?.status === 'private') return skip(`${id} was recorded as private, so nothing was uploaded`);
     const record = { ...recordFor(id, file, parsed), readThrough: null };
-    const tooLarge = await keepRaw(store, record, raw);
     const status = ledger?.status || 'skipped';
-    await store.batch([sessionUpsert(record, status, { author: store.author, machine: ctx.machine, reason: ledger ? ledger.reason : 'not captured yet' })]);
+    await store.batch([sessionUpsert(record, status, { author: store.author, machine: ctx.machine, ownerMachineId: store.ownerMachineId, reason: ledger ? ledger.reason : 'not captured yet' })]);
+    const tooLarge = await keepRaw(store, record, raw);
+    await store.batch([sessionUpsert(record, status, { author: store.author, machine: ctx.machine, ownerMachineId: store.ownerMachineId, reason: ledger ? ledger.reason : 'not captured yet' })]);
     console.log(tooLarge ? `transcript not kept: ${tooLarge}` : `kept: ${id}'s redacted transcript is in ${record.rawKey}`);
   } catch (error) {
     if (!(error instanceof StoreError || error instanceof FormatError)) throw error;
@@ -593,6 +553,7 @@ async function stripCommand(ctx, { positionals: [id], tally }) {
     console.log(`private: ${id} was recorded as private. Nothing was uploaded, and no fact may be written for it.`);
     return;
   }
+  await store.batch([sessionUpsert({ ...record, readThrough: null }, ledger?.status || 'skipped', { author: store.author, machine: ctx.machine, ownerMachineId: store.ownerMachineId, reason: 'awaiting capture' })]);
   const secrets = secretValues(store.env);
   // Over the limit, the session's facts are still captured; only its full transcript is not kept.
   const tooLarge = store.config.bucket ? await keepRaw(store, record, raw) : '';
@@ -743,8 +704,7 @@ async function spool(ctx) {
 // With a memory Worker recorded, migrations go straight to Cloudflare with the admin's token (see openStore):
 // the Worker refuses the keys table, and a Worker's D1 binding runs one statement at a time.
 async function migrate(ctx) {
-  const worker = Boolean(loadConfig(ctx).worker);
-  const store = openStore(ctx, { admin: worker });
+  const store = openStore(ctx, { admin: true });
   const [{ n }] = await store.query("SELECT count(*) AS n FROM sqlite_master WHERE type = 'table' AND name = 'schema_migrations'");
   const applied = new Set(n ? (await store.query('SELECT version FROM schema_migrations')).map(row => row.version) : []);
   const dir = join(HERE, '..', 'migrations');
@@ -755,28 +715,27 @@ async function migrate(ctx) {
     console.log(`applied ${file}`);
   }
   if (!files.length) console.log('The store is up to date: every migration is recorded.');
-  if (worker && files.some(file => parseInt(file, 10) === 5)) await linkRunningAdmin(ctx, store);
 }
 
-// Schema 5 gives an admin key only to a linked GitHub account, so link the admin running this once. It writes
-// no key: the migration stopped their old one, and their next session's join gets an admin key.
-async function linkRunningAdmin(ctx, store) {
-  const [{ n }] = await store.query('SELECT count(*) AS n FROM memory_admins');
-  if (n) return;
-  const user = githubUser();
-  const email = (ctx.author || '').toLowerCase();
-  if (!user || !email) {
-    console.log(`No GitHub account is linked as this store's admin, so every join makes a member key: sign in with \`gh auth login\`, then run \`${SCRIPT} member admin\`.`);
-    return;
-  }
-  await store.batch([linkAdmin(user, email)]);
-  console.log(`linked GitHub account ${user.login || user.id} as this store's admin, for ${email}; your next session joins as admin.`);
+function extractIdentity(ctx, scope) {
+  const token = process.env.CLOUDFLARE_MEMORY_TOKEN || loadEnv(ctx).CLOUDFLARE_MEMORY_TOKEN || '';
+  return taskIdentity(ctx, scope, createHash('sha256').update(token).digest('hex'));
 }
-
+async function extractCommand(ctx, { values, positionals }) {
+  const scope = scopeOf(values), question = positionals.join(' ').trim();
+  if (!values.task || !question) throw new StoreError('extract requires a question and --task from extract-task');
+  const loaded = values.loaded ? values.loaded.split(',').map(Number) : [];
+  if (loaded.length > 20 || loaded.some(id => !Number.isSafeInteger(id) || id <= 0)) throw new StoreError('--loaded requires at most twenty positive fact IDs');
+  const result = await extractMemory(ctx, { task: values.task, identity: extractIdentity(ctx, scope), scope, question, loaded, agent: values.agent, model: values.model, usageReport: values['usage-report'] });
+  process.stdout.write(result.text);
+  process.exitCode = result.code;
+}
 export const COMMANDS = {
-  migrate, search, show, source, tags, areas, pending: pendingCommand, strip: stripCommand, live, digest, stats, spool, due,
+  migrate, search, brief, show, source, tags, areas, pending: pendingCommand, strip: stripCommand, live, digest, stats, spool, due,
   'keep-transcript': keepTranscript,
   'recent-chats': recentChats,
+  extract: extractCommand,
+  'extract-task': (ctx, { values }) => { const scope = scopeOf(values); console.log(issueTask(ctx, extractIdentity(ctx, scope))); },
   gate: (ctx, { values }) => gateFacts(ctx, readInput(values.file)),
   'put-facts': putFactsCommand,
   retag: retagCommand,
@@ -787,16 +746,20 @@ export const COMMANDS = {
   ...JOIN_COMMANDS,
 };
 
-const OPTIONS = Object.fromEntries([
-  ...['file', 'spooled', 'days', 'tag', 'type', 'slug', 'since', 'until', 'author', 'branch', 'change', 'state', 'limit', 'exclude', 'kind', 'status', 'counts', 'reason', 'definition', 'alias-of'].map(name => [name, { type: 'string' }]),
-  ...['all', 'json', 'help', 'everyone', 'background', 'no-alias'].map(name => [name, { type: 'boolean' }]),
-]);
+const OPTIONS = { ...READ_OPTIONS, ...Object.fromEntries([
+  ...['file', 'spooled', 'days', 'tag', 'type', 'slug', 'since', 'until', 'author', 'branch', 'change', 'state', 'limit', 'exclude', 'kind', 'status', 'counts', 'reason', 'definition', 'alias-of', 'role', 'key-file', 'label', 'task', 'loaded', 'agent', 'model'].map(name => [name, { type: 'string' }]),
+  ...['all', 'json', 'help', 'everyone', 'background', 'no-alias', 'usage-report'].map(name => [name, { type: 'boolean' }]),
+]) };
 
 const USAGE = `usage: memory.mjs <command>
-  search [terms] [--tag t] [--type t] [--slug s] [--since d] [--until d] [--author a] [--branch b] [--change slug] [--state active|shipped|conversation] [--all] [--everyone] [--limit n]
+  search [terms] [--tag t] [--type t] [--slug s] [--since d] [--until d] [--author a] [--branch b] [--change slug] [--state active|shipped|conversation] [--all] [--everyone] [--limit n] [--json]
                                (--change: facts from sessions that wrote a fact on the change; with --branch, either)
                                (in a team, user and feedback facts are only yours; the admin's --everyone shows everyone's)
   show <slug> [--all] [--everyone]   a topic's open threads, then its live facts newest first
+  brief [terms] [search filters except --all]   dates and sources; default 8 facts, --limit up to 20 / 6144 bytes; requires scope
+  extract-task [scope filters]  issue an experimental task handle; reuse with exactly these filters
+  extract <question> --task <handle> [scope filters] --agent claude|codex [--model name] [--loaded ids] [--usage-report]
+                               experimental; 12 KiB model input / 3 KiB returned per task; 3 searches / 2 calls / 20 seconds per request
   source <fact-id>             the reduced transcript behind a fact
   tags                         every tag with its definition and use count
   tag <name> [--definition text] [--alias-of tag | --no-alias]   correct a tag, or merge a look-alike into another (admin)
@@ -811,8 +774,8 @@ const USAGE = `usage: memory.mjs <command>
                                (in a team, search, show, and live hide other people's personal and reader facts; only the admin's --everyone shows them)
   finish-run --kind capture|consolidation --status ok|failed [--counts JSON] [--reason text]
   migrate                      (with a memory Worker recorded, runs with the admin's CLOUDFLARE_API_TOKEN)
-  join [--background]          get or renew this machine's memory key through your GitHub access to the repo
-  member admin | member remove <email> | member list   the admin's own key and GitHub link, and every key (admin; no key is made for anyone else)`;
+  join --file <private-file>    install this machine’s repository credential
+  member admin | member add <machine-id> --key-file <private-file> [--role member|reader] | member remove <machine-id> | member list`;
 
 if (isMain(import.meta.url)) {
   const [command, ...rest] = process.argv.slice(2);

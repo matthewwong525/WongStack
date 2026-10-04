@@ -1,127 +1,106 @@
-// The admin's memory-key commands. Keys live in the store's memory_keys table, and the admin's GitHub account
-// in memory_admins; the app Worker's memory route refuses both to every key. These commands reach them with
-// CLOUDFLARE_API_TOKEN, straight to Cloudflare. No command makes a key for another person: they join through GitHub.
-import { execFileSync } from 'node:child_process';
-import { randomBytes } from 'node:crypto';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { hostname } from 'node:os';
-import { join } from 'node:path';
-import { hashKey, KEY_DAYS, newKey } from '../../worker/memory-worker.mjs';
-import { loadConfig, openStore, readJson, SCRIPT, statePath, StoreError, writeJson } from './store.mjs';
+// Trusted provisioning authority issues per-machine repository credentials.
+// Ordinary memory keys cannot access this table. Secrets go only to private files.
+import { chmodSync, existsSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
+import { hashKey, newKey } from '../../worker/memory-worker.mjs';
+import { loginMarker } from '../../worker/login-link.mjs';
+import { MACHINE_ID } from './machine-id.mjs';
+import { loadConfig, openStore, SCRIPT, statePath, StoreError, writeJson } from './store.mjs';
 
-const WIDEN = '.claude/skills/wong-setup/references/permission-groups.md';
-const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const iso = time => new Date(time).toISOString().replace(/\.\d{3}Z$/, 'Z');
-const now = () => iso(Date.now());
-
-// Run statements on the memory database as the admin. A refused token names the permission the step needs.
+const now = () => new Date().toISOString();
 async function keys(ctx, statements) {
-  try {
-    return await openStore(ctx, { admin: true }).batch(statements);
-  } catch (error) {
-    if (error.kind === 'auth') throw new StoreError('CLOUDFLARE_API_TOKEN lacks D1 Write on the memory database; widen it and run again', { kind: 'auth', help: WIDEN });
-    if (/no such (?:column|table)|has no column named/.test(error.message)) throw new StoreError(`the memory store needs its latest migration; run \`${SCRIPT} migrate\` first`, { kind: 'unconfigured' });
+  try { return await openStore(ctx, { admin: true }).batch(statements); } catch (error) {
+    if (error.kind === 'auth') throw new StoreError('CLOUDFLARE_API_TOKEN lacks D1 Write; widen the provisioning token and run again', { kind: 'auth', help: '.claude/skills/wong-setup/references/permission-groups.md' });
+    if (/no such (?:column|table)|has no column named/i.test(error.message)) throw new StoreError(`the memory store needs its latest migration; run ${SCRIPT} migrate first`, { kind: 'unconfigured' });
     throw error;
   }
 }
-
 export const keyFile = ctx => join(ctx.stateDir, 'key.json');
-
-// This clone's machine name: the host name and a short suffix kept in key.json, so two hosts with the same
-// name never replace each other's key.
-export const machineName = ctx => readJson(keyFile(ctx), {}).machine || `${hostname()}-${randomBytes(3).toString('hex')}`;
-
-// The GitHub account gh is signed in as, or null.
-export function githubUser() {
-  try {
-    const user = JSON.parse(execFileSync('gh', ['api', 'user'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 10000 }));
-    return user?.id ? { id: String(user.id), login: user.login || null } : null;
-  } catch { return null; }
-}
-
-// Link a GitHub account as the store's admin: a join gives an admin key to that account only.
-export const linkAdmin = (user, email) => ['INSERT INTO memory_admins (github_id, login, email, created_at) VALUES (?, ?, ?, ?) ON CONFLICT (github_id) DO UPDATE SET login = excluded.login, email = excluded.email',
-  [user.id, user.login, email, now()]];
-
-// The primary checkout's .env, or a stop when Git cannot confirm that checkout: a key is never saved in a guess.
 export function envKeyFile(ctx) {
-  if (!ctx.primaryRoot) throw new StoreError('Git cannot confirm the primary checkout, so there is no safe .env to save the key in; run this from the main checkout', { kind: 'unconfigured' });
+  if (!ctx.primaryRoot) throw new StoreError('Git cannot confirm the primary checkout; run from the main checkout', { kind: 'unconfigured' });
   return join(ctx.primaryRoot, '.env');
 }
-
-// Set CLOUDFLARE_MEMORY_TOKEN in the primary checkout's .env, replacing every earlier line for it: the
-// parser keeps the last one, so a stale duplicate would win.
 export function writeEnvKey(ctx, key) {
   const file = envKeyFile(ctx);
   const text = existsSync(file) ? readFileSync(file, 'utf8') : '';
-  const line = `CLOUDFLARE_MEMORY_TOKEN=${key}`;
-  const earlier = /^\s*(?:export\s+)?CLOUDFLARE_MEMORY_TOKEN\s*=[^\n]*$/;
-  const lines = text.split('\n');
-  const first = lines.findIndex(each => earlier.test(each));
-  const next = first === -1
-    ? `${text}${text && !text.endsWith('\n') ? '\n' : ''}${line}\n`
-    : lines.flatMap((each, index) => index === first ? [line] : earlier.test(each) ? [] : [each]).join('\n');
-  writeFileSync(file, next);
+  const lines = text.split('\n').filter(line => !/^\s*(?:export\s+)?CLOUDFLARE_MEMORY_TOKEN\s*=/.test(line));
+  writeFileSync(file, `${lines.join('\n').replace(/\n*$/, '')}\nCLOUDFLARE_MEMORY_TOKEN=${key}\n`, { mode: 0o600 });
+  chmodSync(file, 0o600);
   return file;
 }
 
-// Link the GitHub account gh is signed in as, and give this machine an admin key that expires and renews
-// through join like any other. The key goes only to the primary .env; it is never printed.
+// Prepare a restricted transfer file before touching grants. No tracked file or
+// file inside a checkout may carry a transferable credential.
+function transferFile(ctx, path) {
+  if (!path || !isAbsolute(path)) throw new StoreError('--key-file must be an absolute private path outside the checkout');
+  const file = join(realpathSync(dirname(resolve(path))), basename(path));
+  for (let dir = dirname(file); ; dir = dirname(dir)) {
+    if (existsSync(join(dir, '.git'))) throw new StoreError('the transfer file must be outside a repository');
+    if (dirname(dir) === dir) break;
+  }
+  if ([ctx.root, ctx.primaryRoot].filter(Boolean).some(root => file === root || file.startsWith(`${root}/`))) throw new StoreError('the transfer file must be outside every checkout');
+  writeFileSync(file, '', { flag: 'wx', mode: 0o600 });
+  return file;
+}
+
+async function issue(ctx, machineId, role, label, marker = null) {
+  const key = newKey(machineId);
+  const created = now();
+  const hash = await hashKey(key);
+  // Retain old rows and association labels. Replacement invalidates all older
+  // keys and pending markers in the same transaction as the new hash insert.
+  await keys(ctx, [
+    [`INSERT INTO memory_keys (hash, email, role, reader, created_at, machine_id, login_link_hash, login_link_expires_at, login_identity)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, (SELECT login_identity FROM memory_keys WHERE machine_id = ? AND login_identity IS NOT NULL ORDER BY created_at DESC LIMIT 1))`,
+      [hash, label || '', role === 'admin' ? 'admin' : 'member', role === 'reader' ? 1 : 0, created, machineId, marker ? await hashKey(marker) : null, marker ? new Date(Date.now() + 24 * 3600000).toISOString() : null, machineId]],
+    ['UPDATE memory_keys SET expires_at = ?, login_link_hash = NULL, login_link_expires_at = NULL WHERE machine_id = ? AND hash != ?', [created, machineId, hash]],
+  ]);
+  return key;
+}
+export async function prepareAppLink(ctx, credential = null) {
+  try {
+    const url = await openStore(ctx, { credential }).loginLink();
+    writeJson(statePath(ctx, 'key.json'), { machineId: ctx.machineId, appUrl: url });
+    return url;
+  } catch { return null; }
+}
 async function admin(ctx) {
   const config = loadConfig(ctx);
-  envKeyFile(ctx);
-  if (!config.worker) throw new StoreError('no memory Worker URL is recorded as components.memory.worker; follow the provisioning runbook\'s memory step first', { kind: 'unconfigured' });
-  const email = (ctx.author || '').toLowerCase();
-  if (!EMAIL_SHAPE.test(email)) throw new StoreError('no git email is set here; set one with `git config user.email`, then run this again', { kind: 'unconfigured' });
-  const user = githubUser();
-  if (!user) throw new StoreError('GitHub is not signed in on this machine, so there is no account to link; run `gh auth login`, then this again', { kind: 'auth' });
-  const machine = machineName(ctx);
-  const key = newKey(email);
-  const expiresAt = iso(Date.now() + KEY_DAYS * 86400000);
-  await keys(ctx, [
-    linkAdmin(user, email),
-    ['DELETE FROM memory_keys WHERE machine = ? AND (email = ? OR github_id = ?)', [machine, email, user.id]],
-    ['INSERT INTO memory_keys (hash, email, role, created_at, machine, expires_at, github_id) VALUES (?, ?, ?, ?, ?, ?, ?)', [await hashKey(key), email, 'admin', now(), machine, expiresAt, user.id]],
-  ]);
-  const file = writeEnvKey(ctx, key);
-  writeJson(statePath(ctx, 'key.json'), { email, role: 'admin', machine, expiresAt });
-  console.log(`linked GitHub account ${user.login || user.id} as this store's admin, for ${email}. This machine's admin key (machine ${machine}) is in ${file} as CLOUDFLARE_MEMORY_TOKEN, and renews itself through GitHub before ${expiresAt.slice(0, 10)}.`);
+  const file = envKeyFile(ctx);
+  if (!config.worker) throw new StoreError('no production memory Worker URL is recorded', { kind: 'unconfigured' });
+  const marker = loginMarker();
+  const key = await issue(ctx, ctx.machineId, 'admin', ctx.author, marker);
+  writeEnvKey(ctx, key);
+  const link = new URL('/', config.worker);
+  link.searchParams.set('memory_login_link', marker);
+  const appUrl = link.href;
+  writeJson(statePath(ctx, 'key.json'), { machineId: ctx.machineId, appUrl });
+  console.log(`Installed this machine’s admin memory credential in ${file}. Open the app and sign in normally: ${appUrl}`);
 }
-
-async function remove(ctx, email) {
-  const [removed, unlinked] = await keys(ctx, [
-    ['DELETE FROM memory_keys WHERE email = ? RETURNING role', [email]],
-    ['DELETE FROM memory_admins WHERE lower(email) = ? RETURNING login, github_id', [email]],
-  ]);
-  const gone = removed.length ? `removed ${email}: their ${removed.length === 1 ? 'key no longer opens' : `${removed.length} keys no longer open`} this store` : `${email} has no key for this store`;
-  const link = unlinked.map(row => row.login || row.github_id).join(', ');
-  console.log(`${gone}${link ? `; GitHub account ${link} is no longer linked as the admin, so its joins make member keys` : ''}`);
+async function add(ctx, machineId, values) {
+  const role = values.role || 'member';
+  if (!['member', 'reader'].includes(role)) throw new StoreError('--role must be member or reader');
+  const file = transferFile(ctx, values['key-file']);
+  const config = loadConfig(ctx);
+  if (!config.worker) throw new StoreError('no production memory Worker URL is recorded', { kind: 'unconfigured' });
+  const key = await issue(ctx, machineId, role, values.label);
+  writeFileSync(file, `${JSON.stringify({ key, machineId, worker: config.worker, databaseId: config.databaseId })}\n`, { mode: 0o600 });
+  console.log(`Prepared ${role} repository access for machine ${machineId} in the private transfer file. The recipient installs it with join --file <private-file>. Earlier credentials for this machine are revoked.`);
 }
-
-// The linked admins, or none on a store before schema 5.
-const linkedAdmins = ctx => keys(ctx, [['SELECT github_id, login, email FROM memory_admins ORDER BY email']])
-  .then(([rows]) => rows, error => { if (error.kind === 'unconfigured') return []; throw error; });
-
+async function remove(ctx, machineId) {
+  await keys(ctx, [['UPDATE memory_keys SET expires_at = ?, login_link_hash = NULL, login_link_expires_at = NULL WHERE machine_id = ?', [now(), machineId]]]);
+  console.log(`Revoked every repository credential for machine ${machineId}.`);
+}
 async function list(ctx) {
-  // Every column, so a store before the reader schema lists its keys too.
-  const [rows] = await keys(ctx, [['SELECT * FROM memory_keys ORDER BY role, email, machine']]);
-  const admins = await linkedAdmins(ctx);
-  const line = row => `- ${row.email} (${row.role}${row.reader ? ', reader' : ''}, since ${row.created_at.slice(0, 10)}, ${row.machine ? `machine ${row.machine}` : 'no machine'}, ${row.github_id ? `GitHub ${row.github_id}` : 'no GitHub account'}, ${row.expires_at ? `expires ${row.expires_at.slice(0, 10)}` : 'no expiry'})`;
-  console.log([
-    rows.length ? rows.map(line).join('\n') : 'No keys open this store.',
-    admins.length ? `Linked admin: ${admins.map(row => `${row.login || 'GitHub'} (GitHub ${row.github_id}), ${row.email}`).join('; ')}` : `No GitHub account is linked as admin; \`${SCRIPT} member admin\` links yours.`,
-  ].join('\n'));
+  const [rows] = await keys(ctx, [['SELECT machine_id, email, role, reader, expires_at, login_identity FROM memory_keys ORDER BY machine_id, created_at']]);
+  console.log(rows.map(row => `- ${row.machine_id || 'unassigned legacy key'} (${row.reader ? 'reader' : row.role}, ${row.email || 'no label'}, ${row.expires_at ? 'revoked' : 'active'})${row.login_identity ? `; login ${JSON.parse(row.login_identity).issuer} / ${JSON.parse(row.login_identity).subject}` : ''}`).join('\n') || 'No credentials.');
 }
-
-const USAGE = 'usage: memory.mjs member admin | member remove <email> | member list';
-
-export const MEMBER_COMMANDS = {
-  member: (ctx, { positionals: [action, raw] }) => {
-    if (action === 'list') return list(ctx);
-    if (action === 'admin') return admin(ctx);
-    const email = (raw || '').toLowerCase();
-    if (action === 'add') throw new StoreError(`no key is made by hand${EMAIL_SHAPE.test(email) ? ` for ${email}` : ''}: a teammate joins through GitHub with \`${SCRIPT} join\`, which the session-start hook runs, and your own admin key comes from \`${SCRIPT} member admin\`. ${USAGE}`);
-    if (action !== 'remove' || !EMAIL_SHAPE.test(email)) throw new StoreError(USAGE);
-    return remove(ctx, email);
-  },
-};
+const USAGE = 'usage: member admin | member add <machine-id> --key-file <private-path> [--role member|reader] | member remove <machine-id> | member list';
+export const MEMBER_COMMANDS = { member: (ctx, { positionals: [action, id], values }) => {
+  if (action === 'admin') return admin(ctx);
+  if (action === 'list') return list(ctx);
+  if (!MACHINE_ID.test(id || '')) throw new StoreError(USAGE);
+  if (action === 'add') return add(ctx, id, values);
+  if (action === 'remove') return remove(ctx, id);
+  throw new StoreError(USAGE);
+} };
