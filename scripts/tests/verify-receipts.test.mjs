@@ -157,6 +157,15 @@ test('recipe resolves source, owning guide, workflow and qualified scenarios wit
   assert.throws(() => checkRecipe({ root, recipePath: '.agents/verification/memory-areas.json' }), /Symlink/);
 });
 
+test('the documented worked example validates its real source, guide, workflow and current scenarios', () => {
+  const guide = readFileSync(join(ROOT, '.agents/skills/verify/references/ci-evidence.md'), 'utf8');
+  const example = guide.match(/```sh\nhelper=([^\n]+)\nrecipe=([^\n]+)\nnode "\$helper" check --recipe "\$recipe"/);
+  assert.ok(example, 'The reference needs a runnable recipe-validation example');
+  const checked = spawnSync(process.execPath, [join(ROOT, example[1]), 'check', '--recipe', example[2]], { cwd: ROOT, encoding: 'utf8' });
+  assert.equal(checked.status, 0, checked.stderr || checked.stdout);
+  assert.equal(JSON.parse(checked.stdout).state, 'ready');
+});
+
 test('intact capture exposes output and actual command failures without declaring a product verdict', t => {
   const { manifest, save, validate } = setup(t);
   assert.deepEqual(validate(), manifest);

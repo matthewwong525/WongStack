@@ -23,7 +23,7 @@ Match `capture.json`'s repository, workflow, head/subject revision, run and atte
 
 The head manifest's `pair` names the selected `baselineSha`, capture folder and source cleanup observations. `baseline/capture.json` keeps the same workflow/head/run/attempt identity while its `subjectSha` identifies the observed baseline checkout. Both subjects use the current head's driver and fixture bytes in separate roots. Per-case `comparison` records the digest of seeded files plus the lookup path, the driver digest, and Node version/platform/architecture/locale. Root paths and capture timestamps are excluded from comparison; raw commands and streams remain intact. A merge-base equal to the head, missing old entry point or incomplete baseline capture/cleanup leaves a named comparison gap and preserves independent head evidence.
 
-Record the expressly selected merge-base before comparing. The collector's `compare --baseline-sha <full-selected-sha>` downloads the exact head capture and checks the baseline identity and matching inputs/method/environment. Its `comparable` state proves eligibility, never correctness or improvement; grade both raw results against the current named scenario. Missing comparison metadata keeps otherwise valid head observations usable.
+Record the expressly selected merge-base before comparing. The [collector commands](../../../.agents/skills/verify/references/ci-evidence.md) download the exact head capture and check the baseline identity and matching inputs/method/environment. Their `comparable` state proves eligibility, never correctness or improvement; grade both raw results against the current named scenario. Missing comparison metadata keeps otherwise valid head observations usable.
 
 ## Isolation and follow-up
 
