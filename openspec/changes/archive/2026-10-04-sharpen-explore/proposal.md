@@ -73,3 +73,5 @@ None.
 - **2026-10-04** — Validation: payload links, OpenSpec configuration, retired names, and context limits pass. The instruction inventory is 26,287 words / 190,792 bytes, below the existing 27,084 / 190,845 baseline; startup is 2,174 words within 2,200. No baseline or version number was changed. These static results do not establish conversational improvement.
 
 - **2026-10-04** — Archive checkpoint: the person chose to publish the guidance and comparison evidence after release checks, without claiming a measured gain. The six usable dialogues did not meet the fixed gain rule; the final simplified wording remains behaviorally untested. Archived after all seven tasks and strict validation passed.
+
+- **2026-10-04** — Release integration: merged main’s 30.2.0 release, preserving both changelog entries, then compacted only this change’s explore instructions to meet the unchanged context limit. The final release wording is not behaviorally retested; its hash is recorded in the comparison. No checks were loosened. Memory recording could not run because this checkout has no registered session; all handoff context remains in this archive.

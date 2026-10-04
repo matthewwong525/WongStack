@@ -8,7 +8,10 @@ See [the protocol fixed before runs](design.md#fixed-comparison-protocol-prepare
 
 Captured baseline SHA-256: `720cfd3085321c6b2306ba815cf14b733884ccd9be013d00864d43360b8b4f8e`.
 Tested candidate SHA-256: `63e276b1624aa2f992ce5c4142d77008ec09f62d9aa368e54ff7ded3360d9cbf`.
-Final simplified skill SHA-256: `14cb623d554f0b4c61a6d758436791a56685fecc26019016a36840dd4e948038`.
+Post-comparison simplified skill SHA-256: `14cb623d554f0b4c61a6d758436791a56685fecc26019016a36840dd4e948038`.
+Final release skill SHA-256: `479c1a55a6335007a7b7428184b2c257aa9ba1baa10f33e6059128f5024d6dee`.
+
+Release integration compacted the same guidance after main advanced to 30.2.0 and the combined instruction inventory exceeded its existing byte limit. This final compact wording was not behaviorally rerun; the six dialogues score only the tested candidate above.
 
 Host: Codex CLI 0.159.2, Linux, this workspace, **gpt-6.1-sol**, 2026-10-04. Every usable thread's persisted turn contexts report that model. Each pair ran concurrently; turns within each thread were sequential. There were exactly six usable threads and sixteen user turns.
 

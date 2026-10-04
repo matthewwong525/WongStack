@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Better thinking before a plan
+## 30.3.0 — Better thinking before a plan
 
 - Exploration follows the relevant work, compares distinct approaches when a choice matters, and separates facts from assumptions and missing evidence.
 - Questions follow their prerequisites. Changed premises reopen affected choices while unrelated answers stay settled; independent choices can move ahead of missing facts, and unanswered material preferences stay open before planning.
