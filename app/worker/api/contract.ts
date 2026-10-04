@@ -160,7 +160,7 @@ async function inputFor(action: Action, request: Request, url: URL, max: number)
 
 export function containsCredential(output: unknown, env: AppEnv): boolean {
   const serialized = JSON.stringify(output);
-  return Object.values(env).some(value => typeof value === "string" && value.length >= 8 && serialized.includes(value)) ||
+  return Object.values(env).some((value: unknown) => typeof value === "string" && value.length >= 8 && serialized.includes(value)) ||
     /(?:wongm_|wongl_|ghp_|github_pat_|sk-)[A-Za-z0-9_-]{20,}|eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/.test(serialized);
 }
 

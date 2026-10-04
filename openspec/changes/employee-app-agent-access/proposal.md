@@ -112,7 +112,7 @@ An employee's assistant should be able to use the company's connected services w
 
 ## Impact
 
-Plan only: no implementation, provider writes, keys, invitations, or repository settings changes in this stage. Implementation spans the main app and mini-app API registries, contract generation and validation, the private API helper, a small memory-owned read adapter, a short agent instruction, payload inventory, tests, and the owning docs. Existing connected services require explicit business-action handlers; the template demonstrates the pattern with its existing health/greeting endpoints rather than inventing a business integration.
+This change implements contracts and discovery without issuing keys, inviting employees or changing repository settings. Implementation spans the main app and mini-app API registries, contract generation and validation, the private API helper, a small memory-owned read adapter, a short agent instruction, payload inventory, tests, and the owning docs. Existing connected services require explicit business-action handlers; the template demonstrates the pattern with its existing health/greeting endpoints rather than inventing a business integration.
 
 This is an additive minor release with reviewed adaptation of custom endpoints. It adds no new UI, database, control-plane Worker, provider-management token, or full permission system. Existing handler checks remain authoritative. Memory identity and enrollment remain separate; the shipped machine-memory model is reused without changing it. Hosted provisioning work remains outside this change.
 
@@ -149,3 +149,7 @@ This is an additive minor release with reviewed adaptation of custom endpoints. 
 - **2026-10-04** — Integrated the separately shipped memory release from main before final verification. Kept its briefs, extraction commands, cancellation/accounting and specifications; combined them with the read adapter and redirect refusal. Shortened this change’s instruction pointers to stay within the existing context budget. No memory permission or release-version change is introduced by this feature.
 
 - **2026-10-04** — Final CI fix: restored the company/memory instruction heading expected by the installed-payload fixture. The main-branch integration passed app/build checks and all other script tests; the restored wording retains the context budget without changing assertions or check settings.
+
+- **2026-10-04** — Remote source gate passed on `5e31b8e`: all 101 app and 1,091 script tests, coverage, lint, build/deployment and payload checks passed without weakened settings. Groups 1–5 and task 6.1 are checked; final deployed observations and unavailable human/production-memory evidence remain to record in `evidence.md`.
+
+- **2026-10-04** — Acceptance observations and permitted-unverified human/production-memory checks are recorded in `evidence.md`; tasks 6.2–6.4 are complete under those clauses. Host preview compilation then caught an assumption hidden by CI-generated bindings: a starter has only object bindings. The credential-output guard now treats binding values as unknown before narrowing, preserving runtime behavior and supporting both configurations. Task 6.1 is reopened for the corrected exact revision.
