@@ -14,6 +14,14 @@ Requests and successful outputs are validated and bounded. A bad output or provi
 
 Existing bare handlers retain their paths, behavior and guards, and stay absent from discovery. During a reviewed update, inventory the target’s custom routes, describe only the actions its owner selects, and preserve its handler code and access checks. Never replace a custom handler with the template example or copy a saved business key to an employee.
 
+## Map business routes before employee policy
+
+An enabled [employee policy](employee-access.md#enable-current-app-checks) checks current membership and app grants before either a bare handler or a described action runs. Mini-app APIs use their folder's stable app slug automatically. Main APIs require an exact method/path entry in `routeAccess` beside the route in [the main router](../../app/worker/api/router.ts). For example, a reviewed orders handler at `GET /api/orders` uses `{ apps: ["orders"] }`; a shared orders/payroll handler uses `{ apps: ["orders", "payroll"] }` and requires both grants. A missing, empty or invalid mapping denies business work. New app IDs receive no employee grant automatically.
+
+Only explicitly reviewed harmless infrastructure uses `{ kind: "infrastructure" }`; the supplied health response is such an exception. It returns no business data and still passes the Worker's existing login boundary. Core owner operations and employee self-service use separate finite exceptions. Self-service requires current membership even with no selected apps; a removed person is denied. Existing action visibility, connection-readiness and handler record checks still apply after the app check.
+
+Each business call reads installation, membership and selected apps together from a D1 session beginning at the primary. The server retains no positive permission cache between requests. A request admitted before a removal may finish; the next request observes the committed removal, including with the same unexpired app login. Missing or unavailable authority returns a safe unavailable response. Preserve this mapping and every existing custom handler during updates.
+
 [Employee access activation](employee-access.md) uses private operator configuration and a verified owner session. Its core identity/activation endpoints are administration, absent from action discovery. Activation alone assigns no employee app or project access.
 
 ## Discover only what the task needs

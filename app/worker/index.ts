@@ -8,11 +8,17 @@ import { APP_API, handleApp } from "./apps/index.ts";
 import { getAccessIdentity, type AccessEnv, type AccessIdentity } from "./access.ts";
 import { activateAccess, type ActivationEnv } from "./employee-access/activation.ts";
 import { activationIdentity } from "./employee-access/identity.ts";
+import { authorizeRequest, type PolicyEnv } from "./employee-access/policy.ts";
 
 async function labelMemoryLogin(env: Env, link: string, identity: AccessIdentity | null, open: boolean): Promise<void> {
   if (!open && env.MEMORY_DB && identity?.kind === "user") {
     await associateLogin(env.MEMORY_DB, link, identity).catch(() => false);
   }
+}
+
+async function currentIdentity(request: Request, env: ActivationEnv & PolicyEnv, identity: AccessIdentity | null): Promise<Response> {
+  const denied = await authorizeRequest(request, env, identity, { kind: "self-service" });
+  return denied ?? activationIdentity(request, env, identity);
 }
 
 export default {
@@ -43,7 +49,7 @@ export default {
       return activateAccess(request, env, identity);
     }
     if (url.pathname === "/api/access/identity") {
-      return activationIdentity(request, env, identity);
+      return currentIdentity(request, env, identity);
     }
 
     // Discovery always requires company login, even on an open starter.
@@ -81,4 +87,4 @@ export default {
     }
     return env.ASSETS.fetch(request);
   },
-} satisfies ExportedHandler<Env & AccessEnv & ActivationEnv>;
+} satisfies ExportedHandler<Env & AccessEnv & ActivationEnv & PolicyEnv>;

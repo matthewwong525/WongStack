@@ -42,3 +42,8 @@
 # Optional owner activation pin, configured only after private operator checks.
 # Keep production's pin out of staging. See wiki/stack/employee-access.md.
 # WONG_ACCESS_ACTIVATION=
+
+# WONG_ACCESS_POLICY is a committed nonsecret wrangler `vars` latch, not a
+# secret to push here. Enable `on` only after reviewed owner policy setup and
+# retain it on rollback. See wiki/stack/employee-access.md.
+# WONG_ACCESS_POLICY=

@@ -1,6 +1,7 @@
 // The route's contract validates both callers and generates its discovery.
 import { z } from "zod";
 import type { AppCall, AppEnv, AppHandler } from "../apps/index.ts";
+import { authorizeRequest, type RouteAccess } from "../employee-access/policy.ts";
 
 /** Supported wire input, also used when building an action. @public */
 export type Encoding = "none" | "query" | "json";
@@ -194,7 +195,9 @@ async function execute(action: Action, request: Request, env: AppEnv, call: AppC
   } catch { return actionError("internal_error"); }
 }
 
-export async function dispatch(route: Route, request: Request, env: AppEnv, call: AppCall): Promise<Response> {
+export async function dispatch(route: Route, request: Request, env: AppEnv, call: AppCall, access?: RouteAccess): Promise<Response> {
+  const denied = await authorizeRequest(request, env, call.identity, access);
+  if (denied) return denied;
   if (typeof route === "function") return route(request, env, call);
   if ((route.requiresIdentity !== false || route.ready) && !call.identity) return actionError("authentication_required");
   if (route.allowed && !route.allowed(call.identity)) return actionError("forbidden");

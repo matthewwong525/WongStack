@@ -32,6 +32,14 @@ Activation creates one immutable installation/owner record in the app database. 
 
 This first storage step leaves app-policy enforcement and project issuance disabled. It assigns no employee and grants no app. Later reviewed route mappings, explicit grants, separate login-management/GitHub connections and publishing protections must pass their own checks before those surfaces become ready. A successful owner activation alone does not mean employees can connect or clone.
 
+## Enable current app checks
+
+The nonsecret `WONG_ACCESS_POLICY` rollout latch belongs in the installation's committed production `vars` in [its Worker configuration](../../app/wrangler.jsonc). Leave it absent before policy activation. The owner setup consumer is still pending: it must verify the installation, reviewed [main-route mappings](company-api.md#map-business-routes-before-employee-policy) and explicit employee grants before enabling `policy_enabled` in the app database and setting the latch to `on`. Do not enable it from public install metadata, a request body or an automatic update. Project editing remains a separate disabled surface.
+
+With the latch absent, legacy and managed HTTP/static installs keep their existing routing without a policy database read. With `on`, business calls require the pinned enabled database policy and current signed human identity. An empty policy, absent migration/database, foreign installation, malformed nonempty latch or failed read denies access. Missing choices cannot become automatic app assignments. The owner remains pinned to the signed subject; the owner email alone cannot establish owner access.
+
+Preserve the enabled latch, database policy, route mappings and tombstones on sync and rollback. Removing the latch would restore legacy routing and is not a rollback. Preview policy checks use a separate synthetic installation and app database; they never borrow production's owner record or provider credentials. The latch is declared in the blank environment maps for discovery, but it is a committed setting, not a secret to copy between Workers.
+
 ## Preserve data and rollback
 
 The [app migration](../../schema/migrations/0001_employee_access.sql) adds only tables prefixed `wong_access_`. Existing business tables and the separately installed [memory store](../development/memory-key.md) are untouched. New employees begin without project editing or app grants. Removed-member rows remain as tombstones; receipt rows preserve pending revocation and bounded expiry information.

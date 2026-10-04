@@ -1,16 +1,18 @@
 import { afterEach, expect, it, vi } from "vitest";
 import type { AccessIdentity } from "../access";
 import { APP_API, handleApp, type AppCall } from "./index";
+import type { Route } from "../api/contract";
+import type { PolicyEnv } from "../employee-access/policy";
 
 // Hello's routes, swapped for one that records what a handler receives.
 const seen = vi.hoisted(() => [] as { env: Record<string, unknown>; call: AppCall }[]);
-vi.mock("./hello/api.ts", () => ({
-  routes: new Map([
-    ["GET peek", (_request: Request, env: Record<string, unknown>, call: AppCall) => {
+vi.mock("./hello/api.ts", async (original) => ({
+  routes: new Map((await original<{ routes: Map<string, Route> }>()).routes).set(
+    "GET peek", (_request: Request, env: Record<string, unknown>, call: AppCall) => {
       seen.push({ env, call });
       return Response.json({ ok: true });
-    }],
-  ]),
+    },
+  ),
 }));
 
 afterEach(() => {
@@ -72,4 +74,28 @@ it("does not match a property every object inherits", async () => {
     await expectNotFound(await call(`/apps/${name}/api/peek`));
   }
   expect(seen).toEqual([]);
+});
+
+it("applies the app slug to both bare and described routes before handler work", async () => {
+  const employee = { ...person, claims: { ...person.claims, sub: "employee", email: person.id,
+    iss: "https://business.cloudflareaccess.com", aud: "app", exp: 9999999999 } };
+  const row = { origin: "https://workspace.example.com", issuer: employee.claims.iss, audience: "app",
+    access_app_id: "application", worker_id: "worker", owner_email: "actual-owner@example.com",
+    owner_subject: "owner", policy_enabled: 1, revision: 1, status: "active", apps: '[]' };
+  const first = vi.fn(async () => row);
+  const db = { withSession: vi.fn(() => ({ prepare: () => ({ bind: () => ({ first }) }) })) };
+  const bindings = { ...env, DB: db, WONG_ACCESS_POLICY: "on", CF_ACCESS_TEAM_DOMAIN: "business.cloudflareaccess.com",
+    CF_ACCESS_AUD: "app", CF_ACCESS_APP_ID: "application", CF_ACCESS_WORKER_ID: "worker" } as unknown as Env & PolicyEnv;
+  const run = (route: string) => handleApp(new Request(`https://workspace.example.com/apps/hello/api/${route}`), bindings, employee);
+  for (const route of ["peek", "greeting"]) expect((await run(route)).status).toBe(403);
+  expect(seen).toEqual([]);
+  row.apps = '["hello"]';
+  expect((await run("peek")).status).toBe(200);
+  expect(await (await run("greeting")).json()).toEqual({ message: "Hello, world!" });
+  expect(seen).toHaveLength(1);
+  row.status = "removed";
+  for (const route of ["peek", "greeting"]) expect((await run(route)).status).toBe(403);
+  expect(seen).toHaveLength(1);
+  expect(db.withSession).toHaveBeenCalledTimes(6);
+  expect(db.withSession).toHaveBeenCalledWith("first-primary");
 });

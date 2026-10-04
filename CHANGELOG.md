@@ -7,6 +7,8 @@
 
 Add private owner activation and separate app-database storage for employee access. Activation requires the existing app's signed owner identity and privately verified installation details. It leaves employee grants and project editing disabled until their later setup checks pass.
 
+Reviewed employee policy checks current app permissions before business APIs run, including custom handlers without action descriptions. Main routes need explicit app mappings; missing or unavailable authority denies business access once the owner enables the policy.
+
 **Updating.** Keep existing apps, routes, login settings and business data. After the reviewed update deploys, verify the owner's app login and the existing repository, then configure the private owner activation record. Review app assignments and route mappings before enabling employee permissions. Login-management and GitHub connections each need the owner's separate approval; missing setup leaves those connections unavailable. Existing memory access stays separate.
 
 ## 30.4.0 — Prepare account-free hosted projects

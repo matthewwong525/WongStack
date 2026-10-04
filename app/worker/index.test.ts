@@ -245,4 +245,30 @@ describe("private Worker routing", () => {
     expect(prepare).toHaveBeenCalledTimes(1);
   });
 
+  it("checks current grants and self-service membership after signed login on every request", async () => {
+    const row = { origin: "https://workspace.example.com", issuer: `https://${TEAM}`, audience: AUD,
+      access_app_id: "application", worker_id: "worker", owner_email: "owner@example.com", owner_subject: "owner",
+      policy_enabled: 1, revision: 1, status: "active", apps: '["hello"]' };
+    const first = vi.fn(async () => row);
+    const db = { withSession: vi.fn(() => ({ prepare: () => ({ bind: () => ({ first }) }) })) };
+    const bindings = { ...env, WONG_ENVIRONMENT: "production", WONG_ACCESS_POLICY: "on", DB: db,
+      CF_ACCESS_APP_ID: "application", CF_ACCESS_WORKER_ID: "worker" };
+    const headers = { "Cf-Access-Jwt-Assertion": await token({ email: "human@example.com", sub: "employee" }) };
+    expect((await call("/apps/hello/api/greeting", headers, bindings)).status).toBe(200);
+    row.apps = "[]";
+    row.revision = 2;
+    expect((await call("/apps/hello/api/greeting", headers, bindings)).status).toBe(403);
+    expect((await call("/api/access/identity", headers, bindings)).status).toBe(200);
+    row.status = "removed";
+    expect((await call("/api/access/identity", headers, bindings)).status).toBe(403);
+    expect((await call("/apps/hello/api/peek", headers, bindings)).status).toBe(403);
+    first.mockRejectedValueOnce(new Error("private database error"));
+    expect((await call("/apps/hello/api/greeting", headers, bindings)).status).toBe(503);
+    expect((await call("/api/health", headers, bindings)).status).toBe(200);
+    expect((await call("/_memory/unknown", {}, bindings)).status).toBe(404);
+    expect(assets.fetch).not.toHaveBeenCalled();
+    expect(db.withSession).toHaveBeenCalledTimes(6);
+    expect(db.withSession).toHaveBeenCalledWith("first-primary");
+  });
+
 });
