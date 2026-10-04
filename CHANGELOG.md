@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Company actions and memory discovery for agents
+## 30.2.0 — Company actions and memory discovery for agents
 
 Employees can discover and call approved app actions using their own company login; service keys stay on the server. One helper also describes existing memory searches and topic reads with their existing access. API guides and request checks come from each action’s definition.
 

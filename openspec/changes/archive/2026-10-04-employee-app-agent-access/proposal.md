@@ -1,6 +1,6 @@
 # Let agents use company connections through a described API
 
-**Status:** in-progress
+**Status:** ready-to-ship
 
 **Branch:** stiff-camel
 
@@ -153,3 +153,7 @@ This is an additive minor release with reviewed adaptation of custom endpoints. 
 - **2026-10-04** — Remote source gate passed on `5e31b8e`: all 101 app and 1,091 script tests, coverage, lint, build/deployment and payload checks passed without weakened settings. Groups 1–5 and task 6.1 are checked; final deployed observations and unavailable human/production-memory evidence remain to record in `evidence.md`.
 
 - **2026-10-04** — Acceptance observations and permitted-unverified human/production-memory checks are recorded in `evidence.md`; tasks 6.2–6.4 are complete under those clauses. Host preview compilation then caught an assumption hidden by CI-generated bindings: a starter has only object bindings. The credential-output guard now treats binding values as unknown before narrowing, preserving runtime behavior and supporting both configurations. Task 6.1 is reopened for the corrected exact revision.
+
+- **2026-10-04** — Corrected exact source revision `c66bc02` passed all required remote checks: 101 app tests with full coverage, 1,091 script tests, lint, build/deployment and payload gates. The host preview also compiled against committed starter bindings and uploaded successfully. All 21 tasks are complete; unavailable human and production-memory acceptance checks remain explicitly unverified in `evidence.md`. No check was loosened. Final checklist/evidence updates stay in this working tree for the next save or publish.
+
+- **2026-10-04** — User authorized publication after reviewing the reported verification limits. Archived the completed change for release 30.2.0; the publication checkpoint preserves all source/acceptance evidence and the unverified employee-login and production-memory checks. No access permissions or business integrations are added during publication.

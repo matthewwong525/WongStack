@@ -1,6 +1,6 @@
 # Implementation and acceptance evidence
 
-Source revision: `5e31b8e524db9f06a806fd03a17e12690b09c8b8`, branch `stiff-camel`, 2026-10-04. Includes the separately shipped memory release from main. Acceptance/checklist records updated afterward do not change the tested implementation.
+Prior passing source revision: `5e31b8e524db9f06a806fd03a17e12690b09c8b8`, branch `stiff-camel`, 2026-10-04. Includes the separately shipped memory release from main. Acceptance/checklist records updated afterward do not change the tested implementation.
 
 ## Remote source gate
 
@@ -48,4 +48,15 @@ The anonymous preview request to `/_memory/health` returned an Access-edge 302. 
 
 On 2026-10-04 the host preview compiled the corrected output guard using the committed starter binding types, installed dependencies only for previewing, and uploaded staging version `492c997e-ebd1-4e64-ac82-8f0d82ffe4a1`. The actual alias printed by Wrangler was https://employee-app-agent-access-wongstack-staging.matthewwong525.workers.dev . This upload used the primary checkout’s preview credential; no employee credential or production memory data was used. Staging migrations had nothing to apply. Read-only protection checks passed before build and upload, with human login explicitly unverified. No check was loosened.
 
-The correction only widens a callback’s static binding-value type before its existing runtime string check. The previously tested implementation behavior is unchanged, but task 6.1 remains pending until CI passes the corrected source revision. This local build served the requested host preview, not the source gate.
+The correction only widens a callback’s static binding-value type before its existing runtime string check. The previously tested implementation behavior is unchanged, and the corrected source revision subsequently passed the final CI gate below. This local build served the requested host preview, not the source gate.
+
+## Final corrected exact-revision gate
+
+Final source revision: `c66bc02e46d93a93061501f35f334aaaa54931f9`, branch `stiff-camel`, 2026-10-04. The subsequent checklist/status/evidence updates change no implementation. The source gate returned SUCCESS and task 6.1 is complete.
+
+- [App checks](https://github.com/matthewwong525/WongStack/actions/runs/37174232310): all 101 tests passed with 100% lines, statements, branches and functions; lint and unused-code checks passed.
+- [Payload and script checks](https://github.com/matthewwong525/WongStack/actions/runs/37174232312): all 1,091 tests and unchanged coverage floors passed, including the installed-payload fixtures and the integrated memory suite. Payload, context, OpenSpec configuration, private-name and release checks passed.
+- [Build and deployment](https://github.com/matthewwong525/WongStack/actions/runs/37174232315): passed. The CI preview was discovered from deployment 6836377827 at https://stiff-camel-wongstack-staging.matthewwong525.workers.dev .
+- The host alias printed by the successful upload is https://employee-app-agent-access-wongstack-staging.matthewwong525.workers.dev . Anonymous action discovery, OpenAPI and greeting checks against this alias also returned Access-edge 302 to the configured login host.
+
+All 21 tasks are complete according to their checks, including the explicit unavailable-evidence clauses for tasks 6.2–6.4. Human first-login/session reuse, expired/removed-session denial, fresh authenticated action discovery, authenticated target comparison, non-admin production memory reads and the deployed Worker-level preview memory 404 remain unverified. No real business integration is claimed.
