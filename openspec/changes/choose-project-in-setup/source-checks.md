@@ -126,3 +126,8 @@ Journey repairs corrected two guide/runtime command mismatches and a render wait
 ## Selected live target prerequisite
 
 The person selected existing WongStack and confirmed themselves as expected owner. Readonly machine-authenticated probes to `https://wongstack.matthewwong525.workers.dev/api/access/identity` and `/api/access/setup` both returned HTTP 404/application JSON. Public `main` contains no employee-access identity module. Thus this checked, unmerged change must be installed before actual owner identity/setup can be verified on that target. Those requests establish no signed-human authority. No production writes occurred; two response-cookie captures were scrubbed and the temporary probe folder was cleaned. Publishing approval was requested once after the finished source/preview work; it remains pending.
+
+
+## Owner-first revision gate
+
+2026-10-04, branch `smooth-repo-selection`, draft #264, Status `in-progress`. Source commit `a53d1e4b` holds tasks 7.1–9.2, built with their tests and not run locally. Merge `d2658dd4` integrates main through 31.0.1; conflicts in `CHANGELOG.md`, `scripts/retired-names.json`, `wiki/stack/README.md` and `openspec/specs/cloudflare-provisioning/spec.md` kept both sides, and `scripts/tests/server-install.test.mjs` followed main's removal of the server installer. Local static checks on the merged tree passed: payload links, OpenSpec config, retired names, spec validation and the context measure. The remote result for this head is recorded in PR #264's checks.
