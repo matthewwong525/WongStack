@@ -9,6 +9,7 @@ import { findCredential, redact, secretValues } from '../../.agents/skills/memor
 import { parseEnv } from '../../.agents/skills/memory/scripts/lib/store.mjs';
 import { writeEnvKey } from '../../.agents/skills/memory/scripts/lib/members.mjs';
 import { MAX_BYTES, MAX_LINES, PERSON_MAX_BYTES } from '../../.agents/skills/memory/scripts/lib/digest.mjs';
+import { BRIEF_MAX_BYTES, renderBrief } from '../../.agents/skills/memory/scripts/lib/brief.mjs';
 import { memory, rows, SECRET, setup, tempDir, writeJsonFile } from './fixtures/memory/harness.mjs';
 
 const put = (env, input) => memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, `in-${Date.now()}-${Math.random()}.json`, input)]);
@@ -163,6 +164,196 @@ test('search filters by text, type, slug, date, author, and change state', async
   assert.match((await memory(env.repo, env.fake, ['search', '--since', '2999-01-01'])).stdout, /No matching facts/);
   assert.match((await memory(env.repo, env.fake, ['search', '--author', 'dev@'])).stdout, /\(one, conversation, 0d, dev@example\.com, #1\)/);
   assert.match((await memory(env.repo, env.fake, ['search', '--state', 'active'])).stdout, /No matching facts/);
+});
+
+test('structured search shares text IDs, filters and stable tied ranks and dates', async t => {
+  const env = await setup(t);
+  mkdirSync(join(env.repo.root, 'openspec', 'changes', 'active-topic'), { recursive: true });
+  mkdirSync(join(env.repo.root, 'openspec', 'changes', 'archive', '2026-09-01-shipped-topic'), { recursive: true });
+  await sessionFacts(env, 'claude:evidence', 'evidence-branch', [
+    { action: 'add', slug: 'active-topic', type: 'project', body: 'Evidence keeps original words.' },
+    { action: 'add', slug: 'shipped-topic', type: 'feedback', body: 'Evidence keeps original words.' },
+    { action: 'add', slug: 'chat-topic', type: 'project', body: 'Evidence keeps original words.' },
+  ]);
+  await put(env, { source: 'save', slug: 'old-topic', facts: [{ action: 'add', type: 'project', body: 'Old evidence was replaced.' }] });
+  const old = rows(env, "SELECT id FROM facts WHERE slug = 'old-topic'")[0].id;
+  await put(env, { source: 'save', slug: 'old-topic', facts: [{ action: 'supersede', supersedes: [old], type: 'project', body: 'Current evidence is supported.' }] });
+  tagFact(env, 1, 'save');
+  env.fake.db.prepare("INSERT INTO tags (name, definition, alias_of, created_at) VALUES ('checkpoint', 'Alias.', 'save', 'now')").run();
+  const cases = [[], ['evidence'], ['--type', 'project'], ['--slug', 'active-topic'], ['--tag', 'checkpoint'], ['--since', '2999-01-01'], ['--until', '2000-01-01'], ['--author', 'dev@'], ['--branch', 'evidence-branch'], ['--change', 'active-topic'], ['--branch', 'absent', '--change', 'active-topic'], ['--state', 'active', '--limit', '1'], ['--state', 'shipped'], ['--state', 'conversation'], ['--all'], ['--everyone'], ['--limit', '2']];
+  for (const filters of cases) {
+    const text = await memory(env.repo, env.fake, ['search', ...filters]);
+    const json = await memory(env.repo, env.fake, ['search', ...filters, '--json']);
+    assert.equal(text.code, 0, text.stderr);
+    assert.equal(json.code, 0, json.stderr);
+    const data = JSON.parse(json.stdout);
+    assert.equal(data.version, 1);
+    assert.deepEqual(data.facts.map(fact => fact.id), [...text.stdout.matchAll(/, #(\d+)\)/g)].map(([, id]) => Number(id)), filters.join(' '));
+    assert.equal(data.filters.limit, Number(filters[filters.indexOf('--limit') + 1]) || 30);
+    assert.doesNotMatch(json.stdout, /raw_key|raw_bytes|SERVICE_TOKEN|super-secret-value|test-memory-token/);
+  }
+  const tied = async () => JSON.parse((await memory(env.repo, env.fake, ['search', 'Evidence keeps original words', '--slug', 'active-topic', '--json'])).stdout);
+  // Seed exact equal date/rank records without changing existing immutable facts.
+  const insert = env.fake.db.prepare("INSERT INTO facts (slug, type, body, source, created_at, author, owner_machine_id) VALUES ('ties', 'project', 'Identical evidence wording.', 'save', '2026-10-01T00:00:00Z', 'dev@example.com', ?) RETURNING id");
+  const ids = Array.from({ length: 4 }, () => insert.get(env.repo.machineId).id).reverse();
+  for (const terms of [[], ['identical']]) {
+    const result = await memory(env.repo, env.fake, ['search', ...terms, '--slug', 'ties', '--json']);
+    assert.deepEqual(JSON.parse(result.stdout).facts.map(fact => fact.id), ids);
+  }
+  const first = await tied();
+  assert.deepEqual((await tied()).facts, first.facts);
+  assert.equal(first.facts[0].session_id, 'claude:evidence');
+  assert.equal(first.facts[0].body, 'Evidence keeps original words.');
+});
+
+test('brief requires scope and uses current facts, evidence and search filters without writes or transcript fetches', async t => {
+  const env = await setup(t);
+  await sessionFacts(env, 'claude:brief', 'brief-branch', [
+    { action: 'add', slug: 'brief-topic', type: 'project', body: 'The earlier evidence rule.' },
+  ]);
+  const old = rows(env, 'SELECT id FROM facts')[0].id;
+  await put(env, { source: 'save', slug: 'brief-topic', facts: [
+    { action: 'supersede', supersedes: [old], type: 'project', body: 'The current evidence rule.' },
+    { action: 'add', type: 'feedback', body: 'Keep the original words.\nKeep both lines.' },
+    { action: 'add', type: 'thread', body: 'Does the evidence rule cover dates?', tags: ['plan'] },
+    { action: 'add', type: 'user', body: 'The owner reads evidence.' },
+    { action: 'add', type: 'reference', body: 'Evidence guide: example.test.' },
+  ] });
+  const before = rows(env, 'SELECT * FROM facts');
+  const sessionsBefore = rows(env, 'SELECT * FROM sessions');
+  const calls = env.fake.calls.length;
+  const result = await memory(env.repo, env.fake, ['brief', '--slug', 'brief-topic']);
+  assert.equal(result.code, 0, result.stderr);
+  assert.match(result.stdout, /Generated: \d{4}-\d{2}-\d{2}T/);
+  assert.match(result.stdout, /Keep the original words\.\nKeep both lines\./);
+  assert.doesNotMatch(result.stdout, /earlier evidence rule/);
+  const headings = [...result.stdout.matchAll(/^## (.+)$/gm)].map(([, heading]) => heading);
+  assert.deepEqual(headings, ['Open threads', 'Feedback', 'Project decisions', 'User facts', 'References']);
+  assert.match(result.stdout, /session: \(not recorded\)/);
+  assert.equal(result.stdout.match(/Source: source <fact-id>/g).length, 1);
+  assert.ok(Buffer.byteLength(result.stdout) <= BRIEF_MAX_BYTES);
+  assert.deepEqual(rows(env, 'SELECT * FROM facts'), before);
+  assert.deepEqual(rows(env, 'SELECT * FROM sessions'), sessionsBefore);
+  assert.ok(env.fake.calls.slice(calls).every(call => call.includes('/d1/database/')), 'brief fetches no objects');
+  const session = await memory(env.repo, env.fake, ['brief', '--branch', 'brief-branch']);
+  assert.match(session.stdout, /No matching live facts/);
+  // A superseded session fact is excluded; an unrelated live fact still provides a source pointer.
+  await sessionFacts(env, 'claude:brief-live', 'brief-branch', [{ action: 'add', slug: 'brief-topic', type: 'project', body: 'Session evidence stays traceable.' }]);
+  const sourced = await memory(env.repo, env.fake, ['brief', 'traceable', '--branch', 'brief-branch', '--change', 'brief-topic', '--since', '2020-01-01', '--until', '2999-01-01', '--author', 'dev', '--type', 'project', '--state', 'conversation', '--limit', '1']);
+  assert.equal(sourced.code, 0, sourced.stderr);
+  assert.match(sourced.stdout, /Session evidence stays traceable/);
+  const sourcedId = rows(env, "SELECT id FROM facts WHERE session_id = 'claude:brief-live'")[0].id;
+  assert.match(sourced.stdout, new RegExp(`Fact #${sourcedId} · .+ · author: dev@example.com · session: claude:brief-live`));
+  assert.match(sourced.stdout, /Source: source <fact-id>/);
+  assert.match(sourced.stdout, /1 selected, 0 selected entries omitted/);
+  t.diagnostic(`BEGIN SYNTHETIC MEMORY BRIEF\n${sourced.stdout}END SYNTHETIC MEMORY BRIEF`);
+  t.diagnostic(`SYNTHETIC SINGLE-FACT CONTEXT ${JSON.stringify({ priorBriefBytes: 581, briefBytes: Buffer.byteLength(sourced.stdout), bodyBytes: Buffer.byteLength('Session evidence stays traceable.') })}`);
+  const tagged = await memory(env.repo, env.fake, ['brief', '--tag', 'plan']);
+  assert.match(tagged.stdout, /Does the evidence rule cover dates/);
+  for (const args of [[], ['!!!'], ['a', 'b'], ['--everyone'], ['--limit', '1'], ['evidence', '--all']]) {
+    const refused = await memory(env.repo, env.fake, ['brief', ...args]);
+    assert.equal(refused.code, 1);
+    assert.match(refused.stderr, /name a topic or filter|only live facts/);
+  }
+  const empty = await memory(env.repo, env.fake, ['brief', '--slug', 'absent']);
+  assert.equal(empty.code, 0);
+  assert.match(empty.stdout, /No matching live facts/);
+  env.fake.setOffline(true);
+  const unavailable = await memory(env.repo, env.fake, ['brief', '--slug', 'absent']);
+  assert.equal(unavailable.code, 1);
+  assert.match(unavailable.stderr, /unreachable/);
+  assert.doesNotMatch(unavailable.stdout, /No matching|Memory brief/);
+});
+
+test('brief selects eight by default and up to twenty explicitly without extra store requests', async t => {
+  const env = await setup(t);
+  env.fake.db.prepare("INSERT INTO sessions (id, agent, author, status, updated_at, owner_machine_id) VALUES ('claude:context', 'claude', 'dev@example.com', 'captured', '2026-10-01T00:00:00Z', ?)").run(env.repo.machineId);
+  const insert = env.fake.db.prepare("INSERT INTO facts (slug, type, body, source, created_at, author, session_id, owner_machine_id) VALUES ('context', 'project', ?, 'save', '2026-10-01T00:00:00Z', 'dev@example.com', 'claude:context', ?)");
+  for (let index = 1; index <= 25; index += 1) insert.run(`Context fact ${index} keeps its original words.`, env.repo.machineId);
+  const read = async args => {
+    const start = env.fake.calls.length;
+    const result = await memory(env.repo, env.fake, [...args, '--slug', 'context']);
+    assert.equal(result.code, 0, result.stderr);
+    const calls = env.fake.calls.slice(start);
+    assert.ok(calls.every(call => call.includes('/d1/database/')), 'no transcript or per-source fetch');
+    return { output: result.stdout, bytes: Buffer.byteLength(result.stdout), requests: calls.length };
+  };
+  const search = await read(['search', '--limit', '8']);
+  const json = await read(['search', '--limit', '8', '--json']);
+  const brief = await read(['brief']);
+  const twenty = await read(['brief', '--limit', '20']);
+  const one = await read(['brief', '--limit', '1']);
+  const ids = output => [...output.matchAll(/^Fact #(\d+)/gm)].map(([, id]) => Number(id));
+  assert.deepEqual(ids(brief.output), JSON.parse(json.output).facts.map(fact => fact.id));
+  assert.equal(ids(brief.output).length, 8);
+  assert.equal(ids(twenty.output).length, 20);
+  assert.equal(ids(one.output).length, 1);
+  assert.match(brief.output, /Limit 8 live facts; 8 selected, 0 selected entries omitted/);
+  assert.match(twenty.output, /Limit 20 live facts; 20 selected, 0 selected entries omitted/);
+  assert.match(brief.output, /Scope: {"slug":"context","personal":true}\n/);
+  assert.doesNotMatch(brief.output, /"all"|"everyone"|"terms"|follow up:/);
+  assert.equal(brief.output.match(/Source: source <fact-id>/g).length, 1);
+  assert.equal(brief.output.match(/author: dev@example.com · session: claude:context/g).length, 8);
+  for (const result of [json, brief, twenty, one]) assert.equal(result.requests, search.requests, 'request count stays constant across formats and fact limits');
+  assert.equal(search.requests, 1, 'ordinary machine-scoped reads use one D1 query');
+  assert.ok(brief.bytes < twenty.bytes);
+  assert.ok(twenty.bytes <= BRIEF_MAX_BYTES);
+  t.diagnostic(`SYNTHETIC MEMORY CONTEXT ${JSON.stringify(Object.fromEntries(Object.entries({ search8: search, json8: json, brief8: brief, brief20: twenty, brief1: one }).map(([name, { bytes, requests }]) => [name, { bytes, requests }])))}`);
+  mkdirSync(env.repo.stateDir, { recursive: true });
+  writeFileSync(join(env.repo.stateDir, 'team.json'), JSON.stringify({ team: true }));
+  const teamSearch = await read(['search', '--limit', '8']);
+  const teamBrief = await read(['brief']);
+  const teamTwenty = await read(['brief', '--limit', '20']);
+  assert.equal(teamSearch.requests, 1, 'current machine privacy needs no schema probe');
+  assert.equal(teamBrief.requests, teamSearch.requests);
+  assert.equal(teamTwenty.requests, teamSearch.requests, 'team reads add no per-fact queries');
+  assert.match(teamBrief.output, /"personal":true/);
+  assert.deepEqual(ids(teamBrief.output), ids(brief.output));
+  t.diagnostic(`SYNTHETIC TEAM REQUESTS ${JSON.stringify({ search8: teamSearch.requests, brief8: teamBrief.requests, brief20: teamTwenty.requests })}`);
+});
+
+test('brief spends the byte budget on relevance before grouping facts', () => {
+  const facts = Array.from({ length: 6 }, (_, index) => ({
+    id: index + 1, type: index ? 'thread' : 'reference', body: `Fact ${index + 1}: ${'漢'.repeat(390)}`,
+    created_at: '2026-10-01T00:00:00Z', author: 'dev@example.com', session_id: 'claude:ranked',
+  }));
+  const brief = renderBrief({ facts, filters: { terms: 'ranked', limit: 8, all: false, everyone: false, personal: true } }, '2026-10-03T00:00:00Z');
+  const ids = [...brief.matchAll(/^Fact #(\d+)/gm)].map(([, id]) => Number(id));
+  assert.ok(facts.every(fact => fact.body.length <= 400));
+  assert.deepEqual(ids, [2, 3, 4, 1], 'the highest-ranked reference survives even though references display last');
+  for (const fact of facts.slice(0, 4)) assert.ok(brief.includes(fact.body), 'admitted bodies remain whole');
+  for (const fact of facts.slice(4)) assert.ok(!brief.includes(fact.body));
+  assert.match(brief, /6 selected, 2 selected entries omitted/);
+  assert.match(brief, /"personal":true/, 'active personal scope remains explicit');
+  assert.ok(Buffer.byteLength(brief) <= BRIEF_MAX_BYTES);
+});
+
+test('brief caps whole UTF-8 entries, tells only selected omissions, and bounds large scope displays', async t => {
+  const env = await setup(t);
+  const insert = env.fake.db.prepare("INSERT INTO facts (slug, type, body, source, created_at, author) VALUES ('unicode', 'project', ?, 'save', '2026-10-01T00:00:00Z', 'dev@example.com') RETURNING id");
+  const bodies = Array.from({ length: 25 }, (_, index) => `Entry ${index}: ${'🐬漢'.repeat(120)}`);
+  for (const body of bodies) insert.run(body);
+  const result = await memory(env.repo, env.fake, ['brief', '--slug', 'unicode', '--limit', '100']);
+  assert.equal(result.code, 0, result.stderr);
+  assert.ok(Buffer.byteLength(result.stdout) <= BRIEF_MAX_BYTES);
+  const displayed = [...result.stdout.matchAll(/^Fact #(\d+)/gm)].map(([, id]) => Number(id));
+  assert.ok(displayed.length > 0 && displayed.length < 20);
+  for (const id of displayed) assert.ok(result.stdout.includes(bodies[id - 1]), 'each shown body is whole');
+  assert.match(result.stdout, new RegExp(`20 selected, ${20 - displayed.length} selected entries omitted`));
+  assert.match(result.stdout, /Other matching facts may exist/);
+  assert.doesNotMatch(result.stdout, /25 selected|complete/);
+  const hugeScope = renderBrief({ facts: [], filters: { terms: '🐬'.repeat(4000), limit: 20 } }, '2026-10-03T00:00:00Z');
+  assert.ok(Buffer.byteLength(hugeScope) <= BRIEF_MAX_BYTES);
+  assert.match(hugeScope, /scope display shortened/);
+  const unnamed = renderBrief({ facts: [{ id: 1, type: 'reference', body: 'An original pointer.', created_at: '2026-10-01', author: null, session_id: null }], filters: { slug: 'source', limit: 20 } });
+  assert.match(unnamed, /author: \(not recorded\)/);
+  const grouped = renderBrief({ facts: [
+    { id: 3, type: 'project', body: 'First ranked project.', created_at: '2026-10-01' },
+    { id: 2, type: 'thread', body: 'Open question.', created_at: '2026-10-01' },
+    { id: 1, type: 'project', body: 'Second ranked project.', created_at: '2026-09-01' },
+  ], filters: { slug: 'grouped', limit: 20 } });
+  assert.ok(grouped.indexOf('Fact #2') < grouped.indexOf('Fact #3'));
+  assert.ok(grouped.indexOf('Fact #3') < grouped.indexOf('Fact #1'), 'grouping retains selected order within a kind');
 });
 
 test('two authors who share the part before the @ never read as one person, and the digest keeps its limits', async t => {
@@ -400,6 +591,10 @@ test('a store with no bucket keeps working and says transcripts are not stored',
   const id = rows(env, 'SELECT id FROM facts')[0].id;
   const source = await memory(env.repo, env.fake, ['source', String(id)]);
   assert.match(source.stdout, /no R2 bucket, so transcripts are not stored/);
+  const brief = await memory(env.repo, env.fake, ['brief', '--slug', 'nb']);
+  assert.equal(brief.code, 0, brief.stderr);
+  assert.match(brief.stdout, new RegExp(`Fact #${id} ·`));
+  assert.match(brief.stdout, /Source: source <fact-id>/);
   assert.ok(!env.fake.calls.some(call => call.includes('/r2/')));
 });
 

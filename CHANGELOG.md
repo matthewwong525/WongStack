@@ -9,6 +9,15 @@ Employees can discover and call approved app actions using their own company log
 
 **Updating.** Choose which existing actions your team’s assistants should use. Add descriptions around those handlers through review, keeping their paths and access checks. Keep memory’s current credential and production target. Older installs can connect an explicit company origin until their public install record is filled. Company login must work before employee company access is available.
 
+## 30.1.0 — See memory facts with their evidence
+
+- Ask for a fresh brief of eight current facts by default, or up to twenty on request, within 6,144 bytes. It keeps the most relevant whole entries before grouping, with compact dates and source pointers. Facts keep their original words, and source access keeps its existing permissions.
+- Structured search returns the same selected facts as ordinary search. A source-repo evaluation reports keyword matches and harder wording misses separately; it makes no claim that retrieval accuracy improved.
+
+- Add explicitly experimental bounded extraction: tool-free Claude fact selection, task-wide byte/work allowances, verified fallback, and synthetic coverage/usage comparison. Codex remains a visible unsupported-host fallback until isolation can be established. Ordinary search, brief defaults, and startup loading stay unchanged.
+
+**Updating.** No action needed. The memory commands arrive with the usual update; no data, configuration, or startup change is required.
+
 ## 30.0.0 — Machine-owned memory
 
 - Private facts and transcripts follow a stable local installation ID across chats and linked workspaces. Repository contributors use trusted machine credentials to load and contribute team knowledge automatically; reader facts remain private.

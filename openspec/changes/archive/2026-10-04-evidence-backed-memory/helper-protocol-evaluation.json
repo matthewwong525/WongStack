@@ -1,0 +1,1936 @@
+{
+  "evidence": "recorded protocol",
+  "packetBytes": 3072,
+  "repeats": 1,
+  "modes": {
+    "direct-eight": {
+      "samples": 23,
+      "p50Ms": 1,
+      "p95Ms": 2,
+      "meanMs": 0.8695652173913043,
+      "varianceMsSquared": 0.28733459357277896,
+      "completeSets": 20,
+      "failures": 0,
+      "inputBytes": 0,
+      "outputBytes": 10704,
+      "modelCalls": 0,
+      "storeRequests": 23,
+      "tokenUsage": "reported or not applicable",
+      "perCaseTiming": {
+        "regression-1": {
+          "samples": 1,
+          "p50Ms": 2,
+          "p95Ms": 2,
+          "meanMs": 2,
+          "varianceMsSquared": 0
+        },
+        "regression-2": {
+          "samples": 1,
+          "p50Ms": 1,
+          "p95Ms": 1,
+          "meanMs": 1,
+          "varianceMsSquared": 0
+        },
+        "regression-3": {
+          "samples": 1,
+          "p50Ms": 1,
+          "p95Ms": 1,
+          "meanMs": 1,
+          "varianceMsSquared": 0
+        },
+        "regression-4": {
+          "samples": 1,
+          "p50Ms": 1,
+          "p95Ms": 1,
+          "meanMs": 1,
+          "varianceMsSquared": 0
+        },
+        "regression-5": {
+          "samples": 1,
+          "p50Ms": 1,
+          "p95Ms": 1,
+          "meanMs": 1,
+          "varianceMsSquared": 0
+        },
+        "regression-6": {
+          "samples": 1,
+          "p50Ms": 0,
+          "p95Ms": 0,
+          "meanMs": 0,
+          "varianceMsSquared": 0
+        },
+        "regression-7": {
+          "samples": 1,
+          "p50Ms": 1,
+          "p95Ms": 1,
+          "meanMs": 1,
+          "varianceMsSquared": 0
+        },
+        "regression-8": {
+          "samples": 1,
+          "p50Ms": 0,
+          "p95Ms": 0,
+          "meanMs": 0,
+          "varianceMsSquared": 0
+        },
+        "regression-9": {
+          "samples": 1,
+          "p50Ms": 1,
+          "p95Ms": 1,
+          "meanMs": 1,
+          "varianceMsSquared": 0
+        },
+        "regression-10": {
+          "samples": 1,
+          "p50Ms": 1,
+          "p95Ms": 1,
+          "meanMs": 1,
+          "varianceMsSquared": 0
+        },
+        "regression-11": {
+          "samples": 1,
+          "p50Ms": 0,
+          "p95Ms": 0,
+          "meanMs": 0,
+          "varianceMsSquared": 0
+        },
+        "regression-12": {
+          "samples": 1,
+          "p50Ms": 1,
+          "p95Ms": 1,
+          "meanMs": 1,
+          "varianceMsSquared": 0
+        },
+        "regression-13": {
+          "samples": 1,
+          "p50Ms": 1,
+          "p95Ms": 1,
+          "meanMs": 1,
+          "varianceMsSquared": 0
+        },
+        "synonym-only": {
+          "samples": 1,
+          "p50Ms": 2,
+          "p95Ms": 2,
+          "meanMs": 2,
+          "varianceMsSquared": 0
+        },
+        "synonym-brief": {
+          "samples": 1,
+          "p50Ms": 1,
+          "p95Ms": 1,
+          "meanMs": 1,
+          "varianceMsSquared": 0
+        },
+        "corrected-window": {
+          "samples": 1,
+          "p50Ms": 1,
+          "p95Ms": 1,
+          "meanMs": 1,
+          "varianceMsSquared": 0
+        },
+        "recent-evidence": {
+          "samples": 1,
+          "p50Ms": 1,
+          "p95Ms": 1,
+          "meanMs": 1,
+          "varianceMsSquared": 0
+        },
+        "earlier-evidence": {
+          "samples": 1,
+          "p50Ms": 0,
+          "p95Ms": 0,
+          "meanMs": 0,
+          "varianceMsSquared": 0
+        },
+        "admin-default": {
+          "samples": 1,
+          "p50Ms": 0,
+          "p95Ms": 0,
+          "meanMs": 0,
+          "varianceMsSquared": 0
+        },
+        "admin-everyone": {
+          "samples": 1,
+          "p50Ms": 1,
+          "p95Ms": 1,
+          "meanMs": 1,
+          "varianceMsSquared": 0
+        },
+        "unknown-answer": {
+          "samples": 1,
+          "p50Ms": 1,
+          "p95Ms": 1,
+          "meanMs": 1,
+          "varianceMsSquared": 0
+        },
+        "combined-recall": {
+          "samples": 1,
+          "p50Ms": 1,
+          "p95Ms": 1,
+          "meanMs": 1,
+          "varianceMsSquared": 0
+        },
+        "broad-shipping-review": {
+          "samples": 1,
+          "p50Ms": 1,
+          "p95Ms": 1,
+          "meanMs": 1,
+          "varianceMsSquared": 0
+        }
+      },
+      "providerTokens": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation_input_tokens": 0
+      }
+    },
+    "direct-twenty": {
+      "samples": 23,
+      "p50Ms": 1,
+      "p95Ms": 1,
+      "meanMs": 0.5217391304347826,
+      "varianceMsSquared": 0.24952741020793945,
+      "completeSets": 21,
+      "failures": 0,
+      "inputBytes": 0,
+      "outputBytes": 11235,
+      "modelCalls": 0,
+      "storeRequests": 23,
+      "tokenUsage": "reported or not applicable",
+      "perCaseTiming": {
+        "regression-1": {
+          "samples": 1,
+          "p50Ms": 0,
+          "p95Ms": 0,
+          "meanMs": 0,
+          "varianceMsSquared": 0
+        },
+        "regression-2": {
+          "samples": 1,
+          "p50Ms": 1,
+          "p95Ms": 1,
+          "meanMs": 1,
+          "varianceMsSquared": 0
+        },
+        "regression-3": {
+          "samples": 1,
+          "p50Ms": 0,
+          "p95Ms": 0,
+          "meanMs": 0,
+          "varianceMsSquared": 0
+        },
+        "regression-4": {
+          "samples": 1,
+          "p50Ms": 1,
+          "p95Ms": 1,
+          "meanMs": 1,
+          "varianceMsSquared": 0
+        },
+        "regression-5": {
+          "samples": 1,
+          "p50Ms": 0,
+          "p95Ms": 0,
+          "meanMs": 0,
+          "varianceMsSquared": 0
+        },
+        "regression-6": {
+          "samples": 1,
+          "p50Ms": 1,
+          "p95Ms": 1,
+          "meanMs": 1,
+          "varianceMsSquared": 0
+        },
+        "regression-7": {
+          "samples": 1,
+          "p50Ms": 0,
+          "p95Ms": 0,
+          "meanMs": 0,
+          "varianceMsSquared": 0
+        },
+        "regression-8": {
+          "samples": 1,
+          "p50Ms": 1,
+          "p95Ms": 1,
+          "meanMs": 1,
+          "varianceMsSquared": 0
+        },
+        "regression-9": {
+          "samples": 1,
+          "p50Ms": 0,
+          "p95Ms": 0,
+          "meanMs": 0,
+          "varianceMsSquared": 0
+        },
+        "regression-10": {
+          "samples": 1,
+          "p50Ms": 0,
+          "p95Ms": 0,
+          "meanMs": 0,
+          "varianceMsSquared": 0
+        },
+        "regression-11": {
+          "samples": 1,
+          "p50Ms": 1,
+          "p95Ms": 1,
+          "meanMs": 1,
+          "varianceMsSquared": 0
+        },
+        "regression-12": {
+          "samples": 1,
+          "p50Ms": 1,
+          "p95Ms": 1,
+          "meanMs": 1,
+          "varianceMsSquared": 0
+        },
+        "regression-13": {
+          "samples": 1,
+          "p50Ms": 1,
+          "p95Ms": 1,
+          "meanMs": 1,
+          "varianceMsSquared": 0
+        },
+        "synonym-only": {
+          "samples": 1,
+          "p50Ms": 0,
+          "p95Ms": 0,
+          "meanMs": 0,
+          "varianceMsSquared": 0
+        },
+        "synonym-brief": {
+          "samples": 1,
+          "p50Ms": 0,
+          "p95Ms": 0,
+          "meanMs": 0,
+          "varianceMsSquared": 0
+        },
+        "corrected-window": {
+          "samples": 1,
+          "p50Ms": 0,
+          "p95Ms": 0,
+          "meanMs": 0,
+          "varianceMsSquared": 0
+        },
+        "recent-evidence": {
+          "samples": 1,
+          "p50Ms": 1,
+          "p95Ms": 1,
+          "meanMs": 1,
+          "varianceMsSquared": 0
+        },
+        "earlier-evidence": {
+          "samples": 1,
+          "p50Ms": 1,
+          "p95Ms": 1,
+          "meanMs": 1,
+          "varianceMsSquared": 0
+        },
+        "admin-default": {
+          "samples": 1,
+          "p50Ms": 1,
+          "p95Ms": 1,
+          "meanMs": 1,
+          "varianceMsSquared": 0
+        },
+        "admin-everyone": {
+          "samples": 1,
+          "p50Ms": 0,
+          "p95Ms": 0,
+          "meanMs": 0,
+          "varianceMsSquared": 0
+        },
+        "unknown-answer": {
+          "samples": 1,
+          "p50Ms": 0,
+          "p95Ms": 0,
+          "meanMs": 0,
+          "varianceMsSquared": 0
+        },
+        "combined-recall": {
+          "samples": 1,
+          "p50Ms": 1,
+          "p95Ms": 1,
+          "meanMs": 1,
+          "varianceMsSquared": 0
+        },
+        "broad-shipping-review": {
+          "samples": 1,
+          "p50Ms": 1,
+          "p95Ms": 1,
+          "meanMs": 1,
+          "varianceMsSquared": 0
+        }
+      },
+      "providerTokens": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation_input_tokens": 0
+      }
+    },
+    "helper": {
+      "samples": 23,
+      "p50Ms": 2,
+      "p95Ms": 9,
+      "meanMs": 3.0869565217391304,
+      "varianceMsSquared": 6.688090737240073,
+      "completeSets": 21,
+      "failures": 0,
+      "inputBytes": 24885,
+      "outputBytes": 11235,
+      "modelCalls": 23,
+      "storeRequests": 43,
+      "tokenUsage": "unknown",
+      "perCaseTiming": {
+        "regression-1": {
+          "samples": 1,
+          "p50Ms": 9,
+          "p95Ms": 9,
+          "meanMs": 9,
+          "varianceMsSquared": 0
+        },
+        "regression-2": {
+          "samples": 1,
+          "p50Ms": 4,
+          "p95Ms": 4,
+          "meanMs": 4,
+          "varianceMsSquared": 0
+        },
+        "regression-3": {
+          "samples": 1,
+          "p50Ms": 3,
+          "p95Ms": 3,
+          "meanMs": 3,
+          "varianceMsSquared": 0
+        },
+        "regression-4": {
+          "samples": 1,
+          "p50Ms": 2,
+          "p95Ms": 2,
+          "meanMs": 2,
+          "varianceMsSquared": 0
+        },
+        "regression-5": {
+          "samples": 1,
+          "p50Ms": 2,
+          "p95Ms": 2,
+          "meanMs": 2,
+          "varianceMsSquared": 0
+        },
+        "regression-6": {
+          "samples": 1,
+          "p50Ms": 2,
+          "p95Ms": 2,
+          "meanMs": 2,
+          "varianceMsSquared": 0
+        },
+        "regression-7": {
+          "samples": 1,
+          "p50Ms": 3,
+          "p95Ms": 3,
+          "meanMs": 3,
+          "varianceMsSquared": 0
+        },
+        "regression-8": {
+          "samples": 1,
+          "p50Ms": 2,
+          "p95Ms": 2,
+          "meanMs": 2,
+          "varianceMsSquared": 0
+        },
+        "regression-9": {
+          "samples": 1,
+          "p50Ms": 3,
+          "p95Ms": 3,
+          "meanMs": 3,
+          "varianceMsSquared": 0
+        },
+        "regression-10": {
+          "samples": 1,
+          "p50Ms": 3,
+          "p95Ms": 3,
+          "meanMs": 3,
+          "varianceMsSquared": 0
+        },
+        "regression-11": {
+          "samples": 1,
+          "p50Ms": 3,
+          "p95Ms": 3,
+          "meanMs": 3,
+          "varianceMsSquared": 0
+        },
+        "regression-12": {
+          "samples": 1,
+          "p50Ms": 2,
+          "p95Ms": 2,
+          "meanMs": 2,
+          "varianceMsSquared": 0
+        },
+        "regression-13": {
+          "samples": 1,
+          "p50Ms": 1,
+          "p95Ms": 1,
+          "meanMs": 1,
+          "varianceMsSquared": 0
+        },
+        "synonym-only": {
+          "samples": 1,
+          "p50Ms": 2,
+          "p95Ms": 2,
+          "meanMs": 2,
+          "varianceMsSquared": 0
+        },
+        "synonym-brief": {
+          "samples": 1,
+          "p50Ms": 2,
+          "p95Ms": 2,
+          "meanMs": 2,
+          "varianceMsSquared": 0
+        },
+        "corrected-window": {
+          "samples": 1,
+          "p50Ms": 2,
+          "p95Ms": 2,
+          "meanMs": 2,
+          "varianceMsSquared": 0
+        },
+        "recent-evidence": {
+          "samples": 1,
+          "p50Ms": 2,
+          "p95Ms": 2,
+          "meanMs": 2,
+          "varianceMsSquared": 0
+        },
+        "earlier-evidence": {
+          "samples": 1,
+          "p50Ms": 13,
+          "p95Ms": 13,
+          "meanMs": 13,
+          "varianceMsSquared": 0
+        },
+        "admin-default": {
+          "samples": 1,
+          "p50Ms": 2,
+          "p95Ms": 2,
+          "meanMs": 2,
+          "varianceMsSquared": 0
+        },
+        "admin-everyone": {
+          "samples": 1,
+          "p50Ms": 2,
+          "p95Ms": 2,
+          "meanMs": 2,
+          "varianceMsSquared": 0
+        },
+        "unknown-answer": {
+          "samples": 1,
+          "p50Ms": 2,
+          "p95Ms": 2,
+          "meanMs": 2,
+          "varianceMsSquared": 0
+        },
+        "combined-recall": {
+          "samples": 1,
+          "p50Ms": 2,
+          "p95Ms": 2,
+          "meanMs": 2,
+          "varianceMsSquared": 0
+        },
+        "broad-shipping-review": {
+          "samples": 1,
+          "p50Ms": 3,
+          "p95Ms": 3,
+          "meanMs": 3,
+          "varianceMsSquared": 0
+        }
+      },
+      "providerTokens": {
+        "input_tokens": null,
+        "output_tokens": null,
+        "cache_read_input_tokens": null,
+        "cache_creation_input_tokens": null
+      }
+    }
+  },
+  "acceptance": {
+    "passed": false,
+    "reasons": [
+      "live evidence missing",
+      "synonym-only not recovered",
+      "synonym-brief not recovered"
+    ],
+    "guidanceEnabled": false
+  },
+  "failed": false,
+  "cases": [
+    {
+      "id": "regression-1",
+      "mode": "direct-eight",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "route-probe"
+      ],
+      "returned": [
+        "squash-merge",
+        "route-probe"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "direct",
+      "outputBytes": 487,
+      "modelCalls": 0,
+      "storeRequests": 1,
+      "tokenUsage": "not applicable"
+    },
+    {
+      "id": "regression-1",
+      "mode": "direct-twenty",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "route-probe"
+      ],
+      "returned": [
+        "squash-merge",
+        "route-probe"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "direct",
+      "outputBytes": 487,
+      "modelCalls": 0,
+      "storeRequests": 1,
+      "tokenUsage": "not applicable"
+    },
+    {
+      "id": "regression-1",
+      "mode": "helper",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "route-probe"
+      ],
+      "returned": [
+        "squash-merge",
+        "route-probe"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "selected",
+      "outputBytes": 487,
+      "modelCalls": 1,
+      "storeRequests": 2,
+      "tokenUsage": "unknown"
+    },
+    {
+      "id": "regression-2",
+      "mode": "direct-eight",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "route-probe"
+      ],
+      "returned": [
+        "route-probe",
+        "window-current",
+        "squash-merge",
+        "key-renewal"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "direct",
+      "outputBytes": 808,
+      "modelCalls": 0,
+      "storeRequests": 1,
+      "tokenUsage": "not applicable"
+    },
+    {
+      "id": "regression-2",
+      "mode": "direct-twenty",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "route-probe"
+      ],
+      "returned": [
+        "route-probe",
+        "window-current",
+        "squash-merge",
+        "key-renewal"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "direct",
+      "outputBytes": 808,
+      "modelCalls": 0,
+      "storeRequests": 1,
+      "tokenUsage": "not applicable"
+    },
+    {
+      "id": "regression-2",
+      "mode": "helper",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "route-probe"
+      ],
+      "returned": [
+        "route-probe",
+        "window-current",
+        "squash-merge",
+        "key-renewal"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "selected",
+      "outputBytes": 808,
+      "modelCalls": 1,
+      "storeRequests": 2,
+      "tokenUsage": "unknown"
+    },
+    {
+      "id": "regression-3",
+      "mode": "direct-eight",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "digest-cap"
+      ],
+      "returned": [
+        "digest-cap"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "direct",
+      "outputBytes": 318,
+      "modelCalls": 0,
+      "storeRequests": 1,
+      "tokenUsage": "not applicable"
+    },
+    {
+      "id": "regression-3",
+      "mode": "direct-twenty",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "digest-cap"
+      ],
+      "returned": [
+        "digest-cap"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "direct",
+      "outputBytes": 318,
+      "modelCalls": 0,
+      "storeRequests": 1,
+      "tokenUsage": "not applicable"
+    },
+    {
+      "id": "regression-3",
+      "mode": "helper",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "digest-cap"
+      ],
+      "returned": [
+        "digest-cap"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "selected",
+      "outputBytes": 318,
+      "modelCalls": 1,
+      "storeRequests": 2,
+      "tokenUsage": "unknown"
+    },
+    {
+      "id": "regression-4",
+      "mode": "direct-eight",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "digest-cap"
+      ],
+      "returned": [
+        "digest-cap",
+        "key-renewal",
+        "spool",
+        "window-current",
+        "thread-tags"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "direct",
+      "outputBytes": 974,
+      "modelCalls": 0,
+      "storeRequests": 1,
+      "tokenUsage": "not applicable"
+    },
+    {
+      "id": "regression-4",
+      "mode": "direct-twenty",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "digest-cap"
+      ],
+      "returned": [
+        "digest-cap",
+        "key-renewal",
+        "spool",
+        "window-current",
+        "thread-tags"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "direct",
+      "outputBytes": 974,
+      "modelCalls": 0,
+      "storeRequests": 1,
+      "tokenUsage": "not applicable"
+    },
+    {
+      "id": "regression-4",
+      "mode": "helper",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "digest-cap"
+      ],
+      "returned": [
+        "digest-cap",
+        "key-renewal",
+        "spool",
+        "window-current",
+        "thread-tags"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "selected",
+      "outputBytes": 974,
+      "modelCalls": 1,
+      "storeRequests": 2,
+      "tokenUsage": "unknown"
+    },
+    {
+      "id": "regression-5",
+      "mode": "direct-eight",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "short-replies"
+      ],
+      "returned": [
+        "short-replies",
+        "shipping-approval"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "direct",
+      "outputBytes": 431,
+      "modelCalls": 0,
+      "storeRequests": 1,
+      "tokenUsage": "not applicable"
+    },
+    {
+      "id": "regression-5",
+      "mode": "direct-twenty",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "short-replies"
+      ],
+      "returned": [
+        "short-replies",
+        "shipping-approval"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "direct",
+      "outputBytes": 431,
+      "modelCalls": 0,
+      "storeRequests": 1,
+      "tokenUsage": "not applicable"
+    },
+    {
+      "id": "regression-5",
+      "mode": "helper",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "short-replies"
+      ],
+      "returned": [
+        "short-replies",
+        "shipping-approval"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "selected",
+      "outputBytes": 431,
+      "modelCalls": 1,
+      "storeRequests": 2,
+      "tokenUsage": "unknown"
+    },
+    {
+      "id": "regression-6",
+      "mode": "direct-eight",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "migrate-admin"
+      ],
+      "returned": [
+        "migrate-admin"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "direct",
+      "outputBytes": 316,
+      "modelCalls": 0,
+      "storeRequests": 1,
+      "tokenUsage": "not applicable"
+    },
+    {
+      "id": "regression-6",
+      "mode": "direct-twenty",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "migrate-admin"
+      ],
+      "returned": [
+        "migrate-admin"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "direct",
+      "outputBytes": 316,
+      "modelCalls": 0,
+      "storeRequests": 1,
+      "tokenUsage": "not applicable"
+    },
+    {
+      "id": "regression-6",
+      "mode": "helper",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "migrate-admin"
+      ],
+      "returned": [
+        "migrate-admin"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "selected",
+      "outputBytes": 316,
+      "modelCalls": 1,
+      "storeRequests": 2,
+      "tokenUsage": "unknown"
+    },
+    {
+      "id": "regression-7",
+      "mode": "direct-eight",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "spool"
+      ],
+      "returned": [
+        "spool"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "direct",
+      "outputBytes": 315,
+      "modelCalls": 0,
+      "storeRequests": 1,
+      "tokenUsage": "not applicable"
+    },
+    {
+      "id": "regression-7",
+      "mode": "direct-twenty",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "spool"
+      ],
+      "returned": [
+        "spool"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "direct",
+      "outputBytes": 315,
+      "modelCalls": 0,
+      "storeRequests": 1,
+      "tokenUsage": "not applicable"
+    },
+    {
+      "id": "regression-7",
+      "mode": "helper",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "spool"
+      ],
+      "returned": [
+        "spool"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "selected",
+      "outputBytes": 315,
+      "modelCalls": 1,
+      "storeRequests": 2,
+      "tokenUsage": "unknown"
+    },
+    {
+      "id": "regression-8",
+      "mode": "direct-eight",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "squash-merge"
+      ],
+      "returned": [
+        "squash-merge"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "direct",
+      "outputBytes": 296,
+      "modelCalls": 0,
+      "storeRequests": 1,
+      "tokenUsage": "not applicable"
+    },
+    {
+      "id": "regression-8",
+      "mode": "direct-twenty",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "squash-merge"
+      ],
+      "returned": [
+        "squash-merge"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "direct",
+      "outputBytes": 296,
+      "modelCalls": 0,
+      "storeRequests": 1,
+      "tokenUsage": "not applicable"
+    },
+    {
+      "id": "regression-8",
+      "mode": "helper",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "squash-merge"
+      ],
+      "returned": [
+        "squash-merge"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "selected",
+      "outputBytes": 296,
+      "modelCalls": 1,
+      "storeRequests": 2,
+      "tokenUsage": "unknown"
+    },
+    {
+      "id": "regression-9",
+      "mode": "direct-eight",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "key-renewal"
+      ],
+      "returned": [
+        "key-renewal",
+        "migrate-admin",
+        "secrets"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "direct",
+      "outputBytes": 681,
+      "modelCalls": 0,
+      "storeRequests": 1,
+      "tokenUsage": "not applicable"
+    },
+    {
+      "id": "regression-9",
+      "mode": "direct-twenty",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "key-renewal"
+      ],
+      "returned": [
+        "key-renewal",
+        "migrate-admin",
+        "secrets"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "direct",
+      "outputBytes": 681,
+      "modelCalls": 0,
+      "storeRequests": 1,
+      "tokenUsage": "not applicable"
+    },
+    {
+      "id": "regression-9",
+      "mode": "helper",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "key-renewal"
+      ],
+      "returned": [
+        "key-renewal",
+        "migrate-admin",
+        "secrets"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "selected",
+      "outputBytes": 681,
+      "modelCalls": 1,
+      "storeRequests": 2,
+      "tokenUsage": "unknown"
+    },
+    {
+      "id": "regression-10",
+      "mode": "direct-eight",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "secrets"
+      ],
+      "returned": [
+        "secrets"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "direct",
+      "outputBytes": 323,
+      "modelCalls": 0,
+      "storeRequests": 1,
+      "tokenUsage": "not applicable"
+    },
+    {
+      "id": "regression-10",
+      "mode": "direct-twenty",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "secrets"
+      ],
+      "returned": [
+        "secrets"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "direct",
+      "outputBytes": 323,
+      "modelCalls": 0,
+      "storeRequests": 1,
+      "tokenUsage": "not applicable"
+    },
+    {
+      "id": "regression-10",
+      "mode": "helper",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "secrets"
+      ],
+      "returned": [
+        "secrets"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "selected",
+      "outputBytes": 323,
+      "modelCalls": 1,
+      "storeRequests": 2,
+      "tokenUsage": "unknown"
+    },
+    {
+      "id": "regression-11",
+      "mode": "direct-eight",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "mini-apps"
+      ],
+      "returned": [
+        "mini-apps",
+        "route-probe"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "direct",
+      "outputBytes": 482,
+      "modelCalls": 0,
+      "storeRequests": 1,
+      "tokenUsage": "not applicable"
+    },
+    {
+      "id": "regression-11",
+      "mode": "direct-twenty",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "mini-apps"
+      ],
+      "returned": [
+        "mini-apps",
+        "route-probe"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "direct",
+      "outputBytes": 482,
+      "modelCalls": 0,
+      "storeRequests": 1,
+      "tokenUsage": "not applicable"
+    },
+    {
+      "id": "regression-11",
+      "mode": "helper",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "mini-apps"
+      ],
+      "returned": [
+        "mini-apps",
+        "route-probe"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "selected",
+      "outputBytes": 482,
+      "modelCalls": 1,
+      "storeRequests": 2,
+      "tokenUsage": "unknown"
+    },
+    {
+      "id": "regression-12",
+      "mode": "direct-eight",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "thread-tags"
+      ],
+      "returned": [
+        "thread-tags",
+        "window-current",
+        "key-renewal",
+        "spool",
+        "digest-cap"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "direct",
+      "outputBytes": 974,
+      "modelCalls": 0,
+      "storeRequests": 1,
+      "tokenUsage": "not applicable"
+    },
+    {
+      "id": "regression-12",
+      "mode": "direct-twenty",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "thread-tags"
+      ],
+      "returned": [
+        "thread-tags",
+        "window-current",
+        "key-renewal",
+        "spool",
+        "digest-cap"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "direct",
+      "outputBytes": 974,
+      "modelCalls": 0,
+      "storeRequests": 1,
+      "tokenUsage": "not applicable"
+    },
+    {
+      "id": "regression-12",
+      "mode": "helper",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "thread-tags"
+      ],
+      "returned": [
+        "thread-tags",
+        "window-current",
+        "key-renewal",
+        "spool",
+        "digest-cap"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "selected",
+      "outputBytes": 974,
+      "modelCalls": 1,
+      "storeRequests": 2,
+      "tokenUsage": "unknown"
+    },
+    {
+      "id": "regression-13",
+      "mode": "direct-eight",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [],
+      "returned": [],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "direct",
+      "outputBytes": 135,
+      "modelCalls": 0,
+      "storeRequests": 1,
+      "tokenUsage": "not applicable"
+    },
+    {
+      "id": "regression-13",
+      "mode": "direct-twenty",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [],
+      "returned": [],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "direct",
+      "outputBytes": 135,
+      "modelCalls": 0,
+      "storeRequests": 1,
+      "tokenUsage": "not applicable"
+    },
+    {
+      "id": "regression-13",
+      "mode": "helper",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [],
+      "returned": [],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "empty",
+      "outputBytes": 135,
+      "modelCalls": 1,
+      "storeRequests": 1,
+      "tokenUsage": "unknown"
+    },
+    {
+      "id": "synonym-only",
+      "mode": "direct-eight",
+      "repeat": 0,
+      "complete": false,
+      "criticalMatched": [],
+      "returned": [
+        "staging-distractor",
+        "mini-apps",
+        "migrate-admin"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "direct",
+      "outputBytes": 615,
+      "modelCalls": 0,
+      "storeRequests": 1,
+      "tokenUsage": "not applicable"
+    },
+    {
+      "id": "synonym-only",
+      "mode": "direct-twenty",
+      "repeat": 0,
+      "complete": false,
+      "criticalMatched": [],
+      "returned": [
+        "staging-distractor",
+        "mini-apps",
+        "migrate-admin"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "direct",
+      "outputBytes": 615,
+      "modelCalls": 0,
+      "storeRequests": 1,
+      "tokenUsage": "not applicable"
+    },
+    {
+      "id": "synonym-only",
+      "mode": "helper",
+      "repeat": 0,
+      "complete": false,
+      "criticalMatched": [],
+      "returned": [
+        "staging-distractor",
+        "mini-apps",
+        "migrate-admin"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "selected",
+      "outputBytes": 615,
+      "modelCalls": 1,
+      "storeRequests": 2,
+      "tokenUsage": "unknown"
+    },
+    {
+      "id": "synonym-brief",
+      "mode": "direct-eight",
+      "repeat": 0,
+      "complete": false,
+      "criticalMatched": [],
+      "returned": [],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "direct",
+      "outputBytes": 135,
+      "modelCalls": 0,
+      "storeRequests": 1,
+      "tokenUsage": "not applicable"
+    },
+    {
+      "id": "synonym-brief",
+      "mode": "direct-twenty",
+      "repeat": 0,
+      "complete": false,
+      "criticalMatched": [],
+      "returned": [],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "direct",
+      "outputBytes": 135,
+      "modelCalls": 0,
+      "storeRequests": 1,
+      "tokenUsage": "not applicable"
+    },
+    {
+      "id": "synonym-brief",
+      "mode": "helper",
+      "repeat": 0,
+      "complete": false,
+      "criticalMatched": [],
+      "returned": [],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "empty",
+      "outputBytes": 135,
+      "modelCalls": 1,
+      "storeRequests": 1,
+      "tokenUsage": "unknown"
+    },
+    {
+      "id": "corrected-window",
+      "mode": "direct-eight",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "window-current"
+      ],
+      "returned": [
+        "window-current"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "direct",
+      "outputBytes": 279,
+      "modelCalls": 0,
+      "storeRequests": 1,
+      "tokenUsage": "not applicable"
+    },
+    {
+      "id": "corrected-window",
+      "mode": "direct-twenty",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "window-current"
+      ],
+      "returned": [
+        "window-current"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "direct",
+      "outputBytes": 279,
+      "modelCalls": 0,
+      "storeRequests": 1,
+      "tokenUsage": "not applicable"
+    },
+    {
+      "id": "corrected-window",
+      "mode": "helper",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "window-current"
+      ],
+      "returned": [
+        "window-current"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "selected",
+      "outputBytes": 279,
+      "modelCalls": 1,
+      "storeRequests": 2,
+      "tokenUsage": "unknown"
+    },
+    {
+      "id": "recent-evidence",
+      "mode": "direct-eight",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "dated-current"
+      ],
+      "returned": [
+        "dated-current"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "direct",
+      "outputBytes": 268,
+      "modelCalls": 0,
+      "storeRequests": 1,
+      "tokenUsage": "not applicable"
+    },
+    {
+      "id": "recent-evidence",
+      "mode": "direct-twenty",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "dated-current"
+      ],
+      "returned": [
+        "dated-current"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "direct",
+      "outputBytes": 268,
+      "modelCalls": 0,
+      "storeRequests": 1,
+      "tokenUsage": "not applicable"
+    },
+    {
+      "id": "recent-evidence",
+      "mode": "helper",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "dated-current"
+      ],
+      "returned": [
+        "dated-current"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "selected",
+      "outputBytes": 268,
+      "modelCalls": 1,
+      "storeRequests": 2,
+      "tokenUsage": "unknown"
+    },
+    {
+      "id": "earlier-evidence",
+      "mode": "direct-eight",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "dated-old"
+      ],
+      "returned": [
+        "dated-old"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "direct",
+      "outputBytes": 269,
+      "modelCalls": 0,
+      "storeRequests": 1,
+      "tokenUsage": "not applicable"
+    },
+    {
+      "id": "earlier-evidence",
+      "mode": "direct-twenty",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "dated-old"
+      ],
+      "returned": [
+        "dated-old"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "direct",
+      "outputBytes": 269,
+      "modelCalls": 0,
+      "storeRequests": 1,
+      "tokenUsage": "not applicable"
+    },
+    {
+      "id": "earlier-evidence",
+      "mode": "helper",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "dated-old"
+      ],
+      "returned": [
+        "dated-old"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "selected",
+      "outputBytes": 269,
+      "modelCalls": 1,
+      "storeRequests": 2,
+      "tokenUsage": "unknown"
+    },
+    {
+      "id": "admin-default",
+      "mode": "direct-eight",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "visible-deploy"
+      ],
+      "returned": [
+        "visible-deploy"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "direct",
+      "outputBytes": 262,
+      "modelCalls": 0,
+      "storeRequests": 1,
+      "tokenUsage": "not applicable"
+    },
+    {
+      "id": "admin-default",
+      "mode": "direct-twenty",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "visible-deploy"
+      ],
+      "returned": [
+        "visible-deploy"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "direct",
+      "outputBytes": 262,
+      "modelCalls": 0,
+      "storeRequests": 1,
+      "tokenUsage": "not applicable"
+    },
+    {
+      "id": "admin-default",
+      "mode": "helper",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "visible-deploy"
+      ],
+      "returned": [
+        "visible-deploy"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "selected",
+      "outputBytes": 262,
+      "modelCalls": 1,
+      "storeRequests": 2,
+      "tokenUsage": "unknown"
+    },
+    {
+      "id": "admin-everyone",
+      "mode": "direct-eight",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "visible-deploy",
+        "private-feedback",
+        "private-reader"
+      ],
+      "returned": [
+        "private-reader",
+        "visible-deploy",
+        "private-feedback"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "direct",
+      "outputBytes": 529,
+      "modelCalls": 0,
+      "storeRequests": 1,
+      "tokenUsage": "not applicable"
+    },
+    {
+      "id": "admin-everyone",
+      "mode": "direct-twenty",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "visible-deploy",
+        "private-feedback",
+        "private-reader"
+      ],
+      "returned": [
+        "private-reader",
+        "visible-deploy",
+        "private-feedback"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "direct",
+      "outputBytes": 529,
+      "modelCalls": 0,
+      "storeRequests": 1,
+      "tokenUsage": "not applicable"
+    },
+    {
+      "id": "admin-everyone",
+      "mode": "helper",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "visible-deploy",
+        "private-feedback",
+        "private-reader"
+      ],
+      "returned": [
+        "private-reader",
+        "visible-deploy",
+        "private-feedback"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "selected",
+      "outputBytes": 529,
+      "modelCalls": 1,
+      "storeRequests": 2,
+      "tokenUsage": "unknown"
+    },
+    {
+      "id": "unknown-answer",
+      "mode": "direct-eight",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [],
+      "returned": [],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "direct",
+      "outputBytes": 135,
+      "modelCalls": 0,
+      "storeRequests": 1,
+      "tokenUsage": "not applicable"
+    },
+    {
+      "id": "unknown-answer",
+      "mode": "direct-twenty",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [],
+      "returned": [],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "direct",
+      "outputBytes": 135,
+      "modelCalls": 0,
+      "storeRequests": 1,
+      "tokenUsage": "not applicable"
+    },
+    {
+      "id": "unknown-answer",
+      "mode": "helper",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [],
+      "returned": [],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "empty",
+      "outputBytes": 135,
+      "modelCalls": 1,
+      "storeRequests": 1,
+      "tokenUsage": "unknown"
+    },
+    {
+      "id": "combined-recall",
+      "mode": "direct-eight",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "digest-cap",
+        "short-replies"
+      ],
+      "returned": [
+        "short-replies",
+        "digest-cap"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "direct",
+      "outputBytes": 479,
+      "modelCalls": 0,
+      "storeRequests": 1,
+      "tokenUsage": "not applicable"
+    },
+    {
+      "id": "combined-recall",
+      "mode": "direct-twenty",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "digest-cap",
+        "short-replies"
+      ],
+      "returned": [
+        "short-replies",
+        "digest-cap"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "direct",
+      "outputBytes": 479,
+      "modelCalls": 0,
+      "storeRequests": 1,
+      "tokenUsage": "not applicable"
+    },
+    {
+      "id": "combined-recall",
+      "mode": "helper",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "digest-cap",
+        "short-replies"
+      ],
+      "returned": [
+        "short-replies",
+        "digest-cap"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "selected",
+      "outputBytes": 479,
+      "modelCalls": 1,
+      "storeRequests": 2,
+      "tokenUsage": "unknown"
+    },
+    {
+      "id": "broad-shipping-review",
+      "mode": "direct-eight",
+      "repeat": 0,
+      "complete": false,
+      "criticalMatched": [],
+      "returned": [
+        "shipping-note-11",
+        "shipping-note-10",
+        "shipping-note-9",
+        "shipping-note-8",
+        "shipping-note-7",
+        "shipping-note-6",
+        "shipping-note-5",
+        "shipping-note-4"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "direct",
+      "outputBytes": 1193,
+      "modelCalls": 0,
+      "storeRequests": 1,
+      "tokenUsage": "not applicable"
+    },
+    {
+      "id": "broad-shipping-review",
+      "mode": "direct-twenty",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "shipping-approval"
+      ],
+      "returned": [
+        "shipping-note-11",
+        "shipping-note-10",
+        "shipping-note-9",
+        "shipping-note-8",
+        "shipping-note-7",
+        "shipping-note-6",
+        "shipping-note-5",
+        "shipping-note-4",
+        "shipping-note-3",
+        "shipping-note-2",
+        "shipping-note-1",
+        "shipping-approval"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "direct",
+      "outputBytes": 1724,
+      "modelCalls": 0,
+      "storeRequests": 1,
+      "tokenUsage": "not applicable"
+    },
+    {
+      "id": "broad-shipping-review",
+      "mode": "helper",
+      "repeat": 0,
+      "complete": true,
+      "criticalMatched": [
+        "shipping-approval"
+      ],
+      "returned": [
+        "shipping-note-11",
+        "shipping-note-10",
+        "shipping-note-9",
+        "shipping-note-8",
+        "shipping-note-7",
+        "shipping-note-6",
+        "shipping-note-5",
+        "shipping-note-4",
+        "shipping-note-3",
+        "shipping-note-2",
+        "shipping-note-1",
+        "shipping-approval"
+      ],
+      "forbidden": [],
+      "regressionPreserved": true,
+      "status": "selected",
+      "outputBytes": 1724,
+      "modelCalls": 1,
+      "storeRequests": 2,
+      "tokenUsage": "unknown"
+    }
+  ]
+}

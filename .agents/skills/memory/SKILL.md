@@ -6,7 +6,7 @@ user-invocable: true
 
 # /memory
 
-The memory store holds **facts**: typed lines of at most 400 characters, never edited, only superseded. [The memory convention](../../../wiki/development/memory.md) owns what is stored, who reads it, and the risks; [writing facts](references/writing-facts.md) owns what a good fact keeps.
+The [memory convention](../../../wiki/development/memory.md) owns storage and access; [writing facts](references/writing-facts.md) owns the writing bar. Facts are never edited, only superseded.
 
 From the repo root:
 
@@ -18,7 +18,10 @@ node .claude/skills/memory/scripts/memory.mjs <command>
 
 | You want | Command |
 |---|---|
-| Facts on a topic | `search <terms>`, with `--tag`, `--type`, `--slug`, `--since`, `--until`, `--author`, `--branch`, `--change <slug>` (sessions that wrote on it; with `--branch`, either), `--state active\|shipped\|conversation`, `--all` to add superseded facts, `--everyone` |
+| Routine recall | `search <terms>`; `--tag`, `--type`, `--slug`, `--since`, `--until`, `--author`, `--branch`, `--change <slug>` (sessions writing it; with `--branch`, either), `--state active\|shipped\|conversation`, `--all` includes superseded facts, `--everyone` |
+| Programs | `search <terms> --json` (version 1) |
+| Evidence: original facts, dates, sources | `brief <terms>` or `brief --tag <topic>`; search filters except `--all`; default 8, `--limit` up to 20, 6,144 bytes; relevance before grouping |
+| Experimental helper | `extract-task [scope filters]`, then `extract <question> --task <handle> --agent claude\|codex [same filters]`; see [limits](../../../wiki/development/memory.md#experimental-extraction) |
 | One slug, open threads first | `show <slug>` |
 | Everything linked to files, a topic, or a change: docs, past changes, backlinks, facts | `areas <paths or topic…>` or `areas --change <name>` |
 | The transcript behind a fact | `source <fact-id>` |
@@ -27,18 +30,18 @@ node .claude/skills/memory/scripts/memory.mjs <command>
 | Close stale threads, add path tags (`put-facts` runs it) | `upkeep` |
 | What the person typed in this computer's recent Claude Code and Codex chats, keys hidden, no store needed; ask first | `recent-chats [--days 30]` |
 
-Each key sees what [who sees what](../../../wiki/development/memory.md#who-sees-what) allows; only the admin's `--everyone` on `search`, `show`, or `live` shows all. Facts are dated context; the repo wins.
+Choose one format per unchanged query. Fetch sources on demand to check a fact. Reads obey [who sees what](../../../wiki/development/memory.md#who-sees-what); `--everyone` widens only admins' scope. Source access is checked. The repo wins over dated facts.
 
 **Every skill: when the store is unreachable, say memory was not loaded and continue.**
 
-For described reads, use `operations.mjs list`, `describe <id>`, or `call <id> --file <JSON file or ->` beside `memory.mjs`; [company actions](../../../wiki/stack/company-api.md#memory-keeps-its-own-access) owns the helper.
+[Read adapter](../../../wiki/stack/company-api.md#memory-keeps-its-own-access).
 
 ## Write
 
-The **write gate** has two calls:
+The **write gate**:
 
-1. Send candidate facts as JSON to `gate --file <input>`; it prints each one's live same-slug facts and closest keyword matches.
-2. Send a decision per candidate to `put-facts --file <input>`:
+1. `gate --file <input>` shows each candidate's live same-slug facts and closest matches.
+2. `put-facts --file <input>` takes each decision:
    - `"action": "add"`: a new fact.
    - `"action": "supersede", "supersedes": [ids]`: it corrects or replaces live facts, or closes a resolved `thread`.
    - `"action": "drop"`: a live fact already says it.
@@ -58,7 +61,7 @@ The **write gate** has two calls:
 }
 ```
 
-**From a session**, pass the JSON on stdin in a quoted heredoc, so the shell leaves it alone: `node .claude/skills/memory/scripts/memory.mjs put-facts --file - <<'EOF'`, the JSON, then `EOF`.
+**From a session**, use a quoted heredoc: `node .claude/skills/memory/scripts/memory.mjs put-facts --file - <<'EOF'`, JSON, then `EOF`.
 
 `gate` takes the same JSON without `action`. A tag must exist or be defined in `newTags`. `"session": "current"` is this session. The script rejects a fact matching a `.env` value or token pattern, and spools facts when the store is unreachable. [`/close`](../close/SKILL.md) runs `keep-transcript current` to upload this session's transcript now.
 
@@ -68,12 +71,12 @@ Repo contributors receive trusted member credentials; readers’ writes stay pri
 
 ## Background run
 
-The session-start hook starts this unattended run. Use only the memory script, in order. Write JSON files in the instructed input folder; pass each as `<input>`.
+The hook starts this run. Use only the memory script; write JSON in the input folder and pass its path.
 
 1. **Spool.** Run `spool`. For each file it lists, decide its candidates from the printed neighbours and send the decisions to `put-facts --file <input> --spooled <path>`.
 2. **Pending sessions.** Run `pending --limit 5 --exclude <the session named in your instructions>`. For each session, newest first:
-   1. Run `strip <session-id>`. On `private:`, write nothing for it. Count `not recognized:` and continue.
-   2. Propose the facts a cold reader needs, to the bar in [writing facts](references/writing-facts.md). Slug: the session's change name, else a slug `search` finds for the topic, else a short topic slug.
+   1. Run `strip <session-id>`. On `private:`, write nothing for it. On `not recognized:`, count it and go on.
+   2. Follow [writing facts](references/writing-facts.md). Slug: the change name, else an existing topic from `search`, else a short topic slug.
    3. Run `gate --file <input>`, decide each candidate, and run `put-facts --file <input>` with `"session": "<session-id>"` and `"source": "backfill"`. Nothing worth keeping: run `put-facts` with an empty `facts` list and a `reason`; it records the session as skipped.
 3. **Consolidation.** Run `due`. If it prints `consolidation due`:
    1. Run `live` to list live facts by slug and type.
