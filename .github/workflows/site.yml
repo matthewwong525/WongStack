@@ -1,0 +1,189 @@
+# The landing page in site/: its own checks, its own link to look at, and its
+# own publish. Meta-only: no install receives this workflow or the site.
+# wiki/maintaining/landing-page.md owns the process.
+#
+# A change that touches site/ or this file tests and builds the site, then:
+#
+#   default branch   publishes the Worker `wongstack-site`, live at its own
+#                    workers.dev address.
+#   any other branch publishes `wongstack-site-staging`, uploads a version
+#                    under the branch's alias, and posts that address on the
+#                    commit as the `landing-preview` status.
+#
+# A change that leaves both alone skips every step after the scope check and
+# says so in one line. The skip is inside the job, never a `paths` filter, so
+# the `site` check still reports.
+#
+# The site's deploy config is site/wrangler.site.jsonc, a name the starter
+# app's scripts never look for, so every wrangler call here names it with
+# `--config`. scripts/tests/landing-site.test.mjs pins that.
+#
+# The preview address is a commit status, not a GitHub Deployment: `/save`
+# takes its preview link from the first Deployment on the commit, and that one
+# belongs to the starter app (deploy.yml).
+#
+# This workflow attaches no domain. wongstack.com moves to the site only on the
+# owner's word, in a change of its own.
+#
+# One run per commit: see "Why one commit does not test twice" in
+# .github/workflows/test.yml.
+
+name: Landing page
+
+on:
+  # Branches only: a tag names a commit its branch push already ran.
+  push:
+    branches: ['**']
+  pull_request:
+
+concurrency:
+  group: site-${{ github.event_name }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: ${{ github.ref_name != github.event.repository.default_branch }}
+
+jobs:
+  site:
+    if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      # Needed by "Post the preview link": the one write this workflow makes to GitHub.
+      statuses: write
+    env:
+      # The repo's deploy token: it already covers Workers on the account, and
+      # the site needs no database or secret. A fork's pull request gets
+      # neither value, so it tests and builds without deploying.
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      # Full history: the scope check compares the whole branch with its base.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Check what the change touches
+        id: scope
+        uses: ./.github/actions/change-scope
+
+      # The whole change, never only the last commit: a docs commit on top of a
+      # site commit still runs. `--no-renames` lists both sides of a move, so
+      # moving a file out of site/ counts. No base, or a comparison that fails,
+      # runs everything: a skip must be a proven skip.
+      - name: Check whether the landing page changed
+        id: site
+        env:
+          BASE: ${{ steps.scope.outputs.base }}
+        run: |
+          CHANGED=unknown
+          if [ -n "$BASE" ]; then
+            CHANGED=$(git diff --name-only --no-renames "$BASE" HEAD -- site .github/workflows/site.yml) || CHANGED=unknown
+          fi
+          if [ -z "$CHANGED" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        if: ${{ steps.site.outputs.changed == 'true' }}
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+
+      - name: Install
+        if: ${{ steps.site.outputs.changed == 'true' }}
+        working-directory: site
+        run: npm ci --no-audit --no-fund
+
+      - name: Test
+        if: ${{ steps.site.outputs.changed == 'true' }}
+        working-directory: site
+        run: npm test
+
+      - name: Build
+        if: ${{ steps.site.outputs.changed == 'true' }}
+        working-directory: site
+        run: npm run build
+
+      # The same two calls scripts/cf-deploy.sh makes for a branch, and for the
+      # same reason: a version can only be uploaded against a Worker that
+      # exists, so the staging deploy comes first. The alias and both addresses
+      # come from that script's own helpers, and each address is read from what
+      # wrangler printed, never built by hand.
+      - name: Deploy
+        id: deploy
+        if: ${{ steps.site.outputs.changed == 'true' && env.CLOUDFLARE_API_TOKEN != '' }}
+        env:
+          BRANCH: ${{ github.head_ref || github.ref_name }}
+          LIVE: ${{ github.event_name == 'push' && github.ref_name == github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          # shellcheck source=scripts/lib-wrangler-config.sh
+          source scripts/lib-wrangler-config.sh
+          export WRANGLER_CONFIG="$GITHUB_WORKSPACE/site/wrangler.site.jsonc"
+          LOG=$(mktemp)
+          cd site
+
+          if [ "$LIVE" = "true" ]; then
+            echo "site: default branch, publishing the live site"
+            npx wrangler deploy --config wrangler.site.jsonc 2>&1 | tee "$LOG"
+            echo "live-url=$(wong_production_url "$LOG")" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Fail closed before anything is deployed: a preview must never land
+          # on the live Worker. Sets PROD_NAME and STAGING_NAME.
+          wong_refuse_production_worker site
+          ALIAS=$(wong_preview_alias "$BRANCH" "$STAGING_NAME")
+          [ -n "$ALIAS" ] || { echo "site: ERROR — branch '$BRANCH' has no usable preview alias" >&2; exit 1; }
+
+          echo "site: branch $BRANCH, deploying $STAGING_NAME"
+          npx wrangler deploy --config wrangler.site.jsonc --env staging
+          echo "site: uploading a version (alias: $ALIAS)"
+          npx wrangler versions upload --config wrangler.site.jsonc --env staging --preview-alias "$ALIAS" 2>&1 | tee "$LOG"
+          PREVIEW_URL=$(wong_preview_url "$LOG" "$ALIAS")
+          if [ -z "$PREVIEW_URL" ]; then
+            echo "site: ERROR — wrangler printed no preview address" >&2
+            exit 1
+          fi
+          echo "preview-url=$PREVIEW_URL" >> "$GITHUB_OUTPUT"
+
+      # A status shows as a Details link beside the change's checks. Read it
+      # with `gh api repos/<repo>/commits/<sha>/statuses`.
+      - name: Post the preview link
+        if: ${{ steps.deploy.outputs.preview-url != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PREVIEW_URL: ${{ steps.deploy.outputs.preview-url }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA" \
+            -f state=success \
+            -f context=landing-preview \
+            -f description="The landing page, as this change leaves it" \
+            -f target_url="$PREVIEW_URL" \
+            --jq .id > /dev/null
+          echo "posted $PREVIEW_URL as the landing-preview status"
+
+      # One line on the run page, whether the checks ran or skipped.
+      - name: Summary
+        if: ${{ !cancelled() }}
+        env:
+          CHANGED: ${{ steps.site.outputs.changed }}
+          OUTCOME: ${{ job.status }}
+          DEPLOYED: ${{ steps.deploy.outcome }}
+          PREVIEW_URL: ${{ steps.deploy.outputs.preview-url }}
+          LIVE_URL: ${{ steps.deploy.outputs.live-url }}
+        run: |
+          if [ "$CHANGED" != "true" ]; then
+            LINE="The landing page is untouched, so its checks and deploy skipped."
+          elif [ "$OUTCOME" != "success" ]; then
+            LINE="The landing page changed, and a step failed: see the log."
+          elif [ -n "$PREVIEW_URL" ]; then
+            LINE="The landing page changed: its checks passed, and its preview is at $PREVIEW_URL"
+          elif [ "$DEPLOYED" = "success" ]; then
+            LINE="The landing page changed: its checks passed, and it is live${LIVE_URL:+ at $LIVE_URL}."
+          else
+            LINE="The landing page changed: its checks passed. Nothing deployed, because this run has no Cloudflare token."
+          fi
+          echo "$LINE" >> "$GITHUB_STEP_SUMMARY"
