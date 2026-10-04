@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Fewer steps, faster tasks
+## 31.3.0 — Fewer steps, faster tasks
 
 - Saving takes one command once the files are chosen. It commits, uploads, opens or updates the change on GitHub, waits for the checks, and returns the result, the preview link, and what to do next. A failed check comes back with its cause, so nothing is looked up twice.
 - Publishing takes two commands around that save: one to prepare, one to finish and look at the live app.

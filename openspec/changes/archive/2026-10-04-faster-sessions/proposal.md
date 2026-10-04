@@ -1,6 +1,6 @@
 # Fewer steps, faster tasks
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** codex-session-speed
 **Open questions:** none
 
@@ -74,3 +74,4 @@ None.
 - **2026-10-04** — First real local run, on this change: every new test passed; it also showed three rough edges, fixed in the same build. The toolkit checks printed all 1,386 test results, so a red run now prints only its failed tests by name and file; the hosted-starter check refuses to run outside GitHub, so it is skipped here with a line; and the helper brief now says to repair what the change broke, because 7 tests in `server-install.test.mjs` and `server-project.test.mjs` fail on this server alone (it runs as root with no git email) in code this change never touched. Those 7 are reported, not edited.
 - **2026-10-04** — Brought in `main` after 31.0.0 removed the server and hosted-project pieces during this build: dropped the hosted-project refusals from the save and publish commands and the hosted-starter and `server` entries from the toolkit checks list, since nothing they pointed at remains. The publish command's hint for a merge that uncommitted work blocks now says to commit here without pushing, so a publish keeps its one save.
 - **2026-10-04** — Kept `main`'s instruction-size record instead of writing a lower one (task 6.3's last step): `main` kept its long-standing record through 31.0.0's large removal, a rewritten record listed files that removal retired, and it would have made every change still in flight fail on merge. Against `main`'s record this change is a reduction on every route: instructions 190,845 → 186,124 bytes, the ordinary save route 37,779 → 31,252.
+- **2026-10-04** — Archive checkpoint: implementation, tests, and docs are complete, and the release is numbered 31.3.0. The new local checks pass on the merged work (script suite, app suite, lint, links, specs, context budget; shellcheck is not installed here, so CI runs it). The trial is on: this machine's two *Apply / Ship* presets are at medium since 2026-10-04. The remote gate and the walkthrough follow this checkpoint.

@@ -9,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · faster-sessions</title>
+<title>Review · 2026-10-04-faster-sessions</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -93,11 +93,11 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="faster-sessions">
+<body data-change="2026-10-04-faster-sessions">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>faster-sessions</h1>
+  <h1>2026-10-04-faster-sessions</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. Saving a note copies all your notes. Open a drawing and tap it to see it full screen.</p>
@@ -154,6 +154,10 @@
 <li class="decision card" id="decision-25" data-note="decision-25" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Trimmed from <code>ship/SKILL.md</code> into <code>ship.mjs finish</code>: the merge command and its exit codes, the recovery for a taken number or a merge conflict (<code>prepare --sync</code>, named by <code>NEXT:</code>), the secrets promotion (its rules stay in <code>wiki/development/secrets.md</code>), and the live-look command.</li>
 <li class="decision card" id="decision-26" data-note="decision-26" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Trimmed from <code>ship/SKILL.md</code> to an owner page: <i>with no checks, invoking <code>/ship</code> is the approval</i> stays in <code>git-gate.md</code>'s results table; why a loosened check is listed stays in <code>wiki/development/the-change-loop.md#a-loosened-check-needs-a-reason</code>.</li>
 <li class="decision card" id="decision-27" data-note="decision-27" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Built: the save, gate, and publish pages now total 14,951 bytes, from 20,208, and the instruction-size baseline is recorded at the lower total. Tests are written and not yet run; the first run is the final check.</li>
+<li class="decision card" id="decision-28" data-note="decision-28" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>First real local run, on this change: every new test passed; it also showed three rough edges, fixed in the same build. The toolkit checks printed all 1,386 test results, so a red run now prints only its failed tests by name and file; the hosted-starter check refuses to run outside GitHub, so it is skipped here with a line; and the helper brief now says to repair what the change broke, because 7 tests in <code>server-install.test.mjs</code> and <code>server-project.test.mjs</code> fail on this server alone (it runs as root with no git email) in code this change never touched. Those 7 are reported, not edited.</li>
+<li class="decision card" id="decision-29" data-note="decision-29" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Brought in <code>main</code> after 31.0.0 removed the server and hosted-project pieces during this build: dropped the hosted-project refusals from the save and publish commands and the hosted-starter and <code>server</code> entries from the toolkit checks list, since nothing they pointed at remains. The publish command's hint for a merge that uncommitted work blocks now says to commit here without pushing, so a publish keeps its one save.</li>
+<li class="decision card" id="decision-30" data-note="decision-30" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Kept <code>main</code>'s instruction-size record instead of writing a lower one (task 6.3's last step): <code>main</code> kept its long-standing record through 31.0.0's large removal, a rewritten record listed files that removal retired, and it would have made every change still in flight fail on merge. Against <code>main</code>'s record this change is a reduction on every route: instructions 190,845 → 186,124 bytes, the ordinary save route 37,779 → 31,252.</li>
+<li class="decision card" id="decision-31" data-note="decision-31" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Archive checkpoint: implementation, tests, and docs are complete, and the release is numbered 31.3.0. The new local checks pass on the merged work (script suite, app suite, lint, links, specs, context budget; shellcheck is not installed here, so CI runs it). The trial is on: this machine's two <i>Apply / Ship</i> presets are at medium since 2026-10-04. The remote gate and the walkthrough follow this checkpoint.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
