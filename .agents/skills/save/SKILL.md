@@ -23,7 +23,7 @@ Load each matching procedure before its actions; conditions combine:
 | Code or a code plan needs a new change | [New-plan fallback](references/new-plan.md) |
 | The exact selected handoff is archived | [The archived handoff](#the-archived-handoff) |
 
-Check [preconditions](references/preconditions.md); hosted transport retains steps 2–3. Otherwise fetch `main` before comparing; errors stop.
+Check [preconditions](references/preconditions.md), then fetch `main` before comparing; errors stop.
 
 ```bash
 git fetch origin main

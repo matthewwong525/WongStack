@@ -1,0 +1,2008 @@
+{
+  "schemaVersion": 1,
+  "runId": "ha-83ec40bf",
+  "approval": {
+    "userResponse": "Approve",
+    "sourceCheckpoint": "be2f662ee6a33a67d034f36023f0e7810a9ac5de",
+    "inputsSha256": "275aee51f5ec60eb26677972c4a77bde4c90aa80a1eb75ade9731a8c5c90fb3d",
+    "requestSha256": "b9e82c1368245b2d3c7b796a054d2702721f7dcb3379d3f18014c6e38a35afd3"
+  },
+  "observations": [
+    {
+      "name": "authority-start",
+      "at": "2026-10-04T18:47:19.043011+00:00",
+      "firstMutationAt": "2026-10-04T18:47:19+00:00",
+      "expiresAt": "2026-10-04T20:47:19+00:00",
+      "stopAdmissionAt": "2026-10-04T20:17:19+00:00",
+      "usdTotal": 10,
+      "usdAdmissionStop": 8
+    },
+    {
+      "name": "ha-83ec40bf-execution",
+      "at": "2026-10-04T18:47:19.792320+00:00",
+      "tokenId": "fd6b408cf837422073f64692e2c383a5",
+      "expiresAt": "2026-10-04T20:47:19Z",
+      "permissionGroups": [
+        "71b0df4c5b6c4d3196f4428d7a6580ea",
+        "f9e1ba803b8d4d52b4d4184825b07a28",
+        "e086da7e2179491d91ee5f35b3ca210a",
+        "cfd39eebc07c4e3ea849e4b3d2644637",
+        "bdbcd690c763475a985e8641dddc09f7",
+        "2e095cf436e2455fa62c9a9c2e18c478",
+        "bf7481a1826f439697cb59a20b22293e",
+        "1e13c5124ca64b72b1969a67e8829049",
+        "a1c0fec57cf94af79479a6d827fa518c"
+      ],
+      "accountId": "040f88e2bf4f25fb0b91b7cb24f3d442"
+    },
+    {
+      "name": "capability-and-target-inventory",
+      "at": "2026-10-04T18:47:49.112156+00:00",
+      "path": "/artifacts/namespaces?per_page=100",
+      "status": 200,
+      "success": true,
+      "errors": [],
+      "result_info": {
+        "page": 1,
+        "per_page": 100,
+        "total_pages": 1,
+        "count": 1,
+        "total_count": 1
+      },
+      "shape": "list",
+      "count": 1,
+      "targets": []
+    },
+    {
+      "name": "capability-and-target-inventory",
+      "at": "2026-10-04T18:47:49.491984+00:00",
+      "path": "/containers/applications",
+      "status": 200,
+      "success": true,
+      "errors": [],
+      "result_info": {},
+      "shape": "list",
+      "count": 0,
+      "targets": []
+    },
+    {
+      "name": "capability-and-target-inventory",
+      "at": "2026-10-04T18:47:50.108258+00:00",
+      "path": "/containers/registries",
+      "status": 200,
+      "success": true,
+      "errors": [],
+      "result_info": null,
+      "shape": "list",
+      "count": 1,
+      "targets": []
+    },
+    {
+      "name": "capability-and-target-inventory",
+      "at": "2026-10-04T18:47:50.737850+00:00",
+      "path": "/r2/buckets?per_page=100",
+      "status": 200,
+      "success": true,
+      "errors": [],
+      "result_info": null,
+      "shape": [
+        "buckets"
+      ],
+      "count": 13,
+      "targets": []
+    },
+    {
+      "name": "capability-and-target-inventory",
+      "at": "2026-10-04T18:47:51.365935+00:00",
+      "path": "/workflows?per_page=100",
+      "status": 200,
+      "success": true,
+      "errors": [],
+      "result_info": {
+        "count": 3,
+        "page": 1,
+        "per_page": 100,
+        "total_count": 3,
+        "total_pages": 1
+      },
+      "shape": "list",
+      "count": 3,
+      "targets": []
+    },
+    {
+      "name": "capability-and-target-inventory",
+      "at": "2026-10-04T18:47:52.206042+00:00",
+      "path": "/access/apps?per_page=100",
+      "status": 200,
+      "success": true,
+      "errors": [],
+      "result_info": {
+        "page": 1,
+        "per_page": 100,
+        "count": 4,
+        "total_count": 4,
+        "total_pages": 1
+      },
+      "shape": "list",
+      "count": 4,
+      "targets": []
+    },
+    {
+      "name": "capability-and-target-inventory",
+      "at": "2026-10-04T18:47:52.908675+00:00",
+      "path": "/access/service_tokens?per_page=100",
+      "status": 200,
+      "success": true,
+      "errors": [],
+      "result_info": {
+        "page": 1,
+        "per_page": 100,
+        "count": 7,
+        "total_count": 7,
+        "total_pages": 1
+      },
+      "shape": "list",
+      "count": 7,
+      "targets": []
+    },
+    {
+      "name": "capability-and-target-inventory",
+      "at": "2026-10-04T18:47:53.662799+00:00",
+      "path": "/workers/scripts/ws-d3fd2bfec810475cd45de5bf97eced82/settings",
+      "status": 404,
+      "success": false,
+      "errors": [
+        {
+          "code": 10007,
+          "message": "This Worker does not exist on your account."
+        }
+      ],
+      "result_info": null,
+      "shape": "NoneType"
+    },
+    {
+      "name": "duration-headroom",
+      "at": "2026-10-04T18:49:16.064032+00:00",
+      "status": 200,
+      "durationGbSeconds": 550.6183815679998,
+      "periodStart": "2026-09-04T00:00:00Z",
+      "periodEnd": "2026-10-04T18:51:00Z",
+      "windowExplanation": "Full preceding month includes the entire current monthly cycle irrespective of billing day",
+      "allowanceGbSeconds": 400000,
+      "reservedTrialGbSeconds": 20000,
+      "sufficient": true
+    },
+    {
+      "name": "existing-paid-capability",
+      "at": "2026-10-04T18:49:16.064387+00:00",
+      "usageModel": "standard",
+      "artifactsNamespaceGetStatus": 200,
+      "containersEnabled": true,
+      "r2Enabled": true,
+      "accessMaxApps": 500,
+      "observedApps": 4,
+      "newSubscriptionOrSeat": false,
+      "evidence": "Existing standard Workers and successful Artifacts API; official pricing limits Artifacts to Workers Paid"
+    },
+    {
+      "name": "preflight-configuration-attempt",
+      "at": "2026-10-04T18:49:54.579954+00:00",
+      "keys": [
+        "HOSTED_CREATION_ENABLED",
+        "HOSTED_ACCEPTANCE_PREFLIGHT"
+      ],
+      "baselineVersion": "838648ff-8449-4c41-afd7-6cdbdc5e3a38",
+      "operation": "one settings PATCH"
+    },
+    {
+      "name": "preflight-configuration-response",
+      "at": "2026-10-04T18:49:56.052808+00:00",
+      "status": 400,
+      "success": false,
+      "errors": [
+        {
+          "code": 10214,
+          "message": "Script edit failed. You attempted to deploy the latest version with modified settings, but the latest version isn't currently deployed. Either upload a new version to edit the version settings, or use the script-level settings API (/workers/scripts/{script_name}/script-settings) to modify the \"logpush\" and \"tail_consumers\" settings."
+        }
+      ],
+      "result_info": null
+    },
+    {
+      "name": "preflight-compiled-upload-attempt",
+      "at": "2026-10-04T18:52:50.155297+00:00",
+      "codeEtag": "2a236e584da3f8fd6caef8118b6fdbb06eae5a0468b2c4607615fbd0c16c4404",
+      "moduleSha256": "9f5969e93d9dd516da971fd4f720432d6b94d9c9c64697f884bf1e30ef4a3f00",
+      "existingBindingsVersion": "838648ff-8449-4c41-afd7-6cdbdc5e3a38",
+      "keepExistingAssets": true,
+      "newVariables": [
+        "HOSTED_CREATION_ENABLED",
+        "HOSTED_ACCEPTANCE_PREFLIGHT"
+      ],
+      "reason": "Settings endpoint cannot edit an older deployed version; supported same-byte upload"
+    },
+    {
+      "name": "image-target-absence",
+      "at": "2026-10-04T18:53:23.501715+00:00",
+      "status": 200,
+      "complete": true,
+      "repositories": {},
+      "targetPresent": false
+    },
+    {
+      "name": "compiled-upload-readback",
+      "at": "2026-10-04T18:53:38.367018+00:00",
+      "path": "/workers/scripts/wongstack-cloud-staging/deployments",
+      "status": 200,
+      "success": true,
+      "errors": [],
+      "result_info": {
+        "page": 1,
+        "per_page": 10,
+        "count": 10,
+        "total_count": 259,
+        "total_pages": 26
+      },
+      "latest": {
+        "id": "0aef7f42-a347-4891-9d77-db20ba48b588",
+        "source": "wrangler",
+        "strategy": "percentage",
+        "annotations": {
+          "workers/triggered_by": "deployment"
+        },
+        "versions": [
+          {
+            "version_id": "838648ff-8449-4c41-afd7-6cdbdc5e3a38",
+            "percentage": 100
+          }
+        ],
+        "created_on": "2026-10-04T17:56:57.582445Z"
+      }
+    },
+    {
+      "name": "compiled-upload-readback",
+      "at": "2026-10-04T18:53:39.196614+00:00",
+      "path": "/workers/scripts/wongstack-cloud-staging/settings",
+      "status": 200,
+      "success": true,
+      "errors": [],
+      "result_info": null,
+      "newVars": [],
+      "secretNames": [
+        "DATA_KEY",
+        "GITHUB_CLIENT_SECRET",
+        "HETZNER_API_TOKEN",
+        "STRIPE_SECRET_KEY",
+        "STRIPE_WEBHOOK_SECRET"
+      ]
+    },
+    {
+      "name": "preflight-upload-version-absence",
+      "at": "2026-10-04T18:54:45.342697+00:00",
+      "status": 200,
+      "success": true,
+      "errors": [],
+      "result_info": {
+        "page": 1,
+        "per_page": 5,
+        "count": 5,
+        "total_count": 521
+      },
+      "latestVersion": "7d76671f-988d-4b26-8574-7d7d28743a49",
+      "noNewVersion": true
+    },
+    {
+      "name": "preflight-version-upload-attempt",
+      "at": "2026-10-04T18:55:34.000936+00:00",
+      "sameCompiledCode": true,
+      "priorAttemptsNoNewVersionOrBindings": true,
+      "correction": "Official version upload, JSON file metadata, concrete existing nonsecret bindings; secret inheritance only",
+      "operation": "one version POST"
+    },
+    {
+      "name": "operator-http-response",
+      "at": "2026-10-04T18:55:36.253079+00:00",
+      "status": 400,
+      "success": false,
+      "errors": [
+        {
+          "code": 10057,
+          "message": "inherit binding 'DATA_KEY' is invalid: 'version_id' value '838648ff-8449-4c41-afd7-6cdbdc5e3a38' is invalid, only the literal 'latest' is supported by this API"
+        },
+        {
+          "code": 10057,
+          "message": "inherit binding 'GITHUB_CLIENT_SECRET' is invalid: 'version_id' value '838648ff-8449-4c41-afd7-6cdbdc5e3a38' is invalid, only the literal 'latest' is supported by this API"
+        },
+        {
+          "code": 10057,
+          "message": "inherit binding 'HETZNER_API_TOKEN' is invalid: 'version_id' value '838648ff-8449-4c41-afd7-6cdbdc5e3a38' is invalid, only the literal 'latest' is supported by this API"
+        },
+        {
+          "code": 10057,
+          "message": "inherit binding 'STRIPE_SECRET_KEY' is invalid: 'version_id' value '838648ff-8449-4c41-afd7-6cdbdc5e3a38' is invalid, only the literal 'latest' is supported by this API"
+        },
+        {
+          "code": 10057,
+          "message": "inherit binding 'STRIPE_WEBHOOK_SECRET' is invalid: 'version_id' value '838648ff-8449-4c41-afd7-6cdbdc5e3a38' is invalid, only the literal 'latest' is supported by this API"
+        }
+      ],
+      "result_info": null
+    },
+    {
+      "name": "preflight-version-upload-response",
+      "at": "2026-10-04T18:55:36.253882+00:00",
+      "status": 400,
+      "success": false,
+      "errors": [
+        {
+          "code": 10057,
+          "message": "inherit binding 'DATA_KEY' is invalid: 'version_id' value '838648ff-8449-4c41-afd7-6cdbdc5e3a38' is invalid, only the literal 'latest' is supported by this API"
+        },
+        {
+          "code": 10057,
+          "message": "inherit binding 'GITHUB_CLIENT_SECRET' is invalid: 'version_id' value '838648ff-8449-4c41-afd7-6cdbdc5e3a38' is invalid, only the literal 'latest' is supported by this API"
+        },
+        {
+          "code": 10057,
+          "message": "inherit binding 'HETZNER_API_TOKEN' is invalid: 'version_id' value '838648ff-8449-4c41-afd7-6cdbdc5e3a38' is invalid, only the literal 'latest' is supported by this API"
+        },
+        {
+          "code": 10057,
+          "message": "inherit binding 'STRIPE_SECRET_KEY' is invalid: 'version_id' value '838648ff-8449-4c41-afd7-6cdbdc5e3a38' is invalid, only the literal 'latest' is supported by this API"
+        },
+        {
+          "code": 10057,
+          "message": "inherit binding 'STRIPE_WEBHOOK_SECRET' is invalid: 'version_id' value '838648ff-8449-4c41-afd7-6cdbdc5e3a38' is invalid, only the literal 'latest' is supported by this API"
+        }
+      ],
+      "result_info": null,
+      "versionId": null
+    },
+    {
+      "name": "preflight-corrected-inherit-upload-attempt",
+      "at": "2026-10-04T18:56:36.089033+00:00",
+      "sameCompiledCode": true,
+      "latestVersionBindingsMatchBaseline": true,
+      "correction": "Provider accepts latest only despite documentation permitting version IDs; earlier400 has no side effect",
+      "inheritedSecretsOnly": true
+    },
+    {
+      "name": "operator-http-response",
+      "at": "2026-10-04T18:56:39.103242+00:00",
+      "status": 200,
+      "success": true,
+      "errors": [],
+      "result_info": null
+    },
+    {
+      "name": "preflight-corrected-version-response",
+      "at": "2026-10-04T18:56:39.104291+00:00",
+      "status": 200,
+      "success": true,
+      "errors": [],
+      "result_info": null,
+      "versionId": "ee4058f4-47ab-4d4e-a9e8-e685b26e5327"
+    },
+    {
+      "name": "preflight-deployment-attempt",
+      "at": "2026-10-04T18:56:39.826902+00:00",
+      "versionId": "ee4058f4-47ab-4d4e-a9e8-e685b26e5327",
+      "codeExact": true
+    },
+    {
+      "name": "preflight-deployment-response",
+      "at": "2026-10-04T18:56:40.949585+00:00",
+      "status": 200,
+      "success": true,
+      "errors": [],
+      "result_info": null,
+      "result": {
+        "id": "719af664-54eb-46c7-afa7-58cbf9eb3978"
+      }
+    },
+    {
+      "name": "preflight-configuration-readback",
+      "at": "2026-10-04T18:56:41.688885+00:00",
+      "exact": true,
+      "creationDisabled": true,
+      "existingSecretsPreserved": true
+    },
+    {
+      "name": "preflight-workflow-attempt",
+      "at": "2026-10-04T18:56:41.689300+00:00",
+      "workflowName": "wongstack-provision-staging",
+      "instanceId": "ha-83ec40bf-preflight",
+      "mode": "GET-only"
+    },
+    {
+      "name": "preflight-workflow-response",
+      "at": "2026-10-04T18:56:42.712303+00:00",
+      "status": 200,
+      "success": true,
+      "errors": [],
+      "result_info": null,
+      "result": {
+        "id": "ha-83ec40bf-preflight",
+        "workflow_id": "9f25d4de-fbd6-435d-aa7a-8da92469ce34",
+        "version_id": "d96ee3d7-3715-4164-bc6d-78891042f701",
+        "status": "queued"
+      }
+    },
+    {
+      "name": "preflight-workflow-readback",
+      "at": "2026-10-04T18:57:09.271857+00:00",
+      "status": 200,
+      "success": true,
+      "errors": [],
+      "result_info": null,
+      "result": {
+        "params": {
+          "mode": "hosted-preflight",
+          "vmId": "83ec40bf-8873-4b75-a1b5-49151f2b1b8d",
+          "ownerId": "5c5eca98-d495-45d3-9f7a-4da7b9d1b17a",
+          "sourceSha": "c22d448bfd8204994ba92f65b5f722762ce6f052",
+          "runId": "ha-83ec40bf",
+          "authorityDigest": "275aee51f5ec60eb26677972c4a77bde4c90aa80a1eb75ade9731a8c5c90fb3d"
+        },
+        "trigger": {
+          "source": "api"
+        },
+        "versionId": "d96ee3d7-3715-4164-bc6d-78891042f701",
+        "queued": "2026-10-04T18:56:42.617Z",
+        "start": "2026-10-04T18:56:46.478Z",
+        "end": "2026-10-04T18:56:47.684Z",
+        "success": true,
+        "error": null,
+        "output": {
+          "runId": "ha-83ec40bf",
+          "authorityDigest": "275aee51f5ec60eb26677972c4a77bde4c90aa80a1eb75ade9731a8c5c90fb3d",
+          "ownerId": "5c5eca98-d495-45d3-9f7a-4da7b9d1b17a",
+          "workspaceId": "83ec40bf-8873-4b75-a1b5-49151f2b1b8d",
+          "sourceSha": "c22d448bfd8204994ba92f65b5f722762ce6f052",
+          "firewallId": 11682249,
+          "serverType": "cpx22",
+          "location": "nbg1",
+          "currency": "USD",
+          "vatRate": "0.000000",
+          "serverHourly": {
+            "net": "0.0368000000",
+            "gross": "0.0368000000000000"
+          },
+          "ipv4Hourly": {
+            "net": "0.0010000000",
+            "gross": "0.0010000000000000"
+          }
+        },
+        "rollback": null,
+        "status": "complete",
+        "step_count": 1,
+        "steps": [
+          {
+            "name": "read-only-acceptance-quote-1",
+            "start": "2026-10-04T18:56:46.509Z",
+            "end": "2026-10-04T18:56:47.651Z",
+            "attempts": [
+              {
+                "start": "2026-10-04T18:56:46.509Z",
+                "end": "2026-10-04T18:56:47.651Z",
+                "success": true,
+                "error": null
+              }
+            ],
+            "config": {
+              "retries": {
+                "limit": 0,
+                "delay": 1,
+                "backoff": "exponential"
+              },
+              "timeout": 60000
+            },
+            "output": "{\"firewallId\":11682249,\"serverType\":\"cpx22\",\"location\":\"nbg1\",\"currency\":\"USD\",\"vatRate\":\"0.000000\",\"serverHourly\":{\"net\":\"0.0368000000\",\"gross\":\"0.0368000000000000\"},\"ipv4Hourly\":{\"net\":\"0.0010000000\",\"gross\":\"0.0010000000000000\"}}",
+            "success": true,
+            "type": "step"
+          }
+        ]
+      }
+    },
+    {
+      "name": "temporary-image-secret-attempt",
+      "at": "2026-10-04T18:58:15.834282+00:00",
+      "repository": "matthewwong525/wongstack-cloud",
+      "secretName": "HOSTED_ACCEPTANCE_IMAGE_PUBLICATION_TOKEN",
+      "previouslyAbsent": true
+    },
+    {
+      "name": "temporary-image-secret-installed",
+      "at": "2026-10-04T18:58:16.985741+00:00",
+      "repository": "matthewwong525/wongstack-cloud",
+      "secretName": "HOSTED_ACCEPTANCE_IMAGE_PUBLICATION_TOKEN",
+      "valueNotInEvidence": true
+    },
+    {
+      "name": "image-publication-dispatch-attempt",
+      "at": "2026-10-04T18:58:16.986222+00:00",
+      "repository": "matthewwong525/wongstack-cloud",
+      "workflow": "hosted-runner.yml",
+      "ref": "main",
+      "headSha": "8de0f017df64f1ff62507954e132b6bb981fa7a1",
+      "authoritySha256": "1e6278ad5cb5e07fa55a1e81870eefd013e800b189b0fa7c92d36d183763742b",
+      "authority": {
+        "schemaVersion": 1,
+        "runId": "ha-83ec40bf",
+        "accountId": "040f88e2bf4f25fb0b91b7cb24f3d442",
+        "tag": "ha-83ec40bf-runner",
+        "sourceSha": "c22d448bfd8204994ba92f65b5f722762ce6f052",
+        "approvalDigest": "275aee51f5ec60eb26677972c4a77bde4c90aa80a1eb75ade9731a8c5c90fb3d",
+        "cloudHead": "8de0f017df64f1ff62507954e132b6bb981fa7a1",
+        "ciRunId": 37222779808,
+        "artifactId": 11311021774,
+        "artifactDigest": "sha256:5c8bac31bf9b5790c1c70867de4f34857fe75ba4d760f9c00f92a260fad0156c",
+        "imageId": "sha256:fbfe31b59b0d909d76b24b5e003f217572adc978e145cb299ead94fe12ef491a",
+        "archiveSha256": "b125822b7a344520715698cc8b93b5295a5de7c1456b1a6e5db6a91ee9c6ec93",
+        "approvedAt": "2026-10-04T18:47:19+00:00",
+        "expiresAt": "2026-10-04T20:47:19+00:00"
+      },
+      "automaticRetry": false
+    },
+    {
+      "name": "image-publication-dispatch-response",
+      "at": "2026-10-04T18:58:18.930427+00:00",
+      "accepted": true,
+      "dispatchedOnce": true
+    },
+    {
+      "name": "conditional-cost-admission",
+      "at": "2026-10-04T18:58:18.931089+00:00",
+      "vmAndIpGrossTwoHoursUsd": 0.0756,
+      "quotedFirewallId": 11682249,
+      "serverType": "cpx22",
+      "location": "nbg1",
+      "conservativeEnvelopeUsd": 6.847,
+      "registryIncludedInR2Reserve": true,
+      "currentArtifactsBillingStarts": "2026-10-14",
+      "existingPaidCapabilityAndDurationHeadroom": true,
+      "limitUsd": 10,
+      "admissionLimitUsd": 8,
+      "newRecurringPurchase": false
+    },
+    {
+      "name": "image-publication-run-correlated",
+      "at": "2026-10-04T19:00:38.438530+00:00",
+      "runId": 37226460966,
+      "headSha": "8de0f017df64f1ff62507954e132b6bb981fa7a1",
+      "event": "workflow_dispatch",
+      "attempt": 1,
+      "url": "https://github.com/matthewwong525/wongstack-cloud/actions/runs/37226460966",
+      "priorDispatchAccepted": true
+    },
+    {
+      "name": "starter-absence",
+      "at": "2026-10-04T19:00:39.429568+00:00",
+      "status": 404,
+      "success": false,
+      "errors": [
+        {
+          "code": 10200,
+          "message": "Repository not found"
+        }
+      ],
+      "result_info": null
+    },
+    {
+      "name": "image-publication-job-complete",
+      "at": "2026-10-04T19:03:47.552135+00:00",
+      "attempt": 1,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "headSha": "8de0f017df64f1ff62507954e132b6bb981fa7a1",
+      "status": "completed"
+    },
+    {
+      "name": "temporary-image-secret-removal-attempt",
+      "at": "2026-10-04T19:03:47.552839+00:00",
+      "repository": "matthewwong525/wongstack-cloud",
+      "secretName": "HOSTED_ACCEPTANCE_IMAGE_PUBLICATION_TOKEN"
+    },
+    {
+      "name": "temporary-image-secret-absence",
+      "at": "2026-10-04T19:03:48.369865+00:00",
+      "repository": "matthewwong525/wongstack-cloud",
+      "absent": true,
+      "existingSecretsPreserved": true
+    },
+    {
+      "name": "image-publication-output-artifact",
+      "at": "2026-10-04T19:04:07.703981+00:00",
+      "artifactId": 11311429542,
+      "digest": "sha256:0c7e4a84a2bcf1497b1b906bdb120d80f6f237b9d39543f310248f5a2e7948c3",
+      "archiveVerified": true,
+      "imageUris": [
+        "registry.cloudflare.com/040f88e2bf4f25fb0b91b7cb24f3d442/ha-83ec40bf-runner]",
+        "registry.cloudflare.com/040f88e2bf4f25fb0b91b7cb24f3d442/ha-83ec40bf-runner"
+      ],
+      "reportedDigests": [
+        "sha256:9ac8254e10d043d5cdb3899e62121a76355a64ef84a1ef28da819ac95df8f654"
+      ]
+    },
+    {
+      "name": "image-registry-readback",
+      "at": "2026-10-04T19:06:09.598195+00:00",
+      "registry": "registry.cloudflare.com",
+      "accountId": "040f88e2bf4f25fb0b91b7cb24f3d442",
+      "repository": "ha-83ec40bf-runner",
+      "tag": "latest",
+      "manifestDigest": "sha256:9ac8254e10d043d5cdb3899e62121a76355a64ef84a1ef28da819ac95df8f654",
+      "imageConfigDigest": "sha256:fbfe31b59b0d909d76b24b5e003f217572adc978e145cb299ead94fe12ef491a",
+      "sourceSha": "c22d448bfd8204994ba92f65b5f722762ce6f052",
+      "cloudHead": "8de0f017df64f1ff62507954e132b6bb981fa7a1",
+      "compressedLayerBytes": 636277685,
+      "status": 200,
+      "manifestAndConfigHashVerified": true,
+      "ciImageMatches": true
+    },
+    {
+      "name": "starter-git-delivery-prepared",
+      "at": "2026-10-04T19:08:35.742621+00:00",
+      "gitHead": "48cc56daf2e702a2989ca6ec53240673223578eb",
+      "gitTree": "602baff4e0b8f468cc1edf318eb7c851806ebec1",
+      "preparedEntries": 245,
+      "testedTreeSha256": "07cce5cdacf4fe211b39f0bc55529c9e54374667c6da45ce23328b7be73c6f72",
+      "newLocalBuild": false,
+      "delivery": "ordinary read-only Git HTTP transport for supported read-only Artifacts import",
+      "receivePackDisabled": true,
+      "publicTemplateFilesOnly": true
+    },
+    {
+      "name": "starter-read-only-delivery-available",
+      "at": "2026-10-04T19:10:35.548165+00:00",
+      "transport": "temporary ordinary Git HTTPS import source",
+      "testedHead": "48cc56daf2e702a2989ca6ec53240673223578eb",
+      "clientReceivePackDisabled": true,
+      "deliveryNoCredentials": true
+    },
+    {
+      "name": "starter-namespace-create-attempt",
+      "at": "2026-10-04T19:13:57.547172+00:00",
+      "namespace": "ha-83ec40bf",
+      "expectedAbsent": true
+    },
+    {
+      "name": "starter-namespace-create-response",
+      "at": "2026-10-04T19:13:59.040530+00:00",
+      "status": 201,
+      "success": true,
+      "errors": [],
+      "result_info": null,
+      "result": {
+        "namespace": "ha-83ec40bf",
+        "jurisdiction": "unrestricted",
+        "repo_count": 0,
+        "created_at": "2026-10-04T19:13:57.602Z",
+        "updated_at": "2026-10-04T19:13:57.915Z"
+      }
+    },
+    {
+      "name": "starter-read-only-import-attempt",
+      "at": "2026-10-04T19:13:59.041091+00:00",
+      "namespace": "ha-83ec40bf",
+      "repoName": "starter",
+      "readOnly": true,
+      "gitHead": "48cc56daf2e702a2989ca6ec53240673223578eb",
+      "gitTree": "602baff4e0b8f468cc1edf318eb7c851806ebec1",
+      "delivery": "temporary standard Git HTTPS endpoint; same tested public input",
+      "automaticRetry": false
+    },
+    {
+      "name": "starter-read-only-import-response",
+      "at": "2026-10-04T19:13:59.336785+00:00",
+      "status": 400,
+      "success": false,
+      "errors": [
+        {
+          "code": 10104,
+          "message": "url must be an HTTPS git remote URL (e.g. https://github.com/owner/repo)"
+        }
+      ],
+      "result_info": null,
+      "result": {
+        "id": null,
+        "name": null,
+        "remote": null,
+        "default_branch": null,
+        "objects": null
+      }
+    },
+    {
+      "name": "starter-corrected-import-attempt",
+      "at": "2026-10-04T19:16:28.156432+00:00",
+      "namespace": "ha-83ec40bf",
+      "repoName": "starter",
+      "readOnly": true,
+      "gitHead": "48cc56daf2e702a2989ca6ec53240673223578eb",
+      "priorImportKnownRefused": 400,
+      "correctedTransport": "Normal two-component owner/repository Git URL; same tested head and content",
+      "automaticRetry": false
+    },
+    {
+      "name": "starter-corrected-import-response",
+      "at": "2026-10-04T19:16:31.572617+00:00",
+      "status": 201,
+      "success": true,
+      "errors": [],
+      "result_info": null,
+      "result": {
+        "id": "8l4hn95gddn0bbl6",
+        "name": "starter",
+        "remote": "https://040f88e2bf4f25fb0b91b7cb24f3d442.artifacts.cloudflare.net/git/ha-83ec40bf/starter.git",
+        "default_branch": "main",
+        "objects": null
+      }
+    },
+    {
+      "name": "starter-initial-token-returned",
+      "at": "2026-10-04T19:16:31.573632+00:00",
+      "providerExpiresAt": "2026-10-05T19:16:30+00:00",
+      "ttlSecondsAtReturn": 86399,
+      "plaintextPersisted": false,
+      "tokenUse": "none; revoke immediately",
+      "withinOneHourProviderTtl": false
+    },
+    {
+      "name": "starter-initial-grant-correlated",
+      "at": "2026-10-04T19:16:31.724376+00:00",
+      "tokenId": "mkzpe3i0mvncl0ly",
+      "scope": "write",
+      "state": "active",
+      "expiresAt": "2026-10-05T19:16:30.351Z",
+      "repoId": "8l4hn95gddn0bbl6",
+      "repoName": "starter"
+    },
+    {
+      "name": "starter-initial-grant-revoke-attempt",
+      "at": "2026-10-04T19:16:31.724983+00:00",
+      "tokenId": "mkzpe3i0mvncl0ly",
+      "reason": "No Git write token is needed for read-only import; revoke original automatic grant immediately"
+    },
+    {
+      "name": "starter-initial-grant-revoke-response",
+      "at": "2026-10-04T19:16:31.928606+00:00",
+      "status": 200,
+      "success": true,
+      "errors": [],
+      "result_info": null,
+      "tokenId": "mkzpe3i0mvncl0ly"
+    },
+    {
+      "name": "starter-active-grant-absence",
+      "at": "2026-10-04T19:16:32.052012+00:00",
+      "complete": true,
+      "activeCount": 0,
+      "tokenId": "mkzpe3i0mvncl0ly",
+      "providerInitialTtlSeconds": 86399,
+      "actualActiveLifetimeSecondsMax": 2
+    },
+    {
+      "name": "starter-revoked-credential-denied",
+      "at": "2026-10-04T19:16:32.144565+00:00",
+      "status": 403,
+      "denied": true
+    },
+    {
+      "name": "starter-repository-readback",
+      "at": "2026-10-04T19:22:35.904109+00:00",
+      "status": 200,
+      "success": true,
+      "errors": [],
+      "result_info": null,
+      "repo": {
+        "id": "8l4hn95gddn0bbl6",
+        "name": "starter",
+        "read_only": true,
+        "default_branch": "main",
+        "remote": "https://040f88e2bf4f25fb0b91b7cb24f3d442.artifacts.cloudflare.net/git/ha-83ec40bf/starter.git",
+        "created_at": "2026-10-04T19:16:28.246Z"
+      }
+    },
+    {
+      "name": "starter-main-readback",
+      "at": "2026-10-04T19:22:36.101011+00:00",
+      "status": 200,
+      "success": true,
+      "errors": [],
+      "result_info": null,
+      "commits": [
+        {
+          "hash": "48cc56daf2e702a2989ca6ec53240673223578eb",
+          "parents": [],
+          "tree": null
+        }
+      ]
+    },
+    {
+      "name": "starter-source-install-readback",
+      "at": "2026-10-04T19:22:36.197434+00:00",
+      "status": 200,
+      "sourceCommit": "c22d448bfd8204994ba92f65b5f722762ce6f052"
+    },
+    {
+      "name": "starter-delivery-stopped",
+      "at": "2026-10-04T19:22:36.198114+00:00",
+      "loopbackPortAbsent": true,
+      "gitGrantRevoked": true,
+      "tunnelSessionStopped": true
+    },
+    {
+      "name": "starter-complete-provider-tree-verified",
+      "at": "2026-10-04T19:25:34.746560+00:00",
+      "repoId": "8l4hn95gddn0bbl6",
+      "readOnly": true,
+      "main": "48cc56daf2e702a2989ca6ec53240673223578eb",
+      "gitTree": "602baff4e0b8f468cc1edf318eb7c851806ebec1",
+      "treeSha256": "07cce5cdacf4fe211b39f0bc55529c9e54374667c6da45ce23328b7be73c6f72",
+      "verifiedFileCount": 245,
+      "verifiedSubtreeCount": 69,
+      "complete": true,
+      "sourceSha": "c22d448bfd8204994ba92f65b5f722762ce6f052",
+      "newGitGrants": 0
+    },
+    {
+      "name": "owner-ai-plan-selected",
+      "at": "2026-10-04T19:25:39.517825+00:00",
+      "userResponse": "Existing ChatGPT/Codex plan",
+      "includedQuotaOnly": true,
+      "signInVerified": false,
+      "extraPurchaseAuthorized": false
+    },
+    {
+      "name": "preflight-instance-delete-attempt",
+      "at": "2026-10-04T19:25:58.672548+00:00",
+      "workflow": "wongstack-provision-staging",
+      "instance": "ha-83ec40bf-preflight",
+      "completed": true,
+      "existingWorkflowPreserved": true
+    },
+    {
+      "name": "preflight-instance-delete-response",
+      "at": "2026-10-04T19:25:59.949406+00:00",
+      "status": 200,
+      "success": true,
+      "errors": [],
+      "result_info": null,
+      "deleted": [
+        "ha-83ec40bf-preflight"
+      ],
+      "errorsCount": 0
+    },
+    {
+      "name": "preflight-instance-absence",
+      "at": "2026-10-04T19:26:00.308832+00:00",
+      "status": 200,
+      "success": true,
+      "errors": [],
+      "result_info": null,
+      "instance": "ha-83ec40bf-preflight",
+      "canonicalAbsent": false
+    },
+    {
+      "name": "preflight-delete-same-instance-readback",
+      "at": "2026-10-04T19:26:57.874905+00:00",
+      "status": 404,
+      "success": false,
+      "errors": [
+        {
+          "code": 10400,
+          "message": "workflows.api.error.instance.not_found"
+        }
+      ],
+      "result_info": null,
+      "statusValue": null,
+      "id": null,
+      "keys": []
+    },
+    {
+      "name": "preflight-instance-canonical-absence",
+      "at": "2026-10-04T19:29:01.587785+00:00",
+      "status": 404,
+      "code": 10400,
+      "instance": "ha-83ec40bf-preflight",
+      "existingWorkflowPreserved": true
+    },
+    {
+      "name": "preflight-preserved-settings-audit",
+      "at": "2026-10-04T19:30:19.838454+00:00",
+      "differentExistingSettingKeys": [
+        "annotations"
+      ],
+      "currentValues": {
+        "annotations": {
+          "workers/commit_sha": "e633bbcc568d8cd9a8cba5e765d1f01d018911e2",
+          "workers/message": "ha-83ec40bf exact approved compiled code: GET-only preflight",
+          "workers/triggered_by": "version_upload"
+        }
+      },
+      "baselineValues": {
+        "annotations": {
+          "workers/alias": "cloudflare-hosted-acceptance",
+          "workers/triggered_by": "version_upload"
+        }
+      }
+    },
+    {
+      "name": "existing-access-seat-inventory",
+      "at": "2026-10-04T19:31:59.272011+00:00",
+      "status": 200,
+      "success": true,
+      "errors": [],
+      "result_info": {
+        "page": 1,
+        "per_page": 100,
+        "count": 5,
+        "total_count": 5,
+        "total_pages": 1
+      },
+      "userCount": 5,
+      "accessSeats": 5,
+      "gatewaySeats": 0,
+      "ownerAlreadyPresent": false,
+      "capacityReadbackComplete": false
+    },
+    {
+      "name": "live-dependent-admission-stopped",
+      "at": "2026-10-04T19:37:36.729171+00:00",
+      "reason": "Existing Hetzner credential not available on the operator host; private key handover expired without a saved key, so exact server and primaryIPv4 deletion/absence cannot be established before provisioning",
+      "handoverCompletion": "6570db5316d391db2f2e98f4d667192c",
+      "handoverResult": "timeout",
+      "newVmRows": 0,
+      "newServers": 0,
+      "newPrimaryIpv4": 0,
+      "newProviderTokensRequested": false,
+      "ownerAiPlan": "Existing ChatGPT/Codex plan",
+      "aiSignInVerified": false,
+      "generalCreationEnabled": false,
+      "fullAcceptanceComplete": false,
+      "nextAction": "Owned teardown inside original authority window"
+    },
+    {
+      "name": "cleanup-http-response",
+      "at": "2026-10-04T19:37:38.107665+00:00",
+      "path": "/accounts/040f88e2bf4f25fb0b91b7cb24f3d442/workers/scripts/ws-d3fd2bfec810475cd45de5bf97eced82/settings",
+      "method": "GET",
+      "status": 404,
+      "success": false,
+      "errors": [
+        {
+          "code": 10007,
+          "message": "This Worker does not exist on your account."
+        }
+      ],
+      "result_info": null
+    },
+    {
+      "name": "cleanup-http-response",
+      "at": "2026-10-04T19:37:38.763492+00:00",
+      "path": "/accounts/040f88e2bf4f25fb0b91b7cb24f3d442/workers/scripts/wongstack-cloud-staging/deployments",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "errors": [],
+      "result_info": {
+        "page": 1,
+        "per_page": 10,
+        "count": 10,
+        "total_count": 260,
+        "total_pages": 26
+      }
+    },
+    {
+      "name": "staging-baseline-restore-attempt",
+      "at": "2026-10-04T19:37:38.764161+00:00",
+      "versionId": "838648ff-8449-4c41-afd7-6cdbdc5e3a38",
+      "currentVersion": "ee4058f4-47ab-4d4e-a9e8-e685b26e5327"
+    },
+    {
+      "name": "cleanup-http-response",
+      "at": "2026-10-04T19:37:39.753725+00:00",
+      "path": "/accounts/040f88e2bf4f25fb0b91b7cb24f3d442/workers/scripts/wongstack-cloud-staging/deployments",
+      "method": "POST",
+      "status": 200,
+      "success": true,
+      "errors": [],
+      "result_info": null
+    },
+    {
+      "name": "staging-baseline-restore-response",
+      "at": "2026-10-04T19:37:39.754455+00:00",
+      "deploymentId": "c8fed444-8aa5-4b29-b4ae-3a9db7aa01a7",
+      "versionId": "838648ff-8449-4c41-afd7-6cdbdc5e3a38"
+    },
+    {
+      "name": "cleanup-http-response",
+      "at": "2026-10-04T19:37:40.478271+00:00",
+      "path": "/accounts/040f88e2bf4f25fb0b91b7cb24f3d442/workers/scripts/wongstack-cloud-staging/settings",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "errors": [],
+      "result_info": null
+    },
+    {
+      "name": "cleanup-http-response",
+      "at": "2026-10-04T19:39:39.454742+00:00",
+      "path": "/accounts/040f88e2bf4f25fb0b91b7cb24f3d442/workers/scripts/wongstack-cloud-staging/deployments",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "errors": [],
+      "result_info": {
+        "page": 1,
+        "per_page": 10,
+        "count": 10,
+        "total_count": 261,
+        "total_pages": 27
+      }
+    },
+    {
+      "name": "cleanup-http-response",
+      "at": "2026-10-04T19:39:40.151880+00:00",
+      "path": "/accounts/040f88e2bf4f25fb0b91b7cb24f3d442/workers/scripts/wongstack-cloud-staging/versions/838648ff-8449-4c41-afd7-6cdbdc5e3a38",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "errors": [],
+      "result_info": null
+    },
+    {
+      "name": "staging-baseline-active-version-restored",
+      "at": "2026-10-04T19:39:40.152702+00:00",
+      "deploymentId": "c8fed444-8aa5-4b29-b4ae-3a9db7aa01a7",
+      "versionId": "838648ff-8449-4c41-afd7-6cdbdc5e3a38",
+      "allOriginalBindingsMatch": true,
+      "compiledEtagMatches": true,
+      "activeTemporaryControlsAbsent": true,
+      "latestUploadedVersionDiffersFromActive": true,
+      "nonservingConfigurationVersionRetained": "ee4058f4-47ab-4d4e-a9e8-e685b26e5327",
+      "existingSecretsPreserved": true,
+      "productionUntouched": true
+    },
+    {
+      "name": "cleanup-http-response",
+      "at": "2026-10-04T19:39:40.792049+00:00",
+      "path": "/accounts/040f88e2bf4f25fb0b91b7cb24f3d442/artifacts/namespaces/ha-83ec40bf/repos/starter",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "errors": [],
+      "result_info": null
+    },
+    {
+      "name": "cleanup-http-response",
+      "at": "2026-10-04T19:39:40.945101+00:00",
+      "path": "/accounts/040f88e2bf4f25fb0b91b7cb24f3d442/artifacts/namespaces/ha-83ec40bf/repos/starter/tokens?state=active&per_page=100&page=1",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "errors": [],
+      "result_info": {
+        "page": 1,
+        "per_page": 100,
+        "total_pages": 0,
+        "count": 0,
+        "total_count": 0
+      }
+    },
+    {
+      "name": "cleanup-http-response",
+      "at": "2026-10-04T19:40:39.907937+00:00",
+      "path": "/accounts/040f88e2bf4f25fb0b91b7cb24f3d442/workers/scripts/wongstack-cloud-staging/deployments",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "errors": [],
+      "result_info": {
+        "page": 1,
+        "per_page": 10,
+        "count": 10,
+        "total_count": 261,
+        "total_pages": 27
+      }
+    },
+    {
+      "name": "cleanup-http-response",
+      "at": "2026-10-04T19:40:40.651786+00:00",
+      "path": "/accounts/040f88e2bf4f25fb0b91b7cb24f3d442/workers/scripts/wongstack-cloud-staging/versions/838648ff-8449-4c41-afd7-6cdbdc5e3a38",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "errors": [],
+      "result_info": null
+    },
+    {
+      "name": "staging-baseline-active-version-restored",
+      "at": "2026-10-04T19:40:40.655060+00:00",
+      "deploymentId": "c8fed444-8aa5-4b29-b4ae-3a9db7aa01a7",
+      "versionId": "838648ff-8449-4c41-afd7-6cdbdc5e3a38",
+      "allOriginalBindingsMatch": true,
+      "compiledEtagMatches": true,
+      "activeTemporaryControlsAbsent": true,
+      "latestUploadedVersionDiffersFromActive": true,
+      "nonservingConfigurationVersionRetained": "ee4058f4-47ab-4d4e-a9e8-e685b26e5327",
+      "existingSecretsPreserved": true,
+      "productionUntouched": true
+    },
+    {
+      "name": "cleanup-http-response",
+      "at": "2026-10-04T19:40:40.859709+00:00",
+      "path": "/accounts/040f88e2bf4f25fb0b91b7cb24f3d442/artifacts/namespaces/ha-83ec40bf/repos/starter",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "errors": [],
+      "result_info": null
+    },
+    {
+      "name": "cleanup-http-response",
+      "at": "2026-10-04T19:40:40.970132+00:00",
+      "path": "/accounts/040f88e2bf4f25fb0b91b7cb24f3d442/artifacts/namespaces/ha-83ec40bf/repos/starter/tokens?state=active&per_page=100&page=1",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "errors": [],
+      "result_info": {
+        "page": 1,
+        "per_page": 100,
+        "total_pages": 0,
+        "count": 0,
+        "total_count": 0
+      }
+    },
+    {
+      "name": "starter-owned-delete-attempt",
+      "at": "2026-10-04T19:40:40.971343+00:00",
+      "repoId": "8l4hn95gddn0bbl6",
+      "namespace": "ha-83ec40bf",
+      "repoName": "starter",
+      "activeGrants": 0
+    },
+    {
+      "name": "cleanup-http-response",
+      "at": "2026-10-04T19:40:43.334732+00:00",
+      "path": "/accounts/040f88e2bf4f25fb0b91b7cb24f3d442/artifacts/namespaces/ha-83ec40bf/repos/starter",
+      "method": "DELETE",
+      "status": 202,
+      "success": true,
+      "errors": [],
+      "result_info": null
+    },
+    {
+      "name": "cleanup-http-response",
+      "at": "2026-10-04T19:40:43.438825+00:00",
+      "path": "/accounts/040f88e2bf4f25fb0b91b7cb24f3d442/artifacts/namespaces/ha-83ec40bf/repos/starter",
+      "method": "GET",
+      "status": 404,
+      "success": false,
+      "errors": [
+        {
+          "code": 10200,
+          "message": "Repository not found"
+        }
+      ],
+      "result_info": null
+    },
+    {
+      "name": "starter-canonical-absence",
+      "at": "2026-10-04T19:40:43.439568+00:00",
+      "status": 404,
+      "repoId": "8l4hn95gddn0bbl6",
+      "attempts": 1
+    },
+    {
+      "name": "cleanup-http-response",
+      "at": "2026-10-04T19:40:44.055637+00:00",
+      "path": "/accounts/040f88e2bf4f25fb0b91b7cb24f3d442/artifacts/namespaces/ha-83ec40bf/repos?limit=200",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "errors": [],
+      "result_info": {
+        "page": 1,
+        "per_page": 200,
+        "total_pages": 0,
+        "count": 0,
+        "total_count": 0
+      }
+    },
+    {
+      "name": "namespace-retained-empty",
+      "at": "2026-10-04T19:40:44.058934+00:00",
+      "namespace": "ha-83ec40bf",
+      "complete": true,
+      "repoCount": 0,
+      "reason": "No documented namespace-delete route"
+    },
+    {
+      "name": "cleanup-http-response",
+      "at": "2026-10-04T19:40:45.056296+00:00",
+      "path": "/accounts/040f88e2bf4f25fb0b91b7cb24f3d442/containers/registries/registry.cloudflare.com/credentials",
+      "method": "POST",
+      "status": 201,
+      "success": true,
+      "errors": [],
+      "result_info": null
+    },
+    {
+      "name": "registry-cleanup-response-handling-correction",
+      "at": "2026-10-04T19:42:54.588515+00:00",
+      "priorCredentialResponseStatus": 201,
+      "priorCredentialPlaintextPersisted": false,
+      "priorProtocolCredentialUnused": true,
+      "priorProtocolCredentialConfiguredTtlMinutes": 5,
+      "correction": "Handle ordinary201 credential response; same finite parent authority and exact image, no new account API token or repository grant"
+    },
+    {
+      "name": "cleanup-http-response",
+      "at": "2026-10-04T19:42:54.933014+00:00",
+      "path": "/accounts/040f88e2bf4f25fb0b91b7cb24f3d442/containers/registries/registry.cloudflare.com/credentials",
+      "method": "POST",
+      "status": 201,
+      "success": true,
+      "errors": [],
+      "result_info": null
+    },
+    {
+      "name": "registry-cleanup-protocol-credential",
+      "at": "2026-10-04T19:44:09.129389+00:00",
+      "status": 201,
+      "configuredTtlMinutes": 5,
+      "expiresAtEpochSeconds": 1791143349,
+      "sameExecutionToken": true,
+      "plaintextPersisted": false
+    },
+    {
+      "name": "registry-exact-owned-image-delete-attempt",
+      "at": "2026-10-04T19:44:28.296594+00:00",
+      "image": "040f88e2bf4f25fb0b91b7cb24f3d442/ha-83ec40bf-runner",
+      "tags": [
+        "latest",
+        "sha256:9ac8254e10d043d5cdb3899e62121a76355a64ef84a1ef28da819ac95df8f654"
+      ],
+      "everyTagMatchesApprovedManifest": true,
+      "manifestDigest": "sha256:9ac8254e10d043d5cdb3899e62121a76355a64ef84a1ef28da819ac95df8f654",
+      "ownedBlobCount": 22,
+      "completeCatalogContainsOnlyOwnedImage": true
+    },
+    {
+      "name": "registry-owned-tag-delete-response",
+      "at": "2026-10-04T19:44:30.483260+00:00",
+      "status": 204,
+      "image": "040f88e2bf4f25fb0b91b7cb24f3d442/ha-83ec40bf-runner",
+      "tag": "latest"
+    },
+    {
+      "name": "final-canonical-target-absences",
+      "at": "2026-10-04T19:45:16.001606+00:00",
+      "targets": [
+        {
+          "target": "worker",
+          "path": "/accounts/040f88e2bf4f25fb0b91b7cb24f3d442/workers/scripts/ws-d3fd2bfec810475cd45de5bf97eced82/settings",
+          "status": 404,
+          "canonicalAbsent": true,
+          "codes": [
+            10007
+          ]
+        },
+        {
+          "target": "sdk-workflow",
+          "path": "/accounts/040f88e2bf4f25fb0b91b7cb24f3d442/workflows/ha-83ec40bf-ci",
+          "status": 404,
+          "canonicalAbsent": true,
+          "codes": [
+            10200
+          ]
+        },
+        {
+          "target": "bucket",
+          "path": "/accounts/040f88e2bf4f25fb0b91b7cb24f3d442/r2/buckets/ha-83ec40bf-backup",
+          "status": 404,
+          "canonicalAbsent": true,
+          "codes": [
+            10006
+          ]
+        },
+        {
+          "target": "starter",
+          "path": "/accounts/040f88e2bf4f25fb0b91b7cb24f3d442/artifacts/namespaces/ha-83ec40bf/repos/starter",
+          "status": 404,
+          "canonicalAbsent": true,
+          "codes": [
+            10200
+          ]
+        },
+        {
+          "target": "customer-repo",
+          "path": "/accounts/040f88e2bf4f25fb0b91b7cb24f3d442/artifacts/namespaces/ha-83ec40bf/repos/ws-d3fd2bfec810475cd45de5bf97eced82",
+          "status": 404,
+          "canonicalAbsent": true,
+          "codes": [
+            10200
+          ]
+        },
+        {
+          "target": "preflight-instance",
+          "path": "/accounts/040f88e2bf4f25fb0b91b7cb24f3d442/workflows/wongstack-provision-staging/instances/ha-83ec40bf-preflight",
+          "status": 404,
+          "canonicalAbsent": true,
+          "codes": [
+            10400
+          ]
+        }
+      ],
+      "complete": true
+    },
+    {
+      "name": "final-existing-resource-inventory",
+      "at": "2026-10-04T19:45:16.768070+00:00",
+      "resource": "access-apps",
+      "count": 4,
+      "complete": true,
+      "matchesInitialCount": true,
+      "ownedNewResourceCount": 0
+    },
+    {
+      "name": "final-existing-resource-inventory",
+      "at": "2026-10-04T19:45:17.525349+00:00",
+      "resource": "observer-grants",
+      "count": 7,
+      "complete": true,
+      "matchesInitialCount": true,
+      "ownedNewResourceCount": 0
+    },
+    {
+      "name": "final-existing-resource-inventory",
+      "at": "2026-10-04T19:45:17.730002+00:00",
+      "resource": "workflows",
+      "count": 3,
+      "complete": true,
+      "matchesInitialCount": true,
+      "ownedNewResourceCount": 0
+    },
+    {
+      "name": "final-existing-resource-inventory",
+      "at": "2026-10-04T19:45:17.924484+00:00",
+      "resource": "container-apps",
+      "count": 0,
+      "complete": true,
+      "matchesInitialCount": true,
+      "ownedNewResourceCount": 0
+    },
+    {
+      "name": "owned-vm-row-never-created",
+      "at": "2026-10-04T19:45:18.346084+00:00",
+      "workspaceId": "83ec40bf-8873-4b75-a1b5-49151f2b1b8d",
+      "rows": 0,
+      "serverCreateCalls": 0,
+      "primaryIpv4CreateCalls": 0
+    },
+    {
+      "name": "owner-subscription-remains-canceled",
+      "at": "2026-10-04T19:45:18.464392+00:00",
+      "plan": "cheap",
+      "status": "canceled",
+      "updated_at": 1791055177598
+    },
+    {
+      "name": "registry-cleanup-protocol-credential",
+      "at": "2026-10-04T19:46:07.968506+00:00",
+      "status": 201,
+      "configuredTtlMinutes": 5,
+      "expiresAtEpochSeconds": 1791143467,
+      "sameExecutionToken": true,
+      "plaintextPersisted": false
+    },
+    {
+      "name": "registry-reconciliation-protocol-auth",
+      "at": "2026-10-04T19:47:19.170584+00:00",
+      "status": 201,
+      "expiresAtEpochSeconds": 1791143539,
+      "plaintextPersisted": false,
+      "sameFiniteAccountAuthority": true
+    },
+    {
+      "name": "registry-same-operation-readback",
+      "at": "2026-10-04T19:47:25.469160+00:00",
+      "command": "catalog",
+      "status": 200,
+      "headerKeys": [
+        "Date",
+        "Content-Type",
+        "Content-Length",
+        "Connection",
+        "Vary",
+        "Docker-Distribution-Api-Version",
+        "Server-Timing",
+        "Server",
+        "CF-RAY"
+      ],
+      "cacheStatus": null,
+      "age": null,
+      "catalog": {},
+      "paginationLinkPresent": false
+    },
+    {
+      "name": "registry-same-operation-readback",
+      "at": "2026-10-04T19:47:25.518825+00:00",
+      "command": "latest",
+      "status": 200,
+      "headerKeys": [
+        "Date",
+        "Content-Type",
+        "Content-Length",
+        "Connection",
+        "CF-Cache-Status",
+        "Accept-Ranges",
+        "Age",
+        "Cache-Control",
+        "Vary",
+        "Docker-Content-Digest",
+        "Docker-Distribution-Api-Version",
+        "Server-Timing",
+        "Server",
+        "CF-RAY"
+      ],
+      "cacheStatus": "HIT",
+      "age": "2476",
+      "manifestDigest": "sha256:9ac8254e10d043d5cdb3899e62121a76355a64ef84a1ef28da819ac95df8f654",
+      "ownedBlobCount": 22
+    },
+    {
+      "name": "registry-same-operation-readback",
+      "at": "2026-10-04T19:47:25.791932+00:00",
+      "command": "head-latest",
+      "status": 404,
+      "headerKeys": [
+        "Date",
+        "Content-Type",
+        "Connection",
+        "Vary",
+        "Docker-Distribution-Api-Version",
+        "Server-Timing",
+        "Server",
+        "CF-RAY"
+      ],
+      "cacheStatus": null,
+      "age": null
+    },
+    {
+      "name": "registry-same-operation-readback",
+      "at": "2026-10-04T19:47:25.832798+00:00",
+      "command": "digest",
+      "status": 200,
+      "headerKeys": [
+        "Date",
+        "Content-Type",
+        "Content-Length",
+        "Connection",
+        "CF-Cache-Status",
+        "Accept-Ranges",
+        "Age",
+        "Cache-Control",
+        "Vary",
+        "Docker-Content-Digest",
+        "Docker-Distribution-Api-Version",
+        "Server-Timing",
+        "Server",
+        "CF-RAY"
+      ],
+      "cacheStatus": "HIT",
+      "age": "177",
+      "manifestDigest": "sha256:9ac8254e10d043d5cdb3899e62121a76355a64ef84a1ef28da819ac95df8f654",
+      "ownedBlobCount": 22
+    },
+    {
+      "name": "registry-same-operation-readback",
+      "at": "2026-10-04T19:48:06.392281+00:00",
+      "command": "garbage-collect-owned-image",
+      "status": 200
+    },
+    {
+      "name": "registry-same-operation-readback",
+      "at": "2026-10-04T19:48:14.783531+00:00",
+      "command": "owned-blobs",
+      "statuses": [
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200
+      ],
+      "allAbsent": false,
+      "ownedBlobCount": 22
+    },
+    {
+      "name": "registry-anonymous-cached-content-denial",
+      "at": "2026-10-04T19:48:48.239109+00:00",
+      "image": "040f88e2bf4f25fb0b91b7cb24f3d442/ha-83ec40bf-runner",
+      "status": 401,
+      "denied": true
+    },
+    {
+      "name": "last-registry-read-protocol-authority",
+      "at": "2026-10-04T19:50:25.999705+00:00",
+      "expiresAtEpochSeconds": 1791143725,
+      "permission": "pull",
+      "plaintextPersisted": false,
+      "sameAccountExecutionToken": true
+    },
+    {
+      "name": "registry-cache-independent-manifest-readbacks",
+      "at": "2026-10-04T19:50:26.199326+00:00",
+      "image": "040f88e2bf4f25fb0b91b7cb24f3d442/ha-83ec40bf-runner",
+      "readbacks": [
+        {
+          "ref": "latest",
+          "status": 200,
+          "cacheStatus": "HIT",
+          "age": "2657"
+        },
+        {
+          "ref": "sha256:9ac8254e10d043d5cdb3899e62121a76355a64ef84a1ef28da819ac95df8f654",
+          "status": 200,
+          "cacheStatus": "HIT",
+          "age": "357"
+        }
+      ],
+      "queryPurpose": "Fresh cache key for read-only same-path object readback; no provider mutation"
+    },
+    {
+      "name": "registry-cache-independent-owned-storage-readbacks",
+      "at": "2026-10-04T19:50:28.597144+00:00",
+      "image": "040f88e2bf4f25fb0b91b7cb24f3d442/ha-83ec40bf-runner",
+      "manifestDigest": "sha256:9ac8254e10d043d5cdb3899e62121a76355a64ef84a1ef28da819ac95df8f654",
+      "ownedBlobCount": 22,
+      "readbacks": [
+        {
+          "digest": "sha256:fbfe31b59b0d909d76b24b5e003f217572adc978e145cb299ead94fe12ef491a",
+          "status": 200,
+          "cacheStatus": null,
+          "age": null
+        },
+        {
+          "digest": "sha256:97e1ee089ace823bfcc55ca9c81fa3be34d7aaf8fed7ba91c29464bdfddb9973",
+          "status": 200,
+          "cacheStatus": null,
+          "age": null
+        },
+        {
+          "digest": "sha256:ca958c61974bbaa116032878000f35f9067e3db7f5dd00c5570247e0a23cfcf6",
+          "status": 200,
+          "cacheStatus": null,
+          "age": null
+        },
+        {
+          "digest": "sha256:5dd715e0b6fa049eaf51987971e00250e3778f49168bf768852aa8083211bd0b",
+          "status": 200,
+          "cacheStatus": null,
+          "age": null
+        },
+        {
+          "digest": "sha256:619f7d62429d2d8bba0ab4efab4d74893b61a4e5636ed1566e8b938ed7099ca3",
+          "status": 200,
+          "cacheStatus": null,
+          "age": null
+        },
+        {
+          "digest": "sha256:a0d1f78f4139ed59e6d79a2345c4ddb1f81a983b17eb7135ba63487883c312d8",
+          "status": 200,
+          "cacheStatus": null,
+          "age": null
+        },
+        {
+          "digest": "sha256:53e2addc7b947177db41a7988c7661ca2d4f05c24e5768ea5b5ccc670c038bea",
+          "status": 200,
+          "cacheStatus": null,
+          "age": null
+        },
+        {
+          "digest": "sha256:bbed857b0e57cfaf6ce35192e9aaf580f66d5647aaed3175430dc41e3279640e",
+          "status": 200,
+          "cacheStatus": null,
+          "age": null
+        },
+        {
+          "digest": "sha256:d383e5fd6cd16df51eaebb48b77bcc2f1ce3348be75f9acb22a6290648b05da2",
+          "status": 200,
+          "cacheStatus": null,
+          "age": null
+        },
+        {
+          "digest": "sha256:bd0fedd5a2baf2d374f750262fdb4f4a44ada750581a488b13d6a943a90a5e11",
+          "status": 200,
+          "cacheStatus": null,
+          "age": null
+        },
+        {
+          "digest": "sha256:4f4fb700ef54461cfa02571ae0db9a0dc1e0cdb5577484a6d75e68dc38e8acc1",
+          "status": 200,
+          "cacheStatus": null,
+          "age": null
+        },
+        {
+          "digest": "sha256:865152834532d89d8b732404d068c09bfc08ce24003183a8780a54c93fbe63a9",
+          "status": 200,
+          "cacheStatus": null,
+          "age": null
+        },
+        {
+          "digest": "sha256:cf5640f11e856c9f87d7c5acc5d454423cfc77ba8c709e4f63d6282a8deada7e",
+          "status": 200,
+          "cacheStatus": null,
+          "age": null
+        },
+        {
+          "digest": "sha256:b140cba67037c300f2d1bb40bcc6cd79d4bf09a4e97b7f1d7f97758cf12a0daf",
+          "status": 200,
+          "cacheStatus": null,
+          "age": null
+        },
+        {
+          "digest": "sha256:4f4fb700ef54461cfa02571ae0db9a0dc1e0cdb5577484a6d75e68dc38e8acc1",
+          "status": 200,
+          "cacheStatus": null,
+          "age": null
+        },
+        {
+          "digest": "sha256:4f4fb700ef54461cfa02571ae0db9a0dc1e0cdb5577484a6d75e68dc38e8acc1",
+          "status": 200,
+          "cacheStatus": null,
+          "age": null
+        },
+        {
+          "digest": "sha256:2e6424df48986e896f9cbb831ae4a2efc694f3ff3baa4035aa55ce0096c4e383",
+          "status": 200,
+          "cacheStatus": null,
+          "age": null
+        },
+        {
+          "digest": "sha256:675edc258d39bfc36f11523e7fe016a798ea72c6e48edd13de75b5c26dcd909a",
+          "status": 200,
+          "cacheStatus": null,
+          "age": null
+        },
+        {
+          "digest": "sha256:68df62ee45b33cc8011e322af5c645c7614b70a9b428752ebde8f77fe7ab40bd",
+          "status": 200,
+          "cacheStatus": null,
+          "age": null
+        },
+        {
+          "digest": "sha256:486475a32ae1367b53a7e9e2c8e7871816cde91749f00ba6475165255dd5f933",
+          "status": 200,
+          "cacheStatus": null,
+          "age": null
+        },
+        {
+          "digest": "sha256:cfd1a9d23f9855d773ae339f7a2bd814bae784ef93a3bdbeb048a95a6230ceec",
+          "status": 200,
+          "cacheStatus": null,
+          "age": null
+        },
+        {
+          "digest": "sha256:2574c4611d163d14e2c38a4f505841fc4713bd7ea8d010af91050394e54deb8f",
+          "status": 200,
+          "cacheStatus": null,
+          "age": null
+        }
+      ],
+      "allOwnedBlobsAbsent": false
+    },
+    {
+      "name": "final-blob-get-protocol-authority",
+      "at": "2026-10-04T19:53:13.986829+00:00",
+      "permission": "pull",
+      "expiresAtEpochSeconds": 1791143893,
+      "plaintextPersisted": false,
+      "sameFiniteParent": true
+    },
+    {
+      "name": "owned-registry-blob-get-absence-readbacks",
+      "at": "2026-10-04T19:53:20.626829+00:00",
+      "image": "040f88e2bf4f25fb0b91b7cb24f3d442/ha-83ec40bf-runner",
+      "readbacks": [
+        {
+          "digest": "sha256:fbfe31b59b0d909d76b24b5e003f217572adc978e145cb299ead94fe12ef491a",
+          "status": 206,
+          "contentRange": "bytes 0-0/9410",
+          "cacheStatus": "HIT"
+        },
+        {
+          "digest": "sha256:97e1ee089ace823bfcc55ca9c81fa3be34d7aaf8fed7ba91c29464bdfddb9973",
+          "status": 206,
+          "contentRange": "bytes 0-0/30649271",
+          "cacheStatus": "MISS"
+        },
+        {
+          "digest": "sha256:ca958c61974bbaa116032878000f35f9067e3db7f5dd00c5570247e0a23cfcf6",
+          "status": 206,
+          "contentRange": "bytes 0-0/47641781",
+          "cacheStatus": "MISS"
+        },
+        {
+          "digest": "sha256:5dd715e0b6fa049eaf51987971e00250e3778f49168bf768852aa8083211bd0b",
+          "status": 206,
+          "contentRange": "bytes 0-0/491",
+          "cacheStatus": "MISS"
+        },
+        {
+          "digest": "sha256:619f7d62429d2d8bba0ab4efab4d74893b61a4e5636ed1566e8b938ed7099ca3",
+          "status": 206,
+          "contentRange": "bytes 0-0/130",
+          "cacheStatus": "MISS"
+        },
+        {
+          "digest": "sha256:a0d1f78f4139ed59e6d79a2345c4ddb1f81a983b17eb7135ba63487883c312d8",
+          "status": 206,
+          "contentRange": "bytes 0-0/45210148",
+          "cacheStatus": "MISS"
+        },
+        {
+          "digest": "sha256:53e2addc7b947177db41a7988c7661ca2d4f05c24e5768ea5b5ccc670c038bea",
+          "status": 206,
+          "contentRange": "bytes 0-0/2988193",
+          "cacheStatus": "MISS"
+        },
+        {
+          "digest": "sha256:bbed857b0e57cfaf6ce35192e9aaf580f66d5647aaed3175430dc41e3279640e",
+          "status": 206,
+          "contentRange": "bytes 0-0/202",
+          "cacheStatus": "MISS"
+        },
+        {
+          "digest": "sha256:d383e5fd6cd16df51eaebb48b77bcc2f1ce3348be75f9acb22a6290648b05da2",
+          "status": 206,
+          "contentRange": "bytes 0-0/39446592",
+          "cacheStatus": "MISS"
+        },
+        {
+          "digest": "sha256:bd0fedd5a2baf2d374f750262fdb4f4a44ada750581a488b13d6a943a90a5e11",
+          "status": 206,
+          "contentRange": "bytes 0-0/39517385",
+          "cacheStatus": "MISS"
+        },
+        {
+          "digest": "sha256:4f4fb700ef54461cfa02571ae0db9a0dc1e0cdb5577484a6d75e68dc38e8acc1",
+          "status": 206,
+          "contentRange": "bytes 0-0/32",
+          "cacheStatus": "MISS"
+        },
+        {
+          "digest": "sha256:865152834532d89d8b732404d068c09bfc08ce24003183a8780a54c93fbe63a9",
+          "status": 206,
+          "contentRange": "bytes 0-0/37179",
+          "cacheStatus": "MISS"
+        },
+        {
+          "digest": "sha256:cf5640f11e856c9f87d7c5acc5d454423cfc77ba8c709e4f63d6282a8deada7e",
+          "status": 206,
+          "contentRange": "bytes 0-0/68882",
+          "cacheStatus": "MISS"
+        },
+        {
+          "digest": "sha256:b140cba67037c300f2d1bb40bcc6cd79d4bf09a4e97b7f1d7f97758cf12a0daf",
+          "status": 206,
+          "contentRange": "bytes 0-0/19560642",
+          "cacheStatus": "MISS"
+        },
+        {
+          "digest": "sha256:4f4fb700ef54461cfa02571ae0db9a0dc1e0cdb5577484a6d75e68dc38e8acc1",
+          "status": 206,
+          "contentRange": "bytes 0-0/32",
+          "cacheStatus": "HIT"
+        },
+        {
+          "digest": "sha256:4f4fb700ef54461cfa02571ae0db9a0dc1e0cdb5577484a6d75e68dc38e8acc1",
+          "status": 206,
+          "contentRange": "bytes 0-0/32",
+          "cacheStatus": "HIT"
+        },
+        {
+          "digest": "sha256:2e6424df48986e896f9cbb831ae4a2efc694f3ff3baa4035aa55ce0096c4e383",
+          "status": 206,
+          "contentRange": "bytes 0-0/99",
+          "cacheStatus": "MISS"
+        },
+        {
+          "digest": "sha256:675edc258d39bfc36f11523e7fe016a798ea72c6e48edd13de75b5c26dcd909a",
+          "status": 206,
+          "contentRange": "bytes 0-0/60855137",
+          "cacheStatus": "MISS"
+        },
+        {
+          "digest": "sha256:68df62ee45b33cc8011e322af5c645c7614b70a9b428752ebde8f77fe7ab40bd",
+          "status": 206,
+          "contentRange": "bytes 0-0/5047105",
+          "cacheStatus": "MISS"
+        },
+        {
+          "digest": "sha256:486475a32ae1367b53a7e9e2c8e7871816cde91749f00ba6475165255dd5f933",
+          "status": 206,
+          "contentRange": "bytes 0-0/13323",
+          "cacheStatus": "MISS"
+        },
+        {
+          "digest": "sha256:cfd1a9d23f9855d773ae339f7a2bd814bae784ef93a3bdbeb048a95a6230ceec",
+          "status": 206,
+          "contentRange": "bytes 0-0/39508",
+          "cacheStatus": "MISS"
+        },
+        {
+          "digest": "sha256:2574c4611d163d14e2c38a4f505841fc4713bd7ea8d010af91050394e54deb8f",
+          "status": 206,
+          "contentRange": "bytes 0-0/345201521",
+          "cacheStatus": "MISS"
+        }
+      ],
+      "allOwnedBlobsAbsent": false,
+      "rangeRequested": "bytes=0-0",
+      "headCannotEstablishAbsence": true
+    },
+    {
+      "name": "scoped-blob-cleanup-protocol-authority",
+      "at": "2026-10-04T19:54:25.574468+00:00",
+      "expiresAtEpochSeconds": 1791143965,
+      "plaintextPersisted": false,
+      "sameFiniteParent": true,
+      "purpose": "Exact owned OCI blob deletion only"
+    },
+    {
+      "name": "scoped-owned-blob-delete-response",
+      "at": "2026-10-04T19:54:25.669882+00:00",
+      "image": "040f88e2bf4f25fb0b91b7cb24f3d442/ha-83ec40bf-runner",
+      "digest": "sha256:fbfe31b59b0d909d76b24b5e003f217572adc978e145cb299ead94fe12ef491a",
+      "status": 405,
+      "errorCodes": [],
+      "supportedStandard": "OCI Distribution Spec blob-delete endpoint",
+      "automaticRetry": false
+    },
+    {
+      "name": "owned-registry-storage-retained-unconfirmed",
+      "at": "2026-10-04T19:54:25.672987+00:00",
+      "image": "040f88e2bf4f25fb0b91b7cb24f3d442/ha-83ec40bf-runner",
+      "manifestDigest": "sha256:9ac8254e10d043d5cdb3899e62121a76355a64ef84a1ef28da819ac95df8f654",
+      "compressedImageBytes": 636277685,
+      "ownedBlobCount": 22,
+      "digests": [
+        "sha256:fbfe31b59b0d909d76b24b5e003f217572adc978e145cb299ead94fe12ef491a",
+        "sha256:97e1ee089ace823bfcc55ca9c81fa3be34d7aaf8fed7ba91c29464bdfddb9973",
+        "sha256:ca958c61974bbaa116032878000f35f9067e3db7f5dd00c5570247e0a23cfcf6",
+        "sha256:5dd715e0b6fa049eaf51987971e00250e3778f49168bf768852aa8083211bd0b",
+        "sha256:619f7d62429d2d8bba0ab4efab4d74893b61a4e5636ed1566e8b938ed7099ca3",
+        "sha256:a0d1f78f4139ed59e6d79a2345c4ddb1f81a983b17eb7135ba63487883c312d8",
+        "sha256:53e2addc7b947177db41a7988c7661ca2d4f05c24e5768ea5b5ccc670c038bea",
+        "sha256:bbed857b0e57cfaf6ce35192e9aaf580f66d5647aaed3175430dc41e3279640e",
+        "sha256:d383e5fd6cd16df51eaebb48b77bcc2f1ce3348be75f9acb22a6290648b05da2",
+        "sha256:bd0fedd5a2baf2d374f750262fdb4f4a44ada750581a488b13d6a943a90a5e11",
+        "sha256:4f4fb700ef54461cfa02571ae0db9a0dc1e0cdb5577484a6d75e68dc38e8acc1",
+        "sha256:865152834532d89d8b732404d068c09bfc08ce24003183a8780a54c93fbe63a9",
+        "sha256:cf5640f11e856c9f87d7c5acc5d454423cfc77ba8c709e4f63d6282a8deada7e",
+        "sha256:b140cba67037c300f2d1bb40bcc6cd79d4bf09a4e97b7f1d7f97758cf12a0daf",
+        "sha256:4f4fb700ef54461cfa02571ae0db9a0dc1e0cdb5577484a6d75e68dc38e8acc1",
+        "sha256:4f4fb700ef54461cfa02571ae0db9a0dc1e0cdb5577484a6d75e68dc38e8acc1",
+        "sha256:2e6424df48986e896f9cbb831ae4a2efc694f3ff3baa4035aa55ce0096c4e383",
+        "sha256:675edc258d39bfc36f11523e7fe016a798ea72c6e48edd13de75b5c26dcd909a",
+        "sha256:68df62ee45b33cc8011e322af5c645c7614b70a9b428752ebde8f77fe7ab40bd",
+        "sha256:486475a32ae1367b53a7e9e2c8e7871816cde91749f00ba6475165255dd5f933",
+        "sha256:cfd1a9d23f9855d773ae339f7a2bd814bae784ef93a3bdbeb048a95a6230ceec",
+        "sha256:2574c4611d163d14e2c38a4f505841fc4713bd7ea8d010af91050394e54deb8f"
+      ],
+      "lastBlobGetStatuses": [
+        206,
+        206,
+        206,
+        206,
+        206,
+        206,
+        206,
+        206,
+        206,
+        206,
+        206,
+        206,
+        206,
+        206,
+        206,
+        206,
+        206,
+        206,
+        206,
+        206,
+        206,
+        206
+      ],
+      "standardGcStatus": 200,
+      "scopedBlobDeleteStatus": 405,
+      "canonicalStorageAbsenceVerified": false,
+      "costUsdPerMonthUpperEstimateAtStandardR2Rate": 0.01,
+      "protection": "No image tags, container apps, runners or anonymous access; revoke run authority",
+      "nextSupportedAction": "Provider confirmation of registry garbage collection/storage removal; no automatic grant or time extension"
+    },
+    {
+      "name": "execution-token-revoked",
+      "at": "2026-10-04T19:54:54.523217+00:00",
+      "tokenId": "fd6b408cf837422073f64692e2c383a5",
+      "status": 200
+    },
+    {
+      "name": "execution-token-canonical-absence",
+      "at": "2026-10-04T19:54:54.847948+00:00",
+      "tokenId": "fd6b408cf837422073f64692e2c383a5",
+      "status": 404
+    },
+    {
+      "name": "revoked-execution-credential-denied",
+      "at": "2026-10-04T19:54:55.092723+00:00",
+      "tokenId": "fd6b408cf837422073f64692e2c383a5",
+      "status": 401
+    },
+    {
+      "name": "execution-token-local-value-removed",
+      "at": "2026-10-04T19:54:55.094628+00:00",
+      "keyName": "HOSTED_ACCEPTANCE_EXECUTION_TOKEN",
+      "primaryIgnoredFile": true,
+      "preexistingLinesPreserved": true
+    },
+    {
+      "name": "last-registry-credential-after-parent-revocation",
+      "at": "2026-10-04T19:54:55.353357+00:00",
+      "status": 200,
+      "denied": false,
+      "expiresAtEpochSeconds": 1791143725
+    },
+    {
+      "name": "latest-registry-protocol-authority-denial",
+      "at": "2026-10-04T19:55:28.021148+00:00",
+      "status": 401,
+      "denied": true,
+      "expiresAtEpochSeconds": 1791143725,
+      "observedAfterExpiry": true,
+      "earlierProtocolCredentialsHaveEarlierConfiguredExpiries": true
+    },
+    {
+      "name": "final-read-protocol-after-parent-revocation",
+      "at": "2026-10-04T19:55:34.127775+00:00",
+      "status": 200,
+      "denied": false,
+      "expiresAtEpochSeconds": 1791143893
+    },
+    {
+      "name": "cleanup-storage-estimate-rounding-correction",
+      "at": "2026-10-04T19:57:15.752168+00:00",
+      "previousMonthlyEstimateUsd": 0.01,
+      "conservativeRoundedMonthlyStorageReserveUsd": 0.015,
+      "ownedCompressedLayerBytes": 636277685,
+      "billingReceiptAvailable": false
+    },
+    {
+      "name": "final-read-protocol-after-expiry",
+      "at": "2026-10-04T19:58:16.028133+00:00",
+      "status": 401,
+      "denied": true,
+      "expiresAtEpochSeconds": 1791143893,
+      "earlierSessionsExpireNoLater": true
+    }
+  ]
+}

@@ -1,14 +1,12 @@
 # Cloudflare stack
 
-WongStack apps run on Cloudflare Workers with Access protecting pages and previews. [Personal GitHub setup](getting-started.md) includes D1 data and migrations; the separate [managed hosted starter](hosted-projects.md) begins with HTTP and static assets, without customer provider accounts.
+WongStack apps run on Cloudflare Workers with Access protecting pages and previews. [Setup](getting-started.md) includes D1 data and migrations.
 
-The GitHub route uses **merge = deploy**, independent staging and branch previews. [One token](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md) sets up a personal install. The managed route uses Cloudflare checks, exact private previews and approved publication; it remains disabled until complete acceptance.
+The pack uses **merge = deploy**, independent staging and branch previews. [One token](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md) sets up an install.
 
 **It doesn't assume you already have an app.** Every install gets WongStack's [starter app](../../.agents/skills/wong-sync/references/payload-manifest.md#the-app-scaffold), so there is a real address people can open from day one.
 
 ## Pages
-
-- [Managed hosted projects](hosted-projects.md) — the separate HTTP/static starter, private workspace handoff and reviewed Artifacts release preparation.
 
 - [Getting started](getting-started.md) — what installing costs, what you do by hand, and what to do when something goes wrong; start here if you're setting this up for the first time.
 - [Make WongStack your own](customizing-wongstack.md) — change the defaults in your fork, install it with one request, and keep projects following your version.
@@ -26,6 +24,6 @@ The GitHub route uses **merge = deploy**, independent staging and branch preview
 - [Cloudflare credentials](cloudflare-credentials.md) — the token screen in detail: the user-scoped token with two permission rows, how it widens itself, the narrow CI deploy token, per-environment Worker secrets, and the account-root trade-off.
 - [Manage Cloudflare with cf](cloudflare-cli.md) — optional account inspection and one-off resource work, using existing credentials while setup and app publishing keep their own workflows.
 
-Personal installs take the pack. Standing it up is [setup's provisioning step](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md), which runs once when `/wong-setup` installs WongStack, from any folder. A login wall is [Cloudflare Access](cloudflare-access.md#turning-it-on-through-an-agent), and removing everything is the [teardown](getting-started.md#teardown). The managed starter has its [own limits and recovery](hosted-projects.md#scope-and-recovery).
+Every install takes the pack. Standing it up is [setup's provisioning step](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md), which runs once when `/wong-setup` installs WongStack, from any folder. A login wall is [Cloudflare Access](cloudflare-access.md#turning-it-on-through-an-agent), and removing everything is the [teardown](getting-started.md#teardown).
 
-> [Session memory](../development/memory.md) is separate from this pack. Personal setup provisions it; the managed starter leaves it unconfigured.
+> [Session memory](../development/memory.md) is separate from this pack. Setup provisions it.

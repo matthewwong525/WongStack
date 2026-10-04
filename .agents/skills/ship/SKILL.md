@@ -12,7 +12,7 @@ Invoking `/ship` authorizes every step below without a prompt: archive, checkpoi
 
 ## Step 1 — preflight
 
-Check [preconditions](../save/references/preconditions.md) for hosted/GitHub transport; preserve steps 2–4. [Artifacts](../../../wiki/stack/artifacts-route.md#how-the-verbs-differ) differs. Otherwise:
+Check [preconditions](../save/references/preconditions.md); [Artifacts](../../../wiki/stack/artifacts-route.md#how-the-verbs-differ) differs. Otherwise:
 
 ```bash
 BRANCH=$(git rev-parse --abbrev-ref HEAD)

@@ -1,5 +1,5 @@
 // A fake Cloudflare API over HTTP, with D1 on node:sqlite, and a fake `gh` on PATH, for the provisioning
-// script's and the server installer's tests. Callers spawn children asynchronously: a synchronous spawn
+// script's tests. Callers spawn children asynchronously: a synchronous spawn
 // would block the event loop this server answers on.
 import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';

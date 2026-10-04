@@ -2,9 +2,9 @@
 
 **Status:** in-progress
 
-**Branch:** electric-fox
+**Branch:** remove-hetzner-dependency
 
-**Open questions:** none for you. Three facts are checked before anything is built; if one fails, the build stops and comes back to you with options.
+**Open questions:** none. The facts checked before building all held; the real install in the owner's account waits for his go-ahead.
 
 ## Why
 
@@ -91,3 +91,4 @@ Installing WongStack today needs a GitHub account and a Cloudflare account. The 
 - **2026-10-04** — Assumed: a failed check run is not rerun by the verbs, because Cloudflare's rerun call was not established; the runner itself retries once when Cloudflare interrupts a container.
 - **2026-10-04** — Audited `cf-build.sh`, `cf-deploy.sh` and `cf-preview.sh`: they read only `CF_BRANCH`, `CF_PRODUCTION_BRANCH` and, for the address they report, the file named by `GITHUB_OUTPUT`. The runner sets those three, so no script changed.
 - **2026-10-04** — Moved: the build's own test runs wait for the final save, with the live install test after it. Tests are written beside each part and not yet run.
+- **2026-10-04** — Saved: the build is written and main's 31.0.1 is brought in, where the server and managed-hosting pieces are already removed; the verbs' text now names only the GitHub and Artifacts routes. A test helper's late report led to three fixes before the save: a waiting check run is timed from when its turn starts, not from when it queued; a run gets one retry in all, not one for each stage; and a push to the main line that fails while the main line stood still is no longer reported as a moved main line. Still open: the real install in the owner's Cloudflare account and its removal (tasks 7.2 and 7.3), which wait for his go-ahead.

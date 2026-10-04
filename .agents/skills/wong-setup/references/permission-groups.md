@@ -58,7 +58,7 @@ The whole ask on the token screen; the runbook grants itself every other group b
 
 ### The CI deploy token
 
-The GitHub secret gets its own token, never the user token. [The provisioning runbook](cloudflare.md#4d-the-ci-deploy-token) mints it with only these groups, on the one account; it cannot mint or edit tokens, so a leak from CI cannot widen itself. This table is the one list: `scripts/tests/downstream-contract.test.mjs` pins it for hosted setups, and `scripts/tests/provision.test.mjs` holds the script to it.
+The GitHub secret gets its own token, never the user token. [The provisioning runbook](cloudflare.md#4d-the-ci-deploy-token) mints it with only these groups, on the one account; it cannot mint or edit tokens, so a leak from CI cannot widen itself. This table is the one list: `scripts/tests/downstream-contract.test.mjs` pins it for installed repos, and `scripts/tests/provision.test.mjs` holds the script to it.
 
 | Name | Scope | When | Id |
 |---|---|---|---|

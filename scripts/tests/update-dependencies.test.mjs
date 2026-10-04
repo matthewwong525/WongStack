@@ -46,6 +46,21 @@ test('every OpenSpec pin, and the contributing guide prose, is rewritten', () =>
   assert.match(rewritePins(text, '1.14.0'), /^Use OpenSpec 1\.13\.2/);
 });
 
+// Every place that names the OpenSpec version moves together; CI's pin, the first, is the reference.
+test('every OpenSpec pin matches the version CI checks the skills against', () => {
+  const repo = join(import.meta.dirname, '../..');
+  const pinned = file => readPin(readFileSync(join(repo, file), 'utf8'));
+  const [reference, ...pins] = PIN_FILES;
+  assert.equal(reference, '.github/workflows/payload.yml');
+  const ci = pinned(reference);
+  assert.ok(ci, '.github/workflows/payload.yml installs an unpinned OpenSpec');
+  for (const file of pins) {
+    const pin = pinned(file);
+    assert.ok(pin, `${file} names no pinned OpenSpec version`);
+    assert.equal(pin, ci, `${file} pins OpenSpec ${pin}, but .github/workflows/payload.yml pins ${ci}`);
+  }
+});
+
 test('a lock is in sync only when its root entry names the same ranges', () => {
   const pkg = { dependencies: { a: '^1.0.0' }, devDependencies: { b: '2.0.0' } };
   assert.equal(lockInSync(pkg, { packages: { '': { ...pkg } } }), true);
@@ -130,8 +145,6 @@ function fixture(t, overrides = {}) {
   const files = {
     '.nvmrc': '22\n',
     [PIN_FILES[0]]: `      - run: npm install -g ${pin}\n`,
-    'server/setup.sh': `npm install -g ${pin} agent-browser\n`,
-    'server/preserve.sh': `OPEN_SPEC_PACKAGE=${pin}\n`,
     '.agents/skills/save/references/preconditions.md': `| \`openspec --version\` | missing | \`npm install -g ${pin}\` |\n`,
     '.github/CONTRIBUTING.md': `Use Node.js 22 and OpenSpec 1.13.2 (\`npm install -g ${pin}\`).\n`,
     'app/package.json': `${JSON.stringify(APP, null, 2)}\n`,
@@ -217,7 +230,7 @@ test('@types/node moves only within the .nvmrc major', async t => {
   assert.match(out, /^status: updated$/m);
 });
 
-test('a new OpenSpec moves all five pins together, installs the CLI, and runs the contract', async t => {
+test('a new OpenSpec moves all three pins together, installs the CLI, and runs the contract', async t => {
   const f = fixture(t, withRegistry({ '@fission-ai/openspec': '1.14.0' }));
   const { code, out } = await f.go();
   assert.equal(code, 0, out);

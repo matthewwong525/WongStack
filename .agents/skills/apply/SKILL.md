@@ -45,8 +45,6 @@ When no helper can start, or this `/apply` already runs inside one, work inline 
 
 ## Finish with a preview
 
-Managed preview: [hosted delivery](../save/references/hosted-delivery.md). Otherwise:
-
 1. **Did the app change?** CI's own check:
 
    ```bash

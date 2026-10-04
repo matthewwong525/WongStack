@@ -9,6 +9,6 @@ Matthew Wong owns WongStack and runs his own repos on it.
 - **Staging should mirror the live app.** When a check can only be done on the live app, fix staging so it can be done there: a safe playground the assistant can do anything in. Add a check on the live app only for what staging can never show, such as whether a release landed ([staging walkthrough](../development/staging-walkthrough.md)).
 - **A shared file is no reason to wait.** When another chat's unpublished work only edits the same files as yours, and yours needs none of its code, say so and build now, not after it. Whichever publishes second brings the other in ([other work and overlaps](../development/the-change-loop.md#several-parts-several-workspaces)).
 
-- **Service connections should stay free and generic.** He does not want a paid connection service or service-specific integrations stored in WongStack. If tap-to-sign-in is revisited, he prefers an open-source service hosted inside WongStack cloud ([connection choices](../../openspec/changes/archive/2026-10-03-smoother-key-link/proposal.md#decision-log)).
+- **Service connections should stay free and generic.** He does not want a paid connection service or service-specific integrations stored in WongStack. If tap-to-sign-in is revisited, he prefers an open-source service ([connection choices](../../openspec/changes/archive/2026-10-03-smoother-key-link/proposal.md#decision-log)).
 
 Back to [people](README.md).

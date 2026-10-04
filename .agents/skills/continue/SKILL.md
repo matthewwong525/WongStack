@@ -8,7 +8,7 @@ user-invocable: true
 
 Resume a saved OpenSpec change in a fresh session. **The change is the plan and the source of truth**, kept current by `/save`: `openspec/changes/<name>/proposal.md` holds the intent, `tasks.md` the checklist, its memory facts the session context.
 
-Check [preconditions](../save/references/preconditions.md) for hosted/GitHub transport. This skill owns checkout and keeps steps 1–4; `gh` resolves only GitHub; [Artifacts](../../../wiki/stack/artifacts-route.md) lists saved branches.
+Check [preconditions](../save/references/preconditions.md). This skill owns checkout; `gh` resolves only GitHub; [Artifacts](../../../wiki/stack/artifacts-route.md) lists saved branches.
 
 A handle selects by [the rungs](../save/references/checkpoint-evidence.md#selection-rungs): a change name is `explicit`; a PR uses `changed-active`, then `recorded-branch`, on its head branch.
 

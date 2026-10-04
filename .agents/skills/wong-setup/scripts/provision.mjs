@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Cloudflare provisioning for a WongStack repo: the one set of steps setup's runbook
-// (references/cloudflare.md) and the server installer (server/install-wongstack.mjs) both run.
+// (references/cloudflare.md) runs.
 //
 //     node provision.mjs widen | accounts | plan | names --repo <owner/name> | provision --repo <owner/name> --base <base>
 //
