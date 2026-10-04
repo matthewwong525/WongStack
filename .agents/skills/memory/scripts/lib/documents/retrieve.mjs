@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { SCOPES, scanCorpus, scopedEntries, verifyPassage } from './corpus.mjs';
-import { interleaveSources, lexicalSearch } from './lexical.mjs';
+import { interleaveSources, lexicalSearch, passages, queryWords } from './lexical.mjs';
 import { acquireRefresh, diffCorpus, generation, readState } from './state.mjs';
 import { parseCandidates, runQmd, runtimeEnvironment, runtimeReady, searchArguments } from './qmd.mjs';
 
@@ -29,6 +29,22 @@ export function anchoredPassage(entry, hit) {
   const heading = lines.slice(0, hit.anchor).reverse().find(line => /^#{1,6}\s/.test(line));
   return { path: entry.path, role: entry.role, hash: hit.hash, heading: (heading || '').replace(/^#+\s*/, '').slice(0, 180),
     startLine: start + 1, endLine: end, text: lines.slice(start, end).join('\n'), truncated: end < lines.length || start > 0, score: hit.score };
+}
+
+export function locatedPassages(entry, hit, options, deadline = Infinity) {
+  const anchored = anchoredPassage(entry, hit);
+  if (!anchored) return [];
+  if (options.mode === 'semantic') return [anchored];
+  const words = queryWords(options.question);
+  const relevant = passages(entry, options.question, new Map(), deadline, 8).filter(passage => {
+    const present = new Set(queryWords(passage.text));
+    return words.filter(word => present.has(word)).length >= Math.min(2, words.length);
+  });
+  // A located document can contain many topics. Prefer matching original sections for
+  // lexical/hybrid reads, retaining the semantic anchor when the wording differs.
+  const summary = relevant.find(passage => /^(?:purpose|summary|overview)$/i.test(passage.heading));
+  const selected = summary ? [summary, ...relevant.filter(passage => passage !== summary)] : relevant;
+  return selected.length ? selected.slice(0, 2).map((passage, index) => ({ ...passage, score: hit.score - index * 0.001 })) : [anchored];
 }
 
 export async function retrieveDocuments(ctx, options, paths, { corpus = scanCorpus(ctx), search = runQmd, refresh = startRefresh,
@@ -67,7 +83,7 @@ export async function retrieveDocuments(ctx, options, paths, { corpus = scanCorp
       const failedRoles = results.filter(result => result.status === 'rejected').length;
       const eligible = new Set(scopedEntries(corpus, options).map(entry => entry.path));
       candidates = results.filter(result => result.status === 'fulfilled').flatMap(result => result.value).filter(hit => eligible.has(hit.path))
-        .map(hit => anchoredPassage(corpus.entries[hit.path], hit)).filter(Boolean).sort((a, b) => b.score - a.score);
+        .flatMap(hit => locatedPassages(corpus.entries[hit.path], hit, options, deadline + 1000)).sort((a, b) => b.score - a.score);
       backend = 'qmd'; reason = stale ? 'changed sources: semantic coverage incomplete until refresh' : null;
       if (failedRoles) {
         coverage = 'partial'; reason = 'some QMD collections unavailable; successful sources and live keyword fallback retained';

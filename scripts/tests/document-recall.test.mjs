@@ -44,6 +44,36 @@ test('unused source budget is reclaimed, oversized entries are omitted and line 
   assert.equal(result.packet.documents[0].truncated, true);
   assert.equal(result.packet.documents[0].endLine, result.packet.documents[0].text.split('\n').length);
 });
+test('large current excerpts reserve useful active and archived bodies and reject empty heading-only evidence', () => {
+  const documents = ['wiki', 'specs', 'active', 'archive'].map((role, index) => ({
+    ...fakeDoc(index, `# ${role}\n\nUseful ${role} decision evidence.\n${('Additional original evidence.\n').repeat(250)}`), role,
+  }));
+  documents.push(fakeDoc(4, '# Empty section\n\n'));
+  for (const json of [false, true]) {
+    const result = renderPacket({ question: 'Why this decision?', documents, factSource: { state: 'empty' }, documentSource: { state: 'ok' } }, { json });
+    assert.ok(result.bytes <= 6144);
+    assert.deepEqual(result.packet.documents.map(doc => doc.role), ['wiki', 'specs', 'active', 'archive']);
+    assert.equal(result.packet.omitted.documents, 1);
+    for (const doc of result.packet.documents) {
+      assert.match(doc.text, new RegExp(`Useful ${doc.role} decision evidence`));
+      assert.equal(doc.text, documents.find(original => original.path === doc.path).text.split('\n').slice(0, doc.endLine).join('\n'));
+    }
+  }
+});
+test('company CLI writes near-budget document packets compactly without enlarging original evidence', t => {
+  const target = tempDir(t, 'company-document-budget-'); execFileSync('git', ['init', '-q'], { cwd: target });
+  mkdirSync(join(target, 'wiki'));
+  for (let index = 0; index < 5; index++) writeFileSync(join(target, `wiki/guide-${index}.md`),
+    `# Delivery ${index}\n${Array.from({ length: 35 }, (_, line) => `Delivery evidence ${line}: ${'x'.repeat(150)}`).join('\n')}\n`);
+  const stdout = execFileSync(process.execPath, [join(root, 'scripts/company-api.mjs'), 'call', 'memory.documents', '--file', '-'], {
+    cwd: target, encoding: 'utf8', input: JSON.stringify({ question: 'delivery', mode: 'keyword' }),
+    env: { ...process.env, XDG_DATA_HOME: join(target, 'data'), CLOUDFLARE_MEMORY_TOKEN: '' },
+  });
+  assert.ok(Buffer.byteLength(stdout) > 5300); assert.ok(Buffer.byteLength(stdout) <= 6144);
+  const packet = JSON.parse(stdout); assert.equal(packet.version, 1); assert.ok(packet.documents.length > 0);
+  assert.equal(stdout, `${JSON.stringify(packet)}\n`);
+  assert.ok(Buffer.byteLength(`${JSON.stringify(packet, null, 2)}\n`) > 6144);
+});
 test('document CLI requires no memory configuration or secret and invalid input exits2 before access', t => {
   const target = tempDir(t, 'documents-portable-'); execFileSync('git', ['init', '-q'], { cwd: target });
   document({ root: target });

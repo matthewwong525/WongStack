@@ -27,9 +27,16 @@ function shorterDocument(document, fits) {
   for (let length = lines.length; length > 0; length--) {
     const candidate = { ...document, text: lines.slice(0, length).join('\n'), endLine: document.startLine + length - 1,
       truncated: document.truncated || length < lines.length };
-    if (fits(candidate)) return candidate;
+    if (hasBody(candidate.text) && fits(candidate)) return candidate;
   }
   return null;
+}
+const bodyLine = line => Boolean(line.trim()) && !/^\s*(?:#{1,6}\s|```|~~~)/.test(line);
+const hasBody = text => text.split('\n').some(bodyLine);
+function minimumDocument(document) {
+  const lines = document.text.split('\n'), index = lines.findIndex(bodyLine);
+  return index < 0 ? null : { ...document, text: lines.slice(0, index + 1).join('\n'), endLine: document.startLine + index,
+    truncated: document.truncated || index + 1 < lines.length };
 }
 
 export function renderPacket({ question, scope = 'current', mode = 'auto', change = null, limit = 5, backend = 'lexical-fallback', coverage = 'unavailable',
@@ -68,7 +75,30 @@ export function renderPacket({ question, scope = 'current', mode = 'auto', chang
   };
   let remainingFacts = factShare, remainingDocs = docShare;
   facts.slice(0, 8).forEach((fact, index) => { remainingFacts -= admitFact(fact, index, remainingFacts); });
-  documents.slice(0, 5).forEach((doc, index) => { remainingDocs -= admitDoc(doc, index, remainingDocs); });
+  const selectedDocs = documents.slice(0, 5), minimumCosts = selectedDocs.map(doc => {
+    const minimum = minimumDocument(doc);
+    if (!minimum) return Infinity;
+    const before = byteSize(serialize()); packet.documents.push(minimum); packet.omitted.documents--;
+    const cost = byteSize(serialize()) - before; packet.documents.pop(); packet.omitted.documents++;
+    return cost;
+  });
+  // Reserve a useful original passage per role before allocating more text to any one document.
+  const firstRoles = new Set(), roleFirst = [], later = [];
+  selectedDocs.forEach((doc, index) => {
+    if (firstRoles.has(doc.role)) later.push(index);
+    else { firstRoles.add(doc.role); roleFirst.push(index); }
+  });
+  const reserved = new Set(); let reservedBytes = 0;
+  for (const index of [...roleFirst, ...later]) {
+    if (reservedBytes + minimumCosts[index] <= docShare) { reserved.add(index); reservedBytes += minimumCosts[index]; }
+  }
+  const roles = new Set([...reserved].map(index => selectedDocs[index].role));
+  const extraPerRole = (docShare - reservedBytes) / Math.max(1, roles.size);
+  selectedDocs.forEach((doc, index) => {
+    if (!reserved.has(index)) return;
+    const count = [...reserved].filter(selected => selectedDocs[selected].role === doc.role).length;
+    remainingDocs -= admitDoc(doc, index, Math.min(remainingDocs, minimumCosts[index] + Math.floor(extraPerRole / count)));
+  });
   // Reclaim unused capacity without splitting fact bodies or adding extra entries.
   facts.slice(0, 8).forEach((fact, index) => { if (!admittedFacts.has(index)) admitFact(fact, index, budget - byteSize(serialize())); });
   documents.slice(0, 5).forEach((doc, index) => { if (!admittedDocs.has(index)) admitDoc(doc, index, budget - byteSize(serialize())); });

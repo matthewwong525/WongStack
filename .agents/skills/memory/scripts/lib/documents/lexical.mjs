@@ -7,7 +7,7 @@ const tokens = text => (text.toLowerCase().match(/[\p{L}\p{N}_-]{2,}/gu) || []).
 export function queryWords(query) {
   return [...new Set(tokens(query))].slice(0, 32);
 }
-export function passages(entry, query, idf = new Map(), deadline = Infinity) {
+export function passages(entry, query, idf = new Map(), deadline = Infinity, limit = 2) {
   const lines = entry.text.split(/\r?\n/), words = queryWords(query);
   const boundaries = lines.map((line, i) => /^#{1,6}\s/.test(line) ? i : -1).filter(i => i >= 0);
   if (boundaries[0] !== 0) boundaries.unshift(0);
@@ -33,7 +33,7 @@ export function passages(entry, query, idf = new Map(), deadline = Infinity) {
       startLine: from + 1, endLine: to, text: lines.slice(from, to).join('\n'), truncated: from > start || to < end,
       score: score + (body.includes(query.toLowerCase()) ? 1 : 0) });
   }
-  return hits.sort((a, b) => b.score - a.score).slice(0, 2);
+  return hits.sort((a, b) => b.score - a.score).slice(0, limit);
 }
 export function lexicalSearch(corpus, query, options = {}) {
   const entries = scopedEntries(corpus, options), words = queryWords(query), counts = new Map(words.map(word => [word, 0]));

@@ -64,7 +64,7 @@ test('lexical evidence uses words and IDF, preserves roles and traceable ranges'
   const verified = verifyPassage(ctx, hits[0]); assert.equal(verified.freshness, 'verified');
   assert.match(verified.reference, /^wiki\/gate.md:\d+$/);
   assert.deepEqual(lexicalSearch(corpus, 'quuxnonexistent'), []);
-  assert.deepEqual(interleaveSources([{ ...hits[0], role: 'archive' }, ...hits], 2).map(hit => hit.role), ['wiki', 'archive']);
+  assert.deepEqual(interleaveSources([{ ...hits[0], path: 'openspec/changes/archive/2026-10-01-old/proposal.md', role: 'archive' }, ...hits], 2).map(hit => hit.role), ['wiki', 'archive']);
 });
 test('source hash, range and text validation withholds edited, moved and vanished candidates', t => {
   const { ctx, put } = fixture(t); put('wiki/guide.md');

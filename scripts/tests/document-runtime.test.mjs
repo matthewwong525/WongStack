@@ -8,7 +8,7 @@ import { scanCorpus } from '../../.agents/skills/memory/scripts/lib/documents/co
 import { atomicJson, documentPaths, generation, refreshIndex } from '../../.agents/skills/memory/scripts/lib/documents/state.mjs';
 import { executeFile, parseCandidates, prepareIndex, RUNTIME, runQmd, runtimeEntry, runtimeEnvironment, runtimeReady, searchArguments } from '../../.agents/skills/memory/scripts/lib/documents/qmd.mjs';
 import { documentsStatus, setupDocuments } from '../../.agents/skills/memory/scripts/lib/documents/setup.mjs';
-import { retrieveDocuments, startRefresh } from '../../.agents/skills/memory/scripts/lib/documents/retrieve.mjs';
+import { anchoredPassage, locatedPassages, retrieveDocuments, startRefresh } from '../../.agents/skills/memory/scripts/lib/documents/retrieve.mjs';
 import { tempDir } from './fixtures/memory/harness.mjs';
 
 function fixture(t, { ready = true } = {}) {
@@ -100,6 +100,20 @@ test('ordinary reads use portable fallback without installation or model prepara
   assert.ok(result.documents.length); assert.equal(result.documents[0].freshness, 'verified');
   const empty = await retrieveDocuments(env.ctx, validateRetrieval('zznonexistent', { mode: 'keyword' }), env.paths, { corpus: env.corpus });
   assert.equal(empty.documentSource.state, 'empty'); assert.deepEqual(empty.documents, []);
+});
+test('located hybrid evidence selects the relevant original summary rather than an unrelated QMD anchor', () => {
+  const text = readFileSync(new URL('./fixtures/document-retrieval/corpus/openspec/specs/delivery-gate/spec.md', import.meta.url), 'utf8');
+  const entry = { path: 'openspec/specs/delivery-gate/spec.md', role: 'specs', hash: 'a'.repeat(64), text };
+  const hit = { hash: entry.hash, anchor: 33, score: 0.9 };
+  for (const mode of ['keyword', 'auto', 'deep']) {
+    const selected = locatedPassages(entry, hit, { question: 'How does save publish changes and wait for checks?', mode });
+    assert.match(selected[0].text, /passing gate/);
+    assert.equal(selected[0].heading, 'Purpose');
+    assert.equal(selected[0].text, text.split('\n').slice(selected[0].startLine - 1, selected[0].endLine).join('\n'));
+  }
+  const paraphrase = { question: 'Ephemeral dialogue warrants persistent organizational recollection', mode: 'auto' };
+  assert.deepEqual(locatedPassages(entry, hit, paraphrase), [anchoredPassage(entry, hit)]);
+  assert.deepEqual(locatedPassages(entry, hit, { question: 'save checks', mode: 'semantic' }), [anchoredPassage(entry, hit)]);
 });
 test('semantic role pools retain successful sources after malformed role output and report partial coverage', async t => {
   const env = fixture(t);

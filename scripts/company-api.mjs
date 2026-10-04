@@ -203,6 +203,7 @@ if (isMain(import.meta.url)) {
     else if (command === 'call') result = id?.startsWith('memory.') ? await callMemory(id, parseOperationInput(readFileSync(values.file === '-' ? 0 : values.file, 'utf8'))) : await client.call(id, parseOperationInput(readFileSync(values.file === '-' ? 0 : values.file, 'utf8')));
     else throw new Error(USAGE);
     if (!result) throw new Error('Unknown operation');
-    console.log(JSON.stringify(result, null, 2));
+    const packet = command === 'call' && ['memory.documents', 'memory.recall'].includes(id);
+    console.log(JSON.stringify(result, null, packet ? undefined : 2));
   } catch (error) { console.error(error.message); process.exitCode = 1; }
 }
