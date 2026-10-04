@@ -3,6 +3,12 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 31.2.1 — A check that needs the live app is not a task
+
+The staging-walkthrough guide now says where a check that can only run after publishing goes: it is kept as open work in memory, not written as a task in the plan. A task like that could never be ticked before publishing, and an unticked task stops the publish.
+
+**Updating.** No action needed. The usual update delivers the new wording.
+
 ## 31.2.0 — Sign in and connect your assistant
 
 - **Access opens for the owner.** A new mini app, Access, lists the people who can sign in and the apps each may use. The owner is the sign-in email setup recorded: open Access with that email and the list is there, with no hidden settings and no commands.
