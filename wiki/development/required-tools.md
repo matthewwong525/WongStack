@@ -5,7 +5,7 @@ WongStack runs on a deliberately small toolchain. A repo that has installed the 
 | Tool | Why |
 |---|---|
 | `git` | Everything lives in the repo; [the change loop](the-change-loop.md) says which verbs run git. |
-| `gh` | PRs, checks, and the GitHub API — the delivery gate. Must be authenticated. (`/wong-sync` doesn't need it: its clone refresh is plain `git`, and it opens no PRs. [Contributing](../contributing.md) upstream is a manual PR, where you'd use `gh` yourself.) |
+| `gh` | PRs, checks, and the GitHub API — the delivery gate. Must be authenticated. (`/wong-sync` doesn't need it: its clone refresh is plain `git`, and it opens no PRs. [Contributing](../contributing.md) upstream is a manual PR, where you'd use `gh` yourself.) An install on [the Artifacts route](../stack/artifacts-route.md) doesn't need it at all. |
 | `node` | [Node.js](https://nodejs.org/) runs OpenSpec, the session hooks, and the payload's dependency-free scripts (memory, the review builder). They use only Node's built-in modules. |
 | `openspec` | The planning layer the workflow verbs front. It is distributed only as an npm package, so it runs on Node. |
 | `curl` | [Setup's provisioning](#the-cloudflare-stack-pack) drives the Cloudflare API with it, and `/verify`'s request and state probes use it. |

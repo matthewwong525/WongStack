@@ -26,6 +26,8 @@ Name the target plainly. Create it only after tools and token; use its absolute 
 
 For a fresh target, select the GitHub repository requested by the person, else `https://github.com/matthewwong525/WongStack`. Normalize it to `https://github.com/<owner>/<repo>`. Resolve its default branch through GitHub's repository API (authenticated when needed); never assume `main`. Its raw root is `https://raw.githubusercontent.com/<owner>/<repo>/refs/heads/<default branch>`.
 
+**Route:** on Mac or Linux, unless GitHub is asked for, follow [the Artifacts route](../../../wiki/stack/artifacts-route.md#setup).
+
 Before cloning or writing, read that source's `/wong-setup` and [tools reference](references/tools.md) and follow their links under the same raw root. Use its `.nvmrc` and setup prerequisites. An unavailable source or missing requirement stops setup; never substitute the original stack.
 
 ## Get the latest source

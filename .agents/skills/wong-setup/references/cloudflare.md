@@ -13,6 +13,7 @@ This runbook turns a fresh WongStack install into a running app with session mem
 - **Never print a token value**: not in a summary, an error, or an echoed command.
 - **The user token stays on the host**, only in the primary worktree's `.env`. No step copies it or makes it a GitHub secret.
 - **Ask before creating or deleting anything billable**, as [a choice with a recommendation](../../explore/references/asking-the-user.md): say what you will make, then make it.
+- **[The Artifacts route](../../../../wiki/stack/artifacts-route.md#setup)** owns its changes to Steps 1a, 2, 4 and 5, and its teardown.
 - **The widen and the two mints are [pre-authorized](../../../../wiki/stack/cloudflare-credentials.md#the-widen-is-pre-authorized):** do them, then report them.
 
 ## Step 1 — the credential
@@ -66,7 +67,7 @@ Success returns the token's own `id`. **Translate every failure** with the [fail
 
 ## Step 2 — the token widens itself
 
-**Don't ask; widen, then report what you granted.** From the target's root, with `CLOUDFLARE_API_TOKEN` exported from `DURABLE_ENV`:
+From the target's root, with `CLOUDFLARE_API_TOKEN` exported from `DURABLE_ENV`:
 
 ```bash
 P="node <source checkout>/.agents/skills/wong-setup/scripts/provision.mjs"
@@ -74,8 +75,6 @@ $P widen
 ```
 
 It runs [the widen protocol](permission-groups.md), granting only [a normal provision](permission-groups.md#a-normal-provision). Tell the user what the report's `granted` list names. Access permissions are part of normal private setup.
-
-If it stops, **provision nothing**: give the cause, and list the permission names for the user to add by hand.
 
 ## Step 3 — which account
 

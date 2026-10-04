@@ -82,7 +82,7 @@ Report the result without `/save`; nothing is committed. To stop halfway, the pe
 
 ## Boundaries
 
-- **Git stays with `/save`** ([the change loop](../../../wiki/development/the-change-loop.md)): no commit, push, branch, PR, or CI step here. The preview upload is not git and gates nothing.
+- **Git stays with `/save`** ([the change loop](../../../wiki/development/the-change-loop.md)): no commit, push, branch, PR, or CI step here, on [either route](../../../wiki/stack/artifacts-route.md). The preview upload is not git and gates nothing.
 - **Never save to stop or between parts.** After source/tests are prepared, substantive live acceptance may use `/save`; tick only observed acceptance. Routine final gates belong to delivery, not implementation boxes ([why](../../../wiki/development/the-change-loop.md#apply-never-saves-to-stop-but-may-save-to-finish-a-task)).
 - **Resuming cold** → [`/continue <name>`](../continue/SKILL.md).
 - **Pause on ambiguity or blockers** (the proposal is the intent), ending with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step): ways to clear it, recommended first.

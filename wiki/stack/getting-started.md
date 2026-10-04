@@ -6,6 +6,8 @@ Managed hosted projects use the existing email and AI sign-in steps. Once enable
 
 It assumes you know nothing about Cloudflare, databases, or deployment: where a step needs one of those, the agent handles it and tells you what it did. The runbook the agent follows is [setup's provisioning runbook](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md).
 
+**What it costs.** A new install on Mac or Linux keeps your project in your own Cloudflare account, which needs Cloudflare's paid plan, about $5 a month. Ask for GitHub and it is free. [The Artifacts route](artifacts-route.md#what-it-costs) compares the two.
+
 Want new projects to start with your own tools and site? [Make WongStack your own](customizing-wongstack.md) explains how to customize a fork and install it through the same easy setup.
 
 ## What you'll end up with

@@ -8,6 +8,8 @@
 // an active OpenSpec change on disk (saved or not), or a running agent; the current worktree never
 // counts. Paseo, when it answers, adds each workspace's name and whether an agent is running in it.
 // `gh` adds open pull requests not opened by a bot, each folded into the worktree on its branch.
+// An Artifacts install has no pull requests (wiki/stack/artifacts-route.md): there, `savedBranches[]`
+// lists each remote branch that holds an unarchived change, with the change's Status.
 // The script gathers facts only; the agent judges what overlaps.
 //
 // Prints one JSON object: { ok, workspaces[], pullRequests[], notes[] }. A Paseo or GitHub failure
@@ -22,6 +24,7 @@ import path from 'node:path';
 import { isMain } from '../../memory/scripts/lib/cli.mjs';
 import { primaryRoot, PrimaryRootError } from '../../memory/scripts/lib/primary-root.mjs';
 import { EXIT, findPaseo, paseo } from '../../routine/scripts/lib/paseo.mjs';
+import { delivery } from '../../save/scripts/delivery-route.mjs';
 
 const USAGE = 'usage: other-work.mjs  prints this repo\'s other active work (worktrees, their plans, open pull requests) as JSON';
 const BUSY = new Set(['running', 'initializing']);
@@ -169,6 +172,38 @@ function worktreeState(dir, base) {
   };
 }
 
+/**
+ * An Artifacts install's saved work: each remote branch whose changes against `base` hold an
+ * unarchived change, with that change's title and Status. `skip` names branches already listed
+ * (the current one, and each worktree's). `git(...args)` returns the output, or null on failure.
+ */
+export function savedBranches(git, base, skip = new Set()) {
+  const entries = [];
+  for (const ref of lines(git('for-each-ref', '--format=%(refname)', 'refs/remotes/origin'))) {
+    const branch = ref.slice('refs/remotes/origin/'.length);
+    if (!base || branch === 'HEAD' || `origin/${branch}` === base || skip.has(branch)) continue;
+    const files = lines(git('diff', '--name-only', `${base}...${ref}`));
+    if (archivedIn(files).some(folder => git('cat-file', '-e', `${base}:${folder}`) !== null)) continue;
+    const changes = changesIn(files).map(name => {
+      const proposal = git('show', `${ref}:openspec/changes/${name}/proposal.md`);
+      if (proposal === null) return null;
+      return { name, title: /^#\s+(.+)$/m.exec(proposal)?.[1].trim() ?? null, status: /^\*\*Status:\*\*\s*(.+)$/m.exec(proposal)?.[1].trim() ?? null };
+    }).filter(Boolean);
+    if (changes.length) entries.push({ branch, changes, files: files.slice(0, LIMIT) });
+  }
+  return entries;
+}
+
+/** `artifacts` or `github`; a route that can not be told is a note, and counts as `github`. */
+function routeOf(cwd, notes) {
+  try {
+    return delivery(cwd).route;
+  } catch (error) {
+    notes.push(`The delivery route could not be told: ${firstLine(error.message)}.`);
+    return 'github';
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Paseo and GitHub
 
@@ -239,6 +274,10 @@ export async function otherWork(cwd = process.cwd(), env = process.env) {
     if (isLive(entry)) workspaces.push(entry);
   }
 
+  if (routeOf(repo.primary, notes) === 'artifacts') {
+    const listed = new Set([currentBranch, ...workspaces.map(ws => ws.branch)].filter(Boolean));
+    return { ok: true, workspaces, pullRequests: [], savedBranches: savedBranches((...args) => tryGit(repo.primary, ...args), base, listed), notes };
+  }
   const prs = openPullRequests(repo.primary, notes);
   const pullRequests = prs ? foldPullRequests(prs, workspaces, currentBranch) : [];
   return { ok: true, workspaces, pullRequests, notes };

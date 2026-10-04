@@ -15,6 +15,15 @@
 # Usage: preview-url.sh
 set -uo pipefail
 
+# An Artifacts install has no GitHub to ask: the check run for the exact HEAD
+# carries the address its deploy reported (wiki/stack/artifacts-route.md).
+SCRIPTS=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+ROUTE=$(node "$SCRIPTS/delivery-route.mjs" 2>/dev/null) || exit 0
+if [ "$ROUTE" = artifacts ]; then
+  node "$SCRIPTS/artifacts-run.mjs" preview
+  exit 0
+fi
+
 REPO=$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null)
 [ -z "$REPO" ] && exit 0
 SHA=$(git rev-parse HEAD 2>/dev/null)

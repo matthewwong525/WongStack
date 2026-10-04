@@ -1,0 +1,40 @@
+// The check runner's Wrangler config, as a template. Setup fills every <placeholder> and writes the
+// result beside this file as wrangler.jsonc (provision.mjs, the Artifacts route). The image is the
+// public Sandbox image at the SDK's own version, so installing needs no container software.
+{
+	"name": "<runner>",
+	"account_id": "<account id>",
+	"main": "worker.mjs",
+	"compatibility_date": "2026-10-01",
+	"compatibility_flags": ["nodejs_compat"],
+	"workers_dev": false,
+	"preview_urls": false,
+	"artifacts": [{ "binding": "ARTIFACTS", "namespace": "<namespace>" }],
+	"containers": [
+		{ "name": "<runner>", "class_name": "CiSandbox", "image": "docker.io/cloudflare/sandbox:0.12.5", "max_instances": 2, "instance_type": "standard-4" }
+	],
+	"durable_objects": {
+		"bindings": [
+			{ "name": "SANDBOX", "class_name": "CiSandbox" },
+			{ "name": "TURNS", "class_name": "Turns" }
+		]
+	},
+	"migrations": [{ "tag": "v1", "new_sqlite_classes": ["CiSandbox", "Turns"] }],
+	"workflows": [{ "name": "<runner>", "binding": "CI_WORKFLOW", "class_name": "Checks" }],
+	"r2_buckets": [{ "binding": "BACKUP_BUCKET", "bucket_name": "<runner>" }],
+	"vars": {
+		"WONG_RUNNER": "{\"account\":\"<account id>\",\"namespace\":\"<namespace>\",\"repo\":\"<repo>\"}",
+		"CLOUDFLARE_ACCOUNT_ID": "<account id>",
+		"BACKUP_BUCKET_NAME": "<runner>"
+	},
+	"triggers": {
+		"events": [
+			{
+				"type": "cf.artifacts.repo.pushed",
+				"filter": { "namespace": "<namespace>", "repo_name": "<repo>" },
+				"targets": [{ "type": "workflow", "workflow_name": "<runner>" }]
+			}
+		]
+	},
+	"observability": { "enabled": true }
+}

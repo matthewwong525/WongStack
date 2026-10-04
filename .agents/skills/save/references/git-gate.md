@@ -69,10 +69,10 @@ RUN_ID=$(gh run list --branch "$(git rev-parse --abbrev-ref HEAD)" --limit 1 --j
 gh run view "$RUN_ID" --log-failed | tail -120
 ```
 
-**Cap: 3 attempts per `/save` run**; each of [`/verify`](../../verify/SKILL.md)'s two re-walks gets a fresh cap (budgets nest, never share). Still red → stop with the error and the checks link. Never bypass with `--no-verify` or `--force`.
+**Cap: 3 attempts per `/save` run**; each of [`/verify`](../../verify/SKILL.md)'s two re-walks gets a fresh cap (budgets nest, never share). Still red → stop with the error and the checks link.
 
 ## Saved revision handoff
 
 After the waiter, run `node "$ROOT/.claude/skills/save/scripts/saved-revision.mjs"`. SAVED: put `repository`, `branch`, `headSha`, `gateIdentity` and actual waiter `gateResult` in temporary nonsecret JSON. Return its path and `SAVE_HEAD=<headSha>` inside a chain; keep `SAVE_GATE_RESULT`. UNKNOWN yields no receipt.
 
-`/verify --checkpoint <receipt>` reuses SUCCESS/NONE only for matching local/remote head and newest check/run identity. New attempts invalidate it. Otherwise SAVED reads the existing waiter or verified hosted gate, without reruns, pushes or record edits. UNKNOWN is never NONE. Hosted candidate/generation/base and mandatory checks remain required. Delete receipts at chain end.
+`/verify --checkpoint <receipt>` reuses SUCCESS/NONE only for matching local/remote head and newest check/run identity. New attempts invalidate it. Otherwise SAVED reads the existing waiter or verified hosted gate, without reruns, pushes or record edits. Hosted candidate/generation/base and mandatory checks remain required. Delete receipts at chain end.

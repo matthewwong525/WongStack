@@ -31,7 +31,8 @@
 # primary checkout's .env holds one, goes only to the recorded address, and the
 # request follows no redirect, so it goes nowhere else.
 #
-# Depends on: git, gh, curl; node only to read .env and the memory store.
+# Depends on: git, gh (GitHub installs only), curl; node to tell the route and to
+# read .env and the memory store.
 set -uo pipefail
 
 SHA="${1:-}"
@@ -51,9 +52,13 @@ say() {
 
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || say unknown "not inside a repository"
 LIB="$ROOT/.claude/skills/memory/scripts/lib"
-[ -f "$ROOT/.github/workflows/deploy.yml" ] || say unknown "this repo records no release to wait for"
-REPO=$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null) || REPO=""
-[ -n "$REPO" ] || say unknown "GitHub could not be asked about the release"
+SAVE_SCRIPTS="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../save/scripts"
+ROUTE=$(node "$SAVE_SCRIPTS/delivery-route.mjs" "$ROOT" 2>/dev/null) || say unknown "the delivery route could not be told"
+if [ "$ROUTE" != artifacts ]; then
+  [ -f "$ROOT/.github/workflows/deploy.yml" ] || say unknown "this repo records no release to wait for"
+  REPO=$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null) || REPO=""
+  [ -n "$REPO" ] || say unknown "GitHub could not be asked about the release"
+fi
 
 # The Access pair from the primary checkout's .env, unless already exported.
 # Read through the memory skill's parser; a value is never printed.
@@ -91,8 +96,19 @@ release_statuses() {
 }
 
 # Wait for the release. Leaves with URL set, or says why there is no look.
+# An Artifacts install: main's check run for the merged commit is the release,
+# and carries the address its deploy reported (wiki/stack/artifacts-route.md).
+if [ "$ROUTE" = artifacts ]; then
+  LIVE=$(cd "$ROOT" && node "$SAVE_SCRIPTS/artifacts-run.mjs" live "$SHA" 2>/dev/null) || LIVE=unknown
+  case "$LIVE" in
+    https://*) URL=$LIVE ;;
+    failed) say failed "the release did not finish: its checks or deploy failed" ;;
+    none) say unknown "nothing was released" ;;
+    *) say unknown "the release could not be read" ;;
+  esac
+fi
 DEADLINE=$(( $(date +%s) + WAIT ))
-while :; do
+while [ -z "$URL" ]; do
   STATUSES=$(release_statuses)
   URL=$(printf '%s\n' "$STATUSES" | awk -F'\t' '$1 == "success" && $2 != "" { print $2; exit }')
   [ -n "$URL" ] && break
