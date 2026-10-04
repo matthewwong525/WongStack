@@ -76,7 +76,7 @@ function assertScrubbed(run, { stdout, stderr }) {
 const walk = (args, options) => new Promise((done, fail) => execFile('bash', [script, ...args], { encoding: 'utf8', ...options },
   (error, stdout, stderr) => (error ? fail(new Error(`exit ${error.code}`)) : done({ stdout, stderr }))));
 
-function preflightFixture(t) {
+function preflightFixture(t, sourceScript = script) {
   const setup = fixture(t);
   const { root, work, bin } = setup;
   const temp = join(root, 'tmp');
@@ -94,7 +94,7 @@ function preflightFixture(t) {
   const sha = git('rev-parse', 'HEAD').trim();
   const calls = join(root, 'calls.txt');
   const env = { ...process.env, PATH: `${bin}:${process.env.PATH}`, TMPDIR: temp, VERIFY_TEST_CALLS: calls, VERIFY_TEST_PREVIEW: 'https://preview.example/saved-head' };
-  const preflight = (flags = [], changes = {}) => spawnSync('bash', [script, 'preflight', ...flags], { cwd: work, env: { ...env, ...changes }, encoding: 'utf8' });
+  const preflight = (flags = [], changes = {}) => spawnSync('bash', [sourceScript, 'preflight', ...flags], { cwd: work, env: { ...env, ...changes }, encoding: 'utf8' });
   return { ...setup, temp, sha, calls, env, preflight };
 }
 
@@ -116,8 +116,11 @@ test('CI-only preflight binds an owned folder to the saved head without preview 
 });
 
 test('default preflight still discovers the preview and checks its browser', t => {
-  const { sha, calls, preflight } = preflightFixture(t);
+  // The diagnostic CI capture runs this same retained assertion against the
+  // selected earlier script; ordinary suite execution checks the current one.
+  const { sha, calls, preflight } = preflightFixture(t, process.env.VERIFY_PREFLIGHT_SOURCE_SCRIPT || script);
   const result = preflight();
+  t.diagnostic(`preflight exit=${result.status}; stdout=${JSON.stringify(result.stdout)}`);
   assert.equal(result.status, 0);
   assert.match(result.stdout, /^RESULT: READY\nURL=https:\/\/preview.example\/saved-head\nRUN_DIR=.+\nSHA=[a-f0-9]{40}\nBROWSER=local \(agent-browser 0.0.0\)\n$/);
   assert.match(result.stdout, new RegExp(`^SHA=${sha}$`, 'm'));

@@ -80,6 +80,21 @@ jobs:
           path: ${{ runner.temp }}/verify-memory-areas/
           if-no-files-found: error
           retention-days: 14
+      - name: Capture retained preflight regression
+        id: preflight_regression
+        if: ${{ steps.scope.outputs.docs_only != 'true' }}
+        timeout-minutes: 2
+        run: node scripts/verify-preflight-regression.mjs --out "$RUNNER_TEMP/verify-preflight-regression"
+      - name: Keep scrubbed preflight regression observations
+        if: ${{ always() && steps.preflight_regression.outcome != 'skipped' && steps.preflight_regression.outcome != '' }}
+        timeout-minutes: 2
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: verify-preflight-regression
+          overwrite: true
+          path: ${{ runner.temp }}/verify-preflight-regression/
+          if-no-files-found: error
+          retention-days: 14
       # The full suite above already includes it.
       - name: Private-names test
         if: ${{ steps.scope.outputs.docs_only == 'true' }}

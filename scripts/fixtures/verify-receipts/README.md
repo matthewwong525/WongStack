@@ -1,5 +1,7 @@
 # Memory areas capture
 
+The separate [retained preflight regression practice](preflight-regression.md) owns the disposable exact-source red/green demonstration and repair-decision cases; it is not a memory-service observation.
+
 This meta-only pilot captures the real [`memory.mjs areas`](../../../.agents/skills/memory/scripts/memory.mjs) entry point from the source revision checked out by the [payload workflow](../../../.github/workflows/payload.yml). Its expectations live in the [memory scenarios](../../../openspec/specs/memory/spec.md); the producer supplies observations, never a verdict. The fixture and producer are not copied to installed projects.
 
 ## Run and inspect

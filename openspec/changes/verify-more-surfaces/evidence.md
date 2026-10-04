@@ -107,3 +107,16 @@ Adopted the measured walkthrough byte-for-byte after applying the fixed keep rul
 
 
 Static adoption checks passed: payload paths/heading anchors/symlink links, OpenSpec configuration, and the unchanged context ceiling. Instructions measure 189,279 bytes against 190,845 (1,566 free before main integration; the previously observed 959-byte main addition would leave 607). The collector is explicitly authorized as a bundled helper; only new probe runtimes ask first. Fresh-head CI is still the task 5.1 gate.
+
+## Measured adoption gate — 2026-10-04
+
+Saved head `e1769eb92ef8883ce2ae1970d31504b83eef3403` integrates main `932439bf1109066faaf2aec85cf653db3941ff4b`. [Push run 37183208097](https://github.com/matthewwong525/WongStack/actions/runs/37183208097) and all required app checks passed. The script suite reports 92.10% lines and 89.06% branches with existing floors unchanged; links/config/retired names and canonical specs passed. Combined instructions are 190,238/190,845 bytes, startup 2,190/2,200 words. The measured walkthrough is unchanged; concise surrounding instructions preserve the ceiling. CI discovered the recorded preview through deployment 6837773829. Measurement caches were excluded, while 207 raw trace/response/log files match staged bytes exactly under scoped binary attributes. Actual earlier observations remain historical, not evidence for this new head. Task 5.1 is complete; practical regression and final-head verification remain pending. Session facts remain skipped because no current session is registered.
+
+## Repair-decision simulations — 2026-10-04
+
+Applied the new repair rule to both labelled inputs in `scripts/fixtures/verify-receipts/preflight-regression.md`. These are manual decision simulations, not product, delivery or red/green observations.
+
+- Impractical harness: given the stipulated failure in this change's own expectation and touched handler, a bounded repair is in scope after independent checks and safe cleanup. Retain the available initiating-request reproduction, require ordinary head checks, and name missing failing-before and delivery readback. Add no receiver/framework and weaken no gate; an initiating success alone proves no delivery. No request or delivery was attempted by this simulation.
+- Out of scope: the consumer's failed expectation belongs to another capability and its handler is untouched. Report the failed observation and scope reason, preserve shared data, finish independent checks, and make no consumer fix or regression-test change. Checking that consumer supplies no repair authorization. No consumer mutation occurred.
+
+The exact-source preflight artifact remains required separately before task 5.2 can be ticked.
