@@ -184,3 +184,42 @@ test('check fails and names a secret only one Worker holds', t => {
   assert.equal(result.status, 1, result.out);
   assert.match(result.out, /secret 'DB_URL' is set on production but missing from staging/);
 });
+
+// Shared: which keys staging holds with production's value. Names only, no network.
+function sharedFixture(t, files) {
+  const fixture = scaffold(t, { env: { staging: {} } }, { tools: { npx: logger() }, prefix: 'cf-secrets-shared-' });
+  for (const [name, text] of Object.entries(files)) fixture.write(`app/${name}`, text);
+  const result = fixture.run('cf-secrets.mjs', ['shared']);
+  const list = label => result.out.match(new RegExp(`^${label}: (.*)$`, 'm'))[1].split(' ').filter(Boolean);
+  return { result, own: list('own'), shared: list('shared') };
+}
+
+test('shared names every key as shared when staging has no file of its own', t => {
+  const { result, own, shared } = sharedFixture(t, { '.dev.vars': 'PAYMENT_KEY=live-pay-123\nEMAIL_KEY=live-mail-456\n' });
+  assert.equal(result.status, 0, result.out);
+  assert.deepEqual(own, []);
+  assert.deepEqual(shared, ['EMAIL_KEY', 'PAYMENT_KEY']);
+  assert.match(result.out, /read app\/\.dev\.vars; no \.dev\.vars\.staging/);
+});
+
+test('shared names one differing key as own, prints no value, and calls nothing', t => {
+  const { result, own, shared } = sharedFixture(t, {
+    '.dev.vars': 'PAYMENT_KEY=live-pay-123\nEMAIL_KEY="live-mail-456"\nONLY_LIVE=live-only-789\n',
+    '.dev.vars.staging': 'PAYMENT_KEY=test-pay-abc\nEMAIL_KEY=live-mail-456\n',
+  });
+  assert.equal(result.status, 0, result.out);
+  assert.deepEqual(own, ['PAYMENT_KEY']);
+  assert.deepEqual(shared, ['EMAIL_KEY'], 'the same value in different quotes is still shared');
+  assert.match(result.out, /leaves out ONLY_LIVE/);
+  assert.doesNotMatch(result.out, /live-pay-123|test-pay-abc|live-mail-456|live-only-789/);
+  assert.deepEqual(result.calls, [], 'shared made a wrangler call');
+});
+
+test('shared with no .dev.vars or no wrangler config lists nothing and passes', t => {
+  const bare = sharedFixture(t, {});
+  assert.equal(bare.result.status, 0, bare.result.out);
+  assert.deepEqual([bare.own, bare.shared], [[], []]);
+  const result = pack(t, { scripts: ['cf-secrets.mjs', 'lib-wrangler-config.mjs', 'lib-cli.mjs'], prefix: 'cf-secrets-shared-' }).run('cf-secrets.mjs', ['shared']);
+  assert.equal(result.status, 0, result.out);
+  assert.match(result.out, /^own: $/m);
+});

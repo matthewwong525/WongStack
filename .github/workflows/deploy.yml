@@ -93,8 +93,9 @@ jobs:
     environment: ${{ github.event_name == 'push' && github.ref_name == github.event.repository.default_branch && 'production' || '' }}
     permissions:
       contents: read
-      # Needed by "Publish the preview URL" — creating a Deployment and its
-      # status is the only write this workflow makes to GitHub.
+      # Needed by "Publish the preview URL" and "Record the production
+      # release" — creating a Deployment and its status is the only write this
+      # workflow makes to GitHub.
       deployments: write
     env:
       # head_ref is the source branch on pull_request; ref_name is the branch on
@@ -236,3 +237,32 @@ jobs:
             -f environment_url="$PREVIEW_URL" \
             --jq .id > /dev/null
           echo "published $PREVIEW_URL as deployment $DEPLOYMENT_ID"
+
+      # Record the release on the merged commit, with its outcome and the live
+      # address `cf-deploy.sh` read from wrangler's own output. `/ship` waits
+      # for this record, then opens the live app once
+      # (`.claude/skills/ship/scripts/live-look.sh`).
+      #
+      # `always()` so a failed build or deploy is recorded as a failure. A docs
+      # merge deploys nothing and records nothing. `continue-on-error`: a record
+      # that can not be written costs the look, never the release.
+      - name: Record the production release
+        if: ${{ always() && steps.app.outputs.configured == 'true' && env.CLOUDFLARE_API_TOKEN != '' && github.event_name == 'push' && github.ref_name == github.event.repository.default_branch }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LIVE_URL: ${{ steps.deploy.outputs.production-url }}
+          STATE: ${{ steps.deploy.outcome == 'success' && 'success' || 'failure' }}
+        run: |
+          DEPLOYMENT_ID=$(gh api "repos/$GITHUB_REPOSITORY/deployments" \
+            -f ref="$GITHUB_SHA" \
+            -f environment=production \
+            -f description="Live release" \
+            -F auto_merge=false \
+            -f 'required_contexts[]' \
+            --jq .id)
+          gh api "repos/$GITHUB_REPOSITORY/deployments/$DEPLOYMENT_ID/statuses" \
+            -f state="$STATE" \
+            ${LIVE_URL:+-f environment_url="$LIVE_URL"} \
+            --jq .id > /dev/null
+          echo "recorded $STATE ${LIVE_URL:-with no address} as deployment $DEPLOYMENT_ID"

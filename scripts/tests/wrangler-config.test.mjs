@@ -183,6 +183,12 @@ test('the default branch deploys the production Worker and uploads no alias', t 
   assert.equal(run.status, 0, run.out);
   assert.deepEqual(run.calls, ['wrangler deploy --var GITHUB_REPOSITORY:ana/demo']);
   assert.ok(!run.calls.some(call => call.includes('versions upload')), 'production uploads no preview alias');
+  assert.equal(run.github, 'production-url=https://demo.example.workers.dev\n', 'the live address comes from what wrangler printed');
+});
+
+test('a failed production deploy fails the script and hands over no address', t => {
+  const run = deploy(t, { branch: 'main', env: { DEPLOY_FAIL: '1' } });
+  assert.notEqual(run.status, 0);
   assert.equal(run.github, '');
 });
 
