@@ -127,6 +127,8 @@ Payload: `.agents/skills/verify/SKILL.md`, its references and scripts, `wiki/dev
 
 - **2026-10-04** — Check: `.github/workflows/payload.yml` captures head and the selected default-branch merge-base with the same driver and fixture in separate roots, because comparison needs actual paired observations; the existing suite still runs once, and its permissions, timeout and docs-only gate remain intact.
 
+- **2026-10-04** — CI-only preparation skips preview lookup and browser tools while retaining default behavior. Static review also repaired an existing READY/exit-1 mismatch when no installation was needed; the default-mode test retains that check. New conditional reference wording was trimmed to preserve the existing context ceiling before measured routing adoption.
+
 ## Research
 
 The design draws on pstack's [project verification recipes](https://github.com/cursor/plugins/blob/main/pstack/skills/create-verification-skill/SKILL.md), [consumer-risk analysis](https://github.com/cursor/plugins/blob/main/pstack/skills/blast-radius/SKILL.md), [focused regression checks](https://github.com/cursor/plugins/blob/main/pstack/skills/tdd/SKILL.md), and [small solutions](https://github.com/cursor/plugins/blob/main/pstack/skills/principle-laziness-protocol/SKILL.md). These are design references; this change does not vendor their text or tooling. WongStack's recent measured grading work remains the starting point: `openspec/changes/archive/2026-10-03-sharpen-verify/`.
