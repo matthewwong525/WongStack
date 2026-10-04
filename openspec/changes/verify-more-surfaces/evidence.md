@@ -45,3 +45,7 @@ Head `ab27e29989bbf4074b8949210d1c7cae2f64ae25`, [push run 37178397291](https://
 ## Independent preparation — 2026-10-04
 
 Head `55ea5fd77f653611194a12466f60916b633a65df`, [push run 37178977750](https://github.com/matthewwong525/WongStack/actions/runs/37178977750): complete gate SUCCESS. Six preparation tests confirmed CI-only allocation without preview lookup/browser installation, preserved default behavior, invalid-flag rejection, missing-preview isolation and no allocation without a saved revision. The default preparation test also protects a corrected success exit status after READY.
+
+## Imported evidence lifecycle — 2026-10-04
+
+Head `bebf74aae91c93771682815d0aba8303796b683c`, [push run 37179485579](https://github.com/matthewwong525/WongStack/actions/runs/37179485579): complete gate SUCCESS. Integration tests imported validated synthetic receipts, removed credential text from streams/manifest/report before a locally captured posting handoff, and preserved independent evidence until owned cleanup on UNKNOWN/TIMEOUT. Partial downloads left no temporary download folder. These tests posted nothing to GitHub; actual pilot provenance remains separate. Instruction ceiling passed with eight bytes remaining before main integration.

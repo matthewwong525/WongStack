@@ -15,7 +15,7 @@
 ## 3. Shared preparation and cleanup
 
 - [x] 3.1 Add additive `preflight --no-preview --no-browser` support in `verify-staging.sh` for an owned head-bound run folder without URL lookup or browser installation. Preserve existing commands, headings and outputs. Extend `verify-scripts.test.mjs` for CI-only preparation, default preview behavior, invalid flag combinations and missing-preview isolation; verify through `/save` and document the additive invocation.
-- [ ] 3.2 Integrate imported evidence with existing scrubbing, posting and owned-folder cleanup. Test that imported credential text is removed before posting and that UNKNOWN/TIMEOUT or partial downloads clean up only owned folders; verify through `/save` and document artifact-expiry/report limits.
+- [x] 3.2 Integrate imported evidence with existing scrubbing, posting and owned-folder cleanup. Test that imported credential text is removed before posting and that UNKNOWN/TIMEOUT or partial downloads clean up only owned folders; verify through `/save` and document artifact-expiry/report limits.
 
 ## 4. Measure lasting results and affected consumers
 
