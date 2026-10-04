@@ -24,7 +24,7 @@ The project's `paseo.json` SHALL give Paseo instructions for workspace titles, b
 - **THEN** it is one line like `fix: the review page scrolls on a phone`, with no version, followed by the Claude co-author trailer
 
 ### Requirement: Setup adds the owner's agent presets without overwriting
-Setup and the server installer SHALL add WongStack's agent presets to the machine's Paseo configuration when Paseo is installed and configured, then ask Paseo to reload it. A preset SHALL be added only when no existing preset has its id or its name, and only when its agent's command is installed. Every other setting and every existing preset SHALL stay unchanged. With Paseo absent or not yet configured, it SHALL change nothing and say so; a failure SHALL NOT stop the install.
+Setup SHALL add WongStack's agent presets to the machine's Paseo configuration when Paseo is installed and configured, then ask Paseo to reload it. A preset SHALL be added only when no existing preset has its id or its name, and only when its agent's command is installed. Every other setting and every existing preset SHALL stay unchanged. With Paseo absent or not yet configured, it SHALL change nothing and say so; a failure SHALL NOT stop the install.
 
 #### Scenario: A machine with Claude only
 - **WHEN** setup runs on a machine with Paseo and `claude` but no `codex`, and no presets

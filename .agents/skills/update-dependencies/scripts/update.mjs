@@ -24,8 +24,6 @@ const CONTRACT_TEST = 'scripts/tests/openspec-contract.test.mjs';
 // Every place that names the OpenSpec version; CI's pin (the first) is the reference.
 export const PIN_FILES = [
   '.github/workflows/payload.yml',
-  'server/setup.sh',
-  'server/preserve.sh',
   '.agents/skills/save/references/preconditions.md',
   '.github/CONTRIBUTING.md',
 ];

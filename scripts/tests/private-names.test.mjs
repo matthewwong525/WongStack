@@ -46,5 +46,5 @@ test('the matcher flags live files and spares the record', () => {
 
 test('no live tracked file names a private downstream repo or service', () => {
   assert.deepEqual(privateHits(trackedFiles()), [],
-    'use a generic name (MyApp, "hosted setups"); only CHANGELOG.md and openspec/changes/ keep private names');
+    'use a generic name (MyApp, "installed repos"); only CHANGELOG.md and openspec/changes/ keep private names');
 });

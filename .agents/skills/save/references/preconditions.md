@@ -1,6 +1,6 @@
 # Git preconditions
 
-`/save`, `/continue`, `/ship`: Artifacts/private handoff → [hosted delivery](hosted-delivery.md) before mutation. Otherwise check GitHub once:
+`/save`, `/continue`, and `/ship` check GitHub once:
 
 | Check | Fails when | Fix |
 |---|---|---|

@@ -1,5 +1,5 @@
 import { accessConflicts } from '../../../../scripts/lib-access-config.mjs';
-// Private provisioning shared by interactive setup and the server installer.
+// Private provisioning for interactive setup.
 import { isDeepStrictEqual } from 'node:util';
 export class AccessSetupError extends Error {
   constructor(message) {

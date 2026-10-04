@@ -128,7 +128,7 @@ They live here, not in `site/`, because a README-only or scripts-only change nev
 
 ### 8. The starter app's checks still run on a site-only change
 
-`app-untouched.sh` is left alone. A change under `site/` therefore runs the starter app's suite and staging deploy too, exactly as a change under `server/` or `scripts/` does today. The site's own check obeys the rule that a check runs only when its kind of file changed. Narrowing the other direction is a payload release and is left out.
+`app-untouched.sh` is left alone. A change under `site/` therefore runs the starter app's suite and staging deploy too, exactly as a change under `scripts/` does today. The site's own check obeys the rule that a check runs only when its kind of file changed. Narrowing the other direction is a payload release and is left out.
 
 ### 9. One wiki page owns the site
 

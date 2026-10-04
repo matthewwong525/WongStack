@@ -45,7 +45,7 @@ The Cloudflare stack pack's `node`, `npm`, and `wrangler` use SHALL run only in 
 
 ### Requirement: Nothing is installed without consent
 
-No skill SHALL install a runtime or tool without the person's consent, and a skill other than `/wong-setup` SHALL install one only when a step needs it. WongStack SHALL NOT install Paseo on a person's machine; only the server setup script installs it, for a server.
+No skill SHALL install a runtime or tool without the person's consent, and a skill other than `/wong-setup` SHALL install one only when a step needs it. WongStack SHALL NOT install Paseo on a person's machine.
 
 #### Scenario: A verb finds its tool missing
 
@@ -96,7 +96,7 @@ After an OpenSpec CLI update, the verb SHALL check that the commands and output 
 
 ### Requirement: A remote hand-over adds one tool
 
-A hand-over through a private link SHALL be the one step that needs Cloudflare's tunnel tool. Setup SHALL offer it up front and the server script SHALL install it; on any other machine without it, the agent SHALL install it with the person's consent the first time a remote hand-over needs it. It SHALL add nothing to the repository, and a hand-over at the computer SHALL NOT need it.
+A hand-over through a private link SHALL be the one step that needs Cloudflare's tunnel tool. Setup SHALL offer it up front; on any other machine without it, the agent SHALL install it with the person's consent the first time a remote hand-over needs it. It SHALL add nothing to the repository, and a hand-over at the computer SHALL NOT need it.
 
 #### Scenario: A first remote hand-over
 
@@ -105,5 +105,5 @@ A hand-over through a private link SHALL be the one step that needs Cloudflare's
 
 #### Scenario: A machine readied by setup
 
-- **WHEN** the person takes over the browser for the first time on a computer readied by setup or a server built by the server script
+- **WHEN** the person takes over the browser for the first time on a computer readied by setup
 - **THEN** the link opens with no install step and no question
