@@ -1,0 +1,31 @@
+// The landing page's two Workers: plain files, no server code, no bindings.
+//
+// The name is deliberate. scripts/lib-wrangler-config.mjs finds the starter
+// app's config by looking in each folder for wrangler.jsonc, wrangler.json, or
+// wrangler.toml, so this file must never take one of those names. Every
+// wrangler call passes `--config wrangler.site.jsonc`, and
+// scripts/tests/landing-site.test.mjs pins it.
+//
+// No `routes` and no custom domain: wongstack.com attaches only on the
+// owner's word. wiki/maintaining/landing-page.md
+{
+  "name": "wongstack-site",
+  // wrangler refuses a deploy with no date. The site runs no code, so the
+  // date changes nothing it serves.
+  "compatibility_date": "2026-07-28",
+  "workers_dev": true,
+  "observability": {
+    "enabled": false
+  },
+  // An address with no file, such as an old /pricing link, gets index.html,
+  // and src/App.tsx shows the landing page.
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  },
+  "env": {
+    "staging": {
+      "name": "wongstack-site-staging"
+    }
+  }
+}

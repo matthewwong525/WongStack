@@ -12,6 +12,12 @@
 
 **Updating.** No action needed. The usual update delivers this, and notes begin with the next saved chat; older chats are not re-read.
 
+## 31.0.2 — A memory area for WongStack's own landing page
+
+Memory's list of areas gains one entry, for the landing page kept in the WongStack source. Your install has no such folder, so nothing changes in how memory files or finds your facts.
+
+**Updating.** No action needed.
+
 ## 31.0.1 — Read a test file before deleting it
 
 The change-loop guide now says to read a test file before deleting it along with its code: a test that guards files that stay is moved, not deleted.
