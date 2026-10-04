@@ -1,6 +1,6 @@
 # Retrieve useful memory from the wiki and past work
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** `rampant-insect`
 **Open questions:** none
 
@@ -89,3 +89,7 @@ Ship modules under `.agents/skills/memory/scripts/lib/documents/`, extend the me
 - **2026-10-04** — Second remote run: actual QMD CPU setup completed in 75.5 seconds and recovered the persistence paraphrase missed by keyword; source verification, private-source exclusion, changed-file refresh and independent fact failure passed. Critical exact, historical and proposed evidence failed because anchors chose another section or large current passages consumed the packet. Reserve useful passages across source roles and select relevant original sections within located documents; retain the frozen acceptance questions and grading. Fix the duplicate-source test fixture and add the new capability to memory's owning-document map. App and Windows gates passed; payload had 1,186 passing tests and two failures before these fixes, so verification remains pending.
 
 - **2026-10-04** — Third remote run: all 1,191 script tests, release/context checks, app checks and Windows fallback passed. QMD preserved critical publishing, historical and proposed evidence and still recovered the persistence paraphrase. Its only remaining acceptance regression was exact machine-privacy wording: the located file's short general sections ranked above the section containing the literal phrase. Prioritize an exact original phrase within that located document and center long excerpts on its matching line; do not weaken source or grading checks. This is the final automatic repair attempt for this save run.
+
+- **2026-10-04** — Final automatic repair passed: tested implementation `994aa61` has all 1,193 script tests, release/context/app/deployment checks and real QMD CPU plus Windows portable acceptance green. Tasks through 6.2 are checked against those actual results, retained in `evidence.md` and `acceptance.json`. Installed discovery and original-source recall were observed on that same revision; `installed-recall.json` retains only public citations and aggregate fact counts. Finish task 6.3's fresh helper review, then checkpoint the completed handoff without merging. Session facts remain skipped because the handoff retains these decisions.
+
+- **2026-10-04** — Fresh helper completed task 6.3: installed discovery and recall returned six permitted facts and four independently verified original excerpts in 6,071 bytes, with model-free startup/pre-edit dispatch confirmed. All 18 tasks are complete; status is ready-to-ship. Final gate checkpoint retains the reviewed evidence and completed handoff, with no implementation change after tested `994aa61`. Publication remains the user’s next decision.
