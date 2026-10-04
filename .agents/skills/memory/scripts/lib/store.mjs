@@ -17,7 +17,6 @@ const TOKEN_VAR = 'CLOUDFLARE_MEMORY_TOKEN';
 const TOKEN_PAGE = 'wiki/development/memory-key.md';
 const SPOOLABLE = new Set(['unconfigured', 'auth', 'network', 'server']);
 const CLOUDFLARE_API = 'https://api.cloudflare.com/client/v4';
-const KEY_PREFIX = 'wongm_';
 
 // The payload is metadata; the Worker trusts only the credential's hashed grant.
 export function keyMachine(token) {

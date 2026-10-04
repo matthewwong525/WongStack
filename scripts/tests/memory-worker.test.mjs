@@ -33,7 +33,7 @@ const query = (env, key, body) => handleMemory(new Request('https://app.example/
   method: 'POST', headers: { Authorization: `Bearer ${key}` }, body: JSON.stringify(body),
 }), bindings(env));
 const object = (env, key, path, method = 'GET', body, extra = {}) => handleMemory(new Request(`https://app.example/_memory/accounts/a/r2/buckets/b/objects/${encodeURIComponent(path)}`, {
-  method, headers: { Authorization: `Bearer ${key}`, ...extra }, body,
+  method, headers: { Authorization: `Bearer ${key}`, ...extra }, ...(method === 'PUT' ? { body } : {}),
 }), bindings(env));
 const fact = (owner, body, type = 'project', author = 'same@example.com') => ({ sql: WRITES.fact.sql, params: ['x', type, body, null, 'save', iso(), author, owner, 1] });
 const session = (owner, id = `claude:${SESSION}`, author = 'same@example.com') => ({ sql: WRITES.session.sql,

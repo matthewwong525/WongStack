@@ -77,4 +77,6 @@ One new local identity helper, one small login-link handler, and one additive SQ
 
 - **2026-10-04** — Reconciled published main at `02542fa` before the CI checkpoint. Its independent-chat change is retained; the memory ownership baseline is unchanged. Preserved both release entries and the retirement registry changes. Session context is in this handoff; no duplicate memory facts were written.
 
+- **2026-10-04** — First CI pass: app tests and deploy checks passed. Payload lint found an unused legacy prefix and a test request helper that could specify a GET body. Removed the unused constant and restricted the helper's body to PUT; checks remain unchanged. Payload runtime coverage awaits the retry.
+
 - **Check:** `scripts/retired-names.json` removes the former `member add` retirement entry because the reviewed plan deliberately restores this command for trusted machine issuance. It no longer promises GitHub enrollment; all other retired-name guards remain unchanged. `memory-areas.test.mjs` now verifies that changing author labels on the same machine preserves private ownership; cross-machine isolation remains in the Worker matrix.
