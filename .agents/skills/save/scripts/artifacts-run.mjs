@@ -36,7 +36,11 @@ export async function readRun({ api = API, token, account, workflow, id, fetch: 
   }
   if (response.status === 404) return { state: 'missing' };
   const data = await response.json().catch(() => ({}));
-  if (!response.ok || !data.success || !data.result) return { state: 'unreadable', why: `Cloudflare answered HTTP ${response.status}` };
+  // Cloudflare can answer a finished run with its whole result and an error flag beside it, when one
+  // step's detail fails to load. The run's own word still stands: it finished, and its output names
+  // the commit and branch it checked, which `verdict` holds it to.
+  const finished = data.result?.status === 'complete' && data.result.success === true && data.result.output !== null && typeof data.result.output === 'object';
+  if (!response.ok || !data.result || (!data.success && !finished)) return { state: 'unreadable', why: `Cloudflare answered HTTP ${response.status}` };
   const { status, output, error } = data.result;
   if (status === 'complete') return { state: 'done', output };
   if (status === 'errored' || status === 'terminated') return { state: 'errored', why: String(error?.message ?? status) };

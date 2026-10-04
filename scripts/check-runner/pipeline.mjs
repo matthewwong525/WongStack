@@ -52,6 +52,8 @@ if [ "$WONG_BRANCH" = main ]; then
 else
   base=$(git merge-base HEAD refs/remotes/origin/main 2>/dev/null || true)
 fi
+# The project's empty first commit is nothing to compare with: checks then run as on a new repository.
+if [ -n "$base" ] && [ "$(git rev-parse "$base^{tree}")" = "$(git hash-object -t tree /dev/null)" ]; then base=""; fi
 printf '%s' "$base" > .git/wong-base
 echo "WONG_PREPARED $(git rev-parse HEAD)"
 `;

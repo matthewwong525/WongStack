@@ -130,8 +130,8 @@ Setup makes this key for the runner alone. It reaches the objects of the runner'
 
 Removal is asked for by name and can't be undone. After [the stack's teardown](getting-started.md#teardown) lists and confirms, delete, with the same user token, what this install made:
 
-1. The check runner: `DELETE /accounts/{account_id}/workers/scripts/<base>-checks?force=true`, which removes its Workflow and its containers' Durable Objects; then `DELETE /accounts/{account_id}/containers/applications/<id>` for an application named `<base>-checks` that remains.
-2. Its storage: empty, then delete, the `<base>-checks` bucket (`DELETE /accounts/{account_id}/r2/buckets/<base>-checks`).
+1. The check runner: `DELETE /accounts/{account_id}/workers/scripts/<base>-checks?force=true`, which removes its containers' Durable Objects. Its container application and its Workflow outlive it, so delete both by name: `DELETE /accounts/{account_id}/containers/applications/<id>` for the application named `<base>-checks`, and `DELETE /accounts/{account_id}/workflows/<base>-checks`.
+2. Its storage: empty, then delete, the `<base>-checks` bucket: list with `GET /accounts/{account_id}/r2/buckets/<base>-checks/objects`, `DELETE` each object by key, then `DELETE /accounts/{account_id}/r2/buckets/<base>-checks`. A bucket that still holds a check run's snapshots refuses to go.
 3. Its tokens: `DELETE /accounts/{account_id}/tokens/<id>` for `<base>-deploy` and `<base>-checks-storage`.
 4. The repository: `DELETE /accounts/{account_id}/artifacts/namespaces/wongstack/repos/<base>`. This deletes the project's files and history; export a copy first with `git clone --mirror`.
 5. On this computer: the token cache under `~/.local/state/wongstack/`.

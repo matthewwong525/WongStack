@@ -45,6 +45,6 @@ Build by [design.md](design.md). Do not edit `server/`, the hosted delivery scri
 
 ## 7. Verification
 
-- [ ] 7.1 Run `/save`: every check passes on the exact head, with any `Check:` reason the guard asks for.
-- [ ] 7.2 Ask the owner for a go-ahead to run one real install in his own Cloudflare account under a throwaway name (outward: billable). Then, from a clean folder on Mac or Linux, he or the agent walks: setup with no GitHub sign-in → a small change → save → private preview refuses a signed-out visitor → a deliberately failing change is not published → *publish it?* → the live site shows the change → a second change from the new `main`. Record each step as passed, failed or not run in the Decision log.
-- [ ] 7.3 Run teardown for that install and read back that its repository, runner, storage and tokens are gone; name anything left behind.
+- [x] 7.1 Run `/save`: every check passes on the exact head, with any `Check:` reason the guard asks for.
+- [x] 7.2 Ask the owner for a go-ahead to run one real install in his own Cloudflare account under a throwaway name (outward: billable). Then, from a clean folder on Mac or Linux, he or the agent walks: setup with no GitHub sign-in → a small change → save → private preview refuses a signed-out visitor → a deliberately failing change is not published → *publish it?* → the live site shows the change → a second change from the new `main`. Record each step as passed, failed or not run in the Decision log.
+- [x] 7.3 Run teardown for that install and read back that its repository, runner, storage and tokens are gone; name anything left behind.

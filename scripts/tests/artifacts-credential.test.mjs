@@ -19,7 +19,7 @@ const NOW = 1_800_000_000;
 const DAY = 24 * 60 * 60;
 
 // A made-up Artifacts token as Cloudflare returns it: the secret, then when it expires.
-const secret = (pair) => `art_v1_${pair.repeat(20)}`;
+const secret = (pair) => `art_v2_x_${pair.repeat(20)}`;
 const minted = (pair, expires) => `${secret(pair)}?expires=${expires}`;
 const answer = (pair, expires) => `username=x\npassword=${secret(pair)}\npassword_expiry_utc=${expires}\n`;
 
@@ -227,6 +227,16 @@ test('an unreachable Cloudflare, or an answer that holds no token, is an error w
     assert.equal(api.calls.length, 1);
     assert.equal(existsSync(p.file), false);
   }
+});
+
+test('a token under either prefix Cloudflare has used is accepted, and nothing shorter', async (t) => {
+  for (const prefix of ['art_v1_', 'art_v2_x_']) {
+    const p = place(t);
+    const api = cloudflare(() => Response.json({ success: true, errors: [], result: { plaintext: `${prefix}${'ab'.repeat(20)}?expires=${NOW + DAY}` } }));
+    assert.equal(await ask(p, api), `username=x\npassword=${prefix}${'ab'.repeat(20)}\npassword_expiry_utc=${NOW + DAY}\n`, prefix);
+  }
+  const p = place(t);
+  await assert.rejects(ask(p, cloudflare(() => Response.json({ success: true, errors: [], result: { plaintext: `art_v2_x_${'ab'.repeat(19)}?expires=${NOW + DAY}` } }))), CredentialError);
 });
 
 test('helperConfig scopes the helper and the path setting to the one account host', () => {

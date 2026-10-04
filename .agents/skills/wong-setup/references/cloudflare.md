@@ -8,7 +8,7 @@ This runbook turns a fresh WongStack install into a running app with session mem
 
 ## Boundaries
 
-- **No commits or pushes.** Step 1a makes the GitHub repository; everything else lands uncommitted for `/save`.
+- **No commits or pushes.** Step 1a makes the GitHub repository; everything else lands uncommitted for `/save`. The Artifacts route's one empty first commit on `main` is the exception.
 - **One script does the Cloudflare work, not `wrangler`**, so no app dependency is needed: [`provision.mjs`](../scripts/provision.mjs), in the source checkout, needs only Node ([required tools](../../../../wiki/development/required-tools.md)). Each command prints one JSON report: created, reused, names, URLs. A stop exits 1 with `error.reason` (`token`, `cloudflare`, or `repo`) and a plain `error.cause`; translate it with the [failure map](failure-map.md).
 - **Never print a token value**: not in a summary, an error, or an echoed command.
 - **The user token stays on the host**, only in the primary worktree's `.env`. No step copies it or makes it a GitHub secret.

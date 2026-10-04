@@ -139,7 +139,7 @@ export async function fakeCloudflare({ r2 = true, subdomain = 'ada', accounts = 
       if (method === 'POST' && kind === 'repos' && !name) {
         if (inSpace.some((each) => each.name === body.name)) return no(409, 1000, 'this repository already exists');
         const made = { id: `repo-${++serial}`, namespace, name: body.name, default_branch: body.default_branch ?? 'main', remote: remoteOf(namespace, body.name) };
-        const token = `art_v1_${createHash('sha1').update(`${body.name}:${serial}`).digest('hex')}?expires=1900000000`;
+        const token = `art_v2_x_${createHash('sha1').update(`${body.name}:${serial}`).digest('hex')}?expires=1900000000`;
         state.repos.push(made);
         state.repoTokens.push({ id: `repo-token-${++serial}`, namespace, repo: body.name, scope: 'write', state: 'active', plaintext: token });
         return ok({ ...made, token });

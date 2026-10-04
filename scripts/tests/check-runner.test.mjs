@@ -182,6 +182,15 @@ test('checks that end without one clear word are a failure, never a pass', async
   }
 });
 
+test('the prepare stage compares with nothing when the base is the project\'s empty first commit', async () => {
+  const { ci, seen } = standIn({});
+  await runPipeline(paramsOf(), ci, CONFIG);
+  const prepare = seen.find(call => call.options.name === 'prepare').options.command;
+  const guard = prepare.indexOf('= "$(git hash-object -t tree /dev/null)" ]; then base=""; fi');
+  assert.ok(guard > -1, 'an install\'s first save would be compared with an empty main, and every check setting read as changed');
+  assert.ok(guard < prepare.indexOf('> .git/wong-base'), 'the base is written before the empty commit is ruled out');
+});
+
 test('a Sandbox interruption gets exactly one retry, under the name <stage>-retry, and the run goes on', async () => {
   for (const name of STAGES) {
     const { ci, seen, names } = standIn({ [name]: lost(name), [`${name}-retry`]: PASSES[name] });

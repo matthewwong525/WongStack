@@ -125,7 +125,7 @@ A queue twin needs both halves inside the environment, or staging messages land 
 
 ## Workers Builds fallback only: the deploy command
 
-Not a fragment, and **not in the default install**, whose CI is [GitHub Actions](../../../../wiki/stack/github-actions.md). Mention it only to a repo on the [Workers Builds fallback](../../../../wiki/stack/github-actions.md#why-not-cloudflares-own-workers-builds): its dashboard deploy command runs `bash scripts/cf-deploy.sh`, and that page owns it.
+Not a fragment, and **not in a new install**, whose checks run on [GitHub Actions](../../../../wiki/stack/github-actions.md) or [the Artifacts route's check runner](../../../../wiki/stack/artifacts-route.md#the-check-runner). Mention it only to a repo on the [Workers Builds fallback](../../../../wiki/stack/github-actions.md#why-not-cloudflares-own-workers-builds): its dashboard deploy command runs `bash scripts/cf-deploy.sh`, and that page owns it.
 
 ## `.env.example` → Cloudflare variables
 
@@ -162,4 +162,11 @@ Add one more line, so agents' throwaway files in `.scratch/` never show as unsav
 
 ```gitignore
 .scratch/
+```
+
+An install on [the Artifacts route](../../../../wiki/stack/artifacts-route.md) adds two more, for what setup generates in the check runner's folder: its installed tools, and the config that carries the account's ids.
+
+```gitignore
+node_modules/
+scripts/check-runner/wrangler.jsonc
 ```

@@ -54,6 +54,16 @@ test('a run id is fixed by its commit and branch, and needs a whole commit id an
   await assert.rejects(runId(SHA, 'refs/tags/v1.0.0'), /branch ref/);
 });
 
+test('a finished run that Cloudflare answers with an error flag beside it is still read, and nothing less is', async () => {
+  const flagged = (result) => () => Response.json({ success: false, errors: [{ code: 10001, message: 'workflows.api.error.internal_server' }], result });
+  const done = { status: 'complete', success: true, output: pass(SHA, BRANCH) };
+  assert.deepEqual(await read(flagged(done)), { result: 'SUCCESS', lines: [], address: PREVIEW });
+  assert.equal((await read(flagged({ ...done, output: pass(OTHER, BRANCH) }))).result, 'UNKNOWN', 'a flagged answer for another commit was trusted');
+  for (const result of [{ ...done, success: false }, { ...done, success: undefined }, { ...done, output: null }, { status: 'running', success: true, output: pass(SHA, BRANCH) }, null]) {
+    assert.equal((await read(flagged(result))).result, 'UNKNOWN', JSON.stringify(result));
+  }
+});
+
 test('readRun asks Cloudflare for the one run, with the token as a bearer header only', async () => {
   const id = await runId(SHA, BRANCH);
   const api = cloudflare(complete(pass(SHA, BRANCH)));

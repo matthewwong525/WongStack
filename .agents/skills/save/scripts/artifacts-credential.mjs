@@ -23,7 +23,8 @@ const API = 'https://api.cloudflare.com/client/v4';
 const TTL_SECONDS = 24 * 60 * 60;
 /** A cached token this close to its expiry is renewed, so a long push never outlives it. */
 const RENEW_SECONDS = 10 * 60;
-const TOKEN = /^(art_v1_[0-9a-f]{40})\?expires=(\d+)$/;
+// Cloudflare has changed the prefix once already (`art_v1_…`, then `art_v2_x_…`), so only its shape is held.
+const TOKEN = /^(art_v\d+_(?:[a-z0-9]+_)*[0-9a-f]{40})\?expires=(\d+)$/;
 const NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 
 export class CredentialError extends Error {}
