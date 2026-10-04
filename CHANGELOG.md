@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 30.7.0 — Safer building and publishing
+
+- An answer you give in the middle of a build is written into the plan before the build carries on, so the next builder does not ask again or guess.
+- A plan that deletes or reshapes data, sends a message, or removes a key says in one plain line that it can not be undone, and the build report repeats that line above the publish question. A change that can simply be reversed stays silent.
+- When a check fails, the assistant first lists every failing check and what its log shows, then fixes them together in one go. A failure the change did not cause is run again once and, if it still fails, reported to you with no code edit.
+
+**Updating.** No action needed. The usual update delivers the new wording.
+
 ## 30.6.0 — Check more than the web preview
 
 - Verification can use captured command-line behavior from automated checks beside the web preview, with evidence tied to the version being reviewed. Missing access to one surface leaves independent checks available.
