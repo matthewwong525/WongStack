@@ -8,7 +8,7 @@ user-invocable: true
 
 The memory store holds **facts**: typed lines of at most 400 characters, never edited, only superseded. [The memory convention](../../../wiki/development/memory.md) owns what is stored, who reads it, and the risks; [writing facts](references/writing-facts.md) owns what a good fact keeps.
 
-Run every call from the repo root:
+From the repo root:
 
 ```bash
 node .claude/skills/memory/scripts/memory.mjs <command>
@@ -27,13 +27,15 @@ node .claude/skills/memory/scripts/memory.mjs <command>
 | Close stale threads, add path tags (`put-facts` runs it) | `upkeep` |
 | What the person typed in this computer's recent Claude Code and Codex chats, keys hidden, no store needed; ask first | `recent-chats [--days 30]` |
 
-The store shows each key what [who sees what](../../../wiki/development/memory.md#who-sees-what) allows; only the admin's `--everyone` on `search`, `show`, or `live` shows all. Facts are dated context; the repo wins.
+Each key sees what [who sees what](../../../wiki/development/memory.md#who-sees-what) allows; only the admin's `--everyone` on `search`, `show`, or `live` shows all. Facts are dated context; the repo wins.
 
 **Every skill: when the store is unreachable, say memory was not loaded and continue.**
 
+For described reads, use `operations.mjs list`, `describe <id>`, or `call <id> --file <JSON file or ->` beside `memory.mjs`; [company actions](../../../wiki/stack/company-api.md#memory-keeps-its-own-access) owns the helper.
+
 ## Write
 
-Writing is two calls, the **write gate**:
+The **write gate** has two calls:
 
 1. Send candidate facts as JSON to `gate --file <input>`; it prints each one's live same-slug facts and closest keyword matches.
 2. Send a decision per candidate to `put-facts --file <input>`:
@@ -66,11 +68,11 @@ Repo contributors receive trusted member credentials; readers’ writes stay pri
 
 ## Background run
 
-The session-start hook starts this run with no user. Follow these steps in order, with only the memory script. Write each JSON input as a file in the input folder your instructions name, and pass its path as `<input>`.
+The session-start hook starts this unattended run. Use only the memory script, in order. Write JSON files in the instructed input folder; pass each as `<input>`.
 
 1. **Spool.** Run `spool`. For each file it lists, decide its candidates from the printed neighbours and send the decisions to `put-facts --file <input> --spooled <path>`.
 2. **Pending sessions.** Run `pending --limit 5 --exclude <the session named in your instructions>`. For each session, newest first:
-   1. Run `strip <session-id>`. On `private:`, write nothing for it. On `not recognized:`, count it and go on.
+   1. Run `strip <session-id>`. On `private:`, write nothing for it. Count `not recognized:` and continue.
    2. Propose the facts a cold reader needs, to the bar in [writing facts](references/writing-facts.md). Slug: the session's change name, else a slug `search` finds for the topic, else a short topic slug.
    3. Run `gate --file <input>`, decide each candidate, and run `put-facts --file <input>` with `"session": "<session-id>"` and `"source": "backfill"`. Nothing worth keeping: run `put-facts` with an empty `facts` list and a `reason`; it records the session as skipped.
 3. **Consolidation.** Run `due`. If it prints `consolidation due`:

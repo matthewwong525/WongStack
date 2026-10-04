@@ -2,6 +2,7 @@
 import { handleMemory, MEMORY_PREFIX } from "../../.agents/skills/memory/worker/memory-worker.mjs";
 import { associateLogin } from "../../.agents/skills/memory/worker/login-link.mjs";
 import { handleWalkPictures, WALK_PREFIX } from "../../.agents/skills/verify/worker/walk-pictures.mjs";
+import { discovery } from "./api/discovery.ts";
 import { API_PREFIX, handleApi } from "./api/router.ts";
 import { APP_API, handleApp } from "./apps/index.ts";
 import { getAccessIdentity, type AccessEnv } from "./access.ts";
@@ -27,6 +28,11 @@ export default {
         status: configured ? 401 : 503,
         headers: { "Cache-Control": "no-store" },
       });
+    }
+
+    // Discovery always requires company login, even on an open starter.
+    if (["/api/openapi.json", "/api/actions"].includes(url.pathname)) {
+      return discovery(request, env, identity);
     }
 
     // A setup link labels its assistant machine after ordinary human login.
@@ -57,7 +63,7 @@ export default {
 
     // The app's own API: one handler per route, listed in api/router.ts.
     if (url.pathname.startsWith(API_PREFIX)) {
-      return handleApi(request, env);
+      return handleApi(request, env, identity);
     }
     return env.ASSETS.fetch(request);
   },

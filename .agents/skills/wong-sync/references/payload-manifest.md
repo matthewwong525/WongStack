@@ -8,7 +8,7 @@ Every install starts empty and takes **every** category.
 
 - **Core** always ships: WongStack workflow skills with their whole `references/` and `scripts/` folders, the browser discovery skill, the hidden `hand-over` skill whose scripts open the private links, the hidden `browser` skill that runs Cloudflare's cloud browser when a site blocks the agent's own, `/improve` for one useful improvement, the `/routine` Paseo scheduler and its scripts, the `memory` skill with its session-start and pre-edit hooks for Claude (`.claude/settings.json`) and Codex (`.claude/hooks.json`), Codex project settings (`.claude/config.toml`), the Paseo project file (`paseo.json`), path rules, process pages, CI's `.nvmrc`, test workflow, scripts (the wiki check among them) and shared change-scope action, and the `WONG-STACK` block of `CLAUDE.md`.
 - **UI** adds [`ux-principles.md`](../../../../wiki/ux-principles.md) for user-facing screens.
-- **Pack** adds the pipeline scripts, workflow, schema, and `wiki/stack/` pages.
+- **Pack** adds the pipeline scripts, workflow, schema, `wiki/stack/` pages and [company helper](../../../../scripts/company-api.mjs). Core memory ships its dependency-free read descriptions and adapter with the whole skill; the helper imports them without app packages.
 - **Scaffold** adds `app/`, except `app/wrangler.jsonc`, which holds source-repo database IDs.
 
 ## The agent folder
@@ -92,6 +92,10 @@ Fresh setup runs `openspec init --tools none`. The verbs call the CLI directly a
 
 Outside the target inventory: `wong-setup`, `update-dependencies`, the `server/` setup script and agent, `VERSION`, `CHANGELOG.md`, this repo's install record, and the meta-only release checks and payload CI. A target's install record never goes upstream. Old verdict files may inform exploration; nothing writes new ones.
 
+## Company action updates
+
+Review the target’s custom routes; preserve their handlers, paths and checks. Describe only the actions the owner selects, following [company actions](../../../../wiki/stack/company-api.md). Bare handlers stay usable and undiscovered. Older records can connect an explicit company origin until a reviewed update records production. Memory retains its existing target and credential; no employee receives a business or owner key.
+
 ## Install record
 
-Create a fresh `.claude/.wong-stack.json`: `upstream.repo` names the repository actually installed, including a fork; version and commit come from that checkout, and `upstream.clone` hints at its cache. Later sync follows this source. Record the target's memory store ids, local skill names, and install/update dates; never copy the source's record, memory bindings, or live config. Advance it only after agreed changes and any generated-layer migration. It holds no mode.
+Create a fresh `.claude/.wong-stack.json`: `upstream.repo` names the repository actually installed, including a fork; version and commit come from that checkout, and `upstream.clone` hints at its cache. Later sync follows this source. Record the target's memory store ids, public `components.companyApi.origin` from production readback, local skill names, and install/update dates; never copy the source's record, memory bindings, or live config. Advance it only after agreed changes and any generated-layer migration. It holds no mode.

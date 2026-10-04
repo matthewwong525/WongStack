@@ -3,6 +3,12 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Company actions and memory discovery for agents
+
+Employees can discover and call approved app actions using their own company login; service keys stay on the server. One helper also describes existing memory searches and topic reads with their existing access. API guides and request checks come from each action’s definition.
+
+**Updating.** Choose which existing actions your team’s assistants should use. Add descriptions around those handlers through review, keeping their paths and access checks. Keep memory’s current credential and production target. Older installs can connect an explicit company origin until their public install record is filled. Company login must work before employee company access is available.
+
 ## 30.0.0 — Machine-owned memory
 
 - Private facts and transcripts follow a stable local installation ID across chats and linked workspaces. Repository contributors use trusted machine credentials to load and contribute team knowledge automatically; reader facts remain private.
