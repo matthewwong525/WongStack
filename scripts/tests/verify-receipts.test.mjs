@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -11,6 +11,7 @@ import { checkRecipe, collectCapture, compareCaptures, validateCapture } from '.
 // Protocol fixtures are intentionally synthetic; the real pilot is inspected separately after /save.
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const CLI = join(ROOT, '.agents/skills/verify/scripts/verify-receipts.mjs');
+const STAGING = join(ROOT, '.agents/skills/verify/scripts/verify-staging.sh');
 const headSha = 'a'.repeat(40);
 const scenario = { capability: 'memory', requirement: 'Reads areas', scenario: 'Missing store' };
 const recipe = { format: 'verify-recipe-1', id: 'memory-areas', sourcePaths: ['entry.mjs'], instructions: 'capture.md', scenarios: [scenario], capture: { workflow: '.github/workflows/payload.yml', artifact: 'verify-memory-areas' } };
@@ -276,8 +277,75 @@ test('partial download cleanup removes only its own folder and preserves indepen
     writeFileSync(join(args.at(-1), 'partial.txt'), 'Incomplete'); throw new Error('download interrupted');
   };
   assert.throws(() => collectCapture({ ...options, recipe, headSha, gh: partial }), /interrupted/);
+  assert.deepEqual(readdirSync(options.runDir), ['evidence'], 'the temporary partial-download folder remains');
   assert.equal(readFileSync(join(options.runDir, 'evidence/independent.txt'), 'utf8'), 'Keep this');
   assert.equal(existsSync(join(options.root, 'artifact/capture.json')), true);
+});
+
+test('imported synthetic receipts and their report are scrubbed before a captured posting step', t => {
+  const options = setup(t);
+  const secret = 'access-secret-from-import-0123456789';
+  const token = `ghp_${'x'.repeat(30)}`;
+  const observation = `Observed local docs; access=${secret}; token=${token}\n`;
+  writeFileSync(join(options.folder, 'stdout.txt'), observation);
+  options.manifest.cases[0].evidence.stdout = { path: 'stdout.txt', sha256: hash(observation), bytes: Buffer.byteLength(observation) };
+  options.manifest.cases[0].error = `Diagnostic access=${secret}`;
+  options.save();
+  const result = collectCapture({ ...options, recipe, headSha, gh: ghFixture(options).gh });
+  const comment = join(options.runDir, 'comment.md');
+  writeFileSync(comment, `Synthetic practice report for ${headSha}\n${observation}`);
+  const env = { ...process.env, CF_ACCESS_CLIENT_SECRET: secret };
+  for (const key of ['CF_ACCESS_CLIENT_ID', 'CLOUDFLARE_API_TOKEN', 'WALK_MEDIA_BUCKET', 'WALK_MEDIA_BASE_URL']) delete env[key];
+  const published = spawnSync('bash', [STAGING, 'publish', options.runDir], { cwd: options.root, env, encoding: 'utf8' });
+  assert.equal(published.status, 0, published.stderr);
+  assert.match(published.stdout, /^REDACTED=3$/m);
+
+  // Capture the same --body-file handoff locally; this test never posts to GitHub.
+  const bin = join(options.root, 'bin');
+  mkdirSync(bin);
+  const gh = join(bin, 'gh');
+  writeFileSync(gh, '#!/usr/bin/env bash\n[ "$1 $2 $3" = "pr comment --body-file" ] || exit 2\ncp -- "$4" "$VERIFY_POST_CAPTURE"\n');
+  chmodSync(gh, 0o755);
+  const posted = join(options.root, 'captured-comment.md');
+  const posting = spawnSync(gh, ['pr', 'comment', '--body-file', comment], { env: { ...env, VERIFY_POST_CAPTURE: posted }, encoding: 'utf8' });
+  assert.equal(posting.status, 0, posting.stderr);
+  for (const file of [posted, join(result.folder, 'stdout.txt'), join(result.folder, 'capture.json')]) {
+    const text = readFileSync(file, 'utf8');
+    assert.equal(text.includes(secret) || text.includes(token), false, `${file} retains an imported credential`);
+    assert.match(text, /\[redacted:/);
+  }
+  assert.match(readFileSync(posted, 'utf8'), new RegExp(headSha), 'essential revision evidence survives');
+  assert.equal(`${published.stdout}${published.stderr}${posting.stdout}${posting.stderr}`.includes(secret), false);
+  assert.equal(readFileSync(join(options.folder, 'stdout.txt'), 'utf8'), observation, 'the source artifact was modified');
+});
+
+test('UNKNOWN and TIMEOUT runs retain independent imported evidence until owned cleanup', t => {
+  for (const verdict of ['UNKNOWN', 'TIMEOUT']) {
+    const options = setup(t);
+    const result = collectCapture({ ...options, recipe, headSha, gh: ghFixture(options).gh });
+    const other = setup(t);
+    const otherResult = collectCapture({ ...other, recipe, headSha, gh: ghFixture(other).gh });
+    mkdirSync(join(options.runDir, 'journeys'));
+    writeFileSync(join(options.runDir, 'journeys/probe.requests.txt'), 'GET\t/probe\n');
+    const bin = join(options.root, 'bin');
+    mkdirSync(bin);
+    const bounded = join(bin, 'timeout');
+    writeFileSync(bounded, '#!/usr/bin/env bash\nexit 124\n');
+    chmodSync(bounded, 0o755);
+    const env = { ...process.env, PATH: `${bin}:${process.env.PATH}` };
+    const run = spawnSync('bash', [STAGING, 'run', options.runDir, verdict === 'TIMEOUT' ? 'https://preview.example' : ''], { cwd: options.root, env, encoding: 'utf8' });
+    assert.equal(run.status, 0);
+    assert.match(run.stdout, new RegExp(`^RESULT: ${verdict}\\n`));
+    assert.equal(readFileSync(join(result.folder, 'stdout.txt'), 'utf8'), 'Observed local docs\n');
+    const clean = spawnSync('bash', [STAGING, 'cleanup', options.runDir], { cwd: options.root, encoding: 'utf8' });
+    assert.equal(clean.status, 0, clean.stderr);
+    assert.equal(existsSync(options.runDir), false);
+    assert.equal(readFileSync(join(otherResult.folder, 'stdout.txt'), 'utf8'), 'Observed local docs\n', 'another walk was removed');
+    assert.equal(existsSync(join(options.folder, 'capture.json')), true, 'source evidence was removed');
+    const refused = spawnSync('bash', [STAGING, 'cleanup', options.root], { cwd: options.root, encoding: 'utf8' });
+    assert.equal(refused.status, 1);
+    assert.equal(existsSync(options.root), true);
+  }
 });
 
 test('CLI uses the shared help convention and names drift without launching GitHub', t => {

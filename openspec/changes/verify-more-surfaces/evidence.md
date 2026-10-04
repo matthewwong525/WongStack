@@ -41,3 +41,7 @@ This proves the comparison route and local-lookup preservation, not a memory rep
 ## Worked collector reference — 2026-10-04
 
 Head `ab27e29989bbf4074b8949210d1c7cae2f64ae25`, [push run 37178397291](https://github.com/matthewwong525/WongStack/actions/runs/37178397291), complete gate SUCCESS. The documented `check` example ran against the actual project recipe and validated its source files, owning capture guide, existing workflow and all current qualified scenarios. Payload links/config and the existing context ceiling passed. The new conditional reference is not yet wired into live walkthrough routing; its measured adoption remains pending.
+
+## Independent preparation — 2026-10-04
+
+Head `55ea5fd77f653611194a12466f60916b633a65df`, [push run 37178977750](https://github.com/matthewwong525/WongStack/actions/runs/37178977750): complete gate SUCCESS. Six preparation tests confirmed CI-only allocation without preview lookup/browser installation, preserved default behavior, invalid-flag rejection, missing-preview isolation and no allocation without a saved revision. The default preparation test also protects a corrected success exit status after READY.
