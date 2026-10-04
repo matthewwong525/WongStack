@@ -1,0 +1,40 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+import { observeRevisionChain } from '../fixtures/verify-receipts/revision-chain.mjs';
+import { captureRevisionChain } from '../verify-revision-chain.mjs';
+import { HEAD, githubFixture } from '../fixtures/saved-revision.mjs';
+import { savedRevision } from '../../.agents/skills/save/scripts/saved-revision.mjs';
+const earlier = 'da9e789563b0fcaa5a2c174e0fb86bb5bf2de35c';
+const git = (...args) => execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+test('retained instruction comparison and actual helper reject former repeated-checkpoint path', async () => {
+  const result = await observeRevisionChain({ beforeHelper: git('show', `${earlier}:.agents/skills/apply/references/build-helper.md`), beforeVerify: git('show', `${earlier}:.agents/skills/verify/SKILL.md`) });
+  assert.equal(result.before.counts.checkpoint, 6);
+  assert.deepEqual(result.after.counts, { checkpoint: 1, push: 1, wait: 1, test: 1, walkthrough: 1 });
+  assert.equal(result.after.trace.slice(0, 4).every(row => row.action === 'author'), true);
+  assert.equal(result.reused.headSha, HEAD);
+  assert.match(result.limits, /not proof of actual agent obedience/);
+});
+test('source repair invalidates prior gate; new source needs saving and fresh identity', async () => {
+  const saved = await savedRevision(githubFixture());
+  const receipt = { ...saved, gateResult: 'SUCCESS' };
+  assert.equal((await savedRevision({ ...githubFixture({ dirty: ' M repair.mjs' }), checkpoint: receipt })).state, 'NEEDS_SAVE');
+  assert.equal((await savedRevision({ ...githubFixture(), checkpoint: { ...receipt, headSha: 'b'.repeat(40) } })).state, 'UNKNOWN');
+});
+test('capture retains source identities, streams and explicit simulation limits', async t => {
+  const folder = mkdtempSync(join(tmpdir(), 'revision-chain-capture-'));
+  t.after(() => rmSync(folder, { recursive: true, force: true }));
+  const out = join(folder, 'observations');
+  const identity = { repository: 'team/repo', headSha: git('rev-parse', 'HEAD'), workflow: '.github/workflows/payload.yml', runId: '123', runAttempt: '2', event: 'push', ref: 'refs/heads/work' };
+  const result = await captureRevisionChain({ out, repo: resolve('.'), identity });
+  assert.equal(result.source.baselineSha, earlier);
+  const manifest = JSON.parse(readFileSync(join(out, 'capture.json'), 'utf8'));
+  assert.equal(manifest.capture.subjectSha, identity.headSha);
+  assert.equal(manifest.cases[0].exitCode, 0);
+  assert.equal(manifest.cleanup.fixtureRemoved, true);
+  assert.equal(manifest.cases[0].evidence.stdout.bytes, Buffer.byteLength(readFileSync(join(out, 'chain.stdout.txt'))));
+  await assert.rejects(captureRevisionChain({ out: join(folder, 'wrong'), identity: { ...identity, headSha: HEAD } }), /source does not match/);
+});
