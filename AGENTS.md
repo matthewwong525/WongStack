@@ -19,7 +19,7 @@ Before a change, **read the owning doc**: start at [`wiki/README.md`](wiki/READM
 - `wiki/`: repeatable knowledge ([philosophy](wiki/agent-knowledge-center.md), [style](wiki/wiki-style.md)). Canonical and curated; grows from use.
 - `openspec/specs/` and the archive: what shipped, never changed.
 
-`openspec list` shows active changes; `openspec show <name>` reads one; `memory.mjs areas <path or topic>` lists everything linked to it.
+Before substantial work, `memory.mjs recall <question>` finds [evidence](wiki/development/document-retrieval.md); read originals. Keep `areas <path>` for warnings and `openspec list` for plans.
 
 Credentials sit in the git-ignored `.env` at the primary worktree, mapped by the committed, values-blank `.env.example`. Don't stub a call or ask for a key in chat: declare a missing one, then [send the key link](wiki/development/secrets.md#receive-a-key-through-a-private-link).
 

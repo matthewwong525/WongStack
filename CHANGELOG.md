@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 30.5.0 — Recall original wiki and OpenSpec evidence
+
+- Ask one task question to retrieve permitted live facts and cited original document passages within a shared context budget.
+- Current guidance is the default; proposed work and historical decisions keep explicit scopes and source labels. Changed sources are verified against this checkout with fresh keyword fallback.
+- Optional pinned local QMD setup adds meaning-based search; ordinary lookup never installs packages or downloads models, and startup hooks stay model-free.
+
+**Updating.** The usual update delivers working keyword recall. To enable meaning-based search on a supported computer, ask the assistant to run the documented document setup command; it installs a local search tool and downloads its models outside your project. Your fact store and credentials keep their existing access.
+
 ## 30.4.0 — Prepare account-free hosted projects
 
 - The test workflow uses one portable check entry point with the whole change's base and exact saved head. It keeps test discovery, documentation-only skips, and the existing check and wiki reports together.

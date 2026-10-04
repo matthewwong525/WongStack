@@ -1,0 +1,109 @@
+{
+  "revision": "994aa61a23171e3d51fc5817439cbaf854698efe",
+  "operation": "memory.recall",
+  "question": "How does memory recall combine authorized facts with wiki and OpenSpec evidence?",
+  "mode": "keyword",
+  "backend": "lexical-fallback",
+  "sourceStates": {
+    "facts": "ok",
+    "documents": "ok"
+  },
+  "factCount": 6,
+  "documentCount": 4,
+  "packetBytes": 6071,
+  "elapsedMs": 1465,
+  "sourcesRead": [
+    {
+      "path": "wiki/development/document-retrieval.md",
+      "role": "wiki",
+      "startLine": 1,
+      "endLine": 4,
+      "hash": "43e797fc7c8a834aa5c61ba20194f94bb2386ed41e629d8eb9911c9b94faa48a",
+      "originalRead": true,
+      "matches": true
+    },
+    {
+      "path": "openspec/specs/memory/spec.md",
+      "role": "specs",
+      "startLine": 622,
+      "endLine": 625,
+      "hash": "2f23051c376715664fe228744eb46f10140a4275f20294cda8c7e256976b1998",
+      "originalRead": true,
+      "matches": true
+    },
+    {
+      "path": "wiki/development/document-retrieval.md",
+      "role": "wiki",
+      "startLine": 5,
+      "endLine": 9,
+      "hash": "43e797fc7c8a834aa5c61ba20194f94bb2386ed41e629d8eb9911c9b94faa48a",
+      "originalRead": true,
+      "matches": true
+    },
+    {
+      "path": "openspec/specs/memory/spec.md",
+      "role": "specs",
+      "startLine": 626,
+      "endLine": 628,
+      "hash": "2f23051c376715664fe228744eb46f10140a4275f20294cda8c7e256976b1998",
+      "originalRead": true,
+      "matches": true
+    }
+  ],
+  "privateFactBodiesRetained": false,
+  "freshHelperReview": {
+    "observedAt": "2026-10-04T15:52:23.907Z",
+    "operation": "memory.recall",
+    "interface": "scripts/company-api.mjs call memory.recall --file -",
+    "question": "How does memory recall combine authorized facts with wiki and OpenSpec evidence?",
+    "mode": "keyword",
+    "backend": "lexical-fallback",
+    "sourceStates": {
+      "facts": "ok",
+      "documents": "ok"
+    },
+    "factCount": 6,
+    "documentCount": 4,
+    "packetBytes": 6071,
+    "elapsedMs": 1012,
+    "sourcesRead": [
+      {
+        "path": "wiki/development/document-retrieval.md",
+        "role": "wiki",
+        "startLine": 1,
+        "endLine": 4,
+        "hash": "43e797fc7c8a834aa5c61ba20194f94bb2386ed41e629d8eb9911c9b94faa48a",
+        "originalRead": true,
+        "matches": true
+      },
+      {
+        "path": "openspec/specs/memory/spec.md",
+        "role": "specs",
+        "startLine": 622,
+        "endLine": 625,
+        "hash": "2f23051c376715664fe228744eb46f10140a4275f20294cda8c7e256976b1998",
+        "originalRead": true,
+        "matches": true
+      },
+      {
+        "path": "wiki/development/document-retrieval.md",
+        "role": "wiki",
+        "startLine": 5,
+        "endLine": 9,
+        "hash": "43e797fc7c8a834aa5c61ba20194f94bb2386ed41e629d8eb9911c9b94faa48a",
+        "originalRead": true,
+        "matches": true
+      },
+      {
+        "path": "openspec/specs/memory/spec.md",
+        "role": "specs",
+        "startLine": 626,
+        "endLine": 628,
+        "hash": "2f23051c376715664fe228744eb46f10140a4275f20294cda8c7e256976b1998",
+        "originalRead": true,
+        "matches": true
+      }
+    ],
+    "privateFactBodiesRetained": false
+  }
+}

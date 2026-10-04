@@ -45,7 +45,7 @@ Keep `~/.cloudflared` owned by the current OS user, mode 0700, with token files 
 
 ## Memory keeps its own access
 
-`list --scope memory` shows the installed `memory.search` and `memory.show` descriptions without company login or a store request. `list` combines them with company summaries; a company connection failure leaves memory available. Source, transport, authentication and separate revisions identify each operation. Memory readiness is `not_checked` until a call succeeds; a description alone proves no active credential.
+`list --scope memory` describes installed fact reads plus `memory.documents` and `memory.recall` without company login or a store request. [Document retrieval](../development/document-retrieval.md) needs only checkout access; recall uses the existing credential for facts and reports each source independently. `list` combines these with company summaries; company connection failure leaves installed reads available. Source, transport, authentication and separate revisions identify each operation. Readiness is `not_checked` until a call; a description proves no active credential or prepared model.
 
 ```bash
 node scripts/company-api.mjs describe memory.search

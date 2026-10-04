@@ -1,0 +1,1517 @@
+{
+  "version": 1,
+  "kind": "real-QMD-public-document-subset",
+  "reviewedOn": "2026-10-04",
+  "platform": "linux",
+  "architecture": "x64",
+  "cpuCount": 4,
+  "node": "22.23.3",
+  "sourceCount": 10,
+  "limitations": [
+    "Frozen public source subset, not whole archive throughput.",
+    "Separate CLI processes include native cold startup; no facts or transcripts reach QMD.",
+    "Semantic neighbors for absent answers are diagnostic, not proof that an answer exists."
+  ],
+  "cases": [
+    {
+      "item": {
+        "id": "exact-gate",
+        "question": "How does save publish changes and wait for checks?",
+        "scope": "current",
+        "expected": [
+          "wiki/development/the-change-loop.md",
+          "openspec/specs/delivery-gate/spec.md"
+        ],
+        "required": true,
+        "passageTerms": [
+          "CI when present",
+          "waits for CI",
+          "passing gate"
+        ]
+      },
+      "keyword": {
+        "packet": {
+          "version": 1,
+          "question": "How does save publish changes and wait for checks?",
+          "scope": "current",
+          "mode": "keyword",
+          "change": null,
+          "documentLimit": 5,
+          "backend": "qmd",
+          "coverage": "complete",
+          "requestedModeState": "ok",
+          "filters": {},
+          "sources": {
+            "facts": {
+              "state": "empty",
+              "reason": "not requested"
+            },
+            "documents": {
+              "state": "ok"
+            }
+          },
+          "facts": [],
+          "documents": [
+            {
+              "path": "wiki/development/the-change-loop.md",
+              "role": "wiki",
+              "hash": "2717b10abb743b1da563f803c6bffc7c90ac90f80d14b8232db82b4ec0aec81b",
+              "heading": "A loosened check needs a reason",
+              "startLine": 119,
+              "endLine": 130,
+              "text": "### A loosened check needs a reason\n\nEvery check has an escape hatch, and a person who does not read code can not see one used. So the Test check, [`loosened-checks.mjs`](../../.github/scripts/loosened-checks.mjs) on every push, fails when a change loosens a check without saying why. It flags a file when the change adds a line that turns a check off (a skip comment, or a skipped, focused, or to-do test), deletes a test file other than by moving it, or changes a check's settings (a test, coverage, mutation, lint, type, duplicate-code, or unused-code config, a `package.json` `test` script or a script it runs, the Test workflow, or a script under `.github/scripts/`). Any settings change counts, stricter ones too: a script can not tell stricter from looser.\n\nThe reason is a Decision log bullet that starts with `Check:` and names the file:\n\n```text\n- **2026-09-27** — Check: `app/vitest.config.ts` excludes `src/generated/` from coverage, because that code is generated and has no tests of its own.\n```\n\nOnly a proposal the branch adds or edits counts, archived ones included, so an old reason never excuses a new loosening. The agent fixes a flagged file itself, switching the check back on or writing the reason, and lists every `Check:` bullet in plain words before *publish it?* and in the final report.\n",
+              "truncated": false,
+              "score": 0,
+              "freshness": "verified",
+              "reference": "wiki/development/the-change-loop.md:119"
+            },
+            {
+              "path": "openspec/specs/delivery-gate/spec.md",
+              "role": "specs",
+              "hash": "ad4f410c55ca129919074358527a187e6ca044802aea5e461f63c0ec8491c590",
+              "heading": "Purpose",
+              "startLine": 3,
+              "endLine": 6,
+              "text": "## Purpose\n\nDecide when saved work may merge and how it gets there: `/save` checkpoints and waits on CI when the repo has checks, else PR review, with every file edit taking a pull request; and `/ship` finishes, archives, checkpoints once, and merges only on a passing gate, with nothing built locally as a condition.\n",
+              "truncated": false,
+              "score": 0,
+              "freshness": "verified",
+              "reference": "openspec/specs/delivery-gate/spec.md:3"
+            },
+            {
+              "path": "wiki/development/browsing.md",
+              "role": "wiki",
+              "hash": "16805e920b645e4f0883ad557b45f172a2afe52417e2e26551a251f97f2d454e",
+              "heading": "Save your passwords",
+              "startLine": 80,
+              "endLine": 85,
+              "text": "## Save your passwords\n\nSay *save my passwords* and the agent sends a private link where you pick the logins it may use; it never sees a password. The screen, where they're kept, and how to change one: [save your passwords](passwords.md).\n\nBack to [development](README.md).\n",
+              "truncated": false,
+              "score": 0,
+              "freshness": "verified",
+              "reference": "wiki/development/browsing.md:80"
+            },
+            {
+              "path": "openspec/specs/delivery-gate/spec.md",
+              "role": "specs",
+              "hash": "ad4f410c55ca129919074358527a187e6ca044802aea5e461f63c0ec8491c590",
+              "heading": "Requirement: Save checkpoints and never merges",
+              "startLine": 70,
+              "endLine": 75,
+              "text": "### Requirement: Save checkpoints and never merges\n\nFor GitHub repositories, `/save` SHALL commit, push, open or update the pull request, and wait on the gate, and SHALL NOT merge, force-push, or bypass hooks. The pull request body SHALL show the change's current Status, its exact task checklist, and review and preview links when they exist, and no live credential value SHALL reach a commit, fact, pull request, or report.\n\nFor a verified managed Artifacts project, `/save` SHALL commit and push the candidate branch, maintain the same change record, wait for its exact Cloudflare gate and report its verified preview without a GitHub PR. On every route `/save` SHALL NOT merge, publish production, force-push or bypass hooks, and live credentials SHALL stay out of tracked content and reports.\n",
+              "truncated": false,
+              "score": -0.001,
+              "freshness": "verified",
+              "reference": "openspec/specs/delivery-gate/spec.md:70"
+            },
+            {
+              "path": "wiki/development/memory.md",
+              "role": "wiki",
+              "hash": "fac96faf13770a6b23df73ad6dd9a27c0cb3dc8ee3716fe876ea17f76d0046a8",
+              "heading": "When memory loads",
+              "startLine": 31,
+              "endLine": 34,
+              "text": "## When memory loads\n\nWhen a session starts or resumes, the `SessionStart` hook prints a **digest** of what applies to any task: every open thread of the change on your branch first, then one line counting the open threads on other changes by step (`plan 3, save 5; 41 untagged`), then [your people page](../wiki-style.md#people), cut at 1.5 KB with a line naming the page, then the other live facts by type and age. Other changes' threads stay live and searchable; they only leave the digest, so preferences and decisions keep their room. Its first line tells the agent to [recall its task](document-retrieval.md) in its own words before substantial work, then read cited originals. Recall combines permitted facts and original wiki/OpenSpec passages; the agent chooses the question after the task is known. The count line tells a verb to load its own threads when it starts: `memory search --type thread --tag plan` when `/plan` starts. Code builds the digest from one batch of queries, with no model, in under two seconds. It is capped at 40 lines and 6 KB; the last line says how many facts it left out. Offline, the hook prints this machine’s cached digest with its age; an authorization refusal disables private-cache fallback until authorization succeeds. The digest stays the same for the whole session, so the prompt cache holds. A fact written now shows at the next start.\n",
+              "truncated": true,
+              "score": 0,
+              "freshness": "verified",
+              "reference": "wiki/development/memory.md:31"
+            }
+          ],
+          "omitted": {
+            "facts": 0,
+            "documents": 0
+          }
+        },
+        "bytes": 6040,
+        "ms": 384,
+        "grade": {
+          "hit": true,
+          "forbidden": false,
+          "verified": true,
+          "bounded": true,
+          "completeMode": true,
+          "absent": false,
+          "passes": true,
+          "absenceDiagnostic": false
+        }
+      },
+      "auto": {
+        "packet": {
+          "version": 1,
+          "question": "How does save publish changes and wait for checks?",
+          "scope": "current",
+          "mode": "auto",
+          "change": null,
+          "documentLimit": 5,
+          "backend": "qmd",
+          "coverage": "complete",
+          "requestedModeState": "ok",
+          "filters": {},
+          "sources": {
+            "facts": {
+              "state": "empty",
+              "reason": "not requested"
+            },
+            "documents": {
+              "state": "ok"
+            }
+          },
+          "facts": [],
+          "documents": [
+            {
+              "path": "wiki/development/the-change-loop.md",
+              "role": "wiki",
+              "hash": "2717b10abb743b1da563f803c6bffc7c90ac90f80d14b8232db82b4ec0aec81b",
+              "heading": "A loosened check needs a reason",
+              "startLine": 119,
+              "endLine": 130,
+              "text": "### A loosened check needs a reason\n\nEvery check has an escape hatch, and a person who does not read code can not see one used. So the Test check, [`loosened-checks.mjs`](../../.github/scripts/loosened-checks.mjs) on every push, fails when a change loosens a check without saying why. It flags a file when the change adds a line that turns a check off (a skip comment, or a skipped, focused, or to-do test), deletes a test file other than by moving it, or changes a check's settings (a test, coverage, mutation, lint, type, duplicate-code, or unused-code config, a `package.json` `test` script or a script it runs, the Test workflow, or a script under `.github/scripts/`). Any settings change counts, stricter ones too: a script can not tell stricter from looser.\n\nThe reason is a Decision log bullet that starts with `Check:` and names the file:\n\n```text\n- **2026-09-27** — Check: `app/vitest.config.ts` excludes `src/generated/` from coverage, because that code is generated and has no tests of its own.\n```\n\nOnly a proposal the branch adds or edits counts, archived ones included, so an old reason never excuses a new loosening. The agent fixes a flagged file itself, switching the check back on or writing the reason, and lists every `Check:` bullet in plain words before *publish it?* and in the final report.\n",
+              "truncated": false,
+              "score": 1,
+              "freshness": "verified",
+              "reference": "wiki/development/the-change-loop.md:119"
+            },
+            {
+              "path": "openspec/specs/delivery-gate/spec.md",
+              "role": "specs",
+              "hash": "ad4f410c55ca129919074358527a187e6ca044802aea5e461f63c0ec8491c590",
+              "heading": "Purpose",
+              "startLine": 3,
+              "endLine": 6,
+              "text": "## Purpose\n\nDecide when saved work may merge and how it gets there: `/save` checkpoints and waits on CI when the repo has checks, else PR review, with every file edit taking a pull request; and `/ship` finishes, archives, checkpoints once, and merges only on a passing gate, with nothing built locally as a condition.\n",
+              "truncated": false,
+              "score": 1,
+              "freshness": "verified",
+              "reference": "openspec/specs/delivery-gate/spec.md:3"
+            },
+            {
+              "path": "wiki/development/the-change-loop.md",
+              "role": "wiki",
+              "hash": "2717b10abb743b1da563f803c6bffc7c90ac90f80d14b8232db82b4ec0aec81b",
+              "heading": "The gate",
+              "startLine": 101,
+              "endLine": 110,
+              "text": "## The gate\n\nThis page owns delivery; other surfaces link here.\n\n**The GitHub gate is CI when present, else PR review**: GitHub Actions is an optional accelerator on pull requests, version control, OpenSpec, and the repo. Where checks exist, push and let CI run; the skills wait and fix failures. Where they don't, a human reviews the PR, with the change and its archive. Either way, **nothing builds locally as a prerequisite**; `/apply`'s host preview gates nothing and never reaches production.\n\n**Every file edit takes the gate**. GitHub uses a branch and pull request; [managed delivery](../stack/hosted-projects.md#delivery-runbook) requires exact Cloudflare checks and approval. Plans and archives stay with the verbs. Only code needs a change record; [`/save`](../../.agents/skills/save/SKILL.md) decides.\n\n**GitHub's ladder is CI-when-present → merge**; a skipped rung is never a failure. [Managed publication](../stack/hosted-projects.md#confirm-publication) requires all three confirmations. The app's test suite runs *inside* CI as an ordinary check, found by its `npm test` script at the repo root **or any immediate subdirectory**, so a repo without tests is not penalized and none receives a package manifest on WongStack's behalf.\n",
+              "truncated": true,
+              "score": 0.999,
+              "freshness": "verified",
+              "reference": "wiki/development/the-change-loop.md:101"
+            },
+            {
+              "path": "openspec/specs/delivery-gate/spec.md",
+              "role": "specs",
+              "hash": "ad4f410c55ca129919074358527a187e6ca044802aea5e461f63c0ec8491c590",
+              "heading": "Requirement: Save checkpoints and never merges",
+              "startLine": 70,
+              "endLine": 75,
+              "text": "### Requirement: Save checkpoints and never merges\n\nFor GitHub repositories, `/save` SHALL commit, push, open or update the pull request, and wait on the gate, and SHALL NOT merge, force-push, or bypass hooks. The pull request body SHALL show the change's current Status, its exact task checklist, and review and preview links when they exist, and no live credential value SHALL reach a commit, fact, pull request, or report.\n\nFor a verified managed Artifacts project, `/save` SHALL commit and push the candidate branch, maintain the same change record, wait for its exact Cloudflare gate and report its verified preview without a GitHub PR. On every route `/save` SHALL NOT merge, publish production, force-push or bypass hooks, and live credentials SHALL stay out of tracked content and reports.\n",
+              "truncated": false,
+              "score": 0.999,
+              "freshness": "verified",
+              "reference": "openspec/specs/delivery-gate/spec.md:70"
+            },
+            {
+              "path": "wiki/development/browsing.md",
+              "role": "wiki",
+              "hash": "16805e920b645e4f0883ad557b45f172a2afe52417e2e26551a251f97f2d454e",
+              "heading": "Save your passwords",
+              "startLine": 80,
+              "endLine": 85,
+              "text": "## Save your passwords\n\nSay *save my passwords* and the agent sends a private link where you pick the logins it may use; it never sees a password. The screen, where they're kept, and how to change one: [save your passwords](passwords.md).\n\nBack to [development](README.md).\n",
+              "truncated": false,
+              "score": 0.5,
+              "freshness": "verified",
+              "reference": "wiki/development/browsing.md:80"
+            }
+          ],
+          "omitted": {
+            "facts": 0,
+            "documents": 0
+          }
+        },
+        "bytes": 5924,
+        "ms": 5001,
+        "grade": {
+          "hit": true,
+          "forbidden": false,
+          "verified": true,
+          "bounded": true,
+          "completeMode": true,
+          "absent": false,
+          "passes": true,
+          "absenceDiagnostic": false
+        }
+      }
+    },
+    {
+      "item": {
+        "id": "exact-machine-privacy",
+        "question": "Private memory belongs to the installation",
+        "scope": "current",
+        "expected": [
+          "wiki/development/memory.md"
+        ],
+        "required": true,
+        "passageTerms": [
+          "Private memory belongs to the installation"
+        ]
+      },
+      "keyword": {
+        "packet": {
+          "version": 1,
+          "question": "Private memory belongs to the installation",
+          "scope": "current",
+          "mode": "keyword",
+          "change": null,
+          "documentLimit": 5,
+          "backend": "qmd",
+          "coverage": "complete",
+          "requestedModeState": "ok",
+          "filters": {},
+          "sources": {
+            "facts": {
+              "state": "empty",
+              "reason": "not requested"
+            },
+            "documents": {
+              "state": "ok"
+            }
+          },
+          "facts": [],
+          "documents": [
+            {
+              "path": "wiki/development/memory.md",
+              "role": "wiki",
+              "hash": "fac96faf13770a6b23df73ad6dd9a27c0cb3dc8ee3716fe876ea17f76d0046a8",
+              "heading": "Who sees what",
+              "startLine": 29,
+              "endLine": 30,
+              "text": "- **Private memory belongs to the installation**, even with one active key. A stable random ID in the OS user’s local data folder is shared across chats and linked worktrees; the repository keeps its own secret. Shared OS accounts share one owner. Historical private rows remain unassigned and admin-readable.\n",
+              "truncated": true,
+              "score": 0.48,
+              "freshness": "verified",
+              "reference": "wiki/development/memory.md:29"
+            },
+            {
+              "path": "wiki/development/memory.md",
+              "role": "wiki",
+              "hash": "fac96faf13770a6b23df73ad6dd9a27c0cb3dc8ee3716fe876ea17f76d0046a8",
+              "heading": "The memory key",
+              "startLine": 87,
+              "endLine": 90,
+              "text": "## The memory key\n\n`CLOUDFLARE_MEMORY_TOKEN` holds your memory key: it opens this repo's store, through your app's production Worker, and nothing else. Its roles, trusted installation, revocation, and automatic website-login labels: [the memory key](memory-key.md).\n",
+              "truncated": false,
+              "score": 0.479,
+              "freshness": "verified",
+              "reference": "wiki/development/memory.md:87"
+            },
+            {
+              "path": "wiki/development/required-tools.md",
+              "role": "wiki",
+              "hash": "080030f4b81b6074fa265c44fe687fe97c888ff48fd0190472e72a3613d9487d",
+              "heading": "Required tools",
+              "startLine": 17,
+              "endLine": 25,
+              "text": "| Tool | Why |\n|---|---|\n| `agent-browser` | The browser [`/verify`](../../.agents/skills/verify/SKILL.md) drives for UI journeys, carrying its own Chrome. Setup offers it up front, in its one install question, and the [server setup script](https://github.com/matthewwong525/WongStack/blob/main/server/README.md) installs it. On any other machine, `/verify` installs it the first time a browser journey needs it, and says so. Its request and state probes ride on `curl` and existing commands, so a walk with no UI journeys needs no browser at all. |\n| `cloudflared` | Cloudflare's free tunnel tool, which puts the agent's browser behind a private link when it [hands you the browser](browsing.md#hand-the-browser-over) on your phone or another computer. Setup offers it up front, in the same question, and the [server setup script](https://github.com/matthewwong525/WongStack/blob/main/server/README.md) installs it. On any other machine, the agent asks, then [installs it](#installing-cloudflared) the first time such a hand-over needs it. A hand-over at this computer never needs it. |\n\nEach is a **tool, not a toolchain**: nothing is added to your repository — no `package.json`, no dependency entry, no lockfile — which is what lets a Python, Rust, or Go repo walk its own app. A repo that never runs `/verify` or hands the browser over acquires neither, and every other core verb still needs only the five commands above. The browser is available for ordinary work too, not only inside a walk; `/verify` is just the surface that grades what it sees and posts the evidence.\n\n**Paseo is where you chat.** [Paseo](https://paseo.sh) runs Claude Code or Codex on your own computer and reaches it from your phone; [the README's steps](https://github.com/matthewwong525/WongStack#start-in-three-steps) start there, and setup points to it when it's missing ([the check](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/tools.md#paseo-point-to-it-never-install-it)). No verb needs it except two: [`/routine`](../../.agents/skills/routine/SKILL.md) schedules recurring runs through it, and a request with several separate parts can [open a new workspace per part](the-change-loop.md#several-parts-several-workspaces). WongStack still never installs Paseo on your computer, because it is a desktop download with its own window; the one place it installs Paseo is the [server setup script](https://github.com/matthewwong525/WongStack/blob/main/server/README.md), for a server you give to agents. Without Paseo, `/routine` says so and changes nothing, the parts of a request are done one at a time, and work happens in your main folder. You also lose chatting from your phone, `/close` archiving the workspace, a finished browser hand-over waking the chat (you type *continue* instead), and the session-start tidy-up of idle workspaces. Every other verb works as before. The script uses Paseo's own daemon client, because `paseo schedule create` cannot set worktree isolation. A Paseo update that changes that client makes `/routine` stop and give the steps for the Paseo app.\n",
+              "truncated": true,
+              "score": 0.42,
+              "freshness": "verified",
+              "reference": "wiki/development/required-tools.md:17"
+            }
+          ],
+          "omitted": {
+            "facts": 0,
+            "documents": 0
+          }
+        },
+        "bytes": 4951,
+        "ms": 380,
+        "grade": {
+          "hit": true,
+          "forbidden": false,
+          "verified": true,
+          "bounded": true,
+          "completeMode": true,
+          "absent": false,
+          "passes": true,
+          "absenceDiagnostic": false
+        }
+      },
+      "auto": {
+        "packet": {
+          "version": 1,
+          "question": "Private memory belongs to the installation",
+          "scope": "current",
+          "mode": "auto",
+          "change": null,
+          "documentLimit": 5,
+          "backend": "qmd",
+          "coverage": "complete",
+          "requestedModeState": "ok",
+          "filters": {},
+          "sources": {
+            "facts": {
+              "state": "empty",
+              "reason": "not requested"
+            },
+            "documents": {
+              "state": "ok"
+            }
+          },
+          "facts": [],
+          "documents": [
+            {
+              "path": "wiki/development/memory.md",
+              "role": "wiki",
+              "hash": "fac96faf13770a6b23df73ad6dd9a27c0cb3dc8ee3716fe876ea17f76d0046a8",
+              "heading": "Who sees what",
+              "startLine": 29,
+              "endLine": 30,
+              "text": "- **Private memory belongs to the installation**, even with one active key. A stable random ID in the OS user’s local data folder is shared across chats and linked worktrees; the repository keeps its own secret. Shared OS accounts share one owner. Historical private rows remain unassigned and admin-readable.\n",
+              "truncated": true,
+              "score": 1,
+              "freshness": "verified",
+              "reference": "wiki/development/memory.md:29"
+            },
+            {
+              "path": "openspec/specs/delivery-gate/spec.md",
+              "role": "specs",
+              "hash": "ad4f410c55ca129919074358527a187e6ca044802aea5e461f63c0ec8491c590",
+              "heading": "Requirement: Git verbs check their preconditions first",
+              "startLine": 87,
+              "endLine": 110,
+              "text": "\nFor GitHub repositories, `/save`, `/continue`, and `/ship` SHALL check that `gh` is signed in, an `origin` remote exists, and the `openspec` CLI runs, before any git or GitHub action. A failed check SHALL stop the verb with the command that fixes it, and a sign-in failure SHALL NOT be read as \"no PR\".\n\nFor a managed Artifacts project, those verbs SHALL instead verify the private hosted handoff, project identity, authorized remote and applicable Cloudflare status before a mutation; a missing or invalid handoff SHALL stop with reconnect guidance rather than request a GitHub or customer Cloudflare sign-in. An Artifacts origin or committed marker SHALL NOT establish authorization.\n\n#### Scenario: gh is signed out\n\n- **WHEN** `/save` runs and `gh` is not signed in\n- **THEN** it stops before the push and says to run `gh auth login`\n\n#### Scenario: Hosted authority is missing\n\n- **WHEN** a checkout identifies Artifacts but has no valid private hosted handoff\n- **THEN** the verb stops before mutation with reconnect guidance and does not use personal setup\n\n### Requirement: The preview link is the real preview for this commit\n\nPreview discovery SHALL report only a preview URL tied to the head commit, SHALL NOT report a bare provider apex such as `workers.dev` or `vercel.app`, and SHALL NOT construct a URL from a naming convention. When nothing qualifies, it SHALL report no preview.\n\n#### Scenario: A comment links the provider logo first\n\n- **WHEN** a comment naming the head commit links `https://workers.dev` and then `https://feature-app.example.workers.dev`\n- **THEN** discovery reports `https://feature-app.example.workers.dev`\n",
+              "truncated": true,
+              "score": 1,
+              "freshness": "verified",
+              "reference": "openspec/specs/delivery-gate/spec.md:87"
+            },
+            {
+              "path": "wiki/development/memory.md",
+              "role": "wiki",
+              "hash": "fac96faf13770a6b23df73ad6dd9a27c0cb3dc8ee3716fe876ea17f76d0046a8",
+              "heading": "The memory key",
+              "startLine": 87,
+              "endLine": 90,
+              "text": "## The memory key\n\n`CLOUDFLARE_MEMORY_TOKEN` holds your memory key: it opens this repo's store, through your app's production Worker, and nothing else. Its roles, trusted installation, revocation, and automatic website-login labels: [the memory key](memory-key.md).\n",
+              "truncated": false,
+              "score": 0.999,
+              "freshness": "verified",
+              "reference": "wiki/development/memory.md:87"
+            },
+            {
+              "path": "wiki/development/required-tools.md",
+              "role": "wiki",
+              "hash": "080030f4b81b6074fa265c44fe687fe97c888ff48fd0190472e72a3613d9487d",
+              "heading": "Required tools",
+              "startLine": 17,
+              "endLine": 21,
+              "text": "| Tool | Why |\n|---|---|\n| `agent-browser` | The browser [`/verify`](../../.agents/skills/verify/SKILL.md) drives for UI journeys, carrying its own Chrome. Setup offers it up front, in its one install question, and the [server setup script](https://github.com/matthewwong525/WongStack/blob/main/server/README.md) installs it. On any other machine, `/verify` installs it the first time a browser journey needs it, and says so. Its request and state probes ride on `curl` and existing commands, so a walk with no UI journeys needs no browser at all. |\n| `cloudflared` | Cloudflare's free tunnel tool, which puts the agent's browser behind a private link when it [hands you the browser](browsing.md#hand-the-browser-over) on your phone or another computer. Setup offers it up front, in the same question, and the [server setup script](https://github.com/matthewwong525/WongStack/blob/main/server/README.md) installs it. On any other machine, the agent asks, then [installs it](#installing-cloudflared) the first time such a hand-over needs it. A hand-over at this computer never needs it. |\n",
+              "truncated": true,
+              "score": 0.5,
+              "freshness": "verified",
+              "reference": "wiki/development/required-tools.md:17"
+            },
+            {
+              "path": "wiki/development/memory-key.md",
+              "role": "wiki",
+              "hash": "68d9286ce516fb2a195ea771b085d29bb1177c3cdaf3c600890c3ca181398f5c",
+              "heading": "Joining through GitHub",
+              "startLine": 23,
+              "endLine": 32,
+              "text": "## Joining through GitHub\n\nThis heading remains for older links. Enrollment through GitHub has been replaced by trusted credential installation. Memory needs no GitHub lookup, person sign-in, account cap, or renewal. Missing credentials are reported by the normal hook; it never auto-enrolls a checkout.\n\nThe admin issues a credential for the recipient's local machine ID into a private transfer file. The recipient installs it with:\n\n```bash\nnode .claude/skills/memory/scripts/memory.mjs join --file <absolute-private-file>\n```\n",
+              "truncated": true,
+              "score": 0.33,
+              "freshness": "verified",
+              "reference": "wiki/development/memory-key.md:23"
+            }
+          ],
+          "omitted": {
+            "facts": 0,
+            "documents": 0
+          }
+        },
+        "bytes": 5775,
+        "ms": 4980,
+        "grade": {
+          "hit": true,
+          "forbidden": false,
+          "verified": true,
+          "bounded": true,
+          "completeMode": true,
+          "absent": false,
+          "passes": true,
+          "absenceDiagnostic": false
+        }
+      }
+    },
+    {
+      "item": {
+        "id": "paraphrase-persistence",
+        "question": "Ephemeral dialogue warrants persistent organizational recollection",
+        "scope": "current",
+        "expected": [
+          "wiki/development/memory.md",
+          "wiki/agent-knowledge-center.md"
+        ],
+        "paraphrase": true,
+        "required": true,
+        "passageTerms": [
+          "A session ends",
+          "session's context",
+          "short typed",
+          "survive the session"
+        ]
+      },
+      "keyword": {
+        "packet": {
+          "version": 1,
+          "question": "Ephemeral dialogue warrants persistent organizational recollection",
+          "scope": "current",
+          "mode": "keyword",
+          "change": null,
+          "documentLimit": 5,
+          "backend": "qmd",
+          "coverage": "complete",
+          "requestedModeState": "ok",
+          "filters": {},
+          "sources": {
+            "facts": {
+              "state": "empty",
+              "reason": "not requested"
+            },
+            "documents": {
+              "state": "empty"
+            }
+          },
+          "facts": [],
+          "documents": [],
+          "omitted": {
+            "facts": 0,
+            "documents": 0
+          }
+        },
+        "bytes": 393,
+        "ms": 376,
+        "grade": {
+          "hit": false,
+          "forbidden": false,
+          "verified": true,
+          "bounded": true,
+          "completeMode": true,
+          "absent": true,
+          "passes": false,
+          "absenceDiagnostic": false
+        }
+      },
+      "auto": {
+        "packet": {
+          "version": 1,
+          "question": "Ephemeral dialogue warrants persistent organizational recollection",
+          "scope": "current",
+          "mode": "auto",
+          "change": null,
+          "documentLimit": 5,
+          "backend": "qmd",
+          "coverage": "complete",
+          "requestedModeState": "ok",
+          "filters": {},
+          "sources": {
+            "facts": {
+              "state": "empty",
+              "reason": "not requested"
+            },
+            "documents": {
+              "state": "ok"
+            }
+          },
+          "facts": [],
+          "documents": [
+            {
+              "path": "wiki/development/the-change-loop.md",
+              "role": "wiki",
+              "hash": "2717b10abb743b1da563f803c6bffc7c90ac90f80d14b8232db82b4ec0aec81b",
+              "heading": "The change loop",
+              "startLine": 1,
+              "endLine": 16,
+              "text": "# The change loop\n\nRepo changes follow this loop. The handoff is an **[OpenSpec](https://github.com/Fission-AI/OpenSpec) change**: `openspec/changes/<name>/` holds its proposal, tasks, and optional specs, saved with the code.\n\nA plain request — research, an errand, a reminder, a question — is not a change. The agent does it directly, with no verb and no question round, and writes anything [repeatable](../wiki-style.md#repeatable-knowledge) it learns to the wiki. One that edited a repo file, such as a wiki note, ends by asking *publish it?*, so no edit is left unsaved. Finished work in a Paseo workspace offers to close it: [`/close`](../../.agents/skills/close/SKILL.md) saves what the chat learned, updates the wiki, and closes the workspace. An invoked verb works for any work: [non-code work](#verbs-for-any-work) gets a to-do, not a change. The full loop is for the repo's code or process, and a new standalone page or tool is code: [a mini app](#mini-apps).\n\n```\n/explore ─▶ /plan ─▶ /apply ─▶ /save ─▶ /ship ─▶ /close\n think      draft the  implement  save +    publish +   wiki +\n (no git)   change     + host     review +  archive   close\n            (no git)   preview    CI\n                          ▲\n            /continue ────┘\n            resume saved work later, on any machine\n```\n",
+              "truncated": true,
+              "score": 1,
+              "freshness": "verified",
+              "reference": "wiki/development/the-change-loop.md:1"
+            },
+            {
+              "path": "openspec/specs/delivery-gate/spec.md",
+              "role": "specs",
+              "hash": "ad4f410c55ca129919074358527a187e6ca044802aea5e461f63c0ec8491c590",
+              "heading": "delivery-gate Specification",
+              "startLine": 1,
+              "endLine": 24,
+              "text": "# delivery-gate Specification\n\n## Purpose\n\nDecide when saved work may merge and how it gets there: `/save` checkpoints and waits on CI when the repo has checks, else PR review, with every file edit taking a pull request; and `/ship` finishes, archives, checkpoints once, and merges only on a passing gate, with nothing built locally as a condition.\n\n## Requirements\n\n### Requirement: The gate is CI when present, else PR review\n\nFor a GitHub repository, `/ship` SHALL merge only when `/save`'s gate result is `SUCCESS` (checks passed) or `NONE` (the repo has no checks, so PR review is the gate); `UNKNOWN`, `TIMEOUT`, or `FAILURE` SHALL stop the merge. `/ship` SHALL NOT bypass, repeat, or reinterpret that result, and SHALL NOT start while the default branch's own checks are failing or unreadable.\n\nFor a verified managed Artifacts project, `/ship` SHALL use the mandatory exact-candidate Cloudflare check result and the approved publication contract defined by `cloudflare-hosted-projects`; no GitHub pull request or absent GitHub check SHALL count as its gate. A failed, timed-out or unreadable hosted gate SHALL stop publication.\n\n#### Scenario: Checks fail on the branch\n\n- **WHEN** a pushed commit's checks fail\n- **THEN** the skill reads the failure and pushes a fix, at most three times\n- **AND** `/ship` merges only once the checks pass\n\n#### Scenario: The repo has no checks\n\n- **WHEN** the repo has no CI workflow\n- **THEN** `/save` reports `NONE` and `/ship` merges on PR review",
+              "truncated": true,
+              "score": 1,
+              "freshness": "verified",
+              "reference": "openspec/specs/delivery-gate/spec.md:1"
+            },
+            {
+              "path": "wiki/development/memory-key.md",
+              "role": "wiki",
+              "hash": "68d9286ce516fb2a195ea771b085d29bb1177c3cdaf3c600890c3ca181398f5c",
+              "heading": "The memory key",
+              "startLine": 1,
+              "endLine": 4,
+              "text": "# The memory key\n\nYour memory key opens this repository's [session memory](memory.md), with private memory owned by this OS-user installation. Repository authorization includes shared memory; trusted setup or the admin installs the secret that proves that authorization to the store. A copied checkout or a chosen machine ID alone grants nothing.\n",
+              "truncated": true,
+              "score": 0.5,
+              "freshness": "verified",
+              "reference": "wiki/development/memory-key.md:1"
+            },
+            {
+              "path": "wiki/agent-knowledge-center.md",
+              "role": "wiki",
+              "hash": "77fad152226cbac7680ea2930966f03f6ec7607636eed0284f75ddc3a2531dd5",
+              "heading": "AI knowledge centers",
+              "startLine": 1,
+              "endLine": 9,
+              "text": "# AI knowledge centers\n\nAn AI knowledge center is a repo where the team's processes, active work, shipped decisions, and reusable lessons are written in forms that humans can review and agents can run.\n\nWongStack is one way to build one — a set of working principles and the files that apply them. Take what fits your team and adapt the rest.\n\n## The principles\n\n1. **Building in-house isn't about saving money.** It's about a faster, better process.",
+              "truncated": true,
+              "score": 0.33,
+              "freshness": "verified",
+              "reference": "wiki/agent-knowledge-center.md:1"
+            },
+            {
+              "path": "wiki/development/memory.md",
+              "role": "wiki",
+              "hash": "fac96faf13770a6b23df73ad6dd9a27c0cb3dc8ee3716fe876ea17f76d0046a8",
+              "heading": "Session memory",
+              "startLine": 1,
+              "endLine": 6,
+              "text": "# Session memory\n\nSession memory is the repo's private store of **facts**: short typed lines that past sessions learned, which the next session reads at start. It lives outside git, in the repo's own Cloudflare account, so a capture needs no commit and a public repo publishes nothing. [The `memory` skill](../../.agents/skills/memory/SKILL.md) is its one door; this page is the convention. It is one of the knowledge surfaces in [the knowledge center](../agent-knowledge-center.md), beside the wiki and OpenSpec.\n\n## What is stored\n",
+              "truncated": true,
+              "score": 0.25,
+              "freshness": "verified",
+              "reference": "wiki/development/memory.md:1"
+            }
+          ],
+          "omitted": {
+            "facts": 0,
+            "documents": 0
+          }
+        },
+        "bytes": 6098,
+        "ms": 4979,
+        "grade": {
+          "hit": true,
+          "forbidden": false,
+          "verified": true,
+          "bounded": true,
+          "completeMode": true,
+          "absent": false,
+          "passes": true,
+          "absenceDiagnostic": false
+        }
+      }
+    },
+    {
+      "item": {
+        "id": "paraphrase-implementation",
+        "question": "Repetitive predictable procedures benefit from deterministic automation instead of language inference",
+        "scope": "current",
+        "expected": [
+          "wiki/agent-knowledge-center.md"
+        ],
+        "paraphrase": true,
+        "required": true,
+        "passageTerms": [
+          "same way every time",
+          "same answer twice",
+          "Most process improvements shouldn't use AI"
+        ]
+      },
+      "keyword": {
+        "packet": {
+          "version": 1,
+          "question": "Repetitive predictable procedures benefit from deterministic automation instead of language inference",
+          "scope": "current",
+          "mode": "keyword",
+          "change": null,
+          "documentLimit": 5,
+          "backend": "qmd",
+          "coverage": "complete",
+          "requestedModeState": "ok",
+          "filters": {},
+          "sources": {
+            "facts": {
+              "state": "empty",
+              "reason": "not requested"
+            },
+            "documents": {
+              "state": "empty"
+            }
+          },
+          "facts": [],
+          "documents": [],
+          "omitted": {
+            "facts": 0,
+            "documents": 0
+          }
+        },
+        "bytes": 428,
+        "ms": 369,
+        "grade": {
+          "hit": false,
+          "forbidden": false,
+          "verified": true,
+          "bounded": true,
+          "completeMode": true,
+          "absent": true,
+          "passes": false,
+          "absenceDiagnostic": false
+        }
+      },
+      "auto": {
+        "packet": {
+          "version": 1,
+          "question": "Repetitive predictable procedures benefit from deterministic automation instead of language inference",
+          "scope": "current",
+          "mode": "auto",
+          "change": null,
+          "documentLimit": 5,
+          "backend": "qmd",
+          "coverage": "complete",
+          "requestedModeState": "ok",
+          "filters": {},
+          "sources": {
+            "facts": {
+              "state": "empty",
+              "reason": "not requested"
+            },
+            "documents": {
+              "state": "ok"
+            }
+          },
+          "facts": [],
+          "documents": [
+            {
+              "path": "wiki/development/the-change-loop.md",
+              "role": "wiki",
+              "hash": "2717b10abb743b1da563f803c6bffc7c90ac90f80d14b8232db82b4ec0aec81b",
+              "heading": "The change loop",
+              "startLine": 1,
+              "endLine": 7,
+              "text": "# The change loop\n\nRepo changes follow this loop. The handoff is an **[OpenSpec](https://github.com/Fission-AI/OpenSpec) change**: `openspec/changes/<name>/` holds its proposal, tasks, and optional specs, saved with the code.\n\nA plain request — research, an errand, a reminder, a question — is not a change. The agent does it directly, with no verb and no question round, and writes anything [repeatable](../wiki-style.md#repeatable-knowledge) it learns to the wiki. One that edited a repo file, such as a wiki note, ends by asking *publish it?*, so no edit is left unsaved. Finished work in a Paseo workspace offers to close it: [`/close`](../../.agents/skills/close/SKILL.md) saves what the chat learned, updates the wiki, and closes the workspace. An invoked verb works for any work: [non-code work](#verbs-for-any-work) gets a to-do, not a change. The full loop is for the repo's code or process, and a new standalone page or tool is code: [a mini app](#mini-apps).\n\n```",
+              "truncated": true,
+              "score": 1,
+              "freshness": "verified",
+              "reference": "wiki/development/the-change-loop.md:1"
+            },
+            {
+              "path": "openspec/specs/delivery-gate/spec.md",
+              "role": "specs",
+              "hash": "ad4f410c55ca129919074358527a187e6ca044802aea5e461f63c0ec8491c590",
+              "heading": "Requirement: Nothing builds locally as a gate",
+              "startLine": 41,
+              "endLine": 62,
+              "text": "\n### Requirement: Nothing builds locally as a gate\n\nNo skill SHALL compile, run a test suite, lint, or type-check as a condition of `/save` or `/ship`; test suites run in CI (`ci-tests`). `/apply`'s preview from the agent host SHALL gate nothing and SHALL NOT deploy production.\n\n#### Scenario: A host preview exists\n\n- **WHEN** `/apply` uploaded a preview from the host and the person publishes the change\n- **THEN** `/ship` still saves, waits on the gate, and merges on its result\n- **AND** production deploys from CI on the default branch\n\n### Requirement: The walkthrough is evidence, not a gate\n\n`/ship` SHALL run `/verify` once before the merge and report its verdict (`staging-walkthrough`). A walk that cannot run, or a missing `verify` skill, SHALL NOT block the merge and SHALL NOT be installed; a walk `FAILURE` SHALL stop and ask the person to fix it or merge anyway, and a merge anyway SHALL be recorded in the report.\n\n#### Scenario: The walk fails\n\n- **WHEN** the ship-time walk returns `FAILURE` after its own fix attempts\n- **THEN** `/ship` stops before merging and asks whether to fix first or merge anyway\n\n### Requirement: The gate doctrine has one owner\n",
+              "truncated": true,
+              "score": 1,
+              "freshness": "verified",
+              "reference": "openspec/specs/delivery-gate/spec.md:41"
+            },
+            {
+              "path": "wiki/development/required-tools.md",
+              "role": "wiki",
+              "hash": "080030f4b81b6074fa265c44fe687fe97c888ff48fd0190472e72a3613d9487d",
+              "heading": "Required tools",
+              "startLine": 21,
+              "endLine": 23,
+              "text": "\nEach is a **tool, not a toolchain**: nothing is added to your repository — no `package.json`, no dependency entry, no lockfile — which is what lets a Python, Rust, or Go repo walk its own app. A repo that never runs `/verify` or hands the browser over acquires neither, and every other core verb still needs only the five commands above. The browser is available for ordinary work too, not only inside a walk; `/verify` is just the surface that grades what it sees and posts the evidence.\n",
+              "truncated": true,
+              "score": 0.5,
+              "freshness": "verified",
+              "reference": "wiki/development/required-tools.md:21"
+            },
+            {
+              "path": "wiki/agent-knowledge-center.md",
+              "role": "wiki",
+              "hash": "77fad152226cbac7680ea2930966f03f6ec7607636eed0284f75ddc3a2531dd5",
+              "heading": "AI knowledge centers",
+              "startLine": 2,
+              "endLine": 8,
+              "text": "\nAn AI knowledge center is a repo where the team's processes, active work, shipped decisions, and reusable lessons are written in forms that humans can review and agents can run.\n\nWongStack is one way to build one — a set of working principles and the files that apply them. Take what fits your team and adapt the rest.\n\n## The principles\n",
+              "truncated": true,
+              "score": 0.33,
+              "freshness": "verified",
+              "reference": "wiki/agent-knowledge-center.md:2"
+            },
+            {
+              "path": "wiki/development/memory.md",
+              "role": "wiki",
+              "hash": "fac96faf13770a6b23df73ad6dd9a27c0cb3dc8ee3716fe876ea17f76d0046a8",
+              "heading": "When to add embeddings",
+              "startLine": 94,
+              "endLine": 98,
+              "text": "\n## When to add embeddings\n\nSearch is keyword search (FTS5) with tags. It matches a word's other forms through the porter stemmer, so *previews* finds *preview*, and filler words like *how* and *should* never match on their own. It matches forms, not meanings: *Concise language please* misses the fixture fact that says *The owner wants short replies in plain words, with no tool names unless they ask*, so search with the words the fact would use. A shipped set of real-shaped questions, `scripts/tests/fixtures/memory-search-questions.json`, runs in CI, each with the fact it must rank in the top three, so a change can't quietly break search; a question that should have matched and didn't belongs there first. That is enough at hundreds to low thousands of facts, because the write gate asks a model about paraphrases, and consolidation merges what the gate missed. Add embeddings when `memory.mjs stats` reports the trigger as met: more than 2,000 live facts, or merged duplicates growing across three consolidations. Search stays behind the one script, so nothing else changes.\n",
+              "truncated": true,
+              "score": 0.25,
+              "freshness": "verified",
+              "reference": "wiki/development/memory.md:94"
+            }
+          ],
+          "omitted": {
+            "facts": 0,
+            "documents": 0
+          }
+        },
+        "bytes": 6069,
+        "ms": 5028,
+        "grade": {
+          "hit": false,
+          "forbidden": false,
+          "verified": true,
+          "bounded": true,
+          "completeMode": true,
+          "absent": false,
+          "passes": false,
+          "absenceDiagnostic": false
+        }
+      }
+    },
+    {
+      "item": {
+        "id": "historical-reason",
+        "question": "Why did notes in git not suit a team?",
+        "scope": "history",
+        "change": "add-memory-store",
+        "expected": [
+          "openspec/changes/archive/2026-09-25-add-memory-store/proposal.md"
+        ],
+        "expectedRole": "archive",
+        "required": true,
+        "passageTerms": [
+          "Notes in git also do not suit a team"
+        ]
+      },
+      "keyword": {
+        "packet": {
+          "version": 1,
+          "question": "Why did notes in git not suit a team?",
+          "scope": "history",
+          "mode": "keyword",
+          "change": "add-memory-store",
+          "documentLimit": 5,
+          "backend": "qmd",
+          "coverage": "complete",
+          "requestedModeState": "ok",
+          "filters": {},
+          "sources": {
+            "facts": {
+              "state": "empty",
+              "reason": "not requested"
+            },
+            "documents": {
+              "state": "ok"
+            }
+          },
+          "facts": [],
+          "documents": [
+            {
+              "path": "openspec/changes/archive/2026-09-25-add-memory-store/proposal.md",
+              "role": "archive",
+              "hash": "aebfa3f2e9cce703c5a0e0829e55f41e81ec347bf95fe61337c8f4df70bdcf12",
+              "heading": "Why",
+              "startLine": 7,
+              "endLine": 10,
+              "text": "## Why\n\nA session's context enters the repo only when someone runs `/save`, and many sessions end without one, so what they worked out is lost. When context is saved, nothing reads it again: the start of a session loads no memory, only `/continue` reads a note, and no step removes a stale or duplicate note. Notes in git also do not suit a team: every note is public in a public repo, a protected `main` turns each capture into a pull request, and grep is the only search.\n",
+              "truncated": false,
+              "score": 0.76,
+              "freshness": "verified",
+              "reference": "openspec/changes/archive/2026-09-25-add-memory-store/proposal.md:7"
+            },
+            {
+              "path": "openspec/changes/archive/2026-09-25-add-memory-store/proposal.md",
+              "role": "archive",
+              "hash": "aebfa3f2e9cce703c5a0e0829e55f41e81ec347bf95fe61337c8f4df70bdcf12",
+              "heading": "Decision log",
+              "startLine": 53,
+              "endLine": 75,
+              "text": "## Decision log\n\n- **2026-09-25** — Asked how to make memory automatic; the user proposed a session-start subagent. Found that `/dream` did note-to-wiki consolidation until 2026-09-15 and was retired because nobody ran it by hand, so the new design fixes the trigger, not the consolidation.\n- **2026-09-25** — Asked what to consolidate → the user clarified the problem: many sessions end without `/save`, and their context must still reach durable storage. The design became a backfill of missing notes.\n- **2026-09-25** — Asked the consolidation trigger → chose a threshold checked at session start.\n- **2026-09-25** — Asked how the wiki is written → the user chose `/ship` only, from the change's notes.\n- **2026-09-25** — Asked how to make notes searchable → chose a summary and tags plus a query script. Asked where tags come from → chose a curated list that the model may extend with a definition line.\n- **2026-09-25** — Asked whether to migrate existing notes → chose one pass over all 43.\n- **2026-09-25** — Asked hook versus subagent → the hook runs only a fast script and triggers a background subagent that works next to the first prompt, so the first reply is not delayed.\n- **2026-09-25** — Asked about publishing in a public repo → first chose main with an opt-out, then replaced git storage with Cloudflare. The `#private` opt-out remains.\n- **2026-09-25** — Asked how the store relates to `notes/` → chose all in Cloudflare. Asked for one store per team or per repo → chose per repo. Asked what R2 keeps → chose the full raw transcript.\n- **2026-09-25** — Asked what happens without a store → chose Cloudflare as mandatory for setup. Asked about retention → chose forever, in a secure store.\n- **2026-09-25** — Asked about encryption → the user chose plain files in a private bucket. Assumed a dedicated memory token that CI never receives, because the provisioning token is widened and copied into GitHub secrets.\n- **2026-09-25** — Asked the name → chose `memory` for the database and bucket, with a `sessions` table. Asked the model → chose sessions plus notes. Asked about note history → the user chose none, because a new note is created instead of updating one, so notes are append-only and a slug groups them.\n- **2026-09-25** — Assumed: the REST API rather than a Worker, because a Worker adds a service to run. Assumed: known `.env` values are replaced in the raw transcript before upload, and a token-pattern scan blocks a note that contains a match.\n- **2026-09-25** — Assumed: a 1-hour idle threshold, a cap of 5 sessions per run, the `#private` marker, and the `memory` skill name. All are cheap to change in review.\n- **2026-09-25** — Assumed: the local spool, because `/save` must not lose a note when the network or token fails.\n- **2026-09-25** — Assumed: resource ids live in `.claude/.wong-stack.json` and only the token lives in `.env`, because ids are not secrets and `wrangler.jsonc` already commits D1 ids.\n- **2026-09-25** — Assumed: sessions are linked to a repo through a registry that the start hook writes, plus checkouts that currently exist. Older transcripts of deleted worktrees are skipped, because the migration already covers their saved notes.\n- **2026-09-25** — Assumed: `/wong-cloudflare` is the one door to Cloudflare and provisions memory without the stack pack, because the provisioning token can already mint a scoped token.\n- **2026-09-25** — Assumed: Codex uses its start hook if it has one, else an `AGENTS.md` instruction. The implementation verifies this.\n- **2026-09-25** — Asked how to make retrieval and storage better, with research on other systems. Found that the plan had no read side at session start, that only `/continue` read notes, and that nothing revisited a note. Claude Code auto-memory, Codex Memories, and Letta all load a small index at start, freeze it for the session, supersede stale facts, and consolidate offline.\n- **2026-09-25** — Asked whether notes are needed if facts exist → chose facts only. 42 of the 43 notes back an archived change whose Decision log already holds the why, and R2 keeps the raw transcript as the full record, so an authored note adds little. The loss is the connected argument of a design turn, which stays in the Decision log and the transcript.",
+              "truncated": true,
+              "score": 0.759,
+              "freshness": "verified",
+              "reference": "openspec/changes/archive/2026-09-25-add-memory-store/proposal.md:53"
+            }
+          ],
+          "omitted": {
+            "facts": 0,
+            "documents": 0
+          }
+        },
+        "bytes": 5932,
+        "ms": 519,
+        "grade": {
+          "hit": true,
+          "forbidden": false,
+          "verified": true,
+          "bounded": true,
+          "completeMode": true,
+          "absent": false,
+          "passes": true,
+          "absenceDiagnostic": false
+        }
+      },
+      "auto": {
+        "packet": {
+          "version": 1,
+          "question": "Why did notes in git not suit a team?",
+          "scope": "history",
+          "mode": "auto",
+          "change": "add-memory-store",
+          "documentLimit": 5,
+          "backend": "qmd",
+          "coverage": "complete",
+          "requestedModeState": "ok",
+          "filters": {},
+          "sources": {
+            "facts": {
+              "state": "empty",
+              "reason": "not requested"
+            },
+            "documents": {
+              "state": "ok"
+            }
+          },
+          "facts": [],
+          "documents": [
+            {
+              "path": "wiki/development/the-change-loop.md",
+              "role": "wiki",
+              "hash": "2717b10abb743b1da563f803c6bffc7c90ac90f80d14b8232db82b4ec0aec81b",
+              "heading": "The steps",
+              "startLine": 64,
+              "endLine": 71,
+              "text": "## The steps\n\nEach skill owns its own procedure; this list is what each stage is for.\n\n- **[`/explore`](../../.agents/skills/explore/SKILL.md)** thinks a problem through and owns the [questions before a plan](#asking-before-drafting). It **always runs**, except for notes pasted from a review page, and writes nothing.\n- **[`/plan`](../../.agents/skills/plan/SKILL.md)** drafts the change folder and its `review.html` page, with no git. **A change that touches behavior plans its tests**: `tasks.md` carries a coverage task that `/apply` writes and CI runs on every push. `/save` never authors tests; coverage grows where the context is richest.\n- **[`/apply`](../../.agents/skills/apply/SKILL.md)** ensures a plan, works `tasks.md` [in a fresh helper agent](../../.agents/skills/apply/SKILL.md#build-in-a-helper) so the build does not carry the planning talk, and ends with a host preview. It never saves on completion; invoked by `/ship`, it returns with no upload.\n- **[`/save`](../../.agents/skills/save/SKILL.md)** is the git stage: it commits code and [the synced change](#the-change-is-a-living-handoff-not-just-a-plan) together, pushes, opens or updates the PR, waits for CI when present, returns a preview URL, and records the session's facts in the [memory store](memory.md). With no plan, it authors one from the session, so nothing ships without its handoff. `/ship` reuses it for the archive, so the git, PR, and CI logic exists once.",
+              "truncated": true,
+              "score": 1,
+              "freshness": "verified",
+              "reference": "wiki/development/the-change-loop.md:64"
+            },
+            {
+              "path": "openspec/specs/delivery-gate/spec.md",
+              "role": "specs",
+              "hash": "ad4f410c55ca129919074358527a187e6ca044802aea5e461f63c0ec8491c590",
+              "heading": "Requirement: Git verbs check their preconditions first",
+              "startLine": 86,
+              "endLine": 91,
+              "text": "### Requirement: Git verbs check their preconditions first\n\nFor GitHub repositories, `/save`, `/continue`, and `/ship` SHALL check that `gh` is signed in, an `origin` remote exists, and the `openspec` CLI runs, before any git or GitHub action. A failed check SHALL stop the verb with the command that fixes it, and a sign-in failure SHALL NOT be read as \"no PR\".\n\nFor a managed Artifacts project, those verbs SHALL instead verify the private hosted handoff, project identity, authorized remote and applicable Cloudflare status before a mutation; a missing or invalid handoff SHALL stop with reconnect guidance rather than request a GitHub or customer Cloudflare sign-in. An Artifacts origin or committed marker SHALL NOT establish authorization.\n",
+              "truncated": false,
+              "score": 1,
+              "freshness": "verified",
+              "reference": "openspec/specs/delivery-gate/spec.md:86"
+            },
+            {
+              "path": "openspec/changes/archive/2026-09-25-add-memory-store/proposal.md",
+              "role": "archive",
+              "hash": "aebfa3f2e9cce703c5a0e0829e55f41e81ec347bf95fe61337c8f4df70bdcf12",
+              "heading": "Why",
+              "startLine": 7,
+              "endLine": 10,
+              "text": "## Why\n\nA session's context enters the repo only when someone runs `/save`, and many sessions end without one, so what they worked out is lost. When context is saved, nothing reads it again: the start of a session loads no memory, only `/continue` reads a note, and no step removes a stale or duplicate note. Notes in git also do not suit a team: every note is public in a public repo, a protected `main` turns each capture into a pull request, and grep is the only search.\n",
+              "truncated": false,
+              "score": 1,
+              "freshness": "verified",
+              "reference": "openspec/changes/archive/2026-09-25-add-memory-store/proposal.md:7"
+            },
+            {
+              "path": "wiki/development/memory.md",
+              "role": "wiki",
+              "hash": "fac96faf13770a6b23df73ad6dd9a27c0cb3dc8ee3716fe876ea17f76d0046a8",
+              "heading": "What is stored",
+              "startLine": 6,
+              "endLine": 8,
+              "text": "\n- **Facts**, in a D1 database named `<repo>-memory`. A fact is at most 400 characters, with a slug (the change name, or a topic), a type, tags, an author, a time, its source session, and a separate machine owner. The types: `user` (who the user is), `feedback` (how they want work done), `project` (decisions and ruled-out options, with reasons), `reference` (pointers to outside resources), and `thread` (an open question). [Writing facts](../../.agents/skills/memory/references/writing-facts.md) owns what a good fact keeps.\n- **Sessions**, one row per transcript: agent, branch, status (`captured` or `skipped`), and how far it was read. A session an earlier version marked `private` keeps that status: nothing of it is uploaded or read.",
+              "truncated": true,
+              "score": 0.5,
+              "freshness": "verified",
+              "reference": "wiki/development/memory.md:6"
+            },
+            {
+              "path": "openspec/changes/archive/2026-09-25-add-memory-store/proposal.md",
+              "role": "archive",
+              "hash": "aebfa3f2e9cce703c5a0e0829e55f41e81ec347bf95fe61337c8f4df70bdcf12",
+              "heading": "Decision log",
+              "startLine": 53,
+              "endLine": 57,
+              "text": "## Decision log\n\n- **2026-09-25** — Asked how to make memory automatic; the user proposed a session-start subagent. Found that `/dream` did note-to-wiki consolidation until 2026-09-15 and was retired because nobody ran it by hand, so the new design fixes the trigger, not the consolidation.\n- **2026-09-25** — Asked what to consolidate → the user clarified the problem: many sessions end without `/save`, and their context must still reach durable storage. The design became a backfill of missing notes.\n- **2026-09-25** — Asked the consolidation trigger → chose a threshold checked at session start.",
+              "truncated": true,
+              "score": 0.999,
+              "freshness": "verified",
+              "reference": "openspec/changes/archive/2026-09-25-add-memory-store/proposal.md:53"
+            }
+          ],
+          "omitted": {
+            "facts": 0,
+            "documents": 0
+          }
+        },
+        "bytes": 6059,
+        "ms": 7498,
+        "grade": {
+          "hit": true,
+          "forbidden": false,
+          "verified": true,
+          "bounded": true,
+          "completeMode": true,
+          "absent": false,
+          "passes": true,
+          "absenceDiagnostic": false
+        }
+      }
+    },
+    {
+      "item": {
+        "id": "obsolete-current-conflict",
+        "question": "No Worker SHALL stand in front of the store",
+        "scope": "current",
+        "forbiddenRoles": [
+          "archive",
+          "active"
+        ],
+        "expected": [
+          "wiki/development/memory.md"
+        ],
+        "required": false,
+        "passageTerms": [
+          "worker",
+          "memory"
+        ]
+      },
+      "keyword": {
+        "packet": {
+          "version": 1,
+          "question": "No Worker SHALL stand in front of the store",
+          "scope": "current",
+          "mode": "keyword",
+          "change": null,
+          "documentLimit": 5,
+          "backend": "qmd",
+          "coverage": "complete",
+          "requestedModeState": "ok",
+          "filters": {},
+          "sources": {
+            "facts": {
+              "state": "empty",
+              "reason": "not requested"
+            },
+            "documents": {
+              "state": "empty"
+            }
+          },
+          "facts": [],
+          "documents": [],
+          "omitted": {
+            "facts": 0,
+            "documents": 0
+          }
+        },
+        "bytes": 370,
+        "ms": 373,
+        "grade": {
+          "hit": false,
+          "forbidden": false,
+          "verified": true,
+          "bounded": true,
+          "completeMode": true,
+          "absent": true,
+          "passes": true,
+          "absenceDiagnostic": false
+        }
+      },
+      "auto": {
+        "packet": {
+          "version": 1,
+          "question": "No Worker SHALL stand in front of the store",
+          "scope": "current",
+          "mode": "auto",
+          "change": null,
+          "documentLimit": 5,
+          "backend": "qmd",
+          "coverage": "complete",
+          "requestedModeState": "ok",
+          "filters": {},
+          "sources": {
+            "facts": {
+              "state": "empty",
+              "reason": "not requested"
+            },
+            "documents": {
+              "state": "ok"
+            }
+          },
+          "facts": [],
+          "documents": [
+            {
+              "path": "wiki/development/memory.md",
+              "role": "wiki",
+              "hash": "fac96faf13770a6b23df73ad6dd9a27c0cb3dc8ee3716fe876ea17f76d0046a8",
+              "heading": "The memory key",
+              "startLine": 87,
+              "endLine": 90,
+              "text": "## The memory key\n\n`CLOUDFLARE_MEMORY_TOKEN` holds your memory key: it opens this repo's store, through your app's production Worker, and nothing else. Its roles, trusted installation, revocation, and automatic website-login labels: [the memory key](memory-key.md).\n",
+              "truncated": false,
+              "score": 1,
+              "freshness": "verified",
+              "reference": "wiki/development/memory.md:87"
+            },
+            {
+              "path": "openspec/specs/delivery-gate/spec.md",
+              "role": "specs",
+              "hash": "ad4f410c55ca129919074358527a187e6ca044802aea5e461f63c0ec8491c590",
+              "heading": "Requirement: The preview link is the real preview for this commit",
+              "startLine": 102,
+              "endLine": 105,
+              "text": "### Requirement: The preview link is the real preview for this commit\n\nPreview discovery SHALL report only a preview URL tied to the head commit, SHALL NOT report a bare provider apex such as `workers.dev` or `vercel.app`, and SHALL NOT construct a URL from a naming convention. When nothing qualifies, it SHALL report no preview.\n",
+              "truncated": false,
+              "score": 1,
+              "freshness": "verified",
+              "reference": "openspec/specs/delivery-gate/spec.md:102"
+            },
+            {
+              "path": "wiki/development/memory.md",
+              "role": "wiki",
+              "hash": "fac96faf13770a6b23df73ad6dd9a27c0cb3dc8ee3716fe876ea17f76d0046a8",
+              "heading": "Without R2",
+              "startLine": 91,
+              "endLine": 94,
+              "text": "## Without R2\n\nR2 needs a payment method on file, even inside its free tier. Without it, the store keeps no raw transcripts and a preview check keeps no [pictures](staging-walkthrough.md#what-a-walk-needs), and everything else works: facts, the digest, search, capture, and consolidation. `source <fact-id>` then says that transcripts are not stored. Setup's closing report gives the steps in [the card list](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#the-card-list). Turn R2 on later and run `/wong-sync`: it plans the bucket, and new sessions are kept from then on.\n",
+              "truncated": false,
+              "score": 0.999,
+              "freshness": "verified",
+              "reference": "wiki/development/memory.md:91"
+            },
+            {
+              "path": "openspec/specs/delivery-gate/spec.md",
+              "role": "specs",
+              "hash": "ad4f410c55ca129919074358527a187e6ca044802aea5e461f63c0ec8491c590",
+              "heading": "Requirement: Ship merges work that needed no change",
+              "startLine": 199,
+              "endLine": 202,
+              "text": "### Requirement: Ship merges work that needed no change\n\nWhen no change record selects for the branch, `/ship` SHALL apply `/save`'s test for authoring one: for code or a plan for code, it SHALL author the change from the session and the diff, as `/save` would, then archive and merge it like any change; anything else SHALL skip the archive and merge on the gate like any change.\n",
+              "truncated": false,
+              "score": 0.999,
+              "freshness": "verified",
+              "reference": "openspec/specs/delivery-gate/spec.md:199"
+            },
+            {
+              "path": "wiki/agent-knowledge-center.md",
+              "role": "wiki",
+              "hash": "77fad152226cbac7680ea2930966f03f6ec7607636eed0284f75ddc3a2531dd5",
+              "heading": "Consolidate the processes and the data in one place you own",
+              "startLine": 27,
+              "endLine": 47,
+              "text": "\nA process written as code is also the record of how the work is done. The business data sits behind that code. When both live in one place you own, an agent can read the process and the records together — that is where it gets its power.\n\nData split across separate tools is a set of disconnected exports, and no agent reasons well across those. The [Cloudflare stack](stack/README.md) that setup installs is one cheap way to own the place where both live: Workers for the code, [D1](stack/d1-pipeline.md) for the data. Any stack works if you own it.\n\n### Using AI shouldn't need a complicated setup\n\nNothing builds locally. [CI is the gate](development/the-change-loop.md#the-gate) when the repo has checks, PR review when it doesn't, and every commit gets a deployed preview — so work continues from any machine, and a new one needs no setup.\n\nKeep the dependencies few. WongStack needs `git`, [`gh`](https://cli.github.com/), [Node.js](https://nodejs.org/), and the [OpenSpec](https://github.com/Fission-AI/OpenSpec) CLI. Fewer moving parts break less often and survive longer.\n\n### Context has to survive the session\n\nA session ends and everything it worked out goes with it, unless a file keeps it. So the work writes its own record: the plan and the decisions behind it, the session's facts in the [memory store](development/memory.md), and any [repeatable knowledge](wiki-style.md#repeatable-knowledge) in the wiki, written when it is learned. A session that ends without `/save` is captured by a background run, and the next session starts with a digest of what the repo remembers.\n\nGive that context by [progressive disclosure](wiki-style.md) — one place to start, each page breaking down into more detail — so an agent reads what the task needs and no more. The wiki grows from use, with the wiki rules loaded for every edit; request an audit with [`/improve`](development/repository-improvement.md). Because it all lives in the repo, the next teammate starts where the last one stopped.\n\n### Give AI as much access as you can, and as little autonomy as it needs\n\nThe more an agent can reach, the more it does for you, and the more damage a wrong step causes. The failure mode is not disobedience: an agent will not refuse your instruction, it will misinterpret it. So keep the access wide and put humans at standard points in the loop:\n",
+              "truncated": true,
+              "score": 0.5,
+              "freshness": "verified",
+              "reference": "wiki/agent-knowledge-center.md:27"
+            }
+          ],
+          "omitted": {
+            "facts": 0,
+            "documents": 0
+          }
+        },
+        "bytes": 5983,
+        "ms": 5027,
+        "grade": {
+          "hit": true,
+          "forbidden": false,
+          "verified": true,
+          "bounded": true,
+          "completeMode": true,
+          "absent": false,
+          "passes": true,
+          "absenceDiagnostic": false
+        }
+      }
+    },
+    {
+      "item": {
+        "id": "active-proposal",
+        "question": "Find remembered facts and relevant documents together",
+        "scope": "active",
+        "change": "evaluate-qmd-retrieval",
+        "expected": [
+          "openspec/changes/evaluate-qmd-retrieval/proposal.md"
+        ],
+        "expectedRole": "active",
+        "required": true,
+        "passageTerms": [
+          "Find remembered facts and relevant documents together"
+        ]
+      },
+      "keyword": {
+        "packet": {
+          "version": 1,
+          "question": "Find remembered facts and relevant documents together",
+          "scope": "active",
+          "mode": "keyword",
+          "change": "evaluate-qmd-retrieval",
+          "documentLimit": 5,
+          "backend": "qmd",
+          "coverage": "complete",
+          "requestedModeState": "ok",
+          "filters": {},
+          "sources": {
+            "facts": {
+              "state": "empty",
+              "reason": "not requested"
+            },
+            "documents": {
+              "state": "ok"
+            }
+          },
+          "facts": [],
+          "documents": [
+            {
+              "path": "openspec/changes/evaluate-qmd-retrieval/proposal.md",
+              "role": "active",
+              "hash": "4acdcfa9e8304dfd79d21b065dac0a05c512cdd7d2a64498a8f2c7d27c57b4de",
+              "heading": "What Changes",
+              "startLine": 13,
+              "endLine": 40,
+              "text": "- **Find remembered facts and relevant documents together.** The assistant can ask a question once and receive useful facts alongside passages from current guidance, with links to their originals. Meaning-based search helps when the question uses different wording.\n  ```text\n             question\n                │\n       ┌────────┴────────┐\n       ▼                 ▼\n  remembered facts   wiki and requirements\n       └────────┬────────┘\n                ▼\n      useful evidence + sources\n  ```\n- **Make past decisions easy to find without confusing them with current guidance.** Search current guidance by default. Ask explicitly for history or work in progress; every passage shows which kind of source it is.\n  ```text\n       how does it work? ──▶ current guidance\n       why this choice? ──▶ past decisions\n       what is planned? ──▶ proposed work\n  ```\n- **Keep retrieval ready as the project changes.** Provide setup and refresh commands, maintain a separate index for each checkout, and check passages against their current files. When meaning-based search cannot run, return a clearly labelled keyword result.\n  ```text\n      files change ──▶ refresh the index\n                            │\n                            ▼\n                    verify original files\n                            │\n                            ▼\n                    return current passages\n  ```\n- **Put the feature into everyday work and verify it.** Teach the assistant to use recall before substantial work. Test useful answers, changed files, older decisions, and privacy; measure speed and context size using the actual implementation.",
+              "truncated": true,
+              "score": 0.86,
+              "freshness": "verified",
+              "reference": "openspec/changes/evaluate-qmd-retrieval/proposal.md:13"
+            },
+            {
+              "path": "openspec/changes/evaluate-qmd-retrieval/proposal.md",
+              "role": "active",
+              "hash": "4acdcfa9e8304dfd79d21b065dac0a05c512cdd7d2a64498a8f2c7d27c57b4de",
+              "heading": "Why",
+              "startLine": 7,
+              "endLine": 10,
+              "text": "## Why\n\nUseful knowledge lives in remembered facts, the wiki, and past plans, but the assistant has to search those places separately and can miss an explanation written in different words. Give it one recall tool that finds relevant evidence and shows where it came from.\n",
+              "truncated": false,
+              "score": 0.859,
+              "freshness": "verified",
+              "reference": "openspec/changes/evaluate-qmd-retrieval/proposal.md:7"
+            }
+          ],
+          "omitted": {
+            "facts": 0,
+            "documents": 0
+          }
+        },
+        "bytes": 3108,
+        "ms": 522,
+        "grade": {
+          "hit": true,
+          "forbidden": false,
+          "verified": true,
+          "bounded": true,
+          "completeMode": true,
+          "absent": false,
+          "passes": true,
+          "absenceDiagnostic": false
+        }
+      },
+      "auto": {
+        "packet": {
+          "version": 1,
+          "question": "Find remembered facts and relevant documents together",
+          "scope": "active",
+          "mode": "auto",
+          "change": "evaluate-qmd-retrieval",
+          "documentLimit": 5,
+          "backend": "qmd",
+          "coverage": "complete",
+          "requestedModeState": "ok",
+          "filters": {},
+          "sources": {
+            "facts": {
+              "state": "empty",
+              "reason": "not requested"
+            },
+            "documents": {
+              "state": "ok"
+            }
+          },
+          "facts": [],
+          "documents": [
+            {
+              "path": "wiki/development/memory.md",
+              "role": "wiki",
+              "hash": "fac96faf13770a6b23df73ad6dd9a27c0cb3dc8ee3716fe876ea17f76d0046a8",
+              "heading": "How facts are captured",
+              "startLine": 60,
+              "endLine": 62,
+              "text": "## How facts are captured\n\n- **`/save`** writes facts from the session so far. Nothing to capture beyond the diff and the Decision log means no facts.",
+              "truncated": true,
+              "score": 1,
+              "freshness": "verified",
+              "reference": "wiki/development/memory.md:60"
+            },
+            {
+              "path": "openspec/specs/delivery-gate/spec.md",
+              "role": "specs",
+              "hash": "ad4f410c55ca129919074358527a187e6ca044802aea5e461f63c0ec8491c590",
+              "heading": "Requirement: The gate is CI when present, else PR review",
+              "startLine": 10,
+              "endLine": 33,
+              "text": "\nFor a GitHub repository, `/ship` SHALL merge only when `/save`'s gate result is `SUCCESS` (checks passed) or `NONE` (the repo has no checks, so PR review is the gate); `UNKNOWN`, `TIMEOUT`, or `FAILURE` SHALL stop the merge. `/ship` SHALL NOT bypass, repeat, or reinterpret that result, and SHALL NOT start while the default branch's own checks are failing or unreadable.\n\nFor a verified managed Artifacts project, `/ship` SHALL use the mandatory exact-candidate Cloudflare check result and the approved publication contract defined by `cloudflare-hosted-projects`; no GitHub pull request or absent GitHub check SHALL count as its gate. A failed, timed-out or unreadable hosted gate SHALL stop publication.\n\n#### Scenario: Checks fail on the branch\n\n- **WHEN** a pushed commit's checks fail\n- **THEN** the skill reads the failure and pushes a fix, at most three times\n- **AND** `/ship` merges only once the checks pass\n\n#### Scenario: The repo has no checks\n\n- **WHEN** the repo has no CI workflow\n- **THEN** `/save` reports `NONE` and `/ship` merges on PR review\n\n#### Scenario: Hosted checks are unreadable\n\n- **WHEN** the Cloudflare check result for the approved hosted candidate cannot be read\n- **THEN** publication stops unverified and no GitHub fallback is used\n\n### Requirement: The gate reads the pushed commit\n\nThe check wait on every route SHALL report on the commit just pushed and no other. For the GitHub route it SHALL report `NONE` only when the repo has no workflow files or no check appears within a grace period, and `UNKNOWN` when the check state cannot be read, so `/save` finishes unverified and `/ship` does not merge.",
+              "truncated": true,
+              "score": 1,
+              "freshness": "verified",
+              "reference": "openspec/specs/delivery-gate/spec.md:10"
+            },
+            {
+              "path": "openspec/changes/evaluate-qmd-retrieval/proposal.md",
+              "role": "active",
+              "hash": "4acdcfa9e8304dfd79d21b065dac0a05c512cdd7d2a64498a8f2c7d27c57b4de",
+              "heading": "What Changes",
+              "startLine": 13,
+              "endLine": 28,
+              "text": "- **Find remembered facts and relevant documents together.** The assistant can ask a question once and receive useful facts alongside passages from current guidance, with links to their originals. Meaning-based search helps when the question uses different wording.\n  ```text\n             question\n                │\n       ┌────────┴────────┐\n       ▼                 ▼\n  remembered facts   wiki and requirements\n       └────────┬────────┘\n                ▼\n      useful evidence + sources\n  ```\n- **Make past decisions easy to find without confusing them with current guidance.** Search current guidance by default. Ask explicitly for history or work in progress; every passage shows which kind of source it is.\n  ```text\n       how does it work? ──▶ current guidance\n       why this choice? ──▶ past decisions\n       what is planned? ──▶ proposed work",
+              "truncated": true,
+              "score": 1,
+              "freshness": "verified",
+              "reference": "openspec/changes/evaluate-qmd-retrieval/proposal.md:13"
+            },
+            {
+              "path": "wiki/development/memory.md",
+              "role": "wiki",
+              "hash": "fac96faf13770a6b23df73ad6dd9a27c0cb3dc8ee3716fe876ea17f76d0046a8",
+              "heading": "When to add embeddings",
+              "startLine": 95,
+              "endLine": 98,
+              "text": "## When to add embeddings\n\nSearch is keyword search (FTS5) with tags. It matches a word's other forms through the porter stemmer, so *previews* finds *preview*, and filler words like *how* and *should* never match on their own. It matches forms, not meanings: *Concise language please* misses the fixture fact that says *The owner wants short replies in plain words, with no tool names unless they ask*, so search with the words the fact would use. A shipped set of real-shaped questions, `scripts/tests/fixtures/memory-search-questions.json`, runs in CI, each with the fact it must rank in the top three, so a change can't quietly break search; a question that should have matched and didn't belongs there first. That is enough at hundreds to low thousands of facts, because the write gate asks a model about paraphrases, and consolidation merges what the gate missed. Add embeddings when `memory.mjs stats` reports the trigger as met: more than 2,000 live facts, or merged duplicates growing across three consolidations. Search stays behind the one script, so nothing else changes.\n",
+              "truncated": true,
+              "score": 0.999,
+              "freshness": "verified",
+              "reference": "wiki/development/memory.md:95"
+            },
+            {
+              "path": "openspec/changes/evaluate-qmd-retrieval/proposal.md",
+              "role": "active",
+              "hash": "4acdcfa9e8304dfd79d21b065dac0a05c512cdd7d2a64498a8f2c7d27c57b4de",
+              "heading": "Why",
+              "startLine": 7,
+              "endLine": 10,
+              "text": "## Why\n\nUseful knowledge lives in remembered facts, the wiki, and past plans, but the assistant has to search those places separately and can miss an explanation written in different words. Give it one recall tool that finds relevant evidence and shows where it came from.\n",
+              "truncated": false,
+              "score": 0.999,
+              "freshness": "verified",
+              "reference": "openspec/changes/evaluate-qmd-retrieval/proposal.md:7"
+            }
+          ],
+          "omitted": {
+            "facts": 0,
+            "documents": 0
+          }
+        },
+        "bytes": 6144,
+        "ms": 7455,
+        "grade": {
+          "hit": true,
+          "forbidden": false,
+          "verified": true,
+          "bounded": true,
+          "completeMode": true,
+          "absent": false,
+          "passes": true,
+          "absenceDiagnostic": false
+        }
+      }
+    },
+    {
+      "item": {
+        "id": "absent-answer",
+        "question": "zzqxv-antineutrinolattice-99887",
+        "scope": "current",
+        "absent": true,
+        "required": true
+      },
+      "keyword": {
+        "packet": {
+          "version": 1,
+          "question": "zzqxv-antineutrinolattice-99887",
+          "scope": "current",
+          "mode": "keyword",
+          "change": null,
+          "documentLimit": 5,
+          "backend": "qmd",
+          "coverage": "complete",
+          "requestedModeState": "ok",
+          "filters": {},
+          "sources": {
+            "facts": {
+              "state": "empty",
+              "reason": "not requested"
+            },
+            "documents": {
+              "state": "empty"
+            }
+          },
+          "facts": [],
+          "documents": [],
+          "omitted": {
+            "facts": 0,
+            "documents": 0
+          }
+        },
+        "bytes": 358,
+        "ms": 365,
+        "grade": {
+          "hit": false,
+          "forbidden": false,
+          "verified": true,
+          "bounded": true,
+          "completeMode": true,
+          "absent": true,
+          "passes": true,
+          "absenceDiagnostic": false
+        }
+      },
+      "auto": {
+        "packet": {
+          "version": 1,
+          "question": "zzqxv-antineutrinolattice-99887",
+          "scope": "current",
+          "mode": "auto",
+          "change": null,
+          "documentLimit": 5,
+          "backend": "qmd",
+          "coverage": "complete",
+          "requestedModeState": "ok",
+          "filters": {},
+          "sources": {
+            "facts": {
+              "state": "empty",
+              "reason": "not requested"
+            },
+            "documents": {
+              "state": "ok"
+            }
+          },
+          "facts": [],
+          "documents": [
+            {
+              "path": "wiki/development/the-change-loop.md",
+              "role": "wiki",
+              "hash": "2717b10abb743b1da563f803c6bffc7c90ac90f80d14b8232db82b4ec0aec81b",
+              "heading": "The change loop",
+              "startLine": 1,
+              "endLine": 16,
+              "text": "# The change loop\n\nRepo changes follow this loop. The handoff is an **[OpenSpec](https://github.com/Fission-AI/OpenSpec) change**: `openspec/changes/<name>/` holds its proposal, tasks, and optional specs, saved with the code.\n\nA plain request — research, an errand, a reminder, a question — is not a change. The agent does it directly, with no verb and no question round, and writes anything [repeatable](../wiki-style.md#repeatable-knowledge) it learns to the wiki. One that edited a repo file, such as a wiki note, ends by asking *publish it?*, so no edit is left unsaved. Finished work in a Paseo workspace offers to close it: [`/close`](../../.agents/skills/close/SKILL.md) saves what the chat learned, updates the wiki, and closes the workspace. An invoked verb works for any work: [non-code work](#verbs-for-any-work) gets a to-do, not a change. The full loop is for the repo's code or process, and a new standalone page or tool is code: [a mini app](#mini-apps).\n\n```\n/explore ─▶ /plan ─▶ /apply ─▶ /save ─▶ /ship ─▶ /close\n think      draft the  implement  save +    publish +   wiki +\n (no git)   change     + host     review +  archive   close\n            (no git)   preview    CI\n                          ▲\n            /continue ────┘\n            resume saved work later, on any machine\n```\n",
+              "truncated": true,
+              "score": 1,
+              "freshness": "verified",
+              "reference": "wiki/development/the-change-loop.md:1"
+            },
+            {
+              "path": "openspec/specs/delivery-gate/spec.md",
+              "role": "specs",
+              "hash": "ad4f410c55ca129919074358527a187e6ca044802aea5e461f63c0ec8491c590",
+              "heading": "delivery-gate Specification",
+              "startLine": 1,
+              "endLine": 24,
+              "text": "# delivery-gate Specification\n\n## Purpose\n\nDecide when saved work may merge and how it gets there: `/save` checkpoints and waits on CI when the repo has checks, else PR review, with every file edit taking a pull request; and `/ship` finishes, archives, checkpoints once, and merges only on a passing gate, with nothing built locally as a condition.\n\n## Requirements\n\n### Requirement: The gate is CI when present, else PR review\n\nFor a GitHub repository, `/ship` SHALL merge only when `/save`'s gate result is `SUCCESS` (checks passed) or `NONE` (the repo has no checks, so PR review is the gate); `UNKNOWN`, `TIMEOUT`, or `FAILURE` SHALL stop the merge. `/ship` SHALL NOT bypass, repeat, or reinterpret that result, and SHALL NOT start while the default branch's own checks are failing or unreadable.\n\nFor a verified managed Artifacts project, `/ship` SHALL use the mandatory exact-candidate Cloudflare check result and the approved publication contract defined by `cloudflare-hosted-projects`; no GitHub pull request or absent GitHub check SHALL count as its gate. A failed, timed-out or unreadable hosted gate SHALL stop publication.\n\n#### Scenario: Checks fail on the branch\n\n- **WHEN** a pushed commit's checks fail\n- **THEN** the skill reads the failure and pushes a fix, at most three times\n- **AND** `/ship` merges only once the checks pass\n\n#### Scenario: The repo has no checks\n\n- **WHEN** the repo has no CI workflow\n- **THEN** `/save` reports `NONE` and `/ship` merges on PR review",
+              "truncated": true,
+              "score": 1,
+              "freshness": "verified",
+              "reference": "openspec/specs/delivery-gate/spec.md:1"
+            },
+            {
+              "path": "wiki/development/memory.md",
+              "role": "wiki",
+              "hash": "fac96faf13770a6b23df73ad6dd9a27c0cb3dc8ee3716fe876ea17f76d0046a8",
+              "heading": "Session memory",
+              "startLine": 1,
+              "endLine": 6,
+              "text": "# Session memory\n\nSession memory is the repo's private store of **facts**: short typed lines that past sessions learned, which the next session reads at start. It lives outside git, in the repo's own Cloudflare account, so a capture needs no commit and a public repo publishes nothing. [The `memory` skill](../../.agents/skills/memory/SKILL.md) is its one door; this page is the convention. It is one of the knowledge surfaces in [the knowledge center](../agent-knowledge-center.md), beside the wiki and OpenSpec.\n\n## What is stored\n",
+              "truncated": true,
+              "score": 0.5,
+              "freshness": "verified",
+              "reference": "wiki/development/memory.md:1"
+            },
+            {
+              "path": "wiki/agent-knowledge-center.md",
+              "role": "wiki",
+              "hash": "77fad152226cbac7680ea2930966f03f6ec7607636eed0284f75ddc3a2531dd5",
+              "heading": "AI knowledge centers",
+              "startLine": 1,
+              "endLine": 10,
+              "text": "# AI knowledge centers\n\nAn AI knowledge center is a repo where the team's processes, active work, shipped decisions, and reusable lessons are written in forms that humans can review and agents can run.\n\nWongStack is one way to build one — a set of working principles and the files that apply them. Take what fits your team and adapt the rest.\n\n## The principles\n\n1. **Building in-house isn't about saving money.** It's about a faster, better process.\n2. **Most process improvements shouldn't use AI.** They should just be code.",
+              "truncated": true,
+              "score": 0.33,
+              "freshness": "verified",
+              "reference": "wiki/agent-knowledge-center.md:1"
+            },
+            {
+              "path": "wiki/development/browsing.md",
+              "role": "wiki",
+              "hash": "16805e920b645e4f0883ad557b45f172a2afe52417e2e26551a251f97f2d454e",
+              "heading": "Browsing",
+              "startLine": 1,
+              "endLine": 4,
+              "text": "# Browsing\n\nBrowsing is how the agent uses websites as you: it keeps your logins, logs in with the passwords you save for it, shows you what it's doing, moves to Cloudflare's browser when a site blocks its own, and hands you the browser when a step needs you. It works the same for every repo on the computer.\n",
+              "truncated": true,
+              "score": 0.25,
+              "freshness": "verified",
+              "reference": "wiki/development/browsing.md:1"
+            }
+          ],
+          "omitted": {
+            "facts": 0,
+            "documents": 0
+          }
+        },
+        "bytes": 6095,
+        "ms": 5026,
+        "grade": {
+          "hit": false,
+          "forbidden": false,
+          "verified": true,
+          "bounded": true,
+          "completeMode": true,
+          "absent": false,
+          "passes": true,
+          "absenceDiagnostic": true
+        }
+      }
+    }
+  ],
+  "setupMs": 110214,
+  "readiness": {
+    "version": "2.8.3",
+    "semantic": true,
+    "deep": false
+  },
+  "coldQueryMs": 5001,
+  "warmQueryMs": 5001,
+  "privateSourceExcluded": true,
+  "lifecycle": {
+    "kind": "synthetic-file-mutation",
+    "refreshMs": 2810,
+    "beforeFresh": true,
+    "afterFresh": true,
+    "afterSemantic": true
+  },
+  "independentFacts": {
+    "state": "unavailable",
+    "documentsUsable": true
+  },
+  "summary": {
+    "pass": true,
+    "semanticRecovery": [
+      "paraphrase-persistence"
+    ],
+    "regressions": [],
+    "structuralFailures": []
+  },
+  "pass": true
+}
