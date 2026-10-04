@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Safer building and publishing
+
+- An answer you give in the middle of a build is written into the plan before the build carries on, so the next builder does not ask again or guess.
+- A plan that deletes or reshapes data, sends a message, or removes a key says in one plain line that it can not be undone, and the build report repeats that line above the publish question. A change that can simply be reversed stays silent.
+- When a check fails, the assistant first lists every failing check and what its log shows, then fixes them together in one go. A failure the change did not cause is run again once and, if it still fails, reported to you with no code edit.
+
+**Updating.** No action needed. The usual update delivers the new wording.
+
 ## 30.5.0 — Recall original wiki and OpenSpec evidence
 
 - Ask one task question to retrieve permitted live facts and cited original document passages within a shared context budget.

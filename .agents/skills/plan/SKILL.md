@@ -22,7 +22,7 @@ Write every artifact in the planning set by [the CLI contract](references/opensp
 
 Before tasks, weigh deterministic code for a repeated process ([the principles](../../../wiki/agent-knowledge-center.md#most-process-improvements-shouldnt-use-ai)); raise it in the exit round if it changes scope. Testable behavior gets a coverage task; a prose-only change does not.
 
-Write Why and What Changes in [plain words](../explore/references/asking-the-user.md#write-in-plain-words) for the person who asked: what they will see, get, or be able to do. File names, code, and commands go in the design, specs, and tasks, which the page hides. Capabilities and Impact may stay technical.
+Write Why and What Changes in [plain words](../explore/references/asking-the-user.md#write-in-plain-words) for the person who asked: what they will see, get, or be able to do. When the change deletes or reshapes data, sends a message, or removes a key, one plain What Changes line says it can't be undone; otherwise none. File names, code, and commands go in the design, specs, and tasks, which the page hides. Capabilities and Impact may stay technical.
 
 ## Draw in the proposal, then build the page
 
@@ -48,7 +48,7 @@ A change that adds or restructures a screen gets [a `## UX` design section](../.
 
 ## Review notes
 
-A message beginning `Notes on the plan <name> from the review page`, or the older `Update the plan <name> with these notes`, is feedback on an existing change: no verb, build, or [explore round](#explore-first). Read artifact paths from `openspec status --change "<name>" --json` ([the CLI contract](references/openspec-cli.md)); when this checkout has no such change, say so and stop. Each bullet names its spot (`Change #2`) and quotes its text; if they disagree, trust the quote. Answer a question note in chat, with no edit or log line, offering any edit it suggests in the closing question. Apply each other note where it belongs, keeping the artifacts coherent, and log one Decision-log line each: what it changed, or why it was declined. Rewrite an artifact substantially by its `openspec instructions <artifact-id> --change "<name>" --json`, then validate. Create no artifact the notes did not ask for. Rebuild the page. Then [finish](#finish) as a standalone `/plan`; never start building from the notes.
+A message beginning `Notes on the plan <name> from the review page`, or the older `Update the plan <name> with these notes`, is feedback on an existing change: no verb, build, or [explore round](#explore-first). Read artifact paths from `openspec status --change "<name>" --json` ([the CLI contract](references/openspec-cli.md)); when this checkout has no such change, say so and stop. Each bullet names its spot (`Change #2`) and quotes its text; if they disagree, trust the quote. Answer a question note in chat, with no edit or log line, offering any edit it suggests in the closing question. Apply each other note where it belongs, keeping the artifacts coherent, and log one Decision-log line each: what it changed, or why it was declined. Rewrite an artifact substantially by its CLI instructions, then validate. Create no artifact the notes did not ask for. Rebuild the page. Then [finish](#finish) as a standalone `/plan`; never start building from the notes.
 
 ## Finish
 
