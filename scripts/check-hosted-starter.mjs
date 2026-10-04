@@ -7,6 +7,10 @@ import { isMain } from '../.agents/skills/memory/scripts/lib/cli.mjs';
 import { prepareStarter, validateHostedConfig } from '../server/hosted/starter.mjs';
 import { redirectedConfig } from './lib-wrangler-config.mjs';
 import { run } from '../server/install-wongstack.mjs';
+// Wrangler normalizes absent resources to arrays or objects containing empty arrays.
+export function emptyBinding(value) {
+  return value===undefined||Array.isArray(value)&&value.length===0||value!==null&&typeof value==='object'&&!Array.isArray(value)&&Object.values(value).every(emptyBinding);
+}
 export async function checkStarter({exec=run,env=process.env}={}) {
   const root=mkdtempSync(join(tmpdir(),'hosted-starter-check-'));
   const dir=join(root,'release');
@@ -22,7 +26,10 @@ export async function checkStarter({exec=run,env=process.env}={}) {
     const generated=redirectedConfig(join(app,'wrangler.jsonc'));
     if(!generated)throw Error('compiled_configuration');
     const compiled=JSON.parse(readFileSync(generated,'utf8'));
-    if(compiled.name!=='hosted-starter'||!compiled.previews||!compiled.assets||['d1_databases','r2_buckets','queues','triggers','durable_objects','workflows','containers'].some(key=>compiled[key]&&JSON.stringify(compiled[key])!=='[]'&&JSON.stringify(compiled[key])!=='{}'))throw Error('compiled_configuration');
+    if(compiled.name!=='hosted-starter')throw Error('compiled_target');
+    if(!compiled.previews||!compiled.assets)throw Error('compiled_configuration');
+    const resource=['d1_databases','r2_buckets','queues','triggers','durable_objects','workflows','containers','services','kv_namespaces'].find(key=>!emptyBinding(compiled[key]));
+    if(resource)throw Error(`compiled_resource:${resource}`);
     const worker=readFileSync(resolve(dirname(generated),compiled.main),'utf8');
     if(!worker.includes('maintenance-starter')||!worker.includes(record.commit))throw Error('compiled_identity');
     const assets=resolve(dirname(generated),compiled.assets.directory);

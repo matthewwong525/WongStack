@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { spawnSync } from 'node:child_process';
-import { checkStarter } from '../check-hosted-starter.mjs';
+import { checkStarter, emptyBinding } from '../check-hosted-starter.mjs';
 import { hostedConfig, pinPackage, prepareStarter, replaceRequired, validateHostedConfig } from '../../server/hosted/starter.mjs';
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'../..');
 const read=file=>readFileSync(join(root,file),'utf8');
@@ -66,6 +66,10 @@ test('generated starter maintenance command refuses local builds',()=>{
  assert.equal(result.status,2);assert.match(result.stderr,/only in Source maintenance CI/);
  assert.match(read('.github/workflows/payload.yml'),/Generated hosted starter checks[\s\S]*node scripts\/check-hosted-starter.mjs/);
 });
+test('normalized provider defaults contain no resources; configured bindings and schedules stay rejected',()=>{
+ for(const value of [undefined,[],{}, {bindings:[]},{producers:[],consumers:[]},{crons:[]}])assert.equal(emptyBinding(value),true);
+ for(const value of [[{}],{bindings:[{name:'DB'}]},{producers:[{queue:'customer'}]},{consumers:[{queue:'customer'}]},{crons:['* * * * *']},null,'unexpected'])assert.equal(emptyBinding(value),false);
+});
 
 test('maintenance check invokes ordinary app commands with source identity and inspects compiled handoff',async()=>{
  const calls=[];
@@ -78,7 +82,7 @@ test('maintenance check invokes ordinary app commands with source identity and i
    const app=options.cwd,generated=join(app,'dist/worker');
    mkdirSync(generated,{recursive:true});mkdirSync(join(app,'dist/client'),{recursive:true});mkdirSync(join(app,'.wrangler/deploy'),{recursive:true});
    writeFileSync(join(app,'.wrangler/deploy/config.json'),JSON.stringify({configPath:'../../dist/worker/wrangler.json'}));
-   writeFileSync(join(generated,'wrangler.json'),JSON.stringify({...hostedConfig(),main:'index.js',assets:{directory:'../client'}}));
+   writeFileSync(join(generated,'wrangler.json'),JSON.stringify({...hostedConfig(),main:'index.js',assets:{directory:'../client'},durable_objects:{bindings:[]},queues:{producers:[],consumers:[]},triggers:{}}));
    writeFileSync(join(generated,'index.js'),`export const identity = ${JSON.stringify({projectId:options.env.WONG_HOSTED_PROJECT,sourceCommit:options.env.WONG_HOSTED_SHA})};`);
    writeFileSync(join(app,'dist/client/index.html'),'fixture');
   }
