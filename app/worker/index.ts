@@ -9,6 +9,10 @@ import { getAccessIdentity, type AccessEnv } from "./access.ts";
 import { activateAccess, type ActivationEnv } from "./employee-access/activation.ts";
 import { activationIdentity } from "./employee-access/identity.ts";
 
+function isOpenWorkspace(env: AccessEnv): boolean {
+  return env.WORKSPACE_LOGIN === "off" && !env.CF_ACCESS_TEAM_DOMAIN && !env.CF_ACCESS_AUD;
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -23,7 +27,7 @@ export default {
     const identity = await getAccessIdentity(request, env);
     // Open without login only by the committed switch, and only while no Access
     // identifier is set: a leftover switch can't weaken a private site.
-    const open = env.WORKSPACE_LOGIN === "off" && !env.CF_ACCESS_TEAM_DOMAIN && !env.CF_ACCESS_AUD;
+    const open = isOpenWorkspace(env);
     if (!identity && !open) {
       const configured = env.CF_ACCESS_TEAM_DOMAIN && env.CF_ACCESS_AUD;
       return new Response(configured ? "Unauthorized" : "Workspace access is not configured", {
