@@ -143,3 +143,5 @@ This is an additive minor release with reviewed adaptation of custom endpoints. 
 - **2026-10-04** — Assumed: implementation groups 1–5 are ready for the remote gate; contracts, discovery, employee login helper, memory read adapter and distribution are written. Static payload/config/context checks passed; remote tests, coverage, build and deployed observations remain pending. Memory identity and enrollment are unchanged.
 
 - **2026-10-04** — Remote gate attempt 1: all 101 app tests passed with full coverage; 1,060 of 1,061 script tests passed above coverage floors. Fixed schema property typing and shared-module declarations, an unused registry export, and the stale private-cache error assertion. Added a dictionary-input regression; all gates remain enabled and the corrected revision awaits CI.
+
+- **2026-10-04** — Remote gate attempt 2: app tests, full coverage, lint and unused-code checks passed. The build exposed a Zod overload typing issue; the field type now derives from the actual generated action schema rather than the converter’s unrelated registry overload. Runtime behavior is unchanged.

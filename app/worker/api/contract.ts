@@ -52,7 +52,7 @@ export function schemas(action: Action) {
   };
 }
 
-function fieldType(field: NonNullable<ReturnType<typeof z.toJSONSchema>["properties"]>[string] | undefined) {
+function fieldType(field: ReturnType<typeof schemas>["inputSchema"]["properties"][string] | undefined) {
   return typeof field === "object" ? field.type : undefined;
 }
 
