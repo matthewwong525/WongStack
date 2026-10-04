@@ -166,7 +166,7 @@ it("does not create an editing token after changed grants or the admission deadl
     g.fetch.mockImplementation(async (url, init) => {
       const result = await original(url, init);
       if (init.method === "DELETE") {
-        if (delayed) vi.spyOn(Date, "now").mockReturnValue(started + 600_000);
+        if (delayed) vi.spyOn(Date, "now").mockReturnValue(started + 660_000);
         else f.sql.exec("UPDATE wong_access_members SET revision = revision + 1");
       }
       return result;

@@ -173,7 +173,7 @@ it("keeps account registration and unpublished protection review independent", a
   const review = JSON.parse(f.env.WONG_GITHUB_PUBLICATION!);
   f.env.WONG_GITHUB_PUBLICATION = JSON.stringify({ ...review, repositoryOwnerType: "User", repositoryOwnerId: 99 });
   const personal = await attempt();
-  const value = await personal.result.json();
+  const value = personal.value;
   expect(new URL(value.url).pathname).toBe("/settings/apps/new");
   expect(value.manifest).toMatchObject({ setup_url: `${pin.origin}/api/access/github/install`, hook_attributes: { active: false } });
   f.env.WONG_GITHUB_PUBLICATION = undefined;
