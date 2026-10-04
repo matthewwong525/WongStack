@@ -122,6 +122,8 @@ An **unverifiable** gate is not an absent one: `/save` reports it and carries on
 
 Every check has an escape hatch, and a person who does not read code can not see one used. So the Test check, [`loosened-checks.mjs`](../../.github/scripts/loosened-checks.mjs) on every push, fails when a change loosens a check without saying why. It flags a file when the change adds a line that turns a check off (a skip comment, or a skipped, focused, or to-do test), deletes a test file other than by moving it, or changes a check's settings (a test, coverage, mutation, lint, type, duplicate-code, or unused-code config, a `package.json` `test` script or a script it runs, the Test workflow, or a script under `.github/scripts/`). Any settings change counts, stricter ones too: a script can not tell stricter from looser.
 
+**Read a test file before deleting it with its code.** One test in it may guard files that stay: move that test to the file that owns them, never delete it with the rest. A server's test file once held the only check that every place naming the OpenSpec version agreed.
+
 The reason is a Decision log bullet that starts with `Check:` and names the file:
 
 ```text
