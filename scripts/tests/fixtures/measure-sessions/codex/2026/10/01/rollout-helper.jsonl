@@ -1,0 +1,7 @@
+{"timestamp":"2026-10-01T10:01:05.000Z","type":"session_meta","payload":{"id":"helper-1","cwd":"/work/repo","source":{"subagent":{"thread_spawn":{"parent_thread_id":"parent-1","depth":1}}},"git":{"repository_url":"https://github.com/team/repo.git"}}}
+{"timestamp":"2026-10-01T10:01:05.000Z","type":"event_msg","payload":{"type":"task_started","turn_id":"h1"}}
+{"timestamp":"2026-10-01T10:01:05.000Z","type":"turn_context","payload":{"turn_id":"h1","model":"model-a","effort":"high"}}
+{"timestamp":"2026-10-01T10:01:06.000Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"$ship SECRET-PROMPT-TEXT brief"}]}}
+{"timestamp":"2026-10-01T10:01:10.000Z","type":"response_item","payload":{"type":"custom_tool_call","name":"exec","input":"text(await tools.exec_command({cmd:\"cat .agents/skills/apply/references/build-helper.md\",\"max_output_tokens\":1000}));\n"}}
+{"timestamp":"2026-10-01T10:01:30.000Z","type":"response_item","payload":{"type":"custom_tool_call","name":"exec","input":"text(await tools.exec_command({cmd:\"node --test scripts/tests/x.test.mjs\",\"max_output_tokens\":1000}));\n"}}
+{"timestamp":"2026-10-01T10:01:50.000Z","type":"event_msg","payload":{"type":"task_complete","turn_id":"h1","duration_ms":45000,"last_agent_message":"SECRET-PROMPT-TEXT reply"}}

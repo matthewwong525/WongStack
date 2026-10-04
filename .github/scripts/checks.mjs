@@ -1,21 +1,37 @@
 #!/usr/bin/env node
 // Portable customer checks. The caller supplies repository context; GitHub
 // and hosted runners use this same entry point without provider credentials.
+//
+// With `--worktree`, it checks the uncommitted work on this computer before the
+// first push: the same suite, loosened-check guard, and wiki check, scoped by
+// `app-untouched.sh --worktree`. It installs only when `node_modules` is missing
+// or older than the lockfile, and takes turns with other chats through one lock
+// file. This run is a pre-check, never the gate: CI still decides. Its last line
+// is `LOCAL_CHECKS=pass`, `fail (<parts>)`, or `not run (<reason>)`; exit 0, 1,
+// or 7 (no tools here, or the turn never came).
 import { execFileSync, spawnSync } from 'node:child_process';
-import { appendFileSync, readFileSync, readdirSync, realpathSync } from 'node:fs';
+import { appendFileSync, existsSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseCli, usageError } from '../../.agents/skills/memory/scripts/lib/cli.mjs';
+import { isMain, parseCli, usageError } from '../../.agents/skills/memory/scripts/lib/cli.mjs';
 
 const USAGE = `usage: node .github/scripts/checks.mjs --repo <path> --base <sha-or-empty> --head <sha> --default-branch <name> [--discover] [--summary <path>]
+       node .github/scripts/checks.mjs --worktree [--repo <path>] [--default-branch <name>] [--only <parts>] [--lock-wait <seconds>]
 
 Supply the whole-change base and exact checked-out head, never only the latest
 commit's parent. An empty/unavailable base runs checks conservatively.
 The default branch labels caller context; it does not select the base.
 --discover  print scope and test-suite location as JSON; run no checks
---summary   append quality reports and the final summary to this file`;
+--summary   append quality reports and the final summary to this file
+--worktree  check the uncommitted work here, before a push; never the gate
+--only      with --worktree, rerun only these: suite, loosened, wiki, payload, payload:<step>
+--lock-wait with --worktree, seconds to wait for another chat's run (default 600)`;
 const scripts = dirname(fileURLToPath(import.meta.url));
 const SHA = /^[0-9a-f]{40}([0-9a-f]{24})?$/;
+const PART = /^(suite|loosened|wiki|payload(:[a-z-]+)?)$/;
+const NO_TOOLS = 7;
+const parseScope = text => Object.fromEntries(text.trim().split('\n').map(line => line.split('=')));
 
 function context(values) {
   for (const key of ['repo', 'base', 'head', 'default-branch']) {
@@ -32,7 +48,7 @@ function context(values) {
   const scope = execFileSync('bash', [join(scripts, 'app-untouched.sh'), '--base', values.base, '--head', values.head], {
     cwd: repo, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'],
   });
-  return { repo, defaultBranch: values['default-branch'], scope: Object.fromEntries(scope.trim().split('\n').map(line => line.split('='))) };
+  return { repo, defaultBranch: values['default-branch'], scope: parseScope(scope) };
 }
 
 function suiteDir(repo) {
@@ -48,16 +64,53 @@ function suiteDir(repo) {
   return null;
 }
 
-function run(command, args, cwd, capture = false) {
+function run(command, args, cwd, capture = false, env = process.env) {
   const result = spawnSync(command, args, {
-    cwd, encoding: 'utf8', stdio: capture ? ['ignore', 'pipe', 'pipe'] : 'inherit', maxBuffer: 256 * 1024 * 1024,
+    cwd, env, encoding: 'utf8', stdio: capture ? ['ignore', 'pipe', 'pipe'] : 'inherit', maxBuffer: 256 * 1024 * 1024,
   });
   if (result.error) console.error(result.error.message);
   if (capture) {
     process.stdout.write(result.stdout ?? '');
     process.stderr.write(result.stderr ?? '');
   }
-  return { ok: result.status === 0, text: result.stdout ?? '' };
+  return { ok: result.status === 0, status: result.status, text: result.stdout ?? '', missing: result.error?.code === 'ENOENT' };
+}
+
+/** Install only when `node_modules` is missing or older than the lockfile: 'ok', 'no-npm', or 'failed'. */
+export function ensureInstalled(dir) {
+  const lock = join(dir, 'package-lock.json');
+  const modules = join(dir, 'node_modules');
+  const marker = existsSync(join(modules, '.package-lock.json')) ? join(modules, '.package-lock.json') : modules;
+  if (existsSync(marker) && (!existsSync(lock) || statSync(marker).mtimeMs >= statSync(lock).mtimeMs)) return 'ok';
+  const install = run('npm', ['ci', '--no-audit', '--no-fund'], dir);
+  if (install.missing) return 'no-npm';
+  return install.ok ? 'ok' : 'failed';
+}
+
+const alive = pid => {
+  try { process.kill(pid, 0); return true; } catch (error) { return error.code === 'EPERM'; }
+};
+
+/** One run at a time on this computer. False when the turn has not come within `seconds`. */
+function takeTurn(file, seconds) {
+  const deadline = Date.now() + seconds * 1000;
+  for (;;) {
+    try {
+      writeFileSync(file, `${process.pid}\n`, { flag: 'wx' });
+      return true;
+    } catch (error) {
+      if (error.code !== 'EEXIST') throw error;
+    }
+    let holder = '';
+    try { holder = readFileSync(file, 'utf8').trim(); } catch { continue; }
+    // A run that died left its file behind; a live one keeps its turn.
+    if (!/^\d+$/.test(holder) || !alive(Number(holder))) {
+      try { if (readFileSync(file, 'utf8').trim() === holder) rmSync(file, { force: true }); } catch { /* another run took it */ }
+      continue;
+    }
+    if (Date.now() >= deadline) return false;
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 500);
+  }
 }
 
 function checks({ repo, scope, dir }, summary) {
@@ -93,15 +146,83 @@ function checks({ repo, scope, dir }, summary) {
   return install && suite !== 'failure' && loosened.ok && wiki.ok;
 }
 
+/** The pre-check on this computer. Returns the exit code; prints one LOCAL_CHECKS line last. */
+function localChecks(values) {
+  for (const key of ['base', 'head', 'summary', 'discover']) {
+    if (values[key] !== undefined) usageError(USAGE, `--worktree does not take --${key}`);
+  }
+  const parts = values.only?.split(',').map(part => part.trim()).filter(Boolean);
+  if (parts && (!parts.length || parts.some(part => !PART.test(part)))) usageError(USAGE, '--only takes suite, loosened, wiki, payload, or payload:<step>');
+  const wait = Number(values['lock-wait'] ?? 600);
+  if (!Number.isFinite(wait) || wait < 0) usageError(USAGE, '--lock-wait is a number of seconds');
+  const repo = realpathSync(execFileSync('git', ['rev-parse', '--show-toplevel'], { cwd: resolve(values.repo ?? '.'), encoding: 'utf8' }).trim());
+  const env = { ...process.env, DEFAULT_BRANCH: values['default-branch']?.trim() || 'main' };
+  const scope = parseScope(execFileSync('bash', [join(scripts, 'app-untouched.sh'), '--worktree'], {
+    cwd: repo, env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'],
+  }));
+  const wants = name => !parts || parts.includes(name);
+  const lock = process.env.WONG_CHECKS_LOCK || join(tmpdir(), 'wongstack-local-checks.lock');
+  if (!takeTurn(lock, wait)) {
+    console.log(`LOCAL_CHECKS=not run (another chat's checks held the turn for over ${wait} seconds)`);
+    return NO_TOOLS;
+  }
+  process.on('exit', () => rmSync(lock, { force: true }));
+  for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => process.exit(130));
+
+  const failed = [];
+  const notRun = [];
+  const dir = scope.untouched === 'true' ? null : suiteDir(repo);
+  if (dir && wants('suite')) {
+    const installed = ensureInstalled(dir);
+    const test = installed === 'ok' ? run('npm', ['test'], dir) : null;
+    if (installed === 'no-npm' || test?.missing) notRun.push('npm is not installed');
+    else if (installed === 'failed') notRun.push('the install failed');
+    else if (!test.ok) failed.push('suite');
+  }
+  if (wants('loosened') && !run(process.execPath, [join(scripts, 'loosened-checks.mjs'), '--worktree'], repo, true, env).ok) failed.push('loosened');
+  if (wants('wiki') && scope.wiki_affected !== 'false' && !run(process.execPath, [join(scripts, 'wiki-links.mjs'), repo], repo, true).ok) failed.push('wiki');
+
+  // The WongStack source repo lists its own static checks in one more script; no install has it.
+  const extra = join(repo, 'scripts', 'payload-checks.mjs');
+  const steps = parts?.filter(part => part.startsWith('payload:')).map(part => part.slice(8)) ?? [];
+  if (existsSync(extra) && (wants('payload') || steps.length)) {
+    const args = [extra, ...(scope.docs_only === 'true' ? ['--docs-only'] : []), ...(steps.length && !wants('payload') ? ['--only', steps.join(',')] : [])];
+    const result = run(process.execPath, args, repo, true);
+    const line = result.text.match(/^PAYLOAD_CHECKS=(.*)$/m)?.[1] ?? '';
+    const names = line.match(/^fail \(([^)]*)\)/)?.[1].split(', ') ?? [];
+    const reason = line.match(/not run \(([^)]*)\)/)?.[1];
+    failed.push(...names.map(name => `payload:${name}`));
+    if (reason) notRun.push(reason);
+    if (!result.ok && !names.length && !reason) failed.push('payload');
+  }
+
+  const skipped = notRun.length ? `not run (${notRun.join('; ')})` : '';
+  if (failed.length) {
+    console.log(`LOCAL_CHECKS=fail (${failed.join(', ')})${skipped ? `; ${skipped}` : ''}`);
+    console.log(`Repair, then rerun only what failed: node .github/scripts/checks.mjs --worktree --only ${failed.join(',')}`);
+    return 1;
+  }
+  console.log(`LOCAL_CHECKS=${skipped || 'pass'}`);
+  return skipped ? NO_TOOLS : 0;
+}
+
 function main() {
   const { values } = parseCli({ usage: USAGE, options: {
     repo: { type: 'string' }, base: { type: 'string' }, head: { type: 'string' },
     'default-branch': { type: 'string' }, discover: { type: 'boolean' }, summary: { type: 'string' },
+    worktree: { type: 'boolean' }, only: { type: 'string' }, 'lock-wait': { type: 'string' },
   } });
+  if (values.worktree) {
+    process.exitCode = localChecks(values);
+    return;
+  }
+  if (values.only !== undefined || values['lock-wait'] !== undefined) usageError(USAGE, '--only and --lock-wait need --worktree');
   const data = context(values);
   data.dir = data.scope.untouched === 'true' ? null : suiteDir(data.repo);
   if (values.discover) console.log(JSON.stringify(data));
   else if (!checks(data, values.summary)) process.exitCode = 1;
 }
 
-try { main(); } catch (error) { console.error(`Checks unavailable: ${error.message}`); process.exitCode = 1; }
+if (isMain(import.meta.url)) {
+  try { main(); } catch (error) { console.error(`Checks unavailable: ${error.message}`); process.exitCode = 1; }
+}

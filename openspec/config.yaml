@@ -6,7 +6,8 @@ context: |
   template you clone and work from. The payload is skills under
   .agents/skills/, the wiki/ progressive-disclosure wiki, AGENTS.md, VERSION,
   CHANGELOG.md. This meta-repo has app and payload checks in CI. CI is the
-  gate when checks exist, else PR review is; nothing builds locally either way.
+  gate when checks exist, else PR review is; a local check run is a pre-check
+  before the first push, never the gate.
 
   Planning runs on OpenSpec: a change is openspec/changes/<name>/ (proposal,
   specs, design, tasks). An active change is saved with its code on a feature

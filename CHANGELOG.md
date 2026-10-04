@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 31.3.0 — Fewer steps, faster tasks
+
+- Saving takes one command once the files are chosen. It commits, uploads, opens or updates the change on GitHub, waits for the checks, and returns the result, the preview link, and what to do next. A failed check comes back with its cause, so nothing is looked up twice.
+- Publishing takes two commands around that save: one to prepare, one to finish and look at the live app.
+- A finished build is checked on your computer before the first upload, when its tools are installed there, and mistakes are fixed first. GitHub's checks still decide whether a change can be published.
+- The main assistant waits quietly while its helper builds, with one short line now and then.
+- The save and publish instructions are about a quarter shorter.
+
+**Updating.** Nothing to do; the usual update delivers this. Checks run on a computer only where its tools are installed. Elsewhere the assistant says so in one line and carries on as before.
+
 ## 31.2.1 — A check that needs the live app is not a task
 
 The staging-walkthrough guide now says where a check that can only run after publishing goes: it is kept as open work in memory, not written as a task in the plan. A task like that could never be ticked before publishing, and an unticked task stops the publish.

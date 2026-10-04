@@ -1,0 +1,4 @@
+{"type":"user","timestamp":"2026-10-02T09:00:21.000Z","cwd":"/work/repo","sessionId":"c1","isSidechain":true,"message":{"role":"user","content":"SECRET-PROMPT-TEXT brief"}}
+{"type":"assistant","timestamp":"2026-10-02T09:00:30.000Z","cwd":"/work/repo","sessionId":"c1","isSidechain":true,"message":{"role":"assistant","model":"claude-x","content":[{"type":"tool_use","id":"a1","name":"Bash","input":{"command":"npm test"}}]}}
+{"type":"user","timestamp":"2026-10-02T09:00:50.000Z","cwd":"/work/repo","sessionId":"c1","isSidechain":true,"message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"a1","content":"SECRET-PROMPT-TEXT result"}]}}
+{"type":"assistant","timestamp":"2026-10-02T09:01:19.000Z","cwd":"/work/repo","sessionId":"c1","isSidechain":true,"message":{"role":"assistant","model":"claude-x","content":[{"type":"text","text":"SECRET-PROMPT-TEXT report"}]}}

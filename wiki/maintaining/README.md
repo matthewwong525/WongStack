@@ -10,6 +10,7 @@ The **payload** is the set that [`/wong-sync`](../../.agents/skills/wong-sync/SK
 
 - [Adding a skill](adding-a-skill.md) — create a new workflow skill and wire it through every surface that installs, versions, and advertises the payload.
 - [Measure a skill change](measure-a-skill-change.md) — run a skill's instructions against a practice site with planted mistakes, before and after an edit, and keep only what catches more.
+- [Measure session speed](measure-session-speed.md) — count steps, seconds per step, repeated page reads, and failed-check rounds from this computer's session logs, to see whether a change made tasks faster.
 - [Repo layout](repo-layout.md) — `.claude` and `.codex` are symlinks to `.agents`, and `CLAUDE.md` to `AGENTS.md`: which path to edit and to link, and why a repo-wide `grep` under-counts.
 - [The landing page](landing-page.md) — the public site in `site/`, which no install receives: where its install wording lives, what it must never offer, its privacy promises, and how it is checked, previewed, and published.
 - [The hosted app's archive](hosted-app-archive.md) — the app that ran at wongstack.com is shut down: what is gone, what is kept and where, and why its repo must never be published as it is.

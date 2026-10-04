@@ -32,14 +32,16 @@ At **all-tasks-complete**, even at invocation, [finish with a preview](#finish-w
 
 Work the tasks in a fresh helper agent, so the build skips this conversation's planning talk: the Agent tool (`general-purpose`) in Claude Code, a sub-agent in Codex, on the parent's model. The prompt is two lines: the exact change name, and *read `$(git rev-parse --show-toplevel)/.claude/skills/apply/references/build-helper.md`, then build*. Add `store <id>` as a third line when a store was selected. [The brief](references/build-helper.md) owns what the helper does and returns.
 
-Before building, move intermediate test gates to the final phase; preserve acceptance obligations and log the timing change, unasked. Finish all source/tests before automatic checks; source completion never claims tests passed. Explicit early requests stand; unavailable substantive prerequisites remain blockers.
+**Wait quietly.** Wait for its report with the longest wait the host allows: the Agent call itself in Claude Code, `wait_agent` in Codex. When a wait times out, wait again. Write at most one short line per wait. Read none of the files it edits. Message it only with the person's answer or a stop.
+
+Before building, move intermediate test gates to the final phase; preserve acceptance obligations and log the timing change, unasked. Finish all source/tests before automatic checks; source completion never claims tests passed. The helper then runs the local checks once: a pre-check, never the gate's result. Explicit early requests stand; unavailable substantive prerequisites remain blockers.
 
 Act on reports:
 
 - **A question** → ask the person in [the shared ask format](../explore/references/asking-the-user.md), log the answer as an `Asked` [Decision-log line](../plan/SKILL.md#explore-first), then start a new helper.
 - **A blocker** → report it and stop.
 - **Final acceptance** → only after all source/tests are authored, run `/save` and retained live acceptance. Tick observed passes; blocked/failed remains unchecked and stops.
-- **All done** → confirm no unticked box, then handle **all-tasks-complete** above.
+- **All done** → confirm no unticked box, relay its `local checks:` line, then handle **all-tasks-complete** above.
 
 When no helper can start, or this `/apply` already runs inside one, work inline by the brief's *Build* steps and handle each stop here.
 
