@@ -1,8 +1,10 @@
 # Run one internal managed-app functionality trial
 
-**Status:** implementing — live authorization pending
+**Status:** blocked — bounded live attempt stopped; registry storage cleanup unresolved
 **Branch:** evil-dodo
-**Open questions:** none on approach; exact owner, resources, permissions and runtime receipts are preflight inputs.
+**Open questions:** existing staging Hetzner key for canonical VM/IP cleanup; provider confirmation of exact retained registry blobs. The approach is settled.
+
+Latest outcome: the approved live attempt published and verified the exact starter and image, then stopped before VM creation when existing provider cleanup access was unavailable. Staging is restored and account/repo grants are revoked;22 registry blobs remain unresolved. See [live-results.md](live-results.md) and [live-receipts.json](live-receipts.json). No app acceptance or general enablement is claimed.
 
 ## Why
 
@@ -91,3 +93,5 @@ Source owns the trial procedure, prepared manifest, resource ledger, determinist
 - **2026-10-04** — The manual image publisher is platform maintenance only. Complete and archive the Cloud preparation change through ordinary authorized publication, then bind its successful exact main CI image/starter artifact for one later explicit live dispatch. Source keeps the live trial tasks active and does not archive or claim acceptance from that maintenance merge.
 
 - **2026-10-04** — Cloud preparation shipped viaPR72 at8de0f017df64f1ff62507954e132b6bb981fa7a1; its three main gates pass, exact CI starter/image artifact is11311021774, and normal production deployment applied additive migrations0022–0023. Staging readback confirms no trial controls/bindings. The final conditional request bundles the prepared targets and finite cost/capability readbacks; all actual live/provider/isolation outcomes remain unfinished.
+
+- **2026-10-04** — The user approved the frozen bounded live request and selected existing ChatGPT/Codex included quota. Actual publication and cleanup observations are recorded in live-results.md/live-receipts.json. No VM/app journey ran because the existing Hetzner key handover timed out; exact registry storage absence remains unresolved after supported GC and refused scoped blob deletion. Keep live tasks and cleanup5.3 unfinished; preserve frozen inputs and disabled general creation.
