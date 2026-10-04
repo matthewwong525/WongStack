@@ -42,6 +42,7 @@ test('comparative evaluation isolates synthetic data, shares packet caps, and la
   assert.ok(report.cases.filter(entry => entry.mode === 'helper').every(entry => entry.tokenUsage === 'unknown' && entry.storeRequests >= 1));
   assert.ok(report.cases.filter(entry => entry.mode !== 'helper').every(entry => entry.modelCalls === 0 && entry.inputBytes === 0));
   assert.equal(report.failed, false);
+  assert.ok(report.cases.every(entry => entry.returned.every(key => typeof key === 'string')), 'all modes report comparable semantic fixture keys');
   assert.ok(report.cases.some(entry => entry.id === 'combined-recall' && entry.critical.length === 2));
   const shipping = report.cases.filter(entry => entry.id === 'broad-shipping-review');
   const eight = shipping.find(entry => entry.mode === 'direct-eight');

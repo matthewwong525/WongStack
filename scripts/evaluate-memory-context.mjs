@@ -59,7 +59,7 @@ export async function evaluateMemoryContext({ fixture = loadFixture(), live = fa
             report = { inputBytes: 0, outputBytes: bytes(packet.text), modelCalls: 0, storeRequests: requests, tokenUsage: 'not applicable', usage: [], model: null, status: 'direct', elapsedMs: Date.now() - started };
           }
           const returned = packet.ids.map(id => { if (!keys.has(id)) throw new Error('fabricated fixture ID'); return keys.get(id); });
-          cases.push({ id: question.id || `regression-${index + 1}`, mode, repeat, classification: question.classification || 'regression', ...scoreContext(scoped, returned), ...report });
+          cases.push({ id: question.id || `regression-${index + 1}`, mode, repeat, classification: question.classification || 'regression', ...report, ...scoreContext(scoped, returned) });
         }
       }
     }
