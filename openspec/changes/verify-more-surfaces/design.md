@@ -32,6 +32,22 @@ The scout validates recipe shape and scenario/source references against the curr
 
 Alternative: generate one skill per app and a new feature map as pstack does. A small recipe referencing the existing wiki and scenarios avoids another skill and duplicate acceptance knowledge.
 
+The inspected pilot at `c43f71e` justifies this contract:
+
+| Fields | Use |
+|---|---|
+| Recipe `format`, `id` | Reject unknown shapes and name the owned evidence folder. |
+| `sourcePaths`, `instructions` | Detect missing entry points and find the one capture guide. |
+| `scenarios` with capability, requirement and scenario | Resolve the current promise; requirement disambiguates repeated scenario names. |
+| `capture.workflow`, `capture.artifact` | Locate the existing capture; no command or expectations are copied. |
+| Receipt `format` (`memory-areas-pilot-1`) | Validate the exact already observed capture shape without rewriting the producer. |
+| `capture.repository`, `workflow`, `headSha`, `subjectSha`, `runId`, `runAttempt`, `event`, `ref`, `createdAt` | Bind observations to GitHub's server identity and actual branch source; show when capture happened. |
+| Case `id`, `scenario`, `state`, `command`, `exitCode`, `signal`, optional `error` | Identify exercised behavior and distinguish raw product results from an unavailable process. |
+| `evidence` stream paths, SHA-256 digests and byte counts | Find intact scrubbed stdout/stderr without executing downloaded files. |
+| `fixture.before`, `fixture.after`, `cleanup` | Inspect configuration absence, retained file digests and fixture removal independently of the command result. |
+
+Comparison metadata is deliberately deferred until paired observations justify it. The proven historical pilot remains historical evidence when the head changes. Artifact upload replaces the fixed-name artifact on a rerun; only the server's newest attempt is usable, and an older artifact never fills a gap.
+
 ### 3. Deterministic receipt collection, observation-only on the host
 
 Add `verify/scripts/verify-receipts.mjs`, using the shared CLI utilities. Its `check`, `collect`, and `compare` operations validate recipes, locate/download existing GitHub Actions evidence, and describe comparison eligibility. It never launches repo code, interprets a downloaded script, creates a workflow, dispatches an arbitrary action, or declares `SUCCESS`/`FAILURE`. Existing `/save` starts normal CI. Other hosts retain ordinary probes; another receipt provider is a later adapter.

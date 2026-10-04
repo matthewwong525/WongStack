@@ -18,6 +18,8 @@ const scripts = {
   'scripts/lib-wrangler-config.mjs': [],
   'scripts/tag-releases.mjs': [],
   'scripts/eval-verify.mjs': [],
+  'scripts/verify-memory-areas.mjs': [],
+  '.agents/skills/verify/scripts/verify-receipts.mjs': ['check'],
   '.agents/skills/memory/scripts/lib/primary-root.mjs': [],
   '.github/scripts/loosened-checks.mjs': [],
   '.agents/skills/plan/scripts/build-review.mjs': [],
