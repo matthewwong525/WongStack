@@ -81,7 +81,7 @@ test("areas loads a change's facts by the folders it names: threads first, cappe
   assert.equal(none.stdout.trim(), 'No mapped area for these paths.');
 });
 
-test("areas keeps the team filter: a teammate's feedback stays theirs", async t => {
+test("areas keeps machine ownership when only the author label changes", async t => {
   const env = await setup(t);
   mkdirSync(env.repo.stateDir, { recursive: true });
   writeFileSync(join(env.repo.stateDir, 'team.json'), JSON.stringify({ team: true }));
@@ -92,7 +92,9 @@ test("areas keeps the team filter: a teammate's feedback stays theirs", async t 
   ] });
   execFileSync('git', ['config', 'user.email', 'dev@example.com'], { cwd: env.repo.root });
   const mine = await memory(env.repo, env.fake, ['areas', 'app/worker/index.ts']);
-  assert.deepEqual(factLines(mine).map(line => line.slice(0, 30)), ['- [project] The Worker serves ']);
+  assert.equal(factLines(mine).length, 2);
+  assert.match(mine.stdout, /Bo wants Worker changes split by route/);
+  assert.match(mine.stdout, /The Worker serves assets first/);
 });
 
 test('areas says memory was not loaded and exits 0 when the store is unreachable', async t => {

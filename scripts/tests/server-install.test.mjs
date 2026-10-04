@@ -491,12 +491,17 @@ test('a repo with other work stops with repo and changes nothing', async (t) => 
   assert.equal(s.fake.calls.length, 0);
 });
 
-test('a missing clone, a bad job, or no git email stops with repo', async (t) => {
+test('managed installation needs no git email when the verified website owner is supplied', async (t) => {
   const s = await setup(t, { email: null });
   const noEmail = await s.install();
-  assert.equal(noEmail.last, 'repo');
-  assert.match(noEmail.err[0], /git has no user\.email/);
-  assert.equal(s.pushed(), null);
+  assert.equal(noEmail.last, 'done', noEmail.err.join('\n'));
+  assert.ok(s.pushed());
+  assert.match(readEnv(join(s.dir, '.env')).CLOUDFLARE_MEMORY_TOKEN, /^wongm_/);
+  assert.deepEqual(s.fake.state.accessApps[0].policies.find(policy => policy.decision === 'allow').include, [{ email: { email: JOB.ownerEmail } }]);
+});
+
+test('a missing clone or a bad job stops with repo', async (t) => {
+  const s = await setup(t);
   for (const job of ['not json', 'null', { ...JOB, token: '' }, { ...JOB, accountId: 'nope' }, { ...JOB, repo: 'ada' }, { ...JOB, repo: 'ada/..' }, { ...JOB, repo: 'ada/.' }]) {
     const bad = await s.install(job);
     assert.deepEqual([bad.code, bad.last], [1, 'repo'], JSON.stringify(job));

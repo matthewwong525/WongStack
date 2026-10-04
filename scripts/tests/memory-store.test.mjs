@@ -1,3 +1,4 @@
+import { hashKey, newKey } from '../../.agents/skills/memory/worker/memory-worker.mjs';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -371,8 +372,8 @@ test('two authors who share the part before the @ never read as one person, and 
 
 const daysAgo = days => new Date(Date.now() - days * 86400000).toISOString().replace(/\.\d{3}Z$/, 'Z');
 const insertFact = env => {
-  const insert = env.fake.db.prepare("INSERT INTO facts (slug, type, body, source, created_at, author) VALUES (?, ?, ?, 'save', ?, 'dev@example.com')");
-  return (slug, type, body, days) => insert.run(slug, type, body, daysAgo(days));
+  const insert = env.fake.db.prepare("INSERT INTO facts (slug, type, body, source, created_at, author, owner_machine_id) VALUES (?, ?, ?, 'save', ?, 'dev@example.com', ?)");
+  return (slug, type, body, days) => insert.run(slug, type, body, daysAgo(days), env.repo.machineId);
 };
 const digestOf = async env => {
   const result = await memory(env.repo, env.fake, ['digest']);
@@ -401,7 +402,7 @@ test("other changes' open threads are never listed; one line counts them by step
   for (let i = 0; i < 100; i += 1) insert('ops', i % 5 ? 'project' : 'feedback', `Settled fact ${i}.`, 1);
   const lines = (await digestOf(env)).split('\n');
   assert.equal(lines.filter(line => line.startsWith('- [thread]')).length, 0, 'no other change\'s thread is listed');
-  assert.equal(lines[2], `Open threads on other changes, by step: plan 10, save 5; 65 untagged. ${STEP_SEARCH}`);
+  assert.deepEqual(lines.filter(line => line.startsWith('Open threads on other changes, by step:')), [`Open threads on other changes, by step: plan 10, save 5; 65 untagged. ${STEP_SEARCH}`]);
   assert.ok(lines.some(line => line.startsWith('- [feedback] Settled fact')), 'feedback facts show');
   assert.ok(lines.some(line => line.startsWith('- [project] Settled fact')), 'project facts show');
   const shown = lines.filter(line => line.startsWith('- [')).length;
@@ -514,11 +515,22 @@ test("search by change keeps the team filter on a teammate's personal facts", as
   const env = await setup(t);
   mkdirSync(env.repo.stateDir, { recursive: true });
   writeFileSync(join(env.repo.stateDir, 'team.json'), JSON.stringify({ team: true }));
+  const boMachine = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+  const boKey = newKey(boMachine);
+  env.fake.db.prepare('INSERT INTO memory_keys (hash, email, role, created_at, machine_id) VALUES (?, ?, ?, ?, ?)').run(await hashKey(boKey), 'bo@example.com', 'admin', 'now', boMachine);
+  const currentId = env.repo.machineId;
+  env.repo.machineId = boMachine;
+  writeFileSync(join(env.repo.dataHome, 'wongstack', 'machine-id'), `${boMachine}\n`);
+  const currentEnv = readFileSync(join(env.repo.root, '.env'), 'utf8');
+  writeFileSync(join(env.repo.root, '.env'), `CLOUDFLARE_MEMORY_TOKEN=${boKey}\n`);
   execFileSync('git', ['config', 'user.email', 'bo@example.com'], { cwd: env.repo.root });
   await sessionFacts(env, 'claude:bo', 'bo-branch', [
     { action: 'add', type: 'project', slug: 'add-home-repo', body: 'Bo shipped the home schema.' },
     { action: 'add', type: 'feedback', slug: 'prefs', body: 'Bo wants short replies.' },
   ]);
+  env.repo.machineId = currentId;
+  writeFileSync(join(env.repo.dataHome, 'wongstack', 'machine-id'), `${currentId}\n`);
+  writeFileSync(join(env.repo.root, '.env'), currentEnv);
   execFileSync('git', ['config', 'user.email', 'dev@example.com'], { cwd: env.repo.root });
   const mine = await memory(env.repo, env.fake, ['search', '--change', 'add-home-repo']);
   assert.deepEqual(lines(mine), ['- [project] Bo shipped the home schema.']);
@@ -593,7 +605,7 @@ test('a missing token names the variable and prints no value', async t => {
   writeFileSync(join(env.repo.root, '.env'), 'OTHER=1\n');
   const missing = await memory(env.repo, env.fake, ['search', 'x']);
   assert.equal(missing.code, 1);
-  assert.match(missing.stderr, /CLOUDFLARE_MEMORY_TOKEN is not set in \.env; `node \.claude\/skills\/memory\/scripts\/memory\.mjs join` gets one through your GitHub access to this repo\. See wiki\/development\/memory-key\.md/);
+  assert.match(missing.stderr, /CLOUDFLARE_MEMORY_TOKEN is not set in \.env; node \.claude\/skills\/memory\/scripts\/memory\.mjs join --file <private-file> installs a credential issued by the repo admin\. See wiki\/development\/memory-key\.md/);
 });
 
 test('helpers: FTS query, tag normalization, near tags, redaction', () => {
@@ -669,8 +681,8 @@ test('--home is an unknown flag, and nothing reaches the store', async t => {
 test('the shipped question set: each question finds its fact in the top three, and filler alone finds nothing', async t => {
   const env = await setup(t);
   const { facts, questions } = JSON.parse(readFileSync(new URL('./fixtures/memory-search-questions.json', import.meta.url), 'utf8'));
-  const insert = env.fake.db.prepare("INSERT INTO facts (slug, type, body, source, created_at, author) VALUES (?, ?, ?, 'save', '2026-10-01T00:00:00Z', 'dev@example.com') RETURNING id");
-  const ids = new Map(facts.map(fact => [insert.get(fact.slug, fact.type, fact.body).id, fact.key]));
+  const insert = env.fake.db.prepare("INSERT INTO facts (slug, type, body, source, created_at, author, owner_machine_id) VALUES (?, ?, ?, 'save', '2026-10-01T00:00:00Z', 'dev@example.com', ?) RETURNING id");
+  const ids = new Map(facts.map(fact => [insert.get(fact.slug, fact.type, fact.body, env.repo.machineId).id, fact.key]));
   for (const { query, finds } of questions) {
     const result = await memory(env.repo, env.fake, ['search', ...query.split(' ')]);
     assert.equal(result.code, 0, result.stderr);
@@ -745,4 +757,41 @@ test('a put-facts whose upkeep fails still stores its fact and exits 0, and the 
   env.fake.db.exec('DROP TRIGGER no_restate');
   const next = await put(env, { source: 'save', slug: 'new', facts: [{ action: 'add', type: 'project', body: 'The next save.' }] });
   assert.match(next.stdout, /upkeep: closed 0, retagged 1, tags 0/);
+});
+
+test('concurrent first starts publish one complete private machine ID and a corrupt ID never rotates', async t => {
+  const { execFile } = await import('node:child_process');
+  const { machineId } = await import('../../.agents/skills/memory/scripts/lib/machine-id.mjs');
+  const { statSync } = await import('node:fs');
+  const dir = tempDir(t, 'identity-'); const file = join(dir, 'machine-id');
+  const module = new URL('../../.agents/skills/memory/scripts/lib/machine-id.mjs', import.meta.url).href;
+  const start = () => new Promise((resolve, reject) => execFile(process.execPath, ['--input-type=module', '-e', `import { machineId } from ${JSON.stringify(module)}; process.stdout.write(machineId(process.argv[1]));`, file], (error, stdout) => error ? reject(error) : resolve(stdout)));
+  const ids = await Promise.all(Array.from({ length: 8 }, start));
+  assert.equal(new Set(ids).size, 1); assert.equal(machineId(file), ids[0]);
+  assert.equal(statSync(file).mode & 0o077, 0);
+  assert.notEqual(machineId(join(tempDir(t, 'other-identity-'), 'machine-id')), ids[0]);
+  writeFileSync(file, 'corrupt'); assert.throws(() => machineId(file), /Invalid WongStack machine identity/);
+  assert.equal(readFileSync(file, 'utf8'), 'corrupt');
+});
+
+test('the ownership migration preserves historical bodies, authors, sources and raw references without claiming them', async t => {
+  const { DatabaseSync } = await import('node:sqlite'); const db = new DatabaseSync(':memory:'); t.after(() => db.close());
+  const dir = new URL('../../.agents/skills/memory/migrations/', import.meta.url);
+  const files = readdirSync(dir).filter(name => name.endsWith('.sql')).sort();
+  for (const file of files.filter(name => !name.startsWith('0007'))) db.exec(readFileSync(new URL(file, dir), 'utf8'));
+  db.exec("INSERT INTO sessions (id, agent, author, machine, status, raw_key, updated_at) VALUES ('migration:old', 'migration', 'original@example.com', 'same-host', 'captured', 'sessions/original@example.com/old.jsonl', '2026-01-01')");
+  db.exec("INSERT INTO facts (slug, type, body, session_id, source, created_at, author) VALUES ('old', 'feedback', 'Original private fact', 'migration:old', 'migration', '2026-01-01', 'original@example.com')");
+  const fact = { ...db.prepare('SELECT * FROM facts').get() }; const session = { ...db.prepare('SELECT * FROM sessions').get() };
+  db.exec(readFileSync(new URL('0007_machine_ownership.sql', dir), 'utf8'));
+  assert.deepEqual({ ...db.prepare('SELECT * FROM facts').get() }, { ...fact, owner_machine_id: null });
+  assert.deepEqual({ ...db.prepare('SELECT * FROM sessions').get() }, { ...session, owner_machine_id: null });
+  assert.throws(() => db.exec("UPDATE facts SET owner_machine_id = 'claimed'"), /ownership cannot change/);
+  assert.throws(() => db.exec("UPDATE sessions SET owner_machine_id = 'claimed'"), /ownership cannot change/);
+});
+
+test('login-link markers are redacted and rejected from facts even when absent from .env', async t => {
+  const env = await setup(t); const marker = `wongl_${'m'.repeat(43)}`;
+  assert.ok(!redact(`Open ?memory_login_link=${marker}`, []).includes(marker));
+  const result = await put(env, { slug: 'x', facts: [{ action: 'add', type: 'project', body: `Use ${marker}` }] });
+  assert.equal(result.code, 1); assert.doesNotMatch(result.stdout + result.stderr, /wongl_/);
 });

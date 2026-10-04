@@ -462,7 +462,7 @@ async function setup(t, { r2 = true, email = EMAIL, subdomain } = {}) {
   const fake = await fakeCloudflare({ r2, ...(subdomain !== undefined && { subdomain }) });
   t.after(fake.close);
   const gh = fakeGh(join(root, 'gh'));
-  const env = { ...process.env, HOME: root, XDG_CONFIG_HOME: join(root, 'config'), GIT_CONFIG_NOSYSTEM: '1', PATH: `${gh.bin}:${process.env.PATH}`, WONG_CLOUDFLARE_API: fake.api, CLOUDFLARE_MEMORY_TOKEN: '', NODE_NO_WARNINGS: '1' };
+  const env = { ...process.env, HOME: root, XDG_DATA_HOME: join(root, 'data'), XDG_CONFIG_HOME: join(root, 'config'), GIT_CONFIG_NOSYSTEM: '1', PATH: `${gh.bin}:${process.env.PATH}`, WONG_CLOUDFLARE_API: fake.api, CLOUDFLARE_MEMORY_TOKEN: '', NODE_NO_WARNINGS: '1' };
   delete env.WONG_MEMORY_API;
   delete env.CLOUDFLARE_API_TOKEN;
   delete env.CLOUDFLARE_ACCOUNT_ID;
@@ -696,9 +696,11 @@ test('a fresh provision with R2 on makes the memory store, the key, both databas
     worker: 'https://recipe-box.ada.workers.dev/_memory',
   });
   assert.ok(env.fake.rows('recipe-box-memory', 'SELECT version FROM schema_migrations').length >= 3);
-  const [admin] = env.fake.rows('recipe-box-memory', 'SELECT email, role, github_id, expires_at IS NOT NULL AS ends FROM memory_keys');
-  assert.deepEqual(admin, { email: EMAIL, role: 'admin', github_id: '4242', ends: 1 });
-  assert.deepEqual(env.fake.rows('recipe-box-memory', 'SELECT github_id, login, email FROM memory_admins'), [{ github_id: '4242', login: 'ada', email: EMAIL }]);
+  const [admin] = env.fake.rows('recipe-box-memory', 'SELECT email, role, github_id, machine_id, login_link_hash, expires_at IS NOT NULL AS ends FROM memory_keys');
+  assert.equal(admin.email, EMAIL); assert.equal(admin.role, 'admin'); assert.equal(admin.github_id, null); assert.equal(admin.ends, 0);
+  assert.match(admin.machine_id, /^[0-9a-f-]{36}$/); assert.match(admin.login_link_hash, /^[0-9a-f]{64}$/);
+  assert.match(report.appUrl, /memory_login_link=wongl_/);
+  assert.deepEqual(env.fake.rows('recipe-box-memory', 'SELECT github_id, login, email FROM memory_admins'), []);
   assert.match(readEnv(join(env.dir, '.env')).CLOUDFLARE_MEMORY_TOKEN, /^wongm_/);
   assert.equal(readEnv(join(env.dir, '.env')).CLOUDFLARE_API_TOKEN, TOKEN, 'the other .env lines stay');
 
@@ -758,7 +760,7 @@ test('provisioning from a linked worktree keeps the key in the primary checkout\
   git('worktree', 'add', '-q', '-b', 'wt', worktree);
 
   const report = await env.provision({ dir: worktree });
-  assert.ok(report.created.includes(`admin memory key for ${EMAIL}, in .env`), JSON.stringify(report));
+  assert.ok(report.created.includes('admin machine memory key in .env'), JSON.stringify(report));
   assert.match(readEnv(join(env.dir, '.env')).CLOUDFLARE_MEMORY_TOKEN, /^wongm_/);
   const branchEnv = readEnv(join(worktree, '.env'));
   assert.equal(branchEnv.CLOUDFLARE_MEMORY_TOKEN, undefined, 'the admin memory key stays in the primary checkout');
@@ -863,10 +865,12 @@ test('keepConfig leaves the committed files alone and adds no bucket they would 
   assert.ok(report.updated.includes('deploy token recipe-box-deploy: new value sent to GitHub'));
 });
 
-test('no git email stops with repo before anything is created', async (t) => {
+test('memory admin issuance needs no git email or GitHub account, while the website keeps its reachable owner', async (t) => {
   const env = await setup(t, { email: null });
-  await assert.rejects(env.provision(), { reason: 'repo', message: /git has no user\.email/ });
-  assert.equal(env.fake.calls.length, 0);
+  const report = await env.provision({ ownerEmail: EMAIL });
+  const [key] = env.fake.rows('recipe-box-memory', 'SELECT machine_id, role, expires_at, github_id FROM memory_keys');
+  assert.match(key.machine_id, /^[0-9a-f-]{36}$/); assert.equal(key.role, 'admin'); assert.equal(key.expires_at, null); assert.equal(key.github_id, null);
+  assert.match(report.appUrl, /memory_login_link=wongl_/);
 });
 
 test('the memory schema is retried while the store takes effect', async (t) => {

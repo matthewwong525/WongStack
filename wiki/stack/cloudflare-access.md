@@ -61,7 +61,7 @@ New applications and human policies default to `720h` (30 days). This is the app
 
 ### 4. Bypass the public surface
 
-Only production `/_memory/*` has a public destination override, on the production Worker and its default-hostname anchor. It remains protected by the memory route's own key/GitHub checks. Staging binds no production memory and gets no public override. A destination override lets a request reach the Worker; it never disables the memory key check.
+Only production `/_memory/*` has a public destination override, on the production Worker and its default-hostname anchor. It remains protected by the memory route’s own machine credential. Repository authorization is its policy; the repo secret proves it to the store. Staging binds no production memory and gets no public override. A destination override lets a request reach the Worker; it never disables the memory key check.
 
 Other public paths need their own reviewed design. A blanket bypass, account-wide wildcard, or permissive human selector fails the deployment check.
 
@@ -90,7 +90,7 @@ The template entry point enforces `app/worker/access.ts` before every app route 
 
 ### Verify the JWT; don't trust the header
 
-Human JWT claims carry an email; machine claims carry `common_name`, the service token's client ID. Both require a valid signed assertion from the configured organization and audience. `Cf-Access-Authenticated-User-Email` alone is attacker-controlled and never accepted. Memory routes run their separate authentication before this app guard.
+Human JWT claims carry an email; machine claims carry `common_name`, the service token's client ID. Both require a valid signed assertion from the configured organization and audience. `Cf-Access-Authenticated-User-Email` alone is attacker-controlled and never accepted. Memory routes run their separate credential check before this app guard. The setup-supplied app link carries an optional one-use machine marker: normal verified human login labels that installation, then redirects to the clean app URL. A bare unrelated visit identifies no machine. Labels change no memory permission ([the memory key](../development/memory-key.md#ordinary-login-labels-the-machine)).
 
 ### Turning it on
 

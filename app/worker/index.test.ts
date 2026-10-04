@@ -145,7 +145,7 @@ describe("private Worker routing", () => {
     expect(await absent.json()).toMatchObject({ errors: [{ code: "no_store" }] });
     const validHash = await hashKey("test-memory-key");
     const memoryDb = {
-      prepare: () => ({ bind: (hash: string) => ({ first: async () => hash === validHash ? { email: "owner@example.com", role: "admin", expires_at: null, team: false } : null }) }),
+      prepare: () => ({ bind: (hash: string) => ({ first: async () => hash === validHash ? { email: "owner@example.com", role: "admin", expires_at: null, machine_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" } : null }) }),
     };
     const memoryEnv = { ...env, MEMORY_DB: memoryDb };
     for (const key of [undefined, "wrong-key", "test-memory-key"]) {
@@ -155,4 +155,49 @@ describe("private Worker routing", () => {
     }
     expect(assets.fetch).not.toHaveBeenCalled();
   });
+  it("labels a setup machine from a verified normal human login and redirects to the clean app", async () => {
+    const marker = `wongl_${"m".repeat(43)}`;
+    const first = vi.fn(async () => ({ machine_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" }));
+    const bind = vi.fn((..._values: unknown[]) => ({ first }));
+    const prepare = vi.fn(() => ({ bind }));
+    const linkedEnv = { ...env, MEMORY_DB: { prepare } };
+    const response = await call(`/?memory_login_link=${marker}`, { "Cf-Access-Jwt-Assertion": await token({ email: "human@example.com", sub: "verified-subject" }) }, linkedEnv);
+    expect(response.status).toBe(303);
+    expect(response.headers.get("Location")).toBe("https://workspace.example.com/");
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    expect(response.headers.get("Referrer-Policy")).toBe("no-referrer");
+    expect(prepare).toHaveBeenCalledTimes(1);
+    const values = bind.mock.calls[0] as unknown[];
+    expect(JSON.parse(String(values[0]))).toMatchObject({ issuer: `https://${TEAM}`, subject: "verified-subject", email: "human@example.com" });
+    expect(values[1]).toBe(await hashKey(marker));
+    expect(assets.fetch).not.toHaveBeenCalled();
+  });
+  it("plain visits never identify a machine and open, service, missing-subject and preview visits never associate", async () => {
+    const marker = `wongl_${"m".repeat(43)}`;
+    const prepare = vi.fn(() => { throw new Error("must not associate"); });
+    const linkedEnv = { ...env, MEMORY_DB: { prepare } };
+    const user = { "Cf-Access-Jwt-Assertion": await token({ email: "human@example.com", sub: "verified-subject" }) };
+    expect((await call("/", user, linkedEnv)).status).toBe(200);
+    expect((await call(`/?memory_login_link=${marker}`, {}, linkedEnv)).status).toBe(401);
+    for (const claims of [{ common_name: "service-client", sub: "" }, { email: "human@example.com" }]) {
+      const response = await call(`/?memory_login_link=${marker}`, { "Cf-Access-Jwt-Assertion": await token(claims) }, linkedEnv);
+      expect(response.status).toBe(303);
+    }
+    expect((await call(`/?memory_login_link=${marker}`, user)).status).toBe(303);
+    const open = { ASSETS: assets, WORKSPACE_LOGIN: "off", MEMORY_DB: { prepare } } as unknown as typeof env;
+    expect((await call(`/?memory_login_link=${marker}`, {}, open)).status).toBe(303);
+    for (const path of ["/?memory_login_link=", "/?memory_login_link=invalid"]) {
+      const response = await call(path, user, linkedEnv);
+      expect(response.status).toBe(303);
+      expect(response.headers.get("Location")).toBe("https://workspace.example.com/");
+    }
+    expect(prepare).not.toHaveBeenCalled();
+  });
+  it("association failure still cleans the URL and reaches the ordinary app without granting access", async () => {
+    const prepare = vi.fn(() => ({ bind: () => ({ first: async () => { throw new Error("store unavailable"); } }) }));
+    const response = await call(`/?memory_login_link=wongl_${"m".repeat(43)}`, { "Cf-Access-Jwt-Assertion": await token({ email: "human@example.com", sub: "verified-subject" }) }, { ...env, MEMORY_DB: { prepare } });
+    expect(response.status).toBe(303); expect(response.headers.get("Location")).toBe("https://workspace.example.com/");
+    expect(prepare).toHaveBeenCalledTimes(1);
+  });
+
 });

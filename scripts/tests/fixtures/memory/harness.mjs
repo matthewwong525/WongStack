@@ -1,5 +1,6 @@
 // Test harness for the memory scripts: a fake Cloudflare D1 + R2 REST API on node:sqlite,
 // and a throwaway git repo configured to use it.
+import { randomUUID } from 'node:crypto';
 import { execFile, execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
@@ -7,6 +8,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
+import { handleMemory, hashKey, newKey } from '../../../../.agents/skills/memory/worker/memory-worker.mjs';
 import { d1Query } from '../d1.mjs';
 
 const REPO = resolve(fileURLToPath(new URL('../../../..', import.meta.url)));
@@ -27,7 +29,26 @@ async function fakeCloudflare({ bucket = true } = {}) {
     const send = (status, data, raw) => { res.writeHead(status, raw ? {} : { 'Content-Type': 'application/json' }); res.end(raw ? data : JSON.stringify(data)); };
     if (offline === 'hang') return;
     if (offline) { res.socket.destroy(); return; }
-    if (req.headers.authorization !== `Bearer ${TOKEN}`) return send(401, { success: false, errors: [{ code: 10000, message: 'Authentication error' }] });
+    if (req.headers.authorization !== `Bearer ${TOKEN}`) {
+      const statement = (sql, params = []) => ({
+        bind: (...values) => statement(sql, values),
+        first: async () => db.prepare(sql).get(...params) || null,
+        all: async () => ({ results: db.prepare(sql).all(...params), meta: {} }),
+      });
+      const binding = { prepare: sql => statement(sql), batch: async statements => {
+        db.exec('BEGIN');
+        try { const out = []; for (const each of statements) out.push(await each.all()); db.exec('COMMIT'); return out; }
+        catch (error) { db.exec('ROLLBACK'); throw error; }
+      } };
+      const request = new Request(`http://127.0.0.1:${server.address().port}${req.url}`, { method: req.method, headers: req.headers, body: ['GET', 'HEAD'].includes(req.method) ? undefined : body });
+      const response = await handleMemory(request, { MEMORY_DB: binding, ...(bucket ? { MEMORY_BUCKET: {
+        get: async key => objects.has(key) ? { body: objects.get(key) } : null,
+        put: async (key, value) => objects.set(key, Buffer.from(value)),
+      } } : {}) });
+      res.writeHead(response.status, Object.fromEntries(response.headers));
+      res.end(Buffer.from(await response.arrayBuffer()));
+      return;
+    }
     const d1 = req.url.match(/\/d1\/database\/([^/]+)\/query$/);
     if (d1) return send(...d1Query(db, JSON.parse(body.toString('utf8'))));
     const object = req.url.match(/\/r2\/buckets\/([^/]+)\/objects\/(.+)$/);
@@ -71,14 +92,21 @@ function makeRepo(t, { bucket = true } = {}) {
   git(root, 'add', 'README.md');
   git(root, 'commit', '-q', '-m', 'init');
   const home = tempDir(t, 'memory-home-');
-  return { root, home, claudeHome: join(home, 'claude'), codexHome: join(home, 'codex'), stateDir: join(home, 'state') };
+  const machineId = randomUUID();
+  const dataHome = join(home, 'data');
+  mkdirSync(join(dataHome, 'wongstack'), { recursive: true });
+  writeFileSync(join(dataHome, 'wongstack', 'machine-id'), `${machineId}\n`, { mode: 0o600 });
+  return { root, home, machineId, dataHome, stateBase: join(home, 'state'), claudeHome: join(home, 'claude'), codexHome: join(home, 'codex'), stateDir: join(home, 'state', machineId) };
 }
 
 function envFor(repo, fake, extra = {}) {
   return {
     ...process.env,
     WONG_MEMORY_API: fake.api,
-    WONG_MEMORY_STATE_DIR: repo.stateDir,
+    WONG_MEMORY_STATE_DIR: repo.stateBase,
+    XDG_DATA_HOME: repo.dataHome,
+    WONG_CLOUDFLARE_API: fake.api,
+    CLOUDFLARE_API_TOKEN: TOKEN,
     WONG_MEMORY_CLAUDE_HOME: repo.claudeHome,
     WONG_MEMORY_CODEX_HOME: repo.codexHome,
     CLOUDFLARE_MEMORY_TOKEN: '',
@@ -113,6 +141,12 @@ export async function setup(t, { bucket = true } = {}) {
   const repo = makeRepo(t, { bucket });
   const result = await memory(repo, fake, ['migrate']);
   if (result.code !== 0) throw new Error(`migrate failed: ${result.stderr}`);
+  const key = newKey(repo.machineId);
+  fake.db.prepare('INSERT INTO memory_keys (hash, email, role, created_at, machine_id) VALUES (?, ?, ?, ?, ?)').run(await hashKey(key), 'dev@example.com', 'admin', 'now', repo.machineId);
+  writeFileSync(join(repo.root, '.env'), `CLOUDFLARE_MEMORY_TOKEN=${key}\nSERVICE_TOKEN=${SECRET}\n`);
+  const memoryConfig = { accountId: 'acct', databaseId: 'db1', database: 'repo-memory', worker: fake.api, ...(bucket ? { bucket: 'repo-memory' } : {}) };
+  writeFileSync(join(repo.root, '.claude', '.wong-stack.json'), JSON.stringify({ components: { memory: memoryConfig } }));
+  mkdirSync(repo.stateDir, { recursive: true });
   return { fake, repo };
 }
 

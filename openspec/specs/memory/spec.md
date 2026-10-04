@@ -63,7 +63,7 @@ When the store cannot be reached, a fact SHALL wait in an ignored local spool, s
 
 ### Requirement: Search finds facts by words, tags, and filters
 
-The `memory` skill SHALL search live facts by words, tag, type, date, author, branch, slug, change state, and the sessions that worked on a change, with no embeddings. A word SHALL match its other forms (*previews* finds *preview*, *checked* finds *check*), and common filler words in a query SHALL NOT match on their own. A shipped set of questions, each with the facts it must find, SHALL guard this in CI. A session worked on a change when it wrote a fact on the change's slug. Given both a branch and a change, search SHALL return facts from either set of sessions. Each fact SHALL print with its age and its author's full email, in search and in the digest, as dated context the repo overrides when they conflict, and a new tag SHALL need a definition.
+The `memory` skill SHALL search live facts by words, tag, type, date, author, branch, slug, change state, and the sessions that worked on a change, with no embeddings. A word SHALL match its other forms (*previews* finds *preview*, *checked* finds *check*), and common filler words in a query SHALL NOT match on their own. A shipped set of questions, each with the facts it must find, SHALL guard this in CI. A session worked on a change when it wrote a fact on the change's slug. Given both a branch and a change, search SHALL return facts from either set of sessions. Each fact SHALL print with its age and its author metadata (a full email when recorded as an email, otherwise a label or machine ID), in search and in the digest, as dated context the repo overrides when they conflict, and a new tag SHALL need a definition.
 
 #### Scenario: Search by tag and date
 
@@ -134,12 +134,12 @@ The digest SHALL include the `wiki/people/` page that lists the current git emai
 
 ### Requirement: Transcripts are kept and traceable
 
-With a bucket, each captured session's full transcript up to 50 MB SHALL be kept with no expiry, and a reader SHALL be able to follow a fact to its session's text. A `member` SHALL read only their own transcripts, and the admin every transcript in the repo. The Worker SHALL refuse a transcript over 50 MB from any key; that session's facts SHALL still be captured, and a request for its transcript SHALL say it was too large to keep.
+With a bucket, each captured session's full transcript up to 50 MB SHALL be kept with no expiry, and a reader SHALL be able to follow a fact to its session's text. A member or reader SHALL read only transcripts owned by their credential's machine, and the admin every transcript in the repo. The Worker SHALL refuse a transcript over 50 MB from any key; that session's facts SHALL still be captured, and a request for its transcript SHALL say it was too large to keep.
 
 #### Scenario: A member follows a teammate's fact
 
 - **WHEN** a member asks for the source of a teammate's fact
-- **THEN** no transcript is shown, and the skill says only the author and the admin can read it
+- **THEN** no transcript is shown, and the skill says only the owning machine and the admin can read it
 
 #### Scenario: A session over the size limit
 
@@ -148,7 +148,7 @@ With a bucket, each captured session's full transcript up to 50 MB SHALL be kept
 
 ### Requirement: Memory is reached through the production Worker with a memory key
 
-Every store call SHALL go through the repo's production app Worker at `/_memory/` with a memory key in `CLOUDFLARE_MEMORY_TOKEN` in the git-ignored `.env`, never a person's Cloudflare token outside admin commands. The Worker's address SHALL come from the primary checkout's install record, never a linked worktree's, so a branch cannot redirect a key or a GitHub token. A key SHALL open one repo's store and SHALL NOT be committed or set as a CI secret, the key table SHALL be unreadable through any key, and the staging Worker and previews SHALL answer `/_memory/` with 404.
+Every store call SHALL go through the repo's production app Worker at `/_memory/` with a memory key in `CLOUDFLARE_MEMORY_TOKEN` in the git-ignored `.env`, never a person's Cloudflare token outside admin commands. The Worker's address SHALL come from the primary checkout's install record, never a linked worktree's, so a branch cannot redirect a key. A key SHALL open one repo's store and SHALL NOT be committed or set as a CI secret, the key table SHALL be unreadable through any key, and the staging Worker and previews SHALL answer `/_memory/` with 404.
 
 #### Scenario: A key for another repo
 
@@ -158,25 +158,11 @@ Every store call SHALL go through the repo's production app Worker at `/_memory/
 #### Scenario: A branch names another memory address
 
 - **WHEN** a session starts in a worktree whose branch changed the recorded memory Worker address
-- **THEN** the key and any join go only to the primary checkout's address, and the digest says the branch's address was ignored
-
-### Requirement: A person with GitHub access joins memory
-
-A person SHALL get a key for their machine without the admin, by proving through GitHub that they can push to the repo, or, for a private repo, read it. Push access SHALL give a member key; read access alone on a private repo SHALL give a reader key, and only once the store carries the reader schema. The Worker SHALL check only its own repository, key a GitHub-verified email, never store the GitHub token, and write the key only to `.env`. Every key SHALL expire after 30 days, renewed in the background at session start; a key made before expiry existed SHALL stop at the update that brings this rule.
-
-#### Scenario: A fork owner asks
-
-- **WHEN** someone who cannot read the original repo sends a join naming their fork
-- **THEN** the Worker refuses with 403 and makes no key
-
-#### Scenario: A read-only collaborator asks
-
-- **WHEN** someone who can read a private repo but not push to it sends a join
-- **THEN** the Worker makes a reader key, or refuses with the migration fix when the store lacks the reader schema
+- **THEN** the key and any credential validation go only to the primary checkout's address, and the digest says the branch's address was ignored
 
 ### Requirement: Teammates cannot change or hide each other's facts
 
-A `member` key SHALL write facts only under its own email, and SHALL supersede only facts written under its own email, with its own new fact in the same write; a supersede aimed at another person's fact SHALL leave that fact live. Only the admin key SHALL supersede anyone's fact. The Worker SHALL refuse, running nothing in the batch, any member statement that edits or deletes a fact, writes under another name, overwrites another person's session, or hides a write inside a read.
+A member or reader key SHALL write facts only for its stored machine owner and SHALL supersede only facts with that owner, with its own new fact in the same write; a supersede aimed at another machine's fact SHALL leave that fact live. Author labels SHALL NOT grant ownership. Only the admin key SHALL supersede anyone's fact. The Worker SHALL refuse, running nothing in the batch, any member statement that edits or deletes a fact, claims another machine owner, overwrites another machine's or an unowned historical session, or hides a write inside a read.
 
 #### Scenario: A member deletes a fact
 
@@ -190,12 +176,12 @@ A `member` key SHALL write facts only under its own email, and SHALL supersede o
 
 #### Scenario: A member writes under another name
 
-- **WHEN** Ana's key sends a fact whose author is `bo@example.com`
+- **WHEN** Ana's key sends a fact claiming Bo's machine owner
 - **THEN** the Worker answers 403 and no fact is stored
 
 ### Requirement: A team keeps personal facts personal
 
-In a team (more than one email holds a key), the Worker SHALL return to a member or reader key only facts that key may see: everyone's shared `project`, `reference`, and `thread` facts, plus the key's own `user` and `feedback` facts and its own unshared facts, however the read is written. The admin's key SHALL see every fact, and `--everyone` SHALL widen only the admin's view. The client SHALL still narrow the admin's digest and search to the admin's own personal facts, matched on every email on their `wiki/people/` page, unless asked for everyone. A repo that is not a team SHALL NOT filter by person.
+The Worker SHALL return to a member or reader key only everyone's shared `project`, `reference`, and `thread` facts plus personal and unshared facts owned by the credential's machine, however the read is written and even when only one machine remains authorized. Machine IDs, emails, labels, hostnames, and people pages supplied by a caller SHALL NOT expand that scope. The admin's key SHALL retain access to every fact; its default digest and search SHALL narrow personal and unshared facts to its own machine, and only its explicit `--everyone` SHALL widen that view.
 
 #### Scenario: A teammate's preference
 
@@ -228,12 +214,12 @@ In a team (more than one email holds a key), the Worker SHALL return to a member
 
 ### Requirement: Earlier migrated records stay readable
 
-Facts, sessions, and note text from an earlier notes migration SHALL stay unchanged and readable like any other fact, and the skill SHALL offer no command that imports `notes/` files.
+Facts, sessions, author attribution, and note text from earlier migrations SHALL stay unchanged. Shared history SHALL remain readable to the team; private or unowned historical sources SHALL remain available to the admin without automatic assignment to a machine. The skill SHALL offer no command that imports `notes/` files.
 
 #### Scenario: A migrated fact
 
 - **WHEN** a store holds a fact migrated from a note
-- **THEN** search shows it and its source prints the note text
+- **THEN** permitted search shows it and an admin can print its historical note text
 
 ### Requirement: Unsaved sessions are captured in the background
 
@@ -310,34 +296,6 @@ A reader key SHALL read and write memory like a member key, except that the Work
 - **WHEN** a reader's save sends a fact as shared
 - **THEN** the fact is stored unshared, and only the reader sees it
 
-### Requirement: The admin's key is tied to their GitHub account
-
-Only a person holding the admin's Cloudflare token SHALL link a GitHub account as the store's admin, and make an admin key for their own machine, written only to `.env`, never printed, and expiring and renewing like a joined key. No command SHALL make a key for another person. The admin SHALL remove every key of an email at once, and list keys by email, role, GitHub account, machine, and expiry without showing a key. A command whose token lacks a permission SHALL stop, name it, and change nothing.
-
-#### Scenario: A member is removed
-
-- **WHEN** the admin removes `ana@example.com`, who has three joined machines
-- **THEN** the next call with any of Ana's keys is refused
-
-#### Scenario: The admin asks for a key to send
-
-- **WHEN** the admin asks for a key for `bo@example.com`
-- **THEN** no key is made, and the answer says Bo joins through GitHub
-
-### Requirement: A GitHub account, not an email, decides admin and key count
-
-A join SHALL give an admin key only to a GitHub account the admin linked, never by email alone. One GitHub account SHALL hold at most 10 live keys: a join past that SHALL stop the account's key from the machine that joined longest ago.
-
-#### Scenario: Another account with the admin's email
-
-- **WHEN** a GitHub account the admin did not link joins with the admin's verified email
-- **THEN** it gets a member key, never an admin key
-
-#### Scenario: An eleventh computer
-
-- **WHEN** a person holding 10 live keys joins from another computer
-- **THEN** the new computer gets a key, and the key of the computer that joined longest ago stops
-
 ### Requirement: Recent chats are read through code
 
 Memory SHALL offer a read of the person's recent chats that needs no memory store: their own typed messages from Claude Code and Codex chats on this computer over the last 30 days by default, from every folder, newest first. It SHALL leave out the agent's replies, tool output, injected instructions, background runs, and subagent chats; replace every non-empty `.env` value and known token pattern with a placeholder; and cap the total length. With no recent chats, it SHALL say so and succeed.
@@ -378,12 +336,12 @@ The `memory` skill SHALL ship a list that maps folder and file prefixes to area 
 
 ### Requirement: Re-tagging keeps a fact's origin
 
-The `memory` skill SHALL restate a live fact with added tags as a new fact with the same slug, type, body, date, session, and author, plus its old tags, superseding the old one. It SHALL skip, and report, a fact that is no longer live, already carries every given tag, or, for a teammate's key, has another author. Upkeep SHALL re-tag, through this restate, a live fact whose words name a path in a mapped folder and that lacks that area's tag, and an open thread whose words name a verb's run and that lacks the verb's tag. Consolidation MAY re-tag a fact whose area or verb needs judgment to read.
+The `memory` skill SHALL restate a live fact with added tags as a new fact with the same slug, type, body, date, session, author, and machine ownership (including unassigned historical ownership), plus its old tags, superseding the old one. It SHALL skip, and report, a fact that is no longer live, already carries every given tag, or, for a teammate's key, has another machine owner or unassigned ownership. Upkeep SHALL re-tag, through this restate, a live fact whose words name a path in a mapped folder and that lacks that area's tag, and an open thread whose words name a verb's run and that lacks the verb's tag. Consolidation MAY re-tag a fact whose area or verb needs judgment to read.
 
 #### Scenario: An old warning gains its area
 
 - **WHEN** upkeep finds fact #539, written 2026-09-30 by `matthewwong525@gmail.com` in session S, naming `app/worker/` with no `worker` tag
-- **THEN** a new live fact holds #539's exact body, date 2026-09-30, session S, that author, its old tags, and `worker`, and #539 is superseded by it
+- **THEN** a new live fact holds #539's exact body, date 2026-09-30, session S, that author, the original machine ownership, its old tags, and `worker`, and #539 is superseded by it
 
 #### Scenario: A teammate re-tags someone else's fact
 
@@ -506,3 +464,59 @@ Memory SHALL provide opt-in structured search results containing fact identifier
 
 - **WHEN** a structured search matches facts hidden from that caller
 - **THEN** neither the hidden bodies nor their evidence identifiers appear
+
+### Requirement: Private memory belongs to an installation
+
+Private memory SHALL belong to a stable, randomly generated local OS-user installation ID reused across sessions, linked worktrees, and repositories. Each repository SHALL retain its independent store and secret credential. Hostnames, git authorship, emails, browser data, and optional labels SHALL NOT establish ownership or permission. Normal assistant sessions SHALL retain automatic memory loading and capture once authorized.
+
+#### Scenario: Another session or linked worktree
+
+- **WHEN** an authorized installation starts a normal chat or resumes in a linked worktree
+- **THEN** it uses the same machine owner and automatically loads and captures memory through the existing hooks
+
+#### Scenario: Matching names on another machine
+
+- **WHEN** two installations use the same email or hostname, including when one copies a repository
+- **THEN** their private memory remains separate, and choosing the other's ID without its repo secret grants no access
+
+### Requirement: Installation setup and trusted admins issue machine credentials
+
+Repository authorization SHALL be sufficient policy for memory access, with no separate memory or device approval: authorized repository contributors SHALL receive member credentials through the existing trusted setup/admin tooling and SHALL be able to contribute shared memory. Read-only access SHALL retain the existing reader role and unshared-write restriction. Only trusted installation setup or an administrator using the repository's existing provisioning authority SHALL issue, replace, or revoke memory credentials and assign admin, member, or reader roles. Credential ownership SHALL be bound to the machine recorded with its server-side hash. Labels SHALL be metadata only. No Git-host check, person login, device approval screen, hosted account, or extra service SHALL be required for memory. The credential SHALL reach only a private transfer file or the target's ignored primary credential file, never chat, logs, git, or CI secrets. A recipient SHALL install only a credential for its local machine and the configured repository. Once installed, permitted memory loading and capture SHALL operate automatically in ordinary chats without further approval or enrollment. New credentials SHALL remain valid until revoked or replaced; replacement/removal SHALL refuse all earlier affected credentials on their next request. Listing SHALL reveal no secrets; insufficient provisioning permission SHALL stop without changing grants.
+
+#### Scenario: Normal installation and a teammate
+
+- **WHEN** trusted setup issues its local admin key or a trusted admin issues a member or reader credential for a teammate's installation
+- **THEN** each credential opens only its repository with its assigned role and machine owner, and an authorized contributor's ordinary chats automatically load and contribute permitted shared memory without a separate memory approval, GitHub check, or person sign-in for memory
+
+#### Scenario: Unauthorized enrollment or revocation
+
+- **WHEN** a clone without a valid secret requests memory or issuance, or a revoked/replaced credential requests memory
+- **THEN** the request is denied without granting access, issuing a key, or adopting a supplied machine ID
+
+### Requirement: Website login identifies a machine automatically
+
+The normal WongStack website login SHALL automatically associate its verified login issuer and subject with the authorized assistant machine carried by the setup-supplied app link. Completing ordinary email login SHALL require no matching code, extra screen, button, or separate approval. Email SHALL be display metadata, not the stable identity or permission. Association SHALL identify the machine alongside records already stored under that machine ID without rewriting original authors or transferring ownership. Memory SHALL keep working before login and if association fails. Login association SHALL NOT grant memory access, change roles, combine different machines' private memory, or claim historical records with no machine owner.
+
+#### Scenario: Normal login after notes were stored
+
+- **WHEN** a person opens the app link supplied for their authorized assistant installation and completes the website's normal email login
+- **THEN** its verified login ID is associated with that machine automatically, existing machine-owned notes can be identified through that association, the person reaches the usual app without an extra step, and memory permissions and original authors remain unchanged
+
+#### Scenario: Missing context or invalid association
+
+- **WHEN** a website visit has no machine context, uses an invalid, expired, replayed, or revoked association marker, lacks a verified human login ID, or attempts to replace an established link with a different person
+- **THEN** no machine identity or permission is inferred or reassigned, unrelated private memory stays inaccessible, and permitted machine memory continues independently of the association
+
+### Requirement: Historic private data is not automatically claimed
+
+An ownership update SHALL preserve authored history and stored raw objects. Existing credentials without machine ownership SHALL require trusted replacement and SHALL NOT gain machine authority by matching email or hostname. Legacy private facts and sources SHALL remain admin-readable and SHALL NOT be automatically reassigned. Unowned historic sessions, old local caches, and spooled work SHALL NOT be silently adopted under a new owner; ownership remapping SHALL remain outside this change.
+
+#### Scenario: A fresh ID matches historic metadata
+
+- **WHEN** a newly authorized installation shares an old author's email or hostname
+- **THEN** shared history remains available but historical private memory is not assigned to that machine, and the admin retains explicit access
+
+#### Scenario: A historic fact is restated
+
+- **WHEN** authorized upkeep restates a historic fact
+- **THEN** the new fact preserves its author and original ownership, including unassigned ownership, rather than claiming it for the admin's machine

@@ -8,9 +8,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import { loadDigest, readCache } from './lib/digest.mjs';
-import { joinErrorFile, RENEW_DAYS } from './lib/join.mjs';
-import { keyFile } from './lib/members.mjs';
-import { isMain, loadConfig, loadEnv, openStore, readJson, repoContext, spoolList } from './lib/store.mjs';
+import { isMain, loadConfig, openStore, repoContext, spoolList } from './lib/store.mjs';
 import { pending, registerSession } from './lib/transcripts.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -30,29 +28,6 @@ function startRun(ctx, agent, sessionId) {
     child.unref();
     return true;
   } catch { return false; }
-}
-
-// Start `memory.mjs join` detached when this machine has no memory key, or its joined key expires within
-// RENEW_DAYS or already has; it makes the network calls to GitHub, so the hook never waits for it. A refusal
-// the person must fix stops the retries: the hook shows it until they run join themselves. Returns a line.
-function startJoin(ctx, expired) {
-  try {
-    const config = loadConfig(ctx);
-    if (!config.worker) return '';
-    const failed = readJson(joinErrorFile(ctx), null);
-    if (failed) return `Memory: could not join through GitHub: ${failed.message}. Then run \`node .claude/skills/memory/scripts/memory.mjs join\`.`;
-    const token = process.env.CLOUDFLARE_MEMORY_TOKEN || loadEnv(ctx).CLOUDFLARE_MEMORY_TOKEN;
-    const expiresAt = Date.parse(readJson(keyFile(ctx), {}).expiresAt);
-    const renew = Boolean(token) && (expired || expiresAt - Date.now() < RENEW_DAYS * 86400000);
-    if (token && !renew) return '';
-    if (process.env.WONG_MEMORY_NO_HEADLESS === '1') return '';
-    const child = spawn(process.execPath, [join(HERE, 'memory.mjs'), 'join', '--background'], { cwd: ctx.root, detached: true, stdio: 'ignore' });
-    child.on('error', () => {});
-    child.unref();
-    return renew
-      ? 'Memory: renewing this machine\'s memory key through GitHub.'
-      : 'Memory: setting up this repo\'s memory through your GitHub access; it loads next session.';
-  } catch { return ''; }
 }
 
 // The last tidy-up's one line, read and cleared in-process, then the next tidy-up, detached; WONG_TIDY=0
@@ -100,10 +75,8 @@ async function main(agent) {
   if (tidied) out.push(tidied);
   const redirected = branchWorkerLine(ctx);
   if (redirected) out.push(redirected);
-  const joining = startJoin(ctx, Boolean(result.error?.expired));
-  if (joining) out.push(joining);
   if (result.error) {
-    const cache = readCache(ctx);
+    const cache = result.error.kind === 'network' ? readCache(ctx) : null;
     if (cache) out.push(`${cache.text}\n(This digest is cached and ${cache.age} old: the memory store did not answer.)`);
     out.push(`Memory: skipped the store (${result.error.reason || result.error.message}).`);
   } else if (result.text) out.push(result.text);

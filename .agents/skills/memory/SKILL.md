@@ -64,7 +64,7 @@ The **write gate** takes two calls:
 
 ## Team access
 
-A teammate's key comes from `join` ([joining through GitHub](../../../wiki/development/memory-key.md#joining-through-github)), never from someone else. The admin runs `member admin`, `member remove <email>`, and `member list` ([add or remove a teammate](../../../wiki/development/memory-key.md#add-or-remove-a-teammate)). Never write a key to a file or a fact: `join` and `member admin` write it only to `.env`, and nothing prints it.
+Repo contributors receive trusted member credentials; readers’ writes stay private. The admin runs `member add <machine-id> --key-file <private-file>`; install with `join --file <private-file>`, revoke with `member remove <machine-id>`, list with `member list` ([the key](../../../wiki/development/memory-key.md#add-or-remove-a-teammate)). Private files and the primary ignored `.env` hold secrets. Chats capture automatically. Setup’s app link labels the machine after ordinary website login; labels never change ownership.
 
 ## Background run
 
