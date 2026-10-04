@@ -46,7 +46,8 @@ export async function accessStatus(core: Core): Promise<object> {
     core.db.prepare("SELECT intent_id, generation, status, started_at FROM wong_access_policy_writes WHERE installation_id = ?").bind(id).all(),
   ]);
   const installation = await core.db.prepare("SELECT policy_enabled FROM wong_access_installation WHERE installation_id = ?").bind(id).first<{ policy_enabled: number }>();
+  if (!installation) throw new AccessError("installation_mismatch");
   const apps = await core.db.prepare("SELECT app_id FROM wong_access_apps WHERE installation_id = ? ORDER BY app_id").bind(id).all<{ app_id: string }>();
-  return { origin: core.pin.origin, ownerEmail: core.email, policyEnabled: installation?.policy_enabled === 1, apps: apps.results.map(row => row.app_id).filter(app => app !== "access"), people: people.results, connections: connections.results, work: work.results, policyWrites: policyWrites.results,
+  return { origin: core.pin.origin, ownerEmail: core.email, policyEnabled: installation.policy_enabled === 1, apps: apps.results.map(row => row.app_id).filter(app => app !== "access"), people: people.results, connections: connections.results, work: work.results, policyWrites: policyWrites.results,
     limits: "Downloaded copies, manually granted repository access and independently installed memory remain separate. App session revocation can require remaining people to sign in again." };
 }

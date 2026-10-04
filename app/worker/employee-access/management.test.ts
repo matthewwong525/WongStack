@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { fixture, owner, employee, pin, req } from '../../tests/employee-access/connections';
+import { accessStatus } from './members';
 import { management } from './management';
 import { prepare, rollout } from './rollout';
 import { catalogue } from './apps';
@@ -94,4 +95,19 @@ it('dispatches the owner-only login connection with the durable lease and releas
   expect(connected).toHaveBeenCalledOnce();
   expect(f.sql.prepare('SELECT COUNT(*) count FROM wong_access_leases').get()).toEqual({ count: 0 });
   connected.mockRestore();
+});
+
+it('owner status reports disabled enforcement accurately and refuses a missing installation snapshot', async () => {
+  f.sql.exec('UPDATE wong_access_installation SET policy_enabled = 0');
+  expect(await (await run('status', 'GET')).json()).toMatchObject({ policyEnabled: false });
+  const prepare = f.core.db.prepare.bind(f.core.db);
+  const reader = vi.spyOn(f.core.db, 'prepare').mockImplementation(query => {
+    if (query.startsWith('SELECT policy_enabled')) return { bind: () => ({ first: async () => null }) } as unknown as D1PreparedStatement;
+    return prepare(query);
+  });
+  await expect(accessStatus(f.core)).rejects.toMatchObject({ code: 'installation_mismatch' });
+  // The finite owner route sanitizes the failure rather than returning a
+  // fabricated disabled/ready status or any private storage diagnostic.
+  expect(await (await run('status', 'GET')).json()).toEqual({ code: 'installation_mismatch' });
+  reader.mockRestore();
 });

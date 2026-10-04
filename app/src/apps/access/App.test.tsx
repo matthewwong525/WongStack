@@ -55,6 +55,7 @@ it('owner adds zero-preselected grants, edits/deselects apps, copies the busines
   click('Edit'); fireEvent.click(screen.getByRole('checkbox', { name: 'Hello' })); click('Cancel')
   click('Copy app link'); await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalledWith(origin))
   click('Retry login changes'); await screen.findByText('Login status refreshed. Check each outcome below.')
+  await screen.findByRole('button', { name: 'Connect login management' })
   click('Connect login management'); await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => url.endsWith('login/connect'))).toBe(true))
 })
 it('owner removal confirms consequences and blocked tombstones can be restored without automatic app grants', async () => {
@@ -143,4 +144,15 @@ it('unmounted responses cannot overwrite newer resource state, and malformed ros
   function Probe() { const resource = useAccess('apps', appAccessSchema); return <span>{resource.data?.state}</span> }
   render(<Probe />); await screen.findByText('current')
   expect(within(screen.getByText('current').parentElement!).getByText('current')).toBeTruthy()
+})
+
+it('the employer can inspect an active person with no assigned apps without turning setup into a business grant', async () => {
+  roster.people = [{ ...person, apps: '[]' }]
+  render(<App />)
+  await screen.findByText('No apps assigned')
+  click('Edit')
+  expect(screen.getAllByRole('checkbox').every(input => !(input as HTMLInputElement).checked)).toBe(true)
+  expect(screen.queryByRole('checkbox', { name: 'Access' })).toBeNull()
+  click('Cancel')
+  expect(screen.getByText('No apps assigned')).toBeTruthy()
 })
