@@ -3,6 +3,12 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 31.0.1 — Read a test file before deleting it
+
+The change-loop guide now says to read a test file before deleting it along with its code: a test that guards files that stay is moved, not deleted.
+
+**Updating.** No action needed. The usual update delivers the new wording.
+
 ## 31.0.0 — One way in: your own computer
 
 - WongStack now installs one way: from your own computer, with your own GitHub and Cloudflare accounts. That route works exactly as before.
