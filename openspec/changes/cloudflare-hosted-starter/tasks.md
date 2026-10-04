@@ -9,7 +9,7 @@ The user subsequently invoked `/apply` for this reviewed plan, authorizing imple
 
 ## 2. Source: shared checks and the hosted starter
 
-- [ ] 2.1 Extract the portable check entry point and make the existing GitHub test workflow invoke it; add fixtures for whole-change base/head comparison, suite discovery, docs-only changes and loosened checks, and verify through `/save` that the existing GitHub gate and independently deployable staging behavior remain intact.
+- [x] 2.1 Extract the portable check entry point and make the existing GitHub test workflow invoke it; add fixtures for whole-change base/head comparison, suite discovery, docs-only changes and loosened checks, and verify through `/save` that the existing GitHub gate and independently deployable staging behavior remain intact.
 - [ ] 2.2 Define the reviewed HTTP/static hosted starter with pinned dependencies, native Preview configuration and build-time project/SHA identity, retaining the normal app test/build entry points; verify starter/config fixtures reject business-data, memory and background bindings and that GitHub installations retain their existing staging configuration. Document its immutable Artifacts release preparation and source record; do not publish the starter without later authorization.
 - [ ] 2.3 Add the negotiated contract-5 hosted bootstrap and verified private handoff before personal onboarding, reusing payload copy/install records and workspace helpers; cover retry/reconnect, untrusted markers, contract-4 compatibility and absence of personal memory/GitHub provisioning through `/save`. Update the owning install/server docs and add the payload's `CHANGELOG.md` Next minor entry, leaving `VERSION` unchanged; verify payload links and release checks.
 

@@ -103,9 +103,9 @@ function protectSecrets(dir, { token, accountId }) {
 const real = (path) => path.replace(/^\.claude\//, '.agents/');
 
 /** The source's files, as a clone has them: tracked, plus any new file git does not ignore. */
-async function sourceFiles(exec) {
-  const { stdout } = await exec('git', ['-C', SOURCE, 'ls-files', '-z', '--cached', '--others', '--exclude-standard']);
-  return [...new Set(stdout.split('\0'))].filter((path) => path && existsSync(join(SOURCE, path)));
+async function sourceFiles(exec, source = SOURCE) {
+  const { stdout } = await exec('git', ['-C', source, 'ls-files', '-z', '--cached', '--others', '--exclude-standard']);
+  return [...new Set(stdout.split('\0'))].filter((path) => path && existsSync(join(source, path)));
 }
 
 /**
@@ -154,10 +154,10 @@ const isLink = (path) => {
 };
 
 /** Copies the payload, the `WONG-STACK` block, the source's `.env.example`, the two hubs, and OpenSpec's home. */
-async function copyPayload(dir, exec) {
-  const manifest = readJson(join(SOURCE, '.agents', 'skills', 'wong-sync', 'references', 'payload-files.json'));
-  for (const path of payloadFiles(manifest, await sourceFiles(exec))) {
-    const from = join(SOURCE, path);
+export async function copyPayload(dir, exec, { source = SOURCE } = {}) {
+  const manifest = readJson(join(source, '.agents', 'skills', 'wong-sync', 'references', 'payload-files.json'));
+  for (const path of payloadFiles(manifest, await sourceFiles(exec, source))) {
+    const from = join(source, path);
     const to = join(dir, path);
     mkdirSync(dirname(to), { recursive: true });
     if (isLink(from)) {
@@ -166,10 +166,10 @@ async function copyPayload(dir, exec) {
   }
   for (const name of ['.claude', '.codex']) link('.agents', join(dir, name));
 
-  const block = /<!-- WONG-STACK:BEGIN[\s\S]*?WONG-STACK:END.*/.exec(readFileSync(join(SOURCE, 'AGENTS.md'), 'utf8'))[0];
+  const block = /<!-- WONG-STACK:BEGIN[\s\S]*?WONG-STACK:END.*/.exec(readFileSync(join(source, 'AGENTS.md'), 'utf8'))[0];
   writeFileSync(join(dir, 'AGENTS.md'), `# AGENTS.md\n\n${block}\n`);
   link('AGENTS.md', join(dir, 'CLAUDE.md'));
-  cpSync(join(SOURCE, '.env.example'), join(dir, '.env.example'));
+  cpSync(join(source, '.env.example'), join(dir, '.env.example'));
   writeHub(dir, join('wiki', 'development'), 'Development', 'How this repo plans, builds, checks, and ships changes. Back to [the wiki](../README.md).');
   writeHub(dir, 'wiki', 'Wiki', 'How this repo works. Start here and follow the links down.');
   if (!existsSync(join(dir, 'openspec', 'config.yaml'))) await exec('openspec', ['init', '--tools', 'none'], { cwd: dir });
@@ -184,10 +184,10 @@ export function upstreamUrl(remote) {
 }
 
 /** The install record `/wong-sync` reads: this clone's version, commit, and origin. */
-async function installRecord(manifest, exec, today) {
-  const version = readFileSync(join(SOURCE, 'VERSION'), 'utf8').trim();
-  const commit = (await exec('git', ['-C', SOURCE, 'rev-parse', 'HEAD'])).stdout.trim();
-  const origin = await exec('git', ['-C', SOURCE, 'remote', 'get-url', 'origin']).then(({ stdout }) => upstreamUrl(stdout), () => UPSTREAM);
+export async function installRecord(manifest, exec, today, source = SOURCE) {
+  const version = readFileSync(join(source, 'VERSION'), 'utf8').trim();
+  const commit = (await exec('git', ['-C', source, 'rev-parse', 'HEAD'])).stdout.trim();
+  const origin = await exec('git', ['-C', source, 'remote', 'get-url', 'origin']).then(({ stdout }) => upstreamUrl(stdout), () => UPSTREAM);
   return {
     version,
     commit,

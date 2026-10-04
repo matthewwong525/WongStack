@@ -8,6 +8,8 @@ It fits AI-driven dev because **merge = deploy**: one runtime, cheap per-branch 
 
 ## Pages
 
+- [Managed hosted projects](hosted-projects.md) — the separate HTTP/static starter, private workspace handoff and reviewed Artifacts release preparation.
+
 - [Getting started](getting-started.md) — what installing costs, what you do by hand, and what to do when something goes wrong; start here if you're setting this up for the first time.
 - [Make WongStack your own](customizing-wongstack.md) — change the defaults in your fork, install it with one request, and keep projects following your version.
 - [Core stack](core-stack.md) — *what* you build on: React + Vite on Cloudflare Workers with D1, and why the combo suits AI-driven dev.

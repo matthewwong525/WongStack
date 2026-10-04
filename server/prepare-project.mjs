@@ -21,6 +21,38 @@ function stateFile(home,uid,repo) {
   if((lstatSync(dir).mode&0o777)!==0o700)throw Error('path_conflict');
   return join(dir,`${createHash('sha256').update(repo.toLowerCase()).digest('hex')}.json`);
 }
+/** Shared fixed Paseo setup; retries inspect metadata and leave existing terminals alone. */
+export async function preparePaseo(dir,{home,command,state,saveState}) {
+    const paseo=async args=>JSON.parse((await command('paseo',[...args,'--home',join(home,'.paseo'),'--json'])).stdout);
+    const projects=await paseo(['project','ls']);if(!projects.some(project=>project.path===dir))await paseo(['project','create',dir]);
+    const workspaces=await paseo(['workspace','ls']);
+    const workspace=async title=>{
+      let match=workspaces.find(item=>(item.cwd===dir||item.path===dir)&&(item.title??item.name)===title);
+      if(!match){match=await paseo(['workspace','create','--path',dir,'--isolation','local','--title',title]);workspaces.push(match);}
+      if(typeof match.workspaceId!=='string'||!match.workspaceId)throw Error('paseo');
+      return match.workspaceId;
+    };
+    state.signIns??={};
+    for(const [title,login] of SIGN_INS) {
+      const id=await workspace(title);
+      const terminals=await paseo(['terminal','ls','--workspace',id]);
+      let terminal=terminals.find(item=>item.workspaceId===id&&item.name===title)??terminals.find(item=>item.workspaceId===id);
+      if(!terminal) {
+        terminal=await paseo(['terminal','create','--workspace',id,'--cwd',dir,'--name',title]);
+        if(typeof terminal.id!=='string'||!terminal.id)throw Error('paseo');
+        state.signIns[title]={workspaceId:id,terminalId:terminal.id,sent:false};saveState();
+      }
+      if(typeof terminal.id!=='string'||!terminal.id)throw Error('paseo');
+      const pending=state.signIns[title];
+      // Existing terminals are left alone. Retry only our recorded unfinished
+      // fixed action, with metadata lookup rather than reading terminal output.
+      if(pending?.workspaceId===id&&pending.terminalId===terminal.id&&pending.sent===false) {
+        await paseo(['terminal','send-keys',terminal.id,login,'Enter']);
+        pending.sent=true;saveState();
+      }
+    }
+    await workspace(START_HERE);
+}
 export async function prepareProject(job,{home=process.env.HOME,user=process.env.USER,uid=process.getuid(),exec=run}={}) {
   const report={generation:job?.generation,clone:'failed',dependencies:'needs_input',configuration:'needs_input',paseo:'failed',missingSettings:[]};
   if(uid===0||!Number.isSafeInteger(job?.generation)||job.generation<0)return {...report,reason:'unsupported'};
@@ -79,35 +111,7 @@ export async function prepareProject(job,{home=process.env.HOME,user=process.env
       report.configuration=report.missingSettings.length?'needs_input':'done';
     }
     step='paseo';
-    const paseo=async args=>JSON.parse((await command('paseo',[...args,'--home',join(home,'.paseo'),'--json'])).stdout);
-    const projects=await paseo(['project','ls']);if(!projects.some(project=>project.path===dir))await paseo(['project','create',dir]);
-    const workspaces=await paseo(['workspace','ls']);
-    const workspace=async title=>{
-      let match=workspaces.find(item=>(item.cwd===dir||item.path===dir)&&(item.title??item.name)===title);
-      if(!match){match=await paseo(['workspace','create','--path',dir,'--isolation','local','--title',title]);workspaces.push(match);}
-      if(typeof match.workspaceId!=='string'||!match.workspaceId)throw Error('paseo');
-      return match.workspaceId;
-    };
-    state.signIns??={};
-    for(const [title,login] of SIGN_INS) {
-      const id=await workspace(title);
-      const terminals=await paseo(['terminal','ls','--workspace',id]);
-      let terminal=terminals.find(item=>item.workspaceId===id&&item.name===title)??terminals.find(item=>item.workspaceId===id);
-      if(!terminal) {
-        terminal=await paseo(['terminal','create','--workspace',id,'--cwd',dir,'--name',title]);
-        if(typeof terminal.id!=='string'||!terminal.id)throw Error('paseo');
-        state.signIns[title]={workspaceId:id,terminalId:terminal.id,sent:false};saveState();
-      }
-      if(typeof terminal.id!=='string'||!terminal.id)throw Error('paseo');
-      const pending=state.signIns[title];
-      // Existing terminals are left alone. Retry only our recorded unfinished
-      // fixed action, with metadata lookup rather than reading terminal output.
-      if(pending?.workspaceId===id&&pending.terminalId===terminal.id&&pending.sent===false) {
-        await paseo(['terminal','send-keys',terminal.id,login,'Enter']);
-        pending.sent=true;saveState();
-      }
-    }
-    await workspace(START_HERE);
+    await preparePaseo(dir,{home,command,state,saveState});
     report.paseo='done';
     return {...report,...(report.configuration!=='done'&&{reason:'configuration'})};
   }catch(error){return {...report,...(step==='dependencies'&&{dependencies:'failed'}),reason:PROJECT_REASONS.includes(error.message)?error.message:step};}
