@@ -68,7 +68,7 @@ Worker-only or UI-less changes skip the section entirely and draw no screen. The
 
 The picture lives in the proposal and shows at `openspec/changes/<name>/review.html` — one page per change, built by [the plan skill's builder](../.agents/skills/plan/scripts/build-review.mjs) from `proposal.md` and [the fixed kit](../.agents/skills/plan/references/review-kit.html). The page is one scrolling document: Why, the What Changes items with their drawings, and the decisions, each labeled *asked* or *assumed*.
 
-A drawing is a fenced `text` block inside the bullet it explains, drawn by [the drawing guide](../.agents/skills/plan/references/drawings.md). One drawing carries the change by default: a flow, a before-and-after diff, a file tree, or a screen. What a screen sketch must hold is what the rest of this page argues for:
+A drawing is a fenced `text` block inside the bullet it explains, drawn by [the drawing guide](../.agents/skills/plan/references/drawings.md). One drawing carries the change by default, in the pattern that fits what its bullet explains: steps, a back-and-forth, states, or a before-and-after of a changed flow or screen. What a screen sketch must hold is what the rest of this page argues for:
 
 - **Every screen in the flow**, and each empty, loading, or error state the flow names, as its own small sketch. A state a reviewer can not see is a state nobody designed.
 - **Before and after for a changed screen**, side by side when both fit in 56 columns, else one above the other. A reviewer can not judge a change they only see half of.

@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 30.9.0 — Clearer drawings in plans
+
+- A plan's drawing now fits what it explains, not one column of steps. Steps run in one straight line, with what can go wrong in a row below.
+- A back-and-forth between two parties, such as you and the assistant, gets its own drawing, showing who asks whom, in order.
+- A thing that moves through stages, such as an order or a plan, gets a drawing of where it can stand and what moves it on or back.
+- A changed flow is drawn before and after, with a `+` on what is new, as a changed screen already was.
+- Two little-used patterns, the titled frame and the split that joins again, are gone to make room. Drawings stay plain text that reads on a phone.
+
+**Updating.** No action needed. The usual update delivers the new drawing guide.
+
 ## 30.8.0 — A staging playground, and a look at the live app
 
 - The check before publishing starts by wiping staging back to its made-up sample data, then creates, edits, and deletes freely, with no asking and no tidying up. Checks take turns, so two chats never trip over each other.
