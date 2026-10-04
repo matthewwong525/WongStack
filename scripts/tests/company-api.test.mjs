@@ -59,7 +59,7 @@ test('refuses unsafe target syntax and login state inside repositories, through 
   const redirected = join(f.stateDir, 'redirect'); mkdirSync(f.stateDir, { recursive: true, mode: 0o700 }); symlinkSync(f.root, redirected);
   await assert.rejects(companyClient({ root: f.root, stateDir: join(redirected, 'state'), cacheDir: f.cacheDir }).login(origin), /outside/);
   mkdirSync(f.cacheDir, { recursive: true, mode: 0o755 }); chmodSync(f.cacheDir, 0o755);
-  await assert.rejects(f.client.login(origin), /0700/); chmodSync(f.cacheDir, 0o700);
+  await assert.rejects(f.client.login(origin), /not private/); chmodSync(f.cacheDir, 0o700);
   writeFileSync(join(f.cacheDir, 'token'), 'private', { mode: 0o644 });
   await assert.rejects(f.client.login(origin), /not private/); rmSync(join(f.cacheDir, 'token'));
   symlinkSync(join(f.root, '.claude/.wong-stack.json'), join(f.cacheDir, 'token'));

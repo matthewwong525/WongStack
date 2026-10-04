@@ -73,6 +73,9 @@ it("accepts nested JSON, rejects incorrect encoding and bounds input bytes", asy
   const handler = vi.fn(() => Response.json({ value: "ok" }));
   const a = action({ encoding: "json", input: z.strictObject({ nested: z.strictObject({ n: z.number() }) }), examples: [], handler });
   expect((await call(a, "", { method: "POST", headers: { "content-type": "application/json; charset=utf-8" }, body: '{"nested":{"n":2}}' })).status).toBe(200);
+  // A dictionary schema has additionalProperties rather than named properties.
+  const dictionary = action({ encoding: "json", input: z.record(z.string(), z.string()), examples: [], handler });
+  expect((await call(dictionary, "", { method: "POST", headers: { "content-type": "application/json" }, body: '{"title":"Sample"}' })).status).toBe(200);
   for (const body of ["broken", '{}']) expect((await call(a, "", { method: "POST", headers: { "content-type": "application/json" }, body })).status).toBe(400);
   expect((await call(a, "", { method: "POST", body: '{}' })).status).toBe(400);
   const bounded = action({ limits: { inputBytes: 2, outputBytes: 100, timeoutMs: 500 } });

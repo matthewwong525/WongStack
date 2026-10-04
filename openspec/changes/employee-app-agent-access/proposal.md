@@ -141,3 +141,5 @@ This is an additive minor release with reviewed adaptation of custom endpoints. 
 - **2026-10-04** — Assumed: initially describe memory search and topic reads through an adapter to existing commands, because this delivers discoverable memory access without duplicating SQL/search logic or changing automatic capture and the memory write gate. Additional memory actions can be described separately.
 
 - **2026-10-04** — Assumed: implementation groups 1–5 are ready for the remote gate; contracts, discovery, employee login helper, memory read adapter and distribution are written. Static payload/config/context checks passed; remote tests, coverage, build and deployed observations remain pending. Memory identity and enrollment are unchanged.
+
+- **2026-10-04** — Remote gate attempt 1: all 101 app tests passed with full coverage; 1,060 of 1,061 script tests passed above coverage floors. Fixed schema property typing and shared-module declarations, an unused registry export, and the stale private-cache error assertion. Added a dictionary-input regression; all gates remain enabled and the corrected revision awaits CI.

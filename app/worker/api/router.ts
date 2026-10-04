@@ -9,7 +9,7 @@ export const API_PREFIX = "/api/";
 
 // Keyed "METHOD /path". A Map, not an object, so a path like /api/constructor
 // can not reach a property every object inherits.
-export const routes = new Map<string, Route>([["GET /api/health", health]]);
+const routes = new Map<string, Route>([["GET /api/health", health]]);
 
 export const apiActions = registrations(routes);
 

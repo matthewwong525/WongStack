@@ -45,10 +45,15 @@ export function actionError(code: string, status?: number): Response {
 export function schemas(action: Action) {
   // Check the output view too: an input transform must not disappear in conversion.
   z.toJSONSchema(action.input, { unrepresentable: "throw" });
+  const inputSchema = z.toJSONSchema(action.input, { io: "input", unrepresentable: "throw" });
   return {
-    inputSchema: z.toJSONSchema(action.input, { io: "input", unrepresentable: "throw" }),
+    inputSchema: { ...inputSchema, properties: inputSchema.properties ?? {} },
     outputSchema: z.toJSONSchema(action.output, { unrepresentable: "throw" }),
   };
+}
+
+function fieldType(field: NonNullable<ReturnType<typeof z.toJSONSchema>["properties"]>[string] | undefined) {
+  return typeof field === "object" ? field.type : undefined;
 }
 
 function validateMetadata(action: Action) {
@@ -65,7 +70,7 @@ function validateEncoding(action: Action) {
     throw new Error(`Invalid input encoding: ${action.operationId}`);
   }
   if (action.encoding === "query" && Object.values(inputSchema.properties).some(field =>
-    !["string", "number", "integer", "boolean"].includes(field.type as string))) {
+    !["string", "number", "integer", "boolean"].includes(fieldType(field) as string))) {
     throw new Error(`Only scalar query fields are supported: ${action.operationId}`);
   }
 }
@@ -145,9 +150,9 @@ async function inputFor(action: Action, request: Request, url: URL, max: number)
   const { inputSchema } = schemas(action);
   for (const [key, value] of url.searchParams) {
     if (Object.hasOwn(input, key)) throw new Error("Repeated query field");
-    const field = inputSchema.properties[key];
-    input[key] = field?.type === "number" || field?.type === "integer" ?
-      (value.trim() ? Number(value) : NaN) : field?.type === "boolean" ?
+    const type = fieldType(inputSchema.properties[key]);
+    input[key] = type === "number" || type === "integer" ?
+      (value.trim() ? Number(value) : NaN) : type === "boolean" ?
         (value === "true" ? true : value === "false" ? false : value) : value;
   }
   return input;
