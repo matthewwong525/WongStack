@@ -15,7 +15,7 @@ export function validateSelection(text, pool) {
   if (!data || Array.isArray(data) || Object.keys(data).sort().join(',') !== 'gaps,queries,select,version' || data.version !== 1
     || !Array.isArray(data.select) || data.select.length > 20 || data.select.some(id => !Number.isSafeInteger(id) || !pool.has(id))
     || new Set(data.select).size !== data.select.length
-    || !Array.isArray(data.queries) || data.queries.length > 2 || data.queries.some(query => typeof query !== 'string' || !query.trim() || bytes(query) > 160 || !/^[\p{L}\p{N}\s,.'?\-]+$/u.test(query))
+    || !Array.isArray(data.queries) || data.queries.length > 2 || data.queries.some(query => typeof query !== 'string' || !query.trim() || bytes(query) > 160 || !/^[\p{L}\p{N}\s,.'?-]+$/u.test(query))
     || !Array.isArray(data.gaps) || data.gaps.length > 2 || data.gaps.some(gap => !MODEL_GAPS.has(gap))) throw new Error('invalid reply');
   return data;
 }

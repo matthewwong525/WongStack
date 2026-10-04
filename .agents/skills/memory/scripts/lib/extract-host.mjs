@@ -25,7 +25,7 @@ export function bufferedProcess(command, args, { cwd, env, input = '', signal, c
     child.stderr.resume();
     child.stdin.on('error', () => {});
     child.on('error', () => fail('model unavailable'));
-    child.on('close', code => { signal?.removeEventListener('abort', abort); if (settled) return; settled = true; code === 0 ? resolve(Buffer.concat(chunks).toString('utf8')) : reject(new Error('model unavailable')); });
+    child.on('close', code => { signal?.removeEventListener('abort', abort); if (settled) return; settled = true; if (code === 0) resolve(Buffer.concat(chunks).toString('utf8')); else reject(new Error('model unavailable')); });
     child.stdin.end(input);
   });
 }

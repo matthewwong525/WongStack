@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { EXTRACT_LIMITS, bytes, issueTask, scopeOf, taskIdentity, withTask } from '../../.agents/skills/memory/scripts/lib/extract-ledger.mjs';
@@ -93,7 +93,7 @@ test('oversized multibyte input and spent output allowances stop work without bu
   assert.equal(exhausted.text, ''); assert.equal(exhausted.code, 3);
 });
 
-test('Claude adapter preserves auth and disables tools, MCP, hooks, skills, persistence and retries', async t => {
+test('Claude adapter preserves auth and disables tools, MCP, hooks, skills, persistence and retries', async () => {
   let calls = 0, launch;
   const host = await prepareExtractHost({ agent: 'claude', model: 'caller-model', env: { ANTHROPIC_API_KEY: 'host-auth', CLOUDFLARE_MEMORY_TOKEN: 'store-secret', GH_TOKEN: 'github-secret', CLAUDE_CODE_MAX_RETRIES: '9' }, run: async (_command, args, options) => {
     calls += 1;
