@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Fewer steps, faster tasks
+
+- Saving takes one command once the files are chosen. It commits, uploads, opens or updates the change on GitHub, waits for the checks, and returns the result, the preview link, and what to do next. A failed check comes back with its cause, so nothing is looked up twice.
+- Publishing takes two commands around that save: one to prepare, one to finish and look at the live app.
+- A finished build is checked on your computer before the first upload, when its tools are installed there, and mistakes are fixed first. GitHub's checks still decide whether a change can be published.
+- The main assistant waits quietly while its helper builds, with one short line now and then.
+- The save and publish instructions are about a quarter shorter.
+
+**Updating.** Nothing to do; the usual update delivers this. Checks run on a computer only where its tools are installed. Elsewhere the assistant says so in one line and carries on as before.
+
 ## 30.10.0 — Build first, check once at the end
 
 Build the complete change and its tests before automatic verification. Reuse the exact saved revision for the preview walkthrough, keeping required final checks and fresh evidence. Failed checks still get repairs and affected rechecks.

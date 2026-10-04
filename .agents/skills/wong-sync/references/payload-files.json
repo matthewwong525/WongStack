@@ -37,6 +37,8 @@
     ],
     "files": [
       ".claude/skills/save/scripts/saved-revision.mjs",
+      ".claude/skills/save/scripts/checkpoint.mjs",
+      ".claude/skills/ship/scripts/ship.mjs",
       ".claude/settings.json",
       ".claude/hooks.json",
       ".claude/config.toml",

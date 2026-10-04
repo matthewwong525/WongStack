@@ -52,6 +52,8 @@ The report gives paths, classes, and counts, never a body or diff. It returns `s
 
 **improve** ships an outcome brief for finding one supported improvement through the normal delivery skills, with an optional area or desired outcome and a findings-only mode. The [repository improvement guide](../../../../wiki/development/repository-improvement.md) owns cadence and scheduling.
 
+**save** and **ship** ship their one-command scripts with the skill folders: [`checkpoint.mjs`](../../save/scripts/checkpoint.mjs) runs a save's commit, push, PR, check wait and preview, and [`ship.mjs`](../../ship/scripts/ship.mjs) runs `/ship`'s `prepare` and `finish`. The portable check entry point's `--worktree` mode checks a finished build on the computer before a push. The source repo's `scripts/payload-checks.mjs` and `scripts/measure-sessions.mjs` are meta-only and never ship.
+
 **plan** ships the [review kit](../../plan/references/review-kit.html), the [CLI contract](../../plan/references/openspec-cli.md), the [drawing guide](../../plan/references/drawings.md), and the builder as one folder. Each change's standalone `review.html` is built from its `proposal.md` alone, viewer bundled; `/save` rebuilds it the same way. A cited owner page ships too: `scripts/check-payload-links.mjs` enforces link closure in a target.
 
 ### Planning an update

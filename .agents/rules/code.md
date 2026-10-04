@@ -17,7 +17,7 @@ Follow the files that already do it. Split by job, not by size: each file does o
 - **An API route:** a handler file in [`app/worker/api/`](../../app/worker/api/health.ts), and one entry in [its router](../../app/worker/api/router.ts). For an approved shared action, use [the health contract](../../app/worker/api/health.ts); [company actions](../../wiki/stack/company-api.md) owns the pattern.
 - **A mini app:** copy the example's two folders, [`app/src/apps/hello/`](../../app/src/apps/hello/App.tsx) and, for a server side, [`app/worker/apps/hello/`](../../app/worker/apps/hello/api.ts). The page is `App.tsx`, with `app.json` and its CSS beside it; an API route is a handler file and one entry in `api.ts`'s route list. No other file needs an edit.
 
-The [`npm test` chain](../../app/package.json) owns all numeric limits and enforces them in CI, which is [the gate](../../wiki/development/the-change-loop.md#the-gate); nothing builds locally.
+The [`npm test` chain](../../app/package.json) owns all numeric limits and enforces them in CI, which is [the gate](../../wiki/development/the-change-loop.md#the-gate); a local run is a pre-check, never the gate.
 
 ## Sample data and timed jobs
 
