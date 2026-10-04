@@ -99,6 +99,7 @@
       ".github/workflows/deploy.yml",
       "schema/seed.sql",
       "schema/migrations/.gitkeep",
+      "schema/migrations/0001_employee_access.sql",
       "app/.dev.vars.example",
       "scripts/cf-preview.sh",
       "scripts/company-api.mjs"

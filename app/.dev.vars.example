@@ -38,3 +38,7 @@
 
 # Where the app posts outbound webhooks. Point staging at a sink, not at prod.
 # WEBHOOK_URL=
+
+# Optional owner activation pin, configured only after private operator checks.
+# Keep production's pin out of staging. See wiki/stack/employee-access.md.
+# WONG_ACCESS_ACTIVATION=

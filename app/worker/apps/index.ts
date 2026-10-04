@@ -5,7 +5,7 @@
 import { dispatch, registrations, type Route } from "../api/contract.ts";
 import type { AccessIdentity } from "../access.ts";
 
-type MemoryBindings = "MEMORY_DB" | "MEMORY_BUCKET";
+type MemoryBindings = "MEMORY_DB" | "MEMORY_BUCKET" | "WONG_ACCESS_ACTIVATION";
 
 /**
  * Everything the Worker has but the memory store: the database, saved keys, and settings.
@@ -54,5 +54,6 @@ export function handleApp(request: Request, env: Env, identity: AccessIdentity |
   const appEnv: AppEnv & Partial<Record<MemoryBindings, unknown>> = { ...env };
   delete appEnv.MEMORY_DB;
   delete appEnv.MEMORY_BUCKET;
+  delete appEnv.WONG_ACCESS_ACTIVATION;
   return dispatch(handler, request, appEnv, { url, route, identity });
 }

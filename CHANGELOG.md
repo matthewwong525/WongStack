@@ -3,6 +3,12 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Connect assistants with employee access
+
+Add private owner activation and separate app-database storage for employee access. Activation requires the existing app's signed owner identity and privately verified installation details. It leaves employee grants and project editing disabled until their later setup checks pass.
+
+**Updating.** Keep existing apps, routes, login settings and business data. After the reviewed update deploys, verify the owner's app login and the existing repository, then configure the private owner activation record. Review app assignments and route mappings before enabling employee permissions. Login-management and GitHub connections each need the owner's separate approval; missing setup leaves those connections unavailable. Existing memory access stays separate.
+
 ## 30.3.0 — Better thinking before a plan
 
 - Exploration follows the relevant work, compares distinct approaches when a choice matters, and separates facts from assumptions and missing evidence.

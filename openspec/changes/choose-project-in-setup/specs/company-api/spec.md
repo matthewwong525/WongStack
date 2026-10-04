@@ -1,10 +1,4 @@
-# Company API
-
-## Purpose
-
-Let company apps and employee assistants use explicitly defined business actions through the company's Worker, while underlying service credentials remain on the server and existing authorization stays effective.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Apps and agents use the same defined company action
 
@@ -24,34 +18,6 @@ A described company action SHALL be callable through its existing Worker endpoin
 
 - **WHEN** an employee without permission for an app calls its business endpoint directly
 - **THEN** the server denies the call before its handler or outside service executes
-
-### Requirement: Company service credentials stay on the server
-
-Company actions SHALL use saved server-side service connections without requiring an employee to possess the underlying business key. Employee login SHALL NOT distribute owner credentials, deployment credentials, memory credentials, or the workspace verification service token. Discovery, successful outputs and error outputs SHALL contain no service credential values.
-
-#### Scenario: A connected action runs
-
-- **WHEN** an authenticated employee calls a defined action that uses a saved business key
-- **THEN** the server uses that key internally and the employee receives only the described business response
-
-#### Scenario: A provider request fails
-
-- **WHEN** the outside service returns a diagnostic containing credential material
-- **THEN** the action returns a safe documented error without that material
-
-### Requirement: Defined actions validate the documented interface
-
-Every agent-exposed action SHALL declare its purpose, stable operation identity, accepted input, successful output, errors and effect. The same definition SHALL govern its published schema and runtime input validation. Unsupported schema definitions or duplicate operation identities SHALL fail the checks before publication. Invalid input SHALL perform no business work; a described output that violates its contract SHALL not be forwarded as a successful response.
-
-#### Scenario: Invalid input
-
-- **WHEN** a caller supplies input outside the action's documented schema
-- **THEN** the endpoint returns a structured input error before invoking the business handler
-
-#### Scenario: An action definition is inconsistent
-
-- **WHEN** a new exposed action has an unsupported schema or duplicate operation identity
-- **THEN** publication checks fail and identify that action
 
 ### Requirement: Exposure is explicit and preserves existing apps
 

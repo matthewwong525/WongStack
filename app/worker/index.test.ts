@@ -86,6 +86,39 @@ describe("private Worker routing", () => {
     expect(await unknown.json()).toEqual({ error: "Not found" });
     expect(assets.fetch).not.toHaveBeenCalled();
   });
+  it("keeps activation behind a signed owner session and a private installation pin", async () => {
+    const activation = {
+      version: 1, installationId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", origin: "https://workspace.example.com",
+      accountId: "a".repeat(32), workerId: "opaque-worker-id", accessAppId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      accessPolicyId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc", issuer: `https://${TEAM}`, audience: AUD,
+      ownerSubject: "verified-owner", ownerEmail: "owner@example.com", repositoryId: 123, repositoryName: "business/project",
+    };
+    const first = vi.fn(async () => ({
+      installation_id: activation.installationId, origin: activation.origin, account_id: activation.accountId,
+      worker_id: activation.workerId, access_app_id: activation.accessAppId, access_policy_id: activation.accessPolicyId,
+      issuer: activation.issuer, audience: activation.audience, owner_subject: activation.ownerSubject,
+      owner_email: activation.ownerEmail, repository_id: activation.repositoryId, repository_name: activation.repositoryName,
+    }));
+    const bindings = { ...env, WONG_ENVIRONMENT: "production", CF_ACCESS_APP_ID: activation.accessAppId,
+      CF_ACCESS_WORKER_ID: activation.workerId, WONG_ACCESS_ACTIVATION: JSON.stringify(activation),
+      DB: { withSession: () => ({ prepare: () => ({ first }) }) } };
+    const endpoint = "/api/access/activate";
+    expect((await call(endpoint, { Origin: activation.origin }, bindings, "POST")).status).toBe(401);
+    for (const claims of [{ email: "visitor@example.com", sub: "visitor" },
+      { common_name: "service-client", sub: "" }, { email: activation.ownerEmail },
+      { email: activation.ownerEmail, sub: "another-subject" }]) {
+      expect((await call(endpoint, { Origin: activation.origin, "Cf-Access-Jwt-Assertion": await token(claims) }, bindings, "POST")).status).toBe(403);
+    }
+    const signed = await token({ email: activation.ownerEmail, sub: activation.ownerSubject });
+    const [header, , signature] = signed.split(".");
+    const forged = `${header}.${encode({ email: activation.ownerEmail, sub: activation.ownerSubject })}.${signature}`;
+    expect((await call(endpoint, { Origin: activation.origin, "Cf-Access-Jwt-Assertion": forged }, bindings, "POST")).status).toBe(401);
+    expect(first).not.toHaveBeenCalled();
+    expect((await call(endpoint, { Origin: activation.origin, "Cf-Access-Jwt-Assertion": signed }, bindings, "POST")).status).toBe(200);
+    const own = await call("/api/access/identity", { "Cf-Access-Jwt-Assertion": signed }, bindings);
+    expect(await own.json()).toMatchObject({ email: activation.ownerEmail, subject: activation.ownerSubject, origin: activation.origin });
+    expect(assets.fetch).not.toHaveBeenCalled();
+  });
   it("accepts signed employee discovery and rejects forged, expired and wrong-audience assertions", async () => {
     const signed = await token();
     const accepted = await call("/api/actions", { "Cf-Access-Jwt-Assertion": signed });
@@ -124,7 +157,7 @@ describe("private Worker routing", () => {
   it("serves a check's kept pictures only behind the login, from a bucket no mini app is handed", async () => {
     const picture = "/_walk/abc1234/20261003T140000Z/empty-title/03-after.png";
     const get = vi.fn(async () => ({ body: new Blob(["png"]).stream() }));
-    const walkEnv = { ...env, MEMORY_BUCKET: { get } };
+    const walkEnv = { ...env, MEMORY_BUCKET: { get }, WONG_ACCESS_ACTIVATION: "private-owner-pin" };
     expect((await call(picture, {}, walkEnv)).status).toBe(401);
     const open = { ASSETS: assets, WORKSPACE_LOGIN: "off", MEMORY_BUCKET: { get } } as unknown as typeof env;
     expect((await call(picture, {}, open)).status).toBe(404);

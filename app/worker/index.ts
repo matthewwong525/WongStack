@@ -6,6 +6,8 @@ import { discovery } from "./api/discovery.ts";
 import { API_PREFIX, handleApi } from "./api/router.ts";
 import { APP_API, handleApp } from "./apps/index.ts";
 import { getAccessIdentity, type AccessEnv } from "./access.ts";
+import { activateAccess, type ActivationEnv } from "./employee-access/activation.ts";
+import { activationIdentity } from "./employee-access/identity.ts";
 
 export default {
   async fetch(request, env) {
@@ -28,6 +30,14 @@ export default {
         status: configured ? 401 : 503,
         headers: { "Cache-Control": "no-store" },
       });
+    }
+
+    // Owner activation consumes only a private operator pin and signed identity.
+    if (url.pathname === "/api/access/activate") {
+      return activateAccess(request, env, identity);
+    }
+    if (url.pathname === "/api/access/identity") {
+      return activationIdentity(request, env, identity);
     }
 
     // Discovery always requires company login, even on an open starter.
@@ -67,4 +77,4 @@ export default {
     }
     return env.ASSETS.fetch(request);
   },
-} satisfies ExportedHandler<Env & AccessEnv>;
+} satisfies ExportedHandler<Env & AccessEnv & ActivationEnv>;

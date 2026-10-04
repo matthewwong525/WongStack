@@ -14,6 +14,8 @@ Requests and successful outputs are validated and bounded. A bad output or provi
 
 Existing bare handlers retain their paths, behavior and guards, and stay absent from discovery. During a reviewed update, inventory the target’s custom routes, describe only the actions its owner selects, and preserve its handler code and access checks. Never replace a custom handler with the template example or copy a saved business key to an employee.
 
+[Employee access activation](employee-access.md) uses private operator configuration and a verified owner session. Its core identity/activation endpoints are administration, absent from action discovery. Activation alone assigns no employee app or project access.
+
 ## Discover only what the task needs
 
 Verified [company login](cloudflare-access.md) protects these live endpoints, including on an otherwise open starter:
