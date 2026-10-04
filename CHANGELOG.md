@@ -11,7 +11,9 @@ Reviewed employee policy checks current app permissions before business APIs run
 
 Assistant discovery and frontend app-access readback use the same current grants. Removed apps disappear from action contracts on the next lookup, including cached requests; client-only apps also need explicit assignment.
 
-**Updating.** Keep existing apps, routes, login settings and business data. After the reviewed update deploys, verify the owner's app login and the existing repository, then configure the private owner activation record. Review app assignments and route mappings before enabling employee permissions. Login-management and GitHub connections each need the owner's separate approval; missing setup leaves those connections unavailable. Existing memory access stays separate.
+Owner connections now seal separate login-management/GitHub authority, reconcile exact recorded resources, and track per-machine short-lived repository receipts and independent removal results. Editing stays blocked until current provider protection is independently verified; ordinary shared deployment credentials do not meet that boundary.
+
+**Updating.** Keep existing apps, routes, login settings and business data. After the reviewed update deploys, verify the owner's app login and the existing repository, then configure the private owner activation record. Review app assignments and route mappings before enabling employee permissions. Login-management and GitHub connections each need the owner's separate approval; missing setup leaves those connections unavailable. Create a separate staging secret file with production connection authority explicitly empty before pushing runtime secrets. Existing memory access stays separate.
 
 ## 30.6.0 — Check more than the web preview
 

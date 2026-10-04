@@ -10,3 +10,9 @@ Verified against primary public API documentation on 2026-10-04. This records th
 - Revocation can require remaining teammates to sign in again. Local member denial, policy reconciliation and session/provider outcome are separate states; a success envelope alone does not establish observed propagation.
 - Preserve durable desired generations/retries across lost responses, and converge an older external write to the latest desired generation. Never acknowledge an old job as the latest success or restore removed membership. Any in-flight request with an unknown outcome remains pending until safely reconciled.
 - No production provider writes from staging. Controlled live readback/admission/session-denial proof remains task 7.2.
+
+## Delivered reconciliation
+
+Private operator setup separately verifies account-limited Access-only authority. The core seals it, validates recorded resources, rejects shared/unreviewed policies, preserves stricter controls and checks both controls and exact email readback. Connection verification leaves existing human policy untouched until the reviewed latch/database enforcement and explicit grants are enabled.
+
+Policy PUT intents and pending work commit together before an external mutation. Lease/generation checks constrain fresh calls; stale responses converge current state. A crashed/lost older write stays durable and prevents a later matching removal readback from being called complete while the old write could still apply. Application-session revocation reports provider acceptance with propagation unverified. Owner retries drive independent outcomes; no scheduler or production provider writes are introduced in previews. Actual admission/removal propagation remains controlled acceptance, not source-fixture evidence.

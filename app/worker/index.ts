@@ -7,6 +7,7 @@ import { API_PREFIX, handleApi } from "./api/router.ts";
 import { APP_API, handleApp } from "./apps/index.ts";
 import { getAccessIdentity, type AccessEnv, type AccessIdentity } from "./access.ts";
 import type { ActivationEnv } from "./employee-access/activation.ts";
+import type { ConnectionEnv } from "./employee-access/core.ts";
 import type { PolicyEnv } from "./employee-access/policy.ts";
 import { handleAccess } from "./employee-access/router.ts";
 
@@ -79,4 +80,4 @@ export default {
     }
     return env.ASSETS.fetch(request);
   },
-} satisfies ExportedHandler<Env & AccessEnv & ActivationEnv & PolicyEnv>;
+} satisfies ExportedHandler<Env & AccessEnv & ActivationEnv & PolicyEnv & ConnectionEnv>;

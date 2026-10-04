@@ -28,9 +28,9 @@ const pinSchema = z.object({
   repositoryName: z.string().regex(/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/),
 }).strict();
 
-type Pin = z.infer<typeof pinSchema>;
+export type Pin = z.infer<typeof pinSchema>;
 
-function readPin(value: string): Pin | null {
+export function readPin(value: string): Pin | null {
   try {
     const parsed = pinSchema.safeParse(JSON.parse(value));
     return parsed.success ? parsed.data : null;
@@ -39,7 +39,7 @@ function readPin(value: string): Pin | null {
   }
 }
 
-function ownerMatches(pin: Pin, identity: AccessIdentity | null): boolean {
+export function ownerMatches(pin: Pin, identity: AccessIdentity | null): boolean {
   if (!identity || identity.kind !== "user") return false;
   const { claims } = identity;
   const audiences = Array.isArray(claims.aud) ? claims.aud : [claims.aud];

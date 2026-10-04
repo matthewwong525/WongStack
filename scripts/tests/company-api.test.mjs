@@ -155,3 +155,18 @@ test('a successful write whose response fails or is unreadable is uncertain and 
     await f.client.login(origin); await assert.rejects(f.client.call('hello.greeting', {}), /outcome may be unknown/); assert.equal(invoked, 1);
   }
 });
+
+test('private owner consumer permits only finite same-origin management calls without exposing employee sessions', async t => {
+  const f = fixture(t, { request: async (url, init) => {
+    if (url.pathname === '/api/actions') return Response.json({ actions: [] });
+    assert.equal(init.headers.Origin, origin);
+    assert.ok(init.headers['cf-access-token']);
+    assert.equal(init.redirect, 'manual');
+    return Response.json({ code: 'owner_activated' });
+  } });
+  await f.client.login(origin);
+  for (const action of ['identity', 'activate', 'connect', 'prepare', 'rollout', 'editing', 'check', 'status', 'retry']) {
+    assert.deepEqual(await f.client.ownerSetup(action), { code: 'owner_activated' });
+  }
+  await assert.rejects(f.client.ownerSetup('https://foreign.example.com'), /Unsupported owner setup/);
+});

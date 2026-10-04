@@ -47,3 +47,11 @@
 # secret to push here. Enable `on` only after reviewed owner policy setup and
 # retain it on rollback. See wiki/stack/employee-access.md.
 # WONG_ACCESS_POLICY=
+
+# Separate owner-only employee connection authority. Production only; declare
+# empty values in app/.dev.vars.staging before any secret push. Never copy
+# these values into staging. See wiki/stack/employee-access.md.
+# WONG_ACCESS_SEAL_KEY=
+# WONG_ACCESS_LOGIN_MANAGEMENT=
+# WONG_ACCESS_ROLLOUT=
+# WONG_GITHUB_PUBLICATION=

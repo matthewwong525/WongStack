@@ -102,9 +102,11 @@
       "schema/seed.sql",
       "schema/migrations/.gitkeep",
       "schema/migrations/0001_employee_access.sql",
+      "schema/migrations/0002_employee_connections.sql",
       "app/.dev.vars.example",
       "scripts/cf-preview.sh",
-      "scripts/company-api.mjs"
+      "scripts/company-api.mjs",
+      "scripts/employee-owner-setup.mjs"
     ],
     "dirs": [
       "wiki/stack"

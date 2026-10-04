@@ -2,7 +2,7 @@
 import type { AccessIdentity } from "../access.ts";
 import { currentPolicy, policyAllows, policyDenied, type PolicyEnv } from "./policy.ts";
 
-const catalogue = Object.keys(import.meta.glob("../../src/apps/*/app.json", { eager: true }))
+export const catalogue = Object.keys(import.meta.glob("../../src/apps/*/app.json", { eager: true }))
   .map(path => path.split("/")[4]).sort();
 
 export async function appAccess(request: Request, env: PolicyEnv, identity: AccessIdentity | null,

@@ -167,7 +167,19 @@ export function companyClient({ root = primaryRoot().root, stateDir, cacheDir = 
     else if (Object.keys(input).length) throw new Error('This operation has no input');
     return (await http(path, init, target(), undefined, true)).value;
   }
-  return { login, list, describe, call };
+  async function ownerSetup(action) {
+    const actions = { identity: ['GET', 'identity'], activate: ['POST', 'activate'],
+      connect: ['POST', 'login/connect'], prepare: ['POST', 'prepare'], rollout: ['POST', 'rollout'],
+      editing: ['POST', 'editing/enable'], check: ['POST', 'github/check'],
+      status: ['GET', 'status'], retry: ['POST', 'retry'] };
+    if (!Object.hasOwn(actions, action)) throw new Error('Unsupported owner setup operation');
+    const [method, path] = actions[action];
+    const origin = target();
+    const result = await http(`/api/access/${path}`, { method, headers: { Origin: origin } });
+    if (result.status !== 200) throw new Error('Owner setup is unavailable; verify the private installation record and connections');
+    return result.value;
+  }
+  return { login, list, describe, call, ownerSetup };
 }
 
 export async function combinedList(client, { scope = 'all', ...filters } = {}) {
