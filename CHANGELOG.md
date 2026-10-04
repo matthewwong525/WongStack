@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Check a change on either hosting route
+
+- The test workflow uses one portable check entry point with the whole change's base and exact saved head. It keeps test discovery, documentation-only skips, and the existing check and wiki reports together.
+- Quality checks still report after failed installation or tests. The existing GitHub staging deployment runs independently.
+
+**Updating.** The usual update adapts the test workflow and adds its shared check script. No hosting, credential or data changes are needed for existing projects.
+
 ## 29.17.0 — Restore independent task chats
 
 - Before planning, the assistant still sees this repo's other workspaces, their plans, and open pull requests. When work overlaps, it asks whether to keep going here, work there instead, or narrow the request.

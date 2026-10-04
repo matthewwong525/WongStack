@@ -110,6 +110,8 @@ This page owns delivery; other surfaces link here.
 
 **A branch that leaves the main app untouched skips its suite**: when every path the whole branch changes against the default branch is under `wiki/` or `openspec/`, or ends in `.md`. The Test and Deploy jobs skip inside the job and say so, so a required check still reports green. A [mini app](../stack/mini-apps.md) is main-app code, so a change to one runs the suite and deploys. The WongStack source repo's Payload checks run on every push, since skill Markdown is the payload; only a branch entirely under `wiki/` or `openspec/` skips their script tests. The other way round, the Test job skips its wiki check when the branch changes no Markdown file and removes or moves no file, since no wiki link can break.
 
+[`checks.mjs`](../../.github/scripts/checks.mjs) owns discovery, tests and quality reports on both routes. Callers give repo/base/head/default-branch; the base sets the diff and branch labels context. Missing bases run conservatively. Quality checks continue after failed installs or tests.
+
 **The staging walkthrough is no rung either.** `/ship` runs [`/verify`](#verifying-the-app) once and merges on the gate whatever the walk says; a walk that cannot run (no credential, budget spent) never blocks. Only a `FAILURE` stops `/ship`, to **ask the user** to fix or merge anyway: a human decision, with *merge anyway* always available.
 
 An **unverifiable** gate is not an absent one: `/save` reports it and carries on, since it is a checkpoint, while `/ship` treats it as unmergeable and stops, never reinterpreting or repeating it.
