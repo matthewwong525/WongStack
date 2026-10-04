@@ -42,8 +42,10 @@ export function locatedPassages(entry, hit, options, deadline = Infinity) {
   });
   // A located document can contain many topics. Prefer matching original sections for
   // lexical/hybrid reads, retaining the semantic anchor when the wording differs.
+  const exact = relevant.find(passage => passage.text.toLowerCase().includes(options.question.trim().toLowerCase()));
   const summary = relevant.find(passage => /^(?:purpose|summary|overview)$/i.test(passage.heading));
-  const selected = summary ? [summary, ...relevant.filter(passage => passage !== summary)] : relevant;
+  const preferred = exact || summary;
+  const selected = preferred ? [preferred, ...relevant.filter(passage => passage !== preferred)] : relevant;
   return selected.length ? selected.slice(0, 2).map((passage, index) => ({ ...passage, score: hit.score - index * 0.001 })) : [anchored];
 }
 

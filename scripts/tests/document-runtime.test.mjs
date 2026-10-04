@@ -5,6 +5,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { validateRetrieval } from '../../.agents/skills/memory/scripts/lib/documents/input.mjs';
 import { scanCorpus } from '../../.agents/skills/memory/scripts/lib/documents/corpus.mjs';
+import { passages } from '../../.agents/skills/memory/scripts/lib/documents/lexical.mjs';
 import { atomicJson, documentPaths, generation, refreshIndex } from '../../.agents/skills/memory/scripts/lib/documents/state.mjs';
 import { executeFile, parseCandidates, prepareIndex, RUNTIME, runQmd, runtimeEntry, runtimeEnvironment, runtimeReady, searchArguments } from '../../.agents/skills/memory/scripts/lib/documents/qmd.mjs';
 import { documentsStatus, setupDocuments } from '../../.agents/skills/memory/scripts/lib/documents/setup.mjs';
@@ -114,6 +115,28 @@ test('located hybrid evidence selects the relevant original summary rather than 
   const paraphrase = { question: 'Ephemeral dialogue warrants persistent organizational recollection', mode: 'auto' };
   assert.deepEqual(locatedPassages(entry, hit, paraphrase), [anchoredPassage(entry, hit)]);
   assert.deepEqual(locatedPassages(entry, hit, { question: 'save checks', mode: 'semantic' }), [anchoredPassage(entry, hit)]);
+});
+test('frozen privacy evidence retains the exact original phrase before broader memory sections', () => {
+  const text = readFileSync(new URL('./fixtures/document-retrieval/corpus/wiki/development/memory.md', import.meta.url), 'utf8');
+  const entry = { path: 'wiki/development/memory.md', role: 'wiki', hash: 'a'.repeat(64), text };
+  const question = 'Private memory belongs to the installation';
+  for (const mode of ['keyword', 'auto', 'deep']) {
+    const selected = locatedPassages(entry, { hash: entry.hash, anchor: 2, score: 0.9 }, { question, mode });
+    assert.equal(selected[0].heading, 'Who sees what');
+    assert.ok(selected[0].text.split('\n')[0].includes(question));
+    assert.equal(selected[0].startLine, 29);
+    assert.equal(selected[0].text, text.split('\n').slice(selected[0].startLine - 1, selected[0].endLine).join('\n'));
+  }
+});
+test('exact original phrases late in a long section survive window selection and prefix truncation', () => {
+  const question = 'Private memory belongs to the installation';
+  const text = ['# Memory', ...Array.from({ length: 70 }, () => 'Private memory has general installation guidance.'),
+    question, 'Following original explanation.'].join('\n');
+  const entry = { path: 'wiki/memory.md', role: 'wiki', hash: 'a'.repeat(64), text };
+  const selected = passages(entry, question)[0];
+  assert.equal(selected.startLine, 72); assert.equal(selected.endLine, 73);
+  assert.equal(selected.text, `${question}\nFollowing original explanation.`);
+  assert.equal(selected.truncated, true);
 });
 test('semantic role pools retain successful sources after malformed role output and report partial coverage', async t => {
   const env = fixture(t);

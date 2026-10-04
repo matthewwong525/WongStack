@@ -9,6 +9,7 @@ export function queryWords(query) {
 }
 export function passages(entry, query, idf = new Map(), deadline = Infinity, limit = 2) {
   const lines = entry.text.split(/\r?\n/), words = queryWords(query);
+  const phrase = query.trim().toLowerCase();
   const boundaries = lines.map((line, i) => /^#{1,6}\s/.test(line) ? i : -1).filter(i => i >= 0);
   if (boundaries[0] !== 0) boundaries.unshift(0);
   boundaries.push(lines.length);
@@ -19,8 +20,11 @@ export function passages(entry, query, idf = new Map(), deadline = Infinity, lim
     const body = lines.slice(start, end).join('\n').toLowerCase(), bodyTokens = tokens(body), unique = new Set(bodyTokens);
     const matched = words.filter(word => unique.has(word));
     if (!matched.length) continue;
-    const center = lines.findIndex((line, index) => index >= start && index < end && matched.some(word => tokens(line).includes(word)));
-    const from = end - start <= 28 ? start : Math.max(start, center - 5);
+    const exact = lines.findIndex((line, index) => index >= start && index < end && line.toLowerCase().includes(phrase));
+    const center = exact >= 0 ? exact : lines.findIndex((line, index) => index >= start && index < end && matched.some(word => tokens(line).includes(word)));
+    // Put an exact original phrase first so both the window and the packet's
+    // line-boundary truncation retain it, even late in a long section.
+    const from = exact >= 0 ? exact : end - start <= 28 ? start : Math.max(start, center - 5);
     const to = Math.min(end, from + 28);
     const titleTokens = new Set(tokens(`${lines[0]} ${lines[start]}`));
     const score = matched.reduce((sum, word) => {
@@ -31,9 +35,9 @@ export function passages(entry, query, idf = new Map(), deadline = Infinity, lim
     }, 0) + matched.length / Math.max(1, words.length);
     hits.push({ path: entry.path, role: entry.role, hash: entry.hash, heading: lines[start].replace(/^#+\s*/, '').slice(0, 180),
       startLine: from + 1, endLine: to, text: lines.slice(from, to).join('\n'), truncated: from > start || to < end,
-      score: score + (body.includes(query.toLowerCase()) ? 1 : 0) });
+      score: score + (body.includes(phrase) ? 1 : 0) });
   }
-  return hits.sort((a, b) => b.score - a.score).slice(0, limit);
+  return hits.sort((a, b) => Number(b.text.toLowerCase().includes(phrase)) - Number(a.text.toLowerCase().includes(phrase)) || b.score - a.score).slice(0, limit);
 }
 export function lexicalSearch(corpus, query, options = {}) {
   const entries = scopedEntries(corpus, options), words = queryWords(query), counts = new Map(words.map(word => [word, 0]));
