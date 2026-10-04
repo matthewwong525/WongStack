@@ -1396,10 +1396,12 @@ test('a fresh Artifacts install makes the repository, the check runner and its k
   // The runner's secrets: the deploy token's value, and the storage key as the pair R2 takes.
   const deploy = state.accountTokens.find((token) => token.name === 'recipe-box-deploy');
   const storage = state.accountTokens.find((token) => token.name === 'recipe-box-checks-storage');
-  assert.equal(state.accountTokens.length, 2);
-  assert.deepEqual(state.workerSecrets, {
-    'recipe-box-checks': { CF_TOKEN: state.tokenValues[deploy.id], R2_ACCESS_KEY_ID: storage.id, R2_SECRET_ACCESS_KEY: sha256(state.tokenValues[storage.id]) },
-  });
+  // The live app's own sign-in key is made on this route too, last, as on GitHub.
+  assert.deepEqual(state.accountTokens.map((token) => token.name), ['recipe-box-deploy', 'recipe-box-checks-storage', 'recipe-box-access']);
+  assert.deepEqual(state.workerSecrets['recipe-box-checks'], { CF_TOKEN: state.tokenValues[deploy.id], R2_ACCESS_KEY_ID: storage.id, R2_SECRET_ACCESS_KEY: sha256(state.tokenValues[storage.id]) });
+  assert.deepEqual(Object.keys(state.workerSecrets), ['recipe-box-checks', 'recipe-box']);
+  assert.deepEqual(Object.keys(state.workerSecrets['recipe-box']), ['WONG_ACCESS_LOGIN_MANAGEMENT']);
+  assert.equal(report.accessKey.status, 'ready');
   assert.match(state.workerSecrets['recipe-box-checks'].R2_SECRET_ACCESS_KEY, /^[0-9a-f]{64}$/);
   assert.deepEqual(storage.policies, [{
     effect: 'allow', resources: { [`com.cloudflare.edge.r2.bucket.${ACCOUNT}_default_recipe-box-checks`]: '*' },
