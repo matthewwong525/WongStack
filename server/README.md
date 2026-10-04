@@ -212,14 +212,14 @@ The host does this at first boot, in order:
 
 The agent runs that copy for the server's life. Rebuilding the server is the only way it gets a newer agent.
 
-### Contract 4
+### Contract 5
 
-`agent.mjs` exports `CONTRACT = 4`. Every request carries `Authorization: Bearer <AGENT_TOKEN>` and a JSON body.
+`agent.mjs` exports `CONTRACT = 5`. Every request carries `Authorization: Bearer <AGENT_TOKEN>` and a JSON body.
 
 **The poll.** Every `interval` seconds (10 by default) the agent sends `POST /api/agent/poll`:
 
 ```json
-{ "contract": 4, "commit": "<SOURCE_COMMIT, or null when it is not 40 hex>", "paseo": "up" }
+{ "contract": 5, "commit": "<SOURCE_COMMIT, or null when it is not 40 hex>", "paseo": "up" }
 ```
 
 `paseo` is `up` when `paseo.service` is active, else `down`. The reply is `{ jobs, interval }`, each job `{ id, type, payload }`. A reply without them means no work and the default wait.
@@ -232,6 +232,7 @@ The agent runs that copy for the server's life. Rebuilding the server is the onl
 | `suspend` | none | none; stops `paseo.service`. |
 | `resume` | none | none; starts `paseo.service`. |
 | `github` | `{ token, repo, name, email, invited }` | none; signs `gh` in, sets git's name and email, clones `repo` once, and sets up Paseo. With `{token,repo,login,preserve:true}`, uses the preservation path above without overwriting identities/configuration or local work. An `invited` teammate's server accepts the owner's invitation first, or fails with `repo`. |
+| `hosted-bootstrap` | [The hosted job](#hosted-project-bootstrap) | Bounded repository/workspace readiness and the exact project/template generation; memory stays unconfigured. |
 | `project-prepare` | `{ repo, generation }` | none; delivers the bounded project report below, then reports done only when every step is done. |
 | `cloudflare` | [The installer's job](#the-job), plus `sourceRepo` and `sourceCommit`, the pinned clone. The agent adds `openWithoutLogin: true` itself. | none; `rolled` says whether it swapped the pasted token's value for one only the server holds. A failure carries the installer's `reason`, and `detail` when the line before it matches `CLOUDFLARE_CALL`. |
 | `team-add` | `{ repo, login }` | none; gives the GitHub `login` push access to the owner's `repo`. |
@@ -240,9 +241,9 @@ The agent runs that copy for the server's life. Rebuilding the server is the onl
 | `copy-send` | `{ copyId, publicKey, port, peer, pullToken }` | none; sends the home folder, locked to `publicKey`, to the one connection from `peer` that proves `pullToken`. |
 | `copy-restore` | `{ copyId, host, port, pullToken }` | none; pulls the copy from `host`, unlocks it, and unpacks it as the workspace user. |
 
-A job of any other type is `rejected` and runs nothing. `cloudflare`, `project-prepare`, `copy-send`, and `copy-restore` run in the background, one of each type at a time, so the poll goes on around them.
+A job of any other type is `rejected` and runs nothing. `cloudflare`, `project-prepare`, `hosted-bootstrap`, `copy-send`, and `copy-restore` run in the background, one of each type at a time, so the poll goes on around them.
 
-**The job result.** The agent sends `POST /api/agent/jobs/:id` with `{ status, result?, reason?, detail?, rolled? }`, where `status` is `done`, `failed`, or `rejected`. For a `cloudflare` job, the host answers `{ ok: true }`, or the agent keeps the outcome and sends it again.
+**The job result.** The agent sends `POST /api/agent/jobs/:id` with `{ status, result?, reason?, detail?, rolled?, hosted? }`, where `status` is `done`, `failed`, or `rejected`. For a `cloudflare` job, the host answers `{ ok: true }`, or the agent keeps the outcome and sends it again.
 
 **The access result.** After a `cloudflare` job with a `managementResult`, the agent reads the [private management result](#the-private-management-result), restricted or open, from its exact path, checks it against the job, and sends it to `POST /api/agent/jobs/:id/access`. It keeps a private journal under `/var/lib/wongstack/access-jobs` so a restart resends it rather than installing again.
 
@@ -253,6 +254,8 @@ A job of any other type is `rejected` and runs nothing. `cloudflare`, `project-p
 For `WORKSPACE_MODE=preserve`, an authenticated poll returning HTTP 401 means host authorization was revoked: the agent exits normally (status 0), without stopping or modifying shared Paseo. A host uses `Restart=on-failure`, so revocation does not create a restart loop. Other poll failures retain bounded polling retries; legacy/fresh mode keeps its previous retry behavior.
 
 A change to any of these shapes raises `CONTRACT`. The host supports the new number first; then the source releases it.
+
+**What changed from contract 4.** Contract 5 adds only `hosted-bootstrap`. Hosts must negotiate 5 before dispatching it; a contract-4 agent retains its existing GitHub and preservation jobs and rejects this type. Managed creation remains disabled until the separately authorized end-to-end acceptance.
 
 **What changed from contract 2.** Contract 4 adds preservation GitHub jobs, configured workspace identity and the project report. It extends the legacy contract-2 Access paths; it does **not** imply implementation of the separately negotiated Artifacts contract-3 capabilities. Hosts check the preservation manifest and contract explicitly before enabling attachment.
 
@@ -267,7 +270,7 @@ A change to any of these shapes raises `CONTRACT`. The host supports the new num
 
 ### Change the agent in your fork
 
-Your fork's servers run your fork's agent. Change it as you like, and keep contract 4, or raise `CONTRACT` only once your host supports the new number. A host checks every result against its own records, so an agent that breaks the contract fails its own server's jobs and no one else's.
+Your fork's servers run your fork's agent. Change it as you like, and keep contract 5, or raise `CONTRACT` only once your host supports the new number. A host checks every result against its own records, so an agent that breaks the contract fails its own server's jobs and no one else's.
 
 ## Test a change on a real server
 
@@ -285,3 +288,15 @@ The source's tests use a pretend Cloudflare. Before you ship a change to either 
 Fork WongStack and edit `setup.sh` to change what every server gets: add a tool, pin a version, or remove one you do not use. Keep the contract above, and keep the final check honest. A host that pairs devices needs `paseo`, and removing it breaks chat there. Change the payload, and `install-wongstack.mjs` installs your version: your fork's tests install it into a practice repo, so a file it misses fails there first. Neither the scripts nor the agent is in the [payload](../.agents/skills/wong-sync/references/payload-manifest.md#not-copied), so installed repos never get them; the template belongs to the source you fork.
 
 [Required tools](../wiki/development/required-tools.md) owns what WongStack needs on your own machine.
+
+## Hosted project bootstrap
+
+[`hosted/starter.mjs`](hosted/starter.mjs) prepares an HTTP/static starter offline using the existing payload copier and install record. It keeps the complete app test chain, freezes dependencies to the lockfile (Wrangler 4.144.0), uses an ordinary app build, and creates no resource. The release procedure lives in [hosted projects](../wiki/stack/hosted-projects.md#prepare-the-starter).
+
+Contract 5 adds `hosted-bootstrap`, whose payload is exactly `{version:1,provider:"artifacts",projectId,generation,remote,sourceCommit,starterCommit,token,folder,gitToken,ownerName,ownerEmail}`. The owner comes from verified service identity. The token is project-scoped delivery authority without control characters, and gitToken is a repo-scoped Git write token shaped `art_v1_<40 hex>?expires=<unix_seconds>`; neither is a platform, Access or deployment token. The host must bind these to its authenticated VM, project and generation. Customer commands receive the selected workspace account's clean environment. Credentials arrive only on stdin, never in command arguments or bounded results.
+
+The fixed [bootstrap helper](hosted/bootstrap.mjs) validates an Artifacts HTTPS remote returned by the provider and calls `POST https://wongstack.com/api/hosted/projects/:projectId/context` before writing. Its authenticated request excludes the bearer token from the JSON body; response must be `{ok:true,projectId,generation,remote,sourceCommit,starterCommit}` matching every field. The service must compare its project owner, current VM/generation, exact repo and immutable starter against authoritative records, return `Cache-Control: no-store`, and reject replaced or revoked authority. This endpoint is a required companion contract, not an implemented Source service.
+
+The initial checkout must equal the pinned starter SHA and its source install record. Retries verify the remote and starter ancestry, keep later edits/branches, and reuse the existing Paseo project/sign-in workspaces by metadata. A foreign folder, symlink, source mismatch or stale generation stops with `path_conflict` or `reconnect`. The helper never calls personal provisioning, authenticates GitHub, creates memory, or reports site readiness. Its bounded done result is `{status:"done",hosted:{projectId,generation,sourceCommit,starterCommit,repository:"ready",workspace:"ready"}}`; arbitrary stdout and credential fields are discarded by the agent wrapper. A lost final report can rerun this same idempotent helper after reconnect; it creates no second project.
+
+The private handoff and exact-URL Git configuration live in mode-0600 files under the owned mode-0700 `~/.local/state/wongstack/hosted/` folder, keyed by the absolute checkout path. The local Git include references that private config; history contains no credential. A committed `.wongstack/hosted.json` marker or Artifacts origin identifies the route but grants no authority. [Context verification](../.agents/skills/wong-sync/scripts/hosted-context.mjs) reauthenticates with the service before setup/delivery. A missing, invalid or revoked handoff stops with reconnect guidance before personal setup.

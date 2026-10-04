@@ -10,6 +10,24 @@
 
 **Updating.** Preview checks need no setup. For command-line behavior, add a project-owned capture recipe and an observation step to your existing GitHub Actions checks. GitHub Actions is the currently supported capture host.
 
+## 30.5.0 — Recall original wiki and OpenSpec evidence
+
+- Ask one task question to retrieve permitted live facts and cited original document passages within a shared context budget.
+- Current guidance is the default; proposed work and historical decisions keep explicit scopes and source labels. Changed sources are verified against this checkout with fresh keyword fallback.
+- Optional pinned local QMD setup adds meaning-based search; ordinary lookup never installs packages or downloads models, and startup hooks stay model-free.
+
+**Updating.** The usual update delivers working keyword recall. To enable meaning-based search on a supported computer, ask the assistant to run the documented document setup command; it installs a local search tool and downloads its models outside your project. Your fact store and credentials keep their existing access.
+
+## 30.4.0 — Prepare account-free hosted projects
+
+- The test workflow uses one portable check entry point with the whole change's base and exact saved head. It keeps test discovery, documentation-only skips, and the existing check and wiki reports together.
+- Quality checks still report after failed installation or tests. The existing GitHub staging deployment runs independently.
+- Prepare a separate HTTP/static hosted starter with pinned dependencies and private native previews. A negotiated workspace job verifies the project and reuses its checkout without personal provider sign-in or memory provisioning.
+- Hosted setup requires a verified private handoff; a repository marker alone stops with reconnect guidance.
+- Delivery verbs retain their plans and archives while a small hosted adapter records the exact candidate, private preview and approval. Publication remains pending until provider, live identity and saved main all agree; existing GitHub delivery stays supported.
+
+**Updating.** The usual update adapts the test workflow and adds its shared check script. Existing GitHub projects keep their current setup and staging. Managed creation remains unavailable until the service integration and complete acceptance checks are finished; no starter is published by this update.
+
 ## 30.3.0 — Better thinking before a plan
 
 - Exploration follows the relevant work, compares distinct approaches when a choice matters, and separates facts from assumptions and missing evidence.

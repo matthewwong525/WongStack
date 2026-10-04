@@ -27,9 +27,10 @@ import { asWorkspace, workspaceOf, validateWorkspace, workspaceExec } from "./wo
 import { preserveGitHub } from "./github.mjs";
 import { prepareProjectJob, createProjectStore } from "./project.mjs";
 const projectStore = createProjectStore();
+import { hostedBootstrapJob } from './hosted.mjs';
 
 /** The contract this agent follows with the control plane: server/README.md#the-agent. A changed message shape raises it. */
-export const CONTRACT = 4;
+export const CONTRACT = 5;
 const paseoHome = exec => `${workspaceOf(exec).home}/.paseo`;
 /** The installer beside this agent, in the same unpacked source, which wong can read. */
 const INSTALLER = fileURLToPath(new URL("../install-wongstack.mjs", import.meta.url));
@@ -49,7 +50,7 @@ const MEMORY = ".agents/skills/memory/scripts/memory.mjs";
 const MEMBERS = ".agents/skills/memory/scripts/lib/members.mjs";
 
 /** Job types that run in the background, one of each type at a time, so polling goes on around them. */
-const BACKGROUND = new Set(["cloudflare", "copy-send", "copy-restore", "project-prepare"]);
+const BACKGROUND = new Set(["cloudflare", "copy-send", "copy-restore", "project-prepare", "hosted-bootstrap"]);
 /** A full git commit, as the host records `SOURCE_COMMIT`. */
 const COMMIT = /^[0-9a-f]{40}$/;
 
@@ -262,6 +263,8 @@ export async function runJob(job, exec, log = () => {}, sleep, fetchFn) {
       return { status: "done" };
     case "github":
       return job.payload?.preserve === true ? preserveGitHub(job.payload, exec) : connectGitHub(job.payload ?? {}, exec, log, sleep);
+    case "hosted-bootstrap":
+      return hostedBootstrapJob(job.payload, exec);
     case "project-prepare":
       return prepareProjectJob(job.payload, exec);
     case "cloudflare":

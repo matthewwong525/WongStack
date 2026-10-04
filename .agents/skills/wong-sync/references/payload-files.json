@@ -55,6 +55,7 @@
       "wiki/development/staging-walkthrough.md",
       "wiki/development/repository-improvement.md",
       "wiki/development/memory.md",
+      "wiki/development/document-retrieval.md",
       "wiki/development/memory-extraction.md",
       "wiki/development/memory-key.md",
       "wiki/development/browsing.md",
@@ -64,6 +65,7 @@
       ".github/workflows/test.yml",
       ".github/actions/change-scope/action.yml",
       ".github/scripts/app-untouched.sh",
+      ".github/scripts/checks.mjs",
       ".github/scripts/loosened-checks.mjs",
       ".github/scripts/wiki-links.mjs",
       ".github/scripts/test-file.mjs"

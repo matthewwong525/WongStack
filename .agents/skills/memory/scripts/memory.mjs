@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { READ_OPTIONS } from './lib/read-options.mjs';
+import { DOCUMENT_COMMANDS } from './lib/documents/commands.mjs';
 // The one door to the memory store. Every skill, the hook, and the background run call this script.
 import { existsSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
@@ -731,6 +732,7 @@ async function extractCommand(ctx, { values, positionals }) {
   process.exitCode = result.code;
 }
 export const COMMANDS = {
+  ...DOCUMENT_COMMANDS,
   migrate, search, brief, show, source, tags, areas, pending: pendingCommand, strip: stripCommand, live, digest, stats, spool, due,
   'keep-transcript': keepTranscript,
   'recent-chats': recentChats,
@@ -747,11 +749,16 @@ export const COMMANDS = {
 };
 
 const OPTIONS = { ...READ_OPTIONS, ...Object.fromEntries([
-  ...['file', 'spooled', 'days', 'tag', 'type', 'slug', 'since', 'until', 'author', 'branch', 'change', 'state', 'limit', 'exclude', 'kind', 'status', 'counts', 'reason', 'definition', 'alias-of', 'role', 'key-file', 'label', 'task', 'loaded', 'agent', 'model'].map(name => [name, { type: 'string' }]),
-  ...['all', 'json', 'help', 'everyone', 'background', 'no-alias', 'usage-report'].map(name => [name, { type: 'boolean' }]),
+  ...['scope', 'mode', 'file', 'spooled', 'days', 'tag', 'type', 'slug', 'since', 'until', 'author', 'branch', 'change', 'state', 'limit', 'exclude', 'kind', 'status', 'counts', 'reason', 'definition', 'alias-of', 'role', 'key-file', 'label', 'task', 'loaded', 'agent', 'model'].map(name => [name, { type: 'string' }]),
+  ...['deep', 'cpu', 'all', 'json', 'help', 'everyone', 'background', 'no-alias', 'usage-report'].map(name => [name, { type: 'boolean' }]),
 ]) };
 
 const USAGE = `usage: memory.mjs <command>
+  recall <question> [--scope current|history|active|all] [--mode auto|keyword|semantic|deep] [--change slug] [--limit 1..5] [--tag t] [--type t] [--slug s] [--since d] [--until d] [--json]
+  documents <question> [--scope ...] [--mode ...] [--change slug] [--limit 1..5] [--json]   original wiki/OpenSpec evidence; no memory credential needed
+  documents-setup [--deep] [--cpu]   explicit pinned QMD/model preparation; ordinary reads never install
+  documents-refresh               reconcile this checkout's derived index
+  documents-status                runtime, model and index readiness
   search [terms] [--tag t] [--type t] [--slug s] [--since d] [--until d] [--author a] [--branch b] [--change slug] [--state active|shipped|conversation] [--all] [--everyone] [--limit n] [--json]
                                (--change: facts from sessions that wrote a fact on the change; with --branch, either)
                                (in a team, user and feedback facts are only yours; the admin's --everyone shows everyone's)
@@ -792,7 +799,7 @@ if (isMain(import.meta.url)) {
     await run(ctx, { ...args, tally: runTally(ctx) });
   } catch (error) {
     console.error(error instanceof StoreError ? error.message : `memory: ${error.message}`);
-    process.exitCode = 1;
+    process.exitCode = error.code === 2 ? 2 : 1;
   }
   // Exit once the output is flushed, so an open socket cannot keep the process alive.
   process.stdout.write('', () => process.exit());

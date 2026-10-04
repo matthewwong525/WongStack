@@ -99,6 +99,9 @@ jobs:
       - name: Private-names test
         if: ${{ steps.scope.outputs.docs_only == 'true' }}
         run: node --test scripts/tests/private-names.test.mjs
+      - name: Generated hosted starter checks
+        if: ${{ steps.scope.outputs.docs_only != 'true' }}
+        run: node scripts/check-hosted-starter.mjs
       - name: Release checks
         run: |
           node scripts/check-payload-links.mjs

@@ -1,0 +1,160 @@
+{
+  "version": 1,
+  "reviewedOn": "2026-10-04",
+  "description": "Frozen original repository guidance and OpenSpec evidence, reviewed for relevant source roles. Semantic absence is diagnostic; keyword absence gates. No private facts or people pages.",
+  "sources": [
+    {
+      "path": "wiki/agent-knowledge-center.md",
+      "hash": "77fad152226cbac7680ea2930966f03f6ec7607636eed0284f75ddc3a2531dd5"
+    },
+    {
+      "path": "wiki/development/the-change-loop.md",
+      "hash": "2717b10abb743b1da563f803c6bffc7c90ac90f80d14b8232db82b4ec0aec81b"
+    },
+    {
+      "path": "wiki/development/memory.md",
+      "hash": "fac96faf13770a6b23df73ad6dd9a27c0cb3dc8ee3716fe876ea17f76d0046a8"
+    },
+    {
+      "path": "wiki/development/required-tools.md",
+      "hash": "080030f4b81b6074fa265c44fe687fe97c888ff48fd0190472e72a3613d9487d"
+    },
+    {
+      "path": "wiki/development/browsing.md",
+      "hash": "16805e920b645e4f0883ad557b45f172a2afe52417e2e26551a251f97f2d454e"
+    },
+    {
+      "path": "wiki/development/memory-key.md",
+      "hash": "68d9286ce516fb2a195ea771b085d29bb1177c3cdaf3c600890c3ca181398f5c"
+    },
+    {
+      "path": "openspec/specs/delivery-gate/spec.md",
+      "hash": "ad4f410c55ca129919074358527a187e6ca044802aea5e461f63c0ec8491c590"
+    },
+    {
+      "path": "openspec/changes/archive/2026-09-25-add-memory-store/proposal.md",
+      "hash": "aebfa3f2e9cce703c5a0e0829e55f41e81ec347bf95fe61337c8f4df70bdcf12"
+    },
+    {
+      "path": "openspec/changes/archive/2026-09-25-add-memory-store/specs/memory-store/spec.md",
+      "hash": "846dc3574565ccac95da53eceb5c61e692b447068ad48f57b1ff07b4f2cbeb59"
+    },
+    {
+      "path": "openspec/changes/evaluate-qmd-retrieval/proposal.md",
+      "hash": "4acdcfa9e8304dfd79d21b065dac0a05c512cdd7d2a64498a8f2c7d27c57b4de"
+    }
+  ],
+  "cases": [
+    {
+      "id": "exact-gate",
+      "question": "How does save publish changes and wait for checks?",
+      "scope": "current",
+      "expected": [
+        "wiki/development/the-change-loop.md",
+        "openspec/specs/delivery-gate/spec.md"
+      ],
+      "required": true,
+      "passageTerms": [
+        "CI when present",
+        "waits for CI",
+        "passing gate"
+      ]
+    },
+    {
+      "id": "exact-machine-privacy",
+      "question": "Private memory belongs to the installation",
+      "scope": "current",
+      "expected": [
+        "wiki/development/memory.md"
+      ],
+      "required": true,
+      "passageTerms": [
+        "Private memory belongs to the installation"
+      ]
+    },
+    {
+      "id": "paraphrase-persistence",
+      "question": "Ephemeral dialogue warrants persistent organizational recollection",
+      "scope": "current",
+      "expected": [
+        "wiki/development/memory.md",
+        "wiki/agent-knowledge-center.md"
+      ],
+      "paraphrase": true,
+      "required": true,
+      "passageTerms": [
+        "A session ends",
+        "session's context",
+        "short typed",
+        "survive the session"
+      ]
+    },
+    {
+      "id": "paraphrase-implementation",
+      "question": "Repetitive predictable procedures benefit from deterministic automation instead of language inference",
+      "scope": "current",
+      "expected": [
+        "wiki/agent-knowledge-center.md"
+      ],
+      "paraphrase": true,
+      "required": true,
+      "passageTerms": [
+        "same way every time",
+        "same answer twice",
+        "Most process improvements shouldn't use AI"
+      ]
+    },
+    {
+      "id": "historical-reason",
+      "question": "Why did notes in git not suit a team?",
+      "scope": "history",
+      "change": "add-memory-store",
+      "expected": [
+        "openspec/changes/archive/2026-09-25-add-memory-store/proposal.md"
+      ],
+      "expectedRole": "archive",
+      "required": true,
+      "passageTerms": [
+        "Notes in git also do not suit a team"
+      ]
+    },
+    {
+      "id": "obsolete-current-conflict",
+      "question": "No Worker SHALL stand in front of the store",
+      "scope": "current",
+      "forbiddenRoles": [
+        "archive",
+        "active"
+      ],
+      "expected": [
+        "wiki/development/memory.md"
+      ],
+      "required": false,
+      "passageTerms": [
+        "worker",
+        "memory"
+      ]
+    },
+    {
+      "id": "active-proposal",
+      "question": "Find remembered facts and relevant documents together",
+      "scope": "active",
+      "change": "evaluate-qmd-retrieval",
+      "expected": [
+        "openspec/changes/evaluate-qmd-retrieval/proposal.md"
+      ],
+      "expectedRole": "active",
+      "required": true,
+      "passageTerms": [
+        "Find remembered facts and relevant documents together"
+      ]
+    },
+    {
+      "id": "absent-answer",
+      "question": "zzqxv-antineutrinolattice-99887",
+      "scope": "current",
+      "absent": true,
+      "required": true
+    }
+  ]
+}

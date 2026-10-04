@@ -7,12 +7,18 @@ import { readArguments, READ_OPTIONS } from '../../.agents/skills/memory/scripts
 import { memory, node, rows, setup, writeJsonFile } from './fixtures/memory/harness.mjs';
 
 test('memory contracts are deterministic, synthetic, standalone, truthful and limited to supported reads', () => {
-  assert.deepEqual(memoryOperations.map(action => action.operationId), ['memory.search', 'memory.show']);
-  for (const action of memoryOperations) {
+  assert.deepEqual(memoryOperations.map(action => action.operationId), ['memory.search', 'memory.show', 'memory.documents', 'memory.recall']);
+  for (const action of memoryOperations.slice(0, 2)) {
     assert.equal(action.authentication, 'installed-memory-credential'); assert.equal(action.transport, 'installed-client');
     assert.equal(action.outputSchema.properties.text.maxLength, 32768); assert.equal(action.readiness, 'not_checked');
     assert.ok(action.revision.length === 64); assert.ok(!Object.hasOwn(action.inputSchema.properties, 'everyone'));
     assert.ok(!Object.hasOwn(action, 'path')); assert.equal(action.examples[0].output.truncated, false);
+  }
+  for (const action of memoryOperations.slice(2)) {
+    assert.equal(action.outputSchema.maxBytes, 6144); assert.equal(action.outputSchema.properties.documents.maxItems, 5);
+    assert.ok(action.outputSchema.required.every(key => Object.hasOwn(action.examples[0].output, key)));
+    assert.ok(!Object.hasOwn(action.inputSchema.properties, 'everyone'));
+    assert.equal(action.sourceAuthentication.documents, 'local-checkout');
   }
   assert.equal(memoryOperations[0].revision, memoryOperations[1].revision);
   assert.deepEqual(READ_OPTIONS.limit, { type: 'string' });
@@ -44,7 +50,7 @@ test('the adapter exactly matches installed search/show reads without app packag
   const before = fake.calls.length;
   const describe = await node(repo, fake, 'operations.mjs', ['describe', 'memory.search']);
   assert.equal(JSON.parse(describe.stdout).source, 'memory');
-  const list = await node(repo, fake, 'operations.mjs', ['list']); assert.equal(JSON.parse(list.stdout).length, 2);
+  const list = await node(repo, fake, 'operations.mjs', ['list']); assert.equal(JSON.parse(list.stdout).length, 4);
   assert.equal(fake.calls.length, before, 'listing/describing makes no store request');
   const malformed = await node(repo, fake, 'operations.mjs', ['call', 'memory.search', '--file', '-'], { input: '{"terms":"sk-syntheticprivatekeymaterial12345678",broken}' });
   assert.match(malformed.stderr, /Invalid JSON input/); assert.doesNotMatch(malformed.stderr, /syntheticprivatekeymaterial/);

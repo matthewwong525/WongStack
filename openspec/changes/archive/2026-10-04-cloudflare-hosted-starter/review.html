@@ -1,0 +1,630 @@
+<!-- wong-review:3 -->
+<!doctype html>
+<!--
+  WongStack review kit. build-review.mjs writes the proposal as static HTML at the
+  review:content marker and puts the change name in place of its token. The one
+  script adds Note buttons, drawing fit and full screen, notes, drafts, and copy. It loads nothing from the network.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Review · 2026-10-04-cloudflare-hosted-starter</title>
+<style>
+  :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; }
+  body { margin:0; padding-bottom:76px; background:#e6e6e6; color:var(--ink); font:16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; overflow-wrap:anywhere; }
+  main { max-width:700px; margin:0 auto; padding:0 12px; }
+  a { color:inherit; }
+  code, pre, .ln { font-family:ui-monospace, Menlo, Consolas, monospace; }
+  code { background:var(--fill); border:1px solid #ddd; border-radius:3px; padding:0 3px; font-size:.88em; }
+  :focus-visible { outline:3px solid #111; outline-offset:2px; }
+  [hidden] { display:none !important; }
+  header { padding:18px 0 4px; }
+  .eyebrow { margin:0; color:var(--muted); font-size:13px; letter-spacing:.06em; text-transform:uppercase; }
+  h1 { margin:2px 0 4px; font-size:22px; line-height:1.25; }
+  .jump { display:flex; flex-wrap:wrap; gap:0 18px; margin:4px 0 0; padding:0; list-style:none; }
+  .jump a { display:inline-block; padding:8px 0; }
+  .hint, .muted { color:var(--muted); font-size:14px; margin:4px 0 0; }
+  #script-error { color:#a00; font-weight:600; }
+  section { margin:18px 0; scroll-margin-top:8px; }
+  h2 { margin:0 0 8px; color:var(--muted); font-size:13px; letter-spacing:.08em; text-transform:uppercase; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:6px; padding:12px; margin:0 0 10px; }
+  .card p { margin:0 0 10px; } .card p:last-child { margin-bottom:0; }
+  .items, .decisions, .note-list { list-style:none; margin:0; padding:0; }
+  .item { display:grid; grid-template-columns:26px minmax(0,1fr); gap:0 10px; overflow:hidden; }
+  .item, .decision { scroll-margin-top:8px; }
+  .num { flex:0 0 26px; height:26px; border-radius:50%; background:#d6d6d6; font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center; }
+  .body { flex:1; min-width:0; }
+  [data-note] { border-radius:3px; }
+  [data-note]:hover, .noting { background:#f1f1f1; }
+  .item > .drawing { position:relative; grid-column:1 / -1; margin:10px -12px 0; }
+  .item > .drawing:last-child { margin-bottom:-12px; }
+  .drawing summary { display:flex; align-items:center; gap:6px; min-height:44px; padding:0 12px; border-top:1px solid #ddd; color:var(--muted); font-size:14px; cursor:pointer; list-style:none; }
+  .drawing summary::-webkit-details-marker { display:none; }
+  .drawing summary::before { content:'\25B8'; display:inline-block; width:1em; }
+  .drawing[open] summary::before { transform:rotate(90deg); }
+  .drawing[open] .show, .drawing:not([open]) .hide { display:none; }
+  .drawing .count { color:var(--ink); font-weight:600; }
+  .frame { overflow:auto; border-top:1px solid var(--line); background:var(--fill); touch-action:pan-y; }
+  .js .frame { overflow:hidden; cursor:zoom-in; }
+  .art { display:block; width:max-content; margin:0; padding:.6em .8em; font-size:13px; line-height:1.2; white-space:pre; overflow-wrap:normal; }
+  .art .pin { min-width:1.8em; min-height:1.6em; margin-left:.4em; padding:0 .5em; border-radius:.8em; font-size:.85em; line-height:1.5em; }
+  .enlarge { position:absolute; top:6px; right:12px; min-height:32px; padding:2px 10px; font-size:13px; }
+  .add { min-width:0; min-height:34px; margin-left:6px; padding:0 12px; border-color:#aaa; border-radius:17px; color:var(--muted); font-size:13px; vertical-align:middle; }
+  .zoom { display:flex; align-items:center; gap:6px; }
+  .zoom .level { margin-right:auto; color:var(--muted); font-size:13px; }
+  #viewer { position:fixed; top:0; left:0; right:0; bottom:0; z-index:8; display:flex; flex-direction:column; background:#fff; }
+  #viewer .zoom { flex:none; padding:calc(6px + env(safe-area-inset-top)) 12px 6px; border-bottom:1px solid var(--line); }
+  #viewer .vframe { flex:1; min-height:0; overflow:auto; background:var(--fill); touch-action:pan-x pan-y; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
+  #viewer .vhint { flex:none; margin:0; padding:6px 12px calc(6px + env(safe-area-inset-bottom)); border-top:1px solid var(--line); color:var(--muted); font-size:13px; }
+  body.viewing { overflow:hidden; }
+  .meta { margin:0 0 4px !important; color:var(--muted); font-size:13px; }
+  .tag { display:inline-block; margin-right:8px; padding:0 8px; border:1px solid #777; border-radius:10px; background:#fff; color:var(--ink); font-size:12px; font-weight:700; }
+  .tag.assumed { border-style:dashed; }
+  .tag.check { border:2px dotted #333; }
+  .hit { outline:3px solid #888; outline-offset:3px; }
+  button { font:inherit; font-size:14px; min-width:40px; min-height:40px; padding:4px 12px; border:1px solid #777; border-radius:4px; background:#fff; color:var(--ink); cursor:pointer; }
+  button.primary { background:#333; border-color:#333; color:#fff; }
+  button:disabled { opacity:.45; cursor:default; }
+  .pin { min-width:24px; min-height:24px; margin-left:6px; padding:0 7px; border-radius:12px; background:#333; border-color:#333; color:#fff; font:700 12px/22px system-ui, sans-serif; vertical-align:middle; }
+  .pin.draft { background:#fff; color:var(--ink); border-style:dashed; }
+  .entry { display:block; width:100%; margin:0 0 8px; padding:8px 10px; text-align:left; }
+  .entry .where { display:block; color:var(--muted); font-size:13px; }
+  .entry .tag { margin:0 0 0 6px; }
+  #chip { position:absolute; z-index:9; box-shadow:0 2px 8px rgba(0,0,0,.3); }
+  #editor { position:absolute; z-index:6; width:260px; padding:10px; background:#fff; border:2px solid #333; border-radius:6px; box-shadow:0 4px 16px rgba(0,0,0,.25); }
+  #editor.docked { position:fixed; left:0; right:0; bottom:0; width:auto; display:flex; flex-direction:column; overflow:auto; border-width:2px 0 0; border-radius:0; padding:8px 12px max(8px, env(safe-area-inset-bottom)); }
+  #editor.docked .where { flex:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #editor.docked textarea { flex:1 1 auto; min-height:44px; }
+  #editor.docked .row { flex:none; }
+  #editor .where { margin:0 0 6px; color:var(--muted); font-size:13px; }
+  #editor .moved { margin:0 0 6px; font-size:13px; font-weight:600; }
+  #editor textarea { display:block; width:100%; min-height:76px; padding:6px 8px; border:1px solid #777; border-radius:4px; font:16px/1.4 system-ui, sans-serif; resize:vertical; }
+  #editor .row { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .bar { position:fixed; left:0; right:0; bottom:0; z-index:4; display:flex; align-items:center; gap:10px; padding:8px 12px calc(8px + env(safe-area-inset-bottom)); background:#fff; border-top:1px solid var(--line); }
+  .bar .note-count { margin-right:auto; font-size:14px; }
+  body.docked .bar, body.viewing .bar { display:none; }
+  .session, #editor .copies { color:var(--muted); font-size:13px; }
+  #editor .copies { flex:none; margin:6px 0 0; }
+  #toast { position:fixed; left:50%; bottom:72px; z-index:7; max-width:90vw; transform:translateX(-50%); padding:6px 12px; border-radius:4px; background:#222; color:#fff; font-size:14px; opacity:0; pointer-events:none; transition:opacity .2s; }
+  #toast.show { opacity:1; }
+  #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
+</style>
+</head>
+<body data-change="2026-10-04-cloudflare-hosted-starter">
+<main>
+<header>
+  <p class="eyebrow">Review</p>
+  <h1>2026-10-04-cloudflare-hosted-starter</h1>
+  <p class="muted"><span class="note-count">0 notes</span></p>
+  <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
+  <p class="hint">Tap + Note to comment. Saving a note copies all your notes. Open a drawing and tap it to see it full screen.</p>
+  <p id="script-error" role="alert" hidden></p>
+</header>
+<section id="why" aria-labelledby="why-h"><h2 id="why-h">Why</h2>
+<div class="card">
+<p data-note="why-1" tabindex="0">Starting a hosted project should give a person a project their AI can work on and a small working site, without signing up for GitHub or Cloudflare. This release ships the tested implementation with managed creation disabled. A separate live-acceptance follow-up must prove the complete small-app journey before enabling it.</p>
+</div></section>
+<section id="changes" aria-labelledby="changes-h"><h2 id="changes-h">What Changes</h2>
+<ol class="items">
+<li class="item card" id="item-1"><span class="num">1</span><div class="body"><div class="text" data-note="item-1" tabindex="0"><b>Prepare managed storage as the new-project default when enabled.</b> After the existing email sign-in and service access steps, start the project without provider accounts, tokens, or dashboard visits. A quieter choice keeps the normal GitHub setup for people who request it. Existing projects keep their current route.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-1-line-1" tabindex="0">NEW HOSTED PROJECT</span>
+<span class="ln" data-note="item-1-line-2" tabindex="0">═══════════════════════════════════════</span>
+<span class="ln" data-note="item-1-line-3" tabindex="0">email sign-in ──▶ start project</span>
+<span class="ln" data-note="item-1-line-4" tabindex="0">                       │</span>
+<span class="ln" data-note="item-1-line-5" tabindex="0">             ┌─────────┴─────────┐</span>
+<span class="ln" data-note="item-1-line-6" tabindex="0">             ▼                   ▼</span>
+<span class="ln" data-note="item-1-line-7" tabindex="0">      managed storage       choose GitHub</span>
+<span class="ln" data-note="item-1-line-8" tabindex="0">        (default)          existing setup</span>
+
+<span class="ln" data-note="item-1-line-10" tabindex="0">EXISTING PROJECT ──▶ keep its current route</span></pre></div></details><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-1-line-11" tabindex="0">BEFORE                  AFTER</span>
+<span class="ln" data-note="item-1-line-12" tabindex="0">┌───────────────────┐   ┌───────────────────┐</span>
+<span class="ln" data-note="item-1-line-13" tabindex="0">│ Set up your repo  │   │ Start your project│</span>
+<span class="ln" data-note="item-1-line-14" tabindex="0">│ Connect GitHub    │   │ Your project      │</span>
+<span class="ln" data-note="item-1-line-15" tabindex="0">│ Set up hosting    │   │ [Start project]   │</span>
+<span class="ln" data-note="item-1-line-16" tabindex="0">│ Cloudflare token  │   │ Use GitHub        │</span>
+<span class="ln" data-note="item-1-line-17" tabindex="0">└───────────────────┘   └───────────────────┘</span></pre></div></details></li>
+<li class="item card" id="item-2"><span class="num">2</span><div class="body"><div class="text" data-note="item-2" tabindex="0"><b>The AI workspace stays familiar.</b> Use the existing workspace server, Paseo and AI sign-in flow. The project has ordinary saved history; reconnecting opens the same project. AI sign-in still belongs to the person. Memory and device setup are separate work. Each code change has its own plan and branch. Saved work, checks and the exact preview belong to that change; review and approval happen in the existing workspace/chat.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-2-line-1" tabindex="0">saved project ──▶ existing workspace server</span>
+<span class="ln" data-note="item-2-line-2" tabindex="0">                            │</span>
+<span class="ln" data-note="item-2-line-3" tabindex="0">                            ▼</span>
+<span class="ln" data-note="item-2-line-4" tabindex="0">                   sign in to your AI</span>
+<span class="ln" data-note="item-2-line-5" tabindex="0">                            │</span>
+<span class="ln" data-note="item-2-line-6" tabindex="0">                            ▼</span>
+<span class="ln" data-note="item-2-line-7" tabindex="0">                     ask for a change</span></pre></div></details></li>
+<li class="item card" id="item-3"><span class="num">3</span><div class="body"><div class="text" data-note="item-3" tabindex="0"><b>Checks, builds and previews run on Cloudflare.</b> Reuse one set of check scripts across the hosted and GitHub routes. Cloudflare runs the hosted checks and build; the small app and its private preview run as ordinary Workers. Build runners use Cloudflare's supported containers, with no container running the app or its preview.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-3-line-1" tabindex="0">saved change ──▶ shared checks ──▶ build</span>
+<span class="ln" data-note="item-3-line-2" tabindex="0">                      │              │</span>
+<span class="ln" data-note="item-3-line-3" tabindex="0">                      ▼              ▼</span>
+<span class="ln" data-note="item-3-line-4" tabindex="0">                failure report   private preview</span>
+
+<span class="ln" data-note="item-3-line-6" tabindex="0">build runner: Cloudflare container</span>
+<span class="ln" data-note="item-3-line-7" tabindex="0">app + preview: Cloudflare Workers</span></pre></div></details></li>
+<li class="item card" id="item-4"><span class="num">4</span><div class="body"><div class="text" data-note="item-4" tabindex="0"><b>Review a passing change before publishing it.</b> Show the exact preview, accept approval for that change, and report success only after the live site and saved history both confirm it. A failed or uncertain publication says what is known and stays incomplete. This first version supports one change at a time per project.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-4-line-1" tabindex="0">passing change ──▶ review ──▶ approval</span>
+<span class="ln" data-note="item-4-line-2" tabindex="0">                                 │</span>
+<span class="ln" data-note="item-4-line-3" tabindex="0">                                 ▼</span>
+<span class="ln" data-note="item-4-line-4" tabindex="0">                      publish that exact change</span>
+<span class="ln" data-note="item-4-line-5" tabindex="0">                                 │</span>
+<span class="ln" data-note="item-4-line-6" tabindex="0">                       ┌─────────┴─────────┐</span>
+<span class="ln" data-note="item-4-line-7" tabindex="0">                       ▼                   ▼</span>
+<span class="ln" data-note="item-4-line-8" tabindex="0">                  live site          saved history</span>
+<span class="ln" data-note="item-4-line-9" tabindex="0">                       └─────────┬─────────┘</span>
+<span class="ln" data-note="item-4-line-10" tabindex="0">                                 ▼</span>
+<span class="ln" data-note="item-4-line-11" tabindex="0">                       both agree: published</span></pre></div></details></li>
+<li class="item card" id="item-5"><span class="num">5</span><div class="body"><div class="text" data-note="item-5" tabindex="0"><b>Keep setup and failure states understandable.</b> Reuse the existing dashboard cards; no new repository browser or hosting console. This disabled implementation release is accepted through its Source/Cloud maintenance gates. Enablement remains conditional on the separate complete live journey: setup, a real AI edit, a deliberately failing check, private preview, approved publication and a second change.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-5-line-1" tabindex="0">┌─────────────────────────────────────┐</span>
+<span class="ln" data-note="item-5-line-2" tabindex="0">│ My business                         │</span>
+<span class="ln" data-note="item-5-line-3" tabindex="0">│ Setting up your project…            │</span>
+<span class="ln" data-note="item-5-line-4" tabindex="0">│ You can leave this page open.       │</span>
+<span class="ln" data-note="item-5-line-5" tabindex="0">└─────────────────────────────────────┘</span>
+
+<span class="ln" data-note="item-5-line-7" tabindex="0">┌─────────────────────────────────────┐</span>
+<span class="ln" data-note="item-5-line-8" tabindex="0">│ My business                         │</span>
+<span class="ln" data-note="item-5-line-9" tabindex="0">│ Setup needs attention               │</span>
+<span class="ln" data-note="item-5-line-10" tabindex="0">│ Your saved work is safe.            │</span>
+<span class="ln" data-note="item-5-line-11" tabindex="0">│ [Retry setup]   Contact support     │</span>
+<span class="ln" data-note="item-5-line-12" tabindex="0">└─────────────────────────────────────┘</span>
+
+<span class="ln" data-note="item-5-line-14" tabindex="0">┌─────────────────────────────────────┐</span>
+<span class="ln" data-note="item-5-line-15" tabindex="0">│ My business                         │</span>
+<span class="ln" data-note="item-5-line-16" tabindex="0">│ Project ready                       │</span>
+<span class="ln" data-note="item-5-line-17" tabindex="0">│ [Open workspace]   Open site        │</span>
+<span class="ln" data-note="item-5-line-18" tabindex="0">│ Follow the existing AI sign-in steps│</span>
+<span class="ln" data-note="item-5-line-19" tabindex="0">└─────────────────────────────────────┘</span></pre></div></details></li>
+</ol>
+<p class="aside"><b>Non-goals:</b> moving existing projects, removing the public GitHub template or existing GitHub workflow, a GitHub replacement with pull requests and issues, a new AI runtime, Memory/Devices, billing changes, automatic customer sign-ins, database-backed app features, background jobs, custom domains, parallel changes, a bespoke build or bundle-transfer system, enabling managed creation, and completing the deferred live trial in this release.</p>
+
+</section>
+<section id="decisions" aria-labelledby="decisions-h"><h2 id="decisions-h">Decisions</h2>
+<ol class="decisions">
+<li class="decision card" id="decision-1" data-note="decision-1" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-03</p>Assumed: start this fresh plan from fetched Source main, because the user explicitly canceled the old Source and Cloud changes; this workspace matched main before any planning write.</li>
+<li class="decision card" id="decision-2" data-note="decision-2" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-03</p>Assumed: default only new hosted projects to Artifacts and preserve all existing GitHub projects and explicit GitHub choices, because those preferences are settled in the brief.</li>
+<li class="decision card" id="decision-3" data-note="decision-3" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-03</p>Asked whether an operator dashboard connection was acceptable → chose to preserve the expectation that dashboard setup is unnecessary; the customer must do nothing in either provider.</li>
+<li class="decision card" id="decision-4" data-note="decision-4" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-03</p>Asked how much the first delivery should prove → chose one complete small app: setup, AI edits, shared tests, private preview, approved publication and a second change.</li>
+<li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-03</p>Asked which automated build route to use → chose no GitHub workflows in the hosted route and a full move of hosted execution to Cloudflare.</li>
+<li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-03</p>Assumed: use Cloudflare's documented CI SDK recipe with ordinary Worker Previews, because it meets automatic setup and Cloudflare-only hosted execution; native Workers Builds documents Artifacts dashboard setup but not an Artifacts connection API contract.</li>
+<li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-03</p>Assumed: start with an HTTP and static-asset app, one owner and one change at a time, because that proves the requested repository and AI/setup journey without adding data provisioning, collaboration or a new orchestration service.</li>
+<li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-03</p>Assumed: reuse existing email sign-in, workspace servers and AI sign-in steps, because current Cloud main already supplies them; change neither billing nor Memory/Devices.</li>
+<li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-03</p>Assumed: implement recurring setup, CI routing and receipt checks as deterministic code, because those steps need exact repeatable results; AI remains responsible for understanding and editing the customer's app.</li>
+<li class="decision card" id="decision-10" data-note="decision-10" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-03</p>Asked how PRs work with Artifacts → investigated the current official Git/API documentation and recommended one OpenSpec change linked to one ordinary branch, with checks, exact preview and approval handled by the hosted delivery adapter; the user then requested <code>/apply</code>. OpenSpec records the plan and branch; it does not provide a PR service or enforce approval.</li>
+<li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-03</p>The user invoked <code>/apply</code> for this reviewed change. Begin with the SDK contract boundary; keep provider mutations, credentials, customer sign-ins, trials and production enablement outside this implementation authorization. Cloud main remains <code>4bb0082ea93f0d11b94e296e4d0e615901485156</code>; its fresh local archive is implementation preparation, not reuse of the canceled companion branch.</li>
+<li class="decision card" id="decision-12" data-note="decision-12" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>The user explicitly authorized pushing the prepared SDK slice, Cloud's normal CI and its automatic existing staging deployment. This covers the SDK pins, boundary helper and protocol tests, not new hosted resources, tokens, live trials or production publication. The fresh companion is Cloud #70; its gate is still pending.</li>
+<li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Verified the SDK's native push normalization, actual public runner command/credential/snapshot interfaces, accepted Wrangler schema and tracked-output collision behavior with 30 passing focused tests and full helper coverage. Maintenance CI remains the first expansion gate; these fixtures do not establish live isolation or publication.</li>
+<li class="decision card" id="decision-14" data-note="decision-14" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Cloud #70's exact code head <code>6faef10cd9513e52af9b2a04f4ddaa39841570c7</code> passed full Test and Deploy maintenance runs. Task 1.2 is complete at its implementation-contract gate, with <a href="sdk-contract-evidence.md">the exact evidence</a>; no preview URL was discoverable, and no full hosted/live acceptance is claimed. Continue to shared checks on current Source main.</li>
+<li class="decision card" id="decision-15" data-note="decision-15" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-10-04</p>Check: <code>.github/workflows/test.yml</code> delegates its existing app and quality checks to <code>.github/scripts/checks.mjs</code>; <code>.github/scripts/app-untouched.sh</code> gains an explicit local base/head comparison for provider-neutral callers. No check is removed: whole-change skips, suite discovery, quality reports after a red suite and the independent deployment workflow remain. The wrapper no longer caches npm dependencies, because portable suite discovery and execution now belong to one ordinary script.</li>
+<li class="decision card" id="decision-16" data-note="decision-16" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-10-04</p>Check: <code>.github/scripts/checks.mjs</code> adds the shared entry point, using the existing scope, loosened-check and wiki implementations with explicit repository/base/head/default-branch inputs. Source's additional payload maintenance checks remain separate from the customer gate.</li>
+<li class="decision card" id="decision-17" data-note="decision-17" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Prepared task 2.1 with 88 passing focused script cases, including 17 shared-check fixtures, and passing payload/wiki/configuration/context checks. The <a href="shared-checks-evidence.md">implementation evidence</a> records the existing Source staging actions its maintenance push would trigger. No provider action is authorized by the earlier Cloud-only approval; obtain Source staging authorization before this checkpoint's push.</li>
+<li class="decision card" id="decision-18" data-note="decision-18" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>The user approved Source staging CI for the prepared shared-check slice (<code>c6efe02</code>), including the existing staging Worker/database checks and branch preview upload. Push this checkpoint and use its exact maintenance result for task 2.1; this approval does not create new hosted resources or authorize credentials, a trial or production publication.</li>
+<li class="decision card" id="decision-19" data-note="decision-19" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Source #259's first head passed Test and Deploy but failed two payload integration cases. Add the new capability to the existing Cloudflare documentation-area mapping and extend static payload dependency inspection to the shared script's fixed sibling command paths. Keep every existing assertion and rerun the full maintenance gate; task 2.1 remains incomplete until it passes.</li>
+<li class="decision card" id="decision-20" data-note="decision-20" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Source #259's corrected exact head <code>796ddd9beadeaa12d8736fef9fe1d2b8227cb620</code> passed Test, Deploy and all 1038 payload cases. Task 2.1 is complete; <a href="shared-checks-evidence.md">its evidence</a> records the failures, repairs and discovered staging preview. Continue to the HTTP/static hosted starter and negotiated workspace bootstrap, without provider resource creation or release publication.</li>
+<li class="decision card" id="decision-21" data-note="decision-21" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Prepared tasks 2.2 and 2.3: an offline pinned HTTP/static starter, authenticated contract-5 bootstrap, private project handoff and setup routing. The companion context endpoint and contract negotiation remain Cloud dependencies; neither starter publication nor hosted readiness is established. <a href="starter-bootstrap-evidence.md">Prepared evidence</a> distinguishes focused fixtures from the generated app's pending maintenance build. Leave both tasks unchecked until that gate passes.</li>
+<li class="decision card" id="decision-22" data-note="decision-22" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-10-04</p>Check: Source's payload maintenance workflow adds the generated starter's ordinary installation, type generation, complete tests and build, plus compiled configuration/assets/identity inspection. The script coverage inventory includes <code>server/hosted/*.mjs</code>; coverage floors remain unchanged. These checks add evidence and run no deployment command for the generated app. A maintenance push still invokes the existing separate Source staging deployment, so the prior shared-check-slice approval does not cover this new slice.</li>
+<li class="decision card" id="decision-23" data-note="decision-23" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-10-04</p>Check: <code>.github/workflows/payload.yml</code> adds generated-starter checks for the existing non-documentation scope, because the main app's checks do not compile the separate hosted configuration. No existing check is removed or skipped.</li>
+<li class="decision card" id="decision-24" data-note="decision-24" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-10-04</p>Check: <code>scripts/tests/.c8rc.json</code> includes the new hosted helper directory in the existing coverage inventory, because these helpers need the same coverage gate as other Source scripts. Numeric thresholds remain unchanged; no coverage suppression is added.</li>
+<li class="decision card" id="decision-25" data-note="decision-25" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Read-only fetch found independent Source main release <code>a775930044e8d77c967a136431d8d971b20809e8</code> (Memory #258). Keep this prepared checkpoint on its established branch without importing that release or expanding into Memory/Devices. Final main reconciliation remains a later delivery responsibility.</li>
+<li class="decision card" id="decision-26" data-note="decision-26" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>The user approved pushing prepared starter/bootstrap commit <code>bb01e066f3dd45b150e67a51c1c94c2391d44c98</code> to Source #259 and running normal maintenance CI, including its existing staging Worker/database checks and branch preview upload. The generated starter is tested and built without deployment. New resources, tokens, starter publication, an Artifacts trial and production publication remain outside this approval. The checkpoint is pushed; tasks 2.2 and 2.3 await its exact gate result.</li>
+<li class="decision card" id="decision-27" data-note="decision-27" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Starter/bootstrap head <code>bb01e06</code> passed Source Test, Deploy and the full script suite; the generated starter's ordinary commands completed, then its compiled-configuration assertion failed. The published Cloudflare Vite plugin 1.62.1 normalizes absent resources to nested empty structures (Durable Object bindings and queue producers/consumers). Teach the assertion to distinguish empty metadata from configured resources; add a regression with provider-shaped defaults and retain rejection of real bindings/schedules. Keep tasks 2.2 and 2.3 unchecked until the corrected exact head passes maintenance CI.</li>
+<li class="decision card" id="decision-28" data-note="decision-28" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-10-04</p>Check: <code>scripts/check-hosted-starter.mjs</code> accepts provider-normalized empty binding structures, because their object presence does not mean a resource exists. Any nonempty binding array or schedule remains rejected; add service/KV checks and bounded failure categories. No generated-app test, build, identity or asset check is skipped.</li>
+<li class="decision card" id="decision-29" data-note="decision-29" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Corrected Source #259 head <code>80df7e81325ef4e5265f719d752578847547a176</code> passed Test, existing staging Deploy and Payload, including all 1057 script cases and the actual generated starter's ordinary tests/build plus compiled output checks. Complete tasks 2.2 and 2.3 at this Source gate; <a href="starter-bootstrap-evidence.md">the exact evidence</a> retains the first failure and one repair. The Cloud context endpoint and full hosted acceptance remain pending. Continue to accepted Cloud task 3.1, preparing only internal records before obtaining its own staging migration authorization.</li>
+<li class="decision card" id="decision-30" data-note="decision-30" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Cloud task 3.1 is prepared locally at <code>f405ff9c18d15188b0f4554bbc8a7eb282990023</code>, reconciled with current Cloud main <code>5b1ff7c4fea87d2dde2323fc065cc323e80f524f</code>. Its companion change's <code>internal-records-evidence.md</code> records 37 real-SQLite cases and full new-module coverage, focused lint, knip and duplicate checks. No route or provider client calls the new records. Keep task 3.1 unchecked: pushing to Cloud #70 would apply four empty tables to the existing staging database and redeploy its existing Worker, so request fresh approval for that concrete checkpoint. Earlier SDK or Source staging approvals do not cover it.</li>
+<li class="decision card" id="decision-31" data-note="decision-31" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>The user approved Cloud's prepared records staging migration and CI. Corrected Cloud #70 head <code>d41f3b78d11358a5a906ee4511d31c4d73f850ad</code> passed Test and Deploy after one collision repair: four distinct <code>hosted_starter_</code> tables preserve an earlier staging table. The accepted companion evidence records 2,155 app, 30 VM and 46 script cases, full coverage and the successful existing-staging migration/deployment. Complete task 3.1; no preview URL was discovered, no customer hosted setup/publication is accepted, and creation remains disabled. Continue to the accepted disabled setup implementation in task 3.2 without provider resources, tokens, sign-in, trial or production actions.</li>
+<li class="decision card" id="decision-32" data-note="decision-32" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Cloud task 3.2 is prepared locally at <code>f4a51149c0c34c84aac753fb7800b5f6a6641cf8</code>, with 456 focused compatibility/SQLite cases, 100% selected new-module/router/contract coverage, passing type-only Worker checking, lint, knip and duplicate checks. Its disabled setup endpoint, exact private contract-5 handoff and bounded DB maintenance retain uncertain operations; no configured creation control, source-release move or actual hosted provider call is included. The companion setup evidence documents the one-page inventory and unproved REST log response boundary. Keep task 3.2 unchecked: fresh approval is pending for Cloud #70 normal CI, its one empty additive setup table on the existing staging database and its existing staging Worker deployment. No dashboard/pipeline, live acceptance or production step has run.</li>
+<li class="decision card" id="decision-33" data-note="decision-33" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>The user approved the disabled-setup staging migration and CI. Cloud #70 exact head <code>f4a51149c0c34c84aac753fb7800b5f6a6641cf8</code> passed <a href="https://github.com/matthewwong525/wongstack-cloud/actions/runs/37174093101">Test</a> (2,300 app cases, 100% whole-app coverage, 30 VM and 46 script cases) and <a href="https://github.com/matthewwong525/wongstack-cloud/actions/runs/37174093064">Deploy</a>, including successful additive setup-table migration and existing-staging build/deployment. No CI repair was needed; preview discovery returned no URL. Complete task 3.2 at this maintenance gate and proceed to existing dashboard cards, keeping creation disabled until full hosted acceptance. No real hosted provider resources, credentials, sign-in, trial or production action is approved by this gate.</li>
+<li class="decision card" id="decision-34" data-note="decision-34" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: the first dashboard milestone uses Your project and its existing recorded identity rather than adding project naming/renaming state. Friendly-name editing can follow the complete small-app acceptance; the primary action and explicit GitHub choice are unchanged. The same Cloud companion now holds accepted dashboard task 3.3, with existing cards/pairing/AI guidance, server-authoritative eligibility/status and no new migration, resource, credential or activation. Unknown operations offer status/support; only known safe bootstrap failure offers same-target retry. Project preparation remains separate from live-site and memory readiness.</li>
+<li class="decision card" id="decision-35" data-note="decision-35" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Dashboard head <code>20761902f4576bb34f9e35dd25d1317a4e9195fa</code> passed <a href="https://github.com/matthewwong525/wongstack-cloud/actions/runs/37175776400">Test</a> (2,389 app cases across 87 files, 100% whole-app coverage, plus the existing VM/script gates) and <a href="https://github.com/matthewwong525/wongstack-cloud/actions/runs/37175776390">Deploy</a>. Ordinary existing-staging build/deployment passed with no new migration and no CI repair. Preview discovery returned no URL. Complete task 3.3 at this maintenance gate only; creation remains disabled and complete customer hosted acceptance remains pending.</li>
+<li class="decision card" id="decision-36" data-note="decision-36" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>The user asked to verify only at the end. Finish remaining implementation and test fixtures before a single combined focused-check/Source-and-Cloud maintenance/staging checkpoint; stop per-slice approval/deployment requests. This supersedes the earlier per-milestone maintenance cadence, not the exclusion of new provider resources, tokens, sign-ins, billable trials or production publication. Keep new bindings/subscriptions/configuration inactive and creation disabled; request one concrete final deployed-check approval only after the complete result is reviewable. Full live acceptance and enablement remain separate explicit decisions.</li>
+<li class="decision card" id="decision-37" data-note="decision-37" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Bind the small Source/Cloud delivery adapter through one project-private <code>POST /api/hosted/projects/:id/delivery</code> endpoint, existing verified bearer/current identity and bounded candidate/status/approve/recover actions. Verbs retain archive/spec/commit responsibilities and register the exact candidate before its ordinary Artifacts push. Native previews expose their actual immutable deployment identity and owned Worker; the reviewed native API does not establish a separate production Worker version ID, so do not fabricate one. Production receipts keep their real version and deployment IDs. Reuse immutable existing resource/candidate/publication facts before adding schema or another service. Remaining checks are deferred until the complete implementation is prepared.</li>
+<li class="decision card" id="decision-38" data-note="decision-38" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Automatic authenticated live observation needs a project-specific machine identity: the existing owner-email Allow policy cannot authorize the platform’s service request. Prepare only the documented Access service token and Service Auth policy for that same Worker, preserving the owner policy, with exact owned receipts, sealed finite credentials and single-attempt uncertainty retention in minimal additive setup fields. Existing applied migrations remain frozen. This is code preparation, not credential issuance or resource authorization. Require verified unexpired observation authority before production deployment; no missing-authority deployment or renewal broker. The final concrete staging checkpoint will identify any additive columns, while actual grants/policies remain in the later separately approved live inventory. <a href="https://developers.cloudflare.com/cloudflare-one/access-controls/service-credentials/service-tokens/">Cloudflare service-token documentation</a> requires Service Auth, including strict-mode behavior; the existing signed Worker Access guard already accepts verified service identities.</li>
+<li class="decision card" id="decision-39" data-note="decision-39" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Keep final repository acknowledgment on the existing Source Git path after Cloud has independently recorded the provider deployment and authenticated live identity/assets. The SDK ordinary runner exposes a project read credential, not a write selector; do not inject broad management authority or build a broker to compensate. Source uses its already scoped Git grant for an exact normal fast-forward main push with expected-old pre-push enforcement, then requests Cloud bounded readback/acknowledgment of that same publication. An already matching remote head recovers by readback only. Offline/expired Source remains deployed-awaiting-confirmation, never published, and blocks another change. Builds, checks, native previews and provider deployment all remain on Cloudflare.</li>
+<li class="decision card" id="decision-40" data-note="decision-40" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Fetched current Source main <code>932439b</code> (published v30.3.0) and merged it normally into the existing feature branch at local <code>fb719c6</code>, preserving the prepared hosted delivery changes. Published upstream memory and company-action changes remain upstream behavior; this change adds no Memory/Devices migration, enrollment or billing work. No push, checks, staging deployment or hosted provider action accompanied this preparation. Verify the integrated result only at the combined final checkpoint.</li>
+<li class="decision card" id="decision-41" data-note="decision-41" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Completed the user-requested combined focused verification: 89 Source cases, 487 Cloud cases with unchanged seven-module 100% coverage, and 12 ordinary pipeline script cases. Exact Source/Cloud type, lint, payload, context and validation evidence is retained in the final checkpoint records. Keep remaining tasks unchecked pending normal maintenance CI; request only one final approval for the complete prepared commits and existing staging actions, explicitly including the eight additive Cloud columns. No live hosted resource, credential, sign-in, trial, production publication or enablement is authorized by this preparation.</li>
+<li class="decision card" id="decision-42" data-note="decision-42" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>The user authorized pushing complete Source <code>b94bd6405b74db08883f1ac188806733a6a35a9f</code> and Cloud <code>b54a885512aeafb6dbb39fbeded44559fa6d2635</code> and one combined final normal CI/staging checkpoint, including existing Workers/database checks, Source branch preview/generated-starter test/build and additive Cloud migration 0021. Both pushes succeeded. Existing staging resources only; no live Artifacts resources, credentials, sign-ins, starter deployment, trial or production publication are authorized.</li>
+<li class="decision card" id="decision-43" data-note="decision-43" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Source's first full payload CI found two starter preparation failures because current upstream company discovery/login-link routes were inserted between the signed-access denial block and the old adjacent preview-comment anchor. Narrow the required exact-one anchor to the complete unchanged denial block and insert identity immediately after it. Preserve current upstream routing byte-for-byte; missing/duplicate anchors still fail. All seven affected starter script cases and syntax/selected lint pass. Full generated starter test/build remains in the authorized CI rerun, with no local app build or starter deployment.</li>
+<li class="decision card" id="decision-44" data-note="decision-44" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Source repair <code>33773b5</code> passed all 1,148 script cases, then ordinary generated-starter lint reported <code>fetch</code> complexity 23 against unchanged maximum 21. Factor the identical existing open-workspace predicate into a typed generated helper to make room for the compiled identity route while keeping the full signed-access denial block and upstream routing. Preserve strict exact-one transformation anchors and add generated signed/unsigned/method/stale-open-switch coverage; do not raise the limit or add exclusions. Cloud's final evidence head <code>6b20efe8db3960ba23c73c09012f96108c5d3d24</code> passed complete maintenance CI/staging with no remaining migrations; live hosted acceptance remains pending.</li>
+<li class="decision card" id="decision-45" data-note="decision-45" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Source repaired head <code>3de4694fdd872eada9e9f5332d3b8c7c7bb9f074</code> passed <a href="https://github.com/matthewwong525/WongStack/actions/runs/37207060305">Test</a>, <a href="https://github.com/matthewwong525/WongStack/actions/runs/37207060315">Payload checks</a> and <a href="https://github.com/matthewwong525/WongStack/actions/runs/37207060278">Deploy</a>, with settled exact-head SUCCESS. All 1,148 script cases pass above unchanged coverage floors; full generated starter install/type generation/test/build and compiled configuration/identity/assets checks pass without deployment. Source app tests, payload/release/wiki/context checks and the exact branch staging preview pass. Together with Cloud's final recorded passing gate, complete implementation/maintenance tasks 4.1–5.2. Two narrow Source repairs and one Cloud documentation repair were required. Keep 6.1 incomplete for compatible published starter/agent/runner identities and 6.2/6.3 incomplete for separately authorized live acceptance/cleanup; creation remains disabled and no publication/merge is authorized by this checkpoint.</li>
+<li class="decision card" id="decision-46" data-note="decision-46" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>The user invoked <code>/ship</code>, then explicitly selected “Ship disabled implementation; retain live follow-up.” Narrow this release to the tested code and normal Source/Cloud production deployments, including Cloud record migrations 0019–0021. Move original unfinished tasks 6.1–6.3 verbatim into <code>live-acceptance-follow-up.md</code>; do not mark them complete or fabricate acceptance. This deliberate scope change supersedes the earlier requirement to finish the real app trial before shipping this code, while preserving that complete journey as a condition of later enablement. No new hosted resource, credential, sign-in, billable trial, starter publication or managed-creation enablement is authorized. Archive only the completed implementation tasks and keep creation/delivery/observer controls and new provider bindings inactive.</li>
+<li class="decision card" id="decision-47" data-note="decision-47" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Archive checkpoint for the explicitly approved disabled implementation release: all 13 current-scope tasks are complete, original 6.1–6.3 remain unfinished in <code>live-acceptance-follow-up.md</code>, and delta requirements exactly match reconciled main specs. Number the Source release 30.4.0 from current main 30.3.0, then gate this exact archive checkpoint before merging. No live Artifacts acceptance or enablement is implied.</li>
+</ol>
+</section>
+<section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
+<p class="session" hidden>Storage is off. Notes and drafts last for this session only.</p>
+<ul class="note-list" id="note-list"></ul>
+</section>
+</main>
+<button type="button" id="chip" hidden>Add note</button>
+<div id="editor" role="dialog" aria-labelledby="editor-where" hidden>
+  <p class="where" id="editor-where"></p>
+  <p class="moved">Possibly moved: its text changed, so this note is not attached.</p>
+  <textarea aria-label="Note text" rows="3" placeholder="A question or a change"></textarea>
+  <div class="row"><button type="button" class="primary" data-act="save">Save</button><button type="button" data-act="discard">Discard</button><button type="button" data-act="delete">Delete note</button><button type="button" data-act="close">Close</button></div>
+  <p class="copies">Saving a note copies all your notes.</p>
+  <p class="session" hidden>Notes last for this session only.</p>
+</div>
+<div id="viewer" role="dialog" aria-modal="true" aria-label="Drawing, full screen" hidden>
+  <div class="zoom"><span class="level"></span><button type="button" aria-label="Zoom out">−</button><button type="button">Fit</button><button type="button" aria-label="Zoom in">+</button><button type="button" class="primary">Close</button></div>
+  <div class="vframe"></div>
+  <p class="vhint">Drag to move · pinch or + to zoom · tap a line to note it</p>
+</div>
+<div class="bar"><span class="note-count" aria-live="polite">0 notes</span><span class="session" hidden>Session only</span><button type="button" class="primary" id="copy">Copy notes</button></div>
+<div id="toast" role="status"></div>
+<textarea id="copybuf" aria-hidden="true" tabindex="-1" readonly></textarea>
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  window.addEventListener('error', function (e) {
+    $('script-error').hidden = false;
+    $('script-error').textContent = 'Review script error: ' + e.message + ' (line ' + e.lineno + ')';
+  });
+  const root = document.documentElement;
+  root.classList.add('js');
+  const CHANGE = document.body.getAttribute('data-change');
+  const KEY = 'wong-review3:' + CHANGE;
+  const phone = window.matchMedia ? window.matchMedia('(max-width: 700px)') : { matches: false };
+  const chip = $('chip'), editor = $('editor'), ta = editor.querySelector('textarea');
+  const viewer = $('viewer'), vframe = viewer.querySelector('.vframe'), vbar = viewer.querySelector('.zoom'), vb = vbar.querySelectorAll('button');
+  const all = function (sel, fn) { Array.prototype.forEach.call(document.querySelectorAll(sel), fn); };
+  const esc = function (s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
+
+  // ── storage: a refused store keeps notes for this session ──
+  let store = null, data = { notes: [], drafts: {} };
+  const ok = function (r, id) { return r && typeof r.label === 'string' && typeof r.text === 'string' && /^[\w-]+$/.test(id); };
+  try { store = window.localStorage; store.getItem(KEY); } catch (e) { store = null; }
+  try {
+    const saved = store ? JSON.parse(store.getItem(KEY) || 'null') : null;
+    if (saved && Array.isArray(saved.notes)) data.notes = saved.notes.filter(function (n) { return ok(n, n && n.id); });
+    if (saved && saved.drafts) Object.keys(saved.drafts).forEach(function (id) { if (ok(saved.drafts[id], id)) data.drafts[id] = saved.drafts[id]; });
+  } catch (e) { /* unreadable notes start empty */ }
+  function persist() {
+    if (store) { try { store.setItem(KEY, JSON.stringify(data)); } catch (e) { store = null; } }
+    render();
+  }
+
+  // ── targets: a data-note id names its location; the label pins a note to its text ──
+  function where(id) {
+    const m = /^(why|item|decision)-(\d+)(?:-line-(\d+))?$/.exec(id) || [];
+    if (m[1] === 'why') return { at: '#/why', kind: 'paragraph ' + m[2], spot: 'Why, paragraph ' + m[2] };
+    if (m[1] === 'item') return { at: '#/' + m[2], kind: m[3] ? 'drawing line ' + m[3] : 'item', spot: 'Change #' + m[2] + (m[3] ? ', drawing line ' + m[3] : '') };
+    return { at: '#/decisions/' + m[2], kind: 'decision', spot: 'Decision #' + m[2] };
+  }
+  function labelOf(el) {
+    const c = el.cloneNode(true);
+    Array.prototype.forEach.call(c.querySelectorAll('.pin, .meta, .add'), function (n) { n.parentNode.removeChild(n); });
+    const text = c.textContent.replace(/\s+/g, ' ').trim();
+    return where(el.getAttribute('data-note')).kind + ' "' + (text.length > 60 ? text.slice(0, 59) + '…' : text) + '"';
+  }
+  function find(id, label) {
+    const el = document.querySelector('[data-note="' + id + '"]');
+    return el && labelOf(el) === label ? el : null;
+  }
+  function noteOf(id) { return data.notes.filter(function (n) { return n.id === id; })[0] || null; }
+
+  // ── render pins, Note buttons, counts, and the notes list ──
+  function render() {
+    all('.pin, .add', function (p) { p.parentNode.removeChild(p); });
+    const n = data.notes.length, d = Object.keys(data.drafts).length;
+    const count = plural(n) + (d ? ' · ' + d + (d === 1 ? ' draft' : ' drafts') : '');
+    all('.note-count', function (el) { el.textContent = count; });
+    all('.session', function (el) { el.hidden = !!store; });
+    const ids = data.notes.map(function (x) { return x.id; }).concat(Object.keys(data.drafts).filter(function (id) { return !noteOf(id); }));
+    $('note-list').innerHTML = ids.length ? '' : '<li class="muted">No notes yet.</li>';
+    ids.forEach(function (id) {
+      const note = noteOf(id), draft = data.drafts[id], rec = note || draft, num = note ? data.notes.indexOf(note) + 1 : 0;
+      const el = find(id, rec.label);
+      if (el) {
+        const pin = document.createElement('button');
+        pin.type = 'button'; pin.className = draft ? 'pin draft' : 'pin'; pin.setAttribute('data-open', id);
+        pin.textContent = (num || '') + (num && draft ? ' · ' : '') + (draft ? 'Draft' : '');
+        pin.setAttribute('aria-label', (num ? 'Open note ' + num : 'Open draft') + (num && draft ? ' and its draft' : ''));
+        el.appendChild(pin);
+      }
+      const li = document.createElement('li');
+      li.innerHTML = '<button type="button" class="entry" data-open="' + id + '"><span class="where">' + (num ? num + '. ' : '')
+        + esc(where(id).at + ' · ' + rec.label) + (draft ? '<span class="tag">Draft</span>' : '') + (el ? '' : '<span class="tag">possibly moved</span>')
+        + '</span>' + esc(draft ? draft.text : note.text) + '</button>';
+      $('note-list').appendChild(li);
+    });
+    all('[data-note]', function (el) {
+      if (el.closest('.art') || el.querySelector('.pin')) return;
+      const id = el.getAttribute('data-note'), add = document.createElement('button');
+      add.type = 'button'; add.className = 'add'; add.setAttribute('data-open', id);
+      add.textContent = '+ Note'; add.setAttribute('aria-label', 'Note on ' + where(id).kind);
+      el.appendChild(add);
+    });
+    drawings.forEach(function (d) {
+      const k = d.art.querySelectorAll('.pin').length;
+      d.count.textContent = k ? ' · ' + k + (k === 1 ? ' note' : ' notes') : '';
+      fit(d);
+    });
+  }
+
+  // ── still-tap to note: a mouse on text, or any pointer on a full-screen drawing line, shows the chip ──
+  let chipFor = null, tap = null;
+  const pointers = {};
+  function showChip(el, x, y, keyboard) {
+    const id = el.getAttribute('data-note');
+    chipFor = el;
+    chip.textContent = noteOf(id) || data.drafts[id] ? 'Edit note' : 'Add note';
+    chip.hidden = false;
+    const w = chip.offsetWidth, vw = root.clientWidth;
+    chip.style.left = Math.max(8, Math.min(x - w / 2, vw - w - 8)) + window.pageXOffset + 'px';
+    chip.style.top = y + 12 + window.pageYOffset + 'px';
+    if (keyboard) chip.focus({ preventScroll: true });
+  }
+  function hideChip() { chip.hidden = true; chipFor = null; }
+  document.addEventListener('pointerdown', function (e) {
+    if (e.isPrimary) Object.keys(pointers).forEach(function (k) { delete pointers[k]; });
+    pointers[e.pointerId] = true;
+    tap = Object.keys(pointers).length === 1 && e.button === 0 ? { id: e.pointerId, x: e.clientX, y: e.clientY, t: Date.now(), target: e.target } : null;
+  });
+  document.addEventListener('pointermove', function (e) {
+    if (tap && e.pointerId === tap.id && Math.abs(e.clientX - tap.x) + Math.abs(e.clientY - tap.y) > 8) tap = null;
+  });
+  document.addEventListener('pointercancel', function (e) { delete pointers[e.pointerId]; tap = null; });
+  document.addEventListener('pointerup', function (e) {
+    const t = tap;
+    delete pointers[e.pointerId]; tap = null;
+    if (!t || t.id !== e.pointerId || Date.now() - t.t > 500) return;
+    if (t.target.closest('a, button, input, textarea, select, label, summary, #editor')) return;
+    const el = t.target.closest('[data-note]');
+    const offer = el && (el.closest('#viewer') || (e.pointerType === 'mouse' && !el.closest('.frame')));
+    if (offer) showChip(el, e.clientX, e.clientY, false); else hideChip();
+  });
+  chip.addEventListener('click', function () { if (chipFor) openEditor(chipFor.getAttribute('data-note'), chipFor); });
+  document.addEventListener('click', function (e) {
+    const t = e.target.closest ? e.target.closest('[data-open]') : null;
+    if (!t) return;
+    const id = t.getAttribute('data-open'), rec = data.drafts[id] || noteOf(id), el = rec ? find(id, rec.label) : t.closest('[data-note]');
+    if (el && t.classList.contains('entry')) { reveal(el); el.scrollIntoView({ block: 'center' }); }
+    openEditor(id, el);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      if (open) closeEditor(true);
+      else if (chipFor) { const el = chipFor; hideChip(); el.focus(); }
+      else if (view) closeViewer(true);
+    } else if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('[data-note]')) {
+      e.preventDefault();
+      const r = e.target.getBoundingClientRect();
+      showChip(e.target, r.left + 48, r.top + Math.min(r.height, 24), true);
+    }
+  });
+
+  // ── the editor: beside its target on a desktop, docked at the bottom of the visible screen on a phone ──
+  let open = null;
+  function openEditor(id, el) {
+    closeViewer(false); closeEditor(false); hideChip();
+    if (el) reveal(el);
+    const note = noteOf(id), draft = data.drafts[id];
+    const label = draft ? draft.label : note ? note.label : labelOf(el);
+    open = { id: id, label: label, el: el };
+    $('editor-where').textContent = where(id).at + ' · ' + label;
+    editor.querySelector('.moved').hidden = !!el;
+    editor.querySelector('[data-act="delete"]').hidden = !note;
+    ta.value = draft ? draft.text : note ? note.text : '';
+    editor.hidden = false;
+    if (el) el.classList.add('noting');
+    place();
+    ta.focus({ preventScroll: editor.classList.contains('docked') });
+  }
+  function closeEditor(restore) {
+    if (!open) return;
+    const el = open.el;
+    open = null; editor.hidden = true;
+    document.body.classList.remove('docked'); document.body.style.paddingBottom = '';
+    if (el) { el.classList.remove('noting'); if (restore) el.focus({ preventScroll: true }); }
+  }
+  function place() {
+    const docked = phone.matches || !open.el;
+    editor.classList.toggle('docked', docked);
+    document.body.classList.toggle('docked', docked);
+    editor.style.left = editor.style.top = editor.style.bottom = editor.style.maxHeight = '';
+    if (docked) {
+      dock();
+      document.body.style.paddingBottom = editor.offsetHeight + 24 + 'px';
+      keepVisible();
+      return;
+    }
+    const r = open.el.getBoundingClientRect(), w = editor.offsetWidth, vw = root.clientWidth;
+    let left = r.right + 12, top = r.top;
+    if (left + w > vw - 8) { left = Math.max(8, Math.min(r.left, vw - w - 8)); top = r.bottom + 8; }
+    editor.style.left = left + window.pageXOffset + 'px';
+    editor.style.top = top + window.pageYOffset + 'px';
+  }
+  // The visible screen: a phone keyboard shrinks it, and a host app may shrink the page too, so place from its top.
+  function screen() {
+    const vv = window.visualViewport;
+    return vv ? { top: vv.offsetTop, h: vv.height } : { top: 0, h: window.innerHeight };
+  }
+  function dock() {
+    if (!open || !editor.classList.contains('docked')) return;
+    const s = screen();
+    editor.style.maxHeight = s.h + 'px';
+    editor.style.bottom = 'auto';
+    editor.style.top = s.top + Math.max(0, s.h - editor.offsetHeight) + 'px';
+  }
+  function keepVisible() {
+    if (!open || !open.el) return;
+    const r = open.el.getBoundingClientRect(), s = screen(), limit = s.top + s.h - editor.offsetHeight - 8;
+    if (r.bottom > limit) window.scrollBy(0, Math.min(r.top - s.top - 8, r.bottom - limit));
+  }
+  let seen = screen().h;
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', function () {
+      const h = screen().h, keyboard = Math.abs(h - seen) > 100;
+      seen = h; dock();
+      if (keyboard) keepVisible();
+    });
+    window.visualViewport.addEventListener('scroll', dock);
+  }
+  ta.addEventListener('input', function () {
+    if (!open) return;
+    const note = noteOf(open.id), text = ta.value;
+    if (!text.trim() || (note && text === note.text)) delete data.drafts[open.id];
+    else data.drafts[open.id] = { label: open.label, text: text };
+    persist();
+  });
+  editor.addEventListener('click', function (e) {
+    const act = e.target.getAttribute('data-act');
+    if (!act || !open) return;
+    const id = open.id, note = noteOf(id), text = ta.value.trim();
+    if (act === 'save') {
+      if (!text) { ta.focus(); return; }
+      if (note) note.text = text; else data.notes.push({ id: id, label: open.label, text: text });
+    }
+    if (act === 'delete') data.notes = data.notes.filter(function (n) { return n.id !== id; });
+    if (act !== 'close') delete data.drafts[id];
+    closeEditor(true); persist();
+    if (act === 'save') {
+      const n = data.notes.length;
+      copyNotes(function () { toast('Saved and copied ' + plural(n) + '. Paste them into chat.'); },
+        function () { toast('Saved. Tap Copy notes to copy them.'); });
+    }
+  });
+
+  // ── drawings: fitted by font size on the page; a tap shows one full screen, where it zooms and scrolls natively ──
+  const BASE = 13, drawings = [];
+  let view = null;
+  const V = { f: BASE, lo: BASE, hi: BASE };
+  function size(art, f, max) {
+    art.style.fontSize = f + 'px';
+    for (let i = 0; i < 3 && art.offsetWidth > max; i += 1) { f *= max / art.offsetWidth; art.style.fontSize = f + 'px'; }
+    return f;
+  }
+  function fit(d) {
+    if (!d.fig.open || view === d) return;
+    d.art.style.fontSize = BASE + 'px';
+    const w = d.art.offsetWidth, fw = d.frame.clientWidth - 1;
+    if (w > 0 && fw > 0) size(d.art, BASE * Math.min(1.25, fw / w), fw);
+  }
+  function reveal(el) {
+    const fig = el.closest('details');
+    if (fig && !fig.open) { fig.open = true; drawings.forEach(fit); }
+  }
+  function scale(f, cx, cy) {
+    f = Math.max(V.lo, Math.min(V.hi, f));
+    const k = f / V.f, x = (vframe.scrollLeft + cx) * k - cx, y = (vframe.scrollTop + cy) * k - cy;
+    V.f = f; view.art.style.fontSize = f + 'px';
+    vframe.scrollLeft = x; vframe.scrollTop = y;
+    const atFit = f <= V.lo * 1.001;
+    vbar.firstChild.textContent = (atFit ? 'Fit · ' : '') + Math.round(f / BASE * 100) + '%';
+    vb[0].disabled = atFit; vb[2].disabled = f >= V.hi * 0.999;
+  }
+  function openViewer(d) {
+    hideChip();
+    view = d; viewer.hidden = false; document.body.classList.add('viewing');
+    vframe.appendChild(d.art);
+    d.art.style.fontSize = BASE + 'px';
+    const fw = vframe.clientWidth - 1;
+    V.lo = size(d.art, BASE * fw / Math.max(1, d.art.offsetWidth), fw);
+    V.hi = Math.max(V.lo * 4, 40); V.f = V.lo;
+    vframe.scrollLeft = vframe.scrollTop = 0;
+    scale(V.lo, 0, 0);
+    vb[3].focus({ preventScroll: true });
+  }
+  function closeViewer(restore) {
+    if (!view) return;
+    const d = view;
+    view = null;
+    d.frame.insertBefore(d.art, d.frame.firstChild);
+    viewer.hidden = true; document.body.classList.remove('viewing');
+    fit(d);
+    if (restore) d.enlarge.focus({ preventScroll: true });
+  }
+  vbar.addEventListener('click', function (e) {
+    const i = Array.prototype.indexOf.call(vb, e.target);
+    if (i === 3) closeViewer(true);
+    else if (i >= 0) scale([V.f / 1.25, V.lo, V.f * 1.25][i], vframe.clientWidth / 2, vframe.clientHeight / 2);
+  });
+  vframe.addEventListener('wheel', function (e) {
+    if (!e.ctrlKey && !e.metaKey) return;
+    e.preventDefault();
+    const r = vframe.getBoundingClientRect();
+    scale(V.f * (e.deltaY < 0 ? 1.1 : 1 / 1.1), e.clientX - r.left, e.clientY - r.top);
+  }, { passive: false });
+  // One finger scrolls natively; two fingers pinch around their midpoint.
+  let pinch = null;
+  const span = function (t) { return Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY) || 1; };
+  vframe.addEventListener('touchstart', function (e) { if (e.touches.length === 2) pinch = { f: V.f, dist: span(e.touches) }; }, { passive: true });
+  vframe.addEventListener('touchmove', function (e) {
+    if (!pinch || e.touches.length !== 2) return;
+    if (e.cancelable) e.preventDefault();
+    const r = vframe.getBoundingClientRect(), t = e.touches;
+    scale(pinch.f * span(t) / pinch.dist, (t[0].clientX + t[1].clientX) / 2 - r.left, (t[0].clientY + t[1].clientY) / 2 - r.top);
+  }, { passive: false });
+  vframe.addEventListener('touchend', function (e) { if (e.touches.length < 2) pinch = null; });
+  document.addEventListener('gesturestart', function (e) { if (view) e.preventDefault(); });
+  all('.drawing', function (fig) {
+    const frame = fig.querySelector('.frame'), enlarge = document.createElement('button');
+    enlarge.type = 'button'; enlarge.className = 'enlarge'; enlarge.textContent = 'Full screen';
+    frame.appendChild(enlarge);
+    const d = { fig: fig, frame: frame, art: fig.querySelector('.art'), count: fig.querySelector('.count'), enlarge: enlarge };
+    drawings.push(d);
+    fig.addEventListener('toggle', function () { fit(d); });
+    frame.addEventListener('click', function (e) { if (!e.target.closest('[data-open]')) openViewer(d); });
+  });
+
+  // ── direct links: #/why, #/<n>, #/decisions/<n> ──
+  function jump() {
+    const m = /^#\/(?:decisions\/(\d+)|(\d+)|(why|changes|decisions))$/.exec(location.hash);
+    const el = m ? $(m[1] ? 'decision-' + m[1] : m[2] ? 'item-' + m[2] : m[3]) : null;
+    if (!el) return;
+    all('.hit', function (n) { n.classList.remove('hit'); });
+    el.classList.add('hit');
+    el.scrollIntoView({ block: 'start' });
+  }
+
+  // ── copy: saved notes only, as notes on the plan: each asks or changes something ──
+  function notesText() {
+    const lines = ['Notes on the plan ' + CHANGE + ' from the review page. Don\'t build yet.'];
+    data.notes.forEach(function (n) {
+      const w = where(n.id);
+      lines.push('- ' + w.spot + ' (' + n.label.slice(w.kind.length + 1) + '): ' + n.text.replace(/\s*\n\s*/g, ' '));
+    });
+    return lines.join('\n');
+  }
+  function toast(text) {
+    $('toast').textContent = text; $('toast').classList.add('show');
+    setTimeout(function () { $('toast').classList.remove('show'); }, 2000);
+  }
+  function plural(n) { return n + (n === 1 ? ' note' : ' notes'); }
+  // One routine for Copy notes and Save: the Clipboard API, else select #copybuf and execCommand, then hand focus back.
+  function copyNotes(done, failed) {
+    const buf = $('copybuf');
+    buf.value = notesText();
+    const fallback = function () {
+      const back = document.activeElement;
+      buf.select();
+      const ok = document.execCommand('copy');
+      if (back && back !== buf && back.focus) back.focus({ preventScroll: true });
+      if (ok) done(); else failed();
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(buf.value).then(done, fallback); else fallback();
+  }
+  $('copy').addEventListener('click', function () {
+    const n = data.notes.length;
+    if (!n) { toast('No saved notes yet. Drafts are not copied.'); return; }
+    copyNotes(function () { toast('Copied ' + plural(n) + '. Paste them into chat.'); },
+      function () { toast('Copy failed. Copy the notes list by hand.'); });
+  });
+
+  let width = root.clientWidth;
+  window.addEventListener('resize', function () {
+    if (root.clientWidth !== width) {
+      width = root.clientWidth; hideChip();
+      if (view) { const d = view; closeViewer(false); openViewer(d); }
+    }
+    drawings.forEach(fit);
+    if (open) place();
+  });
+  window.addEventListener('hashchange', jump);
+  render();
+  jump();
+}());
+</script>
+</body>
+</html>

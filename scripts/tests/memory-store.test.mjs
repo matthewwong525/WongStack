@@ -452,7 +452,7 @@ test('with no people page listing you, the digest has no person section and stil
   insertFact(env)('ops', 'feedback', 'Keep replies short.', 1);
   const lines = (await digestOf(env)).split('\n');
   assert.equal(lines.filter(line => line.startsWith('## You')).length, 0);
-  assert.match(lines[1], /Once you know the task, and before you act on more than a quick question, search memory for its key terms in your own words: `node \.claude\/skills\/memory\/scripts\/memory\.mjs search <terms>`\.$/);
+  assert.match(lines[1], /Before substantial work, recall the task in your own words: `node \.claude\/skills\/memory\/scripts\/memory\.mjs recall <question>`\. Read cited originals; use explicit history scope/);
 });
 
 test("the current change's open threads all show first, old ones too", async t => {
