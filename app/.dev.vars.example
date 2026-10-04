@@ -38,3 +38,8 @@
 
 # Where the app posts outbound webhooks. Point staging at a sink, not at prod.
 # WEBHOOK_URL=
+
+# The live app's key for its own sign-in list. Setup makes it and stores it in
+# the production Worker for you: leave it out of this file. `secrets:push`
+# refuses a staging source that names it. See wiki/stack/employee-access.md.
+# WONG_ACCESS_LOGIN_MANAGEMENT=

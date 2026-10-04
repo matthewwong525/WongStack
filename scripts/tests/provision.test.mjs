@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 
 import {
-  CloudflareError, DEPLOY_TOKEN, NORMAL_PROVISION, PROPAGATION, R2_OFF, USER_GRANTS,
+  ACCESS_KEY, ACCESS_KEY_TODO, CloudflareError, DEPLOY_TOKEN, NORMAL_PROVISION, PROPAGATION, R2_OFF, USER_GRANTS,
   accounts, cli, cloudflare, names, provision, readEnv, run, safeName, widen, wranglerConfig, wranglerFragment,
 } from '../../.agents/skills/wong-setup/scripts/provision.mjs';
 import { databaseName, parseConfig, stripJsonc, workerName } from '../lib-wrangler-config.mjs';
@@ -23,6 +23,8 @@ const REPO = 'ada/recipe-box';
 const TODAY = '2026-09-27';
 const EMAIL = 'ada@example.com';
 const noSleep = async () => {};
+// A Worker upload, as distinct from the secret or the subdomain setting under the same script.
+const SCRIPT_UPLOAD = /\/workers\/scripts\/[^/]+$/;
 
 test('private setup rejects unreachable owner identities before any provider mutation', async (t) => {
   const env = await setup(t);
@@ -100,6 +102,10 @@ test('with --open-without-login an onboarding refusal finishes open; without it,
   }
   assert.equal(config.vars.WORKSPACE_LOGIN, 'off');
   assert.equal(config.env.staging.vars.WORKSPACE_LOGIN, 'off');
+  // An open site has no sign-in to know an owner by, and no sign-in list to hold a key for.
+  assert.deepEqual([config.vars.WONG_OWNER_EMAIL, config.env.staging.vars.WONG_OWNER_EMAIL], ['', '']);
+  assert.equal(report.accessKey, undefined);
+  assert.deepEqual(env.fake.state.workerSecrets, {});
   assert.equal(config.env.local.vars.WORKSPACE_LOGIN, undefined);
   const again = await env.provision({ openWithoutLogin: true });
   assert.equal(again.access.mode, 'open');
@@ -131,7 +137,7 @@ test('a rerun after the card turns an open site private in its committed config'
   const report = await env.provision({ openWithoutLogin: true });
   assert.equal(report.access.mode, undefined);
   assert.equal(env.fake.state.accessApps.length, 1);
-  assert.equal(env.fake.calls.filter(call => call.method === 'PUT' && call.path.includes('/workers/scripts/')).length, 0, 'the deployed Workers are adopted, not replaced');
+  assert.equal(env.fake.calls.filter(call => call.method === 'PUT' && SCRIPT_UPLOAD.test(call.path)).length, 0, 'the deployed Workers are adopted, not replaced');
   assert.ok(report.updated.includes('app/wrangler.jsonc: private login on, WORKSPACE_LOGIN removed'));
   const text = readFileSync(join(env.dir, 'app/wrangler.jsonc'), 'utf8');
   assert.ok(!text.includes('WORKSPACE_LOGIN'));
@@ -144,6 +150,10 @@ test('a rerun after the card turns an open site private in its committed config'
   assert.equal(env.record().components.access.appId, production.appId);
   assert.equal(env.record().components.access.mode, undefined);
   assert.deepEqual(report.todo, []);
+  // The site is private now, so Access learns its owner and the live app gets its key.
+  assert.deepEqual([config.vars.WONG_OWNER_EMAIL, config.env.staging.vars.WONG_OWNER_EMAIL], [EMAIL, EMAIL]);
+  assert.ok(report.updated.includes('app/wrangler.jsonc WONG_OWNER_EMAIL'));
+  assert.deepEqual(Object.keys(env.fake.state.workerSecrets), ['recipe-box']);
 });
 
 test('an open config provisioning cannot edit goes to todo, unchanged', async (t) => {
@@ -169,7 +179,7 @@ test('private bootstrap precedes app publication and records real Worker IDs', a
     'recipe-box': { enabled: true, previews_enabled: false },
     'recipe-box-staging': { enabled: false, previews_enabled: false },
   });
-  const uploads = env.fake.calls.filter(call => call.method === 'PUT' && call.path.includes('/workers/scripts/'));
+  const uploads = env.fake.calls.filter(call => call.method === 'PUT' && SCRIPT_UPLOAD.test(call.path));
   assert.equal(uploads.length, 2);
   for (const upload of uploads) {
     assert.match(upload.body, /status:503/);
@@ -186,7 +196,7 @@ test('private bootstrap precedes app publication and records real Worker IDs', a
   const writes = env.fake.count(`POST /accounts/${ACCOUNT}/workers/scripts/recipe-box/subdomain`);
   await env.provision();
   assert.equal(env.fake.state.accessApps.length, 1);
-  assert.equal(env.fake.calls.filter(call => call.method === 'PUT' && call.path.includes('/workers/scripts/')).length, 2);
+  assert.equal(env.fake.calls.filter(call => call.method === 'PUT' && SCRIPT_UPLOAD.test(call.path)).length, 2);
   assert.equal(env.fake.count(`POST /accounts/${ACCOUNT}/workers/scripts/recipe-box/subdomain`), writes);
 });
 
@@ -218,7 +228,7 @@ test('machine policy failure retains a closed recoverable bootstrap anchor', asy
   await env.provision();
   assert.deepEqual(env.fake.state.workerSubdomains['recipe-box'], { enabled: true, previews_enabled: false });
   assert.equal(env.fake.state.accessApps[0].policies.length, 2);
-  assert.equal(env.fake.calls.filter(call => call.method === 'PUT' && call.path.includes('/workers/scripts/')).length, 2);
+  assert.equal(env.fake.calls.filter(call => call.method === 'PUT' && SCRIPT_UPLOAD.test(call.path)).length, 2);
 });
 
 test('an interrupted bootstrap upload retains ownership and resumes without another content upload', async t => {
@@ -234,7 +244,7 @@ test('an interrupted bootstrap upload retains ownership and resumes without anot
   assert.equal(env.fake.state.accessApps.length, 0);
   await env.provision();
   assert.deepEqual(env.fake.state.workerSubdomains['recipe-box'], { enabled: true, previews_enabled: false });
-  assert.equal(env.fake.calls.filter(call => call.method === 'PUT' && call.path.includes('/workers/scripts/')).length, 2);
+  assert.equal(env.fake.calls.filter(call => call.method === 'PUT' && SCRIPT_UPLOAD.test(call.path)).length, 2);
 });
 
 test('missing publication settings or ignored activation remain recoverable failures', async t => {
@@ -272,7 +282,7 @@ test('bootstrap activation failure and lost receipts retry without rewriting con
     assert.equal(JSON.parse(readFileSync(join(env.dir, '.git/wong-stack-provision.json'), 'utf8')).workers['recipe-box'].bootstrapLoginPending, undefined);
     assert.deepEqual(env.fake.state.workerSubdomains['recipe-box'], { enabled: true, previews_enabled: false });
     assert.equal(env.fake.count(`POST /accounts/${ACCOUNT}/workers/scripts/recipe-box/subdomain`), 2);
-    assert.equal(env.fake.calls.filter(call => call.method === 'PUT' && call.path.includes('/workers/scripts/')).length, 2);
+    assert.equal(env.fake.calls.filter(call => call.method === 'PUT' && SCRIPT_UPLOAD.test(call.path)).length, 2);
     const chosen = { enabled: false, previews_enabled: true };
     env.fake.state.workerSubdomains['recipe-box'] = chosen;
     await env.provision();
@@ -313,7 +323,8 @@ test('adopted Workers retain all existing publication choices without bootstrap 
     writeFileSync(join(env.dir, '.claude/.wong-stack.json'), JSON.stringify({ components: { memory: { accountId: ACCOUNT, worker: 'https://recipe-box.ada.workers.dev/_memory' } } }));
     await env.provision();
     assert.deepEqual(env.fake.state.workerSubdomains, chosen);
-    assert.equal(env.fake.calls.filter(call => ['PUT', 'POST'].includes(call.method) && call.path.includes('/workers/scripts/')).length, 0);
+    // The live app's key is stored as a secret: no upload, and no publication choice, changes.
+    assert.equal(env.fake.calls.filter(call => ['PUT', 'POST'].includes(call.method) && call.path.includes('/workers/scripts/') && !call.path.endsWith('/secrets')).length, 0);
   }
 });
 
@@ -737,6 +748,108 @@ test('a fresh provision with R2 on makes the memory store, the key, both databas
   assertNoSecret(env, JSON.stringify(report));
 });
 
+test('setup records the owner for Access and gives the live app alone its own sign-in list key', async (t) => {
+  const env = await setup(t);
+  const report = await env.provision();
+  const config = env.config();
+  assert.deepEqual([config.vars.WONG_OWNER_EMAIL, config.env.staging.vars.WONG_OWNER_EMAIL, config.env.local.vars.WONG_OWNER_EMAIL], [EMAIL, EMAIL, undefined]);
+  const key = env.fake.state.accountTokens.find((token) => token.name === 'recipe-box-access');
+  assert.deepEqual(key.policies, [{ effect: 'allow', resources: { [`com.cloudflare.api.account.${ACCOUNT}`]: '*' }, permission_groups: [{ id: groupId('Access: Apps and Policies Write') }] }]);
+  assert.deepEqual(ACCESS_KEY, [{ name: 'Access: Apps and Policies Write', scope: 'account', id: groupId('Access: Apps and Policies Write') }]);
+  // Production holds the key with the ids the app needs; staging holds nothing.
+  assert.deepEqual(Object.keys(env.fake.state.workerSecrets), ['recipe-box']);
+  assert.deepEqual(JSON.parse(env.fake.state.workerSecrets['recipe-box'].WONG_ACCESS_LOGIN_MANAGEMENT),
+    { version: 2, token: env.fake.state.minted[1], accountId: ACCOUNT, policyId: env.record().components.access.humanPolicyId });
+  assert.deepEqual(report.accessKey, { status: 'ready', id: key.id });
+  assert.deepEqual(env.record().components.accessKey, report.accessKey);
+  assert.ok(report.created.includes('sign-in list key recipe-box-access, stored in the live app only'));
+  // The deploy token is not reused and gains no Access write.
+  const deploy = env.fake.state.accountTokens.find((token) => token.name === 'recipe-box-deploy');
+  assert.ok(!deploy.policies[0].permission_groups.some((g) => g.id === groupId('Access: Apps and Policies Write')));
+  assert.equal(env.gh.secrets().CLOUDFLARE_API_TOKEN, env.fake.state.minted[0]);
+  assert.deepEqual(report.todo, []);
+  assertNoSecret(env, JSON.stringify(report));
+});
+
+test('a rerun reuses the sign-in list key, and an interrupted or lost one is rolled, never duplicated', async (t) => {
+  const env = await setup(t);
+  const secretPut = `PUT /accounts/${ACCOUNT}/workers/scripts/recipe-box/secrets`;
+  const stored = () => JSON.parse(env.fake.state.workerSecrets['recipe-box'].WONG_ACCESS_LOGIN_MANAGEMENT).token;
+  const keys = () => env.fake.state.accountTokens.filter((token) => token.name === 'recipe-box-access').length;
+  env.fake.state.refuse = [secretPut];
+  await assert.rejects(env.provision(), { reason: 'cloudflare' });
+  assert.deepEqual(env.fake.state.workerSecrets, {});
+  env.fake.state.refuse = [];
+  // The value made before the interruption was never stored and can not be read back, so it is rolled.
+  const finished = await env.provision();
+  assert.ok(finished.updated.includes('sign-in list key recipe-box-access, stored in the live app only'));
+  assert.equal(stored(), env.fake.state.minted.at(-1));
+  assert.match(stored(), /^deploy-rolled-/);
+  const minted = env.fake.state.minted.length;
+  const puts = env.fake.count(secretPut);
+  const again = await env.provision();
+  assert.ok(again.reused.includes('sign-in list key recipe-box-access'));
+  assert.deepEqual([again.created, again.updated, again.todo], [[], [], []]);
+  assert.deepEqual([env.fake.state.minted.length, env.fake.count(secretPut), keys()], [minted, puts, 1]);
+  // A live app that lost its secret gets a new value for the same key, even when the config is kept.
+  env.fake.state.workerSecrets = {};
+  const restored = await env.provision({ keepConfig: true });
+  assert.ok(restored.updated.includes('sign-in list key recipe-box-access, stored in the live app only'));
+  assert.equal(stored(), env.fake.state.minted.at(-1));
+  assert.equal(keys(), 1);
+  assert.deepEqual(env.record().components.accessKey, restored.accessKey);
+  assertNoSecret(env, JSON.stringify([finished, again, restored]));
+});
+
+test('the access command gives an installed repo its owner email and key, and names the step left when the token can not make keys', async (t) => {
+  const env = await setup(t);
+  const run = async () => {
+    const lines = [];
+    const code = await cli(['access', '--dir', env.dir], { env: env.env, out: (text) => lines.push(text), err: () => {} });
+    return { code, text: lines.join('\n'), report: JSON.parse(lines.join('\n')) };
+  };
+  // A repo with no private sign-in on record has nothing for Access to hold.
+  const none = await run();
+  assert.equal(none.code, 1);
+  assert.equal(none.report.error.reason, 'repo');
+  assert.match(none.report.error.cause, /no private sign-in on record/);
+  await env.provision();
+  // An install from before Access knew its owner: no owner line in the config, and no key anywhere.
+  const file = join(env.dir, 'app/wrangler.jsonc');
+  writeFileSync(file, readFileSync(file, 'utf8').replace(/^[ \t]*"WONG_OWNER_EMAIL".*\n/gm, ''));
+  const record = env.record();
+  delete record.components.accessKey;
+  writeFileSync(join(env.dir, '.claude/.wong-stack.json'), `${JSON.stringify(record, null, 2)}\n`);
+  env.fake.state.accountTokens = env.fake.state.accountTokens.filter((token) => token.name !== 'recipe-box-access');
+  env.fake.state.workerSecrets = {};
+  env.fake.state.forbidTokens = true;
+  const missing = await run();
+  assert.equal(missing.code, 0, 'a token that can not make keys stops nothing');
+  assert.deepEqual(missing.report.accessKey, { status: 'missing' });
+  assert.deepEqual(missing.report.todo, [ACCESS_KEY_TODO]);
+  assert.match(ACCESS_KEY_TODO, /wiki\/development\/secrets\.md#receive-a-key-through-a-private-link/);
+  assert.deepEqual(env.fake.state.workerSecrets, {});
+  // The owner email does not wait for the key: Access opens and names the one step left.
+  assert.deepEqual([env.config().vars.WONG_OWNER_EMAIL, env.config().env.staging.vars.WONG_OWNER_EMAIL, env.config().env.local.vars.WONG_OWNER_EMAIL], [EMAIL, EMAIL, undefined]);
+  assert.ok(missing.report.updated.includes('app/wrangler.jsonc WONG_OWNER_EMAIL'));
+  assert.match(readFileSync(file, 'utf8'), /\/\/ Session memory, production only/, 'the config keeps its comments');
+  assert.deepEqual(env.record().components.accessKey, { status: 'missing' });
+  env.fake.state.forbidTokens = false;
+  const ready = await run();
+  assert.equal(ready.code, 0);
+  assert.equal(ready.report.accessKey.status, 'ready');
+  assert.deepEqual(ready.report.todo, []);
+  assert.deepEqual(Object.keys(env.fake.state.workerSecrets), ['recipe-box']);
+  assert.deepEqual(env.record().components.accessKey, ready.report.accessKey);
+  // It makes nothing else, and a second run reuses the key.
+  const calls = env.fake.calls.length;
+  const again = await run();
+  assert.deepEqual([again.report.created, again.report.updated, again.report.reused], [[], [], ['sign-in list key recipe-box-access']]);
+  assert.ok(env.fake.calls.slice(calls).every((call) => call.method === 'GET'));
+  assert.equal(env.fake.state.databases.length, 3);
+  assertNoSecret(env, none.text, missing.text, ready.text, again.text);
+});
+
 test('with R2 off the store has no bucket, the config binds none, and the deploy token gets no R2 row', async (t) => {
   const env = await setup(t, { r2: false });
   const report = await env.provision();
@@ -797,7 +910,7 @@ test('a second run creates nothing, keeps the key, and leaves the secrets alone'
   assert.equal(readEnv(join(env.dir, '.env')).CLOUDFLARE_MEMORY_TOKEN, key);
   assert.equal(readFileSync(join(env.dir, 'app/wrangler.jsonc'), 'utf8'), config);
   assert.equal(env.gh.calls().slice(calls.length), `secret list -R ${REPO}\n`);
-  assert.equal(env.fake.state.minted.length, 1);
+  assert.equal(env.fake.state.minted.length, 2, 'the deploy token and the sign-in list key, each made once');
 });
 
 // A run that stops at each step, then runs again, ends with one of everything.
@@ -819,9 +932,11 @@ for (const [where, refuse] of [
     await env.provision();
     assert.equal(env.fake.state.databases.length, 3);
     assert.deepEqual(env.fake.state.buckets, ['recipe-box-memory']);
-    assert.equal(env.fake.state.accountTokens.length, 1);
+    assert.deepEqual(env.fake.state.accountTokens.map((token) => token.name), ['recipe-box-deploy', 'recipe-box-access']);
     assert.equal(env.fake.rows('recipe-box-memory', 'SELECT count(*) AS n FROM memory_keys')[0].n, 1);
-    assert.equal(env.gh.secrets().CLOUDFLARE_API_TOKEN, env.fake.state.minted.at(-1));
+    // The sign-in list key is minted last and goes to the live app, never to GitHub.
+    assert.equal(env.gh.secrets().CLOUDFLARE_API_TOKEN, env.fake.state.minted.at(-2));
+    assert.equal(JSON.parse(env.fake.state.workerSecrets['recipe-box'].WONG_ACCESS_LOGIN_MANAGEMENT).token, env.fake.state.minted.at(-1));
     assert.ok(env.config().name);
   });
 }
@@ -839,7 +954,7 @@ test('a store with no bucket, on an account that now has R2, gets one, in the re
   const [deploy] = env.fake.state.accountTokens;
   assert.ok(deploy.policies[0].permission_groups.some((g) => g.id === groupId('Workers R2 Storage Write')));
   assert.ok(report.updated.includes('deploy token recipe-box-deploy: Workers R2 Storage Write'));
-  assert.equal(env.fake.state.minted.length, 1, 'the secret stays; only the policy changes');
+  assert.equal(env.fake.state.minted.length, 2, 'the secret stays; only the policy changes');
   assert.equal(readEnv(join(env.dir, '.env')).CLOUDFLARE_MEMORY_TOKEN, key);
 });
 
@@ -848,7 +963,10 @@ test('a config with no top-level env is left for a hand edit when a bucket arriv
   writeFileSync(join(env.dir, 'app/wrangler.jsonc'), '{ "name": "recipe-box" }\n');
   env.fake.state.r2 = true;
   const report = await env.provision();
-  assert.deepEqual(report.todo, ['add MEMORY_BUCKET for recipe-box-memory to app/wrangler.jsonc']);
+  assert.deepEqual(report.todo, [
+    'add "WONG_OWNER_EMAIL" with the owner sign-in email to the production and staging vars in app/wrangler.jsonc',
+    'add MEMORY_BUCKET for recipe-box-memory to app/wrangler.jsonc',
+  ]);
   assert.equal(readFileSync(join(env.dir, 'app/wrangler.jsonc'), 'utf8'), '{ "name": "recipe-box" }\n');
 });
 

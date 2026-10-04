@@ -73,5 +73,14 @@
   {"name": "hosted-projects.md", "replacement": "`wiki/stack/getting-started.md` for setup, and `wiki/development/the-change-loop.md#the-gate` for delivery", "allow": ["scripts/tests/fixtures/document-retrieval/corpus/wiki/development/the-change-loop.md"], "why": "this exact frozen retrieval fixture preserves the wording of its pinned snapshot and its reviewed source hash"},
   {"name": "cloudflare-hosted-projects", "replacement": "the `delivery-gate` and `install-onboarding` specs, which own the GitHub route", "allow": ["scripts/tests/fixtures/document-retrieval/corpus/openspec/specs/delivery-gate/spec.md"], "why": "this exact frozen retrieval fixture preserves the wording of its pinned snapshot and its reviewed source hash"},
   {"name": "managed-workspace-access", "replacement": "the `cloudflare-provisioning` spec and `wiki/stack/cloudflare-access.md`"},
-  {"name": "HOSTED_ACCEPTANCE_", "replacement": "nothing: the hosted acceptance test was removed with managed hosting"}
+  {"name": "HOSTED_ACCEPTANCE_", "replacement": "nothing: the hosted acceptance test was removed with managed hosting"},
+  {"name": "app/worker/employee-access/github-registration.ts", "replacement": "manual repository access through its provider; app/API-only Access"},
+  {"name": "app/worker/employee-access/github.ts", "replacement": "manual repository access through its provider; app/API-only Access"},
+  {"name": "app/worker/employee-access/tokens.ts", "replacement": "manual repository access through its provider; app/API-only Access"},
+  {"name": "app/worker/employee-access/publication.ts", "replacement": "manual repository access through its provider; app/API-only Access"},
+  {"name": "WONG_ACCESS_ACTIVATION", "replacement": "the committed `WONG_OWNER_EMAIL`; see `wiki/stack/employee-access.md`"},
+  {"name": "WONG_ACCESS_ROLLOUT", "replacement": "the built apps and the route list in `app/worker/api/router.ts`"},
+  {"name": "WONG_ACCESS_POLICY", "replacement": "permissions that start at the owner's first Access visit"},
+  {"name": "WONG_ACCESS_SEAL_KEY", "replacement": "`WONG_ACCESS_LOGIN_MANAGEMENT`, read from the production Worker on each use"},
+  {"name": "employee-owner-setup", "replacement": "opening Access as the recorded owner; setup supplies the key"}
 ]

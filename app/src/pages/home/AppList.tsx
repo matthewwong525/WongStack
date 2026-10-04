@@ -1,7 +1,11 @@
 import type { MiniApp } from '../../lib/apps'
 import './AppList.css'
 
-export function AppList({ apps }: { apps: MiniApp[] }) {
+export function AppList({ apps, employee = false }: { apps: MiniApp[]; employee?: boolean }) {
+  if (employee && !apps.some(app => app.name !== 'access')) return <div className="app-list-state">
+    <p>No business apps assigned. Contact your employer.</p>
+    <a href="/apps/access/">Open your assistant setup</a>
+  </div>
   if (apps.length === 0) {
     return (
       <div className="app-list-state">

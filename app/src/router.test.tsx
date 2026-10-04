@@ -2,10 +2,11 @@
 
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router";
-import { afterEach, expect, it } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { routes } from "./router";
 
-afterEach(cleanup);
+beforeEach(() => vi.stubGlobal("fetch", vi.fn(async () => Response.json({ state: "legacy" }))));
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
 const open = async (path: string) => {
   const router = createMemoryRouter(routes, { initialEntries: [path] });

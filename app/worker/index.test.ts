@@ -38,7 +38,7 @@ describe("private Worker routing", () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it("denies anonymous and forged identity headers before every protected entry point", async () => {
-    for (const path of [...ASSET_PATHS, "/api/health", "/api/nothing", "/api/actions", "/api/openapi.json", "/apps/hello/api/health"]) {
+    for (const path of [...ASSET_PATHS, "/api/health", "/api/nothing", "/api/access/apps", "/api/actions", "/api/openapi.json", "/apps/hello/api/health"]) {
       expect((await call(path)).status, path).toBe(401);
       expect((await call(path, { "Cf-Access-Authenticated-User-Email": "owner@example.com" })).status, path).toBe(401);
     }
@@ -84,6 +84,36 @@ describe("private Worker routing", () => {
     const unknown = await call("/api/nothing", headers);
     expect(unknown.status).toBe(404);
     expect(await unknown.json()).toEqual({ error: "Not found" });
+    expect((await call("/api/access/unknown", headers)).status).toBe(404);
+    expect(await (await call("/api/access/apps", headers)).json()).toEqual({ state: "legacy" });
+    expect(assets.fetch).not.toHaveBeenCalled();
+  });
+  it("keeps people management behind a signed owner session, with no private pin", async () => {
+    const ownerEmail = "owner@example.com";
+    const origin = "https://workspace.example.com";
+    const first = vi.fn(async () => { throw new Error("private database detail"); });
+    const db = { withSession: vi.fn(() => ({ prepare: () => ({ first, bind: () => ({ first }) }) })) };
+    const bindings = { ...env, WONG_ENVIRONMENT: "production", WONG_OWNER_EMAIL: ownerEmail, DB: db };
+    for (const [endpoint, method] of [["/api/access/status", "GET"], ["/api/access/people", "POST"], ["/api/access/retry", "POST"]]) {
+      expect((await call(endpoint, { Origin: origin }, bindings, method)).status).toBe(401);
+      // A visitor, a machine, and the owner's email with no signed user id manage nobody.
+      for (const claims of [{ email: "visitor@example.com", sub: "visitor" }, { common_name: "service-client", sub: "" }, { email: ownerEmail }]) {
+        expect((await call(endpoint, { Origin: origin, "Cf-Access-Jwt-Assertion": await token(claims) }, bindings, method)).status).toBe(403);
+      }
+    }
+    const signed = await token({ email: ownerEmail, sub: "any-signed-subject" });
+    const [header, , signature] = signed.split(".");
+    const forged = `${header}.${encode({ email: ownerEmail, sub: "any-signed-subject" })}.${signature}`;
+    expect((await call("/api/access/status", { "Cf-Access-Jwt-Assertion": forged }, bindings)).status).toBe(401);
+    expect(db.withSession).not.toHaveBeenCalled();
+    // The recorded owner reaches the database; its failure is reported with no detail.
+    const reached = await call("/api/access/status", { "Cf-Access-Jwt-Assertion": signed }, bindings);
+    expect(reached.status).toBe(503);
+    expect(await reached.json()).toEqual({ code: "access_unavailable" });
+    expect(db.withSession).toHaveBeenCalledWith("first-primary");
+    for (const path of ["/api/access/activate", "/api/access/identity"]) {
+      expect((await call(path, { "Cf-Access-Jwt-Assertion": signed }, bindings)).status).toBe(404);
+    }
     expect(assets.fetch).not.toHaveBeenCalled();
   });
   it("accepts signed employee discovery and rejects forged, expired and wrong-audience assertions", async () => {
@@ -124,7 +154,7 @@ describe("private Worker routing", () => {
   it("serves a check's kept pictures only behind the login, from a bucket no mini app is handed", async () => {
     const picture = "/_walk/abc1234/20261003T140000Z/empty-title/03-after.png";
     const get = vi.fn(async () => ({ body: new Blob(["png"]).stream() }));
-    const walkEnv = { ...env, MEMORY_BUCKET: { get } };
+    const walkEnv = { ...env, MEMORY_BUCKET: { get }, WONG_ACCESS_LOGIN_MANAGEMENT: "private-sign-in-key" };
     expect((await call(picture, {}, walkEnv)).status).toBe(401);
     const open = { ASSETS: assets, WORKSPACE_LOGIN: "off", MEMORY_BUCKET: { get } } as unknown as typeof env;
     expect((await call(picture, {}, open)).status).toBe(404);
@@ -210,6 +240,36 @@ describe("private Worker routing", () => {
     const response = await call(`/?memory_login_link=wongl_${"m".repeat(43)}`, { "Cf-Access-Jwt-Assertion": await token({ email: "human@example.com", sub: "verified-subject" }) }, { ...env, MEMORY_DB: { prepare } });
     expect(response.status).toBe(303); expect(response.headers.get("Location")).toBe("https://workspace.example.com/");
     expect(prepare).toHaveBeenCalledTimes(1);
+  });
+
+  it("checks current grants and self-service membership after signed login on every request", async () => {
+    const row = { policy_enabled: 1, revision: 1, status: "active", apps: '["hello"]' };
+    const first = vi.fn(async () => row);
+    const db = { withSession: vi.fn(() => ({ prepare: () => ({ bind: () => ({ first }) }) })) };
+    const bindings = { ...env, WONG_ENVIRONMENT: "production", WONG_OWNER_EMAIL: "owner@example.com", DB: db };
+    const headers = { "Cf-Access-Jwt-Assertion": await token({ email: "human@example.com", sub: "employee" }) };
+    expect((await call("/apps/hello/api/greeting", headers, bindings)).status).toBe(200);
+    expect(await (await call("/api/access/apps", headers, bindings)).json())
+      .toEqual({ state: "current", role: "employee", revision: 1, apps: ["access", "hello"] });
+    for (const path of ["/apps/hello/", "/apps/hello/subpage", "/apps/access/"]) expect((await call(path, headers, bindings)).status).toBe(200);
+    row.apps = "[]";
+    row.revision = 2;
+    for (const path of ["/apps/hello/", "/apps/hello/subpage"]) expect((await call(path, headers, bindings)).status).toBe(403);
+    expect((await call("/apps/access/", headers, bindings)).status).toBe(200);
+    expect((await call("/apps/hello/api/greeting", headers, bindings)).status).toBe(403);
+    // A person with no apps keeps their own setup.
+    expect(await (await call("/api/access/setup", headers, bindings)).json()).toMatchObject({ api: "authenticated", apps: [], identity: { email: "human@example.com", subject: "employee" } });
+    row.status = "removed";
+    expect((await call("/api/access/setup", headers, bindings)).status).toBe(403);
+    expect((await call("/api/access/apps", headers, bindings)).status).toBe(403);
+    expect((await call("/apps/hello/api/peek", headers, bindings)).status).toBe(403);
+    first.mockRejectedValueOnce(new Error("private database error"));
+    expect((await call("/apps/hello/api/greeting", headers, bindings)).status).toBe(503);
+    expect((await call("/api/health", headers, bindings)).status).toBe(200);
+    expect((await call("/_memory/unknown", {}, bindings)).status).toBe(404);
+    expect(assets.fetch).toHaveBeenCalledTimes(4);
+    expect(db.withSession).toHaveBeenCalledTimes(14);
+    expect(db.withSession).toHaveBeenCalledWith("first-primary");
   });
 
 });

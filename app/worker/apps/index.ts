@@ -4,14 +4,16 @@
 // no edit here. wiki/stack/mini-apps.md
 import { dispatch, registrations, type Route } from "../api/contract.ts";
 import type { AccessIdentity } from "../access.ts";
+import type { PolicyEnv } from "../employee-access/policy.ts";
 
-type MemoryBindings = "MEMORY_DB" | "MEMORY_BUCKET";
+// The memory store and the sign-in list key: a mini app is handed neither.
+type MemoryBindings = "MEMORY_DB" | "MEMORY_BUCKET" | "WONG_ACCESS_LOGIN_MANAGEMENT";
 
 /**
  * Everything the Worker has but the memory store: the database, saved keys, and settings.
  * @public
  */
-export type AppEnv = Omit<Env, MemoryBindings>;
+export type AppEnv = Omit<Env, MemoryBindings> & PolicyEnv;
 
 /**
  * What a handler knows about its call. `identity` is null only on an open workspace.
@@ -44,7 +46,7 @@ export const appActions = [...apps].flatMap(([name, routes]) => registrations(ro
  * stops it importing them. It still runs in the Worker that serves memory, so
  * this stops mistakes, not code written to get around it.
  */
-export function handleApp(request: Request, env: Env, identity: AccessIdentity | null): Response | Promise<Response> {
+export function handleApp(request: Request, env: Env & PolicyEnv, identity: AccessIdentity | null): Response | Promise<Response> {
   const url = new URL(request.url);
   const [, name = "", route = ""] = APP_API.exec(url.pathname) ?? [];
   const handler = apps.get(name)?.get(`${request.method} ${route}`);
@@ -54,5 +56,6 @@ export function handleApp(request: Request, env: Env, identity: AccessIdentity |
   const appEnv: AppEnv & Partial<Record<MemoryBindings, unknown>> = { ...env };
   delete appEnv.MEMORY_DB;
   delete appEnv.MEMORY_BUCKET;
-  return dispatch(handler, request, appEnv, { url, route, identity });
+  delete appEnv.WONG_ACCESS_LOGIN_MANAGEMENT;
+  return dispatch(handler, request, appEnv, { url, route, identity }, { apps: [name] });
 }

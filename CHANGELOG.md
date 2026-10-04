@@ -3,6 +3,19 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 31.2.0 — Sign in and connect your assistant
+
+- **Access opens for the owner.** A new mini app, Access, lists the people who can sign in and the apps each may use. The owner is the sign-in email setup recorded: open Access with that email and the list is there, with no hidden settings and no commands.
+- **Add person does everything in one save.** Type an email, tick the apps, save. The app records the choices and adds the email to the sign-in list itself. One line per person says whether they can sign in, and *Try again* shows only when that step failed.
+- **Nobody loses an app.** The first time the owner opens Access, everyone who could already sign in is listed with every app ticked. Until then, everyone keeps every app. A person added later starts with none, and a newly built app shows up unticked.
+- **The same choices apply everywhere.** App cards, direct visits, app calls and assistant actions all check a person's current apps. Unticking an app blocks their next request, even while they stay signed in.
+- **Removing a person blocks them at once and signs everyone out.** Their app use stops with the save. Taking them off the sign-in list ends every open session, so the people who remain sign in again. This can't be undone.
+- **A preview has its own practice list.** On a preview link the owner can add people and choose apps to try the screen. Those choices stay on previews and never touch the real sign-in list.
+- **Everyone gets the setup prompt.** Home and Access show one *Connect your assistant* box. Copy the prompt, paste it into an assistant on any computer, even in an empty folder, and approve the same sign-in there. The prompt holds no keys.
+- **Access to the project's code stays separate.** Signing in to the app gives none; the owner grants that where the code is kept. Memory setup is separate too.
+
+**Updating.** Your apps, pages, branding, customer data and memory stay as they are, and everyone who can sign in keeps every app until you untick one. The update adds your sign-in email to the app's settings file, so Access knows you are the owner. It then runs `provision.mjs access`, the setup tool's step that makes one new Cloudflare key and stores it in your live app only. The key can change sign-in rules across your Cloudflare account; the app uses it only for its own sign-in list. If your saved Cloudflare token can no longer make keys, the update still finishes: Access opens, saves app choices, and says one step is left, and the assistant sends you a private link to paste a token that can. A site that is open with no sign-in is unchanged: turn the sign-in on first.
+
 ## 31.1.0 — Learn from chats where the assistant struggled
 
 - When a chat is saved, the assistant also writes a short note for each real moment of trouble: you corrected it, you typed your own answer instead of picking a choice it offered, a step failed again and again, or it hunted a long time for something. A smooth chat gets none, and a note never holds anything private.

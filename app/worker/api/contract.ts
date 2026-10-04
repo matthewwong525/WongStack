@@ -1,6 +1,8 @@
 // The route's contract validates both callers and generates its discovery.
 import { z } from "zod";
 import type { AppCall, AppEnv, AppHandler } from "../apps/index.ts";
+import { authorizeRequest, type RouteAccess } from "../employee-access/policy.ts";
+import { boundedBytes } from "./body.ts";
 
 /** Supported wire input, also used when building an action. @public */
 export type Encoding = "none" | "query" | "json";
@@ -25,7 +27,7 @@ export type Action = {
   limits?: { inputBytes: number; outputBytes: number; timeoutMs: number };
 };
 export type Route = AppHandler | Action;
-export type Registration = { method: string; path: string; app: string; action: Action };
+export type Registration = { method: string; path: string; app: string; action: Action; access?: RouteAccess };
 const defaults = { inputBytes: 65536, outputBytes: 262144, timeoutMs: 15000 };
 const codes: Record<string, [number, string]> = {
   invalid_input: [400, "Invalid input"], authentication_required: [401, "Company login required"],
@@ -94,7 +96,7 @@ export function defineAction(action: Action): Action {
   return action;
 }
 
-export function registrations(routes: Map<string, Route>, app = "main"): Registration[] {
+export function registrations(routes: Map<string, Route>, app = "main", access?: ReadonlyMap<string, RouteAccess>): Registration[] {
   const result: Registration[] = [];
   for (const [key, route] of routes) {
     if (typeof route === "function") continue;
@@ -104,7 +106,8 @@ export function registrations(routes: Map<string, Route>, app = "main"): Registr
     }
     const path = app === "main" ? match[2] : `/apps/${app}/api/${match[2]}`;
     if (!/^\/(?:api|apps)\/[a-zA-Z0-9/_-]+$/.test(path)) throw new Error(`Invalid route: ${key}`);
-    result.push({ method: match[1], path, app, action: defineAction(route) });
+    result.push({ method: match[1], path, app, action: defineAction(route),
+      access: app === "main" ? access?.get(key) : { apps: [app] } });
   }
   return result;
 }
@@ -121,21 +124,7 @@ export function uniqueActions(items: Registration[]): Registration[] {
 // Read streams with a bound before parsing; a declared Content-Length is not trusted.
 export async function boundedText(body: ReadableStream<Uint8Array> | null, max: number): Promise<string> {
   if (!body) return "";
-  const reader = body.getReader();
-  const chunks: Uint8Array[] = [];
-  let size = 0;
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      size += value.byteLength;
-      if (size > max) throw new Error("Size limit exceeded");
-      chunks.push(value);
-    }
-  } finally { await reader.cancel(); }
-  const bytes = new Uint8Array(size);
-  let offset = 0;
-  for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+  const bytes = await boundedBytes(body, max, () => new Error("Size limit exceeded"));
   return new TextDecoder().decode(bytes);
 }
 
@@ -194,7 +183,9 @@ async function execute(action: Action, request: Request, env: AppEnv, call: AppC
   } catch { return actionError("internal_error"); }
 }
 
-export async function dispatch(route: Route, request: Request, env: AppEnv, call: AppCall): Promise<Response> {
+export async function dispatch(route: Route, request: Request, env: AppEnv, call: AppCall, access?: RouteAccess): Promise<Response> {
+  const denied = await authorizeRequest(env, call.identity, access);
+  if (denied) return denied;
   if (typeof route === "function") return route(request, env, call);
   if ((route.requiresIdentity !== false || route.ready) && !call.identity) return actionError("authentication_required");
   if (route.allowed && !route.allowed(call.identity)) return actionError("forbidden");

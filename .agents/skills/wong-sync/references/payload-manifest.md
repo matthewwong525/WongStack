@@ -8,7 +8,7 @@ Every install starts empty and takes **every** category.
 
 - **Core** always ships: WongStack workflow skills with their whole `references/` and `scripts/` folders, the browser discovery skill, the hidden `hand-over` skill whose scripts open the private links, the hidden `browser` skill that runs Cloudflare's cloud browser when a site blocks the agent's own, `/improve` for one useful improvement, the `/routine` Paseo scheduler and its scripts, the `memory` skill with its session-start and pre-edit hooks for Claude (`.claude/settings.json`) and Codex (`.claude/hooks.json`), Codex project settings (`.claude/config.toml`), the Paseo project file (`paseo.json`), path rules, process pages, CI's `.nvmrc`, test workflow, portable check entry point and quality scripts, and shared change-scope action, and the `WONG-STACK` block of `CLAUDE.md`.
 - **UI** adds [`ux-principles.md`](../../../../wiki/ux-principles.md) for user-facing screens.
-- **Pack** adds the pipeline scripts, workflow, schema, `wiki/stack/` pages and [company helper](../../../../scripts/company-api.mjs). Core memory ships its dependency-free read descriptions and adapter with the whole skill; the helper imports them without app packages.
+- **Pack** adds scripts, workflow, schema, `wiki/stack/` and [company calls](../../../../scripts/company-api.mjs). Employee migrations are additive; memory imports need no app packages.
 - **Scaffold** adds `app/`, except `app/wrangler.jsonc`, which holds source-repo database IDs.
 
 ## The agent folder
@@ -82,7 +82,7 @@ Create live database IDs and secrets in the target; never copy them. No copied f
 
 A starter React/Vite Worker app with its own tests and package manifest. `app/worker/index.ts` sends `/_memory/` to the memory skill's route module and, after the login check, `/_walk/` to the verify skill's, so each route updates with its skill; only those imports and branches sit in `app/`, plus the narrow authenticated root callback for memory’s normal-login marker. Adapt that callback with the existing signed identity validator; add no page or binding. Below its workspace heading, the [welcome](../../../../wiki/stack/mini-apps.md), `app/src/pages/home/Tutorial.tsx`, offers one chat request to name the workspace and remove the guide, with explanations and a preview before publishing. Update `Tutorial.tsx`, `.css`, and `.test.tsx` only while the target's `Home.tsx` (flat layout: `app/src/App.tsx`) renders `<Tutorial />`; otherwise it stays removed. `/apps/` redirects to `/`, whose app list is compiled in from `app/src/apps/`. The test workflow runs `npm test` at the root or one folder down, and passes with none. No root `package.json` is copied.
 
-[Mini apps](../../../../wiki/stack/mini-apps.md) are part of the app scaffold: each has its page in `app/src/apps/<name>/` and its server side in `app/worker/apps/<name>/`, found by the registries beside them. Only the example, `hello`, ships; `scaffold.exclude` keeps every other app made here, such as `tips`, out of a target, so list a new source-only app there.
+[Mini apps](../../../../wiki/stack/mini-apps.md): `hello` and `access` ship; `scaffold.exclude` omits source-only apps such as `tips`. Preserve custom apps, routes, branding, removed welcomes and independent memory. Access/bootstrap/migrations ship explicitly; repository access stays manual.
 
 ## OpenSpec integration and migration
 

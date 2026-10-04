@@ -2,7 +2,7 @@
 // Cloudflare provisioning for a WongStack repo: the one set of steps setup's runbook
 // (references/cloudflare.md) runs.
 //
-//     node provision.mjs widen | accounts | names --repo <owner/name> | provision --repo <owner/name> --base <base>
+//     node provision.mjs widen | accounts | names --repo <owner/name> | provision --repo <owner/name> --base <base> | access
 //
 // Each command prints one JSON report and never a token. The token is CLOUDFLARE_API_TOKEN, from the
 // environment or the target's .env. WONG_CLOUDFLARE_API points every call at another API base, for tests.
@@ -16,7 +16,7 @@ import { isMain } from '../../memory/scripts/lib/cli.mjs';
 import { machineId, machineIdFile } from '../../memory/scripts/lib/machine-id.mjs';
 import { keyMachine, parseEnv } from '../../memory/scripts/lib/store.mjs';
 import { PrimaryRootError, primaryRoot } from '../../memory/scripts/lib/primary-root.mjs';
-import { AccessSetupError, accessOrganization, ownerIdentity, provisionAccess, provisionAccessPolicies } from './private-access.mjs';
+import { AccessSetupError, accessOrganization, loginManagementKey, ownerIdentity, provisionAccess, provisionAccessPolicies } from './private-access.mjs';
 import { privateDeployment } from '../../../../scripts/lib-access-config.mjs';
 import { parseConfig } from '../../../../scripts/lib-wrangler-config.mjs';
 
@@ -60,6 +60,10 @@ export const DEPLOY_TOKEN = [
   { name: 'Workers R2 Storage Write', scope: 'account', when: 'bucket', id: 'bf7481a1826f439697cb59a20b22293e' },
   { name: 'Workers Routes Write', scope: 'zone', when: 'routes', id: '28f4b596e7d643029c524985477ae49a' },
 ];
+/** The live app's sign-in list key: Access policy writes on this one account, and nothing the deploy token holds. */
+export const ACCESS_KEY = [{ name: 'Access: Apps and Policies Write', scope: 'account', id: '1e13c5124ca64b72b1969a67e8829049' }];
+/** The to-do a report carries when the token could not make that key. Access still opens and saves app choices. */
+export const ACCESS_KEY_TODO = 'the live app has no key for its sign-in list, because the saved Cloudflare token can not make keys: send the private key link (wiki/development/secrets.md#receive-a-key-through-a-private-link) for a Cloudflare token with Account API Tokens Write, then run `provision.mjs access`';
 
 /** Why a step stopped: `token`, `cloudflare`, or `repo`, with a plain cause. */
 export class ProvisionError extends Error {
@@ -400,6 +404,8 @@ export function wranglerConfig({ base, ids, bucket, today, access }, fragment = 
     '<access app id>': access?.appId ?? '',
     '<production Worker id>': access?.workers?.[0]?.id ?? '',
     '<staging Worker id>': access?.workers?.[1]?.id ?? '',
+    // The owner Access knows. An open site has no sign-in to know anyone by, so it stays blank there.
+    '<owner email>': access?.mode === 'open' ? '' : (access?.ownerEmail ?? ''),
   };
   for (const [placeholder, value] of Object.entries(fill)) text = text.replaceAll(placeholder, value);
   if (access?.mode === 'open') text = text.replace(/^(\s*)"WONG_ENVIRONMENT": "(production|staging)",[ \t]*$/gm, '$&\n$1"WORKSPACE_LOGIN": "off",');
@@ -450,6 +456,33 @@ function closeOpenConfig(file, access) {
   }
   writeFileSync(file, before);
   return false;
+}
+
+/**
+ * Sets `WONG_OWNER_EMAIL` in production's and staging's vars of an existing config, in place, comments kept:
+ * a value already there is replaced, else the line goes after `WONG_ENVIRONMENT`. Returns `updated`,
+ * `current`, or false when the config has neither place twice.
+ */
+function setOwnerEmail(file, email) {
+  const before = readFileSync(file, 'utf8');
+  let seen = 0;
+  const count = (text) => {
+    seen++;
+    return text;
+  };
+  let text = before.replace(/("WONG_OWNER_EMAIL"\s*:\s*)"[^"\n]*"/g, (_, head) => count(`${head}"${email}"`));
+  if (!seen) text = before.replace(/^([ \t]*)"WONG_ENVIRONMENT": "(?:production|staging)",[ \t]*$/gm, (line, indent) => count(`${line}\n${indent}"WONG_OWNER_EMAIL": "${email}",`));
+  if (seen !== 2) return false;
+  if (text === before) return 'current';
+  writeFileSync(file, text);
+  return 'updated';
+}
+
+/** Notes the owner email in an existing config, or leaves a to-do when the config has no place for it. */
+function ownerEmailInConfig(config, email, { note, todo }) {
+  const result = setOwnerEmail(config, email);
+  if (result === 'updated') note('updated', 'app/wrangler.jsonc WONG_OWNER_EMAIL');
+  if (!result) todo.push('add "WONG_OWNER_EMAIL" with the owner sign-in email to the production and staging vars in app/wrangler.jsonc');
 }
 
 /** The two `db:migrate:*` scripts, filled with the literal database names, after `build:app`. */
@@ -524,7 +557,7 @@ const hasKey = (env, localId) => keyMachine(env.CLOUDFLARE_MEMORY_TOKEN) === loc
 /**
  * Everything after the one billable ask, under `base`: the memory store (R2 check, database, bucket),
  * the subdomain, the record's `components.memory`, the memory schema, the admin key, both app databases,
- * the config, and the deploy token in the GitHub secret. `keepConfig` leaves an installed repo's
+ * the config, the deploy token in the GitHub secret, and the live app's key for its sign-in list. `keepConfig` leaves an installed repo's
  * committed files as they are, and adds no new bucket they would need. `openWithoutLogin` lets a Zero
  * Trust organization Cloudflare refuses (onboarding, usually a card) record `access.mode: 'open'` and go
  * on without Access; a site already private never opens, and a rerun that gets the organization turns an
@@ -639,6 +672,8 @@ export async function provision({ token, api, fetch, account, repo, base, ownerE
         if (closeOpenConfig(config, report.access)) note('updated', 'app/wrangler.jsonc: private login on, WORKSPACE_LOGIN removed');
         else report.todo.push('fill the CF_ACCESS_* vars from components.access and remove WORKSPACE_LOGIN in app/wrangler.jsonc');
       }
+      // Access knows its owner only on a private site; a config still open is left as it is.
+      if (!open && !/"WORKSPACE_LOGIN"/.test(readFileSync(config, 'utf8'))) ownerEmailInConfig(config, loginEmail, { note, todo: report.todo });
       if (bucket && !readFileSync(config, 'utf8').includes('MEMORY_BUCKET')) {
         if (addBucketBinding(config, bucket)) note('updated', 'app/wrangler.jsonc MEMORY_BUCKET');
         else report.todo.push(`add MEMORY_BUCKET for ${bucket} to app/wrangler.jsonc`);
@@ -664,9 +699,47 @@ export async function provision({ token, api, fetch, account, repo, base, ownerE
     note('created', 'GitHub secret CLOUDFLARE_ACCOUNT_ID');
   }
 
+  // What Access needs last: the live app's own key. The deploy token is never reused and gains no Access write.
+  if (!open) {
+    report.accessKey = await step('cloudflare', () => loginManagementKey(cf, {
+      account, name: `${n.worker}-access`, worker: n.worker, policyId: report.access.humanPolicyId,
+      policies: () => accountPolicy(account, groups, ACCESS_KEY), state, checkpoint, note,
+    }));
+    if (report.accessKey.status === 'missing') report.todo.push(ACCESS_KEY_TODO);
+    recordComponent(dir, 'accessKey', report.accessKey, note);
+  }
+
   report.memory = { database: n.memory, bucket, worker };
   report.urls = { production: `https://${n.worker}.${sub}.workers.dev`, previews: `https://<branch>-${n.staging}.${sub}.workers.dev` };
   return report;
+}
+
+/**
+ * What Access needs on a repo installed before it knew its owner: the recorded owner's email in both
+ * Workers' vars, and the live app's own key. Reads the install record and makes nothing else, so an
+ * update runs it alone. A site with no sign-in on record has nothing to do.
+ */
+export async function accessSetup({ token, api, fetch, account, ownerEmail, dir = '.', exec = run }) {
+  const cf = cloudflare(token, { api, fetch });
+  const report = { created: [], reused: [], updated: [], todo: [] };
+  const note = (list, what) => report[list].push(what);
+  const access = readJson(recordFile(dir))?.components?.access;
+  const worker = access?.workers?.[0]?.name;
+  if (!access?.appId || !access.humanPolicyId || !worker) throw new ProvisionError('repo', 'this repo has no private sign-in on record; run provision first');
+  const email = ownerIdentity(ownerEmail ?? access.ownerEmail);
+  const provisionStateFile = await stateFile(dir, exec);
+  const state = readJson(provisionStateFile, {});
+  const key = await step('cloudflare', () => loginManagementKey(cf, {
+    account, name: `${worker}-access`, worker, policyId: access.humanPolicyId, state, note,
+    policies: async () => accountPolicy(account, await cf('GET', '/user/tokens/permission_groups?per_page=1000'), ACCESS_KEY),
+    checkpoint: () => writeJson(provisionStateFile, state),
+  }));
+  if (key.status === 'missing') report.todo.push(ACCESS_KEY_TODO);
+  const config = join(dir, 'app', 'wrangler.jsonc');
+  if (existsSync(config)) ownerEmailInConfig(config, email, { note, todo: report.todo });
+  recordComponent(dir, 'access', { ownerEmail: email }, note);
+  recordComponent(dir, 'accessKey', key, note);
+  return { ...report, ownerEmail: email, accessKey: key };
 }
 
 // ── the command line ────────────────────────────────────────────────────────
@@ -678,10 +751,12 @@ const USAGE = `usage: provision.mjs <command> [--dir <repo>] [--account <id>]
   provision --repo <owner/name> --base <base> [--owner-email <email>] [--keep-config] [--open-without-login]
                                           make or reuse the memory store, databases, config, and deploy token;
                                           --open-without-login goes on, open, when Zero Trust needs onboarding
+  access [--owner-email <email>]          on an installed repo with sign-in on: put the owner's email in both Workers'
+                                          vars and give the live app its own key for the sign-in list
 --dir is the target repo (default: here). The token is CLOUDFLARE_API_TOKEN and the account CLOUDFLARE_ACCOUNT_ID,
 from the environment or the target's .env. Each command prints one JSON report, never a token.`;
 
-const NEEDS = { widen: [], accounts: [], names: ['account', 'repo'], provision: ['account', 'repo', 'base'] };
+const NEEDS = { widen: [], accounts: [], names: ['account', 'repo'], provision: ['account', 'repo', 'base'], access: ['account'] };
 
 /** Runs one command and returns the exit code: 0 done, 1 stopped (with a JSON reason), 2 usage. */
 export async function cli(argv, { env = process.env, out = console.log, err = console.error, fetch, sleep } = {}) {
@@ -729,6 +804,7 @@ export async function cli(argv, { env = process.env, out = console.log, err = co
     accounts: () => accounts(common),
     names: () => names(common),
     provision: () => provision({ ...common, base: safeName(options.base), ownerEmail: values['owner-email'], keepConfig: Boolean(values['keep-config']), openWithoutLogin: Boolean(values['open-without-login']) }),
+    access: () => accessSetup({ ...common, ownerEmail: values['owner-email'] }),
   };
   try {
     out(JSON.stringify(await commands[command](), null, 2));
