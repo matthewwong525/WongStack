@@ -47,3 +47,16 @@ The implementation keeps strict owner pins independent of the legacy policy latc
 GitHub registration handles customer-owned organization Apps, distinct manifest/install callbacks, disabled webhooks and one-use current-owner/CSRF checks; pending organization approval resumes the same sealed App. Owner-only read metadata permissions are excluded from employee tokens. The supported synthetic fixture retains WongStack read-only CI and owner-approved protected preview/production jobs; the current shared-secret/dynamic-environment workflow is explicitly denied. These fixtures establish neither live endpoint permission support nor actual provider publication readiness; task 7.2 remains separate.
 
 Continuation: `/api/access/setup` now supplies authenticated caller-only API/editing/provider availability for 4.x/5.x. Bootstrap must independently prove local connection and memory state. The explicit payload inventory includes the new migration and owner consumer. Task 6.x must additionally enforce production/staging management-secret separation in secret distribution tooling; current owning guidance requires a separate staging file with all production connection authority explicitly empty. Source runtime management already rejects staging. No scheduler was installed; owner retries drive durable work and existing schedules/config remain unchanged.
+
+### Shared gate corrections (not yet passed)
+
+First correction at `63f10b7`: split high-complexity functions, escaped workflow expressions in the synthetic fixture, and retained the remote coverage map for diagnosis. No limit or failure was relaxed.
+
+Second correction responds to all failing checks at that head:
+
+- App tests: all 172 passed; strict coverage exposed missing authority/race/failure cases. Added tests for those runtime cases and removed an unreachable optional-holder fallback after lease admission.
+- Build/staging: Node-only SQLite/crypto fixture helpers were included by the Worker TypeScript project; moved them into `app/tests/employee-access/` outside runtime source, keeping their test consumers and unchanged build/coverage configuration. Added Cloudflare's required `ignoreBOM` decoder option.
+- Payload/generated starter: all 166 generated-app tests passed; the same runtime coverage gaps failed its gate. The shared source fixes apply to the generated starter.
+- The workflow-setting detector required a formal Check record for the diagnostic artifact step; recorded that addition in the proposal without lowering any gate.
+
+These are source-related failures; no unrelated failed run was rerun. Provider authority, local execution and task completion remain unchanged until the remote checks pass.

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { connectLogin, reconcileLogin } from "./login-management";
 import { accessStatus, changeMember } from "./members";
-import { fixture, pin, employee } from "./connections.test-support";
+import { fixture, pin, employee } from "../../tests/employee-access/connections";
 import { lease } from "./core";
 let f: ReturnType<typeof fixture>;
 let policy: Record<string, unknown>;
@@ -187,6 +187,29 @@ it("commits explicit apps, editing removal, tombstones and audit atomically", as
   f.sql.exec("CREATE TRIGGER fail_audit BEFORE INSERT ON wong_access_audit BEGIN SELECT RAISE(ABORT, 'fail'); END");
   await expect(change(false)).rejects.toThrow();
   expect(f.sql.prepare("SELECT status FROM wong_access_members").get()).toEqual({ status: "removed" });
+});
+
+it("does not start an external policy write after lease or generation changes during admission", async () => {
+  await connect();
+  const batch = f.core.db.batch.bind(f.core.db);
+  const raced = vi.spyOn(f.core.db, "batch").mockImplementation(async statements => {
+    const result = await batch(statements);
+    f.sql.exec("UPDATE wong_access_work SET generation = generation + 1 WHERE kind = 'policy'");
+    return result;
+  });
+  await reconcileLogin(f.core, "policy");
+  expect(writes).toEqual([]);
+  expect(f.sql.prepare("SELECT status FROM wong_access_policy_writes").get()).toEqual({ status: "completed" });
+  raced.mockRestore();
+  const original = fetch.getMockImplementation()!;
+  fetch.mockImplementation(async (url, init) => {
+    const result = await original(url, init);
+    if (url.includes("/policies") && init.method === "GET") f.sql.exec("UPDATE wong_access_leases SET expires_at = '2000-01-01'");
+    return result;
+  });
+  await reconcileLogin(f.core, "policy");
+  expect(writes).toEqual([]);
+  expect(f.sql.prepare("SELECT error_code FROM wong_access_work WHERE kind = 'policy'").get()).toEqual({ error_code: "provider_lease_expired" });
 });
 
 it("reports a crashed or lost old provider write pending even after a newer removal readback matches", async () => {

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { fixture, pin, employee, owner, req } from "./connections.test-support";
-import { githubFixture } from "./github.test-support";
+import { fixture, pin, employee, owner, req } from "../../tests/employee-access/connections";
+import { githubFixture } from "../../tests/employee-access/github";
 import { issueToken, revokeTokens } from "./tokens";
 import { changeMember } from "./members";
 import { seal } from "./seal";
@@ -12,7 +12,7 @@ const nextId = "ffffffff-ffff-4fff-8fff-ffffffffffff";
 const data = { machineId, receiptId };
 const issue = (value: unknown = data, identity = employee, bindings = f.env) => issueToken(req("token"), bindings, identity, value);
 beforeEach(async () => { f = fixture(); g = await githubFixture(f); });
-afterEach(() => { f.sql.close(); vi.unstubAllGlobals(); vi.useRealTimers(); });
+afterEach(() => { f.sql.close(); vi.unstubAllGlobals(); vi.restoreAllMocks(); vi.useRealTimers(); });
 
 it("issues one scoped sealed receipt and reuses exact completed credentials after a lost local response", async () => {
   const first = await issue(), body = await first.json();
@@ -138,4 +138,51 @@ it("preserves unknown in-flight issuance and expires only its conservative deadl
   f.sql.prepare("UPDATE wong_access_receipts SET status = 'revoke_pending', sealed_token = ?").run(sealed);
   await revokeTokens(f.core);
   expect(f.sql.prepare("SELECT status FROM wong_access_receipts").get()).toEqual({ status: "revoked" });
+});
+
+it("rechecks authority and receipt withdrawal after decrypting a previously issued token", async () => {
+  await issue();
+  const decrypt = crypto.subtle.decrypt.bind(crypto.subtle);
+  const changed = vi.spyOn(crypto.subtle, "decrypt").mockImplementation(async (...args) => {
+    const result = await decrypt(...args);
+    f.sql.exec("UPDATE wong_access_members SET revision = revision + 1");
+    return result;
+  });
+  await expect(issue()).rejects.toMatchObject({ code: "receipt_not_ready" });
+  changed.mockRestore();
+  f.sql.exec("UPDATE wong_access_members SET revision = 1");
+  vi.spyOn(crypto.subtle, "decrypt").mockImplementation(async (...args) => {
+    const result = await decrypt(...args);
+    f.sql.exec("UPDATE wong_access_receipts SET status = 'revoke_pending'");
+    return result;
+  });
+  await expect(issue()).rejects.toMatchObject({ code: "receipt_not_ready" });
+});
+
+it("does not create an editing token after changed grants or the admission deadline", async () => {
+  const original = g.fetch.getMockImplementation()!;
+  for (const delayed of [false, true]) {
+    const started = Date.now();
+    g.fetch.mockImplementation(async (url, init) => {
+      const result = await original(url, init);
+      if (init.method === "DELETE") {
+        if (delayed) vi.spyOn(Date, "now").mockReturnValue(started + 600_000);
+        else f.sql.exec("UPDATE wong_access_members SET revision = revision + 1");
+      }
+      return result;
+    });
+    await expect(issue()).rejects.toMatchObject({ code: "editing_changed" });
+    expect(g.fetch.mock.calls.filter(([url, init]) => url.endsWith("access_tokens") && JSON.parse(String(init.body)).permissions.contents === "write"))
+      .toHaveLength(0);
+    vi.restoreAllMocks();
+    f.sql.exec("DELETE FROM wong_access_receipts; UPDATE wong_access_members SET revision = 1");
+  }
+});
+
+it("withholds and revokes a created token if its durable delivery receipt disappears", async () => {
+  f.sql.exec("CREATE TRIGGER lose_receipt AFTER UPDATE OF sealed_token ON wong_access_receipts WHEN NEW.sealed_token IS NOT NULL BEGIN DELETE FROM wong_access_receipts WHERE receipt_id = NEW.receipt_id; END");
+  await expect(issue()).rejects.toMatchObject({ code: "receipt_not_ready" });
+  expect(f.sql.prepare("SELECT COUNT(*) count FROM wong_access_receipts").get()).toEqual({ count: 0 });
+  expect(g.fetch.mock.calls.some(([url, init]) => url.endsWith("/installation/token") && init.method === "DELETE" &&
+    String((init.headers as Record<string, string>).Authorization).includes("employee-private-token"))).toBe(true);
 });

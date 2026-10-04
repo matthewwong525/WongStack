@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { vi } from "vitest";
-import { appPermissions, saveGithub, type GithubApp } from "./github.ts";
-import { fixture, pin, privateKey } from "./connections.test-support.ts";
+import { appPermissions, saveGithub, type GithubApp } from "../../worker/employee-access/github.ts";
+import { fixture, pin, privateKey } from "./connections.ts";
 export async function githubFixture(f: ReturnType<typeof fixture>) {
   const app: GithubApp = { appId: 456, installationId: 789, slug: "business-assistant", privateKey: await privateKey() };
   const deploy = `name: Deploy

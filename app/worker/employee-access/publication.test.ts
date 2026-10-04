@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { fixture } from "./connections.test-support";
-import { githubFixture } from "./github.test-support";
+import { fixture } from "../../tests/employee-access/connections";
+import { githubFixture } from "../../tests/employee-access/github";
 import { verifyPublication } from "./publication";
 let f: ReturnType<typeof fixture>;
 let g: Awaited<ReturnType<typeof githubFixture>>;

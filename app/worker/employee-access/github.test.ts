@@ -2,11 +2,11 @@ import { createPrivateKey } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { appJwt, appPermissions, checkGithubConnection, createRepositoryToken, editorPermissions, githubMaterial, saveGithub, verifyGithub } from "./github";
-import { fixture, pin, req, privateKey } from "./connections.test-support";
-import { githubFixture } from "./github.test-support";
+import { fixture, pin, req, privateKey } from "../../tests/employee-access/connections";
+import { githubFixture } from "../../tests/employee-access/github";
 import { startGithub, registerGithub, installGithub } from "./github-registration";
 import { management } from "./management";
-import { owner, employee } from "./connections.test-support";
+import { owner, employee } from "../../tests/employee-access/connections";
 let f: ReturnType<typeof fixture>;
 let g: Awaited<ReturnType<typeof githubFixture>>;
 beforeEach(async () => { f = fixture(); g = await githubFixture(f); });
@@ -167,4 +167,25 @@ it("resumes a sealed organization App with a fresh install attempt after pending
   expect(result.headers.get("Location")).toContain("github=checked");
   expect(result.headers.get("Referrer-Policy")).toBe("no-referrer");
   expect(f.sql.prepare("SELECT status FROM wong_access_connections").get()).toEqual({ status: "ready" });
+});
+
+it("keeps account registration and unpublished protection review independent", async () => {
+  const review = JSON.parse(f.env.WONG_GITHUB_PUBLICATION!);
+  f.env.WONG_GITHUB_PUBLICATION = JSON.stringify({ ...review, repositoryOwnerType: "User", repositoryOwnerId: 99 });
+  const personal = await attempt();
+  const value = await personal.result.json();
+  expect(new URL(value.url).pathname).toBe("/settings/apps/new");
+  expect(value.manifest).toMatchObject({ setup_url: `${pin.origin}/api/access/github/install`, hook_attributes: { active: false } });
+  f.env.WONG_GITHUB_PUBLICATION = undefined;
+  await expect(startGithub(f.core)).rejects.toMatchObject({ code: "publication_review_required" });
+});
+
+it("refuses an App owned by a different account and unexpected metadata write authority", async () => {
+  g.responses.set("/app", { id: g.app.appId, owner: { id: 900, type: "Organization" } });
+  await expect(verifyGithub(f.core, g.app)).rejects.toMatchObject({ code: "github_owner_mismatch" });
+  const a = await attempt();
+  g.fetch.mockImplementationOnce(async () => Response.json({ id: 456, slug: "business-assistant", pem: g.app.privateKey,
+    permissions: { ...appPermissions, metadata: "write" } }));
+  await expect(registerGithub(f.core, req(`github/register?code=x&state=${a.state}`, "GET", undefined, { Cookie: a.cookie })))
+    .rejects.toMatchObject({ code: "github_permissions_invalid" });
 });

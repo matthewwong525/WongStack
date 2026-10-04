@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs";
 import { DatabaseSync, type SQLInputValue } from "node:sqlite";
-import type { AccessIdentity } from "../access.ts";
-import type { ConnectionEnv, Core } from "./core.ts";
-import { encode } from "./seal.ts";
+import type { AccessIdentity } from "../../worker/access.ts";
+import type { ConnectionEnv, Core } from "../../worker/employee-access/core.ts";
+import { encode } from "../../worker/employee-access/seal.ts";
 export const pin = { version: 1 as const, installationId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
   origin: "https://business.example.com", accountId: "a".repeat(32), workerId: "worker",
   accessAppId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", accessPolicyId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",

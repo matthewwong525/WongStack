@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { fixture, owner, employee, pin, req } from "./connections.test-support";
-import { githubFixture } from "./github.test-support";
+import { fixture, owner, employee, pin, req } from "../../tests/employee-access/connections";
+import { githubFixture } from "../../tests/employee-access/github";
 import { management } from "./management";
 import { prepare, rollout, enableEditing } from "./rollout";
 import { catalogue } from "./apps";
@@ -8,6 +8,7 @@ import { mainRouteInventory } from "../api/router";
 import { setupStatus } from "./setup";
 import { handleAccess } from "./router";
 import { lease } from "./core";
+import { startGithub } from "./github-registration";
 let f: ReturnType<typeof fixture>;
 let g: Awaited<ReturnType<typeof githubFixture>>;
 const plan = () => ({ version: 1, apps: [...catalogue], mainRoutes: mainRouteInventory(), people: [{ email: employee.id, apps: [], editing: true }] });
@@ -107,4 +108,40 @@ it("provides employee-specific authenticated setup without owner material or inv
   f.sql.exec("UPDATE wong_access_installation SET policy_enabled = 0");
   expect((await handleAccess(req("identity", "GET"), f.env, owner)).status).toBe(200);
   expect((await handleAccess(req("status", "GET"), f.env, employee)).status).toBe(403);
+});
+
+it("handles owner callbacks through the finite router and cleans browser callback state", async () => {
+  f.sql.exec("DELETE FROM wong_access_connections");
+  const started = await startGithub(f.core), start = await started.json();
+  const state = new URL(start.url).searchParams.get("state")!;
+  const cookie = started.headers.get("Set-Cookie")!.split(";")[0];
+  const registered = await management(req(`github/register?code=x&state=${state}`, "GET", undefined, { Cookie: cookie }), f.env, owner);
+  expect(registered.status).toBe(303);
+  const installState = new URL(registered.headers.get("Location")!).searchParams.get("state")!;
+  const installed = await management(req(`github/install?installation_id=789&state=${installState}`, "GET", undefined, { Cookie: cookie }), f.env, owner);
+  expect(installed.status).toBe(303);
+  expect(installed.headers.get("Location")).toBe(`${pin.origin}/apps/access/?github=checked`);
+});
+
+it("reviews every member when rolling out a multi-person installation", async () => {
+  f.sql.prepare("INSERT INTO wong_access_members VALUES (?, 'zeta@example.com', 'active', 0, 1, 'now')").run(pin.installationId);
+  f.env.WONG_ACCESS_ROLLOUT = JSON.stringify({ ...plan(), people: [
+    { email: "zeta@example.com", apps: [], editing: false }, ...plan().people,
+  ] });
+  await rollout(f.core);
+  expect(f.sql.prepare("SELECT policy_enabled FROM wong_access_installation").get()).toEqual({ policy_enabled: 1 });
+});
+
+it("withholds setup readiness if its second primary read disappears or fails", async () => {
+  for (const failed of [false, true]) {
+    const session = f.env.DB.withSession("first-primary");
+    const missing = { prepare: () => ({ bind: () => ({ first: async () => {
+      if (failed) throw new Error("private storage diagnostic");
+      return null;
+    } }) }) } as unknown as D1DatabaseSession;
+    const withSession = vi.spyOn(f.env.DB, "withSession");
+    withSession.mockReturnValueOnce(session).mockReturnValueOnce(missing);
+    expect(await (await setupStatus(req("setup", "GET"), f.env, employee)).json()).toEqual({ code: "setup_unavailable" });
+    withSession.mockRestore();
+  }
 });

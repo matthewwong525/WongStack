@@ -109,7 +109,7 @@ export async function reconcileLogin(core: Core, kind: "policy" | "sessions"): P
         WHERE installation_id = ? AND kind = ? AND generation = ?
           AND EXISTS(SELECT 1 FROM wong_access_leases WHERE installation_id = ? AND holder = ? AND expires_at > ?)
           AND (? != 'policy' OR NOT EXISTS(SELECT 1 FROM wong_access_policy_writes WHERE installation_id = ? AND status != 'completed'))`).bind(kind === "policy" ? "policy_readback_matches" :
-        "session_revocation_accepted_propagation_unverified", core.pin.installationId, kind, work.generation, core.pin.installationId, core.holder ?? "", now(), kind, core.pin.installationId).run();
+        "session_revocation_accepted_propagation_unverified", core.pin.installationId, kind, work.generation, core.pin.installationId, core.holder!, now(), kind, core.pin.installationId).run();
       return;
     } catch (error) {
       await core.db.prepare(`UPDATE wong_access_work SET status = 'failed', retry_after = ?, error_code = ?, outcome = NULL
@@ -136,7 +136,7 @@ async function updatePolicy(core: Core, material: Awaited<ReturnType<typeof cred
     core.db.prepare(`INSERT INTO wong_access_policy_writes SELECT ?, ?, ?, 'in_flight', ?
       WHERE EXISTS(SELECT 1 FROM wong_access_leases WHERE installation_id = ? AND holder = ? AND expires_at > ?)
         AND EXISTS(SELECT 1 FROM wong_access_work WHERE installation_id = ? AND kind = 'policy' AND generation = ?)`)
-      .bind(intent, core.pin.installationId, generation, now(), core.pin.installationId, core.holder ?? "", now(), core.pin.installationId, generation),
+      .bind(intent, core.pin.installationId, generation, now(), core.pin.installationId, core.holder!, now(), core.pin.installationId, generation),
     core.db.prepare(`UPDATE wong_access_work SET status = 'pending', outcome = NULL WHERE installation_id = ? AND kind = 'policy'
       AND EXISTS(SELECT 1 FROM wong_access_policy_writes WHERE intent_id = ?)`)
       .bind(core.pin.installationId, intent),

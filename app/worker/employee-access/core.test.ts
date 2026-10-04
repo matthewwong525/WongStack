@@ -3,7 +3,7 @@ import { AccessError, audit, lease, leaseCurrent, ownerCore, release, reply } fr
 import { decode, digest, encode, seal, unseal } from "./seal";
 import { boundedJson } from "./json";
 import { provider } from "./provider";
-import { fixture, owner, employee, pin, req } from "./connections.test-support";
+import { fixture, owner, employee, pin, req } from "../../tests/employee-access/connections";
 let f: ReturnType<typeof fixture>;
 beforeEach(() => { f = fixture(); });
 afterEach(() => { f.sql.close(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
