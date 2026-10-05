@@ -96,7 +96,7 @@ No secret value SHALL appear in a tracked file, plan, note, log, commit message,
 
 ### Requirement: The person gives a key through a private key link
 
-When a task needs a key that the live files lack, or the person asks for the key link, the agent SHALL send a private link in the same reply, without first asking whether the person is ready. The link SHALL have the hand-over link's safety: a new address and secret key each time, one link at a time, ending private input once every asked-for key is saved, on explicit closure, or at its time limit. The page SHALL offer one field for each key the agent named, and only those, and a primary action that saves entries and returns to the requesting task in one tap. The agent SHALL name only keys already declared in `.env.example` or `app/.dev.vars.example`. A saved key SHALL go to the matching ignored live file, in the primary worktree and in a seeded branch copy, and a key the live site reads SHALL then reach both Workers. Only successful persistence of every requested key SHALL declare readiness and notify the originating workspace, with no value in that notification. Failed or partial saves SHALL preserve successes, keep missing or failed entries editable, and SHALL NOT declare readiness. The agent SHALL learn only the names of the saved keys.
+When a task needs a key that the live files lack, or the person asks for the key link, the agent SHALL send a private link in the same reply, without first asking whether the person is ready. The link SHALL have every private link's safety: a new address and secret key each time, one link at a time, ending private input once every asked-for key is saved, on explicit closure, or at its time limit. The page SHALL offer one field for each key the agent named, and only those, and a primary action that saves entries and returns to the requesting task in one tap. The agent SHALL name only keys already declared in `.env.example` or `app/.dev.vars.example`. A saved key SHALL go to the matching ignored live file, in the primary worktree and in a seeded branch copy, and a key the live site reads SHALL then reach both Workers. Only successful persistence of every requested key SHALL declare readiness and notify the originating workspace, with no value in that notification. Failed or partial saves SHALL preserve successes, keep missing or failed entries editable, and SHALL NOT declare readiness. The agent SHALL learn only the names of the saved keys.
 
 #### Scenario: A task needs a missing key
 
@@ -142,8 +142,8 @@ A key link SHALL stay open for 30 minutes from when it is sent, and its page SHA
 
 #### Scenario: A link nobody opened
 
-- **WHEN** a key link sits unopened and another chat on the same computer needs a hand-over link
-- **THEN** the key link closes, the hand-over link opens, and the first chat says its link closed and offers a new one
+- **WHEN** a key link sits unopened and another chat on the same computer needs a password link
+- **THEN** the key link closes, the password link opens, and the first chat says its link closed and offers a new one
 
 ### Requirement: The key page carries the steps
 

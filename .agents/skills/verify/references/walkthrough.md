@@ -128,7 +128,7 @@ Before handoff, attempt safe simulations through existing deployed interfaces, d
 
 After independent checks/simulations, make **one handoff** in comment/chat, including human-checkable partial claims. Each remaining check names its reason, needed action/permission, expected observation and dependents. Offer help or selected/all skips in [the shared ask format](../../explore/references/asking-the-user.md). Skips stay **skipped, unverified**, grant no permission/pass and erase no failure; ask again only if reopened. Blocked reachable checks prevent SUCCESS.
 
-Use [key links](../../../../wiki/development/secrets.md#receive-a-key-through-a-private-link) or [browser hand-over](../../../../wiki/development/browsing.md#hand-the-browser-over) for credentials/login. Waiting grants no permission. Resume pending checks after help; repeat completed checks only on changed conditions. Retain observations, pending/skipped ledger and owned IDs before cleanup.
+Use [key links](../../../../wiki/development/secrets.md#receive-a-key-through-a-private-link) or [password links](../../../../wiki/development/passwords.md) for credentials/login. Waiting grants no permission. Resume pending checks after help; repeat completed checks only on changed conditions. Retain observations, pending/skipped ledger and owned IDs before cleanup.
 
 Publish pictures, post, clean up:
 
@@ -145,5 +145,5 @@ bash "$ROOT/.claude/skills/verify/scripts/verify-staging.sh" cleanup "$RUN_DIR"
 Inside `/ship` only, before § f's post. `J` is `node "$ROOT/.claude/skills/verify/scripts/verify-journeys.mjs"`; every call takes `--run-dir "$RUN_DIR"`, `replay` and `keep` also `--url "$URL"`.
 
 1. **Replay** once §§ c–e settle: `J replay --change-root <archive>`. `same` → list as *replayed, unchanged*, no fresh grade. `changed` → walk it fresh once, three per walk, the rest unverified: pass → keep; contradiction → § e, naming the older promise. `skipped` → this change's walk covers it. `not-run` → name its reason; no pass, no failure.
-2. **Keep** each passed browser/request journey, its inputs back in `journeys/`: `J keep --id <id> --expect '<json>'`, `--writes` if it submits or changes data. `expect` rows hold shown claims only: `{"text"}`, `{"gone"}`, `{"path"}`; request `{"step","status","includes"}`. Never one that used a hand-over, an outside service or a manual job trigger.
+2. **Keep** each passed browser/request journey, its inputs back in `journeys/`: `J keep --id <id> --expect '<json>'`, `--writes` if it submits or changes data. `expect` rows hold shown claims only: `{"text"}`, `{"gone"}`, `{"path"}`; request `{"step","status","includes"}`. Never one using a private link, an outside service or a manual job trigger.
 3. **Prove, install**: `J replay --from "$RUN_DIR/keep"`, then `J keep --install`; name each *left out*. After the post, a changed tree → `/save` once; that commit needs no re-walk.

@@ -1,8 +1,8 @@
 # Browsing
 
-Browsing is how the agent uses websites as you: it keeps your logins, logs in with the passwords you save for it, shows you what it's doing, moves to Cloudflare's browser when a site blocks its own, and hands you the browser when a step needs you. It works the same for every repo on the computer.
+Browsing is how the agent uses websites as you: it keeps your logins, logs in with the passwords you save for it, shows you what it's doing, moves to Cloudflare's browser when a site blocks its own, and asks you in the chat or through a private form when a step needs you. It never shows you its browser or lets you drive it. It works the same for every repo on the computer.
 
-**API key and token website steps use your own browser.** Before opening or interacting with a token page, follow [the token website procedure](secrets.md#api-token-website-steps), including when ordinary browsing reaches such a step. It takes precedence over saved logins, pictures, and remote hand-over below; the agent gives you the service link and short steps.
+**API key and token website steps use your own browser.** Before opening or interacting with a token page, follow [the token website procedure](secrets.md#api-token-website-steps), including when ordinary browsing reaches such a step. It takes precedence over saved logins, pictures, and private forms below; the agent gives you the service link and short steps.
 
 ## Saved browser logins
 
@@ -19,7 +19,7 @@ The agent reaches your accounts (mail, calendar, banking) through [agent-browser
    - **Two matches:** it asks in the chat which account to use, as a multiple choice.
    - **No match, or a rejected login:** it sends [the password link](passwords.md) with the site, and a rejected login's username, already filled in, then logs in with what you save.
    - **A code page or an app approval:** it reads the code from your email or asks you in the chat: [login codes](login-codes.md).
-3. **A login with no password to save, you do once.** For *Sign in with Google*, a passkey, or an emailed sign-in link, the agent hands you the browser and carries on once you're past the login.
+3. **A login through another provider follows the provider.** When the page offers only *Sign in with Google* or *Apple*, the agent taps it and treats the provider's own sign-in page as any login: a saved login for that provider, else [the password link](passwords.md) with the provider's website filled in. A code or an emailed sign-in link comes [through the chat](login-codes.md). A passkey or a device check is [yours, on your own device](#when-a-step-needs-you).
 4. **Later tasks reuse the session.** No login step, until the site logs you out.
 
 **The agent never asks for a password in the chat.** It never reads, shows, or writes one, and it never opens `~/.agent-browser/auth/`. If you start typing a password into the chat, it doesn't use or save it; it offers [the password link](passwords.md) instead.
@@ -41,37 +41,90 @@ While the agent browses for you, it drops a picture of the page into the chat at
   No path means the page hasn't changed, so the agent shows nothing new.
 - **One line each.** Above each picture, one plain line says what it shows: *Filled in 7pm, 2 people. Booking now.*
 - **Never in the repo.** A picture can hold your mail or your bank balance, so it stays in the temp folder, never a repo file.
-- **None while you have the browser.** During a [hand-over](#hand-the-browser-over) the agent takes no pictures; it starts again once you hand the browser back.
+- **None while a private form is open.** From sending [a private form](#the-private-form) until the site has answered, the agent takes no pictures: one could show your card.
 
-## Hand the browser over
+## When a step needs you
 
-When a step needs you, the agent sends you a private link that opens its browser on your phone or laptop, and the link closes itself. The link opens a live view of the page, with *Page* and *Fill fields* views on a phone, or the fields beside the page on a computer: a box per text field, a dropdown per dropdown, a tick box per tick box, each with the page's label. What you type or pick lands in that field on the page as you go; then tap its matching button, such as *Pay* or *Sign in*, beside its listed fields. Native form buttons keep the site's labels and disabled state, with each form's buttons beside its fields. Your latest typing arrives before the click. Custom controls and buttons in embedded frames may only appear in the live view: tap them there. A changed or uncertain button asks for a tap in the preview; it never resubmits automatically.
+When a step needs something only you can give, the agent gets it without showing you its browser. Each kind of step has one route:
 
-- **Fill it in one tap.** Each box says what it holds (card number, expiry, security code, email, password, one-time code), so 1Password or your phone's autofill can fill the whole list at once.
-- **A field that isn't listed**, such as one inside a payment provider's embedded box: tap the field on *Page*, switch to *Fill fields*, and open *Other typing*. On a computer, open *Other typing* beside the page. It opens by itself when the page has no fields to list. On a laptop you can also click and type on the page itself.
-- **Submitting keeps the browser with you** until the requested finish, including a code step after a password. Your own tap on a website action uses the website's normal validation and handlers; the existing chat confirmation rules still apply when the agent initiates an outward action.
-- **The list follows the page.** It refreshes when the page moves on, say from the password to a code page, and when a pick shows a new field, such as the year once you choose a month.
-- **Page and fields each have room.** On a phone, switch between *Page* and *Fill fields* without losing your typing. Swipe the live page up, down, left, or right: first move through the preview, then keep scrolling the website when you reach its edge. Tap a supported text field on the page to open your phone keyboard; the same local typing appears in *Fill fields*. This also lets you see login screens that have no scrolling of their own. The fields scroll separately; you never need to scroll the whole hand-over to reach its controls. On a computer, both views stay side by side, and the mouse wheel scrolls the website at your pointer.
-- **Go back after an accidental click.** *Back* and *Forward* arrows, a *Reload* icon, and a *Return to start* icon stay below both views and control the live website. *Return to start* opens the exact page where this private link began, even after you visit another website. Each icon has an accessible name and a tooltip. With no browser history, *Back* or *Forward* tells you so and keeps your typing and preview position. Your latest field edits arrive first. If navigation cannot be confirmed, check *Page* before trying again; it never repeats the action itself.
-- **Room above the phone keyboard.** While the on-screen keyboard is open, the hand-over header, view tabs and navigation hide, and the selected field comes into view. Dismissing the keyboard brings the controls back, keeping your typing. The website keeps its size and readable writing; a hardware keyboard leaves the controls visible. Your phone browser's own bars stay under its control.
-- **On a phone, the page fits your screen.** A window narrower than 800 points gets the site's own phone layout, with enough height to see a whole login screen by swiping. A wider visible form expands the browser width within its limits, and you can drag sideways to reach both edges without shrinking the writing. Turning the phone re-fits it; opening the keyboard keeps the remote page steady. Successful navigation returns the preview to the top. The page goes back to desktop size when the link closes.
+- **A password** goes through [the password link](passwords.md).
+- **A one-time code, an emailed sign-in link, or an app approval** comes through the chat or your signed-in email: [login codes](login-codes.md).
+- **An ordinary answer** is asked in the chat: an email, a name, an address, a choice, a yes or no, or agreeing to terms. The agent types your answers itself and shows you [a picture of the page](#show-what-the-browser-is-doing). It never ticks *I agree* without your yes.
+- **A sensitive detail** goes through [the private form](#the-private-form): card details, a backup or recovery code, or another lasting secret the page asks for. Never the chat: these don't expire, so they must not sit in the stored chat.
+- **An API key or token page** is yours, in your own browser: [the own-browser procedure](secrets.md#api-token-website-steps).
+- **A bot check that stops the agent's browser**, such as Cloudflare's *Verify you are human*, moves the site to [Cloudflare's browser](blocked-sites.md): the site judges the browser, not your tap.
+- **A step only you can do on the page** ends with you: a picture puzzle, a passkey, or a device check. The agent stops that step and gives you [steps to finish it yourself](#steps-for-you-to-finish). No form helps: nothing typed can pass them.
 
-- **When.** A captcha, a passkey, a single sign-on button, a backup code, any other input only you can give on the page, or you saying *let me take over*. A password login or a one-time code isn't one of these: see [saved browser logins](#saved-browser-logins). A bot check or block that stops the agent's own browser, such as Cloudflare's *Verify you are human*, moves the site to [Cloudflare's browser](blocked-sites.md) instead: a link can't help, because the site judges the browser, not your tap. API key and token website steps follow [the own-browser procedure](secrets.md#api-token-website-steps). The agent never tries to get past a login or check itself, and [nothing is disguised](blocked-sites.md#nothing-is-disguised). A yes or no is not one of these: the agent asks it in the chat, never through a hand-over.
-- **Ask first.** Before it sends a link, the agent asks in the chat as a multiple choice, [the shared way](../../.agents/skills/explore/references/asking-the-user.md): *I need you to sign in to your bank with Google.* `Ready, send the link / Not now`. It sends the link only once you reply, so the 10 minutes start when you're there, not while you're away. A question waits for you; a link dies. If your last message was *let me take over*, you're there, so the link comes straight away.
-- **How.** The agent runs [`hand-over.mjs`](../../.agents/skills/hand-over/scripts/hand-over.mjs) `open` with the finish to watch for, sends you the `HANDOVER_LINK` it prints, and runs `wait` in the background. `open` closes blank tabs and brings the task's page to the front, so the link never opens on an empty page:
+*Let me take over* opens nothing. The agent has no live view of its browser to offer, so it names the route above that fits. It never tries to get past a login or check itself, and [nothing is disguised](blocked-sites.md#nothing-is-disguised).
 
-  ```bash
-  node .claude/skills/hand-over/scripts/hand-over.mjs open --until "**mail.google.com/mail/**"   # a login: the logged-in page
-  node .claude/skills/hand-over/scripts/hand-over.mjs open --until-gone "iframe[src*=recaptcha]"  # a captcha that clears in place
-  node .claude/skills/hand-over/scripts/hand-over.mjs open                                        # let me take over: no finish
-  node .claude/skills/hand-over/scripts/hand-over.mjs wait                                        # prints HANDOVER_RESULT=...
-  ```
+## Steps for you to finish
 
-  Name the page you reach once past the step, not "left the login page": a two-step code page would count too. Add `--local` only when you say you're at the computer the agent runs on; it prints a local link and opens no tunnel.
-- **While it's open.** The agent sends its browser no commands, so it never fights you for the page. When you say *done*, it runs `hand-over.mjs close`.
-- **After it closes.** A successful requested finish wakes the chat that opened the link, even if it stopped waiting. The watcher closes private input first and makes one bounded notification attempt through the installed Paseo CLI. It sends only completion identity, mode, result, saved login/key names, and Worker-key names; never a private address, page content, or credential. `HANDOVER_COMPLETION` identifies the same event in `wait` and the notification: handle that identity once, resume the original task, and consume a duplicate without doing the task again. `HANDOVER_NOTIFICATION=notified` means dispatch was acknowledged, not that the task has finished. Missing workspace identity or CLI gives `unavailable`; a failed or ambiguous send gives `unconfirmed`, with no automatic resend. The page tells you to return to chat and say *continue*; saved inputs stay saved. Cancellation, expiry, and incomplete input never announce readiness (`ready: false` and `not-requested`). With no browser finish supplied, keep the explicit *done* in chat followed by `close`. On `done`, the agent takes a fresh snapshot, because you may have moved the page, and carries on. On `timeout`, it says so and offers a new link. On `HANDOVER_NEEDS=cloudflared`, it asks, installs [Cloudflare's tunnel tool](required-tools.md), and tries again.
+When the agent can't get past a login or a check, it hands the rest to you in the chat as steps you can follow without asking anything back. A login on your own phone doesn't log the agent's browser in, so the steps cover the rest of the job, not only the login.
 
-**Is the link safe?** Each link gets a new random address plus a secret key that only the link carries, and it dies once you're past the step, when you say *done*, or after 10 minutes, even if the chat stops. A copy left in the chat is dead too. Anyone who sees it while it's open, say over your shoulder, can use the browser until it closes. Cloudflare carries the connection, so like any site it hosts, it could in principle see what you type; your app already runs on Cloudflare, so this adds no new company to trust. To list the fields, the page reads each one's label, kind, position and size, a visible form's width, a dropdown's choices, native form actions' labels, association, geometry, and visible/enabled state, and navigation details limited to the browser history length and the original page address, never what's in the fields; what you type goes to the page as key presses and is never read back or saved. The agent reads only the page's address, or whether the box it waits on is still there: never the page, the list, what you type, or a picture of it. The page shows only this task's browser, never the agent's other browser sessions. The browser runs with no window, so Chrome can't offer to save your password; only the login itself is kept, as before.
+- **One line on what stopped it.** *The shop wants a passkey, which only your phone can give.*
+- **Numbered steps, one action each**, in the order you'll do them on your own phone or computer.
+- **A link on every step that has a page**: the exact page, not the home page. The agent uses the address it was on, or one the site publishes. It never invents one: when unsure, it links the nearest page and makes the rest a step.
+- **The site's own words.** Each button and box is named as the site labels it.
+- **What it already knows, filled in**: the item, the date, the amount, the address, so you copy and don't look up. Never a password, a card, or a code.
+- **What comes back.** The last step says what to tell the agent, and what it does next.
+
+```text
+The shop wants a passkey, which only your phone can give. To finish the order:
+
+1. Open the trail mix: https://shop.example.com/p/trail-mix-1kg
+2. Set the quantity to 2 and tap Add to cart, then Checkout.
+3. Sign in with your passkey.
+4. Pick Pickup at Markham, Saturday 10 to 11am.
+5. Tap Place order, and tell me the order number. I'll put the pickup in your calendar.
+```
+
+## How private links work
+
+A private link is a page only you can open, for something the agent must never see. There are three: [the password link](passwords.md), [the key link](secrets.md#receive-a-key-through-a-private-link), and [the private form](#the-private-form). [`hand-over.mjs`](../../.agents/skills/hand-over/scripts/hand-over.mjs) opens each one, and this section owns what they share.
+
+- **Ask first.** Before a password link or a private form, the agent asks in the chat as a multiple choice, [the shared way](../../.agents/skills/explore/references/asking-the-user.md): *I need your card to pay City of Markham $45.00.* `Ready, send the form / Not now`. It sends the link only once you reply, so the 10 minutes start when you're there, not while you're away. A question waits for you; a link dies. A [key link](secrets.md#receive-a-key-through-a-private-link) comes with no question and stays open 30 minutes.
+- **Always through Cloudflare, one at a time.** Every link is a Cloudflare address, also when you sit at the computer the agent runs on: there is no local link. `open` prints `HANDOVER_LINK` only once that address answers from outside, so your first tap never lands on an error page. On `HANDOVER_NEEDS=cloudflared`, the agent asks, installs [Cloudflare's tunnel tool](required-tools.md#installing-cloudflared), and tries again. Only one link is open at a time; a key link nobody has opened gives way to a newer one.
+- **How a link closes.** On its own finish (a save, or a form's send), on its close button, when you say *done* and the agent runs `hand-over.mjs close`, or at its time limit, even if the chat stops. A closed link never works again.
+- **After it closes.** A link that ends ready (a save, or a form the site accepted) wakes the chat that opened it, even if it stopped waiting. The watcher closes private input first and makes one bounded notification attempt through the installed Paseo CLI. It sends only completion identity, mode, result, saved login/key names, and Worker-key names; never a private address, page content, or credential. `HANDOVER_COMPLETION` identifies the same event in `wait` and the notification: handle that identity once, resume the original task, and consume a duplicate without doing the task again. `HANDOVER_NOTIFICATION=notified` means dispatch was acknowledged, not that the task has finished. Missing workspace identity or CLI gives `unavailable`; a failed or ambiguous send gives `unconfirmed`, with no automatic resend. The page then tells you to return to chat and say *continue*; saved inputs stay saved. Cancellation, expiry, incomplete input, and a form the site did not accept never announce readiness (`ready: false` and `not-requested`). On `timeout`, the agent says so and offers a new link.
+
+**Is a link safe?** Each link gets a new random address plus a secret key that only the link carries, and it dies on its finish, on close, or at its time limit, even if the chat stops. A copy left in the chat is dead too. Anyone who sees it while it's open, say over your shoulder, can use it until it closes. Cloudflare carries the connection, so like any site it hosts, it could in principle see what you type; your app already runs on Cloudflare, so this adds no new company to trust. The agent learns only how the link ended and the names of what was saved, never a value. A private form reads back nothing you gave it: the agent names the boxes, what you type reaches the site as key presses, and it is never read back, logged, or saved. The form's helper reads only the page's address, whether a named part of the page is still there, and a dropdown's own choice before your pick, to put it back if the site says no. The browser runs with no window, so Chrome can't offer to save your card or password.
+
+### The private form
+
+The private form takes a sensitive detail from you to a website without the agent seeing it. It shows a title, a line saying what it's for, one box per detail labelled as on the site, and one button with the site's own label, such as *Pay $45.00*. Each box says what it holds (card number, expiry, security code), so 1Password or your phone's autofill can fill the form in one tap. Your tap on the button types the details into the site and presses the site's button once. That tap is your yes for that action alone, so the chat asks nothing more. The form never shows the site, ends on *Sent* or *Not accepted*, and never sends twice.
+
+1. **Finish the rest of the page first.** The agent asks the ordinary answers in the chat, types them, and shows a picture of the page with the *Ready?* question.
+2. **Name the boxes.** From its own snapshot, the agent writes a form file outside the repo: each box's label as on the site, its autofill kind, and its field as a snapshot ref or a selector. A dropdown lists the site's own choices. No value goes in the file.
+
+   ```json
+   { "title": "Pay City of Markham",
+     "note": "$45.00 · ticket P0178390",
+     "fields": [
+       { "label": "Card number", "kind": "cc-number", "target": "@e12" },
+       { "label": "Expiry month", "kind": "cc-exp-month", "target": "@e13",
+         "options": [{ "value": "03", "text": "03 - March" }] },
+       { "label": "Security code", "kind": "cc-csc", "target": "@e15" }
+     ],
+     "submit": { "label": "Pay $45.00", "target": "@e31" } }
+   ```
+
+   `kind` is an HTML autofill name, left out for a box with none, such as a backup code. [`form.mjs`](../../.agents/skills/hand-over/scripts/form.mjs) owns the limits, 12 boxes among them. A ref reaches a field inside a payment provider's embedded box, where a selector can't.
+3. **Open it with the finish**, send the `HANDOVER_LINK` it prints, and run `wait` in the background:
+
+   ```bash
+   node .claude/skills/hand-over/scripts/hand-over.mjs open --form "$form" --until "**/receipt/**"   # where the site goes once it accepts
+   node .claude/skills/hand-over/scripts/hand-over.mjs open --form "$form" --until-gone "#card-form"  # a page that changes in place
+   node .claude/skills/hand-over/scripts/hand-over.mjs wait                                           # prints HANDOVER_RESULT=...
+   ```
+
+   Name the page the site reaches once it accepts, not "left the card page": an error page would count too. `FORM_FILE=` (exit 2) names the fault in the file. Exit 1 means the page already meets the finish, the browser has no live feed, or another link is open.
+4. **Hands off while it's open.** From `open` until `wait` prints, the agent sends its browser no commands and takes no pictures. A snapshot would also renumber the refs the form uses.
+5. **Read how it ended.**
+   - `done`: the site moved on. The agent takes a fresh snapshot, shows the picture, say of the receipt, and carries on.
+   - `not-accepted`: the site kept its page within 60 seconds, or a box could not be filled. The form has emptied the boxes it typed into and put each dropdown back, so the agent may look. It reads the site's message, tells you what it said, and offers a new form. It never says a payment failed before reading the page: a slow site may still have taken it. It never sends a new form unasked.
+   - `timeout` or `closed`: the agent says so and offers a new form.
+
+A site whose fields take no typing from the form ends as `not-accepted` with nothing sent. The step is then yours, with [steps to finish it yourself](#steps-for-you-to-finish).
 
 ## When a site blocks the agent's browser
 

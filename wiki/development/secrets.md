@@ -37,7 +37,7 @@ Rotating an existing value is different: update the durable `.env`, but leave `.
 
 ## API token website steps
 
-When a task needs a website to get, create, reveal, copy, rotate, change permissions for, or revoke an API key or token, the person does that step in their own browser, even when the agent has a saved login. The agent must not use browser automation, saved logins, screenshots, page extraction, or a remote browser hand-over for it.
+When a task needs a website to get, create, reveal, copy, rotate, change permissions for, or revoke an API key or token, the person does that step in their own browser, even when the agent has a saved login. The agent must not use browser automation, saved logins, screenshots, page extraction, or a private form for it.
 
 If an ordinary browsing task reaches a token step, stop before taking a picture or extracting page content, then:
 
@@ -79,12 +79,12 @@ When a task needs a key the live files lack, or the person asks for *the key lin
    # HANDOVER_APP_KEYS=STRIPE_SECRET_KEY
    ```
 
-   `KEYS_UNDECLARED=` or `KEYS_AMBIGUOUS=` (exit 2) means step 1 isn't done, and `KEYS_GUIDE=` names the guide entry to fix. Exit 1 means a destination isn't git-ignored, so fix [the protection](#the-two-files) first, or another link holds the one slot. `--local` and `HANDOVER_NEEDS=cloudflared` work as for [a hand-over link](browsing.md#hand-the-browser-over).
-4. **After it closes**, handle its completion identity once, as [workspace return](browsing.md#hand-the-browser-over) says, even when both `wait` and the workspace notification arrive. Both carry names, never values; absent or unconfirmed dispatch tells the person to return to chat and say *continue*. Name the saved keys in the chat, never a value. A non-empty `HANDOVER_APP_KEYS` means the Worker reads those keys: run `npm run secrets:push` so both Workers get them. When `app/.dev.vars.staging` exists, staging reads that file instead, so say staging still needs its own key. On `timeout`, or a `closed` nobody asked for, say the link closed and offer a new one.
+   `KEYS_UNDECLARED=` or `KEYS_AMBIGUOUS=` (exit 2) means step 1 isn't done, and `KEYS_GUIDE=` names the guide entry to fix. Exit 1 means a destination isn't git-ignored, so fix [the protection](#the-two-files) first, or another link holds the one slot. `HANDOVER_NEEDS=cloudflared` works as for [every private link](browsing.md#how-private-links-work).
+4. **After it closes**, handle its completion identity once, as [workspace return](browsing.md#how-private-links-work) says, even when both `wait` and the workspace notification arrive. Both carry names, never values; absent or unconfirmed dispatch tells the person to return to chat and say *continue*. Name the saved keys in the chat, never a value. A non-empty `HANDOVER_APP_KEYS` means the Worker reads those keys: run `npm run secrets:push` so both Workers get them. When `app/.dev.vars.staging` exists, staging reads that file instead, so say staging still needs its own key. On `timeout`, or a `closed` nobody asked for, say the link closed and offer a new one.
 
 One link is open at a time. A key link nobody has opened gives way to a newer link, and its `wait` prints `closed`; an opened one keeps its place.
 
-A key over several lines is stored on one: JSON compacted, other text in double quotes with each line break as `\n`, which dotenv and wrangler read back and a shell's `source` does not. Each save writes the primary worktree's file and, in a linked worktree, its seeded branch copy, like any [add or rotation](#worktrees-and-branch-copies). Private input ends on completion, cancellation, or at 30 minutes, and has [the hand-over link's safety](browsing.md#hand-the-browser-over). No value reaches a command line, a log, the link's own files, or the chat.
+A key over several lines is stored on one: JSON compacted, other text in double quotes with each line break as `\n`, which dotenv and wrangler read back and a shell's `source` does not. Each save writes the primary worktree's file and, in a linked worktree, its seeded branch copy, like any [add or rotation](#worktrees-and-branch-copies). Private input ends on completion, cancellation, or at 30 minutes, and has [every private link's safety](browsing.md#how-private-links-work). No value reaches a command line, a log, the link's own files, or the chat.
 
 **A key pasted into the chat is still saved**, under the name the person gave, by the same routing. Write a value that isn't plain letters, digits, and `_ - . : / + = @` in single quotes, or in double quotes when it holds a `'`: never escape inside the quotes, because dotenv and wrangler read `\"` back as two characters, and a shell sourcing `.env` expands a bare `~`. In the same reply, say the link is safer next time, never showing the key: *Saved MAPS_API_KEY. Next time I'll send a private link, so the key stays out of the chat.*
 
