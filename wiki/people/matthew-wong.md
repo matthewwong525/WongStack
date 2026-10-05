@@ -11,6 +11,8 @@ Matthew Wong owns WongStack and runs his own repos on it.
 - **Added waiting comes with its measured time and one fixed limit.** Before proposing a step that makes a check or a publish longer, time what it costs and offer a single cap, such as two minutes; he chose *only before publishing* once he saw the numbers.
 - **A shared file is no reason to wait.** When another chat's unpublished work only edits the same files as yours, and yours needs none of its code, say so and build now, not after it. Whichever publishes second brings the other in ([other work and overlaps](../development/the-change-loop.md#several-parts-several-workspaces)).
 
+- **A screen follows what other products do, not a hand-built look.** For a list of people or things he expects a table with rows you open, the common change in the row, and one frame that stays the same across a screen's states. He prefers a known component kit to styling each part by hand: *not re-invent the wheel*. Fold rarely used setup into a button or popup, and remove a button whose purpose needs explaining.
+
 - **Service connections should stay free and generic.** He does not want a paid connection service or service-specific integrations stored in WongStack. If tap-to-sign-in is revisited, he prefers an open-source service ([connection choices](../../openspec/changes/archive/2026-10-03-smoother-key-link/proposal.md#decision-log)).
 
 Back to [people](README.md).
