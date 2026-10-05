@@ -1,7 +1,7 @@
 # Access can read the sign-in list on the live app
 
-**Status:** ready-to-build
-**Branch:** slow-baboon
+**Status:** ready-to-ship
+**Branch:** debug-and-fix
 **Open questions:** none
 
 ## Why
@@ -51,3 +51,4 @@ None: `employee-onboarding` already promises the first-open import and the sign-
 - **2026-10-05** — Assumed: a patch release, because it repairs shipped behavior and adds none.
 - **2026-10-05** — Assumed: the browser-side `redirect: "error"` in `app/src/lib/access.ts` stays, because browsers support it and it guards the sign-in redirect.
 - **2026-10-05** — Assumed: the look at the live app after publishing is open work, not a task, because only the live app calls Cloudflare.
+- **2026-10-05** — Assumed: archive checkpoint for release 32.0.1; a person saved before the first read keeps *Try again*, because an open only reads the sign-in list and never writes to it. #288 adds a second Worker call with the refused option and must change it when it brings main in.

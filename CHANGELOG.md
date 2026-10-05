@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (patch) — Access can read the sign-in list on the live app
+## 32.0.1 — Access can read the sign-in list on the live app
 
 - On the live app, Access said *The sign-in list could not be read yet* and every person you added stayed on *Can't sign in yet*. The app asked Cloudflare in a way the live app refuses, so the question was never sent. It now asks in a way that works, and lists everyone who can already sign in.
 - Adding a person puts their email on the sign-in list, and removing one takes it off.

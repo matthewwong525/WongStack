@@ -9,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · fix-access-sign-in-read</title>
+<title>Review · 2026-10-05-fix-access-sign-in-read</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -93,11 +93,11 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="fix-access-sign-in-read">
+<body data-change="2026-10-05-fix-access-sign-in-read">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>fix-access-sign-in-read</h1>
+  <h1>2026-10-05-fix-access-sign-in-read</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. Saving a note copies all your notes. Open a drawing and tap it to see it full screen.</p>
@@ -135,6 +135,7 @@
 <li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-05</p>Assumed: a patch release, because it repairs shipped behavior and adds none.</li>
 <li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-05</p>Assumed: the browser-side <code>redirect: &quot;error&quot;</code> in <code>app/src/lib/access.ts</code> stays, because browsers support it and it guards the sign-in redirect.</li>
 <li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-05</p>Assumed: the look at the live app after publishing is open work, not a task, because only the live app calls Cloudflare.</li>
+<li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-05</p>Assumed: archive checkpoint for release 32.0.1; a person saved before the first read keeps <i>Try again</i>, because an open only reads the sign-in list and never writes to it. #288 adds a second Worker call with the refused option and must change it when it brings main in.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
