@@ -3,6 +3,12 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 31.4.1 — A link to the fork steps
+
+The guide to making WongStack your own now links the fork steps in WongStack's contributing guide. They moved there from the README, which is now shorter.
+
+**Updating.** Nothing to do; the usual update delivers this.
+
 ## 31.4.0 — Install with one Cloudflare account
 
 - A new install on Mac or Linux can now live in one place: your project's files, its checks, its previews and its publishing all sit in your own Cloudflare account. No GitHub account and no server is needed. [The Artifacts route](wiki/stack/artifacts-route.md) explains it.
