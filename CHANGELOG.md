@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (major) — Company actions an assistant can use without guessing
+## 32.0.0 — Company actions an assistant can use without guessing
 
 - **A wrong input says which part is wrong and why.** The answer used to be only "Invalid input". It now lists each wrong input by name with the reason, so the assistant fixes it on the next try.
 - **Search finds an action by its words, in any order.** "look up order" now finds an action whose name or description holds all three words, not only that exact phrase.

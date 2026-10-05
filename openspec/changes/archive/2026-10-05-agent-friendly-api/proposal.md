@@ -1,6 +1,6 @@
 # Company actions an assistant can use without guessing
 
-**Status:** ready-to-apply
+**Status:** ready-to-ship
 **Branch:** agent-friendly-api
 **Open questions:** none
 
@@ -57,3 +57,5 @@ No change to who may see or call an action, to the OpenAPI file's examples, to r
 - **2026-10-05** — Assumed: the confirming read is named only to a person who may see it, because the list never shows an action a person has no access to.
 - **2026-10-05** — Assumed: this is a `major` release, because an install's existing action without input descriptions fails its checks until they are added, and a script that read a failed call as success changes result.
 - **2026-10-05** — Assumed: the unpublished work in another workspace that edits the same two files (`key-levels-in-access`) needs no ask, because it changes who may use a saved key, not how an action is described or answered.
+- **2026-10-05** — Assumed: the employee setup file's recorded fingerprint is renewed in this change, because the helper it points to changed and the setup link refuses a file that does not match; the plan had missed it.
+- **2026-10-05** — Archive checkpoint: all tasks done, local checks passed, numbered 32.0.0; the automatic checks decide.

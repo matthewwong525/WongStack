@@ -28,4 +28,4 @@ Implementation completion means source, tests, and docs are written and reviewed
 
 ## 5. Verification
 
-- [ ] 5.1 Run `node .github/scripts/checks.mjs --worktree` once and repair what it finds. Completion: it passes, or its `not run` reason is reported; it is a pre-check and CI decides.
+- [x] 5.1 Run `node .github/scripts/checks.mjs --worktree` once and repair what it finds. Completion: it passes, or its `not run` reason is reported; it is a pre-check and CI decides.
