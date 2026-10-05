@@ -29,6 +29,33 @@ it("shows the home page at /, inside the page frame", async () => {
   expect(brand.querySelector("img")?.getAttribute("alt")).toBe("");
 });
 
+it("offers Sign out on every page of a site with a sign-in, in the bar and outside the page's column", async () => {
+  vi.stubGlobal("fetch", vi.fn(async () => Response.json({ state: "legacy", signIn: true })));
+  for (const path of ["/", "/apps/hello/", "/nothing"]) {
+    await open(path);
+
+    // A plain link to the address the sign-in itself serves: the browser leaves the app for it.
+    const out = await screen.findByRole("link", { name: "Sign out" });
+    expect(out.getAttribute("href"), path).toBe("/cdn-cgi/access/logout");
+    expect(out.closest("header")?.contains(screen.getByRole("link", { name: "WongStack" })), path).toBe(true);
+    expect(out.closest("main"), path).toBeNull();
+    cleanup();
+  }
+});
+
+it("offers no Sign out on an open site, on a local run, or while the answer is unread or unavailable", async () => {
+  const answers = [() => Response.json({ state: "legacy", signIn: false }), () => Response.json({ state: "legacy" }),
+    () => Response.json({ state: "not_started", role: "owner", manages: true, signIn: false, apps: [] }), () => Response.json({ code: "unavailable" }, { status: 503 })];
+  for (const [at, answer] of answers.entries()) {
+    vi.stubGlobal("fetch", vi.fn(async () => answer()));
+    await open("/nothing");
+
+    expect(screen.getByRole("link", { name: "WongStack" }), String(at)).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "Sign out" }), String(at)).toBeNull();
+    cleanup();
+  }
+});
+
 it("says a page is not found, inside the page frame, and links home", async () => {
   const router = await open("/nothing");
 

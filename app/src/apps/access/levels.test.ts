@@ -1,14 +1,14 @@
 import { expect, it } from 'vitest'
 import type { SavedKey, Status } from '../../lib/access'
 import { appTitle } from '../../lib/apps'
-import { appUses, capital, dots, fill, gaps, hint, keyState, keyUseLine, levelLabel, levelLabels, levelName, NOTHING, sameSet, shortLine, ticked, usesLine, usesShort, type AccessSet } from './levels'
+import { appUses, capital, dots, fill, gaps, hint, keyState, keyUseLine, levelLabel, levelLabels, levelName, NOTHING, sameSet, shortLine, ticked, usesLine, usesShort, usesWhat, type AccessSet } from './levels'
 
 const key = (id: string, title: string, changes: Partial<SavedKey> = {}): SavedKey => ({ id, title, levels: ['read', 'write'], saved: true, setup: false, usedBy: [], alone: false, ...changes })
 const stripe = key('stripe', 'Stripe', { usedBy: [{ app: 'hello', need: 'write' }, { app: 'tips', need: 'read' }] })
 const maps = key('maps', 'Maps', { saved: false, usedBy: [{ app: 'hello', need: 'read' }] })
 const cloudflare = key('cloudflare', 'Cloudflare', { levels: ['read'], saved: false, setup: true, alone: true })
 const spare = key('spare', 'Spare')
-const status: Status = { origin: 'https://business.example.com', ownerEmail: 'owner@example.com', viewer: { email: 'owner@example.com', owner: true }, environment: 'live', key: 'ready', started: true,
+const status: Status = { ownerEmail: 'owner@example.com', viewer: { email: 'owner@example.com', owner: true }, environment: 'live', key: 'ready', started: true,
   imported: 0, keysStarted: true, kept: 0, apps: ['hello', 'tips', 'payroll'],
   appKeys: { hello: [{ id: 'stripe', need: 'write' }, { id: 'maps', need: 'read' }], tips: [{ id: 'stripe', need: 'read' }], payroll: [] },
   keys: [stripe, maps, cloudflare, spare], roles: [], people: [], work: [] }
@@ -25,6 +25,8 @@ it('says which keys an app uses and whether it looks things up or also changes t
   expect(usesLine(status, 'hello')).toBe('uses Stripe: look up, change · Maps: look up')
   expect(usesLine(status, 'tips')).toBe('uses Stripe: look up')
   expect(usesLine(status, 'payroll')).toBe('uses no keys')
+  // The same words without the verb, for a column that is named Uses.
+  expect([usesWhat(status, 'tips'), usesWhat(status, 'payroll')]).toEqual(['Stripe: look up', 'no keys'])
   // Beside a tick, the keys alone.
   expect([usesShort(status, 'hello'), usesShort(status, 'tips'), usesShort(status, 'payroll')]).toEqual(['uses Stripe, Maps', 'uses Stripe', 'uses no keys'])
 })

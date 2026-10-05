@@ -238,7 +238,7 @@ it("lists an action only for a caller whose level permits it, and says which key
 it("tells each signed-in person their own levels, with the key's name and never its value", async () => {
   const readback = async (caller: AccessIdentity) => (await appAccess(new Request(`${site.origin}/api/access/apps`), env, caller)).json();
   level(employee.id, "stripe", "read"); level(employee.id, "cloudflare", "read");
-  expect(await readback(employee)).toEqual({ state: "current", role: "employee", manages: false, revision: 1, apps: ["access", "orders"],
+  expect(await readback(employee)).toEqual({ state: "current", role: "employee", manages: false, signIn: true, revision: 1, apps: ["access", "orders"],
     keys: [{ id: "stripe", title: "Stripe", level: "read" }, { id: "cloudflare", title: "Cloudflare", level: "read" }] });
   expect((await readback(owner)).keys).toEqual([{ id: "stripe", title: "Stripe", level: "write" }, { id: "bank", title: "Bank", level: "write" }, { id: "cloudflare", title: "Cloudflare", level: "read" }]);
   f.sql.exec("UPDATE wong_access_installation SET keys_enabled = 0");

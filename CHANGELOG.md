@@ -3,6 +3,23 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 33.4.0 — Access lists you can scan, in a frame that stays put
+
+- **People is a table.** One row per person, with the same columns on every row: who, whether they can sign in, their role, and their apps and key levels. You are the first row, marked *Owner*. The page is wider on a computer so the columns fit; on a phone each row stacks into a few short lines.
+- **Roles, Apps and Keys are tables too.** Each has its title on the left and its add button on the right. Apps and Keys have no button, so that spot says how one is added. The owner shows first wherever a list names who has something. Click a row to open it, as *Edit* did.
+- **You change a role right in the row.** A person's role is a dropdown in the People table. A pick saves at once, and a box on top says what changed and offers *Undo*, which puts back what they had, their own ticks and levels included.
+- **A row's buttons moved into one menu.** Each person's row ends with `⋯`, which holds *Open*, *Remove*, *Try again* and *Add back* as they apply.
+- **The views and the notices stay in one place.** The four views, each with a count, show on every Access screen, an opened person, role, app or key included. Every notice shows in one spot under them. Leaving a page with changes not saved still asks first, from another view too.
+- **Connect your assistant is a button that opens a popup.** The button sits beside the Access heading. The popup holds the same prompt and closes with *Close*, Escape or a click outside. Someone who manages nothing sees the steps on the page. Home keeps its box.
+- **The top bar runs the full width.** On every page the bar with the logo spans the screen. Each page keeps its own width under it.
+- **You can sign out.** *Sign out* sits on the right of the bar on every page. It ends your session in that browser, and the next visit asks for an emailed code. A site that is open with no sign-in shows no button.
+- **Copy app link is gone.** Send people the website's address yourself.
+- **A manager finds themselves in the table.** Their own row is marked *You*, where a separate *You can use* box sat, and the owner's row says who picks managers.
+
+[Employee access](wiki/stack/employee-access.md#four-views) has the details, and [Cloudflare Access](wiki/stack/cloudflare-access.md#signing-out) covers signing out.
+
+**Updating.** Nothing needs doing by hand. Your people, roles, levels and data stay as they are. If you changed the Access screen's own code, or the bar on top of every page, the assistant brings your changes onto the new ones and keeps each page at its width.
+
 ## 33.3.0 — Managers: people you trust can manage Access too
 
 - **You choose who else manages Access.** A person's page has one new tick, *Can manage Access*, that only you see and set. Right under it the page says what it means: full trust. It works for a person with a role or with their own set.

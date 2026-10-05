@@ -1,5 +1,5 @@
 // Frontend manifests include apps with no API; action registrations are not a catalogue.
-import type { AccessIdentity } from "../access.ts";
+import { hasSignIn, type AccessIdentity } from "../access.ts";
 import { catalogue } from "./catalogue.ts";
 import { keyIds, keyTitle } from "./key-levels.ts";
 import { authorizeRequest, currentPolicy, policyAllows, policyDenied, type PolicyEnv } from "./policy.ts";
@@ -9,10 +9,12 @@ export async function appAccess(request: Request, env: PolicyEnv, identity: Acce
   const policy = await currentPolicy(env, identity);
   if (policy.state === "unavailable" || policy.state === "denied") return policyDenied(policy);
   const headers = { "Cache-Control": "no-store" };
-  if (policy.state === "legacy") return Response.json({ state: "legacy" }, { headers });
+  // `signIn` tells the page's frame whether there is a session to sign out of.
+  const signIn = hasSignIn(env);
+  if (policy.state === "legacy") return Response.json({ state: "legacy", signIn }, { headers });
   // Before permissions start everyone keeps every app; `manages` still says who manages people.
-  if (policy.state === "not_started") return Response.json({ state: "not_started", role: policy.role, manages: policy.manages, apps: catalogue }, { headers });
-  return Response.json({ state: "current", role: policy.role, manages: policy.manages, revision: policy.revision,
+  if (policy.state === "not_started") return Response.json({ state: "not_started", role: policy.role, manages: policy.manages, signIn, apps: catalogue }, { headers });
+  return Response.json({ state: "current", role: policy.role, manages: policy.manages, signIn, revision: policy.revision,
     apps: catalogue.filter(name => policyAllows(policy, name === "access" ? { kind: "self-service" } : { apps: [name] })),
     // The caller's own level for each saved key, by name: none until key levels start.
     keys: keyIds().flatMap(id => {

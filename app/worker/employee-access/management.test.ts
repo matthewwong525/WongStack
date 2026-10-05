@@ -58,9 +58,12 @@ it('keeps a finite set of owner operations and refuses everyone else before any 
 it('adds a person in one save: the choices commit, the sign-in list follows, and one status comes back', async () => {
   const saved = await run('people', 'POST', person('bo@example.com', ['orders']));
   expect(saved.status).toBe(200);
-  expect(await saved.json()).toMatchObject({ origin: site.origin, ownerEmail: site.ownerEmail, environment: 'live', key: 'ready', started: true,
+  const status = await saved.json();
+  expect(status).toMatchObject({ ownerEmail: site.ownerEmail, environment: 'live', key: 'ready', started: true,
     apps: ['orders', 'payroll'], work: [{ kind: 'policy', status: 'ready', outcome: 'policy_readback_matches', error_code: null }],
     people: [{ email: 'bo@example.com', status: 'active', settled: true, apps: ['orders'] }, { email: employee.id, status: 'active', settled: true, apps: [] }] });
+  // The owner sends people the website's address themselves: the status carries no app link.
+  expect(status).not.toHaveProperty('origin');
   expect(cf.writes).toHaveLength(1);
   expect(cf.writes[0].include).toEqual([employee.id, 'bo@example.com', site.ownerEmail].sort().map(email => ({ email: { email } })));
   expect(f.sql.prepare('SELECT COUNT(*) count FROM wong_access_leases').get()).toEqual({ count: 0 });

@@ -1,12 +1,12 @@
 {
   "format": "verify-journey-1",
-  "id": "employer-adds-a-person",
+  "id": "a-role-is-picked-in-the-list",
   "scenario": {
     "capability": "employee-onboarding",
-    "requirement": "The employer manages employee grants through Access",
-    "scenario": "Employer adds a person"
+    "requirement": "The employer changes a person's role from the people list",
+    "scenario": "A role is picked in the list"
   },
-  "thenDigest": "7b64cc3bc9ebc4078db537d119379514899027c97126ee3a271ea002febefabd",
+  "thenDigest": "97ebc6dedddb622bed26b7674cda91ffc62968fb74b91ad6cf71d3c4322ae01f",
   "probe": "browser",
   "writes": true,
   "sourcePaths": [
@@ -44,7 +44,7 @@
   "steps": [
     [
       "open",
-      "{url}/apps/access/people/new"
+      "{url}/apps/access/"
     ],
     [
       "wait",
@@ -54,45 +54,17 @@
     [
       "wait",
       "--text",
-      "Add person"
+      "eli@example.invalid"
     ],
     [
-      "find",
-      "label",
-      "Email",
-      "fill",
-      "walk@example.invalid"
-    ],
-    [
-      "find",
-      "role",
-      "checkbox",
-      "click",
-      "--name",
-      "Hello"
-    ],
-    [
-      "get",
-      "text",
-      "body"
-    ],
-    [
-      "find",
-      "role",
-      "button",
-      "click",
-      "--name",
-      "Save access"
+      "select",
+      "select[aria-label='Role for eli@example.invalid']",
+      "Helpers"
     ],
     [
       "wait",
       "--text",
-      "Saved."
-    ],
-    [
-      "wait",
-      "--text",
-      "walk@example.invalid"
+      "now has Helpers"
     ],
     [
       "get",
@@ -102,13 +74,10 @@
   ],
   "expect": [
     {
-      "text": "Saved."
+      "text": "eli@example.invalid now has Helpers."
     },
     {
-      "text": "walk@example.invalid"
-    },
-    {
-      "gone": "Copy app link"
+      "text": "Undo"
     },
     {
       "path": "/apps/access/"

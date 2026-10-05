@@ -1,6 +1,6 @@
 /* The look every page shares, mini apps included: index.html links
-   /style.css. The device's font, light or dark to match the device, and a
-   narrow column with quiet neutral surfaces. This is the only file that styles whole elements; a part's
+   /style.css. The device's font, light or dark to match the device, a bar
+   across the screen, and each page in a narrow column with quiet neutral surfaces. This is the only file that styles whole elements; a part's
    own styles sit beside it, under class names named for the part. */
 :root {
   color-scheme: light dark;
@@ -32,6 +32,11 @@
 }
 
 body {
+  margin: 0;
+}
+
+/* The page keeps its narrow column; the bar above it spans the screen. */
+main {
   max-width: 32rem;
   margin: 2rem auto;
   padding: 0 1rem;
@@ -80,8 +85,7 @@ button {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  margin-bottom: 2rem;
-  padding-bottom: 1rem;
+  padding: 0.5rem 1rem;
   border-bottom: 1px solid var(--border);
 }
 
@@ -92,6 +96,12 @@ button {
   min-height: 44px;
   font-weight: 650;
   text-decoration: none;
+}
+
+.site-sign-out {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
 }
 
 .site-logo {

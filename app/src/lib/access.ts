@@ -15,11 +15,13 @@ export const setupSchema = z.object({ role, api: z.literal('authenticated'),
 // `legacy` has no recorded owner. `not_started` knows the owner, and everyone still keeps every app.
 // `manages`: the person may manage Access, as the owner or a manager the owner chose; left out means no.
 const manages = z.boolean().optional()
+// `signIn`: the site stands behind a sign-in, so there is a session to end; left out or false, the frame offers no Sign out.
+const signIn = z.boolean().optional()
 export const appAccessSchema = z.discriminatedUnion('state', [
-  z.object({ state: z.literal('legacy') }),
-  z.object({ state: z.literal('not_started'), role, manages, apps: z.array(z.string()) }),
+  z.object({ state: z.literal('legacy'), signIn }),
+  z.object({ state: z.literal('not_started'), role, manages, signIn, apps: z.array(z.string()) }),
   // `keys` is the signed-in person's own level for each saved key, by name; empty until key levels start.
-  z.object({ state: z.literal('current'), role, manages, apps: z.array(z.string()), revision: z.number(),
+  z.object({ state: z.literal('current'), role, manages, signIn, apps: z.array(z.string()), revision: z.number(),
     keys: z.array(z.object({ id: z.string(), title: z.string(), level })).optional() }),
 ])
 const use = z.object({ id: z.string(), need: level })
@@ -29,7 +31,7 @@ const use = z.object({ id: z.string(), need: level })
 // same fact from the key's side, `alone` means it also works with no app, `setup` that setup makes it, and
 // `saved` that the app holds it. No key's value is ever here. `viewer` is who is looking, the owner or a manager;
 // a person's `manager` says the owner lets them manage Access. The server checks both again on every save.
-export const statusSchema = z.object({ origin: z.string(), ownerEmail: z.string(), environment: z.enum(['live', 'practice']),
+export const statusSchema = z.object({ ownerEmail: z.string(), environment: z.enum(['live', 'practice']),
   viewer: z.object({ email: z.string(), owner: z.boolean() }),
   key: z.enum(['ready', 'missing', 'practice']), started: z.boolean(), imported: z.number(),
   keysStarted: z.boolean(), kept: z.number(), apps: z.array(z.string()), appKeys: z.record(z.string(), z.array(use)),

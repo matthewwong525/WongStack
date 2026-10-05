@@ -27,7 +27,8 @@ function Managing({ manager, onChange }: { manager: boolean; onChange: (manager:
 
 /** One person: their role first, then what it gives, or their own ticks and levels, then whether they manage Access.
  *  Without `person`, a new one. */
-export function PersonPage({ status, view, pending, save, person }: ViewProps & { person?: Person }) {
+export function PersonPage({ person, ...props }: ViewProps & { person?: Person }) {
+  const { status, save } = props
   // Where the page starts: the person as saved, or a new one with nothing.
   const start = { email: person?.email ?? '', role: person?.role ?? '', set: person ?? NOTHING, manager: person?.manager ?? false }
   const [email, setEmail] = useState(start.email)
@@ -41,7 +42,7 @@ export function PersonPage({ status, view, pending, save, person }: ViewProps & 
   const changed = email !== start.email || role !== start.role || !sameSet(set, start.set) || manager !== start.manager
   // Only the owner picks managers, and only a changed tick is sent: left out, the person keeps what they have.
   const picked = owner && manager !== start.manager && { manager }
-  return <Page view={view} pending={pending} changed={changed} action="Save access" onSave={() => save('people', { email, removed: false, ...access, ...picked })}>
+  return <Page {...props} name={person?.email ?? 'Add person'} changed={changed} action="Save access" onSave={() => save('people', { email, removed: false, ...access, ...picked })}>
     {person ? <h2>{person.email} · {signInLine(person, status).text}</h2> : <>
       <h2>Add person</h2>
       <label>Email<input type="email" required autoFocus value={email} onChange={event => setEmail(event.target.value)} /></label>

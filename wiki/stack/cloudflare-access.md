@@ -39,6 +39,12 @@ So the wall keeps that one job and passes the app a signed proof of who the pers
 
 An Access application per app path would move only the app tick to Cloudflare, never a level, and would make every tick a provider write. The deployment check also rejects overlapping applications on purpose.
 
+## Signing out
+
+Every page's top bar has *Sign out* on the right. It goes to `/cdn-cgi/access/logout` on the app's own address, which Cloudflare Access serves: the session ends in that browser, and the next visit asks for an emailed code. The app clears no cookie: the cookie is Cloudflare's.
+
+The link shows only where a sign-in stands in front of the site. The Worker says so as `signIn` in `/api/access/apps`: false while the site is [open until the card](#open-until-the-card) and on [a local run](#local-development), where no session exists to end.
+
 ## Setup
 
 ### 1. Turn on Zero Trust and pick an identity provider

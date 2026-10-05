@@ -19,9 +19,12 @@ export const capital = (text: string) => text[0].toUpperCase() + text.slice(1)
 export const appUses = (status: Status, app: string) =>
   status.keys.flatMap(key => key.usedBy.filter(use => use.app === app).map(use => ({ key, need: use.need })))
 
+/** What an app uses, for the Uses column: `Stripe: look up, change`, or `no keys`. */
+export const usesWhat = (status: Status, app: string) =>
+  dots(...appUses(status, app).map(({ key, need }) => `${key.title}: ${NEED[need]}`)) || 'no keys'
+
 /** `uses Stripe: look up, change`, or `uses no keys`. */
-export const usesLine = (status: Status, app: string) =>
-  `uses ${dots(...appUses(status, app).map(({ key, need }) => `${key.title}: ${NEED[need]}`)) || 'no keys'}`
+export const usesLine = (status: Status, app: string) => `uses ${usesWhat(status, app)}`
 
 /** `uses Stripe, Bank` beside an app's tick, or `uses no keys`. */
 export const usesShort = (status: Status, app: string) =>

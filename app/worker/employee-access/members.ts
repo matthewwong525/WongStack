@@ -99,7 +99,7 @@ export async function accessStatus(core: Core): Promise<object> {
   if (!installation) throw new AccessError("installation_mismatch");
   const noted = (event: string) => Number(notes.results.find(row => row.event.startsWith(event))?.event.slice(event.length) ?? 0);
   const uses = appKeys(apps);
-  return { origin: core.origin, ownerEmail: core.email, viewer: { email: core.actor, owner: core.owner },
+  return { ownerEmail: core.email, viewer: { email: core.actor, owner: core.owner },
     environment: core.live ? "live" : "practice",
     // A preview holds no key and never needs one.
     key: !core.live ? "practice" : loginAuthority(core.env) ? "ready" : "missing",
