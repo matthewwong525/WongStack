@@ -39,4 +39,4 @@
 - [x] 7.1 Run the app's test chain (`npm test` in `app/`) and `node .github/scripts/checks.mjs --worktree`; fix what fails.
 - [x] 7.2 After `/save`, walk the preview as the checker at a computer width and a phone width: People with the owner row, a role picked in a row and undone, the `⋯` menu, a person's page with the tabs showing, Roles, Apps, Keys, and the Connect dropdown opened. Show the pictures, and name what only code tests cover (a waiting sign-in, the non-owner view).
 - [x] 7.3 Run the test chain and the worktree checks again after group 6; fix what fails.
-- [ ] 7.4 After `/save`, walk the preview again at both widths: the full-width bar with *Sign out* on Home and Access, and the Connect popup opened and closed. Show the pictures; a person confirms the sign-out itself on the live app.
+- [x] 7.4 After `/save`, walk the preview again at both widths: the full-width bar with *Sign out* on Home and Access, and the Connect popup opened and closed. Show the pictures; a person confirms the sign-out itself on the live app.

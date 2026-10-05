@@ -1,6 +1,6 @@
 # Access lists you can scan, in a frame that stays put
 
-**Status:** in-progress
+**Status:** ready-to-ship
 
 **Branch:** understand-access-system
 
@@ -224,3 +224,4 @@ None.
 - **2026-10-05** — Assumed: *Sign out* shows on every page and only where the site has a sign-in, because an open site has no session to end.
 - **2026-10-05** — Assumed: the page under the bar keeps its width, because he asked for the bar to extend, not the pages.
 - **2026-10-05** — Build: the popup, the full-width bar and *Sign out* are written and the local checks pass; *Sign out* reads one new yes-or-no from the app, so each page makes one more request. The second preview walk (task 7.4) is left.
+- **2026-10-05** — Archive checkpoint: asked whether to publish after the second preview walk → chose to publish; built, both walks passed, numbered 33.4.0. Left for a person: click *Sign out* once on the live app.

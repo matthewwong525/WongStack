@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Access lists you can scan, in a frame that stays put
+## 33.4.0 — Access lists you can scan, in a frame that stays put
 
 - **People is a table.** One row per person, with the same columns on every row: who, whether they can sign in, their role, and their apps and key levels. You are the first row, marked *Owner*. The page is wider on a computer so the columns fit; on a phone each row stacks into a few short lines.
 - **Roles, Apps and Keys are tables too.** Each has its title on the left and its add button on the right. Apps and Keys have no button, so that spot says how one is added. The owner shows first wherever a list names who has something. Click a row to open it, as *Edit* did.
