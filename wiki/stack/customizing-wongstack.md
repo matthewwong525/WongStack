@@ -16,7 +16,7 @@ Change a **source fork** when every new project should start that way. A fork is
 
 ## Shape your template
 
-[Fork and clone WongStack](https://github.com/matthewwong525/WongStack#work-from-the-source), then ask the assistant to change your defaults. For example:
+[Fork and clone WongStack](https://github.com/matthewwong525/WongStack/blob/main/.github/CONTRIBUTING.md#fork-branch-and-open-a-pull-request), then ask the assistant to change your defaults. For example:
 
 > Make this WongStack template fit a small design studio. Change the starter page and the shared workflow guidance, and keep easy setup working for new projects.
 
