@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 33.1.1 — The Cloudflare key step finishes when the preview app can't take the key
+
+- **The step that makes the read-only Cloudflare key no longer stops with an error.** Release 33.0.0 stored the key in your live app and then in your preview app. Cloudflare refuses a key for the preview app whenever a newer preview has been uploaded than the one in use, which is its normal state, so the step stopped after the live app already had its key.
+- **The live app is enough.** The step stores the key in your live app, says in one line that the preview app is waiting, and finishes. When Cloudflare does accept the preview copy, it is stored too. Running the step again keeps the key your live app holds.
+- **The check before publishing accepts that difference.** For this one key, which setup makes itself, the live app may hold it while the preview app does not. Every other key must still match in both.
+- **Access on a preview says so.** In Keys on a preview, Cloudflare reads *Not on previews yet*, with nothing to copy, because no step can finish it there. The live app is unchanged.
+
+**Updating.** If your update to 33.0.0 reported an error from the Access setup step, the assistant runs that step again after this update: `provision.mjs access`, the setup tool's step that makes the read-only Cloudflare key. It now finishes, and the assistant saves the record it writes. If that step finished for you, there is nothing to do.
+
 ## 33.1.0 — Old features are re-checked before publishing
 
 - **A passed check is kept.** When the check before publishing passes a promise about a page or a request, it saves the clicks and what the page showed, beside your code. It is kept only after it replays cleanly once, by itself, from fresh sample data.

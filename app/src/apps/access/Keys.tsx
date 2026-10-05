@@ -14,11 +14,11 @@ export function Keys(props: ViewProps) {
   return <View view={view}>
     {!status.keys.length && <><p>No keys saved yet.</p><p>When an app needs a service, your assistant sends a private link for its key. It shows up here.</p></>}
     <ul className="access-people">{status.keys.map(key => <li key={key.id}>
-      <div className="access-row-head"><strong>{key.title}</strong><span>{keyState(key)}</span></div>
-      {/* Setup makes one key itself, so the owner asks their assistant to finish; any other key comes through its link. */}
+      <div className="access-row-head"><strong>{key.title}</strong><span>{keyState(key, status.environment)}</span></div>
+      {/* Setup makes one key itself, so on the live app the owner asks their assistant to finish; any other key comes through its link. */}
       {key.saved ? <><p>{keyUseLine(key)}</p><p>{levelHolders(status, key.id)}</p><Link className="access-button" to={at('keys', key.id)}>Change</Link></>
-        : key.setup ? <FinishStep>Look-ups need a read-only key. Ask your assistant:</FinishStep>
-        : <><p>{keyUseLine(key)}</p><p>Ask your assistant for the key link</p></>}
+        : key.setup && status.environment === 'live' ? <FinishStep>Look-ups need a read-only key. Ask your assistant:</FinishStep>
+        : <><p>{keyUseLine(key)}</p>{!key.setup && <p>Ask your assistant for the key link</p>}</>}
     </li>)}</ul>
   </View>
 }

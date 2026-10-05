@@ -72,7 +72,8 @@ export const startingPolicies = () => [
  * rules; `workerSecrets` each Worker's secrets by name, readable only once the Worker exists;
  * `tokenValues` each account token's current value by id.
  * `forbidTokens` answers every account-token call 403, as a user token narrowed back from Account API
- * Tokens Write does.
+ * Tokens Write does. `newerPreview` names Workers whose newest uploaded version is not the deployed one:
+ * storing a secret there answers 400, code `10215`.
  */
 export async function fakeCloudflare({ r2 = true, subdomain = 'ada', accounts = [{ id: ACCOUNT, name: 'Ada' }], paid = true, repos = [] } = {}) {
   const remoteOf = (namespace, name) => `https://${ACCOUNT}.artifacts.cloudflare.net/git/${namespace}/${name}.git`;
@@ -108,6 +109,7 @@ export async function fakeCloudflare({ r2 = true, subdomain = 'ada', accounts = 
     workerDetails: {},
     workerSubdomains: {},
     forbidTokens: false,
+    newerPreview: [],
   };
   const sqlite = new Map();
   const calls = [];
@@ -269,6 +271,7 @@ export async function fakeCloudflare({ r2 = true, subdomain = 'ada', accounts = 
       const script = workerSecrets[1];
       if (!state.workers.includes(script)) return no(404, 10007, 'This Worker does not exist on your account.');
       if (method === 'GET') return ok(Object.keys(state.workerSecrets[script] ?? {}).map((name) => ({ name, type: 'secret_text' })));
+      if (state.newerPreview.includes(script)) return no(400, 10215, "Secret edit failed. The latest version of your Worker isn't currently deployed.");
       state.workerSecrets[script] = { ...state.workerSecrets[script], [body.name]: body.text };
       return ok({ name: body.name, type: body.type });
     }
