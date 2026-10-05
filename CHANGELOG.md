@@ -17,6 +17,15 @@
 
 **Updating.** Your people, their apps, your pages and your data stay as they are. The assistant does three things for you. First, for each app of your own it reads the code, lists the keys that app already uses, and adds each key to the app's key list with a name you will recognise, so every app keeps working; a check stops the update before publishing if one is missed. Second, it publishes, then runs `provision.mjs access`, the setup tool's step for Access, which makes the read-only Cloudflare key and stores it in your live app and your preview app. Third, it tells you to open Access once, which turns levels on with everyone keeping what they have. If your saved Cloudflare token can no longer make keys, the update still finishes: Access shows *One step left* beside Cloudflare, and the assistant sends you a private link to paste a token that can. Sample data you wrote for previews keeps working; the update adds a practice role and practice levels beside it.
 
+## 32.0.1 — Access can read the sign-in list on the live app
+
+- On the live app, Access said *The sign-in list could not be read yet* and every person you added stayed on *Can't sign in yet*. The app asked Cloudflare in a way the live app refuses, so the question was never sent. It now asks in a way that works, and lists everyone who can already sign in.
+- Adding a person puts their email on the sign-in list, and removing one takes it off.
+- The app's key is as safe as before: if Cloudflare ever points the app somewhere else, the app stops and the key is not sent on.
+- A new check fails if app code asks in the refused way again.
+
+**Updating.** After the update is live, open Access once: the notice goes. A person you added while the notice showed still reads *Can't sign in yet*; press *Try again* beside them and they can sign in, with no need to add them again.
+
 ## 32.0.0 — Company actions an assistant can use without guessing
 
 - **A wrong input says which part is wrong and why.** The answer used to be only "Invalid input". It now lists each wrong input by name with the reason, so the assistant fixes it on the next try.

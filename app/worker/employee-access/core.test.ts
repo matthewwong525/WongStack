@@ -107,7 +107,7 @@ it("limits credentials to fixed provider destinations, refuses redirects and hid
   const fetch = vi.fn(async () => Response.json({ ok: true })); vi.stubGlobal("fetch", fetch);
   expect(await provider("https://api.cloudflare.com/client/v4", "/app", "secret")).toEqual({ ok: true });
   await provider("https://api.cloudflare.com/client/v4", "/app", "secret", "POST", { safe: true });
-  expect(fetch.mock.calls[1]).toMatchObject(["https://api.cloudflare.com/client/v4/app", { redirect: "error", body: '{"safe":true}' }]);
+  expect(fetch.mock.calls[1]).toMatchObject(["https://api.cloudflare.com/client/v4/app", { redirect: "manual", body: '{"safe":true}' }]);
   for (const path of ["https://other.example.com", "//other.example.com", "/../secret"]) {
     await expect(provider("https://api.cloudflare.com/client/v4", path, "secret")).rejects.toMatchObject({ code: "provider_destination_invalid" });
   }
