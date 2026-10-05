@@ -93,7 +93,7 @@ Repeat the status probes with saved ignored credentials:
 
 ```bash
 node scripts/probe-private-access.mjs --url https://your-worker.your-subdomain.workers.dev/
-node scripts/probe-private-access.mjs --url https://your-preview.your-subdomain.workers.dev/style.css
+node scripts/probe-private-access.mjs --url https://your-preview.your-subdomain.workers.dev/favicon.svg
 ```
 
 The output includes only independent anonymous/machine statuses and leaves human login unverified. Anonymous requests should receive an Access redirect or a closed denial, and machine requests should render the app. Check memory separately with `memory.mjs digest` and its own key. Also test teammate removal using an already active human session and preserve owner/machine access; report pending provider propagation or retry honestly.

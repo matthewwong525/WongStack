@@ -3,6 +3,20 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (major) — Screens built from ready-made parts, not styled by hand
+
+- **Every screen is built from one set of ready-made parts.** Buttons, fields, tables, menus, popups, boxes and labels come from shadcn, a well-known set of parts, on Tailwind, the styling tool it is built with. No screen keeps a style file of its own.
+- **The look stays calm and familiar.** The device's own font, light or dark to match the device, black or white main buttons, the bar on top with *Sign out*, and each page at the width it has today. Spacing, corners and focus rings are tidier.
+- **Access works as it did.** The four views, the tables, the role dropdown in the row, the notices and the *Connect your assistant* popup stay where they are. The `⋯` menu and the popup are ready-made now, so the menu also moves by arrow keys. On a phone each row still stacks into short lines.
+- **Home, the Hello example and the setup box are restyled the same way**, with the same words and steps.
+- **Mini apps the assistant builds from now on use the parts.** When a screen needs a part the app does not have yet, the assistant adds it in one step. A check stops a screen from bringing a style file of its own.
+- **The copied parts skip three checks.** The parts are code copied into one folder of the app. That folder is not held to *every line tested*, *nothing unused* and *nothing repeated*; the screens that use the parts still are.
+- **Building takes a little longer.** The app gains several building blocks, so the first preview in a new workspace installs more.
+
+[Mini apps](wiki/stack/mini-apps.md#the-rules) says how a screen uses the parts, and [the core stack](wiki/stack/core-stack.md#the-pieces) names the new pieces.
+
+**Updating.** Nothing needs doing by hand. The built-in screens switch to the new parts. The assistant moves each screen you built onto the new parts too: the update's plan names every one, and each shows in the preview before anything is published. Your data and each screen's address stay as they are. The update is not finished while one of your screens still has a style file: a check names each one left.
+
 ## 33.4.0 — Access lists you can scan, in a frame that stays put
 
 - **People is a table.** One row per person, with the same columns on every row: who, whether they can sign in, their role, and their apps and key levels. You are the first row, marked *Owner*. The page is wider on a computer so the columns fit; on a phone each row stacks into a few short lines.

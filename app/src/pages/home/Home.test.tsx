@@ -34,7 +34,7 @@ it("keeps the workspace heading and apps outside the removable welcome, in order
   expect(tutorial.contains(heading)).toBe(false);
   expect(tutorial.contains(appHeading)).toBe(false);
   expect(tutorial.contains(list)).toBe(false);
-  expect(list.className).toMatch(/^app-list/);
+  expect([list.tagName, list.querySelectorAll("li a").length]).toEqual(["UL", apps.length]);
 });
 
 it('the verified employer retains the welcome and the current app catalogue', async () => {

@@ -1,5 +1,6 @@
 import { useContext, useEffect, useState, type ReactNode } from 'react'
 import { Link, UNSAFE_DataRouterContext, useBlocker, useNavigate } from 'react-router'
+import { Button } from '@/components/ui/button'
 import type { ViewProps } from './address'
 import { Confirm } from './Confirm'
 import { View } from './View'
@@ -17,7 +18,8 @@ function Held({ pending }: { pending: boolean }) {
 }
 
 /** One person, role, app or key, inside the frame every screen shares: where it sits under its view, its fields,
- *  and one save. With `changed`, leaving asks first: by the way back, Cancel, or another view. */
+ *  and one save, the page's one solid button. A page's fields keep the narrow column's measure inside the wider page.
+ *  With `changed`, leaving asks first: by the way back, Cancel, or another view. */
 export function Page({ name, changed, action, onSave, extra, children, ...props }: ViewProps & {
   name: string; changed: boolean; action: string; onSave: () => void; extra?: ReactNode; children: ReactNode
 }) {
@@ -37,13 +39,13 @@ export function Page({ name, changed, action, onSave, extra, children, ...props 
   return <View {...props} ask={hold}>
     {changed && held && <Held pending={pending} />}
     {leaving && <Leave onLeave={() => void navigate(leaving)} onStay={() => setLeaving(null)} />}
-    <form className="access-form" onSubmit={event => { event.preventDefault(); onSave() }}>
-      <p className="access-crumb"><Link to={view.home} onClick={event => { if (hold(view.home)) event.preventDefault() }}>{view.title}</Link><span aria-hidden="true"> › </span><span>{name}</span></p>
-      <fieldset className="access-fields" disabled={pending || !!leaving}>
+    <form className="grid max-w-lg min-w-0 gap-4" onSubmit={event => { event.preventDefault(); onSave() }}>
+      <p><Link to={view.home} onClick={event => { if (hold(view.home)) event.preventDefault() }}>{view.title}</Link><span aria-hidden="true"> › </span><span>{name}</span></p>
+      <fieldset className="grid min-w-0 gap-4" disabled={pending || !!leaving}>
         {children}
-        <div className="access-actions">
-          <button type="submit" className="access-primary">{action}</button>
-          <button type="button" onClick={() => { if (!hold(view.home)) void navigate(view.home) }}>Cancel</button>
+        <div className="flex flex-wrap gap-2.5">
+          <Button type="submit">{action}</Button>
+          <Button type="button" variant="outline" onClick={() => { if (!hold(view.home)) void navigate(view.home) }}>Cancel</Button>
           {extra}
         </div>
       </fieldset>

@@ -1,20 +1,17 @@
-import { useRef, useState } from 'react'
 import { AssistantSetup } from '../../components/AssistantSetup'
+import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogFooter, DialogTrigger } from '@/components/ui/dialog'
 
-// For whoever manages Access: a button beside the heading, and the steps in a popup over the page. The browser
-// keeps the keyboard inside the popup and closes it on Escape; a click outside its box lands on the popup's own
-// backdrop, and closes it too. The steps load when it opens.
+// For whoever manages Access: a button beside the heading, and the steps in a popup over the page. The popup part
+// keeps the keyboard inside it, and closes on Escape, on Close and on a click on the dimmed page round it. It is
+// never wider or taller than the screen. The steps are drawn, and so loaded, only while it is open; their
+// heading names the popup.
 export function Connect() {
-  const popup = useRef<HTMLDialogElement>(null)
-  const [open, setOpen] = useState(false)
-  return <>
-    <button type="button" onClick={() => { setOpen(true); popup.current?.showModal() }}>Connect your assistant</button>
-    <dialog ref={popup} className="access-popup" aria-label="Connect your assistant" onClose={() => setOpen(false)}
-      onClick={event => { if (event.target === event.currentTarget) event.currentTarget.close() }}>
-      {open && <div className="access-popup-box">
-        <AssistantSetup />
-        <button type="button" onClick={() => popup.current?.close()}>Close</button>
-      </div>}
-    </dialog>
-  </>
+  return <Dialog>
+    <DialogTrigger asChild><Button type="button" variant="outline">Connect your assistant</Button></DialogTrigger>
+    <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto" showCloseButton={false} aria-describedby={undefined}>
+      <AssistantSetup popup />
+      <DialogFooter showCloseButton />
+    </DialogContent>
+  </Dialog>
 }

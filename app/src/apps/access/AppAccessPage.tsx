@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { appTitle } from '../../lib/apps'
 import type { ViewProps } from './address'
+import { Tick } from './Fields'
 import { LevelChoice } from './LevelChoice'
 import { appUses, capital, fill, usesLine } from './levels'
 import { Page } from './Page'
@@ -18,13 +19,9 @@ export function AppAccessPage({ app, ...props }: ViewProps & { app: string }) {
     onSave={() => save('grants', { app, ...each(list, subject => row(subject).on), keys: each(list.filter(subject => row(subject).on), subject => row(subject).keys) })}>
     <h2>{appTitle(app)}</h2>
     <p>{capital(usesLine(status, app))}</p>
-    {list.map(subject => <div role="group" aria-label={subject.label} key={subject.kind + subject.id}>
-      <label className="access-choice">
-        {/* Ticking gives Read on each of the app's keys still at None, never Read & write. */}
-        <input type="checkbox" checked={row(subject).on} onChange={event => setRows(put(rows, subject,
-          { on: event.target.checked, keys: fill(keys, row(subject).keys, event.target.checked ? 'read' : null) }))} />
-        {subject.label}
-      </label>
+    {list.map(subject => <div role="group" aria-label={subject.label} className="grid min-w-0 gap-2" key={subject.kind + subject.id}>
+      {/* Ticking gives Read on each of the app's keys still at None, never Read & write. */}
+      <Tick checked={row(subject).on} onChange={on => setRows(put(rows, subject, { on, keys: fill(keys, row(subject).keys, on ? 'read' : null) }))}>{subject.label}</Tick>
       {row(subject).on && keys.map(key => <LevelChoice key={key.id} legend={key.title} levels={key.levels} value={row(subject).keys[key.id]}
         onChange={level => setRows(put(rows, subject, { on: true, keys: { ...row(subject).keys, [key.id]: level } }))} />)}
     </div>)}

@@ -1,11 +1,15 @@
 import { useState } from 'react'
 import { useParams } from 'react-router'
-import './Hello.css'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 
 const waiting = 'Your greeting will appear here.'
 const failed = 'Something went wrong. Try again.'
 
-// The example app's page. Its server side is app/worker/apps/hello/. The API
+// The example app's page, built from the ready-made parts in app/src/components/ui/ with Tailwind classes
+// for its spacing: no CSS file of its own. Its server side is app/worker/apps/hello/. The API
 // address comes from the page's own, so a copy under another name still works.
 export function App() {
   const { name: app } = useParams()
@@ -24,21 +28,23 @@ export function App() {
 
   return (
     <>
-      <p className="hello-example">Example app</p>
-      <h1 className="hello-title">Hello</h1>
-      <p className="hello-description">A small example you can make yours.</p>
-      <form
-        className="hello-form"
-        onSubmit={(event) => {
-          event.preventDefault()
-          void greet()
-        }}
-      >
-        <label className="hello-label" htmlFor="hello-name">Your name</label>
-        <input className="hello-input" id="hello-name" value={name} onChange={(event) => setName(event.target.value)} autoComplete="given-name" placeholder="e.g. Sam" />
-        <button className="hello-submit" type="submit">Say hello</button>
-        <p className="hello-message" aria-live="polite">{message}</p>
-      </form>
+      <p className="mb-2 text-sm text-muted-foreground">Example app</p>
+      <h1 className="mb-3">Hello</h1>
+      <p className="mb-6 text-muted-foreground">A small example you can make yours.</p>
+      <Card className="p-6">
+        <form
+          className="grid gap-3"
+          onSubmit={(event) => {
+            event.preventDefault()
+            void greet()
+          }}
+        >
+          <Label htmlFor="hello-name">Your name</Label>
+          <Input id="hello-name" value={name} onChange={(event) => setName(event.target.value)} autoComplete="given-name" placeholder="e.g. Sam" />
+          <Button className="w-full" type="submit">Say hello</Button>
+          <p className="min-h-6 text-muted-foreground wrap-anywhere" aria-live="polite">{message}</p>
+        </form>
+      </Card>
     </>
   )
 }

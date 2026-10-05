@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
+import { Button } from '@/components/ui/button'
+import { DropdownMenuItem } from '@/components/ui/dropdown-menu'
 import type { Person } from '../../lib/access'
 import { at, type ViewProps } from './address'
 import { Confirm } from './Confirm'
@@ -9,7 +11,7 @@ import { PersonPage } from './PersonPage'
 import { RoleSelect } from './RoleSelect'
 import { RowMenu } from './RowMenu'
 import { canRetry, signInLine } from './status'
-import { Row, Table } from './Table'
+import { Cell, Row, Table } from './Table'
 import { View } from './View'
 
 const COLUMNS = ['Person', 'Sign-in', 'Role', 'Apps and keys']
@@ -24,33 +26,33 @@ export function People(props: ViewProps) {
   const [removing, setRemoving] = useState<Person | null>(null)
   const opened = status.people.find(item => item.email === id)
   if (opened || id === 'new') return <PersonPage key={id} {...props} person={opened} />
-  const you = (email: string) => email === viewer && <span className="access-muted"> You</span>
+  const you = (email: string) => email === viewer && <span className="text-muted-foreground"> You</span>
   return <View {...props}>
     <Table title="People" columns={COLUMNS} actions="Actions"
-      add={<Link className="access-button access-primary" to={at('people', 'new')}><span aria-hidden="true">+ </span>Add person</Link>}>
+      add={<Button asChild><Link to={at('people', 'new')}><span aria-hidden="true">+ </span>Add person</Link></Button>}>
       <Row>
-        <td><span>{status.ownerEmail}</span>{you(status.ownerEmail)}</td>
-        <td className="access-muted">Can sign in</td>
-        <td>{dots('Owner', !owner && 'picks managers')}</td>
-        <td>Every app and key</td>
-        <td className="access-row-actions" />
+        <Cell><span>{status.ownerEmail}</span>{you(status.ownerEmail)}</Cell>
+        <Cell className="text-muted-foreground">Can sign in</Cell>
+        <Cell>{dots('Owner', !owner && 'picks managers')}</Cell>
+        <Cell>Every app and key</Cell>
+        <Cell actions />
       </Row>
       {status.people.map(person => {
         const signIn = signInLine(person, status)
         const active = person.status === 'active'
         const page = at('people', person.email)
         return <Row key={person.email} to={page}>
-          <td><Link to={page}>{person.email}</Link>{you(person.email)}</td>
-          <td className="access-muted">{signIn.text}</td>
-          <td>{active
-            ? <div className="access-role"><RoleSelect {...props} person={person} />{person.manager && <span>Manager</span>}</div>
-            : 'No role'}</td>
-          <td><div className="access-lines"><SetLabels status={status} set={person} /></div></td>
-          <td className="access-row-actions"><RowMenu label={`Actions for ${person.email}`}>
-            <Link className="access-button" to={page}>{active ? 'Open' : 'Add back'}</Link>
-            {signIn.unfinished && canRetry(status) && <button type="button" disabled={pending} onClick={() => save('retry')}>Try again</button>}
-            {active && (owner || !person.manager) && <button type="button" disabled={pending || !!removing} onClick={() => setRemoving(person)}>Remove</button>}
-          </RowMenu></td>
+          <Cell><Link to={page}>{person.email}</Link>{you(person.email)}</Cell>
+          <Cell className="text-muted-foreground">{signIn.text}</Cell>
+          <Cell>{active
+            ? <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5"><RoleSelect {...props} person={person} />{person.manager && <span>Manager</span>}</div>
+            : 'No role'}</Cell>
+          <Cell><div className="grid gap-2"><SetLabels status={status} set={person} /></div></Cell>
+          <Cell actions><RowMenu label={`Actions for ${person.email}`}>
+            <DropdownMenuItem asChild><Link to={page}>{active ? 'Open' : 'Add back'}</Link></DropdownMenuItem>
+            {signIn.unfinished && canRetry(status) && <DropdownMenuItem disabled={pending} onSelect={() => save('retry')}>Try again</DropdownMenuItem>}
+            {active && (owner || !person.manager) && <DropdownMenuItem disabled={pending || !!removing} onSelect={() => setRemoving(person)}>Remove</DropdownMenuItem>}
+          </RowMenu></Cell>
         </Row>
       })}
     </Table>

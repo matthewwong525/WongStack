@@ -1,14 +1,23 @@
 import type { ReactNode } from 'react'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
 import { CopyText } from '../../components/CopyText'
 import type { ViewProps } from './address'
 import { FINISH_REQUEST } from './status'
 
-/** A step the owner hands to their assistant: the words to say, and the full request to copy. */
-export function FinishStep({ children }: { children: ReactNode }) {
-  return <div className="access-notice">
+/** One notice in its box. It says nothing aloud unless `role` makes it a status or an alert. */
+function Notice({ role, children }: { role?: 'status' | 'alert'; children: ReactNode }) {
+  return <Alert role={role}><AlertDescription className="w-full gap-2 text-foreground wrap-anywhere">{children}</AlertDescription></Alert>
+}
+
+/** A step the owner hands to their assistant: the words to say, and the full request to copy.
+ *  Inside a key's own row it is `plain`: the step needs no box there. */
+export function FinishStep({ plain = false, children }: { plain?: boolean; children: ReactNode }) {
+  const step = <>
     <p>{children} <q>Finish Access setup</q></p>
     <CopyText text={FINISH_REQUEST} label="Copy that request" />
-  </div>
+  </>
+  return plain ? <div className="grid gap-2">{step}</div> : <Notice>{step}</Notice>
 }
 
 // The one spot for notices, under the views on every owner screen. First what the last change came to: a save
@@ -19,21 +28,21 @@ export function FinishStep({ children }: { children: ReactNode }) {
 export function Notices({ status, view, said, pending, save, reload }: ViewProps) {
   const people = view.name === 'people'
   return <>
-    {said && <p className="access-notice" role={said.failed ? 'alert' : 'status'}>
+    {said && <Notice role={said.failed ? 'alert' : 'status'}><p>
       <strong>{said.text}</strong>
-      {said.undo && <> <button type="button" disabled={pending} onClick={() => save('people', said.undo, { text: 'Undone.' })}>Undo</button></>}
-    </p>}
-    {status.environment !== 'live' && <p className="access-notice"><strong>Practice list.</strong> Changes here stay on previews. The real sign-in list is not touched.</p>}
-    {status.kept > 0 && <p className="access-notice"><strong>Key levels are on.</strong> Everyone kept what their apps already use. Lower a level any time.</p>}
+      {said.undo && <> <Button type="button" variant="outline" size="sm" className="ms-2" disabled={pending} onClick={() => save('people', said.undo, { text: 'Undone.' })}>Undo</Button></>}
+    </p></Notice>}
+    {status.environment !== 'live' && <Notice><p><strong>Practice list.</strong> Changes here stay on previews. The real sign-in list is not touched.</p></Notice>}
+    {status.kept > 0 && <Notice><p><strong>Key levels are on.</strong> Everyone kept what their apps already use. Lower a level any time.</p></Notice>}
     {people && status.key === 'missing' && (status.viewer.owner
       ? <FinishStep><strong>One step left.</strong> You can choose apps now. To let new people sign in, ask your assistant:</FinishStep>
-      : <p className="access-notice"><strong>One step left for the owner.</strong> You can choose apps now. New people can sign in once {status.ownerEmail} finishes Access setup.</p>)}
-    {people && status.key === 'ready' && !status.started && <div className="access-notice">
+      : <Notice><p><strong>One step left for the owner.</strong> You can choose apps now. New people can sign in once {status.ownerEmail} finishes Access setup.</p></Notice>)}
+    {people && status.key === 'ready' && !status.started && <Notice>
       <p>The sign-in list could not be read yet. Everyone keeps every app until it can.</p>
-      <button type="button" onClick={reload}>Read it again</button>
-    </div>}
-    {people && status.imported > 0 && <p className="access-notice">
+      <Button type="button" variant="outline" size="sm" onClick={reload}>Read it again</Button>
+    </Notice>}
+    {people && status.imported > 0 && <Notice><p>
       {status.imported === 1 ? '1 person' : `${status.imported} people`} could already sign in. They keep every app until you change them.
-    </p>}
+    </p></Notice>}
   </>
 }

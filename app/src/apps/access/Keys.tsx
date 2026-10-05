@@ -6,7 +6,7 @@ import { Names } from './Labels'
 import { keyState, keyUseLine, levelName } from './levels'
 import { FinishStep } from './Notices'
 import { keyHolders } from './subjects'
-import { Row, Table } from './Table'
+import { Cell, Row, Table } from './Table'
 import { View } from './View'
 
 const LEVELS = ['write', 'read'] satisfies Level[]
@@ -20,24 +20,24 @@ export function Keys(props: ViewProps) {
   if (opened) return <KeyPage key={id} {...props} item={opened} />
   // Setup makes one key itself, so on the live app the owner asks their assistant to finish, and a manager is told it is the owner's step; any other key comes through its link.
   const step = (key: SavedKey) => key.setup && status.environment === 'live' ? (status.viewer.owner
-    ? <FinishStep>Look-ups need a read-only key. Ask your assistant:</FinishStep>
+    ? <FinishStep plain>Look-ups need a read-only key. Ask your assistant:</FinishStep>
     : <p>Look-ups need a read-only key. {status.ownerEmail} finishes that in Access setup.</p>)
     : <><p>{keyUseLine(key)}</p>{!key.setup && <p>Ask your assistant for the key link</p>}</>
   return <View {...props}>
-    <Table title="Keys" columns={COLUMNS} add={<p className="access-muted">Your assistant sends a link for a new key</p>}
+    <Table title="Keys" columns={COLUMNS} add={<p className="text-sm text-muted-foreground">Your assistant sends a link for a new key</p>}
       empty={!status.keys.length && <><p>No keys saved yet.</p><p>When an app needs a service, your assistant sends a private link for its key. It shows up here.</p></>}>
       {status.keys.map(key => {
         const page = at('keys', key.id)
-        const state = <td className="access-muted">{keyState(key, status.environment)}</td>
+        const state = <Cell className="text-muted-foreground">{keyState(key, status.environment)}</Cell>
         return key.saved ? <Row key={key.id} to={page}>
-          <td><Link to={page}>{key.title}</Link></td>
+          <Cell><Link to={page}>{key.title}</Link></Cell>
           {state}
-          <td>{keyUseLine(key)}</td>
-          {LEVELS.map(level => <td key={level} data-label={levelName(level)}><Names title={levelName(level)} items={keyHolders(status, key, level)} none="Nobody" /></td>)}
+          <Cell>{keyUseLine(key)}</Cell>
+          {LEVELS.map(level => <Cell key={level} label={levelName(level)}><Names title={levelName(level)} items={keyHolders(status, key, level)} none="Nobody" /></Cell>)}
         </Row> : <Row key={key.id}>
-          <td><span>{key.title}</span></td>
+          <Cell><span>{key.title}</span></Cell>
           {state}
-          <td colSpan={3}><div className="access-lines">{step(key)}</div></td>
+          <Cell colSpan={3}><div className="grid gap-2">{step(key)}</div></Cell>
         </Row>
       })}
     </Table>
