@@ -267,6 +267,7 @@ test('preflight takes the turn, rebuilds staging from the seed, and cleanup give
   assert.match(calls[1], /^npx wrangler d1 migrations apply app-db-staging --remote --env staging$/);
   assert.match(calls[2], /^npx wrangler d1 execute app-db-staging --remote --env staging --file=.*schema\/seed\.sql$/);
   const runDir = result.stdout.match(/^RUN_DIR=(.+)$/m)[1];
+  assert.equal(readFileSync(join(runDir, 'staging-facts'), 'utf8'), 'SEEDED=yes\nPLAYGROUND=yes\n', 'a replay of kept checks reads the facts from the run folder');
   const cleaned = spawnSync('bash', [script, 'cleanup', runDir], { cwd: work, env, encoding: 'utf8' });
   assert.equal(cleaned.status, 0);
   assert.equal(held(), '', 'cleanup kept the staging turn');
