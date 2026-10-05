@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 35.0.1 — Two notes on checks that fail without a cause
+
+- **A check GitHub cancelled before it started is named.** [GitHub Actions](wiki/stack/github-actions.md) says how to tell one and to run it again, on the main branch too.
+- **The repeated-code check's settings file takes no comments.** [Mini apps](wiki/stack/mini-apps.md#the-rules) says why: with one, the check passes everything.
+
+**Updating.** Nothing needs doing by hand.
+
 ## 35.0.0 — Screens built from ready-made parts, not styled by hand
 
 - **Every screen is built from one set of ready-made parts.** Buttons, fields, tables, menus, popups, boxes and labels come from shadcn, a well-known set of parts, on Tailwind, the styling tool it is built with. No screen keeps a style file of its own.
