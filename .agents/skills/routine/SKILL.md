@@ -30,7 +30,7 @@ Say which you picked before making anything. The person may ask for a routine an
 1. **Turn the time into five-field cron** (`0 9 * * 1-5`); ask when the time is unclear. Omit the timezone unless the user states one.
 2. **Preview.** Run `node "$R" create --cron '<cron>' --prompt '<prompt>' [--name '<name>'] [--timezone <iana>] [--keys <NAME,NAME>] --dry-run`. Keep the prompt verbatim; add no unattended wording. `--keys` names the `.env` keys the run may use.
 3. **Confirm.** Show the name, cron and its plain meaning, timezone, prompt, and model, and say the run has full permissions inside its cloud computer. With `installed: false`, show `adds` and `cost` too: this first routine installs them. With `model: null`, ask [which model](#when-it-is-not-ready) here. Ask in [the ask format](../explore/references/asking-the-user.md#confirmations-offers-and-menus-are-asks): create it *(Recommended)*, or change the time or prompt. When nobody can answer, create it.
-4. **Create.** Rerun without `--dry-run`; report its name, id, `nextRunAt` in its timezone, and what `setup` added.
+4. **Create.** Rerun without `--dry-run`; report its name, id, `nextRunAt` in its timezone, what `setup` added, and any `todo`.
 
 ## When it is not ready
 

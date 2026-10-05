@@ -120,8 +120,10 @@ Limits as #291: 30 minutes, one run per routine, two computers at once, last 10 
 2. Widen the user token by the groups it lacks: `Billing Read`, `Workers Containers Write`, and the ones that make an AI Gateway and run it and Workers AI.
 3. `paidPlan` → not paid: exit 3, `needs: 'paid-plan'`, the cost and the upgrade link. Nothing is created.
 4. Fill `wrangler.template.jsonc` (a GitHub install drops the `artifacts` line), `npm ci --ignore-scripts`, `npx --no-install wrangler deploy`.
-5. Make the AI Gateway; mint and `PUT` `ROUTINES_KEY` and `AI_RUN_TOKEN`; `PUT` `MEMORY_TOKEN`; write `WONG_ROUTINES_KEY` to `.env` and `components.routines` to `.claude/.wong-stack.json`.
+5. Make the AI Gateway; mint and `PUT` `ROUTINES_KEY` and `AI_RUN_TOKEN`; issue the runs' own memory key and `PUT` it as `MEMORY_TOKEN` (below); write `WONG_ROUTINES_KEY` to `.env` and `components.routines` to `.claude/.wong-stack.json`.
 6. On a GitHub install, `needs: 'project-access'` until `WONG_ROUTINE_GITHUB_TOKEN`, a fine-grained token for this one repository (contents and pull requests, read and write), is given through the key link and `PUT` as secret `GITHUB_TOKEN`.
+
+**The runs' memory key.** The install's own `CLOUDFLARE_MEMORY_TOKEN` never leaves the computer: on the owner's it is the admin key. Setup makes a new machine id for the runner, issues it a `member` key with `memory.mjs member add <id> --role member --label 'routine runs' --key-file <private temp file>`, `PUT`s the key, deletes the file, and records the id as `components.routines.memoryMachine`. A member reads and writes `project`, `thread`, and `reference` facts only, so a run's note reaches the next chat and no private fact or transcript reaches a run. A repeat setup reuses the id while the runner still holds the secret. An install with no memory store, or whose token can't issue keys, skips this with a to-do, and its runs leave their notes in the result. Teardown runs `member remove <id>`.
 
 Setup is safe to repeat; it also updates the runner after a WongStack update. The management API and its key are #291's: bearer `WONG_ROUTINES_KEY`, constant-time compare, 404 for everything else, no route returns a secret. It gains `/models`, `/model`, and `/model/test`.
 
@@ -157,6 +159,7 @@ Retired names: `paseo-routines` → the `cloud-routines` spec; `ROUTINE_PASEO_BI
 - **[A key's shape is shared by several services]** → Shape only orders the candidates; the test request decides, and `--provider` overrides.
 - **[A subscription key may not be allowed from a server]** → The page says the service's own terms apply and names Z.ai's; the key is still the person's choice to paste.
 - **[A model key sits in the run's computer]** → It holds no Cloudflare or publishing key, nothing outside can reach it, and its log hides every held value.
+- **[A run that goes wrong, or a model tricked by a web page, holds a memory key]** → It is a member key made for runs: shared notes only, revoked by teardown or `member remove`.
 - **[A full-permission assistant runs unattended]** → Its reach is fixed by code: one repository, the memory key, named keys only, 30 minutes. A test asserts the env list.
 - **[A public address guards the routines]** → 256-bit key, constant-time compare, 404 for everything else. The Worker is absent until the first routine.
 - **[A failed run is quiet]** → The list shows the last result, and a run that started leaves a memory thread.

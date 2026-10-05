@@ -100,12 +100,16 @@ The runner's code fixes a run's reach. Its prompt can't widen it.
 |---|---|
 | The model's key | A Cloudflare pick: a key setup made that can only run models. A pasted key: yours, under its service's own name |
 | This one project, to read and to save to | Cloudflare: a key made for the run, good for an hour. GitHub: `WONG_ROUTINE_GITHUB_TOKEN`, a token for this one repository |
-| The memory key | this install's `.env`, sent when the runner is installed |
+| A memory key of its own | Made for runs when the runner is installed. It reads and adds the project's shared notes, never your private facts or chats |
 | The keys its routine names with `--keys` | `.env`, sent when the routine is made |
 
 A run never gets your Cloudflare token or the publishing key, so it can publish only by saving through the project's normal checks. Nothing outside can reach its computer.
 
-**A run acts as the person who made the routine.** Its commits carry their name. Its memory is filed under the computer that installed the runner, since [a memory key answers only its own installation](../development/memory-key.md).
+**A run acts as the person who made the routine.** Its commits carry their name.
+
+**Runs hold their own memory key, not yours.** Your memory key never leaves your computer: on the owner's it reads every fact and chat. Setup makes an id for the runner, issues it a [member key](../development/memory-key.md#add-or-remove-a-teammate) labelled `routine runs`, sends that key to the runner, and deletes the private file it came in. The id is recorded as `components.routines.memoryMachine`, and a run's notes are filed under it. A member key reads and adds shared notes only, so a run's note shows in your next chat and no private fact reaches a run. Setup issues a new key only when the runner no longer holds one.
+
+An install with no memory store, or whose Cloudflare token can't issue memory keys, gets a to-do instead. Its runs still work, and leave their notes in the result.
 
 **The routines key guards the list.** The first `/routine` makes `WONG_ROUTINES_KEY` and saves it in `.env` and in the runner. Whoever holds it can list and change this install's routines. Every other request gets the same answer as an address that does not exist, and no answer carries a key's value.
 
@@ -157,8 +161,9 @@ Removal is asked for by name and can't be undone. After [the stack's teardown](g
 1. The runner: `DELETE /accounts/{account_id}/workers/scripts/<base>-routines?force=true`. Its list of routines, every stored key, and its address go with it.
 2. Its container application and its Workflow, which outlive it: `DELETE /accounts/{account_id}/containers/applications/<id>` for the application named `<base>-routines`, and `DELETE /accounts/{account_id}/workflows/<base>-routines`.
 3. Its AI Gateway and the model-only key: `DELETE /accounts/{account_id}/ai-gateway/gateways/<base>-routines`, and `DELETE /accounts/{account_id}/tokens/<id>` for the token named `<base>-routines-ai`.
-4. On this computer: the `WONG_ROUTINES_KEY` and `WONG_ROUTINE_*` lines in `.env`, `components.routines` in `.claude/.wong-stack.json`, and `scripts/routine-runner/wrangler.jsonc`.
-5. At each service: revoke the model key and the GitHub token you made for routines, since deleting the runner does not end them.
+4. The runs' memory key, which deleting the runner does not end: `node .claude/skills/memory/scripts/memory.mjs member remove <id>`, with the id in `components.routines.memoryMachine`. `member list` shows it as revoked.
+5. On this computer: the `WONG_ROUTINES_KEY` and `WONG_ROUTINE_*` lines in `.env`, `components.routines` in `.claude/.wong-stack.json`, and `scripts/routine-runner/wrangler.jsonc`.
+6. At each service: revoke the model key and the GitHub token you made for routines, since deleting the runner does not end them.
 
 Read each one back as gone. **Left behind:** the permissions the token gained, which you can [narrow back](cloudflare-credentials.md#narrowing-back). Nothing else in the account is touched: a name that does not match this install is skipped and named.
 

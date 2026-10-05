@@ -82,12 +82,17 @@ The agent SHALL take a model key only through the private key link, never in cha
 
 ### Requirement: A run gets only what it needs
 
-A run SHALL receive access to this one project, the memory key, the model key, and the keys its routine names, and nothing else. It SHALL NOT receive the person's Cloudflare user token or the publishing key.
+A run SHALL receive access to this one project, a memory key, the model key, and the keys its routine names, and nothing else. It SHALL NOT receive the person's Cloudflare user token or the publishing key. The memory key SHALL be one made for runs, which reads and writes the project's shared notes and never a person's private facts or chat transcripts; it SHALL NOT be the person's own memory key.
 
 #### Scenario: A run prints its environment
 
 - **WHEN** a run's prompt makes the assistant print every environment variable
 - **THEN** the output holds no Cloudflare user token and no publishing key, and the saved log shows no secret value
+
+#### Scenario: A run reads memory
+
+- **WHEN** a run searches memory on an install whose owner has private facts
+- **THEN** it finds the shared notes and none of the owner's private facts, and a note it leaves shows in the owner's next chat
 
 ### Requirement: A run never waits for an answer
 

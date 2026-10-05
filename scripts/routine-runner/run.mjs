@@ -34,7 +34,7 @@ export const BOUNDS = {
   tokenSeconds: 60 * 60,
 };
 
-export const NOTICE = 'This is a scheduled run and nobody can answer. Take the recommended option wherever you would ask, and mark it assumed. If that leaves something for the person, record it as a memory thread: when this project has `.agents/skills/memory/SKILL.md`, read it and write one fact tagged `routine` through its write gate; when it has none, end your reply with what is left. If nothing is left, do neither.';
+export const NOTICE = 'This is a scheduled run and nobody can answer. Take the recommended option wherever you would ask, and mark it assumed. If that leaves something for the person, record it as a memory thread: when this project has `.agents/skills/memory/SKILL.md`, read it and write one fact tagged `routine` through its write gate, leaving `session` out of the JSON because a scheduled run has no chat session, and check the script answers `stored`; when it has none, end your reply with what is left. If nothing is left, do neither.';
 
 const PROJECT = '/workspace/project';
 const TOOLS = '/workspace/tools';

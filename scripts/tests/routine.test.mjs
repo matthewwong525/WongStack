@@ -1,17 +1,21 @@
 // /routine's client, .agents/skills/routine/scripts/routine.mjs, against a fake Cloudflare over HTTP
 // and a fake runner: the runner's real list and router on stand-in storage, with a stand-in for
-// pi-ai. npm and wrangler never run.
+// pi-ai. npm and wrangler never run, and the memory script's `member add` is a stand-in that keeps
+// its contract: one new private file outside every repo, holding a real key for the id it was given.
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { RoutineError, buildRoutine, defaultName, githubRemote, main, makerOf, refusalReason, runnerConfig } from '../../.agents/skills/routine/scripts/routine.mjs';
 import { AI_RUN_TOKEN as RUN_TOKEN_GROUPS, ROUTINES_PROVISION, run as runTool } from '../../.agents/skills/routine/scripts/lib/cloudflare.mjs';
 import { EXIT, PaseoError, parseCommand } from '../../.agents/skills/routine/scripts/lib/paseo.mjs';
+import { MACHINE_ID } from '../../.agents/skills/memory/scripts/lib/machine-id.mjs';
+import { newKey } from '../../.agents/skills/memory/worker/memory-worker.mjs';
 import { GATEWAY, SHORTLIST } from '../routine-runner/models.mjs';
 import { API_VERSION } from '../routine-runner/routines.mjs';
+import { memoryMachine } from '../routine-runner/run.mjs';
 import { ACCOUNT, TOKEN, fakeCloudflare } from './fixtures/cloudflare.mjs';
 import { AI_RUN_TOKEN, CATALOG, KIMI, ROUTINES_KEY, fakeModels, fakeRunner } from './fixtures/routine-runner.mjs';
 
@@ -25,6 +29,10 @@ const ZAI_KEY = `${'0123456789abcdef'.repeat(2)}.PastedModelKeySecret`;
 const CREATE = ['create', '--cron', '0 9 * * 1-5', '--prompt', '/improve', '--timezone', 'UTC'];
 const SECRETS = `/accounts/${ACCOUNT}/workers/scripts/${RUNNER}/secrets`;
 const ROUTINES = { worker: RUNNER, url: 'https://demo-routines.ada.workers.dev', accountId: ACCOUNT, route: 'artifacts', gateway: RUNNER };
+const MEMORY_SCRIPT = path.join(repoRoot, '.agents/skills/memory/scripts/memory.mjs');
+const MEMORY_STORE = { databaseId: 'uuid-demo-memory', worker: 'https://demo.ada.workers.dev/_memory' };
+/** What setup records, without the id it made for the runs' memory key. */
+const sansMemory = ({ memoryMachine: _id, ...rest } = {}) => rest;
 const CLOUDFLARE_PICK = { via: 'cloudflare', provider: GATEWAY, model: KIMI, service: 'Cloudflare' };
 const ZAI_PICK = { via: 'key', provider: 'zai', model: 'glm-5.3', service: 'Z.ai Coding Plan' };
 // Monday 5 October 2026, 08:00 UTC.
@@ -36,10 +44,12 @@ const git = (cwd, ...args) => execFileSync('git', ['-C', cwd, ...args], { encodi
  * An install named "demo": a repo with the runner's pack folder, keys in an ignored .env, and an
  * install record. `route` is where its project lives. `installed` records the runner as already set
  * up, with this computer holding its key and the runner its model-only token; `picked` also puts a
- * Cloudflare model in use. Commands run in-process, against a fake Cloudflare and a fake runner
- * whose secrets are the ones the fake Cloudflare holds for the runner's Worker.
+ * Cloudflare model in use. `store: false` is an install with no memory store. Commands run
+ * in-process, against a fake Cloudflare and a fake runner whose secrets are the ones the fake
+ * Cloudflare holds for the runner's Worker. `memory.issued` lists each key the memory script's
+ * stand-in was asked for; `memory.refuse` makes it fail as a token that can't issue keys does.
  */
-async function install(t, { route = 'artifacts', installed = false, picked = false, paid = true, keys = {} } = {}) {
+async function install(t, { route = 'artifacts', installed = false, picked = false, paid = true, store = true, keys = {} } = {}) {
   const base = realpathSync(mkdtempSync(path.join(tmpdir(), 'wong-test-routine-')));
   t.after(() => rmSync(base, { recursive: true, force: true }));
   const dir = path.join(base, 'demo');
@@ -52,7 +62,7 @@ async function install(t, { route = 'artifacts', installed = false, picked = fal
   cpSync(path.join(repoRoot, 'scripts/routine-runner'), path.join(dir, 'scripts/routine-runner'), { recursive: true, filter: (source) => !/node_modules|wrangler\.jsonc$|\.wrangler/.test(source) });
   const record = {
     components: {
-      memory: { accountId: ACCOUNT, database: 'demo-memory' },
+      memory: { accountId: ACCOUNT, database: 'demo-memory', ...(store ? MEMORY_STORE : {}) },
       ...(route === 'artifacts' ? { delivery: { route: 'artifacts', accountId: ACCOUNT, namespace: 'wongstack', repo: 'demo', remote: REMOTE } } : {}),
       ...(installed ? { routines: { ...ROUTINES, route } } : {}),
     },
@@ -75,7 +85,23 @@ async function install(t, { route = 'artifacts', installed = false, picked = fal
   if (picked) await runner.routines.choose({ via: 'cloudflare', model: KIMI });
 
   const ran = [];
+  const memory = { issued: [], refuse: false };
   const exec = async (file, args, options = {}) => {
+    if (file === process.execPath && args[0] === MEMORY_SCRIPT) {
+      const keyFile = args[args.indexOf('--key-file') + 1];
+      const asked = { args: args.slice(1), cwd: options.cwd, file: keyFile, mode: null, key: null };
+      memory.issued.push(asked);
+      for (let folder = path.dirname(keyFile); ; folder = path.dirname(folder)) {
+        assert.equal(existsSync(path.join(folder, '.git')), false, 'the private file is outside every repo');
+        if (path.dirname(folder) === folder) break;
+      }
+      writeFileSync(keyFile, '', { flag: 'wx', mode: 0o600 });
+      asked.mode = statSync(path.dirname(keyFile)).mode & 0o077;
+      if (memory.refuse) throw new Error('node exited with 1: CLOUDFLARE_API_TOKEN lacks D1 Write; widen the provisioning token and run again');
+      asked.key = newKey(args[3]);
+      writeFileSync(keyFile, `${JSON.stringify({ key: asked.key, machineId: args[3], ...MEMORY_STORE })}\n`, { mode: 0o600 });
+      return { stdout: `Prepared member repository access for machine ${args[3]} in the private transfer file.\n`, stderr: '' };
+    }
     if (file !== 'npm' && file !== 'npx') return runTool(file, args, options);
     ran.push({ file, args, cwd: options.cwd, token: options.env?.CLOUDFLARE_API_TOKEN === TOKEN });
     if (args.includes('deploy')) {
@@ -91,7 +117,7 @@ async function install(t, { route = 'artifacts', installed = false, picked = fal
   };
   const envFile = (file = path.join(dir, '.env')) => Object.fromEntries(readFileSync(file, 'utf8').split('\n').filter(Boolean).map((line) => [line.slice(0, line.indexOf('=')), line.slice(line.indexOf('=') + 1)]));
   return {
-    dir, fake, runner, ran, at, envFile, run: at(dir),
+    dir, fake, runner, ran, memory, at, envFile, run: at(dir),
     record: () => JSON.parse(readFileSync(path.join(dir, '.claude/.wong-stack.json'), 'utf8')).components,
     addKey: (name, value) => writeFileSync(path.join(dir, '.env'), `${readFileSync(path.join(dir, '.env'), 'utf8')}${name}=${value}\n`),
     held: () => fake.state.workerSecrets[RUNNER] ?? {},
@@ -102,7 +128,7 @@ async function install(t, { route = 'artifacts', installed = false, picked = fal
 
 /** Asserts no key's value reached a command's output. */
 function noSecret(text, env) {
-  for (const value of [TOKEN, MEMORY, PROJECT_KEY, ZAI_KEY, ROUTINES_KEY, AI_RUN_TOKEN, env.envFile().WONG_ROUTINES_KEY, ...env.fake.state.minted, ...Object.values(env.held())].filter(Boolean)) {
+  for (const value of [TOKEN, MEMORY, PROJECT_KEY, ZAI_KEY, ROUTINES_KEY, AI_RUN_TOKEN, env.envFile().WONG_ROUTINES_KEY, ...env.fake.state.minted, ...env.memory.issued.map((asked) => asked.key), ...Object.values(env.held())].filter(Boolean)) {
     assert.equal(text.includes(value), false, `a key's value was printed: ${text.slice(0, 200)}`);
   }
 }
@@ -207,8 +233,8 @@ test('setup --dry-run says what the first routine adds, the cost, and full permi
   const { code, data } = await env.run('setup', '--dry-run');
   assert.equal(code, 0);
   assert.deepEqual([data.ok, data.dryRun, data.installed], [true, true, false]);
-  assert.equal(data.adds.length, 5);
-  assert.match(data.adds.join(' '), /keeps the list of routines and the clock.*short-lived cloud computer.*gateway to Cloudflare's AI models.*can only run models.*private key.*Workers Containers Write, Billing Read, AI Gateway Write, AI Gateway Run, Workers AI Read/);
+  assert.equal(data.adds.length, 6);
+  assert.match(data.adds.join(' '), /keeps the list of routines and the clock.*short-lived cloud computer.*gateway to Cloudflare's AI models.*can only run models.*private key.*memory key made only for runs.*never your private facts or chats.*Workers Containers Write, Billing Read, AI Gateway Write, AI Gateway Run, Workers AI Read/);
   assert.match(data.cost, /about \$5 a month/);
   assert.match(data.fullPermissions, /full permissions/);
   assert.deepEqual([env.fake.calls.length, env.runner.state.calls.length, env.ran.length], [0, 0, 0]);
@@ -277,11 +303,11 @@ test('the first setup installs the runner from the pack\'s pinned tools, makes t
   const env = await install(t);
   const { code, data, text } = await env.run('setup');
   assert.equal(code, 0, text);
-  assert.deepEqual([data.ok, data.routines, data.plan, data.needs], [true, ROUTINES, 'Workers Paid', undefined]);
-  assert.deepEqual(data.created, ['scripts/routine-runner/wrangler.jsonc', `AI Gateway ${RUNNER}`, `model-only key ${RUNNER}-ai`, 'WONG_ROUTINES_KEY in .env']);
+  assert.deepEqual([data.ok, sansMemory(data.routines), data.plan, data.needs, data.todo], [true, ROUTINES, 'Workers Paid', undefined, undefined]);
+  assert.deepEqual(data.created, ['scripts/routine-runner/wrangler.jsonc', `AI Gateway ${RUNNER}`, `model-only key ${RUNNER}-ai`, 'memory key for runs', 'WONG_ROUTINES_KEY in .env']);
   assert.deepEqual(data.updated, [`routine runner ${RUNNER}`, '.claude/.wong-stack.json components.routines']);
   assert.deepEqual(data.granted, ROUTINES_PROVISION.map((row) => row.name));
-  assert.deepEqual(env.record().routines, ROUTINES, 'the install record names the Worker and its address');
+  assert.deepEqual(env.record().routines, data.routines, 'the install record names the Worker, its address, and the runs\' memory id');
 
   const folder = path.join(env.dir, 'scripts/routine-runner');
   const config = JSON.parse(readFileSync(path.join(folder, 'wrangler.jsonc'), 'utf8'));
@@ -297,7 +323,8 @@ test('the first setup installs the runner from the pack\'s pinned tools, makes t
   assert.deepEqual(minted.policies, [{ effect: 'allow', resources: { [`com.cloudflare.api.account.${ACCOUNT}`]: '*' }, permission_groups: RUN_TOKEN_GROUPS.map((row) => ({ id: row.id })) }], 'the key a run holds can run models on this account, and nothing else');
   const key = env.envFile().WONG_ROUTINES_KEY;
   assert.match(key, /^[A-Za-z0-9_-]{43}$/, '32 random bytes');
-  assert.deepEqual(env.held(), { ROUTINES_KEY: key, AI_RUN_TOKEN: env.fake.state.minted[0], MEMORY_TOKEN: MEMORY });
+  const [asked] = env.memory.issued;
+  assert.deepEqual(env.held(), { ROUTINES_KEY: key, AI_RUN_TOKEN: env.fake.state.minted[0], MEMORY_TOKEN: asked.key });
   assert.equal(git(env.dir, 'status', '--porcelain', '--', 'scripts'), '', 'what setup generates is kept out of git');
   assert.match(readFileSync(path.join(env.dir, '.git/info/exclude'), 'utf8'), /^scripts\/routine-runner\/wrangler\.jsonc\nscripts\/routine-runner\/node_modules\/\nscripts\/routine-runner\/\.wrangler\/\n/m);
   noSecret(text, env);
@@ -305,6 +332,7 @@ test('the first setup installs the runner from the pack\'s pinned tools, makes t
   const again = await env.run('setup');
   assert.equal(again.code, 0);
   assert.deepEqual([again.data.created, again.data.granted], [[], []]);
+  assert.deepEqual([env.memory.issued.length, again.data.routines.memoryMachine, env.held().MEMORY_TOKEN], [1, data.routines.memoryMachine, asked.key], 'while the runner holds the runs\' memory key, its id is reused and no key is issued');
   assert.equal(env.envFile().WONG_ROUTINES_KEY, key, 'a second setup keeps the key this computer holds');
   assert.deepEqual([env.held().ROUTINES_KEY, env.fake.state.minted.length, env.fake.state.gateways.length], [key, 1, 1], 'nothing is made twice');
   assert.equal(readFileSync(path.join(env.dir, '.git/info/exclude'), 'utf8').match(/routine-runner\/wrangler\.jsonc/g).length, 1);
@@ -319,6 +347,7 @@ test('a setup that fails midway records nothing here, and the next one finishes'
   assert.equal(env.envFile().WONG_ROUTINES_KEY, undefined);
   assert.equal(env.record().routines, undefined);
   assert.deepEqual(env.held(), {});
+  assert.deepEqual(env.memory.issued, [], 'a stop before it issues no memory key');
   assert.equal((await env.run('ls')).data.installed, false);
 
   env.fake.state.refuse = [`POST /accounts/${ACCOUNT}/tokens`];
@@ -330,8 +359,78 @@ test('a setup that fails midway records nothing here, and the next one finishes'
   const done = await env.run('setup');
   assert.equal(done.code, 0, done.text);
   assert.equal(env.held().ROUTINES_KEY, env.envFile().WONG_ROUTINES_KEY);
-  assert.deepEqual(env.record().routines, ROUTINES);
+  assert.deepEqual(sansMemory(env.record().routines), ROUTINES);
   assert.equal(env.fake.state.gateways.length, 1);
+});
+
+test('runs get a memory key of their own, made for a new id, and this install\'s own memory key is sent nowhere', async (t) => {
+  const env = await install(t);
+  const { code, data, text } = await env.run('setup');
+  assert.equal(code, 0, text);
+  const [asked] = env.memory.issued;
+  const id = data.routines.memoryMachine;
+  assert.match(id, MACHINE_ID);
+  assert.deepEqual(asked.args, ['member', 'add', id, '--role', 'member', '--label', 'routine runs', '--key-file', asked.file], 'a member key: shared notes only');
+  assert.equal(asked.cwd, env.dir);
+  assert.deepEqual([path.isAbsolute(asked.file), asked.file.startsWith(`${path.dirname(env.dir)}${path.sep}`), asked.mode], [true, false, 0], 'the key file is in a folder only this user can open, outside the project');
+  assert.deepEqual([existsSync(asked.file), existsSync(path.dirname(asked.file))], [false, false], 'the private file is gone afterwards, with its folder');
+  assert.equal(memoryMachine(env.held().MEMORY_TOKEN), id, 'the runner holds the key of the id that is recorded, so a run\'s memory is filed under it');
+  assert.equal(env.calls(`PUT ${SECRETS}`).filter((call) => call.body.includes(asked.key)).length, 1, 'the new key goes to Cloudflare once, as the runner\'s secret');
+  for (const call of env.fake.calls) assert.equal(`${call.path}${call.body}`.includes(MEMORY), false, `this install's own memory key reached Cloudflare: ${call.method} ${call.path}`);
+  assert.equal(env.envFile().CLOUDFLARE_MEMORY_TOKEN, MEMORY, 'and it stays as it was in .env');
+  assert.equal(Object.values(env.held()).includes(MEMORY), false);
+  noSecret(text, env);
+});
+
+test('a repeat setup issues the runs\' memory key again, for the same id, when the runner no longer holds it', async (t) => {
+  const env = await install(t);
+  const first = await env.run('setup');
+  const id = first.data.routines.memoryMachine;
+  delete env.fake.state.workerSecrets[RUNNER].MEMORY_TOKEN;
+  const second = await env.run('setup');
+  assert.equal(second.code, 0, second.text);
+  assert.deepEqual(env.memory.issued.map((asked) => asked.args[2]), [id, id], 'the same id, so the earlier key ends and the runs keep their notes');
+  assert.deepEqual([second.data.created, second.data.updated, second.data.routines.memoryMachine], [[], [`routine runner ${RUNNER}`, 'memory key for runs: new value sent to the routine runner'], id]);
+  assert.equal(env.held().MEMORY_TOKEN, env.memory.issued[1].key);
+  assert.notEqual(env.memory.issued[1].key, env.memory.issued[0].key);
+  assert.equal(env.memory.issued.some((asked) => existsSync(asked.file)), false);
+
+  // A runner that holds a memory key no record names, as a setup before this one could leave: it is replaced.
+  const older = await install(t, { installed: true });
+  older.fake.state.workerSecrets[RUNNER].MEMORY_TOKEN = MEMORY;
+  const replaced = await older.run('setup');
+  assert.equal(replaced.code, 0, replaced.text);
+  assert.deepEqual([older.memory.issued.length, older.held().MEMORY_TOKEN, older.record().routines.memoryMachine], [1, older.memory.issued[0].key, older.memory.issued[0].args[2]]);
+  assert.equal(replaced.text.includes(MEMORY), false);
+  noSecret(second.text, env);
+  noSecret(replaced.text, older);
+});
+
+test('with no memory store, or a token that can not issue a key, setup leaves a to-do and installs the rest', async (t) => {
+  const bare = await install(t, { store: false });
+  const none = await bare.run('setup');
+  assert.equal(none.code, 0, none.text);
+  assert.deepEqual([none.data.ok, none.data.todo, none.data.routines], [true, ['this install has no memory store, so a run leaves its note in its result, not in memory; add one with /wong-sync, then run setup again'], ROUTINES]);
+  assert.deepEqual([bare.memory.issued, bare.held().MEMORY_TOKEN, bare.record().routines], [[], undefined, ROUTINES], 'nothing is issued, sent, or recorded for memory');
+  assert.deepEqual(Object.keys(bare.held()), ['ROUTINES_KEY', 'AI_RUN_TOKEN'], 'the rest is installed');
+
+  const env = await install(t);
+  env.memory.refuse = true;
+  const refused = await env.run('setup');
+  assert.equal(refused.code, 0, refused.text);
+  assert.deepEqual(refused.data.todo, ['no memory key could be made for runs, so a run leaves its note in its result, not in memory; the Cloudflare token here must be able to issue memory keys (wiki/development/memory-key.md), then run setup again']);
+  assert.deepEqual([env.memory.issued.length, existsSync(env.memory.issued[0].file), existsSync(path.dirname(env.memory.issued[0].file))], [1, false, false], 'the private file a refused issue left is gone too');
+  assert.deepEqual([env.held().MEMORY_TOKEN, env.record().routines, refused.data.created.includes('memory key for runs')], [undefined, ROUTINES, false]);
+  const listed = await env.run('ls');
+  assert.deepEqual([listed.code, listed.data.routines], [0, []], 'routines work without it');
+
+  env.memory.refuse = false;
+  const done = await env.run('setup');
+  assert.deepEqual([done.code, done.data.todo, done.data.created], [0, undefined, ['memory key for runs']]);
+  assert.equal(memoryMachine(env.held().MEMORY_TOKEN), env.record().routines.memoryMachine);
+  for (const each of [bare, env]) for (const call of each.fake.calls) assert.equal(call.body.includes(MEMORY), false, 'no to-do sends this install\'s own memory key instead');
+  noSecret(none.text, bare);
+  noSecret(`${refused.text}${done.text}`, env);
 });
 
 test('a GitHub install drops the Artifacts binding and answers needs project-access until the project key is given', async (t) => {
@@ -369,7 +468,7 @@ test('create --dry-run shows the routine, who it runs as, its next run, and the 
   assert.equal(code, 0);
   assert.deepEqual(data.request, { name: 'improve demo', prompt: '/improve', cron: '0 9 * * 1-5', timezone: 'UTC', keys: [], maker: { id: 'b5fc85e55755', name: 'Ada', email: 'Ada@Example.com' } });
   assert.deepEqual([data.dryRun, data.installed, data.runsAs, data.nextRunAt, data.model], [true, false, { name: 'Ada', email: 'Ada@Example.com' }, '2026-10-05T09:00:00.000Z', null]);
-  assert.deepEqual([data.adds.length, data.shortlist], [5, SHORTLIST], 'before setup the preview also says what the first routine adds, and which models it can ask about');
+  assert.deepEqual([data.adds.length, data.shortlist], [6, SHORTLIST], 'before setup the preview also says what the first routine adds, and which models it can ask about');
   assert.deepEqual([env.fake.calls.length, env.runner.state.calls.length, env.ran.length], [0, 0, 0]);
 
   const ready = await install(t, { installed: true, picked: true });
@@ -384,8 +483,8 @@ test('the first routine installs the pieces, then asks which model with the shor
   const first = await env.run(...CREATE);
   assert.deepEqual([first.code, first.data.ok, first.data.needs, first.data.shortlist], [3, false, 'model', SHORTLIST], first.text);
   assert.match(first.data.error, /No model is picked/);
-  assert.deepEqual([first.data.setup.routines, first.data.setup.created.length], [ROUTINES, 4], 'the stop still names what the first routine added');
-  assert.deepEqual(env.record().routines, ROUTINES);
+  assert.deepEqual([sansMemory(first.data.setup.routines), first.data.setup.created.length], [ROUTINES, 5], 'the stop still names what the first routine added');
+  assert.deepEqual(sansMemory(env.record().routines), ROUTINES);
   assert.deepEqual(env.fake.state.workers, [RUNNER]);
   assert.deepEqual((await env.run('ls')).data.routines, [], 'no routine exists until a model is picked');
 
@@ -658,7 +757,7 @@ test('before setup the list is empty and every change asks for setup; a computer
   assert.deepEqual((await fresh.run('ls')).data, { ok: true, installed: false, routines: [] });
   for (const argv of [['pause', 'x'], ['delete', 'x'], ['change', 'x', '--prompt', 'y'], ['logs', 'x'], ['key', '--remove']]) {
     const asked = await fresh.run(...argv);
-    assert.deepEqual([asked.code, asked.data.needs, asked.data.adds.length], [3, 'setup', 5], argv.join(' '));
+    assert.deepEqual([asked.code, asked.data.needs, asked.data.adds.length], [3, 'setup', 6], argv.join(' '));
   }
   assert.deepEqual(fresh.runner.state.calls, []);
 

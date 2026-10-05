@@ -26,6 +26,9 @@ Run on 2026-10-05 on the owner's account (Workers Paid), from a Linux server wit
 | A first routine installs the runner by itself | With nothing installed, `create --dry-run` showed what would be added, the cost, and the three models. `create` then installed everything in 34 seconds and stopped with `needs: model` and the shortlist. After `model`, `create` made the routine. |
 | The clock | A routine set for 21:04:00 UTC started by itself at 21:04:04.8, and its next run moved to the same time the next day. |
 | Never twice at once | A `run` asked for while a run was going answered `started: false, reason: running`, and recorded one skipped start. |
+| The runs' own memory key | `setup` issued a `member` key for a new machine id against the real memory store, sent it to the runner, and recorded the id; `member list` showed it as `member, routine runs, active`. A second `setup` issued nothing. |
+| A run can't see private facts | On a full copy of this project, a run searched memory for `shadcn` and `routine`. It was shown 3 and 23 facts, all `thread` or `project`. The owner's `feedback` facts on the same words were not there. |
+| A run leaves a note | The run stored one `thread` fact tagged `routine`, and it showed in a search from the owner's own checkout. The first try was lost: see below. These two runs took 6 and 11 minutes on GLM-5.3. |
 | The Worker minting an Artifacts write key | Worked with `env.ARTIFACTS.get(repo).createToken('write', ttl)`. The key outlives the run by up to an hour. |
 | No key in a URL, a log, or a stored step | The run's log and every stored Workflow step were searched for the Artifacts key, a Basic or Bearer header, the routines key, and the Cloudflare token. None was there. |
 | An install whose project lives on GitHub, with no project key | `setup` installed a second runner, `wong-rt-gh-routines`, in 36 seconds and answered `needs: project-access`. `create` then stopped with the same answer and made no routine. |
@@ -56,24 +59,27 @@ Start-up is under the 60-second limit, so no saved start was built.
 - **A refusal with no HTTP status read as "could not be reached".** The status is now taken from the refusal's own words, so a 402 says the account has no credit.
 - **The first call after `setup` got an empty 404.** A new key takes a few seconds to reach every Cloudflare location. The client now tries an empty 404 again, twice.
 - **The notice said to leave a memory thread, but not how.** In a project with no memory skill, the assistant called its own chat the memory record. The notice now says to write the thread through the project's memory skill when it has one, and otherwise to end its reply with what is left. A first wording made a one-word task spend three minutes on that bookkeeping, so the notice also says to do neither when nothing is left; the same task then replied with its one word.
+- **A note written the memory skill's usual way never left the container.** The skill's example names the chat session, a scheduled run has none, and the script then holds the fact for a next chat that never comes. The notice now says to leave the session out and to check the script answers `stored`.
 
 ## Not done yet
 
 - **The GitHub route** (the second half of task 5.2): a run that pushes to a GitHub repository needs a fine-grained token from the person, through the key link. Its runner is installed and waiting.
 - **A real pasted model key** (task 5.4): needs a key from the person, through the key link.
-- **A run that leaves a memory note:** the throwaway project has no memory skill and its install held no memory key. Task 5.7 covers it, in a project that has both.
-
-A key link for both keys was open from 20:24 to 20:54 UTC on 2026-10-05 and closed unused.
+Two key links for both keys were open on 2026-10-05, from 20:24 to 20:54 UTC and for 30 minutes from about 21:52 UTC, and both closed unused.
 
 ## Clean-up
 
-Every test routine is deleted, so nothing runs on a schedule. The pieces below are kept for the two checks that wait on a key. To delete, and to read back as gone through Cloudflare's API:
+Deleted on 2026-10-05 and read back as gone through Cloudflare's API:
 
 - Workers `wong-rt-trial-routines` and `wong-rt-gh-routines`, each with its container application and its Workflow.
 - AI Gateways `wong-rt-trial-routines` and `wong-rt-gh-routines`.
 - Account tokens `wong-rt-trial-routines-ai` and `wong-rt-gh-routines-ai`.
-- Artifacts repository `wongstack/wong-rt-trial` and its tokens.
-- GitHub repository `matthewwong525/wong-rt-trial`, private.
+- Artifacts repositories `wongstack/wong-rt-trial` and `wongstack/wong-rt-mem`, with their tokens.
+- The runs' memory key: `member list` shows its machine id as revoked. The test note it wrote is closed.
+
+Still to delete, at task 5.5:
+
+- GitHub repository `matthewwong525/wong-rt-trial`, private. It is kept so the person can make a token for it.
 - The temp folder on this server.
 
-The three permissions the owner's token gave itself stay; the real install needs them.
+The three permissions the owner's token gave itself stay; the real install needs them. The two checks under [Not done yet](#not-done-yet) need the runners installed again, which takes about 35 seconds each.

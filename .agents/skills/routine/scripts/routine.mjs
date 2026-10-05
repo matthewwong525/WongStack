@@ -11,10 +11,13 @@
 // Keys come from the primary worktree's .env (wiki/development/secrets.md). For tests,
 // WONG_CLOUDFLARE_API points Cloudflare calls, and WONG_ROUTINES_API the runner's, at another address.
 
-import { createHash, randomBytes } from 'node:crypto';
-import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { isMain } from '../../memory/scripts/lib/cli.mjs';
+import { MACHINE_ID } from '../../memory/scripts/lib/machine-id.mjs';
 import { primaryRoot, PrimaryRootError } from '../../memory/scripts/lib/primary-root.mjs';
 import { parseEnv } from '../../memory/scripts/lib/store.mjs';
 import { setKey } from '../../hand-over/scripts/keys.mjs';
@@ -44,6 +47,9 @@ const COST = 'about $5 a month for Cloudflare\'s paid plan; runs and model use b
 const PROJECT_KEY = 'WONG_ROUTINE_GITHUB_TOKEN';
 const MODEL_KEY = 'WONG_ROUTINE_MODEL_KEY';
 const PAGE = 'wiki/stack/cloud-routines.md';
+const MEMORY_SCRIPT = fileURLToPath(new URL('../../memory/scripts/memory.mjs', import.meta.url));
+const MEMORY_PAGE = 'wiki/development/memory-key.md';
+const NOTE_IN_RESULT = 'so a run leaves its note in its result, not in memory';
 // The positions lib/paseo.mjs's exit codes hold: 3 is not ready, 4 is no answer.
 const NOT_READY = 3;
 const NO_ANSWER = 4;
@@ -148,6 +154,7 @@ const additions = () => [
   'A short-lived cloud computer that starts for each run and is deleted after it, at most two at once.',
   'A gateway to Cloudflare\'s AI models, and a key for it that can only run models.',
   'A private key for this install, saved on this computer and in your Cloudflare account, so only you can change routines.',
+  'A memory key made only for runs, when this install has memory: it reads and adds the project\'s shared notes, never your private facts or chats.',
   `Permissions your Cloudflare token gives itself where it lacks them: ${ROUTINES_PROVISION.map((row) => row.name).join(', ')}.`,
 ];
 const plan = () => ({ adds: additions(), cost: COST });
@@ -217,6 +224,36 @@ async function gateway(cf, account, id, note) {
   note('created', `AI Gateway ${id}`);
 }
 
+/**
+ * The runs' own memory key, in the runner as `MEMORY_TOKEN`: a member key for an installation id made
+ * for the runner, so a run reads and adds the project's shared notes and never a person's private
+ * facts or chats. This install's own key is never sent: on the owner's computer it is the admin key.
+ * The memory script writes the new key to a private file outside every repo; it goes from there
+ * straight to the runner, and the file is deleted. While the runner holds the key of a recorded id,
+ * nothing is issued. Returns the id to record, or a to-do when no key could be made.
+ */
+async function runsMemoryKey(ctx, { held, put }, deps, note) {
+  const recorded = MACHINE_ID.test(ctx.routines?.memoryMachine ?? '') ? ctx.routines.memoryMachine : null;
+  if (recorded && held.has('MEMORY_TOKEN')) return { memoryMachine: recorded };
+  if (!ctx.components.memory?.databaseId) return { todo: `this install has no memory store, ${NOTE_IN_RESULT}; add one with /wong-sync, then run setup again` };
+  const memoryMachine = recorded ?? randomUUID();
+  const folder = mkdtempSync(path.join(tmpdir(), 'wong-routine-key-'));
+  const file = path.join(folder, 'key.json');
+  let key;
+  try {
+    await deps.exec(process.execPath, [MEMORY_SCRIPT, 'member', 'add', memoryMachine, '--role', 'member', '--label', 'routine runs', '--key-file', file], { cwd: ctx.root, env: ctx.env });
+    ({ key } = JSON.parse(readFileSync(file, 'utf8')));
+  } catch {
+    key = null;
+  } finally {
+    rmSync(folder, { recursive: true, force: true });
+  }
+  if (typeof key !== 'string' || !key) return { todo: `no memory key could be made for runs, ${NOTE_IN_RESULT}; the Cloudflare token here must be able to issue memory keys (${MEMORY_PAGE}), then run setup again` };
+  await put('MEMORY_TOKEN', key);
+  note(recorded ? 'updated' : 'created', recorded ? 'memory key for runs: new value sent to the routine runner' : 'memory key for runs');
+  return { memoryMachine };
+}
+
 async function setup(ctx, flags, deps) {
   if (flags.dryRun) return { ok: true, dryRun: true, installed: Boolean(ctx.routines), ...plan(), fullPermissions: 'Each run starts an assistant with full permissions inside its cloud computer.' };
 
@@ -252,21 +289,22 @@ async function setup(ctx, flags, deps) {
     await put('ROUTINES_KEY', key);
     const groups = await cf('GET', '/user/tokens/permission_groups?per_page=1000');
     await scopedToken(cf, account, `${runner}-ai`, AI_RUN_TOKEN, groups, { secretSet: held.has('AI_RUN_TOKEN'), setSecret: (value) => put('AI_RUN_TOKEN', value), note, label: 'model-only key', sentTo: 'the routine runner' });
-    if (ctx.keys.CLOUDFLARE_MEMORY_TOKEN) await put('MEMORY_TOKEN', ctx.keys.CLOUDFLARE_MEMORY_TOKEN);
     const projectKey = route === 'github' ? ctx.keys[PROJECT_KEY] : null;
     if (projectKey) await put('GITHUB_TOKEN', projectKey);
+    // The last thing Cloudflare is asked for, so a stop above issues no key that nothing would hold.
+    const memory = await runsMemoryKey(ctx, { held, put }, deps, note);
 
     // Recorded last: a run that stopped above left nothing half-written here.
     if (!ctx.keys.WONG_ROUTINES_KEY) {
       saveKey(ctx, 'WONG_ROUTINES_KEY', key);
       note('created', 'WONG_ROUTINES_KEY in .env');
     }
-    const routines = { worker: runner, url: `https://${runner}.${subdomain}.workers.dev`, accountId: account, route, gateway: runner };
+    const routines = { worker: runner, url: `https://${runner}.${subdomain}.workers.dev`, accountId: account, route, gateway: runner, ...(memory.memoryMachine ? { memoryMachine: memory.memoryMachine } : {}) };
     recordComponent(ctx.root, 'routines', routines, note);
     const waits = route === 'github' && !projectKey;
     return {
       ok: true, routines, created, updated, granted: widened.granted, plan: paid, cost: COST,
-      ...(ctx.keys.CLOUDFLARE_MEMORY_TOKEN ? {} : { todo: ['this install has no memory key in .env, so a run can leave no note; add one, then run setup again'] }),
+      ...(memory.todo ? { todo: [memory.todo] } : {}),
       ...(waits ? { needs: 'project-access', keys: [PROJECT_KEY] } : {}),
     };
   } catch (error) {

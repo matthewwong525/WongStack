@@ -13,7 +13,7 @@
 - **Or paste your own model key.** Ask for the key link and paste one key: a Z.ai subscription key, Anthropic, OpenAI, Google, OpenRouter, and others. The assistant works out whose key it is, tests it, and tells you which service and model your routines now use.
 - **Your first routine installs it.** Nothing is added until you ask for a routine. The first one lists what it adds to your Cloudflare account and asks first.
 - **A scheduled run can't ask you anything.** It takes the safe choice, marks it as assumed, and leaves a note you see in your next chat. A run stops after 30 minutes, and a routine never runs twice at once. Every result shows how long the run took to start and to run.
-- **A run gets only what it needs.** It gets this one project, the memory key, the model key, and any keys you name for it. It never gets your Cloudflare sign-in or the publishing key.
+- **A run gets only what it needs.** It gets this one project, a memory key, the model key, and any keys you name for it. It never gets your Cloudflare sign-in or the publishing key. The memory key is one made for runs: it can read and add the project's shared notes, but not your private facts or your chats.
 
 **Updating.** Schedules now run in your Cloudflare account and need its paid plan, about $5 a month. Work that is the same steps every time becomes a script in your app and stays free. Any schedule you made before keeps running in Paseo until you delete it there. To move one, ask for it again with `/routine`, then delete the old one in the Paseo app. Nothing else needs doing.
 

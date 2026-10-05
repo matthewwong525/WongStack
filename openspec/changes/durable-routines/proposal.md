@@ -40,7 +40,7 @@ A schedule only works through the Paseo app, on a computer that stays on. A cloc
   ```
 - **Your first routine installs it.** Nothing is added until you ask for a routine. The first one lists what it adds to your Cloudflare account and asks first.
 - **A scheduled run can't ask you anything.** It takes the safe choice, marks it as assumed, and leaves a note you see in your next chat. A run stops after 30 minutes, and a routine never runs twice at once.
-- **A run gets only what it needs.** It gets this one project, the memory key, the model key, and any keys you name for it. It never gets your Cloudflare sign-in or the publishing key.
+- **A run gets only what it needs.** It gets this one project, the memory key, the model key, and any keys you name for it. It never gets your Cloudflare sign-in or the publishing key. The memory key is one made for runs: it can read and add the project's shared notes, but not your private facts or your chats.
 - **BREAKING: `/routine` no longer makes or manages Paseo schedules.** Schedules you made before keep running in Paseo until you delete them in the Paseo app. The update tells you to make each one again with `/routine`. An install with no Cloudflare account, or on its free plan, can no longer schedule an assistant.
 
 **Non-goals:** An assistant that runs without a container. A run that signs in to your company app as you, or uses browser logins saved on your computer. Sign-ins that need a browser login instead of a pasted key, such as a ChatGPT plan. Running a script on the clock without a publish. Alerts by email or phone. A schedules page in the app. Changing the unpublished "run anywhere" work (pull request #291), which drops its own schedule part later. Removing Paseo's other uses.
@@ -97,3 +97,7 @@ A schedule only works through the Paseo app, on a computer that stays on. A cloc
 - **2026-10-05** — Assumed: a run copies the project's whole history, not only its latest commit, because skills such as `/improve` read past commits; the trial's start-up time includes it.
 - **2026-10-05** — Assumed: the landing site's line about Paseo no longer says "run jobs on a schedule", because it stopped being true; the site was outside the plan's file list.
 - **2026-10-05** — Assumed: the first save comes before the GitHub half of the trial and the real model key, because both wait on a key from the person and the checks can run meanwhile. The Cloudflare half of the trial passed, and `trial.md` holds the record.
+- **2026-10-05** — Asked how to finish the two trial checks that wait on a key → chose a new key link for the GitHub token and a model key, over publishing without them.
+- **2026-10-05** — Asked which memory key a run should get, since the owner's own is the admin key that reads every fact and transcript → chose a lesser key made for runs, over the install's own key.
+- **2026-10-05** — Assumed: the trial's Cloudflare pieces and the runs' memory key were deleted before the two keyed checks, because two key links closed unused and a live key and a public address should not sit waiting. Installing them again takes about a minute.
+- **2026-10-05** — Assumed: a run's note is written with no chat session named, because a scheduled run has none and the memory script otherwise holds the note for a next chat that never comes; the trial lost one note that way.
