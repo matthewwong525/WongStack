@@ -44,7 +44,9 @@ const toggle = (box: HTMLDetailsElement, to: boolean) => { box.open = to; fireEv
 const box = (email: string) => screen.getByLabelText(`Actions for ${email}`).closest('details')!
 const items = (email: string) => Array.from(box(email).querySelectorAll('.access-menu-items > *')).map(item => item.textContent)
 const menu = (email: string) => { toggle(box(email), true); return within(box(email)) }
-const connect = () => screen.getByText('Connect your assistant', { selector: 'summary' }).closest('details')!
+// The popup for connecting an assistant, and whether it shows. The test DOM draws none, so the two calls a browser answers are stood in below.
+const popup = () => screen.getByRole('dialog', { hidden: true })
+const showing = () => popup().hasAttribute('open'); const steps = () => screen.queryByRole('region', { name: 'Connect your assistant' })
 const after = (first: Element, second: Element) => !!(first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING)
 beforeEach(() => {
   mode = 'owner'; own = structuredClone(setup); roster = status(); catalogue = ['access', 'hello']; held = undefined; failed = new Set()
@@ -57,6 +59,8 @@ beforeEach(() => {
     return Response.json(roster)
   })
   vi.stubGlobal('fetch', fetchMock)
+  HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', '') }
+  HTMLDialogElement.prototype.close = function () { this.removeAttribute('open'); this.dispatchEvent(new Event('close')) }
   Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: vi.fn(async () => {}) } })
 })
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.restoreAllMocks() })
@@ -317,10 +321,11 @@ it('reads Access is unavailable with Retry when people or permissions cannot be 
   expect(screen.queryByRole('region', { name: 'Connect your assistant' })).toBeNull()
   failed.delete('apps'); click('Retry'); await screen.findByRole('link', { name: 'Add person' })
 })
-it('a person who manages nothing finds the dropdown for connecting open above what they can use, before and after permissions start', async () => {
+it('a person who manages nothing finds the steps for connecting on the page above what they can use, with no popup, before and after permissions start', async () => {
   for (const viewer of ['employee', 'waiting-employee'] as const) {
     mode = viewer; open(); await screen.findByText('Signed in as employee@example.com')
-    expect(screen.getByText('Apps: Hello')).toBeTruthy(); expect(connect().open).toBe(true)
+    expect(screen.getByText('Apps: Hello')).toBeTruthy()
+    expect([screen.queryByRole('dialog', { hidden: true }), screen.queryByRole('button', { name: 'Connect your assistant' })]).toEqual([null, null])
     const can = screen.getByRole('region', { name: 'You can use' })
     // One label per app; with no key level, no Keys line at all.
     expect(within(within(can).getByRole('list', { name: 'Apps' })).getAllByRole('listitem').map(item => item.textContent)).toEqual(['Hello'])
@@ -346,22 +351,34 @@ it('a person who manages nothing finds the dropdown for connecting open above wh
   render(<AssistantSetup />); await screen.findByText('Finish reviewed setup')
   expect(screen.getByText(/None yet/)).toBeTruthy(); expect(screen.queryByRole('button', { name: 'Copy setup prompt' })).toBeNull()
 })
-it('draws three sides: the owner and a manager the four views on a wider page with the dropdown closed, everyone else what they can use with it open', async () => {
+it('draws three sides: the owner and a manager the four views on a wider page with a button that opens the popup, everyone else what they can use with the steps on the page', async () => {
   for (const [side, manages] of [['owner', true], ['manager', true], ['employee', false]] as const) {
     mode = side; roster.viewer.owner = side === 'owner'
-    open(); const dropdown = (await screen.findByText('Connect your assistant', { selector: 'summary' })).closest('details')!
-    if (manages) await screen.findByRole('navigation', { name: 'Access views' })
-    // The dropdown sits beside the heading, above everything else.
-    expect(dropdown.previousElementSibling!.tagName, side).toBe('H1')
-    expect([dropdown.open, !!screen.queryByRole('region', { name: 'You can use' }), !!screen.queryByRole('navigation', { name: 'Access views' }),
-      document.querySelector('.access-page')!.classList.contains('access-wide')], side).toEqual([!manages, !manages, manages, manages])
-    // Closed or open, it holds the same box, and its prompt still copies.
-    dropdown.open = true; expect(within(dropdown).getByRole('region', { name: 'Connect your assistant' })).toBeTruthy()
-    fireEvent.click(await within(dropdown).findByRole('button', { name: 'Copy setup prompt' }))
-    await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalledWith(own.prompt.text))
+    open(); await screen.findByRole(manages ? 'navigation' : 'region', { name: manages ? 'Access views' : 'You can use' })
+    expect([!!screen.queryByRole('button', { name: 'Connect your assistant' }), !!screen.queryByRole('dialog', { hidden: true }), !!screen.queryByRole('region', { name: 'You can use' }),
+      !!screen.queryByRole('navigation', { name: 'Access views' }), document.querySelector('.access-page')!.classList.contains('access-wide')], side).toEqual([manages, manages, !manages, manages, manages])
+    if (manages) await opensAndCloses(side)
+    // In the popup or on the page, it is the same box, and its prompt still copies.
+    const copy = await screen.findByRole('button', { name: 'Copy setup prompt' }); expect(!!copy.closest('dialog'), side).toBe(manages)
+    fireEvent.click(copy); await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalledWith(own.prompt.text))
     expect(reads('status').length > 0, side).toBe(manages); cleanup(); fetchMock.mockClear(); vi.mocked(navigator.clipboard.writeText).mockClear()
   }
 })
+// The button sits beside the heading. The popup shows on a press and shuts three ways; it is left open at the end.
+async function opensAndCloses(side: string) {
+  const press = () => click('Connect your assistant'); expect(screen.getByRole('button', { name: 'Connect your assistant' }).previousElementSibling!.tagName, side).toBe('H1')
+  // Until it is pressed, nothing shows and the steps are not read.
+  expect([showing(), !!steps(), reads('setup').length, popup().getAttribute('aria-label')], side).toEqual([false, false, 0, 'Connect your assistant'])
+  // Close, a click on the dimmed page round the box, and the close a browser sends on Escape.
+  const ways = [() => click('Close'), () => fireEvent.click(popup()), () => { popup().removeAttribute('open'); fireEvent(popup(), new Event('close')) }]
+  for (const [at, shut] of ways.entries()) {
+    press(); expect(showing(), side).toBe(true); await screen.findByText('Signed in as employee@example.com')
+    // A click inside the box leaves it open.
+    fireEvent.click(steps()!); expect(showing(), side).toBe(true)
+    shut(); expect([showing(), !!steps()], `${side} ${at}`).toEqual([false, false])
+  }
+  press()
+}
 it('a manager finds their own row marked You under the owner row, which says who picks managers, with no Remove on a manager', async () => {
   asManager(); roster.people = [person({ manager: true }), person({ email: 'kim@example.com', manager: true }), person({ email: 'lee@example.com' })]
   open(); await screen.findByRole('link', { name: 'Add person' })
@@ -440,8 +457,8 @@ it('Home shows one setup box to every signed-in person and keeps the welcome for
     mode = viewer; render(<Home />)
     await screen.findByRole('button', { name: 'Copy setup prompt' })
     expect(screen.getAllByRole('region', { name: 'Connect your assistant' })).toHaveLength(1)
-    // Home keeps the box as it was: no dropdown round it.
-    expect(screen.getByRole('region', { name: 'Connect your assistant' }).closest('details')).toBeNull()
+    // Home keeps the box as it was: no popup round it, and no button to open one.
+    expect(steps()!.closest('dialog')).toBeNull(); expect(screen.queryByRole('button', { name: 'Connect your assistant' })).toBeNull()
     expect(!!screen.queryByRole('region', { name: 'Make it yours' })).toBe(welcome); cleanup()
   }
 })

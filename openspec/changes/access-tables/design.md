@@ -55,9 +55,11 @@ A new `RowMenu.tsx` renders `<details class="access-menu">` with `⋯` as its su
 
 `View.tsx` becomes the shell every owner screen renders in: tabs with counts, then the notice spot, then its children. `Page.tsx` renders inside it, with `People › kim@shop.com` where the back link was. `Banners`, `Notices` and the saved box merge into one `Notices` part rendered once by the shell. A tab link asks before leaving a changed page the same way the back link does, where no data router holds the move.
 
-### 7. Connect your assistant in a `<details>`
+### 7. Connect your assistant in a native `<dialog>`
 
-`App.tsx` renders `AssistantSetup` inside `<details class="access-connect">` beside the `Access` heading, with `open` set for a person who is neither owner nor manager. `AssistantSetup` itself and Home are untouched. Its region label stays, so it is still found by name.
+For the owner and a manager, `App.tsx` renders a *Connect your assistant* button beside the heading and a `<dialog>` opened with `showModal()`, holding `AssistantSetup` and a *Close* button. The browser gives focus trapping, Escape and the backdrop; a click on the backdrop closes it. For a person who manages nothing, `AssistantSetup` renders on the page as before. Home is untouched. This replaces the `<details>` built first.
+
+*Instead of* a dialog library: the native element needs none, and the switch to shadcn that follows this change will replace it anyway.
 
 ### 8. The owner and the viewer in the table
 
@@ -67,7 +69,15 @@ People's first row is built from `status.ownerEmail`: *Owner* in the Role cell, 
 
 `CopyText` for the origin leaves `People.tsx`. If nothing else reads `origin` from the status response, it leaves the schema in `lib/access.ts` and the response in `members.ts` too.
 
+### 10. A full-width bar with *Sign out*
+
+`body` stops being the narrow column: `main` takes the 32rem width and `.site-header` spans the viewport, its content padded to the edges. `.access-wide` keeps breaking out of `main`. `Layout.tsx` adds a *Sign out* link to `/cdn-cgi/access/logout` on the app's own address, which Cloudflare Access serves for a protected app and which ends the session. The link shows only when the Worker says the site has a sign-in: the app status response already read by Home and Access carries one new boolean, false where the site is open until the card or runs locally with the stand-in identity.
+
+*Instead of* a Worker route that clears the cookie: the cookie is Cloudflare's, and its own logout address also ends the session at the sign-in wall.
+
 ## Risks / Trade-offs
+
+- [The sign-out address can't be exercised by the preview checker, which signs in as a machine] → the walk shows the button and where it points; a person confirms the sign-out on the live app.
 
 - [A wrong role pick takes effect at once] → the undo box; the audit record still names who changed what.
 - [A click on a row could fire while using its dropdown or menu] → the row's click ignores events that start in a control; tests click both.

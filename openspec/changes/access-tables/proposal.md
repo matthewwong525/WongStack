@@ -141,24 +141,40 @@ Access is hard to work with. Every person, role, app and key is its own box, so 
   │ └────────────────────┘ │
   └────────────────────────┘
   ```
-- **Connect your assistant becomes a dropdown.** It sits at the top of Access, closed, and opens to the same prompt and steps as today. For someone who manages nothing it starts open, as connecting is what they came for. The Home page keeps its box.
+- **Connect your assistant becomes a button that opens a popup.** The button sits at the top of Access. It opens a popup over the page with the same prompt and steps as today, and closes with *Close*, Escape or a click outside. Someone who manages nothing sees the steps on the page itself, as connecting is what they came for. The Home page keeps its box.
   ```text
-  closed                       open
-  ┌─────────────────────────┐  ┌─────────────────────────┐
-  │ Access                  │  │ Access                  │
-  │ [Connect your          ]│  │ [Connect your          ]│
-  │ [assistant            ▾]│  │ [assistant            ▴]│
-  │ People Roles Apps Keys  │  │ Signed in as you@...    │
-  │ ...                     │  │ [Copy setup prompt]     │
-  └─────────────────────────┘  │ Paste it into your      │
-                               │ assistant.              │
-                               │ People Roles Apps Keys  │
-                               └─────────────────────────┘
+  closed                      open
+  ┌────────────────────────┐  ┌────────────────────────┐
+  │ Access                 │  │ Access                 │
+  │ +[Connect your        ]│  │ ┌────────────────────┐ │
+  │ +[assistant           ]│  │ │+Connect your       │ │
+  │ People Roles Apps Keys │  │ │ assistant      [x] │ │
+  │ ...                    │  │ │ Signed in as you@  │ │
+  └────────────────────────┘  │ │ [Copy setup prompt]│ │
+                              │ │ Paste it into your │ │
+                              │ │ assistant.         │ │
+                              │ └────────────────────┘ │
+                              └────────────────────────┘
+  ```
+- **The top bar runs the full width, with a way to sign out.** On every page the bar with the logo spans the screen, where it stopped at the narrow column. On the right it has *Sign out*, which ends your session in this browser; you sign in again with an emailed code. A site that is open with no sign-in shows no button.
+  ```text
+  BEFORE
+        ┌──────────────────────┐
+        │ W WongStack          │
+        │ ──────────────────── │
+        │ page                 │
+        └──────────────────────┘
+  AFTER
+  ┌──────────────────────────────────┐
+  │ W WongStack          +[Sign out] │
+  │ ──────────────────────────────── │
+  │       page, as wide as before    │
+  └──────────────────────────────────┘
   ```
 - **Copy app link is removed.** You send people the website's address yourself.
 - **A manager finds themselves in the table.** A manager's own row is marked *You*, where a separate *You can use* box sat above the tabs. The owner's row tells them who picks managers.
 
-**Non-goals:** Tick boxes to change several people at once. Search, sorting or filters. A people-by-apps grid. Setting an app or a key level from a list. A change to the Home page. A change to what a person can do, to how it is checked, or to who can sign in.
+**Non-goals:** Tick boxes to change several people at once. Search, sorting or filters. A people-by-apps grid. Setting an app or a key level from a list. A change to the Home page beyond its top bar. Tailwind and shadcn, which get their own plan right after this one. A change to what a person can do, to how it is checked, or to who can sign in.
 
 ## Capabilities
 
@@ -168,6 +184,7 @@ None.
 
 ### Modified Capabilities
 
+- `app-scaffold`: every page offers a signed-in person a way to sign out.
 - `employee-onboarding`: adding a person no longer hands the owner an app link to share; the employer changes a person's role from the People list with an undo; the views and notices keep one place on every Access screen; the owner is listed among the people.
 
 ## Impact
@@ -177,6 +194,7 @@ None.
 - `app/src/lib/access.ts` and `app/worker/employee-access/members.ts`: the status response drops `origin` if nothing else reads it. No save route changes: the role save already exists.
 - `schema/seed.sql`: a removed person on the practice list if none is there, so a preview shows that row.
 - `wiki/stack/employee-access.md`, `CHANGELOG.md` (a `minor` entry), and the spec above.
+- `app/src/Layout.tsx` and `app/public/style.css`: the full-width bar and *Sign out*.
 - No database change and no new dependency.
 
 ## Decision log
@@ -199,3 +217,10 @@ None.
 - **2026-10-05** — Assumed: only someone who manages Access gets the wider page, because an employee's view has no table and reads better in the narrow column.
 - **2026-10-05** — Assumed: the People tab counts the owner and current people, not removed ones, because the count should say who can use the app.
 - **2026-10-05** — Build: all code, tests, the wiki page and the changelog entry are written and the local checks pass; the preview walk (task 6.2) is left, and the kept check for adding a person still expects *Copy app link* and needs recording again.
+- **2026-10-05** — Preview walk: passed at a computer and a phone width; a manager's view, a waiting sign-in and the non-manager view are shown by code tests only.
+- **2026-10-05** — Asked, after seeing the preview, for three changes → chose a popup for *Connect your assistant* in place of the dropdown, a top bar that spans the screen, and a sign-out button.
+- **2026-10-05** — Asked when the switch to Tailwind and shadcn should happen → chose right after this one, as its own plan; this change keeps the current plain style.
+- **2026-10-05** — Assumed: someone who manages nothing sees the connect steps on the page, not in a popup, because a popup that opens by itself is in the way.
+- **2026-10-05** — Assumed: *Sign out* shows on every page and only where the site has a sign-in, because an open site has no session to end.
+- **2026-10-05** — Assumed: the page under the bar keeps its width, because he asked for the bar to extend, not the pages.
+- **2026-10-05** — Build: the popup, the full-width bar and *Sign out* are written and the local checks pass; *Sign out* reads one new yes-or-no from the app, so each page makes one more request. The second preview walk (task 7.4) is left.

@@ -64,6 +64,13 @@ export interface AccessEnv {
   WONG_ENVIRONMENT?: string;
 }
 
+/**
+ * True where Cloudflare's sign-in stands in front of this site, so a caller has a session to end. False while the
+ * site is open until the card, and on a local run, where the stand-in identity has none.
+ */
+export const hasSignIn = (env: AccessEnv): boolean =>
+  !!env.CF_ACCESS_TEAM_DOMAIN && !!env.CF_ACCESS_AUD && env.WONG_ENVIRONMENT !== "local";
+
 /** A fixed identity for local work, used ONLY when SKIP_AUTH is explicitly set. */
 const DEV_IDENTITY: AccessIdentity = {
   id: "dev@example.com",

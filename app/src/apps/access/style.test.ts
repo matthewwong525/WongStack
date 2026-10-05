@@ -18,6 +18,9 @@ it('fits a phone: the Access and setup styles wrap, and fix no width in pixels',
   for (const part of ['label-row', 'labels', 'app']) expect(css, part).toMatch(new RegExp(`\\.access-${part} \\{[^}]*flex-wrap: wrap`))
   expect(css).toMatch(/\.access-labels li \{[^}]*overflow-wrap: anywhere/)
   expect(css).toMatch(/\.access-fields > label > \* \{[^}]*width: 100%/)
+  // The popup for connecting an assistant is never wider or taller than the screen, and the dropdown it replaced is gone.
+  expect(css).toMatch(/\.access-popup \{[^}]*width: min\(\d+rem, 100vw - \d+rem\);[^}]*max-height: calc\(100vh - \d+rem\)/)
+  expect(css).not.toMatch(/access-connect/)
 })
 
 it('lists are tables whose rows stack on a narrow screen, with nothing scrolling sideways', () => {

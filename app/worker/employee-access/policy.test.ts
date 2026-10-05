@@ -403,30 +403,37 @@ it("reads frontend app grants with zero-app Access self-service, owner exception
   const readback = (caller: AccessIdentity | null = employee, bindings = env) => appAccess(req, bindings, caller);
   const first = await readback();
   expect(first.headers.get("Cache-Control")).toBe("no-store");
-  expect(await first.json()).toEqual({ state: "current", role: "employee", manages: false, revision: 1, apps: ["access", "orders"], keys: [] });
+  expect(await first.json()).toEqual({ state: "current", role: "employee", manages: false, signIn: true, revision: 1, apps: ["access", "orders"], keys: [] });
   // The owner holds every saved key at its highest level.
-  expect(await (await readback(owner)).json()).toEqual({ state: "current", role: "owner", manages: true, revision: 1, apps: catalogue,
+  expect(await (await readback(owner)).json()).toEqual({ state: "current", role: "owner", manages: true, signIn: true, revision: 1, apps: catalogue,
     keys: [{ id: "cloudflare", title: "Cloudflare", level: "read" }] });
   // A manager is told they manage, and keeps their own role, apps and levels.
   sql.exec("INSERT INTO wong_access_managers VALUES ('installation', 'employee@example.com')");
-  expect(await (await readback()).json()).toEqual({ state: "current", role: "employee", manages: true, revision: 1, apps: ["access", "orders"], keys: [] });
+  expect(await (await readback()).json()).toEqual({ state: "current", role: "employee", manages: true, signIn: true, revision: 1, apps: ["access", "orders"], keys: [] });
   sql.exec("UPDATE wong_access_installation SET policy_enabled = 0");
-  expect(await (await readback()).json()).toEqual({ state: "not_started", role: "employee", manages: true, apps: catalogue });
+  expect(await (await readback()).json()).toEqual({ state: "not_started", role: "employee", manages: true, signIn: true, apps: catalogue });
   sql.exec("UPDATE wong_access_installation SET policy_enabled = 1; DELETE FROM wong_access_managers");
   // Client-only apps come from manifests and are allowed only when explicitly assigned.
   sql.exec("INSERT INTO wong_access_apps VALUES ('installation', 'frontend-only'); INSERT INTO wong_access_grants VALUES ('installation', 'employee@example.com', 'frontend-only', 1)");
   expect((await (await readback()).json()).apps).toEqual(["access", "frontend-only", "orders"]);
   sql.exec("DELETE FROM wong_access_grants; UPDATE wong_access_installation SET revision = 2");
-  expect(await (await readback()).json()).toEqual({ state: "current", role: "employee", manages: false, revision: 2, apps: ["access"], keys: [] });
+  expect(await (await readback()).json()).toEqual({ state: "current", role: "employee", manages: false, signIn: true, revision: 2, apps: ["access"], keys: [] });
   sql.exec("UPDATE wong_access_members SET status = 'removed'");
   expect((await readback()).status).toBe(403);
   expect((await readback(null)).status).toBe(403);
   expect((await readback(employee, { ...env, DB: undefined })).status).toBe(503);
-  expect(await (await readback(null, { ...env, WONG_OWNER_EMAIL: undefined })).json()).toEqual({ state: "legacy" });
+  expect(await (await readback(null, { ...env, WONG_OWNER_EMAIL: undefined })).json()).toEqual({ state: "legacy", signIn: true });
   // Before permissions start a removed row means nothing yet: everyone keeps every app.
   sql.exec("UPDATE wong_access_installation SET policy_enabled = 0");
-  expect(await (await readback()).json()).toEqual({ state: "not_started", role: "employee", manages: false, apps: catalogue });
-  expect(await (await readback(owner)).json()).toEqual({ state: "not_started", role: "owner", manages: true, apps: catalogue });
+  expect(await (await readback()).json()).toEqual({ state: "not_started", role: "employee", manages: false, signIn: true, apps: catalogue });
+  expect(await (await readback(owner)).json()).toEqual({ state: "not_started", role: "owner", manages: true, signIn: true, apps: catalogue });
+  // The frame offers Sign out only where a sign-in stands in front of the site: not while it is open until the card, nor on a local run.
+  const open = { ...env, CF_ACCESS_TEAM_DOMAIN: undefined, CF_ACCESS_AUD: undefined, WORKSPACE_LOGIN: "off" };
+  for (const [bindings, signIn] of [[env, true], [{ ...env, WONG_ENVIRONMENT: "staging" }, true], [open, false], [{ ...env, CF_ACCESS_AUD: undefined }, false],
+    [{ ...env, WONG_ENVIRONMENT: "local", SKIP_AUTH: "true" }, false]] as const) {
+    expect((await (await readback(owner, bindings)).json()).signIn, JSON.stringify(signIn)).toBe(signIn);
+    expect(await (await readback(null, { ...bindings, WONG_OWNER_EMAIL: undefined })).json()).toEqual({ state: "legacy", signIn });
+  }
   expect((await appAccess(new Request(req, { method: "POST" }), env, employee)).status).toBe(404);
 });
 

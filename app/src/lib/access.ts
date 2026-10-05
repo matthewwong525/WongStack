@@ -15,11 +15,13 @@ export const setupSchema = z.object({ role, api: z.literal('authenticated'),
 // `legacy` has no recorded owner. `not_started` knows the owner, and everyone still keeps every app.
 // `manages`: the person may manage Access, as the owner or a manager the owner chose; left out means no.
 const manages = z.boolean().optional()
+// `signIn`: the site stands behind a sign-in, so there is a session to end; left out or false, the frame offers no Sign out.
+const signIn = z.boolean().optional()
 export const appAccessSchema = z.discriminatedUnion('state', [
-  z.object({ state: z.literal('legacy') }),
-  z.object({ state: z.literal('not_started'), role, manages, apps: z.array(z.string()) }),
+  z.object({ state: z.literal('legacy'), signIn }),
+  z.object({ state: z.literal('not_started'), role, manages, signIn, apps: z.array(z.string()) }),
   // `keys` is the signed-in person's own level for each saved key, by name; empty until key levels start.
-  z.object({ state: z.literal('current'), role, manages, apps: z.array(z.string()), revision: z.number(),
+  z.object({ state: z.literal('current'), role, manages, signIn, apps: z.array(z.string()), revision: z.number(),
     keys: z.array(z.object({ id: z.string(), title: z.string(), level })).optional() }),
 ])
 const use = z.object({ id: z.string(), need: level })

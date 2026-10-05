@@ -9,16 +9,18 @@
 .access-fields, .access-levels { min-width: 0; margin: 0; padding: 0; border: 0; }
 .access-fields > label { display: grid; gap: .5rem; }
 .access-fields > label > * { width: 100%; box-sizing: border-box; }
-/* The heading, and beside it the dropdown for connecting an assistant: closed it is one line, open it takes the row below. */
+/* The heading, and beside it the button that opens the popup for connecting an assistant. */
 .access-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .6rem 1rem; }
 .access-top h1, .access-row-head h2, .access-row-head p { margin-block: 0; }
-.access-connect { min-width: 0; }
-.access-connect[open] { flex-basis: 100%; }
-.access-connect > summary { width: fit-content; }
-.access-connect > summary, .access-menu > summary { padding: .5rem .75rem; border: 1px solid var(--border); border-radius: .5rem; background: var(--surface); cursor: pointer; }
-/* The dropdown's own line already names the box inside it. */
-.access-connect .assistant-setup { margin-block: .6rem 0; }
-.access-connect .assistant-setup h2 { display: none; }
+.access-menu > summary { padding: .5rem .75rem; border: 1px solid var(--border); border-radius: .5rem; background: var(--surface); cursor: pointer; }
+/* The popup: no wider than the screen, with its padding on the box inside, so a click on the dimmed page round it lands on the popup itself. */
+.access-popup { width: min(32rem, 100vw - 2rem); max-height: calc(100vh - 2rem); box-sizing: border-box; padding: 0; border: 1px solid var(--border); border-radius: .6rem; background: var(--canvas); color: var(--text); }
+.access-popup::backdrop { background: rgb(0 0 0 / .5); }
+.access-popup-box { display: grid; gap: 1rem; padding: 1rem; }
+.access-popup-box > button { justify-self: end; }
+/* The popup is the box: the steps inside it need no second one. On the page, the steps keep their box and the page's own spacing. */
+.access-popup .assistant-setup { margin-block: 0; padding: 0; border: 0; }
+.access-page > .assistant-setup { margin-block: 0; }
 .access-notice { background: var(--surface); }
 .access-notice p { margin-block: 0 .6rem; }
 .access-notice > button { margin-inline-start: .6rem; }
