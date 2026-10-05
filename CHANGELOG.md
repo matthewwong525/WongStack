@@ -3,6 +3,22 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 35.0.0 — Screens built from ready-made parts, not styled by hand
+
+- **Every screen is built from one set of ready-made parts.** Buttons, fields, tables, menus, popups, boxes and labels come from shadcn, a well-known set of parts, on Tailwind, the styling tool it is built with. No screen keeps a style file of its own.
+- **The look stays calm and familiar.** The device's own font, light or dark to match the device, black or white main buttons, the bar on top with *Sign out*, and each page at the width it has today. Spacing, corners and focus rings are tidier.
+- **Access works as it did.** The four views, the tables, the role dropdown in the row, the notices and the *Connect your assistant* popup stay where they are. The `⋯` menu and the popup are ready-made now, so the menu also moves by arrow keys. On a phone each row still stacks into short lines.
+- **Home and the Hello example are restyled the same way**, with the same words and steps.
+- **Connect your assistant is a card among your apps.** The box that sat above the list on Home is gone. The card is last in the list, and a click opens the same steps in a popup over the page, for every signed-in person. The long setup text now wraps inside its box.
+- **Apps a person can't use show greyed out.** Until now they were hidden. A greyed card is marked *No access*, opens nothing, and a click says to ask their admin for access. Opening its address directly is still refused. Every employee can now see the name and one-line description of every app.
+- **Mini apps the assistant builds from now on use the parts.** When a screen needs a part the app does not have yet, the assistant adds it in one step. A check stops a screen from bringing a style file of its own.
+- **The copied parts skip three checks.** The parts are code copied into one folder of the app. That folder is not held to *every line tested*, *nothing unused* and *nothing repeated*; the screens that use the parts still are.
+- **Building takes a little longer.** The app gains several building blocks, so the first preview in a new workspace installs more.
+
+[Mini apps](wiki/stack/mini-apps.md#the-rules) says how a screen uses the parts, and [the core stack](wiki/stack/core-stack.md#the-pieces) names the new pieces.
+
+**Updating.** Nothing needs doing by hand. The built-in screens switch to the new parts. The assistant moves each screen you built onto the new parts too: the update's plan names every one, and each shows in the preview before anything is published. Your data and each screen's address stay as they are. The update is not finished while one of your screens still has a style file: a check names each one left.
+
 ## 34.0.0 — A private form replaces the live browser link
 
 - **The live browser link is gone.** Your assistant no longer shows you its browser or lets you drive it, and *let me take over* opens nothing. Each kind of step has one simpler route.

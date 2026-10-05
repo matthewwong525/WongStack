@@ -38,15 +38,18 @@ const tr = (email: string) => within(screen.getByRole('table', { name: 'People' 
 const line = (email: string) => within(tr(email))
 const cells = (email: string) => Array.from(tr(email).querySelectorAll('td')).map(cell => cell.textContent)
 const role = (email: string) => screen.getByRole('combobox', { name: `Role for ${email}` }) as HTMLSelectElement
-// A dropdown opened or closed as a click on its first line does it.
-const toggle = (box: HTMLDetailsElement, to: boolean) => { box.open = to; fireEvent(box, new Event('toggle')) }
-// A row's menu: its box, what it holds, and the same box opened to pick from.
-const box = (email: string) => screen.getByLabelText(`Actions for ${email}`).closest('details')!
-const items = (email: string) => Array.from(box(email).querySelectorAll('.access-menu-items > *')).map(item => item.textContent)
-const menu = (email: string) => { toggle(box(email), true); return within(box(email)) }
-// The popup for connecting an assistant, and whether it shows. The test DOM draws none, so the two calls a browser answers are stood in below.
-const popup = () => screen.getByRole('dialog', { hidden: true })
-const showing = () => popup().hasAttribute('open'); const steps = () => screen.queryByRole('region', { name: 'Connect your assistant' })
+// A row's menu: its dots, the menu they open by the keyboard, and what it holds. The part draws a menu only while it is open.
+const dots = (email: string) => screen.getByLabelText(`Actions for ${email}`); const shown = () => screen.queryByRole('menu')
+const menu = (email: string) => { fireEvent.keyDown(dots(email), { key: 'Enter' }); return within(screen.getByRole('menu')) }
+const shut = () => fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
+const items = (email: string) => { const held = menu(email).getAllByRole('menuitem').map(item => item.textContent); shut(); return held }
+// The part starts listening for a press outside it, and hands the keyboard back, a moment after it opens or closes.
+const moment = () => act(async () => { await new Promise(resolve => setTimeout(resolve)) })
+// Every label on the screen, and the box a notice sits in.
+const labels = () => Array.from(document.querySelectorAll('[data-slot="badge"]')).map(item => item.textContent)
+const notice = (text: Element) => text.closest<HTMLElement>('[data-slot="alert"]')!
+// The popup for connecting an assistant, and whether it shows: the part draws it only while it is open.
+const popup = () => screen.queryByRole('dialog'); const showing = () => !!popup(); const steps = () => screen.queryByRole('region', { name: 'Connect your assistant' })
 const after = (first: Element, second: Element) => !!(first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING)
 beforeEach(() => {
   mode = 'owner'; own = structuredClone(setup); roster = status(); catalogue = ['access', 'hello']; held = undefined; failed = new Set()
@@ -59,8 +62,6 @@ beforeEach(() => {
     return Response.json(roster)
   })
   vi.stubGlobal('fetch', fetchMock)
-  HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', '') }
-  HTMLDialogElement.prototype.close = function () { this.removeAttribute('open'); this.dispatchEvent(new Event('close')) }
   Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: vi.fn(async () => {}) } })
 })
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.restoreAllMocks() })
@@ -88,14 +89,14 @@ it('the owner sees people as a table with their own row first, adds a person in 
   // The owner is the first row, marked You, with nothing to change.
   const first = people.getAllByRole('row')[1]
   expect(Array.from(first.querySelectorAll('td')).map(cell => cell.textContent)).toEqual(['owner@example.com You', 'Can sign in', 'Owner', 'Every app and key', ''])
-  expect(first.querySelector('a, button, select, details')).toBeNull(); expect(screen.queryByText(/^Owner:/)).toBeNull()
+  expect(first.querySelector('a, button, select')).toBeNull(); expect(screen.queryByText(/^Owner:/)).toBeNull()
   // A person with no role has their own set, picked in the row's dropdown; their apps are labels.
   expect(cells('employee@example.com').slice(0, 2)).toEqual(['employee@example.com', 'Can sign in'])
   expect([role('employee@example.com').value, role('employee@example.com').selectedOptions[0].textContent]).toEqual(['', 'Own set'])
-  expect(Array.from(document.querySelectorAll('.access-labels li')).map(item => item.textContent)).toEqual(['Hello'])
+  expect(labels()).toEqual(['Hello'])
   expect(within(line('employee@example.com').getByRole('list', { name: 'Apps' })).getByText('Hello')).toBeTruthy(); expect(people.queryByRole('list', { name: 'Keys' })).toBeNull()
   // Nothing was saved yet: the notice spot is empty.
-  expect(document.querySelector('.access-notice')).toBeNull()
+  expect(document.querySelector('[data-slot="alert"]')).toBeNull()
   // No operator panel, connection button, private-instructions copy or app link to copy.
   for (const name of [/Connect login management/, /Copy private setup instructions/, /Retry login changes/, 'Try again', 'Copy app link']) expect(screen.queryByRole('button', { name })).toBeNull()
   follow('Add person')
@@ -107,8 +108,7 @@ it('the owner sees people as a table with their own row first, adds a person in 
   roster.people.push(person({ email: 'new@example.com', apps: ['hello', 'custom'] }))
   click('Save access')
   // The list opens with the result in the one spot: under the views, above the table, said without interrupting.
-  const said = (await screen.findByText('Saved.')).closest('p')!
-  expect([said.getAttribute('role'), said.className, within(said).queryByRole('button')]).toEqual(['status', 'access-notice', null])
+  const said = notice(await screen.findByText('Saved.')); expect([said.getAttribute('role'), within(said).queryByRole('button')]).toEqual(['status', null])
   expect([after(screen.getByRole('navigation', { name: 'Access views' }), said), after(said, screen.getByRole('table', { name: 'People' }))]).toEqual([true, true])
   expect(screen.getAllByText('Saved.')).toHaveLength(1)
   expect(posts('people')[0][1]).toMatchObject({ redirect: 'error' })
@@ -155,7 +155,7 @@ it('keeps the four views and the one notice spot on an opened person, role, app 
     expect(tabs().map(link => link.textContent), path).toEqual(['People 2', 'Roles 1', 'Apps 2', 'Keys 1'])
     expect(views.querySelector('[aria-current="page"]')!.textContent!.split(' ')[0], path).toBe(view)
     // Under the views sits the notice spot, then where the page is: its view as a link, then its name.
-    const notice = screen.getByText(/Changes here stay on previews/); const crumb = document.querySelector<HTMLElement>('.access-crumb')!
+    const notice = screen.getByText(/Changes here stay on previews/); const crumb = screen.getByText('›').parentElement!
     expect([after(views, notice), after(notice, crumb), crumb.textContent], path).toEqual([true, true, `${view} › ${name}`])
     expect(within(crumb).getByRole('link', { name: view }).getAttribute('href'), path).toBe(tabs().find(link => link.textContent!.startsWith(view))!.getAttribute('href'))
     cleanup()
@@ -181,8 +181,7 @@ it('picks a role right in the row: it saves at once with the role alone, says wh
   // Own set to a role: the role goes alone, and the box on top names the change.
   roster.people[0] = person({ role: 'sales', apps: ['custom'] })
   fireEvent.change(role('employee@example.com'), { target: { value: 'sales' } })
-  const said = (await screen.findByText('employee@example.com now has Sales.')).closest('p')!
-  expect([said.getAttribute('role'), said.className]).toEqual(['status', 'access-notice'])
+  const said = notice(await screen.findByText('employee@example.com now has Sales.')); expect(said.getAttribute('role')).toBe('status')
   expect(sent('people')).toEqual([{ email: 'employee@example.com', removed: false, role: 'sales' }])
   expect([role('employee@example.com').value, where()]).toEqual(['sales', '/apps/access/'])
   // Undo sends back their own set: the same apps, and every key at the level they held.
@@ -203,26 +202,27 @@ it('a role pick that did not save says so, offers no undo, and leaves the row sh
   roster.roles = [{ id: 'sales', name: 'Sales', apps: [], keys: {} }]
   open(); await screen.findByRole('link', { name: 'Add person' }); failed.add('people')
   fireEvent.change(role('employee@example.com'), { target: { value: 'sales' } })
-  const alert = await screen.findByRole('alert')
-  expect([alert.textContent, alert.className]).toEqual([UNFINISHED, 'access-notice'])
+  const alert = await screen.findByRole('alert'); expect([alert.textContent, notice(alert)]).toEqual([UNFINISHED, alert])
   expect(screen.queryByRole('button', { name: 'Undo' })).toBeNull(); expect(role('employee@example.com').value).toBe('')
   expect(posts('people')).toHaveLength(1); expect(reads('status').length).toBeGreaterThan(1)
 })
 it('keeps what a row offers behind its menu, which closes on a pick, on Escape and on a click anywhere else', async () => {
   open(); await screen.findByRole('link', { name: 'Add person' })
-  const dots = screen.getByLabelText('Actions for employee@example.com'); const details = box('employee@example.com')
-  expect([dots.tagName, details.open, items('employee@example.com')]).toEqual(['SUMMARY', false, ['Open', 'Remove']])
+  const button = dots('employee@example.com')
+  expect([button.tagName, !!shown(), items('employee@example.com')]).toEqual(['BUTTON', false, ['Open', 'Remove']])
   // A click on the dots is not a click on the row.
-  fireEvent.click(dots); expect(where()).toBe('/apps/access/')
-  // Any other key leaves it open; Escape closes it.
-  toggle(details, true); fireEvent.keyDown(details, { key: 'ArrowDown' }); expect(details.open).toBe(true)
-  fireEvent.keyDown(details, { key: 'Escape' }); expect(details.open).toBe(false)
-  toggle(details, true); fireEvent.click(screen.getByRole('heading', { name: 'People' })); expect(details.open).toBe(false)
-  // A pick closes it: Remove asks first, as it always did.
-  fireEvent.click(menu('employee@example.com').getByRole('button', { name: 'Remove' }))
-  expect(details.open).toBe(false); expect(screen.getByRole('heading', { name: 'Remove employee@example.com?' })).toBeTruthy(); click('Cancel')
-  // Open goes to the person's page.
-  fireEvent.click(menu('employee@example.com').getByRole('link', { name: 'Open' }))
+  fireEvent.click(button); expect(where()).toBe('/apps/access/')
+  // An arrow key moves inside it and leaves it open; Escape closes it, and the keyboard is back on the dots.
+  fireEvent.keyDown(menu('employee@example.com').getByRole('menuitem', { name: 'Open' }), { key: 'ArrowDown' }); expect(!!shown()).toBe(true)
+  shut(); expect(!!shown()).toBe(false); await moment(); expect(document.activeElement).toBe(button)
+  // A press anywhere else closes it.
+  menu('employee@example.com'); await moment(); fireEvent.pointerDown(screen.getByText('People', { selector: 'h2' })); expect(!!shown()).toBe(false); await moment()
+  // A pick closes it: Remove asks first, as it always did, and the keyboard stays on the question.
+  fireEvent.click(menu('employee@example.com').getByRole('menuitem', { name: 'Remove' }))
+  expect(!!shown()).toBe(false); expect(screen.getByRole('heading', { name: 'Remove employee@example.com?' })).toBeTruthy(); await moment()
+  expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Remove access' })); click('Cancel')
+  // A pick is not a click on the row: the list stayed. Open goes to the person's page.
+  expect(where()).toBe('/apps/access/'); fireEvent.click(menu('employee@example.com').getByRole('menuitem', { name: 'Open' }))
   await screen.findByRole('heading', { name: 'employee@example.com · Can sign in' })
 })
 it('offers Try again only in the menu of the person whose sign-in step failed, and the retry clears it', async () => {
@@ -234,7 +234,7 @@ it('offers Try again only in the menu of the person whose sign-in step failed, a
   expect([items('new@example.com'), items('employee@example.com')]).toEqual([['Open', 'Try again', 'Remove'], ['Open', 'Remove']])
   expect(cells('new@example.com')).toHaveLength(cells('employee@example.com').length)
   roster.people[1].settled = true; roster.work = [{ kind: 'policy', status: 'ready' }]
-  fireEvent.click(menu('new@example.com').getByRole('button', { name: 'Try again' })); await screen.findByText('Checked again.')
+  fireEvent.click(menu('new@example.com').getByRole('menuitem', { name: 'Try again' })); await screen.findByText('Checked again.')
   expect(cells('new@example.com')[1]).toBe('Can sign in')
   expect(posts('retry')).toHaveLength(1); expect(items('new@example.com')).toEqual(['Open', 'Remove'])
 })
@@ -252,7 +252,7 @@ it('says one step is left when the live app has no key yet, with a request to co
 it('notes on the first open who could already sign in, and offers another read when the list could not be read', async () => {
   roster.imported = 3; roster.people[0].apps = ['hello', 'custom']
   open(); await screen.findByText('3 people could already sign in. They keep every app until you change them.')
-  expect(Array.from(document.querySelectorAll('.access-labels li')).map(item => item.textContent)).toEqual(['Hello', 'custom']); cleanup()
+  expect(labels()).toEqual(['Hello', 'custom']); cleanup()
   roster.imported = 1; open(); await screen.findByText(/^1 person could already sign in/); cleanup()
   roster.imported = 0; roster.started = false
   open(); await screen.findByText(/could not be read yet/)
@@ -278,23 +278,23 @@ it('marks a preview as a practice list on every view and never offers a provider
   expect(cells('employee@example.com')[1]).toBe('Practice list')
   expect(cells('gone@example.com').slice(1, 4)).toEqual(['Removed', 'No role', 'No apps'])
   expect([items('gone@example.com'), items('employee@example.com')]).toEqual([['Add back'], ['Open', 'Remove']])
-  fireEvent.click(menu('employee@example.com').getByRole('button', { name: 'Remove' })); expect(screen.getByText(/leave the practice list/)).toBeTruthy()
+  fireEvent.click(menu('employee@example.com').getByRole('menuitem', { name: 'Remove' })); expect(screen.getByText(/leave the practice list/)).toBeTruthy()
 })
 it('confirms a removal by saying everyone signs in again, and a removed person can be added back with no apps', async () => {
-  const remove = () => menu('employee@example.com').getByRole('button', { name: 'Remove' })
+  const remove = () => menu('employee@example.com').getByRole('menuitem', { name: 'Remove' })
   open(); await screen.findByRole('link', { name: 'Add person' }); fireEvent.click(remove())
   expect(screen.getByRole('heading', { name: 'Remove employee@example.com?' })).toBeTruthy()
   expect(screen.getByText(/Everyone is signed out and signs in again\. This can't be undone\./)).toBeTruthy()
   expect(screen.getByText(/project code is removed separately/)).toBeTruthy()
   expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Remove access' }))
-  expect(remove().hasAttribute('disabled')).toBe(true)
+  expect(remove().getAttribute('aria-disabled')).toBe('true'); shut()
   click('Cancel'); expect(screen.queryByRole('heading', { name: /^Remove / })).toBeNull(); fireEvent.click(remove())
   roster.people = [person({ status: 'removed', apps: [], settled: false })]; roster.work = [{ kind: 'sessions', status: 'failed' }]
   click('Remove access'); await screen.findByText('Removed · still signing out')
   expect(sent('people')).toEqual([{ email: 'employee@example.com', apps: [], removed: true }])
   // Still signing out, the menu keeps the retry beside Add back, and has no Remove.
   expect(items('employee@example.com')).toEqual(['Add back', 'Try again'])
-  fireEvent.click(menu('employee@example.com').getByRole('link', { name: 'Add back' })); await screen.findByRole('heading', { name: 'employee@example.com · Removed · still signing out' })
+  fireEvent.click(menu('employee@example.com').getByRole('menuitem', { name: 'Add back' })); await screen.findByRole('heading', { name: 'employee@example.com · Removed · still signing out' })
   expect(screen.getAllByRole('checkbox').every(input => !(input as HTMLInputElement).checked)).toBe(true)
   click('Save access'); await screen.findByText('Saved.')
   expect(sent('people')[1]).toEqual({ email: 'employee@example.com', removed: false, role: null, apps: [], keys: {} })
@@ -303,8 +303,7 @@ it('an uncertain save reloads current status without replaying the mutation', as
   open(); fireEvent.click(await screen.findByRole('link', { name: 'employee@example.com' }))
   await screen.findByRole('button', { name: 'Save access' }); failed.add('people'); click('Save access')
   // A save that did not finish interrupts: the same box in the same spot, as an alert.
-  const alert = await screen.findByRole('alert')
-  expect([alert.textContent, alert.className]).toEqual([UNFINISHED, 'access-notice'])
+  const alert = await screen.findByRole('alert'); expect([alert.textContent, notice(alert)]).toEqual([UNFINISHED, alert])
   await screen.findByRole('link', { name: 'employee@example.com' })
   expect(screen.queryByRole('button', { name: 'Save access' })).toBeNull()
   expect(posts('people')).toHaveLength(1)
@@ -355,11 +354,12 @@ it('draws three sides: the owner and a manager the four views on a wider page wi
   for (const [side, manages] of [['owner', true], ['manager', true], ['employee', false]] as const) {
     mode = side; roster.viewer.owner = side === 'owner'
     open(); await screen.findByRole(manages ? 'navigation' : 'region', { name: manages ? 'Access views' : 'You can use' })
-    expect([!!screen.queryByRole('button', { name: 'Connect your assistant' }), !!screen.queryByRole('dialog', { hidden: true }), !!screen.queryByRole('region', { name: 'You can use' }),
-      !!screen.queryByRole('navigation', { name: 'Access views' }), document.querySelector('.access-page')!.classList.contains('access-wide')], side).toEqual([manages, manages, !manages, manages, manages])
+    const page = screen.getByRole('heading', { name: 'Access' }).parentElement!.parentElement!
+    expect([!!screen.queryByRole('button', { name: 'Connect your assistant' }), showing(), !!screen.queryByRole('region', { name: 'You can use' }),
+      !!screen.queryByRole('navigation', { name: 'Access views' }), page.className.includes('w-[min(60rem')], side).toEqual([manages, false, !manages, manages, manages])
     if (manages) await opensAndCloses(side)
     // In the popup or on the page, it is the same box, and its prompt still copies.
-    const copy = await screen.findByRole('button', { name: 'Copy setup prompt' }); expect(!!copy.closest('dialog'), side).toBe(manages)
+    const copy = await screen.findByRole('button', { name: 'Copy setup prompt' }); expect(!!copy.closest('[role="dialog"]'), side).toBe(manages)
     fireEvent.click(copy); await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalledWith(own.prompt.text))
     expect(reads('status').length > 0, side).toBe(manages); cleanup(); fetchMock.mockClear(); vi.mocked(navigator.clipboard.writeText).mockClear()
   }
@@ -368,14 +368,14 @@ it('draws three sides: the owner and a manager the four views on a wider page wi
 async function opensAndCloses(side: string) {
   const press = () => click('Connect your assistant'); expect(screen.getByRole('button', { name: 'Connect your assistant' }).previousElementSibling!.tagName, side).toBe('H1')
   // Until it is pressed, nothing shows and the steps are not read.
-  expect([showing(), !!steps(), reads('setup').length, popup().getAttribute('aria-label')], side).toEqual([false, false, 0, 'Connect your assistant'])
-  // Close, a click on the dimmed page round the box, and the close a browser sends on Escape.
-  const ways = [() => click('Close'), () => fireEvent.click(popup()), () => { popup().removeAttribute('open'); fireEvent(popup(), new Event('close')) }]
-  for (const [at, shut] of ways.entries()) {
+  expect([showing(), !!steps(), reads('setup').length], side).toEqual([false, false, 0])
+  // Close, a press on the dimmed page round the box, and Escape.
+  const ways = [() => click('Close'), () => { const dimmed = document.querySelector('[data-slot="dialog-overlay"]')!; fireEvent.pointerDown(dimmed); fireEvent.click(dimmed) }, () => fireEvent.keyDown(popup()!, { key: 'Escape' })]
+  for (const [at, close] of ways.entries()) {
     press(); expect(showing(), side).toBe(true); await screen.findByText('Signed in as employee@example.com')
-    // A click inside the box leaves it open.
-    fireEvent.click(steps()!); expect(showing(), side).toBe(true)
-    shut(); expect([showing(), !!steps()], `${side} ${at}`).toEqual([false, false])
+    // The popup is named by the steps' own heading, and a press inside the box leaves it open.
+    expect(screen.getByRole('dialog', { name: 'Connect your assistant' }), side).toBe(popup()); await moment(); fireEvent.pointerDown(steps()!); fireEvent.click(steps()!); expect(showing(), side).toBe(true)
+    close(); expect([showing(), !!steps()], `${side} ${at}`).toEqual([false, false]); await moment()
   }
   press()
 }
@@ -388,7 +388,7 @@ it('a manager finds their own row marked You under the owner row, which says who
   // The owner's row is first, with nothing to change or remove.
   const first = within(screen.getByRole('table', { name: 'People' })).getAllByRole('row')[1]
   expect(Array.from(first.querySelectorAll('td')).map(cell => cell.textContent)).toEqual(['owner@example.com', 'Can sign in', 'Owner · picks managers', 'Every app and key', ''])
-  expect(first.querySelector('a, button, select, details')).toBeNull()
+  expect(first.querySelector('a, button, select')).toBeNull()
   expect([cells('employee@example.com')[0], cells('kim@example.com')[0]]).toEqual(['employee@example.com You', 'kim@example.com'])
   // A manager is marked in words beside the role, and no manager's menu has Remove: not their own row, not another's.
   for (const email of ['employee@example.com', 'kim@example.com']) {
@@ -397,7 +397,7 @@ it('a manager finds their own row marked You under the owner row, which says who
   }
   expect(line('lee@example.com').queryByText('Manager')).toBeNull(); expect(items('lee@example.com')).toEqual(['Open', 'Remove'])
   // Everyone else is theirs to remove, with the confirm the owner sees and no word about managing.
-  fireEvent.click(menu('lee@example.com').getByRole('button', { name: 'Remove' }))
+  fireEvent.click(menu('lee@example.com').getByRole('menuitem', { name: 'Remove' }))
   expect(screen.getByText(/Everyone is signed out and signs in again\. This can't be undone\./)).toBeTruthy(); expect(screen.queryByText(/stop managing/)).toBeNull()
   roster.people[2] = person({ email: 'lee@example.com', status: 'removed', apps: [] })
   click('Remove access'); await screen.findByText('Saved.')
@@ -420,19 +420,19 @@ it('the owner sees who manages: Manager beside the role, their own row marked Yo
   expect([role('lee@example.com').value, !!line('lee@example.com').queryByText('Manager')]).toEqual(['', false])
   expect([items('employee@example.com'), items('lee@example.com')]).toEqual([['Open', 'Remove'], ['Open', 'Remove']])
   // Removing a manager says so; removing anyone else does not.
-  fireEvent.click(menu('lee@example.com').getByRole('button', { name: 'Remove' }))
+  fireEvent.click(menu('lee@example.com').getByRole('menuitem', { name: 'Remove' }))
   expect(screen.queryByText(/stop managing/)).toBeNull(); click('Cancel')
-  fireEvent.click(menu('employee@example.com').getByRole('button', { name: 'Remove' }))
+  fireEvent.click(menu('employee@example.com').getByRole('menuitem', { name: 'Remove' }))
   expect(screen.getByText(/where it was given\. They stop managing Access too\./)).toBeTruthy()
   // On a preview the same sentence follows the practice-list one.
   cleanup(); roster.environment = 'practice'; roster.key = 'practice'
-  open(); await screen.findByRole('link', { name: 'Add person' }); fireEvent.click(menu('employee@example.com').getByRole('button', { name: 'Remove' }))
+  open(); await screen.findByRole('link', { name: 'Add person' }); fireEvent.click(menu('employee@example.com').getByRole('menuitem', { name: 'Remove' }))
   expect(screen.getByText(/The real sign-in list is not touched\. They stop managing Access too\./)).toBeTruthy()
 })
 it('tells a manager that one setup step is left for the owner, with nothing to copy', async () => {
   asManager(); roster.key = 'missing'; roster.people[0].settled = false; roster.work = [{ kind: 'policy', status: 'pending' }]
   open(); const step = (await screen.findByText('One step left for the owner.')).closest('p')!
-  expect([step.className, step.textContent]).toEqual(['access-notice', 'One step left for the owner. You can choose apps now. New people can sign in once owner@example.com finishes Access setup.'])
+  expect([!!notice(step), step.textContent]).toEqual([true, 'One step left for the owner. You can choose apps now. New people can sign in once owner@example.com finishes Access setup.'])
   expect(screen.queryByRole('button', { name: 'Copy that request' })).toBeNull(); expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull()
   expect(screen.queryByText('One step left.')).toBeNull()
   // Choosing apps still works.
@@ -452,30 +452,31 @@ it('copy fallback opens selectable text when clipboard is missing and reports ne
   expect(input.readOnly).toBe(true); expect(input.closest('details')?.open).toBe(true)
   const details = input.closest('details')!; details.open = false; fireEvent(details, new Event('toggle'))
 })
-it('Home shows one setup box to every signed-in person and keeps the welcome for everyone but a limited employee', async () => {
+it('Home has no setup box: every signed-in person gets the Connect card, which opens the same steps in a popup, and the welcome stays for everyone but a limited employee', async () => {
   for (const [viewer, welcome] of [['legacy', true], ['waiting-employee', true], ['waiting-owner', true], ['owner', true], ['employee', false]] as const) {
     mode = viewer; render(<Home />)
-    await screen.findByRole('button', { name: 'Copy setup prompt' })
-    expect(screen.getAllByRole('region', { name: 'Connect your assistant' })).toHaveLength(1)
-    // Home keeps the box as it was: no popup round it, and no button to open one.
-    expect(steps()!.closest('dialog')).toBeNull(); expect(screen.queryByRole('button', { name: 'Connect your assistant' })).toBeNull()
-    expect(!!screen.queryByRole('region', { name: 'Make it yours' })).toBe(welcome); cleanup()
+    const card = await screen.findByRole('button', { name: /^Connect your assistant/ })
+    // Nothing is drawn or read until the card is pressed.
+    expect([showing(), !!steps(), reads('setup').length, !!screen.queryByRole('region', { name: 'Make it yours' })], viewer).toEqual([false, false, 0, welcome])
+    fireEvent.click(card); expect((await screen.findByRole('button', { name: 'Copy setup prompt' })).closest('[role="dialog"]'), viewer).toBe(popup())
+    click('Close'); expect([showing(), !!steps()], viewer).toEqual([false, false]); cleanup(); fetchMock.mockClear()
   }
 })
 it('failed permissions or setup withhold app cards and support explicit retry', async () => {
   failed.add('apps'); render(<Home />); await screen.findByText('Your app access is unavailable.')
   expect(screen.queryByRole('link', { name: /Hello Example/ })).toBeNull()
-  expect(screen.queryByRole('region', { name: 'Connect your assistant' })).toBeNull()
+  expect([steps(), screen.queryByRole('button', { name: /^Connect your assistant/ })]).toEqual([null, null])
   failed.delete('apps'); mode = 'employee'; catalogue = ['access']; own.apps = []; click('Retry apps')
   await screen.findByText('No business apps assigned. Contact your employer.')
-  expect(screen.getByRole('link', { name: 'Open your assistant setup' }).getAttribute('href')).toBe('/apps/access/')
+  // Their way to the steps is the Connect card now, and Access stays theirs to open.
+  expect(screen.getByRole('button', { name: /^Connect your assistant/ })).toBeTruthy(); expect(screen.getAllByRole('link').map(link => link.getAttribute('href'))).toEqual(['/apps/access/'])
   expect(screen.queryByRole('region', { name: 'Make it yours' })).toBeNull()
   cleanup(); failed.add('setup'); render(<AssistantSetup />); await screen.findByText(/Assistant setup is unavailable/)
   failed.delete('setup'); click('Retry setup'); await screen.findByText(/Signed in as employee@example.com/)
 })
 it('selected home cards and direct app pages obey the same current readback', async () => {
   mode = 'employee'; render(<Home />); await screen.findByRole('link', { name: /Hello Example/ })
-  expect(screen.queryByRole('link', { name: /Tips/ })).toBeNull(); cleanup()
+  expect(screen.queryByRole('link', { name: /Tip calculator/ })).toBeNull(); expect(screen.getByRole('button', { name: /^Tip calculator No access/ }).getAttribute('aria-disabled')).toBe('true'); cleanup()
   const page = () => render(<MemoryRouter initialEntries={['/apps/hello/']}><Routes><Route path="/apps/:name/" element={<AppPage />} /></Routes></MemoryRouter>)
   catalogue = ['access']; page(); await screen.findByText('App access denied'); expect(screen.queryByText('Enter your name')).toBeNull(); cleanup()
   // Before permissions start, the page opens whatever the list says.

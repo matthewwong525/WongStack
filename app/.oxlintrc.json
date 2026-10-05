@@ -7,5 +7,13 @@
     "react/rules-of-hooks": "error",
     "react/only-export-components": ["warn", { "allowConstantExport": true }],
     "typescript/no-explicit-any": "error"
-  }
+  },
+  "overrides": [
+    {
+      // A ready-made part exports its style variants beside the component, as its makers wrote it.
+      // Every other rule still holds in this folder.
+      "files": ["src/components/ui/**"],
+      "rules": { "react/only-export-components": "off" }
+    }
+  ]
 }

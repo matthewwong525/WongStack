@@ -10,6 +10,9 @@
     "worker/apps/*/api.ts"
   ],
   "project": ["worker/**/*.ts", "src/**/*.{ts,tsx}"],
+  // The ready-made parts are copied as written, and one exports pieces no screen uses yet.
+  // The packages they import are still checked.
+  "ignore": ["src/components/ui/**"],
   "vite": {
     "config": ["vite.config.ts"]
   },
