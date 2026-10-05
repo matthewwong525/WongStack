@@ -853,7 +853,7 @@ test('setup gives both Workers one read-only key for Cloudflare look-ups, made f
   assertNoSecret(env, JSON.stringify(report));
 });
 
-test('a rerun reuses the read-only key, and one a Worker lacks is rolled onto both, never duplicated', async (t) => {
+test('a rerun reuses the read-only key, and one the live app lacks is rolled onto both, never duplicated', async (t) => {
   const env = await setup(t);
   const stored = () => ['recipe-box', 'recipe-box-staging'].map((worker) => JSON.parse(env.fake.state.workerSecrets[worker].WONG_CLOUDFLARE_READ).token);
   const keys = () => env.fake.state.accountTokens.filter((token) => token.name === 'recipe-box-cloudflare-read').length;
@@ -871,8 +871,8 @@ test('a rerun reuses the read-only key, and one a Worker lacks is rolled onto bo
   assert.ok(again.reused.includes('read-only Cloudflare key recipe-box-cloudflare-read'));
   assert.deepEqual([again.created, again.updated, again.todo], [[], [], []]);
   assert.deepEqual([env.fake.state.minted.length, keys()], [minted, 1]);
-  // A secret gone from either Worker rolls the one key; the sign-in list key is left as it is.
-  delete env.fake.state.workerSecrets['recipe-box-staging'].WONG_CLOUDFLARE_READ;
+  // A secret gone from the live app rolls the one key; the sign-in list key is left as it is.
+  delete env.fake.state.workerSecrets['recipe-box'].WONG_CLOUDFLARE_READ;
   const restored = await env.provision({ keepConfig: true });
   assert.ok(restored.reused.includes('sign-in list key recipe-box-access'));
   assert.equal(env.fake.state.minted.length, minted + 1);
@@ -880,6 +880,61 @@ test('a rerun reuses the read-only key, and one a Worker lacks is rolled onto bo
   assert.equal(keys(), 1);
   assert.deepEqual(env.record().components.cloudflareReadKey, restored.cloudflareReadKey);
   assertNoSecret(env, JSON.stringify([finished, again, restored]));
+});
+
+test('a staging Worker that refuses the read-only key is left waiting: the step completes, records it, and a rerun reuses the key', async (t) => {
+  const env = await setup(t);
+  const waiting = '; recipe-box-staging waiting, as Cloudflare stores no secret there while a newer preview is uploaded';
+  const key = () => env.fake.state.accountTokens.find((token) => token.name === 'recipe-box-cloudflare-read');
+  // Every pull request uploads a preview after its staging deploy, so staging refuses a secret with code 10215.
+  env.fake.state.newerPreview = ['recipe-box-staging'];
+  const report = await env.provision();
+  assert.deepEqual(report.cloudflareReadKey, { status: 'ready', id: key().id, waiting: ['recipe-box-staging'] });
+  assert.deepEqual(env.record().components.cloudflareReadKey, report.cloudflareReadKey);
+  assert.ok(report.created.includes(`read-only Cloudflare key recipe-box-cloudflare-read, stored in the live app${waiting}`));
+  assert.deepEqual(report.todo, []);
+  assert.deepEqual(JSON.parse(env.fake.state.workerSecrets['recipe-box'].WONG_CLOUDFLARE_READ), { version: 1, token: env.fake.state.minted.at(-1), accountId: ACCOUNT });
+  assert.equal(env.fake.state.workerSecrets['recipe-box-staging'], undefined);
+  // A rerun reuses the key while the live app holds it: no new value, and no second try at staging.
+  const minted = env.fake.state.minted.length;
+  const calls = env.fake.calls.length;
+  const again = await env.provision();
+  assert.ok(again.reused.includes(`read-only Cloudflare key recipe-box-cloudflare-read${waiting}`));
+  assert.deepEqual(again.cloudflareReadKey, report.cloudflareReadKey);
+  assert.deepEqual(again.todo, []);
+  assert.equal(env.fake.state.minted.length, minted);
+  assert.ok(!env.fake.calls.slice(calls).some((call) => call.method === 'PUT' && call.path.endsWith('/secrets')));
+  // Staging holding no copy still reads as waiting once the newer preview is gone: the key is not replaced to try again.
+  env.fake.state.newerPreview = [];
+  assert.deepEqual((await env.provision()).cloudflareReadKey, report.cloudflareReadKey);
+  assert.equal(env.fake.state.minted.length, minted);
+  // When the live app loses its copy the key is replaced, staging takes it, and the record stops listing it as waiting.
+  delete env.fake.state.workerSecrets['recipe-box'].WONG_CLOUDFLARE_READ;
+  const both = await env.provision({ keepConfig: true });
+  assert.deepEqual(both.cloudflareReadKey, { status: 'ready', id: key().id });
+  assert.deepEqual(env.record().components.cloudflareReadKey, both.cloudflareReadKey);
+  assert.ok(both.updated.includes('read-only Cloudflare key recipe-box-cloudflare-read, stored in both Workers'));
+  assert.equal(env.fake.state.workerSecrets['recipe-box'].WONG_CLOUDFLARE_READ, env.fake.state.workerSecrets['recipe-box-staging'].WONG_CLOUDFLARE_READ);
+  assertNoSecret(env, JSON.stringify([report, again, both]));
+});
+
+test('the live app refusing the read-only key still stops the step, and so does any other refusal from staging', async (t) => {
+  const env = await setup(t);
+  const refusing = (worker, code) => async (url, options) => (options.method === 'PUT' && url.endsWith(`/workers/scripts/${worker}/secrets`) && String(options.body).includes('"WONG_CLOUDFLARE_READ"')
+    ? new Response(JSON.stringify({ success: false, errors: [{ code }] }), { status: 400 })
+    : fetch(url, options));
+  // Only the newer-preview code on a Worker after the first is waited on.
+  await assert.rejects(env.provision({ fetch: refusing('recipe-box', 10215) }), { reason: 'cloudflare', message: /recipe-box\/secrets: HTTP 400 10215$/ });
+  assert.equal(env.fake.state.workerSecrets['recipe-box'].WONG_CLOUDFLARE_READ, undefined);
+  assert.equal(env.fake.state.workerSecrets['recipe-box-staging'], undefined);
+  assert.equal(env.record().components.cloudflareReadKey, undefined);
+  await assert.rejects(env.provision({ fetch: refusing('recipe-box-staging', 10014) }), { reason: 'cloudflare', message: /recipe-box-staging\/secrets: HTTP 400 10014$/ });
+  assert.equal(env.record().components.cloudflareReadKey, undefined);
+  // The stopped runs made one key and left it pending, so the next run replaces its value on both Workers.
+  const finished = await env.provision();
+  assert.deepEqual(finished.cloudflareReadKey, { status: 'ready', id: env.fake.state.accountTokens.find((token) => token.name === 'recipe-box-cloudflare-read').id });
+  assert.ok(finished.updated.includes('read-only Cloudflare key recipe-box-cloudflare-read, stored in both Workers'));
+  assert.equal(env.fake.state.accountTokens.filter((token) => token.name === 'recipe-box-cloudflare-read').length, 1);
 });
 
 test('a token that can not make the read-only key leaves it missing, names the step left, and stops nothing else', async (t) => {

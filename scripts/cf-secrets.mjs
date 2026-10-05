@@ -52,8 +52,9 @@
  *
  * Worker names and ordinary business keys come from config/files. The private
  * Access management name is explicitly production-only. The read-only
- * Cloudflare key is setup-made: refused in every file, expected on both
- * Workers. Every repo ships this file byte-for-byte identical.
+ * Cloudflare key is setup-made: refused in every file, and allowed on
+ * production alone while staging waits for it. Every repo ships this file
+ * byte-for-byte identical.
  */
 
 import { execFileSync } from "node:child_process";
@@ -74,7 +75,7 @@ import { parseCli, usageError } from "./lib-cli.mjs";
 const STAGING_ENV = "staging";
 // Setup stores the sign-in list key on the production Worker alone; no file here holds it.
 const PRIVATE_ACCESS = new Set(["WONG_ACCESS_LOGIN_MANAGEMENT"]);
-// Setup stores the read-only Cloudflare key on both Workers; no file here holds it either.
+// Setup stores the read-only Cloudflare key itself, on staging only when Cloudflare takes it; no file here holds it either.
 const SETUP_MADE = "WONG_CLOUDFLARE_READ";
 
 /** The file the Worker's runtime secrets are declared in. */
@@ -326,7 +327,7 @@ function push(appDir, override) {
       fail("staging secret source must omit private Access management bindings; create a separate .dev.vars.staging before any push.");
     }
     if (names.includes(SETUP_MADE)) {
-      fail(`${basename(target.file)} must not declare ${SETUP_MADE}: setup stores it on both Workers. Remove the line and re-run.`);
+      fail(`${basename(target.file)} must not declare ${SETUP_MADE}: setup stores it itself. Remove the line and re-run.`);
     }
     // `secret bulk` takes at most 100 per call. Far beyond any realistic repo,
     // but say so rather than letting a truncated load look like a success.
@@ -505,9 +506,10 @@ function checkSecrets(appDir) {
     if (name === 'SKIP_AUTH' || name === 'WONG_ENVIRONMENT') problems.push(`secret '${name}' overrides deployed authentication configuration; remove it before deploying.`);
   }
   for (const name of production) {
-    if (!staging.includes(name) && !PRIVATE_ACCESS.has(name)) {
-      problems.push(`secret '${name}' is set on production but missing from ${STAGING_ENV}.`);
-    }
+    if (staging.includes(name) || PRIVATE_ACCESS.has(name)) continue;
+    // Cloudflare stores no secret on staging while a newer preview is uploaded, so setup may leave this one waiting.
+    if (name === SETUP_MADE) console.log(`cf-secrets: '${name}' is on production only — the preview is waiting for it`);
+    else problems.push(`secret '${name}' is set on production but missing from ${STAGING_ENV}.`);
   }
   for (const name of staging) {
     if (PRIVATE_ACCESS.has(name)) problems.push(`secret '${name}' must never be set on staging; remove it.`);

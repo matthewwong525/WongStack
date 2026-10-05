@@ -268,12 +268,18 @@ export async function provisionAccessPolicies(cf, { account, ownerEmail, teammat
 
 /** The production Worker secret Access reads its sign-in list key from. Staging never holds it. */
 export const LOGIN_KEY_SECRET = 'WONG_ACCESS_LOGIN_MANAGEMENT';
-/** The secret both Workers read the read-only Cloudflare key from. */
+/** The secret the read-only Cloudflare key is read from: on production always, on staging when Cloudflare takes it. */
 export const CLOUDFLARE_READ_SECRET = 'WONG_CLOUDFLARE_READ';
+/** Cloudflare stores no secret on a Worker whose newest uploaded version is not the deployed one: a staging Worker's usual state. */
+const NEWER_VERSION_UPLOADED = 10215;
+
+/** What a key's result and note say of the Workers that hold no copy; nothing when every Worker holds one. */
+const waitingOn = waiting => waiting.length ? { result: { waiting }, text: `; ${waiting.join(', ')} waiting, as Cloudflare stores no secret there while a newer preview is uploaded` } : { text: '' };
 
 /**
- * One account key the app holds as a Worker secret: made once, stored on every Worker in `workers` with
- * the account id and `ids`, and reused on a rerun while each still holds it. `policies` builds the key's
+ * One account key the app holds as a Worker secret: made once, stored with the account id and `ids`, and
+ * reused on a rerun while the first Worker still holds it. The first of `workers` must take it; a later
+ * one Cloudflare refuses for a newer uploaded version is left `waiting`. `policies` builds the key's
  * permissions, lazily. A token that can not make keys leaves the step `missing` and stops nothing else.
  */
 async function workerKey(cf, { account, name, workers, secret, version, ids = {}, slot, label, where, policies, state, checkpoint, note }) {
@@ -281,10 +287,11 @@ async function workerKey(cf, { account, name, workers, secret, version, ids = {}
   const secrets = workers.map(worker => `/accounts/${account}/workers/scripts/${worker}/secrets`);
   try {
     const found = (await cf('GET', `${tokens}?per_page=100`)).find(token => token.name === name);
-    const held = (await Promise.all(secrets.map(path => cf('GET', path)))).every(list => list.some(item => item.name === secret));
-    if (found && held && matchesFields({ ...ids, ...state[slot] }, ids) && !state[slot]?.pending) {
-      note('reused', `${label} ${name}`);
-      return { status: 'ready', id: found.id };
+    const holds = (await Promise.all(secrets.map(path => cf('GET', path)))).map(list => list.some(item => item.name === secret));
+    if (found && holds[0] && matchesFields({ ...ids, ...state[slot] }, ids) && !state[slot]?.pending) {
+      const lacking = waitingOn(workers.filter((_, index) => !holds[index]));
+      note('reused', `${label} ${name}${lacking.text}`);
+      return { status: 'ready', id: found.id, ...lacking.result };
     }
     state[slot] = { name, pending: true };
     checkpoint();
@@ -292,11 +299,18 @@ async function workerKey(cf, { account, name, workers, secret, version, ids = {}
     const minted = found ? { id: found.id, value: await cf('PUT', `${tokens}/${found.id}/value`, {}) } : await cf('POST', tokens, { name, policies: await policies() });
     if (!minted?.id || typeof minted.value !== 'string' || !minted.value) throw new AccessSetupError(`Cloudflare did not return the ${label}; run setup again`);
     const text = JSON.stringify({ version, token: minted.value, accountId: account, ...ids });
-    for (const path of secrets) await cf('PUT', path, { name: secret, type: 'secret_text', text });
+    const refused = [];
+    for (const [index, path] of secrets.entries()) {
+      await cf('PUT', path, { name: secret, type: 'secret_text', text }).catch(error => {
+        if (!index || !error.codes?.includes(NEWER_VERSION_UPLOADED)) throw error;
+        refused.push(workers[index]);
+      });
+    }
     state[slot] = { id: minted.id, name, ...ids };
     checkpoint();
-    note(found ? 'updated' : 'created', `${label} ${name}, stored in ${where}`);
-    return { status: 'ready', id: minted.id };
+    const lacking = waitingOn(refused);
+    note(found ? 'updated' : 'created', `${label} ${name}, stored in ${refused.length ? 'the live app' : where}${lacking.text}`);
+    return { status: 'ready', id: minted.id, ...lacking.result };
   } catch (error) {
     if (error.status !== 401 && error.status !== 403) throw error;
     return { status: 'missing' };
@@ -313,8 +327,9 @@ export const loginManagementKey = (cf, { worker, policyId, ...rest }) => workerK
 });
 
 /**
- * The key behind the app's Cloudflare look-ups, the same value on the production and staging Workers. It
- * reads settings, logs and usage: it can change nothing, and reads no stored data.
+ * The key behind the app's Cloudflare look-ups: on the production Worker, and with the same value on the
+ * staging Worker when Cloudflare takes it. It reads settings, logs and usage: it can change nothing, and
+ * reads no stored data.
  */
 export const cloudflareReadKey = (cf, options) => workerKey(cf, {
   ...options, secret: CLOUDFLARE_READ_SECRET, version: 1, slot: 'cloudflareReadKey', label: 'read-only Cloudflare key', where: 'both Workers',

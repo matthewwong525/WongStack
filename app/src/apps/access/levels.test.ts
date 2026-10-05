@@ -52,8 +52,9 @@ it('says what uses a key, on the Keys view and under a level on a person or a ro
   expect(heldUseLine({ ...stripe, alone: true }, ['tips'], 'nothing of theirs uses it yet')).toBe('used by Tip calculator · look-ups, no app needed')
 })
 
-it('says whether a key is saved, waits for its link, or waits for setup to make it', () => {
-  expect([stripe, maps, cloudflare].map(keyState)).toEqual(['Saved', 'Not saved yet', 'One step left'])
+it('says whether a key is saved, waits for its link, or waits for setup to make it, which no preview can', () => {
+  expect([stripe, maps, cloudflare].map(key => keyState(key, 'live'))).toEqual(['Saved', 'Not saved yet', 'One step left'])
+  expect([stripe, maps, cloudflare].map(key => keyState(key, 'practice'))).toEqual(['Saved', 'Not saved yet', 'Not on previews yet'])
 })
 
 it('ticking an app gives Read on each key it uses that is at None, and never Read & write', () => {
