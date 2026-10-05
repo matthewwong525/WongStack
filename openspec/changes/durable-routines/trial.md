@@ -21,6 +21,11 @@ Run on 2026-10-05 on the owner's account (Workers Paid), from a Linux server wit
 | Pick a Claude model | Refused: `402 Insufficient wholesale credits. Please add additional credits on the AI Gateway Cloudflare dashboard`. The model in use was kept. |
 | A run on a `/<name>` verb with a script | Status `ok`. Pi on Kimi K2.7 Code read the skill, ran its script, appended the line, and pushed `routine/tidy-run`. `main` did not move. The commit carries the maker's name and email. |
 | A run that finds its own way | Status `ok` in 110 seconds, 7.7 of them start-up. Asked for the three top stories on Hacker News, Pi chose the site's public API over reading the page, appended the titles to `NOTES.md`, pushed `routine/news-run`, left `main` alone, and listed what it assumed, as the notice asks. |
+| A run on GLM-5.3 | Status `ok` in 109 seconds, 8.1 of them start-up. It followed the same skill, and took the branch name from the words after `/tidy`. |
+| Teardown by the page's steps | The first runner's Worker, container application, Workflow, AI Gateway, and model-only key were each deleted and read back as gone. |
+| A first routine installs the runner by itself | With nothing installed, `create --dry-run` showed what would be added, the cost, and the three models. `create` then installed everything in 34 seconds and stopped with `needs: model` and the shortlist. After `model`, `create` made the routine. |
+| The clock | A routine set for 21:04:00 UTC started by itself at 21:04:04.8, and its next run moved to the same time the next day. |
+| Never twice at once | A `run` asked for while a run was going answered `started: false, reason: running`, and recorded one skipped start. |
 | The Worker minting an Artifacts write key | Worked with `env.ARTIFACTS.get(repo).createToken('write', ttl)`. The key outlives the run by up to an hour. |
 | No key in a URL, a log, or a stored step | The run's log and every stored Workflow step were searched for the Artifacts key, a Basic or Bearer header, the routines key, and the Cloudflare token. None was there. |
 | An install whose project lives on GitHub, with no project key | `setup` installed a second runner, `wong-rt-gh-routines`, in 36 seconds and answered `needs: project-access`. `create` then stopped with the same answer and made no routine. |
@@ -50,16 +55,19 @@ Start-up is under the 60-second limit, so no saved start was built.
 - **The model test waited 20 seconds, and GLM-5.3 can take longer.** It now waits 60.
 - **A refusal with no HTTP status read as "could not be reached".** The status is now taken from the refusal's own words, so a 402 says the account has no credit.
 - **The first call after `setup` got an empty 404.** A new key takes a few seconds to reach every Cloudflare location. The client now tries an empty 404 again, twice.
+- **The notice said to leave a memory thread, but not how.** In a project with no memory skill, the assistant called its own chat the memory record. The notice now says to write the thread through the project's memory skill when it has one, and otherwise to end its reply with what is left. A first wording made a one-word task spend three minutes on that bookkeeping, so the notice also says to do neither when nothing is left; the same task then replied with its one word.
 
 ## Not done yet
 
-- **The GitHub route** (the second half of task 5.2): a run that pushes to a GitHub repository needs a fine-grained token from the person, through the key link.
+- **The GitHub route** (the second half of task 5.2): a run that pushes to a GitHub repository needs a fine-grained token from the person, through the key link. Its runner is installed and waiting.
 - **A real pasted model key** (task 5.4): needs a key from the person, through the key link.
-- **A run that leaves a memory note:** the throwaway install held no memory key. Task 5.7 covers it.
+- **A run that leaves a memory note:** the throwaway project has no memory skill and its install held no memory key. Task 5.7 covers it, in a project that has both.
+
+A key link for both keys was open from 20:24 to 20:54 UTC on 2026-10-05 and closed unused.
 
 ## Clean-up
 
-To delete, and to read back as gone through Cloudflare's API:
+Every test routine is deleted, so nothing runs on a schedule. The pieces below are kept for the two checks that wait on a key. To delete, and to read back as gone through Cloudflare's API:
 
 - Workers `wong-rt-trial-routines` and `wong-rt-gh-routines`, each with its container application and its Workflow.
 - AI Gateways `wong-rt-trial-routines` and `wong-rt-gh-routines`.

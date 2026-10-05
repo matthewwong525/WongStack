@@ -66,7 +66,7 @@ test('a run needs a model, what reaches it, and on GitHub the project key; there
 test('the prompt is the fixed notice, then the routine\'s text unchanged', () => {
   const text = '  summarize the inbox\n\n"quoted" $HOME `x`  ';
   assert.equal(promptOf(routine({ prompt: text })), `${NOTICE}\n\n${text}`);
-  assert.equal(NOTICE, 'This is a scheduled run and nobody can answer. Take the recommended option wherever you would ask, mark it assumed, and record anything left for the person as a memory thread.');
+  assert.equal(NOTICE, 'This is a scheduled run and nobody can answer. Take the recommended option wherever you would ask, and mark it assumed. If that leaves something for the person, record it as a memory thread: when this project has `.agents/skills/memory/SKILL.md`, read it and write one fact tagged `routine` through its write gate; when it has none, end your reply with what is left. If nothing is left, do neither.');
 });
 
 test('a prompt that starts with a verb names its skill file, and the rest of the prompt follows', () => {
