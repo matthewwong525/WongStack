@@ -103,7 +103,7 @@ Every repo's test workflow SHALL check `wiki/` on every run whose change touches
 
 #### Scenario: A renamed heading breaks a section link
 
-- **WHEN** a wiki save renames the heading `## Hand the browser over` while another wiki page links `browsing.md#hand-the-browser-over`
+- **WHEN** a wiki save renames the heading `## Saved browser logins` while another wiki page links `browsing.md#saved-browser-logins`
 - **THEN** the check fails naming the linking page, its line, and the link, and the save does not publish until the link or the heading is fixed
 
 #### Scenario: A code-only change skips the wiki check

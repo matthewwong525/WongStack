@@ -17,7 +17,7 @@ When a task first needs a login and agent-browser has no `profile`, the agent SH
 
 ### Requirement: The person does each login once
 
-The agent SHALL hand the browser to the person to log in, then reuse the session. It SHALL NOT ask for a password in the chat, and SHALL NOT read, show, or write a password anywhere but the browser tool's encrypted login store, which only the person fills through the password link.
+The agent SHALL log in with a login the person saved, then reuse the session. It SHALL NOT ask for a password in the chat, and SHALL NOT read, show, or write a password anywhere but the browser tool's encrypted login store, which only the person fills through the password link.
 
 #### Scenario: A later visit
 
@@ -52,104 +52,9 @@ Before a task's first agent-browser command, the agent SHALL load the guide agen
 - **WHEN** a task needs the person's saved logins and has not yet loaded the guide
 - **THEN** the agent loads it before opening the site
 
-### Requirement: The agent hands the browser over when it needs the person
-
-When a browsing step needs input only the person can give on the page (a captcha or picture puzzle, a passkey or device check, a single sign-on or other login with no password to save, a backup or recovery code, or any other such input) or the person asks to take over, the agent SHALL hand its browser over and SHALL NOT try to get past the step itself, except that a password login with no saved or a rejected saved password SHALL follow the pre-filled password link requirement below, a one-time login code SHALL follow the login-code requirement below, API key or token website steps SHALL follow the own-browser requirement above, and a bot check or block that stops the agent's own browser SHALL first move the site to the cloud browser. When the person is not at the computer the agent runs on, it SHALL hand over through a private link that needs a secret key and gets a new address each time. Before it opens a link, the agent SHALL ask in the chat whether the person is ready and SHALL open the link only after they reply, unless the person's latest message asked to take over.
-
-#### Scenario: A captcha from a phone
-
-- **WHEN** a site shows a captcha and the person chats from another device
-- **THEN** the agent sends a private link that opens its browser on that device, and the person solves it there
-
-#### Scenario: The person asks to take over
-
-- **WHEN** the person says to let them take over mid-task
-- **THEN** the agent stops sending browser commands and sends the link
-
-#### Scenario: The person is away when a login comes up
-
-- **WHEN** a site asks for a login and the person has not replied for an hour
-- **THEN** the agent asks in the chat whether they're ready, opens no link (the password link or a hand-over) until they reply, and the link's 10 minutes start from that reply
-
-#### Scenario: A Cloudflare check in the agent's own browser
-
-- **WHEN** a site shows a Cloudflare "Verify you are human" check in the agent's own browser
-- **THEN** the agent moves the site to the cloud browser instead of sending a hand-over link
-
-### Requirement: A hand-over link closes itself
-
-A hand-over link SHALL stop working when the finish the agent named is reached, when the person says they are done, or after 10 minutes, whichever comes first, even if the agent's session has ended. A closed link SHALL never work again. When the agent named a finish, it SHALL resume the task on reaching it without the person saying they are done.
-
-#### Scenario: The person logs in
-
-- **WHEN** the browser reaches the logged-in address the agent named
-- **THEN** the link stops working and the agent resumes the task
-
-#### Scenario: Nobody finishes
-
-- **WHEN** 10 minutes pass without reaching the finish or hearing done
-- **THEN** the link stops working and the agent tells the person it timed out
-
-### Requirement: The agent keeps its hands off during a hand-over
-
-While a hand-over link is open for input, the agent SHALL send the browser no commands, and SHALL read only the browser's address or whether an element it named is present, never the page's content, field values, or a picture of it. The hand-over tool MAY read the page's field labels, kinds, geometry, and dropdown choices, visible form layout width, navigation metadata limited to history length and the initial handed-over page address, and its form actions' labels, association, geometry, and visible/enabled state to list or position them for the person, and MAY set a field or resolve a mirrored action on the person's action. It SHALL never read a field's value, tick state, or current choice, SHALL never pass what the person types as a command argument, and SHALL give the agent nothing but the result. Private input and browser control through the link SHALL end before the originating workspace is notified to resume.
-
-#### Scenario: A two-step code page
-- **WHEN** the site shows a code page after the password
-- **THEN** the agent keeps waiting, having read nothing but the address
-
-#### Scenario: A card typed into the field list
-- **WHEN** the person types a card number into the hand-over page's field list
-- **THEN** the number reaches the page's card field, and appears in no command, file, log, or message the agent can read
-
-### Requirement: The agent shows its browsing in the chat
-
-During a browsing task, the agent SHALL show the person a picture of the page in the chat at each key moment: a new page, right before an action that sends, books, or pays for something, and the result. It SHALL NOT show a picture after every action, nor repeat a page that has not changed. It SHALL keep the pictures out of the repo, and take none while the person has the browser.
-
-#### Scenario: A booking
-
-- **WHEN** the agent opens a booking page, fills it, and books
-- **THEN** the chat shows the page, the filled form before booking, and the confirmation, each with a line saying what it shows
-
-#### Scenario: A hand-over mid-task
-
-- **WHEN** the agent hands the person its browser for a login
-- **THEN** no picture appears until the hand-over ends
-
-### Requirement: The person can click and type in a handed-over browser
-
-A hand-over link SHALL open the page the task was using, never a blank tab, and SHALL let the person click any spot on it and type into the field they chose, from a phone's on-screen keyboard or a computer's keyboard. The link SHALL show only that task's browser, not other browser sessions on the computer. When the link is open in a window narrower than 800 CSS pixels, the handed page SHALL initially take that window's width and a taller browser viewport. A visible form wider than that SHALL increase the bounded remote viewport width and permit preview panning so its edges remain reachable at readable size; sites whose layout fits SHALL retain their phone width. A wider window SHALL get 1280×720. When the link closes, however it closes, the page SHALL return to 1280×720 before the agent carries on.
-
-#### Scenario: A card number from a phone
-- **WHEN** the agent hands over a card form and the person, on a phone, taps the card box and types the number
-- **THEN** the number appears in the card box on the agent's page
-
-#### Scenario: A stray blank tab
-- **WHEN** the browser has a blank tab in front of the task's page at hand-over
-- **THEN** the link opens on the task's page
-
-#### Scenario: A link opened on a phone
-- **WHEN** the person opens the link on a phone 390 points wide
-- **THEN** the preview fits the phone, the site's full form is reachable by panning when necessary, and a tap lands on the spot tapped
-- **AND** after the link closes, the page is 1280×720 again
-
-### Requirement: The person can fill a handed-over form from a list of its fields
-
-A hand-over page SHALL list the handed page's text fields, dropdowns, and tick boxes, each labelled and in page order, with a dropdown showing the page's own choices. A value the person enters in the list SHALL reach the matching field on the page, as they type or pick it. Each box SHALL carry the kind of value it holds, from the page field's own marking, name, or label, so a password manager or a phone's autofill can fill the list. The list SHALL follow the page as it changes, and a field the list can't show SHALL stay reachable by tapping it on the picture and typing.
-
-#### Scenario: Expiry dropdowns from a phone
-
-- **WHEN** a handed-over card page has dropdowns for expiry month and year, and the person picks 03 and 2028 in the list on a phone
-- **THEN** the page's dropdowns show 03 and 2028
-
-#### Scenario: A password manager fills the card
-
-- **WHEN** the person's password manager fills the list's card number, expiry, and security code boxes at once
-- **THEN** each value lands in its own field on the page
-
 ### Requirement: The agent confirms an outward browser action in the chat
 
-Before a browsing task publishes, sends, books, pays for, or deletes something, the agent SHALL ask the person in the chat, naming exactly what it will do, and SHALL act only on a yes. It SHALL NOT hand the browser over to get that answer.
+Before a browsing task publishes, sends, books, pays for, or deletes something, the agent SHALL ask the person in the chat, naming exactly what it will do, and SHALL act only on a yes. The person's own tap on a private form's button, which names the action, SHALL count as that yes for that action alone.
 
 #### Scenario: Publishing a website
 
@@ -158,7 +63,7 @@ Before a browsing task publishes, sends, books, pays for, or deletes something, 
 
 ### Requirement: The person saves logins through a private password link
 
-When the person asks to save logins, the agent SHALL ask whether they are ready, then send a private link with the hand-over link's safety: a new address and secret key each time, ending private input on successful completion, explicit closure, or after 10 minutes. The link's page SHALL be one screen that takes CSV password exports, dropped onto it or picked from the device, and logins typed or autofilled, into one list. Its primary completion action SHALL save the selected pending logins, including a valid filled login not yet added to the list, and return to the requesting task in one tap. Failed saves SHALL stay open for correction and SHALL NOT announce readiness. For an export, the person's device SHALL read the file and list its sites with none ticked; a typed login SHALL join the list ticked. Only the ticked logins SHALL leave the device. The agent SHALL learn only the names of the saved sites.
+When the person asks to save logins, the agent SHALL ask whether they are ready, then send a private link with every private link's safety: a new address and secret key each time, ending private input on successful completion, explicit closure, or after 10 minutes. The link's page SHALL be one screen that takes CSV password exports, dropped onto it or picked from the device, and logins typed or autofilled, into one list. Its primary completion action SHALL save the selected pending logins, including a valid filled login not yet added to the list, and return to the requesting task in one tap. Failed saves SHALL stay open for correction and SHALL NOT announce readiness. For an export, the person's device SHALL read the file and list its sites with none ticked; a typed login SHALL join the list ticked. Only the ticked logins SHALL leave the device. The agent SHALL learn only the names of the saved sites.
 
 #### Scenario: An export with many sites
 
@@ -182,12 +87,12 @@ When a site asks for a login and a saved login matches the site, the agent SHALL
 #### Scenario: A site logged the person out
 
 - **WHEN** a task finds a login page for a site with one saved login
-- **THEN** the agent logs in with it and carries on, with no hand-over
+- **THEN** the agent logs in with it and carries on, asking the person nothing
 
 #### Scenario: A wrong saved password
 
 - **WHEN** the saved login is rejected
-- **THEN** the agent asks whether the person is ready and sends the password link with the site and username filled in, not a hand-over
+- **THEN** the agent asks whether the person is ready and sends the password link with the site and username filled in
 
 ### Requirement: Completed private input wakes the originating workspace
 
@@ -204,103 +109,9 @@ A successful private-input completion opened by an identifiable workspace SHALL 
 - **WHEN** entries have been saved but there is no identifiable originating workspace or the notification is unconfirmed
 - **THEN** the entries stay saved, the result remains available, and the page directs the person back to the chat without claiming the assistant was notified
 
-### Requirement: The person can submit from outside the website preview
-
-A hand-over page SHALL mirror identifiable visible native form-submit actions outside its live preview, with their own labels, form association, order, and disabled state. The person's tap SHALL activate the corresponding real website control after their queued field changes, preserving the site's validation and click behavior. Stale actions SHALL be refused rather than redirected to a different control, and no failed or uncertain submission SHALL be automatically repeated. Unsupported actions SHALL remain reachable through the preview. Submitting SHALL NOT by itself end the hand-over before its requested finish is reached.
-
-#### Scenario: A login asks for a code next
-
-- **WHEN** the person finishes typing a password and immediately taps the mirrored Sign in action, and the website then asks for a code
-- **THEN** the last typed character reaches the page before its actual Sign in button is clicked, the field list and actions follow the code page, and the hand-over stays with the person
-
-#### Scenario: The action changed before the tap
-
-- **WHEN** a mirrored submit action was removed, replaced, or disabled after it was shown
-- **THEN** the hand-over does not click a different action or repeat the submit, and offers a refresh or a tap in the preview
-
-### Requirement: The person can recover from browser navigation
-
-The hand-over SHALL offer icon controls for Back, Forward, Reload, and Return to start at the bottom in both Page and Fill fields views on phones and below the workspace on computers. On phones the controls SHALL hide while the on-screen keyboard is open and return when it closes. They SHALL act on the handed-over website, not the private link's own browser history. Navigation SHALL wait for queued field edits and SHALL never automatically retry an uncertain action. Closed links and unauthenticated requests SHALL NOT navigate the website. Every icon SHALL have an accessible name and tooltip, and a touch target of at least44 CSS pixels in both dimensions. Return to start SHALL open the initial handed-over HTTP(S) page address captured by the server once as this private link opens, keeping its path, query and fragment and removing URL credentials. Its destination SHALL remain unchanged across website navigation, including visits to other origins, and SHALL never be supplied by the client. Home-to-origin SHALL no longer be offered. The start address SHALL remain private to the short-lived watcher state and server; unavailable or unsupported start addresses SHALL report unavailability without clearing local fields or preview position. If the browser has only one history entry, Back and Forward SHALL report that no traversal is available without clearing local fields or resetting preview pan. A no-history action SHALL not be replaced with a different destination.
-
-#### Scenario: An accidental external page
-- **WHEN** the person follows an unwanted website link and taps Back
-- **THEN** the handed-over browser returns to its preceding page and the field list follows that page
-
-#### Scenario: A decorative logo and fresh browser history
-- **WHEN** the person opens a page with no prior browser history and taps Back
-- **THEN** the hand-over explains there is no previous page, preserves typing and pan, and offers Return to start to reach the original page without relying on its logo
-
-#### Scenario: Returning from another website
-- **WHEN** the hand-over begins on a specific page with a path, query and fragment, and the person later follows a link to another website then taps Return to start
-- **THEN** the handed-over browser opens that exact original page address, rather than either website's root, and the field list and preview follow it
-
-#### Scenario: No valid start address
-- **WHEN** the starting page address is unavailable or not HTTP(S) and the person taps Return to start
-- **THEN** the hand-over explains that the original page is unavailable, preserves typing and preview position, and does not navigate to a guessed page
-
-#### Scenario: Navigation outside the private link
-- **WHEN** a closed link or an unauthenticated request attempts navigation
-- **THEN** the browser does not navigate
-
-### Requirement: Page and fields have separate space
-
-On windows narrower than 800 CSS pixels the hand-over SHALL offer Page and Fill fields views, with one visible at a time, and keep user-entered fields when switching. The Page view SHALL use the available screen height without requiring scrolling the hand-over document to reach its controls. On wider windows it SHALL show the live page and independently scrollable fields side by side. Connection and closure state SHALL remain visible in both layouts, with phone chrome temporarily hidden during keyboard entry and restored on closure.
-
-#### Scenario: A phone login
-- **WHEN** a person opens the hand-over on a phone and switches between Page and Fill fields after typing
-- **THEN** the views fit the phone, the typing is preserved, and only the selected view accepts focus
-
-#### Scenario: A desktop login
-- **WHEN** a person opens the hand-over on a computer
-- **THEN** the live page and fields are visible together and scrolling the fields does not move the page
-
-### Requirement: The handed-over page scrolls dependably
-
-A touch drag on the live page SHALL move the viewed content without scrolling the outer hand-over or turning that drag into a click. A phone preview SHALL allow panning a taller browser viewport so fixed-height pages can be viewed even when they provide no native scroll range. Scroll distance beyond the preview's available range SHALL scroll the website at the touched position. A cancelled gesture SHALL never click. Wider pages SHALL permit dragging left and right to reach both edges. Remaining horizontal and vertical scroll distance SHALL be forwarded independently at the gesture origin. Desktop wheels SHALL scroll at the pointer's page position. Navigation SHALL return the preview to its initial position.
-
-#### Scenario: A phone swipe
-- **WHEN** a person drags upward on the live page and releases outside its original position
-- **THEN** the viewed content moves down through the page, additional distance scrolls the website, the outer hand-over remains still, and no click is sent
-
-#### Scenario: A wide login form
-- **WHEN** a login form extends beyond the phone width and the person drags sideways
-- **THEN** the opposite edge becomes visible, a tap lands at its displayed position, and no form is submitted
-
-#### Scenario: A swipe starting over a text field
-- **WHEN** a person starts a drag on a text field and releases after moving
-- **THEN** the preview scrolls without focusing or clicking that field
-
-### Requirement: A page field opens the phone keyboard
-
-On phones, a tap on a supported text field in the preview SHALL focus a native local input within that trusted gesture and send edits to the corresponding remote field through the existing private typing transport. Password fields SHALL remain password inputs and keep their autocomplete metadata. Local edits SHALL be shared with Fill fields. Geometry updates SHALL preserve active local inputs and SHALL NOT read remote values. Removed Up/Down and Type launchers SHALL not be needed for these interactions.
-
-#### Scenario: Direct phone typing
-- **WHEN** a person taps a supported text field in Page and types with the phone keyboard
-- **THEN** the local field receives native focus, the typing reaches the correct website field, and switching to Fill fields retains it
-
-#### Scenario: A moving field
-- **WHEN** field geometry changes while the person is typing
-- **THEN** the input position updates without replacing the focused input or reading the remote value
-
-### Requirement: Phone typing keeps room for the active field
-
-When an on-screen phone keyboard reduces the visual viewport, the hand-over SHALL hide its header, view tabs, and navigation while typing, and give the selected workspace that space. It SHALL keep the focused input mounted and pan its local scroller only as needed to show the active field in the remaining area. The remote viewport and page scale SHALL remain unchanged by height-only keyboard changes. Dismissing the keyboard SHALL restore the controls even if the input remains focused. A hardware keyboard without a reduced visual viewport SHALL not hide controls. Closure SHALL restore the status.
-
-#### Scenario: A password field above the keyboard
-- **WHEN** a person taps a password field and the on-screen keyboard shrinks the phone's visible area
-- **THEN** the header, tabs and navigation disappear, the password field is visible in the local stage, focus and typing are retained, and the remote page is not resized
-
-#### Scenario: Dismissing the keyboard without blurring
-- **WHEN** the person dismisses the keyboard while the native field keeps focus
-- **THEN** the original controls return without clearing typing or resetting the preview pan
-
-#### Scenario: Typing with a physical keyboard
-- **WHEN** a person focuses a field with a physical keyboard and the viewport does not shrink
-- **THEN** the navigation stays available
-
 ### Requirement: People handle API token websites in their own browser
 
-When a task needs a website to get, create, reveal, copy, rotate, edit permissions for, or revoke an API key or token, the agent SHALL ask the person to do that step in their own browser, providing the service's token-management link and short instructions including required permissions when relevant. When a new or replacement value is to come back, that link and those instructions SHALL be on the private key link's page; for a change needing no new value they SHALL be in the chat. It SHALL NOT use browser automation, saved logins, screenshots, page extraction, or a remote browser hand-over for that token step. A newly supplied or replacement value SHALL use the existing private key link; a change needing no new value SHALL wait for the person's confirmation. The agent SHALL resume dependent work only after the required value is saved or the person confirms completion. Ordinary website tasks, use of stored credentials, and existing authorized token management through APIs SHALL continue unchanged.
+When a task needs a website to get, create, reveal, copy, rotate, edit permissions for, or revoke an API key or token, the agent SHALL ask the person to do that step in their own browser, providing the service's token-management link and short instructions including required permissions when relevant. When a new or replacement value is to come back, that link and those instructions SHALL be on the private key link's page; for a change needing no new value they SHALL be in the chat. It SHALL NOT use browser automation, saved logins, screenshots, page extraction, or a private form for that token step. A newly supplied or replacement value SHALL use the existing private key link; a change needing no new value SHALL wait for the person's confirmation. The agent SHALL resume dependent work only after the required value is saved or the person confirms completion. Ordinary website tasks, use of stored credentials, and existing authorized token management through APIs SHALL continue unchanged.
 
 #### Scenario: A token request with a saved service login
 
@@ -314,7 +125,7 @@ When a task needs a website to get, create, reveal, copy, rotate, edit permissio
 
 ### Requirement: A site that blocks the agent's browser moves to the cloud browser
 
-When a site shows a bot check the agent's own browser can't pass, or refuses it, the agent SHALL carry on in Cloudflare's cloud browser, saying so in one line in the chat, without retrying in its own browser. When the cloud browser is refused too, the agent SHALL stop browsing that site and give the person its link and the steps to do on their own device. Hand-overs SHALL work in whichever browser the task uses.
+When a site shows a bot check the agent's own browser can't pass, or refuses it, the agent SHALL carry on in Cloudflare's cloud browser, saying so in one line in the chat, without retrying in its own browser. When the cloud browser is refused too, the agent SHALL stop browsing that site and give the person its link and the steps to do on their own device. Saved logins and private forms SHALL work in whichever browser the task uses.
 
 #### Scenario: An order page behind a check
 
@@ -324,11 +135,11 @@ When a site shows a bot check the agent's own browser can't pass, or refuses it,
 #### Scenario: Both browsers are refused
 
 - **WHEN** a DoorDash store refuses both browsers
-- **THEN** the agent sends no hand-over link and gives the store's link and the steps for the person's phone
+- **THEN** the agent sends no private link and gives the store's link and the steps for the person's phone
 
 ### Requirement: A site's login carries over between the browsers
 
-Before a site moves to the cloud browser, the agent SHALL copy only that site's login from its own browser into the cloud browser, and after the task SHALL copy any refreshed login for that site back. It SHALL NOT copy another site's login, or any cookie a bot check issued, and SHALL keep no copy after the switch. When the copied login is rejected, the agent SHALL use a saved login or hand the browser over, as for any login.
+Before a site moves to the cloud browser, the agent SHALL copy only that site's login from its own browser into the cloud browser, and after the task SHALL copy any refreshed login for that site back. It SHALL NOT copy another site's login, or any cookie a bot check issued, and SHALL keep no copy after the switch. When the copied login is rejected, the agent SHALL log in there as for any login: a saved login, the password link, or a code through the chat.
 
 #### Scenario: An order from a logged-in account
 
@@ -338,15 +149,15 @@ Before a site moves to the cloud browser, the agent SHALL copy only that site's 
 #### Scenario: A login tied to one device
 
 - **WHEN** a site rejects the copied login and asks for a code
-- **THEN** the agent asks whether the person is ready and hands over the cloud browser
+- **THEN** the agent asks for the code in the chat and enters it in the cloud browser
 
 ### Requirement: The agent never disguises its browser
 
-The agent SHALL NOT hide that its browser is automated, change the browser's identity to pass a check, send its traffic through another person's or a hired network address, use a check-solving service, or move a check's pass from one browser to another. This SHALL hold even when the person asks, including when the person does the tapping.
+The agent SHALL NOT hide that its browser is automated, change the browser's identity to pass a check, send its traffic through another person's or a hired network address, use a check-solving service, or move a check's pass from one browser to another. This SHALL hold even when the person asks.
 
 #### Scenario: The person offers to tap the check
 
-- **WHEN** the person asks the agent to turn off its automated flag so their hand-over tap passes a check
+- **WHEN** the person asks the agent to turn off its automated flag so a check passes
 - **THEN** the agent declines and offers the cloud browser or the step on the person's own device
 
 ### Requirement: One setting picks the first browser
@@ -374,7 +185,7 @@ A cloud browser session SHALL close when its task finishes or fails, and SHALL c
 
 ### Requirement: A login with no saved password gets a pre-filled password link
 
-When a site asks for a password login and no saved login matches, the agent SHALL ask whether the person is ready, then send the password link with the site's website filled in, not a hand-over. The page SHALL keep all its usual ways in, an export included, and SHALL carry the filled-in site and username only in the link, never to the server, a log, or a file. Once the person saves and continues, the agent SHALL log in with the saved login and carry on.
+When a site asks for a password login and no saved login matches, the agent SHALL ask whether the person is ready, then send the password link with the site's website filled in. The page SHALL keep all its usual ways in, an export included, and SHALL carry the filled-in site and username only in the link, never to the server, a log, or a file. Once the person saves and continues, the agent SHALL log in with the saved login and carry on. When a login page offers only another provider's sign-in, the agent SHALL follow it to the provider's own login page and treat that page the same way.
 
 #### Scenario: A first login to a site
 
@@ -383,17 +194,87 @@ When a site asks for a password login and no saved login matches, the agent SHAL
 
 #### Scenario: A site with only a Sign in with Google button
 
-- **WHEN** the login page offers no password form
-- **THEN** the agent hands the browser over instead of sending the password link
+- **WHEN** the login page offers no password form and no saved Google login matches
+- **THEN** the agent opens Google's sign-in and sends the password link with Google's website filled in
 
-### Requirement: The agent gets a login code without a hand-over
+### Requirement: A step that needs the person goes to the chat or a private form
 
-When a login the agent submitted reaches a one-time code step, the agent SHALL get the code without a hand-over link: from the person's email when the agent's browser is already signed in to it, else by asking in the chat, naming the site and where the code was sent. It SHALL enter the code itself. Reading email, it SHALL open only the newest message from that site, SHALL show no picture of the inbox, and SHALL say in the chat that it took the code from the email. It SHALL NOT log in to email to fetch a code, and SHALL NOT ask for a backup or recovery code in the chat. For an approve-on-your-device prompt, it SHALL ask the person in the chat to approve and wait, with no link. A code the person types during a hand-over stays in the hand-over.
+When a browsing step needs something only the person can give, the agent SHALL get it without showing or handing over its browser. An ordinary form answer (an email, a name, an address, a choice, agreeing to terms) SHALL be asked in the chat and entered by the agent, and the agent SHALL NOT agree to terms without the person's yes. A sensitive value (payment card details, a backup or recovery code, or another lasting secret the page asks for) SHALL go through the private form. A password SHALL follow the password link requirements, a one-time code the login-code requirement, and an API key or token step the own-browser requirement. A step only the person can do on the page (a picture puzzle, a passkey or device check) SHALL NOT be attempted by the agent: where a bot check stops its own browser the site SHALL first move to the cloud browser, and otherwise the agent SHALL stop that step and give the person the site's link and the steps to do on their own device. The agent SHALL NOT offer a live view of its browser or remote control of it, including when the person asks to take over.
+
+#### Scenario: A payment page asks for an email, terms, and a card
+
+- **WHEN** a checkout page asks for an email, a terms tick, and card details
+- **THEN** the agent asks for the email and the terms in the chat, enters them itself, and sends a private form for the card details only
+
+#### Scenario: A picture puzzle
+
+- **WHEN** a site shows a picture puzzle that the cloud browser does not clear
+- **THEN** the agent sends no link, stops that step, and gives the person the site's link and the steps for their own device
+
+### Requirement: The person gives sensitive details through a private form
+
+For a sensitive value, the agent SHALL ask in the chat whether the person is ready, then send a private link to a form holding one box for each value it named, labelled as on the site, with a dropdown offering the site's own choices, a line saying what sending will do, and one button carrying the site's own action label. Each box SHALL carry the kind of value it holds, so a password manager or a phone's autofill can fill the form. The person's tap on that button SHALL enter the values in the site's fields and press the site's action once. The form SHALL never show the site's page. When the site does not move on, the form SHALL say so, SHALL NOT send again by itself, and the agent SHALL tell the person what the site said and offer a new form.
+
+#### Scenario: A card from a phone
+
+- **WHEN** the person fills the card number, picks 03 and 2028 for the expiry, types the security code, and taps the form's *Pay $45.00* button on a phone
+- **THEN** the site's card fields receive those values, the site's pay action is pressed once, and the chat carries on with a picture of the receipt
+
+#### Scenario: The site rejects the card
+
+- **WHEN** the site keeps the card page and shows an error after the form sends
+- **THEN** the form says the details were not accepted, nothing is sent a second time, and the agent tells the person what the site said and offers a new form
+
+### Requirement: The agent never sees what a private form carries
+
+What the person types in a private form SHALL reach the site's fields without appearing in any command, file, log, message, or picture the agent can read, and SHALL NOT be read back or stored. A dropdown pick SHALL be one of the choices the agent named. While a private form is open, the agent SHALL send its browser no commands. The agent SHALL NOT read or picture the page between the form's send and the site's answer; when the site keeps the page, the boxes the form filled SHALL be emptied, and its dropdowns put back to the site's own choice, before the agent looks. The agent SHALL learn only the outcome.
+
+#### Scenario: A card typed into the form
+
+- **WHEN** the person types a card number into the private form
+- **THEN** the number reaches the site's card field, and appears in no command, file, log, or message the agent can read
+
+#### Scenario: A backup code
+
+- **WHEN** a site asks for a backup code
+- **THEN** the agent does not ask for it in the chat, the person gives it through a private form, and the stored chat never holds it
+
+### Requirement: Every private link goes through Cloudflare and closes itself
+
+A password link, a key link, and a private form SHALL each open at a new address through Cloudflare's tunnel, with a secret key only the link carries, including when the person is at the computer the agent runs on. The agent SHALL give the person a link only once it answers from outside that computer. A link SHALL stop working on successful completion, on closure, or at its time limit, even if the agent's session has ended, and a closed link SHALL never work again.
+
+#### Scenario: The person sits at the agent's computer
+
+- **WHEN** the person asks to save a password while at the computer the agent runs on
+- **THEN** the link is a Cloudflare address, the same kind a phone would get
+
+#### Scenario: Nobody finishes
+
+- **WHEN** 10 minutes pass on a private form without a send or a close
+- **THEN** the link stops working, and the agent tells the person it timed out and offers a new one
+
+### Requirement: The agent pictures its browsing in the chat
+
+During a browsing task, the agent SHALL show the person a picture of the page in the chat at each key moment: a new page, right before an action that sends, books, or pays for something, and the result. It SHALL NOT show a picture after every action, nor repeat a page that has not changed. It SHALL keep the pictures out of the repo, and take none while a private form is open.
+
+#### Scenario: A booking
+
+- **WHEN** the agent opens a booking page, fills it, and books
+- **THEN** the chat shows the page, the filled form before booking, and the confirmation, each with a line saying what it shows
+
+#### Scenario: A card form mid-task
+
+- **WHEN** a private form is open for a payment's card details
+- **THEN** no picture appears until the site has answered
+
+### Requirement: The agent gets a login code through the chat or email
+
+When a login the agent submitted reaches a one-time code step, the agent SHALL get the code from the person's email when the agent's browser is already signed in to it, else by asking in the chat, naming the site and where the code was sent, and SHALL enter the code itself. An emailed sign-in link SHALL be handled the same way. Reading email, it SHALL open only the newest message from that site, SHALL show no picture of the inbox, and SHALL say in the chat that it took the code from the email. It SHALL NOT log in to email to fetch a code. A backup or recovery code SHALL go through the private form, never the chat. For an approve-on-your-device prompt, it SHALL ask the person in the chat to approve and wait, with no link.
 
 #### Scenario: A code sent by text
 
 - **WHEN** the agent logs in with a saved password and the site texts a code to the person
-- **THEN** the agent asks for the code in the chat, enters it, and carries on, sending no hand-over link
+- **THEN** the agent asks for the code in the chat, enters it, and carries on, sending no link
 
 #### Scenario: A code sent to an email the browser is not signed in to
 

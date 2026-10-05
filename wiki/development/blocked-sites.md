@@ -8,7 +8,7 @@ Some sites put a *Verify you are human* check in front of the agent's browser, o
    node .claude/skills/browser/scripts/cloud-browser.mjs check   # BROWSER_BLOCKED=check|block|none
    ```
 
-   `check` means Cloudflare's check held about 15 seconds; `block` means its block page or error 1020. Another site's plain refusal, such as one naming the server's address, counts as `block`. It never runs during a hand-over.
+   `check` means Cloudflare's check held about 15 seconds; `block` means its block page or error 1020. Another site's plain refusal, such as one naming the server's address, counts as `block`. It never runs while a private form is open.
 2. **Switch, and say so in one line.** *Uber Eats blocked my browser, so I'm using Cloudflare's.* No retry in its own browser, and no question: a switch costs cents.
 
    ```bash
@@ -23,8 +23,8 @@ Some sites put a *Verify you are human* check in front of the agent's browser, o
    node .claude/skills/browser/scripts/cloud-browser.mjs carry-in --site ubereats.com --site uber.com   # CARRY=done|none|busy
    ```
 
-   Only those sites' cookies and storage move, never another site's login or a check's pass, and the copy is deleted straight after. `busy` means another task holds the personal browser: carry on without the login. A site with nothing to copy, or one that rejects the copy, gets [a saved login or a hand-over](browsing.md#saved-browser-logins), as for any login.
-4. **Hand over the same way.** A code or login in the cloud browser gets [the same private link](browsing.md#hand-the-browser-over), naming the session: `AGENT_BROWSER_SESSION=cloud-1 AGENT_BROWSER_CDP="<CLOUD_BROWSER_CDP>" node .claude/skills/hand-over/scripts/hand-over.mjs open …`.
+   Only those sites' cookies and storage move, never another site's login or a check's pass, and the copy is deleted straight after. `busy` means another task holds the personal browser: carry on without the login. A site with nothing to copy, or one that rejects the copy, gets [a saved login, the password link, or a code through the chat](browsing.md#saved-browser-logins), as for any login.
+4. **A private form works there too.** Card details or a backup code in the cloud browser go through [the same private form](browsing.md#the-private-form), naming the session: `AGENT_BROWSER_SESSION=cloud-1 AGENT_BROWSER_CDP="<CLOUD_BROWSER_CDP>" node .claude/skills/hand-over/scripts/hand-over.mjs open --form …`. A password link names no session: a saved login works in either browser.
 5. **Finish.** The agent copies any refreshed login back, then closes the session:
 
    ```bash
@@ -34,7 +34,7 @@ Some sites put a *Verify you are human* check in front of the agent's browser, o
    ```
 
    A session also closes by itself once `agent-browser` lets go of it, or after 30 minutes (`open --minutes N` raises that), even if the chat stops. Cloudflare closes one idle for 10 minutes, say while you think over *Pay now?*: reopen, carry the login in again, and go on, since the cart lives in the account.
-6. **Both refused.** When Cloudflare's browser is turned away too, as DoorDash does, the agent stops browsing that site. It gives you the site's link and the steps to do on your own phone, not a hand-over link.
+6. **Both refused.** When Cloudflare's browser is turned away too, as DoorDash does, the agent stops browsing that site. It gives you the site's link and the steps to do on your own phone, and sends no private link.
 
 **Cloud first.** Say *use the cloud browser first* and the agent runs `cloud-browser.mjs first cloud`: tasks in every repo on this computer then start there, and a site that refuses it moves to the agent's own browser. `first local` switches back; `first` alone prints `BROWSER_FIRST=`.
 
@@ -42,6 +42,6 @@ Some sites put a *Verify you are human* check in front of the agent's browser, o
 
 The agent never hides that its browser is automated, changes the browser's identity to pass a check, sends its traffic through someone else's or a hired address, uses a check-solving service, or moves a check's pass from one browser to another. That holds even when you ask, and when you do the tapping: it offers Cloudflare's browser, or the step on your own device.
 
-**What it costs.** The Workers Paid plan includes 10 cloud browser hours a month, then $0.09 an hour; the free plan gives 10 minutes a day. Cloudflare can see the pages in its browser, as it already carries your app and the hand-over link.
+**What it costs.** The Workers Paid plan includes 10 cloud browser hours a month, then $0.09 an hour; the free plan gives 10 minutes a day. Cloudflare can see the pages in its browser, as it already carries your app and every private link.
 
 Back to [browsing](browsing.md).

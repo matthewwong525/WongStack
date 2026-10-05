@@ -1,29 +1,51 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
-import { connect, createServer } from 'node:net';
+import { createHash } from 'node:crypto';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
+import { createServer } from 'node:http';
+import { connect } from 'node:net';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { autofillToken, FIELD_SCAN, HISTORY_SCAN, startAddress, actionScan, fieldBox, finished, globToRegExp, keyMatches, servePage, tidyTabs, tunnelOrigin } from '../../.agents/skills/hand-over/scripts/hand-over.mjs';
-import { sendPlan, toPage, typedKeys, wantedSize } from '../../.agents/skills/hand-over/scripts/hand-over-page.mjs';
+import { finished, globToRegExp, keyMatches, servePage, tunnelOrigin } from '../../.agents/skills/hand-over/scripts/hand-over.mjs';
+import { fakeTunnel, ORIGIN, TUNNEL_ENV } from './fixtures/fake-tunnel.mjs';
 
 const legacyOutput = text => text.replace(/^HANDOVER_(COMPLETION|NOTIFICATION)=.*\n/gm, '');
 const legacyResult = ({ completionId: _completionId, notification: _notification, ready: _ready, ...result }) => result;
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const script = join(repo, '.agents/skills/hand-over/scripts/hand-over.mjs');
-const ORIGIN = 'https://quiet-fox-lamp.trycloudflare.com';
 const KEY = /#key=([0-9a-f]{64})$/m;
-const REAL = { active: false, label: null, tabId: 't1', title: 'Pay', type: 'page', url: 'https://pay.example.com/card' };
-const BLANK = { active: true, label: null, tabId: 't2', title: 'about:blank', type: 'page', url: 'about:blank' };
+const PAGE = 'https://pay.example.com/card';
+const RECEIPT = 'https://pay.example.com/receipt/81';
 
-// A HOME of its own, and fake cloudflared and agent-browser first on PATH that log each call to one
-// file in order. The fakes print the real shapes recorded from cloudflared 2026.9.3 and
-// agent-browser 0.38.1. The test sets the tabs, the live-feed port, the page address, the
-// element count, and the scanned fields through files; a `fail` file fails each field command. With
-// `checkout`, commands run in a Git checkout of their own that declares MAPS_API_KEY, for a key link.
-function fixture(t, { cloudflared = true, paseo = null, agentId, checkout = false } = {}) {
+// A card form as the agent writes it from its snapshot. The typed values hold letters no key, port, or
+// completion id can, so a search for one never matches by chance.
+const CARD = {
+  title: 'Pay City of Markham',
+  note: '$45.00 · ticket P0178390',
+  fields: [
+    { label: 'Card number', kind: 'cc-number', target: '@e12' },
+    { label: 'Expiry month', kind: 'cc-exp-month', target: '@e13', options: [{ value: '03', text: '03 - March' }, { value: '04' }] },
+    { label: 'Expiry year', kind: 'cc-exp-year', target: '@e14', options: [{ value: '2028' }] },
+    { label: 'Security code', kind: 'cc-csc', target: '#cvv' },
+  ],
+  submit: { label: 'Pay $45.00', target: '@e31' },
+};
+const NUMBER = '4242 XKCD 4242 QWZP';
+const CODE = 'ZQ7';
+const VALUES = [NUMBER, '03', '2028', CODE];
+const FILL = ['fill @e12', 'focus @e12', 'get value @e13', 'select @e13 03', 'get value @e14', 'select @e14 2028', 'fill #cvv', 'focus #cvv'].map(line => `agent-browser ${line}`);
+const CLEAR = ['fill @e12', 'select @e13', 'select @e14', 'fill #cvv'].map(line => `agent-browser ${line}`);
+
+// A HOME of its own, and a fake cloudflared and agent-browser first on PATH that log each call to one
+// file in order. The fakes print the real shapes recorded from cloudflared 2026.9.3 and agent-browser
+// 0.38.1. The test sets the live-feed port, the page address, and the element count through files;
+// `click-url` and `click-count` are what a click moves them to, as a site that accepts a payment does.
+// A `fail-select` file fails each dropdown pick, `fail-click` the click, and `hold-fill` and `hold-click`
+// hold those commands until removed. With `checkout`, commands run in a Git checkout of their own that
+// declares MAPS_API_KEY, for a key link.
+function fixture(t, { cloudflared = true, silent = false, paseo = null, agentId, checkout = false } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'wong-test-hand-over-'));
   const bin = join(root, 'bin');
   mkdirSync(bin);
@@ -39,38 +61,31 @@ function fixture(t, { cloudflared = true, paseo = null, agentId, checkout = fals
   writeFileSync(join(bin, 'agent-browser'), `#!/bin/sh
 echo "agent-browser $*" >> "${calls}"
 case "$1 $2" in
-  "tab list") printf '{"success":true,"data":{"tabs":%s},"error":null}\\n' "$(cat "${file('tabs')}")" ;;
   "stream status")
     if [ -e "${file('stream-off')}" ]; then echo '{"success":true,"data":{"connected":true,"enabled":false,"port":null},"error":null}'
     else printf '{"success":true,"data":{"connected":true,"enabled":true,"port":%s},"error":null}\\n' "$(cat "${file('stream-port')}")"; fi ;;
   "stream enable") rm -f "${file('stream-off')}"; echo "✓ Streaming enabled" ;;
-  "get url") [ -e "${file('fail-url')}" ] && exit 1; cat "${file('url')}" ;;
+  "get url") cat "${file('url')}" ;;
   "get count") cat "${file('count')}" ;;
-  "eval -b") if [ "$3" = "${Buffer.from(HISTORY_SCAN).toString("base64")}" ]; then printf '{"success":true,"data":{"result":{"historyLength":%s}}}\\n' "$(cat "${file('history')}")"; exit 0; fi; printf '{"success":true,"data":{"origin":"https://pay.example.com/card","result":%s},"error":null}\n' "$(cat "${file('fields')}")" ;;
-  "fill "*) [ -e "${file('fail')}" ] && exit 1; while [ -e "${file('hold-fill')}" ]; do sleep 0.01; done; echo '✓ Done' ;;
-  "focus "*|"select "*|"check "*|"uncheck "*) [ -e "${file('fail')}" ] && exit 1; echo '✓ Done' ;;
-  "open "*|"back "*|"forward "*|"reload "*) [ -e "${file('fail')}" ] && exit 1; echo '✓ Done' ;;
+  "get value") echo '' ;;
+  "fill "*) while [ -e "${file('hold-fill')}" ]; do sleep 0.01; done; echo '✓ Done' ;;
+  "focus "*) echo '✓ Done' ;;
+  "select "*) [ -e "${file('fail-select')}" ] && exit 1; echo '✓ Done' ;;
+  "click "*)
+    while [ -e "${file('hold-click')}" ]; do sleep 0.01; done
+    [ -e "${file('fail-click')}" ] && exit 1
+    [ -e "${file('click-url')}" ] && cat "${file('click-url')}" > "${file('url')}"
+    [ -e "${file('click-count')}" ] && cat "${file('click-count')}" > "${file('count')}"
+    echo '✓ Done' ;;
 esac
 `);
-  if (cloudflared) {
-    writeFileSync(join(bin, 'cloudflared'), `#!/bin/sh
-echo "cloudflared $*" >> "${calls}"
-[ "$1" = "--version" ] && exit 0
-echo $$ > "${file('tunnel.pid')}"
-echo "2026-09-28T04:50:20Z INF Requesting new quick Tunnel on trycloudflare.com..." >&2
-echo "2026-09-28T04:50:25Z INF |  ${ORIGIN}                             |" >&2
-echo "2026-09-28T04:50:26Z INF Registered tunnel connection connIndex=0 location=hel02 protocol=quic" >&2
-exec sleep 600
-`);
-  }
-  for (const name of ['agent-browser', 'cloudflared']) if (existsSync(join(bin, name))) chmodSync(join(bin, name), 0o755);
-  writeFileSync(file('url'), 'https://accounts.example.com/login\n');
+  chmodSync(join(bin, 'agent-browser'), 0o755);
+  if (cloudflared) fakeTunnel(bin, calls, { pidFile: file('tunnel.pid'), silent });
+  writeFileSync(file('url'), `${PAGE}\n`);
   writeFileSync(file('count'), '1\n');
-  writeFileSync(file('tabs'), JSON.stringify([{ ...REAL, active: true }]));
   writeFileSync(file('stream-port'), '9\n');
-  writeFileSync(file('fields'), '[]\n');
-  writeFileSync(file('history'), '2\n');
-  // Without cloudflared, PATH is the fake bin alone, so it carries the two tools the fake uses.
+  writeFileSync(file('form.json'), JSON.stringify(CARD));
+  // Without cloudflared, PATH is the fake bin alone, so it carries the tools the fake uses.
   if (!cloudflared) for (const tool of ['cat', 'rm', 'sleep']) symlinkSync(spawnSync('sh', ['-c', `command -v ${tool}`], { encoding: 'utf8' }).stdout.trim(), join(bin, tool));
   if (paseo) {
     writeFileSync(join(bin, 'paseo'), `#!${process.execPath}
@@ -80,31 +95,37 @@ ${paseo === 'fail' ? 'process.exit(1);' : paseo === 'timeout' ? 'setTimeout(() =
 `);
     chmodSync(join(bin, 'paseo'), 0o755);
   }
-  const env = { ...process.env, PASEO_AGENT_ID: agentId ?? (paseo ? 'a-full-workspace-id' : ''), PASEO_HOME: '', PASEO_HOST: '', HOME: root, PATH: cloudflared ? `${bin}:/usr/bin:/bin` : bin, HANDOVER_POLL_MS: '50' };
+  const env = { ...process.env, ...TUNNEL_ENV, PASEO_AGENT_ID: agentId ?? (paseo ? 'a-full-workspace-id' : ''), PASEO_HOME: '', PASEO_HOST: '', HOME: root, PATH: cloudflared ? `${bin}:/usr/bin:/bin` : bin, HANDOVER_POLL_MS: '50', HANDOVER_SEND_WAIT_MS: '400' };
   const run = (...args) => { const out = spawnSync(process.execPath, [script, ...args], { cwd, env, encoding: 'utf8', timeout: 30_000 }); return { ...out, rawStdout: out.stdout, stdout: legacyOutput(out.stdout) }; };
-  /** Starts `wait` beside the test, as the chat that sent a link does; resolves to all it printed. */
-  const waiting = () => {
-    const child = spawn(process.execPath, [script, 'wait'], { cwd, env, stdio: ['ignore', 'pipe', 'ignore'] });
-    let text = '';
-    child.stdout.on('data', chunk => { text += chunk; });
-    return new Promise(done => child.on('close', () => done(text)));
+  /** Runs a command beside the test, so the test's own servers keep answering; resolves to its status and output. */
+  const start = (...args) => {
+    const child = spawn(process.execPath, [script, ...args], { cwd, env, stdio: ['ignore', 'pipe', 'pipe'] });
+    const out = { stdout: '', stderr: '' };
+    for (const name of ['stdout', 'stderr']) child[name].on('data', chunk => { out[name] += chunk; });
+    return new Promise(done => child.on('close', status => done({ ...out, status, rawStdout: out.stdout, stdout: legacyOutput(out.stdout) })));
   };
   const state = join(root, '.wong-stack/hand-over');
   t.after(() => {
+    for (const name of ['hold-fill', 'hold-click']) rmSync(file(name), { force: true });
     run('close');
     const pid = Number(existsSync(file('tunnel.pid')) && readFileSync(file('tunnel.pid'), 'utf8'));
     if (pid) try { process.kill(pid, 'SIGKILL'); } catch { /* gone */ }
     rmSync(root, { recursive: true, force: true });
   });
+  const logged = () => (existsSync(calls) ? readFileSync(calls, 'utf8').trim().split('\n').map(line => line.trimEnd()).filter(line => line && !line.endsWith('--version')) : []);
   return {
     run,
-    waiting,
+    start,
+    env,
     cwd,
     state,
+    form: file('form.json'),
     sent: () => existsSync(file('sent.jsonl')) ? readFileSync(file('sent.jsonl'), 'utf8').trim().split('\n').map(JSON.parse) : [],
     set: (name, value) => writeFileSync(file(name), `${value}\n`),
     unset: name => rmSync(file(name), { force: true }),
-    calls: () => (existsSync(calls) ? readFileSync(calls, 'utf8').trim().split('\n') : []),
+    calls: logged,
+    browserCalls: () => logged().filter(line => line.startsWith('agent-browser')),
+    stateFiles: () => (existsSync(state) ? readdirSync(state).map(name => readFileSync(join(state, name), 'utf8')).join('\n') : ''),
     tunnelPid: () => Number(readFileSync(file('tunnel.pid'), 'utf8')),
     result: () => legacyResult(JSON.parse(readFileSync(join(state, 'result.json'), 'utf8'))),
   };
@@ -112,8 +133,9 @@ ${paseo === 'fail' ? 'process.exit(1);' : paseo === 'timeout' ? 'setTimeout(() =
 
 const alive = pid => { try { process.kill(pid, 0); return true; } catch { return false; } };
 const answers = port => fetch(`http://127.0.0.1:${port}/`).then(response => response.ok, () => false);
+const pause = ms => new Promise(done => setTimeout(done, ms));
 
-/** Runs `open`, asserts it worked, and returns its link, the page's port, and the key. */
+/** Runs `open`, asserts it worked, and returns its link, the key, and the page's recorded loopback port. */
 function opened(f, ...args) {
   const out = f.run('open', ...args);
   assert.equal(out.status, 0, out.stderr);
@@ -122,181 +144,146 @@ function opened(f, ...args) {
   return { link, key: KEY.exec(link)?.[1], port: JSON.parse(readFileSync(join(f.state, 'state.json'), 'utf8')).port };
 }
 
-/** Sends one raw HTTP request to the page and resolves to everything it answers before closing or 300 ms. */
-function raw(port, request) {
-  return new Promise(done => {
-    const socket = connect(port, '127.0.0.1', () => socket.write(request));
-    let text = '';
-    const end = () => { socket.destroy(); done(text); };
-    socket.on('data', chunk => { text += chunk; }).on('close', end).on('error', end);
-    setTimeout(end, 300);
+/** Opens a private form on the fixture's card page, finishing at the receipt. */
+const openedForm = (f, ...args) => opened(f, '--form', f.form, ...(args.length ? args : ['--until', '**/receipt/*']));
+
+/** Calls a route with the key header unless `key` is null; resolves to the status and JSON. */
+async function route(port, key, path, body) {
+  const response = await fetch(`http://127.0.0.1:${port}/${path}`, {
+    method: body === undefined ? 'GET' : 'POST',
+    headers: key === null ? {} : { 'x-hand-over-key': key },
+    body: body === undefined ? undefined : typeof body === 'string' ? body : JSON.stringify(body),
   });
+  const text = await response.text();
+  return { status: response.status, json: text ? JSON.parse(text) : null };
 }
 
-const upgrade = (path, extra = '') => `GET ${path} HTTP/1.1\r\nHost: quiet-fox-lamp.trycloudflare.com\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nOrigin: ${ORIGIN}\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\n${extra}\r\n`;
+async function eventually(job) {
+  const end = Date.now() + 5000;
+  while (Date.now() < end) { const value = await job(); if (value) return value; await pause(25); }
+  assert.fail('condition did not complete');
+}
 
-test('open sizes the page and tidies tabs, then tunnels to its own page and prints a keyed link', async t => {
+/**
+ * A stand-in for agent-browser's live feed: a WebSocket server that records each JSON message a client
+ * sends and the request that opened it. `typed()` is every pressed key's text, in order.
+ */
+async function fakeFeed(t, f) {
+  const messages = [];
+  const requests = [];
+  const sockets = new Set();
+  const server = createServer();
+  server.on('upgrade', (request, socket) => {
+    requests.push({ url: request.url, headers: request.headers });
+    sockets.add(socket);
+    const accept = createHash('sha1').update(`${request.headers['sec-websocket-key']}258EAFA5-E914-47DA-95CA-C5AB0DC85B11`).digest('base64');
+    socket.write(`HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${accept}\r\n\r\n`);
+    let pending = Buffer.alloc(0);
+    socket.on('error', () => {}).on('data', chunk => {
+      pending = Buffer.concat([pending, chunk]);
+      // Client frames are masked; every message here is under 64 KB, so a 7-bit or 16-bit length.
+      for (;;) {
+        if (pending.length < 2) return;
+        const long = (pending[1] & 0x7f) === 126;
+        if (long && pending.length < 4) return;
+        const length = long ? pending.readUInt16BE(2) : pending[1] & 0x7f;
+        const start = (long ? 4 : 2) + 4;
+        if (pending.length < start + length) return;
+        const mask = pending.subarray(start - 4, start);
+        const payload = Buffer.from(pending.subarray(start, start + length).map((byte, index) => byte ^ mask[index % 4]));
+        const opcode = pending[0] & 0x0f;
+        pending = pending.subarray(start + length);
+        if (opcode === 1) messages.push(JSON.parse(payload.toString('utf8')));
+        if (opcode === 8) socket.end();
+      }
+    });
+  });
+  await new Promise(done => server.listen(0, '127.0.0.1', done));
+  t.after(() => { for (const socket of sockets) socket.destroy(); server.close(); });
+  f.set('stream-port', server.address().port);
+  return { messages, requests, typed: () => messages.filter(message => message.eventType === 'keyDown').map(message => message.text).join('') };
+}
+
+/** Sends the card form's values; `moves` is whether the site goes to its receipt on the click. */
+function send(f, { port, key }, { moves = true } = {}) {
+  if (moves) f.set('click-url', RECEIPT);
+  return route(port, key, 'send', { values: VALUES });
+}
+
+// ---------------------------------------------------------------------------
+// Opening a link
+
+test('open tunnels to its own page and prints a keyed Cloudflare link, touching no browser page for a password link', async t => {
   const f = fixture(t);
-  f.set('tabs', JSON.stringify([REAL, BLANK]));
-  const { link, port } = opened(f, '--until', '**mail.example.com/mail/**');
+  const { link, port, key } = opened(f, '--passwords');
   assert.match(link, new RegExp(`^${ORIGIN}/#key=[0-9a-f]{64}$`));
-  const calls = f.calls().filter(line => !line.endsWith('--version'));
-  const tunnel = calls.findIndex(line => line.startsWith('cloudflared tunnel'));
-  assert.deepEqual(calls.slice(0, 6), ['agent-browser set viewport 1280 720', 'agent-browser tab list --json', 'agent-browser tab close t2', 'agent-browser tab t1', 'agent-browser get url', 'agent-browser stream status --json']);
-  assert.ok(tunnel > 5, calls.join('\n'));
-  assert.match(calls[tunnel], new RegExp(`--no-autoupdate --config \\S+cloudflared\\.yml --url http://127\\.0\\.0\\.1:${port}$`));
-  assert.ok(await answers(port), 'the tunnel points at the page');
-  assert.ok(!calls.some(line => / dashboard /.test(`${line} `)), 'no dashboard call');
-});
-
-test('a switched-off live feed is switched on', t => {
-  const f = fixture(t, { cloudflared: false });
-  f.set('stream-off', '');
-  opened(f, '--local');
-  assert.ok(f.calls().includes('agent-browser stream enable'));
-});
-
-test('the page serves itself without a key and passes the feed through only with it', async t => {
-  const f = fixture(t, { cloudflared: false });
-  let head = '';
-  const stream = createServer(socket => {
-    socket.once('data', chunk => {
-      head = String(chunk);
-      socket.write('HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n');
-      socket.on('data', bytes => socket.write(`echo:${bytes}`));
-    });
-  });
-  await new Promise(done => stream.listen(0, '127.0.0.1', done));
-  t.after(() => stream.close());
-  f.set('stream-port', stream.address().port);
-  const { port, key } = opened(f, '--local');
-
-  const page = await fetch(`http://127.0.0.1:${port}/`);
-  assert.equal(page.status, 200);
-  assert.match(await page.text(), /Type here/);
-  assert.match((await fetch(`http://127.0.0.1:${port}/page.mjs`)).headers.get('content-type'), /javascript/);
-  assert.equal((await fetch(`http://127.0.0.1:${port}/state.json`)).status, 404);
-
-  assert.match(await raw(port, upgrade('/stream?key=0123')), /^HTTP\/1\.1 403/);
-  assert.match(await raw(port, upgrade('/stream')), /^HTTP\/1\.1 403/);
-  assert.match(await raw(port, upgrade(`/other?key=${key}`)), /^HTTP\/1\.1 404/);
-  assert.equal(head, '', 'nothing reached the feed without the key');
-
-  const reply = await new Promise(done => {
-    const socket = connect(port, '127.0.0.1', () => socket.write(upgrade(`/stream?key=${key}`)));
-    let text = '';
-    socket.on('data', chunk => {
-      text += chunk;
-      if (text.endsWith('\r\n\r\n')) socket.write('hello');
-      if (text.includes('echo:hello')) { socket.destroy(); done(text); }
-    });
-  });
-  assert.match(reply, /^HTTP\/1\.1 101/);
-  assert.match(head, /^GET \/ HTTP\/1\.1\r\n/);
-  assert.match(head, new RegExp(`\\r\\nHost: 127\\.0\\.0\\.1:${stream.address().port}\\r\\n`));
-  assert.match(head, /sec-websocket-key: dGhlIHNhbXBsZSBub25jZQ==/i);
-  assert.doesNotMatch(head, /origin|key=/i, 'no Origin and no key reach the feed');
-
-  assert.equal(f.run('close').stdout.trim(), 'HANDOVER_RESULT=closed');
-  assert.ok(!(await answers(port)), 'the page stops answering after close');
-});
-
-test('reaching the named address gives done and tears down, the watcher having read only the address', async t => {
-  const f = fixture(t);
-  const { port, key } = opened(f, '--until', '**mail.example.com/mail/**');
   const calls = f.calls();
-  const preparationEnd = calls.indexOf('agent-browser stream status --json');
-  const firstRead = calls.indexOf('agent-browser get url', preparationEnd + 1);
-  const before = firstRead < 0 ? calls.length : firstRead;
-  const tunnel = f.tunnelPid();
-  f.set('url', 'https://mail.example.com/mail/u/0/#inbox?code=secret');
-  const out = f.run('wait');
-  assert.equal(out.stdout.trim(), 'HANDOVER_RESULT=done');
-  assert.ok(!alive(tunnel), 'the tunnel was killed');
-  assert.ok(!(await answers(port)), 'the page was closed');
-  assert.deepEqual(f.result(), { result: 'done' });
-  assert.doesNotMatch(readFileSync(join(f.state, 'result.json'), 'utf8'), new RegExp(`http|mail|secret|${key}`));
-  const watcherCalls = f.calls().slice(before).filter(line => line.startsWith('agent-browser'));
-  assert.equal(watcherCalls.at(-1), 'agent-browser set viewport 1280 720', 'the page size is put back last');
-  for (const line of watcherCalls.slice(0, -1)) assert.match(line, /^agent-browser (get url|get count .+)$/);
-  assert.ok(watcherCalls.includes('agent-browser get url'));
+  assert.equal(calls.length, 1, calls.join('\n'));
+  assert.match(calls[0], new RegExp(`^cloudflared tunnel --no-autoupdate --config \\S+cloudflared\\.yml --url http://127\\.0\\.0\\.1:${port}$`));
+  assert.ok(await answers(port), 'the tunnel points at the page');
+  const statePath = join(f.state, 'state.json');
+  assert.equal(statSync(statePath).mode & 0o777, 0o600);
+  assert.equal(JSON.parse(readFileSync(statePath, 'utf8')).key, key);
 });
 
-test('a named element reaching count 0 gives done', t => {
+test('the link prints only once its public address answers', async t => {
   const f = fixture(t);
-  opened(f, '--until-gone', 'iframe[src*=recaptcha]');
-  f.set('count', '0');
-  assert.equal(f.run('wait').stdout.trim(), 'HANDOVER_RESULT=done');
-  assert.ok(f.calls().includes('agent-browser get count iframe[src*=recaptcha]'));
-  assert.equal(f.calls().filter(line => line === 'agent-browser get url').length, 1, 'only the initial address capture without --until');
+  let asked = 0;
+  const outside = createServer((request, response) => { asked++; response.writeHead(asked < 3 ? 530 : 200).end(); });
+  await new Promise(done => outside.listen(0, '127.0.0.1', done));
+  t.after(() => outside.close());
+  f.env.HANDOVER_PROBE_ORIGIN = `http://127.0.0.1:${outside.address().port}`;
+  const out = await f.start('open', '--passwords');
+  assert.equal(out.status, 0, out.stderr);
+  assert.match(out.stdout, new RegExp(`^HANDOVER_LINK=${ORIGIN}/#key=[0-9a-f]{64}$`, 'm'));
+  assert.equal(asked, 3, 'two Cloudflare error pages, then the page');
 });
 
-test('with both finishes named, both must hold', async t => {
-  const f = fixture(t);
-  opened(f, '--until', 'https://app.example.com/**', '--until-gone', '#captcha');
-  f.set('url', 'https://app.example.com/home');
-  await new Promise(done => setTimeout(done, 400));
-  assert.ok(!existsSync(join(f.state, 'result.json')), 'the address alone does not finish');
-  f.set('count', '0');
-  assert.equal(f.run('wait').stdout.trim(), 'HANDOVER_RESULT=done');
+test('an address that never answers fails as a tunnel that never registers does, and tears down', async t => {
+  for (const silent of [false, true]) {
+    const f = fixture(t, { silent });
+    const outside = createServer((request, response) => response.writeHead(530).end());
+    await new Promise(done => outside.listen(0, '127.0.0.1', done));
+    t.after(() => outside.close());
+    Object.assign(f.env, { HANDOVER_PROBE_ORIGIN: `http://127.0.0.1:${outside.address().port}`, HANDOVER_TUNNEL_WAIT_MS: '700' });
+    const out = await f.start('open', '--passwords');
+    assert.equal(out.status, 1, `silent ${silent}`);
+    assert.match(out.stderr, /The Cloudflare tunnel did not come up within 30 seconds/);
+    assert.doesNotMatch(out.stdout, /HANDOVER_LINK/);
+    assert.ok(!alive(f.tunnelPid()), 'the tunnel was killed');
+    assert.ok(!existsSync(join(f.state, 'watcher.pid')));
+    assert.deepEqual(f.result(), { result: 'error' });
+  }
 });
 
-test('a takeover with no finish ends only on close, and close gives closed', async t => {
-  const f = fixture(t);
-  opened(f);
-  const tunnel = f.tunnelPid();
-  await new Promise(done => setTimeout(done, 400));
-  assert.ok(!existsSync(join(f.state, 'result.json')), 'nothing finishes a takeover by itself');
-  assert.deepEqual(f.calls().filter(line => line.startsWith('agent-browser get')), ['agent-browser get url'], 'a takeover captures its start once and does not poll');
-  assert.equal(f.run('close').stdout.trim(), 'HANDOVER_RESULT=closed');
-  assert.ok(!alive(tunnel));
-});
-
-test('the deadline gives timeout and tears down', async t => {
-  const f = fixture(t);
-  const { port } = opened(f, '--minutes', '0.05');
-  const tunnel = f.tunnelPid();
-  assert.equal(f.run('wait').stdout.trim(), 'HANDOVER_RESULT=timeout');
-  assert.ok(!(await answers(port)));
-  assert.ok(!alive(tunnel));
-  assert.ok(!existsSync(join(f.state, 'watcher.pid')));
-});
-
-test('--local never calls cloudflared and prints the loopback link', async t => {
+test('missing cloudflared exits 3 for every link, having started nothing', t => {
   const f = fixture(t, { cloudflared: false });
-  const { link, port } = opened(f, '--local');
-  assert.match(link, new RegExp(`^http://127\\.0\\.0\\.1:${port}/#key=[0-9a-f]{64}$`));
-  assert.ok(await answers(port));
-  assert.ok(!f.calls().some(line => line.startsWith('cloudflared')));
-  assert.equal(f.run('close').stdout.trim(), 'HANDOVER_RESULT=closed');
-});
-
-test('each link gets its own key and captures its own initial page', t => {
-  const f = fixture(t, { cloudflared: false });
-  const first = opened(f, '--local').key;
-  assert.equal(JSON.parse(readFileSync(join(f.state, 'state.json'), 'utf8')).startUrl, 'https://accounts.example.com/login');
-  f.run('close');
-  f.set('url', 'https://new.test/task?step=2#code');
-  assert.notEqual(opened(f, '--local').key, first);
-  assert.equal(JSON.parse(readFileSync(join(f.state, 'state.json'), 'utf8')).startUrl, 'https://new.test/task?step=2#code');
-});
-
-test('missing cloudflared exits 3 having started nothing', t => {
-  const f = fixture(t, { cloudflared: false });
-  const out = f.run('open', '--until', '**/inbox');
-  assert.equal(out.status, 3);
-  assert.match(out.stdout, /^HANDOVER_NEEDS=cloudflared$/m);
+  for (const args of [['--form', f.form, '--until', '**/receipt/*'], ['--passwords']]) {
+    const out = f.run('open', ...args);
+    assert.equal(out.status, 3, args[0]);
+    assert.match(out.stdout, /^HANDOVER_NEEDS=cloudflared$/m);
+  }
   assert.deepEqual(f.calls(), []);
   assert.ok(!existsSync(join(f.state, 'watcher.pid')));
 });
 
+test('each link gets its own key', t => {
+  const f = fixture(t);
+  const first = opened(f, '--passwords').key;
+  f.run('close');
+  assert.notEqual(opened(f, '--passwords').key, first);
+});
+
 test('a second open is refused while a link is open', t => {
   const f = fixture(t);
-  opened(f);
-  const again = f.run('open', '--local');
-  assert.equal(again.status, 1);
-  assert.match(again.stderr, /already open/);
-  assert.equal(f.calls().filter(line => line.startsWith('agent-browser set viewport')).length, 1);
+  openedForm(f);
+  const before = f.calls().length;
+  for (const args of [['--passwords'], ['--form', f.form, '--until', '**/receipt/*']]) {
+    const again = f.run('open', ...args);
+    assert.equal(again.status, 1);
+    assert.match(again.stderr, /already open/);
+  }
+  assert.equal(f.calls().length, before, 'the refused opens touched nothing');
 });
 
 test('wait and close with nothing open say so', t => {
@@ -304,20 +291,41 @@ test('wait and close with nothing open say so', t => {
   assert.equal(f.run('wait').status, 1);
   const close = f.run('close');
   assert.equal(close.status, 0);
-  assert.match(close.stderr, /No hand-over link is open/);
+  assert.match(close.stderr, /No private link is open/);
 });
 
-test('a bad --minutes or command is a usage error', t => {
+test('a bad --minutes or command, no mode, two modes, or a removed flag is a usage error', t => {
   const f = fixture(t);
-  assert.equal(f.run('open', '--minutes', '0').status, 2);
+  assert.equal(f.run('open', '--passwords', '--minutes', '0').status, 2);
   assert.equal(f.run('launch').status, 2);
   assert.equal(f.run().status, 2);
+  const bare = f.run('open');
+  assert.equal(bare.status, 2);
+  assert.match(bare.stderr, /open takes one of --form, --passwords, or --keys/);
+  assert.equal(f.run('open', '--until', '**/inbox').status, 2, 'a finish alone is no mode');
+  assert.equal(f.run('open', '--passwords', '--form', f.form, '--until', '**').status, 2);
+  assert.equal(f.run('open', '--passwords', '--local').status, 2, 'the loopback link is gone');
+  assert.match(f.run('--help').stdout, /open --form <file>/);
+  assert.deepEqual(f.calls(), []);
+});
+
+test('--form needs a finish, and a finish goes with --form only', t => {
+  const f = fixture(t);
+  const none = f.run('open', '--form', f.form);
+  assert.equal(none.status, 2);
+  assert.match(none.stderr, /--form needs --until or --until-gone/);
+  for (const args of [['--passwords', '--until', '**'], ['--passwords', '--until-gone', '#x'], ['--keys', 'MAPS_API_KEY', '--until', '**']]) {
+    const out = f.run('open', ...args);
+    assert.equal(out.status, 2, args.join(' '));
+    assert.match(out.stderr, /--until and --until-gone go with --form only/);
+  }
+  assert.deepEqual(f.calls(), []);
 });
 
 test('--site and --username go only with --passwords, and only as a website and one line', t => {
   const f = fixture(t);
   for (const args of [['--site', 'netflix.com'], ['--username', 'me'], ['--keys', 'MAPS_API_KEY', '--site', 'netflix.com'], ['--passwords', '--site', 'not a site'], ['--passwords', '--site', 'ftp://netflix.com'], ['--passwords', '--username', ' '], ['--passwords', '--username', 'me\nyou']]) {
-    const out = f.run('open', '--local', ...args);
+    const out = f.run('open', ...args);
     assert.equal(out.status, 2, args.join(' '));
     assert.match(out.stderr, /usage:/);
   }
@@ -326,20 +334,18 @@ test('--site and --username go only with --passwords, and only as a website and 
 });
 
 test('--site and --username ride URL-encoded in the link\'s fragment beside the key, and nowhere else', async t => {
-  const f = fixture(t, { cloudflared: false });
-  const out = f.run('open', '--local', '--passwords', '--site', 'https://www.netflix.com/login', '--username', 'me+1@x.com');
+  const f = fixture(t);
+  const out = f.run('open', '--passwords', '--site', 'https://www.netflix.com/login', '--username', 'me+1@x.com');
   assert.equal(out.status, 0, out.stderr);
   const link = new URL(/^HANDOVER_LINK=(.+)$/m.exec(out.stdout)[1]);
+  assert.equal(link.origin, ORIGIN);
   assert.match(link.hash, /^#key=[0-9a-f]{64}&site=https%3A%2F%2Fwww\.netflix\.com%2Flogin&user=me%2B1%40x\.com$/);
   const fragment = new URLSearchParams(link.hash.slice(1));
   assert.equal(fragment.get('site'), 'https://www.netflix.com/login');
   assert.equal(fragment.get('user'), 'me+1@x.com');
-  const state = readFileSync(join(f.state, 'state.json'), 'utf8');
-  assert.ok(!/netflix|me\+1/.test(state), 'the watcher\'s state holds neither');
-  assert.ok(await answers(Number(link.port)));
-  const plain = f.run('close');
-  assert.equal(plain.status, 0);
-  assert.match(opened(f, '--local', '--passwords').link, /#key=[0-9a-f]{64}$/, 'no flags, no extra fragment');
+  assert.ok(!/netflix|me\+1/.test(f.stateFiles()), 'the watcher\'s files hold neither');
+  assert.equal(f.run('close').status, 0);
+  assert.match(opened(f, '--passwords').link, /#key=[0-9a-f]{64}$/, 'no flags, no extra fragment');
 });
 
 test('the pure helpers follow agent-browser\'s glob and the recorded output shapes', () => {
@@ -351,15 +357,8 @@ test('the pure helpers follow agent-browser\'s glob and the recorded output shap
   assert.equal(tunnelOrigin('INF Requesting new quick Tunnel on trycloudflare.com...'), null);
   assert.equal(finished({}, { url: 'x', count: 0 }), false);
   assert.equal(finished({ until: '**' }, { url: null }), false);
-});
-
-test('tidyTabs closes blank tabs beside a real one and fronts the last real tab', () => {
-  const tab = (tabId, url, active = false) => ({ tabId, url, active });
-  assert.deepEqual(tidyTabs([tab('t1', 'https://pay.example.com'), tab('t2', 'about:blank', true)]), { close: ['t2'], front: 't1' });
-  assert.deepEqual(tidyTabs([tab('t1', 'about:blank', true), tab('t2', 'chrome://newtab/'), tab('t3', '')]), { close: [], front: null });
-  assert.deepEqual(tidyTabs([tab('t1', 'https://a.example.com'), tab('t2', 'https://b.example.com', true), tab('t3', 'https://c.example.com')]), { close: [], front: null });
-  assert.deepEqual(tidyTabs([tab('t1', 'https://a.example.com'), tab('t2', 'https://b.example.com'), tab('t3', 'chrome://new-tab-page/', true), tab('t4', null)]), { close: ['t3', 't4'], front: 't2' });
-  assert.deepEqual(tidyTabs([tab('t1', 'https://a.example.com', true)]), { close: [], front: null });
+  assert.equal(finished({ until: '**/receipt/*', untilGone: '#card' }, { url: RECEIPT, count: 1 }), false, 'both named, both must hold');
+  assert.equal(finished({ until: '**/receipt/*', untilGone: '#card' }, { url: RECEIPT, count: 0 }), true);
 });
 
 test('keyMatches accepts only the exact key', () => {
@@ -370,394 +369,262 @@ test('keyMatches accepts only the exact key', () => {
   assert.equal(keyMatches(null, key), false);
 });
 
-test('toPage maps by the picture\'s own size, on a scaled and a letterboxed view', () => {
-  // The reported bug: a 1280×577 picture must map a click at y 288 to 288, not 360.
-  assert.deepEqual(toPage({ x: 100, y: 288 }, { left: 0, top: 0, width: 1280, height: 577 }, { width: 1280, height: 577 }), { x: 100, y: 288 });
-  assert.deepEqual(toPage({ x: 330, y: 190 }, { left: 10, top: 10, width: 640, height: 360 }, { width: 1280, height: 720 }), { x: 640, y: 360 });
-  const box = { left: 10, top: 20, width: 400, height: 400 };
-  assert.deepEqual(toPage({ x: 210, y: 220 }, box, { width: 1280, height: 720 }), { x: 640, y: 360 });
-  assert.deepEqual(toPage({ x: 10, y: 107.5 }, box, { width: 1280, height: 720 }), { x: 0, y: 0 });
-  assert.equal(toPage({ x: 210, y: 50 }, box, { width: 1280, height: 720 }), null, 'a tap on the bar maps nowhere');
-});
+// ---------------------------------------------------------------------------
+// The private form
 
-test('typedKeys turns each change of the box into key presses at the caret', () => {
-  const back = { key: 'Backspace' };
-  assert.deepEqual(typedKeys('', '42'), [{ text: '4' }, { text: '2' }]);
-  assert.deepEqual(typedKeys('4242', '424'), [back]);
-  assert.deepEqual(typedKeys('teh', 'the '), [back, back, { text: 'h' }, { text: 'e' }, { text: ' ' }]);
-  assert.deepEqual(typedKeys('41', '4111 1111'), Array.from('11 1111', text => ({ text })));
-  assert.deepEqual(typedKeys('a', 'a😀'), [{ text: '😀' }]);
-  assert.deepEqual(typedKeys('same', 'same'), []);
-});
+test('open --form reads only the feed and the finish, then sends the browser nothing until the send', async t => {
+  const f = fixture(t);
+  f.set('stream-off', '');
+  const { port, key } = openedForm(f);
+  const calls = f.calls();
+  assert.deepEqual(calls.slice(0, 4), ['agent-browser stream status --json', 'agent-browser stream enable', 'agent-browser stream status --json', 'agent-browser get url'], 'a switched-off live feed is switched on');
+  assert.match(calls[4], /^cloudflared tunnel /);
+  const state = JSON.parse(readFileSync(join(f.state, 'state.json'), 'utf8'));
+  assert.deepEqual(state.form, CARD);
+  assert.equal(state.until, '**/receipt/*');
+  await pause(300);
+  assert.equal(f.calls().length, 5, 'no polling before a send');
 
-// A card form as FIELD_SCAN returns it from agent-browser 0.38.1 (the live check's fixture page).
-const MONTHS = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'));
-const CARD_FORM = [
-  { kind: 'text', type: 'text', label: 'Card number', autocomplete: 'off', name: 'ekashu_card_number', id: 'ekashu_card_number', placeholder: '', required: true, options: [], selector: '#ekashu_card_number' },
-  { kind: 'select', type: 'select', label: 'Expires End', autocomplete: '', name: 'ekashu_expires_end_month', id: 'ekashu_expires_end_month', placeholder: '', required: true, options: [{ value: '', text: 'MM' }, ...MONTHS.map(m => ({ value: m, text: m }))], selector: '#ekashu_expires_end_month' },
-  { kind: 'checkbox', type: 'checkbox', label: 'I agree', autocomplete: '', name: 'agree', id: '', placeholder: '', required: false, options: [], selector: 'body > form:nth-of-type(1) > p:nth-of-type(4) > label:nth-of-type(1) > input:nth-of-type(1)' },
-];
-
-/** Calls a field route with the key header unless `key` is null; resolves to the status and JSON. */
-async function route(port, key, path, body) {
-  const response = await fetch(`http://127.0.0.1:${port}/${path}`, {
-    method: body === undefined ? 'GET' : 'POST',
-    headers: key === null ? {} : { 'x-hand-over-key': key },
-    body: body === undefined ? undefined : typeof body === 'string' ? body : JSON.stringify(body),
+  assert.match(await (await fetch(`http://127.0.0.1:${port}/`)).text(), /Close without sending/);
+  assert.match(await (await fetch(`http://127.0.0.1:${port}/page.mjs`)).text(), /export function rowsOf/);
+  assert.equal((await fetch(`http://127.0.0.1:${port}/state.json`)).status, 404);
+  assert.equal((await route(port, null, 'form')).status, 403);
+  assert.equal((await route(port, '0'.repeat(64), 'send', { values: VALUES })).status, 403);
+  const { status, json } = await route(port, key, 'form');
+  assert.equal(status, 200);
+  assert.equal(json.closesAt, state.deadline);
+  assert.equal(json.submit, 'Pay $45.00');
+  assert.doesNotMatch(JSON.stringify(json), /@e\d|#cvv|target/, 'the page never gets a target');
+  for (const gone of ['fields', 'focus', 'select', 'check', 'action', 'navigate', 'viewport']) assert.equal((await route(port, key, gone, {})).status, 404, gone);
+  const upgrade = await new Promise(done => {
+    const socket = connect(port, '127.0.0.1', () => socket.write(`GET /stream?key=${key} HTTP/1.1\r\nHost: x\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\n\r\n`));
+    let text = '';
+    socket.on('data', chunk => { text += chunk; socket.destroy(); }).on('close', () => done(text));
   });
-  const text = await response.text();
-  return { status: response.status, json: text ? JSON.parse(text) : null };
-}
+  assert.match(upgrade, /^HTTP\/1\.1 404/, 'no live view of the browser');
+  assert.equal(f.calls().length, 5, 'no refused request reached agent-browser');
+});
 
-test('navigation permits only keyed Return to start, Back, Forward, and Reload and never repeats failure', async t => {
-  const f = fixture(t, { cloudflared: false });
-  const { port, key } = opened(f, '--local');
-  const before = f.calls().length;
-  for (const action of ['start', 'back', 'forward', 'reload']) {
-    assert.equal((await route(port, null, 'navigate', { action })).status, 403);
-    assert.equal((await route(port, 'wrong', 'navigate', { action })).status, 403);
+test('a bad form file exits 2 with FORM_FILE= before any link', t => {
+  const f = fixture(t);
+  writeFileSync(f.form, JSON.stringify({ ...CARD, submit: undefined }));
+  const out = f.run('open', '--form', f.form, '--until', '**/receipt/*');
+  assert.equal(out.status, 2);
+  assert.equal(out.stdout, 'FORM_FILE=form: submit takes a label of 1 to 60 characters and a target\n');
+  assert.match(out.stderr, /Fix the form file first/);
+  assert.equal(f.run('open', '--form', join(f.state, 'missing.json'), '--until', '**').status, 2);
+  assert.deepEqual(f.calls(), []);
+  assert.ok(!existsSync(f.state), 'no link state');
+});
+
+test('a form does not open without a live feed, or on a finish the page already meets', t => {
+  const f = fixture(t);
+  f.set('stream-port', 'null');
+  const feedless = f.run('open', '--form', f.form, '--until', '**/receipt/*');
+  assert.equal(feedless.status, 1);
+  assert.match(feedless.stderr, /no live feed/);
+  f.set('stream-port', '9');
+  for (const finish of [['--until', '**/card'], ['--until-gone', '#gone']]) {
+    if (finish[0] === '--until-gone') f.set('count', '0');
+    const met = f.run('open', '--form', f.form, ...finish);
+    assert.equal(met.status, 1, finish.join(' '));
+    assert.match(met.stderr, /already meets the finish/);
   }
-  assert.equal((await route(port, key, 'navigate')).status, 405);
-  for (const body of ['{', {}, { action: 'open' }, { action: 'toString' }, { action: 'home' }, { action: 'back', url: 'https://unwanted.test' }, { action: 'start', url: 'https://unwanted.test' }]) assert.equal((await route(port, key, 'navigate', body)).status, 400);
-  assert.equal(f.calls().length, before);
-  for (const action of ['start', 'back', 'forward', 'reload']) assert.deepEqual(await route(port, key, 'navigate', { action }), { status: 200, json: { ok: true } });
-  f.set('fail', '');
-  assert.equal((await route(port, key, 'navigate', { action: 'back' })).status, 502);
-  assert.deepEqual(f.calls().slice(before), ['agent-browser open https://accounts.example.com/login', ...['back', 'forward'].flatMap(action => [`agent-browser eval -b ${Buffer.from(HISTORY_SCAN).toString('base64')} --json`, `agent-browser ${action}`]), 'agent-browser reload', `agent-browser eval -b ${Buffer.from(HISTORY_SCAN).toString('base64')} --json`, 'agent-browser back']);
+  assert.ok(!f.calls().some(line => line.startsWith('cloudflared tunnel')), 'no tunnel started');
+  assert.ok(!existsSync(join(f.state, 'watcher.pid')));
 });
 
-async function waitForCall(f, matches) {
-  const deadline = Date.now() + 2000;
-  while (!f.calls().some(matches) && Date.now() < deadline) await new Promise(done => setTimeout(done, 10));
-  assert.ok(f.calls().some(matches), 'the held field command started');
-}
+test('a send types each text value over the live feed, presses once, and gives done when the site moves on', async t => {
+  const f = fixture(t, { paseo: 'ok' });
+  const feed = await fakeFeed(t, f);
+  const link = openedForm(f);
+  const tunnel = f.tunnelPid();
+  const before = f.browserCalls().length;
+  f.set('hold-click', '');
+  const sending = send(f, link);
+  await eventually(() => f.browserCalls().includes('agent-browser click @e31'));
+  assert.equal(feed.typed(), NUMBER + CODE, 'the text values, in field order, as key presses');
+  assert.doesNotMatch(f.stateFiles(), /XKCD|QWZP|ZQ7/, 'no typed value in the watcher\'s files or the tunnel log');
+  assert.equal((await route(link.port, link.key, 'send', { values: VALUES })).status, 409, 'a second send is refused');
+  f.unset('hold-click');
+  const { status, json } = await sending;
+  assert.equal(status, 200);
+  assert.equal(json.receipt.result, 'done');
+  assert.equal(json.receipt.notification, 'notified');
 
-test('Return to start waits for the active field operation and navigates exactly once', async t => {
-  const f = fixture(t, { cloudflared: false });
-  f.set('fields', JSON.stringify(CARD_FORM));
-  const { port, key } = opened(f, '--local');
-  await route(port, key, 'fields');
-  f.set('hold-fill', ''); t.after(() => f.unset('hold-fill'));
+  const calls = f.browserCalls().slice(before);
+  assert.deepEqual(calls.slice(0, 9), [...FILL, 'agent-browser click @e31']);
+  for (const line of calls.slice(9)) assert.equal(line, 'agent-browser get url', 'after the press, only the address is read');
+  assert.ok(!f.calls().some(line => /XKCD|QWZP|ZQ7/.test(line)), 'no typed value in any command');
+  assert.equal(feed.requests.length, 1);
+  assert.equal(feed.requests[0].url, '/?pacing=ack&maxFps=1', 'one unacknowledged picture at most');
+  assert.equal(feed.requests[0].headers.origin, undefined);
+  assert.ok(feed.messages.every(message => message.type === 'input_keyboard'));
+
+  const out = f.run('wait');
+  assert.equal(out.stdout.trim(), 'HANDOVER_RESULT=done');
+  assert.match(out.rawStdout, /HANDOVER_NOTIFICATION=notified/);
+  assert.deepEqual(f.result(), { result: 'done' });
+  assert.doesNotMatch(readFileSync(join(f.state, 'result.json'), 'utf8'), new RegExp(`http|receipt|XKCD|ZQ7|${link.key}`));
+  assert.ok(!alive(tunnel), 'the tunnel was killed');
+  assert.ok(!(await answers(link.port)), 'the page was closed');
+  const [message] = f.sent();
+  assert.match(message[2], /"mode":"form"/);
+  assert.doesNotMatch(message[2], /https?:|receipt|XKCD|ZQ7|trycloudflare/);
+  assert.equal(f.sent().length, 1);
+});
+
+test('a site that keeps its page gives not-accepted: the typed boxes are emptied and nobody is woken', async t => {
+  const f = fixture(t, { paseo: 'ok' });
+  const feed = await fakeFeed(t, f);
+  const link = openedForm(f);
+  const before = f.browserCalls().length;
+  const { json } = await send(f, link, { moves: false });
+  assert.equal((await route(link.port, link.key, 'send', { values: VALUES })).status, 410, 'the link is over');
+  assert.equal(json.receipt.result, 'not-accepted');
+  assert.equal(json.receipt.ready, false);
+  assert.equal(json.receipt.notification, 'not-requested');
+  const calls = f.browserCalls().slice(before);
+  assert.deepEqual(calls.slice(0, 9), [...FILL, 'agent-browser click @e31']);
+  assert.deepEqual(calls.slice(-4), CLEAR, 'each text box it typed into is emptied and each dropdown put back, last');
+  assert.equal(calls.filter(line => line === 'agent-browser click @e31').length, 1, 'pressed once, never again');
+  assert.ok(calls.slice(9, -4).length > 1 && calls.slice(9, -4).every(line => line === 'agent-browser get url'));
+  assert.equal(feed.typed(), NUMBER + CODE);
+  const out = f.run('wait');
+  assert.equal(out.stdout.trim(), 'HANDOVER_RESULT=not-accepted');
+  assert.match(out.rawStdout, /HANDOVER_NOTIFICATION=not-requested/);
+  assert.deepEqual(f.sent(), [], 'not accepted never announces readiness');
+});
+
+test('a field that can not be filled presses nothing and empties what was typed', async t => {
+  const f = fixture(t);
+  const feed = await fakeFeed(t, f);
+  const link = openedForm(f);
+  const before = f.browserCalls().length;
+  f.set('fail-select', '');
+  const { json } = await send(f, link);
+  assert.equal(json.receipt.result, 'not-accepted');
+  assert.deepEqual(f.browserCalls().slice(before), [...FILL.slice(0, 4), 'agent-browser fill @e12']);
+  assert.equal(feed.typed(), NUMBER, 'nothing past the failed field was typed');
+});
+
+test('a press whose command fails still waits for the site, which may have taken it', async t => {
+  const f = fixture(t);
+  await fakeFeed(t, f);
+  const link = openedForm(f, '--until-gone', '#card-form');
+  f.set('fail-click', '');
+  const sending = send(f, link, { moves: false });
+  await eventually(() => f.browserCalls().includes('agent-browser click @e31'));
+  f.set('count', '0');
+  assert.equal((await sending).json.receipt.result, 'done');
+  assert.ok(!f.browserCalls().includes('agent-browser get url'), 'only the named finish is read');
+});
+
+test('a form with no live feed at the send types nothing and presses nothing', async t => {
+  const f = fixture(t);
+  const link = openedForm(f);
+  const before = f.browserCalls().length;
+  const { json } = await send(f, link);
+  assert.equal(json.receipt.result, 'not-accepted');
+  assert.deepEqual(f.browserCalls().slice(before), []);
+});
+
+test('a bad send is refused without using the one send, and Close without sending gives closed', async t => {
+  const f = fixture(t);
+  const { port, key } = openedForm(f);
   const before = f.calls().length;
-  const focused = route(port, key, 'focus', { ref: 0 });
-  await waitForCall(f, line => line.startsWith('agent-browser fill '));
-  let finished = false;
-  const navigation = route(port, key, 'navigate', { action: 'start' }).then(result => { finished = true; return result; });
-  await new Promise(done => setTimeout(done, 50));
-  assert.equal(finished, false);
-  assert.ok(!f.calls().slice(before).some(line => line.startsWith('agent-browser open ')));
-  f.unset('hold-fill');
-  assert.equal((await focused).status, 200);
-  assert.equal((await navigation).status, 200);
-  assert.deepEqual(f.calls().slice(before), ['agent-browser fill #ekashu_card_number ', 'agent-browser focus #ekashu_card_number', 'agent-browser open https://accounts.example.com/login']);
+  for (const body of ['{', {}, { values: VALUES.slice(1) }, { values: [NUMBER, '13', '2028', CODE] }, { values: [NUMBER, '03', '2028', ''] }, { values: [NUMBER, '03', '2028', 'two\nlines'] }]) assert.equal((await route(port, key, 'send', body)).status, 400, JSON.stringify(body));
+  assert.equal((await route(port, key, 'send')).status, 405);
+  assert.equal(f.calls().length, before, 'no refused send reached agent-browser');
+  assert.deepEqual(await route(port, key, 'done', {}), { status: 200, json: { ok: true } });
+  const out = f.run('wait');
+  assert.equal(out.stdout.trim(), 'HANDOVER_RESULT=closed');
+  assert.match(out.rawStdout, /HANDOVER_NOTIFICATION=not-requested/);
 });
 
-test('closing a link aborts active field work and never runs queued navigation', async t => {
-  const f = fixture(t, { cloudflared: false });
-  f.set('fields', JSON.stringify(CARD_FORM));
-  const { port, key } = opened(f, '--local');
-  await route(port, key, 'fields');
-  f.set('hold-fill', ''); t.after(() => f.unset('hold-fill'));
-  const before = f.calls().length;
-  const focused = route(port, key, 'focus', { ref: 0 });
-  await waitForCall(f, line => line.startsWith('agent-browser fill '));
-  const navigation = route(port, key, 'navigate', { action: 'start' });
-  await new Promise(done => setTimeout(done, 50));
-  const closed = f.run('close');
-  assert.equal(closed.status, 0, closed.stderr);
-  assert.equal(closed.stdout.trim(), 'HANDOVER_RESULT=closed');
-  assert.equal((await focused).status, 409);
-  assert.equal((await navigation).status, 502);
-  f.unset('hold-fill');
-  const calls = f.calls().slice(before);
-  assert.ok(!calls.some(line => line.startsWith('agent-browser open ') || line.startsWith('agent-browser focus ')));
-  assert.equal(calls.filter(line => line.startsWith('agent-browser fill ')).length, 1);
-  assert.equal(calls.at(-1), 'agent-browser set viewport 1280 720');
+test('the deadline gives timeout and tears down', async t => {
+  const f = fixture(t);
+  const { port } = openedForm(f, '--until', '**/receipt/*', '--minutes', '0.05');
+  const tunnel = f.tunnelPid();
+  assert.equal(f.run('wait').stdout.trim(), 'HANDOVER_RESULT=timeout');
+  assert.ok(!(await answers(port)));
+  assert.ok(!alive(tunnel));
+  assert.ok(!existsSync(join(f.state, 'watcher.pid')));
 });
 
-test('a closed private link refuses navigation before invoking the browser', async t => {
+test('a send under way outlasts close and the deadline, and ends with its own result', async t => {
+  const f = fixture(t);
+  await fakeFeed(t, f);
+  const link = openedForm(f, '--until', '**/receipt/*', '--minutes', '0.05');
+  f.set('hold-fill', '');
+  const sending = send(f, link);
+  await eventually(() => f.browserCalls().includes('agent-browser fill @e12'));
+  const closing = f.start('close');
+  await pause(3300);
+  assert.ok(!existsSync(join(f.state, 'result.json')), 'neither close nor the deadline cut the send short');
+  f.unset('hold-fill');
+  assert.equal((await sending).json.receipt.result, 'done');
+  assert.equal((await closing).stdout.trim(), 'HANDOVER_RESULT=done');
+});
+
+test('close gives closed for a form nobody sent', async t => {
+  const f = fixture(t);
+  const { port } = openedForm(f);
+  const tunnel = f.tunnelPid();
+  assert.equal(f.run('close').stdout.trim(), 'HANDOVER_RESULT=closed');
+  assert.ok(!alive(tunnel));
+  assert.ok(!(await answers(port)), 'the page stops answering after close');
+});
+
+test('a closed link refuses every route before invoking the browser', async t => {
   const reserved = createServer();
   await new Promise(done => reserved.listen(0, '127.0.0.1', done));
   const port = reserved.address().port;
   await new Promise(done => reserved.close(done));
-  const close = await servePage({ port, streamPort: 9, key: 'closed-key' });
+  let sends = 0;
+  const close = await servePage({ port, key: 'closed-key', form: CARD }, { onSend: async () => { sends++; } });
   t.after(close);
   await close.stopInput();
-  for (const action of ['start', 'back', 'forward', 'reload']) assert.equal((await route(port, 'closed-key', 'navigate', { action })).status, 410);
+  for (const [path, body] of [['form'], ['send', { values: VALUES }], ['done', {}]]) assert.equal((await route(port, 'closed-key', path, body)).status, 410, path);
+  assert.deepEqual(await route(port, 'closed-key', 'receipt'), { status: 202, json: { finishing: true } });
+  assert.equal(sends, 0);
 });
 
-test('Return to start captures one credential-free full address before private input and stays frozen across origins', async t => {
-  for (const [address, expected] of [
-    ['https://statlas.io/welcome?next=external#code', 'https://statlas.io/welcome?next=external#code'],
-    ['http://user:secret@example.test:8080/login?q=1#fragment', 'http://example.test:8080/login?q=1#fragment'],
-    ['https://example.test:443/a', 'https://example.test/a'],
-    ['file:///tmp/page.html', null], ['about:blank', null], ['javascript:alert(1)', null], ['not a URL', null], [null, null],
-  ]) assert.equal(startAddress(address), expected);
-  const f = fixture(t, { cloudflared: false });
-  f.set('url', 'https://person:secret@example.test:8443/login?next=other#step');
-  const { port, key } = opened(f, '--local');
-  const statePath = join(f.state, 'state.json');
-  assert.equal(statSync(statePath).mode & 0o777, 0o600);
-  const destination = 'https://example.test:8443/login?next=other#step';
-  assert.equal(JSON.parse(readFileSync(statePath, 'utf8')).startUrl, destination);
-  assert.doesNotMatch(readFileSync(statePath, 'utf8'), /person|secret/);
-  const before = f.calls().length;
-  for (const current of ['https://other.test/new', 'about:blank', 'https://example.test/elsewhere']) {
-    f.set('url', current);
-    assert.deepEqual(await route(port, key, 'navigate', { action: 'start' }), { status: 200, json: { ok: true } });
-  }
-  assert.deepEqual(f.calls().slice(before), Array(3).fill(`agent-browser open ${destination}`));
-  for (const path of ['/', '/page.mjs', '/fields', '/receipt']) {
-    const response = await fetch(`http://127.0.0.1:${port}${path}`, { headers: { 'x-hand-over-key': key } });
-    assert.ok(!(await response.text()).includes(destination), path);
-  }
-  f.set('fail', '');
-  const failing = f.calls().length;
-  assert.equal((await route(port, key, 'navigate', { action: 'start' })).status, 502);
-  assert.deepEqual(f.calls().slice(failing), [`agent-browser open ${destination}`]);
-  f.run('close');
-  assert.ok(!readFileSync(join(f.state, 'result.json'), 'utf8').includes(destination));
-});
+// ---------------------------------------------------------------------------
+// Waking the chat
 
-for (const address of ['about:blank', 'file:///tmp/private.html', 'not a URL', null]) test(`unavailable initial address ${address} preserves scanned fields and cannot navigate`, async t => {
-  const f = fixture(t, { cloudflared: false });
-  if (address === null) f.set('fail-url', ''); else f.set('url', address);
-  f.set('fields', JSON.stringify(CARD_FORM));
-  const { port, key } = opened(f, '--local');
-  assert.equal(JSON.parse(readFileSync(join(f.state, 'state.json'), 'utf8')).startUrl, null);
-  await route(port, key, 'fields');
-  f.set('url', 'https://later.test/new');
-  const before = f.calls().length;
-  assert.deepEqual(await route(port, key, 'navigate', { action: 'start' }), { status: 409, json: { ok: false, reason: 'unavailable-start' } });
-  assert.equal(f.calls().length, before);
-  assert.equal((await route(port, key, 'focus', { ref: 0 })).status, 200);
-});
-
-test('older watcher state without a start address refuses safely', async t => {
-  const reserved = createServer(); await new Promise(done => reserved.listen(0, '127.0.0.1', done));
-  const port = reserved.address().port; await new Promise(done => reserved.close(done));
-  const close = await servePage({ port, streamPort: 9, key: 'old-state' }); t.after(close);
-  assert.deepEqual(await route(port, 'old-state', 'navigate', { action: 'start' }), { status: 409, json: { ok: false, reason: 'unavailable-start' } });
-});
-
-test('one-entry history refuses traversal without invalidating the scanned fields', async t => {
-  const f = fixture(t, { cloudflared: false });
-  f.set('fields', JSON.stringify(CARD_FORM)); f.set('history', '1');
-  const { port, key } = opened(f, '--local');
-  await route(port, key, 'fields');
-  const before = f.calls().length;
-  for (const action of ['back', 'forward']) assert.deepEqual(await route(port, key, 'navigate', { action }), { status: 409, json: { ok: false, reason: 'no-history' } });
-  assert.deepEqual(f.calls().slice(before), Array(2).fill(`agent-browser eval -b ${Buffer.from(HISTORY_SCAN).toString('base64')} --json`));
-  assert.equal((await route(port, key, 'focus', { ref: 0 })).status, 200);
-  f.set('history', 'null');
-  assert.equal((await route(port, key, 'navigate', { action: 'back' })).status, 502);
-  assert.equal(f.calls().at(-1), `agent-browser eval -b ${Buffer.from(HISTORY_SCAN).toString('base64')} --json`);
-});
-
-test('GET /fields needs the key and lists the scanned fields by ref, without a selector', async t => {
-  const f = fixture(t, { cloudflared: false });
-  f.set('fields', JSON.stringify(CARD_FORM));
-  const { port, key } = opened(f, '--local');
-  const before = f.calls().length;
-  assert.equal((await route(port, null, 'fields')).status, 403);
-  assert.equal((await route(port, '0'.repeat(64), 'fields')).status, 403);
-  assert.equal(f.calls().length, before, 'nothing ran without the key');
-  const { status, json } = await route(port, key, 'fields');
-  assert.equal(status, 200);
-  assert.match(json.signature, /^[0-9a-f]{64}$/);
-  assert.deepEqual(json.fields.map(({ ref, kind, label, autocomplete, type, inputmode }) => ({ ref, kind, label, autocomplete, type, inputmode })), [
-    { ref: 0, kind: 'text', label: 'Card number', autocomplete: 'cc-number', type: 'text', inputmode: 'numeric' },
-    { ref: 1, kind: 'select', label: 'Expires End', autocomplete: 'cc-exp-month', type: 'text', inputmode: '' },
-    { ref: 2, kind: 'checkbox', label: 'I agree', autocomplete: '', type: 'text', inputmode: '' },
-  ]);
-  assert.deepEqual(json.fields[1].options[3], { value: '03', text: '03' });
-  assert.doesNotMatch(JSON.stringify(json), /selector|#ekashu|nth-of-type/);
-  assert.deepEqual(f.calls().slice(before), [`agent-browser eval -b ${Buffer.from(FIELD_SCAN).toString('base64')} --json`]);
-  assert.equal((await route(port, key, 'fields')).json.signature, json.signature, 'the same page, the same signature');
-});
-
-test('the field routes set a field only by a current ref, with the calls each route records', async t => {
-  const f = fixture(t, { cloudflared: false });
-  f.set('fields', JSON.stringify(CARD_FORM));
-  const { port, key } = opened(f, '--local');
-  assert.equal((await route(port, key, 'focus', { ref: 0 })).status, 409, 'no scan yet, so no ref is current');
-  await route(port, key, 'fields');
-  const before = f.calls().length;
-
-  assert.equal((await route(port, null, 'focus', { ref: 0 })).status, 403);
-  for (const bad of ['{', '[0]', '{}', { ref: -1 }, { ref: '0' }, { ref: 0, pad: 'x'.repeat(5000) }]) assert.equal((await route(port, key, 'focus', bad)).status, 400, JSON.stringify(bad));
-  assert.equal((await route(port, key, 'select', { ref: 1, value: '13' })).status, 400, 'a choice the page does not offer');
-  assert.equal((await route(port, key, 'select', { ref: 0, value: '03' })).status, 400, 'a text box is not a dropdown');
-  assert.equal((await route(port, key, 'check', { ref: 2, checked: 'yes' })).status, 400);
-  assert.equal((await route(port, key, 'focus', { ref: 7 })).status, 409, 'a ref past the scan is stale');
-  assert.equal((await route(port, key, 'focus')).status, 405);
-  assert.equal(f.calls().length, before, 'no refused request reached agent-browser');
-
-  const ok = { status: 200, json: { ok: true } };
-  assert.deepEqual(await route(port, key, 'focus', { ref: 0 }), ok);
-  assert.deepEqual(await route(port, key, 'select', { ref: 1, value: '03' }), ok);
-  assert.deepEqual(await route(port, key, 'check', { ref: 2, checked: true }), ok);
-  assert.deepEqual(await route(port, key, 'check', { ref: 2, checked: false }), ok);
-  const box = CARD_FORM[2].selector;
-  assert.deepEqual(f.calls().slice(before), ['agent-browser fill #ekashu_card_number ', 'agent-browser focus #ekashu_card_number', 'agent-browser select #ekashu_expires_end_month 03', `agent-browser check ${box}`, `agent-browser uncheck ${box}`]);
-
-  f.set('fail', '');
-  assert.equal((await route(port, key, 'focus', { ref: 0 })).status, 409, 'a field that is gone answers 409');
-});
-
-test('FIELD_SCAN reads no value, tick state, or choice', () => {
-  for (const read of ['.value', '.checked', '.selectedIndex', '.selected', '.defaultValue']) assert.ok(!FIELD_SCAN.includes(read), read);
-  assert.doesNotThrow(() => new Function(`return ${FIELD_SCAN}`));
-});
-
-test('autofillToken takes the page\'s own mark, then the field\'s words, then its type', () => {
-  const token = (label, extra = {}) => autofillToken({ name: '', id: '', label, placeholder: '', type: 'text', options: [], ...extra });
-  const table = {
-    'cc-number': ['Card number', 'cardnum', 'CCNum', 'PAN'],
-    'cc-csc': ['CVV', 'cvc2', 'Security code', 'Card verification number'],
-    'cc-exp-month': ['Expiry month', 'MM', 'expMonth'],
-    'cc-exp-year': ['Expiry year', 'YY', 'exp_year'],
-    'cc-exp': ['Expiry date', 'Expiration', 'MM/YY'],
-    'cc-name': ['Name on card', 'Cardholder'],
-    'one-time-code': ['OTP', 'One-time code', 'Verification code', '2FA code'],
-    'new-password': ['New password', 'Confirm password'],
-    'current-password': ['Password'],
-    email: ['Email address', 'e-mail'],
-    username: ['Username', 'Login'],
-    tel: ['Phone', 'Mobile number'],
-    'postal-code': ['Postal code', 'ZIP'],
-    'address-line1': ['Street address'],
-    'address-level2': ['City'],
-    country: ['Country'],
-    'given-name': ['First name'],
-    'family-name': ['Last name', 'Surname'],
-    name: ['Full name'],
-  };
-  for (const [want, labels] of Object.entries(table)) for (const label of labels) assert.equal(token(label), want, label);
-
-  assert.equal(token('Card', { autocomplete: 'section-pay billing cc-number' }), 'cc-number');
-  assert.equal(token('Card', { autocomplete: 'shipping tel' }), 'tel');
-  assert.equal(token('Card number', { autocomplete: 'off' }), 'cc-number', 'off is ignored');
-  assert.equal(token('Card number', { autocomplete: 'on' }), 'cc-number', 'on is ignored');
-  assert.equal(token('Anything', { type: 'email' }), 'email');
-  assert.equal(token('Anything', { type: 'tel' }), 'tel');
-  assert.equal(token('Secret', { type: 'password' }), 'current-password');
-  assert.equal(token('Notes'), '');
-
-  // ekashu's card page: names only, and one label for both expiry dropdowns.
-  assert.equal(token('', { name: 'ekashu_card_number' }), 'cc-number');
-  assert.equal(token('', { name: 'ekashu_card_security_code' }), 'cc-csc');
-  const choices = texts => [{ value: '', text: 'Select' }, ...texts.map(text => ({ value: text, text }))];
-  const years = ['2026', '2027', '2028', '2029', '2030'];
-  assert.equal(token('Expires End', { name: 'ekashu_expires_end_month', type: 'select', options: choices(MONTHS) }), 'cc-exp-month');
-  assert.equal(token('Expires End', { name: 'ekashu_expires_end_year', type: 'select', options: choices(years) }), 'cc-exp-year');
-  assert.equal(token('Expires End', { type: 'select', options: choices(MONTHS) }), 'cc-exp-month', 'a month list with no month in the words');
-  assert.equal(token('Expires End', { type: 'select', options: choices(['26', '27', '28', '29', '30', '31', '32', '33', '34', '35', '36', '37']) }), 'cc-exp-year', 'twelve two-digit years are not months');
-});
-
-test('fieldBox gives the box the type and keyboard its token implies', () => {
-  const box = label => fieldBox({ name: '', id: '', label, placeholder: '', type: 'text', options: [] });
-  assert.deepEqual(box('Card number'), { autocomplete: 'cc-number', type: 'text', inputmode: 'numeric' });
-  assert.deepEqual(box('CVV'), { autocomplete: 'cc-csc', type: 'text', inputmode: 'numeric' });
-  assert.deepEqual(box('One-time code'), { autocomplete: 'one-time-code', type: 'text', inputmode: 'numeric' });
-  assert.deepEqual(box('Password'), { autocomplete: 'current-password', type: 'password', inputmode: '' });
-  assert.deepEqual(box('New password'), { autocomplete: 'new-password', type: 'password', inputmode: '' });
-  assert.deepEqual(box('Email'), { autocomplete: 'email', type: 'email', inputmode: '' });
-  assert.deepEqual(box('Phone'), { autocomplete: 'tel', type: 'tel', inputmode: '' });
-  assert.deepEqual(box('Postal code'), { autocomplete: 'postal-code', type: 'text', inputmode: '' }, 'a Canadian postal code has letters');
-  assert.deepEqual(box('Notes'), { autocomplete: '', type: 'text', inputmode: '' });
-});
-
-test('sendPlan presses only new letters at the end of a focused field, else refocuses and retypes', () => {
-  const keys = text => Array.from(text);
-  assert.deepEqual(sendPlan('4111', '41111', true), { focus: false, keys: ['1'] }, 'append');
-  assert.deepEqual(sendPlan('', '4', true), { focus: false, keys: ['4'] });
-  assert.deepEqual(sendPlan('41111', '4111', true), { focus: true, keys: keys('4111') }, 'deletion');
-  assert.deepEqual(sendPlan('', '4111 1111 1111 1111', false), { focus: true, keys: keys('4111 1111 1111 1111') }, 'a whole value filled into an unfocused field');
-  assert.deepEqual(sendPlan('41', '4111', false), { focus: true, keys: keys('4111') }, 'another field was focused since');
-  assert.deepEqual(sendPlan('abc', 'xbc', true), { focus: true, keys: keys('xbc') }, 'a change before the end');
-  assert.deepEqual(sendPlan('abc', '', true), { focus: true, keys: [] }, 'emptied: cleared, nothing pressed');
-});
-
-test('POST /viewport needs the key and whole numbers, clamps the size, and sets it', async t => {
-  const f = fixture(t, { cloudflared: false });
-  const { port, key } = opened(f, '--local');
-  const before = f.calls().length;
-  assert.equal((await route(port, null, 'viewport', { width: 390, height: 600 })).status, 403);
-  for (const bad of ['{', '[390, 600]', {}, { width: 390 }, { width: '390', height: 600 }, { width: 390.5, height: 600 }]) assert.equal((await route(port, key, 'viewport', bad)).status, 400, JSON.stringify(bad));
-  assert.equal((await route(port, key, 'viewport')).status, 405);
-  assert.equal(f.calls().length, before, 'no refused request reached agent-browser');
-  assert.deepEqual(await route(port, key, 'viewport', { width: 390, height: 600 }), { status: 200, json: { width: 390, height: 600 } });
-  assert.deepEqual(await route(port, key, 'viewport', { width: 200, height: 90000 }), { status: 200, json: { width: 320, height: 1280 } });
-  assert.deepEqual(f.calls().slice(before), ['agent-browser set viewport 390 600', 'agent-browser set viewport 320 1280']);
-});
-
-test('every ending puts the page back to 1280×720 after a phone size, before the result', async t => {
-  for (const [ending, args] of [['done', ['--until', '**/inbox']], ['timeout', ['--minutes', '0.02']], ['closed', []]]) {
-    const f = fixture(t, { cloudflared: false });
-    const { port, key } = opened(f, '--local', ...args);
-    assert.equal((await route(port, key, 'viewport', { width: 390, height: 600 })).status, 200);
-    if (ending === 'done') f.set('url', 'https://mail.example.com/inbox');
-    const out = f.run(ending === 'closed' ? 'close' : 'wait');
-    assert.equal(out.stdout.trim(), `HANDOVER_RESULT=${ending}`);
-    const sizes = f.calls().filter(line => line.startsWith('agent-browser set viewport'));
-    assert.deepEqual(sizes.slice(-2), ['agent-browser set viewport 390 600', 'agent-browser set viewport 1280 720'], ending);
-  }
-});
-
-test('wantedSize fits the phone stage and uses the window breakpoint for desktop', () => {
-  assert.deepEqual(wantedSize({ boxWidth: 390, boxHeight: 700, windowWidth: 410 }), { width: 390, height: 720 });
-  assert.deepEqual(wantedSize({ boxWidth: 779, boxHeight: 600, windowWidth: 799 }), { width: 779, height: 720 });
-  assert.deepEqual(wantedSize({ boxWidth: 420, boxHeight: 600, windowWidth: 800 }), { width: 1280, height: 720 });
-  assert.deepEqual(wantedSize({ boxWidth: 1264, boxHeight: 900, windowWidth: 1600 }), { width: 1280, height: 720 });
-  assert.deepEqual(wantedSize({ boxWidth: 280, boxHeight: 300, windowWidth: 300 }), { width: 320, height: 720 }, 'a short phone gets a taller pannable login');
-  assert.deepEqual(wantedSize({ boxWidth: 370, boxHeight: 600, formWidth: 464 }), { width: 464, height: 720 });
-  assert.deepEqual(wantedSize({ boxWidth: 370, boxHeight: 600, formWidth: 2000 }), { width: 1280, height: 720 });
-  assert.deepEqual(wantedSize({ boxWidth: 370, boxHeight: 600, formWidth: 200 }), { width: 370, height: 720 });
-  assert.deepEqual(wantedSize({ boxWidth: 390, boxHeight: 2000 }), { width: 390, height: 1280 });
-});
-
-async function eventually(job) {
-  const end = Date.now() + 5000;
-  while (Date.now() < end) { const value = await job(); if (value) return value; await new Promise(done => setTimeout(done, 25)); }
-  assert.fail('condition did not complete');
-}
-
-test('automatic completion notifies the full originating workspace without wait; receipt revokes replay and dispatches once', async t => {
+test('a finished send notifies the full originating workspace without wait; the receipt dispatches once', async t => {
   const f = fixture(t, { paseo: 'ok' });
-  const { port, key } = opened(f, '--local', '--until', '**/inbox');
+  await fakeFeed(t, f);
+  const link = openedForm(f);
   const state = JSON.parse(readFileSync(join(f.state, 'state.json'), 'utf8'));
   assert.equal(state.agentId, 'a-full-workspace-id');
   assert.match(state.completionId, /^[a-f0-9]{32}$/);
-  f.set('url', 'https://mail.example.com/inbox');
+  await send(f, link);
   const receipt = await eventually(async () => {
-    const response = await fetch(`http://127.0.0.1:${port}/receipt`, { headers: { 'x-hand-over-key': key } }).catch(() => null);
+    const response = await fetch(`http://127.0.0.1:${link.port}/receipt`, { headers: { 'x-hand-over-key': link.key } }).catch(() => null);
     return response?.status === 200 && await response.json();
   });
   assert.equal(receipt.notification, 'notified');
   assert.equal(receipt.ready, true);
-  assert.equal((await fetch(`http://127.0.0.1:${port}/receipt`)).status, 403);
-  const replay = await fetch(`http://127.0.0.1:${port}/viewport`, { method: 'POST', headers: { 'x-hand-over-key': key }, body: JSON.stringify({width:400,height:600}) });
-  assert.equal(replay.status, 410);
-  assert.match(await raw(port, upgrade(`/stream?key=${key}`)), /^HTTP\/1.1 410/);
-  const [send] = f.sent();
-  assert.equal(send[0], 'send'); assert.equal(send[1], state.agentId);
-  assert.ok(send.includes('--no-wait')); assert.ok(send.includes('--json'));
-  assert.ok(send[2].includes(state.completionId));
-  assert.doesNotMatch(send[2], /https?:|inbox|selector|username|password|trycloudflare/);
-  f.run('close'); // duplicate finish callback while the receipt window is open
+  assert.equal((await fetch(`http://127.0.0.1:${link.port}/receipt`)).status, 403);
+  const [sent] = f.sent();
+  assert.equal(sent[0], 'send'); assert.equal(sent[1], state.agentId);
+  assert.ok(sent.includes('--no-wait')); assert.ok(sent.includes('--json'));
+  assert.ok(sent[2].includes(state.completionId));
+  f.run('close'); // a duplicate finish while the receipt window is open
   const output = f.run('wait');
-  assert.match(output.rawStdout, /HANDOVER_COMPLETION=[a-f0-9]{32}/);
+  assert.match(output.rawStdout, new RegExp(`HANDOVER_COMPLETION=${state.completionId}`));
   assert.match(output.rawStdout, /HANDOVER_NOTIFICATION=notified/);
   f.run('close');
   assert.equal(f.sent().length, 1);
 });
 
 for (const [paseo, notification] of [['fail', 'unconfirmed'], ['timeout', 'unconfirmed'], ['invalid', 'unconfirmed'], [null, 'unavailable']]) {
-  test(`completion keeps result when notification is ${paseo ?? 'missing'}`, async t => {
+  test(`completion keeps its result when notification is ${paseo ?? 'missing'}`, async t => {
     const f = fixture(t, { paseo });
-    opened(f, '--local', '--until', '**/inbox');
-    f.set('url', 'https://mail.example.com/inbox');
+    await fakeFeed(t, f);
+    await send(f, openedForm(f));
     f.run('wait');
     const result = JSON.parse(readFileSync(join(f.state, 'result.json'), 'utf8'));
     assert.equal(result.result, 'done'); assert.equal(result.notification, notification);
@@ -765,86 +632,32 @@ for (const [paseo, notification] of [['fail', 'unconfirmed'], ['timeout', 'uncon
   });
 }
 
-test('fixed metadata scan and resolver retain native identity without reading private values', async () => {
-  const { JSDOM } = await import('jsdom');
-  const dom = new JSDOM(`<form id="one"><input aria-label="Email"><button>Sign in<input value="private"></button><button disabled>Disabled</button><input type="submit" value="Verify"></form><form id="two"><button>Send</button><button type="reset">Reset</button></form><div role="button">Custom</div><iframe></iframe>`, { runScripts: 'outside-only' });
-  const win = dom.window;
-  win.CSS = { escape: text => text };
-  win.HTMLElement.prototype.getClientRects = function () { return [{}]; };
-  win.HTMLElement.prototype.getBoundingClientRect = () => ({left:10,top:10,width:100,height:40});
-  win.HTMLElement.prototype.scrollIntoView = () => {};
-  const list = win.eval(FIELD_SCAN);
-  assert.deepEqual(Array.from(list.actions, a => a.label), ['Sign in','Disabled','Verify','Send']);
-  assert.equal(list.actions[1].disabled, true);
-  assert.notEqual(list.actions[0].form, list.actions[3].form);
-  const button = win.document.querySelector('button');
-  win.document.elementFromPoint = () => button;
-  assert.deepEqual(JSON.parse(JSON.stringify(win.eval(actionScan(list.actions[0].id,list.revision)))), {x:60,y:30});
-  assert.equal(win.eval(FIELD_SCAN).revision, list.revision, 'unchanged scan preserves revision');
-  const identity = list.fields[0].identity;
-  win.HTMLElement.prototype.getBoundingClientRect = () => ({left:20,top:80,right:484,width:464,height:48});
-  const moved = win.eval(FIELD_SCAN);
-  assert.equal(moved.revision,list.revision,'geometry does not change action revision');
-  assert.equal(moved.fields[0].identity,identity);assert.equal(moved.formWidth,464);assert.equal(moved.fields[0].geometry.y,80);
-  button.replaceWith(button.cloneNode(true));
-  assert.equal(win.eval(actionScan(list.actions[0].id,list.revision)), null, 'replacement is refused');
-  assert.equal(win.eval(actionScan(list.actions[1].id,list.revision)), null, 'disabled submit is refused');
-  dom.window.close();
-});
-
-test('keyed native action route refuses stale/disabled refs and accepts only server refs', async t => {
-  const f = fixture(t);
-  f.set('fields', JSON.stringify({fields: [], revision:'1', actions:[{id:'one', form:'form',label:'Sign in',disabled:false},{id:'two',form:'form',label:'Disabled',disabled:true}]}));
-  const { port,key } = opened(f,'--local');
-  const call = (path,body,auth=key) => fetch(`http://127.0.0.1:${port}/${path}`, {method:body?'POST':'GET', headers:{'x-hand-over-key':auth},body:body&&JSON.stringify(body)});
-  const list = await (await call('fields')).json();
-  const again = await (await call('fields')).json();
-  assert.equal(list.actions[0].ref, again.actions[0].ref);
-  assert.equal((await call('action',{ref:list.actions[0].ref,revision:'1'},'wrong')).status,403);
-  assert.equal((await call('action',{selector:'button'})).status,400);
-  assert.equal((await call('action',{ref:list.actions[1].ref,revision:'1'})).status,409);
-  assert.equal((await call('action',{ref:list.actions[0].ref,revision:'obsolete'})).status,409);
-  f.set('fields',JSON.stringify({x:60,y:30}));
-  assert.deepEqual(await (await call('action',{ref:list.actions[0].ref,revision:'1'})).json(),{x:60,y:30});
-  f.set('fields','null');
-  assert.equal((await call('action',{ref:list.actions[0].ref,revision:'1'})).status,409);
-});
-
-
 test('a CLI without originating identity never infers a target or opens another workspace', async t => {
-  const f=fixture(t,{paseo:'ok',agentId:''});opened(f,'--local','--until','**/inbox');
-  f.set('url','https://mail.example.com/inbox');f.run('wait');
-  assert.equal(f.sent().length,0);
-  assert.equal(JSON.parse(readFileSync(join(f.state,'result.json'),'utf8')).notification,'unavailable');
-});
-
-
-test('identity focus rescans before clearing and refuses a replaced same-selector field',async t=>{
-  const f=fixture(t);const field={...CARD_FORM[0],identity:'original'};
-  f.set('fields',JSON.stringify({fields:[field],actions:[],revision:'1'}));
-  const {port,key}=opened(f,'--local');await route(port,key,'fields');
-  f.set('fields',JSON.stringify({fields:[{...field,identity:'replacement'}],actions:[],revision:'2'}));
-  const before=f.calls().length;
-  assert.equal((await route(port,key,'focus',{ref:0,identity:'original'})).status,409);
-  assert.equal(f.calls().slice(before).some(call=>call.includes('agent-browser fill')),false);
+  const f = fixture(t, { paseo: 'ok', agentId: '' });
+  await fakeFeed(t, f);
+  await send(f, openedForm(f));
+  f.run('wait');
+  assert.equal(f.sent().length, 0);
+  assert.equal(JSON.parse(readFileSync(join(f.state, 'result.json'), 'utf8')).notification, 'unavailable');
 });
 
 // ---------------------------------------------------------------------------
 // The key link's guide flag, its 30 minutes, and giving way
 
 const deadlineOf = f => JSON.parse(readFileSync(join(f.state, 'state.json'), 'utf8')).deadline;
+const FORM_ARGS = f => ['--form', f.form, '--until', '**/receipt/*'];
 
 test('--guide goes with --keys only, and a bad guide exits 2 with KEYS_GUIDE= before any link', t => {
   const f = fixture(t, { checkout: true });
-  const usage = f.run('open', '--local', '--guide', 'guide.json');
+  const usage = f.run('open', '--guide', 'guide.json');
   assert.equal(usage.status, 2);
   assert.match(usage.stderr, /--guide goes with --keys only/);
-  assert.equal(f.run('open', '--local', '--passwords', '--guide', 'guide.json').status, 2);
+  assert.equal(f.run('open', '--passwords', '--guide', 'guide.json').status, 2);
   assert.match(f.run('--help').stdout, /--guide <file>/);
 
   const guide = join(f.cwd, 'guide.json');
   writeFileSync(guide, JSON.stringify({ MAPS_API_KEY: { url: 'http://maps.example.com/keys' } }));
-  const bad = f.run('open', '--local', '--keys', 'MAPS_API_KEY', '--guide', guide);
+  const bad = f.run('open', '--keys', 'MAPS_API_KEY', '--guide', guide);
   assert.equal(bad.status, 2);
   assert.equal(bad.stdout, 'KEYS_GUIDE=MAPS_API_KEY: url takes an https address with a host name\n');
   assert.ok(!existsSync(f.state), 'no link state');
@@ -852,51 +665,51 @@ test('--guide goes with --keys only, and a bad guide exits 2 with KEYS_GUIDE= be
 
   const entry = { title: 'Maps key', url: 'https://maps.example.com/keys', steps: ['Copy the key'] };
   writeFileSync(guide, JSON.stringify({ MAPS_API_KEY: entry }));
-  opened(f, '--local', '--keys', 'MAPS_API_KEY', '--guide', guide);
+  opened(f, '--keys', 'MAPS_API_KEY', '--guide', guide);
   assert.deepEqual(JSON.parse(readFileSync(join(f.state, 'state.json'), 'utf8')).keys.keys[0].guide, entry);
 });
 
-test('a key link defaults to 30 minutes; a hand-over and a password link still default to 10', t => {
+test('a key link defaults to 30 minutes; a private form and a password link default to 10', t => {
   const f = fixture(t, { checkout: true });
   const minutes = (...args) => {
     const before = Date.now();
-    opened(f, '--local', ...args);
+    opened(f, ...args);
     const deadline = deadlineOf(f);
     assert.equal(f.run('close').status, 0);
     return [(deadline - Date.now()) / 60_000, (deadline - before) / 60_000];
   };
-  for (const [args, want] of [[['--keys', 'MAPS_API_KEY'], 30], [[], 10], [['--passwords'], 10], [['--keys', 'MAPS_API_KEY', '--minutes', '10'], 10]]) {
+  for (const [args, want] of [[['--keys', 'MAPS_API_KEY'], 30], [FORM_ARGS(f), 10], [['--passwords'], 10], [['--keys', 'MAPS_API_KEY', '--minutes', '10'], 10]]) {
     const [low, high] = minutes(...args);
-    assert.ok(low <= want && high >= want, `${args.join(' ') || 'hand-over'}: ${low}–${high} minutes, not ${want}`);
+    assert.ok(low <= want && high >= want, `${args[0]}: ${low}–${high} minutes, not ${want}`);
   }
 });
 
 test('an unopened key link gives way to a new open, and its wait prints closed with nothing saved', async t => {
-  for (const next of [['--passwords'], [], ['--keys', 'MAPS_API_KEY']]) {
+  for (const next of [['--passwords'], null, ['--keys', 'MAPS_API_KEY']]) {
     const f = fixture(t, { checkout: true });
-    const first = opened(f, '--local', '--keys', 'MAPS_API_KEY');
+    const first = opened(f, '--keys', 'MAPS_API_KEY');
     const completion = JSON.parse(readFileSync(join(f.state, 'state.json'), 'utf8')).completionId;
-    const waited = f.waiting();
-    await new Promise(done => setTimeout(done, 300));
-    const second = opened(f, '--local', ...next);
+    const waited = f.start('wait');
+    await pause(300);
+    const second = opened(f, ...(next ?? FORM_ARGS(f)));
     assert.notEqual(second.key, first.key, 'a new link, with its own key');
     assert.ok(!(await answers(first.port)), 'the first link\'s page is gone');
     assert.ok(await answers(second.port));
-    const lines = (await waited).trim().split('\n');
-    assert.deepEqual(lines, ['HANDOVER_RESULT=closed', 'HANDOVER_SAVED=', 'HANDOVER_APP_KEYS=', `HANDOVER_COMPLETION=${completion}`, 'HANDOVER_NOTIFICATION=not-requested'], next.join(' '));
+    const lines = (await waited).rawStdout.trim().split('\n');
+    assert.deepEqual(lines, ['HANDOVER_RESULT=closed', 'HANDOVER_SAVED=', 'HANDOVER_APP_KEYS=', `HANDOVER_COMPLETION=${completion}`, 'HANDOVER_NOTIFICATION=not-requested'], next?.join(' ') ?? 'form');
     assert.ok(existsSync(join(f.state, 'watcher.pid')), 'the second link is still open');
     assert.ok(!existsSync(join(f.state, 'opened')));
   }
 });
 
-test('an opened key link, a hand-over, and a password link each refuse a second open', async t => {
-  for (const first of [['--keys', 'MAPS_API_KEY'], [], ['--passwords']]) {
+test('an opened key link, a private form, and a password link each refuse a second open', async t => {
+  for (const first of [['--keys', 'MAPS_API_KEY'], null, ['--passwords']]) {
     const f = fixture(t, { checkout: true });
-    const { port, key } = opened(f, '--local', ...first);
-    if (first[0] === '--keys') assert.equal((await route(port, key, 'keys')).status, 200);
-    for (const next of [['--keys', 'MAPS_API_KEY'], ['--passwords'], []]) {
-      const again = f.run('open', '--local', ...next);
-      assert.equal(again.status, 1, `${first.join(' ') || 'hand-over'} then ${next.join(' ') || 'hand-over'}`);
+    const { port, key } = opened(f, ...(first ?? FORM_ARGS(f)));
+    if (first?.[0] === '--keys') assert.equal((await route(port, key, 'keys')).status, 200);
+    for (const next of [['--keys', 'MAPS_API_KEY'], ['--passwords'], FORM_ARGS(f)]) {
+      const again = f.run('open', ...next);
+      assert.equal(again.status, 1, `${first?.[0] ?? '--form'} then ${next[0]}`);
       assert.match(again.stderr, /already open/);
     }
     assert.ok(await answers(port), 'the first link is untouched');

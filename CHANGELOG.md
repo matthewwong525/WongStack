@@ -3,6 +3,20 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (major) — A private form replaces the live browser link
+
+- **The live browser link is gone.** Your assistant no longer shows you its browser or lets you drive it, and *let me take over* opens nothing. Each kind of step has one simpler route.
+- **A private form for sensitive details.** For card details, a backup code, or another lasting secret a site asks for, your assistant asks if you're ready, then sends a link to a plain form: one box per detail, labelled as on the site. A password manager or your phone can fill it in one tap. Your tap on the button, named as on the site, such as *Pay $45.00*, sends the details to the site and presses the site's own button once. That tap is your yes. Your assistant never sees what you typed, and the form never shows the site.
+- **The form says how it went, and never sends twice.** *Sent* means the site moved on, and the chat carries on by itself. *Not accepted* means the site kept its page, say for a mistyped card: the form clears what it typed, and your assistant tells you what the site said and offers a new form.
+- **Everything else on a form is asked in the chat.** An email, a name, an address, a choice, or agreeing to terms: your assistant asks you, types the answers itself, and shows you a picture of the page. It never ticks *I agree* without your yes.
+- **Sign in with Google or Apple uses a saved login.** Your assistant opens the provider's own sign-in and logs in with the login you saved for it, or sends the password page for it. An emailed sign-in link is handled like a login code.
+- **A step nothing can type ends with you.** For a picture puzzle or a passkey, your assistant stops and gives you the site's link and the steps to do on your own phone.
+- **Every private link goes through Cloudflare.** The password page, the key page, and the new form always open at a Cloudflare address, also when you sit at your assistant's computer; the `--local` option is removed. A link is sent only once it works from outside, so a quick tap no longer lands on a Cloudflare error page.
+
+[When a step needs you](wiki/development/browsing.md#when-a-step-needs-you) lists each route, and [private links](wiki/development/browsing.md#how-private-links-work) covers what the three links share.
+
+**Updating.** Let any private link that is open finish or time out before you update. Two things may need a hand. If a page of your own wiki links the *Hand the browser over* section of the browsing page, point that link at *When a step needs you* (`browsing.md#when-a-step-needs-you`): your wiki check names the page until you do. And the computer your assistant runs on needs Cloudflare's free tunnel tool, the small program that gives a private link its address, before its next password or key page: your assistant asks, then installs it.
+
 ## 33.4.0 — Access lists you can scan, in a frame that stays put
 
 - **People is a table.** One row per person, with the same columns on every row: who, whether they can sign in, their role, and their apps and key levels. You are the first row, marked *Owner*. The page is wider on a computer so the columns fit; on a phone each row stacks into a few short lines.

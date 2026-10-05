@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Private form</title>
+<style>
+  :root { color-scheme: light dark; font-family: system-ui, -apple-system, sans-serif; }
+  body { margin: 0 auto; max-width: 560px; padding: 12px; }
+  h1 { font-size: 1.35rem; margin: 8px 2px 4px; overflow-wrap: anywhere; }
+  .hint, #status { font-size: 0.85rem; opacity: 0.65; margin: 4px 2px; overflow-wrap: anywhere; }
+  #note { font-size: 1rem; }
+  #does { margin-top: 16px; }
+  .row { display: flex; gap: 8px; margin-top: 12px; }
+  .box { flex: 1; min-width: 0; }
+  label { display: block; font-size: 1rem; font-weight: 600; margin: 0 2px 4px; overflow-wrap: anywhere; }
+  input, select { box-sizing: border-box; width: 100%; font-size: 1.1rem; padding: 12px; border: 1px solid #8888; border-radius: 8px; background: none; color: inherit; }
+  input:disabled, select:disabled, button:disabled { opacity: 0.5; }
+  button { font-size: 1.05rem; padding: 12px 16px; border: 1px solid #8888; border-radius: 8px; background: none; color: inherit; }
+  button.main { background: #3478f6; border-color: #3478f6; color: #fff; }
+  button.quiet { border: 0; padding: 12px 2px; font-size: 0.9rem; opacity: 0.75; text-decoration: underline; }
+  .actions { display: grid; grid-template-columns: 1fr; gap: 4px; margin: 12px 0 0; }
+  #time { text-align: center; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<section id="form">
+  <h1>Private form</h1>
+  <p class="hint" id="note" hidden></p>
+  <form id="details">
+    <div id="fields"></div>
+    <p class="hint" id="does"></p>
+    <div class="actions">
+      <button type="submit" class="main" id="send" disabled>Send</button>
+      <button type="button" class="quiet" id="done" disabled>Close without sending</button>
+    </div>
+    <p class="hint" id="time"></p>
+  </form>
+</section>
+
+<section id="ended" hidden>
+  <h1>This link has closed</h1>
+  <p class="hint">Ask your assistant for a new one.</p>
+</section>
+<p id="status" role="status"></p>
+<script type="module" src="page.mjs"></script>
+</body>
+</html>
