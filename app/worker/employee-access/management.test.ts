@@ -69,6 +69,25 @@ it('keeps a failed sign-in step pending for Try again, and the retry finishes it
   expect(await (await run('retry')).json()).toMatchObject({ work: [{ status: 'ready' }], people: [{ settled: true }, { settled: true }] });
 });
 
+it('puts a person saved before the first read on the sign-in list once the read works, without adding them again', async () => {
+  f.sql.close(); f = fixture({ started: false });
+  // The sign-in list cannot be read: the save commits, and nothing is sent to it.
+  cf.extras = [{ id: 'unreviewed', decision: 'allow', include: [] }];
+  expect(await (await run('status', 'GET')).json()).toMatchObject({ started: false, key: 'ready', people: [] });
+  expect(await (await run('people', 'POST', person('bo@example.com', ['orders']))).json()).toMatchObject({ started: false,
+    work: [{ kind: 'policy', status: 'pending' }], people: [{ email: 'bo@example.com', settled: false, apps: ['orders'] }] });
+  expect(cf.writes).toEqual([]);
+  // The read works: permissions start, and Bo's line now offers Try again.
+  cf.extras = [];
+  expect(await (await run('status', 'GET')).json()).toMatchObject({ started: true, key: 'ready', environment: 'live',
+    work: [{ kind: 'policy', status: 'pending' }], people: [{ email: 'bo@example.com', settled: false, apps: ['orders'] }] });
+  expect(cf.writes).toEqual([]);
+  expect(await (await run('retry')).json()).toMatchObject({ work: [{ kind: 'policy', status: 'ready', outcome: 'policy_readback_matches' }],
+    people: [{ email: 'bo@example.com', status: 'active', settled: true, apps: ['orders'] }] });
+  expect(cf.writes).toHaveLength(1);
+  expect(cf.writes[0].include).toEqual(['bo@example.com', site.ownerEmail].sort().map(email => ({ email: { email } })));
+});
+
 it('removal blocks at once and reports the list and session steps separately', async () => {
   cf.failSessions = true;
   const removed = await (await run('people', 'POST', person(employee.id, [], true))).json();
