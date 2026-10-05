@@ -1,12 +1,12 @@
 import { expect, it } from 'vitest'
-import type { Person, Status } from '../../lib/access'
-import { appHolders, differs, each, holders, holdersByLevel, holdersLine, put, subjects } from './subjects'
+import type { Person, SavedKey, Status } from '../../lib/access'
+import { appHolders, differs, each, holders, holdersLine, keyHolders, put, subjects } from './subjects'
 
 const person = (email: string, changes: Partial<Person> = {}): Person => ({ email, status: 'active', settled: true, role: null, manager: false, apps: [], keys: {}, ...changes })
 const sales = { id: 'sales', name: 'Sales', apps: ['hello'], keys: { stripe: 'read' as const } }
 const office = { id: 'office', name: 'Office', apps: [], keys: {} }
 const kim = person('kim@shop.com', { apps: ['hello', 'tips'], keys: { stripe: 'write' } })
-const status: Status = { origin: 'https://business.example.com', ownerEmail: 'owner@example.com', viewer: { email: 'owner@example.com', owner: true }, environment: 'live', key: 'ready', started: true,
+const status: Status = { ownerEmail: 'owner@example.com', viewer: { email: 'owner@example.com', owner: true }, environment: 'live', key: 'ready', started: true,
   imported: 0, keysStarted: true, kept: 0, apps: ['hello', 'tips', 'payroll'], appKeys: { hello: [], tips: [], payroll: [] }, keys: [], roles: [office, sales],
   people: [person('gone@shop.com', { status: 'removed' }), kim, person('lee@shop.com', { role: 'sales', apps: ['hello'], keys: { stripe: 'read' } }),
     person('sam@shop.com', { role: 'sales', apps: ['hello'], keys: { stripe: 'read' } })], work: [] }
@@ -40,14 +40,16 @@ it('shapes one value per role and person as a save names them, and changes one w
   expect(differs(levels, put(put(levels, list[0], 'write'), list[0], null))).toBe(false)
 })
 
-it('groups who holds a key by level, the higher first, and lists who has an app, roles first', () => {
-  expect(holdersByLevel(status, 'stripe')).toEqual([{ level: 'write', names: ['kim@shop.com'] }, { level: 'read', names: ['Sales'] }])
-  // Several holders of one level stay in the order they are listed: roles, then people. A level nobody holds is left out.
+it('names who holds a key at each level and who has an app: the owner first, then roles, then people', () => {
+  const key = (id: string, levels: SavedKey['levels'] = ['read', 'write']): SavedKey => ({ id, title: id, levels, saved: true, setup: false, usedBy: [], alone: false })
+  // The owner holds every key at the most it offers.
+  expect([keyHolders(status, key('stripe'), 'write'), keyHolders(status, key('stripe'), 'read')]).toEqual([['Owner', 'kim@shop.com'], ['Sales']])
+  expect([keyHolders(status, key('cloudflare', ['read']), 'write'), keyHolders(status, key('cloudflare', ['read']), 'read')]).toEqual([[], ['Owner']])
+  // Several holders of one level stay in the order they are listed: roles, then people.
   const more = { ...status, people: [...status.people, person('pat@shop.com', { keys: { stripe: 'read' } })] }
-  expect(holdersByLevel(more, 'stripe')[1]).toEqual({ level: 'read', names: ['Sales', 'pat@shop.com'] })
-  expect(holdersByLevel({ ...status, people: [] }, 'stripe')).toEqual([{ level: 'read', names: ['Sales'] }])
-  expect(holdersByLevel(status, 'bank')).toEqual([])
-  expect(appHolders(status, 'hello')).toEqual(['Sales', 'kim@shop.com'])
-  expect(appHolders(status, 'tips')).toEqual(['kim@shop.com'])
-  expect(appHolders(status, 'payroll')).toEqual([])
+  expect(keyHolders(more, key('stripe'), 'read')).toEqual(['Sales', 'pat@shop.com'])
+  expect([keyHolders(status, key('bank'), 'write'), keyHolders(status, key('bank'), 'read')]).toEqual([['Owner'], []])
+  expect(appHolders(status, 'hello')).toEqual(['Owner', 'Sales', 'kim@shop.com'])
+  expect(appHolders(status, 'tips')).toEqual(['Owner', 'kim@shop.com'])
+  expect(appHolders(status, 'payroll')).toEqual(['Owner'])
 })

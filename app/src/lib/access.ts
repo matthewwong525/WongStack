@@ -29,7 +29,7 @@ const use = z.object({ id: z.string(), need: level })
 // same fact from the key's side, `alone` means it also works with no app, `setup` that setup makes it, and
 // `saved` that the app holds it. No key's value is ever here. `viewer` is who is looking, the owner or a manager;
 // a person's `manager` says the owner lets them manage Access. The server checks both again on every save.
-export const statusSchema = z.object({ origin: z.string(), ownerEmail: z.string(), environment: z.enum(['live', 'practice']),
+export const statusSchema = z.object({ ownerEmail: z.string(), environment: z.enum(['live', 'practice']),
   viewer: z.object({ email: z.string(), owner: z.boolean() }),
   key: z.enum(['ready', 'missing', 'practice']), started: z.boolean(), imported: z.number(),
   keysStarted: z.boolean(), kept: z.number(), apps: z.array(z.string()), appKeys: z.record(z.string(), z.array(use)),

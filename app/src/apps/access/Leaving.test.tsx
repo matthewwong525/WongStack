@@ -8,7 +8,7 @@ import type { Person, SavedKey, Status } from '../../lib/access'
 // Leaving a page with changes not saved asks first. A shop where Hello changes things with Stripe.
 const key = (id: string, title: string, changes: Partial<SavedKey> = {}): SavedKey => ({ id, title, levels: ['read', 'write'], saved: true, setup: false, usedBy: [], alone: false, ...changes })
 const person = (email: string, changes: Partial<Person> = {}): Person => ({ email, status: 'active', settled: true, role: null, manager: false, apps: [], keys: {}, ...changes })
-const status = (): Status => ({ origin: 'https://shop.example.com', ownerEmail: 'owner@shop.com', viewer: { email: 'owner@shop.com', owner: true }, environment: 'live', key: 'ready', started: true, imported: 0,
+const status = (): Status => ({ ownerEmail: 'owner@shop.com', viewer: { email: 'owner@shop.com', owner: true }, environment: 'live', key: 'ready', started: true, imported: 0,
   keysStarted: true, kept: 0, apps: ['hello', 'tips'], appKeys: { hello: [{ id: 'stripe', need: 'write' }], tips: [] },
   keys: [key('stripe', 'Stripe', { usedBy: [{ app: 'hello', need: 'write' }] }), key('bank', 'Bank')],
   roles: [{ id: 'sales', name: 'Sales', apps: ['hello'], keys: { stripe: 'read' } }],
@@ -34,6 +34,8 @@ const where = () => screen.getByTestId('where').textContent
 const click = (name: string) => fireEvent.click(screen.getByRole('button', { name }))
 const posts = () => fetchMock.mock.calls.filter(([, init]) => init?.method === 'POST')
 const question = () => screen.queryByRole('heading', { name: 'Leave without saving?' })
+// One of the four views in the switch, by its title: its count follows.
+const tab = (title: string) => within(screen.getByRole('navigation', { name: 'Access views' })).getByRole('link', { name: new RegExp(`^${title} \\d+$`) })
 const radio = (group: string, name: string) => within(screen.getByRole('group', { name: group })).getByRole('radio', { name }) as HTMLInputElement
 // What the browser is told when the tab closes or reloads: true when it should ask.
 const unloadAsks = () => { const event = new Event('beforeunload', { cancelable: true }); window.dispatchEvent(event); return event.defaultPrevented }
@@ -54,6 +56,19 @@ it('asks before a changed page is left by its back link or Cancel, keeps the cha
   click('Cancel'); expect(question()).toBeTruthy(); click('Leave')
   await screen.findByRole('link', { name: 'Add person' }); expect(where()).toBe('/apps/access/'); expect(posts()).toHaveLength(0)
   expect(unloadAsks()).toBe(false); expect(screen.queryByText('Saved.')).toBeNull()
+})
+it('a tab asks before a changed page is left, goes where it led on leaving, and leaves at once from an untouched page', async () => {
+  open('people/kim@shop.com'); await screen.findByRole('button', { name: 'Save access' })
+  // The four views show on the page, each with its count.
+  expect(within(screen.getByRole('navigation', { name: 'Access views' })).getAllByRole('link').map(link => link.textContent)).toEqual(['People 3', 'Roles 1', 'Apps 2', 'Keys 2'])
+  fireEvent.click(radio('Stripe', 'Read & write')); fireEvent.click(tab('Roles'))
+  expect(question()).toBeTruthy(); expect(where()).toBe('/apps/access/people/kim@shop.com')
+  // Staying keeps the change; leaving goes to the view the tab named, and sends nothing.
+  click('Keep editing'); expect(radio('Stripe', 'Read & write').checked).toBe(true)
+  fireEvent.click(tab('Keys')); expect(question()).toBeTruthy(); click('Leave')
+  await screen.findByRole('table', { name: 'Keys' }); expect(where()).toBe('/apps/access/keys'); expect(posts()).toHaveLength(0)
+  cleanup(); open('people/kim@shop.com'); await screen.findByRole('button', { name: 'Save access' })
+  fireEvent.click(tab('Roles')); await screen.findByRole('table', { name: 'Roles' }); expect(question()).toBeNull(); expect(where()).toBe('/apps/access/roles')
 })
 it('leaves at once from an untouched page, and from one put back the way it was', async () => {
   open('people/kim@shop.com'); await screen.findByRole('button', { name: 'Save access' })
@@ -79,13 +94,13 @@ it('asks on every kind of page: a person, a new person, a role, a new role, an a
   for (const [path, change] of pages) {
     const home = `/apps/access/${path.split('/')[0].replace('people', '')}`
     // Untouched, Cancel leaves at once.
-    open(path); await screen.findByRole('button', { name: /^Save/ }); click('Cancel')
-    await screen.findByRole('navigation', { name: 'Access views' }); expect([path, where(), !!question()]).toEqual([path, home, false]); cleanup()
+    open(path); await screen.findByRole('button', { name: /^Save/ }); expect(screen.getByRole('navigation', { name: 'Access views' })).toBeTruthy(); click('Cancel')
+    await screen.findByRole('table'); expect([path, where(), !!question()]).toEqual([path, home, false]); cleanup()
     // Changed, it asks; staying keeps the page, leaving goes to its list.
     open(path); await screen.findByRole('button', { name: /^Save/ }); change(); click('Cancel')
     expect([path, where(), !!question()]).toEqual([path, `/apps/access/${path}`, true])
     click('Keep editing'); expect(question()).toBeNull(); click('Cancel'); click('Leave')
-    await screen.findByRole('navigation', { name: 'Access views' }); expect([path, where()]).toEqual([path, home]); cleanup()
+    await screen.findByRole('table'); expect([path, where()]).toEqual([path, home]); cleanup()
   }
   expect(posts()).toHaveLength(0)
 })
@@ -101,6 +116,7 @@ it('where the router can hold a move, the browser Back button and any link ask t
   click('Keep editing'); expect(question()).toBeNull(); expect(radio('Stripe', 'Read & write').checked).toBe(true)
   // The page's own links are held the same way, by one question.
   click('Cancel'); expect(screen.getAllByRole('heading', { name: 'Leave without saving?' })).toHaveLength(1); click('Keep editing')
+  fireEvent.click(tab('Roles')); expect(screen.getAllByRole('heading', { name: 'Leave without saving?' })).toHaveLength(1); expect(at()).toBe('/apps/access/people/kim@shop.com'); click('Keep editing')
   fireEvent.click(screen.getByRole('link', { name: 'People' })); expect(question()).toBeTruthy(); expect(at()).toBe('/apps/access/people/kim@shop.com')
   click('Leave'); await screen.findByRole('link', { name: 'Add person' }); expect(at()).toBe('/apps/access/'); expect(posts()).toHaveLength(0)
   // An untouched page is never held.

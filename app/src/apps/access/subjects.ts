@@ -1,4 +1,4 @@
-import type { Level, Status } from '../../lib/access'
+import type { Level, SavedKey, Status } from '../../lib/access'
 import { dots } from './levels'
 
 /** The people who hold a role, by email. A role not saved yet has nobody. */
@@ -25,11 +25,14 @@ export const put = <T>(all: Each<T>, { kind, id }: Subject, value: T): Each<T> =
 /** Whether a page's values have moved from where they started. `put` keeps their order, so the text compares. */
 export const differs = <T>(start: Each<T>, now: Each<T>) => JSON.stringify(start) !== JSON.stringify(now)
 
-/** Who holds a key, grouped by level, the higher level first. A level nobody holds is left out. */
-export const holdersByLevel = (status: Status, key: string) => (['write', 'read'] satisfies Level[])
-  .map(level => ({ level, names: subjects(status).filter(({ set }) => set.keys[key] === level).map(({ name }) => name) }))
-  .filter(({ names }) => names.length)
+/** The owner has every app and holds every key, so a list of who has something names them first. */
+const OWNER = 'Owner'
 
-/** Who has an app: roles first, then people with their own set. */
+/** Who holds a key at one level: the owner first, at the most the key offers, then roles, then people with their own set. */
+export const keyHolders = (status: Status, key: SavedKey, level: Level) => [
+  ...(level === (key.levels.includes('write') ? 'write' : 'read') ? [OWNER] : []),
+  ...subjects(status).filter(({ set }) => set.keys[key.id] === level).map(({ name }) => name)]
+
+/** Who has an app: the owner first, then roles, then people with their own set. */
 export const appHolders = (status: Status, app: string) =>
-  subjects(status).filter(({ set }) => set.apps.includes(app)).map(({ name }) => name)
+  [OWNER, ...subjects(status).filter(({ set }) => set.apps.includes(app)).map(({ name }) => name)]

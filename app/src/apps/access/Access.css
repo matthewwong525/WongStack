@@ -1,36 +1,79 @@
-.access-page { display: grid; gap: 1rem; }
+.access-page { display: grid; gap: 1rem; container-type: inline-size; }
+/* Whoever manages Access gets a page wider than the shared narrow column on a computer, so a table's columns fit. On a phone it is that column. */
+.access-wide { width: min(60rem, 100vw - 2rem); margin-inline: calc((100% - min(60rem, 100vw - 2rem)) / 2); }
 .access-page section, .access-form { min-width: 0; }
 .access-view, .access-form, .access-fields { display: grid; gap: 1rem; }
-.access-view > a, .access-form > a { justify-self: start; }
-.access-view > p, .access-fields > p { margin-block: 0; }
+/* A page's fields keep the narrow column's measure inside the wider page. */
+.access-form { max-width: 32rem; }
+.access-view > p, .access-fields > p, .access-crumb { margin-block: 0; }
 .access-fields, .access-levels { min-width: 0; margin: 0; padding: 0; border: 0; }
 .access-fields > label { display: grid; gap: .5rem; }
 .access-fields > label > * { width: 100%; box-sizing: border-box; }
+/* The heading, and beside it the dropdown for connecting an assistant: closed it is one line, open it takes the row below. */
+.access-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .6rem 1rem; }
+.access-top h1, .access-row-head h2, .access-row-head p { margin-block: 0; }
+.access-connect { min-width: 0; }
+.access-connect[open] { flex-basis: 100%; }
+.access-connect > summary { width: fit-content; }
+.access-connect > summary, .access-menu > summary { padding: .5rem .75rem; border: 1px solid var(--border); border-radius: .5rem; background: var(--surface); cursor: pointer; }
+/* The dropdown's own line already names the box inside it. */
+.access-connect .assistant-setup { margin-block: .6rem 0; }
+.access-connect .assistant-setup h2 { display: none; }
 .access-notice { background: var(--surface); }
 .access-notice p { margin-block: 0 .6rem; }
+.access-notice > button { margin-inline-start: .6rem; }
 .access-choice { display: flex; align-items: center; gap: .6rem; font-weight: 600; }
 .access-choice input, .access-level-options input { width: auto; }
 .access-actions, .access-views, .access-level-options, .access-row-head { display: flex; flex-wrap: wrap; gap: .6rem; }
-.access-people { list-style: none; margin: 0; padding: 0; display: grid; gap: 1rem; }
-.access-people > li, .access-removal, .access-notice { padding: 1rem; border: 1px solid var(--border); border-radius: .6rem; overflow-wrap: anywhere; }
-/* One row of a list, and the box of what you can use: the name, then each line of labels, then the buttons. */
-.access-people > li, .access-own { display: grid; gap: .5rem; }
-.access-people > li p, .access-own p, .access-own h2 { margin-block: 0; }
-.access-people > li > .access-button { justify-self: start; }
-/* A step to finish inside a key's own box needs no second box. */
-.access-people .access-notice { padding: 0; border: 0; background: none; }
-.access-row-head { justify-content: space-between; align-items: baseline; }
+.access-removal, .access-notice { padding: 1rem; border: 1px solid var(--border); border-radius: .6rem; overflow-wrap: anywhere; }
+/* The box of what you can use: its heading, then each line of labels. */
+.access-own, .access-lines { display: grid; gap: .5rem; }
+.access-own p, .access-own h2, .access-lines p { margin-block: 0; }
+/* A view's title on the left, its add spot on the right. */
+.access-row-head { justify-content: space-between; align-items: center; }
 .access-views a, .access-button { display: inline-block; padding: .5rem .75rem; border: 1px solid transparent; border-radius: .5rem; text-decoration: none; }
 /* The current view is boxed, bold and underlined: never marked by colour alone. */
 .access-views a[aria-current="page"] { border-color: var(--border); font-weight: 700; text-decoration: underline; }
+.access-count { color: var(--muted-text); font-weight: 400; }
 .access-button { border-color: var(--border); background: var(--surface); color: var(--text); }
 .access-primary { background: var(--accent); color: var(--accent-text); }
 .access-muted { margin-block: 0; color: var(--muted-text); }
+/* A list is a real table: every row has the same columns, a line divides the rows and no box goes round one. No column has a fixed width. */
+.access-table { width: 100%; border-collapse: collapse; }
+.access-table th, .access-table td { padding: .7rem .6rem; text-align: start; vertical-align: top; overflow-wrap: anywhere; }
+.access-table th { color: var(--muted-text); font-size: .9rem; font-weight: 600; }
+.access-table tbody tr { border-block-start: 1px solid var(--border); }
+/* A row that opens a page says so under the pointer, and when the keyboard is inside it. */
+.access-opens { cursor: pointer; }
+.access-opens:hover, .access-opens:focus-within { background: var(--surface); }
+/* A step to finish inside a key's own row needs no box. */
+.access-table .access-notice { padding: 0; border: 0; background: none; }
+/* Read by a screen reader, not shown: the name of the menu column, and the header row once rows stack. */
+.access-hidden { position: absolute; width: .1rem; height: .1rem; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+/* The role dropdown, and the word that marks a manager beside it. */
+.access-role { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .6rem; }
+/* A row's menu: the three dots, and what they hold in a small box under them. */
+.access-menu { position: relative; width: fit-content; }
+.access-menu > summary { list-style: none; font-weight: 700; }
+.access-menu > summary::-webkit-details-marker { display: none; }
+.access-menu-items { position: absolute; inset-inline-end: 0; z-index: 1; display: grid; gap: .4rem; min-width: max-content; margin-block-start: .3rem; padding: .5rem; border: 1px solid var(--border); border-radius: .6rem; background: var(--canvas); }
+.access-menu-items > * { text-align: start; }
+/* On a narrow screen each row stacks into short lines: the name with its menu beside it, then a line per cell. Nothing scrolls sideways.
+   The header row stays for a screen reader, and a cell whose words don't say what it is shows its column's name first. */
+@container (max-width: 44rem) {
+  .access-table, .access-table tbody, .access-table td { display: block; }
+  .access-table thead { position: absolute; width: .1rem; height: .1rem; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .access-table tbody tr { display: grid; grid-template-columns: 1fr auto; gap: .3rem .6rem; padding-block: .8rem; }
+  .access-table td { grid-column: 1 / -1; padding: 0; }
+  .access-table td:first-child { grid-column: 1; font-weight: 600; }
+  .access-table td.access-row-actions { grid-column: 2; grid-row: 1; }
+  .access-table td[data-label]::before { content: attr(data-label) ": "; color: var(--muted-text); }
+}
 /* Labels: a heading, then one small box per app, key level or holder. The words say the level; the row wraps. */
 .access-label-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: .4rem .6rem; }
 .access-labels { display: flex; flex-wrap: wrap; gap: .4rem; min-width: 0; margin: 0; padding: 0; list-style: none; }
 .access-labels li { padding: .1rem .55rem; border: 1px solid var(--border); border-radius: 1rem; background: var(--surface); font-size: .9rem; overflow-wrap: anywhere; }
-.access-notice .access-labels li { background: var(--canvas); }
+.access-notice .access-labels li, .access-opens:hover .access-labels li, .access-opens:focus-within .access-labels li { background: var(--canvas); }
 /* A gap is marked by a "!" in the text, bold words and a bar: never by colour alone. */
 .access-gaps { display: grid; gap: .3rem; margin: 0; padding: 0; list-style: none; }
 .access-gaps li { padding-inline-start: .6rem; border-inline-start: .2rem solid var(--accent); font-weight: 600; overflow-wrap: anywhere; }

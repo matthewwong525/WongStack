@@ -49,10 +49,10 @@ Once permissions are on, permission data that can not be read denies business wo
 
 ## Add, change and remove people
 
-*Add person* saves the email and the ticked apps, then adds the email to the sign-in list in the same request. One line per person says whether they can sign in.
+*Add person* saves the email and the ticked apps, then adds the email to the sign-in list in the same request. Each person's row says whether they can sign in. Send them the website's address yourself.
 
 - **A new person starts with no apps**, or with [a role](#roles). A newly built app shows up unticked for everyone but the owner; nobody edits a second list of apps. A tick for an app that is no longer built is ignored.
-- **A failed sign-in step stays pending.** The app choices are saved; *Try again* finishes the step. After a Cloudflare call that timed out, the step waits about three minutes before it is called done, because the lost call could still land.
+- **A failed sign-in step stays pending.** The app choices are saved; *Try again*, in [the row's menu](#a-rows-menu), finishes the step. After a Cloudflare call that timed out, the step waits about three minutes before it is called done, because the lost call could still land.
 - **Removing a person blocks them at once.** Taking them off the sign-in list also ends every open session of the app, so everyone who remains signs in again. This can't be undone.
 
 ## Key levels
@@ -101,14 +101,31 @@ A manager is a person the owner lets manage Access. The owner ticks *Can manage 
 
 ## Four views
 
-The owner's Access has four views, each with its own address, so Back and reload keep your place. A [manager](#managers) has the same four.
+The owner's Access has four views, each with its own address, so Back and reload keep your place. A [manager](#managers) has the same four. Each is a table with the same columns on every row.
 
-- **People** opens first: each person's sign-in status beside their name, then their role or *Own set*, and a label per app and per key level. A manager's line adds *Manager*, and the owner is named in one line. A manager sees no *Remove* on a manager's row.
-- **Roles** lists each role with the same labels, and who holds it.
+- **People** opens first: who, whether they can sign in, their role, and a label per app and per key level. The owner is the first row, with nothing to change. Your own row is marked *You*, and a manager's adds *Manager*.
+- **Roles** lists each role's apps, key levels and holders.
 - **Apps** lists each app, the keys it uses and who has it. An app's page ticks roles and people and sets the levels of that app's keys beside each tick.
-- **Keys** lists every key the app holds, whether it is saved, what uses it and who has it, a line per level. A key's page sets every level for that key. A key's value is never shown. A key shows here once it is [in the registry](api-keys.md#a-saved-key-shows-in-access).
+- **Keys** lists every key the app holds, whether it is saved, what uses it and who has it, a column per level. A key's page sets every level for that key. A key's value is never shown. A key shows here once it is [in the registry](api-keys.md#a-saved-key-shows-in-access).
 
-A level set in any view is the same level in the others. Every list opens a page with *Edit*. A manager sees their own apps and levels as labels, then a line naming the owner, then the views. Everyone else sees their own apps and levels as labels above their setup box.
+A level set in any view is the same level in the others. A list of who has something names the owner first. Someone who manages nothing sees only their own apps and levels.
+
+### One frame on every screen
+
+The four views, each with a count, top every Access screen, an opened page included. Under them is the one spot for notices: *Saved*, the practice list, a step left.
+
+- **A view has its title on the left and its add button on the right.** The assistant makes apps and keys, so that spot says how one is added.
+- **A row opens its page** on a click that is not on a control. A key not saved yet opens nothing: its row says the next step.
+- **The page is wider on a computer.** On a phone each row stacks into short lines.
+- **Connect your assistant is a dropdown beside the heading**, with [Home's prompt](employee-project.md). It starts open for someone who manages nothing.
+
+### Change a role in the row
+
+A person's role is a dropdown in their row. A pick saves at once and governs their next request. The notice offers *Undo*, which puts back their old role, or their own set with the same apps and levels. Their page sets apps and levels, and changes nothing until *Save access*.
+
+### A row's menu
+
+A person's row ends with `⋯`: *Open*, *Remove*, *Try again* while a sign-in step is unfinished, or *Add back* for a removed person. The owner's row has none, and a manager's has no *Remove* for a manager.
 
 ### A label says the level in words
 
@@ -124,7 +141,7 @@ A person's page starts with their role; with their own set, and on a role's page
 
 ### A save says how it went, and leaving asks first
 
-After a save the list opens with a box on top: *Saved*, or that the save did not finish, so check the list before trying again. Leaving a page with changes not saved asks *Leave without saving?*, from its back link, *Cancel*, another link, the browser's Back button, a reload or a closed tab. Staying keeps the changes; a page put back the way it was leaves at once.
+After a save the list opens with a box in [the notice spot](#one-frame-on-every-screen): *Saved*, or that the save did not finish, so check the list before trying again. Leaving a page with changes not saved asks *Leave without saving?*, from *Cancel*, another view, any link, the browser's Back button, a reload or a closed tab. Staying keeps the changes; a page put back the way it was leaves at once.
 
 ## What a person's apps govern
 
@@ -142,7 +159,7 @@ On staging and its previews, the verification service token counts as the owner:
 
 - **Only where `WONG_ENVIRONMENT` is `staging`.** That name is committed in `app/wrangler.jsonc`, never something a request sets. On the live app, and on a local run, the same token is refused: it keeps every app and manages nobody.
 - **Nothing real is in reach.** A preview holds no sign-in-list key, makes no Cloudflare call, and its people are made up.
-- **The checker no longer sees the view of someone who is not the owner** on a preview, a manager's included; code tests cover those views.
+- **The checker no longer sees the view of someone who is not the owner** on a preview, a manager's included; code tests cover those views, and a waiting sign-in.
 
 ## What Access leaves alone
 

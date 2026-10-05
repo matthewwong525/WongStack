@@ -9,7 +9,7 @@ import type { Person, SavedKey, Status } from '../../lib/access'
 const key = (id: string, title: string, changes: Partial<SavedKey> = {}): SavedKey => ({ id, title, levels: ['read', 'write'], saved: true, setup: false, usedBy: [], alone: false, ...changes })
 const person = (email: string, changes: Partial<Person> = {}): Person => ({ email, status: 'active', settled: true, role: null, manager: false, apps: [], keys: {}, ...changes })
 const sales = () => ({ apps: ['hello', 'tips'], keys: { stripe: 'read' as const } })
-const status = (): Status => ({ origin: 'https://shop.example.com', ownerEmail: 'owner@shop.com', viewer: { email: 'owner@shop.com', owner: true }, environment: 'live', key: 'ready', started: true, imported: 0,
+const status = (): Status => ({ ownerEmail: 'owner@shop.com', viewer: { email: 'owner@shop.com', owner: true }, environment: 'live', key: 'ready', started: true, imported: 0,
   keysStarted: true, kept: 0, apps: ['hello', 'payroll', 'tips'],
   appKeys: { hello: [{ id: 'stripe', need: 'write' }], payroll: [{ id: 'bank', need: 'write' }], tips: [] },
   keys: [key('stripe', 'Stripe', { usedBy: [{ app: 'hello', need: 'write' }] }), key('bank', 'Bank', { usedBy: [{ app: 'payroll', need: 'write' }] }),
@@ -40,8 +40,9 @@ const click = (name: string) => fireEvent.click(screen.getByRole('button', { nam
 const posts = (path: string) => fetchMock.mock.calls.filter(([url, init]) => url.endsWith(path) && init?.method === 'POST')
 const sent = (path: string) => posts(path).map(([, init]) => JSON.parse(init.body))
 const checked = (inputs: HTMLElement[]) => inputs.filter(input => (input as HTMLInputElement).checked).map(input => input.parentElement!.textContent)
-// One person's box in the list with its labels, one app's tick with what sits under it, and one key's level choice by the name in its legend.
-const row = async (email: string) => within((await screen.findByText(email)).closest('li')!)
+// One person's row in the list with its labels and the role picked in it, one app's tick with what sits under it, and one key's level choice by the name in its legend.
+const row = async (email: string) => within((await screen.findByText(email)).closest('tr')!)
+const picked = (email: string) => (screen.getByRole('combobox', { name: `Role for ${email}` }) as HTMLSelectElement).selectedOptions[0].textContent
 const labels = (box: { queryAllByRole: (role: string) => HTMLElement[] }) => box.queryAllByRole('listitem').map(item => item.textContent)
 const app = (name: string) => within(screen.getByRole('checkbox', { name }).closest('div')!)
 const ticks = () => checked(screen.getAllByRole('checkbox'))
@@ -63,18 +64,18 @@ const raise = 'Hello also changes things. Pick Read & write to let it.'
 
 it('shows each person with their role, labels and gap, and a role on their page as labels with one link to it and no ticks', async () => {
   open(); const lee = await row('lee@shop.com')
-  expect(lee.getByText('Sales')).toBeTruthy(); expect(lee.getByText('Can sign in').parentElement!.textContent).toBe('lee@shop.comCan sign in')
+  expect(picked('lee@shop.com')).toBe('Sales'); expect(lee.getByText('Can sign in')).toBeTruthy()
   expect(labels(lee)).toEqual(['Hello', 'Tip calculator', 'Stripe Read', gap])
   // Each kind of label is its own named list, and the gap is marked by a "!" in the text.
   expect(lee.getAllByRole('list').map(list => list.getAttribute('aria-label'))).toEqual(['Apps', 'Keys', "Can't do yet"])
   const kim = await row('kim@shop.com')
-  expect(kim.getByText('Own set')).toBeTruthy(); expect(labels(kim)).toEqual(['Hello', 'Stripe Read', 'Cloudflare Read', gap])
-  // A level that covers what the app does leaves no gap line; a removed person shows their status alone.
+  expect(picked('kim@shop.com')).toBe('Own set'); expect(labels(kim)).toEqual(['Hello', 'Stripe Read', 'Cloudflare Read', gap])
+  // A removed person keeps the row's parts, with no role to pick and no labels.
   const gone = await row('gone@shop.com')
-  expect(gone.getByText('Removed')).toBeTruthy(); expect(labels(gone)).toEqual([]); expect(gone.queryByText('Own set')).toBeNull()
-  fireEvent.click(lee.getByRole('link', { name: 'Edit' }))
+  expect(gone.getByText('Removed')).toBeTruthy(); expect(labels(gone)).toEqual([]); expect(gone.queryByRole('combobox')).toBeNull(); expect(gone.getByText('No role')).toBeTruthy()
+  fireEvent.click(lee.getByRole('link', { name: 'lee@shop.com' }))
   await screen.findByRole('heading', { name: 'lee@shop.com · Can sign in' }); expect(where()).toBe('/apps/access/people/lee@shop.com')
-  expect(screen.getByRole('link', { name: 'People' }).getAttribute('href')).toBe('/apps/access/'); expect(screen.queryByRole('navigation')).toBeNull()
+  expect(screen.getByRole('link', { name: 'People' }).getAttribute('href')).toBe('/apps/access/'); expect(screen.getByRole('navigation', { name: 'Access views' })).toBeTruthy()
   expect(role().value).toBe('sales'); expect(screen.queryByLabelText('Email')).toBeNull()
   expect(screen.getByText('From the Sales role:')).toBeTruthy()
   expect(labels(screen)).toEqual(['Hello', 'Tip calculator', 'Stripe Read', gap])
@@ -86,7 +87,7 @@ it('shows each person with their role, labels and gap, and a role on their page 
   click('Save access'); await screen.findByText('Saved.')
   expect(sent('people')).toEqual([{ email: 'lee@shop.com', removed: false, role: 'office' }]); expect(where()).toBe('/apps/access/')
   // The role's own page is one link from the person.
-  fireEvent.click((await row('sam@shop.com')).getByRole('link', { name: 'Edit' }))
+  fireEvent.click((await row('sam@shop.com')).getByRole('link', { name: 'sam@shop.com' }))
   fireEvent.click(await screen.findByRole('link', { name: 'Edit the Sales role' }))
   expect((await screen.findByLabelText('Name') as HTMLInputElement).value).toBe('Sales'); expect(where()).toBe('/apps/access/roles/sales')
 })
@@ -198,7 +199,7 @@ it('adds a person with a role in one save, from the keyboard, with every control
 })
 it('holds every control while a save is on its way, and Cancel goes back without saving', async () => {
   open('people/kim@shop.com'); await screen.findByRole('button', { name: 'Save access' })
-  click('Cancel'); fireEvent.click((await row('kim@shop.com')).getByRole('link', { name: 'Edit' })); expect(posts('people')).toHaveLength(0)
+  click('Cancel'); fireEvent.click((await row('kim@shop.com')).getByRole('link', { name: 'kim@shop.com' })); expect(posts('people')).toHaveLength(0)
   const save = await screen.findByRole('button', { name: 'Save access' })
   let finish: (reply: Response) => void = () => {}
   fetchMock.mockImplementationOnce(() => new Promise<Response>(resolve => { finish = resolve }))
@@ -225,7 +226,7 @@ it('the owner picks a manager with one tick in the last group, full trust said r
   roster.people[1].manager = true
   click('Save access'); await screen.findByText('Saved.')
   expect(sent('people')).toEqual([{ email: 'kim@shop.com', removed: false, role: null, apps: ['hello'], keys: { stripe: 'read', bank: null, cloudflare: 'read' }, manager: true }])
-  expect((await row('kim@shop.com')).getByText('Own set · Manager')).toBeTruthy()
+  expect((await row('kim@shop.com')).getByText('Manager')).toBeTruthy(); expect(picked('kim@shop.com')).toBe('Own set')
   // It works the same for a person with a role, and for a new person; unticking sends the switch off.
   roster.people[2].manager = true
   cleanup(); open('people/lee@shop.com'); await screen.findByRole('heading', { name: 'lee@shop.com · Can sign in' })
@@ -246,7 +247,7 @@ it('a tick left as it was is no change: leaving asks nothing, and the save names
   expect(screen.getByRole('heading', { name: 'Leave without saving?' })).toBeTruthy(); click('Keep editing')
   fireEvent.click(managing()); click('Cancel')
   expect(screen.queryByRole('heading', { name: 'Leave without saving?' })).toBeNull()
-  fireEvent.click((await row('kim@shop.com')).getByRole('link', { name: 'Edit' })); expect(posts('people')).toHaveLength(0)
+  fireEvent.click((await row('kim@shop.com')).getByRole('link', { name: 'kim@shop.com' })); expect(posts('people')).toHaveLength(0)
   // Another change saves without the switch: left out, Kim keeps it.
   await screen.findByRole('button', { name: 'Save access' }); tick('payroll')
   click('Save access'); await screen.findByText('Saved.')

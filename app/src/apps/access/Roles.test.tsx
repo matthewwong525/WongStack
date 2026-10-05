@@ -9,7 +9,7 @@ import type { Person, SavedKey, Status } from '../../lib/access'
 const key = (id: string, title: string, changes: Partial<SavedKey> = {}): SavedKey => ({ id, title, levels: ['read', 'write'], saved: true, setup: false, usedBy: [], alone: false, ...changes })
 const person = (email: string, changes: Partial<Person> = {}): Person => ({ email, status: 'active', settled: true, role: null, manager: false, apps: [], keys: {}, ...changes })
 const sales = () => ({ apps: ['hello', 'tips'], keys: { stripe: 'read' as const } })
-const status = (): Status => ({ origin: 'https://shop.example.com', ownerEmail: 'owner@shop.com', viewer: { email: 'owner@shop.com', owner: true }, environment: 'live', key: 'ready', started: true, imported: 0,
+const status = (): Status => ({ ownerEmail: 'owner@shop.com', viewer: { email: 'owner@shop.com', owner: true }, environment: 'live', key: 'ready', started: true, imported: 0,
   keysStarted: true, kept: 0, apps: ['hello', 'payroll', 'tips'],
   appKeys: { hello: [{ id: 'stripe', need: 'write' }], payroll: [{ id: 'bank', need: 'write' }], tips: [] },
   keys: [key('stripe', 'Stripe', { usedBy: [{ app: 'hello', need: 'write' }] }), key('bank', 'Bank', { usedBy: [{ app: 'payroll', need: 'write' }] }),
@@ -42,8 +42,8 @@ const posts = (path: string) => fetchMock.mock.calls.filter(([url, init]) => url
 const sent = (path: string) => posts(path).map(([, init]) => JSON.parse(init.body))
 const reads = (path: string) => fetchMock.mock.calls.filter(([url, init]) => url.endsWith(path) && init?.method !== 'POST')
 const checked = (inputs: HTMLElement[]) => inputs.filter(input => (input as HTMLInputElement).checked).map(input => input.parentElement!.textContent)
-// One role's box in the list, one app's tick with the lines under it, and one key's level choice by the name in its legend.
-const row = async (name: string) => within((await screen.findByText(name)).closest('li')!)
+// One role's row in the list, one app's tick with the lines under it, and one key's level choice by the name in its legend.
+const row = async (name: string) => within((await screen.findByText(name)).closest('tr')!)
 const app = (name: string) => within(screen.getByRole('checkbox', { name }).closest('div')!)
 const ticks = () => checked(screen.getAllByRole('checkbox'))
 const level = (name: string) => within(screen.getByRole('group', { name }))
@@ -60,22 +60,26 @@ it('says what a role is for when there are none yet, with one way to add the fir
   expect(add.getAttribute('href')).toBe('/apps/access/roles/new')
   const purpose = screen.getByText('A role saves a set of apps and key levels to give to several people.')
   expect(screen.getByText('No roles yet.').compareDocumentPosition(purpose) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-  expect(purpose.compareDocumentPosition(add) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-  expect(screen.queryByRole('listitem')).toBeNull()
+  // The add button sits beside the title, above both lines, and no empty table is drawn.
+  expect(add.compareDocumentPosition(screen.getByText('No roles yet.')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  expect(add.closest('div')!.querySelector('h2')!.textContent).toBe('Roles'); expect(screen.queryByRole('table')).toBeNull()
 })
 it('lists each role with its apps, its levels and who holds it as labels, and changes one on its own page', async () => {
-  open(); fireEvent.click(await screen.findByRole('link', { name: 'Roles' })); await screen.findByRole('region', { name: 'Roles' })
+  open(); fireEvent.click(await screen.findByRole('link', { name: /^Roles/ }))
+  expect(within(await screen.findByRole('table', { name: 'Roles' })).getAllByRole('columnheader').map(cell => cell.textContent)).toEqual(['Role', 'Apps', 'Keys', 'People'])
   const office = await row('Office')
-  expect(office.getByText('No apps')).toBeTruthy(); expect(office.getByText('Nobody yet')).toBeTruthy()
+  expect(office.getByText('No apps')).toBeTruthy(); expect(office.getByText('No keys')).toBeTruthy(); expect(office.getByText('Nobody yet')).toBeTruthy()
   expect(office.queryByRole('listitem')).toBeNull()
   // Apps, key levels and holders are labels; the line marked "!" says where an app can't do its job yet.
   const sales = await row('Sales')
   expect([labels('Apps', sales), labels('Keys', sales), labels('People', sales)]).toEqual([['Hello', 'Tip calculator'], ['Stripe Read'], ['lee@shop.com', 'sam@shop.com']])
   expect(labels("Can't do yet", sales)).toEqual(['! Hello can look up, not change'])
-  expect(screen.queryByText('No roles yet.')).toBeNull(); expect(screen.queryByRole('link', { name: 'Change' })).toBeNull()
-  fireEvent.click(sales.getByRole('link', { name: 'Edit' }))
+  expect(screen.queryByText('No roles yet.')).toBeNull(); expect(screen.queryByRole('link', { name: 'Edit' })).toBeNull()
+  expect(sales.getByRole('link', { name: 'Sales' }).getAttribute('href')).toBe('/apps/access/roles/sales')
+  // A click anywhere on the row opens the role.
+  fireEvent.click(sales.getByText('Stripe Read'))
   await screen.findByRole('heading', { name: 'Change role' }); expect(where()).toBe('/apps/access/roles/sales')
-  expect(screen.getByRole('link', { name: 'Roles' }).getAttribute('href')).toBe('/apps/access/roles'); expect(screen.queryByRole('navigation')).toBeNull()
+  expect(screen.getByRole('link', { name: 'Roles' }).getAttribute('href')).toBe('/apps/access/roles'); expect(screen.getByRole('navigation', { name: 'Access views' })).toBeTruthy()
   expect(named().value).toBe('Sales'); expect(screen.queryByLabelText('Start from a person')).toBeNull()
   // The same ticks and levels as on a person's page, and who a save will reach.
   expect(ticks()).toEqual(['Hello', 'Tip calculator']); expect([held('Hello', 'Stripe'), chosen('Bank'), chosen('Cloudflare')]).toEqual([['Read'], ['None'], ['None']])
@@ -132,6 +136,8 @@ it('asks before removing a role, says its people keep their access, and keeps th
   expect(screen.getByRole('heading', { name: 'Remove Sales?' })).toBeTruthy()
   expect(screen.getByText('Its people keep the access they have now, as their own set.')).toBeTruthy()
   expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Remove role' })); expect(screen.queryByRole('button', { name: 'Save role' })).toBeNull()
+  // The four views stay while it asks.
+  expect(screen.getByRole('navigation', { name: 'Access views' })).toBeTruthy()
   click('Cancel'); expect(named().value).toBe('Field sales'); expect(posts('roles')).toHaveLength(0)
   click('Remove role'); click('Remove role'); await screen.findByText('Saved.')
   expect(sent('roles')).toEqual([{ id: 'sales', removed: true }]); expect(where()).toBe('/apps/access/roles')
