@@ -35,6 +35,13 @@
     "accessKey": {
       "status": "ready",
       "id": "de334e5543f81c42af89d4b72d0eb776"
+    },
+    "cloudflareReadKey": {
+      "waiting": [
+        "wongstack-staging"
+      ],
+      "status": "ready",
+      "id": "2e3c14775c1db895623bdc94dadae432"
     }
   }
 }
