@@ -53,9 +53,30 @@ When a step needs something only you can give, the agent gets it without showing
 - **A sensitive detail** goes through [the private form](#the-private-form): card details, a backup or recovery code, or another lasting secret the page asks for. Never the chat: these don't expire, so they must not sit in the stored chat.
 - **An API key or token page** is yours, in your own browser: [the own-browser procedure](secrets.md#api-token-website-steps).
 - **A bot check that stops the agent's browser**, such as Cloudflare's *Verify you are human*, moves the site to [Cloudflare's browser](blocked-sites.md): the site judges the browser, not your tap.
-- **A step only you can do on the page** ends with you: a picture puzzle, a passkey, or a device check. The agent stops that step and gives you the site's link and the steps to do on your own phone or computer. No form helps: nothing typed can pass them.
+- **A step only you can do on the page** ends with you: a picture puzzle, a passkey, or a device check. The agent stops that step and gives you [steps to finish it yourself](#steps-for-you-to-finish). No form helps: nothing typed can pass them.
 
 *Let me take over* opens nothing. The agent has no live view of its browser to offer, so it names the route above that fits. It never tries to get past a login or check itself, and [nothing is disguised](blocked-sites.md#nothing-is-disguised).
+
+## Steps for you to finish
+
+When the agent can't get past a login or a check, it hands the rest to you in the chat as steps you can follow without asking anything back. A login on your own phone doesn't log the agent's browser in, so the steps cover the rest of the job, not only the login.
+
+- **One line on what stopped it.** *The shop wants a passkey, which only your phone can give.*
+- **Numbered steps, one action each**, in the order you'll do them on your own phone or computer.
+- **A link on every step that has a page**: the exact page, not the home page. The agent uses the address it was on, or one the site publishes. It never invents one: when unsure, it links the nearest page and makes the rest a step.
+- **The site's own words.** Each button and box is named as the site labels it.
+- **What it already knows, filled in**: the item, the date, the amount, the address, so you copy and don't look up. Never a password, a card, or a code.
+- **What comes back.** The last step says what to tell the agent, and what it does next.
+
+```text
+The shop wants a passkey, which only your phone can give. To finish the order:
+
+1. Open the trail mix: https://shop.example.com/p/trail-mix-1kg
+2. Set the quantity to 2 and tap Add to cart, then Checkout.
+3. Sign in with your passkey.
+4. Pick Pickup at Markham, Saturday 10 to 11am.
+5. Tap Place order, and tell me the order number. I'll put the pickup in your calendar.
+```
 
 ## How private links work
 
@@ -103,7 +124,7 @@ The private form takes a sensitive detail from you to a website without the agen
    - `not-accepted`: the site kept its page within 60 seconds, or a box could not be filled. The form has emptied the boxes it typed into and put each dropdown back, so the agent may look. It reads the site's message, tells you what it said, and offers a new form. It never says a payment failed before reading the page: a slow site may still have taken it. It never sends a new form unasked.
    - `timeout` or `closed`: the agent says so and offers a new form.
 
-A site whose fields take no typing from the form ends as `not-accepted` with nothing sent. The step is then yours, with the site's link and the steps for your own device.
+A site whose fields take no typing from the form ends as `not-accepted` with nothing sent. The step is then yours, with [steps to finish it yourself](#steps-for-you-to-finish).
 
 ## When a site blocks the agent's browser
 

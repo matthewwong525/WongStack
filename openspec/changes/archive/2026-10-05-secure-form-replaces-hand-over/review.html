@@ -9,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · secure-form-replaces-hand-over</title>
+<title>Review · 2026-10-05-secure-form-replaces-hand-over</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -93,11 +93,11 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="secure-form-replaces-hand-over">
+<body data-change="2026-10-05-secure-form-replaces-hand-over">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>secure-form-replaces-hand-over</h1>
+  <h1>2026-10-05-secure-form-replaces-hand-over</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. Saving a note copies all your notes. Open a drawing and tap it to see it full screen.</p>
@@ -155,7 +155,7 @@
 <span class="ln" data-note="item-4-line-8" tabindex="0"> │── card, tap Pay ────────▶│ site charges</span>
 <span class="ln" data-note="item-4-line-9" tabindex="0"> │◀─ picture of the receipt │</span></pre></div></details></li>
 <li class="item card" id="item-5"><span class="num">5</span><div class="body"><div class="text" data-note="item-5" tabindex="0"><b>Sign in with Google or Apple uses a saved login.</b> The assistant opens the provider's own sign-in and logs in with the login you saved for it, or sends the password page for it. A code the provider sends comes through the chat, as today.</div></div></li>
-<li class="item card" id="item-6"><span class="num">6</span><div class="body"><div class="text" data-note="item-6" tabindex="0"><b>A step nothing can type ends with you.</b> For a picture puzzle or a passkey, the assistant first tries Cloudflare's browser where the site is only checking the browser. Otherwise it stops and gives you the site's link and the steps to do on your own phone. <i>Let me take over</i> no longer opens anything.</div></div></li>
+<li class="item card" id="item-6"><span class="num">6</span><div class="body"><div class="text" data-note="item-6" tabindex="0"><b>A step nothing can type ends with you.</b> For a picture puzzle or a passkey, the assistant first tries Cloudflare's browser where the site is only checking the browser. Otherwise it stops and gives you clear numbered steps, each with a direct link, to finish on your own phone. <i>Let me take over</i> no longer opens anything.</div></div></li>
 <li class="item card" id="item-7"><span class="num">7</span><div class="body"><div class="text" data-note="item-7" tabindex="0"><b>Every private link goes through Cloudflare.</b> The password page, the key page, and the new form always open at a Cloudflare address, with no separate link for when you sit at the assistant's computer. A computer needs Cloudflare's free tunnel tool before its first link; the assistant asks, then installs it. The link is also sent only once it works from outside, so a quick tap no longer lands on a Cloudflare error page.</div></div></li>
 <li class="item card" id="item-8"><span class="num">8</span><div class="body"><div class="text" data-note="item-8" tabindex="0"><b>What stays the same.</b> The password page and the key page look and work as today. A link still gets a new secret address each time and closes itself. The assistant still asks before it publishes, sends, books, pays, or deletes.</div></div></li>
 </ol>
@@ -195,6 +195,9 @@
 <li class="decision card" id="decision-29" data-note="decision-29" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-05</p>Checked (task 6.3): a real password link and a real key link, each through Cloudflare from this computer, opened on the first try at phone width and saved a made-up login and a made-up key, into a throwaway login store and a throwaway project; each woke this chat. Neither value was in any file the link wrote. Not checked: Google sign-in in the assistant's browser, and the cloud browser's input feed; both need a real account or a cloud session.</li>
 <li class="decision card" id="decision-30" data-note="decision-30" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-05</p>Assumed: the wake-up notice cuts off a command the same chat is still running when a link finishes, because three test commands stopped at the moment their link completed and none stopped when a link ended without a wake-up. In real use the chat is only waiting, so nothing is lost; it mattered here only because the assistant played the person too.</li>
 <li class="decision card" id="decision-31" data-note="decision-31" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-05</p>Saved for the automatic checks with every task built and the six main specs brought in line with this change. The checks on this computer pass, the removed-names check included. Session facts are queued for the memory store, which did not answer.</li>
+<li class="decision card" id="decision-32" data-note="decision-32" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-05</p>Asked whether to publish → answered: <i>if it can't log in, we should give them clear step-by-step instructions with links to make it easy for the user to do it themselves</i>. The browsing page gains <i>Steps for you to finish</i>, and every route that ends with the person links it.</li>
+<li class="decision card" id="decision-33" data-note="decision-33" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-05</p>Assumed: the steps cover the rest of the job, not only the login, because a login on the person's own phone does not log the assistant's browser in.</li>
+<li class="decision card" id="decision-34" data-note="decision-34" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-05</p>Archived all 16 completed tasks and kept the already-synced capability specs. Numbered the major release 34.0.0 from published 33.4.0; this checkpoint carries the archive, the release, and the <i>Steps for you to finish</i> rule through the automatic checks.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

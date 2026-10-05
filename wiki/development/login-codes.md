@@ -49,7 +49,7 @@ For an *approve in the app* prompt, the agent says *Tap Yes in the Google app on
 
 ## A wrong or expired code
 
-The agent says so, taps the site's *Resend* when it has one, and asks again. After three failures, it stops and gives you the site's link and the steps for your own device.
+The agent says so, taps the site's *Resend* when it has one, and asks again. After three failures, it stops and gives you [steps to finish it yourself](browsing.md#steps-for-you-to-finish).
 
 ## What is not a code
 
@@ -57,7 +57,7 @@ Each of these has its own route in [when a step needs you](browsing.md#when-a-st
 
 - **A backup or recovery code** goes through [the private form](browsing.md#the-private-form).
 - **A *Sign in with Google* or *Apple* button** [follows the provider's own login](browsing.md#saved-browser-logins); a code the provider sends comes back here.
-- **A picture puzzle, a passkey, or Face ID** is yours, on your own device.
+- **A picture puzzle, a passkey, or Face ID** is yours, on your own device, with [steps to finish it yourself](browsing.md#steps-for-you-to-finish).
 - **A login with no saved password**, or one the site rejects, goes to [the password link with the site filled in](passwords.md).
 
 Back to [browsing](browsing.md).

@@ -22,6 +22,7 @@
 - [x] 4.2 Update `passwords.md`, `secrets.md` (no net growth), `login-codes.md` (backup code to the private form, emailed sign-in link, the *What still goes to the hand-over* section), `blocked-sites.md` (step 4 and the refusal wording), `required-tools.md` (every private link needs the tunnel tool), `kept-checks.md`, `repository-improvement.md`, and `wiki/development/README.md` to the new routes and anchors
 - [x] 4.3 Update the browsing rule in `AGENTS.md` and the payment note on `wiki/people/matthew-wong.md`: his email and the terms are asked in the chat, the card goes in the private form
 - [x] 4.4 Update `.agents/skills/hand-over/SKILL.md`, the hand-over line in `.agents/skills/close/SKILL.md`, `.agents/skills/verify/references/walkthrough.md`, the `browser` area's definition in `.agents/skills/memory/references/areas.json`, and the message in `scripts/employee-bootstrap.mjs`, with no net growth in skill text
+- [x] 4.5 Add *Steps for you to finish* to `wiki/development/browsing.md` and link it from every route that ends with the person in `browsing.md`, `blocked-sites.md`, and `login-codes.md`; verify the wiki link check passes and the page stays under 3,000 words
 
 ## 5. Release
 

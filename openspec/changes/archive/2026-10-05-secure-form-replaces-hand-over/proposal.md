@@ -1,6 +1,6 @@
 # Private forms replace the live browser link
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** drop-browser-login
 **Open questions:** none
 
@@ -64,7 +64,7 @@ When a website step needs you, the assistant sometimes sends a link that shows i
    │◀─ picture of the receipt │
   ```
 - **Sign in with Google or Apple uses a saved login.** The assistant opens the provider's own sign-in and logs in with the login you saved for it, or sends the password page for it. A code the provider sends comes through the chat, as today.
-- **A step nothing can type ends with you.** For a picture puzzle or a passkey, the assistant first tries Cloudflare's browser where the site is only checking the browser. Otherwise it stops and gives you the site's link and the steps to do on your own phone. *Let me take over* no longer opens anything.
+- **A step nothing can type ends with you.** For a picture puzzle or a passkey, the assistant first tries Cloudflare's browser where the site is only checking the browser. Otherwise it stops and gives you clear numbered steps, each with a direct link, to finish on your own phone. *Let me take over* no longer opens anything.
 - **Every private link goes through Cloudflare.** The password page, the key page, and the new form always open at a Cloudflare address, with no separate link for when you sit at the assistant's computer. A computer needs Cloudflare's free tunnel tool before its first link; the assistant asks, then installs it. The link is also sent only once it works from outside, so a quick tap no longer lands on a Cloudflare error page.
 - **What stays the same.** The password page and the key page look and work as today. A link still gets a new secret address each time and closes itself. The assistant still asks before it publishes, sends, books, pays, or deletes.
 
@@ -129,3 +129,6 @@ None.
 - **2026-10-05** — Checked (task 6.3): a real password link and a real key link, each through Cloudflare from this computer, opened on the first try at phone width and saved a made-up login and a made-up key, into a throwaway login store and a throwaway project; each woke this chat. Neither value was in any file the link wrote. Not checked: Google sign-in in the assistant's browser, and the cloud browser's input feed; both need a real account or a cloud session.
 - **2026-10-05** — Assumed: the wake-up notice cuts off a command the same chat is still running when a link finishes, because three test commands stopped at the moment their link completed and none stopped when a link ended without a wake-up. In real use the chat is only waiting, so nothing is lost; it mattered here only because the assistant played the person too.
 - **2026-10-05** — Saved for the automatic checks with every task built and the six main specs brought in line with this change. The checks on this computer pass, the removed-names check included. Session facts are queued for the memory store, which did not answer.
+- **2026-10-05** — Asked whether to publish → answered: *if it can't log in, we should give them clear step-by-step instructions with links to make it easy for the user to do it themselves*. The browsing page gains *Steps for you to finish*, and every route that ends with the person links it.
+- **2026-10-05** — Assumed: the steps cover the rest of the job, not only the login, because a login on the person's own phone does not log the assistant's browser in.
+- **2026-10-05** — Archived all 16 completed tasks and kept the already-synced capability specs. Numbered the major release 34.0.0 from published 33.4.0; this checkpoint carries the archive, the release, and the *Steps for you to finish* rule through the automatic checks.

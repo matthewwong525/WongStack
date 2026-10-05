@@ -199,7 +199,7 @@ When a site asks for a password login and no saved login matches, the agent SHAL
 
 ### Requirement: A step that needs the person goes to the chat or a private form
 
-When a browsing step needs something only the person can give, the agent SHALL get it without showing or handing over its browser. An ordinary form answer (an email, a name, an address, a choice, agreeing to terms) SHALL be asked in the chat and entered by the agent, and the agent SHALL NOT agree to terms without the person's yes. A sensitive value (payment card details, a backup or recovery code, or another lasting secret the page asks for) SHALL go through the private form. A password SHALL follow the password link requirements, a one-time code the login-code requirement, and an API key or token step the own-browser requirement. A step only the person can do on the page (a picture puzzle, a passkey or device check) SHALL NOT be attempted by the agent: where a bot check stops its own browser the site SHALL first move to the cloud browser, and otherwise the agent SHALL stop that step and give the person the site's link and the steps to do on their own device. The agent SHALL NOT offer a live view of its browser or remote control of it, including when the person asks to take over.
+When a browsing step needs something only the person can give, the agent SHALL get it without showing or handing over its browser. An ordinary form answer (an email, a name, an address, a choice, agreeing to terms) SHALL be asked in the chat and entered by the agent, and the agent SHALL NOT agree to terms without the person's yes. A sensitive value (payment card details, a backup or recovery code, or another lasting secret the page asks for) SHALL go through the private form. A password SHALL follow the password link requirements, a one-time code the login-code requirement, and an API key or token step the own-browser requirement. A step only the person can do on the page (a picture puzzle, a passkey or device check) SHALL NOT be attempted by the agent: where a bot check stops its own browser the site SHALL first move to the cloud browser, and otherwise the agent SHALL stop that step and hand it back in the chat as numbered steps for the person's own device: one action each, a direct link to the page for each step that has one, the site's own labels, and the details the agent already has, never an invented address. The agent SHALL NOT offer a live view of its browser or remote control of it, including when the person asks to take over.
 
 #### Scenario: A payment page asks for an email, terms, and a card
 
@@ -209,7 +209,7 @@ When a browsing step needs something only the person can give, the agent SHALL g
 #### Scenario: A picture puzzle
 
 - **WHEN** a site shows a picture puzzle that the cloud browser does not clear
-- **THEN** the agent sends no link, stops that step, and gives the person the site's link and the steps for their own device
+- **THEN** the agent sends no private link, stops that step, and gives the person numbered steps, each with its link, to finish on their own device
 
 ### Requirement: The person gives sensitive details through a private form
 

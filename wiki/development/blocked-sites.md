@@ -16,7 +16,7 @@ Some sites put a *Verify you are human* check in front of the agent's browser, o
    agent-browser --session cloud-1 --cdp "<CLOUD_BROWSER_CDP>" open https://www.ubereats.com/
    ```
 
-   Every command for that session names both `--session` and `--cdp`: one without `--cdp` starts the agent's own browser instead. `CLOUD_BROWSER_GRANTED=` names a permission your Cloudflare key just gave itself: report it. `CLOUD_BROWSER_NEEDS=` names one to add by hand. `CLOUD_BROWSER_QUOTA=used-up` (exit 3) means the account's cloud browser time is used up: say so plainly, and give the site's link and the steps for your own device.
+   Every command for that session names both `--session` and `--cdp`: one without `--cdp` starts the agent's own browser instead. `CLOUD_BROWSER_GRANTED=` names a permission your Cloudflare key just gave itself: report it. `CLOUD_BROWSER_NEEDS=` names one to add by hand. `CLOUD_BROWSER_QUOTA=used-up` (exit 3) means the account's cloud browser time is used up: say so plainly, and give [steps to finish it yourself](browsing.md#steps-for-you-to-finish).
 3. **Bring the login.** Before opening the site, the agent copies just that site's login in, naming each host it logs in on (Uber Eats signs in on `uber.com`):
 
    ```bash
@@ -34,7 +34,7 @@ Some sites put a *Verify you are human* check in front of the agent's browser, o
    ```
 
    A session also closes by itself once `agent-browser` lets go of it, or after 30 minutes (`open --minutes N` raises that), even if the chat stops. Cloudflare closes one idle for 10 minutes, say while you think over *Pay now?*: reopen, carry the login in again, and go on, since the cart lives in the account.
-6. **Both refused.** When Cloudflare's browser is turned away too, as DoorDash does, the agent stops browsing that site. It gives you the site's link and the steps to do on your own phone, and sends no private link.
+6. **Both refused.** When Cloudflare's browser is turned away too, as DoorDash does, the agent stops browsing that site. It gives you [steps to finish it yourself](browsing.md#steps-for-you-to-finish), and sends no private link.
 
 **Cloud first.** Say *use the cloud browser first* and the agent runs `cloud-browser.mjs first cloud`: tasks in every repo on this computer then start there, and a site that refuses it moves to the agent's own browser. `first local` switches back; `first` alone prints `BROWSER_FIRST=`.
 
