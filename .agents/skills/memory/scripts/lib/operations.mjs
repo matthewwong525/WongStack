@@ -7,7 +7,12 @@ export function selectOperations(operations, { q = '', app, limit = 20, offset =
     if (ids.has(operation.operationId)) throw new Error('Operation ID collision');
     ids.add(operation.operationId);
   }
-  const matches = operations.filter(item => (!app || item.app === app) && `${item.operationId} ${item.summary} ${item.description || ''}`.toLowerCase().includes(q.toLowerCase()));
+  // Every word must appear, in any order: a common word alone would match everything.
+  const words = q.toLowerCase().split(/\s+/).filter(Boolean);
+  const matches = operations.filter(item => {
+    const text = `${item.operationId} ${item.summary} ${item.description || ''}`.toLowerCase();
+    return (!app || item.app === app) && words.every(word => text.includes(word));
+  });
   return { total: matches.length, offset, next: offset + limit < matches.length ? offset + limit : null,
     actions: matches.slice(offset, offset + limit).map(({ operationId, summary, effect, readiness, revision, source, transport, authentication, app }) =>
       ({ operationId, summary, effect, readiness, revision, source, transport, authentication, app })) };

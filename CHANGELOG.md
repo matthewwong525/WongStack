@@ -3,6 +3,18 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 32.0.0 — Company actions an assistant can use without guessing
+
+- **A wrong input says which part is wrong and why.** The answer used to be only "Invalid input". It now lists each wrong input by name with the reason, so the assistant fixes it on the next try.
+- **Search finds an action by its words, in any order.** "look up order" now finds an action whose name or description holds all three words, not only that exact phrase.
+- **Every input of an action says what it is.** A new action whose input has no one-line description fails the checks, which name the action and the input.
+- **A write can name the action that confirms it.** When a write times out, nobody knows whether it happened. The action that changes something can now name the read action that shows the result, and the assistant is told to run that one before trying again. Nothing is repeated automatically.
+- **A failed call is reported as a failure.** The assistant's helper used to print the error but report success, so a script carried on. A call that returns an error now ends as failed.
+
+[Company actions](wiki/stack/company-api.md) has the details.
+
+**Updating.** Two things change for an existing install. First, add a one-line description to each input of each action your assistants use; until then the checks fail and name the action and the input, so ask the assistant to add them as part of the update. Second, a script of yours that calls `company-api.mjs call` (the helper that runs a company action) and read a failed call as a success now sees a failure, and stops unless it handles one.
+
 ## 31.4.1 — A link to the fork steps
 
 The guide to making WongStack your own now links the fork steps in WongStack's contributing guide. They moved there from the README, which is now shorter.

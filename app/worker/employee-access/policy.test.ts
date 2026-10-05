@@ -272,6 +272,21 @@ it("uses reviewed method/path scopes across summaries, details and OpenAPI witho
   expect(env.DB?.withSession).toHaveBeenCalledTimes(5);
 });
 
+it("names a write's confirming read only once the caller holds that read's app", async () => {
+  const base = { summary: "Refunds", description: "Synthetic refund", input: z.strictObject({}), output: z.strictObject({ ok: z.boolean() }),
+    encoding: "none" as const, agentAvailable: true, errors: {}, examples: [], handler: () => Response.json({ ok: true }) };
+  const registry = [
+    ...registrations(new Map([["POST refund", defineAction({ ...base, operationId: "orders.refund", effect: "write", confirmWith: "payroll.refunds" })]]), "orders"),
+    ...registrations(new Map([["GET refunds", defineAction({ ...base, operationId: "payroll.refunds", effect: "read" })]]), "payroll"),
+  ];
+  const published = async (path: string) => (await discovery(new Request(`${origin}${path}`), env as Env & PolicyEnv, employee, registry)).json();
+  expect(await published("/api/actions?id=orders.refund")).not.toHaveProperty("confirmWith");
+  expect(JSON.stringify(await published("/api/openapi.json"))).not.toContain("payroll.refunds");
+  sql.exec("INSERT INTO wong_access_grants VALUES ('installation', 'employee@example.com', 'payroll', 1)");
+  expect((await published("/api/actions?id=orders.refund")).confirmWith).toBe("payroll.refunds");
+  expect((await published("/api/openapi.json")).paths["/apps/orders/api/refund"].post["x-confirm-with"]).toBe("payroll.refunds");
+});
+
 it("rechecks current grants before conditional responses and isolates caller and representation caches", async () => {
   const selected = await discover("/api/actions?id=orders.read");
   const etag = selected.headers.get("ETag")!;

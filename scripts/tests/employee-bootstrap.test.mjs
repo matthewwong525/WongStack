@@ -102,6 +102,10 @@ test('actual packaged CLI connects from empty folder and keeps headless login ou
       const target = new URL(url); assert.equal(target.origin, '${origin}');
       assert.equal(init.headers['cf-access-token'], '${session}'); assert.equal(init.redirect, 'manual');
       if (target.pathname === '/api/access/setup') return Response.json(${JSON.stringify(setup())});
+      if (target.searchParams.get('id') === 'orders.create') return Response.json({
+        operationId: 'orders.create', source: 'company', transport: 'http', method: 'POST', encoding: 'json', path: '/api/orders/create', confirmWith: 'orders.lookup'
+      });
+      if (target.pathname === '/api/orders/create') return Response.json({ error: { code: 'timeout', message: 'Action timed out; its outcome may be unknown', requestId: 'synthetic' } }, { status: 504 });
       if (target.pathname === '/api/actions') return Response.json(target.searchParams.has('id') ? {
         operationId: 'orders.lookup', source: 'company', transport: 'http', method: 'GET', encoding: 'query', path: '/api/orders'
       } : { actions: [], total: 0 });
@@ -118,6 +122,10 @@ test('actual packaged CLI connects from empty folder and keeps headless login ou
     const result = run(args, input); assert.equal(result.status, 0, result.stderr); assert.match(result.stdout, expected);
     assert.ok(!`${result.stdout}${result.stderr}`.includes(session));
   }
+  // A returned error is still printed, names the read to check first, and ends as a failure.
+  const uncertain = run(['call', 'orders.create', '--file', '-'], '{}');
+  assert.equal(uncertain.status, 1); assert.ok(!`${uncertain.stdout}${uncertain.stderr}`.includes(session));
+  assert.deepEqual(JSON.parse(uncertain.stdout).error, { code: 'timeout', message: 'Action timed out; its outcome may be unknown', requestId: 'synthetic', confirmWith: 'orders.lookup' });
   assert.equal(statSync(join(f.base, '.cloudflared')).mode & 0o777, 0o700);
 });
 test('published immutable bootstrap pins carry the digest of the checked source', () => {

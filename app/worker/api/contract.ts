@@ -1,5 +1,6 @@
 // The route's contract validates both callers and generates its discovery.
 import { z } from "zod";
+import { en } from "zod/locales";
 import type { AppCall, AppEnv, AppHandler } from "../apps/index.ts";
 import { authorizeRequest, type RouteAccess } from "../employee-access/policy.ts";
 import { boundedBytes } from "./body.ts";
@@ -25,9 +26,19 @@ export type Action = {
   allowed?: (identity: AppCall["identity"]) => boolean;
   ready?: (env: AppEnv) => boolean;
   limits?: { inputBytes: number; outputBytes: number; timeoutMs: number };
+  /** On a write: the read action that shows whether the change happened. */
+  confirmWith?: string;
 };
 export type Route = AppHandler | Action;
 export type Registration = { method: string; path: string; app: string; action: Action; access?: RouteAccess };
+type Issue = { path: string; message: string };
+/** A refused request shape. Its message is fixed text, safe to return to the caller. */
+class InputRefusal extends Error {}
+const tooLarge = () => new InputRefusal("The input is larger than this action accepts.");
+const operationIdPattern = /^[a-z][a-z0-9-]*(\.[a-z][a-z0-9-]*)+$/;
+// zod loads its English messages as an import side effect, which the Worker build drops:
+// without this call every issue would read "Invalid input".
+z.config(en());
 const defaults = { inputBytes: 65536, outputBytes: 262144, timeoutMs: 15000 };
 const codes: Record<string, [number, string]> = {
   invalid_input: [400, "Invalid input"], authentication_required: [401, "Company login required"],
@@ -35,13 +46,13 @@ const codes: Record<string, [number, string]> = {
   internal_error: [500, "Action failed"], timeout: [504, "Action timed out; its outcome may be unknown"],
 };
 
-function safeError(code: string, message: string, status: number): Response {
-  return Response.json({ error: { code, message, requestId: crypto.randomUUID() } },
+function safeError(code: string, message: string, status: number, extras: { issues?: Issue[] } = {}): Response {
+  return Response.json({ error: { code, message, requestId: crypto.randomUUID(), ...extras } },
     { status, headers: { "Cache-Control": "no-store" } });
 }
 
-export function actionError(code: string, status?: number): Response {
-  return safeError(code, codes[code][1], status ?? codes[code][0]);
+export function actionError(code: string, status?: number, extras?: { issues?: Issue[] }): Response {
+  return safeError(code, codes[code][1], status ?? codes[code][0], extras);
 }
 
 export function schemas(action: Action) {
@@ -59,10 +70,13 @@ function fieldType(field: ReturnType<typeof schemas>["inputSchema"]["properties"
 }
 
 function validateMetadata(action: Action) {
-  if (typeof action.operationId !== "string" || action.operationId.startsWith("memory.") || !/^[a-z][a-z0-9-]*(\.[a-z][a-z0-9-]*)+$/.test(action.operationId) || !action.summary ||
+  if (typeof action.operationId !== "string" || action.operationId.startsWith("memory.") || !operationIdPattern.test(action.operationId) || !action.summary ||
     !action.description || typeof action.agentAvailable !== "boolean" || typeof action.handler !== "function" ||
     !["read", "write", "external"].includes(action.effect) || !["none", "query", "json"].includes(action.encoding)) {
     throw new Error("Invalid action registration");
+  }
+  if (action.confirmWith !== undefined && (action.effect === "read" || typeof action.confirmWith !== "string" || !operationIdPattern.test(action.confirmWith))) {
+    throw new Error(`Invalid confirming action: ${action.operationId}`);
   }
 }
 
@@ -77,6 +91,15 @@ function validateEncoding(action: Action) {
   }
 }
 
+// An assistant fills in the top-level inputs first, so each one says what it is.
+function validateDescriptions(action: Action) {
+  for (const [field, schema] of Object.entries(schemas(action).inputSchema.properties)) {
+    if (typeof schema !== "object" || typeof schema.description !== "string" || !schema.description.trim()) {
+      throw new Error(`Undescribed input field: ${action.operationId}.${field}`);
+    }
+  }
+}
+
 function validateLimits(action: Action) {
   const limits = action.limits ?? defaults;
   if (Object.values(limits).some(value => !Number.isSafeInteger(value) || value < 1) ||
@@ -88,6 +111,7 @@ function validateLimits(action: Action) {
 export function defineAction(action: Action): Action {
   validateMetadata(action);
   validateEncoding(action);
+  validateDescriptions(action);
   validateLimits(action);
   for (const example of action.examples) {
     action.input.parse(example.input);
@@ -113,32 +137,38 @@ export function registrations(routes: Map<string, Route>, app = "main", access?:
 }
 
 export function uniqueActions(items: Registration[]): Registration[] {
-  const ids = new Set<string>();
+  const effects = new Map<string, Action["effect"]>();
   for (const { action } of items) {
-    if (ids.has(action.operationId)) throw new Error(`Duplicate operation ID: ${action.operationId}`);
-    ids.add(action.operationId);
+    if (effects.has(action.operationId)) throw new Error(`Duplicate operation ID: ${action.operationId}`);
+    effects.set(action.operationId, action.effect);
+  }
+  for (const { action } of items) {
+    if (action.confirmWith !== undefined && effects.get(action.confirmWith) !== "read") throw new Error(`Invalid confirming action: ${action.operationId}`);
   }
   return items;
 }
 
 // Read streams with a bound before parsing; a declared Content-Length is not trusted.
-export async function boundedText(body: ReadableStream<Uint8Array> | null, max: number): Promise<string> {
+export async function boundedText(body: ReadableStream<Uint8Array> | null, max: number,
+  limitError = () => new Error("Size limit exceeded")): Promise<string> {
   if (!body) return "";
-  const bytes = await boundedBytes(body, max, () => new Error("Size limit exceeded"));
+  const bytes = await boundedBytes(body, max, limitError);
   return new TextDecoder().decode(bytes);
 }
 
 async function inputFor(action: Action, request: Request, url: URL, max: number): Promise<unknown> {
-  if (new TextEncoder().encode(url.search).byteLength > max) throw new Error("Size limit exceeded");
+  if (new TextEncoder().encode(url.search).byteLength > max) throw tooLarge();
   if (action.encoding === "json") {
-    if (request.headers.get("content-type")?.split(";")[0] !== "application/json") throw new Error("JSON required");
-    return JSON.parse(await boundedText(request.body, max));
+    if (request.headers.get("content-type")?.split(";")[0] !== "application/json") throw new InputRefusal("Send the input as a JSON body with the content type application/json.");
+    const text = await boundedText(request.body, max, tooLarge);
+    // A parser's own message quotes the body, so it never leaves the Worker.
+    try { return JSON.parse(text); } catch { throw new InputRefusal("The body is not valid JSON."); }
   }
-  if (request.body) throw new Error("Unexpected body");
+  if (request.body) throw new InputRefusal("This action takes no request body.");
   const input: Record<string, unknown> = {};
   const { inputSchema } = schemas(action);
   for (const [key, value] of url.searchParams) {
-    if (Object.hasOwn(input, key)) throw new Error("Repeated query field");
+    if (Object.hasOwn(input, key)) throw new InputRefusal("A query field is given more than once.");
     const type = fieldType(inputSchema.properties[key]);
     input[key] = type === "number" || type === "integer" ?
       (value.trim() ? Number(value) : NaN) : type === "boolean" ?
@@ -151,6 +181,14 @@ export function containsCredential(output: unknown, env: AppEnv): boolean {
   const serialized = JSON.stringify(output);
   return Object.values(env).some((value: unknown) => typeof value === "string" && value.length >= 8 && serialized.includes(value)) ||
     /(?:wongm_|wongl_|ghp_|github_pat_|sk-)[A-Za-z0-9_-]{20,}|eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/.test(serialized);
+}
+
+// Which inputs failed and why: bounded, and dropped whole if a credential value appears.
+function inputIssues(error: unknown, env: AppEnv): { issues?: Issue[] } {
+  const issues = error instanceof z.ZodError ?
+    error.issues.slice(0, 10).map(issue => ({ path: issue.path.map(String).join(".").slice(0, 200), message: issue.message.slice(0, 200) })) :
+    [{ path: "", message: error instanceof InputRefusal ? error.message : "The input could not be read." }];
+  return containsCredential(issues, env) ? {} : { issues };
 }
 
 async function failedAction(action: Action, response: Response, env: AppEnv): Promise<Response> {
@@ -169,7 +207,7 @@ async function execute(action: Action, request: Request, env: AppEnv, call: AppC
   const limits = action.limits ?? defaults;
   let input: unknown;
   try { input = action.input.parse(await inputFor(action, request, call.url, limits.inputBytes)); }
-  catch { return actionError("invalid_input"); }
+  catch (error) { return actionError("invalid_input", undefined, inputIssues(error, env)); }
   if (signal.aborted) return actionError("timeout");
   try {
     const response = await action.handler(request, env, { ...call, input, signal });
