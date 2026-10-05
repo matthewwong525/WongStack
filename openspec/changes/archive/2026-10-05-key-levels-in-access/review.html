@@ -9,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · key-levels-in-access</title>
+<title>Review · 2026-10-05-key-levels-in-access</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -93,11 +93,11 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="key-levels-in-access">
+<body data-change="2026-10-05-key-levels-in-access">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>key-levels-in-access</h1>
+  <h1>2026-10-05-key-levels-in-access</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. Saving a note copies all your notes. Open a drawing and tap it to see it full screen.</p>
@@ -373,6 +373,10 @@
 <li class="decision card" id="decision-21" data-note="decision-21" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-10-05</p>Check: <code>app/package.json</code> runs one more check with the others, <code>scripts/check-app-keys.mjs</code>, which fails when an app's code names a saved key the app does not list. Nothing was turned off or lowered.</li>
 <li class="decision card" id="decision-22" data-note="decision-22" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-05</p>Assumed: the first save holds every part of the build with its tests written and none run yet, because the plan runs all checks once at the end; the preview check and the live Cloudflare key step stay open.</li>
 <li class="decision card" id="decision-23" data-note="decision-23" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-05</p>Assumed: making the read-only Cloudflare key for this repo's own live app is kept as open work in memory and is no longer a task, because it can only happen after publishing and an unticked task stops the publish.</li>
+<li class="decision card" id="decision-24" data-note="decision-24" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-05</p>Asked what ticking an app should do to the keys it uses → chose to keep Read preselected, shown before saving and never Read &amp; write.</li>
+<li class="decision card" id="decision-25" data-note="decision-25" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-05</p>Asked whether other people should be able to manage Access → chose to plan it as the next change, after this one is published.</li>
+<li class="decision card" id="decision-26" data-note="decision-26" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-05</p>Asked what next once the preview was up, after being told the owner's screens had not been walked by the assistant → chose to see the preview himself, then to publish.</li>
+<li class="decision card" id="decision-27" data-note="decision-27" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-05</p>Assumed: the plan is filed in the archive and numbered 33.0.0 for publishing, because every task is done and the automatic checks passed; main had moved to 32.0.0, whose rule that every action input carries a description the Cloudflare look-up now meets.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

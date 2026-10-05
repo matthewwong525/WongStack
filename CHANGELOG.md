@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (major) — Read or Read & write for each saved key, and roles
+## 33.0.0 — Read or Read & write for each saved key, and roles
 
 - **Each saved key gets a level per person: None, Read, or Read & write.** Read lets a person, and their assistant, look things up with that key. Read & write also lets them change or send things. A level is set once per key and holds in every app. Lowering one takes effect on the person's next request, and a refused request says which key and which level it needed.
 - **Access has four views: People, Roles, Apps and Keys.** People opens first, as before, and each person's line also shows their role and key levels. Keys lists every key your app holds, whether it is saved, what uses it and who has which level. Apps is the quick way to give an app and the keys it needs in one place. A key's value is never shown.

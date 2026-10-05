@@ -1,6 +1,6 @@
 # Read or Read & write for each saved key, roles, and a clearer Access
 
-**Status:** in-progress
+**Status:** ready-to-ship
 
 **Branch:** granular-token-scoping
 
@@ -333,3 +333,7 @@ Access lets you choose who can sign in and which apps each person gets. It can't
 - **2026-10-05** — Check: `app/package.json` runs one more check with the others, `scripts/check-app-keys.mjs`, which fails when an app's code names a saved key the app does not list. Nothing was turned off or lowered.
 - **2026-10-05** — Assumed: the first save holds every part of the build with its tests written and none run yet, because the plan runs all checks once at the end; the preview check and the live Cloudflare key step stay open.
 - **2026-10-05** — Assumed: making the read-only Cloudflare key for this repo's own live app is kept as open work in memory and is no longer a task, because it can only happen after publishing and an unticked task stops the publish.
+- **2026-10-05** — Asked what ticking an app should do to the keys it uses → chose to keep Read preselected, shown before saving and never Read & write.
+- **2026-10-05** — Asked whether other people should be able to manage Access → chose to plan it as the next change, after this one is published.
+- **2026-10-05** — Asked what next once the preview was up, after being told the owner's screens had not been walked by the assistant → chose to see the preview himself, then to publish.
+- **2026-10-05** — Assumed: the plan is filed in the archive and numbered 33.0.0 for publishing, because every task is done and the automatic checks passed; main had moved to 32.0.0, whose rule that every action input carries a description the Cloudflare look-up now meets.
