@@ -77,8 +77,9 @@ it('says what uses a key, on the Keys view and a key page', () => {
   expect(keyUseLine(spare)).toBe('Nothing uses it yet')
 })
 
-it('says whether a key is saved, waits for its link, or waits for setup to make it', () => {
-  expect([stripe, maps, cloudflare].map(keyState)).toEqual(['Saved', 'Not saved yet', 'One step left'])
+it('says whether a key is saved, waits for its link, or waits for setup to make it, which no preview can', () => {
+  expect([stripe, maps, cloudflare].map(key => keyState(key, 'live'))).toEqual(['Saved', 'Not saved yet', 'One step left'])
+  expect([stripe, maps, cloudflare].map(key => keyState(key, 'practice'))).toEqual(['Saved', 'Not saved yet', 'Not on previews yet'])
 })
 
 it('ticking an app gives Read on each key it uses that is at None, and never Read & write', () => {

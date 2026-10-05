@@ -54,6 +54,8 @@
 # staging alone, so its checks are unverified. `unavailable` (no remote, or a
 # host that refuses the ref) still rebuilds and walks, without a turn.
 # `--no-preview` touches no staging: no turn, no rebuild, none of these facts.
+# SEEDED and PLAYGROUND are also written to `staging-facts` in the run folder,
+# where verify-journeys.mjs reads them before it replays a kept check.
 #
 # ── What this script does NOT do ──────────────────────────────────────────────
 # It never decides whether a journey passed. It captures evidence; `/verify`
@@ -475,6 +477,8 @@ preflight)
     if [ -n "$TURN" ]; then echo "TURN=$TURN"; fi
     echo "SEEDED=$SEEDED"
     echo "PLAYGROUND=$PLAYGROUND"
+    # Kept in the run folder too: a replay of kept checks reads them from there.
+    printf 'SEEDED=%s\nPLAYGROUND=%s\n' "$SEEDED" "$PLAYGROUND" > "$RUN_DIR/staging-facts"
   fi
   ;;
 

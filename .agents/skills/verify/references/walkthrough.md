@@ -112,7 +112,7 @@ A failure is **in scope** only when both hold:
 1. the contradicted `THEN` is one of *this change's own* scenarios, and
 2. the fix plausibly lives in files this branch already touches (`git diff --name-only origin/main..HEAD`).
 
-Otherwise report **out of scope** with why.
+Otherwise report **out of scope** with why. A [kept check](#g--kept-checks)'s contradiction needs only 2; after each fix, `replay --only <id>`.
 
 For an in-scope repair, retain a focused check when existing CI can cheaply reproduce the defect. `/save` captures the same check's intended failure on exact earlier source and pass on repaired head; the head suite must pass. Inspect failure cause, revision and check identity. Impractical harness → keep the available reproduction, missing proof and limitation. No new infrastructure, weaker checks or unrelated fixes.
 
@@ -139,3 +139,11 @@ bash "$ROOT/.claude/skills/verify/scripts/verify-staging.sh" cleanup "$RUN_DIR"
 ```
 
 `publish`: `<local-path>\t<url>`, then `MEDIA=`. **private** → links; **public** → `![<label>](<url>)`; **none** → report `REASON`, omit pictures, verdict unchanged. Never cite missing URLs or cleaned local paths; other evidence is inline text, no video.
+
+## g — kept checks
+
+Inside `/ship` only, before § f's post. `J` is `node "$ROOT/.claude/skills/verify/scripts/verify-journeys.mjs"`; every call takes `--run-dir "$RUN_DIR"`, `replay` and `keep` also `--url "$URL"`.
+
+1. **Replay** once §§ c–e settle: `J replay --change-root <archive>`. `same` → list as *replayed, unchanged*, no fresh grade. `changed` → walk it fresh once, three per walk, the rest unverified: pass → keep; contradiction → § e, naming the older promise. `skipped` → this change's walk covers it. `not-run` → name its reason; no pass, no failure.
+2. **Keep** each passed browser/request journey, its inputs back in `journeys/`: `J keep --id <id> --expect '<json>'`, `--writes` if it submits or changes data. `expect` rows hold shown claims only: `{"text"}`, `{"gone"}`, `{"path"}`; request `{"step","status","includes"}`. Never one that used a hand-over, an outside service or a manual job trigger.
+3. **Prove, install**: `J replay --from "$RUN_DIR/keep"`, then `J keep --install`; name each *left out*. After the post, a changed tree → `/save` once; that commit needs no re-walk.

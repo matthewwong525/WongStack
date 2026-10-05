@@ -17,16 +17,16 @@ export function Keys(props: ViewProps) {
     <ul className="access-people">{status.keys.map(key => {
       const held = holdersByLevel(status, key.id)
       return <li key={key.id}>
-        <div className="access-row-head"><strong>{key.title}</strong><span className="access-muted">{keyState(key)}</span></div>
-        {/* Setup makes one key itself, so the owner asks their assistant to finish; any other key comes through its link. */}
+        <div className="access-row-head"><strong>{key.title}</strong><span className="access-muted">{keyState(key, status.environment)}</span></div>
+        {/* Setup makes one key itself, so on the live app the owner asks their assistant to finish; any other key comes through its link. */}
         {key.saved ? <>
           <p>{keyUseLine(key)}</p>
           {held.map(({ level, names }) => <Labels key={level} title={levelName(level)} items={names} />)}
           {!held.length && <p>Nobody yet</p>}
           <Link className="access-button" to={at('keys', key.id)}>Edit</Link>
         </>
-          : key.setup ? <FinishStep>Look-ups need a read-only key. Ask your assistant:</FinishStep>
-          : <><p>{keyUseLine(key)}</p><p>Ask your assistant for the key link</p></>}
+          : key.setup && status.environment === 'live' ? <FinishStep>Look-ups need a read-only key. Ask your assistant:</FinishStep>
+          : <><p>{keyUseLine(key)}</p>{!key.setup && <p>Ask your assistant for the key link</p>}</>}
       </li>
     })}</ul>
   </View>

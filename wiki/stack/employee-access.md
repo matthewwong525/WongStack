@@ -30,7 +30,7 @@ An install made before Access, or one whose key is missing, needs one step: the 
 node "<WongStack source>/.claude/skills/wong-setup/scripts/provision.mjs" access
 ```
 
-It adds `WONG_OWNER_EMAIL` to both Workers' `vars`, makes or reuses the key, stores it in the live app, and makes or reuses [the read-only key for Cloudflare look-ups](cloudflare-credentials.md#the-read-only-look-up-key) on both Workers. It makes nothing else. Publish the config change through [the change loop](../development/the-change-loop.md). When the report's `accessKey.status` or `cloudflareReadKey.status` is `missing`, the saved token can not make keys: [send the key link](../development/secrets.md#receive-a-key-through-a-private-link) for a Cloudflare token with *Account API Tokens Write*, then run it again. Until then Access opens, saves app choices and levels, and says one step is left.
+It adds `WONG_OWNER_EMAIL` to both Workers' `vars`, makes or reuses the key, stores it in the live app, and makes or reuses [the read-only key for Cloudflare look-ups](cloudflare-credentials.md#the-read-only-look-up-key) in the live app. The preview app gets a copy only when Cloudflare accepts it; a report that names it as `waiting` is finished, not failed. It makes nothing else. Publish the config change through [the change loop](../development/the-change-loop.md). When the report's `accessKey.status` or `cloudflareReadKey.status` is `missing`, the saved token can not make keys: [send the key link](../development/secrets.md#receive-a-key-through-a-private-link) for a Cloudflare token with *Account API Tokens Write*, then run it again. Until then Access opens, saves app choices and levels, and says one step is left.
 
 To rotate the key, delete the `<worker>-access` token in Cloudflare and run the step again.
 
@@ -120,7 +120,7 @@ A person's current apps decide their app cards, direct visits, app calls and ass
 
 ## The practice list on previews
 
-A preview has its own people, roles and key levels. On staging the owner opens Access, adds people and chooses apps and levels against the preview's database, which [starts from made-up people](d1-pipeline.md#seeded-staging-production-untouched) with permissions and levels on: one role held by two people, one person with their own set, and one with no level. A preview holds no key and makes no Cloudflare call, and the screen says the real sign-in list is not touched. A practice person can sign in to a preview only if the real list admits them.
+A preview has its own people, roles and key levels. On staging the owner opens Access, adds people and chooses apps and levels against the preview's database, which [starts from made-up people](d1-pipeline.md#seeded-staging-production-untouched) with permissions and levels on: one role held by two people, one person with their own set, and one with no level. A preview holds no sign-in list key and makes no Cloudflare call for the list, and the screen says the real sign-in list is not touched. When a preview holds no [read-only look-up key](cloudflare-credentials.md#the-read-only-look-up-key), Keys shows Cloudflare as *Not on previews yet*, with no step to ask for: none can finish it there. A practice person can sign in to a preview only if the real list admits them.
 
 ### The checker on a preview
 

@@ -67,8 +67,9 @@ export function keyUseLine(key: SavedKey): string {
     !key.levels.includes('write') && 'Read only')
 }
 
-/** Setup makes some keys itself; the others arrive through a private link. */
-export const keyState = (key: SavedKey) => key.saved ? 'Saved' : key.setup ? 'One step left' : 'Not saved yet'
+/** Setup makes some keys itself, for the live app: no step can finish one on a preview. The others arrive through a private link. */
+export const keyState = (key: SavedKey, environment: Status['environment']) =>
+  key.saved ? 'Saved' : !key.setup ? 'Not saved yet' : environment === 'live' ? 'One step left' : 'Not on previews yet'
 
 /** A level for each of `keys`: the one held, or `none`. */
 export const fill = (keys: SavedKey[], held: AccessSet['keys'], none: Level | null): AccessSet['keys'] =>

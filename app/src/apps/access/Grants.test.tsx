@@ -87,6 +87,19 @@ it('says one step is left for the key setup makes, with the request to copy, and
   expect(screen.getByText('When an app needs a service, your assistant sends a private link for its key. It shows up here.')).toBeTruthy()
   expect(screen.queryByRole('listitem')).toBeNull()
 })
+it('says on a preview that the key setup makes is not on previews yet, with no step to ask for', async () => {
+  roster.environment = 'practice'; roster.key = 'practice'; roster.keys[2].saved = false
+  roster.keys.push(key('maps', 'Maps', { saved: false }))
+  open('keys'); const cloudflare = await row('Cloudflare')
+  expect(cloudflare.getByText('Not on previews yet')).toBeTruthy(); expect(cloudflare.getByText('Look-ups, no app needed · Read only')).toBeTruthy()
+  expect(cloudflare.queryByText('One step left')).toBeNull(); expect(cloudflare.queryByText('Finish Access setup')).toBeNull()
+  expect(cloudflare.queryByRole('button')).toBeNull(); expect(cloudflare.queryByRole('link')).toBeNull()
+  expect(cloudflare.queryByText('Ask your assistant for the key link')).toBeNull()
+  expect(screen.queryByRole('button', { name: 'Copy that request' })).toBeNull()
+  // A key that arrives through its link still says so on a preview, and a saved one is as on the live app.
+  expect((await row('Maps')).getByText('Ask your assistant for the key link')).toBeTruthy(); expect((await row('Stripe')).getByText('Saved')).toBeTruthy()
+  cleanup(); open('keys/cloudflare'); await screen.findByRole('heading', { name: 'Cloudflare · Not on previews yet' })
+})
 it('sets one key for every role and every person with their own set, on one page and in one save', async () => {
   open('keys'); fireEvent.click((await row('Stripe')).getByRole('link', { name: 'Edit' }))
   await screen.findByRole('heading', { name: 'Stripe · Saved' }); expect(where()).toBe('/apps/access/keys/stripe')

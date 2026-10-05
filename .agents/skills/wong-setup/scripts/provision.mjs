@@ -607,6 +607,9 @@ function recordComponent(dir, component, data, note) {
   note('updated', `.claude/.wong-stack.json components.${component}`);
 }
 
+/** The read-only key's record. `waiting` is replaced whole, so a Worker that has taken the key since is no longer listed. */
+const recordReadKey = (dir, key, note) => recordComponent(dir, 'cloudflareReadKey', { waiting: undefined, ...key }, note);
+
 /** One allow policy on this account alone, with the named groups; `within` narrows it to part of the account. */
 const accountPolicy = (account, groups, rows, within = '*') => [
   {
@@ -948,7 +951,7 @@ export async function provision({ token, api, fetch, account, repo, base, route 
       policies: () => readKeyPolicies(account, groups), state, checkpoint, note,
     }));
     if (report.cloudflareReadKey.status === 'missing') report.todo.push(CLOUDFLARE_READ_KEY_TODO);
-    recordComponent(dir, 'cloudflareReadKey', report.cloudflareReadKey, note);
+    recordReadKey(dir, report.cloudflareReadKey, note);
   };
   if (route === 'artifacts') {
     report.delivery = await artifactsDelivery(cf, { account, base, token, groups, buckets, deployRows: rows, dir, env, exec, state, checkpoint, note, todo: report.todo, sleep });
@@ -978,9 +981,9 @@ export async function provision({ token, api, fetch, account, repo, base, route 
 
 /**
  * What Access needs on a repo installed before it knew its owner: the recorded owner's email in both
- * Workers' vars, the live app's own key, and both Workers' read-only key for Cloudflare look-ups. Reads
- * the install record and makes nothing else, so an update runs it alone. A site with no sign-in on record
- * has nothing to do.
+ * Workers' vars, the live app's own key, and the read-only key for Cloudflare look-ups: in the live app,
+ * and in the preview app when Cloudflare takes it. Reads the install record and makes nothing else, so an
+ * update runs it alone. A site with no sign-in on record has nothing to do.
  */
 export async function accessSetup({ token, api, fetch, account, ownerEmail, dir = '.', exec = run }) {
   const cf = cloudflare(token, { api, fetch });
@@ -1008,7 +1011,7 @@ export async function accessSetup({ token, api, fetch, account, ownerEmail, dir 
   if (existsSync(config)) ownerEmailInConfig(config, email, { note, todo: report.todo });
   recordComponent(dir, 'access', { ownerEmail: email }, note);
   recordComponent(dir, 'accessKey', key, note);
-  recordComponent(dir, 'cloudflareReadKey', readKey, note);
+  recordReadKey(dir, readKey, note);
   return { ...report, ownerEmail: email, accessKey: key, cloudflareReadKey: readKey };
 }
 
@@ -1024,8 +1027,9 @@ const USAGE = `usage: provision.mjs <command> [--dir <repo>] [--account <id>] [-
                                           make or reuse the memory store, databases, config, and deploy token;
                                           --open-without-login goes on, open, when Zero Trust needs onboarding
   access [--owner-email <email>]          on an installed repo with sign-in on: put the owner's email in both Workers'
-                                          vars, give the live app its own key for the sign-in list, and give both
-                                          Workers the read-only key for Cloudflare look-ups
+                                          vars, give the live app its own key for the sign-in list and the read-only
+                                          key for Cloudflare look-ups; the preview app gets the read-only key when
+                                          Cloudflare takes it, and is reported as waiting when not
 --route artifacts keeps the project in Cloudflare with no GitHub: widen adds its groups, names checks its
 names, and provision makes the repository and the check runner in place of the GitHub secrets.
 --dir is the target repo (default: here). The token is CLOUDFLARE_API_TOKEN and the account CLOUDFLARE_ACCOUNT_ID,

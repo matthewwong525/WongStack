@@ -16,6 +16,26 @@
 
 **Updating.** Nothing needs doing by hand. Your people, roles, levels and data stay as they are. If you changed the Access screen's own code, the assistant brings your changes onto the new layout.
 
+## 33.1.1 — The Cloudflare key step finishes when the preview app can't take the key
+
+- **The step that makes the read-only Cloudflare key no longer stops with an error.** Release 33.0.0 stored the key in your live app and then in your preview app. Cloudflare refuses a key for the preview app whenever a newer preview has been uploaded than the one in use, which is its normal state, so the step stopped after the live app already had its key.
+- **The live app is enough.** The step stores the key in your live app, says in one line that the preview app is waiting, and finishes. When Cloudflare does accept the preview copy, it is stored too. Running the step again keeps the key your live app holds.
+- **The check before publishing accepts that difference.** For this one key, which setup makes itself, the live app may hold it while the preview app does not. Every other key must still match in both.
+- **Access on a preview says so.** In Keys on a preview, Cloudflare reads *Not on previews yet*, with nothing to copy, because no step can finish it there. The live app is unchanged.
+
+**Updating.** If your update to 33.0.0 reported an error from the Access setup step, the assistant runs that step again after this update: `provision.mjs access`, the setup tool's step that makes the read-only Cloudflare key. It now finishes, and the assistant saves the record it writes. If that step finished for you, there is nothing to do.
+
+## 33.1.0 — Old features are re-checked before publishing
+
+- **A passed check is kept.** When the check before publishing passes a promise about a page or a request, it saves the clicks and what the page showed, beside your code. It is kept only after it replays cleanly once, by itself, from fresh sample data.
+- **Kept checks replay before a change goes live,** with no AI. The replay stops after 2 minutes. The areas your change touches go first, and any check that did not fit is named.
+- **A replay that looks different gets one fresh look.** When only the page changed, such as a renamed button, the kept check is updated and nothing stops. When your change broke the old feature, the assistant fixes it, saves, and replays that check without asking. It stops and asks only when two tries did not fix it, or when the break does not come from your change.
+- **Some checks are never kept:** one that needs your login, triggers an outside service or a timed job, or carries a password.
+- **Publishing takes a little longer:** up to 2 minutes for the replay, and one more short save when a check was kept or updated. Checks in the middle of a change stay as fast as today.
+- No new tool, AI key, or dependency. A project whose staging can't be rebuilt from sample data keeps and replays nothing, and the check says so. [Kept checks](wiki/development/kept-checks.md) explains it all.
+
+**Updating.** Nothing to do; the usual update delivers this. The first kept checks appear at your next publish that has a promise about a page or a request.
+
 ## 33.0.0 — Read or Read & write for each saved key, and roles
 
 - **Each saved key gets a level per person: None, Read, or Read & write.** Read lets a person, and their assistant, look things up with that key. Read & write also lets them change or send things. A level is set once per key and holds in every app. Lowering one takes effect on the person's next request, and a refused request says which key and which level it needed.

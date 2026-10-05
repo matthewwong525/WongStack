@@ -1,0 +1,44 @@
+{
+  "format": "verify-journey-1",
+  "id": "an-unknown-address",
+  "scenario": {
+    "capability": "app-scaffold",
+    "requirement": "The starter app is set up to grow",
+    "scenario": "An unknown address"
+  },
+  "thenDigest": "b0530ff9a6d2d76c965fc6e7f9603f5dd7f21c12de0edfb01fb7fa85f87b710c",
+  "probe": "browser",
+  "writes": false,
+  "sourcePaths": [
+    ".agents/skills/memory/references/areas.json",
+    ".agents/skills/ship/SKILL.md",
+    ".agents/skills/verify/SKILL.md",
+    ".agents/skills/verify/references/walkthrough.md",
+    ".agents/skills/verify/scripts/verify-journeys.mjs",
+    ".agents/skills/verify/scripts/verify-staging.sh",
+    ".agents/skills/wong-sync/references/payload-files.json"
+  ],
+  "recordedAt": "e3421e2cf656d17f7a22edd871a1a493dbf2f3bc",
+  "steps": [
+    [
+      "open",
+      "{url}/nothing-here"
+    ],
+    [
+      "wait",
+      "--load",
+      "networkidle"
+    ]
+  ],
+  "expect": [
+    {
+      "text": "Page not found"
+    },
+    {
+      "text": "Go home"
+    },
+    {
+      "path": "/nothing-here"
+    }
+  ]
+}

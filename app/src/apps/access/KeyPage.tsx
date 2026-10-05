@@ -12,7 +12,7 @@ export function KeyPage({ status, view, pending, save, item }: ViewProps & { ite
   const [levels, setLevels] = useState(() => each<Level | null>(list, ({ set }) => set.keys[item.id] ?? null))
   const [start] = useState(levels)
   return <Page view={view} pending={pending} changed={differs(start, levels)} action="Save access" onSave={() => save('grants', { key: item.id, ...levels })}>
-    <h2>{item.title} · {keyState(item)}</h2>
+    <h2>{item.title} · {keyState(item, status.environment)}</h2>
     <p>{keyUseLine(item)}</p>
     {list.map(subject => <LevelChoice key={subject.kind + subject.id} legend={subject.label} levels={item.levels}
       value={levels[subject.kind][subject.id]} onChange={level => setLevels(put(levels, subject, level))} />)}
