@@ -23,6 +23,6 @@
 
 ## 5. Verification
 
-- [ ] 5.1 Run `node .github/scripts/checks.mjs --worktree` before the first push, which covers `check-payload-links.mjs`, `check-openspec-config.mjs`, `measure-context.mjs --check`, and the script tests. Then `/save`, and confirm CI passes.
-- [ ] 5.2 After `/save`, replay for real against this branch's preview: take the staging turn with `preflight`, then run `replay --from` a temp folder holding one hand-written read-only check for a starter-app scenario and expect `same`; change its expected text and expect `changed`; then `cleanup`. Record both outputs and the replay's seconds in this folder as `replay-check.md`. No kept file is committed by this task.
-- [ ] 5.3 Record an open `verify` thread in memory for what only later publishes can show: the first real publish with a page promise keeps a check, the next one replays it inside two minutes, and how long a rebuild between writing checks takes. Done when the thread exists.
+- [x] 5.1 Run `node .github/scripts/checks.mjs --worktree` before the first push, which covers `check-payload-links.mjs`, `check-openspec-config.mjs`, `measure-context.mjs --check`, and the script tests. Then `/save`, and confirm CI passes.
+- [x] 5.2 After `/save`, replay for real against this branch's preview: take the staging turn with `preflight`, then run `replay --from` a temp folder holding one hand-written read-only check for a starter-app scenario and expect `same`; change its expected text and expect `changed`; then `cleanup`. Record both outputs and the replay's seconds in this folder as `replay-check.md`. No kept file is committed by this task.
+- [x] 5.3 Record an open `verify` thread in memory for what only later publishes can show: the first real publish with a page promise keeps a check, the next one replays it inside two minutes, and how long a rebuild between writing checks takes. Done when the thread exists.

@@ -1,6 +1,6 @@
 # Keep passed preview checks and replay them before publishing
 
-**Status:** in-progress
+**Status:** ready-to-ship
 
 **Branch:** e2e-testing
 
@@ -70,3 +70,5 @@ None.
 - **2026-10-05** — Assumed: checks for files the branch changed run first even when they write, ahead of read-only checks for other areas, because the promise is that changed areas go first. A read-only check that follows a writing one starts from a rebuild.
 - **2026-10-05** — Assumed: a kept check is named after its scenario, so keeping it again replaces the same file. The check before publishing records whether staging was rebuilt in its run folder (`staging-facts`), and the replay reads it from there. `keep` takes the preview address (`--url`) to swap it out.
 - **2026-10-05** — Assumed: the build is saved now that all code and tests are written, so the automatic checks and one real replay on this branch's preview can run; the three verification tasks stay open until each is seen to pass.
+- **2026-10-05** — Asked whether to stop shared files, such as the release notes and tests, from counting as an area a change touched → chose yes, then publish. Nearly every change here touches the release notes, so every kept check would have gone to the front and the order would have meant nothing.
+- **2026-10-05** — Assumed: the plan is filed in the archive and numbered 33.1.0 for publishing, because every task is done, the automatic checks passed on the build, and one real replay on the preview returned *same* and then *changed* as expected.

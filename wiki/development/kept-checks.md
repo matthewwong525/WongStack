@@ -42,7 +42,7 @@ Only before publishing, after your change's own checks and their fixes settle, s
 
 The replay stops after 120 seconds, rebuilds included, and gives any one check 30 seconds. That is about six checks that write, or a few dozen that only read. One fixed limit, no setting.
 
-Checks recorded against files your change touched go first. The rest follow in an order that turns with each commit, so every check is reached over several publishes. A check the limit didn't reach is named, and never counts as a pass.
+Checks recorded against files your change touched go first. Files nearly every change touches, such as the release notes and tests, do not count, or every check would go first. The rest follow in an order that turns with each commit, so every check is reached over several publishes. A check the limit didn't reach is named, and never counts as a pass.
 
 ## What each result means
 

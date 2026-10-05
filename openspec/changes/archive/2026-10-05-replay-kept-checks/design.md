@@ -55,7 +55,7 @@ See proposal.md for why. The constraints that shape the approach:
 - `{url}` stands for the preview address; the script substitutes it. No kept file holds a host name.
 - A request check's `steps` are `[method, path, body?]` rows and its `expect` rows name a step: `{ "step": 1, "status": 422, "includes": "Title is required" }`.
 - `expect` is a closed set. Browser: `text` (appears), `gone` (text absent after the steps), `path` (the landed address's path). Request: `status`, `includes`. Anything else is an unreadable file.
-- `sourcePaths` is the branch's changed source files at recording time, minus `openspec/`, `wiki/`, and `.agents/verification/`.
+- `sourcePaths` is the branch's changed source files at recording time, minus the files that tie a check to no area: `openspec/`, `wiki/`, `.agents/verification/`, `CHANGELOG.md`, `VERSION`, `package-lock.json`, and tests and their fixtures. The same files are ignored when a check is matched against a branch.
 - `thenDigest` lets the script see that the written promise changed without holding a second copy of it.
 
 Why in the repo and not the memory store: every branch deploys to the one staging, and a branch that changes a screen must carry the check that matches it. A store outside git holds one set for all branches. The person also chose this (proposal, Decision log).

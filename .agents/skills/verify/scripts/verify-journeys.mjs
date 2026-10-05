@@ -192,11 +192,16 @@ function branchChanges(root) {
   };
 }
 
+// Files that tie a check to no area: plans and docs, the release notes and lockfile nearly every
+// change touches, and tests, which change what no page shows. Left out when a check is recorded, and
+// ignored when one is matched, so a kept file written before this rule orders the same way.
+const SHARED = /^(openspec|wiki|\.agents\/verification)\/|(^|\/)(CHANGELOG\.md|VERSION|package-lock\.json)$|(^|\/)(tests?|__tests__|fixtures)\/|\.(test|spec)\.[a-z]+$/;
+
 // Checks recorded against files the branch changed go first. The rest follow in id order, rotated by
 // the head commit's hash, so every check is reached over several publishes with no stored state.
 // Within each group the read-only checks go before the ones that write.
 function replayOrder(entries, { head, changed }) {
-  const touched = entry => entry.journey.sourcePaths.some(path => changed.includes(path));
+  const touched = entry => entry.journey.sourcePaths.some(path => !SHARED.test(path) && changed.includes(path));
   const rest = entries.filter(entry => !touched(entry));
   const offset = rest.length ? parseInt(head.slice(0, 8) || '0', 16) % rest.length : 0;
   const readOnlyFirst = list => [...list.filter(entry => !writes(entry.journey)), ...list.filter(entry => writes(entry.journey))];
@@ -448,7 +453,7 @@ export function keep({ root, runDir, url, id, expect, writing = false }) {
     thenDigest: promiseDigest(root, scenario),
     probe,
     writes: writing || steps.some(step => probe === 'request' && !['GET', 'HEAD'].includes(step[0])),
-    sourcePaths: branch.changed.filter(path => !/^(openspec|wiki|\.agents\/verification)\//.test(path)),
+    sourcePaths: branch.changed.filter(path => !SHARED.test(path)),
     recordedAt: branch.head,
     steps,
     expect,

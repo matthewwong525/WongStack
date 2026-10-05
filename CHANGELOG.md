@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Old features are re-checked before publishing
+## 33.1.0 — Old features are re-checked before publishing
 
 - **A passed check is kept.** When the check before publishing passes a promise about a page or a request, it saves the clicks and what the page showed, beside your code. It is kept only after it replays cleanly once, by itself, from fresh sample data.
 - **Kept checks replay before a change goes live,** with no AI. The replay stops after 2 minutes. The areas your change touches go first, and any check that did not fit is named.

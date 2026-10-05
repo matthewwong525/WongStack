@@ -9,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · replay-kept-checks</title>
+<title>Review · 2026-10-05-replay-kept-checks</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -93,11 +93,11 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="replay-kept-checks">
+<body data-change="2026-10-05-replay-kept-checks">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>replay-kept-checks</h1>
+  <h1>2026-10-05-replay-kept-checks</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. Saving a note copies all your notes. Open a drawing and tap it to see it full screen.</p>
@@ -146,6 +146,8 @@
 <li class="decision card" id="decision-14" data-note="decision-14" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-05</p>Assumed: checks for files the branch changed run first even when they write, ahead of read-only checks for other areas, because the promise is that changed areas go first. A read-only check that follows a writing one starts from a rebuild.</li>
 <li class="decision card" id="decision-15" data-note="decision-15" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-05</p>Assumed: a kept check is named after its scenario, so keeping it again replaces the same file. The check before publishing records whether staging was rebuilt in its run folder (<code>staging-facts</code>), and the replay reads it from there. <code>keep</code> takes the preview address (<code>--url</code>) to swap it out.</li>
 <li class="decision card" id="decision-16" data-note="decision-16" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-05</p>Assumed: the build is saved now that all code and tests are written, so the automatic checks and one real replay on this branch's preview can run; the three verification tasks stay open until each is seen to pass.</li>
+<li class="decision card" id="decision-17" data-note="decision-17" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-05</p>Asked whether to stop shared files, such as the release notes and tests, from counting as an area a change touched → chose yes, then publish. Nearly every change here touches the release notes, so every kept check would have gone to the front and the order would have meant nothing.</li>
+<li class="decision card" id="decision-18" data-note="decision-18" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-05</p>Assumed: the plan is filed in the archive and numbered 33.1.0 for publishing, because every task is done, the automatic checks passed on the build, and one real replay on the preview returned <i>same</i> and then <i>changed</i> as expected.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

@@ -69,7 +69,7 @@ function project(t, { facts = 'SEEDED=yes\nPLAYGROUND=yes\n' } = {}) {
   git('add', '.');
   git('commit', '-q', '-m', 'start');
   git('checkout', '-q', '-b', 'change');
-  for (const path of ['app/notes.js', 'wiki/notes.md', 'openspec/notes.md', '.agents/verification/recipe.json']) write(path, '// changed on the branch\n');
+  for (const path of ['app/notes.js', 'wiki/notes.md', 'openspec/notes.md', '.agents/verification/recipe.json', 'CHANGELOG.md', 'package-lock.json', 'app/notes.test.js', 'scripts/tests/notes.mjs']) write(path, '// changed on the branch\n');
   git('add', '.');
   git('commit', '-q', '-m', 'change');
   const runDir = join(base, 'wong-verify-run');
@@ -249,6 +249,16 @@ test('checks for files the branch changed run first, then the rest in an order t
   // The read-only touched check, a rebuild before the one that writes, a rebuild after it, then the rest.
   assert.deepEqual(site.paths(), ['/notes/2/edit', '/rebuilt', '/notes/1/edit', '/rebuilt', ...rotated]);
   assert.equal(f.rebuilds(), 2);
+});
+
+test('a file nearly every change touches moves no check to the front', async t => {
+  const f = project(t);
+  const site = await practiceSite(t);
+  // Recorded before the rule: the release notes and a test file sit in its list, and the branch changed both.
+  f.kept(editPage('a-shared', 1, { sourcePaths: ['CHANGELOG.md', 'app/notes.test.js', 'package-lock.json'] }));
+  f.kept(editPage('z-touched', 2, { sourcePaths: ['app/notes.js'] }));
+  await replay(f, site.url);
+  assert.deepEqual(site.paths(), ['/notes/2/edit', '/notes/1/edit']);
 });
 
 test('--only replays the named checks alone', async t => {
