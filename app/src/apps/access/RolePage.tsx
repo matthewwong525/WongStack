@@ -1,7 +1,11 @@
 import { useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import type { Role } from '../../lib/access'
 import type { ViewProps } from './address'
 import { Confirm } from './Confirm'
+import { Field } from './Fields'
 import { fill, NOTHING, sameSet, type AccessSet } from './levels'
 import { Page } from './Page'
 import { SetFields } from './SetFields'
@@ -20,13 +24,13 @@ export function RolePage({ role, ...props }: ViewProps & { role?: Role }) {
   </Confirm></View>
   return <Page {...props} name={role?.name ?? 'Add role'} changed={name !== (role?.name ?? '') || !sameSet(set, role ?? NOTHING)} action="Save role"
     onSave={() => save('roles', { id: role?.id, name, apps: set.apps, keys: fill(status.keys, set.keys, null) })}
-    extra={role && <button type="button" onClick={() => setRemoving(role)}>Remove role</button>}>
+    extra={role && <Button type="button" variant="outline" onClick={() => setRemoving(role)}>Remove role</Button>}>
     <h2>{role ? 'Change role' : 'Add role'}</h2>
-    <label>Name<input type="text" required maxLength={60} autoFocus={!role} value={name} onChange={event => setName(event.target.value)} /></label>
-    {!role && <label>Start from a person<select defaultValue="" onChange={event => setSet(status.people.find(person => person.email === event.target.value) ?? NOTHING)}>
-      <option value="">Nobody</option>
-      {status.people.filter(person => person.status === 'active').map(person => <option key={person.email}>{person.email}</option>)}
-    </select></label>}
+    <Field label="Name"><Input type="text" required maxLength={60} autoFocus={!role} value={name} onChange={event => setName(event.target.value)} /></Field>
+    {!role && <Field label="Start from a person"><NativeSelect defaultValue="" onChange={event => setSet(status.people.find(person => person.email === event.target.value) ?? NOTHING)}>
+      <NativeSelectOption value="">Nobody</NativeSelectOption>
+      {status.people.filter(person => person.status === 'active').map(person => <NativeSelectOption key={person.email}>{person.email}</NativeSelectOption>)}
+    </NativeSelect></Field>}
     <SetFields status={status} set={set} onChange={setSet} />
     <p>People: {holdersLine(status, role?.id)}</p>
   </Page>

@@ -117,7 +117,7 @@ The four views, each with a count, top every Access screen, an opened page inclu
 - **A view has its title on the left and its add button on the right.** The assistant makes apps and keys, so that spot says how one is added.
 - **A row opens its page** on a click that is not on a control. A key not saved yet opens nothing: its row says the next step.
 - **The page is wider on a computer.** On a phone each row stacks into short lines.
-- **Connect your assistant is a button beside the heading** that opens a popup with [Home's prompt](employee-project.md). Someone who manages nothing sees the steps on the page.
+- **Connect your assistant is a button beside the heading** that opens the popup that [Home's Connect card](mini-apps.md#the-home-page-lists-the-apps) opens, with [the same prompt](employee-project.md). Someone who manages nothing sees the steps on the page.
 
 ### Change a role in the row
 

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router'
+import { Button } from '@/components/ui/button'
 import { changeAccess, statusSchema, useAccess } from '../../lib/access'
 import { saidSchema, VIEWS, type ViewProps } from './address'
 import { Apps } from './Apps'
@@ -32,7 +33,7 @@ export function Owner() {
   }
   return <>
     {!data && !error && <p role="status">Loading people…</p>}
-    {error && <><p role="alert">Access is unavailable.</p><button type="button" onClick={reload}>Retry</button></>}
+    {error && <><p role="alert">Access is unavailable.</p><Button type="button" variant="outline" className="justify-self-start" onClick={reload}>Retry</Button></>}
     {data && <Screen status={data} id={named ? rest.join('/') : ''} view={view} pending={pending} said={said} save={save} reload={reload} />}
   </>
 }

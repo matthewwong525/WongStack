@@ -1,5 +1,6 @@
 import type { SavedKey, Status } from '../../lib/access'
 import { appTitle } from '../../lib/apps'
+import { Group, Tick } from './Fields'
 import { LevelChoice } from './LevelChoice'
 import { appUses, hint, ticked, usesShort, type AccessSet } from './levels'
 
@@ -15,27 +16,24 @@ export function SetFields({ status, set, onChange }: { status: Status; set: Acce
     notes={notes} onChange={level => onChange({ ...set, keys: { ...set.keys, [key.id]: level } })} />
   const rest = status.keys.filter(key => !users(key).length)
   return <>
-    <fieldset className="access-group"><legend>Apps</legend>
+    <Group legend="Apps">
       {status.apps.map(app => {
         const uses = appUses(status, app)
         const open = on(app) && uses.length > 0
-        return <div role="group" aria-label={appTitle(app)} className="access-app" key={app}>
-          <label className="access-choice">
-            <input type="checkbox" checked={on(app)} onChange={event => onChange(ticked(status, set, app, event.target.checked))} />
-            {appTitle(app)}
-          </label>
-          {!open && <span className="access-muted">{usesShort(status, app)}</span>}
-          {open && <div className="access-app-keys">{uses.map(({ key, need }) => {
+        return <div role="group" aria-label={appTitle(app)} className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1.5" key={app}>
+          <Tick checked={on(app)} onChange={to => onChange(ticked(status, set, app, to))}>{appTitle(app)}</Tick>
+          {!open && <span className="text-sm text-muted-foreground">{usesShort(status, app)}</span>}
+          {open && <div className="ms-2.5 grid min-w-0 basis-full gap-3 border-s-2 ps-4">{uses.map(({ key, need }) => {
             const others = users(key).filter(other => other !== app).map(appTitle).join(', ')
             return choice(key, [hint(app, key, need, set.keys[key.id]), others && `One level, shared with ${others}`, key.alone ? ALONE : ''])
           })}</div>}
         </div>
       })}
       {!status.apps.length && <p>No apps built yet. Ask your assistant to make one.</p>}
-    </fieldset>
-    {(rest.length > 0 || !status.keys.length) && <fieldset className="access-group"><legend>Keys no ticked app uses</legend>
+    </Group>
+    {(rest.length > 0 || !status.keys.length) && <Group legend="Keys no ticked app uses">
       {rest.map(key => choice(key, [key.alone ? ALONE : '']))}
       {!status.keys.length && <p>No keys saved yet.</p>}
-    </fieldset>}
+    </Group>}
   </>
 }

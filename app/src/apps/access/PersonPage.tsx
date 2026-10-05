@@ -1,7 +1,10 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
+import { Input } from '@/components/ui/input'
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import type { Person, Role } from '../../lib/access'
 import { at, type ViewProps } from './address'
+import { Field, Group, Tick } from './Fields'
 import { SetLabels } from './Labels'
 import { fill, NOTHING, sameSet, type AccessSet } from './levels'
 import { Page } from './Page'
@@ -10,7 +13,7 @@ import { signInLine } from './status'
 
 // What a role gives, as labels: the role's own page is the one place to change it.
 function RoleSet({ status, role }: Pick<ViewProps, 'status'> & { role: Role }) {
-  return <div className="access-own">
+  return <div className="grid gap-2">
     <p>From the {role.name} role:</p>
     <SetLabels status={status} set={role} />
     <Link to={at('roles', role.id)}>Edit the {role.name} role</Link>
@@ -19,10 +22,10 @@ function RoleSet({ status, role }: Pick<ViewProps, 'status'> & { role: Role }) {
 
 /** Who manages Access is the owner's own choice: the tick, and what it means right under it, at full weight. */
 function Managing({ manager, onChange }: { manager: boolean; onChange: (manager: boolean) => void }) {
-  return <fieldset className="access-group"><legend>Managing</legend>
-    <label className="access-choice"><input type="checkbox" checked={manager} onChange={event => onChange(event.target.checked)} />Can manage Access</label>
+  return <Group legend="Managing">
+    <Tick checked={manager} onChange={onChange}>Can manage Access</Tick>
     <p>Full trust. A manager can add and remove people and give anyone, themselves included, any app or key level.</p>
-  </fieldset>
+  </Group>
 }
 
 /** One person: their role first, then what it gives, or their own ticks and levels, then whether they manage Access.
@@ -45,14 +48,14 @@ export function PersonPage({ person, ...props }: ViewProps & { person?: Person }
   return <Page {...props} name={person?.email ?? 'Add person'} changed={changed} action="Save access" onSave={() => save('people', { email, removed: false, ...access, ...picked })}>
     {person ? <h2>{person.email} · {signInLine(person, status).text}</h2> : <>
       <h2>Add person</h2>
-      <label>Email<input type="email" required autoFocus value={email} onChange={event => setEmail(event.target.value)} /></label>
+      <Field label="Email"><Input type="email" required autoFocus value={email} onChange={event => setEmail(event.target.value)} /></Field>
     </>}
     {!owner && start.manager && <p>Manager · only the owner changes this</p>}
     {/* Leaving a role for their own set starts from what that role gave. */}
-    <label>Role<select value={role} onChange={event => { setRole(event.target.value); setSet(status.roles.find(item => item.id === event.target.value) ?? set) }}>
-      <option value="">Their own set</option>
-      {status.roles.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
-    </select></label>
+    <Field label="Role"><NativeSelect value={role} onChange={event => { setRole(event.target.value); setSet(status.roles.find(item => item.id === event.target.value) ?? set) }}>
+      <NativeSelectOption value="">Their own set</NativeSelectOption>
+      {status.roles.map(item => <NativeSelectOption key={item.id} value={item.id}>{item.name}</NativeSelectOption>)}
+    </NativeSelect></Field>
     {chosen ? <RoleSet status={status} role={chosen} /> : <>
       <SetFields status={status} set={set} onChange={setSet} />
       <p>A new person starts with no apps. Project code is shared separately.</p>
