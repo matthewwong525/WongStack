@@ -1,5 +1,6 @@
 // The route's contract validates both callers and generates its discovery.
 import { z } from "zod";
+import { en } from "zod/locales";
 import type { AppCall, AppEnv, AppHandler } from "../apps/index.ts";
 import { authorizeRequest, type RouteAccess } from "../employee-access/policy.ts";
 import { boundedBytes } from "./body.ts";
@@ -35,6 +36,9 @@ type Issue = { path: string; message: string };
 class InputRefusal extends Error {}
 const tooLarge = () => new InputRefusal("The input is larger than this action accepts.");
 const operationIdPattern = /^[a-z][a-z0-9-]*(\.[a-z][a-z0-9-]*)+$/;
+// zod loads its English messages as an import side effect, which the Worker build drops:
+// without this call every issue would read "Invalid input".
+z.config(en());
 const defaults = { inputBytes: 65536, outputBytes: 262144, timeoutMs: 15000 };
 const codes: Record<string, [number, string]> = {
   invalid_input: [400, "Invalid input"], authentication_required: [401, "Company login required"],

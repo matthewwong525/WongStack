@@ -59,3 +59,4 @@ No change to who may see or call an action, to the OpenAPI file's examples, to r
 - **2026-10-05** — Assumed: the unpublished work in another workspace that edits the same two files (`key-levels-in-access`) needs no ask, because it changes who may use a saved key, not how an action is described or answered.
 - **2026-10-05** — Assumed: the employee setup file's recorded fingerprint is renewed in this change, because the helper it points to changed and the setup link refuses a file that does not match; the plan had missed it.
 - **2026-10-05** — Archive checkpoint: all tasks done, local checks passed, numbered 32.0.0; the automatic checks decide.
+- **2026-10-05** — Assumed: the Worker sets its English error wording itself, because the preview check showed the published build dropping it, so a misspelled input still read only "Invalid input".
