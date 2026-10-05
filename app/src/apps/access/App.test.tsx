@@ -59,7 +59,12 @@ it('the owner sees people first, adds a person in one save, edits apps and copie
   open(); expect(screen.getByText('Loading people…')).toBeTruthy()
   await screen.findByRole('link', { name: 'Add person' })
   const people = within(screen.getByRole('region', { name: 'People' }))
-  expect(people.getByText('Can sign in')).toBeTruthy(); expect(people.getByText('Hello')).toBeTruthy()
+  // The sign-in status sits beside the name; a person with no role has their own set, shown as labels.
+  expect(people.getByText('Can sign in').parentElement!.textContent).toBe('employee@example.comCan sign in')
+  expect(people.getByText('Own set')).toBeTruthy(); expect(Array.from(document.querySelectorAll('.access-labels li')).map(item => item.textContent)).toEqual(['Hello'])
+  expect(within(people.getByRole('list', { name: 'Apps' })).getByText('Hello')).toBeTruthy(); expect(people.queryByRole('list', { name: 'Keys' })).toBeNull()
+  // Nothing was saved yet: no box, and no empty line left where one would be.
+  expect(document.querySelector('.access-page > p')).toBeNull()
   // No operator panel, connection button or private-instructions copy.
   for (const name of [/Connect login management/, /Copy private setup instructions/, /Retry login changes/, 'Try again']) expect(screen.queryByRole('button', { name })).toBeNull()
   follow('Add person')
@@ -69,11 +74,19 @@ it('the owner sees people first, adds a person in one save, edits apps and copie
   expect(screen.queryByRole('checkbox', { name: 'Access' })).toBeNull()
   fireEvent.click(screen.getByRole('checkbox', { name: 'Hello' })); fireEvent.click(screen.getByRole('checkbox', { name: 'custom' }))
   roster.people.push(person({ email: 'new@example.com', apps: ['hello', 'custom'] }))
-  click('Save access'); await screen.findByText('Saved.')
+  click('Save access')
+  // The list opens with the result in a box on top, said without interrupting.
+  const saved = (await screen.findByText('Saved.')).closest('p')!
+  expect([saved.getAttribute('role'), saved.className]).toEqual(['status', 'access-notice'])
+  expect(saved.compareDocumentPosition(await screen.findByRole('region', { name: 'People' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   expect(posts('people')[0][1]).toMatchObject({ redirect: 'error' })
   expect(sent('people')).toEqual([{ email: 'new@example.com', removed: false, role: null, apps: ['hello', 'custom'], keys: {} }])
-  await screen.findByText('All apps')
-  fireEvent.click(screen.getAllByRole('link', { name: 'Edit' })[0]); fireEvent.click(await screen.findByRole('checkbox', { name: 'Hello' })); click('Cancel')
+  const added = within((await screen.findByText('new@example.com')).closest('li')!)
+  expect(added.getAllByRole('listitem').map(item => item.textContent)).toEqual(['Hello', 'custom'])
+  // The box is gone on the next screen. Cancel with a change asks first, and leaving saves nothing.
+  fireEvent.click(screen.getAllByRole('link', { name: 'Edit' })[0]); fireEvent.click(await screen.findByRole('checkbox', { name: 'Hello' }))
+  expect(screen.queryByText('Saved.')).toBeNull()
+  click('Cancel'); click('Leave')
   await screen.findByRole('link', { name: 'Add person' }); expect(sent('people')).toHaveLength(1)
   click('Copy app link'); await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalledWith(origin))
   // The owner's own setup box sits on the same screen.
@@ -128,7 +141,7 @@ it('says one step is left when the live app has no key yet, with a request to co
 it('notes on the first open who could already sign in, and offers another read when the list could not be read', async () => {
   roster.imported = 3; roster.people[0].apps = ['hello', 'custom']
   open(); await screen.findByText('3 people could already sign in. They keep every app until you change them.')
-  expect(screen.getByText('All apps')).toBeTruthy(); cleanup()
+  expect(Array.from(document.querySelectorAll('.access-labels li')).map(item => item.textContent)).toEqual(['Hello', 'custom']); cleanup()
   roster.imported = 1; open(); await screen.findByText(/^1 person could already sign in/); cleanup()
   roster.imported = 0; roster.started = false
   open(); await screen.findByText(/could not be read yet/)
@@ -173,7 +186,9 @@ it('confirms a removal by saying everyone signs in again, and a removed person c
 it('an uncertain save reloads current status without replaying the mutation', async () => {
   open(); fireEvent.click(await screen.findByRole('link', { name: 'Edit' }))
   await screen.findByRole('button', { name: 'Save access' }); failed.add('people'); click('Save access')
-  await screen.findByText('That did not finish. Check the list below before trying again.')
+  // A save that did not finish interrupts: the same box on top, as an alert.
+  const box = await screen.findByRole('alert')
+  expect([box.textContent, box.className]).toEqual(['That did not finish. Check the list below before trying again.', 'access-notice'])
   await screen.findByRole('link', { name: 'Edit' })
   expect(screen.queryByRole('button', { name: 'Save access' })).toBeNull()
   expect(posts('people')).toHaveLength(1)
@@ -193,7 +208,9 @@ it('a person who is not the owner sees what they can use above their own setup b
     mode = viewer; open(); await screen.findByText('Signed in as employee@example.com')
     expect(screen.getByText('Apps: Hello')).toBeTruthy()
     const can = screen.getByRole('region', { name: 'You can use' })
-    expect(Array.from(can.querySelectorAll('p')).map(line => line.textContent)).toEqual(['Hello', ''])
+    // One label per app; with no key level, no Keys line at all.
+    expect(within(within(can).getByRole('list', { name: 'Apps' })).getAllByRole('listitem').map(item => item.textContent)).toEqual(['Hello'])
+    expect(within(can).getAllByRole('list')).toHaveLength(1); expect(can.querySelector('p')).toBeNull()
     expect(can.compareDocumentPosition(screen.getByRole('region', { name: 'Connect your assistant' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(screen.queryByRole('link', { name: 'Add person' })).toBeNull(); expect(screen.queryByRole('navigation')).toBeNull()
     click('Copy setup prompt'); await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalledWith(own.prompt.text))
@@ -203,8 +220,9 @@ it('a person who is not the owner sees what they can use above their own setup b
   // Their apps by title and their key levels; before permissions start, every app.
   mode = 'employee'; catalogue = ['access', 'hello', 'tips']
   held = [{ id: 'stripe', title: 'Stripe', level: 'read' }, { id: 'bank', title: 'Bank', level: 'write' }]
-  open(); const levels = await screen.findByText('Stripe: Read · Bank: Read & write')
-  expect(within(levels.closest('section')!).getByText('Hello · Tip calculator')).toBeTruthy(); cleanup()
+  open(); const mine = within((await screen.findByText('Stripe Read')).closest('section')!)
+  expect(mine.getAllByRole('list').map(list => [list.getAttribute('aria-label'), ...within(list).getAllByRole('listitem').map(item => item.textContent)]))
+    .toEqual([['Apps', 'Hello', 'Tip calculator'], ['Keys', 'Stripe Read', 'Bank Read & write']]); cleanup()
   // With nothing given yet, one plain line says so.
   catalogue = ['access']; held = []; open(); await screen.findByText('No apps yet. Ask your employer.'); cleanup()
   // The owner manages people as soon as the owner is known, even before permissions start.

@@ -45,11 +45,16 @@ export function humanEmail(identity: AccessIdentity | null): string | null {
   return z.email().safeParse(email).success && identity.claims.email?.trim().toLowerCase() === email ? email : null;
 }
 
-/** The verification service token the sign-in wall admits: a machine, never a person or the owner. */
+/** The verification service token the sign-in wall admits: a machine, never a person. */
 function checker(identity: AccessIdentity | null): boolean {
   return identity?.kind === "service" && !identity.claims.email && !!identity.claims.common_name &&
     identity.id === identity.claims.common_name;
 }
+
+/** On staging and its previews the checker stands in for the owner, so a walk can open and save Access against
+ *  the practice list. The environment name is committed config, never something a request sets. */
+export const checkerOwns = (env: PolicyEnv, identity: AccessIdentity | null): boolean =>
+  env.WONG_ENVIRONMENT === "staging" && checker(identity);
 
 /** The identity has already passed signed Access verification in the Worker. */
 export async function currentPolicy(env: PolicyEnv, identity: AccessIdentity | null): Promise<CurrentPolicy> {
@@ -58,7 +63,7 @@ export async function currentPolicy(env: PolicyEnv, identity: AccessIdentity | n
   if (!owner) return { state: "legacy" };
   if (!env.DB) return { state: "unavailable" };
   const email = humanEmail(identity);
-  const role = email === owner ? "owner" : "employee";
+  const role = email === owner || checkerOwns(env, identity) ? "owner" : "employee";
   try {
     const found = await env.DB.withSession("first-primary").prepare(`
       SELECT i.policy_enabled, i.keys_enabled, i.revision, m.status,
@@ -81,8 +86,8 @@ export async function currentPolicy(env: PolicyEnv, identity: AccessIdentity | n
     const row = policyRow.parse(found);
     if (!row.policy_enabled) return { state: "not_started", role };
     // The checker keeps every built app and every key, as before permissions started, so preview walks
-    // and the look at the live app still reach them. It manages nobody: people management needs the owner.
-    if (checker(identity)) return { state: "current", role: "employee", revision: row.revision, apps: new Set(catalogue), keys: everyKey() };
+    // and the look at the live app still reach them. On the live app it manages nobody: that needs the owner.
+    if (checker(identity)) return { state: "current", role, revision: row.revision, apps: new Set(catalogue), keys: everyKey() };
     // Once started, only the owner and current people pass.
     if (role !== "owner" && (!email || row.status !== "active")) return { state: "denied" };
     // The owner holds every key. A person's apps and levels come from their role when they hold one.

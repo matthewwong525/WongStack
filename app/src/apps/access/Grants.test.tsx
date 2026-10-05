@@ -53,18 +53,23 @@ const offered = (name: string) => who(name).getAllByRole('radio').map(radio => r
 const chosen = (name: string) => checked(who(name).getAllByRole('radio'))
 const pick = (name: string, level: string) => fireEvent.click(who(name).getByRole('radio', { name: level }))
 const unfinished = 'That did not finish. Check the list below before trying again.'
+// The labels in one box, by the heading of each line of them.
+const labelled = (box: Awaited<ReturnType<typeof row>>) => box.queryAllByRole('list').map(list => [list.getAttribute('aria-label'), ...within(list).getAllByRole('listitem').map(item => item.textContent)])
 const [office, team, kim] = ['Office · nobody yet', 'Sales · lee@shop.com, sam@shop.com', 'kim@shop.com']
 
-it('lists every key with whether it is saved, what uses it and who has which level', async () => {
+it('lists every key with whether it is saved, what uses it and who has it, a line per level', async () => {
   roster.keys.push(key('maps', 'Maps', { saved: false, usedBy: [{ app: 'tips', need: 'read' }] })); roster.appKeys.tips = [{ id: 'maps', need: 'read' }]
+  roster.roles[0].keys = { stripe: 'write' }
   open(); fireEvent.click(await screen.findByRole('link', { name: 'Keys' })); await screen.findByRole('region', { name: 'Keys' })
   const stripe = await row('Stripe')
   expect(stripe.getByText('Saved')).toBeTruthy(); expect(stripe.getByText('Used by Hello: look up, change')).toBeTruthy()
-  expect(stripe.getByText('Sales: Read · kim@shop.com: Read')).toBeTruthy()
-  expect(stripe.getByRole('link', { name: 'Change' }).getAttribute('href')).toBe('/apps/access/keys/stripe')
-  expect((await row('Bank')).getByText('Nobody yet')).toBeTruthy()
+  // The higher level first, each holder a label; a level nobody holds has no line.
+  expect(labelled(stripe)).toEqual([['Read & write', 'Office'], ['Read', 'Sales', 'kim@shop.com']]); expect(stripe.queryByText('Nobody yet')).toBeNull()
+  expect(stripe.getByRole('link', { name: 'Edit' }).getAttribute('href')).toBe('/apps/access/keys/stripe')
+  const bank = await row('Bank')
+  expect(bank.getByText('Nobody yet')).toBeTruthy(); expect(labelled(bank)).toEqual([])
   const cloudflare = await row('Cloudflare')
-  expect(cloudflare.getByText('Look-ups, no app needed · Read only')).toBeTruthy(); expect(cloudflare.getByText('kim@shop.com: Read')).toBeTruthy()
+  expect(cloudflare.getByText('Look-ups, no app needed · Read only')).toBeTruthy(); expect(labelled(cloudflare)).toEqual([['Read', 'kim@shop.com']])
   // A key that is not saved yet says how it arrives, and has no levels to change.
   const maps = await row('Maps')
   expect(maps.getByText('Not saved yet')).toBeTruthy(); expect(maps.getByText('Used by Tip calculator: look up')).toBeTruthy()
@@ -83,7 +88,7 @@ it('says one step is left for the key setup makes, with the request to copy, and
   expect(screen.queryByRole('listitem')).toBeNull()
 })
 it('sets one key for every role and every person with their own set, on one page and in one save', async () => {
-  open('keys'); fireEvent.click((await row('Stripe')).getByRole('link', { name: 'Change' }))
+  open('keys'); fireEvent.click((await row('Stripe')).getByRole('link', { name: 'Edit' }))
   await screen.findByRole('heading', { name: 'Stripe · Saved' }); expect(where()).toBe('/apps/access/keys/stripe')
   expect(screen.getByRole('link', { name: 'Keys' }).getAttribute('href')).toBe('/apps/access/keys'); expect(screen.queryByRole('navigation')).toBeNull()
   expect(screen.getByText('Used by Hello: look up, change')).toBeTruthy()
@@ -100,20 +105,20 @@ it('sets one key for every role and every person with their own set, on one page
   expect([offered(office), offered(kim), chosen(kim)]).toEqual([['None', 'Read'], ['None', 'Read'], ['Read']])
   cleanup(); roster.roles = []; roster.people = []; open('keys/bank'); await screen.findByText('No roles or people yet.')
 })
-it('lists each app with the keys it uses and who has it', async () => {
+it('lists each app with the keys it uses and who has it as labels', async () => {
   open(); fireEvent.click(await screen.findByRole('link', { name: 'Apps' })); await screen.findByRole('region', { name: 'Apps' })
   const hello = await row('Hello')
-  expect(hello.getByText('Uses Stripe: look up, change')).toBeTruthy(); expect(hello.getByText('Sales, kim@shop.com')).toBeTruthy()
-  expect(hello.getByRole('link', { name: 'Change' }).getAttribute('href')).toBe('/apps/access/apps/hello')
+  expect(hello.getByText('Uses Stripe: look up, change')).toBeTruthy(); expect(labelled(hello)).toEqual([['Given to', 'Sales', 'kim@shop.com']])
+  expect(hello.getByRole('link', { name: 'Edit' }).getAttribute('href')).toBe('/apps/access/apps/hello')
   const payroll = await row('payroll')
-  expect(payroll.getByText('Uses Bank: look up, change')).toBeTruthy(); expect(payroll.getByText('Nobody yet')).toBeTruthy()
+  expect(payroll.getByText('Uses Bank: look up, change')).toBeTruthy(); expect(payroll.getByText('Nobody yet')).toBeTruthy(); expect(labelled(payroll)).toEqual([])
   const tips = await row('Tip calculator')
-  expect(tips.getByText('Uses no keys')).toBeTruthy(); expect(tips.getByText('Sales')).toBeTruthy()
+  expect(tips.getByText('Uses no keys')).toBeTruthy(); expect(labelled(tips)).toEqual([['Given to', 'Sales']])
   cleanup(); roster.apps = []; open('apps'); await screen.findByText('No apps built yet. Ask your assistant to make one.')
   expect(screen.queryByRole('listitem')).toBeNull()
 })
 it('gives an app to roles and people, with the levels of the keys it uses beside each tick', async () => {
-  open('apps'); fireEvent.click((await row('Hello')).getByRole('link', { name: 'Change' }))
+  open('apps'); fireEvent.click((await row('Hello')).getByRole('link', { name: 'Edit' }))
   await screen.findByRole('heading', { name: 'Hello' }); expect(where()).toBe('/apps/access/apps/hello')
   expect(screen.getByRole('link', { name: 'Apps' }).getAttribute('href')).toBe('/apps/access/apps'); expect(screen.queryByRole('navigation')).toBeNull()
   expect(screen.getByText('Uses Stripe: look up, change')).toBeTruthy(); expect(screen.getByText('A level holds in every app.')).toBeTruthy()
@@ -135,6 +140,13 @@ it('gives an app to roles and people, with the levels of the keys it uses beside
   fireEvent.click(tick(kim)); click('Save access'); await screen.findByText('Saved.')
   expect(sent('grants')[1]).toEqual({ app: 'tips', roles: { office: false, sales: true }, people: { 'kim@shop.com': true }, keys: { roles: { sales: {} }, people: { 'kim@shop.com': {} } } })
   cleanup(); roster.roles = []; roster.people = []; open('apps/payroll'); await screen.findByText('No roles or people yet.')
+})
+it('every list opens a page with a button that says Edit', async () => {
+  for (const [path, name, count] of [['', 'People', 3], ['roles', 'Roles', 2], ['apps', 'Apps', 3], ['keys', 'Keys', 3]] as const) {
+    open(path); const region = within(await screen.findByRole('region', { name }))
+    expect(region.getAllByRole('link', { name: 'Edit' }), path).toHaveLength(count); expect(region.queryByRole('link', { name: 'Change' }), path).toBeNull()
+    cleanup()
+  }
 })
 it('a key or app save that did not finish says so and reads the list again', async () => {
   failed.add('grants')

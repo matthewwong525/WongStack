@@ -3,6 +3,19 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — An Access screen that is quicker to use and easier to read
+
+- **An app's keys sit under its tick.** On a person's page and a role's page, ticking an app shows the level of each key it uses right there, so you give the app and pick the level in one place. Ticking still gives Read, never Read & write. A key two ticked apps share shows under both and is one level. Keys no ticked app uses sit in a short list below.
+- **People and Roles show apps and levels as labels.** One small label per app and per key, with the level in words: *Stripe Read*. A line marked `!` says where an app can't do its job yet, such as *Hello can look up, not change*. A person with a role shows the role's name; one without shows *Own set*. A person with every app now shows each app, where the list said *All apps*.
+- **Apps and Keys group who has what.** A key lists who has Read & write and who has Read on separate lines, and an app lists who has it as labels. Every list button says *Edit*.
+- **Your own view uses the same labels.** Someone who is not the owner sees their apps and levels as labels too.
+- **A save you can't miss, and no change lost by accident.** After a save the list opens with a *Saved* box on top, or a box that says the save did not finish. Leaving a page with changes you have not saved asks first.
+- **The assistant can check your Access screens on a preview.** On a preview only, its checker opens and saves the owner's Access screens against the practice list, so it can click through a change and show you pictures. On the live app nothing changes: the checker keeps every app and never manages people.
+
+[Employee access](wiki/stack/employee-access.md#four-views) has the details.
+
+**Updating.** Nothing needs doing by hand. Your people, roles, levels and data stay as they are. If you changed the Access screen's own code, the assistant brings your changes onto the new layout.
+
 ## 33.0.0 — Read or Read & write for each saved key, and roles
 
 - **Each saved key gets a level per person: None, Read, or Read & write.** Read lets a person, and their assistant, look things up with that key. Read & write also lets them change or send things. A level is set once per key and holds in every app. Lowering one takes effect on the person's next request, and a refused request says which key and which level it needed.

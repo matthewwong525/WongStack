@@ -23,28 +23,48 @@ export const appUses = (status: Status, app: string) =>
 export const usesLine = (status: Status, app: string) =>
   `uses ${dots(...appUses(status, app).map(({ key, need }) => `${key.title}: ${NEED[need]}`)) || 'no keys'}`
 
-/** What a set can't do yet in an app it has: one plain line per key held below what the app does. */
-export const shortLine = (status: Status, app: string, keys: AccessSet['keys']) => dots(...new Set(appUses(status, app).map(({ key, need }) => {
-  const held = keys[key.id]
-  if (!held) return `can't use ${key.title} yet`
-  return held === 'read' && need === 'write' && 'can look up, not change'
-})))
+/** `uses Stripe, Bank` beside an app's tick, or `uses no keys`. */
+export const usesShort = (status: Status, app: string) =>
+  `uses ${appUses(status, app).map(({ key }) => key.title).join(', ') || 'no keys'}`
 
-/** `Stripe: Read · Bank: Read & write`: each key a set holds a level for. */
-export const levelsLine = (status: Status, keys: AccessSet['keys']) =>
-  dots(...status.keys.map(key => keys[key.id] && `${key.title}: ${levelName(keys[key.id])}`))
+/** What a held level leaves an app short of with one key: `none` can't use it, `read` can't change things. */
+const lack = (need: Level, held?: Level | null) => !held ? 'none' : held === 'read' && need === 'write' ? 'read' : null
+
+/** What a set can't do yet in an app it has: one plain line per key held below what the app does. */
+export const shortLine = (status: Status, app: string, keys: AccessSet['keys']) => dots(...new Set(appUses(status, app).map(({ key, need }) =>
+  ({ none: `can't use ${key.title} yet`, read: 'can look up, not change', ok: '' })[lack(need, keys[key.id]) ?? 'ok'])))
+
+/** Under a level beside an app: what the app can't do yet, and the level that fixes it. */
+export const hint = (app: string, key: SavedKey, need: Level, held?: Level | null) =>
+  ({ none: `${appTitle(app)} can't use ${key.title} yet. Pick Read to let it look things up.`,
+    read: `${appTitle(app)} also changes things. Pick Read & write to let it.`, ok: '' })[lack(need, held) ?? 'ok']
+
+/** `Hello can look up, not change`: one line per app of a set that can't do its job yet. */
+export const gaps = (status: Status, set: AccessSet) => set.apps.flatMap(app => {
+  const short = shortLine(status, app, set.keys)
+  return short ? [`${appTitle(app)} ${short}`] : []
+})
+
+/** `Stripe Read`: a key and its level as one label. */
+export const levelLabel = (title: string, level: Level) => `${title} ${levelName(level)}`
+
+/** One label per key a set holds a level for, in the order the keys are shown. */
+export const levelLabels = (status: Status, keys: AccessSet['keys']) => status.keys.flatMap(key => {
+  const level = keys[key.id]
+  return level ? [levelLabel(key.title, level)] : []
+})
+
+/** Whether two sets give the same thing: the order of ticks, and a key at None, change nothing. */
+export const sameSet = (one: AccessSet, other: AccessSet) => {
+  const text = ({ apps, keys }: AccessSet) => JSON.stringify([[...apps].sort(), Object.entries(keys).filter(([, level]) => level).sort()])
+  return text(one) === text(other)
+}
 
 /** What uses a key, for the Keys view and a key's page. */
 export function keyUseLine(key: SavedKey): string {
   const by = dots(...key.usedBy.map(use => `${appTitle(use.app)}: ${NEED[use.need]}`))
   return dots(by && `Used by ${by}`, key.alone && 'Look-ups, no app needed', !by && !key.alone && 'Nothing uses it yet',
     !key.levels.includes('write') && 'Read only')
-}
-
-/** Under a key on a person's or a role's page: which of their ticked apps use it, or `unused`. */
-export function heldUseLine(key: SavedKey, apps: string[], unused: string): string {
-  const by = key.usedBy.filter(use => apps.includes(use.app)).map(use => appTitle(use.app)).join(', ')
-  return dots(by && `used by ${by}`, key.alone && 'look-ups, no app needed') || unused
 }
 
 /** Setup makes some keys itself; the others arrive through a private link. */

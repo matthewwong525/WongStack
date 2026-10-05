@@ -2,6 +2,7 @@ import { Link } from 'react-router'
 import { appTitle } from '../../lib/apps'
 import { at, type ViewProps } from './address'
 import { AppAccessPage } from './AppAccessPage'
+import { Labels } from './Labels'
 import { capital, usesLine } from './levels'
 import { appHolders } from './subjects'
 import { View } from './View'
@@ -15,8 +16,8 @@ export function Apps(props: ViewProps) {
     <ul className="access-people">{status.apps.map(app => <li key={app}>
       <strong>{appTitle(app)}</strong>
       <p>{capital(usesLine(status, app))}</p>
-      <p>{appHolders(status, app)}</p>
-      <Link className="access-button" to={at('apps', app)}>Change</Link>
+      <Labels title="Given to" items={appHolders(status, app)} none="Nobody yet" />
+      <Link className="access-button" to={at('apps', app)}>Edit</Link>
     </li>)}</ul>
   </View>
 }

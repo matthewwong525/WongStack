@@ -8,26 +8,45 @@
 .access-fields > label > * { width: 100%; box-sizing: border-box; }
 .access-notice { background: var(--surface); }
 .access-notice p { margin-block: 0 .6rem; }
-.access-people li p { margin-block: .4rem .8rem; }
-.access-choice { display: flex; align-items: center; gap: .6rem; margin-block: .6rem; }
+.access-choice { display: flex; align-items: center; gap: .6rem; font-weight: 600; }
 .access-choice input, .access-level-options input { width: auto; }
 .access-actions, .access-views, .access-level-options, .access-row-head { display: flex; flex-wrap: wrap; gap: .6rem; }
-.access-people { list-style: none; padding: 0; display: grid; gap: 1rem; }
-.access-people li, .access-removal, .access-notice { padding: 1rem; border: 1px solid var(--border); border-radius: .6rem; overflow-wrap: anywhere; }
+.access-people { list-style: none; margin: 0; padding: 0; display: grid; gap: 1rem; }
+.access-people > li, .access-removal, .access-notice { padding: 1rem; border: 1px solid var(--border); border-radius: .6rem; overflow-wrap: anywhere; }
+/* One row of a list, and the box of what you can use: the name, then each line of labels, then the buttons. */
+.access-people > li, .access-own { display: grid; gap: .5rem; }
+.access-people > li p, .access-own p, .access-own h2 { margin-block: 0; }
+.access-people > li > .access-button { justify-self: start; }
 /* A step to finish inside a key's own box needs no second box. */
 .access-people .access-notice { padding: 0; border: 0; background: none; }
-.access-row-head { justify-content: space-between; }
+.access-row-head { justify-content: space-between; align-items: baseline; }
 .access-views a, .access-button { display: inline-block; padding: .5rem .75rem; border: 1px solid transparent; border-radius: .5rem; text-decoration: none; }
 /* The current view is boxed, bold and underlined: never marked by colour alone. */
 .access-views a[aria-current="page"] { border-color: var(--border); font-weight: 700; text-decoration: underline; }
 .access-button { border-color: var(--border); background: var(--surface); color: var(--text); }
 .access-primary { background: var(--accent); color: var(--accent-text); }
-.access-muted { margin-block: 0 .6rem; color: var(--muted-text); }
-.access-muted:empty { display: none; }
-.access-app .access-muted { margin-inline-start: 1.8rem; }
-.access-levels { margin-block: .6rem; }
-/* The level choice: three parts in one row that wraps, each a real radio button whose dot shows the choice. */
+.access-muted { margin-block: 0; color: var(--muted-text); }
+/* Labels: a heading, then one small box per app, key level or holder. The words say the level; the row wraps. */
+.access-label-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: .4rem .6rem; }
+.access-labels { display: flex; flex-wrap: wrap; gap: .4rem; min-width: 0; margin: 0; padding: 0; list-style: none; }
+.access-labels li { padding: .1rem .55rem; border: 1px solid var(--border); border-radius: 1rem; background: var(--surface); font-size: .9rem; overflow-wrap: anywhere; }
+.access-notice .access-labels li { background: var(--canvas); }
+/* A gap is marked by a "!" in the text, bold words and a bar: never by colour alone. */
+.access-gaps { display: grid; gap: .3rem; margin: 0; padding: 0; list-style: none; }
+.access-gaps li { padding-inline-start: .6rem; border-inline-start: .2rem solid var(--accent); font-weight: 600; overflow-wrap: anywhere; }
+/* The Apps group and the group of keys no ticked app uses, on a person's and a role's page. */
+.access-group { display: grid; gap: .9rem; min-width: 0; margin: 0; padding: .8rem 1rem 1rem; border: 1px solid var(--border); border-radius: .6rem; }
+.access-group > legend { padding-inline: .4rem; font-weight: 700; }
+.access-group > p { margin-block: 0; }
+/* An app's tick, what it uses beside it, and its key levels indented under it. */
+.access-app { display: flex; flex-wrap: wrap; align-items: baseline; gap: .4rem .8rem; min-width: 0; }
+.access-app-keys { display: grid; gap: .8rem; flex-basis: 100%; min-width: 0; margin-inline-start: .6rem; padding-inline-start: 1rem; border-inline-start: .15rem solid var(--border); }
+.access-levels { display: grid; gap: .4rem; }
+.access-levels > legend { padding: 0; margin-block-end: .3rem; }
+/* The level choice: its parts in one row that wraps, each a real radio button whose dot shows the choice. */
 .access-level-options { gap: 0; }
-.access-level-options label { display: flex; align-items: center; gap: .4rem; padding: .4rem .7rem; border: 1px solid var(--border); }
+.access-level-options label { display: flex; align-items: center; gap: .4rem; padding: .4rem .7rem; border: 1px solid var(--border); background: var(--surface); cursor: pointer; }
 .access-level-options label + label { margin-inline-start: -1px; }
+.access-level-options label:first-child { border-start-start-radius: .5rem; border-end-start-radius: .5rem; }
+.access-level-options label:last-child { border-start-end-radius: .5rem; border-end-end-radius: .5rem; }
 .access-level-options label:has(:checked) { background: var(--accent); color: var(--accent-text); font-weight: 600; }

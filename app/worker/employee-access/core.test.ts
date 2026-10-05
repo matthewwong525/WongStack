@@ -2,6 +2,8 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { AccessError, lease, leaseCurrent, ownerCore, permissionsStarted, release, reply } from "./core";
 import { boundedJson } from "./json";
 import { provider } from "./provider";
+import { management } from "./management";
+import type { AccessIdentity } from "../access";
 import { fixture, owner, employee, site, req } from "../../tests/employee-access/connections";
 let f: ReturnType<typeof fixture>;
 beforeEach(() => { f = fixture(); });
@@ -34,6 +36,36 @@ it("knows the owner by the recorded email and a verified human sign-in, on the l
       .rejects.toMatchObject({ code: "owner_setup_required", status: 503 });
   }
   expect(new AccessError("unavailable").status).toBe(503);
+});
+
+it("lets the verification machine read and save as the owner on a preview, and nowhere else", async () => {
+  const machine: AccessIdentity = { kind: "service", id: "checker.access", claims: { common_name: "checker.access", sub: "",
+    iss: site.issuer, aud: site.audience, exp: 9999999999 } };
+  const preview = { ...f.env, WONG_ENVIRONMENT: "staging", WONG_ACCESS_LOGIN_MANAGEMENT: undefined };
+  const save = () => req("people", "POST", { email: "practice@example.com", apps: [], removed: false });
+  // Its subject is the token's own name, and the list is the practice list.
+  expect(await ownerCore(req("status", "GET"), preview, machine))
+    .toMatchObject({ email: site.ownerEmail, subject: "checker.access", live: false, installationId: site.installationId });
+  expect((await management(req("status", "GET"), preview, machine)).status).toBe(200);
+  const saved = await management(save(), preview, machine);
+  expect(saved.status).toBe(200);
+  expect((await saved.json()).people.map((person: { email: string }) => person.email)).toContain("practice@example.com");
+  // A save still needs this site's own origin.
+  await expect(ownerCore(new Request(`${site.origin}/api/access/people`, { method: "POST" }), preview, machine))
+    .rejects.toMatchObject({ code: "origin_required", status: 403 });
+  // The live app and a local run refuse both the read and the save, and nobody's access changes.
+  for (const environment of ["production", "local", undefined]) {
+    const env = { ...preview, WONG_ENVIRONMENT: environment };
+    for (const request of [req("status", "GET"), save()]) {
+      const refused = await management(request, env, machine);
+      expect([refused.status, await refused.json()], String(environment)).toEqual([403, { code: "owner_required" }]);
+    }
+  }
+  expect(f.sql.prepare("SELECT COUNT(*) count FROM wong_access_members WHERE email = 'practice@example.com'").get()).toEqual({ count: 1 });
+  // A machine that is not the checker gains nothing on a preview.
+  for (const forged of [{ ...machine, id: "another.access" }, { ...machine, claims: { ...machine.claims, email: site.ownerEmail } }]) {
+    await expect(ownerCore(req("status", "GET"), preview, forged)).rejects.toMatchObject({ code: "owner_required", status: 403 });
+  }
 });
 
 it("creates the installation row on the first owner request and logs the first-seen subject once", async () => {

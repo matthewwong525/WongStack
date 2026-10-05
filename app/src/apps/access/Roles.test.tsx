@@ -49,6 +49,10 @@ const ticks = () => checked(screen.getAllByRole('checkbox'))
 const level = (name: string) => within(screen.getByRole('group', { name }))
 const chosen = (name: string) => checked(level(name).getAllByRole('radio'))
 const named = () => screen.getByLabelText('Name') as HTMLInputElement
+const labels = (name: string, box: ReturnType<typeof within>) => within(box.getByRole('list', { name })).getAllByRole('listitem').map(item => item.textContent)
+const tick = (name: string) => fireEvent.click(screen.getByRole('checkbox', { name }))
+const held = (name: string, key: string) => checked(within(app(name).getByRole('group', { name: key })).getAllByRole('radio'))
+const raise = 'Hello also changes things. Pick Read & write to let it.'
 
 it('says what a role is for when there are none yet, with one way to add the first', async () => {
   roster.roles = []; roster.people = [person('kim@shop.com')]
@@ -59,28 +63,49 @@ it('says what a role is for when there are none yet, with one way to add the fir
   expect(purpose.compareDocumentPosition(add) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   expect(screen.queryByRole('listitem')).toBeNull()
 })
-it('lists each role with its apps, its levels and who holds it, and changes one on its own page', async () => {
+it('lists each role with its apps, its levels and who holds it as labels, and changes one on its own page', async () => {
   open(); fireEvent.click(await screen.findByRole('link', { name: 'Roles' })); await screen.findByRole('region', { name: 'Roles' })
   const office = await row('Office')
   expect(office.getByText('No apps')).toBeTruthy(); expect(office.getByText('Nobody yet')).toBeTruthy()
-  const held = await row('Sales')
-  expect(held.getByText('Hello, Tip calculator · Stripe: Read')).toBeTruthy(); expect(held.getByText('lee@shop.com, sam@shop.com')).toBeTruthy()
-  expect(screen.queryByText('No roles yet.')).toBeNull()
-  fireEvent.click(held.getByRole('link', { name: 'Change' }))
+  expect(office.queryByRole('listitem')).toBeNull()
+  // Apps, key levels and holders are labels; the line marked "!" says where an app can't do its job yet.
+  const sales = await row('Sales')
+  expect([labels('Apps', sales), labels('Keys', sales), labels('People', sales)]).toEqual([['Hello', 'Tip calculator'], ['Stripe Read'], ['lee@shop.com', 'sam@shop.com']])
+  expect(labels("Can't do yet", sales)).toEqual(['! Hello can look up, not change'])
+  expect(screen.queryByText('No roles yet.')).toBeNull(); expect(screen.queryByRole('link', { name: 'Change' })).toBeNull()
+  fireEvent.click(sales.getByRole('link', { name: 'Edit' }))
   await screen.findByRole('heading', { name: 'Change role' }); expect(where()).toBe('/apps/access/roles/sales')
   expect(screen.getByRole('link', { name: 'Roles' }).getAttribute('href')).toBe('/apps/access/roles'); expect(screen.queryByRole('navigation')).toBeNull()
   expect(named().value).toBe('Sales'); expect(screen.queryByLabelText('Start from a person')).toBeNull()
   // The same ticks and levels as on a person's page, and who a save will reach.
-  expect(ticks()).toEqual(['Hello', 'Tip calculator']); expect([chosen('Stripe'), chosen('Bank'), chosen('Cloudflare')]).toEqual([['Read'], ['None'], ['None']])
-  expect(app('Hello').getByText('can look up, not change')).toBeTruthy(); expect(level('Stripe').getByText('used by Hello')).toBeTruthy()
-  expect(level('Bank').getByText('nothing in this role uses it yet')).toBeTruthy(); expect(level('Cloudflare').getByText('look-ups, no app needed')).toBeTruthy()
+  expect(ticks()).toEqual(['Hello', 'Tip calculator']); expect([held('Hello', 'Stripe'), chosen('Bank'), chosen('Cloudflare')]).toEqual([['Read'], ['None'], ['None']])
+  expect(app('Hello').getByText(raise)).toBeTruthy(); expect(app('payroll').getByText('uses Bank')).toBeTruthy()
+  const other = within(screen.getByRole('group', { name: 'Keys no ticked app uses' }))
+  expect(other.getAllByRole('group').map(group => group.querySelector('legend')!.textContent)).toEqual(['Bank', 'Cloudflare'])
+  expect(level('Cloudflare').getByText('look-ups, no app needed')).toBeTruthy()
   expect(screen.getByText('People: lee@shop.com, sam@shop.com')).toBeTruthy()
   fireEvent.change(named(), { target: { value: 'Field sales' } })
-  fireEvent.click(screen.getByRole('checkbox', { name: 'payroll' })); expect(chosen('Bank')).toEqual(['Read'])
+  tick('payroll'); expect(held('payroll', 'Bank')).toEqual(['Read'])
   fireEvent.click(level('Bank').getByRole('radio', { name: 'Read & write' }))
   click('Save role'); await screen.findByText('Saved.')
   expect(sent('roles')).toEqual([{ id: 'sales', name: 'Field sales', apps: ['hello', 'tips', 'payroll'], keys: { stripe: 'read', bank: 'write', cloudflare: null } }])
   expect(where()).toBe('/apps/access/roles')
+})
+it("sets a role's key level under the app's tick: the tick gives Read, a raise saves Read & write, and a shared key follows", async () => {
+  roster.keys[0].usedBy.push({ app: 'tips', need: 'read' }); roster.appKeys.tips = [{ id: 'stripe', need: 'read' }]
+  open('roles/office'); await screen.findByRole('heading', { name: 'Change role' })
+  // Nothing is ticked: no app shows a level, and each says what it uses.
+  expect(screen.getByRole('group', { name: 'Apps' }).querySelector('input[type="radio"]')).toBeNull()
+  expect(app('Hello').getByText('uses Stripe')).toBeTruthy(); expect(chosen('Stripe')).toEqual(['None'])
+  tick('Hello'); expect(held('Hello', 'Stripe')).toEqual(['Read']); expect(app('Hello').getByText(raise)).toBeTruthy()
+  tick('Tip calculator'); expect(held('Tip calculator', 'Stripe')).toEqual(['Read'])
+  fireEvent.click(within(app('Hello').getByRole('group', { name: 'Stripe' })).getByRole('radio', { name: 'Read & write' }))
+  expect([held('Hello', 'Stripe'), held('Tip calculator', 'Stripe')]).toEqual([['Read & write'], ['Read & write']])
+  expect(app('Hello').queryByText(raise)).toBeNull(); expect(app('Tip calculator').getByText('One level, shared with Hello')).toBeTruthy()
+  // An unticked app hides its picker, and takes no level with it.
+  tick('Tip calculator'); expect(app('Tip calculator').queryByRole('radio')).toBeNull(); expect(held('Hello', 'Stripe')).toEqual(['Read & write'])
+  click('Save role'); await screen.findByText('Saved.')
+  expect(sent('roles')).toEqual([{ id: 'office', name: 'Office', apps: ['hello'], keys: { stripe: 'write', bank: null, cloudflare: null } }])
 })
 it('adds a role, which can start from what one person has now', async () => {
   open('roles'); fireEvent.click(await screen.findByRole('link', { name: 'Add role' }))
@@ -93,7 +118,7 @@ it('adds a role, which can start from what one person has now', async () => {
   expect(ticks()).toEqual([])
   // A person who holds a role starts the new role from what that role gives them.
   fireEvent.change(from, { target: { value: 'lee@shop.com' } })
-  expect(ticks()).toEqual(['Hello', 'Tip calculator']); expect([chosen('Stripe'), chosen('Cloudflare')]).toEqual([['Read'], ['None']])
+  expect(ticks()).toEqual(['Hello', 'Tip calculator']); expect([held('Hello', 'Stripe'), chosen('Cloudflare')]).toEqual([['Read'], ['None']])
   fireEvent.change(from, { target: { value: '' } })
   expect(ticks()).toEqual([]); expect(chosen('Stripe')).toEqual(['None'])
   fireEvent.change(from, { target: { value: 'kim@shop.com' } })

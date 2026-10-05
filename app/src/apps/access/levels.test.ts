@@ -1,6 +1,7 @@
 import { expect, it } from 'vitest'
 import type { SavedKey, Status } from '../../lib/access'
-import { appUses, capital, dots, fill, heldUseLine, keyState, keyUseLine, levelName, levelsLine, NOTHING, shortLine, ticked, usesLine } from './levels'
+import { appTitle } from '../../lib/apps'
+import { appUses, capital, dots, fill, gaps, hint, keyState, keyUseLine, levelLabel, levelLabels, levelName, NOTHING, sameSet, shortLine, ticked, usesLine, usesShort, type AccessSet } from './levels'
 
 const key = (id: string, title: string, changes: Partial<SavedKey> = {}): SavedKey => ({ id, title, levels: ['read', 'write'], saved: true, setup: false, usedBy: [], alone: false, ...changes })
 const stripe = key('stripe', 'Stripe', { usedBy: [{ app: 'hello', need: 'write' }, { app: 'tips', need: 'read' }] })
@@ -24,6 +25,8 @@ it('says which keys an app uses and whether it looks things up or also changes t
   expect(usesLine(status, 'hello')).toBe('uses Stripe: look up, change · Maps: look up')
   expect(usesLine(status, 'tips')).toBe('uses Stripe: look up')
   expect(usesLine(status, 'payroll')).toBe('uses no keys')
+  // Beside a tick, the keys alone.
+  expect([usesShort(status, 'hello'), usesShort(status, 'tips'), usesShort(status, 'payroll')]).toEqual(['uses Stripe, Maps', 'uses Stripe', 'uses no keys'])
 })
 
 it('says in one plain line per key what a set can not do yet in an app it has', () => {
@@ -36,20 +39,42 @@ it('says in one plain line per key what a set can not do yet in an app it has', 
   expect(shortLine(status, 'payroll', {})).toBe('')
 })
 
-it('lists the levels a set holds in the order the keys are shown', () => {
-  expect(levelsLine(status, { cloudflare: 'read', stripe: 'write', maps: null })).toBe('Stripe: Read & write · Cloudflare: Read')
-  expect(levelsLine(status, {})).toBe('')
+it('names the fix under a level beside an app: Read to use the key, Read & write to change things', () => {
+  expect(hint('hello', stripe, 'write')).toBe("Hello can't use Stripe yet. Pick Read to let it look things up.")
+  expect(hint('tips', stripe, 'read', null)).toBe("Tip calculator can't use Stripe yet. Pick Read to let it look things up.")
+  expect(hint('hello', stripe, 'write', 'read')).toBe('Hello also changes things. Pick Read & write to let it.')
+  expect([hint('hello', stripe, 'write', 'write'), hint('tips', stripe, 'read', 'read'), hint('tips', stripe, 'read', 'write')]).toEqual(['', '', ''])
 })
 
-it('says what uses a key, on the Keys view and under a level on a person or a role', () => {
+it('gives one gap line per app of a set that can not do its job yet, with the app named', () => {
+  expect(gaps(status, { apps: ['hello', 'tips', 'payroll'], keys: { stripe: 'read', maps: 'read' } })).toEqual(['Hello can look up, not change'])
+  expect(gaps(status, { apps: ['tips', 'hello'], keys: {} })).toEqual(["Tip calculator can't use Stripe yet", "Hello can't use Stripe yet · can't use Maps yet"])
+  expect(gaps(status, { apps: ['hello', 'tips'], keys: { stripe: 'write', maps: 'read' } })).toEqual([])
+  // An app that is not ticked has no gap, and neither has one that is no longer built: it shows its name and uses nothing.
+  expect(gaps(status, { apps: ['retired'], keys: {} })).toEqual([]); expect(gaps(status, NOTHING)).toEqual([])
+  expect(appTitle('retired')).toBe('retired')
+})
+
+it('labels the levels a set holds, one per key in the order the keys are shown', () => {
+  expect(levelLabels(status, { cloudflare: 'read', stripe: 'write', maps: null })).toEqual(['Stripe Read & write', 'Cloudflare Read'])
+  expect(levelLabels(status, {})).toEqual([])
+  expect(levelLabel('Bank', 'read')).toBe('Bank Read')
+})
+
+it('knows when a set is back where it started, whatever the order of ticks and a key at None', () => {
+  const start = { apps: ['hello', 'tips'], keys: { stripe: 'read' as const } }
+  expect(sameSet(start, { apps: ['tips', 'hello'], keys: { maps: null, stripe: 'read' } })).toBe(true)
+  expect(sameSet(NOTHING, { apps: [], keys: { stripe: null } })).toBe(true)
+  const moves: AccessSet[] = [{ apps: ['hello'], keys: start.keys }, { apps: start.apps, keys: { stripe: 'write' } }, { apps: start.apps, keys: {} },
+    { apps: start.apps, keys: { ...start.keys, maps: 'read' } }]
+  for (const moved of moves) expect(sameSet(start, moved)).toBe(false)
+})
+
+it('says what uses a key, on the Keys view and a key page', () => {
   expect(keyUseLine(stripe)).toBe('Used by Hello: look up, change · Tip calculator: look up')
   expect(keyUseLine(cloudflare)).toBe('Look-ups, no app needed · Read only')
   expect(keyUseLine({ ...cloudflare, usedBy: [{ app: 'payroll', need: 'read' }] })).toBe('Used by payroll: look up · Look-ups, no app needed · Read only')
   expect(keyUseLine(spare)).toBe('Nothing uses it yet')
-  expect(heldUseLine(stripe, ['hello', 'tips', 'payroll'], 'nothing of theirs uses it yet')).toBe('used by Hello, Tip calculator')
-  expect(heldUseLine(stripe, ['payroll'], 'nothing of theirs uses it yet')).toBe('nothing of theirs uses it yet')
-  expect(heldUseLine(cloudflare, [], 'nothing in this role uses it yet')).toBe('look-ups, no app needed')
-  expect(heldUseLine({ ...stripe, alone: true }, ['tips'], 'nothing of theirs uses it yet')).toBe('used by Tip calculator · look-ups, no app needed')
 })
 
 it('says whether a key is saved, waits for its link, or waits for setup to make it', () => {

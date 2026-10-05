@@ -8,7 +8,7 @@ Access is the mini app where the owner chooses who can sign in to the business a
 
 The owner is the person whose sign-in email equals `WONG_OWNER_EMAIL`, a committed, nonsecret setting in both Workers' `vars` in `app/wrangler.jsonc`. [Setup](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md) writes it beside the `CF_ACCESS_*` ids.
 
-A request is the owner's when the Worker has [verified its signed sign-in](cloudflare-access.md), the caller is a person, and the email matches. A service token, a git email, a first visit and a request body establish nothing. The signed user id is written to the log the first time it is seen, never compared: the sign-in wall already trusts the email.
+A request is the owner's when the Worker has [verified its signed sign-in](cloudflare-access.md), the caller is a person, and the email matches. A service token, a git email, a first visit and a request body establish nothing, with one exception: [on a preview, the checker stands in for the owner](#the-checker-on-a-preview). The signed user id is written to the log the first time it is seen, never compared: the sign-in wall already trusts the email.
 
 - **To change the owner**, run [the `access` step](#finish-access-setup) with `--owner-email <email>` and publish. Access has no transfer button: that would be a takeover path.
 - **No `WONG_OWNER_EMAIL`** means an older install: every signed-in person keeps every app, and Access says its setup is not finished.
@@ -89,22 +89,46 @@ A role is a named set of apps and key levels, such as *Sales*, that several peop
 
 The owner's Access has four views, each with its own address, so Back and reload keep your place.
 
-- **People** opens first: each person's sign-in, role, apps and levels. A person's page starts with their role; with their own set, you tick apps and pick levels there.
-- **Roles** lists each role, what it gives and who holds it.
+- **People** opens first: each person's sign-in status beside their name, then their role or *Own set*, and a label per app and per key level.
+- **Roles** lists each role with the same labels, and who holds it.
 - **Apps** lists each app, the keys it uses and who has it. An app's page ticks roles and people and sets the levels of that app's keys beside each tick.
-- **Keys** lists every key the app holds, whether it is saved, what uses it and who has which level. A key's page sets every level for that key. A key's value is never shown. A key shows here once it is [in the registry](api-keys.md#a-saved-key-shows-in-access).
+- **Keys** lists every key the app holds, whether it is saved, what uses it and who has it, a line per level. A key's page sets every level for that key. A key's value is never shown. A key shows here once it is [in the registry](api-keys.md#a-saved-key-shows-in-access).
 
-A level set in any view is the same level in the others. Everyone else sees their own apps and levels above their setup box.
+A level set in any view is the same level in the others. Every list opens a page with *Edit*. Everyone else sees their own apps and levels as labels above their setup box.
+
+### A label says the level in words
+
+A label is one app, or one key with its level: *Stripe Read*. A line marked `!` says where an app can't do its job yet, such as *Hello can look up, not change*, so a gap shows without opening the page. Nothing is marked by colour alone.
+
+### Give an app and its level in one place
+
+A person's page starts with their role; with their own set, and on a role's page, you tick apps and pick levels there.
+
+- **A ticked app shows the level of each key it uses under its tick**, with a hint that names the fix: *Pick Read & write to let it*. An unticked app says which keys it uses and shows no level.
+- **A key two ticked apps share shows under both and is one level.** Change it under one and the other follows, and each says the level is shared.
+- **Keys no ticked app uses sit in a group below**, such as [a key with no app](#a-key-with-no-app).
+
+### A save says how it went, and leaving asks first
+
+After a save the list opens with a box on top: *Saved*, or that the save did not finish, so check the list before trying again. Leaving a page with changes not saved asks *Leave without saving?*, from its back link, *Cancel*, another link, the browser's Back button, a reload or a closed tab. Staying keeps the changes; a page put back the way it was leaves at once.
 
 ## What a person's apps govern
 
-A person's current apps decide their app cards, direct visits, app calls and assistant actions; client state and an existing sign-in grant nothing more. Unticking an app blocks the next request. A mini app's routes follow its folder name. A route in [the main router](../../app/worker/api/router.ts) lists the apps it serves, and one with no entry denies everyone but the owner ([map business routes](company-api.md#map-business-routes-before-employee-policy)). Once permissions are on, only the owner and listed people pass. The verification service token keeps every built app, as before, so preview walks and the look at the live app still open them; it never manages people.
+A person's current apps decide their app cards, direct visits, app calls and assistant actions; client state and an existing sign-in grant nothing more. Unticking an app blocks the next request. A mini app's routes follow its folder name. A route in [the main router](../../app/worker/api/router.ts) lists the apps it serves, and one with no entry denies everyone but the owner ([map business routes](company-api.md#map-business-routes-before-employee-policy)). Once permissions are on, only the owner and listed people pass. The verification service token keeps every built app, as before, so preview walks and the look at the live app still open them. On the live app it never manages people; [on a preview it stands in for the owner](#the-checker-on-a-preview).
 
 **An app's name and screen layout stay in the page everyone downloads.** A signed-in teammate without an app sees no card for it, can't open it, and gets none of its data or actions. Its title, its description and its screen's code are still packed into the page, so someone who reads that code could find them. Keep anything private in the app's data, never in its screen.
 
 ## The practice list on previews
 
 A preview has its own people, roles and key levels. On staging the owner opens Access, adds people and chooses apps and levels against the preview's database, which [starts from made-up people](d1-pipeline.md#seeded-staging-production-untouched) with permissions and levels on: one role held by two people, one person with their own set, and one with no level. A preview holds no key and makes no Cloudflare call, and the screen says the real sign-in list is not touched. A practice person can sign in to a preview only if the real list admits them.
+
+### The checker on a preview
+
+On staging and its previews, the verification service token counts as the owner: it opens Access's four views and saves against the practice list, so [a preview walk](../development/browsing.md) can click through a change to Access and show pictures of it.
+
+- **Only where `WONG_ENVIRONMENT` is `staging`.** That name is committed in `app/wrangler.jsonc`, never something a request sets. On the live app, and on a local run, the same token is refused: it keeps every app and manages nobody.
+- **Nothing real is in reach.** A preview holds no sign-in-list key, makes no Cloudflare call, and its people are made up.
+- **The checker no longer sees the view of someone who is not the owner** on a preview; code tests cover that view.
 
 ## What Access leaves alone
 
