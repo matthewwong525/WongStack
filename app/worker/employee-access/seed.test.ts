@@ -3,7 +3,7 @@ import { expect, it } from 'vitest';
 import { database, owner, req } from '../../tests/employee-access/connections';
 import { management } from './management';
 import { authorizeRequest, currentPolicy } from './policy';
-it('staging starts with practice people, a role and key levels on, and holds no provider work or key', async () => {
+it('staging starts with practice people, a role, one manager and key levels on, and holds no provider work or key', async () => {
   const { sql, DB } = database();
   try {
     sql.exec(readFileSync(new URL('../../../schema/seed.sql', import.meta.url), 'utf8'));
@@ -20,18 +20,26 @@ it('staging starts with practice people, a role and key levels on, and holds no 
     const env = { DB, WONG_ENVIRONMENT: 'staging', WONG_OWNER_EMAIL: owner.id };
     const opened = await (await management(req('status', 'GET'), env, owner)).json();
     // One role held by two people, one person with their own set at Read, and one at None.
+    // Dana is the one manager, with the same apps and key level as before.
     expect(opened).toMatchObject({ environment: 'practice', key: 'practice', started: true, keysStarted: true, kept: 0,
+      viewer: { email: owner.id, owner: true },
       roles: [{ name: 'Helpers', apps: ['hello'], keys: { cloudflare: 'read' } }], people: [
-        { email: 'ada@example.invalid', status: 'active', role: opened.roles[0].id, apps: ['hello'], keys: { cloudflare: 'read' } },
-        { email: 'bo@example.invalid', status: 'active', role: opened.roles[0].id, apps: ['hello'], keys: { cloudflare: 'read' } },
-        { email: 'casey@example.invalid', status: 'removed', role: null, apps: [], keys: {} },
-        { email: 'dana@example.invalid', status: 'active', role: null, apps: ['hello', 'tips'], keys: { cloudflare: 'read' } },
-        { email: 'eli@example.invalid', status: 'active', role: null, apps: ['tips'], keys: {} }] });
+        { email: 'ada@example.invalid', status: 'active', role: opened.roles[0].id, manager: false, apps: ['hello'], keys: { cloudflare: 'read' } },
+        { email: 'bo@example.invalid', status: 'active', role: opened.roles[0].id, manager: false, apps: ['hello'], keys: { cloudflare: 'read' } },
+        { email: 'casey@example.invalid', status: 'removed', role: null, manager: false, apps: [], keys: {} },
+        { email: 'dana@example.invalid', status: 'active', role: null, manager: true, apps: ['hello', 'tips'], keys: { cloudflare: 'read' } },
+        { email: 'eli@example.invalid', status: 'active', role: null, manager: false, apps: ['tips'], keys: {} }] });
+    expect(sql.prepare('SELECT email FROM wong_access_managers').all()).toEqual([{ email: 'dana@example.invalid' }]);
     // The supplied apps use no saved key; the Cloudflare key works alone.
     expect(opened.keys).toMatchObject([{ id: 'cloudflare', title: 'Cloudflare', levels: ['read'], saved: false, setup: true, usedBy: [], alone: true }]);
     const practice = (email: string) => ({ ...owner, id: email, claims: { ...owner.claims, email } });
     expect(await currentPolicy(env, practice('ada@example.invalid'))).toMatchObject({ state: 'current', role: 'employee', apps: new Set(['hello']), keys: new Map([['cloudflare', 'read']]) });
     expect(await currentPolicy(env, practice('casey@example.invalid'))).toEqual({ state: 'denied' });
+    // Managing leaves Dana her own apps and level, and lets her open the practice list as a manager.
+    expect(await currentPolicy(env, practice('dana@example.invalid'))).toMatchObject({ state: 'current', role: 'employee', manages: true,
+      apps: new Set(['hello', 'tips']), keys: new Map([['cloudflare', 'read']]) });
+    expect(await (await management(req('status', 'GET'), env, practice('dana@example.invalid'))).json())
+      .toMatchObject({ viewer: { email: 'dana@example.invalid', owner: false }, environment: 'practice' });
     for (const [email, allowed] of [['bo@example.invalid', true], ['dana@example.invalid', true], ['eli@example.invalid', false]] as const) {
       expect((await authorizeRequest(env, practice(email), { keys: ['cloudflare'] }, 'read')) === null, email).toBe(allowed);
     }

@@ -10,9 +10,9 @@ export async function appAccess(request: Request, env: PolicyEnv, identity: Acce
   if (policy.state === "unavailable" || policy.state === "denied") return policyDenied(policy);
   const headers = { "Cache-Control": "no-store" };
   if (policy.state === "legacy") return Response.json({ state: "legacy" }, { headers });
-  // Before permissions start everyone keeps every app; the role still says who manages people.
-  if (policy.state === "not_started") return Response.json({ state: "not_started", role: policy.role, apps: catalogue }, { headers });
-  return Response.json({ state: "current", role: policy.role, revision: policy.revision,
+  // Before permissions start everyone keeps every app; `manages` still says who manages people.
+  if (policy.state === "not_started") return Response.json({ state: "not_started", role: policy.role, manages: policy.manages, apps: catalogue }, { headers });
+  return Response.json({ state: "current", role: policy.role, manages: policy.manages, revision: policy.revision,
     apps: catalogue.filter(name => policyAllows(policy, name === "access" ? { kind: "self-service" } : { apps: [name] })),
     // The caller's own level for each saved key, by name: none until key levels start.
     keys: keyIds().flatMap(id => {

@@ -13,21 +13,28 @@ import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-rou
 const origin = 'https://business.example.com'
 const setup = { role: 'employee', api: 'authenticated', identity: { email: 'employee@example.com', subject: 'employee' }, apps: ['hello'],
   repository: 'manual_provider_setup', memory: 'independent_operator_setup', prompt: { state: 'ready', text: 'Synthetic reviewed setup prompt' } }
-const person = (changes: Partial<Person> = {}): Person => ({ email: 'employee@example.com', status: 'active', settled: true, role: null, apps: ['hello'], keys: {}, ...changes })
-const status = (): Status => ({ origin, ownerEmail: 'owner@example.com', environment: 'live', key: 'ready', started: true, imported: 0,
+const person = (changes: Partial<Person> = {}): Person => ({ email: 'employee@example.com', status: 'active', settled: true, role: null, manager: false, apps: ['hello'], keys: {}, ...changes })
+const status = (): Status => ({ origin, ownerEmail: 'owner@example.com', viewer: { email: 'owner@example.com', owner: true }, environment: 'live', key: 'ready', started: true, imported: 0,
   keysStarted: true, kept: 0, apps: ['hello', 'custom'], appKeys: { hello: [], custom: [] }, keys: [], roles: [], people: [person()], work: [] })
-let mode: 'owner' | 'employee' | 'legacy' | 'waiting-owner' | 'waiting-employee'
+let mode: 'owner' | 'manager' | 'employee' | 'legacy' | 'waiting-owner' | 'waiting-employee'
 let catalogue: string[]
 let held: { id: string; title: string; level: 'read' | 'write' }[] | undefined
 let own: typeof setup
 let roster: Status
 let failed: Set<string>
 let fetchMock: ReturnType<typeof vi.fn>
+// A manager is an employee who manages: the role stays, and `manages` says so. The owner manages too.
 function appAccess() {
   if (mode === 'legacy') return { state: 'legacy' }
-  if (mode === 'owner' || mode === 'employee') return { state: 'current', role: mode, apps: catalogue, revision: 1, keys: held }
-  return { state: 'not_started', role: mode === 'waiting-owner' ? 'owner' : 'employee', apps: catalogue }
+  const role = mode.endsWith('owner') ? 'owner' : 'employee'
+  const manages = role === 'owner' || mode === 'manager'
+  if (mode.startsWith('waiting')) return { state: 'not_started', role, manages, apps: catalogue }
+  return { state: 'current', role, manages, apps: catalogue, revision: 1, keys: held }
 }
+// The status as a manager is sent it: the same lists, and a viewer who is not the owner.
+const asManager = () => { mode = 'manager'; roster.viewer = { email: 'employee@example.com', owner: false } }
+const line = (email: string) => within(within(screen.getByRole('region', { name: 'People' })).getByText(email).closest('li')!)
+const after = (first: Element, second: Element) => !!(first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING)
 beforeEach(() => {
   mode = 'owner'; own = structuredClone(setup); roster = status(); catalogue = ['access', 'hello']; held = undefined; failed = new Set()
   fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
@@ -231,6 +238,77 @@ it('a person who is not the owner sees what they can use above their own setup b
   own.apps = []; own.prompt = { state: 'unavailable', message: 'Finish reviewed setup' } as unknown as typeof own.prompt
   render(<AssistantSetup />); await screen.findByText('Finish reviewed setup')
   expect(screen.getByText(/None yet/)).toBeTruthy(); expect(screen.queryByRole('button', { name: 'Copy setup prompt' })).toBeNull()
+})
+it('draws three sides: the owner the four views alone, a manager what they can use and then the views, everyone else no views', async () => {
+  for (const [side, own, views] of [['owner', false, true], ['manager', true, true], ['employee', true, false]] as const) {
+    mode = side; roster.viewer.owner = side === 'owner'
+    open(); await screen.findByRole('button', { name: 'Copy setup prompt' })
+    if (views) await screen.findByRole('navigation', { name: 'Access views' })
+    expect([!!screen.queryByRole('region', { name: 'You can use' }), !!screen.queryByRole('navigation', { name: 'Access views' })], side).toEqual([own, views])
+    expect(reads('status').length > 0, side).toBe(views); cleanup(); fetchMock.mockClear()
+  }
+})
+it('a manager sees what they can use, then one line naming the owner, then the four views, with no Remove on a manager', async () => {
+  asManager(); roster.people = [person({ manager: true }), person({ email: 'kim@example.com', manager: true }), person({ email: 'lee@example.com' })]
+  open(); await screen.findByRole('link', { name: 'Add person' })
+  const can = screen.getByRole('region', { name: 'You can use' })
+  const named = screen.getByText('You manage Access. The owner, owner@example.com, picks managers.')
+  const views = screen.getByRole('navigation', { name: 'Access views' })
+  expect([after(can, named), after(named, views)]).toEqual([true, true])
+  expect(within(can).getAllByRole('listitem').map(item => item.textContent)).toEqual(['Hello'])
+  expect(within(views).getAllByRole('link').map(link => link.textContent)).toEqual(['People', 'Roles', 'Apps', 'Keys'])
+  // The owner is named once: People adds no second line for a manager.
+  expect(screen.queryByText('Owner: owner@example.com')).toBeNull()
+  // A manager is marked in words beside the role line, and has no Remove for a manager: not their own row, not another's.
+  for (const email of ['employee@example.com', 'kim@example.com']) {
+    expect(line(email).getByText('Own set · Manager')).toBeTruthy()
+    expect(line(email).getByRole('link', { name: 'Edit' })).toBeTruthy(); expect(line(email).queryByRole('button', { name: 'Remove' })).toBeNull()
+  }
+  expect(line('lee@example.com').getByText('Own set')).toBeTruthy()
+  // Everyone else is theirs to remove, with the confirm the owner sees and no word about managing.
+  fireEvent.click(line('lee@example.com').getByRole('button', { name: 'Remove' }))
+  expect(screen.getByText(/Everyone is signed out and signs in again\. This can't be undone\./)).toBeTruthy(); expect(screen.queryByText(/stop managing/)).toBeNull()
+  roster.people[2] = person({ email: 'lee@example.com', status: 'removed', apps: [] })
+  click('Remove access'); await screen.findByText('Saved.')
+  expect(sent('people')).toEqual([{ email: 'lee@example.com', apps: [], removed: true }])
+  // The list is read again after a save: wait for it before moving on.
+  await screen.findByRole('region', { name: 'People' })
+  // The line and the box above stay on every view.
+  for (const name of ['Roles', 'Apps', 'Keys']) {
+    follow(name); await screen.findByRole('region', { name })
+    expect(screen.getByText(/You manage Access/)).toBeTruthy(); expect(screen.getByRole('region', { name: 'You can use' })).toBeTruthy()
+  }
+})
+it('the owner sees who manages: the owner named once, Manager beside the role, and a removal that says managing ends', async () => {
+  roster.roles = [{ id: 'sales', name: 'Sales', apps: ['hello'], keys: {} }]
+  roster.people = [person({ manager: true, role: 'sales' }), person({ email: 'lee@example.com' })]
+  open(); const people = within(await screen.findByRole('region', { name: 'People' }))
+  // One muted line, under the views and above Add person.
+  const named = people.getByText('Owner: owner@example.com')
+  expect([named.className, after(screen.getByRole('navigation', { name: 'Access views' }), named), after(named, screen.getByRole('link', { name: 'Add person' }))])
+    .toEqual(['access-muted', true, true])
+  expect(screen.queryByText(/You manage Access/)).toBeNull(); expect(screen.queryByRole('region', { name: 'You can use' })).toBeNull()
+  // The word sits beside the role or Own set, in the text itself.
+  expect(line('employee@example.com').getByText('Sales · Manager')).toBeTruthy(); expect(line('lee@example.com').getByText('Own set')).toBeTruthy()
+  expect(people.getAllByRole('button', { name: 'Remove' })).toHaveLength(2)
+  // Removing a manager says so; removing anyone else does not.
+  fireEvent.click(line('lee@example.com').getByRole('button', { name: 'Remove' }))
+  expect(screen.queryByText(/stop managing/)).toBeNull(); click('Cancel')
+  fireEvent.click(line('employee@example.com').getByRole('button', { name: 'Remove' }))
+  expect(screen.getByText(/where it was given\. They stop managing Access too\./)).toBeTruthy()
+  // On a preview the same sentence follows the practice-list one.
+  cleanup(); roster.environment = 'practice'; roster.key = 'practice'
+  open(); fireEvent.click((await screen.findAllByRole('button', { name: 'Remove' }))[0])
+  expect(screen.getByText(/The real sign-in list is not touched\. They stop managing Access too\./)).toBeTruthy()
+})
+it('tells a manager that one setup step is left for the owner, with nothing to copy', async () => {
+  asManager(); roster.key = 'missing'; roster.people[0].settled = false; roster.work = [{ kind: 'policy', status: 'pending' }]
+  open(); const step = (await screen.findByText('One step left for the owner.')).closest('p')!
+  expect([step.className, step.textContent]).toEqual(['access-notice', 'One step left for the owner. You can choose apps now. New people can sign in once owner@example.com finishes Access setup.'])
+  expect(screen.queryByRole('button', { name: 'Copy that request' })).toBeNull(); expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull()
+  expect(screen.queryByText('One step left.')).toBeNull()
+  // Choosing apps still works.
+  follow('Add person'); expect(await screen.findByRole('button', { name: 'Save access' })).toBeTruthy()
 })
 it('an install with no recorded owner says Access setup is not finished and still offers the setup box', async () => {
   mode = 'legacy'; open(); await screen.findByText(/Access setup is not finished/)

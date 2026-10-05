@@ -2,11 +2,11 @@ import { expect, it } from 'vitest'
 import type { Person, Status } from '../../lib/access'
 import { appHolders, differs, each, holders, holdersByLevel, holdersLine, put, subjects } from './subjects'
 
-const person = (email: string, changes: Partial<Person> = {}): Person => ({ email, status: 'active', settled: true, role: null, apps: [], keys: {}, ...changes })
+const person = (email: string, changes: Partial<Person> = {}): Person => ({ email, status: 'active', settled: true, role: null, manager: false, apps: [], keys: {}, ...changes })
 const sales = { id: 'sales', name: 'Sales', apps: ['hello'], keys: { stripe: 'read' as const } }
 const office = { id: 'office', name: 'Office', apps: [], keys: {} }
 const kim = person('kim@shop.com', { apps: ['hello', 'tips'], keys: { stripe: 'write' } })
-const status: Status = { origin: 'https://business.example.com', ownerEmail: 'owner@example.com', environment: 'live', key: 'ready', started: true,
+const status: Status = { origin: 'https://business.example.com', ownerEmail: 'owner@example.com', viewer: { email: 'owner@example.com', owner: true }, environment: 'live', key: 'ready', started: true,
   imported: 0, keysStarted: true, kept: 0, apps: ['hello', 'tips', 'payroll'], appKeys: { hello: [], tips: [], payroll: [] }, keys: [], roles: [office, sales],
   people: [person('gone@shop.com', { status: 'removed' }), kim, person('lee@shop.com', { role: 'sales', apps: ['hello'], keys: { stripe: 'read' } }),
     person('sam@shop.com', { role: 'sales', apps: ['hello'], keys: { stripe: 'read' } })], work: [] }

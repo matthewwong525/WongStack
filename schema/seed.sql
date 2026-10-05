@@ -22,8 +22,9 @@
 -- Access practice people. A preview keeps its own list: the owner tries Access
 -- here, and the real sign-in list is never touched. Permissions and key levels
 -- have started, so a preview shows each person only their apps and gives each
--- only their level. The owner is the committed WONG_OWNER_EMAIL, not this row;
--- its identifiers are made up and name nothing real.
+-- only their level. Dana is a manager, so a preview shows the tick and its
+-- labels. The owner is the committed WONG_OWNER_EMAIL, not this row; its
+-- identifiers are made up and name nothing real.
 INSERT INTO wong_access_installation
   (slot, installation_id, origin, account_id, worker_id, access_app_id, access_policy_id,
    issuer, audience, owner_subject, owner_email, repository_id, repository_name, policy_enabled, keys_enabled, activated_at)
@@ -58,3 +59,6 @@ INSERT INTO wong_access_grants VALUES
   ('11111111-1111-4111-8111-111111111111', 'eli@example.invalid', 'tips', 1);
 INSERT INTO wong_access_key_grants VALUES
   ('11111111-1111-4111-8111-111111111111', 'dana@example.invalid', 'cloudflare', 'read', 1);
+-- Dana also manages Access. It gives her no app and no key: her set above is unchanged.
+INSERT INTO wong_access_managers VALUES
+  ('11111111-1111-4111-8111-111111111111', 'dana@example.invalid');

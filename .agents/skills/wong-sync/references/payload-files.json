@@ -109,6 +109,7 @@
       "schema/migrations/0001_employee_access.sql",
       "schema/migrations/0002_employee_connections.sql",
       "schema/migrations/0003_key_levels.sql",
+      "schema/migrations/20261005142459_access_managers.sql",
       "app/.dev.vars.example",
       "scripts/cf-preview.sh",
       "scripts/company-api.mjs",

@@ -1,5 +1,6 @@
 // The owner is the verified person whose sign-in email setup recorded; no private pin exists.
 // On a preview, the verification service token counts as the owner too.
+// A manager is a current person the owner ticked: they pass the same gate and are never the owner.
 import type { AccessIdentity } from "../access.ts";
 import { checkerOwns, humanEmail, ownerEmail, type PolicyEnv } from "./policy.ts";
 
@@ -9,9 +10,10 @@ export interface ConnectionEnv extends PolicyEnv {
   /** Production only: setup's key for this app's own sign-in list. Never on staging. */
   WONG_ACCESS_LOGIN_MANAGEMENT?: string;
 }
-/** `live` is the production Worker; anywhere else Access keeps a practice list and calls no provider. */
+/** `live` is the production Worker; anywhere else Access keeps a practice list and calls no provider.
+ *  `email` is always the owner's. `actor` is who is asking, and `owner` whether that is the owner. */
 export type Core = { db: D1DatabaseSession; env: ConnectionEnv; installationId: string; origin: string;
-  email: string; subject: string; live: boolean; holder?: string };
+  email: string; actor: string; owner: boolean; subject: string; live: boolean; holder?: string };
 export class AccessError extends Error {
   readonly code: string;
   readonly status: number;
@@ -29,15 +31,33 @@ export async function ownerCore(request: Request, env: ConnectionEnv, identity: 
   // Service tokens, request bodies and a first visit establish nothing. One exception, on a preview only:
   // the checker stands in for the owner there, against the practice list.
   const machine = checkerOwns(env, identity);
-  if (!machine && humanEmail(identity) !== owner) throw new AccessError("owner_required", 403);
+  const person = humanEmail(identity);
+  const owns = machine || person === owner;
+  // A machine, or a sign-in with no verified person, is never a manager: refused before anything is read.
+  if (!owns && !person) throw new AccessError("owner_required", 403);
+  const db = env.DB.withSession("first-primary");
+  // Any other person passes only as a manager, read on this request: unticked or removed, the next one is refused.
+  const managed = owns ? null : await managedInstallation(db, person!);
+  if (!owns && !managed) throw new AccessError("owner_required", 403);
   const origin = new URL(request.url).origin;
   // Browser cookies cannot change people from a foreign site.
   if (request.method !== "GET" && request.headers.get("Origin") !== origin) throw new AccessError("origin_required", 403);
-  const db = env.DB.withSession("first-primary");
   // The checker has no user id: its subject is the token's own name.
   const subject = machine ? identity.id : identity.claims.sub!;
-  return { db, env, installationId: await installation(db, env, { origin, owner, subject }), origin, email: owner,
-    subject, live: env.WONG_ENVIRONMENT === "production" };
+  // Only an owner request creates the installation row: a manager exists only once it does.
+  const installationId = managed ?? await installation(db, env, { origin, owner, subject });
+  // The checker stands in for the owner, so its changes are recorded under the owner's email.
+  return { db, env, installationId, origin, email: owner, actor: person ?? owner, owner: owns, subject,
+    live: env.WONG_ENVIRONMENT === "production" };
+}
+
+/** The installation a current person manages, or null: a manager row the owner made, for a person not removed. */
+async function managedInstallation(db: D1DatabaseSession, email: string): Promise<string | null> {
+  const row = await db.prepare(`SELECT a.installation_id FROM wong_access_managers a
+    JOIN wong_access_installation i ON i.installation_id = a.installation_id AND i.slot = 1
+    JOIN wong_access_members m ON m.installation_id = a.installation_id AND m.email = a.email AND m.status = 'active'
+    WHERE a.email = ?`).bind(email).first<{ installation_id: string }>();
+  return row?.installation_id ?? null;
 }
 
 /** The single row holds the revision and the permissions switch; the first owner request creates it. */

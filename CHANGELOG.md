@@ -3,6 +3,20 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 33.3.0 — Managers: people you trust can manage Access too
+
+- **You choose who else manages Access.** A person's page has one new tick, *Can manage Access*, that only you see and set. Right under it the page says what it means: full trust. It works for a person with a role or with their own set.
+- **A manager does what you do in Access, with three limits.** A manager adds and removes people, makes and edits roles, ticks apps and sets key levels, for anyone, themselves and other managers included. A manager can't pick managers, can't remove a manager, and can't change or remove you. Who the owner is stays a setup step, with no button for it.
+- **Managing gives no app and no key.** A manager keeps their own apps, levels and home page, and does not hold every key as you do.
+- **The lists show who manages.** People marks each manager and names the owner in one line. A manager sees what they can use, then the same four views you see, with a line saying who the owner is. A manager's row has no *Remove* for a manager.
+- **Taking it back works at once.** Untick it and the person's next click in Access is refused, with no sign-out; they keep their apps and levels. Removing a manager ends it too, and adding them back later does not bring it back.
+- **Each change records who made it.** No screen shows that record yet.
+- **You can try it on a preview.** The practice list starts with one manager, so you can see the tick and the labels there.
+
+[Employee access](wiki/stack/employee-access.md#managers) has the details.
+
+**Updating.** Nothing needs doing by hand. Publishing the update adds the list of managers to your database by itself, and your people, roles, levels and data stay as they are. Nobody is a manager until you tick them. If you changed the Access screen's own code, the assistant brings your changes onto the new screens.
+
 ## 33.2.0 — An Access screen that is quicker to use and easier to read
 
 - **An app's keys sit under its tick.** On a person's page and a role's page, ticking an app shows the level of each key it uses right there, so you give the app and pick the level in one place. Ticking still gives Read, never Read & write. A key two ticked apps share shows under both and is one level. Keys no ticked app uses sit in a short list below.

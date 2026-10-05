@@ -6,7 +6,8 @@ import { mainRouteInventory } from '../api/router';
 import { setupStatus } from './setup';
 import { handleAccess } from './router';
 import { lease } from './core';
-import { authorizeRequest } from './policy';
+import { authorizeRequest, currentPolicy } from './policy';
+import type { AccessIdentity } from '../access';
 
 vi.mock('./catalogue.ts', () => ({ catalogue: ['access', 'orders', 'payroll'] }));
 let f: ReturnType<typeof fixture>;
@@ -21,6 +22,17 @@ afterEach(() => { f.sql.close(); vi.unstubAllGlobals(); });
 const run = (path: string, method = 'POST', body?: unknown, env = f.env) => management(req(path, method, body), env, owner);
 const person = (email: string, apps: string[] = [], removed = false) => ({ email, apps, removed });
 const staging = () => ({ ...f.env, WONG_ENVIRONMENT: 'staging', WONG_ACCESS_LOGIN_MANAGEMENT: undefined });
+// Kim is a person the owner makes a manager; `ask` is a request from whoever signs in.
+const kim: AccessIdentity = { ...employee, id: 'kim@example.com', claims: { ...employee.claims, email: 'kim@example.com', sub: 'kim-subject' } };
+const ask = (identity: AccessIdentity, path: string, body?: unknown, method = 'POST') => management(req(path, method, body), f.env, identity);
+const pick = (email: string, apps: string[] = [], manager = true) => run('people', 'POST', { ...person(email, apps), manager });
+const managers = () => f.sql.prepare('SELECT email FROM wong_access_managers ORDER BY email').all().map(row => row.email);
+const acted = () => f.sql.prepare("SELECT actor_email, event FROM wong_access_audit WHERE event NOT LIKE '%started:%' ORDER BY rowid").all()
+  .map(row => `${row.actor_email} ${row.event}`);
+const refusedAs = async (identity: AccessIdentity, path: string, body: unknown, code = 'owner_required', method = 'POST') => {
+  const refused = await ask(identity, path, body, method);
+  expect([refused.status, await refused.json()], `${path} ${JSON.stringify(body)}`).toEqual([403, { code }]);
+};
 
 it('keeps a finite set of owner operations and refuses everyone else before any work', async () => {
   for (const path of ['unknown', 'identity', 'activate', 'login/connect', 'prepare', 'rollout', 'token', 'github/start']) expect((await run(path)).status).toBe(404);
@@ -207,4 +219,85 @@ it('routes setup, app readback and management, and no longer answers the withdra
   expect((await handleAccess(req('status', 'GET'), f.env, owner)).status).toBe(200);
   expect((await handleAccess(req('status', 'GET'), f.env, employee)).status).toBe(403);
   for (const path of ['identity', 'activate']) expect((await handleAccess(req(path, 'GET'), f.env, owner)).status).toBe(404);
+});
+
+it('lets a manager the owner picked add people, edit roles and set levels as the owner does, recorded under their own email', async () => {
+  await run('status', 'GET');
+  const picked = await (await pick(kim.id, ['orders'])).json();
+  expect(picked).toMatchObject({ ownerEmail: site.ownerEmail, viewer: { email: site.ownerEmail, owner: true },
+    people: [{ email: employee.id, manager: false }, { email: kim.id, manager: true, apps: ['orders'] }] });
+  expect(managers()).toEqual([kim.id]);
+  // Managing gives no app, no key and no owner route: Kim holds what she was given.
+  expect(await (await handleAccess(req('apps', 'GET'), f.env, kim)).json()).toMatchObject({ role: 'employee', manages: true, apps: ['access', 'orders'], keys: [] });
+  expect((await authorizeRequest(f.env, kim, { kind: 'owner' }))?.status).toBe(403);
+  expect((await authorizeRequest(f.env, kim, { apps: ['payroll'] }))?.status).toBe(403);
+  // She opens the same status, told she is not the owner.
+  expect(await (await ask(kim, 'status', undefined, 'GET')).json()).toMatchObject({ ownerEmail: site.ownerEmail, viewer: { email: kim.id, owner: false }, key: 'ready' });
+  // She adds a person, and the sign-in list follows in the same request.
+  const added = await (await ask(kim, 'people', person('bo@example.com', ['orders']))).json();
+  expect(added).toMatchObject({ work: [{ kind: 'policy', status: 'ready', outcome: 'policy_readback_matches' }],
+    people: [{ email: 'bo@example.com', status: 'active', settled: true, manager: false, apps: ['orders'] }, { email: employee.id }, { email: kim.id }] });
+  expect(cf.writes).toHaveLength(2);
+  expect(cf.writes[1].include).toEqual(['bo@example.com', employee.id, kim.id, site.ownerEmail].sort().map(email => ({ email: { email } })));
+  // She makes a role and sets a level.
+  expect(await (await ask(kim, 'roles', { name: 'Sales', apps: ['payroll'] })).json()).toMatchObject({ roles: [{ name: 'Sales', apps: ['payroll'] }] });
+  expect((await ask(kim, 'grants', { key: 'cloudflare', people: { 'bo@example.com': 'read' } })).status).toBe(200);
+  // She changes her own set, and another manager's: neither save names the switch, so both keep it.
+  expect((await ask(kim, 'people', person(kim.id, ['orders', 'payroll']))).status).toBe(200);
+  await pick(employee.id);
+  const after = await (await ask(kim, 'people', person(employee.id, ['payroll']))).json();
+  expect(after).toMatchObject({ people: [{ email: 'bo@example.com', manager: false, apps: ['orders'], keys: { cloudflare: 'read' } },
+    { email: employee.id, manager: true, apps: ['payroll'] }, { email: kim.id, manager: true, apps: ['orders', 'payroll'] }] });
+  expect(await (await ask(kim, 'retry')).json()).toMatchObject({ viewer: { email: kim.id, owner: false } });
+  // Each change names who made it.
+  expect(acted()).toEqual([`${site.ownerEmail} person_changed`, `${site.ownerEmail} manager_added`, `${kim.id} person_changed`,
+    `${kim.id} role_changed`, `${kim.id} key_level_changed`, `${kim.id} person_changed`, `${site.ownerEmail} person_changed`,
+    `${site.ownerEmail} manager_added`, `${kim.id} person_changed`]);
+});
+
+it('refuses a manager who picks, unpicks or removes a manager, or touches the owner, and writes nothing', async () => {
+  await pick(kim.id, ['orders']); await pick('lee@example.com');
+  const tables = ['installation', 'members', 'managers', 'grants', 'key_grants', 'member_roles', 'audit', 'work'];
+  const stored = () => tables.map(table => f.sql.prepare(`SELECT * FROM wong_access_${table} ORDER BY 1, 2`).all());
+  const before = stored();
+  for (const body of [{ ...person('bo@example.com'), manager: true }, { ...person(employee.id), manager: true },
+    { ...person('lee@example.com'), manager: false }, { ...person(kim.id, ['orders']), manager: true }, { ...person(kim.id), manager: false },
+    { ...person(employee.id), manager: false }, person('lee@example.com', [], true), person(kim.id, [], true)]) {
+    await refusedAs(kim, 'people', body);
+  }
+  for (const body of [person(site.ownerEmail, ['orders']), person(site.ownerEmail, [], true), { ...person(site.ownerEmail), manager: false }]) {
+    await refusedAs(kim, 'people', body, 'owner_cannot_be_changed');
+  }
+  // Removing a person and making them a manager in one save means nothing, from anyone.
+  for (const who of [kim, owner]) expect((await ask(who, 'people', { ...person('lee@example.com', [], true), manager: true })).status).toBe(400);
+  expect(stored()).toEqual(before);
+  expect(cf.writes).toHaveLength(2);
+  // An ordinary person is hers to remove, as for the owner.
+  expect(await (await ask(kim, 'people', person(employee.id, [], true))).json()).toMatchObject({ people: [{ email: employee.id, status: 'removed', manager: false }, {}, {}] });
+  expect(managers()).toEqual([kim.id, 'lee@example.com']);
+});
+
+it('takes managing back at the next request, ends it with a removal, and does not bring it back', async () => {
+  const asks = [['status', undefined, 'GET'], ['people', person('bo@example.com'), 'POST'], ['roles', { name: 'Sales' }, 'POST'],
+    ['grants', { key: 'cloudflare', people: { [employee.id]: 'read' } }, 'POST'], ['retry', undefined, 'POST']] as const;
+  const refusedAll = async () => { for (const [path, body, method] of asks) await refusedAs(kim, path, body, 'owner_required', method); };
+  await pick(kim.id, ['orders']);
+  expect((await ask(kim, 'status', undefined, 'GET')).status).toBe(200);
+  // The owner unticks: no sign-out and no sign-in change, and Kim keeps her apps.
+  const unticked = await (await pick(kim.id, ['orders'], false)).json();
+  expect(unticked).toMatchObject({ people: [{ email: employee.id }, { email: kim.id, status: 'active', settled: true, manager: false, apps: ['orders'] }] });
+  expect(cf.writes).toHaveLength(1);
+  await refusedAll();
+  expect(await currentPolicy(f.env, kim)).toMatchObject({ state: 'current', role: 'employee', manages: false, apps: new Set(['orders']) });
+  // Ticked again and then removed: the removal ends it, with no row left behind.
+  await pick(kim.id, ['orders']);
+  expect(await (await run('people', 'POST', person(kim.id, [], true))).json()).toMatchObject({ people: [{}, { email: kim.id, status: 'removed', manager: false }] });
+  expect(managers()).toEqual([]);
+  await refusedAll();
+  // Added back, by a save that names no switch: a person again, never a manager.
+  expect(await (await run('people', 'POST', person(kim.id, ['orders']))).json()).toMatchObject({ people: [{}, { email: kim.id, status: 'active', manager: false, apps: ['orders'] }] });
+  await refusedAll();
+  expect(f.sql.prepare("SELECT COUNT(*) count FROM wong_access_members WHERE email = 'bo@example.com'").get()).toEqual({ count: 0 });
+  expect(acted().filter(line => line.includes('manager_'))).toEqual([`${site.ownerEmail} manager_added`, `${site.ownerEmail} manager_removed`,
+    `${site.ownerEmail} manager_added`, `${site.ownerEmail} manager_removed`]);
 });

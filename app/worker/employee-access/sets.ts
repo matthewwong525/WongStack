@@ -8,7 +8,7 @@ import { heldLevels, offered, registered, type Level } from "./key-levels.ts";
 export type AccessSet = { apps: string[]; keys: Record<string, Level> };
 /** What a save may carry: app ticks, and per key a level, or null for None. An omitted key keeps its level. */
 type SetChange = { apps?: string[]; keys?: Record<string, Level | null> };
-type PersonRow = { email: string; status: "active" | "removed"; settled: boolean; role: string | null; own: AccessSet };
+type PersonRow = { email: string; status: "active" | "removed"; settled: boolean; role: string | null; manager: boolean; own: AccessSet };
 type RoleRow = { id: string; name: string; set: AccessSet };
 export type Sets = { people: PersonRow[]; roles: RoleRow[] };
 
@@ -30,9 +30,10 @@ export const businessApps = () => catalogue.filter(app => app !== "access");
 /** Owner reads and saves keep every built app listed, so a new app shows up unticked. */
 export const catalogueWrites = (core: Core) => catalogue.map(app =>
   core.db.prepare("INSERT INTO wong_access_apps VALUES (?, ?) ON CONFLICT DO NOTHING").bind(core.installationId, app));
+/** Each change is recorded under the person who made it: the owner, or a manager. */
 export const audit = (core: Core, event: string) => core.db.prepare(`INSERT INTO wong_access_audit
   SELECT ?, installation_id, ?, ?, revision, ? FROM wong_access_installation WHERE installation_id = ?`)
-  .bind(crypto.randomUUID(), core.email, event, now(), core.installationId);
+  .bind(crypto.randomUUID(), core.actor, event, now(), core.installationId);
 
 /** One batch per save: the built apps listed, the revision moved once, the changes, and an audit row per event. */
 export async function save(core: Core, events: string[], changes: D1PreparedStatement[]): Promise<void> {
@@ -66,7 +67,8 @@ const setColumns = (kind: SetKind, alias: string) => {
     (SELECT json_group_object(key_id, level) FROM ${keys} WHERE ${mine}) AS keys`;
 };
 
-/** Everyone and every role, each with the set stored for it. `settled`: the sign-in list matches the person's last change. */
+/** Everyone and every role, each with the set stored for it. `settled`: the sign-in list matches the person's last change.
+ *  `manager`: a current person the owner lets manage Access; a removed person is never one. */
 export async function readSets(core: Core): Promise<Sets> {
   const id = core.installationId;
   const [people, roles] = await Promise.all([
@@ -74,16 +76,18 @@ export async function readSets(core: Core): Promise<Sets> {
       m.revision <= COALESCE((SELECT c.generation FROM wong_access_connections c
         WHERE c.installation_id = m.installation_id AND c.provider = 'access'), 1) AS settled,
       (SELECT h.role_id FROM wong_access_member_roles h
-        WHERE h.installation_id = m.installation_id AND h.email = m.email) AS role, ${setColumns("people", "m")}
+        WHERE h.installation_id = m.installation_id AND h.email = m.email) AS role,
+      m.status = 'active' AND EXISTS (SELECT 1 FROM wong_access_managers a
+        WHERE a.installation_id = m.installation_id AND a.email = m.email) AS manager, ${setColumns("people", "m")}
       FROM wong_access_members m WHERE m.installation_id = ? ORDER BY m.email`).bind(id)
-      .all<{ email: string; status: "active" | "removed"; settled: number; role: string | null; apps: string; keys: string }>(),
+      .all<{ email: string; status: "active" | "removed"; settled: number; role: string | null; manager: number; apps: string; keys: string }>(),
     core.db.prepare(`SELECT r.role_id AS id, r.name, ${setColumns("roles", "r")}
       FROM wong_access_roles r WHERE r.installation_id = ? ORDER BY lower(r.name)`).bind(id)
       .all<{ id: string; name: string; apps: string; keys: string }>(),
   ]);
   return {
     people: people.results.map(person => ({ email: person.email, status: person.status, settled: person.settled === 1,
-      role: person.role, own: storedSet(person) })),
+      role: person.role, manager: person.manager === 1, own: storedSet(person) })),
     roles: roles.results.map(role => ({ id: role.id, name: role.name, set: storedSet(role) })),
   };
 }

@@ -20,9 +20,12 @@ export function Banners({ status }: { status: Status }) {
 }
 
 // The states beside the people list: a missing key, a failed first read, the first open.
+// The missing key is the owner's step, made with their Cloudflare token: a manager is told so, with nothing to copy.
 export function Notices({ status, onRetry }: { status: Status; onRetry: () => void }) {
   return <>
-    {status.key === 'missing' && <FinishStep><strong>One step left.</strong> You can choose apps now. To let new people sign in, ask your assistant:</FinishStep>}
+    {status.key === 'missing' && (status.viewer.owner
+      ? <FinishStep><strong>One step left.</strong> You can choose apps now. To let new people sign in, ask your assistant:</FinishStep>
+      : <p className="access-notice"><strong>One step left for the owner.</strong> You can choose apps now. New people can sign in once {status.ownerEmail} finishes Access setup.</p>)}
     {status.key === 'ready' && !status.started && <div className="access-notice">
       <p>The sign-in list could not be read yet. Everyone keeps every app until it can.</p>
       <button type="button" onClick={onRetry}>Read it again</button>

@@ -18,14 +18,16 @@ export function Keys(props: ViewProps) {
       const held = holdersByLevel(status, key.id)
       return <li key={key.id}>
         <div className="access-row-head"><strong>{key.title}</strong><span className="access-muted">{keyState(key, status.environment)}</span></div>
-        {/* Setup makes one key itself, so on the live app the owner asks their assistant to finish; any other key comes through its link. */}
+        {/* Setup makes one key itself, so on the live app the owner asks their assistant to finish, and a manager is told it is the owner's step; any other key comes through its link. */}
         {key.saved ? <>
           <p>{keyUseLine(key)}</p>
           {held.map(({ level, names }) => <Labels key={level} title={levelName(level)} items={names} />)}
           {!held.length && <p>Nobody yet</p>}
           <Link className="access-button" to={at('keys', key.id)}>Edit</Link>
         </>
-          : key.setup && status.environment === 'live' ? <FinishStep>Look-ups need a read-only key. Ask your assistant:</FinishStep>
+          : key.setup && status.environment === 'live' ? (status.viewer.owner
+            ? <FinishStep>Look-ups need a read-only key. Ask your assistant:</FinishStep>
+            : <p>Look-ups need a read-only key. {status.ownerEmail} finishes that in Access setup.</p>)
           : <><p>{keyUseLine(key)}</p>{!key.setup && <p>Ask your assistant for the key link</p>}</>}
       </li>
     })}</ul>

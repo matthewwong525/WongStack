@@ -2,10 +2,10 @@ import { expect, it } from 'vitest'
 import type { Person, Status } from '../../lib/access'
 import { canRetry, signInLine } from './status'
 
-const status = (changes: Partial<Status> = {}): Status => ({ origin: 'https://business.example.com', ownerEmail: 'owner@example.com',
+const status = (changes: Partial<Status> = {}): Status => ({ origin: 'https://business.example.com', ownerEmail: 'owner@example.com', viewer: { email: 'owner@example.com', owner: true },
   environment: 'live', key: 'ready', started: true, imported: 0, keysStarted: true, kept: 0, apps: ['hello', 'orders'],
   appKeys: { hello: [], orders: [] }, keys: [], roles: [], people: [], work: [], ...changes })
-const person = (changes: Partial<Person> = {}): Person => ({ email: 'bo@example.com', status: 'active', settled: true, role: null, apps: ['hello'], keys: {}, ...changes })
+const person = (changes: Partial<Person> = {}): Person => ({ email: 'bo@example.com', status: 'active', settled: true, role: null, manager: false, apps: ['hello'], keys: {}, ...changes })
 
 it('gives each person one sign-in status', () => {
   expect(signInLine(person(), status())).toEqual({ text: 'Can sign in', unfinished: false })
