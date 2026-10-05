@@ -55,7 +55,7 @@ A feature branch with work runs the ordinary runbook, intent or not; `/ship` res
 
 **Invoke `verify` once with Step 3's exact checkpoint receipt**, never again for a better verdict. It reuses the gate without another save; the walk itself runs fresh. No `verify` skill → say so in one line and go on; never install it.
 
-Any verdict but `FAILURE` → report it and merge. `FAILURE` after `/verify`'s own fixes → **stop and ask** [two options](../explore/references/asking-the-user.md#confirmations-offers-and-menus-are-asks): fix it first *(Recommended)*, or *publish anyway* and record that the walk failed. Say in plain words what they would see not working on the preview. If the walk's fixes advanced `HEAD`, merge that commit only when their `/save` result is `SUCCESS` or `NONE`.
+Any verdict but `FAILURE` → report it and merge. `FAILURE` after `/verify`'s own fixes → **stop and ask** [two options](../explore/references/asking-the-user.md#confirmations-offers-and-menus-are-asks): fix it first *(Recommended)*, or *publish anyway* and record that the walk failed. Say in plain words what they would see not working on the preview. If the walk's fixes, or its one `/save` of [kept checks](../verify/references/walkthrough.md#g--kept-checks), advanced `HEAD`, merge that commit only when that `/save` result is `SUCCESS` or `NONE`.
 
 ## Step 5 — merge and sync
 
