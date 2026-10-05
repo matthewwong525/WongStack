@@ -6,8 +6,10 @@ import { appKeys, keyCatalogue } from "./key-catalogue.ts";
 import { type AccessSet, type Sets, businessApps, changedSet, heldSet, readSets, save, setFields, setWrites } from "./sets.ts";
 
 // `role` is a role's id, or null for the person's own set; left out, they keep what they have.
+// `manager` lets the person manage Access; left out, they keep that too. A removed person is never one.
 const changeSchema = z.object({ email: z.email().transform(value => value.trim().toLowerCase()),
-  removed: z.boolean(), role: z.string().nullable().optional(), ...setFields }).strict();
+  removed: z.boolean(), role: z.string().nullable().optional(), manager: z.boolean().optional(), ...setFields }).strict()
+  .refine(change => !(change.removed && change.manager));
 type Change = z.infer<typeof changeSchema>;
 const nothing = (): AccessSet => ({ apps: [], keys: {} });
 
@@ -25,6 +27,21 @@ function target({ removed, role: asked, apps, keys }: Change, existing: Sets["pe
   return { role, own: nothing() };
 }
 
+/**
+ * Whether a save leaves the person a manager. Only the owner picks managers: anyone else who names the
+ * switch, or removes a manager, themselves included, is refused whole. A removal always ends it.
+ */
+function managing(core: Core, { removed, manager }: Change, was: boolean): boolean {
+  if (!core.owner && (manager !== undefined || (removed && was))) throw new AccessError("owner_required", 403);
+  return !removed && (manager ?? was);
+}
+
+/** The switch is a row: cleared, then written again when it stays on, so a person added back starts without it. */
+const managerWrites = (core: Core, email: string, manager: boolean) => [
+  core.db.prepare("DELETE FROM wong_access_managers WHERE installation_id = ? AND email = ?").bind(core.installationId, email),
+  ...(manager ? [core.db.prepare("INSERT INTO wong_access_managers VALUES (?, ?)").bind(core.installationId, email)] : []),
+];
+
 export async function changeMember(core: Core, value: unknown): Promise<void> {
   const parsed = changeSchema.safeParse(value);
   if (!parsed.success) throw new AccessError("invalid_person", 400);
@@ -32,6 +49,8 @@ export async function changeMember(core: Core, value: unknown): Promise<void> {
   if (member.email === core.email) throw new AccessError("owner_cannot_be_changed", 403);
   const { people, roles } = await readSets(core);
   const existing = people.find(person => person.email === member.email);
+  const was = existing?.manager ?? false;
+  const manager = managing(core, member, was);
   const { role, own } = target(member, existing, roles);
   const id = core.installationId;
   const status = member.removed ? "removed" : "active";
@@ -47,6 +66,7 @@ export async function changeMember(core: Core, value: unknown): Promise<void> {
     ...setWrites(core, "people", member.email, own),
     core.db.prepare("DELETE FROM wong_access_member_roles WHERE installation_id = ? AND email = ?").bind(id, member.email),
     ...(role === null ? [] : [core.db.prepare("INSERT INTO wong_access_member_roles VALUES (?, ?, ?)").bind(id, member.email, role)]),
+    ...managerWrites(core, member.email, manager),
   ];
   // Only a change to who may sign in needs the provider, and only the live app has one.
   const kinds = !core.live || existing?.status === status ? [] : ["policy", ...(member.removed ? ["sessions"] : [])];
@@ -56,10 +76,12 @@ export async function changeMember(core: Core, value: unknown): Promise<void> {
       ON CONFLICT(installation_id, kind) DO UPDATE SET generation = excluded.generation,
       status = 'pending', error_code = NULL, outcome = NULL`).bind(kind, id));
   }
-  await save(core, [member.removed ? "person_removed" : "person_changed", ...(member.keys ? ["key_level_changed"] : [])], changes);
+  await save(core, [member.removed ? "person_removed" : "person_changed", ...(member.keys ? ["key_level_changed"] : []),
+    ...(manager === was ? [] : [manager ? "manager_added" : "manager_removed"])], changes);
 }
 
-/** What the owner's screen shows. No key's value is here: only whether each one is saved. */
+/** What the owner's screen, and a manager's, shows. No key's value is here: only whether each one is saved.
+ *  `viewer` is who asked, and whether they are the owner: the screen draws by it, and every save checks again. */
 export async function accessStatus(core: Core): Promise<object> {
   const id = core.installationId;
   const apps = businessApps();
@@ -77,7 +99,8 @@ export async function accessStatus(core: Core): Promise<object> {
   if (!installation) throw new AccessError("installation_mismatch");
   const noted = (event: string) => Number(notes.results.find(row => row.event.startsWith(event))?.event.slice(event.length) ?? 0);
   const uses = appKeys(apps);
-  return { origin: core.origin, ownerEmail: core.email, environment: core.live ? "live" : "practice",
+  return { origin: core.origin, ownerEmail: core.email, viewer: { email: core.actor, owner: core.owner },
+    environment: core.live ? "live" : "practice",
     // A preview holds no key and never needs one.
     key: !core.live ? "practice" : loginAuthority(core.env) ? "ready" : "missing",
     started: installation.policy_enabled === 1, imported: noted("permissions_started:"),
@@ -86,6 +109,6 @@ export async function accessStatus(core: Core): Promise<object> {
     apps, appKeys: uses, keys: keyCatalogue(core.env, uses),
     roles: roles.map(role => ({ id: role.id, name: role.name, ...role.set })),
     people: people.map(person => ({ email: person.email, status: person.status, settled: person.settled, role: person.role,
-      ...heldSet(person, roles) })),
+      manager: person.manager, ...heldSet(person, roles) })),
     work: work.results };
 }

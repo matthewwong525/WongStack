@@ -11,7 +11,7 @@ afterEach(() => { f.sql.close(); vi.unstubAllGlobals(); vi.restoreAllMocks(); })
 
 it("knows the owner by the recorded email and a verified human sign-in, on the live app and on a preview", async () => {
   const core = await ownerCore(req("status", "GET"), f.env, owner);
-  expect(core).toMatchObject({ email: site.ownerEmail, subject: site.ownerSubject, origin: site.origin,
+  expect(core).toMatchObject({ email: site.ownerEmail, actor: site.ownerEmail, owner: true, subject: site.ownerSubject, origin: site.origin,
     installationId: site.installationId, live: true });
   expect(await permissionsStarted(core)).toBe(true);
   // Neither the stored subject nor the stored origin is a pin: only the committed email decides.
@@ -43,9 +43,9 @@ it("lets the verification machine read and save as the owner on a preview, and n
     iss: site.issuer, aud: site.audience, exp: 9999999999 } };
   const preview = { ...f.env, WONG_ENVIRONMENT: "staging", WONG_ACCESS_LOGIN_MANAGEMENT: undefined };
   const save = () => req("people", "POST", { email: "practice@example.com", apps: [], removed: false });
-  // Its subject is the token's own name, and the list is the practice list.
+  // Its subject is the token's own name, and the list is the practice list. Its changes are recorded under the owner's email.
   expect(await ownerCore(req("status", "GET"), preview, machine))
-    .toMatchObject({ email: site.ownerEmail, subject: "checker.access", live: false, installationId: site.installationId });
+    .toMatchObject({ email: site.ownerEmail, actor: site.ownerEmail, owner: true, subject: "checker.access", live: false, installationId: site.installationId });
   expect((await management(req("status", "GET"), preview, machine)).status).toBe(200);
   const saved = await management(save(), preview, machine);
   expect(saved.status).toBe(200);
@@ -66,6 +66,33 @@ it("lets the verification machine read and save as the owner on a preview, and n
   for (const forged of [{ ...machine, id: "another.access" }, { ...machine, claims: { ...machine.claims, email: site.ownerEmail } }]) {
     await expect(ownerCore(req("status", "GET"), preview, forged)).rejects.toMatchObject({ code: "owner_required", status: 403 });
   }
+});
+
+it("admits a manager the owner ticked under their own email, and nobody the owner did not", async () => {
+  const asks = (identity: AccessIdentity, request = req("status", "GET")) => ownerCore(request, f.env, identity);
+  await expect(asks(employee)).rejects.toMatchObject({ code: "owner_required", status: 403 });
+  f.sql.prepare("INSERT INTO wong_access_managers VALUES (?, ?)").run(site.installationId, employee.id);
+  // The owner's email stays the owner's; the actor is the manager, who is never the owner.
+  expect(await asks(employee, req("people"))).toMatchObject({ email: site.ownerEmail, actor: employee.id, owner: false,
+    subject: "employee-subject", installationId: site.installationId, origin: site.origin, live: true });
+  // Nothing is created or logged for a manager: the row was already the owner's.
+  expect(f.sql.prepare("SELECT COUNT(*) count FROM wong_access_installation").get()).toEqual({ count: 1 });
+  expect(f.sql.prepare("SELECT COUNT(*) count FROM wong_access_audit").get()).toEqual({ count: 0 });
+  // A manager's save needs this site's own origin too.
+  await expect(asks(employee, new Request(`${site.origin}/api/access/people`, { method: "POST" })))
+    .rejects.toMatchObject({ code: "origin_required", status: 403 });
+  // A machine, or a stale sign-in, carrying a manager's email is nobody.
+  for (const identity of [{ ...employee, kind: "service" as const }, { ...employee, claims: { ...employee.claims, common_name: "machine" } },
+    { ...employee, claims: { ...employee.claims, exp: 1 } }, { ...employee, claims: { ...employee.claims, sub: "" } }]) {
+    await expect(asks(identity)).rejects.toMatchObject({ code: "owner_required", status: 403 });
+  }
+  // A former manager is refused on the next request: removed with the row left behind, or unticked.
+  f.sql.exec("UPDATE wong_access_members SET status = 'removed'");
+  await expect(asks(employee)).rejects.toMatchObject({ code: "owner_required", status: 403 });
+  f.sql.exec("UPDATE wong_access_members SET status = 'active'");
+  expect(await asks(employee)).toMatchObject({ actor: employee.id, owner: false });
+  f.sql.exec("DELETE FROM wong_access_managers");
+  await expect(asks(employee)).rejects.toMatchObject({ code: "owner_required", status: 403 });
 });
 
 it("creates the installation row on the first owner request and logs the first-seen subject once", async () => {

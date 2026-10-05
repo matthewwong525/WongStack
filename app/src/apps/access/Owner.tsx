@@ -11,7 +11,7 @@ import { Roles } from './Roles'
 const SCREENS = { people: People, roles: Roles, apps: Apps, keys: Keys }
 const UNFINISHED = 'That did not finish. Check the list below before trying again.'
 
-// The owner's screens. One read of the whole status serves the four views and the pages under them.
+// The owner's screens, and a manager's. One read of the whole status serves the four views and the pages under them.
 export function Owner() {
   const { data, error, reload } = useAccess('status', statusSchema)
   const [pending, setPending] = useState(false)
@@ -37,6 +37,7 @@ export function Owner() {
     {/* A box on top of the list: a save that did not finish interrupts, a finished one is only said. */}
     {typeof said === 'string' && <p className="access-notice" role={said === UNFINISHED ? 'alert' : 'status'}><strong>{said}</strong></p>}
     {data && <>
+      {!data.viewer.owner && <p className="access-muted">You manage Access. The owner, {data.ownerEmail}, picks managers.</p>}
       <Banners status={data} />
       <Screen status={data} id={named ? rest.join('/') : ''} view={view} pending={pending} save={save} reload={reload} />
     </>}

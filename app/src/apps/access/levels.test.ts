@@ -8,7 +8,7 @@ const stripe = key('stripe', 'Stripe', { usedBy: [{ app: 'hello', need: 'write' 
 const maps = key('maps', 'Maps', { saved: false, usedBy: [{ app: 'hello', need: 'read' }] })
 const cloudflare = key('cloudflare', 'Cloudflare', { levels: ['read'], saved: false, setup: true, alone: true })
 const spare = key('spare', 'Spare')
-const status: Status = { origin: 'https://business.example.com', ownerEmail: 'owner@example.com', environment: 'live', key: 'ready', started: true,
+const status: Status = { origin: 'https://business.example.com', ownerEmail: 'owner@example.com', viewer: { email: 'owner@example.com', owner: true }, environment: 'live', key: 'ready', started: true,
   imported: 0, keysStarted: true, kept: 0, apps: ['hello', 'tips', 'payroll'],
   appKeys: { hello: [{ id: 'stripe', need: 'write' }, { id: 'maps', need: 'read' }], tips: [{ id: 'stripe', need: 'read' }], payroll: [] },
   keys: [stripe, maps, cloudflare, spare], roles: [], people: [], work: [] }

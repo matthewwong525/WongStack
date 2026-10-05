@@ -9,9 +9,9 @@ import type { Person, SavedKey, Status } from '../../lib/access'
 // The Keys and Apps views, and the two pages that save through `grants`.
 // A shop with three apps: Hello changes things with Stripe, payroll with Bank, and the tip calculator uses no key.
 const key = (id: string, title: string, changes: Partial<SavedKey> = {}): SavedKey => ({ id, title, levels: ['read', 'write'], saved: true, setup: false, usedBy: [], alone: false, ...changes })
-const person = (email: string, changes: Partial<Person> = {}): Person => ({ email, status: 'active', settled: true, role: null, apps: [], keys: {}, ...changes })
+const person = (email: string, changes: Partial<Person> = {}): Person => ({ email, status: 'active', settled: true, role: null, manager: false, apps: [], keys: {}, ...changes })
 const sales = () => ({ apps: ['hello', 'tips'], keys: { stripe: 'read' as const } })
-const status = (): Status => ({ origin: 'https://shop.example.com', ownerEmail: 'owner@shop.com', environment: 'live', key: 'ready', started: true, imported: 0,
+const status = (): Status => ({ origin: 'https://shop.example.com', ownerEmail: 'owner@shop.com', viewer: { email: 'owner@shop.com', owner: true }, environment: 'live', key: 'ready', started: true, imported: 0,
   keysStarted: true, kept: 0, apps: ['hello', 'payroll', 'tips'],
   appKeys: { hello: [{ id: 'stripe', need: 'write' }], payroll: [{ id: 'bank', need: 'write' }], tips: [] },
   keys: [key('stripe', 'Stripe', { usedBy: [{ app: 'hello', need: 'write' }] }), key('bank', 'Bank', { usedBy: [{ app: 'payroll', need: 'write' }] }),
@@ -86,6 +86,12 @@ it('says one step is left for the key setup makes, with the request to copy, and
   cleanup(); roster.keys = []; open('keys'); await screen.findByText('No keys saved yet.')
   expect(screen.getByText('When an app needs a service, your assistant sends a private link for its key. It shows up here.')).toBeTruthy()
   expect(screen.queryByRole('listitem')).toBeNull()
+})
+it("tells a manager the key setup makes is the owner's step, with nothing to copy", async () => {
+  roster.keys[2].saved = false; roster.viewer = { email: 'kim@shop.com', owner: false }
+  open('keys'); const cloudflare = await row('Cloudflare')
+  expect(cloudflare.getByText('Look-ups need a read-only key. owner@shop.com finishes that in Access setup.')).toBeTruthy()
+  expect(cloudflare.queryByText('Finish Access setup')).toBeNull(); expect(cloudflare.queryByRole('button')).toBeNull()
 })
 it('says on a preview that the key setup makes is not on previews yet, with no step to ask for', async () => {
   roster.environment = 'practice'; roster.key = 'practice'; roster.keys[2].saved = false

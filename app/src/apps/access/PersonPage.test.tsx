@@ -7,9 +7,9 @@ import type { Person, SavedKey, Status } from '../../lib/access'
 
 // A shop with three apps: Hello changes things with Stripe, payroll with Bank, and the tip calculator uses no key.
 const key = (id: string, title: string, changes: Partial<SavedKey> = {}): SavedKey => ({ id, title, levels: ['read', 'write'], saved: true, setup: false, usedBy: [], alone: false, ...changes })
-const person = (email: string, changes: Partial<Person> = {}): Person => ({ email, status: 'active', settled: true, role: null, apps: [], keys: {}, ...changes })
+const person = (email: string, changes: Partial<Person> = {}): Person => ({ email, status: 'active', settled: true, role: null, manager: false, apps: [], keys: {}, ...changes })
 const sales = () => ({ apps: ['hello', 'tips'], keys: { stripe: 'read' as const } })
-const status = (): Status => ({ origin: 'https://shop.example.com', ownerEmail: 'owner@shop.com', environment: 'live', key: 'ready', started: true, imported: 0,
+const status = (): Status => ({ origin: 'https://shop.example.com', ownerEmail: 'owner@shop.com', viewer: { email: 'owner@shop.com', owner: true }, environment: 'live', key: 'ready', started: true, imported: 0,
   keysStarted: true, kept: 0, apps: ['hello', 'payroll', 'tips'],
   appKeys: { hello: [{ id: 'stripe', need: 'write' }], payroll: [{ id: 'bank', need: 'write' }], tips: [] },
   keys: [key('stripe', 'Stripe', { usedBy: [{ app: 'hello', need: 'write' }] }), key('bank', 'Bank', { usedBy: [{ app: 'payroll', need: 'write' }] }),
@@ -24,7 +24,8 @@ beforeEach(() => {
   roster = status()
   fetchMock = vi.fn(async (url: string) => {
     const path = url.replace('/api/access/', '')
-    if (path === 'apps') return Response.json({ state: 'current', role: 'owner', apps: ['access', ...roster.apps], revision: 1 })
+    // The owner, or a manager: an employee who manages. The status names which in `viewer`.
+    if (path === 'apps') return Response.json({ state: 'current', role: roster.viewer.owner ? 'owner' : 'employee', manages: true, apps: ['access', ...roster.apps], revision: 1 })
     if (path === 'setup') return Response.json({ role: 'owner', api: 'authenticated', identity: { email: 'owner@shop.com', subject: 'owner' }, apps: roster.apps,
       repository: 'manual_provider_setup', memory: 'independent_operator_setup', prompt: { state: 'unavailable', message: 'Not on this preview' } })
     return Response.json(roster)
@@ -44,6 +45,10 @@ const row = async (email: string) => within((await screen.findByText(email)).clo
 const labels = (box: { queryAllByRole: (role: string) => HTMLElement[] }) => box.queryAllByRole('listitem').map(item => item.textContent)
 const app = (name: string) => within(screen.getByRole('checkbox', { name }).closest('div')!)
 const ticks = () => checked(screen.getAllByRole('checkbox'))
+// Every tick on the page by its words. A page with no app ticks still has the owner's one for managing.
+const boxes = () => screen.getAllByRole('checkbox').map(input => input.parentElement!.textContent)
+const MANAGE = 'Can manage Access'
+const managing = () => screen.getByRole('checkbox', { name: MANAGE }) as HTMLInputElement
 const tick = (name: string) => fireEvent.click(screen.getByRole('checkbox', { name }))
 const level = (name: string) => within(screen.getByRole('group', { name }))
 const chosen = (name: string) => checked(level(name).getAllByRole('radio'))
@@ -73,7 +78,7 @@ it('shows each person with their role, labels and gap, and a role on their page 
   expect(role().value).toBe('sales'); expect(screen.queryByLabelText('Email')).toBeNull()
   expect(screen.getByText('From the Sales role:')).toBeTruthy()
   expect(labels(screen)).toEqual(['Hello', 'Tip calculator', 'Stripe Read', gap])
-  expect(screen.queryByRole('checkbox')).toBeNull(); expect(screen.queryByRole('radio')).toBeNull()
+  expect(boxes()).toEqual([MANAGE]); expect(screen.queryByRole('radio')).toBeNull()
   expect(screen.getByRole('link', { name: 'Edit the Sales role' }).getAttribute('href')).toBe('/apps/access/roles/sales')
   // A role with nothing in it says so, and the save names the role alone.
   fireEvent.change(role(), { target: { value: 'office' } })
@@ -169,7 +174,7 @@ it('moving from a role to their own set starts from what that role gave', async 
   cleanup()
   // Kim has her own set: picking a role hides the ticks, and coming back starts from that role too.
   open('people/kim@shop.com'); fireEvent.change(await screen.findByLabelText('Role'), { target: { value: 'sales' } })
-  expect(screen.queryByRole('checkbox')).toBeNull(); expect(screen.getByText('From the Sales role:')).toBeTruthy()
+  expect(boxes()).toEqual([MANAGE]); expect(screen.getByText('From the Sales role:')).toBeTruthy()
   fireEvent.change(role(), { target: { value: '' } })
   expect(ticks()).toEqual(['Hello', 'Tip calculator']); expect(chosen('Cloudflare')).toEqual(['None'])
 })
@@ -204,5 +209,65 @@ it('holds every control while a save is on its way, and Cancel goes back without
 it('says so when there is no app or key to give yet', async () => {
   roster.apps = []; roster.appKeys = {}; roster.keys = []
   open('people/new'); await screen.findByText('No apps built yet. Ask your assistant to make one.')
-  expect(screen.getByText('No keys saved yet.')).toBeTruthy(); expect(screen.queryByRole('checkbox')).toBeNull()
+  expect(screen.getByText('No keys saved yet.')).toBeTruthy(); expect(boxes()).toEqual([MANAGE])
+})
+it('the owner picks a manager with one tick in the last group, full trust said right under it, and the save carries it', async () => {
+  open('people/kim@shop.com'); await screen.findByRole('heading', { name: 'kim@shop.com · Can sign in' })
+  const group = screen.getByRole('group', { name: 'Managing' })
+  // Below the apps and the keys, so the common edits come first.
+  expect(other().getAllByRole('group').at(-1)!.compareDocumentPosition(group) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  expect(managing().checked).toBe(false); expect(within(group).getAllByRole('checkbox')).toHaveLength(1)
+  // The warning is plain text at full weight, never muted.
+  const trust = within(group).getByText('Full trust. A manager can add and remove people and give anyone, themselves included, any app or key level.')
+  expect([trust.tagName, trust.className]).toEqual(['P', ''])
+  expect(screen.queryByText(/only the owner changes this/)).toBeNull()
+  fireEvent.click(managing()); expect(ticks()).toEqual(['Hello', MANAGE])
+  roster.people[1].manager = true
+  click('Save access'); await screen.findByText('Saved.')
+  expect(sent('people')).toEqual([{ email: 'kim@shop.com', removed: false, role: null, apps: ['hello'], keys: { stripe: 'read', bank: null, cloudflare: 'read' }, manager: true }])
+  expect((await row('kim@shop.com')).getByText('Own set · Manager')).toBeTruthy()
+  // It works the same for a person with a role, and for a new person; unticking sends the switch off.
+  roster.people[2].manager = true
+  cleanup(); open('people/lee@shop.com'); await screen.findByRole('heading', { name: 'lee@shop.com · Can sign in' })
+  expect(managing().checked).toBe(true); fireEvent.click(managing())
+  click('Save access'); await screen.findByText('Saved.')
+  expect(sent('people')[1]).toEqual({ email: 'lee@shop.com', removed: false, role: 'sales', manager: false })
+  cleanup(); open('people/new'); fireEvent.change(await screen.findByLabelText('Email'), { target: { value: 'new@shop.com' } })
+  expect(managing().checked).toBe(false); fireEvent.click(managing())
+  click('Save access'); await screen.findByText('Saved.')
+  expect(sent('people')[2]).toEqual({ email: 'new@shop.com', removed: false, role: null, apps: [], keys: { stripe: null, bank: null, cloudflare: null }, manager: true })
+})
+it('a tick left as it was is no change: leaving asks nothing, and the save names no manager', async () => {
+  roster.people[1].manager = true
+  open('people/kim@shop.com'); await screen.findByRole('button', { name: 'Save access' })
+  expect(managing().checked).toBe(true)
+  // A changed tick asks before leaving; put back, the page leaves at once.
+  fireEvent.click(managing()); click('Cancel')
+  expect(screen.getByRole('heading', { name: 'Leave without saving?' })).toBeTruthy(); click('Keep editing')
+  fireEvent.click(managing()); click('Cancel')
+  expect(screen.queryByRole('heading', { name: 'Leave without saving?' })).toBeNull()
+  fireEvent.click((await row('kim@shop.com')).getByRole('link', { name: 'Edit' })); expect(posts('people')).toHaveLength(0)
+  // Another change saves without the switch: left out, Kim keeps it.
+  await screen.findByRole('button', { name: 'Save access' }); tick('payroll')
+  click('Save access'); await screen.findByText('Saved.')
+  expect(sent('people')).toEqual([{ email: 'kim@shop.com', removed: false, role: null, apps: ['hello', 'payroll'], keys: { stripe: 'read', bank: 'read', cloudflare: 'read' } }])
+})
+it("a manager has no tick to set: a manager's page says only the owner changes it, and their save never names it", async () => {
+  roster.viewer = { email: 'kim@shop.com', owner: false }; roster.people[1].manager = true
+  open('people/kim@shop.com'); await screen.findByRole('heading', { name: 'kim@shop.com · Can sign in' })
+  // A plain line under the name, above the role.
+  const said = screen.getByText('Manager · only the owner changes this')
+  expect(said.compareDocumentPosition(role()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  expect(screen.queryByRole('group', { name: 'Managing' })).toBeNull(); expect(screen.queryByRole('checkbox', { name: MANAGE })).toBeNull()
+  expect(screen.queryByText(/Full trust/)).toBeNull()
+  // A manager changes a manager's apps and levels, their own included.
+  tick('payroll'); click('Save access'); await screen.findByText('Saved.')
+  expect(sent('people')).toEqual([{ email: 'kim@shop.com', removed: false, role: null, apps: ['hello', 'payroll'], keys: { stripe: 'read', bank: 'read', cloudflare: 'read' } }])
+  // Someone who is not a manager has no such line, and a new person no tick.
+  for (const [path, wait] of [['people/lee@shop.com', 'lee@shop.com · Can sign in'], ['people/new', 'Add person']]) {
+    cleanup(); open(path); await screen.findByRole('heading', { name: wait })
+    expect(screen.queryByText(/only the owner changes this/), path).toBeNull(); expect(screen.queryByRole('checkbox', { name: MANAGE }), path).toBeNull()
+  }
+  fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'new@shop.com' } }); click('Save access'); await screen.findByText('Saved.')
+  expect(sent('people')[1]).toEqual({ email: 'new@shop.com', removed: false, role: null, apps: [], keys: { stripe: null, bank: null, cloudflare: null } })
 })

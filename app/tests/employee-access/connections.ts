@@ -18,7 +18,7 @@ export const key = JSON.stringify({ version: 2, token: "private-access-token", a
 export function database() {
   const sql = new DatabaseSync(":memory:");
   sql.exec("PRAGMA foreign_keys = ON");
-  for (const file of ["0001_employee_access.sql", "0002_employee_connections.sql", "0003_key_levels.sql"]) {
+  for (const file of ["0001_employee_access.sql", "0002_employee_connections.sql", "0003_key_levels.sql", "20261005142459_access_managers.sql"]) {
     sql.exec(readFileSync(new URL(`../../../schema/migrations/${file}`, import.meta.url), "utf8"));
   }
   const statement = (query: string, values: SQLInputValue[] = []) => ({
@@ -49,7 +49,7 @@ export function fixture({ started = true } = {}) {
     sql.prepare("INSERT INTO wong_access_apps VALUES (?, 'orders')").run(site.installationId);
   }
   const core: Core = { db: session as unknown as D1DatabaseSession, env, installationId: site.installationId,
-    origin: site.origin, email: site.ownerEmail, subject: site.ownerSubject, live: true };
+    origin: site.origin, email: site.ownerEmail, actor: site.ownerEmail, owner: true, subject: site.ownerSubject, live: true };
   return { sql, env, core };
 }
 export const req = (path: string, method = "POST", body?: unknown, headers = {}) => new Request(`${site.origin}/api/access/${path}`,

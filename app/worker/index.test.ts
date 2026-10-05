@@ -97,8 +97,8 @@ describe("private Worker routing", () => {
     const bindings = { ...env, WONG_ENVIRONMENT: "production", WONG_OWNER_EMAIL: ownerEmail, DB: db };
     for (const [endpoint, method] of [["/api/access/status", "GET"], ["/api/access/people", "POST"], ["/api/access/retry", "POST"]]) {
       expect((await call(endpoint, { Origin: origin }, bindings, method)).status).toBe(401);
-      // A visitor, a machine, and the owner's email with no signed user id manage nobody.
-      for (const claims of [{ email: "visitor@example.com", sub: "visitor" }, { common_name: "service-client", sub: "" }, { email: ownerEmail }]) {
+      // A machine, and the owner's email with no signed user id, manage nobody, and nothing is read for them.
+      for (const claims of [{ common_name: "service-client", sub: "" }, { email: ownerEmail }]) {
         expect((await call(endpoint, { Origin: origin, "Cf-Access-Jwt-Assertion": await token(claims) }, bindings, method)).status).toBe(403);
       }
     }
@@ -107,6 +107,13 @@ describe("private Worker routing", () => {
     const forged = `${header}.${encode({ email: ownerEmail, sub: "any-signed-subject" })}.${signature}`;
     expect((await call("/api/access/status", { "Cf-Access-Jwt-Assertion": forged }, bindings)).status).toBe(401);
     expect(db.withSession).not.toHaveBeenCalled();
+    // A signed-in visitor could be a manager, so the database decides: unreadable, they are refused with no detail.
+    const visitor = await token({ email: "visitor@example.com", sub: "visitor" });
+    for (const [endpoint, method] of [["/api/access/status", "GET"], ["/api/access/people", "POST"], ["/api/access/retry", "POST"]]) {
+      const refused = await call(endpoint, { Origin: origin, "Cf-Access-Jwt-Assertion": visitor }, bindings, method);
+      expect([refused.status, await refused.json()], endpoint).toEqual([503, { code: "access_unavailable" }]);
+    }
+    expect(db.withSession).toHaveBeenCalledTimes(3);
     // The recorded owner reaches the database; its failure is reported with no detail.
     const reached = await call("/api/access/status", { "Cf-Access-Jwt-Assertion": signed }, bindings);
     expect(reached.status).toBe(503);
@@ -244,14 +251,14 @@ describe("private Worker routing", () => {
   });
 
   it("checks current grants and self-service membership after signed login on every request", async () => {
-    const row = { policy_enabled: 1, keys_enabled: 0, revision: 1, status: "active", apps: '["hello"]', keys: "{}" };
+    const row = { policy_enabled: 1, keys_enabled: 0, revision: 1, status: "active", manager: 0, apps: '["hello"]', keys: "{}" };
     const first = vi.fn(async () => row);
     const db = { withSession: vi.fn(() => ({ prepare: () => ({ bind: () => ({ first }) }) })) };
     const bindings = { ...env, WONG_ENVIRONMENT: "production", WONG_OWNER_EMAIL: "owner@example.com", DB: db };
     const headers = { "Cf-Access-Jwt-Assertion": await token({ email: "human@example.com", sub: "employee" }) };
     expect((await call("/apps/hello/api/greeting", headers, bindings)).status).toBe(200);
     expect(await (await call("/api/access/apps", headers, bindings)).json())
-      .toEqual({ state: "current", role: "employee", revision: 1, apps: ["access", "hello"], keys: [] });
+      .toEqual({ state: "current", role: "employee", manages: false, revision: 1, apps: ["access", "hello"], keys: [] });
     for (const path of ["/apps/hello/", "/apps/hello/subpage", "/apps/access/"]) expect((await call(path, headers, bindings)).status).toBe(200);
     row.apps = "[]";
     row.revision = 2;

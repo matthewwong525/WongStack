@@ -16,9 +16,10 @@ export type RouteAccess = { apps: readonly string[]; keys?: readonly string[] } 
 type Role = "owner" | "employee";
 export type CurrentPolicy = { state: "legacy" } | { state: "unavailable" } | { state: "denied" } |
   // The owner is known and permissions have not started: everyone keeps every app.
-  { state: "not_started"; role: Role } |
+  // `manages`: the caller may manage Access. It is its own flag and gives no app, key or owner route.
+  { state: "not_started"; role: Role; manages: boolean } |
   // `keys` is null until key levels start: the app tick alone decides, and no key works alone.
-  { state: "current"; role: Role; revision: number; apps: ReadonlySet<string>; keys: ReadonlyMap<string, Level> | null };
+  { state: "current"; role: Role; manages: boolean; revision: number; apps: ReadonlySet<string>; keys: ReadonlyMap<string, Level> | null };
 /** What a refused caller lacks: the app, or one key at the level the call needs. */
 type Refusal = "app" | { key: string; need: Level };
 
@@ -26,7 +27,7 @@ const appId = z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
 const bit = z.union([z.literal(0), z.literal(1)]);
 const policyRow = z.object({
   policy_enabled: bit, keys_enabled: bit,
-  revision: z.number().int().positive().safe(), status: z.enum(["active", "removed"]).nullable(),
+  revision: z.number().int().positive().safe(), status: z.enum(["active", "removed"]).nullable(), manager: bit,
   apps: z.string().transform(value => z.array(z.string()).parse(JSON.parse(value))),
   keys: z.string(),
 });
@@ -67,6 +68,8 @@ export async function currentPolicy(env: PolicyEnv, identity: AccessIdentity | n
   try {
     const found = await env.DB.withSession("first-primary").prepare(`
       SELECT i.policy_enabled, i.keys_enabled, i.revision, m.status,
+        EXISTS (SELECT 1 FROM wong_access_managers a
+          WHERE a.installation_id = m.installation_id AND a.email = m.email) AS manager,
         CASE WHEN h.role_id IS NULL
           THEN (SELECT json_group_array(g.app_id) FROM wong_access_grants g
             WHERE g.installation_id = i.installation_id AND g.email = m.email)
@@ -82,18 +85,20 @@ export async function currentPolicy(env: PolicyEnv, identity: AccessIdentity | n
       LEFT JOIN wong_access_member_roles h ON h.installation_id = m.installation_id AND h.email = m.email
       WHERE i.slot = 1`).bind(email ?? "").first();
     // No row yet: the owner has not opened Access, so nothing has started.
-    if (!found) return { state: "not_started", role };
+    if (!found) return { state: "not_started", role, manages: role === "owner" };
     const row = policyRow.parse(found);
-    if (!row.policy_enabled) return { state: "not_started", role };
+    // The owner manages Access, and so does a current person the owner ticked. No machine has a person's row.
+    const manages = role === "owner" || (!!email && row.status === "active" && row.manager === 1);
+    if (!row.policy_enabled) return { state: "not_started", role, manages };
     // The checker keeps every built app and every key, as before permissions started, so preview walks
     // and the look at the live app still reach them. On the live app it manages nobody: that needs the owner.
-    if (checker(identity)) return { state: "current", role, revision: row.revision, apps: new Set(catalogue), keys: everyKey() };
+    if (checker(identity)) return { state: "current", role, manages, revision: row.revision, apps: new Set(catalogue), keys: everyKey() };
     // Once started, only the owner and current people pass.
     if (role !== "owner" && (!email || row.status !== "active")) return { state: "denied" };
     // The owner holds every key. A person's apps and levels come from their role when they hold one.
     const keys = role === "owner" ? everyKey() : row.keys_enabled ? heldLevels(storedLevels(row.keys)) : null;
     // A grant for an app that is no longer built is ignored.
-    return { state: "current", role, revision: row.revision, apps: new Set(row.apps.filter(app => catalogue.includes(app))), keys };
+    return { state: "current", role, manages, revision: row.revision, apps: new Set(row.apps.filter(app => catalogue.includes(app))), keys };
   } catch {
     // Unreadable permission data never falls back to open.
     return { state: "unavailable" };
