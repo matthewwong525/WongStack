@@ -21,6 +21,7 @@ Ask first: the install makes billable resources in a real Cloudflare account.
 3. A deliberately failing test: it comes back failed, with no preview.
 4. *Publish it?*, then the live site. Read the live page twice: for a few seconds after a deploy it can still serve the previous version.
 5. A second change from the new `main`.
+6. Each step an update runs alone, such as [`provision.mjs access`](../../.agents/skills/wong-setup/scripts/provision.mjs), against the real account, then `node scripts/cf-secrets.mjs check`. A step that stores a key in the live app but not the preview app passes its fake-Cloudflare tests and then fails [the parity check](../stack/staging-bindings.md#what-the-gate-can-and-cant-see) on every branch.
 
 Run it once from this machine, fix what breaks, then have the owner run it by hand on a Mac. Their chat log is the best review of the install wording: read it for retries, steps written by hand, and anything the assistant had to work around.
 
