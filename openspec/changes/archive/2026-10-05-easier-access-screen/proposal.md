@@ -1,6 +1,6 @@
 # An Access screen that is quicker to use and easier to read
 
-**Status:** planned
+**Status:** ready-to-ship
 
 **Branch:** improve-access-permissions-ui
 
@@ -165,3 +165,4 @@ None.
 - **2026-10-05** — Assumed: the view switch stays off a person's, role's, app's and key's page, as before; the leave question covers the back link, *Cancel*, any other link, the browser's Back button, a reload and a closed tab.
 - **2026-10-05** — Assumed: the shared-level line shows under each app that shares the key, not only the second, so the first one explains itself too.
 - **2026-10-05** — Assumed: the preview walk runs as the publish step's check instead of a task box, because he chose build and publish in one go and that step walks the preview after its one save.
+- **2026-10-05** — Archive checkpoint: built, merged with the two releases published meanwhile (the Keys view keeps their *Not on previews yet* line), numbered 33.2.0, and saved for the checks before publishing.

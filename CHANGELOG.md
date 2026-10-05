@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — An Access screen that is quicker to use and easier to read
+## 33.2.0 — An Access screen that is quicker to use and easier to read
 
 - **An app's keys sit under its tick.** On a person's page and a role's page, ticking an app shows the level of each key it uses right there, so you give the app and pick the level in one place. Ticking still gives Read, never Read & write. A key two ticked apps share shows under both and is one level. Keys no ticked app uses sit in a short list below.
 - **People and Roles show apps and levels as labels.** One small label per app and per key, with the level in words: *Stripe Read*. A line marked `!` says where an app can't do its job yet, such as *Hello can look up, not change*. A person with a role shows the role's name; one without shows *Own set*. A person with every app now shows each app, where the list said *All apps*.
