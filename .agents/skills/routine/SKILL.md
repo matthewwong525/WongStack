@@ -16,7 +16,7 @@ The script prints one JSON object, never a key. Exit `0` is success; `2` is bad 
 
 ## Script or routine
 
-Ask first **who decides the steps**.
+Judge first **who decides the steps**; the person is not asked.
 
 - **The same steps every run** (*copy yesterday's orders into the archive table*) is a script, even when a step calls an AI model. Say so, make no routine, and start [`/plan`](../plan/SKILL.md) for a scheduled function in the app, with [its manual trigger](../../rules/code.md#sample-data-and-timed-jobs). A script needs no paid plan.
 - **Work that finds its own way** (*find news about our competitors*, `/improve`) is a routine.

@@ -23,6 +23,8 @@ Run on 2026-10-05 on the owner's account (Workers Paid), from a Linux server wit
 | A run that finds its own way | Status `ok` in 110 seconds, 7.7 of them start-up. Asked for the three top stories on Hacker News, Pi chose the site's public API over reading the page, appended the titles to `NOTES.md`, pushed `routine/news-run`, left `main` alone, and listed what it assumed, as the notice asks. |
 | The Worker minting an Artifacts write key | Worked with `env.ARTIFACTS.get(repo).createToken('write', ttl)`. The key outlives the run by up to an hour. |
 | No key in a URL, a log, or a stored step | The run's log and every stored Workflow step were searched for the Artifacts key, a Basic or Bearer header, the routines key, and the Cloudflare token. None was there. |
+| An install whose project lives on GitHub, with no project key | `setup` installed a second runner, `wong-rt-gh-routines`, in 36 seconds and answered `needs: project-access`. `create` then stopped with the same answer and made no routine. |
+| No computer left running | After both runs, Cloudflare's container list showed no active or assigned instance for either runner. |
 | A wrong pasted key, in Z.ai's shape | Recognised as Z.ai, refused by Z.ai with 401, and nothing was stored: the runner's secrets stayed `AI_RUN_TOKEN` and `ROUTINES_KEY`. The key's text was in no output. |
 | A pasted key of no known shape | Stopped with `needs: provider` and the nine services to choose from. |
 | No pasted key | Stopped with `needs: model-key`. |
@@ -59,10 +61,11 @@ Start-up is under the 60-second limit, so no saved start was built.
 
 To delete, and to read back as gone through Cloudflare's API:
 
-- Worker `wong-rt-trial-routines`, its container application, and its Workflow.
-- AI Gateway `wong-rt-trial-routines`.
-- Account token `wong-rt-trial-routines-ai`.
+- Workers `wong-rt-trial-routines` and `wong-rt-gh-routines`, each with its container application and its Workflow.
+- AI Gateways `wong-rt-trial-routines` and `wong-rt-gh-routines`.
+- Account tokens `wong-rt-trial-routines-ai` and `wong-rt-gh-routines-ai`.
 - Artifacts repository `wongstack/wong-rt-trial` and its tokens.
+- GitHub repository `matthewwong525/wong-rt-trial`, private.
 - The temp folder on this server.
 
 The three permissions the owner's token gave itself stay; the real install needs them.
