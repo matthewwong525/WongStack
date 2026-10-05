@@ -7,6 +7,8 @@ import type { PolicyEnv } from "../employee-access/policy";
 // Hello's routes, swapped for one that records what a handler receives.
 const seen = vi.hoisted(() => [] as { env: Record<string, unknown>; call: AppCall }[]);
 vi.mock("./hello/api.ts", async (original) => ({
+  // The registry reads each app's `keys`; the supplied example lists none.
+  keys: undefined,
   routes: new Map((await original<{ routes: Map<string, Route> }>()).routes).set(
     "GET peek", (_request: Request, env: Record<string, unknown>, call: AppCall) => {
       seen.push({ env, call });
