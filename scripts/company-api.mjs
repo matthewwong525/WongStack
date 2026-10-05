@@ -44,5 +44,7 @@ if (isMain(import.meta.url)) {
     if (!result) throw new Error('Unknown operation');
     const packet = command === 'call' && ['memory.documents', 'memory.recall'].includes(id);
     console.log(JSON.stringify(result, null, packet ? undefined : 2));
+    // A returned error is still printed, and ends as a failure a script can see.
+    if (command === 'call' && result.error && typeof result.error === 'object') process.exitCode = 1;
   } catch (error) { console.error(error.message); process.exitCode = 1; }
 }

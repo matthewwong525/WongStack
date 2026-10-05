@@ -6,7 +6,7 @@ const env = {} as Env;
 const identity = { id: "employee@example.com", kind: "user" as const, claims: { aud: "a", iss: "i", exp: 9999999999 } };
 const get = (path = "/api/actions", registry?: Parameters<typeof discovery>[3], headers = {}, method = "GET") => discovery(new Request(`https://example.com${path}`, { headers, method }), env, identity, registry);
 const synthetic = (id = "sample.create", extra = {}) => defineAction({ operationId: id, summary: "Create sample", description: "Synthetic sample",
-  encoding: "json", effect: "write", agentAvailable: true, input: z.strictObject({ title: z.string() }), output: z.strictObject({ id: z.number() }),
+  encoding: "json", effect: "write", agentAvailable: true, input: z.strictObject({ title: z.string().describe("The sample's title") }), output: z.strictObject({ id: z.number() }),
   errors: { denied: "Creation denied" }, examples: [{ input: { title: "Sample" }, output: { id: 1 } }], handler: () => Response.json({ id: 1 }, { status: 201 }), ...extra });
 it("requires a verified identity even if the starter is open and refuses unknown methods", async () => {
   expect((await discovery(new Request("https://example.com/api/actions"), env, null)).status).toBe(401);
@@ -20,12 +20,18 @@ it("summarizes actual registrations with filters, bounds and pagination, omittin
   expect((await (await get("/api/actions?limit=1&offset=1")).json()).next).toBeNull();
   expect((await (await get("/api/actions?app=hello&q=person")).json()).total).toBe(1);
   expect((await (await get("/api/actions?app=missing")).json()).total).toBe(0);
+  // Every word must appear, in any order and case; one word that appears nowhere matches nothing.
+  for (const [words, total] of [["person greet", 1], ["  WORLD   Greet ", 1], ["greet nowhere", 0], ["", 2]] as [string, number][]) {
+    expect((await (await get(`/api/actions?q=${encodeURIComponent(words)}`)).json()).total).toBe(total);
+  }
   for (const suffix of ["limit=0", "limit=51", "limit=1.1", "offset=-1", "offset=abc", `q=${"a".repeat(201)}`]) expect((await get(`/api/actions?${suffix}`)).status).toBe(400);
 });
 it("returns only the selected action schema and revision, and supports cache validation", async () => {
   const response = await get("/api/actions?id=hello.greeting"); const selected = await response.json();
   expect(selected.path).toBe("/apps/hello/api/greeting"); expect(selected.method).toBe("GET");
   expect(selected.inputSchema.properties.name.type).toBe("string"); expect(selected.examples[0].input.name).toBe("Ada");
+  expect(selected.inputSchema.properties.name.description).toMatch(/greet/); expect(selected).not.toHaveProperty("confirmWith");
+  expect(selected.errorSchema.properties.error.properties.issues.items.required).toEqual(["path", "message"]);
   expect(selected.outputSchema.properties.message.type).toBe("string"); expect(selected.errorSchema.properties.error.required).toContain("requestId");
   expect(JSON.stringify(selected)).not.toContain("main.health");
   const cached = await get("/api/actions?id=hello.greeting", undefined, { "if-none-match": response.headers.get("etag") });
@@ -42,9 +48,24 @@ it("generates truthful HTTP-only OpenAPI with query scalars, JSON bodies and suc
   const rows = registrations(new Map([["POST /api/create", synthetic()]]));
   const document = await (await get("/api/openapi.json", rows)).json();
   expect(document.paths["/api/create"].post.requestBody.content["application/json"].schema.properties.title.type).toBe("string");
-  const scalar = synthetic("sample.query", { encoding: "query", input: z.strictObject({ n: z.number() }), examples: [] });
+  const scalar = synthetic("sample.query", { encoding: "query", input: z.strictObject({ n: z.number().describe("A number") }), examples: [] });
   const query = await (await get("/api/openapi.json", registrations(new Map([["GET /api/query", scalar]])))).json();
   expect(query.paths["/api/query"].get.parameters[0].required).toBe(true);
+});
+it("names a write's confirming read only to a caller who may see that read", async () => {
+  const rows = (read = {}) => registrations(new Map([["POST /api/create", synthetic("sample.create", { confirmWith: "sample.read" })],
+    ["GET /api/read", synthetic("sample.read", { effect: "read", encoding: "none", input: z.strictObject({}), examples: [], ...read })]]));
+  expect((await (await get("/api/actions?id=sample.create", rows())).json()).confirmWith).toBe("sample.read");
+  expect((await (await get("/api/openapi.json", rows())).json()).paths["/api/create"].post["x-confirm-with"]).toBe("sample.read");
+  // The summary row keeps its fields; the name lives on the selected description.
+  expect((await (await get("/api/actions", rows())).json()).actions[0]).not.toHaveProperty("confirmWith");
+  for (const hidden of [{ allowed: () => false }, { agentAvailable: false }]) {
+    const described = await (await get("/api/actions?id=sample.create", rows(hidden))).json();
+    expect(described.operationId).toBe("sample.create"); expect(described).not.toHaveProperty("confirmWith");
+    const document = await (await get("/api/openapi.json", rows(hidden))).json();
+    expect(document.paths["/api/create"].post).not.toHaveProperty("x-confirm-with");
+    expect(JSON.stringify(document)).not.toContain("sample.read");
+  }
 });
 it("tracks additions/removals, excludes undeclared and denied operations, and marks missing connections", async () => {
   const a = synthetic();
