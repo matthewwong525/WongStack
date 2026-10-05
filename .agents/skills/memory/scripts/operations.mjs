@@ -96,7 +96,11 @@ if (isMain(import.meta.url)) {
       const selected = memoryOperations.find(operation => operation.operationId === id);
       if (!selected) throw new Error('Unknown memory operation');
       console.log(JSON.stringify(selected));
-    } else if (command === 'call') console.log(JSON.stringify(await callMemory(id, parseOperationInput(readFileSync(values.file === '-' ? 0 : values.file, 'utf8')))));
-    else throw new Error(USAGE);
+    } else if (command === 'call') {
+      const result = await callMemory(id, parseOperationInput(readFileSync(values.file === '-' ? 0 : values.file, 'utf8')));
+      console.log(JSON.stringify(result));
+      // A returned error is still printed, and ends as a failure a script can see.
+      if (result.error) process.exitCode = 1;
+    } else throw new Error(USAGE);
   } catch (error) { console.error(error.message); process.exitCode = 1; }
 }

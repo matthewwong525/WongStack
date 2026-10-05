@@ -11,7 +11,10 @@ const LIMIT = 1_000_000;
 const keySchema = z.object({ version: z.literal(1), token: z.string().min(1), accountId: z.string().regex(/^[a-f0-9]{32}$/) }).strict();
 // Products that hold a business's own data: its database, files, key-value data, queues and memory.
 const STORED = /^accounts\/[^/]+\/(?:d1|storage|r2|queues|vectorize|hyperdrive|secrets_store|stream|images|workers\/durable_objects)(?:\/|$)/;
-const input = z.strictObject({ path: z.string().min(1).max(500), query: z.string().max(1000).optional() });
+const input = z.strictObject({
+  path: z.string().min(1).max(500).describe("The Cloudflare API path to read, under this account or its zones, such as zones or accounts/<account id>/workers/scripts."),
+  query: z.string().max(1000).optional().describe("Optional query string for the path, without the leading question mark, such as per_page=20."),
+});
 const envelope = z.object({ success: z.boolean(), result: z.unknown().optional(), result_info: z.unknown().optional(),
   errors: z.array(z.unknown()).default([]) });
 const errors = {

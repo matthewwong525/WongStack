@@ -17,6 +17,18 @@
 
 **Updating.** Your people, their apps, your pages and your data stay as they are. The assistant does three things for you. First, for each app of your own it reads the code, lists the keys that app already uses, and adds each key to the app's key list with a name you will recognise, so every app keeps working; a check stops the update before publishing if one is missed. Second, it publishes, then runs `provision.mjs access`, the setup tool's step for Access, which makes the read-only Cloudflare key and stores it in your live app and your preview app. Third, it tells you to open Access once, which turns levels on with everyone keeping what they have. If your saved Cloudflare token can no longer make keys, the update still finishes: Access shows *One step left* beside Cloudflare, and the assistant sends you a private link to paste a token that can. Sample data you wrote for previews keeps working; the update adds a practice role and practice levels beside it.
 
+## 32.0.0 — Company actions an assistant can use without guessing
+
+- **A wrong input says which part is wrong and why.** The answer used to be only "Invalid input". It now lists each wrong input by name with the reason, so the assistant fixes it on the next try.
+- **Search finds an action by its words, in any order.** "look up order" now finds an action whose name or description holds all three words, not only that exact phrase.
+- **Every input of an action says what it is.** A new action whose input has no one-line description fails the checks, which name the action and the input.
+- **A write can name the action that confirms it.** When a write times out, nobody knows whether it happened. The action that changes something can now name the read action that shows the result, and the assistant is told to run that one before trying again. Nothing is repeated automatically.
+- **A failed call is reported as a failure.** The assistant's helper used to print the error but report success, so a script carried on. A call that returns an error now ends as failed.
+
+[Company actions](wiki/stack/company-api.md) has the details.
+
+**Updating.** Two things change for an existing install. First, add a one-line description to each input of each action your assistants use; until then the checks fail and name the action and the input, so ask the assistant to add them as part of the update. Second, a script of yours that calls `company-api.mjs call` (the helper that runs a company action) and read a failed call as a success now sees a failure, and stops unless it handles one.
+
 ## 31.4.1 — A link to the fork steps
 
 The guide to making WongStack your own now links the fork steps in WongStack's contributing guide. They moved there from the README, which is now shorter.

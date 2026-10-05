@@ -8,9 +8,13 @@ A saved key cannot explain which business actions are safe, their inputs, or who
 
 Main routes live in [the main router](../../app/worker/api/router.ts); mini-app routes keep [their existing folders](mini-apps.md). Use [the shared contract](../../app/worker/api/contract.ts), as [health](../../app/worker/api/health.ts) and greeting do. Paths and methods come from the route list. Zod schemas supply both input/output checks and the generated API guide; unsupported definitions, duplicate IDs and invalid examples fail the checks. Use a stable namespaced ID, purpose, scalar query or nested JSON input, successful JSON output, safe errors, synthetic examples, and `read`, `write` or `external` effect.
 
+Give each top-level input a one-line description with Zod's `.describe()`, so an assistant knows what to fill in. An input without one fails the checks, which name the action and the input.
+
+An action that changes something may set `confirmWith` to the ID of the `read` action that shows whether the change happened. The checks reject a name that is not a registered `read` action, and a `read` action that sets one. Discovery names it only to a caller who may see that read. Leave it out when nothing can be read back, such as a sent message.
+
 Described actions require verified identity by default. Only a harmless public example may explicitly set `requiresIdentity: false`; a connection readiness check still requires identity. An optional existing action guard controls both visibility and execution. Record checks remain inside the handler. A description never grants access to a particular order or fact. Business bindings exclude the memory store for mini apps; [memory authorization](../development/memory-key.md) remains separate.
 
-Requests and successful outputs are validated and bounded. A bad output or provider exception becomes a safe error with `code`, `message` and `requestId`. The handler receives an abort signal; pass it to provider calls so a timeout can stop work. A timeout can leave a write’s outcome unknown, so the assistant must check the result before repeating it. A `ready` predicate can report a missing server connection without naming or returning a secret.
+Requests and successful outputs are validated and bounded. A bad output or provider exception becomes a safe error with `code`, `message` and `requestId`. A bad input also lists up to ten `issues`, each with the input's `path` and the reason, so the assistant fixes it in one retry, not by guessing. A request that cannot be read gets one issue with fixed text; the body is never quoted back, and issues holding a credential value are dropped. The handler receives an abort signal; pass it to provider calls so a timeout can stop work. A timeout can leave a write’s outcome unknown, so the assistant must check the result before repeating it, with the action's `confirmWith` read when it names one. A `ready` predicate can report a missing server connection without naming or returning a secret.
 
 Existing bare handlers retain their paths, behavior and guards, and stay absent from discovery. During a reviewed update, inventory the target’s custom routes, describe only the actions its owner selects, and preserve its handler code and access checks. Never replace a custom handler with the template example or copy a saved business key to an employee.
 
@@ -55,7 +59,7 @@ Read & write is not offered for Cloudflare: a write key held by the live app wou
 
 Verified [company login](cloudflare-access.md) protects these live endpoints, including on an otherwise open starter:
 
-- `GET /api/actions` — bounded summaries: ID, purpose, effect, readiness, source, revision, and `keys`, the saved keys the action uses with the level a caller needs. Filter with `q` and `app`, paginate with `limit` (1–50, default 20) and `offset`.
+- `GET /api/actions` — bounded summaries: ID, purpose, effect, readiness, source, revision, and `keys`, the saved keys the action uses with the level a caller needs. Filter with `app` and with `q`, which finds an action when every word appears in its ID, purpose or description, in any order: `look up order` finds *Look up an order*. Paginate with `limit` (1–50, default 20) and `offset`.
 - `GET /api/actions?id=hello.greeting` — only that action’s inputs, output, synthetic examples, safe errors and local schema dependencies.
 - `GET /api/openapi.json` — OpenAPI 3.1 for deliberately described HTTP routes, with actual methods and serialization. It omits bare handlers, administration, raw memory and preview-picture routes.
 
@@ -80,7 +84,7 @@ JSON
 
 Keep `~/.cloudflared` owned by the current OS user, mode 0700, with token files mode 0600. The helper captures token output privately and sends it only in request headers to the connected origin. Cloudflared caches the normal session; expiry or removal requires the employee’s own login again. Changed public routing requires an explicit connection. Redirects, arbitrary server URLs and outside schema references are refused. The helper never borrows owner, deploy, business, memory or verification credentials for company calls.
 
-`list` and `describe` perform no business action. `call` consults the live selected contract and executes it once. Check a failed write’s outcome before repeating it; the helper never retries it automatically. Effect metadata helps explain work, while the assistant’s normal action authorization still applies.
+`list` and `describe` perform no business action. `call` consults the live selected contract and executes it once. A call that returns an error, company or memory, still prints the error and ends with a failing exit status, so a script stops there. Check a failed write’s outcome before repeating it; the helper never retries it automatically. When a write times out or its connection drops and it names a confirming read, the helper names that read in the error: run it first, and repeat the write only if the change is missing. Effect metadata helps explain work, while the assistant’s normal action authorization still applies.
 
 ## Memory keeps its own access
 
