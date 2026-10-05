@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (patch) — The Cloudflare key step finishes when the preview app can't take the key
+## 33.1.1 — The Cloudflare key step finishes when the preview app can't take the key
 
 - **The step that makes the read-only Cloudflare key no longer stops with an error.** Release 33.0.0 stored the key in your live app and then in your preview app. Cloudflare refuses a key for the preview app whenever a newer preview has been uploaded than the one in use, which is its normal state, so the step stopped after the live app already had its key.
 - **The live app is enough.** The step stores the key in your live app, says in one line that the preview app is waiting, and finishes. When Cloudflare does accept the preview copy, it is stored too. Running the step again keeps the key your live app holds.

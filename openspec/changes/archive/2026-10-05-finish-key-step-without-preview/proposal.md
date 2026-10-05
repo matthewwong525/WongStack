@@ -1,6 +1,6 @@
 # Finish the Cloudflare key step when the preview app can't take the key
 
-**Status:** in-progress
+**Status:** ready-to-ship
 
 **Branch:** record-cloudflare-read-key
 
@@ -50,3 +50,4 @@ None.
 - **2026-10-05** — Assumed: the step still tries the preview app and keeps the copy when Cloudflare accepts it, because a preview that holds the key is closer to the live app and costs nothing.
 - **2026-10-05** — Assumed: a rerun reuses the key when the live app holds it and does not replace it to try the preview again, because replacing a working key on every run would be churn for no gain.
 - **2026-10-05** — Assumed: only this one setup-made key may differ between the two apps in the publish check, because the check exists to catch every other difference.
+- **2026-10-05** — Assumed: the plan is filed in the archive and numbered 33.1.1 for publishing, because every task is done and the checks pass on this computer after bringing in 33.1.0.
