@@ -2,7 +2,7 @@
 
 `/improve` finds and ships one supported improvement that makes the project more useful, reliable, or easier to maintain through the [normal change loop](the-change-loop.md).
 
-Run [`/improve [focus]`](../../.agents/skills/improve/SKILL.md) when you want a useful improvement. A focus can name an area, such as `wiki/development`, or a desired outcome, such as `make the hand-over easier to use`. The agent chooses its investigation using the project's goals, remembered problems when available, and current work, then explains the evidence and what was checked.
+Run [`/improve [focus]`](../../.agents/skills/improve/SKILL.md) when you want a useful improvement. A focus can name an area, such as `wiki/development`, or a desired outcome, such as `make the key link easier to use`. The agent chooses its investigation using the project's goals, remembered problems when available, and current work, then explains the evidence and what was checked.
 
 Run `/improve --audit-only [focus]` for findings and recommendations without edits, Git changes, delivery, or a saved report. No supported worthwhile work is a valid `no change` result; the report explains material limits.
 

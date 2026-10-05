@@ -99,16 +99,16 @@ After an OpenSpec CLI update, the verb SHALL check that the commands and output 
 - **WHEN** `/wong-sync` runs in an installed repo
 - **THEN** the repo gains no `/update-dependencies` verb
 
-### Requirement: A remote hand-over adds one tool
+### Requirement: A private link adds one tool
 
-A hand-over through a private link SHALL be the one step that needs Cloudflare's tunnel tool. Setup SHALL offer it up front; on any other machine without it, the agent SHALL install it with the person's consent the first time a remote hand-over needs it. It SHALL add nothing to the repository, and a hand-over at the computer SHALL NOT need it.
+A private link (the password link, the key link, or a private form) SHALL be the one step that needs Cloudflare's tunnel tool, including at the computer the agent runs on. Setup SHALL offer it up front; on any other machine without it, the agent SHALL install it with the person's consent the first time a private link needs it. It SHALL add nothing to the repository.
 
-#### Scenario: A first remote hand-over
+#### Scenario: A first private link
 
-- **WHEN** the person takes over from another device and the tunnel tool is absent
+- **WHEN** a task needs a password link on a machine where the tunnel tool is absent
 - **THEN** the agent asks before installing it on the machine, and adds nothing to the repo
 
 #### Scenario: A machine readied by setup
 
-- **WHEN** the person takes over the browser for the first time on a computer readied by setup
+- **WHEN** a task needs its first private link on a computer readied by setup
 - **THEN** the link opens with no install step and no question

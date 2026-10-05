@@ -24,7 +24,7 @@ Nothing is installed for this, no AI key is needed, and your project gains no de
 
 These stay one-time checks:
 
-- **A check that needed you**: your login, or a [hand-over](browsing.md#hand-the-browser-over). A replay runs unattended.
+- **A check that needed you**: your login, or a [private link](browsing.md#how-private-links-work). A replay runs unattended.
 - **A check that triggers an outside service or a timed job.** A replay must not send a real email twice.
 - **A check whose steps hold a password or a key.** The file is saved with your code, where others read it.
 - **A check that clicked by a snapshot reference**, like `@e5`. The reference dies with the page.

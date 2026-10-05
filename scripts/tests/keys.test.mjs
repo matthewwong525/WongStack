@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { authPlace, checkGuide, checkKey, cleanValue, declarations, firstSentence, formatLine, httpsUrl, keyRoutes, LIMITS, setKey } from '../../.agents/skills/hand-over/scripts/keys.mjs';
 import { filledKeys } from '../../.agents/skills/hand-over/scripts/keys-page.mjs';
 import { parseEnv } from '../../.agents/skills/memory/scripts/lib/store.mjs';
+import { fakeTunnel, TUNNEL_ENV } from './fixtures/fake-tunnel.mjs';
 
 const legacyOutput = text => text.replace(/^HANDOVER_(COMPLETION|NOTIFICATION)=.*\n/gm, '');
 const legacyResult = ({ completionId: _completionId, notification: _notification, ready: _ready, ...result }) => result;
@@ -40,7 +41,7 @@ const IGNORE = '.env*\n!.env.example\n.dev.vars*\n!.dev.vars.example\n';
 const git = (cwd, ...args) => execFileSync('git', ['-c', 'user.email=t@example.com', '-c', 'user.name=t', ...args], { cwd, stdio: 'ignore' });
 
 // A primary checkout declaring MAPS_API_KEY (.env), STRIPE_SECRET_KEY (app/.dev.vars), and TWICE (both),
-// with `.env` seeded into a linked worktree and `app/.dev.vars` not. A fake agent-browser and cloudflared
+// with `.env` seeded into a linked worktree and `app/.dev.vars` not. A fake agent-browser and tunnel tool
 // log each call; HOME is the fixture's own.
 function fixture(t, { env = 'A=1\n', ignore = IGNORE } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'wong-test-keys-'));
@@ -50,10 +51,9 @@ function fixture(t, { env = 'A=1\n', ignore = IGNORE } = {}) {
   mkdirSync(bin);
   mkdirSync(join(primary, 'app'), { recursive: true });
   const log = join(root, 'calls.log');
-  for (const tool of ['agent-browser', 'cloudflared']) {
-    writeFileSync(join(bin, tool), `#!${process.execPath}\nrequire('node:fs').appendFileSync(${JSON.stringify(log)}, ${JSON.stringify(tool)} + ' ' + process.argv.slice(2).join(' ') + '\\n');\n`);
-    chmodSync(join(bin, tool), 0o755);
-  }
+  writeFileSync(join(bin, 'agent-browser'), `#!${process.execPath}\nrequire('node:fs').appendFileSync(${JSON.stringify(log)}, 'agent-browser ' + process.argv.slice(2).join(' ') + '\\n');\n`);
+  chmodSync(join(bin, 'agent-browser'), 0o755);
+  fakeTunnel(bin, log);
   git(primary, 'init', '-q', '-b', 'main');
   writeFileSync(join(primary, '.gitignore'), ignore);
   writeFileSync(join(primary, '.env.example'), ENV_EXAMPLE);
@@ -63,7 +63,7 @@ function fixture(t, { env = 'A=1\n', ignore = IGNORE } = {}) {
   writeFileSync(join(primary, '.env'), env);
   git(primary, 'worktree', 'add', '-q', '-b', 'feature', worktree);
   execFileSync(process.execPath, [seedScript, 'seed'], { cwd: worktree, stdio: 'ignore' });
-  const environment = { ...process.env, HOME: root, PATH: `${bin}:/usr/bin:/bin`, HANDOVER_POLL_MS: '50' };
+  const environment = { ...process.env, ...TUNNEL_ENV, HOME: root, PATH: `${bin}:/usr/bin:/bin`, HANDOVER_POLL_MS: '50' };
   const outputs = [];
   const run = (cwd, ...args) => {
     const out = spawnSync(process.execPath, [script, ...args], { cwd, env: environment, encoding: 'utf8', timeout: 30_000 });
@@ -90,9 +90,9 @@ function fixture(t, { env = 'A=1\n', ignore = IGNORE } = {}) {
   };
 }
 
-/** Runs `open --local --keys`, asserts it worked, and returns the page's port and the key. */
+/** Runs `open --keys`, asserts it worked, and returns the key and the page's recorded loopback port. */
 function opened(f, names, ...args) {
-  const out = f.run('open', '--local', '--keys', names, ...args);
+  const out = f.run('open', '--keys', names, ...args);
   assert.equal(out.status, 0, out.stderr + out.stdout);
   return { key: KEY.exec(out.stdout)?.[1], port: JSON.parse(readFileSync(join(f.state, 'state.json'), 'utf8')).port };
 }
@@ -111,7 +111,6 @@ async function route(port, key, path, body) {
 test('the key link serves its page and the asked-for keys, touching no browser page', async t => {
   const f = fixture(t, { env: 'A=1\nMAPS_API_KEY=old\n' });
   const { port, key } = opened(f, 'MAPS_API_KEY,STRIPE_SECRET_KEY');
-  assert.equal(JSON.parse(readFileSync(join(f.state, 'state.json'), 'utf8')).startUrl, null);
   assert.match(await (await fetch(`http://127.0.0.1:${port}/`)).text(), /Keys for your assistant/);
   assert.match(await (await fetch(`http://127.0.0.1:${port}/page.mjs`)).text(), /export function filledKeys/);
   assert.deepEqual((await route(port, key, 'keys')).json.keys, [
@@ -119,7 +118,8 @@ test('the key link serves its page and the asked-for keys, touching no browser p
     { name: 'STRIPE_SECRET_KEY', hint: 'Secret key for the payments provider.', set: false },
   ]);
   assert.equal((await route(port, key, 'fields')).status, 404, 'no field routes');
-  assert.deepEqual(f.calls(), [], 'no agent-browser or tunnel');
+  assert.deepEqual(f.calls().filter(line => line.startsWith('agent-browser')), [], 'no agent-browser');
+  assert.ok(f.calls().some(line => line.startsWith('cloudflared tunnel ')), 'the link goes through the tunnel');
 });
 
 test('every route needs the key, and a bad body is refused before any write', async t => {
@@ -215,7 +215,7 @@ test('an undeclared or ambiguous name opens no tunnel', t => {
 
 test('a destination the checkout does not ignore opens no link', t => {
   const f = fixture(t, { ignore: '.env*\n!.env.example\n' });
-  const out = f.run('open', '--local', '--keys', 'STRIPE_SECRET_KEY');
+  const out = f.run('open', '--keys', 'STRIPE_SECRET_KEY');
   assert.equal(out.status, 1);
   assert.match(out.stderr, /Not git-ignored.*app\/\.dev\.vars/);
   assert.ok(!existsSync(f.state));
@@ -225,12 +225,12 @@ test('an opened key link refuses a second link, and a password link refuses a ke
   const f = fixture(t);
   const { port, key } = opened(f, 'MAPS_API_KEY');
   assert.equal((await route(port, key, 'keys')).status, 200);
-  const passwords = f.run('open', '--local', '--passwords');
+  const passwords = f.run('open', '--passwords');
   assert.equal(passwords.status, 1);
   assert.match(passwords.stderr, /already open/);
   assert.equal(f.run('close').status, 0);
-  assert.equal(f.run('open', '--local', '--passwords').status, 0);
-  const keys = f.run('open', '--local', '--keys', 'MAPS_API_KEY');
+  assert.equal(f.run('open', '--passwords').status, 0);
+  const keys = f.run('open', '--keys', 'MAPS_API_KEY');
   assert.equal(keys.status, 1);
   assert.match(keys.stderr, /already open/);
 });

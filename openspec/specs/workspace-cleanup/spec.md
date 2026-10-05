@@ -46,7 +46,7 @@ Agents SHALL put throwaway files in a `.scratch/` folder at the checkout's root,
 - **THEN** the tidy-up deletes only the 2-day-old file
 
 ### Requirement: /close wraps up a session with no questions
-`/close` SHALL, without asking, record the conversation's facts in memory, update the wiki by the rule below, keep any unpublished work, and then close the Paseo workspace after its reply ends: the chat and workspace are archived, processes still running from the workspace stop, a browser hand-over link this chat left open is closed, and a branch whose pull request merged at its current commit is deleted locally. `/close` SHALL NOT stop what other chats share, such as the agent's browser. The chat SHALL stay readable in Paseo's archived list.
+`/close` SHALL, without asking, record the conversation's facts in memory, update the wiki by the rule below, keep any unpublished work, and then close the Paseo workspace after its reply ends: the chat and workspace are archived, processes still running from the workspace stop, a private link this chat left open is closed, and a branch whose pull request merged at its current commit is deleted locally. `/close` SHALL NOT stop what other chats share, such as the agent's browser. The chat SHALL stay readable in Paseo's archived list.
 
 #### Scenario: Close after a research answer
 - **WHEN** a chat in a Paseo worktree answered a question, changed no repo file, and the person runs `/close`

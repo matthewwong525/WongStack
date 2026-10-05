@@ -8,6 +8,7 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { checkLogins, chooseName, hostOf, LIMITS, slug } from '../../.agents/skills/hand-over/scripts/passwords.mjs';
 import { parseExport, siteUrl } from '../../.agents/skills/hand-over/scripts/passwords-page.mjs';
+import { fakeTunnel, TUNNEL_ENV } from './fixtures/fake-tunnel.mjs';
 
 const legacyOutput = text => text.replace(/^HANDOVER_(COMPLETION|NOTIFICATION)=.*\n/gm, '');
 const legacyResult = ({ completionId: _completionId, notification: _notification, ready: _ready, ...result }) => result;
@@ -16,9 +17,10 @@ const script = join(repo, '.agents/skills/hand-over/scripts/hand-over.mjs');
 const KEY = /#key=([0-9a-f]{64})$/m;
 const SECRET = 'hunter2-Secret!';
 
-// A HOME of its own, and a fake agent-browser first on PATH. It logs each call's argv to calls.log,
-// and keeps a vault in vault.json with the password it read from stdin; `auth list --json` prints
-// agent-browser 0.38.1's shape. A password of `fail` fails its save; a `fail-list` file fails the list.
+// A HOME of its own, and a fake agent-browser and tunnel tool first on PATH. agent-browser logs each
+// call's argv to calls.log, and keeps a vault in vault.json with the password it read from stdin;
+// `auth list --json` prints agent-browser 0.38.1's shape. A password of `fail` fails its save; a
+// `fail-list` file fails the list. `form` is a small private form's file, for the one-link-at-a-time test.
 function fixture(t) {
   const root = mkdtempSync(join(tmpdir(), 'wong-test-passwords-'));
   const bin = join(root, 'bin');
@@ -50,7 +52,9 @@ switch (args.slice(0, 2).join(' ')) {
 }
 `);
   chmodSync(join(bin, 'agent-browser'), 0o755);
-  const env = { ...process.env, HOME: root, PATH: `${bin}:/usr/bin:/bin`, HANDOVER_POLL_MS: '50' };
+  fakeTunnel(bin, file('tunnel.log'));
+  writeFileSync(file('form.json'), JSON.stringify({ title: 'Pay', fields: [{ label: 'Card number', target: '@e1' }], submit: { label: 'Pay', target: '@e2' } }));
+  const env = { ...process.env, ...TUNNEL_ENV, HOME: root, PATH: `${bin}:/usr/bin:/bin`, HANDOVER_POLL_MS: '50' };
   const run = (...args) => { const out = spawnSync(process.execPath, [script, ...args], { env, encoding: 'utf8', timeout: 30_000 }); return { ...out, rawStdout: out.stdout, stdout: legacyOutput(out.stdout) }; };
   const state = join(root, '.wong-stack/hand-over');
   t.after(() => {
@@ -60,6 +64,7 @@ switch (args.slice(0, 2).join(' ')) {
   return {
     run,
     state,
+    form: file('form.json'),
     set: (name, value) => writeFileSync(file(name), value),
     calls: () => (existsSync(file('calls.log')) ? readFileSync(file('calls.log'), 'utf8').trim().split('\n').filter(Boolean) : []),
     vault: () => (existsSync(file('vault.json')) ? JSON.parse(readFileSync(file('vault.json'), 'utf8')) : []),
@@ -69,7 +74,7 @@ switch (args.slice(0, 2).join(' ')) {
 
 /** Runs `open`, asserts it worked, and returns the page's port and the key. */
 function opened(f, ...args) {
-  const out = f.run('open', '--local', ...args);
+  const out = f.run('open', ...args);
   assert.equal(out.status, 0, out.stderr);
   return { key: KEY.exec(out.stdout)?.[1], port: JSON.parse(readFileSync(join(f.state, 'state.json'), 'utf8')).port };
 }
@@ -90,9 +95,8 @@ const login = (url, username, password = SECRET) => ({ url, username, password }
 test('open --passwords serves the password page and touches no browser page', async t => {
   const f = fixture(t);
   const { port, key } = opened(f, '--passwords');
-  assert.equal(JSON.parse(readFileSync(join(f.state, 'state.json'), 'utf8')).startUrl, null);
   assert.match(key, /^[0-9a-f]{64}$/);
-  assert.deepEqual(f.calls(), [], 'no viewport, tabs, or live feed');
+  assert.deepEqual(f.calls(), [], 'no live feed, and nothing read from a page');
   const page = await fetch(`http://127.0.0.1:${port}/`);
   assert.match(await page.text(), /Save logins for your agent/);
   assert.match((await fetch(`http://127.0.0.1:${port}/page.mjs`)).headers.get('content-type'), /javascript/);
@@ -102,26 +106,27 @@ test('open --passwords serves the password page and touches no browser page', as
   const upgrade = await new Promise(done => {
     const socket = connect(port, '127.0.0.1', () => socket.write(`GET /stream?key=${key} HTTP/1.1\r\nHost: x\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n`));
     let text = '';
-    socket.on('data', chunk => { text += chunk; }).on('close', () => done(text));
+    socket.on('data', chunk => { text += chunk; socket.destroy(); }).on('close', () => done(text));
   });
   assert.match(upgrade, /^HTTP\/1\.1 404/, 'no live feed');
   assert.deepEqual(f.calls(), []);
 });
 
-test('a password link refuses to open while a hand-over is open, and the reverse', t => {
+test('a password link refuses to open while a private form is open, and the reverse', t => {
   const f = fixture(t);
-  opened(f);
-  const passwords = f.run('open', '--local', '--passwords');
+  const form = ['--form', f.form, '--until', '**/receipt/*'];
+  opened(f, ...form);
+  const passwords = f.run('open', '--passwords');
   assert.equal(passwords.status, 1);
   assert.match(passwords.stderr, /already open/);
   assert.equal(f.run('close').stdout.trim(), 'HANDOVER_RESULT=closed');
 
   opened(f, '--passwords');
   const before = f.calls().length;
-  const handOver = f.run('open', '--local');
-  assert.equal(handOver.status, 1);
-  assert.match(handOver.stderr, /already open/);
-  assert.deepEqual(f.calls().slice(before), [], 'the refused hand-over touched nothing');
+  const refused = f.run('open', ...form);
+  assert.equal(refused.status, 1);
+  assert.match(refused.stderr, /already open/);
+  assert.deepEqual(f.calls().slice(before), [], 'the refused form touched nothing');
 });
 
 test('--passwords takes no --until or --until-gone', t => {
