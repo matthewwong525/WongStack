@@ -6,15 +6,20 @@ import type { AccessIdentity } from "../access.ts";
 import { actionError, containsCredential, schemas, uniqueActions, type Registration } from "./contract.ts";
 import { currentPolicy, policyAllows, policyDenied } from "../employee-access/policy.ts";
 
-function describe({ method, path, app, action }: Registration, env: AppEnv) {
+const issuesSchema = { type: "array", maxItems: 10, items: { type: "object", required: ["path", "message"], additionalProperties: false,
+  properties: { path: { type: "string", maxLength: 200 }, message: { type: "string", maxLength: 200 } } } };
+
+// `visible` holds the caller's operation IDs: a confirming read they cannot see is never named.
+function describe({ method, path, app, action }: Registration, env: AppEnv, visible: Set<string>) {
   return {
     operationId: action.operationId, summary: action.summary, description: action.description,
     app, method, path, encoding: action.encoding, effect: action.effect,
     source: "company", transport: "http", authentication: "cloudflare-access",
     readiness: action.ready && !action.ready(env) ? "unavailable" : "available",
+    ...(visible.has(action.confirmWith ?? "") ? { confirmWith: action.confirmWith } : {}),
     ...schemas(action), errorSchema: { type: "object", required: ["error"], additionalProperties: false,
       properties: { error: { type: "object", required: ["code", "message", "requestId"], additionalProperties: false,
-        properties: { code: { type: "string" }, message: { type: "string" }, requestId: { type: "string" } } } } }, errors: action.errors, examples: action.examples,
+        properties: { code: { type: "string" }, message: { type: "string" }, requestId: { type: "string" }, issues: issuesSchema } } } }, errors: action.errors, examples: action.examples,
   };
 }
 
@@ -39,6 +44,7 @@ function openApi(operations: ReturnType<typeof describe>[], version: string) {
         default: { description: "Safe action error", content: { "application/json": { schema: operation.errorSchema } } },
       },
       security: [{ employeeLogin: [] }], "x-effect": operation.effect, "x-readiness": operation.readiness,
+      ...(operation.confirmWith ? { "x-confirm-with": operation.confirmWith } : {}),
     };
   }
   return { openapi: "3.1.1", info: { title: "Company actions", version }, paths,
@@ -62,7 +68,8 @@ export async function discovery(request: Request, env: AppEnv, identity: AccessI
   if (!policyAllows(policy, { kind: "self-service" })) return policyDenied(policy);
   const visible = uniqueActions(registry).filter(({ action, access }) => policyAllows(policy, access) &&
     action.agentAvailable && (!action.allowed || action.allowed(identity)));
-  const operations = visible.map(item => describe(item, env)).sort((a, b) => a.operationId.localeCompare(b.operationId));
+  const ids = new Set(visible.map(({ action }) => action.operationId));
+  const operations = visible.map(item => describe(item, env, ids)).sort((a, b) => a.operationId.localeCompare(b.operationId));
   if (containsCredential(operations, env)) return actionError("internal_error");
   const version = await revision(operations);
   const caller = { identity: [identity.kind, identity.id, identity.claims.sub],
