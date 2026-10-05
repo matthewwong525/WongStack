@@ -160,3 +160,4 @@ None.
 - **2026-10-05** — Assumed: the tick is sent only when the owner changed it, because a save that leaves it out keeps what the person has.
 - **2026-10-05** — Assumed: in Keys, a manager who meets the missing read-only key reads that the owner finishes it, with nothing to copy, because the same step needs the owner's Cloudflare token as the notice on People.
 - **2026-10-05** — Archive checkpoint: built, brought up to date with main, numbered 33.3.0, and saved for the checks before publishing; one new test that raced the list's reload after a save now waits for the list.
+- **2026-10-05** — Archive checkpoint: the preview walk passed the owner's side (tick, untick, tick back, and adding a person); the add-a-person check is kept for future publishes, and a manager's own view and every refusal stay covered by code tests only, because a preview has no second sign-in.

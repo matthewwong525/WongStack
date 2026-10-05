@@ -1,0 +1,104 @@
+{
+  "format": "verify-journey-1",
+  "id": "employer-adds-a-person",
+  "scenario": {
+    "capability": "employee-onboarding",
+    "requirement": "The employer manages employee grants through Access",
+    "scenario": "Employer adds a person"
+  },
+  "thenDigest": "cc63e57ceb5e6ce9ab689d90da137929460b5f1d72b3715358c7fcd58d88b69a",
+  "probe": "browser",
+  "writes": true,
+  "sourcePaths": [
+    ".agents/skills/wong-sync/references/payload-files.json",
+    "app/src/apps/access/App.tsx",
+    "app/src/apps/access/Keys.tsx",
+    "app/src/apps/access/Notices.tsx",
+    "app/src/apps/access/Owner.tsx",
+    "app/src/apps/access/People.tsx",
+    "app/src/apps/access/PersonPage.tsx",
+    "app/src/lib/access.ts",
+    "app/worker/employee-access/apps.ts",
+    "app/worker/employee-access/core.ts",
+    "app/worker/employee-access/management.ts",
+    "app/worker/employee-access/members.ts",
+    "app/worker/employee-access/policy.ts",
+    "app/worker/employee-access/sets.ts",
+    "schema/migrations/20261005142459_access_managers.sql",
+    "schema/seed.sql"
+  ],
+  "recordedAt": "281fbb7eb82a7f64050c5f492e44bde8d6c9c18c",
+  "steps": [
+    [
+      "open",
+      "{url}/apps/access/people/new"
+    ],
+    [
+      "wait",
+      "--load",
+      "networkidle"
+    ],
+    [
+      "wait",
+      "--text",
+      "Add person"
+    ],
+    [
+      "find",
+      "label",
+      "Email",
+      "fill",
+      "walk@example.invalid"
+    ],
+    [
+      "find",
+      "role",
+      "checkbox",
+      "click",
+      "--name",
+      "Hello"
+    ],
+    [
+      "get",
+      "text",
+      "body"
+    ],
+    [
+      "find",
+      "role",
+      "button",
+      "click",
+      "--name",
+      "Save access"
+    ],
+    [
+      "wait",
+      "--text",
+      "Saved."
+    ],
+    [
+      "wait",
+      "--text",
+      "walk@example.invalid"
+    ],
+    [
+      "get",
+      "text",
+      "body"
+    ]
+  ],
+  "expect": [
+    {
+      "text": "Saved."
+    },
+    {
+      "text": "walk@example.invalid"
+    },
+    {
+      "text": "Copy app link"
+    },
+    {
+      "path": "/apps/access/"
+    }
+  ]
+}
