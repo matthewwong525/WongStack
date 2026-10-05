@@ -1,6 +1,6 @@
 # Screens built from ready-made parts, not styled by hand
 
-**Status:** in-progress
+**Status:** ready-to-ship
 
 **Branch:** finicky-horse
 
@@ -174,3 +174,4 @@ None.
 - **2026-10-05** — Save: the Connect card, the greyed apps and the copy-text fix are built and the local checks pass; left is the preview walk of Home (task 8.2).
 - **2026-10-05** — Preview walk of Home: the Connect card opens and closes its popup at both widths, light and dark. Not shown: a greyed app and the setup text inside its box, because the checker signs in as the owner and is refused the setup prompt; code tests cover both. The landing-page check was cancelled twice in the queue without running; the tests, payload checks and deploy passed.
 - **2026-10-05** — Asked what next with the landing-page check never started → chose to save the last notes and run every check again; nothing is published by that.
+- **2026-10-05** — Archive checkpoint: asked to publish after the preview → chose to try shipping it; built, both walks passed, numbered 35.0.0. Left for a person: open the *Connect your assistant* card with their own sign-in and see the setup text inside its box.
