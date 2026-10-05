@@ -30,7 +30,9 @@ const answering = (row: unknown) => ({ ...env, DB: { withSession: () => ({ prepa
 
 beforeEach(() => {
   sql = new DatabaseSync(":memory:");
-  sql.exec(readFileSync(new URL("../../../schema/migrations/0001_employee_access.sql", import.meta.url), "utf8"));
+  for (const file of ["0001_employee_access.sql", "0003_key_levels.sql"]) {
+    sql.exec(readFileSync(new URL(`../../../schema/migrations/${file}`, import.meta.url), "utf8"));
+  }
   sql.exec(`INSERT INTO wong_access_installation
     (slot, installation_id, origin, account_id, worker_id, access_app_id, access_policy_id,
       issuer, audience, owner_subject, owner_email, repository_id, repository_name, policy_enabled, activated_at)
@@ -63,14 +65,14 @@ it("loads normalized email and grants in one primary statement with no role cach
     ...employee.claims, email: " EMPLOYEE@EXAMPLE.COM ", aud: ["other-app", "business-app"], nbf: 1,
   } };
   const first = await read(normalized);
-  expect(first).toEqual({ state: "current", role: "employee", revision: 1, apps: new Set(["orders"]) });
+  expect(first).toEqual({ state: "current", role: "employee", revision: 1, apps: new Set(["orders"]), keys: null });
   expect(env.DB?.withSession).toHaveBeenCalledWith("first-primary");
   expect(policyAllows(first, access)).toBe(true);
   expect(policyAllows(first, { apps: ["payroll"] })).toBe(false);
   // The same still-valid Access assertion observes the acknowledged database commit.
   sql.exec("DELETE FROM wong_access_grants; UPDATE wong_access_installation SET revision = 2;");
   const next = await read(normalized);
-  expect(next).toEqual({ state: "current", role: "employee", revision: 2, apps: new Set() });
+  expect(next).toEqual({ state: "current", role: "employee", revision: 2, apps: new Set(), keys: null });
   expect(policyAllows(next, access)).toBe(false);
   sql.exec("UPDATE wong_access_members SET status = 'removed', revision = 3; UPDATE wong_access_installation SET revision = 3;");
   expect(await read(normalized)).toEqual({ state: "denied" });
@@ -118,7 +120,7 @@ it("lets the verification machine open every built app and never manage people",
   } };
   const policy = await read(machine);
   expect(policy).toEqual({ state: "current", role: "employee", revision: 1,
-    apps: new Set(["access", "frontend-only", "hello", "new-app", "orders", "payroll"]) });
+    apps: new Set(["access", "frontend-only", "hello", "new-app", "orders", "payroll"]), keys: new Map([["cloudflare", "read"]]) });
   expect(humanEmail(machine)).toBeNull();
   expect(policyAllows(policy, { apps: ["orders", "payroll"] })).toBe(true);
   expect(policyAllows(policy, { kind: "owner" })).toBe(false);
@@ -164,7 +166,7 @@ it("leaves everyone every app until permissions start, and names the owner meanw
 it("ignores a grant for an app that is no longer built", async () => {
   sql.exec("INSERT INTO wong_access_apps VALUES ('installation', 'retired'); INSERT INTO wong_access_grants VALUES ('installation', 'employee@example.com', 'retired', 1)");
   const policy = await read();
-  expect(policy).toEqual({ state: "current", role: "employee", revision: 1, apps: new Set(["orders"]) });
+  expect(policy).toEqual({ state: "current", role: "employee", revision: 1, apps: new Set(["orders"]), keys: null });
   expect(policyAllows(policy, { apps: ["retired"] })).toBe(false);
   expect(policyAllows(policy, access)).toBe(true);
 });
@@ -177,11 +179,15 @@ it("denies rather than opens when started permission data is missing, unreadable
   expect(denied?.status).toBe(503);
   expect(denied?.headers.get("Cache-Control")).toBe("no-store");
   expect(await denied?.json()).toMatchObject({ error: { code: "unavailable", message: "Access unavailable", requestId: expect.any(String) } });
-  const row = { policy_enabled: 1, revision: 1, status: "active", apps: '["orders"]' };
+  const row = { policy_enabled: 1, keys_enabled: 0, revision: 1, status: "active", apps: '["orders"]', keys: "{}" };
   expect(await read(employee, answering(row))).toMatchObject({ state: "current" });
-  for (const change of [{ policy_enabled: 2 }, { revision: 0 }, { status: "unknown" }, { apps: "not json" }, { apps: '{"orders":true}' }]) {
+  for (const change of [{ policy_enabled: 2 }, { keys_enabled: 2 }, { revision: 0 }, { status: "unknown" }, { apps: "not json" }, { apps: '{"orders":true}' },
+    { keys: undefined }, { keys_enabled: 1, keys: "not json" }, { keys_enabled: 1, keys: '{"cloudflare":"admin"}' }]) {
     expect(await read(employee, answering({ ...row, ...change }))).toEqual({ state: "unavailable" });
   }
+  // Until key levels start, an unreadable level takes no app away; the owner never depends on one.
+  expect(await read(employee, answering({ ...row, keys: "not json" }))).toMatchObject({ state: "current", keys: null });
+  expect(await read(owner, answering({ ...row, keys_enabled: 1, status: null, keys: "not json" }))).toMatchObject({ state: "current", role: "owner" });
   sql.exec("DROP TABLE wong_access_grants; DROP TABLE wong_access_members; DROP TABLE wong_access_apps; DROP TABLE wong_access_installation");
   expect(await read()).toEqual({ state: "unavailable" });
 });
@@ -272,6 +278,21 @@ it("uses reviewed method/path scopes across summaries, details and OpenAPI witho
   expect(env.DB?.withSession).toHaveBeenCalledTimes(5);
 });
 
+it("names a write's confirming read only once the caller holds that read's app", async () => {
+  const base = { summary: "Refunds", description: "Synthetic refund", input: z.strictObject({}), output: z.strictObject({ ok: z.boolean() }),
+    encoding: "none" as const, agentAvailable: true, errors: {}, examples: [], handler: () => Response.json({ ok: true }) };
+  const registry = [
+    ...registrations(new Map([["POST refund", defineAction({ ...base, operationId: "orders.refund", effect: "write", confirmWith: "payroll.refunds" })]]), "orders"),
+    ...registrations(new Map([["GET refunds", defineAction({ ...base, operationId: "payroll.refunds", effect: "read" })]]), "payroll"),
+  ];
+  const published = async (path: string) => (await discovery(new Request(`${origin}${path}`), env as Env & PolicyEnv, employee, registry)).json();
+  expect(await published("/api/actions?id=orders.refund")).not.toHaveProperty("confirmWith");
+  expect(JSON.stringify(await published("/api/openapi.json"))).not.toContain("payroll.refunds");
+  sql.exec("INSERT INTO wong_access_grants VALUES ('installation', 'employee@example.com', 'payroll', 1)");
+  expect((await published("/api/actions?id=orders.refund")).confirmWith).toBe("payroll.refunds");
+  expect((await published("/api/openapi.json")).paths["/apps/orders/api/refund"].post["x-confirm-with"]).toBe("payroll.refunds");
+});
+
 it("rechecks current grants before conditional responses and isolates caller and representation caches", async () => {
   const selected = await discover("/api/actions?id=orders.read");
   const etag = selected.headers.get("ETag")!;
@@ -323,13 +344,15 @@ it("reads frontend app grants with zero-app Access self-service, owner exception
   const readback = (caller: AccessIdentity | null = employee, bindings = env) => appAccess(req, bindings, caller);
   const first = await readback();
   expect(first.headers.get("Cache-Control")).toBe("no-store");
-  expect(await first.json()).toEqual({ state: "current", role: "employee", revision: 1, apps: ["access", "orders"] });
-  expect(await (await readback(owner)).json()).toEqual({ state: "current", role: "owner", revision: 1, apps: catalogue });
+  expect(await first.json()).toEqual({ state: "current", role: "employee", revision: 1, apps: ["access", "orders"], keys: [] });
+  // The owner holds every saved key at its highest level.
+  expect(await (await readback(owner)).json()).toEqual({ state: "current", role: "owner", revision: 1, apps: catalogue,
+    keys: [{ id: "cloudflare", title: "Cloudflare", level: "read" }] });
   // Client-only apps come from manifests and are allowed only when explicitly assigned.
   sql.exec("INSERT INTO wong_access_apps VALUES ('installation', 'frontend-only'); INSERT INTO wong_access_grants VALUES ('installation', 'employee@example.com', 'frontend-only', 1)");
   expect((await (await readback()).json()).apps).toEqual(["access", "frontend-only", "orders"]);
   sql.exec("DELETE FROM wong_access_grants; UPDATE wong_access_installation SET revision = 2");
-  expect(await (await readback()).json()).toEqual({ state: "current", role: "employee", revision: 2, apps: ["access"] });
+  expect(await (await readback()).json()).toEqual({ state: "current", role: "employee", revision: 2, apps: ["access"], keys: [] });
   sql.exec("UPDATE wong_access_members SET status = 'removed'");
   expect((await readback()).status).toBe(403);
   expect((await readback(null)).status).toBe(403);

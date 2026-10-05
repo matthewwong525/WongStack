@@ -2,7 +2,7 @@
 import type { AccessIdentity } from "../access.ts";
 import { type ConnectionEnv, reply } from "./core.ts";
 import { setupPrompt } from "./prompt.ts";
-import { businessApps } from "./members.ts";
+import { businessApps } from "./sets.ts";
 import { currentPolicy, humanEmail, policyDenied } from "./policy.ts";
 export async function setupStatus(request: Request, env: ConnectionEnv, identity: AccessIdentity | null): Promise<Response> {
   if (request.method !== "GET") return reply({ code: "method_not_allowed" }, 405);

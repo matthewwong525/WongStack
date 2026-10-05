@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { callMemory, memoryOperations } from '../../.agents/skills/memory/scripts/operations.mjs';
+import { selectOperations } from '../../.agents/skills/memory/scripts/lib/operations.mjs';
 import { readArguments, READ_OPTIONS } from '../../.agents/skills/memory/scripts/lib/read-options.mjs';
 import { memory, node, rows, setup, writeJsonFile } from './fixtures/memory/harness.mjs';
 
@@ -24,6 +25,18 @@ test('memory contracts are deterministic, synthetic, standalone, truthful and li
   assert.deepEqual(READ_OPTIONS.limit, { type: 'string' });
   assert.deepEqual(readArguments('search', { terms: '--danger', all: true, limit: 5 }), ['--all', '--limit', '5', '--', '--danger']);
   assert.deepEqual(readArguments('show', { slug: 'sample', all: false }), ['--', 'sample']);
+});
+test('catalogue search needs every word, in any order and case, and keeps paging as it was', () => {
+  const ids = q => selectOperations(memoryOperations, { q }).actions.map(action => action.operationId);
+  assert.deepEqual(ids('facts remembered'), ['memory.search'], 'words out of order');
+  assert.deepEqual(ids('  TOPIC   Threads '), ['memory.show'], 'mixed case and extra spaces');
+  assert.deepEqual(ids('memory.search filters'), ['memory.search'], 'identity and description together');
+  assert.deepEqual(ids('facts nowhere'), [], 'one unmatched word');
+  for (const q of ['', '   ']) assert.equal(selectOperations(memoryOperations, { q }).total, 4, 'an empty filter matches all');
+  const page = selectOperations(memoryOperations, { q: 'read memory', limit: 1, offset: 0 });
+  assert.equal(page.total, 3); assert.equal(page.next, 1); assert.equal(page.actions[0].operationId, 'memory.show');
+  const last = selectOperations(memoryOperations, { q: 'read memory', limit: 1, offset: 2 });
+  assert.equal(last.total, 3); assert.equal(last.next, null); assert.equal(last.actions[0].operationId, 'memory.recall');
 });
 test('rejects input and unknown operations before context, credential or store access', async () => {
   let executed = 0;
@@ -47,6 +60,7 @@ test('the adapter exactly matches installed search/show reads without app packag
   const directShow = await memory(repo, fake, ['show', 'shipping']);
   const adaptedShow = await node(repo, fake, 'operations.mjs', ['call', 'memory.show', '--file', '-'], { input: JSON.stringify({ slug: 'shipping' }) });
   assert.equal(JSON.parse(adaptedShow.stdout).text, directShow.stdout); assert.equal(JSON.parse(adaptedShow.stdout).truncated, false);
+  assert.equal(adaptedShow.code, 0, 'a successful read ends as a success');
   const before = fake.calls.length;
   const describe = await node(repo, fake, 'operations.mjs', ['describe', 'memory.search']);
   assert.equal(JSON.parse(describe.stdout).source, 'memory');
@@ -73,6 +87,7 @@ test('preserves memory-key redaction from the primary .env, bounds text and hide
   const before = fake.calls.length;
   const denied = await node(repo, fake, 'operations.mjs', ['call', 'memory.search', '--file', '-'], { input: '{}', env: { CLOUDFLARE_MEMORY_TOKEN: 'wongm_missing.bad' } });
   assert.equal(JSON.parse(denied.stdout).error.code, 'unavailable'); assert.equal(fake.calls.length, before, 'there is no owner credential fallback');
+  assert.equal(denied.code, 1, 'a returned error is printed and ends as a failure');
 });
 
 test('the memory transport refuses redirects before a credential can reach another origin', async t => {

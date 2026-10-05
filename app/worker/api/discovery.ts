@@ -3,18 +3,28 @@ import { selectOperations } from "../../../.agents/skills/memory/scripts/lib/ope
 import { apiActions } from "./router.ts";
 import { appActions, type AppEnv } from "../apps/index.ts";
 import type { AccessIdentity } from "../access.ts";
-import { actionError, containsCredential, schemas, uniqueActions, type Registration } from "./contract.ts";
-import { currentPolicy, policyAllows, policyDenied } from "../employee-access/policy.ts";
+import { actionError, containsCredential, needFor, schemas, uniqueActions, type Registration } from "./contract.ts";
+import { currentPolicy, listedKeys, policyAllows, policyDenied } from "../employee-access/policy.ts";
+import { saved } from "../employee-access/key-levels.ts";
 
-function describe({ method, path, app, action }: Registration, env: AppEnv) {
+const issuesSchema = { type: "array", maxItems: 10, items: { type: "object", required: ["path", "message"], additionalProperties: false,
+  properties: { path: { type: "string", maxLength: 200 }, message: { type: "string", maxLength: 200 } } } };
+
+// `visible` holds the caller's operation IDs: a confirming read they cannot see is never named.
+function describe({ method, path, app, action, access }: Registration, env: AppEnv, visible: Set<string>) {
+  const level = needFor(action, method);
   return {
     operationId: action.operationId, summary: action.summary, description: action.description,
     app, method, path, encoding: action.encoding, effect: action.effect,
+    // The saved keys the action uses and the level a caller needs, so an assistant can explain a refusal.
+    keys: listedKeys(access).map(id => ({ id, level })),
     source: "company", transport: "http", authentication: "cloudflare-access",
-    readiness: action.ready && !action.ready(env) ? "unavailable" : "available",
+    // A listed key that is not saved answers `unavailable` when called, so the list says so first.
+    readiness: (action.ready && !action.ready(env)) || !listedKeys(access).every(id => saved(env, id)) ? "unavailable" : "available",
+    ...(visible.has(action.confirmWith ?? "") ? { confirmWith: action.confirmWith } : {}),
     ...schemas(action), errorSchema: { type: "object", required: ["error"], additionalProperties: false,
       properties: { error: { type: "object", required: ["code", "message", "requestId"], additionalProperties: false,
-        properties: { code: { type: "string" }, message: { type: "string" }, requestId: { type: "string" } } } } }, errors: action.errors, examples: action.examples,
+        properties: { code: { type: "string" }, message: { type: "string" }, requestId: { type: "string" }, issues: issuesSchema } } } }, errors: action.errors, examples: action.examples,
   };
 }
 
@@ -39,6 +49,7 @@ function openApi(operations: ReturnType<typeof describe>[], version: string) {
         default: { description: "Safe action error", content: { "application/json": { schema: operation.errorSchema } } },
       },
       security: [{ employeeLogin: [] }], "x-effect": operation.effect, "x-readiness": operation.readiness,
+      ...(operation.confirmWith ? { "x-confirm-with": operation.confirmWith } : {}),
     };
   }
   return { openapi: "3.1.1", info: { title: "Company actions", version }, paths,
@@ -60,13 +71,15 @@ export async function discovery(request: Request, env: AppEnv, identity: AccessI
   if (request.method !== "GET") return Response.json({ error: "Not found" }, { status: 404 });
   const policy = await currentPolicy(env, identity);
   if (!policyAllows(policy, { kind: "self-service" })) return policyDenied(policy);
-  const visible = uniqueActions(registry).filter(({ action, access }) => policyAllows(policy, access) &&
+  const visible = uniqueActions(registry).filter(({ action, access, method }) => policyAllows(policy, access, needFor(action, method)) &&
     action.agentAvailable && (!action.allowed || action.allowed(identity)));
-  const operations = visible.map(item => describe(item, env)).sort((a, b) => a.operationId.localeCompare(b.operationId));
+  const ids = new Set(visible.map(({ action }) => action.operationId));
+  const operations = visible.map(item => describe(item, env, ids)).sort((a, b) => a.operationId.localeCompare(b.operationId));
   if (containsCredential(operations, env)) return actionError("internal_error");
   const version = await revision(operations);
+  // Key levels can start with no new revision, so whether they have is part of the caller.
   const caller = { identity: [identity.kind, identity.id, identity.claims.sub],
-    policy: policy.state === "current" ? policy.revision : policy.state };
+    policy: policy.state === "current" ? [policy.revision, policy.keys !== null] : policy.state };
   if (url.pathname === "/api/openapi.json") return discoveryJson(request, openApi(operations, version), caller);
   if (url.searchParams.has("id")) {
     const selected = operations.find(item => item.operationId === url.searchParams.get("id"));
@@ -79,5 +92,7 @@ export async function discovery(request: Request, env: AppEnv, identity: AccessI
   if (!Number.isInteger(limit) || limit < 1 || limit > 50 || !Number.isInteger(offset) || offset < 0 || query.length > 200) return actionError("invalid_input");
   const selected = selectOperations(operations.map(operation => ({ ...operation, revision: version })),
     { q: query, app: url.searchParams.get("app") ?? undefined, limit, offset });
-  return discoveryJson(request, { revision: version, ...selected }, caller);
+  const keys = new Map(operations.map(operation => [operation.operationId, operation.keys]));
+  return discoveryJson(request, { revision: version, ...selected,
+    actions: selected.actions.map(action => ({ ...action, keys: keys.get(action.operationId) })) }, caller);
 }

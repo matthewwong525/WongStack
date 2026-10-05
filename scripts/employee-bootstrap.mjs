@@ -138,7 +138,8 @@ export function companyClient({ root = process.cwd(), stateDir, routesDir = defa
     if (login) await run(['login', origin], { onLoginUrl });
     return employeeToken(await run(['token', `-app=${origin}`], { onLoginUrl }));
   }
-  async function http(path, init = {}, origin = target(), suppliedToken, businessCall = false) {
+  // `business` marks a call that may change something; its `check` names the read to run before repeating it.
+  async function http(path, init = {}, origin = target(), suppliedToken, business) {
     if (!/^\/(?:api\/|apps\/)[^#]*$/.test(path) || new URL(path, origin).origin !== origin || path.includes('..') || path.includes('\\')) throw new Error('Refused an arbitrary server URL');
     const credential = suppliedToken || await token(origin);
     const pinned = suppliedToken ? null : readJson(file).identity;
@@ -150,13 +151,13 @@ export function companyClient({ root = process.cwd(), stateDir, routesDir = defa
     try {
       response = await request(new URL(path, origin), { ...init, redirect: 'manual', headers: { 'cf-access-token': credential, ...init.headers }, signal: AbortSignal.timeout(20000) });
     } catch {
-      throw new Error(businessCall ? 'Company call did not complete; its outcome may be unknown. Do not automatically repeat it.' : 'Company discovery is unreachable; no business action was called.');
+      throw new Error(business ? `Company call did not complete; its outcome may be unknown. Do not automatically repeat it.${business.check}` : 'Company discovery is unreachable; no business action was called.');
     }
     if (response.status >= 300 && response.status < 400) throw new Error('Company redirect refused; use company login.');
     if (response.status === 401 || response.status === 403) throw new Error('Company session expired or access was denied; use the employee’s own login.');
     let value;
     try { value = await responseJson(response); }
-    catch { throw new Error(businessCall ? 'Company response did not complete; its outcome may be unknown. Do not automatically repeat the action.' : 'Company discovery did not complete; no business action was called.'); }
+    catch { throw new Error(business ? `Company response did not complete; its outcome may be unknown. Do not automatically repeat the action.${business.check}` : 'Company discovery did not complete; no business action was called.'); }
     // Headers/session values must never become agent context, even on a bad server response.
     if (JSON.stringify(value).includes(credential)) throw new Error('Company response contained authentication material');
     if (!response.ok && !value.error) throw new Error(`Company request failed (HTTP ${response.status})`);
@@ -186,7 +187,8 @@ export function companyClient({ root = process.cwd(), stateDir, routesDir = defa
     refuseExternalReferences(value);
     if (['servers', 'command', 'args', 'adapter', 'executable'].some(key => Object.hasOwn(value, key)) || value.operationId !== id || id.startsWith('memory.') || value.source !== 'company' || value.transport !== 'http' ||
       !['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'].includes(value.method) || !['none', 'query', 'json'].includes(value.encoding) ||
-      typeof value.path !== 'string' || !/^\/(?:api\/[A-Za-z0-9/_-]+|apps\/[a-z0-9-]+\/api\/[A-Za-z0-9/_-]+)$/.test(value.path)) throw new Error('Invalid live company operation');
+      typeof value.path !== 'string' || !/^\/(?:api\/[A-Za-z0-9/_-]+|apps\/[a-z0-9-]+\/api\/[A-Za-z0-9/_-]+)$/.test(value.path) ||
+      (value.confirmWith !== undefined && (typeof value.confirmWith !== 'string' || !/^[a-z][a-z0-9-]*(\.[a-z][a-z0-9-]*)+$/.test(value.confirmWith)))) throw new Error('Invalid live company operation');
     return value;
   }
   async function list(filters = {}) {
@@ -206,7 +208,11 @@ export function companyClient({ root = process.cwd(), stateDir, routesDir = defa
       path += `?${new URLSearchParams(Object.entries(input).map(([key, value]) => [key, String(value)]))}`;
     } else if (operation.encoding === 'json') { init.headers = { 'Content-Type': 'application/json' }; init.body = JSON.stringify(input); }
     else if (Object.keys(input).length) throw new Error('This operation has no input');
-    return (await http(path, init, target(), undefined, true)).value;
+    // The helper names the confirming read and calls nothing again: the assistant decides.
+    const { confirmWith } = operation;
+    const { value } = await http(path, init, target(), undefined, { check: confirmWith ? ` Check with ${confirmWith} before repeating.` : '' });
+    if (confirmWith && value?.error?.code === 'timeout') value.error.confirmWith = confirmWith;
+    return value;
   }
   async function setup() {
     const result = await http('/api/access/setup');
@@ -229,6 +235,8 @@ export async function main(args = process.argv.slice(2)) {
   else if (command === 'call' && rest.length === 1 && values.file) result = await client.call(rest[0], JSON.parse(readFileSync(values.file === '-' ? 0 : values.file, 'utf8')));
   else throw new Error(USAGE);
   console.log(JSON.stringify(result, null, 2));
+  // A returned error is still printed, and ends as a failure a script can see.
+  if (command === 'call' && result?.error && typeof result.error === 'object') process.exitCode = 1;
 }
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   main().catch(error => { console.error(error instanceof SyntaxError ? 'Invalid command input' : error.message); process.exitCode = error.code?.startsWith('ERR_PARSE_ARGS') ? 2 : 1; });

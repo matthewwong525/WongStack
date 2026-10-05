@@ -4,8 +4,9 @@ import type { Person, Status } from '../../lib/access'
 import { appsLine, canRetry, signInLine } from './status'
 
 const status = (changes: Partial<Status> = {}): Status => ({ origin: 'https://business.example.com', ownerEmail: 'owner@example.com',
-  environment: 'live', key: 'ready', started: true, imported: 0, apps: ['hello', 'orders'], people: [], work: [], ...changes })
-const person = (changes: Partial<Person> = {}): Person => ({ email: 'bo@example.com', status: 'active', settled: true, apps: ['hello'], ...changes })
+  environment: 'live', key: 'ready', started: true, imported: 0, keysStarted: true, kept: 0, apps: ['hello', 'orders'],
+  appKeys: { hello: [], orders: [] }, keys: [], roles: [], people: [], work: [], ...changes })
+const person = (changes: Partial<Person> = {}): Person => ({ email: 'bo@example.com', status: 'active', settled: true, role: null, apps: ['hello'], keys: {}, ...changes })
 
 it('names a person’s apps in a few words', () => {
   expect(appsLine(person({ apps: [] }), status())).toBe('No apps')
@@ -15,6 +16,8 @@ it('names a person’s apps in a few words', () => {
   expect(appsLine(person(), status({ apps: ['hello'] }))).toBe('Hello')
   expect(appsLine(person({ apps: ['hello', 'retired'] }), status({ apps: ['hello', 'orders', 'payroll'] }))).toBe('Hello, retired')
   expect(appTitle('retired')).toBe('retired')
+  // A role's apps read the same way.
+  expect(appsLine({ apps: ['hello', 'orders'] }, status())).toBe('All apps')
 })
 
 it('gives each person one sign-in status', () => {

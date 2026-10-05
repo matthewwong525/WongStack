@@ -6,6 +6,9 @@ const prompt = z.discriminatedUnion('state', [
   z.object({ state: z.literal('unavailable'), message: z.string() }),
 ])
 const role = z.enum(['owner', 'employee'])
+// A saved key's level: `read` looks things up, `write` also changes or sends things. No level is None.
+const level = z.enum(['read', 'write'])
+const levels = z.record(z.string(), level)
 export const setupSchema = z.object({ role, api: z.literal('authenticated'),
   identity: z.object({ email: z.string(), subject: z.string() }), apps: z.array(z.string()), prompt,
   repository: z.literal('manual_provider_setup'), memory: z.literal('independent_operator_setup') })
@@ -13,22 +16,37 @@ export const setupSchema = z.object({ role, api: z.literal('authenticated'),
 export const appAccessSchema = z.discriminatedUnion('state', [
   z.object({ state: z.literal('legacy') }),
   z.object({ state: z.literal('not_started'), role, apps: z.array(z.string()) }),
-  z.object({ state: z.literal('current'), role, apps: z.array(z.string()), revision: z.number() }),
+  // `keys` is the signed-in person's own level for each saved key, by name; empty until key levels start.
+  z.object({ state: z.literal('current'), role, apps: z.array(z.string()), revision: z.number(),
+    keys: z.array(z.object({ id: z.string(), title: z.string(), level })).optional() }),
 ])
-// `settled` is true once the sign-in list matches a person's last change.
+const use = z.object({ id: z.string(), need: level })
+// `settled` is true once the sign-in list matches a person's last change. A person has a `role`, whose apps
+// and key levels are then theirs, or their own set. `kept` counts the people who kept their access when key
+// levels started, until the next save. `appKeys` is what each app does with each key; a key's `usedBy` is the
+// same fact from the key's side, `alone` means it also works with no app, `setup` that setup makes it, and
+// `saved` that the app holds it. No key's value is ever here.
 export const statusSchema = z.object({ origin: z.string(), ownerEmail: z.string(), environment: z.enum(['live', 'practice']),
-  key: z.enum(['ready', 'missing', 'practice']), started: z.boolean(), imported: z.number(), apps: z.array(z.string()),
-  people: z.array(z.object({ email: z.string(), status: z.enum(['active', 'removed']), settled: z.boolean(), apps: z.array(z.string()) })),
+  key: z.enum(['ready', 'missing', 'practice']), started: z.boolean(), imported: z.number(),
+  keysStarted: z.boolean(), kept: z.number(), apps: z.array(z.string()), appKeys: z.record(z.string(), z.array(use)),
+  keys: z.array(z.object({ id: z.string(), title: z.string(), levels: z.array(level), saved: z.boolean(), setup: z.boolean(),
+    usedBy: z.array(z.object({ app: z.string(), need: level })), alone: z.boolean() })),
+  roles: z.array(z.object({ id: z.string(), name: z.string(), apps: z.array(z.string()), keys: levels })),
+  people: z.array(z.object({ email: z.string(), status: z.enum(['active', 'removed']), settled: z.boolean(),
+    role: z.string().nullable(), apps: z.array(z.string()), keys: levels })),
   work: z.array(z.object({ kind: z.enum(['policy', 'sessions']), status: z.enum(['pending', 'ready', 'failed']) })) })
 export type Status = z.infer<typeof statusSchema>
 export type Person = Status['people'][number]
+export type Role = Status['roles'][number]
+export type SavedKey = Status['keys'][number]
+export type Level = z.infer<typeof level>
 
 export async function readAccess<T>(path: string, schema: z.ZodType<T>, signal?: AbortSignal): Promise<T> {
   const response = await fetch(`/api/access/${path}`, { signal, cache: 'no-store', redirect: 'error' })
   if (!response.ok) throw new Error('Access unavailable')
   return schema.parse(await response.json())
 }
-export async function changeAccess(path: 'people' | 'retry', body?: object): Promise<void> {
+export async function changeAccess(path: 'people' | 'roles' | 'grants' | 'retry', body?: object): Promise<void> {
   const response = await fetch(`/api/access/${path}`, { method: 'POST', redirect: 'error',
     headers: { Origin: window.location.origin, 'Content-Type': 'application/json' }, body: JSON.stringify(body ?? {}) })
   if (!response.ok) throw new Error('Access change unavailable')

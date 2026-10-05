@@ -1,6 +1,7 @@
 // Frontend manifests include apps with no API; action registrations are not a catalogue.
 import type { AccessIdentity } from "../access.ts";
 import { catalogue } from "./catalogue.ts";
+import { keyIds, keyTitle } from "./key-levels.ts";
 import { authorizeRequest, currentPolicy, policyAllows, policyDenied, type PolicyEnv } from "./policy.ts";
 
 export async function appAccess(request: Request, env: PolicyEnv, identity: AccessIdentity | null): Promise<Response> {
@@ -12,7 +13,12 @@ export async function appAccess(request: Request, env: PolicyEnv, identity: Acce
   // Before permissions start everyone keeps every app; the role still says who manages people.
   if (policy.state === "not_started") return Response.json({ state: "not_started", role: policy.role, apps: catalogue }, { headers });
   return Response.json({ state: "current", role: policy.role, revision: policy.revision,
-    apps: catalogue.filter(name => policyAllows(policy, name === "access" ? { kind: "self-service" } : { apps: [name] })) },
+    apps: catalogue.filter(name => policyAllows(policy, name === "access" ? { kind: "self-service" } : { apps: [name] })),
+    // The caller's own level for each saved key, by name: none until key levels start.
+    keys: keyIds().flatMap(id => {
+      const level = policy.keys?.get(id);
+      return level ? [{ id, title: keyTitle(id), level }] : [];
+    }) },
   { headers });
 }
 

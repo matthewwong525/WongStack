@@ -14,6 +14,47 @@
 
 **Updating.** Nothing to do; the usual update delivers this. The first kept checks appear at your next publish that has a promise about a page or a request.
 
+## 33.0.0 — Read or Read & write for each saved key, and roles
+
+- **Each saved key gets a level per person: None, Read, or Read & write.** Read lets a person, and their assistant, look things up with that key. Read & write also lets them change or send things. A level is set once per key and holds in every app. Lowering one takes effect on the person's next request, and a refused request says which key and which level it needed.
+- **Access has four views: People, Roles, Apps and Keys.** People opens first, as before, and each person's line also shows their role and key levels. Keys lists every key your app holds, whether it is saved, what uses it and who has which level. Apps is the quick way to give an app and the keys it needs in one place. A key's value is never shown.
+- **A role gives several people the same access.** A role is a named set of apps and key levels, such as *Sales*. A person has one role or their own set, never both. Changing a role changes everyone in it on their next request, and removing a role leaves its people with what they had.
+- **Ticking an app gives Read on the keys it uses, never Read & write.** Letting someone change things is always your own choice.
+- **An app can only use the keys it lists.** Before, every app was handed every saved key, so nothing could say truthfully what an app reaches. Each app now names its keys and gets only those, and Access shows that same list. This is the breaking part: an app that lists no key gets none.
+- **A key can work with no app.** Some look-ups belong to a key alone, and a person with that key's level can run them with no app ticked.
+- **Cloudflare look-ups, Read only.** Setup makes a second, read-only Cloudflare key for your app; your main token stays on your computer. A person you give *Cloudflare: Read* can have their assistant look up settings, logs and usage. They can change nothing, they can't read your app's database, files or memory through it, and nobody is handed the key.
+- **Nobody loses anything when this arrives.** The first time you open Access after the update, each person keeps exactly what their apps already use, as their own set. Nobody has a role or Cloudflare look-ups until you give them.
+- **Each person sees what they can use.** Their own Access page lists their apps and key levels above the setup box. Previews hold practice roles and levels too.
+
+**Updating.** Your people, their apps, your pages and your data stay as they are. The assistant does three things for you. First, for each app of your own it reads the code, lists the keys that app already uses, and adds each key to the app's key list with a name you will recognise, so every app keeps working; a check stops the update before publishing if one is missed. Second, it publishes, then runs `provision.mjs access`, the setup tool's step for Access, which makes the read-only Cloudflare key and stores it in your live app and your preview app. Third, it tells you to open Access once, which turns levels on with everyone keeping what they have. If your saved Cloudflare token can no longer make keys, the update still finishes: Access shows *One step left* beside Cloudflare, and the assistant sends you a private link to paste a token that can. Sample data you wrote for previews keeps working; the update adds a practice role and practice levels beside it.
+
+## 32.0.1 — Access can read the sign-in list on the live app
+
+- On the live app, Access said *The sign-in list could not be read yet* and every person you added stayed on *Can't sign in yet*. The app asked Cloudflare in a way the live app refuses, so the question was never sent. It now asks in a way that works, and lists everyone who can already sign in.
+- Adding a person puts their email on the sign-in list, and removing one takes it off.
+- The app's key is as safe as before: if Cloudflare ever points the app somewhere else, the app stops and the key is not sent on.
+- A new check fails if app code asks in the refused way again.
+
+**Updating.** After the update is live, open Access once: the notice goes. A person you added while the notice showed still reads *Can't sign in yet*; press *Try again* beside them and they can sign in, with no need to add them again.
+
+## 32.0.0 — Company actions an assistant can use without guessing
+
+- **A wrong input says which part is wrong and why.** The answer used to be only "Invalid input". It now lists each wrong input by name with the reason, so the assistant fixes it on the next try.
+- **Search finds an action by its words, in any order.** "look up order" now finds an action whose name or description holds all three words, not only that exact phrase.
+- **Every input of an action says what it is.** A new action whose input has no one-line description fails the checks, which name the action and the input.
+- **A write can name the action that confirms it.** When a write times out, nobody knows whether it happened. The action that changes something can now name the read action that shows the result, and the assistant is told to run that one before trying again. Nothing is repeated automatically.
+- **A failed call is reported as a failure.** The assistant's helper used to print the error but report success, so a script carried on. A call that returns an error now ends as failed.
+
+[Company actions](wiki/stack/company-api.md) has the details.
+
+**Updating.** Two things change for an existing install. First, add a one-line description to each input of each action your assistants use; until then the checks fail and name the action and the input, so ask the assistant to add them as part of the update. Second, a script of yours that calls `company-api.mjs call` (the helper that runs a company action) and read a failed call as a success now sees a failure, and stops unless it handles one.
+
+## 31.4.1 — A link to the fork steps
+
+The guide to making WongStack your own now links the fork steps in WongStack's contributing guide. They moved there from the README, which is now shorter.
+
+**Updating.** Nothing to do; the usual update delivers this.
+
 ## 31.4.0 — Install with one Cloudflare account
 
 - A new install on Mac or Linux can now live in one place: your project's files, its checks, its previews and its publishing all sit in your own Cloudflare account. No GitHub account and no server is needed. [The Artifacts route](wiki/stack/artifacts-route.md) explains it.

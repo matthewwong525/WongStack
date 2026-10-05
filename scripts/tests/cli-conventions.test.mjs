@@ -17,6 +17,7 @@ const scripts = {
   'scripts/measure-context.mjs': [],
   'scripts/check-openspec-config.mjs': [],
   'scripts/check-payload-links.mjs': [],
+  'scripts/check-app-keys.mjs': [],
   'scripts/reset-staging-d1.mjs': [],
   'scripts/cf-secrets.mjs': [],
   'scripts/lib-wrangler-config.mjs': [],

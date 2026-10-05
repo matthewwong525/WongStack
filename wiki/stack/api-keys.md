@@ -33,6 +33,12 @@ The link is new each time and works only until it closes; see [how it stays safe
 
 Developers who want the details can read [how the assistant sends the link](../development/secrets.md#receive-a-key-through-a-private-link) and [how the live site gets its keys](cloudflare-credentials.md#worker-secrets-are-per-environment).
 
+## A saved key shows in Access
+
+When the assistant saves a key your app will use, it also adds the key to [the app's key list](../../app/worker/keys.ts): a name you will recognise, such as *Stripe*, and the secret names it covers. From then on the key shows in [Access](employee-access.md#four-views), where you choose who may look things up with it and who may also change things. A check fails before publishing when a secret the app declares is in no key, or in two.
+
+Each app says which keys it uses, and gets only those ([list the keys a route uses](company-api.md#list-the-keys-a-route-uses)). Nobody on your team is ever handed a key: the app holds it, and each person's level decides what they can do with it.
+
 ## If a key leaks
 
 If you shared a key by mistake (in a message, a screenshot, or a public page), replace it:

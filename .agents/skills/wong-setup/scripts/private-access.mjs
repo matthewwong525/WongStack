@@ -268,35 +268,54 @@ export async function provisionAccessPolicies(cf, { account, ownerEmail, teammat
 
 /** The production Worker secret Access reads its sign-in list key from. Staging never holds it. */
 export const LOGIN_KEY_SECRET = 'WONG_ACCESS_LOGIN_MANAGEMENT';
+/** The secret both Workers read the read-only Cloudflare key from. */
+export const CLOUDFLARE_READ_SECRET = 'WONG_CLOUDFLARE_READ';
 
 /**
- * The live app's own key for its sign-in list: made once, stored in the production Worker alone with the
- * account and human-policy ids, and reused on a rerun. Cloudflare scopes the key to the account; the app
- * calls only its own application and policy. `policies` builds the key's one permission, lazily. A token
- * that can not make keys leaves the step `missing` and stops nothing else.
+ * One account key the app holds as a Worker secret: made once, stored on every Worker in `workers` with
+ * the account id and `ids`, and reused on a rerun while each still holds it. `policies` builds the key's
+ * permissions, lazily. A token that can not make keys leaves the step `missing` and stops nothing else.
  */
-export async function loginManagementKey(cf, { account, name, worker, policyId, policies, state, checkpoint, note }) {
+async function workerKey(cf, { account, name, workers, secret, version, ids = {}, slot, label, where, policies, state, checkpoint, note }) {
   const tokens = `/accounts/${account}/tokens`;
-  const secrets = `/accounts/${account}/workers/scripts/${worker}/secrets`;
+  const secrets = workers.map(worker => `/accounts/${account}/workers/scripts/${worker}/secrets`);
   try {
     const found = (await cf('GET', `${tokens}?per_page=100`)).find(token => token.name === name);
-    const held = (await cf('GET', secrets)).some(secret => secret.name === LOGIN_KEY_SECRET);
-    if (found && held && (state.loginKey?.policyId ?? policyId) === policyId && !state.loginKey?.pending) {
-      note('reused', `sign-in list key ${name}`);
+    const held = (await Promise.all(secrets.map(path => cf('GET', path)))).every(list => list.some(item => item.name === secret));
+    if (found && held && matchesFields({ ...ids, ...state[slot] }, ids) && !state[slot]?.pending) {
+      note('reused', `${label} ${name}`);
       return { status: 'ready', id: found.id };
     }
-    state.loginKey = { name, pending: true };
+    state[slot] = { name, pending: true };
     checkpoint();
     // A key's value can not be read back, so an interrupted run or a lost secret rolls it.
     const minted = found ? { id: found.id, value: await cf('PUT', `${tokens}/${found.id}/value`, {}) } : await cf('POST', tokens, { name, policies: await policies() });
-    if (!minted?.id || typeof minted.value !== 'string' || !minted.value) throw new AccessSetupError('Cloudflare did not return the sign-in list key; run setup again');
-    await cf('PUT', secrets, { name: LOGIN_KEY_SECRET, type: 'secret_text', text: JSON.stringify({ version: 2, token: minted.value, accountId: account, policyId }) });
-    state.loginKey = { id: minted.id, name, policyId };
+    if (!minted?.id || typeof minted.value !== 'string' || !minted.value) throw new AccessSetupError(`Cloudflare did not return the ${label}; run setup again`);
+    const text = JSON.stringify({ version, token: minted.value, accountId: account, ...ids });
+    for (const path of secrets) await cf('PUT', path, { name: secret, type: 'secret_text', text });
+    state[slot] = { id: minted.id, name, ...ids };
     checkpoint();
-    note(found ? 'updated' : 'created', `sign-in list key ${name}, stored in the live app only`);
+    note(found ? 'updated' : 'created', `${label} ${name}, stored in ${where}`);
     return { status: 'ready', id: minted.id };
   } catch (error) {
     if (error.status !== 401 && error.status !== 403) throw error;
     return { status: 'missing' };
   }
 }
+
+/**
+ * The live app's own key for its sign-in list, stored in the production Worker alone with the account and
+ * human-policy ids. Cloudflare scopes the key to the account; the app calls only its own application and
+ * policy.
+ */
+export const loginManagementKey = (cf, { worker, policyId, ...rest }) => workerKey(cf, {
+  ...rest, workers: [worker], secret: LOGIN_KEY_SECRET, version: 2, ids: { policyId }, slot: 'loginKey', label: 'sign-in list key', where: 'the live app only',
+});
+
+/**
+ * The key behind the app's Cloudflare look-ups, the same value on the production and staging Workers. It
+ * reads settings, logs and usage: it can change nothing, and reads no stored data.
+ */
+export const cloudflareReadKey = (cf, options) => workerKey(cf, {
+  ...options, secret: CLOUDFLARE_READ_SECRET, version: 1, slot: 'cloudflareReadKey', label: 'read-only Cloudflare key', where: 'both Workers',
+});

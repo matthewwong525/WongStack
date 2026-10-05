@@ -31,6 +31,14 @@ memory client → production /_memory/* → independent memory-key verification
 
 Native Worker destinations cover each actual Worker ID, including default addresses, custom domains, and old/new version previews. The Worker also verifies the signed assertion's audience, issuer, signature, and expiration. A forged email header gives no identity.
 
+## The wall decides who; the app decides what
+
+Access answers one question: who gets in. Its [policies](https://developers.cloudflare.com/cloudflare-one/access-controls/policies/) match a person's email, group, service token, country or device, and an application matches a hostname and [a path](https://developers.cloudflare.com/cloudflare-one/access-controls/policies/app-paths/). No rule matches read against write, an HTTP method, or one of your saved keys.
+
+So the wall keeps that one job and passes the app a signed proof of who the person is. The app checks that person's apps and [key levels](employee-access.md#key-levels) on every request, from its own database: a change there governs the next request, with no Cloudflare call.
+
+An Access application per app path would move only the app tick to Cloudflare, never a level, and would make every tick a provider write. The deployment check also rejects overlapping applications on purpose.
+
 ## Setup
 
 ### 1. Turn on Zero Trust and pick an identity provider

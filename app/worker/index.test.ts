@@ -6,7 +6,8 @@ import worker from "./index";
 // Hello's routes, plus one that reports which bindings a mini app's handler is handed.
 vi.mock("./apps/hello/api.ts", async (original) => {
   const { routes } = await original<{ routes: Map<string, AppHandler> }>();
-  return { routes: new Map(routes).set("GET peek", (_request, appEnv) => Response.json({ env: Object.keys(appEnv).sort() })) };
+  // The registry reads each app's `keys`; the supplied example lists none.
+  return { keys: undefined, routes: new Map(routes).set("GET peek", (_request, appEnv) => Response.json({ env: Object.keys(appEnv).sort() })) };
 });
 
 const TEAM = "routing-team.cloudflareaccess.com";
@@ -243,14 +244,14 @@ describe("private Worker routing", () => {
   });
 
   it("checks current grants and self-service membership after signed login on every request", async () => {
-    const row = { policy_enabled: 1, revision: 1, status: "active", apps: '["hello"]' };
+    const row = { policy_enabled: 1, keys_enabled: 0, revision: 1, status: "active", apps: '["hello"]', keys: "{}" };
     const first = vi.fn(async () => row);
     const db = { withSession: vi.fn(() => ({ prepare: () => ({ bind: () => ({ first }) }) })) };
     const bindings = { ...env, WONG_ENVIRONMENT: "production", WONG_OWNER_EMAIL: "owner@example.com", DB: db };
     const headers = { "Cf-Access-Jwt-Assertion": await token({ email: "human@example.com", sub: "employee" }) };
     expect((await call("/apps/hello/api/greeting", headers, bindings)).status).toBe(200);
     expect(await (await call("/api/access/apps", headers, bindings)).json())
-      .toEqual({ state: "current", role: "employee", revision: 1, apps: ["access", "hello"] });
+      .toEqual({ state: "current", role: "employee", revision: 1, apps: ["access", "hello"], keys: [] });
     for (const path of ["/apps/hello/", "/apps/hello/subpage", "/apps/access/"]) expect((await call(path, headers, bindings)).status).toBe(200);
     row.apps = "[]";
     row.revision = 2;
