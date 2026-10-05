@@ -34,7 +34,7 @@ it("sends one GET to this account's own Cloudflare paths and returns the answer 
   expect(await listed.json()).toEqual({ success: true, result: [{ id: "zone-one" }], result_info: { page: 1, count: 1 }, errors: [] });
   const [address, init] = fetch.mock.calls[0];
   expect(String(address)).toBe("https://api.cloudflare.com/client/v4/zones?per_page=5&name=example.com");
-  expect(init).toMatchObject({ method: "GET", redirect: "error", headers: { Authorization: `Bearer ${token}`, Accept: "application/json" } });
+  expect(init).toMatchObject({ method: "GET", redirect: "manual", headers: { Authorization: `Bearer ${token}`, Accept: "application/json" } });
   expect(init.body).toBeUndefined();
   for (const path of ["accounts", account, `${account}/workers/scripts`, `${account}/access/logs/access_requests`, `${account}/billing/profile`,
     "zones/0123456789abcdef/dns_records", `${account}/workers/scripts/My-App_1/settings`]) expect((await look(path)).status, path).toBe(200);
@@ -70,6 +70,10 @@ it("bounds the answer, and returns nothing it can not show or that carries the k
   }
   answer = () => new Response(null, { status: 204 });
   expect(await code(await look("zones"))).toEqual([502, "bad_answer"]);
+  // A redirect is never followed: its answer is refused even when it carries a well-formed body.
+  answer = () => new Response(JSON.stringify({ success: true, result: [] }), { status: 302, headers: { Location: "https://elsewhere.example/" } });
+  expect(await code(await look("zones"))).toEqual([502, "bad_answer"]);
+  expect(fetch.mock.calls.every(([address]) => String(address).startsWith("https://api.cloudflare.com/client/v4/"))).toBe(true);
   fetch.mockImplementationOnce(async () => { throw new Error(`redirected with ${token}`); });
   const failed = await look("zones");
   expect(failed.status).toBe(500); expect(await failed.text()).not.toContain(token);

@@ -337,3 +337,4 @@ Access lets you choose who can sign in and which apps each person gets. It can't
 - **2026-10-05** — Asked whether other people should be able to manage Access → chose to plan it as the next change, after this one is published.
 - **2026-10-05** — Asked what next once the preview was up, after being told the owner's screens had not been walked by the assistant → chose to see the preview himself, then to publish.
 - **2026-10-05** — Assumed: the plan is filed in the archive and numbered 33.0.0 for publishing, because every task is done and the automatic checks passed; main had moved to 32.0.0, whose rule that every action input carries a description the Cloudflare look-up now meets.
+- **2026-10-05** — Assumed: the Cloudflare look-up leaves a redirect unfollowed and refuses its answer, because the live server rejects the stricter setting first written, as release 32.0.1 found for the sign-in list; its new check caught it here before publishing.

@@ -56,8 +56,10 @@ export const cloudflareRead = defineAction({
     if (!key.success) return refuse("not_ready", 503);
     const url = address(path, query, key.data.accountId);
     if (!url) return refuse("not_allowed", 400);
-    const response = await fetch(url, { method: "GET", redirect: "error", signal: call.signal,
+    // A redirect comes back unfollowed, so the key is never sent on. A Worker's fetch rejects the "error" mode.
+    const response = await fetch(url, { method: "GET", redirect: "manual", signal: call.signal,
       headers: { Authorization: `Bearer ${key.data.token}`, Accept: "application/json" } });
+    if (response.status >= 300 && response.status < 400) return refuse("bad_answer", 502);
     let text: string;
     try { text = await boundedText(response.body, LIMIT); } catch { return refuse("too_large", 413); }
     const answer = envelope.safeParse(parse(text));
