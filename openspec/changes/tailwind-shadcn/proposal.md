@@ -172,3 +172,5 @@ None.
 - **2026-10-05** — Assumed: the employer's list stays as it was, with an app outside the catalogue left off, not greyed, because greying was chosen for what an employee lacks.
 - **2026-10-05** — Build: three cases in Access's own test file that draw Home changed with it: the setup box gave way to the Connect card, and a lacked app is a greyed card, not a missing one.
 - **2026-10-05** — Save: the Connect card, the greyed apps and the copy-text fix are built and the local checks pass; left is the preview walk of Home (task 8.2).
+- **2026-10-05** — Preview walk of Home: the Connect card opens and closes its popup at both widths, light and dark. Not shown: a greyed app and the setup text inside its box, because the checker signs in as the owner and is refused the setup prompt; code tests cover both. The landing-page check was cancelled twice in the queue without running; the tests, payload checks and deploy passed.
+- **2026-10-05** — Asked what next with the landing-page check never started → chose to save the last notes and run every check again; nothing is published by that.

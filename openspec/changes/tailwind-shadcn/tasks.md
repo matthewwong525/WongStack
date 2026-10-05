@@ -52,4 +52,4 @@
 ## 8. Verification of the Home changes
 
 - [x] 8.1 Run `npm test` in `app/` and `node .github/scripts/checks.mjs --worktree`; fix what fails.
-- [ ] 8.2 `/save`, then walk the preview at a computer and a phone width, light and dark: Home's list, the Connect card and its popup with the text inside its box, and a greyed card's message if the checker's sign-in can show one; name what it can't show.
+- [x] 8.2 `/save`, then walk the preview at a computer and a phone width, light and dark: Home's list, the Connect card and its popup with the text inside its box, and a greyed card's message if the checker's sign-in can show one; name what it can't show.
