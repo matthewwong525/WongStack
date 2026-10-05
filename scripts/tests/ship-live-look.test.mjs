@@ -95,3 +95,77 @@ test('a release that has not landed when the wait runs out is unknown', t => {
   assert.equal(out, 'LIVE_LOOK=unknown\nREASON=the release had not landed after 0 minutes\n');
   assert.deepEqual(gets, []);
 });
+
+// ---------------------------------------------------------------------------
+// An Artifacts install: main's check run is the release, and gh is never asked
+
+// A fake node answers the two calls that tell the route and read main's run for the commit
+// (RUN_LIVE is the word `artifacts-run.mjs live` prints), and hands every other call, which reads
+// .env and the memory store, to the real node.
+const FAKE_NODE = `#!/usr/bin/env bash
+case "$1" in
+  */delivery-route.mjs)
+    echo "node delivery-route" >> "$FAKE_DIR/calls"
+    [ -n "\${ROUTE_RC:-}" ] && exit "$ROUTE_RC"
+    echo artifacts ;;
+  */artifacts-run.mjs)
+    echo "node artifacts-run \${*:2}" >> "$FAKE_DIR/calls"
+    [ -n "\${LIVE_RC:-}" ] && exit "$LIVE_RC"
+    echo "\${RUN_LIVE-unknown}" ;;
+  *) exec "$REAL_NODE" "$@" ;;
+esac
+`;
+
+// The same look, in a repo with no deploy workflow: an Artifacts install has none.
+function lookArtifacts(t, env = {}) {
+  const dir = mkdtempSync(path.join(tmpdir(), 'wong-test-live-look-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  mkdirSync(path.join(dir, 'bin'));
+  for (const [name, body] of [['gh', FAKE_GH], ['curl', FAKE_CURL], ['node', FAKE_NODE]]) {
+    writeFileSync(path.join(dir, 'bin', name), body);
+    chmodSync(path.join(dir, 'bin', name), 0o755);
+  }
+  const work = path.join(dir, 'work');
+  mkdirSync(work);
+  execFileSync('git', ['init', '-q'], { cwd: work });
+  const vars = { ...process.env, PATH: `${path.join(dir, 'bin')}:${process.env.PATH}`, FAKE_DIR: dir, REAL_NODE: process.execPath, LIVE_LOOK_WAIT_SECONDS: '0', LIVE_LOOK_POLL_SECONDS: '0', ...env };
+  for (const key of ['CF_ACCESS_CLIENT_ID', 'CF_ACCESS_CLIENT_SECRET']) delete vars[key];
+  const result = spawnSync('bash', [script, SHA], { cwd: work, env: vars, encoding: 'utf8' });
+  const calls = existsSync(path.join(dir, 'calls')) ? readFileSync(path.join(dir, 'calls'), 'utf8').split('\n').filter(Boolean) : [];
+  assert.equal(result.status, 0, 'a look is never a failed ship');
+  return { out: result.stdout, calls, asked: calls.filter(call => /^(gh|curl) /.test(call)) };
+}
+
+test('on an Artifacts install, a landed release whose app opens is ok, and gh is never asked', t => {
+  const { out, calls, asked } = lookArtifacts(t, { RUN_LIVE: LIVE });
+  assert.equal(out, `LIVE_LOOK=ok\nREASON=the release landed and the live app opens\nURL=${LIVE}\n`);
+  assert.ok(calls.includes(`node artifacts-run live ${SHA}`), 'the look reads main\'s run for the merged commit');
+  assert.equal(asked.length, 1, 'one look-only request, and no gh call');
+  assert.ok(asked[0].startsWith('curl ') && asked[0].endsWith(` ${LIVE}`));
+  assert.doesNotMatch(asked[0], /-X|--data|-d |-L|CF-Access/);
+});
+
+test('on an Artifacts install, a failed main run is a failed release, and nothing is opened', t => {
+  const red = lookArtifacts(t, { RUN_LIVE: 'failed' });
+  assert.equal(red.out, 'LIVE_LOOK=failed\nREASON=the release did not finish: its checks or deploy failed\n');
+  assert.deepEqual(red.asked, []);
+  const broken = lookArtifacts(t, { RUN_LIVE: LIVE, CURL_ANSWER: '500\\t' });
+  assert.equal(broken.out, `LIVE_LOOK=failed\nREASON=the live app answered with an error (HTTP 500)\nURL=${LIVE}\n`);
+});
+
+test('on an Artifacts install, a run that released nothing or can not be read is unknown', t => {
+  const none = lookArtifacts(t, { RUN_LIVE: 'none' });
+  assert.equal(none.out, 'LIVE_LOOK=unknown\nREASON=nothing was released\n');
+  assert.deepEqual(none.asked, []);
+  for (const env of [{ RUN_LIVE: 'unknown' }, { RUN_LIVE: '' }, { LIVE_RC: '1' }, { RUN_LIVE: 'http://demo.example.workers.dev' }]) {
+    const unread = lookArtifacts(t, env);
+    assert.equal(unread.out, 'LIVE_LOOK=unknown\nREASON=the release could not be read\n', JSON.stringify(env));
+    assert.deepEqual(unread.asked, [], JSON.stringify(env));
+  }
+});
+
+test('a route that can not be told is unknown, before anything else is asked', t => {
+  const { out, calls } = lookArtifacts(t, { ROUTE_RC: '1' });
+  assert.equal(out, 'LIVE_LOOK=unknown\nREASON=the delivery route could not be told\n');
+  assert.deepEqual(calls, ['node delivery-route']);
+});

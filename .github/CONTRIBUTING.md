@@ -8,7 +8,7 @@ For anything larger than a typo, [open an issue](https://github.com/matthewwong5
 
 ## Fork, branch, and open a pull request
 
-1. Fork the repository, and clone your fork: `gh repo fork matthewwong525/WongStack --clone`.
+1. Fork the repository, and clone your fork: `gh repo fork matthewwong525/WongStack --clone`. A plain clone sends `/save` pushes to a repository you cannot write to. In your fork the commands work, because this repo uses WongStack itself. Session memory stays off: [`.agents/.wong-stack.json`](../.agents/.wong-stack.json) names the maintainer's store, and you have no token for it.
 2. Make a branch from `main`.
 3. Make the change, and run the checks below.
 4. Push the branch to your fork, and open a pull request against `main`. Use the template, and link the issue.

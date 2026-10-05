@@ -17,6 +17,39 @@
 
 **Updating.** Your people, their apps, your pages and your data stay as they are. The assistant does three things for you. First, for each app of your own it reads the code, lists the keys that app already uses, and adds each key to the app's key list with a name you will recognise, so every app keeps working; a check stops the update before publishing if one is missed. Second, it publishes, then runs `provision.mjs access`, the setup tool's step for Access, which makes the read-only Cloudflare key and stores it in your live app and your preview app. Third, it tells you to open Access once, which turns levels on with everyone keeping what they have. If your saved Cloudflare token can no longer make keys, the update still finishes: Access shows *One step left* beside Cloudflare, and the assistant sends you a private link to paste a token that can. Sample data you wrote for previews keeps working; the update adds a practice role and practice levels beside it.
 
+## 31.4.1 — A link to the fork steps
+
+The guide to making WongStack your own now links the fork steps in WongStack's contributing guide. They moved there from the README, which is now shorter.
+
+**Updating.** Nothing to do; the usual update delivers this.
+
+## 31.4.0 — Install with one Cloudflare account
+
+- A new install on Mac or Linux can now live in one place: your project's files, its checks, its previews and its publishing all sit in your own Cloudflare account. No GitHub account and no server is needed. [The Artifacts route](wiki/stack/artifacts-route.md) explains it.
+- It needs Cloudflare's paid plan, about $5 a month. Setup looks first: on a free account it stops before making anything, says the cost, and offers GitHub, which stays free.
+- Every change is still checked before it goes live, now inside your Cloudflare account. A change that fails its checks is never published.
+- These installs have no pull requests. You review the plan's page and the private preview, then answer *publish it?*
+- For now it is one person per project, on Mac and Linux. On Windows, setup offers GitHub.
+- Anyone who asks for GitHub still gets it, unchanged.
+
+**Updating.** An install that uses GitHub needs to do nothing: it keeps its repository, checks, pull requests and publishing as they are. The update adds the new route's files, which stay unused, and nothing asks you to move.
+
+## 31.3.0 — Fewer steps, faster tasks
+
+- Saving takes one command once the files are chosen. It commits, uploads, opens or updates the change on GitHub, waits for the checks, and returns the result, the preview link, and what to do next. A failed check comes back with its cause, so nothing is looked up twice.
+- Publishing takes two commands around that save: one to prepare, one to finish and look at the live app.
+- A finished build is checked on your computer before the first upload, when its tools are installed there, and mistakes are fixed first. GitHub's checks still decide whether a change can be published.
+- The main assistant waits quietly while its helper builds, with one short line now and then.
+- The save and publish instructions are about a quarter shorter.
+
+**Updating.** Nothing to do; the usual update delivers this. Checks run on a computer only where its tools are installed. Elsewhere the assistant says so in one line and carries on as before.
+
+## 31.2.1 — A check that needs the live app is not a task
+
+The staging-walkthrough guide now says where a check that can only run after publishing goes: it is kept as open work in memory, not written as a task in the plan. A task like that could never be ticked before publishing, and an unticked task stops the publish.
+
+**Updating.** No action needed. The usual update delivers the new wording.
+
 ## 31.2.0 — Sign in and connect your assistant
 
 - **Access opens for the owner.** A new mini app, Access, lists the people who can sign in and the apps each may use. The owner is the sign-in email setup recorded: open Access with that email and the list is there, with no hidden settings and no commands.

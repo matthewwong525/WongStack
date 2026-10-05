@@ -1,0 +1,19 @@
+{
+  "name": "wongstack-check-runner",
+  "private": true,
+  "type": "module",
+  "description": "The check runner of an Artifacts install. Setup installs and deploys it from this folder's own pinned tools; the app never depends on it.",
+  "scripts": {
+    "deploy": "wrangler deploy --config wrangler.jsonc"
+  },
+  "dependencies": {
+    "@cloudflare/ci": "0.2.0",
+    "@cloudflare/sandbox": "0.12.5"
+  },
+  "overrides": {
+    "@cloudflare/sandbox": "$@cloudflare/sandbox"
+  },
+  "devDependencies": {
+    "wrangler": "4.146.0"
+  }
+}

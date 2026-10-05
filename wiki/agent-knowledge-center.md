@@ -31,7 +31,7 @@ Data split across separate tools is a set of disconnected exports, and no agent 
 
 ### Using AI shouldn't need a complicated setup
 
-Nothing builds locally. [CI is the gate](development/the-change-loop.md#the-gate) when the repo has checks, PR review when it doesn't, and every commit gets a deployed preview — so work continues from any machine, and a new one needs no setup.
+No computer has to build anything. [CI is the gate](development/the-change-loop.md#the-gate) when the repo has checks, PR review when it doesn't, and every commit gets a deployed preview — so work continues from any machine, and a new one needs no setup. A computer that does have the tools checks a finished build first, as a pre-check that never replaces the gate.
 
 Keep the dependencies few. WongStack needs `git`, [`gh`](https://cli.github.com/), [Node.js](https://nodejs.org/), and the [OpenSpec](https://github.com/Fission-AI/OpenSpec) CLI. Fewer moving parts break less often and survive longer.
 

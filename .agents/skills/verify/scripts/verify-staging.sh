@@ -351,7 +351,10 @@ prepare_staging() {
   if [ -z "${CLOUDFLARE_API_TOKEN:-}" ]; then
     SEEDED="no this machine has no Cloudflare credential to rebuild staging with"; return 0
   fi
-  if (cd "$ROOT" && timeout 5m node scripts/reset-staging-d1.mjs) >"$run_dir/staging-reset.log" 2>&1; then
+  # macOS ships no `timeout`; perl is on every Mac, and its alarm outlives the exec.
+  local limit=(timeout 300)
+  command -v timeout >/dev/null 2>&1 || limit=(perl -e 'alarm shift; exec @ARGV' 300)
+  if (cd "$ROOT" && "${limit[@]}" node scripts/reset-staging-d1.mjs) >"$run_dir/staging-reset.log" 2>&1; then
     SEEDED=yes
   else
     SEEDED="no the staging rebuild failed (staging-reset.log in the run folder says why)"

@@ -3,13 +3,18 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { isMain, parseCli } from '../../memory/scripts/lib/cli.mjs';
+import { ARTIFACTS_HOST, originHost } from './delivery-route.mjs';
 
 const SHA = /^[a-f0-9]{40}$/;
 const unknown = reason => ({ state: 'UNKNOWN', gateResult: 'UNKNOWN', reason });
 const hash = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const githubRepo = remote => remote.match(/^(?:https:\/\/github\.com\/|git@github\.com:)([\w.-]+\/[\w.-]+?)(?:\.git)?$/)?.[1];
+// An Artifacts install has no pull request: its gate is the check run named for the commit and branch.
+const RUN = join(dirname(fileURLToPath(import.meta.url)), 'artifacts-run.mjs');
+const artifactsRepo = remote => { try { return ARTIFACTS_HOST.test(originHost(remote) ?? '') ? remote : undefined; } catch { return undefined; } };
 const failure = value => ['failure', 'cancelled', 'timed_out', 'action_required', 'startup_failure', 'error'].includes(value);
 
 // Keep the newest attempt for each workflow/event; old green runs cannot hide a rerun.
@@ -45,7 +50,8 @@ export async function savedRevision({ repo = '.', branch, checkpoint, run } = {}
     const local = { headSha, branch: actualBranch };
     if (git('status', '--porcelain=v1', '--untracked-files=all')) return { ...local, state: 'NEEDS_SAVE', gateResult: 'UNKNOWN', reason: 'Working tree has unsaved work' };
     const remote = git('remote', 'get-url', 'origin');
-    const repository = githubRepo(remote);
+    const artifacts = artifactsRepo(remote);
+    const repository = githubRepo(remote) ?? artifacts;
     if (!repository) return unknown('Unsupported or foreign repository identity');
     if (checkpoint && (checkpoint.repository !== repository || checkpoint.branch !== actualBranch || checkpoint.headSha !== headSha)) return unknown('Checkpoint belongs to different work');
     const refs = git('ls-remote', '--heads', 'origin', `refs/heads/${actualBranch}`);
@@ -54,6 +60,12 @@ export async function savedRevision({ repo = '.', branch, checkpoint, run } = {}
     if (!refs) return { ...local, repository, state: 'NEEDS_SAVE', gateResult: 'UNKNOWN', reason: 'Branch has not been pushed' };
     if (!remoteHead) return unknown('Authoritative remote head is malformed');
     if (remoteHead !== headSha) return { ...local, repository, state: 'NEEDS_SAVE', gateResult: 'UNKNOWN', reason: 'Local head is not the saved remote head' };
+    if (artifacts) {
+      const word = run('node', [RUN, 'result', headSha, `refs/heads/${actualBranch}`]);
+      const gateResult = ['SUCCESS', 'NONE', 'FAILURE'].includes(word) ? word : 'UNKNOWN';
+      return { ...local, repository, state: 'SAVED', gateIdentity: hash({ run: [headSha, actualBranch, word] }), gateResult, reused: false,
+        reason: 'Read from the check run for this exact commit' };
+    }
     if (gh('repo', 'view', '--json', 'nameWithOwner').nameWithOwner !== repository) return unknown('GitHub repository differs from origin');
     const pr = gh('pr', 'view', '--json', 'number,headRefOid,headRefName,statusCheckRollup');
     const authoritative = gh('api', `repos/${repository}/pulls/${pr.number}`);

@@ -43,7 +43,7 @@ export function isIgnored(root, rel) {
 const context = () => primaryRoot();
 
 /** Repo-relative live secrets files at the root and in each immediate subfolder. */
-function liveFiles(root) {
+export function liveFiles(root) {
   const found = [];
   const scan = (rel) => {
     for (const entry of readdirSync(join(root, rel), { withFileTypes: true })) {

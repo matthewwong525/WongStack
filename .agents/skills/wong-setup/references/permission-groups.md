@@ -1,6 +1,6 @@
 # The widen protocol and the permission-group ids
 
-A token's policy grants Cloudflare permission groups. The user grants two; [the provisioning runbook](cloudflare.md) grants itself the rest on demand with this protocol, which [`provision.mjs`](../scripts/provision.mjs) runs. `scripts/tests/provision.test.mjs` holds the script's groups to the tables below.
+A token's policy grants Cloudflare permission groups. The user grants two on the token screen; [the provisioning runbook](cloudflare.md) grants itself the rest on demand with this protocol, which [`provision.mjs`](../scripts/provision.mjs) runs. [The Artifacts route](../../../../wiki/stack/artifacts-route.md#the-permissions-it-adds) adds four. `scripts/tests/provision.test.mjs` fails when the script's groups differ from the tables below.
 
 ## The sequence
 
@@ -18,8 +18,10 @@ PUT /user/tokens/{id}            → the widened set
 - **Resolve ids by name at runtime**, from `/user/tokens/permission_groups?per_page=1000`; the default page hides most of the 392 groups. The ids below are a fallback and test fixture, never the lookup: ids drift, groups are added, and one name is ambiguous ([the traps](#the-two-traps)).
 - **The `PUT` replaces the policy list wholesale.** Keep `API Tokens Write` and `Account API Tokens Write` in it, or the token can never widen again. Never rebuild the account `resources` block: without it, the token verifies but sees no accounts.
 - **Re-verify, then probe one endpoint per added permission.** A widen that "succeeded" but didn't take starts a half-provision.
-- **A widen takes about a minute to propagate.** The first probe after a `PUT` can return `401` (code `10000`) or `403` on a permission the token now holds, so **a first `401` or `403` is not a permission problem.** Retry with backoff (2s, 4s, 8s, 15s, 30s); only a refusal at the end is real. Access endpoints are slowest. Lost `resources` does *not* clear with time; it shows an empty `/accounts`, not a `403`.
-- **If the widen didn't take, stop and provision nothing.** Report which surfaces are unavailable, and list the permission names for the user to add by hand: the clear message, should Cloudflare ever restrict self-escalation.
+- **A widen takes up to about a minute to propagate.** The first probe after a `PUT` can return `401` (code `10000`) or `403` on a permission the token now holds, so **a first `401` or `403` is not a permission problem.** Retry with backoff (about 2s, 4s, 8s, 15s, 30s); only a refusal at the end is real. Access endpoints are slowest: one adopter's run stopped on an Access `403` that would have cleared within the minute. Lost `resources` does *not* clear with time; it shows an empty `/accounts`, not a `403`.
+- **If the widen didn't take, stop and provision nothing.** Report which surfaces are unavailable, and list the permission names for the user to add by hand. Should Cloudflare ever restrict self-escalation, this turns it into a clear message, not a half-provision.
+
+`/user/tokens/permission_groups` needs `?per_page=1000`: the default page hides most of some 400 groups.
 
 ## Verified ids
 
@@ -95,14 +97,4 @@ An allow-list for the app's Cloudflare look-ups, so a new product that stores da
 
 Match on `scopes` containing `com.cloudflare.api.account`, never on position: order is not guaranteed. The zone-scoped copy yields a token that accepts the policy, then fails every account-level Access call.
 
-**Builds is filed under "CI":** `Workers CI Read` and `Workers CI Write`. No group name contains "build".
-
-## Reading a token's current policy
-
-```bash
-cf() { curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/user/tokens/$1"; }
-cf verify   # → the token's own id
-cf {id}     # → its policy document
-```
-
-A policy pairs a permission-group list with a `resources` map; [the failure map](failure-map.md) covers losing it.
+**Builds is filed under "CI".** No group name contains "build"; Workers Builds permissions are `Workers CI Read` and `Workers CI Write`.
