@@ -94,7 +94,10 @@ it("belongs to the Cloudflare key alone: a level decides, no app is needed, and 
   expect((await listing(employee)).map((item: { operationId: string }) => item.operationId)).toEqual(["main.health"]);
   f.sql.prepare("INSERT INTO wong_access_key_grants VALUES (?, ?, 'cloudflare', 'read', 1)").run(site.installationId, employee.id);
   expect((await look("zones", undefined, employee)).status).toBe(200);
-  expect(await listing(employee)).toMatchObject([{ operationId: "cloudflare.read", effect: "read", keys: [{ id: "cloudflare", level: "read" }] }, { operationId: "main.health", keys: [] }]);
+  expect(await listing(employee)).toMatchObject([{ operationId: "cloudflare.read", effect: "read", readiness: "available", keys: [{ id: "cloudflare", level: "read" }] }, { operationId: "main.health", keys: [] }]);
+  // Until setup stores the key, the list says the look-up is not ready, as a call would.
+  const unsaved = (await (await discovery(new Request(`${site.origin}/api/actions?app=main`), env(null), employee)).json()).actions;
+  expect(unsaved[0]).toMatchObject({ operationId: "cloudflare.read", readiness: "unavailable" });
   // The person still has no app, and the saved key itself is never in what they are told.
   expect(JSON.stringify(await listing(employee))).not.toContain(token);
 });

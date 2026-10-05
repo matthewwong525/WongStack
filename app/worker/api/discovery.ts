@@ -5,6 +5,7 @@ import { appActions, type AppEnv } from "../apps/index.ts";
 import type { AccessIdentity } from "../access.ts";
 import { actionError, containsCredential, needFor, schemas, uniqueActions, type Registration } from "./contract.ts";
 import { currentPolicy, listedKeys, policyAllows, policyDenied } from "../employee-access/policy.ts";
+import { saved } from "../employee-access/key-levels.ts";
 
 function describe({ method, path, app, action, access }: Registration, env: AppEnv) {
   const level = needFor(action, method);
@@ -14,7 +15,8 @@ function describe({ method, path, app, action, access }: Registration, env: AppE
     // The saved keys the action uses and the level a caller needs, so an assistant can explain a refusal.
     keys: listedKeys(access).map(id => ({ id, level })),
     source: "company", transport: "http", authentication: "cloudflare-access",
-    readiness: action.ready && !action.ready(env) ? "unavailable" : "available",
+    // A listed key that is not saved answers `unavailable` when called, so the list says so first.
+    readiness: (action.ready && !action.ready(env)) || !listedKeys(access).every(id => saved(env, id)) ? "unavailable" : "available",
     ...schemas(action), errorSchema: { type: "object", required: ["error"], additionalProperties: false,
       properties: { error: { type: "object", required: ["code", "message", "requestId"], additionalProperties: false,
         properties: { code: { type: "string" }, message: { type: "string" }, requestId: { type: "string" } } } } }, errors: action.errors, examples: action.examples,
