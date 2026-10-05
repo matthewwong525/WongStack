@@ -12,7 +12,7 @@ A skill that stays in WongStack, like [`update-dependencies`](../../.agents/skil
 
 3. **Cut a minor release** by [the payload rule](../../.agents/rules/payload.md): a new skill is additive, and without a changelog entry existing installs never hear of it.
 
-4. **Update the user-facing surfaces.** Add the skill to the command table or related discovery text in [`README.md`](../../README.md). Add its operating rule to the `WONG-STACK:BEGIN/END` block in [`CLAUDE.md`](../../AGENTS.md) when every installed repo must know it. Link its owning workflow page from the [development hub](../development/README.md). These are what a reader and a freshly installed repo see.
+4. **Update the user-facing surfaces.** Add its operating rule to the `WONG-STACK:BEGIN/END` block in [`CLAUDE.md`](../../AGENTS.md) when every installed repo must know it. Link its owning workflow page from the [development hub](../development/README.md). These are what a reader and a freshly installed repo see.
 
 5. **Carry attribution for adapted work.** If the skill adapts external, licensed work, keep the required license material with the skill and record a `license:` field and source metadata in the SKILL frontmatter.
 
