@@ -52,7 +52,7 @@ When a promise says a result lasts, observe it freshly through its real consumer
 - **Inside staging, the walk does anything.** It creates, edits, and deletes with no asking and no tidying up. That is safe because of a proof, not a judgement: the walk's setup confirms every database, queue, and bucket in staging is [its own twin](../stack/staging-bindings.md#twin-every-stateful-binding) and the database is not production's, and the next walk rebuilds it all. Without that proof, a write first needs disposable records the walk owns and can clean up, or the check stays unverified.
 - **An outside service runs only on a staging-only key.** Staging gets the live app's keys unless you give it [its own](../stack/staging-bindings.md#same-values-by-default-diverge-where-writes-escape), so a staging email could reach a real customer. The walk reads which keys staging shares with the live app. A service on its own test key is used freely; one on a shared key is never triggered, and the report names it and says a staging-only key unlocks the check.
 - **A timed job is run by hand.** The walk starts the job through the project's [manual trigger](../stack/staging-bindings.md#cron-triggers-inherit-omitting-them-does-not-disable-them) on staging and grades what it did. The timetable itself stays partly shown; with no trigger, the scenario is unverified.
-- **Journeys hold no assertions,** because an assertion written moments before it is deleted encodes a guess at correctness, and "nothing errored" is not "the thing worked".
+- **A fresh journey holds no assertions,** because an assertion written moments before it is deleted encodes a guess at correctness, and "nothing errored" is not "the thing worked". A [kept check](kept-checks.md) records only what a graded pass showed.
 - **Every navigating step waits before its screenshot,** because a screenshot taken before the page paints captures the page you left: one two-step journey produced two byte-identical screenshots of it.
 - **One report names each check's probe, environment and revision.** It includes raw results, fresh readbacks, consumer relationships, compared revisions and limits. Practice or simulated observations are labelled; a missing surface cannot hide completed checks.
 - **A pass says how much it showed.** A journey with a claim no probe can observe is marked *partly shown*, naming the claim, because a plain pass hides the gap: 14 of 21 passed journeys on six real walks left a claim unshown. It doesn't change the verdict; most real promises hold a part a preview can't show, and failing them would make every walk fail.
@@ -63,16 +63,16 @@ When a promise says a result lasts, observe it freshly through its real consumer
 
 ### Walk the app the way a person does
 
-A journey should reach a behavior the way its user reaches it — a UI scenario clicks the thing that calls the API rather than navigating straight to the API route. That isn't style advice; on a static-asset-fronted stack it changes the answer:
+A journey reaches a behavior the way its user does: a UI scenario clicks the thing that calls the API, not the API route. On a static-asset-fronted stack that changes the answer:
 
 ```
 Sec-Fetch-Mode: navigate   →  index.html   (the SPA fallback; your server code never runs)
 anything else              →  your application's response
 ```
 
-Cloudflare's static-asset layer — and equivalents elsewhere — intercept **browser navigations** and serve the SPA fallback *before* your code executes. So `curl /api/` returns JSON while typing `/api/` into an address bar returns the app, and a browser journey that navigates directly to an API route is testing the asset layer, not the API.
+Cloudflare's static-asset layer, and equivalents elsewhere, intercept **browser navigations** and serve the SPA fallback *before* your code runs. So `curl /api/` returns JSON while `/api/` in an address bar returns the app, and a journey that navigates to an API route tests the asset layer, not the API.
 
-The same fact read the other way is why request probes work: a non-navigation request reaches your application's response directly, which is exactly what an API scenario's `THEN` is about. The two probes exercise the two paths a real caller uses — match the probe to who the scenario's user is.
+Read the other way, that is why request probes work: a non-navigation request reaches your application directly, which is what an API scenario's `THEN` is about. Match the probe to who the scenario's user is.
 
 ## The verdicts
 
@@ -90,30 +90,32 @@ An [Access](../stack/cloudflare-access.md) login wall stops a walk before it see
 
 A failed walk cleans up nothing in a staging it may write freely: the walk after a fix rebuilds staging from the seed, under the same turn, so a retry never debugs leftovers from its own earlier checks. Elsewhere, cleanup restores only the walk's own disposable data, and shared data stays intact.
 
-It fixes only an [in-scope](../../.agents/skills/verify/references/walkthrough.md#e--after-a-failure) failure, and says which way it judged, so you can disagree. The two-attempt bound is what keeps the loop from becoming a grinder: a walk that can't fix its own change in two tries has found something worth a human reading, and chasing an unrelated bug is how a walk quietly turns into a different change.
+It fixes only an [in-scope](../../.agents/skills/verify/references/walkthrough.md#e--after-a-failure) failure, and says which way it judged, so you can disagree. Two attempts keep the loop from becoming a grinder: a walk that can't fix its own change in two tries has found something worth a human reading, and chasing an unrelated bug turns a walk into a different change.
 
 When existing CI can cheaply reproduce an in-scope defect, keep a focused regression check. Inspect that same check failing for the observed defect on the exact earlier source and passing on the repaired head; the head's complete checks must still pass. If a lasting check is impractical, retain the available reproduction and name missing proof and setup limits. This calls for no new framework or weaker check.
 
 ## What it is not
 
-- **Not a test suite.** The walk gathers and grades observations. Practical checks retained during repairs belong in the project's CI suite.
-- **Not automatic on `/save`.** Staging redeploys on every push, so a walk there would fire many times per change while the surface still changes. You choose the moments.
+- **Not a test suite.** The walk gathers and grades observations; a kept check only records a pass. Practical checks retained during repairs belong in the project's CI suite.
+- **Not automatic on `/save`.** Staging redeploys on every push, so a walk there would fire many times per change while the surface still changes. You choose the moments. [Kept checks](kept-checks.md#when-it-replays) replay only before publishing, for the same reason.
 - **Not a gate.** A gate would force an unrunnable walk to block, and you could only see your app when you were done with it. `/ship` runs one walk for evidence; a `FAILURE` puts the decision in front of you.
 - **No second judging agent.** An agent that grades its own walk has every reason to see success, so the check is *provenance*: [`/plan`](../../.agents/skills/plan/SKILL.md) wrote the `THEN` before the walk existed, and ambiguous evidence goes to a human. Measured on 2026-10-03: fresh agents walked 20 past journeys again and disagreed with none, and the walk passed none of 30 mistakes planted on a practice site. A second judge would have changed no verdict.
-- **Not a regression sweep of `openspec/specs/`.** The walk selects change scenarios and narrowly connected consumers; a full-surface walk grows with the app forever.
+- **Not a fresh walk of all of `openspec/specs/`.** The walk selects change scenarios and narrowly connected consumers; a full-surface walk grows with the app forever. Older promises replay from kept checks instead.
 - **Not a check of the live app.** A walk writes, so it stays in staging. After publishing, [`/ship`](../../.agents/skills/ship/SKILL.md#look-at-the-live-app) takes one look at the live app instead: it waits for the release, opens the app, and saves, sends, or buys nothing. A failed release is said in the same chat, with one fix built and offered. A look that cannot run is one report line. **A planned check that needs the live app is open work in [memory](memory.md), not a task in the plan**: an unticked task stops the publish, and this one can not be ticked before it.
 - **Not an unbounded fix loop.** An agent that fixes and re-verifies until something passes will eventually pass something. The walk's value is its willingness to report a failure.
 - **No local execution, and no invented tooling.** A scenario that only local code or new tooling could observe is reported as unverified, by name, rather than counted as passing.
 
 **Why this engine.** [`agent-browser`](https://github.com/vercel-labs/agent-browser) beats Playwright and Playwright MCP because those are *repo* dependencies, which would force a Node toolchain into repos that have none. The agent's own browser is desktop-only and plan-gated, and it grades its own work. The engine is pre-1.0; the exit is that journeys are declarative command arrays, the driver is one shell script, and `agent-browser get cdp-url` keeps a plain CDP path open. For a browser somewhere else, `agent-browser` supports remote providers (Browserless, Browserbase, Browser Use) through its own settings; WongStack adds no variable for it.
 
+**Why no test framework.** On 2026-10-05 we looked at the [e2e](https://github.com/tester-army/e2e) test tool and declined it: it adds packages and test files to every project, its AI steps need a paid key a Claude subscription doesn't include, and its guide is two thirds the size of all our skill instructions. Only its replay idea was taken.
+
 ## Related
 
-- [The change loop](the-change-loop.md) — the loop `/verify` sits beside, and the gate ladder it is deliberately not part of.
-- [Required tools](required-tools.md) — what the toolkit needs, and what `/verify` adds to that.
-- [Secrets](secrets.md) — where the optional variables above live.
-- [Memory](memory.md) — the private store a walk's pictures share with the chat transcripts.
-- [Cloudflare Access](../stack/cloudflare-access.md) — the login wall, and the service token the heal produces.
-- [Deploy and data pipeline](../stack/d1-pipeline.md) — what publishes the preview URL, and where `db:reset:staging` comes from.
+- [The change loop](the-change-loop.md) — the loop `/verify` sits beside.
+- [Required tools](required-tools.md) — what `/verify` adds.
+- [Secrets](secrets.md) — where the optional variables live.
+- [Memory](memory.md) — where a walk's pictures are kept.
+- [Cloudflare Access](../stack/cloudflare-access.md) — the login wall and its service token.
+- [Deploy and data pipeline](../stack/d1-pipeline.md) — the preview URL and the staging rebuild.
 
 Part of [development](README.md).

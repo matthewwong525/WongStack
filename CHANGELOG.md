@@ -3,6 +3,17 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Old features are re-checked before publishing
+
+- **A passed check is kept.** When the check before publishing passes a promise about a page or a request, it saves the clicks and what the page showed, beside your code. It is kept only after it replays cleanly once, by itself, from fresh sample data.
+- **Kept checks replay before a change goes live,** with no AI. The replay stops after 2 minutes. The areas your change touches go first, and any check that did not fit is named.
+- **A replay that looks different gets one fresh look.** When only the page changed, such as a renamed button, the kept check is updated and nothing stops. When your change broke the old feature, the assistant fixes it, saves, and replays that check without asking. It stops and asks only when two tries did not fix it, or when the break does not come from your change.
+- **Some checks are never kept:** one that needs your login, triggers an outside service or a timed job, or carries a password.
+- **Publishing takes a little longer:** up to 2 minutes for the replay, and one more short save when a check was kept or updated. Checks in the middle of a change stay as fast as today.
+- No new tool, AI key, or dependency. A project whose staging can't be rebuilt from sample data keeps and replays nothing, and the check says so. [Kept checks](wiki/development/kept-checks.md) explains it all.
+
+**Updating.** Nothing to do; the usual update delivers this. The first kept checks appear at your next publish that has a promise about a page or a request.
+
 ## 31.4.0 — Install with one Cloudflare account
 
 - A new install on Mac or Linux can now live in one place: your project's files, its checks, its previews and its publishing all sit in your own Cloudflare account. No GitHub account and no server is needed. [The Artifacts route](wiki/stack/artifacts-route.md) explains it.

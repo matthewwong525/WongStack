@@ -30,6 +30,7 @@ const scripts = {
   'scripts/payload-checks.mjs': [],
   'scripts/measure-sessions.mjs': [],
   '.agents/skills/verify/scripts/verify-receipts.mjs': ['check'],
+  '.agents/skills/verify/scripts/verify-journeys.mjs': ['check'],
   '.agents/skills/memory/scripts/lib/primary-root.mjs': [],
   '.github/scripts/loosened-checks.mjs': [],
   '.github/scripts/checks.mjs': [],
