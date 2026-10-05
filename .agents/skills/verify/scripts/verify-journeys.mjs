@@ -425,7 +425,7 @@ function locate(root, meta) {
   return { scenario: { capability: homes[0], ...scenario }, id: slug(named) || `scenario-${digest(named).slice(0, 12)}` };
 }
 
-// What is never kept, as far as the steps can show it. The walk rules out the rest: a hand-over, an
+// What is never kept, as far as the steps can show it. The walk rules out the rest: a private link, an
 // outside service, a manual job trigger.
 const NEVER_KEPT = [
   [({ steps }) => steps.some(step => ['auth', 'state'].includes(step[0])), 'a step uses a saved login'],

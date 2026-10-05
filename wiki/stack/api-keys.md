@@ -27,7 +27,7 @@ The assistant then:
 2. **Sends it to your live site too**, when the site itself needs it. Your site's test copy gets it as well, so a preview works the same way.
 3. **Tells you which keys it saved**, by name, never by showing a key.
 
-The link is new each time and works only until it closes; see [how it stays safe](../development/browsing.md#hand-the-browser-over). You never type a command or edit a file.
+The link is new each time and works only until it closes; see [how it stays safe](../development/browsing.md#how-private-links-work). You never type a command or edit a file.
 
 **Pasting into the chat still works.** Paste the key and say what it's for, for example: *here's my Stripe key for the shop page*. The assistant saves it the same way and says the link is safer next time: chats are stored, so a key pasted there sits in the chat's history. A pasted key with no word about what it's for is not saved.
 
