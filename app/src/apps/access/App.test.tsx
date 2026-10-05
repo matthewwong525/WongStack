@@ -452,30 +452,31 @@ it('copy fallback opens selectable text when clipboard is missing and reports ne
   expect(input.readOnly).toBe(true); expect(input.closest('details')?.open).toBe(true)
   const details = input.closest('details')!; details.open = false; fireEvent(details, new Event('toggle'))
 })
-it('Home shows one setup box to every signed-in person and keeps the welcome for everyone but a limited employee', async () => {
+it('Home has no setup box: every signed-in person gets the Connect card, which opens the same steps in a popup, and the welcome stays for everyone but a limited employee', async () => {
   for (const [viewer, welcome] of [['legacy', true], ['waiting-employee', true], ['waiting-owner', true], ['owner', true], ['employee', false]] as const) {
     mode = viewer; render(<Home />)
-    await screen.findByRole('button', { name: 'Copy setup prompt' })
-    expect(screen.getAllByRole('region', { name: 'Connect your assistant' })).toHaveLength(1)
-    // Home keeps the box as it was: no popup round it, and no button to open one.
-    expect(steps()!.closest('[role="dialog"]')).toBeNull(); expect(screen.queryByRole('button', { name: 'Connect your assistant' })).toBeNull()
-    expect(!!screen.queryByRole('region', { name: 'Make it yours' })).toBe(welcome); cleanup()
+    const card = await screen.findByRole('button', { name: /^Connect your assistant/ })
+    // Nothing is drawn or read until the card is pressed.
+    expect([showing(), !!steps(), reads('setup').length, !!screen.queryByRole('region', { name: 'Make it yours' })], viewer).toEqual([false, false, 0, welcome])
+    fireEvent.click(card); expect((await screen.findByRole('button', { name: 'Copy setup prompt' })).closest('[role="dialog"]'), viewer).toBe(popup())
+    click('Close'); expect([showing(), !!steps()], viewer).toEqual([false, false]); cleanup(); fetchMock.mockClear()
   }
 })
 it('failed permissions or setup withhold app cards and support explicit retry', async () => {
   failed.add('apps'); render(<Home />); await screen.findByText('Your app access is unavailable.')
   expect(screen.queryByRole('link', { name: /Hello Example/ })).toBeNull()
-  expect(screen.queryByRole('region', { name: 'Connect your assistant' })).toBeNull()
+  expect([steps(), screen.queryByRole('button', { name: /^Connect your assistant/ })]).toEqual([null, null])
   failed.delete('apps'); mode = 'employee'; catalogue = ['access']; own.apps = []; click('Retry apps')
   await screen.findByText('No business apps assigned. Contact your employer.')
-  expect(screen.getByRole('link', { name: 'Open your assistant setup' }).getAttribute('href')).toBe('/apps/access/')
+  // Their way to the steps is the Connect card now, and Access stays theirs to open.
+  expect(screen.getByRole('button', { name: /^Connect your assistant/ })).toBeTruthy(); expect(screen.getAllByRole('link').map(link => link.getAttribute('href'))).toEqual(['/apps/access/'])
   expect(screen.queryByRole('region', { name: 'Make it yours' })).toBeNull()
   cleanup(); failed.add('setup'); render(<AssistantSetup />); await screen.findByText(/Assistant setup is unavailable/)
   failed.delete('setup'); click('Retry setup'); await screen.findByText(/Signed in as employee@example.com/)
 })
 it('selected home cards and direct app pages obey the same current readback', async () => {
   mode = 'employee'; render(<Home />); await screen.findByRole('link', { name: /Hello Example/ })
-  expect(screen.queryByRole('link', { name: /Tips/ })).toBeNull(); cleanup()
+  expect(screen.queryByRole('link', { name: /Tip calculator/ })).toBeNull(); expect(screen.getByRole('button', { name: /^Tip calculator No access/ }).getAttribute('aria-disabled')).toBe('true'); cleanup()
   const page = () => render(<MemoryRouter initialEntries={['/apps/hello/']}><Routes><Route path="/apps/:name/" element={<AppPage />} /></Routes></MemoryRouter>)
   catalogue = ['access']; page(); await screen.findByText('App access denied'); expect(screen.queryByText('Enter your name')).toBeNull(); cleanup()
   // Before permissions start, the page opens whatever the list says.

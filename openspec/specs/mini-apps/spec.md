@@ -170,7 +170,7 @@ A mini app's server side SHALL receive the main app's business bindings, the sav
 
 ### Requirement: The home page lists every mini app
 
-The home page SHALL list every mini app in the build that the current caller is authorized to use, each with its title, description, and link, and `/apps/` SHALL redirect to `/`. When Access per-app policy is enabled, an employee's list SHALL include only assigned apps and applicable self-service setup; direct navigation SHALL enforce the same current app permission. The verified employer SHALL retain access to the app catalogue and Access administration. A preview SHALL list the app it previews for its authorized viewer. A mini app whose manifest lacks a title or description, or whose folder name is not lowercase letters, digits, and hyphens, SHALL fail the `test` check and name the folder.
+The home page SHALL list every mini app in the build that the current caller is authorized to use, each with its title, description, and link, and `/apps/` SHALL redirect to `/`. When Access per-app policy is enabled, an employee's list SHALL offer assigned apps and applicable self-service setup as links, and SHALL show each app they are not assigned as unavailable, marked by more than color; choosing an unavailable app SHALL open nothing and SHALL tell the person to ask their admin for access. Direct navigation SHALL enforce the same current app permission. The verified employer SHALL retain access to the app catalogue and Access administration. A preview SHALL list the app it previews for its authorized viewer. A mini app whose manifest lacks a title or description, or whose folder name is not lowercase letters, digits, and hyphens, SHALL fail the `test` check and name the folder.
 
 #### Scenario: A malformed manifest
 
@@ -180,11 +180,11 @@ The home page SHALL list every mini app in the build that the current caller is 
 #### Scenario: Employee has selected apps
 
 - **WHEN** an employee has Orders permission and no Payroll permission
-- **THEN** the home page offers Orders and applicable setup, omits Payroll, and a direct Payroll visit is denied
+- **THEN** the home page offers Orders and applicable setup, shows Payroll as unavailable, answers a click on Payroll with ask-your-admin guidance, and a direct Payroll visit is denied
 
 ### Requirement: The home page's app list guides first use
 
-The home page SHALL present each authorized mini app as a clearly focused link with its title and description, and SHALL identify the supplied example as an example when available. With no apps built it SHALL explain how the employer can ask for a first tool. An employee with no assigned apps SHALL instead see guidance to contact the employer and retain access to their own setup. Unavailable permission readback SHALL show a safe retry state without an unrestricted list. The list SHALL remain readable and operable at phone widths and with keyboard navigation.
+The home page SHALL present each authorized mini app as a clearly focused link with its title and description, and SHALL identify the supplied example as an example when available. With no apps built it SHALL explain how the employer can ask for a first tool. The list SHALL include a Connect your assistant entry for every signed-in person, which opens the setup steps over the page without leaving it. An employee with no assigned apps SHALL see guidance to contact the employer and retain access to their own setup. Unavailable permission readback SHALL show a safe retry state without an unrestricted list. The list SHALL remain readable and operable at phone widths and with keyboard navigation.
 
 #### Scenario: Apps are available
 
@@ -199,7 +199,12 @@ The home page SHALL present each authorized mini app as a clearly focused link w
 #### Scenario: Employee has no assigned apps
 
 - **WHEN** an employee signs in with no assigned business apps
-- **THEN** the page gives contact-your-employer guidance and their setup link without granting project creation or another app
+- **THEN** the page gives contact-your-employer guidance and their setup entry without granting project creation or another app
+
+#### Scenario: A person opens Connect your assistant from the list
+
+- **WHEN** a signed-in person chooses Connect your assistant in the home page's list
+- **THEN** the setup steps open over the home page, and closing them leaves the person on the home page
 
 ### Requirement: Existing mini apps move into the main app on update
 

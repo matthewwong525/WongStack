@@ -6,11 +6,12 @@ import { setupSchema, useAccess } from '../lib/access'
 import { appTitle } from '../lib/apps'
 import { CopyText } from './CopyText'
 
-const LINES = 'grid gap-3 wrap-anywhere'
+const LINES = 'grid grid-cols-[minmax(0,1fr)] gap-3 wrap-anywhere'
 
-// One box, on Home and in Access, for every signed-in person. The prompt holds no keys.
-// With `popup` it sits inside a popup: the popup is the box, and this heading is the popup's own title.
-export function AssistantSetup({ popup = false, className }: { popup?: boolean; className?: string }) {
+// The steps for connecting an assistant, for every signed-in person. The prompt holds no keys. On Access's own
+// page it is a box. With `popup` it sits inside a popup, from Home's card or Access's button: the popup is the box,
+// and this heading is the popup's own title. One column that can shrink keeps the long prompt inside either.
+export function AssistantSetup({ popup = false }: { popup?: boolean }) {
   const { data, error, reload } = useAccess('setup', setupSchema)
   const heading = <h2>Connect your assistant</h2>
   const steps = <>
@@ -26,7 +27,7 @@ export function AssistantSetup({ popup = false, className }: { popup?: boolean; 
       <p className="text-muted-foreground">This connects the apps above. Project code and memory are set up separately.</p>
     </>}
   </>
-  return <section aria-label="Connect your assistant" className={className}>
+  return <section aria-label="Connect your assistant">
     {popup ? <div className={LINES}>{steps}</div> : <Card className={cn(LINES, 'p-4')}>{steps}</Card>}
   </section>
 }

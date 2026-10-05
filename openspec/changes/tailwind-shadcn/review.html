@@ -139,26 +139,55 @@
 <span class="ln" data-note="item-4-line-6" tabindex="0">role       │ the phone's │ the phone's</span>
 <span class="ln" data-note="item-4-line-7" tabindex="0">dropdown   │ own picker  │ own picker</span></pre></div></details></li>
 <li class="item card" id="item-5"><span class="num">5</span><div class="body"><div class="text" data-note="item-5" tabindex="0"><b>Home, the example app and the setup box are restyled the same way.</b> The app cards, the welcome box, <i>Connect your assistant</i>, the copy button and the Hello example use the same parts, with the same words and steps.</div></div></li>
-<li class="item card" id="item-6"><span class="num">6</span><div class="body"><div class="text" data-note="item-6" tabindex="0"><b>Mini apps the assistant builds from now on use the parts.</b> A new screen is put together from the set. When a screen needs a part the app does not have yet, the assistant adds it in one step. A check stops a screen from bringing a style file of its own, so hand-styling can not creep back.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
-<span class="ln" data-note="item-6-line-1" tabindex="0">you: &quot;make me a quote form&quot;</span>
-<span class="ln" data-note="item-6-line-2" tabindex="0">        │</span>
-<span class="ln" data-note="item-6-line-3" tabindex="0">        ▼</span>
-<span class="ln" data-note="item-6-line-4" tabindex="0">assistant picks parts ─▶ one missing?</span>
-<span class="ln" data-note="item-6-line-5" tabindex="0">        │                    │ yes</span>
-<span class="ln" data-note="item-6-line-6" tabindex="0">        ▼                    ▼</span>
-<span class="ln" data-note="item-6-line-7" tabindex="0">     preview ◀────────── adds it</span></pre></div></details></li>
-<li class="item card" id="item-7"><span class="num">7</span><div class="body"><div class="text" data-note="item-7" tabindex="0"><b>Installs get it on their next update.</b> The built-in screens switch to the new parts. Each screen an install built for itself is moved onto the parts too: the update's plan names every one, and each shows in the preview before anything is published. What a screen does, its address and its data stay as they are.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
-<span class="ln" data-note="item-7-line-1" tabindex="0">update ─▶ built-in screens switch</span>
-<span class="ln" data-note="item-7-line-2" tabindex="0">   │</span>
-<span class="ln" data-note="item-7-line-3" tabindex="0">   ▼</span>
-<span class="ln" data-note="item-7-line-4" tabindex="0">own screens ─▶ each moved ─▶ preview</span>
-<span class="ln" data-note="item-7-line-5" tabindex="0">                                │</span>
-<span class="ln" data-note="item-7-line-6" tabindex="0">                                ▼</span>
-<span class="ln" data-note="item-7-line-7" tabindex="0">                             publish</span></pre></div></details></li>
-<li class="item card" id="item-8"><span class="num">8</span><div class="body"><div class="text" data-note="item-8" tabindex="0"><b>The copied parts skip three checks.</b> The parts arrive as code copied into the app. That one folder is not held to <i>every line tested</i>, <i>nothing unused</i> and <i>nothing repeated</i>; the screens that use the parts still are. A fault inside a copied part is caught by a screen's test or by the preview, not by a test of its own.</div></div></li>
-<li class="item card" id="item-9"><span class="num">9</span><div class="body"><div class="text" data-note="item-9" tabindex="0"><b>Building takes a little longer.</b> The app gains several building blocks, so the first preview in a new workspace installs more. The build measures the time before and after and reports it.</div></div></li>
+<li class="item card" id="item-6"><span class="num">6</span><div class="body"><div class="text" data-note="item-6" tabindex="0"><b>Connect your assistant becomes a card among your apps.</b> The box that sat above the list on Home is gone. A <i>Connect your assistant</i> card sits in the list, and a click opens the same steps in a popup over the page. It does what it does today, for every signed-in person.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-6-line-1" tabindex="0">  BEFORE                    AFTER</span>
+<span class="ln" data-note="item-6-line-2" tabindex="0">┌────────────────────────┐  ┌────────────────────────┐</span>
+<span class="ln" data-note="item-6-line-3" tabindex="0">│ Connect your assistant │  │ Your apps              │</span>
+<span class="ln" data-note="item-6-line-4" tabindex="0">│ Signed in as …         │  │ ┌────────────────────┐ │</span>
+<span class="ln" data-note="item-6-line-5" tabindex="0">│ [Copy setup prompt]    │  │ │ Hello            → │ │</span>
+<span class="ln" data-note="item-6-line-6" tabindex="0">│                        │  │ └────────────────────┘ │</span>
+<span class="ln" data-note="item-6-line-7" tabindex="0">│ Your apps              │  │ ┌────────────────────┐ │</span>
+<span class="ln" data-note="item-6-line-8" tabindex="0">│ ┌────────────────────┐ │  │ │ +Payroll  No access│ │</span>
+<span class="ln" data-note="item-6-line-9" tabindex="0">│ │ Hello            → │ │  │ └────────────────────┘ │</span>
+<span class="ln" data-note="item-6-line-10" tabindex="0">│ └────────────────────┘ │  │  +Ask your admin for   │</span>
+<span class="ln" data-note="item-6-line-11" tabindex="0">│ (Payroll is hidden)    │  │  +access to Payroll.   │</span>
+<span class="ln" data-note="item-6-line-12" tabindex="0">│                        │  │ ┌────────────────────┐ │</span>
+<span class="ln" data-note="item-6-line-13" tabindex="0">│                        │  │ │ +Connect your      │ │</span>
+<span class="ln" data-note="item-6-line-14" tabindex="0">│                        │  │ │ +assistant        →│ │</span>
+<span class="ln" data-note="item-6-line-15" tabindex="0">│                        │  │ └────────────────────┘ │</span>
+<span class="ln" data-note="item-6-line-16" tabindex="0">│                        │  │                        │</span>
+<span class="ln" data-note="item-6-line-17" tabindex="0">│                        │  │                        │</span>
+<span class="ln" data-note="item-6-line-18" tabindex="0">└────────────────────────┘  └────────────────────────┘</span></pre></div></details><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-6-line-19" tabindex="0">the popup the card opens</span>
+<span class="ln" data-note="item-6-line-20" tabindex="0">┌────────────────────────┐</span>
+<span class="ln" data-note="item-6-line-21" tabindex="0">│ Connect your assistant │</span>
+<span class="ln" data-note="item-6-line-22" tabindex="0">│ Signed in as …         │</span>
+<span class="ln" data-note="item-6-line-23" tabindex="0">│ [Copy setup prompt]    │</span>
+<span class="ln" data-note="item-6-line-24" tabindex="0">│                        │</span>
+<span class="ln" data-note="item-6-line-25" tabindex="0">│                 [Close]│</span>
+<span class="ln" data-note="item-6-line-26" tabindex="0">└────────────────────────┘</span></pre></div></details></li>
+<li class="item card" id="item-7"><span class="num">7</span><div class="body"><div class="text" data-note="item-7" tabindex="0"><b>Apps a person can't use show greyed out.</b> Until now they were hidden. A greyed card is marked <i>No access</i>, opens nothing, and a click says to ask their admin for access. Opening its address directly is still refused. Everyone can now see the name and one-line description of every app.</div></div></li>
+<li class="item card" id="item-8"><span class="num">8</span><div class="body"><div class="text" data-note="item-8" tabindex="0"><b>The copy text stays inside its box.</b> In the first preview the long setup text ran past the edge of the box; it now wraps.</div></div></li>
+<li class="item card" id="item-9"><span class="num">9</span><div class="body"><div class="text" data-note="item-9" tabindex="0"><b>Mini apps the assistant builds from now on use the parts.</b> A new screen is put together from the set. When a screen needs a part the app does not have yet, the assistant adds it in one step. A check stops a screen from bringing a style file of its own, so hand-styling can not creep back.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-9-line-1" tabindex="0">you: &quot;make me a quote form&quot;</span>
+<span class="ln" data-note="item-9-line-2" tabindex="0">        │</span>
+<span class="ln" data-note="item-9-line-3" tabindex="0">        ▼</span>
+<span class="ln" data-note="item-9-line-4" tabindex="0">assistant picks parts ─▶ one missing?</span>
+<span class="ln" data-note="item-9-line-5" tabindex="0">        │                    │ yes</span>
+<span class="ln" data-note="item-9-line-6" tabindex="0">        ▼                    ▼</span>
+<span class="ln" data-note="item-9-line-7" tabindex="0">     preview ◀────────── adds it</span></pre></div></details></li>
+<li class="item card" id="item-10"><span class="num">10</span><div class="body"><div class="text" data-note="item-10" tabindex="0"><b>Installs get it on their next update.</b> The built-in screens switch to the new parts. Each screen an install built for itself is moved onto the parts too: the update's plan names every one, and each shows in the preview before anything is published. What a screen does, its address and its data stay as they are.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-10-line-1" tabindex="0">update ─▶ built-in screens switch</span>
+<span class="ln" data-note="item-10-line-2" tabindex="0">   │</span>
+<span class="ln" data-note="item-10-line-3" tabindex="0">   ▼</span>
+<span class="ln" data-note="item-10-line-4" tabindex="0">own screens ─▶ each moved ─▶ preview</span>
+<span class="ln" data-note="item-10-line-5" tabindex="0">                                │</span>
+<span class="ln" data-note="item-10-line-6" tabindex="0">                                ▼</span>
+<span class="ln" data-note="item-10-line-7" tabindex="0">                             publish</span></pre></div></details></li>
+<li class="item card" id="item-11"><span class="num">11</span><div class="body"><div class="text" data-note="item-11" tabindex="0"><b>The copied parts skip three checks.</b> The parts arrive as code copied into the app. That one folder is not held to <i>every line tested</i>, <i>nothing unused</i> and <i>nothing repeated</i>; the screens that use the parts still are. A fault inside a copied part is caught by a screen's test or by the preview, not by a test of its own.</div></div></li>
+<li class="item card" id="item-12"><span class="num">12</span><div class="body"><div class="text" data-note="item-12" tabindex="0"><b>Building takes a little longer.</b> The app gains several building blocks, so the first preview in a new workspace installs more. The build measures the time before and after and reports it.</div></div></li>
 </ol>
-<p class="aside"><b>Non-goals:</b> Popups for <i>Remove this person?</i> and <i>Leave without saving?</i>, or a <i>Saved</i> note in the corner. A switch for light and dark, new colours, or a new logo. A change to what Access does, to who can sign in, or to any data. The public landing site and the plan review page. A list of parts added ahead of need: a part arrives when a screen first uses it.</p>
+<p class="aside"><b>Non-goals:</b> <i>Connect your assistant</i> installing the project on a person's device, with access to the code following their app login: that gets its own plan right after this one. Popups for <i>Remove this person?</i> and <i>Leave without saving?</i>, or a <i>Saved</i> note in the corner. A switch for light and dark, new colours, or a new logo. A change to what Access does, to who can sign in, or to any data. The public landing site and the plan review page. A list of parts added ahead of need: a part arrives when a screen first uses it.</p>
 
 </section>
 <section id="decisions" aria-labelledby="decisions-h"><h2 id="decisions-h">Decisions</h2>
@@ -191,6 +220,21 @@
 <li class="decision card" id="decision-26" data-note="decision-26" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-05</p>Build: two mentions outside the plan's list changed with the removed stylesheet: the example address in <code>wiki/stack/cloudflare-access.md</code> now probes <code>/favicon.svg</code>, and a sample asset path in <code>app/worker/index.test.ts</code> no longer names <code>style.css</code>.</li>
 <li class="decision card" id="decision-27" data-note="decision-27" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-10-05</p>Check: <code>app/tsconfig.app.json</code> and <code>app/tsconfig.json</code> add the <code>@/</code> path alias the ready-made parts import by and the shadcn command reads, because the parts arrive written that way; no type check is switched off or eased.</li>
 <li class="decision card" id="decision-28" data-note="decision-28" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-05</p>Save: every screen is built on the parts and the local checks pass; left are the preview walk in light and dark at two widths (task 6.2) and re-recording the three kept Access checks.</li>
+<li class="decision card" id="decision-29" data-note="decision-29" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-05</p>Preview walk: passed at a computer and a phone width, in light and dark, for Home, Hello, the four Access views, a person's page, the menu by mouse and keyboard, the popup, a removal question and a role pick with undo. Not shown on the preview: the loaded <i>Connect your assistant</i> prompt (the preview refuses it to the checker; code tests cover it), a click on <i>Sign out</i>, and an install updating. The three kept Access checks are re-recorded at publish, where kept checks run.</li>
+<li class="decision card" id="decision-30" data-note="decision-30" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-05</p>Asked, after seeing the preview, for <i>Connect your assistant</i> as a card among the apps that opens a popup, and for something a person lacks to show greyed with a warning to ask their admin.</li>
+<li class="decision card" id="decision-31" data-note="decision-31" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-05</p>Asked what a person sees for what they lack on Home → chose greyed for apps too, knowing everyone then sees every app's name.</li>
+<li class="decision card" id="decision-32" data-note="decision-32" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-05</p>Asked how to handle <i>Connect your assistant</i> installing the project with code access by app login, which is not what it does today → chose its own plan next; here it keeps linking an assistant to a person's apps, for every signed-in person.</li>
+<li class="decision card" id="decision-33" data-note="decision-33" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-05</p>Assumed: the Connect card is never greyed in this change, because today every signed-in person may connect and who gets the code is decided in the next plan.</li>
+<li class="decision card" id="decision-34" data-note="decision-34" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-05</p>Assumed: the Connect card sits last in the list, because it is used about once per person and the apps are used daily.</li>
+<li class="decision card" id="decision-35" data-note="decision-35" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-05</p>Assumed: a greyed card's message shows under that card and stays until another is picked, because a popup for one sentence is heavier than the sentence.</li>
+<li class="decision card" id="decision-36" data-note="decision-36" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-05</p>Assumed: Access keeps its own <i>Connect your assistant</i> button for whoever manages it, because he approved it there earlier today and asked only about Home.</li>
+<li class="decision card" id="decision-37" data-note="decision-37" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-05</p>Assumed: nothing is greyed before per-app permissions start, because everyone holds every app until then.</li>
+<li class="decision card" id="decision-38" data-note="decision-38" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-05</p>Preview: the setup text ran past its box on the first preview; fixed by keeping the text area at the box's width.</li>
+<li class="decision card" id="decision-39" data-note="decision-39" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-05</p>Build: the Home changes are written and the local checks pass; the new copy-text test fails with the fixed-size class removed. The practice data needed no change: Eli already holds the tip calculator and lacks Hello. Left is the preview walk (task 8.2).</li>
+<li class="decision card" id="decision-40" data-note="decision-40" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-05</p>Assumed: the Connect card's one line reads <i>Use your apps from your own assistant.</i>, because a card needs a description like its neighbours and the plan gave none.</li>
+<li class="decision card" id="decision-41" data-note="decision-41" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-05</p>Assumed: the employer's list stays as it was, with an app outside the catalogue left off, not greyed, because greying was chosen for what an employee lacks.</li>
+<li class="decision card" id="decision-42" data-note="decision-42" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-05</p>Build: three cases in Access's own test file that draw Home changed with it: the setup box gave way to the Connect card, and a lacked app is a greyed card, not a missing one.</li>
+<li class="decision card" id="decision-43" data-note="decision-43" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-05</p>Save: the Connect card, the greyed apps and the copy-text fix are built and the local checks pass; left is the preview walk of Home (task 8.2).</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

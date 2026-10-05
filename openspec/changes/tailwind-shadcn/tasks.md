@@ -39,4 +39,17 @@
 ## 6. Verification
 
 - [x] 6.1 Run `npm test` in `app/` and `node .github/scripts/checks.mjs --worktree`; fix what fails. Record the after times for `npm ci`, `npm run build:app` and `npm test` beside the before times in the Decision log.
-- [ ] 6.2 `/save`, then walk the preview at a computer and a phone width, in light and dark: Home, Hello, the four Access views, a person's page, a role change with undo, the `⋯` menu by mouse and by keyboard, the connect popup, a removal question, and *Sign out*. Re-record the kept checks whose screens changed. Verify no screen scrolls sideways and nothing is unreadable in either mode.
+- [x] 6.2 `/save`, then walk the preview at a computer and a phone width, in light and dark: Home, Hello, the four Access views, a person's page, a role change with undo, the `⋯` menu by mouse and by keyboard, the connect popup, a removal question, and *Sign out*. Re-record the kept checks whose screens changed. Verify no screen scrolls sideways and nothing is unreadable in either mode.
+
+## 7. Home: the Connect card and greyed apps
+
+- [x] 7.1 Move the popup wrapper to `app/src/components/ConnectDialog.tsx`, taking its trigger as a child; Access's `Connect.tsx` passes its button. Verify the popup cases in `access/App.test.tsx` pass unchanged.
+- [x] 7.2 In `AppList.tsx` and `Home.tsx`: remove the setup box from Home; add the Connect card last in the list, opening the popup; show each app an employee lacks as a greyed, focusable card with a *No access* badge whose click shows *Ask your admin for access to <title>.* under it and navigates nowhere. Keep the contact-your-employer line for an employee with no business apps and the first-request text when no apps are built. Update `AppList.test.tsx` and `Home.test.tsx`: held and lacked apps, the message on click and by keyboard, nothing greyed in the `legacy` and `not_started` states or for the owner, the Connect card opening and closing the popup, the loading and error states still withholding the list.
+- [x] 7.3 Add a test beside `CopyText` or `AssistantSetup` that the text area carries the fixed-size class and its wrappers can shrink, for the overflow fixed after the first preview (the fix itself is already in `CopyText.tsx` and `AssistantSetup.tsx`). Verify it fails with the class removed.
+- [x] 7.4 Update `wiki/stack/mini-apps.md` (*The home page lists the apps*: greyed cards, the Connect card, no box) and `wiki/stack/employee-access.md` where it says Home keeps its box; extend the `CHANGELOG.md` entry with the two Home changes. Verify with `node .github/scripts/checks.mjs --worktree`.
+- [x] 7.5 Check `schema/seed.sql` gives a preview an employee who holds one app and lacks another; it does while Eli holds only the tip calculator. Verify with the seed's test.
+
+## 8. Verification of the Home changes
+
+- [x] 8.1 Run `npm test` in `app/` and `node .github/scripts/checks.mjs --worktree`; fix what fails.
+- [ ] 8.2 `/save`, then walk the preview at a computer and a phone width, light and dark: Home's list, the Connect card and its popup with the text inside its box, and a greyed card's message if the checker's sign-in can show one; name what it can't show.

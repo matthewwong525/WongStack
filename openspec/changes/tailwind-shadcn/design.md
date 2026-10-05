@@ -101,6 +101,20 @@ Radix parts use pointer capture, `scrollIntoView` and `ResizeObserver`, which js
 
 `AppList` cards and the welcome box become `Card`; `AssistantSetup` a `Card`; `CopyText` a `Button` with a `Textarea` fallback; Hello a `Card` with `Label`, `Input`, `Button`; `NotFound` a `Button` link. `tips` is source-only but builds in the same app, so it moves too. Each keeps its words, roles and test queries; class-name queries in tests change to role or text queries.
 
+### Home: a Connect card and greyed apps
+
+Added after the first preview. `Home.tsx` stops rendering `AssistantSetup` as a box. `AppList.tsx` takes every built app plus the set the person holds:
+
+- **An app they hold** is the link card it is today.
+- **An app they lack** (only in the `current` state, for an employee) is a `<button aria-disabled="true">` card with muted text and a *No access* badge, so it is reachable by keyboard and not marked by colour alone. A click sets which card was asked for; under it a `role="status"` line reads *Ask your admin for access to <title>.* No request is sent and no navigation happens. The server's refusal of a direct visit is unchanged; this is display only, from manifests the build already ships to every browser.
+- **The Connect card** is last in the list for every signed-in person, a `<button>` card that opens `Dialog` with `<AssistantSetup popup />`, the same content Access's popup shows. The dialog wrapper moves from `apps/access/Connect.tsx` to `components/ConnectDialog.tsx` taking its trigger as a child, since a second page now uses it; Access passes its outline button, Home its card.
+- **An employee with no business apps** keeps the contact-your-employer line above the greyed cards; its *Open your assistant setup* link gives way to the Connect card.
+- **No apps built** keeps the first-request text, with the Connect card under it.
+
+`CopyText`'s text area is held to its container: `field-sizing-fixed`, `min-w-0` on its wrappers, and a single `minmax(0,1fr)` column in `AssistantSetup`. The copied `Textarea` part sizes to its content by default, which let one long line widen it past the card.
+
+*Alternative: ask the server which apps to grey.* Rejected: the browser already has every manifest, and the server keeps deciding what opens.
+
 ### The rule and the example teach it
 
 [`.agents/rules/code.md`](../../../.agents/rules/code.md) *Where things go* changes two bullets:
@@ -134,7 +148,7 @@ Two people. **The owner or a manager**, at a desk and sometimes on a phone, open
 
 ### Flow
 
-Unchanged. Home → an app card. Access → People → pick a role in the row, or `⋯` → *Open*. Edge cases (remove, add back, leave without saving) keep their inline question.
+Home → an app card, as today. Home → the Connect card → the popup → *Copy setup prompt* → *Close*, one step more than the box it replaces, for a job done about once per person. A greyed card → the ask-your-admin line, a dead end by design: the next step is a person's, not the app's. Access → People → pick a role in the row, or `⋯` → *Open*. Edge cases (remove, add back, leave without saving) keep their inline question.
 
 ### Hierarchy
 
@@ -142,7 +156,7 @@ One solid button per screen, as today: *Add person* / *Add role* on a list, the 
 
 ### Review
 
-[review.html](review.html). The What Changes items *Access is restyled on the parts, and nothing moves* and *Three Access pieces change what they are made of* sketch the screen and its changed pieces.
+[review.html](review.html). The What Changes items *Access is restyled on the parts, and nothing moves* and *Three Access pieces change what they are made of* sketch Access; *Connect your assistant becomes a card among your apps* sketches Home before and after, phone-first, with its greyed card and the popup.
 
 ### Components
 
