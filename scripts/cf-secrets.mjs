@@ -51,8 +51,9 @@
  * the files changed may differ until the next `push`.
  *
  * Worker names and ordinary business keys come from config/files. The private
- * Access management name is explicitly production-only. Every repo ships
- * this file byte-for-byte identical.
+ * Access management name is explicitly production-only. The read-only
+ * Cloudflare key is setup-made: refused in every file, expected on both
+ * Workers. Every repo ships this file byte-for-byte identical.
  */
 
 import { execFileSync } from "node:child_process";
@@ -73,6 +74,8 @@ import { parseCli, usageError } from "./lib-cli.mjs";
 const STAGING_ENV = "staging";
 // Setup stores the sign-in list key on the production Worker alone; no file here holds it.
 const PRIVATE_ACCESS = new Set(["WONG_ACCESS_LOGIN_MANAGEMENT"]);
+// Setup stores the read-only Cloudflare key on both Workers; no file here holds it either.
+const SETUP_MADE = "WONG_CLOUDFLARE_READ";
 
 /** The file the Worker's runtime secrets are declared in. */
 const SOURCE = ".dev.vars";
@@ -322,6 +325,9 @@ function push(appDir, override) {
     if (target.env === STAGING_ENV && names.some(name => PRIVATE_ACCESS.has(name))) {
       fail("staging secret source must omit private Access management bindings; create a separate .dev.vars.staging before any push.");
     }
+    if (names.includes(SETUP_MADE)) {
+      fail(`${basename(target.file)} must not declare ${SETUP_MADE}: setup stores it on both Workers. Remove the line and re-run.`);
+    }
     // `secret bulk` takes at most 100 per call. Far beyond any realistic repo,
     // but say so rather than letting a truncated load look like a success.
     if (names.length > 100) {
@@ -522,8 +528,8 @@ function checkSecrets(appDir) {
       }
     }
     for (const name of held) {
-      // Setup stores the Access key itself, so the example file never lists it.
-      if (!declared.includes(name) && !PRIVATE_ACCESS.has(name)) {
+      // Setup stores its two keys itself, so the example file never lists them.
+      if (!declared.includes(name) && !PRIVATE_ACCESS.has(name) && name !== SETUP_MADE) {
         warn(`secret '${name}' is set but not declared in ${EXAMPLE}.`);
       }
     }

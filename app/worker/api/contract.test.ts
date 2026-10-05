@@ -92,6 +92,11 @@ it("rejects mismatched or secret-bearing outputs and sanitizes provider exceptio
     expect(response.status).toBe(500); expect(await response.text()).not.toContain(secret);
   }
   for (const status of [401, 403, 409]) expect((await call(action({ handler: () => new Response(secret, { status }) }))).status).toBe(status);
+  // A setting committed with the code is no secret: an answer may name the owner or the environment.
+  const committed = { SECRET: secret, WONG_OWNER_EMAIL: "owner@example.com", WONG_ENVIRONMENT: "production" } as unknown as AppEnv;
+  const named = await call(action({ handler: () => Response.json({ value: "owner@example.com's production account" }) }), "", {}, identity, committed);
+  expect(named.status).toBe(200);
+  expect((await call(action({ handler: () => Response.json({ value: secret }) }), "", {}, identity, committed)).status).toBe(500);
   expect((await call(action({ handler: () => Response.json({ value: "too long" }), limits: { inputBytes: 100, outputBytes: 2, timeoutMs: 500 } }))).status).toBe(500);
 });
 it("bounds execution time without replaying a possibly completed write", async () => {

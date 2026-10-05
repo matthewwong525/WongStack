@@ -1,7 +1,9 @@
 // The route's contract validates both callers and generates its discovery.
 import { z } from "zod";
 import type { AppCall, AppEnv, AppHandler } from "../apps/index.ts";
-import { authorizeRequest, type RouteAccess } from "../employee-access/policy.ts";
+import { authorizeRequest, listedKeys, type RouteAccess } from "../employee-access/policy.ts";
+import { saved, scopedEnv, type Level } from "../employee-access/key-levels.ts";
+import type { KeyId } from "../keys.ts";
 import { boundedBytes } from "./body.ts";
 
 /** Supported wire input, also used when building an action. @public */
@@ -24,6 +26,8 @@ export type Action = {
   requiresIdentity?: boolean;
   allowed?: (identity: AppCall["identity"]) => boolean;
   ready?: (env: AppEnv) => boolean;
+  /** The saved keys this action uses, from `../keys.ts`. It is handed these and no others. */
+  keys?: readonly KeyId[];
   limits?: { inputBytes: number; outputBytes: number; timeoutMs: number };
 };
 export type Route = AppHandler | Action;
@@ -96,7 +100,33 @@ export function defineAction(action: Action): Action {
   return action;
 }
 
-export function registrations(routes: Map<string, Route>, app = "main", access?: ReadonlyMap<string, RouteAccess>): Registration[] {
+/** What a call needs of each key its route lists. A bare handler has no effect to read, so its method decides. */
+export const needFor = (route: Route, method: string): Level =>
+  (typeof route === "function" ? ["GET", "HEAD"].includes(method) : route.effect === "read") ? "read" : "write";
+
+/** The mapping a route is judged by: an action's own keys come before its app's or its mapping's. */
+function accessFor(route: Route, mapping: RouteAccess | undefined): RouteAccess | undefined {
+  if (!mapping || "kind" in mapping) return mapping;
+  const keys = (typeof route === "function" ? undefined : route.keys) ?? mapping.keys ?? [];
+  return "apps" in mapping ? { apps: mapping.apps, keys } : { keys };
+}
+
+/** A main route's reviewed mapping, or a mini app's folder with the keys its api.ts exports. */
+const mappingFor = (app: string, key: string, access?: ReadonlyMap<string, RouteAccess>, keys?: readonly string[]): RouteAccess | undefined =>
+  app === "main" ? access?.get(key) : { apps: [app], keys };
+
+/** One route's use of saved keys: the apps it serves, none for a key working alone, and the level a call needs. */
+type KeyUse = { apps: readonly string[]; keys: readonly string[]; need: Level };
+
+/** Every route's key use, bare handlers included, so Access shows what the server enforces. */
+export function keyUses(routes: Map<string, Route>, app = "main", access?: ReadonlyMap<string, RouteAccess>, keys?: readonly string[]): KeyUse[] {
+  return [...routes].map(([key, route]) => {
+    const judged = accessFor(route, mappingFor(app, key, access, keys));
+    return { apps: judged && "apps" in judged ? judged.apps : [], keys: listedKeys(judged), need: needFor(route, key.split(" ")[0]) };
+  }).filter(use => use.keys.length);
+}
+
+export function registrations(routes: Map<string, Route>, app = "main", access?: ReadonlyMap<string, RouteAccess>, keys?: readonly string[]): Registration[] {
   const result: Registration[] = [];
   for (const [key, route] of routes) {
     if (typeof route === "function") continue;
@@ -107,7 +137,7 @@ export function registrations(routes: Map<string, Route>, app = "main", access?:
     const path = app === "main" ? match[2] : `/apps/${app}/api/${match[2]}`;
     if (!/^\/(?:api|apps)\/[a-zA-Z0-9/_-]+$/.test(path)) throw new Error(`Invalid route: ${key}`);
     result.push({ method: match[1], path, app, action: defineAction(route),
-      access: app === "main" ? access?.get(key) : { apps: [app] } });
+      access: accessFor(route, mappingFor(app, key, access, keys)) });
   }
   return result;
 }
@@ -147,9 +177,15 @@ async function inputFor(action: Action, request: Request, url: URL, max: number)
   return input;
 }
 
+// Settings setup commits in wrangler.jsonc. Anyone with the code can read them, and an honest answer
+// may name them: an account is often named for its owner's email. Every other text binding is a secret.
+const COMMITTED = new Set(["WONG_ENVIRONMENT", "WONG_OWNER_EMAIL", "WORKSPACE_LOGIN",
+  "CF_ACCESS_TEAM_DOMAIN", "CF_ACCESS_AUD", "CF_ACCESS_APP_ID", "CF_ACCESS_WORKER_ID"]);
+
 export function containsCredential(output: unknown, env: AppEnv): boolean {
   const serialized = JSON.stringify(output);
-  return Object.values(env).some((value: unknown) => typeof value === "string" && value.length >= 8 && serialized.includes(value)) ||
+  return Object.entries(env).some(([name, value]: [string, unknown]) => !COMMITTED.has(name) &&
+    typeof value === "string" && value.length >= 8 && serialized.includes(value)) ||
     /(?:wongm_|wongl_|ghp_|github_pat_|sk-)[A-Za-z0-9_-]{20,}|eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/.test(serialized);
 }
 
@@ -165,7 +201,8 @@ async function failedAction(action: Action, response: Response, env: AppEnv): Pr
   return actionError("internal_error", response.status);
 }
 
-async function execute(action: Action, request: Request, env: AppEnv, call: AppCall, signal: AbortSignal) {
+/** `env` holds only the route's keys; `all` is every binding, so no saved secret can leave in an answer. */
+async function execute(action: Action, request: Request, env: AppEnv, all: AppEnv, call: AppCall, signal: AbortSignal) {
   const limits = action.limits ?? defaults;
   let input: unknown;
   try { input = action.input.parse(await inputFor(action, request, call.url, limits.inputBytes)); }
@@ -175,17 +212,22 @@ async function execute(action: Action, request: Request, env: AppEnv, call: AppC
     const response = await action.handler(request, env, { ...call, input, signal });
     if (!response.ok) {
       // An existing record guard retains its status without forwarding provider diagnostics.
-      return failedAction(action, response, env);
+      return failedAction(action, response, all);
     }
     const output = action.output.parse(JSON.parse(await boundedText(response.body, limits.outputBytes)));
-    if (containsCredential(output, env)) return actionError("internal_error");
+    if (containsCredential(output, all)) return actionError("internal_error");
     return Response.json(output, { status: response.status, headers: { "Cache-Control": "no-store" } });
   } catch { return actionError("internal_error"); }
 }
 
-export async function dispatch(route: Route, request: Request, env: AppEnv, call: AppCall, access?: RouteAccess): Promise<Response> {
-  const denied = await authorizeRequest(env, call.identity, access);
+export async function dispatch(route: Route, request: Request, all: AppEnv, call: AppCall, mapping?: RouteAccess): Promise<Response> {
+  const access = accessFor(route, mapping);
+  const denied = await authorizeRequest(all, call.identity, access, needFor(route, request.method));
   if (denied) return denied;
+  // A handler is handed only the keys its route lists; a listed key that is not saved stops here.
+  const keys = listedKeys(access);
+  if (!keys.every(key => saved(all, key))) return actionError("unavailable");
+  const env = scopedEnv(all, keys);
   if (typeof route === "function") return route(request, env, call);
   if ((route.requiresIdentity !== false || route.ready) && !call.identity) return actionError("authentication_required");
   if (route.allowed && !route.allowed(call.identity)) return actionError("forbidden");
@@ -195,6 +237,6 @@ export async function dispatch(route: Route, request: Request, env: AppEnv, call
   const timeout = new Promise<Response>(resolve => {
     timer = setTimeout(() => { controller.abort(); resolve(actionError("timeout")); }, (route.limits ?? defaults).timeoutMs);
   });
-  try { return await Promise.race([execute(route, request, env, call, controller.signal), timeout]); }
+  try { return await Promise.race([execute(route, request, env, all, call, controller.signal), timeout]); }
   finally { clearTimeout(timer!); }
 }

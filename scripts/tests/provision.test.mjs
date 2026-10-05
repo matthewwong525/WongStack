@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 
 import {
-  ACCESS_KEY, ACCESS_KEY_TODO, CloudflareError, DEPLOY_TOKEN, NORMAL_PROVISION, PROPAGATION, R2_OFF, USER_GRANTS,
+  ACCESS_KEY, ACCESS_KEY_TODO, CLOUDFLARE_READ_KEY, CLOUDFLARE_READ_KEY_TODO, CloudflareError, DEPLOY_TOKEN, NORMAL_PROVISION, PROPAGATION, R2_OFF, USER_GRANTS,
   accounts, cli, cloudflare, names, provision, readEnv, run, safeName, widen, wranglerConfig, wranglerFragment,
 } from '../../.agents/skills/wong-setup/scripts/provision.mjs';
 import { databaseName, parseConfig, stripJsonc, workerName } from '../lib-wrangler-config.mjs';
@@ -104,7 +104,7 @@ test('with --open-without-login an onboarding refusal finishes open; without it,
   assert.equal(config.env.staging.vars.WORKSPACE_LOGIN, 'off');
   // An open site has no sign-in to know an owner by, and no sign-in list to hold a key for.
   assert.deepEqual([config.vars.WONG_OWNER_EMAIL, config.env.staging.vars.WONG_OWNER_EMAIL], ['', '']);
-  assert.equal(report.accessKey, undefined);
+  assert.deepEqual([report.accessKey, report.cloudflareReadKey], [undefined, undefined]);
   assert.deepEqual(env.fake.state.workerSecrets, {});
   assert.equal(config.env.local.vars.WORKSPACE_LOGIN, undefined);
   const again = await env.provision({ openWithoutLogin: true });
@@ -153,7 +153,8 @@ test('a rerun after the card turns an open site private in its committed config'
   // The site is private now, so Access learns its owner and the live app gets its key.
   assert.deepEqual([config.vars.WONG_OWNER_EMAIL, config.env.staging.vars.WONG_OWNER_EMAIL], [EMAIL, EMAIL]);
   assert.ok(report.updated.includes('app/wrangler.jsonc WONG_OWNER_EMAIL'));
-  assert.deepEqual(Object.keys(env.fake.state.workerSecrets), ['recipe-box']);
+  assert.deepEqual(Object.keys(env.fake.state.workerSecrets['recipe-box']), ['WONG_ACCESS_LOGIN_MANAGEMENT', 'WONG_CLOUDFLARE_READ']);
+  assert.deepEqual(Object.keys(env.fake.state.workerSecrets['recipe-box-staging']), ['WONG_CLOUDFLARE_READ']);
 });
 
 test('an open config provisioning cannot edit goes to todo, unchanged', async (t) => {
@@ -523,8 +524,20 @@ test('the group constants match the tables in permission-groups.md', () => {
   const deploy = tableRows('The CI deploy token');
   assert.deepEqual(plain(deploy), DEPLOY_TOKEN.map(({ name, scope, id }) => ({ name, scope, id })));
   assert.deepEqual(deploy.map((row) => row.when === 'always'), DEPLOY_TOKEN.map((row) => row.when === 'always'));
+  assert.deepEqual(plain(tableRows('The read-only look-up key')), CLOUDFLARE_READ_KEY);
   // The fake lists the same ids, so a test run proves the lookup by name.
   for (const row of [...USER_GRANTS, ...NORMAL_PROVISION]) assert.equal(groupId(row.name), row.id, row.name);
+  for (const row of CLOUDFLARE_READ_KEY) assert.equal(GROUPS.find((g) => g.name === row.name && g.scopes[0].endsWith(row.scope)).id, row.id, row.name);
+});
+
+// A group joins the look-up key only by being named, so a product that stores data is never in it.
+test('the read-only look-up key is an allow-list of Read groups, with no product that stores data', () => {
+  assert.equal(new Set(CLOUDFLARE_READ_KEY.map((row) => row.name)).size, 11);
+  for (const { name, scope } of CLOUDFLARE_READ_KEY) {
+    assert.match(name, / Read$/, name);
+    assert.doesNotMatch(name, /D1|KV|R2|Queue|Vectorize|Hyperdrive|Durable Object|Secrets Store|Stream|Images/, name);
+    assert.match(scope, /^(account|zone)$/, name);
+  }
 });
 
 test('the token link on the credentials page asks for exactly the two groups the user grants', () => {
@@ -756,8 +769,8 @@ test('setup records the owner for Access and gives the live app alone its own si
   const key = env.fake.state.accountTokens.find((token) => token.name === 'recipe-box-access');
   assert.deepEqual(key.policies, [{ effect: 'allow', resources: { [`com.cloudflare.api.account.${ACCOUNT}`]: '*' }, permission_groups: [{ id: groupId('Access: Apps and Policies Write') }] }]);
   assert.deepEqual(ACCESS_KEY, [{ name: 'Access: Apps and Policies Write', scope: 'account', id: groupId('Access: Apps and Policies Write') }]);
-  // Production holds the key with the ids the app needs; staging holds nothing.
-  assert.deepEqual(Object.keys(env.fake.state.workerSecrets), ['recipe-box']);
+  // Production holds the key with the ids the app needs; staging never holds it.
+  assert.deepEqual(Object.keys(env.fake.state.workerSecrets['recipe-box-staging']), ['WONG_CLOUDFLARE_READ']);
   assert.deepEqual(JSON.parse(env.fake.state.workerSecrets['recipe-box'].WONG_ACCESS_LOGIN_MANAGEMENT),
     { version: 2, token: env.fake.state.minted[1], accountId: ACCOUNT, policyId: env.record().components.access.humanPolicyId });
   assert.deepEqual(report.accessKey, { status: 'ready', id: key.id });
@@ -783,7 +796,7 @@ test('a rerun reuses the sign-in list key, and an interrupted or lost one is rol
   // The value made before the interruption was never stored and can not be read back, so it is rolled.
   const finished = await env.provision();
   assert.ok(finished.updated.includes('sign-in list key recipe-box-access, stored in the live app only'));
-  assert.equal(stored(), env.fake.state.minted.at(-1));
+  assert.equal(stored(), env.fake.state.minted.at(-2));
   assert.match(stored(), /^deploy-rolled-/);
   const minted = env.fake.state.minted.length;
   const puts = env.fake.count(secretPut);
@@ -795,13 +808,105 @@ test('a rerun reuses the sign-in list key, and an interrupted or lost one is rol
   env.fake.state.workerSecrets = {};
   const restored = await env.provision({ keepConfig: true });
   assert.ok(restored.updated.includes('sign-in list key recipe-box-access, stored in the live app only'));
-  assert.equal(stored(), env.fake.state.minted.at(-1));
+  assert.equal(stored(), env.fake.state.minted.at(-2));
   assert.equal(keys(), 1);
   assert.deepEqual(env.record().components.accessKey, restored.accessKey);
   assertNoSecret(env, JSON.stringify([finished, again, restored]));
 });
 
-test('the access command gives an installed repo its owner email and key, and names the step left when the token can not make keys', async (t) => {
+test('setup gives both Workers one read-only key for Cloudflare look-ups, made from the allow-list alone', async (t) => {
+  const env = await setup(t);
+  const report = await env.provision();
+  const key = env.fake.state.accountTokens.find((token) => token.name === 'recipe-box-cloudflare-read');
+  const ids = (scope) => CLOUDFLARE_READ_KEY.filter((row) => row.scope === scope).map(({ id }) => ({ id }));
+  // Two policies: the account groups on this account, the zone groups on every zone in it. Nothing else.
+  assert.deepEqual(key.policies, [
+    { effect: 'allow', resources: { [`com.cloudflare.api.account.${ACCOUNT}`]: '*' }, permission_groups: ids('account') },
+    { effect: 'allow', resources: { [`com.cloudflare.api.account.${ACCOUNT}`]: { 'com.cloudflare.api.account.zone.*': '*' } }, permission_groups: ids('zone') },
+  ]);
+  assert.deepEqual([ids('account').length, ids('zone').length], [8, 3]);
+  // Both Workers hold the one value with the account id; the user token is in neither.
+  for (const worker of ['recipe-box', 'recipe-box-staging']) {
+    assert.deepEqual(JSON.parse(env.fake.state.workerSecrets[worker].WONG_CLOUDFLARE_READ), { version: 1, token: env.fake.state.minted[2], accountId: ACCOUNT });
+  }
+  assert.ok(!JSON.stringify(env.fake.state.workerSecrets).includes(TOKEN));
+  assert.deepEqual(report.cloudflareReadKey, { status: 'ready', id: key.id });
+  assert.deepEqual(env.record().components.cloudflareReadKey, report.cloudflareReadKey);
+  assert.ok(report.created.includes('read-only Cloudflare key recipe-box-cloudflare-read, stored in both Workers'));
+  assert.deepEqual(report.todo, []);
+  assertNoSecret(env, JSON.stringify(report));
+});
+
+test('a rerun reuses the read-only key, and one a Worker lacks is rolled onto both, never duplicated', async (t) => {
+  const env = await setup(t);
+  const stored = () => ['recipe-box', 'recipe-box-staging'].map((worker) => JSON.parse(env.fake.state.workerSecrets[worker].WONG_CLOUDFLARE_READ).token);
+  const keys = () => env.fake.state.accountTokens.filter((token) => token.name === 'recipe-box-cloudflare-read').length;
+  // A run that stops between the two Workers leaves production a value staging never got.
+  env.fake.state.refuse = [`PUT /accounts/${ACCOUNT}/workers/scripts/recipe-box-staging/secrets`];
+  await assert.rejects(env.provision(), { reason: 'cloudflare' });
+  assert.equal(env.fake.state.workerSecrets['recipe-box-staging'], undefined);
+  env.fake.state.refuse = [];
+  const finished = await env.provision();
+  assert.ok(finished.updated.includes('read-only Cloudflare key recipe-box-cloudflare-read, stored in both Workers'));
+  assert.match(env.fake.state.minted.at(-1), /^deploy-rolled-/);
+  assert.deepEqual(stored(), [env.fake.state.minted.at(-1), env.fake.state.minted.at(-1)]);
+  const minted = env.fake.state.minted.length;
+  const again = await env.provision();
+  assert.ok(again.reused.includes('read-only Cloudflare key recipe-box-cloudflare-read'));
+  assert.deepEqual([again.created, again.updated, again.todo], [[], [], []]);
+  assert.deepEqual([env.fake.state.minted.length, keys()], [minted, 1]);
+  // A secret gone from either Worker rolls the one key; the sign-in list key is left as it is.
+  delete env.fake.state.workerSecrets['recipe-box-staging'].WONG_CLOUDFLARE_READ;
+  const restored = await env.provision({ keepConfig: true });
+  assert.ok(restored.reused.includes('sign-in list key recipe-box-access'));
+  assert.equal(env.fake.state.minted.length, minted + 1);
+  assert.deepEqual(stored(), [env.fake.state.minted.at(-1), env.fake.state.minted.at(-1)]);
+  assert.equal(keys(), 1);
+  assert.deepEqual(env.record().components.cloudflareReadKey, restored.cloudflareReadKey);
+  assertNoSecret(env, JSON.stringify([finished, again, restored]));
+});
+
+test('a token that can not make the read-only key leaves it missing, names the step left, and stops nothing else', async (t) => {
+  const env = await setup(t);
+  const refused = async (url, options) => (options.method === 'POST' && String(options.body).includes('"recipe-box-cloudflare-read"')
+    ? new Response(JSON.stringify({ success: false, errors: [{ code: 9109 }] }), { status: 403 })
+    : fetch(url, options));
+  const report = await env.provision({ fetch: refused });
+  assert.deepEqual(report.cloudflareReadKey, { status: 'missing' });
+  assert.deepEqual(report.todo, [CLOUDFLARE_READ_KEY_TODO]);
+  assert.match(CLOUDFLARE_READ_KEY_TODO, /^the app has no read-only Cloudflare key for look-ups, because the saved Cloudflare token can not make keys/);
+  assert.deepEqual(env.record().components.cloudflareReadKey, { status: 'missing' });
+  // The rest of setup finished: the sign-in list key is ready, and neither Worker holds a look-up key.
+  assert.equal(report.accessKey.status, 'ready');
+  assert.equal(report.urls.production, 'https://recipe-box.ada.workers.dev');
+  assert.deepEqual(env.fake.state.workerSecrets, { 'recipe-box': { WONG_ACCESS_LOGIN_MANAGEMENT: env.fake.state.workerSecrets['recipe-box'].WONG_ACCESS_LOGIN_MANAGEMENT } });
+  assert.equal(env.fake.state.accountTokens.length, 2);
+  const ready = await env.provision();
+  assert.equal(ready.cloudflareReadKey.status, 'ready');
+  assert.deepEqual(ready.todo, []);
+  assert.ok(ready.created.includes('read-only Cloudflare key recipe-box-cloudflare-read, stored in both Workers'));
+  assertNoSecret(env, JSON.stringify([report, ready]));
+});
+
+test('a look-up group Cloudflare no longer lists stops the read-only key by name, and no key is made', async (t) => {
+  const env = await setup(t);
+  for (const [gone, scope] of [['Billing Read', 'account'], ['DNS Read', 'zone']]) {
+    const fetchWithout = async (url, init) => {
+      const response = await fetch(url, init);
+      if (!url.includes('permission_groups')) return response;
+      const data = await response.json();
+      return new Response(JSON.stringify({ ...data, result: data.result.filter((g) => g.name !== gone) }));
+    };
+    await assert.rejects(env.provision({ fetch: fetchWithout }), { reason: 'token', message: `Cloudflare lists no ${scope} permission group named ${gone}` });
+    // Neither a narrower nor a wider key: none at all.
+    assert.deepEqual(env.fake.state.accountTokens.map((token) => token.name), ['recipe-box-deploy', 'recipe-box-access']);
+    assert.equal(env.fake.state.workerSecrets['recipe-box'].WONG_CLOUDFLARE_READ, undefined);
+    assert.equal(env.fake.state.workerSecrets['recipe-box-staging'], undefined);
+  }
+  assert.equal((await env.provision()).cloudflareReadKey.status, 'ready');
+});
+
+test('the access command gives an installed repo its owner email and both keys, and names the steps left when the token can not make keys', async (t) => {
   const env = await setup(t);
   const run = async () => {
     const lines = [];
@@ -819,32 +924,40 @@ test('the access command gives an installed repo its owner email and key, and na
   writeFileSync(file, readFileSync(file, 'utf8').replace(/^[ \t]*"WONG_OWNER_EMAIL".*\n/gm, ''));
   const record = env.record();
   delete record.components.accessKey;
+  delete record.components.cloudflareReadKey;
   writeFileSync(join(env.dir, '.claude/.wong-stack.json'), `${JSON.stringify(record, null, 2)}\n`);
-  env.fake.state.accountTokens = env.fake.state.accountTokens.filter((token) => token.name !== 'recipe-box-access');
+  env.fake.state.accountTokens = env.fake.state.accountTokens.filter((token) => token.name === 'recipe-box-deploy');
   env.fake.state.workerSecrets = {};
   env.fake.state.forbidTokens = true;
   const missing = await run();
   assert.equal(missing.code, 0, 'a token that can not make keys stops nothing');
-  assert.deepEqual(missing.report.accessKey, { status: 'missing' });
-  assert.deepEqual(missing.report.todo, [ACCESS_KEY_TODO]);
-  assert.match(ACCESS_KEY_TODO, /wiki\/development\/secrets\.md#receive-a-key-through-a-private-link/);
+  assert.deepEqual([missing.report.accessKey, missing.report.cloudflareReadKey], [{ status: 'missing' }, { status: 'missing' }]);
+  assert.deepEqual(missing.report.todo, [ACCESS_KEY_TODO, CLOUDFLARE_READ_KEY_TODO]);
+  for (const todo of missing.report.todo) assert.match(todo, /wiki\/development\/secrets\.md#receive-a-key-through-a-private-link.*`provision\.mjs access`/);
   assert.deepEqual(env.fake.state.workerSecrets, {});
   // The owner email does not wait for the key: Access opens and names the one step left.
   assert.deepEqual([env.config().vars.WONG_OWNER_EMAIL, env.config().env.staging.vars.WONG_OWNER_EMAIL, env.config().env.local.vars.WONG_OWNER_EMAIL], [EMAIL, EMAIL, undefined]);
   assert.ok(missing.report.updated.includes('app/wrangler.jsonc WONG_OWNER_EMAIL'));
   assert.match(readFileSync(file, 'utf8'), /\/\/ Session memory, production only/, 'the config keeps its comments');
-  assert.deepEqual(env.record().components.accessKey, { status: 'missing' });
+  assert.deepEqual([env.record().components.accessKey, env.record().components.cloudflareReadKey], [{ status: 'missing' }, { status: 'missing' }]);
   env.fake.state.forbidTokens = false;
   const ready = await run();
   assert.equal(ready.code, 0);
   assert.equal(ready.report.accessKey.status, 'ready');
   assert.deepEqual(ready.report.todo, []);
-  assert.deepEqual(Object.keys(env.fake.state.workerSecrets), ['recipe-box']);
+  assert.deepEqual(Object.keys(env.fake.state.workerSecrets['recipe-box']), ['WONG_ACCESS_LOGIN_MANAGEMENT', 'WONG_CLOUDFLARE_READ']);
   assert.deepEqual(env.record().components.accessKey, ready.report.accessKey);
+  // The same step setup runs: one read-only key, made from the live group list, on both Workers.
+  const readKey = env.fake.state.accountTokens.find((token) => token.name === 'recipe-box-cloudflare-read');
+  assert.deepEqual(readKey.policies.map((policy) => policy.permission_groups.length), [8, 3]);
+  assert.deepEqual(ready.report.cloudflareReadKey, { status: 'ready', id: readKey.id });
+  assert.deepEqual(env.record().components.cloudflareReadKey, ready.report.cloudflareReadKey);
+  assert.deepEqual(JSON.parse(env.fake.state.workerSecrets['recipe-box-staging'].WONG_CLOUDFLARE_READ), { version: 1, token: env.fake.state.minted.at(-1), accountId: ACCOUNT });
+  assert.equal(env.fake.state.workerSecrets['recipe-box'].WONG_CLOUDFLARE_READ, env.fake.state.workerSecrets['recipe-box-staging'].WONG_CLOUDFLARE_READ);
   // It makes nothing else, and a second run reuses the key.
   const calls = env.fake.calls.length;
   const again = await run();
-  assert.deepEqual([again.report.created, again.report.updated, again.report.reused], [[], [], ['sign-in list key recipe-box-access']]);
+  assert.deepEqual([again.report.created, again.report.updated, again.report.reused], [[], [], ['sign-in list key recipe-box-access', 'read-only Cloudflare key recipe-box-cloudflare-read']]);
   assert.ok(env.fake.calls.slice(calls).every((call) => call.method === 'GET'));
   assert.equal(env.fake.state.databases.length, 3);
   assertNoSecret(env, none.text, missing.text, ready.text, again.text);
@@ -910,7 +1023,7 @@ test('a second run creates nothing, keeps the key, and leaves the secrets alone'
   assert.equal(readEnv(join(env.dir, '.env')).CLOUDFLARE_MEMORY_TOKEN, key);
   assert.equal(readFileSync(join(env.dir, 'app/wrangler.jsonc'), 'utf8'), config);
   assert.equal(env.gh.calls().slice(calls.length), `secret list -R ${REPO}\n`);
-  assert.equal(env.fake.state.minted.length, 2, 'the deploy token and the sign-in list key, each made once');
+  assert.equal(env.fake.state.minted.length, 3, 'the deploy token, the sign-in list key and the read-only key, each made once');
 });
 
 // A run that stops at each step, then runs again, ends with one of everything.
@@ -932,11 +1045,12 @@ for (const [where, refuse] of [
     await env.provision();
     assert.equal(env.fake.state.databases.length, 3);
     assert.deepEqual(env.fake.state.buckets, ['recipe-box-memory']);
-    assert.deepEqual(env.fake.state.accountTokens.map((token) => token.name), ['recipe-box-deploy', 'recipe-box-access']);
+    assert.deepEqual(env.fake.state.accountTokens.map((token) => token.name), ['recipe-box-deploy', 'recipe-box-access', 'recipe-box-cloudflare-read']);
     assert.equal(env.fake.rows('recipe-box-memory', 'SELECT count(*) AS n FROM memory_keys')[0].n, 1);
-    // The sign-in list key is minted last and goes to the live app, never to GitHub.
-    assert.equal(env.gh.secrets().CLOUDFLARE_API_TOKEN, env.fake.state.minted.at(-2));
-    assert.equal(JSON.parse(env.fake.state.workerSecrets['recipe-box'].WONG_ACCESS_LOGIN_MANAGEMENT).token, env.fake.state.minted.at(-1));
+    // The app's two keys are minted last and go to the Workers, never to GitHub.
+    assert.equal(env.gh.secrets().CLOUDFLARE_API_TOKEN, env.fake.state.minted.at(-3));
+    assert.equal(JSON.parse(env.fake.state.workerSecrets['recipe-box'].WONG_ACCESS_LOGIN_MANAGEMENT).token, env.fake.state.minted.at(-2));
+    assert.equal(JSON.parse(env.fake.state.workerSecrets['recipe-box-staging'].WONG_CLOUDFLARE_READ).token, env.fake.state.minted.at(-1));
     assert.ok(env.config().name);
   });
 }
@@ -954,7 +1068,7 @@ test('a store with no bucket, on an account that now has R2, gets one, in the re
   const [deploy] = env.fake.state.accountTokens;
   assert.ok(deploy.policies[0].permission_groups.some((g) => g.id === groupId('Workers R2 Storage Write')));
   assert.ok(report.updated.includes('deploy token recipe-box-deploy: Workers R2 Storage Write'));
-  assert.equal(env.fake.state.minted.length, 2, 'the secret stays; only the policy changes');
+  assert.equal(env.fake.state.minted.length, 3, 'the secret stays; only the policy changes');
   assert.equal(readEnv(join(env.dir, '.env')).CLOUDFLARE_MEMORY_TOKEN, key);
 });
 

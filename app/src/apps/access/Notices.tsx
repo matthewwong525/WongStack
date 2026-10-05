@@ -11,11 +11,17 @@ export function FinishStep({ children }: { children: ReactNode }) {
   </div>
 }
 
-// The states beside the people list: a preview, a missing key, a failed first read, the first open.
-export function Notices({ status, onRetry }: { status: Status; onRetry: () => void }) {
-  const live = status.environment === 'live'
+/** Above every owner screen: a preview's practice list, and the first open after key levels start. */
+export function Banners({ status }: { status: Status }) {
   return <>
-    {!live && <p className="access-notice"><strong>Practice list.</strong> Changes here stay on previews. The real sign-in list is not touched.</p>}
+    {status.environment !== 'live' && <p className="access-notice"><strong>Practice list.</strong> Changes here stay on previews. The real sign-in list is not touched.</p>}
+    {status.kept > 0 && <p className="access-notice"><strong>Key levels are on.</strong> Everyone kept what their apps already use. Lower a level any time.</p>}
+  </>
+}
+
+// The states beside the people list: a missing key, a failed first read, the first open.
+export function Notices({ status, onRetry }: { status: Status; onRetry: () => void }) {
+  return <>
     {status.key === 'missing' && <FinishStep><strong>One step left.</strong> You can choose apps now. To let new people sign in, ask your assistant:</FinishStep>}
     {status.key === 'ready' && !status.started && <div className="access-notice">
       <p>The sign-in list could not be read yet. Everyone keeps every app until it can.</p>

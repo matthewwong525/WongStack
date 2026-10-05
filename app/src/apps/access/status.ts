@@ -1,16 +1,17 @@
 import type { Person, Status } from '../../lib/access'
 import { appTitle } from '../../lib/apps'
 
-// What the owner pastes to their assistant when the live app has no key for the sign-in list yet.
-export const FINISH_REQUEST = 'Finish Access setup: give the live app its key for the sign-in list, as wiki/stack/employee-access.md describes.'
+// What the owner pastes to their assistant when a key setup makes is missing: the live app's key for
+// the sign-in list, or the read-only key for Cloudflare look-ups. One step makes both.
+export const FINISH_REQUEST = 'Finish Access setup: run the Access setup step, so the live app has its key for the sign-in list and the read-only key for Cloudflare look-ups, as wiki/stack/employee-access.md describes.'
 
 const live = (status: Status) => status.environment === 'live'
 
-/** A person's apps in a few words. */
-export function appsLine(person: Person, status: Status): string {
-  if (person.apps.length === 0) return 'No apps'
-  if (person.apps.length > 1 && person.apps.length === status.apps.length) return 'All apps'
-  return person.apps.map(appTitle).join(', ')
+/** A person's or a role's apps in a few words. */
+export function appsLine({ apps }: { apps: string[] }, status: Status): string {
+  if (apps.length === 0) return 'No apps'
+  if (apps.length > 1 && apps.length === status.apps.length) return 'All apps'
+  return apps.map(appTitle).join(', ')
 }
 
 /** One sign-in status per person, and whether the sign-in step is still unfinished for them. */

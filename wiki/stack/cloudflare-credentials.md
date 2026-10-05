@@ -79,6 +79,15 @@ CLOUDFLARE_ACCOUNT_ID=
 
 So each credential lives in one place: the user token in the primary worktree's git-ignored `.env`, and the deploy token in GitHub's sealed secret store. To rotate the deploy token, ask your agent; it rolls the value and sets the secret again. You see the token in the dashboard under **Manage Account → Account API Tokens**, where you or a teammate can revoke it. (A repo on the Workers Builds fallback needs no secret: that CI runs inside Cloudflare.)
 
+### The read-only look-up key
+
+Setup also mints `<worker>-cloudflare-read`, the key behind [Cloudflare look-ups](company-api.md#look-things-up-in-cloudflare), and stores it as the secret `WONG_CLOUDFLARE_READ` on the production and staging Workers. It is not the user token, the deploy token or [the sign-in list key](employee-access.md#the-key), and the user token still never reaches a Worker.
+
+- **Read only, and no stored data.** It holds [an allow-list of Read groups](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/permission-groups.md#the-read-only-look-up-key): settings, Workers, builds, logs, usage, sign-in settings and billing on your account, and zone, DNS and analytics on its zones. No Write group is in it, and none for D1, KV, R2, Queues, Vectorize, Hyperdrive, Durable Objects, Secrets Store, Stream or Images. A list of what is allowed, not of what is left out, so a new Cloudflare product that stores data never joins by default.
+- **What it still shows.** Account settings, the emails in sign-in logs and Worker code. Only people the owner gives *Cloudflare: Read* can ask for them.
+- **Setup stores it; no file holds it.** `secrets:push` refuses any `.dev.vars` file that names it, and the install record keeps the key's id under `components.cloudflareReadKey`. An install from before it gets it from [the `access` step](employee-access.md#finish-access-setup). When the saved token can not make keys, that step reports it missing and Access says one step is left.
+- **To rotate it**, delete the `<worker>-cloudflare-read` token in Cloudflare and run the `access` step again.
+
 The session memory store needs no Cloudflare token of its own. Provisioning uses this token to create the store and to write your memory key to `CLOUDFLARE_MEMORY_TOKEN`, which never becomes a GitHub secret. [The memory page](../development/memory-key.md) owns that name and what a key can reach.
 
 ## How two permission rows become enough

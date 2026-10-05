@@ -31,6 +31,16 @@ export const GROUPS = [
   ['Browser Run Write', 'account', 'adddda876faa4a0590f1b23a038976e4'],
   ['Access: Apps and Policies Write', 'account.zone', '959972745952452f8be2452be8cbb9f2'],
   ['D1 Write', 'account.zone', 'zone0000000000000000000000000d1w'],
+  // The rest of the read-only look-up key, with the zone-scoped copy of its one ambiguous name.
+  ['Workers Scripts Read', 'account', '1a71c399035b4950a1bd1466bbe4f420'],
+  ['Workers Tail Read', 'account', '05880cd1bdc24d8bae0be2136972816b'],
+  ['Account Analytics Read', 'account', 'b89a480218d04ceb98b4fe57ca29dc1f'],
+  ['Access: Audit Logs Read', 'account', 'b05b28e839c54467a7d6cba5d3abb5a3'],
+  ['Billing Read', 'account', '7cf72faf220841aabcfdfab81c43c4f6'],
+  ['Zone Read', 'account.zone', 'c8fed203ed3043cba015a93ad1616f1f'],
+  ['DNS Read', 'account.zone', '82e64a83756745bbbb1c9c2701bf816b'],
+  ['Analytics Read', 'account.zone', '9c88f9c5bce24ce7af9a958ba9c504db'],
+  ['Access: Apps and Policies Read', 'account.zone', 'zone00000000000000000000000appsr'],
 ].map(([name, scope, id]) => ({ id, name, scopes: [`com.cloudflare.api.${scope}`] }));
 
 export const groupId = (name) => GROUPS.find((g) => g.name === name && !g.scopes[0].includes('zone')).id;

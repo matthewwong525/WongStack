@@ -43,3 +43,8 @@
 # the production Worker for you: leave it out of this file. `secrets:push`
 # refuses a staging source that names it. See wiki/stack/employee-access.md.
 # WONG_ACCESS_LOGIN_MANAGEMENT=
+
+# The read-only Cloudflare key behind Cloudflare look-ups. Setup makes it and
+# stores it in both Workers for you: leave it out of this file. `secrets:push`
+# refuses any source that names it. See wiki/stack/cloudflare-credentials.md.
+# WONG_CLOUDFLARE_READ=
