@@ -8,7 +8,7 @@ How a person gets WongStack: one pasted prompt runs `/wong-setup` from any folde
 
 ### Requirement: The README offers one prompt to paste
 
-The README SHALL give one copyable prompt that names the WongStack GitHub repository, asks the agent to install it, and includes the raw address of `.agents/skills/wong-setup/SKILL.md` by its real path. The prompt SHALL name no target folder or folder to make first and SHALL work without a discovered setup slash command. The README SHALL send the person to Paseo, running Claude Code or Codex on their own computer, as the place to paste it, with no terminal inside the chat and no cloud-container session. It SHALL say what they need first: a free GitHub account and a free Cloudflare account. Its steps SHALL end with opening the starter site and pasting its first message.
+The README SHALL give one copyable prompt that names the WongStack GitHub repository, asks the agent to install it, and includes the raw address of `.agents/skills/wong-setup/SKILL.md` by its real path. The prompt SHALL name no target folder or folder to make first and SHALL work without a discovered setup slash command. The README SHALL send the person to Claude Code or Codex, running on their own computer, as the place to paste it, with no cloud-container session, and SHALL NOT name any other app as needed. It MAY name Paseo as one optional app to chat in. It SHALL say what they need first: a free GitHub account and a free Cloudflare account. Its steps SHALL end with opening the starter site and pasting its first message.
 
 #### Scenario: A newcomer reads the README
 
@@ -22,7 +22,7 @@ The README SHALL give one copyable prompt that names the WongStack GitHub reposi
 
 ### Requirement: A plain walkthrough covers the whole path
 
-The README SHALL carry the numbered install steps, and no other page SHALL repeat them. The payload's getting-started page SHALL link those steps and say what the README does not: what it costs, a numbered list of every manual step (the agent install, Paseo, GitHub approval, tool installs, conditional Windows administrator approval, Cloudflare signup, the token), and what to do when something goes wrong. It SHALL say setup may install free tools after asking, and SHALL NOT imply a manual step is automated.
+The README SHALL carry the numbered install steps, and no other page SHALL repeat them. The payload's getting-started page SHALL link those steps and say what the README does not: what it costs, a numbered list of every manual step (the agent install, GitHub approval, tool installs, conditional Windows administrator approval, Cloudflare signup, the token), and what to do when something goes wrong. It SHALL say setup may install free tools after asking, and SHALL NOT imply a manual step is automated.
 
 #### Scenario: Reading before starting
 
@@ -36,7 +36,7 @@ The README SHALL carry the numbered install steps, and no other page SHALL repea
 
 ### Requirement: Setup installs into an empty folder it finds or makes
 
-`/wong-setup` SHALL install into the open folder when it is empty, or holds only a `.git` with no commits. A folder with an install record SHALL go to `/wong-sync`. Any other folder SHALL stay untouched: setup SHALL install instead into a new `wongstack` folder in the person's home folder, taking the next free numbered name when one exists with other files, and going to `/wong-sync` when one already holds WongStack. Setup SHALL make that folder without asking, only once it writes its first file, and SHALL say where it is and to open it in Paseo for later chats. The install SHALL always take everything, with no component question.
+`/wong-setup` SHALL install into the open folder when it is empty, or holds only a `.git` with no commits. A folder with an install record SHALL go to `/wong-sync`. Any other folder SHALL stay untouched: setup SHALL install instead into a new `wongstack` folder in the person's home folder, taking the next free numbered name when one exists with other files, and going to `/wong-sync` when one already holds WongStack. Setup SHALL make that folder without asking, only once it writes its first file, and SHALL say where it is and to open it in their assistant for later chats. The install SHALL always take everything, with no component question.
 
 #### Scenario: Empty folder
 
@@ -46,7 +46,7 @@ The README SHALL carry the numbered install steps, and no other page SHALL repea
 #### Scenario: A folder with files
 
 - **WHEN** setup runs in a folder with files and no install record
-- **THEN** it writes nothing in that folder, installs into a new `wongstack` folder in the home folder, and its closing report names that folder and says to open it in Paseo next time
+- **THEN** it writes nothing in that folder, installs into a new `wongstack` folder in the home folder, and its closing report names that folder and says to open it in their assistant next time
 
 ### Requirement: Setup waits for the Cloudflare token
 
@@ -84,20 +84,6 @@ The workflow SHALL assume `main` as the default branch, resolving another name o
 
 - **WHEN** `main` does not exist
 - **THEN** the real default is resolved and used
-
-### Requirement: Setup points the person to Paseo
-
-When getting the computer ready, setup SHALL check whether Paseo is installed. When it is missing, setup SHALL say in plain words what Paseo is for (chatting from the phone, schedules, a workspace per part) and where to get it, then continue; Paseo's absence SHALL NOT stop setup, and setup SHALL NOT install Paseo. When Paseo is present, the closing report SHALL say how to connect a phone.
-
-#### Scenario: Paseo is missing
-
-- **WHEN** setup runs on a computer without Paseo
-- **THEN** it names Paseo, what it is for, and where to get it, and finishes the install
-
-#### Scenario: Paseo is present
-
-- **WHEN** setup finishes on a computer with Paseo
-- **THEN** the closing report says how to pair a phone
 
 ### Requirement: Easy setup honors a chosen source
 
@@ -179,3 +165,17 @@ A completed install SHALL leave the payload in a real `.agents/` folder with `.c
 
 - **WHEN** `/wong-setup` finds Zero Trust needs a payment method
 - **THEN** setup finishes without stopping, and the closing report recommends the card and says what is missing without it
+
+### Requirement: Setup treats no chat app as missing
+
+Setup SHALL NOT report any chat app as missing or needed, SHALL NOT install one, and SHALL finish the same with or without Paseo. Its closing report SHALL say the person can keep chatting wherever their assistant runs. When Paseo is present, the closing report SHALL also say how to connect a phone.
+
+#### Scenario: Paseo is absent
+
+- **WHEN** setup runs on a computer without Paseo
+- **THEN** it finishes the install and names no missing app
+
+#### Scenario: Paseo is present
+
+- **WHEN** setup finishes on a computer with Paseo
+- **THEN** the closing report says how to pair a phone

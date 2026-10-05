@@ -58,7 +58,7 @@ git status --porcelain
 git fetch origin   # a handed-off branch may exist only on the remote
 ```
 
-- Other unpublished work here — a dirty tree, or an active change on this branch other than the one asked for → **don't** switch. Ask: [open the change in a new workspace](../plan/references/new-workspace.md#pick-up-saved-work) *(Recommended when `paseo` is installed)*, `/save` the current work first, or recap it here and stop.
+- Other unpublished work here — a dirty tree, or an active change on this branch other than the one asked for → **don't** switch. Ask: [open the change in a new workspace](../plan/references/new-workspace.md#pick-up-saved-work) *(Recommended)*, `/save` the current work first, or recap it here and stop.
 - Nothing else here → `git checkout "$BRANCH"` (it tracks `origin/$BRANCH` when only remote), or `gh pr checkout <N>`. A Branch line naming a branch that exists neither locally nor remotely → never create it; ask for the right branch or PR as a [structured free-text question](../explore/references/asking-the-user.md#the-anatomy-of-an-ask).
 - Checkout fails because another worktree has the branch → say where, recap, and stop; never force it.
 - Never saved (no branch anywhere) → stay on the current branch; `/save` will cut it.

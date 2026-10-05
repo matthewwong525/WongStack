@@ -11,7 +11,7 @@
 - *"Time each order we pack, and tell me what packing costs us."* Our warehouse team packs every order with the app it built.
 - *"Show our profit for each sales channel, after ads, shipping, and fees."* I check it on my phone every morning before I decide where to spend on ads.
 - *"Make a brief page for our designers."* You read a short plan, get a link to try it, and say publish to put it live.
-- *"Every weekday at 9, list the orders that haven't shipped."* In the [Paseo](https://paseo.sh) app, it runs on a schedule.
+- *"Every weekday at 9, list the orders that haven't shipped."* It runs on a schedule in your Cloudflare account, with your computer off. Schedules need Cloudflare's paid plan, about $5 a month.
 - *"Remember that the ops lead signs off on refunds."* The whole team's chats know it next week.
 - *"Plan my week around Thursday's supplier call."* The business and the rest of your life, in one chat.
 
@@ -19,8 +19,8 @@ It asks before it sends, buys, or deletes anything.
 
 ## Start in three steps
 
-1. **Get Claude Code and Paseo.** [Claude Code](https://code.claude.com/docs/en/setup) is the AI agent; [Codex](https://developers.openai.com/codex/cli) works too. Its install page may open a terminal once, for one command. Then get the free [Paseo](https://paseo.sh) app, where you chat with it.
-2. **Open Paseo and paste this:**
+1. **Get Claude Code.** [Claude Code](https://code.claude.com/docs/en/setup) is the AI agent, and it runs on your own computer; [Codex](https://developers.openai.com/codex/cli) works too. Its install page may open a terminal once, for one command.
+2. **Open it and paste this:**
 
    ```
    Install WongStack from github.com/matthewwong525/WongStack. Read and follow https://raw.githubusercontent.com/matthewwong525/WongStack/refs/heads/main/.agents/skills/wong-setup/SKILL.md
@@ -28,12 +28,12 @@ It asks before it sends, buys, or deletes anything.
 
 3. **Answer a few questions.** The agent installs any free tools it still needs, after asking. You open one [link](wiki/stack/cloudflare-credentials.md#create-the-token) in a [Cloudflare](https://cloudflare.com) account, where your apps run, press Create, and paste the key it shows you. On Mac or Linux, with Cloudflare's paid plan (about $5 a month), your files are kept there too. Otherwise you approve a sign-in code for a free [GitHub](https://github.com/signup) account, where they are kept ([the two ways](wiki/stack/artifacts-route.md)). Then open your site and paste its *Make it yours* message: the assistant gets to know you and makes the page yours.
 
-You end with a working assistant, a starter site online, memory that carries over between chats, and the steps to connect your phone. [Getting started](wiki/stack/getting-started.md) says what it costs, what you do by hand, and what to do when something goes wrong. Paste it in any folder: if it already has files, setup makes a `wongstack` folder in your home folder.
+You end with a working assistant, a starter site online, and memory that carries over between chats. [Getting started](wiki/stack/getting-started.md) says what it costs, what you do by hand, and what to do when something goes wrong. Paste it in any folder: if it already has files, setup makes a `wongstack` folder in your home folder.
 
 ## Where you chat
 
-- **In [Paseo](https://paseo.sh), on your computer and your phone.** It runs Claude Code or Codex on your own computer, so memory, keys, and schedules stay there. Pair your phone once and ask from anywhere. It also runs requests on a schedule, and gives each part of a bigger request its own workspace.
-- **Claude Code or [Codex](https://openai.com/codex) on their own** work too, with full support, including memory.
+- **In Claude Code or [Codex](https://openai.com/codex), in its own app or a terminal.** WongStack runs the same in each, on your own computer, with full support, including memory.
+- **In [Paseo](https://paseo.sh), if you like.** It is an optional app that runs Claude Code or Codex on your computer. Pair your phone once and ask from anywhere, and each part of a bigger request gets a workspace with its own assistant.
 - **Other agents,** such as Cursor, can follow the same steps, because they are plain text files. They get no memory between chats.
 
 ## What you get
@@ -77,7 +77,7 @@ You do not have to type them. Ask for what you want, such as "add a sign-up page
 | `/verify` | Check the preview end to end, as a person would, and post what it saw to the pull request. It blocks nothing. |
 | `/close` | Wrap up a chat: save what it learned to memory and the wiki, keep unfinished work on GitHub, and close its workspace. `close and throw it away` deletes the unfinished work instead. |
 | `/improve [focus]` | Find and ship one useful improvement; focus on an area or desired outcome. `--audit-only` reports findings with no edits. |
-| `/routine <when>: <prompt>` | Run a prompt or command on a schedule. Optional: it needs [Paseo](https://paseo.sh). |
+| `/routine <when>: <prompt>` | Run a prompt or command on a schedule. It runs in your Cloudflare account, with your computer off, and needs Cloudflare's paid plan, about $5 a month ([cloud routines](wiki/stack/cloud-routines.md)). |
 | `/wong-sync` | Get the latest WongStack and plan the update, up to a review page. |
 
 Setup puts the app online on [the Cloudflare stack](wiki/stack/README.md): each change gets a preview link, and a merge deploys it.
@@ -121,7 +121,7 @@ Checked against each project's README in September 2026.
 | [`VERSION`](VERSION), [`CHANGELOG.md`](CHANGELOG.md) | The current release, and what changed in each release. |
 | [`LICENSE`](LICENSE), [`SECURITY.md`](SECURITY.md), [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) | MIT terms, how to report a vulnerability, and community rules. |
 | [`.env.example`](.env.example), [`app/.dev.vars.example`](app/.dev.vars.example) | The names of the local and Worker secrets, with no values. |
-| [`paseo.json`](paseo.json) | Copies `.env` into each new [Paseo](https://paseo.sh) worktree. |
+| [`paseo.json`](paseo.json) | For people who use [Paseo](https://paseo.sh): copies `.env` into each new workspace. It does nothing without Paseo. |
 | [`.nvmrc`](.nvmrc) | The Node.js version. |
 | [`.gitattributes`](.gitattributes), [`.editorconfig`](.editorconfig), [`.gitignore`](.gitignore) | LF line endings, editor basics, and the files git ignores. |
 

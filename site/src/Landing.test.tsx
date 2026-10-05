@@ -171,13 +171,7 @@ it("lists the one optional add-on under the install steps, with what it enables"
       li.querySelector("a")?.getAttribute("href"),
       li.querySelector("p")?.textContent,
     ]),
-  ).toEqual([
-    [
-      "Add Paseo",
-      "https://paseo.sh",
-      "Chat from your phone, run jobs on a schedule, and work on several tasks at once.",
-    ],
-  ]);
+  ).toEqual([["Add Paseo", "https://paseo.sh", "Chat from your phone, and work on several tasks side by side."]]);
   expect(ADD_ONS).toHaveLength(1);
 });
 

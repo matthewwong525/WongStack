@@ -17,10 +17,19 @@
 // primary-checkout scratch files untouched for a day. `sweep --report` prints
 // the last results as one plain line and clears them.
 //
-// Every destructive step checks ownership first: a worktree of this repo, a
-// `wong-` name, this user's process, a working folder that is gone. The primary
-// checkout and the current chat's workspace are never archived. Stamp, lock,
-// and report live in <git-common-dir>/wong-tidy/, shared by every worktree.
+// Without Paseo, a workspace is a worktree workspace.mjs made and marked
+// (lib/host.mjs). There `close` starts no child, because nothing says when a
+// chat in another app has ended: it runs the same saved check, writes
+// `closedAt` in the marker, and the next sweep removes the folder. The sweep's
+// plain pass runs with or without Paseo: it removes each marked worktree that
+// is saved, has none of this user's processes inside, and is closed or 3+ days
+// idle, then deletes its branch when merged at its tip or thrown away.
+//
+// Every destructive step checks ownership first: a worktree of this repo that
+// Paseo lists or WongStack marked, a `wong-` name, this user's process, a
+// working folder that is gone. The primary checkout, the current chat's
+// workspace, and a worktree made by hand are never closed. Stamp, lock, and
+// report live in <git-common-dir>/wong-tidy/, shared by every worktree.
 //
 // Prints one JSON object on stdout (`sweep --report` prints plain text). Exit
 // codes: 0 ok, 2 bad input or refused, 3 Paseo not installed, 4 daemon not
@@ -31,7 +40,7 @@
 // PASEO_HOME moves Paseo's folder (default ~/.paseo), whose `worktrees/` holds
 // the worktrees whose leftover processes may be stopped.
 
-import { execFileSync, spawn } from 'node:child_process';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import {
   appendFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, realpathSync,
   renameSync, rmdirSync, rmSync, statSync, unlinkSync, writeFileSync,
@@ -41,7 +50,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain } from '../../memory/scripts/lib/cli.mjs';
 import { primaryRoot, PrimaryRootError } from '../../memory/scripts/lib/primary-root.mjs';
-import { EXIT, PaseoError, findPaseo, git, paseo, parseCommand } from './lib/paseo.mjs';
+import { CliError, EXIT, git, parseCommand } from './lib/cli.mjs';
+import { plainParent, readMarker, writeMarker } from './lib/host.mjs';
+import { PaseoError, findPaseo, paseo } from './lib/paseo.mjs';
 
 const USAGE = `usage: tidy.mjs scratch [--dry-run]         make .scratch/ here and print its path
        tidy.mjs close [--discard] [--dry-run] close this workspace once this reply ends;
@@ -184,7 +195,7 @@ function here(cwd = process.cwd()) {
   try {
     return primaryRoot(cwd);
   } catch (error) {
-    if (error instanceof PrimaryRootError) throw new PaseoError(EXIT.input, error.message);
+    if (error instanceof PrimaryRootError) throw new CliError(EXIT.input, error.message);
     throw error;
   }
 }
@@ -301,14 +312,49 @@ function stopOrphans({ roots, live, dryRun }) {
   return stopped;
 }
 
+/**
+ * `lsof -Fpn`'s lines → [{ pid, cwd }]: a `p<pid>` line opens a process, an `n<path>` line names its folder.
+ */
+export function lsofCwds(text) {
+  const procs = [];
+  let pid = null;
+  for (const line of String(text ?? '').split('\n')) {
+    if (line.startsWith('p')) pid = Number(line.slice(1));
+    else if (line.startsWith('n') && Number.isInteger(pid)) procs.push({ pid, cwd: line.slice(1) });
+  }
+  return procs;
+}
+
+/**
+ * The working folders of this user's other processes: from /proc, else from `lsof` (a Mac has no
+ * /proc). Null when neither can say, and then nothing that depends on it is removed.
+ */
+function busyFolders() {
+  const self = process.pid;
+  const procs = readProcs();
+  if (procs) return procs.filter(proc => proc.uid === uid() && proc.pid !== self).map(proc => proc.cwd);
+  const result = spawnSync('lsof', ['-a', '-d', 'cwd', '-u', String(uid()), '-Fpn'], {
+    encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 15_000, maxBuffer: 16 * 1024 * 1024,
+  });
+  const listed = lsofCwds(result.stdout);
+  // lsof exits 1 for a folder it could not read and still lists the rest; a list without this process is no list.
+  if (!listed.some(proc => proc.pid === self)) return null;
+  return listed.filter(proc => proc.pid !== self).map(proc => proc.cwd);
+}
+
 function paseoWorktrees(env) {
   return path.join(env.PASEO_HOME || path.join(homedir(), '.paseo'), 'worktrees');
 }
 
+/** Every worktree path git lists for this repo, the primary included. */
+function worktreeDirs(repo) {
+  return (tryGit(repo.primary, 'worktree', 'list', '--porcelain') ?? '')
+    .split('\n').filter(line => line.startsWith('worktree ')).map(line => line.slice('worktree '.length));
+}
+
 /** This repo's worktrees still on disk, and the parent folders of its linked ones under Paseo's worktrees folder. */
 function worktrees(repo, env) {
-  const list = (tryGit(repo.primary, 'worktree', 'list', '--porcelain') ?? '')
-    .split('\n').filter(line => line.startsWith('worktree ')).map(line => line.slice('worktree '.length));
+  const list = worktreeDirs(repo);
   const base = realpath(paseoWorktrees(env));
   const parents = [...new Set(list.filter(dir => dir !== repo.primary)
     .map(dir => path.dirname(realpath(dir))).filter(dir => inside(base, dir) && dir !== base))];
@@ -340,7 +386,12 @@ async function listAgents(bin) {
 
 function scratch({ dryRun }) {
   const root = tryGit(process.cwd(), 'rev-parse', '--show-toplevel');
-  if (!root) throw new PaseoError(EXIT.input, 'Not inside a git checkout.');
+  if (!root) throw new CliError(EXIT.input, 'Not inside a git checkout.');
+  return scratchFolder(root, { dryRun });
+}
+
+/** Makes the git-ignored `.scratch/` at the checkout root `root`; workspace.mjs puts a plain workspace's brief there. */
+export function scratchFolder(root, { dryRun = false } = {}) {
   const dir = path.join(root, '.scratch');
   let excluded = false;
   if (tryGit(root, 'check-ignore', '-q', '.scratch/x') === null) {
@@ -356,7 +407,9 @@ function scratch({ dryRun }) {
   return { ok: true, ...(dryRun ? { dryRun: true } : {}), path: dir, excluded };
 }
 
-const refuse = message => new PaseoError(EXIT.input, message);
+const refuse = (message, extra) => new CliError(EXIT.input, message, extra);
+// `close --dry-run` is how a skill asks whether this folder is a workspace: these two refusals say no.
+const NO_WORKSPACE = { workspace: false };
 
 function refusal(state) {
   if (state.reason === 'unsaved files') return `This workspace has unsaved work: ${state.files.join(', ')}. Save it first.`;
@@ -390,17 +443,39 @@ function throwAway(dir, branch) {
   return { pr, remote, ...(notes.length ? { notes } : {}) };
 }
 
+/**
+ * `close` in a worktree WongStack made without Paseo: marks it closed, and the next sweep removes
+ * it. No child waits for the reply, because nothing says when a chat in another app has ended.
+ */
+function closePlain(root, marker, state, { dryRun, discard, merged }) {
+  const job = {
+    host: 'plain', name: marker.title || path.basename(root), worktree: root, branch: state.branch,
+    deleteBranch: discard || merged, discard,
+  };
+  if (dryRun) return { ok: true, dryRun: true, job };
+  const discarded = discard ? throwAway(root, state.branch) : null;
+  writeMarker(root, { ...marker, closedAt: new Date().toISOString(), ...(discard ? { discarded: true } : {}) });
+  return {
+    ok: true, host: 'plain', name: job.name, branch: job.branch, deleteBranch: job.deleteBranch,
+    ...(discarded ? { discarded } : {}), message: 'This folder goes at the next tidy-up.',
+  };
+}
+
 async function close({ dryRun, discard = false }, env) {
   const repo = here();
-  if (!repo.linked) throw refuse('This is the main checkout, which never closes.');
+  if (!repo.linked) throw refuse('This is the main checkout, which never closes.', NO_WORKSPACE);
   const agentId = env.PASEO_AGENT_ID?.trim();
-  if (!agentId) throw refuse('This chat is not a Paseo agent, so there is no workspace to close.');
+  const marker = agentId ? null : readMarker(repo.root);
+  if (!agentId && !marker) {
+    throw refuse('This chat is not a Paseo agent and WongStack did not make this folder, so there is no workspace to close.', NO_WORKSPACE);
+  }
   const state = worktreeState(repo.root);
   const merged = !discard && mergedAtTip(pullRequest(repo.root, state.branch), state.tip);
   const saved = discard ? { saved: true } : savedState({ ...state, merged });
   if (!saved.saved) throw refuse(refusal(saved));
-  const bin = findPaseo(env, 'TIDY_PASEO_BIN');
   const root = realpath(repo.root);
+  if (marker) return closePlain(root, marker, state, { dryRun, discard, merged });
+  const bin = findPaseo(env, 'TIDY_PASEO_BIN');
   const ws = (await listWorkspaces(bin)).find(item => realpath(item.cwd) === root);
   if (!ws) throw refuse('Paseo has no workspace for this folder.');
   const job = {
@@ -450,18 +525,22 @@ async function closeChild(env) {
   return { ok: true, ...report };
 }
 
-/** Archives this repo's idle, saved workspaces; returns the archived worktree paths. */
+/**
+ * Archives this repo's idle, saved Paseo workspaces. Returns the archived worktree paths, and
+ * `listed`: every folder Paseo lists as a workspace, or null when Paseo is here but could not say.
+ * No Paseo lists nothing, and is no news.
+ */
 async function sweepWorkspaces(repo, env, { now, dryRun, report, notes }) {
   const archived = [];
   let bin;
-  try { bin = findPaseo(env, 'TIDY_PASEO_BIN'); } catch { notes.push('Paseo is not installed: no workspaces checked.'); return archived; }
+  try { bin = findPaseo(env, 'TIDY_PASEO_BIN'); } catch { return { archived, listed: [] }; }
   let workspaces, agents;
   try {
     [workspaces, agents] = [await listWorkspaces(bin), await listAgents(bin)];
   } catch (error) {
     notes.push(`Skipped the workspaces: ${error.message}`);
     if (error.code === EXIT.client) report.notes.push("skipped closing idle workspaces: Paseo's output has changed");
-    return archived;
+    return { archived, listed: null };
   }
   const current = agents.find(agent => agent.id === env.PASEO_AGENT_ID)?.cwd;
   const skip = [realpath(repo.root), current].filter(Boolean);
@@ -494,7 +573,65 @@ async function sweepWorkspaces(repo, env, { now, dryRun, report, notes }) {
       report.left.push({ name, reason: `it could not be closed (${error.message})` });
     }
   }
-  return archived;
+  return { archived, listed: workspaces.map(ws => realpath(ws.cwd)) };
+}
+
+/** When the worktree's HEAD last moved: the newer of its HEAD file and HEAD's log. Undefined when unreadable. */
+function headMovedMs(gitDir) {
+  const times = [];
+  for (const file of ['HEAD', path.join('logs', 'HEAD')]) {
+    try { times.push(statSync(path.join(gitDir, file)).mtimeMs); } catch { /* no such file */ }
+  }
+  return times.length ? Math.max(...times) : undefined;
+}
+
+/** `git worktree remove`, then the branch when asked; a refusal from git is a `left` entry. */
+function removeWorktree(repo, { dir, name, branch, deleteBranch, discarded, closed }, report) {
+  try {
+    git(repo.primary, 'worktree', 'remove', dir);
+  } catch (error) {
+    report.left.push({ name, reason: `it could not be closed (${String(error.stderr ?? error.message).trim().split('\n')[0]})` });
+    return;
+  }
+  report.closed.push(name);
+  if (branch && deleteBranch) {
+    if (tryGit(repo.primary, 'branch', '-D', branch) === null) report.notes.push(`kept the branch ${branch}: git would not delete it`);
+    else if (discarded) report.notes.push(`threw away the branch ${branch}`);
+    else report.branches.push(branch);
+  } else if (branch && closed) {
+    report.notes.push(`kept the branch ${branch}: its pull request did not merge at its last commit`);
+  }
+}
+
+/**
+ * The plain pass: removes each worktree WongStack marked that is saved, holds none of this user's
+ * processes, and is closed or 3+ days idle. It skips this session's worktree, one with no marker,
+ * and one Paseo lists (`listed`; null means Paseo could not say, so every one is left to it).
+ */
+function sweepMarked(repo, { now, dryRun, report, notes, listed }) {
+  if (!listed) return;
+  const current = realpath(repo.root);
+  const primary = realpath(repo.primary);
+  let busy;
+  for (const dir of worktreeDirs(repo).filter(tree => existsSync(tree)).map(realpath)) {
+    if (dir === primary || inside(dir, current) || listed.includes(dir)) continue;
+    const marker = readMarker(dir);
+    if (!marker) continue;
+    const gitDir = tryGit(dir, 'rev-parse', '--path-format=absolute', '--git-dir');
+    const closed = Boolean(marker.closedAt);
+    if (!closed && !isIdle([], now, { fallbackMs: gitDir ? headMovedMs(gitDir) : undefined })) continue;
+    busy ??= busyFolders();
+    if (!busy) { notes.push('Could not list running processes, so no workspace folder was removed.'); return; }
+    if (busy.some(cwd => inside(dir, cwd))) continue;
+    const name = marker.title || path.basename(dir);
+    const discarded = marker.discarded === true;
+    const state = worktreeState(dir);
+    const merged = state.porcelain === '' && mergedAtTip(pullRequest(dir, state.branch), state.tip);
+    if (!savedState({ ...state, merged: merged || discarded }).saved) { report.left.push({ name, reason: 'it has unsaved work' }); continue; }
+    if (dryRun) report.closed.push(name);
+    else removeWorktree(repo, { dir, name, branch: state.branch, deleteBranch: merged || discarded, discarded, closed }, report);
+  }
+  if (!dryRun) { try { rmdirSync(plainParent(repo.primary)); } catch { /* still holds a workspace, or never made */ } }
 }
 
 /** Deletes old `wong-*` entries in the temp folder. */
@@ -550,9 +687,11 @@ async function sweep({ dryRun, report: printReport }, env) {
     if (!dryRun) writeFileSync(stamp, `${new Date(now).toISOString()}\n`);
     const report = emptyReport();
     const notes = [];
-    const archived = await sweepWorkspaces(repo, env, { now, dryRun, report, notes });
+    const { archived, listed } = await sweepWorkspaces(repo, env, { now, dryRun, report, notes });
+    sweepMarked(repo, { now, dryRun, report, notes, listed });
     const trees = worktrees(repo, env);
-    const stopped = stopOrphans({ roots: [...trees.parents, ...archived], live: trees.live.filter(tree => !archived.includes(tree)), dryRun });
+    const roots = [...trees.parents, realpath(plainParent(repo.primary)), ...archived];
+    const stopped = stopOrphans({ roots, live: trees.live.filter(tree => !archived.includes(tree)), dryRun });
     if (stopped === null) notes.push('No /proc here, so leftover processes were not checked.');
     else report.stopped += stopped;
     sweepTemp(tmpdir(), { now, dryRun, report });
@@ -570,7 +709,7 @@ const COMMAND_FLAGS = { close: { '--discard': 'discard' }, sweep: { '--report': 
 function parseArgs(argv) {
   const booleans = { '--dry-run': 'dryRun', ...(Object.hasOwn(COMMAND_FLAGS, argv[0]) ? COMMAND_FLAGS[argv[0]] : {}) };
   const { command, flags } = parseCommand(argv, { booleans, unknown: arg => `Unknown argument ${arg}.\n${USAGE}` });
-  if (!COMMANDS.includes(command)) throw new PaseoError(EXIT.input, `Unknown command "${command}". Use scratch, close, or sweep.`);
+  if (!COMMANDS.includes(command)) throw new CliError(EXIT.input, `Unknown command "${command}". Use scratch, close, or sweep.`);
   return { command, flags };
 }
 
@@ -587,8 +726,8 @@ async function main(argv = process.argv.slice(2), env = process.env) {
     process.stdout.write(`${JSON.stringify(await run[command](), null, 2)}\n`);
     return EXIT.ok;
   } catch (error) {
-    const code = error instanceof PaseoError ? error.code : 1;
-    process.stdout.write(`${JSON.stringify({ ok: false, code, error: error.message }, null, 2)}\n`);
+    const code = error instanceof CliError ? error.code : 1;
+    process.stdout.write(`${JSON.stringify({ ok: false, code, error: error.message, ...error.extra }, null, 2)}\n`);
     return code;
   }
 }

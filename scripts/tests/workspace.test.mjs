@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import {
-  agentSettings, childEnv, parseCreated, renameArgs, runArgs,
+  agentSettings, childEnv, freeName, parseCreated, renameArgs, runArgs, slugOf,
 } from '../../.agents/skills/routine/scripts/workspace.mjs';
 
 const cli = new URL('../../.agents/skills/routine/scripts/workspace.mjs', import.meta.url).pathname;
@@ -33,7 +33,8 @@ function commit(cwd, file) {
 
 // A bare origin, a primary clone "demo" with a linked worktree on an unpublished
 // branch, and a second clone that can publish to origin after the primary cloned.
-function repo(t) {
+// `ignore` is the text of a committed .gitignore.
+function repo(t, { ignore } = {}) {
   const base = tmp(t, 'workspace-repo-');
   const origin = path.join(base, 'origin.git');
   const seed = path.join(base, 'seed');
@@ -41,6 +42,7 @@ function repo(t) {
   execFileSync('git', ['clone', '-q', origin, seed]);
   git(seed, 'config', 'user.email', 'fixture@example.invalid');
   git(seed, 'config', 'user.name', 'Fixture');
+  if (ignore) writeFileSync(path.join(seed, '.gitignore'), ignore);
   commit(seed, 'README.md');
   git(seed, 'push', '-q', 'origin', 'HEAD:main');
   const root = path.join(base, 'demo');
@@ -51,7 +53,34 @@ function repo(t) {
   git(root, 'worktree', 'add', '-q', '-b', 'feature', linked);
   commit(linked, 'unpublished.md');
   const publish = () => { const sha = commit(seed, `later-${Date.now()}.md`); git(seed, 'push', '-q', 'origin', 'HEAD:main'); return sha; };
-  return { root, linked, publish };
+  return { base, root, linked, publish };
+}
+
+const PASTE = 'Read .scratch/brief.md and do what it says.';
+const BRIEF = '/plan Thinner specs\n\nThis is one part of a larger request.';
+
+// A computer without Paseo, whatever the one running the tests has: the override names no command.
+// `paseo`, `claude`, and `codex` are on PATH all the same, each logging its call, so a test can
+// show that opening a folder starts none of them.
+function noPaseo(t, base) {
+  const dir = tmp(t, 'workspace-agents-');
+  const log = path.join(dir, 'started.log');
+  for (const name of ['paseo', 'claude', 'codex']) {
+    writeFileSync(path.join(dir, name), `#!/bin/sh\necho "${name} $*" >> "${log}"\n`);
+    chmodSync(path.join(dir, name), 0o755);
+  }
+  return {
+    started: () => (existsSync(log) ? readFileSync(log, 'utf8') : ''),
+    env: {
+      PATH: `${dir}${path.delimiter}${process.env.PATH}`, WORKSPACE_PASEO_BIN: path.join(base, 'no-paseo'),
+      PASEO_AGENT_ID: '', PASEO_WORKSPACE_ID: '',
+    },
+  };
+}
+
+function markerOf(dir) {
+  const gitDir = git(dir, 'rev-parse', '--path-format=absolute', '--git-dir');
+  return { gitDir, marker: JSON.parse(readFileSync(path.join(gitDir, 'wong-workspace.json'), 'utf8')) };
 }
 
 // A fake `paseo`: `inspect` answers FAKE_INSPECT, `run` prints FAKE_RUN_STDOUT and
@@ -303,15 +332,16 @@ test('Paseo refusing the run is exit 2 with its message', t => {
   assert.equal(r.json.fallback, undefined);
 });
 
-test('no paseo on PATH is exit 3 with the app steps', t => {
-  const { root } = repo(t);
+test('no paseo on PATH opens a ready folder, with no Paseo steps', t => {
+  const { base, root } = repo(t);
   const bare = tmp(t, 'workspace-path-');
   symlinkSync(execFileSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' }).trim(), path.join(bare, 'git'));
   const r = runCli(root, ['open', '--title', 'B', '--brief', brief(t)], { PATH: bare, WORKSPACE_PASEO_BIN: '' });
-  assert.equal(r.status, 3);
-  assert.match(r.json.error, /not installed/);
-  assert.match(r.json.fallback.app, /Paseo app/);
-  assert.match(r.json.fallback.app, /Title: B/);
+  assert.equal(r.status, 0, JSON.stringify(r.json));
+  assert.equal(r.json.host, 'plain');
+  assert.equal(r.json.path, path.join(base, 'demo-workspaces', 'b'));
+  assert.equal(r.json.fallback, undefined);
+  assert.ok(existsSync(path.join(r.json.path, 'README.md')));
 });
 
 test('a daemon that does not answer is exit 4 and opens nothing', t => {
@@ -349,4 +379,127 @@ test('a repo with no main asks gh for the default branch', t => {
   assert.match(r.json.warning, /Could not fetch origin\/trunk/);
   writeFileSync(path.join(bin, 'gh'), '#!/bin/sh\nexit 1\n');
   assert.equal(runCli(base, ['open', '--title', 'B', '--brief', brief(t)], env).status, 2);
+});
+
+// ---------------------------------------------------------------------------
+// Without Paseo: a ready folder the person opens
+
+test('a title becomes a folder and branch name, and a taken one counts up', () => {
+  assert.equal(slugOf('Thinner specs'), 'thinner-specs');
+  assert.equal(slugOf('  Docs, specs & checks: cleanup!  '), 'docs-specs-checks-cleanup');
+  assert.equal(slugOf('feat/auth'), 'feat-auth');
+  assert.equal(slugOf('???'), 'workspace');
+  const long = slugOf('a very long title that goes on and on and on past the limit');
+  assert.ok(long.length <= 40 && !long.endsWith('-'), long);
+  assert.equal(freeName('b', () => false), 'b');
+  assert.equal(freeName('b', name => ['b', 'b-2'].includes(name)), 'b-3');
+});
+
+test('without Paseo, open makes a marked worktree from the fetched default branch and starts no agent', t => {
+  const { base, root, linked, publish } = repo(t, { ignore: '.env\n' });
+  writeFileSync(path.join(root, '.env'), 'API_KEY=fixture-value\n');
+  const latest = publish();
+  const host = noPaseo(t, base);
+  const before = Date.now();
+  const r = runCli(linked, ['open', '--title', 'Thinner specs', '--brief', brief(t)], host.env);
+  assert.equal(r.status, 0, JSON.stringify(r.json));
+  const dir = path.join(base, 'demo-workspaces', 'thinner-specs');
+  assert.deepEqual(r.json, {
+    ok: true, host: 'plain', path: dir, branch: 'thinner-specs', base: 'origin/main', title: 'Thinner specs', paste: PASTE,
+  });
+  assert.equal(git(root, 'rev-parse', 'refs/remotes/origin/main'), latest, 'the default branch was fetched');
+  assert.equal(git(dir, 'rev-parse', 'HEAD'), latest, 'it starts from origin, not from the caller\'s branch');
+  assert.equal(git(dir, 'symbolic-ref', '--short', 'HEAD'), 'thinner-specs');
+  assert.ok(!existsSync(path.join(dir, 'unpublished.md')));
+  assert.equal(readFileSync(path.join(dir, '.env'), 'utf8'), 'API_KEY=fixture-value\n', 'the secrets were seeded');
+  assert.equal(readFileSync(path.join(dir, '.scratch', 'brief.md'), 'utf8'), `${BRIEF}\n`);
+  const { gitDir, marker } = markerOf(dir);
+  assert.deepEqual(Object.keys(marker), ['title', 'madeAt', 'closedAt']);
+  assert.equal(marker.title, 'Thinner specs');
+  assert.equal(marker.closedAt, null);
+  assert.ok(Date.parse(marker.madeAt) >= before - 1000 && Date.parse(marker.madeAt) <= Date.now() + 1000, marker.madeAt);
+  assert.notEqual(gitDir, git(root, 'rev-parse', '--path-format=absolute', '--git-dir'), 'the worktree\'s own git directory');
+  assert.ok(existsSync(path.join(gitDir, 'wongstack-secrets-base.json')), 'beside the secrets baseline');
+  assert.ok(!existsSync(path.join(dir, 'wong-workspace.json')));
+  assert.equal(git(dir, 'status', '--porcelain'), '', 'the brief, the secrets, and the marker stay out of git');
+  assert.equal(git(root, 'status', '--porcelain'), '', 'the folder sits outside the primary checkout');
+  assert.equal(host.started(), '', 'no agent and no Paseo was started');
+});
+
+test('without Paseo, a taken folder or branch name gets -2, then -3', t => {
+  const { base, root } = repo(t);
+  const host = noPaseo(t, base);
+  const open = () => runCli(root, ['open', '--title', 'Thinner specs', '--brief', brief(t)], host.env);
+  const parent = path.join(base, 'demo-workspaces');
+  assert.equal(open().json.path, path.join(parent, 'thinner-specs'));
+  const second = open();
+  assert.equal(second.status, 0, JSON.stringify(second.json));
+  assert.equal(second.json.path, path.join(parent, 'thinner-specs-2'));
+  assert.equal(second.json.branch, 'thinner-specs-2');
+  assert.equal(git(second.json.path, 'symbolic-ref', '--short', 'HEAD'), 'thinner-specs-2');
+  git(root, 'branch', 'thinner-specs-3');
+  const fourth = open();
+  assert.equal(fourth.json.path, path.join(parent, 'thinner-specs-4'), 'a branch of that name is taken too');
+  assert.equal(markerOf(fourth.json.path).marker.title, 'Thinner specs');
+});
+
+test('without Paseo, --checkout opens the named branch and fetches nothing', t => {
+  const { base, root, publish } = repo(t);
+  const host = noPaseo(t, base);
+  git(root, 'branch', 'feat/auth');
+  const before = git(root, 'rev-parse', 'refs/remotes/origin/main');
+  publish();
+  const r = runCli(root, ['open', '--title', 'add-auth', '--brief', brief(t, '/continue add-auth'), '--checkout', 'feat/auth'], host.env);
+  assert.equal(r.status, 0, JSON.stringify(r.json));
+  const dir = path.join(base, 'demo-workspaces', 'add-auth');
+  assert.deepEqual(r.json, { ok: true, host: 'plain', path: dir, branch: 'feat/auth', checkout: 'feat/auth', title: 'add-auth', paste: PASTE });
+  assert.equal(git(dir, 'symbolic-ref', '--short', 'HEAD'), 'feat/auth');
+  assert.equal(readFileSync(path.join(dir, '.scratch', 'brief.md'), 'utf8'), '/continue add-auth\n');
+  assert.equal(markerOf(dir).marker.title, 'add-auth');
+  assert.equal(git(root, 'rev-parse', 'refs/remotes/origin/main'), before);
+
+  const taken = runCli(root, ['open', '--title', 'Busy branch', '--brief', brief(t), '--checkout', 'feature'], host.env);
+  assert.equal(taken.status, 2, 'the linked worktree already has that branch');
+  assert.match(taken.json.error, /git worktree add failed: /);
+  assert.ok(!existsSync(path.join(base, 'demo-workspaces', 'busy-branch')));
+});
+
+test('without Paseo, secrets git does not ignore are not copied, and the brief is still kept out of git', t => {
+  const { base, root } = repo(t);
+  writeFileSync(path.join(root, '.env'), 'API_KEY=fixture-value\n');
+  const r = runCli(root, ['open', '--title', 'B', '--brief', brief(t)], noPaseo(t, base).env);
+  assert.equal(r.status, 0, JSON.stringify(r.json));
+  assert.match(r.json.warning, /secrets files were not copied into the folder: \.env\./);
+  assert.doesNotMatch(JSON.stringify(r.json), /fixture-value/);
+  assert.ok(!existsSync(path.join(r.json.path, '.env')));
+  assert.ok(existsSync(path.join(r.json.path, '.scratch', 'brief.md')));
+  assert.equal(git(r.json.path, 'status', '--porcelain'), '');
+});
+
+test('without Paseo, a dry run names the folder and makes nothing', t => {
+  const { base, root, publish } = repo(t);
+  const host = noPaseo(t, base);
+  const before = git(root, 'rev-parse', 'refs/remotes/origin/main');
+  publish();
+  const r = runCli(root, ['open', '--title', 'B', '--brief', brief(t), '--dry-run'], host.env);
+  assert.equal(r.status, 0, JSON.stringify(r.json));
+  assert.deepEqual(r.json, {
+    ok: true, dryRun: true, host: 'plain', path: path.join(base, 'demo-workspaces', 'b'), branch: 'b', base: 'origin/main', title: 'B', paste: PASTE,
+  });
+  assert.ok(!existsSync(path.join(base, 'demo-workspaces')));
+  assert.equal(git(root, 'rev-parse', 'refs/remotes/origin/main'), before);
+  assert.equal(git(root, 'branch', '--list', 'b'), '');
+  for (const args of [['open', '--brief', brief(t)], ['open', '--title', 'B'], ['open', '--title', 'B', '--nope', 'x']]) {
+    assert.equal(runCli(root, args, host.env).status, 2, args.join(' '));
+  }
+});
+
+test('a Paseo that does not answer never falls back to a folder', t => {
+  const { base, root } = repo(t);
+  const paseo = fakePaseo(t);
+  const r = runCli(root, ['open', '--title', 'B', '--brief', brief(t)], { ...paseo.env, FAKE_PASEO_DOWN: '1' });
+  assert.equal(r.status, 4);
+  assert.match(r.json.error, /daemon does not answer/);
+  assert.equal(r.json.host, undefined);
+  assert.ok(!existsSync(path.join(base, 'demo-workspaces')));
 });

@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import {
-  emptyReport, formatBytes, inside, isIdle, isOldTemp, mergeReports, mergedAtTip, orphanPids, ownWorkspace,
+  emptyReport, formatBytes, inside, isIdle, isOldTemp, lsofCwds, mergeReports, mergedAtTip, orphanPids, ownWorkspace,
   reportLine, savedState, takeLock,
 } from '../../.agents/skills/routine/scripts/tidy.mjs';
 
@@ -505,7 +505,7 @@ test('sweep deletes only old wong- temp entries and old primary scratch files', 
   assert.ok(!existsSync(path.join(scratch, 'old.md')) && !existsSync(path.join(scratch, 'sub')));
   assert.ok(existsSync(path.join(scratch, 'new.md')));
   assert.equal(result.json.deleted, 4);
-  assert.match(result.json.skippedNotes.join('\n'), /Paseo is not installed/);
+  assert.doesNotMatch((result.json.skippedNotes ?? []).join('\n'), /Paseo/, 'no Paseo is a normal state, not a note');
   assert.match(run(s.primary, ['sweep', '--report'], env).stdout, /deleted 4 old temp or scratch entries, freeing \d+ bytes\./);
 });
 
@@ -538,6 +538,223 @@ test('sweep stops a process left in a deleted worktree, and not one in a live fo
   assert.equal(await orphan.exited, 'SIGTERM');
   assert.equal(keeper.child.exitCode, null);
   assert.equal(keeper.child.signalCode, null);
+});
+
+// ---------------------------------------------------------------------------
+// Without Paseo: the worktrees WongStack made
+
+// A worktree as workspace.mjs makes one without Paseo: beside the primary checkout, with the
+// marker in its own git directory. `marker: null` leaves it unmarked, as one made by hand.
+function plainWorkspace(s, name, { push = true, marker = {} } = {}) {
+  const dir = path.join(`${s.primary}-workspaces`, name);
+  mkdirSync(path.dirname(dir), { recursive: true });
+  git(s.primary, 'worktree', 'add', '-q', '-b', name, dir);
+  const tip = commit(dir, `${name}.md`);
+  if (push) git(dir, 'push', '-q', 'origin', name);
+  const gitDir = git(dir, 'rev-parse', '--path-format=absolute', '--git-dir');
+  const file = path.join(gitDir, 'wong-workspace.json');
+  if (marker) writeFileSync(file, JSON.stringify({ title: `${name} part`, madeAt: new Date().toISOString(), closedAt: null, ...marker }));
+  return { dir, tip, branch: name, gitDir, read: () => JSON.parse(readFileSync(file, 'utf8')) };
+}
+
+/** Makes a worktree look untouched for `ms`: its HEAD and HEAD's log. */
+function idleFor(workspace, ms) {
+  age(path.join(workspace.gitDir, 'HEAD'), ms);
+  age(path.join(workspace.gitDir, 'logs', 'HEAD'), ms);
+}
+
+const withoutPaseo = (s, extra = {}) => envFor(s, { TIDY_PASEO_BIN: path.join(s.base, 'no-paseo'), ...extra });
+const paseoCalls = s => s.calls().filter(call => call[0] === 'paseo');
+const nextSweepIsDue = s => age(path.join(s.primary, '.git', 'wong-tidy', 'last-sweep'), 7 * HOUR);
+
+test('lsof\'s list of working folders is read one process at a time', () => {
+  assert.deepEqual(lsofCwds('p12\nn/w/a\np13\nfcwd\nn/w/b (deleted)\n'), [{ pid: 12, cwd: '/w/a' }, { pid: 13, cwd: '/w/b (deleted)' }]);
+  assert.deepEqual(lsofCwds('n/w/a\n'), []);
+  assert.deepEqual(lsofCwds(''), []);
+  assert.deepEqual(lsofCwds(undefined), []);
+});
+
+test('close in a folder WongStack made marks it closed and starts nothing; the next sweep removes it and its merged branch', t => {
+  const s = setup(t);
+  const made = plainWorkspace(s, 'shipped', { push: false });
+  mkdirSync(path.join(made.dir, '.scratch'));
+  writeFileSync(path.join(made.dir, '.scratch', 'brief.md'), 'scratch\n');
+  writeFileSync(path.join(s.primary, '.git', 'info', 'exclude'), '.scratch/\n');
+  const env = withoutPaseo(s, { FAKE_GH_PR: JSON.stringify({ state: 'MERGED', headRefOid: made.tip }) });
+
+  const dry = run(made.dir, ['close', '--dry-run'], env);
+  assert.equal(dry.status, 0, dry.stdout);
+  assert.deepEqual(dry.json.job, {
+    host: 'plain', name: 'shipped part', worktree: made.dir, branch: 'shipped', deleteBranch: true, discard: false,
+  });
+  assert.equal(made.read().closedAt, null, 'a dry run marks nothing');
+
+  const result = run(made.dir, ['close'], env);
+  assert.equal(result.status, 0, result.stdout);
+  assert.deepEqual(result.json, {
+    ok: true, host: 'plain', name: 'shipped part', branch: 'shipped', deleteBranch: true, message: 'This folder goes at the next tidy-up.',
+  });
+  const marked = made.read();
+  assert.ok(Number.isFinite(Date.parse(marked.closedAt)), marked.closedAt);
+  assert.equal(marked.title, 'shipped part');
+  assert.ok(existsSync(made.dir), 'the folder stays until the tidy-up');
+  assert.ok(!existsSync(reportFile(s)));
+
+  const swept = run(s.primary, ['sweep'], env);
+  assert.equal(swept.status, 0, swept.stdout);
+  assert.deepEqual(swept.json.closed, ['shipped part']);
+  assert.deepEqual(swept.json.branches, ['shipped']);
+  assert.ok(!existsSync(made.dir), 'the folder, scratch included, is gone');
+  assert.equal(tryBranch(s.primary, 'shipped'), false);
+  assert.ok(!existsSync(`${s.primary}-workspaces`), 'and so is the emptied folder that held it');
+  assert.deepEqual(paseoCalls(s), [], 'no Paseo, and no child that waits for one');
+  assert.equal(run(s.primary, ['sweep', '--report'], env).stdout, 'Tidy-up: closed 1 workspace ("shipped part"); deleted 1 merged branch.\n');
+});
+
+test('close refuses a folder made by hand as it does the main checkout, and unsaved work in one WongStack made', t => {
+  const s = setup(t);
+  const env = withoutPaseo(s);
+  const byHand = plainWorkspace(s, 'by-hand', { marker: null });
+  for (const dir of [byHand.dir, s.primary]) {
+    const refused = run(dir, ['close', '--dry-run'], env);
+    assert.equal(refused.status, 2, refused.stdout);
+    assert.equal(refused.json.workspace, false, 'not a workspace');
+  }
+  assert.match(run(byHand.dir, ['close'], env).json.error, /WongStack did not make this folder/);
+  assert.equal(run(byHand.dir, ['close', '--discard'], env).status, 2);
+
+  const unpushed = plainWorkspace(s, 'unpushed', { push: false });
+  const refused = run(unpushed.dir, ['close'], env);
+  assert.equal(refused.status, 2);
+  assert.match(refused.json.error, /not saved online/);
+  assert.equal(refused.json.workspace, undefined, 'it is a workspace, only not a saved one');
+  writeFileSync(path.join(unpushed.dir, 'draft.md'), 'wip\n');
+  assert.match(run(unpushed.dir, ['close', '--dry-run'], env).json.error, /unsaved work: draft\.md\./);
+  assert.equal(unpushed.read().closedAt, null);
+});
+
+test('close --discard in a folder WongStack made throws the work away, and the sweep deletes its branch', t => {
+  const s = setup(t);
+  const made = plainWorkspace(s, 'thrown');
+  commit(made.dir, 'unpublished.md');
+  writeFileSync(path.join(made.dir, 'draft.md'), 'wip\n');
+  const env = withoutPaseo(s, { FAKE_GH_PR: JSON.stringify({ number: 7, state: 'OPEN', headRefOid: 'x' }) });
+  assert.equal(run(made.dir, ['close'], env).status, 2, 'plain close still refuses unsaved work');
+
+  const dry = run(made.dir, ['close', '--discard', '--dry-run'], env);
+  assert.equal(dry.json.job.discard, true);
+  assert.ok(existsSync(path.join(made.dir, 'draft.md')) && remoteHas(s, 'thrown'), 'a dry run touches nothing');
+
+  const result = run(made.dir, ['close', '--discard'], env);
+  assert.equal(result.status, 0, result.stdout);
+  assert.deepEqual(result.json.discarded, { pr: 7, remote: true });
+  assert.equal(result.json.message, 'This folder goes at the next tidy-up.');
+  assert.ok(s.calls().some(call => call.join(' ') === 'gh pr close thrown'));
+  assert.ok(!remoteHas(s, 'thrown'));
+  assert.ok(!existsSync(path.join(made.dir, 'draft.md')));
+  assert.equal(made.read().discarded, true);
+
+  const swept = run(s.primary, ['sweep'], env);
+  assert.deepEqual(swept.json.closed, ['thrown part']);
+  assert.deepEqual(swept.json.notes, ['threw away the branch thrown']);
+  assert.ok(!existsSync(made.dir));
+  assert.equal(tryBranch(s.primary, 'thrown'), false);
+});
+
+test('sweep removes an idle saved folder WongStack made, and leaves a fresh, an unsaved, a hand-made, and the current one', t => {
+  const s = setup(t);
+  const idle = plainWorkspace(s, 'idle');
+  const fresh = plainWorkspace(s, 'fresh');
+  const unsaved = plainWorkspace(s, 'unsaved', { push: false });
+  const byHand = plainWorkspace(s, 'by-hand', { marker: null });
+  const current = plainWorkspace(s, 'current');
+  idleFor(idle, 4 * DAY);
+  idleFor(unsaved, 5 * DAY);
+  idleFor(byHand, 9 * DAY);
+  idleFor(current, 9 * DAY);
+  const env = withoutPaseo(s);
+
+  const dry = run(current.dir, ['sweep', '--dry-run'], env);
+  assert.deepEqual(dry.json.closed, ['idle part']);
+  assert.ok(existsSync(idle.dir), 'a dry run removes nothing');
+
+  const result = run(current.dir, ['sweep'], env);
+  assert.equal(result.status, 0, result.stdout);
+  assert.deepEqual(result.json.closed, ['idle part']);
+  assert.deepEqual(result.json.left, [{ name: 'unsaved part', reason: 'it has unsaved work' }]);
+  assert.deepEqual(result.json.branches, []);
+  assert.deepEqual(result.json.notes, []);
+  assert.ok(!existsSync(idle.dir));
+  assert.equal(tryBranch(s.primary, 'idle'), true, 'a branch that never merged is kept');
+  for (const kept of [fresh, unsaved, byHand, current]) assert.ok(existsSync(kept.dir), kept.branch);
+  assert.doesNotMatch((result.json.skippedNotes ?? []).join('\n'), /Paseo/);
+  assert.deepEqual(paseoCalls(s), []);
+  assert.equal(run(current.dir, ['sweep', '--report'], env).stdout,
+    'Tidy-up: closed 1 workspace ("idle part"); left "unsaved part" open: it has unsaved work.\n');
+
+  nextSweepIsDue(s);
+  const fromPrimary = run(s.primary, ['sweep'], env);
+  assert.deepEqual(fromPrimary.json.closed, ['current part'], 'once it is no longer the current one, it goes too');
+  assert.ok(existsSync(byHand.dir), 'a worktree with no marker is never swept, however idle');
+});
+
+test('sweep leaves a closed folder while a process runs inside it', { skip: !existsSync('/proc/self/cwd') }, async t => {
+  const s = setup(t);
+  const made = plainWorkspace(s, 'busy', { marker: { closedAt: new Date().toISOString() } });
+  mkdirSync(path.join(made.dir, 'app'));
+  const child = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 60000)'], { cwd: path.join(made.dir, 'app'), stdio: 'ignore' });
+  t.after(() => child.kill('SIGKILL'));
+  const exited = new Promise(done => child.on('exit', done));
+  await waitFor(() => existsSync(`/proc/${child.pid}/cwd`), 'the sleeper');
+  const env = withoutPaseo(s);
+
+  const first = run(s.primary, ['sweep'], env);
+  assert.equal(first.status, 0, first.stdout);
+  assert.deepEqual(first.json.closed, []);
+  assert.deepEqual(first.json.left, [], 'someone still at work there is no news');
+  assert.ok(existsSync(made.dir));
+  assert.equal(child.exitCode, null);
+  assert.equal(child.signalCode, null);
+
+  child.kill('SIGKILL');
+  await exited;
+  nextSweepIsDue(s);
+  const second = run(s.primary, ['sweep'], env);
+  assert.deepEqual(second.json.closed, ['busy part']);
+  assert.ok(!existsSync(made.dir));
+});
+
+test('with Paseo, its pass is unchanged, a marked folder it lists is left to it, and one it does not list is swept', t => {
+  const f = sweepFixture(t);
+  const listed = plainWorkspace(f.s, 'listed');
+  const unlisted = plainWorkspace(f.s, 'unlisted');
+  idleFor(listed, 9 * DAY);
+  idleFor(unlisted, 4 * DAY);
+  const env = {
+    ...f.env,
+    FAKE_WORKSPACES: JSON.stringify([...JSON.parse(f.env.FAKE_WORKSPACES),
+      { workspaceId: 'ws-listed', name: 'Listed in Paseo', isolation: 'worktree', cwd: listed.dir }]),
+    FAKE_AGENTS: JSON.stringify([...JSON.parse(f.env.FAKE_AGENTS), { id: 'a-listed', status: 'idle', cwd: listed.dir }]),
+    FAKE_INSPECT: JSON.stringify({ ...JSON.parse(f.env.FAKE_INSPECT), 'a-listed': { UpdatedAt: ago(HOUR) } }),
+  };
+  const result = run(f.s.primary, ['sweep'], env);
+  assert.equal(result.status, 0, result.stdout);
+  const archives = f.s.calls().filter(call => call[1] === 'workspace' && call[2] === 'archive').map(call => call[3]);
+  assert.deepEqual(archives, ['ws-idle'], 'Paseo archives what it did before, and nothing more');
+  assert.deepEqual(result.json.closed, ['Idle part', 'unlisted part']);
+  assert.deepEqual(result.json.left, [{ name: 'Weekly plan', reason: 'it has unsaved work' }]);
+  assert.ok(existsSync(listed.dir), 'Paseo lists it and its chat is recent, so it stays');
+  assert.ok(!existsSync(unlisted.dir));
+  for (const kept of [f.unpushed, f.running, f.current, f.fresh, f.other]) assert.ok(existsSync(kept.dir));
+});
+
+test('a Paseo that cannot list its workspaces leaves every marked folder alone', t => {
+  const s = setup(t);
+  const made = plainWorkspace(s, 'waiting', { marker: { closedAt: new Date().toISOString() } });
+  const result = run(s.primary, ['sweep'], envFor(s, { FAKE_WORKSPACES: '{"workspaces":[]}' }));
+  assert.equal(result.status, 0, result.stdout);
+  assert.deepEqual(result.json.closed, []);
+  assert.ok(existsSync(made.dir));
 });
 
 // ---------------------------------------------------------------------------

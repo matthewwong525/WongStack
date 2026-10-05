@@ -6,14 +6,16 @@
 // Git is the base: every worktree of this repo, from the primary checkout, so another project
 // never appears. A worktree counts when it has unsaved files, commits not on the default branch,
 // an active OpenSpec change on disk (saved or not), or a running agent; the current worktree never
-// counts. Paseo, when it answers, adds each workspace's name and whether an agent is running in it.
+// counts. Paseo, when it answers, adds each workspace's name and whether an agent is running in it;
+// a workspace WongStack made without Paseo is named by its marker's title (routine/scripts/lib/host.mjs).
 // `gh` adds open pull requests not opened by a bot, each folded into the worktree on its branch.
 // An Artifacts install has no pull requests (wiki/stack/artifacts-route.md): there, `savedBranches[]`
 // lists each remote branch that holds an unarchived change, with the change's Status.
 // The script gathers facts only; the agent judges what overlaps.
 //
 // Prints one JSON object: { ok, workspaces[], pullRequests[], notes[] }. A Paseo or GitHub failure
-// becomes a note, never a failure. Exit codes: 0 ok, 2 bad input or not inside a git checkout.
+// becomes a note, never a failure; no Paseo at all is a normal state and adds no note. Exit codes:
+// 0 ok, 2 bad input or not inside a git checkout.
 //
 // Node built-ins only. OTHER_WORK_PASEO_BIN overrides the `paseo` found on PATH.
 
@@ -23,7 +25,9 @@ import { homedir } from 'node:os';
 import path from 'node:path';
 import { isMain } from '../../memory/scripts/lib/cli.mjs';
 import { primaryRoot, PrimaryRootError } from '../../memory/scripts/lib/primary-root.mjs';
-import { EXIT, findPaseo, paseo } from '../../routine/scripts/lib/paseo.mjs';
+import { EXIT } from '../../routine/scripts/lib/cli.mjs';
+import { readMarker } from '../../routine/scripts/lib/host.mjs';
+import { findPaseo, paseo } from '../../routine/scripts/lib/paseo.mjs';
 import { delivery } from '../../save/scripts/delivery-route.mjs';
 
 const USAGE = 'usage: other-work.mjs  prints this repo\'s other active work (worktrees, their plans, open pull requests) as JSON';
@@ -207,14 +211,11 @@ function routeOf(cwd, notes) {
 // ---------------------------------------------------------------------------
 // Paseo and GitHub
 
-/** Paseo's names and running agents, or a note when Paseo is missing, down, or changed. */
+/** Paseo's names and running agents: none without Paseo, and a note when Paseo is down or changed. */
 async function paseoFacts(env, notes) {
   const empty = { workspaces: [], agents: [] };
   let bin;
-  try { bin = findPaseo(env, 'OTHER_WORK_PASEO_BIN'); } catch {
-    notes.push('Paseo is not installed, so workspace names and running agents were not checked.');
-    return empty;
-  }
+  try { bin = findPaseo(env, 'OTHER_WORK_PASEO_BIN'); } catch { return empty; }
   try {
     const workspaces = await paseo(bin, ['workspace', 'ls']);
     const agents = await paseo(bin, ['ls', '-g']);
@@ -265,7 +266,7 @@ export async function otherWork(cwd = process.cwd(), env = process.env) {
     if (dir === current || !existsSync(dir)) continue;
     const named = facts.workspaces.find(ws => ws.cwd === dir);
     const entry = {
-      name: named?.name || path.basename(dir),
+      name: named?.name || readMarker(dir)?.title || path.basename(dir),
       path: dir,
       branch: tree.branch,
       busy: facts.agents.some(agent => BUSY.has(agent.status) && inside(dir, agent.cwd)),

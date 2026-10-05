@@ -115,6 +115,13 @@
       "scripts/check-runner/wrangler.template.jsonc",
       "scripts/check-runner/package.json",
       "scripts/check-runner/package-lock.json",
+      "scripts/routine-runner/worker.mjs",
+      "scripts/routine-runner/routines.mjs",
+      "scripts/routine-runner/run.mjs",
+      "scripts/routine-runner/schedule.mjs",
+      "scripts/routine-runner/wrangler.template.jsonc",
+      "scripts/routine-runner/package.json",
+      "scripts/routine-runner/package-lock.json",
       "scripts/employee-bootstrap.mjs"
     ],
     "dirs": [

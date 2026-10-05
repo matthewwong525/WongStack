@@ -82,5 +82,7 @@
   {"name": "WONG_ACCESS_ROLLOUT", "replacement": "the built apps and the route list in `app/worker/api/router.ts`"},
   {"name": "WONG_ACCESS_POLICY", "replacement": "permissions that start at the owner's first Access visit"},
   {"name": "WONG_ACCESS_SEAL_KEY", "replacement": "`WONG_ACCESS_LOGIN_MANAGEMENT`, read from the production Worker on each use"},
-  {"name": "employee-owner-setup", "replacement": "opening Access as the recorded owner; setup supplies the key"}
+  {"name": "employee-owner-setup", "replacement": "opening Access as the recorded owner; setup supplies the key"},
+  {"name": "paseo-routines", "replacement": "the `cloud-routines` spec and `wiki/stack/cloud-routines.md`", "allow": ["openspec/specs/paseo-routines/spec.md", ".agents/skills/memory/references/areas.json"], "why": "the retired spec, and the area that names it, stay until run-without-paseo is archived, which deletes the spec"},
+  {"name": "ROUTINE_PASEO_BIN", "replacement": "nothing: `/routine` no longer calls Paseo"}
 ]

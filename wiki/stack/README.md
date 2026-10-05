@@ -14,6 +14,7 @@ The pack uses **merge = deploy**, independent staging and branch previews. [One 
 - [Deploy and data pipeline](d1-pipeline.md) — *how* code and data ship: the `env.staging` model, auto-applied migrations, and seeded staging.
 - [Staging bindings and secrets](staging-bindings.md) — the staging Worker's own database, queue, bucket, and secrets, so a branch never writes to production.
 - [The Artifacts route](artifacts-route.md) — an install with one account: your project, its checks and its publishing in your own Cloudflare account, with no GitHub; what it costs, how setup and the verbs differ, and teardown.
+- [Cloud routines](cloud-routines.md) — a prompt on a schedule, run in your own Cloudflare account with your computer off: how a run works, what it costs, what a run is given, its limits, and teardown.
 - [CI on GitHub Actions](github-actions.md) — the thin deploy workflow that runs the pipeline's scripts, and why not Cloudflare's Workers Builds.
 - [Fix a broken production database](d1-recovery.md) — the runbooks for when production is red: undo a bad migration with Time Travel, never hand-apply schema, and repair a drifted `d1_migrations` ledger.
 - [Company actions](company-api.md) — described app actions and memory reads for employee assistants, with separate authentication.

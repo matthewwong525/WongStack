@@ -56,7 +56,7 @@ export const ADD_ONS = [
   {
     name: "Add Paseo",
     href: "https://paseo.sh",
-    enables: "Chat from your phone, run jobs on a schedule, and work on several tasks at once.",
+    enables: "Chat from your phone, and work on several tasks side by side.",
   },
 ];
 

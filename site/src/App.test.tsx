@@ -251,7 +251,7 @@ it("names the open-source libraries and the accounts the install asks for, each 
       "/logos/paseo.svg",
       "Paseo",
       "https://github.com/getpaseo/paseo",
-      "The chat app you and your team use, on phone and laptop.",
+      "An optional chat app, for your phone and for several tasks side by side.",
     ],
   ]);
   expect(open?.textContent).not.toMatch(/WongStack|Claude Code|Codex|OpenCode|Wrangler|GitHub CLI/);

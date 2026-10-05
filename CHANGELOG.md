@@ -3,6 +3,19 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (major) — Run WongStack anywhere, with or without Paseo
+
+- Nothing asks you to get Paseo any more. WongStack runs the same wherever Claude Code or Codex runs: its own app or a terminal. Paseo stays one optional app to chat in, for your phone and for side-by-side work.
+- Schedules now run in your own Cloudflare account, with your computer off, from any chat app. A clock there starts a short-lived cloud computer, which gets a fresh copy of the project and runs your assistant with your prompt. [Cloud routines](wiki/stack/cloud-routines.md) explains it.
+- Your first `/routine` sets this up, after showing what it adds. It asks once for a sign-in for the assistant, through the private key link. Nothing is installed until you ask for a schedule.
+- Schedules need Cloudflare's paid plan, about $5 a month. On a free account `/routine` says so, gives the cost, and adds nothing.
+- A scheduled run can't ask you anything. It takes the safe choice, says what it assumed, and leaves a note for your next chat. A run stops after 30 minutes, and a schedule never runs twice at once.
+- A request with several parts can open a new workspace without Paseo: a ready folder with a fresh copy of the project, your keys, and a short brief. You open it in your assistant and paste one line.
+- *Close this workspace* works in those folders too. A closed or idle folder is removed at the next tidy-up, once its work is saved. A folder you made yourself is never touched.
+- With Paseo, workspaces with their own assistant, phone pairing, and the four assistant presets work as before.
+
+**Updating.** `/routine` no longer makes or manages schedules in Paseo. A schedule you made before keeps running in Paseo until you delete it there. To move one, ask for it again with `/routine`, then delete the old one in the Paseo app. Schedules now need Cloudflare's paid plan, about $5 a month, and the first one asks for a sign-in for the assistant through a private link. Nothing else needs doing, and Paseo still works as a place to chat.
+
 ## 31.4.0 — Install with one Cloudflare account
 
 - A new install on Mac or Linux can now live in one place: your project's files, its checks, its previews and its publishing all sit in your own Cloudflare account. No GitHub account and no server is needed. [The Artifacts route](wiki/stack/artifacts-route.md) explains it.

@@ -231,17 +231,36 @@ test('gh printing something other than a list is a note too', t => {
   assert.deepEqual(json.notes, ['Open pull requests were not checked: gh printed something other than a list.']);
 });
 
-test('works from git alone without Paseo, and notes a stopped or changed Paseo', t => {
+test('works from git alone without Paseo, with no note, and notes a stopped or changed Paseo', t => {
   const s = setup(t);
   const missing = run(s.dirs.current, s.env({ OTHER_WORK_PASEO_BIN: path.join(s.base, 'nope') }));
   assert.equal(missing.status, 0);
-  assert.match(missing.json.notes[0], /Paseo is not installed/);
+  assert.deepEqual(missing.json.notes, [], 'no Paseo is a normal state, not news');
   const names = missing.json.workspaces.map(ws => ws.name).sort();
   assert.deepEqual(names, ['feature', 'planning']);
   const down = run(s.dirs.current, s.env({ FAKE_PASEO_DOWN: '1' }));
   assert.match(down.json.notes[0], /not checked: The Paseo daemon does not answer/);
   const changed = run(s.dirs.current, s.env({ FAKE_AGENTS: '[{"id":"a1"}]' }));
   assert.match(changed.json.notes[0], /Paseo's output has changed/);
+});
+
+test('a workspace WongStack made without Paseo is named by its marker\'s title', t => {
+  const s = setup(t);
+  const mark = (dir, title) => {
+    const gitDir = git(dir, 'rev-parse', '--path-format=absolute', '--git-dir');
+    writeFileSync(path.join(gitDir, 'wong-workspace.json'), JSON.stringify({ title, madeAt: '2026-10-01T00:00:00.000Z', closedAt: null }));
+  };
+  mark(s.dirs.feature, 'Faster search');
+  mark(s.dirs.planning, 'A marker title');
+  const names = json => Object.fromEntries(json.workspaces.map(ws => [ws.path, ws.name]));
+  const plain = run(s.dirs.current, s.env({ OTHER_WORK_PASEO_BIN: path.join(s.base, 'nope') }));
+  assert.deepEqual(plain.json.notes, []);
+  assert.deepEqual(names(plain.json), { [s.dirs.feature]: 'Faster search', [s.dirs.planning]: 'A marker title' });
+  assert.deepEqual(plain.json.workspaces.find(ws => ws.path === s.dirs.planning).dirtyFiles, ['openspec/'], 'the marker is no unsaved file');
+  const withPaseo = names(run(s.dirs.current, s.env()).json);
+  assert.equal(withPaseo[s.dirs.planning], 'Fix the installer', 'Paseo\'s own name comes first');
+  assert.equal(withPaseo[s.dirs.feature], 'Faster search');
+  assert.equal(withPaseo[s.dirs.busy], 'Busy one');
 });
 
 test('without main, the default branch comes from gh, or a note says commits were not counted', t => {

@@ -7,7 +7,7 @@ How this repo plans, builds, checks, and ships changes. Every WongStack install 
 - [The change loop](the-change-loop.md) — how work moves from idea to shipped, archived spec: `/explore → /plan → /apply → /save → /ship`, with `/continue` to pick saved work back up, each a thin verb over an OpenSpec step, with the change as a living handoff (Status header + append-only Decision log + PR-body mirror).
 - [Staging walkthrough](staging-walkthrough.md) — why `/verify` probes the deployed preview, what you need for it, and what it deliberately is not.
 - [Repository improvement](repository-improvement.md) — run or schedule `/improve` to find and ship one useful improvement through the normal change loop.
-- [Scheduled routines](../../.agents/skills/routine/SKILL.md) — `/routine` puts any prompt or verb on a Paseo schedule, each run in its own worktree.
+- [Scheduled routines](../../.agents/skills/routine/SKILL.md) — `/routine` puts any prompt or verb on a schedule that [runs in your Cloudflare account](../stack/cloud-routines.md), with your computer off.
 - [Required tools](required-tools.md) — the whole toolchain is `git`, `gh`, Node, `openspec`, and `curl`: why it stays that small, and how the payload handles JSON without a standalone `jq`.
 - [Browsing](browsing.md) — how the agent uses websites as the person: saved logins, pictures of key moments, and handing the browser over.
   - [Save your passwords](passwords.md) — give the agent the logins you choose through a private link; it never sees a password.

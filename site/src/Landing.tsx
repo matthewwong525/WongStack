@@ -91,7 +91,7 @@ const POINTS: { title: string; text: string; art: string; visual: ReactNode }[] 
 const OPEN_SOURCE = [
   ["OpenSpec", "Fission-AI/OpenSpec", "openspec", "Plans each change and writes down why, before anything is built."],
   ["agent-browser", "vercel-labs/agent-browser", "vercel", "Lets the agent use a real browser, like a person would."],
-  ["Paseo", "getpaseo/paseo", "paseo", "The chat app you and your team use, on phone and laptop."],
+  ["Paseo", "getpaseo/paseo", "paseo", "An optional chat app, for your phone and for several tasks side by side."],
 ];
 
 // The two groups under "free and open source": each item's name, its link, its

@@ -52,10 +52,6 @@ After the four pass, install each missing helper the same yes covered ([why each
 
 A helper still missing after its install is not a stop: say so in one plain line (*"The browser didn't install; I'll offer it again when I need it."*) and continue.
 
-### Paseo: point to it, never install it
-
-After the tools pass, check `command -v paseo`. Missing → say one plain sentence, then continue: *"Paseo is a free app for chatting with me from your phone, running things on a schedule, and giving each piece of work its own space; get it at [paseo.sh](https://paseo.sh) whenever you like."* Never install it, and never stop setup without it: it is a desktop download with its own window.
-
 ## 2. The GitHub sign-in
 
 GitHub route only. Check `gh auth status`. Setup needs the `workflow` scope, to add the publishing step, and `user:email`, to fill git authorship ([why](../../../../wiki/development/required-tools.md#gh-needs-the-workflow-scope)).

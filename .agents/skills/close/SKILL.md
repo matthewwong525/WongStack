@@ -14,9 +14,9 @@ From the conversation and any change's `tasks.md`, write through [the write gate
 
 ## 2. Pick a route
 
-Read `git status --porcelain`, `git log origin/main..HEAD`, and `gh pr view --json state,headRefOid,url`. A Paseo worktree has `PASEO_AGENT_ID` set and is not the main checkout.
+Read `git status --porcelain`, `git log origin/main..HEAD`, and `gh pr view --json state,headRefOid,url`. A workspace is a Paseo worktree (`PASEO_AGENT_ID` set, not the main checkout) or a folder WongStack made; elsewhere `tidy.mjs close --dry-run` prints `workspace: false`.
 
-- **discard**: asked to throw the work away, in a Paseo worktree. Save the facts by [the facts-only save](../save/references/facts-save.md); no wiki. Asked elsewhere → keep it; the main checkout never throws work away.
+- **discard**: asked to throw the work away, in a workspace. Save the facts by [the facts-only save](../save/references/facts-save.md); no wiki. Asked elsewhere → keep it.
 - **keep**: uncommitted edits, or commits not merged at `HEAD`. Invoke `/save` verbatim; go on unless the push failed, naming a red CI run in one line. The close after that work ships updates the wiki.
 - **wrap**: anything else. Save the facts by the facts-only save, then update the wiki.
 
@@ -41,11 +41,11 @@ node "$S/hand-over/scripts/hand-over.mjs" close # only when this chat's hand-ove
 node "$S/routine/scripts/tidy.mjs" close # --discard on that route
 ```
 
-When the reply ends, the workspace is archived and what runs from it stops, such as the app's server; shared things like the browser keep running.
+In Paseo, the workspace is archived when the reply ends, and what it runs stops; shared things like the browser keep running.
 
-- **Exit 0:** say you're closing this workspace, and end the reply. The chat stays readable in Paseo's archived list.
-- **Exit 2:** in the main checkout or outside Paseo, say there's no workspace to close; else give its `error` in plain words.
-- **Exits 3 to 5:** Paseo couldn't close it here; the Paseo app can archive it.
+- **Exit 0:** say you're closing this workspace, or its `message` on `host: "plain"`, and end the reply. Paseo keeps the chat in its archived list.
+- **Exit 2:** on `workspace: false`, say there's no workspace to close; else give its `error` plainly.
+- **Exits 3 to 5:** Paseo couldn't close it; its app can archive it.
 
 ## 4. Report
 

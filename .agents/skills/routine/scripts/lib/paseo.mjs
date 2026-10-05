@@ -1,23 +1,29 @@
-// The helpers the routine scripts share: find the Paseo binary, make one `--json` call, name each
-// failure with a fixed exit code, parse `<command> [flags]`, and run git.
+// The Paseo helpers: find the `paseo` binary, make one `--json` call, and name each failure with a
+// fixed exit code. Only a script that calls Paseo imports this file; lib/cli.mjs holds what every
+// script shares, and its names are passed on here for the Paseo scripts.
 //
 // Exit codes: 0 ok, 2 bad input, 3 Paseo not installed, 4 daemon not
 // answering, 5 Paseo's client or output has changed.
 //
 // Node built-ins only.
 
-import { execFile, execFileSync } from 'node:child_process';
+import { execFile } from 'node:child_process';
 import { accessSync, constants } from 'node:fs';
 import path from 'node:path';
 import { promisify } from 'node:util';
+import { CliError, EXIT, parseCommand as parse } from './cli.mjs';
 
-export const EXIT = { ok: 0, input: 2, noPaseo: 3, noDaemon: 4, client: 5 };
+export { CliError, EXIT, git } from './cli.mjs';
 
-export class PaseoError extends Error {
-  constructor(code, message, extra = {}) {
-    super(message);
-    this.code = code;
-    this.extra = extra;
+export class PaseoError extends CliError {}
+
+/** lib/cli.mjs's parseCommand, failing as a PaseoError: a Paseo script catches only that. */
+export function parseCommand(argv, options) {
+  try {
+    return parse(argv, options);
+  } catch (error) {
+    if (error instanceof CliError) throw new PaseoError(error.code, error.message, error.extra);
+    throw error;
   }
 }
 
@@ -59,30 +65,4 @@ export async function runPaseo(bin, args, { env } = {}) {
 /** runPaseo, returning only the parsed stdout. */
 export async function paseo(bin, args, options) {
   return (await runPaseo(bin, args, options)).data;
-}
-
-/**
- * Parses `<command> [flags]`. `values` names the `--name <value>` flags, `booleans` maps a flag to its key
- * (`{ '--dry-run': 'dryRun' }`), and `positional` keeps bare words. Anything else is exit 2 with `unknown(arg)`,
- * the calling script's own message. Returns `{ command, flags, positional }`.
- */
-export function parseCommand(argv, { values = [], booleans = {}, positional: keep = false, unknown }) {
-  const [command, ...rest] = argv;
-  const flags = {};
-  const positional = [];
-  for (let i = 0; i < rest.length; i++) {
-    const arg = rest[i];
-    if (Object.hasOwn(booleans, arg)) flags[booleans[arg]] = true;
-    else if (arg.startsWith('--') && values.includes(arg.slice(2))) {
-      if (rest[i + 1] === undefined) throw new PaseoError(EXIT.input, `${arg} needs a value.`);
-      flags[arg.slice(2)] = rest[++i];
-    } else if (keep && !arg.startsWith('--')) positional.push(arg);
-    else throw new PaseoError(EXIT.input, unknown(arg));
-  }
-  return { command, flags, positional };
-}
-
-/** `git -C cwd …`'s stdout, trailing whitespace trimmed; throws with `stderr` on a failure. */
-export function git(cwd, ...args) {
-  return execFileSync('git', ['-C', cwd, ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trimEnd();
 }

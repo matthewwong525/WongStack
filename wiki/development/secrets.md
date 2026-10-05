@@ -47,6 +47,13 @@ If an ordinary browsing task reaches a token step, stop before taking a picture 
 
 Ordinary browsing, saved website logins, use of stored credentials, and existing authorized token management through APIs continue as usual.
 
+**A routine's sign-ins.** [Cloud routines](../stack/cloud-routines.md) run on keys only the person can make. Each goes through [the private key link](#receive-a-key-through-a-private-link):
+
+- `WONG_ROUTINE_CLAUDE_TOKEN`: run `claude setup-token` in a terminal and copy the token it prints. It uses a Claude subscription.
+- `WONG_ROUTINE_ANTHROPIC_KEY`: [Anthropic's keys page](https://console.anthropic.com/settings/keys), *Create Key*. Pay per use.
+- `WONG_ROUTINE_OPENAI_KEY`: [OpenAI's keys page](https://platform.openai.com/api-keys), *Create new secret key*. Pay per use.
+- `WONG_ROUTINE_GITHUB_TOKEN`: [a new fine-grained GitHub token](https://github.com/settings/personal-access-tokens/new), *Only select repositories* with this one, *Contents* and *Pull requests* set to *Read and write*.
+
 ## Receive a key through a private link
 
 When a task needs a key the live files lack, or the person asks for *the key link*, send a private link in the same reply, with no *Ready?* question: it waits 30 minutes. Chats are stored; the link carries the key from their device straight to the ignored file.

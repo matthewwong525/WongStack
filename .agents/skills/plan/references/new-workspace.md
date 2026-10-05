@@ -1,6 +1,6 @@
 # Open a part in a new workspace
 
-Each part of a request after the first gets its own [Paseo](https://paseo.sh) workspace and agent; this chat keeps the first. [The change loop](../../../../wiki/development/the-change-loop.md#several-parts-several-workspaces) owns the rule; this page carries it out.
+Each part of a request after the first gets its own workspace; this chat keeps the first. [The change loop](../../../../wiki/development/the-change-loop.md#several-parts-several-workspaces) owns the rule; this page carries it out.
 
 ## What counts as a part
 
@@ -49,9 +49,9 @@ When [the check for other work](../../explore/SKILL.md#check-for-other-work) fin
    — plan only the part the other work doesn't cover.
 ```
 
-On option 2, name the workspace to open in Paseo, or the pull request's link, and stop, drafting nothing here.
+On option 2, name the workspace to open, or the pull request's link, and stop, drafting nothing here.
 
-Check `command -v paseo` first. Without it, drop option 1 from the first two lists and say in one line that new workspaces need Paseo; the busy-workspace ask keeps one option plus the person's own answer. **Never open a workspace when nobody can answer** (an unattended run, a routine): do the first part and record each other part as a memory `thread` fact through [the write gate](../../memory/SKILL.md#write).
+Check `command -v paseo` first. Without it, say a new workspace is a ready folder the person opens in their own assistant, and recommend option 2 of the first list. **Never open a workspace when nobody can answer** (an unattended run, a routine): do the first part and record each other part as a memory `thread` fact through [the write gate](../../memory/SKILL.md#write).
 
 ## Open each workspace
 
@@ -62,9 +62,9 @@ W="$(git rev-parse --show-toplevel)/.claude/skills/routine/scripts/workspace.mjs
 node "$W" open --title '<part>' --brief <file>
 ```
 
-The workspace starts from the freshly fetched default branch, never this one. Its agent gets this chat's model and permission mode and no parent, so it outlives this chat. Outside a Paseo agent (`PASEO_AGENT_ID` unset), add `--agent claude` or `--agent codex` for the agent you are.
+The workspace starts from the freshly fetched default branch, never this one. With Paseo, its agent gets this chat's model and permission mode and no parent, to outlive this chat; outside a Paseo agent (`PASEO_AGENT_ID` unset), add `--agent claude` or `--agent codex`. Without Paseo no agent starts.
 
-It prints one JSON object. Exit `2` is bad input or Paseo refusing: show its `error`. Exits `3` to `5` opened nothing: show `error` and `fallback.app`, then do the parts here, one at a time.
+It prints one JSON object. Exit `2` is bad input or a refusal: show its `error`. Exits `4` (Paseo's daemon does not answer) and `5` opened nothing: say so, then do the parts here, one at a time.
 
 ## The brief
 
@@ -83,7 +83,7 @@ A part that builds on another opens now with the rest, not after that part publi
 
 ## Report
 
-Before drafting the plan you kept, give one line per workspace: *Opened a new workspace, "<title>": it will plan <part> and wait for you there.* Add any `warning` the script prints, such as a workspace that kept Paseo's name. On `setupSkippedReason`, say the workspace has no secrets yet and give `paseo workspace setup <workspaceId>`; never approve setup for the person. A technical reader also gets the workspace id and branch.
+Before drafting the plan you kept, give one line per workspace: *Opened a new workspace, "<title>": it will plan <part> and wait for you there.* On `host: "plain"`: *"<title>" is ready: open `<path>` in your assistant and paste `<paste>`.* Add any `warning` the script prints. On `setupSkippedReason`, say the workspace has no secrets yet and give `paseo workspace setup <workspaceId>`; never approve it yourself. A technical reader also gets the workspace id and branch.
 
 ## Pick up saved work
 
@@ -93,7 +93,7 @@ When `/continue` would switch this workspace away from other unpublished work, r
 node "$W" open --title '<change name>' --brief <file> --checkout '<branch>'
 ```
 
-The brief is `/continue <change name>`, plus the person's instruction if any. When another workspace has the branch checked out, Paseo refuses: say so and name that workspace.
+The brief is `/continue <change name>`, plus the person's instruction if any. When another workspace has the branch checked out, it refuses: say so and name that workspace.
 
 ## Next work
 
@@ -101,7 +101,7 @@ When `/ship` finishes, look for more asked-for work in this conversation, then w
 
 1. **The next part with no workspace yet:** open it in a new workspace *(Recommended)*.
 2. **Walk the merged app** with [`/verify`](../../verify/SKILL.md).
-3. **Close this workspace**, in a Paseo worktree only: runs [`/close`](../../close/SKILL.md), which updates the wiki. It comes first, recommended, when no next work waits.
+3. **Close this workspace**, in a workspace only: runs [`/close`](../../close/SKILL.md), which updates the wiki. It comes first, recommended, when no next work waits.
 4. **Stop here.**
 
 Keep the question to three options, dropping the walk first.

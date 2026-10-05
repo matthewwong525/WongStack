@@ -6,7 +6,7 @@ Gives each separately publishable part of a request its own Paseo workspace, so 
 ## Requirements
 
 ### Requirement: Separate parts are asked about once
-When a request holds two or more parts that could each be planned and published alone, the agent SHALL ask once, in `/explore`'s exit round: open a new workspace for each other part *(Recommended)*, do them here one at a time, or keep them as one change. Steps of one change SHALL NOT count as parts. Without a running Paseo, the question SHALL leave out new workspaces and say they need Paseo.
+When a request holds two or more parts that could each be planned and published alone, the agent SHALL ask once, in `/explore`'s exit round: open a new workspace for each other part, do them here one at a time, or keep them as one change. Steps of one change SHALL NOT count as parts. With a running Paseo, the new-workspace option SHALL come first and be recommended. Without Paseo, the question SHALL still offer new workspaces, SHALL say each is a ready folder the person opens in their own assistant, and SHALL recommend one at a time here.
 
 #### Scenario: Three parts with Paseo
 - **WHEN** a person asks for three separately publishable changes in one message, on a host with a running Paseo daemon
@@ -14,10 +14,10 @@ When a request holds two or more parts that could each be planned and published 
 
 #### Scenario: No Paseo
 - **WHEN** the same request runs on a host without `paseo` on PATH
-- **THEN** the question offers only one at a time here or one change, and says new workspaces need Paseo
+- **THEN** the question offers all three ways, says a new workspace is a ready folder the person opens themself, and recommends one at a time here
 
 ### Requirement: A yes opens one standalone workspace per other part
-On a yes, the agent SHALL keep the first part and SHALL open one new Paseo workspace for each other part, before it drafts its own plan. Each workspace SHALL be a new worktree branched from the latest remote default branch of the primary worktree, and SHALL run a new agent titled after its part, with the provider, model, thinking option, and mode of the agent that opened it. The new agent SHALL NOT be a sub-agent of the opening agent. The reply SHALL name each opened workspace and its part.
+On a yes, the agent SHALL keep the first part and SHALL open one new workspace for each other part, before it drafts its own plan. Each workspace SHALL be a new worktree branched from the latest remote default branch of the primary worktree. With Paseo, it SHALL run a new agent titled after its part, with the provider, model, thinking option, and mode of the agent that opened it, and the new agent SHALL NOT be a sub-agent of the opening agent. Without Paseo, the agent SHALL start no agent: the worktree SHALL hold the project's secrets and the part's brief, and the reply SHALL give its folder and one line to paste there. The reply SHALL name each opened workspace and its part.
 
 #### Scenario: Opened from a feature workspace
 - **WHEN** a chat in a linked worktree on an unpublished branch opens a workspace for part B
@@ -27,6 +27,10 @@ On a yes, the agent SHALL keep the first part and SHALL open one new Paseo works
 - **WHEN** the opening agent runs Claude with model `claude-opus-5-5` in `bypassPermissions` mode
 - **THEN** the new agent runs the same provider, model, and mode
 
+#### Scenario: A workspace without Paseo
+- **WHEN** the person chooses new workspaces on a host without `paseo` on PATH
+- **THEN** each other part gets a worktree outside the primary checkout with its secrets and brief, no agent starts, and the reply gives each folder and the line to paste
+
 ### Requirement: A new workspace plans its part and waits
 Each new agent's first message SHALL start with `/plan` and carry a brief: the part in the person's words, the answers settled for it, the other parts and where each is being done, and any part it builds on with that part's state. The new agent SHALL stop at its plan's review link and *build it now?*. A part that builds on another SHALL open with the others and SHALL NOT wait for that part to publish.
 
@@ -35,30 +39,19 @@ Each new agent's first message SHALL start with `/plan` and carry a brief: the p
 - **THEN** B's workspace opens at once, its brief says A is being built here, and B's plan records that it builds on A
 
 ### Requirement: The next work is offered in a new workspace
-When `/ship` finishes and more work the person asked for remains, its closing question SHALL offer to open the next piece in a new workspace *(Recommended)*, or stop. When `/ship` merged from a Paseo worktree, the closing question SHALL also offer *Close this workspace*, recommended when no next work is waiting. When new or resumed work would displace another unpublished change in this workspace, the agent SHALL offer a new workspace first and SHALL switch nothing here until the person answers. A resumed change's workspace SHALL open on its recorded branch.
+When `/ship` finishes and more work the person asked for remains, its closing question SHALL offer to open the next piece in a new workspace *(Recommended)*, or stop. When `/ship` merged from a workspace, Paseo's or one WongStack made, the closing question SHALL also offer *Close this workspace*, recommended when no next work is waiting. When new or resumed work would displace another unpublished change in this workspace, the agent SHALL offer a new workspace first and SHALL switch nothing here until the person answers. A resumed change's workspace SHALL open on its recorded branch.
 
 #### Scenario: More work after a publish
 - **WHEN** `/ship` merges part A and the queued part B has no workspace yet
 - **THEN** the closing question offers to open B in a new workspace, first and recommended, and stopping
 
 #### Scenario: Nothing left after a publish
-- **WHEN** `/ship` merges from a Paseo worktree and no other work the person asked for is waiting
+- **WHEN** `/ship` merges from a workspace and no other work the person asked for is waiting
 - **THEN** the closing question offers *Close this workspace* first and recommended
 
 #### Scenario: Continue from a busy workspace
 - **WHEN** `/continue add-auth` runs in a workspace holding uncommitted work of another change
 - **THEN** the options include opening `add-auth`'s branch in a new workspace, recommended, and nothing in this workspace changes branch
-
-### Requirement: No workspace without a person or Paseo
-An unattended run SHALL NOT open a workspace; it SHALL do the first part and record the rest as a memory thread. When Paseo cannot open a workspace, the agent SHALL open nothing, SHALL say whether Paseo is missing or its daemon does not answer, and SHALL carry on with the parts one at a time here.
-
-#### Scenario: Scheduled run finds two parts
-- **WHEN** a scheduled `/improve` run finds two separately publishable fixes
-- **THEN** it opens no workspace, ships one fix, and records the other as a thread
-
-#### Scenario: Daemon down
-- **WHEN** the person chooses new workspaces and the Paseo daemon does not answer
-- **THEN** no workspace opens, the reply says the daemon does not answer, and the first part carries on here
 
 ### Requirement: A new workspace carries its part's name
 Each workspace the agent opens SHALL show its part's short title as its name in Paseo's workspace list, the same title its agent gets, whether it branches off the default branch or checks out a saved change's branch. When Paseo opens the workspace but refuses the name, the workspace and its agent SHALL still run, and the report SHALL say the workspace kept Paseo's own name.
@@ -70,3 +63,14 @@ Each workspace the agent opens SHALL show its part's short title as its name in 
 #### Scenario: The name is refused
 - **WHEN** the workspace opens but Paseo refuses to rename it
 - **THEN** the agent still reports the opened workspace and its agent, with a warning that it kept Paseo's name
+
+### Requirement: No workspace without a person
+An unattended run SHALL NOT open a workspace; it SHALL do the first part and record the rest as a memory thread. When Paseo is installed but cannot open a workspace, the agent SHALL open nothing, SHALL say its daemon does not answer, and SHALL carry on with the parts one at a time here.
+
+#### Scenario: Scheduled run finds two parts
+- **WHEN** a scheduled `/improve` run finds two separately publishable fixes
+- **THEN** it opens no workspace, ships one fix, and records the other as a thread
+
+#### Scenario: Daemon down
+- **WHEN** the person chooses new workspaces and the Paseo daemon does not answer
+- **THEN** no workspace opens, the reply says the daemon does not answer, and the first part carries on here

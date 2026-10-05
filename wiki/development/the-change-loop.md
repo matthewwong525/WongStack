@@ -2,7 +2,7 @@
 
 Repo changes follow this loop. The handoff is an **[OpenSpec](https://github.com/Fission-AI/OpenSpec) change**: `openspec/changes/<name>/` holds its proposal, tasks, and optional specs, saved with the code.
 
-A plain request — research, an errand, a reminder, a question — is not a change. The agent does it directly, with no verb and no question round, and writes anything [repeatable](../wiki-style.md#repeatable-knowledge) it learns to the wiki. One that edited a repo file, such as a wiki note, ends by asking *publish it?*, so no edit is left unsaved. Finished work in a Paseo workspace offers to close it: [`/close`](../../.agents/skills/close/SKILL.md) saves what the chat learned, updates the wiki, and closes the workspace. An invoked verb works for any work: [non-code work](#verbs-for-any-work) gets a to-do, not a change. The full loop is for the repo's code or process, and a new standalone page or tool is code: [a mini app](#mini-apps).
+A plain request — research, an errand, a reminder, a question — is not a change. The agent does it directly, with no verb and no question round, and writes anything [repeatable](../wiki-style.md#repeatable-knowledge) it learns to the wiki. One that edited a repo file, such as a wiki note, ends by asking *publish it?*, so no edit is left unsaved. Finished work in a workspace offers to close it: [`/close`](../../.agents/skills/close/SKILL.md) saves what the chat learned, updates the wiki, and closes the workspace. An invoked verb works for any work: [non-code work](#verbs-for-any-work) gets a to-do, not a change. The full loop is for the repo's code or process, and a new standalone page or tool is code: [a mini app](#mini-apps).
 
 ```
 /explore ─▶ /plan ─▶ /apply ─▶ /save ─▶ /ship ─▶ /close
@@ -42,16 +42,16 @@ When a task done by hand — a plain request, or non-code work under a verb — 
 
 - **Only on a clear signal**: the person says it recurs ("every Monday", "again"), or memory shows they asked before. Never on a hunch: an offer after every task teaches people to skip it.
 - **Search memory once**: `memory.mjs search` on the task's key terms finds a past request and a past decline.
-- **Pick the help by the work.** A scheduled task that needs judgment on each run gets a routine through [`/routine`](../../.agents/skills/routine/SKILL.md). Fixed steps get a [mini app](../stack/mini-apps.md), even on a schedule: [most process improvements shouldn't use AI](../agent-knowledge-center.md#most-process-improvements-shouldnt-use-ai).
+- **Pick the help by the work.** A scheduled task that needs judgment on each run gets a routine through [`/routine`](../../.agents/skills/routine/SKILL.md), which [runs in your Cloudflare account](../stack/cloud-routines.md). Fixed steps get a [mini app](../stack/mini-apps.md), even on a schedule: [most process improvements shouldn't use AI](../agent-knowledge-center.md#most-process-improvements-shouldnt-use-ai).
 - **Name the outcome, not the tool**: *do this every Monday at 9*, *a page that splits the bill for you*.
 - **A no is final**: record a `feedback` fact through [the write gate](../../.agents/skills/memory/SKILL.md#write), naming the task in the person's words, and never offer for it again.
 - **A yes starts the usual route**: `/routine`'s own confirmation, or the change loop stopping at the plan's review.
 
-No offer after a code change you built, in an unattended run, or for a routine when `paseo` is not installed.
+No offer after a code change you built, or in an unattended run.
 
 ### Several parts, several workspaces
 
-One workspace holds one change. When a request has parts that could each be published alone, the agent asks once how to split them, [with these options](../../.agents/skills/plan/references/new-workspace.md#ask-once); each new [Paseo](https://paseo.sh) workspace plans its part and waits at its review link. [Open a part in a new workspace](../../.agents/skills/plan/references/new-workspace.md) owns when the ask returns, parts that build on each other, and the one-at-a-time fallback when Paseo is missing or nobody can answer.
+One workspace holds one change. When a request has parts that could each be published alone, the agent asks once how to split them, [with these options](../../.agents/skills/plan/references/new-workspace.md#ask-once). A new workspace is a ready folder: you open it in your assistant and paste one line, and it plans its part and waits at its review link. With [Paseo](https://paseo.sh), it opens with its own assistant instead. [Open a part in a new workspace](../../.agents/skills/plan/references/new-workspace.md) owns when the ask returns, parts that build on each other, and the one-at-a-time fallback.
 
 Before planning, the agent [checks for other work](../../.agents/skills/explore/SKILL.md#check-for-other-work): this repo's other workspaces, their plans, and open pull requests. It speaks only when one overlaps, and asks [where to go on](../../.agents/skills/plan/references/new-workspace.md#ask-once).
 
@@ -71,7 +71,7 @@ Each skill owns its own procedure; this list is what each stage is for.
 - **[`/save`](../../.agents/skills/save/SKILL.md)** is the git stage: it commits code and [the synced change](#the-change-is-a-living-handoff-not-just-a-plan) together, pushes, opens or updates the PR, waits for CI when present, and returns a preview URL, all in one command once the files are staged; it also records the session's facts in the [memory store](memory.md). With no plan, it authors one from the session, so nothing ships without its handoff. `/ship` reuses it for the archive, so the git, PR, and CI logic exists once.
 - **[`/continue`](../../.agents/skills/continue/SKILL.md)** resumes a change or an open non-code thread, cold, on any machine, and hands off to `/apply`.
 - **[`/ship`](../../.agents/skills/ship/SKILL.md)** archives the change, runs `/save` and [`/verify`](#verifying-the-app) once each, squash-merges on [the gate](#the-gate), then [looks at the live app](staging-walkthrough.md#what-it-is-not): one checkpoint and CI run before the walk, reused after an identity check instead of saving again. A failed walk is fixed in its PR; an unfinished change goes through `/apply` first. It writes no wiki.
-- **[`/close`](../../.agents/skills/close/SKILL.md)** wraps up any finished chat, with no question. It records what the chat set out to do and what is left, keeps unfinished work saved on its current provider (or throws it away when asked), and moves the chat's and its change's repeatable facts into the wiki in their own pull request. Then it closes the Paseo workspace. A workspace closed any other way gets no wiki update; its facts stay in memory.
+- **[`/close`](../../.agents/skills/close/SKILL.md)** wraps up any finished chat, with no question. It records what the chat set out to do and what is left, keeps unfinished work saved on its current provider (or throws it away when asked), and moves the chat's and its change's repeatable facts into the wiki in their own pull request. Then it closes the workspace; a folder opened without Paseo goes at the next tidy-up. A workspace closed any other way gets no wiki update; its facts stay in memory.
 
 Loop back any time: each `/save` keeps the plan and Status current and **appends** to the Decision log, never rewriting it, so the change holds the story of the work. Re-`/plan` if the spec needs to change.
 

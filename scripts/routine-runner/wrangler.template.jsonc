@@ -1,0 +1,30 @@
+// The routine runner's Wrangler config, as a template. The first /routine fills every <placeholder>
+// and writes the result beside this file as wrangler.jsonc (routine.mjs setup). The image is the
+// public Sandbox image at the SDK's own version, so installing needs no container software.
+// An install whose project lives on GitHub drops the "artifacts" line: its runs reach the project
+// with the GITHUB_TOKEN secret instead.
+{
+	"name": "<runner>",
+	"account_id": "<account id>",
+	"main": "worker.mjs",
+	"compatibility_date": "2026-10-01",
+	"compatibility_flags": ["nodejs_compat"],
+	"workers_dev": true,
+	"preview_urls": false,
+	"artifacts": [{ "binding": "ARTIFACTS", "namespace": "<namespace>" }],
+	"containers": [
+		{ "name": "<runner>", "class_name": "RoutineSandbox", "image": "docker.io/cloudflare/sandbox:0.12.5", "max_instances": 2, "instance_type": "standard-4" }
+	],
+	"durable_objects": {
+		"bindings": [
+			{ "name": "SANDBOX", "class_name": "RoutineSandbox" },
+			{ "name": "ROUTINES", "class_name": "Routines" }
+		]
+	},
+	"migrations": [{ "tag": "v1", "new_sqlite_classes": ["RoutineSandbox", "Routines"] }],
+	"workflows": [{ "name": "<runner>", "binding": "RUN", "class_name": "Run" }],
+	"vars": {
+		"WONG_ROUTINES": "{\"account\":\"<account id>\",\"route\":\"<route>\",\"remote\":\"<remote>\",\"repo\":\"<repo>\"}"
+	},
+	"observability": { "enabled": true }
+}

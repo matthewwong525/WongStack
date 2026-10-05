@@ -60,7 +60,7 @@ Before you finish, ask **what the user must decide for the work to continue**, i
 - Report or audit: the one fix worth taking next.
 - Finished task that will clearly come back: one [routine or app offer](../../../../wiki/development/the-change-loop.md#offer-a-routine-or-an-app).
 - Asked-for work left after a publish: open it in a new workspace *(Recommended)* ([next work](../../plan/references/new-workspace.md#next-work)).
-- Finished work in a Paseo worktree, a declined publish included: *Close this workspace* ([`/close`](../../close/SKILL.md)), recommended when no asked-for work waits; never at a plan's review, mid-build, or on a blocker.
+- Finished work in a workspace, Paseo's or one WongStack made, a declined publish included: *Close this workspace* ([`/close`](../../close/SKILL.md)), recommended when no asked-for work waits; never at a plan's review, mid-build, or on a blocker.
 
 ## Print the plan's link
 
