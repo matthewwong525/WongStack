@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (patch) — Access can read the sign-in list on the live app
+
+- On the live app, Access said *The sign-in list could not be read yet* and every person you added stayed on *Can't sign in yet*. The app asked Cloudflare in a way the live app refuses, so the question was never sent. It now asks in a way that works, and lists everyone who can already sign in.
+- Adding a person puts their email on the sign-in list, and removing one takes it off.
+- The app's key is as safe as before: if Cloudflare ever points the app somewhere else, the app stops and the key is not sent on.
+- A new check fails if app code asks in the refused way again.
+
+**Updating.** After the update is live, open Access once: the notice goes. A person you added while the notice showed still reads *Can't sign in yet*; press *Try again* beside them and they can sign in, with no need to add them again.
+
 ## 31.4.1 — A link to the fork steps
 
 The guide to making WongStack your own now links the fork steps in WongStack's contributing guide. They moved there from the README, which is now shorter.

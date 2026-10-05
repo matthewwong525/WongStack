@@ -38,7 +38,7 @@ it("sends the live policy back with only its email list changed, to the recorded
   expect(fetch.mock.calls.map(([url]) => url).every(url => url === root || url === `${root}/policies?per_page=1000` ||
     url === `${root}/policies/${site.accessPolicyId}`)).toBe(true);
   expect(fetch.mock.calls.filter(([, init]) => init.method === "PUT")).toHaveLength(1);
-  expect(fetch.mock.calls.every(([, init]) => init.headers.Authorization === "Bearer private-access-token" && init.redirect === "error")).toBe(true);
+  expect(fetch.mock.calls.every(([, init]) => init.headers.Authorization === "Bearer private-access-token" && init.redirect === "manual")).toBe(true);
   const count = fetch.mock.calls.length;
   await reconcileLogin(f.core, "policy");
   await reconcileLogin(f.core, "sessions");
