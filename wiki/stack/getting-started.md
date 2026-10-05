@@ -18,7 +18,7 @@ Want new projects to start with your own tools and site? [Make WongStack your ow
 
 ## What it costs
 
-Cloudflare's free tier covers the starter. You need a free Cloudflare account and a free GitHub account. Setup may also install a few free tools it needs — Git, GitHub's app, Node.js, OpenSpec, a browser for the agent, and a tool that sends you a private link to that browser — and it asks before it installs any.
+Cloudflare's free tier covers the starter. You need a free Cloudflare account and a free GitHub account. One more thing costs money, and only if you ask for it: an assistant on a schedule runs in your Cloudflare account on its paid plan, about $5 a month ([cloud routines](cloud-routines.md#what-it-costs)). Setup may also install a few free tools it needs — Git, GitHub's app, Node.js, OpenSpec, a browser for the agent, and a tool that sends you a private link to that browser — and it asks before it installs any.
 
 ## After that: how you work
 
@@ -80,6 +80,8 @@ Setup creates real resources on your Cloudflare account. To remove them, for exa
 2. **Confirm** as a two-option question that names what each side does. Deleting a database destroys its data.
 3. **Delete** what this repo created, with the same user token: `DELETE /accounts/{account_id}/workers/scripts/<name>`, `DELETE /accounts/{account_id}/d1/database/<id>`, `DELETE /accounts/{account_id}/tokens/<id>` for the deploy token, `DELETE /user/tokens/<id>` for an old `<repo>-memory` token if one is left, and `gh secret delete` for each secret.
 4. **Report** what was removed *and what was skipped*: anything whose name does not match this repo, and anything you declined. Nothing is deleted by guess.
+
+An install that made a routine also has a routine runner: [its teardown](cloud-routines.md#tear-it-down) removes it, its AI Gateway, and every key it stored.
 
 ## Next
 

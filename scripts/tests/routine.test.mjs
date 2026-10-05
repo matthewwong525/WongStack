@@ -1,281 +1,724 @@
+// /routine's client, .agents/skills/routine/scripts/routine.mjs, against a fake Cloudflare over HTTP
+// and a fake runner: the runner's real list and router on stand-in storage, with a stand-in for
+// pi-ai. npm and wrangler never run.
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import {
-  chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync,
-  symlinkSync, writeFileSync,
-} from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import {
-  buildCreateRequest, defaultName, invalidCronField, matchRoutine, modeFor,
-} from '../../.agents/skills/routine/scripts/routine.mjs';
+import { RoutineError, buildRoutine, defaultName, githubRemote, main, makerOf, refusalReason, runnerConfig } from '../../.agents/skills/routine/scripts/routine.mjs';
+import { AI_RUN_TOKEN as RUN_TOKEN_GROUPS, ROUTINES_PROVISION, run as runTool } from '../../.agents/skills/routine/scripts/lib/cloudflare.mjs';
 import { EXIT, PaseoError, parseCommand } from '../../.agents/skills/routine/scripts/lib/paseo.mjs';
+import { GATEWAY, SHORTLIST } from '../routine-runner/models.mjs';
+import { API_VERSION } from '../routine-runner/routines.mjs';
+import { ACCOUNT, TOKEN, fakeCloudflare } from './fixtures/cloudflare.mjs';
+import { AI_RUN_TOKEN, CATALOG, KIMI, ROUTINES_KEY, fakeModels, fakeRunner } from './fixtures/routine-runner.mjs';
 
-const cli = new URL('../../.agents/skills/routine/scripts/routine.mjs', import.meta.url).pathname;
-const CREATE = ['create', '--cron', '0 9 * * 1', '--prompt', '/improve', '--agent', 'claude'];
+const repoRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../..');
+const cli = path.join(repoRoot, '.agents/skills/routine/scripts/routine.mjs');
+const RUNNER = 'demo-routines';
+const REMOTE = `https://${ACCOUNT}.artifacts.cloudflare.net/git/wongstack/demo.git`;
+const MEMORY = 'wongm_memory-key-secret';
+const PROJECT_KEY = 'github_pat_project-secret';
+const ZAI_KEY = `${'0123456789abcdef'.repeat(2)}.PastedModelKeySecret`;
+const CREATE = ['create', '--cron', '0 9 * * 1-5', '--prompt', '/improve', '--timezone', 'UTC'];
+const SECRETS = `/accounts/${ACCOUNT}/workers/scripts/${RUNNER}/secrets`;
+const ROUTINES = { worker: RUNNER, url: 'https://demo-routines.ada.workers.dev', accountId: ACCOUNT, route: 'artifacts', gateway: RUNNER };
+const CLOUDFLARE_PICK = { via: 'cloudflare', provider: GATEWAY, model: KIMI, service: 'Cloudflare' };
+const ZAI_PICK = { via: 'key', provider: 'zai', model: 'glm-5.3', service: 'Z.ai Coding Plan' };
+// Monday 5 October 2026, 08:00 UTC.
+const NOW = Date.parse('2026-10-05T08:00:00Z');
 
-function tmp(t, prefix) {
-  const dir = realpathSync(mkdtempSync(path.join(tmpdir(), `wong-test-${prefix}`)));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
-  return dir;
-}
+const git = (cwd, ...args) => execFileSync('git', ['-C', cwd, ...args], { encoding: 'utf8' }).trim();
 
-function git(cwd, ...args) {
-  return execFileSync('git', ['-C', cwd, ...args], { encoding: 'utf8' }).trim();
-}
-
-// A repo named "demo" with one commit and one linked worktree.
-function repo(t) {
-  const base = tmp(t, 'routine-repo-');
-  const root = path.join(base, 'demo');
-  mkdirSync(root);
-  git(root, 'init', '-q', '-b', 'main');
-  git(root, 'config', 'user.email', 'fixture@example.invalid');
-  git(root, 'config', 'user.name', 'Fixture');
-  writeFileSync(path.join(root, 'README.md'), 'demo\n');
-  git(root, 'add', '--all');
-  git(root, 'commit', '-q', '-m', 'init');
-  const linked = path.join(base, 'linked');
-  git(root, 'worktree', 'add', '-q', '-b', 'feature', linked);
-  return { root, linked };
-}
-
-// A fake @getpaseo/cli package: bin/paseo answers the public commands from a
-// state file, and dist/ holds the two private modules routine.mjs imports.
-// Every call is appended to log.jsonl.
-function fakePaseo(t, { schedules = [], client = true } = {}) {
-  const pkg = tmp(t, 'routine-paseo-');
-  const state = path.join(pkg, 'state.json');
-  const log = path.join(pkg, 'log.jsonl');
-  writeFileSync(state, JSON.stringify(schedules));
-  mkdirSync(path.join(pkg, 'bin'));
-  const bin = path.join(pkg, 'bin', 'paseo');
-  writeFileSync(bin, `#!${process.execPath}
-const fs = require('node:fs');
-const args = process.argv.slice(2).filter(a => a !== '--json');
-fs.appendFileSync(${JSON.stringify(log)}, JSON.stringify({ cli: args }) + '\\n');
-if (process.env.FAKE_PASEO_DOWN) { console.error('Cannot connect to daemon at home /x: ECONNREFUSED'); process.exit(1); }
-const all = JSON.parse(fs.readFileSync(${JSON.stringify(state)}, 'utf8'));
-const [, cmd, id] = args;
-const one = all.find(s => s.id === id);
-if (cmd === 'ls') console.log(JSON.stringify(all.map(({ id, name, status }) => ({ id, name, status }))));
-else if (cmd === 'inspect') console.log(JSON.stringify(one));
-else console.log(JSON.stringify({ id, done: cmd }));
-`);
-  chmodSync(bin, 0o755);
-  if (client) {
-    mkdirSync(path.join(pkg, 'dist', 'utils'), { recursive: true });
-    mkdirSync(path.join(pkg, 'dist', 'commands', 'schedule'), { recursive: true });
-    writeFileSync(path.join(pkg, 'dist', 'utils', 'daemon-target.js'),
-      "export function selectDaemonTarget(o) { return { kind: 'instance', home: '/fake', options: o }; }\n");
-    writeFileSync(path.join(pkg, 'dist', 'commands', 'schedule', 'shared.js'), `import fs from 'node:fs';
-export async function connectScheduleClient(target) {
-  if (process.env.FAKE_PASEO_DOWN) throw { code: 'DAEMON_NOT_RUNNING', message: 'Cannot connect to daemon' };
-  return { host: 'fake', client: {
-    async scheduleCreate(input) {
-      fs.appendFileSync(${JSON.stringify(log)}, JSON.stringify({ create: input, target }) + '\\n');
-      return { schedule: { id: 'abc12345', name: input.name, prompt: input.prompt, cadence: input.cadence,
-        status: 'active', nextRunAt: '2026-09-28T13:00:00.000Z', runs: [], target: input.target } };
+/**
+ * An install named "demo": a repo with the runner's pack folder, keys in an ignored .env, and an
+ * install record. `route` is where its project lives. `installed` records the runner as already set
+ * up, with this computer holding its key and the runner its model-only token; `picked` also puts a
+ * Cloudflare model in use. Commands run in-process, against a fake Cloudflare and a fake runner
+ * whose secrets are the ones the fake Cloudflare holds for the runner's Worker.
+ */
+async function install(t, { route = 'artifacts', installed = false, picked = false, paid = true, keys = {} } = {}) {
+  const base = realpathSync(mkdtempSync(path.join(tmpdir(), 'wong-test-routine-')));
+  t.after(() => rmSync(base, { recursive: true, force: true }));
+  const dir = path.join(base, 'demo');
+  mkdirSync(path.join(dir, '.claude'), { recursive: true });
+  git(dir, 'init', '-q', '-b', 'main');
+  git(dir, 'config', 'user.email', 'Ada@Example.com');
+  git(dir, 'config', 'user.name', 'Ada');
+  if (route === 'github') git(dir, 'remote', 'add', 'origin', 'git@github.com:ada/demo.git');
+  writeFileSync(path.join(dir, '.gitignore'), '.env*\n!.env.example\n');
+  cpSync(path.join(repoRoot, 'scripts/routine-runner'), path.join(dir, 'scripts/routine-runner'), { recursive: true, filter: (source) => !/node_modules|wrangler\.jsonc$|\.wrangler/.test(source) });
+  const record = {
+    components: {
+      memory: { accountId: ACCOUNT, database: 'demo-memory' },
+      ...(route === 'artifacts' ? { delivery: { route: 'artifacts', accountId: ACCOUNT, namespace: 'wongstack', repo: 'demo', remote: REMOTE } } : {}),
+      ...(installed ? { routines: { ...ROUTINES, route } } : {}),
     },
-    async close() {},
-  } };
-}
-`);
+  };
+  writeFileSync(path.join(dir, '.claude/.wong-stack.json'), `${JSON.stringify(record, null, 2)}\n`);
+  const env = { CLOUDFLARE_API_TOKEN: TOKEN, CLOUDFLARE_ACCOUNT_ID: ACCOUNT, CLOUDFLARE_MEMORY_TOKEN: MEMORY, ...(installed ? { WONG_ROUTINES_KEY: ROUTINES_KEY } : {}), ...keys };
+  writeFileSync(path.join(dir, '.env'), Object.entries(env).map(([name, value]) => `${name}=${value}\n`).join(''));
+  git(dir, 'add', '--all');
+  git(dir, 'commit', '-q', '-m', 'init');
+
+  const fake = await fakeCloudflare({ paid });
+  t.after(fake.close);
+  if (installed) {
+    fake.state.workers.push(RUNNER);
+    fake.state.workerSecrets[RUNNER] = { AI_RUN_TOKEN };
   }
-  const calls = () => existsSync(log)
-    ? readFileSync(log, 'utf8').trim().split('\n').filter(Boolean).map(l => JSON.parse(l))
-    : [];
-  return { bin, calls, creates: () => calls().filter(c => c.create), env: { ROUTINE_PASEO_BIN: bin } };
+  const runner = await fakeRunner({ config: { route } });
+  t.after(runner.close);
+  Object.defineProperty(runner.state, 'env', { get: () => fake.state.workerSecrets[RUNNER] ?? {} });
+  if (picked) await runner.routines.choose({ via: 'cloudflare', model: KIMI });
+
+  const ran = [];
+  const exec = async (file, args, options = {}) => {
+    if (file !== 'npm' && file !== 'npx') return runTool(file, args, options);
+    ran.push({ file, args, cwd: options.cwd, token: options.env?.CLOUDFLARE_API_TOKEN === TOKEN });
+    if (args.includes('deploy')) {
+      const { name } = JSON.parse(readFileSync(path.join(options.cwd, 'wrangler.jsonc'), 'utf8'));
+      if (!fake.state.workers.includes(name)) fake.state.workers.push(name);
+    }
+    return { stdout: '', stderr: '' };
+  };
+  const at = (cwd) => async (...argv) => {
+    let text = '';
+    const code = await main(argv, { WONG_CLOUDFLARE_API: fake.api, WONG_ROUTINES_API: runner.url }, { cwd, exec, sleep: async () => {}, now: () => NOW, out: (chunk) => (text += chunk), timeoutMs: 5000 });
+    return { code, text, data: JSON.parse(text) };
+  };
+  const envFile = (file = path.join(dir, '.env')) => Object.fromEntries(readFileSync(file, 'utf8').split('\n').filter(Boolean).map((line) => [line.slice(0, line.indexOf('=')), line.slice(line.indexOf('=') + 1)]));
+  return {
+    dir, fake, runner, ran, at, envFile, run: at(dir),
+    record: () => JSON.parse(readFileSync(path.join(dir, '.claude/.wong-stack.json'), 'utf8')).components,
+    addKey: (name, value) => writeFileSync(path.join(dir, '.env'), `${readFileSync(path.join(dir, '.env'), 'utf8')}${name}=${value}\n`),
+    held: () => fake.state.workerSecrets[RUNNER] ?? {},
+    stored: () => runner.storage.map.get('model') ?? null,
+    calls: (prefix) => fake.calls.filter((call) => `${call.method} ${call.path}`.startsWith(prefix)),
+  };
 }
 
-function runCli(cwd, args, env = {}) {
-  const r = spawnSync(process.execPath, [cli, ...args], {
-    cwd, encoding: 'utf8', env: { ...process.env, ...env },
+/** Asserts no key's value reached a command's output. */
+function noSecret(text, env) {
+  for (const value of [TOKEN, MEMORY, PROJECT_KEY, ZAI_KEY, ROUTINES_KEY, AI_RUN_TOKEN, env.envFile().WONG_ROUTINES_KEY, ...env.fake.state.minted, ...Object.values(env.held())].filter(Boolean)) {
+    assert.equal(text.includes(value), false, `a key's value was printed: ${text.slice(0, 200)}`);
+  }
+}
+
+/** The rows of the table under `### <heading>` on the routines page: each group's name, scope, and id. */
+function pageRows(heading) {
+  const page = readFileSync(path.join(repoRoot, 'wiki/stack/cloud-routines.md'), 'utf8');
+  const start = page.indexOf(`### ${heading}\n`);
+  assert.notEqual(start, -1, `the routines page has no "${heading}" table`);
+  const rows = page.slice(start).split('\n').slice(1);
+  const next = rows.findIndex((line) => line.startsWith('#'));
+  return rows.slice(0, next === -1 ? rows.length : next).filter((line) => line.startsWith('| `')).map((line) => {
+    const cells = line.split('|').slice(1, -1).map((cell) => cell.trim().replaceAll('`', ''));
+    return { name: cells[0], scope: cells[1], id: cells.at(-1) };
   });
-  return { status: r.status, json: JSON.parse(r.stdout) };
 }
 
-const schedule = (id, name, cwd) => ({
-  id, name, prompt: '/improve', status: 'active', nextRunAt: null,
-  cadence: { type: 'cron', expression: '0 9 * * 1', timezone: 'UTC' },
-  target: { type: 'new-agent', config: { provider: 'claude', cwd, isolation: 'worktree' } },
-  runs: [],
-});
+// ---------------------------------------------------------------------------
+// Pure helpers
 
 test('parseCommand reads values, booleans, and bare words, and refuses the rest with exit 2', () => {
-  const options = { values: ['name'], booleans: { '--dry-run': 'dryRun' }, positional: true, unknown: arg => `Unknown flag ${arg}.` };
-  assert.deepEqual(parseCommand(['pause', 'daily', '--name', '--odd', '--dry-run'], options),
-    { command: 'pause', flags: { name: '--odd', dryRun: true }, positional: ['daily'] });
-  const refused = (argv, message, extra = {}) => assert.throws(() => parseCommand(argv, { ...options, ...extra }),
-    error => error instanceof PaseoError && error.code === EXIT.input && error.message === message);
+  const options = { values: ['name'], booleans: { '--dry-run': 'dryRun' }, positional: true, unknown: (arg) => `Unknown flag ${arg}.` };
+  assert.deepEqual(parseCommand(['pause', 'daily', '--name', '--odd', '--dry-run'], options), { command: 'pause', flags: { name: '--odd', dryRun: true }, positional: ['daily'] });
+  const refused = (argv, message, extra = {}) => assert.throws(() => parseCommand(argv, { ...options, ...extra }), (error) => error instanceof PaseoError && error.code === EXIT.input && error.message === message);
   refused(['ls', '--nope'], 'Unknown flag --nope.');
   refused(['ls', '--name'], '--name needs a value.');
   refused(['ls', 'daily'], 'Unknown flag daily.', { positional: false });
   refused(['ls', 'constructor'], 'Unknown flag constructor.', { positional: false });
 });
 
-test('checks each cron field and names the first bad one', () => {
-  assert.equal(invalidCronField('0 9 * * 1-5'), null);
-  assert.equal(invalidCronField('*/15 0-23/2 1,15 1-12 0,7'), null);
-  assert.equal(invalidCronField('60 9 * * *'), 'minute');
-  assert.equal(invalidCronField('0 24 * * *'), 'hour');
-  assert.equal(invalidCronField('0 9 0 * *'), 'day of month');
-  assert.equal(invalidCronField('0 9 * 13 *'), 'month');
-  assert.equal(invalidCronField('0 9 * * 8'), 'day of week');
-  assert.equal(invalidCronField('0 9 * * 5-1'), 'day of week');
-  assert.equal(invalidCronField('*/0 * * * *'), 'minute');
-  assert.match(invalidCronField('0 9 * *'), /field count/);
-  assert.match(invalidCronField('@daily'), /field count/);
+test('a routine is named for its prompt and the repo', () => {
+  assert.equal(defaultName('/improve --audit-only', '/home/ada/demo'), 'improve demo');
+  assert.equal(defaultName('  summarize the support inbox every week  ', '/home/ada/demo'), 'summarize the support inbox demo');
 });
 
-test('maps each agent to its full-permission mode and refuses a guess', () => {
-  assert.equal(modeFor('claude'), 'bypassPermissions');
-  assert.equal(modeFor('codex'), 'full-access');
-  assert.throws(() => modeFor('opencode'), /--agent claude or --agent codex/);
-  assert.throws(() => modeFor(undefined), /Unknown agent/);
+test('a routine runs as the git author here, with a short id of their email in any case', () => {
+  const who = makerOf(' Ada@Example.com ', 'Ada');
+  assert.deepEqual(who, { id: 'b5fc85e55755', name: 'Ada', email: 'Ada@Example.com' });
+  assert.equal(makerOf('ada@example.com', '').id, who.id);
+  assert.equal(makerOf('ada@example.com', '').name, 'ada@example.com', 'with no git name the email stands in');
+  assert.throws(() => makerOf('', 'Ada'), (error) => error instanceof RoutineError && error.code === EXIT.input && /user\.email/.test(error.message));
 });
 
-test('names a routine from its prompt and the repo folder', () => {
-  assert.equal(defaultName('/improve', '/root/MyApp'), 'improve MyApp');
-  assert.equal(defaultName('/verify the staging app', '/x/demo'), 'verify demo');
-  assert.equal(defaultName('check the nightly import logs', '/x/demo'), 'check the nightly import demo');
+test('a GitHub origin in any spelling becomes one https address, and anything else is not GitHub', () => {
+  const expected = { repo: 'ada/recipe-box.io', remote: 'https://github.com/ada/recipe-box.io.git' };
+  for (const origin of ['git@github.com:ada/recipe-box.io.git', 'https://github.com/ada/recipe-box.io', 'https://github.com/ada/recipe-box.io.git/', 'https://token@github.com/ada/recipe-box.io.git', 'ssh://git@github.com/ada/recipe-box.io.git']) {
+    assert.deepEqual(githubRemote(origin), expected, origin);
+  }
+  for (const origin of ['', undefined, REMOTE, 'https://gitlab.com/ada/demo.git', 'https://github.com/ada']) assert.equal(githubRemote(origin), null, String(origin));
 });
 
-test('matches a routine by id, then name, then unique id prefix', () => {
-  const list = [{ id: 'aaa111', name: 'improve demo' }, { id: 'aab222', name: 'Nightly' }, { id: 'ccc333', name: 'nightly' }];
-  assert.equal(matchRoutine(list, 'aaa111').id, 'aaa111');
-  assert.equal(matchRoutine(list, 'IMPROVE DEMO').id, 'aaa111');
-  assert.equal(matchRoutine(list, 'cc').id, 'ccc333');
-  assert.throws(() => matchRoutine(list, 'aa'), e => e.code === 2 && e.extra.matches.length === 2);
-  assert.throws(() => matchRoutine(list, 'nightly'), e => e.code === 2 && e.extra.matches.length === 2);
-  assert.throws(() => matchRoutine(list, 'zzz'), e => e.code === 2 && /No routine/.test(e.message));
+test('a create is checked here before anything is sent, and names no assistant and no model', () => {
+  const maker = makerOf('ada@example.com', 'Ada');
+  const good = { prompt: ' /improve ', cron: ' 0  9 * * 1-5 ', timezone: 'UTC', name: 'improve demo', keys: 'STRIPE_KEY, MAPS_KEY', maker };
+  assert.deepEqual(buildRoutine(good), { name: 'improve demo', prompt: '/improve', cron: '0 9 * * 1-5', timezone: 'UTC', keys: ['STRIPE_KEY', 'MAPS_KEY'], maker });
+  assert.deepEqual(buildRoutine({ ...good, keys: undefined, model: 'gpt-5.5', agent: 'claude' }).keys, []);
+  const refused = (change, message, extra = {}) => assert.throws(() => buildRoutine({ ...good, ...change }), (error) => error.code === EXIT.input && message.test(error.message) && Object.entries(extra).every(([key, value]) => error.extra[key] === value), JSON.stringify(change));
+  refused({ prompt: '  ' }, /prompt is empty/);
+  refused({ cron: '0 9 * *' }, /Invalid cron "0 9 \* \*": field count/, { field: 'field count (4, expected 5)' });
+  refused({ cron: '0 25 * * *' }, /hour/, { field: 'hour' });
+  refused({ timezone: 'Mars/Olympus' }, /Unknown timezone/, { field: 'timezone' });
+  refused({ keys: 'CLOUDFLARE_API_TOKEN' }, /can not be given CLOUDFLARE_API_TOKEN/);
+  refused({ keys: 'WONG_ROUTINE_MODEL_KEY' }, /can not be given WONG_ROUTINE_MODEL_KEY/);
+  refused({ keys: 'stripe key' }, /is not a key name/);
 });
 
-test('builds a worktree-isolated, kept, verbatim create request', () => {
-  const request = buildCreateRequest({
-    prompt: '  /improve  ', cron: '0  9 * * 1-5', timezone: 'America/Toronto',
-    name: 'improve demo', agent: 'codex', model: 'gpt-5.6', cwd: '/x/demo',
-  });
-  assert.deepEqual(request, {
-    prompt: '/improve',
-    name: 'improve demo',
-    runOnCreate: false,
-    cadence: { type: 'cron', expression: '0 9 * * 1-5', timezone: 'America/Toronto' },
-    target: { type: 'new-agent', config: {
-      provider: 'codex', cwd: '/x/demo', modeId: 'full-access', isolation: 'worktree',
-      archiveOnFinish: false, title: 'improve demo', model: 'gpt-5.6',
-    } },
-  });
-  assert.throws(() => buildCreateRequest({ prompt: '/x', cron: '0 9 * * 9', agent: 'claude' }),
-    e => e.code === 2 && e.extra.field === 'day of week');
-  assert.throws(() => buildCreateRequest({ prompt: ' ', cron: '0 9 * * 1', agent: 'claude' }), /prompt is empty/);
+test('the runner\'s config is the template filled for the install, with no Artifacts binding on GitHub', () => {
+  const template = readFileSync(path.join(repoRoot, 'scripts/routine-runner/wrangler.template.jsonc'), 'utf8');
+  const artifacts = JSON.parse(runnerConfig({ account: ACCOUNT, runner: RUNNER, route: 'artifacts', remote: REMOTE, repo: 'demo', namespace: 'wongstack' }, template));
+  assert.deepEqual([artifacts.name, artifacts.account_id, artifacts.containers[0].name, artifacts.workflows[0].name], [RUNNER, ACCOUNT, RUNNER, RUNNER]);
+  assert.deepEqual(artifacts.artifacts, [{ binding: 'ARTIFACTS', namespace: 'wongstack' }]);
+  assert.deepEqual(JSON.parse(artifacts.vars.WONG_ROUTINES), { account: ACCOUNT, route: 'artifacts', remote: REMOTE, repo: 'demo', gateway: RUNNER });
+  const github = JSON.parse(runnerConfig({ account: ACCOUNT, runner: RUNNER, route: 'github', remote: 'https://github.com/ada/demo.git', repo: 'ada/demo' }, template));
+  assert.equal(github.artifacts, undefined);
+  assert.deepEqual(JSON.parse(github.vars.WONG_ROUTINES), { account: ACCOUNT, route: 'github', remote: 'https://github.com/ada/demo.git', repo: 'ada/demo', gateway: RUNNER });
+  assert.throws(() => runnerConfig({ account: ACCOUNT, runner: RUNNER, route: 'github', remote: 'x', repo: 'y' }, `${template}\n"<new>"`), /routine runner's config has a placeholder this script does not fill: <new>/);
 });
 
-test('create from a linked worktree sends one request based on the primary worktree', t => {
-  const { root, linked } = repo(t);
-  const paseo = fakePaseo(t);
-  const r = runCli(linked, ['create', '--cron', '0 9 * * 1-5', '--prompt', '/improve', '--agent', 'claude',
-    '--timezone', 'UTC'], paseo.env);
-  assert.equal(r.status, 0, JSON.stringify(r.json));
-  assert.equal(r.json.routine.nextRunAt, '2026-09-28T13:00:00.000Z');
-  const creates = paseo.creates();
-  assert.equal(creates.length, 1);
-  const { config } = creates[0].create.target;
-  assert.equal(config.cwd, root);
-  assert.equal(config.isolation, 'worktree');
-  assert.equal(config.modeId, 'bypassPermissions');
-  assert.equal(config.archiveOnFinish, false);
-  assert.equal(creates[0].create.name, 'improve demo');
-  assert.equal(creates[0].target.kind, 'instance');
+test('a refused model test is put in plain words by its status', () => {
+  assert.deepEqual([401, 403, 402, 429, 404, 500, null].map(refusalReason), [
+    'the service refused it', 'the service refused it', 'the account behind it has no credit left, or is over its limit', 'the account behind it has no credit left, or is over its limit',
+    'the service does not list that model', 'the service answered HTTP 500', 'the service could not be reached',
+  ]);
 });
 
-test('dry run sends nothing to Paseo', t => {
-  const { root } = repo(t);
-  const paseo = fakePaseo(t);
-  const r = runCli(root, [...CREATE, '--dry-run'], paseo.env);
-  assert.equal(r.status, 0);
-  assert.equal(r.json.dryRun, true);
-  assert.equal(r.json.request.target.config.isolation, 'worktree');
-  assert.deepEqual(paseo.calls(), []);
+test('the permission groups match the tables on the routines page, and the model-only key holds no group that changes the account', () => {
+  const plain = (rows) => rows.map(({ name, scope, id }) => ({ name, scope, id }));
+  assert.deepEqual(pageRows('What the first routine adds to your token'), plain(ROUTINES_PROVISION));
+  assert.deepEqual(pageRows('The model-only key'), plain(RUN_TOKEN_GROUPS));
+  assert.deepEqual(RUN_TOKEN_GROUPS.map((row) => row.name), ['AI Gateway Run', 'Workers AI Read']);
+  for (const row of RUN_TOKEN_GROUPS) {
+    assert.doesNotMatch(row.name, /Write|Tokens|Billing|Workers Scripts|Containers/, `${row.name} is more than running a model`);
+    assert.deepEqual(ROUTINES_PROVISION.find((each) => each.name === row.name), row, 'the person\'s token holds what it gives the key');
+  }
 });
 
-test('an invalid cron creates nothing and names the field', t => {
-  const { root } = repo(t);
-  const paseo = fakePaseo(t);
-  const r = runCli(root, ['create', '--cron', '0 25 * * *', '--prompt', '/improve', '--agent', 'claude'],
-    paseo.env);
-  assert.equal(r.status, 2);
-  assert.equal(r.json.field, 'hour');
-  assert.deepEqual(paseo.calls(), []);
+// ---------------------------------------------------------------------------
+// setup
+
+test('setup --dry-run says what the first routine adds, the cost, and full permissions, and makes nothing', async (t) => {
+  const env = await install(t, { route: 'github' });
+  const { code, data } = await env.run('setup', '--dry-run');
+  assert.equal(code, 0);
+  assert.deepEqual([data.ok, data.dryRun, data.installed], [true, true, false]);
+  assert.equal(data.adds.length, 5);
+  assert.match(data.adds.join(' '), /keeps the list of routines and the clock.*short-lived cloud computer.*gateway to Cloudflare's AI models.*can only run models.*private key.*Workers Containers Write, Billing Read, AI Gateway Write, AI Gateway Run, Workers AI Read/);
+  assert.match(data.cost, /about \$5 a month/);
+  assert.match(data.fullPermissions, /full permissions/);
+  assert.deepEqual([env.fake.calls.length, env.runner.state.calls.length, env.ran.length], [0, 0, 0]);
+  assert.equal(env.record().routines, undefined);
+  assert.equal((await (await install(t, { installed: true })).run('setup', '--dry-run')).data.installed, true);
 });
 
-test('a duplicate name creates nothing', t => {
-  const { root } = repo(t);
-  const paseo = fakePaseo(t, { schedules: [schedule('old1', 'improve demo', '/elsewhere')] });
-  const r = runCli(root, CREATE, paseo.env);
-  assert.equal(r.status, 2);
-  assert.match(r.json.error, /already exists/);
-  assert.equal(paseo.creates().length, 0);
+test('with no Cloudflare account, setup and a first routine stop with exit 3 and add nothing', async (t) => {
+  const noToken = await install(t);
+  writeFileSync(path.join(noToken.dir, '.env'), `CLOUDFLARE_ACCOUNT_ID=${ACCOUNT}\n`);
+  const tokenless = await noToken.run('setup');
+  assert.deepEqual([tokenless.code, tokenless.data.needs, tokenless.data.keys], [3, 'cloudflare', ['CLOUDFLARE_API_TOKEN']]);
+  assert.match(tokenless.data.error, /CLOUDFLARE_API_TOKEN is not in this install's \.env/);
+
+  const bare = await install(t);
+  writeFileSync(path.join(bare.dir, '.claude/.wong-stack.json'), '{}\n');
+  writeFileSync(path.join(bare.dir, '.env'), `CLOUDFLARE_API_TOKEN=${TOKEN}\n`);
+  const accountless = await bare.run('setup');
+  assert.deepEqual([accountless.code, accountless.data.needs], [3, 'cloudflare']);
+  assert.match(accountless.data.error, /records no Cloudflare account/);
+  const first = await bare.run(...CREATE);
+  assert.deepEqual([first.code, first.data.needs], [3, 'cloudflare'], 'a first routine says the same');
+  assert.deepEqual((await bare.run('ls')).data, { ok: true, installed: false, routines: [] });
+  writeFileSync(path.join(bare.dir, '.env'), `CLOUDFLARE_API_TOKEN=${TOKEN}\nCLOUDFLARE_ACCOUNT_ID=${ACCOUNT}\n`);
+  const unnamed = await bare.run('setup');
+  assert.deepEqual([unnamed.code, unnamed.data.needs], [3, 'cloudflare']);
+  assert.match(unnamed.data.error, /has not been set up on Cloudflare yet/);
+  for (const env of [noToken, bare]) {
+    assert.deepEqual([env.ran, env.fake.state.workers, env.fake.state.gateways, env.fake.state.puts], [[], [], [], []]);
+    assert.equal(env.record()?.routines, undefined);
+  }
 });
 
-test('no paseo on PATH is exit 3 with the command to run later', t => {
-  const { root } = repo(t);
-  const bare = tmp(t, 'routine-path-');
-  symlinkSync(execFileSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' }).trim(), path.join(bare, 'git'));
-  const r = runCli(root, ['create', '--cron', '0 9 * * 1', '--prompt', "/improve it's fine", '--agent', 'claude',
-    '--timezone', 'UTC'], { PATH: bare, ROUTINE_PASEO_BIN: '' });
-  assert.equal(r.status, 3);
-  assert.match(r.json.error, /not installed/);
-  assert.match(r.json.fallback.retry, /routine\.mjs" create --cron '0 9 \* \* 1'/);
-  assert.match(r.json.fallback.retry, /--prompt '\/improve it'\\''s fine'/);
-  assert.match(r.json.fallback.app, /Isolation: worktree/);
+test('setup stops, naming what is wrong, before anything is made for a project it can not run from or keys it can not keep', async (t) => {
+  const elsewhere = await install(t, { route: 'github' });
+  git(elsewhere.dir, 'remote', 'set-url', 'origin', 'https://gitlab.com/ada/demo.git');
+  const foreign = await elsewhere.run('setup');
+  assert.deepEqual([foreign.code, foreign.data.error], [2, 'This project has no GitHub or Cloudflare repository to run from: `origin` is not a GitHub address.']);
+  assert.deepEqual(elsewhere.ran, []);
+
+  const exposed = await install(t);
+  writeFileSync(path.join(exposed.dir, '.gitignore'), '');
+  const unsafe = await exposed.run('setup');
+  assert.equal(unsafe.code, 2);
+  assert.match(unsafe.data.error, /\.env is not git-ignored .* no key was saved/);
+  assert.equal(exposed.record().routines, undefined);
 });
 
-test('a daemon that does not answer is exit 4 and creates nothing', t => {
-  const { root } = repo(t);
-  const paseo = fakePaseo(t);
-  const env = { ...paseo.env, FAKE_PASEO_DOWN: '1' };
-  const created = runCli(root, CREATE, env);
-  assert.equal(created.status, 4);
-  assert.ok(created.json.fallback.retry);
-  assert.equal(paseo.creates().length, 0);
-  assert.equal(runCli(root, ['ls'], env).status, 4);
+test('on a free account setup stops with the cost, and nothing is added or recorded', async (t) => {
+  const env = await install(t, { route: 'github', paid: false });
+  const { code, data } = await env.run('setup');
+  assert.equal(code, 3);
+  assert.deepEqual([data.ok, data.code, data.needs, data.cost, data.upgrade], [false, 3, 'paid-plan', 'about $5 a month', `https://dash.cloudflare.com/${ACCOUNT}/workers/plans`]);
+  assert.match(data.error, /need Cloudflare's paid plan.*Nothing was added/);
+  assert.deepEqual(data.granted, ROUTINES_PROVISION.map((row) => row.name), 'the token gained only what reads the plan and what a routine needs');
+  const first = await env.run(...CREATE);
+  assert.deepEqual([first.code, first.data.needs, first.data.cost], [3, 'paid-plan', 'about $5 a month'], 'a first routine on a free account says the same, and makes no routine');
+  assert.deepEqual([env.fake.state.workers, env.fake.state.gateways, env.fake.state.accountTokens, env.ran], [[], [], [], []]);
+  assert.equal(existsSync(path.join(env.dir, 'scripts/routine-runner/wrangler.jsonc')), false);
+  assert.equal(env.envFile().WONG_ROUTINES_KEY, undefined);
+  assert.equal(env.record().routines, undefined);
+  assert.deepEqual(env.runner.state.calls, []);
 });
 
-test('a missing client module is exit 5 with app steps, never a local schedule', t => {
-  const { root } = repo(t);
-  const paseo = fakePaseo(t, { client: false });
-  const r = runCli(root, CREATE, paseo.env);
-  assert.equal(r.status, 5);
-  assert.match(r.json.fallback.app, /Paseo app/);
-  assert.equal(paseo.calls().filter(c => c.create || c.cli?.[1] === 'create').length, 0);
+test('the first setup installs the runner from the pack\'s pinned tools, makes the gateway and its model-only key, stores the keys, and records it last', async (t) => {
+  const env = await install(t);
+  const { code, data, text } = await env.run('setup');
+  assert.equal(code, 0, text);
+  assert.deepEqual([data.ok, data.routines, data.plan, data.needs], [true, ROUTINES, 'Workers Paid', undefined]);
+  assert.deepEqual(data.created, ['scripts/routine-runner/wrangler.jsonc', `AI Gateway ${RUNNER}`, `model-only key ${RUNNER}-ai`, 'WONG_ROUTINES_KEY in .env']);
+  assert.deepEqual(data.updated, [`routine runner ${RUNNER}`, '.claude/.wong-stack.json components.routines']);
+  assert.deepEqual(data.granted, ROUTINES_PROVISION.map((row) => row.name));
+  assert.deepEqual(env.record().routines, ROUTINES, 'the install record names the Worker and its address');
+
+  const folder = path.join(env.dir, 'scripts/routine-runner');
+  const config = JSON.parse(readFileSync(path.join(folder, 'wrangler.jsonc'), 'utf8'));
+  assert.deepEqual([config.name, config.artifacts[0].namespace, JSON.parse(config.vars.WONG_ROUTINES).remote, JSON.parse(config.vars.WONG_ROUTINES).gateway], [RUNNER, 'wongstack', REMOTE, RUNNER]);
+  assert.deepEqual(env.ran.map((tool) => [tool.file, tool.cwd]), [['npm', folder], ['npx', folder]]);
+  assert.deepEqual(env.ran[0].args, ['ci', '--no-audit', '--no-fund', '--ignore-scripts']);
+  assert.deepEqual(env.ran[1].args, ['--no-install', 'wrangler', 'deploy', '--config', 'wrangler.jsonc']);
+  assert.deepEqual(env.ran.map((tool) => tool.token), [false, true], 'only the deploy gets the token, in its environment');
+
+  assert.deepEqual(env.fake.state.gateways.map((gateway) => [gateway.id, gateway.authentication, gateway.collect_logs]), [[RUNNER, true, false]], 'the gateway takes only requests that carry a key, and keeps no log of them');
+  const [minted] = env.fake.state.accountTokens;
+  assert.equal(minted.name, `${RUNNER}-ai`);
+  assert.deepEqual(minted.policies, [{ effect: 'allow', resources: { [`com.cloudflare.api.account.${ACCOUNT}`]: '*' }, permission_groups: RUN_TOKEN_GROUPS.map((row) => ({ id: row.id })) }], 'the key a run holds can run models on this account, and nothing else');
+  const key = env.envFile().WONG_ROUTINES_KEY;
+  assert.match(key, /^[A-Za-z0-9_-]{43}$/, '32 random bytes');
+  assert.deepEqual(env.held(), { ROUTINES_KEY: key, AI_RUN_TOKEN: env.fake.state.minted[0], MEMORY_TOKEN: MEMORY });
+  assert.equal(git(env.dir, 'status', '--porcelain', '--', 'scripts'), '', 'what setup generates is kept out of git');
+  assert.match(readFileSync(path.join(env.dir, '.git/info/exclude'), 'utf8'), /^scripts\/routine-runner\/wrangler\.jsonc\nscripts\/routine-runner\/node_modules\/\nscripts\/routine-runner\/\.wrangler\/\n/m);
+  noSecret(text, env);
+
+  const again = await env.run('setup');
+  assert.equal(again.code, 0);
+  assert.deepEqual([again.data.created, again.data.granted], [[], []]);
+  assert.equal(env.envFile().WONG_ROUTINES_KEY, key, 'a second setup keeps the key this computer holds');
+  assert.deepEqual([env.held().ROUTINES_KEY, env.fake.state.minted.length, env.fake.state.gateways.length], [key, 1, 1], 'nothing is made twice');
+  assert.equal(readFileSync(path.join(env.dir, '.git/info/exclude'), 'utf8').match(/routine-runner\/wrangler\.jsonc/g).length, 1);
 });
 
-test('ls shows only this repo and actions reach only its routines', t => {
-  const { root, linked } = repo(t);
-  const paseo = fakePaseo(t, { schedules: [
-    schedule('mine0001', 'improve demo', root),
-    schedule('other001', 'improve other', '/somewhere/else'),
-  ] });
-  const env = paseo.env;
-  const list = runCli(linked, ['ls'], env);
-  assert.equal(list.status, 0);
-  assert.deepEqual(list.json.routines.map(r => r.id), ['mine0001']);
+test('a setup that fails midway records nothing here, and the next one finishes', async (t) => {
+  const env = await install(t);
+  env.fake.state.refuse = [`PUT ${SECRETS}`];
+  const { code, data } = await env.run('setup');
+  assert.equal(code, 4);
+  assert.match(data.error, /Cloudflare did not take the change: Cloudflare PUT .*secrets: HTTP 500 1000\. Nothing was recorded; try again\./);
+  assert.equal(env.envFile().WONG_ROUTINES_KEY, undefined);
+  assert.equal(env.record().routines, undefined);
+  assert.deepEqual(env.held(), {});
+  assert.equal((await env.run('ls')).data.installed, false);
 
-  assert.equal(runCli(root, ['pause', 'improve demo'], env).status, 0);
-  assert.equal(runCli(root, ['run', 'mine'], env).status, 0);
-  assert.equal(runCli(root, ['delete', 'improve other'], env).status, 2);
-  const actions = paseo.calls().map(c => c.cli).filter(a => !['ls', 'inspect'].includes(a[1]));
-  assert.deepEqual(actions, [['schedule', 'pause', 'mine0001'], ['schedule', 'run-once', 'mine0001']]);
+  env.fake.state.refuse = [`POST /accounts/${ACCOUNT}/tokens`];
+  assert.equal((await env.run('setup')).code, 4, 'a key that can not be made stops it too');
+  assert.equal(env.record().routines, undefined);
+  assert.equal(env.envFile().WONG_ROUTINES_KEY, undefined);
+
+  env.fake.state.refuse = [];
+  const done = await env.run('setup');
+  assert.equal(done.code, 0, done.text);
+  assert.equal(env.held().ROUTINES_KEY, env.envFile().WONG_ROUTINES_KEY);
+  assert.deepEqual(env.record().routines, ROUTINES);
+  assert.equal(env.fake.state.gateways.length, 1);
 });
 
-test('change keeps the cron when only the timezone changes', t => {
-  const { root } = repo(t);
-  const paseo = fakePaseo(t, { schedules: [schedule('mine0001', 'improve demo', root)] });
-  const r = runCli(root, ['change', 'improve demo', '--timezone', 'America/Toronto'], paseo.env);
-  assert.equal(r.status, 0, JSON.stringify(r.json));
-  const update = paseo.calls().map(c => c.cli).find(a => a[1] === 'update');
-  assert.deepEqual(update, ['schedule', 'update', 'mine0001', '--cron', '0 9 * * 1', '--timezone', 'America/Toronto']);
-  assert.equal(runCli(root, ['change', 'improve demo'], paseo.env).status, 2);
+test('a GitHub install drops the Artifacts binding and answers needs project-access until the project key is given', async (t) => {
+  const env = await install(t, { route: 'github' });
+  const first = await env.run('setup');
+  assert.equal(first.code, 0, first.text);
+  assert.deepEqual([first.data.needs, first.data.keys, first.data.routines.route], ['project-access', ['WONG_ROUTINE_GITHUB_TOKEN'], 'github']);
+  const config = JSON.parse(readFileSync(path.join(env.dir, 'scripts/routine-runner/wrangler.jsonc'), 'utf8'));
+  assert.equal(config.artifacts, undefined);
+  assert.deepEqual(JSON.parse(config.vars.WONG_ROUTINES), { account: ACCOUNT, route: 'github', remote: 'https://github.com/ada/demo.git', repo: 'ada/demo', gateway: RUNNER });
+  assert.equal(env.held().GITHUB_TOKEN, undefined);
+  const held = env.fake.state.policies.flatMap((policy) => policy.permission_groups.map((group) => group.id));
+  for (const row of ROUTINES_PROVISION) assert.ok(held.includes(row.id), row.name);
+  assert.equal(env.fake.state.puts.length, 1);
+  await env.runner.routines.choose({ via: 'cloudflare', model: KIMI });
+  const waiting = await env.run(...CREATE);
+  assert.deepEqual([waiting.code, waiting.data.needs, waiting.data.keys], [3, 'project-access', ['WONG_ROUTINE_GITHUB_TOKEN']], 'and no routine is made meanwhile');
+  assert.deepEqual((await env.run('ls')).data.routines, []);
+
+  env.addKey('WONG_ROUTINE_GITHUB_TOKEN', PROJECT_KEY);
+  const second = await env.run('setup');
+  assert.deepEqual([second.data.needs, second.data.granted], [undefined, []]);
+  assert.equal(env.held().GITHUB_TOKEN, PROJECT_KEY);
+  assert.equal(env.fake.state.puts.length, 1, 'a token that holds every group is not widened again');
+  assert.equal((await env.run(...CREATE)).code, 0);
+  noSecret(`${first.text}${waiting.text}${second.text}`, env);
+});
+
+// ---------------------------------------------------------------------------
+// create
+
+test('create --dry-run shows the routine, who it runs as, its next run, and the model, and sends nothing before setup', async (t) => {
+  const env = await install(t);
+  const { code, data } = await env.run(...CREATE, '--dry-run');
+  assert.equal(code, 0);
+  assert.deepEqual(data.request, { name: 'improve demo', prompt: '/improve', cron: '0 9 * * 1-5', timezone: 'UTC', keys: [], maker: { id: 'b5fc85e55755', name: 'Ada', email: 'Ada@Example.com' } });
+  assert.deepEqual([data.dryRun, data.installed, data.runsAs, data.nextRunAt, data.model], [true, false, { name: 'Ada', email: 'Ada@Example.com' }, '2026-10-05T09:00:00.000Z', null]);
+  assert.deepEqual([data.adds.length, data.shortlist], [5, SHORTLIST], 'before setup the preview also says what the first routine adds, and which models it can ask about');
+  assert.deepEqual([env.fake.calls.length, env.runner.state.calls.length, env.ran.length], [0, 0, 0]);
+
+  const ready = await install(t, { installed: true, picked: true });
+  const zoned = await ready.run('create', '--cron', '0 9 * * *', '--prompt', 'tidy up', '--dry-run');
+  assert.deepEqual([zoned.data.request.timezone, zoned.data.adds, zoned.data.request.name, zoned.data.model, zoned.data.shortlist], [Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC', undefined, 'tidy up demo', CLOUDFLARE_PICK, undefined]);
+  assert.deepEqual(ready.runner.state.calls, ['GET /model'], 'the preview only reads');
+  assert.deepEqual((await ready.run('ls')).data.routines, []);
+});
+
+test('the first routine installs the pieces, then asks which model with the shortlist, then is made', async (t) => {
+  const env = await install(t);
+  const first = await env.run(...CREATE);
+  assert.deepEqual([first.code, first.data.ok, first.data.needs, first.data.shortlist], [3, false, 'model', SHORTLIST], first.text);
+  assert.match(first.data.error, /No model is picked/);
+  assert.deepEqual([first.data.setup.routines, first.data.setup.created.length], [ROUTINES, 4], 'the stop still names what the first routine added');
+  assert.deepEqual(env.record().routines, ROUTINES);
+  assert.deepEqual(env.fake.state.workers, [RUNNER]);
+  assert.deepEqual((await env.run('ls')).data.routines, [], 'no routine exists until a model is picked');
+
+  const picked = await env.run('model', KIMI);
+  assert.deepEqual([picked.code, picked.data], [0, { ok: true, action: 'model', model: CLOUDFLARE_PICK }]);
+  const made = await env.run(...CREATE);
+  assert.equal(made.code, 0, made.text);
+  assert.deepEqual([made.data.ok, made.data.version, made.data.setup, made.data.routine.name, made.data.routine.cadence, made.data.routine.maker], [true, undefined, undefined, 'improve demo', '0 9 * * 1-5 (UTC)', { name: 'Ada', email: 'Ada@Example.com' }]);
+  assert.match(made.data.routine.nextRunAt, /^\d{4}-\d\d-\d\dT09:00:00\.000Z$/);
+  assert.equal(env.ran.length, 2, 'the pieces are installed once');
+  noSecret([first, picked, made].map((each) => each.text).join(''), env);
+});
+
+test('a routine\'s named keys go from .env to Cloudflare by name; a key that is not saved stops the create', async (t) => {
+  const env = await install(t, { installed: true, picked: true, keys: { STRIPE_KEY: 'sk_live_stripe-secret' } });
+  const lacking = await env.run(...CREATE, '--keys', 'STRIPE_KEY,MAPS_KEY');
+  assert.deepEqual([lacking.code, lacking.data.keys], [2, ['MAPS_KEY']]);
+  assert.equal(env.held().RUN_STRIPE_KEY, undefined);
+  const made = await env.run(...CREATE, '--keys', 'STRIPE_KEY');
+  assert.equal(made.code, 0, made.text);
+  assert.deepEqual(made.data.routine.keys, ['STRIPE_KEY']);
+  assert.equal(env.held().RUN_STRIPE_KEY, 'sk_live_stripe-secret');
+  assert.equal(made.text.includes('sk_live_stripe-secret'), false);
+  assert.equal((await env.run(...CREATE, '--keys', 'CLOUDFLARE_API_TOKEN')).code, 2);
+  assert.equal(env.held().RUN_CLOUDFLARE_API_TOKEN, undefined);
+
+  env.fake.state.refuse = [`PUT ${SECRETS}`];
+  const failed = await env.run(...CREATE, '--name', 'second', '--keys', 'STRIPE_KEY');
+  assert.equal(failed.code, 4);
+  assert.equal((await env.run('ls')).data.routines.length, 1, 'a key Cloudflare did not take makes no routine');
+});
+
+test('a bad create is exit 2 with the reason, and a name already taken is the runner\'s own refusal', async (t) => {
+  const env = await install(t, { installed: true, picked: true });
+  const bad = await env.run('create', '--cron', '0 9 * *', '--prompt', '/improve');
+  assert.deepEqual([bad.code, bad.data.ok, bad.data.code, bad.data.field], [2, false, 2, 'field count (4, expected 5)']);
+  assert.equal((await env.run('create', '--cron', '0 9 * * *')).data.error, 'The prompt is empty.');
+  assert.equal((await env.run(...CREATE, '--agent', 'claude')).data.error, 'Unknown flag --agent.', 'a routine names no assistant');
+  assert.equal((await env.run(...CREATE)).code, 0);
+  const clash = await env.run(...CREATE);
+  assert.equal(clash.code, 2);
+  assert.match(clash.data.error, /A routine named "improve demo" already exists/);
+  assert.equal((await env.run(...CREATE, '--name', 'second one')).data.routine.name, 'second one');
+});
+
+// ---------------------------------------------------------------------------
+// model
+
+test('model with no id shows the shortlist, Cloudflare\'s list, and the model in use, and changes nothing', async (t) => {
+  const fresh = await install(t);
+  assert.deepEqual((await fresh.run('model')).data, { ok: true, installed: false, model: null, shortlist: SHORTLIST, models: [] });
+  assert.deepEqual(fresh.runner.state.calls, []);
+
+  const env = await install(t, { installed: true });
+  const none = await env.run('model');
+  assert.deepEqual([none.code, none.data], [0, { ok: true, installed: true, model: null, shortlist: SHORTLIST, models: CATALOG }]);
+  await env.runner.routines.choose({ via: 'cloudflare', model: KIMI });
+  assert.deepEqual((await env.run('model')).data.model, CLOUDFLARE_PICK);
+  assert.deepEqual(env.runner.state.calls, ['GET /models', 'GET /models']);
+});
+
+test('a pick Cloudflare refuses stores nothing and says why; an accepted pick is put in use', async (t) => {
+  const env = await install(t, { installed: true });
+  env.runner.state.models = fakeModels({ accepts: ({ model }) => model.startsWith('workers-ai/'), status: 402, message: 'Add credit to your account to use this model.' });
+  const refused = await env.run('model', 'claude-sonnet-5');
+  assert.deepEqual([refused.code, refused.data.ok, refused.data.refused, refused.data.status, refused.data.said, refused.data.model], [2, false, true, 402, 'Add credit to your account to use this model.', null]);
+  assert.match(refused.data.error, /^Cloudflare refused claude-sonnet-5: the account behind it has no credit left, or is over its limit\. A model like Claude or GPT needs credit loaded in your Cloudflare account, or your own key\. Routines keep the model they had\.$/);
+  assert.equal(env.stored(), null, 'a refused pick stores nothing');
+
+  const picked = await env.run('model', KIMI);
+  assert.deepEqual([picked.code, picked.data], [0, { ok: true, action: 'model', model: CLOUDFLARE_PICK }]);
+  assert.deepEqual(env.stored(), { use: 'cloudflare', cloudflare: KIMI, key: null });
+  const second = await env.run('model', 'gpt-5.5');
+  assert.deepEqual([second.code, second.data.model], [2, CLOUDFLARE_PICK], 'a refused pick never replaces a working one');
+  assert.deepEqual(env.stored(), { use: 'cloudflare', cloudflare: KIMI, key: null });
+  assert.deepEqual(env.runner.state.models.tested.map((each) => [each.provider, each.model, each.key]), [[GATEWAY, 'claude-sonnet-5', null], [GATEWAY, KIMI, null], [GATEWAY, 'gpt-5.5', null]], 'one test request a pick, through Cloudflare, with no key');
+  assert.deepEqual(env.fake.calls, [], 'a pick asks nothing of the Cloudflare API from this computer');
+
+  const unlisted = await env.run('model', 'workers-ai/@cf/no-such/model');
+  assert.deepEqual([unlisted.code, unlisted.data.error], [2, 'Cloudflare lists no model "workers-ai/@cf/no-such/model".']);
+  assert.equal((await (await install(t)).run('model', KIMI)).data.needs, 'setup', 'before the pieces are installed a pick asks for setup');
+});
+
+// ---------------------------------------------------------------------------
+// key
+
+test('key with no key saved asks for it by name; a shape nobody is known for asks which service', async (t) => {
+  const env = await install(t, { installed: true, picked: true });
+  const blank = await env.run('key');
+  assert.deepEqual([blank.code, blank.data.needs, blank.data.keys], [3, 'model-key', ['WONG_ROUTINE_MODEL_KEY']]);
+  assert.match(blank.data.error, /Send the key link for WONG_ROUTINE_MODEL_KEY/);
+
+  env.addKey('WONG_ROUTINE_MODEL_KEY', 'a-key-of-no-known-shape');
+  const unknown = await env.run('key');
+  assert.deepEqual([unknown.code, unknown.data.needs, unknown.data.services.map((service) => service.provider)], [3, 'provider', ['anthropic', 'openrouter', 'openai', 'google', 'groq', 'xai', 'zai', 'deepseek', 'moonshotai']]);
+  assert.match(unknown.data.error, /can't be told from its shape/);
+  const outside = await env.run('key', '--provider', 'mistral');
+  assert.deepEqual([outside.code, outside.data.error], [2, '"mistral" has no model set here. Say which model to use.']);
+  assert.deepEqual([(await env.run('key', '--provider', 'openai-codex', '--model', 'gpt-6.1-sol')).data.needs, (await env.run('key', '--provider')).code], ['provider', 2]);
+  assert.deepEqual([env.runner.state.calls, env.fake.calls, env.held().MODEL_KEY], [[], [], undefined], 'nothing was tested, sent, or stored');
+  for (const answer of [blank, unknown, outside]) assert.equal(answer.text.includes('a-key-of-no-known-shape'), false);
+
+  const fresh = await install(t, { keys: { WONG_ROUTINE_MODEL_KEY: ZAI_KEY } });
+  assert.deepEqual([(await fresh.run('key')).code, (await fresh.run('key')).data.needs], [3, 'setup']);
+});
+
+test('a key its service refuses stores nothing, in Cloudflare or in the runner, and says so without the key', async (t) => {
+  const env = await install(t, { installed: true, picked: true, keys: { WONG_ROUTINE_MODEL_KEY: ZAI_KEY } });
+  env.runner.state.models = fakeModels({ accepts: () => false, status: 401, message: ({ key }) => `Invalid API key: ${key}` });
+  const refused = await env.run('key');
+  assert.deepEqual([refused.code, refused.data.ok, refused.data.refused, refused.data.tried], [2, false, true, [{ service: 'Z.ai Coding Plan', provider: 'zai', model: 'glm-5.3', status: 401, reason: 'the service refused it' }]]);
+  assert.equal(refused.data.error, 'The key was refused: Z.ai Coding Plan, the service refused it. Nothing was stored, and routines keep the model they had.');
+  assert.equal(env.held().MODEL_KEY, undefined);
+  assert.deepEqual(env.fake.calls, [], 'a refused key never reaches Cloudflare\'s API');
+  assert.deepEqual(env.stored(), { use: 'cloudflare', cloudflare: KIMI, key: null });
+  assert.equal(refused.text.includes(ZAI_KEY), false);
+  assert.deepEqual(env.runner.state.calls, ['POST /model/test']);
+});
+
+test('an accepted key is stored once, put in use, and named by its service and model, never by its value', async (t) => {
+  const env = await install(t, { installed: true, picked: true, keys: { WONG_ROUTINE_MODEL_KEY: ZAI_KEY } });
+  const { code, data, text } = await env.run('key');
+  assert.equal(code, 0, text);
+  assert.deepEqual(data, { ok: true, action: 'key', model: ZAI_PICK });
+  assert.equal(env.held().MODEL_KEY, ZAI_KEY);
+  assert.deepEqual(env.stored(), { use: 'key', cloudflare: KIMI, key: { provider: 'zai', model: 'glm-5.3' } });
+  assert.equal(text.includes(ZAI_KEY), false);
+  assert.deepEqual(env.runner.state.calls, ['POST /model/test', 'POST /model']);
+  assert.deepEqual(env.runner.state.models.tested, [{ provider: 'zai', model: 'glm-5.3', key: ZAI_KEY }]);
+  assert.equal(env.fake.calls.filter((call) => call.body.includes(ZAI_KEY)).length, 1, 'the key goes to Cloudflare once, as the Worker\'s secret');
+  assert.deepEqual((await env.run(...CREATE)).code, 0, 'the next routine runs on it');
+  assert.deepEqual((await env.run(...CREATE, '--name', 'preview', '--dry-run')).data.model, ZAI_PICK);
+});
+
+test('a key whose shape several services share is tried on each in order; --provider and --model override', async (t) => {
+  const shared = 'sk-0123456789abcdef-shared-shape-secret';
+  const env = await install(t, { installed: true, keys: { WONG_ROUTINE_MODEL_KEY: shared } });
+  env.runner.state.models = fakeModels({ accepts: ({ provider }) => provider === 'deepseek' });
+  const guessed = await env.run('key');
+  assert.deepEqual([guessed.code, guessed.data.model], [0, { via: 'key', provider: 'deepseek', model: 'deepseek-v4-pro', service: 'DeepSeek' }]);
+  assert.deepEqual(env.runner.state.models.tested.map((each) => each.provider), ['openai', 'deepseek']);
+
+  env.runner.state.models = fakeModels();
+  const named = await env.run('key', '--provider', 'moonshotai', '--model', 'kimi-k2.7-code');
+  assert.deepEqual(named.data.model, { via: 'key', provider: 'moonshotai', model: 'kimi-k2.7-code', service: 'Moonshot AI' });
+  assert.deepEqual(env.runner.state.models.tested, [{ provider: 'moonshotai', model: 'kimi-k2.7-code', key: shared }]);
+  const outside = await env.run('key', '--provider', 'mistral', '--model', 'devstral-medium-latest');
+  assert.deepEqual(outside.data.model, { via: 'key', provider: 'mistral', model: 'devstral-medium-latest', service: 'mistral' });
+  for (const answer of [guessed, named, outside]) assert.equal(answer.text.includes(shared), false);
+
+  env.fake.state.refuse = [`PUT ${SECRETS}`];
+  const before = env.stored();
+  const unstored = await env.run('key', '--provider', 'openai');
+  assert.equal(unstored.code, 4, 'a key Cloudflare did not take is not put in use');
+  assert.deepEqual(env.stored(), before);
+  assert.equal(unstored.text.includes(shared), false);
+});
+
+test('key --remove deletes the stored key and returns to the last Cloudflare pick, or to no model', async (t) => {
+  const env = await install(t, { installed: true, picked: true, keys: { WONG_ROUTINE_MODEL_KEY: ZAI_KEY } });
+  await env.run('key');
+  const removed = await env.run('key', '--remove');
+  assert.deepEqual([removed.code, removed.data], [0, { ok: true, action: 'forget-key', model: CLOUDFLARE_PICK }]);
+  assert.equal(env.held().MODEL_KEY, undefined);
+  assert.equal(env.calls(`DELETE ${SECRETS}/MODEL_KEY`).length, 1);
+  assert.equal(env.held().AI_RUN_TOKEN, AI_RUN_TOKEN, 'nothing else of the runner\'s is touched');
+  assert.equal((await env.run('key', '--remove')).code, 0, 'removing a key that is not there is not an error');
+
+  const keyOnly = await install(t, { installed: true, keys: { WONG_ROUTINE_MODEL_KEY: ZAI_KEY } });
+  await keyOnly.run('key');
+  const none = await keyOnly.run('key', '--remove');
+  assert.deepEqual([none.code, none.data.model, none.data.needs, none.data.shortlist], [0, null, 'model', SHORTLIST]);
+  assert.equal((await keyOnly.run(...CREATE)).data.needs, 'model');
+});
+
+// ---------------------------------------------------------------------------
+// list and manage
+
+test('routines are listed, changed, paused, resumed, run now, read, and deleted', async (t) => {
+  const env = await install(t, { installed: true, picked: true });
+  await env.run(...CREATE);
+  const listed = await env.run();
+  assert.equal(listed.code, 0);
+  assert.deepEqual(listed.data.routines.map((routine) => [routine.name, routine.cadence, routine.status, routine.lastRun]), [['improve demo', '0 9 * * 1-5 (UTC)', 'active', null]]);
+  assert.deepEqual((await env.run('ls')).data, listed.data, 'no command means list');
+  const { id } = listed.data.routines[0];
+
+  const changed = await env.run('change', 'improve demo', '--cron', '30 14 * * *', '--timezone', 'America/Toronto', '--prompt', '/improve docs');
+  assert.deepEqual([changed.data.action, changed.data.routine.cadence, changed.data.routine.prompt], ['change', '30 14 * * * (America/Toronto)', '/improve docs']);
+  assert.deepEqual([(await env.run('pause', id)).data.routine.status, (await env.run('resume', id.slice(0, 3))).data.routine.status], ['paused', 'active']);
+
+  const ran = await env.run('run', 'IMPROVE DEMO');
+  assert.deepEqual([ran.data.action, ran.data.run.started, ran.data.routine.running], ['run', true, true]);
+  assert.deepEqual(env.runner.state.started, [{ id, runId: ran.data.run.runId }]);
+  await env.runner.routines.finish(id, ran.data.run.runId, { status: 'ok', exitCode: 0, startupMs: 31_000, durationMs: 240_000, log: 'shipped one fix\n' });
+  const logs = await env.run('logs', id);
+  assert.deepEqual([logs.data.action, logs.data.log, logs.data.results.map((result) => result.status)], ['logs', 'shipped one fix', ['ok']]);
+  const { lastRun } = (await env.run('ls')).data.routines[0];
+  assert.deepEqual([lastRun.status, lastRun.startupMs, lastRun.durationMs], ['ok', 31_000, 240_000], 'the list shows the last result, with how long it took to start and to run');
+
+  const deleted = await env.run('delete', 'improve demo');
+  assert.deepEqual([deleted.data.action, deleted.data.routine], ['delete', { id, name: 'improve demo' }]);
+  assert.deepEqual((await env.run('ls')).data.routines, []);
+  assert.deepEqual(env.runner.state.calls.slice(-2), [`DELETE /routines/improve%20demo`, 'GET /routines']);
+});
+
+test('an ambiguous name changes nothing and lists the matching ids; bad input is exit 2', async (t) => {
+  const env = await install(t, { installed: true, picked: true });
+  await env.run(...CREATE, '--name', 'first');
+  await env.run(...CREATE, '--name', 'second');
+  const before = JSON.stringify([...env.runner.storage.map]);
+  const ambiguous = await env.run('pause', 'a');
+  assert.deepEqual([ambiguous.code, ambiguous.data.matches.map((match) => match.name)], [2, ['first', 'second']]);
+  assert.match(ambiguous.data.error, /matches more than one routine/);
+  const none = await env.run('delete', 'monthly');
+  assert.deepEqual([none.code, none.data.error, none.data.routines.length], [2, 'No routine matches "monthly".', 2]);
+  for (const argv of [['pause'], ['logs', '  '], ['change', 'first'], ['change', 'first', '--cron', 'soon'], ['explode'], ['ls', '--force'], ['create', '--cron']]) {
+    assert.equal((await env.run(...argv)).code, 2, argv.join(' '));
+  }
+  assert.equal((await env.run('explode')).data.error, 'Unknown command "explode". Use create, ls, pause, resume, run, logs, change, delete, model, key, or setup.');
+  assert.equal((await env.run('ls', '--force')).data.error, 'Unknown flag --force.');
+  assert.equal(JSON.stringify([...env.runner.storage.map]), before);
+});
+
+// ---------------------------------------------------------------------------
+// When the cloud cannot be reached
+
+test('when the runner does not answer, nothing changes and the exit is 4', async (t) => {
+  const env = await install(t, { installed: true, picked: true, keys: { WONG_ROUTINE_MODEL_KEY: ZAI_KEY } });
+  for (const answer of [{ status: 500, body: 'Internal Server Error', type: 'text/plain' }, { status: 503, body: '{}' }, { status: 404, body: '' }]) {
+    env.runner.state.answer = answer;
+    const silent = await env.run('ls');
+    assert.deepEqual([silent.code, silent.data.ok, silent.data.code], [4, false, 4], JSON.stringify(answer));
+    assert.match(silent.data.error, /did not answer .*Nothing changed\. Try again/);
+  }
+  assert.match((await env.run('ls')).data.error, /not found, or this computer's key is not theirs/);
+  // A key Cloudflare has not spread yet looks the same for a few seconds: the call is tried again.
+  env.runner.state.answer = { status: 404, body: '', times: 2 };
+  const settled = await env.run('ls');
+  assert.deepEqual([settled.code, settled.data.ok, env.runner.state.answer], [0, true, null], 'two empty 404s, then the list');
+  env.runner.state.answer = { status: 404, body: '' };
+  for (const argv of [['model'], ['model', KIMI], ['key'], ['key', '--remove'], [...CREATE, '--dry-run']]) assert.equal((await env.run(...argv)).code, 4, argv.join(' '));
+  assert.deepEqual([env.held().MODEL_KEY, env.fake.calls.length], [undefined, 0], 'a key is never stored for a runner that did not test it');
+  await env.runner.close();
+  const gone = await env.run(...CREATE);
+  assert.equal(gone.code, 4);
+  assert.match(gone.data.error, /did not answer \(no reply\)/);
+});
+
+test('when the runner\'s answers have changed, nothing is guessed and the exit is 5', async (t) => {
+  const env = await install(t, { installed: true });
+  const changed = [
+    { status: 200, body: '<html>Hello</html>', type: 'text/html' },
+    { status: 200, body: JSON.stringify({ ok: true, version: API_VERSION + 1, routines: [] }) },
+    { status: 200, body: JSON.stringify({ version: API_VERSION, routines: [] }) },
+    { status: 400, body: JSON.stringify({ error: 'unknown' }) },
+    { status: 200, body: 'null' },
+  ];
+  for (const answer of changed) {
+    env.runner.state.answer = answer;
+    const odd = await env.run('ls');
+    assert.deepEqual([odd.code, odd.data.code], [5, 5], answer.body);
+    assert.match(odd.data.error, /answered in a way this version does not understand\. Nothing changed\. Run setup again/);
+  }
+  assert.equal((await env.run('model', KIMI)).code, 5);
+});
+
+test('before setup the list is empty and every change asks for setup; a computer without the key asks too', async (t) => {
+  const fresh = await install(t);
+  assert.deepEqual((await fresh.run('ls')).data, { ok: true, installed: false, routines: [] });
+  for (const argv of [['pause', 'x'], ['delete', 'x'], ['change', 'x', '--prompt', 'y'], ['logs', 'x'], ['key', '--remove']]) {
+    const asked = await fresh.run(...argv);
+    assert.deepEqual([asked.code, asked.data.needs, asked.data.adds.length], [3, 'setup', 5], argv.join(' '));
+  }
+  assert.deepEqual(fresh.runner.state.calls, []);
+
+  const keyless = await install(t, { installed: true });
+  writeFileSync(path.join(keyless.dir, '.env'), `CLOUDFLARE_API_TOKEN=${TOKEN}\n`);
+  const asked = await keyless.run('ls');
+  assert.deepEqual([asked.code, asked.data.needs], [3, 'setup']);
+  assert.match(asked.data.error, /no WONG_ROUTINES_KEY in \.env/);
+  assert.deepEqual(keyless.runner.state.calls, []);
+});
+
+// ---------------------------------------------------------------------------
+// Where it runs from
+
+test('from a linked worktree the keys are the main copy\'s, and a new key is saved to both', async (t) => {
+  const env = await install(t);
+  const linked = path.join(path.dirname(env.dir), 'linked');
+  git(env.dir, 'worktree', 'add', '-q', '-b', 'feature', linked);
+  writeFileSync(path.join(linked, '.env'), 'CLOUDFLARE_API_TOKEN=a-stale-branch-copy\nBRANCH_ONLY=1\n');
+  const run = env.at(linked);
+  const { code, data, text } = await run('setup');
+  assert.equal(code, 0, text);
+  assert.equal(data.routines.worker, RUNNER);
+  const key = env.envFile().WONG_ROUTINES_KEY;
+  assert.match(key, /^[A-Za-z0-9_-]{43}$/);
+  assert.equal(env.envFile(path.join(linked, '.env')).WONG_ROUTINES_KEY, key);
+  assert.equal(env.envFile(path.join(linked, '.env')).BRANCH_ONLY, '1');
+  assert.equal(env.record().routines, undefined, 'the record is this checkout\'s own edit, saved like any other');
+  assert.equal(JSON.parse(readFileSync(path.join(linked, '.claude/.wong-stack.json'), 'utf8')).components.routines.worker, RUNNER);
+  assert.equal(existsSync(path.join(linked, 'scripts/routine-runner/wrangler.jsonc')), true);
+  assert.equal(git(linked, 'status', '--porcelain', '--', 'scripts'), '');
+  assert.deepEqual((await run('ls')).data.routines, []);
+});
+
+test('outside a repo, or with no git email, a command is exit 2 with the reason', async (t) => {
+  const outside = realpathSync(mkdtempSync(path.join(tmpdir(), 'wong-test-routine-outside-')));
+  t.after(() => rmSync(outside, { recursive: true, force: true }));
+  let text = '';
+  assert.equal(await main(['ls'], {}, { cwd: outside, out: (chunk) => (text += chunk) }), 2);
+  assert.match(JSON.parse(text).error, /not inside a Git checkout/);
+
+  const env = await install(t, { installed: true, picked: true });
+  git(env.dir, 'config', 'user.email', '');
+  const nobody = await env.run(...CREATE);
+  assert.equal(nobody.code, 2);
+  assert.match(nobody.data.error, /Git has no user\.email here/);
+});
+
+test('the script runs as a process: --help prints usage, and one JSON object comes out', async (t) => {
+  const env = await install(t);
+  const help = spawnSync(process.execPath, [cli, '--help'], { encoding: 'utf8', cwd: env.dir });
+  assert.equal(help.status, 0);
+  assert.match(help.stdout, /^usage: routine\.mjs create --cron <expr> --prompt <text> \[--name <n>\]/);
+  assert.match(help.stdout, /routine\.mjs model \[<id>\]\n\s+routine\.mjs key \[--provider <id>\] \[--model <id>\]\n\s+routine\.mjs key --remove\n\s+routine\.mjs setup \[--dry-run\]\n$/);
+  assert.doesNotMatch(help.stdout, /--agent|signin|paseo/i);
+  const listed = spawnSync(process.execPath, [cli, 'ls'], { encoding: 'utf8', cwd: env.dir });
+  assert.equal(listed.status, 0, listed.stderr);
+  assert.deepEqual(JSON.parse(listed.stdout), { ok: true, installed: false, routines: [] });
+  const bad = spawnSync(process.execPath, [cli, 'explode'], { encoding: 'utf8', cwd: env.dir });
+  assert.equal(bad.status, 2);
+  assert.equal(JSON.parse(bad.stdout).ok, false);
+  assert.ok(new RoutineError(EXIT.input, 'x') instanceof PaseoError);
 });

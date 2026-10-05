@@ -42,12 +42,12 @@ When a task done by hand — a plain request, or non-code work under a verb — 
 
 - **Only on a clear signal**: the person says it recurs ("every Monday", "again"), or memory shows they asked before. Never on a hunch: an offer after every task teaches people to skip it.
 - **Search memory once**: `memory.mjs search` on the task's key terms finds a past request and a past decline.
-- **Pick the help by the work.** A scheduled task that needs judgment on each run gets a routine through [`/routine`](../../.agents/skills/routine/SKILL.md). Fixed steps get a [mini app](../stack/mini-apps.md), even on a schedule: [most process improvements shouldn't use AI](../agent-knowledge-center.md#most-process-improvements-shouldnt-use-ai).
+- **Pick the help by the work.** A scheduled task that needs judgment on each run gets a routine through [`/routine`](../../.agents/skills/routine/SKILL.md), which [runs in your Cloudflare account](../stack/cloud-routines.md). Fixed steps get a [mini app](../stack/mini-apps.md), even on a schedule: [most process improvements shouldn't use AI](../agent-knowledge-center.md#most-process-improvements-shouldnt-use-ai).
 - **Name the outcome, not the tool**: *do this every Monday at 9*, *a page that splits the bill for you*.
 - **A no is final**: record a `feedback` fact through [the write gate](../../.agents/skills/memory/SKILL.md#write), naming the task in the person's words, and never offer for it again.
 - **A yes starts the usual route**: `/routine`'s own confirmation, or the change loop stopping at the plan's review.
 
-No offer after a code change you built, in an unattended run, or for a routine when `paseo` is not installed.
+No offer after a code change you built, or in an unattended run.
 
 ### Several parts, several workspaces
 

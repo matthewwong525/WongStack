@@ -10,18 +10,20 @@
 // Each command prints one JSON report and never a token. The token is CLOUDFLARE_API_TOKEN, from the
 // environment or the target's .env. WONG_CLOUDFLARE_API points every call at another API base, for tests.
 // Every step checks before it acts, so a run that stopped runs again from the top.
-import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual, parseArgs } from 'node:util';
 import { isMain } from '../../memory/scripts/lib/cli.mjs';
 import { machineId, machineIdFile } from '../../memory/scripts/lib/machine-id.mjs';
 import { keyMachine, parseEnv } from '../../memory/scripts/lib/store.mjs';
-import { PrimaryRootError, primaryRoot } from '../../memory/scripts/lib/primary-root.mjs';
 import { AccessSetupError, accessOrganization, cloudflareReadKey, loginManagementKey, ownerIdentity, provisionAccess, provisionAccessPolicies } from './private-access.mjs';
 import { helperConfig } from '../../save/scripts/artifacts-credential.mjs';
+import {
+  CloudflareError, PROPAGATION, ProvisionError, ROUTINES_PROVISION, accountPolicy, cloudflare, durableEnv, fillConfig, grant, installRunner, orNull, paidPlan, pending,
+  readJson, recordComponent, recordFile, recordedBase, retry, run, scopedToken, stateFile, step, wait, widenBy, workerSecrets, writeJson,
+} from '../../routine/scripts/lib/cloudflare.mjs';
 import { privateDeployment } from '../../../../scripts/lib-access-config.mjs';
 import { parseConfig } from '../../../../scripts/lib-wrangler-config.mjs';
 
@@ -31,14 +33,13 @@ const FRAGMENTS = join(HERE, '..', '..', 'wong-sync', 'references', 'stack-pack-
 export const NAMESPACE = 'wongstack';
 /** Days a check run's snapshot stays in the runner's bucket before the bucket's own rule deletes it. */
 export const SNAPSHOT_DAYS = 2;
-// A Workers Paid subscription, by the plan's id or name, as the account's subscriptions list it.
-const PAID_PLAN = /workers.*(paid|standard)/i;
-const API = 'https://api.cloudflare.com/client/v4';
 const ACCOUNT = /^[0-9a-f]{32}$/;
-/** The waits, in seconds, while a widened token or a new store takes effect: about a minute. */
-export const PROPAGATION = [2, 4, 8, 15, 30];
 /** The error Cloudflare returns for an R2 call on an account with no R2 subscription. */
 export const R2_OFF = 10042;
+// The steps the check runner and the routine runner share live in the routine skill, which every
+// project has; they are exported from here too, where setup's callers and tests find them.
+export { CloudflareError, PROPAGATION, ProvisionError, ROUTINES_PROVISION, cloudflare, run, widenBy };
+const isoDate = () => new Date().toISOString().slice(0, 10);
 
 // The groups, by name and scope, from references/permission-groups.md; a test holds them to its tables.
 // Ids are resolved by name at runtime; the ids here are the tables' fallback, kept for that check.
@@ -106,94 +107,6 @@ export const ARTIFACTS_PROVISION = [
 /** The check runner's storage key: the objects of its one bucket, and nothing else. */
 export const STORAGE_TOKEN = { name: 'Workers R2 Storage Bucket Item Write', scope: 'com.cloudflare.edge.r2.bucket', id: '2efd5506f9c8494dacb1fa10a3e7d5b6' };
 
-/** Why a step stopped: `token`, `cloudflare`, `repo`, or `plan` (the account lacks the paid plan), with a plain cause. */
-export class ProvisionError extends Error {
-  constructor(reason, cause) {
-    super(cause);
-    this.reason = reason;
-  }
-}
-
-/** A refused Cloudflare call. The message names the call and the error codes only, never a query or a token. */
-export class CloudflareError extends Error {
-  constructor(method, path, status, errors = []) {
-    const codes = errors.map((error) => error.code).filter(Boolean);
-    super(`Cloudflare ${method} ${path.split('?')[0]}: ${status ? `HTTP ${status}` : 'unreachable'} ${codes.join(',')}`.trim());
-    this.status = status;
-    this.codes = codes;
-    this.messages = errors.map((error) => String(error.message ?? ''));
-  }
-}
-
-/** Runs `fn`; a failure that is not already a ProvisionError becomes one with `reason`. */
-async function step(reason, fn) {
-  try {
-    return await fn();
-  } catch (error) {
-    throw error instanceof ProvisionError ? error : new ProvisionError(reason, error.message);
-  }
-}
-
-/** Tries `fn` again through the propagation window while `again(error)` holds. */
-async function retry(fn, sleep, again) {
-  for (const wait of PROPAGATION) {
-    try {
-      return await fn();
-    } catch (error) {
-      if (!again(error)) throw error;
-      await sleep(wait * 1000);
-    }
-  }
-  return fn();
-}
-
-// Right after a widen, Cloudflare can refuse the new groups for a few seconds with 401 (code 10000) or 403.
-const pending = (error) => error instanceof CloudflareError && (error.status === 401 || error.status === 403);
-const wait = (ms) => new Promise((done) => setTimeout(done, ms));
-const isoDate = () => new Date().toISOString().slice(0, 10);
-
-/**
- * Runs a command with no shell and resolves with its output; a non-zero exit rejects with the last line
- * of stderr. `input` goes to stdin, so a secret never sits in the process list.
- */
-export function run(file, args, { cwd, input, env, timeout } = {}) {
-  return new Promise((resolveRun, reject) => {
-    const child = spawn(file, args, { cwd, env, timeout, stdio: ['pipe', 'pipe', 'pipe'] });
-    let stdout = '';
-    let stderr = '';
-    child.stdout.on('data', (chunk) => (stdout += chunk));
-    child.stderr.on('data', (chunk) => (stderr += chunk));
-    child.stdin.on('error', () => {});
-    child.on('error', reject);
-    child.on('close', (code) => {
-      if (code === 0) return resolveRun({ stdout, stderr });
-      const last = stderr.trim().split('\n').at(-1);
-      reject(Object.assign(new Error(`${file} exited with ${code}${last ? `: ${last}` : ''}`), { stdout, stderr }));
-    });
-    child.stdin.end(input);
-  });
-}
-
-/** Calls the Cloudflare API with `token` and returns `result`. */
-export function cloudflare(token, { api, fetch: fetchFn = globalThis.fetch } = {}) {
-  const base = (api || process.env.WONG_CLOUDFLARE_API || API).replace(/\/$/, '');
-  return async (method, path, body) => {
-    let response;
-    try {
-      response = await fetchFn(`${base}${path}`, {
-        method,
-        headers: { Authorization: `Bearer ${token}`, ...(body instanceof FormData ? {} : { 'Content-Type': 'application/json' }) },
-        body: body === undefined ? undefined : body instanceof FormData ? body : JSON.stringify(body),
-      });
-    } catch {
-      throw new CloudflareError(method, path, 0);
-    }
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok || !data.success) throw new CloudflareError(method, path, response.status, data.errors);
-    return data.result;
-  };
-}
-
 /** A name that Workers and D1 accept: lowercase letters, digits, and `-`, at most 40 characters. */
 export function safeName(name) {
   const safe = String(name)
@@ -208,12 +121,6 @@ export function safeName(name) {
 /** A `.env` file's `KEY=value` lines, read by the memory scripts' parser; `{}` when it is missing. */
 export const readEnv = file => (existsSync(file) ? parseEnv(readFileSync(file, 'utf8')) : {});
 
-const readJson = (file, fallback = null) => (existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : fallback);
-const writeJson = (file, value) => {
-  mkdirSync(dirname(file), { recursive: true });
-  writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`);
-};
-
 /** Every name one base takes. The memory store's database and bucket share a name. */
 export const namesFor = (base) => ({
   worker: base,
@@ -227,42 +134,6 @@ export const namesFor = (base) => ({
 /** What an Artifacts install adds under one base: its repository, its check runner (Worker, Workflow, bucket), and the runner's storage key. */
 export const artifactNamesFor = (base) => ({ repo: base, runner: `${base}-checks`, storage: `${base}-checks-storage` });
 
-const isScope = (key, scope) => key.startsWith(`com.cloudflare.api.${scope}.`) && !key.includes('.zone.');
-// Cloudflare files a zone group under the account: `com.cloudflare.api.account.zone`.
-const findGroup = (groups, { name, scope }) => groups.find((group) => group.name === name && group.scopes?.includes(`com.cloudflare.api.${scope === 'zone' ? 'account.zone' : scope}`));
-
-// ── the repo's own files ────────────────────────────────────────────────────
-
-const recordFile = (dir) => join(dir, '.claude', '.wong-stack.json');
-
-/** The clone's shared git folder: provisioning's own state lives there, outside every commit. */
-async function commonDir(dir, exec) {
-  return (await exec('git', ['-C', dir, 'rev-parse', '--path-format=absolute', '--git-common-dir'])).stdout.trim();
-}
-
-const stateFile = async (dir, exec) => join(await commonDir(dir, exec), 'wong-stack-provision.json');
-
-/** The base this repo provisioned under, from provisioning's state or the install record; null when none. */
-async function recordedBase(dir, exec) {
-  const state = readJson(await stateFile(dir, exec).catch(() => ''), {});
-  if (state.base) return state.base;
-  const database = readJson(recordFile(dir))?.components?.memory?.database;
-  return typeof database === 'string' && database.endsWith('-memory') ? database.slice(0, -'-memory'.length) : null;
-}
-
-/**
- * The primary checkout's .env: where the durable secrets and the admin memory key live. Stops when the
- * primary is unknown, rather than write the keys into a worktree that may be deleted.
- */
-function durableEnv(dir) {
-  try {
-    return join(primaryRoot(dir).primary, '.env');
-  } catch (error) {
-    if (!(error instanceof PrimaryRootError)) throw error;
-    throw new ProvisionError('repo', `could not find the main copy of this repo to keep the keys in: ${error.message}`);
-  }
-}
-
 // ── the widen ───────────────────────────────────────────────────────────────
 
 /**
@@ -274,24 +145,7 @@ function durableEnv(dir) {
  */
 export async function widen({ token, api, fetch, account, route = 'github', openWithoutLogin = false, sleep = wait }) {
   const cf = cloudflare(token, { api, fetch });
-  const [self, groups] = await step('token', async () => {
-    const { id } = await cf('GET', '/user/tokens/verify');
-    return Promise.all([cf('GET', `/user/tokens/${id}`), cf('GET', '/user/tokens/permission_groups?per_page=1000')]);
-  });
-  const held = new Set(self.policies.flatMap((policy) => policy.permission_groups.map((group) => group.id)));
-  const wanted = [...USER_GRANTS, ...NORMAL_PROVISION, ...(route === 'artifacts' ? ARTIFACTS_PROVISION : [])].map((row) => {
-    const group = findGroup(groups, row);
-    if (!group) throw new ProvisionError('token', `Cloudflare lists no ${row.scope} permission group named ${row.name}`);
-    const policy = self.policies.find((p) => p.effect === 'allow' && Object.keys(p.resources).some((key) => isScope(key, row.scope)));
-    if (!policy) throw new ProvisionError('token', `the token has no ${row.scope} policy for ${row.name}`);
-    return { name: row.name, group, policy };
-  });
-  const missing = wanted.filter(({ group }) => !held.has(group.id));
-  for (const { group, policy } of missing) policy.permission_groups.push({ id: group.id });
-  if (missing.length) {
-    const { name, status, policies, condition } = self;
-    await step('cloudflare', () => cf('PUT', `/user/tokens/${self.id}`, { name, status, policies, ...(condition && { condition }) }));
-  }
+  const { granted, held } = await grant(cf, [...USER_GRANTS, ...NORMAL_PROVISION, ...(route === 'artifacts' ? ARTIFACTS_PROVISION : [])]);
   const probed = account ? [account] : (await step('cloudflare', () => cf('GET', '/accounts?per_page=50'))).map((each) => each.id);
   const accessPending = [];
   for (const id of probed) {
@@ -311,8 +165,8 @@ export async function widen({ token, api, fetch, account, route = 'github', open
     }
   }
   return {
-    granted: missing.map(({ name }) => name),
-    held: wanted.filter(({ group }) => held.has(group.id)).map(({ name }) => name),
+    granted,
+    held,
     probed,
     ...(openWithoutLogin && { accessPending }),
   };
@@ -325,15 +179,6 @@ export async function accounts({ token, api, fetch }) {
 }
 
 // ── the plan ────────────────────────────────────────────────────────────────
-
-/** The account's Workers Paid plan as its subscriptions name it, or null. Reads only. */
-async function paidPlan(cf, account, sleep) {
-  const subscriptions = await retry(() => cf('GET', `/accounts/${account}/subscriptions`), sleep, pending);
-  for (const { rate_plan: rate } of subscriptions ?? []) {
-    if (PAID_PLAN.test(`${rate?.id ?? ''} ${rate?.public_name ?? ''}`)) return rate.public_name || rate.id;
-  }
-  return null;
-}
 
 /**
  * Which route a new install takes, before anything is created: `artifacts` on Mac or Linux with the
@@ -597,31 +442,8 @@ function migrateScripts(dir, n, note) {
   note('updated', 'app/package.json db:migrate scripts');
 }
 
-/** Merge a public component into the install record, writing only on a change. */
-function recordComponent(dir, component, data, note) {
-  const file = recordFile(dir);
-  const record = readJson(file, {});
-  const next = { ...record, components: { ...record.components, [component]: { ...record.components?.[component], ...data } } };
-  if (JSON.stringify(next) === JSON.stringify(record)) return;
-  writeJson(file, next);
-  note('updated', `.claude/.wong-stack.json components.${component}`);
-}
-
 /** The read-only key's record. `waiting` is replaced whole, so a Worker that has taken the key since is no longer listed. */
 const recordReadKey = (dir, key, note) => recordComponent(dir, 'cloudflareReadKey', { waiting: undefined, ...key }, note);
-
-/** One allow policy on this account alone, with the named groups; `within` narrows it to part of the account. */
-const accountPolicy = (account, groups, rows, within = '*') => [
-  {
-    effect: 'allow',
-    resources: { [`com.cloudflare.api.account.${account}`]: within },
-    permission_groups: rows.map((row) => {
-      const group = findGroup(groups, row);
-      if (!group) throw new ProvisionError('token', `Cloudflare lists no ${row.scope} permission group named ${row.name}`);
-      return { id: group.id };
-    }),
-  },
-];
 
 /** The read-only key's two policies: its account groups on the account, its zone groups on every zone in it. */
 const readKeyPolicies = (account, groups) => [
@@ -633,41 +455,13 @@ const readKeyPolicies = (account, groups) => [
  * The CI deploy token: made when missing, given any group it lacks, and its value rolled into the GitHub
  * secret when the secret is missing. The value goes straight to `gh` on stdin.
  */
-async function deployToken(cf, account, name, rows, groups, { secretSet, setSecret, note, sentTo = 'GitHub' }) {
-  const base = `/accounts/${account}/tokens`;
-  const policies = accountPolicy(account, groups, rows);
-  const found = (await cf('GET', `${base}?per_page=100`)).find((t) => t.name === name);
-  if (!found) {
-    await setSecret((await cf('POST', base, { name, policies })).value);
-    note('created', `deploy token ${name}`);
-    return;
-  }
-  const current = await cf('GET', `${base}/${found.id}`);
-  const have = new Set(current.policies.flatMap((p) => p.permission_groups.map((g) => g.id)));
-  const lacking = policies[0].permission_groups.filter((g) => !have.has(g.id));
-  if (lacking.length) {
-    const kept = current.policies.map((p, i) => (i === 0 ? { ...p, permission_groups: [...p.permission_groups, ...lacking] } : p));
-    await cf('PUT', `${base}/${found.id}`, { name: current.name, status: current.status, policies: kept, ...(current.condition && { condition: current.condition }) });
-    note('updated', `deploy token ${name}: ${rows.filter((row) => lacking.some((g) => g.id === findGroup(groups, row).id)).map((row) => row.name).join(', ')}`);
-  }
-  if (secretSet) return note('reused', `deploy token ${name}`);
-  await setSecret(await cf('PUT', `${base}/${found.id}/value`, {}));
-  note('updated', `deploy token ${name}: new value sent to ${sentTo}`);
-}
+const deployToken = scopedToken;
 
 // ── the Artifacts route: the repository and its check runner ────────────────
 
-/** `fn()`, or null when Cloudflare answers 404. */
-const orNull = (fn) => fn().catch((error) => (error instanceof CloudflareError && error.status === 404 ? null : Promise.reject(error)));
-
 /** The runner's Wrangler config: the pack's template with every placeholder filled, comments dropped. */
 export function runnerConfig({ account, repo, runner }, template) {
-  const fill = { '<runner>': runner, '<account id>': account, '<namespace>': NAMESPACE, '<repo>': repo };
-  let text = template.replace(/^\/\/.*\n/gm, '');
-  for (const [placeholder, value] of Object.entries(fill)) text = text.replaceAll(placeholder, value);
-  const left = /<[^<>\n"]+>/.exec(text);
-  if (left) throw new ProvisionError('repo', `the check runner's config has a placeholder this script does not fill: ${left[0]}`);
-  return text;
+  return fillConfig(template, { '<runner>': runner, '<account id>': account, '<namespace>': NAMESPACE, '<repo>': repo }, 'check runner');
 }
 
 /** The install's repository in the shared namespace, made when missing. A same-named one this install did not make stops. */
@@ -770,21 +564,11 @@ async function artifactsDelivery(cf, { account, base, token, groups, buckets, de
   await step('repo', () => gitRemote(git, account, remote));
 
   const folder = join(dir, 'scripts', 'check-runner');
-  const config = join(folder, 'wrangler.jsonc');
   const text = await step('repo', () => runnerConfig({ account, ...n }, readFileSync(join(folder, 'wrangler.template.jsonc'), 'utf8')));
-  const had = existsSync(config);
-  if (!had || readFileSync(config, 'utf8') !== text) {
-    writeFileSync(config, text);
-    note(had ? 'updated' : 'created', 'scripts/check-runner/wrangler.jsonc');
-  }
-  const tools = { cwd: folder, env: { ...env, CLOUDFLARE_API_TOKEN: token, CLOUDFLARE_ACCOUNT_ID: account, WRANGLER_SEND_METRICS: 'false' } };
-  await step('repo', () => exec('npm', ['ci', '--no-audit', '--no-fund', '--ignore-scripts'], { cwd: folder, env }));
-  await step('cloudflare', () => exec('npx', ['--no-install', 'wrangler', 'deploy', '--config', 'wrangler.jsonc'], tools));
+  await installRunner({ folder, shown: 'scripts/check-runner', text, token, account, env, exec, note });
   note('updated', `check runner ${n.runner}`);
 
-  const secrets = `/accounts/${account}/workers/scripts/${n.runner}/secrets`;
-  const held = new Set((await step('cloudflare', () => cf('GET', secrets))).map((secret) => secret.name));
-  const put = (name, text) => cf('PUT', secrets, { name, text, type: 'secret_text' });
+  const { held, put } = await workerSecrets(cf, account, n.runner);
   await step('cloudflare', () => deployToken(cf, account, namesFor(base).deploy, deployRows, groups, { secretSet: held.has('CF_TOKEN'), setSecret: (value) => put('CF_TOKEN', value), note, sentTo: 'the check runner' }));
   await step('cloudflare', () => storageToken(cf, account, n.storage, n.runner, groups, {
     secretSet: held.has('R2_ACCESS_KEY_ID') && held.has('R2_SECRET_ACCESS_KEY'),
