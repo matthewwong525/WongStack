@@ -10,7 +10,19 @@ it('fits a phone: the Access and setup styles wrap, and fix no width in pixels',
     expect(read(file), file).not.toMatch(/(?:min-)?width:\s*\d+px/)
   }
   const css = read('./Access.css')
-  expect(css).toMatch(/\.access-actions \{[^}]*flex-wrap: wrap/)
+  // The buttons, the view switch, the level choice and a row's heading each wrap onto a second line.
+  expect(css).toMatch(/\.access-actions, \.access-views, \.access-level-options, \.access-row-head \{[^}]*flex-wrap: wrap/)
   expect(css).toMatch(/\.access-notice \{[^}]*overflow-wrap: anywhere/)
-  expect(css).toMatch(/input\[type="email"\] \{[^}]*width: 100%/)
+  expect(css).toMatch(/\.access-fields > label > \* \{[^}]*width: 100%/)
+})
+
+it('styles only its own parts, and marks the current view and level by more than colour', () => {
+  const css = read('./Access.css').replace(/\/\*[\s\S]*?\*\//g, '')
+  for (const rule of css.split('}').map(part => part.trim()).filter(Boolean)) {
+    for (const selector of rule.split('{')[0].split(',')) expect(selector.trim(), rule).toMatch(/^\.access-/)
+  }
+  expect(css).toMatch(/\.access-views a\[aria-current="page"\] \{[^}]*font-weight: 700; text-decoration: underline/)
+  // The radio buttons stay on screen: the dot shows the choice, and the keyboard can reach it.
+  expect(css).toMatch(/\.access-level-options label:has\(:checked\) \{[^}]*font-weight: 600/)
+  expect(css).not.toMatch(/input[^{]*\{[^}]*(?:display: none|visibility: hidden|opacity: 0)/)
 })

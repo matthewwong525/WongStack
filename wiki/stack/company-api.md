@@ -28,15 +28,42 @@ Each business call reads installation, membership and selected apps together fro
 
 [Access](employee-access.md) knows its owner by the recorded sign-in email. Its people-management routes are administration, absent from action discovery. Before permissions start, every signed-in person keeps their existing access. Repository authentication stays manual through its provider.
 
+## List the keys a route uses
+
+A route is handed only the saved keys it lists, and a person needs [a level](employee-access.md#key-levels) for each one. Name a key by its id in [the key registry](../../app/worker/keys.ts).
+
+- **An action lists its own keys**: `keys: ["stripe"]` in its definition.
+- **A mini app lists the keys its routes share**: `export const keys = ["stripe"]` in its `api.ts`. Its bare handlers get those, and so do its actions that list none.
+- **A main route lists them in its mapping**: `{ apps: ["orders"], keys: ["stripe"] }` in `routeAccess`. An action's own list comes first.
+- **A route that lists none gets none.** Every other saved key is left out of the `env` the handler is handed, in a main route and a mini app alike.
+
+The level a call needs comes from what it does: an action with `effect: "read"` needs Read, and `write` or `external` needs Read & write. A bare handler has no effect to read, so `GET` and `HEAD` need Read and every other method needs Read & write; a `POST` that only looks things up is better described as an action with `effect: "read"`. A listed key that is not saved answers `unavailable` before the handler runs, so a `ready` check for a missing key is no longer needed.
+
+**A route can belong to a key alone.** Map it `{ keys: ["cloudflare"] }`, with no `apps`: [the key's level decides](employee-access.md#a-key-with-no-app) and no app is needed. A mapping with no keys, or with a key nobody registered, denies everyone.
+
+`node scripts/check-app-keys.mjs` runs with the code checks. It fails when a file under `app/worker/apps/<name>/` or `app/worker/api/` names a registered secret whose key the file, the app's `api.ts`, or the main router does not list. Like [the memory exclusion](mini-apps.md#the-rules), handing out only listed keys stops mistakes, not code written to get around it: handlers share one Worker.
+
+## Look things up in Cloudflare
+
+`cloudflare.read`, at `GET /api/cloudflare/read`, sends one `GET` to the Cloudflare API with [the read-only key setup made](cloudflare-credentials.md#the-read-only-look-up-key) and returns Cloudflare's `success`, `result`, `result_info` and `errors`. It belongs to the Cloudflare key alone: a person with *Cloudflare: Read* can have their assistant read settings, logs and usage with no app ticked, and nobody is handed the key.
+
+- **Input:** `path`, an API path with no leading slash, and an optional `query` string. `accounts` lists the account and its id; then `accounts/<account id>/...` or `zones/...`.
+- **This account only.** Another account's path is refused.
+- **No stored data.** Paths under D1, KV, R2, Queues, Vectorize, Hyperdrive, Durable Objects, Secrets Store, Stream and Images are refused, and the key has no permission for them: two locks, so the app's database, files and memory can't be read this way. A path with `.` or `..` in it is refused too.
+- **It changes nothing.** One method, `GET`, and a key with no write permission.
+- **A bounded answer.** An answer over about 1 MB returns a safe error that says to narrow the request.
+
+Read & write is not offered for Cloudflare: a write key held by the live app would be close to full control of the account.
+
 ## Discover only what the task needs
 
 Verified [company login](cloudflare-access.md) protects these live endpoints, including on an otherwise open starter:
 
-- `GET /api/actions` — bounded summaries: ID, purpose, effect, readiness, source and revision. Filter with `app` and with `q`, which finds an action when every word appears in its ID, purpose or description, in any order: `look up order` finds *Look up an order*. Paginate with `limit` (1–50, default 20) and `offset`.
+- `GET /api/actions` — bounded summaries: ID, purpose, effect, readiness, source, revision, and `keys`, the saved keys the action uses with the level a caller needs. Filter with `app` and with `q`, which finds an action when every word appears in its ID, purpose or description, in any order: `look up order` finds *Look up an order*. Paginate with `limit` (1–50, default 20) and `offset`.
 - `GET /api/actions?id=hello.greeting` — only that action’s inputs, output, synthetic examples, safe errors and local schema dependencies.
 - `GET /api/openapi.json` — OpenAPI 3.1 for deliberately described HTTP routes, with actual methods and serialization. It omits bare handlers, administration, raw memory and preview-picture routes.
 
-Once [Access permissions have started](employee-access.md#what-a-persons-apps-govern), all three endpoints read current membership and grants before describing an action or answering a conditional request. Main registrations use the same reviewed method/path mappings as dispatch; a shared action requires every mapped app. Existing action visibility checks also apply. An unassigned new app stays hidden, and an unavailable policy returns an unavailable response.
+Once [Access permissions have started](employee-access.md#what-a-persons-apps-govern), all three endpoints read current membership, grants and [key levels](employee-access.md#key-levels) before describing an action or answering a conditional request, so an action a level forbids is not listed. Main registrations use the same reviewed method/path mappings as dispatch; a shared action requires every mapped app. Existing action visibility checks also apply. An unassigned new app stays hidden, and an unavailable policy returns an unavailable response.
 
 The document and summaries carry a deterministic contract revision. Each ETag also includes the caller, current policy revision and selected response, so an old grant, another caller or another query cannot reuse a permitted response. Selected-action authorization and input checks run before a 304 response. Responses require private cache revalidation; denials are never cached. New published registrations appear on the next lookup. Never load the full schema at chat startup; list relevant actions and describe the selected one when needed.
 

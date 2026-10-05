@@ -3,6 +3,20 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 33.0.0 — Read or Read & write for each saved key, and roles
+
+- **Each saved key gets a level per person: None, Read, or Read & write.** Read lets a person, and their assistant, look things up with that key. Read & write also lets them change or send things. A level is set once per key and holds in every app. Lowering one takes effect on the person's next request, and a refused request says which key and which level it needed.
+- **Access has four views: People, Roles, Apps and Keys.** People opens first, as before, and each person's line also shows their role and key levels. Keys lists every key your app holds, whether it is saved, what uses it and who has which level. Apps is the quick way to give an app and the keys it needs in one place. A key's value is never shown.
+- **A role gives several people the same access.** A role is a named set of apps and key levels, such as *Sales*. A person has one role or their own set, never both. Changing a role changes everyone in it on their next request, and removing a role leaves its people with what they had.
+- **Ticking an app gives Read on the keys it uses, never Read & write.** Letting someone change things is always your own choice.
+- **An app can only use the keys it lists.** Before, every app was handed every saved key, so nothing could say truthfully what an app reaches. Each app now names its keys and gets only those, and Access shows that same list. This is the breaking part: an app that lists no key gets none.
+- **A key can work with no app.** Some look-ups belong to a key alone, and a person with that key's level can run them with no app ticked.
+- **Cloudflare look-ups, Read only.** Setup makes a second, read-only Cloudflare key for your app; your main token stays on your computer. A person you give *Cloudflare: Read* can have their assistant look up settings, logs and usage. They can change nothing, they can't read your app's database, files or memory through it, and nobody is handed the key.
+- **Nobody loses anything when this arrives.** The first time you open Access after the update, each person keeps exactly what their apps already use, as their own set. Nobody has a role or Cloudflare look-ups until you give them.
+- **Each person sees what they can use.** Their own Access page lists their apps and key levels above the setup box. Previews hold practice roles and levels too.
+
+**Updating.** Your people, their apps, your pages and your data stay as they are. The assistant does three things for you. First, for each app of your own it reads the code, lists the keys that app already uses, and adds each key to the app's key list with a name you will recognise, so every app keeps working; a check stops the update before publishing if one is missed. Second, it publishes, then runs `provision.mjs access`, the setup tool's step for Access, which makes the read-only Cloudflare key and stores it in your live app and your preview app. Third, it tells you to open Access once, which turns levels on with everyone keeping what they have. If your saved Cloudflare token can no longer make keys, the update still finishes: Access shows *One step left* beside Cloudflare, and the assistant sends you a private link to paste a token that can. Sample data you wrote for previews keeps working; the update adds a practice role and practice levels beside it.
+
 ## 32.0.1 — Access can read the sign-in list on the live app
 
 - On the live app, Access said *The sign-in list could not be read yet* and every person you added stayed on *Can't sign in yet*. The app asked Cloudflare in a way the live app refuses, so the question was never sent. It now asks in a way that works, and lists everyone who can already sign in.

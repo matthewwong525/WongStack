@@ -1,30 +1,38 @@
 // Finite core routes, never listed as employee company actions.
 import type { AccessIdentity } from "../access.ts";
 import { type ConnectionEnv, type Core, AccessError, ownerCore, lease, release, reply } from "./core.ts";
-import { accessStatus, catalogueWrites, changeMember } from "./members.ts";
+import { accessStatus, changeMember } from "./members.ts";
+import { changeRole } from "./roles.ts";
+import { changeGrants } from "./grants.ts";
+import { catalogueWrites } from "./sets.ts";
 import { reconcileLogin } from "./login-management.ts";
-import { startPermissions } from "./start.ts";
+import { startKeyLevels, startPermissions } from "./start.ts";
 import { boundedJson } from "./json.ts";
+
+// Each save an owner can make. Only a people save can change who signs in.
+const saves = new Map([["people", changeMember], ["roles", changeRole], ["grants", changeGrants]]);
 
 export async function management(request: Request, env: ConnectionEnv, identity: AccessIdentity | null): Promise<Response> {
   try {
     const path = new URL(request.url).pathname.slice("/api/access/".length);
-    if (!["status", "people", "retry"].includes(path)) return reply({ error: "Not found" }, 404);
+    if (!["status", "retry", ...saves.keys()].includes(path)) return reply({ error: "Not found" }, 404);
     const core = await ownerCore(request, env, identity);
     if (request.method === "GET") {
       if (path !== "status") return reply({ code: "not_found" }, 404);
-      // An owner read lists every built app and, the first time, starts permissions.
+      // An owner read lists every built app and, the first time, starts permissions and then key levels.
       await core.db.batch(catalogueWrites(core));
       await startPermissions(core);
+      await startKeyLevels(core);
       return reply(await accessStatus(core));
     }
     if (request.method !== "POST") return reply({ code: "method_not_allowed" }, 405);
     if (path === "status") return reply({ code: "not_found" }, 404);
-    if (path === "people") {
-      await changeMember(core, await boundedJson(request, 65_536));
-      // The save is committed. A busy or failed sign-in step stays pending for Try again.
-      await reconcile(core).catch(() => {});
-    } else await reconcile(core);
+    const change = saves.get(path);
+    if (change) await change(core, await boundedJson(request, 65_536));
+    // A people save is committed by now: a busy or failed sign-in step stays pending for Try again.
+    // A role or a level changes nobody's sign-in, so those saves call no provider.
+    if (path === "people") await reconcile(core).catch(() => {});
+    if (path === "retry") await reconcile(core);
     return reply(await accessStatus(core));
   } catch (error) {
     return reply({ code: error instanceof AccessError ? error.code : "access_unavailable" }, error instanceof AccessError ? error.status : 503);

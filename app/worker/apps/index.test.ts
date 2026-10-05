@@ -7,6 +7,8 @@ import type { PolicyEnv } from "../employee-access/policy";
 // Hello's routes, swapped for one that records what a handler receives.
 const seen = vi.hoisted(() => [] as { env: Record<string, unknown>; call: AppCall }[]);
 vi.mock("./hello/api.ts", async (original) => ({
+  // The registry reads each app's `keys`; the supplied example lists none.
+  keys: undefined,
   routes: new Map((await original<{ routes: Map<string, Route> }>()).routes).set(
     "GET peek", (_request: Request, env: Record<string, unknown>, call: AppCall) => {
       seen.push({ env, call });
@@ -83,7 +85,7 @@ it("does not match a property every object inherits", async () => {
 it("applies the app slug to both bare and described routes before handler work", async () => {
   const employee = { ...person, claims: { ...person.claims, sub: "employee", email: person.id,
     iss: "https://business.cloudflareaccess.com", aud: "app", exp: 9999999999 } };
-  const row = { policy_enabled: 1, revision: 1, status: "active", apps: '[]' };
+  const row = { policy_enabled: 1, keys_enabled: 0, revision: 1, status: "active", apps: '[]', keys: "{}" };
   const first = vi.fn(async () => row);
   const db = { withSession: vi.fn(() => ({ prepare: () => ({ bind: () => ({ first }) }) })) };
   const bindings = { ...env, DB: db, WONG_OWNER_EMAIL: "actual-owner@example.com", CF_ACCESS_TEAM_DOMAIN: "business.cloudflareaccess.com",

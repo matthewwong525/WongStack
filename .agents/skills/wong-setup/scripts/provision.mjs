@@ -20,7 +20,7 @@ import { isMain } from '../../memory/scripts/lib/cli.mjs';
 import { machineId, machineIdFile } from '../../memory/scripts/lib/machine-id.mjs';
 import { keyMachine, parseEnv } from '../../memory/scripts/lib/store.mjs';
 import { PrimaryRootError, primaryRoot } from '../../memory/scripts/lib/primary-root.mjs';
-import { AccessSetupError, accessOrganization, loginManagementKey, ownerIdentity, provisionAccess, provisionAccessPolicies } from './private-access.mjs';
+import { AccessSetupError, accessOrganization, cloudflareReadKey, loginManagementKey, ownerIdentity, provisionAccess, provisionAccessPolicies } from './private-access.mjs';
 import { helperConfig } from '../../save/scripts/artifacts-credential.mjs';
 import { privateDeployment } from '../../../../scripts/lib-access-config.mjs';
 import { parseConfig } from '../../../../scripts/lib-wrangler-config.mjs';
@@ -73,8 +73,29 @@ export const DEPLOY_TOKEN = [
 ];
 /** The live app's sign-in list key: Access policy writes on this one account, and nothing the deploy token holds. */
 export const ACCESS_KEY = [{ name: 'Access: Apps and Policies Write', scope: 'account', id: '1e13c5124ca64b72b1969a67e8829049' }];
+const KEY_LINK_STEP = 'because the saved Cloudflare token can not make keys: send the private key link (wiki/development/secrets.md#receive-a-key-through-a-private-link) for a Cloudflare token with Account API Tokens Write, then run `provision.mjs access`';
 /** The to-do a report carries when the token could not make that key. Access still opens and saves app choices. */
-export const ACCESS_KEY_TODO = 'the live app has no key for its sign-in list, because the saved Cloudflare token can not make keys: send the private key link (wiki/development/secrets.md#receive-a-key-through-a-private-link) for a Cloudflare token with Account API Tokens Write, then run `provision.mjs access`';
+export const ACCESS_KEY_TODO = `the live app has no key for its sign-in list, ${KEY_LINK_STEP}`;
+/**
+ * The app's read-only key for Cloudflare look-ups. An allow-list on purpose: a group joins only by being
+ * named here, so no Write group and no product that stores data (D1, KV, R2, Queues, Vectorize,
+ * Hyperdrive, Durable Objects, Secrets Store, Stream, Images) is ever in it.
+ */
+export const CLOUDFLARE_READ_KEY = [
+  { name: 'Account Settings Read', scope: 'account', id: 'c1fde68c7bcc44588cbb6ddbc16d6480' },
+  { name: 'Workers Scripts Read', scope: 'account', id: '1a71c399035b4950a1bd1466bbe4f420' },
+  { name: 'Workers Tail Read', scope: 'account', id: '05880cd1bdc24d8bae0be2136972816b' },
+  { name: 'Workers CI Read', scope: 'account', id: 'ad99c5ae555e45c4bef5bdf2678388ba' },
+  { name: 'Account Analytics Read', scope: 'account', id: 'b89a480218d04ceb98b4fe57ca29dc1f' },
+  { name: 'Access: Apps and Policies Read', scope: 'account', id: '7ea222f6d5064cfa89ea366d7c1fee89' },
+  { name: 'Access: Audit Logs Read', scope: 'account', id: 'b05b28e839c54467a7d6cba5d3abb5a3' },
+  { name: 'Billing Read', scope: 'account', id: '7cf72faf220841aabcfdfab81c43c4f6' },
+  { name: 'Zone Read', scope: 'zone', id: 'c8fed203ed3043cba015a93ad1616f1f' },
+  { name: 'DNS Read', scope: 'zone', id: '82e64a83756745bbbb1c9c2701bf816b' },
+  { name: 'Analytics Read', scope: 'zone', id: '9c88f9c5bce24ce7af9a958ba9c504db' },
+];
+/** The to-do a report carries when the token could not make that key. Everything else in Access still works. */
+export const CLOUDFLARE_READ_KEY_TODO = `the app has no read-only Cloudflare key for look-ups, ${KEY_LINK_STEP}`;
 
 /** What an Artifacts install adds to the widen: its repository, its check runner, and the read that sees the plan. */
 export const ARTIFACTS_PROVISION = [
@@ -207,7 +228,8 @@ export const namesFor = (base) => ({
 export const artifactNamesFor = (base) => ({ repo: base, runner: `${base}-checks`, storage: `${base}-checks-storage` });
 
 const isScope = (key, scope) => key.startsWith(`com.cloudflare.api.${scope}.`) && !key.includes('.zone.');
-const findGroup = (groups, { name, scope }) => groups.find((group) => group.name === name && group.scopes?.includes(`com.cloudflare.api.${scope}`));
+// Cloudflare files a zone group under the account: `com.cloudflare.api.account.zone`.
+const findGroup = (groups, { name, scope }) => groups.find((group) => group.name === name && group.scopes?.includes(`com.cloudflare.api.${scope === 'zone' ? 'account.zone' : scope}`));
 
 // ── the repo's own files ────────────────────────────────────────────────────
 
@@ -585,17 +607,23 @@ function recordComponent(dir, component, data, note) {
   note('updated', `.claude/.wong-stack.json components.${component}`);
 }
 
-/** One allow policy on this account alone, with the named groups. */
-const accountPolicy = (account, groups, rows) => [
+/** One allow policy on this account alone, with the named groups; `within` narrows it to part of the account. */
+const accountPolicy = (account, groups, rows, within = '*') => [
   {
     effect: 'allow',
-    resources: { [`com.cloudflare.api.account.${account}`]: '*' },
+    resources: { [`com.cloudflare.api.account.${account}`]: within },
     permission_groups: rows.map((row) => {
       const group = findGroup(groups, row);
       if (!group) throw new ProvisionError('token', `Cloudflare lists no ${row.scope} permission group named ${row.name}`);
       return { id: group.id };
     }),
   },
+];
+
+/** The read-only key's two policies: its account groups on the account, its zone groups on every zone in it. */
+const readKeyPolicies = (account, groups) => [
+  ...accountPolicy(account, groups, CLOUDFLARE_READ_KEY.filter((row) => row.scope === 'account')),
+  ...accountPolicy(account, groups, CLOUDFLARE_READ_KEY.filter((row) => row.scope === 'zone'), { 'com.cloudflare.api.account.zone.*': '*' }),
 ];
 
 /**
@@ -772,7 +800,8 @@ const hasKey = (env, localId) => keyMachine(env.CLOUDFLARE_MEMORY_TOKEN) === loc
 /**
  * Everything after the one billable ask, under `base`: the memory store (R2 check, database, bucket),
  * the subdomain, the record's `components.memory`, the memory schema, the admin key, both app databases,
- * the config, the deploy token in the GitHub secret, and the live app's key for its sign-in list. `keepConfig` leaves an installed repo's
+ * the config, the deploy token in the GitHub secret, the live app's key for its sign-in list, and both
+ * Workers' read-only key for Cloudflare look-ups. `keepConfig` leaves an installed repo's
  * committed files as they are, and adds no new bucket they would need. `openWithoutLogin` lets a Zero
  * Trust organization Cloudflare refuses (onboarding, usually a card) record `access.mode: 'open'` and go
  * on without Access; a site already private never opens, and a rerun that gets the organization turns an
@@ -913,6 +942,13 @@ export async function provision({ token, api, fetch, account, repo, base, route 
     }));
     if (report.accessKey.status === 'missing') report.todo.push(ACCESS_KEY_TODO);
     recordComponent(dir, 'accessKey', report.accessKey, note);
+    // The key for Cloudflare look-ups waits for sign-in too: only then do both Workers exist, with an owner to give levels.
+    report.cloudflareReadKey = await step('cloudflare', () => cloudflareReadKey(cf, {
+      account, name: `${n.worker}-cloudflare-read`, workers: [n.worker, n.staging],
+      policies: () => readKeyPolicies(account, groups), state, checkpoint, note,
+    }));
+    if (report.cloudflareReadKey.status === 'missing') report.todo.push(CLOUDFLARE_READ_KEY_TODO);
+    recordComponent(dir, 'cloudflareReadKey', report.cloudflareReadKey, note);
   };
   if (route === 'artifacts') {
     report.delivery = await artifactsDelivery(cf, { account, base, token, groups, buckets, deployRows: rows, dir, env, exec, state, checkpoint, note, todo: report.todo, sleep });
@@ -942,8 +978,9 @@ export async function provision({ token, api, fetch, account, repo, base, route 
 
 /**
  * What Access needs on a repo installed before it knew its owner: the recorded owner's email in both
- * Workers' vars, and the live app's own key. Reads the install record and makes nothing else, so an
- * update runs it alone. A site with no sign-in on record has nothing to do.
+ * Workers' vars, the live app's own key, and both Workers' read-only key for Cloudflare look-ups. Reads
+ * the install record and makes nothing else, so an update runs it alone. A site with no sign-in on record
+ * has nothing to do.
  */
 export async function accessSetup({ token, api, fetch, account, ownerEmail, dir = '.', exec = run }) {
   const cf = cloudflare(token, { api, fetch });
@@ -961,11 +998,18 @@ export async function accessSetup({ token, api, fetch, account, ownerEmail, dir 
     checkpoint: () => writeJson(provisionStateFile, state),
   }));
   if (key.status === 'missing') report.todo.push(ACCESS_KEY_TODO);
+  const readKey = await step('cloudflare', () => cloudflareReadKey(cf, {
+    account, name: `${worker}-cloudflare-read`, workers: access.workers.map((each) => each.name), state, note,
+    policies: async () => readKeyPolicies(account, await cf('GET', '/user/tokens/permission_groups?per_page=1000')),
+    checkpoint: () => writeJson(provisionStateFile, state),
+  }));
+  if (readKey.status === 'missing') report.todo.push(CLOUDFLARE_READ_KEY_TODO);
   const config = join(dir, 'app', 'wrangler.jsonc');
   if (existsSync(config)) ownerEmailInConfig(config, email, { note, todo: report.todo });
   recordComponent(dir, 'access', { ownerEmail: email }, note);
   recordComponent(dir, 'accessKey', key, note);
-  return { ...report, ownerEmail: email, accessKey: key };
+  recordComponent(dir, 'cloudflareReadKey', readKey, note);
+  return { ...report, ownerEmail: email, accessKey: key, cloudflareReadKey: readKey };
 }
 
 // ── the command line ────────────────────────────────────────────────────────
@@ -980,7 +1024,8 @@ const USAGE = `usage: provision.mjs <command> [--dir <repo>] [--account <id>] [-
                                           make or reuse the memory store, databases, config, and deploy token;
                                           --open-without-login goes on, open, when Zero Trust needs onboarding
   access [--owner-email <email>]          on an installed repo with sign-in on: put the owner's email in both Workers'
-                                          vars and give the live app its own key for the sign-in list
+                                          vars, give the live app its own key for the sign-in list, and give both
+                                          Workers the read-only key for Cloudflare look-ups
 --route artifacts keeps the project in Cloudflare with no GitHub: widen adds its groups, names checks its
 names, and provision makes the repository and the check runner in place of the GitHub secrets.
 --dir is the target repo (default: here). The token is CLOUDFLARE_API_TOKEN and the account CLOUDFLARE_ACCOUNT_ID,

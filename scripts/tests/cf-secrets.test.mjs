@@ -262,3 +262,42 @@ test('secret parity accepts private production authority only on production and 
   const owner = check(t, { vars: { WONG_OWNER_EMAIL: 'owner@example.com' }, env: { staging: { vars: { WONG_OWNER_EMAIL: 'owner@example.com' } } } }); assert.equal(owner.status, 0, owner.output);
   const untwinned = check(t, { vars: { WONG_OWNER_EMAIL: 'owner@example.com' }, env: { staging: {} } }); assert.equal(untwinned.status, 1); assert.match(untwinned.output, /WONG_OWNER_EMAIL/);
 });
+
+// Setup makes the read-only Cloudflare key and stores it on both Workers; no secrets file may carry it.
+test('the setup-made Cloudflare read key is refused in every push source, and the sign-in key stays out of staging', t => {
+  const f = scaffold(t, { env: { staging: {} } }, { tools: { npx: logger() } });
+  const refused = (args, file) => {
+    const result = f.run('cf-secrets.mjs', args);
+    assert.equal(result.status, 1, result.out); assert.deepEqual(result.calls, []);
+    assert.ok(result.out.includes(`${file} must not declare WONG_CLOUDFLARE_READ: setup stores it on both Workers.`), result.out);
+    assert.doesNotMatch(result.out, /read-synthetic/);
+  };
+  f.write('app/.dev.vars', 'API_KEY=synthetic\nWONG_CLOUDFLARE_READ=read-synthetic\n');
+  refused(['push'], '.dev.vars');
+  refused(['push', 'app/.dev.vars'], '.dev.vars');
+  // A staging file of its own does not make production's copy acceptable, and may not name the key either.
+  f.write('app/.dev.vars.staging', 'API_KEY=test\n');
+  refused(['push'], '.dev.vars');
+  f.write('app/.dev.vars', 'API_KEY=synthetic\n'); f.write('app/.dev.vars.staging', 'API_KEY=test\nWONG_CLOUDFLARE_READ=read-synthetic\n');
+  refused(['push'], '.dev.vars.staging');
+  f.write('app/.dev.vars.staging', 'API_KEY=test\nWONG_ACCESS_LOGIN_MANAGEMENT=\n');
+  const signIn = f.run('cf-secrets.mjs', ['push']); assert.equal(signIn.status, 1); assert.deepEqual(signIn.calls, []);
+  assert.match(signIn.out, /staging secret source must omit private Access management bindings/);
+  f.write('app/.dev.vars.staging', 'API_KEY=test\n');
+  const valid = f.run('cf-secrets.mjs', ['push']); assert.equal(valid.status, 0, valid.out); assert.equal(valid.calls.length, 2);
+});
+test('secret parity expects the setup-made Cloudflare read key on both Workers, and never asks the example file for it', t => {
+  const both = checkSecrets(t, { PROD: 'API_KEY,WONG_ACCESS_LOGIN_MANAGEMENT,WONG_CLOUDFLARE_READ', STAGING: 'API_KEY,WONG_CLOUDFLARE_READ' });
+  assert.equal(both.status, 0, both.out);
+  for (const [env, problem] of [
+    [{ PROD: 'API_KEY,WONG_CLOUDFLARE_READ', STAGING: 'API_KEY' }, /secret 'WONG_CLOUDFLARE_READ' is set on production but missing from staging/],
+    [{ PROD: 'API_KEY', STAGING: 'API_KEY,WONG_CLOUDFLARE_READ' }, /secret 'WONG_CLOUDFLARE_READ' is set on staging but missing from production/],
+  ]) {
+    const result = checkSecrets(t, env); assert.equal(result.status, 1, result.out); assert.match(result.out, problem);
+  }
+  const listed = scaffold(t, { env: { staging: {} } }, { tools: { npx: secretList }, prefix: 'cf-secrets-check-' });
+  listed.write('app/.dev.vars.example', 'API_KEY=\n');
+  const warned = listed.run('cf-secrets.mjs', ['check'], { env: { CLOUDFLARE_API_TOKEN: 'test', PROD: 'API_KEY,OTHER_KEY,WONG_CLOUDFLARE_READ', STAGING: 'API_KEY,OTHER_KEY,WONG_CLOUDFLARE_READ' } });
+  assert.equal(warned.status, 0, warned.out); assert.match(warned.out, /'OTHER_KEY' is set but not declared/);
+  assert.doesNotMatch(warned.out, /'WONG_CLOUDFLARE_READ' is set but not declared/);
+});

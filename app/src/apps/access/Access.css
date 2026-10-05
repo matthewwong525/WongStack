@@ -1,13 +1,33 @@
 .access-page { display: grid; gap: 1rem; }
 .access-page section, .access-form { min-width: 0; }
-.access-form { display: grid; gap: 1rem; }
-.access-form > label { display: grid; gap: .5rem; }
-.access-form input[type="email"] { width: 100%; box-sizing: border-box; }
+.access-view, .access-form, .access-fields { display: grid; gap: 1rem; }
+.access-view > a, .access-form > a { justify-self: start; }
+.access-view > p, .access-fields > p { margin-block: 0; }
+.access-fields, .access-levels { min-width: 0; margin: 0; padding: 0; border: 0; }
+.access-fields > label { display: grid; gap: .5rem; }
+.access-fields > label > * { width: 100%; box-sizing: border-box; }
 .access-notice { background: var(--surface); }
 .access-notice p { margin-block: 0 .6rem; }
 .access-people li p { margin-block: .4rem .8rem; }
 .access-choice { display: flex; align-items: center; gap: .6rem; margin-block: .6rem; }
-.access-choice input { width: auto; }
-.access-actions { display: flex; flex-wrap: wrap; gap: .6rem; }
+.access-choice input, .access-level-options input { width: auto; }
+.access-actions, .access-views, .access-level-options, .access-row-head { display: flex; flex-wrap: wrap; gap: .6rem; }
 .access-people { list-style: none; padding: 0; display: grid; gap: 1rem; }
 .access-people li, .access-removal, .access-notice { padding: 1rem; border: 1px solid var(--border); border-radius: .6rem; overflow-wrap: anywhere; }
+/* A step to finish inside a key's own box needs no second box. */
+.access-people .access-notice { padding: 0; border: 0; background: none; }
+.access-row-head { justify-content: space-between; }
+.access-views a, .access-button { display: inline-block; padding: .5rem .75rem; border: 1px solid transparent; border-radius: .5rem; text-decoration: none; }
+/* The current view is boxed, bold and underlined: never marked by colour alone. */
+.access-views a[aria-current="page"] { border-color: var(--border); font-weight: 700; text-decoration: underline; }
+.access-button { border-color: var(--border); background: var(--surface); color: var(--text); }
+.access-primary { background: var(--accent); color: var(--accent-text); }
+.access-muted { margin-block: 0 .6rem; color: var(--muted-text); }
+.access-muted:empty { display: none; }
+.access-app .access-muted { margin-inline-start: 1.8rem; }
+.access-levels { margin-block: .6rem; }
+/* The level choice: three parts in one row that wraps, each a real radio button whose dot shows the choice. */
+.access-level-options { gap: 0; }
+.access-level-options label { display: flex; align-items: center; gap: .4rem; padding: .4rem .7rem; border: 1px solid var(--border); }
+.access-level-options label + label { margin-inline-start: -1px; }
+.access-level-options label:has(:checked) { background: var(--accent); color: var(--accent-text); font-weight: 600; }
