@@ -1,6 +1,7 @@
 // The owner is the verified person whose sign-in email setup recorded; no private pin exists.
+// On a preview, the verification service token counts as the owner too.
 import type { AccessIdentity } from "../access.ts";
-import { humanEmail, ownerEmail, type PolicyEnv } from "./policy.ts";
+import { checkerOwns, humanEmail, ownerEmail, type PolicyEnv } from "./policy.ts";
 
 export interface ConnectionEnv extends PolicyEnv {
   CF_ACCESS_APP_ID?: string;
@@ -25,13 +26,16 @@ export async function ownerCore(request: Request, env: ConnectionEnv, identity: 
   const owner = ownerEmail(env);
   // An older install, or an open site with no sign-in, has no owner to verify.
   if (!owner || !env.DB || !identity) throw new AccessError("owner_setup_required");
-  // Service tokens, request bodies and a first visit establish nothing.
-  if (humanEmail(identity) !== owner) throw new AccessError("owner_required", 403);
+  // Service tokens, request bodies and a first visit establish nothing. One exception, on a preview only:
+  // the checker stands in for the owner there, against the practice list.
+  const machine = checkerOwns(env, identity);
+  if (!machine && humanEmail(identity) !== owner) throw new AccessError("owner_required", 403);
   const origin = new URL(request.url).origin;
   // Browser cookies cannot change people from a foreign site.
   if (request.method !== "GET" && request.headers.get("Origin") !== origin) throw new AccessError("origin_required", 403);
   const db = env.DB.withSession("first-primary");
-  const subject = identity.claims.sub!;
+  // The checker has no user id: its subject is the token's own name.
+  const subject = machine ? identity.id : identity.claims.sub!;
   return { db, env, installationId: await installation(db, env, { origin, owner, subject }), origin, email: owner,
     subject, live: env.WONG_ENVIRONMENT === "production" };
 }

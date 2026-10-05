@@ -114,7 +114,7 @@ it("knows the owner by the recorded email alone and permits zero-app employee se
   expect((await authorizeRequest(env, employee, { kind: "self-service" }))?.status).toBe(403);
 });
 
-it("lets the verification machine open every built app and never manage people", async () => {
+it("lets the verification machine open every built app, and manage people on a preview only", async () => {
   const machine: AccessIdentity = { kind: "service", id: "checker.access", claims: {
     common_name: "checker.access", sub: "", iss: issuer, aud: "business-app", exp: 9999999999,
   } };
@@ -131,6 +131,25 @@ it("lets the verification machine open every built app and never manage people",
     { ...machine, claims: { ...machine.claims, common_name: "another.access" } }]) {
     expect(await read(forged)).toEqual({ state: "denied" });
   }
+  // On a preview it stands in for the owner, so a walk can open the owner's Access screens. Nowhere else.
+  const preview = { ...env, WONG_ENVIRONMENT: "staging" };
+  const standIn = await read(machine, preview);
+  expect(standIn).toEqual({ ...policy, role: "owner" });
+  expect(policyAllows(standIn, { kind: "owner" })).toBe(true);
+  expect(await authorizeRequest(preview, machine, { kind: "owner" })).toBeNull();
+  expect(await (await appAccess(new Request(`${origin}/api/access/apps`), preview, machine)).json()).toMatchObject({ state: "current", role: "owner" });
+  for (const environment of ["production", "local", "Staging", undefined]) {
+    const bindings = { ...env, WONG_ENVIRONMENT: environment };
+    expect(await read(machine, bindings), String(environment)).toEqual(policy);
+    expect((await authorizeRequest(bindings, machine, { kind: "owner" }))?.status, String(environment)).toBe(403);
+  }
+  // A forged machine and a person who is not the owner gain nothing from the preview.
+  expect(await read({ ...machine, claims: { ...machine.claims, email: "owner@example.com" } }, preview)).toEqual({ state: "denied" });
+  expect(await read(employee, preview)).toMatchObject({ state: "current", role: "employee" });
+  // Before permissions start the preview names it the owner too, and the live app never does.
+  sql.exec("UPDATE wong_access_installation SET policy_enabled = 0");
+  expect(await read(machine, preview)).toEqual({ state: "not_started", role: "owner" });
+  expect(await read(machine)).toEqual({ state: "not_started", role: "employee" });
 });
 
 it("refuses service, unlisted and invalid human identities once permissions have started", async () => {

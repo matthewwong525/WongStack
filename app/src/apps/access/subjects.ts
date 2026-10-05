@@ -1,9 +1,10 @@
-import type { Status } from '../../lib/access'
-import { dots, levelName } from './levels'
+import type { Level, Status } from '../../lib/access'
+import { dots } from './levels'
 
 /** The people who hold a role, by email. A role not saved yet has nobody. */
-export const holdersLine = (status: Status, role?: string) =>
-  status.people.filter(person => person.role === role).map(person => person.email).join(', ') || 'nobody yet'
+export const holders = (status: Status, role?: string) =>
+  status.people.filter(person => person.role === role).map(person => person.email)
+export const holdersLine = (status: Status, role?: string) => holders(status, role).join(', ') || 'nobody yet'
 
 /** Everything a tick or a level is given to: each role, then each active person with their own set. */
 export const subjects = (status: Status) => [
@@ -21,11 +22,14 @@ export function each<T>(list: Subject[], value: (subject: Subject) => T): Each<T
   return all
 }
 export const put = <T>(all: Each<T>, { kind, id }: Subject, value: T): Each<T> => ({ ...all, [kind]: { ...all[kind], [id]: value } })
+/** Whether a page's values have moved from where they started. `put` keeps their order, so the text compares. */
+export const differs = <T>(start: Each<T>, now: Each<T>) => JSON.stringify(start) !== JSON.stringify(now)
 
-/** `Sales: Read · kim@shop.com: Read`: who holds a level for a key. */
-export const levelHolders = (status: Status, key: string) =>
-  dots(...subjects(status).map(({ name, set }) => set.keys[key] && `${name}: ${levelName(set.keys[key])}`)) || 'Nobody yet'
+/** Who holds a key, grouped by level, the higher level first. A level nobody holds is left out. */
+export const holdersByLevel = (status: Status, key: string) => (['write', 'read'] satisfies Level[])
+  .map(level => ({ level, names: subjects(status).filter(({ set }) => set.keys[key] === level).map(({ name }) => name) }))
+  .filter(({ names }) => names.length)
 
-/** `Sales, kim@shop.com`: who has an app. */
+/** Who has an app: roles first, then people with their own set. */
 export const appHolders = (status: Status, app: string) =>
-  subjects(status).filter(({ set }) => set.apps.includes(app)).map(({ name }) => name).join(', ') || 'Nobody yet'
+  subjects(status).filter(({ set }) => set.apps.includes(app)).map(({ name }) => name)

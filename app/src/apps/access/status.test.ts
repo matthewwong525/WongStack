@@ -1,24 +1,11 @@
 import { expect, it } from 'vitest'
-import { appTitle } from '../../lib/apps'
 import type { Person, Status } from '../../lib/access'
-import { appsLine, canRetry, signInLine } from './status'
+import { canRetry, signInLine } from './status'
 
 const status = (changes: Partial<Status> = {}): Status => ({ origin: 'https://business.example.com', ownerEmail: 'owner@example.com',
   environment: 'live', key: 'ready', started: true, imported: 0, keysStarted: true, kept: 0, apps: ['hello', 'orders'],
   appKeys: { hello: [], orders: [] }, keys: [], roles: [], people: [], work: [], ...changes })
 const person = (changes: Partial<Person> = {}): Person => ({ email: 'bo@example.com', status: 'active', settled: true, role: null, apps: ['hello'], keys: {}, ...changes })
-
-it('names a person’s apps in a few words', () => {
-  expect(appsLine(person({ apps: [] }), status())).toBe('No apps')
-  expect(appsLine(person(), status())).toBe('Hello')
-  expect(appsLine(person({ apps: ['hello', 'orders'] }), status())).toBe('All apps')
-  // One built app is named, not called all; an app with no card shows its name.
-  expect(appsLine(person(), status({ apps: ['hello'] }))).toBe('Hello')
-  expect(appsLine(person({ apps: ['hello', 'retired'] }), status({ apps: ['hello', 'orders', 'payroll'] }))).toBe('Hello, retired')
-  expect(appTitle('retired')).toBe('retired')
-  // A role's apps read the same way.
-  expect(appsLine({ apps: ['hello', 'orders'] }, status())).toBe('All apps')
-})
 
 it('gives each person one sign-in status', () => {
   expect(signInLine(person(), status())).toEqual({ text: 'Can sign in', unfinished: false })

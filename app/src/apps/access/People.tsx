@@ -4,13 +4,13 @@ import type { Person } from '../../lib/access'
 import { CopyText } from '../../components/CopyText'
 import { at, type ViewProps } from './address'
 import { Confirm } from './Confirm'
-import { dots, levelsLine } from './levels'
+import { SetLabels } from './Labels'
 import { Notices } from './Notices'
 import { PersonPage } from './PersonPage'
-import { appsLine, canRetry, signInLine } from './status'
+import { canRetry, signInLine } from './status'
 import { View } from './View'
 
-// The view that opens first: each person's role and sign-in status, then their apps and key levels.
+// The view that opens first: each person's sign-in status and role, then a label per app and per key level.
 export function People(props: ViewProps) {
   const { status, id, view, pending, save, reload } = props
   const [removing, setRemoving] = useState<Person | null>(null)
@@ -23,9 +23,11 @@ export function People(props: ViewProps) {
     <ul className="access-people">{status.people.map(person => {
       const signIn = signInLine(person, status)
       return <li key={person.email}>
-        <strong>{person.email}</strong>
-        <p>{dots(status.roles.find(role => role.id === person.role)?.name, signIn.text)}</p>
-        {person.status === 'active' && <p>{dots(appsLine(person, status), levelsLine(status, person.keys))}</p>}
+        <div className="access-row-head"><strong>{person.email}</strong><span className="access-muted">{signIn.text}</span></div>
+        {person.status === 'active' && <>
+          <p className="access-muted">{status.roles.find(role => role.id === person.role)?.name ?? 'Own set'}</p>
+          <SetLabels status={status} set={person} />
+        </>}
         <div className="access-actions">
           {signIn.unfinished && canRetry(status) && <button type="button" disabled={pending} onClick={() => save('retry')}>Try again</button>}
           <Link className="access-button" to={at('people', person.email)}>{person.status === 'removed' ? 'Add back' : 'Edit'}</Link>

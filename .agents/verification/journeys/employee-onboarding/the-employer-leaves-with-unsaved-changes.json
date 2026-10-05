@@ -1,0 +1,90 @@
+{
+  "format": "verify-journey-1",
+  "id": "the-employer-leaves-with-unsaved-changes",
+  "scenario": {
+    "capability": "employee-onboarding",
+    "requirement": "Access never loses an unsaved change silently",
+    "scenario": "The employer leaves with unsaved changes"
+  },
+  "thenDigest": "6ca8827cd7e320a3e8ac0b2b07228c3ac3334f2a425f59e65e7efd227ec31dd3",
+  "probe": "browser",
+  "writes": false,
+  "sourcePaths": [
+    "app/src/apps/access/Access.css",
+    "app/src/apps/access/AppAccessPage.tsx",
+    "app/src/apps/access/Apps.tsx",
+    "app/src/apps/access/Confirm.tsx",
+    "app/src/apps/access/KeyPage.tsx",
+    "app/src/apps/access/Keys.tsx",
+    "app/src/apps/access/Labels.tsx",
+    "app/src/apps/access/LevelChoice.tsx",
+    "app/src/apps/access/Own.tsx",
+    "app/src/apps/access/Owner.tsx",
+    "app/src/apps/access/Page.tsx",
+    "app/src/apps/access/People.tsx",
+    "app/src/apps/access/PersonPage.tsx",
+    "app/src/apps/access/RolePage.tsx",
+    "app/src/apps/access/Roles.tsx",
+    "app/src/apps/access/SetFields.tsx",
+    "app/src/apps/access/levels.ts",
+    "app/src/apps/access/status.ts",
+    "app/src/apps/access/subjects.ts",
+    "app/worker/employee-access/core.ts",
+    "app/worker/employee-access/policy.ts"
+  ],
+  "recordedAt": "a8124ef2832a2ffc023820fb0d4355d8b5a87e09",
+  "steps": [
+    [
+      "open",
+      "{url}/apps/access/people/eli%40example.invalid"
+    ],
+    [
+      "wait",
+      "--load",
+      "networkidle"
+    ],
+    [
+      "wait",
+      "--text",
+      "Save access"
+    ],
+    [
+      "find",
+      "label",
+      "Hello",
+      "check"
+    ],
+    [
+      "find",
+      "role",
+      "button",
+      "click",
+      "--name",
+      "Cancel"
+    ],
+    [
+      "wait",
+      "--text",
+      "Leave without saving?"
+    ],
+    [
+      "find",
+      "role",
+      "button",
+      "click",
+      "--name",
+      "Keep editing"
+    ]
+  ],
+  "expect": [
+    {
+      "gone": "Leave without saving?"
+    },
+    {
+      "text": "Save access"
+    },
+    {
+      "path": "/apps/access/people/eli%40example.invalid"
+    }
+  ]
+}
