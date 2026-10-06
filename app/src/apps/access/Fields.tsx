@@ -1,14 +1,15 @@
 import type { ReactNode } from 'react'
 import { Label } from '@/components/ui/label'
 
-/** One field of a page: its name, then the field under it. */
+/** One field of an opened item: its name, then the field under it. */
 export function Field({ label, children }: { label: string; children: ReactNode }) {
   return <Label className="grid gap-2">{label}{children}</Label>
 }
 
-/** A boxed group of ticks or level choices under its own name, on a person's and a role's page. */
+/** A group of ticks or level choices under its own bold name, for a person and a role. No box goes round it:
+ *  the name and more room above than between its lines set it apart. */
 export function Group({ legend, children }: { legend: string; children: ReactNode }) {
-  return <fieldset className="grid min-w-0 gap-3.5 rounded-lg border px-4 pt-3 pb-4"><legend className="px-1.5 font-bold">{legend}</legend>{children}</fieldset>
+  return <fieldset className="mt-2 grid min-w-0 gap-3.5"><legend className="mb-3 font-bold">{legend}</legend>{children}</fieldset>
 }
 
 /** One tick with its words: a real checkbox, so the device draws it and the keyboard reaches it. */

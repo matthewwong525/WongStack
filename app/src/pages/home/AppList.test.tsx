@@ -117,8 +117,9 @@ it("ends the list with a Connect card that opens the setup steps over the page a
 
   fireEvent.click(card);
   const popup = screen.getByRole("dialog", { name: "Connect your assistant" });
-  await within(popup).findByText("Signed in as person@example.com");
-  expect(within(popup).getByText("Finish reviewed setup")).toBeTruthy();
+  // Setup is not ready here: the popup says what the app answered, with nothing to copy.
+  await within(popup).findByText("Finish reviewed setup");
+  expect(within(popup).queryByRole("button", { name: "Copy" })).toBeNull();
 
   fireEvent.click(within(popup).getByRole("button", { name: "Close" }));
   expect(screen.queryByRole("dialog")).toBeNull();
