@@ -1,5 +1,5 @@
 import type { Level, SavedKey, Status } from '../../lib/access'
-import { dots } from './levels'
+import { count, dots } from './levels'
 
 /** The people who hold a role, by email. A role not saved yet has nobody. */
 export const holders = (status: Status, role?: string) =>
@@ -25,14 +25,18 @@ export const put = <T>(all: Each<T>, { kind, id }: Subject, value: T): Each<T> =
 /** Whether a page's values have moved from where they started. `put` keeps their order, so the text compares. */
 export const differs = <T>(start: Each<T>, now: Each<T>) => JSON.stringify(start) !== JSON.stringify(now)
 
-/** The owner has every app and holds every key, so a list of who has something names them first. */
+/** The owner has every app and holds every key, so a count of who has something names them first. */
 const OWNER = 'Owner'
 
-/** Who holds a key at one level: the owner first, at the most the key offers, then roles, then people with their own set. */
-export const keyHolders = (status: Status, key: SavedKey, level: Level) => [
-  ...(level === (key.levels.includes('write') ? 'write' : 'read') ? [OWNER] : []),
-  ...subjects(status).filter(({ set }) => set.keys[key.id] === level).map(({ name }) => name)]
+/** Who has something, counted for one line of a list: `Owner, 1 role, 2 people`, or `Nobody`. */
+const tally = (owner: boolean, list: Subject[]) => {
+  const of = (kind: Subject['kind']) => list.filter(subject => subject.kind === kind).length
+  return [owner && OWNER, of('roles') && count(of('roles'), 'role'), of('people') && count(of('people'), 'person', 'people')].filter(Boolean).join(', ') || 'Nobody'
+}
 
-/** Who has an app: the owner first, then roles, then people with their own set. */
-export const appHolders = (status: Status, app: string) =>
-  [OWNER, ...subjects(status).filter(({ set }) => set.apps.includes(app)).map(({ name }) => name)]
+/** Who holds a key at one level: the owner, at the most the key offers, then how many roles and people with their own set. */
+export const keyHolders = (status: Status, key: SavedKey, level: Level) =>
+  tally(level === (key.levels.includes('write') ? 'write' : 'read'), subjects(status).filter(({ set }) => set.keys[key.id] === level))
+
+/** Who has an app: the owner, then how many roles and people with their own set. */
+export const appHolders = (status: Status, app: string) => tally(true, subjects(status).filter(({ set }) => set.apps.includes(app)))

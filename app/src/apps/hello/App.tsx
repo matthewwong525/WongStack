@@ -9,7 +9,7 @@ const waiting = 'Your greeting will appear here.'
 const failed = 'Something went wrong. Try again.'
 
 // The example app's page, built from the ready-made parts in app/src/components/ui/ with Tailwind classes
-// for its spacing: no CSS file of its own. Its server side is app/worker/apps/hello/. The API
+// for its spacing: no CSS file of its own. The page takes the whole shared frame: on a computer the field and its button share a line. Its server side is app/worker/apps/hello/. The API
 // address comes from the page's own, so a copy under another name still works.
 export function App() {
   const { name: app } = useParams()
@@ -27,7 +27,7 @@ export function App() {
   }
 
   return (
-    <>
+    <div>
       <p className="mb-2 text-sm text-muted-foreground">Example app</p>
       <h1 className="mb-3">Hello</h1>
       <p className="mb-6 text-muted-foreground">A small example you can make yours.</p>
@@ -40,11 +40,13 @@ export function App() {
           }}
         >
           <Label htmlFor="hello-name">Your name</Label>
-          <Input id="hello-name" value={name} onChange={(event) => setName(event.target.value)} autoComplete="given-name" placeholder="e.g. Sam" />
-          <Button className="w-full" type="submit">Say hello</Button>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Input id="hello-name" value={name} onChange={(event) => setName(event.target.value)} autoComplete="given-name" placeholder="e.g. Sam" />
+            <Button className="w-full sm:w-auto" type="submit">Say hello</Button>
+          </div>
           <p className="min-h-6 text-muted-foreground wrap-anywhere" aria-live="polite">{message}</p>
         </form>
       </Card>
-    </>
+    </div>
   )
 }
