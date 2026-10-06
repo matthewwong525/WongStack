@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Screens that match
+## 35.2.0 — Screens that match
 
 - **Every screen starts at the same left edge.** One wide frame holds Home, each small app and Access, and the logo in the top bar lines up with it. Every screen fills it: Home lays your apps side by side, a small app's fields share a line, and a table uses it all. Nothing jumps sideways when you move between screens.
 - **Every row in an Access list is one line.** A person's row shows who, whether they can sign in, their role, and a count such as *2 apps, 1 key*. A row where an app can't do its job yet says *! 1 gap*. *You* and *Manager* sit beside the email. Roles, Apps and Keys follow the same rule, and the names show when you open one.

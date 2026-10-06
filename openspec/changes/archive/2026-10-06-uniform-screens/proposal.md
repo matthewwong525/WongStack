@@ -1,6 +1,6 @@
 # Screens that match
 
-**Status:** in-progress
+**Status:** ready-to-ship
 
 **Branch:** access-ui-consistency
 
@@ -173,6 +173,7 @@ The screens don't match each other. Home and the small apps sit in a narrow cent
 - **2026-10-06** — Walk: the owner's row was shorter than the rows that hold a role dropdown, so every row in the four lists now has one height on a computer.
 - **2026-10-06** — Asked, on the preview, about Home sitting in the left half of the frame with the right half empty → chose every screen fills the frame; text and forms no longer keep a narrower width. Home's apps sit in a grid, and Hello's and the tip calculator's fields share a line on a computer.
 - **2026-10-06** — Asked what to do about two things the pictures showed, a Keys line cut short and the side panel covering the top bar → chose to fix both: the Keys list counts the apps that use a key and the key's panel names them, and on a computer the panel starts under the top bar, which now stays in view when the page scrolls.
+- **2026-10-06** — Archive checkpoint: 35.1.0, *Connect your assistant installs the project*, was published while this was built and changed eleven of the same files. Both are kept: the popup's three steps now also say when the connection brings the whole project, a person who lacks Project code sees Home's card greyed and what the app answers in place of the steps, and that change's tests for Access's Connect button moved onto the popup, since Access no longer has one.
 
 ## Capabilities
 
