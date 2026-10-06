@@ -69,15 +69,14 @@ it('lists each skill on one line under a fifth view: what it needs, and how many
   expect([tabs(), current()]).toEqual([['People 7', 'Roles 2', 'Apps 3', 'Skills 2', 'Keys 2'], ['Skills 2']])
   expect([screen.queryByRole('link', { name: /^Add/ }), screen.queryByRole('dialog'), screen.getByText('Your assistant makes skills.').tagName]).toEqual([null, null, 'P'])
   expect(within(list).getAllByRole('columnheader').map(cell => cell.textContent)).toEqual(['Skill', 'Needs', 'Can run'])
-  // Needs names each area with its level, then each key with its own; Project code offers Read alone, so it is named with no level.
+  // Needs counts the areas and keys, so no line is cut short; the opened skill names each with its level.
   // Can run counts the owner, a role's holders by what the role gives and a person by their own set, of everyone who can sign in: never a removed person.
-  expect(rows(list)).toEqual([['Refund a customer', 'Orders Look up & change, Stripe Read & write, Project code', '4 of 7'], ['Weekly summary', 'Sample records Look up', '2 of 7']])
+  expect(rows(list)).toEqual([['Refund a customer', '1 app, 2 keys', '4 of 7'], ['Weekly summary', '1 app', '2 of 7']])
   // Each name is the link that opens the skill, and no row is marked until one is open.
   expect(within(list).getAllByRole('link').map(link => [link.textContent, link.getAttribute('href')])).toEqual([['Refund a customer', '/apps/access/skills/refund'], ['Weekly summary', '/apps/access/skills/report']])
   expect(document.querySelector('tr[aria-current]')).toBeNull()
-  // What a skill needs gives way on a narrow row, with the whole of it in its title; both cells name their column once rows stack.
-  const needs = within(list).getByText('Sample records Look up')
-  expect([needs.title, needs.getAttribute('data-label'), within(list).getByText('2 of 7').getAttribute('data-label')]).toEqual(['Sample records Look up', 'Needs', 'Can run'])
+  // Both cells name their column once rows stack.
+  expect([within(list).getByText('1 app').getAttribute('data-label'), within(list).getByText('2 of 7').getAttribute('data-label')]).toEqual(['Needs', 'Can run'])
 })
 it('says in two lines that no skill does business work yet, under Skills 0, with no table and no line under one', async () => {
   roster.skills = []; open('skills'); const view = await screen.findByRole('region', { name: 'Skills' })

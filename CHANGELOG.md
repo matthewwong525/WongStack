@@ -3,19 +3,20 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Skills that work for the whole team, and Access built on what a person can reach
+## 36.4.0 — Skills that work for the whole team, and Access built on what a person can reach
 
 - **A skill does its business work through the app, never with a key.** Ask for a skill that touches orders, payments or other business data, and your assistant first builds that work into the app, then writes the skill to call it. The skill runs under the login of whoever uses it, so it works on every teammate's device and the app decides what each of them may do.
 - **A check stops a skill that reads a key.** A skill that names a saved business key, or calls work in the app it does not list, can't be published. The check names the skill.
 - **You give a person areas, each at *Look up* or *Look up & change*.** An area is one named group of work in the app, such as Orders. Every app you have is an area. *Look up* lets a person see things; only *Look up & change* lets them change or send anything. When the app refuses a change it says which area and which level is needed.
 - **An area can have no screen.** Work built only for skills and assistants shows in Access marked *No screen*. You give it the same way as an app, and it adds no card to Home.
-- **A person's or role's panel has three parts.** *Start from* is a row of your apps and skills: press one and the panel fills in what it needs, each raised line marked *new*. *Can reach* is the list the app enforces, which you can change by hand, and it names what each line opens. *Can't yet* lists each app or skill that is still missing something, with *Give what it needs*. Nothing is saved until *Save access*.
-- **Access has a fifth view, Skills.** It lists each skill that does business work, what it needs, and how many people can run it. Open one to see who can, and what everyone else is missing. Nobody is given a skill: Access works it out from their areas and keys. A skill also needs the project on the person's device, so *Project code* counts.
+- **A person's or role's panel has three parts.** *Start from* is a row of your apps and skills: press one and the panel fills in what it needs, each raised line marked *new*. *Can reach* is the list the app enforces, which you can change by hand, and it names what each line opens. *Can't yet* lists each app or skill that is still missing something, with *Give what it needs*. *Can install the project* stays one tick of its own under that list. Nothing is saved until *Save access*.
+- **Access has a fifth view, Skills.** It lists each skill that does business work, how much it needs, such as *1 app, 2 keys*, and how many people can run it. Open one to see who can, and what everyone else is missing. Nobody is given a skill: Access works it out from their areas and keys. A skill also needs the project on the person's device, so *Project code* counts.
 - **A row's *! gap* counts skills too.** It shows when a person holds every area a skill calls and a level or a key falls short.
 
 [Employee access](wiki/stack/employee-access.md#areas-and-their-levels) describes areas and who can run a skill, [the Access screens](wiki/stack/access-screens.md#a-set-has-three-parts) the panel, and [company actions](wiki/stack/company-api.md#build-a-skill-on-actions) how a skill is built.
 
 **Updating.** Nobody loses anything: each person and role keeps every app they have, at *Look up & change*, which is what a tick gave. Lower one to *Look up* when you want to. The app's database gains one small change, applied when you publish. Three things to ask your assistant to check in an app you built yourself: a folder under `app/worker/apps/` that has no screen now needs a `title` and a `description` in its `api.ts`, or the checks name it; a route that only looks things up but is sent as a `POST` should be described as a read, or people at *Look up* can't use it; and a skill of your own that reads a key from a file should be rebuilt to call the app. If you ever go back to the version before this one, lowered levels read as full again, and Access can't save a change until you update again.
+
 ## 36.3.0 — /dream keeps your memory and wiki current
 
 - **You can type `/dream`.** Your assistant goes back over what memory has gained since the last dream and brings your wiki up to date. It runs on the model you already use, and only when you type it: your assistant never starts one on its own.

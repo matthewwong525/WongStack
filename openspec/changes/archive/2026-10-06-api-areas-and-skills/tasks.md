@@ -36,5 +36,5 @@ Build sections 1–5 together, authoring each group's tests and docs beside its 
 
 ## 6. Verification
 
-- [ ] 6.1 Run the app suite and the payload checks, then `/save` and wait for CI. Verify every check is green.
-- [ ] 6.2 On the preview, walk Access as the owner: lower a practice person's area to Look up and see a changing call refused by name; open a role, press the sample skill in *Start from*, save, and see it listed as able to run in Skills; see the `sample` area marked *No screen* in Apps and absent from Home. Verify with pictures of each.
+- [x] 6.1 Run the app suite and the payload checks, then `/save` and wait for CI. Verify every check is green.
+- [x] 6.2 On the preview, walk Access as the owner: lower a practice person's area to Look up and see a changing call refused by name; open a role, press the sample skill in *Start from*, save, and see it listed as able to run in Skills; see the `sample` area marked *No screen* in Apps and absent from Home. Verify with pictures of each.

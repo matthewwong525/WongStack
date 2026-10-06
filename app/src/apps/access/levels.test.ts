@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest'
 import type { Area, SavedKey, Skill, Status } from '../../lib/access'
-import { aloneLine, appStart, appUses, areaTitle, capital, count, covers, dots, fill, gaps, keyLine, keyState, keyUseLine, keyUseShort, levelLabel, levelLabels, levelName, lines, missing, needLabels, NOTHING, opensLine, raised, reachLabel, reachLabels, reachName, sameSet, summary, usesLine, usesWhat, type AccessSet, type Needs } from './levels'
+import { aloneLine, appStart, appUses, areaTitle, capital, count, covers, dots, fill, gaps, keyLine, keyState, keyUseLine, keyUseShort, levelLabel, levelLabels, levelName, lines, missing, needLabels, needShort, NOTHING, opensLine, raised, reachLabel, reachLabels, reachName, sameSet, summary, usesLine, usesWhat, type AccessSet, type Needs } from './levels'
 
 // A shop with four apps and one area with no screen. Hello changes things with Stripe and looks places up with Maps, the tip
 // calculator looks prices up with Stripe, Orders changes things with Stripe and Bank, and Payroll and Customers use no key.
@@ -72,6 +72,8 @@ it('labels what something needs: an area and a key with their levels, and a key 
   expect(needLabels(status, refund)).toEqual(['Orders Look up & change', 'Stripe Read & write', 'Project code'])
   expect(needLabels(status, weekly)).toEqual(['Customers Look up', 'Payroll Look up', 'Stripe Read'])
   expect(needLabels(status, install)).toEqual(['Project code'])
+  // The Skills list counts them, so its line is never cut short.
+  expect([refund, weekly, install].map(needShort)).toEqual(['1 app, 2 keys', '2 apps, 1 key', '1 key'])
   // A name with no built area, and a key that is not in the list of keys, show as they are.
   expect(needLabels(status, { areas: { retired: 'write' }, keys: { cloudflare: 'read', vault: 'write' } })).toEqual(['retired Look up & change', 'Cloudflare', 'vault'])
   expect(needLabels(status, { areas: {}, keys: {} })).toEqual([])

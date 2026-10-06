@@ -71,6 +71,10 @@ export const reachLabel = (title: string, level: Level) => `${title} ${reachName
 const keyLabel = (status: Status, id: string, level: Level) =>
   status.keys.find(key => key.id === id)?.levels.includes('write') ? levelLabel(titled(status.keys, id), level) : titled(status.keys, id)
 
+/** What something needs, short enough for one line of the Skills list: how many, not which. The skill's panel names them. */
+export const needShort = (needs: Needs) => ([[needs.areas, 'app'], [needs.keys, 'key']] as const)
+  .flatMap(([levels, word]) => Object.keys(levels).length ? [count(Object.keys(levels).length, word)] : []).join(', ')
+
 /** What something needs, a label each: `Orders Look up & change`, `Stripe Read & write`, `Project code`. */
 export const needLabels = (status: Status, needs: Needs) => [
   ...Object.entries(needs.areas).map(([id, level]) => reachLabel(areaTitle(status, id), level)),

@@ -1,6 +1,6 @@
 # Skills that work for the whole team, and Access built on what a person can reach
 
-**Status:** in-progress
+**Status:** ready-to-ship
 
 **Branch:** skills-api-permissions
 
@@ -182,3 +182,6 @@ Your assistant can build a skill today, but nothing tells it how to build one yo
 - **2026-10-06** — Assumed: the Connect popup names an area with no screen by its title, sent with the person's setup, because the build showed it by its folder name and such an area has no card to take a title from.
 - **2026-10-06** — Assumed: after the latest main was brought in, Project code stays one tick, *Can install the project*, in its own group under *Can reach*, and is no level line there, because main now promises that tick; a skill's press still marks it new.
 - **2026-10-06** — Saved after the build: sections 1 to 5 done and the local checks passed; the automatic checks and the preview walk of section 6 are next.
+- **2026-10-06** — Assumed: the Skills list says how much a skill needs, such as *1 app, 2 keys*, and the opened skill names each, because the preview cut the full line short with "…" and Access lists keep every row to one whole line.
+- **2026-10-06** — Walked the preview for the last task: a role given the sample skill in one press showed the raised line as *new* and could run it after the save; lowered to Look up, the skill listed the role as unable to run with what it lacked; the sample area showed *No screen* in Apps and no card on Home. The refusal of a changing call as another person can't be shown on a preview, where the checker is the owner; `area-levels.test.ts` covers it.
+- **2026-10-06** — Archived for publishing as 36.4.0, with main brought in through #320; the checkpoint after this entry is the one that merges.

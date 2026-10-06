@@ -1,11 +1,11 @@
 import { at, type ViewProps } from './address'
-import { needLabels } from './levels'
+import { needShort } from './levels'
 import { SkillPage } from './SkillPage'
 import { canRun } from './subjects'
 import { Cell, Name, Row, Table } from './Table'
 import { View } from './View'
 
-// Each skill that does business work on one line: what it needs, and how many people can run it. It is a list to
+// Each skill that does business work on one line: how much it needs, and how many people can run it. Its panel names what. It is a list to
 // read: nobody is given a skill, only the areas and keys it needs, where a person or a role is opened. Nothing adds
 // a skill by hand, so a quiet line under the list says how one is made.
 export function Skills(props: ViewProps) {
@@ -18,7 +18,7 @@ export function Skills(props: ViewProps) {
         const page = at('skills', skill.id)
         return <Row key={skill.id} to={page} current={skill === opened}>
           <Name title={skill.title} to={page} />
-          <Cell label="Needs" cut={needLabels(status, skill).join(', ')} />
+          <Cell label="Needs">{needShort(skill)}</Cell>
           <Cell label="Can run">{canRun(status, skill)}</Cell>
         </Row>
       })}
