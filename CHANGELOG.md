@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 37.2.0 — Publishing checks again after it brings in the latest work
+
+- **Publishing checks your change again after it brings in the latest live work.** When other changes went live while yours was being built, publishing brings them in. The checks that ran after the build now run once more on this computer, before the save. A problem the other changes caused is repaired here in seconds, not found later by the slower online checks.
+- **A publish that brings nothing in takes no longer.** The extra check runs only when other work came in.
+- **The online checks still decide.** The check on this computer never blocks a save or a publish. A computer without the tools says so in one line and goes on.
+
+**Updating.** Nothing needs doing by hand.
+
 ## 37.1.2 — A second memory dream in a day, and two specs put right
 
 - **A second `/dream-memory` on the same day works.** It no longer stops because the day's first dream already used its branch name.

@@ -12,8 +12,10 @@
  * the tasks check, `openspec status`, `validate --strict`, and `archive --yes`, one archive
  * folder, `git fetch`, number-release.mjs, a merge of the default branch when the release is
  * behind it (or with --sync), `ready-to-ship` on the archived proposal, and its review page.
- * It is safe to run again: an already archived change skips to the fetch.
- * Prints CHANGE=, ARCHIVE=, RELEASE=, SYNC=, REVIEW=, and NEXT:.
+ * It is safe to run again: an already archived change skips to the fetch. A run that merged the
+ * default branch in then runs the local checks once (.github/scripts/checks.mjs --worktree), their
+ * output on stderr; a failure changes NEXT: to a repair and never the exit code.
+ * Prints CHANGE=, ARCHIVE=, RELEASE=, SYNC=, REVIEW=, LOCAL_CHECKS= after a merge, and NEXT:.
  *
  * finish: merge.sh (its lines printed unchanged), then worktree-secrets.mjs promote, then
  * live-look.sh on the merge commit. Prints SECRETS=, the live look's lines, and NEXT:.
@@ -227,6 +229,19 @@ function markReady(archive) {
   }
 }
 
+/**
+ * The local pre-check on a tree the default branch was just merged into: the value of its last
+ * `LOCAL_CHECKS=` line. Its output goes to stderr. It decides nothing, so it never stops prepare.
+ */
+function recheck(root, base) {
+  const script = join(root, '.github', 'scripts', 'checks.mjs');
+  if (!existsSync(script)) return 'not run (this repo has no .github/scripts/checks.mjs)';
+  const run = sh(process.execPath, [script, '--worktree', '--default-branch', base], { stdio: ['ignore', 'pipe', 'inherit'] });
+  process.stderr.write(run.stdout);
+  return run.stdout.match(/^LOCAL_CHECKS=(.*)$/gm)?.at(-1).slice('LOCAL_CHECKS='.length)
+    ?? `not run (checks.mjs exited ${run.status} with no LOCAL_CHECKS line)`;
+}
+
 function prepare(values) {
   const root = must('git', ['rev-parse', '--show-toplevel'], 'not inside a git repository');
   // Every git and OpenSpec call below sees the whole repo, whichever folder the command was started in.
@@ -237,10 +252,12 @@ function prepare(values) {
   const base = defaultBranch(route);
 
   // A merge an earlier run left for the agent to resolve is concluded here.
+  let broughtIn = false;
   if (sh('git', ['rev-parse', '--verify', '--quiet', 'MERGE_HEAD']).status === 0) {
     const files = unmerged();
     if (files.length) throw conflictStop(files);
     must('git', ['commit', '--no-edit'], 'git commit of the merge');
+    broughtIn = true;
   }
 
   const dirty = must('git', ['status', '--porcelain'], 'git status') !== '';
@@ -282,6 +299,7 @@ function prepare(values) {
   let synced = 'none';
   if (numbered.behind || (values.sync && sh('git', ['merge-base', '--is-ancestor', `origin/${base}`, 'HEAD']).status !== 0)) {
     mergeDefault(root, base);
+    broughtIn = true;
     synced = `merged origin/${base}`;
     numbered = numberRelease();
     if (numbered.behind) throw new Stop(5, [`error=still behind origin/${base} after the merge`]);
@@ -292,8 +310,13 @@ function prepare(values) {
   say(`RELEASE=${numbered.release}`);
   say(`SYNC=${synced}`);
   if (archive) say(`REVIEW=${markReady(archive)}`);
-  if (archive) say(`NEXT: invoke ordinary /save once, with change ${name} and archive path ${relative(root, archive)} (mode archive). Go on to /verify only on SUCCESS or NONE.`);
-  else say('NEXT: invoke ordinary /save once, with no change. Go on to /verify only on SUCCESS or NONE.');
+  // What came in was checked by nobody here; the tree /save will commit is checked once, now.
+  const local = broughtIn ? recheck(root, base) : '';
+  if (broughtIn) say(`LOCAL_CHECKS=${local}`);
+  const failed = local.match(/^fail \(([^)]*)\)/)?.[1].split(', ').join(',');
+  const repair = failed ? `the local checks failed after ${base} came in. Repair what fails and rerun only that: node .github/scripts/checks.mjs --worktree --only ${failed}, three rounds at most. Then ` : '';
+  const save = archive ? `with change ${name} and archive path ${relative(root, archive)} (mode archive)` : 'with no change';
+  say(`NEXT: ${repair}invoke ordinary /save once, ${save}. Go on to /verify only on SUCCESS or NONE.`);
   return 0;
 }
 
