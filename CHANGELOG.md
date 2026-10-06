@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (patch) — The README and guides tell what WongStack is for, and name no assistant as needed
+## 37.2.1 — The README and guides tell what WongStack is for, and name no assistant as needed
 
 - **The README opens with what WongStack is for.** AI can write an app, but it has nowhere to put it. WongStack gives your assistant one place to build, remember, collaborate, and get things done.
 - **No page tells you to get Claude Code or Paseo first.** The first step says to open any assistant that can work on your computer. Getting started lists six things you do by hand, not seven.

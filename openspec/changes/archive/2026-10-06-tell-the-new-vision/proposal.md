@@ -1,6 +1,6 @@
 # The README and guides tell the new vision, and name no assistant as needed
 
-**Status:** in-progress
+**Status:** ready-to-ship
 
 **Branch:** pleasant-dragonfly
 
@@ -102,3 +102,4 @@ None.
 - **2026-10-06** — Matthew wrote "for readme we dont need the whole blurb just till the bullet points and maybe add an extra bullet on collaborating" → the README's opening ends at the bullets, with a fourth bullet, Collaborate; the lines on one Cloudflare account, several assistants, and "GitHub is for engineers" leave the README.
 - **2026-10-06** — Assumed: one sentence naming Matthew and Claymoo stays under the bullets, because an existing promise says the README's first screen says whose way of using AI this is, through his real business.
 - **2026-10-06** — Assumed: the Collaborate bullet says a team shares tools and memory and the owner chooses who sees and changes what, and says nothing about teammates publishing, because that is not built on a project kept in Cloudflare.
+- **2026-10-06** — Archive checkpoint: built, looked at on the saved preview, and filed for publishing as 37.2.1.
