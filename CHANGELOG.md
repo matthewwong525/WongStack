@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## 35.2.2 — A "Used by" line that fits
+## 35.2.3 — A "Used by" line that fits
 
 - **The Keys list says what a key does in fewer words.** In Access, Project code's *Used by* line reads *Installs the project*, and Cloudflare's reads *Look-ups*. A key that apps use too still starts with the count: *1 app · Look-ups*. No line is cut short with "…" any more.
 - **The opened key still says it all.** Its panel keeps *Installs the project, no app needed · Read only*, and the line under a key's level on a person or role is unchanged.
