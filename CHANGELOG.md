@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — The project key is asked for when you share the project
+## 36.1.0 — The project key is asked for when you share the project
 
 - **Setup no longer mentions the read-only GitHub key.** Its last message dropped the line *One step is left before teammates can install the project*, and an update no longer lists the key as a to-do. If you work alone you are never asked. A project kept in Cloudflare needs no key and was never asked.
 - **A person's panel has one tick: *Can install the project*.** It replaces the *None / Read* choice for *Project code* under *Keys no ticked app uses*, and the sentence *Project code is shared separately*. It is off for a new person. A role's panel has the same tick, so a whole role can get the project. *Keys* still lists *Project code*, and a tick is the same choice as *Read* there.
@@ -13,6 +13,7 @@
 [Employee access](wiki/stack/employee-access.md#give-an-app-and-its-level-in-one-place) describes the tick, and [the assistant connection](wiki/stack/employee-project.md#the-owners-one-step-on-github) the key.
 
 **Updating.** Nothing needs doing by hand. If your project is kept in GitHub and the app has no read-only key yet, Access asks for it the first time you let someone install the project. Anyone you already gave *Project code* keeps it, and shows as ticked.
+
 ## 36.0.1 — A "Used by" line that fits
 
 - **The Keys list says what a key does in fewer words.** In Access, Project code's *Used by* line reads *Installs the project*, and Cloudflare's reads *Look-ups*. A key that apps use too still starts with the count: *1 app · Look-ups*. No line is cut short with "…" any more.

@@ -1,6 +1,6 @@
 # Ask for the project key when you share the project
 
-**Status:** in-progress
+**Status:** ready-to-ship
 
 **Branch:** github-token-setup
 
@@ -101,3 +101,4 @@ None.
 - **2026-10-06** — Assumed: the assistant gets no way to give the project from chat, because Access has no chat action for people today and adding one is a separate change.
 - **2026-10-06** — Asked what to do with the finished plan → chose build and publish.
 - **2026-10-06** — Assumed: the tick's detail lives on the assistant-connection wiki page and the Access page only links it, because the Access page sits at its 3,000-word cap; six of its existing sentences were shortened to fit one new line.
+- **2026-10-06** — Archive checkpoint: built, walked on the preview with verdict SUCCESS, merged with 36.0.1 and numbered 36.1.0. The step under the tick was not shown on the preview, which holds the key; unit tests cover it.

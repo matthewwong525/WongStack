@@ -138,8 +138,8 @@ A person's panel starts with their role; with their own set, and for a role, you
 
 - **A ticked app shows the level of each key it uses under its tick**, with a hint that names the fix: *Pick Read & write to let it*. An unticked app names its keys and shows no level.
 - **A key two ticked apps share shows under both and is one level.** Change it under one and the other follows; each says it is shared.
-- **The project is one tick**, *Can install the project*: [Project code](employee-project.md#who-gets-what) at Read, with [the step left](employee-project.md#the-owners-one-step-on-github) under it.
-- **Keys no ticked app uses sit in a group below**, such as [a key with no app](#a-key-with-no-app).
+- **The project is one tick**, *Can install the project*: [Project code](employee-project.md#who-gets-what) at Read, [its step](employee-project.md#the-owners-one-step-on-github) below.
+- **Keys no ticked app uses sit in a group below**, like [a key with no app](#a-key-with-no-app).
 
 ### A save says how it went, and leaving asks first
 

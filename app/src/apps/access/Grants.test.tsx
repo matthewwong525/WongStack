@@ -131,7 +131,7 @@ it('says on a preview that the key setup makes is not on previews yet, with no s
 it('Project code opened from Keys names the step a person\'s page shows, and its level there is the same choice as the tick', async () => {
   const code = key('code', 'Project code', { levels: ['read'], saved: false, alone: true })
   roster.keys.push(code, key('maps', 'Maps', { saved: false })); roster.project = 'key'; roster.people[1].keys = { code: 'read' }
-  open('keys'); expect(await cells('Project code')).toEqual(['Project code', 'Not saved yet', 'Installs the project, no app needed', 'Nobody', 'Owner, 1 person'])
+  open('keys'); expect(await cells('Project code')).toEqual(['Project code', 'Not saved yet', 'Installs the project', 'Nobody', 'Owner, 1 person'])
   fireEvent.click((await row('Project code')).getByRole('link', { name: 'Project code' })); const opened = await panel('Project code')
   expect(opened.getByText('Not saved yet')).toBeTruthy(); expect(opened.queryByText('Ask your assistant for the key link.')).toBeNull()
   expect(opened.getByText(/The app needs a read-only GitHub key to hand the project out\. Ask your assistant:/)).toBeTruthy(); expect(opened.getByText('Let teammates install the project')).toBeTruthy()
