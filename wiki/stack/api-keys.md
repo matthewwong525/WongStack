@@ -19,7 +19,7 @@ When a task needs a key the assistant doesn't have, it sends a private link stra
 3. **Tap *Paste***, or paste into the box by hand. A key that comes as a file, like Google's key file, goes in through *pick a file*: your device reads it, and the page shows only its name. *This replaces the one saved now* means a new key takes the old one's place.
 4. **Tap *Save and continue*.** When the assistant knows a harmless way to test the key, the page tries it once, at the service's own address, which it names, and says *Works*. If the service says no, copy the key again; *Save anyway* keeps it as it is. *Saved, not tested* means there was no test to run. The link closes by itself once every key is saved, and *Close without continuing* closes it sooner.
 
-If you haven't opened the link and the assistant needs another private link on the same computer, the first one closes early. The assistant says so and offers a new one.
+If you haven't opened the link and the assistant needs another private link on the same computer, the first one closes early. The assistant says so and offers a new one. It can tell a link you never opened from one another chat's link replaced, and asks before it sends another.
 
 The assistant then:
 

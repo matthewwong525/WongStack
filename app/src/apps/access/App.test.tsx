@@ -14,7 +14,7 @@ const setup = { role: 'employee', api: 'authenticated', identity: { email: 'empl
 const person = (changes: Partial<Person> = {}): Person => ({ email: 'employee@example.com', status: 'active', settled: true, role: null, manager: false, apps: { hello: 'write' }, keys: {}, ...changes })
 const status = (): Status => ({ ownerEmail: 'owner@example.com', viewer: { email: 'owner@example.com', owner: true }, environment: 'live', key: 'ready', started: true, imported: 0,
   keysStarted: true, kept: 0, areas: [{ id: 'hello', title: 'Hello', description: '', screen: true }, { id: 'custom', title: 'Custom', description: '', screen: true }], skills: [],
-  appKeys: { hello: [], custom: [] }, keys: [], roles: [], people: [person()], work: [] })
+  appKeys: { hello: [], custom: [] }, keys: [], roles: [], people: [person()], work: [], project: 'ready' })
 const saved = (id: string, title: string): Status['keys'][number] => ({ id, title, levels: ['read', 'write'], saved: true, setup: false, usedBy: [], alone: false })
 const refund: Skill = { id: 'refund', title: 'Refund a customer', areas: { hello: 'write' }, keys: {} }
 let mode: 'owner' | 'manager' | 'employee' | 'legacy' | 'waiting-owner' | 'waiting-employee'; let catalogue: string[]

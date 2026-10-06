@@ -5,12 +5,14 @@ import { LevelChoice } from './LevelChoice'
 import { keyState, keyUseLine } from './levels'
 import { FinishStep } from './Notices'
 import { Page } from './Page'
+import { ProjectStep } from './ProjectStep'
 import { differs, each, put, subjects } from './subjects'
 
-/** What a key that is not saved yet waits for. Setup makes one key itself: on the live app the owner asks their
- *  assistant to finish, with the request to copy, and a manager is told it is the owner's step; no step can finish
- *  it on a preview. Any other key comes through its link. */
+/** What a key that is not saved yet waits for. Project code names its own step, the same one a person's page shows.
+ *  Setup makes one key itself: on the live app the owner asks their assistant to finish, with the request to copy,
+ *  and a manager is told it is the owner's step; no step can finish it on a preview. Any other key comes through its link. */
 function NextStep({ status, item }: Pick<ViewProps, 'status'> & { item: SavedKey }) {
+  if (item.id === 'code') return <ProjectStep status={status} />
   if (!item.setup) return <p>Ask your assistant for the key link.</p>
   if (status.environment !== 'live') return null
   return status.viewer.owner

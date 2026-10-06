@@ -14,7 +14,7 @@ const status: Status = { ownerEmail: 'owner@shop.com', viewer: { email: 'owner@s
   keys: [{ id: 'stripe', title: 'Stripe', levels: ['read', 'write'], saved: true, setup: false, usedBy: [{ app: 'hello', need: 'write' }], alone: false }],
   roles: [{ id: 'sales', name: 'Sales', apps: { hello: 'write' }, keys: { stripe: 'read' } }],
   people: [{ email: 'kim@shop.com', status: 'active', settled: true, role: null, manager: false, apps: { hello: 'write' }, keys: { stripe: 'read' } },
-    { email: 'lee@shop.com', status: 'active', settled: true, role: 'sales', manager: false, apps: { hello: 'write' }, keys: { stripe: 'read' } }], work: [] }
+    { email: 'lee@shop.com', status: 'active', settled: true, role: 'sales', manager: false, apps: { hello: 'write' }, keys: { stripe: 'read' } }], work: [], project: 'ready' }
 
 beforeEach(() => vi.stubGlobal('fetch', vi.fn(async (url: string) => {
   if (url.endsWith('/apps')) return Response.json({ state: 'current', role: 'owner', manages: true, apps: ['access', 'hello'], revision: 1 })

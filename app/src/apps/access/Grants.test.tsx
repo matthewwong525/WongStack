@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
 import { App } from './App'
-import { FINISH_REQUEST } from './status'
+import { FINISH_REQUEST, PROJECT_REQUEST } from './status'
 import type { Area, Person, SavedKey, Status } from '../../lib/access'
 
 // The Keys and Apps views, and the two opened items that save through `grants`.
@@ -23,7 +23,7 @@ const status = (): Status => ({ ownerEmail: 'owner@shop.com', viewer: { email: '
   roles: [{ id: 'office', name: 'Office', apps: {}, keys: {} }, { id: 'sales', name: 'Sales', ...sales() }],
   people: [person('gone@shop.com', { status: 'removed' }), person('kim@shop.com', { apps: { hello: 'read' }, keys: { stripe: 'read', cloudflare: 'read' } }),
     person('lee@shop.com', { role: 'sales', ...sales() }), person('sam@shop.com', { role: 'sales', ...sales() })],
-  work: [] })
+  work: [], project: 'ready' })
 let roster: Status
 let failed: Set<string>
 let fetchMock: ReturnType<typeof vi.fn>
@@ -83,7 +83,7 @@ it('lists every key on one line: whether it is saved, what uses it, and how many
   // The higher level first; the owner before the rest, at the most the key offers; counts, not names.
   expect(await cells('Stripe')).toEqual(['Stripe', 'Saved', '1 app', 'Owner, 1 role', '1 role, 1 person'])
   expect(await cells('Bank')).toEqual(['Bank', 'Saved', '1 app', 'Owner', 'Nobody'])
-  expect(await cells('Cloudflare')).toEqual(['Cloudflare', 'Saved', 'Look-ups, no app needed', 'Nobody', 'Owner, 1 person'])
+  expect(await cells('Cloudflare')).toEqual(['Cloudflare', 'Saved', 'Look-ups', 'Nobody', 'Owner, 1 person'])
   expect(document.querySelector('[data-slot="badge"]')).toBeNull()
   const stripe = await row('Stripe')
   expect(stripe.getByRole('link', { name: 'Stripe' }).getAttribute('href')).toBe('/apps/access/keys/stripe')
@@ -107,7 +107,7 @@ it('says one step is left for the key setup makes, with the request to copy wher
   roster.keys[2].saved = false
   open('keys'); const cloudflare = await row('Cloudflare')
   // The row keeps its shape and stays one line: the key, its state in words, and nothing to copy.
-  expect(await cells('Cloudflare')).toEqual(['Cloudflare', 'One step left', 'Look-ups, no app needed', 'Nobody', 'Owner, 1 person'])
+  expect(await cells('Cloudflare')).toEqual(['Cloudflare', 'One step left', 'Look-ups', 'Nobody', 'Owner, 1 person'])
   expect(cloudflare.queryByRole('button')).toBeNull(); expect(screen.queryByText('Finish Access setup')).toBeNull()
   // Opened, it says the next step and offers the request to copy.
   fireEvent.click(cloudflare.getByRole('link', { name: 'Cloudflare' })); const opened = await panel('Cloudflare')
@@ -140,6 +140,31 @@ it('says on a preview that the key setup makes is not on previews yet, with no s
   expect(opened.queryByText('Ask your assistant for the key link.')).toBeNull(); expect(screen.queryByRole('button', { name: /Copy/ })).toBeNull()
   // A key that arrives through its link still says so on a preview.
   cleanup(); open('keys/maps'); expect((await panel('Maps')).getByText('Ask your assistant for the key link.')).toBeTruthy()
+})
+it('Project code opened from Keys names the step a person\'s page shows, and its level there is the same choice as the tick', async () => {
+  const code = key('code', 'Project code', { levels: ['read'], saved: false, alone: true })
+  roster.keys.push(code, key('maps', 'Maps', { saved: false })); roster.project = 'key'; roster.people[1].keys = { code: 'read' }
+  open('keys'); expect(await cells('Project code')).toEqual(['Project code', 'Not saved yet', 'Installs the project', 'Nobody', 'Owner, 1 person'])
+  fireEvent.click((await row('Project code')).getByRole('link', { name: 'Project code' })); const opened = await panel('Project code')
+  expect(opened.getByText('Not saved yet')).toBeTruthy(); expect(opened.queryByText('Ask your assistant for the key link.')).toBeNull()
+  expect(opened.getByText(/The app needs a read-only GitHub key to hand the project out\. Ask your assistant:/)).toBeTruthy(); expect(opened.getByText('Let teammates install the project')).toBeTruthy()
+  fireEvent.click(opened.getByRole('button', { name: 'Copy that request' }))
+  await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalledWith(PROJECT_REQUEST))
+  // A tick saved on a person's page reads as Read here, and the level still saves before the key arrives.
+  expect([offered(kim), chosen(kim), chosen(office)]).toEqual([['None', 'Read'], ['Read'], ['None']])
+  // Another key that is not saved still comes through its link.
+  cleanup(); open('keys/maps'); expect((await panel('Maps')).getByText('Ask your assistant for the key link.')).toBeTruthy()
+  // An install with no project recorded is sent to Access setup; a manager reads that either step is the owner's.
+  cleanup(); roster.project = 'setup'; open('keys/code'); const unset = await panel('Project code')
+  expect(unset.getByText('Finish Access setup')).toBeTruthy(); expect(unset.queryByText(/GitHub/)).toBeNull()
+  fireEvent.click(unset.getByRole('button', { name: 'Copy that request' }))
+  await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalledWith(FINISH_REQUEST))
+  cleanup(); roster.project = 'key'; roster.viewer = { email: 'kim@shop.com', owner: false }; open('keys/code'); const managed = await panel('Project code')
+  expect(managed.getByText('One step first for the owner.').parentElement!.textContent).toBe('One step first for the owner. owner@shop.com adds a read-only GitHub key.')
+  expect(managed.queryByRole('button', { name: /Copy/ })).toBeNull()
+  // Saved, it says so and asks for nothing.
+  cleanup(); roster.project = 'ready'; roster.keys[3].saved = true; open('keys/code'); const saved = await panel('Project code')
+  expect(saved.getByText('Saved')).toBeTruthy(); expect(saved.queryByText(/One step first/)).toBeNull()
 })
 it('sets one key for every role and every person with their own set, in one panel and in one save', async () => {
   open('keys'); fireEvent.click((await row('Stripe')).getByRole('link', { name: 'Stripe' }))

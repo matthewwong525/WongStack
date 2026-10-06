@@ -82,12 +82,12 @@ The supplied Cloudflare key SHALL be offered at Read only. Its look-ups SHALL be
 
 ### Requirement: Access sets an app's key levels beside the app and shows each gap
 
-Where a person or a role is opened, Access SHALL show the level of each key an app uses beside that app once the app is ticked, so the employer gives the app and sets the level in one place. A key that several ticked apps use SHALL remain one level, shown the same beside each. A key no ticked app uses SHALL still be settable in the same place. The People and Roles lists SHALL say how many apps and keys each person and role has, and SHALL say on the row when a held level is below what one of their apps does; the opened person or role SHALL name each app, each key with its level in words, and each such gap. A level or a gap SHALL never be marked by colour alone.
+Where a person or a role is opened, Access SHALL show every area and every key in one list with its level, Project code apart as its one tick, so the employer gives an app and sets its keys' levels in one place. A key SHALL be one level however many of the set's apps and skills use it. A key nothing of the set uses SHALL still be settable in the same place. The People and Roles lists SHALL say how many apps and keys each person and role has, and SHALL say on the row when a held level is below what one of their apps or a skill needs; the opened person or role SHALL name each area and each key with its level in words, and each such gap with the app or skill it stops. A level or a gap SHALL never be marked by colour alone.
 
 #### Scenario: The employer gives an app and lets it change things
 
-- **WHEN** the employer ticks an app that changes things with Stripe for a person, picks Read & write beside that app and saves
-- **THEN** the person has the app and Stripe: Read & write, and every other ticked app that uses Stripe shows the same level
+- **WHEN** the employer gives a person an app that changes things with Stripe, picks Read & write for Stripe in the same list and saves
+- **THEN** the person has the app and Stripe: Read & write, and every other app and skill of theirs that uses Stripe is judged by that one level
 
 #### Scenario: A person's app can't do its job yet
 
@@ -96,7 +96,9 @@ Where a person or a role is opened, Access SHALL show the level of each key an a
 
 ### Requirement: Project code is a key with one level
 
-Access SHALL list Project code among the keys, offering Read as its only level, settable per person and per role like any key and usable with no app ticked. It SHALL count as saved when the installation holds a read-only credential for its one project, or is connected to its own repository in the employer's Cloudflare account. Ticking an app SHALL never give it. Its credential SHALL be usable for reading that one project only, and no action or mini app SHALL be handed it.
+Access SHALL list Project code among the keys, offering Read as its only level, settable per person and per role like any key and usable with no app ticked. A person's page and a role's page SHALL offer it as one tick that says the person can install the project, off for a new person, and that tick SHALL be the same choice as Read in Keys. It SHALL count as saved when the installation holds a read-only credential for its one project, or is connected to its own repository in the employer's Cloudflare account. Ticking an app SHALL never give it. Its credential SHALL be usable for reading that one project only, and no action or mini app SHALL be handed it.
+
+While the installation can not hand its project out, every place Project code is given SHALL name the one step left and what it is for: a read-only key where the project is kept on GitHub with none saved, or finishing Access setup where no project is recorded. The employer SHALL get the request to hand their assistant; a manager SHALL read that the step is the employer's. Giving Project code SHALL still save, and SHALL take effect once the project can be handed out.
 
 #### Scenario: The employer gives Project code to a role
 
@@ -107,3 +109,13 @@ Access SHALL list Project code among the keys, offering Read as its only level, 
 
 - **WHEN** the employer opens Keys on an installation that can not yet hand its project out
 - **THEN** Project code shows as not saved with the one step left, and nobody's connection changes
+
+#### Scenario: The employer lets a new person install the project with no key saved
+
+- **WHEN** the employer adds a person on a GitHub installation with no read-only key and ticks that they can install the project
+- **THEN** the page says a read-only GitHub key comes first and gives the request to copy, the tick saves, and the person can install the project once the key is saved with no further change in Access
+
+#### Scenario: The project can be handed out
+
+- **WHEN** the employer opens a person on an installation that can hand its project out
+- **THEN** the tick shows with no step under it, and ticking it and saving lets that person install the project on their next request

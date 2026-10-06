@@ -165,7 +165,7 @@ test('a rotation replaces the line in place and keeps the rest; the link ends on
   assert.equal(f.read(f.primary, '.env'), `# tools\nA=1\nexport MAPS_API_KEY=${SECRET}\nB=2\n`);
   assert.equal(f.read(f.worktree, '.env'), `# tools\nA=1\nexport MAPS_API_KEY=${SECRET}\nB=2\n`);
   const out = f.run('wait');
-  assert.equal(out.stdout, 'HANDOVER_RESULT=done\nHANDOVER_SAVED=MAPS_API_KEY\nHANDOVER_APP_KEYS=\n');
+  assert.equal(out.stdout, 'HANDOVER_RESULT=done\nHANDOVER_SAVED=MAPS_API_KEY\nHANDOVER_APP_KEYS=\nHANDOVER_OPENED=yes\n');
   assert.ok(!existsSync(join(f.state, 'watcher.pid')), 'the watcher is gone');
 });
 
@@ -186,9 +186,9 @@ test('Done ends the link, and wait prints only the saved names and those for the
   await route(port, key, 'save', { keys: { STRIPE_SECRET_KEY: SECRET } });
   assert.deepEqual(await route(port, key, 'done', {}), { status: 200, json: { ok: true } });
   const out = f.run('wait');
-  assert.equal(out.stdout, 'HANDOVER_RESULT=done\nHANDOVER_SAVED=STRIPE_SECRET_KEY\nHANDOVER_APP_KEYS=STRIPE_SECRET_KEY\n');
+  assert.equal(out.stdout, 'HANDOVER_RESULT=done\nHANDOVER_SAVED=STRIPE_SECRET_KEY\nHANDOVER_APP_KEYS=STRIPE_SECRET_KEY\nHANDOVER_OPENED=no\n', 'this test saves without loading the page, so nothing marked it opened');
   const result = readFileSync(join(f.state, 'result.json'), 'utf8');
-  assert.deepEqual(legacyResult(JSON.parse(result)), { result: 'done', saved: ['STRIPE_SECRET_KEY'], appKeys: ['STRIPE_SECRET_KEY'] });
+  assert.deepEqual(legacyResult(JSON.parse(result)), { result: 'done', saved: ['STRIPE_SECRET_KEY'], appKeys: ['STRIPE_SECRET_KEY'], opened: false });
   assert.ok(!f.outputs().includes(SECRET), 'no value in stdout or stderr');
   assert.ok(!(result + f.stateFiles()).includes(SECRET), 'no value in state.json or result.json');
   assert.ok(!f.calls().some(line => line.includes(SECRET)), 'no value in argv');
@@ -197,7 +197,7 @@ test('Done ends the link, and wait prints only the saved names and those for the
 test('closing a key link with nothing saved prints empty lists', t => {
   const f = fixture(t);
   opened(f, 'MAPS_API_KEY');
-  assert.equal(f.run('close').stdout, 'HANDOVER_RESULT=closed\nHANDOVER_SAVED=\nHANDOVER_APP_KEYS=\n');
+  assert.equal(f.run('close').stdout, 'HANDOVER_RESULT=closed\nHANDOVER_SAVED=\nHANDOVER_APP_KEYS=\nHANDOVER_OPENED=no\n');
 });
 
 test('an undeclared or ambiguous name opens no tunnel', t => {

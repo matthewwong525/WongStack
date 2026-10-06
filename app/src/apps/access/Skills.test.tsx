@@ -24,7 +24,7 @@ const status = (): Status => ({ ownerEmail: 'owner@shop.com', viewer: { email: '
   people: [person('gone@shop.com', { status: 'removed', ...sales() }), person('kim@shop.com', { apps: { orders: 'write', sample: 'read' }, keys: { stripe: 'write', code: 'read' } }),
     person('bo@shop.com', { apps: { orders: 'read' }, keys: { stripe: 'write', code: 'read' } }), person('ann@shop.com', { apps: { orders: 'write' }, keys: { stripe: 'read', code: 'read' } }),
     person('pat@shop.com', { apps: { orders: 'write' }, keys: { stripe: 'write' } }), person('lee@shop.com', { role: 'sales', ...sales() }), person('sam@shop.com', { role: 'sales', ...sales() })],
-  work: [] })
+  work: [], project: 'ready' })
 let roster: Status
 let fetchMock: ReturnType<typeof vi.fn>
 beforeEach(() => {

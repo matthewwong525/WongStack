@@ -48,8 +48,9 @@ export function fixture({ started = true } = {}) {
     sql.prepare("INSERT INTO wong_access_members VALUES (?, ?, 'active', 0, 1, 'now')").run(site.installationId, employee.id);
     sql.prepare("INSERT INTO wong_access_apps VALUES (?, 'orders')").run(site.installationId);
   }
-  const core: Core = { db: session as unknown as D1DatabaseSession, env, installationId: site.installationId,
-    origin: site.origin, email: site.ownerEmail, actor: site.ownerEmail, owner: true, subject: site.ownerSubject, live: true };
+  // Tests need a pass without a request, so this one is asserted by hand: the only place outside `ownerCore()`.
+  const core = { db: session as unknown as D1DatabaseSession, env, installationId: site.installationId,
+    origin: site.origin, email: site.ownerEmail, actor: site.ownerEmail, owner: true, subject: site.ownerSubject, live: true } as Core;
   return { sql, env, core };
 }
 export const req = (path: string, method = "POST", body?: unknown, headers = {}) => new Request(`${site.origin}/api/access/${path}`,

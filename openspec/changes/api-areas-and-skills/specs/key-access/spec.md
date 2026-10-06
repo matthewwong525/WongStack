@@ -4,7 +4,7 @@
 
 ### Requirement: Access sets an app's key levels beside the app and shows each gap
 
-Where a person or a role is opened, Access SHALL show every area and every key in one list with its level, so the employer gives an app and sets its keys' levels in one place. A key SHALL be one level however many of the set's apps and skills use it. A key nothing of the set uses SHALL still be settable in the same place. The People and Roles lists SHALL say how many apps and keys each person and role has, and SHALL say on the row when a held level is below what one of their apps or a skill needs; the opened person or role SHALL name each area and each key with its level in words, and each such gap with the app or skill it stops. A level or a gap SHALL never be marked by colour alone.
+Where a person or a role is opened, Access SHALL show every area and every key in one list with its level, Project code apart as its one tick, so the employer gives an app and sets its keys' levels in one place. A key SHALL be one level however many of the set's apps and skills use it. A key nothing of the set uses SHALL still be settable in the same place. The People and Roles lists SHALL say how many apps and keys each person and role has, and SHALL say on the row when a held level is below what one of their apps or a skill needs; the opened person or role SHALL name each area and each key with its level in words, and each such gap with the app or skill it stops. A level or a gap SHALL never be marked by colour alone.
 
 #### Scenario: The employer gives an app and lets it change things
 

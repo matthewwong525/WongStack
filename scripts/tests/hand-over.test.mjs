@@ -5,7 +5,7 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSyn
 import { createServer } from 'node:http';
 import { connect } from 'node:net';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { finished, globToRegExp, keyMatches, servePage, tunnelOrigin } from '../../.agents/skills/hand-over/scripts/hand-over.mjs';
@@ -653,7 +653,10 @@ test('--guide goes with --keys only, and a bad guide exits 2 with KEYS_GUIDE= be
   assert.equal(usage.status, 2);
   assert.match(usage.stderr, /--guide goes with --keys only/);
   assert.equal(f.run('open', '--passwords', '--guide', 'guide.json').status, 2);
-  assert.match(f.run('--help').stdout, /--guide <file>/);
+  const help = f.run('--help').stdout;
+  assert.match(help, /--guide <file>/);
+  assert.match(help, /HANDOVER_OPENED=yes\|no/);
+  assert.match(help, /HANDOVER_REPLACED_BY=<folder>/);
 
   const guide = join(f.cwd, 'guide.json');
   writeFileSync(guide, JSON.stringify({ MAPS_API_KEY: { url: 'http://maps.example.com/keys' } }));
@@ -684,7 +687,7 @@ test('a key link defaults to 30 minutes; a private form and a password link defa
   }
 });
 
-test('an unopened key link gives way to a new open, and its wait prints closed with nothing saved', async t => {
+test('an unopened key link gives way to a new open, and its wait prints closed, unopened, and whose link took its place', async t => {
   for (const next of [['--passwords'], null, ['--keys', 'MAPS_API_KEY']]) {
     const f = fixture(t, { checkout: true });
     const first = opened(f, '--keys', 'MAPS_API_KEY');
@@ -696,10 +699,38 @@ test('an unopened key link gives way to a new open, and its wait prints closed w
     assert.ok(!(await answers(first.port)), 'the first link\'s page is gone');
     assert.ok(await answers(second.port));
     const lines = (await waited).rawStdout.trim().split('\n');
-    assert.deepEqual(lines, ['HANDOVER_RESULT=closed', 'HANDOVER_SAVED=', 'HANDOVER_APP_KEYS=', `HANDOVER_COMPLETION=${completion}`, 'HANDOVER_NOTIFICATION=not-requested'], next?.join(' ') ?? 'form');
+    assert.deepEqual(lines, ['HANDOVER_RESULT=closed', 'HANDOVER_SAVED=', 'HANDOVER_APP_KEYS=', 'HANDOVER_OPENED=no', `HANDOVER_REPLACED_BY=${basename(f.cwd)}`, `HANDOVER_COMPLETION=${completion}`, 'HANDOVER_NOTIFICATION=not-requested'], next?.join(' ') ?? 'form');
     assert.ok(existsSync(join(f.state, 'watcher.pid')), 'the second link is still open');
     assert.ok(!existsSync(join(f.state, 'opened')));
+    assert.deepEqual(JSON.parse(readFileSync(join(f.state, 'replaced.json'), 'utf8')), { completionId: completion, by: basename(f.cwd) }, 'the record outlives the first link, and holds only its identity and a folder name');
+    const own = f.run('close').rawStdout;
+    assert.match(own, /^HANDOVER_RESULT=closed$/m);
+    assert.doesNotMatch(own, /HANDOVER_REPLACED_BY/, 'the second link took a place; nothing took its own');
   }
+});
+
+test('a key link that runs out or is closed says whether anyone opened it, and names no other link', async t => {
+  const unopened = fixture(t, { checkout: true });
+  opened(unopened, '--keys', 'MAPS_API_KEY', '--minutes', '0.05');
+  assert.equal(unopened.run('wait').stdout, 'HANDOVER_RESULT=timeout\nHANDOVER_SAVED=\nHANDOVER_APP_KEYS=\nHANDOVER_OPENED=no\n');
+
+  const f = fixture(t, { checkout: true });
+  const { port, key } = opened(f, '--keys', 'MAPS_API_KEY');
+  assert.equal((await route(port, key, 'keys')).status, 200);
+  assert.equal(f.run('close').stdout, 'HANDOVER_RESULT=closed\nHANDOVER_SAVED=\nHANDOVER_APP_KEYS=\nHANDOVER_OPENED=yes\n');
+  assert.equal(f.result().opened, true);
+  assert.ok(!existsSync(join(f.state, 'replaced.json')), 'no link gave way');
+});
+
+test('a private form and a password link print no HANDOVER_OPENED line, opened or not', async t => {
+  const f = fixture(t);
+  const form = openedForm(f);
+  assert.equal((await route(form.port, form.key, 'form')).status, 200);
+  assert.equal(f.run('close').stdout, 'HANDOVER_RESULT=closed\n');
+  const passwords = opened(f, '--passwords');
+  assert.ok(await answers(passwords.port));
+  assert.equal(f.run('close').stdout, 'HANDOVER_RESULT=closed\nHANDOVER_SAVED=\n');
+  assert.equal(f.result().opened, undefined);
 });
 
 test('an opened key link, a private form, and a password link each refuse a second open', async t => {

@@ -50,13 +50,15 @@
 // `GET /keys`, `POST /save`, and `POST /done`; it ends on `/done`, on the save that leaves no asked-for
 // key unsaved, `close`, or the deadline. `wait` prints `HANDOVER_SAVED=` the key names saved, then
 // `HANDOVER_APP_KEYS=` those that went to app/.dev.vars, which the agent then loads with
-// `npm run secrets:push`: never a value.
+// `npm run secrets:push`: never a value. Then `HANDOVER_OPENED=yes|no`: whether anyone opened the page.
 //
 // A key link's `--minutes` defaults to 30, the other links' to 10; each deadline starts at `open`. The
 // first keyed `GET /keys` writes an `opened` marker. Until then a key link gives way: a new `open`
-// signals its watcher, which ends as `closed`, and takes its place, and the first link's `wait` prints
-// `HANDOVER_RESULT=closed` with no saved names. An opened key link, a private form, or a password link
-// refuses a second `open`.
+// writes `replaced.json`, the old link's completion identity and the new opener's folder name, signals
+// the old watcher, which ends as `closed`, and takes its place. The first link's `wait` prints
+// `HANDOVER_RESULT=closed` with no saved names, then `HANDOVER_REPLACED_BY=<folder>`, the workspace
+// whose link took its place; no other link's `wait` reads that record as its own. An opened key link,
+// a private form, or a password link refuses a second `open`.
 //
 // State lives in ~/.wong-stack/hand-over/; one link at a time. Exit codes: 0 ok · 1 failed or a
 // link is already open · 2 usage · 3 `cloudflared` is missing (prints HANDOVER_NEEDS=cloudflared).
@@ -70,7 +72,7 @@ import { closeSync, existsSync, mkdirSync, openSync, readFileSync, rmSync, write
 import { createServer } from 'node:http';
 import { createServer as createTcpServer } from 'node:net';
 import { homedir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs, promisify } from 'node:util';
 import { isMain } from '../../memory/scripts/lib/cli.mjs';
@@ -101,7 +103,9 @@ const USAGE = `usage: hand-over.mjs open --form <file> (--until <glob> | --until
   wait    block until the link closes; print
           HANDOVER_RESULT=done|not-accepted|timeout|closed|error,
           then HANDOVER_SAVED=<name>,<name> for a password or key link, and
-          HANDOVER_APP_KEYS=<name>,<name> for a key link
+          HANDOVER_APP_KEYS=<name>,<name> and HANDOVER_OPENED=yes|no (whether
+          anyone opened it) for a key link, then HANDOVER_REPLACED_BY=<folder>
+          for a key link that gave way to that workspace's link
   close   close an open link (the person said done)`;
 const TUNNEL_WAIT_MS = Number(process.env.HANDOVER_TUNNEL_WAIT_MS) || 30_000;
 const PAGE_WAIT_MS = 10_000;
@@ -112,8 +116,11 @@ const TOOL_TIMEOUT_MS = 15_000;
 const POLL_MS = Number(process.env.HANDOVER_POLL_MS) || 2000;
 const SEND_WAIT_MS = Number(process.env.HANDOVER_SEND_WAIT_MS) || 60_000;
 const DIR = join(homedir(), '.wong-stack', 'hand-over');
-const FILES = { pid: join(DIR, 'watcher.pid'), state: join(DIR, 'state.json'), result: join(DIR, 'result.json'), log: join(DIR, 'tunnel.log'), config: join(DIR, 'cloudflared.yml'), opened: join(DIR, 'opened') };
-/** Removes a link's own files, the pid last: `wait` reads its absence as the end. Its result stays. */
+const FILES = { pid: join(DIR, 'watcher.pid'), state: join(DIR, 'state.json'), result: join(DIR, 'result.json'), log: join(DIR, 'tunnel.log'), config: join(DIR, 'cloudflared.yml'), opened: join(DIR, 'opened'), replaced: join(DIR, 'replaced.json') };
+/**
+ * Removes a link's own files, the pid last: `wait` reads its absence as the end. Its result stays, and
+ * so does the give-way record, which `wait` may read after this.
+ */
 const clearLink = () => { for (const file of [FILES.state, FILES.log, FILES.config, FILES.opened, FILES.pid]) rmSync(file, { force: true }); };
 const HERE = dirname(fileURLToPath(import.meta.url));
 const pages = name => ({
@@ -431,9 +438,14 @@ function keyConfig(names, guideFile) {
   return { root, primary, linked, gitDir, keys: keys.map(key => ({ ...key, ...(guide[key.name] && { guide: guide[key.name] }) })) };
 }
 
-/** True once the live link has closed for a new one: only a key link nobody has opened gives way. */
+/**
+ * True once the live link has closed for a new one: only a key link nobody has opened gives way. It
+ * first records whose place this opener's folder took, for the old link's `wait`.
+ */
 async function givesWay(pid) {
-  if (modeOf(readJson(FILES.state) ?? {}) !== 'keys' || existsSync(FILES.opened)) return false;
+  const state = readJson(FILES.state) ?? {};
+  if (modeOf(state) !== 'keys' || existsSync(FILES.opened)) return false;
+  writeFileSync(FILES.replaced, `${JSON.stringify({ completionId: state.completionId, by: basename(process.cwd()) })}\n`, { mode: 0o600 });
   try { process.kill(pid, 'SIGTERM'); } catch { /* it ended first */ }
   for (let i = 0; i < 80 && alive(pid); i++) await sleep(100);
   return !alive(pid);
@@ -518,7 +530,7 @@ async function watch() {
     finishingPromise = (async () => {
       await closePage?.stopInput();
       const appKeys = state.keys && saved.filter(name => state.keys.keys.some(key => key.name === name && key.file === APP_FILE));
-      const outcome = { result, ready, ...(saved && { saved }), ...(appKeys && { appKeys }), completionId: state.completionId, notification: ready ? 'pending' : 'not-requested' };
+      const outcome = { result, ready, ...(saved && { saved }), ...(appKeys && { appKeys }), ...(state.keys && { opened: existsSync(FILES.opened) }), completionId: state.completionId, notification: ready ? 'pending' : 'not-requested' };
       writeFileSync(FILES.result, `${JSON.stringify(outcome)}\n`, { mode: 0o600 });
       outcome.notification = ready ? await notifyWorkspace(state, outcome) : 'not-requested';
       writeFileSync(FILES.result, `${JSON.stringify(outcome)}\n`, { mode: 0o600 });
@@ -552,11 +564,24 @@ async function watch() {
   }
 }
 
-/** Prints a link's result lines: the result, then any saved names, completion identity, and notification. */
-function report({ result, saved, appKeys, completionId, notification }) {
+/** The folder name of the opener whose link took this one's place, on one line, or null. */
+function replacedBy(completionId) {
+  const record = readJson(FILES.replaced);
+  const mine = completionId && record?.completionId === completionId && typeof record.by === 'string';
+  return mine ? record.by.replace(/[\r\n]+/g, ' ') : null;
+}
+
+/**
+ * Prints a link's result lines: the result, then any saved names, whether a key link was opened, the
+ * folder whose link took its place, completion identity, and notification.
+ */
+function report({ result, saved, appKeys, opened, completionId, notification }) {
   console.log(`HANDOVER_RESULT=${result}`);
   if (Array.isArray(saved)) console.log(`HANDOVER_SAVED=${saved.join(',')}`);
   if (Array.isArray(appKeys)) console.log(`HANDOVER_APP_KEYS=${appKeys.join(',')}`);
+  if (typeof opened === 'boolean') console.log(`HANDOVER_OPENED=${opened ? 'yes' : 'no'}`);
+  const by = replacedBy(completionId);
+  if (by) console.log(`HANDOVER_REPLACED_BY=${by}`);
   if (completionId) console.log(`HANDOVER_COMPLETION=${completionId}`);
   if (notification) console.log(`HANDOVER_NOTIFICATION=${notification}`);
   return 0;
@@ -571,13 +596,13 @@ function gaveWay(mine, outcome) {
 
 /**
  * Blocks until the watcher records a result; recovers a watcher that died without one. A key link that
- * gave way to a newer link reports `closed` with nothing saved, never the newer link's result.
+ * gave way to a newer link reports `closed`, unopened, with nothing saved, never the newer link's result.
  */
 async function wait() {
   const mine = readJson(FILES.state)?.completionId;
   for (;;) {
     const outcome = readJson(FILES.result) ?? {};
-    if (mine && gaveWay(mine, outcome)) return report({ result: 'closed', saved: [], appKeys: [], completionId: mine, notification: 'not-requested' });
+    if (mine && gaveWay(mine, outcome)) return report({ result: 'closed', saved: [], appKeys: [], opened: false, completionId: mine, notification: 'not-requested' });
     if (outcome.result && outcome.notification !== 'pending' && !existsSync(FILES.pid)) return report(outcome);
     if (!existsSync(FILES.pid)) {
       console.error('No private link is open.');

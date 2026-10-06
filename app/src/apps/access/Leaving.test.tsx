@@ -18,7 +18,7 @@ const status = (): Status => ({ ownerEmail: 'owner@shop.com', viewer: { email: '
   keys: [key('stripe', 'Stripe', { usedBy: [{ app: 'hello', need: 'write' }] }), key('bank', 'Bank')],
   roles: [{ id: 'sales', name: 'Sales', ...hello() }],
   people: [person('kim@shop.com', hello()), person('lee@shop.com', { role: 'sales', ...hello() })],
-  work: [] })
+  work: [], project: 'ready' })
 let roster: Status
 let fetchMock: ReturnType<typeof vi.fn>
 // The apps a person can open: every area here has a screen.

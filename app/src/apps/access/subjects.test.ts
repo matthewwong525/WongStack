@@ -17,7 +17,7 @@ const status: Status = { ownerEmail: 'owner@example.com', viewer: { email: 'owne
   imported: 0, keysStarted: true, kept: 0, appKeys: { hello: [], tips: [], payroll: [] },
   areas: [{ id: 'hello', title: 'Hello', description: '', screen: true }, { id: 'tips', title: 'Tip calculator', description: '', screen: true }, { id: 'payroll', title: 'Payroll', description: '', screen: false }],
   skills: [refund, look], keys: [key('stripe', 'Stripe'), key('code', 'Project code', ['read'])], roles: [office, sales],
-  people: [person('gone@shop.com', { status: 'removed' }), kim, person('lee@shop.com', inSales), person('sam@shop.com', inSales)], work: [] }
+  people: [person('gone@shop.com', { status: 'removed' }), kim, person('lee@shop.com', inSales), person('sam@shop.com', inSales)], work: [], project: 'ready' }
 
 it('names who holds a role, and nobody for a role with no one or not saved yet', () => {
   expect(holdersLine(status, 'sales')).toBe('lee@shop.com, sam@shop.com')

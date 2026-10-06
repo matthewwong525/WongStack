@@ -4,6 +4,10 @@ import type { Person, Status } from '../../lib/access'
 // the sign-in list, or the read-only key for Cloudflare look-ups. One step makes both.
 export const FINISH_REQUEST = 'Finish Access setup: run the Access setup step, so the live app has its key for the sign-in list and the read-only key for Cloudflare look-ups, as wiki/stack/employee-access.md describes.'
 
+// What the owner pastes when they let someone install a project kept on GitHub and the app holds no key to
+// read it. The steps on GitHub stay on the page it names.
+export const PROJECT_REQUEST = 'Let teammates install the project: the app needs its read-only key for this project. Send me the key link for WONG_CODE_READ with the steps in wiki/stack/employee-project.md, then load it into the app.'
+
 const live = (status: Status) => status.environment === 'live'
 
 /** One sign-in status per person, and whether the sign-in step is still unfinished for them. */

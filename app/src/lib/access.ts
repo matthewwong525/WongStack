@@ -40,6 +40,9 @@ const use = z.object({ id: z.string(), need: level })
 // same fact from the key's side, `alone` means it also works with no app, `setup` that setup makes it, and
 // `saved` that the app holds it. No key's value is ever here. `viewer` is who is looking, the owner or a manager;
 // a person's `manager` says the owner lets them manage Access. The server checks both again on every save.
+// `project` says whether the app can hand its project out: `ready`, or the step left, a read-only GitHub `key` or
+// Access `setup`. A status from before the field reads it from whether Project code is saved.
+const project = z.enum(['ready', 'key', 'setup'])
 export const statusSchema = z.object({ ownerEmail: z.string(), environment: z.enum(['live', 'practice']),
   viewer: z.object({ email: z.string(), owner: z.boolean() }),
   key: z.enum(['ready', 'missing', 'practice']), started: z.boolean(), imported: z.number(),
@@ -51,7 +54,9 @@ export const statusSchema = z.object({ ownerEmail: z.string(), environment: z.en
   roles: z.array(z.object({ id: z.string(), name: z.string(), apps: levels, keys: levels })),
   people: z.array(z.object({ email: z.string(), status: z.enum(['active', 'removed']), settled: z.boolean(),
     role: z.string().nullable(), manager: z.boolean(), apps: levels, keys: levels })),
-  work: z.array(z.object({ kind: z.enum(['policy', 'sessions']), status: z.enum(['pending', 'ready', 'failed']) })) })
+  work: z.array(z.object({ kind: z.enum(['policy', 'sessions']), status: z.enum(['pending', 'ready', 'failed']) })),
+  project: project.optional() })
+  .transform(status => ({ ...status, project: status.project ?? (status.keys.some(key => key.id === 'code' && key.saved) ? 'ready' : 'key') }))
 export type Status = z.infer<typeof statusSchema>
 export type Person = Status['people'][number]
 export type Role = Status['roles'][number]

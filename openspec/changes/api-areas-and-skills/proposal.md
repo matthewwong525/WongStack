@@ -180,3 +180,5 @@ Your assistant can build a skill today, but nothing tells it how to build one yo
 - **2026-10-06** — Assumed: the skill check runs on every check, not only with the app's tests, because a branch that adds one skill file changes no app code and would otherwise skip it.
 - **2026-10-06** — Check: `app/package.json`'s `test` script now ends with `scripts/check-skill-actions.mjs`, and `.github/scripts/checks.mjs` runs that script as its own part on every run; both add a check and loosen none.
 - **2026-10-06** — Assumed: the Connect popup names an area with no screen by its title, sent with the person's setup, because the build showed it by its folder name and such an area has no card to take a title from.
+- **2026-10-06** — Assumed: after the latest main was brought in, Project code stays one tick, *Can install the project*, in its own group under *Can reach*, and is no level line there, because main now promises that tick; a skill's press still marks it new.
+- **2026-10-06** — Saved after the build: sections 1 to 5 done and the local checks passed; the automatic checks and the preview walk of section 6 are next.

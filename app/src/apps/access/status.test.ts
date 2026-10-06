@@ -5,7 +5,7 @@ import { canRetry, signInLine } from './status'
 const status = (changes: Partial<Status> = {}): Status => ({ ownerEmail: 'owner@example.com', viewer: { email: 'owner@example.com', owner: true },
   environment: 'live', key: 'ready', started: true, imported: 0, keysStarted: true, kept: 0,
   areas: [{ id: 'hello', title: 'Hello', description: '', screen: true }, { id: 'orders', title: 'Orders', description: '', screen: true }], skills: [],
-  appKeys: { hello: [], orders: [] }, keys: [], roles: [], people: [], work: [], ...changes })
+  appKeys: { hello: [], orders: [] }, keys: [], roles: [], people: [], work: [], project: 'ready', ...changes })
 const person = (changes: Partial<Person> = {}): Person => ({ email: 'bo@example.com', status: 'active', settled: true, role: null, manager: false, apps: { hello: 'write' }, keys: {}, ...changes })
 
 it('gives each person one sign-in status', () => {

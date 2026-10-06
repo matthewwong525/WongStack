@@ -23,7 +23,7 @@ const status = (): Status => ({ ownerEmail: 'owner@shop.com', viewer: { email: '
   roles: [{ id: 'office', name: 'Office', apps: {}, keys: {} }, { id: 'sales', name: 'Sales', ...sales() }, { id: 'support', name: 'Support', ...support() }],
   people: [person('gone@shop.com', { status: 'removed' }), person('kim@shop.com', { apps: { hello: 'write' }, keys: { stripe: 'read', cloudflare: 'read' } }),
     person('lee@shop.com', { role: 'sales', ...sales() }), person('sam@shop.com', { role: 'sales', ...sales() }), person('pat@shop.com', { role: 'support', ...support() })],
-  work: [] })
+  work: [], project: 'ready' })
 let roster: Status
 let failed: Set<string>
 let fetchMock: ReturnType<typeof vi.fn>
@@ -66,18 +66,24 @@ const note = (name: string) => Array.from(part(name).querySelectorAll('p')).map(
 // Start from: a press on one of its buttons, and the words of the ones shown as pressed.
 const start = (name: string) => fireEvent.click(level('Start from').getByRole('button', { name }))
 const pressed = () => level('Start from').getAllByRole('button').filter(button => button.getAttribute('aria-pressed') === 'true').map(button => button.textContent)
-// Can reach: every line with the level it shows, the lines above None, and the lines marked new.
+// Project code is the one tick a role has, in a group of its own after Can reach, with the step left under it.
+const INSTALL = 'Can install the project'
+const install = () => screen.getByRole('checkbox', { name: INSTALL }) as HTMLInputElement
+const project = () => level('Project')
+// Can reach: every line with the level it shows, and the lines above None.
 const lines = () => level('Can reach').getAllByRole('group')
-const title = (line: HTMLElement) => line.querySelector('legend')!.textContent!
+const title = (line: Element) => line.querySelector('legend, label')!.textContent!
 const reach = () => Object.fromEntries(lines().map(line => [title(line), checked(within(line).getAllByRole('radio'))[0]]))
 const held = () => Object.fromEntries(Object.entries(reach()).filter(([, at]) => at !== 'None'))
-const fresh = () => lines().filter(line => line.querySelector('strong')).map(line => `${title(line)} ${line.querySelector('strong')!.textContent}`)
-// What Can reach shows, as a save names it: a level for every area and every key by its id, None as null.
+// Everything marked new: the lines in Can reach, then the tick, whose mark sits beside it.
+const NEW = `${INSTALL} new`
+const fresh = () => [...lines(), install().closest('div')!].filter(line => line.querySelector('strong')).map(line => `${title(line)} ${line.querySelector('strong')!.textContent}`)
+// What the panel shows, as a save names it: a level for every area and every key by its id, None as null, and Read on Project code while the tick is on.
 const WORDS: Record<string, Level | null> = { None: null, 'Look up': 'read', 'Look up & change': 'write', Read: 'read', 'Read & write': 'write' }
 const listed = () => {
   const shown = reach()
   const each = (list: { id: string; title: string }[]) => Object.fromEntries(list.map(item => [item.id, WORDS[shown[item.title]!]]))
-  return { apps: each(roster.areas), keys: each(roster.keys) }
+  return { apps: each(roster.areas), keys: { ...each(roster.keys.slice(0, 3)), code: install().checked ? 'read' : null } }
 }
 // Can't yet: its lines.
 const cant = () => note("Can't yet")
@@ -109,9 +115,9 @@ it('lists each role on one line with how many apps, keys and people it has and i
   await panel('Sales'); expect(where()).toBe('/apps/access/roles/sales')
   expect(screen.getByRole('table', { name: 'Roles' }).querySelector('tr[aria-current="true"] a')!.textContent).toBe('Sales'); expect(screen.getByRole('navigation', { name: 'Access views' })).toBeTruthy()
   expect(named().value).toBe('Sales'); expect(screen.queryByLabelText('Start from a person')).toBeNull()
-  // The same three parts as for a person, with no tick anywhere, and who a save will reach.
-  expect(reach()).toEqual({ Hello: 'Look up & change', Payroll: 'None', 'Tip calculator': 'Look up', Customers: 'None', Stripe: 'Read', Bank: 'None', Cloudflare: 'None', 'Project code': 'None' })
-  expect([pressed(), fresh(), cant()]).toEqual([[], [], ['! Hello can look up, not change']]); expect(screen.queryByRole('checkbox')).toBeNull()
+  // The same three parts as for a person, with one tick, the project's, and none for managing, and who a save will reach.
+  expect(reach()).toEqual({ Hello: 'Look up & change', Payroll: 'None', 'Tip calculator': 'Look up', Customers: 'None', Stripe: 'Read', Bank: 'None', Cloudflare: 'None' })
+  expect([pressed(), fresh(), cant()]).toEqual([[], [], ['! Hello can look up, not change']]); expect(screen.getAllByRole('checkbox')).toEqual([install()]); expect(install().checked).toBe(false)
   expect([note('Hello'), note('Tip calculator'), note('Stripe'), note('Bank'), note('Cloudflare')]).toEqual([['opens Hello app'], ['opens Tip calculator app'], ['used by Hello'], [], ['look-ups, no app needed']])
   expect(screen.getByText('People: lee@shop.com, sam@shop.com')).toBeTruthy(); expect(screen.queryByText('Not saved yet')).toBeNull()
   fireEvent.change(named(), { target: { value: 'Field sales' } }); expect(screen.getByText('Not saved yet')).toBeTruthy()
@@ -130,17 +136,17 @@ it("a role whose only gap is a skill says so on its row and, opened, names what 
   expect([cant(), pressed()]).toEqual([[lack], []]); expect(screen.getByRole('button', { name: GIVE }).textContent).toBe('Give what it needs')
   // An area names a skill among what it opens only once the set can run it.
   expect([note('Hello'), note('Customers')]).toEqual([['opens Hello app'], ['no screen']])
-  // The press raises the three lines the skill lacks, marks them new and marks the skill in Start from. Nothing is sent.
+  // The press raises the two lines the skill lacks and turns the project's tick on, marks all three new and marks the skill in Start from. Nothing is sent.
   click(GIVE)
-  expect(held()).toEqual({ Hello: 'Look up & change', Customers: 'Look up', Stripe: 'Read & write', 'Project code': 'Read' })
-  expect([fresh(), pressed(), cant()]).toEqual([['Hello new', 'Stripe new', 'Project code new'], [`${REFUND} ✓`], [fine]])
+  expect([held(), install().checked]).toEqual([{ Hello: 'Look up & change', Customers: 'Look up', Stripe: 'Read & write' }, true])
+  expect([fresh(), pressed(), cant()]).toEqual([['Hello new', 'Stripe new', NEW], [`${REFUND} ✓`], [fine]])
   expect([note('Hello'), note('Customers')]).toEqual([[`opens Hello app, ${REFUND}`], [`no screen · opens ${REFUND}`]])
   expect(screen.getByText('Not saved yet')).toBeTruthy(); expect(posts('roles')).toHaveLength(0)
   // Pressed again in Start from, the skill takes it all back: the role is as it was, with nothing to save.
-  start(REFUND); expect([held(), fresh(), pressed(), cant()]).toEqual([{ Hello: 'Look up', Customers: 'Look up', Stripe: 'Read' }, [], [], [lack]])
+  start(REFUND); expect([held(), install().checked, fresh(), pressed(), cant()]).toEqual([{ Hello: 'Look up', Customers: 'Look up', Stripe: 'Read' }, false, [], [], [lack]])
   expect(screen.queryByText('Not saved yet')).toBeNull()
   // Chosen in Start from, it fills the same, and the save sends exactly what Can reach shows, with every area and key named.
-  start(REFUND); expect([fresh(), pressed()]).toEqual([['Hello new', 'Stripe new', 'Project code new'], [`${REFUND} ✓`]])
+  start(REFUND); expect([fresh(), pressed()]).toEqual([['Hello new', 'Stripe new', NEW], [`${REFUND} ✓`]])
   const list = listed(); const given = { apps: { hello: 'write' as const, customers: 'read' as const }, keys: { stripe: 'write' as const, code: 'read' as const } }
   // The server answers with the role's new set, which is its people's too.
   roster.roles[2] = { ...roster.roles[2], ...given }; roster.people[4] = { ...roster.people[4], ...given }
@@ -152,6 +158,25 @@ it("a role whose only gap is a skill says so on its row and, opened, names what 
   fireEvent.click(screen.getByRole('link', { name: /^Skills/ })); fireEvent.click(await screen.findByRole('link', { name: REFUND }))
   expect(within(await screen.findByRole('list', { name: 'Can run' })).getAllByRole('listitem').map(item => item.textContent)).toEqual(['You', 'Support · pat@shop.com'])
   expect(where()).toBe('/apps/access/skills/refund')
+})
+it("gives a whole role the project with the same tick as a person's, and names the step left under it", async () => {
+  roster.keys[3].saved = false; roster.project = 'key'
+  open('roles/office'); await panel('Office')
+  expect(install().checked).toBe(false); expect(project().queryByText(/One step first/)).toBeNull()
+  // Project code is the tick, never a level choice among the keys.
+  expect(lines().map(title).slice(4)).toEqual(['Stripe', 'Bank', 'Cloudflare']); expect(project().queryByRole('radio')).toBeNull()
+  fireEvent.click(install())
+  expect(project().getByText('One step first.')).toBeTruthy(); expect(project().getByRole('button', { name: 'Copy that request' })).toBeTruthy()
+  // Set by hand, the tick is not marked new, and it saves before the key arrives.
+  const none = { hello: null, payroll: null, tips: null, customers: null }
+  expect(fresh()).toEqual([]); click('Save role'); await screen.findByText('Saved.')
+  expect(sent('roles')).toEqual([{ id: 'office', name: 'Office', apps: none, keys: { stripe: null, bank: null, cloudflare: null, code: 'read' } }])
+  // Once the app can hand the project out, the tick shows with nothing under it, and unticking saves none.
+  cleanup(); roster.keys[3].saved = true; roster.project = 'ready'; roster.roles[0].keys = { code: 'read' }
+  open('roles/office'); await panel('Office')
+  expect(install().checked).toBe(true); expect(project().queryByText(/One step first/)).toBeNull(); expect(project().queryByRole('button')).toBeNull()
+  fireEvent.click(install()); click('Save role'); await screen.findByText('Saved.')
+  expect(sent('roles')[1]).toEqual({ id: 'office', name: 'Office', apps: none, keys: { stripe: null, bank: null, cloudflare: null, code: null } })
 })
 it('adds a role, which can start from what one person has now, with nothing marked', async () => {
   open('roles'); fireEvent.click(await screen.findByRole('link', { name: 'Add role' }))

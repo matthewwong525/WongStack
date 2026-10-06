@@ -40,6 +40,7 @@ A person's panel starts with their role; with their own set, and for a role, the
 
 1. **Start from** is a row of your apps and skills. Press one and the panel fills in what it needs: an app gives Look up on its area and Read on its keys; a skill gives every level it needs, changes included, since it can't run on less. No level is lowered. Press it again to take that back.
 2. **Can reach** is the one list the app enforces: a level for every area, then for every key. Change any by hand. Under a level, a line says what it opens: *opens Orders app, Refund a customer*. A level a press raised is marked *new* until you save; a change by hand clears the mark on what you pressed.
+   **The project is one tick** under that list, *Can install the project*: [Project code](employee-project.md#who-gets-what) at Read, with [its step](employee-project.md#the-owners-one-step-on-github) below while the app can't hand the project out.
 3. **Can't yet** lists each app and skill the set has and can't fully use, with what is missing and *Give what it needs*. An app counts once its area is held: at Look up it needs Read on its keys, and at Look up & change whatever it does with them. A skill counts once every area it calls is held.
 
 Nothing changes for the person until *Save access*; the panel says *Not saved yet* while a change waits.
