@@ -81,9 +81,11 @@ A fact about code carries the **area tag** of the folder it concerns, so the nex
 Two passes keep the live facts tidy: plain code for what follows a rule, and a model only for what takes judgment.
 
 - **Upkeep** runs after every `put-facts` and at the end of every background run, with no model and no wait. It closes an open thread still open 30 days after its own date with a fact naming it, *Closed unchecked after 30 days (thread #N, date)*; the thread stays searchable with `--all`, and a re-tag never restarts its clock. It **re-tags** a fact whose words name a path in a mapped folder with [its area](#facts-by-code-area), and a thread whose words name a slash command with that verb (`/wong-sync` gives `sync`), so the verb loads it. A re-tagged fact keeps its words, its date, its author, and its link to the chat it came from; it supersedes the untagged one. On the admin's key it also syncs area tags to the list. It restates at most 50 facts a pass and leaves the rest to the next write. It never fails the write before it: `put-facts` prints `upkeep skipped: <reason>`, and the next write tries again. `memory.mjs upkeep` runs it by hand.
-- **Consolidation** runs inside the background run, and only once 24 hours *and* five captured sessions have passed since the last one, so it is rare. It merges facts that say the same thing, supersedes contradicted ones, newest first, closes an open thread a later live fact shows was answered, and re-tags only where reading a fact's area or verb takes judgment. No one runs it by hand: an earlier consolidation command was retired because no one did.
+- **Consolidation** runs inside the background run, and only once 24 hours *and* five captured sessions have passed since the last one, so it is rare. It merges facts that say the same thing, supersedes contradicted ones, newest first, closes an open thread a later live fact shows was answered, and re-tags only where reading a fact's area or verb takes judgment. No one runs it alone by hand: an earlier consolidation command was retired because no one did.
 
 On a teammate’s machine both passes change only facts owned by that installation, and no tag; the admin's tidy everyone's.
+
+Both passes tidy facts, never pages. [A wiki dream](wiki-dream.md) runs consolidation at once when you type `/dream`, whatever the clock says, then moves the lasting facts onto the wiki.
 
 ## The memory key
 

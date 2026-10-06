@@ -14,6 +14,7 @@
   "continue": {"definition": "/continue and cold resume.", "paths": [".agents/skills/continue/"], "docs": ["wiki/development/the-change-loop.md"]},
   "routine": {"definition": "Scheduled work that runs recurring agents in isolated Paseo worktrees", "paths": [".agents/skills/routine/"], "docs": ["openspec/specs/paseo-routines/spec.md"]},
   "close": {"definition": "/close and how a chat is wrapped up: memory, wiki, unfinished work, the workspace.", "paths": [".agents/skills/close/"], "docs": ["openspec/specs/workspace-cleanup/spec.md"]},
+  "dream": {"definition": "/dream and how the wiki is brought up to date from memory: placing facts, own and shipped pages.", "paths": [".agents/skills/dream/", "wiki/development/wiki-dream.md", "scripts/tests/dream.test.mjs"], "docs": ["wiki/development/wiki-dream.md", "openspec/specs/wiki-dream/spec.md"]},
   "improve": {"definition": "/improve and the one improvement it finds and ships.", "paths": [".agents/skills/improve/"], "docs": ["wiki/development/repository-improvement.md", "openspec/specs/repository-improvement/spec.md"]},
   "sync": {"definition": "/wong-sync and how target repos take upstream updates.", "paths": [".agents/skills/wong-sync/"], "docs": ["openspec/specs/wong-sync/spec.md"]},
   "setup": {"definition": "/wong-setup and first-time installation.", "paths": [".agents/skills/wong-setup/"], "docs": ["wiki/stack/getting-started.md", "openspec/specs/install-onboarding/spec.md"]},

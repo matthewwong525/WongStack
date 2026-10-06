@@ -50,6 +50,8 @@ The report gives paths, classes, and counts, never a body or diff. It returns `s
 
 [`merge-check.mjs`](../scripts/merge-check.mjs) runs after the plan merges new text into edited files, before the record advances. With `--from <installed commit>`, it lists each upstream hunk whose added line a `modified`, `locally-adapted` unit no longer has: file, source lines, count, first missing line. It exits 0 when nothing is missing, 1 when something is, 2 on a usage or read error, and reports `skipped` with no baseline. A moved or reworded line passes; the plan's review catches rewording.
 
+**dream** ships `/dream`; its script reads this inventory to tell a shipped page from the target's own.
+
 **improve** ships an outcome brief for finding one supported improvement through the normal delivery skills, with an optional area or desired outcome and a findings-only mode. The [repository improvement guide](../../../../wiki/development/repository-improvement.md) owns cadence and scheduling.
 
 **save** and **ship** ship their one-command scripts with the skill folders: [`checkpoint.mjs`](../../save/scripts/checkpoint.mjs) runs a save's commit, push, PR, check wait and preview, and [`ship.mjs`](../../ship/scripts/ship.mjs) runs `/ship`'s `prepare` and `finish`. The portable check entry point's `--worktree` mode checks a finished build on the computer before a push. The source repo's `scripts/payload-checks.mjs` and `scripts/measure-sessions.mjs` are meta-only and never ship.
