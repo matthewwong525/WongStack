@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Skills that work for the whole team, and Access built on what a person can reach
+## 37.1.0 — Skills that work for the whole team, and Access built on what a person can reach
 
 - **A skill does its business work through the app, never with a key.** Ask for a skill that touches orders, payments or other business data, and your assistant first builds that work into the app, then writes the skill to call it. The skill runs under the login of whoever uses it, so it works on every teammate's device and the app decides what each of them may do.
 - **A check stops a skill that reads a key.** A skill that names a saved business key, or calls work in the app it does not list, can't be published. The check names the skill.
@@ -16,6 +16,7 @@
 [Employee access](wiki/stack/employee-access.md#areas-and-their-levels) describes areas and who can run a skill, [the Access screens](wiki/stack/access-screens.md#a-set-has-three-parts) the panel, and [company actions](wiki/stack/company-api.md#build-a-skill-on-actions) how a skill is built.
 
 **Updating.** Nobody loses anything: each person and role keeps every app they have, at *Look up & change*, which is what a tick gave. Lower one to *Look up* when you want to. The app's database gains one small change, applied when you publish. Three things to ask your assistant to check in an app you built yourself: a folder under `app/worker/apps/` that has no screen now needs a `title` and a `description` in its `api.ts`, or the checks name it; a route that only looks things up but is sent as a `POST` should be described as a read, or people at *Look up* can't use it; and a skill of your own that reads a key from a file should be rebuilt to call the app. If you ever go back to the version before this one, lowered levels read as full again, and Access can't save a change until you update again.
+
 ## 37.0.1 — The session speed guide says which logs count by address
 
 - **A maintainers' guide is corrected.** [Measure session speed](wiki/maintaining/measure-session-speed.md) said any session log counts when it records this project's address. Only a Codex log records one; a Claude Code session counts by its folder alone. No install receives this page, so nothing changes for you.
