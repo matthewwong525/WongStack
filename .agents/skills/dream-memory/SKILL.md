@@ -19,7 +19,7 @@ disable-model-invocation: true
 8. **Check sources.** Before replacing a line or a fact that quotes a person, read `M source <fact-id>`; with no stored chat, treat the fact as the assistant's reading.
 9. **Correct facts.** For each `fact` line of `D drift`, and each live fact the repo contradicts, read the repo, then supersede it by the write gate with what is true now. Never edit or delete one; on a teammate's key, only this installation's own.
 10. **Report a product fault.** When a page or spec is right by a recorded decision and the code breaks it, change neither: one `thread` tagged `improve` naming the rule and where the code breaks it.
-11. **Publish** an edit: `git fetch origin main`, `git switch -c dream-<date> origin/main`, then `/ship` minus its closing question.
+11. **Publish** an edit: `git fetch origin main`, `git switch -c dream-<date> origin/main` (`-2`, `-3` when taken), then `/ship` minus its closing question.
 12. **Record** by the write gate on slug `wiki-dream`: a `project` fact tagged `dream`, `Dream <date>: read facts up to #<id>. Checked: <pages and specs>.`, even with no edit, split into facts that each start that way when over 400 characters; one `thread` tagged `dream` with step 7's list, superseding the last one, an older one tagged `improve` included; and a fact superseding each note this dream fixed.
 13. **Report** in [plain words](../explore/references/asking-the-user.md#write-in-plain-words): each page changed with its fact, each fact corrected, step 7's list, any fault, what the limits skipped.
 
