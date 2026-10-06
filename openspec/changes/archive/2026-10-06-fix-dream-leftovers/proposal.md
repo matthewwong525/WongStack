@@ -37,3 +37,4 @@ None.
 
 - **2026-10-06** — Asked what to do after the publish → chose: fix the leftovers first, as one small follow-up change.
 - **2026-10-06** — Assumed: the README requirement drops only the top-level-entries clause, because the README still lists setup's tools and Cloudflare, and Matthew approved the shorter README in 31.4.1.
+- **2026-10-06** — Archive checkpoint: built, local checks pass, numbered 37.1.2.
