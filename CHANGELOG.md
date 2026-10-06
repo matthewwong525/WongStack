@@ -3,6 +3,12 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (patch) — What to do when the preview app refuses a key
+
+- **A plain fix for a refused key.** When loading a new key puts it in the live app but the preview app refuses it, every later save fails a check. [Staging bindings](wiki/stack/staging-bindings.md#when-staging-refuses-a-key) now says how your assistant gives the preview app the key, and which command to avoid.
+
+**Updating.** Nothing needs doing by hand.
+
 ## 35.1.0 — Connect your assistant installs the project
 
 - **Connect puts the whole project on a person's device.** They paste a short setup text into their assistant and approve their app sign-in on that computer. The assistant downloads the project from the app's own address into a folder, and uses their apps from inside it. They need no GitHub or Cloudflare account, type no key, and install nothing by hand. Running the same step again brings the copy up to date.

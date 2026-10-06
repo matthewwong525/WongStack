@@ -107,6 +107,19 @@ node scripts/cf-secrets.mjs shared   # which keys does staging share with produc
 
 It prints key names in two lists, `own` and `shared`, and never a value; with no staging file, every key is shared. It compares the two files on this machine and makes no network call, because a deployed secret can't be read back: after editing either file, run `secrets:push` so the Workers match. It can only compare, so a live key pasted into the staging file still reads as `own`.
 
+### When staging refuses a key
+
+`secrets:push` loads production, then staging. Staging often refuses with Cloudflare code `10215`: a preview was uploaded after its last deploy, so its newest version is not the running one. Production then holds a key staging lacks, and `secrets:check` fails on every branch until staging has it.
+
+Give staging the key as a new version, not a deploy:
+
+```bash
+# from app/, with a file holding only the missing lines
+npx wrangler versions secret bulk <file> --env staging
+```
+
+The names then match, and the next branch deploy carries the key. Don't follow it with `wrangler versions deploy --env staging`: on this config that command aims at the production Worker.
+
 ### What the gate can and can't see
 
 `secrets:check` compares **names only** — no value is read, printed, or logged, so it is safe in CI where output is retained. Because `app/.dev.vars` is git-ignored and absent in CI, the assertion that *fails* is Worker against Worker: production's secret names against staging's, except the documented production-only Access management names. The check rejects those names on staging. One more name may differ: the read-only Cloudflare key may sit on production while staging [waits for it](cloudflare-credentials.md#the-read-only-look-up-key), and the check prints one line saying so. That key on staging without production is still drift. `app/.dev.vars.example` is consulted when present, but only to **warn** — it is uncorroborated, and a repo may set a secret out of band.
