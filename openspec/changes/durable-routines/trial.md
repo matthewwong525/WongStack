@@ -33,6 +33,7 @@ Run on 2026-10-05 on the owner's account (Workers Paid), from a Linux server wit
 | No key in a URL, a log, or a stored step | The run's log and every stored Workflow step were searched for the Artifacts key, a Basic or Bearer header, the routines key, and the Cloudflare token. None was there. |
 | An install whose project lives on GitHub, with no project key | `setup` installed a second runner, `wong-rt-gh-routines`, in 36 seconds and answered `needs: project-access`. `create` then stopped with the same answer and made no routine. |
 | No computer left running | After both runs, Cloudflare's container list showed no active or assigned instance for either runner. |
+| A run on the GitHub route | Status `ok` in 48 seconds, 7.7 of them start-up (clone 0.7, tools and `gh` 4.5). With a fine-grained token for the one repository, Pi on Kimi K2.7 Code followed the skill, pushed `routine/tidy-run`, and opened pull request #1 with `gh`. `main` did not move, the commit carries the maker's name, and the token was in no log and no stored step. |
 | A GitHub token that can read but not save | The person gave a read-only token. `setup` asked GitHub, did not send the token to the runner, and answered `needs: project-access` with *The GitHub token can read this project but not save to it*. The runner's secrets stayed `AI_RUN_TOKEN` and `ROUTINES_KEY`. |
 | A wrong pasted key, in Z.ai's shape | Recognised as Z.ai, refused by Z.ai with 401, and nothing was stored: the runner's secrets stayed `AI_RUN_TOKEN` and `ROUTINES_KEY`. The key's text was in no output. |
 | A pasted key of no known shape | Stopped with `needs: provider` and the nine services to choose from. |
@@ -63,25 +64,22 @@ Start-up is under the 60-second limit, so no saved start was built.
 - **A note written the memory skill's usual way never left the container.** The skill's example names the chat session, a scheduled run has none, and the script then holds the fact for a next chat that never comes. The notice now says to leave the session out and to check the script answers `stored`.
 - **A read-only GitHub token was accepted and would have failed at a run's first push.** `setup` now asks GitHub to store the empty file with the token, which only a token with write access may do, and keeps a token that can't.
 
-## Not done yet
+## Not tried
 
-- **The GitHub route** (the second half of task 5.2): a run that pushes to a GitHub repository needs a fine-grained token from the person, through the key link. Its runner is installed and waiting.
-- **A real pasted model key** (task 5.4): dropped on 2026-10-06. The person chose to rely on Cloudflare's own models, which every trial run used; the pasted-key path ships tested with a refused key and stand-ins.
-Six key links were sent on 2026-10-05 and 2026-10-06. Four timed out unused, one was closed by another chat's link 33 seconds after it opened, and one took the read-only token above. The run on the GitHub route still waits for a token that can write.
+- **A working pasted model key** (task 5.4): dropped on 2026-10-06. The person chose to rely on Cloudflare's own models, which every trial run used; the pasted-key path ships tested with a refused key and stand-ins.
+
+Six key links were sent on 2026-10-05 and 2026-10-06. Four timed out unused, one was closed by another chat's link 33 seconds after it opened, and one took a read-only token. The person then gave that same token write access on GitHub, and the run above used it.
 
 ## Clean-up
 
-Deleted on 2026-10-05 and read back as gone through Cloudflare's API:
+Everything the trial made is deleted and read back as gone, through Cloudflare's API and GitHub's:
 
 - Workers `wong-rt-trial-routines` and `wong-rt-gh-routines`, each with its container application and its Workflow.
 - AI Gateways `wong-rt-trial-routines` and `wong-rt-gh-routines`.
 - Account tokens `wong-rt-trial-routines-ai` and `wong-rt-gh-routines-ai`.
 - Artifacts repositories `wongstack/wong-rt-trial` and `wongstack/wong-rt-mem`, with their tokens.
 - The runs' memory key: `member list` shows its machine id as revoked. The test note it wrote is closed.
-
-Still to delete, at task 5.5:
-
-- GitHub repository `matthewwong525/wong-rt-trial`, private. It is kept so the person can make a token for it.
+- GitHub repository `matthewwong525/wong-rt-trial`, with its test pull request.
 - The temp folder on this server.
 
-The three permissions the owner's token gave itself stay; the real install needs them. The two checks under [Not done yet](#not-done-yet) need the runners installed again, which takes about 35 seconds each.
+**Left on purpose:** the three permissions the owner's Cloudflare token gave itself, and the GitHub token the person saved as `WONG_ROUTINE_GITHUB_TOKEN`; the real install needs both.

@@ -1,6 +1,6 @@
 # Schedules that run in your Cloudflare account, on any model key
 
-**Status:** in-progress
+**Status:** ready-to-ship
 
 **Branch:** pi-durable-zai-subscriptions
 
@@ -104,3 +104,4 @@ A schedule only works through the Paseo app, on a computer that stays on. A cloc
 - **2026-10-06** — Asked whether to test with a real pasted model key, after the person asked if Cloudflare's free model use could serve → chose no model key: the trial's runs already used Cloudflare's own models, and the pasted-key path ships tested with a refused key and stand-ins.
 - **2026-10-06** — Asked whether to try saving to GitHub before publishing → chose test GitHub first, with one token for the empty test repository.
 - **2026-10-06** — Assumed: setup tests a GitHub token for write access before sending it to the runner, because the person gave a read-only one and a run would only have found out at its first push.
+- **2026-10-06** — Asked how to finish the GitHub check → the person gave the token on file write access on GitHub, and the run on the GitHub route then passed. That token is also the one another change stores as its read-only key; the person was told.
