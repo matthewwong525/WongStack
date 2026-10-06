@@ -86,7 +86,7 @@ describe("private Worker routing", () => {
     expect(unknown.status).toBe(404);
     expect(await unknown.json()).toEqual({ error: "Not found" });
     expect((await call("/api/access/unknown", headers)).status).toBe(404);
-    expect(await (await call("/api/access/apps", headers)).json()).toEqual({ state: "legacy", signIn: true });
+    expect(await (await call("/api/access/apps", headers)).json()).toEqual({ state: "legacy", signIn: true, code: "off" });
     expect(assets.fetch).not.toHaveBeenCalled();
   });
   it("keeps people management behind a signed owner session, with no private pin", async () => {
@@ -258,7 +258,7 @@ describe("private Worker routing", () => {
     const headers = { "Cf-Access-Jwt-Assertion": await token({ email: "human@example.com", sub: "employee" }) };
     expect((await call("/apps/hello/api/greeting", headers, bindings)).status).toBe(200);
     expect(await (await call("/api/access/apps", headers, bindings)).json())
-      .toEqual({ state: "current", role: "employee", manages: false, signIn: true, revision: 1, apps: ["access", "hello"], keys: [] });
+      .toEqual({ state: "current", role: "employee", manages: false, signIn: true, code: "off", revision: 1, apps: ["access", "hello"], keys: [] });
     for (const path of ["/apps/hello/", "/apps/hello/subpage", "/apps/access/"]) expect((await call(path, headers, bindings)).status).toBe(200);
     row.apps = "[]";
     row.revision = 2;

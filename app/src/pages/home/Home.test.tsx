@@ -132,3 +132,24 @@ it("withholds the whole list, the Connect card included, while app access is loa
   await screen.findByRole("region", { name: "Make it yours" });
   expect(hrefs()).toEqual(apps.map((app) => app.href));
 });
+
+it("greys the Connect card for a person who lacks Project code, and opens the steps for everyone else", async () => {
+  answer({ state: "current", role: "employee", revision: 1, apps: every, code: "lacked" });
+  render(<Home />);
+  await screen.findByRole("link", { name: /^Hello Example/ });
+  expect(greyed()).toEqual(["Connect your assistant No access Use your apps from your own assistant."]);
+  fireEvent.click(connect()!);
+  expect([screen.getByRole("status").textContent, screen.queryByRole("dialog"), steps()]).toEqual(["Ask your admin for access to Connect your assistant.", null, null]);
+  expect(hrefs()).toEqual(apps.map((app) => app.href));
+  cleanup();
+
+  for (const code of ["ready", "off"]) {
+    answer({ state: "current", role: "employee", revision: 1, apps: every, code });
+    render(<Home />);
+    await screen.findByRole("link", { name: /^Hello Example/ });
+    expect(greyed(), code).toEqual([]);
+    fireEvent.click(connect()!);
+    expect(await screen.findByRole("dialog", { name: "Connect your assistant" }), code).toBeTruthy();
+    cleanup();
+  }
+});

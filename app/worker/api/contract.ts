@@ -209,7 +209,7 @@ async function inputFor(action: Action, request: Request, url: URL, max: number)
 
 // Settings setup commits in wrangler.jsonc. Anyone with the code can read them, and an honest answer
 // may name them: an account is often named for its owner's email. Every other text binding is a secret.
-const COMMITTED = new Set(["WONG_ENVIRONMENT", "WONG_OWNER_EMAIL", "WORKSPACE_LOGIN",
+const COMMITTED = new Set(["WONG_ENVIRONMENT", "WONG_OWNER_EMAIL", "WONG_CODE_REPOSITORY", "WORKSPACE_LOGIN",
   "CF_ACCESS_TEAM_DOMAIN", "CF_ACCESS_AUD", "CF_ACCESS_APP_ID", "CF_ACCESS_WORKER_ID"]);
 
 export function containsCredential(output: unknown, env: AppEnv): boolean {

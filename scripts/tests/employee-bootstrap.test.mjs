@@ -21,9 +21,10 @@ test('standalone copied file runs without checkout, memory packages or any repos
   const child = spawnSync(process.execPath, [file, '--help'], { cwd: f.root, encoding: 'utf8' });
   assert.equal(child.status, 0, child.stderr); assert.match(child.stdout, /usage:/);
   assert.doesNotMatch(source.toString(), /from ['"]\.\.?\//);
-  assert.doesNotMatch(source.toString(), /api\.github\.com|projectClient|\/api\/access\/(?:token|identity|activate|prepare|rollout|login)|ownerSetup|git clone/);
+  // It downloads the project from the app's own address alone: no provider API, no repository credential route.
+  assert.doesNotMatch(source.toString(), /api\.github\.com|github\.com\/|projectClient|\/api\/access\/(?:token|identity|activate|prepare|rollout|login)|ownerSetup|GH_TOKEN|credential-store/);
   const denied = spawnSync(process.execPath, [file, 'git', 'clone', 'existing-work'], { cwd: f.root, encoding: 'utf8' });
-  assert.equal(denied.status, 1); assert.match(denied.stderr, /employee-bootstrap.mjs login/);
+  assert.equal(denied.status, 1); assert.match(denied.stderr, /employee-bootstrap\.mjs install .*\| login/);
 });
 test('empty-folder connection proves current API permission with zero apps and private noncredential state', async t => {
   const f = directories(t), requests = [];

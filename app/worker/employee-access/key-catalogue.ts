@@ -1,6 +1,6 @@
 // What each app does with each saved key, worked out from the routes themselves.
 import { keyUse } from "./key-use.ts";
-import { keyIds, keyTitle, madeBySetup, offered, registered, saved, type Level } from "./key-levels.ts";
+import { keyIds, keyTitle, madeBySetup, offered, registered, saved, worksAlone, type Level } from "./key-levels.ts";
 
 /** The highest level any route of these apps needs, per registered key. A key working alone belongs to no app. */
 export function needs(apps: readonly string[]): Map<string, Level> {
@@ -20,5 +20,5 @@ export const appKeys = (apps: readonly string[]): Record<string, { id: string; n
 export const keyCatalogue = (env: object, uses: ReturnType<typeof appKeys>) => keyIds().map(id => ({
   id, title: keyTitle(id), levels: offered(id), saved: saved(env, id), setup: madeBySetup(id),
   usedBy: Object.entries(uses).flatMap(([app, list]) => list.filter(item => item.id === id).map(({ need }) => ({ app, need }))),
-  alone: keyUse.some(use => !use.apps.length && use.keys.includes(id)),
+  alone: worksAlone(id) || keyUse.some(use => !use.apps.length && use.keys.includes(id)),
 }));

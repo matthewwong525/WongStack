@@ -60,7 +60,7 @@ export function People(props: ViewProps) {
     {removing && <Confirm title={`Remove ${removing.email}?`} action="Remove access" pending={pending}
       onConfirm={() => save('people', { email: removing.email, apps: [], removed: true })} onCancel={() => setRemoving(null)}>
       {status.environment === 'live'
-        ? "They are blocked at once. Everyone is signed out and signs in again. This can't be undone. Access to the project code is removed separately, where it was given."
+        ? "They are blocked at once and can no longer download the project. Everyone is signed out and signs in again. This can't be undone. A copy of the project already on their device stays there. Access given where the project is kept is removed there."
         : 'They leave the practice list. The real sign-in list is not touched.'}
       {removing.manager && ' They stop managing Access too.'}
     </Confirm>}

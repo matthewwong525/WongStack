@@ -197,7 +197,9 @@
       "app/worker/employee-access/key-saves.test.ts",
       "app/worker/employee-access/sets.ts",
       "app/worker/employee-access/roles.ts",
-      "app/worker/employee-access/grants.ts"
+      "app/worker/employee-access/grants.ts",
+      "app/worker/employee-access/code.ts",
+      "app/worker/employee-access/code.test.ts"
     ]
   },
   "seededBySetup": {

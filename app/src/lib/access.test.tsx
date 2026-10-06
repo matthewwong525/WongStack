@@ -4,7 +4,7 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { appAccessSchema, useAccess } from './access'
 
 afterEach(() => { cleanup(); vi.unstubAllGlobals() })
-const allowed = { state: 'current', role: 'employee', apps: ['hello'], revision: 1 }
+const allowed = { state: 'current', role: 'employee', apps: ['hello'], revision: 1, code: 'off' }
 it('reload and target changes immediately hide stale grants while aborted replies cannot restore them', async () => {
   let finishOld: (reply: Response) => void = () => {}
   let finishCurrent: (reply: Response) => void = () => {}

@@ -37,6 +37,8 @@ Developers who want the details can read [how the assistant sends the link](../d
 
 When the assistant saves a key your app will use, it also adds the key to [the app's key list](../../app/worker/keys.ts): a name you will recognise, such as *Stripe*, and the secret names it covers. From then on the key shows in [Access](employee-access.md#four-views), where you choose who may look things up with it and who may also change things. A check fails before publishing when a secret the app declares is in no key, or in two.
 
+One key is not a service's: [Project code](employee-project.md#the-owners-one-step-on-github) is a read-only GitHub key for your own project, made once by the owner through the same link, so teammates can install the project.
+
 Each app says which keys it uses, and gets only those ([list the keys a route uses](company-api.md#list-the-keys-a-route-uses)). Nobody on your team is ever handed a key: the app holds it, and each person's level decides what they can do with it.
 
 ## If a key leaks

@@ -48,3 +48,10 @@
 # stores it in both Workers for you: leave it out of this file. `secrets:push`
 # refuses any source that names it. See wiki/stack/cloudflare-credentials.md.
 # WONG_CLOUDFLARE_READ=
+
+# --- The project itself ---
+
+# A GitHub fine-grained token for this one repository, Contents: Read-only and nothing else. Connect your
+# assistant uses it to hand the project to people given Project code in Access. A project kept in
+# Cloudflare needs none: leave it blank there. See wiki/stack/employee-project.md.
+WONG_CODE_READ=
