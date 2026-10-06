@@ -1,6 +1,6 @@
 # /dream's record fits, and three guides catch up
 
-**Status:** blocked (the published version has two failed dependency-update runs)
+**Status:** ready-to-ship
 
 **Branch:** dream-record-and-page-gaps
 
