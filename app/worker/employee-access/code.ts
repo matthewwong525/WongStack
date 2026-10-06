@@ -6,8 +6,9 @@ import type { CurrentPolicy } from "./policy.ts";
 /** Everything under here is Git's smart HTTP protocol for the one project. */
 export const CODE_GIT = "/api/access/code/git/";
 
-/** Only what this file calls on a Cloudflare-kept project's binding: one repository, and a read token for it. */
-type CodeBinding = { get(name: string): Promise<{ remote: string; createToken(scope: "read", ttl: number): Promise<{ plaintext: string }> }> };
+/** Only what this file calls on a Cloudflare-kept project's binding: one repository, its address, and a read token for it. */
+// The handle carries no metadata of its own: its address comes from `info()`.
+type CodeBinding = { get(name: string): Promise<{ info(): Promise<{ remote: string }>; createToken(scope: "read", ttl: number): Promise<{ plaintext: string }> }> };
 export interface CodeEnv {
   /** Committed and nonsecret: `owner/name` on GitHub, or the repository's name in this account's Artifacts. */
   WONG_CODE_REPOSITORY?: string;
@@ -45,7 +46,7 @@ export async function upstream(env: object): Promise<Upstream | null> {
   if ("github" in source) return { url: `https://github.com/${source.github}.git`, authorization: `Basic ${btoa(`x-access-token:${source.token}`)}` };
   try {
     const repo = await source.artifacts.get(source.name);
-    const remote = new URL(repo.remote);
+    const remote = new URL((await repo.info()).remote);
     if (remote.protocol !== "https:" || remote.username || remote.password || remote.search || remote.hash) return null;
     const { plaintext } = await repo.createToken("read", TOKEN_SECONDS);
     return plaintext ? { url: remote.href.replace(/\/$/, ""), authorization: `Bearer ${plaintext}` } : null;

@@ -22,12 +22,12 @@ Moved to 7.2 and 7.3, after the source and tests: see the Decision log.
 ## 4. The device helper
 
 - [x] 4.1 Add `code` and the one-step `install` to `scripts/employee-bootstrap.mjs` per design Decision 5; `install` picks a private state directory, runs sign-in, download and status, and names a missing program plainly. Tests in `scripts/tests/` against a local Git HTTP fixture: clone into an empty folder; refuse a non-empty one; fast-forward update; a dirty and a diverged copy are left byte-identical with a non-zero exit; the token appears in no argument, URL or `.git/config`; a redirect is refused; missing `git` gives the plain error.
-- [ ] 4.2 Pin the new bootstrap bytes in `bootstrap-release.json` by the existing procedure, at the final source checkpoint. Verify the distribution tests pass and the public raw URL serves the digest.
+- [x] 4.2 Pin the new bootstrap bytes in `bootstrap-release.json` by the existing procedure, at the final source checkpoint. Verify the distribution tests pass and the public raw URL serves the digest.
 
 ## 5. Setup and update
 
 - [x] 5.1 `provision.mjs access`: write `WONG_CODE_REPOSITORY` on both routes; report `codeKey` as `ready` or `missing` with the numbered steps on GitHub. Extend `scripts/tests/provision.test.mjs`: idempotent, both routes, a second run changes nothing.
-- [ ] 5.2 On Artifacts, add the binding to both Workers and any permission task 7.2 finds; update `permission-groups.md` and its table test if one is added. Verify the test.
+- [x] 5.2 On Artifacts, add the binding to both Workers and any permission task 7.2 finds; update `permission-groups.md` and its table test if one is added. Verify the test.
 - [x] 5.3 Update `/wong-setup`'s `references/cloudflare.md`: the step and the closing to-do. Run `node scripts/measure-context.mjs --check` and trim an equal amount if it fails.
 
 ## 6. Wiki and release
@@ -37,8 +37,8 @@ Moved to 7.2 and 7.3, after the source and tests: see the Decision log.
 
 ## 7. Verification
 
-- [ ] 7.1 Run `node .github/scripts/checks.mjs --worktree` and `npm test` in `app/`; fix what fails.
-- [ ] 7.2 On a branch preview, bind the staging Worker to the `wongstack` Artifacts namespace of a test install and mint a read token for one repo. Verify the deploy succeeds with the narrow deploy token; if it is refused, record the permission it names in the Decision log and add it to task 5.2. If no permission can make it work, stop and report.
+- [x] 7.1 Run `node .github/scripts/checks.mjs --worktree` and `npm test` in `app/`; fix what fails.
+- [x] 7.2 On a branch preview, bind the staging Worker to the `wongstack` Artifacts namespace of a test install and mint a read token for one repo. Verify the deploy succeeds with the narrow deploy token; if it is refused, record the permission it names in the Decision log and add it to task 5.2. If no permission can make it work, stop and report.
 - [ ] 7.3 With a read-only GitHub token as a staging secret (`WONG_CODE_READ`), clone this repository through the code route on the same preview. Verify the clone completes and `git fsck` passes; record the time and size in the Decision log. If GitHub or a Worker limit refuses it, stop and report.
 - [ ] 7.4 `/save`, then on the preview: as the checker, fetch the code route's `info/refs` and get refs; push and get the 403; open Access → Keys and see Project code with the seeded holders; open Home and the Connect popup. Record what the walk could not show.
 - [ ] 7.5 From an empty folder on this host, run the pinned bootstrap's `login` and `code` against the preview with a real sign-in, then `list` from inside the copy. This needs the owner's sign-in on this computer; if it is not available, it stays a named blocker for a person.

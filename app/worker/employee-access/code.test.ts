@@ -25,9 +25,9 @@ function artifacts({ remote = REMOTE, plaintext = "art_v1_synthetic_read" } = {}
   const binding = new Proxy({}, { get: (_, method: string) => async (...args: unknown[]) => {
     calls.push([method, ...args]);
     // Awaiting the handle asks it for `then`: it has none.
-    return new Proxy({ remote }, { get: (repo, name: string) => name === "remote" ? repo.remote : name === "then" ? undefined : async (...made: unknown[]) => {
+    return new Proxy({}, { get: (_repo, name: string) => name === "then" ? undefined : async (...made: unknown[]) => {
       calls.push([name, ...made]);
-      return { plaintext };
+      return name === "info" ? { remote } : { plaintext };
     } });
   } });
   return { calls, env: { WONG_CODE_REPOSITORY: "recipe-box", ARTIFACTS: binding } };
@@ -82,7 +82,7 @@ it("finds where the project is kept without calling anything, and refuses a name
   expect(codeSource(kept.env)).toMatchObject({ name: "recipe-box" });
   expect(kept.calls).toEqual([]);
   expect(await upstream(kept.env)).toEqual({ url: REMOTE, authorization: "Bearer art_v1_synthetic_read" });
-  expect(kept.calls).toEqual([["get", "recipe-box"], ["createToken", "read", 300]]);
+  expect(kept.calls).toEqual([["get", "recipe-box"], ["info"], ["createToken", "read", 300]]);
   for (const broken of [artifacts({ remote: "http://account.artifacts.example.net/git/wongstack/recipe-box.git" }), artifacts({ remote: "https://user:pass@account.artifacts.example.net/x.git" }),
     artifacts({ remote: `${REMOTE}?token=1` }), artifacts({ remote: `${REMOTE}#main` }), artifacts({ remote: "not an address" }), artifacts({ plaintext: "" })]) {
     expect(await upstream(broken.env)).toBeNull();
