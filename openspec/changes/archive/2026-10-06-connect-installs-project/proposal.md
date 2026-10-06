@@ -137,3 +137,4 @@ None.
 - **2026-10-06** — Proof (7.5) found one older bug, fixed: inside a copy, listing company actions with no search words sent the word "undefined" as the search and came back empty. `scripts/company-api.mjs` now leaves out an option nobody gave; the list then showed the three actions.
 - **2026-10-06** — Build order: the look at Access's Keys view and Home's popup moved from task 7.4 to the publish walk, because that walk runs a browser on the saved preview anyway; 7.4 keeps the requests, all observed.
 - **2026-10-06** — Archive checkpoint: all tasks done and proven on previews; archived for publishing as 35.1.0.
+- **2026-10-06** — Archive checkpoint: the owner asked to publish; every task is ticked, both kinds of project were proven on a preview, and it is numbered 35.1.0. The live app already holds the read-only GitHub key.
