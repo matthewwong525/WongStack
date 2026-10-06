@@ -1,4 +1,4 @@
-# /dream's record fits, and three guides catch up
+# Three guides catch up with what chats learned
 
 **Status:** ready-to-ship
 
@@ -8,17 +8,10 @@
 
 ## Why
 
-The first real dream stopped at its last step: its record of the pages it checked was longer than one memory note allows. The same dream listed gaps on pages WongStack ships, which a dream never edits itself, and the owner asked for those fixed.
+The first real dream listed gaps on pages WongStack ships, which a dream never edits itself, and the owner asked for those fixed. The same dream also found its own record was too long for one memory note; release 37.0.0 fixed that separately while this change waited, so only a test for it remains here.
 
 ## What Changes
 
-- **A dream's record of the pages it checked always fits.** It is split across several notes when one would be too long, and the next dream reads them all.
-  ```text
-  12 pages ─▶ one note? ─▶ too long
-                 │
-                 ▼
-          two notes ─▶ next dream reads both
-  ```
 - **The change loop says where a check goes when it can only happen after publishing**: a line in the plan's Decision log, not a task that can never be ticked.
 - **Browsing says never to close every browser at once**, because that closes every chat's browser on the computer.
 - **Cloudflare credentials says how a one-off permission is handled**: ask first, then a short-lived key for that permission alone.
@@ -37,7 +30,7 @@ None. No promise changes: a dream still counts as the last dream, and the three 
 
 ## Impact
 
-- `.agents/skills/dream/SKILL.md` (one clause in the record step) and `scripts/tests/dream.test.mjs` (one test).
+- `scripts/tests/dream.test.mjs`: one test that a dream recorded across two facts counts the pages of both.
 - `wiki/development/the-change-loop.md`, `wiki/development/browsing.md`, `wiki/stack/cloudflare-credentials.md`: one addition each.
 - `CHANGELOG.md`: a `patch` entry.
 
@@ -47,3 +40,5 @@ None. No promise changes: a dream still counts as the last dream, and the three 
 - **2026-10-06** — Assumed: the record is split across notes and the script is left as it is, because the script already counts pages from every dream note and the first dream's two notes read back correctly.
 - **2026-10-06** — Assumed: the tools page is not edited, because the fact behind that gap contradicts what setup does today, and a page should not say what the code does not do.
 - **2026-10-06** — Assumed: the one-off permission line says to ask first, because the fact records that each use followed the owner's yes and the page's standing permission covers the normal widen only.
+- **2026-10-06** — Assumed: this change's own edit to the dream skill is dropped, because release 37.0.0 renamed the skill to `/dream-memory` and its record step already splits a long page list; the test is kept, since it passes against the renamed script.
+- **2026-10-06** — Asked how to clear a publish blocked by failed dependency-update runs on the published version → answered to try again once it was fixed; 37.0.0 made the publish step count only the project's own checks.

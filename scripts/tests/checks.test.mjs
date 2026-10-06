@@ -10,6 +10,10 @@ const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const script = join(repo, '.github/scripts/checks.mjs');
 const scopeScript = join(repo, '.github/scripts/app-untouched.sh');
 const pkg = testCommand => JSON.stringify({ scripts: testCommand ? { test: testCommand } : {} });
+// A suite that can prove its checks still fail on a bad sample.
+const provable = { 'app/package.json': JSON.stringify({ scripts: { test: 'fixture-test', 'test:checks': 'fixture-proof' } }) };
+// The coverage folder is passed on, so a run under test counts toward the suite's coverage.
+const coverage = process.env.NODE_V8_COVERAGE ? { NODE_V8_COVERAGE: process.env.NODE_V8_COVERAGE } : {};
 const wiki = '# Wiki\n\nThe project wiki explains this fixture.\n';
 
 function fixture(t, files = { 'app/package.json': pkg('fixture-test') }) {
@@ -28,7 +32,7 @@ function fixture(t, files = { 'app/package.json': pkg('fixture-test') }) {
     // A platform repository's ambient event must not select this project's diff.
     GITHUB_EVENT_NAME: 'push', GITHUB_REF_NAME: 'platform', DEFAULT_BRANCH: 'foreign', BEFORE_SHA: '0'.repeat(40),
   };
-  writeFileSync(join(bin, 'npm'), '#!/bin/sh\nprintf "%s|%s\\n" "$PWD" "$*" >> "$CHECK_NPM_LOG"\nif [ "$1" = ci ]; then exit "${CHECK_INSTALL_STATUS:-0}"; fi\nexit "${CHECK_TEST_STATUS:-0}"\n');
+  writeFileSync(join(bin, 'npm'), '#!/bin/sh\nprintf "%s|%s\\n" "$PWD" "$*" >> "$CHECK_NPM_LOG"\nif [ "$1" = ci ]; then exit "${CHECK_INSTALL_STATUS:-0}"; fi\nif [ "$1" = run ]; then exit "${CHECK_PROOF_STATUS:-0}"; fi\nexit "${CHECK_TEST_STATUS:-0}"\n');
   chmodSync(join(bin, 'npm'), 0o755);
   const git = (...args) => execFileSync('git', args, { cwd: work, env, encoding: 'utf8' }).trim();
   git('init', '-q', '-b', 'main');
@@ -286,8 +290,6 @@ function localFixture(t, files) {
     mkdirSync(dirname(join(f.work, path)), { recursive: true });
     writeFileSync(join(f.work, path), text);
   };
-  // The coverage folder is passed on, so these runs count toward the suite's coverage.
-  const coverage = process.env.NODE_V8_COVERAGE ? { NODE_V8_COVERAGE: process.env.NODE_V8_COVERAGE } : {};
   const local = (args = [], vars = {}) => spawnSync(process.execPath, [script, '--worktree', '--repo', f.work, ...args],
     { cwd: root, env: { ...f.env, ...coverage, WONG_CHECKS_LOCK: lock, ...vars }, encoding: 'utf8' });
   return { ...f, root, lock, edit, local };
@@ -445,4 +447,123 @@ test('the pre-check refuses commit arguments, and its options need --worktree', 
   assert.match(outside.stderr, /Checks unavailable/);
   assert.deepEqual(f.calls(), []);
   assert.equal(existsSync(f.lock), false);
+});
+
+// ── The proof that each check still fails on a bad sample ──────────────────────
+
+const steps = f => f.calls().map(call => call.split('|')[1]);
+const INSTALL = 'ci --no-audit --no-fund';
+const PROVE = 'run test:checks';
+// A Decision log that explains `path`, so the loosened-check guard passes beside the proof.
+const explained = path => ({ 'openspec/changes/example/proposal.md': `# Example\n\n## Decision log\n\n- **2026-10-06** — Check: \`${path}\` is this fixture's change.\n` });
+
+test("a change to a check's settings, the suite's packages or the proof itself proves the checks still fail", t => {
+  for (const path of ['app/.jscpd.json', 'app/package-lock.json', 'scripts/check-app-checks.mjs']) {
+    const f = fixture(t, provable);
+    f.commit({ [path]: '{}\n', ...explained(path) });
+    const result = f.run(['--summary', f.summary], coverage);
+    passes(result);
+    assert.deepEqual(steps(f), [INSTALL, 'test', PROVE], path);
+    assert.equal(f.calls().at(-1), `${join(f.work, 'app')}|${PROVE}`, 'in the suite\'s folder');
+    assert.match(result.stdout, /suite ran: success\. Each check was handed a bad sample and still fails on it\./);
+    assert.match(readFileSync(f.summary, 'utf8'), /still fails on it/);
+  }
+});
+
+test('a settings file that was renamed away counts by the name it had', t => {
+  const f = fixture(t, { ...provable, 'app/knip.json': '{ "entry": ["index.js"], "project": ["**/*.js"] }\n' });
+  f.git('mv', 'app/knip.json', 'app/unused.json');
+  f.commit(explained('app/knip.json'));
+  passes(f.run([], coverage));
+  assert.deepEqual(steps(f), [INSTALL, 'test', PROVE]);
+});
+
+test('a change to a screen skips the proof and says so, and so does a suite with no proof', t => {
+  const f = fixture(t, provable);
+  f.commit({ 'app/index.js': 'export const x = 2;\n' });
+  const result = f.run(['--summary', f.summary], coverage);
+  passes(result);
+  ranOnce(f);
+  assert.match(result.stdout, /The bad-sample proof skipped, because no check's settings or tools changed\./);
+  assert.match(readFileSync(f.summary, 'utf8'), /bad-sample proof skipped/);
+  const bare = fixture(t);
+  bare.commit({ 'app/.jscpd.json': '{}\n', ...explained('app/.jscpd.json') });
+  const none = bare.run([], coverage);
+  passes(none);
+  ranOnce(bare);
+  assert.match(none.stdout, /The bad-sample proof skipped, because the suite has no `test:checks` script\./);
+});
+
+test('with no base to compare, the proof runs', t => {
+  const f = fixture(t, provable);
+  f.commit({ 'app/index.js': 'export const x = 2;\n' });
+  passes(f.run(['--base', ''], coverage));
+  assert.deepEqual(steps(f), [INSTALL, 'test', PROVE]);
+});
+
+test('a check that lets a bad sample through fails the shared gate, and a failed install never reaches the proof', t => {
+  const f = fixture(t, provable);
+  f.commit({ 'app/.jscpd.json': '{}\n', ...explained('app/.jscpd.json') });
+  const result = f.run(['--summary', f.summary], { ...coverage, CHECK_PROOF_STATUS: '1' });
+  assert.equal(result.status, 1, result.stderr);
+  assert.match(result.stdout, /suite ran: success\. A check let a bad sample through, so it has stopped checking/);
+  // A red suite still reaches the proof: one failure must not hide the other.
+  const both = f.run([], { ...coverage, CHECK_TEST_STATUS: '7', CHECK_PROOF_STATUS: '1' });
+  assert.match(both.stdout, /suite ran: failure\. A check let a bad sample through/);
+  const before = f.calls().length;
+  const broken = f.run([], { ...coverage, CHECK_INSTALL_STATUS: '3' });
+  assert.equal(broken.status, 1);
+  assert.deepEqual(steps(f).slice(before), [INSTALL]);
+  assert.doesNotMatch(broken.stdout, /bad sample/);
+});
+
+test('the pre-check proves the checks when a setting changed, names a failed proof, and reruns it alone', t => {
+  const f = localFixture(t, provable);
+  f.edit('app/.jscpd.json', '{}\n');
+  f.edit('openspec/changes/example/proposal.md', Object.values(explained('app/.jscpd.json'))[0]);
+  const result = f.local();
+  passes(result);
+  assert.deepEqual(steps(f), [INSTALL, 'test', PROVE]);
+  assert.match(result.stdout, /^Each check was handed a bad sample and still fails on it\.$/m);
+  assert.equal(verdict(result), 'LOCAL_CHECKS=pass');
+  const failing = f.local([], { CHECK_PROOF_STATUS: '1' });
+  assert.equal(failing.status, 1, failing.stderr);
+  assert.equal(verdict(failing), 'LOCAL_CHECKS=fail (proof)');
+  assert.match(failing.stdout, /^A check let a bad sample through, so it has stopped checking/m);
+  assert.match(failing.stdout, /--worktree --only proof$/m);
+  const before = f.calls().length;
+  const alone = f.local(['--only', 'proof'], { CHECK_PROOF_STATUS: '1' });
+  assert.equal(verdict(alone), 'LOCAL_CHECKS=fail (proof)');
+  assert.deepEqual(steps(f).slice(before), [INSTALL, PROVE], 'the suite did not run again');
+  // The suite alone leaves the proof out.
+  passes(f.local(['--only', 'suite'], { CHECK_PROOF_STATUS: '1' }));
+  assert.deepEqual(steps(f).slice(before + 2), [INSTALL, 'test']);
+});
+
+test('the pre-check skips the proof for a change to a screen and for a suite with none, and says so', t => {
+  const f = localFixture(t, provable);
+  f.edit('app/index.js', 'export const x = 2;\n');
+  const result = f.local();
+  passes(result);
+  ranOnce(f);
+  assert.match(result.stdout, /^The bad-sample proof skipped, because no check's settings or tools changed\.$/m);
+  // Asked for alone, a proof with nothing to prove installs nothing.
+  passes(f.local(['--only', 'proof']));
+  assert.equal(f.calls().length, 2);
+  const bare = localFixture(t);
+  bare.edit('app/.jscpd.json', '{}\n');
+  const none = bare.local(['--only', 'suite,proof']);
+  passes(none);
+  ranOnce(bare);
+  assert.match(none.stdout, /^The bad-sample proof skipped, because the suite has no `test:checks` script\.$/m);
+});
+
+test('a proof that can not start for want of npm is "not run", never a pass', t => {
+  const f = localFixture(t, { ...provable, '.gitignore': 'node_modules/\n' });
+  f.edit('app/.jscpd.json', '{}\n');
+  f.edit('app/node_modules/.package-lock.json', '{}\n');
+  const result = f.local(['--only', 'proof'], { PATH: pathWithout(f.root, ['npm', 'npx']) });
+  assert.equal(result.status, 7, `${result.stdout}${result.stderr}`);
+  assert.equal(verdict(result), 'LOCAL_CHECKS=not run (npm is not installed)');
+  assert.doesNotMatch(result.stdout, /bad sample/);
 });

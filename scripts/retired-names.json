@@ -89,5 +89,9 @@
   {"name": "#hand-the-browser-over", "replacement": "`wiki/development/browsing.md#when-a-step-needs-you`, or `#how-private-links-work` for what every private link shares", "allow": ["scripts/tests/fixtures/document-retrieval/corpus/wiki/development/browsing.md", "scripts/tests/fixtures/document-retrieval/corpus/wiki/development/required-tools.md"], "why": "this exact frozen retrieval fixture preserves the wording of its pinned snapshot and its reviewed source hash"},
   {"name": "#repository-access-stays-manual", "replacement": "`wiki/stack/employee-project.md#publishing-stays-manual`"},
   {"name": "paseo-routines", "replacement": "the `cloud-routines` spec and `wiki/stack/cloud-routines.md`"},
-  {"name": "ROUTINE_PASEO_BIN", "replacement": "nothing: `/routine` no longer calls Paseo"}
+  {"name": "ROUTINE_PASEO_BIN", "replacement": "nothing: `/routine` no longer calls Paseo"},
+  {"name": "`/improve`", "replacement": "`/improve-code`, which plans one code-structure improvement and stops", "allow": ["openspec/specs/cloud-routines/spec.md", "openspec/specs/multi-part-workspaces/spec.md", "scripts/tests/fixtures/document-retrieval/corpus/wiki/agent-knowledge-center.md"], "why": "the two specs describe routines made under the old name, which still run the renamed skill; the frozen retrieval fixture keeps the wording of its pinned snapshot"},
+  {"name": "`/dream`", "replacement": "`/dream-memory`", "allow": ["openspec/specs/cloud-routines/spec.md", "scripts/tests/fixtures/document-retrieval/corpus/openspec/changes/archive/2026-09-25-add-memory-store/proposal.md"], "why": "the cloud-routines spec says a routine made under the old name still runs the renamed skill; the frozen retrieval fixture keeps the wording of its pinned snapshot"},
+  {"name": "skills/improve/", "replacement": "`.agents/skills/improve-code/`", "allow": ["scripts/fixtures/context-baseline.json"], "why": "the fixture is the measured before-state of 19.0.0"},
+  {"name": "skills/dream/", "replacement": "`.agents/skills/dream-memory/`"}
 ]

@@ -1,8 +1,8 @@
 # Tasks
 
-## 1. The dream skill
+## 1. The dream script's test
 
-- [x] 1.1 In `.agents/skills/dream/SKILL.md`, say the record is written as several dream facts when the page list would pass a fact's 400 characters, and add a test to `scripts/tests/dream.test.mjs` that two same-day dream facts count the pages of both. Done when `node --test scripts/tests/dream.test.mjs` passes.
+- [x] 1.1 Add a test to `scripts/tests/dream.test.mjs` that two same-day dream facts count the pages of both. The skill's own wording was fixed by release 37.0.0. Done when `node --test scripts/tests/dream.test.mjs` passes.
 
 ## 2. The shipped pages
 

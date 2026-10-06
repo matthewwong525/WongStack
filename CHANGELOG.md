@@ -3,15 +3,48 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (patch) — Three guides say what chats learned
 
-## Next (patch) — /dream's record fits, and three guides say what chats learned
-
-- **A dream's record of the pages it checked now always fits.** Past about six pages the record was longer than one memory note allows, so the last step of a dream stopped. It is now split across notes, and the next dream reads them all.
 - **The change loop says where a check goes when it can only happen after publishing**: a line in the plan's Decision log, not a task. A task like *confirm the live look* could never be ticked, because publishing files the plan away first.
 - **Browsing says never to close every browser at once.** `agent-browser close --all` closes every chat's browser on the computer; a test names its own session.
 - **Cloudflare credentials says how a one-off permission is handled**: ask first, then a 15-minute key for that permission alone, never written to a file.
 
 **Updating.** Nothing needs doing by hand.
+
+## 37.0.1 — The session speed guide says which logs count by address
+
+- **A maintainers' guide is corrected.** [Measure session speed](wiki/maintaining/measure-session-speed.md) said any session log counts when it records this project's address. Only a Codex log records one; a Claude Code session counts by its folder alone. No install receives this page, so nothing changes for you.
+
+## 37.0.0 — /improve-code plans code fixes and /dream-memory checks everything your project remembers
+
+- **Two clearer names.** `/improve` is now `/improve-code` and `/dream` is now `/dream-memory`. Each name says what it works on.
+- **Schedules you already made keep running.** A schedule that still uses an old name runs the renamed skill.
+- **`/improve-code` works only on how the code is built.** It makes the code simpler and safer to change. A new feature or a wording fix is a normal request, and trouble with memory or the wiki goes to `/dream-memory`.
+- **It plans, then stops for you.** It no longer builds or publishes on its own. It finds one improvement, writes the plan with the reason and the evidence, and ends at the plan's link, where you choose to build it, change it, or drop it. A scheduled run leaves the plan saved and waiting, and writes no second plan while one waits.
+- **It looks where the trouble is.** It starts from where past chats struggled and where the code changes most, not from a checklist.
+- **Its plan proves the change is safe, or undoes it.** Every plan first locks in what the code does today with a test, then reshapes it. If the built result is not easier to read, the build undoes it and says so.
+- **It remembers a no.** An idea it turned down, or a plan you dropped, is saved with the reason, so a later run does not suggest it again.
+- **Every run ends one of three ways**: clean, planned, or blocked.
+- **`/dream-memory` reads everything your project remembers.** It compares the wiki, saved facts, the specs, and past plans with each other and with the code. It fixes your own wiki pages and saved facts itself. A spec that is wrong, or a plan left half done, it lists for your yes.
+- **It corrects saved facts the project has outgrown.** A fact that names a file that is gone gets a newer fact saying what is true. The old one stays as history.
+- **A stricter test for what goes on the wiki.** A fact is kept only if it will still be true in six months and would change what someone does. Guidance that exists but is buried gets moved or reworded, not written a second time.
+- **A fault in the product is reported, not hidden.** When a page is right and the product is wrong, the page is left alone and the fault is passed to `/improve-code`.
+- **A publish is no longer blocked by Dependabot's own update job.** When GitHub's automatic security update can not find a version to move to, its failed job sat on the newest commit and stopped every publish. The publish step now counts only the project's own checks.
+
+[Code improvement](wiki/development/repository-improvement.md) and [Memory dream](wiki/development/wiki-dream.md) say how each works.
+
+**Updating.** Type `/improve-code` where you typed `/improve`, and `/dream-memory` where you typed `/dream`; the old names no longer work when typed. Schedules you already made keep running with no change. `/improve-code` now stops at a plan, so nothing is built until you say yes.
+
+## 36.4.0 — Checks that can't go quiet
+
+- **A check that has stopped checking turns red.** A check can switch itself off and still pass: the repeated-code check once passed everything because its settings file held a comment. Now, when a change touches a check's settings or the version of a tool behind one, each check is handed a small piece of code that is wrong on purpose. A check that lets it through is named, and the change can't be published. Other changes skip this, so they take no longer.
+- **Wrong-typed code is caught before you see a preview.** The type check used to run only while the preview was built, after the required check had passed. It now runs with the required check, and on your assistant's computer before work is saved. It also reads the server's test files, which nothing read before.
+- **A small app keeps to its own folder.** A small app may use its own files and the shared parts and helpers. One that reaches into another app, a main page, or the server's core fails the check, which names the file. The supplied apps already keep to theirs.
+- **WongStack's own scripts keep the testing they have.** 92 of every 100 of their lines are tested, and the floor that stops this from falling moves up from 85 to 92. This changes nothing in your project.
+
+[Mini apps](wiki/stack/mini-apps.md#the-rules) says when a check is made to prove itself, and holds the folder rule.
+
+**Updating.** Nothing needs doing by hand. After the update, the checks also read your app's types, test files included, and keep each small app to its own folder. If a check names something in a screen or a test your assistant built, the update's plan lists it and your assistant fixes it.
 
 ## 36.3.0 — /dream keeps your memory and wiki current
 

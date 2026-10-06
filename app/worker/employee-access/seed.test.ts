@@ -4,6 +4,7 @@ import { database, owner, req } from '../../tests/employee-access/connections';
 import { management } from './management';
 import { codeState } from './code';
 import { authorizeRequest, currentPolicy } from './policy';
+import { body } from '../../tests/body';
 it('staging starts with practice people, a role, one manager and key levels on, and holds no provider work or key', async () => {
   const { sql, DB } = database();
   try {
@@ -19,7 +20,7 @@ it('staging starts with practice people, a role, one manager and key levels on, 
     }
     // The committed owner email, not the seeded row, decides who manages the practice list.
     const env = { DB, WONG_ENVIRONMENT: 'staging', WONG_OWNER_EMAIL: owner.id };
-    const opened = await (await management(req('status', 'GET'), env, owner)).json();
+    const opened = await body(await management(req('status', 'GET'), env, owner));
     // One role held by two people, with Project code; one person with their own set at Read and no Project code; one at None.
     // Dana is the one manager, with the same apps and key level as before.
     expect(opened).toMatchObject({ environment: 'practice', key: 'practice', started: true, keysStarted: true, kept: 0,

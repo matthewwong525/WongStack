@@ -105,18 +105,13 @@
 </header>
 <section id="why" aria-labelledby="why-h"><h2 id="why-h">Why</h2>
 <div class="card">
-<p data-note="why-1" tabindex="0">The first real dream stopped at its last step: its record of the pages it checked was longer than one memory note allows. The same dream listed gaps on pages WongStack ships, which a dream never edits itself, and the owner asked for those fixed.</p>
+<p data-note="why-1" tabindex="0">The first real dream listed gaps on pages WongStack ships, which a dream never edits itself, and the owner asked for those fixed. The same dream also found its own record was too long for one memory note; release 37.0.0 fixed that separately while this change waited, so only a test for it remains here.</p>
 </div></section>
 <section id="changes" aria-labelledby="changes-h"><h2 id="changes-h">What Changes</h2>
 <ol class="items">
-<li class="item card" id="item-1"><span class="num">1</span><div class="body"><div class="text" data-note="item-1" tabindex="0"><b>A dream's record of the pages it checked always fits.</b> It is split across several notes when one would be too long, and the next dream reads them all.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
-<span class="ln" data-note="item-1-line-1" tabindex="0">12 pages ─▶ one note? ─▶ too long</span>
-<span class="ln" data-note="item-1-line-2" tabindex="0">               │</span>
-<span class="ln" data-note="item-1-line-3" tabindex="0">               ▼</span>
-<span class="ln" data-note="item-1-line-4" tabindex="0">        two notes ─▶ next dream reads both</span></pre></div></details></li>
-<li class="item card" id="item-2"><span class="num">2</span><div class="body"><div class="text" data-note="item-2" tabindex="0"><b>The change loop says where a check goes when it can only happen after publishing</b>: a line in the plan's Decision log, not a task that can never be ticked.</div></div></li>
-<li class="item card" id="item-3"><span class="num">3</span><div class="body"><div class="text" data-note="item-3" tabindex="0"><b>Browsing says never to close every browser at once</b>, because that closes every chat's browser on the computer.</div></div></li>
-<li class="item card" id="item-4"><span class="num">4</span><div class="body"><div class="text" data-note="item-4" tabindex="0"><b>Cloudflare credentials says how a one-off permission is handled</b>: ask first, then a short-lived key for that permission alone.</div></div></li>
+<li class="item card" id="item-1"><span class="num">1</span><div class="body"><div class="text" data-note="item-1" tabindex="0"><b>The change loop says where a check goes when it can only happen after publishing</b>: a line in the plan's Decision log, not a task that can never be ticked.</div></div></li>
+<li class="item card" id="item-2"><span class="num">2</span><div class="body"><div class="text" data-note="item-2" tabindex="0"><b>Browsing says never to close every browser at once</b>, because that closes every chat's browser on the computer.</div></div></li>
+<li class="item card" id="item-3"><span class="num">3</span><div class="body"><div class="text" data-note="item-3" tabindex="0"><b>Cloudflare credentials says how a one-off permission is handled</b>: ask first, then a short-lived key for that permission alone.</div></div></li>
 </ol>
 <p class="aside"><b>Non-goals:</b> Changing when setup installs the browser and tunnel tools. The owner said on 2026-10-04 that a tool should be downloaded only when a task needs it, and setup offers those two up front; that is a behaviour question for its own change, so the tools page is left as it is.</p>
 
@@ -127,6 +122,8 @@
 <li class="decision card" id="decision-2" data-note="decision-2" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-06</p>Assumed: the record is split across notes and the script is left as it is, because the script already counts pages from every dream note and the first dream's two notes read back correctly.</li>
 <li class="decision card" id="decision-3" data-note="decision-3" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-06</p>Assumed: the tools page is not edited, because the fact behind that gap contradicts what setup does today, and a page should not say what the code does not do.</li>
 <li class="decision card" id="decision-4" data-note="decision-4" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-06</p>Assumed: the one-off permission line says to ask first, because the fact records that each use followed the owner's yes and the page's standing permission covers the normal widen only.</li>
+<li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-06</p>Assumed: this change's own edit to the dream skill is dropped, because release 37.0.0 renamed the skill to <code>/dream-memory</code> and its record step already splits a long page list; the test is kept, since it passes against the renamed script.</li>
+<li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-06</p>Asked how to clear a publish blocked by failed dependency-update runs on the published version → answered to try again once it was fixed; 37.0.0 made the publish step count only the project's own checks.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

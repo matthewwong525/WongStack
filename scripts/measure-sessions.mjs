@@ -43,7 +43,9 @@ failed-check lookups, and local check runs, by model and thinking level.
 --all-repos  count every session
 --codex, --claude  log folders to read instead of the ones under your home folder`;
 
-const VERB = /(?:^|[\s>])[$/](explore|plan|apply|save|ship|continue|close|verify|improve|routine|wong-sync)\b/;
+const VERB = /(?:^|[\s>])[$/](explore|plan|apply|save|ship|continue|close|verify|improve-code|improve|dream-memory|dream|routine|wong-sync)\b/;
+// A skill's older name counts with its current one.
+const RENAMED = { improve: 'improve-code', dream: 'dream-memory' };
 const PAGE = /(?:^|[\s"'=(/])((?:\.claude|\.agents|\.codex)\/skills\/[\w./-]+?\.md|wiki\/[\w./-]+?\.md|AGENTS\.md|CLAUDE\.md)\b/g;
 const READER = /(?:^|[\s;|&(])(?:cat|sed|head|tail|less|nl|rg|grep|awk|bat|read)\s/;
 const LOOKUP = /\bgh\s+run\s+view\b[^|;&]*--log/;
@@ -53,7 +55,10 @@ const WAITS = new Set(['wait_agent', 'wait', 'sleep']);
 
 const walk = dir => (existsSync(dir) ? readdirSync(dir, { withFileTypes: true }).flatMap(entry => (entry.isDirectory() ? walk(join(dir, entry.name)) : [join(dir, entry.name)])) : []);
 const records = file => readFileSync(file, 'utf8').split('\n').flatMap(line => { try { return line ? [JSON.parse(line)] : []; } catch { return []; } });
-const verbOf = text => (/^\s*(<environment_context>|# AGENTS\.md)/.test(text) ? null : text.match(VERB)?.[1] ?? null);
+const verbOf = text => {
+  const verb = /^\s*(<environment_context>|# AGENTS\.md)/.test(text) ? null : text.match(VERB)?.[1] ?? null;
+  return RENAMED[verb] ?? verb;
+};
 const normalUrl = url => String(url ?? '').trim().replace(/^[a-z+]+:\/\//, '').replace(/^git@([^:]+):/, '$1/').replace(/\.git$/, '').replace(/\/$/, '').toLowerCase();
 
 /** The pages a read-like command names, with the three skill folders counted as one. */

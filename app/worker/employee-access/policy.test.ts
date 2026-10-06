@@ -8,6 +8,8 @@ import { defineAction, dispatch, registrations, type Registration } from "../api
 import { handleApi } from "../api/router";
 import { discovery } from "../api/discovery";
 import { appAccess, appPageDenied } from "./apps";
+import { body } from "../../tests/body";
+import { fakeDatabase, fakeEnv } from "../../tests/env";
 
 // The built folders are the catalogue; these tests name apps this repo does not build.
 vi.mock("./catalogue.ts", () => ({ catalogue: ["access", "frontend-only", "hello", "new-app", "orders", "payroll"] }));
@@ -26,7 +28,7 @@ const request = () => new Request(`${origin}/api/orders`);
 const access: RouteAccess = { apps: ["orders"] };
 const read = (identity: AccessIdentity | null = employee, bindings = env) => currentPolicy(bindings, identity);
 /** A database that answers every permission read with one fixed row. */
-const answering = (row: unknown) => ({ ...env, DB: { withSession: () => ({ prepare: () => ({ bind: () => ({ first: async () => row }) }) }) } as unknown as D1Database });
+const answering = (row: unknown) => ({ ...env, DB: fakeDatabase({ withSession: () => ({ prepare: () => ({ bind: () => ({ first: async () => row }) }) }) }) });
 
 beforeEach(() => {
   sql = new DatabaseSync(":memory:");
@@ -45,7 +47,7 @@ beforeEach(() => {
   const session = { prepare: (query: string) => ({ bind: (email: string) => ({
     first: async () => sql.prepare(query).get(email) ?? null,
   }) }) };
-  env = { DB: { withSession: vi.fn(() => session) } as unknown as D1Database, WONG_OWNER_EMAIL: "owner@example.com",
+  env = { DB: fakeDatabase({ withSession: vi.fn(() => session) }), WONG_OWNER_EMAIL: "owner@example.com",
     CF_ACCESS_TEAM_DOMAIN: "business.cloudflareaccess.com", CF_ACCESS_AUD: "business-app" };
 });
 afterEach(() => sql.close());
@@ -228,7 +230,7 @@ it("ignores a grant for an app that is no longer built", async () => {
 
 it("denies rather than opens when started permission data is missing, unreadable or malformed", async () => {
   expect(await read(employee, { ...env, DB: undefined })).toEqual({ state: "unavailable" });
-  const failed = { ...env, DB: { withSession: () => { throw new Error("private database detail"); } } as unknown as D1Database };
+  const failed = { ...env, DB: fakeDatabase({ withSession: () => { throw new Error("private database detail"); } }) };
   expect(await read(employee, failed)).toEqual({ state: "unavailable" });
   const denied = await authorizeRequest(failed, employee, access);
   expect(denied?.status).toBe(503);
@@ -259,9 +261,9 @@ it("gates bare and described main dispatch before business work, with no unmappe
   const req = request();
   const call = { url: new URL(req.url), route: req.url, identity: employee };
   for (const route of [handler, action]) {
-    expect((await dispatch(route, req, env, call, access)).status).toBe(200);
+    expect((await dispatch(route, req, fakeEnv(env), call, access)).status).toBe(200);
     for (const mapping of [undefined, { apps: ["payroll"] }]) {
-      const result = await dispatch(route, req, env, call, mapping);
+      const result = await dispatch(route, req, fakeEnv(env), call, mapping);
       expect(result.status).toBe(403);
       expect(result.headers.get("Cache-Control")).toBe("no-store");
       expect(await result.json()).toMatchObject({ error: { code: "forbidden", message: "App access denied" } });
@@ -269,7 +271,7 @@ it("gates bare and described main dispatch before business work, with no unmappe
   }
   expect(handler).toHaveBeenCalledTimes(2);
   sql.exec("UPDATE wong_access_members SET status = 'removed'");
-  expect((await dispatch(handler, req, env, call, access)).status).toBe(403);
+  expect((await dispatch(handler, req, fakeEnv(env), call, access)).status).toBe(403);
   expect(handler).toHaveBeenCalledTimes(2);
 });
 
@@ -280,21 +282,21 @@ it("preserves action visibility, record guards, identity and readiness checks co
     agentAvailable: true, errors: {}, examples: [], handler });
   const req = request();
   const call = { url: new URL(req.url), route: "orders", identity: employee };
-  expect((await dispatch({ ...action, allowed: () => false }, req, env, call, access)).status).toBe(403);
-  expect((await dispatch({ ...action, ready: () => false }, req, env, call, access)).status).toBe(503);
-  expect((await dispatch(action, req, env, { ...call, identity: null }, access)).status).toBe(403);
+  expect((await dispatch({ ...action, allowed: () => false }, req, fakeEnv(env), call, access)).status).toBe(403);
+  expect((await dispatch({ ...action, ready: () => false }, req, fakeEnv(env), call, access)).status).toBe(503);
+  expect((await dispatch(action, req, fakeEnv(env), { ...call, identity: null }, access)).status).toBe(403);
   expect(handler).not.toHaveBeenCalled();
   const recordGuard = vi.fn(() => new Response("private record diagnostics", { status: 403 }));
-  const result = await dispatch({ ...action, handler: recordGuard }, req, env, call, access);
+  const result = await dispatch({ ...action, handler: recordGuard }, req, fakeEnv(env), call, access);
   expect(result.status).toBe(403);
   expect(await result.text()).not.toContain("private record diagnostics");
   expect(recordGuard).toHaveBeenCalledTimes(1);
 });
 
 it("keeps the reviewed harmless health exception independent of employee and database authority", async () => {
-  const failed = { ...env, DB: { withSession: vi.fn(() => { throw new Error("offline"); }) } as unknown as D1Database };
+  const failed = { ...env, DB: fakeDatabase({ withSession: vi.fn(() => { throw new Error("offline"); }) }) };
   expect(await authorizeRequest(failed, null, { kind: "infrastructure" })).toBeNull();
-  const health = await handleApi(new Request(`${origin}/api/health`), failed as Env & PolicyEnv);
+  const health = await handleApi(new Request(`${origin}/api/health`), fakeEnv(failed));
   expect(await health.json()).toEqual({ ok: true });
   expect(failed.DB?.withSession).not.toHaveBeenCalled();
 });
@@ -323,16 +325,16 @@ const discover = (path = "/api/actions", headers = {}, caller = employee, bindin
   discovery(new Request(`${origin}${path}`, { headers }), bindings as Env & PolicyEnv, caller, discoveryRoutes());
 
 it("uses reviewed method/path scopes across summaries, details and OpenAPI without ID inference", async () => {
-  const listing = await (await discover()).json();
-  expect(listing.actions.map((item: { operationId: string }) => item.operationId))
+  const listing = await body(await discover());
+  expect(listing.actions.map(item => item.operationId))
     .toEqual(["employee.setup", "main.health", "orders.read"]);
   expect((await discover("/api/actions?id=unrelated.name")).status).toBe(404);
-  const document = await (await discover("/api/openapi.json")).json();
+  const document = await body(await discover("/api/openapi.json"));
   expect(Object.keys(document.paths)).toEqual(["/api/setup", "/api/health", "/apps/orders/api/read"]);
   sql.exec("INSERT INTO wong_access_grants VALUES ('installation', 'employee@example.com', 'payroll', 1)");
   expect((await discover("/api/actions?id=unrelated.name")).status).toBe(200);
-  const ownerListing = await (await discover("/api/actions", {}, owner)).json();
-  expect(ownerListing.actions.map((item: { operationId: string }) => item.operationId))
+  const ownerListing = await body(await discover("/api/actions", {}, owner));
+  expect(ownerListing.actions.map(item => item.operationId))
     .toEqual(["employee.setup", "main.health", "new.read", "orders.read", "owner.manage", "unrelated.name"]);
   expect(env.DB?.withSession).toHaveBeenCalledTimes(5);
 });
@@ -344,7 +346,7 @@ it("names a write's confirming read only once the caller holds that read's app",
     ...registrations(new Map([["POST refund", defineAction({ ...base, operationId: "orders.refund", effect: "write", confirmWith: "payroll.refunds" })]]), "orders"),
     ...registrations(new Map([["GET refunds", defineAction({ ...base, operationId: "payroll.refunds", effect: "read" })]]), "payroll"),
   ];
-  const published = async (path: string) => (await discovery(new Request(`${origin}${path}`), env as Env & PolicyEnv, employee, registry)).json();
+  const published = async (path: string) => body(await discovery(new Request(`${origin}${path}`), env as Env & PolicyEnv, employee, registry));
   expect(await published("/api/actions?id=orders.refund")).not.toHaveProperty("confirmWith");
   expect(JSON.stringify(await published("/api/openapi.json"))).not.toContain("payroll.refunds");
   sql.exec("INSERT INTO wong_access_grants VALUES ('installation', 'employee@example.com', 'payroll', 1)");
@@ -373,9 +375,9 @@ it("rechecks current grants before conditional responses and isolates caller and
   const denied = await discover("/api/actions?id=orders.read", headers);
   expect(denied.status).toBe(404); expect(denied.headers.get("Cache-Control")).toBe("no-store");
   expect(await denied.text()).not.toContain("Synthetic report");
-  expect((await (await discover("/api/actions", headers)).json()).actions.map((item: { operationId: string }) => item.operationId))
+  expect((await body(await discover("/api/actions", headers))).actions.map(item => item.operationId))
     .toEqual(["employee.setup", "main.health"]);
-  expect((await (await discover("/api/openapi.json", headers)).json()).paths).not.toHaveProperty("/apps/orders/api/read");
+  expect((await body(await discover("/api/openapi.json", headers))).paths).not.toHaveProperty("/apps/orders/api/read");
   sql.exec("UPDATE wong_access_members SET status = 'removed' WHERE email = 'employee@example.com'");
   for (const path of ["/api/actions", "/api/actions?id=orders.read", "/api/openapi.json"]) {
     const response = await discover(path, headers);
@@ -389,7 +391,7 @@ it("fails discovery closed on unavailable started policy, and keeps the existing
   for (const path of ["/api/actions", "/api/actions?id=main.health", "/api/openapi.json"]) {
     expect((await discover(path, { "if-none-match": cached }, employee, unavailable)).status).toBe(503);
   }
-  const ids = async () => (await (await discover("/api/actions", { "if-none-match": cached })).json()).actions.map((item: { operationId: string }) => item.operationId);
+  const ids = async () => (await body(await discover("/api/actions", { "if-none-match": cached }))).actions.map(item => item.operationId);
   sql.exec("UPDATE wong_access_installation SET policy_enabled = 0");
   // Not started: the same actions as before Access existed, and never a cached started answer.
   expect(await ids()).toEqual(["employee.setup", "main.health", "new.read", "orders.read", "orders.unmapped", "owner.manage", "unrelated.name"]);
@@ -415,7 +417,7 @@ it("reads frontend app grants with zero-app Access self-service, owner exception
   sql.exec("UPDATE wong_access_installation SET policy_enabled = 1; DELETE FROM wong_access_managers");
   // Client-only apps come from manifests and are allowed only when explicitly assigned.
   sql.exec("INSERT INTO wong_access_apps VALUES ('installation', 'frontend-only'); INSERT INTO wong_access_grants VALUES ('installation', 'employee@example.com', 'frontend-only', 1)");
-  expect((await (await readback()).json()).apps).toEqual(["access", "frontend-only", "orders"]);
+  expect((await body(await readback())).apps).toEqual(["access", "frontend-only", "orders"]);
   sql.exec("DELETE FROM wong_access_grants; UPDATE wong_access_installation SET revision = 2");
   expect(await (await readback()).json()).toEqual({ state: "current", code: "off", role: "employee", manages: false, signIn: true, revision: 2, apps: ["access"], keys: [] });
   sql.exec("UPDATE wong_access_members SET status = 'removed'");
@@ -431,7 +433,7 @@ it("reads frontend app grants with zero-app Access self-service, owner exception
   const open = { ...env, CF_ACCESS_TEAM_DOMAIN: undefined, CF_ACCESS_AUD: undefined, WORKSPACE_LOGIN: "off" };
   for (const [bindings, signIn] of [[env, true], [{ ...env, WONG_ENVIRONMENT: "staging" }, true], [open, false], [{ ...env, CF_ACCESS_AUD: undefined }, false],
     [{ ...env, WONG_ENVIRONMENT: "local", SKIP_AUTH: "true" }, false]] as const) {
-    expect((await (await readback(owner, bindings)).json()).signIn, JSON.stringify(signIn)).toBe(signIn);
+    expect((await body(await readback(owner, bindings))).signIn, JSON.stringify(signIn)).toBe(signIn);
     expect(await (await readback(null, { ...bindings, WONG_OWNER_EMAIL: undefined })).json()).toEqual({ state: "legacy", code: "off", signIn });
   }
   expect((await appAccess(new Request(req, { method: "POST" }), env, employee)).status).toBe(404);

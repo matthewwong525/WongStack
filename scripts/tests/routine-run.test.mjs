@@ -31,7 +31,7 @@ const ENV = {
 };
 const NEVER = ['routines-key-secret', 'cf-user-token-secret', 'cf-deploy-token-secret', 'another-routines-secret'];
 const TOOLS = { manifest: '{"name":"wongstack-routine-tools"}', lock: '{"lockfileVersion":3}' };
-const routine = (overrides = {}) => ({ id: 'a1000000', name: 'improve demo', prompt: '/improve', keys: ['STRIPE_KEY'], maker: MAKER, ...overrides });
+const routine = (overrides = {}) => ({ id: 'a1000000', name: 'improve demo', prompt: '/improve-code', keys: ['STRIPE_KEY'], maker: MAKER, ...overrides });
 const ARTIFACTS_ACCESS = { user: 'x', token: 'art_v1_0123456789abcdef0123456789abcdef01234567' };
 const basic = (user, token) => Buffer.from(`${user}:${token}`).toString('base64');
 const GATEWAY_ENV = { CLOUDFLARE_API_KEY: AI_RUN_TOKEN, CLOUDFLARE_ACCOUNT_ID: ACCOUNT, CLOUDFLARE_GATEWAY_ID: 'demo-routines' };
@@ -70,8 +70,8 @@ test('the prompt is the fixed notice, then the routine\'s text unchanged', () =>
 });
 
 test('a prompt that starts with a verb names its skill file, and the rest of the prompt follows', () => {
-  assert.deepEqual(verbOf('/improve'), { name: 'improve', rest: '' });
-  assert.deepEqual(verbOf('/improve --audit-only\nthe billing page'), { name: 'improve', rest: '--audit-only\nthe billing page' });
+  assert.deepEqual(verbOf('/improve-code'), { name: 'improve-code', rest: '' });
+  assert.deepEqual(verbOf('/improve-code --audit-only\nthe billing page'), { name: 'improve-code', rest: '--audit-only\nthe billing page' });
   assert.deepEqual(verbOf('  /wong-sync  '), { name: 'wong-sync', rest: '' });
   for (const prompt of ['improve', 'please /improve', '/', '/Improve', '/../../etc/passwd', '/improve/..', '/a b/c', undefined]) {
     const verb = verbOf(prompt);
@@ -79,9 +79,21 @@ test('a prompt that starts with a verb names its skill file, and the rest of the
   }
   assert.equal(verbOf('improve'), null);
   assert.equal(verbOf('/../../etc/passwd'), null);
-  assert.equal(skillPromptOf(routine({ prompt: '/improve' })), `${NOTICE}\n\nRead \`.agents/skills/improve/SKILL.md\` and follow it.`);
-  assert.equal(skillPromptOf(routine({ prompt: '/improve --audit-only' })), `${NOTICE}\n\nRead \`.agents/skills/improve/SKILL.md\` and follow it.\n\n--audit-only`);
+  assert.equal(skillPromptOf(routine({ prompt: '/improve-code' })), `${NOTICE}\n\nRead \`.agents/skills/improve-code/SKILL.md\` and follow it.`);
+  assert.equal(skillPromptOf(routine({ prompt: '/improve-code --audit-only' })), `${NOTICE}\n\nRead \`.agents/skills/improve-code/SKILL.md\` and follow it.\n\n--audit-only`);
   assert.equal(skillPromptOf(routine({ prompt: 'find news about our competitors' })), null);
+});
+
+test('a routine made under a skill\'s old name runs the renamed skill, the rest of its prompt unchanged', () => {
+  assert.deepEqual(verbOf('/improve'), { name: 'improve-code', rest: '' });
+  assert.deepEqual(verbOf('/dream --dry-run'), { name: 'dream-memory', rest: '--dry-run' });
+  assert.deepEqual(verbOf('/improve-code'), { name: 'improve-code', rest: '' }, 'the new name is not mapped twice');
+  assert.deepEqual(verbOf('/constructor'), { name: 'constructor', rest: '' }, 'only a listed name is mapped');
+  assert.equal(skillPromptOf(routine({ prompt: '/improve --audit-only' })), `${NOTICE}\n\nRead \`.agents/skills/improve-code/SKILL.md\` and follow it.\n\n--audit-only`);
+  assert.equal(skillPromptOf(routine({ prompt: '/dream' })), `${NOTICE}\n\nRead \`.agents/skills/dream-memory/SKILL.md\` and follow it.`);
+  const held = holdings({ routine: routine({ prompt: '/improve' }), env: ENV, config: ARTIFACTS, access: ARTIFACTS_ACCESS, choice: PICKED });
+  assert.equal(held.agent.WONG_SKILL, 'improve-code', 'the run names the skill that ran');
+  assert.equal(held.agent.WONG_PROMPT, `${NOTICE}\n\n/improve`, 'the stored prompt is kept as typed');
 });
 
 test('a run on a Cloudflare pick is given the gateway\'s three names with the model-only token, this one project, the memory key and its named keys, and nothing else', () => {
@@ -93,8 +105,8 @@ test('a run on a Cloudflare pick is given the gateway\'s three names with the mo
     WONG_ENV_FILE: `CLOUDFLARE_MEMORY_TOKEN=${MEMORY}\nSTRIPE_KEY=sk_live_stripe-secret\n`, WONG_MACHINE_ID: MACHINE,
   });
   assert.deepEqual(held.agent, {
-    ...git, ...GATEWAY_ENV, WONG_PROVIDER: GATEWAY, WONG_MODEL: KIMI, WONG_PROMPT: `${NOTICE}\n\n/improve`,
-    WONG_SKILL: 'improve', WONG_SKILL_PROMPT: `${NOTICE}\n\nRead \`.agents/skills/improve/SKILL.md\` and follow it.`, PI_SKIP_VERSION_CHECK: '1', PI_TELEMETRY: '0',
+    ...git, ...GATEWAY_ENV, WONG_PROVIDER: GATEWAY, WONG_MODEL: KIMI, WONG_PROMPT: `${NOTICE}\n\n/improve-code`,
+    WONG_SKILL: 'improve-code', WONG_SKILL_PROMPT: `${NOTICE}\n\nRead \`.agents/skills/improve-code/SKILL.md\` and follow it.`, PI_SKIP_VERSION_CHECK: '1', PI_TELEMETRY: '0',
   });
   const given = JSON.stringify([held.bootstrap, held.agent]);
   for (const secret of [...NEVER, ZAI_KEY]) assert.equal(given.includes(secret), false, `a run was handed ${secret}`);

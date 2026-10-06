@@ -14,7 +14,8 @@
     "secrets:push": "node ../scripts/cf-secrets.mjs push",
     "secrets:check": "node ../scripts/cf-secrets.mjs check",
     "lint": "oxlint --deny-warnings",
-    "test": "npm run lint && vitest run --coverage && knip && jscpd && node ../scripts/check-app-keys.mjs",
+    "test": "npm run lint && tsc -b && vitest run --coverage && knip && jscpd && node ../scripts/check-app-keys.mjs",
+    "test:checks": "node ../scripts/check-app-checks.mjs",
     "preview": "npm run build && vite preview",
     "deploy": "bash ../scripts/cf-deploy.sh",
     "cf-typegen": "wrangler types"
