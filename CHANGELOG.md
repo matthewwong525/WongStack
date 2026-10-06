@@ -10,6 +10,17 @@
 
 **Updating.** Nothing needs doing by hand.
 
+## 35.2.1 — Access changes need a checked caller
+
+- **A change in Access can't skip the sign-in check.** Every change to people, roles or levels takes a pass that says who is asking. Only the sign-in check hands that pass out now, and code that writes its own no longer builds.
+- **Picking a manager needs the owner's pass.** The code that makes or unmakes a manager takes a pass only the owner gets, so a later change can't forget to ask *is this the owner?*
+- **Nothing on the Access screen changes.** The owner and managers can do what they could before, and every refusal reads the same.
+- **A check stops the old way coming back.** The tests fail, naming the file, when app code marks its own pass as checked.
+
+[Access](wiki/stack/employee-access.md#managers) says what new code takes.
+
+**Updating.** Nothing needs doing by hand, unless your own code builds an Access pass itself. That code now fails the type check, the step that reads the code for mistakes before it is published. Have it call the sign-in check instead.
+
 ## 35.2.0 — Screens that match
 
 - **Every screen starts at the same left edge.** One wide frame holds Home, each small app and Access, and the logo in the top bar lines up with it. Every screen fills it: Home lays your apps side by side, a small app's fields share a line, and a table uses it all. Nothing jumps sideways when you move between screens.
