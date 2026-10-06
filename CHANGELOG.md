@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Checks that can't go quiet
+## 36.4.0 — Checks that can't go quiet
 
 - **A check that has stopped checking turns red.** A check can switch itself off and still pass: the repeated-code check once passed everything because its settings file held a comment. Now, when a change touches a check's settings or the version of a tool behind one, each check is handed a small piece of code that is wrong on purpose. A check that lets it through is named, and the change can't be published. Other changes skip this, so they take no longer.
 - **Wrong-typed code is caught before you see a preview.** The type check used to run only while the preview was built, after the required check had passed. It now runs with the required check, and on your assistant's computer before work is saved. It also reads the server's test files, which nothing read before.
