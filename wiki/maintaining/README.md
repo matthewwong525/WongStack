@@ -6,6 +6,8 @@ The **payload** is the set that [`/wong-sync`](../../.agents/skills/wong-sync/SK
 
 **Editing the payload is a release**, cut by the steps in [the payload rule](../../.agents/rules/payload.md), or the installer's updater can't detect it.
 
+**No tracked file names a private downstream repo or service.** [`scripts/tests/private-names.test.mjs`](../../scripts/tests/private-names.test.mjs) holds the list and fails the checks on a name anywhere but the changelog and `openspec/changes/`. Write *a private repo*, as [the hosted app's archive](hosted-app-archive.md) does.
+
 ## Pages
 
 - [Adding a skill](adding-a-skill.md) — create a new workflow skill and wire it through every surface that installs, versions, and advertises the payload.

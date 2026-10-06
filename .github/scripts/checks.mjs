@@ -2,8 +2,13 @@
 // Portable customer checks. The caller supplies repository context; GitHub
 // and hosted runners use this same entry point without provider credentials.
 //
+// When the change touches a check's settings, the suite's packages, or the proof
+// itself, it also runs the suite's `test:checks` script, which hands each check a
+// bad sample and fails when one lets it through. Other changes skip that proof and
+// say so; a change with no base to compare runs it.
+//
 // With `--worktree`, it checks the uncommitted work on this computer before the
-// first push: the same suite, loosened-check guard, and wiki check, scoped by
+// first push: the same suite, proof, loosened-check guard, and wiki check, scoped by
 // `app-untouched.sh --worktree`. It installs only when `node_modules` is missing
 // or older than the lockfile, and takes turns with other chats through one lock
 // file. This run is a pre-check, never the gate: CI still decides. Its last line
@@ -12,9 +17,10 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import { appendFileSync, existsSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain, parseCli, usageError } from '../../.agents/skills/memory/scripts/lib/cli.mjs';
+import { changedFiles, isSettings } from './check-settings.mjs';
 
 const USAGE = `usage: node .github/scripts/checks.mjs --repo <path> --base <sha-or-empty> --head <sha> --default-branch <name> [--discover] [--summary <path>]
        node .github/scripts/checks.mjs --worktree [--repo <path>] [--default-branch <name>] [--only <parts>] [--lock-wait <seconds>]
@@ -25,12 +31,21 @@ The default branch labels caller context; it does not select the base.
 --discover  print scope and test-suite location as JSON; run no checks
 --summary   append quality reports and the final summary to this file
 --worktree  check the uncommitted work here, before a push; never the gate
---only      with --worktree, rerun only these: suite, loosened, wiki, payload, payload:<step>
+--only      with --worktree, rerun only these: suite, proof, loosened, wiki, payload, payload:<step>
 --lock-wait with --worktree, seconds to wait for another chat's run (default 600)`;
 const scripts = dirname(fileURLToPath(import.meta.url));
 const SHA = /^[0-9a-f]{40}([0-9a-f]{24})?$/;
-const PART = /^(suite|loosened|wiki|payload(:[a-z-]+)?)$/;
+const PART = /^(suite|proof|loosened|wiki|payload(:[a-z-]+)?)$/;
 const NO_TOOLS = 7;
+// The suite's script that proves each of its checks still fails on a bad sample, and the file behind it.
+const PROOF = 'test:checks';
+const PROOF_SCRIPT = 'scripts/check-app-checks.mjs';
+const PROOF_NOTE = {
+  success: 'Each check was handed a bad sample and still fails on it.',
+  failure: 'A check let a bad sample through, so it has stopped checking; see the `test:checks` output above.',
+  unchanged: "The bad-sample proof skipped, because no check's settings or tools changed.",
+  none: 'The bad-sample proof skipped, because the suite has no `test:checks` script.',
+};
 const parseScope = text => Object.fromEntries(text.trim().split('\n').map(line => line.split('=')));
 
 function context(values) {
@@ -62,6 +77,22 @@ function suiteDir(repo) {
     }
   }
   return null;
+}
+
+/**
+ * Whether this change calls for the proof: 'run' when it touches a check's settings, the
+ * suite's packages, or the proof itself, and when there is no base to compare; 'unchanged'
+ * when it touches none of them; 'none' when the suite has no `test:checks` script.
+ */
+function proofWanted(repo, dir, base, worktree) {
+  if (!JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')).scripts[PROOF]) return 'none';
+  if (!base) return 'run';
+  const suite = relative(repo, dir);
+  // A weekly dependency update moves a tool through these two files.
+  const tools = [join(suite, 'package.json'), join(suite, 'package-lock.json'), PROOF_SCRIPT];
+  const touched = changedFiles(worktree ? [base] : [base, 'HEAD'], worktree, repo)
+    .some(({ path, from }) => [path, from].some(name => name && (isSettings(name) || tools.includes(name))));
+  return touched ? 'run' : 'unchanged';
 }
 
 function run(command, args, cwd, capture = false, env = process.env) {
@@ -120,9 +151,12 @@ function checks({ repo, scope, dir }, summary) {
   };
   let suite = 'skipped';
   let install = true;
+  let proof = null;
   if (dir) {
     install = run('npm', ['ci', '--no-audit', '--no-fund'], dir).ok;
     if (install) suite = run('npm', ['test'], dir).ok ? 'success' : 'failure';
+    if (install) proof = proofWanted(repo, dir, scope.base, false);
+    if (proof === 'run') proof = run('npm', ['run', PROOF], dir).ok ? 'success' : 'failure';
   } else if (scope.untouched !== 'true') {
     report('### No test suite yet\n\nNo `package.json` in this repo declares a `test` script, so there is nothing to run.\n\nAdd one — `/plan` includes a test task for any change that touches behavior — and this check runs it on every push.');
   }
@@ -139,11 +173,12 @@ function checks({ repo, scope, dir }, summary) {
     ? 'The main app is untouched (only docs changed), so its suite did not run.'
     : dir ? `The main app changed, so its suite ran: ${suite}.` : 'The main app changed, but no test suite is declared.';
   if (!install) line = 'The main app changed, but installation failed, so its suite did not run.';
+  if (proof) line += ` ${PROOF_NOTE[proof]}`;
   if (!loosened.ok) line += ' A check was loosened with no written reason; see Loosened checks above.';
   if (!wiki.ok) line += ' A wiki page has a broken link, is linked from nowhere, is too long, or lacks its title; see Wiki checks above.';
   if (scope.wiki_affected === 'false') line += ' The wiki check skipped, because no page or linked file changed.';
   report(line);
-  return install && suite !== 'failure' && loosened.ok && wiki.ok;
+  return install && suite !== 'failure' && proof !== 'failure' && loosened.ok && wiki.ok;
 }
 
 /** The pre-check on this computer. Returns the exit code; prints one LOCAL_CHECKS line last. */
@@ -152,7 +187,7 @@ function localChecks(values) {
     if (values[key] !== undefined) usageError(USAGE, `--worktree does not take --${key}`);
   }
   const parts = values.only?.split(',').map(part => part.trim()).filter(Boolean);
-  if (parts && (!parts.length || parts.some(part => !PART.test(part)))) usageError(USAGE, '--only takes suite, loosened, wiki, payload, or payload:<step>');
+  if (parts && (!parts.length || parts.some(part => !PART.test(part)))) usageError(USAGE, '--only takes suite, proof, loosened, wiki, payload, or payload:<step>');
   const wait = Number(values['lock-wait'] ?? 600);
   if (!Number.isFinite(wait) || wait < 0) usageError(USAGE, '--lock-wait is a number of seconds');
   const repo = realpathSync(execFileSync('git', ['rev-parse', '--show-toplevel'], { cwd: resolve(values.repo ?? '.'), encoding: 'utf8' }).trim());
@@ -172,13 +207,19 @@ function localChecks(values) {
   const failed = [];
   const notRun = [];
   const dir = scope.untouched === 'true' ? null : suiteDir(repo);
-  if (dir && wants('suite')) {
+  const proof = dir && wants('proof') ? proofWanted(repo, dir, scope.base, true) : null;
+  if (dir && (wants('suite') || proof === 'run')) {
     const installed = ensureInstalled(dir);
-    const test = installed === 'ok' ? run('npm', ['test'], dir) : null;
-    if (installed === 'no-npm' || test?.missing) notRun.push('npm is not installed');
+    const test = installed === 'ok' && wants('suite') ? run('npm', ['test'], dir) : null;
+    const proved = installed === 'ok' && proof === 'run' ? run('npm', ['run', PROOF], dir) : null;
+    const ran = result => result && !result.missing;
+    if (installed === 'no-npm' || test?.missing || proved?.missing) notRun.push('npm is not installed');
     else if (installed === 'failed') notRun.push('the install failed');
-    else if (!test.ok) failed.push('suite');
+    if (ran(test) && !test.ok) failed.push('suite');
+    if (ran(proved) && !proved.ok) failed.push('proof');
+    if (ran(proved)) console.log(PROOF_NOTE[proved.ok ? 'success' : 'failure']);
   }
+  if (proof === 'unchanged' || proof === 'none') console.log(PROOF_NOTE[proof]);
   if (wants('loosened') && !run(process.execPath, [join(scripts, 'loosened-checks.mjs'), '--worktree'], repo, true, env).ok) failed.push('loosened');
   if (wants('wiki') && scope.wiki_affected !== 'false' && !run(process.execPath, [join(scripts, 'wiki-links.mjs'), repo], repo, true).ok) failed.push('wiki');
 

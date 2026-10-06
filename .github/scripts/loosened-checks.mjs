@@ -13,8 +13,8 @@
 //     skipped, focused, or to-do test in a test file);
 //   - deletes a test file, other than by moving it to another test file;
 //   - changes a check's settings: a known config file, any workflow file, a
-//     script under .github/scripts/, or a package.json `test` script or a
-//     script it runs. Any change counts, stricter ones too: a script can not
+//     script under .github/scripts/ (check-settings.mjs holds that list), or a
+//     package.json `test` script or a script it runs. Any change counts, stricter ones too: a script can not
 //     tell stricter from looser for every setting.
 // Prose (wiki/, openspec/, *.md) is never read for markers, and neither is this
 // script, because it names every marker. A change to it is still a settings change.
@@ -36,6 +36,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseCli, usageError } from '../../.claude/skills/memory/scripts/lib/cli.mjs';
+import { changedFiles, git, isSettings } from './check-settings.mjs';
 import { TEST_FILE } from './test-file.mjs';
 
 const USAGE = `usage: node .github/scripts/loosened-checks.mjs --base <sha>
@@ -66,23 +67,6 @@ const SKIP_TESTS = [
   /\b(skip|only|todo)\s*:\s*(true|['"`])/,
 ];
 
-const SETTINGS_FILE = [
-  /^vitest\.config\./,
-  /^jest\.config\./,
-  /^stryker\.conf/,
-  /^stryker\.config\./,
-  /^\.oxlintrc/,
-  /^\.eslintrc/,
-  /^eslint\.config\./,
-  /^biome\.jsonc?$/,
-  /^\.jscpd\.json$/,
-  /^knip\.jsonc?$/,
-  /^knip\.config\./,
-  /^tsconfig.*\.json$/,
-  /^\.c8rc/,
-  /^\.nycrc/,
-];
-
 const PROPOSAL = /^openspec\/changes\/(archive\/)?[^/]+\/proposal\.md$/;
 
 const KIND = {
@@ -92,35 +76,6 @@ const KIND = {
 };
 
 const isProse = path => /^(wiki|openspec)\//.test(path) || path.endsWith('.md');
-const isSettings = path =>
-  /^\.github\/workflows\/[^/]+\.ya?ml$/.test(path)
-  || path.startsWith('.github/scripts/')
-  || SETTINGS_FILE.some(pattern => pattern.test(basename(path)));
-
-function git(args) {
-  return execFileSync('git', ['-c', 'core.quotePath=false', ...args], { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 });
-}
-
-// The change as a list of { status, path, from }, where `from` is set for a rename.
-function changedFiles(range, worktree) {
-  const fields = git(['diff', '--name-status', '-M', '-z', ...range]).split('\0').filter(Boolean);
-  const files = [];
-  for (let i = 0; i < fields.length;) {
-    const status = fields[i++][0];
-    if (status === 'R' || status === 'C') {
-      const from = fields[i++];
-      files.push({ status, from, path: fields[i++] });
-    } else {
-      files.push({ status, path: fields[i++] });
-    }
-  }
-  if (worktree) {
-    for (const path of git(['ls-files', '--others', '--exclude-standard', '-z']).split('\0').filter(Boolean)) {
-      files.push({ status: 'A', path });
-    }
-  }
-  return files;
-}
 
 // Added lines per path, from a zero-context diff; untracked files are added whole.
 function addedLines(range, files, worktree) {

@@ -1,4 +1,5 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { jwk, signingPair } from "../tests/signing";
 
 // The module holds a `keyCache` at module scope. Every test imports it fresh
 // through `vi.resetModules()`, so a key stubbed in one case cannot leak into a
@@ -187,9 +188,9 @@ describe("getAccessIdentity — verified assertions", () => {
   const bearer = (token: string) => requestWith({ "Cf-Access-Jwt-Assertion": token });
 
   beforeAll(async () => {
-    signingKey = await crypto.subtle.generateKey(RS256, true, ["sign", "verify"]);
-    otherKey = await crypto.subtle.generateKey(RS256, true, ["sign", "verify"]);
-    publicJwk = { ...(await crypto.subtle.exportKey("jwk", signingKey.publicKey)), kid: KID };
+    signingKey = await signingPair();
+    otherKey = await signingPair();
+    publicJwk = { ...(await jwk(signingKey.publicKey)), kid: KID };
   });
 
   beforeEach(async () => {

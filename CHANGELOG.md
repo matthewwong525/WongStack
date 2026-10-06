@@ -22,6 +22,16 @@
 [Code improvement](wiki/development/repository-improvement.md) and [Memory dream](wiki/development/wiki-dream.md) say how each works.
 
 **Updating.** Type `/improve-code` where you typed `/improve`, and `/dream-memory` where you typed `/dream`; the old names no longer work when typed. Schedules you already made keep running with no change. `/improve-code` now stops at a plan, so nothing is built until you say yes.
+## 36.4.0 — Checks that can't go quiet
+
+- **A check that has stopped checking turns red.** A check can switch itself off and still pass: the repeated-code check once passed everything because its settings file held a comment. Now, when a change touches a check's settings or the version of a tool behind one, each check is handed a small piece of code that is wrong on purpose. A check that lets it through is named, and the change can't be published. Other changes skip this, so they take no longer.
+- **Wrong-typed code is caught before you see a preview.** The type check used to run only while the preview was built, after the required check had passed. It now runs with the required check, and on your assistant's computer before work is saved. It also reads the server's test files, which nothing read before.
+- **A small app keeps to its own folder.** A small app may use its own files and the shared parts and helpers. One that reaches into another app, a main page, or the server's core fails the check, which names the file. The supplied apps already keep to theirs.
+- **WongStack's own scripts keep the testing they have.** 92 of every 100 of their lines are tested, and the floor that stops this from falling moves up from 85 to 92. This changes nothing in your project.
+
+[Mini apps](wiki/stack/mini-apps.md#the-rules) says when a check is made to prove itself, and holds the folder rule.
+
+**Updating.** Nothing needs doing by hand. After the update, the checks also read your app's types, test files included, and keep each small app to its own folder. If a check names something in a screen or a test your assistant built, the update's plan lists it and your assistant fixes it.
 
 ## 36.3.0 — /dream keeps your memory and wiki current
 
