@@ -14,6 +14,16 @@
 
 **Updating.** Nothing needs doing by hand. If your project is kept in GitHub and the app has no read-only key yet, Access asks for it the first time you let someone install the project. Anyone you already gave *Project code* keeps it, and shows as ticked.
 
+## 36.1.0 — The key link says what happened
+
+- **A key link that ends with nothing saved says whether you opened it.** Never opened: your assistant says so and asks whether the link loaded, before it sends another. Opened but nothing saved: it asks where you got stuck. Before, it could only say the link closed, and sent another.
+- **A link that closed for another chat's link names that chat.** One private link is open at a time, so a key link nobody has opened closes when another chat needs one. The first chat now says which workspace took its place and offers a new link. Before, it could not tell this from a cancel.
+- **Nothing else about the link changes.** The page looks the same, and an unopened key link still gives way to a newer one. Your assistant learns only a yes or no and a workspace's folder name: never a key, an address, or what was on the page.
+
+[Secrets](wiki/development/secrets.md#receive-a-key-through-a-private-link) owns what the assistant says, and [API keys](wiki/stack/api-keys.md#give-it-through-the-private-link) is the plain version.
+
+**Updating.** Nothing needs doing by hand.
+
 ## 36.0.1 — A "Used by" line that fits
 
 - **The Keys list says what a key does in fewer words.** In Access, Project code's *Used by* line reads *Installs the project*, and Cloudflare's reads *Look-ups*. A key that apps use too still starts with the count: *1 app · Look-ups*. No line is cut short with "…" any more.
