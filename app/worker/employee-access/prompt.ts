@@ -1,12 +1,20 @@
 // Only reviewed immutable public Source bytes belong in a copied setup prompt.
 import release from './bootstrap-release.json' with { type: 'json' };
-export function setupPrompt(origin: string, artifact = release) {
+// `project` picks the short text for a person who gets the project: the installer signs in, downloads and
+// reports, and enforces the rules the apps-only text spells out. The apps-only text never changes.
+export function setupPrompt(origin: string, artifact = release, project = false) {
   const target = new URL(origin);
   if (target.protocol !== 'https:' || target.origin !== origin ||
     artifact.version !== 1 || !/^[a-f0-9]{40}$/.test(artifact.commit) || !/^[a-f0-9]{64}$/.test(artifact.sha256)) {
     return { state: 'unavailable' as const, message: 'Ask your employer to finish the reviewed assistant setup.' };
   }
   const url = `https://raw.githubusercontent.com/matthewwong525/WongStack/${artifact.commit}/scripts/employee-bootstrap.mjs`;
+  if (project) return { state: 'ready' as const, text: `Install my company's project from ${origin} and connect my assistant to it, using my own business app login.
+Download the reviewed installer ${url} without credentials and refuse redirects. Run it only if its SHA-256 is ${artifact.sha256}.
+Save it as bootstrap.mjs in a private directory outside every project folder, then run: node <private-directory>/bootstrap.mjs install --origin ${origin}
+If it names Node, cloudflared or Git as missing, install that from its official distribution and run the same step again.
+Let me approve the sign-in on this computer. Never print credentials or raw login output.
+Run the same step again later to update. Tell me what it reports as working, and what it does not.` };
   return { state: 'ready' as const, text: `Connect my assistant to the company API at ${origin} using my own business app login.
 Use the reviewed standalone Node bootstrap at ${url} (SHA-256 ${artifact.sha256}).
 Download without credentials and refuse redirects. Verify the complete SHA-256 digest before execution. Save it as bootstrap.mjs in an OS-user-private directory outside every checkout (directory 0700, file 0600); preserve all existing files and memory settings.

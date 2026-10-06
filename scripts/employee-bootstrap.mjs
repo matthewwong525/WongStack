@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 // Standalone reviewed bootstrap: only Node built-ins; never memory/checkout authority.
+// `install` signs in, downloads the project when the app hands it to this person, and reports what works.
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync, lstatSync, readdirSync, realpathSync, existsSync } from 'node:fs';
@@ -20,6 +21,7 @@ export function cleanEnvironment() {
   return Object.fromEntries(['PATH', 'HOME', 'USER', 'LOGNAME', 'LANG', 'LC_ALL', 'TMPDIR', 'SYSTEMROOT'].filter(key => process.env[key]).map(key => [key, process.env[key]]));
 }
 const MAX_RESPONSE = 1048576;
+const missing = (program, from) => `Install ${program} from its official distribution (${from}), then run this step again. No account or key is needed.`;
 export function companyOrigin(value) {
   let url;
   try { url = new URL(value); } catch { throw new Error('Use the company’s HTTPS origin'); }
@@ -71,10 +73,10 @@ export function cloudflared(args, { onLoginUrl = () => {}, timeoutMs = 120000 } 
     };
     child.stdout.on('data', chunk => { output += chunk.toString(); capture(chunk); });
     child.stderr.on('data', capture);
-    child.on('error', () => { clearTimeout(timer); reject(new Error('Install cloudflared using wiki/development/required-tools.md, then use company login. No key is needed.')); });
+    child.on('error', () => { clearTimeout(timer); reject(new Error(missing('cloudflared', 'https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/'))); });
     child.on('close', code => {
       clearTimeout(timer);
-      if (code !== 0 || size > MAX_RESPONSE) reject(new Error('Company sign-in did not complete. Use the employee’s browser or the private browser hand-over procedure.'));
+      if (code !== 0 || size > MAX_RESPONSE) reject(new Error('Company sign-in did not complete. Approve it in a browser as the employee, then run this step again.'));
       else resolve(output);
     });
   });
@@ -102,6 +104,58 @@ export async function responseJson(response) {
   } catch { throw new Error('Company response did not complete; a called action may have an uncertain outcome.'); }
   finally { await reader.cancel(); }
   try { return JSON.parse(text); } catch { throw new Error('Company returned an unreadable response'); }
+}
+
+/** Under the company origin: Git's read protocol for the one project, behind the same sign-in. */
+const CODE_PATH = '/api/access/code/git/';
+const NOT_APPLIED = 'kept your changes; update not applied';
+const REFUSED = 'The project download was refused. Ask your admin for access to Connect your assistant, or sign in again. The copy on this computer is unchanged.';
+/**
+ * Git as a child process. With a `token`, the employee session goes to `address` alone, as a request header set
+ * in the child's environment: never an argument, the remote URL or a config file. Redirects are refused, and no
+ * credential helper or prompt is asked. Git's own messages are dropped, so nothing it prints reaches a chat.
+ */
+export function git(args, { address, token } = {}) {
+  const config = [['credential.helper', ''], ['http.followRedirects', 'false'], ...(token ? [[`http.${address}.extraHeader`, `cf-access-token: ${token}`]] : [])];
+  const env = { ...cleanEnvironment(), GIT_TERMINAL_PROMPT: '0', GIT_CONFIG_COUNT: String(config.length),
+    ...Object.fromEntries(config.flatMap(([key, value], index) => [[`GIT_CONFIG_KEY_${index}`, key], [`GIT_CONFIG_VALUE_${index}`, value]])) };
+  return new Promise((resolve, reject) => {
+    const child = spawn('git', args, { stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true, env });
+    let stdout = '';
+    child.stdout.on('data', chunk => { stdout += chunk; });
+    child.on('error', () => reject(new Error(missing('Git', 'https://git-scm.com/downloads'))));
+    child.on('close', code => resolve({ code, stdout: stdout.trim() }));
+  });
+}
+/**
+ * Put the project in `folder`, or bring the copy there up to date. A new copy goes only into a missing or empty
+ * folder. An update fetches, then moves the checked-out default branch forward when nothing tracked was changed
+ * and nothing was committed on top; otherwise everything is kept as it is and the result says so. It never
+ * resets, cleans, stashes or forces a checkout.
+ */
+export async function projectCopy({ address, folder, token, run = git }) {
+  const dir = resolve(folder);
+  const here = (args, session) => run(['-C', dir, ...args], session);
+  // The app must answer with the project itself first. A sign-in page or a redirect lists no branch, and Git
+  // would take that for an empty project.
+  const reached = async () => {
+    if ((await run(['ls-remote', '--quiet', '--exit-code', address, 'HEAD'], { address, token })).code !== 0) throw new Error(REFUSED);
+  };
+  if (!existsSync(join(dir, '.git'))) {
+    if (existsSync(dir) && readdirSync(dir).length) throw new Error(`${dir} already holds other files. Choose an empty folder with --dir; nothing was changed.`);
+    await reached();
+    if ((await run(['clone', '--quiet', '--origin', 'origin', address, dir], { address, token })).code !== 0) throw new Error(REFUSED);
+    return { project: 'installed', folder: dir };
+  }
+  if ((await here(['config', '--get', 'remote.origin.url'])).stdout !== address) throw new Error(`${dir} holds a different project. Choose an empty folder with --dir; nothing was changed.`);
+  await reached();
+  if ((await here(['fetch', '--quiet', 'origin'], { address, token })).code !== 0) throw new Error(REFUSED);
+  const said = async (...args) => (await here(args)).stdout;
+  const latest = await said('symbolic-ref', '--quiet', '--short', 'refs/remotes/origin/HEAD');
+  const branch = await said('symbolic-ref', '--quiet', '--short', 'HEAD');
+  const changed = await said('status', '--porcelain', '--untracked-files=no');
+  const applied = latest === `origin/${branch}` && !changed && (await here(['merge', '--quiet', '--ff-only', latest])).code === 0;
+  return applied ? { project: 'up to date', folder: dir } : { project: NOT_APPLIED, folder: dir, applied: false };
 }
 
 const defaultRoutes = () => join(homedir(), '.local', 'state', 'wong-company', 'projects');
@@ -138,15 +192,20 @@ export function companyClient({ root = process.cwd(), stateDir, routesDir = defa
     if (login) await run(['login', origin], { onLoginUrl });
     return employeeToken(await run(['token', `-app=${origin}`], { onLoginUrl }));
   }
-  // `business` marks a call that may change something; its `check` names the read to run before repeating it.
-  async function http(path, init = {}, origin = target(), suppliedToken, business) {
-    if (!/^\/(?:api\/|apps\/)[^#]*$/.test(path) || new URL(path, origin).origin !== origin || path.includes('..') || path.includes('\\')) throw new Error('Refused an arbitrary server URL');
-    const credential = suppliedToken || await token(origin);
-    const pinned = suppliedToken ? null : readJson(file).identity;
+  /** The saved connection's session: the same person who connected, or nothing. */
+  async function session(origin) {
+    const credential = await token(origin);
+    const pinned = readJson(file).identity;
     if (pinned) {
       const claims = JSON.parse(Buffer.from(credential.split('.')[1], 'base64url').toString('utf8'));
       if (claims.email.trim().toLowerCase() !== pinned.email.trim().toLowerCase() || claims.sub !== pinned.subject) throw new Error('The signed-in person changed; use a separate private company connection');
     }
+    return credential;
+  }
+  // `business` marks a call that may change something; its `check` names the read to run before repeating it.
+  async function http(path, init = {}, origin = target(), suppliedToken, business) {
+    if (!/^\/(?:api\/|apps\/)[^#]*$/.test(path) || new URL(path, origin).origin !== origin || path.includes('..') || path.includes('\\')) throw new Error('Refused an arbitrary server URL');
+    const credential = suppliedToken || await session(origin);
     let response;
     try {
       response = await request(new URL(path, origin), { ...init, redirect: 'manual', headers: { 'cf-access-token': credential, ...init.headers }, signal: AbortSignal.timeout(20000) });
@@ -219,16 +278,46 @@ export function companyClient({ root = process.cwd(), stateDir, routesDir = defa
     if (result.status !== 200 || result.value.api !== 'authenticated') throw new Error('Employee setup is unavailable; ask the owner to finish setup');
     return result.value;
   }
-  return { login, list, describe, call, setup, target, get stateDirectory() { return directory(); } };
+  /** Download the project into `folder`, or update the copy there, as the signed-in person. */
+  async function code(folder, copy = projectCopy) {
+    const origin = target();
+    return copy({ address: `${origin}${CODE_PATH}`, folder, token: await session(origin) });
+  }
+  /**
+   * One step: sign in, download or update the project when the app hands it to this person, and say what works.
+   * The folder is the one given, else the one used last time, else a folder in the home directory named for the app.
+   */
+  async function install(origin, folder, copy) {
+    const { connected } = await login(origin);
+    const status = await setup();
+    const report = { connected, signedInAs: status.identity.email, apps: status.apps, state: dir };
+    if (status.code !== 'ready') return { ...report, project: status.code === 'lacked' ? 'not included. Ask your admin for access to Connect your assistant.' : 'not handed out by this app; apps only' };
+    const noted = join(dir, 'project.json');
+    const result = await code(folder || readJson(noted).folder || join(homedir(), new URL(connected).hostname.split('.')[0]), copy);
+    writeFileSync(noted, `${JSON.stringify({ folder: result.folder })}\n`, { mode: 0o600 });
+    return { ...report, ...result, next: `cd ${result.folder} && node scripts/company-api.mjs list --state ${dir}` };
+  }
+  return { login, list, describe, call, setup, code, install, target, get stateDirectory() { return directory(); } };
 }
-const USAGE = 'employee-bootstrap.mjs login --origin <HTTPS origin> | status | list | describe <id> | call <id> --file <JSON file or -> [--state <private directory>]';
+const USAGE = 'employee-bootstrap.mjs install --origin <HTTPS origin> [--dir <folder>] | login --origin <HTTPS origin> | status | code --dir <folder> | list | describe <id> | call <id> --file <JSON file or -> [--state <private directory>]';
+/** `install` keeps one private directory per company, so a second run finds the first. */
+const installBase = () => join(homedir(), '.local', 'state', 'wong-company');
+const installState = origin => join(installBase(), createHash('sha256').update(companyOrigin(origin)).digest('hex'));
+/** `install` and `code` run from any folder, the home folder included, so they work from an empty one beside the state. */
+function neutralRoot() {
+  const root = join(installBase(), 'anywhere');
+  mkdirSync(root, { recursive: true, mode: 0o700 });
+  return root;
+}
 export async function main(args = process.argv.slice(2)) {
   if (args.includes('--help')) { console.log(`usage: ${USAGE}`); return; }
-  const { positionals: [command, ...rest], values } = parseArgs({ args, allowPositionals: true, options: Object.fromEntries(['origin', 'state', 'file', 'q', 'app', 'limit', 'offset'].map(key => [key, { type: 'string' }])) });
-  const stateDir = values.state;
-  const client = companyClient({ stateDir, onLoginUrl: link => console.error(`Sign in with your own company account: ${link}`) });
+  const { positionals: [command, ...rest], values } = parseArgs({ args, allowPositionals: true, options: Object.fromEntries(['origin', 'state', 'dir', 'file', 'q', 'app', 'limit', 'offset'].map(key => [key, { type: 'string' }])) });
+  const stateDir = values.state || (command === 'install' && values.origin ? installState(values.origin) : undefined);
+  const client = companyClient({ ...(['install', 'code'].includes(command) && { root: neutralRoot() }), stateDir, onLoginUrl: link => console.error(`Sign in with your own company account: ${link}`) });
   let result;
   if (command === 'login' && !rest.length) result = await client.login(values.origin);
+  else if (command === 'install' && !rest.length && values.origin) result = await client.install(values.origin, values.dir);
+  else if (command === 'code' && !rest.length && values.dir) result = await client.code(values.dir);
   else if (command === 'status' && !rest.length) result = await client.setup();
   else if (command === 'list' && !rest.length) result = await client.list(Object.fromEntries(['q', 'app', 'limit', 'offset'].filter(key => values[key] !== undefined).map(key => [key, values[key]])));
   else if (command === 'describe' && rest.length === 1) result = await client.describe(rest[0]);
@@ -236,7 +325,7 @@ export async function main(args = process.argv.slice(2)) {
   else throw new Error(USAGE);
   console.log(JSON.stringify(result, null, 2));
   // A returned error is still printed, and ends as a failure a script can see.
-  if (command === 'call' && result?.error && typeof result.error === 'object') process.exitCode = 1;
+  if ((command === 'call' && result?.error && typeof result.error === 'object') || result?.applied === false) process.exitCode = 1;
 }
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   main().catch(error => { console.error(error instanceof SyntaxError ? 'Invalid command input' : error.message); process.exitCode = error.code?.startsWith('ERR_PARSE_ARGS') ? 2 : 1; });

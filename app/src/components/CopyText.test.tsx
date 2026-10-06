@@ -38,3 +38,20 @@ it('keeps the setup steps in one column that can shrink, as a box on the page an
   expect(classes(column())).toEqual(expect.arrayContaining(['grid', 'grid-cols-[minmax(0,1fr)]', 'wrap-anywhere']))
   expect(column().getAttribute('data-slot')).toBeNull(); fits(screen.getByRole('dialog').querySelector('textarea')!)
 })
+
+it('draws the project line above the prompt for a person who gets the project, and only who to ask for one who lacks it', async () => {
+  const draw = async (changes: object, wait: string | RegExp) => {
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ ...setup, ...changes })))
+    render(<AssistantSetup />); await screen.findByText(wait)
+    return Array.from(screen.getByRole('region', { name: 'Connect your assistant' }).querySelectorAll('p')).map(line => line.textContent).filter(Boolean)
+  }
+  expect(await draw({ code: 'ready' }, /^Project:/)).toEqual(['Signed in as person@example.com', 'Apps: Hello', 'Project: the whole project, kept up to date',
+    'Paste it into your assistant and approve the sign-in on that computer.', 'Your copy is for using, not publishing. Memory is set up separately.'])
+  cleanup()
+  expect(await draw({}, /^Apps:/)).toEqual(['Signed in as person@example.com', 'Apps: Hello',
+    'Paste it into your assistant and approve the sign-in on that computer.', 'This connects the apps above. Project code and memory are set up separately.'])
+  cleanup()
+  expect(await draw({ code: 'lacked', prompt: { state: 'unavailable', message: 'Ask your admin for access to Connect your assistant.' } }, /^Ask your admin/))
+    .toEqual(['Signed in as person@example.com', 'Ask your admin for access to Connect your assistant.'])
+  expect(screen.queryByRole('button', { name: 'Copy setup prompt' })).toBeNull()
+})

@@ -285,7 +285,7 @@ it('confirms a removal by saying everyone signs in again, and a removed person c
   open(); await screen.findByRole('link', { name: 'Add person' }); fireEvent.click(remove())
   expect(screen.getByRole('heading', { name: 'Remove employee@example.com?' })).toBeTruthy()
   expect(screen.getByText(/Everyone is signed out and signs in again\. This can't be undone\./)).toBeTruthy()
-  expect(screen.getByText(/project code is removed separately/)).toBeTruthy()
+  expect(screen.getByText(/can no longer download the project\..* A copy of the project already on their device stays there\. Access given where the project is kept is removed there\./)).toBeTruthy()
   expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Remove access' }))
   expect(remove().getAttribute('aria-disabled')).toBe('true'); shut()
   click('Cancel'); expect(screen.queryByRole('heading', { name: /^Remove / })).toBeNull(); fireEvent.click(remove())
@@ -423,7 +423,7 @@ it('the owner sees who manages: Manager beside the role, their own row marked Yo
   fireEvent.click(menu('lee@example.com').getByRole('menuitem', { name: 'Remove' }))
   expect(screen.queryByText(/stop managing/)).toBeNull(); click('Cancel')
   fireEvent.click(menu('employee@example.com').getByRole('menuitem', { name: 'Remove' }))
-  expect(screen.getByText(/where it was given\. They stop managing Access too\./)).toBeTruthy()
+  expect(screen.getByText(/is removed there\. They stop managing Access too\./)).toBeTruthy()
   // On a preview the same sentence follows the practice-list one.
   cleanup(); roster.environment = 'practice'; roster.key = 'practice'
   open(); await screen.findByRole('link', { name: 'Add person' }); fireEvent.click(menu('employee@example.com').getByRole('menuitem', { name: 'Remove' }))

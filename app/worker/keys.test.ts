@@ -20,6 +20,9 @@ it("every secret name the Worker declares, and each key setup makes, belongs to 
   expect(problems(readFileSync(new URL("../.dev.vars.example", import.meta.url), "utf8"), keys)).toEqual([]);
   // The template registers the one key setup makes, offered at Read alone.
   expect(keys.cloudflare).toEqual({ title: "Cloudflare", secrets: ["WONG_CLOUDFLARE_READ"], levels: ["read"], setup: true });
+  // Project code is declared, so its key link can be sent, and it covers that one name.
+  expect(readFileSync(new URL("../.dev.vars.example", import.meta.url), "utf8")).toMatch(/^WONG_CODE_READ=$/m);
+  expect(keys.code.secrets).toEqual(["WONG_CODE_READ"]);
 });
 
 it("fails for a name no key covers and for a name two keys cover, and passes a clean file", () => {

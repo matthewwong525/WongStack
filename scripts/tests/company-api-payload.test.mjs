@@ -42,5 +42,5 @@ test('explicit distribution retains Access, additive schema and a standalone API
   assert.ok(!inventory.scaffold.exclude.includes('app/src/apps/access'));
   assert.ok(!JSON.parse(read('app/package.json')).dependencies.yaml);
   for (const path of ['.env.example', 'app/.dev.vars.example']) assert.ok(!read(path).includes('WONG_GITHUB_PUBLICATION'));
-  assert.match(read('wiki/stack/employee-project.md'), /Repository access stays manual/);
+  assert.match(read('wiki/stack/employee-project.md'), /### Publishing stays manual/);
 });

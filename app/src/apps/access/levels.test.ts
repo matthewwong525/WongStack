@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest'
 import type { SavedKey, Status } from '../../lib/access'
 import { appTitle } from '../../lib/apps'
-import { appUses, capital, dots, fill, gaps, hint, keyState, keyUseLine, levelLabel, levelLabels, levelName, NOTHING, sameSet, shortLine, ticked, usesLine, usesShort, usesWhat, type AccessSet } from './levels'
+import { aloneLine, appUses, capital, dots, fill, gaps, hint, keyState, keyUseLine, levelLabel, levelLabels, levelName, NOTHING, sameSet, shortLine, ticked, usesLine, usesShort, usesWhat, type AccessSet } from './levels'
 
 const key = (id: string, title: string, changes: Partial<SavedKey> = {}): SavedKey => ({ id, title, levels: ['read', 'write'], saved: true, setup: false, usedBy: [], alone: false, ...changes })
 const stripe = key('stripe', 'Stripe', { usedBy: [{ app: 'hello', need: 'write' }, { app: 'tips', need: 'read' }] })
@@ -77,6 +77,10 @@ it('says what uses a key, on the Keys view and a key page', () => {
   expect(keyUseLine(cloudflare)).toBe('Look-ups, no app needed · Read only')
   expect(keyUseLine({ ...cloudflare, usedBy: [{ app: 'payroll', need: 'read' }] })).toBe('Used by payroll: look up · Look-ups, no app needed · Read only')
   expect(keyUseLine(spare)).toBe('Nothing uses it yet')
+  // Project code works with no app too, and what it does is not a look-up.
+  const code = { ...cloudflare, id: 'code', title: 'Project code' }
+  expect([keyUseLine(code), aloneLine(code), aloneLine(cloudflare), aloneLine(spare)])
+    .toEqual(['Installs the project, no app needed · Read only', 'installs the project, no app needed', 'look-ups, no app needed', ''])
 })
 
 it('says whether a key is saved, waits for its link, or waits for setup to make it, which no preview can', () => {

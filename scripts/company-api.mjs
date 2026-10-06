@@ -10,6 +10,8 @@ export { companyOrigin, cloudflared, loginUrl } from './employee-bootstrap.mjs';
 export function companyClient(options = {}) { return transport({ root: options.root || primaryRoot().root, onboarding: false, ...options }); }
 
 export async function combinedList(client, { scope = 'all', ...filters } = {}) {
+  // An option nobody gave is left out, never sent as the word "undefined".
+  filters = Object.fromEntries(Object.entries(filters).filter(([, value]) => value !== undefined));
   if (!['all', 'company', 'memory'].includes(scope)) throw new Error('Use company, memory or all scope');
   const { limit = 20, offset = 0 } = filters;
   const memory = selectOperations(memoryOperations, { ...filters, limit: 50, offset: 0 });

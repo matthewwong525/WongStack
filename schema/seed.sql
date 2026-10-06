@@ -42,17 +42,18 @@ INSERT INTO wong_access_members VALUES
   ('11111111-1111-4111-8111-111111111111', 'casey@example.invalid', 'removed', 0, 1, '2026-10-04T00:00:00Z'),
   ('11111111-1111-4111-8111-111111111111', 'dana@example.invalid', 'active', 0, 1, '2026-10-04T00:00:00Z'),
   ('11111111-1111-4111-8111-111111111111', 'eli@example.invalid', 'active', 0, 1, '2026-10-04T00:00:00Z');
--- The Helpers role: one app, and Cloudflare look-ups.
+-- The Helpers role: one app, Cloudflare look-ups, and the project through Connect your assistant.
 INSERT INTO wong_access_roles VALUES
   ('11111111-1111-4111-8111-111111111111', '22222222-2222-4222-8222-222222222222', 'Helpers', 1);
 INSERT INTO wong_access_role_apps VALUES
   ('11111111-1111-4111-8111-111111111111', '22222222-2222-4222-8222-222222222222', 'hello');
 INSERT INTO wong_access_role_keys VALUES
-  ('11111111-1111-4111-8111-111111111111', '22222222-2222-4222-8222-222222222222', 'cloudflare', 'read');
+  ('11111111-1111-4111-8111-111111111111', '22222222-2222-4222-8222-222222222222', 'cloudflare', 'read'),
+  ('11111111-1111-4111-8111-111111111111', '22222222-2222-4222-8222-222222222222', 'code', 'read');
 INSERT INTO wong_access_member_roles VALUES
   ('11111111-1111-4111-8111-111111111111', 'ada@example.invalid', '22222222-2222-4222-8222-222222222222'),
   ('11111111-1111-4111-8111-111111111111', 'bo@example.invalid', '22222222-2222-4222-8222-222222222222');
--- Dana's own set has Cloudflare at Read. Eli's has an app and no key level: None.
+-- Dana's own set has Cloudflare at Read and no Project code. Eli's has an app and no key level: None.
 INSERT INTO wong_access_grants VALUES
   ('11111111-1111-4111-8111-111111111111', 'dana@example.invalid', 'hello', 1),
   ('11111111-1111-4111-8111-111111111111', 'dana@example.invalid', 'tips', 1),
