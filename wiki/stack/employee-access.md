@@ -106,7 +106,7 @@ The owner's Access has four views, each with its own address, so Back and reload
 - **People** opens first: who, whether they can sign in, their role, and a count such as *2 apps, 1 key*. The owner is the first row, with nothing to change. *You* and *Manager* sit beside the email.
 - **Roles** counts each role's apps, keys and holders.
 - **Apps** lists each app, the keys it uses and how many have it. Opened, an app ticks roles and people, with its keys' levels beside each tick.
-- **Keys** lists every key the app holds, whether it is saved, how many apps use it and how many have it at each level. Opened, a key sets every level for it. No value is ever shown. A key shows here once it is [in the registry](api-keys.md#a-saved-key-shows-in-access).
+- **Keys** lists every key the app holds, whether it is saved, how many apps use it and how many hold each level. Opened, a key sets every level for it. No value is ever shown. A key shows here once it is [in the registry](api-keys.md#a-saved-key-shows-in-access).
 
 A level set in any view is the same level in the others. A count names the owner first. Someone who manages nothing sees only their own.
 
@@ -115,7 +115,7 @@ A level set in any view is the same level in the others. A count names the owner
 Access sits in [the shared frame](mini-apps.md#the-home-page-lists-the-apps). The four views, each with a count, top every Access screen as its heading. Under them is the one spot for notices: *Saved*, the practice list, a step left.
 
 - **The add button ends the views' line.** The assistant makes apps and keys: a line under those lists says so.
-- **A row opens in a panel beside its list**, at its own address, on a click that is not on a control. The list stays, with that row marked. On a computer the panel starts under the top bar, which stays in view; on a phone it fills the screen. *✕*, Escape, *Cancel* and a press beside it close it. A key not saved yet says its next step there.
+- **A row opens in a panel beside its list**, at its own address, on a click that is not on a control. The list stays, with that row marked. The panel sits under the top bar; on a phone it fills the screen. *✕*, Escape, *Cancel* and a press beside it close it. A key not saved yet says its next step there.
 - **Connect your assistant** is [Home's card](mini-apps.md#the-home-page-lists-the-apps) alone, with [its steps](employee-project.md).
 
 ### Change a role in the row
