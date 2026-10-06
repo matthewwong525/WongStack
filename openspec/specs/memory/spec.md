@@ -661,7 +661,7 @@ The installed catalogue SHALL describe document search and recall with validated
 - **WHEN** installed recall is called with a member credential
 - **THEN** its facts obey member visibility and its documents come only from the allowed checkout
 
-### Requirement: A session's struggles become notes for /improve
+### Requirement: A session's struggles become improvement notes
 
 A moment where a session shows the assistant struggled SHALL become one `thread` tagged `improve` that names the moment and what it cost: a correction from the person, an offered choice the person answered in their own words, a step that failed repeatedly, or a long search. `/save` and the background capture SHALL write these notes by the same rule. A note SHALL NOT carry private detail or general advice, and a session that shows no such moment SHALL get none.
 

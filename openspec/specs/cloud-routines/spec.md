@@ -148,3 +148,12 @@ An update SHALL NOT delete, move, or change a schedule the person made in Paseo.
 
 - **WHEN** an install with two Paseo schedules takes this update
 - **THEN** both still run in Paseo, and the update's plan carries a to-do to make them again with `/routine` and delete the old ones in Paseo
+
+### Requirement: A renamed skill's old name still runs
+
+A routine whose prompt starts with a skill's earlier name SHALL run the skill under its current name, with the rest of the prompt unchanged, and the run's record SHALL name the skill that ran. `/improve` SHALL run `/improve-code` and `/dream` SHALL run `/dream-memory`.
+
+#### Scenario: A routine made before the rename
+
+- **WHEN** a routine created with the prompt `/improve --audit-only` runs after the install updates
+- **THEN** the run follows `/improve-code` with `--audit-only`, and no one had to change the routine

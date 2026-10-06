@@ -10,7 +10,7 @@ const folders = (paths: string[], at: number) => [...new Set(paths.map(path => p
 it("lists a screen folder and a server folder with no screen as areas, sorted, each with its words", () => {
   const list = listAreas(new Map([["orders", named()], ["hello", named("Hello", "Say hello.")]]),
     // A folder with a screen is named by its app.json: its api.ts need export no words.
-    new Map([["reports", named("Reports", "Weekly numbers for a skill.")], ["orders", {}]]));
+    new Map([["reports", named("Reports", "Weekly numbers for a skill.")], ["orders", {} as { title?: unknown; description?: unknown }]]));
   expect(list).toEqual([{ id: "hello", title: "Hello", description: "Say hello.", screen: true },
     { id: "orders", title: "Orders", description: "Take and look up orders.", screen: true },
     { id: "reports", title: "Reports", description: "Weekly numbers for a skill.", screen: false }]);

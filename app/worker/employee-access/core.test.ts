@@ -5,6 +5,7 @@ import { provider } from "./provider";
 import { management } from "./management";
 import type { AccessIdentity } from "../access";
 import { fixture, owner, employee, site, req } from "../../tests/employee-access/connections";
+import { body } from "../../tests/body";
 let f: ReturnType<typeof fixture>;
 beforeEach(() => { f = fixture(); });
 afterEach(() => { f.sql.close(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
@@ -49,7 +50,7 @@ it("lets the verification machine read and save as the owner on a preview, and n
   expect((await management(req("status", "GET"), preview, machine)).status).toBe(200);
   const saved = await management(save(), preview, machine);
   expect(saved.status).toBe(200);
-  expect((await saved.json()).people.map((person: { email: string }) => person.email)).toContain("practice@example.com");
+  expect((await body(saved)).people.map(person => person.email)).toContain("practice@example.com");
   // A save still needs this site's own origin.
   await expect(ownerCore(new Request(`${site.origin}/api/access/people`, { method: "POST" }), preview, machine))
     .rejects.toMatchObject({ code: "origin_required", status: 403 });

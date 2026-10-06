@@ -7,6 +7,6 @@
   "reports-dir": "scripts/tests/coverage",
   "temp-directory": "scripts/tests/coverage/tmp",
   "check-coverage": true,
-  "lines": 85,
-  "branches": 81
+  "lines": 92,
+  "branches": 89
 }

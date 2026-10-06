@@ -8,9 +8,11 @@ vi.mock("./catalogue.ts", async () => (await import("../../tests/employee-access
 let f: ReturnType<typeof fixture>;
 let cf: ReturnType<typeof cloudflare>["state"];
 let fetch: ReturnType<typeof vi.fn>;
+/** The fake provider itself, for a test that wraps it. */
+let original: ReturnType<typeof cloudflare>["fetch"];
 beforeEach(() => {
   f = fixture();
-  const fake = cloudflare(); cf = fake.state; fetch = vi.fn(fake.fetch);
+  const fake = cloudflare(); cf = fake.state; original = fake.fetch; fetch = vi.fn(fake.fetch);
   vi.stubGlobal("fetch", fetch);
 });
 afterEach(() => { f.sql.close(); vi.unstubAllGlobals(); vi.useRealTimers(); });
@@ -151,7 +153,6 @@ it("cannot acknowledge work without a current lease, or after it expires mid-wri
 
 it("bounds stale-generation retries and rejects readback that did not retain desired emails", async () => {
   await hold(); await add();
-  const original = fetch.getMockImplementation()!;
   let extra = 0;
   fetch.mockImplementation(async (url, init) => {
     const response = await original(url, init);
@@ -221,7 +222,6 @@ it("does not start an external policy write after lease or generation changes du
   expect(cf.writes).toEqual([]);
   expect(f.sql.prepare("SELECT status FROM wong_access_policy_writes").get()).toEqual({ status: "completed" });
   raced.mockRestore();
-  const original = fetch.getMockImplementation()!;
   fetch.mockImplementation(async (url, init) => {
     const result = await original(url, init);
     if (url.includes("/policies") && init.method === "GET") f.sql.exec("UPDATE wong_access_leases SET expires_at = '2000-01-01'");
@@ -256,7 +256,6 @@ it("keeps a crashed or lost old provider write pending until it can no longer la
 
 it("does not accept email-only readback when the provider drops an approval control", async () => {
   await hold(); await add();
-  const original = fetch.getMockImplementation()!;
   fetch.mockImplementation(async (url, init) => {
     const response = await original(url, init);
     if (init.method === "PUT") cf.policy.approval_required = false;

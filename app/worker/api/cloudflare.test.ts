@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { employee, fixture, owner, site } from "../../tests/employee-access/connections";
 import type { AccessIdentity } from "../access";
-import type { PolicyEnv } from "../employee-access/policy";
 import { discovery } from "./discovery";
 import { handleApi } from "./router";
+import { body } from "../../tests/body";
+import { fakeEnv } from "../../tests/env";
 
 const token = "cloudflare-read-token-value";
 const saved = JSON.stringify({ version: 1, token, accountId: site.accountId });
@@ -11,14 +12,14 @@ const account = `accounts/${site.accountId}`;
 let f: ReturnType<typeof fixture>;
 let fetch: ReturnType<typeof vi.fn>;
 let answer: () => Response;
-const env = (key: string | null = saved) => ({ ...f.env, ...(key !== null && { WONG_CLOUDFLARE_READ: key }) }) as unknown as Env & PolicyEnv;
+const env = (key: string | null = saved) => fakeEnv({ ...f.env, ...(key !== null && { WONG_CLOUDFLARE_READ: key }) });
 const look = (path: string, query?: string, identity: AccessIdentity | null = owner, bindings = env()) => {
   const address = new URL(`${site.origin}/api/cloudflare/read`);
   address.searchParams.set("path", path);
   if (query !== undefined) address.searchParams.set("query", query);
   return handleApi(new Request(address), bindings, identity);
 };
-const code = async (response: Response) => [response.status, (await response.json()).error.code];
+const code = async (response: Response) => [response.status, (await body(response)).error.code];
 
 beforeEach(() => {
   f = fixture();
@@ -91,16 +92,16 @@ it("answers unavailable until setup has stored the key, and never runs with a ke
 it("belongs to the Cloudflare key alone: a level decides, no app is needed, and no level is refused", async () => {
   f.sql.exec("UPDATE wong_access_installation SET keys_enabled = 1");
   const refused = await look("zones", undefined, employee);
-  expect([refused.status, (await refused.json()).error.message]).toEqual([403, "Cloudflare: Read needed"]);
+  expect([refused.status, (await body(refused)).error.message]).toEqual([403, "Cloudflare: Read needed"]);
   expect((await look("zones", undefined, null)).status).toBe(403);
   expect(fetch).not.toHaveBeenCalled();
-  const listing = async (identity: AccessIdentity) => (await (await discovery(new Request(`${site.origin}/api/actions?app=main`), env(), identity)).json()).actions;
-  expect((await listing(employee)).map((item: { operationId: string }) => item.operationId)).toEqual(["main.health"]);
+  const listing = async (identity: AccessIdentity) => (await body(await discovery(new Request(`${site.origin}/api/actions?app=main`), env(), identity))).actions;
+  expect((await listing(employee)).map(item => item.operationId)).toEqual(["main.health"]);
   f.sql.prepare("INSERT INTO wong_access_key_grants VALUES (?, ?, 'cloudflare', 'read', 1)").run(site.installationId, employee.id);
   expect((await look("zones", undefined, employee)).status).toBe(200);
   expect(await listing(employee)).toMatchObject([{ operationId: "cloudflare.read", effect: "read", readiness: "available", keys: [{ id: "cloudflare", level: "read" }] }, { operationId: "main.health", keys: [] }]);
   // Until setup stores the key, the list says the look-up is not ready, as a call would.
-  const unsaved = (await (await discovery(new Request(`${site.origin}/api/actions?app=main`), env(null), employee)).json()).actions;
+  const unsaved = (await body(await discovery(new Request(`${site.origin}/api/actions?app=main`), env(null), employee))).actions;
   expect(unsaved[0]).toMatchObject({ operationId: "cloudflare.read", readiness: "unavailable" });
   // The person still has no app, and the saved key itself is never in what they are told.
   expect(JSON.stringify(await listing(employee))).not.toContain(token);

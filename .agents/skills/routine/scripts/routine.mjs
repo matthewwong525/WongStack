@@ -70,7 +70,7 @@ const input = (message, extra) => new RoutineError(EXIT.input, message, extra);
 // ---------------------------------------------------------------------------
 // Pure helpers
 
-/** `/improve` in MyApp → `improve MyApp`; plain prompts use their first four words. */
+/** `/improve-code` in MyApp → `improve-code MyApp`; plain prompts use their first four words. */
 export function defaultName(prompt, repoDir) {
   const text = String(prompt).trim();
   const head = text.startsWith('/') ? text.slice(1).split(/\s+/)[0] : text.split(/\s+/).slice(0, 4).join(' ');

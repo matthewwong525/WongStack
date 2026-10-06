@@ -1,4 +1,6 @@
 import { readFileSync } from "node:fs";
+import { body } from "../../tests/body";
+import { fakeEnv } from "../../tests/env";
 import { DatabaseSync } from "node:sqlite";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { z } from "zod";
@@ -52,7 +54,7 @@ it("lets Look up run a read and refuses a change by the area's name, and a lower
     input: z.strictObject({}), output: z.strictObject({ ok: z.boolean() }), encoding: "none", effect, agentAvailable: true, errors: {}, examples: [], handler });
   const run = (route: Parameters<typeof dispatch>[0], method = "GET") => {
     const req = new Request(`${origin}/api/orders`, { method });
-    return dispatch(route, req, env, { url: new URL(req.url), route: "orders", identity: employee }, access);
+    return dispatch(route, req, fakeEnv(env), { url: new URL(req.url), route: "orders", identity: employee }, access);
   };
   // A tick from before levels is Look up & change: every call runs.
   for (const effect of ["read", "write", "external"] as const) expect((await run(action(effect))).status).toBe(200);
@@ -115,7 +117,7 @@ it("shows a person at Look up an area's read actions and not its changing ones, 
     ["POST refund", defineAction({ ...base, operationId: "orders.refund", effect: "write", confirmWith: "orders.list" })],
     ["POST send", defineAction({ ...base, operationId: "orders.send", effect: "external" })]]), "orders");
   const published = (path: string) => discovery(new Request(`${origin}${path}`), env as Env & PolicyEnv, employee, registry);
-  const ids = async () => (await (await published("/api/actions")).json()).actions.map((item: { operationId: string }) => item.operationId);
+  const ids = async () => (await body(await published("/api/actions"))).actions.map(item => item.operationId);
   expect(await ids()).toEqual(["orders.list", "orders.refund", "orders.send"]);
   const fields = Object.keys(await (await published("/api/actions?id=orders.list")).json());
   const tag = (await published("/api/actions")).headers.get("ETag");
@@ -123,7 +125,7 @@ it("shows a person at Look up an area's read actions and not its changing ones, 
   expect(await ids()).toEqual(["orders.list"]);
   expect((await published("/api/actions")).headers.get("ETag")).not.toBe(tag);
   for (const id of ["orders.refund", "orders.send"]) expect((await published(`/api/actions?id=${id}`)).status).toBe(404);
-  expect(Object.keys((await (await published("/api/openapi.json")).json()).paths)).toEqual(["/apps/orders/api/list"]);
+  expect(Object.keys((await body(await published("/api/openapi.json"))).paths)).toEqual(["/apps/orders/api/list"]);
   // The level adds no field: an action is described as before.
   expect(Object.keys(await (await published("/api/actions?id=orders.list")).json())).toEqual(fields);
 });

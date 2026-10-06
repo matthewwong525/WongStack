@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { cloudflare, fixture, owner, employee, site, req } from '../../tests/employee-access/connections';
+import { body as json } from '../../tests/body';
 import { accessStatus } from './members';
 import { management } from './management';
 import { mainRouteInventory } from '../api/router';
@@ -148,10 +149,10 @@ it('gives a preview its own practice list and makes no provider call', async () 
 
 it('says in the status why the project can not be handed out yet, and never a secret', async () => {
   const TOKEN = 'github_pat_synthetic_read_only_value';
-  const read = async (vars: object) => (await run('status', 'GET', undefined, { ...f.env, ...vars })).json();
+  const read = async (vars: object) => json<{ project: string; keys: { id: string; saved: boolean }[] }>(await run('status', 'GET', undefined, { ...f.env, ...vars }));
   // No project recorded: setup has a step left. On GitHub with no key: the key. With it: ready, as Project code is saved.
   const [unset, waiting, ready] = [await read({}), await read({ WONG_CODE_REPOSITORY: 'acme/recipe-box' }), await read({ WONG_CODE_REPOSITORY: 'acme/recipe-box', WONG_CODE_READ: TOKEN })];
-  expect([unset, waiting, ready].map(status => [status.project, status.keys.find((key: { id: string }) => key.id === 'code').saved]))
+  expect([unset, waiting, ready].map(status => [status.project, status.keys.find(key => key.id === 'code')?.saved]))
     .toEqual([['setup', false], ['key', false], ['ready', true]]);
   // The status carries one word: no token, no secret's name, and not the repository either.
   for (const status of [unset, waiting, ready]) expect(JSON.stringify(status)).not.toMatch(/github_pat|WONG_CODE|recipe-box/);
@@ -176,7 +177,7 @@ it('lists a newly built area at None and ignores a grant for an area no longer b
   f.sql.exec(`INSERT INTO wong_access_apps VALUES ('${site.installationId}', 'retired');
     INSERT INTO wong_access_grants VALUES ('${site.installationId}', '${employee.id}', 'retired', 1, 'write');
     INSERT INTO wong_access_grants VALUES ('${site.installationId}', '${employee.id}', 'orders', 1, 'read')`);
-  const status = await (await run('status', 'GET')).json();
+  const status = await json(await run('status', 'GET'));
   expect(status).toMatchObject({ areas: built, people: [{ email: employee.id }] });
   expect(status.people[0].apps).toEqual({ orders: 'read' });
   expect(await (await setupStatus(req('setup', 'GET'), f.env, employee)).json()).toMatchObject({ apps: ['orders'], titles: { orders: expect.any(String) } });

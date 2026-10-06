@@ -1,4 +1,5 @@
 import { expect, it } from "vitest";
+import { body } from "../../../tests/body";
 import type { AccessIdentity } from "../../access";
 import { areas, screens } from "../../employee-access/catalogue";
 import { handleApp } from "../index";
@@ -17,18 +18,18 @@ it("is an area with no screen: Access lists it by the words its api.ts exports, 
 it("lists three made-up records", async () => {
   const response = await call("records");
   expect(response.status).toBe(200);
-  expect((await response.json()).records.map((record: { id: string; done: boolean }) => [record.id, record.done])).toEqual([["r-1", true], ["r-2", false], ["r-3", false]]);
+  expect((await body(response)).records.map(record => [record.id, record.done])).toEqual([["r-1", true], ["r-2", false], ["r-3", false]]);
 });
 
 it("answers a mark with the record marked done, and saves nothing", async () => {
   const marked = await mark("r-2");
   expect([marked.status, await marked.json()]).toEqual([200, { id: "r-2", customer: "Bo Example", total: 18, done: true }]);
-  expect((await (await call("records")).json()).records[1].done).toBe(false);
+  expect((await body(await call("records"))).records[1].done).toBe(false);
 });
 
 it("says so when no record has the id, and asks for a signed-in caller", async () => {
   const missing = await mark("r-9");
-  expect([missing.status, (await missing.json()).error]).toEqual([404, expect.objectContaining({ code: "not_found", message: "No sample record has that id." })]);
+  expect([missing.status, (await body(missing)).error]).toEqual([404, expect.objectContaining({ code: "not_found", message: "No sample record has that id." })]);
   expect((await call("records", undefined, null)).status).toBe(401);
   expect((await call("mark")).status).toBe(404);
 });

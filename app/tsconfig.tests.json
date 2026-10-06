@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.node.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.tests.tsbuildinfo",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "types": ["./worker-configuration.d.ts", "vite/client", "node"]
+  },
+  // The Worker's tests and their shared helpers, which tsconfig.worker.json leaves out.
+  // This project resolves modules the Vite way, as Vitest does, and includes the
+  // Worker's source because the tests import it.
+  "include": ["worker", "tests"]
+}

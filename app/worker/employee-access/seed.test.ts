@@ -4,6 +4,7 @@ import { database, owner, req } from '../../tests/employee-access/connections';
 import { management } from './management';
 import { codeState } from './code';
 import { authorizeRequest, currentPolicy } from './policy';
+import { body } from '../../tests/body';
 it('staging starts with practice people at differing levels, a role, one manager and key levels on, and holds no provider work or key', async () => {
   const { sql, DB } = database();
   try {
@@ -19,7 +20,7 @@ it('staging starts with practice people at differing levels, a role, one manager
     }
     // The committed owner email, not the seeded row, decides who manages the practice list.
     const env = { DB, WONG_ENVIRONMENT: 'staging', WONG_OWNER_EMAIL: owner.id };
-    const opened = await (await management(req('status', 'GET'), env, owner)).json();
+    const opened = await body(await management(req('status', 'GET'), env, owner));
     // One role held by two people, with one app and Project code; one person who changes things everywhere, with Project code;
     // one who looks things up in two apps and holds no key. Dana is the one manager.
     const helpers = { apps: { hello: 'write' }, keys: { cloudflare: 'read', code: 'read' } };

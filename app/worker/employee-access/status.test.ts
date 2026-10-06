@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { body as json } from "../../tests/body";
 import { employee, fixture, owner, req, site } from "../../tests/employee-access/connections";
 import { appAccess } from "./apps";
 import { management } from "./management";
@@ -14,7 +15,7 @@ const practice = () => ({ ...f.env, WONG_ENVIRONMENT: "staging", WONG_ACCESS_LOG
 const run = async (path: string, method = "GET", body?: unknown) => {
   const response = await management(req(path, method, body), practice(), owner);
   expect(response.status, path).toBe(200);
-  return response.json();
+  return json(response);
 };
 const may = async (app: string, need: "read" | "write") => (await authorizeRequest(f.env, employee, { apps: [app] }, need)) === null;
 beforeEach(() => { f = fixture(); });
@@ -47,7 +48,7 @@ it("says what each skill needs, and stores no grant for one: its areas and keys 
 it("gives an area with no screen like an app: its actions open at the level given, and the person's home page gets no card", async () => {
   await run("people", "POST", { email: employee.id, removed: false, apps: { reports: "read" } });
   expect([await may("reports", "read"), await may("reports", "write"), await may("orders", "read")]).toEqual([true, false, false]);
-  const own = await (await appAccess(new Request(`${site.origin}/api/access/apps`), f.env, employee)).json();
+  const own = await json(await appAccess(new Request(`${site.origin}/api/access/apps`), f.env, employee));
   expect([own.apps, own.areas]).toEqual([["access"], [{ id: "reports", title: "Reports", screen: false, level: "read" }]]);
   const refused = await authorizeRequest(f.env, employee, { apps: ["reports"] });
   expect(await refused?.json()).toMatchObject({ error: { code: "forbidden", message: "Reports: Look up & change needed" } });

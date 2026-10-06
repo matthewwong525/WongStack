@@ -233,6 +233,19 @@ test('a target CLAUDE.md that links to AGENTS.md reads its block through the lin
   assert.equal(block().localState, 'locally-adapted');
 });
 
+test('a renamed skill folder is removed under its old name and added under its new one', t => {
+  const f = fixture(t);
+  rmSync(join(f.source, '.agents/skills/alpha'), { recursive: true });
+  write(f.source, '.agents/skills/alpha-code/SKILL.md', 'alpha base\n');
+  write(f.source, '.agents/skills/wong-sync/references/payload-files.json', `${JSON.stringify(inventory({ core: { skillDirs: ['alpha-code'], files: ['plain.txt'], blocks: [] } }), null, 2)}\n`);
+  f.commit('rename the skill');
+  const report = f.inspect();
+  assert.deepEqual(report.changes.map(change => [change.targetPath, change.operation]).sort(), [
+    ['.claude/skills/alpha-code/SKILL.md', 'added'],
+    ['.claude/skills/alpha/SKILL.md', 'removed'],
+  ]);
+});
+
 test('manifest evolution reports newly selected and retired logical units', t => {
   const f = fixture(t, { manifest: inventory({ core: { files: ['old.txt'] } }), targetFiles: { 'old.txt': 'old\n' } });
   write(f.source, 'old.txt', 'old\n');
