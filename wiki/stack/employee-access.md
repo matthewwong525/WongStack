@@ -92,12 +92,14 @@ A manager is a person the owner lets manage Access. The owner ticks *Can manage 
 - **Only the owner picks managers.** The tick shows for the owner alone. A manager's save that names it is refused, so a manager never makes or unmakes one.
 - **A manager does what the owner does in Access.** They add, change and remove people, make and edit roles, tick apps and set key levels, for anyone: themselves and other managers included.
 - **A manager can't remove a manager, themselves included, or change the owner.** So the owner can always step in. [Who the owner is](#how-the-owner-is-known) stays a setup step.
-- **It is full trust, and the panel says so under the tick.** A manager can give themselves any app or key level. Each change is recorded under the email of the person who made it; no screen shows that record yet.
-- **Managing gives no app and no key.** A manager keeps their own apps, levels and home page. They do not hold every key as the owner does, and a route [with no entry](#what-a-persons-apps-govern) still denies them.
+- **It is full trust, and the panel says so under the tick.** A manager can give themselves any app or key level. Each change is recorded under its maker's email; no screen shows that record yet.
+- **Managing gives no app and no key.** A manager keeps their own apps, levels and home page, and a route [with no entry](#what-a-persons-apps-govern) still denies them.
 - **It is a switch on a person, never part of a role.** A manager edits roles, so a role that carried it would let a manager pick managers.
-- **Taking it back works at once.** Untick it and the person's next request in Access is refused, with no sign-out; they keep their apps and levels. Removing a manager ends it too, and adding them back does not bring it back.
-- **The missing key stays the owner's step.** With [no key yet](#finish-access-setup), a manager reads that one step is left for the owner, with nothing to copy: the step needs the owner's Cloudflare token.
+- **Taking it back works at once.** Untick it and the person's next request in Access is refused, with no sign-out; they keep their apps and levels. Removing a manager ends it too; adding them back does not restore it.
+- **The missing key stays the owner's step.** With [no key yet](#finish-access-setup), a manager reads that one step is left for the owner, with nothing to copy: it needs the owner's Cloudflare token.
 - **A manager's open can finish [the first open](#the-first-open)** when the owner's could not, such as before the key arrived. It takes nothing away.
+
+A new Access save takes a [`Core`](../../app/worker/employee-access/core.ts), the sign-in check's pass; an owner-only one takes an `OwnerCore`. Building either by hand [fails the checks](../../app/worker/checked-caller.test.ts).
 
 ## Four views
 
