@@ -1,6 +1,6 @@
 # Connect your assistant installs the project
 
-**Status:** planned
+**Status:** in-progress
 
 **Branch:** prolific-bumblebee
 
@@ -127,3 +127,4 @@ None.
 - **2026-10-05** — Assumed: the device still approves the person's app sign-in with the small sign-in program the assistant installs, because the app's address sits behind the sign-in wall; a download link that needs no sign-in at all means a door in that wall and a secret in the copied text, so it is offered as a choice, not folded in.
 - **2026-10-05** — Asked how the device proves who it is when it downloads the project → chose to keep the app sign-in, with no secret in the copied text, and to build it with a preview before anything is published.
 - **2026-10-05** — Build order: the two upstream proofs moved from the first tasks to final verification (now 7.2 and 7.3), after the source and tests were written, because each needs a preview deploy and a key the build step can not make. A refusal there still stops the publish, and 5.2 takes any permission 7.2 names. The second proof clones through the real code route, so no throwaway route is added and removed.
+- **2026-10-06** — Save: the source, tests and wiki are written and the local checks pass; the installer is pinned at the first saved commit. Left: confirm the public address serves the pinned installer (4.2), the two upstream proofs on a preview (7.2, 7.3, with 5.2 depending on 7.2), the preview walk (7.4) and a real sign-in from this computer (7.5).
