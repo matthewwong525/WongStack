@@ -107,7 +107,11 @@ it("shows a visitor on a phone the headline, the install steps, and the message 
   const { container } = render(<App />);
   const install = container.querySelector("#install") as HTMLElement;
 
-  screen.getByRole("heading", { level: 1, name: "Grok Bot, Muse, or Dots, but yours." });
+  screen.getByRole("heading", { level: 1, name: "One place to build, collaborate, and get things done." });
+  // The first step says any assistant before it names one.
+  expect(install.querySelector("ol.install > li")?.textContent).toMatch(
+    /^Open any assistant that can work on your computer, such as /,
+  );
   expect(install.querySelectorAll("ol.install > li")).toHaveLength(3);
   expect(install.querySelector("pre")?.textContent).toBe(INSTALL_PROMPT);
   within(install).getByRole("button", { name: "Copy message" });
@@ -172,11 +176,9 @@ it("loads every file from the site itself: the pages, the styles, and the pictur
   window.history.pushState({}, "", "/");
   expect(expectOwnFiles("/", render(<App />).container)).toBeGreaterThan(10);
 
-  // The styles load three fonts, each from /fonts/, and nothing else.
-  const fonts = [...css.matchAll(/url\(\s*["']?([^"')]+)["']?\s*\)/g)].map(([, address]) => address as string);
-  expect(fonts).toHaveLength(3);
-  for (const font of fonts) expect([font, font.startsWith("/fonts/"), exists(font)]).toEqual([font, true, true]);
-  expect(found(css, /@import|https?:/)).toBeNull();
+  // The styles load no file: no font, no picture, and nothing from outside.
+  expect(css.length).toBeGreaterThan(1000);
+  expect(found(css, /url\(|@font-face|@import|https?:/)).toBeNull();
 
   // Each drawing loads nothing from outside; one it does load sits beside it in this folder.
   const drawings = ["public", "brand"].flatMap((folder) =>

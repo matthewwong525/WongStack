@@ -1,6 +1,6 @@
 # WongStack wiki
 
-This wiki is what WongStack has learned: how you work, who is who, and how the project runs. WongStack is an assistant that remembers you and gets things done. Ask it anything: research, a reminder, a plan for your week, or a small app. Each page stands on its own, so follow the links down to what you need.
+This wiki is what WongStack has learned: how you work, who is who, and how the project runs. WongStack gives your assistant one place to build, remember, and get things done; each page stands on its own, so follow the links down to what you need.
 
 New here? Start with [getting started](stack/getting-started.md): from any folder to a working assistant and a live site, with three things you do by hand.
 

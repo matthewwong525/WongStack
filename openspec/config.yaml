@@ -2,7 +2,7 @@ schema: spec-driven
 
 # Project context shown to the AI when it drafts change artifacts.
 context: |
-  WongStack is a stack-agnostic Claude Code workflow toolkit, shipped as a
+  WongStack is a stack-agnostic workflow toolkit for AI assistants, shipped as a
   template you clone and work from. The payload is skills under
   .agents/skills/, the wiki/ progressive-disclosure wiki, AGENTS.md, VERSION,
   CHANGELOG.md. This meta-repo has app and payload checks in CI. CI is the

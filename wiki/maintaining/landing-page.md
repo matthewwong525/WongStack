@@ -8,10 +8,11 @@ It is plain files, with no server code, database, or secret. Two pages exist: th
 
 Everything the page says about installing sits in [`site/src/install.ts`](../../site/src/install.ts): the message to paste, the steps, the agents, the accounts a person needs, the computers it works on, and the optional add-on. Edit that one file, and the install section, the questions, and the list of what WongStack is built on all follow. No other file under `site/src/` names an account, a system, or the message.
 
-Two rules:
+Three rules:
 
 - **The message is the README's, character for character.** [The guard test](../../scripts/tests/landing-site.test.mjs) reads `INSTALL_PROMPT` from `install.ts` and fails when [the README](../../README.md)'s fenced message differs, naming both files. Change both in the same change.
 - **Describe the install that works today**, not one that is planned. A page that promises a route early sends a visitor to a dead end.
+- **Name an assistant or a chat app as an example, never as needed.** `STEPS` in [`site/src/install.ts`](../../site/src/install.ts) says *any assistant that can work on your computer* first, then names one as an example. A picture of a chat app says it shows what Matthew uses. The headline and the text a shared link shows name no other product: a visitor who uses something else otherwise leaves at step one.
 
 ## No hosting offer
 

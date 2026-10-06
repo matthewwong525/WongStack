@@ -46,15 +46,14 @@ Each change gets its own link, running against the practice data. Your real site
 
 Setup needs these steps. Each needs you, and the ones marked *browser* open a web page:
 
-1. Install [Claude Code](https://code.claude.com/docs/en/setup) or [Codex](https://developers.openai.com/codex/cli). Its install page may ask you to run one command in a terminal.
-2. Get the free [Paseo](https://paseo.sh) app, where you chat. Setup points to it if it's missing, and never installs it for you.
-3. Sign up for [GitHub](https://github.com/signup), and approve the sign-in code the agent shows you (*browser*)
-4. Say yes to any free tools setup needs to install. An install may show your computer's own permission window.
-5. On Windows, approve its permission window if setup needs to turn on the setting for your assistant's folder links. The agent handles the change; you type no command. If your workplace blocks it, ask your IT team for help ([Windows links](../development/required-tools.md#symbolic-links-in-the-agent-folder)).
-6. Sign up for [Cloudflare](https://cloudflare.com) (*browser*)
-7. Open [the token link](cloudflare-credentials.md#create-the-token), check the two rows, press Create, and paste the token into the chat (*browser*). Cloudflare shows it **once**, so copy it before leaving the page.
+1. Have an assistant that can work on your computer, such as [Claude Code](https://code.claude.com/docs/en/setup) or [Codex](https://developers.openai.com/codex/cli). Its install page may ask you to run one command in a terminal.
+2. Sign up for [GitHub](https://github.com/signup), and approve the sign-in code the agent shows you (*browser*)
+3. Say yes to any free tools setup needs to install. An install may show your computer's own permission window.
+4. On Windows, approve its permission window if setup needs to turn on the setting for your assistant's folder links. The agent handles the change; you type no command. If your workplace blocks it, ask your IT team for help ([Windows links](../development/required-tools.md#symbolic-links-in-the-agent-folder)).
+5. Sign up for [Cloudflare](https://cloudflare.com) (*browser*)
+6. Open [the token link](cloudflare-credentials.md#create-the-token), check the two rows, press Create, and paste the token into the chat (*browser*). Cloudflare shows it **once**, so copy it before leaving the page.
 
-The first two happen before the chat exists; the rest happen in one sitting, while the agent waits. There's no "connect your repository" step and setup configures protection automatically. A new Zero Trust account may need its dashboard onboarding completed before setup can continue.
+The first happens before the chat exists; the rest happen in one sitting, while the agent waits. A chat app is optional: [required tools](../development/required-tools.md) says what one adds. There's no "connect your repository" step and setup configures protection automatically. A new Zero Trust account may need its dashboard onboarding completed before setup can continue.
 
 ## If you want a login wall
 
