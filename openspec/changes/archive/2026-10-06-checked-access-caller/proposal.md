@@ -1,6 +1,6 @@
 # Access changes need a checked caller
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** integrate-gdp-ts
 **Open questions:** none
 
@@ -61,3 +61,5 @@ None: `employee-onboarding` already promises that only the employer makes or unm
 - **2026-10-06** — Check: `app/tests/employee-access/unchecked-caller.ts` marks two lines as expected type errors, because each makes an Access pass without the sign-in check and must never compile; the type check fails if either does.
 - **2026-10-06** — Check: `app/tsconfig.worker.json` adds that one file to what the type check reads, because test files are skipped there; nothing is read less strictly.
 - **2026-10-06** — Assumed: four sentences under *Managers* in `wiki/stack/employee-access.md` were shortened with their meaning kept, because the page sat 8 words under its 3,000-word cap and the new paragraph adds 24.
+- **2026-10-06** — Asked whether to publish, after asking how the change helps this repo → chose *Publish it*.
+- **2026-10-06** — Assumed: archive checkpoint for release 35.2.1; bringing `main` in kept both changelog entries and both sides' wording under *Managers* in `wiki/stack/employee-access.md`, which now sits at its 3,000-word cap.

@@ -9,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · checked-access-caller</title>
+<title>Review · 2026-10-06-checked-access-caller</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -93,11 +93,11 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="checked-access-caller">
+<body data-change="2026-10-06-checked-access-caller">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>checked-access-caller</h1>
+  <h1>2026-10-06-checked-access-caller</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. Saving a note copies all your notes. Open a drawing and tap it to see it full screen.</p>
@@ -145,6 +145,8 @@
 <li class="decision card" id="decision-12" data-note="decision-12" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-10-06</p>Check: <code>app/tests/employee-access/unchecked-caller.ts</code> marks two lines as expected type errors, because each makes an Access pass without the sign-in check and must never compile; the type check fails if either does.</li>
 <li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-10-06</p>Check: <code>app/tsconfig.worker.json</code> adds that one file to what the type check reads, because test files are skipped there; nothing is read less strictly.</li>
 <li class="decision card" id="decision-14" data-note="decision-14" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-06</p>Assumed: four sentences under <i>Managers</i> in <code>wiki/stack/employee-access.md</code> were shortened with their meaning kept, because the page sat 8 words under its 3,000-word cap and the new paragraph adds 24.</li>
+<li class="decision card" id="decision-15" data-note="decision-15" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-06</p>Asked whether to publish, after asking how the change helps this repo → chose <i>Publish it</i>.</li>
+<li class="decision card" id="decision-16" data-note="decision-16" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-06</p>Assumed: archive checkpoint for release 35.2.1; bringing <code>main</code> in kept both changelog entries and both sides' wording under <i>Managers</i> in <code>wiki/stack/employee-access.md</code>, which now sits at its 3,000-word cap.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

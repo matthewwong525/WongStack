@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (patch) — Access changes need a checked caller
+## 35.2.1 — Access changes need a checked caller
 
 - **A change in Access can't skip the sign-in check.** Every change to people, roles or levels takes a pass that says who is asking. Only the sign-in check hands that pass out now, and code that writes its own no longer builds.
 - **Picking a manager needs the owner's pass.** The code that makes or unmakes a manager takes a pass only the owner gets, so a later change can't forget to ask *is this the owner?*
