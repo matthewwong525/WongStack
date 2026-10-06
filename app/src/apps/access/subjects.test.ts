@@ -9,7 +9,7 @@ const kim = person('kim@shop.com', { apps: ['hello', 'tips'], keys: { stripe: 'w
 const status: Status = { ownerEmail: 'owner@example.com', viewer: { email: 'owner@example.com', owner: true }, environment: 'live', key: 'ready', started: true,
   imported: 0, keysStarted: true, kept: 0, apps: ['hello', 'tips', 'payroll'], appKeys: { hello: [], tips: [], payroll: [] }, keys: [], roles: [office, sales],
   people: [person('gone@shop.com', { status: 'removed' }), kim, person('lee@shop.com', { role: 'sales', apps: ['hello'], keys: { stripe: 'read' } }),
-    person('sam@shop.com', { role: 'sales', apps: ['hello'], keys: { stripe: 'read' } })], work: [] }
+    person('sam@shop.com', { role: 'sales', apps: ['hello'], keys: { stripe: 'read' } })], work: [], project: 'ready' }
 
 it('names who holds a role, and nobody for a role with no one or not saved yet', () => {
   expect(holdersLine(status, 'sales')).toBe('lee@shop.com, sam@shop.com')

@@ -17,7 +17,7 @@ const status = (): Status => ({ ownerEmail: 'owner@shop.com', viewer: { email: '
   roles: [{ id: 'office', name: 'Office', apps: [], keys: {} }, { id: 'sales', name: 'Sales', ...sales() }],
   people: [person('gone@shop.com', { status: 'removed' }), person('kim@shop.com', { apps: ['hello'], keys: { stripe: 'read', cloudflare: 'read' } }),
     person('lee@shop.com', { role: 'sales', ...sales() }), person('sam@shop.com', { role: 'sales', ...sales() })],
-  work: [] })
+  work: [], project: 'ready' })
 let roster: Status
 let failed: Set<string>
 let fetchMock: ReturnType<typeof vi.fn>
@@ -111,6 +111,25 @@ it("sets a role's key level under the app's tick: the tick gives Read, a raise s
   tick('Tip calculator'); expect(app('Tip calculator').queryByRole('radio')).toBeNull(); expect(held('Hello', 'Stripe')).toEqual(['Read & write'])
   click('Save role'); await screen.findByText('Saved.')
   expect(sent('roles')).toEqual([{ id: 'office', name: 'Office', apps: ['hello'], keys: { stripe: 'write', bank: null, cloudflare: null } }])
+})
+it("gives a whole role the project with the same tick as a person's, and names the step left under it", async () => {
+  roster.keys.push(key('code', 'Project code', { levels: ['read'], saved: false, alone: true })); roster.project = 'key'
+  open('roles/office'); await panel('Office')
+  const project = () => within(screen.getByRole('group', { name: 'Project' }))
+  const install = () => project().getByRole('checkbox', { name: 'Can install the project' }) as HTMLInputElement
+  expect(install().checked).toBe(false); expect(project().queryByText(/One step first/)).toBeNull()
+  // Project code is the tick, never a level choice among the other keys.
+  expect(within(screen.getByRole('group', { name: 'Keys no ticked app uses' })).getAllByRole('group').map(group => group.querySelector('legend')!.textContent)).toEqual(['Stripe', 'Bank', 'Cloudflare'])
+  tick('Can install the project')
+  expect(project().getByText('One step first.')).toBeTruthy(); expect(project().getByRole('button', { name: 'Copy that request' })).toBeTruthy()
+  click('Save role'); await screen.findByText('Saved.')
+  expect(sent('roles')).toEqual([{ id: 'office', name: 'Office', apps: [], keys: { stripe: null, bank: null, cloudflare: null, code: 'read' } }])
+  // Once the app can hand the project out, the tick shows with nothing under it, and unticking saves none.
+  cleanup(); roster.keys[3].saved = true; roster.project = 'ready'; roster.roles[0].keys = { code: 'read' }
+  open('roles/office'); await panel('Office')
+  expect(install().checked).toBe(true); expect(project().queryByText(/One step first/)).toBeNull(); expect(project().queryByRole('button')).toBeNull()
+  tick('Can install the project'); click('Save role'); await screen.findByText('Saved.')
+  expect(sent('roles')[1]).toEqual({ id: 'office', name: 'Office', apps: [], keys: { stripe: null, bank: null, cloudflare: null, code: null } })
 })
 it('adds a role, which can start from what one person has now', async () => {
   open('roles'); fireEvent.click(await screen.findByRole('link', { name: 'Add role' }))

@@ -12,7 +12,7 @@ const setup = { role: 'employee', api: 'authenticated', identity: { email: 'empl
   repository: 'manual_provider_setup', memory: 'independent_operator_setup', prompt: { state: 'ready', text: 'Synthetic reviewed setup prompt' } }
 const person = (changes: Partial<Person> = {}): Person => ({ email: 'employee@example.com', status: 'active', settled: true, role: null, manager: false, apps: ['hello'], keys: {}, ...changes })
 const status = (): Status => ({ ownerEmail: 'owner@example.com', viewer: { email: 'owner@example.com', owner: true }, environment: 'live', key: 'ready', started: true, imported: 0,
-  keysStarted: true, kept: 0, apps: ['hello', 'custom'], appKeys: { hello: [], custom: [] }, keys: [], roles: [], people: [person()], work: [] })
+  keysStarted: true, kept: 0, apps: ['hello', 'custom'], appKeys: { hello: [], custom: [] }, keys: [], roles: [], people: [person()], work: [], project: 'ready' })
 const saved = (id: string, title: string): Status['keys'][number] => ({ id, title, levels: ['read', 'write'], saved: true, setup: false, usedBy: [], alone: false })
 let mode: 'owner' | 'manager' | 'employee' | 'legacy' | 'waiting-owner' | 'waiting-employee'
 let catalogue: string[]

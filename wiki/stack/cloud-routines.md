@@ -62,7 +62,7 @@ Scheduled work takes one of two shapes. The test is **who decides the steps**, n
 Your first routine asks which model to use, from a short list with one recommended. Ask for the full list to see the rest. The model is reached through Cloudflare's own AI service, with the sign-in you already have. You paste no key, and Cloudflare bills its use.
 
 - **Models Cloudflare runs itself**, such as Kimi and GLM, are billed as Workers AI use. The recommended pick is one of them.
-- **Claude and GPT models need credit** loaded in your Cloudflare account.
+- **Claude and GPT models need credit** loaded in your Cloudflare account. Without it Cloudflare answers *402 Insufficient wholesale credits*, and `/routine` keeps the model you had.
 
 `/routine` tests your pick with one small request before it uses it. A refused pick changes nothing: routines keep the model they had, and the reply says why. Ask any time to change the model.
 
@@ -139,6 +139,7 @@ Setup makes this key for the runner. A run holds it, so it can run a model and c
 ## The limits
 
 - **A run can't ask you anything.** It takes the safe choice, says it assumed, and leaves you a note.
+- **About 10 seconds to start, then minutes.** The computer, a copy of the project, and the tools are ready in about 10 seconds. On Cloudflare's own models a small task then takes 1 to 3 minutes, and one that searches memory and leaves a note can take 10.
 - **30 minutes a run.** A run still going is stopped and listed as `timed-out`.
 - **One run per routine at a time.** A tick that arrives during a run is listed as `skipped`.
 - **Two computers at once.** A third run waits its turn.
