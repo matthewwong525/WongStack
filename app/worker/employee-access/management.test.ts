@@ -268,6 +268,20 @@ it('lets a manager the owner picked add people, edit roles and set levels as the
     `${site.ownerEmail} manager_added`, `${kim.id} person_changed`]);
 });
 
+it("leaves the manager switch alone when a manager changes another manager's apps", async () => {
+  await pick(employee.id); await pick(kim.id, ['orders']);
+  const rows = () => f.sql.prepare('SELECT rowid, email FROM wong_access_managers ORDER BY email').all();
+  const before = rows();
+  const saved = await (await ask(kim, 'people', person(employee.id, ['payroll']))).json();
+  expect(saved).toMatchObject({ people: [{ email: employee.id, manager: true, apps: ['payroll'] }, { email: kim.id, manager: true, apps: ['orders'] }] });
+  // No manager row was written: each is still the row the owner made.
+  expect(rows()).toEqual(before);
+  // The person she changed still manages, and the record shows nobody's switch moved.
+  expect((await ask(employee, 'status', undefined, 'GET')).status).toBe(200);
+  expect(acted()).toEqual([`${site.ownerEmail} person_changed`, `${site.ownerEmail} manager_added`, `${site.ownerEmail} person_changed`,
+    `${site.ownerEmail} manager_added`, `${kim.id} person_changed`]);
+});
+
 it('refuses a manager who picks, unpicks or removes a manager, or touches the owner, and writes nothing', async () => {
   await pick(kim.id, ['orders']); await pick('lee@example.com');
   const tables = ['installation', 'members', 'managers', 'grants', 'key_grants', 'member_roles', 'audit', 'work'];

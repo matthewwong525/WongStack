@@ -1,6 +1,6 @@
 // Local denial and the desired provider generation commit together.
 import { z } from "zod";
-import { type Core, AccessError, now } from "./core.ts";
+import { type Core, type OwnerCore, AccessError, isOwner, now } from "./core.ts";
 import { loginAuthority } from "./login-management.ts";
 import { codeStep } from "./code.ts";
 import { appKeys, keyCatalogue } from "./key-catalogue.ts";
@@ -29,16 +29,17 @@ function target({ removed, role: asked, apps, keys }: Change, existing: Sets["pe
 }
 
 /**
- * Whether a save leaves the person a manager. Only the owner picks managers: anyone else who names the
- * switch, or removes a manager, themselves included, is refused whole. A removal always ends it.
+ * The owner's pass when a save asks about the manager switch: it names it, or removes a manager. Null when it
+ * does not. Only the owner picks managers: anyone else who asks, about themselves included, is refused whole.
  */
-function managing(core: Core, { removed, manager }: Change, was: boolean): boolean {
-  if (!core.owner && (manager !== undefined || (removed && was))) throw new AccessError("owner_required", 403);
-  return !removed && (manager ?? was);
+function switching(core: Core, { removed, manager }: Change, was: boolean): OwnerCore | null {
+  if (manager === undefined && !(removed && was)) return null;
+  if (!isOwner(core)) throw new AccessError("owner_required", 403);
+  return core;
 }
 
-/** The switch is a row: cleared, then written again when it stays on, so a person added back starts without it. */
-const managerWrites = (core: Core, email: string, manager: boolean) => [
+/** The switch is a row: cleared, then written again when it stays on. A removal clears it, so a person added back starts without it. */
+const managerWrites = (core: OwnerCore, email: string, manager: boolean) => [
   core.db.prepare("DELETE FROM wong_access_managers WHERE installation_id = ? AND email = ?").bind(core.installationId, email),
   ...(manager ? [core.db.prepare("INSERT INTO wong_access_managers VALUES (?, ?)").bind(core.installationId, email)] : []),
 ];
@@ -51,7 +52,9 @@ export async function changeMember(core: Core, value: unknown): Promise<void> {
   const { people, roles } = await readSets(core);
   const existing = people.find(person => person.email === member.email);
   const was = existing?.manager ?? false;
-  const manager = managing(core, member, was);
+  const owner = switching(core, member, was);
+  // A removal always ends managing; a save that does not name the switch keeps it.
+  const manager = !member.removed && (member.manager ?? was);
   const { role, own } = target(member, existing, roles);
   const id = core.installationId;
   const status = member.removed ? "removed" : "active";
@@ -67,7 +70,8 @@ export async function changeMember(core: Core, value: unknown): Promise<void> {
     ...setWrites(core, "people", member.email, own),
     core.db.prepare("DELETE FROM wong_access_member_roles WHERE installation_id = ? AND email = ?").bind(id, member.email),
     ...(role === null ? [] : [core.db.prepare("INSERT INTO wong_access_member_roles VALUES (?, ?, ?)").bind(id, member.email, role)]),
-    ...managerWrites(core, member.email, manager),
+    // A save that does not ask about the switch leaves its row as it is.
+    ...(owner ? managerWrites(owner, member.email, manager) : []),
   ];
   // Only a change to who may sign in needs the provider, and only the live app has one.
   const kinds = !core.live || existing?.status === status ? [] : ["policy", ...(member.removed ? ["sessions"] : [])];

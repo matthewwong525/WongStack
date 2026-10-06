@@ -10,8 +10,8 @@ import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 
 import {
-  ACCESS_KEY, ACCESS_KEY_TODO, ARTIFACTS_PROVISION, CLOUDFLARE_READ_KEY, CLOUDFLARE_READ_KEY_TODO, CODE_KEY, CloudflareError, DEPLOY_TOKEN, NAMESPACE, NORMAL_PROVISION, PROPAGATION, R2_OFF, SNAPSHOT_DAYS, STORAGE_TOKEN, USER_GRANTS,
-  accounts, artifactNamesFor, cli, cloudflare, githubRepo, names, plan, provision, readEnv, run, runnerConfig, safeName, widen, wranglerConfig, wranglerFragment,
+  ACCESS_KEY, ACCESS_KEY_TODO, ARTIFACTS_PROVISION, CLOUDFLARE_READ_KEY, CLOUDFLARE_READ_KEY_TODO, CODE_KEY, CloudflareError, DEPLOY_TOKEN, NAMESPACE, NORMAL_PROVISION, PROPAGATION, R2_OFF, ROUTINES_PROVISION, SNAPSHOT_DAYS, STORAGE_TOKEN, USER_GRANTS,
+  accounts, artifactNamesFor, cli, cloudflare, githubRepo, names, plan, provision, readEnv, run, runnerConfig, safeName, widen, widenBy, wranglerConfig, wranglerFragment,
 } from '../../.agents/skills/wong-setup/scripts/provision.mjs';
 import { helperConfig } from '../../.agents/skills/save/scripts/artifacts-credential.mjs';
 import { databaseName, parseConfig, stripJsonc, workerName } from '../lib-wrangler-config.mjs';
@@ -1459,6 +1459,38 @@ test('an Artifacts widen adds its three groups and reads the plan, stops with cl
   const again = await env.widen({ account: ACCOUNT, route: 'artifacts' });
   assert.deepEqual(again.granted, []);
   assert.equal(env.fake.state.puts.length, 2, 'a token that holds every group is not widened again');
+});
+
+test('a routines widen adds the routine groups alone, keeps every other group, and reads the plan', async (t) => {
+  const env = await setup(t);
+  await env.widen({ account: ACCOUNT });
+  const heldIds = () => env.fake.state.policies.flatMap((policy) => policy.permission_groups.map((group) => group.id));
+  const before = heldIds();
+  const planReads = () => env.fake.count(`GET /accounts/${ACCOUNT}/subscriptions`);
+  const base = { token: TOKEN, api: env.fake.api, account: ACCOUNT, rows: ROUTINES_PROVISION, sleep: async (ms) => env.sleeps.push(ms) };
+  const routineGroups = ['Workers Containers Write', 'Billing Read', 'AI Gateway Write', 'AI Gateway Run', 'Workers AI Read'];
+
+  env.fake.state.refuse = ['PUT /user/tokens/tok1'];
+  await assert.rejects(widenBy(base), { reason: 'cloudflare', message: 'Cloudflare PUT /user/tokens/tok1: HTTP 500 1000' });
+  assert.deepEqual(heldIds(), before, 'a refused widen changes nothing');
+  assert.equal(planReads(), 0);
+
+  env.fake.state.refuse = [];
+  const report = await widenBy(base);
+  assert.deepEqual(report, { granted: routineGroups, held: [], probed: [ACCOUNT] });
+  assert.deepEqual(heldIds().filter((id) => !before.includes(id)).sort(), ROUTINES_PROVISION.map((row) => row.id).sort(), 'only the routine groups were added');
+  for (const id of before) assert.ok(heldIds().includes(id), 'a group the token held is still held');
+  assert.ok(!heldIds().includes(ARTIFACTS_PROVISION.find((row) => row.name === 'Artifacts Write').id), 'a routine needs no repository group');
+  assert.deepEqual(env.fake.state.policies.map((policy) => policy.resources), startingPolicies().map((policy) => policy.resources));
+  assert.equal(planReads(), 1, 'the plan read is the one probe');
+
+  const again = await widenBy(base);
+  assert.deepEqual([again.granted, again.held], [[], routineGroups]);
+  assert.equal(env.fake.state.puts.length, 2, 'a token that holds every routine group is not widened again');
+  // The two groups an Artifacts install already holds are its own, by name, scope and id.
+  for (const row of ROUTINES_PROVISION.slice(0, 2)) assert.deepEqual(ARTIFACTS_PROVISION.find((each) => each.name === row.name), row);
+  for (const row of ROUTINES_PROVISION) assert.equal(groupId(row.name), row.id, row.name);
+  await assert.rejects(widenBy({ ...base, rows: [{ name: 'No Such Group', scope: 'account' }] }), { reason: 'token', message: /lists no account permission group named No Such Group/ });
 });
 
 test('a repository name another project holds is reported taken, and stops the install before the runner', async (t) => {

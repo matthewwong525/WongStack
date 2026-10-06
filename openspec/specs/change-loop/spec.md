@@ -59,7 +59,7 @@ No install field, flag, or file SHALL change how a repo handles requests or writ
 
 ### Requirement: A task that will come back gets one offer
 
-When a task done by hand will clearly come back (the person says it recurs, or memory shows they asked before), the next-step question SHALL include one option for a routine or a mini app, named by its outcome. The agent SHALL NOT offer on a guess, after a code change it built, in an unattended run, for a routine without `paseo`, or after a decline for that task.
+When a task done by hand will clearly come back (the person says it recurs, or memory shows they asked before), the next-step question SHALL include one option for a routine or a mini app, named by its outcome. The agent SHALL NOT offer on a guess, after a code change it built, in an unattended run, or after a decline for that task.
 
 #### Scenario: The person says it recurs
 

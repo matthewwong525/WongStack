@@ -25,9 +25,9 @@ Both ideas are adapted from Matt Pocock's [`retro`](https://github.com/mattpococ
 
 ## Run it on a cadence
 
-With [Paseo](https://paseo.sh), run [`/routine every Monday at 9am: /improve`](../../.agents/skills/routine/SKILL.md): each run gets its own worktree, and runs of one routine never overlap.
+Run [`/routine every Monday at 9am: /improve`](../../.agents/skills/routine/SKILL.md): it runs in your Cloudflare account, each run gets a fresh copy of the project, and runs of one routine never overlap ([cloud routines](../stack/cloud-routines.md)).
 
-WongStack does not install a scheduler. An external scheduler must provide a clean, current checkout and serialize runs so two improvement deliveries cannot overlap. Capture the result and delivery links. Existing area prompts and unattended wording remain usable; invoking `/improve` authorizes one supported improvement, while unresolved choices follow the normal change loop.
+Any other scheduler must provide a clean, current checkout and serialize runs so two improvement deliveries cannot overlap. Capture the result and delivery links. Existing area prompts and unattended wording remain usable; invoking `/improve` authorizes one supported improvement, while unresolved choices follow the normal change loop.
 
 ## Keep one delivery owner
 

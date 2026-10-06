@@ -175,7 +175,7 @@ it("lists the one optional add-on under the install steps, with what it enables"
     [
       "Add Paseo",
       "https://paseo.sh",
-      "Chat from your phone, run jobs on a schedule, and work on several tasks at once.",
+      "Chat from your phone, and work on several tasks at once.",
     ],
   ]);
   expect(ADD_ONS).toHaveLength(1);
