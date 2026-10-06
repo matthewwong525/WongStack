@@ -9,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · connect-installs-project</title>
+<title>Review · 2026-10-06-connect-installs-project</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -93,11 +93,11 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="connect-installs-project">
+<body data-change="2026-10-06-connect-installs-project">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>connect-installs-project</h1>
+  <h1>2026-10-06-connect-installs-project</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. Saving a note copies all your notes. Open a drawing and tap it to see it full screen.</p>
@@ -196,6 +196,11 @@
 <li class="decision card" id="decision-20" data-note="decision-20" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-06</p>Proof (7.2): a throwaway project <code>connect-proof</code> in the account's <code>wongstack</code> namespace, on a throwaway branch whose staging app was bound to it. The usual narrow deploy key deployed the binding with no new permission, so 5.2 adds none. The checker downloaded the project through the preview, <code>git fsck</code> passed, and a push was refused with the plain line. The project, the branch and its folder are deleted.</li>
 <li class="decision card" id="decision-21" data-note="decision-21" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-06</p>Proof (7.2) found one bug, fixed: the app read a Cloudflare-kept project's address as a property of the binding's handle; Cloudflare gives it from the handle's <code>info()</code> call. The download answered <i>not available</i> until then.</li>
 <li class="decision card" id="decision-22" data-note="decision-22" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-06</p>Save: the owner saved the read-only GitHub key <code>WONG_CODE_READ</code> through the private link; the live app holds it. The preview app refused the usual load (Cloudflare code 10215, a newer preview was uploaded), so it was given as a new version of the preview app; the names check reports both apps in step. Left: the download through the preview (7.3), the walk (7.4) and a real sign-in install (7.5).</li>
+<li class="decision card" id="decision-23" data-note="decision-23" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-06</p>Proof (7.3): with the key loaded, the checker downloaded this project through the preview in about one second, 15 MB, and <code>git fsck</code> passed; a push was refused with the plain line.</li>
+<li class="decision card" id="decision-24" data-note="decision-24" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-06</p>Proof (7.5): the owner approved one sign-in on this computer. The pinned installer, run from an empty folder against the preview, signed in, installed the project and reported the apps; a second run said <i>up to date</i>; the copy's Git settings hold no token.</li>
+<li class="decision card" id="decision-25" data-note="decision-25" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-06</p>Proof (7.5) found one older bug, fixed: inside a copy, listing company actions with no search words sent the word &quot;undefined&quot; as the search and came back empty. <code>scripts/company-api.mjs</code> now leaves out an option nobody gave; the list then showed the three actions.</li>
+<li class="decision card" id="decision-26" data-note="decision-26" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-06</p>Build order: the look at Access's Keys view and Home's popup moved from task 7.4 to the publish walk, because that walk runs a browser on the saved preview anyway; 7.4 keeps the requests, all observed.</li>
+<li class="decision card" id="decision-27" data-note="decision-27" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-06</p>Archive checkpoint: all tasks done and proven on previews; archived for publishing as 35.1.0.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

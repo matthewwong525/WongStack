@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Connect your assistant installs the project
+## 35.1.0 — Connect your assistant installs the project
 
 - **Connect puts the whole project on a person's device.** They paste a short setup text into their assistant and approve their app sign-in on that computer. The assistant downloads the project from the app's own address into a folder, and uses their apps from inside it. They need no GitHub or Cloudflare account, type no key, and install nothing by hand. Running the same step again brings the copy up to date.
 - **The setup text is short.** It names the app, the checked installer and one step to run. The installer signs in, downloads, and reports what works.

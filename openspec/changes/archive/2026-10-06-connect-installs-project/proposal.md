@@ -1,6 +1,6 @@
 # Connect your assistant installs the project
 
-**Status:** in-progress
+**Status:** ready-to-ship
 
 **Branch:** prolific-bumblebee
 
@@ -132,3 +132,8 @@ None.
 - **2026-10-06** — Proof (7.2): a throwaway project `connect-proof` in the account's `wongstack` namespace, on a throwaway branch whose staging app was bound to it. The usual narrow deploy key deployed the binding with no new permission, so 5.2 adds none. The checker downloaded the project through the preview, `git fsck` passed, and a push was refused with the plain line. The project, the branch and its folder are deleted.
 - **2026-10-06** — Proof (7.2) found one bug, fixed: the app read a Cloudflare-kept project's address as a property of the binding's handle; Cloudflare gives it from the handle's `info()` call. The download answered *not available* until then.
 - **2026-10-06** — Save: the owner saved the read-only GitHub key `WONG_CODE_READ` through the private link; the live app holds it. The preview app refused the usual load (Cloudflare code 10215, a newer preview was uploaded), so it was given as a new version of the preview app; the names check reports both apps in step. Left: the download through the preview (7.3), the walk (7.4) and a real sign-in install (7.5).
+- **2026-10-06** — Proof (7.3): with the key loaded, the checker downloaded this project through the preview in about one second, 15 MB, and `git fsck` passed; a push was refused with the plain line.
+- **2026-10-06** — Proof (7.5): the owner approved one sign-in on this computer. The pinned installer, run from an empty folder against the preview, signed in, installed the project and reported the apps; a second run said *up to date*; the copy's Git settings hold no token.
+- **2026-10-06** — Proof (7.5) found one older bug, fixed: inside a copy, listing company actions with no search words sent the word "undefined" as the search and came back empty. `scripts/company-api.mjs` now leaves out an option nobody gave; the list then showed the three actions.
+- **2026-10-06** — Build order: the look at Access's Keys view and Home's popup moved from task 7.4 to the publish walk, because that walk runs a browser on the saved preview anyway; 7.4 keeps the requests, all observed.
+- **2026-10-06** — Archive checkpoint: all tasks done and proven on previews; archived for publishing as 35.1.0.
