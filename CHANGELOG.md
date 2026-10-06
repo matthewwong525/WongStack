@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 36.2.1 — Notes from the first real routines
+
+- **The routines page says how long a run takes.** About 10 seconds to start, then 1 to 3 minutes for a small task on Cloudflare's own models, and up to 10 for one that searches memory and leaves a note.
+- **It names what Cloudflare says when a model needs credit.** Picking Claude or GPT with no credit loaded gets *402 Insufficient wholesale credits*, and your routines keep the model they had.
+- **The memory page says how a scheduled run writes a note.** A run has no chat session, so it leaves the session out; otherwise the note is held for a chat that never comes.
+
+**Updating.** Nothing needs doing by hand.
+
 ## 36.2.0 — The project key is asked for when you share the project
 
 - **Setup no longer mentions the read-only GitHub key.** Its last message dropped the line *One step is left before teammates can install the project*, and an update no longer lists the key as a to-do. If you work alone you are never asked. A project kept in Cloudflare needs no key and was never asked.
