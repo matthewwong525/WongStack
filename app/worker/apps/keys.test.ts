@@ -19,11 +19,12 @@ afterEach(() => {
 });
 
 const env = { DB: { name: "app-db" }, OTHER_KEY: "another-saved-key", WONG_CLOUDFLARE_READ: "cloudflare-read-key", MEMORY_DB: {}, MEMORY_BUCKET: {},
-  WONG_ACCESS_LOGIN_MANAGEMENT: "private-login" };
+  WONG_ACCESS_LOGIN_MANAGEMENT: "private-login", WONG_CODE_READ: "project-read-key", ARTIFACTS: { get: async () => ({}) } };
 const call = (bindings: object = env) => handleApp(new Request("https://workspace.example.com/apps/hello/api/peek"), bindings as Env, null);
 
 it("hands an app's handlers the saved keys its api.ts lists, and still no memory or sign-in binding", async () => {
   expect((await call()).status).toBe(200);
+  // Nor the project's read key or its binding: only the Worker's own code route reads the project.
   expect(Object.keys(seen[0]).sort()).toEqual(["DB", "OTHER_KEY", "WONG_CLOUDFLARE_READ"]);
   // A listed key that is not saved stops the call before the handler.
   const missing = await call({ ...env, WONG_CLOUDFLARE_READ: "" });

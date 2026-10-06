@@ -17,8 +17,7 @@ export function AppAccessPage({ app, ...props }: ViewProps & { app: string }) {
   const row = ({ kind, id }: (typeof list)[number]) => rows[kind][id]
   return <Page {...props} name={appTitle(app)} changed={differs(start, rows)} action="Save access"
     onSave={() => save('grants', { app, ...each(list, subject => row(subject).on), keys: each(list.filter(subject => row(subject).on), subject => row(subject).keys) })}>
-    <h2>{appTitle(app)}</h2>
-    <p>{capital(usesLine(status, app))}</p>
+    <p className="text-muted-foreground">{capital(usesLine(status, app))}</p>
     {list.map(subject => <div role="group" aria-label={subject.label} className="grid min-w-0 gap-2" key={subject.kind + subject.id}>
       {/* Ticking gives Read on each of the app's keys still at None, never Read & write. */}
       <Tick checked={row(subject).on} onChange={on => setRows(put(rows, subject, { on, keys: fill(keys, row(subject).keys, on ? 'read' : null) }))}>{subject.label}</Tick>

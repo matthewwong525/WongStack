@@ -29,59 +29,62 @@ export function App() {
   const [people, setPeople] = useState('1')
 
   return (
-    <>
+    <div>
       <h1 className="mb-3">Tip calculator</h1>
       <p className="mb-6 text-muted-foreground">Split a bill and choose a tip.</p>
       <Card className="p-6">
-        <div className="grid min-w-0 gap-2">
-          <Label htmlFor="tips-bill">Bill</Label>
-          <Input
-            className="h-11"
-            id="tips-bill"
-            type="number"
-            inputMode="decimal"
-            min="0"
-            step="0.01"
-            placeholder="0.00"
-            autoFocus
-            value={bill}
-            onChange={(event) => setBill(event.target.value)}
-          />
-        </div>
-        <div className="grid min-w-0 gap-2">
-          <span className="text-sm leading-none font-medium" id="tips-tip-label">Tip</span>
-          <div className="grid grid-cols-4 gap-2" role="group" aria-labelledby="tips-tip-label">
-            {percents.map((choice) => (
-              <Button
-                className="h-11 min-w-0 px-1"
-                type="button"
-                variant={choice === percent ? 'default' : 'outline'}
-                key={choice}
-                aria-pressed={choice === percent}
-                onClick={() => setPercent(choice)}
-              >
-                {choice}%
-              </Button>
-            ))}
+        {/* The page takes the whole shared frame: on a computer the three fields share a line. */}
+        <div className="grid gap-6 sm:grid-cols-3">
+          <div className="grid min-w-0 gap-2">
+            <Label htmlFor="tips-bill">Bill</Label>
+            <Input
+              className="h-11"
+              id="tips-bill"
+              type="number"
+              inputMode="decimal"
+              min="0"
+              step="0.01"
+              placeholder="0.00"
+              autoFocus
+              value={bill}
+              onChange={(event) => setBill(event.target.value)}
+            />
           </div>
-        </div>
-        <div className="grid min-w-0 gap-2">
-          <Label htmlFor="tips-people">People</Label>
-          <Input
-            className="h-11"
-            id="tips-people"
-            type="number"
-            inputMode="numeric"
-            min="1"
-            step="1"
-            value={people}
-            onChange={(event) => setPeople(event.target.value)}
-          />
+          <div className="grid min-w-0 gap-2">
+            <span className="text-sm leading-none font-medium" id="tips-tip-label">Tip</span>
+            <div className="grid grid-cols-4 gap-2" role="group" aria-labelledby="tips-tip-label">
+              {percents.map((choice) => (
+                <Button
+                  className="h-11 min-w-0 px-1"
+                  type="button"
+                  variant={choice === percent ? 'default' : 'outline'}
+                  key={choice}
+                  aria-pressed={choice === percent}
+                  onClick={() => setPercent(choice)}
+                >
+                  {choice}%
+                </Button>
+              ))}
+            </div>
+          </div>
+          <div className="grid min-w-0 gap-2">
+            <Label htmlFor="tips-people">People</Label>
+            <Input
+              className="h-11"
+              id="tips-people"
+              type="number"
+              inputMode="numeric"
+              min="1"
+              step="1"
+              value={people}
+              onChange={(event) => setPeople(event.target.value)}
+            />
+          </div>
         </div>
         <output className="block pt-2 text-muted-foreground wrap-anywhere" aria-live="polite">
           {describe(bill, split({ bill: Number(bill), percent, people: Number(people) }))}
         </output>
       </Card>
-    </>
+    </div>
   )
 }

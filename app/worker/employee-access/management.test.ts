@@ -194,7 +194,7 @@ it('refuses a missing installation snapshot rather than inventing a status', asy
 
 it('serves the setup prompt to every signed-in person, before and after permissions start', async () => {
   const read = (identity = employee, env = f.env) => setupStatus(req('setup', 'GET'), env, identity);
-  const base = { api: 'authenticated', repository: 'manual_provider_setup', memory: 'independent_operator_setup', prompt: expect.objectContaining({ state: expect.any(String) }) };
+  const base = { api: 'authenticated', code: 'off', repository: 'manual_provider_setup', memory: 'independent_operator_setup', prompt: expect.objectContaining({ state: expect.any(String) }) };
   // Started: a person with no apps keeps their own setup, and the owner keeps every app.
   expect(await (await read()).json()).toEqual({ ...base, identity: { email: employee.id, subject: employee.claims.sub }, role: 'employee', permissions: 'started', apps: [] });
   expect(await (await read(owner)).json()).toMatchObject({ role: 'owner', permissions: 'started', apps: ['orders', 'payroll'] });
@@ -255,6 +255,20 @@ it('lets a manager the owner picked add people, edit roles and set levels as the
   // Each change names who made it.
   expect(acted()).toEqual([`${site.ownerEmail} person_changed`, `${site.ownerEmail} manager_added`, `${kim.id} person_changed`,
     `${kim.id} role_changed`, `${kim.id} key_level_changed`, `${kim.id} person_changed`, `${site.ownerEmail} person_changed`,
+    `${site.ownerEmail} manager_added`, `${kim.id} person_changed`]);
+});
+
+it("leaves the manager switch alone when a manager changes another manager's apps", async () => {
+  await pick(employee.id); await pick(kim.id, ['orders']);
+  const rows = () => f.sql.prepare('SELECT rowid, email FROM wong_access_managers ORDER BY email').all();
+  const before = rows();
+  const saved = await (await ask(kim, 'people', person(employee.id, ['payroll']))).json();
+  expect(saved).toMatchObject({ people: [{ email: employee.id, manager: true, apps: ['payroll'] }, { email: kim.id, manager: true, apps: ['orders'] }] });
+  // No manager row was written: each is still the row the owner made.
+  expect(rows()).toEqual(before);
+  // The person she changed still manages, and the record shows nobody's switch moved.
+  expect((await ask(employee, 'status', undefined, 'GET')).status).toBe(200);
+  expect(acted()).toEqual([`${site.ownerEmail} person_changed`, `${site.ownerEmail} manager_added`, `${site.ownerEmail} person_changed`,
     `${site.ownerEmail} manager_added`, `${kim.id} person_changed`]);
 });
 

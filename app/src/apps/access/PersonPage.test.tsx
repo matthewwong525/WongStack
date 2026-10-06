@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
 import { App } from './App'
@@ -40,13 +40,17 @@ const click = (name: string) => fireEvent.click(screen.getByRole('button', { nam
 const posts = (path: string) => fetchMock.mock.calls.filter(([url, init]) => url.endsWith(path) && init?.method === 'POST')
 const sent = (path: string) => posts(path).map(([, init]) => JSON.parse(init.body))
 const checked = (inputs: HTMLElement[]) => inputs.filter(input => (input as HTMLInputElement).checked).map(input => input.parentElement!.textContent)
-// One person's row in the list with its labels and the role picked in it, one app's tick with what sits under it, and one key's level choice by the name in its legend.
-const row = async (email: string) => within((await screen.findByText(email)).closest('tr')!)
+// One person's row in the list, what its cells say and the role picked in it; one app's tick with what sits under it; and one key's level choice by the name in its legend.
+const row = async (email: string) => within((await screen.findByRole('link', { name: email })).closest('tr')!)
+const cells = async (email: string) => Array.from((await screen.findByRole('link', { name: email })).closest('tr')!.querySelectorAll('td')).map(cell => cell.textContent)
 const picked = (email: string) => (screen.getByRole('combobox', { name: `Role for ${email}` }) as HTMLSelectElement).selectedOptions[0].textContent
 const labels = (box: { queryAllByRole: (role: string) => HTMLElement[] }) => box.queryAllByRole('listitem').map(item => item.textContent)
+// The panel a person is opened in, by their email, and that none is open any more.
+const panel = async (name: string) => within(await screen.findByRole('dialog', { name }))
+const closed = () => waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
 const app = (name: string) => within(screen.getByRole('checkbox', { name }).closest('div')!)
 const ticks = () => checked(screen.getAllByRole('checkbox'))
-// Every tick on the page by its words. A page with no app ticks still has the owner's one for managing.
+// Every tick in the panel by its words. A panel with no app ticks still has the owner's one for managing.
 const boxes = () => screen.getAllByRole('checkbox').map(input => input.parentElement!.textContent)
 const MANAGE = 'Can manage Access'
 const managing = () => screen.getByRole('checkbox', { name: MANAGE }) as HTMLInputElement
@@ -62,44 +66,49 @@ const role = () => screen.getByLabelText('Role') as HTMLSelectElement
 const gap = '! Hello can look up, not change'
 const raise = 'Hello also changes things. Pick Read & write to let it.'
 
-it('shows each person with their role, labels and gap, and a role on their page as labels with one link to it and no ticks', async () => {
+it('shows each person on one line with their role, counts and gap, and opened, a role as labels with one link to it and no ticks', async () => {
   open(); const lee = await row('lee@shop.com')
   expect(picked('lee@shop.com')).toBe('Sales'); expect(lee.getByText('Can sign in')).toBeTruthy()
-  expect(labels(lee)).toEqual(['Hello', 'Tip calculator', 'Stripe Read', gap])
-  // Each kind of label is its own named list, and the gap is marked by a "!" in the text.
-  expect(lee.getAllByRole('list').map(list => list.getAttribute('aria-label'))).toEqual(['Apps', 'Keys', "Can't do yet"])
-  const kim = await row('kim@shop.com')
-  expect(picked('kim@shop.com')).toBe('Own set'); expect(labels(kim)).toEqual(['Hello', 'Stripe Read', 'Cloudflare Read', gap])
-  // A removed person keeps the row's parts, with no role to pick and no labels.
+  // How many apps and keys, never their names: the list holds no label. A gap is marked by a "!" in the text, in bold.
+  expect([(await cells('lee@shop.com'))[3], labels(screen)]).toEqual(['2 apps, 1 key ! 1 gap', []])
+  const mark = lee.getByText('1 gap'); expect([mark.tagName, mark.textContent]).toEqual(['STRONG', '! 1 gap'])
+  expect(picked('kim@shop.com')).toBe('Own set'); expect((await cells('kim@shop.com'))[3]).toBe('1 app, 2 keys ! 1 gap')
+  // A removed person keeps the row's parts, with no role to pick and nothing counted.
   const gone = await row('gone@shop.com')
-  expect(gone.getByText('Removed')).toBeTruthy(); expect(labels(gone)).toEqual([]); expect(gone.queryByRole('combobox')).toBeNull(); expect(gone.getByText('No role')).toBeTruthy()
+  expect((await cells('gone@shop.com')).slice(0, 4)).toEqual(['gone@shop.com', 'Removed', 'No role', 'No apps']); expect(gone.queryByRole('combobox')).toBeNull()
   fireEvent.click(lee.getByRole('link', { name: 'lee@shop.com' }))
-  await screen.findByRole('heading', { name: 'lee@shop.com · Can sign in' }); expect(where()).toBe('/apps/access/people/lee@shop.com')
-  expect(screen.getByRole('link', { name: 'People' }).getAttribute('href')).toBe('/apps/access/'); expect(screen.getByRole('navigation', { name: 'Access views' })).toBeTruthy()
+  const opened = await panel('lee@shop.com'); expect(where()).toBe('/apps/access/people/lee@shop.com')
+  // The list and the four views stay in place beside the panel, with her row marked.
+  expect(screen.getByRole('table', { name: 'People' }).querySelector('tr[aria-current="true"] a')!.textContent).toBe('lee@shop.com'); expect(screen.getByRole('navigation', { name: 'Access views' })).toBeTruthy()
+  expect(opened.getByText('Can sign in')).toBeTruthy()
   expect(role().value).toBe('sales'); expect(screen.queryByLabelText('Email')).toBeNull()
+  // Opened, the names show: each kind of label is its own named list, and the gap says which app and what it can't do.
   expect(screen.getByText('From the Sales role:')).toBeTruthy()
-  expect(labels(screen)).toEqual(['Hello', 'Tip calculator', 'Stripe Read', gap])
+  expect(labels(opened)).toEqual(['Hello', 'Tip calculator', 'Stripe Read', gap])
+  expect(opened.getAllByRole('list').map(list => list.getAttribute('aria-label'))).toEqual(['Apps', 'Keys', "Can't do yet"])
   expect(boxes()).toEqual([MANAGE]); expect(screen.queryByRole('radio')).toBeNull()
   expect(screen.getByRole('link', { name: 'Edit the Sales role' }).getAttribute('href')).toBe('/apps/access/roles/sales')
   // A role with nothing in it says so, and the save names the role alone.
   fireEvent.change(role(), { target: { value: 'office' } })
-  expect(labels(screen)).toEqual([]); expect(screen.getByText('No apps')).toBeTruthy()
+  expect(labels(opened)).toEqual([]); expect(opened.getByText('No apps')).toBeTruthy()
   click('Save access'); await screen.findByText('Saved.')
   expect(sent('people')).toEqual([{ email: 'lee@shop.com', removed: false, role: 'office' }]); expect(where()).toBe('/apps/access/')
-  // The role's own page is one link from the person.
+  // The role itself is one link from the person.
   fireEvent.click((await row('sam@shop.com')).getByRole('link', { name: 'sam@shop.com' }))
   fireEvent.click(await screen.findByRole('link', { name: 'Edit the Sales role' }))
   expect((await screen.findByLabelText('Name') as HTMLInputElement).value).toBe('Sales'); expect(where()).toBe('/apps/access/roles/sales')
 })
-it("the People list drops a person's gap line once their level covers what the app does", async () => {
+it("the People list drops a person's gap mark once their level covers what the app does", async () => {
   roster.people[1].keys = { stripe: 'write' }
-  open(); expect(labels(await row('kim@shop.com'))).toEqual(['Hello', 'Stripe Read & write'])
-  // With no level at all, the line says the app can't use the key.
+  open(); expect((await cells('kim@shop.com'))[3]).toBe('1 app, 1 key')
+  // With no level at all, the row still marks it without opening her, and opening her says the app can't use the key.
   cleanup(); roster.people[1].keys = {}
-  open(); expect(labels(await row('kim@shop.com'))).toEqual(['Hello', "! Hello can't use Stripe yet"])
+  open(); expect((await cells('kim@shop.com'))[3]).toBe('1 app ! 1 gap')
+  fireEvent.click((await row('kim@shop.com')).getByText('1 gap'))
+  expect((await panel('kim@shop.com')).getByText("Hello can't use Stripe yet. Pick Read to let it look things up.")).toBeTruthy()
 })
 it("with their own set, a ticked app's key levels sit under its tick, and the keys no ticked app uses sit in a group below", async () => {
-  open('people/kim@shop.com'); await screen.findByRole('heading', { name: 'kim@shop.com · Can sign in' })
+  open('people/kim@shop.com'); await panel('kim@shop.com')
   expect(role().value).toBe('')
   expect(within(role()).getAllByRole('option').map(option => option.textContent)).toEqual(['Their own set', 'Office', 'Sales'])
   expect(ticks()).toEqual(['Hello'])
@@ -137,7 +146,7 @@ it('a key two ticked apps share shows under both as one level, and an unticked a
   // The tip calculator looks things up with Stripe too.
   roster.keys[0].usedBy.push({ app: 'tips', need: 'read' }); roster.appKeys.tips = [{ id: 'stripe', need: 'read' }]
   roster.people.push(person('pat@shop.com'))
-  open('people/pat@shop.com'); await screen.findByRole('heading', { name: 'pat@shop.com · Can sign in' })
+  open('people/pat@shop.com'); await panel('pat@shop.com')
   expect(app('Hello').getByText('uses Stripe')).toBeTruthy(); expect(app('Tip calculator').getByText('uses Stripe')).toBeTruthy()
   expect(screen.getByRole('group', { name: 'Apps' }).querySelector('input[type="radio"]')).toBeNull(); expect(others()).toEqual(['Stripe', 'Bank', 'Cloudflare'])
   // The tick gives Read, never Read & write.
@@ -163,7 +172,7 @@ it('a key two ticked apps share shows under both as one level, and an unticked a
   expect(sent('people')).toEqual([{ email: 'pat@shop.com', removed: false, role: null, apps: ['hello'], keys: { stripe: 'write', bank: null, cloudflare: null } }])
   // When every key is under a ticked app, the second group is gone; a key that also works alone says so under its app.
   cleanup(); roster.keys = [{ ...roster.keys[0], alone: true }]
-  open('people/kim@shop.com'); await screen.findByRole('heading', { name: 'kim@shop.com · Can sign in' })
+  open('people/kim@shop.com'); await panel('kim@shop.com')
   expect(screen.queryByRole('group', { name: 'Keys no ticked app uses' })).toBeNull(); expect(screen.queryByText('No keys saved yet.')).toBeNull()
   expect(app('Hello').getByText('look-ups, no app needed')).toBeTruthy()
 })
@@ -182,7 +191,7 @@ it('moving from a role to their own set starts from what that role gave', async 
 it('adds a person with a role in one save, from the keyboard, with every control labelled', async () => {
   open(); fireEvent.click(await screen.findByRole('link', { name: 'Add person' }))
   const email = await screen.findByLabelText('Email'); expect(document.activeElement).toBe(email)
-  expect(where()).toBe('/apps/access/people/new'); expect(screen.getByRole('heading', { name: 'Add person' })).toBeTruthy()
+  expect(where()).toBe('/apps/access/people/new'); expect(await panel('Add person')).toBeTruthy()
   expect(ticks()).toEqual([]); expect([chosen('Stripe'), chosen('Bank'), chosen('Cloudflare')]).toEqual([['None'], ['None'], ['None']])
   expect(screen.getByText('A new person starts with no apps. Project code is shared separately.')).toBeTruthy()
   // Each level choice is one radio group with its key as the legend: arrow keys move inside it, Tab moves to the next.
@@ -199,7 +208,8 @@ it('adds a person with a role in one save, from the keyboard, with every control
 })
 it('holds every control while a save is on its way, and Cancel goes back without saving', async () => {
   open('people/kim@shop.com'); await screen.findByRole('button', { name: 'Save access' })
-  click('Cancel'); fireEvent.click((await row('kim@shop.com')).getByRole('link', { name: 'kim@shop.com' })); expect(posts('people')).toHaveLength(0)
+  click('Cancel'); await closed(); expect(where()).toBe('/apps/access/')
+  fireEvent.click((await row('kim@shop.com')).getByRole('link', { name: 'kim@shop.com' })); expect(posts('people')).toHaveLength(0)
   const save = await screen.findByRole('button', { name: 'Save access' })
   let finish: (reply: Response) => void = () => {}
   fetchMock.mockImplementationOnce(() => new Promise<Response>(resolve => { finish = resolve }))
@@ -213,7 +223,7 @@ it('says so when there is no app or key to give yet', async () => {
   expect(screen.getByText('No keys saved yet.')).toBeTruthy(); expect(boxes()).toEqual([MANAGE])
 })
 it('the owner picks a manager with one tick in the last group, full trust said right under it, and the save carries it', async () => {
-  open('people/kim@shop.com'); await screen.findByRole('heading', { name: 'kim@shop.com · Can sign in' })
+  open('people/kim@shop.com'); await panel('kim@shop.com')
   const group = screen.getByRole('group', { name: 'Managing' })
   // Below the apps and the keys, so the common edits come first.
   expect(other().getAllByRole('group').at(-1)!.compareDocumentPosition(group) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
@@ -226,10 +236,10 @@ it('the owner picks a manager with one tick in the last group, full trust said r
   roster.people[1].manager = true
   click('Save access'); await screen.findByText('Saved.')
   expect(sent('people')).toEqual([{ email: 'kim@shop.com', removed: false, role: null, apps: ['hello'], keys: { stripe: 'read', bank: null, cloudflare: 'read' }, manager: true }])
-  expect((await row('kim@shop.com')).getByText('Manager')).toBeTruthy(); expect(picked('kim@shop.com')).toBe('Own set')
+  expect((await cells('kim@shop.com'))[0]).toBe('kim@shop.com Manager'); expect(picked('kim@shop.com')).toBe('Own set')
   // It works the same for a person with a role, and for a new person; unticking sends the switch off.
   roster.people[2].manager = true
-  cleanup(); open('people/lee@shop.com'); await screen.findByRole('heading', { name: 'lee@shop.com · Can sign in' })
+  cleanup(); open('people/lee@shop.com'); await panel('lee@shop.com')
   expect(managing().checked).toBe(true); fireEvent.click(managing())
   click('Save access'); await screen.findByText('Saved.')
   expect(sent('people')[1]).toEqual({ email: 'lee@shop.com', removed: false, role: 'sales', manager: false })
@@ -238,25 +248,25 @@ it('the owner picks a manager with one tick in the last group, full trust said r
   click('Save access'); await screen.findByText('Saved.')
   expect(sent('people')[2]).toEqual({ email: 'new@shop.com', removed: false, role: null, apps: [], keys: { stripe: null, bank: null, cloudflare: null }, manager: true })
 })
-it('a tick left as it was is no change: leaving asks nothing, and the save names no manager', async () => {
+it('a tick left as it was is no change: closing asks nothing, and the save names no manager', async () => {
   roster.people[1].manager = true
   open('people/kim@shop.com'); await screen.findByRole('button', { name: 'Save access' })
   expect(managing().checked).toBe(true)
-  // A changed tick asks before leaving; put back, the page leaves at once.
+  // A changed tick asks before the panel closes; put back, it closes at once.
   fireEvent.click(managing()); click('Cancel')
-  expect(screen.getByRole('heading', { name: 'Leave without saving?' })).toBeTruthy(); click('Keep editing')
+  expect(screen.getByRole('alertdialog', { name: 'Leave without saving?' })).toBeTruthy(); click('Keep editing')
   fireEvent.click(managing()); click('Cancel')
-  expect(screen.queryByRole('heading', { name: 'Leave without saving?' })).toBeNull()
+  expect(screen.queryByRole('alertdialog')).toBeNull(); await closed()
   fireEvent.click((await row('kim@shop.com')).getByRole('link', { name: 'kim@shop.com' })); expect(posts('people')).toHaveLength(0)
   // Another change saves without the switch: left out, Kim keeps it.
   await screen.findByRole('button', { name: 'Save access' }); tick('payroll')
   click('Save access'); await screen.findByText('Saved.')
   expect(sent('people')).toEqual([{ email: 'kim@shop.com', removed: false, role: null, apps: ['hello', 'payroll'], keys: { stripe: 'read', bank: 'read', cloudflare: 'read' } }])
 })
-it("a manager has no tick to set: a manager's page says only the owner changes it, and their save never names it", async () => {
+it("a manager has no tick to set: opened, a manager says only the owner changes it, and their save never names it", async () => {
   roster.viewer = { email: 'kim@shop.com', owner: false }; roster.people[1].manager = true
-  open('people/kim@shop.com'); await screen.findByRole('heading', { name: 'kim@shop.com · Can sign in' })
-  // A plain line under the name, above the role.
+  open('people/kim@shop.com'); await panel('kim@shop.com')
+  // A plain line under the sign-in state, above the role.
   const said = screen.getByText('Manager · only the owner changes this')
   expect(said.compareDocumentPosition(role()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   expect(screen.queryByRole('group', { name: 'Managing' })).toBeNull(); expect(screen.queryByRole('checkbox', { name: MANAGE })).toBeNull()
@@ -265,8 +275,8 @@ it("a manager has no tick to set: a manager's page says only the owner changes i
   tick('payroll'); click('Save access'); await screen.findByText('Saved.')
   expect(sent('people')).toEqual([{ email: 'kim@shop.com', removed: false, role: null, apps: ['hello', 'payroll'], keys: { stripe: 'read', bank: 'read', cloudflare: 'read' } }])
   // Someone who is not a manager has no such line, and a new person no tick.
-  for (const [path, wait] of [['people/lee@shop.com', 'lee@shop.com · Can sign in'], ['people/new', 'Add person']]) {
-    cleanup(); open(path); await screen.findByRole('heading', { name: wait })
+  for (const [path, wait] of [['people/lee@shop.com', 'lee@shop.com'], ['people/new', 'Add person']]) {
+    cleanup(); open(path); await panel(wait)
     expect(screen.queryByText(/only the owner changes this/), path).toBeNull(); expect(screen.queryByRole('checkbox', { name: MANAGE }), path).toBeNull()
   }
   fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'new@shop.com' } }); click('Save access'); await screen.findByText('Saved.')

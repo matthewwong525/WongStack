@@ -16,8 +16,11 @@
 	"vars": {
 		// WONG_OWNER_EMAIL is the sign-in email setup recorded for the owner: the
 		// person who manages people in Access. wiki/stack/employee-access.md
+		// WONG_CODE_REPOSITORY is the one project Connect your assistant hands out,
+		// to people given Project code. wiki/stack/employee-project.md
 		"WONG_ENVIRONMENT": "production",
 		"WONG_OWNER_EMAIL": "matthewwong525@gmail.com",
+		"WONG_CODE_REPOSITORY": "matthewwong525/WongStack",
 		"CF_ACCESS_TEAM_DOMAIN": "startuptemplate.cloudflareaccess.com",
 		"CF_ACCESS_AUD": "b0e998ce836c59c284ff427902e65228fbbf2e5de3b1c77d26d2c81928cd2590",
 		"CF_ACCESS_APP_ID": "10a98858-5fe3-4650-a57f-a02786a1e851",
@@ -67,6 +70,7 @@
 			"vars": {
 				"WONG_ENVIRONMENT": "staging",
 				"WONG_OWNER_EMAIL": "matthewwong525@gmail.com",
+				"WONG_CODE_REPOSITORY": "matthewwong525/WongStack",
 				"CF_ACCESS_TEAM_DOMAIN": "startuptemplate.cloudflareaccess.com",
 				"CF_ACCESS_AUD": "b0e998ce836c59c284ff427902e65228fbbf2e5de3b1c77d26d2c81928cd2590",
 				"CF_ACCESS_APP_ID": "10a98858-5fe3-4650-a57f-a02786a1e851",

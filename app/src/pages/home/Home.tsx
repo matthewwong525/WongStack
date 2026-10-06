@@ -13,7 +13,7 @@ export function Home() {
   const held = current?.role === 'employee' ? current.apps : undefined
   const listed = current && !held ? apps.filter(app => current.apps.includes(app.name)) : apps
   return (
-    <>
+    <div>
       <header className="mb-8">
         <h1 className="mb-3 wrap-anywhere">Your workspace, shaped around you</h1>
         <p className="text-muted-foreground">Your tools, in one place.</p>
@@ -22,7 +22,7 @@ export function Home() {
       <h2 className="mb-4">Your apps</h2>
       {!data && !error && <p role="status">Loading your apps…</p>}
       {error && <div className="grid justify-items-start gap-3"><p role="alert">Your app access is unavailable.</p><Button type="button" variant="outline" onClick={reload}>Retry apps</Button></div>}
-      {data && <AppList apps={listed} held={held} />}
-    </>
+      {data && <AppList apps={listed} held={held} code={data.code} />}
+    </div>
   )
 }

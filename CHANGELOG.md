@@ -19,6 +19,68 @@
 
 **Updating.** Nothing needs doing by hand. You can now type `/dream` to bring your wiki up to date from what your chats learned. It runs only when you ask, and `/dream --dry-run` shows what it would change first.
 
+## 35.2.2 — When a preview check needs a browser
+
+- **A save that checks where a request came from is walked in a browser.** [Staging walkthrough](wiki/development/staging-walkthrough.md#walk-the-app-the-way-a-person-does) now says a plain request check sends no `Origin` header, so a save that needs one, such as a change in Access, is refused there and takes a browser check.
+
+**Updating.** Nothing needs doing by hand.
+
+## 35.2.1 — Access changes need a checked caller
+
+- **A change in Access can't skip the sign-in check.** Every change to people, roles or levels takes a pass that says who is asking. Only the sign-in check hands that pass out now, and code that writes its own no longer builds.
+- **Picking a manager needs the owner's pass.** The code that makes or unmakes a manager takes a pass only the owner gets, so a later change can't forget to ask *is this the owner?*
+- **Nothing on the Access screen changes.** The owner and managers can do what they could before, and every refusal reads the same.
+- **A check stops the old way coming back.** The tests fail, naming the file, when app code marks its own pass as checked.
+
+[Access](wiki/stack/employee-access.md#managers) says what new code takes.
+
+**Updating.** Nothing needs doing by hand, unless your own code builds an Access pass itself. That code now fails the type check, the step that reads the code for mistakes before it is published. Have it call the sign-in check instead.
+
+## 35.2.0 — Screens that match
+
+- **Every screen starts at the same left edge.** One wide frame holds Home, each small app and Access, and the logo in the top bar lines up with it. Every screen fills it: Home lays your apps side by side, a small app's fields share a line, and a table uses it all. Nothing jumps sideways when you move between screens.
+- **Every row in an Access list is one line.** A person's row shows who, whether they can sign in, their role, and a count such as *2 apps, 1 key*. A row where an app can't do its job yet says *! 1 gap*. *You* and *Manager* sit beside the email. Roles, Apps and Keys follow the same rule, and the names show when you open one.
+- **The four view names are the title.** *People · Roles · Apps · Keys* head the list under them, and the add button sits at the end of that line. Apps and Keys have nothing to add by hand, so a quiet line under their list says the assistant adds them.
+- **A person, role, app or key opens in a side panel.** The list stays where it was, with that row marked. The panel has its own address, so a link or the Back button still works; on a phone it fills the screen. A key that isn't saved yet opens too and shows its next step there.
+- **Every question is a popup.** *Remove?* and *Leave without saving?* open over the page with two buttons. What each says, and what each answer does, stays the same.
+- **Connect your assistant is three numbered steps, reached from one place.** The card on Home is the one way in; the button on Access, and the box Access showed people who manage nothing, are gone. The popup says what an assistant is, has one main *Copy* button, names who you sign in as, and ends with what to ask and which apps it reaches. When it can't load it says so and offers *Try again*.
+
+[Mini apps](wiki/stack/mini-apps.md#the-home-page-lists-the-apps) describes the frame, and [employee access](wiki/stack/employee-access.md#one-frame-on-every-screen) the lists and the panel.
+
+**Updating.** Nothing needs doing by hand. A screen you built moves to the shared left edge and stretches to fill the wider frame; its address and data stay as they are. If one looks too stretched, ask your assistant to lay its fields side by side, as Hello and the tip calculator now do.
+
+## 35.1.1 — What to do when the preview app refuses a key
+
+- **A plain fix for a refused key.** When loading a new key puts it in the live app but the preview app refuses it, every later save fails a check. [Staging bindings](wiki/stack/staging-bindings.md#when-staging-refuses-a-key) now says how your assistant gives the preview app the key, and which command to avoid.
+
+**Updating.** Nothing needs doing by hand.
+
+## 35.1.0 — Connect your assistant installs the project
+
+- **Connect puts the whole project on a person's device.** They paste a short setup text into their assistant and approve their app sign-in on that computer. The assistant downloads the project from the app's own address into a folder, and uses their apps from inside it. They need no GitHub or Cloudflare account, type no key, and install nothing by hand. Running the same step again brings the copy up to date.
+- **The setup text is short.** It names the app, the checked installer and one step to run. The installer signs in, downloads, and reports what works.
+- **You choose who gets the project, in Access.** *Project code* shows beside your keys, with two choices per person or role: None or Read. Nobody has it on the day this goes live but you. A manager can give it, as with any key.
+- **A person without it sees Connect greyed.** The card is marked *No access*, opens nothing, and a click says *Ask your admin for access to Connect your assistant.*
+- **The copy is for using, not for publishing.** A person can read the project and work in their copy. A change pushed to the app is refused. To let someone publish, you still add them where the project is kept, by hand.
+- **Unticking or removing a person stops updates at once.** Their next download is refused. The copy already on their device stays there, and Access says so when you remove someone. The copy holds no keys or passwords.
+- **An update never throws away what the person changed.** A copy with their own edits is kept as it is, and the assistant says the update was not applied. A folder that already holds other work is left alone.
+- **Assistants already connected keep working** with their apps. A person gets the project once you give them Project code and they run Connect again.
+- **Previews practise it too.** The practice list has one role with Project code and one person without.
+
+[Employee assistant connection](wiki/stack/employee-project.md) owns how it works, and [Access](wiki/stack/employee-access.md#a-key-with-no-app) is where you give it.
+
+**Updating.** The update runs the Access setup step, which tells your app which project it hands out. Then it depends on where your project is kept:
+
+- **In Cloudflare, with no GitHub:** nothing to do by hand. The step connects the app to your project, and Connect installs it for the people you tick once the update is published.
+- **On GitHub:** one step for you. Your assistant sends a private link with numbered steps. You make one GitHub key that can only read this one project, and paste it there once. Until then Connect works exactly as it does today for everyone, and Access says one step is left.
+
+## 35.0.1 — Two notes on checks that fail without a cause
+
+- **A check GitHub cancelled before it started is named.** [GitHub Actions](wiki/stack/github-actions.md) says how to tell one and to run it again, on the main branch too.
+- **The repeated-code check's settings file takes no comments.** [Mini apps](wiki/stack/mini-apps.md#the-rules) says why: with one, the check passes everything.
+
+**Updating.** Nothing needs doing by hand.
+
 ## 35.0.0 — Screens built from ready-made parts, not styled by hand
 
 - **Every screen is built from one set of ready-made parts.** Buttons, fields, tables, menus, popups, boxes and labels come from shadcn, a well-known set of parts, on Tailwind, the styling tool it is built with. No screen keeps a style file of its own.
