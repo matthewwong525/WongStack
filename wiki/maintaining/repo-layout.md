@@ -45,6 +45,8 @@ rule — will under-count.
 When you need every occurrence, search `.agents/` (and `AGENTS.md`), or pass `grep -r --dereference-recursive`
 if you specifically want the `.claude/` names in the output.
 
+**`git diff .claude/...` prints nothing, and no error.** Git tracks the real path, so an empty diff there reads as *no change*. Name the `.agents/...` path in a git command: it is the one kind of command that does not keep `.claude/`.
+
 ## Why it's this way
 
 The links let one payload serve Claude Code and Codex with no copy to drift, and every install keeps the same layout: [the agent folder](../../.agents/skills/wong-sync/references/payload-manifest.md#the-agent-folder) owns it.
