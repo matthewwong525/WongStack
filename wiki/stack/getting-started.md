@@ -1,10 +1,8 @@
 # Getting started
 
-You install WongStack from your own computer, with your own GitHub and Cloudflare accounts, through [the README's three steps](https://github.com/matthewwong525/WongStack#start-in-three-steps).
+You install WongStack from your own computer, into accounts you own, through [the README's three steps](https://github.com/matthewwong525/WongStack#start-in-three-steps).
 
 Setup assumes you know nothing about Cloudflare, databases, or deployment: where a step needs one of those, the agent handles it and tells you what it did. The runbook the agent follows is [setup's provisioning runbook](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md).
-
-**What it costs.** A new install on Mac or Linux keeps your project in your own Cloudflare account, which needs Cloudflare's paid plan, about $5 a month. Ask for GitHub and it is free. [The Artifacts route](artifacts-route.md#what-it-costs) compares the two.
 
 Want new projects to start with your own tools and site? [Make WongStack your own](customizing-wongstack.md) explains how to customize a fork and install it through the same easy setup.
 
@@ -18,7 +16,17 @@ Want new projects to start with your own tools and site? [Make WongStack your ow
 
 ## What it costs
 
-Cloudflare's free tier covers the starter. You need a free Cloudflare account and a free GitHub account. One more thing costs money, and only if you ask for it: an assistant on a schedule runs in your Cloudflare account on its paid plan, about $5 a month ([cloud routines](cloud-routines.md#what-it-costs)). Setup may also install a few free tools it needs — Git, GitHub's app, Node.js, OpenSpec, a browser for the agent, and a tool that sends you a private link to that browser — and it asks before it installs any.
+WongStack is free. You install it one of two ways, and one of them costs money:
+
+| | Free way | Cloudflare alone |
+|---|---|---|
+| Accounts | a free GitHub account and a free Cloudflare account | a Cloudflare account |
+| Cost | free | Cloudflare's paid plan, about $5 a month |
+| Computers | Mac, Windows, or Linux | Mac or Linux |
+
+On Mac or Linux, setup offers Cloudflare alone first, and asks which you want before anything costs money. [The Artifacts route](artifacts-route.md#what-it-costs) has the detail.
+
+You bring your own assistant, on a plan of your own, such as Claude or ChatGPT. An assistant on a schedule needs Cloudflare's paid plan on either way; Cloudflare alone already has it ([cloud routines](cloud-routines.md#what-it-costs)). Setup may also install a few free tools it needs — Git, Node.js, OpenSpec, a browser for the agent, a tool that sends you a private link to that browser, and, on the free way, GitHub's app — and it asks before it installs any.
 
 ## After that: how you work
 
@@ -47,13 +55,14 @@ Each change gets its own link, running against the practice data. Your real site
 Setup needs these steps. Each needs you, and the ones marked *browser* open a web page:
 
 1. Have an assistant that can work on your computer, such as [Claude Code](https://code.claude.com/docs/en/setup) or [Codex](https://developers.openai.com/codex/cli). Its install page may ask you to run one command in a terminal.
-2. Sign up for [GitHub](https://github.com/signup), and approve the sign-in code the agent shows you (*browser*)
-3. Say yes to any free tools setup needs to install. An install may show your computer's own permission window.
-4. On Windows, approve its permission window if setup needs to turn on the setting for your assistant's folder links. The agent handles the change; you type no command. If your workplace blocks it, ask your IT team for help ([Windows links](../development/required-tools.md#symbolic-links-in-the-agent-folder)).
-5. Sign up for [Cloudflare](https://cloudflare.com) (*browser*)
-6. Open [the token link](cloudflare-credentials.md#create-the-token), check the two rows, press Create, and paste the token into the chat (*browser*). Cloudflare shows it **once**, so copy it before leaving the page.
+2. Say yes to any free tools setup needs to install. An install may show your computer's own permission window.
+3. On Windows, approve its permission window if setup needs to turn on the setting for your assistant's folder links. The agent handles the change; you type no command. If your workplace blocks it, ask your IT team for help ([Windows links](../development/required-tools.md#symbolic-links-in-the-agent-folder)).
+4. Sign up for [Cloudflare](https://cloudflare.com) (*browser*)
+5. Open [the token link](cloudflare-credentials.md#create-the-token), check the two rows, press Create, and paste the token into the chat (*browser*). Cloudflare shows it **once**, so copy it before leaving the page.
+6. On Mac or Linux, choose where your project is kept when setup asks: turn on Cloudflare's paid plan (*browser*, needs a card), or say GitHub. [What it costs](#what-it-costs) compares the two.
+7. On the free way, sign up for [GitHub](https://github.com/signup), and approve the sign-in code the agent shows you (*browser*). On Windows, or when you asked for GitHub at the start, this comes before step 4.
 
-The first happens before the chat exists; the rest happen in one sitting, while the agent waits. A chat app is optional: [required tools](../development/required-tools.md) says what one adds. There's no "connect your repository" step and setup configures protection automatically. A new Zero Trust account may need its dashboard onboarding completed before setup can continue.
+The first happens before the chat exists; the rest happen in one sitting, while the agent waits. Nobody does all seven: step 3 is for Windows, step 6 for Mac or Linux, and step 7 for the free way. A chat app is optional: [required tools](../development/required-tools.md) says what one adds. There's no "connect your repository" step and setup configures protection automatically. A new Zero Trust account may need its dashboard onboarding completed before setup can continue.
 
 ## If you want a login wall
 

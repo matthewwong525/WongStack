@@ -33,13 +33,13 @@ test('a command removed from the workflow, or moved to another condition, is nam
 
 test('the changed paths pick the steps by the workflow\'s rule', () => {
   assert.deepEqual(names(selectSteps()), ['lint', 'shellcheck', 'script-tests', 'payload-links', 'openspec-config', 'retired-names', 'specs', 'context-budget']);
-  assert.deepEqual(names(selectSteps({ docsOnly: true })), ['private-names', 'payload-links', 'openspec-config', 'retired-names', 'specs', 'context-budget']);
+  assert.deepEqual(names(selectSteps({ docsOnly: true })), ['private-names', 'install-cost', 'payload-links', 'openspec-config', 'retired-names', 'specs', 'context-budget']);
   assert.deepEqual(names(selectSteps({ docsOnly: true, only: ['lint', 'specs'] })), ['lint', 'specs']);
 });
 
 test('the source-only scripts ship to no install', () => {
   const inventory = readFileSync(join(repo, '.agents/skills/wong-sync/references/payload-files.json'), 'utf8');
-  assert.doesNotMatch(inventory, /payload-checks|measure-sessions/);
+  assert.doesNotMatch(inventory, /payload-checks|measure-sessions|install-cost/);
 });
 
 // A stand-in repo: each checked script is a stub that exits as the test says, and the
@@ -55,6 +55,7 @@ function fixture(t, { deps = true } = {}) {
   const stub = name => `console.log('${name} ran');\nif (process.env.FAIL === '${name}') { console.error('${name}: a problem'); process.exit(1); }\n`;
   for (const name of ['check-payload-links', 'check-openspec-config', 'check-retired-names', 'measure-context']) write(`scripts/${name}.mjs`, stub(name));
   write('scripts/tests/private-names.test.mjs', "import test from 'node:test';\ntest('no private name', () => {});\n");
+  write('scripts/tests/install-cost.test.mjs', "import test from 'node:test';\ntest('one cost', () => {});\n");
   write('scripts/tests/package.json', '{}\n');
   const tool = name => `#!/bin/sh\necho "${name} $*" >> "${join(root, 'calls')}"\n[ "$FAIL" = ${name} ] && exit 1\nexit 0\n`;
   for (const name of ['shellcheck', 'openspec', 'npm']) write(`bin/${name}`, tool(name), 0o755);
@@ -82,7 +83,7 @@ test('a code change runs lint, shell checks, the suite, and the release checks',
   assert.doesNotMatch(f.calls(), /^npm /m, 'the test tools were already installed');
 });
 
-test('a docs-only change runs the private-names test and the release checks only', t => {
+test('a docs-only change runs the private-names and install-cost tests and the release checks only', t => {
   const f = fixture(t);
   const r = f.run(['--docs-only']);
   assert.equal(r.status, 0, `${r.stdout}${r.stderr}`);

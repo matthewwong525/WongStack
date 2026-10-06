@@ -1,12 +1,13 @@
 /// <reference types="node" />
-// Rules every page keeps: no word about paid hosting, every file loaded from the site itself,
-// nothing stored in the browser, and nothing that asks a visitor to sign in.
+// Rules every page keeps: no word about paid hosting and no cost but the ones install.ts lists,
+// every file loaded from the site itself, nothing stored in the browser, and nothing that asks a
+// visitor to sign in.
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import App from "./App";
-import { INSTALL_PROMPT } from "./install";
+import { COST_LINES, INSTALL_PROMPT } from "./install";
 
 const site = (path: string) => resolve(import.meta.dirname, "..", path);
 const html = readFileSync(site("index.html"), "utf8");
@@ -66,7 +67,16 @@ const MONEY = /\$\s?\d|\bpric(e|es|ed|ing)\b|\bper month\b|\/\s?month|\bmonthly\
 // Pages the earlier hosted app linked. Nothing links them now.
 const OLD_LINK = /^\/(pricing|login|pay|terms|launch|join|dashboard)\b|#pricing/;
 
-it("reads every page for hosting words and finds none, allowing the sample apps their made-up prices", () => {
+// The company whose charge the page may name: an account the install uses.
+const CHARGES = "Cloudflare";
+
+/**
+ * `text` without the cost lines install.ts lists. Each is removed as a whole sentence, so a
+ * reworded copy, or any other word about a price, is still read.
+ */
+const withoutCostLines = (text: string) => COST_LINES.reduce((rest, line) => rest.split(line).join(""), text);
+
+it("reads every page for hosting words and finds none, allowing the sample apps their made-up prices and install.ts its cost lines", () => {
   // The two patterns catch the lines the earlier page carried, so a clean read means something.
   for (const line of [
     "Or let us host it →",
@@ -79,9 +89,23 @@ it("reads every page for hosting words and finds none, allowing the sample apps 
     expect(line).toMatch(HOSTING);
   }
   for (const line of ["$8.08 /month", "Pricing", "Your plan's monthly price covers it."]) expect(line).toMatch(MONEY);
+  // The allowance is whole sentences only: a price of our own, or a cost line reworded as ours, is still caught.
+  const priced = COST_LINES.filter((line) => HOSTING.test(line) || MONEY.test(line));
+  expect(priced.length).toBeGreaterThan(0);
+  for (const line of [
+    "Our paid plan is $9 a month",
+    `${COST_LINES[0]} Our paid plan is $9 a month.`,
+    ...priced.map((line) => line.replaceAll(`${CHARGES}'s`, "our")),
+  ]) {
+    expect([line, found(withoutCostLines(line), HOSTING) ?? found(withoutCostLines(line), MONEY)]).not.toEqual([line, null]);
+  }
+  // A cost line never names WongStack, and one with a price or a paid plan says whose it is: another company's.
+  for (const line of COST_LINES) expect([line, /wongstack/i.test(line)]).toEqual([line, false]);
+  for (const line of priced) expect([line, line.includes(CHARGES)]).toEqual([line, true]);
 
   expect([found(html, HOSTING), found(html, MONEY)]).toEqual([null, null]);
   let samplePrices = 0;
+  const landing: string[] = [];
   for (const path of PAGES) {
     for (const state of visit(path)) {
       for (const link of state.querySelectorAll("a[href]")) {
@@ -92,11 +116,18 @@ it("reads every page for hosting words and finds none, allowing the sample apps 
         if (MONEY.test(words(sample))) samplePrices++;
         sample.remove();
       }
-      expect([path, found(words(state), HOSTING), found(words(state), MONEY)]).toEqual([path, null, null]);
+      if (path === "/") landing.push(words(state));
+      const read = withoutCostLines(words(state));
+      expect([path, found(read, HOSTING), found(read, MONEY)]).toEqual([path, null, null]);
     }
   }
   // The read reached the sample apps: one of them shows prices.
   expect(samplePrices).toBeGreaterThan(0);
+  // The allowance is used, not dead: the landing page prints every cost line, however it is opened.
+  expect(landing.length).toBeGreaterThan(0);
+  for (const text of landing) {
+    for (const line of COST_LINES) expect([line, text.includes(line)]).toEqual([line, true]);
+  }
 });
 
 it("shows a visitor on a phone the headline, the install steps, and the message with a way to copy it, and nothing that asks them to sign in", () => {

@@ -35,7 +35,7 @@ Paste the message in any folder: if it already has files, setup makes a `wongsta
 **Build**
 
 - **Tools that fit your business, from one request.** A [mini app](wiki/stack/mini-apps.md) gets a plan and a link to try, and goes live at `/apps/<name>/` when you publish it.
-- **Your own site, online for free.** Every change gets its own link to look at before it goes live.
+- **Your own site, online.** Every change gets its own link to look at before it goes live.
 
 **Remember**
 
@@ -67,7 +67,7 @@ I use [Claude Code](https://code.claude.com/docs/en/setup) in the free [Paseo](h
 
 ## Requirements
 
-You bring an assistant and a [Cloudflare](https://cloudflare.com) account. Setup asks, then installs what is missing: `git`, [`gh`](https://cli.github.com/), [Node.js](https://nodejs.org/) 22, and [OpenSpec](https://github.com/Fission-AI/OpenSpec). The one Cloudflare token you make stays on your computer; [`SECURITY.md`](SECURITY.md) says what each token can do. [Required tools](wiki/development/required-tools.md) says why each is needed, and what [Windows](wiki/development/required-tools.md#symbolic-links-in-the-agent-folder) adds.
+You bring an assistant on a plan of your own, such as Claude or ChatGPT, and a [Cloudflare](https://cloudflare.com) account. The free way to install adds a free [GitHub](https://github.com/signup) account, and works on Mac, Windows, or Linux; [step 3](#start-in-three-steps) says what the other way costs. Setup asks, then installs what is missing: `git`, [Node.js](https://nodejs.org/) 22, [OpenSpec](https://github.com/Fission-AI/OpenSpec), and, for the free way, GitHub's tool [`gh`](https://cli.github.com/). The one Cloudflare token you make stays on your computer; [`SECURITY.md`](SECURITY.md) says what each token can do. [Required tools](wiki/development/required-tools.md) says why each is needed, and what [Windows](wiki/development/required-tools.md#symbolic-links-in-the-agent-folder) adds.
 
 ## Learn more
 

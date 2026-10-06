@@ -13,8 +13,8 @@
  *
  * Which steps run follows the workflow's own rule: a change entirely under `wiki/` or
  * `openspec/` (--docs-only) skips lint, shell checks, and the script suite, and runs the
- * private-names test instead; the release checks always run. A step whose tool is not
- * installed here (shellcheck, openspec) is skipped with a line; CI still runs it.
+ * private-names and install-cost tests instead; the release checks always run. A step whose
+ * tool is not installed here (shellcheck, openspec) is skipped with a line; CI still runs it.
  *
  * A passing step prints one line; a failing one prints its failed tests by name and file, or the
  * end of its output when it is not a test run. The last line is
@@ -65,6 +65,7 @@ export const STEPS = [
   { name: 'shellcheck', when: 'code', tool: 'shellcheck', command: 'shellcheck --severity=warning scripts/*.sh .github/scripts/*.sh .agents/skills/*/scripts/*.sh' },
   { name: 'script-tests', when: 'code', deps: true, command: 'scripts/tests/node_modules/.bin/c8 --config scripts/tests/.c8rc.json node --test scripts/tests/*.test.mjs' },
   { name: 'private-names', when: 'docs', command: 'node --test scripts/tests/private-names.test.mjs' },
+  { name: 'install-cost', when: 'docs', command: 'node --test scripts/tests/install-cost.test.mjs' },
   { name: 'payload-links', when: 'always', command: 'node scripts/check-payload-links.mjs' },
   { name: 'openspec-config', when: 'always', command: 'node scripts/check-openspec-config.mjs' },
   { name: 'retired-names', when: 'always', command: 'node scripts/check-retired-names.mjs' },
