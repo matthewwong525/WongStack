@@ -170,6 +170,7 @@ The screens don't match each other. Home and the small apps sit in a narrow cent
 - **2026-10-05** — Build: Apps and Keys count who has something by kind, such as *Owner, 1 role, 2 people*, because a bare number does not say whether a role or a person holds it. Keys keeps one column per level.
 - **2026-10-05** — Build: *Can't copy? Show the message* sits under the *Copy* button in step 1, not at the foot of the popup, because the copy button and its fallback are one part.
 - **2026-10-06** — Build: the workspace was moved up to 35.0.1 before building, and the first checkpoint is saved with the walk on the preview still to do, because the plan was drawn against the screens that release published.
+- **2026-10-06** — Walk: the owner's row was shorter than the rows that hold a role dropdown, so every row in the four lists now has one height on a computer.
 
 ## Capabilities
 

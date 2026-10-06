@@ -74,6 +74,8 @@ it('lists are tables in the shared frame whose rows are one line, and stack on a
   const row = within(table).getByText('kim@shop.com').closest('tr')!
   const cells = Array.from(row.querySelectorAll('td'))
   has(table, `${STACKED}block`); has(body, `${STACKED}block`); has(row, `${STACKED}grid`, `${STACKED}grid-cols-[minmax(0,1fr)_auto]`)
+  // Every row is one height on a computer, the owner's with no control in it included; a stacked row takes what it needs.
+  for (const each of within(table).getAllByRole('row').slice(1)) has(each, 'h-14', `${STACKED}h-auto`)
   // One line on a computer: no cell wraps there. Stacked, a line may wrap and a long word breaks.
   for (const cell of cells) {
     has(cell, 'whitespace-nowrap', 'align-middle', `${STACKED}block`, `${STACKED}whitespace-normal`, `${STACKED}wrap-anywhere`)

@@ -22,6 +22,8 @@ const SHARE = 'w-[30%] max-w-0 @max-[44rem]:w-auto @max-[44rem]:max-w-none'
 // Words too long for their column end in "…"; the whole of them is in `title`.
 const CUT = 'truncate @max-[44rem]:whitespace-normal'
 // The row of the item that is open: filled, with a bar on its leading edge, so it is not marked by colour alone.
+// Every row is the same height on a computer, with or without a control in it; stacked rows take what they need.
+const EVEN = 'h-14 @max-[44rem]:h-auto'
 const OPEN = 'aria-[current=true]:bg-muted aria-[current=true]:[&>td:first-child]:shadow-[inset_0.2rem_0_0_var(--color-primary)]'
 
 /** A list: a table whose columns every row shares, each row one line on a computer. The current link in the switch
@@ -48,7 +50,7 @@ export function Table({ view, columns, actions, empty, hint, children }: {
  *  `current` marks the row of the item that is open. */
 export function Row({ to, current, children }: { to?: string; current?: boolean; children: ReactNode }) {
   const navigate = useNavigate()
-  return <TableRow aria-current={current ? 'true' : undefined} className={cn(STACK.row, OPEN, to ? 'cursor-pointer focus-within:bg-muted/50' : 'hover:bg-transparent')}
+  return <TableRow aria-current={current ? 'true' : undefined} className={cn(STACK.row, EVEN, OPEN, to ? 'cursor-pointer focus-within:bg-muted/50' : 'hover:bg-transparent')}
     onClick={event => { if (to && !(event.target as Element).closest('a, button, select, [role="menu"]')) void navigate(to) }}>{children}</TableRow>
 }
 
