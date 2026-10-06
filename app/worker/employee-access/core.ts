@@ -11,10 +11,17 @@ export interface ConnectionEnv extends PolicyEnv, CodeEnv {
   /** Production only: setup's key for this app's own sign-in list. Never on staging. */
   WONG_ACCESS_LOGIN_MANAGEMENT?: string;
 }
-/** `live` is the production Worker; anywhere else Access keeps a practice list and calls no provider.
+// A mark that exists in types alone and is not exported: no other file can write a `Core`.
+declare const checked: unique symbol;
+/** The pass every Access read and save takes, made only by `ownerCore()` once it has checked who is asking.
+ *  `live` is the production Worker; anywhere else Access keeps a practice list and calls no provider.
  *  `email` is always the owner's. `actor` is who is asking, and `owner` whether that is the owner. */
 export type Core = { db: D1DatabaseSession; env: ConnectionEnv; installationId: string; origin: string;
-  email: string; actor: string; owner: boolean; subject: string; live: boolean; holder?: string };
+  email: string; actor: string; owner: boolean; subject: string; live: boolean; holder?: string;
+  readonly [checked]: true };
+/** The owner's own pass. A save only the owner may make takes this, so it cannot run for a manager. */
+export type OwnerCore = Core & { owner: true };
+export const isOwner = (core: Core): core is OwnerCore => core.owner;
 export class AccessError extends Error {
   readonly code: string;
   readonly status: number;
@@ -48,8 +55,9 @@ export async function ownerCore(request: Request, env: ConnectionEnv, identity: 
   // Only an owner request creates the installation row: a manager exists only once it does.
   const installationId = managed ?? await installation(db, env, { origin, owner, subject });
   // The checker stands in for the owner, so its changes are recorded under the owner's email.
+  // The mark has no value to write, so the pass is asserted here, and nowhere else: every check above has run.
   return { db, env, installationId, origin, email: owner, actor: person ?? owner, owner: owns, subject,
-    live: env.WONG_ENVIRONMENT === "production" };
+    live: env.WONG_ENVIRONMENT === "production" } satisfies Omit<Core, typeof checked> as Core;
 }
 
 /** The installation a current person manages, or null: a manager row the owner made, for a person not removed. */

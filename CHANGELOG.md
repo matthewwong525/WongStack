@@ -14,6 +14,89 @@
 
 **Updating.** Nothing needs doing by hand. After the update, the checks also read your app's types, test files included, and keep each small app to its own folder. If a check names something in a screen or a test your assistant built, the update's plan lists it and your assistant fixes it.
 
+## 36.3.0 — /dream keeps your memory and wiki current
+
+- **You can type `/dream`.** Your assistant goes back over what memory has gained since the last dream and brings your wiki up to date. It runs on the model you already use, and only when you type it: your assistant never starts one on its own.
+- **It tidies memory first.** Duplicate facts merge, a contradicted fact gives way to the newer one, and an answered open thread closes, so the wiki is updated from clean facts. Memory still tidies itself in the background between dreams.
+- **It adds what is worth keeping.** Each new fact is tested by the wiki's own rule: will this help a future task that is not this one? Those that pass go on the page that owns them. The rest stay in memory.
+- **It cleans up, which is the main job.** It re-reads your own pages against memory, the files they link to, and each other, longest unchecked first, up to twenty a dream. It corrects what is out of date, merges duplicates, moves a fact to the page that owns it, and fixes links.
+- **It checks the source before it changes a claim.** A fact that was the assistant's reading of you, not your words, is not written as your preference.
+- **It edits only your own pages.** A discrepancy on a page WongStack ships is listed in its report, so you can say *fix those*.
+- **It publishes through the normal checks**, with no question first, then tells you each page it changed and why. Where a change is half built, it stops and edits nothing.
+- **You can look first.** `/dream --dry-run` lists the edits it would make and publishes nothing.
+- **`/close` places facts by the same rules**, written once.
+
+[Wiki dream](wiki/development/wiki-dream.md) says when to run one and how to undo it.
+
+**Updating.** Nothing needs doing by hand. You can now type `/dream` to bring your wiki up to date from what your chats learned. It runs only when you ask, and `/dream --dry-run` shows what it would change first.
+
+## 36.2.1 — Notes from the first real routines
+
+- **The routines page says how long a run takes.** About 10 seconds to start, then 1 to 3 minutes for a small task on Cloudflare's own models, and up to 10 for one that searches memory and leaves a note.
+- **It names what Cloudflare says when a model needs credit.** Picking Claude or GPT with no credit loaded gets *402 Insufficient wholesale credits*, and your routines keep the model they had.
+- **The memory page says how a scheduled run writes a note.** A run has no chat session, so it leaves the session out; otherwise the note is held for a chat that never comes.
+
+**Updating.** Nothing needs doing by hand.
+
+## 36.2.0 — The project key is asked for when you share the project
+
+- **Setup no longer mentions the read-only GitHub key.** Its last message dropped the line *One step is left before teammates can install the project*, and an update no longer lists the key as a to-do. If you work alone you are never asked. A project kept in Cloudflare needs no key and was never asked.
+- **A person's panel has one tick: *Can install the project*.** It replaces the *None / Read* choice for *Project code* under *Keys no ticked app uses*, and the sentence *Project code is shared separately*. It is off for a new person. A role's panel has the same tick, so a whole role can get the project. *Keys* still lists *Project code*, and a tick is the same choice as *Read* there.
+- **Ticking it asks for the key when the app still needs one.** Right under the tick the panel says one step comes first and gives you the words to say to your assistant, *Let teammates install the project*, with a button to copy the full request. Your assistant then sends the private link with the five GitHub steps. You can save the tick straight away: the person gets the project as soon as the key is in. A manager reads that the step is the owner's. *Project code* opened from *Keys* shows the same step.
+- **The step names what is really missing.** An older install that has not yet told the app which project it hands out is told to finish Access setup, not to make a GitHub key.
+
+[Employee access](wiki/stack/employee-access.md#give-an-app-and-its-level-in-one-place) describes the tick, and [the assistant connection](wiki/stack/employee-project.md#the-owners-one-step-on-github) the key.
+
+**Updating.** Nothing needs doing by hand. If your project is kept in GitHub and the app has no read-only key yet, Access asks for it the first time you let someone install the project. Anyone you already gave *Project code* keeps it, and shows as ticked.
+
+## 36.1.0 — The key link says what happened
+
+- **A key link that ends with nothing saved says whether you opened it.** Never opened: your assistant says so and asks whether the link loaded, before it sends another. Opened but nothing saved: it asks where you got stuck. Before, it could only say the link closed, and sent another.
+- **A link that closed for another chat's link names that chat.** One private link is open at a time, so a key link nobody has opened closes when another chat needs one. The first chat now says which workspace took its place and offers a new link. Before, it could not tell this from a cancel.
+- **Nothing else about the link changes.** The page looks the same, and an unopened key link still gives way to a newer one. Your assistant learns only a yes or no and a workspace's folder name: never a key, an address, or what was on the page.
+
+[Secrets](wiki/development/secrets.md#receive-a-key-through-a-private-link) owns what the assistant says, and [API keys](wiki/stack/api-keys.md#give-it-through-the-private-link) is the plain version.
+
+**Updating.** Nothing needs doing by hand.
+
+## 36.0.1 — A "Used by" line that fits
+
+- **The Keys list says what a key does in fewer words.** In Access, Project code's *Used by* line reads *Installs the project*, and Cloudflare's reads *Look-ups*. A key that apps use too still starts with the count: *1 app · Look-ups*. No line is cut short with "…" any more.
+- **The opened key still says it all.** Its panel keeps *Installs the project, no app needed · Read only*, and the line under a key's level on a person or role is unchanged.
+
+**Updating.** Nothing needs doing by hand.
+
+## 36.0.0 — Schedules that run in your Cloudflare account, on any model key
+
+- **Schedules run in your Cloudflare account, not through Paseo.** A clock there runs each one with your computer off, and `/routine` works the same in any app your assistant runs in. [Cloud routines](wiki/stack/cloud-routines.md) explains it.
+- **Scheduled work takes one of two shapes, and `/routine` picks.** The same steps every time become a script in your app, built the usual way: a plan, a preview, then *publish it?* A step may still call an AI model. Work that finds its own way, such as finding news or `/improve`, gets a routine. `/routine` says which it picked before it makes anything, and you can change it.
+- **A routine is an assistant in a short-lived cloud computer.** The clock starts a computer with a fresh copy of the project. The assistant there can search the web, read and change files, and run commands. It saves through the normal checks, and the computer is deleted when it ends.
+- **Routines need Cloudflare's paid plan, about $5 a month.** On a free account `/routine` says so, gives the cost, and makes nothing. Scripts stay free.
+- **You pick the model, and it runs through Cloudflare.** Your first routine asks which model to use, from a short list with one recommended. You paste no key, and Cloudflare bills its use. Some models there, such as Claude and GPT, need credit in your Cloudflare account. `/routine` tests your pick first and says so if it is refused.
+- **Or paste your own model key.** Ask for the key link and paste one key: a Z.ai subscription key, Anthropic, OpenAI, Google, OpenRouter, and others. The assistant works out whose key it is, tests it, and tells you which service and model your routines now use.
+- **Your first routine installs it.** Nothing is added until you ask for a routine. The first one lists what it adds to your Cloudflare account and asks first.
+- **A scheduled run can't ask you anything.** It takes the safe choice, marks it as assumed, and leaves a note you see in your next chat. A run stops after 30 minutes, and a routine never runs twice at once. Every result shows how long the run took to start and to run.
+- **A run gets only what it needs.** It gets this one project, a memory key, the model key, and any keys you name for it. It never gets your Cloudflare sign-in or the publishing key. The memory key is one made for runs: it can read and add the project's shared notes, but not your private facts or your chats.
+
+**Updating.** Schedules now run in your Cloudflare account and need its paid plan, about $5 a month. Work that is the same steps every time becomes a script in your app and stays free. Any schedule you made before keeps running in Paseo until you delete it there. To move one, ask for it again with `/routine`, then delete the old one in the Paseo app. Nothing else needs doing.
+
+## 35.2.2 — When a preview check needs a browser
+
+- **A save that checks where a request came from is walked in a browser.** [Staging walkthrough](wiki/development/staging-walkthrough.md#walk-the-app-the-way-a-person-does) now says a plain request check sends no `Origin` header, so a save that needs one, such as a change in Access, is refused there and takes a browser check.
+
+**Updating.** Nothing needs doing by hand.
+
+## 35.2.1 — Access changes need a checked caller
+
+- **A change in Access can't skip the sign-in check.** Every change to people, roles or levels takes a pass that says who is asking. Only the sign-in check hands that pass out now, and code that writes its own no longer builds.
+- **Picking a manager needs the owner's pass.** The code that makes or unmakes a manager takes a pass only the owner gets, so a later change can't forget to ask *is this the owner?*
+- **Nothing on the Access screen changes.** The owner and managers can do what they could before, and every refusal reads the same.
+- **A check stops the old way coming back.** The tests fail, naming the file, when app code marks its own pass as checked.
+
+[Access](wiki/stack/employee-access.md#managers) says what new code takes.
+
+**Updating.** Nothing needs doing by hand, unless your own code builds an Access pass itself. That code now fails the type check, the step that reads the code for mistakes before it is published. Have it call the sign-in check instead.
+
 ## 35.2.0 — Screens that match
 
 - **Every screen starts at the same left edge.** One wide frame holds Home, each small app and Access, and the logo in the top bar lines up with it. Every screen fills it: Home lays your apps side by side, a small app's fields share a line, and a table uses it all. Nothing jumps sideways when you move between screens.

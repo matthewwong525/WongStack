@@ -4,6 +4,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
 import { App } from './App'
 import type { Person, SavedKey, Status } from '../../lib/access'
+import { PROJECT_REQUEST } from './status'
 
 // A shop with three apps: Hello changes things with Stripe, payroll with Bank, and the tip calculator uses no key.
 const key = (id: string, title: string, changes: Partial<SavedKey> = {}): SavedKey => ({ id, title, levels: ['read', 'write'], saved: true, setup: false, usedBy: [], alone: false, ...changes })
@@ -17,7 +18,7 @@ const status = (): Status => ({ ownerEmail: 'owner@shop.com', viewer: { email: '
   roles: [{ id: 'office', name: 'Office', apps: [], keys: {} }, { id: 'sales', name: 'Sales', ...sales() }],
   people: [person('gone@shop.com', { status: 'removed' }), person('kim@shop.com', { apps: ['hello'], keys: { stripe: 'read', cloudflare: 'read' } }),
     person('lee@shop.com', { role: 'sales', ...sales() }), person('sam@shop.com', { role: 'sales', ...sales() })],
-  work: [] })
+  work: [], project: 'ready' })
 let roster: Status
 let fetchMock: ReturnType<typeof vi.fn>
 beforeEach(() => {
@@ -63,6 +64,11 @@ const held = (name: string, key: string) => checked(under(name, key).getAllByRol
 const other = () => within(screen.getByRole('group', { name: 'Keys no ticked app uses' }))
 const others = () => other().getAllByRole('group').map(group => group.querySelector('legend')!.textContent)
 const role = () => screen.getByLabelText('Role') as HTMLSelectElement
+// Project code as the status lists it, and the one tick that gives it.
+const code = (saved = false) => key('code', 'Project code', { levels: ['read'], saved, alone: true })
+const INSTALL = 'Can install the project'
+const install = () => screen.getByRole('checkbox', { name: INSTALL }) as HTMLInputElement
+const project = () => within(screen.getByRole('group', { name: 'Project' }))
 const gap = '! Hello can look up, not change'
 const raise = 'Hello also changes things. Pick Read & write to let it.'
 
@@ -193,7 +199,7 @@ it('adds a person with a role in one save, from the keyboard, with every control
   const email = await screen.findByLabelText('Email'); expect(document.activeElement).toBe(email)
   expect(where()).toBe('/apps/access/people/new'); expect(await panel('Add person')).toBeTruthy()
   expect(ticks()).toEqual([]); expect([chosen('Stripe'), chosen('Bank'), chosen('Cloudflare')]).toEqual([['None'], ['None'], ['None']])
-  expect(screen.getByText('A new person starts with no apps. Project code is shared separately.')).toBeTruthy()
+  expect(screen.getByText('A new person starts with no apps.')).toBeTruthy(); expect(screen.queryByText(/shared separately/)).toBeNull()
   // Each level choice is one radio group with its key as the legend: arrow keys move inside it, Tab moves to the next.
   const groups = ['Stripe', 'Bank', 'Cloudflare'].map(name => new Set(level(name).getAllByRole('radio').map(radio => (radio as HTMLInputElement).name)))
   expect(groups.map(names => names.size)).toEqual([1, 1, 1]); expect(new Set(groups.flatMap(names => Array.from(names))).size).toBe(3)
@@ -221,6 +227,61 @@ it('says so when there is no app or key to give yet', async () => {
   roster.apps = []; roster.appKeys = {}; roster.keys = []
   open('people/new'); await screen.findByText('No apps built yet. Ask your assistant to make one.')
   expect(screen.getByText('No keys saved yet.')).toBeTruthy(); expect(boxes()).toEqual([MANAGE])
+  // An app that lists no Project code offers no tick for it.
+  expect(screen.queryByRole('group', { name: 'Project' })).toBeNull()
+  // With Project code the only key, the tick is all there is: the group for other keys is gone.
+  cleanup(); roster.keys = [code(true)]
+  open('people/new'); await panel('Add person')
+  expect(boxes()).toEqual([INSTALL, MANAGE]); expect(screen.queryByRole('group', { name: 'Keys no ticked app uses' })).toBeNull(); expect(screen.queryByText('No keys saved yet.')).toBeNull()
+})
+it('gives the project with one tick, off for a new person, and asks for the GitHub key under it only while it is on', async () => {
+  roster.keys.push(code()); roster.project = 'key'
+  Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: vi.fn(async () => {}) } })
+  open('people/new'); await panel('Add person')
+  expect(install().checked).toBe(false); expect(within(project().getByText(INSTALL).closest('fieldset')!).getAllByRole('checkbox')).toHaveLength(1)
+  // The tick stands in for the level choice: Project code is no longer among the keys below, and what it means is a muted line.
+  expect(others()).toEqual(['Stripe', 'Bank', 'Cloudflare']); expect(screen.queryByRole('group', { name: 'Project code' })).toBeNull()
+  expect(project().getByText('Puts the project on their computer, to read and use.').className).toMatch(/text-muted-foreground/)
+  // After the apps, before the other keys.
+  const group = screen.getByRole('group', { name: 'Project' })
+  expect(screen.getByRole('group', { name: 'Apps' }).compareDocumentPosition(group) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  expect(group.compareDocumentPosition(screen.getByRole('group', { name: 'Keys no ticked app uses' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  // Off, nothing is asked. On, the step is right under the tick, with the words to say and the request to copy.
+  expect(project().queryByText(/One step first/)).toBeNull(); expect(screen.queryByRole('button', { name: /Copy/ })).toBeNull()
+  tick(INSTALL)
+  expect(project().getByText('One step first.')).toBeTruthy(); expect(project().getByText(/The app needs a read-only GitHub key to hand the project out\. Ask your assistant:/)).toBeTruthy()
+  expect(project().getByText('Let teammates install the project')).toBeTruthy()
+  fireEvent.click(project().getByRole('button', { name: 'Copy that request' }))
+  await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalledWith(PROJECT_REQUEST))
+  tick(INSTALL); expect(project().queryByText(/One step first/)).toBeNull(); tick(INSTALL)
+  // The tick saves before the key arrives, as Read on Project code.
+  fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'new@shop.com' } })
+  click('Save access'); await screen.findByText('Saved.')
+  expect(sent('people')).toEqual([{ email: 'new@shop.com', removed: false, role: null, apps: [], keys: { stripe: null, bank: null, cloudflare: null, code: 'read' } }])
+})
+it('shows a saved tick as on, with nothing under it once the app can hand the project out, and unticking saves none', async () => {
+  roster.keys.push(code(true)); roster.people[1].keys = { stripe: 'read', code: 'read' }
+  open('people/kim@shop.com'); await panel('kim@shop.com')
+  expect(install().checked).toBe(true); expect(project().queryByText(/One step first/)).toBeNull(); expect(project().queryByRole('button')).toBeNull()
+  tick(INSTALL); expect(install().checked).toBe(false)
+  click('Save access'); await screen.findByText('Saved.')
+  expect(sent('people')).toEqual([{ email: 'kim@shop.com', removed: false, role: null, apps: ['hello'], keys: { stripe: 'read', bank: null, cloudflare: null, code: null } }])
+  // An install that has no project recorded is sent to finish Access setup, not to make a GitHub key.
+  cleanup(); roster.keys[3].saved = false; roster.project = 'setup'
+  open('people/kim@shop.com'); await panel('kim@shop.com')
+  expect(project().getByText('Finish Access setup')).toBeTruthy(); expect(project().queryByText(/GitHub/)).toBeNull()
+  // A role's set shows as labels, with no tick: the tick is on the role's own page.
+  fireEvent.change(role(), { target: { value: 'sales' } }); expect(screen.queryByRole('group', { name: 'Project' })).toBeNull()
+})
+it("tells a manager who ticks it that the key is the owner's step, with nothing to copy", async () => {
+  roster.keys.push(code()); roster.project = 'key'; roster.viewer = { email: 'kim@shop.com', owner: false }
+  open('people/lee@shop.com'); await panel('lee@shop.com'); fireEvent.change(role(), { target: { value: '' } })
+  expect(install().checked).toBe(false); expect(project().queryByText(/One step first/)).toBeNull()
+  tick(INSTALL)
+  expect(project().getByText('One step first for the owner.').parentElement!.textContent).toBe('One step first for the owner. owner@shop.com adds a read-only GitHub key.')
+  expect(screen.queryByRole('button', { name: /Copy/ })).toBeNull(); expect(screen.queryByText('Let teammates install the project')).toBeNull()
+  click('Save access'); await screen.findByText('Saved.')
+  expect(sent('people')).toEqual([{ email: 'lee@shop.com', removed: false, role: null, apps: ['hello', 'tips'], keys: { stripe: 'read', bank: null, cloudflare: null, code: 'read' } }])
 })
 it('the owner picks a manager with one tick in the last group, full trust said right under it, and the save carries it', async () => {
   open('people/kim@shop.com'); await panel('kim@shop.com')

@@ -92,16 +92,18 @@ A manager is a person the owner lets manage Access. The owner ticks *Can manage 
 - **Only the owner picks managers.** The tick shows for the owner alone. A manager's save that names it is refused, so a manager never makes or unmakes one.
 - **A manager does what the owner does in Access.** They add, change and remove people, make and edit roles, tick apps and set key levels, for anyone: themselves and other managers included.
 - **A manager can't remove a manager, themselves included, or change the owner.** So the owner can always step in. [Who the owner is](#how-the-owner-is-known) stays a setup step.
-- **It is full trust, and the panel says so under the tick.** A manager can give themselves any app or key level. Each change is recorded under the email of the person who made it; no screen shows that record yet.
-- **Managing gives no app and no key.** A manager keeps their own apps, levels and home page. They do not hold every key as the owner does, and a route [with no entry](#what-a-persons-apps-govern) still denies them.
+- **It is full trust, and the panel says so under the tick.** A manager can give themselves any app or key level. Each change is recorded under its maker's email; no screen shows that record yet.
+- **Managing gives no app and no key.** A manager keeps their own apps, levels and home page, and a route [with no entry](#what-a-persons-apps-govern) still denies them.
 - **It is a switch on a person, never part of a role.** A manager edits roles, so a role that carried it would let a manager pick managers.
-- **Taking it back works at once.** Untick it and the person's next request in Access is refused, with no sign-out; they keep their apps and levels. Removing a manager ends it too, and adding them back does not bring it back.
-- **The missing key stays the owner's step.** With [no key yet](#finish-access-setup), a manager reads that one step is left for the owner, with nothing to copy: the step needs the owner's Cloudflare token.
+- **Taking it back works at once.** Untick it and the person's next request in Access is refused, with no sign-out; they keep their apps and levels. Removing a manager ends it too; adding them back does not restore it.
+- **The missing key stays the owner's step.** With [no key yet](#finish-access-setup), a manager reads that one step is left for the owner, with nothing to copy: it needs the owner's Cloudflare token.
 - **A manager's open can finish [the first open](#the-first-open)** when the owner's could not, such as before the key arrived. It takes nothing away.
+
+A new Access save takes a [`Core`](../../app/worker/employee-access/core.ts), the sign-in check's pass; an owner-only one takes an `OwnerCore`. Building either by hand [fails the checks](../../app/worker/checked-caller.test.ts).
 
 ## Four views
 
-The owner's Access has four views, each with its own address, so Back and reload keep your place. A [manager](#managers) has the same four. Each is a table of one-line rows that share their columns; on a phone a row stacks.
+The owner's Access has four views, each with its own address, so Back and reload keep your place. A [manager](#managers) has them too. Each is a table of one-line rows that share their columns; on a phone a row stacks.
 
 - **People** opens first: who, whether they can sign in, their role, and a count such as *2 apps, 1 key*. The owner is the first row, with nothing to change. *You* and *Manager* sit beside the email.
 - **Roles** counts each role's apps, keys and holders.
@@ -112,10 +114,10 @@ A level set in any view is the same level in the others. A count names the owner
 
 ### One frame on every screen
 
-Access sits in [the shared frame](mini-apps.md#the-home-page-lists-the-apps). The four views, each with a count, top every Access screen as its heading. Under them is the one spot for notices: *Saved*, the practice list, a step left.
+Access sits in [the shared frame](mini-apps.md#the-home-page-lists-the-apps). The four views, each with a count, head every Access screen. Under them is the one spot for notices: *Saved*, the practice list, a step left.
 
 - **The add button ends the views' line.** The assistant makes apps and keys: a line under those lists says so.
-- **A row opens in a panel beside its list**, at its own address, on a click that is not on a control. The list stays, with that row marked. The panel sits under the top bar; on a phone it fills the screen. *✕*, Escape, *Cancel* and a press beside it close it. A key not saved yet says its next step there.
+- **A row opens in a panel beside its list**, at its own address, on a click that is not on a control. The list stays, that row marked. The panel sits under the top bar; on a phone it fills the screen. *✕*, Escape, *Cancel* and a press beside it close it. A key not saved yet says its next step there.
 - **Connect your assistant** is [Home's card](mini-apps.md#the-home-page-lists-the-apps) alone, with [its steps](employee-project.md).
 
 ### Change a role in the row
@@ -132,11 +134,12 @@ A row counts; the names show where a person is opened. There a label is one app,
 
 ### Give an app and its level in one place
 
-A person's panel starts with their role; with their own set, and for a role, you tick apps and pick levels there. For the owner, it ends with the *Managing* group: [the manager tick](#managers), and what it means right under it.
+A person's panel starts with their role; with their own set, and for a role, you tick apps and pick levels there. The owner's ends with *Managing*: [the manager tick](#managers) and what it means.
 
-- **A ticked app shows the level of each key it uses under its tick**, with a hint that names the fix: *Pick Read & write to let it*. An unticked app says which keys it uses and shows no level.
-- **A key two ticked apps share shows under both and is one level.** Change it under one and the other follows, and each says the level is shared.
-- **Keys no ticked app uses sit in a group below**, such as [a key with no app](#a-key-with-no-app).
+- **A ticked app shows the level of each key it uses under its tick**, with a hint that names the fix: *Pick Read & write to let it*. An unticked app names its keys and shows no level.
+- **A key two ticked apps share shows under both and is one level.** Change it under one and the other follows; each says it is shared.
+- **The project is one tick**, *Can install the project*: [Project code](employee-project.md#who-gets-what) at Read, [its step](employee-project.md#the-owners-one-step-on-github) below.
+- **Keys no ticked app uses sit in a group below**, like [a key with no app](#a-key-with-no-app).
 
 ### A save says how it went, and leaving asks first
 

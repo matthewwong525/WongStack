@@ -76,6 +76,23 @@ test('inventory covers every authored skill folder, skips the vendored browser s
   assert.deepEqual(report.categories.descriptions.after, descriptions.after);
 });
 
+test('a call-only skill is counted as on-call: out of the instruction total and the session descriptions', t => {
+  const root = skillTree(t, {
+    '.agents/skills/memory/SKILL.md': '---\ndescription: Search facts.\n---\nmemory body',
+    '.agents/skills/dream/SKILL.md': '---\ndescription: Tidy memory.\ndisable-model-invocation: true\n---\ndream body',
+    '.agents/skills/dream/references/steps.md': 'dream steps',
+  });
+  const report = measureContext(root, { revision: 'fixture', owners: [], files: { '.agents/skills/dream/SKILL.md': { words: 9, bytes: 90 } }, routes: {} });
+  const row = path => report.inventory.find(entry => entry.path === path);
+  assert.equal(row('.agents/skills/dream/SKILL.md').kind, 'on-call');
+  assert.equal(row('.agents/skills/dream/references/steps.md').kind, 'on-call');
+  assert.equal(row('.agents/skills/memory/SKILL.md').kind, 'instructions');
+  // Its recorded size leaves the instruction total on both sides, so marking a skill frees no room by itself.
+  assert.deepEqual(report.categories.instructions.before, { words: 0, bytes: 0 });
+  assert.deepEqual(report.categories['on-call'].before, { words: 9, bytes: 90 });
+  assert.deepEqual(row(DESCRIPTIONS).after, countText('Search facts.'));
+});
+
 test('the startup ceiling names the load and the ceiling when exceeded, and is silent under it', t => {
   const root = skillTree(t, {
     'AGENTS.md': 'one two three four five',

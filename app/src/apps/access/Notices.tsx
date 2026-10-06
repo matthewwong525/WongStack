@@ -10,12 +10,13 @@ function Notice({ role, children }: { role?: 'status' | 'alert'; children: React
   return <Alert role={role}><AlertDescription className="w-full gap-2 text-foreground wrap-anywhere">{children}</AlertDescription></Alert>
 }
 
-/** A step the owner hands to their assistant: the words to say, and the full request to copy.
- *  Where a key is opened it is `plain`: the step needs no box there. */
-export function FinishStep({ plain = false, children }: { plain?: boolean; children: ReactNode }) {
+/** A step the owner hands to their assistant: the words to say, and the full request to copy. Left out, they
+ *  are the ones for finishing Access setup. Where a key or a set is opened it is `plain`: the step needs no box there. */
+export function FinishStep({ plain = false, say = 'Finish Access setup', request = FINISH_REQUEST, children }:
+  { plain?: boolean; say?: string; request?: string; children: ReactNode }) {
   const step = <>
-    <p>{children} <q>Finish Access setup</q></p>
-    <CopyText text={FINISH_REQUEST} label="Copy that request" />
+    <p>{children} <q>{say}</q></p>
+    <CopyText text={request} label="Copy that request" />
   </>
   return plain ? <div className="grid gap-2">{step}</div> : <Notice>{step}</Notice>
 }

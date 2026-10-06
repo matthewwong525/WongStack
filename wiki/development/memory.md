@@ -65,6 +65,8 @@ The opt-in helper has fixed task budgets and returns verified original facts. It
 
 Every write passes the **write gate**: the script shows the live facts on the same slug, the closest keyword matches, and the open threads on other slugs that match the fact's words. The writer adds, supersedes, or drops each candidate. A `thread` must carry the tag of the verb whose next run should check it (`plan`, `verify`, `sync`), or the area tag of the folder whose next change should: the gate names the problem, and `put-facts` refuses the whole batch, because a warning once left 82 of 94 threads with no one to check them. A fact that answers an open thread supersedes it, saying what was found, so a check done under other work closes its thread. A fact that cannot reach the store waits in this machine’s local spool, and the next run sends it through the gate.
 
+**A scheduled run has no chat session**, so its write leaves `session` out of the JSON. With `"session": "current"` and no chat, the script holds the facts for the next session start, which never comes in a computer that is deleted after the run. [Cloud routines](../stack/cloud-routines.md#how-a-routine-runs) tell each run so.
+
 ## Facts by code area
 
 A fact about code carries the **area tag** of the folder it concerns, so the next change there loads it. [`areas.json`](../../.agents/skills/memory/references/areas.json), in the memory skill, maps folders to areas, each with a definition and the docs that own it: `app/worker/` to `worker`, `wiki/` to `wiki`. The most specific folder wins: `app/worker/apps/` gives `mini-apps` and `worker`, not `stack-pack`, which covers all of `app/`.
@@ -81,9 +83,11 @@ A fact about code carries the **area tag** of the folder it concerns, so the nex
 Two passes keep the live facts tidy: plain code for what follows a rule, and a model only for what takes judgment.
 
 - **Upkeep** runs after every `put-facts` and at the end of every background run, with no model and no wait. It closes an open thread still open 30 days after its own date with a fact naming it, *Closed unchecked after 30 days (thread #N, date)*; the thread stays searchable with `--all`, and a re-tag never restarts its clock. It **re-tags** a fact whose words name a path in a mapped folder with [its area](#facts-by-code-area), and a thread whose words name a slash command with that verb (`/wong-sync` gives `sync`), so the verb loads it. A re-tagged fact keeps its words, its date, its author, and its link to the chat it came from; it supersedes the untagged one. On the admin's key it also syncs area tags to the list. It restates at most 50 facts a pass and leaves the rest to the next write. It never fails the write before it: `put-facts` prints `upkeep skipped: <reason>`, and the next write tries again. `memory.mjs upkeep` runs it by hand.
-- **Consolidation** runs inside the background run, and only once 24 hours *and* five captured sessions have passed since the last one, so it is rare. It merges facts that say the same thing, supersedes contradicted ones, newest first, closes an open thread a later live fact shows was answered, and re-tags only where reading a fact's area or verb takes judgment. No one runs it by hand: an earlier consolidation command was retired because no one did.
+- **Consolidation** runs inside the background run, and only once 24 hours *and* five captured sessions have passed since the last one, so it is rare. It merges facts that say the same thing, supersedes contradicted ones, newest first, closes an open thread a later live fact shows was answered, and re-tags only where reading a fact's area or verb takes judgment. No one runs it alone by hand: an earlier consolidation command was retired because no one did.
 
 On a teammate’s machine both passes change only facts owned by that installation, and no tag; the admin's tidy everyone's.
+
+Both passes tidy facts, never pages. [A wiki dream](wiki-dream.md) runs consolidation at once when you type `/dream`, whatever the clock says, then moves the lasting facts onto the wiki.
 
 ## The memory key
 

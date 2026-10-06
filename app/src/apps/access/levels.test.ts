@@ -11,7 +11,7 @@ const spare = key('spare', 'Spare')
 const status: Status = { ownerEmail: 'owner@example.com', viewer: { email: 'owner@example.com', owner: true }, environment: 'live', key: 'ready', started: true,
   imported: 0, keysStarted: true, kept: 0, apps: ['hello', 'tips', 'payroll'],
   appKeys: { hello: [{ id: 'stripe', need: 'write' }, { id: 'maps', need: 'read' }], tips: [{ id: 'stripe', need: 'read' }], payroll: [] },
-  keys: [stripe, maps, cloudflare, spare], roles: [], people: [], work: [] }
+  keys: [stripe, maps, cloudflare, spare], roles: [], people: [], work: [], project: 'ready' }
 
 it('names a level, joins the parts of a line and starts a line with a capital', () => {
   expect([levelName(null), levelName('read'), levelName('write')]).toEqual(['None', 'Read', 'Read & write'])
@@ -92,14 +92,23 @@ it('says what uses a key, on the Keys view and a key page', () => {
   expect(keyUseLine(spare)).toBe('Nothing uses it yet')
   // The list's one line counts the apps and leaves the rest to the key's panel.
   expect(keyUseShort(stripe)).toBe('2 apps')
-  expect(keyUseShort(cloudflare)).toBe('Look-ups, no app needed')
-  expect(keyUseShort({ ...cloudflare, usedBy: [{ app: 'payroll', need: 'read' }] })).toBe('1 app · Look-ups, no app needed')
+  expect(keyUseShort(cloudflare)).toBe('Look-ups')
+  expect(keyUseShort({ ...cloudflare, usedBy: [{ app: 'payroll', need: 'read' }] })).toBe('1 app · Look-ups')
   expect(keyUseShort(spare)).toBe('Nothing uses it yet')
   // Project code works with no app too, and what it does is not a look-up.
   const code = { ...cloudflare, id: 'code', title: 'Project code' }
   expect([keyUseLine(code), aloneLine(code), aloneLine(cloudflare), aloneLine(spare)])
     .toEqual(['Installs the project, no app needed · Read only', 'installs the project, no app needed', 'look-ups, no app needed', ''])
-  expect(keyUseShort(code)).toBe('Installs the project, no app needed')
+  expect(keyUseShort(code)).toBe('Installs the project')
+})
+
+it('keeps the Keys list line short enough to show whole in its column', () => {
+  // The column holds about 30 characters at the narrowest width that still shows one-line rows.
+  const apps = Array.from({ length: 12 }, (_, n) => ({ app: `app${n}`, need: 'read' as const }))
+  const code = { ...cloudflare, id: 'code', title: 'Project code' }
+  const lines = [cloudflare, code].map(alone => keyUseShort({ ...alone, usedBy: apps }))
+  expect(lines).toEqual(['12 apps · Look-ups', '12 apps · Installs the project'])
+  for (const line of lines) expect(line.length).toBeLessThanOrEqual(30)
 })
 
 it('says whether a key is saved, waits for its link, or waits for setup to make it, which no preview can', () => {

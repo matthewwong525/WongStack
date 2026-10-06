@@ -142,6 +142,16 @@ it('gives a preview its own practice list and makes no provider call', async () 
   expect(f.sql.prepare('SELECT COUNT(*) count FROM wong_access_work').get()).toEqual({ count: 0 });
 });
 
+it('says in the status why the project can not be handed out yet, and never a secret', async () => {
+  const TOKEN = 'github_pat_synthetic_read_only_value';
+  const read = async (vars: object) => (await run('status', 'GET', undefined, { ...f.env, ...vars })).json();
+  // No project recorded: setup has a step left. On GitHub with no key: the key. With it: ready, as Project code is saved.
+  const [unset, waiting, ready] = [await read({}), await read({ WONG_CODE_REPOSITORY: 'acme/recipe-box' }), await read({ WONG_CODE_REPOSITORY: 'acme/recipe-box', WONG_CODE_READ: TOKEN })];
+  expect([unset, waiting, ready].map(status => [status.project, status.keys.find((key: { id: string }) => key.id === 'code').saved]))
+    .toEqual([['setup', false], ['key', false], ['ready', true]]);
+  // The status carries one word: no token, no secret's name, and not the repository either.
+  for (const status of [unset, waiting, ready]) expect(JSON.stringify(status)).not.toMatch(/github_pat|WONG_CODE|recipe-box/);
+});
 it('opens for the owner with no other setup, lists every built app and starts permissions once', async () => {
   f.sql.close(); f = fixture({ started: false });
   cf.policy.include = [site.ownerEmail, 'cy@example.com'].map(email => ({ email: { email } }));
@@ -255,6 +265,20 @@ it('lets a manager the owner picked add people, edit roles and set levels as the
   // Each change names who made it.
   expect(acted()).toEqual([`${site.ownerEmail} person_changed`, `${site.ownerEmail} manager_added`, `${kim.id} person_changed`,
     `${kim.id} role_changed`, `${kim.id} key_level_changed`, `${kim.id} person_changed`, `${site.ownerEmail} person_changed`,
+    `${site.ownerEmail} manager_added`, `${kim.id} person_changed`]);
+});
+
+it("leaves the manager switch alone when a manager changes another manager's apps", async () => {
+  await pick(employee.id); await pick(kim.id, ['orders']);
+  const rows = () => f.sql.prepare('SELECT rowid, email FROM wong_access_managers ORDER BY email').all();
+  const before = rows();
+  const saved = await (await ask(kim, 'people', person(employee.id, ['payroll']))).json();
+  expect(saved).toMatchObject({ people: [{ email: employee.id, manager: true, apps: ['payroll'] }, { email: kim.id, manager: true, apps: ['orders'] }] });
+  // No manager row was written: each is still the row the owner made.
+  expect(rows()).toEqual(before);
+  // The person she changed still manages, and the record shows nobody's switch moved.
+  expect((await ask(employee, 'status', undefined, 'GET')).status).toBe(200);
+  expect(acted()).toEqual([`${site.ownerEmail} person_changed`, `${site.ownerEmail} manager_added`, `${site.ownerEmail} person_changed`,
     `${site.ownerEmail} manager_added`, `${kim.id} person_changed`]);
 });
 

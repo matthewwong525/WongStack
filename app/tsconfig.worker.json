@@ -10,6 +10,8 @@
   // Node way, where a relative import needs a file extension. Vitest resolves
   // them the Vite way and does not. Excluding them keeps the deployed bundle
   // free of the runner and keeps the two resolution modes from arguing.
-  "include": ["worker"],
+  // One file under tests/ is checked: it holds the lines that must not compile,
+  // and worker/checked-caller.test.ts fails if it leaves this list.
+  "include": ["worker", "tests/employee-access/unchecked-caller.ts"],
   "exclude": ["worker/**/*.test.ts"]
 }

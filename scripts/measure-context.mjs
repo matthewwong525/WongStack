@@ -8,7 +8,11 @@ import { isMain, parseCli } from './lib-cli.mjs';
 
 // The vendored browser skill is upstream text; every other skill folder is WongStack-authored.
 const vendored = new Set(['agent-browser']);
-// Every skill's `description:`, joined: what each session reads before the first message.
+// A skill marked `disable-model-invocation: true` runs only when a person types it or another skill
+// names its file: no session loads its description, and the assistant can not pull its text in on its
+// own. Its files are counted as `on-call`, apart from the instruction total the check holds down.
+export const callOnly = text => /^disable-model-invocation:\s*true\s*$/m.test(text.match(/^---\r?\n([\s\S]*?)\r?\n---/)?.[1] ?? '');
+// Every other skill's `description:`, joined: what each session reads before the first message.
 export const DESCRIPTIONS = 'skill-descriptions';
 const canonical = path => path.replace(/^\.claude\//, '.agents/');
 export const countText = text => ({ words: text.trim() ? text.trim().split(/\s+/u).length : 0, bytes: Buffer.byteLength(text) });
@@ -50,9 +54,12 @@ export function measureContext(root, baseline) {
   const owners = new Set(baseline.owners.map(canonical));
   const paths = new Set(owners);
   const descriptions = [];
+  const onCall = [];
   for (const skill of skillDirs(root)) {
     const dir = `.agents/skills/${skill}`;
-    if (existsSync(join(root, dir, 'SKILL.md'))) descriptions.push(skillDescription(readFileSync(join(root, dir, 'SKILL.md'), 'utf8')));
+    const text = existsSync(join(root, dir, 'SKILL.md')) ? readFileSync(join(root, dir, 'SKILL.md'), 'utf8') : '';
+    if (callOnly(text)) onCall.push(`${dir}/`);
+    else if (text) descriptions.push(skillDescription(text));
     if (vendored.has(skill)) continue;
     paths.add(`${dir}/SKILL.md`);
     for (const folder of ['references', 'scripts']) {
@@ -63,9 +70,9 @@ export function measureContext(root, baseline) {
   }
   const after = Object.fromEntries([...paths].sort().map(path => [path, countText(readFileSync(join(root, path), 'utf8'))]));
   after[DESCRIPTIONS] = countText(descriptions.filter(Boolean).join('\n'));
-  const kind = path => path === DESCRIPTIONS ? 'descriptions' : owners.has(path) ? 'owners' : path.endsWith('.md') ? 'instructions' : path.endsWith('.html') ? 'html' : 'helpers';
+  const kind = path => path === DESCRIPTIONS ? 'descriptions' : owners.has(path) ? 'owners' : path.endsWith('.md') ? (onCall.some(dir => path.startsWith(dir)) ? 'on-call' : 'instructions') : path.endsWith('.html') ? 'html' : 'helpers';
   const inventory = [...new Set([...Object.keys(before), ...Object.keys(after)])].sort().map(path => ({ path, kind: kind(path), before: before[path] ?? { words: 0, bytes: 0 }, after: after[path] ?? { words: 0, bytes: 0 } }));
-  const categories = Object.fromEntries(['instructions', 'owners', 'descriptions', 'html', 'helpers'].map(category => {
+  const categories = Object.fromEntries(['instructions', 'on-call', 'owners', 'descriptions', 'html', 'helpers'].map(category => {
     const files = inventory.filter(row => row.kind === category);
     return [category, { before: total(files.map(row => row.before)), after: total(files.map(row => row.after)) }];
   }));

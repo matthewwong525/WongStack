@@ -3,7 +3,7 @@ import { employee, fixture, owner, site } from "../../tests/employee-access/conn
 import type { AccessIdentity } from "../access";
 import { keys } from "../keys";
 import { appAccess } from "./apps";
-import { CODE_GIT, codeGit, codeSource, codeState, upstream } from "./code";
+import { CODE_GIT, codeGit, codeSource, codeState, codeStep, upstream } from "./code";
 import type { ConnectionEnv } from "./core";
 import { keyCatalogue, needs } from "./key-catalogue";
 import { everyKey, offered, saved, scopedEnv } from "./key-levels";
@@ -91,6 +91,17 @@ it("finds where the project is kept without calling anything, and refuses a name
   expect(await upstream({ WONG_CODE_REPOSITORY: "recipe-box", ARTIFACTS: { get: async () => { throw new Error("NOT_FOUND"); } } })).toBeNull();
   // The binding wins when both are there: a Cloudflare-kept project never falls back to a GitHub token.
   expect(codeSource({ ...kept.env, WONG_CODE_READ: TOKEN })).toMatchObject({ name: "recipe-box" });
+});
+
+it("says why the project can not be handed out yet: a missing GitHub key, or no project recorded", () => {
+  // A Cloudflare-kept project needs no key, and GitHub with its token is ready too.
+  expect([codeStep(artifacts().env), codeStep(github)]).toEqual(["ready", "ready"]);
+  // GitHub with no token, an empty one, or one that is no text: the key is the step left.
+  for (const waiting of [{ WONG_CODE_REPOSITORY: "acme/recipe-box" }, { ...github, WONG_CODE_READ: " " }, { ...github, WONG_CODE_READ: 7 }]) expect(codeStep(waiting)).toBe("key");
+  // No repository, or a name the app does not trust: setup has a step left, and a token changes nothing.
+  for (const unset of [{}, { WONG_CODE_READ: TOKEN }, { ...github, WONG_CODE_REPOSITORY: "acme/../other" }, { ...github, WONG_CODE_REPOSITORY: "https://github.com/acme/recipe-box" },
+    { ...github, WONG_CODE_REPOSITORY: "recipe-box" }, { WONG_CODE_REPOSITORY: "recipe-box", ARTIFACTS: {} }, { WONG_CODE_REPOSITORY: 7 }]) expect(codeStep(unset)).toBe("setup");
+  expect(fetched).not.toHaveBeenCalled();
 });
 
 it("forwards Git's two read calls with the server's credential added, and returns only what Git reads", async () => {
