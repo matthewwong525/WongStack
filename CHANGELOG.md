@@ -22,6 +22,13 @@
 - **In Cloudflare, with no GitHub:** nothing to do by hand. The step connects the app to your project, and Connect installs it for the people you tick once the update is published.
 - **On GitHub:** one step for you. Your assistant sends a private link with numbered steps. You make one GitHub key that can only read this one project, and paste it there once. Until then Connect works exactly as it does today for everyone, and Access says one step is left.
 
+## 35.0.1 — Two notes on checks that fail without a cause
+
+- **A check GitHub cancelled before it started is named.** [GitHub Actions](wiki/stack/github-actions.md) says how to tell one and to run it again, on the main branch too.
+- **The repeated-code check's settings file takes no comments.** [Mini apps](wiki/stack/mini-apps.md#the-rules) says why: with one, the check passes everything.
+
+**Updating.** Nothing needs doing by hand.
+
 ## 35.0.0 — Screens built from ready-made parts, not styled by hand
 
 - **Every screen is built from one set of ready-made parts.** Buttons, fields, tables, menus, popups, boxes and labels come from shadcn, a well-known set of parts, on Tailwind, the styling tool it is built with. No screen keeps a style file of its own.
