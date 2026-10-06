@@ -47,7 +47,7 @@ A feature branch with work runs the ordinary runbook, intent or not; `/ship` res
 
 ## Step 3 — delegate the checkpoint to /save
 
-`prepare` numbers `CHANGELOG.md`'s `## Next` entry from `main`'s version, merging `main` in first when behind, so two changes in flight never share a number. A file it cannot merge → resolve it as the **union of intent**, `git add`, rerun. Any other failure → report its message and stop before `/save`.
+`prepare` numbers `CHANGELOG.md`'s `## Next` entry from `main`'s version, merging `main` in first when behind, so two changes in flight never share a number. After a merge it reruns the local checks, so allow 15 minutes; `NEXT:` carries any repair. A file it cannot merge → resolve it as the **union of intent**, `git add`, rerun. Any other failure → report its message and stop before `/save`.
 
 **Invoke the `save` skill exactly once as ordinary `/save` and follow it verbatim**, with `prepare`'s `CHANGE` and `ARCHIVE` if any. Proceed only on `SUCCESS` or `NONE`. Any other result → stop before merge and report `/save`'s reason; never repeat, bypass, or reinterpret the gate.
 

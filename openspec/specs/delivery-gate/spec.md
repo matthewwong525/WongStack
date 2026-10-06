@@ -185,7 +185,7 @@ After a merge that deploys, `/ship` SHALL wait a bounded time for the default br
 
 ### Requirement: A finished build is checked locally where the tools exist
 
-Where the machine has the repo's tools, a finished build SHALL run, once and before the first push, the checks CI would run for the kinds of file the change touches, and SHALL repair what fails within the existing repair limits. A machine without the tools SHALL skip the run, say so in one line, and continue. Local runs on one machine SHALL take turns. The report SHALL name the run as local.
+Where the machine has the repo's tools, a finished build SHALL run, once and before the first push, the checks CI would run for the kinds of file the change touches, and SHALL repair what fails within the existing repair limits. When `/ship`'s preparation merges the default branch into the branch, it SHALL run the same checks once more before the checkpoint and SHALL state their result and the next action; a failure SHALL be repaired before the checkpoint within the same limits. A preparation that merges nothing SHALL run no local check. A local result SHALL NOT stop a save or a publish. A machine without the tools SHALL skip the run, say so in one line, and continue. Local runs on one machine SHALL take turns. The report SHALL name the run as local.
 
 #### Scenario: A test fails before the first push
 
@@ -196,6 +196,16 @@ Where the machine has the repo's tools, a finished build SHALL run, once and bef
 
 - **WHEN** the repo's tools are not installed and can not be installed
 - **THEN** the build says in one line that nothing ran locally, and `/save` and `/ship` proceed on the gate alone
+
+#### Scenario: The default branch brings a failure in
+
+- **WHEN** `/ship`'s preparation merges the default branch in and a check then fails on this machine
+- **THEN** the preparation's output names the failed checks and a repair as the next action, and the checkpoint follows the repair
+
+#### Scenario: Nothing is merged in
+
+- **WHEN** `/ship`'s preparation finds the branch already holds the default branch
+- **THEN** it runs no local check and its output is as before
 
 ### Requirement: Delivery's mechanical steps run as single commands
 

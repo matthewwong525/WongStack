@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Publishing checks again after it brings in the latest work
+
+- **Publishing checks your change again after it brings in the latest live work.** When other changes went live while yours was being built, publishing brings them in. The checks that ran after the build now run once more on this computer, before the save. A problem the other changes caused is repaired here in seconds, not found later by the slower online checks.
+- **A publish that brings nothing in takes no longer.** The extra check runs only when other work came in.
+- **The online checks still decide.** The check on this computer never blocks a save or a publish. A computer without the tools says so in one line and goes on.
+
+**Updating.** Nothing needs doing by hand.
+
 ## 37.1.1 — Three guides say what chats learned
 
 - **The change loop says where a check goes when it can only happen after publishing**: a line in the plan's Decision log, not a task. A task like *confirm the live look* could never be ticked, because publishing files the plan away first.

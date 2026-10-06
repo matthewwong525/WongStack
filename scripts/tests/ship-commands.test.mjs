@@ -107,8 +107,21 @@ esac
 exec "$REAL_NODE" "$@"
 `;
 
+// A fake local-checks script, committed at .github/scripts/checks.mjs: it logs its call and
+// answers from $FAKE_DIR/checks.json with an exit code and a last line.
+const FAKE_CHECKS = `import { appendFileSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+const dir = process.env.FAKE_DIR;
+appendFileSync(join(dir, 'calls'), 'checks ' + process.argv.slice(2).join(' ') + '\\n');
+const s = JSON.parse(readFileSync(join(dir, 'checks.json'), 'utf8'));
+console.log('checks output');
+for (const line of s.lines ?? ['LOCAL_CHECKS=pass']) console.log(line);
+process.exit(s.code ?? 0);
+`;
+
 // A real repository with a bare origin: main holds a first release, and `work` is checked out.
-function fixture(t, { gh = {}, openspec = {}, artifacts = false } = {}) {
+// `checks` gives the repo a local-checks script that answers with those settings.
+function fixture(t, { gh = {}, openspec = {}, artifacts = false, checks = null } = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'wong-test-ship-commands-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const work = join(dir, 'work');
@@ -121,6 +134,7 @@ function fixture(t, { gh = {}, openspec = {}, artifacts = false } = {}) {
   writeFileSync(join(dir, 'calls'), '');
   writeFileSync(join(dir, 'gh.json'), JSON.stringify(gh));
   writeFileSync(join(dir, 'openspec.json'), JSON.stringify(openspec));
+  writeFileSync(join(dir, 'checks.json'), JSON.stringify(checks ?? {}));
   const env = {
     ...process.env, PATH: `${join(dir, 'bin')}:${process.env.PATH}`, HOME: dir, FAKE_DIR: dir,
     GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null',
@@ -141,7 +155,7 @@ function fixture(t, { gh = {}, openspec = {}, artifacts = false } = {}) {
   execFileSync(REAL_GIT, ['init', '-q', '--bare', '-b', 'main', origin], { env });
   git('init', '-q', '-b', 'main');
   git('remote', 'add', 'origin', origin);
-  commit({ 'CHANGELOG.md': CHANGELOG, VERSION: '1.0.0\n', 'app.txt': 'one\n', ...(artifacts ? { '.claude/.wong-stack.json': `${JSON.stringify(ARTIFACTS_RECORD)}\n` } : {}) }, 'base');
+  commit({ 'CHANGELOG.md': CHANGELOG, VERSION: '1.0.0\n', 'app.txt': 'one\n', ...(checks ? { '.github/scripts/checks.mjs': FAKE_CHECKS } : {}), ...(artifacts ? { '.claude/.wong-stack.json': `${JSON.stringify(ARTIFACTS_RECORD)}\n` } : {}) }, 'base');
   git('push', '-q', '-u', 'origin', 'main');
   git('checkout', '-q', '-b', 'work');
   // Another release, or another person's edit, lands on the default branch meanwhile.
@@ -167,6 +181,85 @@ function fixture(t, { gh = {}, openspec = {}, artifacts = false } = {}) {
 }
 
 const behindMain = f => f.git('merge-base', '--is-ancestor', 'origin/main', 'HEAD');
+const SAVE_NEXT = `invoke ordinary /save once, with change demo and archive path ${ARCHIVE} (mode archive). Go on to /verify only on SUCCESS or NONE.`;
+const checkCalls = f => f.calls().match(/^checks .*$/gm) ?? [];
+const NO_SCRIPT = 'not run (this repo has no .github/scripts/checks.mjs)';
+
+test('a prepare that merges nothing runs no local check, and prints the same lines as before', t => {
+  const f = fixture(t, { checks: { code: 1, lines: ['LOCAL_CHECKS=fail (suite)'] } });
+  f.commit({ ...f.change('demo'), 'CHANGELOG.md': withEntry(NEXT_ENTRY), 'app.txt': 'two\n' });
+  const r = f.run(['prepare']);
+  assert.equal(r.status, 0, `${r.stdout}${r.stderr}`);
+  assert.equal(r.stdout, ['BRANCH=work', 'DIRTY=no', 'AHEAD=1', 'DEFAULT_CHECKS=ok', 'CHANGE=demo', `ARCHIVE=${ARCHIVE}`,
+    'RELEASE=1.1.0 from 1.0.0', 'SYNC=none', 'REVIEW=rebuilt', `NEXT: ${SAVE_NEXT}`, ''].join('\n'));
+  assert.deepEqual(checkCalls(f), []);
+});
+
+test('a merge of the default branch is checked here once, and a pass keeps the next step', t => {
+  const f = fixture(t, { checks: {} });
+  f.advanceMain({ 'other.txt': 'theirs\n' });
+  f.commit({ ...f.change('demo'), 'CHANGELOG.md': withEntry(NEXT_ENTRY) });
+  const r = f.run(['prepare', '--change', 'demo']);
+  assert.equal(r.status, 0, `${r.stdout}${r.stderr}`);
+  assert.ok(r.stdout.endsWith(`SYNC=merged origin/main\nREVIEW=rebuilt\nLOCAL_CHECKS=pass\nNEXT: ${SAVE_NEXT}\n`), r.stdout);
+  assert.deepEqual(checkCalls(f), ['checks --worktree --default-branch main']);
+  // The checks' own output is on stderr; stdout keeps only the one line.
+  assert.match(r.stderr, /^checks output\nLOCAL_CHECKS=pass$/m);
+  assert.doesNotMatch(r.stdout, /checks output/);
+  // The check saw the tree /save will commit: archived, numbered, and marked ready.
+  assert.equal(f.has(ARCHIVE), true);
+});
+
+test('local checks that fail after a merge change only the next step, to a repair', t => {
+  const f = fixture(t, { checks: { code: 1, lines: ['LOCAL_CHECKS=fail (suite, payload:links); not run (the install failed)', 'Repair, then rerun only what failed: node .github/scripts/checks.mjs --worktree --only suite,payload:links'] } });
+  f.advanceMain({ 'other.txt': 'theirs\n' });
+  f.commit({ ...f.change('demo'), 'CHANGELOG.md': withEntry(NEXT_ENTRY) });
+  const r = f.run(['prepare', '--change', 'demo']);
+  assert.equal(r.status, 0, `${r.stdout}${r.stderr}`);
+  assert.equal(r.value('LOCAL_CHECKS'), 'fail (suite, payload:links); not run (the install failed)');
+  assert.ok(r.stdout.endsWith(`\nNEXT: the local checks failed after main came in. Repair what fails and rerun only that: node .github/scripts/checks.mjs --worktree --only suite,payload:links, three rounds at most. Then ${SAVE_NEXT}\n`), r.stdout);
+  assert.deepEqual(['ARCHIVE', 'RELEASE', 'SYNC', 'REVIEW'].map(r.value), [ARCHIVE, '1.1.0 from 1.0.0', 'merged origin/main', 'rebuilt']);
+  assert.equal(checkCalls(f).length, 1);
+  // With no change, the repair leads into the same plain save.
+  const plain = fixture(t, { checks: { code: 1, lines: ['LOCAL_CHECKS=fail (wiki)'] } });
+  plain.advanceMain({ 'other.txt': 'theirs\n' });
+  plain.commit({ 'README.md': '# Project\n' });
+  const synced = plain.run(['prepare', '--no-change', '--sync']);
+  assert.equal(synced.status, 0, `${synced.stdout}${synced.stderr}`);
+  assert.ok(synced.stdout.endsWith('SYNC=merged origin/main\nLOCAL_CHECKS=fail (wiki)\nNEXT: the local checks failed after main came in. Repair what fails and rerun only that: node .github/scripts/checks.mjs --worktree --only wiki, three rounds at most. Then invoke ordinary /save once, with no change. Go on to /verify only on SUCCESS or NONE.\n'), synced.stdout);
+});
+
+test('local checks that could not run after a merge say so in one line and keep the next step', t => {
+  const f = fixture(t, { checks: { code: 7, lines: ['LOCAL_CHECKS=not run (npm is not installed)'] } });
+  f.advanceMain({ 'other.txt': 'theirs\n' });
+  f.commit({ ...f.change('demo'), 'CHANGELOG.md': withEntry(NEXT_ENTRY) });
+  const r = f.run(['prepare', '--change', 'demo']);
+  assert.equal(r.status, 0, `${r.stdout}${r.stderr}`);
+  assert.ok(r.stdout.endsWith(`LOCAL_CHECKS=not run (npm is not installed)\nNEXT: ${SAVE_NEXT}\n`), r.stdout);
+  assert.equal(checkCalls(f).length, 1);
+  // A script that ends with no result line is not a pass.
+  const silent = fixture(t, { checks: { code: 2, lines: [] } });
+  silent.advanceMain({ 'other.txt': 'theirs\n' });
+  silent.commit({ ...silent.change('demo'), 'CHANGELOG.md': withEntry(NEXT_ENTRY) });
+  const none = silent.run(['prepare', '--change', 'demo']);
+  assert.equal(none.status, 0, `${none.stdout}${none.stderr}`);
+  assert.ok(none.stdout.endsWith(`LOCAL_CHECKS=not run (checks.mjs exited 2 with no LOCAL_CHECKS line)\nNEXT: ${SAVE_NEXT}\n`), none.stdout);
+});
+
+test('a merge resolved by hand is checked once, on the rerun that concludes it', t => {
+  const f = fixture(t, { checks: {} });
+  f.advanceMain({ 'app.txt': 'theirs\n' });
+  f.commit({ ...f.change('demo'), 'CHANGELOG.md': withEntry(NEXT_ENTRY), 'app.txt': 'ours\n' });
+  assert.equal(f.run(['prepare', '--change', 'demo']).status, 5);
+  assert.deepEqual(checkCalls(f), [], 'a stopped merge is not checked');
+  f.write('app.txt', 'ours and theirs\n');
+  f.git('add', 'app.txt');
+  const again = f.run(['prepare']);
+  assert.equal(again.status, 0, `${again.stdout}${again.stderr}`);
+  assert.deepEqual(['SYNC', 'LOCAL_CHECKS'].map(again.value), ['none', 'pass']);
+  assert.ok(again.stdout.endsWith(`NEXT: ${SAVE_NEXT}\n`), again.stdout);
+  assert.deepEqual(checkCalls(f), ['checks --worktree --default-branch main']);
+});
 
 test('a clean prepare leaves one archive folder, a numbered release, and a rebuilt review page', t => {
   const f = fixture(t);
@@ -234,6 +327,7 @@ test('a release behind the default branch merges it in cleanly and is numbered a
   assert.equal(r.status, 0, `${r.stdout}${r.stderr}`);
   assert.equal(r.value('SYNC'), 'merged origin/main');
   assert.equal(r.value('RELEASE'), '1.1.0 from 1.0.0');
+  assert.equal(r.value('LOCAL_CHECKS'), NO_SCRIPT);
   assert.equal(f.read('other.txt'), 'theirs\n');
   assert.doesNotThrow(() => behindMain(f));
   assert.equal(f.has(ARCHIVE), true);
@@ -247,6 +341,7 @@ test('a CHANGELOG.md-only conflict resolves with this branch\'s entry on top, th
   assert.equal(r.status, 0, `${r.stdout}${r.stderr}`);
   assert.equal(r.value('SYNC'), 'merged origin/main');
   assert.equal(r.value('RELEASE'), '1.1.0 from 1.0.1');
+  assert.equal(r.value('LOCAL_CHECKS'), NO_SCRIPT);
   const changelog = f.read('CHANGELOG.md');
   assert.match(changelog, /## 1\.1\.0 — New thing\n\nA new thing\.\n\n## 1\.0\.1 — Other fix\n\nTheir fix\.\n\n## 1\.0\.0 — First/);
   assert.doesNotMatch(changelog, /<<<<<<<|=======|>>>>>>>/);
@@ -265,6 +360,7 @@ test('a release numbered earlier is numbered again after another took its number
   const r = f.run(['prepare', '--sync']);
   assert.equal(r.status, 0, `${r.stdout}${r.stderr}`);
   assert.deepEqual(['CHANGE', 'ARCHIVE', 'RELEASE', 'SYNC', 'REVIEW'].map(r.value), ['demo', ARCHIVE, '1.1.0 from 1.0.1', 'merged origin/main', 'unchanged']);
+  assert.equal(r.value('LOCAL_CHECKS'), NO_SCRIPT);
   assert.match(f.read('CHANGELOG.md'), /## 1\.1\.0 — New thing\n[\s\S]*## 1\.0\.1 — Other fix\n[\s\S]*## 1\.0\.0 — First/);
   assert.doesNotMatch(f.read('CHANGELOG.md'), /<<<<<<<|>>>>>>>/);
   assert.equal(f.read('VERSION'), '1.1.0\n');
@@ -286,7 +382,7 @@ test('another file\'s conflict stops with the files, and the rerun concludes the
   f.git('add', 'app.txt');
   const again = f.run(['prepare']);
   assert.equal(again.status, 0, `${again.stdout}${again.stderr}`);
-  assert.deepEqual(['CHANGE', 'ARCHIVE', 'RELEASE'].map(again.value), ['demo', ARCHIVE, '1.1.0 from 1.0.0']);
+  assert.deepEqual(['CHANGE', 'ARCHIVE', 'RELEASE', 'LOCAL_CHECKS'].map(again.value), ['demo', ARCHIVE, '1.1.0 from 1.0.0', NO_SCRIPT]);
   assert.doesNotThrow(() => behindMain(f));
   assert.equal(f.read('app.txt'), 'ours and theirs\n');
 });
@@ -311,10 +407,12 @@ test('--sync merges the default branch in with no release, and --no-change archi
   assert.equal(plain.status, 0, `${plain.stdout}${plain.stderr}`);
   assert.deepEqual(['CHANGE', 'ARCHIVE', 'RELEASE', 'SYNC'].map(plain.value), ['none', 'none', 'none', 'none']);
   assert.match(plain.stdout, /^NEXT: invoke ordinary \/save once, with no change\./m);
+  assert.equal(plain.value('LOCAL_CHECKS'), undefined);
   assert.equal(f.has('other.txt'), false);
   const synced = f.run(['prepare', '--no-change', '--sync']);
   assert.equal(synced.status, 0, `${synced.stdout}${synced.stderr}`);
   assert.equal(synced.value('SYNC'), 'merged origin/main');
+  assert.equal(synced.value('LOCAL_CHECKS'), NO_SCRIPT);
   assert.equal(f.has('other.txt'), true);
   assert.doesNotMatch(f.calls(), /openspec (instructions|status|validate|archive)/);
 });
