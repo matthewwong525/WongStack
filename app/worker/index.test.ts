@@ -131,7 +131,8 @@ describe("private Worker routing", () => {
     const signed = await token();
     const accepted = await call("/api/actions", { "Cf-Access-Jwt-Assertion": signed });
     expect(accepted.status).toBe(200);
-    expect((await body(accepted)).actions.map(a => a.operationId)).toEqual(["hello.greeting", "main.health"]);
+    // The supplied actions are among them: a build may hold other folders too.
+    expect((await body(accepted)).actions.map(a => a.operationId)).toEqual(expect.arrayContaining(["hello.greeting", "main.health"]));
     const [header, , signature] = signed.split(".");
     const forged = `${header}.${encode({ email: "admin@example.com" })}.${signature}`;
     for (const assertion of [forged, await token({ email: "human@example.com", exp: 1 }), await token({ email: "human@example.com", aud: "wrong" })]) {
@@ -254,16 +255,17 @@ describe("private Worker routing", () => {
   });
 
   it("checks current grants and self-service membership after signed login on every request", async () => {
-    const row = { policy_enabled: 1, keys_enabled: 0, revision: 1, status: "active", manager: 0, apps: '["hello"]', keys: "{}" };
+    const row = { policy_enabled: 1, keys_enabled: 0, revision: 1, status: "active", manager: 0, apps: '{"hello":"read"}', keys: "{}" };
     const first = vi.fn(async () => row);
     const db = { withSession: vi.fn(() => ({ prepare: () => ({ bind: () => ({ first }) }) })) };
     const bindings = { ...env, WONG_ENVIRONMENT: "production", WONG_OWNER_EMAIL: "owner@example.com", DB: db };
     const headers = { "Cf-Access-Jwt-Assertion": await token({ email: "human@example.com", sub: "employee" }) };
     expect((await call("/apps/hello/api/greeting", headers, bindings)).status).toBe(200);
     expect(await (await call("/api/access/apps", headers, bindings)).json())
-      .toEqual({ state: "current", role: "employee", manages: false, signIn: true, code: "off", revision: 1, apps: ["access", "hello"], keys: [] });
+      .toEqual({ state: "current", role: "employee", manages: false, signIn: true, code: "off", revision: 1, apps: ["access", "hello"],
+        areas: [{ id: "hello", title: "Hello", screen: true, level: "read" }], keys: [] });
     for (const path of ["/apps/hello/", "/apps/hello/subpage", "/apps/access/"]) expect((await call(path, headers, bindings)).status).toBe(200);
-    row.apps = "[]";
+    row.apps = "{}";
     row.revision = 2;
     for (const path of ["/apps/hello/", "/apps/hello/subpage"]) expect((await call(path, headers, bindings)).status).toBe(403);
     expect((await call("/apps/access/", headers, bindings)).status).toBe(200);

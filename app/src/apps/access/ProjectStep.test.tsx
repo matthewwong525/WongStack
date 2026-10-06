@@ -6,7 +6,7 @@ import { ProjectStep } from './ProjectStep'
 import { FINISH_REQUEST, PROJECT_REQUEST } from './status'
 
 const status = (project: Status['project'], owner = true): Status => ({ ownerEmail: 'owner@shop.com', viewer: { email: owner ? 'owner@shop.com' : 'kim@shop.com', owner },
-  environment: 'live', key: 'ready', started: true, imported: 0, keysStarted: true, kept: 0, apps: [], appKeys: {}, keys: [], roles: [], people: [], work: [], project })
+  environment: 'live', key: 'ready', started: true, imported: 0, keysStarted: true, kept: 0, areas: [], skills: [], appKeys: {}, keys: [], roles: [], people: [], work: [], project })
 beforeEach(() => Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: vi.fn(async () => {}) } }))
 afterEach(() => { cleanup(); vi.restoreAllMocks() })
 const copies = async (request: string) => {

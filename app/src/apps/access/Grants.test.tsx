@@ -4,32 +4,38 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
 import { App } from './App'
 import { FINISH_REQUEST, PROJECT_REQUEST } from './status'
-import type { Person, SavedKey, Status } from '../../lib/access'
+import type { Area, Person, SavedKey, Status } from '../../lib/access'
 
 // The Keys and Apps views, and the two opened items that save through `grants`.
-// A shop with three apps: Hello changes things with Stripe, payroll with Bank, and the tip calculator uses no key.
+// A shop with three apps and one area with no screen: Hello changes things with Stripe, Payroll with Bank, and the tip
+// calculator and Customers use no key. One skill refunds a customer through Hello.
 const key = (id: string, title: string, changes: Partial<SavedKey> = {}): SavedKey => ({ id, title, levels: ['read', 'write'], saved: true, setup: false, usedBy: [], alone: false, ...changes })
-const person = (email: string, changes: Partial<Person> = {}): Person => ({ email, status: 'active', settled: true, role: null, manager: false, apps: [], keys: {}, ...changes })
-const sales = () => ({ apps: ['hello', 'tips'], keys: { stripe: 'read' as const } })
+const area = (id: string, title: string, screen = true): Area => ({ id, title, description: '', screen })
+const person = (email: string, changes: Partial<Person> = {}): Person => ({ email, status: 'active', settled: true, role: null, manager: false, apps: {}, keys: {}, ...changes })
+// Sales changes things in Hello and looks things up in the tip calculator; Kim, with her own set, looks things up in Hello.
+const sales = (): Pick<Person, 'apps' | 'keys'> => ({ apps: { hello: 'write', tips: 'read' }, keys: { stripe: 'read' } })
 const status = (): Status => ({ ownerEmail: 'owner@shop.com', viewer: { email: 'owner@shop.com', owner: true }, environment: 'live', key: 'ready', started: true, imported: 0,
-  keysStarted: true, kept: 0, apps: ['hello', 'payroll', 'tips'],
-  appKeys: { hello: [{ id: 'stripe', need: 'write' }], payroll: [{ id: 'bank', need: 'write' }], tips: [] },
+  keysStarted: true, kept: 0, appKeys: { hello: [{ id: 'stripe', need: 'write' }], payroll: [{ id: 'bank', need: 'write' }], tips: [], customers: [] },
+  areas: [area('hello', 'Hello'), area('payroll', 'Payroll'), area('tips', 'Tip calculator'), area('customers', 'Customers', false)],
+  skills: [{ id: 'refund', title: 'Refund a customer', areas: { hello: 'write' }, keys: { stripe: 'write' } }],
   keys: [key('stripe', 'Stripe', { usedBy: [{ app: 'hello', need: 'write' }] }), key('bank', 'Bank', { usedBy: [{ app: 'payroll', need: 'write' }] }),
     key('cloudflare', 'Cloudflare', { levels: ['read'], setup: true, alone: true })],
-  roles: [{ id: 'office', name: 'Office', apps: [], keys: {} }, { id: 'sales', name: 'Sales', ...sales() }],
-  people: [person('gone@shop.com', { status: 'removed' }), person('kim@shop.com', { apps: ['hello'], keys: { stripe: 'read', cloudflare: 'read' } }),
+  roles: [{ id: 'office', name: 'Office', apps: {}, keys: {} }, { id: 'sales', name: 'Sales', ...sales() }],
+  people: [person('gone@shop.com', { status: 'removed' }), person('kim@shop.com', { apps: { hello: 'read' }, keys: { stripe: 'read', cloudflare: 'read' } }),
     person('lee@shop.com', { role: 'sales', ...sales() }), person('sam@shop.com', { role: 'sales', ...sales() })],
   work: [], project: 'ready' })
 let roster: Status
 let failed: Set<string>
 let fetchMock: ReturnType<typeof vi.fn>
+// The screens a person can open: every area that has one.
+const screens = () => roster.areas.filter(item => item.screen).map(item => item.id)
 beforeEach(() => {
   roster = status(); failed = new Set()
   fetchMock = vi.fn(async (url: string) => {
     const path = url.replace('/api/access/', '')
     if (failed.has(path)) return Response.json({ code: 'unavailable' }, { status: 503 })
-    if (path === 'apps') return Response.json({ state: 'current', role: 'owner', apps: ['access', ...roster.apps], revision: 1 })
-    if (path === 'setup') return Response.json({ role: 'owner', api: 'authenticated', identity: { email: 'owner@shop.com', subject: 'owner' }, apps: roster.apps,
+    if (path === 'apps') return Response.json({ state: 'current', role: 'owner', apps: ['access', ...screens()], revision: 1 })
+    if (path === 'setup') return Response.json({ role: 'owner', api: 'authenticated', identity: { email: 'owner@shop.com', subject: 'owner' }, apps: screens(),
       repository: 'manual_provider_setup', memory: 'independent_operator_setup', prompt: { state: 'unavailable', message: 'Not on this preview' } })
     return Response.json(roster)
   })
@@ -45,18 +51,23 @@ const posts = (path: string) => fetchMock.mock.calls.filter(([url, init]) => url
 const sent = (path: string) => posts(path).map(([, init]) => JSON.parse(init.body))
 const reads = (path: string) => fetchMock.mock.calls.filter(([url, init]) => url.endsWith(path) && init?.method !== 'POST')
 const checked = (inputs: HTMLElement[]) => inputs.filter(input => (input as HTMLInputElement).checked).map(input => input.parentElement!.textContent)
-// One key's or app's row in a list and what its cells say; one role or person in a panel, by the words beside them; and a level choice inside either.
+// One key's or app's row in a list and what its cells say.
 const row = async (title: string) => within((await screen.findByRole('link', { name: title })).closest('tr')!)
 const cells = async (title: string) => Array.from((await screen.findByRole('link', { name: title })).closest('tr')!.querySelectorAll('td')).map(cell => cell.textContent)
 const columns = (table: HTMLElement) => within(table).getAllByRole('columnheader').map(cell => cell.textContent)
 // The panel a key or an app is opened in, by its name, and that none is open any more.
 const panel = async (name: string) => within(await screen.findByRole('dialog', { name }))
 const closed = () => waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
-const who = (name: string) => within(screen.getByRole('group', { name }))
+// One role or person in a panel, by the words beside them: their tick, and every level chosen beside it, in order. An app's
+// panel holds several level choices per role or person, so `legend` names the one meant: the app's own, or a key's.
+const who = (name: string, legend?: string) => {
+  const group = within(screen.getByRole('group', { name }))
+  return legend ? within(group.getByRole('group', { name: legend })) : group
+}
 const tick = (name: string) => who(name).getByRole('checkbox') as HTMLInputElement
-const offered = (name: string) => who(name).getAllByRole('radio').map(radio => radio.parentElement!.textContent)
+const offered = (name: string, legend?: string) => who(name, legend).getAllByRole('radio').map(radio => radio.parentElement!.textContent)
 const chosen = (name: string) => checked(who(name).getAllByRole('radio'))
-const pick = (name: string, level: string) => fireEvent.click(who(name).getByRole('radio', { name: level }))
+const pick = (name: string, level: string, legend?: string) => fireEvent.click(who(name, legend).getByRole('radio', { name: level }))
 const unfinished = 'That did not finish. Check the list below before trying again.'
 const follows = (first: Element, second: Element) => !!(first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING)
 const [office, team, kim] = ['Office · nobody yet', 'Sales · lee@shop.com, sam@shop.com', 'kim@shop.com']
@@ -89,6 +100,8 @@ it('lists every key on one line: whether it is saved, what uses it, and how many
   fireEvent.click((await row('Bank')).getByText('Saved')); const bank = await panel('Bank'); expect(where()).toBe('/apps/access/keys/bank')
   expect(screen.getByRole('table', { name: 'Keys' }).querySelector('tr[aria-current="true"] a')!.textContent).toBe('Bank')
   expect([!!bank.getByText('Saved'), bank.queryByText('Ask your assistant for the key link.')]).toEqual([true, null])
+  // The apps that use it are named by their titles in the list of areas.
+  expect(bank.getByText('Used by Payroll: look up, change')).toBeTruthy()
 })
 it('says one step is left for the key setup makes, with the request to copy where the owner opens it, and how a key arrives when there are none', async () => {
   roster.keys[2].saved = false
@@ -156,7 +169,7 @@ it('Project code opened from Keys names the step a person\'s page shows, and its
 it('sets one key for every role and every person with their own set, in one panel and in one save', async () => {
   open('keys'); fireEvent.click((await row('Stripe')).getByRole('link', { name: 'Stripe' }))
   const opened = await panel('Stripe'); expect(where()).toBe('/apps/access/keys/stripe')
-  // The list and the four views stay in place beside it.
+  // The list and the five views stay in place beside it.
   expect(screen.getByRole('table', { name: 'Keys' })).toBeTruthy(); expect(screen.getByRole('navigation', { name: 'Access views' })).toBeTruthy()
   expect(opened.getByText('Saved')).toBeTruthy(); expect(opened.getByText('Used by Hello: look up, change')).toBeTruthy()
   expect([chosen(office), chosen(team), chosen(kim)]).toEqual([['None'], ['Read'], ['Read']])
@@ -171,49 +184,75 @@ it('sets one key for every role and every person with their own set, in one pane
   expect([offered(office), offered(kim), chosen(kim)]).toEqual([['None', 'Read'], ['None', 'Read'], ['Read']])
   cleanup(); roster.roles = []; roster.people = []; open('keys/bank'); await screen.findByText('No roles or people yet.')
 })
-it('lists each app on one line with the keys it uses and how many have it, the owner first', async () => {
+it('lists each app on one line with the keys it uses and how many have it, the owner first, and an area with no screen beside them', async () => {
   open(); fireEvent.click(await screen.findByRole('link', { name: /^Apps/ }))
   const table = await screen.findByRole('table', { name: 'Apps' })
   expect(columns(table)).toEqual(['App', 'Uses', 'Who has it'])
   // No button adds an app: a quiet line under the list says how one is made.
   expect(follows(table, screen.getByText('Ask your assistant to build an app.'))).toBe(true); expect(screen.queryByRole('link', { name: /Add/ })).toBeNull()
+  // A role or a person has an app at either level.
   expect(await cells('Hello')).toEqual(['Hello', 'Stripe: look up, change', 'Owner, 1 role, 1 person'])
-  expect(await cells('payroll')).toEqual(['payroll', 'Bank: look up, change', 'Owner'])
+  expect(await cells('Payroll')).toEqual(['Payroll', 'Bank: look up, change', 'Owner'])
   expect(await cells('Tip calculator')).toEqual(['Tip calculator', 'No keys', 'Owner, 1 role'])
+  // An area with no screen is listed like an app and says so beside its name.
+  expect(await cells('Customers')).toEqual(['Customers No screen', 'No keys', 'Owner'])
   expect((await row('Hello')).getByRole('link', { name: 'Hello' }).getAttribute('href')).toBe('/apps/access/apps/hello')
   expect(document.querySelector('[data-slot="badge"]')).toBeNull()
   // A click anywhere on the row opens the app beside the list.
   fireEvent.click((await row('Tip calculator')).getByText('No keys')); await panel('Tip calculator'); expect(where()).toBe('/apps/access/apps/tips')
   expect(table.querySelector('tr[aria-current="true"] a')!.textContent).toBe('Tip calculator')
-  cleanup(); roster.apps = []; open('apps'); await screen.findByText('No apps built yet. Ask your assistant to make one.')
+  cleanup(); roster.areas = []; open('apps'); await screen.findByText('No apps built yet. Ask your assistant to make one.')
   expect(screen.queryByRole('table')).toBeNull(); expect(screen.queryByText('Ask your assistant to build an app.')).toBeNull()
 })
-it('gives an app to roles and people, with the levels of the keys it uses beside each tick', async () => {
+it('gives an app to roles and people, with its own level and the levels of the keys it uses beside each tick', async () => {
   open('apps'); fireEvent.click((await row('Hello')).getByRole('link', { name: 'Hello' }))
   const opened = await panel('Hello'); expect(where()).toBe('/apps/access/apps/hello')
   expect(screen.getByRole('table', { name: 'Apps' })).toBeTruthy(); expect(screen.getByRole('navigation', { name: 'Access views' })).toBeTruthy()
   expect(opened.getByText('Uses Stripe: look up, change')).toBeTruthy(); expect(opened.getByText('A level holds in every app.')).toBeTruthy()
   expect([tick(office).checked, tick(team).checked, tick(kim).checked]).toEqual([false, true, true])
-  expect(who(office).queryByRole('radio')).toBeNull(); expect([chosen(team), chosen(kim)]).toEqual([['Read'], ['Read']])
-  expect(within(who(team).getByRole('group', { name: 'Stripe' })).getAllByRole('radio')).toHaveLength(3)
-  // Ticking gives Read on the app's keys still at None, never Read & write.
-  fireEvent.click(tick(office)); expect(chosen(office)).toEqual(['Read'])
-  pick(kim, 'Read & write'); expect(chosen(kim)).toEqual(['Read & write'])
+  // Beside a tick: the app's own level, named by the app, then the level of each key it uses.
+  expect(who(office).queryByRole('radio')).toBeNull(); expect([chosen(team), chosen(kim)]).toEqual([['Look up & change', 'Read'], ['Look up', 'Read']])
+  expect([offered(team, 'Hello'), offered(team, 'Stripe')]).toEqual([['None', 'Look up', 'Look up & change'], ['None', 'Read', 'Read & write']])
+  // Ticking starts the app at Look up and gives Read on its keys still at None, never Read & write.
+  fireEvent.click(tick(office)); expect(chosen(office)).toEqual(['Look up', 'Read'])
+  // Raising the app's level beside the tick leaves its keys where they are.
+  pick(office, 'Look up & change'); expect(chosen(office)).toEqual(['Look up & change', 'Read'])
+  pick(kim, 'Read & write'); expect(chosen(kim)).toEqual(['Look up', 'Read & write'])
+  // None beside the tick unticks, and takes no key level with it: ticked again, the app starts at Look up and the key is as it was.
+  pick(team, 'Read & write'); pick(team, 'None', 'Hello'); expect(tick(team).checked).toBe(false); expect(who(team).queryByRole('radio')).toBeNull()
+  fireEvent.click(tick(team)); expect(chosen(team)).toEqual(['Look up', 'Read & write'])
   // An unticked role or person shows no levels, and none are sent for it.
   fireEvent.click(tick(team)); expect(who(team).queryByRole('radio')).toBeNull()
   click('Save access'); await screen.findByText('Saved.')
-  expect(sent('grants')).toEqual([{ app: 'hello', roles: { office: true, sales: false }, people: { 'kim@shop.com': true },
+  expect(sent('grants')).toEqual([{ app: 'hello', roles: { office: 'write', sales: null }, people: { 'kim@shop.com': 'read' },
     keys: { roles: { office: { stripe: 'read' } }, people: { 'kim@shop.com': { stripe: 'write' } } } }])
   expect(where()).toBe('/apps/access/apps')
-  // An app that uses no keys has ticks alone.
-  cleanup(); open('apps/tips'); expect((await panel('Tip calculator')).getByText('Uses no keys')).toBeTruthy(); expect(screen.queryByRole('radio')).toBeNull()
-  fireEvent.click(tick(kim)); click('Save access'); await screen.findByText('Saved.')
-  expect(sent('grants')[1]).toEqual({ app: 'tips', roles: { office: false, sales: true }, people: { 'kim@shop.com': true }, keys: { roles: { sales: {} }, people: { 'kim@shop.com': {} } } })
+  // An app that uses no keys has its own level alone beside a tick. A person given it here starts at Look up.
+  cleanup(); open('apps/tips'); expect((await panel('Tip calculator')).getByText('Uses no keys')).toBeTruthy()
+  expect([offered(team), chosen(team), who(kim).queryByRole('radio')]).toEqual([['None', 'Look up', 'Look up & change'], ['Look up'], null])
+  fireEvent.click(tick(kim)); expect(chosen(kim)).toEqual(['Look up']); click('Save access'); await screen.findByText('Saved.')
+  expect(sent('grants')[1]).toEqual({ app: 'tips', roles: { office: null, sales: 'read' }, people: { 'kim@shop.com': 'read' }, keys: { roles: { sales: {} }, people: { 'kim@shop.com': {} } } })
   cleanup(); roster.roles = []; roster.people = []; open('apps/payroll'); await screen.findByText('No roles or people yet.')
+})
+it('gives an area with no screen the same way: it says No screen, and its level sits beside each tick', async () => {
+  open('apps'); fireEvent.click((await row('Customers')).getByRole('link', { name: 'Customers' }))
+  const opened = await panel('Customers'); expect(where()).toBe('/apps/access/apps/customers')
+  expect(opened.getByText('No screen · Uses no keys')).toBeTruthy(); expect(opened.getByText('A level holds in every app.')).toBeTruthy()
+  expect(screen.getByRole('table', { name: 'Apps' }).querySelector('tr[aria-current="true"] a')!.textContent).toBe('Customers')
+  // Nobody has it yet: a tick each, and no level.
+  expect([tick(office).checked, tick(team).checked, tick(kim).checked]).toEqual([false, false, false]); expect(screen.queryByRole('radio')).toBeNull()
+  // A person given it here starts at Look up, in a choice named by the area.
+  fireEvent.click(tick(kim)); expect([offered(kim, 'Customers'), chosen(kim)]).toEqual([['None', 'Look up', 'Look up & change'], ['Look up']])
+  // A role is raised to Look up & change beside its tick. The office keeps None.
+  fireEvent.click(tick(team)); pick(team, 'Look up & change'); expect(chosen(team)).toEqual(['Look up & change'])
+  click('Save access'); await screen.findByText('Saved.')
+  expect(sent('grants')).toEqual([{ app: 'customers', roles: { office: null, sales: 'write' }, people: { 'kim@shop.com': 'read' },
+    keys: { roles: { sales: {} }, people: { 'kim@shop.com': {} } } }])
+  expect(where()).toBe('/apps/access/apps')
 })
 it('every row opens its item from the link in its first cell, and no list has an Edit button', async () => {
   for (const [path, name, links] of [['', 'People', ['gone@shop.com', 'kim@shop.com', 'lee@shop.com', 'sam@shop.com']], ['roles', 'Roles', ['Office', 'Sales']],
-    ['apps', 'Apps', ['Hello', 'payroll', 'Tip calculator']], ['keys', 'Keys', ['Stripe', 'Bank', 'Cloudflare']]] as const) {
+    ['apps', 'Apps', ['Hello', 'Payroll', 'Tip calculator', 'Customers']], ['skills', 'Skills', ['Refund a customer']], ['keys', 'Keys', ['Stripe', 'Bank', 'Cloudflare']]] as const) {
     open(path); const table = await screen.findByRole('table', { name })
     expect(Array.from(table.querySelectorAll('tbody td:first-child a')).map(link => link.textContent), path).toEqual(links)
     expect(screen.queryByRole('link', { name: 'Edit' }), path).toBeNull()
@@ -222,7 +261,7 @@ it('every row opens its item from the link in its first cell, and no list has an
 })
 it('a key or app save that did not finish says so and reads the list again', async () => {
   failed.add('grants')
-  for (const [path, title] of [['keys/bank', 'Bank'], ['apps/payroll', 'payroll']]) {
+  for (const [path, title] of [['keys/bank', 'Bank'], ['apps/payroll', 'Payroll']]) {
     open(path); await screen.findByRole('button', { name: 'Save access' }); const before = reads('status').length; click('Save access')
     await screen.findByText(unfinished); await row(title)
     expect(where()).toBe(`/apps/access/${path.split('/')[0]}`); expect(reads('status').length).toBeGreaterThan(before); cleanup()

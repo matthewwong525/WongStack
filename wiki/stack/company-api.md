@@ -20,11 +20,13 @@ Existing bare handlers retain their paths, behavior and guards, and stay absent 
 
 ## Map business routes before employee policy
 
-Once [Access permissions have started](employee-access.md#the-first-open), the Worker checks current membership and app grants before either a bare handler or a described action runs. Mini-app APIs use their folder's stable app slug automatically. Main APIs require an exact method/path entry in `routeAccess` beside the route in [the main router](../../app/worker/api/router.ts). For example, a reviewed orders handler at `GET /api/orders` uses `{ apps: ["orders"] }`; a shared orders/payroll handler uses `{ apps: ["orders", "payroll"] }` and requires both grants. A missing, empty or invalid mapping denies business work. New app IDs receive no employee grant automatically.
+Once [Access permissions have started](employee-access.md#the-first-open), the Worker checks current membership and the caller's [level for each area](employee-access.md#areas-and-their-levels) before either a bare handler or a described action runs. An area is one folder of work: a mini app, or [a server folder with no screen](mini-apps.md#an-area-with-no-screen). Mini-app APIs use their folder's stable slug automatically. Main APIs require an exact method/path entry in `routeAccess` beside the route in [the main router](../../app/worker/api/router.ts). For example, a reviewed orders handler at `GET /api/orders` uses `{ apps: ["orders"] }`; a shared orders/payroll handler uses `{ apps: ["orders", "payroll"] }` and requires both areas. A missing, empty or invalid mapping denies business work, and the checks fail on a mapping that names a folder nobody built. A new area is given to no employee automatically.
+
+The level a call needs comes from [what it does](#list-the-keys-a-route-uses): Look up runs a read, and only Look up & change runs a `write` or `external` action. A refusal names the area and the level, such as `Orders: Look up & change needed`.
 
 Only explicitly reviewed harmless infrastructure uses `{ kind: "infrastructure" }`; the supplied health response is such an exception. It returns no business data and still passes the Worker's existing login boundary. Core owner operations and employee self-service use separate finite exceptions. Self-service requires current membership even with no selected apps; a removed person is denied. Existing action visibility, connection-readiness and handler record checks still apply after the app check.
 
-Each business call reads installation, membership and selected apps together from a D1 session beginning at the primary. The server retains no positive permission cache between requests. A request admitted before a removal may finish; the next request observes the committed removal, including with the same unexpired app login. Missing or unavailable authority returns a safe unavailable response. Preserve this mapping and every existing custom handler during updates.
+Each business call reads installation, membership and area levels together from a D1 session beginning at the primary. The server retains no positive permission cache between requests. A request admitted before a removal may finish; the next request observes the committed removal, including with the same unexpired app login. Missing or unavailable authority returns a safe unavailable response. Preserve this mapping and every existing custom handler during updates.
 
 [Access](employee-access.md) knows its owner by the recorded sign-in email. Its people-management routes are administration, absent from action discovery. Before permissions start, every signed-in person keeps their existing access. Repository authentication stays manual through its provider.
 
@@ -37,11 +39,11 @@ A route is handed only the saved keys it lists, and a person needs [a level](emp
 - **A main route lists them in its mapping**: `{ apps: ["orders"], keys: ["stripe"] }` in `routeAccess`. An action's own list comes first.
 - **A route that lists none gets none.** Every other saved key is left out of the `env` the handler is handed, in a main route and a mini app alike.
 
-The level a call needs comes from what it does: an action with `effect: "read"` needs Read, and `write` or `external` needs Read & write. A bare handler has no effect to read, so `GET` and `HEAD` need Read and every other method needs Read & write; a `POST` that only looks things up is better described as an action with `effect: "read"`. A listed key that is not saved answers `unavailable` before the handler runs, so a `ready` check for a missing key is no longer needed.
+The level a call needs, of its area and of each key, comes from what it does: an action with `effect: "read"` needs Look up and Read, and `write` or `external` needs Look up & change and Read & write. A bare handler has no effect to read, so `GET` and `HEAD` need Read and every other method needs Read & write; a `POST` that only looks things up is better described as an action with `effect: "read"`. A listed key that is not saved answers `unavailable` before the handler runs, so a `ready` check for a missing key is no longer needed.
 
 **A route can belong to a key alone.** Map it `{ keys: ["cloudflare"] }`, with no `apps`: [the key's level decides](employee-access.md#a-key-with-no-app) and no app is needed. A mapping with no keys, or with a key nobody registered, denies everyone.
 
-`node scripts/check-app-keys.mjs` runs with the code checks. It fails when a file under `app/worker/apps/<name>/` or `app/worker/api/` names a registered secret whose key the file, the app's `api.ts`, or the main router does not list. Like [the memory exclusion](mini-apps.md#the-rules), handing out only listed keys stops mistakes, not code written to get around it: handlers share one Worker.
+`node scripts/check-app-keys.mjs` runs with the code checks, as [the skill check](#build-a-skill-on-actions) does. It fails when a file under `app/worker/apps/<name>/` or `app/worker/api/` names a registered secret whose key the file, the app's `api.ts`, or the main router does not list. Like [the memory exclusion](mini-apps.md#the-rules), handing out only listed keys stops mistakes, not code written to get around it: handlers share one Worker.
 
 ## Look things up in Cloudflare
 
@@ -63,7 +65,7 @@ Verified [company login](cloudflare-access.md) protects these live endpoints, in
 - `GET /api/actions?id=hello.greeting` — only that action’s inputs, output, synthetic examples, safe errors and local schema dependencies.
 - `GET /api/openapi.json` — OpenAPI 3.1 for deliberately described HTTP routes, with actual methods and serialization. It omits bare handlers, administration, raw memory and preview-picture routes.
 
-Once [Access permissions have started](employee-access.md#what-a-persons-apps-govern), all three endpoints read current membership, grants and [key levels](employee-access.md#key-levels) before describing an action or answering a conditional request, so an action a level forbids is not listed. Main registrations use the same reviewed method/path mappings as dispatch; a shared action requires every mapped app. Existing action visibility checks also apply. An unassigned new app stays hidden, and an unavailable policy returns an unavailable response.
+Once [Access permissions have started](employee-access.md#what-a-persons-apps-govern), all three endpoints read current membership, area levels and [key levels](employee-access.md#key-levels) before describing an action or answering a conditional request, so an action a level forbids is not listed: a person at Look up sees an area's reads and none of its changes. Main registrations use the same reviewed method/path mappings as dispatch; a shared action requires every mapped app. Existing action visibility checks also apply. An unassigned new app stays hidden, and an unavailable policy returns an unavailable response.
 
 The document and summaries carry a deterministic contract revision. Each ETag also includes the caller, current policy revision and selected response, so an old grant, another caller or another query cannot reuse a permitted response. Selected-action authorization and input checks run before a 304 response. Responses require private cache revalidation; denials are never cached. New published registrations appear on the next lookup. Never load the full schema at chat startup; list relevant actions and describe the selected one when needed.
 
@@ -85,6 +87,21 @@ JSON
 Keep `~/.cloudflared` owned by the current OS user, mode 0700, with token files mode 0600. The helper captures token output privately and sends it only in request headers to the connected origin. Cloudflared caches the normal session; expiry or removal requires the employee’s own login again. Changed public routing requires an explicit connection. Redirects, arbitrary server URLs and outside schema references are refused. The helper never borrows owner, deploy, business, memory or verification credentials for company calls.
 
 `list` and `describe` perform no business action. `call` consults the live selected contract and executes it once. A call that returns an error, company or memory, still prints the error and ends with a failing exit status, so a script stops there. Check a failed write’s outcome before repeating it; the helper never retries it automatically. When a write times out or its connection drops and it names a confirming read, the helper names that read in the error: run it first, and repeat the write only if the change is missing. Effect metadata helps explain work, while the assistant’s normal action authorization still applies.
+
+## Build a skill on actions
+
+A skill that reads or changes business data does it through company actions, never with a key. It then runs under the login of whoever uses it, so it works on every teammate's device, which holds no business key, and the app decides what each of them may do. A skill that reads a key from your own files works for you alone.
+
+When someone asks for such a skill:
+
+1. **Build or reuse the action first.** Find one with `list`, or [define it](#define-an-action-once) in the app: in a mini app's folder, or in [a folder with no screen](mini-apps.md#an-area-with-no-screen) when the work is for skills alone.
+2. **List what the skill calls** in `actions.json` beside its `SKILL.md`: `{ "title": "Refund a customer", "actions": ["orders.lookup", "orders.refund"] }`. The title is what [Access](employee-access.md#the-skills-view) shows.
+3. **Call each action through the helper**, as [above](#connect-and-call): `node scripts/company-api.mjs call <id> --file -`.
+4. **Never read a business key in the skill**: no `.env`, no `app/.dev.vars`, no secret's name.
+
+Access works out [who can run the skill](employee-access.md#the-skills-view) from that list: the areas its actions belong to, the keys they use, each at the level the action needs, and Project code. Nobody is given a skill; the app judges each call by the caller's areas and keys.
+
+Two checks hold the rule. `node scripts/check-skill-actions.mjs` runs on every check run and fails, naming the skill, when a file in a skill folder names a business key's secret, calls an action its `actions.json` does not list, or the file is malformed. A key setup makes, or the Worker itself uses, is the stack's own and may be named; a `memory.*` read needs no listing. The app's suite fails when an `actions.json` lists an action no route registers. An id built while the skill runs is caught only by review, so write each id out.
 
 ## Memory keeps its own access
 

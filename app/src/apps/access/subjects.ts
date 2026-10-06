@@ -1,5 +1,5 @@
-import type { Level, SavedKey, Status } from '../../lib/access'
-import { count, dots } from './levels'
+import type { Level, SavedKey, Skill, Status } from '../../lib/access'
+import { count, covers, dots, missing, needLabels } from './levels'
 
 /** The people who hold a role, by email. A role not saved yet has nobody. */
 export const holders = (status: Status, role?: string) =>
@@ -38,5 +38,17 @@ const tally = (owner: boolean, list: Subject[]) => {
 export const keyHolders = (status: Status, key: SavedKey, level: Level) =>
   tally(level === (key.levels.includes('write') ? 'write' : 'read'), subjects(status).filter(({ set }) => set.keys[key.id] === level))
 
-/** Who has an app: the owner, then how many roles and people with their own set. */
-export const appHolders = (status: Status, app: string) => tally(true, subjects(status).filter(({ set }) => set.apps.includes(app)))
+/** Who has an area, at any level: the owner, then how many roles and people with their own set. */
+export const appHolders = (status: Status, app: string) => tally(true, subjects(status).filter(({ set }) => set.apps[app]))
+
+/** Every role and every person with their own set, each with what they lack of what a skill needs, a label each:
+ *  none means they can run it. */
+export const runners = (status: Status, skill: Skill) =>
+  subjects(status).map(subject => ({ subject, lacking: needLabels(status, missing(subject.set, skill)) }))
+
+/** How many people can run a skill, of everyone who can sign in: `2 of 5`. The owner always can. A person with a
+ *  role is judged by the role's set, which is the set they are sent with. */
+export function canRun(status: Status, skill: Skill): string {
+  const people = status.people.filter(person => person.status === 'active')
+  return `${1 + people.filter(person => covers(person, skill)).length} of ${1 + people.length}`
+}

@@ -18,7 +18,7 @@ export const key = JSON.stringify({ version: 2, token: "private-access-token", a
 export function database() {
   const sql = new DatabaseSync(":memory:");
   sql.exec("PRAGMA foreign_keys = ON");
-  for (const file of ["0001_employee_access.sql", "0002_employee_connections.sql", "0003_key_levels.sql", "20261005142459_access_managers.sql"]) {
+  for (const file of ["0001_employee_access.sql", "0002_employee_connections.sql", "0003_key_levels.sql", "20261005142459_access_managers.sql", "20261006031500_area_levels.sql"]) {
     sql.exec(readFileSync(new URL(`../../../schema/migrations/${file}`, import.meta.url), "utf8"));
   }
   const statement = (query: string, values: SQLInputValue[] = []) => ({
