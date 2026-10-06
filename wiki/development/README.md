@@ -14,6 +14,7 @@ How this repo plans, builds, checks, and ships changes. Every WongStack install 
   - [Save your passwords](passwords.md) — give the agent the logins you choose through a private link; it never sees a password.
   - [Login codes](login-codes.md) — the agent reads a one-time code from your email or asks for it in the chat, with no link.
   - [When a site blocks the agent's browser](blocked-sites.md) — the agent moves to Cloudflare's cloud browser and carries on, disguising nothing.
+- [Wiki dream](wiki-dream.md) — type `/dream` and the assistant brings your own wiki pages up to date from memory: what it adds, what it cleans up, the dry run, and how to undo one.
 - [Session memory](memory.md) — the private fact store: who sees what, the start-of-session digest, capture by `/save` and the background run, and consolidation.
   - [Document retrieval](document-retrieval.md) — task recall with cited wiki/OpenSpec passages, optional local semantic setup, scopes, freshness and fallback.
   - [Experimental extraction](memory-extraction.md) — bounded fact selection, supported hosts, task limits, and comparative evaluation.

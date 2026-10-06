@@ -39,6 +39,7 @@ const scripts = {
   '.agents/skills/save/scripts/checkpoint-evidence.mjs': [],
   '.agents/skills/save/scripts/render-pr-body.mjs': [],
   '.agents/skills/explore/scripts/other-work.mjs': [],
+  '.agents/skills/dream/scripts/dream.mjs': ['since'],
   '.agents/skills/hand-over/scripts/hand-over.mjs': [],
   '.agents/skills/browser/scripts/cloud-browser.mjs': [],
   '.agents/skills/ship/scripts/number-release.mjs': [],
