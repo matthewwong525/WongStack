@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Publishing checks again after it brings in the latest work
+## 37.2.0 — Publishing checks again after it brings in the latest work
 
 - **Publishing checks your change again after it brings in the latest live work.** When other changes went live while yours was being built, publishing brings them in. The checks that ran after the build now run once more on this computer, before the save. A problem the other changes caused is repaired here in seconds, not found later by the slower online checks.
 - **A publish that brings nothing in takes no longer.** The extra check runs only when other work came in.

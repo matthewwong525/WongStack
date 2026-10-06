@@ -1,8 +1,8 @@
 # Check again after publishing brings in the latest work
 
-**Status:** in-progress
+**Status:** ready-to-ship
 
-**Branch:** hellish-shark
+**Branch:** code-improvements
 
 **Open questions:** none
 
@@ -60,3 +60,4 @@ None.
 - **2026-10-06** — Assumed: the renumber race itself (note #1198) is left alone, because fixing it means changing how releases are numbered, a larger change with its own trade-offs.
 - **2026-10-06** — Assumed: this is a minor release, because the command gains one output line and nothing an install relies on changes or goes away.
 - **2026-10-06** — Timing: task 1.1's run of the pin against the unchanged `ship.mjs` moved to the final verification (4.1), because the build writes all source and tests before it runs any; the pin's expected lines were copied from the existing clean-prepare test.
+- **2026-10-06** — Archive checkpoint: every task is ticked and it is numbered 37.2.0. Publishing brought in 37.1.2 on the way, so the new check ran for real and passed here. It answers struggle note #1236; #1198's number race stays open.
