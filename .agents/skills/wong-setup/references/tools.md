@@ -41,7 +41,18 @@ On macOS, Node's archive is `node-v…-darwin-<arch>.tar.gz` (unpack with `tar -
 
 **OpenSpec** installs with the command in [the preconditions](../../save/references/preconditions.md), which own the pinned version. When a global npm install needs `sudo`, add `--prefix ~/.local`.
 
-After a user-folder install, run `export PATH="$HOME/.local/bin:$PATH"`, and add that line once to the profile of the shell `$SHELL` names (`~/.zshrc` or `~/.bashrc`). Then check every tool again; one still missing is a failed install.
+After a user-folder install, start every later command in this chat with `export PATH="$HOME/.local/bin:$PATH"; `, since each command is a new shell. Then put that line first in the start-up file, above the point where the file stops for a shell that is not interactive:
+
+```bash
+L='export PATH="$HOME/.local/bin:$PATH"'
+case "$SHELL" in */zsh) set -- ~/.zshenv ~/.zshrc ;; *) set -- ~/.bashrc ;; esac
+for F; do
+  [ "$(head -n 1 "$F" 2>/dev/null)" = "$L" ] && continue
+  touch "$F" && { echo "$L"; cat "$F"; } > "$F.new" && cat "$F.new" > "$F" && rm "$F.new"
+done
+```
+
+Then check every tool again; one still missing is a failed install. [Why the line goes first](../../../../wiki/development/required-tools.md#where-an-assistant-finds-its-tools).
 
 ### The helpers: the browser and the link tool
 

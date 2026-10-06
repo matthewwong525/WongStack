@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 37.2.3 — A later chat finds the tools setup installed
+
+- **A later chat finds the tools setup put in your own folder.** When a computer gives setup no admin password, setup installs its tools in your own folder. A later chat could then report a missing program, and nothing you asked for worked. Two fixes, one for each assistant.
+- **Setup writes its line at the top of your start-up file.** That one line tells a new chat where the tools are. It used to go at the bottom, and Ubuntu's file tells an assistant to stop reading near the top. This fixes Codex. A line an earlier setup wrote stays where it is.
+- **Each new Claude Code chat adds the tools folder itself.** Claude Code knows only the folders its app started with, so no line in a file reaches it. The project now tells it at the start of every chat, and memory loads the same way.
+- **A check keeps it fixed.** It runs setup's real line against Ubuntu's stock files, and the new chat step on a computer with and without the tools folder.
+- **Not tried on a Mac yet.** The same fix is written for a Mac's shell, from how it is documented to start.
+
+**Updating.** On a Mac or Linux computer where setup put its tools in your own folder, your assistant adds one line to the top of your shell's start-up file during this update, so every chat finds them. You do nothing. The assistant runs [the snippet in the tools step](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/tools.md#1-the-tools).
+
 ## 37.2.2 — The README, the guide, and the landing page say the same thing about what an install costs
 
 - **Three places now agree on what an install costs.** The README, the getting-started guide, and the landing page each say the two ways to install. The free way keeps your project in a free GitHub account and runs your apps in a free Cloudflare account, on Mac, Windows, or Linux. The other way keeps everything in Cloudflare alone, on Mac or Linux, on Cloudflare's paid plan, about $5 a month.
