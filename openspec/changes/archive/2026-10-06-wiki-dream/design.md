@@ -4,7 +4,7 @@
 
 See proposal.md for why. What shapes the approach:
 
-- **The skill file is short on purpose.** After the skills' text limit was reached twice, `SKILL.md` keeps the commands and the order, and `wiki/development/wiki-dream.md` owns how a dream adds, cleans, and checks sources.
+- **`/dream` is call-only.** Its frontmatter carries `disable-model-invocation: true`, `AGENTS.md`'s verb list does not name it, and `measure-context.mjs` counts call-only skills as `on-call`, apart from the instruction total and the start-up descriptions.
 - **`/close` already holds a one-chat dream.** Its *Update the wiki* step gathers a chat's and its change's facts with `memory.mjs show` and `search`, places each repeatable one by `.agents/rules/wiki.md`, and publishes the edits alone through `/ship` minus its closing question. A workspace closed any other way gets no wiki update.
 - **Facts from unclosed chats are already in memory.** The background run captures sessions idle for an hour. So "everything since the last dream" is a memory search by date, with no transcript reading.
 - **A fact has a source.** `memory.mjs source <fact-id>` prints the reduced chat behind it, and `areas <path>` prints the live facts and files linked to a page.

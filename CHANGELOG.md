@@ -3,9 +3,9 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## 35.3.0 — /dream keeps your memory and wiki current
+## 36.1.0 — /dream keeps your memory and wiki current
 
-- **You can type `/dream`.** Your assistant goes back over what memory has gained since the last dream and brings your wiki up to date. It runs on the model you already use, and only when you ask.
+- **You can type `/dream`.** Your assistant goes back over what memory has gained since the last dream and brings your wiki up to date. It runs on the model you already use, and only when you type it: your assistant never starts one on its own.
 - **It tidies memory first.** Duplicate facts merge, a contradicted fact gives way to the newer one, and an answered open thread closes, so the wiki is updated from clean facts. Memory still tidies itself in the background between dreams.
 - **It adds what is worth keeping.** Each new fact is tested by the wiki's own rule: will this help a future task that is not this one? Those that pass go on the page that owns them. The rest stay in memory.
 - **It cleans up, which is the main job.** It re-reads your own pages against memory, the files they link to, and each other, longest unchecked first, up to twenty a dream. It corrects what is out of date, merges duplicates, moves a fact to the page that owns it, and fixes links.

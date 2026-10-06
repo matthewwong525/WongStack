@@ -1,6 +1,6 @@
 # Wiki dream
 
-A dream brings your knowledge up to date from what your chats learned: type [`/dream`](../../.agents/skills/dream/SKILL.md) and your assistant tidies [memory](memory.md), adds the lasting facts it has gained to the wiki, fixes pages that have gone wrong, and publishes the result. It runs only when you ask.
+A dream brings your knowledge up to date from what your chats learned: type [`/dream`](../../.agents/skills/dream/SKILL.md) and your assistant tidies [memory](memory.md), adds the lasting facts it has gained to the wiki, fixes pages that have gone wrong, and publishes the result. It runs only when you type it: your assistant never starts a dream on its own.
 
 ## When to run one
 
