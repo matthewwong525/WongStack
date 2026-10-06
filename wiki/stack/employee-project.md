@@ -22,6 +22,8 @@ The owner or a manager gives **Project code** in [Access → Keys](employee-acce
 | lacks it | greyed, *No access* | nothing: a press says *Ask your admin for access to Connect your assistant.* |
 | anyone, while [the app can't hand the project out](#the-apps-only-connection) | opens the steps | connects their apps only |
 
+**A skill arrives with the project, so running one needs Project code.** Everyone who holds it gets every skill's file. Whether a skill then works is the app's answer: each call it makes needs [the area it belongs to](employee-access.md#areas-and-their-levels) and the keys it uses, at the level the call needs. [The Skills view](employee-access.md#the-skills-view) shows who holds all of it.
+
 ## Install in one step
 
 The prompt names the app, [the reviewed bootstrap](#get-the-reviewed-bootstrap) and one command:

@@ -9,8 +9,8 @@ import { handleApi } from "../api/router";
 import { discovery } from "../api/discovery";
 import { appAccess, appPageDenied } from "./apps";
 
-// The built folders are the catalogue; these tests name apps this repo does not build.
-vi.mock("./catalogue.ts", () => ({ catalogue: ["access", "frontend-only", "hello", "new-app", "orders", "payroll"] }));
+// The built folders are the catalogue; these tests name areas this repo does not build. Reports has no screen.
+vi.mock("./catalogue.ts", async () => (await import("../../tests/employee-access/catalogue")).builtAreas(["access", "frontend-only", "hello", "new-app", "orders", "payroll", "reports"], ["reports"]));
 
 const origin = "https://business.example.com";
 const issuer = "https://business.cloudflareaccess.com";
@@ -30,7 +30,7 @@ const answering = (row: unknown) => ({ ...env, DB: { withSession: () => ({ prepa
 
 beforeEach(() => {
   sql = new DatabaseSync(":memory:");
-  for (const file of ["0001_employee_access.sql", "0003_key_levels.sql", "20261005142459_access_managers.sql"]) {
+  for (const file of ["0001_employee_access.sql", "0003_key_levels.sql", "20261005142459_access_managers.sql", "20261006031500_area_levels.sql"]) {
     sql.exec(readFileSync(new URL(`../../../schema/migrations/${file}`, import.meta.url), "utf8"));
   }
   sql.exec(`INSERT INTO wong_access_installation
@@ -41,7 +41,7 @@ beforeEach(() => {
     INSERT INTO wong_access_members VALUES ('installation', 'employee@example.com', 'active', 0, 1, 'now');
     INSERT INTO wong_access_apps VALUES ('installation', 'orders');
     INSERT INTO wong_access_apps VALUES ('installation', 'payroll');
-    INSERT INTO wong_access_grants VALUES ('installation', 'employee@example.com', 'orders', 1);`);
+    INSERT INTO wong_access_grants VALUES ('installation', 'employee@example.com', 'orders', 1, 'write');`);
   const session = { prepare: (query: string) => ({ bind: (email: string) => ({
     first: async () => sql.prepare(query).get(email) ?? null,
   }) }) };
@@ -65,26 +65,31 @@ it("loads normalized email and grants in one primary statement with no role cach
     ...employee.claims, email: " EMPLOYEE@EXAMPLE.COM ", aud: ["other-app", "business-app"], nbf: 1,
   } };
   const first = await read(normalized);
-  expect(first).toEqual({ state: "current", role: "employee", manages: false, revision: 1, apps: new Set(["orders"]), keys: null });
+  expect(first).toEqual({ state: "current", role: "employee", manages: false, revision: 1, apps: new Map([["orders", "write"]]), keys: null });
   expect(env.DB?.withSession).toHaveBeenCalledWith("first-primary");
   expect(policyAllows(first, access)).toBe(true);
   expect(policyAllows(first, { apps: ["payroll"] })).toBe(false);
   // The same still-valid Access assertion observes the acknowledged database commit.
   sql.exec("DELETE FROM wong_access_grants; UPDATE wong_access_installation SET revision = 2;");
   const next = await read(normalized);
-  expect(next).toEqual({ state: "current", role: "employee", manages: false, revision: 2, apps: new Set(), keys: null });
+  expect(next).toEqual({ state: "current", role: "employee", manages: false, revision: 2, apps: new Map(), keys: null });
   expect(policyAllows(next, access)).toBe(false);
   sql.exec("UPDATE wong_access_members SET status = 'removed', revision = 3; UPDATE wong_access_installation SET revision = 3;");
   expect(await read(normalized)).toEqual({ state: "denied" });
   expect(env.DB?.withSession).toHaveBeenCalledTimes(3);
 });
 
-it("requires every mapped app and leaves new or empty mappings closed", async () => {
+it("requires every mapped area and leaves new or empty mappings closed", async () => {
   const policy = await read();
   for (const mapping of [undefined, { apps: [] }, { apps: ["orders", "payroll"] },
     { apps: ["new-app"] }, { apps: ["invalid/app"] }]) expect(policyAllows(policy, mapping)).toBe(false);
-  sql.exec("INSERT INTO wong_access_grants VALUES ('installation', 'employee@example.com', 'payroll', 1)");
-  expect(policyAllows(await read(), { apps: ["orders", "payroll"] })).toBe(true);
+  sql.exec("INSERT INTO wong_access_grants VALUES ('installation', 'employee@example.com', 'payroll', 1, 'read')");
+  // A shared route needs each of its areas at the level the call needs.
+  const shared = { apps: ["orders", "payroll"] };
+  expect([policyAllows(await read(), shared, "read"), policyAllows(await read(), shared)]).toEqual([true, false]);
+  expect(await (await authorizeRequest(env, employee, shared))?.json()).toMatchObject({ error: { code: "forbidden", message: "Payroll: Look up & change needed" } });
+  sql.exec("UPDATE wong_access_grants SET level = 'write'");
+  expect(policyAllows(await read(), shared)).toBe(true);
 });
 
 it("knows the owner by the recorded email alone and permits zero-app employee self-service", async () => {
@@ -120,7 +125,7 @@ it("lets the verification machine open every built app, and manage people on a p
   } };
   const policy = await read(machine);
   expect(policy).toEqual({ state: "current", role: "employee", manages: false, revision: 1,
-    apps: new Set(["access", "frontend-only", "hello", "new-app", "orders", "payroll"]), keys: new Map([["cloudflare", "read"], ["code", "read"]]) });
+    apps: new Map(["access", "frontend-only", "hello", "new-app", "orders", "payroll", "reports"].map(area => [area, "write"] as const)), keys: new Map([["cloudflare", "read"], ["code", "read"]]) });
   expect(humanEmail(machine)).toBeNull();
   expect(policyAllows(policy, { apps: ["orders", "payroll"] })).toBe(true);
   expect(policyAllows(policy, { kind: "owner" })).toBe(false);
@@ -159,7 +164,7 @@ it("lets a current person the owner ticked manage Access, and gives them no app,
   tick();
   // The role stays as it was, and so do their apps: managing is its own flag.
   const policy = await read();
-  expect(policy).toEqual({ state: "current", role: "employee", manages: true, revision: 1, apps: new Set(["orders"]), keys: null });
+  expect(policy).toEqual({ state: "current", role: "employee", manages: true, revision: 1, apps: new Map([["orders", "write"]]), keys: null });
   expect(policyAllows(policy, access)).toBe(true);
   // A manager is still refused an unmapped route, an owner route and an app they were not given.
   for (const mapping of [undefined, { kind: "owner" as const }, { apps: ["payroll"] }]) expect(policyAllows(policy, mapping)).toBe(false);
@@ -218,10 +223,10 @@ it("leaves everyone every app until permissions start, and names the owner meanw
   expect(await read(owner)).toEqual({ state: "not_started", role: "owner", manages: true });
 });
 
-it("ignores a grant for an app that is no longer built", async () => {
-  sql.exec("INSERT INTO wong_access_apps VALUES ('installation', 'retired'); INSERT INTO wong_access_grants VALUES ('installation', 'employee@example.com', 'retired', 1)");
+it("ignores a grant for an area that is no longer built", async () => {
+  sql.exec("INSERT INTO wong_access_apps VALUES ('installation', 'retired'); INSERT INTO wong_access_grants VALUES ('installation', 'employee@example.com', 'retired', 1, 'write')");
   const policy = await read();
-  expect(policy).toEqual({ state: "current", role: "employee", manages: false, revision: 1, apps: new Set(["orders"]), keys: null });
+  expect(policy).toEqual({ state: "current", role: "employee", manages: false, revision: 1, apps: new Map([["orders", "write"]]), keys: null });
   expect(policyAllows(policy, { apps: ["retired"] })).toBe(false);
   expect(policyAllows(policy, access)).toBe(true);
 });
@@ -234,15 +239,17 @@ it("denies rather than opens when started permission data is missing, unreadable
   expect(denied?.status).toBe(503);
   expect(denied?.headers.get("Cache-Control")).toBe("no-store");
   expect(await denied?.json()).toMatchObject({ error: { code: "unavailable", message: "Access unavailable", requestId: expect.any(String) } });
-  const row = { policy_enabled: 1, keys_enabled: 0, revision: 1, status: "active", manager: 0, apps: '["orders"]', keys: "{}" };
-  expect(await read(employee, answering(row))).toMatchObject({ state: "current" });
+  const row = { policy_enabled: 1, keys_enabled: 0, revision: 1, status: "active", manager: 0, apps: '{"orders":"read"}', keys: "{}" };
+  expect(await read(employee, answering(row))).toMatchObject({ state: "current", apps: new Map([["orders", "read"]]) });
+  // An unreadable area level never reads as held: a list from before levels, a level nobody defined.
   for (const change of [{ policy_enabled: 2 }, { keys_enabled: 2 }, { revision: 0 }, { status: "unknown" }, { manager: 2 }, { manager: undefined }, { apps: "not json" }, { apps: '{"orders":true}' },
+    { apps: '["orders"]' }, { apps: '{"orders":"admin"}' }, { apps: undefined },
     { keys: undefined }, { keys_enabled: 1, keys: "not json" }, { keys_enabled: 1, keys: '{"cloudflare":"admin"}' }]) {
     expect(await read(employee, answering({ ...row, ...change }))).toEqual({ state: "unavailable" });
   }
-  // Until key levels start, an unreadable level takes no app away; the owner never depends on one.
+  // Until key levels start, an unreadable key level takes no app away; the owner never depends on a stored level.
   expect(await read(employee, answering({ ...row, keys: "not json" }))).toMatchObject({ state: "current", keys: null });
-  expect(await read(owner, answering({ ...row, keys_enabled: 1, status: null, keys: "not json" }))).toMatchObject({ state: "current", role: "owner" });
+  expect(await read(owner, answering({ ...row, keys_enabled: 1, status: null, apps: "not json", keys: "not json" }))).toMatchObject({ state: "current", role: "owner" });
   // A database from before the managers table denies too: it never reads as nobody managing and carries on.
   sql.exec("DROP TABLE wong_access_managers");
   expect(await read()).toEqual({ state: "unavailable" });
@@ -264,7 +271,7 @@ it("gates bare and described main dispatch before business work, with no unmappe
       const result = await dispatch(route, req, env, call, mapping);
       expect(result.status).toBe(403);
       expect(result.headers.get("Cache-Control")).toBe("no-store");
-      expect(await result.json()).toMatchObject({ error: { code: "forbidden", message: "App access denied" } });
+      expect(await result.json()).toMatchObject({ error: { code: "forbidden", message: mapping ? "Payroll: Look up needed" : "App access denied" } });
     }
   }
   expect(handler).toHaveBeenCalledTimes(2);
@@ -329,7 +336,7 @@ it("uses reviewed method/path scopes across summaries, details and OpenAPI witho
   expect((await discover("/api/actions?id=unrelated.name")).status).toBe(404);
   const document = await (await discover("/api/openapi.json")).json();
   expect(Object.keys(document.paths)).toEqual(["/api/setup", "/api/health", "/apps/orders/api/read"]);
-  sql.exec("INSERT INTO wong_access_grants VALUES ('installation', 'employee@example.com', 'payroll', 1)");
+  sql.exec("INSERT INTO wong_access_grants VALUES ('installation', 'employee@example.com', 'payroll', 1, 'write')");
   expect((await discover("/api/actions?id=unrelated.name")).status).toBe(200);
   const ownerListing = await (await discover("/api/actions", {}, owner)).json();
   expect(ownerListing.actions.map((item: { operationId: string }) => item.operationId))
@@ -347,7 +354,7 @@ it("names a write's confirming read only once the caller holds that read's app",
   const published = async (path: string) => (await discovery(new Request(`${origin}${path}`), env as Env & PolicyEnv, employee, registry)).json();
   expect(await published("/api/actions?id=orders.refund")).not.toHaveProperty("confirmWith");
   expect(JSON.stringify(await published("/api/openapi.json"))).not.toContain("payroll.refunds");
-  sql.exec("INSERT INTO wong_access_grants VALUES ('installation', 'employee@example.com', 'payroll', 1)");
+  sql.exec("INSERT INTO wong_access_grants VALUES ('installation', 'employee@example.com', 'payroll', 1, 'write')");
   expect((await published("/api/actions?id=orders.refund")).confirmWith).toBe("payroll.refunds");
   expect((await published("/api/openapi.json")).paths["/apps/orders/api/refund"].post["x-confirm-with"]).toBe("payroll.refunds");
 });
@@ -362,7 +369,7 @@ it("rechecks current grants before conditional responses and isolates caller and
   for (const path of ["/api/actions", "/api/openapi.json", "/api/actions?id=missing.action"]) {
     expect((await discover(path, headers)).status).not.toBe(304);
   }
-  sql.exec("INSERT INTO wong_access_members VALUES ('installation', 'other@example.com', 'active', 0, 1, 'now'); INSERT INTO wong_access_grants VALUES ('installation', 'other@example.com', 'orders', 1)");
+  sql.exec("INSERT INTO wong_access_members VALUES ('installation', 'other@example.com', 'active', 0, 1, 'now'); INSERT INTO wong_access_grants VALUES ('installation', 'other@example.com', 'orders', 1, 'write')");
   const other = { ...employee, id: "other@example.com", claims: { ...employee.claims, email: "other@example.com", sub: "other-subject" } };
   const otherResponse = await discover("/api/actions?id=orders.read", headers, other);
   expect(otherResponse.status).toBe(200); expect(otherResponse.headers.get("ETag")).not.toBe(etag);
@@ -397,27 +404,35 @@ it("fails discovery closed on unavailable started policy, and keeps the existing
   expect(await ids()).toContain("orders.unmapped");
 });
 
-it("reads frontend app grants with zero-app Access self-service, owner exceptions and no permission cache", async () => {
+it("reads each person's screens and area levels with zero-app Access self-service, owner exceptions and no permission cache", async () => {
   const req = new Request(`${origin}/api/access/apps`);
   const catalogue = ["access", "frontend-only", "hello", "new-app", "orders", "payroll"];
   const readback = (caller: AccessIdentity | null = employee, bindings = env) => appAccess(req, bindings, caller);
   const first = await readback();
   expect(first.headers.get("Cache-Control")).toBe("no-store");
-  expect(await first.json()).toEqual({ state: "current", role: "employee", manages: false, signIn: true, code: "off", revision: 1, apps: ["access", "orders"], keys: [] });
-  // The owner holds every saved key at its highest level.
+  const orders = { id: "orders", title: "Orders", screen: true, level: "write" };
+  expect(await first.json()).toEqual({ state: "current", role: "employee", manages: false, signIn: true, code: "off", revision: 1, apps: ["access", "orders"], areas: [orders], keys: [] });
+  // The owner holds every area at Look up & change, the one with no screen included, and every saved key at its highest level.
   expect(await (await readback(owner)).json()).toEqual({ state: "current", role: "owner", manages: true, signIn: true, code: "off", revision: 1, apps: catalogue,
+    areas: [["frontend-only", "Frontend-only"], ["hello", "Hello"], ["new-app", "New-app"], ["orders", "Orders"], ["payroll", "Payroll"], ["reports", "Reports"]]
+      .map(([id, title]) => ({ id, title, screen: id !== "reports", level: "write" })),
     keys: [{ id: "cloudflare", title: "Cloudflare", level: "read" }, { id: "code", title: "Project code", level: "read" }] });
   // A manager is told they manage, and keeps their own role, apps and levels.
   sql.exec("INSERT INTO wong_access_managers VALUES ('installation', 'employee@example.com')");
-  expect(await (await readback()).json()).toEqual({ state: "current", code: "off", role: "employee", manages: true, signIn: true, revision: 1, apps: ["access", "orders"], keys: [] });
+  expect(await (await readback()).json()).toEqual({ state: "current", code: "off", role: "employee", manages: true, signIn: true, revision: 1, apps: ["access", "orders"], areas: [orders], keys: [] });
   sql.exec("UPDATE wong_access_installation SET policy_enabled = 0");
   expect(await (await readback()).json()).toEqual({ state: "not_started", code: "off", role: "employee", manages: true, signIn: true, apps: catalogue });
   sql.exec("UPDATE wong_access_installation SET policy_enabled = 1; DELETE FROM wong_access_managers");
   // Client-only apps come from manifests and are allowed only when explicitly assigned.
-  sql.exec("INSERT INTO wong_access_apps VALUES ('installation', 'frontend-only'); INSERT INTO wong_access_grants VALUES ('installation', 'employee@example.com', 'frontend-only', 1)");
+  sql.exec("INSERT INTO wong_access_apps VALUES ('installation', 'frontend-only'); INSERT INTO wong_access_grants VALUES ('installation', 'employee@example.com', 'frontend-only', 1, 'write')");
   expect((await (await readback()).json()).apps).toEqual(["access", "frontend-only", "orders"]);
+  // Look up is enough to open a screen. An area with no screen is given like an app, and Home gets no card for it.
+  sql.exec(`UPDATE wong_access_grants SET level = 'read' WHERE app_id = 'orders'; INSERT INTO wong_access_apps VALUES ('installation', 'reports');
+    INSERT INTO wong_access_grants VALUES ('installation', 'employee@example.com', 'reports', 1, 'write')`);
+  expect(await (await readback()).json()).toMatchObject({ apps: ["access", "frontend-only", "orders"], areas: [{ id: "frontend-only", level: "write" },
+    { ...orders, level: "read" }, { id: "reports", title: "Reports", screen: false, level: "write" }] });
   sql.exec("DELETE FROM wong_access_grants; UPDATE wong_access_installation SET revision = 2");
-  expect(await (await readback()).json()).toEqual({ state: "current", code: "off", role: "employee", manages: false, signIn: true, revision: 2, apps: ["access"], keys: [] });
+  expect(await (await readback()).json()).toEqual({ state: "current", code: "off", role: "employee", manages: false, signIn: true, revision: 2, apps: ["access"], areas: [], keys: [] });
   sql.exec("UPDATE wong_access_members SET status = 'removed'");
   expect((await readback()).status).toBe(403);
   expect((await readback(null)).status).toBe(403);
@@ -446,4 +461,8 @@ it("direct page authorization preserves unknown routes and legacy behavior while
   }
   for (const path of ["/apps/orders/", "/apps/orders/subpage", "/apps/access/"]) expect(await page(path)).toBeNull();
   for (const path of ["/apps/hello", "/apps/payroll/subpage"]) expect((await page(path))?.status).toBe(403);
+  expect(await (await page("/apps/hello"))?.json()).toMatchObject({ error: { message: "Hello: Look up needed" } });
+  // A visit needs Look up, no more. An area with no screen has no page to guard.
+  sql.exec("UPDATE wong_access_grants SET level = 'read'");
+  for (const path of ["/apps/orders/", "/apps/orders/subpage", "/apps/reports/"]) expect(await page(path)).toBeNull();
 });

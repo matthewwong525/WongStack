@@ -7,11 +7,12 @@ import { Apps } from './Apps'
 import { Keys } from './Keys'
 import { People } from './People'
 import { Roles } from './Roles'
+import { Skills } from './Skills'
 
-const SCREENS = { people: People, roles: Roles, apps: Apps, keys: Keys }
+const SCREENS = { people: People, roles: Roles, apps: Apps, skills: Skills, keys: Keys }
 const UNFINISHED = 'That did not finish. Check the list below before trying again.'
 
-// The owner's screens, and a manager's. One read of the whole status serves the four views and the pages under them.
+// The owner's screens, and a manager's. One read of the whole status serves the five views and the pages under them.
 export function Owner() {
   const { data, error, reload } = useAccess('status', statusSchema)
   const [pending, setPending] = useState(false)

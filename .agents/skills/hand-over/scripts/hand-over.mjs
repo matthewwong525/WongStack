@@ -654,7 +654,7 @@ function checkPrefill({ passwords, site, username }) {
 function keyNames(list) {
   const names = [...new Set(list.split(',').map(name => name.trim()))];
   const bad = names.filter(name => !KEY_NAME.test(name));
-  if (bad.length || !names.length) usageError(`--keys takes names like STRIPE_SECRET_KEY: ${bad.map(name => `'${name}'`).join(', ')}`);
+  if (bad.length || !names.length) usageError(`--keys takes names like EXAMPLE_API_KEY: ${bad.map(name => `'${name}'`).join(', ')}`);
   if (names.length > KEY_LIMITS.names) usageError(`--keys takes at most ${KEY_LIMITS.names} names`);
   return names;
 }

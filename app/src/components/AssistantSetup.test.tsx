@@ -4,7 +4,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { ConnectDialog } from './ConnectDialog'
 
 // The body of the Connect your assistant popup, in each of its four states. It is drawn only inside the popup.
-const setup = () => ({ role: 'employee', api: 'authenticated', identity: { email: 'person@example.com', subject: 'person' }, apps: ['hello', 'tips'],
+const setup = () => ({ role: 'employee', api: 'authenticated', identity: { email: 'person@example.com', subject: 'person' }, apps: ['hello', 'tips'], titles: undefined as Record<string, string> | undefined,
   repository: 'manual_provider_setup', memory: 'independent_operator_setup', prompt: { state: 'ready', text: 'Synthetic setup message' } as object })
 let own: ReturnType<typeof setup>
 let reply: () => Response | Promise<Response>
@@ -60,6 +60,15 @@ it('gives three numbered steps with one solid Copy button, who signs in, what to
   // With no app yet, the last line says who to ask.
   own.apps = []
   expect(await within(open()).findByText('It can use: no apps yet. Ask your employer.')).toBeTruthy()
+  cleanup()
+  // An area with no screen has no card to take a title from: the app sends its title.
+  own.apps = ['hello', 'customers']
+  own.titles = { hello: 'Hello', customers: 'Customers' }
+  expect(await within(open()).findByText('It can use: Hello, Customers')).toBeTruthy()
+  cleanup()
+  // An older answer names no titles: a name with no card shows as it is.
+  own.titles = undefined
+  expect(await within(open()).findByText('It can use: Hello, customers')).toBeTruthy()
 })
 
 it('says what the app answered when there is nothing to copy, with no steps', async () => {

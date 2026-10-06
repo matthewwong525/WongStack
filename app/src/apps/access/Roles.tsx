@@ -8,7 +8,7 @@ import { holders } from './subjects'
 import { Cell, Name, Row, Table } from './Table'
 import { View } from './View'
 
-// Each role on one line: how many apps and keys it gives, whether one of those apps can't do its job yet, and how
+// Each role on one line: how many apps and keys it gives, whether an app or a skill of it can't do its job yet, and how
 // many people hold it. The names show where the role is opened, in the panel beside the list.
 export function Roles(props: ViewProps) {
   const { status, id } = props

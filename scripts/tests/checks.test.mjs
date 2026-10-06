@@ -4,7 +4,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const script = join(repo, '.github/scripts/checks.mjs');
@@ -104,6 +104,47 @@ test('a docs-only change skips install and tests, but reports both quality check
   assert.match(result.stdout, /Wiki: 1 pages/);
   assert.match(result.stdout, /only docs changed/);
   assert.match(readFileSync(f.summary, 'utf8'), /Wiki: 1 pages/);
+});
+
+// A repo that holds the pack's skill check: the real script, the shared CLI helper it imports, a
+// registry with one business key, and a skill that declares one action.
+const SKILL_CHECK = {
+  'app/package.json': pkg('fixture-test'),
+  'scripts/check-skill-actions.mjs': readFileSync(join(repo, 'scripts/check-skill-actions.mjs'), 'utf8'),
+  'scripts/lib-cli.mjs': `export * from ${JSON.stringify(pathToFileURL(join(repo, '.agents/skills/memory/scripts/lib/cli.mjs')).href)};\n`,
+  'app/worker/keys.ts': 'export const keys = { stripe: { title: "Stripe", secrets: ["STRIPE_SECRET_KEY"] } } as const;\n',
+  '.agents/skills/refund/actions.json': '{ "title": "Refund an order", "actions": ["orders.lookup"] }\n',
+};
+const skillText = body => `# Refund\n\n${body}\n`;
+const LISTED_CALL = 'Run `node scripts/company-api.mjs call orders.lookup --file -`.';
+
+test('a skill that reads a saved key or calls an unlisted action fails a change the suite skips as docs', t => {
+  const f = fixture(t, SKILL_CHECK);
+  f.commit({ '.agents/skills/refund/SKILL.md': skillText('Read `STRIPE_SECRET_KEY`, then run `node scripts/company-api.mjs call stripe.refund --file -`.') });
+  const result = f.run(['--summary', f.summary]);
+  assert.equal(result.status, 1, result.stderr);
+  assert.deepEqual(f.calls(), [], 'skill text is docs, so the suite still skips');
+  assert.match(result.stdout, /### Skill checks[\s\S]*the skill "refund" names STRIPE_SECRET_KEY[\s\S]*the skill "refund" calls stripe\.refund, which its actions\.json does not list/);
+  assert.match(result.stdout, /only docs changed[^\n]* A skill reads a saved key or calls an action it does not list; see Skill checks above\./);
+  assert.match(readFileSync(f.summary, 'utf8'), /Wiki: 1 pages[\s\S]*### Skill checks[\s\S]*names STRIPE_SECRET_KEY[\s\S]*see Skill checks above/);
+});
+
+test('a clean skill-text change passes with the suite skipped, and a repo without the skill check skips it', t => {
+  const f = fixture(t, SKILL_CHECK);
+  f.commit({ '.agents/skills/refund/SKILL.md': skillText(LISTED_CALL) });
+  const result = f.run(['--summary', f.summary]);
+  passes(result);
+  assert.deepEqual(f.calls(), []);
+  assert.match(result.stdout, /skill actions: 1 skill\(s\) read, 1 declaring actions/);
+  assert.match(result.stdout, /only docs changed/);
+  assert.doesNotMatch(result.stdout, /Skill checks/);
+  assert.match(readFileSync(f.summary, 'utf8'), /skill actions: 1 skill\(s\) read/);
+  // The script ships with the pack: a repo that does not hold it runs no skill check.
+  const bare = fixture(t);
+  bare.commit({ '.agents/skills/refund/SKILL.md': skillText('Read `STRIPE_SECRET_KEY`, then run `node scripts/company-api.mjs call stripe.refund --file -`.') });
+  const skipped = bare.run();
+  passes(skipped);
+  assert.doesNotMatch(skipped.stdout, /skill actions|Skill checks/);
 });
 
 test('root suite wins over every immediate child', t => {
@@ -398,6 +439,23 @@ test('a docs-only change skips the suite locally and still checks the wiki', t =
   assert.match(result.stdout, /No check was loosened/);
   assert.match(result.stdout, /Wiki: 1 pages/);
   assert.equal(verdict(result), 'LOCAL_CHECKS=pass');
+});
+
+test('the pre-check names a failing skill check, and --only skills reruns it alone', t => {
+  const f = localFixture(t, SKILL_CHECK);
+  f.edit('.agents/skills/refund/SKILL.md', skillText('Read `STRIPE_SECRET_KEY` from `.env`.'));
+  const result = f.local();
+  assert.equal(result.status, 1, result.stderr);
+  assert.equal(verdict(result), 'LOCAL_CHECKS=fail (skills)');
+  assert.match(result.stdout, /### Skill checks[\s\S]*the skill "refund" names STRIPE_SECRET_KEY/);
+  assert.match(result.stdout, /--worktree --only skills$/m);
+  f.edit('.agents/skills/refund/SKILL.md', skillText(LISTED_CALL));
+  const again = f.local(['--only', 'skills']);
+  passes(again);
+  assert.equal(verdict(again), 'LOCAL_CHECKS=pass');
+  assert.match(again.stdout, /skill actions: 1 skill\(s\) read, 1 declaring actions/);
+  assert.doesNotMatch(again.stdout, /No check was loosened|Wiki: /, 'no other part ran');
+  assert.deepEqual(f.calls(), [], 'skill text is docs, so no suite ran');
 });
 
 // A stand-in for the source repo's own list: it records its arguments and answers as told.

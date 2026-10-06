@@ -1,4 +1,4 @@
-// A role is a named set of apps and key levels that several people share, read live on every request.
+// A role is a named set of area and key levels that several people share, read live on every request.
 import { z } from "zod";
 import { type Core, AccessError } from "./core.ts";
 import { type Sets, changedSet, heldSet, readSets, save, setFields, setWrites } from "./sets.ts";
@@ -14,7 +14,7 @@ function removal(core: Core, role: Role, people: Sets["people"]): D1PreparedStat
   return [
     core.db.prepare("DELETE FROM wong_access_member_roles WHERE installation_id = ? AND role_id = ?").bind(id, role.id),
     ...people.filter(person => person.role === role.id).flatMap(person => setWrites(core, "people", person.email, role.set)),
-    ...setWrites(core, "roles", role.id, { apps: [], keys: {} }),
+    ...setWrites(core, "roles", role.id, { apps: {}, keys: {} }),
     core.db.prepare("DELETE FROM wong_access_roles WHERE installation_id = ? AND role_id = ?").bind(id, role.id),
   ];
 }
@@ -35,7 +35,7 @@ export async function changeRole(core: Core, value: unknown): Promise<void> {
   if (roles.some(role => role !== existing && role.name.toLowerCase() === name.toLowerCase())) throw new AccessError("role_name_taken", 409);
   const source = people.find(person => person.email === from && person.status === "active");
   if (from && !source) throw new AccessError("unknown_person", 400);
-  const base = existing?.set ?? (source ? heldSet(source, roles) : { apps: [], keys: {} });
+  const base = existing?.set ?? (source ? heldSet(source, roles) : { apps: {}, keys: {} });
   const role = id ?? crypto.randomUUID();
   const installation = core.installationId;
   await save(core, ["role_changed"], [

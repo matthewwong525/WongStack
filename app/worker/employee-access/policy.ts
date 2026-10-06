@@ -1,7 +1,7 @@
 // Read current authority once per call, from the primary in one SQL snapshot.
 import { z } from "zod";
 import type { AccessEnv, AccessIdentity } from "../access.ts";
-import { catalogue } from "./catalogue.ts";
+import { areaTitle, catalogue } from "./catalogue.ts";
 import { everyKey, heldLevels, holds, keyTitle, levelName, registered, type Level } from "./key-levels.ts";
 
 export interface PolicyEnv extends AccessEnv {
@@ -10,7 +10,8 @@ export interface PolicyEnv extends AccessEnv {
   WONG_OWNER_EMAIL?: string;
 }
 
-/** What a route asks of its caller: apps, with the saved keys it uses; keys alone; or a reviewed exception. */
+/** What a route asks of its caller: areas, with the saved keys it uses; keys alone; or a reviewed exception.
+ *  `apps` names areas by folder: an area is an app's server side, with or without a screen. */
 export type RouteAccess = { apps: readonly string[]; keys?: readonly string[] } | { keys: readonly string[] } |
   { kind: "infrastructure" | "self-service" | "owner" };
 type Role = "owner" | "employee";
@@ -18,21 +19,23 @@ export type CurrentPolicy = { state: "legacy" } | { state: "unavailable" } | { s
   // The owner is known and permissions have not started: everyone keeps every app.
   // `manages`: the caller may manage Access. It is its own flag and gives no app, key or owner route.
   { state: "not_started"; role: Role; manages: boolean } |
-  // `keys` is null until key levels start: the app tick alone decides, and no key works alone.
-  { state: "current"; role: Role; manages: boolean; revision: number; apps: ReadonlySet<string>; keys: ReadonlyMap<string, Level> | null };
-/** What a refused caller lacks: the app, or one key at the level the call needs. */
-type Refusal = "app" | { key: string; need: Level };
+  // `apps` is the level held for each area: `read` looks things up, `write` also changes or sends things.
+  // `keys` is null until key levels start: the area alone decides, and no key works alone.
+  { state: "current"; role: Role; manages: boolean; revision: number; apps: ReadonlyMap<string, Level>; keys: ReadonlyMap<string, Level> | null };
+/** What a refused caller lacks: a mapping that opens anything, or one area or one key at the level the call needs. */
+type Refusal = "app" | { area: string; need: Level } | { key: string; need: Level };
 
 const appId = z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
 const bit = z.union([z.literal(0), z.literal(1)]);
 const policyRow = z.object({
   policy_enabled: bit, keys_enabled: bit,
   revision: z.number().int().positive().safe(), status: z.enum(["active", "removed"]).nullable(), manager: bit,
-  apps: z.string().transform(value => z.array(z.string()).parse(JSON.parse(value))),
-  keys: z.string(),
+  apps: z.string(), keys: z.string(),
 });
-/** Read only once key levels have started: until then an unreadable level takes no app away. */
+/** Area levels are read on every call. Key levels only once they have started: until then an unreadable one takes no app away. */
 const storedLevels = (value: string) => z.record(z.string(), z.enum(["read", "write"])).parse(JSON.parse(value));
+/** Every built area at Look up & change: the owner, and the machine that checks previews. */
+const everyArea = (): Map<string, Level> => new Map(catalogue().map(id => [id, "write"]));
 
 /** The owner email setup recorded, or null on an older install. */
 export const ownerEmail = (env: PolicyEnv): string | null => env.WONG_OWNER_EMAIL?.trim().toLowerCase() || null;
@@ -71,9 +74,9 @@ export async function currentPolicy(env: PolicyEnv, identity: AccessIdentity | n
         EXISTS (SELECT 1 FROM wong_access_managers a
           WHERE a.installation_id = m.installation_id AND a.email = m.email) AS manager,
         CASE WHEN h.role_id IS NULL
-          THEN (SELECT json_group_array(g.app_id) FROM wong_access_grants g
+          THEN (SELECT json_group_object(g.app_id, g.level) FROM wong_access_grants g
             WHERE g.installation_id = i.installation_id AND g.email = m.email)
-          ELSE (SELECT json_group_array(r.app_id) FROM wong_access_role_apps r
+          ELSE (SELECT json_group_object(r.app_id, r.level) FROM wong_access_role_apps r
             WHERE r.installation_id = i.installation_id AND r.role_id = h.role_id) END AS apps,
         CASE WHEN h.role_id IS NULL
           THEN (SELECT json_group_object(g.key_id, g.level) FROM wong_access_key_grants g
@@ -90,15 +93,16 @@ export async function currentPolicy(env: PolicyEnv, identity: AccessIdentity | n
     // The owner manages Access, and so does a current person the owner ticked. No machine has a person's row.
     const manages = role === "owner" || (!!email && row.status === "active" && row.manager === 1);
     if (!row.policy_enabled) return { state: "not_started", role, manages };
-    // The checker keeps every built app and every key, as before permissions started, so preview walks
+    // The checker keeps every built area and every key, as before permissions started, so preview walks
     // and the look at the live app still reach them. On the live app it manages nobody: that needs the owner.
-    if (checker(identity)) return { state: "current", role, manages, revision: row.revision, apps: new Set(catalogue), keys: everyKey() };
+    if (checker(identity)) return { state: "current", role, manages, revision: row.revision, apps: everyArea(), keys: everyKey() };
     // Once started, only the owner and current people pass.
     if (role !== "owner" && (!email || row.status !== "active")) return { state: "denied" };
-    // The owner holds every key. A person's apps and levels come from their role when they hold one.
-    const keys = role === "owner" ? everyKey() : row.keys_enabled ? heldLevels(storedLevels(row.keys)) : null;
-    // A grant for an app that is no longer built is ignored.
-    return { state: "current", role, manages, revision: row.revision, apps: new Set(row.apps.filter(app => catalogue.includes(app))), keys };
+    // The owner holds every area and every key. A person's areas and levels come from their role when they hold one.
+    if (role === "owner") return { state: "current", role, manages, revision: row.revision, apps: everyArea(), keys: everyKey() };
+    // A grant for an area that is no longer built is ignored.
+    const apps = new Map(Object.entries(storedLevels(row.apps)).filter(([app]) => catalogue().includes(app)));
+    return { state: "current", role, manages, revision: row.revision, apps, keys: row.keys_enabled ? heldLevels(storedLevels(row.keys)) : null };
   } catch {
     // Unreadable permission data never falls back to open.
     return { state: "unavailable" };
@@ -117,10 +121,15 @@ function lackingKey(held: ReadonlyMap<string, Level> | null, keys: readonly stri
   return key ? { key, need } : null;
 }
 
-/** Empty or malformed app lists never turn an unreviewed business route into an exception. */
-const appsHeld = (policy: CurrentPolicy & { state: "current" }, apps: readonly string[]): boolean =>
-  apps.length > 0 && apps.every(app => appId.safeParse(app).success) &&
-  (policy.role === "owner" || apps.every(app => policy.apps.has(app)));
+/** The first mapped area the caller does not hold at the level needed: a shared route needs every one of its areas.
+ *  Empty or malformed lists never turn an unreviewed business route into an exception. */
+function lackingArea(policy: CurrentPolicy & { state: "current" }, apps: readonly string[], need: Level): Refusal | null {
+  if (!apps.length || !apps.every(app => appId.safeParse(app).success)) return "app";
+  // The owner reaches a route mapped to a name that is not built yet; nobody else does.
+  if (policy.role === "owner") return null;
+  const area = apps.find(app => !holds(policy.apps.get(app), need));
+  return area === undefined ? null : catalogue().includes(area) ? { area, need } : "app";
+}
 
 /** Null when the call may run; otherwise what the caller lacks. */
 function refusal(policy: CurrentPolicy, access: RouteAccess | undefined, need: Level): Refusal | null {
@@ -135,11 +144,12 @@ function refusal(policy: CurrentPolicy, access: RouteAccess | undefined, need: L
   }
   if (policy.state !== "current" || !access) return "app";
   if ("kind" in access) return access.kind !== "owner" || policy.role === "owner" ? null : "app";
-  if (("apps" in access && !appsHeld(policy, access.apps)) || !keys.every(registered)) return "app";
-  return lackingKey(policy.keys, keys, need, alone);
+  if (!keys.every(registered)) return "app";
+  // The area comes first, then each key: both are judged by what the call does.
+  return ("apps" in access ? lackingArea(policy, access.apps, need) : null) ?? lackingKey(policy.keys, keys, need, alone);
 }
 
-/** `need` is what the call does with each listed key: `read` looks up, `write` changes or sends. */
+/** `need` is what the call does, in each mapped area and with each listed key: `read` looks up, `write` changes or sends. */
 export function policyAllows(policy: CurrentPolicy, access: RouteAccess | undefined, need: Level = "write"): boolean {
   return refusal(policy, access, need) === null;
 }
@@ -153,11 +163,14 @@ export async function authorizeRequest(env: PolicyEnv, identity: AccessIdentity 
   return lacking ? policyDenied(policy, lacking) : null;
 }
 
-/** A refusal names the key and the level needed, never a secret. */
+/** An area's level as a refusal and the screens name it. */
+const reachName = (level: Level): string => level === "read" ? "Look up" : "Look up & change";
+
+/** A refusal names the area or the key, and the level needed, never a secret. */
 export function policyDenied(policy: CurrentPolicy, lacking: Refusal = "app"): Response {
   const unavailable = policy.state === "unavailable";
   const message = unavailable ? "Access unavailable" : lacking === "app" ? "App access denied" :
-    `${keyTitle(lacking.key)}: ${levelName(lacking.need)} needed`;
+    "area" in lacking ? `${areaTitle(lacking.area)}: ${reachName(lacking.need)} needed` : `${keyTitle(lacking.key)}: ${levelName(lacking.need)} needed`;
   return Response.json({ error: { code: unavailable ? "unavailable" : "forbidden", message, requestId: crypto.randomUUID() } },
     { status: unavailable ? 503 : 403, headers: { "Cache-Control": "no-store" } });
 }

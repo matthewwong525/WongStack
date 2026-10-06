@@ -99,6 +99,7 @@
       "scripts/lib-access-config.mjs",
       "scripts/check-private-access.mjs",
       "scripts/check-app-keys.mjs",
+      "scripts/check-skill-actions.mjs",
       "scripts/probe-private-access.mjs",
       "scripts/lib-wrangler-config.sh",
       "scripts/lib-wrangler-config.mjs",
@@ -110,6 +111,7 @@
       "schema/migrations/0002_employee_connections.sql",
       "schema/migrations/0003_key_levels.sql",
       "schema/migrations/20261005142459_access_managers.sql",
+      "schema/migrations/20261006031500_area_levels.sql",
       "app/.dev.vars.example",
       "scripts/cf-preview.sh",
       "scripts/company-api.mjs",
@@ -132,7 +134,8 @@
     "exclude": [
       "app/wrangler.jsonc",
       "app/src/apps/tips",
-      "app/worker/apps/tips"
+      "app/worker/apps/tips",
+      "app/worker/apps/sample"
     ],
     "files": [
       "app/src/apps/access/App.tsx",
@@ -153,6 +156,9 @@
       "app/src/apps/access/KeyPage.tsx",
       "app/src/apps/access/Apps.tsx",
       "app/src/apps/access/AppAccessPage.tsx",
+      "app/src/apps/access/Skills.tsx",
+      "app/src/apps/access/SkillPage.tsx",
+      "app/src/apps/access/Skills.test.tsx",
       "app/src/apps/access/Grants.test.tsx",
       "app/src/apps/access/address.ts",
       "app/src/apps/access/levels.ts",
@@ -193,6 +199,11 @@
       "app/worker/employee-access/key-levels.test.ts",
       "app/worker/employee-access/key-use.ts",
       "app/worker/employee-access/key-catalogue.ts",
+      "app/worker/employee-access/catalogue.ts",
+      "app/worker/employee-access/catalogue.test.ts",
+      "app/worker/employee-access/skills.ts",
+      "app/worker/employee-access/skills.test.ts",
+      "app/worker/employee-access/status.test.ts",
       "app/worker/employee-access/key-access.test.ts",
       "app/worker/employee-access/key-saves.test.ts",
       "app/worker/employee-access/sets.ts",

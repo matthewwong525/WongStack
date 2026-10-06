@@ -85,7 +85,7 @@ it("does not match a property every object inherits", async () => {
 it("applies the app slug to both bare and described routes before handler work", async () => {
   const employee = { ...person, claims: { ...person.claims, sub: "employee", email: person.id,
     iss: "https://business.cloudflareaccess.com", aud: "app", exp: 9999999999 } };
-  const row = { policy_enabled: 1, keys_enabled: 0, revision: 1, status: "active", manager: 0, apps: '[]', keys: "{}" };
+  const row = { policy_enabled: 1, keys_enabled: 0, revision: 1, status: "active", manager: 0, apps: '{}', keys: "{}" };
   const first = vi.fn(async () => row);
   const db = { withSession: vi.fn(() => ({ prepare: () => ({ bind: () => ({ first }) }) })) };
   const bindings = { ...env, DB: db, WONG_OWNER_EMAIL: "actual-owner@example.com", CF_ACCESS_TEAM_DOMAIN: "business.cloudflareaccess.com",
@@ -93,7 +93,7 @@ it("applies the app slug to both bare and described routes before handler work",
   const run = (route: string) => handleApp(new Request(`https://workspace.example.com/apps/hello/api/${route}`), bindings, employee);
   for (const route of ["peek", "greeting"]) expect((await run(route)).status).toBe(403);
   expect(seen).toEqual([]);
-  row.apps = '["hello"]';
+  row.apps = '{"hello":"write"}';
   expect((await run("peek")).status).toBe(200);
   expect(await (await run("greeting")).json()).toEqual({ message: "Hello, world!" });
   expect(seen).toHaveLength(1);
