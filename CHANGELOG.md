@@ -17,6 +17,12 @@
 
 **Updating.** Schedules now run in your Cloudflare account and need its paid plan, about $5 a month. Work that is the same steps every time becomes a script in your app and stays free. Any schedule you made before keeps running in Paseo until you delete it there. To move one, ask for it again with `/routine`, then delete the old one in the Paseo app. Nothing else needs doing.
 
+## 35.2.2 — When a preview check needs a browser
+
+- **A save that checks where a request came from is walked in a browser.** [Staging walkthrough](wiki/development/staging-walkthrough.md#walk-the-app-the-way-a-person-does) now says a plain request check sends no `Origin` header, so a save that needs one, such as a change in Access, is refused there and takes a browser check.
+
+**Updating.** Nothing needs doing by hand.
+
 ## 35.2.1 — Access changes need a checked caller
 
 - **A change in Access can't skip the sign-in check.** Every change to people, roles or levels takes a pass that says who is asking. Only the sign-in check hands that pass out now, and code that writes its own no longer builds.

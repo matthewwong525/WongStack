@@ -70,9 +70,9 @@ Sec-Fetch-Mode: navigate   →  index.html   (the SPA fallback; your server code
 anything else              →  your application's response
 ```
 
-Cloudflare's static-asset layer, and equivalents elsewhere, intercept **browser navigations** and serve the SPA fallback *before* your code runs. So `curl /api/` returns JSON while `/api/` in an address bar returns the app, and a journey that navigates to an API route tests the asset layer, not the API.
+Cloudflare's static-asset layer, like its equivalents, intercepts **browser navigations** and serves the SPA fallback *before* your code runs. So `curl /api/` returns JSON while `/api/` in an address bar returns the app: a journey that navigates there tests the asset layer, not the API.
 
-Read the other way, that is why request probes work: a non-navigation request reaches your application directly, which is what an API scenario's `THEN` is about. Match the probe to who the scenario's user is.
+That is why request probes work: a non-navigation request reaches your application, as an API scenario's `THEN` expects. Match the probe to the scenario's user. A probe sends no `Origin` header, so a save that needs one, such as [Access](../stack/employee-access.md)'s, takes a browser journey.
 
 ## The verdicts
 
