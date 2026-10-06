@@ -3,6 +3,17 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (patch) — Access changes need a checked caller
+
+- **A change in Access can't skip the sign-in check.** Every change to people, roles or levels takes a pass that says who is asking. Only the sign-in check hands that pass out now, and code that writes its own no longer builds.
+- **Picking a manager needs the owner's pass.** The code that makes or unmakes a manager takes a pass only the owner gets, so a later change can't forget to ask *is this the owner?*
+- **Nothing on the Access screen changes.** The owner and managers can do what they could before, and every refusal reads the same.
+- **A check stops the old way coming back.** The tests fail, naming the file, when app code marks its own pass as checked.
+
+[Access](wiki/stack/employee-access.md#managers) says what new code takes.
+
+**Updating.** Nothing needs doing by hand, unless your own code builds an Access pass itself. That code now fails the type check, the step that reads the code for mistakes before it is published. Have it call the sign-in check instead.
+
 ## 35.1.1 — What to do when the preview app refuses a key
 
 - **A plain fix for a refused key.** When loading a new key puts it in the live app but the preview app refuses it, every later save fails a check. [Staging bindings](wiki/stack/staging-bindings.md#when-staging-refuses-a-key) now says how your assistant gives the preview app the key, and which command to avoid.
