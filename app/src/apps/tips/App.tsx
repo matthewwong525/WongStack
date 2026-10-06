@@ -29,7 +29,7 @@ export function App() {
   const [people, setPeople] = useState('1')
 
   return (
-    <>
+    <div className="max-w-lg">
       <h1 className="mb-3">Tip calculator</h1>
       <p className="mb-6 text-muted-foreground">Split a bill and choose a tip.</p>
       <Card className="p-6">
@@ -82,6 +82,6 @@ export function App() {
           {describe(bill, split({ bill: Number(bill), percent, people: Number(people) }))}
         </output>
       </Card>
-    </>
+    </div>
   )
 }

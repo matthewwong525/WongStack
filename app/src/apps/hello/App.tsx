@@ -9,7 +9,7 @@ const waiting = 'Your greeting will appear here.'
 const failed = 'Something went wrong. Try again.'
 
 // The example app's page, built from the ready-made parts in app/src/components/ui/ with Tailwind classes
-// for its spacing: no CSS file of its own. Its server side is app/worker/apps/hello/. The API
+// for its spacing: no CSS file of its own. `max-w-lg` keeps the form a readable width inside the shared frame. Its server side is app/worker/apps/hello/. The API
 // address comes from the page's own, so a copy under another name still works.
 export function App() {
   const { name: app } = useParams()
@@ -27,7 +27,7 @@ export function App() {
   }
 
   return (
-    <>
+    <div className="max-w-lg">
       <p className="mb-2 text-sm text-muted-foreground">Example app</p>
       <h1 className="mb-3">Hello</h1>
       <p className="mb-6 text-muted-foreground">A small example you can make yours.</p>
@@ -45,6 +45,6 @@ export function App() {
           <p className="min-h-6 text-muted-foreground wrap-anywhere" aria-live="polite">{message}</p>
         </form>
       </Card>
-    </>
+    </div>
   )
 }

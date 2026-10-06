@@ -14,6 +14,8 @@ export const levelName = (level: Level | null) => level ? LEVEL[level] : 'None'
 /** The parts of one line, the empty ones left out. */
 export const dots = (...parts: (string | false | null | undefined)[]) => parts.filter(Boolean).join(' · ')
 export const capital = (text: string) => text[0].toUpperCase() + text.slice(1)
+/** A number with its word: `1 app`, `2 apps`, `3 people`. */
+export const count = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
 
 /** The keys an app uses, each with the most the app does with it. */
 export const appUses = (status: Status, app: string) =>
@@ -57,13 +59,20 @@ export const levelLabels = (status: Status, keys: AccessSet['keys']) => status.k
   return level ? [levelLabel(key.title, level)] : []
 })
 
+/** What a set comes to on one line of a list: `2 apps, 1 key` or `No apps`, and how many of its apps can't do their job yet. */
+export const summary = (status: Status, set: AccessSet) => {
+  const keys = levelLabels(status, set.keys).length
+  return { line: [set.apps.length ? count(set.apps.length, 'app') : 'No apps', keys > 0 && count(keys, 'key')].filter(Boolean).join(', '),
+    gaps: gaps(status, set).length }
+}
+
 /** Whether two sets give the same thing: the order of ticks, and a key at None, change nothing. */
 export const sameSet = (one: AccessSet, other: AccessSet) => {
   const text = ({ apps, keys }: AccessSet) => JSON.stringify([[...apps].sort(), Object.entries(keys).filter(([, level]) => level).sort()])
   return text(one) === text(other)
 }
 
-/** What uses a key, for the Keys view and a key's page. */
+/** What uses a key, for the Keys view and an opened key. */
 export function keyUseLine(key: SavedKey): string {
   const by = dots(...key.usedBy.map(use => `${appTitle(use.app)}: ${NEED[use.need]}`))
   return dots(by && `Used by ${by}`, key.alone && 'Look-ups, no app needed', !by && !key.alone && 'Nothing uses it yet',

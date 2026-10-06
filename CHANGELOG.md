@@ -3,6 +3,19 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Screens that match
+
+- **Every screen starts at the same left edge.** One wide frame holds Home, each small app and Access, and the logo in the top bar lines up with it. Text and forms keep a width that is easy to read; a table uses the whole frame. Nothing jumps sideways when you move between screens.
+- **Every row in an Access list is one line.** A person's row shows who, whether they can sign in, their role, and a count such as *2 apps, 1 key*. A row where an app can't do its job yet says *! 1 gap*. *You* and *Manager* sit beside the email. Roles, Apps and Keys follow the same rule, and the names show when you open one.
+- **The four view names are the title.** *People · Roles · Apps · Keys* head the list under them, and the add button sits at the end of that line. Apps and Keys have nothing to add by hand, so a quiet line under their list says the assistant adds them.
+- **A person, role, app or key opens in a side panel.** The list stays where it was, with that row marked. The panel has its own address, so a link or the Back button still works; on a phone it fills the screen. A key that isn't saved yet opens too and shows its next step there.
+- **Every question is a popup.** *Remove?* and *Leave without saving?* open over the page with two buttons. What each says, and what each answer does, stays the same.
+- **Connect your assistant is three numbered steps, reached from one place.** The card on Home is the one way in; the button on Access, and the box Access showed people who manage nothing, are gone. The popup says what an assistant is, has one main *Copy* button, names who you sign in as, and ends with what to ask and which apps it reaches. When it can't load it says so and offers *Try again*.
+
+[Mini apps](wiki/stack/mini-apps.md#the-home-page-lists-the-apps) describes the frame, and [employee access](wiki/stack/employee-access.md#one-frame-on-every-screen) the lists and the panel.
+
+**Updating.** Nothing needs doing by hand. A screen you built moves to the shared left edge at the width it has today; its address and data stay as they are.
+
 ## 35.0.1 — Two notes on checks that fail without a cause
 
 - **A check GitHub cancelled before it started is named.** [GitHub Actions](wiki/stack/github-actions.md) says how to tell one and to run it again, on the main branch too.

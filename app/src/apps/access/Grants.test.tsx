@@ -6,7 +6,7 @@ import { App } from './App'
 import { FINISH_REQUEST } from './status'
 import type { Person, SavedKey, Status } from '../../lib/access'
 
-// The Keys and Apps views, and the two pages that save through `grants`.
+// The Keys and Apps views, and the two opened items that save through `grants`.
 // A shop with three apps: Hello changes things with Stripe, payroll with Bank, and the tip calculator uses no key.
 const key = (id: string, title: string, changes: Partial<SavedKey> = {}): SavedKey => ({ id, title, levels: ['read', 'write'], saved: true, setup: false, usedBy: [], alone: false, ...changes })
 const person = (email: string, changes: Partial<Person> = {}): Person => ({ email, status: 'active', settled: true, role: null, manager: false, apps: [], keys: {}, ...changes })
@@ -45,82 +45,95 @@ const posts = (path: string) => fetchMock.mock.calls.filter(([url, init]) => url
 const sent = (path: string) => posts(path).map(([, init]) => JSON.parse(init.body))
 const reads = (path: string) => fetchMock.mock.calls.filter(([url, init]) => url.endsWith(path) && init?.method !== 'POST')
 const checked = (inputs: HTMLElement[]) => inputs.filter(input => (input as HTMLInputElement).checked).map(input => input.parentElement!.textContent)
-// One key's or app's row in a list; one role or person on a page, by the words beside them; and a level choice inside either.
-const row = async (title: string) => within((await screen.findByText(title)).closest('tr')!)
+// One key's or app's row in a list and what its cells say; one role or person in a panel, by the words beside them; and a level choice inside either.
+const row = async (title: string) => within((await screen.findByRole('link', { name: title })).closest('tr')!)
+const cells = async (title: string) => Array.from((await screen.findByRole('link', { name: title })).closest('tr')!.querySelectorAll('td')).map(cell => cell.textContent)
 const columns = (table: HTMLElement) => within(table).getAllByRole('columnheader').map(cell => cell.textContent)
+// The panel a key or an app is opened in, by its name, and that none is open any more.
+const panel = async (name: string) => within(await screen.findByRole('dialog', { name }))
+const closed = () => waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
 const who = (name: string) => within(screen.getByRole('group', { name }))
 const tick = (name: string) => who(name).getByRole('checkbox') as HTMLInputElement
 const offered = (name: string) => who(name).getAllByRole('radio').map(radio => radio.parentElement!.textContent)
 const chosen = (name: string) => checked(who(name).getAllByRole('radio'))
 const pick = (name: string, level: string) => fireEvent.click(who(name).getByRole('radio', { name: level }))
 const unfinished = 'That did not finish. Check the list below before trying again.'
-// The labels in one row, by the name of each list of them.
-const labelled = (box: Awaited<ReturnType<typeof row>>) => box.queryAllByRole('list').map(list => [list.getAttribute('aria-label'), ...within(list).getAllByRole('listitem').map(item => item.textContent)])
+const follows = (first: Element, second: Element) => !!(first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING)
 const [office, team, kim] = ['Office · nobody yet', 'Sales · lee@shop.com, sam@shop.com', 'kim@shop.com']
 
-it('lists every key as a row: whether it is saved, what uses it, and who has it in a column per level, the owner first', async () => {
+it('lists every key on one line: whether it is saved, what uses it, and how many have it in a column per level, the owner first', async () => {
   roster.keys.push(key('maps', 'Maps', { saved: false, usedBy: [{ app: 'tips', need: 'read' }] })); roster.appKeys.tips = [{ id: 'maps', need: 'read' }]
   roster.roles[0].keys = { stripe: 'write' }
   open(); fireEvent.click(await screen.findByRole('link', { name: /^Keys/ }))
-  expect(columns(await screen.findByRole('table', { name: 'Keys' }))).toEqual(['Key', 'Saved', 'Used by', 'Read & write', 'Read'])
-  // No button adds a key: the spot beside the title says how one arrives.
-  expect(screen.getByText('Your assistant sends a link for a new key')).toBeTruthy(); expect(screen.queryByRole('link', { name: /Add/ })).toBeNull()
+  const table = await screen.findByRole('table', { name: 'Keys' })
+  expect(columns(table)).toEqual(['Key', 'Saved', 'Used by', 'Read & write', 'Read'])
+  // No button adds a key: a quiet line under the list says how one arrives.
+  expect(follows(table, screen.getByText('Your assistant sends a link for a new key.'))).toBe(true); expect(screen.queryByRole('link', { name: /Add/ })).toBeNull()
+  // The higher level first; the owner before the rest, at the most the key offers; counts, not names.
+  expect(await cells('Stripe')).toEqual(['Stripe', 'Saved', 'Used by Hello: look up, change', 'Owner, 1 role', '1 role, 1 person'])
+  expect(await cells('Bank')).toEqual(['Bank', 'Saved', 'Used by payroll: look up, change', 'Owner', 'Nobody'])
+  expect(await cells('Cloudflare')).toEqual(['Cloudflare', 'Saved', 'Look-ups, no app needed · Read only', 'Nobody', 'Owner, 1 person'])
+  expect(document.querySelector('[data-slot="badge"]')).toBeNull()
   const stripe = await row('Stripe')
-  expect(stripe.getByText('Saved')).toBeTruthy(); expect(stripe.getByText('Used by Hello: look up, change')).toBeTruthy()
-  // The higher level first, each holder a label, and the owner before the rest at the most the key offers.
-  expect(labelled(stripe)).toEqual([['Read & write', 'Owner', 'Office'], ['Read', 'Sales', 'kim@shop.com']]); expect(stripe.queryByText('Nobody')).toBeNull()
   expect(stripe.getByRole('link', { name: 'Stripe' }).getAttribute('href')).toBe('/apps/access/keys/stripe')
-  const bank = await row('Bank')
-  expect(labelled(bank)).toEqual([['Read & write', 'Owner']]); expect(bank.getByText('Nobody')).toBeTruthy()
-  const cloudflare = await row('Cloudflare')
-  expect(cloudflare.getByText('Look-ups, no app needed · Read only')).toBeTruthy(); expect(labelled(cloudflare)).toEqual([['Read', 'Owner', 'kim@shop.com']])
-  // A key that is not saved yet keeps the row's shape, says how it arrives, and opens nothing.
-  const maps = await row('Maps')
-  expect(maps.getByText('Not saved yet')).toBeTruthy(); expect(maps.getByText('Used by Tip calculator: look up')).toBeTruthy()
-  expect(maps.getByText('Ask your assistant for the key link')).toBeTruthy(); expect(maps.queryByRole('link')).toBeNull()
-  fireEvent.click(maps.getByText('Not saved yet')); expect(where()).toBe('/apps/access/keys')
-  // A click anywhere on a saved key's row opens it.
-  fireEvent.click(bank.getByText('Saved')); await screen.findByRole('heading', { name: 'Bank · Saved' }); expect(where()).toBe('/apps/access/keys/bank')
+  // What uses a key is cut short when it is long, with the whole of it in its title.
+  expect(stripe.getByText('Used by Hello: look up, change').title).toBe('Used by Hello: look up, change')
+  // A key that is not saved yet keeps the row's shape and says its state in words, with nothing to copy in the row.
+  expect(await cells('Maps')).toEqual(['Maps', 'Not saved yet', 'Used by Tip calculator: look up', 'Owner', 'Nobody'])
+  const maps = await row('Maps'); expect(maps.queryByRole('button')).toBeNull()
+  // It opens like any other, and its next step is in the panel.
+  fireEvent.click(maps.getByText('Not saved yet')); const opened = await panel('Maps'); expect(where()).toBe('/apps/access/keys/maps')
+  expect([!!opened.getByText('Not saved yet'), !!opened.getByText('Ask your assistant for the key link.'), opened.queryByRole('button', { name: /Copy/ })]).toEqual([true, true, null])
+  click('Close'); await closed(); expect(where()).toBe('/apps/access/keys')
+  // A click anywhere on a saved key's row opens it too, with its row marked.
+  fireEvent.click((await row('Bank')).getByText('Saved')); const bank = await panel('Bank'); expect(where()).toBe('/apps/access/keys/bank')
+  expect(screen.getByRole('table', { name: 'Keys' }).querySelector('tr[aria-current="true"] a')!.textContent).toBe('Bank')
+  expect([!!bank.getByText('Saved'), bank.queryByText('Ask your assistant for the key link.')]).toEqual([true, null])
 })
-it('says one step is left for the key setup makes, with the request to copy, and how a key arrives when there are none', async () => {
+it('says one step is left for the key setup makes, with the request to copy where the owner opens it, and how a key arrives when there are none', async () => {
   roster.keys[2].saved = false
   open('keys'); const cloudflare = await row('Cloudflare')
-  // The row keeps its shape: the key, its state, and the step in the cells where the levels would be.
-  expect(cloudflare.getByText('One step left')).toBeTruthy(); expect(cloudflare.getAllByRole('cell')).toHaveLength(3)
-  expect(cloudflare.getByText(/^Look-ups need a read-only key\. Ask your assistant:/)).toBeTruthy(); expect(cloudflare.getByText('Finish Access setup')).toBeTruthy()
-  expect(cloudflare.queryByRole('link')).toBeNull(); expect(cloudflare.queryByText(/Look-ups, no app needed/)).toBeNull()
-  fireEvent.click(cloudflare.getByRole('button', { name: 'Copy that request' }))
+  // The row keeps its shape and stays one line: the key, its state in words, and nothing to copy.
+  expect(await cells('Cloudflare')).toEqual(['Cloudflare', 'One step left', 'Look-ups, no app needed · Read only', 'Nobody', 'Owner, 1 person'])
+  expect(cloudflare.queryByRole('button')).toBeNull(); expect(screen.queryByText('Finish Access setup')).toBeNull()
+  // Opened, it says the next step and offers the request to copy.
+  fireEvent.click(cloudflare.getByRole('link', { name: 'Cloudflare' })); const opened = await panel('Cloudflare')
+  expect(opened.getByText('One step left')).toBeTruthy()
+  expect(opened.getByText(/^Look-ups need a read-only key\. Ask your assistant:/)).toBeTruthy(); expect(opened.getByText('Finish Access setup')).toBeTruthy()
+  expect(opened.queryByText('Ask your assistant for the key link.')).toBeNull()
+  fireEvent.click(opened.getByRole('button', { name: 'Copy that request' }))
   await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalledWith(FINISH_REQUEST))
   cleanup(); roster.keys = []; open('keys'); await screen.findByText('No keys saved yet.')
   expect(screen.getByText('When an app needs a service, your assistant sends a private link for its key. It shows up here.')).toBeTruthy()
-  expect(screen.queryByRole('table')).toBeNull()
+  expect(screen.queryByRole('table')).toBeNull(); expect(screen.queryByText('Your assistant sends a link for a new key.')).toBeNull()
 })
-it("tells a manager the key setup makes is the owner's step, with nothing to copy", async () => {
+it("tells a manager who opens the key setup makes that it is the owner's step, with nothing to copy", async () => {
   roster.keys[2].saved = false; roster.viewer = { email: 'kim@shop.com', owner: false }
-  open('keys'); const cloudflare = await row('Cloudflare')
-  expect(cloudflare.getByText('Look-ups need a read-only key. owner@shop.com finishes that in Access setup.')).toBeTruthy()
-  expect(cloudflare.queryByText('Finish Access setup')).toBeNull(); expect(cloudflare.queryByRole('button')).toBeNull()
-  expect(cloudflare.getByText('One step left')).toBeTruthy(); expect(cloudflare.getAllByRole('cell')).toHaveLength(3)
+  open('keys'); expect((await cells('Cloudflare'))[1]).toBe('One step left')
+  fireEvent.click((await row('Cloudflare')).getByText('One step left')); const opened = await panel('Cloudflare')
+  expect(opened.getByText('Look-ups need a read-only key. owner@shop.com finishes that in Access setup.')).toBeTruthy()
+  expect(opened.queryByText('Finish Access setup')).toBeNull(); expect(opened.queryByRole('button', { name: /Copy/ })).toBeNull()
+  expect(opened.getByText('One step left')).toBeTruthy()
 })
 it('says on a preview that the key setup makes is not on previews yet, with no step to ask for', async () => {
   roster.environment = 'practice'; roster.key = 'practice'; roster.keys[2].saved = false
   roster.keys.push(key('maps', 'Maps', { saved: false }))
-  open('keys'); const cloudflare = await row('Cloudflare')
-  expect(cloudflare.getByText('Not on previews yet')).toBeTruthy(); expect(cloudflare.getByText('Look-ups, no app needed · Read only')).toBeTruthy()
-  expect(cloudflare.getAllByRole('cell')).toHaveLength(3)
-  expect(cloudflare.queryByText('One step left')).toBeNull(); expect(cloudflare.queryByText('Finish Access setup')).toBeNull()
-  expect(cloudflare.queryByRole('button')).toBeNull(); expect(cloudflare.queryByRole('link')).toBeNull()
-  expect(cloudflare.queryByText('Ask your assistant for the key link')).toBeNull()
-  expect(screen.queryByRole('button', { name: 'Copy that request' })).toBeNull()
-  // A key that arrives through its link still says so on a preview, and a saved one is as on the live app.
-  expect((await row('Maps')).getByText('Ask your assistant for the key link')).toBeTruthy(); expect((await row('Stripe')).getByText('Saved')).toBeTruthy()
-  cleanup(); open('keys/cloudflare'); await screen.findByRole('heading', { name: 'Cloudflare · Not on previews yet' })
+  open('keys')
+  expect([(await cells('Cloudflare'))[1], (await cells('Maps'))[1], (await cells('Stripe'))[1]]).toEqual(['Not on previews yet', 'Not saved yet', 'Saved'])
+  // No step can finish it on a preview: opened, it says only where it stands.
+  fireEvent.click((await row('Cloudflare')).getByText('Not on previews yet')); const opened = await panel('Cloudflare')
+  expect(opened.getByText('Not on previews yet')).toBeTruthy(); expect(opened.getByText('Look-ups, no app needed · Read only')).toBeTruthy()
+  expect(opened.queryByText('One step left')).toBeNull(); expect(opened.queryByText('Finish Access setup')).toBeNull()
+  expect(opened.queryByText('Ask your assistant for the key link.')).toBeNull(); expect(screen.queryByRole('button', { name: /Copy/ })).toBeNull()
+  // A key that arrives through its link still says so on a preview.
+  cleanup(); open('keys/maps'); expect((await panel('Maps')).getByText('Ask your assistant for the key link.')).toBeTruthy()
 })
-it('sets one key for every role and every person with their own set, on one page and in one save', async () => {
+it('sets one key for every role and every person with their own set, in one panel and in one save', async () => {
   open('keys'); fireEvent.click((await row('Stripe')).getByRole('link', { name: 'Stripe' }))
-  await screen.findByRole('heading', { name: 'Stripe · Saved' }); expect(where()).toBe('/apps/access/keys/stripe')
-  expect(screen.getByRole('link', { name: 'Keys' }).getAttribute('href')).toBe('/apps/access/keys'); expect(screen.getByRole('navigation', { name: 'Access views' })).toBeTruthy()
-  expect(screen.getByText('Used by Hello: look up, change')).toBeTruthy()
+  const opened = await panel('Stripe'); expect(where()).toBe('/apps/access/keys/stripe')
+  // The list and the four views stay in place beside it.
+  expect(screen.getByRole('table', { name: 'Keys' })).toBeTruthy(); expect(screen.getByRole('navigation', { name: 'Access views' })).toBeTruthy()
+  expect(opened.getByText('Saved')).toBeTruthy(); expect(opened.getByText('Used by Hello: look up, change')).toBeTruthy()
   expect([chosen(office), chosen(team), chosen(kim)]).toEqual([['None'], ['Read'], ['Read']])
   // A person who holds a role has the role's level, so they have no choice of their own; a removed person has none.
   for (const name of ['lee@shop.com', 'sam@shop.com', 'gone@shop.com']) expect(screen.queryByRole('group', { name })).toBeNull()
@@ -129,33 +142,32 @@ it('sets one key for every role and every person with their own set, on one page
   expect(sent('grants')).toEqual([{ key: 'stripe', roles: { office: 'write', sales: 'read' }, people: { 'kim@shop.com': null } }])
   expect(where()).toBe('/apps/access/keys')
   // A Read-only key offers two choices to everyone.
-  cleanup(); open('keys/cloudflare'); await screen.findByRole('heading', { name: 'Cloudflare · Saved' })
-  expect(screen.getByText('Look-ups, no app needed · Read only')).toBeTruthy()
+  cleanup(); open('keys/cloudflare'); expect((await panel('Cloudflare')).getByText('Look-ups, no app needed · Read only')).toBeTruthy()
   expect([offered(office), offered(kim), chosen(kim)]).toEqual([['None', 'Read'], ['None', 'Read'], ['Read']])
   cleanup(); roster.roles = []; roster.people = []; open('keys/bank'); await screen.findByText('No roles or people yet.')
 })
-it('lists each app as a row with the keys it uses and who has it as labels, the owner first', async () => {
+it('lists each app on one line with the keys it uses and how many have it, the owner first', async () => {
   open(); fireEvent.click(await screen.findByRole('link', { name: /^Apps/ }))
-  expect(columns(await screen.findByRole('table', { name: 'Apps' }))).toEqual(['App', 'Uses', 'Who has it'])
-  // No button adds an app: the spot beside the title says how one is made.
-  expect(screen.getByText('Ask your assistant to build an app')).toBeTruthy()
-  const hello = await row('Hello')
-  expect(hello.getByText('Stripe: look up, change')).toBeTruthy(); expect(labelled(hello)).toEqual([['Who has it', 'Owner', 'Sales', 'kim@shop.com']])
-  expect(hello.getByRole('link', { name: 'Hello' }).getAttribute('href')).toBe('/apps/access/apps/hello')
-  const payroll = await row('payroll')
-  expect(payroll.getByText('Bank: look up, change')).toBeTruthy(); expect(labelled(payroll)).toEqual([['Who has it', 'Owner']])
-  const tips = await row('Tip calculator')
-  expect(tips.getByText('No keys')).toBeTruthy(); expect(labelled(tips)).toEqual([['Who has it', 'Owner', 'Sales']])
-  // A click anywhere on the row opens the app.
-  fireEvent.click(tips.getByText('No keys')); await screen.findByRole('heading', { name: 'Tip calculator' }); expect(where()).toBe('/apps/access/apps/tips')
+  const table = await screen.findByRole('table', { name: 'Apps' })
+  expect(columns(table)).toEqual(['App', 'Uses', 'Who has it'])
+  // No button adds an app: a quiet line under the list says how one is made.
+  expect(follows(table, screen.getByText('Ask your assistant to build an app.'))).toBe(true); expect(screen.queryByRole('link', { name: /Add/ })).toBeNull()
+  expect(await cells('Hello')).toEqual(['Hello', 'Stripe: look up, change', 'Owner, 1 role, 1 person'])
+  expect(await cells('payroll')).toEqual(['payroll', 'Bank: look up, change', 'Owner'])
+  expect(await cells('Tip calculator')).toEqual(['Tip calculator', 'No keys', 'Owner, 1 role'])
+  expect((await row('Hello')).getByRole('link', { name: 'Hello' }).getAttribute('href')).toBe('/apps/access/apps/hello')
+  expect(document.querySelector('[data-slot="badge"]')).toBeNull()
+  // A click anywhere on the row opens the app beside the list.
+  fireEvent.click((await row('Tip calculator')).getByText('No keys')); await panel('Tip calculator'); expect(where()).toBe('/apps/access/apps/tips')
+  expect(table.querySelector('tr[aria-current="true"] a')!.textContent).toBe('Tip calculator')
   cleanup(); roster.apps = []; open('apps'); await screen.findByText('No apps built yet. Ask your assistant to make one.')
-  expect(screen.queryByRole('table')).toBeNull()
+  expect(screen.queryByRole('table')).toBeNull(); expect(screen.queryByText('Ask your assistant to build an app.')).toBeNull()
 })
 it('gives an app to roles and people, with the levels of the keys it uses beside each tick', async () => {
   open('apps'); fireEvent.click((await row('Hello')).getByRole('link', { name: 'Hello' }))
-  await screen.findByRole('heading', { name: 'Hello' }); expect(where()).toBe('/apps/access/apps/hello')
-  expect(screen.getByRole('link', { name: 'Apps' }).getAttribute('href')).toBe('/apps/access/apps'); expect(screen.getByRole('navigation', { name: 'Access views' })).toBeTruthy()
-  expect(screen.getByText('Uses Stripe: look up, change')).toBeTruthy(); expect(screen.getByText('A level holds in every app.')).toBeTruthy()
+  const opened = await panel('Hello'); expect(where()).toBe('/apps/access/apps/hello')
+  expect(screen.getByRole('table', { name: 'Apps' })).toBeTruthy(); expect(screen.getByRole('navigation', { name: 'Access views' })).toBeTruthy()
+  expect(opened.getByText('Uses Stripe: look up, change')).toBeTruthy(); expect(opened.getByText('A level holds in every app.')).toBeTruthy()
   expect([tick(office).checked, tick(team).checked, tick(kim).checked]).toEqual([false, true, true])
   expect(who(office).queryByRole('radio')).toBeNull(); expect([chosen(team), chosen(kim)]).toEqual([['Read'], ['Read']])
   expect(within(who(team).getByRole('group', { name: 'Stripe' })).getAllByRole('radio')).toHaveLength(3)
@@ -169,13 +181,12 @@ it('gives an app to roles and people, with the levels of the keys it uses beside
     keys: { roles: { office: { stripe: 'read' } }, people: { 'kim@shop.com': { stripe: 'write' } } } }])
   expect(where()).toBe('/apps/access/apps')
   // An app that uses no keys has ticks alone.
-  cleanup(); open('apps/tips'); await screen.findByRole('heading', { name: 'Tip calculator' })
-  expect(screen.getByText('Uses no keys')).toBeTruthy(); expect(screen.queryByRole('radio')).toBeNull()
+  cleanup(); open('apps/tips'); expect((await panel('Tip calculator')).getByText('Uses no keys')).toBeTruthy(); expect(screen.queryByRole('radio')).toBeNull()
   fireEvent.click(tick(kim)); click('Save access'); await screen.findByText('Saved.')
   expect(sent('grants')[1]).toEqual({ app: 'tips', roles: { office: false, sales: true }, people: { 'kim@shop.com': true }, keys: { roles: { sales: {} }, people: { 'kim@shop.com': {} } } })
   cleanup(); roster.roles = []; roster.people = []; open('apps/payroll'); await screen.findByText('No roles or people yet.')
 })
-it('every row opens its page from the link in its first cell, and no list has an Edit button', async () => {
+it('every row opens its item from the link in its first cell, and no list has an Edit button', async () => {
   for (const [path, name, links] of [['', 'People', ['gone@shop.com', 'kim@shop.com', 'lee@shop.com', 'sam@shop.com']], ['roles', 'Roles', ['Office', 'Sales']],
     ['apps', 'Apps', ['Hello', 'payroll', 'Tip calculator']], ['keys', 'Keys', ['Stripe', 'Bank', 'Cloudflare']]] as const) {
     open(path); const table = await screen.findByRole('table', { name })

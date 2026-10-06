@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
 import { App } from './App'
@@ -42,14 +42,18 @@ const posts = (path: string) => fetchMock.mock.calls.filter(([url, init]) => url
 const sent = (path: string) => posts(path).map(([, init]) => JSON.parse(init.body))
 const reads = (path: string) => fetchMock.mock.calls.filter(([url, init]) => url.endsWith(path) && init?.method !== 'POST')
 const checked = (inputs: HTMLElement[]) => inputs.filter(input => (input as HTMLInputElement).checked).map(input => input.parentElement!.textContent)
-// One role's row in the list, one app's tick with the lines under it, and one key's level choice by the name in its legend.
-const row = async (name: string) => within((await screen.findByText(name)).closest('tr')!)
+// One role's row in the list and what its cells say, one app's tick with the lines under it, and one key's level choice by the name in its legend.
+const row = async (name: string) => within((await screen.findByRole('link', { name })).closest('tr')!)
+const cells = async (name: string) => Array.from((await screen.findByRole('link', { name })).closest('tr')!.querySelectorAll('td')).map(cell => cell.textContent)
+// The panel a role is opened in, by its name, and that none is open any more.
+const panel = (name: string) => screen.findByRole('dialog', { name })
+const closed = () => waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+const moment = () => act(async () => { await new Promise(resolve => setTimeout(resolve)) })
 const app = (name: string) => within(screen.getByRole('checkbox', { name }).closest('div')!)
 const ticks = () => checked(screen.getAllByRole('checkbox'))
 const level = (name: string) => within(screen.getByRole('group', { name }))
 const chosen = (name: string) => checked(level(name).getAllByRole('radio'))
 const named = () => screen.getByLabelText('Name') as HTMLInputElement
-const labels = (name: string, box: ReturnType<typeof within>) => within(box.getByRole('list', { name })).getAllByRole('listitem').map(item => item.textContent)
 const tick = (name: string) => fireEvent.click(screen.getByRole('checkbox', { name }))
 const held = (name: string, key: string) => checked(within(app(name).getByRole('group', { name: key })).getAllByRole('radio'))
 const raise = 'Hello also changes things. Pick Read & write to let it.'
@@ -60,28 +64,25 @@ it('says what a role is for when there are none yet, with one way to add the fir
   expect(add.getAttribute('href')).toBe('/apps/access/roles/new')
   const purpose = screen.getByText('A role saves a set of apps and key levels to give to several people.')
   expect(screen.getByText('No roles yet.').compareDocumentPosition(purpose) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-  // The add button sits beside the title, above both lines, and no empty table is drawn.
+  // The add button ends the views' line, above both lines, and no empty table is drawn.
   expect(add.compareDocumentPosition(screen.getByText('No roles yet.')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-  expect(add.closest('div')!.querySelector('h2')!.textContent).toBe('Roles'); expect(screen.queryByRole('table')).toBeNull()
+  expect(screen.getByRole('navigation', { name: 'Access views' }).parentElement!.lastElementChild).toBe(add); expect(screen.queryByRole('table')).toBeNull()
 })
-it('lists each role with its apps, its levels and who holds it as labels, and changes one on its own page', async () => {
+it('lists each role on one line with how many apps, keys and people it has and its gap, and changes one in the panel beside the list', async () => {
   open(); fireEvent.click(await screen.findByRole('link', { name: /^Roles/ }))
-  expect(within(await screen.findByRole('table', { name: 'Roles' })).getAllByRole('columnheader').map(cell => cell.textContent)).toEqual(['Role', 'Apps', 'Keys', 'People'])
-  const office = await row('Office')
-  expect(office.getByText('No apps')).toBeTruthy(); expect(office.getByText('No keys')).toBeTruthy(); expect(office.getByText('Nobody yet')).toBeTruthy()
-  expect(office.queryByRole('listitem')).toBeNull()
-  // Apps, key levels and holders are labels; the line marked "!" says where an app can't do its job yet.
+  expect(within(await screen.findByRole('table', { name: 'Roles' })).getAllByRole('columnheader').map(cell => cell.textContent)).toEqual(['Role', 'Apps and keys', 'People'])
+  // Counts, not labels: the names show where the role is opened. The "!" says an app can't do its job yet.
+  expect([await cells('Office'), await cells('Sales')]).toEqual([['Office', 'No apps', 'Nobody yet'], ['Sales', '2 apps, 1 key ! 1 gap', '2 people']])
+  expect(document.querySelector('[data-slot="badge"]')).toBeNull()
   const sales = await row('Sales')
-  expect([labels('Apps', sales), labels('Keys', sales), labels('People', sales)]).toEqual([['Hello', 'Tip calculator'], ['Stripe Read'], ['lee@shop.com', 'sam@shop.com']])
-  expect(labels("Can't do yet", sales)).toEqual(['! Hello can look up, not change'])
   expect(screen.queryByText('No roles yet.')).toBeNull(); expect(screen.queryByRole('link', { name: 'Edit' })).toBeNull()
   expect(sales.getByRole('link', { name: 'Sales' }).getAttribute('href')).toBe('/apps/access/roles/sales')
-  // A click anywhere on the row opens the role.
-  fireEvent.click(sales.getByText('Stripe Read'))
-  await screen.findByRole('heading', { name: 'Change role' }); expect(where()).toBe('/apps/access/roles/sales')
-  expect(screen.getByRole('link', { name: 'Roles' }).getAttribute('href')).toBe('/apps/access/roles'); expect(screen.getByRole('navigation', { name: 'Access views' })).toBeTruthy()
+  // A click anywhere on the row opens the role beside the list, with its row marked.
+  fireEvent.click(sales.getByText('2 people'))
+  await panel('Sales'); expect(where()).toBe('/apps/access/roles/sales')
+  expect(screen.getByRole('table', { name: 'Roles' }).querySelector('tr[aria-current="true"] a')!.textContent).toBe('Sales'); expect(screen.getByRole('navigation', { name: 'Access views' })).toBeTruthy()
   expect(named().value).toBe('Sales'); expect(screen.queryByLabelText('Start from a person')).toBeNull()
-  // The same ticks and levels as on a person's page, and who a save will reach.
+  // The same ticks and levels as for a person, and who a save will reach.
   expect(ticks()).toEqual(['Hello', 'Tip calculator']); expect([held('Hello', 'Stripe'), chosen('Bank'), chosen('Cloudflare')]).toEqual([['Read'], ['None'], ['None']])
   expect(app('Hello').getByText(raise)).toBeTruthy(); expect(app('payroll').getByText('uses Bank')).toBeTruthy()
   const other = within(screen.getByRole('group', { name: 'Keys no ticked app uses' }))
@@ -93,11 +94,11 @@ it('lists each role with its apps, its levels and who holds it as labels, and ch
   fireEvent.click(level('Bank').getByRole('radio', { name: 'Read & write' }))
   click('Save role'); await screen.findByText('Saved.')
   expect(sent('roles')).toEqual([{ id: 'sales', name: 'Field sales', apps: ['hello', 'tips', 'payroll'], keys: { stripe: 'read', bank: 'write', cloudflare: null } }])
-  expect(where()).toBe('/apps/access/roles')
+  expect(where()).toBe('/apps/access/roles'); expect(screen.queryByRole('dialog')).toBeNull()
 })
 it("sets a role's key level under the app's tick: the tick gives Read, a raise saves Read & write, and a shared key follows", async () => {
   roster.keys[0].usedBy.push({ app: 'tips', need: 'read' }); roster.appKeys.tips = [{ id: 'stripe', need: 'read' }]
-  open('roles/office'); await screen.findByRole('heading', { name: 'Change role' })
+  open('roles/office'); await panel('Office')
   // Nothing is ticked: no app shows a level, and each says what it uses.
   expect(screen.getByRole('group', { name: 'Apps' }).querySelector('input[type="radio"]')).toBeNull()
   expect(app('Hello').getByText('uses Stripe')).toBeTruthy(); expect(chosen('Stripe')).toEqual(['None'])
@@ -113,9 +114,11 @@ it("sets a role's key level under the app's tick: the tick gives Read, a raise s
 })
 it('adds a role, which can start from what one person has now', async () => {
   open('roles'); fireEvent.click(await screen.findByRole('link', { name: 'Add role' }))
-  await screen.findByRole('heading', { name: 'Add role' }); expect(where()).toBe('/apps/access/roles/new')
+  await panel('Add role'); expect(where()).toBe('/apps/access/roles/new')
   expect(document.activeElement).toBe(named())
   expect(screen.getByText('People: nobody yet')).toBeTruthy(); expect(screen.queryByRole('button', { name: 'Remove role' })).toBeNull()
+  // The list stays beside the panel, and no row is marked: the new role has none yet.
+  expect(screen.getByRole('table', { name: 'Roles' }).querySelector('tr[aria-current]')).toBeNull()
   // Only people who can sign in are offered.
   const from = screen.getByLabelText('Start from a person')
   expect(within(from).getAllByRole('option').map(option => option.textContent)).toEqual(['Nobody', 'kim@shop.com', 'lee@shop.com', 'sam@shop.com'])
@@ -130,17 +133,19 @@ it('adds a role, which can start from what one person has now', async () => {
   fireEvent.change(named(), { target: { value: 'Helpers' } }); click('Save role'); await screen.findByText('Saved.')
   expect(sent('roles')).toEqual([{ name: 'Helpers', apps: ['hello'], keys: { stripe: 'read', bank: null, cloudflare: 'read' } }])
 })
-it('asks before removing a role, says its people keep their access, and keeps the page as it was on Cancel', async () => {
-  open('roles/sales'); await screen.findByRole('heading', { name: 'Change role' })
+it('asks in a popup before removing a role, says its people keep their access, and keeps the panel as it was on Cancel', async () => {
+  open('roles/sales'); await panel('Sales')
   fireEvent.change(named(), { target: { value: 'Field sales' } }); click('Remove role')
-  expect(screen.getByRole('heading', { name: 'Remove Sales?' })).toBeTruthy()
-  expect(screen.getByText('Its people keep the access they have now, as their own set.')).toBeTruthy()
-  expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Remove role' })); expect(screen.queryByRole('button', { name: 'Save role' })).toBeNull()
-  // The four views stay while it asks.
-  expect(screen.getByRole('navigation', { name: 'Access views' })).toBeTruthy()
-  click('Cancel'); expect(named().value).toBe('Field sales'); expect(posts('roles')).toHaveLength(0)
+  const ask = within(screen.getByRole('alertdialog', { name: 'Remove Sales?' }))
+  expect(ask.getByText('Its people keep the access they have now, as their own set.')).toBeTruthy()
+  // The way out is focused first; the action is the question's one solid button.
+  const [out, yes] = [ask.getByRole('button', { name: 'Cancel' }), ask.getByRole('button', { name: 'Remove role' })]
+  await moment(); expect([document.activeElement, out.getAttribute('data-variant'), yes.getAttribute('data-variant')]).toEqual([out, 'outline', 'default'])
+  // The panel stays under the question, with its change.
+  click('Cancel'); expect(screen.queryByRole('alertdialog')).toBeNull(); expect(named().value).toBe('Field sales'); expect(posts('roles')).toHaveLength(0)
+  expect((await panel('Sales')).contains(screen.getByRole('button', { name: 'Save role' }))).toBe(true); await moment()
   click('Remove role'); click('Remove role'); await screen.findByText('Saved.')
-  expect(sent('roles')).toEqual([{ id: 'sales', removed: true }]); expect(where()).toBe('/apps/access/roles')
+  expect(sent('roles')).toEqual([{ id: 'sales', removed: true }]); expect(where()).toBe('/apps/access/roles'); await closed()
 })
 it('a role save that did not finish says so and reads the list again', async () => {
   open('roles/office'); await screen.findByRole('button', { name: 'Save role' }); failed.add('roles'); click('Save role')

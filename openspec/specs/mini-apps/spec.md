@@ -56,12 +56,12 @@ A request for a new small page or tool, or a change to one, SHALL take the norma
 
 ### Requirement: Every page shares one stylesheet
 
-The main app SHALL give every page, each mini app's included, one shared look from one stylesheet: the device's font, light or dark to match the device, and a narrow column. Every screen SHALL be built from one set of ready-made parts copied into the app, on a utility CSS framework. A page SHALL NOT carry a stylesheet of its own, and the app's checks SHALL fail when one does. The shared look SHALL provide coherent surfaces, text, accents, and visible keyboard focus, with readable contrast in both color modes.
+The main app SHALL give every page, each mini app's included, one shared look from one stylesheet: the device's font, light or dark to match the device, and one frame whose left edge is the same on every page. Text and forms SHALL keep a readable width inside the frame, and a page SHALL never be wider than the screen. Every screen SHALL be built from one set of ready-made parts copied into the app, on a utility CSS framework. A page SHALL NOT carry a stylesheet of its own, and the app's checks SHALL fail when one does. The shared look SHALL provide coherent surfaces, text, accents, and visible keyboard focus, with readable contrast in both color modes.
 
 #### Scenario: A fresh install
 
-- **WHEN** a person opens a new install's landing page and then /apps/hello/
-- **THEN** both pages show the same font, parts, and light or dark colors, with readable text and visible keyboard focus
+- **WHEN** a person opens a new install's landing page, then /apps/hello/, then Access
+- **THEN** all three show the same font, parts, and light or dark colors, and their headings start at the same left edge
 
 #### Scenario: A new mini app brings its own stylesheet
 

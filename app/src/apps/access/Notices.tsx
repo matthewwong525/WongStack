@@ -11,7 +11,7 @@ function Notice({ role, children }: { role?: 'status' | 'alert'; children: React
 }
 
 /** A step the owner hands to their assistant: the words to say, and the full request to copy.
- *  Inside a key's own row it is `plain`: the step needs no box there. */
+ *  Where a key is opened it is `plain`: the step needs no box there. */
 export function FinishStep({ plain = false, children }: { plain?: boolean; children: ReactNode }) {
   const step = <>
     <p>{children} <q>Finish Access setup</q></p>
@@ -23,7 +23,7 @@ export function FinishStep({ plain = false, children }: { plain?: boolean; child
 // The one spot for notices, under the views on every owner screen. First what the last change came to: a save
 // that did not finish interrupts, a finished one is only said, and a role picked in the list offers Undo.
 // Then a preview's practice list and the first open after key levels start. The steps left before people can
-// sign in show on People alone. The missing key is the owner's step, made with their Cloudflare token: a
+// sign in show on People alone, with a person opened or not. The missing key is the owner's step, made with their Cloudflare token: a
 // manager is told so, with nothing to copy.
 export function Notices({ status, view, said, pending, save, reload }: ViewProps) {
   const people = view.name === 'people'

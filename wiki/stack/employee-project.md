@@ -1,6 +1,6 @@
 # Employee assistant connection
 
-Sign in to the business app, copy its setup prompt and paste it into your assistant. The prompt connects company API work allowed by your current app permissions, using your own business login on that computer. Repository access and memory setup remain separate.
+Sign in to the business app, open [*Connect your assistant*](mini-apps.md#the-home-page-lists-the-apps) on the home page, copy your setup message there and paste it into your assistant's chat. The home page's card is the one place it is copied from. The message, also called the setup prompt, connects company API work allowed by your current app permissions, using your own business login on that computer. Repository access and memory setup remain separate.
 
 ## Get the reviewed bootstrap
 
