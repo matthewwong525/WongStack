@@ -1,12 +1,15 @@
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi, type Mock } from "vitest";
 import { z } from "zod";
 import { employee, fixture, owner, site } from "../../tests/employee-access/connections";
 import type { AccessIdentity } from "../access";
 import { defineAction, dispatch, keyUses, needFor, registrations, type Action, type Route } from "../api/contract";
 import { discovery } from "../api/discovery";
-import type { AppEnv } from "../apps/index";
+import type { AppEnv, AppHandler } from "../apps/index";
+import type { KeyId } from "../keys";
 import { appAccess } from "./apps";
 import { authorizeRequest, currentPolicy, listedKeys, policyAllows, type PolicyEnv, type RouteAccess } from "./policy";
+import { body } from "../../tests/body";
+import { fakeEnv } from "../../tests/env";
 
 vi.mock("./catalogue.ts", () => ({ catalogue: ["access", "orders", "payroll"] }));
 vi.mock("../keys.ts", () => ({ keys: {
@@ -21,8 +24,10 @@ const machine: AccessIdentity = { kind: "service", id: "checker.access", claims:
 const person = (email: string): AccessIdentity => ({ ...employee, id: email, claims: { ...employee.claims, email, sub: email } });
 let f: ReturnType<typeof fixture>;
 let env: AppEnv;
-let handler: ReturnType<typeof vi.fn>;
+let handler: Mock<AppHandler>;
 const id = site.installationId;
+/** Key names from the registry mocked above, which the real registry's type does not hold. */
+const listed = (...ids: string[]) => ids as KeyId[];
 const action = (extra: Partial<Action> = {}) => defineAction({ operationId: "orders.read", summary: "Orders", description: "Synthetic order action",
   input: z.strictObject({}), output: z.strictObject({ ok: z.boolean() }), encoding: "none", effect: "read", agentAvailable: true,
   errors: {}, examples: [], handler, ...extra } as Action);
@@ -30,13 +35,13 @@ const run = (route: Route, mapping: RouteAccess | undefined = orders, identity: 
   const request = new Request(`${site.origin}/api/orders`, { method });
   return dispatch(route, request, bindings, { url: new URL(request.url), route: "orders", identity }, mapping);
 };
-const message = async (response: Response) => (await response.json()).error.message;
+const message = async (response: Response) => (await body(response)).error.message;
 const level = (email: string, key: string, held: string) => f.sql.prepare("INSERT INTO wong_access_key_grants VALUES (?, ?, ?, ?, 1) ON CONFLICT DO UPDATE SET level = excluded.level").run(id, email, key, held);
 
 beforeEach(() => {
   f = fixture();
-  env = { ...f.env, ...secrets } as unknown as AppEnv;
-  handler = vi.fn(() => Response.json({ ok: true }));
+  env = fakeEnv({ ...f.env, ...secrets });
+  handler = vi.fn<AppHandler>(() => Response.json({ ok: true }));
   // Key levels have started; the employee has the orders app and no key level yet.
   f.sql.exec("UPDATE wong_access_installation SET keys_enabled = 1");
   f.sql.prepare("INSERT INTO wong_access_grants VALUES (?, ?, 'orders', 1)").run(id, employee.id);
@@ -81,7 +86,7 @@ it("judges a bare handler by its method: a GET looks up, anything else changes",
 it("checks an action's own keys before its app's, and every key a route lists", async () => {
   level(employee.id, "stripe", "read");
   // The app lists the bank key, but this action uses Stripe alone: a missing bank level does not block it.
-  expect((await run(action({ keys: ["stripe"] } as Partial<Action>), { apps: ["orders"], keys: ["bank"] })).status).toBe(200);
+  expect((await run(action({ keys: listed("stripe") }), { apps: ["orders"], keys: ["bank"] })).status).toBe(200);
   expect(await message(await run(action(), { apps: ["orders"], keys: ["bank"] }))).toBe("Bank: Read needed");
   expect(await message(await run(action(), { apps: ["orders"], keys: ["stripe", "bank"] }))).toBe("Bank: Read needed");
   level(employee.id, "bank", "read");
@@ -169,23 +174,23 @@ it("reads a person's apps and levels from their role, so a role change reaches e
 
 it("hands a handler only the keys its route lists, and stops before it when a listed key is not saved", async () => {
   level(employee.id, "stripe", "write"); level(employee.id, "bank", "write");
-  const seen: Record<string, unknown>[] = [];
-  const peek = vi.fn((_request: Request, handed: Record<string, unknown>) => { seen.push(handed); return Response.json({ ok: true }); });
-  await run(peek as unknown as Route);
-  await run(action({ handler: peek as unknown as Action["handler"], ready: handed => "STRIPE_SECRET_KEY" in handed && !("BANK_ID" in handed) }));
-  await run(peek as unknown as Route, { apps: ["orders"] });
-  await run(peek as unknown as Route, { kind: "self-service" });
+  const seen: AppEnv[] = [];
+  const peek = vi.fn<AppHandler>((_request, handed) => { seen.push(handed); return Response.json({ ok: true }); });
+  await run(peek);
+  await run(action({ handler: peek, ready: handed => "STRIPE_SECRET_KEY" in handed && !("BANK_ID" in handed) }));
+  await run(peek, { apps: ["orders"] });
+  await run(peek, { kind: "self-service" });
   expect(seen.map(handed => Object.keys(secrets).filter(name => name in handed)))
     .toEqual([["STRIPE_SECRET_KEY"], ["STRIPE_SECRET_KEY"], [], []]);
   expect(seen.every(handed => handed.DB === f.env.DB && handed.WONG_OWNER_EMAIL === site.ownerEmail)).toBe(true);
   expect(Object.keys(secrets).every(name => name in env)).toBe(true);
   // A key with two secrets is saved only when both are; an empty or missing one answers unavailable.
   for (const missing of [{ BANK_SECRET: "" }, { BANK_ID: undefined }]) {
-    const unavailable = await run(peek as unknown as Route, { apps: ["orders"], keys: ["stripe", "bank"] }, employee, "GET", { ...env, ...missing } as AppEnv);
+    const unavailable = await run(peek, { apps: ["orders"], keys: ["stripe", "bank"] }, employee, "GET", { ...env, ...missing } as AppEnv);
     expect(unavailable.status).toBe(503);
     expect(await unavailable.json()).toMatchObject({ error: { code: "unavailable" } });
   }
-  expect((await run(peek as unknown as Route, { apps: ["orders"], keys: ["stripe", "bank"] })).status).toBe(200);
+  expect((await run(peek, { apps: ["orders"], keys: ["stripe", "bank"] })).status).toBe(200);
   expect(peek).toHaveBeenCalledTimes(5);
   // An answer is still scanned against every binding, so a key the route does not list can not leave either.
   const leaked = await run(action({ output: z.strictObject({ ok: z.string() }), handler: () => Response.json({ ok: secrets.BANK_SECRET }) }));
@@ -195,22 +200,22 @@ it("hands a handler only the keys its route lists, and stops before it when a li
 it("lists an action only for a caller whose level permits it, and says which keys each action uses", async () => {
   level(employee.id, "stripe", "read");
   const routes = new Map<string, Route>([["GET read", action()], ["POST refund", action({ operationId: "orders.refund", effect: "write" })],
-    ["GET balance", action({ operationId: "orders.balance", keys: ["bank"] } as Partial<Action>)], ["GET bare", handler as unknown as Route]]);
+    ["GET balance", action({ operationId: "orders.balance", keys: listed("bank") })], ["GET bare", handler]]);
   const registry = [...registrations(routes, "orders", undefined, ["stripe"]),
     ...registrations(new Map([["GET /api/cloudflare/read", action({ operationId: "cloudflare.read", keys: ["cloudflare"] } as Partial<Action>)],
-      ["GET /api/unmapped", action({ operationId: "main.unmapped" })], ["GET /api/setup", action({ operationId: "main.setup", keys: ["stripe"] } as Partial<Action>)]]),
+      ["GET /api/unmapped", action({ operationId: "main.unmapped" })], ["GET /api/setup", action({ operationId: "main.setup", keys: listed("stripe") })]]),
     "main", new Map<string, RouteAccess>([["GET /api/cloudflare/read", { keys: ["cloudflare"] }], ["GET /api/setup", { kind: "self-service" }]]))];
   const discover = (path = "/api/actions", headers = {}, caller = employee) =>
     discovery(new Request(`${site.origin}${path}`, { headers }), env as Env & PolicyEnv, caller, registry);
-  const ids = async (caller = employee) => (await (await discover("/api/actions", {}, caller)).json()).actions.map((item: { operationId: string }) => item.operationId);
+  const ids = async (caller = employee) => (await body(await discover("/api/actions", {}, caller))).actions.map(item => item.operationId);
   expect(await ids()).toEqual(["main.setup", "orders.read"]);
-  const listing = await (await discover()).json();
+  const listing = await body(await discover());
   // A reviewed exception is handed no key, so it lists none.
   expect(listing.actions).toMatchObject([{ operationId: "main.setup", keys: [] }, { operationId: "orders.read", keys: [{ id: "stripe", level: "read" }] }]);
   const selected = await discover("/api/actions?id=orders.read");
-  expect((await selected.clone().json()).keys).toEqual([{ id: "stripe", level: "read" }]);
+  expect((await body(selected.clone())).keys).toEqual([{ id: "stripe", level: "read" }]);
   expect((await discover("/api/actions?id=orders.refund")).status).toBe(404);
-  expect(Object.keys((await (await discover("/api/openapi.json")).json()).paths)).toEqual(["/api/setup", "/apps/orders/api/read"]);
+  expect(Object.keys((await body(await discover("/api/openapi.json"))).paths)).toEqual(["/api/setup", "/apps/orders/api/read"]);
   expect(await ids(owner)).toEqual(["cloudflare.read", "main.setup", "orders.balance", "orders.read", "orders.refund"]);
   // A level change moves the revision like any save, so a cached description is never reused.
   const etag = selected.headers.get("ETag")!;
@@ -220,7 +225,7 @@ it("lists an action only for a caller whose level permits it, and says which key
   const raised = await discover("/api/actions?id=orders.read", { "if-none-match": etag });
   expect(raised.status).toBe(200); expect(raised.headers.get("ETag")).not.toBe(etag);
   expect(await ids()).toEqual(["cloudflare.read", "main.setup", "orders.read", "orders.refund"]);
-  expect((await (await discover("/api/actions?id=orders.refund")).json()).keys).toEqual([{ id: "stripe", level: "write" }]);
+  expect((await body(await discover("/api/actions?id=orders.refund"))).keys).toEqual([{ id: "stripe", level: "write" }]);
   // Key levels start with no new revision, and that alone changes the tag.
   const started = (await discover()).headers.get("ETag");
   f.sql.exec("UPDATE wong_access_installation SET keys_enabled = 0");
@@ -230,13 +235,13 @@ it("lists an action only for a caller whose level permits it, and says which key
   expect(keyUses(routes, "orders", undefined, ["stripe"])).toEqual([{ apps: ["orders"], keys: ["stripe"], need: "read" },
     { apps: ["orders"], keys: ["stripe"], need: "write" }, { apps: ["orders"], keys: ["bank"], need: "read" }, { apps: ["orders"], keys: ["stripe"], need: "read" }]);
   expect(keyUses(routes, "orders")).toEqual([{ apps: ["orders"], keys: ["bank"], need: "read" }]);
-  expect(keyUses(new Map<string, Route>([["GET /api/a", handler as unknown as Route], ["POST /api/b", handler as unknown as Route], ["GET /api/c", action()], ["GET /api/d", action()]]),
+  expect(keyUses(new Map<string, Route>([["GET /api/a", handler], ["POST /api/b", handler], ["GET /api/c", action()], ["GET /api/d", action()]]),
     "main", new Map<string, RouteAccess>([["GET /api/a", { keys: ["cloudflare"] }], ["POST /api/b", { apps: ["orders", "payroll"], keys: ["bank"] }], ["GET /api/c", { kind: "owner" }]])))
     .toEqual([{ apps: [], keys: ["cloudflare"], need: "read" }, { apps: ["orders", "payroll"], keys: ["bank"], need: "write" }]);
 });
 
 it("tells each signed-in person their own levels, with the key's name and never its value", async () => {
-  const readback = async (caller: AccessIdentity) => (await appAccess(new Request(`${site.origin}/api/access/apps`), env, caller)).json();
+  const readback = async (caller: AccessIdentity) => body(await appAccess(new Request(`${site.origin}/api/access/apps`), env, caller));
   level(employee.id, "stripe", "read"); level(employee.id, "cloudflare", "read");
   expect(await readback(employee)).toEqual({ state: "current", role: "employee", manages: false, signIn: true, code: "off", revision: 1, apps: ["access", "orders"],
     keys: [{ id: "stripe", title: "Stripe", level: "read" }, { id: "cloudflare", title: "Cloudflare", level: "read" }] });

@@ -54,7 +54,7 @@ The scaffold SHALL ship a `test` script and a suite over its own code, which the
 
 ### Requirement: npm test runs absolute quality gates
 
-The scaffold's `npm test` SHALL fail on any coverage below 100%, a function over the complexity cap, a file over 500 lines, an explicit `any`, a lint warning, dead code, or duplicated code. The gates SHALL be absolute, not baselined, and the scaffold SHALL pass all of them as shipped, with no extra workflow. The one folder of ready-made parts copied into the app SHALL be exempt from the coverage, dead-code, and duplicated-code gates and from the lint rule on what a component file exports, and from nothing else; no other folder SHALL be exempt.
+The scaffold's `npm test` SHALL fail on any coverage below 100%, a function over the complexity cap, a file over 500 lines, an explicit `any`, a type error, a lint warning, dead code, or duplicated code. The type gate SHALL cover the app's test files as well as its source. The gates SHALL be absolute, not baselined, and the scaffold SHALL pass all of them as shipped, with no extra workflow. The one folder of ready-made parts copied into the app SHALL be exempt from the coverage, dead-code, and duplicated-code gates and from the lint rule on what a component file exports, and from nothing else; no other folder SHALL be exempt.
 
 #### Scenario: A violation
 
@@ -75,6 +75,11 @@ The scaffold's `npm test` SHALL fail on any coverage below 100%, a function over
 
 - **WHEN** a commit copies a ready-made part into the parts folder and a screen uses it with an uncovered line of the screen's own
 - **THEN** `npm test` exits non-zero for the screen's line, and reports nothing for the copied part's own untested lines
+
+#### Scenario: A type error in a test file
+
+- **WHEN** a commit adds a test for the Worker that passes a value of the wrong type and still passes when run
+- **THEN** `npm test` exits non-zero and names that test file
 
 ### Requirement: The starter app is set up to grow
 

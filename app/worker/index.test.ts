@@ -2,6 +2,9 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite
 import { hashKey } from "../../.agents/skills/memory/worker/memory-worker.mjs";
 import type { AppHandler } from "./apps/index";
 import worker from "./index";
+import { body } from "../tests/body";
+import { fakeEnv } from "../tests/env";
+import { jwk, signingPair } from "../tests/signing";
 
 // Hello's routes, plus one that reports which bindings a mini app's handler is handed.
 vi.mock("./apps/hello/api.ts", async (original) => {
@@ -19,8 +22,8 @@ describe("private Worker routing", () => {
   let publicKey: JsonWebKey;
   const assets = { fetch: vi.fn(async () => new Response("asset")) };
   const env = { ASSETS: assets, CF_ACCESS_TEAM_DOMAIN: TEAM, CF_ACCESS_AUD: AUD };
-  const call = (path: string, headers: Record<string, string> = {}, bindings = env, method = "GET") => worker.fetch(
-    new Request(`https://workspace.example.com${path}`, { headers, method }), bindings as Env & typeof env, {} as ExecutionContext,
+  const call = (path: string, headers: Record<string, string> = {}, bindings: object = env, method = "GET") => worker.fetch(
+    new Request(`https://workspace.example.com${path}`, { headers, method }), fakeEnv(bindings),
   );
   const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
   async function token(claims: Record<string, unknown> = { email: "human@example.com" }) {
@@ -29,8 +32,8 @@ describe("private Worker routing", () => {
     return `${input}.${Buffer.from(signature).toString("base64url")}`;
   }
   beforeAll(async () => {
-    signing = await crypto.subtle.generateKey({ name: "RSASSA-PKCS1-v1_5", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" }, true, ["sign", "verify"]);
-    publicKey = await crypto.subtle.exportKey("jwk", signing.publicKey);
+    signing = await signingPair();
+    publicKey = await jwk(signing.publicKey);
   });
   beforeEach(() => {
     assets.fetch.mockClear();
@@ -46,24 +49,24 @@ describe("private Worker routing", () => {
     expect(assets.fetch).not.toHaveBeenCalled();
   });
   it("keeps missing app configuration unavailable, including its static assets", async () => {
-    for (const path of ASSET_PATHS) expect((await call(path, {}, { ASSETS: assets } as typeof env)).status).toBe(503);
+    for (const path of ASSET_PATHS) expect((await call(path, {}, { ASSETS: assets })).status).toBe(503);
     expect(assets.fetch).not.toHaveBeenCalled();
   });
   it("serves an open workspace without login only while no Access identifier is set", async () => {
-    const open = { ASSETS: assets, WORKSPACE_LOGIN: "off" } as unknown as typeof env;
+    const open = { ASSETS: assets, WORKSPACE_LOGIN: "off" };
     for (const path of ASSET_PATHS) expect((await call(path, {}, open)).status, path).toBe(200);
     expect(await (await call("/api/health", {}, open)).json()).toEqual({ ok: true });
-    expect((await call("/_memory/unknown", {}, { ...open, MEMORY_DB: {} } as typeof env)).status).toBe(401);
+    expect((await call("/_memory/unknown", {}, { ...open, MEMORY_DB: {} })).status).toBe(401);
     for (const path of ["/api/actions", "/api/openapi.json"]) expect((await call(path, {}, open)).status).toBe(401);
     expect(assets.fetch).toHaveBeenCalledTimes(ASSET_PATHS.length);
   });
   it("ignores a stale open switch once Access identifiers are set", async () => {
     const stale = { ...env, WORKSPACE_LOGIN: "off" };
     for (const path of [...ASSET_PATHS, "/api/health"]) expect((await call(path, {}, stale)).status, path).toBe(401);
-    const onlyTeam = { ASSETS: assets, WORKSPACE_LOGIN: "off", CF_ACCESS_TEAM_DOMAIN: TEAM } as unknown as typeof env;
+    const onlyTeam = { ASSETS: assets, WORKSPACE_LOGIN: "off", CF_ACCESS_TEAM_DOMAIN: TEAM };
     expect((await call("/", {}, onlyTeam)).status).toBe(503);
     for (const value of ["on", "OFF", ""]) {
-      expect((await call("/", {}, { ASSETS: assets, WORKSPACE_LOGIN: value } as unknown as typeof env)).status, value).toBe(503);
+      expect((await call("/", {}, { ASSETS: assets, WORKSPACE_LOGIN: value })).status, value).toBe(503);
     }
     expect(assets.fetch).not.toHaveBeenCalled();
   });
@@ -128,7 +131,7 @@ describe("private Worker routing", () => {
     const signed = await token();
     const accepted = await call("/api/actions", { "Cf-Access-Jwt-Assertion": signed });
     expect(accepted.status).toBe(200);
-    expect((await accepted.json()).actions.map((a: { operationId: string }) => a.operationId)).toEqual(["hello.greeting", "main.health"]);
+    expect((await body(accepted)).actions.map(a => a.operationId)).toEqual(["hello.greeting", "main.health"]);
     const [header, , signature] = signed.split(".");
     const forged = `${header}.${encode({ email: "admin@example.com" })}.${signature}`;
     for (const assertion of [forged, await token({ email: "human@example.com", exp: 1 }), await token({ email: "human@example.com", aud: "wrong" })]) {
@@ -164,7 +167,7 @@ describe("private Worker routing", () => {
     const get = vi.fn(async () => ({ body: new Blob(["png"]).stream() }));
     const walkEnv = { ...env, MEMORY_BUCKET: { get }, WONG_ACCESS_LOGIN_MANAGEMENT: "private-sign-in-key" };
     expect((await call(picture, {}, walkEnv)).status).toBe(401);
-    const open = { ASSETS: assets, WORKSPACE_LOGIN: "off", MEMORY_BUCKET: { get } } as unknown as typeof env;
+    const open = { ASSETS: assets, WORKSPACE_LOGIN: "off", MEMORY_BUCKET: { get } };
     expect((await call(picture, {}, open)).status).toBe(404);
     expect(get).not.toHaveBeenCalled();
 
@@ -234,7 +237,7 @@ describe("private Worker routing", () => {
       expect(response.status).toBe(303);
     }
     expect((await call(`/?memory_login_link=${marker}`, user)).status).toBe(303);
-    const open = { ASSETS: assets, WORKSPACE_LOGIN: "off", MEMORY_DB: { prepare } } as unknown as typeof env;
+    const open = { ASSETS: assets, WORKSPACE_LOGIN: "off", MEMORY_DB: { prepare } };
     expect((await call(`/?memory_login_link=${marker}`, {}, open)).status).toBe(303);
     for (const path of ["/?memory_login_link=", "/?memory_login_link=invalid"]) {
       const response = await call(path, user, linkedEnv);

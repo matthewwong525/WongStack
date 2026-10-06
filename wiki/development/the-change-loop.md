@@ -116,6 +116,8 @@ This page owns delivery; other surfaces link here.
 
 [`checks.mjs`](../../.github/scripts/checks.mjs) owns discovery, tests and quality reports on both routes, and on this computer with `--worktree`. Callers give repo/base/head/default-branch; the base sets the diff and branch labels context. Missing bases run conservatively. Quality checks continue after failed installs or tests.
 
+**A check proves it can still fail.** A settings file its tool no longer reads passes everything and stays green. So when a change touches a check's settings, the app's packages, or the proof itself, [`npm run test:checks`](../../scripts/check-app-checks.mjs) hands each check of `npm test` a piece of code that is wrong on purpose, and the Test check fails and names any check that lets it through. Other changes skip the proof and say so; one with no base to compare runs it.
+
 **The GitHub staging walkthrough is no rung either.** `/ship` runs [`/verify`](#verifying-the-app) once and merges on the gate whatever the walk says; a walk that cannot run (no credential, budget spent) never blocks. Only a `FAILURE` stops `/ship`, to **ask the user** to fix or merge anyway: a human decision, with *merge anyway* always available.
 
 An **unverifiable** gate is not an absent one: `/save` reports it and carries on, since it is a checkpoint, while `/ship` treats it as unmergeable and stops, never reinterpreting or repeating it.

@@ -14,6 +14,31 @@
       // Every other rule still holds in this folder.
       "files": ["src/components/ui/**"],
       "rules": { "react/only-export-components": "off" }
+    },
+    {
+      // A mini app's page keeps to its own folder, the shared parts and the shared helpers.
+      "files": ["src/apps/*/**"],
+      "rules": {
+        "no-restricted-imports": ["error", { "patterns": [{
+          "group": ["../**", "!../../lib/**", "!../../components/**", "@/apps/**", "@/pages/**"],
+          "message": "A mini app imports only its own folder, src/lib/ and src/components/."
+        }] }]
+      }
+    },
+    {
+      // Its server side keeps to its own folder and the shared action contract.
+      "files": ["worker/apps/*/**"],
+      "rules": {
+        "no-restricted-imports": ["error", { "patterns": [{
+          "group": ["../**", "!../../api/contract.ts", "!../../api/body.ts"],
+          "message": "A mini app's server side imports only its own folder and worker/api/contract.ts."
+        }] }]
+      }
+    },
+    {
+      // A test opens its app inside the main app's router and Home, so the folder rule skips test files.
+      "files": ["**/*.test.ts", "**/*.test.tsx"],
+      "rules": { "no-restricted-imports": "off" }
     }
   ]
 }
