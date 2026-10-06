@@ -56,6 +56,7 @@ You don't read the code, so the automatic checks are what you trust. Three gaps 
 - **2026-10-06** — Check: `.github/scripts/checks.mjs`, `.github/scripts/loosened-checks.mjs` and the new `.github/scripts/check-settings.mjs` share one list of what counts as a check's settings and run the proof when one changes; the loosened-check rule itself is unchanged.
 - **2026-10-06** — Archive checkpoint: the main branch moved from 35.2.0 to 36.3.0 while this was built and merged in with no clash; this is numbered 36.4.0. The look at the saved commit's checks follows this save.
 - **2026-10-06** — Archive checkpoint: the first saved run failed on the new type check alone. A test that arrived from the main branch during the build, in `app/worker/employee-access/management.test.ts`, read a response body with no shape; it now names one. The proof ran in that run and all six checks caught their samples.
+- **2026-10-06** — Archive checkpoint: the second saved run failed on the instruction pages' size limit alone, once the main branch's newer text was counted with this change's. The paragraph on the proof moved from the gate page to `wiki/stack/mini-apps.md`, and the gate page keeps one sentence that links it.
 
 ## Capabilities
 

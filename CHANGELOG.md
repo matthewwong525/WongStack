@@ -10,7 +10,7 @@
 - **A small app keeps to its own folder.** A small app may use its own files and the shared parts and helpers. One that reaches into another app, a main page, or the server's core fails the check, which names the file. The supplied apps already keep to theirs.
 - **WongStack's own scripts keep the testing they have.** 92 of every 100 of their lines are tested, and the floor that stops this from falling moves up from 85 to 92. This changes nothing in your project.
 
-[The gate](wiki/development/the-change-loop.md#the-gate) says when a check is made to prove itself, and [mini apps](wiki/stack/mini-apps.md#the-rules) holds the folder rule.
+[Mini apps](wiki/stack/mini-apps.md#the-rules) says when a check is made to prove itself, and holds the folder rule.
 
 **Updating.** Nothing needs doing by hand. After the update, the checks also read your app's types, test files included, and keep each small app to its own folder. If a check names something in a screen or a test your assistant built, the update's plan lists it and your assistant fixes it.
 
