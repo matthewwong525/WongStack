@@ -6,7 +6,12 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/skills/memory/scripts/session-start.mjs\" --agent claude",
+            "command": "case \":$PATH:\" in *\":$HOME/.local/bin:\"*) ;; *) [ -n \"$CLAUDE_ENV_FILE\" ] && [ -d \"$HOME/.local/bin\" ] && echo 'export PATH=\"$HOME/.local/bin:$PATH\"' >> \"$CLAUDE_ENV_FILE\" ;; esac; true",
+            "timeout": 3
+          },
+          {
+            "type": "command",
+            "command": "PATH=\"$HOME/.local/bin:$PATH\" node \"$CLAUDE_PROJECT_DIR/.claude/skills/memory/scripts/session-start.mjs\" --agent claude",
             "timeout": 5
           }
         ]
@@ -18,7 +23,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/skills/memory/scripts/before-edit.mjs\"",
+            "command": "PATH=\"$HOME/.local/bin:$PATH\" node \"$CLAUDE_PROJECT_DIR/.claude/skills/memory/scripts/before-edit.mjs\"",
             "timeout": 3
           }
         ]

@@ -79,6 +79,22 @@ Setup and a first private link install it from Cloudflare's own channel:
   chmod +x ~/.local/bin/cloudflared
   ```
 
+## Where an assistant finds its tools
+
+An assistant finds a tool in your own folder, `~/.local/bin`, only when it knows that folder. Each learns it differently:
+
+| Assistant | Where it gets `PATH` |
+|---|---|
+| Codex | Each command and hook starts a login shell, which reads your shell's start-up file. |
+| Claude Code | It keeps the `PATH` its app started with, whatever a start-up file sets. |
+
+So setup tells both:
+
+- **Setup's line goes first in the start-up file.** Ubuntu's `~/.bashrc` stops near its top for a shell that is not interactive, so a line below that is never read. [The snippet](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/tools.md#1-the-tools) writes it.
+- **Claude Code is told at session start.** A hook in [`.agents/settings.json`](../../.agents/settings.json) adds the folder when it exists and `PATH` lacks it.
+
+Any other assistant gets only the line: one that reads no start-up file still misses the tools.
+
 ## Optional Cloudflare management tool
 
 The assistant uses [Cloudflare's cf CLI](../stack/cloudflare-cli.md) when an authorized task needs account inspection or one-off resource management. It installs this optional tool on its computer at the point of need, under the existing installation convention. The guide owns installation, account selection, and command discovery.
