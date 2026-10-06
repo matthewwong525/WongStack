@@ -1,0 +1,88 @@
+{
+  "format": "verify-journey-1",
+  "id": "the-verification-machine-checks-a-preview",
+  "scenario": {
+    "capability": "employee-onboarding",
+    "requirement": "Current app grants govern business access everywhere",
+    "scenario": "The verification machine checks a preview"
+  },
+  "thenDigest": "54075d42c9b83a019f0e4434515886fdaca1fd4ad7cde3da0f49e85dcba08430",
+  "probe": "browser",
+  "writes": true,
+  "sourcePaths": [
+    "app/tsconfig.worker.json",
+    "app/worker/employee-access/core.ts",
+    "app/worker/employee-access/members.ts"
+  ],
+  "recordedAt": "fdf72650dd41ee967709fe6f8f65fc1b3f2b2fe5",
+  "steps": [
+    [
+      "open",
+      "{url}/apps/access/people/dana%40example.invalid"
+    ],
+    [
+      "wait",
+      "--load",
+      "networkidle"
+    ],
+    [
+      "wait",
+      "--text",
+      "Can manage Access"
+    ],
+    [
+      "find",
+      "role",
+      "checkbox",
+      "click",
+      "--name",
+      "Tip calculator"
+    ],
+    [
+      "find",
+      "role",
+      "button",
+      "click",
+      "--name",
+      "Save access"
+    ],
+    [
+      "wait",
+      "--text",
+      "Saved."
+    ],
+    [
+      "open",
+      "{url}/apps/access/people/dana%40example.invalid"
+    ],
+    [
+      "wait",
+      "--load",
+      "networkidle"
+    ],
+    [
+      "wait",
+      "--text",
+      "Can manage Access"
+    ],
+    [
+      "get",
+      "text",
+      "body"
+    ]
+  ],
+  "expect": [
+    {
+      "text": "dana@example.invalid"
+    },
+    {
+      "text": "Manager"
+    },
+    {
+      "text": "Can manage Access"
+    },
+    {
+      "path": "/apps/access/people/dana%40example.invalid"
+    }
+  ]
+}

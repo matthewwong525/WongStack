@@ -63,3 +63,4 @@ None: `employee-onboarding` already promises that only the employer makes or unm
 - **2026-10-06** — Assumed: four sentences under *Managers* in `wiki/stack/employee-access.md` were shortened with their meaning kept, because the page sat 8 words under its 3,000-word cap and the new paragraph adds 24.
 - **2026-10-06** — Asked whether to publish, after asking how the change helps this repo → chose *Publish it*.
 - **2026-10-06** — Assumed: archive checkpoint for release 35.2.1; bringing `main` in kept both changelog entries and both sides' wording under *Managers* in `wiki/stack/employee-access.md`, which now sits at its 3,000-word cap.
+- **2026-10-06** — Assumed: archive checkpoint after the preview walk (SUCCESS); one check is kept from it, a manager in the practice data stays a manager after an ordinary save, because no kept check covered a save on a manager.
