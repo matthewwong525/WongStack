@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (patch) — Notes from the first real routines
+
+- **The routines page says how long a run takes.** About 10 seconds to start, then 1 to 3 minutes for a small task on Cloudflare's own models, and up to 10 for one that searches memory and leaves a note.
+- **It names what Cloudflare says when a model needs credit.** Picking Claude or GPT with no credit loaded gets *402 Insufficient wholesale credits*, and your routines keep the model they had.
+- **The memory page says how a scheduled run writes a note.** A run has no chat session, so it leaves the session out; otherwise the note is held for a chat that never comes.
+
+**Updating.** Nothing needs doing by hand.
+
 ## 36.1.0 — The key link says what happened
 
 - **A key link that ends with nothing saved says whether you opened it.** Never opened: your assistant says so and asks whether the link loaded, before it sends another. Opened but nothing saved: it asks where you got stuck. Before, it could only say the link closed, and sent another.
