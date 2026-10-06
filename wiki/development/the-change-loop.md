@@ -75,6 +75,8 @@ Each skill owns its own procedure; this list is what each stage is for.
 
 Loop back any time: each `/save` keeps the plan and Status current and **appends** to the Decision log, never rewriting it, so the change holds the story of the work. Re-`/plan` if the spec needs to change.
 
+**A check only possible after publishing is a Decision-log line, not a task.** `/ship` archives the plan before merging and refuses an unticked task; the ship report answers the line.
+
 ### `/apply` never saves to stop, but may save to finish a task
 
 `/apply` never saves to stop or between implementation parts. Prepare all source and tests first, then run the local pre-check once; tick implementation boxes on source review and report the pre-check as local. Move existing intermediate test gates to the final phase without new approval or lost acceptance obligations, and log the timing change. Routine final checks belong to `/save` or `/ship`, rather than source checklist boxes. Explicit early requests retain their reach.

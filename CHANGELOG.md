@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+
+## Next (patch) — /dream's record fits, and three guides say what chats learned
+
+- **A dream's record of the pages it checked now always fits.** Past about six pages the record was longer than one memory note allows, so the last step of a dream stopped. It is now split across notes, and the next dream reads them all.
+- **The change loop says where a check goes when it can only happen after publishing**: a line in the plan's Decision log, not a task. A task like *confirm the live look* could never be ticked, because publishing files the plan away first.
+- **Browsing says never to close every browser at once.** `agent-browser close --all` closes every chat's browser on the computer; a test names its own session.
+- **Cloudflare credentials says how a one-off permission is handled**: ask first, then a 15-minute key for that permission alone, never written to a file.
+
+**Updating.** Nothing needs doing by hand.
+
 ## 36.3.0 — /dream keeps your memory and wiki current
 
 - **You can type `/dream`.** Your assistant goes back over what memory has gained since the last dream and brings your wiki up to date. It runs on the model you already use, and only when you type it: your assistant never starts one on its own.

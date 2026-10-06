@@ -103,6 +103,7 @@ The authorization covers the widen and nothing else:
 
 - **Creating or deleting anything billable still asks first.** Widening costs nothing; a database is a different question.
 - **A widen that fails or doesn't verify still stops the run.** Nothing is provisioned on an unconfirmed permission set.
+- **A one-off permission outside that list asks first.** With a yes: a 15-minute account token for it alone, held in memory, then deleted.
 - **Narrowing back is still offered, never assumed.** Below.
 
 Read it against [the trade-off](#the-security-trade-off-stated-plainly): this is a real grant, on a token that is effectively account-root.

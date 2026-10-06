@@ -17,7 +17,7 @@ disable-model-invocation: true
 6. **Check sources.** Before replacing or removing a line, read the contradicting fact's `M source <fact-id>`.
 7. **Never edit a `shipped` page.** List what belongs on or contradicts one: page and fact.
 8. **Publish** an edit: `git fetch origin main`, `git switch -c dream-<date> origin/main`, then `/ship` minus its closing question.
-9. **Record** by the write gate on slug `wiki-dream`: a `project` fact tagged `dream`, `Dream <date>: read facts up to #<id>. Checked: <pages>.`, even with no edit; and one `thread` tagged `improve` with step 7's list.
+9. **Record** by the write gate on slug `wiki-dream`: a `project` fact tagged `dream`, `Dream <date>: read facts up to #<id>. Checked: <pages>.`, even with no edit, in several such facts when the pages would pass a fact's 400 characters; and one `thread` tagged `improve` with step 7's list.
 10. **Report** in [plain words](../explore/references/asking-the-user.md#write-in-plain-words): each page changed with its fact, step 7's list, the skipped count.
 
 `/dream --dry-run` runs steps 3 to 7 anywhere, prints each edit with its fact, and writes nothing: no file, no memory.
