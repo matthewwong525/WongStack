@@ -1,0 +1,9 @@
+{
+  "name": "wongstack-routine-tools",
+  "private": true,
+  "description": "What a routine's run installs in its short-lived computer: the assistant and OpenSpec. The runner writes this file and its lockfile there and runs npm ci, so every run gets the same files.",
+  "dependencies": {
+    "@earendil-works/pi-coding-agent": "1.0.3",
+    "@fission-ai/openspec": "1.13.2"
+  }
+}
