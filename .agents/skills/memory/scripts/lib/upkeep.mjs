@@ -11,11 +11,11 @@ export const STALE_DAYS = 30;
 const MAX_BODY = 400;
 
 // A slash command in a thread names the verb whose next run should check it.
-const SLASH = /(?<![\w/.-])\/(explore|plan|apply|save|ship|continue|verify|routine|close|improve|wong-sync|wong-setup)(?![\w-])/g;
-const VERB_OF = { 'wong-sync': 'sync', 'wong-setup': 'setup' };
+const SLASH = /(?<![\w/.-])\/(explore|plan|apply|save|ship|continue|verify|routine|close|improve-code|improve|dream-memory|dream|wong-sync|wong-setup)(?![\w-])/g;
+const VERB_OF = { 'wong-sync': 'sync', 'wong-setup': 'setup', 'improve-code': 'improve', 'dream-memory': 'dream' };
 
 // Words that look like a path: a `/` or a file extension, with quotes, brackets, and end punctuation dropped.
-const pathWords = body => body.split(/[\s`"'()<>[\]{},;]+/).map(word => word.replace(/[.:!?]+$/, ''))
+export const pathWords = body => body.split(/[\s`"'()<>[\]{},;]+/).map(word => word.replace(/[.:!?]+$/, ''))
   .filter(word => word.includes('/') || /\.[a-z0-9]+$/i.test(word));
 
 // The area tags a fact's words name, and for a thread, the verb tags its slash commands name.

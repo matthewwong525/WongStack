@@ -39,7 +39,7 @@ Keep the dependencies few. WongStack needs `git`, [`gh`](https://cli.github.com/
 
 A session ends and everything it worked out goes with it, unless a file keeps it. So the work writes its own record: the plan and the decisions behind it, the session's facts in the [memory store](development/memory.md), and any [repeatable knowledge](wiki-style.md#repeatable-knowledge) in the wiki, written when it is learned. A session that ends without `/save` is captured by a background run, and the next session starts with a digest of what the repo remembers.
 
-Give that context by [progressive disclosure](wiki-style.md) — one place to start, each page breaking down into more detail — so an agent reads what the task needs and no more. The wiki grows from use, with the wiki rules loaded for every edit; request an audit with [`/improve`](development/repository-improvement.md). Because it all lives in the repo, the next teammate starts where the last one stopped.
+Give that context by [progressive disclosure](wiki-style.md) — one place to start, each page breaking down into more detail — so an agent reads what the task needs and no more. The wiki grows from use, with the wiki rules loaded for every edit; keep it true with [`/dream-memory`](development/wiki-dream.md). Because it all lives in the repo, the next teammate starts where the last one stopped.
 
 ### Give AI as much access as you can, and as little autonomy as it needs
 
@@ -58,7 +58,7 @@ The more an agent can reach, the more it does for you, and the more damage a wro
 - **Active changes** own work in progress. Each [change loop](development/the-change-loop.md) plan lives under `openspec/changes/<name>/` with its tasks, status, and decision log.
 - **Archived changes** own what shipped and why.
 - **The memory store** owns session context outside the repo: short typed facts that every session reads as a digest at start, and the raw transcripts behind them. [Session memory](development/memory.md) owns how it works.
-- **Skills** turn the process into commands an agent runs: `/explore`, `/plan`, `/apply`, `/save`, `/continue`, `/ship`, `/close`, `/verify`, `/improve`, `/routine`, `/wong-sync`.
+- **Skills** turn the process into commands an agent runs: `/explore`, `/plan`, `/apply`, `/save`, `/continue`, `/ship`, `/close`, `/verify`, `/improve-code`, `/dream-memory`, `/routine`, `/wong-sync`.
 
 Claude Code is one way to run these. The durable part is the files: any agent that reads files, edits files, runs shell commands, and follows the skill runbooks can do the same work.
 

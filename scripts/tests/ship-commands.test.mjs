@@ -4,7 +4,7 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, wr
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
-import { entryOnTop } from '../../.agents/skills/ship/scripts/ship.mjs';
+import { entryOnTop, mainVerdict } from '../../.agents/skills/ship/scripts/ship.mjs';
 
 const script = new URL('../../.agents/skills/ship/scripts/ship.mjs', import.meta.url).pathname;
 const ARCHIVE = 'openspec/changes/archive/2026-10-04-demo';
@@ -26,7 +26,7 @@ appendFileSync(join(dir, 'calls'), 'gh ' + line + '\\n');
 const s = JSON.parse(readFileSync(join(dir, 'gh.json'), 'utf8'));
 const out = text => { process.stdout.write(text + '\\n'); process.exit(0); };
 const fail = (text, code = 1) => { process.stderr.write(text + '\\n'); process.exit(code); };
-if (line.startsWith('api repos/:owner/:repo/commits/main/check-runs')) { if (s.mainChecksError) fail(s.mainChecksError); out(s.mainChecks ?? 'ok'); }
+if (line.startsWith('api repos/:owner/:repo/commits/main/check-runs')) { if (s.mainChecksError) fail(s.mainChecksError); out(s.mainChecks ?? 'test\tsuccess'); }
 if (line.startsWith('repo view --json defaultBranchRef')) out('main');
 if (line.startsWith('repo view --json nameWithOwner')) out('team/repo');
 if (line.startsWith('pr view --json number --jq')) out('7');
@@ -198,8 +198,16 @@ test('unchecked tasks stop before the archive and are listed', t => {
   assert.doesNotMatch(f.calls(), /openspec (validate|archive)/);
 });
 
+test('the default branch is judged by the project’s own checks, never Dependabot’s update job', () => {
+  assert.equal(mainVerdict('test\tsuccess\nDependabot\tfailure\nDependabot\tsuccess\n'), 'ok');
+  assert.equal(mainVerdict('Dependabot\tfailure\n'), 'ok');
+  assert.equal(mainVerdict('test\tsuccess\nbuild\tcancelled\n'), 'failure');
+  assert.equal(mainVerdict('test\tpending\n'), 'ok');
+  assert.equal(mainVerdict(''), '');
+});
+
 test('a failing or unreadable default branch stops before any change is read', t => {
-  const f = fixture(t, { gh: { mainChecks: 'failure' } });
+  const f = fixture(t, { gh: { mainChecks: 'test\tsuccess\nbuild\tfailure' } });
   f.commit(f.change('demo'));
   const failing = f.run(['prepare', '--change', 'demo']);
   assert.equal(failing.status, 6);

@@ -54,7 +54,18 @@ finish   merge the gated pull request, promote secret edits, look at the live ap
 const here = dirname(fileURLToPath(import.meta.url));
 const SELF = 'node .claude/skills/ship/scripts/ship.mjs';
 const ARTIFACTS_RUN = join(here, '..', '..', 'save', 'scripts', 'artifacts-run.mjs');
-const MAIN_CHECKS = '[.check_runs[]] | map(.conclusion) | (if (index("failure") or index("cancelled")) then "failure" else "ok" end)';
+const MAIN_CHECKS = '.check_runs[] | [.name, .conclusion // "pending"] | @tsv';
+// Dependabot's own update job attaches to the default branch's commit, and fails when a security
+// fix has no version to move to. It is not one of the project's checks.
+const NOT_OUR_CHECKS = new Set(['Dependabot']);
+
+/** `ok`, `failure`, or '' (nothing to read) from `name<TAB>conclusion` lines of the default branch's check runs. */
+export function mainVerdict(text) {
+  const runs = String(text).split('\n').filter(Boolean).map(line => line.split('\t'));
+  if (!runs.length) return '';
+  const ours = runs.filter(([name]) => !NOT_OUR_CHECKS.has(name));
+  return ours.some(([, conclusion]) => conclusion === 'failure' || conclusion === 'cancelled') ? 'failure' : 'ok';
+}
 const MECHANICAL = new Set(['CHANGELOG.md', 'VERSION']);
 
 class Stop extends Error {
@@ -239,7 +250,7 @@ function prepare(values) {
   say(`AHEAD=${ahead}`);
   // A red or unreadable default branch stops every ship, a new intent included, before any build.
   const checks = artifacts ? artifactsDefaultChecks(base) : sh('gh', ['api', `repos/:owner/:repo/commits/${base}/check-runs`, '--jq', MAIN_CHECKS]);
-  const answer = checks.status === 0 ? checks.stdout.trim() : '';
+  const answer = checks.status !== 0 ? '' : artifacts ? checks.stdout.trim() : mainVerdict(checks.stdout);
   say(`DEFAULT_CHECKS=${answer || 'unknown'}`);
   if (answer === 'failure') throw new Stop(6, [`NEXT: ${base}'s checks are failing. Fix the default branch first; ship nothing onto it.`]);
   if (answer !== 'ok' && artifacts) throw new Stop(6, [`error=${checks.stderr}`, `NEXT: ${base}'s checks could not be read. Report the message above and stop.`]);

@@ -10,6 +10,7 @@ import { parseEnv } from '../../.agents/skills/memory/scripts/lib/store.mjs';
 import { writeEnvKey } from '../../.agents/skills/memory/scripts/lib/members.mjs';
 import { MAX_BYTES, MAX_LINES, PERSON_MAX_BYTES } from '../../.agents/skills/memory/scripts/lib/digest.mjs';
 import { BRIEF_MAX_BYTES, renderBrief } from '../../.agents/skills/memory/scripts/lib/brief.mjs';
+import { wordTags } from '../../.agents/skills/memory/scripts/lib/upkeep.mjs';
 import { memory, rows, SECRET, setup, tempDir, writeJsonFile } from './fixtures/memory/harness.mjs';
 
 const put = (env, input) => memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, `in-${Date.now()}-${Math.random()}.json`, input)]);
@@ -754,6 +755,16 @@ test('a look-alike tag merges as an alias: a search by the main tag finds it, an
   }
   assert.equal((await tag('memory-worker', '--no-alias')).code, 0);
   assert.equal(rows(env, "SELECT alias_of FROM tags WHERE name = 'memory-worker'")[0].alias_of, null);
+});
+
+test('a thread naming a slash command gets that verb\'s tag, a renamed skill under either name', () => {
+  const tags = body => wordTags({ type: 'thread', body }, {}, '/repo').sort();
+  assert.deepEqual(tags('Check on the next /improve-code run.'), ['improve']);
+  assert.deepEqual(tags('Check on the next /improve run.'), ['improve']);
+  assert.deepEqual(tags('The next /dream-memory should re-check this, after /wong-sync.'), ['dream', 'sync']);
+  assert.deepEqual(tags('The next /dream should re-check this.'), ['dream']);
+  assert.deepEqual(tags('A path is no command: wiki/dream and /improve-codes.'), []);
+  assert.deepEqual(wordTags({ type: 'project', body: 'A settled fact about /improve-code.' }, {}, '/repo'), [], 'only a thread takes a verb tag');
 });
 
 test('a put-facts whose upkeep fails still stores its fact and exits 0, and the next write retries upkeep', async t => {

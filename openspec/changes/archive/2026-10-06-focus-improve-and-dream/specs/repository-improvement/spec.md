@@ -1,10 +1,6 @@
-# repository-improvement Specification
+# Spec Delta
 
-## Purpose
-
-Outcome-led, evidence-based improvement of code structure through `/improve-code`, which plans one supported change that makes a project simpler or safer to change and stops for the person's yes.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Selection rests on evidence
 
@@ -75,6 +71,8 @@ When the selected problem is a mistake a deterministic check could catch, the pl
 - **WHEN** a note shows the person twice turned down a menu of drafts and asked for one ready draft
 - **THEN** `/improve-code` builds nothing for it and its report names the note as one for a normal request
 
+## ADDED Requirements
+
 ### Requirement: Behaviour is pinned before code is restructured
 
 A plan from `/improve-code` SHALL put a test that holds the behaviour being kept before any restructuring, passing before and after the change; a type check or a lint alone SHALL NOT count. The plan SHALL require that a built result which does not leave the code easier to read or change is undone and not published.
@@ -104,3 +102,11 @@ A normal invocation SHALL authorize selecting one improvement and writing its pl
 #### Scenario: A scheduled run
 - **WHEN** a routine runs `/improve-code` and one improvement is supported
 - **THEN** a saved plan waits for the person, their next chat shows it, and nothing is built or published
+
+## REMOVED Requirements
+
+### Requirement: One change through /ship
+
+**Reason**: `/improve-code` no longer delivers a change; it writes a plan and stops for the person's yes.
+
+**Migration**: Build a plan from `/improve-code` with `/apply`, or publish it with `/ship`.

@@ -3,6 +3,26 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 37.0.0 — /improve-code plans code fixes and /dream-memory checks everything your project remembers
+
+- **Two clearer names.** `/improve` is now `/improve-code` and `/dream` is now `/dream-memory`. Each name says what it works on.
+- **Schedules you already made keep running.** A schedule that still uses an old name runs the renamed skill.
+- **`/improve-code` works only on how the code is built.** It makes the code simpler and safer to change. A new feature or a wording fix is a normal request, and trouble with memory or the wiki goes to `/dream-memory`.
+- **It plans, then stops for you.** It no longer builds or publishes on its own. It finds one improvement, writes the plan with the reason and the evidence, and ends at the plan's link, where you choose to build it, change it, or drop it. A scheduled run leaves the plan saved and waiting, and writes no second plan while one waits.
+- **It looks where the trouble is.** It starts from where past chats struggled and where the code changes most, not from a checklist.
+- **Its plan proves the change is safe, or undoes it.** Every plan first locks in what the code does today with a test, then reshapes it. If the built result is not easier to read, the build undoes it and says so.
+- **It remembers a no.** An idea it turned down, or a plan you dropped, is saved with the reason, so a later run does not suggest it again.
+- **Every run ends one of three ways**: clean, planned, or blocked.
+- **`/dream-memory` reads everything your project remembers.** It compares the wiki, saved facts, the specs, and past plans with each other and with the code. It fixes your own wiki pages and saved facts itself. A spec that is wrong, or a plan left half done, it lists for your yes.
+- **It corrects saved facts the project has outgrown.** A fact that names a file that is gone gets a newer fact saying what is true. The old one stays as history.
+- **A stricter test for what goes on the wiki.** A fact is kept only if it will still be true in six months and would change what someone does. Guidance that exists but is buried gets moved or reworded, not written a second time.
+- **A fault in the product is reported, not hidden.** When a page is right and the product is wrong, the page is left alone and the fault is passed to `/improve-code`.
+- **A publish is no longer blocked by Dependabot's own update job.** When GitHub's automatic security update can not find a version to move to, its failed job sat on the newest commit and stopped every publish. The publish step now counts only the project's own checks.
+
+[Code improvement](wiki/development/repository-improvement.md) and [Memory dream](wiki/development/wiki-dream.md) say how each works.
+
+**Updating.** Type `/improve-code` where you typed `/improve`, and `/dream-memory` where you typed `/dream`; the old names no longer work when typed. Schedules you already made keep running with no change. `/improve-code` now stops at a plan, so nothing is built until you say yes.
+
 ## 36.4.0 — Checks that can't go quiet
 
 - **A check that has stopped checking turns red.** A check can switch itself off and still pass: the repeated-code check once passed everything because its settings file held a comment. Now, when a change touches a check's settings or the version of a tool behind one, each check is handed a small piece of code that is wrong on purpose. A check that lets it through is named, and the change can't be published. Other changes skip this, so they take no longer.
