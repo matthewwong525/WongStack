@@ -4,6 +4,7 @@
 // no edit here. wiki/stack/mini-apps.md
 import { dispatch, keyUses, registrations, type Route } from "../api/contract.ts";
 import type { AccessIdentity } from "../access.ts";
+import { serverFolders } from "../employee-access/catalogue.ts";
 import type { PolicyEnv } from "../employee-access/policy.ts";
 
 // The memory store and the sign-in list key: a mini app is handed neither.
@@ -33,13 +34,17 @@ export const APP_API = /^\/apps\/([^/]+)\/api(?:\/(.*))?$/;
 
 // Each app's routes, keyed "METHOD route", and the saved keys its api.ts exports as `keys`:
 // its bare handlers, and its actions that list none, get those. Maps, not objects, so a route
-// or an app named `constructor` can't reach a property every object inherits.
-type AppModule = { routes: Map<string, Route>; keys?: readonly string[] };
+// or an app named `constructor` can't reach a property every object inherits. A folder with no screen
+// also exports a `title` and a `description`: Access lists it by them.
+type AppModule = { routes: Map<string, Route>; keys?: readonly string[]; title?: unknown; description?: unknown };
 const apps = new Map(
   Object.entries(import.meta.glob<AppModule>("./*/api.ts", { eager: true })).map(
     ([path, module]) => [path.split("/")[1], module],
   ),
 );
+
+// Each folder is an area a person can be given, screen or not: the catalogue is handed them here.
+serverFolders(apps);
 
 export const appActions = [...apps].flatMap(([name, { routes, keys }]) => registrations(routes, name, undefined, keys));
 export const appKeyUse = [...apps].flatMap(([name, { routes, keys }]) => keyUses(routes, name, undefined, keys));

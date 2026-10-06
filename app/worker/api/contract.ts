@@ -124,7 +124,9 @@ export function defineAction(action: Action): Action {
   return action;
 }
 
-/** What a call needs of each key its route lists. A bare handler has no effect to read, so its method decides. */
+/** What a call needs of each area it belongs to and each key its route lists: `read` looks things up, `write`
+ *  changes or sends them. A bare handler has no effect to read, so its method decides: describe a `POST` that
+ *  only looks things up as an action with `effect: "read"`. */
 export const needFor = (route: Route, method: string): Level =>
   (typeof route === "function" ? ["GET", "HEAD"].includes(method) : route.effect === "read") ? "read" : "write";
 

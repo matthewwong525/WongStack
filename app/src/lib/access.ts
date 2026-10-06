@@ -6,7 +6,7 @@ const prompt = z.discriminatedUnion('state', [
   z.object({ state: z.literal('unavailable'), message: z.string() }),
 ])
 const role = z.enum(['owner', 'employee'])
-// A saved key's level: `read` looks things up, `write` also changes or sends things. No level is None.
+// A level, for an area or a saved key: `read` looks things up, `write` also changes or sends things. No level is None.
 const level = z.enum(['read', 'write'])
 const levels = z.record(z.string(), level)
 // Whether this person may connect an assistant. `ready`: Connect installs the project for them. `lacked`: they
@@ -15,7 +15,7 @@ const levels = z.record(z.string(), level)
 const code = z.enum(['ready', 'lacked', 'off']).default('off')
 export type Code = z.infer<typeof code>
 export const setupSchema = z.object({ role, api: z.literal('authenticated'),
-  identity: z.object({ email: z.string(), subject: z.string() }), apps: z.array(z.string()), prompt, code,
+  identity: z.object({ email: z.string(), subject: z.string() }), apps: z.array(z.string()), titles: z.record(z.string(), z.string()).default({}), prompt, code,
   repository: z.literal('manual_provider_setup'), memory: z.literal('independent_operator_setup') })
 // `legacy` has no recorded owner. `not_started` knows the owner, and everyone still keeps every app.
 // `manages`: the person may manage Access, as the owner or a manager the owner chose; left out means no.
@@ -25,13 +25,17 @@ const signIn = z.boolean().optional()
 export const appAccessSchema = z.discriminatedUnion('state', [
   z.object({ state: z.literal('legacy'), signIn, code }),
   z.object({ state: z.literal('not_started'), role, manages, signIn, code, apps: z.array(z.string()) }),
-  // `keys` is the signed-in person's own level for each saved key, by name; empty until key levels start.
+  // `apps` is the screens the person can open. `areas` is their own level for each area they hold, a screen or not,
+  // and `keys` their own level for each saved key, by name; empty until key levels start.
   z.object({ state: z.literal('current'), role, manages, signIn, code, apps: z.array(z.string()), revision: z.number(),
+    areas: z.array(z.object({ id: z.string(), title: z.string(), screen: z.boolean(), level })).optional(),
     keys: z.array(z.object({ id: z.string(), title: z.string(), level })).optional() }),
 ])
 const use = z.object({ id: z.string(), need: level })
-// `settled` is true once the sign-in list matches a person's last change. A person has a `role`, whose apps
-// and key levels are then theirs, or their own set. `kept` counts the people who kept their access when key
+// `settled` is true once the sign-in list matches a person's last change. A person has a `role`, whose area
+// and key levels are then theirs, or their own set: `apps` holds a level per area, by its folder. `areas` is
+// every area a person can be given, an app with a screen or a group of actions with none, and `skills` what each
+// skill needs: who can run one is worked out from a set, never stored. `kept` counts the people who kept their access when key
 // levels started, until the next save. `appKeys` is what each app does with each key; a key's `usedBy` is the
 // same fact from the key's side, `alone` means it also works with no app, `setup` that setup makes it, and
 // `saved` that the app holds it. No key's value is ever here. `viewer` is who is looking, the owner or a manager;
@@ -42,12 +46,14 @@ const project = z.enum(['ready', 'key', 'setup'])
 export const statusSchema = z.object({ ownerEmail: z.string(), environment: z.enum(['live', 'practice']),
   viewer: z.object({ email: z.string(), owner: z.boolean() }),
   key: z.enum(['ready', 'missing', 'practice']), started: z.boolean(), imported: z.number(),
-  keysStarted: z.boolean(), kept: z.number(), apps: z.array(z.string()), appKeys: z.record(z.string(), z.array(use)),
+  keysStarted: z.boolean(), kept: z.number(), appKeys: z.record(z.string(), z.array(use)),
+  areas: z.array(z.object({ id: z.string(), title: z.string(), description: z.string(), screen: z.boolean() })),
+  skills: z.array(z.object({ id: z.string(), title: z.string(), areas: levels, keys: levels })),
   keys: z.array(z.object({ id: z.string(), title: z.string(), levels: z.array(level), saved: z.boolean(), setup: z.boolean(),
     usedBy: z.array(z.object({ app: z.string(), need: level })), alone: z.boolean() })),
-  roles: z.array(z.object({ id: z.string(), name: z.string(), apps: z.array(z.string()), keys: levels })),
+  roles: z.array(z.object({ id: z.string(), name: z.string(), apps: levels, keys: levels })),
   people: z.array(z.object({ email: z.string(), status: z.enum(['active', 'removed']), settled: z.boolean(),
-    role: z.string().nullable(), manager: z.boolean(), apps: z.array(z.string()), keys: levels })),
+    role: z.string().nullable(), manager: z.boolean(), apps: levels, keys: levels })),
   work: z.array(z.object({ kind: z.enum(['policy', 'sessions']), status: z.enum(['pending', 'ready', 'failed']) })),
   project: project.optional() })
   .transform(status => ({ ...status, project: status.project ?? (status.keys.some(key => key.id === 'code' && key.saved) ? 'ready' : 'key') }))
@@ -55,6 +61,8 @@ export type Status = z.infer<typeof statusSchema>
 export type Person = Status['people'][number]
 export type Role = Status['roles'][number]
 export type SavedKey = Status['keys'][number]
+export type Area = Status['areas'][number]
+export type Skill = Status['skills'][number]
 export type Level = z.infer<typeof level>
 
 export async function readAccess<T>(path: string, schema: z.ZodType<T>, signal?: AbortSignal): Promise<T> {

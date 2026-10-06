@@ -2,11 +2,15 @@ import { expect, it } from "vitest";
 import { z } from "zod";
 import { discovery } from "./discovery";
 import { defineAction, registrations } from "./contract";
+import { apiActions } from "./router";
+import { appActions } from "../apps/index";
 import { body } from "../../tests/body";
 import { fakeEnv } from "../../tests/env";
 const env = {} as Env;
+// The supplied actions alone: a build may hold other folders, as this source repo holds a sample area.
+const supplied = [...apiActions, ...appActions].filter(({ app }) => app === "main" || app === "hello");
 const identity = { id: "employee@example.com", kind: "user" as const, claims: { aud: "a", iss: "i", exp: 9999999999 } };
-const get = (path = "/api/actions", registry?: Parameters<typeof discovery>[3], headers = {}, method = "GET") => discovery(new Request(`https://example.com${path}`, { headers, method }), env, identity, registry);
+const get = (path = "/api/actions", registry: Parameters<typeof discovery>[3] = supplied, headers = {}, method = "GET") => discovery(new Request(`https://example.com${path}`, { headers, method }), env, identity, registry);
 const synthetic = (id = "sample.create", extra = {}) => defineAction({ operationId: id, summary: "Create sample", description: "Synthetic sample",
   encoding: "json", effect: "write", agentAvailable: true, input: z.strictObject({ title: z.string().describe("The sample's title") }), output: z.strictObject({ id: z.number() }),
   errors: { denied: "Creation denied" }, examples: [{ input: { title: "Sample" }, output: { id: 1 } }], handler: () => Response.json({ id: 1 }, { status: 201 }), ...extra });

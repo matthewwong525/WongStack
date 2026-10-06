@@ -30,7 +30,7 @@ export function KeyPage({ item, ...props }: ViewProps & { item: SavedKey }) {
   return <Page {...props} name={item.title} changed={differs(start, levels)} action="Save access" onSave={() => save('grants', { key: item.id, ...levels })}>
     <p className="text-muted-foreground">{keyState(item, status.environment)}</p>
     {!item.saved && <NextStep status={status} item={item} />}
-    <p>{keyUseLine(item)}</p>
+    <p>{keyUseLine(status, item)}</p>
     {list.map(subject => <LevelChoice key={subject.kind + subject.id} legend={subject.label} levels={item.levels}
       value={levels[subject.kind][subject.id]} onChange={level => setLevels(put(levels, subject, level))} />)}
     {!list.length && <p>No roles or people yet.</p>}

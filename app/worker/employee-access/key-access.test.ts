@@ -11,7 +11,7 @@ import { authorizeRequest, currentPolicy, listedKeys, policyAllows, type PolicyE
 import { body } from "../../tests/body";
 import { fakeEnv } from "../../tests/env";
 
-vi.mock("./catalogue.ts", () => ({ catalogue: ["access", "orders", "payroll"] }));
+vi.mock("./catalogue.ts", async () => (await import("../../tests/employee-access/catalogue")).builtAreas(["access", "orders", "payroll"]));
 vi.mock("../keys.ts", () => ({ keys: {
   stripe: { title: "Stripe", secrets: ["STRIPE_SECRET_KEY"] },
   bank: { title: "Bank", secrets: ["BANK_ID", "BANK_SECRET"] },
@@ -44,7 +44,7 @@ beforeEach(() => {
   handler = vi.fn<AppHandler>(() => Response.json({ ok: true }));
   // Key levels have started; the employee has the orders app and no key level yet.
   f.sql.exec("UPDATE wong_access_installation SET keys_enabled = 1");
-  f.sql.prepare("INSERT INTO wong_access_grants VALUES (?, ?, 'orders', 1)").run(id, employee.id);
+  f.sql.prepare("INSERT INTO wong_access_grants VALUES (?, ?, 'orders', 1, 'write')").run(id, employee.id);
 });
 afterEach(() => f.sql.close());
 
@@ -91,8 +91,13 @@ it("checks an action's own keys before its app's, and every key a route lists", 
   expect(await message(await run(action(), { apps: ["orders"], keys: ["stripe", "bank"] }))).toBe("Bank: Read needed");
   level(employee.id, "bank", "read");
   expect((await run(action(), { apps: ["orders"], keys: ["stripe", "bank"] })).status).toBe(200);
-  // The level adds to the app tick and never replaces it.
-  expect(await message(await run(action(), { apps: ["payroll"], keys: ["stripe"] }))).toBe("App access denied");
+  // The key level adds to the area and never replaces it: the area is judged first.
+  expect(await message(await run(action(), { apps: ["payroll"], keys: ["stripe"] }))).toBe("Payroll: Look up needed");
+  // Both are judged by what the call does: Look up on the area refuses a change that the key's level allows.
+  level(employee.id, "stripe", "write");
+  f.sql.exec("UPDATE wong_access_grants SET level = 'read'");
+  expect((await run(action(), orders)).status).toBe(200);
+  expect(await message(await run(action({ effect: "write" }), orders))).toBe("Orders: Look up & change needed");
   // A route that lists a key nobody registered stays closed, for the owner too.
   for (const identity of [employee, owner]) expect((await run(action(), { apps: ["orders"], keys: ["retired"] }, identity)).status).toBe(403);
 });
@@ -104,7 +109,7 @@ it("lets a key work with no app for a person whose level permits it, and for nob
   level(employee.id, "cloudflare", "read");
   expect((await run(action(), alone)).status).toBe(200);
   // Every app's actions stay refused: the level opens the key's own look-ups and nothing else.
-  expect(await message(await run(action()))).toBe("App access denied");
+  expect(await message(await run(action()))).toBe("Orders: Look up needed");
   expect((await run(action(), alone, owner)).status).toBe(200);
   // A mapping with no keys, or with a key nobody registered, opens nothing, even for the owner.
   for (const mapping of [{ keys: [] }, { keys: ["retired"] }, { keys: ["cloudflare", "retired"] }]) {
@@ -146,29 +151,36 @@ it("ignores levels until they start, and never lets a key work alone before then
   expect(handler).toHaveBeenCalledTimes(5);
 });
 
-it("reads a person's apps and levels from their role, so a role change reaches every holder and no one else", async () => {
+it("reads a person's areas and levels from their role, so a role change reaches every holder and no one else", async () => {
   const [second, third] = [person("second@example.com"), person("third@example.com")];
   f.sql.exec(`INSERT INTO wong_access_members VALUES ('${id}', '${second.id}', 'active', 0, 1, 'now'), ('${id}', '${third.id}', 'active', 0, 1, 'now');
     INSERT INTO wong_access_apps VALUES ('${id}', 'payroll');
     INSERT INTO wong_access_roles VALUES ('${id}', 'sales', 'Sales', 1);
-    INSERT INTO wong_access_role_apps VALUES ('${id}', 'sales', 'orders');
+    INSERT INTO wong_access_role_apps VALUES ('${id}', 'sales', 'orders', 'write');
     INSERT INTO wong_access_role_keys VALUES ('${id}', 'sales', 'stripe', 'read');
     INSERT INTO wong_access_member_roles VALUES ('${id}', '${employee.id}', 'sales'), ('${id}', '${second.id}', 'sales');
-    INSERT INTO wong_access_grants VALUES ('${id}', '${third.id}', 'orders', 1);
-    INSERT INTO wong_access_grants VALUES ('${id}', '${employee.id}', 'payroll', 1);
+    INSERT INTO wong_access_grants VALUES ('${id}', '${third.id}', 'orders', 1, 'write');
+    INSERT INTO wong_access_grants VALUES ('${id}', '${employee.id}', 'payroll', 1, 'write');
     INSERT INTO wong_access_key_grants VALUES ('${id}', '${third.id}', 'stripe', 'write', 1), ('${id}', '${employee.id}', 'bank', 'write', 1)`);
   for (const holder of [employee, second]) {
-    expect(await currentPolicy(env, holder)).toMatchObject({ apps: new Set(["orders"]), keys: new Map([["stripe", "read"]]) });
+    expect(await currentPolicy(env, holder)).toMatchObject({ apps: new Map([["orders", "write"]]), keys: new Map([["stripe", "read"]]) });
     expect((await run(action(), orders, holder)).status).toBe(200);
     expect(await message(await run(action({ effect: "write" }), orders, holder))).toBe("Stripe: Read & write needed");
   }
   // A role is the whole answer: rows left under a holder's own name give nothing.
-  expect(await message(await run(action(), { apps: ["payroll"], keys: ["bank"] }))).toBe("App access denied");
+  expect(await message(await run(action(), { apps: ["payroll"], keys: ["bank"] }))).toBe("Payroll: Look up needed");
   expect((await run(action({ effect: "write" }), orders, third)).status).toBe(200);
   f.sql.exec("UPDATE wong_access_role_keys SET level = 'write'");
   for (const holder of [employee, second]) expect((await run(action({ effect: "write" }), orders, holder)).status).toBe(200);
+  // The role's area level is its holders' level: lowered to Look up, their next change is refused, and their look-ups run.
+  f.sql.exec("UPDATE wong_access_role_apps SET level = 'read'");
+  for (const holder of [employee, second]) {
+    expect(await currentPolicy(env, holder)).toMatchObject({ apps: new Map([["orders", "read"]]) });
+    expect((await run(action(), orders, holder)).status).toBe(200);
+    expect(await message(await run(action({ effect: "write" }), orders, holder))).toBe("Orders: Look up & change needed");
+  }
   f.sql.exec("DELETE FROM wong_access_role_apps");
-  for (const holder of [employee, second]) expect(await message(await run(action(), orders, holder))).toBe("App access denied");
+  for (const holder of [employee, second]) expect(await message(await run(action(), orders, holder))).toBe("Orders: Look up needed");
   expect((await run(action({ effect: "write" }), orders, third)).status).toBe(200);
 });
 
@@ -244,6 +256,7 @@ it("tells each signed-in person their own levels, with the key's name and never 
   const readback = async (caller: AccessIdentity) => body(await appAccess(new Request(`${site.origin}/api/access/apps`), env, caller));
   level(employee.id, "stripe", "read"); level(employee.id, "cloudflare", "read");
   expect(await readback(employee)).toEqual({ state: "current", role: "employee", manages: false, signIn: true, code: "off", revision: 1, apps: ["access", "orders"],
+    areas: [{ id: "orders", title: "Orders", screen: true, level: "write" }],
     keys: [{ id: "stripe", title: "Stripe", level: "read" }, { id: "cloudflare", title: "Cloudflare", level: "read" }] });
   expect((await readback(owner)).keys).toEqual([{ id: "stripe", title: "Stripe", level: "write" }, { id: "bank", title: "Bank", level: "write" }, { id: "cloudflare", title: "Cloudflare", level: "read" }]);
   f.sql.exec("UPDATE wong_access_installation SET keys_enabled = 0");

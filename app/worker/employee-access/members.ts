@@ -2,9 +2,11 @@
 import { z } from "zod";
 import { type Core, type OwnerCore, AccessError, isOwner, now } from "./core.ts";
 import { loginAuthority } from "./login-management.ts";
+import { areas } from "./catalogue.ts";
 import { codeStep } from "./code.ts";
 import { appKeys, keyCatalogue } from "./key-catalogue.ts";
-import { type AccessSet, type Sets, businessApps, changedSet, heldSet, readSets, save, setFields, setWrites } from "./sets.ts";
+import { type AccessSet, type Sets, changedSet, heldSet, readSets, save, setFields, setWrites } from "./sets.ts";
+import { skills } from "./skills.ts";
 
 // `role` is a role's id, or null for the person's own set; left out, they keep what they have.
 // `manager` lets the person manage Access; left out, they keep that too. A removed person is never one.
@@ -12,14 +14,14 @@ const changeSchema = z.object({ email: z.email().transform(value => value.trim()
   removed: z.boolean(), role: z.string().nullable().optional(), manager: z.boolean().optional(), ...setFields }).strict()
   .refine(change => !(change.removed && change.manager));
 type Change = z.infer<typeof changeSchema>;
-const nothing = (): AccessSet => ({ apps: [], keys: {} });
+const nothing = (): AccessSet => ({ apps: {}, keys: {} });
 
 /** The role a save leaves the person with, and their own set when they hold none. Never both. */
 function target({ removed, role: asked, apps, keys }: Change, existing: Sets["people"][number] | undefined, roles: Sets["roles"]) {
   if (removed) return { role: null, own: nothing() };
   const role = asked === undefined ? existing?.role ?? null : asked;
   if (role === null) {
-    // Moving off a role starts from what the role gave; ticks and levels apply on top.
+    // Moving off a role starts from what the role gave; the named levels apply on top.
     return { role, own: changedSet(existing ? heldSet(existing, roles) : nothing(), { apps, keys }) };
   }
   // A role is the whole answer to what a person has: no exceptions on top.
@@ -86,10 +88,13 @@ export async function changeMember(core: Core, value: unknown): Promise<void> {
 }
 
 /** What the owner's screen, and a manager's, shows. No key's value is here: only whether each one is saved.
- *  `viewer` is who asked, and whether they are the owner: the screen draws by it, and every save checks again. */
+ *  `viewer` is who asked, and whether they are the owner: the screen draws by it, and every save checks again.
+ *  `areas` is every area a person can be given, and `skills` what each skill needs: who can run one is worked
+ *  out from a set, never stored. */
 export async function accessStatus(core: Core): Promise<object> {
   const id = core.installationId;
-  const apps = businessApps();
+  // Access itself is everyone's own page, so it is nobody's to give.
+  const given = areas().filter(area => area.id !== "access");
   const [installation, { people, roles }, work, notes] = await Promise.all([
     core.db.prepare("SELECT policy_enabled, keys_enabled FROM wong_access_installation WHERE installation_id = ?").bind(id)
       .first<{ policy_enabled: number; keys_enabled: number }>(),
@@ -103,7 +108,7 @@ export async function accessStatus(core: Core): Promise<object> {
   ]);
   if (!installation) throw new AccessError("installation_mismatch");
   const noted = (event: string) => Number(notes.results.find(row => row.event.startsWith(event))?.event.slice(event.length) ?? 0);
-  const uses = appKeys(apps);
+  const uses = appKeys(given.map(area => area.id));
   return { ownerEmail: core.email, viewer: { email: core.actor, owner: core.owner },
     environment: core.live ? "live" : "practice",
     // A preview holds no key and never needs one.
@@ -111,7 +116,7 @@ export async function accessStatus(core: Core): Promise<object> {
     started: installation.policy_enabled === 1, imported: noted("permissions_started:"),
     // `kept`: how many people kept what their apps use when key levels started.
     keysStarted: installation.keys_enabled === 1, kept: noted("key_levels_started:"),
-    apps, appKeys: uses, keys: keyCatalogue(core.env, uses),
+    areas: given, appKeys: uses, keys: keyCatalogue(core.env, uses), skills: skills(),
     // Why Project code can not be given out yet: a word, never a secret's name or value.
     project: codeStep(core.env),
     roles: roles.map(role => ({ id: role.id, name: role.name, ...role.set })),

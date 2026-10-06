@@ -1,4 +1,5 @@
 // Permissions, then key levels, start by themselves at the owner's first open, and take nothing away.
+// Area levels have no start of their own: an area held before them reads as Look up & change.
 import { type Core, now, permissionsStarted } from "./core.ts";
 import { admittedEmails, loginAuthority } from "./login-management.ts";
 import { needs } from "./key-catalogue.ts";
@@ -7,7 +8,7 @@ import { audit, businessApps, catalogueWrites, readSets, setWrites } from "./set
 
 /**
  * On the live app, everyone the sign-in list already admits becomes a person with every
- * built app, and the switch turns on, in one batch. A missing key or a failed read changes
+ * built area at Look up & change, and the switch turns on, in one batch. A missing key or a failed read changes
  * nothing, so nobody is locked out. A preview starts with no import and no provider call.
  */
 export async function startPermissions(core: Core): Promise<void> {
@@ -30,7 +31,7 @@ export async function startPermissions(core: Core): Promise<void> {
     // Revision 1 marks a person the sign-in list admitted before Access managed it.
     ...fresh.flatMap(email => [
       core.db.prepare("INSERT INTO wong_access_members VALUES (?, ?, 'active', 0, 1, ?) ON CONFLICT DO NOTHING").bind(id, email, now()),
-      ...businessApps().map(app => core.db.prepare("INSERT INTO wong_access_grants VALUES (?, ?, ?, 1) ON CONFLICT DO NOTHING").bind(id, email, app)),
+      ...businessApps().map(app => core.db.prepare("INSERT INTO wong_access_grants VALUES (?, ?, ?, 1, 'write') ON CONFLICT DO NOTHING").bind(id, email, app)),
     ]),
     core.db.prepare("UPDATE wong_access_installation SET policy_enabled = 1, revision = revision + 1 WHERE installation_id = ? AND policy_enabled = 0").bind(id),
     audit(core, `permissions_started:${fresh.length}`),
@@ -54,7 +55,7 @@ export async function startKeyLevels(core: Core): Promise<void> {
     ...catalogueWrites(core),
     // A level the owner already chose stays as chosen.
     ...kept.flatMap(person => setWrites(core, "people", person.email, { apps: person.own.apps,
-      keys: { ...Object.fromEntries(heldLevels(Object.fromEntries(needs(person.own.apps)))), ...person.own.keys } })),
+      keys: { ...Object.fromEntries(heldLevels(Object.fromEntries(needs(Object.keys(person.own.apps))))), ...person.own.keys } })),
     core.db.prepare("UPDATE wong_access_installation SET keys_enabled = 1 WHERE installation_id = ? AND keys_enabled = 0").bind(id),
     audit(core, `key_levels_started:${kept.length}`),
   ]);

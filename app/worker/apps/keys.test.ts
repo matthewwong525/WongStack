@@ -35,5 +35,6 @@ it("hands an app's handlers the saved keys its api.ts lists, and still no memory
 
 it("judges every route of the app by the keys it lists, bare handlers and described actions alike", () => {
   expect(appKeyUse).toEqual([{ apps: ["hello"], keys: ["cloudflare"], need: "read" }, { apps: ["hello"], keys: ["cloudflare"], need: "read" }]);
-  expect(appActions.map(({ action, access }) => [action.operationId, access])).toEqual([["hello.greeting", { apps: ["hello"], keys: ["cloudflare"] }]]);
+  // The supplied example alone: a build may hold other folders.
+  expect(appActions.filter(({ app }) => app === "hello").map(({ action, access }) => [action.operationId, access])).toEqual([["hello.greeting", { apps: ["hello"], keys: ["cloudflare"] }]]);
 });
