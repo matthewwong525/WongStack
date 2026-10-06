@@ -5,9 +5,15 @@ import { CopyMessage } from "./CopyButton";
 import { ACCOUNTS, ADD_ONS, AGENTS, INSTALL_PROMPT, REPO_URL, STEPS, computers, freeAccounts } from "./install";
 import { InstallButton } from "./InstallButton";
 import { Bubbles, PaseoShot } from "./mockups";
-import { Rotator } from "./Rotator";
 
+const HEADLINE = "One place for AI to build, remember, and get things done.";
 const DESCRIPTION = "You own everything: your code, your apps, your data, and what it learns. Free and open source.";
+
+/** Under each Paseo screenshot: the pictures show one chat app, and none is needed. */
+const SHOWS_PASEO = "These screens show Paseo, the chat app I use. WongStack works wherever your assistant works.";
+
+/** The closing call to action's last line. */
+const FOR_EVERYONE = "GitHub is for engineers. This is the next one, for everyone else.";
 
 /** Small gray pills, as in a point's picture. */
 const Pills = ({ items }: { items: string[] }) => (
@@ -91,7 +97,7 @@ const POINTS: { title: string; text: string; art: string; visual: ReactNode }[] 
 const OPEN_SOURCE = [
   ["OpenSpec", "Fission-AI/OpenSpec", "openspec", "Plans each change and writes down why, before anything is built."],
   ["agent-browser", "vercel-labs/agent-browser", "vercel", "Lets the agent use a real browser, like a person would."],
-  ["Paseo", "getpaseo/paseo", "paseo", "The chat app you and your team use, on phone and laptop."],
+  ["Paseo", "getpaseo/paseo", "paseo", "The chat app I use, on phone and laptop. Optional."],
 ];
 
 // The two groups under "free and open source": each item's name, its link, its
@@ -144,7 +150,7 @@ const PHONE_SCREENS = [
   },
 ];
 
-/** "Built by chatting, from my phone": one button per Paseo phone screen, the pressed one's screenshot beside its line. */
+/** "Built by chatting, from my phone": one button per Paseo phone screen, the pressed one's screenshot beside its line, over the note that says whose app it is. */
 function PhoneTour() {
   const [open, setOpen] = useState(0);
   const { src, alt, lead, text } = PHONE_SCREENS[open] as (typeof PHONE_SCREENS)[number];
@@ -159,6 +165,7 @@ function PhoneTour() {
       </div>
       <div className="phones">
         <PaseoShot key={src} src={src} alt={alt} width={640} height={1386} lazy />
+        <p className="note">{SHOWS_PASEO}</p>
       </div>
     </section>
   );
@@ -190,11 +197,11 @@ const FAQ = [
   ],
   [
     "What does it cost, with AI?",
-    "The software is free. Each person uses their own Claude or ChatGPT plan, so there's no markup on AI and no per-seat fee.",
+    "The software is free. Each person uses their own AI plan, such as Claude or ChatGPT, so there's no markup on AI and no per-seat fee.",
   ],
   [
     "Will Anthropic ban my Claude account?",
-    "WongStack runs the official, unmodified Claude Code on your own computer. You sign in to Claude yourself, and we never see or keep your login. We do not resell Claude usage: you use your own plan.",
+    "If you use Claude: WongStack works with the official, unmodified Claude Code on your own computer. You sign in to Claude yourself, and we never see or keep your login. We do not resell Claude usage: you use your own plan.",
   ],
   [
     "What if I stop using it?",
@@ -243,13 +250,13 @@ function InstallSteps() {
     <ol className="install">
       <li>
         <p>
-          {STEPS.open}{" "}
-          {AGENTS.map(({ name, href }) => (
+          {STEPS.open}
+          {AGENTS.map(({ name, href }, i) => (
             <Fragment key={name}>
-              <a href={href}>{name}</a>,{" "}
+              {i ? " or " : " "}
+              <a href={href}>{name}</a>
             </Fragment>
           ))}
-          {STEPS.anyOther}
         </p>
       </li>
       <li>
@@ -287,7 +294,9 @@ function Cta() {
   return (
     <section className="band band-card">
       <h2>Make it yours</h2>
-      <p className="lede">{DESCRIPTION}</p>
+      <p className="lede">
+        {DESCRIPTION} {FOR_EVERYONE}
+      </p>
       <Actions />
     </section>
   );
@@ -322,7 +331,7 @@ export function Landing() {
   return (
     <>
       <section className="band hero">
-        <Rotator />
+        <h1>{HEADLINE}</h1>
         <p className="lede">{DESCRIPTION}</p>
         <Actions />
         <Supports />
@@ -332,6 +341,7 @@ export function Landing() {
           width={1600}
           height={902}
         />
+        <p className="note">{SHOWS_PASEO}</p>
       </section>
 
       <About />

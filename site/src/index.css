@@ -5,30 +5,6 @@ html {
   scroll-behavior: smooth;
 }
 
-/* The sliding headline's brand names, each in a free lookalike of the brand's
-   own lettering, never the brand's font files. Google Fonts, SIL Open Font
-   License 1.1, subset to the name's letters (css2 `text=`). */
-@font-face {
-  font-family: "Grok Lookalike"; /* Geist, OFL */
-  font-weight: 500;
-  font-display: swap;
-  src: url("/fonts/geist-grok.woff2") format("woff2");
-}
-
-@font-face {
-  font-family: "Muse Lookalike"; /* Figtree, OFL */
-  font-weight: 500;
-  font-display: swap;
-  src: url("/fonts/figtree-muse.woff2") format("woff2");
-}
-
-@font-face {
-  font-family: "Dots Lookalike"; /* Inter, OFL; OpenAI sets OpenAI Sans */
-  font-weight: 500;
-  font-display: swap;
-  src: url("/fonts/inter-dots.woff2") format("woff2");
-}
-
 :root {
   --bg: hsl(0 0% 4%);
   --text: hsl(0 0% 96%);
@@ -184,92 +160,15 @@ ol {
     font-weight: 500;
     line-height: 1.05;
     letter-spacing: -0.03em;
+    text-wrap: balance;
   }
 }
 
-/* Text a screen reader reads and the eye doesn't see. */
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-
-/* The sliding headline: a window one line tall over four rows (the last
-   repeats the first), stepped up one row every 2.5 s. The fixed heights keep
-   the page from shifting. */
-.rotator > span[aria-hidden] {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.rotator-window {
-  height: 1.15em;
-  overflow: hidden;
-}
-
-.rotator-rows {
-  display: flex;
-  flex-direction: column;
-  animation: rotate-names 7.5s infinite;
-}
-
-.rotator-row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.25em;
-  height: 1.15em;
-  white-space: nowrap;
-
-  img[src] {
-    width: 0.8em;
-    height: 0.8em;
-    opacity: 1;
-  }
-}
-
-.rotator-grok {
-  font-family: "Grok Lookalike", system-ui, sans-serif;
-}
-
-.rotator-muse {
-  font-family: "Muse Lookalike", system-ui, sans-serif;
-}
-
-.rotator-dots {
-  font-family: "Dots Lookalike", system-ui, sans-serif;
-}
-
-@keyframes rotate-names {
-  0%,
-  26% {
-    transform: translateY(0);
-  }
-  33.33%,
-  59.33% {
-    transform: translateY(-25%);
-  }
-  66.67%,
-  92.67% {
-    transform: translateY(-50%);
-  }
-  100% {
-    transform: translateY(-75%);
-  }
-}
-
-/* A visitor who asks for less motion sees Grok Bot, still, and jumps to
-   sections without the smooth scroll. */
+/* A visitor who asks for less motion jumps to sections without the smooth
+   scroll. */
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
-  }
-  .rotator-rows {
-    animation: none;
   }
 }
 
@@ -772,8 +671,11 @@ img[src^="/logos/"] {
    sideways on a narrow phone. */
 .phones {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
   min-width: 0;
+  text-align: center;
 }
 
 /* A fixed width, not min(16rem, 100%): a percentage lets the phone count as

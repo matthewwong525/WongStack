@@ -18,16 +18,18 @@ export const INSTALL_PROMPT =
 /** Where the code lives: the header's and hero's GitHub links, and the footer's license. */
 export const REPO_URL = "https://github.com/matthewwong525/WongStack";
 
-/** The agents the first step names, each linked to its own install page, as the README links them. */
+/** The assistants the first step names as examples, each linked to its own install page, as the README links them. */
 export const AGENTS = [
   { name: "Claude Code", href: "https://code.claude.com/docs/en/setup" },
   { name: "Codex", href: "https://developers.openai.com/codex/cli" },
 ];
 
-/** The three steps, in order. The first reads "Open <agents>, <anyOther>"; the second shows the message. */
+/**
+ * The three steps, in order. The first says any assistant before it names one:
+ * "<open> <agent> or <agent>". The second shows the message.
+ */
 export const STEPS = {
-  open: "Open",
-  anyOther: "or any AI that can work on your computer",
+  open: "Open any assistant that can work on your computer, such as",
   paste: "Paste this into a new chat",
   answer: "Answer a few questions",
 };

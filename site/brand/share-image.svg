@@ -17,13 +17,11 @@
   <g font-family="Geist, system-ui, sans-serif">
     <text x="186" y="118" font-size="44" font-weight="600" letter-spacing="-1.2" fill="hsl(0, 0%, 96%)">WongStack</text>
     <text font-size="64" font-weight="600" letter-spacing="-2" fill="hsl(0, 0%, 96%)">
-      <tspan x="80" y="262">Like Grok Bot, Muse,</tspan>
-      <tspan x="80" y="340">or Dots, but yours.</tspan>
+      <tspan x="80" y="246">One place for AI</tspan>
+      <tspan x="80" y="322">to build, remember,</tspan>
+      <tspan x="80" y="398">and get things done.</tspan>
     </text>
-    <text font-size="34" font-weight="400" fill="hsl(0, 0%, 64%)">
-      <tspan x="80" y="432">An AI that builds your business's</tspan>
-      <tspan x="80" y="478">tools, from your phone.</tspan>
-    </text>
+    <text x="80" y="470" font-size="34" font-weight="400" fill="hsl(0, 0%, 64%)">In accounts you own.</text>
     <text x="80" y="566" font-size="26" font-weight="400" fill="hsl(0, 0%, 64%)">Free and open source · wongstack.com</text>
   </g>
   <image x="810" y="64" width="310" height="671" href="../public/paseo/phone.webp" clip-path="url(#phone)"/>

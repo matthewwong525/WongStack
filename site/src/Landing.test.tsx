@@ -3,7 +3,7 @@
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import App from "./App";
-import { ADD_ONS, AGENTS, INSTALL_PROMPT, REPO_URL, computers, freeAccounts } from "./install";
+import { ADD_ONS, AGENTS, INSTALL_PROMPT, REPO_URL, STEPS, computers, freeAccounts } from "./install";
 
 function renderAt(path: string) {
   window.history.pushState({}, "", path);
@@ -100,6 +100,7 @@ it("taps through five Paseo phone screens, one pressed at a time, Chat first, in
   const pressed = () =>
     buttons.filter((button) => button.getAttribute("aria-pressed") === "true").map((b) => b.textContent);
   const shown = () => within(phones).getAllByRole("img").map(paseo);
+  const note = () => [phones.querySelector(".phones > img + p")?.textContent, phones.querySelectorAll(".note").length];
   const line = () => (phones.querySelector(".lede b") as HTMLElement).parentElement?.textContent;
 
   expect(buttons.map((button) => button.textContent)).toEqual(PHONE_SCREENS.map(([name]) => name));
@@ -110,6 +111,10 @@ it("taps through five Paseo phone screens, one pressed at a time, Chat first, in
     expect(pressed()).toEqual([name]);
     expect(shown()).toEqual([[src, alt]]);
     expect(line()).toBe(text);
+    expect(note()).toEqual([
+      "These screens show Paseo, the chat app I use. WongStack works wherever your assistant works.",
+      1,
+    ]);
     expect(phones.textContent).not.toMatch(JARGON);
   }
   // The text and buttons come first, so on a wide screen the phone sits right of them.
@@ -133,7 +138,7 @@ it("shows three install steps in their own section, just above the questions, wi
   expect(install.querySelector(".lede")?.textContent).toBe("It runs on your own computer, with your own AI plan.");
   expect(install.nextElementSibling?.querySelector("h2")?.textContent).toBe("Questions");
   expect([...steps.querySelectorAll(":scope > li > p:first-child")].map((p) => p.textContent)).toEqual([
-    `Open ${AGENTS.map((agent) => `${agent.name}, `).join("")}or any AI that can work on your computer`,
+    `Open any assistant that can work on your computer, such as ${AGENTS.map((agent) => agent.name).join(" or ")}`,
     "Paste this into a new chat",
     "Answer a few questions",
   ]);
@@ -143,6 +148,13 @@ it("shows three install steps in their own section, just above the questions, wi
       .map((link) => [link.textContent, link.getAttribute("href")]),
   ).toEqual(AGENTS.map((agent) => [agent.name, agent.href]));
   expect(AGENTS.length).toBeGreaterThan(0);
+  // The neutral words come first: every assistant the step names follows them, as an example.
+  const first = steps.querySelector("li")?.textContent as string;
+  expect(first.startsWith(STEPS.open)).toBe(true);
+  expect(STEPS.open).toMatch(/^Open any assistant that can work on your computer, such as$/);
+  for (const { name } of AGENTS) {
+    expect([name, STEPS.open.includes(name), first.indexOf(name) >= STEPS.open.length]).toEqual([name, false, true]);
+  }
   // The phone app comes later, as an add-on.
   expect(steps.textContent).not.toMatch(/Paseo/);
   // One line with no stray space. Its wording is the README's: scripts/tests/landing-site.test.mjs checks that.

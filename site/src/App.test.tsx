@@ -17,7 +17,9 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const HEADLINE = "Grok Bot, Muse, or Dots, but yours.";
+const HEADLINE = "One place for AI to build, remember, and get things done.";
+const SHOWS_PASEO = "These screens show Paseo, the chat app I use. WongStack works wherever your assistant works.";
+const FOR_EVERYONE = "GitHub is for engineers. This is the next one, for everyone else.";
 const DESCRIPTION = "You own everything: your code, your apps, your data, and what it learns. Free and open source.";
 
 // Developer words the page keeps out of its copy above the comparison.
@@ -45,24 +47,21 @@ const paseo = (shot: Element) => [shot.getAttribute("src"), shot.getAttribute("a
 const links = (root: Element | null) =>
   [...(root?.querySelectorAll("a") ?? [])].map((a) => `${a.textContent} ${a.getAttribute("href")}`);
 
-it("slides Grok Bot, Muse, and Dots through the headline, read once by a screen reader", () => {
+it("opens with a plain headline that says what WongStack is and names no other product", () => {
   const { container } = renderAt("/");
   const h1 = screen.getByRole("heading", { level: 1, name: HEADLINE });
-  const rows = [...h1.querySelectorAll(".rotator-row")];
+  const others = [...PRODUCTS.map((product) => product.name), "Dots", "Claude", "ChatGPT", "Codex", "Paseo"];
 
-  expect(rows.map((row) => [row.textContent, row.querySelector("img")?.getAttribute("src")])).toEqual([
-    ["Grok Bot", "/logos/grok.svg"],
-    ["Muse", "/logos/meta.svg"],
-    ["Dots", "/logos/openai.svg"],
-    ["Grok Bot", "/logos/grok.svg"],
-  ]);
-  for (const row of rows) expect(row.closest('[aria-hidden="true"]')).not.toBeNull();
-  expect(h1.querySelector('[aria-hidden="true"]')?.lastElementChild?.textContent).toBe("but yours.");
-  // No logo sits above the headline: it opens the hero.
+  expect(h1.textContent).toBe(HEADLINE);
+  expect(others.length).toBeGreaterThan(5);
+  for (const name of others) expect([name, h1.textContent?.includes(name)]).toEqual([name, false]);
+  // Plain text: nothing moves, and no logo sits in or above it.
+  expect(h1.children).toHaveLength(0);
   expect(container.querySelector(".hero")?.firstElementChild).toBe(h1);
+  expect(container.querySelectorAll("h1")).toHaveLength(1);
 });
 
-it("opens with the offer, the install button, the GitHub link, the Supports row, and a Paseo laptop screenshot", () => {
+it("opens with the offer, the install button, the GitHub link, the Supports row, and a Paseo laptop screenshot over a note that it is the app I use", () => {
   const { container } = renderAt("/");
   const hero = container.querySelector(".hero") as HTMLElement;
   expect(hero.querySelectorAll(".lede")).toHaveLength(1);
@@ -80,7 +79,9 @@ it("opens with the offer, the install button, the GitHub link, the Supports row,
   ]);
   expect(within(supports).queryAllByRole("link")).toHaveLength(0);
   expect(hero.textContent).not.toMatch(/Built by|Official, unmodified/);
-  expect(paseo(hero.lastElementChild as Element)).toEqual([
+  const note = hero.lastElementChild as Element;
+  expect([note.textContent, note.className]).toEqual([SHOWS_PASEO, "note"]);
+  expect(paseo(note.previousElementSibling as Element)).toEqual([
     "/paseo/laptop.webp",
     "Paseo on a laptop: a list of workspaces, a chat with the agent, and its plan with choices to pick from",
   ]);
@@ -108,6 +109,16 @@ it("orders the page: about, Paseo phones, what's included, examples, comparison,
   // The text comes first, so on a wide screen it sits left of the phone.
   expect(phones.firstElementChild?.querySelector("h2")?.textContent).toBe("Built by chatting, from my phone");
   expect([...container.querySelectorAll('img[src^="/paseo/"]')].map(paseo)).toHaveLength(2);
+  // Each Paseo picture sits over the same note: it is the app I use, and none is needed.
+  expect(
+    [...container.querySelectorAll('img[src^="/paseo/"]')].map((shot) => [
+      shot.nextElementSibling?.textContent,
+      shot.nextElementSibling?.className,
+    ]),
+  ).toEqual([
+    [SHOWS_PASEO, "note"],
+    [SHOWS_PASEO, "note"],
+  ]);
   screen.getByText(
     "Everything a developer would spend weeks setting up is ready on day one, in accounts you own, so your data stays yours.",
   );
@@ -177,7 +188,10 @@ it("calls a visitor to act once, after the FAQ, with the install button and the 
 
   expect(others).toHaveLength(0);
   expect(cta?.querySelector("h2")?.textContent).toBe("Make it yours");
-  expect(within(cta as HTMLElement).getByText(DESCRIPTION).className).toBe("lede");
+  expect([cta?.querySelector(".lede")?.textContent, cta?.querySelectorAll(".lede").length]).toEqual([
+    `${DESCRIPTION} ${FOR_EVERYONE}`,
+    1,
+  ]);
   expect(cta?.previousElementSibling?.querySelector(".faq")).not.toBeNull();
   expect(links(cta as HTMLElement)).toEqual(ACTIONS);
   expect(cta?.nextElementSibling).toBeNull();
@@ -251,7 +265,7 @@ it("names the open-source libraries and the accounts the install asks for, each 
       "/logos/paseo.svg",
       "Paseo",
       "https://github.com/getpaseo/paseo",
-      "The chat app you and your team use, on phone and laptop.",
+      "The chat app I use, on phone and laptop. Optional.",
     ],
   ]);
   expect(open?.textContent).not.toMatch(/WongStack|Claude Code|Codex|OpenCode|Wrangler|GitHub CLI/);
@@ -292,14 +306,16 @@ it("answers a team owner's questions for a free install, without claiming Anthro
   expect(answer("How does my team use it?")).toContain(
     "Everyone works in the same projects and shares the same memory",
   );
+  // Adding a teammate who publishes is not built, so no answer promises it.
+  expect(faq.textContent).not.toMatch(/\b(everyone|each person|your team|teammates?) (can )?publish/i);
   expect(answer("Is my business's data safe?")).toBe(
     "Your code, apps, and memory sit in your own accounts, and your AI login stays on your own computer. Nothing passes through us.",
   );
   expect(answer("What does it cost, with AI?")).toBe(
-    "The software is free. Each person uses their own Claude or ChatGPT plan, so there's no markup on AI and no per-seat fee.",
+    "The software is free. Each person uses their own AI plan, such as Claude or ChatGPT, so there's no markup on AI and no per-seat fee.",
   );
   const anthropic = answer("Will Anthropic ban my Claude account?");
-  expect(anthropic).toContain("official, unmodified Claude Code on your own computer");
+  expect(anthropic).toMatch(/^If you use Claude: WongStack works with the official, unmodified Claude Code on your own computer\./);
   expect(anthropic).toContain("You sign in to Claude yourself, and we never see or keep your login.");
   expect(anthropic).toContain("We do not resell Claude usage");
   expect(answer("What if I stop using it?")).toBe(

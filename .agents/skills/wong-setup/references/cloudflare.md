@@ -189,7 +189,7 @@ State, in plain words:
 - What the user token was granted, that it stays in `.env` on this computer, and that it can be [narrowed back](../../../../wiki/stack/cloudflare-credentials.md#narrowing-back)
 - That CI publishes with its own small key, `<repo>-deploy`
 - Private coverage, machine access, and human login as separate outcomes. An open site says instead: *"Anyone with the link can see your site."*
-- When the target is not the open folder: its path, and *"Next time, open <target> in Paseo to chat."*
+- When the target is not the open folder: its path, and *"Next time, open <target> in your assistant to chat."*
 - When `command -v paseo` answers: how to chat from a phone, *"In Paseo, open Settings → your host → Pair Device."*
 - The optional card list below, when the site is open or `r2` is `false`.
 

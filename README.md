@@ -4,12 +4,26 @@
 [![License: MIT](https://img.shields.io/github/license/matthewwong525/WongStack)](LICENSE)
 [![Version](https://img.shields.io/badge/dynamic/yaml?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmatthewwong525%2FWongStack%2Frefs%2Fheads%2Fmain%2FVERSION&query=%24&label=version)](VERSION)
 
-**My opinionated way of using AI. Now yours.** I'm Matt. I run Claymoo, a clay-kit company, with a small team, and I use AI for almost everything: the business, the tools my team uses every day, and my own errands. WongStack is how I do it, set up for you to copy and change. Ask in plain words, the way you'd message a coworker. It does the work, builds the tools, and remembers how you work. Everything it builds and learns lives in accounts you own.
+**AI is now good enough that anyone can build their own apps.** Most people still can't, because nothing is set up for them. The AI can write an app, but it has nowhere to put it.
+
+WongStack gives your assistant one place to do three things:
+
+- **Build.** Ask for a tool in plain words and it makes a real, working app: *"Build a packing checklist for my team."*
+- **Remember.** It keeps what it learns about you and your work, so you never explain twice: *"From now on, orders ship on Fridays."*
+- **Get things done.** It runs your errands, uses websites for you, and does jobs while you sleep: *"Every Monday, send me last week's profit."*
+
+All of it lives in one Cloudflare account that you own. You paste one message to set it up.
+
+You can put several assistants to work at once, and they don't get in each other's way. You never look at code. You read a short plan, try the real thing on a link, and say "go live".
+
+I'm Matt. I run Claymoo, a clay-kit company, with a small team, and I built WongStack to run it. The setup is the hardest part, and this is that setup done once: my opinionated way of using AI, shared, and easy to change to your way of working.
+
+**GitHub is for engineers. This is the next one, for everyone else.**
 
 ## Start in three steps
 
-1. **Get Claude Code and Paseo.** [Claude Code](https://code.claude.com/docs/en/setup) is the AI agent; [Codex](https://developers.openai.com/codex/cli) works too. Its install page may open a terminal once, for one command. The free [Paseo](https://paseo.sh) app is where you chat with it.
-2. **Open Paseo and paste this:**
+1. **Open your assistant.** Any assistant that can read and change files and run commands on your computer works. [What I use](#what-i-use) names mine.
+2. **Paste this into a new chat:**
 
    ```
    Install WongStack from github.com/matthewwong525/WongStack. Read and follow https://raw.githubusercontent.com/matthewwong525/WongStack/refs/heads/main/.agents/skills/wong-setup/SKILL.md
@@ -17,21 +31,43 @@
 
 3. **Answer a few questions.** The agent asks before it installs any free tool it needs. You open one [link](wiki/stack/cloudflare-credentials.md#create-the-token) in a [Cloudflare](https://cloudflare.com) account, where your apps run, and paste the key it shows you. Your files are kept in Cloudflare too, on its paid plan (about $5 a month, Mac or Linux), or in a free [GitHub](https://github.com/signup) account: [the two ways](wiki/stack/artifacts-route.md).
 
-You end with a working assistant, a starter site online, memory that carries over between chats, and the steps to connect your phone. Open the site and paste its *Make it yours* message, and the assistant makes the page yours. [Getting started](wiki/stack/getting-started.md) says what it costs, what you do by hand, and what to do when something goes wrong.
+You end with a working assistant, a starter site online, and memory that carries over between chats. Open the site and paste its *Make it yours* message, and the assistant makes the page yours. [Getting started](wiki/stack/getting-started.md) says what it costs, what you do by hand, and what to do when something goes wrong.
 
 Paste the message in any folder: if it already has files, setup makes a `wongstack` folder in your home folder.
 
 ## What you get
 
-- **One memory for the whole team.** Each chat starts with what earlier chats learned about your business and the people in it. [Memory](wiki/development/memory.md) is kept in your own Cloudflare account.
+**Build**
+
 - **Tools that fit your business, from one request.** A [mini app](wiki/stack/mini-apps.md) gets a plan and a link to try, and goes live at `/apps/<name>/` when you publish it.
 - **Your own site, online for free.** Every change gets its own link to look at before it goes live.
+
+**Remember**
+
+- **One memory for the whole team.** Each chat starts with what earlier chats learned about your business and the people in it. [Memory](wiki/development/memory.md) is kept in your own Cloudflare account.
 - **A notebook that grows.** What the assistant learns — how your business runs, who is who — goes into [a wiki](wiki/README.md) it reads next time.
-- **No lock-in.** It is plain files in a folder you own. Switch agents, and the knowledge comes with you.
+
+**Get things done**
+
+- **Errands, from one message.** Research, a draft, a plan for your week: it does the work and answers. It asks before it sends or changes anything outside the chat.
+- **Websites, used for you.** It opens a real browser, and sends you a link when a step needs you: [browsing](wiki/development/browsing.md).
+- **Jobs while you sleep.** A [routine](wiki/stack/cloud-routines.md) runs on a schedule in your Cloudflare account, on its paid plan.
+
+**All of it is yours**
+
+- **You own it.** Everything it builds and learns lives in accounts you own. Logins, keys, and who on your team can see and change what are taken care of: [employee access](wiki/stack/employee-access.md).
+- **No lock-in.** It is plain files in a folder you own. Switch assistants, and the knowledge comes with you.
+
+## What I use
+
+I use [Claude Code](https://code.claude.com/docs/en/setup) in the free [Paseo](https://paseo.sh) app, on my laptop and my phone. [Codex](https://developers.openai.com/codex/cli) is set up too. WongStack works wherever your assistant works. Two things need one of these today:
+
+- **A workspace for each assistant needs Paseo.** That is how several work at once. Without it, the parts of a request are done one at a time: [required tools](wiki/development/required-tools.md).
+- **Memory loads by itself in Claude Code and Codex.** Another assistant reads the same files, and looks memory up when you ask: [memory](wiki/development/memory.md).
 
 ## Requirements
 
-You bring a coding agent and a [Cloudflare](https://cloudflare.com) account. Setup asks, then installs what is missing: `git`, [`gh`](https://cli.github.com/), [Node.js](https://nodejs.org/) 22, and [OpenSpec](https://github.com/Fission-AI/OpenSpec). The one Cloudflare token you make stays on your computer; [`SECURITY.md`](SECURITY.md) says what each token can do. [Required tools](wiki/development/required-tools.md) says why each is needed, and what [Windows](wiki/development/required-tools.md#symbolic-links-in-the-agent-folder) adds.
+You bring an assistant and a [Cloudflare](https://cloudflare.com) account. Setup asks, then installs what is missing: `git`, [`gh`](https://cli.github.com/), [Node.js](https://nodejs.org/) 22, and [OpenSpec](https://github.com/Fission-AI/OpenSpec). The one Cloudflare token you make stays on your computer; [`SECURITY.md`](SECURITY.md) says what each token can do. [Required tools](wiki/development/required-tools.md) says why each is needed, and what [Windows](wiki/development/required-tools.md#symbolic-links-in-the-agent-folder) adds.
 
 ## Learn more
 
