@@ -57,3 +57,4 @@ None.
 - **2026-10-06** — Assumed: this is a minor release, because the result gains two lines and nothing an install relies on changes or goes away.
 - **2026-10-06** — Build: the full local check first stopped when this computer's disk filled; it passed on a rerun once space came free. A key link whose watcher died still prints no opened line, since nothing recorded one.
 - **2026-10-06** — Archive checkpoint: every task is ticked, the local checks pass, and it is numbered 35.3.0. It answers struggle notes #1128 and #1137. Left as a recommendation, not built: whether a just-sent key link should hold its place for a few minutes.
+- **2026-10-06** — Archive checkpoint: another release reached the live project first, so this one is numbered 36.1.0, not 35.3.0. Nothing in the change differs; its tests pass on the newer base.
