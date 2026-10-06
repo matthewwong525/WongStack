@@ -25,6 +25,10 @@
 -- only their level. Dana is a manager, so a preview shows the tick and its
 -- labels. The owner is the committed WONG_OWNER_EMAIL, not this row; its
 -- identifiers are made up and name nothing real.
+--
+-- Their levels differ, so a preview shows each state of a skill that needs
+-- Hello at Look up, Sample records at Look up & change, and Project code:
+-- Dana can run it, the Helpers role lacks an area, and Eli lacks a key.
 INSERT INTO wong_access_installation
   (slot, installation_id, origin, account_id, worker_id, access_app_id, access_policy_id,
    issuer, audience, owner_subject, owner_email, repository_id, repository_name, policy_enabled, keys_enabled, activated_at)
@@ -34,6 +38,7 @@ VALUES (1, '11111111-1111-4111-8111-111111111111', 'https://access-fixture.examp
 INSERT INTO wong_access_apps VALUES
   ('11111111-1111-4111-8111-111111111111', 'hello'),
   ('11111111-1111-4111-8111-111111111111', 'tips'),
+  ('11111111-1111-4111-8111-111111111111', 'sample'),
   ('11111111-1111-4111-8111-111111111111', 'access');
 -- Ada and Bo hold the Helpers role. Dana and Eli have their own sets, and Casey was removed.
 INSERT INTO wong_access_members VALUES
@@ -42,24 +47,29 @@ INSERT INTO wong_access_members VALUES
   ('11111111-1111-4111-8111-111111111111', 'casey@example.invalid', 'removed', 0, 1, '2026-10-04T00:00:00Z'),
   ('11111111-1111-4111-8111-111111111111', 'dana@example.invalid', 'active', 0, 1, '2026-10-04T00:00:00Z'),
   ('11111111-1111-4111-8111-111111111111', 'eli@example.invalid', 'active', 0, 1, '2026-10-04T00:00:00Z');
--- The Helpers role: one app, Cloudflare look-ups, and the project through Connect your assistant.
+-- The Helpers role: one app at Look up & change, Cloudflare look-ups, and the project through Connect your assistant.
 INSERT INTO wong_access_roles VALUES
   ('11111111-1111-4111-8111-111111111111', '22222222-2222-4222-8222-222222222222', 'Helpers', 1);
 INSERT INTO wong_access_role_apps VALUES
-  ('11111111-1111-4111-8111-111111111111', '22222222-2222-4222-8222-222222222222', 'hello');
+  ('11111111-1111-4111-8111-111111111111', '22222222-2222-4222-8222-222222222222', 'hello', 'write');
 INSERT INTO wong_access_role_keys VALUES
   ('11111111-1111-4111-8111-111111111111', '22222222-2222-4222-8222-222222222222', 'cloudflare', 'read'),
   ('11111111-1111-4111-8111-111111111111', '22222222-2222-4222-8222-222222222222', 'code', 'read');
 INSERT INTO wong_access_member_roles VALUES
   ('11111111-1111-4111-8111-111111111111', 'ada@example.invalid', '22222222-2222-4222-8222-222222222222'),
   ('11111111-1111-4111-8111-111111111111', 'bo@example.invalid', '22222222-2222-4222-8222-222222222222');
--- Dana's own set has Cloudflare at Read and no Project code. Eli's has an app and no key level: None.
+-- Dana's own set changes things everywhere, with Cloudflare at Read and Project code. Eli's looks things up
+-- in two apps and changes Sample records, with no key level: None.
 INSERT INTO wong_access_grants VALUES
-  ('11111111-1111-4111-8111-111111111111', 'dana@example.invalid', 'hello', 1),
-  ('11111111-1111-4111-8111-111111111111', 'dana@example.invalid', 'tips', 1),
-  ('11111111-1111-4111-8111-111111111111', 'eli@example.invalid', 'tips', 1);
+  ('11111111-1111-4111-8111-111111111111', 'dana@example.invalid', 'hello', 1, 'write'),
+  ('11111111-1111-4111-8111-111111111111', 'dana@example.invalid', 'tips', 1, 'write'),
+  ('11111111-1111-4111-8111-111111111111', 'dana@example.invalid', 'sample', 1, 'write'),
+  ('11111111-1111-4111-8111-111111111111', 'eli@example.invalid', 'hello', 1, 'read'),
+  ('11111111-1111-4111-8111-111111111111', 'eli@example.invalid', 'tips', 1, 'read'),
+  ('11111111-1111-4111-8111-111111111111', 'eli@example.invalid', 'sample', 1, 'write');
 INSERT INTO wong_access_key_grants VALUES
-  ('11111111-1111-4111-8111-111111111111', 'dana@example.invalid', 'cloudflare', 'read', 1);
+  ('11111111-1111-4111-8111-111111111111', 'dana@example.invalid', 'cloudflare', 'read', 1),
+  ('11111111-1111-4111-8111-111111111111', 'dana@example.invalid', 'code', 'read', 1);
 -- Dana also manages Access. It gives her no app and no key: her set above is unchanged.
 INSERT INTO wong_access_managers VALUES
   ('11111111-1111-4111-8111-111111111111', 'dana@example.invalid');

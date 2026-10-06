@@ -13,10 +13,11 @@ export const API_PREFIX = "/api/";
 // can not reach a property every object inherits.
 const routes = new Map<string, Route>([["GET /api/health", health], ["GET /api/cloudflare/read", cloudflareRead]]);
 
-// List every custom main route here with the apps it serves and the saved keys it uses:
-// { apps: ["orders"], keys: ["stripe"] }. A route with keys and no app, { keys: ["cloudflare"] },
-// is open to anyone holding that key's level. Once Access permissions start, a business route
-// with no mapping denies everyone but the owner.
+// List every custom main route here with the areas it serves and the saved keys it uses:
+// { apps: ["orders"], keys: ["stripe"] }. Each name is a built folder under src/apps/ or worker/apps/,
+// and a check fails on any other. A route with keys and no area, { keys: ["cloudflare"] }, is open to
+// anyone holding that key's level. Once Access permissions start, a business route with no mapping
+// denies everyone but the owner.
 const routeAccess = new Map<string, RouteAccess>([
   ["GET /api/health", { kind: "infrastructure" }],
   ["GET /api/cloudflare/read", { keys: ["cloudflare"] }],

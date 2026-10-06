@@ -4,7 +4,7 @@ import { accessStatus, changeMember } from "./members";
 import { cloudflare, fixture, site, employee, key } from "../../tests/employee-access/connections";
 import { lease } from "./core";
 
-vi.mock("./catalogue.ts", () => ({ catalogue: ["access", "orders", "payroll"] }));
+vi.mock("./catalogue.ts", async () => (await import("../../tests/employee-access/catalogue")).builtAreas(["access", "orders", "payroll"]));
 let f: ReturnType<typeof fixture>;
 let cf: ReturnType<typeof cloudflare>["state"];
 let fetch: ReturnType<typeof vi.fn>;
@@ -17,8 +17,8 @@ beforeEach(() => {
 });
 afterEach(() => { f.sql.close(); vi.unstubAllGlobals(); vi.useRealTimers(); });
 const hold = async () => { f.core.holder = await lease(f.core); };
-const add = (email = "new@example.com", apps = ["orders"]) => changeMember(f.core, { email, removed: false, apps });
-const remove = (email = employee.id) => changeMember(f.core, { email, removed: true, apps: [] });
+const add = (email = "new@example.com", apps: Record<string, "read" | "write"> = { orders: "write" }) => changeMember(f.core, { email, removed: false, apps });
+const remove = (email = employee.id) => changeMember(f.core, { email, removed: true, apps: {} });
 const work = (kind = "policy") => f.sql.prepare("SELECT generation, status, outcome, error_code FROM wong_access_work WHERE kind = ?").get(kind);
 const owners = [{ email: { email: site.ownerEmail } }];
 const root = `https://api.cloudflare.com/client/v4/accounts/${site.accountId}/access/apps/${site.accessAppId}`;
@@ -171,17 +171,17 @@ it("bounds stale-generation retries and rejects readback that did not retain des
   expect(work()).toMatchObject({ status: "failed", error_code: "login_policy_readback_pending" });
 });
 
-it("commits explicit apps and tombstones atomically while preserving inert legacy data", async () => {
+it("commits explicit areas and tombstones atomically while preserving inert legacy data", async () => {
   await expect(changeMember(f.core, {})).rejects.toMatchObject({ code: "invalid_person", status: 400 });
-  await expect(changeMember(f.core, { email: site.ownerEmail, removed: true, apps: [] })).rejects.toMatchObject({ code: "owner_cannot_be_changed" });
-  for (const app of ["unassigned", "access"]) await expect(add(employee.id, [app])).rejects.toMatchObject({ code: "unknown_app" });
-  await add(employee.id, ["orders", "orders"]);
+  await expect(changeMember(f.core, { email: site.ownerEmail, removed: true, apps: {} })).rejects.toMatchObject({ code: "owner_cannot_be_changed" });
+  for (const app of ["unassigned", "access"]) await expect(add(employee.id, { [app]: "write" })).rejects.toMatchObject({ code: "unknown_app" });
+  await add(employee.id);
   expect(f.sql.prepare("SELECT COUNT(*) count FROM wong_access_grants").get()).toEqual({ count: 1 });
-  // A save lists every built app, so a new one can be ticked.
+  // A save lists every built area, so a new one can be given.
   expect(f.sql.prepare("SELECT app_id FROM wong_access_apps ORDER BY app_id").all()).toEqual([{ app_id: "access" }, { app_id: "orders" }, { app_id: "payroll" }]);
   f.sql.prepare("INSERT INTO wong_access_receipts VALUES ('receipt', ?, ?, 'machine', 2, 123, 'issued', 'sealed', 'later', 'now')")
     .run(site.installationId, employee.id);
-  await add(employee.id, ["payroll"]);
+  await add(employee.id, { payroll: "read" });
   expect(f.sql.prepare("SELECT status FROM wong_access_receipts").get()).toEqual({ status: "issued" });
   // An app choice alone changes nobody's sign-in: no provider work, and the person's revision stays.
   expect(f.sql.prepare("SELECT status, revision FROM wong_access_members").get()).toEqual({ status: "active", revision: 1 });
@@ -201,8 +201,8 @@ it("commits explicit apps and tombstones atomically while preserving inert legac
 
 it("saves a preview's practice people with no provider work", async () => {
   const practice = { ...f.core, live: false };
-  await changeMember(practice, { email: "practice@example.com", removed: false, apps: ["orders"] });
-  await changeMember(practice, { email: employee.id, removed: true, apps: [] });
+  await changeMember(practice, { email: "practice@example.com", removed: false, apps: { orders: "write" } });
+  await changeMember(practice, { email: employee.id, removed: true, apps: {} });
   expect(f.sql.prepare("SELECT email, status FROM wong_access_members ORDER BY email").all())
     .toEqual([{ email: employee.id, status: "removed" }, { email: "practice@example.com", status: "active" }]);
   expect(f.sql.prepare("SELECT COUNT(*) count FROM wong_access_work").get()).toEqual({ count: 0 });

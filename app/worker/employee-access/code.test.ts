@@ -14,7 +14,7 @@ import { changedSet } from "./sets";
 import { setupStatus } from "./setup";
 import { body } from "../../tests/body";
 
-vi.mock("./catalogue.ts", () => ({ catalogue: ["access", "orders"] }));
+vi.mock("./catalogue.ts", async () => (await import("../../tests/employee-access/catalogue")).builtAreas(["access", "orders"]));
 
 const TOKEN = "github_pat_synthetic_read_only_value";
 const github = { WONG_CODE_REPOSITORY: "acme/recipe-box", WONG_CODE_READ: TOKEN };
@@ -57,7 +57,7 @@ it("registers Project code as a key with Read alone, offered with no app, that n
   expect([offered("code"), everyKey().get("code")]).toEqual([["read"], "read"]);
   expect(keyUse.some(use => use.keys.includes("code"))).toBe(false);
   expect(needs(["orders", "hello", "access"]).has("code")).toBe(false);
-  expect(changedSet({ apps: [], keys: {} }, { apps: ["orders"] }).keys).toEqual({});
+  expect(changedSet({ apps: {}, keys: {} }, { apps: { orders: "read" } }).keys).toEqual({});
   // Saved follows whether the project can be handed out: a Cloudflare-kept one needs no secret.
   const row = (bindings: object) => keyCatalogue(bindings, {}).find(key => key.id === "code");
   expect(row({})).toEqual({ id: "code", title: "Project code", levels: ["read"], saved: false, setup: false, usedBy: [], alone: true });

@@ -19,7 +19,7 @@ const COLUMNS = ['Person', 'Sign-in', 'Role', 'Apps and keys']
 // The view that opens first: one row per person, each one line with the same parts whatever state they are in.
 // The owner is the first row, with nothing to change. You and Manager sit beside the email. A role is picked right
 // in the row; the rest of what a row offers sits behind its menu. The last cell counts apps and keys and says when
-// an app can't do its job yet; the names show where the person is opened, in the panel beside the list. Only the
+// an app or a skill can't do its job yet; the names show where the person is opened, in the panel beside the list. Only the
 // owner removes a manager, so a manager's menu has no Remove there.
 export function People(props: ViewProps) {
   const { status, id, pending, save } = props
@@ -55,7 +55,7 @@ export function People(props: ViewProps) {
     </Table>
     {status.people.length === 0 && <p>No people added yet.</p>}
     {removing && <Confirm title={`Remove ${removing.email}?`} action="Remove access" pending={pending}
-      onConfirm={() => save('people', { email: removing.email, apps: [], removed: true })} onCancel={() => setRemoving(null)}>
+      onConfirm={() => save('people', { email: removing.email, removed: true })} onCancel={() => setRemoving(null)}>
       {status.environment === 'live'
         ? "They are blocked at once and can no longer download the project. Everyone is signed out and signs in again. This can't be undone. A copy of the project already on their device stays there. Access given where the project is kept is removed there."
         : 'They leave the practice list. The real sign-in list is not touched.'}

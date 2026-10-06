@@ -10,11 +10,11 @@ import { App } from './App'
 // from. This draws the screens and reads those classes, so what a phone and a screen reader are promised is held
 // where it now lives. That no screen has a CSS file of its own is checked once for the whole app, in src/style.test.ts.
 const status: Status = { ownerEmail: 'owner@shop.com', viewer: { email: 'owner@shop.com', owner: true }, environment: 'practice', key: 'practice', started: true, imported: 0,
-  keysStarted: true, kept: 0, apps: ['hello'], appKeys: { hello: [{ id: 'stripe', need: 'write' }] },
+  keysStarted: true, kept: 0, areas: [{ id: 'hello', title: 'Hello', description: 'A small example.', screen: true }], skills: [], appKeys: { hello: [{ id: 'stripe', need: 'write' }] },
   keys: [{ id: 'stripe', title: 'Stripe', levels: ['read', 'write'], saved: true, setup: false, usedBy: [{ app: 'hello', need: 'write' }], alone: false }],
-  roles: [{ id: 'sales', name: 'Sales', apps: ['hello'], keys: { stripe: 'read' } }],
-  people: [{ email: 'kim@shop.com', status: 'active', settled: true, role: null, manager: false, apps: ['hello'], keys: { stripe: 'read' } },
-    { email: 'lee@shop.com', status: 'active', settled: true, role: 'sales', manager: false, apps: ['hello'], keys: { stripe: 'read' } }], work: [], project: 'ready' }
+  roles: [{ id: 'sales', name: 'Sales', apps: { hello: 'write' }, keys: { stripe: 'read' } }],
+  people: [{ email: 'kim@shop.com', status: 'active', settled: true, role: null, manager: false, apps: { hello: 'write' }, keys: { stripe: 'read' } },
+    { email: 'lee@shop.com', status: 'active', settled: true, role: 'sales', manager: false, apps: { hello: 'write' }, keys: { stripe: 'read' } }], work: [], project: 'ready' }
 
 beforeEach(() => vi.stubGlobal('fetch', vi.fn(async (url: string) => {
   if (url.endsWith('/apps')) return Response.json({ state: 'current', role: 'owner', manages: true, apps: ['access', 'hello'], revision: 1 })
@@ -48,16 +48,19 @@ it('fits a phone: the Access screens wrap, and fix no width in pixels', async ()
   open('people/new'); const save = await screen.findByRole('button', { name: 'Save access' })
   const panel = screen.getByRole('dialog', { name: 'Add person' })
   has(panel, 'fixed', 'inset-y-0', 'right-0', 'w-full', 'sm:max-w-md', 'sm:top-15', 'sm:h-auto'); expect(classes(panel)).not.toContain('w-3/4')
-  // Its fields scroll, with the buttons kept in view under them; the buttons and the level choice wrap, and so
-  // does a line under an app's tick; a field takes the panel's width.
+  // Its fields scroll, with the buttons kept in view under them; the buttons, the starting points and a level choice
+  // wrap; a field takes the panel's width.
   has(save.parentElement!, 'flex', 'flex-wrap', 'border-t'); has(save.parentElement!.previousElementSibling!, 'overflow-y-auto', 'flex-1')
   has(within(panel).getByRole('heading', { name: 'Add person' }), 'wrap-anywhere')
   has(screen.getByLabelText('Email'), 'w-full')
-  fireEvent.click(screen.getByRole('checkbox', { name: 'Hello' }))
-  has(screen.getByRole('group', { name: 'Hello' }), 'flex', 'flex-wrap')
-  has(screen.getByRole('radio', { name: 'Read' }).closest('div')!, 'flex', 'flex-wrap')
-  // No box goes round a group of ticks: its bold name sets it apart.
-  const group = screen.getByRole('group', { name: 'Apps' })
+  const start = screen.getByRole('button', { name: 'Hello' }); has(start.parentElement!, 'flex', 'flex-wrap')
+  fireEvent.click(start)
+  has(screen.getByRole('group', { name: 'Hello' }), 'grid', 'min-w-0')
+  has(within(screen.getByRole('group', { name: 'Stripe' })).getByRole('radio', { name: 'Read' }).closest('div')!, 'flex', 'flex-wrap')
+  // The line that says a change waits takes a row of its own above the buttons.
+  const waiting = screen.getByText('Not saved yet'); has(waiting, 'basis-full', 'font-semibold'); expect(waiting.parentElement).toBe(save.parentElement)
+  // No box goes round a group of level choices: its bold name sets it apart.
+  const group = screen.getByRole('group', { name: 'Can reach' })
   expect(classes(group).filter(name => /^(border|rounded)/.test(name))).toEqual([]); has(group.querySelector('legend')!, 'font-bold')
   expect(pixels()).toEqual([])
 })
@@ -105,7 +108,7 @@ it('lists are tables in the shared frame whose rows are one line, and stack on a
   has(screen.getByText('Ask your assistant to build an app.'), 'text-sm', 'text-muted-foreground')
 })
 
-it('marks the current view, the open row, a level, a gap and a label by more than colour', async () => {
+it('marks the current view, the open row, a level, a starting point, a gap and a label by more than colour', async () => {
   open('roles'); const table = await screen.findByRole('table', { name: 'Roles' })
   // The current view is boxed, bold and underlined.
   const views = within(screen.getByLabelText('Access views')).getAllByRole('link')
@@ -131,10 +134,21 @@ it('marks the current view, the open row, a level, a gap and a label by more tha
   // The radio buttons stay on screen: the dot shows the choice, its words are bold, and the keyboard can reach it.
   open('people/kim@shop.com'); await screen.findByRole('button', { name: 'Save access' })
   const radios = screen.getAllByRole('radio') as HTMLInputElement[]
-  expect(radios.map(radio => [radio.type, radio.parentElement!.textContent, radio.checked])).toEqual([['radio', 'None', false], ['radio', 'Read', true], ['radio', 'Read & write', false]])
+  expect(radios.map(radio => [radio.type, radio.parentElement!.textContent, radio.checked])).toEqual([['radio', 'None', false], ['radio', 'Look up', false], ['radio', 'Look up & change', true],
+    ['radio', 'None', false], ['radio', 'Read', true], ['radio', 'Read & write', false]])
   for (const radio of radios) {
     expect(classes(radio).filter(name => GONE.test(name))).toEqual([])
     has(radio.parentElement!, 'has-checked:font-semibold')
   }
   for (const tick of screen.getAllByRole('checkbox')) expect(classes(tick).filter(name => GONE.test(name))).toEqual([])
+  // What the set can't do yet is bold with a bar beside it, and the "!" is in the text itself.
+  const short = screen.getByText('Hello can look up, not change')
+  expect(short.textContent).toBe('! Hello can look up, not change'); has(short, 'font-semibold'); has(short.parentElement!, 'border-s-[0.2rem]')
+  // Giving it what it needs marks the starting point as pressed, in words a screen reader hears and with a tick in its text;
+  // the level it raised is marked by the bold word beside it.
+  fireEvent.click(screen.getByRole('button', { name: 'Give Hello what it needs' }))
+  const start = screen.getByRole('button', { name: 'Hello' })
+  expect([start.getAttribute('aria-pressed'), start.textContent]).toEqual(['true', 'Hello ✓'])
+  const raised = within(screen.getByRole('group', { name: 'Stripe' })).getByText('new')
+  expect(raised.tagName).toBe('STRONG'); has(raised, 'font-semibold')
 })

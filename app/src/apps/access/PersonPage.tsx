@@ -28,8 +28,8 @@ function Managing({ manager, onChange }: { manager: boolean; onChange: (manager:
   </Group>
 }
 
-/** One person, opened: whether they can sign in, their role, then what it gives by name, or their own ticks and
- *  levels, then whether they manage Access. Without `person`, a new one. */
+/** One person, opened: whether they can sign in, their role, then what it gives by name, or their own set in its
+ *  three parts, then whether they manage Access. Without `person`, a new one. */
 export function PersonPage({ person, ...props }: ViewProps & { person?: Person }) {
   const { status, save } = props
   // Where the fields start: the person as saved, or a new one with nothing.
@@ -40,8 +40,8 @@ export function PersonPage({ person, ...props }: ViewProps & { person?: Person }
   const [manager, setManager] = useState(start.manager)
   const { owner } = status.viewer
   const chosen = status.roles.find(item => item.id === role)
-  // A role is the whole answer: ticks and levels are sent only for a person's own set.
-  const access = chosen ? { role } : { role: null, apps: set.apps, keys: fill(status.keys, set.keys, null) }
+  // A role is the whole answer: levels are sent only for a person's own set, one for every area and every key.
+  const access = chosen ? { role } : { role: null, apps: fill(status.areas, set.apps, null), keys: fill(status.keys, set.keys, null) }
   const changed = email !== start.email || role !== start.role || !sameSet(set, start.set) || manager !== start.manager
   // Only the owner picks managers, and only a changed tick is sent: left out, the person keeps what they have.
   const picked = owner && manager !== start.manager && { manager }

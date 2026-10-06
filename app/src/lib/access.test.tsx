@@ -49,7 +49,7 @@ it('reload hides a previous failure while obtaining new authoritative permission
 it('reads why the project can not be handed out, and works it out from Project code for a status sent without it', () => {
   const code = (saved: boolean) => ({ id: 'code', title: 'Project code', levels: ['read'], saved, setup: false, usedBy: [], alone: true })
   const status = (changes: object) => statusSchema.parse({ ownerEmail: 'owner@example.com', viewer: { email: 'owner@example.com', owner: true }, environment: 'live',
-    key: 'ready', started: true, imported: 0, keysStarted: true, kept: 0, apps: [], appKeys: {}, keys: [], roles: [], people: [], work: [], ...changes })
+    key: 'ready', started: true, imported: 0, keysStarted: true, kept: 0, areas: [], skills: [], appKeys: {}, keys: [], roles: [], people: [], work: [], ...changes })
   expect(['ready', 'key', 'setup'].map(project => status({ project, keys: [code(false)] }).project)).toEqual(['ready', 'key', 'setup'])
   // An older app, or a cached page: saved means ready, anything else asks for the key.
   expect([status({ keys: [code(true)] }).project, status({ keys: [code(false)] }).project, status({}).project]).toEqual(['ready', 'key', 'key'])

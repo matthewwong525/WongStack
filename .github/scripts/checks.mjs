@@ -2,6 +2,11 @@
 // Portable customer checks. The caller supplies repository context; GitHub
 // and hosted runners use this same entry point without provider credentials.
 //
+// Both routes also run the skill check, `scripts/check-skill-actions.mjs`, on
+// every change, docs-only included: it only reads files, and a skill's text is
+// Markdown the suite skips. The script ships with the Cloudflare pack, so a repo
+// without the pack, or one that has not synced it yet, has none and skips it.
+//
 // When the change touches a check's settings, the suite's packages, or the proof
 // itself, it also runs the suite's `test:checks` script, which hands each check a
 // bad sample and fails when one lets it through. Other changes skip that proof and
@@ -31,11 +36,11 @@ The default branch labels caller context; it does not select the base.
 --discover  print scope and test-suite location as JSON; run no checks
 --summary   append quality reports and the final summary to this file
 --worktree  check the uncommitted work here, before a push; never the gate
---only      with --worktree, rerun only these: suite, proof, loosened, wiki, payload, payload:<step>
+--only      with --worktree, rerun only these: suite, proof, loosened, wiki, skills, payload, payload:<step>
 --lock-wait with --worktree, seconds to wait for another chat's run (default 600)`;
 const scripts = dirname(fileURLToPath(import.meta.url));
 const SHA = /^[0-9a-f]{40}([0-9a-f]{24})?$/;
-const PART = /^(suite|proof|loosened|wiki|payload(:[a-z-]+)?)$/;
+const PART = /^(suite|proof|loosened|wiki|skills|payload(:[a-z-]+)?)$/;
 const NO_TOOLS = 7;
 // The suite's script that proves each of its checks still fails on a bad sample, and the file behind it.
 const PROOF = 'test:checks';
@@ -144,6 +149,18 @@ function takeTurn(file, seconds) {
   }
 }
 
+/** The skill check, where the repo has it: a pass prints its one line, a failure its report under a heading. */
+function skillCheck(repo) {
+  const script = join(repo, 'scripts', 'check-skill-actions.mjs');
+  if (!existsSync(script)) return { ok: true, text: '' };
+  const result = spawnSync(process.execPath, [script, '--root', repo], { cwd: repo, encoding: 'utf8' });
+  const ok = result.status === 0;
+  const output = `${result.stdout ?? ''}${result.stderr ?? ''}`.trim();
+  const text = ok ? `${output}\n` : `### Skill checks\n\n\`\`\`text\n${output}\n\`\`\`\n`;
+  process.stdout.write(text);
+  return { ok, text };
+}
+
 function checks({ repo, scope, dir }, summary) {
   const report = text => {
     console.log(text);
@@ -169,6 +186,8 @@ function checks({ repo, scope, dir }, summary) {
     wiki = run(process.execPath, [join(scripts, 'wiki-links.mjs'), repo], repo, true);
     if (summary) appendFileSync(summary, wiki.text);
   }
+  const skills = skillCheck(repo);
+  if (summary) appendFileSync(summary, skills.text);
   let line = scope.untouched === 'true'
     ? 'The main app is untouched (only docs changed), so its suite did not run.'
     : dir ? `The main app changed, so its suite ran: ${suite}.` : 'The main app changed, but no test suite is declared.';
@@ -177,8 +196,9 @@ function checks({ repo, scope, dir }, summary) {
   if (!loosened.ok) line += ' A check was loosened with no written reason; see Loosened checks above.';
   if (!wiki.ok) line += ' A wiki page has a broken link, is linked from nowhere, is too long, or lacks its title; see Wiki checks above.';
   if (scope.wiki_affected === 'false') line += ' The wiki check skipped, because no page or linked file changed.';
+  if (!skills.ok) line += ' A skill reads a saved key or calls an action it does not list; see Skill checks above.';
   report(line);
-  return install && suite !== 'failure' && proof !== 'failure' && loosened.ok && wiki.ok;
+  return install && suite !== 'failure' && proof !== 'failure' && loosened.ok && wiki.ok && skills.ok;
 }
 
 /** The pre-check on this computer. Returns the exit code; prints one LOCAL_CHECKS line last. */
@@ -187,7 +207,7 @@ function localChecks(values) {
     if (values[key] !== undefined) usageError(USAGE, `--worktree does not take --${key}`);
   }
   const parts = values.only?.split(',').map(part => part.trim()).filter(Boolean);
-  if (parts && (!parts.length || parts.some(part => !PART.test(part)))) usageError(USAGE, '--only takes suite, proof, loosened, wiki, payload, or payload:<step>');
+  if (parts && (!parts.length || parts.some(part => !PART.test(part)))) usageError(USAGE, '--only takes suite, proof, loosened, wiki, skills, payload, or payload:<step>');
   const wait = Number(values['lock-wait'] ?? 600);
   if (!Number.isFinite(wait) || wait < 0) usageError(USAGE, '--lock-wait is a number of seconds');
   const repo = realpathSync(execFileSync('git', ['rev-parse', '--show-toplevel'], { cwd: resolve(values.repo ?? '.'), encoding: 'utf8' }).trim());
@@ -222,6 +242,7 @@ function localChecks(values) {
   if (proof === 'unchanged' || proof === 'none') console.log(PROOF_NOTE[proof]);
   if (wants('loosened') && !run(process.execPath, [join(scripts, 'loosened-checks.mjs'), '--worktree'], repo, true, env).ok) failed.push('loosened');
   if (wants('wiki') && scope.wiki_affected !== 'false' && !run(process.execPath, [join(scripts, 'wiki-links.mjs'), repo], repo, true).ok) failed.push('wiki');
+  if (wants('skills') && !skillCheck(repo).ok) failed.push('skills');
 
   // The WongStack source repo lists its own static checks in one more script; no install has it.
   const extra = join(repo, 'scripts', 'payload-checks.mjs');
