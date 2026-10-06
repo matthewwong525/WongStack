@@ -14,7 +14,9 @@ you          the app        their device
 
 ## Who gets what
 
-The owner or a manager gives **Project code** in [Access → Keys](employee-access.md#a-key-with-no-app), per person or per role. It has one level, Read, and needs no app ticked: ticking an app never gives it. The owner always holds it; nobody else does until it is given. It shows as saved once the app can read the project.
+The owner or a manager gives the project in [Access](employee-access.md#give-an-app-and-its-level-in-one-place): the tick *Can install the project* on a person's panel, or on a role's. The tick is **Project code** at Read, its one level, so [Access → Keys](employee-access.md#a-key-with-no-app) shows the same choice. It needs no app ticked: ticking an app never gives it. The owner always holds it; nobody else does until it is given. It shows as saved once the app can read the project.
+
+The tick is off for a new person, and saves before the key is in. While the app can't hand the project out, the ticked box names the step left, and so does *Project code* opened from *Keys*: [a read-only GitHub key](#the-owners-one-step-on-github), or [finishing Access setup](employee-access.md#finish-access-setup) on an install with no project recorded. The owner gets a request to copy for their assistant; a manager reads that the step is the owner's. The person gets the project once the step is done, with no further change in Access.
 
 | The person | The Connect card | What the prompt does |
 |---|---|---|
@@ -107,7 +109,9 @@ The app passes Git's two read calls through to where the project is kept and add
 
 ### The owner's one step on GitHub
 
-The app needs a read-only key for this one repository, `WONG_CODE_READ`. The Access step's report carries `codeKey: missing` with the steps until both Workers hold it. [Send the key link](../development/secrets.md#receive-a-key-through-a-private-link) for `WONG_CODE_READ` with this guide:
+The app needs a read-only key for this one repository, `WONG_CODE_READ`. **Access asks for it, not setup.** The first time the owner ticks *Can install the project* with no key saved, [the panel says one step comes first](employee-access.md#give-an-app-and-its-level-in-one-place) and gives a request to copy: *Let teammates install the project*. Setup and an update say nothing of the key, so an owner who works alone is never asked. The Access step's report still carries `codeKey: missing` with the steps until both Workers hold it, and no to-do.
+
+When the owner hands you that request, [send the key link](../development/secrets.md#receive-a-key-through-a-private-link) for `WONG_CODE_READ` with this guide:
 
 1. Open [GitHub's new fine-grained token page](https://github.com/settings/personal-access-tokens/new).
 2. *Repository access*: **Only select repositories**, then this one repository.

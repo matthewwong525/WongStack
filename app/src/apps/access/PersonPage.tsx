@@ -56,7 +56,7 @@ export function PersonPage({ person, ...props }: ViewProps & { person?: Person }
     </NativeSelect></Field>
     {chosen ? <RoleSet status={status} role={chosen} /> : <>
       <SetFields status={status} set={set} onChange={setSet} />
-      <p>A new person starts with no apps. Project code is shared separately.</p>
+      <p>A new person starts with no apps.</p>
     </>}
     {owner && <Managing manager={manager} onChange={setManager} />}
   </Page>
