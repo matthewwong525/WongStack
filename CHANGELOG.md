@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (major) — /improve-code plans code fixes and /dream-memory checks everything your project remembers
+## 37.0.0 — /improve-code plans code fixes and /dream-memory checks everything your project remembers
 
 - **Two clearer names.** `/improve` is now `/improve-code` and `/dream` is now `/dream-memory`. Each name says what it works on.
 - **Schedules you already made keep running.** A schedule that still uses an old name runs the renamed skill.
@@ -22,6 +22,7 @@
 [Code improvement](wiki/development/repository-improvement.md) and [Memory dream](wiki/development/wiki-dream.md) say how each works.
 
 **Updating.** Type `/improve-code` where you typed `/improve`, and `/dream-memory` where you typed `/dream`; the old names no longer work when typed. Schedules you already made keep running with no change. `/improve-code` now stops at a plan, so nothing is built until you say yes.
+
 ## 36.4.0 — Checks that can't go quiet
 
 - **A check that has stopped checking turns red.** A check can switch itself off and still pass: the repeated-code check once passed everything because its settings file held a comment. Now, when a change touches a check's settings or the version of a tool behind one, each check is handed a small piece of code that is wrong on purpose. A check that lets it through is named, and the change can't be published. Other changes skip this, so they take no longer.

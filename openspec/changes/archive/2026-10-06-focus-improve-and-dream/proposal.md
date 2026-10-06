@@ -1,5 +1,11 @@
 # Focus /improve on code and /dream on memory
 
+**Status:** ready-to-ship
+
+**Branch:** redesign-improve-dream
+
+**Open questions:** none
+
 ## Why
 
 The improve and dream skills blur into each other. Improve will ship any kind of improvement, so its last run added a feature, and nothing reliably looks after how the code is built. Dream tidies saved facts and your own wiki pages, but never reads the specs or past plans, so two of the four places your project remembers things go unchecked. Their names don't say what each one works on.
@@ -76,3 +82,4 @@ None.
 - **2026-10-06** — Assumed: the stale-fact list counts a path only when the project once held it and the fact does not itself say it was removed, because the trial's first list was mostly false alarms (6 of the 10 read).
 - **2026-10-06** — Assumed: a scheduled run's waiting plan is marked by a note that starts `Improve plan:`, because the trial could not tell which waiting note was the code skill's own.
 - **2026-10-06** — Asked how to clear a publish blocked by Dependabot's failed update job on main → chose: fix the publish check in this change, so it counts only the project's own checks.
+- **2026-10-06** — Archive checkpoint: built, three trial runs recorded in trial.md, local checks pass, numbered 37.0.0; the first real memory dream runs after the publish.
