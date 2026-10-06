@@ -152,7 +152,7 @@ Setup makes this key for the runner. A run holds it, so it can run a model and c
 
 A model key can end or be revoked. Its routines then list `model-refused` and do no work. Ask your assistant to replace it: it sends the key link for a new value, tests it, and stores it. Run the routine once to check.
 
-The project key of a GitHub install renews the same way: a new `WONG_ROUTINE_GITHUB_TOKEN` through the key link, then `routine.mjs setup` again. Setup is safe to repeat. It also updates the runner after a WongStack update.
+The project key of a GitHub install renews the same way: a new `WONG_ROUTINE_GITHUB_TOKEN` through the key link, then `routine.mjs setup` again. Setup tests the token first: one that can read the project but not save to it is kept on your computer, and setup says to make one with Contents and Pull requests set to Read and write. Setup is safe to repeat. It also updates the runner after a WongStack update.
 
 ## Tear it down
 

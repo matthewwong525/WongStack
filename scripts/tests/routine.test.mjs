@@ -4,6 +4,7 @@
 // its contract: one new private file outside every repo, holding a real key for the id it was given.
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
+import { createServer } from 'node:http';
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -81,6 +82,14 @@ async function install(t, { route = 'artifacts', installed = false, picked = fal
   }
   const runner = await fakeRunner({ config: { route } });
   t.after(runner.close);
+  // GitHub, asked whether the project key can save: `github.status` is what it answers.
+  const github = { status: 201, asked: [] };
+  const hub = createServer((req, res) => {
+    github.asked.push({ call: `${req.method} ${req.url}`, key: req.headers.authorization });
+    res.writeHead(github.status, { 'Content-Type': 'application/json' }).end('{}');
+  });
+  await new Promise((done) => hub.listen(0, '127.0.0.1', done));
+  t.after(() => hub.close());
   Object.defineProperty(runner.state, 'env', { get: () => fake.state.workerSecrets[RUNNER] ?? {} });
   if (picked) await runner.routines.choose({ via: 'cloudflare', model: KIMI });
 
@@ -112,12 +121,12 @@ async function install(t, { route = 'artifacts', installed = false, picked = fal
   };
   const at = (cwd) => async (...argv) => {
     let text = '';
-    const code = await main(argv, { WONG_CLOUDFLARE_API: fake.api, WONG_ROUTINES_API: runner.url }, { cwd, exec, sleep: async () => {}, now: () => NOW, out: (chunk) => (text += chunk), timeoutMs: 5000 });
+    const code = await main(argv, { WONG_CLOUDFLARE_API: fake.api, WONG_ROUTINES_API: runner.url, WONG_GITHUB_API: `http://127.0.0.1:${hub.address().port}` }, { cwd, exec, sleep: async () => {}, now: () => NOW, out: (chunk) => (text += chunk), timeoutMs: 5000 });
     return { code, text, data: JSON.parse(text) };
   };
   const envFile = (file = path.join(dir, '.env')) => Object.fromEntries(readFileSync(file, 'utf8').split('\n').filter(Boolean).map((line) => [line.slice(0, line.indexOf('=')), line.slice(line.indexOf('=') + 1)]));
   return {
-    dir, fake, runner, ran, memory, at, envFile, run: at(dir),
+    dir, fake, runner, github, ran, memory, at, envFile, run: at(dir),
     record: () => JSON.parse(readFileSync(path.join(dir, '.claude/.wong-stack.json'), 'utf8')).components,
     addKey: (name, value) => writeFileSync(path.join(dir, '.env'), `${readFileSync(path.join(dir, '.env'), 'utf8')}${name}=${value}\n`),
     held: () => fake.state.workerSecrets[RUNNER] ?? {},
@@ -456,7 +465,24 @@ test('a GitHub install drops the Artifacts binding and answers needs project-acc
   assert.equal(env.held().GITHUB_TOKEN, PROJECT_KEY);
   assert.equal(env.fake.state.puts.length, 1, 'a token that holds every group is not widened again');
   assert.equal((await env.run(...CREATE)).code, 0);
+  assert.deepEqual(env.github.asked, [{ call: 'POST /repos/ada/demo/git/blobs', key: `Bearer ${PROJECT_KEY}` }], 'GitHub is asked once, about this one repository');
   noSecret(`${first.text}${waiting.text}${second.text}`, env);
+});
+
+test('a project key that can read but not save is never sent to the runner, and setup says why', async (t) => {
+  const env = await install(t, { route: 'github', keys: { WONG_ROUTINE_GITHUB_TOKEN: PROJECT_KEY } });
+  for (const [status, why] of [[403, /can read this project but not save to it.*Contents and Pull requests both set to Read and write/], [404, /cannot see this project/], [401, /GitHub refused the token/]]) {
+    env.github.status = status;
+    const setup = await env.run('setup');
+    assert.deepEqual([setup.code, setup.data.ok, setup.data.needs, setup.data.keys], [0, true, 'project-access', ['WONG_ROUTINE_GITHUB_TOKEN']], String(status));
+    assert.match(setup.data.why, why);
+    assert.equal(env.held().GITHUB_TOKEN, undefined, 'the key stays on this computer');
+    noSecret(setup.text, env);
+  }
+  // GitHub unreachable, or answering in a way that says nothing of the key: the key is sent, as before.
+  env.github.status = 500;
+  const unsure = await env.run('setup');
+  assert.deepEqual([unsure.data.needs, env.held().GITHUB_TOKEN], [undefined, PROJECT_KEY]);
 });
 
 // ---------------------------------------------------------------------------

@@ -16,7 +16,7 @@ The script prints one JSON object, never a key. Exit `0` is success; `2` is bad 
 
 ## Script or routine
 
-Judge first **who decides the steps**; the person is not asked.
+Judge **who decides the steps**.
 
 - **The same steps every run** (*copy yesterday's orders into the archive table*) is a script, even when a step calls an AI model. Say so, make no routine, and start [`/plan`](../plan/SKILL.md) for a scheduled function in the app, with [its manual trigger](../../rules/code.md#sample-data-and-timed-jobs). A script needs no paid plan.
 - **Work that finds its own way** (*find news about our competitors*, `/improve`) is a routine.
@@ -39,7 +39,7 @@ Exit `3` names one `needs`. Meet it, then rerun the command that stopped.
 - `model`: ask which model in the ask format: the `shortlist`, its recommended one first, each with its `billing`, and the person's own words for any other (`node "$R" model` lists all). Then `node "$R" model '<id>'`. A refused pick is exit `2` and changes nothing: say why, and ask again.
 - `model-key`, or the person says *use my key*: send [the key link](../../../wiki/development/secrets.md#receive-a-key-through-a-private-link) for `WONG_ROUTINE_MODEL_KEY`, then `node "$R" key`. Say the service and model it reports. `key --remove` returns to the Cloudflare pick.
 - `provider`: ask which of `services` the key is for, then `node "$R" key --provider <id> [--model <id>]`.
-- `project-access`: send the key link for `WONG_ROUTINE_GITHUB_TOKEN`, then `node "$R" setup`.
+- `project-access`: say its `why` if any, send the key link for `WONG_ROUTINE_GITHUB_TOKEN`, then `node "$R" setup`.
 - `paid-plan`: say routines need Cloudflare's paid plan, give `cost` and `upgrade`, and stop.
 - `cloudflare`: say this install has no Cloudflare account to run routines in, and stop.
 - `setup`: show `node "$R" setup --dry-run`'s `adds` and `cost`, confirm, then `node "$R" setup`.

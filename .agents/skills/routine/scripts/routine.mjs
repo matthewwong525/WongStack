@@ -54,6 +54,13 @@ const NOTE_IN_RESULT = 'so a run leaves its note in its result, not in memory';
 const NOT_READY = 3;
 const NO_ANSWER = 4;
 const UNKNOWN_KEY_WAITS = [2000, 4000];
+const GITHUB_API = 'https://api.github.com';
+/** Why a project key was not sent to the runner, in plain words. */
+const KEY_WHY = {
+  'read-only': 'The GitHub token can read this project but not save to it. Make a new one with Contents and Pull requests both set to Read and write.',
+  'no-access': 'The GitHub token cannot see this project. Make a new one, and under Repository access choose this repository.',
+  refused: 'GitHub refused the token: it has expired or was deleted. Make a new one.',
+};
 
 export class RoutineError extends PaseoError {}
 
@@ -170,6 +177,25 @@ function project(ctx) {
   const github = githubRemote(origin);
   if (!github) throw input('This project has no GitHub or Cloudflare repository to run from: `origin` is not a GitHub address.');
   return { route: 'github', ...github };
+}
+
+/**
+ * Whether the project key can save to the repository: GitHub is asked to store the empty file, which
+ * adds nothing and which only a key with Contents write may do. Returns null when it can, or when
+ * GitHub can't be asked; else `read-only`, `no-access`, or `refused`. For tests, WONG_GITHUB_API
+ * points the call at another address.
+ */
+async function projectKeyLacks(ctx, deps, repo, key) {
+  let status;
+  try {
+    ({ status } = await deps.fetch(`${(ctx.env.WONG_GITHUB_API || GITHUB_API).replace(/\/$/, '')}/repos/${repo}/git/blobs`, {
+      method: 'POST', signal: AbortSignal.timeout(deps.timeoutMs ?? 15_000), body: JSON.stringify({ content: '', encoding: 'utf-8' }),
+      headers: { Authorization: `Bearer ${key}`, Accept: 'application/vnd.github+json', 'Content-Type': 'application/json', 'User-Agent': 'wongstack-routine' },
+    }));
+  } catch {
+    return null;
+  }
+  return { 401: 'refused', 403: 'read-only', 404: 'no-access' }[status] ?? null;
 }
 
 /** Stops before a key could be written where git would commit it. */
@@ -289,7 +315,10 @@ async function setup(ctx, flags, deps) {
     await put('ROUTINES_KEY', key);
     const groups = await cf('GET', '/user/tokens/permission_groups?per_page=1000');
     await scopedToken(cf, account, `${runner}-ai`, AI_RUN_TOKEN, groups, { secretSet: held.has('AI_RUN_TOKEN'), setSecret: (value) => put('AI_RUN_TOKEN', value), note, label: 'model-only key', sentTo: 'the routine runner' });
-    const projectKey = route === 'github' ? ctx.keys[PROJECT_KEY] : null;
+    const givenKey = route === 'github' ? ctx.keys[PROJECT_KEY] : null;
+    // A key that can't save is never sent: a run would only find out when it tried to push.
+    const lacks = givenKey ? await projectKeyLacks(ctx, deps, source.repo, givenKey) : null;
+    const projectKey = lacks ? null : givenKey;
     if (projectKey) await put('GITHUB_TOKEN', projectKey);
     // The last thing Cloudflare is asked for, so a stop above issues no key that nothing would hold.
     const memory = await runsMemoryKey(ctx, { held, put }, deps, note);
@@ -305,7 +334,7 @@ async function setup(ctx, flags, deps) {
     return {
       ok: true, routines, created, updated, granted: widened.granted, plan: paid, cost: COST,
       ...(memory.todo ? { todo: [memory.todo] } : {}),
-      ...(waits ? { needs: 'project-access', keys: [PROJECT_KEY] } : {}),
+      ...(waits ? { needs: 'project-access', keys: [PROJECT_KEY], ...(lacks ? { why: KEY_WHY[lacks] } : {}) } : {}),
     };
   } catch (error) {
     throw cloudStop(error);
@@ -429,7 +458,7 @@ async function create(ctx, flags, deps) {
   let installed = null;
   if (!ctx.routines) {
     installed = await setup(ctx, {}, deps);
-    if (installed.needs) throw notReady(installed.needs, 'The routine pieces are installed, but the runner has no access to the project yet. Send the key link for the project key, then run setup.', { keys: installed.keys, setup: without(installed, 'ok', 'needs', 'keys') });
+    if (installed.needs) throw notReady(installed.needs, `The routine pieces are installed, but the runner has no access to the project yet. ${installed.why ?? 'Send the key link for the project key, then run setup.'}`, { keys: installed.keys, setup: without(installed, 'ok', 'needs', 'keys') });
     ctx = install(deps.cwd, ctx.env);
   }
   if (request.keys.length) {

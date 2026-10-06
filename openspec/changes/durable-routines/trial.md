@@ -33,6 +33,7 @@ Run on 2026-10-05 on the owner's account (Workers Paid), from a Linux server wit
 | No key in a URL, a log, or a stored step | The run's log and every stored Workflow step were searched for the Artifacts key, a Basic or Bearer header, the routines key, and the Cloudflare token. None was there. |
 | An install whose project lives on GitHub, with no project key | `setup` installed a second runner, `wong-rt-gh-routines`, in 36 seconds and answered `needs: project-access`. `create` then stopped with the same answer and made no routine. |
 | No computer left running | After both runs, Cloudflare's container list showed no active or assigned instance for either runner. |
+| A GitHub token that can read but not save | The person gave a read-only token. `setup` asked GitHub, did not send the token to the runner, and answered `needs: project-access` with *The GitHub token can read this project but not save to it*. The runner's secrets stayed `AI_RUN_TOKEN` and `ROUTINES_KEY`. |
 | A wrong pasted key, in Z.ai's shape | Recognised as Z.ai, refused by Z.ai with 401, and nothing was stored: the runner's secrets stayed `AI_RUN_TOKEN` and `ROUTINES_KEY`. The key's text was in no output. |
 | A pasted key of no known shape | Stopped with `needs: provider` and the nine services to choose from. |
 | No pasted key | Stopped with `needs: model-key`. |
@@ -60,12 +61,13 @@ Start-up is under the 60-second limit, so no saved start was built.
 - **The first call after `setup` got an empty 404.** A new key takes a few seconds to reach every Cloudflare location. The client now tries an empty 404 again, twice.
 - **The notice said to leave a memory thread, but not how.** In a project with no memory skill, the assistant called its own chat the memory record. The notice now says to write the thread through the project's memory skill when it has one, and otherwise to end its reply with what is left. A first wording made a one-word task spend three minutes on that bookkeeping, so the notice also says to do neither when nothing is left; the same task then replied with its one word.
 - **A note written the memory skill's usual way never left the container.** The skill's example names the chat session, a scheduled run has none, and the script then holds the fact for a next chat that never comes. The notice now says to leave the session out and to check the script answers `stored`.
+- **A read-only GitHub token was accepted and would have failed at a run's first push.** `setup` now asks GitHub to store the empty file with the token, which only a token with write access may do, and keeps a token that can't.
 
 ## Not done yet
 
 - **The GitHub route** (the second half of task 5.2): a run that pushes to a GitHub repository needs a fine-grained token from the person, through the key link. Its runner is installed and waiting.
-- **A real pasted model key** (task 5.4): needs a key from the person, through the key link.
-Two key links for both keys were open on 2026-10-05, from 20:24 to 20:54 UTC and for 30 minutes from about 21:52 UTC, and both closed unused.
+- **A real pasted model key** (task 5.4): dropped on 2026-10-06. The person chose to rely on Cloudflare's own models, which every trial run used; the pasted-key path ships tested with a refused key and stand-ins.
+Six key links were sent on 2026-10-05 and 2026-10-06. Four timed out unused, one was closed by another chat's link 33 seconds after it opened, and one took the read-only token above. The run on the GitHub route still waits for a token that can write.
 
 ## Clean-up
 
