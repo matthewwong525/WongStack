@@ -3,6 +3,12 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 35.2.2 — When a preview check needs a browser
+
+- **A save that checks where a request came from is walked in a browser.** [Staging walkthrough](wiki/development/staging-walkthrough.md#walk-the-app-the-way-a-person-does) now says a plain request check sends no `Origin` header, so a save that needs one, such as a change in Access, is refused there and takes a browser check.
+
+**Updating.** Nothing needs doing by hand.
+
 ## 35.2.1 — Access changes need a checked caller
 
 - **A change in Access can't skip the sign-in check.** Every change to people, roles or levels takes a pass that says who is asking. Only the sign-in check hands that pass out now, and code that writes its own no longer builds.
