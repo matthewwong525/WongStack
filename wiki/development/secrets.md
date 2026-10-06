@@ -47,6 +47,11 @@ If an ordinary browsing task reaches a token step, stop before taking a picture 
 
 Ordinary browsing, saved website logins, use of stored credentials, and existing authorized token management through APIs continue as usual.
 
+**A routine's keys.** [Cloud routines](../stack/cloud-routines.md) take two keys only the person can make. Each goes through [the private key link](#receive-a-key-through-a-private-link):
+
+- `WONG_ROUTINE_MODEL_KEY`, optional: one key from the model service you already pay for. Copy it from that service's keys page: [Anthropic](https://console.anthropic.com/settings/keys), [OpenAI](https://platform.openai.com/api-keys), [Z.ai](https://z.ai) under *API Keys*, or another's. The assistant [works out whose key it is](../stack/cloud-routines.md#or-paste-your-own-key).
+- `WONG_ROUTINE_GITHUB_TOKEN`, only when the project lives on GitHub: [a new fine-grained token](https://github.com/settings/personal-access-tokens/new), *Only select repositories* with this one, *Contents* and *Pull requests* set to *Read and write*.
+
 ## Receive a key through a private link
 
 When a task needs a key the live files lack, or the person asks for *the key link*, send a private link in the same reply, with no *Ready?* question: it waits 30 minutes. Chats are stored; the link carries the key from their device straight to the ignored file.

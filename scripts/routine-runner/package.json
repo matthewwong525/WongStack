@@ -1,0 +1,16 @@
+{
+  "name": "wongstack-routine-runner",
+  "private": true,
+  "type": "module",
+  "description": "The routine runner of an install that schedules. The first /routine installs and deploys it from this folder's own pinned tools; the app never depends on it.",
+  "scripts": {
+    "deploy": "wrangler deploy --config wrangler.jsonc"
+  },
+  "dependencies": {
+    "@cloudflare/sandbox": "0.12.5",
+    "@earendil-works/pi-ai": "1.0.3"
+  },
+  "devDependencies": {
+    "wrangler": "4.146.0"
+  }
+}

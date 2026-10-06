@@ -54,7 +54,7 @@ A helper still missing after its install is not a stop: say so in one plain line
 
 ### Paseo: point to it, never install it
 
-After the tools pass, check `command -v paseo`. Missing → say one plain sentence, then continue: *"Paseo is a free app for chatting with me from your phone, running things on a schedule, and giving each piece of work its own space; get it at [paseo.sh](https://paseo.sh) whenever you like."* Never install it, and never stop setup without it: it is a desktop download with its own window.
+After the tools pass, check `command -v paseo`. Missing → say one plain sentence, then continue: *"Paseo is a free app for chatting with me from your phone and giving each piece of work its own space; get it at [paseo.sh](https://paseo.sh) whenever you like."* Never install it, and never stop setup without it: it is a desktop download with its own window.
 
 ## 2. The GitHub sign-in
 

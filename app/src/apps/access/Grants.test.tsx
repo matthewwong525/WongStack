@@ -72,7 +72,7 @@ it('lists every key on one line: whether it is saved, what uses it, and how many
   // The higher level first; the owner before the rest, at the most the key offers; counts, not names.
   expect(await cells('Stripe')).toEqual(['Stripe', 'Saved', '1 app', 'Owner, 1 role', '1 role, 1 person'])
   expect(await cells('Bank')).toEqual(['Bank', 'Saved', '1 app', 'Owner', 'Nobody'])
-  expect(await cells('Cloudflare')).toEqual(['Cloudflare', 'Saved', 'Look-ups, no app needed', 'Nobody', 'Owner, 1 person'])
+  expect(await cells('Cloudflare')).toEqual(['Cloudflare', 'Saved', 'Look-ups', 'Nobody', 'Owner, 1 person'])
   expect(document.querySelector('[data-slot="badge"]')).toBeNull()
   const stripe = await row('Stripe')
   expect(stripe.getByRole('link', { name: 'Stripe' }).getAttribute('href')).toBe('/apps/access/keys/stripe')
@@ -94,7 +94,7 @@ it('says one step is left for the key setup makes, with the request to copy wher
   roster.keys[2].saved = false
   open('keys'); const cloudflare = await row('Cloudflare')
   // The row keeps its shape and stays one line: the key, its state in words, and nothing to copy.
-  expect(await cells('Cloudflare')).toEqual(['Cloudflare', 'One step left', 'Look-ups, no app needed', 'Nobody', 'Owner, 1 person'])
+  expect(await cells('Cloudflare')).toEqual(['Cloudflare', 'One step left', 'Look-ups', 'Nobody', 'Owner, 1 person'])
   expect(cloudflare.queryByRole('button')).toBeNull(); expect(screen.queryByText('Finish Access setup')).toBeNull()
   // Opened, it says the next step and offers the request to copy.
   fireEvent.click(cloudflare.getByRole('link', { name: 'Cloudflare' })); const opened = await panel('Cloudflare')
