@@ -12,7 +12,7 @@ WongStack's front pages still describe an older idea of it, and they tell a newc
 
 ## What Changes
 
-- **The README opens with the vision, in Matthew's words and order.** AI is good enough for anyone to build their own apps; most people still can't, because nothing is set up for them. WongStack gives your assistant one place to build, remember, and get things done, in one Cloudflare account that you own, set up by pasting one message. It ends on his line: *GitHub is for engineers. This is the next one, for everyone else.* His own story stays beside it: he built it to run his clay-kit company, it is his opinionated setup done once, and it is easy to change to your way of working.
+- **The README opens with the start of the vision, in Matthew's words, and stops at the bullets.** AI is good enough for anyone to build their own apps; most people still can't, because nothing is set up for them. WongStack gives your assistant one place to build, remember, collaborate, and get things done. One line under the bullets says who he is and that he built it to run his clay-kit company.
   ```text
     BEFORE                 AFTER
   ┌───────────────────┐  ┌────────────────────┐
@@ -22,6 +22,7 @@ WongStack's front pages still describe an older idea of it, and they tell a newc
   │                   │  │ +One place to:     │
   │ What you get      │  │ + Build            │
   │  5 mixed points   │  │ + Remember         │
+  │                   │  │ + Collaborate      │
   │                   │  │ + Get things done  │
   └───────────────────┘  └────────────────────┘
   ```
@@ -98,3 +99,6 @@ None.
 - **2026-10-06** — Saved: everything is written and the checks on this computer pass; the two specs carry the new promises. The look at the saved landing page preview and the README on GitHub (task 5.4) is still to do.
 - **2026-10-06** — After seeing the preview, Matthew wrote "Maybe remove for AI? And also change remember to collaborate" → the landing page's headline and shared-link text read "One place to build, collaborate, and get things done."
 - **2026-10-06** — Assumed: only the landing page's headline changes; the README and guides keep Build, Remember, Get things done, because that is the vision as agreed and the note was made on the preview.
+- **2026-10-06** — Matthew wrote "for readme we dont need the whole blurb just till the bullet points and maybe add an extra bullet on collaborating" → the README's opening ends at the bullets, with a fourth bullet, Collaborate; the lines on one Cloudflare account, several assistants, and "GitHub is for engineers" leave the README.
+- **2026-10-06** — Assumed: one sentence naming Matthew and Claymoo stays under the bullets, because an existing promise says the README's first screen says whose way of using AI this is, through his real business.
+- **2026-10-06** — Assumed: the Collaborate bullet says a team shares tools and memory and the owner chooses who sees and changes what, and says nothing about teammates publishing, because that is not built on a project kept in Cloudflare.

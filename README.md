@@ -6,19 +6,14 @@
 
 **AI is now good enough that anyone can build their own apps.** Most people still can't, because nothing is set up for them. The AI can write an app, but it has nowhere to put it.
 
-WongStack gives your assistant one place to do three things:
+WongStack gives your assistant one place to do four things:
 
 - **Build.** Ask for a tool in plain words and it makes a real, working app: *"Build a packing checklist for my team."*
 - **Remember.** It keeps what it learns about you and your work, so you never explain twice: *"From now on, orders ship on Fridays."*
+- **Collaborate.** Your team shares the same tools and memory, each person with their own assistant, and you choose who can see and change what: *"Let Sam see the orders tool."*
 - **Get things done.** It runs your errands, uses websites for you, and does jobs while you sleep: *"Every Monday, send me last week's profit."*
 
-All of it lives in one Cloudflare account that you own. You paste one message to set it up.
-
-You can put several assistants to work at once, and they don't get in each other's way. You never look at code. You read a short plan, try the real thing on a link, and say "go live".
-
-I'm Matt. I run Claymoo, a clay-kit company, with a small team, and I built WongStack to run it. The setup is the hardest part, and this is that setup done once: my opinionated way of using AI, shared, and easy to change to your way of working.
-
-**GitHub is for engineers. This is the next one, for everyone else.**
+I'm Matt. I built WongStack to run Claymoo, my clay-kit company, and this is my setup, shared for you to change.
 
 ## Start in three steps
 
@@ -47,6 +42,11 @@ Paste the message in any folder: if it already has files, setup makes a `wongsta
 - **One memory for the whole team.** Each chat starts with what earlier chats learned about your business and the people in it. [Memory](wiki/development/memory.md) is kept in your own Cloudflare account.
 - **A notebook that grows.** What the assistant learns — how your business runs, who is who — goes into [a wiki](wiki/README.md) it reads next time.
 
+**Collaborate**
+
+- **One team, one memory.** Each person uses their own assistant. What one person teaches it, everyone gets.
+- **Logins and access, taken care of.** You choose who on your team can see and change what: [employee access](wiki/stack/employee-access.md).
+
 **Get things done**
 
 - **Errands, from one message.** Research, a draft, a plan for your week: it does the work and answers. It asks before it sends or changes anything outside the chat.
@@ -55,7 +55,7 @@ Paste the message in any folder: if it already has files, setup makes a `wongsta
 
 **All of it is yours**
 
-- **You own it.** Everything it builds and learns lives in accounts you own. Logins, keys, and who on your team can see and change what are taken care of: [employee access](wiki/stack/employee-access.md).
+- **You own it.** Everything it builds and learns lives in accounts you own. Your keys stay on your computer and in your own accounts.
 - **No lock-in.** It is plain files in a folder you own. Switch assistants, and the knowledge comes with you.
 
 ## What I use

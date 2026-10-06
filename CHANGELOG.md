@@ -5,7 +5,7 @@
 
 ## Next (patch) — The README and guides tell what WongStack is for, and name no assistant as needed
 
-- **The README opens with what WongStack is for.** AI can write an app, but it has nowhere to put it. WongStack gives your assistant one place to build, remember, and get things done, in an account you own.
+- **The README opens with what WongStack is for.** AI can write an app, but it has nowhere to put it. WongStack gives your assistant one place to build, remember, collaborate, and get things done.
 - **No page tells you to get Claude Code or Paseo first.** The first step says to open any assistant that can work on your computer. Getting started lists six things you do by hand, not seven.
 - **The pages say what still needs one of them.** A workspace for each assistant needs the free Paseo app. Memory loads by itself in Claude Code and Codex; another assistant looks it up when asked.
 - **Setup's last message says to open your new folder in your assistant**, not in Paseo.
