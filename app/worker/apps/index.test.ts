@@ -1,16 +1,16 @@
 import { afterEach, expect, it, vi } from "vitest";
 import type { AccessIdentity } from "../access";
-import { APP_API, handleApp, type AppCall } from "./index";
+import { APP_API, handleApp, type AppCall, type AppEnv } from "./index";
 import type { Route } from "../api/contract";
-import type { PolicyEnv } from "../employee-access/policy";
+import { fakeEnv } from "../../tests/env";
 
 // Hello's routes, swapped for one that records what a handler receives.
-const seen = vi.hoisted(() => [] as { env: Record<string, unknown>; call: AppCall }[]);
+const seen = vi.hoisted(() => [] as { env: AppEnv; call: AppCall }[]);
 vi.mock("./hello/api.ts", async (original) => ({
   // The registry reads each app's `keys`; the supplied example lists none.
   keys: undefined,
   routes: new Map((await original<{ routes: Map<string, Route> }>()).routes).set(
-    "GET peek", (_request: Request, env: Record<string, unknown>, call: AppCall) => {
+    "GET peek", (_request: Request, env: AppEnv, call: AppCall) => {
       seen.push({ env, call });
       return Response.json({ ok: true });
     },
@@ -22,8 +22,8 @@ afterEach(() => {
 });
 
 const person: AccessIdentity = { id: "owner@example.com", kind: "user", claims: { aud: "a", iss: "i", exp: 0 } };
-const env = { DB: { name: "app-db" }, ASSETS: {}, PAYMENT_KEY: "secret", MEMORY_DB: { name: "memory" }, MEMORY_BUCKET: {},
-  WONG_ACCESS_LOGIN_MANAGEMENT: "private-login" } as unknown as Env;
+const env = fakeEnv({ DB: { name: "app-db" }, ASSETS: {}, PAYMENT_KEY: "secret", MEMORY_DB: { name: "memory" }, MEMORY_BUCKET: {},
+  WONG_ACCESS_LOGIN_MANAGEMENT: "private-login" });
 const call = (path: string, method = "GET", identity: AccessIdentity | null = person) =>
   handleApp(new Request(`https://workspace.example.com${path}`, { method }), env, identity);
 
@@ -47,7 +47,7 @@ it("hands a handler the database and saved keys, but no memory binding", async (
   expect(await response.json()).toEqual({ ok: true });
   const [{ env: appEnv, call: info }] = seen;
   expect(appEnv.DB).toBe(env.DB);
-  expect(appEnv.PAYMENT_KEY).toBe("secret");
+  expect(appEnv).toHaveProperty("PAYMENT_KEY", "secret");
   expect("MEMORY_DB" in appEnv).toBe(false);
   expect("MEMORY_BUCKET" in appEnv).toBe(false);
   // The sign-in list key stays with the core: no mini app is handed it.
@@ -88,8 +88,8 @@ it("applies the app slug to both bare and described routes before handler work",
   const row = { policy_enabled: 1, keys_enabled: 0, revision: 1, status: "active", manager: 0, apps: '[]', keys: "{}" };
   const first = vi.fn(async () => row);
   const db = { withSession: vi.fn(() => ({ prepare: () => ({ bind: () => ({ first }) }) })) };
-  const bindings = { ...env, DB: db, WONG_OWNER_EMAIL: "actual-owner@example.com", CF_ACCESS_TEAM_DOMAIN: "business.cloudflareaccess.com",
-    CF_ACCESS_AUD: "app" } as unknown as Env & PolicyEnv;
+  const bindings = fakeEnv({ ...env, DB: db, WONG_OWNER_EMAIL: "actual-owner@example.com", CF_ACCESS_TEAM_DOMAIN: "business.cloudflareaccess.com",
+    CF_ACCESS_AUD: "app" });
   const run = (route: string) => handleApp(new Request(`https://workspace.example.com/apps/hello/api/${route}`), bindings, employee);
   for (const route of ["peek", "greeting"]) expect((await run(route)).status).toBe(403);
   expect(seen).toEqual([]);

@@ -12,6 +12,7 @@ import { currentPolicy } from "./policy";
 import { handleAccess } from "./router";
 import { changedSet } from "./sets";
 import { setupStatus } from "./setup";
+import { body } from "../../tests/body";
 
 vi.mock("./catalogue.ts", () => ({ catalogue: ["access", "orders"] }));
 
@@ -35,7 +36,7 @@ function artifacts({ remote = REMOTE, plaintext = "art_v1_synthetic_read" } = {}
 const git = (path: string, init?: RequestInit) => new Request(`${site.origin}${CODE_GIT}${path}`, init);
 const refs = () => git("info/refs?service=git-upload-pack", { headers: { "Git-Protocol": "version=2", Cookie: "CF_Authorization=session", "cf-access-token": "session" } });
 const pack = () => git("git-upload-pack", { method: "POST", body: "0011command=fetch", headers: { "Content-Type": "application/x-git-upload-pack-request", "Content-Encoding": "gzip", Accept: "application/x-git-upload-pack-result" } });
-const code = async (response: Response) => (await response.json()).error.code;
+const code = async (response: Response) => (await body(response)).error.code;
 let f: ReturnType<typeof fixture>;
 let env: ConnectionEnv;
 let fetched: ReturnType<typeof vi.fn>;
@@ -178,7 +179,7 @@ it("hands the project only to a person who holds Project code now, judged before
     expect([refused.status, await code(refused)], name).toEqual([status, error]);
   }
   const lacking = await read(employee);
-  expect((await lacking.json()).error.message).toBe("Project code: Read needed");
+  expect((await body(lacking)).error.message).toBe("Project code: Read needed");
   // Unticked, the next call is refused; removed, the person is denied whole.
   f.sql.prepare("DELETE FROM wong_access_key_grants WHERE email = ?").run(holder.id);
   expect((await read(holder)).status).toBe(403);
@@ -196,8 +197,8 @@ it("hands the project only to a person who holds Project code now, judged before
 
 it("tells setup and the home page who may connect: ready, lacked, or off for everyone", async () => {
   give(employee.id);
-  const setup = async (identity: AccessIdentity, bindings = env) => (await setupStatus(new Request(`${site.origin}/api/access/setup`), bindings, identity)).json();
-  const apps = async (identity: AccessIdentity | null, bindings = env) => (await (await appAccess(new Request(`${site.origin}/api/access/apps`), bindings, identity)).json()).code;
+  const setup = async (identity: AccessIdentity, bindings = env) => body<{ code: string; prompt: { state: string; text: string } }>(await setupStatus(new Request(`${site.origin}/api/access/setup`), bindings, identity));
+  const apps = async (identity: AccessIdentity | null, bindings = env) => (await body(await appAccess(new Request(`${site.origin}/api/access/apps`), bindings, identity))).code;
   const lacker = { ...employee, id: "lacker@example.com", claims: { ...employee.claims, email: "lacker@example.com", sub: "lacker" } };
   f.sql.prepare("INSERT INTO wong_access_members VALUES (?, ?, 'active', 0, 1, 'now')").run(site.installationId, lacker.id);
   const today = await setup(employee, f.env);

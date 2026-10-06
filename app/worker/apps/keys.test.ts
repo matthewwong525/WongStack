@@ -1,13 +1,14 @@
 import { afterEach, expect, it, vi } from "vitest";
 import type { Route } from "../api/contract";
-import { appActions, appKeyUse, handleApp } from "./index";
+import { appActions, appKeyUse, handleApp, type AppEnv } from "./index";
+import { body } from "../../tests/body";
 
 // Hello's routes with one that records its bindings, in an app whose api.ts lists a saved key.
-const seen = vi.hoisted(() => [] as Record<string, unknown>[]);
+const seen = vi.hoisted(() => [] as AppEnv[]);
 vi.mock("./hello/api.ts", async (original) => ({
   keys: ["cloudflare"],
   routes: new Map((await original<{ routes: Map<string, Route> }>()).routes).set(
-    "GET peek", (_request: Request, env: Record<string, unknown>) => {
+    "GET peek", (_request: Request, env: AppEnv) => {
       seen.push(env);
       return Response.json({ ok: true });
     },
@@ -28,7 +29,7 @@ it("hands an app's handlers the saved keys its api.ts lists, and still no memory
   expect(Object.keys(seen[0]).sort()).toEqual(["DB", "OTHER_KEY", "WONG_CLOUDFLARE_READ"]);
   // A listed key that is not saved stops the call before the handler.
   const missing = await call({ ...env, WONG_CLOUDFLARE_READ: "" });
-  expect([missing.status, (await missing.json()).error.code]).toEqual([503, "unavailable"]);
+  expect([missing.status, (await body(missing)).error.code]).toEqual([503, "unavailable"]);
   expect(seen).toHaveLength(1);
 });
 

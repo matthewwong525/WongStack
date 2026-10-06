@@ -2,6 +2,8 @@ import { expect, it, vi } from "vitest";
 import { z } from "zod";
 import { boundedText, defineAction, dispatch, registrations, uniqueActions, type Action, type Route } from "./contract";
 import type { AppCall, AppEnv } from "../apps/index";
+import { body } from "../../tests/body";
+import { fakeEnv } from "../../tests/env";
 const env = {} as AppEnv;
 const identity = { id: "employee@example.com", kind: "user" as const, claims: { aud: "a", iss: "i", exp: 9999999999 } };
 const action = (extra: Partial<Action> = {}) => defineAction({ operationId: "test.read", summary: "Test", description: "A synthetic action",
@@ -9,7 +11,7 @@ const action = (extra: Partial<Action> = {}) => defineAction({ operationId: "tes
   effect: "read", agentAvailable: true, errors: {}, examples: [{ input: { name: "Ada" }, output: { value: "Ada" } }],
   handler: (_request, _env, call) => Response.json({ value: (call.input as { name?: string }).name ?? "world" }), ...extra });
 const json = { "content-type": "application/json" };
-const failure = async (response: Response) => { expect(response.status).toBe(400); return (await response.json()).error; };
+const failure = async (response: Response) => { expect(response.status).toBe(400); return (await body(response)).error; };
 const call = (route: Route, suffix = "", init: RequestInit = {}, caller: AppCall["identity"] = identity, bindings = env) => {
   const request = new Request(`https://example.com/api/test${suffix}`, init);
   return dispatch(route, request, bindings, { url: new URL(request.url), route: "test", identity: caller });
@@ -46,7 +48,9 @@ it("rejects an input field with no description, naming the action and the field"
 });
 it("lets only a write name a confirming action, and only a registered read", () => {
   expect(() => action({ confirmWith: "test.other" })).toThrow("Invalid confirming action: test.read");
-  for (const confirmWith of ["Bad", "memory", 5 as unknown as string]) {
+  // The last arrives as JSON does, unchecked: a number where a name belongs.
+  const unchecked: string = JSON.parse("5");
+  for (const confirmWith of ["Bad", "memory", unchecked]) {
     expect(() => action({ operationId: "test.write", effect: "write", confirmWith })).toThrow("Invalid confirming action: test.write");
   }
   const read = registrations(new Map([["GET /api/test", action()]]));
@@ -153,7 +157,7 @@ it("bounds the issue list and each string, and drops issues that carry a credent
   expect((await failure(await call(dictionary, "", { method: "POST", headers: json, body: JSON.stringify({ [long]: 5 }) }))).issues[0].path).toHaveLength(200);
   const secret = "saved-business-credential";
   for (const key of [secret, `sk-${"a".repeat(30)}`]) {
-    const response = await call(action(), `?${key}=1`, {}, identity, { SECRET: secret } as unknown as AppEnv);
+    const response = await call(action(), `?${key}=1`, {}, identity, fakeEnv({ SECRET: secret }));
     const text = await response.text();
     expect(response.status).toBe(400); expect(text).not.toContain(key);
     expect(JSON.parse(text).error).toEqual({ code: "invalid_input", message: "Invalid input", requestId: expect.any(String) });
@@ -164,12 +168,12 @@ it("rejects mismatched or secret-bearing outputs and sanitizes provider exceptio
   const handlers = [() => Response.json({ wrong: true }), () => new Response("not json"), () => { throw new Error(secret); },
     () => Response.json({ value: secret }), () => Response.json({ value: `sk-${"a".repeat(30)}` })];
   for (const handler of handlers) {
-    const response = await call(action({ handler }), "", {}, identity, { SECRET: secret } as unknown as AppEnv);
+    const response = await call(action({ handler }), "", {}, identity, fakeEnv({ SECRET: secret }));
     expect(response.status).toBe(500); expect(await response.text()).not.toContain(secret);
   }
   for (const status of [401, 403, 409]) expect((await call(action({ handler: () => new Response(secret, { status }) }))).status).toBe(status);
   // A setting committed with the code is no secret: an answer may name the sign-in address or the environment.
-  const committed = { SECRET: secret, CF_ACCESS_TEAM_DOMAIN: "team.cloudflareaccess.com", WONG_ENVIRONMENT: "production" } as unknown as AppEnv;
+  const committed = fakeEnv({ SECRET: secret, CF_ACCESS_TEAM_DOMAIN: "team.cloudflareaccess.com", WONG_ENVIRONMENT: "production" });
   const named = await call(action({ handler: () => Response.json({ value: "the production account at team.cloudflareaccess.com" }) }), "", {}, identity, committed);
   expect(named.status).toBe(200);
   expect((await call(action({ handler: () => Response.json({ value: secret }) }), "", {}, identity, committed)).status).toBe(500);
@@ -187,11 +191,11 @@ it("returns only deliberately declared business errors, never a provider's messa
   const declared = action({ errors: { conflict: "The record already exists" }, handler: () => Response.json({ error: { code: "conflict", message: "provider credential diagnostic" } }, { status: 409 }) });
   const response = await call(declared); expect(response.status).toBe(409);
   expect(await response.json()).toMatchObject({ error: { code: "conflict", message: "The record already exists", requestId: expect.any(String) } });
-  for (const body of [{ error: { code: "undeclared" } }, { error: { code: 1 } }, null]) {
-    const safe = await call(action({ errors: { conflict: "x" }, handler: () => Response.json(body, { status: 400 }) }));
-    expect((await safe.json()).error.code).toBe("internal_error");
+  for (const sent of [{ error: { code: "undeclared" } }, { error: { code: 1 } }, null]) {
+    const safe = await call(action({ errors: { conflict: "x" }, handler: () => Response.json(sent, { status: 400 }) }));
+    expect((await body(safe)).error.code).toBe("internal_error");
   }
   const secret = "saved-business-credential";
-  const blocked = await call(action({ errors: { conflict: secret }, handler: () => Response.json({ error: { code: "conflict" } }, { status: 409 }) }), "", {}, identity, { SECRET: secret } as unknown as AppEnv);
+  const blocked = await call(action({ errors: { conflict: secret }, handler: () => Response.json({ error: { code: "conflict" } }, { status: 409 }) }), "", {}, identity, fakeEnv({ SECRET: secret }));
   expect(await blocked.text()).not.toContain(secret);
 });
