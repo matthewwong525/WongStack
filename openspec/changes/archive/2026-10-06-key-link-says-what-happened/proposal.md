@@ -1,6 +1,6 @@
 # The key link says what happened
 
-**Status:** planned
+**Status:** ready-to-ship
 
 **Branch:** code-simplification
 
@@ -55,3 +55,5 @@ None.
 - **2026-10-06** — Assumed: only the key link reports whether it was opened, because it is the one link that waits 30 minutes and gives way, and the password page asks for nothing with its key until a save.
 - **2026-10-06** — Assumed: the other chat is named by its workspace's folder name, because that is the name the person sees in their list of chats, and it holds nothing private.
 - **2026-10-06** — Assumed: this is a minor release, because the result gains two lines and nothing an install relies on changes or goes away.
+- **2026-10-06** — Build: the full local check first stopped when this computer's disk filled; it passed on a rerun once space came free. A key link whose watcher died still prints no opened line, since nothing recorded one.
+- **2026-10-06** — Archive checkpoint: every task is ticked, the local checks pass, and it is numbered 35.3.0. It answers struggle notes #1128 and #1137. Left as a recommendation, not built: whether a just-sent key link should hold its place for a few minutes.

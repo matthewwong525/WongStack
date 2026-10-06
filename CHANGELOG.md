@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — The key link says what happened
+## 35.3.0 — The key link says what happened
 
 - **A key link that ends with nothing saved says whether you opened it.** Never opened: your assistant says so and asks whether the link loaded, before it sends another. Opened but nothing saved: it asks where you got stuck. Before, it could only say the link closed, and sent another.
 - **A link that closed for another chat's link names that chat.** One private link is open at a time, so a key link nobody has opened closes when another chat needs one. The first chat now says which workspace took its place and offers a new link. Before, it could not tell this from a cancel.
