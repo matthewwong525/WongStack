@@ -40,7 +40,7 @@ The repository SHALL hold the contributing, conduct, template, and code owners f
 
 ### Requirement: The README speaks to a business owner first
 
-The README's first screen SHALL say whose way of using AI WongStack is, shown through that person's real business, with example requests and no developer terms. One later section SHALL list setup's tools, why Cloudflare is needed, and each top-level entry's purpose.
+The README's first screen SHALL say whose way of using AI WongStack is, shown through that person's real business, with example requests and no developer terms. One later section SHALL list setup's tools and say that a Cloudflare account is needed.
 
 #### Scenario: A business owner reads the first screen
 
