@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 37.2.2 — The README, the guide, and the landing page say the same thing about what an install costs
+
+- **Three places now agree on what an install costs.** The README, the getting-started guide, and the landing page each say the two ways to install. The free way keeps your project in a free GitHub account and runs your apps in a free Cloudflare account, on Mac, Windows, or Linux. The other way keeps everything in Cloudflare alone, on Mac or Linux, on Cloudflare's paid plan, about $5 a month.
+- **Getting started states the cost once.** One table shows the two ways side by side. Its list of what you do by hand now has seven steps: it gains choosing where your project is kept on Mac or Linux, and marks the GitHub sign-up as the free way's step.
+- **The README and the guide say you bring your own AI plan**, such as Claude or ChatGPT.
+- **Nothing about setup changed.** On Mac or Linux it still asks which way you want before anything costs money.
+
+**Updating.** Nothing needs doing by hand.
+
 ## 37.2.1 — The README and guides tell what WongStack is for, and name no assistant as needed
 
 - **The README opens with what WongStack is for.** AI can write an app, but it has nowhere to put it. WongStack gives your assistant one place to build, remember, collaborate, and get things done.

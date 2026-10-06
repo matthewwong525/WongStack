@@ -6,19 +6,22 @@ It is plain files, with no server code, database, or secret. Two pages exist: th
 
 ## Change what it says about installing
 
-Everything the page says about installing sits in [`site/src/install.ts`](../../site/src/install.ts): the message to paste, the steps, the agents, the accounts a person needs, the computers it works on, and the optional add-on. Edit that one file, and the install section, the questions, and the list of what WongStack is built on all follow. No other file under `site/src/` names an account, a system, or the message.
+Everything the page says about installing sits in [`site/src/install.ts`](../../site/src/install.ts): the message to paste, the steps, the agents, the accounts a person needs, the computers it works on, the two ways to install with what each costs, and the optional add-on. Edit that one file, and the install section, the questions, and the list of what WongStack is built on all follow. No other file under `site/src/` names an account, a system, a cost, or the message.
 
-Three rules:
+Four rules:
 
 - **The message is the README's, character for character.** [The guard test](../../scripts/tests/landing-site.test.mjs) reads `INSTALL_PROMPT` from `install.ts` and fails when [the README](../../README.md)'s fenced message differs, naming both files. Change both in the same change.
+- **A changed cost or computer changes the README and the guide too.** `WAYS` and `PAID_COST` in `install.ts` hold each way's accounts, computers, and cost. [The cost guard](../../scripts/tests/install-cost.test.mjs) reads them and fails when [the README](../../README.md) or [getting started](../stack/getting-started.md#what-it-costs) stops saying the paid way's cost and computers, or which way is free, naming the page and `install.ts`. Change all three in the same change. The guard runs on a wiki-only change too: that is how the guide once came to disagree.
 - **Describe the install that works today**, not one that is planned. A page that promises a route early sends a visitor to a dead end.
 - **Name an assistant or a chat app as an example, never as needed.** `STEPS` in [`site/src/install.ts`](../../site/src/install.ts) says *any assistant that can work on your computer* first, then names one as an example. A picture of a chat app says it shows what Matthew uses. The headline and the text a shared link shows name no other product: a visitor who uses something else otherwise leaves at step one.
 
 ## No hosting offer
 
-The page never offers or mentions a paid plan, a price, a trial, a subscription, a WongStack account or sign-in, or a rented server, and it names no server provider. WongStack is free and runs on the visitor's own computer; a page that says otherwise sells something that does not exist.
+The page never offers or mentions a WongStack paid plan, price, trial, subscription, account or sign-in, or a rented server, and it names no server provider. WongStack is free and runs on the visitor's own computer; a page that says otherwise sells something that does not exist.
 
-[`Site.test.tsx`](../../site/src/Site.test.tsx) reads every page for those words. The sample apps keep their made-up prices: each is a pretend screen.
+**No WongStack price, not no price.** The page names one cost: what another company charges for an account the install uses, said with that company's name, such as Cloudflare's paid plan. Every such sentence is in `COST_LINES` in [`site/src/install.ts`](../../site/src/install.ts), and the page prints those strings as they are.
+
+[`Site.test.tsx`](../../site/src/Site.test.tsx) reads every page for those words, and allows only the exact `COST_LINES` sentences: a reworded one, or a price written anywhere else, fails. It also fails when a line that names a price leaves out the company, or names WongStack. The sample apps keep their made-up prices: each is a pretend screen.
 
 ## Privacy promises
 

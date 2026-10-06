@@ -3,7 +3,7 @@
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import App from "./App";
-import { ADD_ONS, AGENTS, INSTALL_PROMPT, REPO_URL, STEPS, computers, freeAccounts } from "./install";
+import { ADD_ONS, AGENTS, ASKS_FIRST, INSTALL_PROMPT, REPO_URL, STEPS, WAYS } from "./install";
 
 function renderAt(path: string) {
   window.history.pushState({}, "", path);
@@ -163,12 +163,26 @@ it("shows three install steps in their own section, just above the questions, wi
   expect(container.querySelectorAll("pre")).toHaveLength(1);
 });
 
-it("says which computers it works on and which accounts it needs, under the steps, from install.ts", () => {
+it("says which computers it works on, and what each way to install needs and costs, under the steps", () => {
   const { container } = renderAt("/");
-  const note = container.querySelector("#install ol.install + p.note") as HTMLElement;
+  const note = container.querySelector("#install ol.install + .note") as HTMLElement;
 
-  expect(note.textContent).toBe(`Works on ${computers()}. You need ${freeAccounts()}.`);
+  // One line each, so a phone shows the free way and the paid way apart.
+  expect([...note.querySelectorAll(":scope > p")].map((p) => p.textContent)).toEqual([
+    "Works on Mac, Windows, and Linux.",
+    "Free: your project is kept in a free GitHub account, and your apps run in a free Cloudflare account.",
+    "Or keep everything in Cloudflare alone, on Mac or Linux: Cloudflare's paid plan, about $5 a month.",
+    "On Mac or Linux, setup asks which you want before anything costs money.",
+  ]);
+  // The words are install.ts's own: the page writes no cost of its own.
+  expect([...note.querySelectorAll(":scope > p")].slice(1).map((p) => p.textContent)).toEqual([
+    ...WAYS.map((way) => way.line),
+    ASKS_FIRST,
+  ]);
+  expect(note.children).toHaveLength(4);
   expect(within(note).queryAllByRole("link")).toHaveLength(0);
+  // The section still calls the install free, and the way that is free is named right under it.
+  expect(container.querySelector("#install h2")?.textContent).toBe("Install it for free");
 });
 
 it("lists the one optional add-on under the install steps, with what it enables", () => {

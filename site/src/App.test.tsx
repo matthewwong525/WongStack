@@ -279,7 +279,7 @@ it("names the open-source libraries and the accounts the install asks for, each 
   expect(container.textContent).not.toMatch(/\bstars?\b/i);
 });
 
-it("answers a team owner's questions for a free install, without claiming Anthropic's approval", () => {
+it("answers a team owner's questions, naming both ways to install and what each costs, without claiming Anthropic's approval", () => {
   const { container } = renderAt("/");
   const faq = container.querySelector(".faq") as HTMLElement;
   const answer = (question: string) =>
@@ -299,7 +299,7 @@ it("answers a team owner's questions for a free install, without claiming Anthro
     "What if I stop using it?",
   ]);
   expect(answer("Is WongStack free?")).toBe(
-    `Yes. The software is free and open source, and installs on your own computer with one message. You use your own AI plan and ${freeAccounts()}.`,
+    `Yes. The software is free and open source, and installs on your own computer with one message. You use your own AI plan and ${freeAccounts()}. On Mac or Linux you can keep everything in Cloudflare alone instead, on Cloudflare's paid plan, about $5 a month.`,
   );
   expect(answer("Do I need to know how to code?")).toMatch(/^No\. You ask in plain words/);
   expect(answer("How does my team use it?")).toContain("Each person signs in to their own AI plan.");
@@ -312,7 +312,7 @@ it("answers a team owner's questions for a free install, without claiming Anthro
     "Your code, apps, and memory sit in your own accounts, and your AI login stays on your own computer. Nothing passes through us.",
   );
   expect(answer("What does it cost, with AI?")).toBe(
-    "The software is free. Each person uses their own AI plan, such as Claude or ChatGPT, so there's no markup on AI and no per-seat fee.",
+    "The software is free. Each person uses their own AI plan, such as Claude or ChatGPT, so there's no markup on AI and no per-seat fee. Cloudflare's paid plan, about $5 a month, is needed only to keep everything in Cloudflare alone or to run jobs on a schedule.",
   );
   const anthropic = answer("Will Anthropic ban my Claude account?");
   expect(anthropic).toMatch(/^If you use Claude: WongStack works with the official, unmodified Claude Code on your own computer\./);

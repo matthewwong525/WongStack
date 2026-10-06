@@ -2,7 +2,19 @@ import { Fragment, useState, type ReactNode } from "react";
 import { Chips, YourApps } from "./apps";
 import { Compare } from "./Compare";
 import { CopyMessage } from "./CopyButton";
-import { ACCOUNTS, ADD_ONS, AGENTS, INSTALL_PROMPT, REPO_URL, STEPS, computers, freeAccounts } from "./install";
+import {
+  ACCOUNTS,
+  ADD_ONS,
+  AGENTS,
+  ASKS_FIRST,
+  COST_ANSWERS,
+  INSTALL_PROMPT,
+  REPO_URL,
+  STEPS,
+  WAYS,
+  computers,
+  freeAccounts,
+} from "./install";
 import { InstallButton } from "./InstallButton";
 import { Bubbles, PaseoShot } from "./mockups";
 
@@ -171,12 +183,12 @@ function PhoneTour() {
   );
 }
 
-// The questions, for a free install on your own computer. The first answer
-// names the accounts through install.ts.
+// The questions, for an install on your own computer. The accounts, and every
+// word about what a way to install costs, come from install.ts.
 const FAQ = [
   [
     "Is WongStack free?",
-    `Yes. The software is free and open source, and installs on your own computer with one message. You use your own AI plan and ${freeAccounts()}.`,
+    `Yes. The software is free and open source, and installs on your own computer with one message. You use your own AI plan and ${freeAccounts()}. ${COST_ANSWERS.free}`,
   ],
   ["Why is it free?", "I built it to run my own company, and I want everyone to have the same tools."],
   [
@@ -197,7 +209,7 @@ const FAQ = [
   ],
   [
     "What does it cost, with AI?",
-    "The software is free. Each person uses their own AI plan, such as Claude or ChatGPT, so there's no markup on AI and no per-seat fee.",
+    `The software is free. Each person uses their own AI plan, such as Claude or ChatGPT, so there's no markup on AI and no per-seat fee. ${COST_ANSWERS.cost}`,
   ],
   [
     "Will Anthropic ban my Claude account?",
@@ -269,6 +281,19 @@ function InstallSteps() {
         <p>{STEPS.answer}</p>
       </li>
     </ol>
+  );
+}
+
+/** Under the steps: the computers it works on, each way to install with its accounts and cost, and that setup asks before anything costs money. */
+function InstallWays() {
+  return (
+    <div className="note ways">
+      <p>Works on {computers()}.</p>
+      {WAYS.map(({ name, line }) => (
+        <p key={name}>{line}</p>
+      ))}
+      <p>{ASKS_FIRST}</p>
+    </div>
   );
 }
 
@@ -377,9 +402,7 @@ export function Landing() {
         <h2>Install it for free</h2>
         <p className="lede">It runs on your own computer, with your own AI plan.</p>
         <InstallSteps />
-        <p className="note">
-          Works on {computers()}. You need {freeAccounts()}.
-        </p>
+        <InstallWays />
         <InstallExtras />
       </section>
 

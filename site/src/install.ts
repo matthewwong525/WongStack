@@ -1,7 +1,8 @@
 // Everything the landing page says about installing WongStack: the message to
-// paste, the steps, the agents, the accounts, the computers, and the add-on.
-// Change how WongStack installs, and this is the one file to edit; no other
-// file under src/ names an account, a system, or the message.
+// paste, the steps, the agents, the accounts, the computers, the two ways to
+// install with what each costs, and the add-on. Change how WongStack installs,
+// and this is the one file to edit; no other file under src/ names an account,
+// a system, a cost, or the message.
 //
 // It describes the install that works today, never one that is planned.
 // wiki/maintaining/landing-page.md
@@ -72,3 +73,70 @@ export const computers = (names = COMPUTERS) => list(names);
 export function freeAccounts(names = ACCOUNTS.map((account) => account.name)) {
   return names.length === 1 ? `a free ${list(names)} account` : `free ${list(names)} accounts`;
 }
+
+/**
+ * What Cloudflare's paid plan costs: the one figure on the site. The README and
+ * the getting-started guide say the same words, and
+ * scripts/tests/install-cost.test.mjs fails when one stops: change all three in
+ * the same change.
+ */
+export const PAID_COST = "about $5 a month";
+
+/** "a or b": the computers a way works on, as its line names them. */
+const either = (items: string[]) => new Intl.ListFormat("en", { style: "long", type: "disjunction" }).format(items);
+
+/** A company's paid plan and what it costs, as a sentence names them. */
+const paidPlan = (account: string, cost: string) => `${account}'s paid plan, ${cost}`;
+
+/** The way that costs nothing: one account keeps the project, the other runs the apps. */
+function freeWay(accounts: [string, string], computers: string[]) {
+  const [keeps, runs] = accounts;
+  const cost = "free";
+  return {
+    name: "Free",
+    accounts,
+    computers,
+    cost,
+    line: `Free: your project is kept in a ${cost} ${keeps} account, and your apps run in a ${cost} ${runs} account.`,
+  };
+}
+
+/** The way that needs one account, on that company's paid plan. */
+function aloneWay(account: string, computers: string[], cost: string) {
+  return {
+    name: `${account} alone`,
+    accounts: [account],
+    computers,
+    cost,
+    line: `Or keep everything in ${account} alone, on ${either(computers)}: ${paidPlan(account, cost)}.`,
+  };
+}
+
+const PAID_ACCOUNT = "Cloudflare";
+const FREE = freeWay(["GitHub", PAID_ACCOUNT], COMPUTERS);
+const ALONE = aloneWay(PAID_ACCOUNT, ["Mac", "Linux"], PAID_COST);
+const PAID_PLAN = paidPlan(PAID_ACCOUNT, PAID_COST);
+const PAID_COMPUTERS = either(ALONE.computers);
+
+/**
+ * The two ways to install, the free one first: each one's accounts, computers,
+ * cost, and `line`, the sentence the page prints under the steps. A line is
+ * built from its own entry, so the two can not disagree.
+ */
+export const WAYS = [FREE, ALONE];
+
+/** Under the two lines: nobody is charged by surprise. */
+export const ASKS_FIRST = `On ${PAID_COMPUTERS}, setup asks which you want before anything costs money.`;
+
+/** The sentence each answer adds about the paid way: "Is WongStack free?", then "What does it cost, with AI?". */
+export const COST_ANSWERS = {
+  free: `On ${PAID_COMPUTERS} you can keep everything in ${ALONE.name} instead, on ${PAID_PLAN}.`,
+  cost: `${PAID_PLAN}, is needed only to keep everything in ${ALONE.name} or to run jobs on a schedule.`,
+};
+
+/**
+ * Every sentence on the site that speaks of a cost. Site.test.tsx allows these
+ * exact strings and no other word about a price or a paid plan, so a new cost
+ * sentence is added here or it fails.
+ */
+export const COST_LINES = [ALONE.line, ASKS_FIRST, COST_ANSWERS.free, COST_ANSWERS.cost];

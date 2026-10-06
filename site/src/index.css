@@ -430,6 +430,17 @@ img[src^="/logos/"] {
   }
 }
 
+/* Under the install steps: the computers, then each way to install and its
+   cost on a line of its own, in the steps' column so no line runs long. */
+.ways {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  width: 100%;
+  max-width: 36rem;
+  text-align: left;
+}
+
 /* "Optional, once it works": the add-ons under the install steps, each name
    above what it enables, in the steps' column. */
 .extras {
