@@ -162,6 +162,7 @@ test('bounds combined summaries, forwards selective filters/pagination, and keep
   const client = { list: async filters => ({ ...selectOperations(entries, filters), revision: 'live' }) };
   const selected = await combinedList(client, { q: 'Relevant', limit: 1 }); assert.equal(selected.actions[0].operationId, 'sample.item-65'); assert.equal(selected.total, 1);
   const later = await combinedList(client, { offset: 69, limit: 3 }); assert.equal(later.total, 74); assert.equal(later.actions[0].operationId, 'sample.item-69'); assert.equal(later.actions[1].operationId, 'memory.search'); assert.equal(later.next, 72);
+  const unfiltered = await combinedList(client, { scope: 'company', q: undefined, app: undefined, limit: 20, offset: 0 }); assert.equal(unfiltered.total, 70);
   const memoryPage = await combinedList(client, { offset: 71, limit: 1 }); assert.equal(memoryPage.actions[0].operationId, 'memory.show');
   const unavailable = { list: async () => { throw new Error('login missing'); } };
   const memory = await combinedList(unavailable, { scope: 'memory' }); assert.equal(memory.actions.length, 4); assert.equal(memory.companyStatus, 'not_requested');

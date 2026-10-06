@@ -69,7 +69,7 @@ The document and summaries carry a deterministic contract revision. Each ETag al
 
 ## Connect and call
 
-From an empty folder, use the reviewed [employee bootstrap](employee-project.md). Installed projects run [the helper](../../scripts/company-api.mjs) from the repository root; `--state` can select the same private connection, while existing private folder locators remain compatible. It reads only public install metadata for company routing. New installs record `components.companyApi.origin` in `.claude/.wong-stack.json`, using the production Worker name and the account hostname read back during provisioning. Older records can use an explicit origin until the reviewed update fills it.
+From an empty folder, use the reviewed [employee bootstrap](employee-project.md). A copy that [Connect your assistant installed](employee-project.md#install-in-one-step) is an installed project: run the helper from inside it with the `--state` its summary printed. Installed projects run [the helper](../../scripts/company-api.mjs) from the repository root; `--state` can select the same private connection, while existing private folder locators remain compatible. It reads only public install metadata for company routing. New installs record `components.companyApi.origin` in `.claude/.wong-stack.json`, using the production Worker name and the account hostname read back during provisioning. Older records can use an explicit origin until the reviewed update fills it.
 
 ```bash
 node scripts/company-api.mjs login --origin https://company.example.com

@@ -20,7 +20,7 @@ Each of Access's four views SHALL list its people, roles, apps or keys as rows t
 
 ### Requirement: Connecting an assistant is numbered steps from one place
 
-The app SHALL offer Connect your assistant from one place, the home page's list, and no other screen SHALL carry a second copy of the steps. The steps SHALL be numbered, SHALL say what an assistant is, who the person signs in as and which apps the connection reaches, and SHALL say what the person can do once connected. When the steps can not be loaded, the app SHALL say so and offer to try again, and SHALL NOT tell a signed-in person to sign in. When setup is not ready on this app, the app SHALL say so and offer nothing to copy.
+The app SHALL offer Connect your assistant from one place, the home page's list, and no other screen SHALL carry a second copy of the steps. The steps SHALL be numbered, SHALL say what an assistant is, who the person signs in as and which apps the connection reaches, and SHALL say what the person can do once connected. When the steps can not be loaded, the app SHALL say so and offer to try again, and SHALL NOT tell a signed-in person to sign in. When there is nothing to copy, because setup is not ready on this app or the person lacks Project code, the app SHALL say what to do next and offer nothing to copy.
 
 #### Scenario: A person follows the steps
 

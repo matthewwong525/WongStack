@@ -16,6 +16,31 @@
 
 **Updating.** Nothing needs doing by hand. A screen you built moves to the shared left edge and stretches to fill the wider frame; its address and data stay as they are. If one looks too stretched, ask your assistant to lay its fields side by side, as Hello and the tip calculator now do.
 
+## 35.1.1 — What to do when the preview app refuses a key
+
+- **A plain fix for a refused key.** When loading a new key puts it in the live app but the preview app refuses it, every later save fails a check. [Staging bindings](wiki/stack/staging-bindings.md#when-staging-refuses-a-key) now says how your assistant gives the preview app the key, and which command to avoid.
+
+**Updating.** Nothing needs doing by hand.
+
+## 35.1.0 — Connect your assistant installs the project
+
+- **Connect puts the whole project on a person's device.** They paste a short setup text into their assistant and approve their app sign-in on that computer. The assistant downloads the project from the app's own address into a folder, and uses their apps from inside it. They need no GitHub or Cloudflare account, type no key, and install nothing by hand. Running the same step again brings the copy up to date.
+- **The setup text is short.** It names the app, the checked installer and one step to run. The installer signs in, downloads, and reports what works.
+- **You choose who gets the project, in Access.** *Project code* shows beside your keys, with two choices per person or role: None or Read. Nobody has it on the day this goes live but you. A manager can give it, as with any key.
+- **A person without it sees Connect greyed.** The card is marked *No access*, opens nothing, and a click says *Ask your admin for access to Connect your assistant.*
+- **The copy is for using, not for publishing.** A person can read the project and work in their copy. A change pushed to the app is refused. To let someone publish, you still add them where the project is kept, by hand.
+- **Unticking or removing a person stops updates at once.** Their next download is refused. The copy already on their device stays there, and Access says so when you remove someone. The copy holds no keys or passwords.
+- **An update never throws away what the person changed.** A copy with their own edits is kept as it is, and the assistant says the update was not applied. A folder that already holds other work is left alone.
+- **Assistants already connected keep working** with their apps. A person gets the project once you give them Project code and they run Connect again.
+- **Previews practise it too.** The practice list has one role with Project code and one person without.
+
+[Employee assistant connection](wiki/stack/employee-project.md) owns how it works, and [Access](wiki/stack/employee-access.md#a-key-with-no-app) is where you give it.
+
+**Updating.** The update runs the Access setup step, which tells your app which project it hands out. Then it depends on where your project is kept:
+
+- **In Cloudflare, with no GitHub:** nothing to do by hand. The step connects the app to your project, and Connect installs it for the people you tick once the update is published.
+- **On GitHub:** one step for you. Your assistant sends a private link with numbered steps. You make one GitHub key that can only read this one project, and paste it there once. Until then Connect works exactly as it does today for everyone, and Access says one step is left.
+
 ## 35.0.1 — Two notes on checks that fail without a cause
 
 - **A check GitHub cancelled before it started is named.** [GitHub Actions](wiki/stack/github-actions.md) says how to tell one and to run it again, on the main branch too.

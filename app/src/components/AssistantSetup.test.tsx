@@ -62,12 +62,25 @@ it('gives three numbered steps with one solid Copy button, who signs in, what to
   expect(await within(open()).findByText('It can use: no apps yet. Ask your employer.')).toBeTruthy()
 })
 
-it('says setup is not ready on this app, with no steps and nothing to copy', async () => {
+it('says what the app answered when there is nothing to copy, with no steps', async () => {
   own.prompt = { state: 'unavailable', message: 'Ask your employer to finish the reviewed assistant setup.' }
   const popup = within(open())
-  expect(await popup.findByText("Setup isn't ready on this app yet. Ask the owner.")).toBeTruthy()
+  expect(await popup.findByText('Ask your employer to finish the reviewed assistant setup.')).toBeTruthy()
   expect([popup.queryByRole('list'), popup.queryByRole('button', { name: 'Copy' }), popup.queryByRole('textbox'), popup.queryByRole('alert')]).toEqual([null, null, null, null])
   expect(popup.queryByText(/You sign in as/)).toBeNull()
+})
+
+it('follows whether the person may have the project: the project when ready, the apps alone when off, who to ask when they lack Project code', async () => {
+  const drawn = () => [!!screen.queryByText(/^It can use:/), !!screen.queryByText('Project: the whole project, kept up to date'), !!screen.queryByRole('button', { name: 'Copy' }),
+    !!screen.queryByText('This connects the apps above. Project code and memory are set up separately.'), !!screen.queryByText('Your copy is for using, not publishing. Memory is set up separately.')]
+  Object.assign(own, { code: 'ready' }); open(); await screen.findByText('Project: the whole project, kept up to date')
+  expect(drawn()).toEqual([true, true, true, false, true]); cleanup()
+  // Off, as before the app could hand the project out, and when the answer leaves it out.
+  Object.assign(own, { code: 'off' }); open(); await screen.findByRole('button', { name: 'Copy' })
+  expect(drawn()).toEqual([true, false, true, true, false]); cleanup()
+  Object.assign(own, { code: 'lacked', prompt: { state: 'unavailable', message: 'Ask your admin for access to Connect your assistant.' } })
+  open(); await screen.findByText('Ask your admin for access to Connect your assistant.')
+  expect(drawn()).toEqual([false, false, false, false, false])
 })
 
 it('says the steps could not load and offers to try again, never telling a signed-in person to sign in', async () => {

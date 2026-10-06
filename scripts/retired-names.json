@@ -86,5 +86,6 @@
   {"name": "hand-over-page.html", "replacement": "`hand-over/scripts/form-page.html`, the private form's page"},
   {"name": "hand-over-page.mjs", "replacement": "`hand-over/scripts/form-page.mjs`, the private form's page script"},
   {"name": "hand-over-page.test.mjs", "replacement": "`scripts/tests/form-page.test.mjs`"},
-  {"name": "#hand-the-browser-over", "replacement": "`wiki/development/browsing.md#when-a-step-needs-you`, or `#how-private-links-work` for what every private link shares", "allow": ["scripts/tests/fixtures/document-retrieval/corpus/wiki/development/browsing.md", "scripts/tests/fixtures/document-retrieval/corpus/wiki/development/required-tools.md"], "why": "this exact frozen retrieval fixture preserves the wording of its pinned snapshot and its reviewed source hash"}
+  {"name": "#hand-the-browser-over", "replacement": "`wiki/development/browsing.md#when-a-step-needs-you`, or `#how-private-links-work` for what every private link shares", "allow": ["scripts/tests/fixtures/document-retrieval/corpus/wiki/development/browsing.md", "scripts/tests/fixtures/document-retrieval/corpus/wiki/development/required-tools.md"], "why": "this exact frozen retrieval fixture preserves the wording of its pinned snapshot and its reviewed source hash"},
+  {"name": "#repository-access-stays-manual", "replacement": "`wiki/stack/employee-project.md#publishing-stays-manual`"}
 ]

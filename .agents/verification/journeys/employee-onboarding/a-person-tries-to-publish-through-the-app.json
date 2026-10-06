@@ -1,0 +1,78 @@
+{
+  "format": "verify-journey-1",
+  "id": "a-person-tries-to-publish-through-the-app",
+  "scenario": {
+    "capability": "employee-onboarding",
+    "requirement": "Connect installs the project for a person who holds Project code",
+    "scenario": "A person tries to publish through the app"
+  },
+  "thenDigest": "37264663e44a5ce8c020eafd87eb7dc777da312aca344c3dc1bbb629e07e2df5",
+  "probe": "request",
+  "writes": true,
+  "sourcePaths": [
+    ".agents/skills/wong-setup/references/cloudflare.md",
+    ".agents/skills/wong-setup/scripts/provision.mjs",
+    ".agents/skills/wong-sync/references/payload-files.json",
+    "app/.dev.vars.example",
+    "app/src/apps/access/People.tsx",
+    "app/src/apps/access/SetFields.tsx",
+    "app/src/apps/access/levels.ts",
+    "app/src/components/AssistantSetup.tsx",
+    "app/src/lib/access.ts",
+    "app/src/pages/home/AppList.tsx",
+    "app/src/pages/home/Home.tsx",
+    "app/worker/api/contract.ts",
+    "app/worker/employee-access/apps.ts",
+    "app/worker/employee-access/bootstrap-release.json",
+    "app/worker/employee-access/code.ts",
+    "app/worker/employee-access/core.ts",
+    "app/worker/employee-access/key-catalogue.ts",
+    "app/worker/employee-access/key-levels.ts",
+    "app/worker/employee-access/prompt.ts",
+    "app/worker/employee-access/router.ts",
+    "app/worker/employee-access/setup.ts",
+    "app/worker/keys.ts",
+    "app/wrangler.jsonc",
+    "schema/seed.sql",
+    "scripts/company-api.mjs",
+    "scripts/employee-bootstrap.mjs",
+    "scripts/retired-names.json"
+  ],
+  "recordedAt": "ad53db943be6989de3a6cc26a4efe53f67a558b0",
+  "steps": [
+    [
+      "GET",
+      "/api/access/code/git/info/refs?service=git-upload-pack"
+    ],
+    [
+      "GET",
+      "/api/access/code/git/info/refs?service=git-receive-pack"
+    ],
+    [
+      "POST",
+      "/api/access/code/git/git-receive-pack",
+      "{}"
+    ],
+    [
+      "GET",
+      "/api/access/apps"
+    ]
+  ],
+  "expect": [
+    {
+      "step": 1,
+      "status": 200,
+      "includes": "git-upload-pack"
+    },
+    {
+      "step": 2,
+      "status": 403,
+      "includes": "This copy is for reading"
+    },
+    {
+      "step": 3,
+      "status": 403,
+      "includes": "This copy is for reading"
+    }
+  ]
+}

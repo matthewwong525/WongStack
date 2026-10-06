@@ -117,12 +117,42 @@ it("ends the list with a Connect card that opens the setup steps over the page a
 
   fireEvent.click(card);
   const popup = screen.getByRole("dialog", { name: "Connect your assistant" });
-  // Setup is not ready here: the popup says so in plain words, with nothing to copy.
-  await within(popup).findByText("Setup isn't ready on this app yet. Ask the owner.");
+  // Setup is not ready here: the popup says what the app answered, with nothing to copy.
+  await within(popup).findByText("Finish reviewed setup");
   expect(within(popup).queryByRole("button", { name: "Copy" })).toBeNull();
 
   fireEvent.click(within(popup).getByRole("button", { name: "Close" }));
   expect(screen.queryByRole("dialog")).toBeNull();
   expect(hrefs()).toEqual(["/apps/tips/"]);
   expect(connect()).toBeTruthy();
+});
+
+it("greys the Connect card for a person who lacks Project code: a press says who to ask and opens nothing", () => {
+  render(<AppList apps={[hello, tips]} held={["hello", "tips"]} code="lacked" />);
+
+  const card = screen.getByRole("button", { name: "Connect your assistant No access Use your apps from your own assistant." }) as HTMLButtonElement;
+  expect(screen.getAllByRole("listitem").at(-1)!.contains(card)).toBe(true);
+  expect(greyed()).toEqual([card]);
+  // Marked by words in a bordered label, not by colour alone; the keyboard still reaches it.
+  const label = within(card).getByText("No access");
+  expect([label.getAttribute("data-slot"), label.getAttribute("data-variant")]).toEqual(["badge", "outline"]);
+  expect(card.className.split(" ")).toEqual(expect.arrayContaining(["text-muted-foreground", "cursor-not-allowed"]));
+  expect([card.tagName, card.type, card.disabled, card.tabIndex, asks()]).toEqual(["BUTTON", "button", false, 0, []]);
+  card.focus();
+  expect(document.activeElement).toBe(card);
+
+  fireEvent.click(card);
+  expect(asks()).toEqual(["Ask your admin for access to Connect your assistant."]);
+  expect(card.closest("li")!.lastElementChild!.textContent).toBe("Ask your admin for access to Connect your assistant.");
+  expect([screen.queryByRole("dialog"), fetchMock.mock.calls.length, hrefs()]).toEqual([null, 0, ["/apps/hello/", "/apps/tips/"]]);
+});
+
+it("keeps the Connect card open to press when the person may connect, and while the app can not hand the project out", () => {
+  for (const code of ["ready", "off", undefined] as const) {
+    render(<AppList apps={[hello]} code={code} />);
+    expect([connect().getAttribute("aria-disabled"), greyed(), screen.queryByText("No access")], String(code)).toEqual([null, [], null]);
+    fireEvent.click(connect());
+    expect(screen.getByRole("dialog", { name: "Connect your assistant" })).toBeTruthy();
+    cleanup();
+  }
 });

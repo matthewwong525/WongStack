@@ -293,7 +293,7 @@ it('confirms a removal in a popup that says everyone signs in again, saves it on
   const remove = () => menu('employee@example.com').getByRole('menuitem', { name: 'Remove' })
   open(); await screen.findByRole('link', { name: 'Add person' }); fireEvent.click(remove())
   const ask = within(question('Remove employee@example.com?'))
-  expect(ask.getByText(/Everyone is signed out and signs in again\. This can't be undone\./)).toBeTruthy(); expect(ask.getByText(/project code is removed separately/)).toBeTruthy()
+  expect(ask.getByText(/Everyone is signed out and signs in again\. This can't be undone\./)).toBeTruthy(); expect(ask.getByText(/can no longer download the project\..* A copy of the project already on their device stays there\. Access given where the project is kept is removed there\./)).toBeTruthy()
   // The way out is focused first, and the action is the one solid button.
   const [out, yes] = [ask.getByRole('button', { name: 'Cancel' }), ask.getByRole('button', { name: 'Remove access' })]
   await moment(); expect([document.activeElement, out.getAttribute('data-variant'), yes.getAttribute('data-variant')]).toEqual([out, 'outline', 'default'])
@@ -425,7 +425,7 @@ it('the owner sees who manages: Manager beside the email, their own row marked Y
   fireEvent.click(menu('lee@example.com').getByRole('menuitem', { name: 'Remove' }))
   expect(screen.queryByText(/stop managing/)).toBeNull(); click('Cancel'); await moment()
   fireEvent.click(menu('employee@example.com').getByRole('menuitem', { name: 'Remove' }))
-  expect(screen.getByText(/where it was given\. They stop managing Access too\./)).toBeTruthy()
+  expect(screen.getByText(/is removed there\. They stop managing Access too\./)).toBeTruthy()
   // On a preview the same sentence follows the practice-list one.
   cleanup(); roster.environment = 'practice'; roster.key = 'practice'
   open(); await screen.findByRole('link', { name: 'Add person' }); fireEvent.click(menu('employee@example.com').getByRole('menuitem', { name: 'Remove' }))

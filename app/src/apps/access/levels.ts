@@ -72,16 +72,19 @@ export const sameSet = (one: AccessSet, other: AccessSet) => {
   return text(one) === text(other)
 }
 
-/** What uses a key, for the Keys view and an opened key. */
+/** What a key that works with no app does: Project code installs the project, any other looks things up. */
+export const aloneLine = (key: SavedKey) => key.alone ? `${key.id === 'code' ? 'installs the project' : 'look-ups'}, no app needed` : ''
+
+/** What uses a key, for an opened key. */
 export function keyUseLine(key: SavedKey): string {
   const by = dots(...key.usedBy.map(use => `${appTitle(use.app)}: ${NEED[use.need]}`))
-  return dots(by && `Used by ${by}`, key.alone && 'Look-ups, no app needed', !by && !key.alone && 'Nothing uses it yet',
+  return dots(by && `Used by ${by}`, key.alone && capital(aloneLine(key)), !by && !key.alone && 'Nothing uses it yet',
     !key.levels.includes('write') && 'Read only')
 }
 
 /** The same, short enough for one line of the Keys list: how many apps, not which. The key's panel names them. */
 export const keyUseShort = (key: SavedKey): string =>
-  dots(key.usedBy.length > 0 && count(key.usedBy.length, 'app'), key.alone && 'Look-ups, no app needed') || 'Nothing uses it yet'
+  dots(key.usedBy.length > 0 && count(key.usedBy.length, 'app'), key.alone && capital(aloneLine(key))) || 'Nothing uses it yet'
 
 /** Setup makes some keys itself, for the live app: no step can finish one on a preview. The others arrive through a private link. */
 export const keyState = (key: SavedKey, environment: Status['environment']) =>
