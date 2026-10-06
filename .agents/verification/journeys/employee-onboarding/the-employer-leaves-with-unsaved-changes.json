@@ -10,32 +10,40 @@
   "probe": "browser",
   "writes": false,
   "sourcePaths": [
+    "app/src/Layout.tsx",
+    "app/src/apps/access/App.tsx",
     "app/src/apps/access/AppAccessPage.tsx",
     "app/src/apps/access/Apps.tsx",
     "app/src/apps/access/Confirm.tsx",
+    "app/src/apps/access/Connect.tsx",
     "app/src/apps/access/Fields.tsx",
     "app/src/apps/access/KeyPage.tsx",
     "app/src/apps/access/Keys.tsx",
     "app/src/apps/access/Labels.tsx",
-    "app/src/apps/access/LevelChoice.tsx",
-    "app/src/apps/access/Own.tsx",
-    "app/src/apps/access/Owner.tsx",
+    "app/src/apps/access/Notices.tsx",
     "app/src/apps/access/Page.tsx",
     "app/src/apps/access/People.tsx",
     "app/src/apps/access/PersonPage.tsx",
     "app/src/apps/access/RolePage.tsx",
     "app/src/apps/access/Roles.tsx",
-    "app/src/apps/access/RowMenu.tsx",
-    "app/src/apps/access/SetFields.tsx",
     "app/src/apps/access/Table.tsx",
     "app/src/apps/access/View.tsx",
+    "app/src/apps/access/address.ts",
+    "app/src/apps/access/app.json",
+    "app/src/apps/access/asking.ts",
     "app/src/apps/access/levels.ts",
-    "app/src/apps/access/status.ts",
     "app/src/apps/access/subjects.ts",
-    "app/worker/employee-access/core.ts",
-    "app/worker/employee-access/policy.ts"
+    "app/src/apps/hello/App.tsx",
+    "app/src/apps/tips/App.tsx",
+    "app/src/components/AssistantSetup.tsx",
+    "app/src/components/ConnectDialog.tsx",
+    "app/src/components/CopyText.tsx",
+    "app/src/components/ui/alert-dialog.tsx",
+    "app/src/components/ui/sheet.tsx",
+    "app/src/pages/home/AppList.tsx",
+    "app/src/pages/home/Home.tsx"
   ],
-  "recordedAt": "a8124ef2832a2ffc023820fb0d4355d8b5a87e09",
+  "recordedAt": "cb10aa825cf43c757492e24ab2e17e98d962f723",
   "steps": [
     [
       "open",
@@ -71,12 +79,29 @@
       "Leave without saving?"
     ],
     [
+      "wait",
+      "900"
+    ],
+    [
       "find",
       "role",
       "button",
       "click",
       "--name",
       "Keep editing"
+    ],
+    [
+      "wait",
+      "900"
+    ],
+    [
+      "get",
+      "url"
+    ],
+    [
+      "get",
+      "text",
+      "body"
     ]
   ],
   "expect": [
