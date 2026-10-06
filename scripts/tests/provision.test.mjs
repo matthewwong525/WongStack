@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 
 import {
-  ACCESS_KEY, ACCESS_KEY_TODO, ARTIFACTS_PROVISION, CLOUDFLARE_READ_KEY, CLOUDFLARE_READ_KEY_TODO, CODE_KEY, CODE_KEY_TODO, CloudflareError, DEPLOY_TOKEN, NAMESPACE, NORMAL_PROVISION, PROPAGATION, R2_OFF, ROUTINES_PROVISION, SNAPSHOT_DAYS, STORAGE_TOKEN, USER_GRANTS,
+  ACCESS_KEY, ACCESS_KEY_TODO, ARTIFACTS_PROVISION, CLOUDFLARE_READ_KEY, CLOUDFLARE_READ_KEY_TODO, CODE_KEY, CloudflareError, DEPLOY_TOKEN, NAMESPACE, NORMAL_PROVISION, PROPAGATION, R2_OFF, ROUTINES_PROVISION, SNAPSHOT_DAYS, STORAGE_TOKEN, USER_GRANTS,
   accounts, artifactNamesFor, cli, cloudflare, githubRepo, names, plan, provision, readEnv, run, runnerConfig, safeName, widen, widenBy, wranglerConfig, wranglerFragment,
 } from '../../.agents/skills/wong-setup/scripts/provision.mjs';
 import { helperConfig } from '../../.agents/skills/save/scripts/artifacts-credential.mjs';
@@ -151,7 +151,7 @@ test('a rerun after the card turns an open site private in its committed config'
   assert.equal(production.teamDomain, report.access.teamDomain);
   assert.equal(env.record().components.access.appId, production.appId);
   assert.equal(env.record().components.access.mode, undefined);
-  assert.deepEqual(report.todo, [CODE_KEY_TODO]);
+  assert.deepEqual(report.todo, []);
   // The site is private now, so Access learns its owner and the live app gets its key.
   assert.deepEqual([config.vars.WONG_OWNER_EMAIL, config.env.staging.vars.WONG_OWNER_EMAIL], [EMAIL, EMAIL]);
   assert.ok(report.updated.includes('app/wrangler.jsonc WONG_OWNER_EMAIL'));
@@ -796,7 +796,7 @@ test('setup records the owner for Access and gives the live app alone its own si
   const deploy = env.fake.state.accountTokens.find((token) => token.name === 'recipe-box-deploy');
   assert.ok(!deploy.policies[0].permission_groups.some((g) => g.id === groupId('Access: Apps and Policies Write')));
   assert.equal(env.gh.secrets().CLOUDFLARE_API_TOKEN, env.fake.state.minted[0]);
-  assert.deepEqual(report.todo, [CODE_KEY_TODO]);
+  assert.deepEqual(report.todo, []);
   assertNoSecret(env, JSON.stringify(report));
 });
 
@@ -818,7 +818,7 @@ test('a rerun reuses the sign-in list key, and an interrupted or lost one is rol
   const puts = env.fake.count(secretPut);
   const again = await env.provision();
   assert.ok(again.reused.includes('sign-in list key recipe-box-access'));
-  assert.deepEqual([again.created, again.updated, again.todo], [[], [], [CODE_KEY_TODO]]);
+  assert.deepEqual([again.created, again.updated, again.todo], [[], [], []]);
   assert.deepEqual([env.fake.state.minted.length, env.fake.count(secretPut), keys()], [minted, puts, 1]);
   // A live app that lost its secret gets a new value for the same key, even when the config is kept.
   env.fake.state.workerSecrets = {};
@@ -849,7 +849,7 @@ test('setup gives both Workers one read-only key for Cloudflare look-ups, made f
   assert.deepEqual(report.cloudflareReadKey, { status: 'ready', id: key.id });
   assert.deepEqual(env.record().components.cloudflareReadKey, report.cloudflareReadKey);
   assert.ok(report.created.includes('read-only Cloudflare key recipe-box-cloudflare-read, stored in both Workers'));
-  assert.deepEqual(report.todo, [CODE_KEY_TODO]);
+  assert.deepEqual(report.todo, []);
   assertNoSecret(env, JSON.stringify(report));
 });
 
@@ -869,7 +869,7 @@ test('a rerun reuses the read-only key, and one the live app lacks is rolled ont
   const minted = env.fake.state.minted.length;
   const again = await env.provision();
   assert.ok(again.reused.includes('read-only Cloudflare key recipe-box-cloudflare-read'));
-  assert.deepEqual([again.created, again.updated, again.todo], [[], [], [CODE_KEY_TODO]]);
+  assert.deepEqual([again.created, again.updated, again.todo], [[], [], []]);
   assert.deepEqual([env.fake.state.minted.length, keys()], [minted, 1]);
   // A secret gone from the live app rolls the one key; the sign-in list key is left as it is.
   delete env.fake.state.workerSecrets['recipe-box'].WONG_CLOUDFLARE_READ;
@@ -892,7 +892,7 @@ test('a staging Worker that refuses the read-only key is left waiting: the step 
   assert.deepEqual(report.cloudflareReadKey, { status: 'ready', id: key().id, waiting: ['recipe-box-staging'] });
   assert.deepEqual(env.record().components.cloudflareReadKey, report.cloudflareReadKey);
   assert.ok(report.created.includes(`read-only Cloudflare key recipe-box-cloudflare-read, stored in the live app${waiting}`));
-  assert.deepEqual(report.todo, [CODE_KEY_TODO]);
+  assert.deepEqual(report.todo, []);
   assert.deepEqual(JSON.parse(env.fake.state.workerSecrets['recipe-box'].WONG_CLOUDFLARE_READ), { version: 1, token: env.fake.state.minted.at(-1), accountId: ACCOUNT });
   assert.equal(env.fake.state.workerSecrets['recipe-box-staging'], undefined);
   // A rerun reuses the key while the live app holds it: no new value, and no second try at staging.
@@ -901,7 +901,7 @@ test('a staging Worker that refuses the read-only key is left waiting: the step 
   const again = await env.provision();
   assert.ok(again.reused.includes(`read-only Cloudflare key recipe-box-cloudflare-read${waiting}`));
   assert.deepEqual(again.cloudflareReadKey, report.cloudflareReadKey);
-  assert.deepEqual(again.todo, [CODE_KEY_TODO]);
+  assert.deepEqual(again.todo, []);
   assert.equal(env.fake.state.minted.length, minted);
   assert.ok(!env.fake.calls.slice(calls).some((call) => call.method === 'PUT' && call.path.endsWith('/secrets')));
   // Staging holding no copy still reads as waiting once the newer preview is gone: the key is not replaced to try again.
@@ -944,7 +944,7 @@ test('a token that can not make the read-only key leaves it missing, names the s
     : fetch(url, options));
   const report = await env.provision({ fetch: refused });
   assert.deepEqual(report.cloudflareReadKey, { status: 'missing' });
-  assert.deepEqual(report.todo, [CLOUDFLARE_READ_KEY_TODO, CODE_KEY_TODO]);
+  assert.deepEqual(report.todo, [CLOUDFLARE_READ_KEY_TODO]);
   assert.match(CLOUDFLARE_READ_KEY_TODO, /^the app has no read-only Cloudflare key for look-ups, because the saved Cloudflare token can not make keys/);
   assert.deepEqual(env.record().components.cloudflareReadKey, { status: 'missing' });
   // The rest of setup finished: the sign-in list key is ready, and neither Worker holds a look-up key.
@@ -954,7 +954,7 @@ test('a token that can not make the read-only key leaves it missing, names the s
   assert.equal(env.fake.state.accountTokens.length, 2);
   const ready = await env.provision();
   assert.equal(ready.cloudflareReadKey.status, 'ready');
-  assert.deepEqual(ready.todo, [CODE_KEY_TODO]);
+  assert.deepEqual(ready.todo, []);
   assert.ok(ready.created.includes('read-only Cloudflare key recipe-box-cloudflare-read, stored in both Workers'));
   assertNoSecret(env, JSON.stringify([report, ready]));
 });
@@ -1003,7 +1003,7 @@ test('the access command gives an installed repo its owner email and both keys, 
   const missing = await run();
   assert.equal(missing.code, 0, 'a token that can not make keys stops nothing');
   assert.deepEqual([missing.report.accessKey, missing.report.cloudflareReadKey], [{ status: 'missing' }, { status: 'missing' }]);
-  assert.deepEqual(missing.report.todo, [ACCESS_KEY_TODO, CLOUDFLARE_READ_KEY_TODO, CODE_KEY_TODO]);
+  assert.deepEqual(missing.report.todo, [ACCESS_KEY_TODO, CLOUDFLARE_READ_KEY_TODO]);
   for (const todo of missing.report.todo.slice(0, 2)) assert.match(todo, /wiki\/development\/secrets\.md#receive-a-key-through-a-private-link.*`provision\.mjs access`/);
   assert.deepEqual(env.fake.state.workerSecrets, {});
   // The owner email does not wait for the key: Access opens and names the one step left.
@@ -1015,7 +1015,7 @@ test('the access command gives an installed repo its owner email and both keys, 
   const ready = await run();
   assert.equal(ready.code, 0);
   assert.equal(ready.report.accessKey.status, 'ready');
-  assert.deepEqual(ready.report.todo, [CODE_KEY_TODO]);
+  assert.deepEqual(ready.report.todo, []);
   assert.deepEqual(Object.keys(env.fake.state.workerSecrets['recipe-box']), ['WONG_ACCESS_LOGIN_MANAGEMENT', 'WONG_CLOUDFLARE_READ']);
   assert.deepEqual(env.record().components.accessKey, ready.report.accessKey);
   // The same step setup runs: one read-only key, made from the live group list, on both Workers.
@@ -1770,8 +1770,8 @@ test('a GitHub install names its project for both Workers and reports the read-o
   assert.deepEqual(report.codeKey, { status: 'missing', kept: 'github', repository: REPO, key: 'WONG_CODE_READ', url: 'https://github.com/settings/personal-access-tokens/new', steps: CODE_KEY.steps(REPO) });
   assert.ok(report.codeKey.steps.length <= 6 && report.codeKey.steps.every((line) => line.length <= 140));
   assert.match(report.codeKey.steps.join('\n'), /Only select repositories, then pick ada\/recipe-box\n.*Contents, Read-only\nAdd no other permission/);
-  assert.ok(report.todo.includes(CODE_KEY_TODO));
-  assert.match(CODE_KEY_TODO, /wiki\/development\/secrets\.md#receive-a-key-through-a-private-link.*WONG_CODE_READ.*secrets:push/);
+  // The key is no to-do: Access asks for it when the owner first lets someone install the project.
+  assert.ok(!report.todo.some((line) => /WONG_CODE_READ|hand out the project/.test(line)));
   // No binding and no key is made for a GitHub project, and no Artifacts permission is asked for.
   assert.deepEqual([env.config().artifacts, env.config().env.staging.artifacts], [undefined, undefined]);
   assert.ok(!env.fake.state.accountTokens.some((token) => /code/.test(token.name)));
@@ -1779,7 +1779,7 @@ test('a GitHub install names its project for both Workers and reports the read-o
   // The access step, as an update runs it: nothing to change, and the same one step left.
   const waiting = await accessCommand(env);
   assert.equal(waiting.code, 0);
-  assert.deepEqual([waiting.report.codeKey, waiting.report.todo, waiting.report.updated, waiting.report.created], [report.codeKey, [CODE_KEY_TODO], [], []]);
+  assert.deepEqual([waiting.report.codeKey, waiting.report.todo, waiting.report.updated, waiting.report.created], [report.codeKey, [], [], []]);
   // One Worker holding the key is not enough: a preview must hand the project out too.
   env.fake.state.workerSecrets['recipe-box'].WONG_CODE_READ = 'github_pat_synthetic';
   assert.equal((await accessCommand(env)).report.codeKey.status, 'missing');
@@ -1825,7 +1825,7 @@ test('an install kept in Cloudflare binds both Workers to its own repository, so
   assert.deepEqual([env.config().artifacts, env.config().env.staging.artifacts, env.config().env.local.artifacts], [binding, binding, undefined]);
   assert.deepEqual(codeVars(env), ['recipe-box', 'recipe-box', undefined]);
   assert.deepEqual(report.codeKey, { status: 'ready', kept: 'cloudflare', repository: 'recipe-box' });
-  assert.ok(!report.todo.includes(CODE_KEY_TODO));
+  assert.ok(!report.todo.some((line) => /WONG_CODE_READ|hand out the project/.test(line)));
   // The account token never reaches a Worker, and neither Worker is given a project key.
   for (const worker of ['recipe-box', 'recipe-box-staging']) assert.ok(!Object.keys(env.fake.state.workerSecrets[worker]).includes('WONG_CODE_READ'));
   const text = readFileSync(join(env.dir, 'app/wrangler.jsonc'), 'utf8');

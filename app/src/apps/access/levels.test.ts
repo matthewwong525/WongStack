@@ -11,7 +11,7 @@ const spare = key('spare', 'Spare')
 const status: Status = { ownerEmail: 'owner@example.com', viewer: { email: 'owner@example.com', owner: true }, environment: 'live', key: 'ready', started: true,
   imported: 0, keysStarted: true, kept: 0, apps: ['hello', 'tips', 'payroll'],
   appKeys: { hello: [{ id: 'stripe', need: 'write' }, { id: 'maps', need: 'read' }], tips: [{ id: 'stripe', need: 'read' }], payroll: [] },
-  keys: [stripe, maps, cloudflare, spare], roles: [], people: [], work: [] }
+  keys: [stripe, maps, cloudflare, spare], roles: [], people: [], work: [], project: 'ready' }
 
 it('names a level, joins the parts of a line and starts a line with a capital', () => {
   expect([levelName(null), levelName('read'), levelName('write')]).toEqual(['None', 'Read', 'Read & write'])

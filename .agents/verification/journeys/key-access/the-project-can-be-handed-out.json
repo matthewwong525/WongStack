@@ -1,0 +1,100 @@
+{
+  "format": "verify-journey-1",
+  "id": "the-project-can-be-handed-out",
+  "scenario": {
+    "capability": "key-access",
+    "requirement": "Project code is a key with one level",
+    "scenario": "The project can be handed out"
+  },
+  "thenDigest": "f989fdf1930b31f6862cf74ccad099a9fa3de7ad00cec2ae8f900c7dc175470b",
+  "probe": "browser",
+  "writes": true,
+  "sourcePaths": [
+    ".agents/skills/wong-setup/references/cloudflare.md",
+    ".agents/skills/wong-setup/scripts/provision.mjs",
+    "app/src/apps/access/KeyPage.tsx",
+    "app/src/apps/access/Notices.tsx",
+    "app/src/apps/access/PersonPage.tsx",
+    "app/src/apps/access/ProjectStep.tsx",
+    "app/src/apps/access/SetFields.tsx",
+    "app/src/apps/access/status.ts",
+    "app/src/lib/access.ts",
+    "app/worker/employee-access/code.ts",
+    "app/worker/employee-access/members.ts"
+  ],
+  "recordedAt": "30721248afa61100d9c11c98e427ffe00a66370f",
+  "steps": [
+    [
+      "open",
+      "{url}/apps/access/people/new"
+    ],
+    [
+      "wait",
+      "--load",
+      "networkidle"
+    ],
+    [
+      "wait",
+      "--text",
+      "Add person"
+    ],
+    [
+      "find",
+      "label",
+      "Email",
+      "fill",
+      "projectwalk@example.invalid"
+    ],
+    [
+      "find",
+      "role",
+      "checkbox",
+      "click",
+      "--name",
+      "Can install the project"
+    ],
+    [
+      "find",
+      "role",
+      "button",
+      "click",
+      "--name",
+      "Save access"
+    ],
+    [
+      "wait",
+      "--load",
+      "networkidle"
+    ],
+    [
+      "wait",
+      "--text",
+      "Saved"
+    ],
+    [
+      "open",
+      "{url}/apps/access/keys/code"
+    ],
+    [
+      "wait",
+      "--load",
+      "networkidle"
+    ],
+    [
+      "wait",
+      "--text",
+      "projectwalk@example.invalid"
+    ]
+  ],
+  "expect": [
+    {
+      "text": "Project code"
+    },
+    {
+      "text": "projectwalk@example.invalid"
+    },
+    {
+      "gone": "Project code is shared separately"
+    }
+  ]
+}
