@@ -28,7 +28,7 @@ node "$M" show "$CHANGE_NAME"
 node "$M" search --branch "$BRANCH" --change "$CHANGE_NAME" --limit 200
 ```
 
-`CHANGE_NAME` is the branch's change, archived or active; with none, drop `show` and `--change`. On `main`, drop `--branch`: it returns every fact saved there. Add this session's facts, deduplicate, and place each [repeatable](../../../wiki/wiki-style.md#repeatable-knowledge) one by [the wiki rules](../../rules/wiki.md), never a private-life one. [Store unreachable](../memory/SKILL.md#read) → say so and go on.
+`CHANGE_NAME` is the branch's change, archived or active; with none, drop `show` and `--change`. On `main`, drop `--branch`. Add this session's facts, deduplicate, and place each repeatable one by [placing a fact](../../../wiki/development/wiki-dream.md#placing-a-fact-on-a-page). [Store unreachable](../memory/SKILL.md#read) → say so and go on.
 
 Publish the edits alone. After a merge, first `git fetch origin main`, `git switch -c "$BRANCH-wiki" origin/main`, and `git branch -D "$BRANCH"`. Then invoke `/ship`, minus its closing question. No edit → report `no repeatable fact`.
 

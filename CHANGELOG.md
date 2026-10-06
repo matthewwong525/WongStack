@@ -16,6 +16,22 @@
 [Employee access](wiki/stack/employee-access.md#areas-and-their-levels) describes areas and who can run a skill, [the Access screens](wiki/stack/access-screens.md#a-set-has-three-parts) the panel, and [company actions](wiki/stack/company-api.md#build-a-skill-on-actions) how a skill is built.
 
 **Updating.** Nobody loses anything: each person and role keeps every app they have, at *Look up & change*, which is what a tick gave. Lower one to *Look up* when you want to. The app's database gains one small change, applied when you publish. Three things to ask your assistant to check in an app you built yourself: a folder under `app/worker/apps/` that has no screen now needs a `title` and a `description` in its `api.ts`, or the checks name it; a route that only looks things up but is sent as a `POST` should be described as a read, or people at *Look up* can't use it; and a skill of your own that reads a key from a file should be rebuilt to call the app. If you ever go back to the version before this one, lowered levels read as full again, and Access can't save a change until you update again.
+## 36.3.0 — /dream keeps your memory and wiki current
+
+- **You can type `/dream`.** Your assistant goes back over what memory has gained since the last dream and brings your wiki up to date. It runs on the model you already use, and only when you type it: your assistant never starts one on its own.
+- **It tidies memory first.** Duplicate facts merge, a contradicted fact gives way to the newer one, and an answered open thread closes, so the wiki is updated from clean facts. Memory still tidies itself in the background between dreams.
+- **It adds what is worth keeping.** Each new fact is tested by the wiki's own rule: will this help a future task that is not this one? Those that pass go on the page that owns them. The rest stay in memory.
+- **It cleans up, which is the main job.** It re-reads your own pages against memory, the files they link to, and each other, longest unchecked first, up to twenty a dream. It corrects what is out of date, merges duplicates, moves a fact to the page that owns it, and fixes links.
+- **It checks the source before it changes a claim.** A fact that was the assistant's reading of you, not your words, is not written as your preference.
+- **It edits only your own pages.** A discrepancy on a page WongStack ships is listed in its report, so you can say *fix those*.
+- **It publishes through the normal checks**, with no question first, then tells you each page it changed and why. Where a change is half built, it stops and edits nothing.
+- **You can look first.** `/dream --dry-run` lists the edits it would make and publishes nothing.
+- **`/close` places facts by the same rules**, written once.
+
+[Wiki dream](wiki/development/wiki-dream.md) says when to run one and how to undo it.
+
+**Updating.** Nothing needs doing by hand. You can now type `/dream` to bring your wiki up to date from what your chats learned. It runs only when you ask, and `/dream --dry-run` shows what it would change first.
+
 ## 36.2.1 — Notes from the first real routines
 
 - **The routines page says how long a run takes.** About 10 seconds to start, then 1 to 3 minutes for a small task on Cloudflare's own models, and up to 10 for one that searches memory and leaves a note.
