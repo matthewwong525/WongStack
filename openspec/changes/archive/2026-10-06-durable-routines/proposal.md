@@ -105,3 +105,4 @@ A schedule only works through the Paseo app, on a computer that stays on. A cloc
 - **2026-10-06** — Asked whether to try saving to GitHub before publishing → chose test GitHub first, with one token for the empty test repository.
 - **2026-10-06** — Assumed: setup tests a GitHub token for write access before sending it to the runner, because the person gave a read-only one and a run would only have found out at its first push.
 - **2026-10-06** — Asked how to finish the GitHub check → the person gave the token on file write access on GitHub, and the run on the GitHub route then passed. That token is also the one another change stores as its read-only key; the person was told.
+- **2026-10-06** — Asked whether to publish → chose publish it. Archived and numbered 36.0.0, after bringing main in at 35.2.0; the routine skill's wording was trimmed by 484 bytes so the shared budget for skill text still holds with main's own additions.

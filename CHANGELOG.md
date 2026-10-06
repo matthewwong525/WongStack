@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (major) — Schedules that run in your Cloudflare account, on any model key
+## 36.0.0 — Schedules that run in your Cloudflare account, on any model key
 
 - **Schedules run in your Cloudflare account, not through Paseo.** A clock there runs each one with your computer off, and `/routine` works the same in any app your assistant runs in. [Cloud routines](wiki/stack/cloud-routines.md) explains it.
 - **Scheduled work takes one of two shapes, and `/routine` picks.** The same steps every time become a script in your app, built the usual way: a plan, a preview, then *publish it?* A step may still call an AI model. Work that finds its own way, such as finding news or `/improve`, gets a routine. `/routine` says which it picked before it makes anything, and you can change it.
