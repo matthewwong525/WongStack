@@ -47,7 +47,7 @@ export function Page({ name, changed, action, onSave, extra, children, ...props 
   // The keyboard moving to the page beside the panel closes nothing: only a press there does. A press on a link, a
   // control or a row there is that thing's own to answer: it moves where it says, and the panel does not also go home.
   return <Sheet open modal={false} onOpenChange={close}>
-    <SheetContent className="w-full gap-0 sm:max-w-md" aria-describedby={undefined} onFocusOutside={event => event.preventDefault()}
+    <SheetContent className="w-full gap-0 sm:top-15 sm:h-auto sm:max-w-md" aria-describedby={undefined} onFocusOutside={event => event.preventDefault()}
       onPointerDownOutside={event => { if ((event.target as Element).closest(OWN)) event.preventDefault() }}>
       {changed && held && <Held pending={pending} />}
       {leaving && <Leave onLeave={() => void navigate(leaving)} onStay={() => setLeaving(null)} />}

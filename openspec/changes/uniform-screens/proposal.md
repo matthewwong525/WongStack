@@ -172,6 +172,7 @@ The screens don't match each other. Home and the small apps sit in a narrow cent
 - **2026-10-06** — Build: the workspace was moved up to 35.0.1 before building, and the first checkpoint is saved with the walk on the preview still to do, because the plan was drawn against the screens that release published.
 - **2026-10-06** — Walk: the owner's row was shorter than the rows that hold a role dropdown, so every row in the four lists now has one height on a computer.
 - **2026-10-06** — Asked, on the preview, about Home sitting in the left half of the frame with the right half empty → chose every screen fills the frame; text and forms no longer keep a narrower width. Home's apps sit in a grid, and Hello's and the tip calculator's fields share a line on a computer.
+- **2026-10-06** — Asked what to do about two things the pictures showed, a Keys line cut short and the side panel covering the top bar → chose to fix both: the Keys list counts the apps that use a key and the key's panel names them, and on a computer the panel starts under the top bar, which now stays in view when the page scrolls.
 
 ## Capabilities
 

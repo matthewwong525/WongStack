@@ -70,16 +70,16 @@ it('lists every key on one line: whether it is saved, what uses it, and how many
   // No button adds a key: a quiet line under the list says how one arrives.
   expect(follows(table, screen.getByText('Your assistant sends a link for a new key.'))).toBe(true); expect(screen.queryByRole('link', { name: /Add/ })).toBeNull()
   // The higher level first; the owner before the rest, at the most the key offers; counts, not names.
-  expect(await cells('Stripe')).toEqual(['Stripe', 'Saved', 'Used by Hello: look up, change', 'Owner, 1 role', '1 role, 1 person'])
-  expect(await cells('Bank')).toEqual(['Bank', 'Saved', 'Used by payroll: look up, change', 'Owner', 'Nobody'])
-  expect(await cells('Cloudflare')).toEqual(['Cloudflare', 'Saved', 'Look-ups, no app needed · Read only', 'Nobody', 'Owner, 1 person'])
+  expect(await cells('Stripe')).toEqual(['Stripe', 'Saved', '1 app', 'Owner, 1 role', '1 role, 1 person'])
+  expect(await cells('Bank')).toEqual(['Bank', 'Saved', '1 app', 'Owner', 'Nobody'])
+  expect(await cells('Cloudflare')).toEqual(['Cloudflare', 'Saved', 'Look-ups, no app needed', 'Nobody', 'Owner, 1 person'])
   expect(document.querySelector('[data-slot="badge"]')).toBeNull()
   const stripe = await row('Stripe')
   expect(stripe.getByRole('link', { name: 'Stripe' }).getAttribute('href')).toBe('/apps/access/keys/stripe')
   // What uses a key is cut short when it is long, with the whole of it in its title.
-  expect(stripe.getByText('Used by Hello: look up, change').title).toBe('Used by Hello: look up, change')
+  expect(stripe.getByText('1 app').title).toBe('1 app')
   // A key that is not saved yet keeps the row's shape and says its state in words, with nothing to copy in the row.
-  expect(await cells('Maps')).toEqual(['Maps', 'Not saved yet', 'Used by Tip calculator: look up', 'Owner', 'Nobody'])
+  expect(await cells('Maps')).toEqual(['Maps', 'Not saved yet', '1 app', 'Owner', 'Nobody'])
   const maps = await row('Maps'); expect(maps.queryByRole('button')).toBeNull()
   // It opens like any other, and its next step is in the panel.
   fireEvent.click(maps.getByText('Not saved yet')); const opened = await panel('Maps'); expect(where()).toBe('/apps/access/keys/maps')
@@ -94,7 +94,7 @@ it('says one step is left for the key setup makes, with the request to copy wher
   roster.keys[2].saved = false
   open('keys'); const cloudflare = await row('Cloudflare')
   // The row keeps its shape and stays one line: the key, its state in words, and nothing to copy.
-  expect(await cells('Cloudflare')).toEqual(['Cloudflare', 'One step left', 'Look-ups, no app needed · Read only', 'Nobody', 'Owner, 1 person'])
+  expect(await cells('Cloudflare')).toEqual(['Cloudflare', 'One step left', 'Look-ups, no app needed', 'Nobody', 'Owner, 1 person'])
   expect(cloudflare.queryByRole('button')).toBeNull(); expect(screen.queryByText('Finish Access setup')).toBeNull()
   // Opened, it says the next step and offers the request to copy.
   fireEvent.click(cloudflare.getByRole('link', { name: 'Cloudflare' })); const opened = await panel('Cloudflare')

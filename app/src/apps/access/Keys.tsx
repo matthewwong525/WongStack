@@ -1,7 +1,7 @@
 import type { Level } from '../../lib/access'
 import { at, type ViewProps } from './address'
 import { KeyPage } from './KeyPage'
-import { keyState, keyUseLine, levelName } from './levels'
+import { keyState, keyUseShort, levelName } from './levels'
 import { keyHolders } from './subjects'
 import { Cell, Name, Row, Table } from './Table'
 import { View } from './View'
@@ -23,7 +23,7 @@ export function Keys(props: ViewProps) {
         return <Row key={key.id} to={page} current={key === opened}>
           <Name title={key.title} to={page} />
           <Cell className="text-muted-foreground">{keyState(key, status.environment)}</Cell>
-          <Cell cut={keyUseLine(key)} />
+          <Cell cut={keyUseShort(key)} />
           {LEVELS.map(level => <Cell key={level} label={levelName(level)}>{keyHolders(status, key, level)}</Cell>)}
         </Row>
       })}

@@ -47,7 +47,7 @@ it('fits a phone: the Access screens wrap, and fix no width in pixels', async ()
   // An opened item is a panel on the right: the screen's whole width on a phone, a readable one on a computer.
   open('people/new'); const save = await screen.findByRole('button', { name: 'Save access' })
   const panel = screen.getByRole('dialog', { name: 'Add person' })
-  has(panel, 'fixed', 'inset-y-0', 'right-0', 'w-full', 'sm:max-w-md'); expect(classes(panel)).not.toContain('w-3/4')
+  has(panel, 'fixed', 'inset-y-0', 'right-0', 'w-full', 'sm:max-w-md', 'sm:top-15', 'sm:h-auto'); expect(classes(panel)).not.toContain('w-3/4')
   // Its fields scroll, with the buttons kept in view under them; the buttons and the level choice wrap, and so
   // does a line under an app's tick; a field takes the panel's width.
   has(save.parentElement!, 'flex', 'flex-wrap', 'border-t'); has(save.parentElement!.previousElementSibling!, 'overflow-y-auto', 'flex-1')
