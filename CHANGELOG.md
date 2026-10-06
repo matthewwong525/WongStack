@@ -5,7 +5,7 @@
 
 ## Next (minor) — Screens that match
 
-- **Every screen starts at the same left edge.** One wide frame holds Home, each small app and Access, and the logo in the top bar lines up with it. Text and forms keep a width that is easy to read; a table uses the whole frame. Nothing jumps sideways when you move between screens.
+- **Every screen starts at the same left edge.** One wide frame holds Home, each small app and Access, and the logo in the top bar lines up with it. Every screen fills it: Home lays your apps side by side, a small app's fields share a line, and a table uses it all. Nothing jumps sideways when you move between screens.
 - **Every row in an Access list is one line.** A person's row shows who, whether they can sign in, their role, and a count such as *2 apps, 1 key*. A row where an app can't do its job yet says *! 1 gap*. *You* and *Manager* sit beside the email. Roles, Apps and Keys follow the same rule, and the names show when you open one.
 - **The four view names are the title.** *People · Roles · Apps · Keys* head the list under them, and the add button sits at the end of that line. Apps and Keys have nothing to add by hand, so a quiet line under their list says the assistant adds them.
 - **A person, role, app or key opens in a side panel.** The list stays where it was, with that row marked. The panel has its own address, so a link or the Back button still works; on a phone it fills the screen. A key that isn't saved yet opens too and shows its next step there.
@@ -14,7 +14,7 @@
 
 [Mini apps](wiki/stack/mini-apps.md#the-home-page-lists-the-apps) describes the frame, and [employee access](wiki/stack/employee-access.md#one-frame-on-every-screen) the lists and the panel.
 
-**Updating.** Nothing needs doing by hand. A screen you built moves to the shared left edge at the width it has today; its address and data stay as they are.
+**Updating.** Nothing needs doing by hand. A screen you built moves to the shared left edge and stretches to fill the wider frame; its address and data stay as they are. If one looks too stretched, ask your assistant to lay its fields side by side, as Hello and the tip calculator now do.
 
 ## 35.0.1 — Two notes on checks that fail without a cause
 

@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button'
 import { appAccessSchema, useAccess } from './lib/access'
 
 // One frame for every page: its width and its left edge. The bar's contents sit in it too, so the logo lines up
-// with each page's heading. A page of text or a form keeps a readable width inside it with `max-w-lg`; a table takes it all.
+// with each page's heading. Every page takes the whole of it: none narrows itself.
 const FRAME = 'mx-auto w-full max-w-[60rem] px-4'
 
 // The frame and editable starter identity shared by every page: a bar across the screen, then the page. Sign out goes to the address Cloudflare's sign-in serves on this site, which ends the session; it is

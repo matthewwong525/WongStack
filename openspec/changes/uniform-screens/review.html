@@ -109,7 +109,7 @@
 </div></section>
 <section id="changes" aria-labelledby="changes-h"><h2 id="changes-h">What Changes</h2>
 <ol class="items">
-<li class="item card" id="item-1"><span class="num">1</span><div class="body"><div class="text" data-note="item-1" tabindex="0"><b>Every screen starts at the same left edge.</b> One wide frame holds Home, each small app and Access. Text and forms keep a width that is easy to read; a table uses the whole frame. The logo in the top bar lines up with that edge. Nothing jumps sideways when you move between screens.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<li class="item card" id="item-1"><span class="num">1</span><div class="body"><div class="text" data-note="item-1" tabindex="0"><b>Every screen starts at the same left edge.</b> One wide frame holds Home, each small app and Access. Every screen fills that frame: Home lays its apps side by side, a small app's fields share a line, and a table uses it all. The logo in the top bar lines up with that edge. Nothing jumps sideways when you move between screens.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
 <span class="ln" data-note="item-1-line-1" tabindex="0">BEFORE</span>
 <span class="ln" data-note="item-1-line-2" tabindex="0">  Home         Access       A person</span>
 <span class="ln" data-note="item-1-line-3" tabindex="0">┌──────────┐ ┌──────────┐ ┌──────────┐</span>
@@ -123,11 +123,11 @@
 <span class="ln" data-note="item-1-line-11" tabindex="0">AFTER</span>
 <span class="ln" data-note="item-1-line-12" tabindex="0">  Home         Access       A person</span>
 <span class="ln" data-note="item-1-line-13" tabindex="0">┌──────────┐ ┌──────────┐ ┌──────────┐</span>
-<span class="ln" data-note="item-1-line-14" tabindex="0">│┌────┐    │ │┌────────┐│ │┌───┬────┐│</span>
-<span class="ln" data-note="item-1-line-15" tabindex="0">││    │    │ ││        ││ ││   │+   ││</span>
-<span class="ln" data-note="item-1-line-16" tabindex="0">│└────┘    │ │└────────┘│ │└───┴────┘│</span>
+<span class="ln" data-note="item-1-line-14" tabindex="0">│┌──┬──┬──┐│ │┌────────┐│ │┌───┬────┐│</span>
+<span class="ln" data-note="item-1-line-15" tabindex="0">││  │  │  ││ ││        ││ ││   │+   ││</span>
+<span class="ln" data-note="item-1-line-16" tabindex="0">│└──┴──┴──┘│ │└────────┘│ │└───┴────┘│</span>
 <span class="ln" data-note="item-1-line-17" tabindex="0">└──────────┘ └──────────┘ └──────────┘</span>
-<span class="ln" data-note="item-1-line-18" tabindex="0"> one left edge on every screen</span></pre></div></details></li>
+<span class="ln" data-note="item-1-line-18" tabindex="0"> one left edge, one width, every screen</span></pre></div></details></li>
 <li class="item card" id="item-2"><span class="num">2</span><div class="body"><div class="text" data-note="item-2" tabindex="0"><b>Every row in an Access list is one line.</b> A person's row shows who, whether they can sign in, their role, and a short count such as <i>2 apps, 1 key</i>. The names of the apps and keys show when you open the person. A row where an app can't do its job yet still says so, as <i>1 gap</i>. <i>You</i> and <i>Manager</i> sit beside the name. Roles, Apps and Keys follow the same rule. On a phone a row still stacks into short lines, now the same few for everyone.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
 <span class="ln" data-note="item-2-line-1" tabindex="0">BEFORE</span>
 <span class="ln" data-note="item-2-line-2" tabindex="0">┌──────────────────────────────────────────────┐</span>
@@ -229,7 +229,7 @@
 <span class="ln" data-note="item-7-line-5" tabindex="0">│ load.                 │  │ this app yet. Ask the │</span>
 <span class="ln" data-note="item-7-line-6" tabindex="0">│ [Try again]           │  │ owner.                │</span>
 <span class="ln" data-note="item-7-line-7" tabindex="0">└───────────────────────┘  └───────────────────────┘</span></pre></div></details></li>
-<li class="item card" id="item-8"><span class="num">8</span><div class="body"><div class="text" data-note="item-8" tabindex="0"><b>Screens you built move with the frame.</b> After the update, a mini app your assistant built starts at the same left edge as the rest, at the width it has today. Its address and data stay as they are, and nothing needs doing by hand.</div></div></li>
+<li class="item card" id="item-8"><span class="num">8</span><div class="body"><div class="text" data-note="item-8" tabindex="0"><b>Screens you built move with the frame.</b> After the update, a mini app your assistant built starts at the same left edge as the rest and has the whole frame to use. Its address and data stay as they are, and nothing needs doing by hand.</div></div></li>
 </ol>
 <p class="aside"><b>Non-goals.</b> No change to who can use what, to what a save does, or to colours and fonts. Home's welcome guide stays as it is. What Connect does once pasted stays the same: adding the project code to it is planned in the workspace <i>Connect installs the project</i>.</p>
 
@@ -255,6 +255,7 @@
 <li class="decision card" id="decision-17" data-note="decision-17" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-05</p>Build: <i>Can't copy? Show the message</i> sits under the <i>Copy</i> button in step 1, not at the foot of the popup, because the copy button and its fallback are one part.</li>
 <li class="decision card" id="decision-18" data-note="decision-18" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-06</p>Build: the workspace was moved up to 35.0.1 before building, and the first checkpoint is saved with the walk on the preview still to do, because the plan was drawn against the screens that release published.</li>
 <li class="decision card" id="decision-19" data-note="decision-19" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-06</p>Walk: the owner's row was shorter than the rows that hold a role dropdown, so every row in the four lists now has one height on a computer.</li>
+<li class="decision card" id="decision-20" data-note="decision-20" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-06</p>Asked, on the preview, about Home sitting in the left half of the frame with the right half empty → chose every screen fills the frame; text and forms no longer keep a narrower width. Home's apps sit in a grid, and Hello's and the tip calculator's fields share a line on a computer.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

@@ -30,7 +30,7 @@ The checkout this is built in must hold 35.0.0: `app/src/components/ui/` exists 
 
 ### The frame lives in `Layout.tsx`
 
-`main` becomes `mx-auto w-full max-w-[60rem] px-4`, and the bar's contents sit in a div with the same three classes, so the logo and every `h1` share a left edge. A page that is text or a form wraps its content in `max-w-lg`: Home, Hello, Tips, `AppPage`'s stopped states and `NotFound`. Access's lists take the frame. `WIDE` and its `calc` margins are deleted.
+`main` becomes `mx-auto w-full max-w-[60rem] px-4`, and the bar's contents sit in a div with the same three classes, so the logo and every `h1` share a left edge. Every page takes the frame and none narrows itself: Home lays its app cards in a grid (`sm:grid-cols-2 lg:grid-cols-3`), Hello puts its field and button on one line, Tips puts its three fields on one line, and Access's lists take it all. A check fails on `max-w-lg` in a screen. `WIDE` and its `calc` margins are deleted.
 
 *Over a `width` prop per route:* the route table would need to know each app's shape, and a mini app the assistant builds later would have to register it. A class on the page is local and matches how [mini apps](../../../wiki/stack/mini-apps.md) are written.
 
@@ -76,7 +76,7 @@ The workspace *Connect installs the project* adds its step to this list; this ch
 
 ## Risks / Trade-offs
 
-- [A screen an install built assumed the centred narrow column] → It moves to the frame's left edge at its own width; the changelog says so, and nothing breaks. An install screen that set its own `max-w-*` keeps it.
+- [A screen an install built assumed the centred narrow column] → It moves to the frame's left edge and stretches to the frame's width; the changelog says so and says how to lay it out, and nothing breaks. An install screen that set its own `max-w-*` keeps it.
 - [One-line rows hide which apps a person has] → Chosen knowingly; the gap count stays on the row and the sheet names everything.
 - [Two overlays stacked: the sheet, then the leave question] → `Leaving.test.tsx` covers focus going to the question and back; the kept journey for leaving is recorded again on the preview.
 - [The three kept journeys click through pages that no longer exist as pages] → They are recorded again in the last group, after the build is saved.

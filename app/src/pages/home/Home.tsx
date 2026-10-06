@@ -13,7 +13,7 @@ export function Home() {
   const held = current?.role === 'employee' ? current.apps : undefined
   const listed = current && !held ? apps.filter(app => current.apps.includes(app.name)) : apps
   return (
-    <div className="max-w-lg">
+    <div>
       <header className="mb-8">
         <h1 className="mb-3 wrap-anywhere">Your workspace, shaped around you</h1>
         <p className="text-muted-foreground">Your tools, in one place.</p>

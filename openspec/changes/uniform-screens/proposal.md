@@ -12,7 +12,7 @@ The screens don't match each other. Home and the small apps sit in a narrow cent
 
 ## What Changes
 
-- **Every screen starts at the same left edge.** One wide frame holds Home, each small app and Access. Text and forms keep a width that is easy to read; a table uses the whole frame. The logo in the top bar lines up with that edge. Nothing jumps sideways when you move between screens.
+- **Every screen starts at the same left edge.** One wide frame holds Home, each small app and Access. Every screen fills that frame: Home lays its apps side by side, a small app's fields share a line, and a table uses it all. The logo in the top bar lines up with that edge. Nothing jumps sideways when you move between screens.
   ```text
   BEFORE
     Home         Access       A person
@@ -27,11 +27,11 @@ The screens don't match each other. Home and the small apps sit in a narrow cent
   AFTER
     Home         Access       A person
   ┌──────────┐ ┌──────────┐ ┌──────────┐
-  │┌────┐    │ │┌────────┐│ │┌───┬────┐│
-  ││    │    │ ││        ││ ││   │+   ││
-  │└────┘    │ │└────────┘│ │└───┴────┘│
+  │┌──┬──┬──┐│ │┌────────┐│ │┌───┬────┐│
+  ││  │  │  ││ ││        ││ ││   │+   ││
+  │└──┴──┴──┘│ │└────────┘│ │└───┴────┘│
   └──────────┘ └──────────┘ └──────────┘
-   one left edge on every screen
+   one left edge, one width, every screen
   ```
 - **Every row in an Access list is one line.** A person's row shows who, whether they can sign in, their role, and a short count such as *2 apps, 1 key*. The names of the apps and keys show when you open the person. A row where an app can't do its job yet still says so, as *1 gap*. *You* and *Manager* sit beside the name. Roles, Apps and Keys follow the same rule. On a phone a row still stacks into short lines, now the same few for everyone.
   ```text
@@ -146,7 +146,7 @@ The screens don't match each other. Home and the small apps sit in a narrow cent
   │ [Try again]           │  │ owner.                │
   └───────────────────────┘  └───────────────────────┘
   ```
-- **Screens you built move with the frame.** After the update, a mini app your assistant built starts at the same left edge as the rest, at the width it has today. Its address and data stay as they are, and nothing needs doing by hand.
+- **Screens you built move with the frame.** After the update, a mini app your assistant built starts at the same left edge as the rest and has the whole frame to use. Its address and data stay as they are, and nothing needs doing by hand.
 
 **Non-goals.** No change to who can use what, to what a save does, or to colours and fonts. Home's welcome guide stays as it is. What Connect does once pasted stays the same: adding the project code to it is planned in the workspace *Connect installs the project*.
 
@@ -171,6 +171,7 @@ The screens don't match each other. Home and the small apps sit in a narrow cent
 - **2026-10-05** — Build: *Can't copy? Show the message* sits under the *Copy* button in step 1, not at the foot of the popup, because the copy button and its fallback are one part.
 - **2026-10-06** — Build: the workspace was moved up to 35.0.1 before building, and the first checkpoint is saved with the walk on the preview still to do, because the plan was drawn against the screens that release published.
 - **2026-10-06** — Walk: the owner's row was shorter than the rows that hold a role dropdown, so every row in the four lists now has one height on a computer.
+- **2026-10-06** — Asked, on the preview, about Home sitting in the left half of the frame with the right half empty → chose every screen fills the frame; text and forms no longer keep a narrower width. Home's apps sit in a grid, and Hello's and the tip calculator's fields share a line on a computer.
 
 ## Capabilities
 
@@ -187,7 +188,7 @@ None.
 ## Impact
 
 - `app/src/Layout.tsx`, `app/src/index.css`, `app/src/style.test.ts`: the frame.
-- `app/src/pages/home/`, `app/src/apps/hello/`, `app/src/apps/tips/`, `app/src/apps/AppPage.tsx`, `app/src/pages/not-found/`: the readable width inside the frame.
+- `app/src/pages/home/`, `app/src/apps/hello/`, `app/src/apps/tips/`, `app/src/apps/AppPage.tsx`, `app/src/pages/not-found/`: each fills the frame.
 - `app/src/apps/access/`: lists, the panel, the questions, the header; `Connect.tsx` removed.
 - `app/src/components/`: `ConnectDialog.tsx`, `AssistantSetup.tsx`, `CopyText.tsx`; two added parts under `ui/` (`sheet`, `alert-dialog`).
 - `.agents/verification/journeys/employee-onboarding/`: the three kept journeys are recorded again.

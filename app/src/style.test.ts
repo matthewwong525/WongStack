@@ -55,11 +55,12 @@ it("gives every page one frame: the bar's contents and the page share a width an
   expect(inside.contains(screen.getByRole("link", { name: "Sign out" }))).toBe(true);
 });
 
-it("lets no page leave the frame: none sets a negative side margin or a width worked out from the screen's", () => {
+it("holds every page to the whole frame: none sets a negative side margin, a width worked out from the screen's, or a narrower column", () => {
   const screens = readdirSync(join(app, "src"), { recursive: true, encoding: "utf8" })
     .filter((file) => /\.tsx?$/.test(file) && !/\.test\.|(^|[\\/])components[\\/]ui[\\/]/.test(file));
   expect(screens.length).toBeGreaterThan(20);
-  // Each file that breaks out is named. A page of text or a form narrows itself with `max-w-lg`; nothing widens.
+  // Each file that breaks out is named. No page narrows itself either: every screen takes the whole frame.
   const breaks = /(^|[\s"'`:])-mx-|mx-\[calc|100vw/;
   expect(screens.filter((file) => breaks.test(readFileSync(join(app, "src", file), "utf8")))).toEqual([]);
+  expect(screens.filter((file) => /max-w-lg/.test(readFileSync(join(app, "src", file), "utf8")))).toEqual([]);
 });

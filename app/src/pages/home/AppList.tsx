@@ -5,7 +5,7 @@ import { ConnectDialog } from '../../components/ConnectDialog'
 import type { MiniApp } from '../../lib/apps'
 
 // A card that is a button fills its box, so the whole card takes the press.
-const PRESS = 'flex w-full flex-col gap-2 rounded-xl px-6 py-4 text-left'
+const PRESS = 'flex h-full w-full flex-col gap-2 rounded-xl px-6 py-4 text-left'
 
 // What a card says: its title, then a label or an arrow, and one line under them.
 function Face({ title, description, children }: { title: string; description: string; children?: ReactNode }) {
@@ -23,7 +23,7 @@ const arrow = <span aria-hidden="true">→</span>
 // A press opens nothing and sends nothing; it says who to ask, under the card.
 function Lacked({ app, asked, onAsk }: { app: MiniApp; asked: boolean; onAsk: () => void }) {
   return <>
-    <Card className="bg-muted/40 p-0 shadow-none">
+    <Card className="h-full bg-muted/40 p-0 shadow-none">
       <button type="button" aria-disabled="true" className={`${PRESS} cursor-not-allowed text-muted-foreground`} onClick={onAsk}>
         <Face title={app.title} description={app.description}><Badge variant="outline">No access</Badge></Face>
       </button>
@@ -48,12 +48,12 @@ export function AppList({ apps, held }: { apps: MiniApp[]; held?: string[] }) {
           <p className="select-text">Ask in your chat: <q>Make me a tip calculator.</q></p>
         </div>
       )}
-      <ul className="mb-8 grid gap-3">
+      <ul className="mb-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {apps.map((app) => (
           <li key={app.name}>
             {lacks(app) ? <Lacked app={app} asked={asked === app.name} onAsk={() => setAsked(app.name)} /> : (
-              <a className="block rounded-xl no-underline" href={app.href}>
-                <Card className="gap-2 px-6 py-4 transition-colors hover:border-primary">
+              <a className="block h-full rounded-xl no-underline" href={app.href}>
+                <Card className="h-full gap-2 px-6 py-4 transition-colors hover:border-primary">
                   <Face title={app.title} description={app.description}>
                     {app.name === 'hello' && <Badge variant="secondary">Example</Badge>}
                     {arrow}
@@ -64,7 +64,7 @@ export function AppList({ apps, held }: { apps: MiniApp[]; held?: string[] }) {
           </li>
         ))}
         <li>
-          <Card className="p-0 transition-colors hover:border-primary">
+          <Card className="h-full p-0 transition-colors hover:border-primary">
             <ConnectDialog>
               <button type="button" className={`${PRESS} cursor-pointer`}>
                 <Face title="Connect your assistant" description="Use your apps from your own assistant.">{arrow}</Face>

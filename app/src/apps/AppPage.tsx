@@ -5,7 +5,7 @@ import { NotFound } from '../pages/not-found/NotFound'
 import { appAccessSchema, useAccess } from '../lib/access'
 import { appPage } from '.'
 
-const Stopped = ({ children }: { children: ReactNode }) => <div className="grid max-w-lg justify-items-start gap-4">{children}</div>
+const Stopped = ({ children }: { children: ReactNode }) => <div className="grid justify-items-start gap-4">{children}</div>
 
 // The page of the mini app the address names, /apps/<name>/, or Page not found.
 export function AppPage() {
