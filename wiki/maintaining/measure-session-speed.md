@@ -13,7 +13,7 @@ node scripts/measure-sessions.mjs --since 2026-10-05
 
 Each row is one model at one thinking level. `--json` prints the same counts for a script.
 
-A session counts when its working folder is this repo or one of its worktrees, or when its log records this repo's origin address. `--cwd <folder>` adds a closed worktree's folder, and `--all-repos` counts every session.
+A session counts when its working folder is this repo or one of its worktrees. A Codex log also counts when it records this repo's origin address; a Claude Code log records none, so it counts by folder alone. `--cwd <folder>` adds a closed worktree's folder, and `--all-repos` counts every session.
 
 ## Read the rows
 

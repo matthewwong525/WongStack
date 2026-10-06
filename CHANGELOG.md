@@ -3,6 +3,10 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 37.0.1 — The session speed guide says which logs count by address
+
+- **A maintainers' guide is corrected.** [Measure session speed](wiki/maintaining/measure-session-speed.md) said any session log counts when it records this project's address. Only a Codex log records one; a Claude Code session counts by its folder alone. No install receives this page, so nothing changes for you.
+
 ## 37.0.0 — /improve-code plans code fixes and /dream-memory checks everything your project remembers
 
 - **Two clearer names.** `/improve` is now `/improve-code` and `/dream` is now `/dream-memory`. Each name says what it works on.
