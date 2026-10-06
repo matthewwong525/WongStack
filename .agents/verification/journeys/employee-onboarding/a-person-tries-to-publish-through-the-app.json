@@ -1,13 +1,13 @@
 {
   "format": "verify-journey-1",
-  "id": "employer-adds-a-person",
+  "id": "a-person-tries-to-publish-through-the-app",
   "scenario": {
     "capability": "employee-onboarding",
-    "requirement": "The employer manages employee grants through Access",
-    "scenario": "Employer adds a person"
+    "requirement": "Connect installs the project for a person who holds Project code",
+    "scenario": "A person tries to publish through the app"
   },
-  "thenDigest": "2cfd2220d5c466c92ffc675182afcd7d82c8dbec416a1a812eea75e85133f708",
-  "probe": "browser",
+  "thenDigest": "37264663e44a5ce8c020eafd87eb7dc777da312aca344c3dc1bbb629e07e2df5",
+  "probe": "request",
   "writes": true,
   "sourcePaths": [
     ".agents/skills/wong-setup/references/cloudflare.md",
@@ -41,67 +41,38 @@
   "recordedAt": "ad53db943be6989de3a6cc26a4efe53f67a558b0",
   "steps": [
     [
-      "open",
-      "{url}/apps/access/people/new"
+      "GET",
+      "/api/access/code/git/info/refs?service=git-upload-pack"
     ],
     [
-      "wait",
-      "--load",
-      "networkidle"
+      "GET",
+      "/api/access/code/git/info/refs?service=git-receive-pack"
     ],
     [
-      "wait",
-      "--text",
-      "Add person"
+      "POST",
+      "/api/access/code/git/git-receive-pack",
+      "{}"
     ],
     [
-      "find",
-      "label",
-      "Email",
-      "fill",
-      "walk@example.invalid"
-    ],
-    [
-      "find",
-      "role",
-      "checkbox",
-      "click",
-      "--name",
-      "Hello"
-    ],
-    [
-      "find",
-      "role",
-      "button",
-      "click",
-      "--name",
-      "Save access"
-    ],
-    [
-      "wait",
-      "--text",
-      "Saved."
-    ],
-    [
-      "wait",
-      "--text",
-      "walk@example.invalid"
-    ],
-    [
-      "get",
-      "text",
-      "body"
+      "GET",
+      "/api/access/apps"
     ]
   ],
   "expect": [
     {
-      "text": "Saved."
+      "step": 1,
+      "status": 200,
+      "includes": "git-upload-pack"
     },
     {
-      "text": "walk@example.invalid"
+      "step": 2,
+      "status": 403,
+      "includes": "This copy is for reading"
     },
     {
-      "path": "/apps/access/"
+      "step": 3,
+      "status": 403,
+      "includes": "This copy is for reading"
     }
   ]
 }

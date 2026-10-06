@@ -138,3 +138,4 @@ None.
 - **2026-10-06** — Build order: the look at Access's Keys view and Home's popup moved from task 7.4 to the publish walk, because that walk runs a browser on the saved preview anyway; 7.4 keeps the requests, all observed.
 - **2026-10-06** — Archive checkpoint: all tasks done and proven on previews; archived for publishing as 35.1.0.
 - **2026-10-06** — Archive checkpoint: the owner asked to publish; every task is ticked, both kinds of project were proven on a preview, and it is numbered 35.1.0. The live app already holds the read-only GitHub key.
+- **2026-10-06** — Preview walk: passed. Access shows Project code held by the owner and the Helpers role; Home's popup opens and closes; a push is refused; a new person gets no Project code. Not shown: the setup text in the popup and a practice person's own download, because the checker is a machine. Two checks are kept: adding a person, and the refused push.
