@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 37.1.1 — Three guides say what chats learned
+
+- **The change loop says where a check goes when it can only happen after publishing**: a line in the plan's Decision log, not a task. A task like *confirm the live look* could never be ticked, because publishing files the plan away first.
+- **Browsing says never to close every browser at once.** `agent-browser close --all` closes every chat's browser on the computer; a test names its own session.
+- **Cloudflare credentials says how a one-off permission is handled**: ask first, then a 15-minute key for that permission alone, never written to a file.
+
+**Updating.** Nothing needs doing by hand.
+
 ## 37.1.0 — Skills that work for the whole team, and Access built on what a person can reach
 
 - **A skill does its business work through the app, never with a key.** Ask for a skill that touches orders, payments or other business data, and your assistant first builds that work into the app, then writes the skill to call it. The skill runs under the login of whoever uses it, so it works on every teammate's device and the app decides what each of them may do.

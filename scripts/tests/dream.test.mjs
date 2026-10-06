@@ -78,6 +78,16 @@ test('every other page is the install’s own, the pages setup seeded included',
   assert.equal(isShipped('wiki/anything.md', shippedPaths({})), false, 'no payload list: every page is own');
 });
 
+test('one dream recorded across two facts counts the pages of both', () => {
+  // A fact holds 400 characters, so a dream that checked many pages records them in several facts.
+  const checks = dreamChecks([
+    { id: 11, body: 'Dream 2026-10-06: read facts up to #90. Checked: wiki/people/a.md, wiki/people/b.md.', created_at: '2026-10-06T10:00:00Z' },
+    { id: 12, body: 'Dream 2026-10-06: read facts up to #90. Checked: wiki/company/c.md.', created_at: '2026-10-06T10:00:01Z' },
+  ]);
+  assert.deepEqual([...checks.keys()].sort(), ['wiki/company/c.md', 'wiki/people/a.md', 'wiki/people/b.md']);
+  assert.equal(checks.get('wiki/people/a.md'), '2026-10-06');
+});
+
 test('pages sort longest unchecked first: never, then oldest, the newer of commit and dream', () => {
   const checks = dreamChecks([
     { created_at: '2026-09-01T00:00:00Z', body: 'Dream 2026-09-01: read facts up to #1. Checked: wiki/people/a.md, wiki/people/b.md.' },

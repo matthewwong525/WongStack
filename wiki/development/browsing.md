@@ -24,7 +24,7 @@ The agent reaches your accounts (mail, calendar, banking) through [agent-browser
 
 **The agent never asks for a password in the chat.** It never reads, shows, or writes one, and it never opens `~/.agent-browser/auth/`. If you start typing a password into the chat, it doesn't use or save it; it offers [the password link](passwords.md) instead.
 
-**One personal browsing task at a time.** Chrome lets only one browser use a profile at a time, so a browsing task and a scheduled run must not use it at the same moment. A task that finds the profile busy waits or reports it; it never deletes the profile's lock. [`/verify`](staging-walkthrough.md) is not affected: each walk uses its own temporary profile, so a preview check never carries your logins.
+**One personal browsing task at a time.** Chrome lets only one browser use a profile at a time, so a browsing task and a scheduled run must not use it at the same moment. A task that finds the profile busy waits or reports it; it never deletes the profile's lock. It never runs `agent-browser close --all` either: sessions are shared by the whole computer, so that closes every chat's browser. A test names its own session and closes only that. [`/verify`](staging-walkthrough.md) is not affected: each walk uses its own temporary profile, so a preview check never carries your logins.
 
 ## Show what the browser is doing
 
