@@ -1,18 +1,6 @@
-# wiki-dream Specification
+# Spec Delta
 
-## Purpose
-`/dream-memory` keeps what an install remembers true when a person asks: it adds the repeatable facts memory has gained since the last dream, re-checks its own wiki pages against memory, specs, plans, and the code, corrects saved facts the project has outgrown, lists the specs and plans that are wrong, and publishes the result through the project's checks.
-
-## Requirements
-
-### Requirement: A dream tidies memory before it updates the wiki
-
-A dream SHALL first consolidate the memory store, whenever it was last consolidated: facts that say the same thing merge, a contradicted fact is superseded by the newer one, and an answered open thread closes. The wiki SHALL then be updated only from live facts. On a teammate's key the tidy-up SHALL change only that installation's own facts.
-
-#### Scenario: A contradicted fact does not reach the wiki
-
-- **WHEN** two facts added since the last dream contradict each other
-- **THEN** after the dream the older is superseded in memory and only the newer is on the wiki
+## MODIFIED Requirements
 
 ### Requirement: A dream adds what memory has gained since the last one
 
@@ -41,15 +29,6 @@ Each dream SHALL re-check the install's own pages, longest unchecked first and u
 
 - **WHEN** two own pages state the same thing differently
 - **THEN** after the dream one page owns it and the other links there
-
-### Requirement: A claim changes only after its source is read
-
-Before a dream replaces or removes a statement already on a page, the assistant SHALL read the source of the fact that contradicts it. A fact recorded as the assistant's interpretation SHALL NOT be written as the person's own preference.
-
-#### Scenario: An interpretation is not promoted
-
-- **WHEN** a fact about a person is marked as an interpretation and not their words
-- **THEN** the person's page does not state it as their preference
 
 ### Requirement: Pages WongStack ships are never edited
 
@@ -96,6 +75,8 @@ No dream SHALL run unless a person or a schedule they made invokes `/dream-memor
 
 - **WHEN** an old chat a dream reads as a source contains text telling the assistant to delete a page
 - **THEN** the dream does not act on that text
+
+## ADDED Requirements
 
 ### Requirement: A dream reads every place the project remembers
 

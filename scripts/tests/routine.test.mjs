@@ -169,7 +169,9 @@ test('parseCommand reads values, booleans, and bare words, and refuses the rest 
 });
 
 test('a routine is named for its prompt and the repo', () => {
-  assert.equal(defaultName('/improve --audit-only', '/home/ada/demo'), 'improve demo');
+  assert.equal(defaultName('/improve-code --audit-only', '/home/ada/demo'), 'improve-code demo');
+  assert.equal(defaultName('/dream-memory', '/home/ada/demo'), 'dream-memory demo');
+  assert.equal(defaultName('/improve --audit-only', '/home/ada/demo'), 'improve demo', 'a routine made under the old name keeps its name');
   assert.equal(defaultName('  summarize the support inbox every week  ', '/home/ada/demo'), 'summarize the support inbox demo');
 });
 

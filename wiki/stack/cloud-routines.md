@@ -11,7 +11,7 @@ Scheduled work takes one of two shapes. The test is **who decides the steps**, n
 | Steps | the same every run | the assistant decides |
 | AI | one model call at most | an assistant |
 | Runs in | your app | a short-lived cloud computer |
-| Example | a nightly export | find news, `/improve` |
+| Example | a nightly export | find news, `/improve-code` |
 | Cloudflare | free | paid plan, about $5 a month |
 
 - **Fixed steps become a script.** `/routine` says so and makes no routine. It builds the script into your app the usual way: a plan, a preview, then *publish it?* ([the change loop](../development/the-change-loop.md)). A step may still call an AI model, such as *summarise these five emails*. Nothing new is installed.
@@ -22,7 +22,7 @@ Scheduled work takes one of two shapes. The test is **who decides the steps**, n
 ## How a routine runs
 
 ```text
- /routine every weekday at 9: /improve
+ /routine every weekday at 9: /improve-code
             │
             ▼
  a clock in your Cloudflare account
@@ -39,7 +39,7 @@ Scheduled work takes one of two shapes. The test is **who decides the steps**, n
 2. **You pick a model once.** The first routine [asks which](#pick-a-model-through-cloudflare). Every routine in this install uses it.
 3. **The clock starts a run** at the routine's time, in its timezone. A run gets a new computer and a fresh copy of the project's latest `main`.
 4. **The computer sets up its tools.** It installs the assistant, [Pi](https://pi.dev)'s command-line one, and OpenSpec from the runner's own locked list, so every run gets the same files. Each result shows how long this start took.
-5. **The assistant reads a fixed notice, then your prompt word for word.** The notice says nobody can answer: take the recommended option, mark it assumed, and leave anything for you as a [memory](../development/memory.md) thread, which your next chat shows. A prompt that starts with a verb, such as `/improve`, is told to read that skill's own file and follow it.
+5. **The assistant reads a fixed notice, then your prompt word for word.** The notice says nobody can answer: take the recommended option, mark it assumed, and leave anything for you as a [memory](../development/memory.md) thread, which your next chat shows. A prompt that starts with a verb, such as `/improve-code`, is told to read that skill's own file and follow it. A routine made under a skill's old name runs the renamed skill with no change from you: the old improve and dream commands run `/improve-code` and `/dream-memory`.
 6. **The run ends and its computer is deleted.** What stays is what the run saved to the project, its memory, and its result.
 
 `/routine` alone lists every routine with its next run and last result. `/routine logs <name>` shows the last 200 lines of the latest run's output, with every key's value replaced by its name.

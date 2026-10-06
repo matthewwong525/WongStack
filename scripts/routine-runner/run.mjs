@@ -63,10 +63,13 @@ export function missing(env, config, choice) {
 /** The fixed notice, then the routine's prompt exactly as written. */
 export const promptOf = (routine) => `${NOTICE}\n\n${routine.prompt}`;
 
-/** A prompt that starts with `/<name>`, as `{ name, rest }`, or null. */
+// Skills that changed name. A routine made under the old one still runs: its prompt is stored as typed.
+const RENAMED = { improve: 'improve-code', dream: 'dream-memory' };
+
+/** A prompt that starts with `/<name>`, as `{ name, rest }` under the skill's current name, or null. */
 export function verbOf(prompt) {
   const match = VERB.exec(String(prompt ?? '').trim());
-  return match ? { name: match[1], rest: (match[2] ?? '').trim() } : null;
+  return match ? { name: Object.hasOwn(RENAMED, match[1]) ? RENAMED[match[1]] : match[1], rest: (match[2] ?? '').trim() } : null;
 }
 
 /**

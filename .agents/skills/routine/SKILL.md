@@ -19,7 +19,7 @@ It prints one JSON object, never a key. Exit `2` is bad input: fix it or ask. `3
 Judge **who decides the steps**.
 
 - **The same steps every run** (*copy yesterday's orders into the archive table*) is a script, even when a step calls an AI model. Say so, make no routine, and start [`/plan`](../plan/SKILL.md) for [a timed job](../../rules/code.md#sample-data-and-timed-jobs) in the app.
-- **Work that finds its own way** (*find news about our competitors*, `/improve`) is a routine.
+- **Work that finds its own way** (*find news about our competitors*, `/improve-code`) is a routine.
 
 Say which you picked first; the person may ask for a routine anyway.
 
