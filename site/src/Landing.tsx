@@ -6,7 +6,7 @@ import { ACCOUNTS, ADD_ONS, AGENTS, INSTALL_PROMPT, REPO_URL, STEPS, computers, 
 import { InstallButton } from "./InstallButton";
 import { Bubbles, PaseoShot } from "./mockups";
 
-const HEADLINE = "One place for AI to build, remember, and get things done.";
+const HEADLINE = "One place to build, collaborate, and get things done.";
 const DESCRIPTION = "You own everything: your code, your apps, your data, and what it learns. Free and open source.";
 
 /** Under each Paseo screenshot: the pictures show one chat app, and none is needed. */

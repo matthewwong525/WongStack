@@ -35,14 +35,14 @@ WongStack's front pages still describe an older idea of it, and they tell a newc
                           3 Answer questions
   ```
 - **The pages say plainly what still needs one of them.** Giving each assistant its own workspace, so several can work at once, needs the free Paseo app today; without it the parts of a request are done one at a time. Memory that loads by itself at the start of a chat is set up for Claude Code and Codex today; another assistant reads the same files and looks memory up when asked. Nothing claims more than that.
-- **The landing page gets a new headline: "One place for AI to build, remember, and get things done."** It no longer opens with "Grok Bot, Muse, or Dots, but yours", and the text a shared link shows changes with it. The comparison table stays as it is.
+- **The landing page gets a new headline: "One place to build, collaborate, and get things done."** It no longer opens with "Grok Bot, Muse, or Dots, but yours", and the text a shared link shows changes with it. The comparison table stays as it is.
   ```text
     BEFORE                 AFTER
   ┌───────────────────┐  ┌────────────────────┐
-  │ Grok Bot ▲        │  │ +One place for AI  │
-  │ but yours.        │  │ +to build,         │
-  │                   │  │ +remember, and get │
-  │ You own it all... │  │ +things done.      │
+  │ Grok Bot ▲        │  │ +One place to      │
+  │ but yours.        │  │ +build,            │
+  │                   │  │ +collaborate, and  │
+  │ You own it all... │  │ +get things done.  │
   │ [Install]         │  │ You own it all...  │
   │ Supports Claude…  │  │ [Install]          │
   │ ┌ app picture ──┐ │  │ ┌ app picture ───┐ │
@@ -96,3 +96,5 @@ None.
 - **2026-10-06** — Built: task 2.7's search left no sentence telling a reader to get Claude Code or Paseo. Each remaining mention is a stated limit, an optional pointer, or a technical note on those two tools' own files.
 - **2026-10-06** — Timing: the site's tests and build (5.3) ran once, after all writing was done, with the local checks (5.2). Task 5.4 waits for the saved preview.
 - **2026-10-06** — Saved: everything is written and the checks on this computer pass; the two specs carry the new promises. The look at the saved landing page preview and the README on GitHub (task 5.4) is still to do.
+- **2026-10-06** — After seeing the preview, Matthew wrote "Maybe remove for AI? And also change remember to collaborate" → the landing page's headline and shared-link text read "One place to build, collaborate, and get things done."
+- **2026-10-06** — Assumed: only the landing page's headline changes; the README and guides keep Build, Remember, Get things done, because that is the vision as agreed and the note was made on the preview.

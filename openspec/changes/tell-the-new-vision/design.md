@@ -78,7 +78,7 @@ Left alone, each already neutral or a true limit: `wiki/agent-knowledge-center.m
 
 ### 4. The landing page
 
-- **Headline.** `Rotator.tsx` and its CSS (`.rotator*`, the `Grok Lookalike` font face, and `public/fonts/geist-grok.woff2` if nothing else uses it) are removed. The hero's `h1` is plain text: **One place for AI to build, remember, and get things done.** The lede under it keeps `DESCRIPTION` ("You own everything…"). The logos used only by the rotator stay if `compare.ts` uses them.
+- **Headline.** `Rotator.tsx` and its CSS (`.rotator*`, the `Grok Lookalike` font face, and `public/fonts/geist-grok.woff2` if nothing else uses it) are removed. The hero's `h1` is plain text: **One place to build, collaborate, and get things done.** The lede under it keeps `DESCRIPTION` ("You own everything…"). The logos used only by the rotator stay if `compare.ts` uses them.
 - **Shared-link text.** `site/index.html`'s description, `og:description`, `twitter:description`, and `og:image:alt` take the new line; `site/brand/share-image.svg`'s two text lines change and `site/public/share.png` is re-rendered from it by the SVG's own instructions (1200×630, under 300 KB).
 - **Install step.** In `install.ts`, `STEPS` reads "Open any assistant that can work on your computer, such as Claude Code or Codex": the neutral words first, the links after. `InstallSteps` in `Landing.tsx` follows the new order.
 - **Pictures.** A `note` line under the hero picture and in the phone tour: "These screens show Paseo, the chat app I use. WongStack works wherever your assistant works." Alt texts keep naming Paseo: they describe the picture.

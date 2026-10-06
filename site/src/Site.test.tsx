@@ -107,7 +107,7 @@ it("shows a visitor on a phone the headline, the install steps, and the message 
   const { container } = render(<App />);
   const install = container.querySelector("#install") as HTMLElement;
 
-  screen.getByRole("heading", { level: 1, name: "One place for AI to build, remember, and get things done." });
+  screen.getByRole("heading", { level: 1, name: "One place to build, collaborate, and get things done." });
   // The first step says any assistant before it names one.
   expect(install.querySelector("ol.install > li")?.textContent).toMatch(
     /^Open any assistant that can work on your computer, such as /,

@@ -17,7 +17,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const HEADLINE = "One place for AI to build, remember, and get things done.";
+const HEADLINE = "One place to build, collaborate, and get things done.";
 const SHOWS_PASEO = "These screens show Paseo, the chat app I use. WongStack works wherever your assistant works.";
 const FOR_EVERYONE = "GitHub is for engineers. This is the next one, for everyone else.";
 const DESCRIPTION = "You own everything: your code, your apps, your data, and what it learns. Free and open source.";
