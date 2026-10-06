@@ -58,3 +58,4 @@ None. The promises stand as written: each row is one line, and Access shows what
 - **2026-10-06** — Looked at the preview at 1440, 800 and 390 wide: *Installs the project* and *Look-ups* show whole, and the opened key keeps the full line. At 800 wide the column holds about 23 characters, fewer than the 30 the test allows, so a key that both works alone and is used by apps (*1 app · Installs the project*) could still be cut there; no key is like that today.
 - **2026-10-06** — Archived for publishing as 35.2.2, after the checks passed and the preview look.
 - **2026-10-06** — Renumbered to 35.2.3: another release took 35.2.2 while this one was being checked.
+- **2026-10-06** — Renumbered to 36.0.1: 36.0.0 landed while this one was being checked.
