@@ -1,6 +1,6 @@
 # A /dream skill that keeps the wiki current
 
-**Status:** planned
+**Status:** ready-to-ship
 
 **Branch:** wiki-update-frequency
 
@@ -76,3 +76,5 @@ None.
 - **2026-10-06** — Assumed: Agent Memory Repo's file layout is not adopted, because memory facts with their source chat, the digest, and the wiki already do the same jobs.
 - **2026-10-06** — Assumed: `/dream` stops when the checkout holds unfinished work, because its edits must publish alone and `/close` keeps wiki edits apart from a change for the same reason.
 - **2026-10-06** — Assumed: the rules for placing a fact live on the dream's wiki page, not in a skill file, because the skill text limit left about 1,370 bytes and the rules are repeatable knowledge about the wiki that `/close` and `/dream` both link.
+- **2026-10-06** — Assumed: the skill file holds only the commands and their order, and the dream's wiki page owns how it adds, cleans, and checks sources, because bringing in the latest published version left the skills' text limit 499 bytes over.
+- **2026-10-06** — Archive checkpoint: built, dry run recorded in trial.md, filed for publishing as 35.3.0.

@@ -4,6 +4,7 @@
 
 See proposal.md for why. What shapes the approach:
 
+- **The skill file is short on purpose.** After the skills' text limit was reached twice, `SKILL.md` keeps the commands and the order, and `wiki/development/wiki-dream.md` owns how a dream adds, cleans, and checks sources.
 - **`/close` already holds a one-chat dream.** Its *Update the wiki* step gathers a chat's and its change's facts with `memory.mjs show` and `search`, places each repeatable one by `.agents/rules/wiki.md`, and publishes the edits alone through `/ship` minus its closing question. A workspace closed any other way gets no wiki update.
 - **Facts from unclosed chats are already in memory.** The background run captures sessions idle for an hour. So "everything since the last dream" is a memory search by date, with no transcript reading.
 - **A fact has a source.** `memory.mjs source <fact-id>` prints the reduced chat behind it, and `areas <path>` prints the live facts and files linked to a page.
@@ -75,7 +76,7 @@ It links `wiki-style.md` for the rule and adds only what the trial showed goes w
 
 ### 5. Wiring
 
-By `wiki/maintaining/adding-a-skill.md`: `dream` joins `core.skillDirs` in `payload-files.json`; the manifest gains one line; `areas.json` gains the `wiki-dream` spec and the skill folder; `AGENTS.md`'s verb list gains `/dream`. `wiki/development/wiki-dream.md` owns what a dream is, when to run one, the dry run, own and shipped pages, and how to undo one; linked from `wiki/development/README.md`, `memory.md`'s Consolidation section, and the change loop's `/close` bullet.
+By `wiki/maintaining/adding-a-skill.md`: `dream` joins `core.skillDirs` in `payload-files.json`; `areas.json` gains the `wiki-dream` spec and the skill folder; `AGENTS.md`'s verb list gains `/dream`. `wiki/development/wiki-dream.md` owns what a dream is, when to run one, the dry run, own and shipped pages, and how to undo one; linked from `wiki/development/README.md`, `memory.md`'s Consolidation section, and the change loop's `/close` bullet.
 
 Release level `minor`. The **Updating.** note in plain words: you can now type `/dream` to bring your wiki up to date from what your chats learned; it runs only when you ask, and `/dream --dry-run` shows what it would change first.
 
