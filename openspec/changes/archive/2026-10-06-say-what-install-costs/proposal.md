@@ -1,6 +1,6 @@
 # Every front page says the same thing about what an install costs
 
-**Status:** in-progress
+**Status:** ready-to-ship
 
 **Branch:** nontechnical-user-readiness
 
@@ -81,3 +81,4 @@ None.
 - **2026-10-06** — Assumed: the agreement check is its own file, `scripts/tests/install-cost.test.mjs`, as the design says, because a guide-only change would not run a check kept in the landing page's test file.
 - **2026-10-06** — Check: `.github/workflows/payload.yml` gains an `install-cost` step that runs on wiki-only changes, because a guide-only edit skips the script suite and the cost wording could drift unseen; no check is removed or weakened.
 - **2026-10-06** — Saved after the build: every source and test task is done and the local checks pass; left is the look at the landing page's own preview at phone and desktop width.
+- **2026-10-06** — Asked whether to publish after seeing the preview → chose to publish. Archived for publishing: every task is done, the checks passed on the saved work, and the landing page's preview was looked at at phone and desktop width.

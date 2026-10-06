@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (patch) — The README, the guide, and the landing page say the same thing about what an install costs
+## 37.2.2 — The README, the guide, and the landing page say the same thing about what an install costs
 
 - **Three places now agree on what an install costs.** The README, the getting-started guide, and the landing page each say the two ways to install. The free way keeps your project in a free GitHub account and runs your apps in a free Cloudflare account, on Mac, Windows, or Linux. The other way keeps everything in Cloudflare alone, on Mac or Linux, on Cloudflare's paid plan, about $5 a month.
 - **Getting started states the cost once.** One table shows the two ways side by side. Its list of what you do by hand now has seven steps: it gains choosing where your project is kept on Mac or Linux, and marks the GitHub sign-up as the free way's step.

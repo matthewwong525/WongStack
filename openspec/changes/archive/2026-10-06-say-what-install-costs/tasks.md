@@ -37,4 +37,4 @@ Run no test before section 6: each *verify … passes* or *fails* in sections 2 
 - [x] 6.1 Run `openspec validate "say-what-install-costs" --strict --no-interactive` and expect it valid.
 - [x] 6.2 Run `node .github/scripts/checks.mjs --worktree` and repair what fails: it covers the payload links, the wiki checks, the script tests, and the new guard.
 - [x] 6.3 In `site/`, run `npm test` and `npm run build`; expect both to pass.
-- [ ] 6.4 After `/save`, open the landing page's own preview (the `landing-preview` status on the commit) at phone width and at desktop width: the two ways and their cost sit under the install steps without sideways scrolling, and *Is WongStack free?* names both ways.
+- [x] 6.4 After `/save`, open the landing page's own preview (the `landing-preview` status on the commit) at phone width and at desktop width: the two ways and their cost sit under the install steps without sideways scrolling, and *Is WongStack free?* names both ways.
