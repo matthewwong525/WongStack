@@ -47,6 +47,10 @@ export const GROUPS = [
   ['Artifacts Write', 'account', 'f9e1ba803b8d4d52b4d4184825b07a28'],
   ['Workers Containers Write', 'account', 'bdbcd690c763475a985e8641dddc09f7'],
   ['Billing Read', 'account', '7cf72faf220841aabcfdfab81c43c4f6'],
+  // What the first routine adds: the AI Gateway, and the models behind it.
+  ['AI Gateway Write', 'account', '6c8a3737f07f46369c1ea1f22138daaf'],
+  ['AI Gateway Run', 'account', '644535f4ed854494a59cb289d634b257'],
+  ['Workers AI Read', 'account', 'a92d2450e05d4e7bb7d0a64968f83d11'],
   ['Workers R2 Storage Bucket Item Write', 'com.cloudflare.edge.r2.bucket', '2efd5506f9c8494dacb1fa10a3e7d5b6'],
 ].map(([name, scope, id]) => ({ id, name, scopes: [scope.startsWith('com.') ? scope : `com.cloudflare.api.${scope}`] }));
 
@@ -73,7 +77,7 @@ export const startingPolicies = () => [
  * `tokenValues` each account token's current value by id.
  * `forbidTokens` answers every account-token call 403, as a user token narrowed back from Account API
  * Tokens Write does. `newerPreview` names Workers whose newest uploaded version is not the deployed one:
- * storing a secret there answers 400, code `10215`.
+ * storing a secret there answers 400, code `10215`. `gateways` holds each AI Gateway a routine runner made.
  */
 export async function fakeCloudflare({ r2 = true, subdomain = 'ada', accounts = [{ id: ACCOUNT, name: 'Ada' }], paid = true, repos = [] } = {}) {
   const remoteOf = (namespace, name) => `https://${ACCOUNT}.artifacts.cloudflare.net/git/${namespace}/${name}.git`;
@@ -84,6 +88,7 @@ export async function fakeCloudflare({ r2 = true, subdomain = 'ada', accounts = 
     repos: repos.map((name) => ({ id: `foreign-${name}`, namespace: NAMESPACE, name, default_branch: 'main', remote: remoteOf(NAMESPACE, name) })),
     repoTokens: [],
     lifecycles: {},
+    gateways: [],
     workerSecrets: {},
     tokenValues: {},
     subdomain,
@@ -274,6 +279,23 @@ export async function fakeCloudflare({ r2 = true, subdomain = 'ada', accounts = 
       if (state.newerPreview.includes(script)) return no(400, 10215, "Secret edit failed. The latest version of your Worker isn't currently deployed.");
       state.workerSecrets[script] = { ...state.workerSecrets[script], [body.name]: body.text };
       return ok({ name: body.name, type: body.type });
+    }
+    const workerSecret = url.pathname.match(new RegExp(`^${account}/workers/scripts/([^/]+)/secrets/([^/]+)$`));
+    if (workerSecret && method === 'DELETE') {
+      const [, script, name] = workerSecret;
+      if (!Object.hasOwn(state.workerSecrets[script] ?? {}, name)) return no(404, 10056, 'Binding not found.');
+      delete state.workerSecrets[script][name];
+      return ok(null);
+    }
+    const gateways = `${account}/ai-gateway/gateways`;
+    if (route === `POST ${gateways}`) {
+      if (state.gateways.some((gateway) => gateway.id === body.id)) return no(409, 7002, 'this gateway already exists');
+      state.gateways.push(body);
+      return ok(body);
+    }
+    if (method === 'GET' && url.pathname.startsWith(`${gateways}/`)) {
+      const found = state.gateways.find((gateway) => gateway.id === url.pathname.slice(gateways.length + 1));
+      return found ? ok(found) : no(404, 7002, 'Not Found');
     }
     const workerScript = url.pathname.match(new RegExp(`^${account}/workers/scripts/([^/]+)(/subdomain)?$`));
     if (workerScript && method === 'PUT' && !workerScript[2]) {

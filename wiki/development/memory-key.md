@@ -45,6 +45,8 @@ node .claude/skills/memory/scripts/memory.mjs member list
 
 Get the recipient's ID from `node --input-type=module -e 'import { machineId } from "./.claude/skills/memory/scripts/lib/machine-id.mjs"; console.log(machineId())'` in their checkout. It is an identifier, not a credential. `member admin` installs this machine's admin key directly; no git email or GitHub account is needed for memory. `member add` writes a restricted transfer file outside repositories, never prints its secret, and accepts an optional `--label` for display.
 
+A [cloud routine](../stack/cloud-routines.md#what-a-run-gets)'s runs hold a member key of their own, labelled `routine runs`; `/routine`'s setup issues it.
+
 New keys have no scheduled expiry. Reissuing for a machine revokes its earlier credentials immediately. `member remove` revokes every credential and pending login marker for that ID here. Listing shows machine IDs, labels, roles, revoked state, and verified login identity, without secrets. Existing login metadata stays on retained rows after rotation or revocation. Removing repository permission elsewhere does not revoke memory: the admin must remove its credential too.
 
 ## Ordinary login labels the machine
