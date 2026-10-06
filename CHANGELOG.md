@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (patch) — Three guides say what chats learned
+## 37.1.1 — Three guides say what chats learned
 
 - **The change loop says where a check goes when it can only happen after publishing**: a line in the plan's Decision log, not a task. A task like *confirm the live look* could never be ticked, because publishing files the plan away first.
 - **Browsing says never to close every browser at once.** `agent-browser close --all` closes every chat's browser on the computer; a test names its own session.
