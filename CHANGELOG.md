@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (patch) — Notes from the first real routines
+## 36.2.1 — Notes from the first real routines
 
 - **The routines page says how long a run takes.** About 10 seconds to start, then 1 to 3 minutes for a small task on Cloudflare's own models, and up to 10 for one that searches memory and leaves a note.
 - **It names what Cloudflare says when a model needs credit.** Picking Claude or GPT with no credit loaded gets *402 Insufficient wholesale credits*, and your routines keep the model they had.
