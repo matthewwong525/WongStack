@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 37.1.2 — A second memory dream in a day, and two specs put right
+
+- **A second `/dream-memory` on the same day works.** It no longer stops because the day's first dream already used its branch name.
+- **Two specs say what is true again.** One said a scheduled improvement run publishes a fix, and the code skill now only plans. One required a README section that was cut on purpose.
+
+**Updating.** Nothing needs doing by hand.
+
 ## 37.1.1 — Three guides say what chats learned
 
 - **The change loop says where a check goes when it can only happen after publishing**: a line in the plan's Decision log, not a task. A task like *confirm the live look* could never be ticked, because publishing files the plan away first.

@@ -53,8 +53,8 @@ When `/ship` finishes and more work the person asked for remains, its closing qu
 An unattended run SHALL NOT open a workspace; it SHALL do the first part and record the rest as a memory thread. When Paseo cannot open a workspace, the agent SHALL open nothing, SHALL say whether Paseo is missing or its daemon does not answer, and SHALL carry on with the parts one at a time here.
 
 #### Scenario: Scheduled run finds two parts
-- **WHEN** a scheduled `/improve` run finds two separately publishable fixes
-- **THEN** it opens no workspace, ships one fix, and records the other as a thread
+- **WHEN** a scheduled run's work turns out to hold two separately publishable parts
+- **THEN** it opens no workspace, does the first part, and records the other as a thread
 
 #### Scenario: Daemon down
 - **WHEN** the person chooses new workspaces and the Paseo daemon does not answer
