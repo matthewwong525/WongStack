@@ -109,8 +109,6 @@ export const CODE_KEY = {
     'Tap Generate token and copy it',
   ],
 };
-/** The to-do a GitHub install carries until that key is saved. Connect your assistant works as before meanwhile. */
-export const CODE_KEY_TODO = 'Connect your assistant can not hand out the project yet: send the private key link (wiki/development/secrets.md#receive-a-key-through-a-private-link) for WONG_CODE_READ, with the steps this report gives under codeKey, then run `npm run secrets:push` in app/';
 
 /** What an Artifacts install adds to the widen: its repository, its check runner, and the read that sees the plan. */
 export const ARTIFACTS_PROVISION = [
@@ -622,8 +620,8 @@ function addCodeBinding(file) {
 /**
  * Tells the app which project Connect your assistant hands out: the name in both Workers' vars, and on a
  * project kept in Cloudflare the binding to its repository, so no key is made. On GitHub the read-only key is
- * the owner's one step: `ready` once both Workers hold it, else `missing` with the steps and a to-do. Changes
- * nothing that is already right.
+ * the owner's one step: `ready` once both Workers hold it, else `missing` with the steps. It is no to-do: Access
+ * asks for it when the owner first lets someone install the project. Changes nothing that is already right.
  */
 async function projectCode(cf, { account, config, repository, artifacts, workers, note, todo }) {
   const named = repository && existsSync(config) ? setVar(config, 'WONG_CODE_REPOSITORY', repository) : false;
@@ -637,7 +635,6 @@ async function projectCode(cf, { account, config, repository, artifacts, workers
   if (artifacts) return { status: 'ready', kept: 'cloudflare', repository };
   const held = await Promise.all(workers.map((worker) => orNull(() => cf('GET', `/accounts/${account}/workers/scripts/${worker}/secrets`))));
   if (held.every((list) => list?.some((secret) => secret.name === CODE_KEY.name))) return { status: 'ready', kept: 'github', repository };
-  todo.push(CODE_KEY_TODO);
   return { status: 'missing', kept: 'github', repository, key: CODE_KEY.name, url: CODE_KEY.url, steps: CODE_KEY.steps(repository) };
 }
 
@@ -1113,7 +1110,7 @@ const USAGE = `usage: provision.mjs <command> [--dir <repo>] [--account <id>] [-
                                           key for Cloudflare look-ups; the preview app gets the read-only key when
                                           Cloudflare takes it, and is reported as waiting when not. It also names
                                           the project Connect your assistant hands out: codeKey is ready, or
-                                          missing with the owner's steps on GitHub
+                                          missing with the owner's steps on GitHub, which Access asks for later
 --route artifacts keeps the project in Cloudflare with no GitHub: widen adds its groups, names checks its
 names, and provision makes the repository and the check runner in place of the GitHub secrets.
 --dir is the target repo (default: here). The token is CLOUDFLARE_API_TOKEN and the account CLOUDFLARE_ACCOUNT_ID,

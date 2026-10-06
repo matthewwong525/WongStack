@@ -2,6 +2,7 @@
 import { z } from "zod";
 import { type Core, AccessError, now } from "./core.ts";
 import { loginAuthority } from "./login-management.ts";
+import { codeStep } from "./code.ts";
 import { appKeys, keyCatalogue } from "./key-catalogue.ts";
 import { type AccessSet, type Sets, businessApps, changedSet, heldSet, readSets, save, setFields, setWrites } from "./sets.ts";
 
@@ -107,6 +108,8 @@ export async function accessStatus(core: Core): Promise<object> {
     // `kept`: how many people kept what their apps use when key levels started.
     keysStarted: installation.keys_enabled === 1, kept: noted("key_levels_started:"),
     apps, appKeys: uses, keys: keyCatalogue(core.env, uses),
+    // Why Project code can not be given out yet: a word, never a secret's name or value.
+    project: codeStep(core.env),
     roles: roles.map(role => ({ id: role.id, name: role.name, ...role.set })),
     people: people.map(person => ({ email: person.email, status: person.status, settled: person.settled, role: person.role,
       manager: person.manager, ...heldSet(person, roles) })),

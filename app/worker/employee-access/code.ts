@@ -27,6 +27,7 @@ const text = (env: object, name: keyof CodeEnv): string => {
   const value: unknown = Reflect.get(env, name);
   return typeof value === "string" ? value.trim() : "";
 };
+const onGithub = (repository: string) => GITHUB.test(repository) && !repository.includes("..");
 const binding = (value: unknown): value is CodeBinding =>
   typeof value === "object" && value !== null && typeof Reflect.get(value, "get") === "function";
 
@@ -36,7 +37,16 @@ export function codeSource(env: object): Source | null {
   const artifacts: unknown = Reflect.get(env, "ARTIFACTS");
   if (binding(artifacts) && ARTIFACT.test(repository)) return { artifacts, name: repository };
   const token = text(env, "WONG_CODE_READ");
-  return token && GITHUB.test(repository) && !repository.includes("..") ? { github: repository, token } : null;
+  return token && onGithub(repository) ? { github: repository, token } : null;
+}
+
+/**
+ * Why the project can not be handed out yet, for Access to name the step left. `key`: it is kept on GitHub and
+ * the read-only key is missing. `setup`: no project the app can trust is recorded. Calls nothing.
+ */
+export function codeStep(env: object): "ready" | "key" | "setup" {
+  if (codeSource(env)) return "ready";
+  return onGithub(text(env, "WONG_CODE_REPOSITORY")) ? "key" : "setup";
 }
 
 /** The address to read from and the credential to add, or null when the place it is kept does not answer. */

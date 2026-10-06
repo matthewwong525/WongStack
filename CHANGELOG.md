@@ -3,6 +3,17 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — The project key is asked for when you share the project
+
+- **Setup no longer mentions the read-only GitHub key.** Its last message dropped the line *One step is left before teammates can install the project*, and an update no longer lists the key as a to-do. If you work alone you are never asked. A project kept in Cloudflare needs no key and was never asked.
+- **A person's panel has one tick: *Can install the project*.** It replaces the *None / Read* choice for *Project code* under *Keys no ticked app uses*, and the sentence *Project code is shared separately*. It is off for a new person. A role's panel has the same tick, so a whole role can get the project. *Keys* still lists *Project code*, and a tick is the same choice as *Read* there.
+- **Ticking it asks for the key when the app still needs one.** Right under the tick the panel says one step comes first and gives you the words to say to your assistant, *Let teammates install the project*, with a button to copy the full request. Your assistant then sends the private link with the five GitHub steps. You can save the tick straight away: the person gets the project as soon as the key is in. A manager reads that the step is the owner's. *Project code* opened from *Keys* shows the same step.
+- **The step names what is really missing.** An older install that has not yet told the app which project it hands out is told to finish Access setup, not to make a GitHub key.
+
+[Employee access](wiki/stack/employee-access.md#give-an-app-and-its-level-in-one-place) describes the tick, and [the assistant connection](wiki/stack/employee-project.md#the-owners-one-step-on-github) the key.
+
+**Updating.** Nothing needs doing by hand. If your project is kept in GitHub and the app has no read-only key yet, Access asks for it the first time you let someone install the project. Anyone you already gave *Project code* keeps it, and shows as ticked.
+
 ## 35.2.0 — Screens that match
 
 - **Every screen starts at the same left edge.** One wide frame holds Home, each small app and Access, and the logo in the top bar lines up with it. Every screen fills it: Home lays your apps side by side, a small app's fields share a line, and a table uses it all. Nothing jumps sideways when you move between screens.
