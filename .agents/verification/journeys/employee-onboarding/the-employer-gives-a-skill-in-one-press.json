@@ -1,12 +1,12 @@
 {
   "format": "verify-journey-1",
-  "id": "the-verification-machine-checks-a-preview",
+  "id": "the-employer-gives-a-skill-in-one-press",
   "scenario": {
     "capability": "employee-onboarding",
-    "requirement": "Current app grants govern business access everywhere",
-    "scenario": "The verification machine checks a preview"
+    "requirement": "A panel starts from an app or skill and shows what is enforced",
+    "scenario": "The employer gives a skill in one press"
   },
-  "thenDigest": "54075d42c9b83a019f0e4434515886fdaca1fd4ad7cde3da0f49e85dcba08430",
+  "thenDigest": "a733adfd34667cae7b55f9b1a56bad3a07a5bd83ef65dea849be0cf0f55ff2b4",
   "probe": "browser",
   "writes": true,
   "sourcePaths": [
@@ -65,7 +65,7 @@
   "steps": [
     [
       "open",
-      "{url}/apps/access/people/dana%40example.invalid"
+      "{url}/apps/access/roles/22222222-2222-4222-8222-222222222222"
     ],
     [
       "wait",
@@ -75,13 +75,25 @@
     [
       "wait",
       "--text",
-      "Can manage Access"
+      "Save role"
     ],
     [
-      "find",
-      "label",
-      "Can install the project",
-      "click"
+      "eval",
+      "(() => { const b=[...document.querySelectorAll('button[aria-pressed]')].find(b => b.textContent.trim().startsWith('Sample report')); b.click(); return b.getAttribute('aria-pressed') })()"
+    ],
+    [
+      "wait",
+      "--text",
+      "Not saved yet"
+    ],
+    [
+      "eval",
+      "(() => { const l=[...document.querySelectorAll('legend')].find(l => l.textContent === 'Sample records'); l.scrollIntoView(); return true })()"
+    ],
+    [
+      "get",
+      "text",
+      "body"
     ],
     [
       "find",
@@ -89,7 +101,7 @@
       "button",
       "click",
       "--name",
-      "Save access"
+      "Save role"
     ],
     [
       "wait",
@@ -98,7 +110,7 @@
     ],
     [
       "open",
-      "{url}/apps/access/people/dana%40example.invalid"
+      "{url}/apps/access/skills"
     ],
     [
       "wait",
@@ -108,21 +120,21 @@
     [
       "wait",
       "--text",
-      "Can manage Access"
-    ],
-    [
-      "get",
-      "text",
-      "body"
+      "Sample report"
     ],
     [
       "open",
-      "{url}/apps/tips/"
+      "{url}/apps/access/skills/sample-report"
     ],
     [
       "wait",
       "--load",
       "networkidle"
+    ],
+    [
+      "wait",
+      "--text",
+      "Can run"
     ],
     [
       "get",
@@ -132,10 +144,16 @@
   ],
   "expect": [
     {
-      "text": "Tip calculator"
+      "text": "Sample report"
     },
     {
-      "path": "/apps/tips/"
+      "text": "Helpers"
+    },
+    {
+      "text": "Can run"
+    },
+    {
+      "path": "/apps/access/skills/sample-report"
     }
   ]
 }

@@ -1,14 +1,14 @@
 {
   "format": "verify-journey-1",
-  "id": "the-verification-machine-checks-a-preview",
+  "id": "work-built-for-a-skill-alone",
   "scenario": {
     "capability": "employee-onboarding",
-    "requirement": "Current app grants govern business access everywhere",
-    "scenario": "The verification machine checks a preview"
+    "requirement": "An area may have no screen",
+    "scenario": "Work built for a skill alone"
   },
-  "thenDigest": "54075d42c9b83a019f0e4434515886fdaca1fd4ad7cde3da0f49e85dcba08430",
+  "thenDigest": "ab64201d8b20d717143d459ed4487f59747111137105ec85e46cdf36784c9cde",
   "probe": "browser",
-  "writes": true,
+  "writes": false,
   "sourcePaths": [
     ".agents/rules/code.md",
     ".agents/skills/hand-over/scripts/hand-over.mjs",
@@ -65,7 +65,7 @@
   "steps": [
     [
       "open",
-      "{url}/apps/access/people/dana%40example.invalid"
+      "{url}/apps/access/apps"
     ],
     [
       "wait",
@@ -75,40 +75,7 @@
     [
       "wait",
       "--text",
-      "Can manage Access"
-    ],
-    [
-      "find",
-      "label",
-      "Can install the project",
-      "click"
-    ],
-    [
-      "find",
-      "role",
-      "button",
-      "click",
-      "--name",
-      "Save access"
-    ],
-    [
-      "wait",
-      "--text",
-      "Saved."
-    ],
-    [
-      "open",
-      "{url}/apps/access/people/dana%40example.invalid"
-    ],
-    [
-      "wait",
-      "--load",
-      "networkidle"
-    ],
-    [
-      "wait",
-      "--text",
-      "Can manage Access"
+      "Sample records"
     ],
     [
       "get",
@@ -117,12 +84,17 @@
     ],
     [
       "open",
-      "{url}/apps/tips/"
+      "{url}/"
     ],
     [
       "wait",
       "--load",
       "networkidle"
+    ],
+    [
+      "wait",
+      "--text",
+      "Tip calculator"
     ],
     [
       "get",
@@ -135,7 +107,10 @@
       "text": "Tip calculator"
     },
     {
-      "path": "/apps/tips/"
+      "gone": "Sample records"
+    },
+    {
+      "path": "/"
     }
   ]
 }
