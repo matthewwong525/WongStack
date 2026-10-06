@@ -9,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · short-used-by-line</title>
+<title>Review · 2026-10-06-short-used-by-line</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -93,11 +93,11 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="short-used-by-line">
+<body data-change="2026-10-06-short-used-by-line">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>short-used-by-line</h1>
+  <h1>2026-10-06-short-used-by-line</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. Saving a note copies all your notes. Open a drawing and tap it to see it full screen.</p>
@@ -135,6 +135,8 @@
 <li class="decision card" id="decision-3" data-note="decision-3" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-06</p>Assumed: a check holds the list's line to a length that fits the column at its narrowest, because a longer wording added later would be cut short again with nothing to catch it.</li>
 <li class="decision card" id="decision-4" data-note="decision-4" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-06</p>Assumed: no written promise changes, because <i>each row is one line</i> and <i>Access shows what uses a key</i> already cover this and only the words differ.</li>
 <li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-06</p>Built: the list drops <i>, no app needed</i>, and a test holds its line to 30 characters. The tests, the build and the local checks pass; the look at the preview is left.</li>
+<li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-06</p>Looked at the preview at 1440, 800 and 390 wide: <i>Installs the project</i> and <i>Look-ups</i> show whole, and the opened key keeps the full line. At 800 wide the column holds about 23 characters, fewer than the 30 the test allows, so a key that both works alone and is used by apps (<i>1 app · Installs the project</i>) could still be cut there; no key is like that today.</li>
+<li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-06</p>Archived for publishing as 35.2.2, after the checks passed and the preview look.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

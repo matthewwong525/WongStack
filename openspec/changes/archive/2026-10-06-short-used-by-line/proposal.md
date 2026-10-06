@@ -1,6 +1,6 @@
 # A "Used by" line that fits
 
-**Status:** in-progress
+**Status:** ready-to-ship
 
 **Branch:** hungry-falcon
 
@@ -55,3 +55,5 @@ None. The promises stand as written: each row is one line, and Access shows what
 - **2026-10-06** — Assumed: a check holds the list's line to a length that fits the column at its narrowest, because a longer wording added later would be cut short again with nothing to catch it.
 - **2026-10-06** — Assumed: no written promise changes, because *each row is one line* and *Access shows what uses a key* already cover this and only the words differ.
 - **2026-10-06** — Built: the list drops *, no app needed*, and a test holds its line to 30 characters. The tests, the build and the local checks pass; the look at the preview is left.
+- **2026-10-06** — Looked at the preview at 1440, 800 and 390 wide: *Installs the project* and *Look-ups* show whole, and the opened key keeps the full line. At 800 wide the column holds about 23 characters, fewer than the 30 the test allows, so a key that both works alone and is used by apps (*1 app · Installs the project*) could still be cut there; no key is like that today.
+- **2026-10-06** — Archived for publishing as 35.2.2, after the checks passed and the preview look.

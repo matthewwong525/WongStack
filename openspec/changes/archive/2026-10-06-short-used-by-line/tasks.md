@@ -15,4 +15,4 @@
 - [x] 3.1 From `app/`, run `npm test` and `npm run build:app`. Verify both pass.
 - [x] 3.2 Run `node .github/scripts/checks.mjs --worktree`. Verify every step passes.
 - [x] 3.3 Run `openspec validate "short-used-by-line" --strict --no-interactive`. Verify it reports valid.
-- [ ] 3.4 `/save`, then open Access → Keys on the preview at a wide width, at the narrowest width that still shows one-line rows, and at a phone width. Verify Project code's line reads *Installs the project* with no "…", and that opening it still shows *Installs the project, no app needed · Read only*.
+- [x] 3.4 `/save`, then open Access → Keys on the preview at a wide width, at the narrowest width that still shows one-line rows, and at a phone width. Verify Project code's line reads *Installs the project* with no "…", and that opening it still shows *Installs the project, no app needed · Read only*.
