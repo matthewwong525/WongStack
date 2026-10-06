@@ -9,8 +9,13 @@ const role = z.enum(['owner', 'employee'])
 // A saved key's level: `read` looks things up, `write` also changes or sends things. No level is None.
 const level = z.enum(['read', 'write'])
 const levels = z.record(z.string(), level)
+// Whether this person may connect an assistant. `ready`: Connect installs the project for them. `lacked`: they
+// hold no Project code, so Connect is greyed. `off`, or left out: the app can not hand the project out, and
+// everyone keeps the apps-only connection.
+const code = z.enum(['ready', 'lacked', 'off']).default('off')
+export type Code = z.infer<typeof code>
 export const setupSchema = z.object({ role, api: z.literal('authenticated'),
-  identity: z.object({ email: z.string(), subject: z.string() }), apps: z.array(z.string()), prompt,
+  identity: z.object({ email: z.string(), subject: z.string() }), apps: z.array(z.string()), prompt, code,
   repository: z.literal('manual_provider_setup'), memory: z.literal('independent_operator_setup') })
 // `legacy` has no recorded owner. `not_started` knows the owner, and everyone still keeps every app.
 // `manages`: the person may manage Access, as the owner or a manager the owner chose; left out means no.
@@ -18,10 +23,10 @@ const manages = z.boolean().optional()
 // `signIn`: the site stands behind a sign-in, so there is a session to end; left out or false, the frame offers no Sign out.
 const signIn = z.boolean().optional()
 export const appAccessSchema = z.discriminatedUnion('state', [
-  z.object({ state: z.literal('legacy'), signIn }),
-  z.object({ state: z.literal('not_started'), role, manages, signIn, apps: z.array(z.string()) }),
+  z.object({ state: z.literal('legacy'), signIn, code }),
+  z.object({ state: z.literal('not_started'), role, manages, signIn, code, apps: z.array(z.string()) }),
   // `keys` is the signed-in person's own level for each saved key, by name; empty until key levels start.
-  z.object({ state: z.literal('current'), role, manages, signIn, apps: z.array(z.string()), revision: z.number(),
+  z.object({ state: z.literal('current'), role, manages, signIn, code, apps: z.array(z.string()), revision: z.number(),
     keys: z.array(z.object({ id: z.string(), title: z.string(), level })).optional() }),
 ])
 const use = z.object({ id: z.string(), need: level })

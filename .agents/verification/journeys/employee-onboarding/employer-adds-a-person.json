@@ -6,44 +6,39 @@
     "requirement": "The employer manages employee grants through Access",
     "scenario": "Employer adds a person"
   },
-  "thenDigest": "7b64cc3bc9ebc4078db537d119379514899027c97126ee3a271ea002febefabd",
+  "thenDigest": "2cfd2220d5c466c92ffc675182afcd7d82c8dbec416a1a812eea75e85133f708",
   "probe": "browser",
   "writes": true,
   "sourcePaths": [
-    "app/src/Layout.tsx",
-    "app/src/apps/access/App.tsx",
-    "app/src/apps/access/AppAccessPage.tsx",
-    "app/src/apps/access/Apps.tsx",
-    "app/src/apps/access/Confirm.tsx",
-    "app/src/apps/access/Connect.tsx",
-    "app/src/apps/access/Fields.tsx",
-    "app/src/apps/access/KeyPage.tsx",
-    "app/src/apps/access/Keys.tsx",
-    "app/src/apps/access/Labels.tsx",
-    "app/src/apps/access/LevelChoice.tsx",
-    "app/src/apps/access/Notices.tsx",
-    "app/src/apps/access/Own.tsx",
-    "app/src/apps/access/Owner.tsx",
-    "app/src/apps/access/Page.tsx",
+    ".agents/skills/wong-setup/references/cloudflare.md",
+    ".agents/skills/wong-setup/scripts/provision.mjs",
+    ".agents/skills/wong-sync/references/payload-files.json",
+    "app/.dev.vars.example",
     "app/src/apps/access/People.tsx",
-    "app/src/apps/access/PersonPage.tsx",
-    "app/src/apps/access/RolePage.tsx",
-    "app/src/apps/access/RoleSelect.tsx",
-    "app/src/apps/access/Roles.tsx",
-    "app/src/apps/access/RowMenu.tsx",
     "app/src/apps/access/SetFields.tsx",
-    "app/src/apps/access/Table.tsx",
-    "app/src/apps/access/View.tsx",
-    "app/src/apps/access/address.ts",
     "app/src/apps/access/levels.ts",
-    "app/src/apps/access/subjects.ts",
-    "app/src/index.css",
+    "app/src/components/AssistantSetup.tsx",
     "app/src/lib/access.ts",
-    "app/worker/access.ts",
+    "app/src/pages/home/AppList.tsx",
+    "app/src/pages/home/Home.tsx",
+    "app/worker/api/contract.ts",
     "app/worker/employee-access/apps.ts",
-    "app/worker/employee-access/members.ts"
+    "app/worker/employee-access/bootstrap-release.json",
+    "app/worker/employee-access/code.ts",
+    "app/worker/employee-access/core.ts",
+    "app/worker/employee-access/key-catalogue.ts",
+    "app/worker/employee-access/key-levels.ts",
+    "app/worker/employee-access/prompt.ts",
+    "app/worker/employee-access/router.ts",
+    "app/worker/employee-access/setup.ts",
+    "app/worker/keys.ts",
+    "app/wrangler.jsonc",
+    "schema/seed.sql",
+    "scripts/company-api.mjs",
+    "scripts/employee-bootstrap.mjs",
+    "scripts/retired-names.json"
   ],
-  "recordedAt": "1e62ead342c19bed7fad4b618dd63de9c8264089",
+  "recordedAt": "ad53db943be6989de3a6cc26a4efe53f67a558b0",
   "steps": [
     [
       "open",
@@ -75,11 +70,6 @@
       "Hello"
     ],
     [
-      "get",
-      "text",
-      "body"
-    ],
-    [
       "find",
       "role",
       "button",
@@ -109,9 +99,6 @@
     },
     {
       "text": "walk@example.invalid"
-    },
-    {
-      "gone": "Copy app link"
     },
     {
       "path": "/apps/access/"

@@ -40,16 +40,17 @@ it('shapes one value per role and person as a save names them, and changes one w
   expect(differs(levels, put(put(levels, list[0], 'write'), list[0], null))).toBe(false)
 })
 
-it('names who holds a key at each level and who has an app: the owner first, then roles, then people', () => {
+it('counts who holds a key at each level and who has an app: the owner first, then roles, then people', () => {
   const key = (id: string, levels: SavedKey['levels'] = ['read', 'write']): SavedKey => ({ id, title: id, levels, saved: true, setup: false, usedBy: [], alone: false })
   // The owner holds every key at the most it offers.
-  expect([keyHolders(status, key('stripe'), 'write'), keyHolders(status, key('stripe'), 'read')]).toEqual([['Owner', 'kim@shop.com'], ['Sales']])
-  expect([keyHolders(status, key('cloudflare', ['read']), 'write'), keyHolders(status, key('cloudflare', ['read']), 'read')]).toEqual([[], ['Owner']])
-  // Several holders of one level stay in the order they are listed: roles, then people.
-  const more = { ...status, people: [...status.people, person('pat@shop.com', { keys: { stripe: 'read' } })] }
-  expect(keyHolders(more, key('stripe'), 'read')).toEqual(['Sales', 'pat@shop.com'])
-  expect([keyHolders(status, key('bank'), 'write'), keyHolders(status, key('bank'), 'read')]).toEqual([['Owner'], []])
-  expect(appHolders(status, 'hello')).toEqual(['Owner', 'Sales', 'kim@shop.com'])
-  expect(appHolders(status, 'tips')).toEqual(['Owner', 'kim@shop.com'])
-  expect(appHolders(status, 'payroll')).toEqual(['Owner'])
+  expect([keyHolders(status, key('stripe'), 'write'), keyHolders(status, key('stripe'), 'read')]).toEqual(['Owner, 1 person', '1 role'])
+  expect([keyHolders(status, key('cloudflare', ['read']), 'write'), keyHolders(status, key('cloudflare', ['read']), 'read')]).toEqual(['Nobody', 'Owner'])
+  // Several holders of one level are counted by kind: roles, then people with their own set.
+  const more = { ...status, roles: [{ ...office, keys: { stripe: 'read' as const } }, sales],
+    people: [...status.people, person('pat@shop.com', { keys: { stripe: 'read' } }), person('ray@shop.com', { keys: { stripe: 'read' } })] }
+  expect(keyHolders(more, key('stripe'), 'read')).toBe('2 roles, 2 people')
+  expect([keyHolders(status, key('bank'), 'write'), keyHolders(status, key('bank'), 'read')]).toEqual(['Owner', 'Nobody'])
+  expect(appHolders(status, 'hello')).toBe('Owner, 1 role, 1 person')
+  expect(appHolders(status, 'tips')).toBe('Owner, 1 person')
+  expect(appHolders(status, 'payroll')).toBe('Owner')
 })

@@ -98,6 +98,21 @@ export const CLOUDFLARE_READ_KEY = [
 /** The to-do a report carries when the token could not make that key. Everything else in Access still works. */
 export const CLOUDFLARE_READ_KEY_TODO = `the app has no read-only Cloudflare key for look-ups, ${KEY_LINK_STEP}`;
 
+/** The steps the owner follows on GitHub for the key that lets the app hand the project out. */
+export const CODE_KEY = {
+  name: 'WONG_CODE_READ',
+  url: 'https://github.com/settings/personal-access-tokens/new',
+  steps: (repository) => [
+    `Repository access: Only select repositories, then pick ${repository}`,
+    'Permissions: Repository permissions, Contents, Read-only',
+    'Add no other permission',
+    'Expiration: No expiration, or renew it before it ends',
+    'Tap Generate token and copy it',
+  ],
+};
+/** The to-do a GitHub install carries until that key is saved. Connect your assistant works as before meanwhile. */
+export const CODE_KEY_TODO = 'Connect your assistant can not hand out the project yet: send the private key link (wiki/development/secrets.md#receive-a-key-through-a-private-link) for WONG_CODE_READ, with the steps this report gives under codeKey, then run `npm run secrets:push` in app/';
+
 /** What an Artifacts install adds to the widen: its repository, its check runner, and the read that sees the plan. */
 export const ARTIFACTS_PROVISION = [
   { name: 'Artifacts Write', scope: 'account', id: 'f9e1ba803b8d4d52b4d4184825b07a28' },
@@ -398,23 +413,77 @@ function closeOpenConfig(file, access) {
 }
 
 /**
- * Sets `WONG_OWNER_EMAIL` in production's and staging's vars of an existing config, in place, comments kept:
+ * Sets one text var in production's and staging's vars of an existing config, in place, comments kept:
  * a value already there is replaced, else the line goes after `WONG_ENVIRONMENT`. Returns `updated`,
  * `current`, or false when the config has neither place twice.
  */
-function setOwnerEmail(file, email) {
+function setVar(file, name, value) {
   const before = readFileSync(file, 'utf8');
   let seen = 0;
   const count = (text) => {
     seen++;
     return text;
   };
-  let text = before.replace(/("WONG_OWNER_EMAIL"\s*:\s*)"[^"\n]*"/g, (_, head) => count(`${head}"${email}"`));
-  if (!seen) text = before.replace(/^([ \t]*)"WONG_ENVIRONMENT": "(?:production|staging)",[ \t]*$/gm, (line, indent) => count(`${line}\n${indent}"WONG_OWNER_EMAIL": "${email}",`));
+  let text = before.replace(new RegExp(`("${name}"\\s*:\\s*)"[^"\\n]*"`, 'g'), (_, head) => count(`${head}"${value}"`));
+  if (!seen) text = before.replace(/^([ \t]*)"WONG_ENVIRONMENT": "(?:production|staging)",[ \t]*$/gm, (line, indent) => count(`${line}\n${indent}"${name}": "${value}",`));
   if (seen !== 2) return false;
   if (text === before) return 'current';
   writeFileSync(file, text);
   return 'updated';
+}
+const setOwnerEmail = (file, email) => setVar(file, 'WONG_OWNER_EMAIL', email);
+
+/** `owner/name` from a GitHub remote address, or null for any other address. */
+export const githubRepo = (url) => /^(?:https:\/\/github\.com\/|git@github\.com:|ssh:\/\/git@github\.com\/)([A-Za-z0-9-]+\/[A-Za-z0-9._-]+?)(?:\.git)?\/?$/.exec(String(url ?? '').trim())?.[1] ?? null;
+
+/**
+ * Binds production and staging to the account's Artifacts namespace in an existing config, in place, comments
+ * kept, so the app can read its own repository with no key. Returns `updated`, `current`, or false, with the
+ * file restored, when the config has no place for both.
+ */
+function addCodeBinding(file) {
+  const bound = (config) => Boolean(config?.artifacts?.some((each) => each.binding === 'ARTIFACTS' && each.namespace === NAMESPACE));
+  const both = () => {
+    const config = parseConfig(file);
+    return [bound(config), bound(config.env?.staging)];
+  };
+  const [production, staging] = both();
+  if (production && staging) return 'current';
+  const before = readFileSync(file, 'utf8');
+  const line = `"artifacts": [{ "binding": "ARTIFACTS", "namespace": "${NAMESPACE}" }],`;
+  let text = before;
+  if (!production) text = text.replace(/^([ \t]+)"env"\s*:/m, (match, indent) => `${indent}// The project's own repository, which Connect your assistant hands out. wiki/stack/employee-project.md\n${indent}${line}\n${match}`);
+  if (!staging) text = text.replace(/^([ \t]+)"staging"\s*:\s*\{[ \t]*$/m, (match, indent) => `${match}\n${indent}${indent.startsWith('\t') ? '\t' : indent.slice(indent.length / 2)}${line}`);
+  writeFileSync(file, text);
+  try {
+    if (both().every(Boolean)) return 'updated';
+  } catch {
+    // Falls through to restore the file.
+  }
+  writeFileSync(file, before);
+  return false;
+}
+
+/**
+ * Tells the app which project Connect your assistant hands out: the name in both Workers' vars, and on a
+ * project kept in Cloudflare the binding to its repository, so no key is made. On GitHub the read-only key is
+ * the owner's one step: `ready` once both Workers hold it, else `missing` with the steps and a to-do. Changes
+ * nothing that is already right.
+ */
+async function projectCode(cf, { account, config, repository, artifacts, workers, note, todo }) {
+  const named = repository && existsSync(config) ? setVar(config, 'WONG_CODE_REPOSITORY', repository) : false;
+  if (named === 'updated') note('updated', 'app/wrangler.jsonc WONG_CODE_REPOSITORY');
+  const bound = named && artifacts ? addCodeBinding(config) : false;
+  if (bound === 'updated') note('updated', 'app/wrangler.jsonc ARTIFACTS');
+  if (!named || (artifacts && !bound)) {
+    todo.push(`add "WONG_CODE_REPOSITORY"${artifacts ? ` and the "artifacts" binding ARTIFACTS for the ${NAMESPACE} namespace` : ''} to production and staging in app/wrangler.jsonc, as wiki/stack/employee-project.md describes`);
+    return { status: 'missing' };
+  }
+  if (artifacts) return { status: 'ready', kept: 'cloudflare', repository };
+  const held = await Promise.all(workers.map((worker) => orNull(() => cf('GET', `/accounts/${account}/workers/scripts/${worker}/secrets`))));
+  if (held.every((list) => list?.some((secret) => secret.name === CODE_KEY.name))) return { status: 'ready', kept: 'github', repository };
+  todo.push(CODE_KEY_TODO);
+  return { status: 'missing', kept: 'github', repository, key: CODE_KEY.name, url: CODE_KEY.url, steps: CODE_KEY.steps(repository) };
 }
 
 /** Notes the owner email in an existing config, or leaves a to-do when the config has no place for it. */
@@ -736,6 +805,12 @@ export async function provision({ token, api, fetch, account, repo, base, route 
     }));
     if (report.cloudflareReadKey.status === 'missing') report.todo.push(CLOUDFLARE_READ_KEY_TODO);
     recordReadKey(dir, report.cloudflareReadKey, note);
+    // Which project Connect your assistant hands out: named for both Workers, and bound when Cloudflare keeps it.
+    // Like the owner email, it waits while the config is still open.
+    if (!keepConfig && !/"WORKSPACE_LOGIN"/.test(readFileSync(config, 'utf8'))) report.codeKey = await step('cloudflare', () => projectCode(cf, {
+      account, config, repository: route === 'artifacts' ? artifactNamesFor(base).repo : githubRepo(`https://github.com/${repo}`),
+      artifacts: route === 'artifacts', workers: [n.worker, n.staging], note, todo: report.todo,
+    }));
   };
   if (route === 'artifacts') {
     report.delivery = await artifactsDelivery(cf, { account, base, token, groups, buckets, deployRows: rows, dir, env, exec, state, checkpoint, note, todo: report.todo, sleep });
@@ -766,14 +841,15 @@ export async function provision({ token, api, fetch, account, repo, base, route 
 /**
  * What Access needs on a repo installed before it knew its owner: the recorded owner's email in both
  * Workers' vars, the live app's own key, and the read-only key for Cloudflare look-ups: in the live app,
- * and in the preview app when Cloudflare takes it. Reads the install record and makes nothing else, so an
- * update runs it alone. A site with no sign-in on record has nothing to do.
+ * and in the preview app when Cloudflare takes it. It also names the project Connect your assistant hands
+ * out, from the install record on a project kept in Cloudflare and from `origin` on GitHub. Reads the install
+ * record and makes nothing else, so an update runs it alone. A site with no sign-in on record has nothing to do.
  */
 export async function accessSetup({ token, api, fetch, account, ownerEmail, dir = '.', exec = run }) {
   const cf = cloudflare(token, { api, fetch });
   const report = { created: [], reused: [], updated: [], todo: [] };
   const note = (list, what) => report[list].push(what);
-  const access = readJson(recordFile(dir))?.components?.access;
+  const { access, delivery } = readJson(recordFile(dir))?.components ?? {};
   const worker = access?.workers?.[0]?.name;
   if (!access?.appId || !access.humanPolicyId || !worker) throw new ProvisionError('repo', 'this repo has no private sign-in on record; run provision first');
   const email = ownerIdentity(ownerEmail ?? access.ownerEmail);
@@ -793,10 +869,16 @@ export async function accessSetup({ token, api, fetch, account, ownerEmail, dir 
   if (readKey.status === 'missing') report.todo.push(CLOUDFLARE_READ_KEY_TODO);
   const config = join(dir, 'app', 'wrangler.jsonc');
   if (existsSync(config)) ownerEmailInConfig(config, email, { note, todo: report.todo });
+  const artifacts = delivery?.route === 'artifacts';
+  const origin = artifacts ? '' : (await exec('git', ['-C', dir, 'remote', 'get-url', 'origin']).catch(() => ({ stdout: '' }))).stdout;
+  const codeKey = await step('cloudflare', () => projectCode(cf, {
+    account, config, repository: artifacts ? delivery.repo : (githubRepo(origin) ?? githubRepo(`https://github.com/${state.repo}`)),
+    artifacts, workers: access.workers.map((each) => each.name), note, todo: report.todo,
+  }));
   recordComponent(dir, 'access', { ownerEmail: email }, note);
   recordComponent(dir, 'accessKey', key, note);
   recordReadKey(dir, readKey, note);
-  return { ...report, ownerEmail: email, accessKey: key, cloudflareReadKey: readKey };
+  return { ...report, ownerEmail: email, accessKey: key, cloudflareReadKey: readKey, codeKey };
 }
 
 // ── the command line ────────────────────────────────────────────────────────
@@ -813,7 +895,9 @@ const USAGE = `usage: provision.mjs <command> [--dir <repo>] [--account <id>] [-
   access [--owner-email <email>]          on an installed repo with sign-in on: put the owner's email in both Workers'
                                           vars, give the live app its own key for the sign-in list and the read-only
                                           key for Cloudflare look-ups; the preview app gets the read-only key when
-                                          Cloudflare takes it, and is reported as waiting when not
+                                          Cloudflare takes it, and is reported as waiting when not. It also names
+                                          the project Connect your assistant hands out: codeKey is ready, or
+                                          missing with the owner's steps on GitHub
 --route artifacts keeps the project in Cloudflare with no GitHub: widen adds its groups, names checks its
 names, and provision makes the repository and the check runner in place of the GitHub secrets.
 --dir is the target repo (default: here). The token is CLOUDFLARE_API_TOKEN and the account CLOUDFLARE_ACCOUNT_ID,

@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest'
 import type { SavedKey, Status } from '../../lib/access'
 import { appTitle } from '../../lib/apps'
-import { appUses, capital, dots, fill, gaps, hint, keyState, keyUseLine, levelLabel, levelLabels, levelName, NOTHING, sameSet, shortLine, ticked, usesLine, usesShort, usesWhat, type AccessSet } from './levels'
+import { aloneLine, appUses, capital, count, dots, fill, gaps, hint, keyState, keyUseLine, keyUseShort, levelLabel, levelLabels, levelName, NOTHING, sameSet, shortLine, summary, ticked, usesLine, usesShort, usesWhat, type AccessSet } from './levels'
 
 const key = (id: string, title: string, changes: Partial<SavedKey> = {}): SavedKey => ({ id, title, levels: ['read', 'write'], saved: true, setup: false, usedBy: [], alone: false, ...changes })
 const stripe = key('stripe', 'Stripe', { usedBy: [{ app: 'hello', need: 'write' }, { app: 'tips', need: 'read' }] })
@@ -63,6 +63,19 @@ it('labels the levels a set holds, one per key in the order the keys are shown',
   expect(levelLabel('Bank', 'read')).toBe('Bank Read')
 })
 
+it('sums a set up for one line of a list: how many apps and keys, and how many of its apps can not do their job yet', () => {
+  expect([count(1, 'app'), count(2, 'app'), count(0, 'key'), count(1, 'person', 'people'), count(3, 'person', 'people')]).toEqual(['1 app', '2 apps', '0 keys', '1 person', '3 people'])
+  // No apps, one app, several apps and keys.
+  expect(summary(status, NOTHING)).toEqual({ line: 'No apps', gaps: 0 })
+  expect(summary(status, { apps: ['payroll'], keys: {} })).toEqual({ line: '1 app', gaps: 0 })
+  expect(summary(status, { apps: ['hello', 'tips', 'payroll'], keys: { stripe: 'write', maps: 'read', cloudflare: 'read' } })).toEqual({ line: '3 apps, 3 keys', gaps: 0 })
+  // A set with a gap: Hello changes things with Stripe and holds Read. With no level at all, both apps wait.
+  expect(summary(status, { apps: ['hello', 'tips'], keys: { stripe: 'read', maps: 'read' } })).toEqual({ line: '2 apps, 2 keys', gaps: 1 })
+  expect(summary(status, { apps: ['tips', 'hello'], keys: {} })).toEqual({ line: '2 apps', gaps: 2 })
+  // A key no app needs still counts, and a key at None does not.
+  expect(summary(status, { apps: [], keys: { spare: 'read', stripe: null } })).toEqual({ line: 'No apps, 1 key', gaps: 0 })
+})
+
 it('knows when a set is back where it started, whatever the order of ticks and a key at None', () => {
   const start = { apps: ['hello', 'tips'], keys: { stripe: 'read' as const } }
   expect(sameSet(start, { apps: ['tips', 'hello'], keys: { maps: null, stripe: 'read' } })).toBe(true)
@@ -77,6 +90,16 @@ it('says what uses a key, on the Keys view and a key page', () => {
   expect(keyUseLine(cloudflare)).toBe('Look-ups, no app needed · Read only')
   expect(keyUseLine({ ...cloudflare, usedBy: [{ app: 'payroll', need: 'read' }] })).toBe('Used by payroll: look up · Look-ups, no app needed · Read only')
   expect(keyUseLine(spare)).toBe('Nothing uses it yet')
+  // The list's one line counts the apps and leaves the rest to the key's panel.
+  expect(keyUseShort(stripe)).toBe('2 apps')
+  expect(keyUseShort(cloudflare)).toBe('Look-ups, no app needed')
+  expect(keyUseShort({ ...cloudflare, usedBy: [{ app: 'payroll', need: 'read' }] })).toBe('1 app · Look-ups, no app needed')
+  expect(keyUseShort(spare)).toBe('Nothing uses it yet')
+  // Project code works with no app too, and what it does is not a look-up.
+  const code = { ...cloudflare, id: 'code', title: 'Project code' }
+  expect([keyUseLine(code), aloneLine(code), aloneLine(cloudflare), aloneLine(spare)])
+    .toEqual(['Installs the project, no app needed · Read only', 'installs the project, no app needed', 'look-ups, no app needed', ''])
+  expect(keyUseShort(code)).toBe('Installs the project, no app needed')
 })
 
 it('says whether a key is saved, waits for its link, or waits for setup to make it, which no preview can', () => {

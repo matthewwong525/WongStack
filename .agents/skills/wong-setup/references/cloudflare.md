@@ -138,6 +138,8 @@ Create/reuse distinct production and staging databases; branch deploys never wri
 
 With no config, write the [fragment](../../wong-sync/references/stack-pack-fragments.md) with actual production/staging D1 and Access IDs; an open site gets blank Access IDs and `WORKSPACE_LOGIN: "off"` instead. Bind memory only at the top level, plus R2 when available. Fill the two `db:migrate:*` scripts. Preserve the fragment's entry point, assets, flags, and date. Existing config stays apart from a new memory bucket and [adding the card later](#adding-the-card-later); plan other privacy updates as a reviewed merge. The [scaffold](../../wong-sync/references/payload-manifest.md#the-app-scaffold) supplies the Worker.
 
+**The project Connect hands out.** The script names it in both Workers' vars. The Artifacts route also binds both to the repository, so no key is made. On GitHub the report's `codeKey` is `missing` with [the owner's steps](../../../../wiki/stack/employee-project.md#the-owners-one-step-on-github): a closing to-do, never a blocker.
+
 The same Worker serves the [mini apps](../../../../wiki/stack/mini-apps.md) under `/apps/`, as part of the main app; they need no Worker or config of their own.
 
 **Moving older mini apps.** Apps kept outside the main app move into it by [the update's catch-up step](../../wong-sync/references/catch-up.md), `mini-apps-folder`. An install with its own mini-app Worker also merges `/apps/` routing and Worker-first assets into the main Worker. Remove the obsolete mini-app config, Worker, tsconfig, ignore files, and assetsignore only as reviewed changes. After production deploys, verify `/apps/` and every saved app; only then delete the old `<repo>-mini` and `<repo>-mini-staging` Workers and `staging-mini` GitHub environment. Keep them on failure.
@@ -186,6 +188,7 @@ State, in plain words:
 - What was created, and what was reused
 - What the user token was granted, that it stays in `.env` on this computer, and that it can be [narrowed back](../../../../wiki/stack/cloudflare-credentials.md#narrowing-back)
 - That CI publishes with its own small key, `<repo>-deploy`
+- On GitHub, while `codeKey` is `missing`: *"One step is left before teammates can install the project: a read-only GitHub key. Ask me for the link when you want it."*
 - Private coverage, machine access, and human login as separate outcomes. An open site says instead: *"Anyone with the link can see your site."*
 - When the target is not the open folder: its path, and *"Next time, open <target> in Paseo to chat."*
 - When `command -v paseo` answers: how to chat from a phone, *"In Paseo, open Settings → your host → Pair Device."*

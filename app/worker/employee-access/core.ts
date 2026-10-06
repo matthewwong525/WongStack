@@ -2,9 +2,10 @@
 // On a preview, the verification service token counts as the owner too.
 // A manager is a current person the owner ticked: they pass the same gate and are never the owner.
 import type { AccessIdentity } from "../access.ts";
+import type { CodeEnv } from "./code.ts";
 import { checkerOwns, humanEmail, ownerEmail, type PolicyEnv } from "./policy.ts";
 
-export interface ConnectionEnv extends PolicyEnv {
+export interface ConnectionEnv extends PolicyEnv, CodeEnv {
   CF_ACCESS_APP_ID?: string;
   CF_ACCESS_WORKER_ID?: string;
   /** Production only: setup's key for this app's own sign-in list. Never on staging. */

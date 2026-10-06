@@ -10,8 +10,8 @@ import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 
 import {
-  ACCESS_KEY, ACCESS_KEY_TODO, ARTIFACTS_PROVISION, CLOUDFLARE_READ_KEY, CLOUDFLARE_READ_KEY_TODO, CloudflareError, DEPLOY_TOKEN, NAMESPACE, NORMAL_PROVISION, PROPAGATION, R2_OFF, ROUTINES_PROVISION, SNAPSHOT_DAYS, STORAGE_TOKEN, USER_GRANTS,
-  accounts, artifactNamesFor, cli, cloudflare, names, plan, provision, readEnv, run, runnerConfig, safeName, widen, widenBy, wranglerConfig, wranglerFragment,
+  ACCESS_KEY, ACCESS_KEY_TODO, ARTIFACTS_PROVISION, CLOUDFLARE_READ_KEY, CLOUDFLARE_READ_KEY_TODO, CODE_KEY, CODE_KEY_TODO, CloudflareError, DEPLOY_TOKEN, NAMESPACE, NORMAL_PROVISION, PROPAGATION, R2_OFF, ROUTINES_PROVISION, SNAPSHOT_DAYS, STORAGE_TOKEN, USER_GRANTS,
+  accounts, artifactNamesFor, cli, cloudflare, githubRepo, names, plan, provision, readEnv, run, runnerConfig, safeName, widen, widenBy, wranglerConfig, wranglerFragment,
 } from '../../.agents/skills/wong-setup/scripts/provision.mjs';
 import { helperConfig } from '../../.agents/skills/save/scripts/artifacts-credential.mjs';
 import { databaseName, parseConfig, stripJsonc, workerName } from '../lib-wrangler-config.mjs';
@@ -151,7 +151,7 @@ test('a rerun after the card turns an open site private in its committed config'
   assert.equal(production.teamDomain, report.access.teamDomain);
   assert.equal(env.record().components.access.appId, production.appId);
   assert.equal(env.record().components.access.mode, undefined);
-  assert.deepEqual(report.todo, []);
+  assert.deepEqual(report.todo, [CODE_KEY_TODO]);
   // The site is private now, so Access learns its owner and the live app gets its key.
   assert.deepEqual([config.vars.WONG_OWNER_EMAIL, config.env.staging.vars.WONG_OWNER_EMAIL], [EMAIL, EMAIL]);
   assert.ok(report.updated.includes('app/wrangler.jsonc WONG_OWNER_EMAIL'));
@@ -796,7 +796,7 @@ test('setup records the owner for Access and gives the live app alone its own si
   const deploy = env.fake.state.accountTokens.find((token) => token.name === 'recipe-box-deploy');
   assert.ok(!deploy.policies[0].permission_groups.some((g) => g.id === groupId('Access: Apps and Policies Write')));
   assert.equal(env.gh.secrets().CLOUDFLARE_API_TOKEN, env.fake.state.minted[0]);
-  assert.deepEqual(report.todo, []);
+  assert.deepEqual(report.todo, [CODE_KEY_TODO]);
   assertNoSecret(env, JSON.stringify(report));
 });
 
@@ -818,7 +818,7 @@ test('a rerun reuses the sign-in list key, and an interrupted or lost one is rol
   const puts = env.fake.count(secretPut);
   const again = await env.provision();
   assert.ok(again.reused.includes('sign-in list key recipe-box-access'));
-  assert.deepEqual([again.created, again.updated, again.todo], [[], [], []]);
+  assert.deepEqual([again.created, again.updated, again.todo], [[], [], [CODE_KEY_TODO]]);
   assert.deepEqual([env.fake.state.minted.length, env.fake.count(secretPut), keys()], [minted, puts, 1]);
   // A live app that lost its secret gets a new value for the same key, even when the config is kept.
   env.fake.state.workerSecrets = {};
@@ -849,7 +849,7 @@ test('setup gives both Workers one read-only key for Cloudflare look-ups, made f
   assert.deepEqual(report.cloudflareReadKey, { status: 'ready', id: key.id });
   assert.deepEqual(env.record().components.cloudflareReadKey, report.cloudflareReadKey);
   assert.ok(report.created.includes('read-only Cloudflare key recipe-box-cloudflare-read, stored in both Workers'));
-  assert.deepEqual(report.todo, []);
+  assert.deepEqual(report.todo, [CODE_KEY_TODO]);
   assertNoSecret(env, JSON.stringify(report));
 });
 
@@ -869,7 +869,7 @@ test('a rerun reuses the read-only key, and one the live app lacks is rolled ont
   const minted = env.fake.state.minted.length;
   const again = await env.provision();
   assert.ok(again.reused.includes('read-only Cloudflare key recipe-box-cloudflare-read'));
-  assert.deepEqual([again.created, again.updated, again.todo], [[], [], []]);
+  assert.deepEqual([again.created, again.updated, again.todo], [[], [], [CODE_KEY_TODO]]);
   assert.deepEqual([env.fake.state.minted.length, keys()], [minted, 1]);
   // A secret gone from the live app rolls the one key; the sign-in list key is left as it is.
   delete env.fake.state.workerSecrets['recipe-box'].WONG_CLOUDFLARE_READ;
@@ -892,7 +892,7 @@ test('a staging Worker that refuses the read-only key is left waiting: the step 
   assert.deepEqual(report.cloudflareReadKey, { status: 'ready', id: key().id, waiting: ['recipe-box-staging'] });
   assert.deepEqual(env.record().components.cloudflareReadKey, report.cloudflareReadKey);
   assert.ok(report.created.includes(`read-only Cloudflare key recipe-box-cloudflare-read, stored in the live app${waiting}`));
-  assert.deepEqual(report.todo, []);
+  assert.deepEqual(report.todo, [CODE_KEY_TODO]);
   assert.deepEqual(JSON.parse(env.fake.state.workerSecrets['recipe-box'].WONG_CLOUDFLARE_READ), { version: 1, token: env.fake.state.minted.at(-1), accountId: ACCOUNT });
   assert.equal(env.fake.state.workerSecrets['recipe-box-staging'], undefined);
   // A rerun reuses the key while the live app holds it: no new value, and no second try at staging.
@@ -901,7 +901,7 @@ test('a staging Worker that refuses the read-only key is left waiting: the step 
   const again = await env.provision();
   assert.ok(again.reused.includes(`read-only Cloudflare key recipe-box-cloudflare-read${waiting}`));
   assert.deepEqual(again.cloudflareReadKey, report.cloudflareReadKey);
-  assert.deepEqual(again.todo, []);
+  assert.deepEqual(again.todo, [CODE_KEY_TODO]);
   assert.equal(env.fake.state.minted.length, minted);
   assert.ok(!env.fake.calls.slice(calls).some((call) => call.method === 'PUT' && call.path.endsWith('/secrets')));
   // Staging holding no copy still reads as waiting once the newer preview is gone: the key is not replaced to try again.
@@ -944,7 +944,7 @@ test('a token that can not make the read-only key leaves it missing, names the s
     : fetch(url, options));
   const report = await env.provision({ fetch: refused });
   assert.deepEqual(report.cloudflareReadKey, { status: 'missing' });
-  assert.deepEqual(report.todo, [CLOUDFLARE_READ_KEY_TODO]);
+  assert.deepEqual(report.todo, [CLOUDFLARE_READ_KEY_TODO, CODE_KEY_TODO]);
   assert.match(CLOUDFLARE_READ_KEY_TODO, /^the app has no read-only Cloudflare key for look-ups, because the saved Cloudflare token can not make keys/);
   assert.deepEqual(env.record().components.cloudflareReadKey, { status: 'missing' });
   // The rest of setup finished: the sign-in list key is ready, and neither Worker holds a look-up key.
@@ -954,7 +954,7 @@ test('a token that can not make the read-only key leaves it missing, names the s
   assert.equal(env.fake.state.accountTokens.length, 2);
   const ready = await env.provision();
   assert.equal(ready.cloudflareReadKey.status, 'ready');
-  assert.deepEqual(ready.todo, []);
+  assert.deepEqual(ready.todo, [CODE_KEY_TODO]);
   assert.ok(ready.created.includes('read-only Cloudflare key recipe-box-cloudflare-read, stored in both Workers'));
   assertNoSecret(env, JSON.stringify([report, ready]));
 });
@@ -1003,8 +1003,8 @@ test('the access command gives an installed repo its owner email and both keys, 
   const missing = await run();
   assert.equal(missing.code, 0, 'a token that can not make keys stops nothing');
   assert.deepEqual([missing.report.accessKey, missing.report.cloudflareReadKey], [{ status: 'missing' }, { status: 'missing' }]);
-  assert.deepEqual(missing.report.todo, [ACCESS_KEY_TODO, CLOUDFLARE_READ_KEY_TODO]);
-  for (const todo of missing.report.todo) assert.match(todo, /wiki\/development\/secrets\.md#receive-a-key-through-a-private-link.*`provision\.mjs access`/);
+  assert.deepEqual(missing.report.todo, [ACCESS_KEY_TODO, CLOUDFLARE_READ_KEY_TODO, CODE_KEY_TODO]);
+  for (const todo of missing.report.todo.slice(0, 2)) assert.match(todo, /wiki\/development\/secrets\.md#receive-a-key-through-a-private-link.*`provision\.mjs access`/);
   assert.deepEqual(env.fake.state.workerSecrets, {});
   // The owner email does not wait for the key: Access opens and names the one step left.
   assert.deepEqual([env.config().vars.WONG_OWNER_EMAIL, env.config().env.staging.vars.WONG_OWNER_EMAIL, env.config().env.local.vars.WONG_OWNER_EMAIL], [EMAIL, EMAIL, undefined]);
@@ -1015,7 +1015,7 @@ test('the access command gives an installed repo its owner email and both keys, 
   const ready = await run();
   assert.equal(ready.code, 0);
   assert.equal(ready.report.accessKey.status, 'ready');
-  assert.deepEqual(ready.report.todo, []);
+  assert.deepEqual(ready.report.todo, [CODE_KEY_TODO]);
   assert.deepEqual(Object.keys(env.fake.state.workerSecrets['recipe-box']), ['WONG_ACCESS_LOGIN_MANAGEMENT', 'WONG_CLOUDFLARE_READ']);
   assert.deepEqual(env.record().components.accessKey, ready.report.accessKey);
   // The same step setup runs: one read-only key, made from the live group list, on both Workers.
@@ -1151,6 +1151,7 @@ test('a config with no top-level env is left for a hand edit when a bucket arriv
   assert.deepEqual(report.todo, [
     'add "WONG_OWNER_EMAIL" with the owner sign-in email to the production and staging vars in app/wrangler.jsonc',
     'add MEMORY_BUCKET for recipe-box-memory to app/wrangler.jsonc',
+    'add "WONG_CODE_REPOSITORY" to production and staging in app/wrangler.jsonc, as wiki/stack/employee-project.md describes',
   ]);
   assert.equal(readFileSync(join(env.dir, 'app/wrangler.jsonc'), 'utf8'), '{ "name": "recipe-box" }\n');
 });
@@ -1748,4 +1749,111 @@ test('the command line prints the plan as one JSON report, and passes --route on
   assert.equal(JSON.parse(named.out[0]).names.repo, 'recipe-box');
   assert.equal(JSON.parse((await command('names', '--repo', REPO)).out[0]).names.repo, undefined);
   assertNoSecret(env, paid.out[0], widened.out[0], named.out[0]);
+});
+
+// ── the project Connect your assistant hands out ────────────────────────────
+
+/** `provision.mjs access`, as an update runs it. */
+async function accessCommand(env) {
+  const lines = [];
+  const code = await cli(['access', '--dir', env.dir], { env: env.env, out: (text) => lines.push(text), err: () => {} });
+  return { code, text: lines.join('\n'), report: JSON.parse(lines.join('\n')) };
+}
+const codeVars = (env) => [env.config().vars.WONG_CODE_REPOSITORY, env.config().env.staging.vars.WONG_CODE_REPOSITORY, env.config().env.local.vars.WONG_CODE_REPOSITORY];
+
+test('a GitHub install names its project for both Workers and reports the read-only key as the one step left, until both hold it', async (t) => {
+  const env = await setup(t);
+  const report = await env.provision();
+  assert.deepEqual(codeVars(env), [REPO, REPO, undefined]);
+  assert.ok(report.created.includes('app/wrangler.jsonc'));
+  // The owner's steps: one repository, contents read-only, nothing else. They fit the key link's guide.
+  assert.deepEqual(report.codeKey, { status: 'missing', kept: 'github', repository: REPO, key: 'WONG_CODE_READ', url: 'https://github.com/settings/personal-access-tokens/new', steps: CODE_KEY.steps(REPO) });
+  assert.ok(report.codeKey.steps.length <= 6 && report.codeKey.steps.every((line) => line.length <= 140));
+  assert.match(report.codeKey.steps.join('\n'), /Only select repositories, then pick ada\/recipe-box\n.*Contents, Read-only\nAdd no other permission/);
+  assert.ok(report.todo.includes(CODE_KEY_TODO));
+  assert.match(CODE_KEY_TODO, /wiki\/development\/secrets\.md#receive-a-key-through-a-private-link.*WONG_CODE_READ.*secrets:push/);
+  // No binding and no key is made for a GitHub project, and no Artifacts permission is asked for.
+  assert.deepEqual([env.config().artifacts, env.config().env.staging.artifacts], [undefined, undefined]);
+  assert.ok(!env.fake.state.accountTokens.some((token) => /code/.test(token.name)));
+
+  // The access step, as an update runs it: nothing to change, and the same one step left.
+  const waiting = await accessCommand(env);
+  assert.equal(waiting.code, 0);
+  assert.deepEqual([waiting.report.codeKey, waiting.report.todo, waiting.report.updated, waiting.report.created], [report.codeKey, [CODE_KEY_TODO], [], []]);
+  // One Worker holding the key is not enough: a preview must hand the project out too.
+  env.fake.state.workerSecrets['recipe-box'].WONG_CODE_READ = 'github_pat_synthetic';
+  assert.equal((await accessCommand(env)).report.codeKey.status, 'missing');
+  env.fake.state.workerSecrets['recipe-box-staging'].WONG_CODE_READ = 'github_pat_synthetic';
+  const calls = env.fake.calls.length;
+  const ready = await accessCommand(env);
+  assert.deepEqual([ready.report.codeKey, ready.report.todo, ready.report.updated, ready.report.created], [{ status: 'ready', kept: 'github', repository: REPO }, [], [], []]);
+  assert.ok(env.fake.calls.slice(calls).every((call) => call.method === 'GET'), 'a second run changes nothing');
+  assert.deepEqual((await env.provision()).codeKey, ready.report.codeKey);
+  assertNoSecret(env, waiting.text, ready.text);
+  assert.ok(!ready.text.includes('github_pat_synthetic'));
+
+  // An install from before this: no line in the config. The step adds it, from where `origin` points, and keeps the comments.
+  const file = join(env.dir, 'app/wrangler.jsonc');
+  writeFileSync(file, readFileSync(file, 'utf8').replace(/^[ \t]*"WONG_CODE_REPOSITORY".*\n/gm, ''));
+  assert.deepEqual(codeVars(env), [undefined, undefined, undefined]);
+  execFileSync('git', ['-C', env.dir, 'remote', 'add', 'origin', 'git@github.com:ada/renamed-box.git']);
+  const added = await accessCommand(env);
+  assert.deepEqual([codeVars(env), added.report.updated, added.report.codeKey.repository], [['ada/renamed-box', 'ada/renamed-box', undefined], ['app/wrangler.jsonc WONG_CODE_REPOSITORY'], 'ada/renamed-box']);
+  assert.match(readFileSync(file, 'utf8'), /\/\/ Session memory, production only/, 'the config keeps its comments');
+  assert.deepEqual((await accessCommand(env)).report.updated, []);
+  // A config with no place for it is left alone, with a plain to-do.
+  const before = readFileSync(file, 'utf8').replace(/^[ \t]*"(?:WONG_CODE_REPOSITORY|WONG_ENVIRONMENT)".*\n/gm, '');
+  writeFileSync(file, before);
+  const stuck = await accessCommand(env);
+  assert.deepEqual(stuck.report.codeKey, { status: 'missing' });
+  assert.ok(stuck.report.todo.some((todo) => todo.startsWith('add "WONG_CODE_REPOSITORY" to production and staging in app/wrangler.jsonc')));
+});
+
+test('reads owner/name from a GitHub address in any of its forms, and nothing from another host', () => {
+  for (const url of ['https://github.com/ada/recipe-box', 'https://github.com/ada/recipe-box.git', 'https://github.com/ada/recipe-box/', 'git@github.com:ada/recipe-box.git', 'ssh://git@github.com/ada/recipe-box.git', ' https://github.com/ada/recipe-box.git\n']) {
+    assert.equal(githubRepo(url), REPO, url);
+  }
+  for (const url of ['', undefined, 'https://gitlab.com/ada/recipe-box.git', 'https://github.com/ada', 'https://github.com/ada/recipe-box/tree/main', 'https://github.com.evil.example/ada/recipe-box', `https://${ACCOUNT}.artifacts.cloudflare.net/git/wongstack/recipe-box.git`]) {
+    assert.equal(githubRepo(url), null, String(url));
+  }
+});
+
+test('an install kept in Cloudflare binds both Workers to its own repository, so no key is made or asked for', async (t) => {
+  const env = await artifactsSetup(t);
+  const report = await env.provision({ route: 'artifacts' });
+  const binding = [{ binding: 'ARTIFACTS', namespace: NAMESPACE }];
+  assert.deepEqual([env.config().artifacts, env.config().env.staging.artifacts, env.config().env.local.artifacts], [binding, binding, undefined]);
+  assert.deepEqual(codeVars(env), ['recipe-box', 'recipe-box', undefined]);
+  assert.deepEqual(report.codeKey, { status: 'ready', kept: 'cloudflare', repository: 'recipe-box' });
+  assert.ok(!report.todo.includes(CODE_KEY_TODO));
+  // The account token never reaches a Worker, and neither Worker is given a project key.
+  for (const worker of ['recipe-box', 'recipe-box-staging']) assert.ok(!Object.keys(env.fake.state.workerSecrets[worker]).includes('WONG_CODE_READ'));
+  const text = readFileSync(join(env.dir, 'app/wrangler.jsonc'), 'utf8');
+  assert.ok(!text.includes(TOKEN));
+  assert.match(text, /\/\/ Session memory, production only/, 'the config keeps its comments');
+
+  // The access step reads the route from the install record, asks Git nothing, and changes nothing that is right.
+  const again = await accessCommand(env);
+  assert.deepEqual([again.code, again.report.codeKey, again.report.updated, again.report.todo], [0, report.codeKey, [], []]);
+  assert.equal(readFileSync(join(env.dir, 'app/wrangler.jsonc'), 'utf8'), text);
+  // An install from before this gains the name and both bindings from the step alone.
+  writeFileSync(join(env.dir, 'app/wrangler.jsonc'), text.replace(/^[ \t]*(?:"WONG_CODE_REPOSITORY"|"artifacts"|\/\/ The project's own repository).*\n/gm, ''));
+  assert.deepEqual([env.config().artifacts, env.config().env.staging.artifacts, codeVars(env)[0]], [undefined, undefined, undefined]);
+  const updated = await accessCommand(env);
+  assert.deepEqual(updated.report.updated, ['app/wrangler.jsonc WONG_CODE_REPOSITORY', 'app/wrangler.jsonc ARTIFACTS']);
+  assert.deepEqual([env.config().artifacts, env.config().env.staging.artifacts, codeVars(env)], [binding, binding, ['recipe-box', 'recipe-box', undefined]]);
+  assert.equal(updated.report.codeKey.status, 'ready');
+  // Only staging missing its twin is mended too; a config with no staging block is restored and left a to-do.
+  const whole = readFileSync(join(env.dir, 'app/wrangler.jsonc'), 'utf8');
+  const lines = whole.split('\n');
+  lines.splice(lines.findLastIndex((line) => line.includes('"artifacts"')), 1);
+  writeFileSync(join(env.dir, 'app/wrangler.jsonc'), lines.join('\n'));
+  assert.deepEqual((await accessCommand(env)).report.updated, ['app/wrangler.jsonc ARTIFACTS']);
+  assert.deepEqual(env.config().env.staging.artifacts, binding);
+  const broken = lines.join('\n').replace(/"staging"(\s*:\s*\{)/, '"preview"$1');
+  writeFileSync(join(env.dir, 'app/wrangler.jsonc'), broken);
+  const stuck = await accessCommand(env);
+  assert.equal(readFileSync(join(env.dir, 'app/wrangler.jsonc'), 'utf8'), broken, 'a config it can not finish is restored');
+  assert.deepEqual(stuck.report.codeKey, { status: 'missing' });
+  assert.ok(stuck.report.todo.some((todo) => /"artifacts" binding ARTIFACTS for the wongstack namespace/.test(todo)));
 });

@@ -26,6 +26,8 @@ CF_PRODUCTION_BRANCH: ${{ github.event.repository.default_branch }}
 
 **One commit deploys once.** `push` and `pull_request` both fire for a commit on a branch with an open PR, so the workflow keys its concurrency group on the event *and* the branch, and runs the job only for `push` plus fork pull requests. Both parts are needed: GitHub evaluates concurrency **before** a job's `if`, so a run destined to be skipped can still cancel the run doing the work — and a cancelled run is what `gh pr checks` reports as `fail`, which would block [`/ship`](../../.agents/skills/ship/SKILL.md). `push` stays the deploying event, so the preview URL attaches to the branch head SHA that `/save` and `/verify` look it up by.
 
+**A job cancelled with no step run never started.** GitHub cancels a job that waits out its time limit in the runner queue, and reports it as failed with an empty log. Nothing in the change caused it: rerun it with `gh run rerun <id> --failed`, on the default branch too, where a red check holds every publish and a cancelled deploy leaves the release not live.
+
 ## Why not Cloudflare's own Workers Builds
 
 It can't be automated. Cloudflare's Builds API triggers builds, patches existing triggers, and reads logs, but **cannot create the repository connection, set the production branch, or create the first trigger** — and the GitHub App it needs requires browser OAuth consent that `gh` cannot grant. That's three dashboard steps per repo, forever.

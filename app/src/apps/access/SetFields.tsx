@@ -2,9 +2,7 @@ import type { SavedKey, Status } from '../../lib/access'
 import { appTitle } from '../../lib/apps'
 import { Group, Tick } from './Fields'
 import { LevelChoice } from './LevelChoice'
-import { appUses, hint, ticked, usesShort, type AccessSet } from './levels'
-
-const ALONE = 'look-ups, no app needed'
+import { aloneLine, appUses, hint, ticked, usesShort, type AccessSet } from './levels'
 
 /** The ticks and levels of one set, a person's own or a role's. A ticked app shows the level of each key it uses
  *  right under it; the keys no ticked app uses follow in a group of their own. */
@@ -25,14 +23,14 @@ export function SetFields({ status, set, onChange }: { status: Status; set: Acce
           {!open && <span className="text-sm text-muted-foreground">{usesShort(status, app)}</span>}
           {open && <div className="ms-2.5 grid min-w-0 basis-full gap-3 border-s-2 ps-4">{uses.map(({ key, need }) => {
             const others = users(key).filter(other => other !== app).map(appTitle).join(', ')
-            return choice(key, [hint(app, key, need, set.keys[key.id]), others && `One level, shared with ${others}`, key.alone ? ALONE : ''])
+            return choice(key, [hint(app, key, need, set.keys[key.id]), others && `One level, shared with ${others}`, aloneLine(key)])
           })}</div>}
         </div>
       })}
       {!status.apps.length && <p>No apps built yet. Ask your assistant to make one.</p>}
     </Group>
     {(rest.length > 0 || !status.keys.length) && <Group legend="Keys no ticked app uses">
-      {rest.map(key => choice(key, [key.alone ? ALONE : '']))}
+      {rest.map(key => choice(key, [aloneLine(key)]))}
       {!status.keys.length && <p>No keys saved yet.</p>}
     </Group>}
   </>

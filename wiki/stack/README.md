@@ -30,4 +30,4 @@ Every install takes the pack. Standing it up is [setup's provisioning step](http
 
 > [Session memory](../development/memory.md) is separate from this pack. Setup provisions it.
 
-[Employee assistant connection](employee-project.md) covers the private company API bootstrap and separate manual repository setup.
+[Employee assistant connection](employee-project.md) covers how Connect your assistant installs the project on a teammate's device and links their apps, with app login as the only credential.

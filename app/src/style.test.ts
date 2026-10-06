@@ -36,16 +36,33 @@ it("follows the device's light or dark mode, with a set of colours for each", ()
   expect(css).toMatch(/--font-sans:\s*system-ui, sans-serif/);
 });
 
-it("keeps each page in its narrow column under a bar that spans the screen", async () => {
+it("gives every page one frame: the bar's contents and the page share a width and a left edge", async () => {
   vi.stubGlobal("fetch", vi.fn(async () => Response.json({ state: "legacy", signIn: true })));
   render(createElement(MemoryRouter, null, createElement(Routes, null,
     createElement(Route, { element: createElement(Layout) }, createElement(Route, { index: true, element: createElement("h1", null, "A page") })))));
   await screen.findByRole("link", { name: "Sign out" });
-  // The column is the page's, not the whole document's: the bar sits outside it, edge to edge.
-  const column = screen.getByRole("heading", { name: "A page" }).closest("main")!;
-  expect(column.className.split(" ")).toEqual(expect.arrayContaining(["mx-auto", "max-w-lg", "px-4"]));
+  const frame = ["mx-auto", "w-full", "max-w-[60rem]", "px-4"];
+  // The page's frame, and no narrower column round it.
+  const page = screen.getByRole("heading", { name: "A page" }).closest("main")!;
+  expect(page.className.split(" ")).toEqual(expect.arrayContaining(frame));
+  expect(page.className).not.toContain("max-w-lg");
+  // The bar spans the screen; what it holds sits in the same frame, so the logo starts where a heading does.
   const bar = screen.getByRole("link", { name: "WongStack" }).closest("header")!;
-  expect(bar.parentElement).toBe(column.parentElement);
-  expect(bar.className).not.toMatch(/max-w-|mx-auto/);
-  expect(bar.className.split(" ")).toEqual(expect.arrayContaining(["flex", "justify-between"]));
+  expect(bar.parentElement).toBe(page.parentElement);
+  expect(bar.className).not.toMatch(/max-w-|mx-auto|px-/);
+  // The bar stays in view at one height, so a panel beside the page can start right under it.
+  expect(bar.className.split(" ")).toEqual(expect.arrayContaining(["sticky", "top-0", "h-15", "bg-background"]));
+  const inside = bar.firstElementChild!;
+  expect(inside.className.split(" ")).toEqual(expect.arrayContaining([...frame, "flex", "justify-between"]));
+  expect(inside.contains(screen.getByRole("link", { name: "Sign out" }))).toBe(true);
+});
+
+it("holds every page to the whole frame: none sets a negative side margin, a width worked out from the screen's, or a narrower column", () => {
+  const screens = readdirSync(join(app, "src"), { recursive: true, encoding: "utf8" })
+    .filter((file) => /\.tsx?$/.test(file) && !/\.test\.|(^|[\\/])components[\\/]ui[\\/]/.test(file));
+  expect(screens.length).toBeGreaterThan(20);
+  // Each file that breaks out is named. No page narrows itself either: every screen takes the whole frame.
+  const breaks = /(^|[\s"'`:])-mx-|mx-\[calc|100vw/;
+  expect(screens.filter((file) => breaks.test(readFileSync(join(app, "src", file), "utf8")))).toEqual([]);
+  expect(screens.filter((file) => /max-w-lg/.test(readFileSync(join(app, "src", file), "utf8")))).toEqual([]);
 });

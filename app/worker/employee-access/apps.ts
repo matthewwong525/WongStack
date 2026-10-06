@@ -2,7 +2,8 @@
 import { hasSignIn, type AccessIdentity } from "../access.ts";
 import { catalogue } from "./catalogue.ts";
 import { keyIds, keyTitle } from "./key-levels.ts";
-import { authorizeRequest, currentPolicy, policyAllows, policyDenied, type PolicyEnv } from "./policy.ts";
+import { codeState } from "./code.ts";
+import { authorizeRequest, checkerOwns, currentPolicy, humanEmail, policyAllows, policyDenied, type PolicyEnv } from "./policy.ts";
 
 export async function appAccess(request: Request, env: PolicyEnv, identity: AccessIdentity | null): Promise<Response> {
   if (request.method !== "GET") return Response.json({ error: "Not found" }, { status: 404 });
@@ -11,10 +12,12 @@ export async function appAccess(request: Request, env: PolicyEnv, identity: Acce
   const headers = { "Cache-Control": "no-store" };
   // `signIn` tells the page's frame whether there is a session to sign out of.
   const signIn = hasSignIn(env);
-  if (policy.state === "legacy") return Response.json({ state: "legacy", signIn }, { headers });
+  // `code` says whether the caller may connect an assistant: `lacked` greys the Connect card on Home.
+  const code = codeState(env, policy, !!humanEmail(identity) || checkerOwns(env, identity));
+  if (policy.state === "legacy") return Response.json({ state: "legacy", signIn, code }, { headers });
   // Before permissions start everyone keeps every app; `manages` still says who manages people.
-  if (policy.state === "not_started") return Response.json({ state: "not_started", role: policy.role, manages: policy.manages, signIn, apps: catalogue }, { headers });
-  return Response.json({ state: "current", role: policy.role, manages: policy.manages, signIn, revision: policy.revision,
+  if (policy.state === "not_started") return Response.json({ state: "not_started", role: policy.role, manages: policy.manages, signIn, code, apps: catalogue }, { headers });
+  return Response.json({ state: "current", role: policy.role, manages: policy.manages, signIn, code, revision: policy.revision,
     apps: catalogue.filter(name => policyAllows(policy, name === "access" ? { kind: "self-service" } : { apps: [name] })),
     // The caller's own level for each saved key, by name: none until key levels start.
     keys: keyIds().flatMap(id => {

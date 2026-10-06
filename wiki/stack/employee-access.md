@@ -30,7 +30,7 @@ An install made before Access, or one whose key is missing, needs one step: the 
 node "<WongStack source>/.claude/skills/wong-setup/scripts/provision.mjs" access
 ```
 
-It adds `WONG_OWNER_EMAIL` to both Workers' `vars`, makes or reuses the key, stores it in the live app, and makes or reuses [the read-only key for Cloudflare look-ups](cloudflare-credentials.md#the-read-only-look-up-key) in the live app. The preview app gets a copy only when Cloudflare accepts it; a report that names it as `waiting` is finished, not failed. It makes nothing else. Publish the config change through [the change loop](../development/the-change-loop.md). When the report's `accessKey.status` or `cloudflareReadKey.status` is `missing`, the saved token can not make keys: [send the key link](../development/secrets.md#receive-a-key-through-a-private-link) for a Cloudflare token with *Account API Tokens Write*, then run it again. Until then Access opens, saves app choices and levels, and says one step is left.
+It adds `WONG_OWNER_EMAIL` and [the project's name](employee-project.md#how-the-app-hands-the-project-out) to both Workers' `vars`, makes or reuses the key, stores it in the live app, and makes or reuses [the read-only key for Cloudflare look-ups](cloudflare-credentials.md#the-read-only-look-up-key) in the live app. The preview app gets a copy only when Cloudflare accepts it; a report that names it as `waiting` is finished, not failed. It makes nothing else. Publish the config change through [the change loop](../development/the-change-loop.md). When the report's `accessKey.status` or `cloudflareReadKey.status` is `missing`, the saved token can not make keys: [send the key link](../development/secrets.md#receive-a-key-through-a-private-link) for a Cloudflare token with *Account API Tokens Write*, then run it again. Until then Access opens, saves app choices and levels, and says one step is left.
 
 To rotate the key, delete the `<worker>-access` token in Cloudflare and run the step again.
 
@@ -73,7 +73,7 @@ Each saved key has a level per person. A level is set once per key and holds in 
 
 ### A key with no app
 
-A look-up can belong to a key alone. A person with that key's level can run it with no app ticked, and every app's actions stay refused. Cloudflare look-ups ship this way. For another key, ask the usual way, such as *let the team look up a charge*, and the assistant [builds the action](company-api.md#list-the-keys-a-route-uses). No key works alone until levels have started.
+A look-up can belong to a key alone. A person with that key's level can run it with no app ticked, and every app's actions stay refused. Cloudflare look-ups and [Project code](employee-project.md#who-gets-what) ship this way. For another key, ask the usual way, such as *let the team look up a charge*, and the assistant [builds the action](company-api.md#list-the-keys-a-route-uses). No key works alone until levels have started.
 
 ## Roles
 
@@ -87,12 +87,12 @@ A role is a named set of apps and key levels, such as *Sales*, that several peop
 
 ## Managers
 
-A manager is a person the owner lets manage Access. The owner ticks *Can manage Access* on the person's page; nobody is a manager until then.
+A manager is a person the owner lets manage Access. The owner ticks *Can manage Access* where the person is opened; nobody is a manager until then.
 
 - **Only the owner picks managers.** The tick shows for the owner alone. A manager's save that names it is refused, so a manager never makes or unmakes one.
 - **A manager does what the owner does in Access.** They add, change and remove people, make and edit roles, tick apps and set key levels, for anyone: themselves and other managers included.
 - **A manager can't remove a manager, themselves included, or change the owner.** So the owner can always step in. [Who the owner is](#how-the-owner-is-known) stays a setup step.
-- **It is full trust, and the page says so under the tick.** A manager can give themselves any app or key level. Each change is recorded under the email of the person who made it; no screen shows that record yet.
+- **It is full trust, and the panel says so under the tick.** A manager can give themselves any app or key level. Each change is recorded under the email of the person who made it; no screen shows that record yet.
 - **Managing gives no app and no key.** A manager keeps their own apps, levels and home page. They do not hold every key as the owner does, and a route [with no entry](#what-a-persons-apps-govern) still denies them.
 - **It is a switch on a person, never part of a role.** A manager edits roles, so a role that carried it would let a manager pick managers.
 - **Taking it back works at once.** Untick it and the person's next request in Access is refused, with no sign-out; they keep their apps and levels. Removing a manager ends it too, and adding them back does not bring it back.
@@ -101,27 +101,26 @@ A manager is a person the owner lets manage Access. The owner ticks *Can manage 
 
 ## Four views
 
-The owner's Access has four views, each with its own address, so Back and reload keep your place. A [manager](#managers) has the same four. Each is a table with the same columns on every row.
+The owner's Access has four views, each with its own address, so Back and reload keep your place. A [manager](#managers) has the same four. Each is a table of one-line rows that share their columns; on a phone a row stacks.
 
-- **People** opens first: who, whether they can sign in, their role, and a label per app and per key level. The owner is the first row, with nothing to change. Your own row is marked *You*, and a manager's adds *Manager*.
-- **Roles** lists each role's apps, key levels and holders.
-- **Apps** lists each app, the keys it uses and who has it. An app's page ticks roles and people and sets the levels of that app's keys beside each tick.
-- **Keys** lists every key the app holds, whether it is saved, what uses it and who has it, a column per level. A key's page sets every level for that key. A key's value is never shown. A key shows here once it is [in the registry](api-keys.md#a-saved-key-shows-in-access).
+- **People** opens first: who, whether they can sign in, their role, and a count such as *2 apps, 1 key*. The owner is the first row, with nothing to change. *You* and *Manager* sit beside the email.
+- **Roles** counts each role's apps, keys and holders.
+- **Apps** lists each app, the keys it uses and how many have it. Opened, an app ticks roles and people, with its keys' levels beside each tick.
+- **Keys** lists every key the app holds, whether it is saved, how many apps use it and how many hold each level. Opened, a key sets every level for it. No value is ever shown. A key shows here once it is [in the registry](api-keys.md#a-saved-key-shows-in-access).
 
-A level set in any view is the same level in the others. A list of who has something names the owner first. Someone who manages nothing sees only their own apps and levels.
+A level set in any view is the same level in the others. A count names the owner first. Someone who manages nothing sees only their own.
 
 ### One frame on every screen
 
-The four views, each with a count, top every Access screen, an opened page included. Under them is the one spot for notices: *Saved*, the practice list, a step left.
+Access sits in [the shared frame](mini-apps.md#the-home-page-lists-the-apps). The four views, each with a count, top every Access screen as its heading. Under them is the one spot for notices: *Saved*, the practice list, a step left.
 
-- **A view has its title on the left and its add button on the right.** The assistant makes apps and keys, so that spot says how one is added.
-- **A row opens its page** on a click that is not on a control. A key not saved yet opens nothing: its row says the next step.
-- **The page is wider on a computer.** On a phone each row stacks into short lines.
-- **Connect your assistant is a button beside the heading** that opens the popup that [Home's Connect card](mini-apps.md#the-home-page-lists-the-apps) opens, with [the same prompt](employee-project.md). Someone who manages nothing sees the steps on the page.
+- **The add button ends the views' line.** The assistant makes apps and keys: a line under those lists says so.
+- **A row opens in a panel beside its list**, at its own address, on a click that is not on a control. The list stays, with that row marked. The panel sits under the top bar; on a phone it fills the screen. *✕*, Escape, *Cancel* and a press beside it close it. A key not saved yet says its next step there.
+- **Connect your assistant** is [Home's card](mini-apps.md#the-home-page-lists-the-apps) alone, with [its steps](employee-project.md).
 
 ### Change a role in the row
 
-A person's role is a dropdown in their row. A pick saves at once and governs their next request. The notice offers *Undo*, which puts back their old role, or their own set with the same apps and levels. Their page sets apps and levels, and changes nothing until *Save access*.
+A person's role is a dropdown in their row. A pick saves at once and governs their next request. The notice offers *Undo*, which puts back their old role, or their own set with the same apps and levels. Their panel sets apps and levels, and changes nothing until *Save access*.
 
 ### A row's menu
 
@@ -129,11 +128,11 @@ A person's row ends with `⋯`: *Open*, *Remove*, *Try again* while a sign-in st
 
 ### A label says the level in words
 
-A label is one app, or one key with its level: *Stripe Read*. A line marked `!` says where an app can't do its job yet, such as *Hello can look up, not change*, so a gap shows without opening the page. Nothing is marked by colour alone.
+A row counts; the names show where a person is opened. There a label is one app, or one key with its level: *Stripe Read*, and a line marked `!` says what an app can't do yet: *Hello can look up, not change*. The row says *! 1 gap*, so a gap shows without opening anyone. Nothing is marked by colour alone.
 
 ### Give an app and its level in one place
 
-A person's page starts with their role; with their own set, and on a role's page, you tick apps and pick levels there. For the owner, a person's page ends with the *Managing* group: [the manager tick](#managers), and what it means right under it.
+A person's panel starts with their role; with their own set, and for a role, you tick apps and pick levels there. For the owner, it ends with the *Managing* group: [the manager tick](#managers), and what it means right under it.
 
 - **A ticked app shows the level of each key it uses under its tick**, with a hint that names the fix: *Pick Read & write to let it*. An unticked app says which keys it uses and shows no level.
 - **A key two ticked apps share shows under both and is one level.** Change it under one and the other follows, and each says the level is shared.
@@ -141,7 +140,7 @@ A person's page starts with their role; with their own set, and on a role's page
 
 ### A save says how it went, and leaving asks first
 
-After a save the list opens with a box in [the notice spot](#one-frame-on-every-screen): *Saved*, or that the save did not finish, so check the list before trying again. Leaving a page with changes not saved asks *Leave without saving?*, from *Cancel*, another view, any link, the browser's Back button, a reload or a closed tab. Staying keeps the changes; a page put back the way it was leaves at once.
+After a save the list shows a box in [the notice spot](#one-frame-on-every-screen): *Saved*, or that the save did not finish, so check the list before trying again. Every question is a popup: *Remove*, and *Leave without saving?* when a panel with changes closes, by *✕*, *Cancel*, another view, any link or the Back button. A reload or a closed tab asks through the browser. Staying keeps the changes; a panel put back as it was closes at once.
 
 ## What a person's apps govern
 
@@ -163,7 +162,7 @@ On staging and its previews, the verification service token counts as the owner:
 
 ## What Access leaves alone
 
-- **The project's code.** Signing in to the app gives no access to it. The owner grants and removes that where the code is kept.
+- **Publishing the project.** It is [granted where the project is kept](employee-project.md#publishing-stays-manual), by hand.
 - **Memory.** [Memory access](../development/memory-key.md) keeps its own setup.
 - **Downloaded copies.** Removing a person does not reach what they already saved.
 
