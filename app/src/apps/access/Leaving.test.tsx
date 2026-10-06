@@ -124,30 +124,30 @@ it('closes at once a panel put back the way it was', async () => {
   expect([pressed('Tip calculator'), pressed('Refund a customer'), unloadAsks()]).toEqual(['false', 'false', false]); expect(screen.queryByText('Not saved yet')).toBeNull()
   click('Cancel'); await closed(); expect([question(), where()]).toEqual([null, '/apps/access/'])
 })
-it('asks on every kind of opened item: a person, a new person, a role, a new role, an app and a key', async () => {
-  const pages: [string, () => void][] = [
-    ['people/lee@shop.com', () => fireEvent.change(screen.getByLabelText('Role'), { target: { value: '' } })],
-    ['people/new', () => fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'new@shop.com' } })],
-    ['roles/sales', () => fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Field sales' } })],
-    ['people/kim@shop.com', () => fireEvent.click(radio('Hello', 'Look up'))],
-    ['roles/sales', () => fireEvent.click(radio('Tip calculator', 'Look up'))],
-    ['roles/sales', () => fireEvent.click(start('Refund a customer'))],
-    ['roles/new', () => fireEvent.click(start('Tip calculator'))],
-    ['roles/new', () => fireEvent.change(screen.getByLabelText('Start from a person'), { target: { value: 'kim@shop.com' } })],
-    ['apps/hello', () => fireEvent.click(within(screen.getByRole('group', { name: 'kim@shop.com' })).getByRole('radio', { name: 'Read & write' }))],
-    ['keys/stripe', () => fireEvent.click(radio('kim@shop.com', 'None'))],
-  ]
-  for (const [path, change] of pages) {
-    const home = `/apps/access/${path.split('/')[0].replace('people', '')}`
-    // Untouched, Cancel closes at once, and the list was there all along.
-    open(path); await screen.findByRole('button', { name: /^Save/ }); expect(screen.getByRole('table'), path).toBeTruthy(); click('Cancel')
-    await closed(); expect([path, where(), !!question()]).toEqual([path, home, false]); cleanup()
-    // Changed, it asks; staying keeps the panel, leaving goes to its list.
-    open(path); await screen.findByRole('button', { name: /^Save/ }); change(); click('Cancel')
-    expect([path, where(), !!question()]).toEqual([path, `/apps/access/${path}`, true])
-    click('Keep editing'); expect(question()).toBeNull(); click('Cancel'); click('Leave')
-    await closed(); expect([path, where()]).toEqual([path, home]); cleanup()
-  }
+// Every kind of opened item: a person, a new person, a role, a new role, an app and a key. One test each, so no one
+// test opens the panel twenty times.
+const pages: [string, () => void][] = [
+  ['people/lee@shop.com', () => fireEvent.change(screen.getByLabelText('Role'), { target: { value: '' } })],
+  ['people/new', () => fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'new@shop.com' } })],
+  ['roles/sales', () => fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Field sales' } })],
+  ['people/kim@shop.com', () => fireEvent.click(radio('Hello', 'Look up'))],
+  ['roles/sales', () => fireEvent.click(radio('Tip calculator', 'Look up'))],
+  ['roles/sales', () => fireEvent.click(start('Refund a customer'))],
+  ['roles/new', () => fireEvent.click(start('Tip calculator'))],
+  ['roles/new', () => fireEvent.change(screen.getByLabelText('Start from a person'), { target: { value: 'kim@shop.com' } })],
+  ['apps/hello', () => fireEvent.click(within(screen.getByRole('group', { name: 'kim@shop.com' })).getByRole('radio', { name: 'Read & write' }))],
+  ['keys/stripe', () => fireEvent.click(radio('kim@shop.com', 'None'))],
+]
+it.each(pages)('asks on an opened item with a change: %s', async (path, change) => {
+  const home = `/apps/access/${path.split('/')[0].replace('people', '')}`
+  // Untouched, Cancel closes at once, and the list was there all along.
+  open(path); await screen.findByRole('button', { name: /^Save/ }); expect(screen.getByRole('table'), path).toBeTruthy(); click('Cancel')
+  await closed(); expect([path, where(), !!question()]).toEqual([path, home, false]); cleanup()
+  // Changed, it asks; staying keeps the panel, leaving goes to its list.
+  open(path); await screen.findByRole('button', { name: /^Save/ }); change(); click('Cancel')
+  expect([path, where(), !!question()]).toEqual([path, `/apps/access/${path}`, true])
+  click('Keep editing'); expect(question()).toBeNull(); click('Cancel'); click('Leave')
+  await closed(); expect([path, where()]).toEqual([path, home]); cleanup()
   expect(posts()).toHaveLength(0)
 })
 it('where the router can hold a move, the browser Back button and any link ask too, and a save passes without asking', async () => {

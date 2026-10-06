@@ -278,7 +278,7 @@ it("leaves the manager switch alone when a manager changes another manager's app
   const rows = () => f.sql.prepare('SELECT rowid, email FROM wong_access_managers ORDER BY email').all();
   const before = rows();
   const saved = await (await ask(kim, 'people', person(employee.id, ['payroll']))).json();
-  expect(saved).toMatchObject({ people: [{ email: employee.id, manager: true, apps: { payroll: 'write' }, { email: kim.id, manager: true, apps: { orders: 'write' } }] });
+  expect(saved).toMatchObject({ people: [{ email: employee.id, manager: true, apps: { payroll: 'write' } }, { email: kim.id, manager: true, apps: { orders: 'write' } }] });
   // No manager row was written: each is still the row the owner made.
   expect(rows()).toEqual(before);
   // The person she changed still manages, and the record shows nobody's switch moved.
