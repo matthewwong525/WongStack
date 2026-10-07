@@ -34,6 +34,15 @@ export function database() {
   } };
   return { sql, session, DB: { withSession: () => session } as unknown as D1Database };
 }
+/** The staging database as `db:reset:staging` leaves it: the migrations, then schema/seed.sql. The committed owner
+ *  email, not the seeded row, decides who manages the practice list; `practice` is one seeded person signed in. */
+export function seeded() {
+  const { sql, DB } = database();
+  sql.exec(readFileSync(new URL("../../../schema/seed.sql", import.meta.url), "utf8"));
+  const env = { DB, WONG_ENVIRONMENT: "staging", WONG_OWNER_EMAIL: owner.id };
+  const practice = (email: string): AccessIdentity => ({ ...owner, id: email, claims: { ...owner.claims, email } });
+  return { sql, env, practice };
+}
 /** `started` false leaves the installation row out, as on an app whose owner never opened Access. */
 export function fixture({ started = true } = {}) {
   const { sql, session, DB } = database();

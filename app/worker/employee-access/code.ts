@@ -14,7 +14,9 @@ export interface CodeEnv {
   WONG_CODE_REPOSITORY?: string;
   /** A GitHub token that reads this one repository's contents and nothing else. */
   WONG_CODE_READ?: string;
-  ARTIFACTS?: CodeBinding;
+  /** Cloudflare's binding to a project kept there. Declared as unknown, because `wrangler types` writes its own
+   *  type for it into `Env` on such an install; `binding()` narrows it to what this file calls. */
+  ARTIFACTS?: unknown;
 }
 type Source = { github: string; token: string } | { artifacts: CodeBinding; name: string };
 type Upstream = { url: string; authorization: string };

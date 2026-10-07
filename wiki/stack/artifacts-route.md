@@ -20,7 +20,7 @@ The Artifacts route is an install that needs one account: your project's files, 
 
 ## What it costs
 
-Cloudflare's **Workers Paid plan, about $5 a month**. [Artifacts](https://developers.cloudflare.com/artifacts/platform/pricing/), which holds the project's files, runs only on that plan. The plan includes an allowance of repository use, [container time](https://developers.cloudflare.com/containers/pricing/) for checks, and storage; use beyond it is billed by Cloudflare. Three limits keep a check run small: [one run at a time](#the-check-runner), 30 minutes a run, and working files deleted after two days.
+Cloudflare's **Workers Paid plan, about $5 a month**. [Artifacts](https://developers.cloudflare.com/artifacts/platform/pricing/), which holds the project's files, runs only on that plan. The plan includes an allowance of repository use, [container time](https://developers.cloudflare.com/containers/pricing/) for checks, and storage; use beyond it is billed by Cloudflare. Three limits keep a check run small: [one run at a time](#the-check-runner), 30 minutes of stages a run, and working files deleted after two days.
 
 Setup looks at the plan before it creates anything. On a free account it stops and asks: turn the plan on, or use the GitHub route, which is free.
 
@@ -55,7 +55,7 @@ A stop with `error.reason` `plan` is the free-plan stop, reached late: nothing w
 4. **Publish.** A yes to *publish it?* puts the branch's files on `main` as one commit, on top of the `main` just fetched, pushed without force. `main` moved meanwhile → the push is refused; bring `main` in, save, and check again.
 5. **Live.** `main`'s own run checks that commit, applies database changes, and deploys production. A failing commit on `main` is not deployed: production keeps the last passing one.
 
-A result that can not be read is **unverified**: a save reports it and carries on, a publish stops. It is never read as passed, or as "no checks".
+A result that can not be read is **unverified**: a save reports it and carries on, a publish stops. It is never read as passed, or as "no checks". A run Cloudflare [cut off](#a-run-that-was-cut-off) is unverified too, never failed.
 
 `main` has no branch protection: a push made by hand can put an unchecked commit in its history. It still does not go live, because `main`'s run deploys only after its checks pass.
 
@@ -71,10 +71,10 @@ A result that can not be read is **unverified**: a save reports it and carries o
   - `RECEIPT=none`: the saved-revision receipt is not written, so `/verify` reads the gate again with the waiter.
   - `SAVE_HEAD=`, `PREVIEW_URL=`, `ATTEMPT=`, `NEXT:` and `SAVE_GATE_RESULT=` are as on GitHub, and the three-fix count too.
 - **`/ship`.** [`ship.mjs`](../../.agents/skills/ship/scripts/ship.mjs) runs both halves on both routes, and here it calls no `gh`:
-  - `prepare` fetches `main`, then reads its checks with `node .claude/skills/save/scripts/artifacts-run.mjs result "$(git rev-parse origin/main)" refs/heads/main`. `SUCCESS` or `NONE` is `ok`, `FAILURE` stops, and anything else is unverified and stops, a run still going included.
+  - `prepare` fetches `main`, then reads its checks with `node .claude/skills/save/scripts/artifacts-run.mjs result "$(git rev-parse origin/main)" refs/heads/main`. `SUCCESS` or `NONE` is `ok`, `FAILURE` stops, and anything else is unverified and stops, a run still going included. `INTERRUPTED` stops with the [restart](#a-run-that-was-cut-off) as its `NEXT:`.
   - `finish` runs [`merge.sh`](../../.agents/skills/ship/scripts/merge.sh), which hands over to [`publish-artifacts.sh`](../../.agents/skills/ship/scripts/publish-artifacts.sh); that prints `merged=`, `commit=` and `main=`. `finish` gives [`live-look.sh`](../../.agents/skills/ship/scripts/live-look.sh) the `commit=` value, not a pull request's merge commit.
   - `moved=yes` → `main` moved and nothing was published. `NEXT:` says to bring `main` in with `prepare --sync`, `/save`, and run `finish` again on `SUCCESS` or `NONE`.
-  - Exit 3 → the change is on `main`, but `main` is red or unread. `finish` skips the live look, and `NEXT:` says to report it and stop, never to push again.
+  - Exit 3 → the change is on `main`, but `main` is red, unread, or cut off. `finish` skips the live look, and `NEXT:` says to report it and stop, never to push again. `main=INTERRUPTED` → `NEXT:` gives the [restart](#a-run-that-was-cut-off) first.
 - **`/continue`.** A handle is a change name. With none, [`other-work.mjs`](../../.agents/skills/explore/scripts/other-work.mjs) lists `savedBranches`: each remote branch holding an unarchived change, with its Status. The drift check counts commits only.
 - **`/apply`** previews from this host as on GitHub.
 - **Reports** name the preview, never *the change on GitHub*.
@@ -99,10 +99,20 @@ node <repo>/.claude/skills/save/scripts/artifacts-credential.mjs install <repo>
 One Worker in your account, [`scripts/check-runner/`](../../scripts/check-runner/worker.mjs), built on Cloudflare's [`@cloudflare/ci`](https://www.npmjs.com/package/@cloudflare/ci) at a pinned version. A push starts a run named for its commit and branch, so a repeated push event starts nothing twice. [`pipeline.mjs`](../../scripts/check-runner/pipeline.mjs) owns the three stages, each in a fresh container:
 
 1. **prepare**, with a read-only token for this one repository: rebuilds the Git history the checks compare against. It runs none of the project's code.
-2. **checks**, with no credential: [`checks.mjs`](../../.github/scripts/checks.mjs), then the plain build. A test that prints its environment finds no Cloudflare credential.
-3. **deploy**, with the deploy token only: [`cf-build.sh`](../../scripts/cf-build.sh) and [`cf-deploy.sh`](../../scripts/cf-deploy.sh), told the branch through the variables they take on GitHub. It starts only when checks pass and the app changed.
+2. **checks**, with no credential: [`checks.mjs`](../../.github/scripts/checks.mjs), then the plain build. A test that prints its environment finds no Cloudflare credential. The suite compiles against binding types regenerated from the wrangler config (`cf-build.sh --types`), on both routes, so a binding the config has and the committed types lack fails here, not in the deploy.
+3. **deploy**, with the deploy token only: [`cf-build.sh`](../../scripts/cf-build.sh) and [`cf-deploy.sh`](../../scripts/cf-deploy.sh), told the branch through the variables they take on GitHub. It starts only when checks pass and the app changed. It installs the app's packages itself first (`npm ci`), not trusting the files carried over from the checks: they can arrive incomplete. That install runs with every `CLOUDFLARE_*` variable removed, so a package's install script never sees the deploy token.
 
-The bounds: one run at a time for the repository, a later run waiting its turn; 30 minutes of stages a run; one automatic retry, only when Cloudflare interrupts a container; snapshots kept a day, and the bucket's own rule deleting them after two.
+The bounds: one run at a time for the repository, a later run waiting its turn; 30 minutes of stages a run, plus the stages an interruption repeats; snapshots kept a day, and the bucket's own rule deleting them after two.
+
+### A run that was cut off
+
+Cloudflare sometimes stops a container mid-stage. That is the Sandbox's doing, not the commit's, so the run is **cut off**, never failed:
+
+- **The runner tries again by itself.** A cut-off stage is started again, up to three times a run, shared by its stages. A command's own failure or a timeout is never retried.
+- **Still cut off → its own result.** The run ends `interrupted` with its stage. `/save` reports `RESULT: UNKNOWN` with *the check run was cut off* and carries on; a publish stops. A run that never got its turn, and a Workflow that errored or was terminated, read the same way.
+- **The waiter starts it again once.** `artifacts-run.mjs wait` and `live` restart an interrupted run one time, then wait inside the same limit.
+- **You can start it again by hand**: `node .claude/skills/save/scripts/artifacts-run.mjs restart <sha> <ref>`. It restarts that same run, so its result still belongs to the one commit and branch. Never push an empty commit to get a new run: on `main` that moves `main` under a pending publish.
+- **A failed check is never restarted.** `restart` refuses a run that failed, finished, or is still going, and the failure stands.
 
 The runner's Node is the container image's, not [`.nvmrc`](../../.nvmrc)'s: the public Sandbox image at the SDK's version ships Node 24.
 

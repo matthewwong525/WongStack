@@ -108,6 +108,33 @@ test('cf-build outside CI only builds the app, with nothing copied in after', t 
   assert.equal(existsSync(join(root, 'app/dist/client/apps')), false);
 });
 
+test('cf-build --types regenerates the binding types from the config and builds nothing', t => {
+  const root = previewRepo(t);
+  writeFileSync(join(root, 'app/package.json'), '{ "scripts": { "build:app": "node fake-build.mjs" }, "devDependencies": { "typescript": "~7.0.2" } }\n');
+  const result = run(root, 'cf-build.sh', ['--types'], { CF_BRANCH: 'mini/tips' });
+  assert.equal(result.status, 0, result.out);
+  assert.deepEqual(result.calls, ['npx wrangler types']);
+  assert.deepEqual(result.cwds, ['app'], 'wrangler reads the config from its own folder');
+  assert.match(result.out, /cf-build: regenerating binding types/);
+  assert.equal(existsSync(join(root, 'app/dist')), false);
+  // The deploy build regenerates through the same function, before it builds.
+  const built = run(root, 'cf-build.sh', [], { CF_BRANCH: 'mini/tips' });
+  assert.equal(built.status, 0, built.out);
+  const order = ['npx wrangler types', 'npm run build:app'].map(call => built.calls.indexOf(call));
+  assert.ok(order[0] > -1 && order[0] < order[1], built.calls.join('\n'));
+});
+
+test('cf-build --types skips a repo with no wrangler config, and an app that is not TypeScript', t => {
+  const bare = previewRepo(t, { config: null });
+  const none = run(bare, 'cf-build.sh', ['--types']);
+  assert.equal(none.status, 0, none.out);
+  assert.deepEqual(none.calls, []);
+  assert.match(none.out, /no wrangler config, so no binding types to regenerate/);
+  const plain = run(previewRepo(t), 'cf-build.sh', ['--types']);
+  assert.equal(plain.status, 0, plain.out);
+  assert.deepEqual(plain.calls, []);
+});
+
 // ── The preview from the agent host ─────────────────────────────────────────
 
 test('preview refuses the default branch and uploads nothing', t => {

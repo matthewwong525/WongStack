@@ -5,7 +5,7 @@ import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { cli, readRun, verdict, waitRun } from '../../.agents/skills/save/scripts/artifacts-run.mjs';
+import { cli, readRun, restartRefusal, restartRun, verdict, waitRun } from '../../.agents/skills/save/scripts/artifacts-run.mjs';
 import { runId } from '../check-runner/run-id.mjs';
 
 const scripts = new URL('../../.agents/skills/save/scripts/', import.meta.url).pathname;
@@ -25,6 +25,8 @@ const LIVE = 'https://x-app.sub.workers.dev';
 // What a run writes as its output, and what Cloudflare answers for one read of a run.
 const pass = (commit, ref, extra = { deployed: true, preview: PREVIEW }) => ({ commit, ref, result: 'success', ...extra });
 const fail = (commit, ref) => ({ commit, ref, result: 'failure', stage: 'checks', reason: 'npm test\n1 failing' });
+// What the runner writes for a run the Sandbox cut off after its tries were used up.
+const cutOff = (commit, ref, stage = 'checks') => ({ commit, ref, result: 'interrupted', stage, reason: 'checks failed: OperationInterruptedError: The sandbox container stopped while the operation was pending.' });
 const instance = (result) => () => Response.json({ success: true, errors: [], result });
 const complete = (output) => instance({ status: 'complete', output });
 const running = instance({ status: 'running' });
@@ -41,6 +43,18 @@ function holding(runs) {
   const calls = [];
   return { calls, fetch: async (url, init) => { calls.push({ url, init }); return (runs[url.split('/').at(-1)] ?? missing)(); } };
 }
+// A stand-in that answers reads in order (the last one repeats) and records each restart apart: `restart` is
+// what Cloudflare answers the instance-status call.
+function restartable(reads, restart = () => Response.json({ success: true, errors: [], result: { status: 'queued' } })) {
+  const [calls, restarts] = [[], []];
+  const fetch = async (url, init = {}) => {
+    if (init.method === 'PATCH') { restarts.push({ url, init }); return restart(); }
+    calls.push({ url, init });
+    return reads[Math.min(calls.length, reads.length) - 1]();
+  };
+  return { calls, restarts, fetch };
+}
+const refusedByCloudflare = () => Response.json({ success: false, errors: [{ code: 10000, message: 'Authentication error' }], result: null }, { status: 403 });
 // What one answer means for a commit on a branch, read the way the verbs read it.
 const read = async (answer, at = { sha: SHA, ref: BRANCH }) => verdict(await readRun({ ...TARGET, id: await runId(at.sha, at.ref), fetch: cloudflare(answer).fetch }), at);
 
@@ -59,9 +73,11 @@ test('a finished run that Cloudflare answers with an error flag beside it is sti
   const done = { status: 'complete', success: true, output: pass(SHA, BRANCH) };
   assert.deepEqual(await read(flagged(done)), { result: 'SUCCESS', lines: [], address: PREVIEW });
   assert.equal((await read(flagged({ ...done, output: pass(OTHER, BRANCH) }))).result, 'UNKNOWN', 'a flagged answer for another commit was trusted');
-  for (const result of [{ ...done, success: false }, { ...done, success: undefined }, { ...done, output: null }, { status: 'running', success: true, output: pass(SHA, BRANCH) }, null]) {
+  for (const result of [{ ...done, success: false }, { ...done, success: undefined }, { ...done, output: null }, null]) {
     assert.equal((await read(flagged(result))).result, 'UNKNOWN', JSON.stringify(result));
   }
+  // A run still going is waited for, flag or not: seen on a real install while a stage ran again.
+  assert.deepEqual(await readRun({ ...TARGET, id: await runId(SHA, BRANCH), fetch: cloudflare(flagged({ status: 'running', success: true, output: pass(SHA, BRANCH) })).fetch }), { state: 'pending' });
 });
 
 test('readRun asks Cloudflare for the one run, with the token as a bearer header only', async () => {
@@ -84,14 +100,60 @@ test('a passing run for this commit and branch is SUCCESS with the address its d
   assert.deepEqual(await read(complete(pass(SHA, BRANCH))), { result: 'SUCCESS', lines: [], address: PREVIEW });
 });
 
-test('a failed run is FAILURE with each line of its reason, and so is a run that stopped', async () => {
+test('a failed run is FAILURE with each line of its reason', async () => {
   const failed = await read(complete(fail(SHA, BRANCH)));
   assert.equal(failed.result, 'FAILURE');
   assert.deepEqual(failed.lines, ['checks failed', 'npm test', '1 failing']);
+  assert.ok(!failed.cutOff && !failed.retry, 'a failed check was offered a restart');
+});
+
+test('a run that was cut off is UNKNOWN and says so, never FAILURE: the commit failed nothing', async () => {
+  const interruptedRun = await read(complete(cutOff(SHA, BRANCH, 'deploy')));
+  assert.deepEqual({ result: interruptedRun.result, cutOff: interruptedRun.cutOff, retry: interruptedRun.retry }, { result: 'UNKNOWN', cutOff: true, retry: true });
+  assert.deepEqual(interruptedRun.lines.slice(0, 2), ['the check run was cut off', 'deploy did not finish']);
+  assert.match(interruptedRun.lines.join('\n'), /OperationInterruptedError/);
+  assert.equal((await read(complete({ commit: SHA, ref: BRANCH, result: 'interrupted' }))).lines[1], 'a stage did not finish');
+  // A Workflow that errored or was stopped by hand was cut off too, but no wait starts it again by itself.
   const stopped = await read(instance({ status: 'errored', error: { name: 'Error', message: 'the container went away' } }));
-  assert.equal(stopped.result, 'FAILURE');
-  assert.match(stopped.lines.join('\n'), /the container went away/);
-  assert.equal((await read(instance({ status: 'terminated' }))).result, 'FAILURE');
+  assert.deepEqual({ result: stopped.result, cutOff: stopped.cutOff, retry: stopped.retry }, { result: 'UNKNOWN', cutOff: true, retry: undefined });
+  assert.deepEqual(stopped.lines, ['the check run was cut off', 'the run stopped: the container went away']);
+  const terminated = await read(instance({ status: 'terminated' }));
+  assert.deepEqual([terminated.result, terminated.cutOff, terminated.lines[1]], ['UNKNOWN', true, 'the run stopped: terminated']);
+  // A cut-off run for another commit is still a stray, and nothing to restart.
+  const stray = await read(complete(cutOff(OTHER, BRANCH)));
+  assert.deepEqual([stray.result, stray.cutOff], ['UNKNOWN', undefined]);
+});
+
+test('restartRun asks Cloudflare to restart the one run under its own name, with the token as a bearer header only', async () => {
+  const id = await runId(SHA, BRANCH);
+  const api = restartable([running]);
+  assert.deepEqual(await restartRun({ ...TARGET, id, fetch: api.fetch }), { ok: true });
+  assert.equal(api.restarts.length, 1);
+  const [{ url, init }] = api.restarts;
+  assert.equal(url, `https://api.cloudflare.com/client/v4/accounts/${ACCOUNT}/workflows/${DELIVERY.workflow}/instances/${id}/status`);
+  assert.deepEqual([init.method, init.headers.Authorization, JSON.parse(init.body)], ['PATCH', `Bearer ${TOKEN}`, { status: 'restart' }]);
+  assert.ok(!url.includes(TOKEN) && !init.body.includes(TOKEN));
+  const refused = await restartRun({ ...TARGET, id, fetch: restartable([running], refusedByCloudflare).fetch });
+  assert.equal(refused.ok, false);
+  assert.match(refused.why, /HTTP 403; the saved Cloudflare token may not restart a check run/);
+  assert.deepEqual(await restartRun({ ...TARGET, id, fetch: restartable([running], broken).fetch }), { ok: false, why: 'Cloudflare answered HTTP 500' });
+  assert.deepEqual(await restartRun({ ...TARGET, id, fetch: async () => { throw new Error('offline'); } }), { ok: false, why: 'Cloudflare could not be reached' });
+});
+
+test('only a run that was cut off may be started again', async () => {
+  const at = { sha: SHA, ref: BRANCH };
+  const refusal = async (answer) => {
+    const run = await readRun({ ...TARGET, id: await runId(SHA, BRANCH), fetch: cloudflare(answer).fetch });
+    return restartRefusal(run, verdict(run, at));
+  };
+  for (const answer of [complete(cutOff(SHA, BRANCH)), instance({ status: 'errored' }), instance({ status: 'terminated' })]) assert.equal(await refusal(answer), '');
+  assert.match(await refusal(complete(fail(SHA, BRANCH))), /failed its checks, and that failure stands/);
+  assert.match(await refusal(complete(pass(SHA, BRANCH))), /the run finished/);
+  assert.match(await refusal(complete({ commit: SHA, ref: BRANCH, result: 'none', deployed: false })), /the run finished/);
+  assert.match(await refusal(running), /still going/);
+  assert.match(await refusal(missing), /no check run exists/);
+  assert.match(await refusal(broken), /could not be read: Cloudflare answered HTTP 500/);
+  assert.match(await refusal(complete(cutOff(OTHER, BRANCH))), /could not be read: the run answered for another commit or branch/);
 });
 
 test('a commit with no checks to run is NONE', async () => {
@@ -171,6 +233,38 @@ test('a run that never appears is UNKNOWN once the grace ends, never NONE', asyn
   assert.ok(time.seconds() >= 30 && time.seconds() < 20 * 60 && api.calls.length > 1, 'the grace was not waited out');
 });
 
+test('a wait starts an interrupted run again once, and reads the result that restart produces', async () => {
+  const [api, time] = [restartable([complete(cutOff(SHA, BRANCH)), instance({ status: 'queued' }), running, complete(pass(SHA, BRANCH))]), clock()];
+  assert.deepEqual(await wait(api, time), { result: 'SUCCESS', lines: [], address: PREVIEW });
+  assert.equal(api.restarts.length, 1);
+  assert.equal(api.restarts[0].url, `${api.calls[0].url}/status`, 'the restart was for another run');
+  assert.equal(api.calls.length, 4);
+  // A restarted run that fails its checks is a failure like any other.
+  const failing = restartable([complete(cutOff(SHA, BRANCH)), complete(fail(SHA, BRANCH))]);
+  assert.equal((await wait(failing, clock())).result, 'FAILURE');
+  assert.equal(failing.restarts.length, 1);
+});
+
+test('a run still cut off after its one restart is UNKNOWN and cut off, and is not started a third time', async () => {
+  const [api, time] = [restartable([complete(cutOff(SHA, BRANCH))]), clock()];
+  const got = await wait(api, time);
+  assert.deepEqual([got.result, got.cutOff, got.lines[0]], ['UNKNOWN', true, 'the check run was cut off']);
+  assert.equal(api.restarts.length, 1);
+  assert.equal(api.calls.length, 2);
+});
+
+test('a wait whose restart Cloudflare refuses says so, and a run stopped by hand is never restarted by a wait', async () => {
+  const refused = restartable([complete(cutOff(SHA, BRANCH))], refusedByCloudflare);
+  const got = await wait(refused, clock());
+  assert.deepEqual([got.result, got.cutOff], ['UNKNOWN', true]);
+  assert.match(got.lines.at(-1), /^it could not be started again: Cloudflare answered HTTP 403/);
+  assert.deepEqual([refused.restarts.length, refused.calls.length], [1, 1]);
+  for (const status of ['errored', 'terminated']) {
+    const stopped = restartable([instance({ status })]);
+    assert.deepEqual([(await wait(stopped, clock())).cutOff, stopped.restarts.length], [true, 0], status);
+  }
+});
+
 const git = (cwd, ...args) => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@example.test', '-c', 'commit.gpgsign=false', ...args], { cwd, encoding: 'utf8' }).trim();
 
 // A checkout with `main` at one commit and branch `recipes` checked out one commit ahead: an
@@ -239,6 +333,13 @@ test('live prints the address the run on main deployed, or failed, none or unkno
   assert.deepEqual(await live({ [id]: complete(pass(SHA, MAIN, { deployed: false, app: 'untouched' })) }), ['none']);
   assert.deepEqual(await live({ [id]: running }), ['unknown']);
   assert.deepEqual(await live({ [id]: broken }), ['unknown']);
+  // A run on main that was cut off, and stays so after its one restart, is its own word: never `failed`.
+  const cut = restartable([complete(cutOff(SHA, MAIN, 'deploy'))]);
+  assert.deepEqual((await command(dir, cut, ['live', SHA])).out, ['interrupted']);
+  assert.equal(cut.restarts.length, 1);
+  assert.deepEqual((await command(dir, restartable([instance({ status: 'terminated' })]), ['live', SHA])).out, ['interrupted']);
+  const back = restartable([complete(cutOff(SHA, MAIN)), complete(pass(SHA, MAIN, { deployed: true, production: LIVE }))]);
+  assert.deepEqual((await command(dir, back, ['live', SHA])).out, [LIVE]);
   // The same commit's passing run on a branch is not the release.
   assert.deepEqual(await live({ [await runId(SHA, BRANCH)]: complete(pass(SHA, BRANCH)) }), ['unknown']);
 });
@@ -250,14 +351,70 @@ test('result prints one word for the named run, without waiting', async (t) => {
   assert.deepEqual((await command(dir, api, ['result', SHA, MAIN])).out, ['PENDING']);
   assert.deepEqual((await command(dir, api, ['result', OTHER, BRANCH])).out, ['FAILURE']);
   assert.deepEqual((await command(dir, cloudflare(broken), ['result', SHA, BRANCH])).out, ['UNKNOWN']);
+  // A cut-off run has its own word, and reading it restarts nothing.
+  for (const answer of [complete(cutOff(SHA, BRANCH)), instance({ status: 'errored' }), instance({ status: 'terminated' })]) {
+    const cut = restartable([answer]);
+    assert.deepEqual((await command(dir, cut, ['result', SHA, BRANCH])).out, ['INTERRUPTED']);
+    assert.equal(cut.restarts.length, 0);
+  }
   const [unseen] = (await command(dir, api, ['result', OTHER, MAIN])).out;
   assert.ok(!['SUCCESS', 'NONE'].includes(unseen), 'a run nobody started read as checked');
   assert.equal(api.calls.length, 4);
 });
 
+test('wait says a cut-off run was cut off, under RESULT: UNKNOWN', async (t) => {
+  const { dir, head } = checkout(t);
+  const got = await command(dir, restartable([complete(cutOff(head, BRANCH))]), ['wait', '1']);
+  assert.deepEqual(got.out.slice(0, 3), ['RESULT: UNKNOWN', '  the check run was cut off', '  checks did not finish']);
+});
+
+test('restart starts a cut-off run again, and says how to wait for it', async (t) => {
+  const { dir } = checkout(t);
+  for (const [ref, answer, waitWith] of [
+    [BRANCH, complete(cutOff(SHA, BRANCH)), 'wait'],
+    [MAIN, complete(cutOff(SHA, MAIN, 'deploy')), `live ${SHA}`],
+    [MAIN, instance({ status: 'errored', error: { message: 'the container went away' } }), `live ${SHA}`],
+    [BRANCH, instance({ status: 'terminated' }), 'wait'],
+  ]) {
+    const api = restartable([answer]);
+    const got = await command(dir, api, ['restart', SHA, ref]);
+    assert.deepEqual(got, { code: 0, out: ['RESTART: started', `  wait for it with: artifacts-run.mjs ${waitWith}`], err: [] });
+    assert.equal(api.restarts.length, 1);
+    assert.ok(api.restarts[0].url.endsWith(`/instances/${await runId(SHA, ref)}/status`), 'another run was restarted');
+  }
+});
+
+test('restart refuses a run that failed its checks, finished, is still going, or does not exist, and asks Cloudflare for nothing', async (t) => {
+  const { dir } = checkout(t);
+  for (const [answer, why] of [
+    [complete(fail(SHA, BRANCH)), /failed its checks, and that failure stands/],
+    [complete(pass(SHA, BRANCH)), /the run finished/],
+    [running, /still going/],
+    [missing, /no check run exists/],
+    [broken, /could not be read/],
+    [complete(cutOff(OTHER, BRANCH)), /another commit or branch/],
+  ]) {
+    const api = restartable([answer]);
+    const got = await command(dir, api, ['restart', SHA, BRANCH]);
+    assert.deepEqual([got.code, got.out[0], got.out.length], [1, 'RESTART: refused', 2], String(why));
+    assert.match(got.out[1], why);
+    assert.equal(api.restarts.length, 0, `${why} was restarted`);
+  }
+});
+
+test('restart reports a restart Cloudflare refuses, and an install it can not read, as failed', async (t) => {
+  const { dir } = checkout(t);
+  const got = await command(dir, restartable([complete(cutOff(SHA, BRANCH))], refusedByCloudflare), ['restart', SHA, BRANCH]);
+  assert.deepEqual([got.code, got.out[0]], [1, 'RESTART: failed']);
+  assert.match(got.out[1], /HTTP 403; the saved Cloudflare token may not restart a check run/);
+  const tokenless = await command(dir, restartable([complete(cutOff(SHA, BRANCH))]), ['restart', SHA, BRANCH], { ...QUICK, CLOUDFLARE_API_TOKEN: '' });
+  assert.deepEqual([tokenless.code, tokenless.out[0]], [1, 'RESTART: failed']);
+  assert.match(tokenless.out[1], /CLOUDFLARE_API_TOKEN/);
+});
+
 test('a command it does not know, or a commit id that is not whole, is a usage error', async (t) => {
   const { dir } = checkout(t);
-  for (const argv of [[], ['publish'], ['live'], ['live', 'abc1234'], ['result', 'abc1234', BRANCH]]) {
+  for (const argv of [[], ['publish'], ['live'], ['live', 'abc1234'], ['result', 'abc1234', BRANCH], ['restart'], ['restart', 'abc1234', BRANCH], ['restart', SHA, 'refs/tags/v1']]) {
     const got = await command(dir, holding({}), argv);
     assert.equal(got.code, 2, argv.join(' '));
     assert.deepEqual(got.out, [], argv.join(' '));

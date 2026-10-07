@@ -94,8 +94,11 @@ it("shows an employee the apps they hold as links and the rest greyed, once per-
   expect(greyed()).toEqual(lacked.map((app) => `${app.title} No access ${app.description}`));
   expect(screen.queryByRole("region", { name: "Make it yours" })).toBeNull();
   expect(screen.queryByText(/No business apps assigned/)).toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: new RegExp(`^${lacked[0].title} No access`) }));
-  expect(screen.getByRole("status").textContent).toBe(`Ask your admin for access to ${lacked[0].title}.`);
+  // A build that holds Hello alone has no card to grey: AppList's own tests press one.
+  for (const { title } of lacked.slice(0, 1)) {
+    fireEvent.click(screen.getByRole("button", { name: new RegExp(`^${title} No access`) }));
+    expect(screen.getByRole("status").textContent).toBe(`Ask your admin for access to ${title}.`);
+  }
   expect(hrefs()).toEqual(["/apps/access/", "/apps/hello/"]);
   expect(connect()).toBeTruthy();
 });

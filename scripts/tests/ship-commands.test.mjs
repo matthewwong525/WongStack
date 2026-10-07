@@ -572,6 +572,14 @@ test('an Artifacts install: a red or unread main stops prepare before any change
     assert.match(r.stderr, new RegExp(`^error=main's check run for ${moved.slice(0, 7)} reads ${word}, so it is unverified$`, 'm'));
     assert.match(r.stdout, /^NEXT: main's checks could not be read\. Report the message above and stop\.$/m);
   }
+  // A main whose run was cut off is not failing: NEXT names the restart of that same run, and nothing is archived.
+  const cut = f.run(['prepare', '--change', 'demo'], { MAIN_RESULT: 'INTERRUPTED' });
+  assert.equal(cut.status, 6);
+  assert.equal(cut.value('DEFAULT_CHECKS'), 'interrupted');
+  const again = 'node .claude/skills/save/scripts/artifacts-run.mjs';
+  assert.ok(cut.stdout.includes(`NEXT: main's check run was cut off, not failed. Start it again with \`${again} restart ${moved} refs/heads/main\`, then wait for it with \`${again} live ${moved}\`. Rerun this command when that prints an address or none; on anything else, report it and stop.\n`), cut.stdout);
+  assert.doesNotMatch(cut.stdout, /checks are failing|could not be read/);
+  assert.equal(f.has('openspec/changes/demo'), true);
   // A main that can not be fetched names no run to read.
   f.git('remote', 'set-url', 'origin', join(f.dir, 'missing.git'));
   const unfetched = f.run(['prepare', '--change', 'demo']);
@@ -645,6 +653,23 @@ test('an Artifacts install: a red or unread main after the publish stops, and no
     assert.equal(calls.match(/^node artifacts-run\.mjs live /gm).length, 1, 'the live look is not run');
     noGh(f);
   }
+});
+
+test('an Artifacts install: a main cut off after the publish gets the restart as its NEXT, and nothing is pushed again', t => {
+  const f = fixture(t, { artifacts: true });
+  f.commit({ 'app.txt': 'two\n' });
+  f.git('push', '-q', '-u', 'origin', 'work');
+  const r = f.run(['finish'], { RUN_LIVE: 'interrupted' });
+  assert.equal(r.status, 3, `${r.stdout}${r.stderr}`);
+  assert.match(r.stdout, /^merged=yes\ncommit=[0-9a-f]{40}\nmain=INTERRUPTED\n/);
+  const commit = r.value('commit');
+  const again = 'node .claude/skills/save/scripts/artifacts-run.mjs';
+  assert.ok(r.stdout.endsWith(`LIVE_LOOK=unknown\nREASON=main's check run was cut off, so this change is on main but not live yet\nNEXT: it is on main, and its check run was cut off, not failed. Start it again with \`${again} restart ${commit} refs/heads/main\`, then wait for it with \`${again} live ${commit}\`. Report it live at the address that prints; on anything else, report REASON and stop. Never push again to make main pass.\n`), r.stdout);
+  assert.doesNotMatch(r.stdout, /checks or deploy failed|invoke apply/);
+  const calls = f.calls();
+  assert.equal(calls.match(TO_MAIN).length, 1, 'one push to main, never a second');
+  assert.equal(calls.match(/^node artifacts-run\.mjs live /gm).length, 1, 'the live look is not run');
+  noGh(f);
 });
 
 test('a route that can not be told stops prepare and finish, and neither falls back to GitHub', t => {

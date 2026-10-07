@@ -4,7 +4,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { ConnectDialog } from './ConnectDialog'
 
 // The body of the Connect your assistant popup, in each of its four states. It is drawn only inside the popup.
-const setup = () => ({ role: 'employee', api: 'authenticated', identity: { email: 'person@example.com', subject: 'person' }, apps: ['hello', 'tips'], titles: undefined as Record<string, string> | undefined,
+const setup = () => ({ role: 'employee', api: 'authenticated', identity: { email: 'person@example.com', subject: 'person' }, apps: ['hello', 'access'], titles: undefined as Record<string, string> | undefined,
   repository: 'manual_provider_setup', memory: 'independent_operator_setup', prompt: { state: 'ready', text: 'Synthetic setup message' } as object })
 let own: ReturnType<typeof setup>
 let reply: () => Response | Promise<Response>
@@ -52,7 +52,7 @@ it('gives three numbered steps with one solid Copy button, who signs in, what to
   const ask = popup.getByText('What can I do here?')
   expect([ask.tagName, ask.parentElement!.textContent]).toEqual(['Q', 'Then ask it: What can I do here?'])
   expect(steps.compareDocumentPosition(ask) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-  expect(popup.getByText('It can use: Hello, Tip calculator')).toBeTruthy()
+  expect(popup.getByText('It can use: Hello, Access')).toBeTruthy()
   // Copying by hand stays, as a small line.
   expect(popup.getByText("Can't copy? Show the message").tagName).toBe('SUMMARY')
   expect(popup.queryByText(/sign in to this app/i)).toBeNull()

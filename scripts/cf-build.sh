@@ -62,6 +62,20 @@ if [ "${1:-}" = "--app-dir" ]; then
   exit 0
 fi
 
+# `--types` regenerates the binding types and exits, building nothing. The shared
+# checks call it in CI before the suite compiles, so a binding the config has
+# and the committed types lack fails there, where a save reports it, and never
+# first in the deploy build. A repo with no wrangler config has none to
+# regenerate, and that is a pass.
+if [ "${1:-}" = "--types" ]; then
+  if ! wong_resolve_wrangler_config "$ROOT" 2>/dev/null; then
+    echo "cf-build: no wrangler config, so no binding types to regenerate"
+    exit 0
+  fi
+  wong_regenerate_types cf-build
+  exit 0
+fi
+
 wong_resolve_wrangler_config "$ROOT"
 
 wong_ci_branch "$ROOT"
@@ -113,16 +127,9 @@ else
   echo "cf-build: $WHICH binds no D1 database — skipping migrations"
 fi
 
-# Regenerate the binding types before building. `wrangler.jsonc` is the source
-# of truth for bindings and `worker-configuration.d.ts` is generated from it, so
-# a binding added during provisioning — or in any later change — fails `tsc`
-# with "Property 'DB' does not exist on type 'Env'" until someone remembers to
-# run this by hand. CI regenerates, so nobody has to remember. Non-fatal: a repo
-# that doesn't use TypeScript has nothing to generate.
-if [ -f "$APP_DIR/package.json" ] && grep -q '"typescript"' "$APP_DIR/package.json"; then
-  echo "cf-build: regenerating binding types"
-  (cd "$APP_DIR" && npx wrangler types) || echo "cf-build: WARNING — wrangler types failed; continuing" >&2
-fi
+# Regenerate the binding types before building; the checks did the same before
+# they compiled (`--types` above).
+wong_regenerate_types cf-build
 
 echo "cf-build: building"
 

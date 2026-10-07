@@ -3,6 +3,17 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 37.2.5 — A new install kept in Cloudflare saves and publishes the first time
+
+- **A new install kept in Cloudflare alone now gets its first preview and goes live with no fix by hand.** A real test install of 37.2.3 was set up correctly and then could not publish. Four faults stood in the way; each is fixed here.
+- **A new install passes its own tests.** Its tests looked for two sample apps and a sample skill that only WongStack's own copy has, so they failed on day one. The tests an install receives now need only what the install receives.
+- **The preview builds on an install kept in Cloudflare.** The last step before a preview rejected the part that hands the project to a teammate, because two descriptions of the same Cloudflare connection disagreed. The part always worked; its description is fixed. The checks now compare against the same description the preview build uses, so a disagreement like this fails early and says why.
+- **The checker fetches the app's packages again before it builds a preview or the live site.** It sometimes lost some of them between checking a change and building it, a different one each time, and failed a change that had passed. The fetch runs with the publishing key out of reach.
+- **A check run that Cloudflare cuts off is tried again, not counted as a failure.** It is tried up to three times by itself. If it still does not finish it is reported as *cut off*, not *failed*, and your assistant can start that same run again. Before, one cut-off run on a brand-new project blocked every publish for good.
+- **WongStack now tests itself as an install does.** A new check builds the app from exactly the files an install receives, set up as an install kept in Cloudflare, and runs its tests. Two of the four faults could not be seen from WongStack's own copy.
+
+**Updating.** Nothing needs doing by hand. An install kept in Cloudflare gets the new checker on this update: your assistant reinstalls it, the small program in your Cloudflare account that checks each save. An install kept on GitHub already saved and published, and keeps working the same way.
+
 ## 37.2.4 — The landing page guide says what the headline may name
 
 - **The landing page guide has a new rule for the headline.** The headline and the text a shared link shows may name an assistant WongStack sets up, such as Claude Code or Codex, once it has been tried as a working assistant. The rule used to say they name no other product.

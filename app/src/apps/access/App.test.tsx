@@ -4,6 +4,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { App } from './App'
 import { FINISH_REQUEST } from './status'
 import { appAccessSchema, readAccess, setupSchema, statusSchema, useAccess, type Level, type Person, type Skill, type Status } from '../../lib/access'
+import { apps as built } from '../../lib/apps'
 import { Home } from '../../pages/home/Home'
 import { AppPage } from '../AppPage'
 import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router'
@@ -334,8 +335,8 @@ it('reads Access is unavailable with Retry when people or permissions cannot be 
 })
 it('a person who manages nothing sees only what they can use, each area with their level, with no steps for connecting and no button for them, before and after permissions start', async () => {
   // Once permissions start, each area they hold shows with their level. Before, there are no levels yet: every app, by its title.
-  catalogue = ['access', 'hello', 'tips']; mine = [{ id: 'hello', title: 'Hello', screen: true, level: 'read' }]
-  for (const [viewer, apps] of [['employee', ['Hello Look up']], ['waiting-employee', ['Hello', 'Tip calculator']]] as const) {
+  catalogue = built.map(app => app.name); mine = [{ id: 'hello', title: 'Hello', screen: true, level: 'read' }]; expect(catalogue).toEqual(expect.arrayContaining(['access', 'hello']))
+  for (const [viewer, apps] of [['employee', ['Hello Look up']], ['waiting-employee', built.filter(app => app.name !== 'access').map(app => app.title)]] as const) {
     mode = viewer; open(); const can = await screen.findByRole('region', { name: 'You can use' })
     // Connecting an assistant is Home's card: nothing of it is drawn or read here.
     expect([screen.queryByRole('dialog', { hidden: true }), screen.queryByRole('button', { name: /Connect|Copy/ }), steps()], viewer).toEqual([null, null, null])
@@ -475,7 +476,7 @@ it('failed permissions withhold app cards, failed setup withholds the steps, and
 })
 it('selected home cards and direct app pages obey the same current readback', async () => {
   mode = 'employee'; render(<Home />); await screen.findByRole('link', { name: /Hello Example/ })
-  expect(screen.queryByRole('link', { name: /Tip calculator/ })).toBeNull(); expect(screen.getByRole('button', { name: /^Tip calculator No access/ }).getAttribute('aria-disabled')).toBe('true'); cleanup()
+  for (const { title } of built.filter(app => !catalogue.includes(app.name))) { expect(screen.queryByRole('link', { name: new RegExp(title) }), title).toBeNull(); expect(screen.getByRole('button', { name: new RegExp(`^${title} No access`) }).getAttribute('aria-disabled'), title).toBe('true') }; cleanup() // every other app this build holds is greyed; an install holds Hello alone, and AppList's tests cover a greyed card
   const page = () => render(<MemoryRouter initialEntries={['/apps/hello/']}><Routes><Route path="/apps/:name/" element={<AppPage />} /></Routes></MemoryRouter>)
   catalogue = ['access']; page(); await screen.findByText('App access denied'); expect(screen.queryByText('Enter your name')).toBeNull(); cleanup()
   // Before permissions start, the page opens whatever the list says.
