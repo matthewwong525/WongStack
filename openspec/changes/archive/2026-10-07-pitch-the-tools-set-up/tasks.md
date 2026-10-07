@@ -25,4 +25,4 @@ The copy and each decision's number are in design.md - Decisions. Write every se
 - [x] 4.1 Run `openspec validate "pitch-the-tools-set-up" --strict --no-interactive` and expect it valid.
 - [x] 4.2 Run `node .github/scripts/checks.mjs --worktree` and repair what fails.
 - [x] 4.3 In `site/`, run `npm run lint`, `npm test`, and `npm run build`; expect all to pass.
-- [ ] 4.4 After `/save`, open the landing page's own preview (the `landing-preview` status on the commit) at 320 px, phone, and desktop width: the name slides between Claude Code and Codex without the headline jumping or scrolling sideways, reduced motion shows Claude Code still, and the works-with section reads cleanly. Open the README as GitHub renders it on the branch and read the first screen.
+- [x] 4.4 After `/save`, open the landing page's own preview (the `landing-preview` status on the commit) at 320 px, phone, and desktop width: the name slides between Claude Code and Codex without the headline jumping or scrolling sideways, reduced motion shows Claude Code still, and the works-with section reads cleanly. Open the README as GitHub renders it on the branch and read the first screen.

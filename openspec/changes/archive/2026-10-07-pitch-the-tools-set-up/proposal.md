@@ -1,6 +1,6 @@
 # The landing page and README say: Claude Code and Codex, for people who don't code
 
-**Status:** in-progress
+**Status:** ready-to-ship
 
 **Branch:** open-source-any-ai
 
@@ -94,3 +94,5 @@ None.
 - **2026-10-07** — Built: task 1.4's search still finds the removed products' names in `site/src/Site.test.tsx`, where the new guard test must name them; no page names one.
 - **2026-10-07** — Check: `site/src/Site.test.tsx` now expects more than 5 drawings on the site, not more than 10, because removing the four comparison logos leaves exactly 10.
 - **2026-10-07** — Saved: everything is written and the checks on this computer pass; the spec carries the new promise. The look at the saved landing page preview (task 4.4) is still to do.
+- **2026-10-07** — Looked at the saved landing page preview at 320 px, 390 px, and 1280 px: the name slides between Claude Code and Codex, the headline keeps one height and never scrolls sideways, reduced motion shows Claude Code still, and the works-with section reads cleanly. The README's opening was read on the branch.
+- **2026-10-07** — Archive checkpoint: built, looked at on the saved preview, and filed for publishing as 37.2.4.

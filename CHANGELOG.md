@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (patch) — The landing page guide says what the headline may name
+## 37.2.4 — The landing page guide says what the headline may name
 
 - **The landing page guide has a new rule for the headline.** The headline and the text a shared link shows may name an assistant WongStack sets up, such as Claude Code or Codex, once it has been tried as a working assistant. The rule used to say they name no other product.
 - **The guide says the site compares WongStack with no other product.** A wrong claim about another company's product is a liability, so the comparison table is gone, and its upkeep note with it.
