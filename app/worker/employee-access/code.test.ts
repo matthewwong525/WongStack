@@ -61,7 +61,7 @@ it("registers Project code as a key with Read alone, offered with no app, that n
   expect(changedSet({ apps: {}, keys: {} }, { apps: { orders: "read" } }).keys).toEqual({});
   // Saved follows whether the project can be handed out: a Cloudflare-kept one needs no secret.
   const row = (bindings: object) => keyCatalogue(bindings, {}).find(key => key.id === "code");
-  expect(row({})).toEqual({ id: "code", title: "Project code", levels: ["read"], saved: false, setup: false, usedBy: [], alone: true });
+  expect(row({})).toEqual({ id: "code", title: "Project code", levels: ["read"], saved: false, setup: false, usedBy: [], alone: true, direct: null });
   expect([row(github)!.saved, row(artifacts().env)!.saved, saved({ WONG_CODE_READ: TOKEN }, "code")]).toEqual([true, true, false]);
   // No route is handed the credential or the binding, even one that lists the key.
   const all = { DB: {}, ...github, ARTIFACTS: {}, WONG_CLOUDFLARE_READ: "look-up" };

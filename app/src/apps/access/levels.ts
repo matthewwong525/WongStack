@@ -1,4 +1,4 @@
-import type { Area, Level, SavedKey, Status } from '../../lib/access'
+import type { Area, Level, SavedKey, Skill, Status } from '../../lib/access'
 
 type Levels = Record<string, Level | null>
 /** A set as a page edits it: a level per area, by its folder, and a level per key. None is null, or left out. */
@@ -14,10 +14,17 @@ const REACH = { read: 'Look up', write: 'Look up & change' }
 // What an app does with a key, in the words of the level table: look up, change.
 const NEED = { read: 'look up', write: 'look up, change' }
 
+// A key's direct-use choice: its name where it is picked, what it passes on, and its word on the key's row.
+const DIRECT = { read: 'Look-ups only', write: 'Look-ups and changes' }
+const PASSES = { read: 'look-ups', write: 'look-ups and changes' }
+const DIRECT_SHORT = { read: 'look-ups', write: 'changes' }
+
 /** A key's level as the screens name it. */
 export const levelName = (level: Level | null) => level ? LEVEL[level] : 'None'
 /** An area's level as the screens name it. */
 export const reachName = (level: Level | null) => level ? REACH[level] : 'None'
+/** A key's direct-use choice as the screens name it: no choice is Off. */
+export const directName = (mode: Level | null) => mode ? DIRECT[mode] : 'Off'
 /** The parts of one line, the empty ones left out. */
 export const dots = (...parts: (string | false | null | undefined)[]) => parts.filter(Boolean).join(' · ')
 export const capital = (text: string) => text[0].toUpperCase() + text.slice(1)
@@ -97,12 +104,20 @@ const appGaps = (status: Status, set: AccessSet): Gap[] => status.areas.flatMap(
   return line ? [{ id: `app:${id}`, title, line: `${title} ${line}`, needs }] : []
 })
 
-/** A skill counts once every area it calls is held. Its gap is a level, or a key, below what it needs. */
+/** Each key a skill uses directly whose direct-use choice stops it, in the words a refusal uses: `Notion: direct use
+ *  is off`. Nobody can run the skill, the owner included, until the choice is changed where the key is opened. */
+export const directOff = (status: Status, skill: Skill) => Object.entries(skill.direct ?? {}).flatMap(([id, need]) => {
+  const mode = status.keys.find(key => key.id === id)?.direct?.mode
+  return below(mode, need) ? [`${titled(status.keys, id)}: direct ${mode ? 'changes are' : 'use is'} off`] : []
+})
+
+/** A skill counts once every area it calls is held. Its gap is a level, or a key, below what it needs, or a
+ *  direct-use choice that stops it. */
 const skillGaps = (status: Status, set: AccessSet): Gap[] => status.skills.flatMap(skill => {
   const areas = Object.keys(skill.areas)
-  const lacking = missing(set, skill)
-  return areas.length > 0 && areas.every(id => set.apps[id]) && !nothing(lacking)
-    ? [{ id: `skill:${skill.id}`, title: skill.title, line: `${skill.title}: ${needLabels(status, lacking).join(', ')}`, needs: skill }] : []
+  const lacking = [...needLabels(status, missing(set, skill)), ...directOff(status, skill)]
+  return areas.length > 0 && areas.every(id => set.apps[id]) && lacking.length > 0
+    ? [{ id: `skill:${skill.id}`, title: skill.title, line: `${skill.title}: ${lacking.join(', ')}`, needs: skill }] : []
 })
 
 /** `Hello can look up, not change`, `Refund a customer: Stripe Read & write`: each app and skill of a set that can't do its job yet. */
@@ -134,7 +149,7 @@ export const sameSet = (one: AccessSet, other: AccessSet) => given(one) === give
 /** What a held area opens, under its level: its own screen, and each skill the set can run that calls it. */
 export const opensLine = (status: Status, set: AccessSet, area: Area) => {
   const opened = set.apps[area.id] ? [area.screen && `${area.title} app`,
-    ...status.skills.filter(skill => Object.hasOwn(skill.areas, area.id) && covers(set, skill)).map(skill => skill.title)].filter(Boolean).join(', ') : ''
+    ...status.skills.filter(skill => Object.hasOwn(skill.areas, area.id) && covers(set, skill) && !directOff(status, skill).length).map(skill => skill.title)].filter(Boolean).join(', ') : ''
   return dots(!area.screen && 'no screen', opened && `opens ${opened}`)
 }
 
@@ -143,11 +158,17 @@ const aloneDoes = (key: SavedKey) => key.id === 'code' ? 'installs the project' 
 /** The same for a key that works alone, saying no app is needed: under a key's level, and in an opened key. */
 export const aloneLine = (key: SavedKey) => key.alone ? `${aloneDoes(key)}, no app needed` : ''
 
-/** Under a key's level: which of the set's apps use it, and what it does with no app. */
+/** Under a key's level: which of the set's apps use it, what it does with no app, and, while the key's direct-use
+ *  choice is on, that the level also reaches the service itself. */
 export const keyLine = (status: Status, set: AccessSet, key: SavedKey) => {
   const users = key.usedBy.filter(use => set.apps[use.app]).map(use => areaTitle(status, use.app)).join(', ')
-  return dots(users && `used by ${users}`, aloneLine(key))
+  const mode = key.direct?.mode
+  return dots(users && `used by ${users}`, aloneLine(key), mode && `also reaches ${key.title} directly: ${PASSES[mode]}`)
 }
+
+/** Under the choice in an opened key: what the pick opens, and how many people hold a level it reaches. */
+export const directLine = (mode: Level | null, people: number) => !mode ? 'Off: no assistant can use this key directly.' :
+  `Anyone with Read can look up anything this key can see${mode === 'write' ? ', and anyone with Read & write can change it' : ''}. ${count(people, 'person', 'people')} today.`
 
 /** What uses a key, for an opened key. */
 export function keyUseLine(status: Status, key: SavedKey): string {
@@ -156,9 +177,11 @@ export function keyUseLine(status: Status, key: SavedKey): string {
     !key.levels.includes('write') && 'Read only')
 }
 
-/** The same, short enough for one line of the Keys list: how many apps, not which, and no `no app needed`. The key's panel says the rest. */
+/** The same, short enough for one line of the Keys list: how many apps, not which, and no `no app needed`. A key
+ *  set up for direct use adds its choice in a word. The key's panel says the rest. */
 export const keyUseShort = (key: SavedKey): string =>
-  dots(key.usedBy.length > 0 && count(key.usedBy.length, 'app'), key.alone && capital(aloneDoes(key))) || 'Nothing uses it yet'
+  dots(key.usedBy.length > 0 && count(key.usedBy.length, 'app'), key.alone && capital(aloneDoes(key)),
+    key.direct && `Direct: ${key.direct.mode ? DIRECT_SHORT[key.direct.mode] : 'off'}`) || 'Nothing uses it yet'
 
 /** Setup makes some keys itself, for the live app: no step can finish one on a preview. The others arrive through a private link. */
 export const keyState = (key: SavedKey, environment: Status['environment']) =>

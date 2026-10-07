@@ -4,13 +4,15 @@ import { type ConnectionEnv, type Core, AccessError, ownerCore, lease, release, 
 import { accessStatus, changeMember } from "./members.ts";
 import { changeRole } from "./roles.ts";
 import { changeGrants } from "./grants.ts";
+import { changeDirect } from "./direct.ts";
 import { catalogueWrites } from "./sets.ts";
 import { reconcileLogin } from "./login-management.ts";
 import { startKeyLevels, startPermissions } from "./start.ts";
 import { boundedJson } from "./json.ts";
 
 // Each save the owner or a manager can make. Only a people save can change who signs in, or who manages.
-const saves = new Map([["people", changeMember], ["roles", changeRole], ["grants", changeGrants]]);
+// `direct` sets one key's direct-use choice.
+const saves = new Map([["people", changeMember], ["roles", changeRole], ["grants", changeGrants], ["direct", changeDirect]]);
 
 export async function management(request: Request, env: ConnectionEnv, identity: AccessIdentity | null): Promise<Response> {
   try {

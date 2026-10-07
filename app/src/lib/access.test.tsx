@@ -55,3 +55,14 @@ it('reads why the project can not be handed out, and works it out from Project c
   expect([status({ keys: [code(true)] }).project, status({ keys: [code(false)] }).project, status({}).project]).toEqual(['ready', 'key', 'key'])
   expect(statusSchema.safeParse({ ...status({}), project: 'soon' }).success).toBe(false)
 })
+
+it("reads a key's direct-use choice and the choice a skill needs, and a status sent without either", () => {
+  const key = (direct?: unknown) => ({ id: 'notion', title: 'Notion', levels: ['read', 'write'], saved: true, setup: false, usedBy: [], alone: false, ...(direct !== undefined && { direct }) })
+  const skill = (direct?: unknown) => ({ id: 'find', title: 'Find a page', areas: {}, keys: { notion: 'read' }, ...(direct !== undefined && { direct }) })
+  const status = (changes: object) => statusSchema.safeParse({ ownerEmail: 'owner@example.com', viewer: { email: 'owner@example.com', owner: true }, environment: 'live',
+    key: 'ready', started: true, imported: 0, keysStarted: true, kept: 0, areas: [], skills: [], appKeys: {}, keys: [], roles: [], people: [], work: [], ...changes })
+  const read = status({ keys: [key({ offered: ['read', 'write'], mode: 'read' }), key({ offered: ['read'], mode: null }), key(null), key()], skills: [skill({ notion: 'write' }), skill()] })
+  expect(read.data?.keys.map(item => item.direct)).toEqual([{ offered: ['read', 'write'], mode: 'read' }, { offered: ['read'], mode: null }, null, undefined])
+  expect(read.data?.skills.map(item => item.direct)).toEqual([{ notion: 'write' }, undefined])
+  for (const wrong of [{ keys: [key({ offered: ['read'], mode: 'admin' })] }, { keys: [key({ mode: 'read' })] }, { skills: [skill({ notion: 'admin' })] }]) expect(status(wrong).success).toBe(false)
+})

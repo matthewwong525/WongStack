@@ -26,6 +26,9 @@
 -- labels. The owner is the committed WONG_OWNER_EMAIL, not this row; its
 -- identifiers are made up and name nothing real.
 --
+-- No key has a direct-use choice here (wong_access_key_direct holds no row), so
+-- a preview starts with direct use off for every key, as a new install does.
+--
 -- Their levels differ, so a preview shows each state of a skill that needs
 -- Hello at Look up, Sample records at Look up & change, and Project code:
 -- Dana can run it, the Helpers role lacks an area, and Eli lacks a key.

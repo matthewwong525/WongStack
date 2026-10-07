@@ -2,16 +2,21 @@
 // A new route is a handler file in this folder and one entry in `routes`.
 import { health } from "./health.ts";
 import { cloudflareRead } from "./cloudflare.ts";
+import { forwardRoutes } from "./forward.ts";
 import { dispatch, keyUses, registrations, type Route } from "./contract.ts";
 import type { AccessIdentity } from "../access.ts";
 import type { PolicyEnv, RouteAccess } from "../employee-access/policy.ts";
+import { keys } from "../keys.ts";
 
 export const API_PREFIX = "/api/";
 
+// Each key whose service is set up for direct use gets its two routes from the registry, with their mappings:
+// POST /api/direct/<key>/read and /change. No key ships set up, so a new install has none.
+const direct = forwardRoutes(keys);
 
 // Keyed "METHOD /path". A Map, not an object, so a path like /api/constructor
 // can not reach a property every object inherits.
-const routes = new Map<string, Route>([["GET /api/health", health], ["GET /api/cloudflare/read", cloudflareRead]]);
+const routes = new Map<string, Route>([["GET /api/health", health], ["GET /api/cloudflare/read", cloudflareRead], ...direct.routes]);
 
 // List every custom main route here with the areas it serves and the saved keys it uses:
 // { apps: ["orders"], keys: ["stripe"] }. Each name is a built folder under src/apps/ or worker/apps/,
@@ -21,6 +26,7 @@ const routes = new Map<string, Route>([["GET /api/health", health], ["GET /api/c
 const routeAccess = new Map<string, RouteAccess>([
   ["GET /api/health", { kind: "infrastructure" }],
   ["GET /api/cloudflare/read", { keys: ["cloudflare"] }],
+  ...direct.access,
 ]);
 
 export const mainRouteInventory = () => [...routes.keys()].map(route => ({ route, access: routeAccess.get(route) }));

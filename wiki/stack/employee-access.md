@@ -85,10 +85,11 @@ Each saved key has a level per person. A level is set once per key and holds in 
 - **What an app does with a key comes from its routes.** *Uses Stripe: look up, change* is worked out from [the keys each route lists](company-api.md#list-the-keys-a-route-uses), so the screen shows what the server enforces. An app is handed only the keys it lists.
 - **A key that offers only Read shows two choices.** [The supplied Cloudflare key](company-api.md#look-things-up-in-cloudflare) is one.
 - **The owner holds every key.** So does the verification service token, as it keeps every app. A manager holds only the levels they were given.
+- **Direct use makes a level mean more.** A key whose service is set up can be [used directly](company-api.md#use-a-key-directly), with no built action. The opened key has one choice for it: *Off*, *Look-ups only*, or *Look-ups and changes*. It is *Off* until the owner or a manager picks, on an install that updates too. At *Look-ups only*, Read lets a person's assistant look up anything the key can see; at *Look-ups and changes*, Read & write also changes it. The choice binds the owner and the verification service too, and a refusal names it: *Notion: direct use is off*.
 
 ### A key with no app
 
-A look-up can belong to a key alone. A person with that key's level can run it with no app ticked, and every app's actions stay refused. Cloudflare look-ups and [Project code](employee-project.md#who-gets-what) ship this way. For another key, ask the usual way, such as *let the team look up a charge*, and the assistant [builds the action](company-api.md#list-the-keys-a-route-uses). No key works alone until levels have started.
+A look-up can belong to a key alone. A person with that key's level can run it with no app ticked, and every app's actions stay refused. Cloudflare look-ups and [Project code](employee-project.md#who-gets-what) ship this way. For another key, ask the usual way, such as *let the team look up a charge*, and the assistant [builds the action](company-api.md#list-the-keys-a-route-uses). Direct use needs no app either, only the key's level and its choice. No key works alone until levels have started.
 
 ## Roles
 

@@ -83,3 +83,11 @@ it('counts how many people can run a skill, of everyone who can sign in: the own
   expect(canRun({ ...status, people: [person('lee@shop.com', { role: 'sales', apps: kim.apps, keys: kim.keys })] }, refund)).toBe('2 of 2')
   expect(canRun({ ...status, people: [] }, refund)).toBe('1 of 1')
 })
+
+it('counts nobody, the owner included, while a direct-use choice stops a skill, and says which choice', () => {
+  const find: Skill = { id: 'find', title: 'Find a page', areas: {}, keys: { notion: 'read' }, direct: { notion: 'read' } }
+  const withNotion = (mode: 'read' | null): Status => ({ ...status, keys: [...status.keys, { ...key('notion', 'Notion'), direct: { offered: ['read', 'write'], mode } }],
+    people: [person('kim@shop.com', { keys: { notion: 'read' } }), person('bo@shop.com')] })
+  expect(canRun(withNotion(null), find)).toBe('0 of 3 · Notion: direct use is off')
+  expect(canRun(withNotion('read'), find)).toBe('2 of 3')
+})

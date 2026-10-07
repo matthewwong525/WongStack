@@ -179,3 +179,22 @@ it("counts an area with no screen as an app on a person's row, and as a gap each
   // Opened, the person's panel names the skill and what it still needs.
   follow('bo@shop.com'); expect(within(await panel('bo@shop.com')).getByText('Refund a customer: Orders Look up & change').textContent).toBe('! Refund a customer: Orders Look up & change')
 })
+
+it("says once, on the row and in the panel, that a key's direct-use choice stops a skill for everyone, and where to change it", async () => {
+  // Finding a page looks things up in Notion directly. Kim holds Notion at Read; the key's choice is off.
+  roster.keys.push(key('notion', 'Notion', { direct: { offered: ['read', 'write'], mode: null } }))
+  roster.skills.push({ id: 'find', title: 'Find a page', areas: {}, keys: { notion: 'read' }, direct: { notion: 'read' } })
+  roster.people[1].keys.notion = 'read'
+  open('skills/find'); const box = await panel('Find a page'); const inside = within(box)
+  expect(rows(await table('Skills')).at(-1)).toEqual(['Find a page', '1 key', '0 of 7 · Notion: direct use is off'])
+  // Nobody can run it, the owner included: the choice is named once, marked like any gap, above what each person lacks.
+  expect([inside.getByRole('group', { name: 'Can run' }).textContent, inside.queryByRole('list', { name: 'Can run' })]).toEqual(['Can runNobody yet', null])
+  const stopped = inside.getByText('Notion: direct use is off. Open the key in Keys to change it.')
+  expect([stopped.textContent, inside.getByRole('group', { name: "Can't yet" }).contains(stopped)]).toEqual(['! Notion: direct use is off. Open the key in Keys to change it.', true])
+  expect(listed(box, "Can't yet")).not.toContain('! kim@shop.com: Notion Read'); expect(inside.queryByText(NOBODY)).toBeNull()
+  // Once the owner picks look-ups only, the people whose level covers it can run it, and nothing is said about the choice.
+  cleanup(); roster.keys.at(-1)!.direct = { offered: ['read', 'write'], mode: 'read' }
+  open('skills/find'); const after = await panel('Find a page')
+  expect(rows(await table('Skills')).at(-1)).toEqual(['Find a page', '1 key', '2 of 7'])
+  expect([listed(after, 'Can run'), within(after).queryByText(/direct use is off/)]).toEqual([['You', 'kim@shop.com'], null])
+})

@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
 
-import { API_PREFIX, handleApi } from "./router";
+import { API_PREFIX, apiActions, apiKeyUse, handleApi, mainRouteInventory } from "./router";
 
 const call = (path: string, method = "GET") =>
   handleApi(new Request(`https://example.com${path}`, { method }), {} as Env);
@@ -35,4 +35,11 @@ it("does not match a property every object inherits", async () => {
   for (const path of ["/api/constructor", "/api/__proto__", "/api/toString"]) {
     await expectNotFound(await call(path));
   }
+});
+
+it("adds no direct-use route: no key this template ships is set up for it", async () => {
+  expect(mainRouteInventory().map(({ route }) => route)).toEqual(["GET /api/health", "GET /api/cloudflare/read"]);
+  expect(apiActions.map(({ action }) => action.operationId)).toEqual(["main.health", "cloudflare.read"]);
+  expect(apiKeyUse).toEqual([{ apps: [], keys: ["cloudflare"], need: "read" }]);
+  await expectNotFound(await call("/api/direct/cloudflare/read", "POST"));
 });

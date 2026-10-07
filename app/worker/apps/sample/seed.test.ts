@@ -14,7 +14,7 @@ it("staging shows the sample area with no screen and each state of the sample sk
     // The sample area has no screen, and the sample skill needs it at Look up & change, Hello at Look up, and Project code:
     // Dana holds all of it, the role lacks the area, and Eli lacks the key.
     expect(opened.areas).toMatchObject([{ id: "hello", screen: true }, { id: "sample", title: "Sample records", screen: false }, { id: "tips", screen: true }]);
-    expect(opened.skills).toEqual([{ id: "sample-report", title: "Sample report", areas: { sample: "write", hello: "read" }, keys: { code: "read" } }]);
+    expect(opened.skills).toEqual([{ id: "sample-report", title: "Sample report", areas: { sample: "write", hello: "read" }, keys: { code: "read" }, direct: {} }]);
     const sets = Object.fromEntries([...opened.roles, ...opened.people].map(({ name, email, apps, keys }) => [name ?? email, { apps, keys }]));
     expect(sets).toMatchObject({ Helpers: { apps: { hello: "write" }, keys: { code: "read" } },
       "dana@example.invalid": { apps: { hello: "write", tips: "write", sample: "write" }, keys: { cloudflare: "read", code: "read" } },

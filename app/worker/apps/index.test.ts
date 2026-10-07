@@ -85,7 +85,7 @@ it("does not match a property every object inherits", async () => {
 it("applies the app slug to both bare and described routes before handler work", async () => {
   const employee = { ...person, claims: { ...person.claims, sub: "employee", email: person.id,
     iss: "https://business.cloudflareaccess.com", aud: "app", exp: 9999999999 } };
-  const row = { policy_enabled: 1, keys_enabled: 0, revision: 1, status: "active", manager: 0, apps: '{}', keys: "{}" };
+  const row = { policy_enabled: 1, keys_enabled: 0, revision: 1, status: "active", manager: 0, apps: '{}', keys: "{}", direct: "{}" };
   const first = vi.fn(async () => row);
   const db = { withSession: vi.fn(() => ({ prepare: () => ({ bind: () => ({ first }) }) })) };
   const bindings = fakeEnv({ ...env, DB: db, WONG_OWNER_EMAIL: "actual-owner@example.com", CF_ACCESS_TEAM_DOMAIN: "business.cloudflareaccess.com",
