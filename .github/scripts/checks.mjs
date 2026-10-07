@@ -7,10 +7,20 @@
 // Markdown the suite skips. The script ships with the Cloudflare pack, so a repo
 // without the pack, or one that has not synced it yet, has none and skips it.
 //
+// In CI, where the checkout is thrown away, the suite compiles against binding
+// types regenerated from the wrangler config (`scripts/cf-build.sh --types`), as
+// the deploy build does: a binding the config has and the committed types lack
+// fails here, never first in the deploy. The `--worktree` run leaves the
+// committed file alone.
+//
 // When the change touches a check's settings, the suite's packages, or the proof
 // itself, it also runs the suite's `test:checks` script, which hands each check a
 // bad sample and fails when one lets it through. Other changes skip that proof and
 // say so; a change with no base to compare runs it.
+//
+// The WongStack source repo also tests its app as an install receives it
+// (`scripts/check-target-app.mjs`), on both runs, when the change touches the
+// suite's folder or the list of shipped files. No install has that script.
 //
 // With `--worktree`, it checks the uncommitted work on this computer before the
 // first push: the same suite, proof, loosened-check guard, and wiki check, scoped by
@@ -36,11 +46,11 @@ The default branch labels caller context; it does not select the base.
 --discover  print scope and test-suite location as JSON; run no checks
 --summary   append quality reports and the final summary to this file
 --worktree  check the uncommitted work here, before a push; never the gate
---only      with --worktree, rerun only these: suite, proof, loosened, wiki, skills, payload, payload:<step>
+--only      with --worktree, rerun only these: suite, proof, target, loosened, wiki, skills, payload, payload:<step>
 --lock-wait with --worktree, seconds to wait for another chat's run (default 600)`;
 const scripts = dirname(fileURLToPath(import.meta.url));
 const SHA = /^[0-9a-f]{40}([0-9a-f]{24})?$/;
-const PART = /^(suite|proof|loosened|wiki|skills|payload(:[a-z-]+)?)$/;
+const PART = /^(suite|proof|target|loosened|wiki|skills|payload(:[a-z-]+)?)$/;
 const NO_TOOLS = 7;
 // The suite's script that proves each of its checks still fails on a bad sample, and the file behind it.
 const PROOF = 'test:checks';
@@ -50,6 +60,14 @@ const PROOF_NOTE = {
   failure: 'A check let a bad sample through, so it has stopped checking; see the `test:checks` output above.',
   unchanged: "The bad-sample proof skipped, because no check's settings or tools changed.",
   none: 'The bad-sample proof skipped, because the suite has no `test:checks` script.',
+};
+// The source repo's check of its app as an install receives it, and the list of shipped files it builds from.
+const TARGET_SCRIPT = 'scripts/check-target-app.mjs';
+const INVENTORY = '.agents/skills/wong-sync/references/payload-files.json';
+const TARGET_NOTE = {
+  success: 'The app also passes its tests as an install receives it.',
+  failure: 'The app fails its tests as an install receives it; see the target app output above.',
+  unchanged: 'The install-shaped test of the app skipped, because neither the app nor the list of shipped files changed.',
 };
 const parseScope = text => Object.fromEntries(text.trim().split('\n').map(line => line.split('=')));
 
@@ -97,6 +115,20 @@ function proofWanted(repo, dir, base, worktree) {
   const tools = [join(suite, 'package.json'), join(suite, 'package-lock.json'), PROOF_SCRIPT];
   const touched = changedFiles(worktree ? [base] : [base, 'HEAD'], worktree, repo)
     .some(({ path, from }) => [path, from].some(name => name && (isSettings(name) || tools.includes(name))));
+  return touched ? 'run' : 'unchanged';
+}
+
+/**
+ * Whether this change calls for the install-shaped test of the app: 'none' in any repo but the
+ * WongStack source, 'run' when it touches the suite's folder, the list of shipped files, or the
+ * check itself, and when there is no base to compare; else 'unchanged'.
+ */
+function targetWanted(repo, dir, base, worktree) {
+  if (!existsSync(join(repo, TARGET_SCRIPT))) return 'none';
+  if (!base) return 'run';
+  const suite = `${relative(repo, dir)}/`;
+  const touched = changedFiles(worktree ? [base] : [base, 'HEAD'], worktree, repo)
+    .some(({ path, from }) => [path, from].some(name => name && (name.startsWith(suite) || name === INVENTORY || name === TARGET_SCRIPT)));
   return touched ? 'run' : 'unchanged';
 }
 
@@ -161,6 +193,16 @@ function skillCheck(repo) {
   return { ok, text };
 }
 
+/**
+ * Regenerate the binding types where the repo's pack can: the one function the deploy build calls.
+ * A repo without the pack, or with one from before `--types`, skips it; the script itself skips a
+ * repo with no wrangler config. Never fails the checks: the suite's own compile is the judge.
+ */
+function regenerateTypes(repo) {
+  const script = join(repo, 'scripts', 'cf-build.sh');
+  if (existsSync(script) && readFileSync(script, 'utf8').includes('"--types"')) run('bash', [script, '--types'], repo);
+}
+
 function checks({ repo, scope, dir }, summary) {
   const report = text => {
     console.log(text);
@@ -169,11 +211,15 @@ function checks({ repo, scope, dir }, summary) {
   let suite = 'skipped';
   let install = true;
   let proof = null;
+  let target = 'none';
   if (dir) {
     install = run('npm', ['ci', '--no-audit', '--no-fund'], dir).ok;
+    if (install) regenerateTypes(repo);
     if (install) suite = run('npm', ['test'], dir).ok ? 'success' : 'failure';
     if (install) proof = proofWanted(repo, dir, scope.base, false);
     if (proof === 'run') proof = run('npm', ['run', PROOF], dir).ok ? 'success' : 'failure';
+    if (install) target = targetWanted(repo, dir, scope.base, false);
+    if (target === 'run') target = run(process.execPath, [join(repo, TARGET_SCRIPT)], repo).ok ? 'success' : 'failure';
   } else if (scope.untouched !== 'true') {
     report('### No test suite yet\n\nNo `package.json` in this repo declares a `test` script, so there is nothing to run.\n\nAdd one — `/plan` includes a test task for any change that touches behavior — and this check runs it on every push.');
   }
@@ -193,12 +239,13 @@ function checks({ repo, scope, dir }, summary) {
     : dir ? `The main app changed, so its suite ran: ${suite}.` : 'The main app changed, but no test suite is declared.';
   if (!install) line = 'The main app changed, but installation failed, so its suite did not run.';
   if (proof) line += ` ${PROOF_NOTE[proof]}`;
+  if (target !== 'none') line += ` ${TARGET_NOTE[target]}`;
   if (!loosened.ok) line += ' A check was loosened with no written reason; see Loosened checks above.';
   if (!wiki.ok) line += ' A wiki page has a broken link, is linked from nowhere, is too long, or lacks its title; see Wiki checks above.';
   if (scope.wiki_affected === 'false') line += ' The wiki check skipped, because no page or linked file changed.';
   if (!skills.ok) line += ' A skill reads a saved key or calls an action it does not list; see Skill checks above.';
   report(line);
-  return install && suite !== 'failure' && proof !== 'failure' && loosened.ok && wiki.ok && skills.ok;
+  return install && suite !== 'failure' && proof !== 'failure' && target !== 'failure' && loosened.ok && wiki.ok && skills.ok;
 }
 
 /** The pre-check on this computer. Returns the exit code; prints one LOCAL_CHECKS line last. */
@@ -207,7 +254,7 @@ function localChecks(values) {
     if (values[key] !== undefined) usageError(USAGE, `--worktree does not take --${key}`);
   }
   const parts = values.only?.split(',').map(part => part.trim()).filter(Boolean);
-  if (parts && (!parts.length || parts.some(part => !PART.test(part)))) usageError(USAGE, '--only takes suite, proof, loosened, wiki, skills, payload, or payload:<step>');
+  if (parts && (!parts.length || parts.some(part => !PART.test(part)))) usageError(USAGE, '--only takes suite, proof, target, loosened, wiki, skills, payload, or payload:<step>');
   const wait = Number(values['lock-wait'] ?? 600);
   if (!Number.isFinite(wait) || wait < 0) usageError(USAGE, '--lock-wait is a number of seconds');
   const repo = realpathSync(execFileSync('git', ['rev-parse', '--show-toplevel'], { cwd: resolve(values.repo ?? '.'), encoding: 'utf8' }).trim());
@@ -228,18 +275,27 @@ function localChecks(values) {
   const notRun = [];
   const dir = scope.untouched === 'true' ? null : suiteDir(repo);
   const proof = dir && wants('proof') ? proofWanted(repo, dir, scope.base, true) : null;
-  if (dir && (wants('suite') || proof === 'run')) {
+  const target = dir && wants('target') ? targetWanted(repo, dir, scope.base, true) : 'none';
+  if (dir && (wants('suite') || proof === 'run' || target === 'run')) {
     const installed = ensureInstalled(dir);
     const test = installed === 'ok' && wants('suite') ? run('npm', ['test'], dir) : null;
     const proved = installed === 'ok' && proof === 'run' ? run('npm', ['run', PROOF], dir) : null;
+    const shaped = installed === 'ok' && target === 'run' ? run(process.execPath, [join(repo, TARGET_SCRIPT)], repo) : null;
     const ran = result => result && !result.missing;
     if (installed === 'no-npm' || test?.missing || proved?.missing) notRun.push('npm is not installed');
     else if (installed === 'failed') notRun.push('the install failed');
     if (ran(test) && !test.ok) failed.push('suite');
     if (ran(proved) && !proved.ok) failed.push('proof');
     if (ran(proved)) console.log(PROOF_NOTE[proved.ok ? 'success' : 'failure']);
+    // The check says so itself when it could not run here; that is not a failure of the change.
+    if (shaped?.status === NO_TOOLS) notRun.push('the install-shaped test of the app could not run');
+    else if (shaped) {
+      if (!shaped.ok) failed.push('target');
+      console.log(TARGET_NOTE[shaped.ok ? 'success' : 'failure']);
+    }
   }
   if (proof === 'unchanged' || proof === 'none') console.log(PROOF_NOTE[proof]);
+  if (target === 'unchanged') console.log(TARGET_NOTE.unchanged);
   if (wants('loosened') && !run(process.execPath, [join(scripts, 'loosened-checks.mjs'), '--worktree'], repo, true, env).ok) failed.push('loosened');
   if (wants('wiki') && scope.wiki_affected !== 'false' && !run(process.execPath, [join(scripts, 'wiki-links.mjs'), repo], repo, true).ok) failed.push('wiki');
   if (wants('skills') && !skillCheck(repo).ok) failed.push('skills');

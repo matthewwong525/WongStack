@@ -14,7 +14,8 @@
 #   moved=yes   with merged=no: main moved since this branch was checked; bring
 #               main in, save again, and rerun. A push that failed while main
 #               stood still prints merged=no alone.
-#   main=SUCCESS|FAILURE|UNKNOWN  how main's own check run ended
+#   main=SUCCESS|FAILURE|INTERRUPTED|UNKNOWN  how main's own check run ended;
+#               INTERRUPTED is a run Cloudflare cut off, which can be started again
 #   live=<address>   the address main's deploy reported, when it deployed
 #   branch=deleted|kept  synced=<path>|ref|skipped (<reason>)
 #
@@ -22,8 +23,9 @@
 #   0  published, and main's run passed
 #   1  not published; nothing changed on the remote
 #   2  published, but the branch delete failed; the branch is kept
-#   3  published, but main's run failed or could not be read: production keeps
-#      the last passing commit. Stop; never push again to make it pass.
+#   3  published, but main's run failed, was cut off, or could not be read:
+#      production keeps the last passing commit. Stop; never push again to make
+#      it pass. A cut-off run is started again with `artifacts-run.mjs restart`.
 #
 # Only a commit whose own run passed is published: the script reads the run for
 # the exact HEAD again, and refuses on anything but SUCCESS or NONE.
@@ -88,6 +90,7 @@ case "$LIVE" in
   https://*) say "main=SUCCESS"; say "live=$LIVE" ;;
   none) say "main=SUCCESS" ;;
   failed) say "main=FAILURE"; fail "main's checks or deploy failed; production keeps the last passing commit"; RC=3 ;;
+  interrupted) say "main=INTERRUPTED"; fail "main's check run was cut off, not failed; start it again: node .claude/skills/save/scripts/artifacts-run.mjs restart $COMMIT refs/heads/main"; RC=3 ;;
   *) say "main=UNKNOWN"; fail "main's check run could not be read; what is live is unverified"; RC=3 ;;
 esac
 

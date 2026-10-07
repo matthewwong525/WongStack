@@ -1,8 +1,11 @@
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import test from 'node:test';
 import {
-  BOUNDS, deployedAddress, eventParams, interrupted, leaveTurn, marked, readLogs, runnerConfig, runPipeline, takeTurn,
+  BOUNDS, deployedAddress, eventParams, INSTALL, interrupted, leaveTurn, marked, readLogs, runnerConfig, runPipeline, takeTurn,
 } from '../check-runner/pipeline.mjs';
 import { runId } from '../check-runner/run-id.mjs';
 
@@ -73,6 +76,13 @@ function standIn(answers = {}) {
 }
 
 const failedAt = (result, stage) => assert.deepEqual({ ...result, reason: '' }, { commit: result.commit, ref: result.ref, result: 'failure', stage, reason: '' });
+// A run the Sandbox cut off: its own result word, never `failure`, with the stage and Cloudflare's message.
+const cutOffAt = (result, stage) => {
+  assert.deepEqual({ ...result, reason: '' }, { commit: SHA, ref: result.ref, result: 'interrupted', stage, reason: '' });
+  assert.match(result.reason, /OperationInterruptedError/);
+};
+// The step names of a stage tried `tries` times.
+const tried = (name, tries) => [name, `${name}-retry`, `${name}-retry-2`, `${name}-retry-3`].slice(0, tries);
 
 // ---------------------------------------------------------------------------
 // One run
@@ -191,7 +201,7 @@ test('the prepare stage compares with nothing when the base is the project\'s em
   assert.ok(guard < prepare.indexOf('> .git/wong-base'), 'the base is written before the empty commit is ruled out');
 });
 
-test('a Sandbox interruption gets exactly one retry, under the name <stage>-retry, and the run goes on', async () => {
+test('one Sandbox interruption is tried again under the name <stage>-retry, and the run goes on', async () => {
   for (const name of STAGES) {
     const { ci, seen, names } = standIn({ [name]: lost(name), [`${name}-retry`]: PASSES[name] });
     const result = await runPipeline(paramsOf(), ci, CONFIG);
@@ -204,12 +214,32 @@ test('a Sandbox interruption gets exactly one retry, under the name <stage>-retr
   }
 });
 
-test('a second interruption fails the run', async () => {
-  const { ci, names } = standIn({ deploy: lost('deploy'), 'deploy-retry': lost('deploy-retry') });
-  const result = await runPipeline(paramsOf(), ci, CONFIG);
-  failedAt(result, 'deploy');
-  assert.match(result.reason, /OperationInterruptedError/);
-  assert.deepEqual(names(), [...STAGES, 'deploy-retry']);
+test('three interruptions are each tried again, every try under its own step name, and the run still passes', async () => {
+  assert.equal(BOUNDS.interruptions, 3);
+  for (const name of STAGES) {
+    const [first, ...retries] = tried(name, 4);
+    const { ci, seen, names } = standIn({ ...Object.fromEntries([first, ...retries.slice(0, 2)].map(step => [step, lost(step)])), [retries[2]]: PASSES[name] });
+    const result = await runPipeline(paramsOf(), ci, CONFIG);
+    assert.equal(result.result, 'success', `${name}: ${result.reason}`);
+    assert.deepEqual(names(), STAGES.flatMap(stage => (stage === name ? tried(stage, 4) : [stage])));
+    assert.equal(new Set(names()).size, names().length, 'a step name was used twice');
+    const tries = seen.filter(call => call.options.name.startsWith(name));
+    for (const call of tries) {
+      assert.deepEqual({ ...call.options, name }, tries[0].options, 'every try is the same step');
+      assert.equal(call.parent, tries[0].parent, 'every try starts from the same runner');
+    }
+  }
+});
+
+test('a fourth interruption ends the run as interrupted at that stage, never as a failure', async () => {
+  for (const name of STAGES) {
+    const { ci, names } = standIn(Object.fromEntries(tried(name, 4).map(step => [step, lost(step)])));
+    const result = await runPipeline(paramsOf(), ci, CONFIG);
+    cutOffAt(result, name);
+    assert.equal(result.ref, REF);
+    assert.equal('preview' in result || 'deployed' in result, false, 'a run that was cut off reports no deploy');
+    assert.deepEqual(names(), [...STAGES.slice(0, STAGES.indexOf(name)), ...tried(name, 4)], 'nothing after the cut-off stage runs');
+  }
 });
 
 test('a command\'s own failure or a timeout is never retried', async () => {
@@ -218,6 +248,10 @@ test('a command\'s own failure or a timeout is never retried', async () => {
     failedAt(await runPipeline(paramsOf(), ci, CONFIG), 'checks');
     assert.deepEqual(names(), ['prepare', 'checks'], error.message.split('\n')[0]);
   }
+  // Nor after an interruption was tried again: the commit's own failure stands as a failure.
+  const after = standIn({ checks: lost('checks'), 'checks-retry': exited('checks-retry', 'not ok 1 - totals add up\n'), 'checks-retry-2': PASSES.checks });
+  failedAt(await runPipeline(paramsOf(), after.ci, CONFIG), 'checks');
+  assert.deepEqual(after.names(), ['prepare', 'checks', 'checks-retry']);
   for (const [message, expected] of [
     ['deploy failed: OperationInterruptedError: RPC session was shut down by disposing the main stub', true],
     ['checks failed: the container went away', true],
@@ -338,8 +372,9 @@ test('a first push, with no commit before it, leaves beforeSha out', () => {
 // ---------------------------------------------------------------------------
 // Bounds
 
-test('a run\'s three stages add up to exactly 30 minutes', () => {
+test('a run\'s three stages add up to exactly 30 minutes, before any stage an interruption repeats', () => {
   assert.equal(BOUNDS.prepareMs + BOUNDS.checksMs + BOUNDS.deployMs, 30 * 60_000);
+  assert.equal(BOUNDS.interruptions, 3);
 });
 
 test('a runner is never retried blindly, stops at its bound, and keeps its snapshot one day', () => {
@@ -395,11 +430,62 @@ test('a run\'s turn is timed from when it reaches the head, not from when it que
   assert.equal(takeTurn(head.line, 'run-c', late + 1).mine, true);
 });
 
-test('a run gets one retry in all, not one for each stage', async () => {
-  const { ci, names } = standIn({ prepare: lost('prepare'), 'prepare-retry': PASSES.prepare, checks: lost('checks'), 'checks-retry': PASSES.checks });
+test('a run gets three more tries in all, not three for each stage', async () => {
+  const { ci, names } = standIn({
+    prepare: lost('prepare'), 'prepare-retry': PASSES.prepare,
+    checks: lost('checks'), 'checks-retry': lost('checks-retry'), 'checks-retry-2': PASSES.checks,
+    deploy: lost('deploy'), 'deploy-retry': PASSES.deploy,
+  });
   const result = await runPipeline(paramsOf(), ci, CONFIG);
-  failedAt(result, 'checks');
-  assert.deepEqual(names(), ['prepare', 'prepare-retry', 'checks']);
+  cutOffAt(result, 'deploy');
+  assert.deepEqual(names(), ['prepare', 'prepare-retry', 'checks', 'checks-retry', 'checks-retry-2', 'deploy']);
+});
+
+// ---------------------------------------------------------------------------
+// The deploy stage's own install
+
+test('the deploy stage installs the app\'s packages itself, before the deploy token is used for anything', async () => {
+  const { ci, seen } = standIn();
+  await runPipeline(paramsOf(), ci, CONFIG);
+  const lines = seen.find(call => call.options.name === 'deploy').options.command.split('\n');
+  const at = text => lines.findIndex(line => line === text);
+  const order = ['dir=$(bash scripts/cf-build.sh --app-dir)', INSTALL, 'node scripts/cf-secrets.mjs check', 'bash scripts/cf-build.sh', 'bash scripts/cf-deploy.sh'].map(at);
+  assert.ok(order.every(index => index > -1), `a deploy step is missing: ${order}`);
+  assert.deepEqual(order, [...order].sort((a, b) => a - b), 'the packages are installed first: the files carried over from the checks can arrive incomplete');
+  assert.match(INSTALL, /npm ci --no-audit --no-fund/);
+  assert.equal(lines.filter(line => line.includes('npm ')).length, 1, 'the deploy stage runs npm once, in the scrubbed install');
+  const checks = seen.find(call => call.options.name === 'checks').options.command;
+  assert.ok(!checks.includes(INSTALL), 'the checks stage holds no credential to scrub');
+});
+
+test('the install runs in the app\'s folder with no Cloudflare credential in reach, and the stage keeps its own', t => {
+  const root = mkdtempSync(join(tmpdir(), 'wong-test-runner-install-'));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  mkdirSync(join(root, 'bin'));
+  mkdirSync(join(root, 'app'));
+  // A stand-in npm: what an install script would see.
+  writeFileSync(join(root, 'bin/npm'), '#!/bin/sh\n{ echo "cwd=$PWD"; echo "args=$*"; env; } > "$SEEN"\nexit "${NPM_STATUS:-0}"\n');
+  chmodSync(join(root, 'bin/npm'), 0o755);
+  const seenFile = join(root, 'seen');
+  const run = (vars = {}) => spawnSync('bash', ['-c', `set -eu\n${INSTALL}\necho "after=\${CLOUDFLARE_API_TOKEN:-}/\${CLOUDFLARE_ACCOUNT_ID:-}"\n`], { encoding: 'utf8', env: {
+    PATH: `${join(root, 'bin')}:${process.env.PATH}`, HOME: root, SEEN: seenFile, dir: join(root, 'app'), KEPT: 'project-setting',
+    CLOUDFLARE_API_TOKEN: 'deploy-token', CLOUDFLARE_ACCOUNT_ID: 'a'.repeat(32), CLOUDFLARE_API_KEY: 'older-key', CLOUDFLARE_EMAIL: 'owner@example.com', ...vars } });
+  const result = run();
+  assert.equal(result.status, 0, result.stderr);
+  const seen = readFileSync(seenFile, 'utf8');
+  assert.match(seen, new RegExp(`^cwd=${join(root, 'app')}$`, 'm'));
+  assert.match(seen, /^args=ci --no-audit --no-fund$/m);
+  assert.ok(!/^CLOUDFLARE_/m.test(seen) && !seen.includes('deploy-token') && !seen.includes('older-key'), `the install saw a Cloudflare credential:\n${seen}`);
+  assert.match(seen, /^KEPT=project-setting$/m, 'only the credential is removed');
+  assert.match(result.stdout, new RegExp(`^after=deploy-token/${'a'.repeat(32)}$`, 'm'), 'the deploy that follows still holds its credential');
+  // A failed install stops the stage, under `set -e`, before anything is deployed.
+  const failed = run({ NPM_STATUS: '1' });
+  assert.notEqual(failed.status, 0);
+  assert.ok(!failed.stdout.includes('after='));
+  // With no credential set at all there is nothing to remove, and the install still runs.
+  const bare = run({ CLOUDFLARE_API_TOKEN: undefined, CLOUDFLARE_ACCOUNT_ID: undefined, CLOUDFLARE_API_KEY: undefined, CLOUDFLARE_EMAIL: undefined });
+  assert.equal(bare.status, 0, bare.stderr);
+  assert.match(bare.stdout, /^after=\/$/m);
 });
 
 // ---------------------------------------------------------------------------

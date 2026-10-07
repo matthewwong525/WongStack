@@ -157,6 +157,10 @@ test('on an Artifacts install, a run that released nothing or can not be read is
   const none = lookArtifacts(t, { RUN_LIVE: 'none' });
   assert.equal(none.out, 'LIVE_LOOK=unknown\nREASON=nothing was released\n');
   assert.deepEqual(none.asked, []);
+  // A run that was cut off released nothing yet, and is no failed release: nothing starts a fix build.
+  const cut = lookArtifacts(t, { RUN_LIVE: 'interrupted' });
+  assert.equal(cut.out, "LIVE_LOOK=unknown\nREASON=the release's check run was cut off\n");
+  assert.deepEqual(cut.asked, []);
   for (const env of [{ RUN_LIVE: 'unknown' }, { RUN_LIVE: '' }, { LIVE_RC: '1' }, { RUN_LIVE: 'http://demo.example.workers.dev' }]) {
     const unread = lookArtifacts(t, env);
     assert.equal(unread.out, 'LIVE_LOOK=unknown\nREASON=the release could not be read\n', JSON.stringify(env));

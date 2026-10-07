@@ -15,7 +15,7 @@ vi.mock("./apps/hello/api.ts", async (original) => {
 
 const TEAM = "routing-team.cloudflareaccess.com";
 const AUD = "routing-workspace";
-const ASSET_PATHS = ["/", "/index.html", "/assets/main.js", "/assets/index.css", "/apps/tips/", "/apps/tips/app.js", "/unknown/path"];
+const ASSET_PATHS = ["/", "/index.html", "/assets/main.js", "/assets/index.css", "/apps/hello/", "/apps/hello/app.js", "/unknown/path"];
 
 describe("private Worker routing", () => {
   let signing: CryptoKeyPair;

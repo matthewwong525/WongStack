@@ -4,12 +4,15 @@
 //
 //     artifacts-run.mjs wait [minutes]   wait for HEAD's run on this branch; print `RESULT: …` as wait-for-checks.sh does
 //     artifacts-run.mjs preview          print HEAD's own preview address, or nothing
-//     artifacts-run.mjs live <sha>       wait for main's run of <sha>; print its live address, `none`, `failed` or `unknown`
-//     artifacts-run.mjs result <sha> <ref>   print one RESULT word for that run, without waiting
+//     artifacts-run.mjs live <sha>       wait for main's run of <sha>; print its live address, `none`, `failed`, `interrupted` or `unknown`
+//     artifacts-run.mjs result <sha> <ref>   print one RESULT word for that run, without waiting; a cut-off run is `INTERRUPTED`
+//     artifacts-run.mjs restart <sha> <ref>  start a cut-off run again under its own name; print `RESTART: started|refused|failed`
 //
 // A run is found by a name made from the commit and the branch, so an earlier commit's run never
 // answers for this one. A run that can not be read, or that answers for another commit, is UNKNOWN,
-// never passed and never "no checks". The Cloudflare token is CLOUDFLARE_API_TOKEN, from the
+// never passed and never "no checks". So is a run Cloudflare cut off: its commit was not shown to
+// fail anything, so it is never FAILURE. A wait starts such a run again once by itself, and
+// `restart` does it by hand; a run that failed its checks is never started again. The Cloudflare token is CLOUDFLARE_API_TOKEN, from the
 // environment or the primary worktree's `.env`; it is never printed.
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
@@ -21,7 +24,8 @@ import { runId } from '../../../../scripts/check-runner/run-id.mjs';
 import { delivery } from './delivery-route.mjs';
 
 const API = 'https://api.cloudflare.com/client/v4';
-const USAGE = 'usage: artifacts-run.mjs wait [minutes] | preview | live <sha> | result <sha> <ref>';
+const USAGE = 'usage: artifacts-run.mjs wait [minutes] | preview | live <sha> | result <sha> <ref> | restart <sha> <ref>';
+const CUT_OFF = 'the check run was cut off';
 const MAIN = 'refs/heads/main';
 const ADDRESS = /^https:\/\/[A-Za-z0-9.-]+(?::\d+)?(?:\/\S*)?$/;
 const RUNNING = new Set(['queued', 'running', 'paused', 'waiting', 'waitingForPause', 'rollingBack']);
@@ -30,7 +34,7 @@ const RUNNING = new Set(['queued', 'running', 'paused', 'waiting', 'waitingForPa
 export async function readRun({ api = API, token, account, workflow, id, fetch: fetchFn = globalThis.fetch }) {
   let response;
   try {
-    response = await fetchFn(`${api.replace(/\/$/, '')}/accounts/${account}/workflows/${encodeURIComponent(workflow)}/instances/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+    response = await fetchFn(instanceUrl({ api, account, workflow, id }), { headers: { Authorization: `Bearer ${token}` } });
   } catch {
     return { state: 'unreadable', why: 'Cloudflare could not be reached' };
   }
@@ -47,19 +51,44 @@ export async function readRun({ api = API, token, account, workflow, id, fetch: 
   return RUNNING.has(status) ? { state: 'pending' } : { state: 'unreadable', why: `the run is in an unknown state: ${status}` };
 }
 
+/** The address of one run, and of the call that changes its status. */
+const instanceUrl = ({ api = API, account, workflow, id }) => `${api.replace(/\/$/, '')}/accounts/${account}/workflows/${encodeURIComponent(workflow)}/instances/${id}`;
+
+/**
+ * Starts one run again under its own name, through Cloudflare's instance-status call, so every
+ * reader still finds it by commit and branch. `{ ok }`, or `{ ok: false, why }`. The caller decides
+ * whether the run may be restarted: this only asks.
+ */
+export async function restartRun({ token, fetch: fetchFn = globalThis.fetch, ...run }) {
+  let response;
+  try {
+    response = await fetchFn(`${instanceUrl(run)}/status`, { method: 'PATCH', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'restart' }) });
+  } catch {
+    return { ok: false, why: 'Cloudflare could not be reached' };
+  }
+  if (response.ok) return { ok: true };
+  const refused = response.status === 401 || response.status === 403 ? '; the saved Cloudflare token may not restart a check run' : '';
+  return { ok: false, why: `Cloudflare answered HTTP ${response.status}${refused}` };
+}
+
 /**
  * What one read means for `sha` on `ref`: `{ result, lines, address }`. `result` is null while the
  * run is missing or still going. A pass needs the run's own word that it checked this commit on
  * this branch, and, when it deployed a branch, the preview address that deploy reported.
+ *
+ * A run Cloudflare cut off is UNKNOWN with `cutOff`, never FAILURE: one the runner reported as
+ * interrupted (`retry` too: a wait starts it again once), or one whose Workflow errored or was
+ * terminated. Only a cut-off run may be restarted.
  */
 export function verdict(run, { sha, ref }) {
   if (run.state === 'missing' || run.state === 'pending') return { result: null, lines: [] };
   if (run.state === 'unreadable') return { result: 'UNKNOWN', lines: [run.why] };
-  if (run.state === 'errored') return { result: 'FAILURE', lines: [`the run stopped: ${run.why}`] };
+  if (run.state === 'errored') return { result: 'UNKNOWN', cutOff: true, lines: [CUT_OFF, `the run stopped: ${run.why}`] };
   const output = run.output;
   if (!output || typeof output !== 'object' || output.commit !== sha || output.ref !== ref) return { result: 'UNKNOWN', lines: ['the run answered for another commit or branch'] };
   if (output.result === 'none') return { result: 'NONE', lines: [] };
   if (output.result === 'failure') return { result: 'FAILURE', lines: [`${output.stage ?? 'checks'} failed`, ...String(output.reason ?? '').split('\n')] };
+  if (output.result === 'interrupted') return { result: 'UNKNOWN', cutOff: true, retry: true, lines: [CUT_OFF, `${output.stage ?? 'a stage'} did not finish`, ...String(output.reason ?? '').split('\n')] };
   if (output.result !== 'success') return { result: 'UNKNOWN', lines: ['the run reported no result'] };
   const address = output[ref === MAIN ? 'production' : 'preview'];
   if (output.deployed && !ADDRESS.test(address ?? '')) return { result: 'UNKNOWN', lines: ['the run passed but reported no address for its deploy'] };
@@ -89,13 +118,37 @@ export function context(cwd = process.cwd(), env = process.env) {
   return { token, account: recorded.accountId, workflow: recorded.workflow, api: env.WONG_CLOUDFLARE_API || API, sha: git(root, 'rev-parse', 'HEAD'), ref: branch ? `refs/heads/${branch}` : '' };
 }
 
-/** Polls one run until it settles. `grace` bounds how long a missing run is waited for. */
+/**
+ * Why a run may not be started again, or '' when it may: only a run that was cut off. A failed
+ * check stands, a finished run is finished, and a run still going needs no second start.
+ */
+export function restartRefusal(run, read) {
+  if (read.cutOff) return '';
+  if (run.state === 'missing') return 'no check run exists for that commit on that branch';
+  if (run.state === 'pending') return 'the run is still going';
+  if (read.result === 'FAILURE') return 'the run failed its checks, and that failure stands; fix the commit and save again';
+  if (read.result === 'UNKNOWN') return `the run could not be read: ${read.lines[0]}`;
+  return 'the run finished; only a run that was cut off is started again';
+}
+
+/**
+ * Polls one run until it settles. `grace` bounds how long a missing run is waited for. A run the
+ * runner reported as interrupted is started again once, and the wait goes on inside the same limit.
+ */
 export async function waitRun(target, { sha, ref }, { minutes, grace, interval, fetch: fetchFn, sleep, now = () => Date.now() }) {
   const id = await runId(sha, ref);
   const start = now();
+  let restarted = false;
   for (;;) {
     const run = await readRun({ ...target, id, fetch: fetchFn });
     const read = verdict(run, { sha, ref });
+    if (read.retry && !restarted) {
+      restarted = true;
+      const again = await restartRun({ ...target, id, fetch: fetchFn });
+      if (!again.ok) return { ...read, lines: [...read.lines, `it could not be started again: ${again.why}`] };
+      await sleep(interval * 1000);
+      continue;
+    }
     if (read.result) return read;
     const waited = (now() - start) / 1000;
     if (run.state === 'missing' && waited >= grace) return { result: 'UNKNOWN', lines: [`no check run appeared for ${sha} within ${grace}s; push HEAD first.`] };
@@ -104,8 +157,8 @@ export async function waitRun(target, { sha, ref }, { minutes, grace, interval, 
   }
 }
 
-const print = (out, { result, lines }) => {
-  out(`RESULT: ${result}`);
+const print = (out, { result, lines }, label = 'RESULT') => {
+  out(`${label}: ${result}`);
   for (const line of lines.filter(Boolean)) out(`  ${line}`);
 };
 
@@ -113,7 +166,7 @@ const print = (out, { result, lines }) => {
 export async function cli(argv, { cwd = process.cwd(), env = process.env, out = console.log, err = console.error, fetch: fetchFn, sleep = (ms) => new Promise((done) => setTimeout(done, ms)) } = {}) {
   const [command, ...rest] = argv;
   const timing = { grace: Number(env.WAIT_FOR_CHECKS_GRACE ?? 60), interval: Number(env.WAIT_FOR_CHECKS_INTERVAL ?? 10), fetch: fetchFn, sleep };
-  if (!['wait', 'preview', 'live', 'result'].includes(command)) {
+  if (!['wait', 'preview', 'live', 'result', 'restart'].includes(command)) {
     err(USAGE);
     return 2;
   }
@@ -124,7 +177,8 @@ export async function cli(argv, { cwd = process.cwd(), env = process.env, out = 
     if (command === 'wait') print(out, { result: 'UNKNOWN', lines: [error.message] });
     else if (command === 'live') out('unknown');
     else if (command === 'result') out('UNKNOWN');
-    return 0;
+    else if (command === 'restart') print(out, { result: 'failed', lines: [error.message] }, 'RESTART');
+    return command === 'restart' ? 1 : 0;
   }
   const head = { sha: target.sha, ref: target.ref };
   if (command === 'wait') {
@@ -148,14 +202,27 @@ export async function cli(argv, { cwd = process.cwd(), env = process.env, out = 
     err(USAGE);
     return 2;
   }
-  if (command === 'result') {
-    out(verdict(await readRun({ ...target, id: await runId(sha, ref), fetch: fetchFn }), { sha, ref }).result ?? 'PENDING');
-    return 0;
+  if (command === 'result' || command === 'restart') {
+    const id = await runId(sha, ref);
+    const run = await readRun({ ...target, id, fetch: fetchFn });
+    const read = verdict(run, { sha, ref });
+    if (command === 'result') {
+      out(read.cutOff ? 'INTERRUPTED' : read.result ?? 'PENDING');
+      return 0;
+    }
+    const refusal = restartRefusal(run, read);
+    if (refusal) {
+      print(out, { result: 'refused', lines: [refusal] }, 'RESTART');
+      return 1;
+    }
+    const again = await restartRun({ ...target, id, fetch: fetchFn });
+    print(out, again.ok ? { result: 'started', lines: [`wait for it with: artifacts-run.mjs ${ref === MAIN ? `live ${sha}` : 'wait'}`] } : { result: 'failed', lines: [again.why] }, 'RESTART');
+    return again.ok ? 0 : 1;
   }
   const minutes = Number(env.LIVE_LOOK_WAIT_SECONDS ?? 600) / 60;
   const read = await waitRun(target, { sha, ref: MAIN }, { ...timing, interval: Number(env.LIVE_LOOK_POLL_SECONDS ?? 15), minutes });
   const words = { SUCCESS: read.address ?? 'none', NONE: 'none', FAILURE: 'failed' };
-  out(words[read.result] ?? 'unknown');
+  out(read.cutOff ? 'interrupted' : words[read.result] ?? 'unknown');
   return 0;
 }
 

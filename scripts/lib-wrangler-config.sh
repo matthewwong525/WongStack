@@ -71,6 +71,25 @@ wong_config() {
   WRANGLER_CONFIG="$WRANGLER_CONFIG" node "$_WONG_LIB_DIR/lib-wrangler-config.mjs" "$@"
 }
 
+# Regenerate the binding types from the wrangler config, in place.
+#
+# `wrangler.jsonc` is the source of truth for bindings and
+# `worker-configuration.d.ts` is generated from it, so a binding added during
+# provisioning, or in any later change, fails `tsc` until someone remembers to
+# run `wrangler types` by hand. CI regenerates, so nobody has to remember: the
+# checks before they compile, and the deploy build again. One function for both,
+# so the checks can never pass on types the deploy build then rejects. Non-fatal:
+# a repo that doesn't use TypeScript has nothing to generate. Reads the config
+# only, and needs no credential.
+#
+# Usage: wong_regenerate_types <prefix>   (after wong_resolve_wrangler_config)
+wong_regenerate_types() {
+  if [ -f "$APP_DIR/package.json" ] && grep -q '"typescript"' "$APP_DIR/package.json"; then
+    echo "$1: regenerating binding types"
+    (cd "$APP_DIR" && npx wrangler types) || echo "$1: WARNING — wrangler types failed; continuing" >&2
+  fi
+}
+
 # The production branch, by one rule for every pack script: CF_PRODUCTION_BRANCH
 # when set, else the remote's default branch when Git knows it, else `main`.
 #

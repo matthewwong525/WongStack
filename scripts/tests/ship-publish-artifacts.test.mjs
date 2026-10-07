@@ -152,6 +152,25 @@ test('a red main run is reported, and nothing is pushed again to make it pass', 
   assert.deepEqual(r.pushes.filter(push => push.includes('refs/heads/main')), [TO_MAIN]);
 });
 
+test('a main run that was cut off is reported as interrupted with the restart, never as failed, and nothing is pushed again', t => {
+  const r = run(t, { RUN_LIVE: 'interrupted' });
+  assert.equal(r.status, 3);
+  assert.match(r.stdout, /^merged=yes$/m);
+  assert.match(r.stdout, /^main=INTERRUPTED$/m);
+  assert.doesNotMatch(r.stdout, /^main=FAILURE$|^live=/m);
+  assert.match(r.stderr, new RegExp(`^error=main's check run was cut off, not failed; start it again: node \\.claude/skills/save/scripts/artifacts-run\\.mjs restart ${COMMIT} refs/heads/main$`, 'm'));
+  assert.deepEqual(r.pushes.filter(push => push.includes('refs/heads/main')), [TO_MAIN]);
+  assert.match(r.stdout, /^branch=deleted$/m, 'the change is on main, so its branch is done');
+});
+
+test('a branch whose own run was cut off is not published: only a checked commit is', t => {
+  const r = run(t, { RUN_RESULT: 'INTERRUPTED' });
+  assert.equal(r.status, 1);
+  assert.equal(r.stdout, 'merged=no\n');
+  assert.match(r.stderr, /this commit's checks are INTERRUPTED; only a checked commit is published/);
+  assert.deepEqual(r.pushes, []);
+});
+
 test('an unreadable main run stops the publish as unverified, never as passed', t => {
   for (const env of [{ RUN_LIVE: 'unknown' }, { LIVE_RC: '1' }, { RUN_LIVE: '' }, { RUN_LIVE: 'http://demo.example.workers.dev' }]) {
     const r = run(t, env);
