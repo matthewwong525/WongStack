@@ -1,6 +1,6 @@
 # A new Cloudflare-only install saves and publishes the first time
 
-**Status:** in-progress
+**Status:** ready-to-ship
 
 **Branch:** wongstack-install-team-access
 
@@ -88,3 +88,8 @@ None.
 - **2026-10-07** — Check: `.github/scripts/checks.mjs` gains two steps and loosens none: it regenerates the binding types before the app suite in CI, and runs the app as an install receives it, because two faults in 37.2.3 were invisible to the checks as they stood.
 - **2026-10-07** — Assumed: the install-shaped check is proven by one run each way, because against 37.2.3's app it ended `TARGET_APP=fail (tests)` on `worker/index.test.ts(26,79): error TS2345`, and against the fixed app `TARGET_APP=pass`; the type check stops the unfixed run before its tests, so the sample-app fault was shown by the same check during the build, on `Home.test.tsx`.
 - **2026-10-07** — Saved after the build: every source and test task is done and the local checks pass; left is the real test install in a Cloudflare account, which needs the owner's token.
+- **2026-10-07** — Asked for a new Cloudflare token for the proof install → chose "can you generate one yourself and try it". Cloudflare refuses a token that makes token-managing tokens (`sub-token is not allowed to have permissions to manage other tokens`), so the install used the token saved for WongStack; setup added no permission to it.
+- **2026-10-07** — Assumed: the proof install (`wong-e2e-test2`, since removed) proves the change, because its first save passed in one run with no hand edit (deploy stage 99 s), it published and went live private, a second change published, and a terminated run read as cut off, restarted with the user token (HTTP 200, `queued`) and then passed for the same commit. No permission is added to the widen.
+- **2026-10-07** — Assumed: a command that ran to its end is also known by `[diagnostic truncated]`, the output headings and the wrapped error, because on the proof install a failing test with long output read as cut off: the SDK keeps only the last 20,000 characters, and the exit-code line goes with the start. With the fix on the same install a failing test read `FAILURE` with its output, and its restart was refused.
+- **2026-10-07** — Assumed: a run still going is waited for when Cloudflare flags its answer, because the proof install answered HTTP 200 with error 10001 beside `status: running` and the save gave up; a flagged answer still never counts as a pass.
+- **2026-10-07** — Archived for publishing: every task is done, the checks passed on the saved work, and the proof install saved, published and was removed.

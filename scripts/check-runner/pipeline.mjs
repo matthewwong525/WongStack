@@ -149,8 +149,14 @@ export function deployedAddress(logs, key) {
  * A command's own non-zero exit and a timeout are never retried.
  */
 export function interrupted(error) {
-  const text = String(error?.message ?? error);
-  return !/failed with exit code \d+/.test(text) && !/time(d)? ?out/i.test(text);
+  // The SDK keeps only the end of a long output, under `[diagnostic truncated]`, and the line naming
+  // the exit code goes with the start. So a command that ran to its end is also known by that mark,
+  // by the output headings, and by the error the SDK wrapped.
+  const texts = [];
+  for (let at = error, depth = 0; at !== undefined && at !== null && depth < 5; at = at.cause, depth++) texts.push(String(at?.message ?? at));
+  const text = texts.join('\n');
+  const exited = /failed with exit code \d+/.test(text) || text.includes('[diagnostic truncated]') || /^=== std(out|err) ===$/m.test(text);
+  return !exited && !/time(d)? ?out/i.test(text);
 }
 
 const reasonOf = (error) => String(error?.message ?? error).slice(-BOUNDS.reasonChars);

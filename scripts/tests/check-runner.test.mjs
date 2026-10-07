@@ -257,6 +257,9 @@ test('a command\'s own failure or a timeout is never retried', async () => {
     ['checks failed: the container went away', true],
     ['checks failed: checks failed with exit code 1\n=== stdout ===\nnot ok 1', false],
     ['deploy failed: deploy failed with exit code 137', false],
+    // A long output: the SDK keeps its end, and the exit-code line is gone (seen on a real install).
+    [`checks failed: [diagnostic truncated]\nut ===\n${'x'.repeat(50)}\n FAIL  src/a.test.ts\n=== stderr ===\n`, false],
+    ['checks failed: tail only\n=== stderr ===\nnpm error', false],
     ['checks failed: command timed out after 1010000ms', false],
     ['prepare failed: Timeout waiting for the command', false],
     ['deploy failed: the step hit its time out', false],
@@ -264,6 +267,8 @@ test('a command\'s own failure or a timeout is never retried', async () => {
     assert.equal(interrupted(new Error(message)), expected, message);
     assert.equal(interrupted(message), expected, `as a bare value: ${message}`);
   }
+  // The SDK's own error is kept as the cause: its exit-code line counts though the wrapper lost it.
+  assert.equal(interrupted(new Error('checks failed: lost', { cause: new Error('checks failed with exit code 1') })), false);
 });
 
 test('a prepared commit that is not the pushed commit fails at prepare, and nothing later runs', async () => {

@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (patch) — A new install kept in Cloudflare saves and publishes the first time
+## 37.2.4 — A new install kept in Cloudflare saves and publishes the first time
 
 - **A new install kept in Cloudflare alone now gets its first preview and goes live with no fix by hand.** A real test install of 37.2.3 was set up correctly and then could not publish. Four faults stood in the way; each is fixed here.
 - **A new install passes its own tests.** Its tests looked for two sample apps and a sample skill that only WongStack's own copy has, so they failed on day one. The tests an install receives now need only what the install receives.

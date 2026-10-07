@@ -35,7 +35,7 @@
 
 - [x] 6.1 Run `node .github/scripts/checks.mjs --worktree`; every step passes, the target check included.
 - [x] 6.2 Confirm the target check fails on 37.2.3's `code.ts` and tests (the two faults it exists for) by running it against the unfixed files once, then passes on the fixed ones; record both in the Decision log.
-- [ ] 6.3 `/save`: CI passes on the pushed commit.
-- [ ] 6.4 With the owner's Cloudflare token, walk one throwaway Artifacts install from this branch by `wiki/maintaining/test-a-setup-change.md`: first save returns a private preview with no hand edit, a deliberately failing test comes back failed with no preview, publish goes live, a second change publishes. Record the deploy stage's time.
-- [ ] 6.5 On that install, try the Workflow instance restart with the user token and record the answer in the Decision log; if refused, add the missing permission group to `widen --route artifacts` and `permission-groups.md`, with its test, and save again. Then terminate a run mid-stage, confirm it reads as cut off and not failed, restart it, and confirm a result for the same commit; then confirm a restart of a failed run is refused.
-- [ ] 6.6 Remove the throwaway install by the Artifacts teardown, the `-access` and `-cloudflare-read` keys included, and read each resource back as gone.
+- [x] 6.3 `/save`: CI passes on the pushed commit.
+- [x] 6.4 With the owner's Cloudflare token, walk one throwaway Artifacts install from this branch by `wiki/maintaining/test-a-setup-change.md`: first save returns a private preview with no hand edit, a deliberately failing test comes back failed with no preview, publish goes live, a second change publishes. Record the deploy stage's time.
+- [x] 6.5 On that install, try the Workflow instance restart with the user token and record the answer in the Decision log; if refused, add the missing permission group to `widen --route artifacts` and `permission-groups.md`, with its test, and save again. Then terminate a run mid-stage, confirm it reads as cut off and not failed, restart it, and confirm a result for the same commit; then confirm a restart of a failed run is refused.
+- [x] 6.6 Remove the throwaway install by the Artifacts teardown, the `-access` and `-cloudflare-read` keys included, and read each resource back as gone.

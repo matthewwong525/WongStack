@@ -44,6 +44,8 @@ export async function readRun({ api = API, token, account, workflow, id, fetch: 
   // step's detail fails to load. The run's own word still stands: it finished, and its output names
   // the commit and branch it checked, which `verdict` holds it to.
   const finished = data.result?.status === 'complete' && data.result.success === true && data.result.output !== null && typeof data.result.output === 'object';
+  // The same flag beside a run still going says nothing about its result: keep waiting.
+  if (response.ok && !data.success && RUNNING.has(data.result?.status)) return { state: 'pending' };
   if (!response.ok || !data.result || (!data.success && !finished)) return { state: 'unreadable', why: `Cloudflare answered HTTP ${response.status}` };
   const { status, output, error } = data.result;
   if (status === 'complete') return { state: 'done', output };

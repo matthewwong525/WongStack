@@ -9,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · fresh-cloudflare-install-publishes</title>
+<title>Review · 2026-10-07-fresh-cloudflare-install-publishes</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -93,11 +93,11 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="fresh-cloudflare-install-publishes">
+<body data-change="2026-10-07-fresh-cloudflare-install-publishes">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>fresh-cloudflare-install-publishes</h1>
+  <h1>2026-10-07-fresh-cloudflare-install-publishes</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. Saving a note copies all your notes. Open a drawing and tap it to see it full screen.</p>
@@ -159,6 +159,11 @@
 <li class="decision card" id="decision-19" data-note="decision-19" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-10-07</p>Check: <code>.github/scripts/checks.mjs</code> gains two steps and loosens none: it regenerates the binding types before the app suite in CI, and runs the app as an install receives it, because two faults in 37.2.3 were invisible to the checks as they stood.</li>
 <li class="decision card" id="decision-20" data-note="decision-20" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-07</p>Assumed: the install-shaped check is proven by one run each way, because against 37.2.3's app it ended <code>TARGET_APP=fail (tests)</code> on <code>worker/index.test.ts(26,79): error TS2345</code>, and against the fixed app <code>TARGET_APP=pass</code>; the type check stops the unfixed run before its tests, so the sample-app fault was shown by the same check during the build, on <code>Home.test.tsx</code>.</li>
 <li class="decision card" id="decision-21" data-note="decision-21" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-07</p>Saved after the build: every source and test task is done and the local checks pass; left is the real test install in a Cloudflare account, which needs the owner's token.</li>
+<li class="decision card" id="decision-22" data-note="decision-22" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-07</p>Asked for a new Cloudflare token for the proof install → chose &quot;can you generate one yourself and try it&quot;. Cloudflare refuses a token that makes token-managing tokens (<code>sub-token is not allowed to have permissions to manage other tokens</code>), so the install used the token saved for WongStack; setup added no permission to it.</li>
+<li class="decision card" id="decision-23" data-note="decision-23" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-07</p>Assumed: the proof install (<code>wong-e2e-test2</code>, since removed) proves the change, because its first save passed in one run with no hand edit (deploy stage 99 s), it published and went live private, a second change published, and a terminated run read as cut off, restarted with the user token (HTTP 200, <code>queued</code>) and then passed for the same commit. No permission is added to the widen.</li>
+<li class="decision card" id="decision-24" data-note="decision-24" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-07</p>Assumed: a command that ran to its end is also known by <code>[diagnostic truncated]</code>, the output headings and the wrapped error, because on the proof install a failing test with long output read as cut off: the SDK keeps only the last 20,000 characters, and the exit-code line goes with the start. With the fix on the same install a failing test read <code>FAILURE</code> with its output, and its restart was refused.</li>
+<li class="decision card" id="decision-25" data-note="decision-25" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-07</p>Assumed: a run still going is waited for when Cloudflare flags its answer, because the proof install answered HTTP 200 with error 10001 beside <code>status: running</code> and the save gave up; a flagged answer still never counts as a pass.</li>
+<li class="decision card" id="decision-26" data-note="decision-26" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-07</p>Archived for publishing: every task is done, the checks passed on the saved work, and the proof install saved, published and was removed.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

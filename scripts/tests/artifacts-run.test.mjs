@@ -73,9 +73,11 @@ test('a finished run that Cloudflare answers with an error flag beside it is sti
   const done = { status: 'complete', success: true, output: pass(SHA, BRANCH) };
   assert.deepEqual(await read(flagged(done)), { result: 'SUCCESS', lines: [], address: PREVIEW });
   assert.equal((await read(flagged({ ...done, output: pass(OTHER, BRANCH) }))).result, 'UNKNOWN', 'a flagged answer for another commit was trusted');
-  for (const result of [{ ...done, success: false }, { ...done, success: undefined }, { ...done, output: null }, { status: 'running', success: true, output: pass(SHA, BRANCH) }, null]) {
+  for (const result of [{ ...done, success: false }, { ...done, success: undefined }, { ...done, output: null }, null]) {
     assert.equal((await read(flagged(result))).result, 'UNKNOWN', JSON.stringify(result));
   }
+  // A run still going is waited for, flag or not: seen on a real install while a stage ran again.
+  assert.deepEqual(await readRun({ ...TARGET, id: await runId(SHA, BRANCH), fetch: cloudflare(flagged({ status: 'running', success: true, output: pass(SHA, BRANCH) })).fetch }), { state: 'pending' });
 });
 
 test('readRun asks Cloudflare for the one run, with the token as a bearer header only', async () => {
