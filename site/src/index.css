@@ -162,13 +162,81 @@ ol {
     letter-spacing: -0.03em;
     text-wrap: balance;
   }
+  /* The sliding headline starts smaller, so the longest name and its logo fit
+     a 320 px phone on one line. */
+  h1.rotator {
+    font-size: clamp(2rem, 7vw + 0.6rem, 4.5rem);
+  }
 }
 
-/* A visitor who asks for less motion jumps to sections without the smooth
-   scroll. */
+/* Text a screen reader reads and the eye doesn't see. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* The sliding headline: a window one line tall over three rows (the last
+   repeats the first), stepped up one row every 2.5 s. The fixed heights keep
+   the page from shifting. A name added to install.ts's AGENTS adds a row: add
+   its stop to rotate-names and its 2.5 s to the duration. */
+.rotator > span[aria-hidden] {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.rotator-window {
+  height: 1.15em;
+  overflow: hidden;
+}
+
+.rotator-rows {
+  display: flex;
+  flex-direction: column;
+  animation: rotate-names 5s infinite;
+}
+
+.rotator-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25em;
+  height: 1.15em;
+  white-space: nowrap;
+
+  img[src] {
+    width: 0.8em;
+    height: 0.8em;
+    opacity: 1;
+  }
+}
+
+@keyframes rotate-names {
+  0%,
+  39% {
+    transform: translateY(0);
+  }
+  50%,
+  89% {
+    transform: translateY(-33.333%);
+  }
+  100% {
+    transform: translateY(-66.667%);
+  }
+}
+
+/* A visitor who asks for less motion sees the first name, still, and jumps to
+   sections without the smooth scroll. */
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
+  }
+  .rotator-rows {
+    animation: none;
   }
 }
 
@@ -245,11 +313,6 @@ ol {
   background: var(--accent);
 }
 
-/* The legend names each logo; the grid under it shows only the logos, one
-   column per product, and one row per feature. It fits a phone without
-   scrolling sideways. WongStack's column is set apart by weight and a heavier
-   border, not by color; the other logos are light gray. */
-.legend,
 .supports {
   display: flex;
   flex-wrap: wrap;
@@ -280,11 +343,26 @@ ol {
   }
 }
 
-.legend img,
 .supports img,
-.compare img {
+.works img {
   width: 1.25rem;
   height: 1.25rem;
+}
+
+/* "Works with": one card per assistant, its logo left of its name. */
+.works {
+  --min: 15rem; /* three columns within .site's 72rem, one on a phone */
+  width: 100%;
+  text-align: left;
+
+  h3 {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  p {
+    color: var(--muted);
+  }
 }
 
 /* Other products' logos are one-color SVGs, drawn black in an img: invert
@@ -292,39 +370,6 @@ ol {
 img[src^="/logos/"] {
   filter: invert(1);
   opacity: 0.6;
-}
-
-.compare {
-  width: 100%;
-  max-width: 44rem;
-  border-collapse: collapse;
-  font-size: 0.875rem;
-
-  th,
-  td {
-    padding: 0.75rem 0.125rem;
-    border-bottom: 1px solid var(--border);
-    text-align: center;
-  }
-  /* Five narrow logo columns; the row labels take the rest and wrap, so the
-     grid fits a 390 px phone. */
-  th[scope="col"],
-  tbody td {
-    width: 2.75rem;
-  }
-  th[scope="row"] {
-    padding-right: 0.5rem;
-    font-weight: 500;
-    text-align: left;
-    overflow-wrap: anywhere;
-  }
-  td {
-    font-size: 1.1rem;
-  }
-  tr > :nth-child(2) {
-    font-weight: 700;
-    border-inline: 2px solid var(--text);
-  }
 }
 
 /* Each stack item: its logo left of its linked name, its line under the name. */

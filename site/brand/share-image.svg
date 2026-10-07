@@ -17,9 +17,9 @@
   <g font-family="Geist, system-ui, sans-serif">
     <text x="186" y="118" font-size="44" font-weight="600" letter-spacing="-1.2" fill="hsl(0, 0%, 96%)">WongStack</text>
     <text font-size="64" font-weight="600" letter-spacing="-2" fill="hsl(0, 0%, 96%)">
-      <tspan x="80" y="246">One place to build,</tspan>
-      <tspan x="80" y="322">collaborate, and get</tspan>
-      <tspan x="80" y="398">things done.</tspan>
+      <tspan x="80" y="246">Claude Code and Codex,</tspan>
+      <tspan x="80" y="322">for people who</tspan>
+      <tspan x="80" y="398">don't code.</tspan>
     </text>
     <text x="80" y="470" font-size="34" font-weight="400" fill="hsl(0, 0%, 64%)">In accounts you own.</text>
     <text x="80" y="566" font-size="26" font-weight="400" fill="hsl(0, 0%, 64%)">Free and open source · wongstack.com</text>

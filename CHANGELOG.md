@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 37.2.4 — The landing page guide says what the headline may name
+
+- **The landing page guide has a new rule for the headline.** The headline and the text a shared link shows may name an assistant WongStack sets up, such as Claude Code or Codex, once it has been tried as a working assistant. The rule used to say they name no other product.
+- **The guide says the site compares WongStack with no other product.** A wrong claim about another company's product is a liability, so the comparison table is gone, and its upkeep note with it.
+- **This is a guide for people who maintain WongStack's own website.** Nothing in your install changes.
+
+**Updating.** Nothing needs doing by hand.
+
 ## 37.2.3 — A later chat finds the tools setup installed
 
 - **A later chat finds the tools setup put in your own folder.** When a computer gives setup no admin password, setup installs its tools in your own folder. A later chat could then report a missing program, and nothing you asked for worked. Two fixes, one for each assistant.

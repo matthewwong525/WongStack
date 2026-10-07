@@ -1,6 +1,5 @@
 import { Fragment, useState, type ReactNode } from "react";
 import { Chips, YourApps } from "./apps";
-import { Compare } from "./Compare";
 import { CopyMessage } from "./CopyButton";
 import {
   ACCOUNTS,
@@ -17,9 +16,13 @@ import {
 } from "./install";
 import { InstallButton } from "./InstallButton";
 import { Bubbles, PaseoShot } from "./mockups";
+import { Rotator } from "./Rotator";
+import { WorksWith } from "./WorksWith";
 
-const HEADLINE = "One place to build, collaborate, and get things done.";
-const DESCRIPTION = "You own everything: your code, your apps, your data, and what it learns. Free and open source.";
+/** The headline's fixed line, under the assistant's name that slides: Rotator.tsx. */
+const HEADLINE = "for people who don't code.";
+const DESCRIPTION =
+  "The most powerful AI tools, set up for your business, with security built in. Open source, and everything it builds and learns stays in accounts you own.";
 
 /** Under each Paseo screenshot: the pictures show one chat app, and none is needed. */
 const SHOWS_PASEO = "These screens show Paseo, the chat app I use. WongStack works wherever your assistant works.";
@@ -356,7 +359,7 @@ export function Landing() {
   return (
     <>
       <section className="band hero">
-        <h1>{HEADLINE}</h1>
+        <Rotator line={HEADLINE} />
         <p className="lede">{DESCRIPTION}</p>
         <Actions />
         <Supports />
@@ -395,7 +398,7 @@ export function Landing() {
 
       <YourApps />
 
-      <Compare />
+      <WorksWith />
       <Stack />
 
       <section className="band" id="install">
