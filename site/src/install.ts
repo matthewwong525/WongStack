@@ -19,10 +19,15 @@ export const INSTALL_PROMPT =
 /** Where the code lives: the header's and hero's GitHub links, and the footer's license. */
 export const REPO_URL = "https://github.com/matthewwong525/WongStack";
 
-/** The assistants the first step names as examples, each linked to its own install page, as the README links them. */
+/**
+ * The assistants WongStack sets up, each with its own install page, as the
+ * README links them, and its logo in public/logos/. The first step names them
+ * as examples; the headline and the works-with section read the same list. Add
+ * one only after it has been tried as a working assistant.
+ */
 export const AGENTS = [
-  { name: "Claude Code", href: "https://code.claude.com/docs/en/setup" },
-  { name: "Codex", href: "https://developers.openai.com/codex/cli" },
+  { name: "Claude Code", href: "https://code.claude.com/docs/en/setup", logo: "claude" },
+  { name: "Codex", href: "https://developers.openai.com/codex/cli", logo: "openai" },
 ];
 
 /**
@@ -84,6 +89,9 @@ export const PAID_COST = "about $5 a month";
 
 /** "a or b": the computers a way works on, as its line names them. */
 const either = (items: string[]) => new Intl.ListFormat("en", { style: "long", type: "disjunction" }).format(items);
+
+/** The assistants, as the headline's sentence names them: "Claude Code or Codex". */
+export const agents = (names = AGENTS.map((agent) => agent.name)) => either(names);
 
 /** A company's paid plan and what it costs, as a sentence names them. */
 const paidPlan = (account: string, cost: string) => `${account}'s paid plan, ${cost}`;

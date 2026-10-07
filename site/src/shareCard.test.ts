@@ -9,7 +9,8 @@ import { expect, it } from "vitest";
 
 const site = (path: string) => resolve(import.meta.dirname, "..", path);
 const html = readFileSync(site("index.html"), "utf8");
-const LINE = "One place to build, collaborate, and get things done, in accounts you own. Free and open source.";
+const LINE =
+  "Claude Code and Codex, for people who don't code. Set up for your business, in accounts you own. Free and open source.";
 
 const tags = Object.fromEntries(
   [...html.matchAll(/<meta (?:name|property)="(description|og:[^"]+|twitter:[^"]+)" content="([^"]*)"/g)].map(
@@ -28,7 +29,7 @@ it("gives every shared link the WongStack title, line, and picture", () => {
     "og:image": "https://wongstack.com/share.png",
     "og:image:width": "1200",
     "og:image:height": "630",
-    "og:image:alt": "The WongStack logo beside a phone running it, with the line: One place to build, collaborate, and get things done. In accounts you own.",
+    "og:image:alt": "The WongStack logo beside a phone running it, with the line: Claude Code and Codex, for people who don't code. In accounts you own.",
     "twitter:card": "summary_large_image",
     "twitter:title": "WongStack",
     "twitter:description": LINE,

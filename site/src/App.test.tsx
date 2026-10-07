@@ -4,8 +4,7 @@
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import App from "./App";
-import { CHECKLIST, PRODUCTS } from "./compare";
-import { ACCOUNTS, REPO_URL, freeAccounts } from "./install";
+import { ACCOUNTS, AGENTS, REPO_URL, freeAccounts } from "./install";
 
 function renderAt(path: string) {
   window.history.pushState({}, "", path);
@@ -17,12 +16,16 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const HEADLINE = "One place to build, collaborate, and get things done.";
+// What a screen reader reads as the headline: every name, then the fixed line.
+const HEADLINE = "Claude Code or Codex, for people who don't code.";
+const FIXED_LINE = "for people who don't code.";
+const WORKS_WITH = "Works with the AI you already use";
 const SHOWS_PASEO = "These screens show Paseo, the chat app I use. WongStack works wherever your assistant works.";
 const FOR_EVERYONE = "GitHub is for engineers. This is the next one, for everyone else.";
-const DESCRIPTION = "You own everything: your code, your apps, your data, and what it learns. Free and open source.";
+const DESCRIPTION =
+  "The most powerful AI tools, set up for your business, with security built in. Open source, and everything it builds and learns stays in accounts you own.";
 
-// Developer words the page keeps out of its copy above the comparison.
+// Developer words the page keeps out of its copy above the works-with section.
 const JARGON = /\b(repos?|pull requests?|deploy\w*)\b|\b(PR|CI)\b/;
 
 /** The install button and the quiet link to the code: the hero and the closing call to action share them. */
@@ -47,16 +50,35 @@ const paseo = (shot: Element) => [shot.getAttribute("src"), shot.getAttribute("a
 const links = (root: Element | null) =>
   [...(root?.querySelectorAll("a") ?? [])].map((a) => `${a.textContent} ${a.getAttribute("href")}`);
 
-it("opens with a plain headline that says what WongStack is and names no other product", () => {
+it("opens with a headline that slides through the assistants the install steps name, and reads as one sentence", () => {
   const { container } = renderAt("/");
   const h1 = screen.getByRole("heading", { level: 1, name: HEADLINE });
-  const others = [...PRODUCTS.map((product) => product.name), "Dots", "Claude", "ChatGPT", "Codex", "Paseo"];
+  const [hidden, seen] = [...h1.children] as HTMLElement[];
+  const names = AGENTS.map((agent) => agent.name);
 
-  expect(h1.textContent).toBe(HEADLINE);
-  expect(others.length).toBeGreaterThan(5);
-  for (const name of others) expect([name, h1.textContent?.includes(name)]).toEqual([name, false]);
-  // Plain text: nothing moves, and no logo sits in or above it.
-  expect(h1.children).toHaveLength(0);
+  // A screen reader reads one sentence that names them all, and skips the moving rows.
+  expect(h1.children).toHaveLength(2);
+  expect([hidden?.className, hidden?.textContent]).toEqual(["sr-only", HEADLINE]);
+  expect(seen?.getAttribute("aria-hidden")).toBe("true");
+  // Every product the sentence names is one the install steps name: nothing is left once they are taken out.
+  expect(names.length).toBeGreaterThan(1);
+  let rest = HEADLINE;
+  for (const name of names) {
+    expect([name, rest.includes(name)]).toEqual([name, true]);
+    rest = rest.replace(name, "");
+  }
+  expect(rest).toBe(` or , ${FIXED_LINE}`);
+  for (const other of ["WongStack", "Grok", "Dots", "ChatGPT", "Paseo"]) {
+    expect([other, h1.textContent?.includes(other)]).toEqual([other, false]);
+  }
+  // The rows: each name beside its own logo, in the list's order, then the first again so the loop is seamless.
+  const rows = [...h1.querySelectorAll(".rotator-window .rotator-row")];
+  expect(rows.map((row) => [row.textContent, row.querySelector("img")?.getAttribute("src"), row.querySelector("img")?.getAttribute("alt")])).toEqual(
+    [...AGENTS, ...AGENTS.slice(0, 1)].map(({ name, logo }) => [name, `/logos/${logo}.svg`, ""]),
+  );
+  // A visitor who asks for less motion sees the first row, still: index.css stops the slide.
+  expect(rows[0]?.textContent).toBe("Claude Code");
+  expect(seen?.lastElementChild?.textContent).toBe(FIXED_LINE);
   expect(container.querySelector(".hero")?.firstElementChild).toBe(h1);
   expect(container.querySelectorAll("h1")).toHaveLength(1);
 });
@@ -89,7 +111,7 @@ it("opens with the offer, the install button, the GitHub link, the Supports row,
   expect(container.querySelectorAll('a[href*="claymoo" i]')).toHaveLength(0);
 });
 
-it("orders the page: about, Paseo phones, what's included, examples, comparison, stack, install, FAQ, one call to action", () => {
+it("orders the page: about, Paseo phones, what's included, examples, works with, stack, install, FAQ, one call to action", () => {
   const { container } = renderAt("/");
   const points = container.querySelector(".points") as HTMLElement;
   const headings = screen.getAllByRole("heading", { level: 2 });
@@ -100,7 +122,7 @@ it("orders the page: about, Paseo phones, what's included, examples, comparison,
     "Built by chatting, from my phone",
     "The hardest part is the setup. It's done.",
     "Examples of things I've done",
-    "How WongStack compares",
+    WORKS_WITH,
     "WongStack is free and open source.",
     "Install it for free",
     "Questions",
@@ -165,9 +187,9 @@ it("orders the page: about, Paseo phones, what's included, examples, comparison,
   ]);
 });
 
-it("speaks plain business words above the comparison, and never shares one login", () => {
+it("speaks plain business words above the works-with section, and never shares one login", () => {
   const { container } = renderAt("/");
-  const [above, below] = (container.textContent as string).split("How WongStack compares");
+  const [above, below] = (container.textContent as string).split(WORKS_WITH);
 
   expect(below).toBeDefined();
   expect(above).toContain(HEADLINE);
@@ -197,48 +219,38 @@ it("calls a visitor to act once, after the FAQ, with the install button and the 
   expect(cta?.nextElementSibling).toBeNull();
 });
 
-it("compares five products by logo, with a legend, one row per feature, and a not-affiliated note", () => {
+it("shows what works with each assistant: a card per agent, another assistant with its limit, the switch line, and the install button", () => {
   const { container } = renderAt("/");
-  const legend = container.querySelector(".legend") as HTMLElement;
-  const table = container.querySelector(".compare") as HTMLTableElement;
-  const rows = within(table).getAllByRole("row").slice(1);
+  const section = screen.getByRole("heading", { level: 2, name: WORKS_WITH }).closest("section") as HTMLElement;
+  const SET_UP = "Set up on day one: your skills are ready, and memory loads by itself in every chat.";
 
+  expect(AGENTS.length).toBeGreaterThan(1);
   expect(
-    [...legend.querySelectorAll("li")].map((li) => [li.textContent, li.querySelector("img")?.getAttribute("src")]),
-  ).toEqual([
-    ["WongStack", "/favicon.svg"],
-    ["Grok Bot", "/logos/grok.svg"],
-    ["Muse", "/logos/meta.svg"],
-    ["OpenClaw", "/logos/openclaw.svg"],
-    ["Lovable", "/logos/lovable.svg"],
-  ]);
-  expect(within(legend).queryAllByRole("link")).toHaveLength(0);
-  expect(
-    within(table)
-      .getAllByRole("columnheader")
-      .map((th) => within(th).getByRole("img").getAttribute("alt")),
-  ).toEqual(PRODUCTS.map((product) => product.name));
-  expect(
-    rows.map((row) => [
-      within(row).getByRole("rowheader").textContent,
-      ...within(row)
-        .getAllByRole("img")
-        .map((mark) => mark.getAttribute("aria-label")),
+    [...section.querySelectorAll(".works > article")].map((card) => [
+      card.querySelector("h3")?.textContent,
+      card.querySelector("h3 img")?.getAttribute("src"),
+      card.querySelector("h3 img")?.getAttribute("alt"),
+      card.querySelector("p")?.textContent,
     ]),
   ).toEqual([
-    ["Uses websites for you", "Yes", "Yes", "Yes", "Yes", "No"],
-    ["Keeps working in the background", "Yes", "Yes", "Yes", "Yes", "No"],
-    ["Builds and hosts your apps", "Yes", "No", "No", "No", "Yes"],
-    ["Team shares one memory", "Yes", "No", "No", "Yes", "Yes"],
-    ["Your data stays in your accounts", "Yes", "No", "No", "Yes", "No"],
-    ["Uses your Claude or ChatGPT plan", "Yes", "No", "No", "Yes", "No"],
-    ["Open source", "Yes", "No", "No", "Yes", "No"],
+    ...AGENTS.map(({ name, logo }) => [name, `/logos/${logo}.svg`, "", SET_UP]),
+    [
+      "Another assistant",
+      undefined,
+      undefined,
+      "It reads the same files, so your skills work. It looks memory up when you ask.",
+    ],
   ]);
-  for (const [f] of CHECKLIST.entries()) expect(PRODUCTS.every(({ marks }) => marks[f])).toBe(false);
-  expect(legend.nextElementSibling?.nextElementSibling?.textContent).toBe(
-    "Checked September 2026. ✓ yes · – no or not stated. Grok Bot, Muse, OpenClaw, and Lovable belong to their makers. WongStack is not affiliated with them.",
-  );
-  for (const { marks } of PRODUCTS) expect(marks).toHaveLength(CHECKLIST.length);
+  const note = section.querySelector(".works + p") as HTMLElement;
+  expect([note.textContent, note.className]).toEqual([
+    "Switch any time. Your skills, memory, and apps stay in your folder and your accounts.",
+    "note",
+  ]);
+  expect(links(section)).toEqual(["Install for free #install"]);
+  expect(section.lastElementChild?.className).toBe("button");
+  // No table of other products, and no mark for or against one, anywhere on the page.
+  expect(within(section).queryAllByRole("table")).toHaveLength(0);
+  expect(container.querySelectorAll(".legend, [role=img][aria-label]")).toHaveLength(0);
 });
 
 it("names the open-source libraries and the accounts the install asks for, each with its logo and what it does, and no star counts", () => {

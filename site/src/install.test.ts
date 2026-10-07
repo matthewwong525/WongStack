@@ -1,4 +1,7 @@
 // install.ts: the sentences it builds, the two ways to install and what each costs, and that every link in it is a secure address.
+/// <reference types="node" />
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
 import { expect, it } from "vitest";
 import {
   ACCOUNTS,
@@ -12,6 +15,7 @@ import {
   REPO_URL,
   STEPS,
   WAYS,
+  agents,
   computers,
   freeAccounts,
 } from "./install";
@@ -30,6 +34,25 @@ it("names its own computers and accounts when given none", () => {
   expect(ACCOUNTS.length).toBeGreaterThan(0);
   for (const name of COMPUTERS) expect(computers()).toContain(name);
   for (const { name } of ACCOUNTS) expect(freeAccounts()).toContain(name);
+});
+
+it("gives every agent and account a logo file that exists under public/logos/", () => {
+  const logos = [...AGENTS, ...ACCOUNTS].map(({ name, logo }) => [name, logo]);
+
+  expect(AGENTS.map(({ name, logo }) => [name, logo])).toEqual([
+    ["Claude Code", "claude"],
+    ["Codex", "openai"],
+  ]);
+  for (const [name, logo] of logos) {
+    expect([name, logo, existsSync(resolve(import.meta.dirname, "../public/logos", `${logo}.svg`))]).toEqual([name, logo, true]);
+  }
+});
+
+it("names the agents the way the headline's sentence does, for one, two, or three", () => {
+  expect(agents(["One"])).toBe("One");
+  expect(agents(["One", "Two"])).toBe("One or Two");
+  expect(agents(["One", "Two", "Three"])).toBe("One, Two, or Three");
+  expect(agents()).toBe("Claude Code or Codex");
 });
 
 it("links the code, every agent, every account, and every add-on to a secure address", () => {

@@ -138,7 +138,7 @@ it("shows a visitor on a phone the headline, the install steps, and the message 
   const { container } = render(<App />);
   const install = container.querySelector("#install") as HTMLElement;
 
-  screen.getByRole("heading", { level: 1, name: "One place to build, collaborate, and get things done." });
+  screen.getByRole("heading", { level: 1, name: "Claude Code or Codex, for people who don't code." });
   // The first step says any assistant before it names one.
   expect(install.querySelector("ol.install > li")?.textContent).toMatch(
     /^Open any assistant that can work on your computer, such as /,
@@ -154,6 +154,39 @@ it("shows a visitor on a phone the headline, the install steps, and the message 
       }
     }
   }
+});
+
+// Another company's product the page once measured WongStack against, and the words of a comparison.
+const RIVALS = /\b(grok bot|muse|openclaw|lovable)\b|\bcompar\w*|\bversus\b|\bvs\.?(?=\s)|\bnot affiliated\b/i;
+
+it("reads every page for a comparison with another company's product and finds none", () => {
+  // The pattern catches the lines the removed table carried, so a clean read means something.
+  for (const line of [
+    "How WongStack compares",
+    "Grok Bot",
+    "Muse",
+    "OpenClaw",
+    "Lovable",
+    "WongStack vs Muse",
+    "Grok Bot, Muse, OpenClaw, and Lovable belong to their makers. WongStack is not affiliated with them.",
+  ]) {
+    expect([line, RIVALS.test(line)]).toEqual([line, true]);
+  }
+  // The assistants the page does name are not rivals: WongStack sets them up.
+  for (const line of ["Claude Code or Codex, for people who don't code.", "Works with the AI you already use"]) {
+    expect([line, found(line, RIVALS)]).toEqual([line, null]);
+  }
+
+  expect(found(html, RIVALS)).toBeNull();
+  let read = 0;
+  for (const path of PAGES) {
+    for (const state of visit(path)) {
+      expect([path, found(words(state), RIVALS)]).toEqual([path, null]);
+      expect([path, state.querySelectorAll("table.compare, .legend").length]).toEqual([path, 0]);
+      read++;
+    }
+  }
+  expect(read).toBeGreaterThan(PAGES.length);
 });
 
 /** Each kind of element that loads a file, and the attribute that names it. */
@@ -217,7 +250,7 @@ it("loads every file from the site itself: the pages, the styles, and the pictur
       .filter((name) => name.endsWith(".svg"))
       .map((name) => site(join(folder, name))),
   );
-  expect(drawings.length).toBeGreaterThan(10);
+  expect(drawings.length).toBeGreaterThan(5);
   for (const drawing of drawings) {
     const text = readFileSync(drawing, "utf8");
     expect([drawing, found(text, OUTSIDE)]).toEqual([drawing, null]);

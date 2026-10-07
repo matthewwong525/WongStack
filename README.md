@@ -4,9 +4,9 @@
 [![License: MIT](https://img.shields.io/github/license/matthewwong525/WongStack)](LICENSE)
 [![Version](https://img.shields.io/badge/dynamic/yaml?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmatthewwong525%2FWongStack%2Frefs%2Fheads%2Fmain%2FVERSION&query=%24&label=version)](VERSION)
 
-**AI is now good enough that anyone can build their own apps.** Most people still can't, because nothing is set up for them. The AI can write an app, but it has nowhere to put it.
+**The most powerful AI tools, such as Claude Code and Codex, for people who don't code.** Out of the box, nothing in them is set up for a business: there is nowhere to put an app, no memory between chats, and no safe place for a key. WongStack is that setup. It is open source and yours to use and change, and everything it builds and learns stays in accounts you own.
 
-WongStack gives your assistant one place to do four things:
+With it, your assistant can:
 
 - **Build.** Ask for a tool in plain words and it makes a real, working app: *"Build a packing checklist for my team."*
 - **Remember.** It keeps what it learns about you and your work, so you never explain twice: *"From now on, orders ship on Fridays."*
