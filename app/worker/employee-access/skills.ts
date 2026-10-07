@@ -7,11 +7,12 @@ import { apiActions } from "../api/router.ts";
 import { appActions } from "../apps/index.ts";
 import { needFor, type Registration } from "../api/contract.ts";
 import { registered, type Level } from "./key-levels.ts";
-import { listedKeys } from "./policy.ts";
+import { directNeed, listedKeys } from "./policy.ts";
 
 type Levels = Record<string, Level>;
-/** What one skill needs to run: a level per area and per saved key. Project code is among the keys. */
-export type Skill = { id: string; title: string; areas: Levels; keys: Levels };
+/** What one skill needs to run: a level per area and per saved key. Project code is among the keys. `direct` is
+ *  each key the skill uses directly, with the direct-use choice it needs of the owner: `read` for look-ups only. */
+export type Skill = { id: string; title: string; areas: Levels; keys: Levels; direct: Levels };
 
 const declared = z.object({ title: z.string().trim().min(1), actions: z.array(z.string()).min(1) });
 
@@ -31,13 +32,16 @@ export function listSkills(files: Record<string, unknown>, registry: readonly Re
     const id = path.split("/").at(-2)!;
     const file = declared.safeParse(files[path]);
     if (!file.success) throw new Error(`.agents/skills/${id}/actions.json needs a title and a list of actions.`);
-    const skill: Skill = { id, title: file.data.title, areas: {}, keys: registered("code") ? { code: "read" } : {} };
+    const skill: Skill = { id, title: file.data.title, areas: {}, keys: registered("code") ? { code: "read" } : {}, direct: {} };
     for (const operation of file.data.actions) {
       const found = registry.find(({ action }) => action.operationId === operation);
       if (!found) throw new Error(`.agents/skills/${id}/actions.json lists ${operation}, which no route registers.`);
       const need = needFor(found.action, found.method);
       raise(skill.areas, found.access && "apps" in found.access ? found.access.apps : [], need);
-      raise(skill.keys, listedKeys(found.access).filter(registered), need);
+      const keys = listedKeys(found.access).filter(registered);
+      raise(skill.keys, keys, need);
+      const direct = directNeed(found.access);
+      if (direct) raise(skill.direct, keys, direct);
     }
     return skill;
   });

@@ -32,7 +32,7 @@ const answering = (row: unknown) => ({ ...env, DB: fakeDatabase({ withSession: (
 
 beforeEach(() => {
   sql = new DatabaseSync(":memory:");
-  for (const file of ["0001_employee_access.sql", "0003_key_levels.sql", "20261005142459_access_managers.sql", "20261006031500_area_levels.sql"]) {
+  for (const file of ["0001_employee_access.sql", "0003_key_levels.sql", "20261005142459_access_managers.sql", "20261006031500_area_levels.sql", "20261007220000_key_direct_use.sql"]) {
     sql.exec(readFileSync(new URL(`../../../schema/migrations/${file}`, import.meta.url), "utf8"));
   }
   sql.exec(`INSERT INTO wong_access_installation
@@ -67,14 +67,14 @@ it("loads normalized email and grants in one primary statement with no role cach
     ...employee.claims, email: " EMPLOYEE@EXAMPLE.COM ", aud: ["other-app", "business-app"], nbf: 1,
   } };
   const first = await read(normalized);
-  expect(first).toEqual({ state: "current", role: "employee", manages: false, revision: 1, apps: new Map([["orders", "write"]]), keys: null });
+  expect(first).toEqual({ state: "current", role: "employee", manages: false, revision: 1, apps: new Map([["orders", "write"]]), keys: null, direct: new Map() });
   expect(env.DB?.withSession).toHaveBeenCalledWith("first-primary");
   expect(policyAllows(first, access)).toBe(true);
   expect(policyAllows(first, { apps: ["payroll"] })).toBe(false);
   // The same still-valid Access assertion observes the acknowledged database commit.
   sql.exec("DELETE FROM wong_access_grants; UPDATE wong_access_installation SET revision = 2;");
   const next = await read(normalized);
-  expect(next).toEqual({ state: "current", role: "employee", manages: false, revision: 2, apps: new Map(), keys: null });
+  expect(next).toEqual({ state: "current", role: "employee", manages: false, revision: 2, apps: new Map(), keys: null, direct: new Map() });
   expect(policyAllows(next, access)).toBe(false);
   sql.exec("UPDATE wong_access_members SET status = 'removed', revision = 3; UPDATE wong_access_installation SET revision = 3;");
   expect(await read(normalized)).toEqual({ state: "denied" });
@@ -127,7 +127,7 @@ it("lets the verification machine open every built app, and manage people on a p
   } };
   const policy = await read(machine);
   expect(policy).toEqual({ state: "current", role: "employee", manages: false, revision: 1,
-    apps: new Map(["access", "frontend-only", "hello", "new-app", "orders", "payroll", "reports"].map(area => [area, "write"] as const)), keys: new Map([["cloudflare", "read"], ["code", "read"]]) });
+    apps: new Map(["access", "frontend-only", "hello", "new-app", "orders", "payroll", "reports"].map(area => [area, "write"] as const)), keys: new Map([["cloudflare", "read"], ["code", "read"]]), direct: new Map() });
   expect(humanEmail(machine)).toBeNull();
   expect(policyAllows(policy, { apps: ["orders", "payroll"] })).toBe(true);
   expect(policyAllows(policy, { kind: "owner" })).toBe(false);
@@ -166,7 +166,7 @@ it("lets a current person the owner ticked manage Access, and gives them no app,
   tick();
   // The role stays as it was, and so do their apps: managing is its own flag.
   const policy = await read();
-  expect(policy).toEqual({ state: "current", role: "employee", manages: true, revision: 1, apps: new Map([["orders", "write"]]), keys: null });
+  expect(policy).toEqual({ state: "current", role: "employee", manages: true, revision: 1, apps: new Map([["orders", "write"]]), keys: null, direct: new Map() });
   expect(policyAllows(policy, access)).toBe(true);
   // A manager is still refused an unmapped route, an owner route and an app they were not given.
   for (const mapping of [undefined, { kind: "owner" as const }, { apps: ["payroll"] }]) expect(policyAllows(policy, mapping)).toBe(false);
@@ -228,7 +228,7 @@ it("leaves everyone every app until permissions start, and names the owner meanw
 it("ignores a grant for an area that is no longer built", async () => {
   sql.exec("INSERT INTO wong_access_apps VALUES ('installation', 'retired'); INSERT INTO wong_access_grants VALUES ('installation', 'employee@example.com', 'retired', 1, 'write')");
   const policy = await read();
-  expect(policy).toEqual({ state: "current", role: "employee", manages: false, revision: 1, apps: new Map([["orders", "write"]]), keys: null });
+  expect(policy).toEqual({ state: "current", role: "employee", manages: false, revision: 1, apps: new Map([["orders", "write"]]), keys: null, direct: new Map() });
   expect(policyAllows(policy, { apps: ["retired"] })).toBe(false);
   expect(policyAllows(policy, access)).toBe(true);
 });
@@ -241,16 +241,18 @@ it("denies rather than opens when started permission data is missing, unreadable
   expect(denied?.status).toBe(503);
   expect(denied?.headers.get("Cache-Control")).toBe("no-store");
   expect(await denied?.json()).toMatchObject({ error: { code: "unavailable", message: "Access unavailable", requestId: expect.any(String) } });
-  const row = { policy_enabled: 1, keys_enabled: 0, revision: 1, status: "active", manager: 0, apps: '{"orders":"read"}', keys: "{}" };
+  const row = { policy_enabled: 1, keys_enabled: 0, revision: 1, status: "active", manager: 0, apps: '{"orders":"read"}', keys: "{}", direct: "{}" };
   expect(await read(employee, answering(row))).toMatchObject({ state: "current", apps: new Map([["orders", "read"]]) });
   // An unreadable area level never reads as held: a list from before levels, a level nobody defined.
   for (const change of [{ policy_enabled: 2 }, { keys_enabled: 2 }, { revision: 0 }, { status: "unknown" }, { manager: 2 }, { manager: undefined }, { apps: "not json" }, { apps: '{"orders":true}' },
     { apps: '["orders"]' }, { apps: '{"orders":"admin"}' }, { apps: undefined },
-    { keys: undefined }, { keys_enabled: 1, keys: "not json" }, { keys_enabled: 1, keys: '{"cloudflare":"admin"}' }]) {
+    { keys: undefined }, { keys_enabled: 1, keys: "not json" }, { keys_enabled: 1, keys: '{"cloudflare":"admin"}' },
+    // A direct-use choice that can not be read denies everyone, the owner included: it never reads as on, or as off.
+    { direct: undefined }, { keys_enabled: 1, direct: "not json" }, { keys_enabled: 1, direct: '{"cloudflare":"admin"}' }]) {
     expect(await read(employee, answering({ ...row, ...change }))).toEqual({ state: "unavailable" });
   }
   // Until key levels start, an unreadable key level takes no app away; the owner never depends on a stored level.
-  expect(await read(employee, answering({ ...row, keys: "not json" }))).toMatchObject({ state: "current", keys: null });
+  expect(await read(employee, answering({ ...row, keys: "not json" }))).toMatchObject({ state: "current", keys: null, direct: new Map() });
   expect(await read(owner, answering({ ...row, keys_enabled: 1, status: null, apps: "not json", keys: "not json" }))).toMatchObject({ state: "current", role: "owner" });
   // A database from before the managers table denies too: it never reads as nobody managing and carries on.
   sql.exec("DROP TABLE wong_access_managers");

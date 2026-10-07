@@ -3,6 +3,18 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 37.3.0 — An assistant can use a saved key directly, when you switch it on
+
+- **A saved key can now be used directly, through the app.** Before, a teammate's assistant could only do work with a service that someone had already built into the app, so every new question needed a build first. Now the assistant can ask the app to pass one request on to the service. The app checks the person's level for that key, adds the key itself, and returns the answer. The key never reaches the person's device, and each use is recorded with who made it.
+- **You switch it on per key, in Access.** Open a key in the Keys list and pick *Off*, *Look-ups only*, or *Look-ups and changes*. The page says what the choice opens and how many people it reaches before you save, and the Keys list shows the choice on the key's row.
+- **A person's level decides what they can do.** *Read* passes on look-ups. *Read & write* also passes on changes, and only when you chose *Look-ups and changes*. A refusal says what is missing, such as *Notion: direct use is off*. The choice holds for the owner too.
+- **The app passes on only what is safe to pass.** A request goes to that service's own address and nowhere else, a very large answer is refused with a note to narrow the request, and no answer can carry the key back.
+- **Your assistant sets a service up when it saves the key.** No service comes ready-made. For a service that takes one fixed key, the assistant adds where it lives and which of its requests only look things up. A service whose key is renewed through a sign-in, such as Google, still needs work built into the app.
+- **Skills can use a key this way.** The Skills view names the key and the level as before, and says *direct use is off* when that is what stops a skill.
+- **Building the work into the app stays the first choice** for anything you do again and again, or that touches money or customers: only built work can limit a person to one record.
+
+**Updating.** Nothing needs doing by hand. Direct use is *Off* for every key until you choose otherwise in Access, so nobody can do more than before. A key shows *Not set up for this key* until your assistant adds its service; ask it to when you want one.
+
 ## 37.2.5 — A new install kept in Cloudflare saves and publishes the first time
 
 - **A new install kept in Cloudflare alone now gets its first preview and goes live with no fix by hand.** A real test install of 37.2.3 was set up correctly and then could not publish. Four faults stood in the way; each is fixed here.

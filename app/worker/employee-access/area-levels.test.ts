@@ -28,7 +28,7 @@ const read = (identity: AccessIdentity | null = employee, bindings = env) => cur
 
 beforeEach(() => {
   sql = new DatabaseSync(":memory:");
-  for (const file of ["0001_employee_access.sql", "0003_key_levels.sql", "20261005142459_access_managers.sql", "20261006031500_area_levels.sql"]) {
+  for (const file of ["0001_employee_access.sql", "0003_key_levels.sql", "20261005142459_access_managers.sql", "20261006031500_area_levels.sql", "20261007220000_key_direct_use.sql"]) {
     sql.exec(readFileSync(new URL(`../../../schema/migrations/${file}`, import.meta.url), "utf8"));
   }
   sql.exec(`INSERT INTO wong_access_installation
@@ -95,7 +95,9 @@ it("reads a row written before area levels at Look up & change", async () => {
     INSERT INTO wong_access_roles VALUES ('installation', 'sales', 'Sales', 1);
     INSERT INTO wong_access_role_apps VALUES ('installation', 'sales', 'payroll');
     INSERT INTO wong_access_member_roles VALUES ('installation', 'held@example.com', 'sales');`);
-  before.exec(readFileSync(new URL("../../../schema/migrations/20261006031500_area_levels.sql", import.meta.url), "utf8"));
+  for (const file of ["20261006031500_area_levels.sql", "20261007220000_key_direct_use.sql"]) {
+    before.exec(readFileSync(new URL(`../../../schema/migrations/${file}`, import.meta.url), "utf8"));
+  }
   const session = { prepare: (query: string) => ({ bind: (email: string) => ({ first: async () => before.prepare(query).get(email) ?? null }) }) };
   const updated = { ...env, DB: { withSession: () => session } as unknown as D1Database };
   const held = { ...employee, id: "held@example.com", claims: { ...employee.claims, email: "held@example.com" } };

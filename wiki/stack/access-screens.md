@@ -10,7 +10,7 @@ The owner's Access has five views, each with its own address, so Back and reload
 - **Roles** counts each role's apps, keys and holders.
 - **Apps** lists each [area](employee-access.md#areas-and-their-levels), the keys it uses and how many have it; one with no screen says *No screen*. Opened, it ticks roles and people, with the area's level and its keys' levels beside each tick. A tick starts at Look up.
 - **Skills** lists each skill that does business work, how much it needs, such as *1 app, 2 keys*, and how many people can run it. Opened, a skill names each with its level. It is a list to read: [the Skills view](employee-access.md#the-skills-view) says how that is worked out.
-- **Keys** lists every key the app holds, whether it is saved, how many apps use it and how many hold each level. Opened, a key sets every level for it. No value is ever shown. A key shows here once it is [in the registry](api-keys.md#a-saved-key-shows-in-access).
+- **Keys** lists every key the app holds, whether it is saved, how many apps use it, its [direct-use choice](employee-access.md#key-levels) and how many hold each level. Opened, a key sets that choice, with how many people it reaches, and every level for it. A key whose service is not set up says so. No value is ever shown. A key shows here once it is [in the registry](api-keys.md#a-saved-key-shows-in-access).
 
 A level set in any view is the same level in the others. A count names the owner first. Someone who manages nothing sees only their own areas and keys, each with its level.
 

@@ -31,7 +31,7 @@ it("lists every area a person can be given, with or without a screen, and no ski
 });
 
 it("says what each skill needs, and stores no grant for one: its areas and keys are what a person is given", async () => {
-  const refund: Skill = { id: "refund", title: "Refund a customer", areas: { orders: "write", reports: "read" }, keys: { code: "read" } };
+  const refund: Skill = { id: "refund", title: "Refund a customer", areas: { orders: "write", reports: "read" }, keys: { code: "read" }, direct: {} };
   vi.mocked(skills).mockReturnValue([refund]);
   expect((await run("status")).skills).toEqual([refund]);
   const before = f.sql.prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name").all();

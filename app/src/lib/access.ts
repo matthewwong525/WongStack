@@ -40,6 +40,8 @@ const use = z.object({ id: z.string(), need: level })
 // same fact from the key's side, `alone` means it also works with no app, `setup` that setup makes it, and
 // `saved` that the app holds it. No key's value is ever here. `viewer` is who is looking, the owner or a manager;
 // a person's `manager` says the owner lets them manage Access. The server checks both again on every save.
+// A key's `direct` is null, or left out, when its service is not set up to be used directly; otherwise the choices
+// it offers and the one picked, null for off. A skill's `direct` is each key it uses directly, with the choice it needs.
 // `project` says whether the app can hand its project out: `ready`, or the step left, a read-only GitHub `key` or
 // Access `setup`. A status from before the field reads it from whether Project code is saved.
 const project = z.enum(['ready', 'key', 'setup'])
@@ -48,9 +50,10 @@ export const statusSchema = z.object({ ownerEmail: z.string(), environment: z.en
   key: z.enum(['ready', 'missing', 'practice']), started: z.boolean(), imported: z.number(),
   keysStarted: z.boolean(), kept: z.number(), appKeys: z.record(z.string(), z.array(use)),
   areas: z.array(z.object({ id: z.string(), title: z.string(), description: z.string(), screen: z.boolean() })),
-  skills: z.array(z.object({ id: z.string(), title: z.string(), areas: levels, keys: levels })),
+  skills: z.array(z.object({ id: z.string(), title: z.string(), areas: levels, keys: levels, direct: levels.optional() })),
   keys: z.array(z.object({ id: z.string(), title: z.string(), levels: z.array(level), saved: z.boolean(), setup: z.boolean(),
-    usedBy: z.array(z.object({ app: z.string(), need: level })), alone: z.boolean() })),
+    usedBy: z.array(z.object({ app: z.string(), need: level })), alone: z.boolean(),
+    direct: z.object({ offered: z.array(level), mode: level.nullable() }).nullable().optional() })),
   roles: z.array(z.object({ id: z.string(), name: z.string(), apps: levels, keys: levels })),
   people: z.array(z.object({ email: z.string(), status: z.enum(['active', 'removed']), settled: z.boolean(),
     role: z.string().nullable(), manager: z.boolean(), apps: levels, keys: levels })),
@@ -70,7 +73,7 @@ export async function readAccess<T>(path: string, schema: z.ZodType<T>, signal?:
   if (!response.ok) throw new Error('Access unavailable')
   return schema.parse(await response.json())
 }
-export async function changeAccess(path: 'people' | 'roles' | 'grants' | 'retry', body?: object): Promise<void> {
+export async function changeAccess(path: 'people' | 'roles' | 'grants' | 'direct' | 'retry', body?: object): Promise<void> {
   const response = await fetch(`/api/access/${path}`, { method: 'POST', redirect: 'error',
     headers: { Origin: window.location.origin, 'Content-Type': 'application/json' }, body: JSON.stringify(body ?? {}) })
   if (!response.ok) throw new Error('Access change unavailable')

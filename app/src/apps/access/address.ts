@@ -22,6 +22,7 @@ export const saidSchema = z.object({ text: z.string(), failed: z.boolean(), undo
 type Said = z.infer<typeof saidSchema>
 
 /** What a view, and each item opened in it, is handed: the one status read, the last change, and the one way to save.
- *  `done` replaces the words a finished save is said with, and may carry its undo. */
+ *  `done` replaces the words a finished save is said with, and may carry its undo. `first` is a key's direct-use
+ *  choice, saved before the rest: when it does not finish, nothing after it is sent. */
 export type ViewProps = { status: Status; id: string; view: (typeof VIEWS)[number]; pending: boolean; said?: Said
-  save: (path: 'people' | 'roles' | 'grants' | 'retry', body?: object, done?: Pick<Said, 'text' | 'undo'>) => void; reload: () => void }
+  save: (path: 'people' | 'roles' | 'grants' | 'retry', body?: object, done?: Pick<Said, 'text' | 'undo'>, first?: object) => void; reload: () => void }
