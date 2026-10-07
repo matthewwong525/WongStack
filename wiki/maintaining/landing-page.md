@@ -6,14 +6,16 @@ It is plain files, with no server code, database, or secret. Two pages exist: th
 
 ## Change what it says about installing
 
-Everything the page says about installing sits in [`site/src/install.ts`](../../site/src/install.ts): the message to paste, the steps, the agents, the accounts a person needs, the computers it works on, the two ways to install with what each costs, and the optional add-on. Edit that one file, and the install section, the questions, and the list of what WongStack is built on all follow. No other file under `site/src/` names an account, a system, a cost, or the message.
+Everything the page says about installing sits in [`site/src/install.ts`](../../site/src/install.ts): the message to paste, the steps, the agents with their logos, the accounts a person needs, the computers it works on, the two ways to install with what each costs, and the optional add-on. Edit that one file, and the install section, the questions, and the list of what WongStack is built on all follow. No other file under `site/src/` names an account, a system, a cost, or the message.
 
 Four rules:
 
 - **The message is the README's, character for character.** [The guard test](../../scripts/tests/landing-site.test.mjs) reads `INSTALL_PROMPT` from `install.ts` and fails when [the README](../../README.md)'s fenced message differs, naming both files. Change both in the same change.
 - **A changed cost or computer changes the README and the guide too.** `WAYS` and `PAID_COST` in `install.ts` hold each way's accounts, computers, and cost. [The cost guard](../../scripts/tests/install-cost.test.mjs) reads them and fails when [the README](../../README.md) or [getting started](../stack/getting-started.md#what-it-costs) stops saying the paid way's cost and computers, or which way is free, naming the page and `install.ts`. Change all three in the same change. The guard runs on a wiki-only change too: that is how the guide once came to disagree.
 - **Describe the install that works today**, not one that is planned. A page that promises a route early sends a visitor to a dead end.
-- **Name an assistant or a chat app as an example, never as needed.** `STEPS` in [`site/src/install.ts`](../../site/src/install.ts) says *any assistant that can work on your computer* first, then names one as an example. A picture of a chat app says it shows what Matthew uses. The headline and the text a shared link shows name no other product: a visitor who uses something else otherwise leaves at step one.
+- **Name an assistant or a chat app as an example, never as needed.** `STEPS` in [`site/src/install.ts`](../../site/src/install.ts) says *any assistant that can work on your computer* first, then names one as an example. A picture of a chat app says it shows what Matthew uses. The headline and the text a shared link shows name only assistants in `AGENTS`, each one tried as a working assistant first: a name that was never tried sends a visitor to a dead end.
+
+The site compares WongStack with no other product: a wrong claim about another company's product is a liability. [`Site.test.tsx`](../../site/src/Site.test.tsx) reads every page for one.
 
 ## No hosting offer
 
@@ -64,7 +66,6 @@ Both names show the same page; `www` does not send a visitor on. Every page name
 
 - **The logo and the share card** are drawn in [`site/brand/`](../../site/brand/). `share-image.svg` is the source of `site/public/share.png`, the picture a shared link shows; its opening comment says how to render it.
 - **The four point pictures** in `site/public/art/` were each made once from a prompt. The prompts and the shared style sit in a comment above `POINTS` in [`site/src/Landing.tsx`](../../site/src/Landing.tsx).
-- **The comparison table**'s marks and their sources sit in [`site/src/compare.ts`](../../site/src/compare.ts). Check every mark against its source and update the *Checked* date: a wrong claim about another company's product is a liability.
 
 ## Keep its packages current
 

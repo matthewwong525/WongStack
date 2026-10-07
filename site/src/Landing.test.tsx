@@ -15,7 +15,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-// Developer words the page keeps out of its copy above the comparison.
+// Developer words the page keeps out of its copy above the works-with section.
 const JARGON = /\b(repos?|pull requests?|deploy\w*)\b|\b(PR|CI)\b/;
 
 /** A Paseo screenshot's file and its label. */
@@ -226,11 +226,11 @@ it("keeps the install message on the page and says to select it when the browser
   within(install).getByRole("button", { name: "Copy message" });
 });
 
-it("offers the install at the end of the setup and the comparison, not after the phones or the examples", () => {
+it("offers the install at the end of the setup and the works-with section, not after the phones or the examples", () => {
   const { container } = renderAt("/");
   const last = (name: string) => section(name).lastElementChild;
 
-  for (const name of ["The hardest part is the setup. It's done.", "How WongStack compares"]) {
+  for (const name of ["The hardest part is the setup. It's done.", "Works with the AI you already use"]) {
     expect([last(name)?.textContent, last(name)?.getAttribute("href"), last(name)?.className]).toEqual([
       "Install for free",
       "#install",
