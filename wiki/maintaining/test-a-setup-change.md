@@ -23,6 +23,8 @@ The install record then names that branch, so the test install's later updates f
 
 **Name the throwaway folder so it can not match a real install** in the same account: never `~/wongstack` on a machine that holds WongStack. Setup names the Worker, the database and the repository after the folder, and teardown deletes by that name.
 
+**Only the owner can make a fresh token.** Cloudflare refuses a token that creates a token-managing token (*sub-token is not allowed to have permissions to manage other tokens*), so the saved one can not make a twin. Ask the owner for a new one through [the token link](../stack/cloudflare-credentials.md#create-the-token) to test that step too, or use the saved one: setup adds only the permissions it lacks.
+
 ## What to walk
 
 Ask first: the install makes billable resources in a real Cloudflare account.
