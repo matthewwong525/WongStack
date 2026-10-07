@@ -1,3 +1,4 @@
+<!-- wong-review:3 -->
 <!doctype html>
 <!--
   WongStack review kit. build-review.mjs writes the proposal as static HTML at the
@@ -9,7 +10,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · CHANGE-NAME</title>
+<title>Review · 2026-10-07-send-notes-to-chat</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -94,17 +95,74 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="CHANGE-NAME">
+<body data-change="2026-10-07-send-notes-to-chat">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>CHANGE-NAME</h1>
+  <h1>2026-10-07-send-notes-to-chat</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. <span class="copies">Saving a note copies all your notes.</span> Open a drawing and tap it to see it full screen.</p>
   <p id="script-error" role="alert" hidden></p>
 </header>
-<!-- review:content -->
+<section id="why" aria-labelledby="why-h"><h2 id="why-h">Why</h2>
+<div class="card">
+<p data-note="why-1" tabindex="0">When you review a plan, your notes take three steps to reach the chat: tap <i>Copy notes</i>, switch to the chat, paste. On a phone that is the slowest part of a review, and a copy that fails loses the trip. The plan page is a file on the computer the chat runs on, so it has no way to talk back.</p>
+<p data-note="why-2" tabindex="0">The pieces for a way back already exist. The private links for keys and passwords open a web address that closes itself and wake the chat when you finish. A plan can open the same way.</p>
+</div></section>
+<section id="changes" aria-labelledby="changes-h"><h2 id="changes-h">What Changes</h2>
+<ol class="items">
+<li class="item card" id="item-1"><span class="num">1</span><div class="body"><div class="text" data-note="item-1" tabindex="0"><b>A plan opens as a live link, and its button sends your notes to the chat.</b> The chat prints a web address instead of a file. <i>Send notes</i> puts your saved notes into the chat that made the plan, as if you had pasted them: the chat updates the plan and builds nothing.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-1-line-1" tabindex="0">  BEFORE                 AFTER</span>
+<span class="ln" data-note="item-1-line-2" tabindex="0">plan page (a file)     plan page (live link)</span>
+<span class="ln" data-note="item-1-line-3" tabindex="0">     │                      │</span>
+<span class="ln" data-note="item-1-line-4" tabindex="0"> Copy notes             Send notes</span>
+<span class="ln" data-note="item-1-line-5" tabindex="0">     │                      │</span>
+<span class="ln" data-note="item-1-line-6" tabindex="0"> switch to chat             │</span>
+<span class="ln" data-note="item-1-line-7" tabindex="0">     │                      │</span>
+<span class="ln" data-note="item-1-line-8" tabindex="0">   paste                    │</span>
+<span class="ln" data-note="item-1-line-9" tabindex="0">     ▼                      ▼</span>
+<span class="ln" data-note="item-1-line-10" tabindex="0">   chat                   chat</span></pre></div></details></li>
+<li class="item card" id="item-2"><span class="num">2</span><div class="body"><div class="text" data-note="item-2" tabindex="0"><b>The button on the page changes with the link.</b> On an open live link it reads <i>Send notes</i>. Saving a note no longer copies anything there; one tap sends every note not yet sent, and each sent note is marked <i>Sent</i>. Opened as a file, the page works as it does today.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-2-line-1" tabindex="0">  BEFORE                   AFTER</span>
+<span class="ln" data-note="item-2-line-2" tabindex="0">┌──────────────────────┐ ┌──────────────────────┐</span>
+<span class="ln" data-note="item-2-line-3" tabindex="0">│ 2 notes [Copy notes] │ │ 2 notes [Send notes] │</span>
+<span class="ln" data-note="item-2-line-4" tabindex="0">└──────────────────────┘ └──────────────────────┘</span>
+<span class="ln" data-note="item-2-line-5" tabindex="0"> toast after the tap:     toast after the tap:</span>
+<span class="ln" data-note="item-2-line-6" tabindex="0"> Copied 2 notes. Paste    Sent 2 notes to the</span>
+<span class="ln" data-note="item-2-line-7" tabindex="0"> them into chat.          chat.</span></pre></div></details></li>
+<li class="item card" id="item-3"><span class="num">3</span><div class="body"><div class="text" data-note="item-3" tabindex="0"><b>A link stays open for 8 hours, and a closed one costs you nothing.</b> When the link has closed, or the chat can't be reached, the same tap copies your notes instead and says so, and you paste them as today. Say <i>new link</i> and the chat prints a fresh one.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-3-line-1" tabindex="0">┌──────────────────────────────┐</span>
+<span class="ln" data-note="item-3-line-2" tabindex="0">│ 2 notes         [Send notes] │</span>
+<span class="ln" data-note="item-3-line-3" tabindex="0">└──────────────────────────────┘</span>
+<span class="ln" data-note="item-3-line-4" tabindex="0"> toast when the link has closed:</span>
+<span class="ln" data-note="item-3-line-5" tabindex="0"> This link has closed. Copied</span>
+<span class="ln" data-note="item-3-line-6" tabindex="0"> 2 notes: paste them into chat.</span></pre></div></details></li>
+<li class="item card" id="item-4"><span class="num">4</span><div class="body"><div class="text" data-note="item-4" tabindex="0"><b>Every plan gets one, at no cost after the first.</b> The first plan of the day takes 5 to 10 seconds longer to print its link. Later plans, from any chat on the same computer, share that one connection and print at once.</div></div></li>
+<li class="item card" id="item-5"><span class="num">5</span><div class="body"><div class="text" data-note="item-5" tabindex="0"><b>Where a chat can't be woken, nothing changes.</b> A host with no way to wake a chat, or a computer without Cloudflare's tunnel tool, still gets the file and <i>Copy notes</i>.</div></div></li>
+<li class="item card" id="item-6"><span class="num">6</span><div class="body"><div class="text" data-note="item-6" tabindex="0"><b>Key, password, and card links are untouched.</b> A plan link has its own place, so it never blocks one of those, and their rule stays: nothing typed into them reaches the chat.</div></div></li>
+<li class="item card" id="item-7"><span class="num">7</span><div class="body"><div class="text" data-note="item-7" tabindex="0"><b>Other pages can use the same part.</b> Any single page with a <i>Submit</i> button can open the same way and send its answers to the chat that made it. The mail review page in WongOS is the first that will; that page itself is built there, not here.</div></div></li>
+</ol>
+<p class="aside">Non-goals: no hosting in your Cloudflare account, no link that lasts for days, and no change to what pasted notes do.</p>
+
+</section>
+<section id="decisions" aria-labelledby="decisions-h"><h2 id="decisions-h">Decisions</h2>
+<ol class="decisions">
+<li class="decision card" id="decision-1" data-note="decision-1" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-07</p>Asked when a plan should get a live link → chose every plan, over only on <i>Review the plan</i> and only when asked.</li>
+<li class="decision card" id="decision-2" data-note="decision-2" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-07</p>Asked how long a plan's live link stays open → chose 8 hours; after that the button copies and a new link is made on request.</li>
+<li class="decision card" id="decision-3" data-note="decision-3" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-07</p>Assumed: all plan links on one computer share one connection, because every plan now gets a link and one connection per plan would run a helper per plan for 8 hours and slow each one by 5 to 10 seconds.</li>
+<li class="decision card" id="decision-4" data-note="decision-4" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-07</p>Assumed: on a live link, saving a note does not send it, because each send wakes the chat and a review of five notes would update the plan five times.</li>
+<li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-07</p>Assumed: a note is sent once and then marked <i>Sent</i>, because a second tap would otherwise make the chat apply the same notes again.</li>
+<li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-07</p>Assumed: where no chat can be woken or the tunnel tool is missing, the chat prints the file with no prompt to install anything, because a plan must never wait on setup.</li>
+<li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-07</p>Assumed: the shared part ships here and the mail review page stays in WongOS, because WongStack owns the plan page and the link, and the mail page is that repo's own.</li>
+<li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-07</p>Assumed: the notes sent are capped in size and always arrive under the fixed line <i>Notes on the plan … Don't build yet.</i>, because anyone holding the link could otherwise put any instruction into the chat.</li>
+<li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-07</p>Walked from this host with a phone-sized browser, not a real phone: the page built with a live link, two notes saved, one tap on <i>Send notes</i>. The chat received the header line and both bullets once and built nothing. A sent note arrives at once and interrupts a step the chat is running.</li>
+<li class="decision card" id="decision-10" data-note="decision-10" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-07</p>After <code>close</code>, the address answered Cloudflare's error for both the page and a send, and nothing reached the chat. The copy fallback on a refused send is covered by the browser test, not by this walk.</li>
+<li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-07</p>The areas test fails before the archive, because it names the new spec the archive creates; it is rerun after.</li>
+<li class="decision card" id="decision-12" data-note="decision-12" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-07</p>Task 5.3 is the one checkpoint <code>/ship</code> makes after the archive; the merge waits on its result.</li>
+<li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-07</p>Archive checkpoint: every task ticked, the areas test passes with the new spec in place, numbered 37.4.0.</li>
+</ol>
+</section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
 <p class="session" hidden>Storage is off. Notes and drafts last for this session only.</p>
 <ul class="note-list" id="note-list"></ul>

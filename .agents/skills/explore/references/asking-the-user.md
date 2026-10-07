@@ -64,11 +64,11 @@ Before you finish, ask **what the user must decide for the work to continue**, i
 
 ## Print the plan's link
 
-When a reply makes or changes a plan or its checklist, print *Click here to see the plan:* and the change's `review.html` link as one chat line, copied from the page builder, never a shortened path. Status, branch, Open questions, and Decision-log lines alone are record-keeping, not a change. Print it whatever made the plan, even when the build goes on; it adds no stop. Put it just above the closing question, never inside it: a tool's card may not make a link clickable.
+When a reply makes or changes a plan or its checklist, print *Click here to see the plan:* and the link as one chat line, copied from the page builder, never shortened: [the reply link](../../../../wiki/development/reply-links.md) when one opens, else the `review.html` file. On *new link*, rerun the builder. Status, branch, Open questions, and Decision-log lines alone are record-keeping, not a change. Print it even when the build goes on; it adds no stop. Put it just above the closing question, never inside it: a tool's card may not make a link clickable.
 
-The builder also prints *When you're ready, type `/apply` to build it.* after a blank line, so chat keeps them apart. Copy it only on the *Review the plan* reply, which ends with no question. Leave it out everywhere else: a closing question that offers to build is the one way on.
+The builder also prints *When you're ready, type `/apply` to build it.* after a blank line. Copy it only on the *Review the plan* reply, which ends with no question. Leave it out everywhere else: a closing question that offers to build is the one way on.
 
-Some hosts hide text above a question card, so **any closing question in a reply that made or changed a plan offers *Review the plan*.** Picking it starts nothing: the next reply ends with the link line and its next-step line and no question; the person's next message decides.
+Some hosts hide text above a question card, so **any closing question in a reply that made or changed a plan offers *Review the plan*.** Picking it starts nothing: the next reply ends with the link line, its next-step line, and no question.
 
 ## Print the preview's link
 
