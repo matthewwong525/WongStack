@@ -3,6 +3,22 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 38.3.0 — Tap through a robot check in a live view
+
+- **A robot check gets a live view you tap through.** When a site asks whether a person is there, with a tick box or a picture puzzle, the assistant asks if you're ready. Then it sends a private link that shows its browser on that page. You tick the box or do the puzzle. The link closes itself once the site lets you through, and the assistant carries on. The assistant never ticks or solves a check itself.
+- **The whole page fits your screen.** The view fits the page to what you hold, narrow on a phone and wide on a laptop, and puts it back when the link closes.
+- **You can type and paste from a phone.** The browser fills the page, with one box under it. Tap a box in the browser, then type in ours: each letter lands in the browser as you type it, with no send button.
+- **A page no longer closes under you.** The assistant's browser closes any page left alone for 5 minutes, and your taps don't count as use. A page now stays open for as long as a link is using it. Card forms get the same fix: one you took more than 5 minutes over could fail with nothing sent.
+- **The link can drive a browser signed in as you, for up to eight hours.** Anyone who gets it while it's open can use the accounts that browser is signed in to. It closes when the site lets you through, when you say *done* in the chat, or after eight hours. Only one private link is open at a time, and the view shows nothing without the link's own secret.
+- **Only for robot checks.** A password, a code, a card, and an ordinary answer keep the routes they have. *Let me take over* still opens nothing anywhere else. A passkey or an approval on your phone stays on your own device.
+- **A site that still refuses after your try ends with steps for you**, as before. Each site gets one live view per task, so a site that won't be satisfied isn't tried again and again.
+- **After a sign-in, the assistant looks for a check.** *Accepted* only means the password page was passed. The assistant reads the next page and offers the live view when it's a check, before it says it's signed in.
+- **Three small tools, installed once with your yes.** One goes in your home folder. Two need admin rights on the computer. Where the assistant can't use admin rights without a password, it installs nothing and gives you one command to run.
+- **On a Mac, nothing changes yet.** There the assistant's browser has no screen to show, so a check still ends with steps for you.
+- **For the assistant:** [`hand-over.mjs`](.agents/skills/hand-over/scripts/hand-over.mjs) gains `open --view` and `install-view`, and [live view](wiki/development/live-view.md) says when and how to run them.
+
+**Updating.** Nothing to do by hand. The first time a site shows a robot check, the assistant asks before installing three small tools that let you see its browser: one in your home folder, and two that need admin rights on the computer. While a live view is open, its link can use the accounts the assistant's browser is signed in to, so send it to nobody.
+
 ## 38.2.1 — The build buttons sit in the plan page's bottom bar
 
 - ***Build it* and *Build and publish* are always in view.** Before, they sat under *Ready?* at the foot of the plan page, so on a phone you scrolled past the whole plan to reach them. Now they are in the bar at the bottom of the screen: a second row under *Send notes* on a phone, the same row on a wide screen. The *Ready?* section is gone.

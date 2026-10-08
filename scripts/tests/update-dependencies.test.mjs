@@ -5,8 +5,9 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { CAMOFOX } from '../../.agents/skills/browser/scripts/browse.mjs';
+import { VIEWER } from '../../.agents/skills/hand-over/scripts/view.mjs';
 import {
-  CAMOFOX_PINS, PIN_FILES, bumpRange, isMajor, latestInMajor, lockInSync, planPackages, readCamofoxPins, readPin, rewritePins, run,
+  CAMOFOX_PINS, PIN_FILES, VIEWER_PIN, bumpRange, isMajor, latestInMajor, lockInSync, planPackages, readCamofoxPins, readPin, readViewerPin, rewritePins, run,
 } from '../../.agents/skills/update-dependencies/scripts/update.mjs';
 
 // ---- Pure helpers ----
@@ -68,6 +69,14 @@ test('camofox\'s two pins are read from browse.mjs itself', () => {
   assert.deepEqual(readCamofoxPins(text), { camofox: CAMOFOX['@askjo/camofox-browser'], driver: CAMOFOX['playwright-core'] });
   assert.equal(readCamofoxPins("{ '@askjo/camofox-browser': '1.18.1' }"), null, 'one pin alone is no pin');
   assert.equal(readCamofoxPins("{ '@askjo/camofox-browser': '^1.18.1', 'playwright-core': '1.58.2' }"), null, 'a range is no pin');
+});
+
+// The live view's viewer is pinned in view.mjs alone; the updater reads that file, not a copy.
+test('the viewer\'s pin is read from view.mjs itself', () => {
+  const text = readFileSync(join(import.meta.dirname, '../..', VIEWER_PIN), 'utf8');
+  assert.equal(readViewerPin(text), VIEWER.version);
+  assert.equal(readViewerPin("export const VIEWER = { version: 'latest' };"), null, 'a name is no pin');
+  assert.equal(readViewerPin("export const VIEWER = { version: '^1.6.0' };"), null, 'a range is no pin');
 });
 
 test('a lock is in sync only when its root entry names the same ranges', () => {
@@ -377,4 +386,35 @@ test('a browse.mjs that pins nothing fails the survey, and a repo without it ski
   const unpinned = await f.go();
   assert.equal(unpinned.code, 1);
   assert.match(unpinned.out, /^FAIL \.agents\/skills\/browser\/scripts\/browse\.mjs — names no pinned camofox and playwright-core versions$/m);
+});
+
+const VIEWER_FILE = "export const VIEWER = { version: '1.6.0', url: 'https://example.invalid/v1.6.0.tar.gz', sha256: 'abc' };\n";
+
+test('the viewer\'s pin is surveyed and never moved: a newer one is handed to the person with the rule', async t => {
+  const f = fixture(t, withRegistry({ '@novnc/novnc': '1.6.0' }));
+  write(f.root, VIEWER_PIN, VIEWER_FILE);
+  const current = await f.go();
+  assert.equal(current.code, 0, current.out);
+  assert.match(current.out, /^novnc 1\.6\.0 current$/m);
+  assert.doesNotMatch(current.out, /needs you/);
+
+  f.setState(withRegistry({ '@novnc/novnc': '1.7.0' }));
+  const newer = await f.go();
+  assert.equal(newer.code, 0, newer.out);
+  assert.match(newer.out, /^novnc 1\.6\.0 -> 1\.7\.0 pinned$/m);
+  assert.match(newer.out, /^needs you: novnc 1\.6\.0 -> 1\.7\.0: move the version, the address, and the fingerprint in \.agents\/skills\/hand-over\/scripts\/view\.mjs together, and only after a live view works from a phone with the new files$/m);
+  assert.match(newer.out, /^status: needs-agent$/m);
+  assert.equal(f.read(VIEWER_PIN), VIEWER_FILE, 'the pin is left as it is');
+  assert.doesNotMatch(f.calls(), /npm install/);
+});
+
+test('a view.mjs that pins nothing fails the survey, and a repo without it skips the viewer', async t => {
+  const f = fixture(t);
+  const without = await f.go();
+  assert.doesNotMatch(without.out, /novnc/);
+  assert.doesNotMatch(f.calls(), /novnc/);
+  write(f.root, VIEWER_PIN, "export const VIEWER = { version: 'latest' };\n");
+  const unpinned = await f.go();
+  assert.equal(unpinned.code, 1);
+  assert.match(unpinned.out, /^FAIL \.agents\/skills\/hand-over\/scripts\/view\.mjs — names no pinned noVNC version$/m);
 });

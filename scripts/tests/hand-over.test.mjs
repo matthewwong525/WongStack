@@ -8,8 +8,10 @@ import { basename, dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { finished, globToRegExp, keyMatches, servePage, tunnelOrigin } from '../../.agents/skills/hand-over/scripts/hand-over.mjs';
+import { VIEWER } from '../../.agents/skills/hand-over/scripts/view.mjs';
 import { BROWSE_ENV, fakeCamofox } from './fixtures/fake-camofox.mjs';
 import { fakeTunnel, ORIGIN, TUNNEL_ENV } from './fixtures/fake-tunnel.mjs';
+import { fakeViewer, fakeViewTools, GREETING, SCREEN, upgrade } from './fixtures/fake-view-tools.mjs';
 
 const legacyOutput = text => text.replace(/^HANDOVER_(COMPLETION|NOTIFICATION)=.*\n/gm, '');
 const legacyResult = ({ completionId: _completionId, notification: _notification, ready: _ready, ...result }) => result;
@@ -48,17 +50,23 @@ const CODE = 'ZQ7';
 const VALUES = [NUMBER, '03', '2028', CODE];
 const PRIVATE = /XKCD|QWZP|ZQ7/;
 const SESSION = 'card';
+// The X display the fake browser says it runs on, for a live view.
+const DISPLAY = ':97';
 // What a send does in the browser, in order, and what puts the page back. A dropdown's own choice is
 // read from a snapshot before the pick; a typed value is never part of a step's name.
 const FILL = ['type e12', 'snapshot', 'select e13 03', 'snapshot', 'select e14 2028', 'type #cvv'];
 const CLEAR = ['type e12', 'select e13 01 - January', 'select e14 2027', 'type #cvv'];
 const PRESS = 'click e31';
 
-/** One browser request as a step: the route and its target, with a pick's choice, never a typed value. */
+// What an expression the watcher evaluates is called as a step.
+const READS = { 'location.href': 'url', '[innerWidth, innerHeight]': 'size', 1: 'keep-alive' };
+
+/** One browser request as a step: the route and its target, with a pick's choice or a page's size, never a typed value. */
 function stepOf({ method, path, body }) {
   const route = path.split('/').at(-1);
   const target = body?.ref ?? body?.selector;
-  if (route === 'evaluate') return body.expression === 'location.href' ? 'url' : `count ${JSON.parse(/\((".*")\)/.exec(body.expression)[1])}`;
+  if (route === 'evaluate') return READS[body.expression] ?? `count ${JSON.parse(/\((".*")\)/.exec(body.expression)[1])}`;
+  if (route === 'viewport') return `viewport ${body.width}x${body.height}`;
   if (route === 'select') return `select ${target} ${body.option}`;
   return method === 'POST' && target ? `${route} ${target}` : route;
 }
@@ -67,8 +75,10 @@ function stepOf({ method, path, body }) {
 // install that browse.mjs starts as the real one. `openPage` opens the card page in the browser session
 // `card`, as the agent does before it sends a form; `set` and `unset` write the fake browser's control
 // files (fake-camofox-server.mjs lists them). With `checkout`, commands run in a Git checkout of their
-// own that declares MAPS_API_KEY, for a key link.
-function fixture(t, { cloudflared = true, silent = false, paseo = null, agentId, checkout = false } = {}) {
+// own that declares MAPS_API_KEY, for a key link. Every command finds fake-view-tools.mjs's stand-ins for
+// a live view's tools, never the computer's own; with `view`, the browser also has a screen and the
+// pinned viewer is installed, as a live view needs.
+function fixture(t, { cloudflared = true, silent = false, paseo = null, agentId, checkout = false, view = false } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'wong-test-hand-over-'));
   const bin = join(root, 'bin');
   mkdirSync(bin);
@@ -83,6 +93,11 @@ function fixture(t, { cloudflared = true, silent = false, paseo = null, agentId,
   const file = name => join(root, name);
   const camofox = fakeCamofox(root);
   camofox.set('snapshot', CARD_PAGE);
+  const tools = fakeViewTools(root, camofox.control);
+  if (view) {
+    camofox.set('display', DISPLAY);
+    fakeViewer(root, VIEWER.version);
+  }
   if (cloudflared) fakeTunnel(bin, calls, { pidFile: file('tunnel.pid'), silent });
   writeFileSync(file('form.json'), JSON.stringify(CARD));
   if (paseo) {
@@ -94,7 +109,7 @@ ${paseo === 'fail' ? 'process.exit(1);' : paseo === 'timeout' ? 'setTimeout(() =
     chmodSync(join(bin, 'paseo'), 0o755);
   }
   // Without cloudflared, PATH is the fake bin alone.
-  const env = { ...process.env, ...TUNNEL_ENV, ...BROWSE_ENV, PASEO_AGENT_ID: agentId ?? (paseo ? 'a-full-workspace-id' : ''), PASEO_HOME: '', PASEO_HOST: '', HOME: root, PATH: cloudflared ? `${bin}:/usr/bin:/bin` : bin, HANDOVER_POLL_MS: '50', HANDOVER_SEND_WAIT_MS: '400' };
+  const env = { ...process.env, ...TUNNEL_ENV, ...BROWSE_ENV, ...tools.env(), PASEO_AGENT_ID: agentId ?? (paseo ? 'a-full-workspace-id' : ''), PASEO_HOME: '', PASEO_HOST: '', HOME: root, PATH: cloudflared ? `${bin}:/usr/bin:/bin` : bin, HANDOVER_POLL_MS: '50', HANDOVER_SEND_WAIT_MS: '400' };
   const run = (...args) => { const out = spawnSync(process.execPath, [script, ...args], { cwd, env, encoding: 'utf8', timeout: 30_000 }); return { ...out, rawStdout: out.stdout, stdout: legacyOutput(out.stdout) }; };
   /** Runs a command beside the test, so the test's own servers keep answering; resolves to its status and output. */
   const start = (...args) => {
@@ -119,8 +134,10 @@ ${paseo === 'fail' ? 'process.exit(1);' : paseo === 'timeout' ? 'setTimeout(() =
     start,
     env,
     cwd,
+    root,
     state,
     camofox,
+    tools,
     form: file('form.json'),
     /** Opens the card page once, in `session` or the folder's own; the steps counted start after it. */
     openPage(session = SESSION) {
@@ -150,7 +167,7 @@ const pause = ms => new Promise(done => setTimeout(done, ms));
 
 /** Runs `open`, asserts it worked, and returns its link, the key, and the page's recorded loopback port. */
 function opened(f, ...args) {
-  if (args.includes('--form')) f.openPage();
+  if (args.includes('--form') || args.includes('--view')) f.openPage();
   const out = f.run('open', ...args);
   assert.equal(out.status, 0, out.stderr);
   const link = /^HANDOVER_LINK=(.+)$/m.exec(out.stdout)?.[1];
@@ -276,7 +293,7 @@ test('a bad --minutes or command, no mode, two modes, or a removed flag is a usa
   assert.equal(f.run().status, 2);
   const bare = f.run('open');
   assert.equal(bare.status, 2);
-  assert.match(bare.stderr, /open takes one of --form, --passwords, or --keys/);
+  assert.match(bare.stderr, /open takes one of --form, --passwords, --keys, or --view/);
   assert.equal(f.run('open', '--until', '**/inbox').status, 2, 'a finish alone is no mode');
   assert.equal(f.run('open', '--passwords', '--form', f.form, '--until', '**').status, 2);
   assert.equal(f.run('open', '--passwords', '--local').status, 2, 'the loopback link is gone');
@@ -292,7 +309,7 @@ test('--form needs a finish, and a finish or a session goes with --form only', t
   for (const args of [['--passwords', '--until', '**'], ['--passwords', '--until-gone', '#x'], ['--keys', 'MAPS_API_KEY', '--until', '**'], ['--passwords', '--session', 'card']]) {
     const out = f.run('open', ...args);
     assert.equal(out.status, 2, args.join(' '));
-    assert.match(out.stderr, /--until, --until-gone, and --session go with --form only/);
+    assert.match(out.stderr, /--until, --until-gone, and --session go with --form or --view only/);
   }
   assert.deepEqual(f.calls(), []);
 });
@@ -607,6 +624,399 @@ test('a closed link refuses every route before invoking the browser', async t =>
   for (const [path, body] of [['form'], ['send', { values: VALUES }], ['done', {}]]) assert.equal((await route(port, 'closed-key', path, body)).status, 410, path);
   assert.deepEqual(await route(port, 'closed-key', 'receipt'), { status: 202, json: { finishing: true } });
   assert.equal(sends, 0);
+});
+
+test('a private form keeps its page open with one constant a minute, and stops at the send', async t => {
+  const f = fixture(t);
+  f.env.HANDOVER_KEEPALIVE_MS = '100';
+  const link = openedForm(f);
+  await eventually(() => f.steps().filter(step => step === 'keep-alive').length >= 3);
+  assert.deepEqual([...new Set(f.steps())], ['url', 'keep-alive'], 'the one read at open, then only the constant');
+  assert.equal(f.steps().filter(step => step === 'url').length, 1, 'nothing on the page is read');
+  const before = f.steps().length;
+  f.set('hold-click', '');
+  const sending = send(f, link);
+  await eventually(() => f.steps().includes(PRESS));
+  await pause(350);
+  f.unset('hold-click');
+  assert.equal((await sending).json.receipt.result, 'done', 'a send works after several');
+  assert.deepEqual(f.page().typed, { e12: NUMBER, '#cvv': CODE });
+  const during = f.steps().slice(before);
+  assert.deepEqual(during.filter(step => step !== 'keep-alive' && step !== 'url'), [...FILL, PRESS]);
+  assert.ok(!during.slice(during.indexOf(PRESS)).includes('keep-alive'), 'no keep-alive once the send is under way');
+});
+
+// ---------------------------------------------------------------------------
+// The live view
+
+// The checks that read the real /proc run where a live view does.
+const linux = { skip: process.platform !== 'linux' && 'a live view runs on Linux only' };
+const NOTE = 'Messenger wants to know you\'re a person';
+const WIDE = { kind: 'wide', width: 1280, screen: SCREEN };
+const PHONE = { kind: 'phone', width: 480, screen: SCREEN };
+// The page's size before a view, which every end puts back, and the view's flags when a test names none.
+const FIRST = [2560, 1328];
+const VIEW_ARGS = ['--view', '--session', SESSION, '--until-gone', '#check'];
+const SOURCE_ARGS = dir => ['-display', DISPLAY, '-unixsock', join(dir, 'screen.sock'), '-rfbport', '0', '-rfbportv6', '0', '-nopw', '-forever', '-shared', '-noxdamage', '-quiet'];
+
+/** Opens a live view on the fixture's page, finishing when `#check` is gone unless `args` names a finish. */
+const openedView = (f, ...args) => opened(f, '--view', '--session', SESSION, ...(args.length ? args : ['--until-gone', '#check']));
+/** The link's recorded state, or null while the watcher is writing it. */
+const stateOf = f => { try { return JSON.parse(readFileSync(join(f.state, 'state.json'), 'utf8')); } catch { return null; } };
+/** What a view's end must undo, read while it is open. */
+const kept = (f, link) => ({ view: stateOf(f).view, port: link.port, tunnel: f.tunnelPid() });
+const screenFolders = f => (existsSync(f.state) ? readdirSync(f.state).filter(name => name.startsWith('screen-')) : []);
+
+/** Asserts a view's end put everything back: the page's size, and no screen source, folder, tunnel, or page left. */
+async function assertPutBack(f, { view, port, tunnel }) {
+  assert.deepEqual(f.page().size, FIRST, 'the page has its first size back');
+  assert.equal(f.steps().at(-1), `viewport ${FIRST.join('x')}`, 'and that was the last thing the browser was sent');
+  assert.ok(!alive(view.sourcePid), 'the screen source is stopped');
+  assert.deepEqual(screenFolders(f), [], 'and its folder removed');
+  assert.ok(!alive(tunnel), 'the tunnel was killed');
+  assert.ok(!(await answers(port)), 'the page was closed');
+  assert.ok(!existsSync(join(f.state, 'watcher.pid')));
+}
+
+/** The first line of the answer to a GET sent as written: fetch would tidy a climbing path first. */
+function rawGet(port, path) {
+  return new Promise(done => {
+    const socket = connect(port, '127.0.0.1', () => socket.write(`GET ${path} HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n`));
+    let text = '';
+    socket.on('data', chunk => { text += chunk; }).on('close', () => done(text.split('\r\n')[0]));
+  });
+}
+
+test('--view needs a finish, and --note goes with --view only, as one line', t => {
+  const f = fixture(t, { view: true });
+  const none = f.run('open', '--view');
+  assert.equal(none.status, 2);
+  assert.match(none.stderr, /--view needs --until or --until-gone, to tell when the site lets the person through/);
+  for (const args of [['--passwords', '--note', 'x'], ['--form', f.form, '--until', '**', '--note', 'x'], ['--view', '--until', '**', '--note', 'two\nlines'], ['--view', '--until', '**', '--note', ' '], ['--view', '--until', '**', '--note', 'x'.repeat(141)]]) {
+    const out = f.run('open', ...args);
+    assert.equal(out.status, 2, args.join(' '));
+    assert.match(out.stderr, /--note goes with --view only, as one line of up to 140 characters/);
+  }
+  assert.equal(f.run('open', '--view', '--passwords', '--until', '**').status, 2);
+  assert.equal(f.run('install-view', 'now').status, 2);
+  const help = f.run('--help').stdout;
+  assert.match(help, /open --view \(--until <glob> \| --until-gone <selector>\) \[--session <name>\] \[--note <line>\] \[--minutes N\]/);
+  assert.match(help, /wait \| close \| install-view/);
+  assert.match(help, /HANDOVER_NEEDS=live-view/);
+  assert.deepEqual(f.calls(), []);
+  assert.deepEqual(f.tools.calls('x11vnc'), []);
+});
+
+test('open --view on a computer without its tools exits 3, naming each one, having started nothing', linux, t => {
+  const f = fixture(t, { view: true });
+  f.openPage();
+  Object.assign(f.env, f.tools.env('x11vnc'));
+  const one = f.run('open', ...VIEW_ARGS);
+  assert.equal(one.status, 3);
+  assert.equal(one.stdout, 'HANDOVER_NEEDS=live-view\n');
+  assert.match(one.stderr, /^x11vnc shows the browser's screen\. It is a system package, so it needs admin rights\.$/m);
+  assert.doesNotMatch(one.stderr, /xdotool keeps|noVNC/, 'only what is missing');
+  assert.match(one.stderr, /ask the person, run `hand-over\.mjs install-view`, and retry/);
+
+  Object.assign(f.env, f.tools.env('x11vnc', 'xdotool'));
+  rmSync(join(dirname(f.state), 'live-view'), { recursive: true });
+  const all = f.run('open', ...VIEW_ARGS);
+  assert.equal(all.status, 3);
+  assert.equal(all.stdout, 'HANDOVER_NEEDS=live-view\n');
+  for (const line of [/^x11vnc shows/m, /^xdotool keeps the page's window in front\..*admin rights\.$/m, new RegExp(`^noVNC ${VIEWER.version.replaceAll('.', '\\.')} draws that screen on the link's page\\. It goes in your home folder\\.$`, 'm')]) assert.match(all.stderr, line);
+
+  assert.deepEqual(f.calls(), [], 'no tunnel');
+  assert.deepEqual(f.steps(), [], 'no browser call');
+  assert.deepEqual(f.tools.calls('x11vnc'), []);
+  assert.ok(!existsSync(f.state), 'no link state');
+});
+
+test('a view does not open with no page, on a finish the page already meets, or beside another link', linux, t => {
+  const f = fixture(t, { view: true });
+  const pageless = f.run('open', ...VIEW_ARGS);
+  assert.equal(pageless.status, 1);
+  assert.match(pageless.stderr, /No page is open in this browser session/);
+  assert.equal(f.camofox.starts(), 0, 'opening a view starts no browser');
+  f.openPage();
+  f.set('count', '0');
+  const met = f.run('open', ...VIEW_ARGS);
+  assert.equal(met.status, 1);
+  assert.match(met.stderr, /already meets the finish, so the view would close at once/);
+  f.unset('count');
+  assert.deepEqual(f.tools.calls('x11vnc'), [], 'no screen source was started');
+  assert.ok(!f.calls().some(line => line.startsWith('cloudflared tunnel')), 'no tunnel started');
+
+  openedView(f);
+  const before = [f.calls().length, f.tools.calls('x11vnc').length];
+  for (const args of [VIEW_ARGS, ['--passwords']]) {
+    const again = f.run('open', ...args);
+    assert.equal(again.status, 1, args[0]);
+    assert.match(again.stderr, /already open/);
+  }
+  assert.deepEqual([f.calls().length, f.tools.calls('x11vnc').length], before, 'the refused opens started nothing');
+});
+
+test('where the browser has no screen to show, open --view says unsupported and opens nothing', linux, t => {
+  const f = fixture(t, { view: true });
+  f.unset('display');
+  f.openPage();
+  const out = f.run('open', ...VIEW_ARGS);
+  assert.equal(out.status, 1);
+  assert.equal(out.stdout, 'HANDOVER_VIEW=unsupported\n');
+  assert.match(out.stderr, /^The browser has no screen to show\. Give the person steps for their own device instead\.$/m);
+  assert.deepEqual(f.tools.calls('x11vnc'), []);
+  assert.ok(!f.calls().some(line => line.startsWith('cloudflared tunnel')));
+  assert.deepEqual(f.steps(), ['count #check'], 'the page was read for the finish, and not resized');
+  assert.ok(!existsSync(join(f.state, 'watcher.pid')));
+});
+
+test('a screen source that opens a network port fails the open, and is not left running', linux, t => {
+  const f = fixture(t, { view: true });
+  f.openPage();
+  f.set('x11vnc-listens');
+  const out = f.run('open', ...VIEW_ARGS);
+  assert.equal(out.status, 1);
+  assert.match(out.stderr, /x11vnc, opened a network port, so it was stopped and no link was opened/);
+  assert.doesNotMatch(out.stdout, /HANDOVER_LINK/);
+  assert.equal(f.tools.calls('x11vnc').length, 1);
+  assert.ok(!alive(f.tools.sourcePid()), 'it was stopped');
+  assert.deepEqual(screenFolders(f), [], 'its folder is removed');
+  assert.ok(!f.calls().some(line => line.startsWith('cloudflared tunnel')), 'before any tunnel');
+  assert.deepEqual(f.steps(), ['count #check', 'size'], 'the page was never resized');
+  assert.deepEqual(f.result(), { result: 'error' });
+});
+
+test('open --view starts the screen source on a private socket, fits the page, and serves its page behind the key', linux, async t => {
+  const f = fixture(t, { view: true });
+  const before = Date.now();
+  const { link, port, key } = openedView(f, '--until-gone', '#check', '--note', NOTE);
+  assert.match(link, new RegExp(`^${ORIGIN}/#key=[0-9a-f]{64}$`));
+  const state = stateOf(f);
+  const { view } = state;
+  assert.deepEqual({ ...view, dir: null, sourcePid: null }, { note: NOTE, size: FIRST, display: DISPLAY, dir: null, sourcePid: null });
+  assert.deepEqual([state.session, state.untilGone, state.until, state.form], [SESSION, '#check', null, null]);
+  assert.equal(dirname(view.dir), f.state);
+  assert.equal(statSync(view.dir).mode & 0o777, 0o700, 'only this user can reach the screen');
+  assert.ok(alive(view.sourcePid));
+  assert.deepEqual(f.tools.calls('x11vnc'), [SOURCE_ARGS(view.dir)], 'both network ports switched off');
+  assert.ok((state.deadline - Date.now()) / 60_000 <= 480 && (state.deadline - before) / 60_000 >= 480, 'open for eight hours');
+  assert.deepEqual(f.steps().slice(0, 4), ['count #check', 'size', 'viewport 1280x720', 'viewport 1280x663'], 'the finish and the size are read; then the bar is measured and the page fitted wide');
+  assert.equal(f.calls().length, 1);
+
+  assert.match(await (await fetch(`http://127.0.0.1:${port}/`)).text(), /Tap a box above, then type here/);
+  assert.match(await (await fetch(`http://127.0.0.1:${port}/page.mjs`)).text(), /export function shapeOf/);
+  assert.equal((await route(port, null, 'view')).status, 403);
+  assert.equal((await route(port, '0'.repeat(64), 'fit', { fit: 'phone' })).status, 403);
+  assert.equal((await route(port, null, 'done', {})).status, 403);
+  const shown = await route(port, key, 'view');
+  assert.equal(shown.status, 200);
+  assert.deepEqual({ ...shown.json, now: 0 }, { note: NOTE, fit: WIDE, closesAt: state.deadline, now: 0 });
+  assert.doesNotMatch(JSON.stringify(shown.json), /pay\.example|\.sock|hand-over/, 'no address of the page, and no path');
+  assert.equal((await route(port, key, 'fit', { fit: 'tall' })).status, 400);
+  assert.deepEqual(f.page().size, [1280, 663], 'a refused fit changes nothing');
+  assert.deepEqual(await route(port, key, 'fit', { fit: 'phone' }), { status: 200, json: { fit: PHONE } });
+  assert.deepEqual(f.page().size, [480, 663]);
+  assert.deepEqual((await route(port, key, 'view')).json.fit, PHONE);
+  assert.equal((await route(port, key, 'fit')).status, 405);
+  for (const gone of ['form', 'send', 'save', 'keys', 'screen']) assert.equal((await route(port, key, gone, {})).status, 404, gone);
+});
+
+test('the viewer\'s scripts are served without the key, and nothing beside or above them', linux, async t => {
+  const f = fixture(t, { view: true });
+  const { port } = openedView(f);
+  const get = (path, init) => fetch(`http://127.0.0.1:${port}${path}`, init);
+  for (const inside of ['/novnc/core/rfb.js', '/novnc/core/util/int.js', '/novnc/vendor/pako/lib/zlib/inflate.js']) {
+    const response = await get(inside);
+    assert.equal(response.status, 200, inside);
+    assert.match(response.headers.get('content-type'), /^text\/javascript/);
+    assert.match(await response.text(), /^export /);
+  }
+  for (const refused of ['/novnc/app/ui.js', '/novnc/package.js', '/novnc/LICENSE.txt', '/novnc/core/notes.txt', '/novnc/core/absent.js', '/novnc/', '/novnc/core/..%2fapp%2fui.js']) assert.equal((await get(refused)).status, 404, refused);
+  assert.equal((await get('/novnc/core/rfb.js', { method: 'POST' })).status, 404);
+  for (const climbing of ['/novnc/core/../app/ui.js', '/novnc/core/../../package.js', '/novnc/core/%2e%2e/app/ui.js', '/novnc/vendor/../../../hand-over/state.json', '/novnc/core/../../../../../../../../etc/hostname']) assert.equal(await rawGet(port, climbing), 'HTTP/1.1 404 Not Found', climbing);
+});
+
+test('the screen answers only the link\'s key, sent as the subprotocol, and carries the person\'s input to the screen alone', linux, async t => {
+  const f = fixture(t, { view: true });
+  const { port, key } = openedView(f);
+  assert.equal((await upgrade(port, '/screen')).status, 401, 'no key');
+  assert.equal((await upgrade(port, '/screen', { protocol: '0'.repeat(64) })).status, 401, 'a wrong key');
+  assert.equal((await upgrade(port, `/screen?key=${key}`)).status, 401, 'a key in the address is not taken');
+  assert.equal((await upgrade(port, '/stream', { protocol: key })).status, 404, 'another path');
+  const ws = await upgrade(port, '/screen', { protocol: key });
+  assert.equal(ws.status, 101);
+  assert.equal((await ws.bytes(GREETING.length)).toString(), GREETING, 'the screen source\'s own greeting');
+  ws.send(2, Buffer.from('a tap'));
+  await eventually(() => f.tools.input().toString() === 'a tap');
+  assert.ok(f.steps().every(step => /^(count #check|size|viewport \d+x\d+)$/.test(step)), 'the tap went through the screen, not through a command to the browser');
+  ws.end();
+});
+
+test('while a view is open the watcher only reads the finish and keeps the page\'s window in front', linux, async t => {
+  const f = fixture(t, { view: true });
+  openedView(f);
+  await eventually(() => f.steps().length > 6);
+  assert.deepEqual([...new Set(f.steps().slice(4))], ['count #check'], 'only the named finish is read');
+  assert.ok(f.steps().every(step => /^(count #check|size|viewport \d+x\d+)$/.test(step)), 'no click, type, press, navigate, snapshot, or screenshot');
+  const tool = f.tools.calls('xdotool');
+  assert.ok(tool.some(args => args.join(' ') === 'search --classname Navigator'));
+  assert.ok(!tool.some(args => args.includes('--class')), '--class finds no browser window');
+  const raised = tool.filter(args => args[0] === 'windowraise');
+  assert.ok(raised.length > 1, 'raised again at each poll');
+  assert.ok(raised.every(args => args[1] === '100'), 'always the page\'s own window');
+  assert.ok(f.tools.calls('xdotool', { display: true }).every(display => display === DISPLAY));
+});
+
+test('once the page meets the finish the view ends done, puts the page back, and wakes the chat with no address, key, or page content', linux, async t => {
+  const f = fixture(t, { view: true, paseo: 'ok' });
+  const link = openedView(f, '--until-gone', '#check', '--note', NOTE);
+  const was = kept(f, link);
+  const completion = stateOf(f).completionId;
+  const ws = await upgrade(link.port, '/screen', { protocol: link.key });
+  f.set('count', '0');
+  assert.equal(await ws.closed, true, 'the screen connection ends with the link');
+  const receipt = await eventually(async () => {
+    const answer = await route(link.port, link.key, 'receipt').catch(() => null);
+    return answer?.status === 200 && answer.json;
+  });
+  assert.deepEqual([receipt.result, receipt.ready, receipt.notification], ['done', true, 'notified']);
+  assert.equal((await route(link.port, link.key, 'view')).status, 410, 'a link that is ending answers 410');
+  assert.equal((await upgrade(link.port, '/screen', { protocol: link.key })).status, 410);
+
+  const out = f.run('wait');
+  assert.equal(out.stdout.trim(), 'HANDOVER_RESULT=done');
+  assert.equal(out.rawStdout, `HANDOVER_RESULT=done\nHANDOVER_COMPLETION=${completion}\nHANDOVER_NOTIFICATION=notified\n`, 'no address, key, or page content');
+  await assertPutBack(f, was);
+  assert.deepEqual(f.result(), { result: 'done' });
+  const [message] = f.sent();
+  assert.match(message[2], /"mode":"view","result":"done"/);
+  const leaks = new RegExp(`https?:|trycloudflare|pay\\.example|Messenger|#check|${link.key}`);
+  for (const text of [message[2], readFileSync(join(f.state, 'result.json'), 'utf8')]) assert.doesNotMatch(text, leaks);
+  assert.equal(f.sent().length, 1);
+});
+
+for (const [how, end] of Object.entries({
+  'the page\'s button': async (f, link) => {
+    assert.deepEqual(await route(link.port, link.key, 'done', {}), { status: 200, json: { ok: true } });
+    return f.run('wait');
+  },
+  'close, the signal the watcher is sent': f => f.run('close'),
+  'a watcher that died': async f => {
+    process.kill(Number(readFileSync(join(f.state, 'watcher.pid'), 'utf8')), 'SIGKILL');
+    await pause(100);
+    return f.run('close');
+  },
+})) {
+  test(`a view ended by ${how} is closed, puts the page back, and wakes nobody`, linux, async t => {
+    const f = fixture(t, { view: true, paseo: 'ok' });
+    const link = openedView(f);
+    assert.deepEqual((await route(link.port, link.key, 'fit', { fit: 'phone' })).json.fit, PHONE);
+    const was = kept(f, link);
+    const out = await end(f, link);
+    assert.equal(out.stdout.trim(), 'HANDOVER_RESULT=closed', out.stderr);
+    await assertPutBack(f, was);
+    assert.deepEqual(f.sent(), [], 'only done announces readiness');
+  });
+}
+
+test('a view nobody finishes ends as timeout at its limit and puts the page back', linux, async t => {
+  const f = fixture(t, { view: true, paseo: 'ok' });
+  const link = openedView(f, '--until', '**/receipt/*', '--minutes', '0.05');
+  const was = kept(f, link);
+  const out = f.run('wait');
+  assert.equal(out.stdout.trim(), 'HANDOVER_RESULT=timeout');
+  assert.match(out.rawStdout, /HANDOVER_NOTIFICATION=not-requested/);
+  await assertPutBack(f, was);
+  assert.ok(f.steps().includes('url') && !f.steps().some(step => step.startsWith('count')), 'only the named finish is read');
+  assert.deepEqual(f.sent(), []);
+});
+
+test('a live view keeps its page open by setting its fit again, and sends nothing else', linux, async t => {
+  const f = fixture(t, { view: true });
+  f.env.HANDOVER_KEEPALIVE_MS = '100';
+  openedView(f);
+  await eventually(() => f.steps().filter(step => step === 'viewport 1280x663').length >= 3);
+  assert.deepEqual([...new Set(f.steps())].sort(), ['count #check', 'size', 'viewport 1280x663', 'viewport 1280x720']);
+  assert.equal(f.steps().filter(step => step === 'viewport 1280x720').length, 1, 'the bar is read once');
+  assert.equal(f.steps().filter(step => step === 'size').length, 1, 'and the size to put back');
+});
+
+test('a screen source that exits is started again on the same socket, and one that can not be ends the view as an error', linux, async t => {
+  const f = fixture(t, { view: true });
+  const link = openedView(f);
+  const was = kept(f, link);
+  const ws = await upgrade(link.port, '/screen', { protocol: link.key });
+  await ws.bytes(GREETING.length);
+  process.kill(was.view.sourcePid, 'SIGKILL');
+  assert.equal(await ws.closed, true, 'the page\'s connection drops with it');
+  const second = await eventually(() => {
+    const pid = stateOf(f)?.view.sourcePid;
+    return pid !== was.view.sourcePid && alive(pid) && pid;
+  });
+  assert.deepEqual(f.tools.calls('x11vnc'), [SOURCE_ARGS(was.view.dir), SOURCE_ARGS(was.view.dir)]);
+  const again = await eventually(async () => {
+    const socket = await upgrade(link.port, '/screen', { protocol: link.key });
+    return socket.status === 101 && socket;
+  });
+  assert.equal((await again.bytes(GREETING.length)).toString(), GREETING);
+  again.end();
+
+  f.set('x11vnc-fails');
+  process.kill(second, 'SIGKILL');
+  const out = f.run('wait');
+  assert.equal(out.stdout.trim(), 'HANDOVER_RESULT=error');
+  await assertPutBack(f, { ...was, view: { ...was.view, sourcePid: second } });
+});
+
+test('install-view adds what is missing, or prints the one command for the person and installs nothing', linux, t => {
+  const f = fixture(t, { view: true });
+  const ready = f.run('install-view');
+  assert.equal(ready.status, 0, ready.stderr);
+  assert.equal(ready.stdout, 'HANDOVER_INSTALLED=live-view\n');
+  assert.deepEqual(f.tools.calls('apt-get'), [], 'with everything there, nothing runs');
+
+  const made = ['x11vnc', 'xdotool'].map(name => join(f.root, `installed-${name}`));
+  f.set('apt-creates.json', JSON.stringify(made));
+  Object.assign(f.env, { HANDOVER_X11VNC_BIN: made[0], HANDOVER_XDOTOOL_BIN: made[1] });
+  f.set('apt-fails');
+  const failed = f.run('install-view');
+  assert.equal(failed.status, 1);
+  assert.equal(failed.stdout, '');
+  assert.match(failed.stderr, /The live view's tools are not installed: apt-get did not install x11vnc and xdotool; see its lines above\./);
+  f.unset('apt-fails');
+  const added = f.run('install-view');
+  assert.equal(added.status, 0, added.stderr);
+  assert.equal(added.stdout, 'HANDOVER_INSTALLED=live-view\n');
+  assert.deepEqual(f.tools.calls('apt-get'), Array(2).fill(['install', '-y', '--no-install-recommends', 'x11vnc', 'xdotool']));
+
+  Object.assign(f.env, f.tools.env('apt-get', 'sudo', 'x11vnc'));
+  rmSync(join(dirname(f.state), 'live-view'), { recursive: true });
+  const manual = f.run('install-view');
+  assert.equal(manual.status, 1);
+  assert.equal(manual.stdout, 'HANDOVER_INSTALL=manual\nsudo apt-get install -y --no-install-recommends x11vnc xdotool\n');
+  assert.match(manual.stderr, /Nothing was installed/);
+  assert.ok(!existsSync(join(dirname(f.state), 'live-view')), 'not the viewer either, which needs no admin rights');
+  assert.equal(f.tools.calls('apt-get').length, 2);
+});
+
+test('a closed view refuses every route and the screen', async t => {
+  const reserved = createServer();
+  await new Promise(done => reserved.listen(0, '127.0.0.1', done));
+  const port = reserved.address().port;
+  await new Promise(done => reserved.close(done));
+  const dir = mkdtempSync(join(tmpdir(), 'wong-test-hand-over-screen-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  let fits = 0;
+  const close = await servePage({ port, key: 'closed-key', view: { note: NOTE, dir } }, { onFit: async () => { fits++; } });
+  t.after(close);
+  assert.equal((await route(port, 'closed-key', 'view')).status, 200);
+  assert.equal((await upgrade(port, '/screen', { protocol: 'closed-key' })).status, 503, 'a link with no screen source running');
+  await close.stopInput();
+  for (const [path, body] of [['view'], ['fit', { fit: 'phone' }], ['done', {}]]) assert.equal((await route(port, 'closed-key', path, body)).status, 410, path);
+  assert.equal((await upgrade(port, '/screen', { protocol: 'closed-key' })).status, 410);
+  assert.equal((await upgrade(port, '/screen')).status, 401);
+  assert.deepEqual(await route(port, 'closed-key', 'receipt'), { status: 202, json: { finishing: true } });
+  assert.equal(fits, 0);
 });
 
 // ---------------------------------------------------------------------------

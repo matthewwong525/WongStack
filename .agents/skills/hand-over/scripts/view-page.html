@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Live view</title>
+<style>
+  :root { color-scheme: light dark; font-family: system-ui, -apple-system, sans-serif; }
+  html, body { height: 100%; }
+  body { margin: 0; background: #1c1c1e; color: #fff; overflow: hidden; }
+  #view { display: flex; flex-direction: column; height: 100%; }
+  #stage { flex: 1; min-height: 0; display: flex; align-items: flex-start; justify-content: center; }
+  #holder { overflow: hidden; background: #fff; touch-action: manipulation; }
+  #type { display: flex; gap: 8px; padding: 8px 10px; background: #2c2c2e; }
+  #status { font-size: 1.1rem; margin: 24px 16px; overflow-wrap: anywhere; }
+  input { box-sizing: border-box; flex: 1; min-width: 0; font-size: 1.05rem; padding: 10px 14px; border: 1px solid #8888; border-radius: 20px; background: #1c1c1e; color: inherit; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<section id="view" hidden>
+  <div id="stage"><div id="holder"><div id="screen"></div></div></div>
+  <div id="type">
+    <input id="text" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="enter" placeholder="Tap a box above, then type here" aria-label="Type into the browser">
+  </div>
+</section>
+<p id="status" role="status">Opening the browser...</p>
+<script type="module">
+  // The viewer first, then the page: as two tags the page ran before the viewer had loaded. A viewer
+  // that fails to load, as on a weak connection, gets two reloads; the key is still in the address.
+  try {
+    globalThis.RFB = (await import('./novnc/core/rfb.js')).default;
+    sessionStorage.removeItem('viewer-tries');
+  } catch {
+    const tries = Number(sessionStorage.getItem('viewer-tries') ?? 0);
+    sessionStorage.setItem('viewer-tries', tries + 1);
+    if (tries < 2) location.reload();
+  }
+  await import('./page.mjs');
+</script>
+</body>
+</html>
