@@ -1,6 +1,6 @@
 # Start the build from the plan page
 
-**Status:** in-progress
+**Status:** ready-to-ship
 
 **Branch:** beefy-moth
 
@@ -87,3 +87,4 @@ None.
 - **2026-10-08** — Build choices the design left open: the closed-link line shows as a toast and hides the section; a closed link found by a notes send hides the buttons too; an action on a page whose file is gone answers 410; *Yes, publish* is primary and focus lands on *Cancel*.
 - **2026-10-08** — Found on the first walk: the one shared server was still running the earlier release's code, so the page showed no buttons. Added: an opener from newer code swaps the running server on the same port and keeps its tunnel, so every open link keeps its address. An older opener never swaps a newer server.
 - **2026-10-08** — Walked from this host with a phone-sized browser on a throwaway plan: the buttons showed; an old tab after a rebuild said *The plan changed. Reload to read it first.* and sent nothing; *Build and publish* asked first; *Build it* reached the chat once with its fixed message; a second tap said *The chat was already asked.* Not tried on a real phone.
+- **2026-10-08** — Archive checkpoint: release 38.0.0 landed during the build and touched the same files; resolved by taking it and re-applying this change on top. Every task ticked, local checks pass.

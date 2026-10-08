@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Start the build from the plan page
+## 38.1.0 — Start the build from the plan page
 
 - **A plan's page can now start the build.** Before, a plan that was right as it stood still sent you back to the chat to pick *Build it now* or *Build and publish*. Now the page has both under *Ready?*, below the decisions. A tap tells the chat that made the plan to start, as if you had picked that choice there.
 - ***Build it* shows you the result before anything goes live. *Build and publish* asks once more on the page**, because publishing can't be undone.

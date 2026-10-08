@@ -4,13 +4,14 @@
   WongStack review kit. build-review.mjs writes the proposal as static HTML at the
   review:content marker and puts the change name in place of its token. The one
   script adds Note buttons, drawing fit and full screen, notes, drafts, and copy. It loads nothing from the network;
-  opened through a reply link (reply-link.mjs), its one request sends the saved notes to the chat.
+  opened through a reply link (reply-link.mjs), it sends the saved notes to the chat, and its Ready section
+  asks the chat to build, or to build and publish, by an action's name alone.
 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · build-from-plan-page</title>
+<title>Review · 2026-10-08-build-from-plan-page</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -84,6 +85,9 @@
   #editor .moved { margin:0 0 6px; font-size:13px; font-weight:600; }
   #editor textarea { display:block; width:100%; min-height:76px; padding:6px 8px; border:1px solid #777; border-radius:4px; font:16px/1.4 system-ui, sans-serif; resize:vertical; }
   #editor .row { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  #ready .row { display:flex; flex-wrap:wrap; gap:8px; }
+  #ready-says { margin:10px 0 0; font-weight:600; }
+  #ready-choose[hidden] + [hidden] + #ready-says { margin-top:0; }
   .bar { position:fixed; left:0; right:0; bottom:0; z-index:4; display:flex; align-items:center; gap:10px; padding:8px 12px calc(8px + env(safe-area-inset-bottom)); background:#fff; border-top:1px solid var(--line); }
   .bar .note-count { margin-right:auto; font-size:14px; }
   body.docked .bar, body.viewing .bar { display:none; }
@@ -95,11 +99,11 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="build-from-plan-page">
+<body data-change="2026-10-08-build-from-plan-page">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>build-from-plan-page</h1>
+  <h1>2026-10-08-build-from-plan-page</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. <span class="copies">Saving a note copies all your notes.</span> Open a drawing and tap it to see it full screen.</p>
@@ -159,7 +163,21 @@
 <li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-08</p>Assumed: the page sends only a button's name and the link's maker fixes its message, because anyone holding the link could otherwise put any instruction into the chat.</li>
 <li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-08</p>Assumed: the buttons sit at the foot of the page, not in the notes bar, because the bar is one line on a phone and the choice comes after reading.</li>
 <li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-08</p>Assumed: one tap per plan version, because a sent message interrupts the chat and a second one would interrupt the build it started.</li>
+<li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-08</p>Build choices the design left open: the closed-link line shows as a toast and hides the section; a closed link found by a notes send hides the buttons too; an action on a page whose file is gone answers 410; <i>Yes, publish</i> is primary and focus lands on <i>Cancel</i>.</li>
+<li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-08</p>Found on the first walk: the one shared server was still running the earlier release's code, so the page showed no buttons. Added: an opener from newer code swaps the running server on the same port and keeps its tunnel, so every open link keeps its address. An older opener never swaps a newer server.</li>
+<li class="decision card" id="decision-10" data-note="decision-10" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-08</p>Walked from this host with a phone-sized browser on a throwaway plan: the buttons showed; an old tab after a rebuild said <i>The plan changed. Reload to read it first.</i> and sent nothing; <i>Build and publish</i> asked first; <i>Build it</i> reached the chat once with its fixed message; a second tap said <i>The chat was already asked.</i> Not tried on a real phone.</li>
+<li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-08</p>Archive checkpoint: release 38.0.0 landed during the build and touched the same files; resolved by taking it and re-applying this change on top. Every task ticked, local checks pass.</li>
 </ol>
+</section>
+<section id="ready" aria-labelledby="ready-h" hidden><h2 id="ready-h">Ready?</h2>
+<div class="card">
+  <div class="row" id="ready-choose"><button type="button" class="primary" data-ready="build">Build it</button><button type="button" data-ready="publish">Build and publish</button></div>
+  <div id="ready-confirm" hidden>
+    <p><b>Build and publish?</b> This goes live and can't be undone.</p>
+    <div class="row"><button type="button" class="primary" data-ready="yes">Yes, publish</button><button type="button" data-ready="cancel">Cancel</button></div>
+  </div>
+  <p id="ready-says" role="status" hidden></p>
+</div>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
 <p class="session" hidden>Storage is off. Notes and drafts last for this session only.</p>
@@ -553,6 +571,7 @@
   let live = null, sending = false;
   function setLive(key) {
     live = key;
+    if (!key) $('ready').hidden = true;
     $('copy').textContent = key ? 'Send notes' : 'Copy notes';
     all('.copies', function (el) { el.textContent = key ? 'Send notes sends your saved notes to the chat.' : 'Saving a note copies all your notes.'; });
   }
@@ -599,6 +618,51 @@
       function () { toast('Copy failed. Copy the notes list by hand.'); });
   });
 
+  // ── ready: on a reply link that offers both, a tap asks the chat to build, or to build and publish ──
+  // The page sends an action's name and the version of the plan it read; the link's opener fixed each message.
+  let version = null, acting = false;
+  function says(text) { $('ready-says').textContent = text; $('ready-says').hidden = !text; }
+  function readyStep(step) {
+    $('ready-choose').hidden = step !== 'choose';
+    $('ready-confirm').hidden = step !== 'confirm';
+  }
+  // Unsent notes would change the plan the chat is about to build: say so. True when it spoke.
+  function notesFirst() {
+    if (!unsent().length) return false;
+    says('Send or delete your notes first.');
+    return true;
+  }
+  function offer(answer) {
+    const names = answer && answer.actions;
+    if (!Array.isArray(names) || names.indexOf('build') < 0 || names.indexOf('publish') < 0 || typeof answer.version !== 'string') return;
+    version = answer.version;
+    $('ready').hidden = false;
+  }
+  function act(name) {
+    if (acting || !live || notesFirst()) return;
+    acting = true; says('');
+    const closed = function () { acting = false; $('ready').hidden = true; toast('This link has closed. Choose in the chat.'); };
+    ask('act', live, { action: name, version: version }).then(function (r) {
+      if (r.status === 429) { acting = false; says('Wait a few seconds, then tap again.'); return; }
+      r.json().then(function (answer) {
+        const a = answer || {};
+        const line = r.status === 200 && a.sent === true ? 'Asked the chat to build' + (name === 'publish' ? ' and publish.' : '.')
+          : r.status === 409 && a.changed === true ? 'The plan changed. Reload to read it first.'
+          : r.status === 409 && a.done === true ? 'The chat was already asked.' : '';
+        if (!line) { closed(); return; }
+        acting = false; readyStep('done'); says(line);
+      }, closed);
+    }, closed);
+  }
+  $('ready').addEventListener('click', function (e) {
+    const step = e.target.getAttribute('data-ready');
+    if (step === 'build' || step === 'yes') act(step === 'yes' ? 'publish' : 'build');
+    else if (step === 'cancel' || (step === 'publish' && !notesFirst())) {
+      says(''); readyStep(step === 'cancel' ? 'choose' : 'confirm');
+      $('ready').querySelector('[data-ready="' + (step === 'cancel' ? 'publish' : 'cancel') + '"]').focus({ preventScroll: true });
+    }
+  });
+
   let width = root.clientWidth;
   window.addEventListener('resize', function () {
     if (root.clientWidth !== width) {
@@ -612,7 +676,11 @@
   render();
   jump();
   const key = linkKey();
-  if (key) ask('alive', key).then(function (r) { if (r.ok) setLive(key); }, function () { /* not live: the page copies */ });
+  if (key) ask('alive', key).then(function (r) {
+    if (!r.ok) return;
+    setLive(key);
+    r.json().then(offer, function () { /* no actions: notes only */ });
+  }, function () { /* not live: the page copies */ });
 }());
 </script>
 </body>
