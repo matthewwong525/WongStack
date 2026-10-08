@@ -4,7 +4,7 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSyn
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import test from 'node:test';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { CAMOFOX, leftPage, serverEnv, sessionName, targetOf, valueIn } from '../../.agents/skills/browser/scripts/browse.mjs';
 import { hostOf, readLogins, writeLogins } from '../../.agents/skills/browser/scripts/logins.mjs';
 import { BROWSE_ENV, fakeCamofox } from './fixtures/fake-camofox.mjs';
@@ -54,7 +54,7 @@ fs.writeFileSync(path.join(dir, 'server.js'), '');
     rmSync(home, { recursive: true, force: true });
   });
   const loginsFile = join(home, '.wong-stack/logins.json');
-  return { home, camofox, run, runWith, start, loginsFile, saveLogins: logins => writeLogins(logins, loginsFile), npm: () => JSON.parse(readFileSync(join(home, 'npm.json'), 'utf8')) };
+  return { home, env, camofox, run, runWith, start, loginsFile, saveLogins: logins => writeLogins(logins, loginsFile), npm: () => JSON.parse(readFileSync(join(home, 'npm.json'), 'utf8')) };
 }
 
 /** Runs a command and asserts it worked; returns its stdout. */
@@ -512,6 +512,68 @@ test('save keeps the logins with every tab open', t => {
   assert.equal(ok(f, 'save', '--session', 'a'), 'BROWSE_SAVED=yes\n');
   assert.deepEqual(f.camofox.requests().slice(before).map(({ method, path, body }) => [method, path, body]), [['POST', '/sessions/me/cookies', { cookies: [] }]]);
   assert.equal(f.camofox.tabs().length, 1, 'the tab is still open');
+});
+
+// ---------------------------------------------------------------------------
+// The calls a private link makes
+
+/**
+ * Runs `body` on session a's client in a process of its own, as hand-over.mjs holds one, under the
+ * fixture's HOME. Resolves to `{value}`, what the body returns, or to `{error, status}`.
+ */
+function viaClient(f, body, options = '{ retry: false, start: false }') {
+  const code = `import { client } from ${JSON.stringify(pathToFileURL(script).href)};
+const page = client('a', ${options});
+try { console.log(JSON.stringify({ value: await (async () => { ${body} })() })); } catch (error) { console.log(JSON.stringify({ error: error.message, status: error.status })); }`;
+  const out = spawnSync(process.execPath, ['--input-type=module', '-e', code], { cwd: f.home, env: f.env, encoding: 'utf8', timeout: 30_000 });
+  assert.equal(out.status, 0, out.stderr);
+  return JSON.parse(out.stdout);
+}
+
+test('the client sets a page\'s size, reads it, and keeps the page open, each in one call that reads nothing else', t => {
+  const f = fixture(t);
+  ok(f, 'open', SHOP, '--session', 'a');
+  const before = f.camofox.requests().length;
+  assert.deepEqual(viaClient(f, 'const was = await page.size(); await page.resize(480, 663); return [was, await page.size(), await page.keepAlive()];'), { value: [[2560, 1328], [480, 663], 1] });
+  assert.deepEqual(f.camofox.requests().slice(before).map(({ method, path, body }) => [`${method} ${path.replace(/^\/tabs\/[^/]+/, '')}`, body]), [
+    ['POST /evaluate', { userId: 'me', expression: '[innerWidth, innerHeight]' }],
+    ['POST /viewport', { userId: 'me', width: 480, height: 663 }],
+    ['POST /evaluate', { userId: 'me', expression: '[innerWidth, innerHeight]' }],
+    ['POST /evaluate', { userId: 'me', expression: '1' }],
+  ]);
+  assert.deepEqual(f.camofox.tabs()[0].size, [480, 663]);
+});
+
+test('a private link\'s client does not reopen a lost tab or start a stopped browser for these calls', t => {
+  const f = fixture(t);
+  ok(f, 'open', SHOP, '--session', 'a');
+  for (const call of ['page.resize(480, 663)', 'page.size()', 'page.keepAlive()']) {
+    f.camofox.set('gone-once');
+    const before = f.camofox.calls().length;
+    assert.equal(viaClient(f, `return ${call};`).status, 410, call);
+    assert.equal(f.camofox.calls().slice(before).length, 1, `${call}: the one call, and no new tab`);
+    ok(f, 'open', SHOP, '--session', 'a');
+  }
+
+  f.camofox.set('gone-once');
+  const before = f.camofox.calls().length;
+  assert.deepEqual(viaClient(f, 'await page.resize(480, 663); return page.size();', '{}'), { value: [480, 663] }, 'a task\'s own client still reopens the tab');
+  assert.deepEqual([f.camofox.calls()[before], f.camofox.calls()[before + 1], f.camofox.calls().at(-2)], ['POST /tabs/:tab/viewport', 'POST /tabs', 'POST /tabs/:tab/viewport']);
+
+  ok(f, 'stop');
+  for (const call of ['page.resize(480, 663)', 'page.size()', 'page.keepAlive()']) assert.equal(viaClient(f, `return ${call};`).error, 'the browser is not running', call);
+  assert.equal(f.camofox.starts(), 1, 'none of them started the browser');
+});
+
+test('the new calls add no command: the usage and the refusals are as before', t => {
+  const f = fixture(t);
+  assert.doesNotMatch(f.run('--help').stdout, /resize|viewport|keep-?alive|size/i);
+  for (const args of [['resize', '480', '663'], ['size'], ['keep-alive'], ['get', 'size'], ['viewport', '480', '663']]) {
+    const out = f.run(...args);
+    assert.equal(out.status, 2, args.join(' '));
+    assert.match(out.stderr, /usage: browse\.mjs/);
+  }
+  assert.equal(f.camofox.starts(), 0);
 });
 
 // ---------------------------------------------------------------------------
