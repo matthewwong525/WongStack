@@ -1,6 +1,6 @@
 # Tap through a robot check in a live view
 
-**Status:** planned
+**Status:** ready-to-ship
 **Branch:** test-browser-auth
 **Open questions:** none
 
@@ -135,3 +135,4 @@ None.
 - **2026-10-08** — Building: each change to the box is sent as key presses, a Backspace per character that went and then each that came, because that carries a phone's autocorrect and a paste as they look. Tried on the real screen: capitals, punctuation, an accented letter, a Chinese character, and a delete all arrived. The earlier paste-through-the-clipboard route and its plain-characters limit are gone.
 - **2026-10-08** — Assumed: the page does not read what a box in the browser already holds to fill ours, though he said it would be cool, because the link's promise is that its helper reads nothing on the page, a password box would be read too, and a check's own boxes sit in a frame that can't be read. Typing live already adds to or deletes what is there.
 - **2026-10-08** — Asked for a phone run and a laptop run before publishing → he did one run on the final layout, which passed end to end, and typed `/ship`. The second device and a real picture puzzle on this build were not run; the plan's last check is recorded as what was seen.
+- **2026-10-08** — Archive checkpoint: built, tried on the real browser and by the person once on the final layout, main merged in with three files resolved by hand (the eight-hour default now covers every link), numbered 38.3.0.

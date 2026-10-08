@@ -4,18 +4,19 @@
   WongStack review kit. build-review.mjs writes the proposal as static HTML at the
   review:content marker and puts the change name in place of its token. The one
   script adds Note buttons, drawing fit and full screen, notes, drafts, and copy. It loads nothing from the network;
-  opened through a reply link (reply-link.mjs), its one request sends the saved notes to the chat.
+  opened through a reply link (reply-link.mjs), it sends the saved notes to the chat, and its Ready section
+  asks the chat to build, or to build and publish, by an action's name alone.
 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · live-view-for-robot-checks</title>
+<title>Review · 2026-10-08-live-view-for-robot-checks</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
   html { -webkit-text-size-adjust:100%; }
-  body { margin:0; padding-bottom:76px; background:#e6e6e6; color:var(--ink); font:16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; overflow-wrap:anywhere; }
+  body { margin:0; padding-bottom:var(--bar, 76px); background:#e6e6e6; color:var(--ink); font:16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; overflow-wrap:anywhere; }
   main { max-width:700px; margin:0 auto; padding:0 12px; }
   a { color:inherit; }
   code, pre, .ln { font-family:ui-monospace, Menlo, Consolas, monospace; }
@@ -84,22 +85,29 @@
   #editor .moved { margin:0 0 6px; font-size:13px; font-weight:600; }
   #editor textarea { display:block; width:100%; min-height:76px; padding:6px 8px; border:1px solid #777; border-radius:4px; font:16px/1.4 system-ui, sans-serif; resize:vertical; }
   #editor .row { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
-  .bar { position:fixed; left:0; right:0; bottom:0; z-index:4; display:flex; align-items:center; gap:10px; padding:8px 12px calc(8px + env(safe-area-inset-bottom)); background:#fff; border-top:1px solid var(--line); }
+  .bar { position:fixed; left:0; right:0; bottom:0; z-index:4; display:flex; flex-wrap:wrap; align-items:center; gap:8px 10px; padding:8px 12px calc(8px + env(safe-area-inset-bottom)); background:#fff; border-top:1px solid var(--line); }
   .bar .note-count { margin-right:auto; font-size:14px; }
   body.docked .bar, body.viewing .bar { display:none; }
+  #ready, #ready .row { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+  #ready-says, #ready-confirm span { margin:0; font-size:14px; }
+  #ready-says { font-weight:600; }
+  @media (max-width:700px) {
+    #ready, #ready .row, #ready-says, #ready-confirm span { flex:1 1 100%; }
+    #ready button { flex:1; }
+  }
   .session, #editor .copies { color:var(--muted); font-size:13px; }
   #editor .copies { flex:none; margin:6px 0 0; }
   .pin.sent { background:#fff; color:var(--ink); }
-  #toast { position:fixed; left:50%; bottom:72px; z-index:7; max-width:90vw; transform:translateX(-50%); padding:6px 12px; border-radius:4px; background:#222; color:#fff; font-size:14px; opacity:0; pointer-events:none; transition:opacity .2s; }
+  #toast { position:fixed; left:50%; bottom:calc(var(--bar, 76px) - 4px); z-index:7; max-width:90vw; transform:translateX(-50%); padding:6px 12px; border-radius:4px; background:#222; color:#fff; font-size:14px; opacity:0; pointer-events:none; transition:opacity .2s; }
   #toast.show { opacity:1; }
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="live-view-for-robot-checks">
+<body data-change="2026-10-08-live-view-for-robot-checks">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>live-view-for-robot-checks</h1>
+  <h1>2026-10-08-live-view-for-robot-checks</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. <span class="copies">Saving a note copies all your notes.</span> Open a drawing and tap it to see it full screen.</p>
@@ -209,6 +217,8 @@
 <li class="decision card" id="decision-40" data-note="decision-40" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-08</p>Asked to try the messaging-style bar → answered: remove <i>More</i>, <i>no need for close without finishing we'll just close the browser</i>, no line saying a key was pressed, and <i>as they type it'll update the screen as well</i>, <i>no need for send button</i>. The page is now the browser and one box that types straight into it; nothing else.</li>
 <li class="decision card" id="decision-41" data-note="decision-41" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-08</p>Building: each change to the box is sent as key presses, a Backspace per character that went and then each that came, because that carries a phone's autocorrect and a paste as they look. Tried on the real screen: capitals, punctuation, an accented letter, a Chinese character, and a delete all arrived. The earlier paste-through-the-clipboard route and its plain-characters limit are gone.</li>
 <li class="decision card" id="decision-42" data-note="decision-42" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-08</p>Assumed: the page does not read what a box in the browser already holds to fill ours, though he said it would be cool, because the link's promise is that its helper reads nothing on the page, a password box would be read too, and a check's own boxes sit in a frame that can't be read. Typing live already adds to or deletes what is there.</li>
+<li class="decision card" id="decision-43" data-note="decision-43" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-08</p>Asked for a phone run and a laptop run before publishing → he did one run on the final layout, which passed end to end, and typed <code>/ship</code>. The second device and a real picture puzzle on this build were not run; the plan's last check is recorded as what was seen.</li>
+<li class="decision card" id="decision-44" data-note="decision-44" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-08</p>Archive checkpoint: built, tried on the real browser and by the person once on the final layout, main merged in with three files resolved by hand (the eight-hour default now covers every link), numbered 38.3.0.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
@@ -230,7 +240,13 @@
   <div class="vframe"></div>
   <p class="vhint">Drag to move · pinch or + to zoom · tap a line to note it</p>
 </div>
-<div class="bar"><span class="note-count" aria-live="polite">0 notes</span><span class="session" hidden>Session only</span><button type="button" class="primary" id="copy">Copy notes</button></div>
+<div class="bar"><span class="note-count" aria-live="polite">0 notes</span><span class="session" hidden>Session only</span><button type="button" class="primary" id="copy">Copy notes</button>
+  <div id="ready" hidden>
+    <div class="row" id="ready-choose"><button type="button" data-ready="build">Build it</button><button type="button" data-ready="publish">Build and publish</button></div>
+    <div class="row" id="ready-confirm" role="group" aria-label="Build and publish? This goes live and can't be undone." hidden><span>Goes live, can't be undone.</span><button type="button" data-ready="yes">Yes, publish</button><button type="button" data-ready="cancel">Cancel</button></div>
+    <p id="ready-says" role="status" hidden></p>
+  </div>
+</div>
 <div id="toast" role="status"></div>
 <textarea id="copybuf" aria-hidden="true" tabindex="-1" readonly></textarea>
 <script>
@@ -321,6 +337,7 @@
       d.count.textContent = k ? ' · ' + k + (k === 1 ? ' note' : ' notes') : '';
       fit(d);
     });
+    bar();
   }
 
   // ── still-tap to note: a mouse on text, or any pointer on a full-screen drawing line, shows the chip ──
@@ -397,6 +414,7 @@
     const el = open.el;
     open = null; editor.hidden = true;
     document.body.classList.remove('docked'); document.body.style.paddingBottom = '';
+    bar();
     if (el) { el.classList.remove('noting'); if (restore) el.focus({ preventScroll: true }); }
   }
   function place() {
@@ -515,7 +533,7 @@
     view = null;
     d.frame.insertBefore(d.art, d.frame.firstChild);
     viewer.hidden = true; document.body.classList.remove('viewing');
-    fit(d);
+    fit(d); bar();
     if (restore) d.enlarge.focus({ preventScroll: true });
   }
   vbar.addEventListener('click', function (e) {
@@ -603,8 +621,10 @@
   let live = null, sending = false;
   function setLive(key) {
     live = key;
+    if (!key) $('ready').hidden = true;
     $('copy').textContent = key ? 'Send notes' : 'Copy notes';
     all('.copies', function (el) { el.textContent = key ? 'Send notes sends your saved notes to the chat.' : 'Saving a note copies all your notes.'; });
+    bar();
   }
   function linkKey() {
     if (!/^https?:$/.test(location.protocol) || !window.fetch) return null;
@@ -649,6 +669,62 @@
       function () { toast('Copy failed. Copy the notes list by hand.'); });
   });
 
+  // ── ready: on a reply link that offers both, the bar's second row asks the chat to build, or to build and publish ──
+  // The page sends an action's name and the version of the plan it read; the link's opener fixed each message.
+  let version = null, acting = false;
+  function says(text) { $('ready-says').textContent = text; $('ready-says').hidden = !text; bar(); }
+  function readyStep(step) {
+    $('ready-choose').hidden = step !== 'choose';
+    $('ready-confirm').hidden = step !== 'confirm';
+    bar();
+  }
+  // One primary button in the bar: the notes button while a note is unsent or no build button shows, else the build one.
+  // The page's bottom padding follows the bar's height, so a taller bar never covers the end of the page.
+  function bar() {
+    const el = $('copy').parentNode, ready = $('ready');
+    const build = !ready.hidden && !unsent().length && !($('ready-choose').hidden && $('ready-confirm').hidden);
+    $('copy').classList.toggle('primary', !build);
+    all('[data-ready="build"], [data-ready="yes"]', function (b) { b.classList.toggle('primary', build); });
+    if (el.offsetHeight) root.style.setProperty('--bar', el.offsetHeight + 19 + 'px');
+  }
+  // Unsent notes would change the plan the chat is about to build: say so. True when it spoke.
+  function notesFirst() {
+    if (!unsent().length) return false;
+    says('Send or delete your notes first.');
+    return true;
+  }
+  function offer(answer) {
+    const names = answer && answer.actions;
+    if (!Array.isArray(names) || names.indexOf('build') < 0 || names.indexOf('publish') < 0 || typeof answer.version !== 'string') return;
+    version = answer.version;
+    $('ready').hidden = false;
+    bar();
+  }
+  function act(name) {
+    if (acting || !live || notesFirst()) return;
+    acting = true; says('');
+    const closed = function () { acting = false; $('ready').hidden = true; bar(); toast('This link has closed. Choose in the chat.'); };
+    ask('act', live, { action: name, version: version }).then(function (r) {
+      if (r.status === 429) { acting = false; says('Wait a few seconds, then tap again.'); return; }
+      r.json().then(function (answer) {
+        const a = answer || {};
+        const line = r.status === 200 && a.sent === true ? 'Asked the chat to build' + (name === 'publish' ? ' and publish.' : '.')
+          : r.status === 409 && a.changed === true ? 'The plan changed. Reload to read it first.'
+          : r.status === 409 && a.done === true ? 'The chat was already asked.' : '';
+        if (!line) { closed(); return; }
+        acting = false; readyStep('done'); says(line);
+      }, closed);
+    }, closed);
+  }
+  $('ready').addEventListener('click', function (e) {
+    const step = e.target.getAttribute('data-ready');
+    if (step === 'build' || step === 'yes') act(step === 'yes' ? 'publish' : 'build');
+    else if (step === 'cancel' || (step === 'publish' && !notesFirst())) {
+      says(''); readyStep(step === 'cancel' ? 'choose' : 'confirm');
+      $('ready').querySelector('[data-ready="' + (step === 'cancel' ? 'publish' : 'cancel') + '"]').focus({ preventScroll: true });
+    }
+  });
+
   let width = root.clientWidth;
   window.addEventListener('resize', function () {
     if (root.clientWidth !== width) {
@@ -657,12 +733,17 @@
     }
     drawings.forEach(fit);
     if (open) place();
+    bar();
   });
   window.addEventListener('hashchange', jump);
   render();
   jump();
   const key = linkKey();
-  if (key) ask('alive', key).then(function (r) { if (r.ok) setLive(key); }, function () { /* not live: the page copies */ });
+  if (key) ask('alive', key).then(function (r) {
+    if (!r.ok) return;
+    setLive(key);
+    r.json().then(offer, function () { /* no actions: notes only */ });
+  }, function () { /* not live: the page copies */ });
 }());
 </script>
 </body>

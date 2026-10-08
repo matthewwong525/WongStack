@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Tap through a robot check in a live view
+## 38.3.0 — Tap through a robot check in a live view
 
 - **A robot check gets a live view you tap through.** When a site asks whether a person is there, with a tick box or a picture puzzle, the assistant asks if you're ready. Then it sends a private link that shows its browser on that page. You tick the box or do the puzzle. The link closes itself once the site lets you through, and the assistant carries on. The assistant never ticks or solves a check itself.
 - **The whole page fits your screen.** The view fits the page to what you hold, narrow on a phone and wide on a laptop, and puts it back when the link closes.
@@ -18,6 +18,7 @@
 - **For the assistant:** [`hand-over.mjs`](.agents/skills/hand-over/scripts/hand-over.mjs) gains `open --view` and `install-view`, and [live view](wiki/development/live-view.md) says when and how to run them.
 
 **Updating.** Nothing to do by hand. The first time a site shows a robot check, the assistant asks before installing three small tools that let you see its browser: one in your home folder, and two that need admin rights on the computer. While a live view is open, its link can use the accounts the assistant's browser is signed in to, so send it to nobody.
+
 ## 38.2.1 — The build buttons sit in the plan page's bottom bar
 
 - ***Build it* and *Build and publish* are always in view.** Before, they sat under *Ready?* at the foot of the plan page, so on a phone you scrolled past the whole plan to reach them. Now they are in the bar at the bottom of the screen: a second row under *Send notes* on a phone, the same row on a wide screen. The *Ready?* section is gone.
