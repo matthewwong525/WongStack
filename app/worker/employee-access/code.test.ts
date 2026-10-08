@@ -13,6 +13,7 @@ import { handleAccess } from "./router";
 import { changedSet } from "./sets";
 import { setupStatus } from "./setup";
 import { body } from "../../tests/body";
+import { fakeArtifacts, fakeEnv } from "../../tests/env";
 
 vi.mock("./catalogue.ts", async () => (await import("../../tests/employee-access/catalogue")).builtAreas(["access", "orders"]));
 
@@ -60,7 +61,7 @@ it("registers Project code as a key with Read alone, offered with no app, that n
   expect(changedSet({ apps: {}, keys: {} }, { apps: { orders: "read" } }).keys).toEqual({});
   // Saved follows whether the project can be handed out: a Cloudflare-kept one needs no secret.
   const row = (bindings: object) => keyCatalogue(bindings, {}).find(key => key.id === "code");
-  expect(row({})).toEqual({ id: "code", title: "Project code", levels: ["read"], saved: false, setup: false, usedBy: [], alone: true });
+  expect(row({})).toEqual({ id: "code", title: "Project code", levels: ["read"], saved: false, setup: false, usedBy: [], alone: true, direct: null });
   expect([row(github)!.saved, row(artifacts().env)!.saved, saved({ WONG_CODE_READ: TOKEN }, "code")]).toEqual([true, true, false]);
   // No route is handed the credential or the binding, even one that lists the key.
   const all = { DB: {}, ...github, ARTIFACTS: {}, WONG_CLOUDFLARE_READ: "look-up" };
@@ -102,6 +103,17 @@ it("says why the project can not be handed out yet: a missing GitHub key, or no 
   for (const unset of [{}, { WONG_CODE_READ: TOKEN }, { ...github, WONG_CODE_REPOSITORY: "acme/../other" }, { ...github, WONG_CODE_REPOSITORY: "https://github.com/acme/recipe-box" },
     { ...github, WONG_CODE_REPOSITORY: "recipe-box" }, { WONG_CODE_REPOSITORY: "recipe-box", ARTIFACTS: {} }, { WONG_CODE_REPOSITORY: 7 }]) expect(codeStep(unset)).toBe("setup");
   expect(fetched).not.toHaveBeenCalled();
+});
+
+// An install kept in Cloudflare has `ARTIFACTS: Artifacts` in its generated Env, and Cloudflare's type for a repository
+// is not the shape this file calls. The type check reads this line: it compiles only while a connection's env takes
+// that binding as Cloudflare types it.
+const generated = (bound: Env & { ARTIFACTS: Artifacts }): ConnectionEnv => bound;
+it("takes the binding as Cloudflare types it wherever a connection's env is asked for, and still checks it before use", async () => {
+  const kept = artifacts();
+  const bound = generated(fakeEnv({ WONG_CODE_REPOSITORY: "recipe-box", ARTIFACTS: fakeArtifacts(kept.env.ARTIFACTS) }));
+  expect([codeStep(bound), await upstream(bound)]).toEqual(["ready", { url: REMOTE, authorization: "Bearer art_v1_synthetic_read" }]);
+  expect(kept.calls).toEqual([["get", "recipe-box"], ["info"], ["createToken", "read", 300]]);
 });
 
 it("forwards Git's two read calls with the server's credential added, and returns only what Git reads", async () => {

@@ -5,6 +5,7 @@ import { loginAuthority } from "./login-management.ts";
 import { areas } from "./catalogue.ts";
 import { codeStep } from "./code.ts";
 import { appKeys, keyCatalogue } from "./key-catalogue.ts";
+import { directChoices } from "./direct.ts";
 import { type AccessSet, type Sets, changedSet, heldSet, readSets, save, setFields, setWrites } from "./sets.ts";
 import { skills } from "./skills.ts";
 
@@ -95,10 +96,11 @@ export async function accessStatus(core: Core): Promise<object> {
   const id = core.installationId;
   // Access itself is everyone's own page, so it is nobody's to give.
   const given = areas().filter(area => area.id !== "access");
-  const [installation, { people, roles }, work, notes] = await Promise.all([
+  const [installation, { people, roles }, direct, work, notes] = await Promise.all([
     core.db.prepare("SELECT policy_enabled, keys_enabled FROM wong_access_installation WHERE installation_id = ?").bind(id)
       .first<{ policy_enabled: number; keys_enabled: number }>(),
     readSets(core),
+    directChoices(core),
     core.db.prepare("SELECT kind, status, outcome, error_code FROM wong_access_work WHERE installation_id = ? AND kind IN ('policy', 'sessions') ORDER BY kind").bind(id).all(),
     // A first-open note stays until the owner changes something.
     core.db.prepare(`SELECT a.event FROM wong_access_audit a
@@ -116,7 +118,7 @@ export async function accessStatus(core: Core): Promise<object> {
     started: installation.policy_enabled === 1, imported: noted("permissions_started:"),
     // `kept`: how many people kept what their apps use when key levels started.
     keysStarted: installation.keys_enabled === 1, kept: noted("key_levels_started:"),
-    areas: given, appKeys: uses, keys: keyCatalogue(core.env, uses), skills: skills(),
+    areas: given, appKeys: uses, keys: keyCatalogue(core.env, uses, direct), skills: skills(),
     // Why Project code can not be given out yet: a word, never a secret's name or value.
     project: codeStep(core.env),
     roles: roles.map(role => ({ id: role.id, name: role.name, ...role.set })),

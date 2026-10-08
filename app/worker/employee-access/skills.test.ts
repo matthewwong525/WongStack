@@ -27,7 +27,7 @@ const file = (actions: unknown, title: unknown = "Refund a customer") => ({ titl
 const one = (actions: string[]) => listSkills({ "../../../.agents/skills/refund/actions.json": file(actions) }, routes)[0];
 
 it("works out what a skill needs from the routes its actions name: the highest level per area and per key, and Project code", () => {
-  expect(one(["orders.lookup"])).toEqual({ id: "refund", title: "Refund a customer", areas: { orders: "read" }, keys: { code: "read", stripe: "read" } });
+  expect(one(["orders.lookup"])).toEqual({ id: "refund", title: "Refund a customer", areas: { orders: "read" }, keys: { code: "read", stripe: "read" }, direct: {} });
   // A change anywhere in an area raises the whole area, whichever action is listed first.
   for (const actions of [["orders.lookup", "orders.refund"], ["orders.refund", "orders.lookup"]]) {
     expect(one(actions), actions.join()).toMatchObject({ areas: { orders: "write" }, keys: { code: "read", stripe: "write" } });

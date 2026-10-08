@@ -2,7 +2,8 @@
 <!--
   WongStack review kit. build-review.mjs writes the proposal as static HTML at the
   review:content marker and puts the change name in place of its token. The one
-  script adds Note buttons, drawing fit and full screen, notes, drafts, and copy. It loads nothing from the network.
+  script adds Note buttons, drawing fit and full screen, notes, drafts, and copy. It loads nothing from the network;
+  opened through a reply link (reply-link.mjs), its one request sends the saved notes to the chat.
 -->
 <html lang="en">
 <head>
@@ -87,6 +88,7 @@
   body.docked .bar, body.viewing .bar { display:none; }
   .session, #editor .copies { color:var(--muted); font-size:13px; }
   #editor .copies { flex:none; margin:6px 0 0; }
+  .pin.sent { background:#fff; color:var(--ink); }
   #toast { position:fixed; left:50%; bottom:72px; z-index:7; max-width:90vw; transform:translateX(-50%); padding:6px 12px; border-radius:4px; background:#222; color:#fff; font-size:14px; opacity:0; pointer-events:none; transition:opacity .2s; }
   #toast.show { opacity:1; }
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
@@ -99,7 +101,7 @@
   <h1>CHANGE-NAME</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
-  <p class="hint">Tap + Note to comment. Saving a note copies all your notes. Open a drawing and tap it to see it full screen.</p>
+  <p class="hint">Tap + Note to comment. <span class="copies">Saving a note copies all your notes.</span> Open a drawing and tap it to see it full screen.</p>
   <p id="script-error" role="alert" hidden></p>
 </header>
 <!-- review:content -->
@@ -186,18 +188,18 @@
     const ids = data.notes.map(function (x) { return x.id; }).concat(Object.keys(data.drafts).filter(function (id) { return !noteOf(id); }));
     $('note-list').innerHTML = ids.length ? '' : '<li class="muted">No notes yet.</li>';
     ids.forEach(function (id) {
-      const note = noteOf(id), draft = data.drafts[id], rec = note || draft, num = note ? data.notes.indexOf(note) + 1 : 0;
+      const note = noteOf(id), draft = data.drafts[id], rec = note || draft, num = note ? data.notes.indexOf(note) + 1 : 0, sent = !!(note && note.sent);
       const el = find(id, rec.label);
       if (el) {
         const pin = document.createElement('button');
-        pin.type = 'button'; pin.className = draft ? 'pin draft' : 'pin'; pin.setAttribute('data-open', id);
-        pin.textContent = (num || '') + (num && draft ? ' · ' : '') + (draft ? 'Draft' : '');
+        pin.type = 'button'; pin.className = draft ? 'pin draft' : sent ? 'pin sent' : 'pin'; pin.setAttribute('data-open', id);
+        pin.textContent = (num || '') + (num && (draft || sent) ? ' · ' : '') + (draft ? 'Draft' : sent ? 'Sent' : '');
         pin.setAttribute('aria-label', (num ? 'Open note ' + num : 'Open draft') + (num && draft ? ' and its draft' : ''));
         el.appendChild(pin);
       }
       const li = document.createElement('li');
       li.innerHTML = '<button type="button" class="entry" data-open="' + id + '"><span class="where">' + (num ? num + '. ' : '')
-        + esc(where(id).at + ' · ' + rec.label) + (draft ? '<span class="tag">Draft</span>' : '') + (el ? '' : '<span class="tag">possibly moved</span>')
+        + esc(where(id).at + ' · ' + rec.label) + (draft ? '<span class="tag">Draft</span>' : '') + (sent ? '<span class="tag">Sent</span>' : '') + (el ? '' : '<span class="tag">possibly moved</span>')
         + '</span>' + esc(draft ? draft.text : note.text) + '</button>';
       $('note-list').appendChild(li);
     });
@@ -347,13 +349,15 @@
     const id = open.id, note = noteOf(id), text = ta.value.trim();
     if (act === 'save') {
       if (!text) { ta.focus(); return; }
-      if (note) note.text = text; else data.notes.push({ id: id, label: open.label, text: text });
+      if (!note) data.notes.push({ id: id, label: open.label, text: text });
+      else if (note.text !== text) { note.text = text; delete note.sent; }
     }
     if (act === 'delete') data.notes = data.notes.filter(function (n) { return n.id !== id; });
     if (act !== 'close') delete data.drafts[id];
     closeEditor(true); persist();
-    if (act === 'save') {
-      const n = data.notes.length;
+    if (act === 'save' && live) toast('Saved. Tap Send notes to send it to the chat.');
+    else if (act === 'save') {
+      const n = unsent().length;
       copyNotes(function () { toast('Saved and copied ' + plural(n) + '. Paste them into chat.'); },
         function () { toast('Saved. Tap Copy notes to copy them.'); });
     }
@@ -452,13 +456,16 @@
   }
 
   // ── copy: saved notes only, as notes on the plan: each asks or changes something ──
-  function notesText() {
-    const lines = ['Notes on the plan ' + CHANGE + ' from the review page. Don\'t build yet.'];
-    data.notes.forEach(function (n) {
+  // A note sent through a reply link is in the chat already, so it is never copied or sent again.
+  function unsent() { return data.notes.filter(function (n) { return !n.sent; }); }
+  function bullets(notes) {
+    return notes.map(function (n) {
       const w = where(n.id);
-      lines.push('- ' + w.spot + ' (' + n.label.slice(w.kind.length + 1) + '): ' + n.text.replace(/\s*\n\s*/g, ' '));
+      return '- ' + w.spot + ' (' + n.label.slice(w.kind.length + 1) + '): ' + n.text.replace(/\s*\n\s*/g, ' ');
     });
-    return lines.join('\n');
+  }
+  function notesText() {
+    return ['Notes on the plan ' + CHANGE + ' from the review page. Don\'t build yet.'].concat(bullets(unsent())).join('\n');
   }
   function toast(text) {
     $('toast').textContent = text; $('toast').classList.add('show');
@@ -478,9 +485,60 @@
     };
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(buf.value).then(done, fallback); else fallback();
   }
+  // Nothing to copy or send: say why. True when it spoke.
+  function nothing(verb) {
+    if (unsent().length) return false;
+    toast(data.notes.length ? 'Every note is already sent.' : 'No saved notes yet. Drafts are not ' + verb + '.');
+    return true;
+  }
+
+  // ── reply link: at a web address with #key=, the bar's button sends unsent notes to the chat that made the plan ──
+  // `live` is the link's key while the link is open. The key stays in memory and this tab's session, never in a link.
+  let live = null, sending = false;
+  function setLive(key) {
+    live = key;
+    $('copy').textContent = key ? 'Send notes' : 'Copy notes';
+    all('.copies', function (el) { el.textContent = key ? 'Send notes sends your saved notes to the chat.' : 'Saving a note copies all your notes.'; });
+  }
+  function linkKey() {
+    if (!/^https?:$/.test(location.protocol) || !window.fetch) return null;
+    const m = /(?:^#|&)key=([0-9a-f]{64})(?:&|$)/.exec(location.hash), at = 'wong-reply-key:' + location.pathname;
+    try {
+      if (m) window.sessionStorage.setItem(at, m[1]);
+      return m ? m[1] : window.sessionStorage.getItem(at);
+    } catch (e) { return m ? m[1] : null; }
+  }
+  function ask(path, key, body) {
+    const headers = { 'x-reply-key': key };
+    if (body) headers['content-type'] = 'application/json';
+    return fetch(path, { method: body ? 'POST' : 'GET', cache: 'no-store', headers: headers, body: body ? JSON.stringify(body) : undefined });
+  }
+  function sendNotes() {
+    const notes = unsent(), n = notes.length;
+    if (sending || nothing('sent')) return;
+    sending = true;
+    // A closed link or an unreachable chat: the same tap copies, and the page goes back to Copy notes.
+    const closed = function () {
+      sending = false; setLive(null);
+      copyNotes(function () { toast('This link has closed. Copied ' + plural(n) + ': paste them into chat.'); },
+        function () { toast('This link has closed. Tap Copy notes to copy them.'); });
+    };
+    ask('send', live, { text: bullets(notes).join('\n') }).then(function (r) {
+      if (r.status === 429) { sending = false; toast('Wait a few seconds, then tap Send notes again.'); return; }
+      if (!r.ok) { closed(); return; }
+      r.json().then(function (answer) {
+        if (!answer || answer.sent !== true) { closed(); return; }
+        sending = false;
+        notes.forEach(function (note) { note.sent = true; });
+        persist();
+        toast('Sent ' + plural(n) + ' to the chat.');
+      }, closed);
+    }, closed);
+  }
   $('copy').addEventListener('click', function () {
-    const n = data.notes.length;
-    if (!n) { toast('No saved notes yet. Drafts are not copied.'); return; }
+    if (live) { sendNotes(); return; }
+    const n = unsent().length;
+    if (nothing('copied')) return;
     copyNotes(function () { toast('Copied ' + plural(n) + '. Paste them into chat.'); },
       function () { toast('Copy failed. Copy the notes list by hand.'); });
   });
@@ -497,6 +555,8 @@
   window.addEventListener('hashchange', jump);
   render();
   jump();
+  const key = linkKey();
+  if (key) ask('alive', key).then(function (r) { if (r.ok) setLive(key); }, function () { /* not live: the page copies */ });
 }());
 </script>
 </body>

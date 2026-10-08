@@ -22,6 +22,8 @@ node "$SHIP" finish
 
 Check [preconditions](../save/references/preconditions.md), then run `prepare`. Uncommitted changes on the default branch go on in the same tree; Step 3's save cuts the feature branch.
 
+A `NEXT:` that says `main`'s check run was *cut off* is no failure: run its restart, then the command again.
+
 ### The pull-in: nothing to ship yet
 
 **Invoke the [`apply` skill](../apply/SKILL.md)**, saying it runs inside `/ship`: it returns with **no** preview upload or `/save`, and you go on to Step 2 in the same tree.

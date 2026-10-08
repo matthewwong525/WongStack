@@ -1,5 +1,5 @@
 import type { Level, SavedKey, Skill, Status } from '../../lib/access'
-import { count, covers, dots, missing, needLabels } from './levels'
+import { count, covers, directOff, dots, missing, needLabels } from './levels'
 
 /** The people who hold a role, by email. A role not saved yet has nobody. */
 export const holders = (status: Status, role?: string) =>
@@ -46,9 +46,11 @@ export const appHolders = (status: Status, app: string) => tally(true, subjects(
 export const runners = (status: Status, skill: Skill) =>
   subjects(status).map(subject => ({ subject, lacking: needLabels(status, missing(subject.set, skill)) }))
 
-/** How many people can run a skill, of everyone who can sign in: `2 of 5`. The owner always can. A person with a
- *  role is judged by the role's set, which is the set they are sent with. */
+/** How many people can run a skill, of everyone who can sign in: `2 of 5`. The owner can, unless a key's direct-use
+ *  choice stops the skill: then nobody can, and the line says which choice. A person with a role is judged by the
+ *  role's set, which is the set they are sent with. */
 export function canRun(status: Status, skill: Skill): string {
   const people = status.people.filter(person => person.status === 'active')
-  return `${1 + people.filter(person => covers(person, skill)).length} of ${1 + people.length}`
+  const off = directOff(status, skill)
+  return dots(`${off.length ? 0 : 1 + people.filter(person => covers(person, skill)).length} of ${1 + people.length}`, ...off)
 }

@@ -462,15 +462,24 @@ function addCodeBinding(file) {
 }
 
 /**
+ * The config half of `projectCode`, calling nothing: the project's name in both Workers' vars, and on a project
+ * kept in Cloudflare the binding to its repository. `{ named, bound }`, each `updated`, `current`, or false.
+ * WongStack's own `scripts/check-target-app.mjs` builds an install's config through it too.
+ */
+export function codeInConfig(config, repository, artifacts) {
+  const named = repository && existsSync(config) ? setVar(config, 'WONG_CODE_REPOSITORY', repository) : false;
+  return { named, bound: named && artifacts ? addCodeBinding(config) : false };
+}
+
+/**
  * Tells the app which project Connect your assistant hands out: the name in both Workers' vars, and on a
  * project kept in Cloudflare the binding to its repository, so no key is made. On GitHub the read-only key is
  * the owner's one step: `ready` once both Workers hold it, else `missing` with the steps. It is no to-do: Access
  * asks for it when the owner first lets someone install the project. Changes nothing that is already right.
  */
 async function projectCode(cf, { account, config, repository, artifacts, workers, note, todo }) {
-  const named = repository && existsSync(config) ? setVar(config, 'WONG_CODE_REPOSITORY', repository) : false;
+  const { named, bound } = codeInConfig(config, repository, artifacts);
   if (named === 'updated') note('updated', 'app/wrangler.jsonc WONG_CODE_REPOSITORY');
-  const bound = named && artifacts ? addCodeBinding(config) : false;
   if (bound === 'updated') note('updated', 'app/wrangler.jsonc ARTIFACTS');
   if (!named || (artifacts && !bound)) {
     todo.push(`add "WONG_CODE_REPOSITORY"${artifacts ? ` and the "artifacts" binding ARTIFACTS for the ${NAMESPACE} namespace` : ''} to production and staging in app/wrangler.jsonc, as wiki/stack/employee-project.md describes`);

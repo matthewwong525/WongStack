@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest'
-import type { Area, SavedKey, Skill, Status } from '../../lib/access'
-import { aloneLine, appStart, appUses, areaTitle, capital, count, covers, dots, fill, gaps, keyLine, keyState, keyUseLine, keyUseShort, levelLabel, levelLabels, levelName, lines, missing, needLabels, needShort, NOTHING, opensLine, raised, reachLabel, reachLabels, reachName, sameSet, summary, usesLine, usesWhat, type AccessSet, type Needs } from './levels'
+import type { Area, Level, SavedKey, Skill, Status } from '../../lib/access'
+import { aloneLine, appStart, appUses, areaTitle, capital, count, covers, directLine, directName, directOff, dots, fill, gaps, keyLine, keyState, keyUseLine, keyUseShort, levelLabel, levelLabels, levelName, lines, missing, needLabels, needShort, NOTHING, opensLine, raised, reachLabel, reachLabels, reachName, sameSet, summary, usesLine, usesWhat, type AccessSet, type Needs } from './levels'
 
 // A shop with four apps and one area with no screen. Hello changes things with Stripe and looks places up with Maps, the tip
 // calculator looks prices up with Stripe, Orders changes things with Stripe and Bank, and Payroll and Customers use no key.
@@ -208,6 +208,10 @@ it('keeps the Keys list line short enough to show whole in its column', () => {
   const lines = [cloudflare, code].map(alone => keyUseShort({ ...alone, usedBy: apps }))
   expect(lines).toEqual(['12 apps · Look-ups', '12 apps · Installs the project'])
   for (const line of lines) expect(line.length).toBeLessThanOrEqual(30)
+  // A key that apps use and that is used directly names both, and still fits.
+  const direct = (['read', 'write', null] as const).map(mode => keyUseShort({ ...notion(mode), usedBy: apps }))
+  expect(direct).toEqual(['12 apps · Direct: look-ups', '12 apps · Direct: changes', '12 apps · Direct: off'])
+  for (const line of direct) expect(line.length).toBeLessThanOrEqual(30)
 })
 
 it('says whether a key is saved, waits for its link, or waits for setup to make it, which no preview can', () => {
@@ -223,4 +227,47 @@ it('names a level for every area and every key as a save sends them: the one hel
   expect(fill([stripe, maps, bank], { stripe: 'write', maps: null }, 'read')).toEqual({ stripe: 'write', maps: 'read', bank: 'read' })
   expect(fill([], { stripe: 'write' }, null)).toEqual({})
   expect(NOTHING).toEqual({ apps: {}, keys: {} })
+})
+
+// Notion is set up to be used directly. Finding a page looks things up in it; making one changes things there. Both call Payroll, which uses no key.
+function notion(mode: Level | null) { return key('notion', 'Notion', { direct: { offered: ['read', 'write'], mode } }) }
+const finder: Skill = { id: 'finder', title: 'Find a page', areas: { payroll: 'read' }, keys: { notion: 'read' }, direct: { notion: 'read' } }
+const maker: Skill = { id: 'maker', title: 'Make a page', areas: { payroll: 'read' }, keys: { notion: 'write' }, direct: { notion: 'write' } }
+const withNotion = (mode: Level | null): Status => ({ ...status, keys: [...status.keys, notion(mode)], skills: [finder, maker] })
+const MODES = [null, 'read', 'write'] as const
+
+it("names a key's direct-use choice, what the pick opens and how many people it reaches", () => {
+  expect(MODES.map(directName)).toEqual(['Off', 'Look-ups only', 'Look-ups and changes'])
+  expect(directLine(null, 3)).toBe('Off: no assistant can use this key directly.')
+  expect(directLine('read', 3)).toBe('Anyone with Read can look up anything this key can see. 3 people today.')
+  expect(directLine('write', 1)).toBe('Anyone with Read can look up anything this key can see, and anyone with Read & write can change it. 1 person today.')
+  expect(directLine('read', 0)).toBe('Anyone with Read can look up anything this key can see. 0 people today.')
+  // The key's row says the choice in a word. A key whose service is not set up says nothing about it.
+  expect(MODES.map(mode => keyUseShort(notion(mode)))).toEqual(['Direct: off', 'Direct: look-ups', 'Direct: changes'])
+  expect([keyUseShort({ ...spare, direct: null }), keyUseLine(status, notion('read'))]).toEqual(['Nothing uses it yet', 'Nothing uses it yet'])
+})
+
+it("says under a key's level that it also reaches the service directly, while the key's choice is on", () => {
+  expect(MODES.map(mode => keyLine(status, NOTHING, notion(mode)))).toEqual(['', 'also reaches Notion directly: look-ups', 'also reaches Notion directly: look-ups and changes'])
+  expect(keyLine(status, { apps: { orders: 'read' }, keys: {} }, { ...notion('read'), usedBy: [{ app: 'orders', need: 'read' }] })).toBe('used by Orders · also reaches Notion directly: look-ups')
+  expect(keyLine(status, NOTHING, { ...spare, direct: null })).toBe('')
+})
+
+it('counts a direct-use choice that stops a skill as its gap, in the words a refusal uses', () => {
+  const lines = (mode: Level | null, set: AccessSet) => gaps(withNotion(mode), set).map(gap => gap.line)
+  const holds = (level: Level | null): AccessSet => ({ apps: { payroll: 'read' }, keys: { notion: level } })
+  expect(MODES.map(mode => [directOff(withNotion(mode), finder), directOff(withNotion(mode), maker)])).toEqual([
+    [['Notion: direct use is off'], ['Notion: direct use is off']], [[], ['Notion: direct changes are off']], [[], []]])
+  // A skill that uses no key directly is never stopped, and a key the app no longer holds reads as off, by its id.
+  expect([directOff(withNotion(null), refund), directOff(status, finder)]).toEqual([[], ['notion: direct use is off']])
+  // Stopped only by the choice: the set holds every level the skills need.
+  expect(lines(null, holds('write'))).toEqual(['Find a page: Notion: direct use is off', 'Make a page: Notion: direct use is off'])
+  expect(lines('read', holds('write'))).toEqual(['Make a page: Notion: direct changes are off'])
+  // Stopped by a level alone, and by both at once on one line.
+  expect(lines('write', holds('read'))).toEqual(['Make a page: Notion Read & write'])
+  expect(lines('read', holds(null))).toEqual(['Find a page: Notion Read', 'Make a page: Notion Read & write, Notion: direct changes are off'])
+  expect(lines('write', holds('write'))).toEqual([])
+  // An area names a skill it opens only when the choice lets the skill run.
+  expect(MODES.map(mode => opensLine(withNotion(mode), holds('write'), payroll)))
+    .toEqual(['opens Payroll app', 'opens Payroll app, Find a page', 'opens Payroll app, Find a page, Make a page'])
 })

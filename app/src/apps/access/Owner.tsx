@@ -24,10 +24,13 @@ export function Owner() {
   const named = VIEWS.find(item => item.name === name)
   const view = named ?? VIEWS[0]
   const Screen = SCREENS[view.name]
-  const save: ViewProps['save'] = async (path, body, done = { text: path === 'retry' ? 'Checked again.' : 'Saved.' }) => {
+  const save: ViewProps['save'] = async (path, body, done = { text: path === 'retry' ? 'Checked again.' : 'Saved.' }, first) => {
     setPending(true)
     let result = { failed: false, ...done }
-    try { await changeAccess(path, body) }
+    try {
+      if (first) await changeAccess('direct', first)
+      await changeAccess(path, body)
+    }
     // The save may have landed: the list below is read again, so nothing is sent twice.
     catch { result = { text: UNFINISHED, failed: true } }
     void navigate(view.home, { replace: true, state: result }); reload(); setPending(false)

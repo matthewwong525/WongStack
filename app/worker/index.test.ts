@@ -15,7 +15,7 @@ vi.mock("./apps/hello/api.ts", async (original) => {
 
 const TEAM = "routing-team.cloudflareaccess.com";
 const AUD = "routing-workspace";
-const ASSET_PATHS = ["/", "/index.html", "/assets/main.js", "/assets/index.css", "/apps/tips/", "/apps/tips/app.js", "/unknown/path"];
+const ASSET_PATHS = ["/", "/index.html", "/assets/main.js", "/assets/index.css", "/apps/hello/", "/apps/hello/app.js", "/unknown/path"];
 
 describe("private Worker routing", () => {
   let signing: CryptoKeyPair;
@@ -255,7 +255,7 @@ describe("private Worker routing", () => {
   });
 
   it("checks current grants and self-service membership after signed login on every request", async () => {
-    const row = { policy_enabled: 1, keys_enabled: 0, revision: 1, status: "active", manager: 0, apps: '{"hello":"read"}', keys: "{}" };
+    const row = { policy_enabled: 1, keys_enabled: 0, revision: 1, status: "active", manager: 0, apps: '{"hello":"read"}', keys: "{}", direct: "{}" };
     const first = vi.fn(async () => row);
     const db = { withSession: vi.fn(() => ({ prepare: () => ({ bind: () => ({ first }) }) })) };
     const bindings = { ...env, WONG_ENVIRONMENT: "production", WONG_OWNER_EMAIL: "owner@example.com", DB: db };

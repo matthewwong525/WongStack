@@ -12,7 +12,8 @@ const start = '<!-- proposal:start -->';
 const end = '<!-- proposal:end -->';
 const WIDE = 60;
 const TECHNICAL = 12;
-const USAGE = 'usage: build-review.mjs <change-root> [--require-current]';
+const USAGE = `usage: build-review.mjs <change-root> [--require-current] [--link]
+  --link  print the page's reply link, whose button sends notes to this chat; the file where none can open`;
 const kitPath = resolve(dirname(fileURLToPath(import.meta.url)), '../references/review-kit.html');
 
 const esc = text => String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -202,6 +203,15 @@ export function planLink(page) {
   return `Click here to see the plan: [review.html](${/[\s()]/.test(page) ? `<${page}>` : page})`;
 }
 
+// The fixed first line of sent and copied notes; the kit writes the same words.
+export const notesHeader = name => `Notes on the plan ${name} from the review page. Don't build yet.`;
+
+// The page's reply link when one can open, else its file.
+async function linked(page, name) {
+  const { openReplyLink } = await import('../../hand-over/scripts/reply-link.mjs');
+  return (await openReplyLink({ file: page, header: notesHeader(name) })) ?? page;
+}
+
 export function buildReview(changeRoot, { requireCurrent = false } = {}) {
   const proposalPath = join(changeRoot, 'proposal.md');
   const reviewPath = join(changeRoot, 'review.html');
@@ -220,7 +230,7 @@ export function buildReview(changeRoot, { requireCurrent = false } = {}) {
 if (isMain(import.meta.url)) {
   let args;
   try {
-    args = parseArgs({ options: { 'require-current': { type: 'boolean' }, help: { type: 'boolean' } }, allowPositionals: true, strict: true });
+    args = parseArgs({ options: { 'require-current': { type: 'boolean' }, link: { type: 'boolean' }, help: { type: 'boolean' } }, allowPositionals: true, strict: true });
   } catch (error) { console.error(`${error.message}\n${USAGE}`); process.exit(2); }
   const [root, ...extra] = args.positionals;
   if (args.values.help) console.log(USAGE);
@@ -230,7 +240,9 @@ if (isMain(import.meta.url)) {
       const result = buildReview(root, { requireCurrent: args.values['require-current'] === true });
       for (const warning of result.warnings) console.error(`review: warning: ${warning}`);
       console.log(`review: ${result.kind}, ${result.changed ? 'updated' : 'unchanged'}`);
-      if (result.kind !== 'no-page') console.log(`${planLink(resolve(root, 'review.html'))}\n\n${NEXT_STEP}`);
+      const page = resolve(root, 'review.html');
+      const live = args.values.link && result.kind === 'current';
+      if (result.kind !== 'no-page') console.log(`${planLink(live ? await linked(page, basename(resolve(root))) : page)}\n\n${NEXT_STEP}`);
     } catch (error) { console.error(`review: ${error.message}`); process.exitCode = 1; }
   }
 }

@@ -50,12 +50,23 @@ The level a call needs, of its area and of each key, comes from what it does: an
 `cloudflare.read`, at `GET /api/cloudflare/read`, sends one `GET` to the Cloudflare API with [the read-only key setup made](cloudflare-credentials.md#the-read-only-look-up-key) and returns Cloudflare's `success`, `result`, `result_info` and `errors`. It belongs to the Cloudflare key alone: a person with *Cloudflare: Read* can have their assistant read settings, logs and usage with no app ticked, and nobody is handed the key.
 
 - **Input:** `path`, an API path with no leading slash, and an optional `query` string. `accounts` lists the account and its id; then `accounts/<account id>/...` or `zones/...`.
-- **This account only.** Another account's path is refused.
-- **No stored data.** Paths under D1, KV, R2, Queues, Vectorize, Hyperdrive, Durable Objects, Secrets Store, Stream and Images are refused, and the key has no permission for them: two locks, so the app's database, files and memory can't be read this way. A path with `.` or `..` in it is refused too.
-- **It changes nothing.** One method, `GET`, and a key with no write permission.
-- **A bounded answer.** An answer over about 1 MB returns a safe error that says to narrow the request.
+- **This account only, and no stored data.** Another account's path is refused. So are paths under D1, KV, R2, Queues, Vectorize, Hyperdrive, Durable Objects, Secrets Store, Stream and Images, and the key has no permission for them: two locks on the app's database, files and memory. A path with `.` or `..` is refused too.
+- **It changes nothing, and its answer is bounded.** One method, `GET`, and a key with no write permission. An answer over about 1 MB says to narrow the request.
 
 Read & write is not offered for Cloudflare: a write key held by the live app would be close to full control of the account.
+
+## Use a key directly
+
+A saved key can be used with no built action, once its service is set up and the owner [turns direct use on for it](employee-access.md#key-levels). The app passes one request on and adds the key, which never reaches the person's device.
+
+- **Two actions per key, each the key's alone.** `<key>.read`, at `POST /api/direct/<key>/read`, needs Read. `<key>.change`, at `POST /api/direct/<key>/change`, needs Read & write and the choice *Look-ups and changes*.
+- **Input:** `method`; `path`, under the service's address with no leading slash; optional `query`, `body` and `contentType`. **Output:** the service's `status`, `contentType` and `body`. A status of 400 or more is the service's own refusal.
+- **A look-up is a `GET`, a `HEAD`, or a request the key's setup names.** `<key>.read` answers `not_a_lookup` to anything else.
+- **It reaches only its own service.** A path that leaves the address is refused and no redirect is followed. An answer over about 1 MB says to narrow the request, and one holding the key is never returned. Each request is logged with who sent it, never its query or body.
+
+**Build an action instead** for work done again and again, or that touches money or customers: only a built action can limit a person to one record. Direct use opens everything the key can see; make a narrower key at the service when that is too wide.
+
+**Set a service up when you save its key.** Add `forward` to its entry in [the key registry](../../app/worker/keys.ts), from the service's own API guide, as the commented Notion entry there shows. The registry's comments say what each field is. `lookups` names, as `METHOD path` with `*` for one path part, only requests the guide documents as read-only: a wrong entry lets Read change things. A service that works through one `POST`, such as GraphQL, gets none, so it needs Read & write. A key renewed through a sign-in, such as Google's, can't be set up: build an action. The app's tests fail on an entry that breaks a rule.
 
 ## Discover only what the task needs
 
@@ -94,7 +105,7 @@ A skill that reads or changes business data does it through company actions, nev
 
 When someone asks for such a skill:
 
-1. **Build or reuse the action first.** Find one with `list`, or [define it](#define-an-action-once) in the app: in a mini app's folder, or in [a folder with no screen](mini-apps.md#an-area-with-no-screen) when the work is for skills alone.
+1. **Build or reuse the action first.** Find one with `list`, or [define it](#define-an-action-once) in the app: in a mini app's folder, or in [a folder with no screen](mini-apps.md#an-area-with-no-screen) when the work is for skills alone. A one-off job nobody has built may list a key's [direct actions](#use-a-key-directly), `<key>.read` or `<key>.change`.
 2. **List what the skill calls** in `actions.json` beside its `SKILL.md`: `{ "title": "Refund a customer", "actions": ["orders.lookup", "orders.refund"] }`. The title is what [Access](employee-access.md#the-skills-view) shows.
 3. **Call each action through the helper**, as [above](#connect-and-call): `node scripts/company-api.mjs call <id> --file -`.
 4. **Never read a business key in the skill**: no `.env`, no `app/.dev.vars`, no secret's name.

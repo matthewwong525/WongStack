@@ -4,12 +4,18 @@
 //   prepare  the repo's read token only: rebuild the Git history the SDK's checkout leaves out.
 //            Runs no project code.
 //   checks   no credential: the shared checks (.github/scripts/checks.mjs), then the plain build.
-//   deploy   the deploy token only: the pack's own cf-build.sh (migrate) and cf-deploy.sh.
+//   deploy   the deploy token only: the pack's own cf-build.sh (migrate) and cf-deploy.sh. It installs
+//            the app's packages itself first, with the token out of reach: the files a stage is
+//            handed from the one before can arrive incomplete, and an install script is project code.
 //
-// A failed stage ends the run, so a commit that fails its checks is never deployed.
+// A failed stage ends the run, so a commit that fails its checks is never deployed. A stage the
+// Sandbox cut off is tried again, three times a run in all; a run that still does not finish ends
+// `interrupted`, never `failure`: the commit was not shown to fail anything.
 
-/** The bounds: one run at a time, 30 minutes of runners per run, snapshots kept a day. */
+/** The bounds: one run at a time, 30 minutes of stages per run plus the stages an interruption repeats, snapshots kept a day. */
 export const BOUNDS = {
+  /** How many times in one run a stage the Sandbox cut off is started again, shared by its stages. */
+  interruptions: 3,
   prepareMs: 3 * 60_000,
   checksMs: 17 * 60_000,
   deployMs: 10 * 60_000,
@@ -34,7 +40,7 @@ export const runnerConfig = (timeout) => ({
   snapshotRetentionSeconds: BOUNDS.snapshotSeconds,
 });
 
-// The three commands are fixed text. A branch name or commit id reaches them only as a quoted
+// The commands are fixed text. A branch name or commit id reaches them only as a quoted
 // environment variable, never as part of the script.
 const PREPARE = `set -eu
 cd /workspace
@@ -75,11 +81,19 @@ if node -e "process.exit(require('$dir/package.json').scripts?.['build:app']?0:1
 echo "WONG_APP built"
 `;
 
+/**
+ * The deploy stage's install, run from the app's folder: a fresh `npm ci` in a subshell that holds no
+ * Cloudflare credential, whatever name it came under. Its own line, so the script tests can run it.
+ */
+export const INSTALL = `(cd "$dir" && unset $(env | sed -n 's/^\\(CLOUDFLARE_[A-Za-z0-9_]*\\)=.*/\\1/p') && npm ci --no-audit --no-fund)`;
+
 const DEPLOY = `set -eu
 cd /workspace
 [ "$(git rev-parse HEAD)" = "$WONG_HEAD" ]
 export CF_BRANCH="$WONG_BRANCH" CF_PRODUCTION_BRANCH=main GITHUB_OUTPUT=/tmp/wong-output
 : > "$GITHUB_OUTPUT"
+dir=$(bash scripts/cf-build.sh --app-dir)
+${INSTALL}
 node scripts/cf-secrets.mjs check
 bash scripts/cf-build.sh
 bash scripts/cf-deploy.sh
@@ -135,29 +149,45 @@ export function deployedAddress(logs, key) {
  * A command's own non-zero exit and a timeout are never retried.
  */
 export function interrupted(error) {
-  const text = String(error?.message ?? error);
-  return !/failed with exit code \d+/.test(text) && !/time(d)? ?out/i.test(text);
+  // The SDK keeps only the end of a long output, under `[diagnostic truncated]`, and the line naming
+  // the exit code goes with the start. So a command that ran to its end is also known by that mark,
+  // by the output headings, and by the error the SDK wrapped.
+  const texts = [];
+  for (let at = error, depth = 0; at !== undefined && at !== null && depth < 5; at = at.cause, depth++) texts.push(String(at?.message ?? at));
+  const text = texts.join('\n');
+  const exited = /failed with exit code \d+/.test(text) || text.includes('[diagnostic truncated]') || /^=== std(out|err) ===$/m.test(text);
+  return !exited && !/time(d)? ?out/i.test(text);
 }
 
 const reasonOf = (error) => String(error?.message ?? error).slice(-BOUNDS.reasonChars);
 
+/** A stage the Sandbox cut off after the run's tries were used up. */
+class CutOff extends Error {}
+
+/** The step name of a stage's nth try: the stage's own name, then `-retry`, `-retry-2`, `-retry-3`. */
+const tryName = (name, attempt) => (attempt === 0 ? name : attempt === 1 ? `${name}-retry` : `${name}-retry-${attempt}`);
+
 /**
- * Runs one stage; a Sandbox interruption gets one more try under a second step name. `retry` is the
- * run's one retry, shared by its stages, so a run never outlives its 30 minutes plus one stage.
+ * Runs one stage; a Sandbox interruption gets another try under its own step name. `retry` is the
+ * run's budget of tries, shared by its stages, so a run never outlives its 30 minutes plus the
+ * stages an interruption repeats. A stage still cut off when the budget is spent throws `CutOff`.
  */
 async function stage(start, options, retry) {
-  try {
-    return await start(options);
-  } catch (error) {
-    if (!interrupted(error) || retry.left < 1) throw error;
-    retry.left -= 1;
-    return start({ ...options, name: `${options.name}-retry` });
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await start(attempt === 0 ? options : { ...options, name: tryName(options.name, attempt) });
+    } catch (error) {
+      if (!interrupted(error)) throw error;
+      if (retry.left < 1) throw new CutOff(String(error?.message ?? error));
+      retry.left -= 1;
+    }
   }
 }
 
 /**
  * One run for one pushed commit. Returns the result the verbs read: the commit, its ref, `success`,
- * `failure` or `none` (a commit with no checks to run), and the address the deploy reported.
+ * `failure`, `interrupted` (cut off, with the stage; not the commit's doing) or `none` (a commit
+ * with no checks to run), and the address the deploy reported.
  * `ci` is the SDK's context; `config` names the account, namespace and repository this runner serves.
  */
 export async function runPipeline(params, ci, config) {
@@ -166,9 +196,9 @@ export async function runPipeline(params, ci, config) {
   const branch = params.ref.slice('refs/heads/'.length);
   const outcome = { commit: params.sha, ref: params.ref };
   const env = { WONG_HEAD: params.sha, WONG_BRANCH: branch, ...(params.beforeSha && { WONG_BEFORE: params.beforeSha }) };
-  const fail = (at, error) => ({ ...outcome, result: 'failure', stage: at, reason: reasonOf(error) });
+  const fail = (at, error) => ({ ...outcome, result: error instanceof CutOff ? 'interrupted' : 'failure', stage: at, reason: reasonOf(error) });
   const none = { cloudflareCredentials: false, sourceControlCredentials: false };
-  const retry = { left: 1 };
+  const retry = { left: BOUNDS.interruptions };
 
   let prepared;
   try {

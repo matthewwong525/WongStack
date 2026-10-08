@@ -18,7 +18,7 @@ export const key = JSON.stringify({ version: 2, token: "private-access-token", a
 export function database() {
   const sql = new DatabaseSync(":memory:");
   sql.exec("PRAGMA foreign_keys = ON");
-  for (const file of ["0001_employee_access.sql", "0002_employee_connections.sql", "0003_key_levels.sql", "20261005142459_access_managers.sql", "20261006031500_area_levels.sql"]) {
+  for (const file of ["0001_employee_access.sql", "0002_employee_connections.sql", "0003_key_levels.sql", "20261005142459_access_managers.sql", "20261006031500_area_levels.sql", "20261007220000_key_direct_use.sql"]) {
     sql.exec(readFileSync(new URL(`../../../schema/migrations/${file}`, import.meta.url), "utf8"));
   }
   const statement = (query: string, values: SQLInputValue[] = []) => ({
@@ -33,6 +33,15 @@ export function database() {
     catch (error) { sql.exec("ROLLBACK"); throw error; }
   } };
   return { sql, session, DB: { withSession: () => session } as unknown as D1Database };
+}
+/** The staging database as `db:reset:staging` leaves it: the migrations, then schema/seed.sql. The committed owner
+ *  email, not the seeded row, decides who manages the practice list; `practice` is one seeded person signed in. */
+export function seeded() {
+  const { sql, DB } = database();
+  sql.exec(readFileSync(new URL("../../../schema/seed.sql", import.meta.url), "utf8"));
+  const env = { DB, WONG_ENVIRONMENT: "staging", WONG_OWNER_EMAIL: owner.id };
+  const practice = (email: string): AccessIdentity => ({ ...owner, id: email, claims: { ...owner.claims, email } });
+  return { sql, env, practice };
 }
 /** `started` false leaves the installation row out, as on an app whose owner never opened Access. */
 export function fixture({ started = true } = {}) {

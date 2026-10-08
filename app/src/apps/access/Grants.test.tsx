@@ -268,3 +268,60 @@ it('a key or app save that did not finish says so and reads the list again', asy
   }
   expect(posts('grants')).toHaveLength(2)
 })
+
+// Notion is set up to be used directly at both levels, and Ledger at Read alone. Kim holds Notion at Read & write and
+// the Sales role, with its two holders, at Read.
+const direct = (mode: 'read' | 'write' | null = null) => {
+  roster.keys.push(key('notion', 'Notion', { direct: { offered: ['read', 'write'], mode } }), key('ledger', 'Ledger', { levels: ['read'], direct: { offered: ['read'], mode: 'read' } }))
+  roster.roles[1].keys.notion = 'read'; roster.people[1].keys.notion = 'write'
+  for (const holder of roster.people.slice(2)) holder.keys.notion = 'read'
+}
+const reaches = (people: string) => `Anyone with Read can look up anything this key can see. ${people} today.`
+
+it("sets a key's direct use above its levels: the choices it offers, what the pick opens and how many people it reaches, saved before the levels", async () => {
+  direct(); open('keys')
+  // The list says each key's choice in a word, and nothing for a key whose service is not set up.
+  expect([(await cells('Notion'))[2], (await cells('Ledger'))[2], (await cells('Stripe'))[2]]).toEqual(['Direct: off', 'Direct: look-ups', '1 app'])
+  fireEvent.click((await row('Notion')).getByRole('link', { name: 'Notion' })); const opened = await panel('Notion')
+  expect([offered('Direct use'), chosen('Direct use')]).toEqual([['Off', 'Look-ups only', 'Look-ups and changes'], ['Off']])
+  expect(opened.getByText('Off: no assistant can use this key directly.')).toBeTruthy()
+  expect(follows(screen.getByRole('group', { name: 'Direct use' }), screen.getByRole('group', { name: office }))).toBe(true)
+  // The line says what the pick opens, and counts the people who hold a level as the page stands: a role's holders, and a person's own.
+  pick('Direct use', 'Look-ups only'); expect(opened.getByText(reaches('3 people'))).toBeTruthy()
+  pick(team, 'None'); expect(opened.getByText(reaches('1 person'))).toBeTruthy(); pick(team, 'Read')
+  pick('Direct use', 'Look-ups and changes')
+  expect(opened.getByText('Anyone with Read can look up anything this key can see, and anyone with Read & write can change it. 3 people today.')).toBeTruthy()
+  click('Save access'); await screen.findByText('Saved.'); await closed()
+  // The choice is saved first, then the levels, and Save access is still the one save.
+  expect([sent('direct'), sent('grants')]).toEqual([[{ key: 'notion', mode: 'write' }], [{ key: 'notion', roles: { office: null, sales: 'read' }, people: { 'kim@shop.com': 'write' } }]])
+  const order = fetchMock.mock.calls.filter(([, init]) => init?.method === 'POST').map(([url]) => String(url).split('/').at(-1))
+  expect(order).toEqual(['direct', 'grants'])
+})
+
+it('sends no choice when only levels change, sends Off as a choice, and offers a Read-only key two choices', async () => {
+  direct('read'); open('keys/notion'); await panel('Notion'); expect(chosen('Direct use')).toEqual(['Look-ups only'])
+  pick(office, 'Read'); click('Save access'); await screen.findByText('Saved.')
+  expect([sent('direct'), sent('grants')]).toEqual([[], [{ key: 'notion', roles: { office: 'read', sales: 'read' }, people: { 'kim@shop.com': 'write' } }]])
+  cleanup(); open('keys/notion'); await panel('Notion'); pick('Direct use', 'Off'); click('Save access'); await waitFor(() => expect(sent('direct')).toEqual([{ key: 'notion', mode: 'off' }]))
+  cleanup(); open('keys/ledger'); const ledger = await panel('Ledger')
+  expect([offered('Direct use'), chosen('Direct use')]).toEqual([['Off', 'Look-ups only'], ['Look-ups only']])
+  // Nobody holds Ledger yet, and the line says so.
+  expect(ledger.getByText(reaches('0 people'))).toBeTruthy()
+})
+
+it('says a key whose service is not set up for direct use is not, with how to get it and no choice to make', async () => {
+  // A key setup makes can never be set up for it, so it does not say to ask.
+  for (const [path, title, line] of [['keys/stripe', 'Stripe', 'Not set up for this key. Ask your assistant to add it.'], ['keys/cloudflare', 'Cloudflare', 'Not offered for this key.']]) {
+    open(path); const opened = await panel(title)
+    expect(opened.getByText('Direct use').tagName).toBe('P')
+    expect(opened.getByText(line)).toBeTruthy()
+    expect([screen.queryByRole('group', { name: 'Direct use' }), opened.queryByRole('radio', { name: 'Off' })]).toEqual([null, null]); cleanup()
+  }
+})
+
+it('a choice save that did not finish says so, sends no levels after it, and reads the list again', async () => {
+  direct(); failed.add('direct')
+  open('keys/notion'); await panel('Notion'); pick('Direct use', 'Look-ups only'); const before = reads('status').length; click('Save access')
+  await screen.findByText(unfinished); await row('Notion')
+  expect([where(), posts('direct').length, posts('grants').length]).toEqual(['/apps/access/keys', 1, 0]); expect(reads('status').length).toBeGreaterThan(before)
+})

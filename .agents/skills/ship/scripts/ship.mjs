@@ -23,13 +23,15 @@
  * An Artifacts install (wiki/stack/artifacts-route.md) has no GitHub: delivery-route.mjs is asked
  * once a command, and on `artifacts` no gh call is made. prepare reads main's own check run;
  * finish takes the merge commit from merge.sh's `commit=` line, and a main that moved, failed, or
- * could not be read gets its own NEXT:. A route that can not be told stops either command.
+ * could not be read gets its own NEXT:. So does a main whose check run was cut off: that is not a
+ * failure, and NEXT: names the command that starts the run again. A route that can not be told
+ * stops either command.
  *
  * Exit codes of prepare:
  *   0  ready for /save            1  a step failed; its message is printed
  *   2  usage                      3  nothing to ship yet: the pull-in
  *   4  unchecked tasks            5  the default branch could not be merged in cleanly
- *   6  the default branch's checks are failing or unreadable
+ *   6  the default branch's checks are failing, unreadable, or were cut off
  *   7  the change to ship needs a decision: none selected, or other active changes ride along
  * finish exits with merge.sh's code: 0 merged, 1 not merged, 2 merged but the branch is kept,
  * and on an Artifacts install 3: published, but main's run failed or could not be read.
@@ -90,10 +92,14 @@ function routeOf(cwd) {
   return asked.route;
 }
 
+// What NEXT: prints for a check run that was cut off: start that same run again, then wait for it.
+const RUN_AGAIN = 'node .claude/skills/save/scripts/artifacts-run.mjs';
+const restartSteps = (sha, base) => `Start it again with \`${RUN_AGAIN} restart ${sha} refs/heads/${base}\`, then wait for it with \`${RUN_AGAIN} live ${sha}\`.`;
+
 /**
  * The default branch's checks on an Artifacts install, in the shape of the gh answer prepare reads:
- * `ok` for a run that passed or found no checks, `failure` for a red one, and nothing, with the
- * reason, for a run that is still going, missing, or unreadable. The branch is fetched first, so
+ * `ok` for a run that passed or found no checks, `failure` for a red one, `interrupted` for one
+ * that was cut off, and nothing, with the reason, for a run that is still going, missing, or unreadable. The branch is fetched first, so
  * an older commit's run never answers for the one a publish would land on.
  */
 function artifactsDefaultChecks(base) {
@@ -103,8 +109,8 @@ function artifactsDefaultChecks(base) {
   // `node` by name, as the shell scripts beside this one call it.
   const read = sh('node', [ARTIFACTS_RUN, 'result', sha, `refs/heads/${base}`]);
   const word = read.status === 0 ? read.stdout.trim() : '';
-  const answer = { SUCCESS: 'ok', NONE: 'ok', FAILURE: 'failure' }[word] ?? '';
-  return { status: 0, stdout: answer, stderr: `${base}'s check run for ${sha.slice(0, 7)} reads ${word || 'nothing'}, so it is unverified` };
+  const answer = { SUCCESS: 'ok', NONE: 'ok', FAILURE: 'failure', INTERRUPTED: 'interrupted' }[word] ?? '';
+  return { status: 0, sha, stdout: answer, stderr: `${base}'s check run for ${sha.slice(0, 7)} reads ${word || 'nothing'}, so it is unverified` };
 }
 
 /** One OpenSpec CLI answer as JSON; a missing field is reported by the caller, never guessed. */
@@ -270,6 +276,8 @@ function prepare(values) {
   const answer = checks.status !== 0 ? '' : artifacts ? checks.stdout.trim() : mainVerdict(checks.stdout);
   say(`DEFAULT_CHECKS=${answer || 'unknown'}`);
   if (answer === 'failure') throw new Stop(6, [`NEXT: ${base}'s checks are failing. Fix the default branch first; ship nothing onto it.`]);
+  // Cut off is not failing: nothing is wrong with the commit, and the same run can be started again.
+  if (answer === 'interrupted') throw new Stop(6, [`NEXT: ${base}'s check run was cut off, not failed. ${restartSteps(checks.sha, base)} Rerun this command when that prints an address or none; on anything else, report it and stop.`]);
   if (answer !== 'ok' && artifacts) throw new Stop(6, [`error=${checks.stderr}`, `NEXT: ${base}'s checks could not be read. Report the message above and stop.`]);
   if (answer !== 'ok') throw new Stop(6, [`error=${firstLine(checks.stderr) || 'gh returned no answer'}`, `NEXT: ${base}'s checks could not be read. Report gh's message and stop.`]);
   if (!dirty && (branch === base || ahead === 0)) {
@@ -351,11 +359,14 @@ function finish() {
   // An Artifacts publish that main's own run did not pass is not shown to be live: there is
   // nothing to look at, and another push would not make that run pass.
   if (artifacts && merge.status === 3) {
+    const cutOff = /^main=INTERRUPTED$/m.test(merge.stdout);
     const why = /^main=FAILURE$/m.test(merge.stdout)
       ? 'main\'s checks or deploy failed, so this change is not live: production keeps the last passing commit'
-      : 'main\'s check run could not be read, so what is live is unverified';
+      : cutOff ? 'main\'s check run was cut off, so this change is on main but not live yet'
+        : 'main\'s check run could not be read, so what is live is unverified';
     say(`LIVE_LOOK=unknown\nREASON=${why}`);
-    say('NEXT: it is on main, but not shown to be live. Report REASON and the error above, and stop. Never push again to make main pass.');
+    if (cutOff) say(`NEXT: it is on main, and its check run was cut off, not failed. ${restartSteps(merge.stdout.match(/^commit=([0-9a-f]+)$/m)?.[1] ?? '<commit>', 'main')} Report it live at the address that prints; on anything else, report REASON and stop. Never push again to make main pass.`);
+    else say('NEXT: it is on main, but not shown to be live. Report REASON and the error above, and stop. Never push again to make main pass.');
     return merge.status;
   }
   const look = liveLook(artifacts ? merge.stdout.match(/^commit=([0-9a-f]+)$/m)?.[1] ?? '' : mergeCommit(merge.stdout.match(/^pr=(\d+)/m)?.[1]));

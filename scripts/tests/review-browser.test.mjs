@@ -1,6 +1,6 @@
 import { after, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -350,5 +350,160 @@ browserTest('#/3 scrolls to item 3, and a keyboard note returns focus to its tar
   await page.keyboard.press('Escape');
   assert.equal(await page.evaluate(() => document.activeElement.getAttribute('data-note')), 'item-3');
   assert.equal(await at(page, 'item-3').locator('.pin.draft').count(), 1);
+  await context.close();
+});
+
+// ── a reply link: the page at a web address with #key=, its server played by the browser's own routing ──
+const LIVE = 'https://plan.test/p/0123456789abcdef0123456789abcdef/';
+const LINK_KEY = 'ab'.repeat(32);
+const HEADER = 'Notes on the plan review-fixture from the review page. Don\'t build yet.';
+const BULLETS = ['- Why, paragraph 1 ("Reviewers read the plan on a phone."): Say who reads it.', '- Change #2 ("Item two links the reason and wraps onto a second line."): Name the reason.'];
+const toastIs = (page, text) => page.waitForFunction(want => document.getElementById('toast').textContent === want, text);
+
+// `send(requests)` answers each send with {status, body}; `alive` is the status the link's check gets.
+async function openLive({ send = () => ({ status: 200, body: { sent: true } }), alive = 200, hash = `#key=${LINK_KEY}` } = {}) {
+  const f = fixture();
+  const base = new URL(LIVE).pathname;
+  const context = await browser.newContext({ viewport: { width: 1200, height: 800 } });
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: new URL(LIVE).origin });
+  const requests = [];
+  await context.route(`${new URL(LIVE).origin}/**`, async route => {
+    const request = route.request(), path = new URL(request.url()).pathname;
+    if (path === base) return route.fulfill({ contentType: 'text/html; charset=utf-8', body: readFileSync(join(f.dir, 'review.html'), 'utf8') });
+    requests.push({ path: path.slice(base.length), method: request.method(), key: request.headers()['x-reply-key'], body: request.postDataJSON() });
+    if (path === `${base}alive`) return route.fulfill({ status: alive, contentType: 'application/json', body: JSON.stringify({ closesAt: Date.now() + 60_000 }) });
+    const answer = send(requests);
+    return route.fulfill({ status: answer.status, contentType: 'application/json', body: JSON.stringify(answer.body ?? {}) });
+  });
+  const page = await context.newPage();
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.goto(LIVE + hash);
+  return { page, context, errors, requests, sends: () => requests.filter(request => request.path === 'send') };
+}
+const isLive = page => page.locator('#copy', { hasText: 'Send notes' }).waitFor();
+
+browserTest('opened from disk, a key in the address changes nothing: the page copies and asks nothing', async () => {
+  const { page, context, errors } = await open(`${fixture().url}#key=${LINK_KEY}`);
+  const asked = [];
+  page.on('request', request => asked.push(request.url()));
+  assert.equal(await page.locator('#copy').innerText(), 'Copy notes');
+  await note(page, 'why-1', 'Say who reads it.');
+  await toastIs(page, 'Saved and copied 1 note. Paste them into chat.');
+  assert.equal(await page.locator('#editor .copies').innerText(), 'Saving a note copies all your notes.');
+  assert.equal(await copied(page), `${HEADER}\n${BULLETS[0]}`);
+  assert.equal(await page.locator('.pin.sent').count(), 0);
+  assert.deepEqual(asked, []);
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+browserTest('on a reply link, saving copies nothing and one tap sends every note once', async () => {
+  const { page, context, errors, requests, sends } = await openLive();
+  await isLive(page);
+  assert.deepEqual(requests, [{ path: 'alive', method: 'GET', key: LINK_KEY, body: null }]);
+  assert.match(await page.locator('header .hint').innerText(), /Send notes sends your saved notes to the chat\./);
+  await draft(page, 'why-1', 'Say who reads it.');
+  assert.equal(await page.locator('#editor .copies').innerText(), 'Send notes sends your saved notes to the chat.');
+  await page.locator('#editor [data-act="save"]').click();
+  await toastIs(page, 'Saved. Tap Send notes to send it to the chat.');
+  await note(page, 'item-2', 'Name the reason.');
+  assert.equal(await page.locator('#copybuf').inputValue(), '', 'a save copies nothing');
+  assert.equal(sends().length, 0, 'a save sends nothing');
+  await page.locator('#copy').click();
+  await toastIs(page, 'Sent 2 notes to the chat.');
+  assert.deepEqual(sends(), [{ path: 'send', method: 'POST', key: LINK_KEY, body: { text: BULLETS.join('\n') } }]);
+  assert.equal(await at(page, 'why-1').locator('.pin').innerText(), '1 · Sent');
+  assert.equal(await page.locator('.pin.sent').count(), 2);
+  assert.equal(await page.locator('#note-list .tag', { hasText: 'Sent' }).count(), 2);
+  await page.locator('#copy').click();
+  await toastIs(page, 'Every note is already sent.');
+  assert.equal(sends().length, 1, 'a second tap sends nothing');
+  // A new note, and a sent note whose text changed, are the only ones the next tap sends.
+  await note(page, 'item-4', 'A third.');
+  await at(page, 'why-1').locator('.pin').click();
+  await page.locator('#editor textarea').fill('Say who reads it, and when.');
+  await page.locator('#editor [data-act="save"]').click();
+  assert.equal(await at(page, 'why-1').locator('.pin').innerText(), '1');
+  await page.locator('#copy').click();
+  await toastIs(page, 'Sent 2 notes to the chat.');
+  assert.match(sends()[1].body.text, /^- Why, paragraph 1 .*: Say who reads it, and when\.\n- Change #4 .*: A third\.$/);
+  // Sent marks and the open link survive a reload that carries no key in the address.
+  await page.evaluate(() => { location.hash = '#/why'; });
+  await page.reload();
+  await isLive(page);
+  assert.equal(await page.locator('.pin.sent').count(), 3);
+  assert.equal(await page.evaluate(() => [...document.querySelectorAll('a')].some(a => a.href.includes('key='))), false, 'no link carries the key');
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+browserTest('a closed link copies the notes on the same tap, marks none sent, and goes back to Copy notes', async () => {
+  const { page, context, errors, sends } = await openLive({ send: () => ({ status: 410, body: { closed: true } }) });
+  await isLive(page);
+  await note(page, 'why-1', 'Say who reads it.');
+  await note(page, 'item-2', 'Name the reason.');
+  await page.locator('#copy').click();
+  await toastIs(page, 'This link has closed. Copied 2 notes: paste them into chat.');
+  assert.equal(await page.locator('#copybuf').inputValue(), [HEADER, ...BULLETS].join('\n'));
+  assert.equal(await page.evaluate(() => navigator.clipboard.readText()), [HEADER, ...BULLETS].join('\n'));
+  assert.equal(await page.locator('.pin.sent').count(), 0);
+  assert.equal(await page.locator('#note-list .tag', { hasText: 'Sent' }).count(), 0);
+  assert.equal(await page.locator('#copy').innerText(), 'Copy notes');
+  assert.equal(sends().length, 1);
+  // From here it is a file page: the button copies, and a save copies too.
+  await page.locator('#copy').click();
+  await toastIs(page, 'Copied 2 notes. Paste them into chat.');
+  await note(page, 'item-4', 'A third.');
+  await toastIs(page, 'Saved and copied 3 notes. Paste them into chat.');
+  assert.equal(sends().length, 1);
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+browserTest('an unconfirmed send or an unreachable link copies, and a too-soon send asks to wait', async () => {
+  for (const answer of [{ status: 502, body: { sent: false } }, { status: 200, body: { sent: false } }]) {
+    const { page, context } = await openLive({ send: () => answer });
+    await isLive(page);
+    await note(page, 'why-1', 'Say who reads it.');
+    await page.locator('#copy').click();
+    await toastIs(page, 'This link has closed. Copied 1 note: paste them into chat.');
+    assert.equal(await page.locator('.pin.sent').count(), 0);
+    await context.close();
+  }
+  const soon = await openLive({ send: requests => (requests.filter(request => request.path === 'send').length === 1 ? { status: 429, body: { sent: false } } : { status: 200, body: { sent: true } }) });
+  await isLive(soon.page);
+  await note(soon.page, 'why-1', 'Say who reads it.');
+  await soon.page.locator('#copy').click();
+  await toastIs(soon.page, 'Wait a few seconds, then tap Send notes again.');
+  assert.equal(await soon.page.locator('#copy').innerText(), 'Send notes');
+  await soon.page.locator('#copy').click();
+  await toastIs(soon.page, 'Sent 1 note to the chat.');
+  await soon.context.close();
+  // A link whose check fails, or an address with no key, is a page that copies.
+  for (const options of [{ alive: 410 }, { alive: 403 }, { hash: '' }]) {
+    const { page, context, requests } = await openLive(options);
+    await note(page, 'why-1', 'Say who reads it.');
+    await toastIs(page, 'Saved and copied 1 note. Paste them into chat.');
+    assert.equal(await page.locator('#copy').innerText(), 'Copy notes');
+    assert.equal(requests.filter(request => request.path === 'send').length, 0);
+    assert.equal(requests.length, options.hash === '' ? 0 : 1, 'no key, no request');
+    await context.close();
+  }
+});
+
+browserTest('#/why still jumps with a key in the address, and the link stays open', async () => {
+  const { page, context, errors, sends } = await openLive();
+  await isLive(page);
+  assert.equal(await page.locator('.hit').count(), 0, 'a key is not a place to jump to');
+  await page.evaluate(() => { location.hash = '#/why'; });
+  await page.waitForFunction(() => document.getElementById('why').classList.contains('hit'));
+  await page.evaluate(() => { location.hash = '#/2'; });
+  await page.waitForFunction(() => document.getElementById('item-2').classList.contains('hit'));
+  await note(page, 'item-2', 'Name the reason.');
+  await page.locator('#copy').click();
+  await toastIs(page, 'Sent 1 note to the chat.');
+  assert.equal(sends()[0].key, LINK_KEY);
+  assert.deepEqual(errors, []);
   await context.close();
 });

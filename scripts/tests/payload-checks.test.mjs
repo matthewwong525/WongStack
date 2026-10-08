@@ -39,7 +39,7 @@ test('the changed paths pick the steps by the workflow\'s rule', () => {
 
 test('the source-only scripts ship to no install', () => {
   const inventory = readFileSync(join(repo, '.agents/skills/wong-sync/references/payload-files.json'), 'utf8');
-  assert.doesNotMatch(inventory, /payload-checks|measure-sessions|install-cost/);
+  assert.doesNotMatch(inventory, /payload-checks|measure-sessions|install-cost|check-target-app/);
 });
 
 // A stand-in repo: each checked script is a stub that exits as the test says, and the

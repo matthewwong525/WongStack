@@ -51,7 +51,8 @@ export class Checks extends CIWorkflow {
     try {
       this.outcome = mine
         ? await runPipeline(event.payload, ci, configOf(this.env))
-        : { commit: event.payload.sha, ref: event.payload.ref, result: 'failure', stage: 'turn', reason: 'an earlier run never finished, so this one did not start' };
+        // Never started is not failed: the verbs read it as cut off, and can start this run again.
+        : { commit: event.payload.sha, ref: event.payload.ref, result: 'interrupted', stage: 'turn', reason: 'an earlier run never finished, so this one did not start' };
     } finally {
       await step.do('leave', () => turns.leave(id));
     }

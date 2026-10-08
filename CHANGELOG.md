@@ -20,6 +20,40 @@
 - **New script:** [`browse.mjs`](.agents/skills/browser/scripts/browse.mjs) installs, starts, and drives camofox. `cloud-browser.mjs` and the page `blocked-sites.md` are removed; [browsing](wiki/development/browsing.md#when-a-site-refuses-the-browser) says what happens when a site refuses.
 
 **Updating.** Two things change for you, and neither needs a step now. The first time you ask for an errand on a website, the assistant asks to install the new browser: say yes when you have about 1.4 GB of disk free. The logins you saved before are not carried over: the first time an errand meets each site, the assistant sends the password link, and you save that login once more. Nothing is deleted from the old store.
+## 37.4.0 — Send plan notes straight to the chat
+
+- **A plan opens as a live link, and its button sends your notes to the chat.** Before, your notes took three steps: tap *Copy notes*, switch to the chat, paste. Now the chat prints a web address for the plan, and *Send notes* on that page puts your saved notes into the chat that made the plan, as if you had pasted them. The chat updates the plan and builds nothing.
+- **Saving a note no longer copies on a live link.** One tap on *Send notes* sends every note not yet sent, and each sent note is marked *Sent*, so a second tap sends nothing twice.
+- **A link stays open for 8 hours, and a closed one costs you nothing.** When the link has closed, or the chat can't be reached, the same tap copies your notes and says so, and you paste them as before. Say *new link* and the chat prints a fresh one.
+- **Every plan gets one.** The first plan of the day takes 5 to 10 seconds longer to print its link. Later plans, from any chat on the same computer, share that connection and print at once.
+- **Where a chat can't be woken, nothing changes.** A setup with no way to send a chat a message, or a computer without Cloudflare's tunnel tool, still gets the plan as a file with *Copy notes*. Nothing asks you to install anything.
+- **Key, password, and card links are untouched.** A plan link has its own place, so it never blocks one of those, and their rule stays: nothing typed into them reaches the chat. Never send a password or a key through a plan's page.
+- **Other pages can open the same way.** Any single page with one *Submit* button can send its answers to the chat that made it. [Reply links](wiki/development/reply-links.md) says how.
+
+**Updating.** Nothing needs doing by hand. A plan made before the update keeps *Copy notes* until your assistant builds its page again. WongOS's mail review page can now open the same way; that page is built there, not here.
+
+## 37.3.0 — An assistant can use a saved key directly, when you switch it on
+
+- **A saved key can now be used directly, through the app.** Before, a teammate's assistant could only do work with a service that someone had already built into the app, so every new question needed a build first. Now the assistant can ask the app to pass one request on to the service. The app checks the person's level for that key, adds the key itself, and returns the answer. The key never reaches the person's device, and each use is recorded with who made it.
+- **You switch it on per key, in Access.** Open a key in the Keys list and pick *Off*, *Look-ups only*, or *Look-ups and changes*. The page says what the choice opens and how many people it reaches before you save, and the Keys list shows the choice on the key's row.
+- **A person's level decides what they can do.** *Read* passes on look-ups. *Read & write* also passes on changes, and only when you chose *Look-ups and changes*. A refusal says what is missing, such as *Notion: direct use is off*. The choice holds for the owner too.
+- **The app passes on only what is safe to pass.** A request goes to that service's own address and nowhere else, a very large answer is refused with a note to narrow the request, and no answer can carry the key back.
+- **Your assistant sets a service up when it saves the key.** No service comes ready-made. For a service that takes one fixed key, the assistant adds where it lives and which of its requests only look things up. A service whose key is renewed through a sign-in, such as Google, still needs work built into the app.
+- **Skills can use a key this way.** The Skills view names the key and the level as before, and says *direct use is off* when that is what stops a skill.
+- **Building the work into the app stays the first choice** for anything you do again and again, or that touches money or customers: only built work can limit a person to one record.
+
+**Updating.** Nothing needs doing by hand. Direct use is *Off* for every key until you choose otherwise in Access, so nobody can do more than before. A key shows *Not set up for this key* until your assistant adds its service; ask it to when you want one.
+
+## 37.2.5 — A new install kept in Cloudflare saves and publishes the first time
+
+- **A new install kept in Cloudflare alone now gets its first preview and goes live with no fix by hand.** A real test install of 37.2.3 was set up correctly and then could not publish. Four faults stood in the way; each is fixed here.
+- **A new install passes its own tests.** Its tests looked for two sample apps and a sample skill that only WongStack's own copy has, so they failed on day one. The tests an install receives now need only what the install receives.
+- **The preview builds on an install kept in Cloudflare.** The last step before a preview rejected the part that hands the project to a teammate, because two descriptions of the same Cloudflare connection disagreed. The part always worked; its description is fixed. The checks now compare against the same description the preview build uses, so a disagreement like this fails early and says why.
+- **The checker fetches the app's packages again before it builds a preview or the live site.** It sometimes lost some of them between checking a change and building it, a different one each time, and failed a change that had passed. The fetch runs with the publishing key out of reach.
+- **A check run that Cloudflare cuts off is tried again, not counted as a failure.** It is tried up to three times by itself. If it still does not finish it is reported as *cut off*, not *failed*, and your assistant can start that same run again. Before, one cut-off run on a brand-new project blocked every publish for good.
+- **WongStack now tests itself as an install does.** A new check builds the app from exactly the files an install receives, set up as an install kept in Cloudflare, and runs its tests. Two of the four faults could not be seen from WongStack's own copy.
+
+**Updating.** Nothing needs doing by hand. An install kept in Cloudflare gets the new checker on this update: your assistant reinstalls it, the small program in your Cloudflare account that checks each save. An install kept on GitHub already saved and published, and keeps working the same way.
 
 ## 37.2.4 — The landing page guide says what the headline may name
 

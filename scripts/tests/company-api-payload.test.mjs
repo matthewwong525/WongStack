@@ -33,7 +33,7 @@ test('fresh payload carries every helper dependency and memory descriptions stay
 test('explicit distribution retains Access, additive schema and a standalone API-only artifact', () => {
   const inventory = JSON.parse(read('.agents/skills/wong-sync/references/payload-files.json'));
   for (const path of ['scripts/employee-bootstrap.mjs', 'schema/migrations/0001_employee_access.sql', 'schema/migrations/0002_employee_connections.sql',
-    'schema/migrations/0003_key_levels.sql', 'schema/migrations/20261005142459_access_managers.sql', 'schema/migrations/20261006031500_area_levels.sql',
+    'schema/migrations/0003_key_levels.sql', 'schema/migrations/20261005142459_access_managers.sql', 'schema/migrations/20261006031500_area_levels.sql', 'schema/migrations/20261007220000_key_direct_use.sql',
     'scripts/check-app-keys.mjs', 'scripts/check-skill-actions.mjs']) assert.ok(inventory.pack.files.includes(path));
   // The key registry and its check ship with the scaffold, so an install's Access lists the keys its apps use.
   for (const path of ['app/worker/keys.ts', 'app/worker/keys.test.ts']) assert.ok(inventory.scaffold.files.includes(path));

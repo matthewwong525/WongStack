@@ -174,3 +174,14 @@ it('where the router can hold a move, the browser Back button and any link ask t
   fireEvent.click(radio('Stripe', 'Read & write')); click('Save access')
   await screen.findByText('Saved.'); expect(at()).toBe('/apps/access/'); expect(question()).toBeNull(); expect(posts()).toHaveLength(1)
 })
+
+it("asks before a key whose direct-use choice alone was changed is left, and closes at once when the choice is put back", async () => {
+  roster.keys[1] = key('bank', 'Bank', { direct: { offered: ['read', 'write'], mode: null } })
+  open('keys/bank'); await screen.findByRole('button', { name: 'Save access' })
+  expect([unloadAsks(), radio('Direct use', 'Off').checked]).toEqual([false, true])
+  fireEvent.click(radio('Direct use', 'Look-ups only')); expect([unloadAsks(), !!screen.getByText('Not saved yet')]).toEqual([true, true])
+  click('Cancel'); expect(question()).toBeTruthy(); click('Keep editing'); await moment()
+  expect([question(), where(), radio('Direct use', 'Look-ups only').checked]).toEqual([null, '/apps/access/keys/bank', true])
+  fireEvent.click(radio('Direct use', 'Off')); expect([unloadAsks(), screen.queryByText('Not saved yet')]).toEqual([false, null])
+  click('Cancel'); await closed(); expect([question(), where(), posts()]).toEqual([null, '/apps/access/keys', []])
+})

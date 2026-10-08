@@ -103,6 +103,7 @@ if [ "$ROUTE" = artifacts ]; then
   case "$LIVE" in
     https://*) URL=$LIVE ;;
     failed) say failed "the release did not finish: its checks or deploy failed" ;;
+    interrupted) say unknown "the release's check run was cut off" ;;
     none) say unknown "nothing was released" ;;
     *) say unknown "the release could not be read" ;;
   esac
