@@ -5,7 +5,7 @@ How this repo plans, builds, checks, and ships changes. Every WongStack install 
 ## Processes
 
 - [The change loop](the-change-loop.md) — how work moves from idea to shipped, archived spec: `/explore → /plan → /apply → /save → /ship`, with `/continue` to pick saved work back up, each a thin verb over an OpenSpec step, with the change as a living handoff (Status header + append-only Decision log + PR-body mirror).
-- [Reply links](reply-links.md) — a plan's page opens at a link whose *Send notes* button puts your notes straight into the chat: the 8 hours, *new link*, the fallback to copying, and how another page opens the same way.
+- [Reply links](reply-links.md) — a plan's page opens at a link whose *Send notes* button puts your notes straight into the chat, and whose *Build it* and *Build and publish* start the build: the 8 hours, *new link*, the fallback to copying, and how another page opens the same way.
 - [Staging walkthrough](staging-walkthrough.md) — why `/verify` probes the deployed preview, what you need for it, and what it deliberately is not.
   - [Kept checks](kept-checks.md) — passed preview checks saved in the project and replayed, with no AI, before each publish.
 - [Code improvement](repository-improvement.md) — run or schedule `/improve-code` to find one way to make the code simpler or safer to change; it writes the plan and stops for your yes.

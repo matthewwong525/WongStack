@@ -3,6 +3,18 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Start the build from the plan page
+
+- **A plan's page can now start the build.** Before, a plan that was right as it stood still sent you back to the chat to pick *Build it now* or *Build and publish*. Now the page has both under *Ready?*, below the decisions. A tap tells the chat that made the plan to start, as if you had picked that choice there.
+- ***Build it* shows you the result before anything goes live. *Build and publish* asks once more on the page**, because publishing can't be undone.
+- **The page stops a tap that could build the wrong plan.** With notes you have not sent, it says to send or delete them first. If the plan changed after you opened the page, it says to reload and read it. Each button works once for each version of the plan, so a double tap does nothing.
+- **Notes still build nothing.** Only the two buttons start a build.
+- **Whoever holds a plan's link can now start that plan's build and its publish.** Until now the link could only add notes. It is still printed only in your chat, carries its own secret, and closes after 8 hours. The page sends a button's name and nothing else, so nobody holding the link can tell the chat to do anything but those two things.
+- **No live link, no buttons.** A plan opened as a file, or through a closed link, shows neither button; you choose in the chat as before.
+- **Other pages can offer buttons the same way.** The assistant names each button and its exact message when it opens the link, such as *Send all* on a mail review page. [Reply links](wiki/development/reply-links.md#give-a-page-a-button) says how.
+
+**Updating.** Nothing needs doing by hand. A plan made before the update gets the two buttons when your assistant builds its page again.
+
 ## 37.4.0 — Send plan notes straight to the chat
 
 - **A plan opens as a live link, and its button sends your notes to the chat.** Before, your notes took three steps: tap *Copy notes*, switch to the chat, paste. Now the chat prints a web address for the plan, and *Send notes* on that page puts your saved notes into the chat that made the plan, as if you had pasted them. The chat updates the plan and builds nothing.

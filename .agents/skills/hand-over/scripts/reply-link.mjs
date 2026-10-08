@@ -1,13 +1,15 @@
 #!/usr/bin/env node
-// Opens a reply link: a page the assistant made, at a web address that closes itself, whose one send
-// puts the person's text into the chat that opened it.
+// Opens a reply link: a page the assistant made, at a web address that closes itself, whose send puts
+// the person's text into the chat that opened it, and whose named actions each send one fixed message.
 //
-//     node .claude/skills/hand-over/scripts/reply-link.mjs open <file> --header "<line>" [--hours N]
+//     node .claude/skills/hand-over/scripts/reply-link.mjs open <file> --header "<line>" [--hours N] [--action <name>=<message>]...
 //     node .claude/skills/hand-over/scripts/reply-link.mjs close <file>
 //     node .claude/skills/hand-over/scripts/reply-link.mjs list
 //
 // `open` registers one self-contained HTML file in ~/.wong-stack/reply-link/pages/<id>.json: its path,
-// a random key, the fixed header line, the chat to wake, and a deadline 8 hours on. One detached server
+// a random key, the fixed header line, its actions, the chat to wake, and a deadline 8 hours on. An
+// action is a name ([a-z][a-z0-9-]{0,30}) and the one-line message, 300 characters at most, that a tap
+// on its button sends: 6 at most, and opening a file again replaces them. One detached server
 // and one Cloudflare quick tunnel serve every registered page, so the first `open` waits for the tunnel
 // (30 seconds at most) and later ones print at once. It prints `REPLY_LINK=<origin>/p/<id>/#key=<hex>`
 // only once the public address answers. Opening a file again keeps its id and key and moves its
@@ -18,13 +20,21 @@
 // The server answers, for a registered and unexpired `<id>`:
 //
 //     GET  /p/<id>/        the file, read from disk each time
-//     GET  /p/<id>/alive   200 {closesAt}                          needs the key
+//     GET  /p/<id>/alive   200 {closesAt, actions, version}        needs the key
 //     POST /p/<id>/send    {text} -> 200 {sent:true} | 502 {sent:false}   needs the key
+//     POST /p/<id>/act     {action, version} -> 200 {sent:true} | 502 {sent:false}
+//                          | 409 {changed:true} | 409 {done:true}  needs the key
 //
 // The key rides in the link's fragment, which a browser never sends, and returns in an `x-reply-key`
 // header. `send` wakes the registered chat with the header line, a newline, then the text: at most
 // 20,000 characters, one send per 5 seconds per page. It answers `sent:true` only when the host
-// confirms that chat got it. An unknown, closed, or expired id answers 410. The server logs nothing,
+// confirms that chat got it. `alive` names the actions and gives `version`, the SHA-256 of the file as
+// it stands. `act` wakes the chat with the action's registered message alone: no header, and nothing
+// from the request. It answers 400 for a name the opener did not register, 409 `changed` when
+// `version` is not the file's now, and 409 `done` once that action was accepted for that version; an
+// unconfirmed wake is not accepted, so it can be tried again. It shares `send`'s 5 seconds. Accepted
+// actions are held in memory, so a restarted server allows one repeat, which the chat sees.
+// An unknown, closed, or expired id answers 410. The server logs nothing,
 // and exits, killing its tunnel, once no page is unexpired or the tunnel has died.
 //
 // This is not a private link: it carries plan text and notes, never a secret, and shares no state with
@@ -37,7 +47,7 @@
 // HANDOVER_PROBE_ORIGIN the address asked before the link prints.
 
 import { spawn } from 'node:child_process';
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { homedir } from 'node:os';
@@ -47,7 +57,7 @@ import { isMain, parseCli, usageError } from '../../memory/scripts/lib/cli.mjs';
 import { alive, freePort, hasCloudflared, keyMatches, killTunnel, linkAnswers, signal, startTunnel } from './lib/tunnel.mjs';
 import { canWake, chatTarget, wakeChat } from './lib/wake.mjs';
 
-const USAGE = `usage: reply-link.mjs open <file> --header "<line>" [--hours N]
+const USAGE = `usage: reply-link.mjs open <file> --header "<line>" [--hours N] [--action <name>=<message>]...
        reply-link.mjs close <file> | list
   open    serve one self-contained HTML file at a link that closes itself and print
           REPLY_LINK=<url>; its page sends text to this chat under the header line.
@@ -55,12 +65,17 @@ const USAGE = `usage: reply-link.mjs open <file> --header "<line>" [--hours N]
           where no link can open, and exits 0: fall back to the file
           --header: the fixed first line of every message the page sends
           --hours: how long the link stays open (default 8)
+          --action: a button the page may offer, and the one-line message a tap on it
+          sends to this chat; the page can never change that message (6 at most)
   close   close the file's link
   list    print each open page's file and when it closes`;
-export const LIMITS = { text: 20_000, body: 128 * 1024, header: 300 };
+export const LIMITS = { text: 20_000, body: 128 * 1024, header: 300, action: 300, actions: 6 };
 const HOURS = 8;
+// Raised when the server's routes change: a running server from older code is swapped for this one.
+const PROTOCOL = 2;
 const ID = /^[0-9a-f]{32}$/;
-const ROUTE = /^\/p\/([0-9a-f]{32})\/(alive|send)?$/;
+const ACTION = /^[a-z][a-z0-9-]{0,30}$/;
+const ROUTE = /^\/p\/([0-9a-f]{32})\/(alive|send|act)?$/;
 const TUNNEL_WAIT_MS = Number(process.env.REPLY_LINK_TUNNEL_WAIT_MS) || 30_000;
 const POLL_MS = Number(process.env.REPLY_LINK_POLL_MS) || 5000;
 const SEND_GAP_MS = Number(process.env.REPLY_LINK_SEND_GAP_MS) || 5000;
@@ -99,11 +114,27 @@ function openPages(state, { sweep = false } = {}) {
   return found;
 }
 
-/** Writes the file's registration, keeping an open one's id and key so its link stays the same. */
-function register(state, { file, header, hours, target }) {
+/** The `[name, message]` pairs as one name-to-message object; throws on a pair outside the limits. */
+function checkActions(pairs) {
+  if (pairs.length > LIMITS.actions) throw new Error(`--action: ${LIMITS.actions} at most`);
+  const actions = {};
+  for (const [name, message] of pairs) {
+    const text = typeof message === 'string' ? message.trim() : '';
+    if (!ACTION.test(name) || Object.hasOwn(actions, name)) throw new Error(`--action takes <name>=<message>, each name once, lowercase: ${name}`);
+    if (!text || /[\r\n]/.test(text) || text.length > LIMITS.action) throw new Error(`--action ${name} takes one line of text`);
+    actions[name] = text;
+  }
+  return actions;
+}
+
+/** A registration's actions; one written before actions has none. */
+const actionsOf = page => (page.actions && typeof page.actions === 'object' ? page.actions : {});
+
+/** Writes the file's registration, keeping an open one's id and key so its link stays the same; its actions are replaced. */
+function register(state, { file, header, actions, hours, target }) {
   mkdirSync(state.pages, { recursive: true, mode: 0o700 });
   const kept = openPages(state).find(page => page.file === file);
-  const page = { id: kept?.id ?? randomBytes(16).toString('hex'), file, key: kept?.key ?? randomBytes(32).toString('hex'), header, target, deadline: Date.now() + hours * 3_600_000 };
+  const page = { id: kept?.id ?? randomBytes(16).toString('hex'), file, key: kept?.key ?? randomBytes(32).toString('hex'), header, actions, target, deadline: Date.now() + hours * 3_600_000 };
   writeFileSync(pageFile(state, page.id), `${JSON.stringify(page)}\n`, { mode: 0o600 });
   return page;
 }
@@ -141,18 +172,51 @@ function sendText(body) {
   return text && text.length <= LIMITS.text ? text : null;
 }
 
+/** The SHA-256 of the page's file as it stands, or null when the file is gone. */
+function fileVersion(page) {
+  try { return createHash('sha256').update(readFileSync(page.file)).digest('hex'); } catch { return null; }
+}
+
 /**
  * The request handler for every registered page. `wake(target, message)` resolves to wakeChat's
- * answer; the page supplies neither the header nor the target.
+ * answer; the page supplies neither the header, nor the target, nor an action's message.
  */
 export function replyRoutes(state, { wake = wakeChat } = {}) {
   const lastSend = new Map();
-  async function send(page, request, response) {
-    if (Date.now() - (lastSend.get(page.id) ?? -Infinity) < SEND_GAP_MS) return reply(response, 429, { sent: false });
+  const accepted = new Map();
+  /** True when this page sent inside the gap; otherwise the gap starts now. */
+  function tooSoon(page) {
+    if (Date.now() - (lastSend.get(page.id) ?? -Infinity) < SEND_GAP_MS) return true;
     lastSend.set(page.id, Date.now());
+    return false;
+  }
+  async function send(page, request, response) {
+    if (tooSoon(page)) return reply(response, 429, { sent: false });
     const text = sendText(await readBody(request));
     if (!text) return reply(response, 400, { sent: false });
     const sent = (await wake(page.target, `${page.header}\n${text}`)) === 'notified';
+    return reply(response, sent ? 200 : 502, { sent });
+  }
+  /** The names accepted for the page's file as it stands; a new version starts empty. */
+  function acceptedFor(page, version) {
+    if (accepted.get(page.id)?.version !== version) accepted.set(page.id, { version, names: new Set() });
+    return accepted.get(page.id).names;
+  }
+  async function act(page, request, response) {
+    if (tooSoon(page)) return reply(response, 429, { sent: false });
+    const body = await readBody(request);
+    const actions = actionsOf(page);
+    const name = typeof body?.action === 'string' && Object.hasOwn(actions, body.action) ? body.action : null;
+    if (!name) return reply(response, 400, { sent: false });
+    const version = fileVersion(page);
+    if (!version) return reply(response, 410, { closed: true });
+    if (body.version !== version) return reply(response, 409, { changed: true });
+    const names = acceptedFor(page, version);
+    if (names.has(name)) return reply(response, 409, { done: true });
+    // Marked before the wake, so a tap that arrives during it is refused; unmarked when the chat did not get it.
+    names.add(name);
+    const sent = (await wake(page.target, actions[name])) === 'notified';
+    if (!sent) names.delete(name);
     return reply(response, sent ? 200 : 502, { sent });
   }
   return async (request, response) => {
@@ -170,8 +234,9 @@ export function replyRoutes(state, { wake = wakeChat } = {}) {
     }
     if (!page) return reply(response, 410, { closed: true });
     if (!keyMatches(request.headers['x-reply-key'], page.key)) return reply(response, 403);
-    if (request.method !== (action === 'send' ? 'POST' : 'GET')) return reply(response, 405);
-    return action === 'send' ? send(page, request, response) : reply(response, 200, { closesAt: page.deadline });
+    if (request.method !== (action === 'alive' ? 'GET' : 'POST')) return reply(response, 405);
+    if (action === 'alive') return reply(response, 200, { closesAt: page.deadline, actions: Object.keys(actionsOf(page)), version: fileVersion(page) });
+    return (action === 'send' ? send : act)(page, request, response);
   };
 }
 
@@ -230,6 +295,28 @@ async function endStale(state) {
   rmSync(state.server, { force: true });
 }
 
+/** Spawns the detached server for `port`, tied to the tunnel's life. */
+function spawnServer(port, tunnelPid, env) {
+  const child = spawn(process.execPath, [fileURLToPath(import.meta.url), 'serve', String(port), String(tunnelPid)], { detached: true, stdio: 'ignore', env });
+  child.unref();
+  return child;
+}
+
+/**
+ * Replaces a running server from older code with this one on the same port, keeping its tunnel, so
+ * every open link keeps its address. Resolves to the new record, or null when the address stops answering.
+ */
+async function swapServer(state, old, env) {
+  // SIGKILL, not SIGTERM: the old server's own ending would take the tunnel with it.
+  signal(old.pid, 'SIGKILL');
+  for (let i = 0; i < 50 && alive(old.pid); i++) await sleep(100);
+  const child = spawnServer(old.port, old.tunnelPid, env);
+  if (!(await linkAnswers(old.origin, old.port, old.tunnelPid, Date.now() + TUNNEL_WAIT_MS))) return null;
+  const server = { ...old, pid: child.pid, protocol: PROTOCOL };
+  writeFileSync(state.server, `${JSON.stringify(server)}\n`, { mode: 0o600 });
+  return server;
+}
+
 /** Starts the tunnel and the detached server; resolves to the server's record, or to why not. */
 async function startServer(state, env) {
   await endStale(state);
@@ -237,14 +324,13 @@ async function startServer(state, env) {
   const port = await freePort();
   const deadline = Date.now() + TUNNEL_WAIT_MS;
   const tunnel = await startTunnel(port, deadline, state);
-  const child = tunnel.origin ? spawn(process.execPath, [fileURLToPath(import.meta.url), 'serve', String(port), String(tunnel.pid)], { detached: true, stdio: 'ignore', env }) : null;
-  child?.unref();
+  const child = tunnel.origin ? spawnServer(port, tunnel.pid, env) : null;
   if (!child || !(await linkAnswers(tunnel.origin, port, tunnel.pid, deadline))) {
     if (child) signal(child.pid, 'SIGKILL');
     await killTunnel(tunnel.pid);
     return { reason: 'tunnel-down' };
   }
-  const server = { pid: child.pid, port, tunnelPid: tunnel.pid, origin: tunnel.origin };
+  const server = { pid: child.pid, port, tunnelPid: tunnel.pid, origin: tunnel.origin, protocol: PROTOCOL };
   writeFileSync(state.server, `${JSON.stringify(server)}\n`, { mode: 0o600 });
   return server;
 }
@@ -252,23 +338,25 @@ async function startServer(state, env) {
 /** The one shared server, started when none answers; another opener's start is waited for, not doubled. */
 async function ensureServer(state, env) {
   const until = Date.now() + TUNNEL_WAIT_MS + PROBE_MS;
+  let live;
   for (;;) {
-    const live = await liveServer(state);
-    if (live) return live;
+    live = await liveServer(state);
+    if (live && (live.protocol ?? 1) >= PROTOCOL) return live;
     if (takeLock(state)) break;
     if (Date.now() >= until) return { reason: 'tunnel-down' };
     await sleep(250);
   }
-  try { return await startServer(state, env); } finally { rmSync(state.lock, { force: true }); }
+  try { return (live && await swapServer(state, live, env)) || await startServer(state, env); } finally { rmSync(state.lock, { force: true }); }
 }
 
 /** `{link}` for the file's reply link, or `{link: null, reason}` where none can open. */
-async function openLink({ file, header, hours = HOURS, env = process.env, cwd = process.cwd() }) {
+async function openLink({ file, header, actions = {}, hours = HOURS, env = process.env, cwd = process.cwd() }) {
+  const checked = checkActions(Object.entries(actions));
   if (env.REPLY_LINK === 'off') return { link: null, reason: 'off' };
   const target = chatTarget(env, cwd);
   if (!canWake(target, env)) return { link: null, reason: 'no-chat' };
   const state = files(env);
-  const page = register(state, { file: realpathSync(file), header, hours, target });
+  const page = register(state, { file: realpathSync(file), header, actions: checked, hours, target });
   const server = await ensureServer(state, env);
   if (server.reason) {
     rmSync(pageFile(state, page.id), { force: true });
@@ -279,7 +367,8 @@ async function openLink({ file, header, hours = HOURS, env = process.env, cwd = 
 
 /**
  * The file's reply link, or null, quickly and quietly, where none can open: the caller then offers
- * the file itself. `header` is the fixed first line of every message the page sends.
+ * the file itself. `header` is the fixed first line of every message the page sends; `actions` maps
+ * each button the page may offer to the one-line message a tap on it sends.
  */
 export async function openReplyLink(options) {
   try { return (await openLink(options)).link; } catch { return null; }
@@ -296,8 +385,8 @@ function realFile(file) {
   }
 }
 
-async function open(file, { header, hours }) {
-  const { link, reason } = await openLink({ file: realFile(file), header, hours });
+async function open(file, { header, actions, hours }) {
+  const { link, reason } = await openLink({ file: realFile(file), header, actions, hours });
   console.log(`REPLY_LINK=${link ?? 'none'}`);
   if (!link) console.log(`REPLY_REASON=${reason}`);
 }
@@ -316,13 +405,15 @@ function list() {
 }
 
 if (isMain(import.meta.url)) {
-  const { values, positionals: [command, ...rest] } = parseCli({ usage: USAGE, allowPositionals: true, options: { header: { type: 'string' }, hours: { type: 'string' } } });
+  const { values, positionals: [command, ...rest] } = parseCli({ usage: USAGE, allowPositionals: true, options: { header: { type: 'string' }, hours: { type: 'string' }, action: { type: 'string', multiple: true } } });
   const takes = { open: 1, close: 1, list: 0, serve: 2 }[command];
   if (takes === undefined || rest.length !== takes) usageError(USAGE, command ? `unknown command: ${[command, ...rest].join(' ')}` : 'missing command');
   const hours = Number(values.hours ?? HOURS);
   if (!(hours > 0)) usageError(USAGE, '--hours must be a positive number');
   const header = values.header?.trim() ?? '';
   if (command === 'open' && (!header || /[\r\n]/.test(header) || header.length > LIMITS.header)) usageError(USAGE, '--header takes one line of text');
-  if (command !== 'open' && (values.header !== undefined || values.hours !== undefined)) usageError(USAGE, '--header and --hours go with open only');
-  await { open: () => open(rest[0], { header, hours }), close: () => close(rest[0]), list, serve: () => serve(Number(rest[0]), Number(rest[1])) }[command]();
+  if (command !== 'open' && (values.header !== undefined || values.hours !== undefined || values.action !== undefined)) usageError(USAGE, '--header, --hours, and --action go with open only');
+  let actions;
+  try { actions = checkActions((values.action ?? []).map(pair => pair.split(/=(.*)/s).slice(0, 2))); } catch (error) { usageError(USAGE, error.message); }
+  await { open: () => open(rest[0], { header, actions, hours }), close: () => close(rest[0]), list, serve: () => serve(Number(rest[0]), Number(rest[1])) }[command]();
 }

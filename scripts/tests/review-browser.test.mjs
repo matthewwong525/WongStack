@@ -360,34 +360,42 @@ const HEADER = 'Notes on the plan review-fixture from the review page. Don\'t bu
 const BULLETS = ['- Why, paragraph 1 ("Reviewers read the plan on a phone."): Say who reads it.', '- Change #2 ("Item two links the reason and wraps onto a second line."): Name the reason.'];
 const toastIs = (page, text) => page.waitForFunction(want => document.getElementById('toast').textContent === want, text);
 
-// `send(requests)` answers each send with {status, body}; `alive` is the status the link's check gets.
-async function openLive({ send = () => ({ status: 200, body: { sent: true } }), alive = 200, hash = `#key=${LINK_KEY}` } = {}) {
+// `send(requests)` and `act(requests)` answer each send and each action with {status, body}; `alive` is the
+// status the link's check gets, and `actions` the names it says the link offers.
+const VERSION = 'c0'.repeat(32);
+const sentTrue = () => ({ status: 200, body: { sent: true } });
+async function openLive({ send = sentTrue, act = sentTrue, alive = 200, actions = ['build', 'publish'], hash = `#key=${LINK_KEY}`, width = 1200 } = {}) {
   const f = fixture();
   const base = new URL(LIVE).pathname;
-  const context = await browser.newContext({ viewport: { width: 1200, height: 800 } });
+  const context = await browser.newContext({ viewport: { width, height: 800 } });
   await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: new URL(LIVE).origin });
   const requests = [];
   await context.route(`${new URL(LIVE).origin}/**`, async route => {
     const request = route.request(), path = new URL(request.url()).pathname;
     if (path === base) return route.fulfill({ contentType: 'text/html; charset=utf-8', body: readFileSync(join(f.dir, 'review.html'), 'utf8') });
     requests.push({ path: path.slice(base.length), method: request.method(), key: request.headers()['x-reply-key'], body: request.postDataJSON() });
-    if (path === `${base}alive`) return route.fulfill({ status: alive, contentType: 'application/json', body: JSON.stringify({ closesAt: Date.now() + 60_000 }) });
-    const answer = send(requests);
+    if (path === `${base}alive`) return route.fulfill({ status: alive, contentType: 'application/json', body: JSON.stringify({ closesAt: Date.now() + 60_000, actions, version: VERSION }) });
+    const answer = (path === `${base}act` ? act : send)(requests);
     return route.fulfill({ status: answer.status, contentType: 'application/json', body: JSON.stringify(answer.body ?? {}) });
   });
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(LIVE + hash);
-  return { page, context, errors, requests, sends: () => requests.filter(request => request.path === 'send') };
+  const only = name => () => requests.filter(request => request.path === name);
+  return { page, context, errors, requests, sends: only('send'), acts: only('act') };
 }
 const isLive = page => page.locator('#copy', { hasText: 'Send notes' }).waitFor();
+const ready = (page, step) => page.locator(`#ready [data-ready="${step}"]`);
+const saysIs = (page, text) => page.waitForFunction(want => { const el = document.getElementById('ready-says'); return !el.hidden && el.textContent === want; }, text);
+const posted = action => ({ path: 'act', method: 'POST', key: LINK_KEY, body: { action, version: VERSION } });
 
 browserTest('opened from disk, a key in the address changes nothing: the page copies and asks nothing', async () => {
   const { page, context, errors } = await open(`${fixture().url}#key=${LINK_KEY}`);
   const asked = [];
   page.on('request', request => asked.push(request.url()));
   assert.equal(await page.locator('#copy').innerText(), 'Copy notes');
+  assert.equal(await page.locator('#ready').isVisible(), false, 'a file offers no build buttons');
   await note(page, 'why-1', 'Say who reads it.');
   await toastIs(page, 'Saved and copied 1 note. Paste them into chat.');
   assert.equal(await page.locator('#editor .copies').innerText(), 'Saving a note copies all your notes.');
@@ -506,4 +514,122 @@ browserTest('#/why still jumps with a key in the address, and the link stays ope
   assert.equal(sends()[0].key, LINK_KEY);
   assert.deepEqual(errors, []);
   await context.close();
+});
+
+// ── the ready section: Build it, and Build and publish, on a reply link that offers both ──
+browserTest('on a reply link, Build it asks the chat once and says so', async () => {
+  const { page, context, errors, acts, sends } = await openLive({ width: 390 });
+  await isLive(page);
+  await ready(page, 'build').waitFor();
+  assert.equal(await page.locator('#ready h2').textContent(), 'Ready?');
+  assert.equal(await page.locator('#ready button.primary:visible').count(), 1, 'one primary action');
+  assert.equal(await page.locator('#ready-says').isVisible(), false);
+  const size = await page.evaluate(() => ({ view: innerWidth, page: document.documentElement.scrollWidth }));
+  assert.ok(size.page <= size.view, 'no sideways scroll on a phone');
+  await ready(page, 'build').click();
+  await saysIs(page, 'Asked the chat to build.');
+  assert.deepEqual(acts(), [posted('build')]);
+  assert.equal(await page.locator('#ready button:visible').count(), 0, 'no button is left to tap twice');
+  assert.equal(sends().length, 0, 'a build tap sends no note');
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+browserTest('Build and publish posts nothing until Yes, publish, and Cancel goes back', async () => {
+  const { page, context, errors, acts } = await openLive();
+  await ready(page, 'publish').waitFor();
+  await ready(page, 'publish').click();
+  assert.equal(await page.locator('#ready-confirm p').innerText(), 'Build and publish? This goes live and can\'t be undone.');
+  assert.equal(await ready(page, 'build').isVisible(), false);
+  assert.equal(await page.locator('#ready button.primary:visible').count(), 1);
+  assert.equal(await page.evaluate(() => document.activeElement.getAttribute('data-ready')), 'cancel', 'focus lands on the safe choice');
+  await ready(page, 'cancel').click();
+  assert.equal(await ready(page, 'build').isVisible(), true);
+  assert.equal(await page.locator('#ready-confirm').isVisible(), false);
+  assert.deepEqual(acts(), [], 'nothing is sent before a yes');
+  await ready(page, 'publish').click();
+  await ready(page, 'yes').click();
+  await saysIs(page, 'Asked the chat to build and publish.');
+  assert.deepEqual(acts(), [posted('publish')]);
+  assert.equal(await page.locator('#ready button:visible').count(), 0);
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+browserTest('an unsent note stops both buttons until it is sent', async () => {
+  const { page, context, errors, acts } = await openLive();
+  await ready(page, 'build').waitFor();
+  await note(page, 'why-1', 'Say who reads it.');
+  await ready(page, 'build').click();
+  await saysIs(page, 'Send or delete your notes first.');
+  await page.evaluate(() => { document.getElementById('ready-says').hidden = true; });
+  await ready(page, 'publish').click();
+  await saysIs(page, 'Send or delete your notes first.');
+  assert.equal(await page.locator('#ready-confirm').isVisible(), false, 'no confirm step while a note is unsent');
+  assert.deepEqual(acts(), []);
+  // A note saved after the confirm step opened stops the yes too.
+  await page.locator('#copy').click();
+  await toastIs(page, 'Sent 1 note to the chat.');
+  await ready(page, 'publish').click();
+  await note(page, 'item-2', 'Name the reason.');
+  await ready(page, 'yes').click();
+  await saysIs(page, 'Send or delete your notes first.');
+  assert.deepEqual(acts(), []);
+  // Deleting the note clears the way as sending does.
+  await at(page, 'item-2').locator('.pin').click();
+  await page.locator('#editor [data-act="delete"]').click();
+  await ready(page, 'yes').click();
+  await saysIs(page, 'Asked the chat to build and publish.');
+  assert.deepEqual(acts(), [posted('publish')]);
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+browserTest('a changed plan says to reload, an asked chat says so, and a too-soon tap asks to wait', async () => {
+  for (const [body, line] of [[{ changed: true }, 'The plan changed. Reload to read it first.'], [{ done: true }, 'The chat was already asked.']]) {
+    const { page, context, acts } = await openLive({ act: () => ({ status: 409, body }) });
+    await ready(page, 'build').waitFor();
+    await ready(page, 'build').click();
+    await saysIs(page, line);
+    assert.equal(await page.locator('#ready button:visible').count(), 0);
+    assert.equal(acts().length, 1);
+    await context.close();
+  }
+  const soon = await openLive({ act: requests => (requests.filter(request => request.path === 'act').length === 1 ? { status: 429, body: { sent: false } } : sentTrue()) });
+  await ready(soon.page, 'build').waitFor();
+  await ready(soon.page, 'build').click();
+  await saysIs(soon.page, 'Wait a few seconds, then tap again.');
+  await ready(soon.page, 'build').click();
+  await saysIs(soon.page, 'Asked the chat to build.');
+  assert.equal(soon.acts().length, 2);
+  await soon.context.close();
+});
+
+browserTest('a closed link hides the build buttons, and a link without both actions never shows them', async () => {
+  for (const answer of [{ status: 410, body: { closed: true } }, { status: 502, body: { sent: false } }, { status: 200, body: { sent: false } }, { status: 400, body: { sent: false } }]) {
+    const { page, context, errors } = await openLive({ act: () => answer });
+    await ready(page, 'build').waitFor();
+    await ready(page, 'build').click();
+    await toastIs(page, 'This link has closed. Choose in the chat.');
+    assert.equal(await page.locator('#ready').isVisible(), false, `status ${answer.status}`);
+    assert.equal(await page.locator('#copy').innerText(), 'Send notes', 'the notes button is as it was');
+    assert.deepEqual(errors, []);
+    await context.close();
+  }
+  // Notes that find the link closed take the build buttons with them.
+  const closed = await openLive({ send: () => ({ status: 410, body: { closed: true } }) });
+  await ready(closed.page, 'build').waitFor();
+  await note(closed.page, 'why-1', 'Say who reads it.');
+  await closed.page.locator('#copy').click();
+  await toastIs(closed.page, 'This link has closed. Copied 1 note: paste them into chat.');
+  assert.equal(await closed.page.locator('#ready').isVisible(), false);
+  await closed.context.close();
+  for (const options of [{ actions: ['build'] }, { actions: [] }, { alive: 410 }, { hash: '' }]) {
+    const { page, context, acts } = await openLive(options);
+    if (options.actions) await isLive(page);
+    await page.waitForTimeout(100);
+    assert.equal(await page.locator('#ready').isVisible(), false, JSON.stringify(options));
+    assert.equal(acts().length, 0);
+    await context.close();
+  }
 });
