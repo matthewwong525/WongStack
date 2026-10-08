@@ -150,8 +150,7 @@
     "exclude": [
       "app/wrangler.jsonc",
       "app/src/apps/tips",
-      "app/worker/apps/tips",
-      "app/worker/apps/sample"
+      "app/worker/apps/tips"
     ],
     "files": [
       "app/src/apps/access/App.tsx",
@@ -168,14 +167,6 @@
       "app/src/apps/access/Roles.tsx",
       "app/src/apps/access/RolePage.tsx",
       "app/src/apps/access/Roles.test.tsx",
-      "app/src/apps/access/Keys.tsx",
-      "app/src/apps/access/KeyPage.tsx",
-      "app/src/apps/access/Apps.tsx",
-      "app/src/apps/access/AppAccessPage.tsx",
-      "app/src/apps/access/Skills.tsx",
-      "app/src/apps/access/SkillPage.tsx",
-      "app/src/apps/access/Skills.test.tsx",
-      "app/src/apps/access/Grants.test.tsx",
       "app/src/apps/access/address.ts",
       "app/src/apps/access/levels.ts",
       "app/src/apps/access/levels.test.ts",
@@ -212,7 +203,6 @@
       "app/worker/api/cloudflare.test.ts",
       "app/worker/api/forward.ts",
       "app/worker/api/forward.test.ts",
-      "app/worker/employee-access/direct.ts",
       "app/worker/employee-access/direct.test.ts",
       "app/worker/apps/keys.test.ts",
       "app/worker/employee-access/key-levels.ts",
@@ -221,14 +211,11 @@
       "app/worker/employee-access/key-catalogue.ts",
       "app/worker/employee-access/catalogue.ts",
       "app/worker/employee-access/catalogue.test.ts",
-      "app/worker/employee-access/skills.ts",
-      "app/worker/employee-access/skills.test.ts",
       "app/worker/employee-access/status.test.ts",
       "app/worker/employee-access/key-access.test.ts",
       "app/worker/employee-access/key-saves.test.ts",
       "app/worker/employee-access/sets.ts",
       "app/worker/employee-access/roles.ts",
-      "app/worker/employee-access/grants.ts",
       "app/worker/employee-access/code.ts",
       "app/worker/employee-access/code.test.ts"
     ]

@@ -6,7 +6,7 @@ const prompt = z.discriminatedUnion('state', [
   z.object({ state: z.literal('unavailable'), message: z.string() }),
 ])
 const role = z.enum(['owner', 'employee'])
-// A level, for an area or a saved key: `read` looks things up, `write` also changes or sends things. No level is None.
+// A level for a saved key: `read` looks things up, `write` also changes or sends things. No level is None.
 const level = z.enum(['read', 'write'])
 const levels = z.record(z.string(), level)
 // Whether this person may connect an assistant. `ready`: Connect installs the project for them. `lacked`: they
@@ -25,38 +25,35 @@ const signIn = z.boolean().optional()
 export const appAccessSchema = z.discriminatedUnion('state', [
   z.object({ state: z.literal('legacy'), signIn, code }),
   z.object({ state: z.literal('not_started'), role, manages, signIn, code, apps: z.array(z.string()) }),
-  // `apps` is the screens the person can open. `areas` is their own level for each area they hold, a screen or not,
-  // and `keys` their own level for each saved key, by name; empty until key levels start.
+  // `apps` is the screens the person can open, and `keys` their own level for each saved key, by name; empty until
+  // key levels start.
   z.object({ state: z.literal('current'), role, manages, signIn, code, apps: z.array(z.string()), revision: z.number(),
-    areas: z.array(z.object({ id: z.string(), title: z.string(), screen: z.boolean(), level })).optional(),
     keys: z.array(z.object({ id: z.string(), title: z.string(), level })).optional() }),
 ])
-const use = z.object({ id: z.string(), need: level })
-// `settled` is true once the sign-in list matches a person's last change. A person has a `role`, whose area
-// and key levels are then theirs, or their own set: `apps` holds a level per area, by its folder. `areas` is
-// every area a person can be given, an app with a screen or a group of actions with none, and `skills` what each
-// skill needs: who can run one is worked out from a set, never stored. `kept` counts the people who kept their access when key
-// levels started, until the next save. `appKeys` is what each app does with each key; a key's `usedBy` is the
-// same fact from the key's side, `alone` means it also works with no app, `setup` that setup makes it, and
-// `saved` that the app holds it. No key's value is ever here. `viewer` is who is looking, the owner or a manager;
-// a person's `manager` says the owner lets them manage Access. The server checks both again on every save.
-// A key's `direct` is null, or left out, when its service is not set up to be used directly; otherwise the choices
-// it offers and the one picked, null for off. A skill's `direct` is each key it uses directly, with the choice it needs.
-// `project` says whether the app can hand its project out: `ready`, or the step left, a read-only GitHub `key` or
-// Access `setup`. A status from before the field reads it from whether Project code is saved.
+// `settled` is true once the sign-in list matches a person's last change. A person has a `role`, whose apps and
+// key levels are then theirs, or their own set: `apps` lists the apps they are given, by folder, and `keys` holds a
+// level per key. The status's own `apps` is every app that can be given: each one with a screen, but Access itself.
+// `unticked` names each person and role who could only look at an app, and so lost it, by the app's title, until
+// the next save. A key's `alone` means it works with no app, `setup` that setup makes it, and `saved` that the app
+// holds it. No key's value is ever here. `viewer` is who is looking,
+// the owner or a manager; a person's `manager` says the owner lets them manage Access. The server checks both again
+// on every save. A key's `direct` says its service is set up to be used directly, so a level for the key also
+// reaches the service itself; left out means no. `project` says whether the app can hand its
+// project out: `ready`, or the step left, a read-only GitHub `key` or Access `setup`. A status from before the
+// field reads it from whether Project code is saved.
 const project = z.enum(['ready', 'key', 'setup'])
 export const statusSchema = z.object({ ownerEmail: z.string(), environment: z.enum(['live', 'practice']),
   viewer: z.object({ email: z.string(), owner: z.boolean() }),
   key: z.enum(['ready', 'missing', 'practice']), started: z.boolean(), imported: z.number(),
-  keysStarted: z.boolean(), kept: z.number(), appKeys: z.record(z.string(), z.array(use)),
-  areas: z.array(z.object({ id: z.string(), title: z.string(), description: z.string(), screen: z.boolean() })),
-  skills: z.array(z.object({ id: z.string(), title: z.string(), areas: levels, keys: levels, direct: levels.optional() })),
+  keysStarted: z.boolean(),
+  apps: z.array(z.object({ id: z.string(), title: z.string(), description: z.string() })),
+  unticked: z.object({ people: z.array(z.object({ email: z.string(), apps: z.array(z.string()) })), roles: z.array(z.object({ name: z.string(), apps: z.array(z.string()) })) }),
   keys: z.array(z.object({ id: z.string(), title: z.string(), levels: z.array(level), saved: z.boolean(), setup: z.boolean(),
-    usedBy: z.array(z.object({ app: z.string(), need: level })), alone: z.boolean(),
-    direct: z.object({ offered: z.array(level), mode: level.nullable() }).nullable().optional() })),
-  roles: z.array(z.object({ id: z.string(), name: z.string(), apps: levels, keys: levels })),
+    alone: z.boolean(),
+    direct: z.boolean().optional() })),
+  roles: z.array(z.object({ id: z.string(), name: z.string(), apps: z.array(z.string()), keys: levels })),
   people: z.array(z.object({ email: z.string(), status: z.enum(['active', 'removed']), settled: z.boolean(),
-    role: z.string().nullable(), manager: z.boolean(), apps: levels, keys: levels })),
+    role: z.string().nullable(), manager: z.boolean(), apps: z.array(z.string()), keys: levels })),
   work: z.array(z.object({ kind: z.enum(['policy', 'sessions']), status: z.enum(['pending', 'ready', 'failed']) })),
   project: project.optional() })
   .transform(status => ({ ...status, project: status.project ?? (status.keys.some(key => key.id === 'code' && key.saved) ? 'ready' : 'key') }))
@@ -64,8 +61,7 @@ export type Status = z.infer<typeof statusSchema>
 export type Person = Status['people'][number]
 export type Role = Status['roles'][number]
 export type SavedKey = Status['keys'][number]
-export type Area = Status['areas'][number]
-export type Skill = Status['skills'][number]
+export type BuiltApp = Status['apps'][number]
 export type Level = z.infer<typeof level>
 
 export async function readAccess<T>(path: string, schema: z.ZodType<T>, signal?: AbortSignal): Promise<T> {
@@ -73,7 +69,7 @@ export async function readAccess<T>(path: string, schema: z.ZodType<T>, signal?:
   if (!response.ok) throw new Error('Access unavailable')
   return schema.parse(await response.json())
 }
-export async function changeAccess(path: 'people' | 'roles' | 'grants' | 'direct' | 'retry', body?: object): Promise<void> {
+export async function changeAccess(path: 'people' | 'roles' | 'retry', body?: object): Promise<void> {
   const response = await fetch(`/api/access/${path}`, { method: 'POST', redirect: 'error',
     headers: { Origin: window.location.origin, 'Content-Type': 'application/json' }, body: JSON.stringify(body ?? {}) })
   if (!response.ok) throw new Error('Access change unavailable')

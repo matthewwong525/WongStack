@@ -12,7 +12,6 @@
   "sourcePaths": [
     ".agents/skills/wong-setup/references/cloudflare.md",
     ".agents/skills/wong-setup/scripts/provision.mjs",
-    "app/src/apps/access/KeyPage.tsx",
     "app/src/apps/access/Notices.tsx",
     "app/src/apps/access/PersonPage.tsx",
     "app/src/apps/access/ProjectStep.tsx",
@@ -73,7 +72,7 @@
     ],
     [
       "open",
-      "{url}/apps/access/keys/code"
+      "{url}/apps/access/people/projectwalk%40example.invalid"
     ],
     [
       "wait",
@@ -83,12 +82,12 @@
     [
       "wait",
       "--text",
-      "projectwalk@example.invalid"
+      "Can install the project"
     ]
   ],
   "expect": [
     {
-      "text": "Project code"
+      "text": "Can install the project"
     },
     {
       "text": "projectwalk@example.invalid"

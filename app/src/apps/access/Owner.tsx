@@ -3,16 +3,13 @@ import { useLocation, useNavigate, useParams } from 'react-router'
 import { Button } from '@/components/ui/button'
 import { changeAccess, statusSchema, useAccess } from '../../lib/access'
 import { saidSchema, VIEWS, type ViewProps } from './address'
-import { Apps } from './Apps'
-import { Keys } from './Keys'
 import { People } from './People'
 import { Roles } from './Roles'
-import { Skills } from './Skills'
 
-const SCREENS = { people: People, roles: Roles, apps: Apps, skills: Skills, keys: Keys }
+const SCREENS = { people: People, roles: Roles }
 const UNFINISHED = 'That did not finish. Check the list below before trying again.'
 
-// The owner's screens, and a manager's. One read of the whole status serves the five views and the pages under them.
+// The owner's screens, and a manager's. One read of the whole status serves the two views and the pages under them.
 export function Owner() {
   const { data, error, reload } = useAccess('status', statusSchema)
   const [pending, setPending] = useState(false)
@@ -24,13 +21,10 @@ export function Owner() {
   const named = VIEWS.find(item => item.name === name)
   const view = named ?? VIEWS[0]
   const Screen = SCREENS[view.name]
-  const save: ViewProps['save'] = async (path, body, done = { text: path === 'retry' ? 'Checked again.' : 'Saved.' }, first) => {
+  const save: ViewProps['save'] = async (path, body, done = { text: path === 'retry' ? 'Checked again.' : 'Saved.' }) => {
     setPending(true)
     let result = { failed: false, ...done }
-    try {
-      if (first) await changeAccess('direct', first)
-      await changeAccess(path, body)
-    }
+    try { await changeAccess(path, body) }
     // The save may have landed: the list below is read again, so nothing is sent twice.
     catch { result = { text: UNFINISHED, failed: true } }
     void navigate(view.home, { replace: true, state: result }); reload(); setPending(false)

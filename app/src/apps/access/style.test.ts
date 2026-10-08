@@ -9,12 +9,13 @@ import { App } from './App'
 // Access brings no stylesheet: its look is the classes on its own elements and on the ready-made parts it is built
 // from. This draws the screens and reads those classes, so what a phone and a screen reader are promised is held
 // where it now lives. That no screen has a CSS file of its own is checked once for the whole app, in src/style.test.ts.
+// Kim could only look at Hello before an update, so the notice that names her shows on every view here.
 const status: Status = { ownerEmail: 'owner@shop.com', viewer: { email: 'owner@shop.com', owner: true }, environment: 'practice', key: 'practice', started: true, imported: 0,
-  keysStarted: true, kept: 0, areas: [{ id: 'hello', title: 'Hello', description: 'A small example.', screen: true }], skills: [], appKeys: { hello: [{ id: 'stripe', need: 'write' }] },
-  keys: [{ id: 'stripe', title: 'Stripe', levels: ['read', 'write'], saved: true, setup: false, usedBy: [{ app: 'hello', need: 'write' }], alone: false }],
-  roles: [{ id: 'sales', name: 'Sales', apps: { hello: 'write' }, keys: { stripe: 'read' } }],
-  people: [{ email: 'kim@shop.com', status: 'active', settled: true, role: null, manager: false, apps: { hello: 'write' }, keys: { stripe: 'read' } },
-    { email: 'lee@shop.com', status: 'active', settled: true, role: 'sales', manager: false, apps: { hello: 'write' }, keys: { stripe: 'read' } }], work: [], project: 'ready' }
+  keysStarted: true, unticked: { people: [{ email: 'kim@shop.com', apps: ['Hello'] }], roles: [] }, apps: [{ id: 'hello', title: 'Hello', description: 'A small example.' }],
+  keys: [{ id: 'stripe', title: 'Stripe', levels: ['read', 'write'], saved: true, setup: false, alone: false, direct: true }],
+  roles: [{ id: 'sales', name: 'Sales', apps: ['hello'], keys: { stripe: 'read' } }],
+  people: [{ email: 'kim@shop.com', status: 'active', settled: true, role: null, manager: false, apps: ['hello'], keys: { stripe: 'read' } },
+    { email: 'lee@shop.com', status: 'active', settled: true, role: 'sales', manager: false, apps: ['hello'], keys: { stripe: 'read' } }], work: [], project: 'ready' }
 
 beforeEach(() => vi.stubGlobal('fetch', vi.fn(async (url: string) => {
   if (url.endsWith('/apps')) return Response.json({ state: 'current', role: 'owner', manages: true, apps: ['access', 'hello'], revision: 1 })
@@ -37,9 +38,10 @@ it('fits a phone: the Access screens wrap, and fix no width in pixels', async ()
   const pixels = () => all().filter(name => /(^|:)(min-)?w-\[[\d.]+px\]/.test(name))
   expect(pixels()).toEqual([])
   // The views are the heading: the switch and the add button share one line, which wraps, and so does the switch.
+  // The add button is the one button there, and solid.
   const views = screen.getByLabelText('Access views')
   has(views, 'flex', 'flex-wrap'); has(views.parentElement!, 'flex', 'flex-wrap', 'justify-between')
-  expect(views.parentElement!.lastElementChild).toBe(screen.getByRole('link', { name: 'Add person' }))
+  expect(Array.from(views.parentElement!.children).slice(1).map(button => [button.textContent, button.getAttribute('data-variant')])).toEqual([['+ Add person', 'default']])
   expect(document.querySelector('h2')).toBeNull()
   // A notice breaks a long word.
   has(screen.getByText(/Changes here stay on previews/).closest('[data-slot="alert-description"]')!, 'wrap-anywhere')
@@ -48,20 +50,24 @@ it('fits a phone: the Access screens wrap, and fix no width in pixels', async ()
   open('people/new'); const save = await screen.findByRole('button', { name: 'Save access' })
   const panel = screen.getByRole('dialog', { name: 'Add person' })
   has(panel, 'fixed', 'inset-y-0', 'right-0', 'w-full', 'sm:max-w-md', 'sm:top-15', 'sm:h-auto'); expect(classes(panel)).not.toContain('w-3/4')
-  // Its fields scroll, with the buttons kept in view under them; the buttons, the starting points and a level choice
-  // wrap; a field takes the panel's width.
+  // Its fields scroll, with the buttons kept in view under them; the buttons and a level choice wrap; a field takes
+  // the panel's width.
   has(save.parentElement!, 'flex', 'flex-wrap', 'border-t'); has(save.parentElement!.previousElementSibling!, 'overflow-y-auto', 'flex-1')
   has(within(panel).getByRole('heading', { name: 'Add person' }), 'wrap-anywhere')
   has(screen.getByLabelText('Email'), 'w-full')
-  const start = screen.getByRole('button', { name: 'Hello' }); has(start.parentElement!, 'flex', 'flex-wrap')
-  fireEvent.click(start)
-  has(screen.getByRole('group', { name: 'Hello' }), 'grid', 'min-w-0')
-  has(within(screen.getByRole('group', { name: 'Stripe' })).getByRole('radio', { name: 'Read' }).closest('div')!, 'flex', 'flex-wrap')
+  // An app is a tick with its words beside it, in bold.
+  const tick = screen.getByRole('checkbox', { name: 'Hello' }); has(tick.parentElement!, 'font-semibold')
+  fireEvent.click(tick)
+  // A key's level choice is named by the key, with whether it is saved beside it in quiet words.
+  const stripe = screen.getByRole('group', { name: 'Stripe · Saved' }); has(stripe, 'grid', 'min-w-0'); has(stripe.querySelector('legend span')!, 'text-muted-foreground')
+  has(within(stripe).getByRole('radio', { name: 'Read' }).closest('div')!, 'flex', 'flex-wrap')
   // The line that says a change waits takes a row of its own above the buttons.
   const waiting = screen.getByText('Not saved yet'); has(waiting, 'basis-full', 'font-semibold'); expect(waiting.parentElement).toBe(save.parentElement)
-  // No box goes round a group of level choices: its bold name sets it apart.
-  const group = screen.getByRole('group', { name: 'Can reach' })
-  expect(classes(group).filter(name => /^(border|rounded)/.test(name))).toEqual([]); has(group.querySelector('legend')!, 'font-bold')
+  // No box goes round a group of ticks or of level choices: its bold name sets it apart.
+  for (const name of ['Apps', 'Keys']) {
+    const group = screen.getByRole('group', { name })
+    expect(classes(group).filter(part => /^(border|rounded)/.test(part)), name).toEqual([]); has(group.querySelector('legend')!, 'font-bold')
+  }
   expect(pixels()).toEqual([])
 })
 
@@ -101,22 +107,20 @@ it('lists are tables in the shared frame whose rows are one line, and stack on a
   open('roles'); const people = within(await screen.findByRole('table', { name: 'Roles' })).getByText('1 person')
   expect([people.tagName, people.getAttribute('data-label')]).toEqual(['TD', 'People'])
   has(people, `${STACKED}data-label:before:content-[attr(data-label)_":_"]`)
-  cleanup()
-  // Words too long for their column are cut the same way, and a quiet line under the list says how an app is made.
-  open('apps'); const uses = within(await screen.findByRole('table', { name: 'Apps' })).getByText('Stripe: look up, change')
-  has(uses, 'truncate', 'max-w-0'); expect([uses.title, uses.getAttribute('data-label')]).toEqual(['Stripe: look up, change', 'Uses'])
-  has(screen.getByText('Ask your assistant to build an app.'), 'text-sm', 'text-muted-foreground')
+  expect(all().filter(name => /overflow-x-(auto|scroll)$/.test(name))).toEqual([])
 })
 
-it('marks the current view, the open row, a level, a starting point, a gap and a label by more than colour', async () => {
+it('marks the current view, the open row, a level, a notice and a label by more than colour', async () => {
   open('roles'); const table = await screen.findByRole('table', { name: 'Roles' })
   // The current view is boxed, bold and underlined.
   const views = within(screen.getByLabelText('Access views')).getAllByRole('link')
   expect(views.filter(link => link.getAttribute('aria-current') === 'page').map(link => link.textContent)).toEqual(['Roles 1'])
   for (const link of views) has(link, 'aria-[current=page]:border-border', 'aria-[current=page]:font-bold', 'aria-[current=page]:underline')
-  // A gap on a row is bold, and the "!" is in the text itself.
-  const gap = within(table).getByText('1 gap')
-  expect([gap.tagName, gap.textContent]).toEqual(['STRONG', '! 1 gap']); has(gap, 'font-semibold')
+  // The notice that names who an update unticked is headed in bold, and the "!" is in the text itself.
+  const unticked = screen.getByText('Unticked in this update')
+  expect([unticked.tagName, unticked.textContent, unticked.querySelector('[aria-hidden="true"]')!.textContent]).toEqual(['STRONG', '! Unticked in this update', '! '])
+  // A row counts apps and keys in plain words, and marks nothing as missing.
+  expect([within(table).getByText('1 app, 1 key').tagName, table.querySelector('strong')]).toEqual(['TD', null])
   // No row is marked until one is open.
   expect(document.querySelector('tr[aria-current]')).toBeNull()
   cleanup()
@@ -125,30 +129,22 @@ it('marks the current view, the open row, a level, a starting point, a gap and a
   const marked = Array.from(document.querySelectorAll('tr[aria-current="true"]'))
   expect(marked).toEqual([screen.getByRole('link', { name: 'lee@shop.com' }).closest('tr')])
   has(marked[0], 'aria-[current=true]:bg-muted', 'aria-[current=true]:[&>td:first-child]:shadow-[inset_0.2rem_0_0_var(--color-primary)]')
-  // Opened, what a role gives is named: a gap is bold with a bar beside it, and a label has a border.
-  const line = within(panel).getByText('Hello can look up, not change')
-  expect(line.textContent).toBe('! Hello can look up, not change'); has(line, 'border-s-[0.2rem]', 'font-semibold')
-  const label = within(panel).getByText('Stripe Read')
-  expect([label.getAttribute('data-slot'), label.getAttribute('data-variant')]).toEqual(['badge', 'outline']); has(label, 'border', 'border-border')
+  // Opened, what a role gives is named: a label has a border.
+  for (const name of ['Hello', 'Stripe Read']) {
+    const label = within(panel).getByText(name)
+    expect([label.getAttribute('data-slot'), label.getAttribute('data-variant')], name).toEqual(['badge', 'outline']); has(label, 'border', 'border-border')
+  }
   cleanup()
   // The radio buttons stay on screen: the dot shows the choice, its words are bold, and the keyboard can reach it.
   open('people/kim@shop.com'); await screen.findByRole('button', { name: 'Save access' })
   const radios = screen.getAllByRole('radio') as HTMLInputElement[]
-  expect(radios.map(radio => [radio.type, radio.parentElement!.textContent, radio.checked])).toEqual([['radio', 'None', false], ['radio', 'Look up', false], ['radio', 'Look up & change', true],
-    ['radio', 'None', false], ['radio', 'Read', true], ['radio', 'Read & write', false]])
+  expect(radios.map(radio => [radio.type, radio.parentElement!.textContent, radio.checked])).toEqual([['radio', 'None', false], ['radio', 'Read', true], ['radio', 'Read & write', false]])
   for (const radio of radios) {
     expect(classes(radio).filter(name => GONE.test(name))).toEqual([])
     has(radio.parentElement!, 'has-checked:font-semibold')
   }
-  for (const tick of screen.getAllByRole('checkbox')) expect(classes(tick).filter(name => GONE.test(name))).toEqual([])
-  // What the set can't do yet is bold with a bar beside it, and the "!" is in the text itself.
-  const short = screen.getByText('Hello can look up, not change')
-  expect(short.textContent).toBe('! Hello can look up, not change'); has(short, 'font-semibold'); has(short.parentElement!, 'border-s-[0.2rem]')
-  // Giving it what it needs marks the starting point as pressed, in words a screen reader hears and with a tick in its text;
-  // the level it raised is marked by the bold word beside it.
-  fireEvent.click(screen.getByRole('button', { name: 'Give Hello what it needs' }))
-  const start = screen.getByRole('button', { name: 'Hello' })
-  expect([start.getAttribute('aria-pressed'), start.textContent]).toEqual(['true', 'Hello ✓'])
-  const raised = within(screen.getByRole('group', { name: 'Stripe' })).getByText('new')
-  expect(raised.tagName).toBe('STRONG'); has(raised, 'font-semibold')
+  // A tick stays on screen too: the device draws it, on or off.
+  const ticks = screen.getAllByRole('checkbox') as HTMLInputElement[]
+  expect(ticks.map(tick => [tick.parentElement!.textContent, tick.checked])).toEqual([['Hello', true], ['Can manage Access', false]])
+  for (const tick of ticks) expect(classes(tick).filter(name => GONE.test(name))).toEqual([])
 })

@@ -2,7 +2,7 @@
 import { z } from "zod";
 import { en } from "zod/locales";
 import type { AppCall, AppEnv, AppHandler } from "../apps/index.ts";
-import { authorizeRequest, directNeed, listedKeys, type RouteAccess } from "../employee-access/policy.ts";
+import { authorizeRequest, listedKeys, usedDirectly, type RouteAccess } from "../employee-access/policy.ts";
 import { saved, scopedEnv, type Level } from "../employee-access/key-levels.ts";
 import type { KeyId } from "../keys.ts";
 import { boundedBytes } from "./body.ts";
@@ -124,8 +124,8 @@ export function defineAction(action: Action): Action {
   return action;
 }
 
-/** What a call needs of each area it belongs to and each key its route lists: `read` looks things up, `write`
- *  changes or sends them. A bare handler has no effect to read, so its method decides: describe a `POST` that
+/** What a call does: `read` looks things up, `write` changes or sends them. A key's own route asks that level
+ *  of its caller; an app's route asks only for the app. A bare handler has no effect to read, so its method decides: describe a `POST` that
  *  only looks things up as an action with `effect: "read"`. */
 export const needFor = (route: Route, method: string): Level =>
   (typeof route === "function" ? ["GET", "HEAD"].includes(method) : route.effect === "read") ? "read" : "write";
@@ -137,19 +137,20 @@ function accessFor(route: Route, mapping: RouteAccess | undefined): RouteAccess 
   return "apps" in mapping ? { apps: mapping.apps, keys } : { ...mapping, keys };
 }
 
-/** A main route's reviewed mapping, or a mini app's folder with the keys its api.ts exports. */
+/** A main route's reviewed mapping, as is a route's of a folder with no screen; else a mini app's folder with the
+ *  keys its api.ts exports. */
 const mappingFor = (app: string, key: string, access?: ReadonlyMap<string, RouteAccess>, keys?: readonly string[]): RouteAccess | undefined =>
-  app === "main" ? access?.get(key) : { apps: [app], keys };
+  app === "main" || access ? access?.get(key) : { apps: [app], keys };
 
 /** One route's use of saved keys: the apps it serves, none for a key working alone, and the level a call needs.
- *  `direct` marks a route that passes a request on to the key's service: it runs only while the owner's choice allows. */
-type KeyUse = { apps: readonly string[]; keys: readonly string[]; need: Level; direct?: Level };
+ *  `direct` marks a route that passes a request on to the key's service. */
+type KeyUse = { apps: readonly string[]; keys: readonly string[]; need: Level; direct?: true };
 
 /** Every route's key use, bare handlers included, so Access shows what the server enforces. */
 export function keyUses(routes: Map<string, Route>, app = "main", access?: ReadonlyMap<string, RouteAccess>, keys?: readonly string[]): KeyUse[] {
   return [...routes].map(([key, route]) => {
     const judged = accessFor(route, mappingFor(app, key, access, keys));
-    return { apps: judged && "apps" in judged ? judged.apps : [], keys: listedKeys(judged), need: needFor(route, key.split(" ")[0]), direct: directNeed(judged) };
+    return { apps: judged && "apps" in judged ? judged.apps : [], keys: listedKeys(judged), need: needFor(route, key.split(" ")[0]), direct: usedDirectly(judged) || undefined };
   }).filter(use => use.keys.length);
 }
 

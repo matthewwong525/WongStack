@@ -1,13 +1,13 @@
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import type { Person } from '../../lib/access'
 import type { ViewProps } from './address'
-import { fill } from './levels'
+import { fill, ticks } from './levels'
 
 /** A person's role, picked right in their row, in the device's own picker. A pick saves at once, sending the role alone,
- *  and carries what puts the person back: their old role, or their own area and key levels, filled as their page fills them. */
+ *  and carries what puts the person back: their old role, or their own apps and key levels, named as their page names them. */
 export function RoleSelect({ status, pending, save, person }: Pick<ViewProps, 'status' | 'pending' | 'save'> & { person: Person }) {
   const who = { email: person.email, removed: false }
-  const undo = person.role ? { ...who, role: person.role } : { ...who, role: null, apps: fill(status.areas, person.apps, null), keys: fill(status.keys, person.keys, null) }
+  const undo = person.role ? { ...who, role: person.role } : { ...who, role: null, apps: ticks(status, person.apps), keys: fill(status, person.keys) }
   return <NativeSelect aria-label={`Role for ${person.email}`} value={person.role ?? ''} disabled={pending} onChange={event => {
     const role = status.roles.find(item => item.id === event.target.value)
     save('people', { ...who, role: role?.id ?? null }, { text: `${person.email} now has ${role?.name ?? 'their own set'}.`, undo })

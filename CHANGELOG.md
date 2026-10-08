@@ -3,6 +3,24 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (major) — Apps by a tick, keys by a level
+
+- **An app is a tick, a key is a level, and neither depends on the other.** In Access you tick the apps a person can use. Separately, you pick *None*, *Read* or *Read & write* for each key. Areas, and their *Look up* and *Look up & change* levels, are gone.
+- **A ticked app does everything it was built to do.** Someone with Orders ticked can open it, look things up and change things, from the screen or through their assistant, whatever keys Orders uses. An app no longer refuses a person because their level for a key is too low.
+- **A key's level decides only what a person's assistant may do with that key by itself.** That means the look-ups in Cloudflare, putting the project on their computer, and using a key directly. The *Keys* part of a person or a role says so in one line.
+- **Giving an app gives no key level.** Before, a new app also gave *Read* on each key it used. A key level now changes only when you change it.
+- **A person opens to their role, their apps and their keys.** A role opens to the same two lists. *Start from*, *Can reach* and *Can't yet* are gone, and so are the `!` gap marks on the People and Roles lists: nothing can fall short any more. *Can install the project* and *Can manage Access* stay where they are.
+- **Access is two lists: People and Roles.** The Apps and Keys lists are gone. You set apps and key levels inside a person or a role, and nowhere else; to give one app or one level to several people, give it to their role.
+- **A key's level alone decides direct use; the separate switch is gone.** Once a key's service is set up for it, *Read* lets a person's assistant look things up with the key directly, and *Read & write* lets it change things. There is no *Off*, *Look-ups only* or *Look-ups and changes* to pick, and no place in Access for it.
+- **Each key says whether it is saved where you set its level.** Open a person or a role: beside each key's name is *Saved* or the step left, such as asking your assistant for the key's link.
+- **Anyone who could only look at an app is unticked, and Access tells you who.** A tick can't say *look but don't change*, so nobody gains the power to change things by surprise. Access names each person and role, with the app, until your next save there.
+- **Work with no screen sits inside an app or behind a key.** Work built only for skills and assistants is no longer given by itself. Inside an app, that app's tick covers it. Using a key, that key's level covers it. Work with neither can't be published, and the check names it.
+- **The Skills list leaves Access.** Skills run as before, and each call is still allowed or refused by the caller's apps and keys.
+
+[Employee access](wiki/stack/employee-access.md#apps) describes apps and key levels, [the Access screens](wiki/stack/access-screens.md#a-panel-has-apps-and-keys) the panel, and [mini apps](wiki/stack/mini-apps.md#work-with-no-screen) work with no screen.
+
+**Updating.** Four things to do. First, open Access and read the notice at the top: anyone who could only look at an app has lost that app, and Access names each one until your next save there. Tick the app to give it back; a tick gives all of the app, and the old look-only setting can't be brought back. Second, look over each person's apps: a person with an app ticked can now do everything in it, even where a key level held them back before, so untick an app for anyone who should not change things in it. Third, ask your assistant to check any folder under `app/worker/apps/` that has no screen, which is work you built for skills or assistants alone: each one now needs a key or a screen, or the checks stop the update and name it. Fourth, if your assistant set a service up so its key can be used directly, look over that key: direct use is now on for you, and for anyone who holds a level for the key, whatever you had picked before. Set a person's level for the key to *None* to stop it for them. The Apps, Keys and Skills lists are gone, with nothing to do: skills run as before. Key levels people already hold are kept, and the app's database does not change.
+
 ## 37.4.0 — Send plan notes straight to the chat
 
 - **A plan opens as a live link, and its button sends your notes to the chat.** Before, your notes took three steps: tap *Copy notes*, switch to the chat, paste. Now the chat prints a web address for the plan, and *Send notes* on that page puts your saved notes into the chat that made the plan, as if you had pasted them. The chat updates the plan and builds nothing.

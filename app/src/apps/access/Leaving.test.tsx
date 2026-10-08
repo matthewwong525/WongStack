@@ -3,26 +3,26 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { createMemoryRouter, MemoryRouter, Route, RouterProvider, Routes, useLocation } from 'react-router'
 import { App } from './App'
-import type { Area, Person, SavedKey, Status } from '../../lib/access'
+import type { BuiltApp, Person, SavedKey, Status } from '../../lib/access'
 
 // Closing an opened person, role, app or key with changes not saved asks first, in a popup over its panel.
-// A shop where Hello changes things with Stripe, and so does its one skill, Refund a customer. The tip calculator uses no key.
-const key = (id: string, title: string, changes: Partial<SavedKey> = {}): SavedKey => ({ id, title, levels: ['read', 'write'], saved: true, setup: false, usedBy: [], alone: false, ...changes })
-const area = (id: string, title: string): Area => ({ id, title, description: `${title} for the shop`, screen: true })
-const person = (email: string, changes: Partial<Person> = {}): Person => ({ email, status: 'active', settled: true, role: null, manager: false, apps: {}, keys: {}, ...changes })
-const hello = () => ({ apps: { hello: 'write' as const }, keys: { stripe: 'read' as const } })
+// A shop where Hello changes things with Stripe, and the tip calculator uses no key.
+const key = (id: string, title: string, changes: Partial<SavedKey> = {}): SavedKey => ({ id, title, levels: ['read', 'write'], saved: true, setup: false, alone: false, ...changes })
+const built = (id: string, title: string): BuiltApp => ({ id, title, description: `${title} for the shop` })
+const person = (email: string, changes: Partial<Person> = {}): Person => ({ email, status: 'active', settled: true, role: null, manager: false, apps: [], keys: {}, ...changes })
+const hello = () => ({ apps: ['hello'], keys: { stripe: 'read' as const } })
 const status = (): Status => ({ ownerEmail: 'owner@shop.com', viewer: { email: 'owner@shop.com', owner: true }, environment: 'live', key: 'ready', started: true, imported: 0,
-  keysStarted: true, kept: 0, appKeys: { hello: [{ id: 'stripe', need: 'write' }], tips: [] },
-  areas: [area('hello', 'Hello'), area('tips', 'Tip calculator')],
-  skills: [{ id: 'refund', title: 'Refund a customer', areas: { hello: 'write' }, keys: { stripe: 'write' } }],
-  keys: [key('stripe', 'Stripe', { usedBy: [{ app: 'hello', need: 'write' }] }), key('bank', 'Bank')],
+  keysStarted: true, unticked: { people: [], roles: [] },
+  apps: [built('hello', 'Hello'), built('tips', 'Tip calculator')],
+  // Bank is set up to be used directly.
+  keys: [key('stripe', 'Stripe'), key('bank', 'Bank', { direct: true })],
   roles: [{ id: 'sales', name: 'Sales', ...hello() }],
   people: [person('kim@shop.com', hello()), person('lee@shop.com', { role: 'sales', ...hello() })],
   work: [], project: 'ready' })
 let roster: Status
 let fetchMock: ReturnType<typeof vi.fn>
-// The apps a person can open: every area here has a screen.
-const screens = () => roster.areas.map(item => item.id)
+// The apps a person can open.
+const screens = () => roster.apps.map(item => item.id)
 beforeEach(() => {
   roster = status()
   fetchMock = vi.fn(async (url: string) => {
@@ -46,12 +46,11 @@ const panel = (name: string) => screen.getByRole('dialog', { name })
 const closed = () => waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
 // The parts start listening for a press outside them, and hand the keyboard back, a moment after they open or close.
 const moment = () => act(async () => { await new Promise(resolve => setTimeout(resolve)) })
-// One of the five views in the switch, by its title: its count follows.
+// One of the two views in the switch, by its title: its count follows.
 const tab = (title: string) => within(screen.getByRole('navigation', { name: 'Access views' })).getByRole('link', { name: new RegExp(`^${title} \\d+$`) })
-const radio = (group: string, name: string) => within(screen.getByRole('group', { name: group })).getByRole('radio', { name }) as HTMLInputElement
-// A starting point in an opened person or role, and whether it shows as pressed: one press fills in what it needs, and saves nothing.
-const start = (name: string) => within(screen.getByRole('group', { name: 'Start from' })).getByRole('button', { name })
-const pressed = (name: string) => start(name).getAttribute('aria-pressed')
+const radio = (group: string, name: string) => within(screen.getByRole('group', { name: new RegExp(`^${group} · `) })).getByRole('radio', { name }) as HTMLInputElement
+// An app's tick in an opened person or role: one press gives the app or takes it away, and saves nothing.
+const app = (name: string) => within(screen.getByRole('group', { name: 'Apps' })).getByRole('checkbox', { name }) as HTMLInputElement
 // What the browser is told when the tab closes or reloads: true when it should ask.
 const unloadAsks = () => { const event = new Event('beforeunload', { cancelable: true }); window.dispatchEvent(event); return event.defaultPrevented }
 // A press with the pointer: the panel answers one beside it once the click lands.
@@ -74,11 +73,11 @@ it('closes an untouched panel at once by its ✕, Escape, Cancel or a press on t
   }
   expect(posts()).toHaveLength(0)
 })
-it('asks in a popup before a panel changed only by a press in Start from is closed by its ✕, Escape or Cancel, keeps the change on staying, and saves nothing on leaving', async () => {
+it('asks in a popup before a panel changed only by a tick is closed by its ✕, Escape or Cancel, keeps the tick on staying, and saves nothing on leaving', async () => {
   open('people/kim@shop.com'); await screen.findByRole('button', { name: 'Save access' })
   expect(unloadAsks()).toBe(false); expect(screen.queryByText('Not saved yet')).toBeNull()
-  // One press is a change that waits to be saved: the panel says so above its buttons, and nothing is sent.
-  fireEvent.click(start('Tip calculator')); expect(unloadAsks()).toBe(true)
+  // One tick is a change that waits to be saved: the panel says so above its buttons, and nothing is sent.
+  fireEvent.click(app('Tip calculator')); expect(unloadAsks()).toBe(true)
   expect(screen.getByText('Not saved yet').compareDocumentPosition(screen.getByRole('button', { name: 'Save access' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy(); expect(posts()).toHaveLength(0)
   // Cancel asks over the panel: the way out is focused first, and the action is the one solid button.
   const cancel = screen.getByRole('button', { name: 'Cancel' }); cancel.focus(); fireEvent.click(cancel)
@@ -91,10 +90,10 @@ it('asks in a popup before a panel changed only by a press in Start from is clos
   // Staying keeps the change in the panel, and the keyboard goes back to where it was in it.
   click('Keep editing'); expect(question()).toBeNull(); await moment()
   expect([document.activeElement, panel('kim@shop.com').contains(cancel)]).toEqual([cancel, true])
-  expect([radio('Tip calculator', 'Look up').checked, pressed('Tip calculator'), screen.getByRole('button', { name: 'Save access' }).closest('fieldset')!.disabled]).toEqual([true, 'true', false])
+  expect([app('Tip calculator').checked, screen.getByRole('button', { name: 'Save access' }).closest('fieldset')!.disabled]).toEqual([true, false])
   // The ✕ asks too, and Escape answers the question the same way as Keep editing: the panel stays.
   click('Close'); expect(question()).toBeTruthy(); fireEvent.keyDown(question()!, { key: 'Escape' })
-  expect([question(), where(), radio('Tip calculator', 'Look up').checked]).toEqual([null, KIM, true]); await moment()
+  expect([question(), where(), app('Tip calculator').checked]).toEqual([null, KIM, true]); await moment()
   // Escape on the panel asks as well; leaving goes to the list and sends nothing.
   fireEvent.keyDown(panel('kim@shop.com'), { key: 'Escape' }); expect(question()).toBeTruthy(); click('Leave')
   await closed(); expect(where()).toBe('/apps/access/'); expect(posts()).toHaveLength(0)
@@ -102,26 +101,25 @@ it('asks in a popup before a panel changed only by a press in Start from is clos
 })
 it("a view's link asks before a changed panel is left, goes where it led on leaving, and leaves at once from an untouched one", async () => {
   open('people/kim@shop.com'); await screen.findByRole('button', { name: 'Save access' })
-  // The five views show beside the panel, each with its count.
-  expect(within(screen.getByRole('navigation', { name: 'Access views' })).getAllByRole('link').map(link => link.textContent)).toEqual(['People 3', 'Roles 1', 'Apps 2', 'Skills 1', 'Keys 2'])
-  // A skill pressed in Start from raises Stripe to what it needs: that alone is a change to lose.
-  fireEvent.click(start('Refund a customer')); fireEvent.click(tab('Roles'))
+  // The two views show beside the panel, each with its count.
+  expect(within(screen.getByRole('navigation', { name: 'Access views' })).getAllByRole('link').map(link => link.textContent)).toEqual(['People 3', 'Roles 1'])
+  // A key's level raised is a change to lose, and it ticks no app.
+  fireEvent.click(radio('Stripe', 'Read & write')); fireEvent.click(tab('Roles'))
   expect(question()).toBeTruthy(); expect(where()).toBe(KIM)
   // Staying keeps the change; leaving goes to the view the link named, and sends nothing.
-  click('Keep editing'); expect([radio('Stripe', 'Read & write').checked, pressed('Refund a customer')]).toEqual([true, 'true'])
-  fireEvent.click(tab('Keys')); expect(question()).toBeTruthy(); click('Leave')
-  await screen.findByRole('table', { name: 'Keys' }); expect(where()).toBe('/apps/access/keys'); expect(posts()).toHaveLength(0)
+  click('Keep editing'); expect([radio('Stripe', 'Read & write').checked, app('Hello').checked, app('Tip calculator').checked]).toEqual([true, true, false])
+  fireEvent.click(tab('Roles')); click('Leave')
+  await screen.findByRole('table', { name: 'Roles' }); expect(where()).toBe('/apps/access/roles'); expect(posts()).toHaveLength(0)
   cleanup(); open('people/kim@shop.com'); await screen.findByRole('button', { name: 'Save access' })
   fireEvent.click(tab('Roles')); await screen.findByRole('table', { name: 'Roles' }); expect(question()).toBeNull(); expect(where()).toBe('/apps/access/roles')
 })
 it('closes at once a panel put back the way it was', async () => {
   open('people/kim@shop.com'); await screen.findByRole('button', { name: 'Save access' })
-  // A level raised and lowered again, a key and an area picked and put back to None, a starting point pressed and pressed again: nothing to lose.
+  // A level raised and lowered again, a key picked and put back to None, an app ticked and unticked, an app unticked and ticked: nothing to lose.
   fireEvent.click(radio('Stripe', 'Read & write')); expect(screen.getByText('Not saved yet')).toBeTruthy(); fireEvent.click(radio('Stripe', 'Read'))
   fireEvent.click(radio('Bank', 'Read')); fireEvent.click(radio('Bank', 'None'))
-  fireEvent.click(radio('Tip calculator', 'Look up & change')); fireEvent.click(radio('Tip calculator', 'None'))
-  for (const name of ['Tip calculator', 'Refund a customer']) { fireEvent.click(start(name)); expect([name, pressed(name), unloadAsks()]).toEqual([name, 'true', true]); fireEvent.click(start(name)) }
-  expect([pressed('Tip calculator'), pressed('Refund a customer'), unloadAsks()]).toEqual(['false', 'false', false]); expect(screen.queryByText('Not saved yet')).toBeNull()
+  for (const name of ['Tip calculator', 'Hello']) { fireEvent.click(app(name)); expect([name, unloadAsks()]).toEqual([name, true]); fireEvent.click(app(name)) }
+  expect([app('Hello').checked, app('Tip calculator').checked, unloadAsks()]).toEqual([true, false, false]); expect(screen.queryByText('Not saved yet')).toBeNull()
   click('Cancel'); await closed(); expect([question(), where()]).toEqual([null, '/apps/access/'])
 })
 // Every kind of opened item: a person, a new person, a role, a new role, an app and a key. One test each, so no one
@@ -130,13 +128,11 @@ const pages: [string, () => void][] = [
   ['people/lee@shop.com', () => fireEvent.change(screen.getByLabelText('Role'), { target: { value: '' } })],
   ['people/new', () => fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'new@shop.com' } })],
   ['roles/sales', () => fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Field sales' } })],
-  ['people/kim@shop.com', () => fireEvent.click(radio('Hello', 'Look up'))],
-  ['roles/sales', () => fireEvent.click(radio('Tip calculator', 'Look up'))],
-  ['roles/sales', () => fireEvent.click(start('Refund a customer'))],
-  ['roles/new', () => fireEvent.click(start('Tip calculator'))],
-  ['roles/new', () => fireEvent.change(screen.getByLabelText('Start from a person'), { target: { value: 'kim@shop.com' } })],
-  ['apps/hello', () => fireEvent.click(within(screen.getByRole('group', { name: 'kim@shop.com' })).getByRole('radio', { name: 'Read & write' }))],
-  ['keys/stripe', () => fireEvent.click(radio('kim@shop.com', 'None'))],
+  ['people/kim@shop.com', () => fireEvent.click(app('Hello'))],
+  ['people/kim@shop.com', () => fireEvent.click(radio('Bank', 'Read'))],
+  ['roles/sales', () => fireEvent.click(app('Tip calculator'))],
+  ['roles/new', () => fireEvent.click(app('Tip calculator'))],
+  ['roles/new', () => fireEvent.change(screen.getByLabelText('Copy from a person'), { target: { value: 'kim@shop.com' } })],
 ]
 it.each(pages)('asks on an opened item with a change: %s', async (path, change) => {
   const home = `/apps/access/${path.split('/')[0].replace('people', '')}`
@@ -155,12 +151,12 @@ it('where the router can hold a move, the browser Back button and any link ask t
     { initialEntries: ['/apps/access/', '/apps/access/people/kim@shop.com'], initialIndex: 1 })
   const at = () => router.state.location.pathname
   render(<RouterProvider router={router} />); await screen.findByRole('button', { name: 'Save access' })
-  // A press in Start from is the only change.
-  fireEvent.click(start('Tip calculator')); expect(unloadAsks()).toBe(true)
+  // A tick is the only change.
+  fireEvent.click(app('Tip calculator')); expect(unloadAsks()).toBe(true)
   // Back is held: the panel stays, with its change, until the owner answers.
   await act(async () => { await router.navigate(-1) })
   expect(question()).toBeTruthy(); expect(at()).toBe(KIM)
-  click('Keep editing'); expect(question()).toBeNull(); expect([radio('Tip calculator', 'Look up').checked, pressed('Tip calculator')]).toEqual([true, 'true'])
+  click('Keep editing'); expect(question()).toBeNull(); expect(app('Tip calculator').checked).toBe(true)
   // The panel's own ways out and the views' links are held the same way, by one question.
   click('Cancel'); expect(screen.getAllByRole('alertdialog')).toHaveLength(1); click('Keep editing')
   fireEvent.click(tab('Roles')); expect(screen.getAllByRole('alertdialog')).toHaveLength(1); expect(at()).toBe(KIM); click('Keep editing')
@@ -173,15 +169,4 @@ it('where the router can hold a move, the browser Back button and any link ask t
   await act(async () => { await router.navigate('/apps/access/people/kim@shop.com') }); await screen.findByRole('button', { name: 'Save access' })
   fireEvent.click(radio('Stripe', 'Read & write')); click('Save access')
   await screen.findByText('Saved.'); expect(at()).toBe('/apps/access/'); expect(question()).toBeNull(); expect(posts()).toHaveLength(1)
-})
-
-it("asks before a key whose direct-use choice alone was changed is left, and closes at once when the choice is put back", async () => {
-  roster.keys[1] = key('bank', 'Bank', { direct: { offered: ['read', 'write'], mode: null } })
-  open('keys/bank'); await screen.findByRole('button', { name: 'Save access' })
-  expect([unloadAsks(), radio('Direct use', 'Off').checked]).toEqual([false, true])
-  fireEvent.click(radio('Direct use', 'Look-ups only')); expect([unloadAsks(), !!screen.getByText('Not saved yet')]).toEqual([true, true])
-  click('Cancel'); expect(question()).toBeTruthy(); click('Keep editing'); await moment()
-  expect([question(), where(), radio('Direct use', 'Look-ups only').checked]).toEqual([null, '/apps/access/keys/bank', true])
-  fireEvent.click(radio('Direct use', 'Off')); expect([unloadAsks(), screen.queryByText('Not saved yet')]).toEqual([false, null])
-  click('Cancel'); await closed(); expect([question(), where(), posts()]).toEqual([null, '/apps/access/keys', []])
 })

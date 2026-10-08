@@ -33,18 +33,19 @@ An app has two folders because the main app splits its pages from its server cod
 - **People management stays in core.** A handler is handed no `WONG_ACCESS_LOGIN_MANAGEMENT`, [the live app's key for its sign-in list](employee-access.md#the-key). The Access mini app calls a few fixed core routes that check the owner's signed sign-in; a shared Worker still needs code review before it publishes.
 - **The checks name a bad app.** A folder name that is not an address, a page with no `app.json`, or an `app.json` with no title or description fails the `test` check and names the folder.
 
-### An area with no screen
+### Work with no screen
 
-Work built for skills and assistants alone needs no page. Give it a server folder, `app/worker/apps/<name>/`, and no folder under `app/src/apps/`. Its `api.ts` names it, since no `app.json` does:
+Work built for skills and assistants alone needs no page of its own. Nobody is given it by itself: it sits inside an app or behind a key.
+
+- **Inside an app:** add the action to that app's server folder. [The app's tick](employee-access.md#apps) covers it.
+- **Behind a key:** give it a server folder, `app/worker/apps/<name>/`, with no folder under `app/src/apps/`. Each route lists a saved key, in the folder's `keys` export or the action's own, and [the caller's level for that key](employee-access.md#a-key-with-no-app) decides. The folder is no app: Access and Home don't list it, and its `api.ts` exports no `title` or `description`.
 
 ```ts
-export const title = "Customers";
-export const description = "Look up a customer for a skill.";
+export const keys = ["stripe"];
 export const routes = new Map<string, Route>([["GET lookup", lookup]]);
 ```
 
-- **It is an area like any app.** [Access](employee-access.md#areas-and-their-levels) lists it marked *No screen*, the owner gives it at Look up or Look up & change, and its actions follow that level. Home shows no card for it, and `/apps/<name>/` has no page.
-- **A folder with no screen and no title fails the `test` check**, which names its `api.ts`. So does a main route [mapped to a name](company-api.md#map-business-routes-before-employee-policy) nobody built.
+- **A folder with no screen and a route that lists no key fails `npm test`**, before a publish. The error names the `api.ts` and the two fixes: give the folder a screen, or list a key. So does a main route [mapped to a name](company-api.md#map-business-routes-before-employee-policy) nobody built.
 - **A skill reaches it through the helper**: [build a skill on actions](company-api.md#build-a-skill-on-actions).
 
 ## Build, preview, publish
@@ -69,6 +70,6 @@ Above the list sit a workspace heading and a removable welcome, *Make it yours*.
 
 Every page, each app's included, shares one look from the app's one stylesheet, `app/src/index.css`: the device's font, light or dark to match the device, one frame, neutral surfaces, black or white primary actions, and visible keyboard focus. Every screen is built from one set of ready-made parts, [shadcn](https://ui.shadcn.com)'s, on [Tailwind](https://tailwindcss.com); [the pieces](core-stack.md#the-pieces) says what each is. The frame is one width with one left edge on every page, set in `app/src/Layout.tsx`: Home, each mini app and [Access](access-screens.md#one-frame-on-every-screen) start at the same edge, so nothing jumps sideways between screens. A bar spans the screen above it, its contents in the same frame: the editable WongStack name and colored W mark, which return home, and [*Sign out*](cloudflare-access.md#signing-out) where the site has a sign-in. Ask in chat to change this default identity. A reviewed update preserves or explicitly adapts your own branding. Hello is a card built from those parts, with the name label above the field and the greeting below the action.
 
-In the WongStack source repo, the example app `hello` and [`access`](employee-access.md) are payload, so a change to it is a release. Any other app there, such as `tips` or the screenless `sample` area, is built like in any repo and never ships to other repos.
+In the WongStack source repo, the example app `hello` and [`access`](employee-access.md) are payload, so a change to it is a release. Any other app there, such as `tips`, is built like in any repo and never ships to other repos.
 
 Part of [the Cloudflare stack](README.md).

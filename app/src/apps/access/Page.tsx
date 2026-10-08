@@ -21,14 +21,14 @@ function Held({ pending }: { pending: boolean }) {
   return blocker.state === 'blocked' && <Leave onLeave={blocker.proceed} onStay={blocker.reset} />
 }
 
-/** One person, role, app, skill or key, opened in a panel on the right with its list still in place beside it; on a
+/** One person or role, opened in a panel on the right with its list still in place beside it; on a
  *  phone the panel fills the screen. The address opens it, and closing it goes back to the view's own address: by
  *  the ✕, Escape, a press on the page beside it, or Cancel. Its name is the panel's title, its fields scroll, and
  *  Save and Cancel stay in view under them: Save is the panel's one solid button, with a line above it while a
- *  change waits to be saved. The page beside it stays in use (`modal` off), so the five views and the list's rows
- *  still work. With `changed`, every way out asks first. A panel that is only read has no `onSave`, and no buttons. */
-export function Page({ name, changed = false, action, onSave, extra, children, ...props }: ViewProps & {
-  name: string; changed?: boolean; action?: string; onSave?: () => void; extra?: ReactNode; children: ReactNode
+ *  change waits to be saved. The page beside it stays in use (`modal` off), so the two views and the list's rows
+ *  still work. With `changed`, every way out asks first. */
+export function Page({ name, changed, action, onSave, extra, children, ...props }: ViewProps & {
+  name: string; changed: boolean; action: string; onSave: () => void; extra?: ReactNode; children: ReactNode
 }) {
   const { view, pending } = props
   const navigate = useNavigate()
@@ -45,7 +45,6 @@ export function Page({ name, changed = false, action, onSave, extra, children, .
   const hold = (to: string) => { const asks = changed && !held; if (asks) setLeaving(to); return asks }
   useAsk(hold)
   const close = () => { if (!hold(view.home)) void navigate(view.home) }
-  const fields = <div className="grid min-h-0 flex-1 content-start gap-4 overflow-y-auto px-4 pb-4">{children}</div>
   // The keyboard moving to the page beside the panel closes nothing: only a press there does. A press on a link, a
   // control or a row there is that thing's own to answer: it moves where it says, and the panel does not also go home.
   return <Sheet open modal={false} onOpenChange={close}>
@@ -54,9 +53,9 @@ export function Page({ name, changed = false, action, onSave, extra, children, .
       {changed && held && <Held pending={pending} />}
       {leaving && <Leave onLeave={() => void navigate(leaving)} onStay={() => setLeaving(null)} />}
       <SheetHeader className="pe-12"><SheetTitle className="wrap-anywhere">{name}</SheetTitle></SheetHeader>
-      {onSave ? <form className="flex min-h-0 flex-1 flex-col" onSubmit={event => { event.preventDefault(); onSave() }}>
+      <form className="flex min-h-0 flex-1 flex-col" onSubmit={event => { event.preventDefault(); onSave() }}>
         <fieldset className="flex min-h-0 min-w-0 flex-1 flex-col" disabled={pending}>
-          {fields}
+          <div className="grid min-h-0 flex-1 content-start gap-4 overflow-y-auto px-4 pb-4">{children}</div>
           <SheetFooter className="flex-row flex-wrap gap-2.5 border-t">
             {changed && <p className="basis-full text-sm font-semibold">Not saved yet</p>}
             <Button type="submit">{action}</Button>
@@ -64,7 +63,7 @@ export function Page({ name, changed = false, action, onSave, extra, children, .
             {extra}
           </SheetFooter>
         </fieldset>
-      </form> : fields}
+      </form>
     </SheetContent>
   </Sheet>
 }

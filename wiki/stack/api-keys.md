@@ -35,9 +35,9 @@ Developers who want the details can read [how the assistant sends the link](../d
 
 ## A saved key shows in Access
 
-When the assistant saves a key your app will use, it also adds the key to [the app's key list](../../app/worker/keys.ts): a name you will recognise, such as *Stripe*, and the secret names it covers. From then on the key shows in [Access](access-screens.md#five-views), where you choose who may look things up with it and who may also change things. A check fails before publishing when a secret the app declares is in no key, or in two.
+When the assistant saves a key your app will use, it also adds the key to [the app's key list](../../app/worker/keys.ts): a name you will recognise, such as *Stripe*, and the secret names it covers. From then on the key shows in [Access](access-screens.md#a-panel-has-apps-and-keys), where you open a person or a role and choose whether their assistant may look things up with it by itself, or also change things. An app that uses the key needs no such choice. A check fails before publishing when a secret the app declares is in no key, or in two.
 
-When the service takes one fixed key, the assistant also adds where the service lives and which of its requests only look things up, so the key [can be used directly](company-api.md#use-a-key-directly). Direct use stays *Off* until you pick another choice where the key is opened in Access.
+When the service takes one fixed key, the assistant also adds where the service lives and which of its requests only look things up, so the key [can be used directly](company-api.md#use-a-key-directly). From then on your assistant can use it that way, and so can the assistant of anyone you give a level for it: *Read* looks things up, *Read & write* also changes them. Set a person's level to *None* to stop it.
 
 One key is not a service's: [Project code](employee-project.md#the-owners-one-step-on-github) is a read-only GitHub key for your own project, made once by the owner through the same link, so teammates can install the project.
 
