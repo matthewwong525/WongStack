@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 38.3.0 — See the changed screens before choosing
+
+- **Pictures appear in the chat before the publish choice.** After building, `/apply` shows two useful views of the changed screens, each with a short caption, then asks whether to publish, change more, or save. One view is enough when there is only one useful view.
+- **The preview link stays.** If pictures cannot be taken or no screen changed, the assistant says why and keeps the choice. Asking to build and publish still goes straight through with no extra stop.
+
+**Updating.** Nothing needs doing by hand.
+
 ## 38.2.1 — The build buttons sit in the plan page's bottom bar
 
 - ***Build it* and *Build and publish* are always in view.** Before, they sat under *Ready?* at the foot of the plan page, so on a phone you scrolled past the whole plan to reach them. Now they are in the bar at the bottom of the screen: a second row under *Send notes* on a phone, the same row on a wide screen. The *Ready?* section is gone.

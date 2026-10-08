@@ -14,7 +14,7 @@ A plain request — research, an errand, a reminder, a question — is not a cha
             resume saved work later, on any machine
 ```
 
-Each verb is a WongStack skill that calls the OpenSpec CLI directly (setup runs `openspec init --tools none`). **OpenSpec owns the plan; the WongStack skills own all git**, and OpenSpec never runs git: `/explore`, `/plan`, and `/apply` run none, while `/save`, `/continue`, `/ship`, and `/close` own every branch, PR, and merge. A finished `/apply` [uploads a preview from the agent host](../../.agents/skills/apply/SKILL.md#finish-with-a-preview) and asks whether to publish; the work stays in the working tree until then.
+Each WongStack skill calls the OpenSpec CLI (setup runs `openspec init --tools none`). **OpenSpec owns plans; WongStack skills own all git**: `/explore`, `/plan`, and `/apply` run none; `/save`, `/continue`, `/ship`, and `/close` own branches, PRs, and merges. A finished `/apply` [uploads a preview and shows changed screens in the chat](../../.agents/skills/apply/SKILL.md#finish-with-a-preview) before asking whether to publish; the work stays in the working tree. Pictures unavailable → say why and keep the choice.
 
 **A verb whose precondition is missing invokes the verb before it**, nested, so you can enter anywhere:
 

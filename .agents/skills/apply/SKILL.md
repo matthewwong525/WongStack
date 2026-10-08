@@ -6,12 +6,12 @@ user-invocable: true
 
 # /apply
 
-`/apply` is the **implement stage** of [the change loop](../../../wiki/development/the-change-loop.md), OpenSpec's **apply** step.
+`/apply` implements [the change loop](../../../wiki/development/the-change-loop.md)'s chosen plan.
 
 ## Pick the path by the work
 
-- **The repo's code or process**, including a [mini app](../../../wiki/stack/mini-apps.md) → an apply-ready OpenSpec change: [resolve it below](#resolve-the-plan-first).
-- **No repo file** (research, an errand, a message, a data change in a service) → [the to-do path](#work-that-changes-no-repo-file).
+- **Repo code or process**, including [mini apps](../../../wiki/stack/mini-apps.md) → [resolve the plan](#resolve-the-plan-first).
+- **No repo file** → [work the to-do](#work-that-changes-no-repo-file).
 
 ## Resolve the plan first
 
@@ -24,17 +24,17 @@ Check `applyRequires` in `openspec status --change "<name>" --json`:
 - **No change, clear intent** → invoke `plan` with that intent.
 - **Unclear intent** → ask before any plan or code.
 
-`/apply` authorizes plan-then-implement. After `/plan` returns, verify the `applyRequires` closure; paused or blocked → report and stop. Otherwise announce the change's **exact name** and keep it; no other change may replace it. Then [build in a helper](#build-in-a-helper).
+`/apply` authorizes planning and building. After `/plan`, verify the `applyRequires` closure; paused/blocked → report and stop. Otherwise announce and keep the change's **exact name**, then [build in a helper](#build-in-a-helper).
 
-At **all-tasks-complete**, even at invocation, [finish with a preview](#finish-with-a-preview), unless final live acceptance already saved a CI preview: report it without another upload. **When `/ship` invoked you, return instead**, with no upload and no `/save`; `/ship` archives and makes the one checkpoint.
+At **all-tasks-complete**, even at invocation, [finish with a preview](#finish-with-a-preview). Final acceptance's saved CI preview skips upload, then joins the pictures/report steps. **When `/ship` invoked you, return instead**, with no upload and no `/save`; `/ship` archives and makes the one checkpoint.
 
 ## Build in a helper
 
-Work the tasks in a fresh helper agent, so the build skips this conversation's planning talk: the Agent tool (`general-purpose`) in Claude Code, a sub-agent in Codex, on the parent's model. The prompt is two lines: the exact change name, and *read `$(git rev-parse --show-toplevel)/.claude/skills/apply/references/build-helper.md`, then build*. Add `store <id>` as a third line when a store was selected. [The brief](references/build-helper.md) owns what the helper does and returns.
+Use a fresh helper on the parent's model: Agent (`general-purpose`) in Claude Code, a sub-agent in Codex. Prompt: the exact change name, then *read `$(git rev-parse --show-toplevel)/.claude/skills/apply/references/build-helper.md`, then build*. Add `store <id>` when selected. [The brief](references/build-helper.md) owns its work and return.
 
-**Wait quietly.** Wait for its report with the longest wait the host allows: the Agent call itself in Claude Code, `wait_agent` in Codex. When a wait times out, wait again. Write at most one short line per wait. Read none of the files it edits. Message it only with the person's answer or a stop.
+**Wait quietly** with the longest host wait: the Agent call in Claude Code, `wait_agent` in Codex. Timeouts → wait again; at most one short line per wait. Read none of its edited files; message only the person's answer or a stop.
 
-Before building, move intermediate test gates to the final phase; preserve acceptance obligations and log the timing change, unasked. Finish all source/tests before automatic checks; source completion never claims tests passed. The helper then runs the local checks once: a pre-check, never the gate's result. Explicit early requests stand; unavailable substantive prerequisites remain blockers.
+Move intermediate test gates to the final phase; preserve acceptance and log the timing change, unasked. Finish all source/tests before automatic checks; source completion never claims test passes. Then run local checks once: a pre-check. Explicit early requests stand; unavailable substantive prerequisites block.
 
 Act on reports:
 
@@ -43,7 +43,7 @@ Act on reports:
 - **Final acceptance** → only after all source/tests are authored, run `/save` and retained live acceptance. Tick observed passes; blocked/failed remains unchecked and stops.
 - **All done** → confirm no unticked box, relay its `local checks:` line, then handle **all-tasks-complete** above.
 
-When no helper can start, or this `/apply` already runs inside one, work inline by the brief's *Build* steps and handle each stop here.
+No helper, or already inside one → work inline by the brief's *Build* steps; handle stops here.
 
 ## Finish with a preview
 
@@ -67,9 +67,10 @@ When no helper can start, or this `/apply` already runs inside one, work inline 
    ```
 
    Fix each file marked *needs a reason* without asking: switch the check back on, or add [the `Check:` bullet](../../../wiki/development/the-change-loop.md#a-loosened-check-needs-a-reason). Rerun until it exits 0.
-4. **Report and ask** in [plain words](../explore/references/asking-the-user.md#write-in-plain-words): what was built, the plan's can't-be-undone line if any, [the preview's link](../explore/references/asking-the-user.md#print-the-previews-link), each `Check:` bullet under *Checks loosened* as one plain line (what is no longer checked, and why), and any file you could not fix. End with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step): publish it *(Recommended)* via [`/ship`](../ship/SKILL.md), change it more, or save it via [`/save`](../save/SKILL.md); plus *See the preview* after an upload.
+4. **Show the changed screens** before the question. Use [`/verify`'s plain checks](../verify/SKILL.md#plain-checks) on the exact current preview URL: agent-browser, temporary files, existing privacy safeguards and cleanup; no scout, save or PR comment. Prefer two distinct changed screens; a useful state or phone view can supply the second. One meaningful view → one picture. Open each image with the host image tool (Claude Read, Codex image view), with a short plain caption above it; a file link alone is insufficient. No preview, no changed UI, or capture/access failure → say why, keep any preview link and the choice; never substitute a live page or login screen.
+5. **Report and ask** in [plain words](../explore/references/asking-the-user.md#write-in-plain-words): what was built, any can't-be-undone line, [the preview link](../explore/references/asking-the-user.md#print-the-previews-link), each `Check:` bullet under *Checks loosened* (what is no longer checked, why), and unfixed files. End with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step): publish it *(Recommended)* via [`/ship`](../ship/SKILL.md), change it more, or save via [`/save`](../save/SKILL.md); plus *See the preview* when available.
 
-Each further change repeats these steps under the same alias. Make a small edit here; a change that adds tasks to `tasks.md` goes to a new helper.
+Repeat under the same alias for further edits; added tasks go to a new helper.
 
 ## Work that changes no repo file
 
