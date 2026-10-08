@@ -1,12 +1,12 @@
 {
   "format": "verify-journey-1",
-  "id": "the-employer-leaves-with-unsaved-changes",
+  "id": "the-employer-leaves-without-saving",
   "scenario": {
     "capability": "employee-onboarding",
-    "requirement": "Access never loses an unsaved change silently",
-    "scenario": "The employer leaves with unsaved changes"
+    "requirement": "A person or a role opens to apps and keys",
+    "scenario": "The employer leaves without saving"
   },
-  "thenDigest": "6ca8827cd7e320a3e8ac0b2b07228c3ac3334f2a425f59e65e7efd227ec31dd3",
+  "thenDigest": "736f433efebf4e753c9893ec02195287c09754b9ae030db4d60ba50913ab92f5",
   "probe": "browser",
   "writes": false,
   "sourcePaths": [
@@ -106,24 +106,30 @@
       "Leave without saving?"
     ],
     [
-      "wait",
-      "900"
-    ],
-    [
       "find",
       "role",
       "button",
       "click",
       "--name",
-      "Keep editing"
+      "Leave"
     ],
     [
       "wait",
-      "900"
+      "1000"
     ],
     [
-      "get",
-      "url"
+      "open",
+      "{url}/apps/access/people/eli%40example.invalid"
+    ],
+    [
+      "wait",
+      "--load",
+      "networkidle"
+    ],
+    [
+      "wait",
+      "--text",
+      "Save access"
     ],
     [
       "get",
@@ -133,10 +139,7 @@
   ],
   "expect": [
     {
-      "gone": "Leave without saving?"
-    },
-    {
-      "text": "Not saved yet"
+      "gone": "Not saved yet"
     },
     {
       "text": "Save access"

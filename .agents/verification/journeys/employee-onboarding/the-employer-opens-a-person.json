@@ -1,12 +1,12 @@
 {
   "format": "verify-journey-1",
-  "id": "the-employer-leaves-with-unsaved-changes",
+  "id": "the-employer-opens-a-person",
   "scenario": {
     "capability": "employee-onboarding",
-    "requirement": "Access never loses an unsaved change silently",
-    "scenario": "The employer leaves with unsaved changes"
+    "requirement": "Access lists line up and keep one frame",
+    "scenario": "The employer opens a person"
   },
-  "thenDigest": "6ca8827cd7e320a3e8ac0b2b07228c3ac3334f2a425f59e65e7efd227ec31dd3",
+  "thenDigest": "7fc4054293284141ca04ade19ae0ad3c848833708a8f382bf1c79ada45f576b2",
   "probe": "browser",
   "writes": false,
   "sourcePaths": [
@@ -67,7 +67,7 @@
   "steps": [
     [
       "open",
-      "{url}/apps/access/people/eli%40example.invalid"
+      "{url}/apps/access/"
     ],
     [
       "wait",
@@ -77,20 +77,23 @@
     [
       "wait",
       "--text",
-      "Save access"
+      "dana@example.invalid"
     ],
     [
       "find",
-      "role",
-      "checkbox",
-      "click",
-      "--name",
-      "Tip calculator"
+      "text",
+      "dana@example.invalid",
+      "click"
     ],
     [
       "wait",
       "--text",
-      "Not saved yet"
+      "Save access"
+    ],
+    [
+      "get",
+      "text",
+      "body"
     ],
     [
       "find",
@@ -102,47 +105,25 @@
     ],
     [
       "wait",
-      "--text",
-      "Leave without saving?"
-    ],
-    [
-      "wait",
-      "900"
-    ],
-    [
-      "find",
-      "role",
-      "button",
-      "click",
-      "--name",
-      "Keep editing"
-    ],
-    [
-      "wait",
-      "900"
+      "1000"
     ],
     [
       "get",
       "url"
-    ],
-    [
-      "get",
-      "text",
-      "body"
     ]
   ],
   "expect": [
     {
-      "gone": "Leave without saving?"
+      "text": "People"
     },
     {
-      "text": "Not saved yet"
+      "text": "Roles"
     },
     {
-      "text": "Save access"
+      "gone": "Save access"
     },
     {
-      "path": "/apps/access/people/eli%40example.invalid"
+      "path": "/apps/access/"
     }
   ]
 }

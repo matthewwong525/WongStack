@@ -1,12 +1,12 @@
 {
   "format": "verify-journey-1",
-  "id": "the-employer-leaves-with-unsaved-changes",
+  "id": "a-person-who-could-only-look",
   "scenario": {
     "capability": "employee-onboarding",
-    "requirement": "Access never loses an unsaved change silently",
-    "scenario": "The employer leaves with unsaved changes"
+    "requirement": "Look-only access ends without giving more",
+    "scenario": "A person who could only look"
   },
-  "thenDigest": "6ca8827cd7e320a3e8ac0b2b07228c3ac3334f2a425f59e65e7efd227ec31dd3",
+  "thenDigest": "8630f58d19bb75edbf0beb1167df5a2519b9362ae2747463317e83b02dc762bb",
   "probe": "browser",
   "writes": false,
   "sourcePaths": [
@@ -67,7 +67,7 @@
   "steps": [
     [
       "open",
-      "{url}/apps/access/people/eli%40example.invalid"
+      "{url}/apps/access/"
     ],
     [
       "wait",
@@ -77,53 +77,26 @@
     [
       "wait",
       "--text",
-      "Save access"
-    ],
-    [
-      "find",
-      "role",
-      "checkbox",
-      "click",
-      "--name",
-      "Tip calculator"
-    ],
-    [
-      "wait",
-      "--text",
-      "Not saved yet"
-    ],
-    [
-      "find",
-      "role",
-      "button",
-      "click",
-      "--name",
-      "Cancel"
-    ],
-    [
-      "wait",
-      "--text",
-      "Leave without saving?"
-    ],
-    [
-      "wait",
-      "900"
-    ],
-    [
-      "find",
-      "role",
-      "button",
-      "click",
-      "--name",
-      "Keep editing"
-    ],
-    [
-      "wait",
-      "900"
+      "People"
     ],
     [
       "get",
-      "url"
+      "text",
+      "body"
+    ],
+    [
+      "open",
+      "{url}/apps/access/roles"
+    ],
+    [
+      "wait",
+      "--load",
+      "networkidle"
+    ],
+    [
+      "wait",
+      "--text",
+      "Trainees"
     ],
     [
       "get",
@@ -133,16 +106,16 @@
   ],
   "expect": [
     {
-      "gone": "Leave without saving?"
+      "text": "Unticked in this update"
     },
     {
-      "text": "Not saved yet"
+      "text": "eli@example.invalid: Hello, Tip calculator"
     },
     {
-      "text": "Save access"
+      "text": "Trainees role: Hello"
     },
     {
-      "path": "/apps/access/people/eli%40example.invalid"
+      "path": "/apps/access/roles"
     }
   ]
 }

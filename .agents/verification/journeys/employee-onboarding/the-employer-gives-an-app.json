@@ -1,14 +1,14 @@
 {
   "format": "verify-journey-1",
-  "id": "the-employer-leaves-with-unsaved-changes",
+  "id": "the-employer-gives-an-app",
   "scenario": {
     "capability": "employee-onboarding",
-    "requirement": "Access never loses an unsaved change silently",
-    "scenario": "The employer leaves with unsaved changes"
+    "requirement": "A person or a role opens to apps and keys",
+    "scenario": "The employer gives an app"
   },
-  "thenDigest": "6ca8827cd7e320a3e8ac0b2b07228c3ac3334f2a425f59e65e7efd227ec31dd3",
+  "thenDigest": "e4fae5f00bbc488df88294881008cc3fd660e9a59d1592d365f1905a3a41e392",
   "probe": "browser",
-  "writes": false,
+  "writes": true,
   "sourcePaths": [
     ".agents/skills/sample-report/SKILL.md",
     ".agents/skills/sample-report/actions.json",
@@ -85,7 +85,7 @@
       "checkbox",
       "click",
       "--name",
-      "Tip calculator"
+      "Hello"
     ],
     [
       "wait",
@@ -98,32 +98,31 @@
       "button",
       "click",
       "--name",
-      "Cancel"
+      "Save access"
     ],
     [
       "wait",
       "--text",
-      "Leave without saving?"
-    ],
-    [
-      "wait",
-      "900"
-    ],
-    [
-      "find",
-      "role",
-      "button",
-      "click",
-      "--name",
-      "Keep editing"
-    ],
-    [
-      "wait",
-      "900"
+      "Saved"
     ],
     [
       "get",
-      "url"
+      "text",
+      "body"
+    ],
+    [
+      "open",
+      "{url}/apps/access/people/eli%40example.invalid"
+    ],
+    [
+      "wait",
+      "--load",
+      "networkidle"
+    ],
+    [
+      "wait",
+      "--text",
+      "Save access"
     ],
     [
       "get",
@@ -133,13 +132,13 @@
   ],
   "expect": [
     {
-      "gone": "Leave without saving?"
+      "text": "Tip calculator"
     },
     {
-      "text": "Not saved yet"
+      "gone": "Unticked in this update"
     },
     {
-      "text": "Save access"
+      "gone": "!"
     },
     {
       "path": "/apps/access/people/eli%40example.invalid"
