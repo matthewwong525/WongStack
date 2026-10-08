@@ -51,7 +51,6 @@ The *Key* is the group's name in a dashboard template link: [the token link](../
 | `Access: Organizations, Identity Providers, and Groups Write` | account | organization and email login | `bfe0d8686a584fa680f4c53b5eb0de6d` |
 | `Access: Service Tokens Write` | account | separate machine authentication | `a1c0fec57cf94af79479a6d827fa518c` |
 | `Zero Trust Write` | account | private workspace setup | `b33f02c6f7284e05a6f20741c0bb0567` |
-| `Browser Run Write` | account | the cloud browser, for sites that block the agent's own | `adddda876faa4a0590f1b23a038976e4` |
 
 ### The CI deploy token
 

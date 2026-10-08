@@ -117,3 +117,17 @@ A private link (the password link, the key link, or a private form) SHALL be the
 
 - **WHEN** a task needs its first private link on a computer readied by setup
 - **THEN** the link opens with no install step and no question
+
+### Requirement: Personal browsing adds one browser on first use
+
+Browsing as the person SHALL need one tool beyond `/verify`'s: the personal browser, installed into the person's home folder the first time a browsing task needs it, with the versions WongStack has tried and no others. Before installing, the agent SHALL ask once, naming the disk and memory it needs. It SHALL add nothing to the repository and SHALL need no admin password.
+
+#### Scenario: A first errand
+
+- **WHEN** a task first needs to browse as the person on a machine without the personal browser
+- **THEN** the agent says what the install needs, asks, installs it into the home folder, and carries on with the task
+
+#### Scenario: A later errand
+
+- **WHEN** a later task browses as the person
+- **THEN** it asks nothing and installs nothing

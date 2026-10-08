@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { connect } from 'node:net';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -8,66 +8,48 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { checkLogins, chooseName, hostOf, LIMITS, slug } from '../../.agents/skills/hand-over/scripts/passwords.mjs';
 import { parseExport, siteUrl } from '../../.agents/skills/hand-over/scripts/passwords-page.mjs';
+import { readLogins } from '../../.agents/skills/browser/scripts/logins.mjs';
+import { BROWSE_ENV, fakeCamofox } from './fixtures/fake-camofox.mjs';
 import { fakeTunnel, TUNNEL_ENV } from './fixtures/fake-tunnel.mjs';
 
 const legacyOutput = text => text.replace(/^HANDOVER_(COMPLETION|NOTIFICATION)=.*\n/gm, '');
 const legacyResult = ({ completionId: _completionId, notification: _notification, ready: _ready, ...result }) => result;
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const script = join(repo, '.agents/skills/hand-over/scripts/hand-over.mjs');
+const browse = join(repo, '.agents/skills/browser/scripts/browse.mjs');
 const KEY = /#key=([0-9a-f]{64})$/m;
 const SECRET = 'hunter2-Secret!';
 
-// A HOME of its own, and a fake agent-browser and tunnel tool first on PATH. agent-browser logs each
-// call's argv to calls.log, and keeps a vault in vault.json with the password it read from stdin;
-// `auth list --json` prints agent-browser 0.38.1's shape. A password of `fail` fails its save; a
-// `fail-list` file fails the list. `form` is a small private form's file, for the one-link-at-a-time test.
+// A HOME of its own, a fake tunnel tool first on PATH, and a fake camofox install with a page open in
+// the default browser session, for the one-link-at-a-time test's private form. `vault()` is the saved
+// logins file; `form` is a small private form's file.
 function fixture(t) {
   const root = mkdtempSync(join(tmpdir(), 'wong-test-passwords-'));
   const bin = join(root, 'bin');
   mkdirSync(bin);
   const file = name => join(root, name);
-  writeFileSync(join(bin, 'agent-browser'), `#!${process.execPath}
-const { appendFileSync, existsSync, readFileSync, writeFileSync } = require('node:fs');
-const args = process.argv.slice(2);
-appendFileSync(${JSON.stringify(file('calls.log'))}, 'agent-browser ' + args.join(' ') + '\\n');
-const vaultFile = ${JSON.stringify(file('vault.json'))};
-const vault = existsSync(vaultFile) ? JSON.parse(readFileSync(vaultFile, 'utf8')) : [];
-const flag = name => args[args.indexOf(name) + 1];
-const say = data => console.log(JSON.stringify({ success: true, data, error: null }));
-switch (args.slice(0, 2).join(' ')) {
-  case 'auth list':
-    if (existsSync(${JSON.stringify(file('fail-list'))})) process.exit(1);
-    say({ profiles: vault.map(({ name, url, username }) => ({ name, url, username })) });
-    break;
-  case 'auth save': {
-    const password = readFileSync(0, 'utf8');
-    if (password === 'blocked') Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10000);
-    if (password === 'fail') { console.error('✗ Failed to save'); process.exit(1); }
-    writeFileSync(vaultFile, JSON.stringify([...vault.filter(p => p.name !== args[2]), { name: args[2], url: flag('--url'), username: flag('--username'), password }]));
-    console.log('✓ Saved ' + args[2]);
-    break;
-  }
-  case 'tab list': say({ tabs: [] }); break;
-  case 'stream status': say({ connected: true, enabled: true, port: 9 }); break;
-}
-`);
-  chmodSync(join(bin, 'agent-browser'), 0o755);
+  const camofox = fakeCamofox(root);
   fakeTunnel(bin, file('tunnel.log'));
-  writeFileSync(file('form.json'), JSON.stringify({ title: 'Pay', fields: [{ label: 'Card number', target: '@e1' }], submit: { label: 'Pay', target: '@e2' } }));
-  const env = { ...process.env, ...TUNNEL_ENV, HOME: root, PATH: `${bin}:/usr/bin:/bin`, HANDOVER_POLL_MS: '50' };
-  const run = (...args) => { const out = spawnSync(process.execPath, [script, ...args], { env, encoding: 'utf8', timeout: 30_000 }); return { ...out, rawStdout: out.stdout, stdout: legacyOutput(out.stdout) }; };
+  writeFileSync(file('form.json'), JSON.stringify({ title: 'Pay', fields: [{ label: 'Card number', target: 'e1' }], submit: { label: 'Pay', target: 'e2' } }));
+  const env = { ...process.env, ...TUNNEL_ENV, ...BROWSE_ENV, HOME: root, PATH: `${bin}:/usr/bin:/bin`, HANDOVER_POLL_MS: '50' };
+  const run = (...args) => { const out = spawnSync(process.execPath, [script, ...args], { cwd: root, env, encoding: 'utf8', timeout: 30_000 }); return { ...out, rawStdout: out.stdout, stdout: legacyOutput(out.stdout) }; };
   const state = join(root, '.wong-stack/hand-over');
+  const logins = join(root, '.wong-stack/logins.json');
   t.after(() => {
     run('close');
+    camofox.stop();
     rmSync(root, { recursive: true, force: true });
   });
   return {
     run,
     state,
+    logins,
+    camofox,
     form: file('form.json'),
-    set: (name, value) => writeFileSync(file(name), value),
-    calls: () => (existsSync(file('calls.log')) ? readFileSync(file('calls.log'), 'utf8').trim().split('\n').filter(Boolean) : []),
-    vault: () => (existsSync(file('vault.json')) ? JSON.parse(readFileSync(file('vault.json'), 'utf8')) : []),
+    /** Opens a page in the default browser session, so a private form has one to work on. */
+    openPage: () => assert.equal(spawnSync(process.execPath, [browse, 'open', 'https://pay.example.com/card'], { cwd: root, env, encoding: 'utf8', timeout: 30_000 }).status, 0),
+    watcherPid: () => Number(readFileSync(join(state, 'watcher.pid'), 'utf8')),
+    vault: () => readLogins(logins),
     stateFiles: () => (existsSync(state) ? readdirSync(state).map(name => readFileSync(join(state, name), 'utf8')).join('\n') : ''),
   };
 }
@@ -96,7 +78,7 @@ test('open --passwords serves the password page and touches no browser page', as
   const f = fixture(t);
   const { port, key } = opened(f, '--passwords');
   assert.match(key, /^[0-9a-f]{64}$/);
-  assert.deepEqual(f.calls(), [], 'no live feed, and nothing read from a page');
+  assert.equal(f.camofox.starts(), 0, 'no browser started, and nothing read from a page');
   const page = await fetch(`http://127.0.0.1:${port}/`);
   assert.match(await page.text(), /Save logins for your agent/);
   assert.match((await fetch(`http://127.0.0.1:${port}/page.mjs`)).headers.get('content-type'), /javascript/);
@@ -109,11 +91,12 @@ test('open --passwords serves the password page and touches no browser page', as
     socket.on('data', chunk => { text += chunk; socket.destroy(); }).on('close', () => done(text));
   });
   assert.match(upgrade, /^HTTP\/1\.1 404/, 'no live feed');
-  assert.deepEqual(f.calls(), []);
+  assert.equal(f.camofox.starts(), 0);
 });
 
 test('a password link refuses to open while a private form is open, and the reverse', t => {
   const f = fixture(t);
+  f.openPage();
   const form = ['--form', f.form, '--until', '**/receipt/*'];
   opened(f, ...form);
   const passwords = f.run('open', '--passwords');
@@ -122,11 +105,11 @@ test('a password link refuses to open while a private form is open, and the reve
   assert.equal(f.run('close').stdout.trim(), 'HANDOVER_RESULT=closed');
 
   opened(f, '--passwords');
-  const before = f.calls().length;
+  const before = f.camofox.requests().length;
   const refused = f.run('open', ...form);
   assert.equal(refused.status, 1);
   assert.match(refused.stderr, /already open/);
-  assert.deepEqual(f.calls().slice(before), [], 'the refused form touched nothing');
+  assert.equal(f.camofox.requests().length, before, 'the refused form touched nothing');
 });
 
 test('--passwords takes no --until or --until-gone', t => {
@@ -135,7 +118,7 @@ test('--passwords takes no --until or --until-gone', t => {
   assert.equal(f.run('open', '--passwords', '--until-gone', '#x').status, 2);
 });
 
-test('POST /save needs the key and refuses a bad or over-limit body before calling agent-browser', async t => {
+test('POST /save needs the key and refuses a bad or over-limit body before writing anything', async t => {
   const f = fixture(t);
   const { port, key } = opened(f, '--passwords');
   const good = { logins: [login('https://www.netflix.com/login', 'me@mail.com')] };
@@ -150,38 +133,50 @@ test('POST /save needs the key and refuses a bad or over-limit body before calli
   const many = { logins: Array.from({ length: LIMITS.logins + 1 }, (_, i) => login(`https://s${i}.example.com`, 'me')) };
   assert.equal((await route(port, key, 'save', many)).status, 413, 'too many logins');
   assert.equal((await route(port, key, 'save', { logins: [login('https://a.example.com', 'me')], pad: 'x'.repeat(LIMITS.body) })).status, 413, 'too big a body');
-  assert.deepEqual(f.calls(), [], 'nothing reached agent-browser');
-  assert.deepEqual(f.vault(), []);
+  assert.ok(!existsSync(f.logins), 'nothing was written');
 });
 
-test('POST /save sends the password only on stdin, replaces a repeat, and numbers a second account', async t => {
+test('POST /save writes a first login to a private file, replaces a repeat, and numbers a second account', async t => {
   const f = fixture(t);
-  f.set('vault.json', JSON.stringify([{ name: 'costco-com', url: 'https://www.costco.com/', username: 'me@mail.com', password: 'old' }]));
   const { port, key } = opened(f, '--passwords');
-  const first = await route(port, key, 'save', { logins: [login('https://www.netflix.com/login', 'me@mail.com'), login('https://netflix.com/', 'kid@mail.com'), login('https://costco.com/login', 'me@mail.com', 'new-costco')] });
-  assert.deepEqual(first, { status: 200, json: { saved: [{ name: 'netflix-com', host: 'netflix.com' }, { name: 'netflix-com-2', host: 'netflix.com' }, { name: 'costco-com', host: 'costco.com' }], failed: [] } });
-  assert.deepEqual(f.calls(), [
-    'agent-browser auth list --json',
-    'agent-browser auth save netflix-com --url https://www.netflix.com/login --username me@mail.com --password-stdin',
-    'agent-browser auth save netflix-com-2 --url https://netflix.com/ --username kid@mail.com --password-stdin',
-    'agent-browser auth save costco-com --url https://costco.com/login --username me@mail.com --password-stdin',
-  ]);
+  const first = await route(port, key, 'save', { logins: [login('https://www.costco.com/', 'me@mail.com', 'old')] });
+  assert.deepEqual(first, { status: 200, json: { saved: [{ name: 'costco-com', host: 'costco.com' }], failed: [] } });
+  assert.deepEqual(f.vault(), [{ name: 'costco-com', url: 'https://www.costco.com/', username: 'me@mail.com', password: 'old' }], 'a first save makes the file');
+  assert.equal(statSync(f.logins).mode & 0o777, 0o600, 'only the person\'s user reads it');
+  assert.equal(statSync(dirname(f.logins)).mode & 0o777, 0o700);
+
+  const more = await route(port, key, 'save', { logins: [login('https://www.netflix.com/login', 'me@mail.com'), login('https://netflix.com/', 'kid@mail.com'), login('https://costco.com/login', 'me@mail.com', 'new-costco')] });
+  assert.deepEqual(more, { status: 200, json: { saved: [{ name: 'netflix-com', host: 'netflix.com' }, { name: 'netflix-com-2', host: 'netflix.com' }, { name: 'costco-com', host: 'costco.com' }], failed: [] } });
   const again = await route(port, key, 'save', { logins: [login('https://login.netflix.com/', 'kid@mail.com', 'changed'), login('https://netflix.com/', 'third@mail.com')] });
   assert.deepEqual(again.json.saved.map(saved => saved.name), ['login-netflix-com', 'netflix-com-3'], 'another host gets its own name; a third account gets -3');
   const byName = Object.fromEntries(f.vault().map(entry => [entry.name, entry]));
   assert.equal(byName['costco-com'].password, 'new-costco', 'the same host and username replaced the old password');
+  assert.equal(byName['costco-com'].url, 'https://costco.com/login');
   assert.equal(Object.keys(byName).length, 5);
-  assert.equal(byName['netflix-com'].password, SECRET, 'the password arrived on stdin');
-  assert.ok(!f.calls().some(line => line.includes(SECRET) || line.includes('new-costco')), 'no password in argv');
+  assert.equal(f.vault().length, 5, 'a replaced login is not kept twice');
+  assert.deepEqual(byName['netflix-com'], { name: 'netflix-com', url: 'https://www.netflix.com/login', username: 'me@mail.com', password: SECRET });
+  assert.equal(statSync(f.logins).mode & 0o777, 0o600, 'a replaced file keeps its mode');
+  assert.deepEqual(readdirSync(dirname(f.logins)).filter(name => name.startsWith('logins.json')), ['logins.json'], 'no half-written copy is left');
   assert.ok(!f.stateFiles().includes(SECRET), 'no password in the link\'s files or log');
+  assert.equal(f.camofox.starts(), 0, 'saving a login starts no browser');
 });
 
-test('a failed save names its index, and a failed list answers 503', async t => {
+test('a login whose write fails names its index, and a file that can not be read answers 503', async t => {
   const f = fixture(t);
   const { port, key } = opened(f, '--passwords');
-  const { json } = await route(port, key, 'save', { logins: [login('https://a.example.com', 'me', 'fail'), login('https://b.example.com', 'me')] });
-  assert.deepEqual(json, { saved: [{ name: 'b-example-com', host: 'b.example.com' }], failed: [0] });
-  f.set('fail-list', '');
+  await route(port, key, 'save', { logins: [login('https://a.example.com', 'me')] });
+  // The one-step write goes through a partial file named for the watcher; a folder in its place fails it.
+  const partial = `${f.logins}.${f.watcherPid()}.tmp`;
+  mkdirSync(partial);
+  const { status, json } = await route(port, key, 'save', { logins: [login('https://b.example.com', 'me'), login('https://c.example.com', 'me')] });
+  assert.equal(status, 200);
+  assert.deepEqual(json, { saved: [], failed: [0, 1] });
+  assert.deepEqual(f.vault().map(entry => entry.name), ['a-example-com'], 'the file keeps what it held');
+  rmSync(partial, { recursive: true });
+  const retried = await route(port, key, 'save', { logins: [login('https://b.example.com', 'me')] });
+  assert.deepEqual(retried.json, { saved: [{ name: 'b-example-com', host: 'b.example.com' }], failed: [] });
+
+  writeFileSync(f.logins, '{"not": "a list"}');
   assert.equal((await route(port, key, 'save', { logins: [login('https://c.example.com', 'me')] })).status, 503);
 });
 
@@ -205,7 +200,7 @@ test('closing a password link with nothing saved prints an empty list', t => {
   assert.equal(f.run('close').stdout, 'HANDOVER_RESULT=closed\nHANDOVER_SAVED=\n');
 });
 
-test('slug, hostOf, and chooseName name logins as the vault allows', () => {
+test('slug, hostOf, and chooseName name each saved login', () => {
   assert.equal(slug('www.Netflix.com'), 'netflix-com');
   assert.equal(slug('my_bank.co.uk'), 'my-bank-co-uk');
   assert.equal(slug('...'), 'login');
@@ -274,9 +269,13 @@ test('parseExport gives null for a file that is not an export, and none for an e
 
 test('continue persists only submitted selection, retains partial successes, and returns a terminal receipt once', async t => {
   const f = fixture(t); const {port,key} = opened(f,'--passwords');
-  const partial = await route(port,key,'continue',{logins:[login('https://a.example.com','me'),login('https://b.example.com','me','fail')]});
-  assert.equal(partial.json.ready,false); assert.deepEqual(partial.json.failed,[1]);
+  await route(port,key,'save',{logins:[login('https://a.example.com','me')]});
+  const partial = `${f.logins}.${f.watcherPid()}.tmp`;
+  mkdirSync(partial);
+  const failed = await route(port,key,'continue',{logins:[login('https://b.example.com','me')]});
+  assert.equal(failed.json.ready,false); assert.deepEqual(failed.json.failed,[0]);
   assert.deepEqual(f.vault().map(p=>p.name),['a-example-com']);
+  rmSync(partial, { recursive: true });
   const complete = await route(port,key,'continue',{logins:[login('https://b.example.com','me')]});
   assert.equal(complete.json.ready,true); assert.equal(complete.json.receipt.notification,'unavailable');
   assert.deepEqual(complete.json.receipt.saved,['a-example-com','b-example-com']);
@@ -301,18 +300,5 @@ test('continue drains an earlier legacy save and close racing completion cannot 
   await saved;
   const [complete,closed]=await Promise.all([route(port,key,'continue',{logins:[]}),route(port,key,'done',{})]);
   assert.equal(complete.json.ready,true); assert.equal(closed.status,410);
-  assert.equal(f.calls().filter(call=>call.includes('auth save')).length,1);
-});
-
-
-test('cancellation aborts a blocked save and refuses queued completion within a bounded cleanup window', async t => {
-  const f=fixture(t); const {port,key}=opened(f,'--passwords');
-  const saving=route(port,key,'save',{logins:[login('https://slow.example.com','me','blocked')]}).catch(()=>null);
-  for(let i=0;i<100&&!f.calls().some(call=>call.includes('auth save'));i++) await new Promise(done=>setTimeout(done,10));
-  assert.ok(f.calls().some(call=>call.includes('auth save')));
-  const start=Date.now();f.run('close');assert.ok(Date.now()-start<5000);
-  await saving;
-  const result=JSON.parse(readFileSync(join(f.state,'result.json'),'utf8'));
-  assert.equal(result.result,'closed');assert.equal(result.ready,false);assert.equal(result.notification,'not-requested');
-  assert.deepEqual(f.vault(),[]);
+  assert.deepEqual(f.vault().map(p=>p.name),['a-example-com'],'the login was saved once');
 });

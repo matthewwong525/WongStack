@@ -1,35 +1,26 @@
 // The password link's routes, mounted by `hand-over.mjs open --passwords`, which checks the key first.
 //
 // `POST /save` takes `{logins: [{url, username, password}]}`, at most 500 logins, a 256 KB body, and
-// 1,024 characters a field. It reads `agent-browser auth list --json` once, names each login (the same
-// host and username reuse their name, so a new password replaces the old; otherwise `slug(host)`, then
-// `-2`, `-3` for another account), and runs `agent-browser auth save <name> --url <url> --username
-// <user> --password-stdin` through execFile with the password on stdin only. It replies
-// `{saved: [{name, host}], failed: [index]}`, the indexes into the request's logins. `POST /done` ends
-// the link. Nothing here logs, and no password reaches argv, env, or a file.
+// 1,024 characters a field. It reads the saved logins file once (logins.mjs owns it:
+// `~/.wong-stack/logins.json`, mode 0600 in a 0700 folder), names each login (the same host and
+// username reuse their name, so a new password replaces the old; otherwise `slug(host)`, then `-2`,
+// `-3` for another account), and replaces the file in one step for each. It replies
+// `{saved: [{name, host}], failed: [index]}`, the indexes into the request's logins; a file that can
+// not be read answers 503. `POST /done` ends the link. Nothing here logs, and no password reaches
+// argv, env, or any other file.
 
-import { execFile } from 'node:child_process';
+import { hostOf, readLogins, writeLogins } from '../../browser/scripts/logins.mjs';
 
+export { hostOf };
 export const LIMITS = { logins: 500, body: 256 * 1024, field: 1024 };
 export const PASSWORD_ROUTES = new Set(['/save', '/continue', '/done']);
-const TOOL_TIMEOUT_MS = 15_000;
 
-/** A URL's host, lowercased, with `www.` stripped; '' when it isn't an http(s) URL. */
-export function hostOf(url) {
-  try {
-    const { protocol, hostname } = new URL(url);
-    return /^https?:$/.test(protocol) ? hostname.toLowerCase().replace(/^www\./, '') : '';
-  } catch {
-    return '';
-  }
-}
-
-/** The vault name for a host: each run of anything but letters and digits becomes `-`. */
+/** The name a host's login saves under: each run of anything but letters and digits becomes `-`. */
 export function slug(host) {
   return host.toLowerCase().replace(/^www\./, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'login';
 }
 
-/** The name a login saves under, given the vault's `{name, url, username}` profiles. */
+/** The name a login saves under, given the saved `{name, url, username}` logins. */
 export function chooseName(profiles, { host, username }) {
   const same = profiles.find(profile => hostOf(profile.url) === host && profile.username === username);
   if (same) return same.name;
@@ -79,44 +70,18 @@ function reply(response, status, body) {
   response.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store', 'content-length': Buffer.byteLength(text) }).end(text);
 }
 
-/** Runs agent-browser with `input` on stdin; resolves to stdout, or null when it fails. */
-const children = new Set();
-const abortTools = () => { for (const child of children) child.kill('SIGKILL'); };
-
-function tool(args, input = '') {
-  return new Promise(done => {
-    const child = execFile('agent-browser', args, { encoding: 'utf8', timeout: TOOL_TIMEOUT_MS }, (error, stdout) => done(error ? null : stdout));
-    children.add(child);
-    child.once('close', () => children.delete(child));
-    child.stdin.on('error', () => {});
-    child.stdin.end(input);
-  });
-}
-
-/** The vault's `{name, url, username}` profiles, or null when agent-browser can't list them. */
-async function profiles() {
-  try {
-    const list = JSON.parse((await tool(['auth', 'list', '--json'])) ?? '').data?.profiles;
-    return Array.isArray(list) ? list : null;
-  } catch {
-    return null;
-  }
-}
-
-/** Saves each login in order, so a second account in one request sees the first's name taken. */
-async function saveAll(logins, onSaved, isOpen) {
-  const vault = await profiles();
-  if (!vault) return null;
+/** Saves each login in order, so a second account in one request sees the first's name taken. Null when the file can not be read. */
+function saveAll(logins, onSaved, isOpen) {
+  let file;
+  try { file = readLogins(); } catch { return null; }
   const saved = [];
   const failed = [];
   for (const [index, { url, username, password, host }] of logins.entries()) {
     if (!isOpen()) { failed.push(...logins.slice(index).map((_, at) => at + index)); break; }
-    const name = chooseName(vault, { host, username });
-    if ((await tool(['auth', 'save', name, '--url', url, '--username', username, '--password-stdin'], password)) === null) {
-      failed.push(index);
-      continue;
-    }
-    if (!vault.some(profile => profile.name === name)) vault.push({ name, url, username });
+    const name = chooseName(file, { host, username });
+    const next = [...file.filter(login => login.name !== name), { name, url, username, password }];
+    try { writeLogins(next); } catch { failed.push(index); continue; }
+    file = next;
     saved.push({ name, host });
     onSaved(name);
   }
@@ -162,6 +127,5 @@ export function passwordRoutes({ onSaved = () => {}, onDone = () => {}, onContin
     reply(response, 200, { ...outcome.result, ...(pathname === '/continue' && { ready: outcome.ready, ...(receipt && { receipt }) }) });
   };
   route.drain = () => queue;
-  route.abort = abortTools;
   return route;
 }
