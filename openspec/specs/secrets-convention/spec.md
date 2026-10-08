@@ -132,8 +132,7 @@ When a private key link requests several keys, it SHALL remain usable until all 
 - **THEN** the two saved keys are reported by name and one automatic completion notification is attempted for the requesting workspace
 
 ### Requirement: The key link waits for the person
-
-A key link SHALL stay open for 30 minutes from when it is sent, and its page SHALL show the time left. A key link nobody has opened SHALL close at once when another private link is opened on the same computer; the agent SHALL then say the link closed and offer a new one. An opened key link SHALL keep its place: a second link SHALL NOT open until it ends.
+A key link SHALL stay open for eight hours by default from when it is opened, and its page SHALL show the time left. An explicit time override SHALL be honored. A key link nobody has opened SHALL close at once when another private link is opened on the same computer; the agent SHALL then say the link closed and offer a new one. An opened key link SHALL keep its place: a second link SHALL NOT open until it ends.
 
 #### Scenario: A slow sign-in at the service
 
@@ -188,12 +187,11 @@ The page SHALL offer a one-tap paste where the person's browser allows it, and S
 - **THEN** the page says to paste into the field by hand, and a hand-pasted multi-line key keeps its line breaks
 
 ### Requirement: An unsaved key link says what happened
-
 When a key link ends with nothing saved, the agent SHALL learn whether the person ever opened it and, when it closed for another private link, which workspace opened that link. The agent SHALL say which happened before it offers a new link, and SHALL NOT send another link to a person who never opened the last one without asking whether it loaded. What the agent learns SHALL hold no key value, private address, or page content.
 
 #### Scenario: A link that ran out unopened
 
-- **WHEN** a key link reaches its 30 minutes and nobody opened it
+- **WHEN** a key link reaches its default eight hours and nobody opened it
 - **THEN** the agent says nobody opened it and asks whether the link loaded, before any new link
 
 #### Scenario: Another chat's link took its place
