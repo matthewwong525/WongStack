@@ -3,6 +3,18 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 37.4.0 — Send plan notes straight to the chat
+
+- **A plan opens as a live link, and its button sends your notes to the chat.** Before, your notes took three steps: tap *Copy notes*, switch to the chat, paste. Now the chat prints a web address for the plan, and *Send notes* on that page puts your saved notes into the chat that made the plan, as if you had pasted them. The chat updates the plan and builds nothing.
+- **Saving a note no longer copies on a live link.** One tap on *Send notes* sends every note not yet sent, and each sent note is marked *Sent*, so a second tap sends nothing twice.
+- **A link stays open for 8 hours, and a closed one costs you nothing.** When the link has closed, or the chat can't be reached, the same tap copies your notes and says so, and you paste them as before. Say *new link* and the chat prints a fresh one.
+- **Every plan gets one.** The first plan of the day takes 5 to 10 seconds longer to print its link. Later plans, from any chat on the same computer, share that connection and print at once.
+- **Where a chat can't be woken, nothing changes.** A setup with no way to send a chat a message, or a computer without Cloudflare's tunnel tool, still gets the plan as a file with *Copy notes*. Nothing asks you to install anything.
+- **Key, password, and card links are untouched.** A plan link has its own place, so it never blocks one of those, and their rule stays: nothing typed into them reaches the chat. Never send a password or a key through a plan's page.
+- **Other pages can open the same way.** Any single page with one *Submit* button can send its answers to the chat that made it. [Reply links](wiki/development/reply-links.md) says how.
+
+**Updating.** Nothing needs doing by hand. A plan made before the update keeps *Copy notes* until your assistant builds its page again. WongOS's mail review page can now open the same way; that page is built there, not here.
+
 ## 37.3.0 — An assistant can use a saved key directly, when you switch it on
 
 - **A saved key can now be used directly, through the app.** Before, a teammate's assistant could only do work with a service that someone had already built into the app, so every new question needed a build first. Now the assistant can ask the app to pass one request on to the service. The app checks the person's level for that key, adds the key itself, and returns the answer. The key never reaches the person's device, and each use is recorded with who made it.

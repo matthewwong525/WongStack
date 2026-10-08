@@ -66,11 +66,10 @@
 // the 60-second wait after a send, HANDOVER_TUNNEL_WAIT_MS the 30-second tunnel wait, and
 // HANDOVER_PROBE_ORIGIN the address asked before the link prints, `{port}` standing for the page's port.
 
-import { execFile, spawn, spawnSync } from 'node:child_process';
-import { randomBytes, timingSafeEqual } from 'node:crypto';
-import { closeSync, existsSync, mkdirSync, openSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { execFile, spawn } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
-import { createServer as createTcpServer } from 'node:net';
 import { homedir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -79,9 +78,12 @@ import { isMain } from '../../memory/scripts/lib/cli.mjs';
 import { primaryRoot } from '../../memory/scripts/lib/primary-root.mjs';
 import { checkForm, FORM_ROUTES, formRoutes, openFeed, sendForm } from './form.mjs';
 import { APP_FILE, checkGuide, KEY_ROUTES, keyRoutes, LIMITS as KEY_LIMITS, NAME as KEY_NAME, resolveKeys } from './keys.mjs';
-import { findPaseo } from '../../routine/scripts/lib/paseo.mjs';
+import { alive, freePort, hasCloudflared, keyMatches, killTunnel, linkAnswers, signal, startTunnel } from './lib/tunnel.mjs';
+import { chatTarget, wakeChat } from './lib/wake.mjs';
 import { hostOf, LIMITS as PASSWORD_LIMITS, PASSWORD_ROUTES, passwordRoutes } from './passwords.mjs';
 import { siteUrl } from './passwords-page.mjs';
+
+export { keyMatches, tunnelOrigin } from './lib/tunnel.mjs';
 
 const USAGE = `usage: hand-over.mjs open --form <file> (--until <glob> | --until-gone <selector>) [--minutes N]
        hand-over.mjs open --passwords [--site <url>] [--username <user>] [--minutes N]
@@ -109,9 +111,6 @@ const USAGE = `usage: hand-over.mjs open --form <file> (--until <glob> | --until
   close   close an open link (the person said done)`;
 const TUNNEL_WAIT_MS = Number(process.env.HANDOVER_TUNNEL_WAIT_MS) || 30_000;
 const PAGE_WAIT_MS = 10_000;
-const PROBE_TIMEOUT_MS = 5000;
-const PROBE_EVERY_MS = 500;
-const PROBE_ORIGIN = process.env.HANDOVER_PROBE_ORIGIN;
 const TOOL_TIMEOUT_MS = 15_000;
 const POLL_MS = Number(process.env.HANDOVER_POLL_MS) || 2000;
 const SEND_WAIT_MS = Number(process.env.HANDOVER_SEND_WAIT_MS) || 60_000;
@@ -140,11 +139,6 @@ export function globToRegExp(glob) {
   return new RegExp(`^${body}$`);
 }
 
-/** The first quick-tunnel origin in cloudflared's log, or null. */
-export function tunnelOrigin(log) {
-  return /https:\/\/[a-z0-9-]+\.trycloudflare\.com/.exec(log)?.[0] ?? null;
-}
-
 /** True when the finish is met: every named check holds, and at least one was named. */
 export function finished({ until, untilGone }, { url, count }) {
   if (!until && !untilGone) return false;
@@ -153,23 +147,11 @@ export function finished({ until, untilGone }, { url, count }) {
   return true;
 }
 
-/** True when `given` is the link's key, compared in constant time. */
-export function keyMatches(given, key) {
-  const a = Buffer.from(String(given ?? ''));
-  const b = Buffer.from(key);
-  return a.length === b.length && timingSafeEqual(a, b);
-}
-
 // ---------------------------------------------------------------------------
 // Files and processes
 
 const readJson = file => { try { return JSON.parse(readFileSync(file, 'utf8')); } catch { return null; } };
 const readText = file => { try { return readFileSync(file, 'utf8'); } catch { return ''; } };
-
-function alive(pid) {
-  if (!pid) return false;
-  try { process.kill(pid, 0); return true; } catch (error) { return error.code === 'EPERM'; }
-}
 
 const watcherPid = () => Number(readText(FILES.pid).trim()) || null;
 
@@ -189,18 +171,6 @@ async function browserData(args) {
   try { return JSON.parse((await browser([...args, '--json'])) ?? '').data ?? null; } catch { return null; }
 }
 
-/** Signals a process group, or the lone process where groups don't exist. */
-function signal(pid, sig) {
-  try { process.kill(-pid, sig); } catch { try { process.kill(pid, sig); } catch { /* already gone */ } }
-}
-
-async function killTunnel(pid) {
-  if (!pid) return;
-  signal(pid, 'SIGTERM');
-  for (let i = 0; i < 30 && alive(pid); i++) await sleep(100);
-  if (alive(pid)) signal(pid, 'SIGKILL');
-}
-
 /** The link's mode from its state: the password link, the key link, or a private form. */
 const modeOf = ({ passwords, keys } = {}) => (passwords ? 'passwords' : keys ? 'keys' : 'form');
 
@@ -217,19 +187,9 @@ export function completionMessage(state, result) {
   return `Private input ended. Resume the existing task once for this completion; if wait already reported it, consume the duplicate without repeating the task. ${JSON.stringify({ completionId: state.completionId, mode: modeOf(state), result: result.result, saved: names(result.saved), appKeys: names(result.appKeys) })}${result.appKeys?.length ? ' Push the saved Worker keys to both Workers as the secrets guide requires.' : ''}`;
 }
 
-export async function notifyWorkspace(state, result) {
-  if (!state.agentId) return 'unavailable';
-  let bin;
-  try { bin = findPaseo(process.env, 'HANDOVER_PASEO_BIN'); } catch { return 'unavailable'; }
-  try {
-    const context = state.paseoHost ? ['--host', state.paseoHost] : state.paseoHome ? ['--home', state.paseoHome] : [];
-    const { stdout } = await promisify(execFile)(bin, ['send', state.agentId, completionMessage(state, result), '--no-wait', '--json', ...context], {
-      cwd: state.cwd, encoding: 'utf8', timeout: 5000, maxBuffer: 64 * 1024,
-    });
-    const output = JSON.parse(stdout);
-    const ack = output.data ?? output;
-    return ack.status === 'sent' && ack.agentId === state.agentId ? 'notified' : 'unconfirmed';
-  } catch { return 'unconfirmed'; }
+/** Tells the workspace that opened the link its result is ready: `notified`, `unconfirmed`, or `unavailable`. */
+export function notifyWorkspace(state, result) {
+  return state.agentId ? wakeChat(state, completionMessage(state, result)) : Promise.resolve('unavailable');
 }
 
 /** Tears down a link whose watcher died without finishing. */
@@ -298,17 +258,6 @@ export function servePage({ port, key, passwords = false, keys = null, form = nu
   });
 }
 
-/** A loopback port free right now. */
-function freePort() {
-  return new Promise((resolve, reject) => {
-    const probe = createTcpServer().once('error', reject);
-    probe.listen(0, '127.0.0.1', () => {
-      const { port } = probe.address();
-      probe.close(() => resolve(port));
-    });
-  });
-}
-
 /** True once the page answers on `port`, false after PAGE_WAIT_MS or when the watcher dies. */
 async function pageAnswers(port, pid) {
   const deadline = Date.now() + PAGE_WAIT_MS;
@@ -321,46 +270,8 @@ async function pageAnswers(port, pid) {
   return false;
 }
 
-/**
- * True once the link's public address serves the page, so a first tap never lands on Cloudflare's
- * error page; false at `deadline` or when the tunnel dies.
- */
-async function linkAnswers(origin, port, tunnelPid, deadline) {
-  const address = `${PROBE_ORIGIN ? PROBE_ORIGIN.replace('{port}', port) : origin}/`;
-  while (Date.now() < deadline && alive(tunnelPid)) {
-    try {
-      const response = await fetch(address, { cache: 'no-store', redirect: 'manual', signal: AbortSignal.timeout(PROBE_TIMEOUT_MS) });
-      await response.body?.cancel().catch(() => {});
-      if (response.ok) return true;
-    } catch { /* not routed yet */ }
-    await sleep(PROBE_EVERY_MS);
-  }
-  return false;
-}
-
 // ---------------------------------------------------------------------------
 // Subcommands
-
-function hasCloudflared() {
-  return !spawnSync('cloudflared', ['--version'], { stdio: 'ignore' }).error;
-}
-
-/** Starts the quick tunnel to `port` in its own process group and waits until `deadline` for its registered origin. */
-async function startTunnel(port, deadline) {
-  writeFileSync(FILES.config, '');
-  const log = openSync(FILES.log, 'w');
-  const child = spawn('cloudflared', ['tunnel', '--no-autoupdate', '--config', FILES.config, '--url', `http://127.0.0.1:${port}`], { detached: true, stdio: ['ignore', log, log] });
-  closeSync(log);
-  child.unref();
-  const pid = child.pid;
-  while (Date.now() < deadline && alive(pid)) {
-    const text = readText(FILES.log);
-    const origin = tunnelOrigin(text);
-    if (origin && /Registered tunnel connection/.test(text)) return { pid, origin };
-    await sleep(200);
-  }
-  return { pid, origin: null };
-}
 
 /** The session's live-feed port, enabling the feed when it is off; null when there is none. */
 async function streamPort() {
@@ -496,10 +407,10 @@ async function open(values) {
   const key = randomBytes(32).toString('hex');
   const tunnelDeadline = Date.now() + TUNNEL_WAIT_MS;
   const tunnelDown = 'The Cloudflare tunnel did not come up within 30 seconds; try again in a minute.';
-  const tunnel = await startTunnel(port, tunnelDeadline);
+  const tunnel = await startTunnel(port, tunnelDeadline, FILES);
   tunnelPid = tunnel.pid;
   if (!tunnel.origin) return fail(tunnelDown);
-  writeFileSync(FILES.state, `${JSON.stringify({ completionId: randomBytes(16).toString('hex'), agentId: process.env.PASEO_AGENT_ID?.trim() || null, cwd: process.cwd(), paseoHome: process.env.PASEO_HOME || null, paseoHost: process.env.PASEO_HOST || null, tunnelPid, port, streamPort: feed, key, passwords: Boolean(values.passwords), keys, form, ...finish, deadline })}\n`, { mode: 0o600 });
+  writeFileSync(FILES.state, `${JSON.stringify({ completionId: randomBytes(16).toString('hex'), ...chatTarget(), tunnelPid, port, streamPort: feed, key, passwords: Boolean(values.passwords), keys, form, ...finish, deadline })}\n`, { mode: 0o600 });
   const child = spawn(process.execPath, [fileURLToPath(import.meta.url), 'watch'], { detached: true, stdio: 'ignore' });
   watcher = child.pid;
   writeFileSync(FILES.pid, `${watcher}\n`);
