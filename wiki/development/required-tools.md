@@ -12,15 +12,16 @@ WongStack runs on a deliberately small toolchain. A repo that has installed the 
 
 Core reads remain dependency-free: **no `jq`, no `python`, and no project-language toolchain**. [Optional document retrieval](document-retrieval.md#optional-meaning-based-search) uses npm only in its explicit host setup to install pinned QMD/models outside the repo. Keyword fallback needs no setup; ordinary reads never install or download. No app package or lockfile changes.
 
-**One core verb adds one tool: [`/verify`](staging-walkthrough.md) needs `agent-browser` — and only for browser journeys. A private link adds one more, `cloudflared`, and browsing as you adds camofox.**
+**One core verb adds one tool: [`/verify`](staging-walkthrough.md) needs `agent-browser` — and only for browser journeys. A private link adds one more, `cloudflared`, browsing as you adds camofox, and a robot check adds a live view's three small tools.**
 
 | Tool | Why |
 |---|---|
 | `agent-browser` | The browser [`/verify`](../../.agents/skills/verify/SKILL.md) drives for UI journeys, carrying its own Chrome. Setup offers it up front, in its one install question. On any other machine, `/verify` installs it the first time a browser journey needs it, and says so. Its request and state probes ride on `curl` and existing commands, so a walk with no UI journeys needs no browser at all. |
 | `cloudflared` | Cloudflare's free tunnel tool, which gives every [private link](browsing.md#how-private-links-work) (the password link, the key link, and a private form) an address your phone or another computer can open. Setup offers it up front, in the same question. On any other machine, the agent asks, then [installs it](#installing-cloudflared) the first time a private link needs it. A link opened at the agent's own computer needs it too: there is no local link. |
 | camofox | The browser the agent [uses websites in as you](browsing.md#saved-browser-logins), which more sites let in. Setup never offers it, since most installs never browse. The first errand asks, then [installs it](#installing-camofox) into your home folder. |
+| `x11vnc`, `xdotool`, noVNC | What [a live view](live-view.md) needs to show you the agent's browser at a robot check, on Linux only. Setup never offers them. The first check asks, saying two need admin rights, then [installs them](#installing-the-live-views-tools). |
 
-Each is a **tool, not a toolchain**: nothing is added to your repository — no `package.json`, no dependency entry, no lockfile — which is what lets a Python, Rust, or Go repo walk its own app. A repo that never runs `/verify`, opens a private link, or browses as you acquires none of them, and every other core verb still needs only the five commands above. The browser is available for ordinary work too, not only inside a walk; `/verify` is just the surface that grades what it sees and posts the evidence.
+Each is a **tool, not a toolchain**: nothing is added to your repository — no `package.json`, no dependency entry, no lockfile — which is what lets a Python, Rust, or Go repo walk its own app. A repo that never runs `/verify`, opens a private link, browses as you, or meets a robot check acquires none of them, and every other core verb still needs only the five commands above. The browser is available for ordinary work too, not only inside a walk; `/verify` is just the surface that grades what it sees and posts the evidence.
 
 **Chat wherever your assistant runs.** WongStack needs no chat app. [Paseo](https://paseo.sh) is an optional one: it runs Claude Code or Codex on your own computer and reaches it from your phone, and setup points to it when it's missing ([the check](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/tools.md#paseo-point-to-it-never-install-it)). No verb needs it except one: a request with several separate parts can [open a new workspace per part](the-change-loop.md#several-parts-several-workspaces). Schedules don't use it: [`/routine`](../../.agents/skills/routine/SKILL.md) runs them in your Cloudflare account ([cloud routines](../stack/cloud-routines.md)). WongStack never installs Paseo, because it is a desktop download with its own window. Without Paseo, the parts of a request are done one at a time, and work happens in your main folder. You also lose chatting from your phone, `/close` archiving the workspace, a finished private link waking the chat (you type *continue* instead), and the session-start tidy-up of idle workspaces. Every other verb works as before.
 
@@ -88,6 +89,16 @@ The first errand on your accounts asks once, then runs [`browse.mjs install`](..
 - **Where it goes.** `~/.wong-stack/camofox/` holds camofox and its browser driver, in the two versions WongStack has tried and no others: a newer driver fails to save a login. The browser itself, a 660 MB download, lands in your home folder's cache: `~/.cache/camoufox` on Linux, `~/Library/Caches/camoufox` on a Mac.
 - **A temp folder on disk.** The download fails when the temp folder is kept in memory and is small, so the script uses one of its own, on disk.
 - **To remove it,** delete both folders. Your [saved logins](passwords.md) are a separate file.
+
+### Installing the live view's tools
+
+The first [live view](live-view.md) asks once, then runs [`hand-over.mjs`](../../.agents/skills/hand-over/scripts/hand-over.mjs) `install-view`. Linux only: on a Mac the browser has no screen to show, so nothing is installed.
+
+- **`x11vnc` shows the browser's screen** to the link's page. It is a system package, so it needs admin rights.
+- **`xdotool` keeps the page's window in front** and reads the screen's size. It is a system package, so it needs admin rights.
+- **noVNC draws the screen on the page you open.** It needs no admin rights: about 700 KB in `~/.wong-stack/live-view/`, in version 1.6.0, the one WongStack has tried, from [its own source release](https://github.com/novnc/noVNC/releases/tag/v1.6.0). Only its `core/` and `vendor/` folders and its licence are kept, and only when they match a recorded fingerprint: a changed file installs nothing.
+- **Admin rights without a password, or one command for you.** The two packages come from `apt-get`, run as root or through `sudo` when it asks no password. Otherwise nothing is installed, the viewer included, and the agent hands you the command to run yourself: `sudo apt-get install -y --no-install-recommends x11vnc xdotool`.
+- **To remove them,** delete `~/.wong-stack/live-view/` and run `sudo apt-get remove x11vnc xdotool`.
 
 ## Where an assistant finds its tools
 

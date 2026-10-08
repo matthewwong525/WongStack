@@ -142,7 +142,7 @@ export async function sendForm(form, values, { browser, reached }) {
 // Routes
 
 /** A request's JSON body, or a status: 413 past the byte limit, 400 when it isn't JSON. */
-async function readBody(request) {
+export async function readBody(request) {
   const chunks = [];
   let size = 0;
   for await (const chunk of request) {
@@ -157,7 +157,7 @@ async function readBody(request) {
   }
 }
 
-function reply(response, status, body) {
+export function reply(response, status, body) {
   const text = body ? JSON.stringify(body) : '';
   response.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store', 'content-length': Buffer.byteLength(text) }).end(text);
 }

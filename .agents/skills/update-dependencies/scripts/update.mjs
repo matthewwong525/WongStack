@@ -12,8 +12,9 @@ const USAGE = `Usage: node .claude/skills/update-dependencies/scripts/update.mjs
 
 Surveys and updates the OpenSpec and browser CLIs, the OpenSpec pins, and the app/,
 scripts/tests/, and site/ dependencies, then checks the OpenSpec contract and reports.
-camofox's two pins in browse.mjs are surveyed and never moved: a newer one is handed to you. Each stage
-prints "== <stage>", a line per item, then "ok", or "FAIL <what> — <error>" and exits 1.
+camofox's two pins in browse.mjs and the live view's viewer pin in view.mjs are surveyed and
+never moved: a newer one is handed to you. Each stage prints "== <stage>", a line per item,
+then "ok", or "FAIL <what> — <error>" and exits 1.
 Run it again after a fix: finished stages report current.
 
   --dry-run  survey, and print what each later stage would change; write nothing
@@ -31,6 +32,8 @@ export const PIN_FILES = [
 const PROSE_FILE = '.github/CONTRIBUTING.md';
 // camofox and its browser driver are pinned in one constant here; a repo without the file skips them.
 export const CAMOFOX_PINS = '.agents/skills/browser/scripts/browse.mjs';
+// The live view's viewer, noVNC, is pinned by version and by its files' fingerprint in one constant here.
+export const VIEWER_PIN = '.agents/skills/hand-over/scripts/view.mjs';
 // Each stage's name and folder. site/ is the landing page (meta-only); a repo without a folder skips its stage.
 const PACKAGE_STAGES = [['app', 'app'], ['test-tools', 'scripts/tests'], ['site', 'site']];
 const NPM_TOOLS = { openspec: '@fission-ai/openspec', 'agent-browser': 'agent-browser' };
@@ -92,6 +95,11 @@ export function readCamofoxPins(text) {
   const pin = name => text.match(new RegExp(`'${name}': '(\\d+\\.\\d+\\.\\d+)'`))?.[1];
   const [camofox, driver] = [pin('@askjo/camofox-browser'), pin('playwright-core')];
   return camofox && driver ? { camofox, driver } : null;
+}
+
+/** The noVNC version view.mjs installs, or null when the text pins none. */
+export function readViewerPin(text) {
+  return text.match(/VIEWER = \{ version: '(\d+\.\d+\.\d+)'/)?.[1] ?? null;
 }
 
 /** `text` with every OpenSpec pin, and with `prose` its "OpenSpec x.y.z" too, set to `version`. */
@@ -233,6 +241,7 @@ async function survey(ctx) {
   }
 
   await surveyCamofox(ctx);
+  await surveyViewer(ctx);
 
   ctx.plans = {};
   for (const [label, dir] of PACKAGE_STAGES) {
@@ -272,6 +281,20 @@ async function surveyCamofox(ctx) {
   if (compareVersions(latest, pins.camofox) <= 0) { ctx.log(`camofox ${pins.camofox} current, driver ${pins.driver} pinned`); return; }
   ctx.log(`camofox ${pins.camofox} -> ${latest} pinned, driver ${pins.driver}`);
   needsYou(ctx, `camofox ${pins.camofox} -> ${latest}: move both pins in ${CAMOFOX_PINS} together, and only after a login saves and survives a restart on a real camofox with them`);
+}
+
+/**
+ * The viewer's pin is read, never moved here: its version goes with a fingerprint of its files, so the
+ * two move together, by hand, and only once a live view works with the new files.
+ */
+async function surveyViewer(ctx) {
+  if (!existsSync(join(ctx.root, VIEWER_PIN))) return;
+  const pin = readViewerPin(readText(ctx, VIEWER_PIN));
+  if (!pin) throw new StageFailure(VIEWER_PIN, 'names no pinned noVNC version');
+  const latest = versionOf(await need(ctx, 'npm', ['view', '@novnc/novnc', 'version']));
+  if (compareVersions(latest, pin) <= 0) { ctx.log(`novnc ${pin} current`); return; }
+  ctx.log(`novnc ${pin} -> ${latest} pinned`);
+  needsYou(ctx, `novnc ${pin} -> ${latest}: move the version, the address, and the fingerprint in ${VIEWER_PIN} together, and only after a live view works from a phone with the new files`);
 }
 
 async function updateTools(ctx) {

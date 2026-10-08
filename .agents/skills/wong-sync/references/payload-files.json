@@ -68,6 +68,7 @@
       "wiki/development/reply-links.md",
       "wiki/development/passwords.md",
       "wiki/development/login-codes.md",
+      "wiki/development/live-view.md",
       ".github/workflows/test.yml",
       ".github/actions/change-scope/action.yml",
       ".github/scripts/app-untouched.sh",
