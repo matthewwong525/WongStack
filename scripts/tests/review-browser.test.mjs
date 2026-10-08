@@ -364,10 +364,10 @@ const toastIs = (page, text) => page.waitForFunction(want => document.getElement
 // status the link's check gets, and `actions` the names it says the link offers.
 const VERSION = 'c0'.repeat(32);
 const sentTrue = () => ({ status: 200, body: { sent: true } });
-async function openLive({ send = sentTrue, act = sentTrue, alive = 200, actions = ['build', 'publish'], hash = `#key=${LINK_KEY}`, width = 1200 } = {}) {
+async function openLive({ send = sentTrue, act = sentTrue, alive = 200, actions = ['build', 'publish'], hash = `#key=${LINK_KEY}`, width = 1200, height = 800 } = {}) {
   const f = fixture();
   const base = new URL(LIVE).pathname;
-  const context = await browser.newContext({ viewport: { width, height: 800 } });
+  const context = await browser.newContext({ viewport: { width, height } });
   await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: new URL(LIVE).origin });
   const requests = [];
   await context.route(`${new URL(LIVE).origin}/**`, async route => {
@@ -386,7 +386,16 @@ async function openLive({ send = sentTrue, act = sentTrue, alive = 200, actions 
   return { page, context, errors, requests, sends: only('send'), acts: only('act') };
 }
 const isLive = page => page.locator('#copy', { hasText: 'Send notes' }).waitFor();
-const ready = (page, step) => page.locator(`#ready [data-ready="${step}"]`);
+const ready = (page, step) => page.locator(`.bar #ready [data-ready="${step}"]`);
+// The bar's one bold button: `copy` for the notes button, else the build button's step.
+const primary = page => page.locator('.bar button.primary:visible').evaluateAll(found => found.map(el => el.id || el.getAttribute('data-ready')));
+// Scrolled to the end, how far the page's last line sits above the bar; negative means the bar covers it.
+const clearOfBar = page => page.evaluate(() => {
+  scrollTo(0, document.documentElement.scrollHeight);
+  const last = Array.from(document.querySelectorAll('.decision')).pop();
+  const top = document.querySelector('.bar').getBoundingClientRect().top;
+  return Math.min(top - last.getBoundingClientRect().bottom, top - document.querySelector('main').getBoundingClientRect().bottom);
+});
 const saysIs = (page, text) => page.waitForFunction(want => { const el = document.getElementById('ready-says'); return !el.hidden && el.textContent === want; }, text);
 const posted = action => ({ path: 'act', method: 'POST', key: LINK_KEY, body: { action, version: VERSION } });
 
@@ -395,7 +404,11 @@ browserTest('opened from disk, a key in the address changes nothing: the page co
   const asked = [];
   page.on('request', request => asked.push(request.url()));
   assert.equal(await page.locator('#copy').innerText(), 'Copy notes');
+  assert.equal(await page.locator('.bar #ready').count(), 1, 'the build row lives in the bar');
   assert.equal(await page.locator('#ready').isVisible(), false, 'a file offers no build buttons');
+  assert.deepEqual(await page.locator('.bar button:visible').allInnerTexts(), ['Copy notes'], 'the bar is as it was');
+  assert.deepEqual(await primary(page), ['copy']);
+  assert.ok(await clearOfBar(page) >= 0, 'the bar covers no line of the page');
   await note(page, 'why-1', 'Say who reads it.');
   await toastIs(page, 'Saved and copied 1 note. Paste them into chat.');
   assert.equal(await page.locator('#editor .copies').innerText(), 'Saving a note copies all your notes.');
@@ -516,20 +529,32 @@ browserTest('#/why still jumps with a key in the address, and the link stays ope
   await context.close();
 });
 
-// ── the ready section: Build it, and Build and publish, on a reply link that offers both ──
-browserTest('on a reply link, Build it asks the chat once and says so', async () => {
-  const { page, context, errors, acts, sends } = await openLive({ width: 390 });
+// ── the bar's build row: Build it, and Build and publish, on a reply link that offers both ──
+browserTest('on a reply link, Build it is in view at the top of a long plan on a phone, asks the chat once, and says so', async () => {
+  const { page, context, errors, acts, sends } = await openLive({ width: 390, height: 664 });
   await isLive(page);
   await ready(page, 'build').waitFor();
-  assert.equal(await page.locator('#ready h2').textContent(), 'Ready?');
-  assert.equal(await page.locator('#ready button.primary:visible').count(), 1, 'one primary action');
+  assert.equal(await page.locator('#ready-h').count(), 0, 'no section at the foot of the page');
+  assert.deepEqual(await primary(page), ['build'], 'one primary action');
   assert.equal(await page.locator('#ready-says').isVisible(), false);
-  const size = await page.evaluate(() => ({ view: innerWidth, page: document.documentElement.scrollWidth }));
+  const size = await page.evaluate(() => ({ view: innerWidth, page: document.documentElement.scrollWidth, at: scrollY, tall: document.documentElement.scrollHeight, screen: innerHeight }));
   assert.ok(size.page <= size.view, 'no sideways scroll on a phone');
+  assert.equal(size.at, 0, 'the page is at its top');
+  assert.ok(size.tall > 2 * size.screen, 'the plan is longer than two screens');
+  for (const step of ['build', 'publish']) {
+    const box = await ready(page, step).boundingBox();
+    assert.ok(box.x >= 0 && box.x + box.width <= size.view && box.y >= 0 && box.y + box.height <= size.screen, `${step} is in view without scrolling`);
+  }
+  const rows = await page.evaluate(() => [document.getElementById('copy'), document.querySelector('[data-ready="build"]')].map(el => el.getBoundingClientRect().top));
+  assert.ok(rows[1] > rows[0], 'the build row sits under the notes row on a phone');
+  assert.ok(await clearOfBar(page) >= 0, 'the taller bar covers no line of the page');
+  await page.evaluate(() => scrollTo(0, 0));
   await ready(page, 'build').click();
   await saysIs(page, 'Asked the chat to build.');
+  assert.equal(await page.locator('.bar #ready-says').isVisible(), true, 'the answer shows in the bar');
   assert.deepEqual(acts(), [posted('build')]);
   assert.equal(await page.locator('#ready button:visible').count(), 0, 'no button is left to tap twice');
+  assert.deepEqual(await primary(page), ['copy'], 'with no build button left, the notes button is the primary one');
   assert.equal(sends().length, 0, 'a build tap sends no note');
   assert.deepEqual(errors, []);
   await context.close();
@@ -539,9 +564,12 @@ browserTest('Build and publish posts nothing until Yes, publish, and Cancel goes
   const { page, context, errors, acts } = await openLive();
   await ready(page, 'publish').waitFor();
   await ready(page, 'publish').click();
-  assert.equal(await page.locator('#ready-confirm p').innerText(), 'Build and publish? This goes live and can\'t be undone.');
+  assert.equal(await page.locator('.bar #ready-confirm span').innerText(), 'Goes live, can\'t be undone.');
+  assert.equal(await page.locator('#ready-confirm').getAttribute('aria-label'), 'Build and publish? This goes live and can\'t be undone.');
   assert.equal(await ready(page, 'build').isVisible(), false);
-  assert.equal(await page.locator('#ready button.primary:visible').count(), 1);
+  assert.deepEqual(await primary(page), ['yes']);
+  const wide = await page.evaluate(() => [document.getElementById('copy'), document.querySelector('[data-ready="yes"]')].map(el => el.getBoundingClientRect().top));
+  assert.equal(wide[0], wide[1], 'on a wide screen the bar stays one row');
   assert.equal(await page.evaluate(() => document.activeElement.getAttribute('data-ready')), 'cancel', 'focus lands on the safe choice');
   await ready(page, 'cancel').click();
   assert.equal(await ready(page, 'build').isVisible(), true);
@@ -559,9 +587,12 @@ browserTest('Build and publish posts nothing until Yes, publish, and Cancel goes
 browserTest('an unsent note stops both buttons until it is sent', async () => {
   const { page, context, errors, acts } = await openLive();
   await ready(page, 'build').waitFor();
+  assert.deepEqual(await primary(page), ['build'], 'with no unsent note, Build it is the primary button');
   await note(page, 'why-1', 'Say who reads it.');
+  assert.deepEqual(await primary(page), ['copy'], 'with an unsent note, Send notes is the primary button');
   await ready(page, 'build').click();
   await saysIs(page, 'Send or delete your notes first.');
+  assert.equal(await page.locator('.bar #ready-says').isVisible(), true, 'the stop shows in the bar');
   await page.evaluate(() => { document.getElementById('ready-says').hidden = true; });
   await ready(page, 'publish').click();
   await saysIs(page, 'Send or delete your notes first.');
@@ -570,8 +601,10 @@ browserTest('an unsent note stops both buttons until it is sent', async () => {
   // A note saved after the confirm step opened stops the yes too.
   await page.locator('#copy').click();
   await toastIs(page, 'Sent 1 note to the chat.');
+  assert.deepEqual(await primary(page), ['build'], 'a sent note hands the primary back');
   await ready(page, 'publish').click();
   await note(page, 'item-2', 'Name the reason.');
+  assert.deepEqual(await primary(page), ['copy'], 'one primary in the confirm step too');
   await ready(page, 'yes').click();
   await saysIs(page, 'Send or delete your notes first.');
   assert.deepEqual(acts(), []);
@@ -583,6 +616,18 @@ browserTest('an unsent note stops both buttons until it is sent', async () => {
   assert.deepEqual(acts(), [posted('publish')]);
   assert.deepEqual(errors, []);
   await context.close();
+  // On a phone the stop adds a third row to the bar, and the page's end still clears it.
+  const phone = await openLive({ width: 390, height: 664 });
+  await ready(phone.page, 'build').waitFor();
+  await note(phone.page, 'why-1', 'Say who reads it.');
+  await ready(phone.page, 'build').click();
+  await saysIs(phone.page, 'Send or delete your notes first.');
+  assert.ok(await clearOfBar(phone.page) >= 0, 'the stop covers no line of the page');
+  await phone.page.evaluate(() => scrollTo(0, 0));
+  await ready(phone.page, 'publish').click();
+  assert.equal(await phone.page.locator('#ready-confirm').isVisible(), false);
+  assert.deepEqual(phone.acts(), []);
+  await phone.context.close();
 });
 
 browserTest('a changed plan says to reload, an asked chat says so, and a too-soon tap asks to wait', async () => {

@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 38.2.1 — The build buttons sit in the plan page's bottom bar
+
+- ***Build it* and *Build and publish* are always in view.** Before, they sat under *Ready?* at the foot of the plan page, so on a phone you scrolled past the whole plan to reach them. Now they are in the bar at the bottom of the screen: a second row under *Send notes* on a phone, the same row on a wide screen. The *Ready?* section is gone.
+- **One button stands out at a time.** With notes you have not sent, *Send notes* is the bold one. With none, *Build it* is.
+- **The publish question and the page's answers show in the bar too.** *Build and publish* swaps the build row for *Goes live, can't be undone.* with *Yes, publish* and *Cancel*. After a tap the row says what happened, such as *Asked the chat to build.*
+- **Nothing else changes.** A plan opened as a file, or through a closed link, shows the bar as before, with no build buttons. A tap sends what it sent before, and the stops for unsent notes and a changed plan stay.
+
+**Updating.** Nothing needs doing by hand. A plan made before the update gets the new bar when your assistant builds its page again.
+
 ## 38.2.0 — Start the build from the plan page
 
 - **A plan's page can now start the build.** Before, a plan that was right as it stood still sent you back to the chat to pick *Build it now* or *Build and publish*. Now the page has both under *Ready?*, below the decisions. A tap tells the chat that made the plan to start, as if you had picked that choice there.
