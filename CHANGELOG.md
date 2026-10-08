@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## 38.3.0 — See the changed screens before choosing
+## 38.4.0 — See the changed screens before choosing
 
 - **Pictures appear in the chat before the publish choice.** After building, `/apply` shows two useful views of the changed screens, each with a short caption, then asks whether to publish, change more, or save. One view is enough when there is only one useful view.
 - **The preview link stays.** If pictures cannot be taken or no screen changed, the assistant says why and keeps the choice. Asking to build and publish still goes straight through with no extra stop.
