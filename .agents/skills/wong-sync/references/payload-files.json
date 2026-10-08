@@ -67,7 +67,6 @@
       "wiki/development/browsing.md",
       "wiki/development/passwords.md",
       "wiki/development/login-codes.md",
-      "wiki/development/blocked-sites.md",
       ".github/workflows/test.yml",
       ".github/actions/change-scope/action.yml",
       ".github/scripts/app-untouched.sh",

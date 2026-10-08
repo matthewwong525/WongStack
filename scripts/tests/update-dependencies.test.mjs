@@ -4,8 +4,9 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, wr
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
+import { CAMOFOX } from '../../.agents/skills/browser/scripts/browse.mjs';
 import {
-  PIN_FILES, bumpRange, isMajor, latestInMajor, lockInSync, planPackages, readPin, rewritePins, run,
+  CAMOFOX_PINS, PIN_FILES, bumpRange, isMajor, latestInMajor, lockInSync, planPackages, readCamofoxPins, readPin, rewritePins, run,
 } from '../../.agents/skills/update-dependencies/scripts/update.mjs';
 
 // ---- Pure helpers ----
@@ -59,6 +60,14 @@ test('every OpenSpec pin matches the version CI checks the skills against', () =
     assert.ok(pin, `${file} names no pinned OpenSpec version`);
     assert.equal(pin, ci, `${file} pins OpenSpec ${pin}, but .github/workflows/payload.yml pins ${ci}`);
   }
+});
+
+// camofox and its driver are pinned in browse.mjs alone; the updater reads that file, not a copy.
+test('camofox\'s two pins are read from browse.mjs itself', () => {
+  const text = readFileSync(join(import.meta.dirname, '../..', CAMOFOX_PINS), 'utf8');
+  assert.deepEqual(readCamofoxPins(text), { camofox: CAMOFOX['@askjo/camofox-browser'], driver: CAMOFOX['playwright-core'] });
+  assert.equal(readCamofoxPins("{ '@askjo/camofox-browser': '1.18.1' }"), null, 'one pin alone is no pin');
+  assert.equal(readCamofoxPins("{ '@askjo/camofox-browser': '^1.18.1', 'playwright-core': '1.58.2' }"), null, 'a range is no pin');
 });
 
 test('a lock is in sync only when its root entry names the same ranges', () => {
@@ -337,4 +346,35 @@ test('--dry-run prints what every stage would change and writes nothing', async 
   assert.match(out, /^dry run: nothing written$/m);
   assert.equal(f.status(), '');
   assert.doesNotMatch(f.calls(), /npm install/);
+});
+
+const CAMOFOX_FILE = "export const CAMOFOX = { '@askjo/camofox-browser': '1.18.1', 'playwright-core': '1.58.2' };\n";
+
+test('camofox\'s pins are surveyed and never moved: a newer one is handed to the person with the rule', async t => {
+  const f = fixture(t, withRegistry({ '@askjo/camofox-browser': '1.18.1' }));
+  write(f.root, CAMOFOX_PINS, CAMOFOX_FILE);
+  const current = await f.go();
+  assert.equal(current.code, 0, current.out);
+  assert.match(current.out, /^camofox 1\.18\.1 current, driver 1\.58\.2 pinned$/m);
+  assert.doesNotMatch(current.out, /needs you/);
+
+  f.setState(withRegistry({ '@askjo/camofox-browser': '1.19.0' }));
+  const newer = await f.go();
+  assert.equal(newer.code, 0, newer.out);
+  assert.match(newer.out, /^camofox 1\.18\.1 -> 1\.19\.0 pinned, driver 1\.58\.2$/m);
+  assert.match(newer.out, /^needs you: camofox 1\.18\.1 -> 1\.19\.0: move both pins in \.agents\/skills\/browser\/scripts\/browse\.mjs together, and only after a login saves and survives a restart on a real camofox with them$/m);
+  assert.match(newer.out, /^status: needs-agent$/m);
+  assert.equal(f.read(CAMOFOX_PINS), CAMOFOX_FILE, 'the pins are left as they are');
+  assert.doesNotMatch(f.calls(), /npm install/);
+});
+
+test('a browse.mjs that pins nothing fails the survey, and a repo without it skips camofox', async t => {
+  const f = fixture(t);
+  const without = await f.go();
+  assert.doesNotMatch(without.out, /camofox/);
+  assert.doesNotMatch(f.calls(), /camofox/);
+  write(f.root, CAMOFOX_PINS, "export const CAMOFOX = { '@askjo/camofox-browser': 'latest' };\n");
+  const unpinned = await f.go();
+  assert.equal(unpinned.code, 1);
+  assert.match(unpinned.out, /^FAIL \.agents\/skills\/browser\/scripts\/browse\.mjs — names no pinned camofox and playwright-core versions$/m);
 });

@@ -10,10 +10,9 @@ How this repo plans, builds, checks, and ships changes. Every WongStack install 
 - [Code improvement](repository-improvement.md) — run or schedule `/improve-code` to find one way to make the code simpler or safer to change; it writes the plan and stops for your yes.
 - [Scheduled routines](../../.agents/skills/routine/SKILL.md) — `/routine` puts any prompt or verb on a schedule that [runs in your Cloudflare account](../stack/cloud-routines.md), with your computer off.
 - [Required tools](required-tools.md) — the whole toolchain is `git`, `gh`, Node, `openspec`, and `curl`: why it stays that small, and how the payload handles JSON without a standalone `jq`.
-- [Browsing](browsing.md) — how the agent uses websites as the person: saved logins, pictures of key moments, and private links for what only the person can give.
+- [Browsing](browsing.md) — how the agent uses websites as the person: saved logins, pictures of key moments, private links for what only the person can give, and what it does when a site refuses its browser.
   - [Save your passwords](passwords.md) — give the agent the logins you choose through a private link; it never sees a password.
   - [Login codes](login-codes.md) — the agent reads a one-time code from your email or asks for it in the chat, with no link.
-  - [When a site blocks the agent's browser](blocked-sites.md) — the agent moves to Cloudflare's cloud browser and carries on, disguising nothing.
 - [Memory dream](wiki-dream.md) — type `/dream-memory` and the assistant checks the wiki, saved facts, specs, and plans against each other and the code: what it fixes, what it only lists, the dry run, and how to undo one.
 - [Session memory](memory.md) — the private fact store: who sees what, the start-of-session digest, capture by `/save` and the background run, and consolidation.
   - [Document retrieval](document-retrieval.md) — task recall with cited wiki/OpenSpec passages, optional local semantic setup, scopes, freshness and fallback.

@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { connect } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -9,42 +8,66 @@ import { basename, dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { finished, globToRegExp, keyMatches, servePage, tunnelOrigin } from '../../.agents/skills/hand-over/scripts/hand-over.mjs';
+import { BROWSE_ENV, fakeCamofox } from './fixtures/fake-camofox.mjs';
 import { fakeTunnel, ORIGIN, TUNNEL_ENV } from './fixtures/fake-tunnel.mjs';
 
 const legacyOutput = text => text.replace(/^HANDOVER_(COMPLETION|NOTIFICATION)=.*\n/gm, '');
 const legacyResult = ({ completionId: _completionId, notification: _notification, ready: _ready, ...result }) => result;
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const script = join(repo, '.agents/skills/hand-over/scripts/hand-over.mjs');
+const browse = join(repo, '.agents/skills/browser/scripts/browse.mjs');
 const KEY = /#key=([0-9a-f]{64})$/m;
 const PAGE = 'https://pay.example.com/card';
 const RECEIPT = 'https://pay.example.com/receipt/81';
 
-// A card form as the agent writes it from its snapshot. The typed values hold letters no key, port, or
-// completion id can, so a search for one never matches by chance.
+// A card form as the agent writes it from its snapshot, a ref in each spelling and one selector. The
+// typed values hold letters no key, port, or completion id can, so a search for one never matches by chance.
 const CARD = {
   title: 'Pay City of Markham',
   note: '$45.00 · ticket P0178390',
   fields: [
     { label: 'Card number', kind: 'cc-number', target: '@e12' },
     { label: 'Expiry month', kind: 'cc-exp-month', target: '@e13', options: [{ value: '03', text: '03 - March' }, { value: '04' }] },
-    { label: 'Expiry year', kind: 'cc-exp-year', target: '@e14', options: [{ value: '2028' }] },
+    { label: 'Expiry year', kind: 'cc-exp-year', target: 'e14', options: [{ value: '2028' }] },
     { label: 'Security code', kind: 'cc-csc', target: '#cvv' },
   ],
-  submit: { label: 'Pay $45.00', target: '@e31' },
+  submit: { label: 'Pay $45.00', target: 'e31' },
 };
+// The card page as the browser reads it: each dropdown shows the choice the site picked.
+const CARD_PAGE = `- textbox "Card number" [e12]
+- combobox "Expiry month" [e13]:
+  - option "01 - January" [selected]
+  - option "03 - March"
+- combobox "Expiry year" [e14]:
+  - option "2027" [selected]
+  - option "2028"
+- textbox "Security code" [e15]
+- button "Pay $45.00" [e31]`;
 const NUMBER = '4242 XKCD 4242 QWZP';
 const CODE = 'ZQ7';
 const VALUES = [NUMBER, '03', '2028', CODE];
-const FILL = ['fill @e12', 'focus @e12', 'get value @e13', 'select @e13 03', 'get value @e14', 'select @e14 2028', 'fill #cvv', 'focus #cvv'].map(line => `agent-browser ${line}`);
-const CLEAR = ['fill @e12', 'select @e13', 'select @e14', 'fill #cvv'].map(line => `agent-browser ${line}`);
+const PRIVATE = /XKCD|QWZP|ZQ7/;
+const SESSION = 'card';
+// What a send does in the browser, in order, and what puts the page back. A dropdown's own choice is
+// read from a snapshot before the pick; a typed value is never part of a step's name.
+const FILL = ['type e12', 'snapshot', 'select e13 03', 'snapshot', 'select e14 2028', 'type #cvv'];
+const CLEAR = ['type e12', 'select e13 01 - January', 'select e14 2027', 'type #cvv'];
+const PRESS = 'click e31';
 
-// A HOME of its own, and a fake cloudflared and agent-browser first on PATH that log each call to one
-// file in order. The fakes print the real shapes recorded from cloudflared 2026.9.3 and agent-browser
-// 0.38.1. The test sets the live-feed port, the page address, and the element count through files;
-// `click-url` and `click-count` are what a click moves them to, as a site that accepts a payment does.
-// A `fail-select` file fails each dropdown pick, `fail-click` the click, and `hold-fill` and `hold-click`
-// hold those commands until removed. With `checkout`, commands run in a Git checkout of their own that
-// declares MAPS_API_KEY, for a key link.
+/** One browser request as a step: the route and its target, with a pick's choice, never a typed value. */
+function stepOf({ method, path, body }) {
+  const route = path.split('/').at(-1);
+  const target = body?.ref ?? body?.selector;
+  if (route === 'evaluate') return body.expression === 'location.href' ? 'url' : `count ${JSON.parse(/\((".*")\)/.exec(body.expression)[1])}`;
+  if (route === 'select') return `select ${target} ${body.option}`;
+  return method === 'POST' && target ? `${route} ${target}` : route;
+}
+
+// A HOME of its own, a fake cloudflared first on PATH that logs each call to one file, and a fake camofox
+// install that browse.mjs starts as the real one. `openPage` opens the card page in the browser session
+// `card`, as the agent does before it sends a form; `set` and `unset` write the fake browser's control
+// files (fake-camofox-server.mjs lists them). With `checkout`, commands run in a Git checkout of their
+// own that declares MAPS_API_KEY, for a key link.
 function fixture(t, { cloudflared = true, silent = false, paseo = null, agentId, checkout = false } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'wong-test-hand-over-'));
   const bin = join(root, 'bin');
@@ -58,35 +81,10 @@ function fixture(t, { cloudflared = true, silent = false, paseo = null, agentId,
   }
   const calls = join(root, 'calls.log');
   const file = name => join(root, name);
-  writeFileSync(join(bin, 'agent-browser'), `#!/bin/sh
-echo "agent-browser $*" >> "${calls}"
-case "$1 $2" in
-  "stream status")
-    if [ -e "${file('stream-off')}" ]; then echo '{"success":true,"data":{"connected":true,"enabled":false,"port":null},"error":null}'
-    else printf '{"success":true,"data":{"connected":true,"enabled":true,"port":%s},"error":null}\\n' "$(cat "${file('stream-port')}")"; fi ;;
-  "stream enable") rm -f "${file('stream-off')}"; echo "✓ Streaming enabled" ;;
-  "get url") cat "${file('url')}" ;;
-  "get count") cat "${file('count')}" ;;
-  "get value") echo '' ;;
-  "fill "*) while [ -e "${file('hold-fill')}" ]; do sleep 0.01; done; echo '✓ Done' ;;
-  "focus "*) echo '✓ Done' ;;
-  "select "*) [ -e "${file('fail-select')}" ] && exit 1; echo '✓ Done' ;;
-  "click "*)
-    while [ -e "${file('hold-click')}" ]; do sleep 0.01; done
-    [ -e "${file('fail-click')}" ] && exit 1
-    [ -e "${file('click-url')}" ] && cat "${file('click-url')}" > "${file('url')}"
-    [ -e "${file('click-count')}" ] && cat "${file('click-count')}" > "${file('count')}"
-    echo '✓ Done' ;;
-esac
-`);
-  chmodSync(join(bin, 'agent-browser'), 0o755);
+  const camofox = fakeCamofox(root);
+  camofox.set('snapshot', CARD_PAGE);
   if (cloudflared) fakeTunnel(bin, calls, { pidFile: file('tunnel.pid'), silent });
-  writeFileSync(file('url'), `${PAGE}\n`);
-  writeFileSync(file('count'), '1\n');
-  writeFileSync(file('stream-port'), '9\n');
   writeFileSync(file('form.json'), JSON.stringify(CARD));
-  // Without cloudflared, PATH is the fake bin alone, so it carries the tools the fake uses.
-  if (!cloudflared) for (const tool of ['cat', 'rm', 'sleep']) symlinkSync(spawnSync('sh', ['-c', `command -v ${tool}`], { encoding: 'utf8' }).stdout.trim(), join(bin, tool));
   if (paseo) {
     writeFileSync(join(bin, 'paseo'), `#!${process.execPath}
 const fs = require('node:fs');
@@ -95,7 +93,8 @@ ${paseo === 'fail' ? 'process.exit(1);' : paseo === 'timeout' ? 'setTimeout(() =
 `);
     chmodSync(join(bin, 'paseo'), 0o755);
   }
-  const env = { ...process.env, ...TUNNEL_ENV, PASEO_AGENT_ID: agentId ?? (paseo ? 'a-full-workspace-id' : ''), PASEO_HOME: '', PASEO_HOST: '', HOME: root, PATH: cloudflared ? `${bin}:/usr/bin:/bin` : bin, HANDOVER_POLL_MS: '50', HANDOVER_SEND_WAIT_MS: '400' };
+  // Without cloudflared, PATH is the fake bin alone.
+  const env = { ...process.env, ...TUNNEL_ENV, ...BROWSE_ENV, PASEO_AGENT_ID: agentId ?? (paseo ? 'a-full-workspace-id' : ''), PASEO_HOME: '', PASEO_HOST: '', HOME: root, PATH: cloudflared ? `${bin}:/usr/bin:/bin` : bin, HANDOVER_POLL_MS: '50', HANDOVER_SEND_WAIT_MS: '400' };
   const run = (...args) => { const out = spawnSync(process.execPath, [script, ...args], { cwd, env, encoding: 'utf8', timeout: 30_000 }); return { ...out, rawStdout: out.stdout, stdout: legacyOutput(out.stdout) }; };
   /** Runs a command beside the test, so the test's own servers keep answering; resolves to its status and output. */
   const start = (...args) => {
@@ -106,25 +105,39 @@ ${paseo === 'fail' ? 'process.exit(1);' : paseo === 'timeout' ? 'setTimeout(() =
   };
   const state = join(root, '.wong-stack/hand-over');
   t.after(() => {
-    for (const name of ['hold-fill', 'hold-click']) rmSync(file(name), { force: true });
+    camofox.stop();
     run('close');
     const pid = Number(existsSync(file('tunnel.pid')) && readFileSync(file('tunnel.pid'), 'utf8'));
     if (pid) try { process.kill(pid, 'SIGKILL'); } catch { /* gone */ }
     rmSync(root, { recursive: true, force: true });
   });
   const logged = () => (existsSync(calls) ? readFileSync(calls, 'utf8').trim().split('\n').map(line => line.trimEnd()).filter(line => line && !line.endsWith('--version')) : []);
+  let pageOpen = false;
+  let opening = 0;
   return {
     run,
     start,
     env,
     cwd,
     state,
+    camofox,
     form: file('form.json'),
+    /** Opens the card page once, in `session` or the folder's own; the steps counted start after it. */
+    openPage(session = SESSION) {
+      if (pageOpen) return;
+      const out = spawnSync(process.execPath, [browse, 'open', PAGE, ...(session ? ['--session', session] : [])], { cwd, env, encoding: 'utf8', timeout: 30_000 });
+      assert.equal(out.status, 0, out.stdout + out.stderr);
+      pageOpen = true;
+      opening = camofox.requests().length;
+    },
     sent: () => existsSync(file('sent.jsonl')) ? readFileSync(file('sent.jsonl'), 'utf8').trim().split('\n').map(JSON.parse) : [],
-    set: (name, value) => writeFileSync(file(name), `${value}\n`),
-    unset: name => rmSync(file(name), { force: true }),
+    set: (name, value = '') => camofox.set(name, String(value)),
+    unset: name => camofox.unset(name),
     calls: logged,
-    browserCalls: () => logged().filter(line => line.startsWith('agent-browser')),
+    /** Each request the browser got since the page opened, as a step. */
+    steps: () => camofox.requests().slice(opening).map(stepOf),
+    /** The card page's tab as the fake browser holds it: what each field was last given. */
+    page: () => camofox.tabs()[0],
     stateFiles: () => (existsSync(state) ? readdirSync(state).map(name => readFileSync(join(state, name), 'utf8')).join('\n') : ''),
     tunnelPid: () => Number(readFileSync(file('tunnel.pid'), 'utf8')),
     result: () => legacyResult(JSON.parse(readFileSync(join(state, 'result.json'), 'utf8'))),
@@ -137,6 +150,7 @@ const pause = ms => new Promise(done => setTimeout(done, ms));
 
 /** Runs `open`, asserts it worked, and returns its link, the key, and the page's recorded loopback port. */
 function opened(f, ...args) {
+  if (args.includes('--form')) f.openPage();
   const out = f.run('open', ...args);
   assert.equal(out.status, 0, out.stderr);
   const link = /^HANDOVER_LINK=(.+)$/m.exec(out.stdout)?.[1];
@@ -145,7 +159,7 @@ function opened(f, ...args) {
 }
 
 /** Opens a private form on the fixture's card page, finishing at the receipt. */
-const openedForm = (f, ...args) => opened(f, '--form', f.form, ...(args.length ? args : ['--until', '**/receipt/*']));
+const openedForm = (f, ...args) => opened(f, '--form', f.form, '--session', SESSION, ...(args.length ? args : ['--until', '**/receipt/*']));
 
 /** Calls a route with the key header unless `key` is null; resolves to the status and JSON. */
 async function route(port, key, path, body) {
@@ -162,46 +176,6 @@ async function eventually(job) {
   const end = Date.now() + 5000;
   while (Date.now() < end) { const value = await job(); if (value) return value; await pause(25); }
   assert.fail('condition did not complete');
-}
-
-/**
- * A stand-in for agent-browser's live feed: a WebSocket server that records each JSON message a client
- * sends and the request that opened it. `typed()` is every pressed key's text, in order.
- */
-async function fakeFeed(t, f) {
-  const messages = [];
-  const requests = [];
-  const sockets = new Set();
-  const server = createServer();
-  server.on('upgrade', (request, socket) => {
-    requests.push({ url: request.url, headers: request.headers });
-    sockets.add(socket);
-    const accept = createHash('sha1').update(`${request.headers['sec-websocket-key']}258EAFA5-E914-47DA-95CA-C5AB0DC85B11`).digest('base64');
-    socket.write(`HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${accept}\r\n\r\n`);
-    let pending = Buffer.alloc(0);
-    socket.on('error', () => {}).on('data', chunk => {
-      pending = Buffer.concat([pending, chunk]);
-      // Client frames are masked; every message here is under 64 KB, so a 7-bit or 16-bit length.
-      for (;;) {
-        if (pending.length < 2) return;
-        const long = (pending[1] & 0x7f) === 126;
-        if (long && pending.length < 4) return;
-        const length = long ? pending.readUInt16BE(2) : pending[1] & 0x7f;
-        const start = (long ? 4 : 2) + 4;
-        if (pending.length < start + length) return;
-        const mask = pending.subarray(start - 4, start);
-        const payload = Buffer.from(pending.subarray(start, start + length).map((byte, index) => byte ^ mask[index % 4]));
-        const opcode = pending[0] & 0x0f;
-        pending = pending.subarray(start + length);
-        if (opcode === 1) messages.push(JSON.parse(payload.toString('utf8')));
-        if (opcode === 8) socket.end();
-      }
-    });
-  });
-  await new Promise(done => server.listen(0, '127.0.0.1', done));
-  t.after(() => { for (const socket of sockets) socket.destroy(); server.close(); });
-  f.set('stream-port', server.address().port);
-  return { messages, requests, typed: () => messages.filter(message => message.eventType === 'keyDown').map(message => message.text).join('') };
 }
 
 /** Sends the card form's values; `moves` is whether the site goes to its receipt on the click. */
@@ -264,6 +238,7 @@ test('missing cloudflared exits 3 for every link, having started nothing', t => 
     assert.match(out.stdout, /^HANDOVER_NEEDS=cloudflared$/m);
   }
   assert.deepEqual(f.calls(), []);
+  assert.equal(f.camofox.starts(), 0, 'no browser either');
   assert.ok(!existsSync(join(f.state, 'watcher.pid')));
 });
 
@@ -277,13 +252,13 @@ test('each link gets its own key', t => {
 test('a second open is refused while a link is open', t => {
   const f = fixture(t);
   openedForm(f);
-  const before = f.calls().length;
-  for (const args of [['--passwords'], ['--form', f.form, '--until', '**/receipt/*']]) {
+  const before = [f.calls().length, f.steps().length];
+  for (const args of [['--passwords'], ['--form', f.form, '--session', SESSION, '--until', '**/receipt/*']]) {
     const again = f.run('open', ...args);
     assert.equal(again.status, 1);
     assert.match(again.stderr, /already open/);
   }
-  assert.equal(f.calls().length, before, 'the refused opens touched nothing');
+  assert.deepEqual([f.calls().length, f.steps().length], before, 'the refused opens touched nothing');
 });
 
 test('wait and close with nothing open say so', t => {
@@ -309,15 +284,15 @@ test('a bad --minutes or command, no mode, two modes, or a removed flag is a usa
   assert.deepEqual(f.calls(), []);
 });
 
-test('--form needs a finish, and a finish goes with --form only', t => {
+test('--form needs a finish, and a finish or a session goes with --form only', t => {
   const f = fixture(t);
   const none = f.run('open', '--form', f.form);
   assert.equal(none.status, 2);
   assert.match(none.stderr, /--form needs --until or --until-gone/);
-  for (const args of [['--passwords', '--until', '**'], ['--passwords', '--until-gone', '#x'], ['--keys', 'MAPS_API_KEY', '--until', '**']]) {
+  for (const args of [['--passwords', '--until', '**'], ['--passwords', '--until-gone', '#x'], ['--keys', 'MAPS_API_KEY', '--until', '**'], ['--passwords', '--session', 'card']]) {
     const out = f.run('open', ...args);
     assert.equal(out.status, 2, args.join(' '));
-    assert.match(out.stderr, /--until and --until-gone go with --form only/);
+    assert.match(out.stderr, /--until, --until-gone, and --session go with --form only/);
   }
   assert.deepEqual(f.calls(), []);
 });
@@ -348,7 +323,7 @@ test('--site and --username ride URL-encoded in the link\'s fragment beside the 
   assert.match(opened(f, '--passwords').link, /#key=[0-9a-f]{64}$/, 'no flags, no extra fragment');
 });
 
-test('the pure helpers follow agent-browser\'s glob and the recorded output shapes', () => {
+test('the pure helpers follow the URL glob and the recorded output shapes', () => {
   assert.ok(globToRegExp('**mail.google.com/mail/**').test('https://mail.google.com/mail/u/0/#inbox'));
   assert.ok(globToRegExp('https://x.com/*').test('https://x.com/home'));
   assert.ok(!globToRegExp('https://x.com/*').test('https://x.com/a/b'));
@@ -372,18 +347,18 @@ test('keyMatches accepts only the exact key', () => {
 // ---------------------------------------------------------------------------
 // The private form
 
-test('open --form reads only the feed and the finish, then sends the browser nothing until the send', async t => {
+test('open --form reads only the finish, then sends the browser nothing until the send', async t => {
   const f = fixture(t);
-  f.set('stream-off', '');
   const { port, key } = openedForm(f);
-  const calls = f.calls();
-  assert.deepEqual(calls.slice(0, 4), ['agent-browser stream status --json', 'agent-browser stream enable', 'agent-browser stream status --json', 'agent-browser get url'], 'a switched-off live feed is switched on');
-  assert.match(calls[4], /^cloudflared tunnel /);
+  assert.deepEqual(f.steps(), ['url'], 'one read of the address, to refuse a finish already met');
+  assert.equal(f.calls().length, 1);
+  assert.match(f.calls()[0], /^cloudflared tunnel /);
   const state = JSON.parse(readFileSync(join(f.state, 'state.json'), 'utf8'));
   assert.deepEqual(state.form, CARD);
   assert.equal(state.until, '**/receipt/*');
+  assert.equal(state.session, SESSION);
   await pause(300);
-  assert.equal(f.calls().length, 5, 'no polling before a send');
+  assert.deepEqual(f.steps(), ['url'], 'no polling before a send');
 
   assert.match(await (await fetch(`http://127.0.0.1:${port}/`)).text(), /Close without sending/);
   assert.match(await (await fetch(`http://127.0.0.1:${port}/page.mjs`)).text(), /export function rowsOf/);
@@ -394,7 +369,7 @@ test('open --form reads only the feed and the finish, then sends the browser not
   assert.equal(status, 200);
   assert.equal(json.closesAt, state.deadline);
   assert.equal(json.submit, 'Pay $45.00');
-  assert.doesNotMatch(JSON.stringify(json), /@e\d|#cvv|target/, 'the page never gets a target');
+  assert.doesNotMatch(JSON.stringify(json), /@?e\d\d|#cvv|target/, 'the page never gets a target');
   for (const gone of ['fields', 'focus', 'select', 'check', 'action', 'navigate', 'viewport']) assert.equal((await route(port, key, gone, {})).status, 404, gone);
   const upgrade = await new Promise(done => {
     const socket = connect(port, '127.0.0.1', () => socket.write(`GET /stream?key=${key} HTTP/1.1\r\nHost: x\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\n\r\n`));
@@ -402,7 +377,7 @@ test('open --form reads only the feed and the finish, then sends the browser not
     socket.on('data', chunk => { text += chunk; socket.destroy(); }).on('close', () => done(text));
   });
   assert.match(upgrade, /^HTTP\/1\.1 404/, 'no live view of the browser');
-  assert.equal(f.calls().length, 5, 'no refused request reached agent-browser');
+  assert.deepEqual(f.steps(), ['url'], 'no refused request reached the browser');
 });
 
 test('a bad form file exits 2 with FORM_FILE= before any link', t => {
@@ -414,19 +389,25 @@ test('a bad form file exits 2 with FORM_FILE= before any link', t => {
   assert.match(out.stderr, /Fix the form file first/);
   assert.equal(f.run('open', '--form', join(f.state, 'missing.json'), '--until', '**').status, 2);
   assert.deepEqual(f.calls(), []);
+  assert.equal(f.camofox.starts(), 0);
   assert.ok(!existsSync(f.state), 'no link state');
 });
 
-test('a form does not open without a live feed, or on a finish the page already meets', t => {
+test('a form does not open with no page in its session, or on a finish the page already meets', t => {
   const f = fixture(t);
-  f.set('stream-port', 'null');
-  const feedless = f.run('open', '--form', f.form, '--until', '**/receipt/*');
-  assert.equal(feedless.status, 1);
-  assert.match(feedless.stderr, /no live feed/);
-  f.set('stream-port', '9');
+  for (const finish of [['--until', '**/receipt/*'], ['--until-gone', '#card-form']]) {
+    const pageless = f.run('open', '--form', f.form, '--session', SESSION, ...finish);
+    assert.equal(pageless.status, 1, finish.join(' '));
+    assert.match(pageless.stderr, /No page is open in this browser session/);
+  }
+  assert.equal(f.camofox.starts(), 0, 'opening a form starts no browser');
+  f.openPage();
+  const elsewhere = f.run('open', '--form', f.form, '--session', 'another-chat', '--until', '**/receipt/*');
+  assert.equal(elsewhere.status, 1);
+  assert.match(elsewhere.stderr, /No page is open in this browser session/, 'another chat\'s page is not this one\'s');
   for (const finish of [['--until', '**/card'], ['--until-gone', '#gone']]) {
     if (finish[0] === '--until-gone') f.set('count', '0');
-    const met = f.run('open', '--form', f.form, ...finish);
+    const met = f.run('open', '--form', f.form, '--session', SESSION, ...finish);
     assert.equal(met.status, 1, finish.join(' '));
     assert.match(met.stderr, /already meets the finish/);
   }
@@ -434,17 +415,25 @@ test('a form does not open without a live feed, or on a finish the page already 
   assert.ok(!existsSync(join(f.state, 'watcher.pid')));
 });
 
-test('a send types each text value over the live feed, presses once, and gives done when the site moves on', async t => {
+test('a form with no --session works on the page of the folder it is opened from', async t => {
+  const f = fixture(t, { checkout: true });
+  f.openPage(null);
+  assert.equal(f.camofox.requests()[0].body.sessionKey, 'repo', 'browse.mjs keys the tab by the checkout\'s folder');
+  const link = opened(f, '--form', f.form, '--until', '**/receipt/*');
+  assert.equal(JSON.parse(readFileSync(join(f.state, 'state.json'), 'utf8')).session, 'repo');
+  assert.equal((await send(f, link)).json.receipt.result, 'done');
+});
+
+test('a send types each text value through the browser client, presses once, and gives done when the site moves on', async t => {
   const f = fixture(t, { paseo: 'ok' });
-  const feed = await fakeFeed(t, f);
   const link = openedForm(f);
   const tunnel = f.tunnelPid();
-  const before = f.browserCalls().length;
+  const before = f.steps().length;
   f.set('hold-click', '');
   const sending = send(f, link);
-  await eventually(() => f.browserCalls().includes('agent-browser click @e31'));
-  assert.equal(feed.typed(), NUMBER + CODE, 'the text values, in field order, as key presses');
-  assert.doesNotMatch(f.stateFiles(), /XKCD|QWZP|ZQ7/, 'no typed value in the watcher\'s files or the tunnel log');
+  await eventually(() => f.steps().includes(PRESS));
+  assert.deepEqual(f.page().typed, { e12: NUMBER, '#cvv': CODE }, 'the text values reached the site\'s own boxes');
+  assert.deepEqual(f.page().picked, { e13: '03', e14: '2028' });
   assert.equal((await route(link.port, link.key, 'send', { values: VALUES })).status, 409, 'a second send is refused');
   f.unset('hold-click');
   const { status, json } = await sending;
@@ -452,14 +441,10 @@ test('a send types each text value over the live feed, presses once, and gives d
   assert.equal(json.receipt.result, 'done');
   assert.equal(json.receipt.notification, 'notified');
 
-  const calls = f.browserCalls().slice(before);
-  assert.deepEqual(calls.slice(0, 9), [...FILL, 'agent-browser click @e31']);
-  for (const line of calls.slice(9)) assert.equal(line, 'agent-browser get url', 'after the press, only the address is read');
-  assert.ok(!f.calls().some(line => /XKCD|QWZP|ZQ7/.test(line)), 'no typed value in any command');
-  assert.equal(feed.requests.length, 1);
-  assert.equal(feed.requests[0].url, '/?pacing=ack&maxFps=1', 'one unacknowledged picture at most');
-  assert.equal(feed.requests[0].headers.origin, undefined);
-  assert.ok(feed.messages.every(message => message.type === 'input_keyboard'));
+  const steps = f.steps().slice(before);
+  assert.deepEqual(steps.slice(0, 7), [...FILL, PRESS]);
+  for (const step of steps.slice(7)) assert.equal(step, 'url', 'after the press, only the address is read');
+  assert.equal(f.camofox.starts(), 1, 'the send used the browser that was running');
 
   const out = f.run('wait');
   assert.equal(out.stdout.trim(), 'HANDOVER_RESULT=done');
@@ -474,22 +459,46 @@ test('a send types each text value over the live feed, presses once, and gives d
   assert.equal(f.sent().length, 1);
 });
 
+test('a sent value appears in no command line, environment, log, or file: only in the loopback /type body', async t => {
+  const f = fixture(t, { paseo: 'ok' });
+  const link = openedForm(f);
+  f.set('hold-click', '');
+  const sending = send(f, link);
+  await eventually(() => f.steps().includes(PRESS));
+  assert.doesNotMatch(f.stateFiles(), PRIVATE, 'the watcher\'s files and the tunnel log, while the send is under way');
+  f.unset('hold-click');
+  assert.equal((await sending).json.receipt.result, 'done');
+  f.run('wait');
+
+  const requests = f.camofox.requests();
+  const typing = requests.filter(request => request.path.endsWith('/type'));
+  assert.deepEqual(typing.map(request => request.body.text), [NUMBER, CODE], 'each value went once, in the body of its own /type request');
+  assert.doesNotMatch(JSON.stringify(requests.filter(request => !request.path.endsWith('/type'))), PRIVATE, 'no other request holds one');
+  assert.doesNotMatch(JSON.stringify(typing.map(({ path, query, auth }) => [path, query, auth])), PRIVATE, 'not in an address or a header');
+  assert.doesNotMatch(JSON.stringify(f.camofox.env()), PRIVATE, 'the browser\'s command line and environment');
+  assert.doesNotMatch(f.calls().join('\n') + JSON.stringify(f.sent()), PRIVATE, 'the tunnel\'s and the chat tool\'s command lines');
+  assert.doesNotMatch(f.stateFiles(), PRIVATE, 'the link\'s own files');
+  const kept = dir => readdirSync(dir, { recursive: true, withFileTypes: true }).filter(entry => entry.isFile()).map(entry => readFileSync(join(entry.parentPath, entry.name), 'utf8')).join('\n');
+  assert.doesNotMatch(kept(join(dirname(f.state), 'camofox')), PRIVATE, 'the files browse.mjs keeps');
+  assert.ok(!existsSync(join(dirname(f.state), 'logins.json')), 'a card is never saved as a login');
+});
+
 test('a site that keeps its page gives not-accepted: the typed boxes are emptied and nobody is woken', async t => {
   const f = fixture(t, { paseo: 'ok' });
-  const feed = await fakeFeed(t, f);
   const link = openedForm(f);
-  const before = f.browserCalls().length;
+  const before = f.steps().length;
   const { json } = await send(f, link, { moves: false });
   assert.equal((await route(link.port, link.key, 'send', { values: VALUES })).status, 410, 'the link is over');
   assert.equal(json.receipt.result, 'not-accepted');
   assert.equal(json.receipt.ready, false);
   assert.equal(json.receipt.notification, 'not-requested');
-  const calls = f.browserCalls().slice(before);
-  assert.deepEqual(calls.slice(0, 9), [...FILL, 'agent-browser click @e31']);
-  assert.deepEqual(calls.slice(-4), CLEAR, 'each text box it typed into is emptied and each dropdown put back, last');
-  assert.equal(calls.filter(line => line === 'agent-browser click @e31').length, 1, 'pressed once, never again');
-  assert.ok(calls.slice(9, -4).length > 1 && calls.slice(9, -4).every(line => line === 'agent-browser get url'));
-  assert.equal(feed.typed(), NUMBER + CODE);
+  const steps = f.steps().slice(before);
+  assert.deepEqual(steps.slice(0, 7), [...FILL, PRESS]);
+  assert.deepEqual(steps.slice(-4), CLEAR, 'each text box it typed into is emptied and each dropdown put back, last');
+  assert.equal(steps.filter(step => step === PRESS).length, 1, 'pressed once, never again');
+  assert.ok(steps.slice(7, -4).length > 1 && steps.slice(7, -4).every(step => step === 'url'));
+  assert.deepEqual(f.page().typed, { e12: '', '#cvv': '' }, 'nothing the person gave is left on the page');
+  assert.deepEqual(f.page().picked, { e13: '01 - January', e14: '2027' }, 'each dropdown shows the choice the site had');
   const out = f.run('wait');
   assert.equal(out.stdout.trim(), 'HANDOVER_RESULT=not-accepted');
   assert.match(out.rawStdout, /HANDOVER_NOTIFICATION=not-requested/);
@@ -498,44 +507,55 @@ test('a site that keeps its page gives not-accepted: the typed boxes are emptied
 
 test('a field that can not be filled presses nothing and empties what was typed', async t => {
   const f = fixture(t);
-  const feed = await fakeFeed(t, f);
   const link = openedForm(f);
-  const before = f.browserCalls().length;
+  const before = f.steps().length;
   f.set('fail-select', '');
   const { json } = await send(f, link);
   assert.equal(json.receipt.result, 'not-accepted');
-  assert.deepEqual(f.browserCalls().slice(before), [...FILL.slice(0, 4), 'agent-browser fill @e12']);
-  assert.equal(feed.typed(), NUMBER, 'nothing past the failed field was typed');
+  assert.deepEqual(f.steps().slice(before), [...FILL.slice(0, 3), 'type e12']);
+  assert.deepEqual(f.page().typed, { e12: '' }, 'nothing past the failed field was typed, and the first box is empty again');
 });
 
-test('a press whose command fails still waits for the site, which may have taken it', async t => {
+test('a press whose step fails still waits for the site, which may have taken it', async t => {
   const f = fixture(t);
-  await fakeFeed(t, f);
   const link = openedForm(f, '--until-gone', '#card-form');
   f.set('fail-click', '');
   const sending = send(f, link, { moves: false });
-  await eventually(() => f.browserCalls().includes('agent-browser click @e31'));
+  await eventually(() => f.steps().includes(PRESS));
   f.set('count', '0');
   assert.equal((await sending).json.receipt.result, 'done');
-  assert.ok(!f.browserCalls().includes('agent-browser get url'), 'only the named finish is read');
+  assert.ok(!f.steps().includes('url'), 'only the named finish is read');
+  assert.equal(f.steps().filter(step => step === PRESS).length, 1, 'a failed press is never tried again');
 });
 
-test('a form with no live feed at the send types nothing and presses nothing', async t => {
+test('a tab the browser lost mid-send is not reopened: nothing is typed or pressed twice', async t => {
   const f = fixture(t);
   const link = openedForm(f);
-  const before = f.browserCalls().length;
+  const before = f.steps().length;
+  f.set('gone-once', '');
   const { json } = await send(f, link);
   assert.equal(json.receipt.result, 'not-accepted');
-  assert.deepEqual(f.browserCalls().slice(before), []);
+  assert.deepEqual(f.steps().slice(before), ['type e12', 'type e12'], 'the one step and its undo, and no new tab');
+});
+
+test('a form whose browser stopped before the send types nothing, presses nothing, and starts no browser', async t => {
+  const f = fixture(t);
+  const link = openedForm(f);
+  const before = f.steps().length;
+  f.camofox.stop();
+  const { json } = await send(f, link);
+  assert.equal(json.receipt.result, 'not-accepted');
+  assert.deepEqual(f.steps().slice(before), []);
+  assert.equal(f.camofox.starts(), 1);
 });
 
 test('a bad send is refused without using the one send, and Close without sending gives closed', async t => {
   const f = fixture(t);
   const { port, key } = openedForm(f);
-  const before = f.calls().length;
+  const before = f.steps().length;
   for (const body of ['{', {}, { values: VALUES.slice(1) }, { values: [NUMBER, '13', '2028', CODE] }, { values: [NUMBER, '03', '2028', ''] }, { values: [NUMBER, '03', '2028', 'two\nlines'] }]) assert.equal((await route(port, key, 'send', body)).status, 400, JSON.stringify(body));
   assert.equal((await route(port, key, 'send')).status, 405);
-  assert.equal(f.calls().length, before, 'no refused send reached agent-browser');
+  assert.equal(f.steps().length, before, 'no refused send reached the browser');
   assert.deepEqual(await route(port, key, 'done', {}), { status: 200, json: { ok: true } });
   const out = f.run('wait');
   assert.equal(out.stdout.trim(), 'HANDOVER_RESULT=closed');
@@ -554,15 +574,14 @@ test('the deadline gives timeout and tears down', async t => {
 
 test('a send under way outlasts close and the deadline, and ends with its own result', async t => {
   const f = fixture(t);
-  await fakeFeed(t, f);
   const link = openedForm(f, '--until', '**/receipt/*', '--minutes', '0.05');
-  f.set('hold-fill', '');
+  f.set('hold-type', '');
   const sending = send(f, link);
-  await eventually(() => f.browserCalls().includes('agent-browser fill @e12'));
+  await eventually(() => f.steps().includes('type e12'));
   const closing = f.start('close');
   await pause(3300);
   assert.ok(!existsSync(join(f.state, 'result.json')), 'neither close nor the deadline cut the send short');
-  f.unset('hold-fill');
+  f.unset('hold-type');
   assert.equal((await sending).json.receipt.result, 'done');
   assert.equal((await closing).stdout.trim(), 'HANDOVER_RESULT=done');
 });
@@ -595,7 +614,6 @@ test('a closed link refuses every route before invoking the browser', async t =>
 
 test('a finished send notifies the full originating workspace without wait; the receipt dispatches once', async t => {
   const f = fixture(t, { paseo: 'ok' });
-  await fakeFeed(t, f);
   const link = openedForm(f);
   const state = JSON.parse(readFileSync(join(f.state, 'state.json'), 'utf8'));
   assert.equal(state.agentId, 'a-full-workspace-id');
@@ -623,8 +641,7 @@ test('a finished send notifies the full originating workspace without wait; the 
 for (const [paseo, notification] of [['fail', 'unconfirmed'], ['timeout', 'unconfirmed'], ['invalid', 'unconfirmed'], [null, 'unavailable']]) {
   test(`completion keeps its result when notification is ${paseo ?? 'missing'}`, async t => {
     const f = fixture(t, { paseo });
-    await fakeFeed(t, f);
-    await send(f, openedForm(f));
+      await send(f, openedForm(f));
     f.run('wait');
     const result = JSON.parse(readFileSync(join(f.state, 'result.json'), 'utf8'));
     assert.equal(result.result, 'done'); assert.equal(result.notification, notification);
@@ -634,7 +651,6 @@ for (const [paseo, notification] of [['fail', 'unconfirmed'], ['timeout', 'uncon
 
 test('a CLI without originating identity never infers a target or opens another workspace', async t => {
   const f = fixture(t, { paseo: 'ok', agentId: '' });
-  await fakeFeed(t, f);
   await send(f, openedForm(f));
   f.run('wait');
   assert.equal(f.sent().length, 0);
@@ -645,7 +661,7 @@ test('a CLI without originating identity never infers a target or opens another 
 // The key link's guide flag, its 30 minutes, and giving way
 
 const deadlineOf = f => JSON.parse(readFileSync(join(f.state, 'state.json'), 'utf8')).deadline;
-const FORM_ARGS = f => ['--form', f.form, '--until', '**/receipt/*'];
+const FORM_ARGS = f => ['--form', f.form, '--session', SESSION, '--until', '**/receipt/*'];
 
 test('--guide goes with --keys only, and a bad guide exits 2 with KEYS_GUIDE= before any link', t => {
   const f = fixture(t, { checkout: true });
@@ -665,6 +681,7 @@ test('--guide goes with --keys only, and a bad guide exits 2 with KEYS_GUIDE= be
   assert.equal(bad.stdout, 'KEYS_GUIDE=MAPS_API_KEY: url takes an https address with a host name\n');
   assert.ok(!existsSync(f.state), 'no link state');
   assert.deepEqual(f.calls(), []);
+  assert.equal(f.camofox.starts(), 0);
 
   const entry = { title: 'Maps key', url: 'https://maps.example.com/keys', steps: ['Copy the key'] };
   writeFileSync(guide, JSON.stringify({ MAPS_API_KEY: entry }));

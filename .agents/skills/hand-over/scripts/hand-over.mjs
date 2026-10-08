@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Opens a private link that closes itself: a private form, the password link, or the key link.
 //
-//     node .claude/skills/hand-over/scripts/hand-over.mjs open --form <file> (--until <glob> | --until-gone <selector>) [--minutes N]
+//     node .claude/skills/hand-over/scripts/hand-over.mjs open --form <file> (--until <glob> | --until-gone <selector>) [--session <name>] [--minutes N]
 //     node .claude/skills/hand-over/scripts/hand-over.mjs open --passwords [--site <url>] [--username <user>] [--minutes N]
 //     node .claude/skills/hand-over/scripts/hand-over.mjs open --keys NAME[,NAME] [--guide <file>] [--minutes N]
 //     node .claude/skills/hand-over/scripts/hand-over.mjs wait
@@ -20,22 +20,22 @@
 //
 // `open --form <file>` opens a private form for values the agent must never see, such as card details.
 // form.mjs checks the file before any tunnel: a bad one exits 2 with `FORM_FILE=<where>: <reason>`. The
-// form rides in the state file; it names the site's fields and button, never a value. `open` reads the
-// browser session's live-feed port, switching the feed on when it is off, and refuses a finish the page
-// already meets, since the form could not then tell sent from not accepted. The watcher serves
-// form-page.html and .mjs and mounts form.mjs's keyed `GET /form`, `POST /send`, and `POST /done`. It
-// sends the browser nothing until the person's one send. form.mjs then fills the site's fields, typing
-// each text value as key presses over the live feed, and presses the site's button once. The watcher
-// polls for up to 60 seconds, reading only `agent-browser get url` (matched against `--until`: `**` any
-// run, `*` no `/`) and `agent-browser get count <selector>` (0 meets `--until-gone`); both given means
-// both must hold. Reached is `done`. Otherwise form.mjs empties the text boxes it typed into and the
-// result is `not-accepted`, which never announces readiness. A send under way outlasts the deadline and
-// `close`.
+// form rides in the state file; it names the site's fields and button, never a value. The form works
+// on the page open in the opener's browser session: browse.mjs's own default, the checkout's folder
+// name, or `--session`. `open` refuses when that session has no page, or the page already meets the
+// finish, since the form could not then tell sent from not accepted. The watcher serves form-page.html
+// and .mjs and mounts form.mjs's keyed `GET /form`, `POST /send`, and `POST /done`. It sends the browser
+// nothing until the person's one send. form.mjs then fills the site's fields through browse.mjs's
+// client, which starts no browser and retries no step, and presses the site's button once. The watcher
+// polls for up to 60 seconds, reading only the page's address (matched against `--until`: `**` any
+// run, `*` no `/`) and a count of `--until-gone`'s selector (0 meets it); both given means both must
+// hold. Reached is `done`. Otherwise form.mjs empties the text boxes it typed into and the result is
+// `not-accepted`, which never announces readiness. A send under way outlasts the deadline and `close`.
 //
 // `open --passwords` opens the password link on the same key, tunnel, lock, and deadline, and touches
 // no browser page. It serves passwords-page.html and .mjs and mounts passwords.mjs's keyed `POST /save`
 // and `POST /done`; it ends on `/done`, `close`, or the deadline. `result.json` then also holds `saved`,
-// the vault names saved, and `wait` prints `HANDOVER_SAVED=<name>,<name>` after the result: never a
+// the names the logins saved under, and `wait` prints `HANDOVER_SAVED=<name>,<name>` after the result: never a
 // host, username, or password. `--site` (an http(s) URL or a bare host) and `--username` pre-fill the
 // page's add-a-login form: they ride only in the printed link's fragment,
 // `#key=<hex>&site=<url>&user=<username>`, URL-encoded, which a browser never sends, so they reach no
@@ -77,13 +77,14 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs, promisify } from 'node:util';
 import { isMain } from '../../memory/scripts/lib/cli.mjs';
 import { primaryRoot } from '../../memory/scripts/lib/primary-root.mjs';
-import { checkForm, FORM_ROUTES, formRoutes, openFeed, sendForm } from './form.mjs';
+import { client as browseClient, sessionName } from '../../browser/scripts/browse.mjs';
+import { checkForm, FORM_ROUTES, formRoutes, sendForm } from './form.mjs';
 import { APP_FILE, checkGuide, KEY_ROUTES, keyRoutes, LIMITS as KEY_LIMITS, NAME as KEY_NAME, resolveKeys } from './keys.mjs';
 import { findPaseo } from '../../routine/scripts/lib/paseo.mjs';
 import { hostOf, LIMITS as PASSWORD_LIMITS, PASSWORD_ROUTES, passwordRoutes } from './passwords.mjs';
 import { siteUrl } from './passwords-page.mjs';
 
-const USAGE = `usage: hand-over.mjs open --form <file> (--until <glob> | --until-gone <selector>) [--minutes N]
+const USAGE = `usage: hand-over.mjs open --form <file> (--until <glob> | --until-gone <selector>) [--session <name>] [--minutes N]
        hand-over.mjs open --passwords [--site <url>] [--username <user>] [--minutes N]
        hand-over.mjs open --keys NAME[,NAME] [--guide <file>] [--minutes N]
        hand-over.mjs wait | close
@@ -92,7 +93,8 @@ const USAGE = `usage: hand-over.mjs open --form <file> (--until <glob> | --until
           --form: a JSON file of title, note, fields (label, kind, target, options),
           and submit (label, target), drawn as one box per field (exit 2 with
           FORM_FILE=); the person's one send fills the site's fields and presses its
-          button; --until and --until-gone name where the site goes once it accepts
+          button; --until and --until-gone name where the site goes once it accepts;
+          --session names the browse.mjs session whose page it is, when not the default
           --passwords: save logins and continue, or cancel; --site and --username
           fill in the add-a-login form, carried only in the link
           --keys: one box per declared name; it ends on cancellation or
@@ -112,7 +114,6 @@ const PAGE_WAIT_MS = 10_000;
 const PROBE_TIMEOUT_MS = 5000;
 const PROBE_EVERY_MS = 500;
 const PROBE_ORIGIN = process.env.HANDOVER_PROBE_ORIGIN;
-const TOOL_TIMEOUT_MS = 15_000;
 const POLL_MS = Number(process.env.HANDOVER_POLL_MS) || 2000;
 const SEND_WAIT_MS = Number(process.env.HANDOVER_SEND_WAIT_MS) || 60_000;
 const DIR = join(homedir(), '.wong-stack', 'hand-over');
@@ -134,7 +135,7 @@ const sleep = ms => new Promise(done => setTimeout(done, ms));
 // ---------------------------------------------------------------------------
 // Pure helpers
 
-/** agent-browser's URL glob as a whole-string RegExp: `**` any run, `*` anything but `/`. */
+/** A URL glob as a whole-string RegExp: `**` any run, `*` anything but `/`. */
 export function globToRegExp(glob) {
   const body = glob.split('**').map(part => part.split('*').map(text => text.replace(/[.+?^${}()|[\]\\]/g, '\\$&')).join('[^/]*')).join('.*');
   return new RegExp(`^${body}$`);
@@ -173,21 +174,8 @@ function alive(pid) {
 
 const watcherPid = () => Number(readText(FILES.pid).trim()) || null;
 
-const execFileAsync = promisify(execFile);
-
-/** Runs agent-browser without blocking the page server; resolves to trimmed stdout, or null when it fails. */
-async function browser(args) {
-  try {
-    return (await execFileAsync('agent-browser', args, { encoding: 'utf8', timeout: TOOL_TIMEOUT_MS })).stdout.trim();
-  } catch {
-    return null;
-  }
-}
-
-/** Runs agent-browser with `--json`; resolves to its `data`, or null when it fails. */
-async function browserData(args) {
-  try { return JSON.parse((await browser([...args, '--json'])) ?? '').data ?? null; } catch { return null; }
-}
+/** The browser client for a form's session: it starts no browser and retries no step, so nothing is typed or pressed twice. */
+const formPage = session => browseClient(session, { retry: false, start: false });
 
 /** Signals a process group, or the lone process where groups don't exist. */
 function signal(pid, sig) {
@@ -362,29 +350,22 @@ async function startTunnel(port, deadline) {
   return { pid, origin: null };
 }
 
-/** The session's live-feed port, enabling the feed when it is off; null when there is none. */
-async function streamPort() {
-  let status = await browserData(['stream', 'status']);
-  if (status && !status.enabled) {
-    await browser(['stream', 'enable']);
-    status = await browserData(['stream', 'status']);
-  }
-  return status?.enabled && status.port ? status.port : null;
-}
-
-/** What a finish is judged by: the page's address and the named element's count, each read only when named. */
-async function seen({ until, untilGone }) {
+/**
+ * What a finish is judged by: the page's address and the named element's count, each read only when
+ * named. An address that can not be read is null, and a count NaN.
+ */
+async function seen(page, { until, untilGone }) {
   return {
-    ...(until && { url: await browser(['get', 'url']) }),
-    ...(untilGone && { count: Number.parseInt((await browser(['get', 'count', untilGone])) ?? '', 10) }),
+    ...(until && { url: await page.url().catch(() => null) }),
+    ...(untilGone && { count: await page.count(untilGone).then(Number, () => NaN) }),
   };
 }
 
 /** True once the site meets the finish; false when SEND_WAIT_MS passes first. */
-async function reachesFinish(state) {
+async function reachesFinish(page, state) {
   const end = Date.now() + SEND_WAIT_MS;
   for (;;) {
-    if (finished(state, await seen(state))) return true;
+    if (finished(state, await seen(page, state))) return true;
     if (Date.now() >= end) return false;
     await sleep(POLL_MS);
   }
@@ -451,15 +432,12 @@ async function givesWay(pid) {
   return !alive(pid);
 }
 
-/**
- * What a form's send needs from the browser, or a message saying why the form can not open: the
- * session's live-feed port, and a finish the page does not already meet.
- */
-async function formFeed(finish) {
-  const feed = await streamPort();
-  if (!feed) return { fault: 'agent-browser reported no live feed for this browser session.' };
-  if (finished(finish, await seen(finish))) return { fault: 'The page already meets the finish, so the form could not tell sent from not accepted; name where the site goes next.' };
-  return { feed };
+/** Why a form can not open on the session's page, or null: no page to read, or a finish it already meets. */
+async function formFault(session, finish) {
+  const now = await seen(formPage(session), finish);
+  if (now.url === null || Number.isNaN(now.count)) return 'No page is open in this browser session; open the site\'s page with browse.mjs first, or name its --session.';
+  if (finished(finish, now)) return 'The page already meets the finish, so the form could not tell sent from not accepted; name where the site goes next.';
+  return null;
 }
 
 async function open(values) {
@@ -490,7 +468,8 @@ async function open(values) {
     return 1;
   };
   const finish = { until: values.until ?? null, untilGone: values['until-gone'] ?? null };
-  const { feed = null, fault } = form ? await formFeed(finish) : {};
+  const session = form ? sessionName(values.session) : null;
+  const fault = form && (await formFault(session, finish));
   if (fault) return fail(fault);
   const port = await freePort();
   const key = randomBytes(32).toString('hex');
@@ -499,7 +478,7 @@ async function open(values) {
   const tunnel = await startTunnel(port, tunnelDeadline);
   tunnelPid = tunnel.pid;
   if (!tunnel.origin) return fail(tunnelDown);
-  writeFileSync(FILES.state, `${JSON.stringify({ completionId: randomBytes(16).toString('hex'), agentId: process.env.PASEO_AGENT_ID?.trim() || null, cwd: process.cwd(), paseoHome: process.env.PASEO_HOME || null, paseoHost: process.env.PASEO_HOST || null, tunnelPid, port, streamPort: feed, key, passwords: Boolean(values.passwords), keys, form, ...finish, deadline })}\n`, { mode: 0o600 });
+  writeFileSync(FILES.state, `${JSON.stringify({ completionId: randomBytes(16).toString('hex'), agentId: process.env.PASEO_AGENT_ID?.trim() || null, cwd: process.cwd(), paseoHome: process.env.PASEO_HOME || null, paseoHost: process.env.PASEO_HOST || null, tunnelPid, port, session, key, passwords: Boolean(values.passwords), keys, form, ...finish, deadline })}\n`, { mode: 0o600 });
   const child = spawn(process.execPath, [fileURLToPath(import.meta.url), 'watch'], { detached: true, stdio: 'ignore' });
   watcher = child.pid;
   writeFileSync(FILES.pid, `${watcher}\n`);
@@ -550,7 +529,8 @@ async function watch() {
   for (const sig of ['SIGTERM', 'SIGINT', 'SIGHUP']) process.on(sig, () => { if (!sending) finish('closed', false); });
   const onSend = async values => {
     sending = true;
-    return finish(await sendForm(state.form, values, { browser, openFeed: () => openFeed(state.streamPort), reached: () => reachesFinish(state) }));
+    const page = formPage(state.session);
+    return finish(await sendForm(state.form, values, { browser: page, reached: () => reachesFinish(page, state) }));
   };
   const hooks = { onSaved: name => { if (!saved.includes(name)) saved.push(name); }, onDone: ready => finish('done', ready), onContinue: () => finish('done', true), onOpened: () => writeFileSync(FILES.opened, ''), onSend, onCancel: () => finish('closed', false) };
   try {
@@ -640,7 +620,7 @@ function usageError(message) {
 function parse(args) {
   let parsed;
   try {
-    parsed = parseArgs({ args, allowPositionals: true, strict: true, options: { form: { type: 'string' }, until: { type: 'string' }, 'until-gone': { type: 'string' }, passwords: { type: 'boolean' }, site: { type: 'string' }, username: { type: 'string' }, keys: { type: 'string' }, guide: { type: 'string' }, minutes: { type: 'string' }, help: { type: 'boolean' } } });
+    parsed = parseArgs({ args, allowPositionals: true, strict: true, options: { form: { type: 'string' }, until: { type: 'string' }, 'until-gone': { type: 'string' }, passwords: { type: 'boolean' }, session: { type: 'string' }, site: { type: 'string' }, username: { type: 'string' }, keys: { type: 'string' }, guide: { type: 'string' }, minutes: { type: 'string' }, help: { type: 'boolean' } } });
   } catch (error) {
     usageError(error.message);
   }
@@ -664,7 +644,7 @@ function checkMode(values) {
   const modes = ['form', 'passwords', 'keys'].filter(mode => values[mode] !== undefined);
   if (modes.length !== 1) usageError('open takes one of --form, --passwords, or --keys');
   const finish = values.until !== undefined || values['until-gone'] !== undefined;
-  if (finish && modes[0] !== 'form') usageError('--until and --until-gone go with --form only');
+  if ((finish || values.session !== undefined) && modes[0] !== 'form') usageError('--until, --until-gone, and --session go with --form only');
   if (!finish && modes[0] === 'form') usageError('--form needs --until or --until-gone, to tell sent from not accepted');
 }
 

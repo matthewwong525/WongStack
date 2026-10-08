@@ -43,7 +43,7 @@ const scripts = {
   '.agents/skills/explore/scripts/other-work.mjs': [],
   '.agents/skills/dream-memory/scripts/dream.mjs': ['since'],
   '.agents/skills/hand-over/scripts/hand-over.mjs': [],
-  '.agents/skills/browser/scripts/cloud-browser.mjs': [],
+  '.agents/skills/browser/scripts/browse.mjs': [],
   '.agents/skills/ship/scripts/number-release.mjs': [],
   '.agents/skills/wong-sync/scripts/preflight.mjs': [],
   '.agents/skills/wong-sync/scripts/merge-check.mjs': [],
