@@ -1,6 +1,6 @@
 # Browse your accounts with camofox
 
-**Status:** planned
+**Status:** ready-to-ship
 **Branch:** camofox-browser-setup
 **Open questions:** none
 
@@ -105,3 +105,4 @@ None.
 - **2026-10-07** — Building: camofox's server keeps no log file, because camofox logs a failed typing step's detail, which can quote a password or a card number.
 - **2026-10-07** — Building: `login` prints a fourth result, `typed`, for a step with no password box (an email, then *Continue*), because such a page often keeps its address and would read as *rejected*.
 - **2026-10-08** — Assumed: the end-to-end check's *still logged in after a restart* step is shown by a cookie that survived a hard kill and a restart, because the public practice login site keeps no session to check; a real Amazon login survived a restart in the trial.
+- **2026-10-08** — Archive checkpoint: built, tried on a real camofox (saving through a hard kill, a practice login, two sessions at once, a framed card box, no report sent), main merged in with five files resolved by hand, numbered 38.0.0.

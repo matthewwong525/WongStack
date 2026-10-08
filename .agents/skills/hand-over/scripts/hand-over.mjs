@@ -66,14 +66,14 @@
 // the 60-second wait after a send, HANDOVER_TUNNEL_WAIT_MS the 30-second tunnel wait, and
 // HANDOVER_PROBE_ORIGIN the address asked before the link prints, `{port}` standing for the page's port.
 
-import { execFile, spawn } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { homedir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseArgs, promisify } from 'node:util';
+import { parseArgs } from 'node:util';
 import { isMain } from '../../memory/scripts/lib/cli.mjs';
 import { primaryRoot } from '../../memory/scripts/lib/primary-root.mjs';
 import { client as browseClient, sessionName } from '../../browser/scripts/browse.mjs';

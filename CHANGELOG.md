@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (major) — Browse your accounts with camofox
+## 38.0.0 — Browse your accounts with camofox
 
 - **Your errands run in a browser more sites let in.** Booking, ordering, and anything else the assistant does on your accounts moves to [camofox](https://github.com/jo-inc/camofox-browser). In a trial it opened Uber Eats ten times out of ten, where the earlier browser was stopped. Checking a preview of your own app stays on the earlier browser.
 - **Cloudflare's browser is gone.** A site that blocked the assistant used to move to a second browser, with your login copied across. There is one browser now. *Use the cloud browser first* does nothing.
@@ -20,6 +20,7 @@
 - **New script:** [`browse.mjs`](.agents/skills/browser/scripts/browse.mjs) installs, starts, and drives camofox. `cloud-browser.mjs` and the page `blocked-sites.md` are removed; [browsing](wiki/development/browsing.md#when-a-site-refuses-the-browser) says what happens when a site refuses.
 
 **Updating.** Two things change for you, and neither needs a step now. The first time you ask for an errand on a website, the assistant asks to install the new browser: say yes when you have about 1.4 GB of disk free. The logins you saved before are not carried over: the first time an errand meets each site, the assistant sends the password link, and you save that login once more. Nothing is deleted from the old store.
+
 ## 37.4.0 — Send plan notes straight to the chat
 
 - **A plan opens as a live link, and its button sends your notes to the chat.** Before, your notes took three steps: tap *Copy notes*, switch to the chat, paste. Now the chat prints a web address for the plan, and *Send notes* on that page puts your saved notes into the chat that made the plan, as if you had pasted them. The chat updates the plan and builds nothing.

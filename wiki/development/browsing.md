@@ -19,7 +19,7 @@ node $B close                           # this task's page; keeps the logins
 
 A failed command prints one `BROWSE_ERROR=` line. A ref comes from the newest snapshot.
 
-1. **The first errand installs the browser, once you say yes.** On `BROWSE_NEEDS=install` (exit 3), the agent asks once, saying [what the install needs](required-tools.md#installing-camofox): about 1.4 GB of disk and 700 MB of memory. It then runs `browse.mjs install` and carries on.
+1. **The first errand installs the browser, once you say yes.** On `BROWSE_NEEDS=install` (exit 3), the agent asks once, saying [what the install needs](required-tools.md#installing-camofox): about 1.4 GB of disk and 700 MB of memory. It then runs `browse.mjs install`.
 2. **A saved login goes first.** When a site asks to log in, the agent runs `browse.mjs logins`, which gives each login's name, site, and username, never a password. It matches the login page's host against each saved site's host, `www.` dropped: they match when they're equal, or when one sits under the other, so `login.netflix.com` matches `netflix.com`.
    - **One match:** the agent logs in without asking, because saving the login was your permission. It names the page's boxes from its own snapshot, and the script types the login into them:
 
@@ -38,7 +38,7 @@ A failed command prints one `BROWSE_ERROR=` line. A ref comes from the newest sn
 
 **Tasks share the browser.** Two chats, or a chat and a scheduled run, each get their own page and the same logins; neither waits. A page is named for its task's folder, so a second task in one folder passes `--session <name>` on every command. `close` closes only the task's own page; `stop` ends the browser for every task, so the agent runs it only when you ask. [`/verify`](staging-walkthrough.md) uses a temporary browser of its own, without your logins.
 
-**Read a page only after it settles.** A page read in its first second can be half-loaded: `open` waits until two reads a second apart match, and after a click the agent reads again when the page looks unfinished.
+**Read a page only after it settles.** A page read in its first second can be half-loaded: `open` waits until two reads a second apart match, and after a click the agent reads again if the page looks unfinished.
 
 **Nothing is reported to the browser's makers.** `browse.mjs` switches camofox's failure reports off at every start, and the browser listens only on this computer.
 
