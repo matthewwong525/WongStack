@@ -78,8 +78,7 @@
 // `HANDOVER_APP_KEYS=` those that went to app/.dev.vars, which the agent then loads with
 // `npm run secrets:push`: never a value. Then `HANDOVER_OPENED=yes|no`: whether anyone opened the page.
 //
-// A key link's `--minutes` defaults to 30, a live view's to 480, the other links' to 10; each deadline
-// starts at `open`. The
+// Every link's `--minutes` defaults to 480 (eight hours); each deadline starts at `open`. The
 // first keyed `GET /keys` writes an `opened` marker. Until then a key link gives way: a new `open`
 // writes `replaced.json`, the old link's completion identity and the new opener's folder name, signals
 // the old watcher, which ends as `closed`, and takes its place. The first link's `wait` prints
@@ -138,9 +137,10 @@ const USAGE = `usage: hand-over.mjs open --form <file> (--until <glob> | --until
           fill in the add-a-login form, carried only in the link
           --keys: one box per declared name; it ends on cancellation or
           once every key is saved (exit 2 with KEYS_UNDECLARED= or KEYS_AMBIGUOUS=);
-          open for 30 minutes, not 10, and an unopened one gives way to a new open
+          an unopened one gives way to a new open
           --guide: a JSON file keyed by name, each with any of title, url, open,
           steps, and check {url, auth}, shown on the key page (exit 2 with KEYS_GUIDE=)
+          --minutes: time limit for any link, default 480 (eight hours)
   wait    block until the link closes; print
           HANDOVER_RESULT=done|not-accepted|timeout|closed|error,
           then HANDOVER_SAVED=<name>,<name> for a password or key link, and
@@ -693,7 +693,7 @@ function parse(args) {
   }
   const [command, ...rest] = parsed.positionals;
   if (!['open', 'watch', 'wait', 'close', 'install-view'].includes(command) || rest.length) usageError(command ? `unknown command: ${[command, ...rest].join(' ')}` : 'missing command');
-  const minutes = Number(values.minutes ?? (values.keys !== undefined ? 30 : values.view ? 480 : 10));
+  const minutes = Number(values.minutes ?? 480);
   if (!(minutes > 0)) usageError('--minutes must be a positive number');
   if (command === 'open') checkMode(values);
   return { command, values: { ...values, minutes, ...(values.keys !== undefined && { keys: keyNames(values.keys) }) } };

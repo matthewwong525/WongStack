@@ -1,3 +1,4 @@
+<!-- wong-review:3 -->
 <!doctype html>
 <!--
   WongStack review kit. build-review.mjs writes the proposal as static HTML at the
@@ -10,7 +11,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · CHANGE-NAME</title>
+<title>Review · 2026-10-08-build-buttons-in-the-bar</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -102,17 +103,56 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="CHANGE-NAME">
+<body data-change="2026-10-08-build-buttons-in-the-bar">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>CHANGE-NAME</h1>
+  <h1>2026-10-08-build-buttons-in-the-bar</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. <span class="copies">Saving a note copies all your notes.</span> Open a drawing and tap it to see it full screen.</p>
   <p id="script-error" role="alert" hidden></p>
 </header>
-<!-- review:content -->
+<section id="why" aria-labelledby="why-h"><h2 id="why-h">Why</h2>
+<div class="card">
+<p data-note="why-1" tabindex="0"><i>Build it</i> and <i>Build and publish</i> sit at the foot of the plan page, under everything. On a phone that means scrolling past the whole plan to reach them, which is a lot of work for a one-tap answer.</p>
+</div></section>
+<section id="changes" aria-labelledby="changes-h"><h2 id="changes-h">What Changes</h2>
+<ol class="items">
+<li class="item card" id="item-1"><span class="num">1</span><div class="body"><div class="text" data-note="item-1" tabindex="0"><b>The two build buttons move into the bottom bar, which is always in view.</b> On a live link the bar gets a second row with <i>Build it</i> and <i>Build and publish</i>, under the notes row. The section at the foot of the page goes away, so the buttons live in one place.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-1-line-1" tabindex="0">  BEFORE (phone)           AFTER (phone)</span>
+<span class="ln" data-note="item-1-line-2" tabindex="0">┌──────────────────────┐ ┌──────────────────────┐</span>
+<span class="ln" data-note="item-1-line-3" tabindex="0">│ ...the whole plan... │ │ ...the whole plan... │</span>
+<span class="ln" data-note="item-1-line-4" tabindex="0">│ Ready?               │ │                      │</span>
+<span class="ln" data-note="item-1-line-5" tabindex="0">│ [Build it]           │ │                      │</span>
+<span class="ln" data-note="item-1-line-6" tabindex="0">│ [Build and publish]  │ │                      │</span>
+<span class="ln" data-note="item-1-line-7" tabindex="0">├──────────────────────┤ ├──────────────────────┤</span>
+<span class="ln" data-note="item-1-line-8" tabindex="0">│ 2 notes [Send notes] │ │ 2 notes [Send notes] │</span>
+<span class="ln" data-note="item-1-line-9" tabindex="0">│                      │ │+[Build it] [Build and│</span>
+<span class="ln" data-note="item-1-line-10" tabindex="0">│                      │ │+           publish]  │</span>
+<span class="ln" data-note="item-1-line-11" tabindex="0">└──────────────────────┘ └──────────────────────┘</span></pre></div></details></li>
+<li class="item card" id="item-2"><span class="num">2</span><div class="body"><div class="text" data-note="item-2" tabindex="0"><b>One button stands out at a time.</b> With notes you have not sent, <i>Send notes</i> is the bold one. With none, <i>Build it</i> is. On a wide screen everything fits on one row.</div></div></li>
+<li class="item card" id="item-3"><span class="num">3</span><div class="body"><div class="text" data-note="item-3" tabindex="0"><b>The publish question and the page's answers show in the bar too.</b> Tapping <i>Build and publish</i> swaps the build row for <i>This goes live and can't be undone.</i> with <i>Yes, publish</i> and <i>Cancel</i>. After a tap the row says what happened, such as <i>Asked the chat to build.</i> or <i>Send or delete your notes first.</i></div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-3-line-1" tabindex="0">┌────────────────────────────┐</span>
+<span class="ln" data-note="item-3-line-2" tabindex="0">│ 0 notes       [Send notes] │</span>
+<span class="ln" data-note="item-3-line-3" tabindex="0">│ Goes live, can't be undone │</span>
+<span class="ln" data-note="item-3-line-4" tabindex="0">│ [Yes, publish]    [Cancel] │</span>
+<span class="ln" data-note="item-3-line-5" tabindex="0">└────────────────────────────┘</span></pre></div></details></li>
+<li class="item card" id="item-4"><span class="num">4</span><div class="body"><div class="text" data-note="item-4" tabindex="0"><b>Nothing else changes.</b> A plan opened as a file, or through a closed link, shows the bar as today with no build row. The stops for unsent notes and a changed plan stay.</div></div></li>
+</ol>
+<p class="aside">Non-goals: no new buttons, and no change to what a tap sends.</p>
+
+</section>
+<section id="decisions" aria-labelledby="decisions-h"><h2 id="decisions-h">Decisions</h2>
+<ol class="decisions">
+<li class="decision card" id="decision-1" data-note="decision-1" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-08</p>Matthew, after trying the page on his phone: 'build and build and publish should be on the bottom bar as well not at the bottom of everything cause scrolling down is a lot of work'.</li>
+<li class="decision card" id="decision-2" data-note="decision-2" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-08</p>Assumed: a second row on a phone, not shorter labels on one row, because four items do not fit a phone's width and the labels match the chat's own choices.</li>
+<li class="decision card" id="decision-3" data-note="decision-3" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-08</p>Assumed: the foot section is removed, reading 'as well' as 'also within reach', because two sets of the same buttons could each be tapped. Easy to keep both if he meant that.</li>
+<li class="decision card" id="decision-4" data-note="decision-4" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-08</p>Assumed: the bold button follows unsent notes, because the page keeps one main action and a build is stopped anyway while notes are unsent.</li>
+<li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-08</p>Build choices beyond the plan: once a build is asked, <i>Send notes</i> is bold again so the bar always has one bold button; a note saved while the publish question is open takes the bold from <i>Yes, publish</i>; the page's bottom space is the bar's height plus a little air; the toast sits above the bar at any height.</li>
+<li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-08</p>Archive checkpoint: every task ticked, local checks pass, numbered 38.2.1. Matthew saw the new bar on a throwaway plan's live link before asking to publish.</li>
+</ol>
+</section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
 <p class="session" hidden>Storage is off. Notes and drafts last for this session only.</p>
 <ul class="note-list" id="note-list"></ul>

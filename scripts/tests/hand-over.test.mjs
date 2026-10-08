@@ -1068,7 +1068,7 @@ test('a CLI without originating identity never infers a target or opens another 
 });
 
 // ---------------------------------------------------------------------------
-// The key link's guide flag, its 30 minutes, and giving way
+// Private-link time limits, the key link's guide flag, and giving way
 
 const deadlineOf = f => JSON.parse(readFileSync(join(f.state, 'state.json'), 'utf8')).deadline;
 const FORM_ARGS = f => ['--form', f.form, '--session', SESSION, '--until', '**/receipt/*'];
@@ -1099,7 +1099,7 @@ test('--guide goes with --keys only, and a bad guide exits 2 with KEYS_GUIDE= be
   assert.deepEqual(JSON.parse(readFileSync(join(f.state, 'state.json'), 'utf8')).keys.keys[0].guide, entry);
 });
 
-test('a key link defaults to 30 minutes; a private form and a password link default to 10', t => {
+test('every private link defaults to eight hours and honors an explicit time limit', t => {
   const f = fixture(t, { checkout: true });
   const minutes = (...args) => {
     const before = Date.now();
@@ -1108,7 +1108,7 @@ test('a key link defaults to 30 minutes; a private form and a password link defa
     assert.equal(f.run('close').status, 0);
     return [(deadline - Date.now()) / 60_000, (deadline - before) / 60_000];
   };
-  for (const [args, want] of [[['--keys', 'MAPS_API_KEY'], 30], [FORM_ARGS(f), 10], [['--passwords'], 10], [['--keys', 'MAPS_API_KEY', '--minutes', '10'], 10]]) {
+  for (const [args, want] of [[['--keys', 'MAPS_API_KEY'], 480], [FORM_ARGS(f), 480], [['--passwords'], 480], [['--keys', 'MAPS_API_KEY', '--minutes', '30'], 30], [[...FORM_ARGS(f), '--minutes', '10'], 10], [['--passwords', '--minutes', '15'], 15]]) {
     const [low, high] = minutes(...args);
     assert.ok(low <= want && high >= want, `${args[0]}: ${low}–${high} minutes, not ${want}`);
   }

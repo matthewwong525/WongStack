@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
-import { buildReview, NEXT_STEP, notesHeader, planLink } from '../../.agents/skills/plan/scripts/build-review.mjs';
+import { buildReview, NEXT_STEP, notesHeader, planActions, planLink } from '../../.agents/skills/plan/scripts/build-review.mjs';
 import { fakePaseo, fakeTunnel, ORIGIN, TUNNEL_ENV } from './fixtures/fake-tunnel.mjs';
 import { needs } from './fixtures/needs.mjs';
 
@@ -275,7 +275,7 @@ test('--link prints the file where no reply link can open', () => fixture(root =
 }));
 
 // A fake tunnel and a fake way to wake the chat stand in for the real ones, as in reply-link.test.mjs.
-test('--link prints the reply link in the same line, and the page sends under the plan\'s header', () => fixture(root => {
+test('--link prints the reply link in the same line, with the plan\'s header and its two actions', () => fixture(root => {
   const home = join(dirname(root), 'home');
   const bin = join(home, 'bin');
   mkdirSync(bin, { recursive: true });
@@ -284,6 +284,11 @@ test('--link prints the reply link in the same line, and the page sends under th
   const env = { ...process.env, ...TUNNEL_ENV, REPLY_LINK: '', PASEO_AGENT_ID: 'a-chat', PASEO_HOME: '', PASEO_HOST: '', HANDOVER_PASEO_BIN: '', HOME: home, PATH: `${bin}:/usr/bin:/bin`, REPLY_LINK_POLL_MS: '100' };
   const state = join(home, '.wong-stack/reply-link');
   try {
+    // Without --link the same setup prints the file and registers nothing.
+    const plain = spawnSync(process.execPath, [builder, root, '--require-current'], { encoding: 'utf8', env, timeout: 30_000 });
+    assert.equal(plain.stdout, `review: current, updated\n${planLink(join(resolve(root), 'review.html'))}\n\n${NEXT_STEP}\n`);
+    assert.equal(existsSync(state), false, 'no link, no actions');
+    rmSync(join(root, 'review.html'));
     const out = spawnSync(process.execPath, [builder, root, '--require-current', '--link'], { encoding: 'utf8', env, timeout: 30_000 });
     assert.equal(out.status, 0, out.stderr);
     const [, link] = /^Click here to see the plan: \[review\.html\]\((\S+)\)$/m.exec(out.stdout) ?? [];
@@ -293,6 +298,13 @@ test('--link prints the reply link in the same line, and the page sends under th
     assert.equal(page.file, join(resolve(root), 'review.html'));
     assert.equal(page.header, notesHeader('example'));
     assert.equal(page.header, "Notes on the plan example from the review page. Don't build yet.");
+    // Each button's message is fixed here, names the change, and reads as the choice made in the chat.
+    assert.deepEqual(page.actions, planActions('example'));
+    assert.deepEqual(page.actions, {
+      build: 'Build it now: run /apply for the plan example. Chosen on its review page.',
+      publish: 'Build and publish: run /ship for the plan example. Chosen on its review page.',
+    });
+    for (const name of ['build', 'publish']) assert.ok(kit.includes(`data-ready="${name}"`), `the kit offers ${name}`);
     assert.ok(kit.includes("'Notes on the plan ' + CHANGE + ' from the review page. Don\\'t build yet.'"), 'the kit copies notes under the same line');
     // A second run prints the same link, and an older page, which can not send, keeps its file.
     const again = spawnSync(process.execPath, [builder, root, '--link'], { encoding: 'utf8', env, timeout: 30_000 });

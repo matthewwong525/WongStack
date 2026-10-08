@@ -18,6 +18,32 @@
 - **For the assistant:** [`hand-over.mjs`](.agents/skills/hand-over/scripts/hand-over.mjs) gains `open --view` and `install-view`, and [live view](wiki/development/live-view.md) says when and how to run them.
 
 **Updating.** Nothing to do by hand. The first time a site shows a robot check, the assistant asks before installing three small tools that let you see its browser: one in your home folder, and two that need admin rights on the computer. While a live view is open, its link can use the accounts the assistant's browser is signed in to, so send it to nobody.
+## 38.2.1 — The build buttons sit in the plan page's bottom bar
+
+- ***Build it* and *Build and publish* are always in view.** Before, they sat under *Ready?* at the foot of the plan page, so on a phone you scrolled past the whole plan to reach them. Now they are in the bar at the bottom of the screen: a second row under *Send notes* on a phone, the same row on a wide screen. The *Ready?* section is gone.
+- **One button stands out at a time.** With notes you have not sent, *Send notes* is the bold one. With none, *Build it* is.
+- **The publish question and the page's answers show in the bar too.** *Build and publish* swaps the build row for *Goes live, can't be undone.* with *Yes, publish* and *Cancel*. After a tap the row says what happened, such as *Asked the chat to build.*
+- **Nothing else changes.** A plan opened as a file, or through a closed link, shows the bar as before, with no build buttons. A tap sends what it sent before, and the stops for unsent notes and a changed plan stay.
+
+**Updating.** Nothing needs doing by hand. A plan made before the update gets the new bar when your assistant builds its page again.
+
+## 38.2.0 — Start the build from the plan page
+
+- **A plan's page can now start the build.** Before, a plan that was right as it stood still sent you back to the chat to pick *Build it now* or *Build and publish*. Now the page has both under *Ready?*, below the decisions. A tap tells the chat that made the plan to start, as if you had picked that choice there.
+- ***Build it* shows you the result before anything goes live. *Build and publish* asks once more on the page**, because publishing can't be undone.
+- **The page stops a tap that could build the wrong plan.** With notes you have not sent, it says to send or delete them first. If the plan changed after you opened the page, it says to reload and read it. Each button works once for each version of the plan, so a double tap does nothing.
+- **Notes still build nothing.** Only the two buttons start a build.
+- **Whoever holds a plan's link can now start that plan's build and its publish.** Until now the link could only add notes. It is still printed only in your chat, carries its own secret, and closes after 8 hours. The page sends a button's name and nothing else, so nobody holding the link can tell the chat to do anything but those two things.
+- **No live link, no buttons.** A plan opened as a file, or through a closed link, shows neither button; you choose in the chat as before.
+- **Other pages can offer buttons the same way.** The assistant names each button and its exact message when it opens the link, such as *Send all* on a mail review page. [Reply links](wiki/development/reply-links.md#give-a-page-a-button) says how.
+
+**Updating.** Nothing needs doing by hand. A plan made before the update gets the two buttons when your assistant builds its page again.
+
+## 38.1.0 — Private links stay open for eight hours
+
+- **Password links, key links, and private forms stay open for eight hours by default.** You have more time to use them. Finishing or cancelling still closes them early, and a requested shorter time still works.
+
+**Updating.** Nothing needs doing by hand. New links use the longer default; links already open keep their time limit.
 
 ## 38.0.0 — Browse your accounts with camofox
 
