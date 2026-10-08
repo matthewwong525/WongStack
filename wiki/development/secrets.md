@@ -54,7 +54,7 @@ Ordinary browsing, saved website logins, use of stored credentials, and existing
 
 ## Receive a key through a private link
 
-When a task needs a key the live files lack, or the person asks for *the key link*, send a private link in the same reply, with no *Ready?* question: it waits 30 minutes. Chats are stored; the link carries the key from their device straight to the ignored file.
+When a task lacks a key, or the person asks for *the key link*, send a private link in the same reply, with no *Ready?* question: it waits eight hours by default. Chats are stored; the link takes the key straight to the ignored file.
 
 1. **Declare it first.** The name must be declared, blank, in exactly one example file: `.env.example` for a tool credential, `app/.dev.vars.example` for a Worker secret. A commented-out `# NAME=` is not a declaration. The first sentence of the comment above it is the hint a key with no guide shows, so say where to get the key there.
 2. **Write the guide** to a file outside the repo, from the service's public help pages, read as plain pages. WongStack stores no guide.
@@ -85,7 +85,7 @@ When a task needs a key the live files lack, or the person asks for *the key lin
 
 One link is open at a time. A key link nobody has opened gives way to a newer link: its `wait` prints `closed` and `HANDOVER_REPLACED_BY=`, the folder of the workspace whose link took its place. Name that workspace and offer a new link. An opened one keeps its place.
 
-A key over several lines is stored on one: JSON compacted, other text in double quotes with each line break as `\n`, which dotenv and wrangler read back and a shell's `source` does not. Each save writes the primary worktree's file and, in a linked worktree, its seeded branch copy, like any [add or rotation](#worktrees-and-branch-copies). Private input ends on completion, cancellation, or at 30 minutes, and has [every private link's safety](browsing.md#how-private-links-work). No value reaches a command line, a log, the link's own files, or the chat.
+A key over several lines is stored on one: JSON compacted, other text in double quotes with each line break as `\n`, which dotenv and wrangler read back and a shell's `source` does not. Each save writes the primary worktree's file and, in a linked worktree, its seeded branch copy, like any [add or rotation](#worktrees-and-branch-copies). Private input ends on completion, cancellation, or after eight hours by default, and has [every private link's safety](browsing.md#how-private-links-work). No value reaches a command line, a log, the link's own files, or the chat.
 
 **A key pasted into the chat is still saved**, under the name the person gave, by the same routing. Write a value that isn't plain letters, digits, and `_ - . : / + = @` in single quotes, or in double quotes when it holds a `'`: never escape inside the quotes, because dotenv and wrangler read `\"` back as two characters, and a shell sourcing `.env` expands a bare `~`. In the same reply, say the link is safer next time, never showing the key: *Saved MAPS_API_KEY. Next time I'll send a private link, so the key stays out of the chat.*
 

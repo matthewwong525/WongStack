@@ -3,6 +3,12 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 38.1.0 — Private links stay open for eight hours
+
+- **Password links, key links, and private forms stay open for eight hours by default.** You have more time to use them. Finishing or cancelling still closes them early, and a requested shorter time still works.
+
+**Updating.** Nothing needs doing by hand. New links use the longer default; links already open keep their time limit.
+
 ## 38.0.0 — Browse your accounts with camofox
 
 - **Your errands run in a browser more sites let in.** Booking, ordering, and anything else the assistant does on your accounts moves to [camofox](https://github.com/jo-inc/camofox-browser). In a trial it opened Uber Eats ten times out of ten, where the earlier browser was stopped. Checking a preview of your own app stays on the earlier browser.

@@ -8,7 +8,7 @@ Give the agent the logins you choose through a private link, so it logs in for y
 - **Earlier saved logins aren't carried over.** Logins saved while the agent used its earlier browser sit in that browser's own store, which gives out no password to copy. Nothing there is deleted or read. The first time an errand meets each site, the agent sends this link, and you save that login again.
 - **Keep bank and email out**, unless you trust the agent with them: anyone with that computer can reach what's saved.
 - **Change or forget one in the chat.** Saving the same site and username again replaces the old password, so a changed password is fixed by adding it again. A second account on the same site is kept beside the first. Say *forget my Netflix login* and the agent runs [`browse.mjs`](../../.agents/skills/browser/scripts/browse.mjs) `forget <name>`. Say *which logins do you have?* and it lists the sites and usernames from `browse.mjs logins`.
-- **How.** The agent runs [`hand-over.mjs`](../../.agents/skills/hand-over/scripts/hand-over.mjs) `open --passwords`, sends you the `HANDOVER_LINK` it prints, and runs `wait` in the background. Private input ends after a successful *Save and continue*, on *Close without continuing*, or after 10 minutes:
+- **How.** The agent runs [`hand-over.mjs`](../../.agents/skills/hand-over/scripts/hand-over.mjs) `open --passwords`, sends you the `HANDOVER_LINK` it prints, and runs `wait` in the background. Private input ends after a successful *Save and continue*, on *Close without continuing*, or after eight hours by default:
 
   ```bash
   node .claude/skills/hand-over/scripts/hand-over.mjs open --passwords   # the password link
@@ -26,6 +26,6 @@ Give the agent the logins you choose through a private link, so it logs in for y
 
   It then names the saved sites in the chat, looked up by name in `browse.mjs logins`, never a password. Only one [private link](browsing.md#how-private-links-work) is open at a time; a [key link](secrets.md#receive-a-key-through-a-private-link) nobody has opened gives way to this one.
 
-The link has [every private link's safety](browsing.md#how-private-links-work): a new address and secret key each time, closed after successful completion, cancellation, or after 10 minutes. Each password travels once, from your device to that file, and never lands in the chat, a log, a command line, or a file in the repo.
+The link has [every private link's safety](browsing.md#how-private-links-work): a new address and secret key each time, closed after successful completion, cancellation, or after eight hours by default. Each password travels once, from your device to that file, and never lands in the chat, a log, a command line, or a file in the repo.
 
 Back to [browsing](browsing.md).
