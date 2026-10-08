@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (major) — Apps by a tick, keys by a level
+## 39.0.0 — Apps by a tick, keys by a level
 
 - **An app is a tick, a key is a level, and neither depends on the other.** In Access you tick the apps a person can use. Separately, you pick *None*, *Read* or *Read & write* for each key. Areas, and their *Look up* and *Look up & change* levels, are gone.
 - **A ticked app does everything it was built to do.** Someone with Orders ticked can open it, look things up and change things, from the screen or through their assistant, whatever keys Orders uses. An app no longer refuses a person because their level for a key is too low.
@@ -20,6 +20,7 @@
 [Employee access](wiki/stack/employee-access.md#apps) describes apps and key levels, [the Access screens](wiki/stack/access-screens.md#a-panel-has-apps-and-keys) the panel, and [mini apps](wiki/stack/mini-apps.md#work-with-no-screen) work with no screen.
 
 **Updating.** Four things to do. First, open Access and read the notice at the top: anyone who could only look at an app has lost that app, and Access names each one until your next save there. Tick the app to give it back; a tick gives all of the app, and the old look-only setting can't be brought back. Second, look over each person's apps: a person with an app ticked can now do everything in it, even where a key level held them back before, so untick an app for anyone who should not change things in it. Third, ask your assistant to check any folder under `app/worker/apps/` that has no screen, which is work you built for skills or assistants alone: each one now needs a key or a screen, or the checks stop the update and name it. Fourth, if your assistant set a service up so its key can be used directly, look over that key: direct use is now on for you, and for anyone who holds a level for the key, whatever you had picked before. Set a person's level for the key to *None* to stop it for them. The Apps, Keys and Skills lists are gone, with nothing to do: skills run as before. Key levels people already hold are kept, and the app's database does not change.
+
 ## 38.2.1 — The build buttons sit in the plan page's bottom bar
 
 - ***Build it* and *Build and publish* are always in view.** Before, they sat under *Ready?* at the foot of the plan page, so on a phone you scrolled past the whole plan to reach them. Now they are in the bar at the bottom of the screen: a second row under *Send notes* on a phone, the same row on a wide screen. The *Ready?* section is gone.

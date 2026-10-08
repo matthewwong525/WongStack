@@ -1,6 +1,6 @@
 # Apps by a tick, keys by a level, and nothing between them
 
-**Status:** planned
+**Status:** ready-to-ship
 
 **Branch:** simplify-keys-screens
 
@@ -149,3 +149,4 @@ None.
 - **2026-10-08** — Assumed: the local check run counts as done with two parts still failing, because both fail only until the save: one script test reads the deleted sample files from git's file list, and the retired-names check reads a spec the archive rewrites. The automatic checks after the save decide.
 - **2026-10-08** — Assumed: the save and preview walk of task 7.3 are the publish run's own save and walk, because Matthew chose to publish and that run makes one save; the box is closed here and the walk's verdict stands in for it.
 - **2026-10-08** — Asked, on the third preview, for fewer words on a person's panel → cut the lines under *Can install the project* and the keys, the *new person starts with no apps* line, and shortened the manager note.
+- **2026-10-08** — Archived for publishing as 39.0.0, with main brought in through 38.2.1; the checkpoint after this entry is the one that merges.

@@ -4,18 +4,19 @@
   WongStack review kit. build-review.mjs writes the proposal as static HTML at the
   review:content marker and puts the change name in place of its token. The one
   script adds Note buttons, drawing fit and full screen, notes, drafts, and copy. It loads nothing from the network;
-  opened through a reply link (reply-link.mjs), its one request sends the saved notes to the chat.
+  opened through a reply link (reply-link.mjs), it sends the saved notes to the chat, and its Ready section
+  asks the chat to build, or to build and publish, by an action's name alone.
 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · apps-and-keys-apart</title>
+<title>Review · 2026-10-08-apps-and-keys-apart</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
   html { -webkit-text-size-adjust:100%; }
-  body { margin:0; padding-bottom:76px; background:#e6e6e6; color:var(--ink); font:16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; overflow-wrap:anywhere; }
+  body { margin:0; padding-bottom:var(--bar, 76px); background:#e6e6e6; color:var(--ink); font:16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; overflow-wrap:anywhere; }
   main { max-width:700px; margin:0 auto; padding:0 12px; }
   a { color:inherit; }
   code, pre, .ln { font-family:ui-monospace, Menlo, Consolas, monospace; }
@@ -84,22 +85,29 @@
   #editor .moved { margin:0 0 6px; font-size:13px; font-weight:600; }
   #editor textarea { display:block; width:100%; min-height:76px; padding:6px 8px; border:1px solid #777; border-radius:4px; font:16px/1.4 system-ui, sans-serif; resize:vertical; }
   #editor .row { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
-  .bar { position:fixed; left:0; right:0; bottom:0; z-index:4; display:flex; align-items:center; gap:10px; padding:8px 12px calc(8px + env(safe-area-inset-bottom)); background:#fff; border-top:1px solid var(--line); }
+  .bar { position:fixed; left:0; right:0; bottom:0; z-index:4; display:flex; flex-wrap:wrap; align-items:center; gap:8px 10px; padding:8px 12px calc(8px + env(safe-area-inset-bottom)); background:#fff; border-top:1px solid var(--line); }
   .bar .note-count { margin-right:auto; font-size:14px; }
   body.docked .bar, body.viewing .bar { display:none; }
+  #ready, #ready .row { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+  #ready-says, #ready-confirm span { margin:0; font-size:14px; }
+  #ready-says { font-weight:600; }
+  @media (max-width:700px) {
+    #ready, #ready .row, #ready-says, #ready-confirm span { flex:1 1 100%; }
+    #ready button { flex:1; }
+  }
   .session, #editor .copies { color:var(--muted); font-size:13px; }
   #editor .copies { flex:none; margin:6px 0 0; }
   .pin.sent { background:#fff; color:var(--ink); }
-  #toast { position:fixed; left:50%; bottom:72px; z-index:7; max-width:90vw; transform:translateX(-50%); padding:6px 12px; border-radius:4px; background:#222; color:#fff; font-size:14px; opacity:0; pointer-events:none; transition:opacity .2s; }
+  #toast { position:fixed; left:50%; bottom:calc(var(--bar, 76px) - 4px); z-index:7; max-width:90vw; transform:translateX(-50%); padding:6px 12px; border-radius:4px; background:#222; color:#fff; font-size:14px; opacity:0; pointer-events:none; transition:opacity .2s; }
   #toast.show { opacity:1; }
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="apps-and-keys-apart">
+<body data-change="2026-10-08-apps-and-keys-apart">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>apps-and-keys-apart</h1>
+  <h1>2026-10-08-apps-and-keys-apart</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. <span class="copies">Saving a note copies all your notes.</span> Open a drawing and tap it to see it full screen.</p>
@@ -139,7 +147,7 @@
 <span class="ln" data-note="item-5-line-1" tabindex="0">  BEFORE                       AFTER</span>
 <span class="ln" data-note="item-5-line-2" tabindex="0">┌──────────────────────────┐ ┌──────────────────────────┐</span>
 <span class="ln" data-note="item-5-line-3" tabindex="0">│ People Roles Apps Keys   │ │ People  Roles            │</span>
-<span class="ln" data-note="item-5-line-4" tabindex="0">│           [Add person]   │ │ [Key settings] [Add]     │</span>
+<span class="ln" data-note="item-5-line-4" tabindex="0">│           [Add person]   │ │             [Add person] │</span>
 <span class="ln" data-note="item-5-line-5" tabindex="0">│ Who       Role  Has      │ │ Who       Role  Has      │</span>
 <span class="ln" data-note="item-5-line-6" tabindex="0">│ ana@…     own   2 apps   │ │ ana@…     own   2 apps   │</span>
 <span class="ln" data-note="item-5-line-7" tabindex="0">│ ben@…     Sales 1 app    │ │ ben@…     Sales 1 app    │</span>
@@ -208,6 +216,12 @@
 <li class="decision card" id="decision-30" data-note="decision-30" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-08</p>Asked, on the second preview, why Key settings is needed → chose to drop the direct-use switch and the panel, so a key's level alone decides direct use.</li>
 <li class="decision card" id="decision-31" data-note="decision-31" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-08</p>Assumed: each key's saved state and its step left show beside the key where a person or a role is opened, because no other place in Access lists keys now.</li>
 <li class="decision card" id="decision-32" data-note="decision-32" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-08</p>Assumed: a choice already saved for a key is ignored, not deleted, because nothing reads it and going back a version finds it as it was.</li>
+<li class="decision card" id="decision-33" data-note="decision-33" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-10-08</p>Check: <code>app/src/apps/access/KeySettings.test.tsx</code> is deleted with the Key settings panel. Its cases for a key's saved state, its step when unsaved, the manager's reading of the owner's step and a preview now live in <code>PersonPage.test.tsx</code>, with the role's in <code>Roles.test.tsx</code>; its direct-use choice and its save have nothing left to check, and <code>direct.test.ts</code> holds that a saved choice changes nothing.</li>
+<li class="decision card" id="decision-34" data-note="decision-34" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-08</p>Assumed: a direct route keeps a mark in its mapping and the policy carries whether key levels have started, because the key-access spec says no direct request runs until they have, the owner's included, and the owner otherwise holds every key from the start.</li>
+<li class="decision card" id="decision-35" data-note="decision-35" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-08</p>Assumed: the local check run counts as done with two parts still failing, because both fail only until the save: one script test reads the deleted sample files from git's file list, and the retired-names check reads a spec the archive rewrites. The automatic checks after the save decide.</li>
+<li class="decision card" id="decision-36" data-note="decision-36" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-08</p>Assumed: the save and preview walk of task 7.3 are the publish run's own save and walk, because Matthew chose to publish and that run makes one save; the box is closed here and the walk's verdict stands in for it.</li>
+<li class="decision card" id="decision-37" data-note="decision-37" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-08</p>Asked, on the third preview, for fewer words on a person's panel → cut the lines under <i>Can install the project</i> and the keys, the <i>new person starts with no apps</i> line, and shortened the manager note.</li>
+<li class="decision card" id="decision-38" data-note="decision-38" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-08</p>Archived for publishing as 39.0.0, with main brought in through 38.2.1; the checkpoint after this entry is the one that merges.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
@@ -229,7 +243,13 @@
   <div class="vframe"></div>
   <p class="vhint">Drag to move · pinch or + to zoom · tap a line to note it</p>
 </div>
-<div class="bar"><span class="note-count" aria-live="polite">0 notes</span><span class="session" hidden>Session only</span><button type="button" class="primary" id="copy">Copy notes</button></div>
+<div class="bar"><span class="note-count" aria-live="polite">0 notes</span><span class="session" hidden>Session only</span><button type="button" class="primary" id="copy">Copy notes</button>
+  <div id="ready" hidden>
+    <div class="row" id="ready-choose"><button type="button" data-ready="build">Build it</button><button type="button" data-ready="publish">Build and publish</button></div>
+    <div class="row" id="ready-confirm" role="group" aria-label="Build and publish? This goes live and can't be undone." hidden><span>Goes live, can't be undone.</span><button type="button" data-ready="yes">Yes, publish</button><button type="button" data-ready="cancel">Cancel</button></div>
+    <p id="ready-says" role="status" hidden></p>
+  </div>
+</div>
 <div id="toast" role="status"></div>
 <textarea id="copybuf" aria-hidden="true" tabindex="-1" readonly></textarea>
 <script>
@@ -320,6 +340,7 @@
       d.count.textContent = k ? ' · ' + k + (k === 1 ? ' note' : ' notes') : '';
       fit(d);
     });
+    bar();
   }
 
   // ── still-tap to note: a mouse on text, or any pointer on a full-screen drawing line, shows the chip ──
@@ -396,6 +417,7 @@
     const el = open.el;
     open = null; editor.hidden = true;
     document.body.classList.remove('docked'); document.body.style.paddingBottom = '';
+    bar();
     if (el) { el.classList.remove('noting'); if (restore) el.focus({ preventScroll: true }); }
   }
   function place() {
@@ -514,7 +536,7 @@
     view = null;
     d.frame.insertBefore(d.art, d.frame.firstChild);
     viewer.hidden = true; document.body.classList.remove('viewing');
-    fit(d);
+    fit(d); bar();
     if (restore) d.enlarge.focus({ preventScroll: true });
   }
   vbar.addEventListener('click', function (e) {
@@ -602,8 +624,10 @@
   let live = null, sending = false;
   function setLive(key) {
     live = key;
+    if (!key) $('ready').hidden = true;
     $('copy').textContent = key ? 'Send notes' : 'Copy notes';
     all('.copies', function (el) { el.textContent = key ? 'Send notes sends your saved notes to the chat.' : 'Saving a note copies all your notes.'; });
+    bar();
   }
   function linkKey() {
     if (!/^https?:$/.test(location.protocol) || !window.fetch) return null;
@@ -648,6 +672,62 @@
       function () { toast('Copy failed. Copy the notes list by hand.'); });
   });
 
+  // ── ready: on a reply link that offers both, the bar's second row asks the chat to build, or to build and publish ──
+  // The page sends an action's name and the version of the plan it read; the link's opener fixed each message.
+  let version = null, acting = false;
+  function says(text) { $('ready-says').textContent = text; $('ready-says').hidden = !text; bar(); }
+  function readyStep(step) {
+    $('ready-choose').hidden = step !== 'choose';
+    $('ready-confirm').hidden = step !== 'confirm';
+    bar();
+  }
+  // One primary button in the bar: the notes button while a note is unsent or no build button shows, else the build one.
+  // The page's bottom padding follows the bar's height, so a taller bar never covers the end of the page.
+  function bar() {
+    const el = $('copy').parentNode, ready = $('ready');
+    const build = !ready.hidden && !unsent().length && !($('ready-choose').hidden && $('ready-confirm').hidden);
+    $('copy').classList.toggle('primary', !build);
+    all('[data-ready="build"], [data-ready="yes"]', function (b) { b.classList.toggle('primary', build); });
+    if (el.offsetHeight) root.style.setProperty('--bar', el.offsetHeight + 19 + 'px');
+  }
+  // Unsent notes would change the plan the chat is about to build: say so. True when it spoke.
+  function notesFirst() {
+    if (!unsent().length) return false;
+    says('Send or delete your notes first.');
+    return true;
+  }
+  function offer(answer) {
+    const names = answer && answer.actions;
+    if (!Array.isArray(names) || names.indexOf('build') < 0 || names.indexOf('publish') < 0 || typeof answer.version !== 'string') return;
+    version = answer.version;
+    $('ready').hidden = false;
+    bar();
+  }
+  function act(name) {
+    if (acting || !live || notesFirst()) return;
+    acting = true; says('');
+    const closed = function () { acting = false; $('ready').hidden = true; bar(); toast('This link has closed. Choose in the chat.'); };
+    ask('act', live, { action: name, version: version }).then(function (r) {
+      if (r.status === 429) { acting = false; says('Wait a few seconds, then tap again.'); return; }
+      r.json().then(function (answer) {
+        const a = answer || {};
+        const line = r.status === 200 && a.sent === true ? 'Asked the chat to build' + (name === 'publish' ? ' and publish.' : '.')
+          : r.status === 409 && a.changed === true ? 'The plan changed. Reload to read it first.'
+          : r.status === 409 && a.done === true ? 'The chat was already asked.' : '';
+        if (!line) { closed(); return; }
+        acting = false; readyStep('done'); says(line);
+      }, closed);
+    }, closed);
+  }
+  $('ready').addEventListener('click', function (e) {
+    const step = e.target.getAttribute('data-ready');
+    if (step === 'build' || step === 'yes') act(step === 'yes' ? 'publish' : 'build');
+    else if (step === 'cancel' || (step === 'publish' && !notesFirst())) {
+      says(''); readyStep(step === 'cancel' ? 'choose' : 'confirm');
+      $('ready').querySelector('[data-ready="' + (step === 'cancel' ? 'publish' : 'cancel') + '"]').focus({ preventScroll: true });
+    }
+  });
+
   let width = root.clientWidth;
   window.addEventListener('resize', function () {
     if (root.clientWidth !== width) {
@@ -656,12 +736,17 @@
     }
     drawings.forEach(fit);
     if (open) place();
+    bar();
   });
   window.addEventListener('hashchange', jump);
   render();
   jump();
   const key = linkKey();
-  if (key) ask('alive', key).then(function (r) { if (r.ok) setLive(key); }, function () { /* not live: the page copies */ });
+  if (key) ask('alive', key).then(function (r) {
+    if (!r.ok) return;
+    setLive(key);
+    r.json().then(offer, function () { /* no actions: notes only */ });
+  }, function () { /* not live: the page copies */ });
 }());
 </script>
 </body>
