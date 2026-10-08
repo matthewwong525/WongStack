@@ -6,9 +6,9 @@
 // and the optional `note` (140) is the line under it. `fields` holds 1 to 12 boxes, each `{label, kind,
 // target, options}`: `label` (60) as on the site; `kind`, optional, one HTML autofill name such as
 // `cc-number`, so a password manager can fill the box; `target`, the site's field as a snapshot ref
-// (`@e12`) or a selector (200), never starting with `-`; and `options`, which makes the box a dropdown
-// of up to 60 `{value, text}` choices. `submit` is `{label, target}`, the site's own button. The first
-// fault is returned as `<where>: <reason>`.
+// (`e12`, or `@e12`) or a selector (200); and `options`, which makes the box a dropdown of up to 60
+// `{value, text}` choices. `submit` is `{label, target}`, the site's own button. The first fault is
+// returned as `<where>: <reason>`.
 //
 // `GET /form` gives the page `{title, note, fields, submit, closesAt, now}`: each field's label, autofill
 // name, box type, keyboard, and choices, and the button's label, never a target. `POST /send` takes
@@ -16,21 +16,18 @@
 // on one line, a dropdown's one of its choices. The first well-formed send is the only one: every later
 // one answers 409. `POST /done` cancels a form nothing was sent from.
 //
-// `sendForm` is the send. It fills the site's fields in order: a text box is cleared and focused
-// (`agent-browser fill <target> ""`, `focus <target>`) and its value typed as key presses over
-// agent-browser's local live feed; a dropdown's own choice is read (`get value <target>`), then it runs
-// `select <target> <value>`, a choice the agent supplied. With every field in, it runs `click <submit target>` once and asks `reached()` whether the
-// site moved on. A step that fails stops before the click. When the site did not move on, each text box
-// it typed into is emptied by target, each dropdown is put back to the choice it had, and the result is
-// `not-accepted`. Nothing here logs, it reads only a dropdown's choice before the person's pick, and no
-// typed value reaches argv, env, or a file.
+// `sendForm` is the send, through the browser client it is given (browse.mjs's, for the session that
+// opened the form). It fills the site's fields in order: a text box's value goes to `type(target,
+// value)`, which clears the box and types it; a dropdown's own choice is read (`value(target)`), then
+// `select(target, value)` picks a choice the agent supplied. With every field in, it runs
+// `click(submit target)` once and asks `reached()` whether the site moved on. A step that fails stops
+// before the click. When the site did not move on, each text box it typed into is emptied by target,
+// each dropdown is put back to the choice it had, and the result is `not-accepted`. Nothing here logs,
+// it reads only a dropdown's choice before the person's pick, and a typed value travels only in the
+// client's loopback request, never argv, env, or a file.
 
 export const LIMITS = { fields: 12, title: 60, note: 140, label: 60, target: 200, options: 60, option: 80, value: 256, body: 16 * 1024 };
 export const FORM_ROUTES = new Set(['/form', '/send', '/done']);
-const FEED_WAIT_MS = 5000;
-const SETTLE_MS = 150;
-const OPEN = 1;
-const sleep = ms => new Promise(done => setTimeout(done, ms));
 
 /** The HTML autofill field names a box's `kind` may be. */
 export const AUTOFILL_TOKENS = new Set(['name', 'honorific-prefix', 'given-name', 'additional-name', 'family-name', 'honorific-suffix', 'nickname', 'username', 'new-password', 'current-password', 'one-time-code', 'organization-title', 'organization', 'street-address', 'address-line1', 'address-line2', 'address-line3', 'address-level4', 'address-level3', 'address-level2', 'address-level1', 'country', 'country-name', 'postal-code', 'cc-name', 'cc-given-name', 'cc-additional-name', 'cc-family-name', 'cc-number', 'cc-exp', 'cc-exp-month', 'cc-exp-year', 'cc-csc', 'cc-type', 'transaction-currency', 'transaction-amount', 'language', 'bday', 'bday-day', 'bday-month', 'bday-year', 'sex', 'url', 'photo', 'tel', 'tel-country-code', 'tel-national', 'tel-area-code', 'tel-local', 'tel-extension', 'email', 'impp']);
@@ -42,7 +39,7 @@ const NUMERIC_TOKENS = new Set(['cc-number', 'cc-csc', 'one-time-code']);
 const isObject = value => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 const isText = (value, most) => typeof value === 'string' && Boolean(value.trim()) && value.length <= most && !/[\r\n\0]/.test(value);
 const only = (value, fields) => Object.keys(value).every(field => fields.has(field));
-/** A snapshot ref or a selector; one starting with `-` would read as a flag on agent-browser's command line. */
+/** A snapshot ref, `e12` or `@e12`, or a selector; never one that starts like a flag. */
 const isTarget = value => isText(value, LIMITS.target) && value === value.trim() && (/^@e\d+$/.test(value) || !/^[-@]/.test(value));
 const CHOICE_FIELDS = new Set(['value', 'text']);
 const isChoice = choice => isObject(choice) && only(choice, CHOICE_FIELDS) && isText(choice.value, LIMITS.option) && !choice.value.startsWith('-') && (choice.text === undefined || isText(choice.text, LIMITS.option));
@@ -63,7 +60,7 @@ const BOX_FAULTS = [
   ['takes only label, kind, target, and options', box => !only(box, BOX_FIELDS)],
   [`label takes 1 to ${LIMITS.label} characters on one line`, ({ label }) => !isText(label, LIMITS.label)],
   ['kind takes an autofill name, like cc-number', ({ kind }) => kind !== undefined && !AUTOFILL_TOKENS.has(kind)],
-  ['target takes a snapshot ref, like @e12, or a selector', ({ target }) => !isTarget(target)],
+  ['target takes a snapshot ref, like e12, or a selector', ({ target }) => !isTarget(target)],
   [`options takes 1 to ${LIMITS.options} choices, each a value and an optional text of 1 to ${LIMITS.option} characters`, ({ options }) => options !== undefined && !(Array.isArray(options) && options.length && options.length <= LIMITS.options && options.every(isChoice))],
 ];
 
@@ -106,97 +103,38 @@ export function checkValues(body, form) {
 // ---------------------------------------------------------------------------
 // The send
 
-/** The `input_keyboard` pair for one typed character, as agent-browser's own dashboard sends it. */
-function keyEvents(char) {
-  const keyCode = /^[a-z0-9]$/i.test(char) ? char.toUpperCase().charCodeAt(0) : 0;
-  const code = /^[a-z]$/i.test(char) ? `Key${char.toUpperCase()}` : /^\d$/.test(char) ? `Digit${char}` : '';
-  const base = { type: 'input_keyboard', key: char, code, windowsVirtualKeyCode: keyCode, modifiers: 0 };
-  return [{ ...base, eventType: 'keyDown', text: char }, { ...base, eventType: 'keyUp' }];
-}
-
-/** Presses `text` into the focused field over `socket`; true once the feed has taken every key. */
-async function typeText(socket, text) {
-  for (const char of Array.from(text)) {
-    for (const event of keyEvents(char)) {
-      if (socket.readyState !== OPEN) return false;
-      socket.send(JSON.stringify(event));
-    }
-  }
-  const end = Date.now() + FEED_WAIT_MS;
-  while (socket.bufferedAmount > 0 && Date.now() < end) await sleep(10);
-  // The feed passes keys on without an answer; a pause lets the browser take them before the next command.
-  await sleep(SETTLE_MS);
-  return socket.readyState === OPEN && socket.bufferedAmount === 0;
-}
-
 /**
- * Opens agent-browser's live feed on `port` for typing. Resolves to `{type(text), close()}`, or null
- * when it does not open. It asks for one picture at a time and acknowledges none, so no picture of the
- * page follows the first, and it reads nothing the feed sends.
+ * Puts one value in its field. `undo` first gains what puts the field back: an emptying of a text box,
+ * or a pick of the choice the site showed, read before the person's pick lands. Throws when a step fails.
  */
-export function openFeed(port, Socket = globalThis.WebSocket) {
-  return new Promise(done => {
-    let socket;
-    try {
-      socket = new Socket(`ws://127.0.0.1:${port}/?pacing=ack&maxFps=1`);
-    } catch {
-      return done(null);
-    }
-    const timer = setTimeout(() => { socket.close(); done(null); }, FEED_WAIT_MS);
-    socket.onerror = () => { clearTimeout(timer); done(null); };
-    socket.onopen = () => { clearTimeout(timer); done({ type: text => typeText(socket, text), close: () => socket.close() }); };
-  });
-}
-
-/**
- * Puts one value in its field. `undo` first gains the command that puts the field back: an emptying
- * fill for a text box, or a pick of the choice the site showed, read before the person's pick lands.
- * False when a step fails.
- */
-async function fillField(field, value, { browser, feed, undo }) {
+async function fillField(field, value, { browser, undo }) {
   if (field.options) {
-    const was = await browser(['get', 'value', field.target]);
-    if (was === null || (await browser(['select', field.target, value])) === null) return false;
-    if (!was.startsWith('-')) undo.push(['select', field.target, was]);
-    return true;
+    const was = await browser.value(field.target);
+    await browser.select(field.target, value);
+    if (was) undo.push(() => browser.select(field.target, was));
+    return;
   }
-  if (!feed || (await browser(['fill', field.target, ''])) === null || (await browser(['focus', field.target])) === null) return false;
-  undo.push(['fill', field.target, '']);
-  return feed.type(value);
+  undo.push(() => browser.type(field.target, ''));
+  await browser.type(field.target, value);
 }
 
 /**
- * Fills each field in order, then presses the submit target once; `undo` gains what puts each filled
- * field back. True once the press was tried, even when its command fails, since the site may still
- * have taken it; false when a field's step failed, with nothing pressed.
+ * The whole send: fill each field in order, press the submit target once, and ask `reached()` whether
+ * the site moved on. A press whose step fails still asks, since the site may have taken it; a field
+ * that fails presses nothing. Resolves to `done`, or to `not-accepted` after emptying each text box it
+ * typed into and putting each dropdown back, so nothing the person gave is left to see. `browser` is a
+ * client whose `type`, `select`, `value`, and `click` throw on failure.
  */
-async function fillAndSubmit(form, values, { browser, openFeed: open, undo }) {
-  const feed = form.fields.some(field => !field.options) ? await open() : null;
-  try {
-    for (const [index, field] of form.fields.entries()) {
-      if (!(await fillField(field, values[index], { browser, feed, undo }))) return false;
-    }
-    await browser(['click', form.submit.target]);
-    return true;
-  } finally {
-    feed?.close();
-  }
-}
-
-/**
- * The whole send: fill, press once, and ask `reached()` whether the site moved on. Resolves to `done`,
- * or to `not-accepted` after emptying each text box it typed into and putting each dropdown back, so
- * nothing the person gave is left to see. `browser(args)` runs agent-browser and resolves to its
- * output, or null on failure; `openFeed()` opens the live feed.
- */
-export async function sendForm(form, values, { browser, openFeed: open, reached }) {
+export async function sendForm(form, values, { browser, reached }) {
   const undo = [];
   let moved = false;
   try {
-    moved = (await fillAndSubmit(form, values, { browser, openFeed: open, undo })) && (await reached());
+    for (const [index, field] of form.fields.entries()) await fillField(field, values[index], { browser, undo });
+    await browser.click(form.submit.target).catch(() => {});
+    moved = await reached();
   } catch { /* a step that throws counts as not moved on */ }
   if (moved) return 'done';
-  for (const command of undo) await browser(command);
+  for (const putBack of undo) await putBack().catch(() => {});
   return 'not-accepted';
 }
 

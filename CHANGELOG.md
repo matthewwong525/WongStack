@@ -15,6 +15,24 @@
 
 **Updating.** Nothing needs doing by hand. A plan made before the update gets the two buttons when your assistant builds its page again.
 
+## 38.0.0 — Browse your accounts with camofox
+
+- **Your errands run in a browser more sites let in.** Booking, ordering, and anything else the assistant does on your accounts moves to [camofox](https://github.com/jo-inc/camofox-browser). In a trial it opened Uber Eats ten times out of ten, where the earlier browser was stopped. Checking a preview of your own app stays on the earlier browser.
+- **Cloudflare's browser is gone.** A site that blocked the assistant used to move to a second browser, with your login copied across. There is one browser now. *Use the cloud browser first* does nothing.
+- **A site that still refuses ends with steps for you.** DoorDash refuses both browsers. The assistant says so in one line, stops, and gives you numbered steps with the page's link to finish on your own phone or computer.
+- **The no-disguise rule is removed.** The guides no longer say the assistant never changes how its browser looks to a site. camofox presents itself as an ordinary browser; that is why more sites load.
+- **Puzzles, passkeys, and device checks are still yours.** The assistant does not solve a *prove you are human* puzzle, hire a network address, or use a puzzle-solving service.
+- **Saved passwords move to a plain file on your computer.** The password link looks and works as before. What you save now goes into one file in your home folder, `~/.wong-stack/logins.json`, that only your user can read. Nothing else locks it: anyone with full access to that computer can read it. A small program reads the file and types the login into the site. The assistant still never sees a password, and learns only *accepted* or *rejected*.
+- **Card details still go through the private form, and are never kept.** The form looks the same. Its button types your card straight into the site and presses the site's button once.
+- **The first errand asks before a large download.** camofox needs about 1.4 GB of disk and about 700 MB of memory while it runs. The assistant asks once, installs it into your home folder with no admin password, and later errands start at once.
+- **Two errands can run at once.** A second chat or a scheduled run used to find the browser busy and wait. Each now gets its own page and shares your logins.
+- **Nothing is reported to camofox's makers.** camofox sends failure reports that name the sites you visit unless told not to. The assistant switches that off every time it starts the browser, and the browser listens only on your computer.
+- **New installs stop giving your Cloudflare key the cloud browser's permission.** A key that already has *Browser Run Write* keeps it; nothing uses it.
+- **The rule *Browse as the person* drops *one task at a time*.**
+- **New script:** [`browse.mjs`](.agents/skills/browser/scripts/browse.mjs) installs, starts, and drives camofox. `cloud-browser.mjs` and the page `blocked-sites.md` are removed; [browsing](wiki/development/browsing.md#when-a-site-refuses-the-browser) says what happens when a site refuses.
+
+**Updating.** Two things change for you, and neither needs a step now. The first time you ask for an errand on a website, the assistant asks to install the new browser: say yes when you have about 1.4 GB of disk free. The logins you saved before are not carried over: the first time an errand meets each site, the assistant sends the password link, and you save that login once more. Nothing is deleted from the old store.
+
 ## 37.4.0 — Send plan notes straight to the chat
 
 - **A plan opens as a live link, and its button sends your notes to the chat.** Before, your notes took three steps: tap *Copy notes*, switch to the chat, paste. Now the chat prints a web address for the plan, and *Send notes* on that page puts your saved notes into the chat that made the plan, as if you had pasted them. The chat updates the plan and builds nothing.

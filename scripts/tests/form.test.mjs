@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import test from 'node:test';
-import { AUTOFILL_TOKENS, boxFor, checkForm, checkValues, describeForm, formRoutes, LIMITS, openFeed, sendForm } from '../../.agents/skills/hand-over/scripts/form.mjs';
+import { AUTOFILL_TOKENS, boxFor, checkForm, checkValues, describeForm, formRoutes, LIMITS, sendForm } from '../../.agents/skills/hand-over/scripts/form.mjs';
 
 const CARD = {
   title: 'Pay City of Markham',
@@ -46,7 +46,7 @@ test('checkForm refuses each bad shape, naming where and why', () => {
     'takes only': [{ ...box, value: '4242' }, { ...box, selector: '#card' }],
     'label takes': [{ ...box, label: undefined }, { ...box, label: ' ' }, { ...box, label: long(LIMITS.label) }, { ...box, label: 'Card\nnumber' }],
     'kind takes an autofill name': [{ ...box, kind: 'card' }, { ...box, kind: '' }, { ...box, kind: 7 }, { ...box, kind: 'off' }],
-    'target takes a snapshot ref': [{ ...box, target: undefined }, { ...box, target: '' }, { ...box, target: '-rf' }, { ...box, target: '--session=other' }, { ...box, target: '@card' }, { ...box, target: ' #card' }, { ...box, target: long(LIMITS.target) }, { ...box, target: '#a\n#b' }, { ...box, target: 12 }],
+    'target takes a snapshot ref, like e12, or a selector': [{ ...box, target: undefined }, { ...box, target: '' }, { ...box, target: '-rf' }, { ...box, target: '--session=other' }, { ...box, target: '@card' }, { ...box, target: ' #card' }, { ...box, target: long(LIMITS.target) }, { ...box, target: '#a\n#b' }, { ...box, target: 12 }],
     'options takes': [{ ...box, options: [] }, { ...box, options: 'March' }, { ...box, options: ['03'] }, { ...box, options: [{ text: 'March' }] }, { ...box, options: [{ value: '' }] }, { ...box, options: [{ value: '-1' }] }, { ...box, options: [{ value: '03', text: '' }] }, { ...box, options: [{ value: '03', selected: true }] }, { ...box, options: [{ value: long(LIMITS.option) }] }, { ...box, options: Array(LIMITS.options + 1).fill({ value: '03' }) }],
   };
   for (const [reason, bad] of Object.entries(boxes)) for (const each of bad) {
@@ -89,116 +89,73 @@ test('checkValues takes one value per field: text on one line, a dropdown\'s own
   assert.equal(checkValues(null, CARD), 400);
 });
 
-/** One log of everything a send does, in order: each agent-browser call, each typed value, and each close. */
-function tools({ fail = () => false, reached = async () => true, feed = true } = {}) {
+/**
+ * A browser client that logs everything a send does, in order. `fail(step, target)` makes a step throw;
+ * each dropdown shows `was` before the person's pick.
+ */
+function tools({ fail = () => false, reached = async () => true, was = 'Choose' } = {}) {
   const log = [];
-  return {
-    log,
-    browser: async args => { log.push(args); return fail(args) ? null : args[0] === 'get' ? '' : '✓ Done'; },
-    openFeed: async () => (feed ? { type: async text => { log.push({ typed: text }); return feed !== 'drops'; }, close: () => log.push('feed closed') } : null),
-    reached: async () => { log.push('reached?'); return reached(); },
+  const step = name => async (target, value) => {
+    log.push(value === undefined ? [name, target] : [name, target, value]);
+    if (fail(name, target)) throw new Error(`${name} failed`);
+    return name === 'value' ? was : undefined;
   };
+  return { log, browser: { type: step('type'), select: step('select'), value: step('value'), click: step('click') }, reached: async () => { log.push('reached?'); return reached(); } };
 }
 
-const FILLED = [['fill', '@e12', ''], ['focus', '@e12'], { typed: NUMBER }, ['get', 'value', '@e13'], ['select', '@e13', '03'], ['get', 'value', '@e14'], ['select', '@e14', '2028'], ['fill', CVC, ''], ['focus', CVC], { typed: '737' }];
-const PUT_BACK = [['fill', '@e12', ''], ['select', '@e13', ''], ['select', '@e14', ''], ['fill', CVC, '']];
+const FILLED = [['type', '@e12', NUMBER], ['value', '@e13'], ['select', '@e13', '03'], ['value', '@e14'], ['select', '@e14', '2028'], ['type', CVC, '737']];
+const PUT_BACK = [['type', '@e12', ''], ['select', '@e13', 'Choose'], ['select', '@e14', 'Choose'], ['type', CVC, '']];
 
-test('sendForm clears and focuses each text box before typing it, reads then picks each dropdown, presses once, then asks the finish', async () => {
+test('sendForm types each text box, reads then picks each dropdown, presses once, then asks the finish', async () => {
   const t = tools();
   assert.equal(await sendForm(CARD, VALUES, t), 'done');
-  assert.deepEqual(t.log, [...FILLED, ['click', '@e31'], 'feed closed', 'reached?']);
-  const commands = t.log.filter(Array.isArray);
-  assert.ok(!commands.some(args => args.includes(NUMBER) || args.includes('737')), 'no typed value in any command');
-  assert.equal(commands.filter(args => args[0] === 'click').length, 1);
+  assert.deepEqual(t.log, [...FILLED, ['click', '@e31'], 'reached?']);
+  assert.equal(t.log.filter(step => step[0] === 'click').length, 1);
 });
 
 test('sendForm empties each typed box and puts each dropdown back when the site does not move on, and never presses twice', async () => {
   const t = tools({ reached: async () => false });
   assert.equal(await sendForm(CARD, VALUES, t), 'not-accepted');
-  assert.deepEqual(t.log, [...FILLED, ['click', '@e31'], 'feed closed', 'reached?', ...PUT_BACK]);
+  assert.deepEqual(t.log, [...FILLED, ['click', '@e31'], 'reached?', ...PUT_BACK]);
+  assert.equal(t.log.filter(step => step[0] === 'click').length, 1);
+});
+
+test('sendForm takes a ref in either spelling and a selector, passing each target on as written', async () => {
+  const form = { ...CARD, fields: [{ label: 'Card number', target: 'e12' }, { label: 'Name', target: '@e13' }, { label: 'Code', target: '#cvv' }], submit: { label: 'Pay', target: 'e31' } };
+  assert.deepEqual(checkForm(form), { form });
+  const t = tools();
+  assert.equal(await sendForm(form, ['4242', 'Jo', '737'], t), 'done');
+  assert.deepEqual(t.log, [['type', 'e12', '4242'], ['type', '@e13', 'Jo'], ['type', '#cvv', '737'], ['click', 'e31'], 'reached?']);
 });
 
 test('sendForm presses nothing when a step fails, and puts back only what it changed', async () => {
-  const stale = tools({ fail: args => args[0] === 'select' && args[1] === '@e14' });
+  const stale = tools({ fail: (step, target) => step === 'select' && target === '@e14' });
   assert.equal(await sendForm(CARD, VALUES, stale), 'not-accepted');
-  assert.deepEqual(stale.log, [...FILLED.slice(0, 7), 'feed closed', ...PUT_BACK.slice(0, 2)], 'a stale ref on the year: no press, no finish asked');
+  assert.deepEqual(stale.log, [...FILLED.slice(0, 5), ...PUT_BACK.slice(0, 2)], 'a stale ref on the year: no press, no finish asked');
 
-  const unread = tools({ fail: args => args[0] === 'get' });
+  const unread = tools({ fail: step => step === 'value' });
   assert.equal(await sendForm(CARD, VALUES, unread), 'not-accepted');
-  assert.deepEqual(unread.log, [...FILLED.slice(0, 4), 'feed closed', PUT_BACK[0]], 'a dropdown whose own choice can not be read is not picked');
+  assert.deepEqual(unread.log, [...FILLED.slice(0, 2), PUT_BACK[0]], 'a dropdown whose own choice can not be read is not picked');
 
-  const unfocused = tools({ fail: args => args[0] === 'focus' });
-  assert.equal(await sendForm(CARD, VALUES, unfocused), 'not-accepted');
-  assert.deepEqual(unfocused.log, [['fill', '@e12', ''], ['focus', '@e12'], 'feed closed'], 'a box that never took focus got no key');
-
-  const dropped = tools({ feed: 'drops' });
-  assert.equal(await sendForm(CARD, VALUES, dropped), 'not-accepted');
-  assert.deepEqual(dropped.log, [...FILLED.slice(0, 3), 'feed closed', ['fill', '@e12', '']], 'a feed that drops mid-value: the half-typed box is emptied');
-
-  const feedless = tools({ feed: false });
-  assert.equal(await sendForm(CARD, VALUES, feedless), 'not-accepted');
-  assert.deepEqual(feedless.log, []);
+  const untyped = tools({ fail: (step, target) => step === 'type' && target === CVC });
+  assert.equal(await sendForm(CARD, VALUES, untyped), 'not-accepted');
+  assert.deepEqual(untyped.log, [...FILLED, ...PUT_BACK], 'a box that failed mid-value is emptied too, though emptying it fails again');
 });
 
-test('sendForm still asks the finish after a press whose command failed, and a step that throws is not accepted', async () => {
-  const t = tools({ fail: args => args[0] === 'click' });
-  assert.equal(await sendForm(CARD, VALUES, t), 'done', 'the site may have taken the press');
-  assert.deepEqual(t.log.slice(-3), [['click', '@e31'], 'feed closed', 'reached?']);
+test('sendForm leaves a dropdown that showed no choice as it is', async () => {
+  const t = tools({ was: '', reached: async () => false });
+  assert.equal(await sendForm(CARD, VALUES, t), 'not-accepted');
+  assert.deepEqual(t.log.slice(-2), [PUT_BACK[0], PUT_BACK[3]], 'only the text boxes are emptied');
+});
 
-  const thrown = tools({ reached: async () => { throw new Error('agent-browser vanished'); } });
+test('sendForm still asks the finish after a press whose step failed, and a finish that throws is not accepted', async () => {
+  const t = tools({ fail: step => step === 'click' });
+  assert.equal(await sendForm(CARD, VALUES, t), 'done', 'the site may have taken the press');
+  assert.deepEqual(t.log.slice(-2), [['click', '@e31'], 'reached?']);
+
+  const thrown = tools({ reached: async () => { throw new Error('the browser vanished'); } });
   assert.equal(await sendForm(CARD, VALUES, thrown), 'not-accepted');
   assert.deepEqual(thrown.log.slice(-4), PUT_BACK);
-});
-
-test('sendForm opens no feed for a form of dropdowns alone', async () => {
-  const picks = { ...CARD, fields: CARD.fields.slice(1, 3) };
-  const t = tools();
-  t.openFeed = async () => { throw new Error('no feed is needed'); };
-  assert.equal(await sendForm(picks, ['04', '2028'], t), 'done');
-  assert.deepEqual(t.log, [['get', 'value', '@e13'], ['select', '@e13', '04'], ['get', 'value', '@e14'], ['select', '@e14', '2028'], ['click', '@e31'], 'reached?']);
-});
-
-/** A WebSocket class standing in for Node's: it opens, fails, or throws, and records what is sent. */
-function sockets({ fails = false, throws = false } = {}) {
-  const made = [];
-  class Socket {
-    readyState = 0;
-    bufferedAmount = 0;
-    sent = [];
-    constructor(url) {
-      if (throws) throw new SyntaxError('bad port');
-      this.url = url;
-      made.push(this);
-      queueMicrotask(() => {
-        if (fails) return this.onerror?.(new Error('refused'));
-        this.readyState = 1;
-        this.onopen?.();
-      });
-    }
-    send(text) { this.sent.push(JSON.parse(text)); }
-    close() { this.readyState = 3; }
-  }
-  return { Socket, made };
-}
-
-test('openFeed types as key presses on the session\'s feed, asking for one unacknowledged picture at most', async () => {
-  const { Socket, made } = sockets();
-  const feed = await openFeed(4321, Socket);
-  assert.equal(made[0].url, 'ws://127.0.0.1:4321/?pacing=ack&maxFps=1');
-  assert.equal(await feed.type('aZ9 é'), true);
-  const key = (char, code, keyCode) => {
-    const base = { type: 'input_keyboard', key: char, code, windowsVirtualKeyCode: keyCode, modifiers: 0 };
-    return [{ ...base, eventType: 'keyDown', text: char }, { ...base, eventType: 'keyUp' }];
-  };
-  assert.deepEqual(made[0].sent, [...key('a', 'KeyA', 65), ...key('Z', 'KeyZ', 90), ...key('9', 'Digit9', 57), ...key(' ', '', 0), ...key('é', '', 0)]);
-  feed.close();
-  assert.equal(await feed.type('x'), false, 'a closed feed takes no key');
-  assert.equal(made[0].sent.length, 10);
-});
-
-test('openFeed gives null when the feed refuses or the port can not be used', async () => {
-  assert.equal(await openFeed(9, sockets({ fails: true }).Socket), null);
-  assert.equal(await openFeed(9, sockets({ throws: true }).Socket), null);
 });
 
 /** Mounts the form routes for CARD on a server of their own; resolves to a caller and what the hooks heard. */

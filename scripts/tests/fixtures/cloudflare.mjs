@@ -32,7 +32,6 @@ export const GROUPS = [
   ['Access: Organizations, Identity Providers, and Groups Write', 'account', 'bfe0d8686a584fa680f4c53b5eb0de6d'],
   ['Access: Service Tokens Write', 'account', 'a1c0fec57cf94af79479a6d827fa518c'],
   ['Zero Trust Write', 'account', 'b33f02c6f7284e05a6f20741c0bb0567'],
-  ['Browser Run Write', 'account', 'adddda876faa4a0590f1b23a038976e4'],
   ['Access: Apps and Policies Write', 'account.zone', '959972745952452f8be2452be8cbb9f2'],
   ['D1 Write', 'account.zone', 'zone0000000000000000000000000d1w'],
   // The rest of the read-only look-up key, with the zone-scoped copy of its one ambiguous name.

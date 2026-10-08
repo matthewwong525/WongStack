@@ -577,6 +577,7 @@ test('the widen grants a normal provision, keeps both token groups, its resource
   env.fake.state.refusedPolls = 2;
   const report = await env.widen({ account: ACCOUNT });
   assert.deepEqual(report.granted, NORMAL_PROVISION.map((row) => row.name));
+  assert.ok(!report.granted.includes('Browser Run Write'), 'nothing uses the cloud browser, so the widen does not grant it');
   assert.deepEqual(report.held, USER_GRANTS.map((row) => row.name));
   const [put] = env.fake.state.puts;
   assert.deepEqual(put.condition, env.fake.state.condition);
