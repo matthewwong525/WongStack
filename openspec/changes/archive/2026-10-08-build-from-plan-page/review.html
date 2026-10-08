@@ -1,3 +1,4 @@
+<!-- wong-review:3 -->
 <!doctype html>
 <!--
   WongStack review kit. build-review.mjs writes the proposal as static HTML at the
@@ -10,7 +11,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · CHANGE-NAME</title>
+<title>Review · 2026-10-08-build-from-plan-page</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -98,17 +99,77 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="CHANGE-NAME">
+<body data-change="2026-10-08-build-from-plan-page">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>CHANGE-NAME</h1>
+  <h1>2026-10-08-build-from-plan-page</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. <span class="copies">Saving a note copies all your notes.</span> Open a drawing and tap it to see it full screen.</p>
   <p id="script-error" role="alert" hidden></p>
 </header>
-<!-- review:content -->
+<section id="why" aria-labelledby="why-h"><h2 id="why-h">Why</h2>
+<div class="card">
+<p data-note="why-1" tabindex="0">The plan page can now send your notes to the chat, but the last step still happens in the chat: you go back and pick <i>Build it now</i> or <i>Build and publish</i>. When the plan is right as it stands, that is one more trip between two screens for a one-tap answer.</p>
+</div></section>
+<section id="changes" aria-labelledby="changes-h"><h2 id="changes-h">What Changes</h2>
+<ol class="items">
+<li class="item card" id="item-1"><span class="num">1</span><div class="body"><div class="text" data-note="item-1" tabindex="0"><b>The plan page gets two buttons: <i>Build it</i> and <i>Build and publish</i>.</b> They sit at the foot of a plan opened through its live link. A tap tells the chat that made the plan to start, as if you had picked that choice there. Notes still never start a build; only these buttons do.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-1-line-1" tabindex="0">  BEFORE                  AFTER</span>
+<span class="ln" data-note="item-1-line-2" tabindex="0">read plan               read plan</span>
+<span class="ln" data-note="item-1-line-3" tabindex="0">   │                       │</span>
+<span class="ln" data-note="item-1-line-4" tabindex="0">back to chat            +tap Build it</span>
+<span class="ln" data-note="item-1-line-5" tabindex="0">   │                       │</span>
+<span class="ln" data-note="item-1-line-6" tabindex="0">pick Build it now          │</span>
+<span class="ln" data-note="item-1-line-7" tabindex="0">   ▼                       ▼</span>
+<span class="ln" data-note="item-1-line-8" tabindex="0">chat builds             chat builds</span></pre></div></details></li>
+<li class="item card" id="item-2"><span class="num">2</span><div class="body"><div class="text" data-note="item-2" tabindex="0"><b>The foot of the page, on a phone.</b> <i>Build it</i> builds and shows you the result before anything goes live. <i>Build and publish</i> asks once more on the page first, because publishing can't be undone.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-2-line-1" tabindex="0">┌────────────────────────────┐</span>
+<span class="ln" data-note="item-2-line-2" tabindex="0">│ Ready?                     │</span>
+<span class="ln" data-note="item-2-line-3" tabindex="0">│ +[Build it]                │</span>
+<span class="ln" data-note="item-2-line-4" tabindex="0">│ +[Build and publish]       │</span>
+<span class="ln" data-note="item-2-line-5" tabindex="0">└────────────────────────────┘</span>
+<span class="ln" data-note="item-2-line-6" tabindex="0">  after tapping Build and publish:</span>
+<span class="ln" data-note="item-2-line-7" tabindex="0">┌────────────────────────────┐</span>
+<span class="ln" data-note="item-2-line-8" tabindex="0">│ Build and publish?         │</span>
+<span class="ln" data-note="item-2-line-9" tabindex="0">│ This goes live and can't   │</span>
+<span class="ln" data-note="item-2-line-10" tabindex="0">│ be undone.                 │</span>
+<span class="ln" data-note="item-2-line-11" tabindex="0">│ [Yes, publish]  [Cancel]   │</span>
+<span class="ln" data-note="item-2-line-12" tabindex="0">└────────────────────────────┘</span>
+<span class="ln" data-note="item-2-line-13" tabindex="0">  after a yes:</span>
+<span class="ln" data-note="item-2-line-14" tabindex="0">┌────────────────────────────┐</span>
+<span class="ln" data-note="item-2-line-15" tabindex="0">│ Asked the chat to build    │</span>
+<span class="ln" data-note="item-2-line-16" tabindex="0">│ and publish.               │</span>
+<span class="ln" data-note="item-2-line-17" tabindex="0">└────────────────────────────┘</span></pre></div></details></li>
+<li class="item card" id="item-3"><span class="num">3</span><div class="body"><div class="text" data-note="item-3" tabindex="0"><b>The page stops a tap that could build the wrong thing.</b> With notes you have not sent, it says to send or delete them first. If the plan changed after you opened the page, it says to reload and read it. Each button works once per version of the plan, so a double tap does nothing.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-3-line-1" tabindex="0">tap ─▶ unsent notes? ─▶ plan changed? ─▶ chat</span>
+<span class="ln" data-note="item-3-line-2" tabindex="0">            │ yes            │ yes</span>
+<span class="ln" data-note="item-3-line-3" tabindex="0">            ▼                ▼</span>
+<span class="ln" data-note="item-3-line-4" tabindex="0">      &quot;send them first&quot;  &quot;reload first&quot;</span></pre></div></details></li>
+<li class="item card" id="item-4"><span class="num">4</span><div class="body"><div class="text" data-note="item-4" tabindex="0"><b>No live link, no buttons.</b> A plan opened as a file, or through a closed link, shows no build buttons; you choose in the chat as today.</div></div></li>
+<li class="item card" id="item-5"><span class="num">5</span><div class="body"><div class="text" data-note="item-5" tabindex="0"><b>Whoever holds the link can now start a build and a publish.</b> Until now the link could only add notes. It is still printed only in your chat, carries its own secret, and closes after 8 hours.</div></div></li>
+<li class="item card" id="item-6"><span class="num">6</span><div class="body"><div class="text" data-note="item-6" tabindex="0"><b>Other pages can offer buttons the same way.</b> A page's maker names each button and the exact message it sends when it opens the link; the page itself can never change that message. A mail review page can use this for <i>Send all</i>.</div></div></li>
+</ol>
+<p class="aside">Non-goals: no build progress on the page, no buttons on a file page, and no change to what notes do.</p>
+
+</section>
+<section id="decisions" aria-labelledby="decisions-h"><h2 id="decisions-h">Decisions</h2>
+<ol class="decisions">
+<li class="decision card" id="decision-1" data-note="decision-1" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-08</p>Matthew asked that the plan page 'should also be able to select build, and build &amp; publish as well'; this reverses the earlier non-goal of building from the page, for these two buttons only.</li>
+<li class="decision card" id="decision-2" data-note="decision-2" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-08</p>Assumed: <i>Build and publish</i> confirms once on the page, because publishing can't be undone and a phone tap is easy to make by mistake.</li>
+<li class="decision card" id="decision-3" data-note="decision-3" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-08</p>Assumed: unsent notes block a build tap, because the chat would otherwise build a plan the notes were about to change.</li>
+<li class="decision card" id="decision-4" data-note="decision-4" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-08</p>Assumed: a tap is refused when the plan changed since the page loaded, because a tab left open would build a plan nobody has read.</li>
+<li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-08</p>Assumed: the page sends only a button's name and the link's maker fixes its message, because anyone holding the link could otherwise put any instruction into the chat.</li>
+<li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-08</p>Assumed: the buttons sit at the foot of the page, not in the notes bar, because the bar is one line on a phone and the choice comes after reading.</li>
+<li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-08</p>Assumed: one tap per plan version, because a sent message interrupts the chat and a second one would interrupt the build it started.</li>
+<li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-08</p>Build choices the design left open: the closed-link line shows as a toast and hides the section; a closed link found by a notes send hides the buttons too; an action on a page whose file is gone answers 410; <i>Yes, publish</i> is primary and focus lands on <i>Cancel</i>.</li>
+<li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-08</p>Found on the first walk: the one shared server was still running the earlier release's code, so the page showed no buttons. Added: an opener from newer code swaps the running server on the same port and keeps its tunnel, so every open link keeps its address. An older opener never swaps a newer server.</li>
+<li class="decision card" id="decision-10" data-note="decision-10" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-08</p>Walked from this host with a phone-sized browser on a throwaway plan: the buttons showed; an old tab after a rebuild said <i>The plan changed. Reload to read it first.</i> and sent nothing; <i>Build and publish</i> asked first; <i>Build it</i> reached the chat once with its fixed message; a second tap said <i>The chat was already asked.</i> Not tried on a real phone.</li>
+<li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-08</p>Archive checkpoint: release 38.0.0 landed during the build and touched the same files; resolved by taking it and re-applying this change on top. Every task ticked, local checks pass.</li>
+<li class="decision card" id="decision-12" data-note="decision-12" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-08</p>Renumbered 38.2.0 after release 38.1.0 took the number; it merged in with no conflict. A check on the main line had failed on an unrelated memory test that races two writers; its rerun passed.</li>
+</ol>
+</section>
 <section id="ready" aria-labelledby="ready-h" hidden><h2 id="ready-h">Ready?</h2>
 <div class="card">
   <div class="row" id="ready-choose"><button type="button" class="primary" data-ready="build">Build it</button><button type="button" data-ready="publish">Build and publish</button></div>
