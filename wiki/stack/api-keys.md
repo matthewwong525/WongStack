@@ -12,7 +12,7 @@ Changes to an existing key, such as replacing it, editing permissions, or deleti
 
 ## Give it through the private link
 
-When a task needs a key the assistant doesn't have, it sends a private link straight away. You can also ask for it: *send me the key link*. The link stays open for 30 minutes, so open it when you're ready; the page shows the time left.
+When a task needs a key the assistant doesn't have, it sends a private link straight away. You can also ask for it: *send me the key link*. The link stays open for eight hours by default, so open it when you're ready; the page shows the time left.
 
 1. **Open the link** the assistant sends, on your phone or computer.
 2. **Follow the steps on the page.** Tap *Open …*, make the key at the service, copy it, and come back.

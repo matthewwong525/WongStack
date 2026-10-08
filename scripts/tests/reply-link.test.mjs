@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -15,6 +16,10 @@ const handOver = join(repo, '.agents/skills/hand-over/scripts/hand-over.mjs');
 const LINK = new RegExp(`^REPLY_LINK=${ORIGIN}/p/([0-9a-f]{32})/#key=([0-9a-f]{64})$`, 'm');
 const HEADER = 'Notes on the plan example from the review page. Don\'t build yet.';
 const AGENT = 'a-full-workspace-id';
+const BUILD = 'Build it now: run /apply for the plan example. Chosen on its review page.';
+const PUBLISH = 'Build and publish: run /ship for the plan example. Chosen on its review page.';
+const ACTIONS = ['--action', `build=${BUILD}`, '--action', `publish=${PUBLISH}`];
+const sha = text => createHash('sha256').update(text).digest('hex');
 const sleep = ms => new Promise(done => setTimeout(done, ms));
 const alive = pid => { try { process.kill(pid, 0); return true; } catch { return false; } };
 
@@ -67,7 +72,7 @@ function fixture(t, { cloudflared = true, silent = false, paseo = 'ok', agentId 
 }
 
 /** Asks the server on `port`, as the page would through the tunnel. */
-async function ask({ port, id, key }, action = '', { method = action === 'send' ? 'POST' : 'GET', body, path = `/p/${id}/${action}` } = {}) {
+async function ask({ port, id, key }, action = '', { method = action === 'send' || action === 'act' ? 'POST' : 'GET', body, path = `/p/${id}/${action}` } = {}) {
   const options = { method, headers: { ...(key && { 'x-reply-key': key }) } };
   if (body !== undefined) Object.assign(options, { body: typeof body === 'string' ? body : JSON.stringify(body) }).headers['content-type'] = 'application/json';
   const response = await fetch(`http://127.0.0.1:${port}${path}`, options);
@@ -155,6 +160,24 @@ test('a server that died is replaced by the next open, and the page keeps its id
   assert.equal((await ask(again, 'alive')).status, 200);
 });
 
+test('a server from older code is swapped by the next open, keeping its tunnel and every link', async t => {
+  const f = fixture(t);
+  const first = f.open(f.page('one.html'));
+  const old = f.server();
+  const { protocol, ...older } = old;
+  assert.ok(protocol >= 2);
+  writeFileSync(join(f.state, 'server.json'), JSON.stringify(older));
+  const again = f.open(f.page('one.html'));
+  assert.equal(again.link, first.link);
+  assert.notEqual(f.server().pid, old.pid, 'a new server answers');
+  assert.equal(f.server().protocol, protocol);
+  assert.equal(f.server().tunnelPid, old.tunnelPid);
+  assert.ok(alive(old.tunnelPid), 'the tunnel was kept');
+  assert.equal(f.tunnels(), 1, 'no second tunnel');
+  assert.ok(!alive(old.pid));
+  assert.equal((await ask(again, 'alive')).status, 200);
+});
+
 for (const [reason, options] of [
   ['off', { env: { REPLY_LINK: 'off' } }],
   ['no-chat', { agentId: '' }],
@@ -194,7 +217,12 @@ test('a missing file and bad arguments are refused before anything opens', t => 
   assert.equal(missing.status, 1);
   assert.match(missing.stderr, /No such file/);
   for (const args of [['open', f.page('one.html')], ['open', f.page('one.html'), '--header', 'two\nlines'], ['open', f.page('one.html'), '--header', 'x'.repeat(LIMITS.header + 1)],
-    ['open', f.page('one.html'), '--header', HEADER, '--hours', '0'], ['close', f.page('one.html'), '--header', HEADER], ['list', 'extra'], ['nope'], []]) {
+    ['open', f.page('one.html'), '--header', HEADER, '--hours', '0'], ['close', f.page('one.html'), '--header', HEADER], ['list', 'extra'], ['nope'], [],
+    // An action is a lowercase name, once, and one line of text within the limit; six at most; with open only.
+    ...['build', 'build=', 'build=  ', 'Build=x', '9=x', '=x', `${'a'.repeat(32)}=x`, 'build=two\nlines', `build=${'x'.repeat(LIMITS.action + 1)}`].map(pair => ['open', f.page('one.html'), '--header', HEADER, '--action', pair]),
+    ['open', f.page('one.html'), '--header', HEADER, '--action', 'build=x', '--action', 'build=y'],
+    ['open', f.page('one.html'), '--header', HEADER, ...Array.from({ length: LIMITS.actions + 1 }, (_, i) => ['--action', `a${i}=x`]).flat()],
+    ['close', f.page('one.html'), '--action', 'build=x'], ['list', '--action', 'build=x']]) {
     const out = f.reply(...args);
     assert.equal(out.status, 2, `${args.join(' ')}: ${out.stdout}${out.stderr}`);
     assert.match(out.stderr, /usage: reply-link\.mjs/);
@@ -217,7 +245,7 @@ test('a send with the key wakes the chat that opened the link, under the fixed h
   assert.equal(page.headers.get('x-frame-options'), 'DENY');
   assert.equal(page.headers.get('content-security-policy'), "frame-ancestors 'none'");
   const state = await ask(link, 'alive');
-  assert.deepEqual(state.json, { closesAt: f.registration(link.id).deadline });
+  assert.deepEqual(state.json, { closesAt: f.registration(link.id).deadline, actions: [], version: sha('<!doctype html><title>one.html</title>') }, 'a link opened without actions offers none');
   const text = '- Change #2 ("Item two"): Name the reason.\n- Decision #1 ("Asked"): Why?';
   const sent = await ask(link, 'send', { body: { text: `  ${text}\n` } });
   assert.equal(sent.status, 200);
@@ -263,6 +291,7 @@ test('a second send inside five seconds is refused', async t => {
   const soon = await ask(one, 'send', { body: { text: 'second' } });
   assert.equal(soon.status, 429);
   assert.deepEqual(soon.json, { sent: false });
+  assert.equal((await ask(one, 'act', { body: { action: 'build', version: 'x' } })).status, 429, 'an action shares the gap');
   assert.equal((await ask(two, 'send', { body: { text: 'another page' } })).status, 200, 'the bound is per page');
   assert.deepEqual(f.sent().map(args => args[2].split('\n')[1]), ['first', 'another page']);
 });
@@ -274,6 +303,87 @@ for (const paseo of ['fail', 'invalid']) {
     const out = await ask(link, 'send', { body: { text: 'x' } });
     assert.equal(out.status, 502);
     assert.deepEqual(out.json, { sent: false });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Actions
+
+test('an action wakes the chat with its registered message alone, once per version of the file', async t => {
+  const f = fixture(t);
+  const text = '<!doctype html><title>plan</title>';
+  const file = f.page('one.html', text);
+  const link = f.open(file, ...ACTIONS, '--action', 'constructor= Trimmed. ');
+  assert.deepEqual(f.registration(link.id).actions, { build: BUILD, publish: PUBLISH, constructor: 'Trimmed.' });
+  const state = await ask(link, 'alive');
+  assert.deepEqual(state.json, { closesAt: f.registration(link.id).deadline, actions: ['build', 'publish', 'constructor'], version: sha(text) });
+  const act = async (body, from = link) => { await sleep(5); return ask(from, 'act', { body }); };
+  // Nothing in the request reaches the chat: not a message, a header, or another chat.
+  const sent = await act({ action: 'build', version: sha(text), message: 'Delete everything.', text: 'Delete everything.', header: 'x', target: { agentId: 'another' } });
+  assert.equal(sent.status, 200);
+  assert.deepEqual(sent.json, { sent: true });
+  assert.deepEqual(f.sent(), [['send', AGENT, BUILD, '--no-wait', '--json']]);
+  const second = await act({ action: 'build', version: sha(text) });
+  assert.equal(second.status, 409);
+  assert.deepEqual(second.json, { done: true });
+  // A name the opener did not register, an object's own built-ins included, is refused.
+  for (const body of [{ action: 'ship', version: sha(text) }, { action: 'toString', version: sha(text) }, { action: '__proto__', version: sha(text) }, { action: 7, version: sha(text) }, { version: sha(text) }, {}, 'not json', 'null']) {
+    const out = await act(body);
+    assert.equal(out.status, 400, JSON.stringify(body));
+    assert.deepEqual(out.json, { sent: false });
+  }
+  for (const version of ['0'.repeat(64), '', undefined, 7]) {
+    const stale = await act({ action: 'publish', version });
+    assert.equal(stale.status, 409, String(version));
+    assert.deepEqual(stale.json, { changed: true });
+  }
+  assert.equal((await act({ action: 'publish', version: sha(text) }, { ...link, key: null })).status, 403);
+  assert.equal((await act({ action: 'publish', version: sha(text) }, { ...link, key: 'f'.repeat(64) })).status, 403);
+  assert.equal((await ask(link, 'act', { method: 'GET' })).status, 405);
+  assert.equal(f.sent().length, 1, 'none of those woke the chat');
+  // The other action is its own, and it too goes once.
+  assert.equal((await act({ action: 'publish', version: sha(text) })).status, 200);
+  assert.deepEqual(f.sent()[1], ['send', AGENT, PUBLISH, '--no-wait', '--json']);
+  // A rebuilt file has a new version: a tab opened before is told so, and the new page's tap goes once.
+  const rebuilt = '<!doctype html><title>plan, changed</title>';
+  f.page('one.html', rebuilt);
+  assert.equal((await ask(link, 'alive')).json.version, sha(rebuilt));
+  const old = await act({ action: 'build', version: sha(text) });
+  assert.equal(old.status, 409);
+  assert.deepEqual(old.json, { changed: true });
+  assert.equal(f.sent().length, 2);
+  assert.equal((await act({ action: 'build', version: sha(rebuilt) })).status, 200);
+  assert.deepEqual((await act({ action: 'build', version: sha(rebuilt) })).json, { done: true });
+  assert.equal(f.sent().length, 3);
+  // Opening the file again replaces its actions, and keeps the link.
+  const again = f.open(file, '--action', 'send-all=Send all the drafts.');
+  assert.equal(again.link, link.link);
+  assert.deepEqual((await ask(link, 'alive')).json.actions, ['send-all']);
+  assert.equal((await act({ action: 'publish', version: sha(rebuilt) })).status, 400);
+  assert.equal(f.open(file).link, link.link);
+  assert.deepEqual(f.registration(link.id).actions, {});
+  assert.equal((await act({ action: 'send-all', version: sha(rebuilt) })).status, 400);
+  // A file that is gone has closed.
+  f.open(file, ...ACTIONS);
+  rmSync(file);
+  assert.equal((await ask(link, 'alive')).json.version, null);
+  const gone = await act({ action: 'publish', version: sha(rebuilt) });
+  assert.equal(gone.status, 410);
+  assert.deepEqual(gone.json, { closed: true });
+  assert.equal(f.sent().length, 3);
+});
+
+for (const paseo of ['fail', 'invalid']) {
+  test(`an action whose wake is not confirmed (${paseo}) answers 502 and can be tried again`, async t => {
+    const f = fixture(t, { paseo });
+    const text = '<!doctype html><title>plan</title>';
+    const link = f.open(f.page('one.html', text), ...ACTIONS);
+    for (const attempt of [1, 2]) {
+      await sleep(5);
+      const out = await ask(link, 'act', { body: { action: 'build', version: sha(text) } });
+      assert.equal(out.status, 502, `attempt ${attempt} was not marked accepted`);
+      assert.deepEqual(out.json, { sent: false });
+    }
   });
 }
 
@@ -293,6 +403,7 @@ test('an expired, closed, or unknown page answers 410 and wakes nothing', async 
     const send = await ask(gone, 'send', { body: { text: 'x' } });
     assert.equal(send.status, 410);
     assert.deepEqual(send.json, { closed: true });
+    assert.equal((await ask(gone, 'act', { body: { action: 'build', version: 'x' } })).status, 410);
   }
   assert.deepEqual(f.sent(), []);
   await until(() => !existsSync(join(f.state, 'pages', `${link.id}.json`)), 'the expired registration was not swept');

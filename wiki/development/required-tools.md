@@ -12,14 +12,15 @@ WongStack runs on a deliberately small toolchain. A repo that has installed the 
 
 Core reads remain dependency-free: **no `jq`, no `python`, and no project-language toolchain**. [Optional document retrieval](document-retrieval.md#optional-meaning-based-search) uses npm only in its explicit host setup to install pinned QMD/models outside the repo. Keyword fallback needs no setup; ordinary reads never install or download. No app package or lockfile changes.
 
-**One core verb adds one tool: [`/verify`](staging-walkthrough.md) needs `agent-browser` — and only for browser journeys. A private link adds one more: `cloudflared`.**
+**One core verb adds one tool: [`/verify`](staging-walkthrough.md) needs `agent-browser` — and only for browser journeys. A private link adds one more, `cloudflared`, and browsing as you adds camofox.**
 
 | Tool | Why |
 |---|---|
 | `agent-browser` | The browser [`/verify`](../../.agents/skills/verify/SKILL.md) drives for UI journeys, carrying its own Chrome. Setup offers it up front, in its one install question. On any other machine, `/verify` installs it the first time a browser journey needs it, and says so. Its request and state probes ride on `curl` and existing commands, so a walk with no UI journeys needs no browser at all. |
 | `cloudflared` | Cloudflare's free tunnel tool, which gives every [private link](browsing.md#how-private-links-work) (the password link, the key link, and a private form) an address your phone or another computer can open. Setup offers it up front, in the same question. On any other machine, the agent asks, then [installs it](#installing-cloudflared) the first time a private link needs it. A link opened at the agent's own computer needs it too: there is no local link. |
+| camofox | The browser the agent [uses websites in as you](browsing.md#saved-browser-logins), which more sites let in. Setup never offers it, since most installs never browse. The first errand asks, then [installs it](#installing-camofox) into your home folder. |
 
-Each is a **tool, not a toolchain**: nothing is added to your repository — no `package.json`, no dependency entry, no lockfile — which is what lets a Python, Rust, or Go repo walk its own app. A repo that never runs `/verify` or opens a private link acquires neither, and every other core verb still needs only the five commands above. The browser is available for ordinary work too, not only inside a walk; `/verify` is just the surface that grades what it sees and posts the evidence.
+Each is a **tool, not a toolchain**: nothing is added to your repository — no `package.json`, no dependency entry, no lockfile — which is what lets a Python, Rust, or Go repo walk its own app. A repo that never runs `/verify`, opens a private link, or browses as you acquires none of them, and every other core verb still needs only the five commands above. The browser is available for ordinary work too, not only inside a walk; `/verify` is just the surface that grades what it sees and posts the evidence.
 
 **Chat wherever your assistant runs.** WongStack needs no chat app. [Paseo](https://paseo.sh) is an optional one: it runs Claude Code or Codex on your own computer and reaches it from your phone, and setup points to it when it's missing ([the check](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/tools.md#paseo-point-to-it-never-install-it)). No verb needs it except one: a request with several separate parts can [open a new workspace per part](the-change-loop.md#several-parts-several-workspaces). Schedules don't use it: [`/routine`](../../.agents/skills/routine/SKILL.md) runs them in your Cloudflare account ([cloud routines](../stack/cloud-routines.md)). WongStack never installs Paseo, because it is a desktop download with its own window. Without Paseo, the parts of a request are done one at a time, and work happens in your main folder. You also lose chatting from your phone, `/close` archiving the workspace, a finished private link waking the chat (you type *continue* instead), and the session-start tidy-up of idle workspaces. Every other verb works as before.
 
@@ -63,7 +64,7 @@ This heading remains for older links. Memory uses [trusted machine credentials](
 
 **Nothing is installed without asking.** Installing a runtime changes the machine, not the repo. When a step needs a tool and it is missing, the skill explains what and why, and asks.
 
-**Setup is the one skill that checks ahead**, because nothing works until its tools exist. Before it writes anything, it checks for `git`, `gh` (not on [the Artifacts route](../stack/artifacts-route.md)), Node.js, and `openspec`, and asks once to install the missing ones ([get the computer ready](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/tools.md)). The same question covers `agent-browser` and `cloudflared`, so nothing stops later to ask; a failed install of either is named and skipped, since setup needs neither. It uses the system package manager — Homebrew when it is already there, `winget`, or `apt` — only when that needs no password, because an agent can't type one. Otherwise it installs into your home folder, `~/.local`, which also works on managed laptops. It never installs a package manager. Every other skill keeps point-of-need installs: on a machine setup didn't ready, or where a helper failed, `/verify` adds its browser the first time it needs one, and a private link its tunnel tool.
+**Setup is the one skill that checks ahead**, because nothing works until its tools exist. Before it writes anything, it checks for `git`, `gh` (not on [the Artifacts route](../stack/artifacts-route.md)), Node.js, and `openspec`, and asks once to install the missing ones ([get the computer ready](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/tools.md)). The same question covers `agent-browser` and `cloudflared`, so nothing stops later to ask; a failed install of either is named and skipped, since setup needs neither. It uses the system package manager — Homebrew when it is already there, `winget`, or `apt` — only when that needs no password, because an agent can't type one. Otherwise it installs into your home folder, `~/.local`, which also works on managed laptops. It never installs a package manager. Every other skill keeps point-of-need installs: on a machine setup didn't ready, or where a helper failed, `/verify` adds its browser the first time it needs one, and a private link its tunnel tool. An errand on your accounts always asks for [camofox](#installing-camofox) itself.
 
 ### Installing `cloudflared`
 
@@ -78,6 +79,15 @@ Setup and a first private link install it from Cloudflare's own channel:
   curl -fsSL -o ~/.local/bin/cloudflared https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64   # -arm64 on ARM
   chmod +x ~/.local/bin/cloudflared
   ```
+
+### Installing camofox
+
+The first errand on your accounts asks once, then runs [`browse.mjs install`](../../.agents/skills/browser/scripts/browse.mjs):
+
+- **What it needs.** About 1.4 GB of disk, about 700 MB of memory while it runs, and no admin password.
+- **Where it goes.** `~/.wong-stack/camofox/` holds camofox and its browser driver, in the two versions WongStack has tried and no others: a newer driver fails to save a login. The browser itself, a 660 MB download, lands in your home folder's cache: `~/.cache/camoufox` on Linux, `~/Library/Caches/camoufox` on a Mac.
+- **A temp folder on disk.** The download fails when the temp folder is kept in memory and is small, so the script uses one of its own, on disk.
+- **To remove it,** delete both folders. Your [saved logins](passwords.md) are a separate file.
 
 ## Where an assistant finds its tools
 

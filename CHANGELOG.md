@@ -20,6 +20,50 @@
 [Employee access](wiki/stack/employee-access.md#apps) describes apps and key levels, [the Access screens](wiki/stack/access-screens.md#a-panel-has-apps-and-keys) the panel, and [mini apps](wiki/stack/mini-apps.md#work-with-no-screen) work with no screen.
 
 **Updating.** Four things to do. First, open Access and read the notice at the top: anyone who could only look at an app has lost that app, and Access names each one until your next save there. Tick the app to give it back; a tick gives all of the app, and the old look-only setting can't be brought back. Second, look over each person's apps: a person with an app ticked can now do everything in it, even where a key level held them back before, so untick an app for anyone who should not change things in it. Third, ask your assistant to check any folder under `app/worker/apps/` that has no screen, which is work you built for skills or assistants alone: each one now needs a key or a screen, or the checks stop the update and name it. Fourth, if your assistant set a service up so its key can be used directly, look over that key: direct use is now on for you, and for anyone who holds a level for the key, whatever you had picked before. Set a person's level for the key to *None* to stop it for them. The Apps, Keys and Skills lists are gone, with nothing to do: skills run as before. Key levels people already hold are kept, and the app's database does not change.
+## 38.2.1 — The build buttons sit in the plan page's bottom bar
+
+- ***Build it* and *Build and publish* are always in view.** Before, they sat under *Ready?* at the foot of the plan page, so on a phone you scrolled past the whole plan to reach them. Now they are in the bar at the bottom of the screen: a second row under *Send notes* on a phone, the same row on a wide screen. The *Ready?* section is gone.
+- **One button stands out at a time.** With notes you have not sent, *Send notes* is the bold one. With none, *Build it* is.
+- **The publish question and the page's answers show in the bar too.** *Build and publish* swaps the build row for *Goes live, can't be undone.* with *Yes, publish* and *Cancel*. After a tap the row says what happened, such as *Asked the chat to build.*
+- **Nothing else changes.** A plan opened as a file, or through a closed link, shows the bar as before, with no build buttons. A tap sends what it sent before, and the stops for unsent notes and a changed plan stay.
+
+**Updating.** Nothing needs doing by hand. A plan made before the update gets the new bar when your assistant builds its page again.
+
+## 38.2.0 — Start the build from the plan page
+
+- **A plan's page can now start the build.** Before, a plan that was right as it stood still sent you back to the chat to pick *Build it now* or *Build and publish*. Now the page has both under *Ready?*, below the decisions. A tap tells the chat that made the plan to start, as if you had picked that choice there.
+- ***Build it* shows you the result before anything goes live. *Build and publish* asks once more on the page**, because publishing can't be undone.
+- **The page stops a tap that could build the wrong plan.** With notes you have not sent, it says to send or delete them first. If the plan changed after you opened the page, it says to reload and read it. Each button works once for each version of the plan, so a double tap does nothing.
+- **Notes still build nothing.** Only the two buttons start a build.
+- **Whoever holds a plan's link can now start that plan's build and its publish.** Until now the link could only add notes. It is still printed only in your chat, carries its own secret, and closes after 8 hours. The page sends a button's name and nothing else, so nobody holding the link can tell the chat to do anything but those two things.
+- **No live link, no buttons.** A plan opened as a file, or through a closed link, shows neither button; you choose in the chat as before.
+- **Other pages can offer buttons the same way.** The assistant names each button and its exact message when it opens the link, such as *Send all* on a mail review page. [Reply links](wiki/development/reply-links.md#give-a-page-a-button) says how.
+
+**Updating.** Nothing needs doing by hand. A plan made before the update gets the two buttons when your assistant builds its page again.
+
+## 38.1.0 — Private links stay open for eight hours
+
+- **Password links, key links, and private forms stay open for eight hours by default.** You have more time to use them. Finishing or cancelling still closes them early, and a requested shorter time still works.
+
+**Updating.** Nothing needs doing by hand. New links use the longer default; links already open keep their time limit.
+
+## 38.0.0 — Browse your accounts with camofox
+
+- **Your errands run in a browser more sites let in.** Booking, ordering, and anything else the assistant does on your accounts moves to [camofox](https://github.com/jo-inc/camofox-browser). In a trial it opened Uber Eats ten times out of ten, where the earlier browser was stopped. Checking a preview of your own app stays on the earlier browser.
+- **Cloudflare's browser is gone.** A site that blocked the assistant used to move to a second browser, with your login copied across. There is one browser now. *Use the cloud browser first* does nothing.
+- **A site that still refuses ends with steps for you.** DoorDash refuses both browsers. The assistant says so in one line, stops, and gives you numbered steps with the page's link to finish on your own phone or computer.
+- **The no-disguise rule is removed.** The guides no longer say the assistant never changes how its browser looks to a site. camofox presents itself as an ordinary browser; that is why more sites load.
+- **Puzzles, passkeys, and device checks are still yours.** The assistant does not solve a *prove you are human* puzzle, hire a network address, or use a puzzle-solving service.
+- **Saved passwords move to a plain file on your computer.** The password link looks and works as before. What you save now goes into one file in your home folder, `~/.wong-stack/logins.json`, that only your user can read. Nothing else locks it: anyone with full access to that computer can read it. A small program reads the file and types the login into the site. The assistant still never sees a password, and learns only *accepted* or *rejected*.
+- **Card details still go through the private form, and are never kept.** The form looks the same. Its button types your card straight into the site and presses the site's button once.
+- **The first errand asks before a large download.** camofox needs about 1.4 GB of disk and about 700 MB of memory while it runs. The assistant asks once, installs it into your home folder with no admin password, and later errands start at once.
+- **Two errands can run at once.** A second chat or a scheduled run used to find the browser busy and wait. Each now gets its own page and shares your logins.
+- **Nothing is reported to camofox's makers.** camofox sends failure reports that name the sites you visit unless told not to. The assistant switches that off every time it starts the browser, and the browser listens only on your computer.
+- **New installs stop giving your Cloudflare key the cloud browser's permission.** A key that already has *Browser Run Write* keeps it; nothing uses it.
+- **The rule *Browse as the person* drops *one task at a time*.**
+- **New script:** [`browse.mjs`](.agents/skills/browser/scripts/browse.mjs) installs, starts, and drives camofox. `cloud-browser.mjs` and the page `blocked-sites.md` are removed; [browsing](wiki/development/browsing.md#when-a-site-refuses-the-browser) says what happens when a site refuses.
+
+**Updating.** Two things change for you, and neither needs a step now. The first time you ask for an errand on a website, the assistant asks to install the new browser: say yes when you have about 1.4 GB of disk free. The logins you saved before are not carried over: the first time an errand meets each site, the assistant sends the password link, and you save that login once more. Nothing is deleted from the old store.
 
 ## 37.4.0 — Send plan notes straight to the chat
 

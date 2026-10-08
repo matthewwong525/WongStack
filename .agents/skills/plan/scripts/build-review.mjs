@@ -13,7 +13,7 @@ const end = '<!-- proposal:end -->';
 const WIDE = 60;
 const TECHNICAL = 12;
 const USAGE = `usage: build-review.mjs <change-root> [--require-current] [--link]
-  --link  print the page's reply link, whose button sends notes to this chat; the file where none can open`;
+  --link  print the page's reply link, whose buttons send notes to this chat or ask it to build; the file where none can open`;
 const kitPath = resolve(dirname(fileURLToPath(import.meta.url)), '../references/review-kit.html');
 
 const esc = text => String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -206,10 +206,16 @@ export function planLink(page) {
 // The fixed first line of sent and copied notes; the kit writes the same words.
 export const notesHeader = name => `Notes on the plan ${name} from the review page. Don't build yet.`;
 
+// What each button on a live page tells the chat: the person's choice at the finished-plan question.
+export const planActions = name => ({
+  build: `Build it now: run /apply for the plan ${name}. Chosen on its review page.`,
+  publish: `Build and publish: run /ship for the plan ${name}. Chosen on its review page.`,
+});
+
 // The page's reply link when one can open, else its file.
 async function linked(page, name) {
   const { openReplyLink } = await import('../../hand-over/scripts/reply-link.mjs');
-  return (await openReplyLink({ file: page, header: notesHeader(name) })) ?? page;
+  return (await openReplyLink({ file: page, header: notesHeader(name), actions: planActions(name) })) ?? page;
 }
 
 export function buildReview(changeRoot, { requireCurrent = false } = {}) {
