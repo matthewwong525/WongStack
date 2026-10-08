@@ -30,8 +30,7 @@ Before a browsing task publishes, sends, books, pays for, or deletes something, 
 - **THEN** the chat asks whether to publish it now, the question waits however long the person takes, and the agent clicks publish only after a yes
 
 ### Requirement: The person saves logins through a private password link
-
-When the person asks to save logins, the agent SHALL ask whether they are ready, then send a private link with every private link's safety: a new address and secret key each time, ending private input on successful completion, explicit closure, or after 10 minutes. The link's page SHALL be one screen that takes CSV password exports, dropped onto it or picked from the device, and logins typed or autofilled, into one list. Its primary completion action SHALL save the selected pending logins, including a valid filled login not yet added to the list, and return to the requesting task in one tap. Failed saves SHALL stay open for correction and SHALL NOT announce readiness. For an export, the person's device SHALL read the file and list its sites with none ticked; a typed login SHALL join the list ticked. Only the ticked logins SHALL leave the device. The agent SHALL learn only the names of the saved sites.
+When the person asks to save logins, the agent SHALL ask whether they are ready, then send a private link with every private link's safety: a new address and secret key each time, ending private input on successful completion, explicit closure, or after eight hours by default. The link's page SHALL be one screen that takes CSV password exports, dropped onto it or picked from the device, and logins typed or autofilled, into one list. Its primary completion action SHALL save the selected pending logins, including a valid filled login not yet added to the list, and return to the requesting task in one tap. Failed saves SHALL stay open for correction and SHALL NOT announce readiness. For an export, the person's device SHALL read the file and list its sites with none ticked; a typed login SHALL join the list ticked. Only the ticked logins SHALL leave the device. The agent SHALL learn only the names of the saved sites.
 
 #### Scenario: An export with many sites
 
@@ -148,8 +147,7 @@ What the person types in a private form SHALL reach the site's fields without ap
 - **THEN** the agent does not ask for it in the chat, the person gives it through a private form, and the stored chat never holds it
 
 ### Requirement: Every private link goes through Cloudflare and closes itself
-
-A password link, a key link, and a private form SHALL each open at a new address through Cloudflare's tunnel, with a secret key only the link carries, including when the person is at the computer the agent runs on. The agent SHALL give the person a link only once it answers from outside that computer. A link SHALL stop working on successful completion, on closure, or at its time limit, even if the agent's session has ended, and a closed link SHALL never work again.
+A password link, a key link, and a private form SHALL each open at a new address through Cloudflare's tunnel, with a secret key only the link carries, including when the person is at the computer the agent runs on. The agent SHALL give the person a link only once it answers from outside that computer. Each link SHALL default to an eight-hour time limit from opening and SHALL honor an explicit time override. A link SHALL stop working on successful completion, on closure, or at its time limit, even if the agent's session has ended, and a closed link SHALL never work again.
 
 #### Scenario: The person sits at the agent's computer
 
@@ -158,7 +156,7 @@ A password link, a key link, and a private form SHALL each open at a new address
 
 #### Scenario: Nobody finishes
 
-- **WHEN** 10 minutes pass on a private form without a send or a close
+- **WHEN** eight hours pass on a private form without a send or a close
 - **THEN** the link stops working, and the agent tells the person it timed out and offers a new one
 
 ### Requirement: The agent pictures its browsing in the chat
