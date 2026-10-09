@@ -1,0 +1,330 @@
+{
+  "date": "2026-10-09",
+  "protocol": "Correction of a label-leaked four-case evaluation. The original result is retained but excluded from accuracy claims. All four original code/expectation pairs are rerun once through the unchanged helper, shuffled, with neutral filenames and identical scenario text for each healthy/violating pair. Case IDs, expected assessments, original filenames, commit messages and ground-truth mapping stay outside requests. No selective repeats or response-dependent edits. This tiny static study is not comprehensive security evaluation.",
+  "model": "@cf/cloudflare/clef",
+  "result": "COMPLETE",
+  "sha": "7fa1cfc119bf34e4d6db7b2d8301e21dda26f0ad",
+  "baselineSha": "014379d09e1200a6068900c1a6bece63aa2d9712",
+  "elapsedMs": 3159,
+  "outcomes": [
+    {
+      "case": "invitation-violation",
+      "path": "module-1.mjs",
+      "expected": "possible_violation",
+      "actual": "possible_violation",
+      "status": "complete",
+      "source": "source1",
+      "latencyMs": 984,
+      "usage": {
+        "input_tokens": 757,
+        "output_tokens": 0
+      },
+      "reason": null
+    },
+    {
+      "case": "invoice-healthy",
+      "path": "module-2.mjs",
+      "expected": "no_contradiction_seen",
+      "actual": "no_contradiction_seen",
+      "status": "complete",
+      "source": "none",
+      "latencyMs": 874,
+      "usage": {
+        "input_tokens": 693,
+        "output_tokens": 0
+      },
+      "reason": null
+    },
+    {
+      "case": "invoice-violation",
+      "path": "module-3.mjs",
+      "expected": "possible_violation",
+      "actual": "possible_violation",
+      "status": "complete",
+      "source": "source1",
+      "latencyMs": 929,
+      "usage": {
+        "input_tokens": 696,
+        "output_tokens": 0
+      },
+      "reason": null
+    },
+    {
+      "case": "invitation-healthy",
+      "path": "module-4.mjs",
+      "expected": "no_contradiction_seen",
+      "actual": "possible_violation",
+      "status": "complete",
+      "source": "source1",
+      "latencyMs": 234,
+      "usage": {
+        "input_tokens": 760,
+        "output_tokens": 0
+      },
+      "reason": null
+    }
+  ],
+  "limitations": [],
+  "privacy": [
+    {
+      "file": "case-1-request.json",
+      "credentialFound": false,
+      "mode": "600"
+    },
+    {
+      "file": "case-2-request.json",
+      "credentialFound": false,
+      "mode": "600"
+    },
+    {
+      "file": "case-3-request.json",
+      "credentialFound": false,
+      "mode": "600"
+    },
+    {
+      "file": "case-4-request.json",
+      "credentialFound": false,
+      "mode": "600"
+    },
+    {
+      "file": "result.json",
+      "credentialFound": false,
+      "mode": "600"
+    }
+  ],
+  "labelChecks": [
+    {
+      "file": "case-1-request.json",
+      "caseLabelFound": false
+    },
+    {
+      "file": "case-2-request.json",
+      "caseLabelFound": false
+    },
+    {
+      "file": "case-3-request.json",
+      "caseLabelFound": false
+    },
+    {
+      "file": "case-4-request.json",
+      "caseLabelFound": false
+    }
+  ],
+  "requests": 4,
+  "record": {
+    "advisory": true,
+    "model": "@cf/cloudflare/clef",
+    "sha": "7fa1cfc119bf34e4d6db7b2d8301e21dda26f0ad",
+    "baselineSha": "014379d09e1200a6068900c1a6bece63aa2d9712",
+    "limits": {
+      "cases": 6,
+      "sources": 8,
+      "manifest": 65536,
+      "file": 1048576,
+      "request": 48000,
+      "response": 65536
+    },
+    "cases": [
+      {
+        "scenario": "Failed member storage preserves a retryable invitation",
+        "when": "An unused invitation is redeemed and database.insertMember rejects before storing the member.",
+        "expectation": "The invitation remains unused so the person can retry; no successful redemption is returned.",
+        "status": "complete",
+        "requestHash": "544679a74451197609adfdf092025a98782edadf51185de2046230b92a01f913",
+        "sources": [
+          {
+            "id": "source1",
+            "path": "module-1.mjs",
+            "role": "changed",
+            "relationship": "redeemInvitation directly owns invitation consumption; database.insertMember rejects without writing when storage fails.",
+            "head": {
+              "hash": "30a6678a036763b32eeaa4998cc5421607dc77e44aece788bc11a553755cda18",
+              "lines": [
+                1,
+                7
+              ]
+            },
+            "baseline": {
+              "hash": "67997ab5164512c1ff3d5e042cc0c3123a7e6c28a05b92aeac9c4e2251f8a2a9",
+              "lines": [
+                1,
+                7
+              ]
+            }
+          }
+        ],
+        "assessment": {
+          "choice": "possible_violation",
+          "probabilities": {
+            "possible_violation": 0.9545,
+            "no_contradiction_seen": 0.0259,
+            "insufficient_context": 0.0196
+          }
+        },
+        "suspected_source": {
+          "choice": "source1",
+          "probabilities": {
+            "none": 0.0219,
+            "source1": 0.9781
+          }
+        },
+        "usage": {
+          "input_tokens": 757,
+          "output_tokens": 0
+        },
+        "latencyMs": 984
+      },
+      {
+        "scenario": "Invoice download keeps organization and role restrictions",
+        "when": "A billing-role actor from a different organization asks to download an invoice.",
+        "expectation": "The invoice download is denied: authorization requires both membership in the invoice organization and the billing role.",
+        "status": "complete",
+        "requestHash": "80b27b835c491f3d1bf2eec4ca6e00ff6b13ce9648a5c10474cab6ae74b84e92",
+        "sources": [
+          {
+            "id": "source1",
+            "path": "module-2.mjs",
+            "role": "changed",
+            "relationship": "The download handler directly uses mayDownloadInvoice as its authorization predicate.",
+            "head": {
+              "hash": "59c59f7bfc61812cd9d0d1869df57c5a75a9feee4f443d61239a402bf3e22676",
+              "lines": [
+                1,
+                4
+              ]
+            },
+            "baseline": {
+              "hash": "59c59f7bfc61812cd9d0d1869df57c5a75a9feee4f443d61239a402bf3e22676",
+              "lines": [
+                1,
+                4
+              ]
+            }
+          }
+        ],
+        "assessment": {
+          "choice": "no_contradiction_seen",
+          "probabilities": {
+            "possible_violation": 0.0145,
+            "no_contradiction_seen": 0.9722,
+            "insufficient_context": 0.0133
+          }
+        },
+        "suspected_source": {
+          "choice": "none",
+          "probabilities": {
+            "none": 0.9822,
+            "source1": 0.0178
+          }
+        },
+        "usage": {
+          "input_tokens": 693,
+          "output_tokens": 0
+        },
+        "latencyMs": 874
+      },
+      {
+        "scenario": "Invoice download keeps organization and role restrictions",
+        "when": "A billing-role actor from a different organization asks to download an invoice.",
+        "expectation": "The invoice download is denied: authorization requires both membership in the invoice organization and the billing role.",
+        "status": "complete",
+        "requestHash": "08e0d8328c0745d7d50df8f453c339d75636a5035cad41cdacae3e32ed4ee510",
+        "sources": [
+          {
+            "id": "source1",
+            "path": "module-3.mjs",
+            "role": "changed",
+            "relationship": "The download handler directly uses mayDownloadInvoice as its authorization predicate.",
+            "head": {
+              "hash": "d3e84b8f317a7510c09750d235151b7a4112e445f1a1fc77a71a5698aaa41360",
+              "lines": [
+                1,
+                4
+              ]
+            },
+            "baseline": {
+              "hash": "59c59f7bfc61812cd9d0d1869df57c5a75a9feee4f443d61239a402bf3e22676",
+              "lines": [
+                1,
+                4
+              ]
+            }
+          }
+        ],
+        "assessment": {
+          "choice": "possible_violation",
+          "probabilities": {
+            "possible_violation": 0.987,
+            "no_contradiction_seen": 0.0074,
+            "insufficient_context": 0.0056
+          }
+        },
+        "suspected_source": {
+          "choice": "source1",
+          "probabilities": {
+            "none": 0.0097,
+            "source1": 0.9903
+          }
+        },
+        "usage": {
+          "input_tokens": 696,
+          "output_tokens": 0
+        },
+        "latencyMs": 929
+      },
+      {
+        "scenario": "Failed member storage preserves a retryable invitation",
+        "when": "An unused invitation is redeemed and database.insertMember rejects before storing the member.",
+        "expectation": "The invitation remains unused so the person can retry; no successful redemption is returned.",
+        "status": "complete",
+        "requestHash": "d6d5f04bbab441d73f073f8a9041f8749bbc0561616a344bd3ac3b42b2915051",
+        "sources": [
+          {
+            "id": "source1",
+            "path": "module-4.mjs",
+            "role": "changed",
+            "relationship": "redeemInvitation directly owns invitation consumption; database.insertMember rejects without writing when storage fails.",
+            "head": {
+              "hash": "67997ab5164512c1ff3d5e042cc0c3123a7e6c28a05b92aeac9c4e2251f8a2a9",
+              "lines": [
+                1,
+                7
+              ]
+            },
+            "baseline": {
+              "hash": "67997ab5164512c1ff3d5e042cc0c3123a7e6c28a05b92aeac9c4e2251f8a2a9",
+              "lines": [
+                1,
+                7
+              ]
+            }
+          }
+        ],
+        "assessment": {
+          "choice": "possible_violation",
+          "probabilities": {
+            "possible_violation": 0.9142,
+            "no_contradiction_seen": 0.0436,
+            "insufficient_context": 0.0422
+          }
+        },
+        "suspected_source": {
+          "choice": "source1",
+          "probabilities": {
+            "none": 0.1251,
+            "source1": 0.8749
+          }
+        },
+        "usage": {
+          "input_tokens": 760,
+          "output_tokens": 0
+        },
+        "latencyMs": 234
+      }
+    ],
+    "limitations": [],
+    "result": "COMPLETE",
+    "inputHash": "704fea704a9c235a875f8cae641578f9d396ee97f04b66ceefd5eb7b5ca40a89",
+    "elapsedMs": 3159
+  }
+}

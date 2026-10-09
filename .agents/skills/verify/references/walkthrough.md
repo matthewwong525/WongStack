@@ -1,42 +1,37 @@
 # The staging walkthrough
 
-Check saved-revision behavior through deployed probes or existing CI captures. [The skill](../SKILL.md) owns order and verdicts; [the wiki](../../../../wiki/development/staging-walkthrough.md) owns why.
+Check saved behavior through deployed probes or CI captures. [The skill](../SKILL.md) owns order and verdicts; [the wiki](../../../../wiki/development/staging-walkthrough.md) owns why.
 
 ## a — scout the scenarios
 
-Select delta scenarios and capabilities touched by the branch diff. `WHEN`/`THEN` remain authoritative. Inspect confirmed callers/data contracts; add narrowly relevant existing consumer scenarios, even across capabilities. Name the relationship and expectation; exclude speculation, report missing expectations. Consumer checks grant no repair scope.
+Select delta scenarios, capabilities touched by the diff and narrowly connected consumers across capabilities. Confirm and name callers/contracts and existing expectations; exclude speculation, report missing promises. `WHEN`/`THEN` judge; consumers grant no repair scope.
 
 Match each scenario to the strongest existing route:
 
 1. **Browser journey** — rendered behavior through its user entry point.
 2. **Request probe** — an endpoint's status, body, redirect or header.
 3. **State probe** — trigger through the deployed interface, then read with an existing machine or stack command.
-4. **CI capture** — saved-source command/output and follow-ups. Read project-owned `.agents/verification/*.json` and owning capture instructions; [CI evidence](ci-evidence.md) owns commands. Validate sources, scenarios, prerequisites, source/run identity and integrity. Never execute downloads/repo code locally. No recipe preserves ordinary probes; drift blocks its check, without editing recipes.
+4. **CI capture** — saved-source output/follow-ups. Read `.agents/verification/*.json` and its owning guide; [CI evidence](ci-evidence.md) owns commands. Validate sources/scenarios, prerequisites, identity/integrity. Never execute downloads/repo code locally. Absent recipes leave ordinary probes; drift blocks only their check; edit none.
 
-Ledger: scenario, probe, prerequisites, revision, runnable/blocked status, owned cleanup. Prepare surfaces independently: no preview blocks deployed checks alone. No route → name scenario/reason as unverified. Stage runnable checks; blocked/failed prerequisites pause dependents only. Finish independent safe checks.
+Ledger: scenario/probe, prerequisites/revision, runnable/blocked, owned cleanup. Prepare independently; missing preview blocks deployed checks alone. No route → name scenario/reason as unverified. Pause dependents of failed/blocked prerequisites; finish safe independent checks.
 
 **Before writes**: `preflight`'s `PLAYGROUND=yes` → create/change/delete staging data freely: no prompt, ownership or cleanup; the next walk rebuilds it. Otherwise establish staging-only bindings and owned disposable records with safe cleanup, or defer, naming the need. Production data, paid resources or access changes beyond the authorized heal need permission.
 
-**Outside services**: `node "$ROOT/scripts/cf-secrets.mjs" shared` lists key names. Trigger a service only on an `own` key; `shared`/unknown destination → never trigger; name the service and that a staging-only key unlocks it.
+**Outside services**: `node "$ROOT/scripts/cf-secrets.mjs" shared` lists keys. Trigger only `own`; `shared`/unknown → never trigger; name service/staging-only key needed.
 
-**Missing seed records** → create through the app's screens, else unverified, naming the missing sample data. **Scheduled work** → run the project's manual trigger on staging, grade its result; the timetable stays partly shown; no trigger → unverified.
+**Missing seed records** → create through screens; else name missing data/unverified. **Scheduled work** → grade its manual staging trigger; timetable stays partly shown; no trigger → unverified.
 
 ## b — write the journeys
 
-`preflight` prints the saved `SHA` and owned `RUN_DIR`; deployed checks also need its `URL`, browser journeys its `BROWSER`. CI-only preparation uses `--no-preview --no-browser`. Files live per journey in `$RUN_DIR/journeys/`, named alike and numbered in walk order.
+`preflight`: saved `SHA`, owned `RUN_DIR`, deployed `URL`, browser `BROWSER`; CI-only uses `--no-preview --no-browser`. Per-journey files in `$RUN_DIR/journeys/` share names, numbered in walk order.
 
-**`<id>.meta.json`** is for the grader, not the scripts: `then` is the scenario's **THEN** **verbatim**, never paraphrased; `probe` names the ladder rung:
+**`<id>.meta.json`**: grader-only; `then` copies **THEN verbatim**, `probe` names its rung:
 
 ```json
-{
-  "requirement": "Notes can be created",
-  "scenario": "Submitting with no title is rejected",
-  "probe": "browser",
-  "then": "the form shows \"Title is required\" and nothing is saved"
-}
+{"requirement":"Notes can be created","scenario":"Submitting with no title is rejected","probe":"browser","then":"the form shows \"Title is required\" and nothing is saved"}
 ```
 
-**Browser → `<id>.batch.json`**: ordered commands; the driver feeds them unread to `agent-browser batch --bail --json`. First read `agent-browser skills get core` (`--full` for command details): use the installed guide.
+**Browser → `<id>.batch.json`**: ordered commands, passed unread to `agent-browser batch --bail --json`. First read `agent-browser skills get core` (`--full` for details).
 
 ```json
 [
@@ -52,23 +47,23 @@ Ledger: scenario, probe, prerequisites, revision, runnable/blocked status, owned
 ]
 ```
 
-**Request → `<id>.requests.txt`**: tab-separated `METHOD`, path or full URL, optional JSON body. Paths resolve against the preview; the driver adds Access headers and captures responses in order:
+**Request → `<id>.requests.txt`**: tab-separated method, path/full URL, optional JSON body. Paths use the preview; driver adds Access headers/captures responses in order:
 
 ```
 POST	/api/notes	{"title":""}
 GET	/api/notes
 ```
 
-**State →** trigger with `<id>.requests.txt`; after `run`, capture the existing remote read from `app/`. `<staging-db>` is `wrangler.jsonc`'s `env.staging` database:
+**State →** trigger via `<id>.requests.txt`; after `run`, capture the existing remote read from `app/`. `<staging-db>`: `wrangler.jsonc`'s `env.staging` database:
 
 ```bash
 npx wrangler d1 execute <staging-db> --remote --env staging --command "SELECT count(*) FROM notes" \
   | tee "$RUN_DIR/evidence/import-processed/02-state.txt"
 ```
 
-**CI →** retain validated raw output, argv/exit, source/run and isolation/cleanup in the owned folder. Missing/stale/malformed/superseded captures stay unverified. Fix/preservation claims compare a named earlier revision with identical behavior, inputs, method and relevant environment. Name revisions/results/limits; incompatible or absent baseline blocks comparison alone, not valid head observations.
+**CI →** keep validated raw output, argv/exit, source/run, isolation/cleanup in the owned folder. Missing/stale/invalid/superseded captures stay unverified. Fix/preservation compares named earlier source with identical behavior, inputs, method/environment. Name revisions/results/limits; absent/incompatible baseline blocks comparison alone.
 
-**Lasting effects →** after a promised save/export, reopen/reload the record or independently read the file through its real consumer. Keep submitted/readback values and initiating response. Success messages/cached views prove no persistence; read-only promises need none. Compare fresh producer values with rendered consumer output.
+**Lasting effects →** reopen/reload saved records or independently read exported bytes through the real consumer. Keep submitted/readback values and initiating response; messages/caches prove no persistence. Read-only promises need none. Compare fresh producer values with rendered consumers.
 
 Evidence rules:
 
@@ -85,19 +80,19 @@ Evidence rules:
 bash "$ROOT/.claude/skills/verify/scripts/verify-staging.sh" run "$RUN_DIR" "$URL"
 ```
 
-After source/test authoring and the final gate, stage independent journeys together; grade prerequisites before dependent stages. Move completed inputs out of `journeys/` before retries: every staged mutation replays. The driver runs browsers then requests; finish state/readbacks and CI imports before grading. CI-only needs no browser/preview. Failed cleanup: retain owned record IDs, defer dependent mutations, finish independent checks.
+After source/tests and the gate, stage independent journeys together; grade prerequisites first. Before retries remove completed inputs from `journeys/`: staged writes replay. Driver runs browsers then requests; finish readbacks/state/CI before grading. CI-only needs no browser/preview. Cleanup failure → retain owned IDs, defer dependent writes, finish independent checks.
 
 `run`/`publish` print `REDACTED=<n>` credential-bearing text files scrubbed. Above 0, report it. `unknown`: inspect text evidence and `comment.md` for credentials before posting.
 
 ## d — grade against the written expectation
 
-Read evidence beside each verbatim `then`: screenshots and `evidence/<id>.result.json` for browsers, numbered request responses, state/CI output and fresh readbacks. Grade the written promise.
+Read each verbatim `then` beside browser screenshots/`evidence/<id>.result.json`, numbered responses, state/CI output and fresh readbacks.
 
-**Partly shown**: some claims observed, others inherently unobservable through available routes (delivery, screen-reader speech). Name every missing claim and why; neither failure nor plain pass, verdict unchanged.
+**Partly shown**: some claims observed; others inherently unobservable through available probes (delivery, screen-reader speech). Name each missing claim/why; neither failure nor plain pass; verdict unchanged.
 
-**Show screenshots while grading, before the verdict**: open numbered images in order, with one plain description above each. [The picture convention](../../../../wiki/development/browsing.md#show-what-the-browser-is-doing) applies; skip recapturing them.
+**Show screenshots before grading verdicts**, numbered order, each with a plain description; [picture convention](../../../../wiki/development/browsing.md#show-what-the-browser-is-doing), no recapture.
 
-- **A clean exit, green suite or `200` is not a pass.** A clean batch whose screenshot lacks the message the `THEN` requires **fails**, as does exit zero or `200` with contradictory output. A fresh readback contradicting the promised lasting result fails despite a successful initiating response. Unavailable readback stays blocked or partly shown under the existing limits.
+- **Clean exits, green suites and `200` prove no pass.** Missing required screenshot message or contradictory output **fails**, including a fresh readback contradicting a successful response. Unavailable readback stays blocked/partly shown under existing limits.
 - A failing command is evidence, not a crash. `--bail` stops a browser journey there, so earlier evidence shows how far it got.
 - A screenshot that looks like the previous page → check the landed URL in `<id>.url`. A missing wait is a defect in the journey, not the app.
 - `[redacted:.env]` in text evidence stands for a `.env` value the driver replaced; read the screenshot for it.
@@ -114,21 +109,21 @@ A failure is **in scope** only when both hold:
 
 Otherwise report **out of scope** with why. A [kept check](#g--kept-checks)'s contradiction needs only 2; after each fix, `replay --only <id>`.
 
-For an in-scope repair, retain a focused check when existing CI can cheaply reproduce the defect. `/save` captures the same check's intended failure on exact earlier source and pass on repaired head; the head suite must pass. Inspect failure cause, revision and check identity. Impractical harness → keep the available reproduction, missing proof and limitation. No new infrastructure, weaker checks or unrelated fixes.
+In-scope repair: retain a focused check if existing CI can cheaply reproduce it. `/save` captures its intended failure on exact earlier source/pass on repaired head; head suite must pass. Inspect cause/revision/check identity. Impractical harness → keep available reproduction, missing proof/limits. No new infrastructure, weaker checks or unrelated fixes.
 
 Usually **out of scope**: app `401` with valid service token (app authentication), previous-page screenshot (repair journey waits and re-walk).
 
 ## f — post the evidence, then clean up
 
-One `$RUN_DIR/comment.md` covers every surface/retry: verdict, saved SHA, preview/run links, each verbatim `THEN`, probe/environment, raw observations/readbacks and result. Name consumer relationships, compared revisions/results/limits. Label practice/simulated evidence. Show pass, fail, `◐` partial (shown/missing claims and why) and unverified checks. Text stands without images; numbered browser links: `Pictures (log in to open): [<label>](<url>)`.
+One `$RUN_DIR/comment.md`: all surfaces/retries, verdict/SHA, preview/run links, verbatim `THEN`, probes/environment, raw observations/readbacks/results, consumer relationships, compared revisions/limits. Label practice/simulation, pass/fail, `◐` partial (shown/missing claims/why), unverified. Text stands alone; numbered browser links: `Pictures (log in to open): [<label>](<url>)`.
 
 Apply the skill's verdict precedence; inherently unobservable claims stay partly shown (§ d). UNKNOWN/TIMEOUT lead **Not verified.**, naming completed checks, blocks, and remedies. Name heals or missing credentials.
 
-Before handoff, attempt safe simulations through existing deployed interfaces, disposable synthetic data or sandbox integrations (§ a). No local repo execution or invented tooling. Label **simulated** evidence, supported claims and real behavior unproved; simulated delivery proves no real delivery or personal experience. No safe simulation → name the limit.
+Before handoff, attempt safe simulation via existing deployed interfaces, disposable data or sandbox integrations (§ a). No local execution/new tooling. Label **simulated**, supported claims/real behavior unproved; simulated delivery proves no real delivery/experience. Otherwise name the limit.
 
-After independent checks/simulations, make **one handoff** in comment/chat, including human-checkable partial claims. Each remaining check names its reason, needed action/permission, expected observation and dependents. Offer help or selected/all skips in [the shared ask format](../../explore/references/asking-the-user.md). Skips stay **skipped, unverified**, grant no permission/pass and erase no failure; ask again only if reopened. Blocked reachable checks prevent SUCCESS.
+After independent checks/simulations, **one handoff** in comment/chat includes human-checkable partials. Name each remaining reason, needed action/permission, expected observation/dependents. Offer help/selected or all skips in [the ask format](../../explore/references/asking-the-user.md). Skips stay **skipped, unverified**: no permission/pass or erased failure; re-ask only if reopened. Blocked reachable checks prevent SUCCESS.
 
-Use [key links](../../../../wiki/development/secrets.md#receive-a-key-through-a-private-link) or [password links](../../../../wiki/development/passwords.md) for credentials/login. Waiting grants no permission. Resume pending checks after help; repeat completed checks only on changed conditions. Retain observations, pending/skipped ledger and owned IDs before cleanup.
+Credentials/login: [key links](../../../../wiki/development/secrets.md#receive-a-key-through-a-private-link)/[password links](../../../../wiki/development/passwords.md). Waiting grants no permission. After help resume pending checks; repeat others only on changed conditions. Retain observations, pending/skipped ledger/owned IDs before cleanup.
 
 Publish pictures, post, clean up:
 
