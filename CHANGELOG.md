@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Optional code advice during verification
+
+- Ask for `/verify --code-audit` to have the larger Clef model inspect selected saved code and its written expectations. Review flags before choosing follow-up checks; observed behavior still determines the result.
+- Ordinary verification stays unchanged. Missing model access or context is reported separately; no pictures or behavioral captures go to the model.
+
+**Updating.** Nothing needs doing by hand. The optional paid audit reuses your existing Cloudflare account and token when they can access the model; ordinary checks need neither.
+
 ## 39.1.0 — Browse through a local proxy automatically
 
 - **Personal browsing starts its own local forwarding proxy.** There is nothing extra to install or configure. It uses the assistant's computer's network, independently of WARP and Paseo's relay, and chooses no country. A site may still refuse the browser.
