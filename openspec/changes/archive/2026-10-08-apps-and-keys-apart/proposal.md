@@ -151,3 +151,4 @@ None.
 - **2026-10-08** — Asked, on the third preview, for fewer words on a person's panel → cut the lines under *Can install the project* and the keys, the *new person starts with no apps* line, and shortened the manager note.
 - **2026-10-08** — Archived for publishing as 39.0.0, with main brought in through 38.2.1; the checkpoint after this entry is the one that merges.
 - **2026-10-09** — Brought main in again through 38.3.0 after another release landed first; still numbered 39.0.0. The checkpoint after this entry is the one that merges.
+- **2026-10-09** — Brought main in a third time, through 38.4.0, after another release landed first. The checkpoint after this entry is the one that merges.
