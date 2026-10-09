@@ -150,3 +150,4 @@ None.
 - **2026-10-08** — Assumed: the save and preview walk of task 7.3 are the publish run's own save and walk, because Matthew chose to publish and that run makes one save; the box is closed here and the walk's verdict stands in for it.
 - **2026-10-08** — Asked, on the third preview, for fewer words on a person's panel → cut the lines under *Can install the project* and the keys, the *new person starts with no apps* line, and shortened the manager note.
 - **2026-10-08** — Archived for publishing as 39.0.0, with main brought in through 38.2.1; the checkpoint after this entry is the one that merges.
+- **2026-10-09** — Brought main in again through 38.3.0 after another release landed first; still numbered 39.0.0. The checkpoint after this entry is the one that merges.
