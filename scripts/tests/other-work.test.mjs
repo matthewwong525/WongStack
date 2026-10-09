@@ -383,3 +383,12 @@ test('an Artifacts install lists saved branches in place of pull requests, and n
   }]);
   assert.equal(json.workspaces.find(ws => ws.path === s.dirs.feature).pr, undefined);
 });
+
+test('operational pull requests are visible as records without overlapping unfinished code', () => {
+  const entries = foldPullRequests([
+    { number: 20, headRefName: 'goal-record', author: { login: 'owner' }, files: [{ path: 'openspec/changes/payment/proposal.md' }, { path: 'openspec/changes/payment/tasks.md' }] },
+    { number: 21, headRefName: 'routine-record', author: { login: 'owner' }, files: [{ path: 'schedules/weekly-summary.json' }] },
+  ], [], 'work', new Set(['payment']));
+  assert.equal(entries.length, 2);
+  for (const item of entries) { assert.equal(item.kind, 'schedule-record'); assert.deepEqual(item.changes, []); }
+});

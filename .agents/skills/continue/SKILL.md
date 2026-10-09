@@ -6,6 +6,8 @@ user-invocable: true
 
 # /continue
 
+**Selected schedule:** [route its record](../save/references/schedule-records.md) before code or checkout; preserve its store and pending question.
+
 Resume a saved OpenSpec change in a fresh session. **The change is the plan and the source of truth**, kept current by `/save`: `openspec/changes/<name>/proposal.md` holds the intent, `tasks.md` the checklist, its memory facts the session context.
 
 Check [preconditions](../save/references/preconditions.md). This skill owns checkout; `gh` resolves only GitHub; [Artifacts](../../../wiki/stack/artifacts-route.md) lists saved branches.
@@ -22,7 +24,7 @@ A handle selects by [the rungs](../save/references/checkpoint-evidence.md#select
 
 - **First token**: the handle — a change name, PR number, or PR URL.
 - **The rest**: an explicit instruction that overrides "work the tasks" in step 4, e.g. `/continue add-auth rebase onto main and fix the failing test`.
-- **No handle** → run `openspec list`, and list open non-code threads with `node "$(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/memory.mjs" search --type thread --state conversation --limit 10`. Offer both in [an ordinary ask](../explore/references/asking-the-user.md), recommending what the branch or latest checkpoint points at: each change's name, task progress, and `Status:` line ([its values](../../../wiki/development/the-change-loop.md#the-change-is-a-living-handoff-not-just-a-plan)); each thread's slug, age, and next step. Don't guess.
+- **No handle** → run `openspec list` and `schedule.mjs list` ([records](../save/references/schedule-records.md)), and list open non-code threads with `node "$(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/memory.mjs" search --type thread --state conversation --limit 10`. Offer both in [an ordinary ask](../explore/references/asking-the-user.md), recommending what the branch or latest checkpoint points at: each change's name, task progress, and `Status:` line ([its values](../../../wiki/development/the-change-loop.md#the-change-is-a-living-handoff-not-just-a-plan)); each thread's slug, age, and next step. Don't guess.
 - **A non-code thread** (picked, or a handle naming a topic slug with open threads and no change) → no branch or change. Run `memory.mjs show <slug>`, recap what is done and next, and hand the rest to `/apply` as its to-do. Skip steps 2–4.
 
 ### 2. Resolve the change and the branch

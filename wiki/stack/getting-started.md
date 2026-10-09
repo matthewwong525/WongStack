@@ -26,7 +26,7 @@ WongStack is free. You install it one of two ways, and one of them costs money:
 
 On Mac or Linux, setup offers Cloudflare alone first, and asks which you want before anything costs money. [The Artifacts route](artifacts-route.md#what-it-costs) has the detail.
 
-You bring your own assistant, on a plan of your own, such as Claude or ChatGPT. An assistant on a schedule needs Cloudflare's paid plan on either way; Cloudflare alone already has it ([cloud routines](cloud-routines.md#what-it-costs)). Setup may also install a few free tools it needs — Git, Node.js, OpenSpec, a browser for the agent, a tool that sends you a private link to that browser, and, on the free way, GitHub's app — and it asks before it installs any.
+You bring your own assistant, on a plan of your own, such as Claude or ChatGPT. For future work, [host schedules](host-schedules.md) use an existing clock after checking its access and uptime needs. Setup may also install a few free tools it needs — Git, Node.js, OpenSpec, a browser for the agent, a tool that sends you a private link to that browser, and, on the free way, GitHub's app — and it asks before it installs any.
 
 ## After that: how you work
 
@@ -89,7 +89,7 @@ Setup creates real resources on your Cloudflare account. To remove them, for exa
 3. **Delete** what this repo created, with the same user token: `DELETE /accounts/{account_id}/workers/scripts/<name>`, `DELETE /accounts/{account_id}/d1/database/<id>`, `DELETE /accounts/{account_id}/tokens/<id>` for the deploy token, `DELETE /user/tokens/<id>` for an old `<repo>-memory` token if one is left, and `gh secret delete` for each secret.
 4. **Report** what was removed *and what was skipped*: anything whose name does not match this repo, and anything you declined. Nothing is deleted by guess.
 
-An install that made a routine also has a routine runner: [its teardown](cloud-routines.md#tear-it-down) removes it, its AI Gateway, and every key it stored.
+An install with an older cloud runner keeps it until explicitly removed: [legacy teardown](legacy-cloud-schedules.md#tear-it-down) covers its Worker, AI Gateway, and dedicated keys. New schedules install no runner.
 
 ## Next
 

@@ -8,9 +8,9 @@ import path from 'node:path';
 import test from 'node:test';
 import {
   agentSettings, childEnv, parseCreated, renameArgs, runArgs,
-} from '../../.agents/skills/routine/scripts/workspace.mjs';
+} from '../../.agents/skills/schedule/scripts/workspace.mjs';
 
-const cli = new URL('../../.agents/skills/routine/scripts/workspace.mjs', import.meta.url).pathname;
+const cli = new URL('../../.agents/skills/schedule/scripts/workspace.mjs', import.meta.url).pathname;
 const CALLER = { Provider: 'claude', Model: 'claude-opus-5-5', Thinking: 'high', Mode: 'bypassPermissions' };
 const CREATED = 'Created workspace ws-42 - clever-otter (clever-otter)\nsetup needs approval\nTip: pass --workspace <id>';
 

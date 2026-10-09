@@ -6,7 +6,7 @@
 
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { findPaseo } from '../../../routine/scripts/lib/paseo.mjs';
+import { findPaseo } from '../../../schedule/scripts/lib/paseo.mjs';
 
 /** The chat this process runs in, as `wakeChat` needs it: `agentId` is null when the host names none. */
 export function chatTarget(env = process.env, cwd = process.cwd()) {

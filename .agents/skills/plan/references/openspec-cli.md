@@ -37,3 +37,7 @@ For each delta, read the main spec and `openspec instructions specs --change "<n
 - A base requirement missing, or changed beyond what the delta explains, stops the save with the conflict; never append a duplicate or invent a merge.
 
 Then validate.
+
+## Scheduled goals and routine definitions
+
+Finite goals use `openspec new change "<name>" --schema scheduled-work`, selected root/store and CLI artifact paths. Ongoing routines use `schedules/<name>.json`, without a change/page. [Record delivery](../../save/references/schedule-records.md) publishes goals with open checklists through the normal gate. Resolve their lifecycle before code routing. Only terminal evidence and verified stopping permit archive with `--skip-specs`; business records never reconcile capability specs.

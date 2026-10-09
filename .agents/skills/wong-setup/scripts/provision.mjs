@@ -21,9 +21,9 @@ import { keyMachine, parseEnv } from '../../memory/scripts/lib/store.mjs';
 import { AccessSetupError, accessOrganization, cloudflareReadKey, loginManagementKey, ownerIdentity, provisionAccess, provisionAccessPolicies } from './private-access.mjs';
 import { helperConfig } from '../../save/scripts/artifacts-credential.mjs';
 import {
-  CloudflareError, PROPAGATION, ProvisionError, ROUTINES_PROVISION, accountPolicy, cloudflare, durableEnv, fillConfig, grant, installRunner, orNull, paidPlan, pending,
+  CloudflareError, PROPAGATION, ProvisionError, accountPolicy, cloudflare, durableEnv, fillConfig, grant, installRunner, orNull, paidPlan, pending,
   readJson, recordComponent, recordFile, recordedBase, retry, run, scopedToken, stateFile, step, wait, widenBy, workerSecrets, writeJson,
-} from '../../routine/scripts/lib/cloudflare.mjs';
+} from './lib/cloudflare.mjs';
 import { privateDeployment } from '../../../../scripts/lib-access-config.mjs';
 import { parseConfig } from '../../../../scripts/lib-wrangler-config.mjs';
 
@@ -36,9 +36,8 @@ export const SNAPSHOT_DAYS = 2;
 const ACCOUNT = /^[0-9a-f]{32}$/;
 /** The error Cloudflare returns for an R2 call on an account with no R2 subscription. */
 export const R2_OFF = 10042;
-// The steps the check runner and the routine runner share live in the routine skill, which every
-// project has; they are exported from here too, where setup's callers and tests find them.
-export { CloudflareError, PROPAGATION, ProvisionError, ROUTINES_PROVISION, cloudflare, run, widenBy };
+// Setup owns the shared provisioning steps; these exports preserve the runbook and tests' interface.
+export { CloudflareError, PROPAGATION, ProvisionError, cloudflare, run, widenBy };
 const isoDate = () => new Date().toISOString().slice(0, 10);
 
 // The groups, by name and scope, from references/permission-groups.md; a test holds them to its tables.

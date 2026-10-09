@@ -58,7 +58,7 @@ The more an agent can reach, the more it does for you, and the more damage a wro
 - **Active changes** own work in progress. Each [change loop](development/the-change-loop.md) plan lives under `openspec/changes/<name>/` with its tasks, status, and decision log.
 - **Archived changes** own what shipped and why.
 - **The memory store** owns session context outside the repo: short typed facts that every session reads as a digest at start, and the raw transcripts behind them. [Session memory](development/memory.md) owns how it works.
-- **Skills** turn the process into commands an agent runs: `/explore`, `/plan`, `/apply`, `/save`, `/continue`, `/ship`, `/close`, `/verify`, `/improve-code`, `/dream-memory`, `/routine`, `/wong-sync`.
+- **Skills** turn the process into commands an agent runs: `/explore`, `/plan`, `/apply`, `/save`, `/continue`, `/ship`, `/close`, `/verify`, `/improve-code`, `/dream-memory`, `/schedule`, `/wong-sync`.
 
 Claude Code is one way to run these. The durable part is the files: any agent that reads files, edits files, runs shell commands, and follows the skill runbooks can do the same work.
 

@@ -36,6 +36,6 @@ You do not need these before you start. They explain what WongStack sets up.
 - **Review page:** the page a plan ends with. You read each change and its drawing, and tap **+ Note** to comment before anything is built ([the steps](development/the-change-loop.md#the-steps)).
 - **Preview link:** a separate copy of your site with the change in it, running on practice data. Allowed teammates can open it after login; your real site is untouched.
 - **Mini app:** a small page or tool, such as a bill splitter, that lives at `/apps/<name>/` on your site ([mini apps](stack/mini-apps.md)).
-- **Routine:** a request the assistant runs on a schedule, such as every weekday at 9. It runs in your Cloudflare account, on the paid plan ([`/routine`](../.agents/skills/routine/SKILL.md), [cloud routines](stack/cloud-routines.md)).
+- **Routine:** a request the assistant runs on a schedule, such as every weekday at 9. Its definition stays in the repo; the assistant verifies an existing clock and future-session access ([`/schedule`](../.agents/skills/schedule/SKILL.md), [host schedules](stack/host-schedules.md)).
 - **Save:** keep the work so far without making it live. GitHub gets a pull request; [an Artifacts install](stack/artifacts-route.md) gets a checked branch ([the gate](development/the-change-loop.md#the-gate)).
 - **Publish:** make the change live on your real site, after its checks pass.

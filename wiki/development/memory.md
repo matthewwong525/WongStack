@@ -65,7 +65,7 @@ The opt-in helper has fixed task budgets and returns verified original facts. It
 
 Every write passes the **write gate**: the script shows the live facts on the same slug, the closest keyword matches, and the open threads on other slugs that match the fact's words. The writer adds, supersedes, or drops each candidate. A `thread` must carry the tag of the verb whose next run should check it (`plan`, `verify`, `sync`), or the area tag of the folder whose next change should: the gate names the problem, and `put-facts` refuses the whole batch, because a warning once left 82 of 94 threads with no one to check them. A fact that answers an open thread supersedes it, saying what was found, so a check done under other work closes its thread. A fact that cannot reach the store waits in this machine’s local spool, and the next run sends it through the gate.
 
-**A scheduled run has no chat session**, so its write leaves `session` out of the JSON. With `"session": "current"` and no chat, the script holds the facts for the next session start, which never comes in a computer that is deleted after the run. [Cloud routines](../stack/cloud-routines.md#how-a-routine-runs) tell each run so.
+**A scheduled run checks whether it has a registered chat session.** When it has none, leave `session` out of its fact-write JSON: `"session": "current"` would hold those facts for a session start that may never happen. A host that starts a registered fresh chat can use its verified session. [Host readiness](../stack/host-schedules.md#where-it-runs) also checks that this execution identity can read and write only the permitted memory.
 
 ## Facts by code area
 

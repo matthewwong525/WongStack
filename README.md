@@ -51,7 +51,7 @@ Paste the message in any folder: if it already has files, setup makes a `wongsta
 
 - **Errands, from one message.** Research, a draft, a plan for your week: it does the work and answers. It asks before it sends or changes anything outside the chat.
 - **Websites, used for you.** It opens a real browser, and sends you a link when a step needs you: [browsing](wiki/development/browsing.md).
-- **Jobs while you sleep.** A [routine](wiki/stack/cloud-routines.md) runs on a schedule in your Cloudflare account, on its paid plan.
+- **Jobs while you sleep.** A [schedule](wiki/stack/host-schedules.md) starts agreed work on an existing clock. Your assistant checks where it runs and what must stay on.
 
 **All of it is yours**
 
