@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 38.4.0 — See the changed screens before choosing
+
+- **Pictures appear in the chat before the publish choice.** After building, `/apply` shows two useful views of the changed screens, each with a short caption, then asks whether to publish, change more, or save. One view is enough when there is only one useful view.
+- **The preview link stays.** If pictures cannot be taken or no screen changed, the assistant says why and keeps the choice. Asking to build and publish still goes straight through with no extra stop.
+
+**Updating.** Nothing needs doing by hand.
+
 ## 38.3.0 — Tap through a robot check in a live view
 
 - **A robot check gets a live view you tap through.** When a site asks whether a person is there, with a tick box or a picture puzzle, the assistant asks if you're ready. Then it sends a private link that shows its browser on that page. You tick the box or do the puzzle. The link closes itself once the site lets you through, and the assistant carries on. The assistant never ticks or solves a check itself.
