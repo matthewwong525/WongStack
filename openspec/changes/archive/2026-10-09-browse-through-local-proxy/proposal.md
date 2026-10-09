@@ -1,8 +1,8 @@
 # Browse through a local proxy automatically
 
-Status: in-progress
-Branch: track-ups-package
-Open questions: none
+**Status:** ready
+**Branch:** track-ups-package
+**Open questions:** none
 
 ## Why
 
@@ -49,3 +49,4 @@ The browser helper and its tests, the browsing wiki, and the payload changelog. 
 - **2026-10-09** — Assumed: retain the requested local default despite the final UPS tracking error, because real Camofox proved proxy routing with WARP off and listener shutdown, and the agreed scope does not promise universal site access. The initial UPS capture was still loading; the settled observation refused tracking. No shared browser was restarted.
 - **2026-10-09** — Build verification timing: all forwarding, launcher and fixture tests are authored with source and docs before the required local checks; isolated real-browser acceptance remains the parent's final check.
 - **2026-10-09** — Local pre-check: the app's 415 tests and payload release checks passed. The first run found the wiki word cap and inconsistent parser-error response text; both were repaired. The prescribed wiki/script-suite rerun ended `LOCAL_CHECKS=pass`. Shellcheck was unavailable locally and remains in CI; no shell files changed. Live browser acceptance remains task 3.2.
+- **2026-10-09** — Assumed: checkpoint the exact archived handoff after merging current main, because `/ship` retains both shipped live-view behavior and this proxy change. The combined app's 361 tests and payload script suite passed; the retired-name check caught an incidental fragment in one test URL, reworded without changing the tested behavior or weakening the check. Real-browser acceptance is recorded in task 3.2; UPS remained refused in its settled capture.

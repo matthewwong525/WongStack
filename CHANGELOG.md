@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Browse through a local proxy automatically
+## 39.1.0 — Browse through a local proxy automatically
 
 - **Personal browsing starts its own local forwarding proxy.** There is nothing extra to install or configure. It uses the assistant's computer's network, independently of WARP and Paseo's relay, and chooses no country. A site may still refuse the browser.
 - **Secure website traffic stays encrypted, and the proxy keeps no browsing logs.** A proxy startup failure is reported. Stopping the browser closes its proxy too.

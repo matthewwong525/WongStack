@@ -11,7 +11,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · browse-through-local-proxy</title>
+<title>Review · 2026-10-09-browse-through-local-proxy</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -103,11 +103,11 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="browse-through-local-proxy">
+<body data-change="2026-10-09-browse-through-local-proxy">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>browse-through-local-proxy</h1>
+  <h1>2026-10-09-browse-through-local-proxy</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. <span class="copies">Saving a note copies all your notes.</span> Open a drawing and tap it to see it full screen.</p>
@@ -143,6 +143,7 @@
 <li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-09</p>Assumed: retain the requested local default despite the final UPS tracking error, because real Camofox proved proxy routing with WARP off and listener shutdown, and the agreed scope does not promise universal site access. The initial UPS capture was still loading; the settled observation refused tracking. No shared browser was restarted.</li>
 <li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-09</p>Build verification timing: all forwarding, launcher and fixture tests are authored with source and docs before the required local checks; isolated real-browser acceptance remains the parent's final check.</li>
 <li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-09</p>Local pre-check: the app's 415 tests and payload release checks passed. The first run found the wiki word cap and inconsistent parser-error response text; both were repaired. The prescribed wiki/script-suite rerun ended <code>LOCAL_CHECKS=pass</code>. Shellcheck was unavailable locally and remains in CI; no shell files changed. Live browser acceptance remains task 3.2.</li>
+<li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-09</p>Assumed: checkpoint the exact archived handoff after merging current main, because <code>/ship</code> retains both shipped live-view behavior and this proxy change. The combined app's 361 tests and payload script suite passed; the retired-name check caught an incidental fragment in one test URL, reworded without changing the tested behavior or weakening the check. Real-browser acceptance is recorded in task 3.2; UPS remained refused in its settled capture.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

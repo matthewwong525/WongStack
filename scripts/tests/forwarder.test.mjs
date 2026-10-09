@@ -120,7 +120,7 @@ test('failed upstream connections have generic HTTP and CONNECT failures', async
 
 test('malformed destinations and unsupported schemes are rejected before forwarding', async t => {
   const p = await proxy(t);
-  for (const path of ['/relative', 'https://example.com/', 'ftp://example.com/', 'http://user:secret@example.com/', 'http://example.com/#private', 'http://example.com:0/', 'http://example.com:99999/', 'http://bad\\host/']) {
+  for (const path of ['/relative', 'https://example.com/', 'ftp://example.com/', 'http://user:secret@example.com/', 'http://example.com/#fragment', 'http://example.com:0/', 'http://example.com:99999/', 'http://bad\\host/']) {
     const response = await send(p.port, path);
     assert.equal(response.status, 400, path);
     assert.equal(response.body.toString(), 'Proxy request failed\n', path);
