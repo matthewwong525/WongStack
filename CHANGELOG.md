@@ -12,6 +12,14 @@
 
 **Updating.** Use `/schedule` instead of the retired `/routine` name. Ask your assistant to check existing job prompts for that old command before explicitly moving them; the update does not rewrite them or move jobs. Review each new destination and what must stay on: a local host may need its computer and app running. Keep ongoing routine definitions and finite goal plans owned by your install. Any script implementation uses the ordinary plan, staging check, and publishing steps. Preserve existing runner secrets while its jobs remain in use. After a replacement is verified, request old cloud-resource teardown separately if wanted; confirm the exact resources, revoke only their dedicated keys, and review permissions left on your Cloudflare token.
 
+## 39.1.0 — Browse through a local proxy automatically
+
+- **Personal browsing starts its own local forwarding proxy.** There is nothing extra to install or configure. It uses the assistant's computer's network, independently of WARP and Paseo's relay, and chooses no country. A site may still refuse the browser.
+- **Secure website traffic stays encrypted, and the proxy keeps no browsing logs.** A proxy startup failure is reported. Stopping the browser closes its proxy too.
+- **Running tasks keep their pages and saved logins.** The new default activates at the next deliberate browser stop and start. [Browsing](wiki/development/browsing.md#saved-browser-logins) owns the details.
+
+**Updating.** Nothing needs doing by hand. An already-running browser keeps working as before until you ask your assistant to stop it; the next errand starts it with the new default.
+
 ## 39.0.0 — Apps by a tick, keys by a level
 
 - **An app is a tick, a key is a level, and neither depends on the other.** In Access you tick the apps a person can use. Separately, you pick *None*, *Read* or *Read & write* for each key. Areas, and their *Look up* and *Look up & change* levels, are gone.
