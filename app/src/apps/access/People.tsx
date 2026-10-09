@@ -5,8 +5,7 @@ import { DropdownMenuItem } from '@/components/ui/dropdown-menu'
 import type { Person } from '../../lib/access'
 import { at, type ViewProps } from './address'
 import { Confirm } from './Confirm'
-import { Summary } from './Labels'
-import { dots } from './levels'
+import { dots, summary } from './levels'
 import { PersonPage } from './PersonPage'
 import { RoleSelect } from './RoleSelect'
 import { RowMenu } from './RowMenu'
@@ -18,9 +17,9 @@ const COLUMNS = ['Person', 'Sign-in', 'Role', 'Apps and keys']
 
 // The view that opens first: one row per person, each one line with the same parts whatever state they are in.
 // The owner is the first row, with nothing to change. You and Manager sit beside the email. A role is picked right
-// in the row; the rest of what a row offers sits behind its menu. The last cell counts apps and keys and says when
-// an app or a skill can't do its job yet; the names show where the person is opened, in the panel beside the list. Only the
-// owner removes a manager, so a manager's menu has no Remove there.
+// in the row; the rest of what a row offers sits behind its menu. The last cell counts apps and keys; the names show
+// where the person is opened, in the panel beside the list. Only the owner removes a manager, so a manager's menu has
+// no Remove there.
 export function People(props: ViewProps) {
   const { status, id, pending, save } = props
   const { owner, email: viewer } = status.viewer
@@ -44,7 +43,7 @@ export function People(props: ViewProps) {
           <Name title={person.email} to={page} marks={[you(person.email), person.manager && 'Manager']} />
           <Cell className="text-muted-foreground">{signIn.text}</Cell>
           <Cell>{active ? <RoleSelect {...props} person={person} /> : 'No role'}</Cell>
-          <Cell><Summary status={status} set={person} /></Cell>
+          <Cell>{summary(status, person)}</Cell>
           <Cell actions><RowMenu label={`Actions for ${person.email}`}>
             <DropdownMenuItem asChild><Link to={page}>{active ? 'Open' : 'Add back'}</Link></DropdownMenuItem>
             {signIn.unfinished && canRetry(status) && <DropdownMenuItem disabled={pending} onSelect={() => save('retry')}>Try again</DropdownMenuItem>}

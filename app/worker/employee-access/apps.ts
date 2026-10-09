@@ -1,6 +1,6 @@
-// What a signed-in person can open and reach. Home lists the areas with a screen; an area with none has no page.
+// What a signed-in person can open and reach: their apps, and their level for each saved key used by itself.
 import { hasSignIn, type AccessIdentity } from "../access.ts";
-import { areas, screens } from "./catalogue.ts";
+import { catalogue } from "./catalogue.ts";
 import { keyIds, keyTitle } from "./key-levels.ts";
 import { codeState } from "./code.ts";
 import { authorizeRequest, checkerOwns, currentPolicy, humanEmail, policyAllows, policyDenied, type PolicyEnv } from "./policy.ts";
@@ -16,15 +16,10 @@ export async function appAccess(request: Request, env: PolicyEnv, identity: Acce
   const code = codeState(env, policy, !!humanEmail(identity) || checkerOwns(env, identity));
   if (policy.state === "legacy") return Response.json({ state: "legacy", signIn, code }, { headers });
   // Before permissions start everyone keeps every app; `manages` still says who manages people.
-  if (policy.state === "not_started") return Response.json({ state: "not_started", role: policy.role, manages: policy.manages, signIn, code, apps: screens() }, { headers });
+  if (policy.state === "not_started") return Response.json({ state: "not_started", role: policy.role, manages: policy.manages, signIn, code, apps: catalogue() }, { headers });
   return Response.json({ state: "current", role: policy.role, manages: policy.manages, signIn, code, revision: policy.revision,
-    // Opening a screen needs Look up on its area. Access itself is everyone's own page.
-    apps: screens().filter(name => policyAllows(policy, name === "access" ? { kind: "self-service" } : { apps: [name] }, "read")),
-    // The caller's own level for each area they hold, with or without a screen.
-    areas: areas().flatMap(({ id, title, screen }) => {
-      const level = id === "access" ? undefined : policy.apps.get(id);
-      return level ? [{ id, title, screen, level }] : [];
-    }),
+    // Opening a screen needs its app. Access itself is everyone's own page.
+    apps: catalogue().filter(name => policyAllows(policy, name === "access" ? { kind: "self-service" } : { apps: [name] })),
     // The caller's own level for each saved key, by name: none until key levels start.
     keys: keyIds().flatMap(id => {
       const level = policy.keys?.get(id);
@@ -33,10 +28,9 @@ export async function appAccess(request: Request, env: PolicyEnv, identity: Acce
   { headers });
 }
 
-/** Known app pages and nested pages use the same current server policy as APIs: a visit needs Look up. */
+/** Known app pages and nested pages use the same current server policy as APIs: a visit needs the app. */
 export async function appPageDenied(request: Request, env: PolicyEnv, identity: AccessIdentity | null): Promise<Response | null> {
   const app = /^\/apps\/([a-z0-9-]+)(?:\/|$)/.exec(new URL(request.url).pathname)?.[1];
-  if (!app || !screens().includes(app)) return null;
-  return authorizeRequest(env, identity,
-    app === "access" ? { kind: "self-service" } : { apps: [app] }, "read");
+  if (!app || !catalogue().includes(app)) return null;
+  return authorizeRequest(env, identity, app === "access" ? { kind: "self-service" } : { apps: [app] });
 }

@@ -1,30 +1,26 @@
 {
   "format": "verify-journey-1",
-  "id": "the-employer-gives-a-skill-in-one-press",
+  "id": "the-employer-leaves-without-saving",
   "scenario": {
     "capability": "employee-onboarding",
-    "requirement": "A panel starts from an app or skill and shows what is enforced",
-    "scenario": "The employer gives a skill in one press"
+    "requirement": "A person or a role opens to apps and keys",
+    "scenario": "The employer leaves without saving"
   },
-  "thenDigest": "a733adfd34667cae7b55f9b1a56bad3a07a5bd83ef65dea849be0cf0f55ff2b4",
+  "thenDigest": "736f433efebf4e753c9893ec02195287c09754b9ae030db4d60ba50913ab92f5",
   "probe": "browser",
-  "writes": true,
+  "writes": false,
   "sourcePaths": [
-    ".agents/rules/code.md",
-    ".agents/skills/hand-over/scripts/hand-over.mjs",
-    ".agents/skills/memory/references/areas.json",
     ".agents/skills/sample-report/SKILL.md",
     ".agents/skills/sample-report/actions.json",
     ".agents/skills/wong-sync/references/payload-files.json",
-    ".github/scripts/checks.mjs",
-    "AGENTS.md",
-    "app/package.json",
     "app/src/apps/access/App.tsx",
     "app/src/apps/access/AppAccessPage.tsx",
     "app/src/apps/access/Apps.tsx",
     "app/src/apps/access/KeyPage.tsx",
+    "app/src/apps/access/Keys.tsx",
     "app/src/apps/access/Labels.tsx",
     "app/src/apps/access/LevelChoice.tsx",
+    "app/src/apps/access/Notices.tsx",
     "app/src/apps/access/Own.tsx",
     "app/src/apps/access/Owner.tsx",
     "app/src/apps/access/Page.tsx",
@@ -36,20 +32,25 @@
     "app/src/apps/access/SetFields.tsx",
     "app/src/apps/access/SkillPage.tsx",
     "app/src/apps/access/Skills.tsx",
+    "app/src/apps/access/Table.tsx",
     "app/src/apps/access/View.tsx",
     "app/src/apps/access/address.ts",
     "app/src/apps/access/levels.ts",
     "app/src/apps/access/subjects.ts",
-    "app/src/components/AssistantSetup.tsx",
     "app/src/lib/access.ts",
     "app/worker/api/contract.ts",
+    "app/worker/api/forward.ts",
     "app/worker/api/router.ts",
     "app/worker/apps/index.ts",
     "app/worker/apps/sample/api.ts",
     "app/worker/apps/sample/records.ts",
     "app/worker/employee-access/apps.ts",
     "app/worker/employee-access/catalogue.ts",
+    "app/worker/employee-access/direct.ts",
     "app/worker/employee-access/grants.ts",
+    "app/worker/employee-access/key-catalogue.ts",
+    "app/worker/employee-access/key-levels.ts",
+    "app/worker/employee-access/management.ts",
     "app/worker/employee-access/members.ts",
     "app/worker/employee-access/policy.ts",
     "app/worker/employee-access/roles.ts",
@@ -57,15 +58,16 @@
     "app/worker/employee-access/setup.ts",
     "app/worker/employee-access/skills.ts",
     "app/worker/employee-access/start.ts",
-    "schema/migrations/20261006031500_area_levels.sql",
+    "app/worker/keys.ts",
     "schema/seed.sql",
-    "scripts/check-skill-actions.mjs"
+    "scripts/check-skill-actions.mjs",
+    "scripts/retired-names.json"
   ],
-  "recordedAt": "5780cf2832470315bd0362a06d4b4f5c973d8585",
+  "recordedAt": "6d8aff095d8c2e6a43d16e464297718e44866a23",
   "steps": [
     [
       "open",
-      "{url}/apps/access/roles/22222222-2222-4222-8222-222222222222"
+      "{url}/apps/access/people/eli%40example.invalid"
     ],
     [
       "wait",
@@ -75,11 +77,15 @@
     [
       "wait",
       "--text",
-      "Save role"
+      "Save access"
     ],
     [
-      "eval",
-      "(() => { const b=[...document.querySelectorAll('button[aria-pressed]')].find(b => b.textContent.trim().startsWith('Sample report')); b.click(); return b.getAttribute('aria-pressed') })()"
+      "find",
+      "role",
+      "checkbox",
+      "click",
+      "--name",
+      "Tip calculator"
     ],
     [
       "wait",
@@ -87,13 +93,17 @@
       "Not saved yet"
     ],
     [
-      "eval",
-      "(() => { const l=[...document.querySelectorAll('legend')].find(l => l.textContent === 'Sample records'); l.scrollIntoView(); return true })()"
+      "find",
+      "role",
+      "button",
+      "click",
+      "--name",
+      "Cancel"
     ],
     [
-      "get",
-      "text",
-      "body"
+      "wait",
+      "--text",
+      "Leave without saving?"
     ],
     [
       "find",
@@ -101,16 +111,15 @@
       "button",
       "click",
       "--name",
-      "Save role"
+      "Leave"
     ],
     [
       "wait",
-      "--text",
-      "Saved."
+      "1000"
     ],
     [
       "open",
-      "{url}/apps/access/skills"
+      "{url}/apps/access/people/eli%40example.invalid"
     ],
     [
       "wait",
@@ -120,21 +129,7 @@
     [
       "wait",
       "--text",
-      "Sample report"
-    ],
-    [
-      "open",
-      "{url}/apps/access/skills/sample-report"
-    ],
-    [
-      "wait",
-      "--load",
-      "networkidle"
-    ],
-    [
-      "wait",
-      "--text",
-      "Can run"
+      "Save access"
     ],
     [
       "get",
@@ -144,16 +139,13 @@
   ],
   "expect": [
     {
-      "text": "Sample report"
+      "gone": "Not saved yet"
     },
     {
-      "text": "Helpers"
+      "text": "Save access"
     },
     {
-      "text": "Can run"
-    },
-    {
-      "path": "/apps/access/skills/sample-report"
+      "path": "/apps/access/people/eli%40example.invalid"
     }
   ]
 }

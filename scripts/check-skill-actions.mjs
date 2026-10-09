@@ -90,7 +90,7 @@ function declared(dir) {
   const titled = typeof data?.title === 'string' && data.title.trim() !== '';
   const listed = Array.isArray(data?.actions) && data.actions.every(id => typeof id === 'string');
   return { present: true, ids: listed ? new Set(data.actions) : null, wrong: [
-    ...(titled ? [] : ['declares no "title", the name Access shows']),
+    ...(titled ? [] : ['declares no "title"']),
     ...(listed ? [] : ['declares no "actions" list of action ids']),
   ] };
 }

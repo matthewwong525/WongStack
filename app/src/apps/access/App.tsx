@@ -4,7 +4,7 @@ import { Owner } from './Owner'
 import { Own } from './Own'
 import { FinishStep } from './Notices'
 
-// The owner manages people, roles, apps, skills and keys, and so does a manager: both find themselves in the People table.
+// The owner manages people and roles, with each one's apps and key levels, and so does a manager: both find themselves in the People table.
 // Everyone else sees what they can use. The page takes the frame every screen shares and sets no width or margin
 // of its own; it measures itself, so a list's rows stack by the room they have. Connecting an assistant is Home's card.
 export function App() {
@@ -15,6 +15,6 @@ export function App() {
     {!data && !error && <p role="status">Loading people…</p>}
     {error && <><p role="alert">Access is unavailable.</p><Button type="button" variant="outline" className="justify-self-start" onClick={reload}>Retry</Button></>}
     {data?.state === 'legacy' && <FinishStep><strong>Access setup is not finished.</strong> Everyone who signs in keeps every app. To choose apps per person, ask your assistant:</FinishStep>}
-    {data && data.state !== 'legacy' && (manages ? <Owner /> : <Own apps={data.apps} areas={data.state === 'current' ? data.areas : undefined} keys={(data.state === 'current' && data.keys) || []} />)}
+    {data && data.state !== 'legacy' && (manages ? <Owner /> : <Own apps={data.apps} keys={(data.state === 'current' && data.keys) || []} />)}
   </div>
 }

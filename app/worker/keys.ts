@@ -4,8 +4,8 @@
 // Access (wiki/stack/api-keys.md), and a route reaches only the keys it lists
 // (wiki/stack/company-api.md).
 export type Level = "read" | "write";
-/** How the app passes one request on to the key's service, once the owner turns direct use on for the key in
- *  Access. `base` is the service's one HTTPS address, ending in `/`. `secret` is the one of the key's `secrets` that
+/** How the app passes one request on to the key's service, for a caller whose level for the key allows it.
+ *  `base` is the service's one HTTPS address, ending in `/`. `secret` is the one of the key's `secrets` that
  *  is sent, in the request header `header`, after `prefix`. `headers` are fixed extras the service needs. `lookups`
  *  are requests that only read although their method is not GET or HEAD, as `METHOD path` with `*` for one path
  *  part: list only what the service's own guide documents as read-only. wiki/stack/company-api.md#use-a-key-directly */

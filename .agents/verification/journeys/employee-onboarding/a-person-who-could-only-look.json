@@ -1,0 +1,121 @@
+{
+  "format": "verify-journey-1",
+  "id": "a-person-who-could-only-look",
+  "scenario": {
+    "capability": "employee-onboarding",
+    "requirement": "Look-only access ends without giving more",
+    "scenario": "A person who could only look"
+  },
+  "thenDigest": "8630f58d19bb75edbf0beb1167df5a2519b9362ae2747463317e83b02dc762bb",
+  "probe": "browser",
+  "writes": false,
+  "sourcePaths": [
+    ".agents/skills/sample-report/SKILL.md",
+    ".agents/skills/sample-report/actions.json",
+    ".agents/skills/wong-sync/references/payload-files.json",
+    "app/src/apps/access/App.tsx",
+    "app/src/apps/access/AppAccessPage.tsx",
+    "app/src/apps/access/Apps.tsx",
+    "app/src/apps/access/KeyPage.tsx",
+    "app/src/apps/access/Keys.tsx",
+    "app/src/apps/access/Labels.tsx",
+    "app/src/apps/access/LevelChoice.tsx",
+    "app/src/apps/access/Notices.tsx",
+    "app/src/apps/access/Own.tsx",
+    "app/src/apps/access/Owner.tsx",
+    "app/src/apps/access/Page.tsx",
+    "app/src/apps/access/People.tsx",
+    "app/src/apps/access/PersonPage.tsx",
+    "app/src/apps/access/RolePage.tsx",
+    "app/src/apps/access/RoleSelect.tsx",
+    "app/src/apps/access/Roles.tsx",
+    "app/src/apps/access/SetFields.tsx",
+    "app/src/apps/access/SkillPage.tsx",
+    "app/src/apps/access/Skills.tsx",
+    "app/src/apps/access/Table.tsx",
+    "app/src/apps/access/View.tsx",
+    "app/src/apps/access/address.ts",
+    "app/src/apps/access/levels.ts",
+    "app/src/apps/access/subjects.ts",
+    "app/src/lib/access.ts",
+    "app/worker/api/contract.ts",
+    "app/worker/api/forward.ts",
+    "app/worker/api/router.ts",
+    "app/worker/apps/index.ts",
+    "app/worker/apps/sample/api.ts",
+    "app/worker/apps/sample/records.ts",
+    "app/worker/employee-access/apps.ts",
+    "app/worker/employee-access/catalogue.ts",
+    "app/worker/employee-access/direct.ts",
+    "app/worker/employee-access/grants.ts",
+    "app/worker/employee-access/key-catalogue.ts",
+    "app/worker/employee-access/key-levels.ts",
+    "app/worker/employee-access/management.ts",
+    "app/worker/employee-access/members.ts",
+    "app/worker/employee-access/policy.ts",
+    "app/worker/employee-access/roles.ts",
+    "app/worker/employee-access/sets.ts",
+    "app/worker/employee-access/setup.ts",
+    "app/worker/employee-access/skills.ts",
+    "app/worker/employee-access/start.ts",
+    "app/worker/keys.ts",
+    "schema/seed.sql",
+    "scripts/check-skill-actions.mjs",
+    "scripts/retired-names.json"
+  ],
+  "recordedAt": "6d8aff095d8c2e6a43d16e464297718e44866a23",
+  "steps": [
+    [
+      "open",
+      "{url}/apps/access/"
+    ],
+    [
+      "wait",
+      "--load",
+      "networkidle"
+    ],
+    [
+      "wait",
+      "--text",
+      "People"
+    ],
+    [
+      "get",
+      "text",
+      "body"
+    ],
+    [
+      "open",
+      "{url}/apps/access/roles"
+    ],
+    [
+      "wait",
+      "--load",
+      "networkidle"
+    ],
+    [
+      "wait",
+      "--text",
+      "Trainees"
+    ],
+    [
+      "get",
+      "text",
+      "body"
+    ]
+  ],
+  "expect": [
+    {
+      "text": "Unticked in this update"
+    },
+    {
+      "text": "eli@example.invalid: Hello, Tip calculator"
+    },
+    {
+      "text": "Trainees role: Hello"
+    },
+    {
+      "path": "/apps/access/roles"
+    }
+  ]
+}

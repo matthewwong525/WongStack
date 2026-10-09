@@ -28,21 +28,18 @@ const OPEN = 'aria-[current=true]:bg-muted aria-[current=true]:[&>td:first-child
 
 /** A list: a table whose columns every row shares, each row one line on a computer. The current link in the switch
  *  above is its heading and names it. `actions` names a last column of row menus, for a screen reader alone. With
- *  `empty`, that is said in the table's place; `hint` is a quiet line under the table. The table itself is a plain
- *  one: the ready-made frame round a table scrolls sideways, and these rows stack instead. */
-export function Table({ view, columns, actions, empty, hint, children }: {
-  view: ViewProps['view']; columns: string[]; actions?: string; empty?: ReactNode; hint?: string; children: ReactNode
+ *  `empty`, that is said in the table's place. The table itself is a plain one: the ready-made frame round a table
+ *  scrolls sideways, and these rows stack instead. */
+export function Table({ view, columns, actions, empty, children }: {
+  view: ViewProps['view']; columns: string[]; actions?: string; empty?: ReactNode; children: ReactNode
 }) {
-  return empty || <>
-    <table className={cn('w-full text-sm', STACK.table)} aria-labelledby={viewLabel(view)}>
+  return empty || <table className={cn('w-full text-sm', STACK.table)} aria-labelledby={viewLabel(view)}>
       <TableHeader className={STACK.head}><TableRow className="hover:bg-transparent">
         {columns.map(column => <TableHead scope="col" className="text-muted-foreground" key={column}>{column}</TableHead>)}
         {actions && <TableHead scope="col"><span className="sr-only">{actions}</span></TableHead>}
       </TableRow></TableHeader>
       <TableBody className={STACK.table}>{children}</TableBody>
     </table>
-    {hint && <p className="text-sm text-muted-foreground">{hint}</p>}
-  </>
 }
 
 /** One row: a line divides it from the next, and no box goes round it. With `to`, a click anywhere on it that is
@@ -55,9 +52,9 @@ export function Row({ to, current, children }: { to?: string; current?: boolean;
 }
 
 /** One cell, on one line. With `label`, the cell names its column once rows stack; with `actions`, it holds the row's
- *  menu and sits beside the name. With `cut`, those words are the cell: its column gives way and they end in "…". */
-export function Cell({ label, actions, cut, className, children, ...props }: ComponentProps<'td'> & { label?: string; actions?: boolean; cut?: string }) {
-  return <TableCell data-label={label} title={cut} className={cn(STACK.cell, actions ? STACK.actions : STACK.line, cut !== undefined && `${SHARE} ${CUT}`, className)} {...props}>{cut ?? children}</TableCell>
+ *  menu and sits beside the name. */
+export function Cell({ label, actions, className, children, ...props }: ComponentProps<'td'> & { label?: string; actions?: boolean }) {
+  return <TableCell data-label={label} className={cn(STACK.cell, actions ? STACK.actions : STACK.line, className)} {...props}>{children}</TableCell>
 }
 
 /** A row's first cell: what the row is, as the link that opens it when it has `to`. A long name ends in "…", with

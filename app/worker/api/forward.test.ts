@@ -40,9 +40,8 @@ const lines = () => log.mock.calls.map(([line]) => JSON.parse(String(line)));
 
 beforeEach(() => {
   f = fixture();
-  // Key levels have started and the owner has chosen: look-ups and changes for Notion, look-ups only for Ledger.
+  // Key levels have started. The owner holds every key, so nothing more is set for a direct request to run.
   f.sql.exec("UPDATE wong_access_installation SET keys_enabled = 1");
-  f.sql.prepare("INSERT INTO wong_access_key_direct VALUES (?, 'notion', 'write', 1), (?, 'ledger', 'read', 1)").run(site.installationId, site.installationId);
   answer = () => Response.json({ results: [{ id: "page-one" }] });
   send = vi.fn<typeof fetch>(async () => answer());
   log = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -162,15 +161,15 @@ it("records each request sent with who, which key, what kind and where, and neve
 it("registers a look-up action for each key set up, a change action where the key offers Read & write, each mapped to its key alone", async () => {
   const mapped = mainRouteInventory().filter(({ route }) => route.includes("/api/direct/"));
   expect(mapped).toEqual([
-    { route: "POST /api/direct/notion/read", access: { keys: ["notion"], direct: "read" } },
-    { route: "POST /api/direct/notion/change", access: { keys: ["notion"], direct: "write" } },
-    { route: "POST /api/direct/ledger/read", access: { keys: ["ledger"], direct: "read" } },
+    { route: "POST /api/direct/notion/read", access: { keys: ["notion"], direct: true } },
+    { route: "POST /api/direct/notion/change", access: { keys: ["notion"], direct: true } },
+    { route: "POST /api/direct/ledger/read", access: { keys: ["ledger"], direct: true } },
   ]);
   const direct = apiActions.filter(({ path }) => path.startsWith("/api/direct/"));
   expect(direct.map(({ method, path, action, access }) => [method, path, action.operationId, action.effect, access])).toEqual([
-    ["POST", "/api/direct/notion/read", "notion.read", "read", { keys: ["notion"], direct: "read" }],
-    ["POST", "/api/direct/notion/change", "notion.change", "external", { keys: ["notion"], direct: "write" }],
-    ["POST", "/api/direct/ledger/read", "ledger.read", "read", { keys: ["ledger"], direct: "read" }],
+    ["POST", "/api/direct/notion/read", "notion.read", "read", { keys: ["notion"], direct: true }],
+    ["POST", "/api/direct/notion/change", "notion.change", "external", { keys: ["notion"], direct: true }],
+    ["POST", "/api/direct/ledger/read", "ledger.read", "read", { keys: ["ledger"], direct: true }],
   ]);
   // Each says what it takes, with an example, its limits and its own safe errors, and names its look-ups.
   for (const { action } of direct) {
@@ -181,8 +180,8 @@ it("registers a look-up action for each key set up, a change action where the ke
   }
   expect(direct[0].action.description).toContain("GET, HEAD, and POST search, POST databases/*/query. Anything else needs notion.change, which needs Read & write.");
   expect(direct[2].action.description).toContain("GET, HEAD. This key passes on nothing else.");
-  expect(apiKeyUse.filter(use => use.direct)).toEqual([{ apps: [], keys: ["notion"], need: "read", direct: "read" },
-    { apps: [], keys: ["notion"], need: "write", direct: "write" }, { apps: [], keys: ["ledger"], need: "read", direct: "read" }]);
+  expect(apiKeyUse.filter(use => use.direct)).toEqual([{ apps: [], keys: ["notion"], need: "read", direct: true },
+    { apps: [], keys: ["notion"], need: "write", direct: true }, { apps: [], keys: ["ledger"], need: "read", direct: true }]);
   // Through the app's own router the request goes out by the Worker's fetch, and a key that is not saved stops the call first.
   vi.stubGlobal("fetch", send);
   const routed = await handleApi(post("notion", "read", { method: "GET", path: "pages" }), env(), owner);

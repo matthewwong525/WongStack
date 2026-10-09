@@ -1,30 +1,26 @@
 {
   "format": "verify-journey-1",
-  "id": "work-built-for-a-skill-alone",
+  "id": "the-employer-opens-a-person",
   "scenario": {
     "capability": "employee-onboarding",
-    "requirement": "An area may have no screen",
-    "scenario": "Work built for a skill alone"
+    "requirement": "Access lists line up and keep one frame",
+    "scenario": "The employer opens a person"
   },
-  "thenDigest": "ab64201d8b20d717143d459ed4487f59747111137105ec85e46cdf36784c9cde",
+  "thenDigest": "7fc4054293284141ca04ade19ae0ad3c848833708a8f382bf1c79ada45f576b2",
   "probe": "browser",
   "writes": false,
   "sourcePaths": [
-    ".agents/rules/code.md",
-    ".agents/skills/hand-over/scripts/hand-over.mjs",
-    ".agents/skills/memory/references/areas.json",
     ".agents/skills/sample-report/SKILL.md",
     ".agents/skills/sample-report/actions.json",
     ".agents/skills/wong-sync/references/payload-files.json",
-    ".github/scripts/checks.mjs",
-    "AGENTS.md",
-    "app/package.json",
     "app/src/apps/access/App.tsx",
     "app/src/apps/access/AppAccessPage.tsx",
     "app/src/apps/access/Apps.tsx",
     "app/src/apps/access/KeyPage.tsx",
+    "app/src/apps/access/Keys.tsx",
     "app/src/apps/access/Labels.tsx",
     "app/src/apps/access/LevelChoice.tsx",
+    "app/src/apps/access/Notices.tsx",
     "app/src/apps/access/Own.tsx",
     "app/src/apps/access/Owner.tsx",
     "app/src/apps/access/Page.tsx",
@@ -36,20 +32,25 @@
     "app/src/apps/access/SetFields.tsx",
     "app/src/apps/access/SkillPage.tsx",
     "app/src/apps/access/Skills.tsx",
+    "app/src/apps/access/Table.tsx",
     "app/src/apps/access/View.tsx",
     "app/src/apps/access/address.ts",
     "app/src/apps/access/levels.ts",
     "app/src/apps/access/subjects.ts",
-    "app/src/components/AssistantSetup.tsx",
     "app/src/lib/access.ts",
     "app/worker/api/contract.ts",
+    "app/worker/api/forward.ts",
     "app/worker/api/router.ts",
     "app/worker/apps/index.ts",
     "app/worker/apps/sample/api.ts",
     "app/worker/apps/sample/records.ts",
     "app/worker/employee-access/apps.ts",
     "app/worker/employee-access/catalogue.ts",
+    "app/worker/employee-access/direct.ts",
     "app/worker/employee-access/grants.ts",
+    "app/worker/employee-access/key-catalogue.ts",
+    "app/worker/employee-access/key-levels.ts",
+    "app/worker/employee-access/management.ts",
     "app/worker/employee-access/members.ts",
     "app/worker/employee-access/policy.ts",
     "app/worker/employee-access/roles.ts",
@@ -57,15 +58,16 @@
     "app/worker/employee-access/setup.ts",
     "app/worker/employee-access/skills.ts",
     "app/worker/employee-access/start.ts",
-    "schema/migrations/20261006031500_area_levels.sql",
+    "app/worker/keys.ts",
     "schema/seed.sql",
-    "scripts/check-skill-actions.mjs"
+    "scripts/check-skill-actions.mjs",
+    "scripts/retired-names.json"
   ],
-  "recordedAt": "5780cf2832470315bd0362a06d4b4f5c973d8585",
+  "recordedAt": "6d8aff095d8c2e6a43d16e464297718e44866a23",
   "steps": [
     [
       "open",
-      "{url}/apps/access/apps"
+      "{url}/apps/access/"
     ],
     [
       "wait",
@@ -75,42 +77,53 @@
     [
       "wait",
       "--text",
-      "Sample records"
+      "dana@example.invalid"
     ],
     [
-      "get",
+      "find",
       "text",
-      "body"
-    ],
-    [
-      "open",
-      "{url}/"
-    ],
-    [
-      "wait",
-      "--load",
-      "networkidle"
+      "dana@example.invalid",
+      "click"
     ],
     [
       "wait",
       "--text",
-      "Tip calculator"
+      "Save access"
     ],
     [
       "get",
       "text",
       "body"
+    ],
+    [
+      "find",
+      "role",
+      "button",
+      "click",
+      "--name",
+      "Cancel"
+    ],
+    [
+      "wait",
+      "1000"
+    ],
+    [
+      "get",
+      "url"
     ]
   ],
   "expect": [
     {
-      "text": "Tip calculator"
+      "text": "People"
     },
     {
-      "gone": "Sample records"
+      "text": "Roles"
     },
     {
-      "path": "/"
+      "gone": "Save access"
+    },
+    {
+      "path": "/apps/access/"
     }
   ]
 }

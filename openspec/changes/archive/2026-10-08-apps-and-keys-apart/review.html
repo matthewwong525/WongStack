@@ -1,0 +1,755 @@
+<!-- wong-review:3 -->
+<!doctype html>
+<!--
+  WongStack review kit. build-review.mjs writes the proposal as static HTML at the
+  review:content marker and puts the change name in place of its token. The one
+  script adds Note buttons, drawing fit and full screen, notes, drafts, and copy. It loads nothing from the network;
+  opened through a reply link (reply-link.mjs), it sends the saved notes to the chat, and its Ready section
+  asks the chat to build, or to build and publish, by an action's name alone.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Review · 2026-10-08-apps-and-keys-apart</title>
+<style>
+  :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; }
+  body { margin:0; padding-bottom:var(--bar, 76px); background:#e6e6e6; color:var(--ink); font:16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; overflow-wrap:anywhere; }
+  main { max-width:700px; margin:0 auto; padding:0 12px; }
+  a { color:inherit; }
+  code, pre, .ln { font-family:ui-monospace, Menlo, Consolas, monospace; }
+  code { background:var(--fill); border:1px solid #ddd; border-radius:3px; padding:0 3px; font-size:.88em; }
+  :focus-visible { outline:3px solid #111; outline-offset:2px; }
+  [hidden] { display:none !important; }
+  header { padding:18px 0 4px; }
+  .eyebrow { margin:0; color:var(--muted); font-size:13px; letter-spacing:.06em; text-transform:uppercase; }
+  h1 { margin:2px 0 4px; font-size:22px; line-height:1.25; }
+  .jump { display:flex; flex-wrap:wrap; gap:0 18px; margin:4px 0 0; padding:0; list-style:none; }
+  .jump a { display:inline-block; padding:8px 0; }
+  .hint, .muted { color:var(--muted); font-size:14px; margin:4px 0 0; }
+  #script-error { color:#a00; font-weight:600; }
+  section { margin:18px 0; scroll-margin-top:8px; }
+  h2 { margin:0 0 8px; color:var(--muted); font-size:13px; letter-spacing:.08em; text-transform:uppercase; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:6px; padding:12px; margin:0 0 10px; }
+  .card p { margin:0 0 10px; } .card p:last-child { margin-bottom:0; }
+  .items, .decisions, .note-list { list-style:none; margin:0; padding:0; }
+  .item { display:grid; grid-template-columns:26px minmax(0,1fr); gap:0 10px; overflow:hidden; }
+  .item, .decision { scroll-margin-top:8px; }
+  .num { flex:0 0 26px; height:26px; border-radius:50%; background:#d6d6d6; font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center; }
+  .body { flex:1; min-width:0; }
+  [data-note] { border-radius:3px; }
+  [data-note]:hover, .noting { background:#f1f1f1; }
+  .item > .drawing { position:relative; grid-column:1 / -1; margin:10px -12px 0; }
+  .item > .drawing:last-child { margin-bottom:-12px; }
+  .drawing summary { display:flex; align-items:center; gap:6px; min-height:44px; padding:0 12px; border-top:1px solid #ddd; color:var(--muted); font-size:14px; cursor:pointer; list-style:none; }
+  .drawing summary::-webkit-details-marker { display:none; }
+  .drawing summary::before { content:'\25B8'; display:inline-block; width:1em; }
+  .drawing[open] summary::before { transform:rotate(90deg); }
+  .drawing[open] .show, .drawing:not([open]) .hide { display:none; }
+  .drawing .count { color:var(--ink); font-weight:600; }
+  .frame { overflow:auto; border-top:1px solid var(--line); background:var(--fill); touch-action:pan-y; }
+  .js .frame { overflow:hidden; cursor:zoom-in; }
+  .art { display:block; width:max-content; margin:0; padding:.6em .8em; font-size:13px; line-height:1.2; white-space:pre; overflow-wrap:normal; }
+  .art .pin { min-width:1.8em; min-height:1.6em; margin-left:.4em; padding:0 .5em; border-radius:.8em; font-size:.85em; line-height:1.5em; }
+  .enlarge { position:absolute; top:6px; right:12px; min-height:32px; padding:2px 10px; font-size:13px; }
+  .add { min-width:0; min-height:34px; margin-left:6px; padding:0 12px; border-color:#aaa; border-radius:17px; color:var(--muted); font-size:13px; vertical-align:middle; }
+  .zoom { display:flex; align-items:center; gap:6px; }
+  .zoom .level { margin-right:auto; color:var(--muted); font-size:13px; }
+  #viewer { position:fixed; top:0; left:0; right:0; bottom:0; z-index:8; display:flex; flex-direction:column; background:#fff; }
+  #viewer .zoom { flex:none; padding:calc(6px + env(safe-area-inset-top)) 12px 6px; border-bottom:1px solid var(--line); }
+  #viewer .vframe { flex:1; min-height:0; overflow:auto; background:var(--fill); touch-action:pan-x pan-y; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
+  #viewer .vhint { flex:none; margin:0; padding:6px 12px calc(6px + env(safe-area-inset-bottom)); border-top:1px solid var(--line); color:var(--muted); font-size:13px; }
+  body.viewing { overflow:hidden; }
+  .meta { margin:0 0 4px !important; color:var(--muted); font-size:13px; }
+  .tag { display:inline-block; margin-right:8px; padding:0 8px; border:1px solid #777; border-radius:10px; background:#fff; color:var(--ink); font-size:12px; font-weight:700; }
+  .tag.assumed { border-style:dashed; }
+  .tag.check { border:2px dotted #333; }
+  .hit { outline:3px solid #888; outline-offset:3px; }
+  button { font:inherit; font-size:14px; min-width:40px; min-height:40px; padding:4px 12px; border:1px solid #777; border-radius:4px; background:#fff; color:var(--ink); cursor:pointer; }
+  button.primary { background:#333; border-color:#333; color:#fff; }
+  button:disabled { opacity:.45; cursor:default; }
+  .pin { min-width:24px; min-height:24px; margin-left:6px; padding:0 7px; border-radius:12px; background:#333; border-color:#333; color:#fff; font:700 12px/22px system-ui, sans-serif; vertical-align:middle; }
+  .pin.draft { background:#fff; color:var(--ink); border-style:dashed; }
+  .entry { display:block; width:100%; margin:0 0 8px; padding:8px 10px; text-align:left; }
+  .entry .where { display:block; color:var(--muted); font-size:13px; }
+  .entry .tag { margin:0 0 0 6px; }
+  #chip { position:absolute; z-index:9; box-shadow:0 2px 8px rgba(0,0,0,.3); }
+  #editor { position:absolute; z-index:6; width:260px; padding:10px; background:#fff; border:2px solid #333; border-radius:6px; box-shadow:0 4px 16px rgba(0,0,0,.25); }
+  #editor.docked { position:fixed; left:0; right:0; bottom:0; width:auto; display:flex; flex-direction:column; overflow:auto; border-width:2px 0 0; border-radius:0; padding:8px 12px max(8px, env(safe-area-inset-bottom)); }
+  #editor.docked .where { flex:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #editor.docked textarea { flex:1 1 auto; min-height:44px; }
+  #editor.docked .row { flex:none; }
+  #editor .where { margin:0 0 6px; color:var(--muted); font-size:13px; }
+  #editor .moved { margin:0 0 6px; font-size:13px; font-weight:600; }
+  #editor textarea { display:block; width:100%; min-height:76px; padding:6px 8px; border:1px solid #777; border-radius:4px; font:16px/1.4 system-ui, sans-serif; resize:vertical; }
+  #editor .row { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .bar { position:fixed; left:0; right:0; bottom:0; z-index:4; display:flex; flex-wrap:wrap; align-items:center; gap:8px 10px; padding:8px 12px calc(8px + env(safe-area-inset-bottom)); background:#fff; border-top:1px solid var(--line); }
+  .bar .note-count { margin-right:auto; font-size:14px; }
+  body.docked .bar, body.viewing .bar { display:none; }
+  #ready, #ready .row { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+  #ready-says, #ready-confirm span { margin:0; font-size:14px; }
+  #ready-says { font-weight:600; }
+  @media (max-width:700px) {
+    #ready, #ready .row, #ready-says, #ready-confirm span { flex:1 1 100%; }
+    #ready button { flex:1; }
+  }
+  .session, #editor .copies { color:var(--muted); font-size:13px; }
+  #editor .copies { flex:none; margin:6px 0 0; }
+  .pin.sent { background:#fff; color:var(--ink); }
+  #toast { position:fixed; left:50%; bottom:calc(var(--bar, 76px) - 4px); z-index:7; max-width:90vw; transform:translateX(-50%); padding:6px 12px; border-radius:4px; background:#222; color:#fff; font-size:14px; opacity:0; pointer-events:none; transition:opacity .2s; }
+  #toast.show { opacity:1; }
+  #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
+</style>
+</head>
+<body data-change="2026-10-08-apps-and-keys-apart">
+<main>
+<header>
+  <p class="eyebrow">Review</p>
+  <h1>2026-10-08-apps-and-keys-apart</h1>
+  <p class="muted"><span class="note-count">0 notes</span></p>
+  <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
+  <p class="hint">Tap + Note to comment. <span class="copies">Saving a note copies all your notes.</span> Open a drawing and tap it to see it full screen.</p>
+  <p id="script-error" role="alert" hidden></p>
+</header>
+<section id="why" aria-labelledby="why-h"><h2 id="why-h">Why</h2>
+<div class="card">
+<p data-note="why-1" tabindex="0">Access asks you to think about too many things at once. A person has areas, each at a level, and keys, each at a level, and an app only works when both line up, so the page needs warnings, starting points and a list of what a person can't do yet. You want two plain things that don't depend on each other: which apps a person can use, and what they may do with each key.</p>
+</div></section>
+<section id="changes" aria-labelledby="changes-h"><h2 id="changes-h">What Changes</h2>
+<ol class="items">
+<li class="item card" id="item-1"><span class="num">1</span><div class="body"><div class="text" data-note="item-1" tabindex="0"><b>An app is a tick, a key is a level, and neither depends on the other.</b> You tick the apps a person can use. Separately, you pick <i>None</i>, <i>Read</i> or <i>Read &amp; write</i> for each key. Areas, and their <i>Look up</i> and <i>Look up &amp; change</i> levels, are gone.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-1-line-1" tabindex="0">what decides      │ BEFORE        │ AFTER</span>
+<span class="ln" data-note="item-1-line-2" tabindex="0">──────────────────┼───────────────┼────────────</span>
+<span class="ln" data-note="item-1-line-3" tabindex="0">open Orders       │ area level    │ app tick</span>
+<span class="ln" data-note="item-1-line-4" tabindex="0">refund in Orders  │ area + Stripe │ app tick</span>
+<span class="ln" data-note="item-1-line-5" tabindex="0">assistant uses    │ Stripe level  │ Stripe level</span>
+<span class="ln" data-note="item-1-line-6" tabindex="0">Stripe by itself  │               │</span></pre></div></details></li>
+<li class="item card" id="item-2"><span class="num">2</span><div class="body"><div class="text" data-note="item-2" tabindex="0"><b>A ticked app does everything it was built to do.</b> Someone with Orders ticked can open it, look things up and change things, whatever keys Orders uses. An app no longer refuses a person because their level for a key is too low. So on the update, a person with an app ticked may be able to do more in it than before: check each person's apps afterwards.</div></div></li>
+<li class="item card" id="item-3"><span class="num">3</span><div class="body"><div class="text" data-note="item-3" tabindex="0"><b>A key's level decides only what a person's assistant may do with that key by itself.</b> That means the look-ups in Cloudflare, putting the project on their computer, and using a key directly. The <i>Keys</i> part of a person or role says so in one line.</div></div></li>
+<li class="item card" id="item-4"><span class="num">4</span><div class="body"><div class="text" data-note="item-4" tabindex="0"><b>A person opens to three things: their role, their apps, their keys.</b> <i>Start from</i>, <i>Can reach</i> and <i>Can't yet</i> go, and so do the <code>!</code> gap marks on the People and Roles lists. A role opens to the same two lists. Each key says beside its name whether it is saved, with the step left when it is not. <i>Can install the project</i> and <i>Can manage Access</i> stay where they are. Someone who manages nothing sees their own apps and key levels.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-4-line-1" tabindex="0">  BEFORE                       AFTER</span>
+<span class="ln" data-note="item-4-line-2" tabindex="0">┌──────────────────────────┐ ┌──────────────────────────┐</span>
+<span class="ln" data-note="item-4-line-3" tabindex="0">│ ana@example.com       ✕  │ │ ana@example.com       ✕  │</span>
+<span class="ln" data-note="item-4-line-4" tabindex="0">│ Role [Their own set ▾]   │ │ Role [Their own set ▾]   │</span>
+<span class="ln" data-note="item-4-line-5" tabindex="0">│ Start from               │ │ Apps                     │</span>
+<span class="ln" data-note="item-4-line-6" tabindex="0">│ [Orders] [Refund]        │ │ [x] Orders  [ ] Payroll  │</span>
+<span class="ln" data-note="item-4-line-7" tabindex="0">│ Can reach                │ │ Keys                     │</span>
+<span class="ln" data-note="item-4-line-8" tabindex="0">│ Orders  (•) Look up      │ │ Stripe · Saved           │</span>
+<span class="ln" data-note="item-4-line-9" tabindex="0">│ Stripe  (•) Read         │ │  ( ) None (•) Read       │</span>
+<span class="ln" data-note="item-4-line-10" tabindex="0">│ Can't yet                │ │  ( ) Read &amp; write        │</span>
+<span class="ln" data-note="item-4-line-11" tabindex="0">│ ! Refund: Stripe R&amp;W     │ │ Maps · Not saved yet     │</span>
+<span class="ln" data-note="item-4-line-12" tabindex="0">│ [Save access] [Cancel]   │ │  ( ) None ( ) Read       │</span>
+<span class="ln" data-note="item-4-line-13" tabindex="0">└──────────────────────────┘ │ [Save access] [Cancel]   │</span>
+<span class="ln" data-note="item-4-line-14" tabindex="0">                             └──────────────────────────┘</span></pre></div></details></li>
+<li class="item card" id="item-5"><span class="num">5</span><div class="body"><div class="text" data-note="item-5" tabindex="0"><b>Access is two lists: People and Roles.</b> The Apps and Keys lists go. You set apps and key levels inside a person or a role, and nowhere else. The lists still say how much each has, such as <i>2 apps, 1 key</i>.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-5-line-1" tabindex="0">  BEFORE                       AFTER</span>
+<span class="ln" data-note="item-5-line-2" tabindex="0">┌──────────────────────────┐ ┌──────────────────────────┐</span>
+<span class="ln" data-note="item-5-line-3" tabindex="0">│ People Roles Apps Keys   │ │ People  Roles            │</span>
+<span class="ln" data-note="item-5-line-4" tabindex="0">│           [Add person]   │ │             [Add person] │</span>
+<span class="ln" data-note="item-5-line-5" tabindex="0">│ Who       Role  Has      │ │ Who       Role  Has      │</span>
+<span class="ln" data-note="item-5-line-6" tabindex="0">│ ana@…     own   2 apps   │ │ ana@…     own   2 apps   │</span>
+<span class="ln" data-note="item-5-line-7" tabindex="0">│ ben@…     Sales 1 app    │ │ ben@…     Sales 1 app    │</span>
+<span class="ln" data-note="item-5-line-8" tabindex="0">└──────────────────────────┘ └──────────────────────────┘</span></pre></div></details></li>
+<li class="item card" id="item-6"><span class="num">6</span><div class="body"><div class="text" data-note="item-6" tabindex="0"><b>A key's level alone decides direct use; the separate switch goes.</b> Once a key's service is set up for it, <i>Read</i> lets a person's assistant look things up with the key directly and <i>Read &amp; write</i> lets it change things. There is no Off, Look-ups only or Look-ups and changes to pick, and no place in Access for it. So direct use is on for you on every such key from the update, and for anyone you give a level. To stop it for a person, set their level to <i>None</i>.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-6-line-1" tabindex="0">key level    │ direct look-up │ direct change</span>
+<span class="ln" data-note="item-6-line-2" tabindex="0">─────────────┼────────────────┼──────────────</span>
+<span class="ln" data-note="item-6-line-3" tabindex="0">None         │ no             │ no</span>
+<span class="ln" data-note="item-6-line-4" tabindex="0">Read         │ yes            │ no</span>
+<span class="ln" data-note="item-6-line-5" tabindex="0">Read &amp; write │ yes            │ yes</span></pre></div></details></li>
+<li class="item card" id="item-7"><span class="num">7</span><div class="body"><div class="text" data-note="item-7" tabindex="0"><b>Anyone who could only look is unticked, and Access tells you who.</b> A tick can't say <i>look but don't change</i>, so a person or role held at <i>Look up</i> loses that app on the update. Nobody gains the power to change things by surprise. Access names each one until your next save there. That old <i>Look up</i> setting can't be brought back after that save; you tick the app again instead.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-7-line-1" tabindex="0">┌──────────────────────────────┐</span>
+<span class="ln" data-note="item-7-line-2" tabindex="0">│ People  Roles  Apps  Keys    │</span>
+<span class="ln" data-note="item-7-line-3" tabindex="0">│                              │</span>
+<span class="ln" data-note="item-7-line-4" tabindex="0">│ ! Unticked in this update    │</span>
+<span class="ln" data-note="item-7-line-5" tabindex="0">│ They could only look, and    │</span>
+<span class="ln" data-note="item-7-line-6" tabindex="0">│ a tick gives everything:     │</span>
+<span class="ln" data-note="item-7-line-7" tabindex="0">│   kim@example.com: Orders    │</span>
+<span class="ln" data-note="item-7-line-8" tabindex="0">│   Sales role: Payroll        │</span>
+<span class="ln" data-note="item-7-line-9" tabindex="0">│ Tick an app to give it back. │</span>
+<span class="ln" data-note="item-7-line-10" tabindex="0">│                              │</span>
+<span class="ln" data-note="item-7-line-11" tabindex="0">│ Who          Role   Has      │</span>
+<span class="ln" data-note="item-7-line-12" tabindex="0">│ kim@…        own    1 key    │</span>
+<span class="ln" data-note="item-7-line-13" tabindex="0">└──────────────────────────────┘</span></pre></div></details></li>
+<li class="item card" id="item-8"><span class="num">8</span><div class="body"><div class="text" data-note="item-8" tabindex="0"><b>Work with no screen sits inside an app or behind a key.</b> Work built only for skills and assistants is no longer something you give by itself. Inside an app, that app's tick covers it. Using a key, that key's level covers it. Work with neither can't be published, and the check names it.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-8-line-1" tabindex="0">work with no screen</span>
+<span class="ln" data-note="item-8-line-2" tabindex="0">   │</span>
+<span class="ln" data-note="item-8-line-3" tabindex="0">   ├─ inside an app ──▶ the app's tick</span>
+<span class="ln" data-note="item-8-line-4" tabindex="0">   ├─ uses a key ─────▶ the key's level</span>
+<span class="ln" data-note="item-8-line-5" tabindex="0">   └─ neither ────────▶ can't be published</span></pre></div></details></li>
+<li class="item card" id="item-9"><span class="num">9</span><div class="body"><div class="text" data-note="item-9" tabindex="0"><b>The Skills list leaves Access.</b> Skills run exactly as before, and each call is still allowed or refused by the caller's apps and keys. Access just stops showing who can run each one.</div></div></li>
+<li class="item card" id="item-10"><span class="num">10</span><div class="body"><div class="text" data-note="item-10" tabindex="0"><b>Giving an app gives no key level.</b> Until now a new app also gave <i>Read</i> on each key it used. A key level now changes only when you change it.</div></div></li>
+</ol>
+</section>
+<section id="decisions" aria-labelledby="decisions-h"><h2 id="decisions-h">Decisions</h2>
+<ol class="decisions">
+<li class="decision card" id="decision-1" data-note="decision-1" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-08</p>Asked whether key levels and screens should be different things with areas removed → chose yes, after reading what it costs: no look-only on an app, and no separate home for work with no screen.</li>
+<li class="decision card" id="decision-2" data-note="decision-2" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-08</p>Asked who can use work that has no screen → chose a key or an app guards it, and the checks refuse work with neither.</li>
+<li class="decision card" id="decision-3" data-note="decision-3" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-08</p>Asked what happens to anyone held at Look up on an app → chose untick them and say who.</li>
+<li class="decision card" id="decision-4" data-note="decision-4" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-08</p>Asked how much of a person's page goes → chose, in Matthew's words, &quot;per person we get a dialog where we can give them access to screens or apps and we can set roles&quot;.</li>
+<li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-08</p>Asked whether Access should still warn when a ticked app needs a key level the person lacks → chose no warnings: &quot;App access should have everything key access is something else. Like they are not related&quot;.</li>
+<li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-08</p>Asked whether a person with Orders ticked and Stripe at None can refund from Orders → chose yes: the tick gives all of Orders.</li>
+<li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-08</p>Asked which of Access's five lists stay → chose drop Skills.</li>
+<li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-08</p>Assumed: roles and managers stay as they are, because Matthew named roles as part of the person's page and nobody asked to change managers.</li>
+<li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-08</p>Assumed: the person still opens in the panel beside the list, not a new centred popup, because that panel is the dialog Access already has and every Access row opens the same way.</li>
+<li class="decision card" id="decision-10" data-note="decision-10" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-08</p>Assumed: the screens keep the word <i>app</i>, because Home, the Apps list and every other page already call a screen an app, and Matthew used both words.</li>
+<li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-08</p>Assumed: an assistant with an app ticked can call every action of that app, changes included, because the tick gives all of the app and a screen's call and an assistant's call are judged alike.</li>
+<li class="decision card" id="decision-12" data-note="decision-12" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-08</p>Assumed: a key level a person already holds stays as it is, because it still decides what their assistant may do with that key by itself.</li>
+<li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-08</p>Assumed: Access does not list the people whose apps can now do more, and the update note says to check, because every person with a ticked app that uses a key would be on that list and nothing was taken from them.</li>
+<li class="decision card" id="decision-14" data-note="decision-14" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-08</p>Assumed: the unticked notice clears at the next save in Access, because the earlier &quot;everyone kept their access&quot; notice clears the same way and a notice that never leaves stops being read.</li>
+<li class="decision card" id="decision-15" data-note="decision-15" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-08</p>Assumed: on an install where key levels have not started yet, they start with nobody holding a level, because apps no longer need one and a level given for an app's sake would only widen what an assistant can do.</li>
+<li class="decision card" id="decision-16" data-note="decision-16" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-08</p>Assumed: the Apps and Keys lists still say which apps use a key, as information only, because it tells the owner what a key is for.</li>
+<li class="decision card" id="decision-17" data-note="decision-17" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-08</p>Assumed: the source repo's sample no-screen folder and its sample skill are removed, because they exist only to show a no-screen area and the Skills list on a preview.</li>
+<li class="decision card" id="decision-18" data-note="decision-18" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-08</p>Assumed: this is a major release, because an installed app's folder with no screen and no key stops passing the checks.</li>
+<li class="decision card" id="decision-19" data-note="decision-19" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-10-08</p>Check: <code>app/src/apps/access/Skills.test.tsx</code> and <code>app/worker/employee-access/skills.test.ts</code> are deleted with the Skills list they tested; nothing they covered is left to check.</li>
+<li class="decision card" id="decision-20" data-note="decision-20" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-10-08</p>Check: <code>app/worker/employee-access/area-levels.test.ts</code> is deleted with area levels; its cases for who holds an app and what a key level refuses now live in <code>key-access.test.ts</code>.</li>
+<li class="decision card" id="decision-21" data-note="decision-21" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-10-08</p>Check: <code>app/worker/apps/sample/api.test.ts</code> and <code>app/worker/apps/sample/seed.test.ts</code> are deleted with the source-only sample folder they tested; <code>app/worker/apps/screenless.test.ts</code> covers a folder with no screen.</li>
+<li class="decision card" id="decision-22" data-note="decision-22" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-08</p>Asked, on the first preview, for a cleaner screen → chose only People and Roles as lists, with apps and keys set inside each: &quot;we should only see people and rows here and then when we adjust the people and roles we'll be able to adjust the keys / apps within them&quot;.</li>
+<li class="decision card" id="decision-23" data-note="decision-23" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-08</p>Asked where a key's direct-use choice goes with no Keys list → chose a small Key settings panel, over dropping the switch or keeping the Keys list.</li>
+<li class="decision card" id="decision-24" data-note="decision-24" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-08</p>Assumed: nothing sets one app or one key for several people at once any more, because a role already does that and Matthew chose to set both inside a person or a role.</li>
+<li class="decision card" id="decision-25" data-note="decision-25" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-08</p>Assumed: Key settings also shows whether each key is saved and the step left, because the Keys list was the only place that said so.</li>
+<li class="decision card" id="decision-26" data-note="decision-26" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-08</p>Assumed: Key settings no longer says which apps use a key, because apps and keys are unrelated now and the line invites reading them together.</li>
+<li class="decision card" id="decision-27" data-note="decision-27" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-10-08</p>Check: <code>app/src/apps/access/Grants.test.tsx</code> is deleted with the Apps and Keys lists and the one-for-many save it tested. Its cases for a key's saved state, next step and direct-use choice now live in <code>KeySettings.test.tsx</code>; the unticked notice and the rows' links moved to <code>Roles.test.tsx</code>.</li>
+<li class="decision card" id="decision-28" data-note="decision-28" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-08</p>Assumed: Key settings opens at <code>people/keys</code> or <code>roles/keys</code>, because it opens over whichever list is showing and closing it returns to that list; the old <code>keys</code> and <code>keys/&lt;id&gt;</code> addresses show People like any unknown address.</li>
+<li class="decision card" id="decision-29" data-note="decision-29" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-08</p>Assumed: a save still names apps as given or not, because the person and role panels already send them that way and decision 13 asks for a plain list only where that is simpler.</li>
+<li class="decision card" id="decision-30" data-note="decision-30" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-08</p>Asked, on the second preview, why Key settings is needed → chose to drop the direct-use switch and the panel, so a key's level alone decides direct use.</li>
+<li class="decision card" id="decision-31" data-note="decision-31" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-08</p>Assumed: each key's saved state and its step left show beside the key where a person or a role is opened, because no other place in Access lists keys now.</li>
+<li class="decision card" id="decision-32" data-note="decision-32" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-08</p>Assumed: a choice already saved for a key is ignored, not deleted, because nothing reads it and going back a version finds it as it was.</li>
+<li class="decision card" id="decision-33" data-note="decision-33" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-10-08</p>Check: <code>app/src/apps/access/KeySettings.test.tsx</code> is deleted with the Key settings panel. Its cases for a key's saved state, its step when unsaved, the manager's reading of the owner's step and a preview now live in <code>PersonPage.test.tsx</code>, with the role's in <code>Roles.test.tsx</code>; its direct-use choice and its save have nothing left to check, and <code>direct.test.ts</code> holds that a saved choice changes nothing.</li>
+<li class="decision card" id="decision-34" data-note="decision-34" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-08</p>Assumed: a direct route keeps a mark in its mapping and the policy carries whether key levels have started, because the key-access spec says no direct request runs until they have, the owner's included, and the owner otherwise holds every key from the start.</li>
+<li class="decision card" id="decision-35" data-note="decision-35" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-08</p>Assumed: the local check run counts as done with two parts still failing, because both fail only until the save: one script test reads the deleted sample files from git's file list, and the retired-names check reads a spec the archive rewrites. The automatic checks after the save decide.</li>
+<li class="decision card" id="decision-36" data-note="decision-36" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-08</p>Assumed: the save and preview walk of task 7.3 are the publish run's own save and walk, because Matthew chose to publish and that run makes one save; the box is closed here and the walk's verdict stands in for it.</li>
+<li class="decision card" id="decision-37" data-note="decision-37" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-08</p>Asked, on the third preview, for fewer words on a person's panel → cut the lines under <i>Can install the project</i> and the keys, the <i>new person starts with no apps</i> line, and shortened the manager note.</li>
+<li class="decision card" id="decision-38" data-note="decision-38" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-08</p>Archived for publishing as 39.0.0, with main brought in through 38.2.1; the checkpoint after this entry is the one that merges.</li>
+<li class="decision card" id="decision-39" data-note="decision-39" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-09</p>Brought main in again through 38.3.0 after another release landed first; still numbered 39.0.0. The checkpoint after this entry is the one that merges.</li>
+<li class="decision card" id="decision-40" data-note="decision-40" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-09</p>Brought main in a third time, through 38.4.0, after another release landed first. The checkpoint after this entry is the one that merges.</li>
+</ol>
+</section>
+<section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
+<p class="session" hidden>Storage is off. Notes and drafts last for this session only.</p>
+<ul class="note-list" id="note-list"></ul>
+</section>
+</main>
+<button type="button" id="chip" hidden>Add note</button>
+<div id="editor" role="dialog" aria-labelledby="editor-where" hidden>
+  <p class="where" id="editor-where"></p>
+  <p class="moved">Possibly moved: its text changed, so this note is not attached.</p>
+  <textarea aria-label="Note text" rows="3" placeholder="A question or a change"></textarea>
+  <div class="row"><button type="button" class="primary" data-act="save">Save</button><button type="button" data-act="discard">Discard</button><button type="button" data-act="delete">Delete note</button><button type="button" data-act="close">Close</button></div>
+  <p class="copies">Saving a note copies all your notes.</p>
+  <p class="session" hidden>Notes last for this session only.</p>
+</div>
+<div id="viewer" role="dialog" aria-modal="true" aria-label="Drawing, full screen" hidden>
+  <div class="zoom"><span class="level"></span><button type="button" aria-label="Zoom out">−</button><button type="button">Fit</button><button type="button" aria-label="Zoom in">+</button><button type="button" class="primary">Close</button></div>
+  <div class="vframe"></div>
+  <p class="vhint">Drag to move · pinch or + to zoom · tap a line to note it</p>
+</div>
+<div class="bar"><span class="note-count" aria-live="polite">0 notes</span><span class="session" hidden>Session only</span><button type="button" class="primary" id="copy">Copy notes</button>
+  <div id="ready" hidden>
+    <div class="row" id="ready-choose"><button type="button" data-ready="build">Build it</button><button type="button" data-ready="publish">Build and publish</button></div>
+    <div class="row" id="ready-confirm" role="group" aria-label="Build and publish? This goes live and can't be undone." hidden><span>Goes live, can't be undone.</span><button type="button" data-ready="yes">Yes, publish</button><button type="button" data-ready="cancel">Cancel</button></div>
+    <p id="ready-says" role="status" hidden></p>
+  </div>
+</div>
+<div id="toast" role="status"></div>
+<textarea id="copybuf" aria-hidden="true" tabindex="-1" readonly></textarea>
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  window.addEventListener('error', function (e) {
+    $('script-error').hidden = false;
+    $('script-error').textContent = 'Review script error: ' + e.message + ' (line ' + e.lineno + ')';
+  });
+  const root = document.documentElement;
+  root.classList.add('js');
+  const CHANGE = document.body.getAttribute('data-change');
+  const KEY = 'wong-review3:' + CHANGE;
+  const phone = window.matchMedia ? window.matchMedia('(max-width: 700px)') : { matches: false };
+  const chip = $('chip'), editor = $('editor'), ta = editor.querySelector('textarea');
+  const viewer = $('viewer'), vframe = viewer.querySelector('.vframe'), vbar = viewer.querySelector('.zoom'), vb = vbar.querySelectorAll('button');
+  const all = function (sel, fn) { Array.prototype.forEach.call(document.querySelectorAll(sel), fn); };
+  const esc = function (s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
+
+  // ── storage: a refused store keeps notes for this session ──
+  let store = null, data = { notes: [], drafts: {} };
+  const ok = function (r, id) { return r && typeof r.label === 'string' && typeof r.text === 'string' && /^[\w-]+$/.test(id); };
+  try { store = window.localStorage; store.getItem(KEY); } catch (e) { store = null; }
+  try {
+    const saved = store ? JSON.parse(store.getItem(KEY) || 'null') : null;
+    if (saved && Array.isArray(saved.notes)) data.notes = saved.notes.filter(function (n) { return ok(n, n && n.id); });
+    if (saved && saved.drafts) Object.keys(saved.drafts).forEach(function (id) { if (ok(saved.drafts[id], id)) data.drafts[id] = saved.drafts[id]; });
+  } catch (e) { /* unreadable notes start empty */ }
+  function persist() {
+    if (store) { try { store.setItem(KEY, JSON.stringify(data)); } catch (e) { store = null; } }
+    render();
+  }
+
+  // ── targets: a data-note id names its location; the label pins a note to its text ──
+  function where(id) {
+    const m = /^(why|item|decision)-(\d+)(?:-line-(\d+))?$/.exec(id) || [];
+    if (m[1] === 'why') return { at: '#/why', kind: 'paragraph ' + m[2], spot: 'Why, paragraph ' + m[2] };
+    if (m[1] === 'item') return { at: '#/' + m[2], kind: m[3] ? 'drawing line ' + m[3] : 'item', spot: 'Change #' + m[2] + (m[3] ? ', drawing line ' + m[3] : '') };
+    return { at: '#/decisions/' + m[2], kind: 'decision', spot: 'Decision #' + m[2] };
+  }
+  function labelOf(el) {
+    const c = el.cloneNode(true);
+    Array.prototype.forEach.call(c.querySelectorAll('.pin, .meta, .add'), function (n) { n.parentNode.removeChild(n); });
+    const text = c.textContent.replace(/\s+/g, ' ').trim();
+    return where(el.getAttribute('data-note')).kind + ' "' + (text.length > 60 ? text.slice(0, 59) + '…' : text) + '"';
+  }
+  function find(id, label) {
+    const el = document.querySelector('[data-note="' + id + '"]');
+    return el && labelOf(el) === label ? el : null;
+  }
+  function noteOf(id) { return data.notes.filter(function (n) { return n.id === id; })[0] || null; }
+
+  // ── render pins, Note buttons, counts, and the notes list ──
+  function render() {
+    all('.pin, .add', function (p) { p.parentNode.removeChild(p); });
+    const n = data.notes.length, d = Object.keys(data.drafts).length;
+    const count = plural(n) + (d ? ' · ' + d + (d === 1 ? ' draft' : ' drafts') : '');
+    all('.note-count', function (el) { el.textContent = count; });
+    all('.session', function (el) { el.hidden = !!store; });
+    const ids = data.notes.map(function (x) { return x.id; }).concat(Object.keys(data.drafts).filter(function (id) { return !noteOf(id); }));
+    $('note-list').innerHTML = ids.length ? '' : '<li class="muted">No notes yet.</li>';
+    ids.forEach(function (id) {
+      const note = noteOf(id), draft = data.drafts[id], rec = note || draft, num = note ? data.notes.indexOf(note) + 1 : 0, sent = !!(note && note.sent);
+      const el = find(id, rec.label);
+      if (el) {
+        const pin = document.createElement('button');
+        pin.type = 'button'; pin.className = draft ? 'pin draft' : sent ? 'pin sent' : 'pin'; pin.setAttribute('data-open', id);
+        pin.textContent = (num || '') + (num && (draft || sent) ? ' · ' : '') + (draft ? 'Draft' : sent ? 'Sent' : '');
+        pin.setAttribute('aria-label', (num ? 'Open note ' + num : 'Open draft') + (num && draft ? ' and its draft' : ''));
+        el.appendChild(pin);
+      }
+      const li = document.createElement('li');
+      li.innerHTML = '<button type="button" class="entry" data-open="' + id + '"><span class="where">' + (num ? num + '. ' : '')
+        + esc(where(id).at + ' · ' + rec.label) + (draft ? '<span class="tag">Draft</span>' : '') + (sent ? '<span class="tag">Sent</span>' : '') + (el ? '' : '<span class="tag">possibly moved</span>')
+        + '</span>' + esc(draft ? draft.text : note.text) + '</button>';
+      $('note-list').appendChild(li);
+    });
+    all('[data-note]', function (el) {
+      if (el.closest('.art') || el.querySelector('.pin')) return;
+      const id = el.getAttribute('data-note'), add = document.createElement('button');
+      add.type = 'button'; add.className = 'add'; add.setAttribute('data-open', id);
+      add.textContent = '+ Note'; add.setAttribute('aria-label', 'Note on ' + where(id).kind);
+      el.appendChild(add);
+    });
+    drawings.forEach(function (d) {
+      const k = d.art.querySelectorAll('.pin').length;
+      d.count.textContent = k ? ' · ' + k + (k === 1 ? ' note' : ' notes') : '';
+      fit(d);
+    });
+    bar();
+  }
+
+  // ── still-tap to note: a mouse on text, or any pointer on a full-screen drawing line, shows the chip ──
+  let chipFor = null, tap = null;
+  const pointers = {};
+  function showChip(el, x, y, keyboard) {
+    const id = el.getAttribute('data-note');
+    chipFor = el;
+    chip.textContent = noteOf(id) || data.drafts[id] ? 'Edit note' : 'Add note';
+    chip.hidden = false;
+    const w = chip.offsetWidth, vw = root.clientWidth;
+    chip.style.left = Math.max(8, Math.min(x - w / 2, vw - w - 8)) + window.pageXOffset + 'px';
+    chip.style.top = y + 12 + window.pageYOffset + 'px';
+    if (keyboard) chip.focus({ preventScroll: true });
+  }
+  function hideChip() { chip.hidden = true; chipFor = null; }
+  document.addEventListener('pointerdown', function (e) {
+    if (e.isPrimary) Object.keys(pointers).forEach(function (k) { delete pointers[k]; });
+    pointers[e.pointerId] = true;
+    tap = Object.keys(pointers).length === 1 && e.button === 0 ? { id: e.pointerId, x: e.clientX, y: e.clientY, t: Date.now(), target: e.target } : null;
+  });
+  document.addEventListener('pointermove', function (e) {
+    if (tap && e.pointerId === tap.id && Math.abs(e.clientX - tap.x) + Math.abs(e.clientY - tap.y) > 8) tap = null;
+  });
+  document.addEventListener('pointercancel', function (e) { delete pointers[e.pointerId]; tap = null; });
+  document.addEventListener('pointerup', function (e) {
+    const t = tap;
+    delete pointers[e.pointerId]; tap = null;
+    if (!t || t.id !== e.pointerId || Date.now() - t.t > 500) return;
+    if (t.target.closest('a, button, input, textarea, select, label, summary, #editor')) return;
+    const el = t.target.closest('[data-note]');
+    const offer = el && (el.closest('#viewer') || (e.pointerType === 'mouse' && !el.closest('.frame')));
+    if (offer) showChip(el, e.clientX, e.clientY, false); else hideChip();
+  });
+  chip.addEventListener('click', function () { if (chipFor) openEditor(chipFor.getAttribute('data-note'), chipFor); });
+  document.addEventListener('click', function (e) {
+    const t = e.target.closest ? e.target.closest('[data-open]') : null;
+    if (!t) return;
+    const id = t.getAttribute('data-open'), rec = data.drafts[id] || noteOf(id), el = rec ? find(id, rec.label) : t.closest('[data-note]');
+    if (el && t.classList.contains('entry')) { reveal(el); el.scrollIntoView({ block: 'center' }); }
+    openEditor(id, el);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      if (open) closeEditor(true);
+      else if (chipFor) { const el = chipFor; hideChip(); el.focus(); }
+      else if (view) closeViewer(true);
+    } else if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('[data-note]')) {
+      e.preventDefault();
+      const r = e.target.getBoundingClientRect();
+      showChip(e.target, r.left + 48, r.top + Math.min(r.height, 24), true);
+    }
+  });
+
+  // ── the editor: beside its target on a desktop, docked at the bottom of the visible screen on a phone ──
+  let open = null;
+  function openEditor(id, el) {
+    closeViewer(false); closeEditor(false); hideChip();
+    if (el) reveal(el);
+    const note = noteOf(id), draft = data.drafts[id];
+    const label = draft ? draft.label : note ? note.label : labelOf(el);
+    open = { id: id, label: label, el: el };
+    $('editor-where').textContent = where(id).at + ' · ' + label;
+    editor.querySelector('.moved').hidden = !!el;
+    editor.querySelector('[data-act="delete"]').hidden = !note;
+    ta.value = draft ? draft.text : note ? note.text : '';
+    editor.hidden = false;
+    if (el) el.classList.add('noting');
+    place();
+    ta.focus({ preventScroll: editor.classList.contains('docked') });
+  }
+  function closeEditor(restore) {
+    if (!open) return;
+    const el = open.el;
+    open = null; editor.hidden = true;
+    document.body.classList.remove('docked'); document.body.style.paddingBottom = '';
+    bar();
+    if (el) { el.classList.remove('noting'); if (restore) el.focus({ preventScroll: true }); }
+  }
+  function place() {
+    const docked = phone.matches || !open.el;
+    editor.classList.toggle('docked', docked);
+    document.body.classList.toggle('docked', docked);
+    editor.style.left = editor.style.top = editor.style.bottom = editor.style.maxHeight = '';
+    if (docked) {
+      dock();
+      document.body.style.paddingBottom = editor.offsetHeight + 24 + 'px';
+      keepVisible();
+      return;
+    }
+    const r = open.el.getBoundingClientRect(), w = editor.offsetWidth, vw = root.clientWidth;
+    let left = r.right + 12, top = r.top;
+    if (left + w > vw - 8) { left = Math.max(8, Math.min(r.left, vw - w - 8)); top = r.bottom + 8; }
+    editor.style.left = left + window.pageXOffset + 'px';
+    editor.style.top = top + window.pageYOffset + 'px';
+  }
+  // The visible screen: a phone keyboard shrinks it, and a host app may shrink the page too, so place from its top.
+  function screen() {
+    const vv = window.visualViewport;
+    return vv ? { top: vv.offsetTop, h: vv.height } : { top: 0, h: window.innerHeight };
+  }
+  function dock() {
+    if (!open || !editor.classList.contains('docked')) return;
+    const s = screen();
+    editor.style.maxHeight = s.h + 'px';
+    editor.style.bottom = 'auto';
+    editor.style.top = s.top + Math.max(0, s.h - editor.offsetHeight) + 'px';
+  }
+  function keepVisible() {
+    if (!open || !open.el) return;
+    const r = open.el.getBoundingClientRect(), s = screen(), limit = s.top + s.h - editor.offsetHeight - 8;
+    if (r.bottom > limit) window.scrollBy(0, Math.min(r.top - s.top - 8, r.bottom - limit));
+  }
+  let seen = screen().h;
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', function () {
+      const h = screen().h, keyboard = Math.abs(h - seen) > 100;
+      seen = h; dock();
+      if (keyboard) keepVisible();
+    });
+    window.visualViewport.addEventListener('scroll', dock);
+  }
+  ta.addEventListener('input', function () {
+    if (!open) return;
+    const note = noteOf(open.id), text = ta.value;
+    if (!text.trim() || (note && text === note.text)) delete data.drafts[open.id];
+    else data.drafts[open.id] = { label: open.label, text: text };
+    persist();
+  });
+  editor.addEventListener('click', function (e) {
+    const act = e.target.getAttribute('data-act');
+    if (!act || !open) return;
+    const id = open.id, note = noteOf(id), text = ta.value.trim();
+    if (act === 'save') {
+      if (!text) { ta.focus(); return; }
+      if (!note) data.notes.push({ id: id, label: open.label, text: text });
+      else if (note.text !== text) { note.text = text; delete note.sent; }
+    }
+    if (act === 'delete') data.notes = data.notes.filter(function (n) { return n.id !== id; });
+    if (act !== 'close') delete data.drafts[id];
+    closeEditor(true); persist();
+    if (act === 'save' && live) toast('Saved. Tap Send notes to send it to the chat.');
+    else if (act === 'save') {
+      const n = unsent().length;
+      copyNotes(function () { toast('Saved and copied ' + plural(n) + '. Paste them into chat.'); },
+        function () { toast('Saved. Tap Copy notes to copy them.'); });
+    }
+  });
+
+  // ── drawings: fitted by font size on the page; a tap shows one full screen, where it zooms and scrolls natively ──
+  const BASE = 13, drawings = [];
+  let view = null;
+  const V = { f: BASE, lo: BASE, hi: BASE };
+  function size(art, f, max) {
+    art.style.fontSize = f + 'px';
+    for (let i = 0; i < 3 && art.offsetWidth > max; i += 1) { f *= max / art.offsetWidth; art.style.fontSize = f + 'px'; }
+    return f;
+  }
+  function fit(d) {
+    if (!d.fig.open || view === d) return;
+    d.art.style.fontSize = BASE + 'px';
+    const w = d.art.offsetWidth, fw = d.frame.clientWidth - 1;
+    if (w > 0 && fw > 0) size(d.art, BASE * Math.min(1.25, fw / w), fw);
+  }
+  function reveal(el) {
+    const fig = el.closest('details');
+    if (fig && !fig.open) { fig.open = true; drawings.forEach(fit); }
+  }
+  function scale(f, cx, cy) {
+    f = Math.max(V.lo, Math.min(V.hi, f));
+    const k = f / V.f, x = (vframe.scrollLeft + cx) * k - cx, y = (vframe.scrollTop + cy) * k - cy;
+    V.f = f; view.art.style.fontSize = f + 'px';
+    vframe.scrollLeft = x; vframe.scrollTop = y;
+    const atFit = f <= V.lo * 1.001;
+    vbar.firstChild.textContent = (atFit ? 'Fit · ' : '') + Math.round(f / BASE * 100) + '%';
+    vb[0].disabled = atFit; vb[2].disabled = f >= V.hi * 0.999;
+  }
+  function openViewer(d) {
+    hideChip();
+    view = d; viewer.hidden = false; document.body.classList.add('viewing');
+    vframe.appendChild(d.art);
+    d.art.style.fontSize = BASE + 'px';
+    const fw = vframe.clientWidth - 1;
+    V.lo = size(d.art, BASE * fw / Math.max(1, d.art.offsetWidth), fw);
+    V.hi = Math.max(V.lo * 4, 40); V.f = V.lo;
+    vframe.scrollLeft = vframe.scrollTop = 0;
+    scale(V.lo, 0, 0);
+    vb[3].focus({ preventScroll: true });
+  }
+  function closeViewer(restore) {
+    if (!view) return;
+    const d = view;
+    view = null;
+    d.frame.insertBefore(d.art, d.frame.firstChild);
+    viewer.hidden = true; document.body.classList.remove('viewing');
+    fit(d); bar();
+    if (restore) d.enlarge.focus({ preventScroll: true });
+  }
+  vbar.addEventListener('click', function (e) {
+    const i = Array.prototype.indexOf.call(vb, e.target);
+    if (i === 3) closeViewer(true);
+    else if (i >= 0) scale([V.f / 1.25, V.lo, V.f * 1.25][i], vframe.clientWidth / 2, vframe.clientHeight / 2);
+  });
+  vframe.addEventListener('wheel', function (e) {
+    if (!e.ctrlKey && !e.metaKey) return;
+    e.preventDefault();
+    const r = vframe.getBoundingClientRect();
+    scale(V.f * (e.deltaY < 0 ? 1.1 : 1 / 1.1), e.clientX - r.left, e.clientY - r.top);
+  }, { passive: false });
+  // One finger scrolls natively; two fingers pinch around their midpoint.
+  let pinch = null;
+  const span = function (t) { return Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY) || 1; };
+  vframe.addEventListener('touchstart', function (e) { if (e.touches.length === 2) pinch = { f: V.f, dist: span(e.touches) }; }, { passive: true });
+  vframe.addEventListener('touchmove', function (e) {
+    if (!pinch || e.touches.length !== 2) return;
+    if (e.cancelable) e.preventDefault();
+    const r = vframe.getBoundingClientRect(), t = e.touches;
+    scale(pinch.f * span(t) / pinch.dist, (t[0].clientX + t[1].clientX) / 2 - r.left, (t[0].clientY + t[1].clientY) / 2 - r.top);
+  }, { passive: false });
+  vframe.addEventListener('touchend', function (e) { if (e.touches.length < 2) pinch = null; });
+  document.addEventListener('gesturestart', function (e) { if (view) e.preventDefault(); });
+  all('.drawing', function (fig) {
+    const frame = fig.querySelector('.frame'), enlarge = document.createElement('button');
+    enlarge.type = 'button'; enlarge.className = 'enlarge'; enlarge.textContent = 'Full screen';
+    frame.appendChild(enlarge);
+    const d = { fig: fig, frame: frame, art: fig.querySelector('.art'), count: fig.querySelector('.count'), enlarge: enlarge };
+    drawings.push(d);
+    fig.addEventListener('toggle', function () { fit(d); });
+    frame.addEventListener('click', function (e) { if (!e.target.closest('[data-open]')) openViewer(d); });
+  });
+
+  // ── direct links: #/why, #/<n>, #/decisions/<n> ──
+  function jump() {
+    const m = /^#\/(?:decisions\/(\d+)|(\d+)|(why|changes|decisions))$/.exec(location.hash);
+    const el = m ? $(m[1] ? 'decision-' + m[1] : m[2] ? 'item-' + m[2] : m[3]) : null;
+    if (!el) return;
+    all('.hit', function (n) { n.classList.remove('hit'); });
+    el.classList.add('hit');
+    el.scrollIntoView({ block: 'start' });
+  }
+
+  // ── copy: saved notes only, as notes on the plan: each asks or changes something ──
+  // A note sent through a reply link is in the chat already, so it is never copied or sent again.
+  function unsent() { return data.notes.filter(function (n) { return !n.sent; }); }
+  function bullets(notes) {
+    return notes.map(function (n) {
+      const w = where(n.id);
+      return '- ' + w.spot + ' (' + n.label.slice(w.kind.length + 1) + '): ' + n.text.replace(/\s*\n\s*/g, ' ');
+    });
+  }
+  function notesText() {
+    return ['Notes on the plan ' + CHANGE + ' from the review page. Don\'t build yet.'].concat(bullets(unsent())).join('\n');
+  }
+  function toast(text) {
+    $('toast').textContent = text; $('toast').classList.add('show');
+    setTimeout(function () { $('toast').classList.remove('show'); }, 2000);
+  }
+  function plural(n) { return n + (n === 1 ? ' note' : ' notes'); }
+  // One routine for Copy notes and Save: the Clipboard API, else select #copybuf and execCommand, then hand focus back.
+  function copyNotes(done, failed) {
+    const buf = $('copybuf');
+    buf.value = notesText();
+    const fallback = function () {
+      const back = document.activeElement;
+      buf.select();
+      const ok = document.execCommand('copy');
+      if (back && back !== buf && back.focus) back.focus({ preventScroll: true });
+      if (ok) done(); else failed();
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(buf.value).then(done, fallback); else fallback();
+  }
+  // Nothing to copy or send: say why. True when it spoke.
+  function nothing(verb) {
+    if (unsent().length) return false;
+    toast(data.notes.length ? 'Every note is already sent.' : 'No saved notes yet. Drafts are not ' + verb + '.');
+    return true;
+  }
+
+  // ── reply link: at a web address with #key=, the bar's button sends unsent notes to the chat that made the plan ──
+  // `live` is the link's key while the link is open. The key stays in memory and this tab's session, never in a link.
+  let live = null, sending = false;
+  function setLive(key) {
+    live = key;
+    if (!key) $('ready').hidden = true;
+    $('copy').textContent = key ? 'Send notes' : 'Copy notes';
+    all('.copies', function (el) { el.textContent = key ? 'Send notes sends your saved notes to the chat.' : 'Saving a note copies all your notes.'; });
+    bar();
+  }
+  function linkKey() {
+    if (!/^https?:$/.test(location.protocol) || !window.fetch) return null;
+    const m = /(?:^#|&)key=([0-9a-f]{64})(?:&|$)/.exec(location.hash), at = 'wong-reply-key:' + location.pathname;
+    try {
+      if (m) window.sessionStorage.setItem(at, m[1]);
+      return m ? m[1] : window.sessionStorage.getItem(at);
+    } catch (e) { return m ? m[1] : null; }
+  }
+  function ask(path, key, body) {
+    const headers = { 'x-reply-key': key };
+    if (body) headers['content-type'] = 'application/json';
+    return fetch(path, { method: body ? 'POST' : 'GET', cache: 'no-store', headers: headers, body: body ? JSON.stringify(body) : undefined });
+  }
+  function sendNotes() {
+    const notes = unsent(), n = notes.length;
+    if (sending || nothing('sent')) return;
+    sending = true;
+    // A closed link or an unreachable chat: the same tap copies, and the page goes back to Copy notes.
+    const closed = function () {
+      sending = false; setLive(null);
+      copyNotes(function () { toast('This link has closed. Copied ' + plural(n) + ': paste them into chat.'); },
+        function () { toast('This link has closed. Tap Copy notes to copy them.'); });
+    };
+    ask('send', live, { text: bullets(notes).join('\n') }).then(function (r) {
+      if (r.status === 429) { sending = false; toast('Wait a few seconds, then tap Send notes again.'); return; }
+      if (!r.ok) { closed(); return; }
+      r.json().then(function (answer) {
+        if (!answer || answer.sent !== true) { closed(); return; }
+        sending = false;
+        notes.forEach(function (note) { note.sent = true; });
+        persist();
+        toast('Sent ' + plural(n) + ' to the chat.');
+      }, closed);
+    }, closed);
+  }
+  $('copy').addEventListener('click', function () {
+    if (live) { sendNotes(); return; }
+    const n = unsent().length;
+    if (nothing('copied')) return;
+    copyNotes(function () { toast('Copied ' + plural(n) + '. Paste them into chat.'); },
+      function () { toast('Copy failed. Copy the notes list by hand.'); });
+  });
+
+  // ── ready: on a reply link that offers both, the bar's second row asks the chat to build, or to build and publish ──
+  // The page sends an action's name and the version of the plan it read; the link's opener fixed each message.
+  let version = null, acting = false;
+  function says(text) { $('ready-says').textContent = text; $('ready-says').hidden = !text; bar(); }
+  function readyStep(step) {
+    $('ready-choose').hidden = step !== 'choose';
+    $('ready-confirm').hidden = step !== 'confirm';
+    bar();
+  }
+  // One primary button in the bar: the notes button while a note is unsent or no build button shows, else the build one.
+  // The page's bottom padding follows the bar's height, so a taller bar never covers the end of the page.
+  function bar() {
+    const el = $('copy').parentNode, ready = $('ready');
+    const build = !ready.hidden && !unsent().length && !($('ready-choose').hidden && $('ready-confirm').hidden);
+    $('copy').classList.toggle('primary', !build);
+    all('[data-ready="build"], [data-ready="yes"]', function (b) { b.classList.toggle('primary', build); });
+    if (el.offsetHeight) root.style.setProperty('--bar', el.offsetHeight + 19 + 'px');
+  }
+  // Unsent notes would change the plan the chat is about to build: say so. True when it spoke.
+  function notesFirst() {
+    if (!unsent().length) return false;
+    says('Send or delete your notes first.');
+    return true;
+  }
+  function offer(answer) {
+    const names = answer && answer.actions;
+    if (!Array.isArray(names) || names.indexOf('build') < 0 || names.indexOf('publish') < 0 || typeof answer.version !== 'string') return;
+    version = answer.version;
+    $('ready').hidden = false;
+    bar();
+  }
+  function act(name) {
+    if (acting || !live || notesFirst()) return;
+    acting = true; says('');
+    const closed = function () { acting = false; $('ready').hidden = true; bar(); toast('This link has closed. Choose in the chat.'); };
+    ask('act', live, { action: name, version: version }).then(function (r) {
+      if (r.status === 429) { acting = false; says('Wait a few seconds, then tap again.'); return; }
+      r.json().then(function (answer) {
+        const a = answer || {};
+        const line = r.status === 200 && a.sent === true ? 'Asked the chat to build' + (name === 'publish' ? ' and publish.' : '.')
+          : r.status === 409 && a.changed === true ? 'The plan changed. Reload to read it first.'
+          : r.status === 409 && a.done === true ? 'The chat was already asked.' : '';
+        if (!line) { closed(); return; }
+        acting = false; readyStep('done'); says(line);
+      }, closed);
+    }, closed);
+  }
+  $('ready').addEventListener('click', function (e) {
+    const step = e.target.getAttribute('data-ready');
+    if (step === 'build' || step === 'yes') act(step === 'yes' ? 'publish' : 'build');
+    else if (step === 'cancel' || (step === 'publish' && !notesFirst())) {
+      says(''); readyStep(step === 'cancel' ? 'choose' : 'confirm');
+      $('ready').querySelector('[data-ready="' + (step === 'cancel' ? 'publish' : 'cancel') + '"]').focus({ preventScroll: true });
+    }
+  });
+
+  let width = root.clientWidth;
+  window.addEventListener('resize', function () {
+    if (root.clientWidth !== width) {
+      width = root.clientWidth; hideChip();
+      if (view) { const d = view; closeViewer(false); openViewer(d); }
+    }
+    drawings.forEach(fit);
+    if (open) place();
+    bar();
+  });
+  window.addEventListener('hashchange', jump);
+  render();
+  jump();
+  const key = linkKey();
+  if (key) ask('alive', key).then(function (r) {
+    if (!r.ok) return;
+    setLive(key);
+    r.json().then(offer, function () { /* no actions: notes only */ });
+  }, function () { /* not live: the page copies */ });
+}());
+</script>
+</body>
+</html>

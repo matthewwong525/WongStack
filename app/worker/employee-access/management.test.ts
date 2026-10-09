@@ -10,7 +10,7 @@ import { lease } from './core';
 import { authorizeRequest, currentPolicy } from './policy';
 import type { AccessIdentity } from '../access';
 
-vi.mock('./catalogue.ts', async () => (await import('../../tests/employee-access/catalogue')).builtAreas(['access', 'orders', 'payroll']));
+vi.mock('./catalogue.ts', async () => (await import('../../tests/employee-access/catalogue')).builtApps(['access', 'orders', 'payroll']));
 let f: ReturnType<typeof fixture>;
 let cf: ReturnType<typeof cloudflare>['state'];
 let fetch: ReturnType<typeof vi.fn>;
@@ -21,10 +21,10 @@ beforeEach(() => {
 });
 afterEach(() => { f.sql.close(); vi.unstubAllGlobals(); });
 const run = (path: string, method = 'POST', body?: unknown, env = f.env) => management(req(path, method, body), env, owner);
-// A person's whole set as a save names it: Look up & change on each named area, and None on the rest.
-const given = (apps: string[]) => Object.fromEntries([...new Set(['orders', 'payroll', ...apps])].map(app => [app, apps.includes(app) ? 'write' : null]));
+// A person's whole set as a save names it: each named app given, and the rest not.
+const given = (apps: string[]) => Object.fromEntries([...new Set(['orders', 'payroll', ...apps])].map(app => [app, apps.includes(app)]));
 const person = (email: string, apps: string[] = [], removed = false) => ({ email, apps: given(apps), removed });
-const both = { orders: 'write', payroll: 'write' };
+const both = ['orders', 'payroll'];
 const built = [{ id: 'orders', title: 'Orders' }, { id: 'payroll', title: 'Payroll' }];
 const staging = () => ({ ...f.env, WONG_ENVIRONMENT: 'staging', WONG_ACCESS_LOGIN_MANAGEMENT: undefined });
 // Kim is a person the owner makes a manager; `ask` is a request from whoever signs in.
@@ -65,8 +65,8 @@ it('adds a person in one save: the choices commit, the sign-in list follows, and
   expect(saved.status).toBe(200);
   const status = await saved.json();
   expect(status).toMatchObject({ ownerEmail: site.ownerEmail, environment: 'live', key: 'ready', started: true,
-    areas: built, work: [{ kind: 'policy', status: 'ready', outcome: 'policy_readback_matches', error_code: null }],
-    people: [{ email: 'bo@example.com', status: 'active', settled: true, apps: { orders: 'write' } }, { email: employee.id, status: 'active', settled: true, apps: {} }] });
+    apps: built, work: [{ kind: 'policy', status: 'ready', outcome: 'policy_readback_matches', error_code: null }],
+    people: [{ email: 'bo@example.com', status: 'active', settled: true, apps: ['orders'] }, { email: employee.id, status: 'active', settled: true, apps: [] }] });
   // The owner sends people the website's address themselves: the status carries no app link.
   expect(status).not.toHaveProperty('origin');
   expect(cf.writes).toHaveLength(1);
@@ -81,7 +81,7 @@ it('keeps a failed sign-in step pending for Try again, and the retry finishes it
   cf.failPolicy = true;
   const saved = await (await run('people', 'POST', person('bo@example.com', ['orders']))).json();
   expect(saved).toMatchObject({ work: [{ kind: 'policy', status: 'failed', error_code: 'provider_unavailable' }],
-    people: [{ email: 'bo@example.com', settled: false, apps: { orders: 'write' } }, { email: employee.id, settled: true }] });
+    people: [{ email: 'bo@example.com', settled: false, apps: ['orders'] }, { email: employee.id, settled: true }] });
   cf.failPolicy = false;
   // The failed write's outcome is unknown until it can no longer land.
   expect(await (await run('retry')).json()).toMatchObject({ work: [{ status: 'pending', outcome: 'previous_policy_write_unresolved' }], people: [{ settled: false }, { settled: true }] });
@@ -95,15 +95,15 @@ it('puts a person saved before the first read on the sign-in list once the read 
   cf.extras = [{ id: 'unreviewed', decision: 'allow', include: [] }];
   expect(await (await run('status', 'GET')).json()).toMatchObject({ started: false, key: 'ready', people: [] });
   expect(await (await run('people', 'POST', person('bo@example.com', ['orders']))).json()).toMatchObject({ started: false,
-    work: [{ kind: 'policy', status: 'pending' }], people: [{ email: 'bo@example.com', settled: false, apps: { orders: 'write' } }] });
+    work: [{ kind: 'policy', status: 'pending' }], people: [{ email: 'bo@example.com', settled: false, apps: ['orders'] }] });
   expect(cf.writes).toEqual([]);
   // The read works: permissions start, and Bo's line now offers Try again.
   cf.extras = [];
   expect(await (await run('status', 'GET')).json()).toMatchObject({ started: true, key: 'ready', environment: 'live',
-    work: [{ kind: 'policy', status: 'pending' }], people: [{ email: 'bo@example.com', settled: false, apps: { orders: 'write' } }] });
+    work: [{ kind: 'policy', status: 'pending' }], people: [{ email: 'bo@example.com', settled: false, apps: ['orders'] }] });
   expect(cf.writes).toEqual([]);
   expect(await (await run('retry')).json()).toMatchObject({ work: [{ kind: 'policy', status: 'ready', outcome: 'policy_readback_matches' }],
-    people: [{ email: 'bo@example.com', status: 'active', settled: true, apps: { orders: 'write' } }] });
+    people: [{ email: 'bo@example.com', status: 'active', settled: true, apps: ['orders'] }] });
   expect(cf.writes).toHaveLength(1);
   expect(cf.writes[0].include).toEqual(['bo@example.com', site.ownerEmail].sort().map(email => ({ email: { email } })));
 });
@@ -111,7 +111,7 @@ it('puts a person saved before the first read on the sign-in list once the read 
 it('removal blocks at once and reports the list and session steps separately', async () => {
   cf.failSessions = true;
   const removed = await (await run('people', 'POST', person(employee.id, [], true))).json();
-  expect(removed).toMatchObject({ people: [{ email: employee.id, status: 'removed', settled: true, apps: {} }],
+  expect(removed).toMatchObject({ people: [{ email: employee.id, status: 'removed', settled: true, apps: [] }],
     work: [{ kind: 'policy', status: 'ready' }, { kind: 'sessions', status: 'failed', error_code: 'provider_unavailable' }] });
   expect((await authorizeRequest(f.env, employee, { kind: 'self-service' }))?.status).toBe(403);
   expect(cf.writes[0].include).toEqual([{ email: { email: site.ownerEmail } }]);
@@ -123,7 +123,7 @@ it('removal blocks at once and reports the list and session steps separately', a
 it('saves choices with no key, and with a busy lease, leaving the sign-in step for later', async () => {
   const missing = { ...f.env, WONG_ACCESS_LOGIN_MANAGEMENT: undefined };
   expect(await (await run('people', 'POST', person('bo@example.com', ['orders']), missing)).json()).toMatchObject({ key: 'missing',
-    work: [{ kind: 'policy', status: 'pending' }], people: [{ email: 'bo@example.com', settled: false, apps: { orders: 'write' } }, { settled: true }] });
+    work: [{ kind: 'policy', status: 'pending' }], people: [{ email: 'bo@example.com', settled: false, apps: ['orders'] }, { settled: true }] });
   expect(await (await run('retry', 'POST', undefined, missing)).json()).toMatchObject({ work: [{ status: 'pending' }] });
   expect(fetch).not.toHaveBeenCalled();
   // Another request holds the lease: the save still commits, and Try again reports the wait.
@@ -139,7 +139,7 @@ it('gives a preview its own practice list and makes no provider call', async () 
   const opened = await (await run('status', 'GET', undefined, staging())).json();
   expect(opened).toMatchObject({ environment: 'practice', key: 'practice', started: true, imported: 0, work: [] });
   const saved = await (await run('people', 'POST', person('practice@example.com', ['orders']), staging())).json();
-  expect(saved).toMatchObject({ environment: 'practice', work: [], people: [{ email: employee.id }, { email: 'practice@example.com', status: 'active', apps: { orders: 'write' } }] });
+  expect(saved).toMatchObject({ environment: 'practice', work: [], people: [{ email: employee.id }, { email: 'practice@example.com', status: 'active', apps: ['orders'] }] });
   await run('people', 'POST', person(employee.id, [], true), staging());
   expect((await run('retry', 'POST', undefined, staging())).status).toBe(200);
   expect(fetch).not.toHaveBeenCalled();
@@ -157,11 +157,11 @@ it('says in the status why the project can not be handed out yet, and never a se
   // The status carries one word: no token, no secret's name, and not the repository either.
   for (const status of [unset, waiting, ready]) expect(JSON.stringify(status)).not.toMatch(/github_pat|WONG_CODE|recipe-box/);
 });
-it('opens for the owner with no other setup, lists every built area and starts permissions once', async () => {
+it('opens for the owner with no other setup, lists every built app and starts permissions once', async () => {
   f.sql.close(); f = fixture({ started: false });
   cf.policy.include = [site.ownerEmail, 'cy@example.com'].map(email => ({ email: { email } }));
   const first = await (await run('status', 'GET')).json();
-  expect(first).toMatchObject({ started: true, imported: 1, key: 'ready', areas: built,
+  expect(first).toMatchObject({ started: true, imported: 1, key: 'ready', apps: built,
     people: [{ email: 'cy@example.com', status: 'active', settled: true, apps: both }] });
   expect(cf.writes).toEqual([]);
   expect(await (await run('status', 'GET')).json()).toMatchObject({ imported: 1, people: [{ email: 'cy@example.com' }] });
@@ -169,21 +169,33 @@ it('opens for the owner with no other setup, lists every built area and starts p
   // With no key yet, Access still opens and names the step left; nobody loses an app.
   f.sql.close(); f = fixture({ started: false });
   const waiting = await (await run('status', 'GET', undefined, { ...f.env, WONG_ACCESS_LOGIN_MANAGEMENT: undefined })).json();
-  expect(waiting).toMatchObject({ started: false, key: 'missing', people: [], areas: built });
+  expect(waiting).toMatchObject({ started: false, key: 'missing', people: [], apps: built });
   expect(await authorizeRequest(f.env, employee, { apps: ['payroll'] })).toBeNull();
 });
 
-it('lists a newly built area at None and ignores a grant for an area no longer built', async () => {
-  f.sql.exec(`INSERT INTO wong_access_apps VALUES ('${site.installationId}', 'retired');
+it('lists a newly built app unticked, ignores a grant for an app no longer built, and names who could only look until the next save', async () => {
+  // From before ticks: the employee could only look at Orders, and the Front desk role at Payroll.
+  f.sql.exec(`INSERT INTO wong_access_apps VALUES ('${site.installationId}', 'retired'), ('${site.installationId}', 'payroll');
     INSERT INTO wong_access_grants VALUES ('${site.installationId}', '${employee.id}', 'retired', 1, 'write');
-    INSERT INTO wong_access_grants VALUES ('${site.installationId}', '${employee.id}', 'orders', 1, 'read')`);
-  const status = await json(await run('status', 'GET'));
-  expect(status).toMatchObject({ areas: built, people: [{ email: employee.id }] });
-  expect(status.people[0].apps).toEqual({ orders: 'read' });
-  expect(await (await setupStatus(req('setup', 'GET'), f.env, employee)).json()).toMatchObject({ apps: ['orders'], titles: { orders: expect.any(String) } });
-  expect((await authorizeRequest(f.env, employee, { apps: ['payroll'] }))?.status).toBe(403);
-  expect((await authorizeRequest(f.env, employee, { apps: ['retired'] }))?.status).toBe(403);
+    INSERT INTO wong_access_grants VALUES ('${site.installationId}', '${employee.id}', 'orders', 1, 'read');
+    INSERT INTO wong_access_roles VALUES ('${site.installationId}', 'desk', 'Front desk', 1);
+    INSERT INTO wong_access_role_apps VALUES ('${site.installationId}', 'desk', 'payroll', 'read')`);
+  const looked = { people: [{ email: employee.id, apps: ['Orders'] }], roles: [{ name: 'Front desk', apps: ['Payroll'] }] };
+  // A tick can not say look-only, so neither holds the app: nobody gains the power to change things. Access names both.
+  expect(await json(await run('status', 'GET'))).toMatchObject({ apps: built, people: [{ email: employee.id, apps: [] }], roles: [{ name: 'Front desk', apps: [] }], unticked: looked });
+  expect(await (await setupStatus(req('setup', 'GET'), f.env, employee)).json()).toMatchObject({ apps: [], titles: {} });
+  for (const app of ['orders', 'payroll', 'retired']) expect((await authorizeRequest(f.env, employee, { apps: [app] }, 'read'))?.status, app).toBe(403);
+  // A refused save clears nothing.
   expect((await run('people', 'POST', person(employee.id, ['retired']))).status).toBe(400);
+  expect((await json(await run('status', 'GET'))).unticked).toEqual(looked);
+  // The next save in Access clears the rows and the names with them, whatever it changes: here, nothing at all.
+  const stale = () => ['wong_access_grants', 'wong_access_role_apps'].map(table => f.sql.prepare(`SELECT COUNT(*) count FROM ${table} WHERE level = 'read'`).get()?.count);
+  expect(stale()).toEqual([1, 1]);
+  expect(await json(await run('people', 'POST', { email: employee.id, removed: false }))).toMatchObject({ unticked: { people: [], roles: [] }, people: [{ email: employee.id, apps: [] }] });
+  expect(stale()).toEqual([0, 0]);
+  // Ticked again, the app is whole.
+  expect(await json(await run('people', 'POST', person(employee.id, ['orders'])))).toMatchObject({ people: [{ apps: ['orders'] }], unticked: { people: [], roles: [] } });
+  expect(await authorizeRequest(f.env, employee, { apps: ['orders'] })).toBeNull();
   // Every main route is mapped in reviewed code; one with no mapping would deny employees.
   for (const { access } of mainRouteInventory()) expect(access).toBeDefined();
   expect((await authorizeRequest(f.env, employee, undefined))?.status).toBe(403);
@@ -244,7 +256,7 @@ it('lets a manager the owner picked add people, edit roles and set levels as the
   await run('status', 'GET');
   const picked = await (await pick(kim.id, ['orders'])).json();
   expect(picked).toMatchObject({ ownerEmail: site.ownerEmail, viewer: { email: site.ownerEmail, owner: true },
-    people: [{ email: employee.id, manager: false }, { email: kim.id, manager: true, apps: { orders: 'write' } }] });
+    people: [{ email: employee.id, manager: false }, { email: kim.id, manager: true, apps: ['orders'] }] });
   expect(managers()).toEqual([kim.id]);
   // Managing gives no app, no key and no owner route: Kim holds what she was given.
   expect(await (await handleAccess(req('apps', 'GET'), f.env, kim)).json()).toMatchObject({ role: 'employee', manages: true, apps: ['access', 'orders'], keys: [] });
@@ -255,22 +267,22 @@ it('lets a manager the owner picked add people, edit roles and set levels as the
   // She adds a person, and the sign-in list follows in the same request.
   const added = await (await ask(kim, 'people', person('bo@example.com', ['orders']))).json();
   expect(added).toMatchObject({ work: [{ kind: 'policy', status: 'ready', outcome: 'policy_readback_matches' }],
-    people: [{ email: 'bo@example.com', status: 'active', settled: true, manager: false, apps: { orders: 'write' } }, { email: employee.id }, { email: kim.id }] });
+    people: [{ email: 'bo@example.com', status: 'active', settled: true, manager: false, apps: ['orders'] }, { email: employee.id }, { email: kim.id }] });
   expect(cf.writes).toHaveLength(2);
   expect(cf.writes[1].include).toEqual(['bo@example.com', employee.id, kim.id, site.ownerEmail].sort().map(email => ({ email: { email } })));
   // She makes a role and sets a level.
-  expect(await (await ask(kim, 'roles', { name: 'Sales', apps: { payroll: 'write' } })).json()).toMatchObject({ roles: [{ name: 'Sales', apps: { payroll: 'write' } }] });
-  expect((await ask(kim, 'grants', { key: 'cloudflare', people: { 'bo@example.com': 'read' } })).status).toBe(200);
+  expect(await (await ask(kim, 'roles', { name: 'Sales', apps: { payroll: true } })).json()).toMatchObject({ roles: [{ name: 'Sales', apps: ['payroll'] }] });
+  expect((await ask(kim, 'people', { email: 'bo@example.com', removed: false, keys: { cloudflare: 'read' } })).status).toBe(200);
   // She changes her own set, and another manager's: neither save names the switch, so both keep it.
   expect((await ask(kim, 'people', person(kim.id, ['orders', 'payroll']))).status).toBe(200);
   await pick(employee.id);
   const after = await (await ask(kim, 'people', person(employee.id, ['payroll']))).json();
-  expect(after).toMatchObject({ people: [{ email: 'bo@example.com', manager: false, apps: { orders: 'write' }, keys: { cloudflare: 'read' } },
-    { email: employee.id, manager: true, apps: { payroll: 'write' } }, { email: kim.id, manager: true, apps: both }] });
+  expect(after).toMatchObject({ people: [{ email: 'bo@example.com', manager: false, apps: ['orders'], keys: { cloudflare: 'read' } },
+    { email: employee.id, manager: true, apps: ['payroll'] }, { email: kim.id, manager: true, apps: both }] });
   expect(await (await ask(kim, 'retry')).json()).toMatchObject({ viewer: { email: kim.id, owner: false } });
   // Each change names who made it.
   expect(acted()).toEqual([`${site.ownerEmail} person_changed`, `${site.ownerEmail} manager_added`, `${kim.id} person_changed`,
-    `${kim.id} role_changed`, `${kim.id} key_level_changed`, `${kim.id} person_changed`, `${site.ownerEmail} person_changed`,
+    `${kim.id} role_changed`, `${kim.id} person_changed`, `${kim.id} key_level_changed`, `${kim.id} person_changed`, `${site.ownerEmail} person_changed`,
     `${site.ownerEmail} manager_added`, `${kim.id} person_changed`]);
 });
 
@@ -279,7 +291,7 @@ it("leaves the manager switch alone when a manager changes another manager's app
   const rows = () => f.sql.prepare('SELECT rowid, email FROM wong_access_managers ORDER BY email').all();
   const before = rows();
   const saved = await (await ask(kim, 'people', person(employee.id, ['payroll']))).json();
-  expect(saved).toMatchObject({ people: [{ email: employee.id, manager: true, apps: { payroll: 'write' } }, { email: kim.id, manager: true, apps: { orders: 'write' } }] });
+  expect(saved).toMatchObject({ people: [{ email: employee.id, manager: true, apps: ['payroll'] }, { email: kim.id, manager: true, apps: ['orders'] }] });
   // No manager row was written: each is still the row the owner made.
   expect(rows()).toEqual(before);
   // The person she changed still manages, and the record shows nobody's switch moved.
@@ -312,23 +324,23 @@ it('refuses a manager who picks, unpicks or removes a manager, or touches the ow
 
 it('takes managing back at the next request, ends it with a removal, and does not bring it back', async () => {
   const asks = [['status', undefined, 'GET'], ['people', person('bo@example.com'), 'POST'], ['roles', { name: 'Sales' }, 'POST'],
-    ['grants', { key: 'cloudflare', people: { [employee.id]: 'read' } }, 'POST'], ['retry', undefined, 'POST']] as const;
+    ['retry', undefined, 'POST']] as const;
   const refusedAll = async () => { for (const [path, body, method] of asks) await refusedAs(kim, path, body, 'owner_required', method); };
   await pick(kim.id, ['orders']);
   expect((await ask(kim, 'status', undefined, 'GET')).status).toBe(200);
   // The owner unticks: no sign-out and no sign-in change, and Kim keeps her apps.
   const unticked = await (await pick(kim.id, ['orders'], false)).json();
-  expect(unticked).toMatchObject({ people: [{ email: employee.id }, { email: kim.id, status: 'active', settled: true, manager: false, apps: { orders: 'write' } }] });
+  expect(unticked).toMatchObject({ people: [{ email: employee.id }, { email: kim.id, status: 'active', settled: true, manager: false, apps: ['orders'] }] });
   expect(cf.writes).toHaveLength(1);
   await refusedAll();
-  expect(await currentPolicy(f.env, kim)).toMatchObject({ state: 'current', role: 'employee', manages: false, apps: new Map([['orders', 'write']]) });
+  expect(await currentPolicy(f.env, kim)).toMatchObject({ state: 'current', role: 'employee', manages: false, apps: new Set(['orders']) });
   // Ticked again and then removed: the removal ends it, with no row left behind.
   await pick(kim.id, ['orders']);
   expect(await (await run('people', 'POST', person(kim.id, [], true))).json()).toMatchObject({ people: [{}, { email: kim.id, status: 'removed', manager: false }] });
   expect(managers()).toEqual([]);
   await refusedAll();
   // Added back, by a save that names no switch: a person again, never a manager.
-  expect(await (await run('people', 'POST', person(kim.id, ['orders']))).json()).toMatchObject({ people: [{}, { email: kim.id, status: 'active', manager: false, apps: { orders: 'write' } }] });
+  expect(await (await run('people', 'POST', person(kim.id, ['orders']))).json()).toMatchObject({ people: [{}, { email: kim.id, status: 'active', manager: false, apps: ['orders'] }] });
   await refusedAll();
   expect(f.sql.prepare("SELECT COUNT(*) count FROM wong_access_members WHERE email = 'bo@example.com'").get()).toEqual({ count: 0 });
   expect(acted().filter(line => line.includes('manager_'))).toEqual([`${site.ownerEmail} manager_added`, `${site.ownerEmail} manager_removed`,

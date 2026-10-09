@@ -28,11 +28,6 @@ export const everyKey = (): Map<string, Level> => new Map(keyIds().map(id => [id
 export const heldLevels = (stored: Readonly<Record<string, Level>>): Map<string, Level> => new Map(Object.entries(stored)
   .filter(([id]) => registered(id)).map(([id, level]) => [id, offered(id).includes(level) ? level : "read"]));
 
-/** Stored direct-use choices as they count now: only a key whose service is set up has one, and
- *  look-ups and changes on a key that offers only Read reads as look-ups only. */
-export const directModes = (stored: Readonly<Record<string, Level>>): Map<string, Level> =>
-  new Map([...heldLevels(stored)].filter(([id]) => forwards(id)));
-
 /** A key is saved when every one of its secrets is a non-empty string here. Only this yes or no leaves the Worker.
  *  Project code is saved when the project can be handed out: a Cloudflare-kept one needs no secret. */
 export const saved = (env: object, id: string): boolean => registered(id) && (id === "code" ? codeSource(env) !== null :
