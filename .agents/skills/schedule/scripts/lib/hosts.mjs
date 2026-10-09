@@ -131,7 +131,13 @@ export function paseoAdapter({ env = process.env, call, now = () => Date.now() }
     async update(id, { timing, prompt }) {
       const rearm = timing?.mode === 'once';
       const args = ['update', id, ...(timing ? cadenceArgs(timing, now()) : []), ...(prompt ? ['--prompt', prompt] : [])];
-      if (rearm) args.splice(args.indexOf('--max-runs'), 2, '--no-max-runs');
+      if (rearm) {
+        let current;
+        try { current = await inspect(id); } catch { return { version: 1, host: 'paseo', action: 'update', nativeId: id, outcome: 'unknown' }; }
+        // Some installed CLIs reject their own clear-limit flag. Unlimited jobs
+        // need no clearing; capped jobs still require verified removal.
+        args.splice(args.indexOf('--max-runs'), 2, ...(current.maxRuns === null ? [] : ['--no-max-runs']));
+      }
       return mutation('update', id, args, row => (!prompt || row.prompt === prompt) && (!timing || cadenceMatches(row, timing)));
     },
     async run(id) {

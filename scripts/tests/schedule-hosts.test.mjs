@@ -98,12 +98,29 @@ test('uncertain native mutations and unavailable hosts never claim success', asy
 });
 
 test('adaptive rearm removes lifetime run cap and retains expiry rather than miscounting retained history', async () => {
-  const fake = fakePaseo(), adapter = paseoAdapter({ call: fake.call, now: () => NOW }); await adapter.create(binding(), 'rearm');
+  const fake = fakePaseo(), adapter = paseoAdapter({ call: fake.call, now: () => NOW }); await adapter.create(binding(), 'rearm'); fake.rows[0].maxRuns = 1;
   const timing = { mode: 'once', dueAt: '2026-10-10T10:00:00Z', expiresAt: '2026-10-10T10:01:00Z' };
   assert.equal((await adapter.update('job-1', { timing })).outcome, 'verified');
   const args = fake.calls.find(args => args[1] === 'update'); assert.ok(args.includes('--no-max-runs')); assert.ok(args.includes('--expires-in'));
 });
 
+test('unlimited adaptive jobs omit clear-limit flags; unavailable state and broken capped clearing stay unknown', async () => {
+  const fake = fakePaseo(), adapter = paseoAdapter({ call: fake.call, now: () => NOW });
+  await adapter.create(binding(), 'unlimited');
+  const timing = { mode: 'once', dueAt: '2026-10-10T10:00:00Z', expiresAt: '2026-10-10T10:01:00Z' };
+  assert.equal((await adapter.update('job-1', { timing })).outcome, 'verified');
+  const args = fake.calls.find(args => args[1] === 'update');
+  assert.ok(!args.includes('--no-max-runs')); assert.ok(!args.includes('--max-runs'));
+  const unavailable = paseoAdapter({ now: () => NOW, call: async () => { throw Error('unavailable'); } });
+  assert.equal((await unavailable.update('job-1', { timing })).outcome, 'unknown');
+  fake.rows[0].maxRuns = 1;
+  const broken = paseoAdapter({ now: () => NOW, call: async args => {
+    if (args[1] === 'update' && args.includes('--no-max-runs')) throw Error('INVALID_INTEGER');
+    return fake.call(args);
+  } });
+  assert.equal((await broken.update('job-1', { timing })).outcome, 'unknown');
+  assert.equal(fake.rows[0].maxRuns, 1);
+});
 test('Paseo refuses sub-minute absolute times before creating a job rather than firing early', async () => {
   const fake = fakePaseo(), adapter = paseoAdapter({ call: fake.call, now: () => NOW });
   await assert.rejects(adapter.create(binding({ timing: { mode: 'once', dueAt: '2026-10-10T10:00:01Z', expiresAt: '2026-10-10T10:01:00Z' } }), 'precision'), /minute precision/);
