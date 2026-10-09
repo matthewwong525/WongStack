@@ -75,3 +75,5 @@ Rename `.agents/skills/routine/` to `.agents/skills/schedule/`, preserving the u
 - **2026-10-09** — Check: the first remote payload run exposed an unprivileged-filesystem error in continuation construction. Read-only access now creates no directory, permission errors remain visible, and unknown CLI commands are rejected before opening progress. All checks and thresholds remain enabled.
 
 - **2026-10-09** — Check: selected goal stores now persist into later-session startup commands, and lifecycle updates use the same exact guarded startup prompt as registration. Focused schedule checks pass; these corrections preserve all gates.
+
+- **2026-10-09** — Check: the real record-only trial exposed ship treating a confirmed no-CI default branch as unreadable after publication. Ship now verifies the API's zero check count before using the existing PR-review gate; unreadable or conflicting responses still stop. This enables the agreed no-CI record route without weakening a configured gate.

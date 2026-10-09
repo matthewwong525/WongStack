@@ -26,6 +26,7 @@ appendFileSync(join(dir, 'calls'), 'gh ' + line + '\\n');
 const s = JSON.parse(readFileSync(join(dir, 'gh.json'), 'utf8'));
 const out = text => { process.stdout.write(text + '\\n'); process.exit(0); };
 const fail = (text, code = 1) => { process.stderr.write(text + '\\n'); process.exit(code); };
+if (line.startsWith('api repos/:owner/:repo/commits/main/check-runs') && line.endsWith('--jq .total_count')) { if (s.mainCountError) fail(s.mainCountError); out(s.mainCount ?? ''); }
 if (line.startsWith('api repos/:owner/:repo/commits/main/check-runs')) { if (s.mainChecksError) fail(s.mainChecksError); out(s.mainChecks ?? 'test\tsuccess'); }
 if (line.startsWith('repo view --json defaultBranchRef')) out('main');
 if (line.startsWith('repo view --json nameWithOwner')) out('team/repo');
@@ -302,6 +303,21 @@ test('the default branch is judged by the project’s own checks, never Dependab
   assert.equal(mainVerdict('test\tsuccess\nbuild\tcancelled\n'), 'failure');
   assert.equal(mainVerdict('test\tpending\n'), 'ok');
   assert.equal(mainVerdict(''), '');
+});
+
+test('confirmed zero default checks uses PR review; missing or conflicting counts stay unknown', t => {
+  for (const mainCount of ['0', '', '1']) {
+    const f = fixture(t, { gh: { mainChecks: '', mainCount } });
+    f.commit(f.change('demo'));
+    const result = f.run(['prepare', '--change', 'demo']);
+    assert.equal(result.value('DEFAULT_CHECKS'), mainCount === '0' ? 'ok' : 'unknown');
+    assert.equal(result.status, mainCount === '0' ? 0 : 6);
+    assert.equal(f.has('openspec/changes/demo'), mainCount !== '0');
+  }
+  const f = fixture(t, { gh: { mainChecks: '', mainCountError: 'HTTP 503' } });
+  f.commit(f.change('demo'));
+  assert.equal(f.run(['prepare', '--change', 'demo']).value('DEFAULT_CHECKS'), 'unknown');
+  assert.equal(f.has('openspec/changes/demo'), true);
 });
 
 test('a failing or unreadable default branch stops before any change is read', t => {
