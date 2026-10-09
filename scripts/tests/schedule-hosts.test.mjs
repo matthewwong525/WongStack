@@ -36,7 +36,7 @@ function fakePaseo() {
     if (action === 'inspect') { if (!row) throw Error('missing'); return structuredClone(row); }
     if (action === 'create') {
       const value = flag => args[args.indexOf(flag) + 1];
-      const created = { id: 'job-1', name: value('--name'), prompt: args[2], status: 'active', nextRunAt: '2026-10-10T10:00:00Z', runs: [], cadence: { type: 'cron', expression: args.includes('--cron') ? value('--cron') : paseoPreset(value('--every')), timezone: args.includes('--timezone') ? value('--timezone') : 'UTC' }, maxRuns: args.includes('--max-runs') ? Number(value('--max-runs')) : null, expiresAt: args.includes('--expires-in') ? new Date(NOW + Number.parseInt(value('--expires-in')) * 1000).toISOString() : null }; rows.push(created);
+      const created = { target: { config: { modeId: args.includes('--mode') ? value('--mode') : undefined } }, id: 'job-1', name: value('--name'), prompt: args[2], status: 'active', nextRunAt: '2026-10-10T10:00:00Z', runs: [], cadence: { type: 'cron', expression: args.includes('--cron') ? value('--cron') : paseoPreset(value('--every')), timezone: args.includes('--timezone') ? value('--timezone') : 'UTC' }, maxRuns: args.includes('--max-runs') ? Number(value('--max-runs')) : null, expiresAt: args.includes('--expires-in') ? new Date(NOW + Number.parseInt(value('--expires-in')) * 1000).toISOString() : null }; rows.push(created);
       if (lost) throw Error('lost create reply'); return structuredClone(created);
     }
     if (action === 'pause' || action === 'resume') row.status = action === 'pause' ? 'paused' : 'active';
@@ -63,6 +63,23 @@ test('Paseo adapter public arguments and operation recovery preserve one stable 
   assert.equal((await adapter.update('job-1', { prompt: 'new', timing: binding().timing })).outcome, 'verified');
   assert.equal((await adapter.update('job-1', { timing: { mode: 'recurring', every: '1h' } })).outcome, 'verified');
   fake.lose(); assert.equal((await adapter.pause('job-1')).outcome, 'verified'); assert.equal((await adapter.cancel('job-1')).outcome, 'verified'); assert.deepEqual(fake.rows, []);
+});
+test('selected execution mode is retained and mismatched read-back never verifies or duplicates creation', async () => {
+  const b = binding(); b.execution.context.mode = 'full-access';
+  const fake = fakePaseo(), adapter = paseoAdapter({ call: fake.call, now: () => NOW });
+  assert.equal((await adapter.create(b, 'selected-mode')).outcome, 'verified');
+  const args = fake.calls.find(args => args[1] === 'create');
+  assert.equal(args[args.indexOf('--mode') + 1], 'full-access');
+  fake.rows[0].target.config.modeId = 'auto';
+  assert.equal((await adapter.create(b, 'selected-mode')).outcome, 'unknown');
+  assert.equal(fake.calls.filter(args => args[1] === 'create').length, 1);
+  const different = fakePaseo();
+  const mismatch = paseoAdapter({ now: () => NOW, call: async args => {
+    const row = await different.call(args);
+    if (args[1] === 'inspect') row.target.config.modeId = 'auto';
+    return row;
+  } });
+  assert.equal((await mismatch.create(b, 'different-mode')).outcome, 'unknown');
 });
 test('one-time public create has absolute due date, single-run cap and expiration guard', async () => {
   const fake = fakePaseo(), adapter = paseoAdapter({ call: fake.call, now: () => NOW });

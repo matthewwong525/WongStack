@@ -77,3 +77,5 @@ Rename `.agents/skills/routine/` to `.agents/skills/schedule/`, preserving the u
 - **2026-10-09** — Check: selected goal stores now persist into later-session startup commands, and lifecycle updates use the same exact guarded startup prompt as registration. Focused schedule checks pass; these corrections preserve all gates.
 
 - **2026-10-09** — Check: the real record-only trial exposed ship treating a confirmed no-CI default branch as unreadable after publication. Ship now verifies the API's zero check count before using the existing PR-review gate; unreadable or conflicting responses still stop. This enables the agreed no-CI record route without weakening a configured gate.
+
+- **2026-10-09** — Check: Paseo fired the bounded probe at its actual later UTC time, but the default auto mode requested command approval. Creation now retains an explicitly chosen execution mode and requires matching native read-back; it never silently widens a default. The next synthetic probe selects full-access for its approved local diagnostic only. The blocked probe and its agent were removed; original jobs remain untouched.

@@ -60,6 +60,10 @@ function cadenceMatches(row, timing, { creating = false } = {}) {
   if (timing.expiresAt && (!Number.isFinite(Date.parse(row.expiresAt)) || Math.abs(Date.parse(row.expiresAt) - Date.parse(timing.expiresAt)) > 5000)) return false;
   return true;
 }
+function creationMatches(row, binding) {
+  return row.prompt === startupPrompt(binding) && cadenceMatches(row, binding.timing, { creating: true })
+    && (!binding.execution.context.mode || row.target?.config?.modeId === binding.execution.context.mode);
+}
 function cadenceArgs(timing, now) {
   if (timing.mode === 'once') {
     const due = new Date(timing.dueAt);
@@ -102,16 +106,17 @@ export function paseoAdapter({ env = process.env, call, now = () => Date.now() }
       const prior = await invoke(['schedule', 'ls']);
       const matches = prior.filter(row => row.name === name);
       requireValue(matches.length <= 1, 'Registration operation has conflicting native jobs.');
-      if (matches[0]) { const observed = await inspect(matches[0].id); return observed.prompt === startupPrompt(binding) && cadenceMatches(observed, binding.timing, { creating: true }) ? normalizedReceipt('paseo', 'create', observed) : { version: 1, host: 'paseo', action: 'create', nativeId: observed.id, outcome: 'unknown', operationId }; }
+      if (matches[0]) { const observed = await inspect(matches[0].id); return creationMatches(observed, binding) ? normalizedReceipt('paseo', 'create', observed) : { version: 1, host: 'paseo', action: 'create', nativeId: observed.id, outcome: 'unknown', operationId }; }
       const args = ['create', startupPrompt(binding), '--name', name, '--cwd', binding.execution.context.cwd, ...cadenceArgs(binding.timing, now())];
       requireValue(binding.execution.context.cwd && !/[/\\]worktrees[/\\]/.test(binding.execution.context.cwd), 'Use a durable primary checkout, not a disposable worktree.');
       if (binding.execution.context.provider) args.push('--provider', binding.execution.context.provider);
+      if (binding.execution.context.mode) args.push('--mode', binding.execution.context.mode);
       let row;
       try { row = await invoke(['schedule', ...args]); } catch { /* lost create response: look up this operation */ }
       const found = row?.id ? row : (await invoke(['schedule', 'ls'])).find(each => each.name === name);
       if (!found) return { version: 1, host: 'paseo', action: 'create', nativeId: null, outcome: 'unknown', operationId };
       const observed = await inspect(found.id);
-      return observed.prompt === startupPrompt(binding) && cadenceMatches(observed, binding.timing, { creating: true }) ? normalizedReceipt('paseo', 'create', observed) : { version: 1, host: 'paseo', action: 'create', nativeId: observed.id, outcome: 'unknown', operationId };
+      return creationMatches(observed, binding) ? normalizedReceipt('paseo', 'create', observed) : { version: 1, host: 'paseo', action: 'create', nativeId: observed.id, outcome: 'unknown', operationId };
     },
     pause: id => mutation('pause', id, ['pause', id], row => row.status === 'paused'),
     resume: id => mutation('resume', id, ['resume', id], row => row.status === 'active'),
