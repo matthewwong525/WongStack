@@ -6,15 +6,19 @@ import { credentialFree, requireValue, ScheduleError } from './records.mjs';
 export function localProgress(reference) {
   requireValue(path.isAbsolute(reference), 'Continuation needs an absolute durable path.');
   const directory = path.dirname(reference), lock = `${reference}.claim`;
-  mkdirSync(directory, { recursive: true, mode: 0o700 });
   return {
-    async read() { return existsSync(reference) ? JSON.parse(readFileSync(reference, 'utf8')) : null; },
+    async read() {
+      try { return JSON.parse(readFileSync(reference, 'utf8')); }
+      catch (error) { if (error.code === 'ENOENT') return null; throw error; }
+    },
     async write(value) {
       credentialFree(value);
+      mkdirSync(directory, { recursive: true, mode: 0o700 });
       const temp = `${reference}.${process.pid}.tmp`;
       writeFileSync(temp, `${JSON.stringify(value, null, 2)}\n`, { mode: 0o600 }); renameSync(temp, reference);
     },
     async claim(runId) {
+      mkdirSync(directory, { recursive: true, mode: 0o700 });
       try { const fd = openSync(lock, 'wx', 0o600); writeFileSync(fd, runId); closeSync(fd); return true; }
       catch (error) { if (error.code === 'EEXIST') return false; throw error; }
     },

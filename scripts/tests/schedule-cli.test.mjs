@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { main, scheduleView } from '../../.agents/skills/schedule/scripts/schedule.mjs';
@@ -11,7 +11,9 @@ function workspace(t) { const root = mkdtempSync(path.join(tmpdir(), 'wong-sched
 async function run(root, argv, extras = {}) { let text = ''; const code = await main(argv, { root, out: value => { text += value; }, ...extras }); return { code, text, data: text.startsWith('{') ? JSON.parse(text) : null }; }
 test('one durable local store claims exclusively, writes atomically and does not steal claims', async t => {
   const root = workspace(t), file = path.join(root, 'outside-checkout/state.json'), first = localProgress(file), second = localProgress(file);
-  assert.equal(await first.read(), null); await first.write({ revision: 'approved' }); assert.equal((await second.read()).revision, 'approved');
+  assert.equal(existsSync(path.dirname(file)), false);
+  assert.equal(await first.read(), null); assert.equal(existsSync(path.dirname(file)), false);
+  await first.write({ revision: 'approved' }); assert.equal((await second.read()).revision, 'approved');
   assert.equal(await first.claim('one'), true); assert.equal(await second.claim('two'), false); await second.release('two'); assert.equal(await second.claim('two'), false);
   await first.release('one'); assert.equal(await second.claim('two'), true); await second.release('two');
   assert.equal(readFileSync(file, 'utf8').includes('approved'), true);

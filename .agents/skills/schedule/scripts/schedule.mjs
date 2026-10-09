@@ -53,6 +53,7 @@ export async function main(argv = process.argv.slice(2), world = {}) {
     const options = { store: values.store, openspec: world.openspec };
     let result;
     if (values.help) { world.out(`${USAGE}\n`); return 0; }
+    requireValue(['legacy', 'list', 'ls', 'create-routine', 'create-goal', 'inspect', 'resolve', 'validate', 'start', 'register', 'adopt', 'bind', 'reconcile', 'release', 'pause', 'resume', 'run', 'cancel', 'answer', 'change'].includes(command), `Unknown schedule command ${command}.`);
     if (command === 'legacy') {
       const context = world.legacyContext ?? legacyContext(root, world.env);
       if (action === 'teardown') result = await teardownLegacy(context, values.resources?.split(','), world);

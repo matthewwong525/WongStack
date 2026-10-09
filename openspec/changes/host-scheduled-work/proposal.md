@@ -71,3 +71,5 @@ Rename `.agents/skills/routine/` to `.agents/skills/schedule/`, preserving the u
 - **2026-10-09** — Check: implementation source is authored; use `/save` only to obtain the gated source snapshot needed for harmless later-session acceptance. Trial records publish in an isolated synthetic repository, leaving this implementation unmerged. Remaining acceptance stays unchecked until observed.
 
 - **2026-10-09** — Check: `/save` reconciled capability deltas, including deletion of the retired empty cloud capability; the host capability now owns its main-spec area mapping. No operational goal is archived or executed by this reconciliation.
+
+- **2026-10-09** — Check: the first remote payload run exposed an unprivileged-filesystem error in continuation construction. Read-only access now creates no directory, permission errors remain visible, and unknown CLI commands are rejected before opening progress. All checks and thresholds remain enabled.
