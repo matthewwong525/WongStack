@@ -1,6 +1,6 @@
 # Observed acceptance — 2026-10-09
 
-Implementation is built on `schedule-skill-proactive`, PR #346, and remains unmerged. The latest correction requires proof that a changed wake survives the current session ending; an immediate native read-back is insufficient. This document records observations, not a completed adaptive acceptance claim.
+Implementation is built on `schedule-skill-proactive`, PR #346, and remains unmerged. The chosen default is ordinary fixed-cadence goal checks. Exact adaptive wake-ups retain post-session verification guards but are optional. This document records observations; the new fixed-mode live acceptance is still pending.
 
 ## Local checks
 
@@ -20,18 +20,22 @@ Temporary private repository `matthewwong525/wongstack-schedule-trial-20261009-0
 | One persisted question delivered | Parent repaired the clock after session end; agent `203ab024-2a0b-486c-a456-23c295f5a518` fired naturally 04:23 UTC | One synthetic inbox question, pending with deferred read; no answer or call. Its 04:26 wake was again moved to 2027 |
 | Owned cancellation and terminal archive | Routine PR13 merged `bec6f71783e240901a506248048eef8819cd2a39`; goal archive PR14 merged `24db6d2ec5dd0f26daa552a385ec3326fac1957e` | Passed; disabled routine retained, cancelled goal archived with its unchecked completion task. No capability spec files changed |
 
-The goal was cancelled, not completed. A waiting later check, identified simulated answer, natural resumption, and synthetic-completion stopping remain unobserved. Task 7.4 stays open. Task 7.6's normal publishing decision waits for acceptance.
+The goal was cancelled, not completed. A waiting later check, identified simulated answer, natural resumption, and synthetic-completion stopping remain unobserved. Task 7.4 stays open. Task 7.6's normal publishing decision waits for the chosen fixed-mode acceptance.
 
-## Host findings and pending repair
+## Host findings and optional adaptation
 
 Installed public Paseo CLI 0.10.1 advertises `--no-max-runs` but rejects it with `INVALID_INTEGER`. The adapter avoids needless clearing only after inspecting an already-unlimited owned job. Default auto mode requested command approval in a later session; approved trial mode was retained explicitly, never widened silently.
 
-Paseo's `finishRun` advances the already-updated `nextRunAt` instead of retaining a future time chosen during the run. A one-time cron consequently jumps a year. A repair is prepared at `/tmp/wong-paseo-reschedule.patch`; it retains a future clock when it differs from that run's `scheduledFor`. Isolated tests of the installed original reproduced the year jump; the patched copy preserved the requested time and retained normal recurrence, pause, run-cap and terminal behavior. Neither the installed scheduler nor daemon has been modified. The owner has been asked before this shared-host change and restart.
+Paseo's `finishRun` advances the already-updated `nextRunAt` instead of retaining a future time chosen during the run. A one-time cron consequently jumps a year. A repair is prepared at `/tmp/wong-paseo-reschedule.patch`; it retains a future clock when it differs from that run's `scheduledFor`. Isolated tests of the installed original reproduced the year jump; the patched copy preserved the requested time and retained normal recurrence, pause, run-cap and terminal behavior. Neither the installed scheduler nor daemon has been modified. The owner chose ordinary periodic goal checks instead; the repair question is withdrawn. No shared-host modification or restart is authorized.
 
-After approval, verify the actual loaded module, preserve existing definitions, apply only the reviewed repair, and observe two genuinely later probe sessions on the same job: a clock changed during the first must survive completion and fire the second at the requested time. Only then set `updateAfterRun` and repeat the unobserved routine/goal phases using the latest gated source. Rejected or unanswered approval leaves adaptive scheduling unavailable on this host; do not replace it with an unapproved service or silently change the agreed acceptance.
+The prepared patch is not a requirement for this change. The final trial uses ordinary Paseo Schedules with `adaptive:false`, `update:false`, `updateAfterRun:false` and no requested `nextAt`. Every natural session checks completion first, retains one unanswered question, and only completion triggers owned cancellation. Exact clock changes remain unavailable on this installed host and are not claimed.
 
 Codex and Claude CLI help and the callable-tool inventory expose no independent native scheduler for these repository sessions. Page-controller and Sites automations are different destinations, not evidence of repo-session readiness. Their adaptive modes remain unavailable here. Host runbooks and contract fixtures are authored; no real later Codex/Claude native session or cloud self-management is claimed. The Claude native-name collision and cloud restrictions are retained in the documented discovery route.
 
 ## Cleanup
 
-All captured synthetic native IDs were cancelled/deleted and inspected absent. Eight closed agents in the exact synthetic checkout were then deleted; the returned native agent inventory contained no remaining trial agents. Final native inventory contains only pre-existing IDs `719bc428`, `dc101425`, `704743e2`, `d9a87abe`, active at the same UTC next times (12:00, 20:30, 07:00, 10:30 respectively). No existing job, secret or cloud resource was changed. Temporary fixture repositories and data are retained solely for audit/continuation pending the host decision; remove only those exact fixtures when the trial is resolved. Raw local diagnostic files live outside Git and contain no intended business data. The finite archive diff confirms no `openspec/specs/` modifications.
+All captured synthetic native IDs were cancelled/deleted and inspected absent. Eight closed agents in the exact synthetic checkout were then deleted; the returned native agent inventory contained no remaining trial agents. Final native inventory contains only pre-existing IDs `719bc428`, `dc101425`, `704743e2`, `d9a87abe`, active at the same UTC next times (12:00, 20:30, 07:00, 10:30 respectively). No existing job, secret or cloud resource was changed. Temporary fixture repositories and data are retained solely for audit/continuation until the periodic trial finishes; remove only those exact fixtures when the trial is resolved. Raw local diagnostic files live outside Git and contain no intended business data. The finite archive diff confirms no `openspec/specs/` modifications.
+
+## Fixed-mode source verification
+
+The approved fixed-mode refinement needed no lifecycle implementation change. Its multi-session regression forbids host clock updates and covers one question, a later completion check while waiting, the identified answer, an authorized read, and completion before any more work with verified owned cancellation. The full local repository pre-check passed; shellcheck stays enabled in remote CI. Native fixed-mode observations will be appended after the trial, not assumed from this test.

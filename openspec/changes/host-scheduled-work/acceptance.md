@@ -56,7 +56,7 @@ const sections = {
 };
 const proposal = `# Goal: ${name}\n\n` + Object.entries(sections).map(([heading, body]) => `## ${heading}\n${body}\n`).join('\n');
 const binding = bind(name, `openspec/changes/${name}`, { ...baseTiming, mode: 'goal' }, digest(proposal));
-binding.completionSource = input; binding.questionSurface = path.join(data, 'inbox.json'); binding.adaptive = true;
+binding.completionSource = input; binding.questionSurface = path.join(data, 'inbox.json'); binding.adaptive = false;
 writeFileSync(path.join(data, 'goal-request.json'), JSON.stringify({ name, proposal, binding,
   tasks: '- [ ] Observe authoritative synthetic completion and verified owned stopping.\n' }, null, 2));
 NODE
@@ -87,8 +87,8 @@ Paseo fresh agents expose PASEO_AGENT_ID. `start --record <ref> --native-id <id>
 Use actual local read-only adapters: `checkCompletion` reads the synthetic input; `performAction` reads it and records a digest as evidence; `deliverQuestion` writes one synthetic inbox item in the trial directory and exposes it in the native run result. No send/call adapter exists. `chooseStep` uses the persisted progress to demonstrate these phases:
 
 - Routine: a later run reads published instructions and input, persists its result, and leaves the native recurrence active. Inspect its native run history and nextRunAt, and verify no OpenSpec routine goal appeared.
-- Goal first run: check synthetic completion false, persist a read receipt, then choose a minute-aligned nextAt within bounds. Inspect the same native ID after update and observe a genuinely later session, not a manual immediate run.
-- Goal later run: retain one pending synthetic question/deferred read. Observe waiting and no duplicate question on another check. Parent answers its exact question ID as the identified synthetic owner using `answer`; resume the paused native job if applicable. A timeout must produce no answer.
+- Goal first run: check synthetic completion false, persist a read receipt, leave the ordinary fixed cadence intact. Inspect the same native ID after session end and observe the next naturally scheduled session. Native timing update capability stays false; do not patch or restart Paseo.
+- Goal later run: retain one pending synthetic question/deferred read. Observe waiting and no duplicate question on another check. Parent answers its exact question ID as the identified synthetic owner using `answer`; resume the same native job if the record route pauses it. A timeout must produce no answer.
 - Set synthetic completion true. The next native session must check it before work, persist the terminal guard, cancel/read back only its own trigger, checkpoint completion evidence and verified stop, then use the terminal record archive route. The original goal remains open until that evidence; cancellation/archival touches no capability spec.
 
 Record exact native IDs, agent IDs, observed timestamps, publication revision, read/clock/stop receipts and question transitions in trial evidence; exclude prompts containing private data and credentials. Actual other-host tools must prove their own later access; absent Codex/Claude tools and Claude cloud self-management remain reported limits, never passes.
@@ -96,3 +96,7 @@ Record exact native IDs, agent IDs, observed timestamps, publication revision, r
 ## Cleanup and final preview
 
 Parent owns trial cleanup: pause/cancel only the two captured trial IDs, inspect absence, remove their selected routine/goal records through exact record delivery, then remove only this trial's local directory/clone. Preserve every pre-existing native/cloud job, secret and resource. Rebuild the implementation review page, attach observed evidence/limits and provide the host preview or read-only evidence. Task7.6 does not authorize publishing business code or activating business work.
+
+## Chosen final trial mode
+
+The owner chose ordinary periodic Paseo goal checks. Author the harmless fixture with `adaptive:false`, `update:false`, `updateAfterRun:false`, no requested `nextAt`, read-only actions, one-minute cadence and bounded expiry. Every actual later session checks completion even while waiting. Verify two successful routine reads, goal read, one question, another waiting session without duplicate/deferred work, the identified synthetic answer, a subsequent authorized read, and completion-based owned cancellation/archive. Retain optional adaptation safeguards, but do not treat the installed host’s unavailable exact clock changes as a blocker for the chosen fixed mode. No shared host modification or restart is authorized.

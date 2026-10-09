@@ -1,10 +1,10 @@
 # Schedule future work and keep routines and goals visible
 
-**Status:** blocked
+**Status:** building
 
 **Branch:** schedule-skill-proactive
 
-**Open questions:** May the prepared Paseo 0.10.1 repair be applied to the shared scheduler and its daemon restarted? The owner has been asked; no answer yet. Live adaptive acceptance remains blocked.
+**Open questions:** none; ordinary Paseo periodic checks are the chosen default.
 
 ## Why
 
@@ -27,7 +27,7 @@ Scheduling currently installs a separate cloud runner instead of using the assis
                               │      │
                             resume  archive
   ```
-- **Follow up with judgment.** Check progress before contacting anyone, remember what has already happened, and choose a suitable next check within the agreed limits. A confirmed payment ends its payment follow-up schedule. A scheduler that cannot change or stop itself says so before an adaptive schedule is created.
+- **Follow up through scheduled goal checks.** Use ordinary host schedules to start periodic sessions. Every session checks whether the goal has been achieved before contacting anyone; verified completion marks the goal finished and stops its owned schedule. While pending, remember prior actions, respect agreed follow-up timing, and keep dependent work waiting for your answer. These checks are useful work. Exact changes to the next native wake-up are optional and require verified host support; they are not a prerequisite for goal checks or a reason to patch the host.
 - **Bring you in when needed.** Offer you a call when useful and wait for your answer. Keep that question pending across sessions, without repeatedly asking or continuing the follow-up it blocks. Sending follow-ups needs an agreed recipient, channel, and scope; scheduling alone does not grant permission to call, pay, or publish code.
 - **BREAKING: retire the old skill name and its runner setup.** Existing cloud and host schedules keep running. Moving one is an explicit handoff that avoids duplicate follow-ups; removing the old cloud resources is a separate requested step.
 
@@ -89,3 +89,7 @@ Rename `.agents/skills/routine/` to `.agents/skills/schedule/`, preserving the u
 - **2026-10-09** — Check: all 76 focused schedule tests pass after the live-trial corrections. Actual record publication, ongoing definition visibility, unfinished goal visibility, cancellation and terminal archive passed in an isolated repository. Adaptive wake-up survival and completion-based stopping remain unverified; see [acceptance evidence](acceptance-evidence.md). No shared-host repair or implementation merge has been performed.
 
 - **2026-10-09** — Check: the final full worktree pre-check passed (script suite, app checks, payload links/config/retirement/specs, wiki and context budget). Shellcheck is unavailable locally and remains enabled in remote CI. Save this source revision for the still-required later adaptive trial; blocked acceptance is not a publishing approval.
+
+- **2026-10-09** — Asked: proceed with ordinary Paseo Schedules for periodic goal checking and stopping, without patching the shared host? → yes, move to the next step. Every pending-goal session can discover completion; these are useful checks, not automatically extra sessions. Exact native wake changes remain optional and capability-bound. The earlier host-repair question is withdrawn; do not apply the prepared patch or restart the shared daemon.
+
+- **2026-10-09** — Check: fixed periodic goal checking already works in the lifecycle; the new multi-session regression forbids clock updates and verifies waiting, identified answer, authorized read and completion-based stopping. The full local pre-check passed, with shellcheck retained in CI. Save the prepared source for the chosen real periodic trial.

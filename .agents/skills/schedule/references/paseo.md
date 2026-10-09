@@ -1,5 +1,5 @@
 # Paseo
 
-Read public help/inspect/list. Report daemon/computer uptime; retain approved mode. Defaults may need approval. No paused/isolation create flag: publish guards, create, bind/publish/reconcile in durable checkout.
+Read public help/inspect/list. Report daemon/computer uptime; retain approved mode. No paused create: publish guards, create, bind/publish/reconcile in durable checkout.
 
-Verify later identity/record/progress and clock/stop. Set `updateAfterRun` only after the changed clock survives session completion. Paseo 0.10.1 overwrites in-run updates. Unknown stays unavailable. One-time work needs absolute due/expiry/cap and minute precision; verify cap clearing, never infer lifetime counts from history.
+Default to ordinary Schedules: verify later identity/record/progress/stop. Optional `updateAfterRun` needs clock survival and later firing; Paseo 0.10.1 overwrites in-run updates. Fixed checks need no patch. One-time needs absolute due/expiry/cap and minute precision; verify cap clearing, never infer lifetime counts from history.

@@ -139,6 +139,44 @@ test('adaptive questions retain bounded completion checks on the same trigger wi
   assert.equal((await executeRun(item(), s, { ...context, now: Date.parse('2026-10-10T10:10:00Z') })).state, 'completed');
   assert.equal(actions, 0); assert.deepEqual(s.host.called.at(-1), ['cancel', 'job-1']);
 });
+test('fixed goal checks wait for the identified answer and stop on completion without native updates', async () => {
+  const b = binding({ adaptive: false });
+  b.execution.capabilities.update = false; b.execution.capabilities.updateAfterRun = false;
+  let complete = false, checks = 0, selections = 0, deliveries = 0, reads = 0;
+  const action = { type: 'read', id: 'approved-read' };
+  const s = services({
+    host: host({ async update() { throw Error('Fixed checks must not update the host clock'); } }),
+    async checkCompletion() { checks++; return { complete, evidence: complete ? 'synthetic://paid' : 'synthetic://unpaid' }; },
+    async chooseStep({ progress, waiting }) {
+      selections++;
+      if (waiting) return { question: { id: 'must-not-repeat' }, action };
+      if (progress.lastAnswer) {
+        assert.equal(progress.lastAnswer.deferredAction, action.id);
+        return { action };
+      }
+      return { question: { id: 'fixed-call-offer', deferredAction: action.id }, action };
+    },
+    async deliverQuestion(question) { deliveries++; assert.equal(question.owner, b.owner); return { verified: true }; },
+    async performAction(selected) { assert.deepEqual(selected, action); reads++; return { verified: true, reference: 'synthetic://authorized-read' }; },
+  });
+  const current = item({ binding: b });
+  const run = offset => ({ ...context, runId: 'fixed-' + offset, now: NOW + offset * 86400000 });
+  assert.equal((await executeRun(current, s, run(0))).state, 'waiting');
+  assert.equal((await executeRun(current, s, run(1))).state, 'waiting');
+  assert.equal(checks, 2); assert.equal(deliveries, 1); assert.equal(reads, 0);
+  assert.equal((await s.store.read()).pendingQuestion.id, 'fixed-call-offer');
+  await assert.rejects(answerQuestion(s.store, { questionId: 'fixed-call-offer', owner: 'someone-else', answer: 'continue' }), /identified owner/);
+  await answerQuestion(s.store, { questionId: 'fixed-call-offer', owner: b.owner, answer: 'continue the read-only check' });
+  assert.equal((await executeRun(current, s, run(2))).state, 'scheduled');
+  assert.equal(reads, 1); assert.equal(deliveries, 1); assert.deepEqual(s.host.called, []);
+  complete = true;
+  const result = await executeRun(current, s, run(3));
+  assert.equal(result.state, 'completed'); assert.equal(result.stopVerified, true); assert.equal(result.archivePending, true);
+  assert.equal(checks, 4); assert.equal(selections, 3); assert.equal(reads, 1);
+  assert.deepEqual(s.host.called, [['cancel', 'job-1']]);
+  assert.equal((await s.store.read()).terminal.evidence, 'synthetic://paid');
+  assert.equal((await executeRun(current, s, run(4))).suppressed, true); assert.equal(checks, 4);
+});
 test('question rearm uncertainty stays visible and suppresses deferred work', async () => {
   const s = services({ async chooseStep() { return { question: { id: 'q' }, nextAt: '2026-10-10T10:00:00Z' }; }, async deliverQuestion() { return { verified: true }; }, host: host({ async update() { throw Error('lost response'); } }) });
   assert.equal((await executeRun(item(), s, context)).state, 'cleanup-pending'); assert.equal((await s.store.read()).reschedulePending, true); assert.equal((await s.store.read()).pendingQuestion.id, 'q');

@@ -90,7 +90,7 @@ Each run SHALL locate its exact published routine definition or finite goal plan
 
 ### Requirement: Completion is checked before outreach
 
-A goal-based run SHALL check the named authoritative completion source before contacting anyone. Confirmed completion SHALL prevent further goal actions and stop its owned execution items or native schedule triggers, without disabling a shared clock used by other work. Missing or ambiguous evidence SHALL not be treated as completion. A failed stop SHALL remain visible as cleanup pending while further outreach is suppressed.
+A goal-based run SHALL check the named authoritative completion source before contacting anyone. Goal checks SHALL default to an agreed periodic cadence and SHALL not require native timing updates. Ending a session with a pending goal SHALL leave that schedule active; confirmed completion SHALL mark the goal finished, prevent further goal actions and stop its owned execution items or native schedule triggers, without disabling a shared clock used by other work. Missing or ambiguous evidence SHALL not be treated as completion. A failed stop SHALL remain visible as cleanup pending while further outreach is suppressed.
 
 #### Scenario: An invoice was paid
 
@@ -104,7 +104,7 @@ A goal-based run SHALL check the named authoritative completion source before co
 
 ### Requirement: Adaptive wake-ups are capability-bound and scoped
 
-An adaptive schedule SHALL let a future session choose and verify its next wake-up within the agreed timing, contact-hour, and expiry limits. It SHALL be activated only when that session can persist continuation, change timing, and stop the schedule. A fixed polling alternative SHALL be described as fixed and accepted separately when it changes the requested behavior.
+An optional adaptive schedule SHALL let a future session choose and verify its next wake-up within the agreed timing, contact-hour, and expiry limits. It SHALL be activated only when that session can persist continuation, change timing, and stop the schedule. Fixed periodic checks SHALL be described as fixed; replacing an explicitly requested exact adaptive wake-up SHALL need the person's agreement.
 
 #### Scenario: The person promises to pay Friday
 
@@ -151,7 +151,7 @@ When a call would help, the schedule SHALL offer it to the user through a reacha
 #### Scenario: The next session opens before an answer
 
 - **WHEN** another session starts while that question is still pending
-- **THEN** it preserves the wait without asking the same question again or inferring an answer
+- **THEN** it checks goal completion and preserves the wait without asking the same question again, performing the deferred action, or inferring an answer
 
 ### Requirement: Scheduled authority is explicit and does not widen itself
 

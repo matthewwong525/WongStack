@@ -10,7 +10,7 @@ Prefer predictable code on an existing timed-job facility: an export, a fixed re
 
 The host is the app running your assistant, independently of which model you use. A Codex session inside Paseo can use Paseo's clock. New schedules add no cloud runner or model key. The assistant checks the actual tools and account before offering a mode; a product's documentation alone does not prove this account can run it.
 
-Before activation, it reports the destination, timezone, due time or cadence, working folder, model settings, required connections, and what must remain running. Local schedules may need the computer and app on. A loop tied to this chat cannot promise a fresh session after it closes. Claude cloud sessions cannot manage their cloud schedules from inside the run; adaptation needs a separate verified control route. If the future session cannot read instructions, update its own clock, or stop it, the assistant explains that limit before offering autonomous follow-ups.
+Before activation, it reports the destination, timezone, due time or cadence, working folder, model settings, required connections, and what must remain running. Local schedules may need the computer and app on. A loop tied to this chat cannot promise a fresh session after it closes. Claude cloud sessions cannot manage their cloud schedules from inside the run; stopping needs a separate verified control route. Future sessions must read instructions and progress and stop their owned schedule when the goal is achieved. Fixed checks do not need native timing updates.
 
 ## What stays in the repo
 
@@ -24,7 +24,9 @@ Work with a finish line has a finite OpenSpec goal using [the scheduled-work sch
 
 Each fresh session reads the exact published instructions and persistent progress, checks its owned job and approved revision, then acts within your agreed scope. It needs a stable route to those instructions, beyond a temporary workspace. Missing records, changed bindings, revoked access, or obsolete runs block dependent actions.
 
-A goal checks its completion source before outreach. Confirmed payment ends an invoice follow-up. A successful ongoing routine keeps its next recurrence. When adapting, the run saves its continuation before changing the clock and reads the result back. One-time jobs retain an absolute due time and an expiration guard, so a five-field cron expression cannot make them repeat every year.
+A goal uses ordinary periodic schedules by default. Each session checks its completion source before outreach. Confirmed payment marks an invoice follow-up finished and stops its owned schedule. A pending goal stays scheduled after the session ends; checking again can discover completion. A successful ongoing routine keeps its next recurrence.
+
+Exact native wake-up changes are optional. They require proof that a changed clock survives session completion and starts the later session. When adapting, the run saves its continuation before changing the clock and reads the result back. One-time jobs retain an absolute due time and an expiration guard, so a five-field cron expression cannot make them repeat every year.
 
 Automatic contacting requires an agreed recipient, channel, message purpose, frequency, and end condition. It also requires durable progress and verified ownership that prevents overlapping sends. After an uncertain send, the next run checks the service's receipt; it waits for help if the result cannot be resolved. A schedule never grants itself permission to call, pay, refund, or publish code.
 
