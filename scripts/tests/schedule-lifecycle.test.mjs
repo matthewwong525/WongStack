@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { executeRun, nextWake, readyToRun, authorize, answerQuestion, register, transitionRecord, migrate, archiveGoal, terminal, adopt } from '../../.agents/skills/schedule/scripts/lib/lifecycle.mjs';
 import { item, binding, context, store, host, NOW } from './fixtures/scheduled-work.mjs';
+import { startupPrompt } from '../../.agents/skills/schedule/scripts/lib/hosts.mjs';
 
 function services(overrides = {}) {
   return { store: store(), host: host(), async checkCompletion() { return { complete: false, evidence: 'synthetic://unpaid' }; }, async chooseStep() { return {}; }, ...overrides };
@@ -159,6 +160,7 @@ test('explicit record transition preserves one native identity and leaves succes
   const s = store({ receipts: [] }), h = host();
   const result = await transitionRecord(from, to, { approved: true, host: h, store: s });
   assert.equal(result.state, 'paused'); assert.equal(result.archivePredecessor, false); assert.equal((await s.read()).generation, 2);
+  assert.deepEqual(h.called.find(call => call[0] === 'update'), ['update', to.binding.execution.nativeId, { prompt: startupPrompt(to.binding) }]);
   await assert.rejects(transitionRecord(from, to, { host: h, store: s }), /explicit/);
   await assert.rejects(transitionRecord(from, { ...to, binding: binding() }, { approved: true, host: h, store: s }), /successor/);
   await s.write({ pendingQuestion: {} }); await assert.rejects(transitionRecord(from, to, { approved: true, host: h, store: s }), /pending/);

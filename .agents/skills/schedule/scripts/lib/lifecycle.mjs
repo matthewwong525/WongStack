@@ -1,7 +1,7 @@
 // Pure guards plus a receipt-driven run. Callers supply actual completion/outward services.
 import { randomUUID } from 'node:crypto';
 import { credentialFree, requireValue, validateBinding } from './records.mjs';
-import { validateCapabilities, validateReceipt } from './hosts.mjs';
+import { startupPrompt, validateCapabilities, validateReceipt } from './hosts.mjs';
 
 export function readyToRun(item, progress, { nativeId, generation, publishedRevision, now = Date.now() }) {
   const binding = item.binding;
@@ -147,12 +147,11 @@ export async function transitionRecord(from, to, { approved = false, host, store
   requireValue(paused.outcome === 'verified', 'Original trigger pause is unverified; no successor activation.');
   const progress = await store.read();
   requireValue(!progress?.uncertain && !progress?.pendingQuestion, 'Resolve pending actions/questions before changing record type.');
-  const receipt = await host.update(to.binding.execution.nativeId, { prompt: servicesPrompt(to.binding) });
+  const receipt = await host.update(to.binding.execution.nativeId, { prompt: startupPrompt(to.binding) });
   requireValue(receipt.outcome === 'verified', 'Successor prompt update is unverified; remain paused.');
   await store.write({ ...progress, revision: to.binding.revision, generation: to.binding.execution.generation, terminal: null });
   return { state: 'paused', predecessor: 'superseded', successor: to.reference, archivePredecessor: from.kind === 'goal', receipt };
 }
-function servicesPrompt(binding) { return `Read published ${binding.repository} record ${binding.record} revision ${binding.revision} generation ${binding.execution.generation}; follow .agents/skills/schedule/references/run.md.`; }
 export async function migrate(oldHost, oldId, newHost, binding, store, { approved = false, operationId = randomUUID() } = {}) {
   requireValue(approved, 'Migration requires an explicit selected-job handoff.');
   const previous = await oldHost.inspect(oldId);

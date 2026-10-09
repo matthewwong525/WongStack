@@ -170,7 +170,7 @@ export async function createGoal(root, name, { proposal, binding, tasks, store, 
   const metadata = path.join(directory, '.openspec.yaml');
   const existingMetadata = readFileSync(metadata, 'utf8');
   if (!/^skip_specs:/m.test(existingMetadata)) writeFileSync(metadata, `${existingMetadata.trimEnd()}\nskip_specs: true\n`);
-  binding = { ...binding, record: path.relative(root, directory).split(path.sep).join('/'), revision: digest(proposal) };
+  binding = { ...binding, store: store ?? binding.store, record: path.relative(root, directory).split(path.sep).join('/'), revision: digest(proposal) };
   validateBinding(binding);
   for (const [id, value] of Object.entries({ proposal, binding: `${JSON.stringify(binding, null, 2)}\n`, tasks })) {
     const instructions = await cli(['instructions', id, '--change', name, '--json'], { cwd: root, store });

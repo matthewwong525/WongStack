@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { binding, routine, proposal } from './fixtures/scheduled-work.mjs';
 import { digest, credentialFree, validateBinding, validateTiming, validateRoutine, loadRecord, listRecords, createGoal, checkpoint, writeRoutine } from '../../.agents/skills/schedule/scripts/lib/records.mjs';
+import { startupPrompt } from '../../.agents/skills/schedule/scripts/lib/hosts.mjs';
 
 function workspace(t) { const root = mkdtempSync(path.join(tmpdir(), 'wong-schedule-')); t.after(() => rmSync(root, { recursive: true, force: true })); return root; }
 function fakeCli(root, rows = ['synthetic']) {
@@ -55,6 +56,7 @@ test('goal creation uses selected CLI paths and store, preserving goal tasks thr
   const result = await createGoal(root, 'synthetic', { proposal, binding: binding(), tasks: '- [ ] Verify completion.\n', store: 'chosen', openspec: cli });
   assert.equal(result.kind, 'goal'); assert.ok(result.files.includes('openspec/changes/synthetic/.openspec.yaml'));
   assert.ok(result.record.tasks.includes('- [ ]')); assert.ok(cli.calls.every(call => call.options.store === 'chosen'));
+  assert.equal(result.binding.store, 'chosen'); assert.ok(startupPrompt(result.binding).includes('--store chosen'));
   assert.ok(readFileSync(path.join(root, 'openspec/changes/synthetic/.openspec.yaml'), 'utf8').includes('skip_specs: true'));
   checkpoint(result, { ...result.binding, lifecycle: { state: 'waiting', published: true, publication: 'commit:1' } });
   assert.equal((await loadRecord(root, 'synthetic', { openspec: cli })).state, 'waiting');
