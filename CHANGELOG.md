@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (major) — Future work uses your existing clock
+## 40.0.0 — Future work uses your existing clock
 
 - **Use `/schedule` for future work.** Predictable steps use a script on an existing clock first. Work needing judgment uses an available host scheduler after checking its future-session tools, connections, and uptime needs. No new cloud runner or model setup is installed.
 - **Ongoing routines and finite goals stay visible together.** A routine keeps a small definition in the repo and remains configured after a successful run. A task with a finish line keeps an open goal plan until completion or cancellation and verified cleanup. Publishing its instructions never means its goal is finished.

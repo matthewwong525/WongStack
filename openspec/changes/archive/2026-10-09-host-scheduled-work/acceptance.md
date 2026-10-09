@@ -1,6 +1,6 @@
 # Retained live acceptance
 
-Implementation authoring is complete. Local fixtures are synthetic; they do not establish later-session capability. Tasks 7.2's actual record publication, 7.4, 7.5 and 7.6 remain parent-owned. No business schedule, call, message or deployment is authorized by this trial.
+The chosen fixed-mode trial passed; observed results and cleanup are in [acceptance evidence](acceptance-evidence.md). This retained recipe describes how to repeat the isolated acceptance. Local unit fixtures alone do not establish later-session capability. No business schedule, call, message or deployment is authorized by this recipe.
 
 ## Published instructions prerequisite
 
@@ -10,7 +10,7 @@ Implementation authoring is complete. Local fixtures are synthetic; they do not 
 
 ## Concrete record and native contract
 
-In the isolated trial repository, set `TRIAL_REPOSITORY` to its actual credential-free remote, `TRIAL_DATA` to an absolute private trial directory and `TRIAL_UPTIME` to the actual computer/daemon that must remain running. This prepares unpublished drafts with every unobserved capability false. Publish the draft record, then parent gathers bounded, genuinely later read-only probe evidence in `capabilities.json` there. It must observe PASEO_AGENT_ID in the probe's active native run, read published instructions, prove exclusive claim/read/write and owned update/stop. A synthetic inbox proves only the trial's question surface. Checkpoint observed capability evidence through record-only delivery before registration; never fill unobserved capabilities with true.
+In the isolated trial repository, set `TRIAL_REPOSITORY` to its actual credential-free remote, `TRIAL_DATA` to an absolute private trial directory and `TRIAL_UPTIME` to the actual computer/daemon that must remain running. This prepares unpublished drafts with every unobserved capability false. Publish the draft record, then parent gathers bounded, genuinely later read-only probe evidence in `capabilities.json` there. It must observe PASEO_AGENT_ID in the probe's active native run, read published instructions, prove exclusive claim/read/write and owned stopping. A synthetic inbox proves only the trial's question surface. Checkpoint observed capability evidence through record-only delivery before registration; never fill unobserved capabilities with true.
 
 ```sh
 node --input-type=module <<'NODE'
@@ -48,7 +48,7 @@ writeFileSync(path.join(data, 'routine-request.json'), JSON.stringify(routine, n
 const name = 'host-schedule-trial-goal';
 const sections = {
   Goal: 'Observe synthetic completion, then stop only this trial trigger.',
-  Instructions: `Read ${input}. Use executeRun with verified native identity and local-only adapters. Choose a bounded, minute-aligned nextAt for ordinary and waiting checks. Never send/call.`,
+  Instructions: `Read ${input}. Use executeRun with verified native identity and local-only adapters. Use ordinary periodic checks with no requested nextAt; check completion before work and while waiting. Never send/call.`,
   'Completion source': input,
   Authority: 'Read trial files only; no outreach or business changes.',
   Timing: `UTC every5m; latest ${baseTiming.latest}; expires ${baseTiming.expiresAt}.`,
@@ -72,9 +72,9 @@ node .agents/skills/schedule/scripts/schedule.mjs list
 
 Retain the goal's actual CLI-returned `reference` (and selected `--store <id>` consistently if used). Record-only checkpoint/prepare/finish uses `--schedule-record <exact-reference>`; goals retain unchecked tasks. After each actual merge, use `checkpoint(loadRecord(...), binding)` to set lifecycle published true and publication to `<actual-repository>@<actual-merged-commit>:<record-path>`, then publish that exact binding checkpoint through the same selected record route. This is instruction publication, not implementation publication or proof of activation.
 
-Both bindings have version1, unique trial key, synthetic owner, credential-free published repository reference, exact record path, approved revision, `execution: {type: assistant, host: paseo, nativeId: null, generation: 1, capabilities, context: {location: local, cwd: <durable-trial-checkout>, provider: codex, uptime: <actual-daemon/computer>}}`, sole local progress reference, explicit authority `{actions:[read],recipients:[],channels:[]}`, and lifecycle registering. The routine timing is recurring every5m. The finite timing is goal every5m with UTC, absolute earliest/latest/expiry and allowedLatenessMs. Give both a short expiry so abandoned trials cannot run indefinitely. One-time/adaptive rearming through Paseo requires minute-aligned absolute times.
+Both bindings have version1, unique trial key, synthetic owner, credential-free published repository reference, exact record path, approved revision, `execution: {type: assistant, host: paseo, nativeId: null, generation: 1, capabilities, context: {location: local, cwd: <durable-trial-checkout>, provider: codex, uptime: <actual-daemon/computer>}}`, sole local progress reference, explicit authority `{actions:[read],recipients:[],channels:[]}`, and lifecycle registering. The routine timing is recurring every5m. The finite timing is goal every5m with UTC, absolute earliest/latest/expiry and allowedLatenessMs. Give both a short expiry so abandoned trials cannot run indefinitely. Optional one-time/adaptive rearming requires separately verified capability and minute-aligned absolute times; this fixed trial uses neither.
 
-Capability evidence must come from an actual harmless later probe: read its published record, inspect its own native job, read/write the selected continuation, acquire/release its claim, and inspect/update/stop a trial-owned job. Keep unavailable capabilities false; do not fabricate `futureVerified`. Read-only probe creation is an explicitly authorized diagnostic trial, not business adaptive activation.
+Capability evidence must come from an actual harmless later probe: read its published record, inspect its own native job, read/write the selected continuation, acquire/release its claim, and inspect/stop a trial-owned job. Keep unavailable capabilities false; do not fabricate `futureVerified`. Read-only probe creation is an explicitly authorized diagnostic trial, not business adaptive activation.
 
 The public native adapter is `paseoAdapter()` in schedule/scripts/lib/hosts.mjs: public `paseo schedule create <startupPrompt(binding)> --name wong-<key>-<operation> --cwd <durable-clone> --provider codex --every 5m --expires-in <bounded-duration> --json`. There is no paused-create/isolation flag here. Publish guarded instructions before creating; persist operation IDs and inspect/read back lost responses. Do not use `--run-now` as evidence of a later session.
 
@@ -95,7 +95,7 @@ Record exact native IDs, agent IDs, observed timestamps, publication revision, r
 
 ## Cleanup and final preview
 
-Parent owns trial cleanup: pause/cancel only the two captured trial IDs, inspect absence, remove their selected routine/goal records through exact record delivery, then remove only this trial's local directory/clone. Preserve every pre-existing native/cloud job, secret and resource. Rebuild the implementation review page, attach observed evidence/limits and provide the host preview or read-only evidence. Task7.6 does not authorize publishing business code or activating business work.
+Parent owns trial cleanup: pause/cancel only the captured trial IDs, including its capability probe, inspect absence, remove their selected routine/goal records through exact record delivery, then remove only this trial's local directory/clone. Preserve every pre-existing native/cloud job, secret and resource. Rebuild the implementation review page, attach observed evidence/limits and provide the host preview or read-only evidence. Task7.6 does not authorize publishing business code or activating business work.
 
 ## Chosen final trial mode
 

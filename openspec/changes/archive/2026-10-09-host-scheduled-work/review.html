@@ -11,7 +11,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · host-scheduled-work</title>
+<title>Review · 2026-10-09-host-scheduled-work</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -103,11 +103,11 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="host-scheduled-work">
+<body data-change="2026-10-09-host-scheduled-work">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>host-scheduled-work</h1>
+  <h1>2026-10-09-host-scheduled-work</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. <span class="copies">Saving a note copies all your notes.</span> Open a drawing and tap it to see it full screen.</p>
@@ -168,6 +168,8 @@
 <li class="decision card" id="decision-25" data-note="decision-25" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-10-09</p>Check: the final full worktree pre-check passed (script suite, app checks, payload links/config/retirement/specs, wiki and context budget). Shellcheck is unavailable locally and remains enabled in remote CI. Save this source revision for the still-required later adaptive trial; blocked acceptance is not a publishing approval.</li>
 <li class="decision card" id="decision-26" data-note="decision-26" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-09</p>Asked: proceed with ordinary Paseo Schedules for periodic goal checking and stopping, without patching the shared host? → yes, move to the next step. Every pending-goal session can discover completion; these are useful checks, not automatically extra sessions. Exact native wake changes remain optional and capability-bound. The earlier host-repair question is withdrawn; do not apply the prepared patch or restart the shared daemon.</li>
 <li class="decision card" id="decision-27" data-note="decision-27" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-10-09</p>Check: fixed periodic goal checking already works in the lifecycle; the new multi-session regression forbids clock updates and verifies waiting, identified answer, authorized read and completion-based stopping. The full local pre-check passed, with shellcheck retained in CI. Save the prepared source for the chosen real periodic trial.</li>
+<li class="decision card" id="decision-28" data-note="decision-28" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-10-09</p>Check: gated source <code>7168534e1d2bef6ed153e680e89cfaa0aad1af5f</code> passed every remote check without a rerun. The actual fixed-mode trial passed four recurring routine reads and five finite-goal sessions: read, one question, waiting with a completion check, identified answer/read, and verified completion/owned stopping. The completed goal archived through record-only delivery without capability spec changes. Trial jobs, closed agents, four private fixture repositories and both fixture directories are removed; all four original native schedule definitions remain unchanged. Ordinary periodic checks require no shared-host patch or restart. Implementation publication remains the next user decision; see <a href="acceptance-evidence.md">acceptance evidence</a>.</li>
+<li class="decision card" id="decision-29" data-note="decision-29" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-09</p>Asked: publish the finished change after the chosen fixed-mode trial? → publish it; final checks and merge are authorized. Archive checkpoint retains branch <code>schedule-skill-proactive</code>, all 31 completed tasks, observed acceptance and cleanup. Prepare merged the latest published revision, numbered release 40.0.0 from 39.1.0, and passed every local check; shellcheck remains enabled in remote CI.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

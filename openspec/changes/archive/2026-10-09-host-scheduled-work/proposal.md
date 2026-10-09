@@ -1,6 +1,6 @@
 # Schedule future work and keep routines and goals visible
 
-**Status:** building
+**Status:** ready-to-ship
 
 **Branch:** schedule-skill-proactive
 
@@ -93,3 +93,7 @@ Rename `.agents/skills/routine/` to `.agents/skills/schedule/`, preserving the u
 - **2026-10-09** — Asked: proceed with ordinary Paseo Schedules for periodic goal checking and stopping, without patching the shared host? → yes, move to the next step. Every pending-goal session can discover completion; these are useful checks, not automatically extra sessions. Exact native wake changes remain optional and capability-bound. The earlier host-repair question is withdrawn; do not apply the prepared patch or restart the shared daemon.
 
 - **2026-10-09** — Check: fixed periodic goal checking already works in the lifecycle; the new multi-session regression forbids clock updates and verifies waiting, identified answer, authorized read and completion-based stopping. The full local pre-check passed, with shellcheck retained in CI. Save the prepared source for the chosen real periodic trial.
+
+- **2026-10-09** — Check: gated source `7168534e1d2bef6ed153e680e89cfaa0aad1af5f` passed every remote check without a rerun. The actual fixed-mode trial passed four recurring routine reads and five finite-goal sessions: read, one question, waiting with a completion check, identified answer/read, and verified completion/owned stopping. The completed goal archived through record-only delivery without capability spec changes. Trial jobs, closed agents, four private fixture repositories and both fixture directories are removed; all four original native schedule definitions remain unchanged. Ordinary periodic checks require no shared-host patch or restart. Implementation publication remains the next user decision; see [acceptance evidence](acceptance-evidence.md).
+
+- **2026-10-09** — Asked: publish the finished change after the chosen fixed-mode trial? → publish it; final checks and merge are authorized. Archive checkpoint retains branch `schedule-skill-proactive`, all 31 completed tasks, observed acceptance and cleanup. Prepare merged the latest published revision, numbered release 40.0.0 from 39.1.0, and passed every local check; shellcheck remains enabled in remote CI.

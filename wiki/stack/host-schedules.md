@@ -38,7 +38,7 @@ When a call would help, the assistant offers it through a verified question surf
 
 Use `/schedule` to list, inspect, pause, resume, run now, change, or cancel owned schedules where their host supports it. Live timing comes from the host; unreachable hosts show unavailable or stale information. Registration stays pending until both the published instruction record and verified native binding exist. A failed or uncertain change is inspected before retrying.
 
-Cancelling stops only that schedule's owned execution and preserves its disabled definition or terminal goal evidence. If stopping fails after goal completion, further outreach remains blocked and cleanup stays pending. Normal code publishing retains [its checks](../development/the-change-loop.md#the-gate); a [record-only delivery](../development/the-change-loop.md) carries no new implementation.
+Cancelling stops only that schedule's owned execution and preserves its disabled definition or terminal goal evidence. If stopping fails after goal completion, further outreach remains blocked and cleanup stays pending. Normal code publishing retains [its checks](../development/the-change-loop.md#the-gate); a [record-only delivery](../development/the-change-loop.md) carries no new implementation. For another record, start from the latest published revision so its changes cannot carry the previous record again.
 
 ## Existing schedules
 
