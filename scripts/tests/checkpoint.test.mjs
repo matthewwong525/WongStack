@@ -539,3 +539,41 @@ test('a route that can not be told stops before any commit, and never falls back
   assert.match(other.stderr, /^error=the delivery route could not be told: origin is a Cloudflare Artifacts repository, but the install record names no artifacts route$/m);
   assert.doesNotMatch(unrecorded.calls(), /git commit|git push|^gh /m);
 });
+
+test('record-only routine checkpoint uses the same remote gate without an OpenSpec change', async t => {
+  const { ROUTINE_REFERENCE, routine } = await import('./fixtures/schedule-records.mjs');
+  const f = fixture(t, { gh: { pr: PR, checks: PASS } });
+  f.stage(ROUTINE_REFERENCE, JSON.stringify(routine()));
+  const r = f.save(['--schedule-record', ROUTINE_REFERENCE]);
+  assert.equal(r.status, 0, `${r.stdout}${r.stderr}`);
+  assert.equal(lastLine(r), 'SAVE_GATE_RESULT=SUCCESS');
+  assert.match(f.body(), /Record-only checkpoint: schedules\/weekly-summary\.json/);
+  assert.doesNotMatch(f.body(), /No change record was needed|Interactive review/);
+  assert.equal(existsSync(join(f.work, 'openspec', 'changes')), false);
+  assert.match(f.calls(), /git push[\s\S]*pr checks/);
+});
+
+test('a routine record retains a failing gate and rejects mixed source before commit or push', async t => {
+  const { ROUTINE_REFERENCE, routine } = await import('./fixtures/schedule-records.mjs');
+  const f = fixture(t, { gh: { pr: PR, checks: [`fail\tunit\t${run(10, 1)}`], logs: { 1: 'failed fixture' } } });
+  f.stage(ROUTINE_REFERENCE, JSON.stringify(routine()));
+  f.stage('app.txt', 'changed source\n');
+  const mixed = f.save(['--schedule-record', ROUTINE_REFERENCE]);
+  assert.equal(mixed.status, 1);
+  assert.match(mixed.stderr, /mixed source or code plans/);
+  assert.doesNotMatch(f.calls(), /git commit -F|git push\n/);
+  f.git('restore', '--staged', '--worktree', 'app.txt');
+  const result = f.save(['--schedule-record', ROUTINE_REFERENCE]);
+  assert.equal(result.status, 0, `${result.stdout}${result.stderr}`);
+  assert.equal(lastLine(result), 'SAVE_GATE_RESULT=FAILURE');
+});
+
+test('ordinary checkpoint cannot disguise a routine definition as a no-change edit', async t => {
+  const { ROUTINE_REFERENCE, routine } = await import('./fixtures/schedule-records.mjs');
+  const f = fixture(t);
+  f.stage(ROUTINE_REFERENCE, JSON.stringify(routine()));
+  const result = f.save();
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /use --schedule-record/);
+  assert.doesNotMatch(f.calls(), /git commit -F|git push\n/);
+});

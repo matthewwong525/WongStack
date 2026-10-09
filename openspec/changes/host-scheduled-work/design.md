@@ -1,0 +1,127 @@
+# Host scheduling, routine definitions, and goal plans
+
+## Context
+
+See [the proposal](proposal.md) for the agreed behavior. The current `.agents/skills/routine/scripts/routine.mjs` installs and manages `scripts/routine-runner/`; its Worker owns a Durable Object clock, Workflows, and Sandbox computers. Workspace creation, presets, and tidy helpers share the routine folder but are independent of that clock.
+
+Code changes currently live on feature branches and archive before `/ship` merges. Publishing an incomplete scheduled goal therefore needs an explicit record type and delivery route; passing `--allow-others` or pretending its goal tasks are complete would weaken the code workflow. No implementation is built by this plan.
+
+## Goals / Non-Goals
+
+**Goals:** one scheduling skill, using the host's clock and session launcher; repo-visible instructions that remain open; verifiable adaptation and stopping; explicit authority and persistent progress across fresh sessions.
+
+**Non-goals:** a replacement cloud service, a background daemon WongStack installs, new billing/model selection, live phone integration, or taking over every schedule in a user's account. Fixed-step jobs in an app still use deterministic code when that fits the task better.
+
+## Decisions
+
+### 0. Choose the executable before choosing its clock
+
+`/schedule` first decides whether the work can run as predictable code. Prefer a script triggered by the app's existing scheduled-job facility, an existing host clock, or a suitable installed cron facility when the steps can be expressed reliably. Examples include exports, fixed reports, and reminders that query invoice state and send an agreed template only while unpaid. A stop condition alone does not require an assistant. Cron supplies timing and can launch either kind of executable; the preference is for deterministic work without an assistant session on each tick.
+
+Use an assistant session when each run must interpret changing information, choose a response, or otherwise exercise judgment the script cannot reasonably encode. A fixed script may contain a narrowly scoped model call and still remain a deterministic job; assess who chooses the steps. Do not ask the user to choose a complex assistant route when code reliably meets the request. Explain the reason when judgment is needed or when the person explicitly requests an assistant anyway.
+
+Creating or changing an app script goes through the ordinary code plan, tests, staging manual trigger, and publishing gate. The schedule-record route cannot merge that implementation. Use an available execution environment, report its uptime and access constraints, and add no generic scheduling service. The implementation of an ongoing cron job has a finished setup plan that archives when shipped; its live code/configuration continues running.
+
+### 1. Resolve the scheduling host separately from the model
+
+Rename the skill directory to `schedule`, including existing workspace, tidy, presets, and Paseo library helpers, and update callers. A Codex agent running inside Paseo can use Paseo's scheduler; detecting the model alone is insufficient. Prefer the person's recorded choice, then the enclosing host's persistent scheduler, then another already available provider that can satisfy the request. Ask only when a materially different destination is needed. Never install a host or create cloud infrastructure as a fallback.
+
+For work that needs assistant judgment, the short skill reads host-specific references only when needed. `schedule.mjs` uses Node built-ins for record handling, normalized results, readiness checks, and the Paseo public CLI. Exposed Codex or Claude native tools are called directly by the agent according to their actual schemas; the helper validates their receipts rather than inventing tool names or writing private application databases. Other hosts can use the same receipt contract after discovery; unknown hosts are not assumed supported.
+
+Represent capabilities independently: durable one-off, recurrence, fresh session, inspect, update, stop, runtime progress read/write, non-overlap, and delivery of a pending question. Readiness records which capabilities exist **in the later execution environment**, not just here. Include model/defaults, working directory, timezone, required tools/connections, local versus cloud operation, and what must remain running. Credentials stay outside the repo and scheduled prompt.
+
+Official documentation establishes product possibilities, not account readiness:
+
+| Host | Established behavior | Build obligation |
+|---|---|---|
+| Codex / ChatGPT desktop | Standalone scheduled tasks start fresh chats; local project tasks need the computer and app running | Discover callable tools, actual account access, and future-session update/stop authority |
+| Claude Code cloud | Recurring and timestamp-based one-off runs start fresh sessions | Cloud `/schedule` management is unavailable inside a cloud session; do not claim self-management without another supported control tool |
+| Claude Code local loops | Session-bound polling and dynamic delays exist | Do not use an open-session loop as an independent future-session scheduler |
+| Paseo | Public scheduling CLI creates new-agent runs, updates timing/prompt, pauses, and deletes | Verify future agents can manage their own job and reach records/progress; CLI isolation support must be checked, not inferred from old private imports |
+
+Sources read during exploration: [official OpenAI scheduled-task documentation](https://learn.chatgpt.com/docs/scheduled-tasks), [Claude routines](https://code.claude.com/docs/en/routines), [Claude session scheduling](https://code.claude.com/docs/en/scheduled-tasks), and [Paseo scheduling tools](https://paseo.sh/docs/mcp#schedules-and-heartbeats). The installed Paseo CLI's `schedule create` and `schedule update` help confirms public cadence, prompt, maximum-run, and expiration flags.
+
+Adaptive work requires verified future-session timing updates, persistent progress, and stopping. A fixed schedule can be offered as a clearly described alternative when those are missing; it is not presented as autonomous adaptation. A completed-goal guard stops follow-up actions even if a cancellation fails, but a still-active host job is reported as cleanup pending, not successfully cancelled.
+
+### 2. Keep ongoing definitions separate from finite goal plans
+
+Choose the record by whether the work has a finish line, independently of whether a script or assistant executes it. An ongoing routine uses one versioned `schedules/<name>.json` definition in the working repository. It contains its stable key, owner, instructions or script reference, execution type, cadence policy, authorized scope, native binding, instruction revision, and lifecycle checkpoint. It has no task checklist, OpenSpec change, or generated review page. Its creation preview is the actual definition and execution destination shown in chat. Pausing or cancelling retains the definition with a disabled state and no live owned trigger; successful runs keep it active. Reference the script's actual code/configuration instead of duplicating its timetable or business logic. Definitions are target-owned operational data; the template ships the format/helper, never another install's live files.
+
+For finite scheduled goals, ship a project-local `scheduled-work` schema, created and validated through the CLI during implementation. Create its records through `openspec new change ... --schema scheduled-work`, using the selected root/store and CLI-reported artifact paths. The schema has a human-readable proposal and goal checklist plus a validated schedule binding artifact. The proposal holds the goal, owner, instructions, authoritative completion source, allowed actions and contacts, escalation rules, timing limits, and cancellation rule. The binding holds a stable schedule key, schema version, repository/store reference, host or script execution reference, owned job/item ID(s), plan revision, lifecycle checkpoint, and last reconciliation time. Do not modify OpenSpec's installed package or bypass the CLI. Neither record type contains tokens, personal message transcripts, or copied credentials. Repo-wide visibility must not publish private operational details; reference a permitted private source for sensitive facts.
+
+Normalize both record types through a single schedule-helper interface with `kind: routine|goal` and an exact published record reference. `/schedule` combines repo routine definitions and active scheduled goals, with kind, owner, state, execution destination, and live next wake-up/result. `openspec list` exposes active goals and code changes; ongoing definitions stay outside that index. `/continue` can offer both kinds beside code plans and dispatch to the corresponding schedule lifecycle without guessing a feature branch. The generated goal review page renders its stable plan. Live next-run times come from the execution host and are labelled unavailable or stale when they cannot be read; they are not promised by a stale Git snapshot.
+
+A routine can repeat indefinitely without creating unfinished work in OpenSpec. Its setup implementation, if code was needed, has an ordinary code plan that archives when shipped. A one-off has a finite assigned task and closes after that work succeeds, not just because an agent exited. A goal-based task closes only after its explicit completion check succeeds. Permanent cancellation closes a finite goal; a pause or pending user answer keeps its plan open. Completion/cancellation archives only the selected goal, with its evidence reference; it never reconciles business task checkboxes into capability specs. A routine definition remains as configuration after cancellation instead of entering the OpenSpec archive.
+
+If the user adds a terminal goal to a routine or removes a goal to make it ongoing, explicitly transition the record type, preserve the stable schedule identity, and verify its native binding. Update the run's published reference without creating a second trigger. Retire the old instruction record with a reference to its successor; a goal that becomes ongoing archives as superseded after the authorized transition, not falsely completed. Exactly one published instruction source controls each schedule at a time.
+
+Alternatives considered: putting every recurrence in an open OpenSpec change would leave routine operation permanently unfinished; storing routines only in the host would hide them from the repo. Lightweight definitions keep the inventory visible. A separate goal schema still prevents code delivery from accidentally building or archiving a business goal.
+
+### 3. Add a narrow schedule-record route to the delivery skills
+
+`/schedule` prepares the actual routine definition or goal plan and host capability preview before asking to activate it. Creating a schedule and publishing its record are part of that concrete confirmation; it does not authorize code deployment or arbitrary later actions. `/save` and `/ship` remain the only owners of Git operations. Add an explicit schedule-record mode selected by the validated record type, exact file scope, and binding, not by a permissive CLI flag alone.
+
+For a routine this mode saves, checks, and merges only its selected definition; it generates no OpenSpec change or review page. For a goal it carries only the selected scheduled-work folder and generated review page, leaving the goal tasks unchecked and folder active. Both reject mixed application/source edits and ordinary incomplete code plans, and both retain the normal branch/PR gate. Ordinary `/ship` excludes already-published goals from code-change completion checks and rejects either record type passed as a code change. `/apply` and `/plan` likewise dispatch selected operational records before their ordinary code paths. Finite-goal completion uses a separate archive-record operation after stopping the owned execution and verifying the goal or cancellation request. Routine cancellation disables and checkpoints its definition without an OpenSpec archive.
+
+Schedule registration is a recoverable sequence, not an atomic transaction across Git and a host. Prefer native creation in a paused state, publish its bound record, then arm and inspect it. If paused creation is unavailable, publish the agreed definition or goal plan first and create/bind the native job with a startup guard that refuses work before the published record and matching binding are available. Publish the binding checkpoint through the same narrow route. Registration stays pending until both publication and host inspection succeed. Persist operation IDs; an uncertain create/enable response is read back before retrying. A failure leaves an identifiable pending/paused record and repair instruction, never an unexplained active job.
+
+Routine-definition validation checks the versioned format, instructions, execution reference, and binding without using the OpenSpec CLI. Goal-schema validation for registration checks that the instructions and bindings are complete; goal checkboxes remain incomplete by design. Goal completion validation is separate. The schema and its two validation meanings must be proved against the installed OpenSpec CLI before the route is called ready. Do not use `--no-validate`, mark business goals done to pass a gate, or broaden the ordinary archive exception. A goal executed by a shared cron handler stops its own work item rather than disabling a timetable serving other goals or routines.
+
+### 4. Keep live execution state outside Git, with one authoritative store
+
+Git owns agreed instructions, native-job binding, and lifecycle checkpoints. The host owns timing and native run history. Progress between sessions is carried by the host's supported persistent state or by the existing memory service as session facts, according to a verified execution-context capability; the binding identifies the selected route. Use no new database, Worker, or memory credential copied into Git. A local-only progress path must be outside disposable worktrees and is never offered to a cloud session.
+
+Select exactly one authoritative progress route per schedule. It carries the instruction revision, progress/evidence references, last action receipts, current pending question and its ID, deferred action, finite-goal completion marker where applicable, and any uncertain result. The repo keeps concise lifecycle checkpoints and references to this evidence, not a second mutable action log. Reconcile meaningful transitions through record-only saves, not every clock change. If future sessions cannot read or persist progress, stop readiness for autonomous follow-ups; stateless recurring read-only tasks can still be scheduled with their narrower scope.
+
+Use a non-overlap guarantee the chosen host actually supplies, or a shared claim mechanism available in that execution context. A second run that cannot acquire ownership does no outward work. Creating a replacement wake-up invalidates the previous generation; completed or obsolete generations perform no follow-ups. If the host/store cannot establish ownership or uniquely identify prior sends, automatic contacting is unavailable. Do not claim exactly-once delivery: after an ambiguous send, inspect the service's receipt/history and wait for help when it cannot be resolved.
+
+### 5. Every wake-up reads its instructions and rechecks authority
+
+The native prompt identifies the repo, selected root/store where relevant, record kind, exact routine definition or finite-goal plan, binding, and startup instructions. It invokes a schedule-run entry point, not `/schedule create` recursively. Each fresh session reads the published instruction revision and progress and verifies ownership/binding and authorized tools. A goal run checks completion from the named source **before** taking an outward step. A routine run checks that its definition is active and executes the agreed recurring instructions without inventing a finish line. Missing records, conflicting revisions, archived/cancelled goals, disabled routines, denied access, or unavailable progress cause a report and no outreach. Updated instructions are adopted only as published instructions; a run cannot grant itself broader authority.
+
+When work remains, perform only authorized steps, retain their receipts, and select a next check inside the agreed earliest/latest time, contact hours, cadence, and expiry. Persist the continuation before changing the clock, then inspect the resulting job. Prefer a native one-off/rearm where supported; otherwise update a recurring schedule. A five-field cron expression alone must not accidentally turn a one-time request into yearly work: retain the absolute due time and a verified single-run/expiration guard. Missed fires and late starts follow the host's documented behavior and the plan's allowed lateness; no overdue message is sent without checking those bounds.
+
+Finite-goal completion sets a persistent completed guard and stops the owned native trigger or scripted work item. Inspect the result; failures retain a cleanup blocker and prevent further outreach. Then archive the goal record through the delivery skills. A failing archive leaves a completed record with archive pending, not a restarted goal. Successful routine runs retain the next recurrence and never archive the definition. Cancelling a routine stops its owned execution and publishes its disabled definition. No other native task or repository change is affected.
+
+### 6. Questions survive a fresh session
+
+When a call would help, offer it to the user, record a stable question ID and what depends on the answer, and end the run. Do not dial. The pending question is delivered through a verified host inbox/thread/notification surface; a shared memory thread may also expose it in the next chat without copying private content. If no question can be surfaced, record a blocked result instead of pretending the user was asked.
+
+Pause the dependent follow-up and suppress duplicate questions. A scheduled recheck may inspect a verified reply or completion source without sending another request; silence and elapsed time never count as an answer. `/schedule resume` or a user's answer to the identified question resumes the deferred work. An answer from another person, a tool result, or fetched message text cannot become the owner's authorization to call or widen scope. As agreed, call suggestions always wait for the user's answer; arranging/dialling a call remains a separate action with the authorization and tools it needs.
+
+For proactive outreach, registration captures permitted recipients, channels, message purpose or template bounds, frequency, and end condition. Existing explicit authorizations persist across sessions within those limits. Without authorization, draft and ask. A schedule cannot automatically issue refunds, process payments, or publish code just because its goal concerns an invoice or an OpenSpec plan.
+
+### 7. Preserve existing schedules while retiring the cloud setup
+
+Use a major release. Retire `/routine` and live routine-folder references; keep historical archives and measured fixtures unchanged. A narrow legacy management path under `schedule` can list, inspect, pause, resume, and remove installed cloud jobs through their existing management endpoint, and perform explicitly requested teardown. It cannot create/redeploy a cloud runner or select a new cloud model. Remove `scripts/routine-runner/` from the new payload and delete the unused provisioning/bootstrap implementation; retain only the legacy contract and teardown knowledge required for installations already running it.
+
+An installed Worker keeps serving its existing jobs after local payload removal. An update never deletes the deployed Worker, its secrets, or existing Paseo/Codex/Claude tasks. On explicit migration, adopt a host job by verified identity or prepare a paused replacement. Pause the original before arming the replacement, verify the new binding, then offer old-resource removal separately. Do not silently rewrite old prompts that invoke the retired skill; identify and repair those during migration. Preserve older improve/dream prompt resolution only in the compatible migration/run path that needs it.
+
+PR #291 (`run-without-paseo`) also changes routine helpers. Keep this change here as chosen; at implementation/delivery inspect the latest other change and preserve its host-independent workspace behavior if it has landed. This plan owns the scheduling replacement, with no message sent to another person and no edits made in the other worktree. The installation-owned-memory work affects future execution identity; use the memory access mechanism in the revision being built and verify that an unattended session can read only its authorized facts.
+
+## Risks / Trade-offs
+
+- **Host management disappears in the future environment** → discover and verify there; restrict the offered mode and explain the blocker. Claude cloud self-management is an established restriction, not an assumed capability.
+- **The schema or delivery helpers reject persistent active records** → finish schema/routing changes first and prove pending goal tasks survive publication while incomplete code still fails.
+- **A new session has no access to local instructions or progress** → require a reachable published revision and progress route before activation; no ephemeral worktree paths in a durable prompt.
+- **Create, pause, send, or archive succeeds but its response is lost** → read back by stable ID, retain uncertain state, and never blindly repeat an outward action.
+- **Repo checkpoint and live host state differ** → display host truth with reconciliation time; keep the goal guarded, and report pending repair rather than claiming completion.
+- **Renaming breaks unrelated helpers or installed prompts** → inventory every live reference, preserve helpers' behavior, test setup/close/workspace consumers, and provide explicit migration notes.
+
+## Migration and validation
+
+Source changes occur only in `/apply`. Add a `## Next (major)` changelog entry and an Updating note covering the new name, cron-first selection, routine definitions versus finite-goal plans, local host uptime, existing jobs staying active, explicit migration, and optional cloud-resource teardown. Ship the goal schema, definition format, and route helpers in the manifest, replace live documentation links, and map the new capability, definition path, and schema area. An install's `schedules/` data and business goal records never enter the payload inventory. Leave `VERSION` to `/ship`.
+
+Verification has one final phase after source and test authoring: focused behavior tests for definition/goal lifecycle, type transitions, routing, and uncertain results; routine-format validation and strict CLI validation for the ordinary implementation change and a finite scheduled-work fixture; prove that the combined view includes ongoing definitions while OpenSpec lists only finite goals and code changes; payload links, retired names, config, and context budget; the required local checks; harmless real future-session trials in Paseo proving a routine remains configured after a successful run and a finite goal reawakens, reads its published instructions, changes its next wake-up, waits on a simulated user question, and stops. Use synthetic completion sources and send no real follow-ups. Verify other available hosts with their actual tools; unavailable tools receive an explicit capability limit rather than a claim of a passed test. Preserve normal remote checks and preview evidence for delivery.
+
+Rollback pauses new native schedules before reverting the payload; it preserves their repo records and progress for recovery. It never recreates deleted legacy cloud resources or migrates old jobs back automatically.
+
+## Review
+
+[Read the plan](review.html). This is a skill, CLI, and workflow change with no new app screen; the proposal's schedule lifecycle drawing covers the user-facing flow.
+
+## Integration evidence during build
+
+On 2026-10-09, read-only PR inspection found run-without-paseo (#291, remove-paseo) still open, last updated 2026-10-05. Its older cloud-scheduler overlap is superseded by the landed cloud implementation that this change retires. This build renames the current workspace/tidy/preset/paseo helpers without rewriting their behavior; their existing behavioral tests follow only the directory move. It does not modify the other worktree or merge its unlanded plain-workspace changes.
+
+The current memory interfaces enforce installation ownership: machine-id lives in the OS user's data directory, repoContext identifies that installation, and openStore rejects a credential whose keyMachine differs, uses the primary recorded Worker, and grants only its installed role. Schedule bindings store only a route reference; neither helper issues/copies credentials nor changes machine identity. A real later execution session must observe the same installed memory grant with a read/write check before memory continuation can be advertised. Host/memory continuation adapters remain unavailable unless callable in that runtime; local trials use an explicitly selected durable local route and do not claim to test cloud memory access.

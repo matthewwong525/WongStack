@@ -1,0 +1,22 @@
+name: scheduled-work
+version: 1
+description: Finite operational goals; registration does not complete the goal
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Agreed owner, goal, completion source, authority and timing bounds
+    template: proposal.md
+    requires: []
+  - id: binding
+    generates: binding.json
+    description: Versioned execution and continuation binding; validate with schedule.mjs
+    template: binding.json
+    requires: [proposal]
+  - id: tasks
+    generates: tasks.md
+    description: Goal checklist; stays unfinished during registration and publication
+    template: tasks.md
+    requires: [proposal, binding]
+apply:
+  requires: [proposal, binding, tasks]
+  tracks: tasks.md

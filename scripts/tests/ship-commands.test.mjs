@@ -64,6 +64,9 @@ if (line.startsWith('instructions apply')) {
   });
   out({ changeName: name, tasks });
 }
+if (line.startsWith('status --change') && fs.existsSync(join(changes, name, '.openspec.yaml')) && /^schema: scheduled-work/m.test(fs.readFileSync(join(changes, name, '.openspec.yaml'), 'utf8'))) {
+  out({ schemaName: 'scheduled-work', changeRoot: join(changes, name), planningHome: { changesDir: changes }, artifactPaths: Object.fromEntries(['proposal', 'tasks', 'binding'].map(id => [id, { existingOutputPaths: [join(changes, name, id === 'binding' ? 'binding.json' : id + '.md')] }])), artifacts: [{ id: 'proposal', status: 'done' }, { id: 'tasks', status: 'done' }, { id: 'binding', status: 'done' }] });
+}
 if (line.startsWith('status --change')) out({ changeRoot: join(changes, name), planningHome: { changesDir: changes }, artifacts: [{ id: 'proposal', status: 'done' }, { id: 'tasks', status: s.unfinished ? 'ready' : 'done' }] });
 if (line.startsWith('validate')) {
   if (s.invalid) { console.error('proposal.md: missing ## Why'); process.exit(1); }
@@ -72,7 +75,9 @@ if (line.startsWith('validate')) {
 }
 if (line.startsWith('archive')) {
   fs.mkdirSync(join(changes, 'archive'), { recursive: true });
-  fs.renameSync(join(changes, args[1]), join(changes, 'archive', '2026-10-04-' + args[1]));
+  const destination = join(changes, 'archive', '2026-10-04-' + args[1]);
+  fs.renameSync(join(changes, args[1]), destination);
+  if (args.includes('--json')) out({ archive: { path: destination, change: args[1], specsUpdated: false } });
   process.exit(0);
 }
 console.error('unexpected openspec call: ' + line);
@@ -686,4 +691,91 @@ test('a route that can not be told stops prepare and finish, and neither falls b
   }
   assert.doesNotMatch(f.calls(), /^(gh|openspec|git push|git merge|node artifacts-run) /m);
   assert.notEqual(f.git('ls-remote', '--heads', 'origin', 'work'), '');
+});
+
+test('record-only routine prepare keeps normal default checks and leaves the definition unarchived', async t => {
+  const { ROUTINE_REFERENCE, routine } = await import('./fixtures/schedule-records.mjs');
+  const f = fixture(t);
+  f.commit({ [ROUTINE_REFERENCE]: JSON.stringify(routine()) });
+  const result = f.run(['prepare', '--schedule-record', ROUTINE_REFERENCE]);
+  assert.equal(result.status, 0, `${result.stdout}${result.stderr}`);
+  assert.equal(result.value('SCHEDULE_RECORD'), ROUTINE_REFERENCE);
+  assert.equal(result.value('ARCHIVE'), 'none');
+  assert.equal(result.value('RELEASE'), 'none');
+  assert.match(result.stdout, /ordinary \/save once, with --schedule-record/);
+  assert.match(f.calls(), /check-runs/);
+  assert.doesNotMatch(f.calls(), /openspec archive|openspec instructions apply/);
+  assert.equal(f.has(ROUTINE_REFERENCE), true);
+});
+
+test('routine publication cannot bypass failing default checks or carry unfinished code', async t => {
+  const { ROUTINE_REFERENCE, routine } = await import('./fixtures/schedule-records.mjs');
+  const f = fixture(t, { gh: { mainChecks: 'test\tfailure' } });
+  f.commit({ [ROUTINE_REFERENCE]: JSON.stringify(routine()) });
+  assert.equal(f.run(['prepare', '--schedule-record', ROUTINE_REFERENCE]).status, 6);
+  f.set('gh', {});
+  f.commit(f.change('unfinished', '- [ ] Finish source\n'));
+  const result = f.run(['prepare', '--schedule-record', ROUTINE_REFERENCE]);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /mixed source or code plans/);
+  assert.doesNotMatch(f.calls(), /openspec archive/);
+});
+
+test('publishing an unfinished finite goal keeps its checklist and active folder', async t => {
+  const { GOAL_REFERENCE, goal } = await import('./fixtures/schedule-records.mjs');
+  const f = fixture(t);
+  f.commit(Object.fromEntries(Object.entries(goal()).map(([file, text]) => [`${GOAL_REFERENCE}/${file}`, text])));
+  const result = f.run(['prepare', '--schedule-record', GOAL_REFERENCE]);
+  assert.equal(result.status, 0, `${result.stdout}${result.stderr}`);
+  assert.equal(result.value('ARCHIVE'), 'none');
+  assert.equal(f.read(`${GOAL_REFERENCE}/tasks.md`), '- [ ] Payment verified\n');
+  assert.match(f.calls(), /openspec validate check-payment --strict --no-interactive/);
+  assert.doesNotMatch(f.calls(), /openspec archive|openspec instructions apply/);
+});
+
+test('ordinary finished code ships beside published unfinished goals and routines without archiving them', async t => {
+  const { GOAL_REFERENCE, ROUTINE_REFERENCE, goal, routine } = await import('./fixtures/schedule-records.mjs');
+  const f = fixture(t);
+  const files = goal(); const bound = JSON.parse(files['binding.json']);
+  bound.lifecycle = { state: 'scheduled', published: true, publication: 'commit:published-fixture' };
+  files['binding.json'] = JSON.stringify(bound);
+  const ongoing = routine(); ongoing.binding.lifecycle = { state: 'scheduled', published: true, publication: 'commit:published-fixture' };
+  f.advanceMain({ ...Object.fromEntries(Object.entries(files).map(([file, text]) => [`${GOAL_REFERENCE}/${file}`, text])), [ROUTINE_REFERENCE]: JSON.stringify(ongoing) });
+  f.git('merge', '--no-edit', 'origin/main');
+  f.commit(f.change('demo'));
+  const result = f.run(['prepare', '--change', 'demo']);
+  assert.equal(result.status, 0, `${result.stdout}${result.stderr}`);
+  assert.equal(f.has(`${GOAL_REFERENCE}/proposal.md`), true);
+  assert.equal(f.read(`${GOAL_REFERENCE}/tasks.md`), '- [ ] Payment verified\n');
+  assert.equal(f.has(ROUTINE_REFERENCE), true);
+  assert.doesNotMatch(f.calls(), /openspec archive check-payment/);
+});
+
+test('selecting either operational record as ordinary code is rejected', async t => {
+  const { GOAL_REFERENCE, ROUTINE_REFERENCE, goal } = await import('./fixtures/schedule-records.mjs');
+  const f = fixture(t);
+  f.commit(Object.fromEntries(Object.entries(goal()).map(([file, text]) => [`${GOAL_REFERENCE}/${file}`, text])));
+  for (const name of ['check-payment', ROUTINE_REFERENCE]) {
+    const result = f.run(['prepare', '--change', name]);
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /require --schedule-record|leaves schedule records alone/);
+  }
+  assert.doesNotMatch(f.calls(), /openspec archive/);
+});
+
+test('terminal archive-record preserves evidence and uses exact removal scope without capability updates', async t => {
+  const { GOAL_REFERENCE, goal } = await import('./fixtures/schedule-records.mjs');
+  const f = fixture(t); const files = goal(); const bound = JSON.parse(files['binding.json']);
+  bound.lifecycle = { state: 'cancelled', published: true, publication: 'commit:fixture', evidence: 'fixture:cancelled', stopVerified: true, archivePending: true };
+  files['binding.json'] = JSON.stringify(bound);
+  f.commit(Object.fromEntries(Object.entries(files).map(([file, text]) => [`${GOAL_REFERENCE}/${file}`, text])));
+  const result = f.run(['prepare', '--archive-record', GOAL_REFERENCE]);
+  assert.equal(result.status, 0, `${result.stdout}${result.stderr}`);
+  const archived = 'openspec/changes/archive/2026-10-04-check-payment';
+  assert.equal(result.value('SCHEDULE_RECORD'), archived);
+  assert.equal(result.value('ARCHIVE'), archived);
+  assert.equal(f.has(`${GOAL_REFERENCE}/proposal.md`), false);
+  assert.equal(f.read(`${archived}/tasks.md`), '- [ ] Payment verified\n');
+  assert.match(f.calls(), /openspec archive check-payment --yes --skip-specs --json/);
+  assert.doesNotMatch(f.calls(), /openspec instructions apply/);
 });

@@ -17,6 +17,9 @@ const USAGE = `usage: build-review.mjs <change-root> [--require-current] [--link
 const kitPath = resolve(dirname(fileURLToPath(import.meta.url)), '../references/review-kit.html');
 
 const esc = text => String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const scheduledGoal = root => {
+  try { return /^schema:[ \t]*(?:scheduled-work|'scheduled-work'|"scheduled-work")[ \t]*(?:#.*)?$/m.test(readFileSync(join(root, '.openspec.yaml'), 'utf8')); } catch { return false; }
+};
 const safeHref = href => !/^[a-z][\w+.-]*:/i.test(href) || /^(?:https?|mailto):/i.test(href);
 
 function one(text, marker, name) {
@@ -157,6 +160,19 @@ function render(markdown, warnings) {
     + `<section id="decisions" aria-labelledby="decisions-h"><h2 id="decisions-h">Decisions</h2>\n${decisions(found['decision log'])}\n</section>`;
 }
 
+function renderGoal(markdown, root) {
+  const found = sections(markdown);
+  const headings = ['goal', 'instructions', 'completion source', 'authority', 'timing', 'questions and cancellation'];
+  for (const name of headings) if (!found[name]) throw new Error(`proposal.md: missing ## ${name}`);
+  const paragraphs = section => blocks(section, 'paragraph').map((block, i) => `<p data-note="goal-${section.at}-${i + 1}" tabindex="0">${inline(block.text)}</p>`).join('\n');
+  const binding = JSON.parse(readFileSync(join(root, 'binding.json'), 'utf8'));
+  const destination = `<p class="card">Execution destination: ${esc(binding.execution?.host ?? 'unavailable')}. Live timing is read from that host.</p>`;
+  const limits = headings.slice(1).map(name => `<h3>${esc(found[name].title)}</h3><div class="card">${paragraphs(found[name])}</div>`).join('\n');
+  return `<section id="why"><h2>Goal</h2><div class="card">${paragraphs(found.goal)}</div>${destination}</section>`
+    + `<section id="changes"><h2>Instructions and limits</h2>${limits}</section>`
+    + `<section id="decisions"><h2>Published goal checklist</h2><pre class="card">${esc(readFileSync(join(root, 'tasks.md'), 'utf8'))}</pre><h2>Decisions</h2>${decisions(found['decision log'])}</section>`;
+}
+
 // Older pages (wong-review:2 and before) keep their viewer; only the proposal block between their markers is refreshed.
 function legacySection(markdown, title) {
   const lines = markdown.split('\n');
@@ -213,9 +229,9 @@ export const planActions = name => ({
 });
 
 // The page's reply link when one can open, else its file.
-async function linked(page, name) {
+async function linked(page, name, goal = false) {
   const { openReplyLink } = await import('../../hand-over/scripts/reply-link.mjs');
-  return (await openReplyLink({ file: page, header: notesHeader(name), actions: planActions(name) })) ?? page;
+  return (await openReplyLink({ file: page, header: notesHeader(name), ...(goal ? {} : { actions: planActions(name) }) })) ?? page;
 }
 
 export function buildReview(changeRoot, { requireCurrent = false } = {}) {
@@ -223,13 +239,15 @@ export function buildReview(changeRoot, { requireCurrent = false } = {}) {
   const reviewPath = join(changeRoot, 'review.html');
   if (!existsSync(proposalPath)) throw new Error(`missing ${proposalPath}`);
   const markdown = readFileSync(proposalPath, 'utf8');
+  const goal = scheduledGoal(changeRoot);
   const page = existsSync(reviewPath) ? readFileSync(reviewPath, 'utf8') : null;
-  if (page === null && !requireCurrent) return { kind: 'no-page', changed: false, warnings: [] };
-  if (page !== null && !page.startsWith(FORMAT)) {
+  if (page === null && !requireCurrent && !goal) return { kind: 'no-page', changed: false, warnings: [] };
+  if (page !== null && !page.startsWith(FORMAT) && !goal) {
     return { kind: 'proposal-only', changed: writeIfDifferent(reviewPath, legacyRefresh(page, markdown)), warnings: [] };
   }
   const warnings = [];
-  const next = assemble(basename(resolve(changeRoot)), render(markdown, warnings));
+  let next = assemble(basename(resolve(changeRoot)), goal ? renderGoal(markdown, changeRoot) : render(markdown, warnings));
+  if (goal) next = next.replace('href="#why">Why', 'href="#why">Goal').replace('href="#changes">Changes', 'href="#changes">Instructions');
   return { kind: 'current', changed: writeIfDifferent(reviewPath, next), warnings };
 }
 
@@ -248,7 +266,7 @@ if (isMain(import.meta.url)) {
       console.log(`review: ${result.kind}, ${result.changed ? 'updated' : 'unchanged'}`);
       const page = resolve(root, 'review.html');
       const live = args.values.link && result.kind === 'current';
-      if (result.kind !== 'no-page') console.log(`${planLink(live ? await linked(page, basename(resolve(root))) : page)}\n\n${NEXT_STEP}`);
+      if (result.kind !== 'no-page') console.log(`${planLink(live ? await linked(page, basename(resolve(root)), scheduledGoal(root)) : page)}\n\n${scheduledGoal(root) ? 'Use `/schedule` to confirm this record and its execution destination.' : NEXT_STEP}`);
     } catch (error) { console.error(`review: ${error.message}`); process.exitCode = 1; }
   }
 }

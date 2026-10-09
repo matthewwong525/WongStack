@@ -6,7 +6,8 @@
  * step it runs is an existing save script or one git or gh call.
  *
  *     node .claude/skills/save/scripts/checkpoint.mjs --message-file <file> --summary-file <file> \
- *       [--change-root <path> --mode active|archive] [--scan-keys NAME,NAME] [--max-minutes 20] [--new-run]
+ *       [--change-root <path> --mode active|archive | --schedule-record <reference> --store <id>]
+ *       [--scan-keys NAME,NAME] [--max-minutes 20] [--new-run]
  *     node .claude/skills/save/scripts/checkpoint.mjs --wait [--max-minutes 20]
  *
  * Both files sit outside the repo. The message's first line titles a new pull request.
@@ -48,10 +49,12 @@ import { buildReview } from '../../plan/scripts/build-review.mjs';
 import { liveFiles } from '../../ship/scripts/worktree-secrets.mjs';
 import { delivery, RouteError } from './delivery-route.mjs';
 import { writePrBody } from './render-pr-body.mjs';
+import { checkpointEvidence } from './checkpoint-evidence.mjs';
+import { assertCodeScope, operationalChange, recordPrBody, scheduleRecord } from './schedule-record.mjs';
 
 const USAGE = `usage: node checkpoint.mjs --message-file <file> --summary-file <file>
          [--change-root <path> --mode active|archive] [--scan-keys NAME,NAME]
-         [--max-minutes 20] [--new-run]
+         [--max-minutes 20] [--new-run] [--schedule-record <reference> --store <id>]
        node checkpoint.mjs --wait [--max-minutes 20]
 
 Rebuild the change's review page, commit the staged files, push, open or update
@@ -160,9 +163,9 @@ function scanCredentials(root, keys, texts) {
 }
 
 /** Rebuild the change's review page from its proposal and stage it. Bad inputs keep the old page. */
-function refreshReview(root, changeRoot) {
+function refreshReview(root, changeRoot, { required = false } = {}) {
   let rebuilt;
-  try { rebuilt = buildReview(resolve(root, changeRoot)).kind !== 'no-page'; } catch (error) { say(`REVIEW=stale (${error.message})`); return; }
+  try { rebuilt = buildReview(resolve(root, changeRoot)).kind !== 'no-page'; if (required && !rebuilt) throw new Error('scheduled goal review page is required'); } catch (error) { if (required) throw error; say(`REVIEW=stale (${error.message})`); return; }
   if (rebuilt) must('git', ['add', '--', resolve(root, changeRoot, 'review.html')], 'git add of the review page');
 }
 
@@ -184,6 +187,10 @@ function readPr() {
 /** Write the body file. With a change it mirrors the change; without one it is the summary and a footer. */
 function renderBody({ root, branch, values, summaryFile, bodyFile, repoUrl, previewUrl }) {
   try {
+    if (values.scheduleRecord) {
+      writeFileSync(bodyFile, recordPrBody(values.scheduleRecord, readFileSync(summaryFile, 'utf8')));
+      return true;
+    }
     if (values['change-root']) {
       return writePrBody({ repoRoot: root, changeRoot: values['change-root'], mode: values.mode ?? 'active', repoUrl, branch, summaryFile, previewUrl }, bodyFile);
     }
@@ -256,7 +263,7 @@ function artifactsNextLine(result, fixes) {
   return `NEXT: fix the cause the lines under RESULT show, in one push. Where this computer has the tools, rerun the failed check first (node .github/scripts/checks.mjs --worktree). Then stage and rerun this command: fix attempt ${fixes + 1} of ${CAP}. A failure outside the diff has no rerun on this route: stop and report it, with no code edit.`;
 }
 
-function checkpoint(values) {
+async function checkpoint(values) {
   const root = must('git', ['rev-parse', '--show-toplevel'], 'not inside a git repository');
   const wait = Boolean(values.wait);
   const files = wait ? {} : { message: outsideFile(root, values['message-file'], '--message-file'), summary: outsideFile(root, values['summary-file'], '--summary-file') };
@@ -288,8 +295,25 @@ function checkpoint(values) {
   }
 
   if (!wait) {
+    if (!values['schedule-record']) {
+      try {
+        const observed = checkpointEvidence({ repo: root, base: `origin/${base}` });
+        assertCodeScope(observed, observed.operationalRoots);
+      } catch (error) { throw new Stop(1, [`error=${error.message}`]); }
+    }
+    if (values['change-root'] && operationalChange(root, values['change-root'])) throw new Stop(1, ['error=scheduled goals require --schedule-record; ordinary code checkpoint refused']);
     if (values['change-root']) refreshReview(root, values['change-root']);
+    if (values['schedule-record']) {
+      try {
+        values.scheduleRecord = await scheduleRecord({ root, reference: values['schedule-record'], store: values.store, base: `origin/${base}` });
+        if (values.scheduleRecord.kind === 'goal') refreshReview(root, values.scheduleRecord.reference, { required: true });
+      } catch (error) { throw new Stop(1, [`error=schedule record: ${error.message}`]); }
+    }
     const staged = must('git', ['diff', '--cached', '--name-only'], 'cannot read the staged files').split('\n').filter(Boolean);
+    if (values.scheduleRecord) {
+      try { await scheduleRecord({ root, reference: values['schedule-record'], store: values.store, base: `origin/${base}`, stagedPaths: staged }); }
+      catch (error) { throw new Stop(1, [`error=schedule record: ${error.message}`]); }
+    }
     if (!staged.length && !unpushed(base)) {
       throw new Stop(4, ['REFUSED=nothing is staged and nothing waits to be pushed', `NEXT: stage the intended files and rerun, or read the gate again with: ${RERUN} --wait`]);
     }
@@ -363,15 +387,17 @@ function checkpoint(values) {
 
 if (isMain(import.meta.url)) {
   const { values } = parseCli({ usage: USAGE, options: {
-    'message-file': { type: 'string' }, 'summary-file': { type: 'string' }, 'change-root': { type: 'string' }, mode: { type: 'string' },
+    'message-file': { type: 'string' }, 'summary-file': { type: 'string' }, 'change-root': { type: 'string' }, mode: { type: 'string' }, 'schedule-record': { type: 'string' }, store: { type: 'string' },
     'scan-keys': { type: 'string' }, 'max-minutes': { type: 'string' }, 'new-run': { type: 'boolean' }, wait: { type: 'boolean' },
   } });
   if (!values.wait && (!values['message-file'] || !values['summary-file'])) usageError(USAGE, 'give --message-file and --summary-file, or --wait');
+  if (values['schedule-record'] && (values['change-root'] || values.mode || values.wait)) usageError(USAGE, '--schedule-record excludes --change-root, --mode and --wait');
+  if (values.store && !values['schedule-record']) usageError(USAGE, '--store needs --schedule-record');
   if (values.mode && !['active', 'archive'].includes(values.mode)) usageError(USAGE, '--mode is active or archive');
   if (values.mode && !values['change-root']) usageError(USAGE, '--mode needs --change-root');
   if (values['max-minutes'] && !/^\d+$/.test(values['max-minutes'])) usageError(USAGE, '--max-minutes is a whole number');
   try {
-    say(`SAVE_GATE_RESULT=${checkpoint(values)}`);
+    say(`SAVE_GATE_RESULT=${await checkpoint(values)}`);
   } catch (error) {
     if (!(error instanceof Stop)) throw error;
     for (const line of error.lines) (line.startsWith('error=') ? console.error : console.log)(line);

@@ -42,10 +42,10 @@ When a task done by hand — a plain request, or non-code work under a verb — 
 
 - **Only on a clear signal**: the person says it recurs ("every Monday", "again"), or memory shows they asked before. Never on a hunch: an offer after every task teaches people to skip it.
 - **Search memory once**: `memory.mjs search` on the task's key terms finds a past request and a past decline.
-- **Pick the help by the work.** A scheduled task that needs judgment on each run gets a routine through [`/routine`](../../.agents/skills/routine/SKILL.md), which [runs in your Cloudflare account](../stack/cloud-routines.md). Fixed steps get a [mini app](../stack/mini-apps.md), even on a schedule: [most process improvements shouldn't use AI](../agent-knowledge-center.md#most-process-improvements-shouldnt-use-ai).
+- **Pick the help by the work.** A scheduled task that needs judgment on each run gets a routine through [`/schedule`](../../.agents/skills/schedule/SKILL.md), which [uses the available host](../stack/host-schedules.md). Fixed steps first use a script on an existing clock; build needed code through this loop, or a [mini app](../stack/mini-apps.md) when useful: [most process improvements shouldn't use AI](../agent-knowledge-center.md#most-process-improvements-shouldnt-use-ai).
 - **Name the outcome, not the tool**: *do this every Monday at 9*, *a page that splits the bill for you*.
 - **A no is final**: record a `feedback` fact through [the write gate](../../.agents/skills/memory/SKILL.md#write), naming the task in the person's words, and never offer for it again.
-- **A yes starts the usual route**: `/routine`'s own confirmation, or the change loop stopping at the plan's review.
+- **A yes starts the usual route**: `/schedule`'s own confirmation, or the change loop stopping at the plan's review.
 
 No offer after a code change you built, or in an unattended run.
 
@@ -55,7 +55,7 @@ One workspace holds one change. When a request has parts that could each be publ
 
 Before planning, the agent [checks for other work](../../.agents/skills/explore/SKILL.md#check-for-other-work): this repo's other workspaces, their plans, and open pull requests. It speaks only when one overlaps, and asks [where to go on](../../.agents/skills/plan/references/new-workspace.md#ask-once).
 
-**Scratch files** go in the git-ignored `.scratch/` at the checkout root that [`tidy.mjs scratch`](../../.agents/skills/routine/scripts/tidy.mjs) makes and prints, not the system temp folder. It goes away with its workspace; in the main checkout, each session's tidy-up deletes scratch files older than a day.
+**Scratch files** go in the git-ignored `.scratch/` at the checkout root that [`tidy.mjs scratch`](../../.agents/skills/schedule/scripts/tidy.mjs) makes and prints, not the system temp folder. It goes away with its workspace; in the main checkout, each session's tidy-up deletes scratch files older than a day.
 
 ### Asking before drafting
 
@@ -155,3 +155,11 @@ Both work `tasks.md` and end the same way; `/continue` orients you first and han
 To add a verb of your own, write a `SKILL.md` under `.agents/skills/<name>/` and point to it from this page: the loop is a convention, not a hardcoded list.
 
 Part of [development](README.md).
+
+## Publishing scheduled records
+
+[Host scheduling](../stack/host-schedules.md) keeps routine definitions and open goal plans. Selected records resume before code or checkout; unchanged records do not block unrelated code.
+
+[Record-only delivery](../../.agents/skills/save/references/schedule-records.md) validates the exact definition/schema, binding and file scope through the normal gate. Goals keep their checklist open; routines need no change/page. Mixed code uses the ordinary loop. Publication and native inspection both confirm registration.
+
+Terminal evidence and verified stopping permit goal archival without capability-spec changes; routine cancellation retains a disabled definition. Pauses, pending answers and cleanup failures stay open. Ordinary errands retain [their reach](#verbs-for-any-work).

@@ -19,6 +19,7 @@ Load each matching procedure before its actions; conditions combine:
 | Condition | Procedure |
 |---|---|
 | User supplied or rotated an explicitly named secret | [Named-secret persistence](references/named-secrets.md), before writing records |
+| Confirmed routine/goal registration or lifecycle checkpoint | [Record-only delivery](references/schedule-records.md), before code selection |
 | Only facts, including a to-do that changed no repo file | [Facts-only save](references/facts-save.md) |
 | Code or a code plan needs a new change | [New-plan fallback](references/new-plan.md) |
 | The exact selected handoff is archived | [The archived handoff](#the-archived-handoff) |
@@ -34,7 +35,7 @@ bash "$(git rev-parse --show-toplevel)/.claude/skills/save/scripts/change-candid
 
 Keep `BRANCH`, `NAME`, `CHANGE_ROOT` separate. [Rungs](references/checkpoint-evidence.md#selection-rungs): `explicit` (ship's exact archive), `session`, `changed-active`, `changed-archive`, `recorded-branch`; never `sole-active`. Resolve ambiguity before staging; never duplicate a change for its branch name.
 
-A save changing repo files takes the normal route. Nothing learned, decided, or changed → report and stop.
+A save changing repo files takes the normal route, except the validated record-only procedure above. Nothing learned, decided, or changed → report and stop.
 
 ## 2. Maintain the handoff and capture context
 

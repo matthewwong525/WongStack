@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (major) — Future work uses your existing clock
+
+- **Use `/schedule` for future work.** Predictable steps use a script on an existing clock first. Work needing judgment uses an available host scheduler after checking its future-session tools, connections, and uptime needs. No new cloud runner or model setup is installed.
+- **Ongoing routines and finite goals stay visible together.** A routine keeps a small definition in the repo and remains configured after a successful run. A task with a finish line keeps an open goal plan until completion or cancellation and verified cleanup. Publishing its instructions never means its goal is finished.
+- **Follow-ups check progress and wait for you when needed.** They retain receipts, guard against overlapping work, stay within agreed recipients and timing, and stop after confirmed completion. A call suggestion remains pending until you answer; scheduling alone grants no permission to call, pay, or publish code.
+- **Existing jobs keep running.** This update preserves deployed cloud jobs and native host tasks. Legacy management remains available for installed cloud jobs. Moving one is explicit: pause and verify its original before the replacement can act. Removing old resources is a separate requested step.
+
+**Updating.** Use `/schedule` instead of the retired `/routine` name. Ask your assistant to check existing job prompts for that old command before explicitly moving them; the update does not rewrite them or move jobs. Review each new destination and what must stay on: a local host may need its computer and app running. Keep ongoing routine definitions and finite goal plans owned by your install. Any script implementation uses the ordinary plan, staging check, and publishing steps. Preserve existing runner secrets while its jobs remain in use. After a replacement is verified, request old cloud-resource teardown separately if wanted; confirm the exact resources, revoke only their dedicated keys, and review permissions left on your Cloudflare token.
+
 ## 39.0.0 — Apps by a tick, keys by a level
 
 - **An app is a tick, a key is a level, and neither depends on the other.** In Access you tick the apps a person can use. Separately, you pick *None*, *Read* or *Read & write* for each key. Areas, and their *Look up* and *Look up & change* levels, are gone.

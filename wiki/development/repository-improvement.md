@@ -2,7 +2,7 @@
 
 `/improve-code` finds one way to make the code simpler or safer to change, writes the plan for it, and stops for your yes. It builds nothing and publishes nothing.
 
-Run [`/improve-code [focus]`](../../.agents/skills/improve-code/SKILL.md) when the code feels harder to change than it should. A focus can name an area, such as `scripts/routine-runner`, or an outcome, such as `make the routine runner easier to test`.
+Run [`/improve-code [focus]`](../../.agents/skills/improve-code/SKILL.md) when the code feels harder to change than it should. A focus can name an area, such as `scripts/check-runner`, or an outcome, such as `make the check runner easier to test`.
 
 It works only on how the code is built. A new feature or a wording fix is a normal request: ask for it in plain words. Trouble with memory or the wiki goes to [`/dream-memory`](wiki-dream.md).
 
@@ -71,7 +71,7 @@ Every run ends one of three ways, named in its report:
 
 ## Run it on a cadence
 
-Run [`/routine every Monday at 9am: /improve-code`](../../.agents/skills/routine/SKILL.md): it runs in your Cloudflare account, each run gets a fresh copy of the project, and runs of one routine never overlap ([cloud routines](../stack/cloud-routines.md)). A routine made before the skill was renamed, under its shorter old name, keeps running as `/improve-code`.
+Run [`/schedule every Monday at 9am: /improve-code`](../../.agents/skills/schedule/SKILL.md): it verifies an existing host clock and future-session access before activation ([host schedules](../stack/host-schedules.md)). Each run plans and waits; the schedule grants no permission to build or publish its improvement. [Legacy migration](../stack/legacy-cloud-schedules.md#move-one-job) covers prompts under older skill names.
 
 A scheduled run has nobody to answer, and its copy of the project is thrown away when it ends. So it saves the plan on its own branch and leaves a note in memory that starts `Improve plan:` and names it; your next chat shows the note. Nothing is built or published until you say yes.
 

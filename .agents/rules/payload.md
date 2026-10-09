@@ -17,6 +17,7 @@ paths:
   - "wiki/stack/**"
   - "wiki/ux-principles.md"
   - "schema/**"
+  - "openspec/schemas/**"
   - "paseo.json"
   - "AGENTS.md"
   - "CLAUDE.md"
