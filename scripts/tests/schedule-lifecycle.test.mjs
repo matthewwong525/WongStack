@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { executeRun, nextWake, readyToRun, authorize, answerQuestion, register, transitionRecord, migrate, archiveGoal, terminal, adopt } from '../../.agents/skills/schedule/scripts/lib/lifecycle.mjs';
-import { item, binding, context, store, host, NOW } from './fixtures/scheduled-work.mjs';
+import { item, binding, context, store, host, NOW, routine } from './fixtures/scheduled-work.mjs';
 import { startupPrompt } from '../../.agents/skills/schedule/scripts/lib/hosts.mjs';
 
 function services(overrides = {}) {
@@ -194,4 +194,43 @@ test('denied progress access and missing future ownership prevent all actions', 
   let action = false;
   const s = services({ store: { async claim() { return true; }, async read() { throw Error('denied progress'); }, async release() {} }, async chooseStep() { action = true; } });
   await assert.rejects(executeRun(item(), s, context), /denied progress/); assert.equal(action, false);
+});
+
+test('consecutive read-only routine actions need no outreach interval or contact window', async () => {
+  const record = routine({ authority: { actions: ['read', 'draft'], recipients: [], channels: [] } });
+  record.binding.timing.contactHours = { start: '23:00', end: '23:59' };
+  const current = item({ kind: 'routine', binding: record.binding });
+  let count = 0;
+  const s = services({ async chooseStep() { return { action: { type: count ? 'draft' : 'read', id: 'read-' + count }, succeeded: true }; }, async performAction() { return { verified: true, reference: 'synthetic://' + count++ }; } });
+  const run = { ...context, publishedRevision: record.binding.revision };
+  assert.equal((await executeRun(current, s, run)).state, 'scheduled');
+  assert.equal((await executeRun(current, s, { ...run, runId: 'second' })).state, 'scheduled');
+  assert.equal(count, 2);
+  assert.deepEqual((await s.store.read()).receipts.map(receipt => receipt.type), ['read', 'draft']);
+});
+
+test('adaptive work is blocked before actions if an update is not verified after session completion', async () => {
+  const b = binding(); b.execution.capabilities.updateAfterRun = false;
+  let acted = false;
+  await assert.rejects(executeRun(item({ binding: b }), services({ async performAction() { acted = true; } }), context), /updateAfterRun/);
+  assert.equal(acted, false);
+  b.adaptive = false;
+  await assert.rejects(executeRun(item({ binding: b }), services({ async chooseStep() { return { nextAt: '2026-10-10T10:00:00Z', action: { type: 'read', id: 'one' } }; }, async performAction() { acted = true; } }), context), /updateAfterRun/);
+  assert.equal(acted, false);
+});
+
+test('reads do not delay a first contact, while a second contact still obeys the agreed interval', async () => {
+  let step = 0, contacts = 0;
+  const s = services({ async chooseStep() { const id = 'step-' + step++; return { action: step === 1 ? { type: 'read', id } : { type: 'email', id, recipient: 'recipient@example.test', channel: 'email' } }; }, async performAction(action) { if (action.type === 'email') contacts++; return { verified: true, reference: 'synthetic://' + step }; } });
+  await executeRun(item(), s, context);
+  await executeRun(item(), s, { ...context, runId: 'second' });
+  await assert.rejects(executeRun(item(), s, { ...context, runId: 'third' }), /frequency/);
+  assert.equal(contacts, 1);
+});
+
+test('verified completion still stops an existing goal when future adaptation is unavailable', async () => {
+  const b = binding(); b.execution.capabilities.updateAfterRun = false;
+  let selected = false;
+  const result = await executeRun(item({ binding: b }), services({ async checkCompletion() { return { complete: true, evidence: 'synthetic://paid' }; }, async chooseStep() { selected = true; } }), context);
+  assert.equal(result.state, 'completed'); assert.equal(result.stopVerified, true); assert.equal(selected, false);
 });

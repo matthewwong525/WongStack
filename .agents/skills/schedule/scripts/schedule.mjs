@@ -38,7 +38,13 @@ export async function scheduleView(items, hostOf, { routes = {} } = {}) {
         if (!progress.terminal && progress.nextAt) row.requestedNextAt = progress.nextAt;
       }
     } catch { row.progress = 'unavailable'; row.stateSource = 'checkpoint'; row.stale = true; }
-    if (row.live === 'observed') row.repairNeeded = !item.published || (['paused', 'cancelled', 'completed', 'cleanup-pending'].includes(row.state) && row.nativeState === 'active');
+    if (row.live === 'observed') {
+      const next = Date.parse(row.nextRunAt), requested = Date.parse(row.requestedNextAt), expiry = Date.parse(item.binding.timing.expiresAt);
+      row.timingMismatch = Number.isFinite(next) && ((Number.isFinite(expiry) && next > expiry)
+        || (Number.isFinite(requested) && (next < requested || next > requested + (item.binding.timing.allowedLatenessMs ?? 0))));
+      if (row.timingMismatch) row.stale = true;
+      row.repairNeeded = row.timingMismatch || !item.published || (['paused', 'cancelled', 'completed', 'cleanup-pending'].includes(row.state) && row.nativeState === 'active');
+    }
     rows.push(row);
   }
   return rows;

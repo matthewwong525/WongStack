@@ -118,6 +118,15 @@ An adaptive schedule SHALL let a future session choose and verify its next wake-
 - **WHEN** a host can start future sessions but those sessions cannot adjust or stop their schedule
 - **THEN** autonomous adaptation is not claimed or activated on that host
 
+### Requirement: Adaptive clock changes survive session completion
+
+Adaptive readiness SHALL require a changed wake-up to survive session completion and start the requested later session. Immediate in-run read-back alone SHALL NOT establish readiness.
+
+#### Scenario: The host overwrites an in-run clock change
+
+- **WHEN** a clock change reads back correctly during a run but the host overwrites it when that session ends
+- **THEN** adaptive readiness remains unverified until a change survives completion and produces the later requested session; immediate read-back alone is insufficient
+
 ### Requirement: Follow-ups preserve progress and avoid duplicate actions
 
 Automatic follow-ups SHALL require persistent continuation, identifiable prior actions, and execution ownership that prevents overlapping runs from contacting the same person for the same step. An uncertain outward result SHALL be checked against the service before retrying, and SHALL block retry when it cannot be resolved. Archived, completed, cancelled, or obsolete schedule generations SHALL perform no further goal actions.

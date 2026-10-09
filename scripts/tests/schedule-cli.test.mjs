@@ -94,3 +94,11 @@ test('listing merges actual run continuation so waiting and completed work canno
   const pending = (await scheduleView([row], () => h, { routes: { local: () => s } }))[0]; assert.equal(pending.state, 'cleanup-pending'); assert.equal(pending.requestedNextAt, '2026-10-10T11:00:00Z'); assert.equal(pending.nextRunAt, null);
   const denied = (await scheduleView([row], () => h, { routes: { local: () => ({ async read() { throw Error('denied'); } }) } }))[0]; assert.equal(denied.progress, 'unavailable'); assert.equal(denied.stateSource, 'checkpoint'); assert.equal(denied.stale, true);
 });
+
+test('a live clock that misses the requested window or exceeds expiry is marked for repair', async () => {
+  const b = binding(), progress = store({ revision: b.revision, generation: 1, receipts: [], nextAt: '2026-10-10T10:00:00Z' });
+  for (const nextRunAt of ['2027-10-10T10:00:00Z', '2026-10-10T09:00:00Z', '2026-10-10T12:00:00Z']) {
+    const [row] = await scheduleView([item({ binding: b })], () => host({ async inspect(id) { return { id, status: 'active', nextRunAt }; } }), { routes: { local: () => progress } });
+    assert.equal(row.live, 'observed'); assert.equal(row.timingMismatch, true); assert.equal(row.repairNeeded, true); assert.equal(row.stale, true);
+  }
+});

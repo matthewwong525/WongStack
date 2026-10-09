@@ -49,6 +49,7 @@ export async function terminal(item, progress, store, host, reason, evidence) {
   return { state: stopped ? reason : 'cleanup-pending', evidence, stopVerified: stopped, archivePending: item.kind === 'goal', progress: state };
 }
 async function rearm(binding, progress, store, host, requested, now) {
+  validateCapabilities(binding.execution.capabilities, { adaptive: true, once: binding.timing.mode === 'once' });
   const nextAt = nextWake(binding, requested, now);
   requireValue(binding.execution.capabilities.update && binding.execution.capabilities.stop, 'Future self-management is unavailable.');
   progress.nextAt = nextAt; progress.reschedulePending = true; await store.write(progress);
@@ -67,7 +68,6 @@ export async function executeRun(item, services, context) {
     if (progress?.terminal) return { state: progress.cleanupPending ? 'cleanup-pending' : progress.terminal.reason, suppressed: true, archivePending: item.kind === 'goal' };
     const binding = readyToRun(item, progress, context);
     const outreach = binding.authority?.actions?.some(action => !['read', 'draft'].includes(action));
-    validateCapabilities(binding.execution.capabilities, { adaptive: binding.adaptive === true, outreach, questions: Boolean(binding.questionSurface), once: binding.timing.mode === 'once' });
     progress ??= { revision: binding.revision, generation: binding.execution.generation, receipts: [], pendingQuestion: null };
     if (item.kind === 'goal') {
       requireValue(checkCompletion, 'The authoritative completion source cannot be checked.');
@@ -75,6 +75,7 @@ export async function executeRun(item, services, context) {
       if (completion?.complete === true) return await terminal(item, progress, store, host, 'completed', completion.evidence);
       requireValue(completion?.complete === false && completion.evidence, 'Missing or ambiguous completion evidence; no outreach.');
     }
+    validateCapabilities(binding.execution.capabilities, { adaptive: binding.adaptive === true, outreach, questions: Boolean(binding.questionSurface), once: binding.timing.mode === 'once' });
     if (progress.pendingQuestion) {
       const check = await chooseStep?.({ item, progress, waiting: true });
       const wake = check?.nextAt ? await rearm(binding, progress, store, host, check.nextAt, context.now) : { state: 'waiting' };
@@ -88,6 +89,7 @@ export async function executeRun(item, services, context) {
       progress.uncertain = null; await store.write(progress);
     }
     const step = await chooseStep({ item, progress });
+    if (step.nextAt) validateCapabilities(binding.execution.capabilities, { adaptive: true, once: binding.timing.mode === 'once' });
     if (step.question) {
       requireValue(binding.questionSurface && deliverQuestion, 'No verified user question surface; dependent work is blocked.');
       progress.pendingQuestion = { id: step.question.id ?? randomUUID(), owner: binding.owner, deferredAction: step.question.deferredAction, delivery: 'pending' };
@@ -102,15 +104,17 @@ export async function executeRun(item, services, context) {
       const action = authorize(binding, step.action);
       if (!progress.receipts.some(receipt => receipt.id === action.id)) {
         const now = context.now ?? Date.now();
-        const last = progress.receipts.filter(receipt => receipt.sentAt).at(-1);
-        requireValue(!last || now - Date.parse(last.sentAt) >= binding.authority.minIntervalMs, 'Outreach frequency exceeds the agreed limit.');
-        if (binding.timing.contactHours) nextWake(binding, new Date(now + 1000).toISOString(), now);
+        if (!['read', 'draft'].includes(action.type)) {
+          const last = progress.receipts.filter(receipt => receipt.sentAt && !['read', 'draft'].includes(receipt.type)).at(-1);
+          requireValue(!last || now - Date.parse(last.sentAt) >= binding.authority.minIntervalMs, 'Outreach frequency exceeds the agreed limit.');
+          if (binding.timing.contactHours) nextWake(binding, new Date(now + 1000).toISOString(), now);
+        }
 
         progress.uncertain = { id: action.id, service: action.service, startedAt: new Date().toISOString() };
         await store.write(progress); // A process crash is treated as an ambiguous outward result.
         const result = await performAction(action);
         requireValue(result?.verified === true && result.reference, 'Outward result is uncertain; do not blindly retry.');
-        progress.receipts.push({ id: action.id, receipt: result.reference, sentAt: new Date(context.now ?? Date.now()).toISOString() }); progress.uncertain = null; await store.write(progress);
+        progress.receipts.push({ id: action.id, type: action.type, receipt: result.reference, sentAt: new Date(context.now ?? Date.now()).toISOString() }); progress.uncertain = null; await store.write(progress);
       }
     }
     if (binding.timing.mode === 'once') {

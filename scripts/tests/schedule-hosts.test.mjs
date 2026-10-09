@@ -17,7 +17,7 @@ test('Codex inside Paseo routes by enclosing host and unavailable hosts stay uns
 });
 test('readiness uses later execution evidence, not current tools; Claude cloud limits block adaptation', () => {
   assert.equal(validateCapabilities(capabilities(), { adaptive: true, outreach: true, questions: true, once: true }).futureVerified, true);
-  for (const patch of [{ futureVerified: false }, { context: null }, { verifiedAt: null }, { freshSession: null }, { oneOff: false }, { update: false }, { stop: false }, { progressRead: false }, { nonOverlap: false }, { questionDelivery: false }, { context: { location: 'local' } }]) assert.throws(() => validateCapabilities(capabilities(patch), { adaptive: true, outreach: true, questions: true, once: true }));
+  for (const patch of [{ futureVerified: false }, { context: null }, { verifiedAt: null }, { freshSession: null }, { oneOff: false }, { update: false }, { updateAfterRun: false }, { updateAfterRun: undefined }, { stop: false }, { progressRead: false }, { nonOverlap: false }, { questionDelivery: false }, { context: { location: 'local' } }]) assert.throws(() => validateCapabilities(capabilities(patch), { adaptive: true, outreach: true, questions: true, once: true }));
   assert.equal(validateCapabilities(capabilities({ update: false, stop: false, context: { location: 'cloud' } })).recurrence, true);
 });
 test('receipts require exact host, action, identity and read-back evidence; startup never creates recursively', () => {
@@ -26,7 +26,7 @@ test('receipts require exact host, action, identity and read-back evidence; star
   assert.equal(validateReceipt({ version: 1, host: 'codex', action: 'inspect', outcome: 'unsupported' }, { host: 'codex', action: 'inspect' }).outcome, 'unsupported');
   const prompt = startupPrompt(binding()); assert.ok(prompt.includes('schedule.mjs start')); assert.ok(prompt.includes('Approved revision')); assert.ok(!prompt.includes('/schedule create'));
 });
-function fakePaseo() {
+function fakePaseo({ nextRunAt = '2026-10-10T10:00:00Z' } = {}) {
   let rows = [], lost = false;
   const calls = [];
   const call = async args => {
@@ -36,7 +36,7 @@ function fakePaseo() {
     if (action === 'inspect') { if (!row) throw Error('missing'); return structuredClone(row); }
     if (action === 'create') {
       const value = flag => args[args.indexOf(flag) + 1];
-      const created = { target: { config: { modeId: args.includes('--mode') ? value('--mode') : undefined } }, id: 'job-1', name: value('--name'), prompt: args[2], status: 'active', nextRunAt: '2026-10-10T10:00:00Z', runs: [], cadence: { type: 'cron', expression: args.includes('--cron') ? value('--cron') : paseoPreset(value('--every')), timezone: args.includes('--timezone') ? value('--timezone') : 'UTC' }, maxRuns: args.includes('--max-runs') ? Number(value('--max-runs')) : null, expiresAt: args.includes('--expires-in') ? new Date(NOW + Number.parseInt(value('--expires-in')) * 1000).toISOString() : null }; rows.push(created);
+      const created = { target: { config: { modeId: args.includes('--mode') ? value('--mode') : undefined } }, id: 'job-1', name: value('--name'), prompt: args[2], status: 'active', nextRunAt, runs: [], cadence: { type: 'cron', expression: args.includes('--cron') ? value('--cron') : paseoPreset(value('--every')), timezone: args.includes('--timezone') ? value('--timezone') : 'UTC' }, maxRuns: args.includes('--max-runs') ? Number(value('--max-runs')) : null, expiresAt: args.includes('--expires-in') ? new Date(NOW + Number.parseInt(value('--expires-in')) * 1000).toISOString() : null }; rows.push(created);
       if (lost) throw Error('lost create reply'); return structuredClone(created);
     }
     if (action === 'pause' || action === 'resume') row.status = action === 'pause' ? 'paused' : 'active';
@@ -82,7 +82,7 @@ test('selected execution mode is retained and mismatched read-back never verifie
   assert.equal((await mismatch.create(b, 'different-mode')).outcome, 'unknown');
 });
 test('one-time public create has absolute due date, single-run cap and expiration guard', async () => {
-  const fake = fakePaseo(), adapter = paseoAdapter({ call: fake.call, now: () => NOW });
+  const fake = fakePaseo({ nextRunAt: '2026-10-10T13:30:00Z' }), adapter = paseoAdapter({ call: fake.call, now: () => NOW });
   const b = binding({ timing: { mode: 'once', timezone: 'UTC', dueAt: '2026-10-10T13:30:00Z', expiresAt: '2026-10-10T13:31:00Z' } });
   fake.lose(); assert.equal((await adapter.create(b, 'op')).outcome, 'verified');
   const args = fake.calls.find(args => args[1] === 'create'); assert.equal(args[args.indexOf('--cron') + 1], '30 13 10 10 *'); assert.equal(args[args.indexOf('--max-runs') + 1], '1');
@@ -143,4 +143,13 @@ test('one-off update refuses mismatched expiry or lifetime run-cap readback', as
     await adapter.create(binding(), 'guard');
     assert.equal((await adapter.update('job-1', { timing: { mode: 'once', dueAt: '2026-10-10T10:00:00Z', expiresAt: '2026-10-10T10:01:00Z' } })).outcome, 'unknown');
   }
+});
+
+test('one-time receipt rejects a native wake in the next year despite matching cron and expiry', async () => {
+  const fake = fakePaseo({ nextRunAt: '2027-10-10T13:30:00Z' });
+  const adapter = paseoAdapter({ call: fake.call, now: () => NOW });
+  const b = binding({ timing: { mode: 'once', timezone: 'UTC', dueAt: '2026-10-10T13:30:00Z', expiresAt: '2026-10-10T13:31:00Z' } });
+  assert.equal((await adapter.create(b, 'wrong-year')).outcome, 'unknown');
+  assert.equal((await adapter.create(b, 'wrong-year')).outcome, 'unknown');
+  assert.equal(fake.calls.filter(args => args[1] === 'create').length, 1);
 });

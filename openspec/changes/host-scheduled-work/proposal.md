@@ -1,10 +1,10 @@
 # Schedule future work and keep routines and goals visible
 
-**Status:** building
+**Status:** blocked
 
 **Branch:** schedule-skill-proactive
 
-**Open questions:** none; host capabilities need verification during the build.
+**Open questions:** May the prepared Paseo 0.10.1 repair be applied to the shared scheduler and its daemon restarted? The owner has been asked; no answer yet. Live adaptive acceptance remains blocked.
 
 ## Why
 
@@ -81,3 +81,11 @@ Rename `.agents/skills/routine/` to `.agents/skills/schedule/`, preserving the u
 - **2026-10-09** — Check: Paseo fired the bounded probe at its actual later UTC time, but the default auto mode requested command approval. Creation now retains an explicitly chosen execution mode and requires matching native read-back; it never silently widens a default. The next synthetic probe selects full-access for its approved local diagnostic only. The blocked probe and its agent were removed; original jobs remain untouched.
 
 - **2026-10-09** — Check: the installed public Paseo CLI advertises `--no-max-runs` but rejects it with `INVALID_INTEGER`. Adaptive updates now inspect the owned job first and omit unnecessary clearing for already-unlimited jobs. Existing caps still require verified clearing; failures remain unknown and never count as adaptation. No private API, host installation, or check bypass is used.
+
+- **2026-10-09** — Check: the actual routine read succeeded and stayed active, but its next read exposed a frequency guard applied to read/draft receipts with no outreach interval. Read-only receipts now retain their type and do not impose contact limits; actual contacts still obey the agreed interval.
+
+- **2026-10-09** — Check: Paseo 0.10.1 advances a newly selected one-time wake again when the current run finishes, moving it a year ahead. Adaptive execution now requires `updateAfterRun` evidence, one-time receipts verify the absolute native wake, and the view flags timing outside the agreed window. The shared-host repair is prepared and isolated regression-tested; applying it and restarting the shared daemon awaits separate approval. Remaining live adaptive acceptance stays unchecked.
+
+- **2026-10-09** — Check: all 76 focused schedule tests pass after the live-trial corrections. Actual record publication, ongoing definition visibility, unfinished goal visibility, cancellation and terminal archive passed in an isolated repository. Adaptive wake-up survival and completion-based stopping remain unverified; see [acceptance evidence](acceptance-evidence.md). No shared-host repair or implementation merge has been performed.
+
+- **2026-10-09** — Check: the final full worktree pre-check passed (script suite, app checks, payload links/config/retirement/specs, wiki and context budget). Shellcheck is unavailable locally and remains enabled in remote CI. Save this source revision for the still-required later adaptive trial; blocked acceptance is not a publishing approval.

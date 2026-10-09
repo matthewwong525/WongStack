@@ -7,7 +7,7 @@ export function validateCapabilities(evidence, { adaptive = false, outreach = fa
   requireValue(evidence?.futureVerified === true && typeof evidence.verifiedAt === 'string' && evidence.context, 'Future-session capabilities have not been verified.');
   for (const key of CAPABILITIES) requireValue(typeof evidence[key] === 'boolean', `Missing capability ${key}.`);
   const needed = ['freshSession', 'inspect', ...(once ? ['oneOff'] : ['recurrence'])];
-  if (adaptive) needed.push('update', 'stop', 'progressRead', 'progressWrite');
+  if (adaptive) needed.push('update', 'updateAfterRun', 'stop', 'progressRead', 'progressWrite');
   if (outreach) needed.push('progressRead', 'progressWrite', 'nonOverlap');
   if (questions) needed.push('questionDelivery', 'progressRead', 'progressWrite');
   for (const key of needed) requireValue(evidence[key] === true, `Future-session ${key} is unavailable.`);
@@ -56,7 +56,7 @@ function onceCron(timing) {
 function cadenceMatches(row, timing, { creating = false } = {}) {
   const expression = timing.mode === 'once' ? onceCron(timing) : timing.cron ?? paseoPreset(timing.every);
   if (row.cadence?.type !== 'cron' || row.cadence.expression !== expression || (row.cadence.timezone ?? 'UTC') !== (timing.mode === 'once' || timing.every ? 'UTC' : timing.timezone)) return false;
-  if (timing.mode === 'once' && row.maxRuns !== (creating ? 1 : null)) return false;
+  if (timing.mode === 'once' && (row.maxRuns !== (creating ? 1 : null) || Date.parse(row.nextRunAt) !== Date.parse(timing.dueAt))) return false;
   if (timing.expiresAt && (!Number.isFinite(Date.parse(row.expiresAt)) || Math.abs(Date.parse(row.expiresAt) - Date.parse(timing.expiresAt)) > 5000)) return false;
   return true;
 }
