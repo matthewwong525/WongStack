@@ -5,9 +5,9 @@ import { defineAction, registrations } from "./contract";
 import { apiActions } from "./router";
 import { appActions } from "../apps/index";
 import { body } from "../../tests/body";
-import { fakeEnv } from "../../tests/env";
+import { fakeDatabase, fakeEnv } from "../../tests/env";
 const env = {} as Env;
-// The supplied actions alone: a build may hold other folders, as this source repo holds a sample area.
+// The supplied actions alone: a build may hold other folders.
 const supplied = [...apiActions, ...appActions].filter(({ app }) => app === "main" || app === "hello");
 const identity = { id: "employee@example.com", kind: "user" as const, claims: { aud: "a", iss: "i", exp: 9999999999 } };
 const get = (path = "/api/actions", registry: Parameters<typeof discovery>[3] = supplied, headers = {}, method = "GET") => discovery(new Request(`https://example.com${path}`, { headers, method }), env, identity, registry);
@@ -72,6 +72,28 @@ it("names a write's confirming read only to a caller who may see that read", asy
     expect(document.paths["/api/create"].post).not.toHaveProperty("x-confirm-with");
     expect(JSON.stringify(document)).not.toContain("sample.read");
   }
+});
+it("shows a person who holds an app its look-ups and its changes, whatever their key levels, and nothing of an app they lack", async () => {
+  // Key levels have started and the person holds none. Hello is theirs, and one of its changes uses a saved key.
+  const row = { policy_enabled: 1, keys_enabled: 1, revision: 1, status: "active", manager: 0, apps: '["hello"]', keys: "{}" };
+  const bindings = fakeEnv({ DB: fakeDatabase({ withSession: () => ({ prepare: () => ({ bind: () => ({ first: async () => row }) }) }) }),
+    WONG_OWNER_EMAIL: "owner@example.com", WONG_CLOUDFLARE_READ: "saved" });
+  const person = { ...identity, claims: { ...identity.claims, sub: "employee", email: identity.id } };
+  const registry = registrations(new Map([["GET list", synthetic("hello.list", { effect: "read", encoding: "none", input: z.strictObject({}), examples: [] })],
+    ["POST mark", synthetic("hello.mark", { keys: ["cloudflare"] })]]), "hello");
+  const seen = (path: string) => discovery(new Request(`https://example.com${path}`), bindings, person, registry);
+  const ids = async () => (await body(await seen("/api/actions"))).actions.map(a => a.operationId);
+  expect(await ids()).toEqual(["hello.list", "hello.mark"]);
+  expect(await body(await seen("/api/actions?id=hello.mark"))).toMatchObject({ effect: "write", readiness: "available", keys: [{ id: "cloudflare", level: "write" }] });
+  expect(Object.keys((await body(await seen("/api/openapi.json"))).paths)).toEqual(["/apps/hello/api/list", "/apps/hello/api/mark"]);
+  // Without the app, none of it shows: not the list, not one action, not the document.
+  row.apps = "[]";
+  expect(await ids()).toEqual([]);
+  for (const id of ["hello.list", "hello.mark"]) expect((await seen(`/api/actions?id=${id}`)).status, id).toBe(404);
+  expect((await body(await seen("/api/openapi.json"))).paths).toEqual({});
+  // A key level stands in for no app.
+  row.keys = '{"cloudflare":"read"}';
+  expect(await ids()).toEqual([]);
 });
 it("tracks additions/removals, excludes undeclared and denied operations, and marks missing connections", async () => {
   const a = synthetic();

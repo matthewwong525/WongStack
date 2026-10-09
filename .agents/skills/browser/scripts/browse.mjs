@@ -39,8 +39,12 @@
 // posting an empty cookie list. `close` removes this task's tab, and closes camofox's session, which
 // also saves, when no tab is left. No stored value reaches argv, env, output, or a file.
 //
-// `client(session, {retry, start})` is the same driver for hand-over.mjs's private form, which retries
-// nothing and starts nothing.
+// `client(session, {retry, start})` is the same driver for hand-over.mjs's private form and live view,
+// which retry nothing and start nothing. Three of its calls have no command and serve those links alone:
+// `size` reads the page's size, `resize` sets it through camofox's `/viewport`, which resizes the page's
+// window too, and `keepAlive` evaluates a constant, so camofox counts a use and an idle page stays open
+// while nothing on it is read or changed. `serverPid` is the running server's process, whose browser
+// child a live view finds the screen from.
 //
 // Exit codes: 0 ok · 1 failed · 2 usage · 3 camofox is not installed. Node built-ins only. For tests:
 // BROWSE_SETTLE_MS and BROWSE_SETTLE_GAP_MS override the 8-second settle and its 1-second gap,
@@ -158,6 +162,8 @@ const readJson = file => { try { return JSON.parse(readFileSync(file, 'utf8')); 
 const alive = pid => { try { process.kill(pid, 0); return true; } catch (error) { return error.code === 'EPERM'; } };
 const tabFile = session => join(FILES.tabs, `${session}.json`);
 const installed = () => existsSync(SERVER_SCRIPT);
+/** The camofox server's process id as last recorded, or null. */
+export const serverPid = () => readJson(FILES.server)?.pid ?? null;
 const driver = () => readJson(join(packageDir('playwright-core'), 'package.json'))?.version ?? 'missing';
 
 function privateDirs() {
@@ -370,6 +376,12 @@ export function client(given, { retry = true, start = true } = {}) {
     press: key => onTab(tabId => send('POST', `/tabs/${tabId}/press`, { userId: USER, key })),
     url: async () => noteUrl(await evaluate('location.href')),
     count: selector => evaluate(`document.querySelectorAll(${JSON.stringify(selector)}).length`),
+    /** The page's size, `[width, height]`. */
+    size: () => evaluate('[innerWidth, innerHeight]'),
+    /** Sets the page's size; camofox resizes the page's window with it. */
+    resize: (width, height) => onTab(tabId => send('POST', `/tabs/${tabId}/viewport`, { userId: USER, width, height })),
+    /** A use camofox counts, so it keeps an idle page open; it reads and changes nothing on the page. */
+    keepAlive: () => evaluate('1'),
     async value(target) {
       const { ref, selector } = targetOf(target);
       const value = ref ? valueIn((await page.snapshot()).snapshot, ref) : await evaluate(`document.querySelector(${JSON.stringify(selector)})?.value ?? null`);

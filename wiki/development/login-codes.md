@@ -4,8 +4,9 @@ When a site asks for a one-time code after the agent logs in with [a saved passw
 
 ## Spot the code step
 
-After [`browse.mjs login`](browsing.md#saved-browser-logins), the agent takes a snapshot of the page and reads what it asks for:
+`accepted` from [`browse.mjs login`](browsing.md#saved-browser-logins) only means the address left the login page: the site may still want a check or a code before you're signed in. So the agent takes a snapshot of the next page and reads what it asks for, before it says it's signed in:
 
+- **A robot check:** a tick box such as *I'm not a robot*, or a picture puzzle. It comes first: the agent offers [a live view](live-view.md) for you to tap through, then reads the page again.
 - **A code box:** a field labelled code, OTP, verification, or 2FA, or one marked `autocomplete="one-time-code"`.
 - **An app approval:** text like *check your phone* or *approve in the app*, with no box.
 - **An emailed sign-in link:** text like *check your email for a link*, with no box. It is handled as a code is: it expires in minutes too.
@@ -57,7 +58,8 @@ Each of these has its own route in [when a step needs you](browsing.md#when-a-st
 
 - **A backup or recovery code** goes through [the private form](browsing.md#the-private-form).
 - **A *Sign in with Google* or *Apple* button** [follows the provider's own login](browsing.md#saved-browser-logins); a code the provider sends comes back here.
-- **A picture puzzle, a passkey, or Face ID** is yours, on your own device, with [steps to finish it yourself](browsing.md#steps-for-you-to-finish).
+- **A robot check**, a tick box or a picture puzzle, goes to [a live view](live-view.md).
+- **A passkey or Face ID** is yours, on your own device, with [steps to finish it yourself](browsing.md#steps-for-you-to-finish).
 - **A login with no saved password**, or one the site rejects, goes to [the password link with the site filled in](passwords.md).
 
 Back to [browsing](browsing.md).

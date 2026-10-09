@@ -6,7 +6,7 @@ import type { Person, Role } from '../../lib/access'
 import { at, type ViewProps } from './address'
 import { Field, Group, Tick } from './Fields'
 import { SetLabels } from './Labels'
-import { fill, NOTHING, sameSet, type AccessSet } from './levels'
+import { fill, NOTHING, sameSet, ticks, type AccessSet } from './levels'
 import { Page } from './Page'
 import { SetFields } from './SetFields'
 import { signInLine } from './status'
@@ -24,12 +24,12 @@ function RoleSet({ status, role }: Pick<ViewProps, 'status'> & { role: Role }) {
 function Managing({ manager, onChange }: { manager: boolean; onChange: (manager: boolean) => void }) {
   return <Group legend="Managing">
     <Tick checked={manager} onChange={onChange}>Can manage Access</Tick>
-    <p>Full trust. A manager can add and remove people and give anyone, themselves included, any app or key level.</p>
+    <p>Full trust: can change anyone's access.</p>
   </Group>
 }
 
-/** One person, opened: whether they can sign in, their role, then what it gives by name, or their own set in its
- *  three parts, then whether they manage Access. Without `person`, a new one. */
+/** One person, opened: whether they can sign in, their role, then what it gives by name, or their own apps and
+ *  key levels, then whether they manage Access. Without `person`, a new one. */
 export function PersonPage({ person, ...props }: ViewProps & { person?: Person }) {
   const { status, save } = props
   // Where the fields start: the person as saved, or a new one with nothing.
@@ -40,8 +40,8 @@ export function PersonPage({ person, ...props }: ViewProps & { person?: Person }
   const [manager, setManager] = useState(start.manager)
   const { owner } = status.viewer
   const chosen = status.roles.find(item => item.id === role)
-  // A role is the whole answer: levels are sent only for a person's own set, one for every area and every key.
-  const access = chosen ? { role } : { role: null, apps: fill(status.areas, set.apps, null), keys: fill(status.keys, set.keys, null) }
+  // A role is the whole answer: apps and levels are sent only for a person's own set, every app and every key named.
+  const access = chosen ? { role } : { role: null, apps: ticks(status, set.apps), keys: fill(status, set.keys) }
   const changed = email !== start.email || role !== start.role || !sameSet(set, start.set) || manager !== start.manager
   // Only the owner picks managers, and only a changed tick is sent: left out, the person keeps what they have.
   const picked = owner && manager !== start.manager && { manager }
@@ -54,10 +54,7 @@ export function PersonPage({ person, ...props }: ViewProps & { person?: Person }
       <NativeSelectOption value="">Their own set</NativeSelectOption>
       {status.roles.map(item => <NativeSelectOption key={item.id} value={item.id}>{item.name}</NativeSelectOption>)}
     </NativeSelect></Field>
-    {chosen ? <RoleSet status={status} role={chosen} /> : <>
-      <SetFields status={status} set={set} onChange={setSet} />
-      <p>A new person starts with no apps.</p>
-    </>}
+    {chosen ? <RoleSet status={status} role={chosen} /> : <SetFields status={status} set={set} onChange={setSet} />}
     {owner && <Managing manager={manager} onChange={setManager} />}
   </Page>
 }

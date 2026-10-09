@@ -6,13 +6,17 @@
 //   snapshot        the page text every read gives; snapshots.json  a list, one per read, the last repeating
 //   snapshot-more   a second chunk, so a read is paged
 //   count           what a count gives (default 1); no-field  a value read finds no field
+//   size            a new page's size as `[width, height]` (default [2560, 1328]); a viewport call sets a tab's own
+//   display         read at the start: the X display a pretend browser, a child process named camoufox-bin, runs on
 //   shot            the picture's bytes
 //   click-url, click-count, press-url   where a click or a key press moves the address or the count
 //   gone-once       the next tab request loses its tab (410), once; gone  every tab request does
 //   timeout-click-once  the next click times out, once
-//   fail-open, fail-click, fail-type, fail-select, fail-save   that step is refused
+//   fail-open, fail-click, fail-type, fail-select, fail-save, fail-viewport   that step is refused
 //   hold-click, hold-type   that step waits until the file is removed
+import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
+import { once as heard } from 'node:events';
 import { appendFileSync, existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { join } from 'node:path';
@@ -29,6 +33,8 @@ const tabs = new Map();
 const KEPT = ['CAMOFOX_PORT', 'CAMOFOX_BIND_HOST', 'CAMOFOX_CRASH_REPORT_ENABLED', 'CAMOFOX_CRASH_REPORT_URL', 'SENTRY_DSN', 'CAMOFOX_PROFILE_DIR', 'CAMOFOX_API_KEY', 'TMPDIR', ...Object.keys(process.env).filter(name => name.startsWith('PROXY_'))];
 writeFileSync(file('env.json'), JSON.stringify({ ...Object.fromEntries(KEPT.map(name => [name, process.env[name]])), cwd: process.cwd(), pid: process.pid, argv: process.argv.slice(1) }));
 appendFileSync(file('starts.log'), `${process.pid}\n`);
+// The pretend browser ends with this server: its input closes when the server goes, however it goes.
+const browser = has('display') ? spawn(process.execPath, ['-e', "process.title = 'camoufox-bin'; console.log('named'); process.stdin.resume().on('end', () => process.exit());"], { stdio: ['pipe', 'pipe', 'ignore'], env: { ...process.env, DISPLAY: text('display') } }) : null;
 
 /** Replies, writing tabs.json first, so a test reads the tabs as they are once its command returns. */
 function send(response, status, body) {
@@ -49,6 +55,8 @@ function pageText(tab) {
 /** What an expression browse.mjs sends evaluates to on this tab. */
 function evaluate(tab, expression) {
   if (expression === 'location.href') return tab.url;
+  if (expression === '[innerWidth, innerHeight]') return tab.size;
+  if (expression === '1') return 1;
   if (/^document\.querySelectorAll\(.*\)\.length$/.test(expression)) return has('count') ? Number(text('count')) : 1;
   const field = /^document\.querySelector\((".*")\)\?\.value \?\? null$/.exec(expression);
   if (!field) throw new Error(`the fake evaluates no such expression: ${expression}`);
@@ -86,6 +94,11 @@ const STEPS = {
     return send(response, 200, { ok: true, tabId: tab.id, url: tab.url });
   },
   evaluate: (tab, body, response) => send(response, 200, { ok: true, result: evaluate(tab, body.expression) }),
+  viewport(tab, body, response) {
+    if (has('fail-viewport')) return refuse(response, 500, 'viewport failed');
+    tab.size = [body.width, body.height];
+    return send(response, 200, { ok: true, width: body.width, height: body.height });
+  },
   snapshot(tab, _, response, query) {
     if (query.get('offset')) return send(response, 200, { url: tab.url, snapshot: text('snapshot-more'), hasMore: false });
     const snapshot = pageText(tab);
@@ -112,7 +125,7 @@ function route(request, response, path, body, query) {
   const parts = path.split('/').filter(Boolean);
   if (path === '/tabs' && request.method === 'POST') {
     if (has('fail-open')) return refuse(response, 500, 'tab create failed');
-    const tab = { id: randomUUID(), session: body.sessionKey, user: body.userId, url: body.url, reads: 0, typed: {}, picked: {} };
+    const tab = { id: randomUUID(), session: body.sessionKey, user: body.userId, url: body.url, reads: 0, typed: {}, picked: {}, size: has('size') ? JSON.parse(text('size')) : [2560, 1328] };
     tabs.set(tab.id, tab);
     return send(response, 200, { tabId: tab.id, url: tab.url, httpStatus: 200, navigationOk: true });
   }
@@ -126,7 +139,7 @@ function route(request, response, path, body, query) {
   return refuse(response, 404, 'no such route');
 }
 
-createServer(async (request, response) => {
+const server = createServer(async (request, response) => {
   const { pathname, searchParams } = new URL(request.url, 'http://camofox');
   if (pathname === '/health') return send(response, 200, { ok: true, engine: 'camoufox' });
   const chunks = [];
@@ -139,7 +152,10 @@ createServer(async (request, response) => {
   } catch (error) {
     refuse(response, 500, error.message);
   }
-}).listen(Number(process.env.CAMOFOX_PORT), process.env.CAMOFOX_BIND_HOST);
+});
+// The server answers only once its pretend browser carries its name, so no test reads the name too soon.
+if (browser) await heard(browser.stdout, 'data');
+server.listen(Number(process.env.CAMOFOX_PORT), process.env.CAMOFOX_BIND_HOST);
 
 process.on('SIGTERM', () => {
   writeFileSync(file('stopped'), 'SIGTERM');

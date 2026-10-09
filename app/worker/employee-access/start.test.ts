@@ -2,9 +2,9 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { cloudflare, fixture, owner, req, site } from "../../tests/employee-access/connections";
 import { ownerCore, type Core } from "./core";
 import { accessStatus, changeMember } from "./members";
-import { startPermissions } from "./start";
+import { startKeyLevels, startPermissions } from "./start";
 
-vi.mock("./catalogue.ts", async () => (await import("../../tests/employee-access/catalogue")).builtAreas(["access", "orders", "payroll"], ["payroll"]));
+vi.mock("./catalogue.ts", async () => (await import("../../tests/employee-access/catalogue")).builtApps(["access", "orders", "payroll"]));
 let f: ReturnType<typeof fixture>;
 let cf: ReturnType<typeof cloudflare>["state"];
 let fetch: ReturnType<typeof vi.fn>;
@@ -24,7 +24,7 @@ beforeEach(async () => {
 });
 afterEach(() => { f.sql.close(); vi.unstubAllGlobals(); });
 
-it("lists everyone who could already sign in with every built area at Look up & change, then turns permissions on, in one batch", async () => {
+it("lists everyone who could already sign in with every built app, then turns permissions on, in one batch", async () => {
   await startPermissions(core);
   expect(people()).toEqual([
     { email: "ana@example.com", status: "active", revision: 1, apps: '{"orders":"write","payroll":"write"}' },
@@ -36,10 +36,10 @@ it("lists everyone who could already sign in with every built area at Look up & 
   // The import only reads the sign-in list; nothing on it changes.
   expect(fetch.mock.calls.every(([, init]) => init.method === "GET")).toBe(true);
   expect(cf.writes).toEqual([]);
-  // Every built area is recorded, the one with no screen too, and Access itself is nobody's to give.
-  const everything = { orders: "write", payroll: "write" };
+  // Every built app is recorded, and Access itself is nobody's to give.
+  const everything = ["orders", "payroll"];
   expect(await accessStatus(core)).toMatchObject({ started: true, imported: 2, key: "ready", environment: "live",
-    areas: [{ id: "orders", title: "Orders", description: "The orders area.", screen: true }, { id: "payroll", title: "Payroll", description: "The payroll area.", screen: false }],
+    apps: [{ id: "orders", title: "Orders", description: "The orders app." }, { id: "payroll", title: "Payroll", description: "The payroll app." }],
     people: [{ email: "ana@example.com", status: "active", settled: true, apps: everything },
       { email: "bo@example.com", status: "active", settled: true, apps: everything }], work: [] });
 });
@@ -59,11 +59,33 @@ it("does nothing on a repeated first read", async () => {
   expect(await accessStatus(core)).toMatchObject({ imported: 0 });
 });
 
-it("keeps the areas and levels the owner already chose for a person added before the start", async () => {
-  await changeMember(core, { email: "ana@example.com", removed: false, apps: { orders: "read" } });
+it("starts key levels on an install with people by turning the switch on alone: nobody is given a level, and a held one is kept", async () => {
+  const levels = () => f.sql.prepare("SELECT email, key_id, level FROM wong_access_key_grants ORDER BY email").all();
+  const switches = () => f.sql.prepare("SELECT policy_enabled, keys_enabled, revision FROM wong_access_installation").get();
+  // Before permissions start there is nothing to turn on.
+  await startKeyLevels(core);
+  expect(switches()).toEqual({ policy_enabled: 0, keys_enabled: 0, revision: 1 });
+  await startPermissions(core);
+  f.sql.prepare("INSERT INTO wong_access_key_grants VALUES (?, 'ana@example.com', 'cloudflare', 'read', 2)").run(core.installationId);
+  const before = { people: people(), audit: f.sql.prepare("SELECT COUNT(*) count FROM wong_access_audit").get() };
+  await startKeyLevels(core);
+  // Two people hold every app, and neither is given a level for it; Ana's own level stays. The revision does not move.
+  expect(switches()).toEqual({ policy_enabled: 1, keys_enabled: 1, revision: 2 });
+  expect(levels()).toEqual([{ email: "ana@example.com", key_id: "cloudflare", level: "read" }]);
+  expect({ people: people(), audit: f.sql.prepare("SELECT COUNT(*) count FROM wong_access_audit").get() }).toEqual(before);
+  expect(await accessStatus(core)).toMatchObject({ keysStarted: true, imported: 2,
+    people: [{ email: "ana@example.com", apps: ["orders", "payroll"], keys: { cloudflare: "read" } }, { email: "bo@example.com", apps: ["orders", "payroll"], keys: {} }] });
+  expect(await accessStatus(core)).not.toHaveProperty("kept");
+  // A repeat changes nothing.
+  await startKeyLevels(core);
+  expect([switches(), levels()]).toEqual([{ policy_enabled: 1, keys_enabled: 1, revision: 2 }, [{ email: "ana@example.com", key_id: "cloudflare", level: "read" }]]);
+});
+
+it("keeps the apps the owner already chose for a person added before the start", async () => {
+  await changeMember(core, { email: "ana@example.com", removed: false, apps: { orders: true } });
   await startPermissions(core);
   expect(people()).toEqual([
-    { email: "ana@example.com", status: "active", revision: 2, apps: '{"orders":"read"}' },
+    { email: "ana@example.com", status: "active", revision: 2, apps: '{"orders":"write"}' },
     { email: "bo@example.com", status: "active", revision: 1, apps: '{"orders":"write","payroll":"write"}' },
   ]);
   expect(f.sql.prepare("SELECT event FROM wong_access_audit WHERE event LIKE 'permissions_started%'").get()).toEqual({ event: "permissions_started:1" });

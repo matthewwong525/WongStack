@@ -205,12 +205,12 @@ The employer SHALL be able to make a current person a manager, and only the empl
 
 ### Requirement: Access lists line up and keep one frame
 
-Each of Access's four views SHALL list its people, roles, apps or keys as rows that share the same columns, each row one line on a computer, readable on a phone without sideways scrolling. The people list SHALL include the employer, marked as the owner, with nothing on that row to change. A person's row SHALL keep the same parts whether they can sign in, are waiting, or were removed. Opening a person, role, app or key SHALL show it with its list still in place, at an address that opens it again, and closing it SHALL return to the list. The switch between the views and the place where Access reports a save, a practice list or an unfinished step SHALL stay the same on every Access screen, an opened person, role, app or key included. A removal and leaving with unsaved changes SHALL ask in the same way.
+Access SHALL have two views, People and Roles, each listing its rows with the same columns, each row one line on a computer, readable on a phone without sideways scrolling. Apps and key levels SHALL be set only where a person or a role is opened. The people list SHALL include the employer, marked as the owner, with nothing on that row to change. A person's row SHALL keep the same parts whether they can sign in, are waiting, or were removed. Opening a person or a role SHALL show it with its list still in place, at an address that opens it again, and closing it SHALL return to the list. The switch between the views and the place where Access reports a save, a practice list or an unfinished step SHALL stay the same on every Access screen, an opened person or role included. A removal and leaving with unsaved changes SHALL ask in the same way.
 
 #### Scenario: The employer opens a person
 
 - **WHEN** the employer opens a person from the people list
-- **THEN** the person's fields show with the people list and the switch between the four views still in place, and closing them shows the list as it was
+- **THEN** the person's fields show with the people list and the switch between the two views still in place, and closing them shows the list as it was
 
 #### Scenario: A manager reads the people list
 
@@ -264,48 +264,48 @@ Once the installation can hand its project out, a signed-in person who currently
 - **WHEN** a connected person pushes a change to the address their copy came from
 - **THEN** it is refused, nothing in the project changes, and the message says the employer grants publishing where the project is kept
 
-### Requirement: An area is held at a level
+### Requirement: A given app is the whole app
 
-Each app a person or role is given SHALL be an area held at one of two levels: Look up, which permits calls that only read, and Look up & change, which also permits calls that change or send things. The server SHALL check the caller's current level for every area a call belongs to before business work, for an app screen's calls, direct API calls, and assistant discovery and calls alike, in addition to key levels and any stricter action or record check. Opening an app's screen SHALL need Look up. A refusal SHALL name the area and the level needed. The employer SHALL hold every area at Look up & change. A newly given area SHALL start at Look up.
+An app SHALL be given to a person or a role as one choice, given or not. A person who holds an app SHALL be able to open its screen and run every call it makes, look-ups and changes alike, from the screen, a direct API call, or an assistant, whatever saved keys the app uses and whatever the person's level for those keys. A person who does not hold it SHALL be refused all of it before business work. The employer SHALL hold every app. Any stricter action or record check SHALL still apply.
 
-#### Scenario: A person at Look up tries to change something
+#### Scenario: A person with an app and no key level changes something
 
-- **WHEN** a person who holds Orders at Look up calls an Orders action that changes an order
-- **THEN** the server refuses before any business work and names Orders and Look up & change, while that person's Orders look-ups still run
+- **WHEN** a person who holds Orders and has no level for Stripe issues a refund from the Orders screen, where Orders uses Stripe
+- **THEN** the refund runs
 
-#### Scenario: A level is lowered during a session
+#### Scenario: A person without the app
 
-- **WHEN** the employer lowers a person's area to Look up and that person sends a changing request with the same valid session
-- **THEN** the request is refused with no logout needed
+- **WHEN** a person who does not hold Orders, and holds Stripe at Read & write, calls an Orders action
+- **THEN** the server refuses before any business work
 
-### Requirement: An area may have no screen
+### Requirement: Work with no screen belongs to an app or a key
 
-A group of company actions with no screen SHALL be an area the employer can give and take away like an app. Access SHALL list it, marked as having no screen, and the home page SHALL show no card for it. A business route that belongs to no listed area SHALL fail the checks that gate publishing, not silently deny everyone.
+Company actions with no screen of their own SHALL either belong to an app, where holding that app permits them, or use a saved key, where the caller's level for that key permits them. Only an app that has a screen SHALL be offered where a person or a role is opened. Such work that belongs to no app and uses no key SHALL fail the checks that gate publishing, naming it, and SHALL be refused for everyone if it runs.
 
-#### Scenario: Work built for a skill alone
+#### Scenario: Work built for a skill alone uses no key
 
-- **WHEN** the employer gives a person an area that has actions and no screen
-- **THEN** that person's assistant can discover and call its actions at the level given, and their home page shows no new card
+- **WHEN** a change adds actions with no screen that belong to no app and use no saved key
+- **THEN** the checks fail and name them, before the change can publish
 
-### Requirement: Area levels arrive without taking anything away
+### Requirement: Look-only access ends without giving more
 
-When an installation updates to area levels, every person and role SHALL hold each app they had at Look up & change, and nobody SHALL be refused a call they could make before the update. People recorded at the employer's first Access visit SHALL likewise hold every built area at Look up & change.
+When an installation updates from area levels, a person or role that held an app at Look up & change SHALL hold that app, and one that held it at Look up SHALL not hold it. Access SHALL name each person and role that lost an app this way, with the app, until the next change saved in Access. Nobody SHALL gain the ability to change an app's own data through the update.
 
-#### Scenario: An existing team updates
+#### Scenario: A person who could only look
 
-- **WHEN** an installation whose people hold apps takes the update
-- **THEN** each person's apps, screens and changing calls work as before, and Access shows each of those areas at Look up & change
+- **WHEN** an installation where a person held Orders at Look up takes the update
+- **THEN** that person's Orders requests are refused, and Access names them and Orders to the employer until the next save
 
-### Requirement: A panel starts from an app or skill and shows what is enforced
+### Requirement: A person or a role opens to apps and keys
 
-Where a person's own set or a role is opened, Access SHALL offer each app and skill as a starting point that fills in what it needs without saving, SHALL show the areas and key levels the server enforces as one editable list that names what each opens, and SHALL list each app or skill the set cannot fully use with what is missing. Choosing an app SHALL fill its area at Look up and its keys at Read; choosing a skill SHALL fill every level it needs. A level a starting point raised SHALL be marked until the save, and nothing SHALL change for the person before the employer saves.
+Where a person's own set or a role is opened, Access SHALL show the apps as choices to give or not, the saved keys each with its level, and Project code as its one tick, and SHALL change nothing for the person before the employer saves. Access SHALL not mark a person, a role or an app as lacking a key level. The People and Roles lists SHALL say how many apps and keys each person and role has. A signed-in person who manages nothing SHALL see their own apps and key levels.
 
-#### Scenario: The employer gives a skill in one press
+#### Scenario: The employer gives an app
 
-- **WHEN** the employer opens a role, chooses a skill that changes things in Orders with Stripe, and saves
-- **THEN** before the save the panel marks Orders at Look up & change and Stripe at Read & write as raised, and after it the role's holders can run the skill
+- **WHEN** the employer opens a person, gives them Orders and saves
+- **THEN** the person holds Orders, their key levels are unchanged, and no row is marked as missing anything
 
 #### Scenario: The employer leaves without saving
 
-- **WHEN** the employer chooses a starting point and closes the panel without saving
+- **WHEN** the employer gives an app and closes the panel without saving
 - **THEN** Access asks before leaving, and the person's access is unchanged

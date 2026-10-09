@@ -4,7 +4,7 @@ import type { AccessIdentity } from "../access.ts";
 import { type ConnectionEnv, reply } from "./core.ts";
 import { codeState } from "./code.ts";
 import { setupPrompt } from "./prompt.ts";
-import { areaTitle } from "./catalogue.ts";
+import { appTitle } from "./catalogue.ts";
 import { businessApps } from "./sets.ts";
 import { currentPolicy, humanEmail, policyDenied } from "./policy.ts";
 export async function setupStatus(request: Request, env: ConnectionEnv, identity: AccessIdentity | null): Promise<Response> {
@@ -16,12 +16,12 @@ export async function setupStatus(request: Request, env: ConnectionEnv, identity
   const code = codeState(env, policy, true);
   const origin = new URL(request.url).origin;
   // Before permissions start, everyone keeps every app; the owner always does.
-  const apps = policy.state === "current" && policy.role === "employee" ? [...policy.apps.keys()].sort() : businessApps();
+  const apps = policy.state === "current" && policy.role === "employee" ? [...policy.apps].sort() : businessApps();
   return reply({ identity: { email, subject: identity!.claims.sub },
     role: policy.state === "legacy" ? "employee" : policy.role,
     permissions: policy.state === "current" ? "started" : "not_started",
-    // An area with no screen has no card to take a title from, so each title travels with its id.
-    apps, titles: Object.fromEntries(apps.map(app => [app, areaTitle(app)])),
+    // Each app's title travels with its id, so the prompt names apps as Home does.
+    apps, titles: Object.fromEntries(apps.map(app => [app, appTitle(app)])),
     code, prompt: code === "lacked" ? { state: "unavailable", message: "Ask your admin for access to Connect your assistant." }
       : setupPrompt(origin, undefined, code === "ready"), api: "authenticated",
     repository: "manual_provider_setup", memory: "independent_operator_setup" });

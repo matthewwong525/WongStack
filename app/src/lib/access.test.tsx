@@ -46,23 +46,36 @@ it('reload hides a previous failure while obtaining new authoritative permission
   expect(result.current.error).toBe(false)
   expect(result.current.data?.state).toBe('current')
 })
+const base = { ownerEmail: 'owner@example.com', viewer: { email: 'owner@example.com', owner: true }, environment: 'live', key: 'ready', started: true, imported: 0,
+  keysStarted: true, apps: [], unticked: { people: [], roles: [] }, keys: [], roles: [], people: [], work: [] }
 it('reads why the project can not be handed out, and works it out from Project code for a status sent without it', () => {
-  const code = (saved: boolean) => ({ id: 'code', title: 'Project code', levels: ['read'], saved, setup: false, usedBy: [], alone: true })
-  const status = (changes: object) => statusSchema.parse({ ownerEmail: 'owner@example.com', viewer: { email: 'owner@example.com', owner: true }, environment: 'live',
-    key: 'ready', started: true, imported: 0, keysStarted: true, kept: 0, areas: [], skills: [], appKeys: {}, keys: [], roles: [], people: [], work: [], ...changes })
+  const code = (saved: boolean) => ({ id: 'code', title: 'Project code', levels: ['read'], saved, setup: false, alone: true })
+  const status = (changes: object) => statusSchema.parse({ ...base, ...changes })
   expect(['ready', 'key', 'setup'].map(project => status({ project, keys: [code(false)] }).project)).toEqual(['ready', 'key', 'setup'])
   // An older app, or a cached page: saved means ready, anything else asks for the key.
   expect([status({ keys: [code(true)] }).project, status({ keys: [code(false)] }).project, status({}).project]).toEqual(['ready', 'key', 'key'])
   expect(statusSchema.safeParse({ ...status({}), project: 'soon' }).success).toBe(false)
 })
 
-it("reads a key's direct-use choice and the choice a skill needs, and a status sent without either", () => {
-  const key = (direct?: unknown) => ({ id: 'notion', title: 'Notion', levels: ['read', 'write'], saved: true, setup: false, usedBy: [], alone: false, ...(direct !== undefined && { direct }) })
-  const skill = (direct?: unknown) => ({ id: 'find', title: 'Find a page', areas: {}, keys: { notion: 'read' }, ...(direct !== undefined && { direct }) })
-  const status = (changes: object) => statusSchema.safeParse({ ownerEmail: 'owner@example.com', viewer: { email: 'owner@example.com', owner: true }, environment: 'live',
-    key: 'ready', started: true, imported: 0, keysStarted: true, kept: 0, areas: [], skills: [], appKeys: {}, keys: [], roles: [], people: [], work: [], ...changes })
-  const read = status({ keys: [key({ offered: ['read', 'write'], mode: 'read' }), key({ offered: ['read'], mode: null }), key(null), key()], skills: [skill({ notion: 'write' }), skill()] })
-  expect(read.data?.keys.map(item => item.direct)).toEqual([{ offered: ['read', 'write'], mode: 'read' }, { offered: ['read'], mode: null }, null, undefined])
-  expect(read.data?.skills.map(item => item.direct)).toEqual([{ notion: 'write' }, undefined])
-  for (const wrong of [{ keys: [key({ offered: ['read'], mode: 'admin' })] }, { keys: [key({ mode: 'read' })] }, { skills: [skill({ notion: 'admin' })] }]) expect(status(wrong).success).toBe(false)
+it("reads whether a key is set up to be used directly as a yes or no, and a status sent without it", () => {
+  const key = (direct?: unknown) => ({ id: 'notion', title: 'Notion', levels: ['read', 'write'], saved: true, setup: false, alone: false, ...(direct !== undefined && { direct }) })
+  const status = (changes: object) => statusSchema.safeParse({ ...base, ...changes })
+  const read = status({ keys: [key(true), key(false), key()] })
+  expect(read.data?.keys.map(item => item.direct)).toEqual([true, false, undefined])
+  // The choice a key once carried is no yes or no.
+  for (const wrong of [{ keys: [key({ offered: ['read'], mode: 'read' })] }, { keys: [key('read')] }, { keys: [key(null)] }]) expect(status(wrong).success).toBe(false)
+})
+
+it('reads apps as ticks: a list of apps per person and role, who an update unticked, and what a person holds themselves', () => {
+  const person = (apps: unknown) => ({ email: 'kim@example.com', status: 'active', settled: true, role: null, manager: false, apps, keys: { stripe: 'read' } })
+  const status = (changes: object) => statusSchema.safeParse({ ...base, ...changes })
+  const read = status({ apps: [{ id: 'orders', title: 'Orders', description: 'Every order' }], roles: [{ id: 'sales', name: 'Sales', apps: ['orders'], keys: {} }], people: [person(['orders'])],
+    unticked: { people: [{ email: 'kim@example.com', apps: ['Orders'] }], roles: [{ name: 'Sales', apps: ['Payroll'] }] } })
+  expect([read.data?.apps, read.data?.roles[0].apps, read.data?.people[0].apps]).toEqual([[{ id: 'orders', title: 'Orders', description: 'Every order' }], ['orders'], ['orders']])
+  expect(read.data?.unticked).toEqual({ people: [{ email: 'kim@example.com', apps: ['Orders'] }], roles: [{ name: 'Sales', apps: ['Payroll'] }] })
+  // A status from before apps were ticks is refused: an app with a level, or no word on who was unticked.
+  for (const old of [{ people: [person({ orders: 'write' })] }, { roles: [{ id: 'sales', name: 'Sales', apps: { orders: 'read' }, keys: {} }] }, { unticked: undefined }, { apps: undefined }]) expect(status(old).success).toBe(false)
+  // What a person holds themselves: the screens they can open, and a level per key.
+  const own = appAccessSchema.parse({ state: 'current', role: 'employee', apps: ['orders'], revision: 1, keys: [{ id: 'stripe', title: 'Stripe', level: 'read' }] })
+  expect(own).toEqual({ state: 'current', role: 'employee', apps: ['orders'], revision: 1, code: 'off', keys: [{ id: 'stripe', title: 'Stripe', level: 'read' }] })
 })

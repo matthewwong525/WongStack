@@ -5,7 +5,7 @@ import { keys } from "../keys";
 import { appAccess } from "./apps";
 import { CODE_GIT, codeGit, codeSource, codeState, codeStep, upstream } from "./code";
 import type { ConnectionEnv } from "./core";
-import { keyCatalogue, needs } from "./key-catalogue";
+import { keyCatalogue } from "./key-catalogue";
 import { everyKey, offered, saved, scopedEnv } from "./key-levels";
 import { keyUse } from "./key-use";
 import { currentPolicy } from "./policy";
@@ -15,7 +15,7 @@ import { setupStatus } from "./setup";
 import { body } from "../../tests/body";
 import { fakeArtifacts, fakeEnv } from "../../tests/env";
 
-vi.mock("./catalogue.ts", async () => (await import("../../tests/employee-access/catalogue")).builtAreas(["access", "orders"]));
+vi.mock("./catalogue.ts", async () => (await import("../../tests/employee-access/catalogue")).builtApps(["access", "orders"]));
 
 const TOKEN = "github_pat_synthetic_read_only_value";
 const github = { WONG_CODE_REPOSITORY: "acme/recipe-box", WONG_CODE_READ: TOKEN };
@@ -57,11 +57,10 @@ it("registers Project code as a key with Read alone, offered with no app, that n
   expect(keys.code).toEqual({ title: "Project code", secrets: ["WONG_CODE_READ"], levels: ["read"], alone: true, bindings: ["ARTIFACTS"] });
   expect([offered("code"), everyKey().get("code")]).toEqual([["read"], "read"]);
   expect(keyUse.some(use => use.keys.includes("code"))).toBe(false);
-  expect(needs(["orders", "hello", "access"]).has("code")).toBe(false);
-  expect(changedSet({ apps: {}, keys: {} }, { apps: { orders: "read" } }).keys).toEqual({});
+  expect(changedSet({ apps: [], keys: {} }, { apps: { orders: true } })).toEqual({ apps: ["orders"], keys: {} });
   // Saved follows whether the project can be handed out: a Cloudflare-kept one needs no secret.
-  const row = (bindings: object) => keyCatalogue(bindings, {}).find(key => key.id === "code");
-  expect(row({})).toEqual({ id: "code", title: "Project code", levels: ["read"], saved: false, setup: false, usedBy: [], alone: true, direct: null });
+  const row = (bindings: object) => keyCatalogue(bindings).find(key => key.id === "code");
+  expect(row({})).toEqual({ id: "code", title: "Project code", levels: ["read"], saved: false, setup: false, alone: true, direct: false });
   expect([row(github)!.saved, row(artifacts().env)!.saved, saved({ WONG_CODE_READ: TOKEN }, "code")]).toEqual([true, true, false]);
   // No route is handed the credential or the binding, even one that lists the key.
   const all = { DB: {}, ...github, ARTIFACTS: {}, WONG_CLOUDFLARE_READ: "look-up" };

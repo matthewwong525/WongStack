@@ -6,8 +6,8 @@ import type { Forward } from "../keys.ts";
 
 // POST /api/direct/<key>/read and /api/direct/<key>/change: one request passed on to a saved key's own service.
 // Both are made here from the key registry, so a service is a `forward` entry there and no handler code. Each
-// belongs to its key alone, so no app is needed: the person's level for the key decides, and so does the owner's
-// direct-use choice for it in Access, which is off until picked. The app adds the key; the caller never holds it.
+// belongs to its key alone, so no app is needed: the person's level for the key decides, and nothing else in
+// Access does. The app adds the key; the caller never holds it.
 // wiki/stack/company-api.md#use-a-key-directly
 
 // The service's answer is read up to this size; the action's own output limit leaves room to wrap it.
@@ -142,7 +142,7 @@ export function forwardRoutes(registry: Readonly<Record<string, KeyEntry>>, send
     for (const level of key.levels ?? LEVELS) {
       const route = `POST /api/direct/${id}/${KINDS[level]}`;
       routes.set(route, action(id, key, forward, KINDS[level], send));
-      access.set(route, { keys: [id], direct: level });
+      access.set(route, { keys: [id], direct: true });
     }
   }
   return { routes, access };

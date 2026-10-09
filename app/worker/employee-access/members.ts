@@ -2,12 +2,10 @@
 import { z } from "zod";
 import { type Core, type OwnerCore, AccessError, isOwner, now } from "./core.ts";
 import { loginAuthority } from "./login-management.ts";
-import { areas } from "./catalogue.ts";
+import { apps, appTitle } from "./catalogue.ts";
 import { codeStep } from "./code.ts";
-import { appKeys, keyCatalogue } from "./key-catalogue.ts";
-import { directChoices } from "./direct.ts";
+import { keyCatalogue } from "./key-catalogue.ts";
 import { type AccessSet, type Sets, changedSet, heldSet, readSets, save, setFields, setWrites } from "./sets.ts";
-import { skills } from "./skills.ts";
 
 // `role` is a role's id, or null for the person's own set; left out, they keep what they have.
 // `manager` lets the person manage Access; left out, they keep that too. A removed person is never one.
@@ -15,14 +13,14 @@ const changeSchema = z.object({ email: z.email().transform(value => value.trim()
   removed: z.boolean(), role: z.string().nullable().optional(), manager: z.boolean().optional(), ...setFields }).strict()
   .refine(change => !(change.removed && change.manager));
 type Change = z.infer<typeof changeSchema>;
-const nothing = (): AccessSet => ({ apps: {}, keys: {} });
+const nothing = (): AccessSet => ({ apps: [], keys: {} });
 
 /** The role a save leaves the person with, and their own set when they hold none. Never both. */
 function target({ removed, role: asked, apps, keys }: Change, existing: Sets["people"][number] | undefined, roles: Sets["roles"]) {
   if (removed) return { role: null, own: nothing() };
   const role = asked === undefined ? existing?.role ?? null : asked;
   if (role === null) {
-    // Moving off a role starts from what the role gave; the named levels apply on top.
+    // Moving off a role starts from what the role gave; the named apps and levels apply on top.
     return { role, own: changedSet(existing ? heldSet(existing, roles) : nothing(), { apps, keys }) };
   }
   // A role is the whole answer to what a person has: no exceptions on top.
@@ -90,35 +88,35 @@ export async function changeMember(core: Core, value: unknown): Promise<void> {
 
 /** What the owner's screen, and a manager's, shows. No key's value is here: only whether each one is saved.
  *  `viewer` is who asked, and whether they are the owner: the screen draws by it, and every save checks again.
- *  `areas` is every area a person can be given, and `skills` what each skill needs: who can run one is worked
- *  out from a set, never stored. */
+ *  `apps` is every app a person can be given. `unticked` names each person and role that could only look at an
+ *  app, with the app's title: a tick can not say that, so they do not hold it. The next save clears the list. */
 export async function accessStatus(core: Core): Promise<object> {
   const id = core.installationId;
   // Access itself is everyone's own page, so it is nobody's to give.
-  const given = areas().filter(area => area.id !== "access");
-  const [installation, { people, roles }, direct, work, notes] = await Promise.all([
+  const given = apps().filter(app => app.id !== "access");
+  const titles = (ids: string[]) => ids.map(appTitle);
+  const [installation, { people, roles }, work, notes] = await Promise.all([
     core.db.prepare("SELECT policy_enabled, keys_enabled FROM wong_access_installation WHERE installation_id = ?").bind(id)
       .first<{ policy_enabled: number; keys_enabled: number }>(),
     readSets(core),
-    directChoices(core),
     core.db.prepare("SELECT kind, status, outcome, error_code FROM wong_access_work WHERE installation_id = ? AND kind IN ('policy', 'sessions') ORDER BY kind").bind(id).all(),
     // A first-open note stays until the owner changes something.
     core.db.prepare(`SELECT a.event FROM wong_access_audit a
       JOIN wong_access_installation i ON i.installation_id = a.installation_id AND i.revision = a.revision
-      WHERE a.installation_id = ? AND (a.event LIKE 'permissions_started:%' OR a.event LIKE 'key_levels_started:%')`).bind(id)
+      WHERE a.installation_id = ? AND a.event LIKE 'permissions_started:%'`).bind(id)
       .all<{ event: string }>(),
   ]);
   if (!installation) throw new AccessError("installation_mismatch");
-  const noted = (event: string) => Number(notes.results.find(row => row.event.startsWith(event))?.event.slice(event.length) ?? 0);
-  const uses = appKeys(given.map(area => area.id));
   return { ownerEmail: core.email, viewer: { email: core.actor, owner: core.owner },
     environment: core.live ? "live" : "practice",
     // A preview holds no key and never needs one.
     key: !core.live ? "practice" : loginAuthority(core.env) ? "ready" : "missing",
-    started: installation.policy_enabled === 1, imported: noted("permissions_started:"),
-    // `kept`: how many people kept what their apps use when key levels started.
-    keysStarted: installation.keys_enabled === 1, kept: noted("key_levels_started:"),
-    areas: given, appKeys: uses, keys: keyCatalogue(core.env, uses, direct), skills: skills(),
+    // `imported`: how many people the sign-in list already admitted when permissions started.
+    started: installation.policy_enabled === 1, imported: Number(notes.results[0]?.event.slice("permissions_started:".length) ?? 0),
+    keysStarted: installation.keys_enabled === 1,
+    apps: given, keys: keyCatalogue(core.env),
+    unticked: { people: people.filter(person => person.unticked.length).map(person => ({ email: person.email, apps: titles(person.unticked) })),
+      roles: roles.filter(role => role.unticked.length).map(role => ({ name: role.name, apps: titles(role.unticked) })) },
     // Why Project code can not be given out yet: a word, never a secret's name or value.
     project: codeStep(core.env),
     roles: roles.map(role => ({ id: role.id, name: role.name, ...role.set })),
