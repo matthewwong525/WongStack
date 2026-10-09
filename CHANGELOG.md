@@ -21,13 +21,6 @@
 
 **Updating.** Four things to do. First, open Access and read the notice at the top: anyone who could only look at an app has lost that app, and Access names each one until your next save there. Tick the app to give it back; a tick gives all of the app, and the old look-only setting can't be brought back. Second, look over each person's apps: a person with an app ticked can now do everything in it, even where a key level held them back before, so untick an app for anyone who should not change things in it. Third, ask your assistant to check any folder under `app/worker/apps/` that has no screen, which is work you built for skills or assistants alone: each one now needs a key or a screen, or the checks stop the update and name it. Fourth, if your assistant set a service up so its key can be used directly, look over that key: direct use is now on for you, and for anyone who holds a level for the key, whatever you had picked before. Set a person's level for the key to *None* to stop it for them. The Apps, Keys and Skills lists are gone, with nothing to do: skills run as before. Key levels people already hold are kept, and the app's database does not change.
 
-## 38.4.0 — See the changed screens before choosing
-
-- **Pictures appear in the chat before the publish choice.** After building, `/apply` shows two useful views of the changed screens, each with a short caption, then asks whether to publish, change more, or save. One view is enough when there is only one useful view.
-- **The preview link stays.** If pictures cannot be taken or no screen changed, the assistant says why and keeps the choice. Asking to build and publish still goes straight through with no extra stop.
-
-**Updating.** Nothing needs doing by hand.
-
 ## 38.3.0 — Tap through a robot check in a live view
 
 - **A robot check gets a live view you tap through.** When a site asks whether a person is there, with a tick box or a picture puzzle, the assistant asks if you're ready. Then it sends a private link that shows its browser on that page. You tick the box or do the puzzle. The link closes itself once the site lets you through, and the assistant carries on. The assistant never ticks or solves a check itself.
