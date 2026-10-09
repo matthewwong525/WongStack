@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Browse through a local proxy automatically
+
+- **Personal browsing starts its own local forwarding proxy.** There is nothing extra to install or configure. It uses the assistant's computer's network, independently of WARP and Paseo's relay, and chooses no country. A site may still refuse the browser.
+- **Secure website traffic stays encrypted, and the proxy keeps no browsing logs.** A proxy startup failure is reported. Stopping the browser closes its proxy too.
+- **Running tasks keep their pages and saved logins.** The new default activates at the next deliberate browser stop and start. [Browsing](wiki/development/browsing.md#saved-browser-logins) owns the details.
+
+**Updating.** Nothing needs doing by hand. An already-running browser keeps working as before until you ask your assistant to stop it; the next errand starts it with the new default.
+
 ## 38.2.1 — The build buttons sit in the plan page's bottom bar
 
 - ***Build it* and *Build and publish* are always in view.** Before, they sat under *Ready?* at the foot of the plan page, so on a phone you scrolled past the whole plan to reach them. Now they are in the bar at the bottom of the screen: a second row under *Send notes* on a phone, the same row on a wide screen. The *Ready?* section is gone.

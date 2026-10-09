@@ -1,6 +1,6 @@
 # Browsing
 
-Browsing is how the agent uses websites as you: it keeps your logins, logs in with the passwords you save for it, shows you what it's doing, and asks you in the chat or through a private form when a step needs you. It never shows you its browser or lets you drive it. It works the same for every repo on the computer.
+Browsing lets the agent use websites as you: saved logins, pictures of its work, and chat questions or private forms when it needs you. You cannot drive its browser. Every repo on the computer shares it.
 
 **API key and token website steps use your own browser.** Before opening or interacting with a token page, follow [the token website procedure](secrets.md#api-token-website-steps), including when ordinary browsing reaches such a step. It takes precedence over saved logins, pictures, and private forms below; the agent gives you the service link and short steps.
 
@@ -38,17 +38,23 @@ A failed command prints one `BROWSE_ERROR=` line. A ref comes from the newest sn
 
 **Tasks share the browser.** Two chats, or a chat and a scheduled run, each get their own page and the same logins; neither waits. A page is named for its task's folder, so a second task in one folder passes `--session <name>` on every command. `close` closes only the task's own page; `stop` ends the browser for every task, so the agent runs it only when you ask. [`/verify`](staging-walkthrough.md) uses a temporary browser of its own, without your logins.
 
-**Read a page only after it settles.** A page read in its first second can be half-loaded: `open` waits until two reads a second apart match, and after a click the agent reads again if the page looks unfinished.
+**Read a page only after it settles.** `open` waits for two matching reads a second apart. After a click, read again if the page looks unfinished.
 
 **Nothing is reported to the browser's makers.** `browse.mjs` switches camofox's failure reports off at every start, and the browser listens only on this computer.
 
+**Every new start uses a local forwarding proxy automatically**, with no extra install or account. It keeps no browsing logs and tunnels secure traffic encrypted. Startup failure stops the browser; stopping the browser closes its proxy.
+
+It uses this computer's own network: Canadian on a Canadian laptop, Finnish on a Finland server. It needs neither WARP nor Paseo's relay, chooses no country, and uses no phone connection. Sites can still [refuse](#when-a-site-refuses-the-browser).
+
+A running browser keeps its pages and logins. The default activates after you ask to stop it and a later errand starts it again. Never restart it just for an update.
+
 ## Show what the browser is doing
 
-While the agent browses for you, it drops a picture of the page into the chat at each key moment, so you can catch a wrong page or a wrong field before it's too late.
+The agent shows page pictures in the chat at key moments, so you can catch a wrong page or field.
 
-- **When.** Each new page, right before an action that publishes, sends, books, pays for, or deletes something, and the result. Not after every click or keystroke: a flood of pictures hides the one that matters.
+- **When.** Each new page, before publishing, sending, booking, paying, or deleting, and the result. Avoid pictures after every click: they hide the one that matters.
 - **A picture before a yes.** Before one of those actions, the picture goes with a question in the chat: *Publish the site now?* The agent waits for your yes, however long you take, then acts.
-- **How.** The agent takes the picture into the temp folder, then opens the path it prints with its own image tool (Claude's Read, Codex's image view). [Paseo](https://paseo.sh) shows an image a tool opens as a picture in the chat; a terminal shows a placeholder, which does no harm.
+- **How.** Save to the temp folder, then open the printed path with your image tool (Claude's Read, Codex's image view). [Paseo](https://paseo.sh) shows it in chat; a terminal shows a placeholder.
 
   ```bash
   node .claude/skills/browser/scripts/browse.mjs screenshot --if-changed   # BROWSE_SHOT=<temp path>, or none: nothing new to show
@@ -73,7 +79,7 @@ When a step needs something only you can give, the agent gets it without showing
 
 ## Steps for you to finish
 
-When the agent can't get past a login or a check, it hands the rest to you in the chat as steps you can follow without asking anything back. A login on your own phone doesn't log the agent's browser in, so the steps cover the rest of the job, not only the login.
+When a login or check stops the agent, it gives you steps for the rest of the job. Signing in on your phone doesn't sign its browser in.
 
 - **One line on what stopped it.** *The shop wants a passkey, which only your phone can give.*
 - **Numbered steps, one action each**, in the order you'll do them on your own phone or computer.

@@ -17,7 +17,8 @@
 // `BROWSE_NEEDS=install` and exits 3: the agent asks the person, runs `install`, and retries.
 //
 // The server starts on demand, detached, on a free loopback port recorded in `server.json`. Each start
-// binds 127.0.0.1, switches camofox's failure reporting off, keeps logins under `profiles/`, and passes
+// binds 127.0.0.1, starts its local forwarder in the same process, switches failure reporting off,
+// keeps logins under `profiles/`, and passes
 // an API key made once into a 0600 file. It keeps no log: camofox logs a failed step's detail, which
 // can hold what was typed. A start is refused when the installed `playwright-core` is not the pinned
 // minor: a newer driver fails to save a login.
@@ -51,6 +52,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } 
 import { createServer } from 'node:net';
 import { homedir, tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { isMain, parseCli, usageError } from '../../memory/scripts/lib/cli.mjs';
 import { hostOf, readLogins, writeLogins } from './logins.mjs';
 
@@ -80,6 +82,7 @@ const DIR = join(homedir(), '.wong-stack', 'camofox');
 const FILES = { server: join(DIR, 'server.json'), key: join(DIR, 'api-key'), lock: join(DIR, 'start.lock'), tmp: join(DIR, 'tmp'), tabs: join(DIR, 'tabs'), profiles: join(DIR, 'profiles') };
 const packageDir = name => join(DIR, 'node_modules', name);
 const SERVER_SCRIPT = join(packageDir('@askjo/camofox-browser'), 'server.js');
+const LAUNCHER = fileURLToPath(new URL('./server.mjs', import.meta.url));
 const ms = (name, normal) => Number(process.env[name] ?? normal);
 const SETTLE_MS = ms('BROWSE_SETTLE_MS', 8000);
 const SETTLE_GAP_MS = ms('BROWSE_SETTLE_GAP_MS', 1000);
@@ -226,22 +229,31 @@ async function startServer() {
     const live = await liveServer();
     if (live) return live;
     const port = await freePort();
-    const child = spawn(process.execPath, [SERVER_SCRIPT], { cwd: DIR, detached: true, stdio: 'ignore', env: serverEnv(port, apiKey()) });
+    const child = spawn(process.execPath, [LAUNCHER, SERVER_SCRIPT], { cwd: DIR, detached: true, stdio: 'ignore', env: serverEnv(port, apiKey()) });
     child.unref();
-    writeFileSync(FILES.server, `${JSON.stringify({ pid: child.pid, port })}\n`, { mode: 0o600 });
-    return await awaitServer(child.pid);
+    writeFileSync(FILES.server, `${JSON.stringify({ pid: child.pid, port, proxy: 'local' })}\n`, { mode: 0o600 });
+    try {
+      return await awaitServer(child.pid);
+    } catch (error) {
+      await terminate(child.pid);
+      rmSync(FILES.server, { force: true });
+      throw error;
+    }
   } finally {
     rmSync(FILES.lock, { recursive: true, force: true });
   }
 }
 
-async function stop() {
-  const pid = readJson(FILES.server)?.pid;
+async function terminate(pid) {
   if (pid && alive(pid)) {
     process.kill(pid, 'SIGTERM');
     for (let i = 0; i < 100 && alive(pid); i++) await sleep(100);
     if (alive(pid)) process.kill(pid, 'SIGKILL');
   }
+}
+
+async function stop() {
+  await terminate(readJson(FILES.server)?.pid);
   rmSync(FILES.server, { force: true });
   console.log('BROWSE_SERVER=stopped');
 }

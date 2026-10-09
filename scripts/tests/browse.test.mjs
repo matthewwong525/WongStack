@@ -2,11 +2,13 @@ import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { connect } from 'node:net';
 import { basename, dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { CAMOFOX, leftPage, serverEnv, sessionName, targetOf, valueIn } from '../../.agents/skills/browser/scripts/browse.mjs';
 import { hostOf, readLogins, writeLogins } from '../../.agents/skills/browser/scripts/logins.mjs';
+import { localProxyEnv } from '../../.agents/skills/browser/scripts/server.mjs';
 import { BROWSE_ENV, fakeCamofox } from './fixtures/fake-camofox.mjs';
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -39,7 +41,7 @@ fs.mkdirSync(dir, { recursive: true });
 fs.writeFileSync(path.join(dir, 'server.js'), '');
 `);
   chmodSync(join(bin, 'npm'), 0o755);
-  const env = { ...process.env, ...BROWSE_ENV, HOME: home, PATH: `${bin}:${process.env.PATH}`, SENTRY_DSN: 'https://key@sentry.example/1', CAMOFOX_CRASH_REPORT_URL: 'https://reports.example/report' };
+  const env = { ...process.env, ...BROWSE_ENV, HOME: home, PATH: `${bin}:${process.env.PATH}`, SENTRY_DSN: 'https://key@sentry.example/1', CAMOFOX_CRASH_REPORT_URL: 'https://reports.example/report', PROXY_HOST: 'external.example', PROXY_PORTS: '8080,8081', PROXY_PASSWORD: 'unused-password', PROXY_STRATEGY: 'backconnect' };
   const runWith = (extra, ...args) => spawnSync(process.execPath, [script, ...args], { cwd: home, env: { ...env, ...extra }, encoding: 'utf8', timeout: 30_000 });
   const run = (...args) => runWith({}, ...args);
   /** Runs a command beside the test, so two can run at once; resolves to its status and output. */
@@ -102,7 +104,7 @@ test('install asks npm for the two pinned versions and no others, into the home 
   assert.match(failed.stderr, /ENOSPC/, 'npm\'s own lines reach the person');
 });
 
-test('the server starts on loopback with reporting off, its files in one folder, and a key in a private file', t => {
+test('the server starts with its own loopback proxy, reporting off, private files, and stops the listener with it', async t => {
   const f = fixture(t);
   assert.equal(ok(f, 'open', SHOP, '--session', 'a'), `BROWSE_URL=${SHOP}\n`);
   const env = f.camofox.env();
@@ -110,7 +112,7 @@ test('the server starts on loopback with reporting off, its files in one folder,
   assert.match(key, /^[0-9a-f]{64}$/);
   assert.equal(statSync(join(f.camofox.install, 'api-key')).mode & 0o777, 0o600);
   assert.equal(statSync(join(f.camofox.install, 'server.json')).mode & 0o777, 0o600);
-  assert.deepEqual({ ...env, pid: undefined, argv: undefined, CAMOFOX_PORT: undefined }, {
+  assert.deepEqual({ ...env, pid: undefined, argv: undefined, CAMOFOX_PORT: undefined, PROXY_PORT: undefined }, {
     CAMOFOX_BIND_HOST: '127.0.0.1',
     CAMOFOX_CRASH_REPORT_ENABLED: 'false',
     CAMOFOX_CRASH_REPORT_URL: '',
@@ -122,9 +124,22 @@ test('the server starts on loopback with reporting off, its files in one folder,
     pid: undefined,
     argv: undefined,
     CAMOFOX_PORT: undefined,
+    PROXY_HOST: '127.0.0.1',
+    PROXY_PORT: undefined,
+    PROXY_PROTOCOL: 'http',
+    PROXY_STRATEGY: 'round_robin',
   });
-  assert.deepEqual(env.argv, [join(f.camofox.install, 'node_modules/@askjo/camofox-browser/server.js')], 'the key is not on the command line');
-  assert.equal(JSON.parse(readFileSync(join(f.camofox.install, 'server.json'), 'utf8')).port, Number(env.CAMOFOX_PORT));
+  assert.deepEqual(env.argv, [join(repo, '.agents/skills/browser/scripts/server.mjs'), join(f.camofox.install, 'node_modules/@askjo/camofox-browser/server.js')], 'the key is not on the command line');
+  const info = JSON.parse(readFileSync(join(f.camofox.install, 'server.json'), 'utf8'));
+  assert.equal(info.port, Number(env.CAMOFOX_PORT));
+  assert.equal(info.proxy, 'local');
+  assert.notEqual(env.PROXY_PORT, env.CAMOFOX_PORT);
+  const listening = () => new Promise(resolve => {
+    const socket = connect(Number(env.PROXY_PORT), '127.0.0.1');
+    socket.once('connect', () => { socket.destroy(); resolve(true); });
+    socket.once('error', () => resolve(false));
+  });
+  assert.equal(await listening(), true);
   assert.ok(f.camofox.requests().every(request => request.auth === `Bearer ${key}`), 'every request carries the key');
   assert.ok(!existsSync(join(f.camofox.install, 'server.log')), 'the server keeps no log');
 
@@ -135,8 +150,45 @@ test('the server starts on loopback with reporting off, its files in one folder,
   assert.equal(ok(f, 'stop'), 'BROWSE_SERVER=stopped\n');
   assert.ok(f.camofox.has('stopped'), 'the server was asked to stop, so it can save first');
   assert.ok(!alive(env.pid));
+  assert.equal(await listening(), false, 'the one-process listener stopped too');
   assert.match(ok(f, 'status'), /BROWSE_SERVER=stopped/);
   assert.equal(ok(f, 'stop'), 'BROWSE_SERVER=stopped\n', 'stopping twice is fine');
+});
+
+test('native inherited proxy routes and credentials are removed, leaving one local HTTP endpoint', () => {
+  assert.deepEqual(localProxyEnv(1234, { PATH: '/bin', PROXY_HOST: 'external', PROXY_PORTS: '8080,8081', PROXY_BACKCONNECT_HOST: 'other', PROXY_USERNAME: 'user', PROXY_PASSWORD: 'secret', PROXY_COUNTRY: 'us', PROXY_STRATEGY: 'backconnect', PROXY_PROTOCOL: 'socks5' }), {
+    PATH: '/bin', PROXY_HOST: '127.0.0.1', PROXY_PORT: '1234', PROXY_PROTOCOL: 'http', PROXY_STRATEGY: 'round_robin',
+  });
+});
+
+test('an already-running older server keeps its pages until explicitly stopped, then starts with the proxy', async t => {
+  const f = fixture(t);
+  // Start the old entrypoint directly, with an OS-assigned port recorded by the fixture.
+  const original = join(f.camofox.install, 'node_modules/@askjo/camofox-browser/server.js');
+  writeFileSync(join(f.camofox.install, 'api-key'), 'legacy-key\n', { mode: 0o600 });
+  const { createServer } = await import('node:net');
+  const apiPort = await new Promise(resolvePort => {
+    const probe = createServer();
+    probe.listen(0, '127.0.0.1', () => { const value = probe.address().port; probe.close(() => resolvePort(value)); });
+  });
+  const detached = spawnSync(process.execPath, ['--input-type=module', '-e', `import {spawn} from 'node:child_process'; const child = spawn(process.execPath, [${JSON.stringify(original)}], {detached:true, stdio:'ignore'}); child.unref(); console.log(child.pid);`], {
+    env: { ...process.env, HOME: f.home, CAMOFOX_PORT: String(apiPort), CAMOFOX_BIND_HOST: '127.0.0.1', CAMOFOX_API_KEY: 'legacy-key', PROXY_HOST: '', PROXY_PORT: '', PROXY_PORTS: '' }, encoding: 'utf8',
+  });
+  const oldPid = Number(detached.stdout.trim());
+  t.after(() => { try { process.kill(oldPid, 'SIGKILL'); } catch { /* gone */ } });
+  writeFileSync(join(f.camofox.install, 'server.json'), JSON.stringify({ pid: oldPid, port: apiPort }));
+  for (let i = 0; i < 100; i++) {
+    try { await fetch(`http://127.0.0.1:${apiPort}/health`); break; } catch { await new Promise(done => setTimeout(done, 10)); }
+  }
+  ok(f, 'open', SHOP, '--session', 'a');
+  ok(f, 'open', ACCOUNT, '--session', 'b');
+  assert.equal(f.camofox.starts(), 1);
+  assert.equal(f.camofox.tabs().length, 2);
+  assert.equal(JSON.parse(readFileSync(join(f.camofox.install, 'server.json'), 'utf8')).proxy, undefined);
+  ok(f, 'stop');
+  ok(f, 'open', SHOP, '--session', 'a');
+  assert.equal(f.camofox.starts(), 2);
+  assert.equal(f.camofox.env().PROXY_HOST, '127.0.0.1');
 });
 
 test('serverEnv overrides whatever the shell set for reporting', () => {
