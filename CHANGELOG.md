@@ -10,6 +10,13 @@
 
 **Updating.** Ask your assistant to rebuild active review pages so they use the new controls. Archived reviews stay as they are. No saved notes or connection settings need changing.
 
+## 40.1.0 — Check requests in the Workers runtime
+
+- **App tests check signed requests and database saves in the local Workers runtime.** A small suite uses real migrations and D1, checks refusal and rollback, and cleans up its temporary runtime. It reuses Wrangler and Vite without another dependency or service login.
+- **The new check proves it can fail.** A deliberately wrong runtime expectation and a wrong runtime-test type are caught independently of the existing coverage proof.
+
+**Updating.** Normal app tests gain local request and database checks. Nothing needs doing by hand; use `npm run test:runtime` in the app folder to run those checks alone.
+
 ## 40.0.0 — Future work uses your existing clock
 
 - **Use `/schedule` for future work.** Predictable steps use a script on an existing clock first. Work needing judgment uses an available host scheduler after checking its future-session tools, connections, and uptime needs. No new cloud runner or model setup is installed.
