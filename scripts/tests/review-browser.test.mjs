@@ -222,7 +222,7 @@ browserTest('drafts stay on their targets, survive a reload, and are never copie
 browserTest('refused storage keeps notes for the session and says so', async () => {
   const init = () => { Object.defineProperty(window, 'localStorage', { configurable: true, get() { throw new Error('storage refused'); } }); };
   const { page, context, errors } = await open(fixture().url, { init });
-  assert.equal(await page.locator('.bar .session').isVisible(), true);
+  assert.equal(await page.locator('#notes .session').isVisible(), true);
   await draft(page, 'item-2', 'Session draft');
   assert.equal(await page.locator('#editor .session').isVisible(), true);
   await page.locator('#editor [data-act="save"]').click();
@@ -364,7 +364,7 @@ const toastIs = (page, text) => page.waitForFunction(want => document.getElement
 // status the link's check gets, and `actions` the names it says the link offers.
 const VERSION = 'c0'.repeat(32);
 const sentTrue = () => ({ status: 200, body: { sent: true } });
-async function openLive({ send = sentTrue, act = sentTrue, alive = 200, actions = ['build', 'publish'], hash = `#key=${LINK_KEY}`, width = 1200, height = 800 } = {}) {
+async function openLive({ send = sentTrue, act = sentTrue, alive = 200, actions = ['build', 'publish'], hash = `#key=${LINK_KEY}`, width = 1200, height = 800, aliveReply } = {}) {
   const f = fixture();
   const base = new URL(LIVE).pathname;
   const context = await browser.newContext({ viewport: { width, height } });
@@ -374,9 +374,9 @@ async function openLive({ send = sentTrue, act = sentTrue, alive = 200, actions 
     const request = route.request(), path = new URL(request.url()).pathname;
     if (path === base) return route.fulfill({ contentType: 'text/html; charset=utf-8', body: readFileSync(join(f.dir, 'review.html'), 'utf8') });
     requests.push({ path: path.slice(base.length), method: request.method(), key: request.headers()['x-reply-key'], body: request.postDataJSON() });
-    if (path === `${base}alive`) return route.fulfill({ status: alive, contentType: 'application/json', body: JSON.stringify({ closesAt: Date.now() + 60_000, actions, version: VERSION }) });
-    const answer = (path === `${base}act` ? act : send)(requests);
-    return route.fulfill({ status: answer.status, contentType: 'application/json', body: JSON.stringify(answer.body ?? {}) });
+    const answer = await (path === `${base}alive` ? aliveReply ? aliveReply(requests) : { status: alive, body: { closesAt: Date.now() + 60_000, actions, version: VERSION } } : (path === `${base}act` ? act : send)(requests));
+    if (answer.abort) return route.abort();
+    return route.fulfill({ status: answer.status, contentType: 'application/json', body: answer.raw ?? JSON.stringify(answer.body ?? {}) });
   });
   const page = await context.newPage();
   const errors = [];
@@ -387,8 +387,13 @@ async function openLive({ send = sentTrue, act = sentTrue, alive = 200, actions 
 }
 const isLive = page => page.locator('#copy', { hasText: 'Send notes' }).waitFor();
 const ready = (page, step) => page.locator(`.bar #ready [data-ready="${step}"]`);
-// The bar's one bold button: `copy` for the notes button, else the build button's step.
-const primary = page => page.locator('.bar button.primary:visible').evaluateAll(found => found.map(el => el.id || el.getAttribute('data-ready')));
+async function openActions(page) {
+  await page.locator('#more').waitFor();
+  if (await page.locator('#ready-popover').isHidden()) await page.locator('#more').click();
+}
+async function choose(page, step) { await openActions(page); await ready(page, step).click(); }
+// Send notes remains the footer's primary action; the popover has its own primary choice.
+const primary = page => page.locator('.bar > button.primary:visible').evaluateAll(found => found.map(el => el.id || el.getAttribute('data-ready')));
 // Scrolled to the end, how far the page's last line sits above the bar; negative means the bar covers it.
 const clearOfBar = page => page.evaluate(() => {
   scrollTo(0, document.documentElement.scrollHeight);
@@ -404,7 +409,7 @@ browserTest('opened from disk, a key in the address changes nothing: the page co
   const asked = [];
   page.on('request', request => asked.push(request.url()));
   assert.equal(await page.locator('#copy').innerText(), 'Copy notes');
-  assert.equal(await page.locator('.bar #ready').count(), 1, 'the build row lives in the bar');
+  assert.equal(await page.locator('.bar #ready').count(), 1, 'the More actions control lives in the bar');
   assert.equal(await page.locator('#ready').isVisible(), false, 'a file offers no build buttons');
   assert.deepEqual(await page.locator('.bar button:visible').allInnerTexts(), ['Copy notes'], 'the bar is as it was');
   assert.deepEqual(await primary(page), ['copy']);
@@ -529,13 +534,13 @@ browserTest('#/why still jumps with a key in the address, and the link stays ope
   await context.close();
 });
 
-// ── the bar's build row: Build it, and Build and publish, on a reply link that offers both ──
+// ── compact build choices: on a reply link that offers both ──
 browserTest('on a reply link, Build it is in view at the top of a long plan on a phone, asks the chat once, and says so', async () => {
   const { page, context, errors, acts, sends } = await openLive({ width: 390, height: 664 });
   await isLive(page);
-  await ready(page, 'build').waitFor();
+  await openActions(page);
   assert.equal(await page.locator('#ready-h').count(), 0, 'no section at the foot of the page');
-  assert.deepEqual(await primary(page), ['build'], 'one primary action');
+  assert.deepEqual(await primary(page), ['copy'], 'Send notes stays primary');
   assert.equal(await page.locator('#ready-says').isVisible(), false);
   const size = await page.evaluate(() => ({ view: innerWidth, page: document.documentElement.scrollWidth, at: scrollY, tall: document.documentElement.scrollHeight, screen: innerHeight }));
   assert.ok(size.page <= size.view, 'no sideways scroll on a phone');
@@ -545,13 +550,13 @@ browserTest('on a reply link, Build it is in view at the top of a long plan on a
     const box = await ready(page, step).boundingBox();
     assert.ok(box.x >= 0 && box.x + box.width <= size.view && box.y >= 0 && box.y + box.height <= size.screen, `${step} is in view without scrolling`);
   }
-  const rows = await page.evaluate(() => [document.getElementById('copy'), document.querySelector('[data-ready="build"]')].map(el => el.getBoundingClientRect().top));
-  assert.ok(rows[1] > rows[0], 'the build row sits under the notes row on a phone');
-  assert.ok(await clearOfBar(page) >= 0, 'the taller bar covers no line of the page');
+  const rows = await page.evaluate(() => [document.getElementById('copy'), document.getElementById('more')].map(el => el.getBoundingClientRect().top));
+  assert.equal(rows[1], rows[0], 'the footer stays one row on a phone');
+  assert.ok(await clearOfBar(page) >= 0, 'the compact bar covers no line of the page');
   await page.evaluate(() => scrollTo(0, 0));
-  await ready(page, 'build').click();
+  await choose(page, 'build');
   await saysIs(page, 'Asked the chat to build.');
-  assert.equal(await page.locator('.bar #ready-says').isVisible(), true, 'the answer shows in the bar');
+  assert.equal(await page.locator('.bar #ready-says').isVisible(), true, 'the answer stays attached above the bar');
   assert.deepEqual(acts(), [posted('build')]);
   assert.equal(await page.locator('#ready button:visible').count(), 0, 'no button is left to tap twice');
   assert.deepEqual(await primary(page), ['copy'], 'with no build button left, the notes button is the primary one');
@@ -562,21 +567,21 @@ browserTest('on a reply link, Build it is in view at the top of a long plan on a
 
 browserTest('Build and publish posts nothing until Yes, publish, and Cancel goes back', async () => {
   const { page, context, errors, acts } = await openLive();
-  await ready(page, 'publish').waitFor();
-  await ready(page, 'publish').click();
-  assert.equal(await page.locator('.bar #ready-confirm span').innerText(), 'Goes live, can\'t be undone.');
+  await openActions(page);
+  await choose(page, 'publish');
+  assert.equal(await page.locator('.bar #ready-confirm p').innerText(), 'Goes live, can\'t be undone.');
   assert.equal(await page.locator('#ready-confirm').getAttribute('aria-label'), 'Build and publish? This goes live and can\'t be undone.');
   assert.equal(await ready(page, 'build').isVisible(), false);
-  assert.deepEqual(await primary(page), ['yes']);
+  assert.deepEqual(await primary(page), ['copy']);
   const wide = await page.evaluate(() => [document.getElementById('copy'), document.querySelector('[data-ready="yes"]')].map(el => el.getBoundingClientRect().top));
-  assert.equal(wide[0], wide[1], 'on a wide screen the bar stays one row');
+  assert.ok(wide[1] < wide[0], 'confirmation sits above the single-row bar');
   assert.equal(await page.evaluate(() => document.activeElement.getAttribute('data-ready')), 'cancel', 'focus lands on the safe choice');
-  await ready(page, 'cancel').click();
+  await choose(page, 'cancel');
   assert.equal(await ready(page, 'build').isVisible(), true);
   assert.equal(await page.locator('#ready-confirm').isVisible(), false);
   assert.deepEqual(acts(), [], 'nothing is sent before a yes');
-  await ready(page, 'publish').click();
-  await ready(page, 'yes').click();
+  await choose(page, 'publish');
+  await choose(page, 'yes');
   await saysIs(page, 'Asked the chat to build and publish.');
   assert.deepEqual(acts(), [posted('publish')]);
   assert.equal(await page.locator('#ready button:visible').count(), 0);
@@ -586,45 +591,45 @@ browserTest('Build and publish posts nothing until Yes, publish, and Cancel goes
 
 browserTest('an unsent note stops both buttons until it is sent', async () => {
   const { page, context, errors, acts } = await openLive();
-  await ready(page, 'build').waitFor();
-  assert.deepEqual(await primary(page), ['build'], 'with no unsent note, Build it is the primary button');
+  await openActions(page);
+  assert.deepEqual(await primary(page), ['copy'], 'Send notes stays primary even with no unsent note');
   await note(page, 'why-1', 'Say who reads it.');
   assert.deepEqual(await primary(page), ['copy'], 'with an unsent note, Send notes is the primary button');
-  await ready(page, 'build').click();
+  await choose(page, 'build');
   await saysIs(page, 'Send or delete your notes first.');
   assert.equal(await page.locator('.bar #ready-says').isVisible(), true, 'the stop shows in the bar');
   await page.evaluate(() => { document.getElementById('ready-says').hidden = true; });
-  await ready(page, 'publish').click();
+  await choose(page, 'publish');
   await saysIs(page, 'Send or delete your notes first.');
   assert.equal(await page.locator('#ready-confirm').isVisible(), false, 'no confirm step while a note is unsent');
   assert.deepEqual(acts(), []);
   // A note saved after the confirm step opened stops the yes too.
   await page.locator('#copy').click();
   await toastIs(page, 'Sent 1 note to the chat.');
-  assert.deepEqual(await primary(page), ['build'], 'a sent note hands the primary back');
-  await ready(page, 'publish').click();
+  assert.deepEqual(await primary(page), ['copy'], 'Send notes remains primary after sending');
+  await choose(page, 'publish');
   await note(page, 'item-2', 'Name the reason.');
   assert.deepEqual(await primary(page), ['copy'], 'one primary in the confirm step too');
-  await ready(page, 'yes').click();
+  await choose(page, 'yes');
   await saysIs(page, 'Send or delete your notes first.');
   assert.deepEqual(acts(), []);
   // Deleting the note clears the way as sending does.
   await at(page, 'item-2').locator('.pin').click();
   await page.locator('#editor [data-act="delete"]').click();
-  await ready(page, 'yes').click();
+  await choose(page, 'yes');
   await saysIs(page, 'Asked the chat to build and publish.');
   assert.deepEqual(acts(), [posted('publish')]);
   assert.deepEqual(errors, []);
   await context.close();
-  // On a phone the stop adds a third row to the bar, and the page's end still clears it.
+  // On a phone the stop sits above the same single-row footer.
   const phone = await openLive({ width: 390, height: 664 });
-  await ready(phone.page, 'build').waitFor();
+  await openActions(phone.page);
   await note(phone.page, 'why-1', 'Say who reads it.');
-  await ready(phone.page, 'build').click();
+  await choose(phone.page, 'build');
   await saysIs(phone.page, 'Send or delete your notes first.');
   assert.ok(await clearOfBar(phone.page) >= 0, 'the stop covers no line of the page');
   await phone.page.evaluate(() => scrollTo(0, 0));
-  await ready(phone.page, 'publish').click();
+  await choose(phone.page, 'publish');
   assert.equal(await phone.page.locator('#ready-confirm').isVisible(), false);
   assert.deepEqual(phone.acts(), []);
   await phone.context.close();
@@ -633,18 +638,18 @@ browserTest('an unsent note stops both buttons until it is sent', async () => {
 browserTest('a changed plan says to reload, an asked chat says so, and a too-soon tap asks to wait', async () => {
   for (const [body, line] of [[{ changed: true }, 'The plan changed. Reload to read it first.'], [{ done: true }, 'The chat was already asked.']]) {
     const { page, context, acts } = await openLive({ act: () => ({ status: 409, body }) });
-    await ready(page, 'build').waitFor();
-    await ready(page, 'build').click();
+    await openActions(page);
+    await choose(page, 'build');
     await saysIs(page, line);
     assert.equal(await page.locator('#ready button:visible').count(), 0);
     assert.equal(acts().length, 1);
     await context.close();
   }
   const soon = await openLive({ act: requests => (requests.filter(request => request.path === 'act').length === 1 ? { status: 429, body: { sent: false } } : sentTrue()) });
-  await ready(soon.page, 'build').waitFor();
-  await ready(soon.page, 'build').click();
+  await openActions(soon.page);
+  await choose(soon.page, 'build');
   await saysIs(soon.page, 'Wait a few seconds, then tap again.');
-  await ready(soon.page, 'build').click();
+  await choose(soon.page, 'build');
   await saysIs(soon.page, 'Asked the chat to build.');
   assert.equal(soon.acts().length, 2);
   await soon.context.close();
@@ -653,8 +658,8 @@ browserTest('a changed plan says to reload, an asked chat says so, and a too-soo
 browserTest('a closed link hides the build buttons, and a link without both actions never shows them', async () => {
   for (const answer of [{ status: 410, body: { closed: true } }, { status: 502, body: { sent: false } }, { status: 200, body: { sent: false } }, { status: 400, body: { sent: false } }]) {
     const { page, context, errors } = await openLive({ act: () => answer });
-    await ready(page, 'build').waitFor();
-    await ready(page, 'build').click();
+    await openActions(page);
+    await choose(page, 'build');
     await toastIs(page, 'This link has closed. Choose in the chat.');
     assert.equal(await page.locator('#ready').isVisible(), false, `status ${answer.status}`);
     assert.equal(await page.locator('#copy').innerText(), 'Send notes', 'the notes button is as it was');
@@ -663,7 +668,7 @@ browserTest('a closed link hides the build buttons, and a link without both acti
   }
   // Notes that find the link closed take the build buttons with them.
   const closed = await openLive({ send: () => ({ status: 410, body: { closed: true } }) });
-  await ready(closed.page, 'build').waitFor();
+  await openActions(closed.page);
   await note(closed.page, 'why-1', 'Say who reads it.');
   await closed.page.locator('#copy').click();
   await toastIs(closed.page, 'This link has closed. Copied 1 note: paste them into chat.');
@@ -677,4 +682,221 @@ browserTest('a closed link hides the build buttons, and a link without both acti
     assert.equal(acts().length, 0);
     await context.close();
   }
+});
+
+// A response remains held until the test releases it: progress is observable before any acknowledgement.
+function holdResponse() {
+  let release;
+  const answer = new Promise(resolve => { release = resolve; });
+  return { answer, release };
+}
+const footerBox = page => page.locator('.bar').evaluate(el => {
+  const box = el.getBoundingClientRect();
+  const controls = [document.getElementById('copy'), document.getElementById('more')].filter(b => b.getClientRects().length).map(b => {
+    const r = b.getBoundingClientRect();
+    return { top: r.top, right: r.right, left: r.left, height: r.height };
+  });
+  return { height: box.height, controls, overflow: document.documentElement.scrollWidth > innerWidth };
+});
+async function idle(page) {
+  await page.waitForFunction(() => document.querySelector('.bar').getAttribute('data-busy') === 'false');
+  assert.equal(await page.locator('#copy').isDisabled(), false);
+  assert.equal(await page.locator('.bar .spinner:visible').count(), 0, 'every loading indicator clears');
+  assert.equal(await page.locator('[data-ready]:disabled').count(), 0, 'reply controls recover');
+}
+
+browserTest('a slow connection stays busy until its response is read, then enables sending or falls back to copying', async () => {
+  for (const answer of [
+    { status: 200, body: { actions: ['build', 'publish'], version: VERSION } },
+    { status: 410, body: { closed: true } },
+    { status: 200, raw: '{broken' },
+    { abort: true },
+  ]) {
+    const held = holdResponse();
+    const { page, context, requests, errors } = await openLive({ width: 320, aliveReply: () => held.answer });
+    await saysIs(page, 'Connecting to the chat…');
+    assert.equal(await page.locator('#copy').innerText(), 'Connecting…');
+    assert.equal(await page.locator('#copy').isDisabled(), true);
+    assert.equal(await page.locator('#copy').getAttribute('aria-busy'), 'true');
+    assert.equal(await page.locator('#copy .spinner').isVisible(), true);
+    assert.equal(await page.locator('.bar').getAttribute('data-busy'), 'true');
+    assert.equal(await page.locator('#ready').isVisible(), false);
+    await page.locator('#copy').evaluate(el => el.click());
+    assert.equal(requests.filter(r => r.method === 'POST').length, 0);
+    const before = await footerBox(page);
+    held.release(answer);
+    await idle(page);
+    assert.equal(await page.locator('#copy').innerText(), answer.body?.version ? 'Send notes' : 'Copy notes');
+    assert.equal((await footerBox(page)).height, before.height, 'connecting never enlarges the footer');
+    assert.deepEqual(errors, []);
+    await context.close();
+  }
+});
+
+browserTest('slow notes show progress immediately, block repeated and cross-action requests, and wait for acknowledgement', async () => {
+  const held = holdResponse();
+  const { page, context, sends, acts, errors } = await openLive({ width: 320, send: () => held.answer });
+  await isLive(page);
+  await note(page, 'why-1', 'Say who reads it.');
+  const before = await footerBox(page);
+  const requested = page.waitForRequest('**/send');
+  await page.locator('#copy').click();
+  await requested;
+  await saysIs(page, 'Sending your notes…');
+  assert.equal(await page.locator('#copy').innerText(), 'Sending…');
+  assert.equal(await page.locator('#copy').isDisabled(), true);
+  assert.equal(await page.locator('#copy .spinner').isVisible(), true);
+  assert.equal(await page.locator('.pin.sent').count(), 0, 'no success before the response');
+  await openActions(page);
+  assert.equal(await ready(page, 'build').isDisabled(), true);
+  assert.equal(await ready(page, 'publish').isDisabled(), true);
+  await page.evaluate(() => {
+    document.getElementById('copy').click();
+    document.querySelector('[data-ready="build"]').click();
+    document.querySelector('[data-ready="publish"]').click();
+  });
+  await page.waitForTimeout(80);
+  assert.equal(sends().length, 1);
+  assert.equal(acts().length, 0);
+  assert.equal((await footerBox(page)).height, before.height);
+  held.release(sentTrue());
+  await saysIs(page, 'Sent 1 note to the chat.');
+  await idle(page);
+  assert.equal(await page.locator('.pin.sent').count(), 1);
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+browserTest('slow build and confirmed publish share a pending guard, with progress visible after closing the choices', async () => {
+  for (const action of ['build', 'publish']) {
+    const held = holdResponse();
+    const { page, context, sends, acts, errors } = await openLive({ width: 320, act: () => held.answer });
+    await isLive(page);
+    const before = await footerBox(page);
+    if (action === 'publish') {
+      await choose(page, 'publish');
+      assert.deepEqual(acts(), [], 'confirmation sends nothing');
+      assert.equal((await footerBox(page)).height, before.height);
+    }
+    const requested = page.waitForRequest('**/act');
+    await choose(page, action === 'publish' ? 'yes' : 'build');
+    await requested;
+    await saysIs(page, 'Sending your request…');
+    const clicked = ready(page, action === 'publish' ? 'yes' : 'build');
+    assert.equal(await clicked.innerText(), 'Sending…');
+    assert.equal(await clicked.locator('.spinner').isVisible(), true);
+    assert.equal(await page.locator('#copy').isDisabled(), true);
+    await page.keyboard.press('Escape');
+    assert.equal(await page.locator('#ready-popover').isVisible(), false);
+    assert.equal(await page.locator('#ready-says .spinner').isVisible(), true, 'progress survives dismissal');
+    assert.equal(await page.evaluate(() => document.activeElement.id), 'more');
+    await note(page, 'why-1', 'While it waits.');
+    await page.evaluate(() => {
+      document.getElementById('copy').click();
+      for (const button of document.querySelectorAll('[data-ready]')) button.click();
+    });
+    await page.waitForTimeout(80);
+    assert.equal(acts().length, 1);
+    assert.equal(sends().length, 0, 'another notes request cannot overlap a build');
+    assert.equal((await footerBox(page)).height, before.height);
+    held.release(sentTrue());
+    await saysIs(page, `Asked the chat to build${action === 'publish' ? ' and publish.' : '.'}`);
+    await idle(page);
+    assert.equal(await page.locator('.pin.sent').count(), 0, 'a build never sends notes');
+    assert.deepEqual(errors, []);
+    await context.close();
+  }
+});
+
+browserTest('every failed notes or build response clears busy state without claiming success', async () => {
+  for (const kind of ['send', 'act']) {
+    for (const answer of [
+      { status: 429, body: { sent: false } },
+      { status: 410, body: { closed: true } },
+      { status: 502, body: { sent: false } },
+      { status: 200, body: { sent: false } },
+      { status: 200, raw: '{broken' },
+      { abort: true },
+    ]) {
+      const held = holdResponse();
+      const { page, context, errors } = await openLive({ [kind]: () => held.answer });
+      await isLive(page);
+      if (kind === 'send') {
+        await note(page, 'why-1', 'Say who reads it.');
+        await page.locator('#copy').click();
+      } else await choose(page, 'build');
+      await saysIs(page, kind === 'send' ? 'Sending your notes…' : 'Sending your request…');
+      held.release(answer);
+      await idle(page);
+      assert.equal(await page.locator('.pin.sent').count(), 0);
+      assert.doesNotMatch(await page.locator('#ready-says').innerText(), /^Asked|^Sent/);
+      assert.equal(await page.locator('#copy').innerText(), kind === 'send' && answer.status !== 429 ? 'Copy notes' : 'Send notes');
+      if (kind === 'send') assert.equal(await page.locator('#note-list .entry').count(), 1, 'saved notes survive');
+      if (answer.status === 429) {
+        assert.match(await page.locator('#ready-says').innerText(), /Wait a few seconds/);
+        await openActions(page);
+        assert.equal(await ready(page, 'build').isEnabled(), true, 'a rate limit allows retry');
+      }
+      assert.deepEqual(errors, []);
+      await context.close();
+    }
+  }
+});
+
+browserTest('the footer stays one row at 320px and desktop through choices, confirmation, stops, and results', async () => {
+  for (const width of [320, 1200]) {
+    const { page, context } = await openLive({ width });
+    await isLive(page);
+    const before = await footerBox(page);
+    assert.equal(before.overflow, false);
+    assert.equal(before.controls[0].top, before.controls[1].top);
+    for (const control of before.controls) {
+      assert.ok(control.left >= 0 && control.right <= width);
+      assert.ok(control.height >= 44, 'footer controls remain tappable');
+    }
+    await choose(page, 'publish');
+    assert.equal((await footerBox(page)).height, before.height);
+    const confirm = await page.locator('#ready-confirm').boundingBox();
+    const bar = await page.locator('.bar').boundingBox();
+    assert.ok(confirm.y >= 0 && confirm.y + confirm.height < bar.y, 'confirmation fits above the footer');
+    await choose(page, 'cancel');
+    await note(page, 'why-1', 'A note to send.');
+    await choose(page, 'build');
+    await saysIs(page, 'Send or delete your notes first.');
+    assert.equal((await footerBox(page)).height, before.height);
+    await page.locator('#copy').click();
+    await saysIs(page, 'Sent 1 note to the chat.');
+    assert.equal((await footerBox(page)).height, before.height);
+    await choose(page, 'build');
+    await saysIs(page, 'Asked the chat to build.');
+    assert.equal((await footerBox(page)).height, before.height);
+    assert.ok(await clearOfBar(page) >= 0);
+    await context.close();
+  }
+});
+
+browserTest('More actions works with native keyboard navigation, safe confirmation focus, and dismissal', async () => {
+  const { page, context, acts, errors } = await openLive({ width: 320 });
+  await isLive(page);
+  await page.locator('#more').focus();
+  assert.equal(await page.locator('#more').getAttribute('aria-expanded'), 'false');
+  assert.equal(await page.locator('#more').getAttribute('aria-label'), 'More actions');
+  await page.keyboard.press('Enter');
+  assert.equal(await page.locator('#more').getAttribute('aria-expanded'), 'true');
+  assert.equal(await page.evaluate(() => document.activeElement.getAttribute('data-ready')), 'build');
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('Enter');
+  assert.equal(await page.evaluate(() => document.activeElement.getAttribute('data-ready')), 'cancel');
+  await page.keyboard.press('Escape');
+  assert.equal(await page.locator('#ready-popover').isVisible(), false);
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'more');
+  await page.keyboard.press('Space');
+  await page.locator('h1').click();
+  assert.equal(await page.locator('#ready-popover').isVisible(), false, 'outside click dismisses');
+  await openActions(page);
+  await page.locator('header a').first().focus();
+  assert.equal(await page.locator('#ready-popover').isVisible(), false, 'moving focus out dismisses');
+  assert.deepEqual(acts(), [], 'navigation and dismissal never send an action');
+  await context.close();
+  assert.deepEqual(errors, []);
 });
