@@ -1,0 +1,87 @@
+{
+  "format": "verify-journey-1",
+  "id": "a-visitor-on-a-mac-reads-the-install-section",
+  "scenario": {
+    "capability": "landing-site",
+    "requirement": "The landing page says what each way to install costs",
+    "scenario": "A visitor on a Mac reads the install section"
+  },
+  "thenDigest": "63b4d05a547900eaa4e13e8d2d2cdcdc8461e36b56704880792424c5b99c7da3",
+  "probe": "browser",
+  "writes": false,
+  "sourcePaths": [
+    "README.md",
+    "site/index.html",
+    "site/src/Landing.tsx",
+    "site/src/Story.tsx",
+    "site/src/WorksWith.tsx",
+    "site/src/__snapshots__/apps.test.tsx.snap",
+    "site/src/apps.tsx",
+    "site/src/index.css",
+    "site/src/install.ts",
+    "site/src/mockups.tsx"
+  ],
+  "recordedAt": "80317a7dc63b6e9a22928b60078fc742f525f308",
+  "steps": [
+    [
+      "set",
+      "viewport",
+      "1280",
+      "900"
+    ],
+    [
+      "open",
+      "{url}"
+    ],
+    [
+      "wait",
+      "--load",
+      "networkidle"
+    ],
+    [
+      "get",
+      "text",
+      "body"
+    ],
+    [
+      "eval",
+      "(() => { const s=document.querySelector('.team-scene'); s.scrollIntoView({block:'center',behavior:'instant'}); return {copy:s.querySelector('.story-copy').getBoundingClientRect().toJSON(),conversation:s.querySelector('figure').getBoundingClientRect().toJSON(),gathering:[...s.querySelectorAll('.department-evidence > div')].map(x=>x.innerText)}; })()"
+    ],
+    [
+      "eval",
+      "(() => { const d=[...document.querySelectorAll('details')].find(x=>x.querySelector('summary').textContent==='What does setup need?'); d.scrollIntoView({block:'center',behavior:'instant'}); return {open:d.open,top:d.getBoundingClientRect().top}; })()"
+    ],
+    [
+      "wait",
+      "--fn",
+      "[...document.querySelectorAll('summary')].find(x=>x.textContent==='What does setup need?').getBoundingClientRect().top>0"
+    ],
+    [
+      "find",
+      "text",
+      "What does setup need?",
+      "click",
+      "--exact"
+    ],
+    [
+      "wait",
+      "--fn",
+      "[...document.querySelectorAll('details')].find(x=>x.querySelector('summary').textContent==='What does setup need?').open"
+    ],
+    [
+      "eval",
+      "(() => { const d=[...document.querySelectorAll('details')].find(x=>x.querySelector('summary').textContent==='What does setup need?'); d.scrollIntoView({block:'center',behavior:'instant'}); return d.innerText; })()"
+    ]
+  ],
+  "expect": [
+    {
+      "text": "Free: your project is kept in a free GitHub account, and your apps run in a free Cloudflare account."
+    },
+    {
+      "text": "Cloudflare alone, on Mac or Linux"
+    },
+    {
+      "text": "about $5 a month"
+    }
+  ]
+}

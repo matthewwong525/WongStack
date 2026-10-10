@@ -1,7 +1,7 @@
 import { AGENTS } from "./install";
 import { InstallButton } from "./InstallButton";
 
-// "Works with the AI you already use": one card per assistant WongStack sets
+// Model flexibility: one card per assistant WongStack sets
 // up, from install.ts, then one for any other assistant with its true limit.
 // Say only what works today: memory loads by itself in the listed assistants,
 // and another one looks it up when asked.
@@ -20,8 +20,9 @@ const SWITCH = "Switch any time. Your skills, memory, and apps stay in your fold
 
 export function WorksWith() {
   return (
-    <section className="band">
-      <h2>Works with the AI you already use</h2>
+    <section className="band model-flexibility">
+      <h2>Use the best models.</h2>
+      <p className="lede">The WongStack framework works with any model or setup through a coding agent that can read and change files and run commands.</p>
       <div className="grid works">
         {AGENTS.map(({ name, logo }) => (
           <article className="card" key={name}>

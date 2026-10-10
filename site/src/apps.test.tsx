@@ -30,21 +30,21 @@ const table = (region: HTMLElement, n = 0) =>
 const badges = (region: HTMLElement) => [...region.querySelectorAll(".badge")].map((badge) => [badge.textContent, badge.className]);
 
 const APPS = [
-  ["Pack Station", "Pack Station", "your-app.your-name.workers.dev/pack-station", "Our warehouse team packs every order with it."],
-  ["Profit by channel", "Monthly Actuals", "your-app.your-name.workers.dev/monthly-actuals", "I check it every morning, before I decide where to spend on ads."],
+  ["Pack Station", "Pack Station", "your-app.your-name.workers.dev/pack-station", "Scan each item before marking an order packed."],
+  ["Profit by channel", "Profit by channel", "your-app.your-name.workers.dev/monthly-actuals", "See each channel's profit after product, shipping, and ad costs."],
   [
     "Ad briefs",
     "Ad briefs",
     "your-app.your-name.workers.dev/briefs",
-    "I write a brief once. The designer works from it, and the finished ad goes out to Facebook and Instagram.",
+    "Keep notes and variations together, then approve an ad for the publish queue.",
   ],
 ];
 
 it("offers three examples, one pressed at a time, each a sample Claymoo screen in its own browser window", () => {
-  const section = screen.getByRole("heading", { level: 2, name: "Examples of things I've done" }).closest("section") as HTMLElement;
+  const section = screen.getByRole("heading", { level: 2, name: "Tools you can build" }).closest("section") as HTMLElement;
 
   within(section).getByText(
-    "I run Claymoo, a clay-kit company, with a small team. These are three apps we use every day, built by asking. Try one.",
+    "Build around your own workflow. Try these examples.",
   );
   expect(pressed(section.querySelector(".chips") as HTMLElement)).toEqual([
     ["Pack Station", "true"],
