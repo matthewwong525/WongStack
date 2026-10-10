@@ -6,6 +6,8 @@ user-invocable: true
 
 # /apply
 
+**Selected schedule:** [route its record](../save/references/schedule-records.md) before code or checkout; preserve its store and pending question.
+
 `/apply` implements [the change loop](../../../wiki/development/the-change-loop.md)'s chosen plan.
 
 ## Pick the path by the work

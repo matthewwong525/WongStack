@@ -5,7 +5,7 @@
  * through the existing scripts and the OpenSpec CLI.
  *
  *     node .claude/skills/ship/scripts/ship.mjs prepare [--change <name> | --no-change] \
- *       [--allow-others] [--skip-specs] [--sync] [--store <id>]
+ *       [--allow-others] [--skip-specs] [--sync] [--store <id>] [--schedule-record <reference>]
  *     node .claude/skills/ship/scripts/ship.mjs finish
  *
  * prepare: preflight (branch, uncommitted work, commits ahead, the default branch's checks),
@@ -42,10 +42,11 @@ import { fileURLToPath } from 'node:url';
 import { isMain, parseCli, usageError } from '../../memory/scripts/lib/cli.mjs';
 import { buildReview } from '../../plan/scripts/build-review.mjs';
 import { checkpointEvidence } from '../../save/scripts/checkpoint-evidence.mjs';
+import { assertTerminalGoal, assertRecordScope, assertCodeScope, operationalChange, publishedGoal, recordPath, scheduleRecord } from '../../save/scripts/schedule-record.mjs';
 import { askRoute, defaultBranch, firstLine, sh } from '../../save/scripts/checkpoint.mjs';
 
-const USAGE = `usage: node ship.mjs prepare [--change <name> | --no-change] [--allow-others] [--skip-specs] [--sync] [--store <id>]
-       node ship.mjs finish
+const USAGE = `usage: node ship.mjs prepare [--change <name> | --no-change] [--allow-others] [--skip-specs] [--sync] [--store <id>] [--schedule-record <reference>]
+       node ship.mjs finish [--schedule-record <reference> --store <id>]
 
 prepare  preflight, tasks check, validate, archive, number the release, sync, mark ready
   --change <name>  the change to archive; without it, the one change this branch touches or records
@@ -183,6 +184,7 @@ function archiveFolders(changesDir, name) {
 
 /** The change to archive: the flag's, else the one this branch touches, records, or already archived. */
 function selectChange(values, root, active) {
+  if ((values.change ?? '').startsWith('schedules/')) throw new Stop(1, ['error=routine definitions require --schedule-record, never --change']);
   if (values['no-change']) return null;
   if (values.change) return values.change;
   let evidence;
@@ -202,6 +204,7 @@ function selectChange(values, root, active) {
 /** Tasks, artifacts, validation, then the archive itself. */
 function archiveChange(name, values) {
   const store = values.store;
+  if (name.startsWith('schedules/')) throw new Stop(1, ['error=routine definitions require --schedule-record, never --change']);
   const progress = openspecJson(['instructions', 'apply', '--change', name], store);
   if (!Array.isArray(progress.tasks)) throw new Stop(1, ['error=openspec instructions apply returned no tasks list; the CLI contract changed']);
   const open = progress.tasks.filter(task => !task.done);
@@ -210,6 +213,7 @@ function archiveChange(name, values) {
       `NEXT: invoke apply for ${name} inside /ship, then rerun this command. Still unchecked after that: report and stop.`]);
   }
   const status = openspecJson(['status', '--change', name], store);
+  if (status.schemaName === 'scheduled-work') throw new Stop(1, ['error=scheduled goals require --schedule-record; ordinary archive refused']);
   if (!status.planningHome?.changesDir || !Array.isArray(status.artifacts)) throw new Stop(1, ['error=openspec status returned no changesDir or artifacts; the CLI contract changed']);
   const unfinished = status.artifacts.filter(artifact => !['done', 'skipped'].includes(artifact.status)).map(artifact => artifact.id);
   if (unfinished.length) throw new Stop(1, [`error=${name} has unfinished artifacts: ${unfinished.join(', ')}`]);
@@ -248,7 +252,7 @@ function recheck(root, base) {
     ?? `not run (checks.mjs exited ${run.status} with no LOCAL_CHECKS line)`;
 }
 
-function prepare(values) {
+async function prepare(values) {
   const root = must('git', ['rev-parse', '--show-toplevel'], 'not inside a git repository');
   // Every git and OpenSpec call below sees the whole repo, whichever folder the command was started in.
   process.chdir(root);
@@ -273,7 +277,12 @@ function prepare(values) {
   say(`AHEAD=${ahead}`);
   // A red or unreadable default branch stops every ship, a new intent included, before any build.
   const checks = artifacts ? artifactsDefaultChecks(base) : sh('gh', ['api', `repos/:owner/:repo/commits/${base}/check-runs`, '--jq', MAIN_CHECKS]);
-  const answer = checks.status !== 0 ? '' : artifacts ? checks.stdout.trim() : mainVerdict(checks.stdout);
+  // An empty jq listing alone is ambiguous. Confirm a successful API read of
+  // zero checks before using PR review, the existing gate for repos without CI.
+  const emptyCount = !artifacts && checks.status === 0 && !checks.stdout.trim()
+    ? sh('gh', ['api', `repos/:owner/:repo/commits/${base}/check-runs`, '--jq', '.total_count']) : null;
+  const answer = checks.status !== 0 ? '' : artifacts ? checks.stdout.trim()
+    : emptyCount?.status === 0 && emptyCount.stdout.trim() === '0' ? 'ok' : mainVerdict(checks.stdout);
   say(`DEFAULT_CHECKS=${answer || 'unknown'}`);
   if (answer === 'failure') throw new Stop(6, [`NEXT: ${base}'s checks are failing. Fix the default branch first; ship nothing onto it.`]);
   // Cut off is not failing: nothing is wrong with the commit, and the same run can be started again.
@@ -284,10 +293,46 @@ function prepare(values) {
     throw new Stop(3, ['NEXT: nothing to ship yet. Take the pull-in in the ship skill: invoke apply inside /ship, or say there is nothing to continue.']);
   }
 
-  const active = openspecJson(['list'], values.store);
-  if (!Array.isArray(active.changes) || !active.root?.path) throw new Stop(1, ['error=openspec list returned no changes or root; the CLI contract changed']);
-  const names = active.changes.map(change => change.name);
-  const name = selectChange(values, root, names);
+  let selectedRecord = null;
+  const recordReference = values['schedule-record'] ?? values['archive-record'];
+  if (recordReference) {
+    try { selectedRecord = await scheduleRecord({ root, reference: recordReference, store: values.store, base: `origin/${base}` });
+      if (values['archive-record']) {
+        assertTerminalGoal(selectedRecord);
+        if (selectedRecord.archived) throw new Error('select the active goal for --archive-record; publish an existing archive with --schedule-record');
+        const archived = openspecJson(['archive', selectedRecord.name, '--yes', '--skip-specs'], values.store);
+        if (!archived.archive?.path || archived.archive.change !== selectedRecord.name || archived.archive.specsUpdated !== false) throw new Error('OpenSpec returned no exact archive path or unexpectedly updated capability specs');
+        values['schedule-record'] = recordPath(root, archived.archive.path);
+        const loader = (await import('../../schedule/scripts/lib/records.mjs')).loadRecord;
+        const terminal = await loader(root, values['schedule-record'], { store: values.store });
+        if (!terminal.archived || terminal.binding.record !== selectedRecord.reference) throw new Error('archive identity does not match the selected goal');
+        const files = [...terminal.files, ...selectedRecord.files];
+        assertRecordScope({ ...terminal, files }, checkpointEvidence({ repo: root, base: `origin/${base}` }));
+        must('git', ['add', '--', ...files], 'stage only the selected archived goal and removals');
+        selectedRecord = await scheduleRecord({ root, reference: values['schedule-record'], store: values.store, base: `origin/${base}` });
+      }
+    } catch (error) { throw new Stop(1, [`error=schedule record: ${error.message}`]); }
+  }
+  const active = selectedRecord ? null : openspecJson(['list'], values.store);
+  if (active && (!Array.isArray(active.changes) || !active.root?.path)) throw new Stop(1, ['error=openspec list returned no changes or root; the CLI contract changed']);
+  const names = [];
+  const goalRoots = [];
+  for (const change of active?.changes ?? []) {
+    const status = openspecJson(['status', '--change', change.name], values.store);
+    const operational = status.schemaName === 'scheduled-work';
+    if (operational && status.changeRoot) goalRoots.push(recordPath(root, status.changeRoot));
+    if (operational && values.change === change.name) throw new Stop(1, ['error=scheduled goals require --schedule-record; ordinary code ship refused']);
+    if (operational && status.changeRoot && publishedGoal(root, status.changeRoot)) continue;
+    names.push(change.name);
+  }
+  if (!selectedRecord) {
+    try {
+      const evidence = checkpointEvidence({ repo: root, base: `origin/${base}` });
+      assertCodeScope(evidence, [...goalRoots, ...evidence.operationalRoots]);
+    }
+    catch (error) { throw new Stop(1, [`error=${error.message}`]); }
+  }
+  const name = selectedRecord ? null : selectChange(values, root, names);
   const others = names.filter(other => other !== name);
   if (others.length && !values['allow-others']) {
     throw new Stop(7, [`OTHER_CHANGES=${others.join(',')}`,
@@ -300,21 +345,27 @@ function prepare(values) {
     const folders = archiveFolders(changesDir, name);
     if (folders.length !== 1) throw new Stop(1, [`error=expected one archive folder for ${name}, found ${folders.length}`]);
     [archive] = folders;
+    if (operationalChange(root, archive)) throw new Stop(1, ['error=scheduled goal archives require --schedule-record; ordinary code ship refused']);
   }
 
   must('git', ['fetch', 'origin', base], `git fetch origin ${base}`);
-  let numbered = numberRelease();
+  let numbered = selectedRecord ? { release: 'none' } : numberRelease();
   let synced = 'none';
   if (numbered.behind || (values.sync && sh('git', ['merge-base', '--is-ancestor', `origin/${base}`, 'HEAD']).status !== 0)) {
     mergeDefault(root, base);
     broughtIn = true;
     synced = `merged origin/${base}`;
-    numbered = numberRelease();
+    numbered = selectedRecord ? { release: 'none' } : numberRelease();
     if (numbered.behind) throw new Stop(5, [`error=still behind origin/${base} after the merge`]);
   }
 
+  if (selectedRecord) {
+    try { await scheduleRecord({ root, reference: values['schedule-record'], store: values.store, base: `origin/${base}` }); }
+    catch (error) { throw new Stop(1, [`error=schedule record after sync: ${error.message}`]); }
+    say(`SCHEDULE_RECORD=${selectedRecord.reference}`);
+  }
   say(`CHANGE=${name ?? 'none'}`);
-  say(`ARCHIVE=${archive ? relative(root, archive) : 'none'}`);
+  say(`ARCHIVE=${selectedRecord?.archived ? selectedRecord.reference : archive ? relative(root, archive) : 'none'}`);
   say(`RELEASE=${numbered.release}`);
   say(`SYNC=${synced}`);
   if (archive) say(`REVIEW=${markReady(archive)}`);
@@ -323,7 +374,7 @@ function prepare(values) {
   if (broughtIn) say(`LOCAL_CHECKS=${local}`);
   const failed = local.match(/^fail \(([^)]*)\)/)?.[1].split(', ').join(',');
   const repair = failed ? `the local checks failed after ${base} came in. Repair what fails and rerun only that: node .github/scripts/checks.mjs --worktree --only ${failed}, three rounds at most. Then ` : '';
-  const save = archive ? `with change ${name} and archive path ${relative(root, archive)} (mode archive)` : 'with no change';
+  const save = selectedRecord ? `with --schedule-record ${selectedRecord.reference}${values.store ? ` --store ${values.store}` : ''}, preserving its lifecycle` : archive ? `with change ${name} and archive path ${relative(root, archive)} (mode archive)` : 'with no change';
   say(`NEXT: ${repair}invoke ordinary /save once, ${save}. Go on to /verify only on SUCCESS or NONE.`);
   return 0;
 }
@@ -337,8 +388,19 @@ function liveLook(commit) {
   return look.stdout.trim() || 'LIVE_LOOK=unknown\nREASON=the live look printed nothing';
 }
 
-function finish() {
-  const artifacts = routeOf() === 'artifacts';
+async function finish(values) {
+  const root = must('git', ['rev-parse', '--show-toplevel'], 'not inside a git repository');
+  const route = routeOf(root);
+  if (values['schedule-record']) {
+    try { await scheduleRecord({ root, reference: values['schedule-record'], store: values.store, base: `origin/${defaultBranch(route)}` }); }
+    catch (error) { throw new Stop(1, [`error=schedule record before merge: ${error.message}`]); }
+  } else {
+    try {
+      const evidence = checkpointEvidence({ repo: root, base: `origin/${defaultBranch(route)}` });
+      assertCodeScope(evidence, evidence.operationalRoots);
+    } catch (error) { throw new Stop(1, [`error=${error.message}`]); }
+  }
+  const artifacts = route === 'artifacts';
   const merge = sh('bash', [join(here, 'merge.sh')]);
   process.stdout.write(merge.stdout);
   process.stderr.write(merge.stderr);
@@ -381,14 +443,17 @@ function finish() {
 if (isMain(import.meta.url)) {
   const { values, positionals } = parseCli({ usage: USAGE, allowPositionals: true, options: {
     change: { type: 'string' }, 'no-change': { type: 'boolean' }, 'allow-others': { type: 'boolean' },
-    'skip-specs': { type: 'boolean' }, sync: { type: 'boolean' }, store: { type: 'string' },
+    'skip-specs': { type: 'boolean' }, sync: { type: 'boolean' }, store: { type: 'string' }, 'schedule-record': { type: 'string' }, 'archive-record': { type: 'string' },
   } });
   const [command, ...extra] = positionals;
   if (!['prepare', 'finish'].includes(command) || extra.length) usageError(USAGE, 'give prepare or finish');
   if (values.change && values['no-change']) usageError(USAGE, '--change and --no-change exclude each other');
-  if (command === 'finish' && Object.keys(values).length) usageError(USAGE, 'finish takes no options');
+  if (values['schedule-record'] && values['archive-record']) usageError(USAGE, '--schedule-record and --archive-record exclude each other');
+  if ((values['schedule-record'] || values['archive-record']) && ['change', 'no-change', 'allow-others', 'skip-specs'].some(key => values[key])) usageError(USAGE, 'record delivery excludes ordinary code selection flags');
+  if (command === 'finish' && Object.keys(values).some(key => !['schedule-record', 'store'].includes(key))) usageError(USAGE, 'finish only takes --schedule-record and --store');
+  if (command === 'finish' && values.store && !values['schedule-record']) usageError(USAGE, '--store needs --schedule-record');
   try {
-    process.exitCode = command === 'prepare' ? prepare(values) : finish();
+    process.exitCode = command === 'prepare' ? await prepare(values) : await finish(values);
   } catch (error) {
     if (!(error instanceof Stop)) throw error;
     for (const line of error.lines) (line.startsWith('error=') ? console.error : console.log)(line);

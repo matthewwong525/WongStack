@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // SessionStart hook. Runs no model and never blocks the session: register the session, print the
 // digest, and start one detached background run when there is work. Any failure prints one line.
-// It also prints the last tidy-up's line and starts the next one detached (routine/scripts/tidy.mjs).
+// It also prints the last tidy-up's line and starts the next one detached (schedule/scripts/tidy.mjs).
 import { spawn } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -13,7 +13,7 @@ import { pending, registerSession } from './lib/transcripts.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const BUDGET_MS = 1500;
-const TIDY = join(HERE, '../../routine/scripts/tidy.mjs');
+const TIDY = join(HERE, '../../schedule/scripts/tidy.mjs');
 
 const fallbackInstruction = sessionId => `Memory: past sessions wait for capture, and a background run could not start on its own. Start one background subagent with the smallest capable model. Tell it to follow the "Background run" section of .claude/skills/memory/SKILL.md and to exclude session ${sessionId}. Do not wait for it.`;
 

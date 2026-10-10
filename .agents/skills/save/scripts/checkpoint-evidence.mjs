@@ -48,6 +48,7 @@ export function checkpointEvidence({ repo = '.', ref = 'HEAD', base, changesDir 
     ? splitNull(git('ls-files', '-z', '--cached', '--others', '--exclude-standard', '--', changes))
     : splitNull(git('ls-tree', '-r', '-z', '--name-only', sha, '--', changes));
   const proposals = new Map();
+  const operational = new Set();
   for (const path of sorted(tracked)) {
     if (!path.startsWith(`${changes}/`) || !path.endsWith('/proposal.md')) continue;
     const name = path.slice(changes.length + 1, -'/proposal.md'.length);
@@ -55,7 +56,21 @@ export function checkpointEvidence({ repo = '.', ref = 'HEAD', base, changesDir 
     if (local && !existsSync(resolve(root, path))) continue;
     // Read proposal metadata only, never environment or source files.
     const text = local ? readFileSync(resolve(root, path), 'utf8') : git('show', `${sha}:${path}`);
+    const metadataPath = `${changes}/${name}/.openspec.yaml`;
+    let metadata = '';
+    try { metadata = local ? readFileSync(resolve(root, metadataPath), 'utf8') : git('show', `${sha}:${metadataPath}`); } catch { /* ordinary code record */ }
+    if (/^schema:[ \t]*(?:scheduled-work|'scheduled-work'|"scheduled-work")[ \t]*(?:#.*)?$/m.test(metadata)) operational.add(name);
     proposals.set(name, text.match(/^\*\*Branch:\*\*[ \t]*([^\r\n]*)/m)?.[1].trim() || null);
+  }
+  // Include old paths of removed/moved goals, so a no-change save cannot disguise their archive.
+  for (const path of [...branchPaths, ...dirtyPaths.flatMap(entry => [entry.path, entry.from].filter(Boolean))]) {
+    if (!path.startsWith(`${changes}/`)) continue;
+    const parts = path.slice(changes.length + 1).split('/');
+    const name = parts[0] === 'archive' ? parts.slice(0, 2).join('/') : parts[0];
+    try {
+      const metadata = git('show', `${baseSha}:${changes}/${name}/.openspec.yaml`);
+      if (/^schema:[ \t]*(?:scheduled-work|'scheduled-work'|"scheduled-work")[ \t]*(?:#.*)?$/m.test(metadata)) operational.add(name);
+    } catch { /* path did not hold a published goal at the base */ }
   }
   const sources = new Map();
   const record = (path, source) => {
@@ -76,9 +91,11 @@ export function checkpointEvidence({ repo = '.', ref = 'HEAD', base, changesDir 
   return {
     root, changesDir: changes, ref, sha, branch, base, baseSha,
     branchPaths: sorted(branchPaths), dirtyPaths,
-    active: names.filter(name => !name.startsWith('archive/')),
-    archive: names.filter(name => name.startsWith('archive/')).map(name => name.slice(8)),
-    recorded: branch ? sorted([...proposals].filter(([name, value]) => !name.startsWith('archive/') && value === branch).map(([name]) => name)) : [],
+    active: names.filter(name => !name.startsWith('archive/') && !operational.has(name)),
+    operational: sorted([...operational].filter(name => !name.startsWith('archive/'))),
+    operationalRoots: sorted([...operational].map(name => `${changes}/${name}`)),
+    archive: names.filter(name => name.startsWith('archive/') && !operational.has(name)).map(name => name.slice(8)),
+    recorded: branch ? sorted([...proposals].filter(([name, value]) => !name.startsWith('archive/') && !operational.has(name) && value === branch).map(([name]) => name)) : [],
     sources: Object.fromEntries(names.map(name => [name, sorted(sources.get(name))])),
     diagnostics: [],
   };

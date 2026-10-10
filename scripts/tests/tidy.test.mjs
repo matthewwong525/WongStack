@@ -9,9 +9,9 @@ import test from 'node:test';
 import {
   emptyReport, formatBytes, inside, isIdle, isOldTemp, mergeReports, mergedAtTip, orphanPids, ownWorkspace,
   reportLine, savedState, takeLock,
-} from '../../.agents/skills/routine/scripts/tidy.mjs';
+} from '../../.agents/skills/schedule/scripts/tidy.mjs';
 
-const cli = new URL('../../.agents/skills/routine/scripts/tidy.mjs', import.meta.url).pathname;
+const cli = new URL('../../.agents/skills/schedule/scripts/tidy.mjs', import.meta.url).pathname;
 const HOUR = 3600 * 1000;
 const DAY = 24 * HOUR;
 const NOW = Date.parse('2026-09-27T12:00:00Z');

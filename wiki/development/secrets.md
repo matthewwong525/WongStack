@@ -1,23 +1,23 @@
 # Secrets and environment variables
 
-Real secrets never go in git; a committed **`.env.example`** does. That one file lists every environment variable the project reads, each documented and none filled in, so a new contributor sets up locally without leaking a credential into history. Not a developer? [API keys](../stack/api-keys.md) is the plain version: paste the key into the private link the assistant sends.
+Real secrets stay outside git. Committed, values-blank **`.env.example`** lists every variable the project reads, what it does, and where to get it. [API keys](../stack/api-keys.md) explains the private-link route.
 
-This is a **convention with worktree-aware consumers**, not a required dotenv implementation. WongStack ships the pattern and an example file; its credential-aware skills follow the locations below, but the toolkit does not require a particular platform or make the application read `.env`. Adopt the names as-is, or use what your stack expects (a framework's dotenv file, a platform's `.dev.vars`) with the same discipline. A stack can have several live files, one per role: the Cloudflare pack keeps tool credentials in the root `.env` and the Worker's runtime secrets in `app/.dev.vars` — [which file holds what](../stack/staging-bindings.md#env-and-devvars-are-not-interchangeable), and [how both Workers get the same secrets](../stack/staging-bindings.md#one-declared-list-of-secrets-two-workers). Every rule on this page applies to each live file at its own path.
+This convention supports any credential-file format; it requires no dotenv library or application `.env` reader. Each live file has one role: Cloudflare tools use root `.env`, Worker runtime uses `app/.dev.vars` ([routing](../stack/staging-bindings.md#env-and-devvars-are-not-interchangeable), [both Workers](../stack/staging-bindings.md#one-declared-list-of-secrets-two-workers)). Apply these rules to each.
 
 ## The two files
 
-- **`.env.example` — committed in the active branch.** Every variable the code reads appears here, blank, with a comment saying *what it is* and *where to get it*. It's a checklist, not a config: no real values ever land in it. A diff to this file shows the team that a new secret is now required.
-- **`.env` — git-ignored in the primary worktree.** The real values, filled in per machine. A normal single checkout is the primary worktree. From a linked worktree, resolve the durable checkout from Git metadata rather than saving a second copy in the disposable checkout. Every WongStack script uses one shared lookup:
+- **`.env.example` — committed on the active branch.** Declare every consumed variable blank, with its purpose and source. Never put real values here.
+- **`.env` — ignored in the primary worktree.** Values belong to each machine. A single checkout is primary; linked worktrees resolve it from Git metadata through the shared lookup:
 
   ```bash
   PRIMARY_ROOT=$(node .claude/skills/memory/scripts/lib/primary-root.mjs)
   ```
 
-  Equal git and common directories mean the current checkout is the primary. Otherwise the primary is the parent of the common directory, and Git must confirm it is a checkout. When it is not (a bare repository's worktree), the lookup exits 1 instead of guessing: a save stops, and a read may fall back to the current checkout.
+  Equal Git/common directories mean this checkout is primary. Otherwise Git must verify the common directory's parent is a checkout. A bare repository's worktree fails with exit 1: saves stop; reads may fall back to this checkout.
 
-  Setup writes the protection into [`.gitignore`](../../.gitignore) before this page can be acted on — `.env*` with a `!.env.example` negation, and the same pair for `.dev.vars` — so a per-environment variant full of live values can't be committed by accident. Before writing a value, verify the destination from the primary worktree with `git -C "$PRIMARY_ROOT" check-ignore -q .env`. If it is not ignored, stop before accepting the secret and fix the protection.
+  Setup first protects `.env*`/`.dev.vars*`, except their `.example` files, in [`.gitignore`](../../.gitignore). Before accepting a value, verify its destination with `git -C "$PRIMARY_ROOT" check-ignore -q .env`; fix missing protection first.
 
-  If `.env` was already tracked before the rule existed, widening `.gitignore` does **not** untrack it: `git rm --cached .env`, and rotate whatever was in it, because it's in the history of every clone.
+  Previously tracked `.env` needs `git rm --cached .env` and credential rotation: ignoring it leaves values in history.
 
 ## Bootstrapping a local setup
 
@@ -31,13 +31,13 @@ Work down the file, following each comment to where the value comes from. If one
 
 ## Keeping the template honest
 
-**When you add a variable in code, add it to the active branch's `.env.example` in the same change** — blank, with its comment. Put the real value only in the primary worktree's ignored `.env`. A missing entry is a bug: the next contributor's app won't run, and they won't know why.
+**Declare each new code variable in the active branch's `.env.example`, in the same change**, blank with its comment. Put its value in the ignored primary file. Missing declarations break new contributors' setup.
 
-Rotating an existing value is different: update the durable `.env`, but leave `.env.example` alone unless the variable's name, purpose, or acquisition instructions changed. Rewriting a blank declaration is noise, and documents no rotation.
+Rotate values in durable `.env`. Change `.env.example` only when the name, purpose, or acquisition instructions change.
 
 ## API token website steps
 
-When a task needs a website to get, create, reveal, copy, rotate, change permissions for, or revoke an API key or token, the person does that step in their own browser, even when the agent has a saved login. The agent must not use browser automation, saved logins, screenshots, page extraction, or a private form for it.
+The person handles website steps to obtain, reveal, copy, rotate, change permissions for, or revoke API keys/tokens in their own browser. The agent uses no automation, saved login, screenshot, extraction, or private form for those steps.
 
 If an ordinary browsing task reaches a token step, stop before taking a picture or extracting page content, then:
 
@@ -47,10 +47,7 @@ If an ordinary browsing task reaches a token step, stop before taking a picture 
 
 Ordinary browsing, saved website logins, use of stored credentials, and existing authorized token management through APIs continue as usual.
 
-**A routine's keys.** [Cloud routines](../stack/cloud-routines.md) take two keys only the person can make. Each goes through [the private key link](#receive-a-key-through-a-private-link):
-
-- `WONG_ROUTINE_MODEL_KEY`, optional: one key from the model service you already pay for. Copy it from that service's keys page: [Anthropic](https://console.anthropic.com/settings/keys), [OpenAI](https://platform.openai.com/api-keys), [Z.ai](https://z.ai) under *API Keys*, or another's. The assistant [works out whose key it is](../stack/cloud-routines.md#or-paste-your-own-key).
-- `WONG_ROUTINE_GITHUB_TOKEN`, only when the project lives on GitHub: [a new fine-grained token](https://github.com/settings/personal-access-tokens/new), *Only select repositories* with this one, *Contents* and *Pull requests* set to *Read and write*.
+**Scheduled credentials.** [Host schedules](../stack/host-schedules.md) use existing host connections. Verify future-session tool/memory scope; keep credentials out of prompts/records. Preserve legacy keys until [explicit migration/teardown](../stack/legacy-cloud-schedules.md).
 
 ## Receive a key through a private link
 
@@ -109,7 +106,7 @@ Route each edit by its kind, so `main` sees an edit only when it is safe:
 
 [`/ship`](../../.agents/skills/ship/SKILL.md) runs `worktree-secrets.mjs promote` after the merge. It applies to the primary only what this branch changed, compared three ways against the baseline, so a key another branch added to the primary is kept and a rotation made there is not reverted. A key both sides changed is skipped and named for you to resolve. Without a baseline it applies adds only and names the rest. Every command prints key names, never values; `status` shows what is still pending.
 
-WongStack's own tools, such as the memory store, read the primary `.env` first, so keep branch-only values to the settings your app reads. Merged outside `/ship`, for example in the GitHub UI? Run `promote` from the worktree before you delete it. An abandoned branch needs nothing: delete the worktree and its deferred edits go with it.
+WongStack tools read primary `.env` first; branch-only settings belong to the app. After merging outside `/ship`, run `promote` before deleting the worktree. Abandoned worktrees need no promotion; their deferred edits disappear with them.
 
 ## Unseeded linked-worktree copies
 

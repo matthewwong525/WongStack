@@ -6,6 +6,8 @@ user-invocable: true
 
 # /plan
 
+**Selected schedule:** [route its record](../save/references/schedule-records.md) before code or checkout; preserve its store and pending question.
+
 Create an apply-ready OpenSpec change and its required `review.html`, the offline review page.
 
 **Work that changes no repo file** gets no change, page, or file: after the bounded `/explore` pass, write a short numbered to-do in chat, marking each step that acts outside it `(outward)` ([verbs for any work](../../../wiki/development/the-change-loop.md#verbs-for-any-work)).

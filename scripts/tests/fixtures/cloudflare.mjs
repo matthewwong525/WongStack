@@ -46,7 +46,7 @@ export const GROUPS = [
   ['Artifacts Write', 'account', 'f9e1ba803b8d4d52b4d4184825b07a28'],
   ['Workers Containers Write', 'account', 'bdbcd690c763475a985e8641dddc09f7'],
   ['Billing Read', 'account', '7cf72faf220841aabcfdfab81c43c4f6'],
-  // What the first routine adds: the AI Gateway, and the models behind it.
+  // Legacy model permission groups remain available as traps: setup must not grant them.
   ['AI Gateway Write', 'account', '6c8a3737f07f46369c1ea1f22138daaf'],
   ['AI Gateway Run', 'account', '644535f4ed854494a59cb289d634b257'],
   ['Workers AI Read', 'account', 'a92d2450e05d4e7bb7d0a64968f83d11'],

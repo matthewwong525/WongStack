@@ -17,6 +17,6 @@
     "config": ["vite.config.ts"]
   },
   "vitest": {
-    "config": ["vitest.config.ts"]
+    "config": ["vitest.config.ts", "vitest.config.runtime.ts"]
   }
 }

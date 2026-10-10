@@ -6,19 +6,19 @@ user-invocable: true
 
 # /close
 
-Invoking `/close` authorizes every step below, `/save` and `/ship` included; it throws work away only when asked (*close and throw it away*).
+`/close` authorizes these steps, including save/ship. Discard only when explicitly requested.
 
 ## 1. Write the wrap-up
 
-From the conversation and any change's `tasks.md`, write through [the write gate](../memory/SKILL.md#write): a `project` fact with the session's goal and what got done, a `thread` per planned piece left undone (next step, any blocker), and a supersede for each thread this session finished. The route's save carries them.
+Use conversation/tasks and [the write gate](../memory/SKILL.md#write): project fact for goal/result, threads for remaining pieces with next step/blocker, supersedes for resolved threads. Save carries them.
 
 ## 2. Pick a route
 
-Read `git status --porcelain`, `git log origin/main..HEAD`, and `gh pr view --json state,headRefOid,url`. A Paseo worktree has `PASEO_AGENT_ID` set and is not the main checkout.
+Read `git status --porcelain`, `git log origin/main..HEAD`, `gh pr view --json state,headRefOid,url`. Paseo worktrees have `PASEO_AGENT_ID` and are outside the main checkout.
 
-- **discard**: asked to throw the work away, in a Paseo worktree. Save the facts by [the facts-only save](../save/references/facts-save.md); no wiki. Asked elsewhere → keep it; the main checkout never throws work away.
-- **keep**: uncommitted edits, or commits not merged at `HEAD`. Invoke `/save` verbatim; go on unless the push failed, naming a red CI run in one line. The close after that work ships updates the wiki.
-- **wrap**: anything else. Save the facts by the facts-only save, then update the wiki.
+- **discard**: explicit request in a Paseo worktree. [Save facts](../save/references/facts-save.md), skip wiki. Elsewhere, keep; never discard the main checkout.
+- **keep**: edits or unmerged HEAD commits. Run `/save` verbatim; stop for failed push, otherwise name any red checks and continue. Update wiki when closing after shipment.
+- **wrap**: otherwise save facts, then update wiki.
 
 ## Update the wiki
 
@@ -28,7 +28,7 @@ node "$M" show "$CHANGE_NAME"
 node "$M" search --branch "$BRANCH" --change "$CHANGE_NAME" --limit 200
 ```
 
-`CHANGE_NAME` is the branch's change, archived or active; with none, drop `show` and `--change`. On `main`, drop `--branch`. Add this session's facts, deduplicate, and place each repeatable one by [placing a fact](../../../wiki/development/wiki-dream.md#placing-a-fact-on-a-page). [Store unreachable](../memory/SKILL.md#read) → say so and go on.
+Use active/archived `CHANGE_NAME`; without one, omit show/--change. On main omit --branch. Deduplicate session facts; [place repeatable ones](../../../wiki/development/wiki-dream.md#placing-a-fact-on-a-page). Report [unreachable memory](../memory/SKILL.md#read) and continue.
 
 Publish the edits alone. After a merge, first `git fetch origin main`, `git switch -c "$BRANCH-wiki" origin/main`, and `git branch -D "$BRANCH"`. Then invoke `/ship`, minus its closing question. No edit → report `no repeatable fact`.
 
@@ -38,15 +38,15 @@ Publish the edits alone. After a merge, first `git fetch origin main`, `git swit
 S="$(git rev-parse --show-toplevel)/.claude/skills"
 node "$S/memory/scripts/memory.mjs" keep-transcript current # never stops the close
 node "$S/hand-over/scripts/hand-over.mjs" close # only when this chat's private link is open
-node "$S/routine/scripts/tidy.mjs" close # --discard on that route
+node "$S/schedule/scripts/tidy.mjs" close # --discard on that route
 ```
 
-When the reply ends, the workspace is archived and what runs from it stops, such as the app's server; shared things like the browser keep running.
+After the reply, archiving stops workspace processes; shared services keep running.
 
-- **Exit 0:** say you're closing this workspace, and end the reply. The chat stays readable in Paseo's archived list.
+- **Exit 0:** say the workspace is closing. Archived chat remains readable.
 - **Exit 2:** in the main checkout or outside Paseo, say there's no workspace to close; else give its `error` in plain words.
 - **Exits 3 to 5:** Paseo couldn't close it here; the Paseo app can archive it.
 
 ## 4. Report
 
-In [plain words](../explore/references/asking-the-user.md#write-in-plain-words): facts recorded, wiki pages changed, work saved to GitHub (with its link) or thrown away, then the close line. Ask no next step: the chat is ending. After a failed close, end with the ways to clear it.
+Report [plainly](../explore/references/asking-the-user.md#write-in-plain-words): facts, wiki edits, saved-work link or discard, then close result. Ask no next step; failed closes end with repair options.

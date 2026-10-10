@@ -14,11 +14,12 @@
     "secrets:push": "node ../scripts/cf-secrets.mjs push",
     "secrets:check": "node ../scripts/cf-secrets.mjs check",
     "lint": "oxlint --deny-warnings",
-    "test": "npm run lint && tsc -b && vitest run --coverage && knip && jscpd && node ../scripts/check-app-keys.mjs && node ../scripts/check-skill-actions.mjs",
+    "test": "npm run lint && tsc -b && vitest run --coverage && npm run test:runtime && knip && jscpd && node ../scripts/check-app-keys.mjs && node ../scripts/check-skill-actions.mjs",
     "test:checks": "node ../scripts/check-app-checks.mjs",
     "preview": "npm run build && vite preview",
     "deploy": "bash ../scripts/cf-deploy.sh",
-    "cf-typegen": "wrangler types"
+    "cf-typegen": "wrangler types",
+    "test:runtime": "vitest run --config vitest.config.runtime.ts"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",

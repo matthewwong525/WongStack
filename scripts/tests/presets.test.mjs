@@ -1,4 +1,4 @@
-// The committed paseo.json, and routine/scripts/presets.mjs against a fake Paseo home with fake
+// The committed paseo.json, and schedule/scripts/presets.mjs against a fake Paseo home with fake
 // `paseo`, `claude`, and `codex` commands on a PATH that holds nothing else.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
@@ -8,10 +8,10 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { loadPresets, plan, withPresets } from '../../.agents/skills/routine/scripts/presets.mjs';
+import { loadPresets, plan, withPresets } from '../../.agents/skills/schedule/scripts/presets.mjs';
 
 const repo = new URL('../..', import.meta.url).pathname;
-const cli = path.join(repo, '.agents/skills/routine/scripts/presets.mjs');
+const cli = path.join(repo, '.agents/skills/schedule/scripts/presets.mjs');
 const PRESETS = loadPresets();
 const names = provider => PRESETS.filter(p => p.provider === provider).map(p => p.name);
 

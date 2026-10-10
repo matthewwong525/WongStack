@@ -43,7 +43,7 @@ failed-check lookups, and local check runs, by model and thinking level.
 --all-repos  count every session
 --codex, --claude  log folders to read instead of the ones under your home folder`;
 
-const VERB = /(?:^|[\s>])[$/](explore|plan|apply|save|ship|continue|close|verify|improve-code|improve|dream-memory|dream|routine|wong-sync)\b/;
+const VERB = /(?:^|[\s>])[$/](explore|plan|apply|save|ship|continue|close|verify|improve-code|improve|dream-memory|dream|routine|schedule|wong-sync)\b/;
 // A skill's older name counts with its current one.
 const RENAMED = { improve: 'improve-code', dream: 'dream-memory' };
 const PAGE = /(?:^|[\s"'=(/])((?:\.claude|\.agents|\.codex)\/skills\/[\w./-]+?\.md|wiki\/[\w./-]+?\.md|AGENTS\.md|CLAUDE\.md)\b/g;

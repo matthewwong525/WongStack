@@ -55,10 +55,10 @@ Check `command -v paseo` first. Without it, drop option 1 from the first two lis
 
 ## Open each workspace
 
-Write each other part's [brief](#the-brief) to a file in the git-ignored scratch folder that `node "$(git rev-parse --show-toplevel)/.claude/skills/routine/scripts/tidy.mjs" scratch` makes and prints, then run:
+Write each other part's [brief](#the-brief) to a file in the git-ignored scratch folder that `node "$(git rev-parse --show-toplevel)/.claude/skills/schedule/scripts/tidy.mjs" scratch` makes and prints, then run:
 
 ```bash
-W="$(git rev-parse --show-toplevel)/.claude/skills/routine/scripts/workspace.mjs"
+W="$(git rev-parse --show-toplevel)/.claude/skills/schedule/scripts/workspace.mjs"
 node "$W" open --title '<part>' --brief <file>
 ```
 

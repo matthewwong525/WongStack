@@ -61,11 +61,12 @@ export const GATES = [
   {
     name: 'types', tool: /\btsc\b/, settings: ['tsconfig.json'],
     also: app => [...readdirSync(app).filter(name => /^tsconfig.+\.json$/.test(name)), 'worker-configuration.d.ts'],
-    files: { 'vite.config.ts': 'export default {};\n' },
+    files: { 'vite.config.ts': 'export default {};\n', 'vitest.config.runtime.ts': 'export default {};\n' },
     samples: [
       { file: 'src/wrong-type.ts', says: 'TS2322', text: WRONG_TYPE },
       { file: 'worker/wrong-type-server.ts', says: 'TS2322', text: WRONG_TYPE },
       { file: 'worker/wrong-type-in-test.test.ts', says: 'TS2322', text: WRONG_TYPE },
+      { file: 'tests/runtime/wrong-type.ts', says: 'TS2322', text: WRONG_TYPE },
     ],
   },
   {
@@ -76,6 +77,25 @@ export const GATES = [
     files: { 'src/one-branch.test.ts': 'import { expect, it } from "vitest";\nimport { direction } from "./half-tested";\n\n'
       + 'it("reads one branch of two", () => {\n  expect(direction(1)).toBe("up");\n});\n' },
     samples: [{ file: 'src/half-tested.ts', says: 'threshold', text: 'export const direction = (step: number) => (step > 0 ? "up" : "down");\n' }],
+  },
+  {
+    name: 'runtime', tool: /\bvitest\b.*--config\s+vitest\.config\.runtime\.ts\b/,
+    settings: ['vitest.config.runtime.ts', 'tests/runtime/setup.ts'],
+    also: () => ['../scripts/lib-wrangler-config.mjs', '../scripts/lib-cli.mjs', '../.claude/skills/memory/scripts/lib/cli.mjs'],
+    requires: 'runtime proof: workerd ready',
+    files: {
+      'wrangler.jsonc': JSON.stringify({ compatibility_date: '2026-09-26', compatibility_flags: ['nodejs_compat', 'disallow_importable_env'] }),
+      'worker/index.ts': 'export default { fetch: () => new Response("runtime reached") };\n',
+      '../schema/migrations/0001_runtime.sql': 'CREATE TABLE runtime_proof (id INTEGER PRIMARY KEY);\n',
+    },
+    samples: [{ file: 'tests/runtime/runtime.test.ts', says: 'RUNTIME_ASSERTION_PROOF', text:
+      'import { afterAll, beforeAll, expect, it } from "vitest";\nimport { startRuntime, type Runtime } from "./setup.ts";\n'
+      + 'let runtime: Runtime;\nbeforeAll(async () => { runtime = await startRuntime(); });\n'
+      + 'afterAll(async () => { await runtime?.close(); });\n'
+      + 'it("catches a wrong runtime expectation", async () => {\n'
+      + '  const response = await runtime.worker.fetch("https://runtime.example.com/");\n'
+      + '  expect(response.status).toBe(200);\n  console.log("runtime proof: workerd ready");\n'
+      + '  expect(await response.text()).toBe("RUNTIME_ASSERTION_PROOF");\n});\n' }],
   },
   {
     name: 'unused code', tool: /\bknip\b/, settings: ['knip.jsonc'],
@@ -100,7 +120,7 @@ export const GATES = [
 /** Run one step of the `test` script as npm would: through the shell, with the app's tools first on PATH. */
 function shell(command, cwd) {
   // Plain output: a colour code in the middle of a file name would hide it.
-  const env = { ...process.env, NO_COLOR: '1', PATH: `${join(cwd, 'node_modules', '.bin')}${delimiter}${process.env.PATH}` };
+  const env = { ...process.env, NO_COLOR: '1', NODE_COMPILE_CACHE: join(cwd, 'node_modules/.cache/check-proof'), PATH: `${join(cwd, 'node_modules', '.bin')}${delimiter}${process.env.PATH}` };
   delete env.FORCE_COLOR;
   const result = spawnSync(command, { cwd, env, shell: true, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, timeout: 300_000 });
   return { status: result.status, output: `${result.stdout ?? ''}${result.stderr ?? ''}` };
@@ -152,9 +172,9 @@ async function prove(gate, { app, work, steps, run }) {
   if (secret === undefined) return { ok: true, line: 'no saved key is registered, so there is nothing to catch' };
   const samples = gate.samples.map(sample => ({ file: sample.file, says: sample.says.replace(SECRET, secret), text: sample.text.replace(SECRET, secret) }));
   const folder = sampleApp(work, app, gate, samples);
-  const proving = { name: gate.name, samples };
+  const proving = { name: gate.name, samples, requires: gate.requires };
   const { status, output } = gate.inApp ? run(`${step.command} --root ${quoted(dirname(folder))}`, app, proving) : run(step.command, folder, proving);
-  const passed = samples.filter(sample => status === 0 || !output.includes(basename(sample.file)) || !output.includes(sample.says));
+  const passed = samples.filter(sample => status === 0 || !output.includes(basename(sample.file)) || !output.includes(sample.says) || (gate.requires && !output.split(/\r?\n/).includes(gate.requires)));
   if (!passed.length) return { ok: true, line: `caught ${samples.length} bad sample${samples.length === 1 ? '' : 's'}` };
   const tail = output.trimEnd().split('\n').slice(-TAIL).map(text => `    ${text}`).join('\n');
   return { ok: false, line: `passed a bad sample (${passed.map(sample => sample.file).join(', ')}); \`${step.command}\` exited ${status} and said:\n${tail}` };

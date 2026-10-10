@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "key": "<stable-key>",
+  "owner": "<identified-user>",
+  "repository": "<credential-free-repository-reference>",
+  "record": "<exact-CLI-change-path>",
+  "revision": "<sha256-of-approved-proposal>",
+  "execution": { "type": "assistant", "host": "<verified-host>", "nativeId": null, "generation": 1, "capabilities": {}, "context": {} },
+  "progress": { "type": "host", "reference": "<verified-persistent-route>" },
+  "authority": { "actions": [], "recipients": [], "channels": [], "minIntervalMs": 0 },
+  "completionSource": "<authoritative-source-reference>",
+  "timing": { "mode": "goal", "timezone": "UTC", "earliest": "<absolute-time>", "latest": "<absolute-time>", "expiresAt": "<absolute-time>", "allowedLatenessMs": 0 },
+  "lifecycle": { "state": "registering", "published": false }
+}

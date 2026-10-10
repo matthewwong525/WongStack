@@ -1,0 +1,5 @@
+schema: spec-driven
+retire_capabilities: true
+created: 2026-10-09
+goal: Rename routine to schedule, use host scheduling, and keep unfinished
+  scheduled goals visible in the repository

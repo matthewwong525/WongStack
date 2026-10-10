@@ -12,6 +12,22 @@
 
 **Updating.** Nothing needs doing by hand. The public landing page stays outside each install.
 
+## 40.1.0 — Check requests in the Workers runtime
+
+- **App tests check signed requests and database saves in the local Workers runtime.** A small suite uses real migrations and D1, checks refusal and rollback, and cleans up its temporary runtime. It reuses Wrangler and Vite without another dependency or service login.
+- **The new check proves it can fail.** A deliberately wrong runtime expectation and a wrong runtime-test type are caught independently of the existing coverage proof.
+
+**Updating.** Normal app tests gain local request and database checks. Nothing needs doing by hand; use `npm run test:runtime` in the app folder to run those checks alone.
+
+## 40.0.0 — Future work uses your existing clock
+
+- **Use `/schedule` for future work.** Predictable steps use a script on an existing clock first. Work needing judgment uses an available host scheduler after checking its future-session tools, connections, and uptime needs. No new cloud runner or model setup is installed.
+- **Ongoing routines and finite goals stay visible together.** A routine keeps a small definition in the repo and remains configured after a successful run. A task with a finish line keeps an open goal plan until completion or cancellation and verified cleanup. Publishing its instructions never means its goal is finished.
+- **Follow-ups check progress and wait for you when needed.** They retain receipts, guard against overlapping work, stay within agreed recipients and timing, and stop after confirmed completion. A call suggestion remains pending until you answer; scheduling alone grants no permission to call, pay, or publish code.
+- **Existing jobs keep running.** This update preserves deployed cloud jobs and native host tasks. Legacy management remains available for installed cloud jobs. Moving one is explicit: pause and verify its original before the replacement can act. Removing old resources is a separate requested step.
+
+**Updating.** Use `/schedule` instead of the retired `/routine` name. Ask your assistant to check existing job prompts for that old command before explicitly moving them; the update does not rewrite them or move jobs. Review each new destination and what must stay on: a local host may need its computer and app running. Keep ongoing routine definitions and finite goal plans owned by your install. Any script implementation uses the ordinary plan, staging check, and publishing steps. Preserve existing runner secrets while its jobs remain in use. After a replacement is verified, request old cloud-resource teardown separately if wanted; confirm the exact resources, revoke only their dedicated keys, and review permissions left on your Cloudflare token.
+
 ## 39.1.0 — Browse through a local proxy automatically
 
 - **Personal browsing starts its own local forwarding proxy.** There is nothing extra to install or configure. It uses the assistant's computer's network, independently of WARP and Paseo's relay, and chooses no country. A site may still refuse the browser.
