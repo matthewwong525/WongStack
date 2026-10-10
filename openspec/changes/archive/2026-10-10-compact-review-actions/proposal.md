@@ -93,3 +93,4 @@ None.
 - **2026-10-10** — Assumed: place messages and publish confirmation above the bar, because wrapping them into the bar would break the requested one-row layout.
 - **2026-10-10** — Assumed: retain unconfirmed network requests until their response arrives, because a client timeout could invite a retry after the chat already received the message.
 - **2026-10-10** — Asked whether to publish after the remaining checks pass → chose publish; publication waits for passing saved checks.
+- **2026-10-10** — Archive checkpoint: all tasks complete, full local checks and the first saved checks passed. Version 40.1.1 landed before publication, so it was brought in and this 40.2.0 release will pass a fresh saved gate before merging.
