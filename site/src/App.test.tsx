@@ -4,7 +4,7 @@
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import App from "./App";
-import { ACCOUNTS, AGENTS, REPO_URL, freeAccounts } from "./install";
+import { AGENTS, PASEO, REPO_URL, freeAccounts } from "./install";
 
 function renderAt(path: string) {
   window.history.pushState({}, "", path);
@@ -19,30 +19,17 @@ afterEach(() => {
 // What a screen reader reads as the headline: every name, then the fixed line.
 const HEADLINE = "Claude Code or Codex, for people who don't code.";
 const FIXED_LINE = "for people who don't code.";
-const WORKS_WITH = "Works with the AI you already use";
-const SHOWS_PASEO = "These screens show Paseo, the chat app I use. WongStack works wherever your assistant works.";
-const FOR_EVERYONE = "GitHub is for engineers. This is the next one, for everyone else.";
+const WORKS_WITH = "Use the best models.";
+const SHOWS_PASEO = "Shown in Paseo, an optional chat app.";
+const START_SMALL = "Start with one operational process. Ask your assistant to build a tool around it, then keep what you learn.";
 const DESCRIPTION =
-  "The most powerful AI tools, set up for your business, with security built in. Open source, and everything it builds and learns stays in accounts you own.";
+  "AI tools, set up to run your business. Free and open source, in accounts you own.";
 
 // Developer words the page keeps out of its copy above the works-with section.
 const JARGON = /\b(repos?|pull requests?|deploy\w*)\b|\b(PR|CI)\b/;
 
 /** The install button and the quiet link to the code: the hero and the closing call to action share them. */
 const ACTIONS = ["Install for free #install", `See it on GitHub → ${REPO_URL}`];
-
-/** Each stack item's one logo (decorative, so no label), its linked name, and its line. */
-const stackItems = (group: HTMLElement) =>
-  [...group.querySelectorAll("li")].map((li) => {
-    const [logo, ...others] = [...li.querySelectorAll("img")];
-    expect([others.length, logo?.getAttribute("alt")]).toEqual([0, ""]);
-    return [
-      logo?.getAttribute("src"),
-      li.querySelector("a")?.textContent,
-      li.querySelector("a")?.getAttribute("href"),
-      li.querySelector("p")?.textContent,
-    ];
-  });
 
 /** A Paseo screenshot's file and its label. */
 const paseo = (shot: Element) => [shot.getAttribute("src"), shot.getAttribute("alt")];
@@ -79,112 +66,45 @@ it("opens with a headline that slides through the assistants the install steps n
   // A visitor who asks for less motion sees the first row, still: index.css stops the slide.
   expect(rows[0]?.textContent).toBe("Claude Code");
   expect(seen?.lastElementChild?.textContent).toBe(FIXED_LINE);
-  expect(container.querySelector(".hero")?.firstElementChild).toBe(h1);
+  expect(container.querySelector(".hero-copy")?.firstElementChild).toBe(h1);
   expect(container.querySelectorAll("h1")).toHaveLength(1);
 });
 
-it("opens with the offer, the install button, the GitHub link, the Supports row, and a Paseo laptop screenshot over a note that it is the app I use", () => {
+it("opens with a short offer and install actions before the business explanation", () => {
   const { container } = renderAt("/");
   const hero = container.querySelector(".hero") as HTMLElement;
   expect(hero.querySelectorAll(".lede")).toHaveLength(1);
   expect(within(hero).getByText(DESCRIPTION).className).toBe("lede");
-  // "Install for free" goes down to the install steps, not the steps themselves; Landing.test.tsx checks the steps.
   expect(links(hero.querySelector(".lede + p.actions"))).toEqual(ACTIONS);
-  const supports = hero.querySelector(".supports") as HTMLElement;
-  expect(
-    [...supports.querySelectorAll("li")].map((li) => [li.textContent, li.querySelector("img")?.getAttribute("src")]),
-  ).toEqual([
-    ["Supports", undefined],
-    ["Claude", "/logos/claude.svg"],
-    ["ChatGPT", "/logos/openai.svg"],
-    ["+ any model with an API key", undefined],
-  ]);
-  expect(within(supports).queryAllByRole("link")).toHaveLength(0);
-  expect(hero.textContent).not.toMatch(/Built by|Official, unmodified/);
-  const note = hero.lastElementChild as Element;
-  expect([note.textContent, note.className]).toEqual([SHOWS_PASEO, "note"]);
-  expect(paseo(note.previousElementSibling as Element)).toEqual([
-    "/paseo/laptop.webp",
-    "Paseo on a laptop: a list of workspaces, a chat with the agent, and its plan with choices to pick from",
-  ]);
-  expect(hero.nextElementSibling?.querySelector("h2")?.textContent).toBe("Why I built this");
+  expect(hero.querySelector(".hero-picture img")?.getAttribute("src")).toBe("/paseo/laptop.webp");
+  expect(hero.nextElementSibling?.classList.contains("story")).toBe(true);
   expect(container.querySelectorAll('a[href*="claymoo" i]')).toHaveLength(0);
 });
 
-it("orders the page: about, Paseo phones, what's included, examples, works with, stack, install, FAQ, one call to action", () => {
+it("puts pictures and operational examples into the story before practical details", () => {
   const { container } = renderAt("/");
-  const points = container.querySelector(".points") as HTMLElement;
-  const headings = screen.getAllByRole("heading", { level: 2 });
-  const phones = headings[1]?.closest("section") as HTMLElement;
-
-  expect(headings.map((h) => h.textContent)).toEqual([
-    "Why I built this",
-    "Built by chatting, from my phone",
-    "The hardest part is the setup. It's done.",
-    "Examples of things I've done",
+  expect(screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent)).toEqual([
+    "Give AI the whole picture.",
+    "Start with operations.",
+    "Your processes connect your data.",
+    "The more you chat, the more it knows your business.",
+    "The whole team starts with context.",
     WORKS_WITH,
-    "WongStack is free and open source.",
     "Install it for free",
     "Questions",
     "Make it yours",
   ]);
-  // The text comes first, so on a wide screen it sits left of the phone.
-  expect(phones.firstElementChild?.querySelector("h2")?.textContent).toBe("Built by chatting, from my phone");
-  expect([...container.querySelectorAll('img[src^="/paseo/"]')].map(paseo)).toHaveLength(2);
-  // Each Paseo picture sits over the same note: it is the app I use, and none is needed.
-  expect(
-    [...container.querySelectorAll('img[src^="/paseo/"]')].map((shot) => [
-      shot.nextElementSibling?.textContent,
-      shot.nextElementSibling?.className,
-    ]),
-  ).toEqual([
-    [SHOWS_PASEO, "note"],
-    [SHOWS_PASEO, "note"],
+  expect(container.querySelector(".stack")).toBeNull();
+  const shots = [...container.querySelectorAll('img[src^="/paseo/"]')];
+  expect(shots.map(paseo)).toEqual([
+    ["/paseo/laptop.webp", "Paseo on a laptop: a list of workspaces, a chat with the agent, and its plan with choices to pick from"],
   ]);
-  screen.getByText(
-    "Everything a developer would spend weeks setting up is ready on day one, in accounts you own, so your data stays yours.",
-  );
-  expect(
-    [...points.querySelectorAll("article")].map((card) => [
-      card.querySelector("h3")?.textContent,
-      card.querySelector(":scope > p")?.textContent,
-      card.querySelector(".visual")?.textContent,
-      ...["src", "alt", "loading"].map((name) => card.querySelector(".visual > img")?.getAttribute(name)),
-    ]),
-  ).toEqual([
-    [
-      "Shared memory",
-      "Your whole team works in the same projects, each with their own AI plan. What one person teaches it, everyone gets.",
-      "Noted for the team: orders ship on Fridays, and the ops lead signs off.Updated memory",
-      "/art/shared-memory.webp",
-      "",
-      "lazy",
-    ],
-    [
-      "Browser use",
-      "It opens a real browser to click through your apps and check its own work. When it needs you, to sign in or approve something, it sends you a link.",
-      "I need you to sign in to Shopify once. Open this link.",
-      "/art/browser-use.webp",
-      "",
-      "lazy",
-    ],
-    [
-      "A codebase that follows best practices",
-      "Every app is built the same careful way. Tests, checks, sign-in, secret keys, hosting, and a database each have a set way, already decided, so you just build.",
-      "TestsChecksSign-inSecret keysHostingDatabase",
-      "/art/best-practices.webp",
-      "",
-      "lazy",
-    ],
-    [
-      "Your tools and knowledge, together.",
-      "Your code, docs, wiki, and AI memory form one connected workspace. Your AI can understand how your business works, improve the tools that run it, and carry what it learns into the next task.",
-      "Reads your packing guide → Builds your checklist",
-      "/art/company-brain.webp",
-      "",
-      "lazy",
-    ],
-  ]);
+  expect(shots[0]?.getAttribute("loading")).toBe("eager");
+  expect(container.querySelector(".hero-picture figcaption")?.textContent).toBe(SHOWS_PASEO);
+  expect(screen.getAllByRole("link", { name: PASEO.name })).toHaveLength(1);
+  expect(screen.getByRole("link", { name: PASEO.name }).getAttribute("href")).toBe(PASEO.href);
+  expect(container.querySelector(".phone-tour figcaption")).toBeNull();
+  expect(container.querySelector(".supports")).toBeNull();
 });
 
 it("speaks plain business words above the works-with section, and never shares one login", () => {
@@ -193,10 +113,9 @@ it("speaks plain business words above the works-with section, and never shares o
 
   expect(below).toBeDefined();
   expect(above).toContain(HEADLINE);
-  expect(above).toContain("Why I built this");
-  expect(above).toContain("Examples of things I've done");
-  expect(above).toContain("Built by chatting, from my phone");
-  expect(above).toContain("The hardest part is the setup. It's done.");
+  expect(above).toContain("Start with operations.");
+  expect(above).toContain("Examples you can build");
+  expect(above).toContain("The whole team starts with context.");
   expect(above).not.toMatch(JARGON);
   expect(container.textContent).not.toMatch(/shares? (one|a|the same) (AI )?login/i);
   expect(screen.getAllByRole("heading").map((h) => h.textContent)).not.toContainEqual(
@@ -211,7 +130,7 @@ it("calls a visitor to act once, after the FAQ, with the install button and the 
   expect(others).toHaveLength(0);
   expect(cta?.querySelector("h2")?.textContent).toBe("Make it yours");
   expect([cta?.querySelector(".lede")?.textContent, cta?.querySelectorAll(".lede").length]).toEqual([
-    `${DESCRIPTION} ${FOR_EVERYONE}`,
+    START_SMALL,
     1,
   ]);
   expect(cta?.previousElementSibling?.querySelector(".faq")).not.toBeNull();
@@ -222,6 +141,7 @@ it("calls a visitor to act once, after the FAQ, with the install button and the 
 it("shows what works with each assistant: a card per agent, another assistant with its limit, the switch line, and the install button", () => {
   const { container } = renderAt("/");
   const section = screen.getByRole("heading", { level: 2, name: WORKS_WITH }).closest("section") as HTMLElement;
+  expect(section.querySelector(".lede")?.textContent).toBe("The WongStack framework works with any model or setup through a coding agent that can read and change files and run commands.");
   const SET_UP = "Set up on day one: your skills are ready, and memory loads by itself in every chat.";
 
   expect(AGENTS.length).toBeGreaterThan(1);
@@ -253,44 +173,6 @@ it("shows what works with each assistant: a card per agent, another assistant wi
   expect(container.querySelectorAll(".legend, [role=img][aria-label]")).toHaveLength(0);
 });
 
-it("names the open-source libraries and the accounts the install asks for, each with its logo and what it does, and no star counts", () => {
-  const { container } = renderAt("/");
-  const [open, infra, ...rest] = [...container.querySelectorAll(".stack article")] as HTMLElement[];
-
-  screen.getByRole("heading", { level: 2, name: "WongStack is free and open source." });
-  expect(rest).toHaveLength(0);
-  expect(open?.querySelector("h3")?.textContent).toBe("Open source libraries");
-  expect(stackItems(open as HTMLElement)).toEqual([
-    [
-      "/logos/openspec.svg",
-      "OpenSpec",
-      "https://github.com/Fission-AI/OpenSpec",
-      "Plans each change and writes down why, before anything is built.",
-    ],
-    [
-      "/logos/vercel.svg",
-      "agent-browser",
-      "https://github.com/vercel-labs/agent-browser",
-      "Lets the agent use a real browser, like a person would.",
-    ],
-    [
-      "/logos/paseo.svg",
-      "Paseo",
-      "https://github.com/getpaseo/paseo",
-      "The chat app I use, on phone and laptop. Optional.",
-    ],
-  ]);
-  expect(open?.textContent).not.toMatch(/WongStack|Claude Code|Codex|OpenCode|Wrangler|GitHub CLI/);
-  expect(container.textContent).not.toMatch(/Official|Ubuntu|Node\.js|Yours/);
-  expect(infra?.querySelector("h3")?.textContent).toBe("Infrastructure");
-  // The accounts come from install.ts, so a new install route changes this list with it.
-  expect(stackItems(infra as HTMLElement)).toEqual(
-    ACCOUNTS.map((account) => [`/logos/${account.logo}.svg`, account.name, account.href, account.does]),
-  );
-  expect(ACCOUNTS.length).toBeGreaterThan(0);
-  expect(container.textContent).not.toMatch(/\bstars?\b/i);
-});
-
 it("answers a team owner's questions, naming both ways to install and what each costs, without claiming Anthropic's approval", () => {
   const { container } = renderAt("/");
   const faq = container.querySelector(".faq") as HTMLElement;
@@ -302,6 +184,7 @@ it("answers a team owner's questions, naming both ways to install and what each 
   expect([...faq.querySelectorAll("summary")].map((s) => s.textContent)).toEqual([
     "Is WongStack free?",
     "Why is it free?",
+    "What does setup need?",
     "Do I need to know how to code?",
     "What can I ask it to do?",
     "How does my team use it?",
@@ -316,7 +199,7 @@ it("answers a team owner's questions, naming both ways to install and what each 
   expect(answer("Do I need to know how to code?")).toMatch(/^No\. You ask in plain words/);
   expect(answer("How does my team use it?")).toContain("Each person signs in to their own AI plan.");
   expect(answer("How does my team use it?")).toContain(
-    "Everyone works in the same projects and shares the same memory",
+    "Your team can work in shared projects and build on shared knowledge, with access you choose.",
   );
   // Adding a teammate who publishes is not built, so no answer promises it.
   expect(faq.textContent).not.toMatch(/\b(everyone|each person|your team|teammates?) (can )?publish/i);

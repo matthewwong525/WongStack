@@ -10,6 +10,15 @@
 
 **Updating.** Ask your assistant to rebuild active review pages so they use the new controls. Archived reviews stay as they are. No saved notes or connection settings need changing.
 
+## 40.1.1 — Explain the business foundation
+
+- **The landing page and README show how the system works.** Three short Processes, Data and Reasons definitions lead into one chapter for each: repeatable processes as code, tools connecting data, and saved chats and memories keeping the why. A remembered decision and a compact team conversation with three context-gathering rows and an example answer show more context available for later tasks and new teammates in owned accounts. Setup stays in the operations description; data connections sit beside their explanation.
+- **Examples keep a steady display.** Packing, profit and ad-brief samples sit in a keyboard-scrollable window without moving the page when screens change. The profit sample uses its “Profit by channel” name throughout. The laptop carries the single short, linked optional-Paseo caption; the team phone and old supporting strips are removed.
+- **Models and setup are distinct.** Coding-agent compatibility retains the real assistant and memory limits without a duplicate Supports row. A visible boundary leads into short install steps, without the optional add-on block; setup questions keep the same account, computer, cost and consent facts. The closing card retains its comfortable spacing.
+- **The landing-page guide identifies the examples and visuals.** It explains the process/data connections, static remembered-reason chat and team context, and preserves the original picture prompts.
+
+**Updating.** Nothing needs doing by hand. The public landing page stays outside each install.
+
 ## 40.1.0 — Check requests in the Workers runtime
 
 - **App tests check signed requests and database saves in the local Workers runtime.** A small suite uses real migrations and D1, checks refusal and rollback, and cleans up its temporary runtime. It reuses Wrangler and Vite without another dependency or service login.
