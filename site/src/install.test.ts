@@ -5,7 +5,7 @@ import { resolve } from "node:path";
 import { expect, it } from "vitest";
 import {
   ACCOUNTS,
-  ADD_ONS,
+  PASEO,
   AGENTS,
   ASKS_FIRST,
   COMPUTERS,
@@ -55,8 +55,8 @@ it("names the agents the way the headline's sentence does, for one, two, or thre
   expect(agents()).toBe("Claude Code or Codex");
 });
 
-it("links the code, every agent, every account, and every add-on to a secure address", () => {
-  const links = [REPO_URL, ...[...AGENTS, ...ACCOUNTS, ...ADD_ONS].map(({ href }) => href)];
+it("links the code, every agent, every account, and the optional app to a secure address", () => {
+  const links = [REPO_URL, PASEO.href, ...[...AGENTS, ...ACCOUNTS].map(({ href }) => href)];
 
   expect(links.length).toBeGreaterThan(3);
   for (const link of links) expect(link).toMatch(/^https:\/\/[a-z0-9.-]+(\/\S*)?$/);
@@ -65,7 +65,7 @@ it("links the code, every agent, every account, and every add-on to a secure add
 it("opens the first step with any assistant, and names one only as a linked example", () => {
   expect(STEPS.open).toBe("Open any assistant that can work on your computer, such as");
   expect(Object.keys(STEPS)).toEqual(["open", "paste", "answer"]);
-  const named = [...AGENTS, ...ADD_ONS].map(({ name }) => name.replace(/^Add /, ""));
+  const named = [...AGENTS, PASEO].map(({ name }) => name);
   expect(named.length).toBeGreaterThan(2);
   for (const text of Object.values(STEPS)) {
     for (const name of named) expect([text, name, text.includes(name)]).toEqual([text, name, false]);

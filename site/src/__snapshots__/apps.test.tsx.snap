@@ -5,12 +5,12 @@ exports[`offers three examples, one pressed at a time, each a sample Claymoo scr
   class="band band-shade apps"
 >
   <h2>
-    Examples of things I've done
+    Tools you can build
   </h2>
   <p
     class="lede"
   >
-    I run Claymoo, a clay-kit company, with a small team. These are three apps we use every day, built by asking. Try one.
+    Build around your own workflow. Try these examples.
   </p>
   <p
     class="chips"
@@ -39,7 +39,7 @@ exports[`offers three examples, one pressed at a time, each a sample Claymoo scr
       .
     </b>
      
-    I write a brief once. The designer works from it, and the finished ad goes out to Facebook and Instagram.
+    Keep notes and variations together, then approve an ad for the publish queue.
   </p>
   <section
     aria-label="Ad briefs app, sample data"
@@ -191,12 +191,12 @@ exports[`offers three examples, one pressed at a time, each a sample Claymoo scr
   class="band band-shade apps"
 >
   <h2>
-    Examples of things I've done
+    Tools you can build
   </h2>
   <p
     class="lede"
   >
-    I run Claymoo, a clay-kit company, with a small team. These are three apps we use every day, built by asking. Try one.
+    Build around your own workflow. Try these examples.
   </p>
   <p
     class="chips"
@@ -225,7 +225,7 @@ exports[`offers three examples, one pressed at a time, each a sample Claymoo scr
       .
     </b>
      
-    Our warehouse team packs every order with it.
+    Scan each item before marking an order packed.
   </p>
   <section
     aria-label="Pack Station app, sample data"
@@ -419,12 +419,12 @@ exports[`offers three examples, one pressed at a time, each a sample Claymoo scr
   class="band band-shade apps"
 >
   <h2>
-    Examples of things I've done
+    Tools you can build
   </h2>
   <p
     class="lede"
   >
-    I run Claymoo, a clay-kit company, with a small team. These are three apps we use every day, built by asking. Try one.
+    Build around your own workflow. Try these examples.
   </p>
   <p
     class="chips"
@@ -453,7 +453,7 @@ exports[`offers three examples, one pressed at a time, each a sample Claymoo scr
       .
     </b>
      
-    I check it every morning, before I decide where to spend on ads.
+    See each channel's profit after product, shipping, and ad costs.
   </p>
   <section
     aria-label="Profit by channel app, sample data"
@@ -493,7 +493,7 @@ exports[`offers three examples, one pressed at a time, each a sample Claymoo scr
         </span>
       </p>
       <h3>
-        Monthly Actuals
+        Profit by channel
       </h3>
       <p
         class="note"

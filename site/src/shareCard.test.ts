@@ -10,7 +10,7 @@ import { expect, it } from "vitest";
 const site = (path: string) => resolve(import.meta.dirname, "..", path);
 const html = readFileSync(site("index.html"), "utf8");
 const LINE =
-  "Claude Code and Codex, for people who don't code. Set up for your business, in accounts you own. Free and open source.";
+  "Claude Code and Codex, for people who don't code. Bring your data, processes, and reasons together. Build tools for your business, in accounts you own.";
 
 const tags = Object.fromEntries(
   [...html.matchAll(/<meta (?:name|property)="(description|og:[^"]+|twitter:[^"]+)" content="([^"]*)"/g)].map(

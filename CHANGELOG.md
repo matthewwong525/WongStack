@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (patch) — Explain the business foundation
+
+- **The landing page and README show how the system works.** Three short Processes, Data and Reasons definitions lead into one chapter for each: repeatable processes as code, tools connecting data, and saved chats and memories keeping the why. A remembered decision and a compact team conversation with three context-gathering rows and an example answer show more context available for later tasks and new teammates in owned accounts. Setup stays in the operations description; data connections sit beside their explanation.
+- **Examples keep a steady display.** Packing, profit and ad-brief samples sit in a keyboard-scrollable window without moving the page when screens change. The profit sample uses its “Profit by channel” name throughout. The laptop carries the single short, linked optional-Paseo caption; the team phone and old supporting strips are removed.
+- **Models and setup are distinct.** Coding-agent compatibility retains the real assistant and memory limits without a duplicate Supports row. A visible boundary leads into short install steps, without the optional add-on block; setup questions keep the same account, computer, cost and consent facts. The closing card retains its comfortable spacing.
+- **The landing-page guide identifies the examples and visuals.** It explains the process/data connections, static remembered-reason chat and team context, and preserves the original picture prompts.
+
+**Updating.** Nothing needs doing by hand. The public landing page stays outside each install.
+
 ## 39.1.0 — Browse through a local proxy automatically
 
 - **Personal browsing starts its own local forwarding proxy.** There is nothing extra to install or configure. It uses the assistant's computer's network, independently of WARP and Paseo's relay, and chooses no country. A site may still refuse the browser.

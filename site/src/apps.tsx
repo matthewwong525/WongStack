@@ -1,4 +1,4 @@
-// "Examples of things I've done": sample copies of three Claymoo admin screens,
+// "Tools you can build": sample copies of three Claymoo admin screens,
 // laid out as the real ones are (read 2026-09-27), in gray. Every name,
 // number, and address is invented; each runs in the page and sends and saves
 // nothing.
@@ -172,7 +172,7 @@ const CHANNELS = [
 
 const MONTHS = ["Oct", "Nov", "Dec", "Jan", "Feb", "Mar"];
 
-/** Monthly Actuals: one channel's margin bars, per-kit tiles, and cost lines. */
+/** Profit by channel: one channel's margin bars, per-kit tiles, and cost lines. */
 function Profit() {
   const [open, setOpen] = useState(0);
   const { name, price, product, shipping, ads, margins } = CHANNELS[open] as (typeof CHANNELS)[number];
@@ -195,7 +195,7 @@ function Profit() {
   ];
 
   return (
-    <AdminShell title="Monthly Actuals">
+    <AdminShell title="Profit by channel">
       <p className="note">Mar 2026</p>
       <Chips names={CHANNELS.map((channel) => channel.name)} pressed={open} onPress={setOpen} />
       <div className="card">
@@ -323,32 +323,33 @@ function Briefs() {
 }
 
 const APPS = [
-  { name: "Pack Station", path: "pack-station", use: "Our warehouse team packs every order with it.", Screen: PackStation },
+  { name: "Pack Station", path: "pack-station", use: "Scan each item before marking an order packed.", Screen: PackStation },
   {
     name: "Profit by channel",
     path: "monthly-actuals",
-    use: "I check it every morning, before I decide where to spend on ads.",
+    use: "See each channel's profit after product, shipping, and ad costs.",
     Screen: Profit,
   },
   {
     name: "Ad briefs",
     path: "briefs",
-    use: "I write a brief once. The designer works from it, and the finished ad goes out to Facebook and Instagram.",
+    use: "Keep notes and variations together, then approve an ad for the publish queue.",
     Screen: Briefs,
   },
 ];
 
-/** "Examples of things I've done": one pill per app, the pressed one in a browser window. */
-export function YourApps() {
+/** "Tools you can build": one pill per app, the pressed one in a browser window. */
+export function YourApps({ embedded = false }: { embedded?: boolean }) {
   const [open, setOpen] = useState(0);
   const { name, path, use, Screen } = APPS[open] as (typeof APPS)[number];
   return (
-    <section className="band band-shade apps">
-      <h2>Examples of things I've done</h2>
-      <p className="lede">
-        I run Claymoo, a clay-kit company, with a small team. These are three apps we use every day, built by asking.
-        Try one.
-      </p>
+    <section className={embedded ? "apps app-showcase" : "band band-shade apps"} aria-label={embedded ? "Tools you can build" : undefined}>
+      {embedded ? <h3 className="demo-label">Examples you can build</h3> : (
+        <>
+          <h2>Tools you can build</h2>
+          <p className="lede">Build around your own workflow. Try these examples.</p>
+        </>
+      )}
       <Chips names={APPS.map((app) => app.name)} pressed={open} onPress={setOpen} />
       <p className="lede">
         <b>{name}.</b> {use}
@@ -360,7 +361,7 @@ export function YourApps() {
           <i />
           <span>your-app.your-name.workers.dev/{path}</span>
         </p>
-        <Screen />
+        {embedded ? <div key={name} className="example-scroll" role="region" aria-label={`${name} example contents`} tabIndex={0}><Screen /></div> : <Screen />}
       </section>
       <p className="note">Sample data. Nothing is saved.</p>
     </section>

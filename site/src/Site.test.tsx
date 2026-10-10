@@ -40,12 +40,12 @@ function words(root: Element) {
   return [root.textContent ?? "", ...labels].join("\n");
 }
 
-/** Renders `path` and returns a copy of the page as it opens, then after each press that shows more of it: every phone screen and every sample app. */
+/** Renders `path` and returns a copy of the page as it opens, then after each press that shows more of it: every sample app. */
 function visit(path: string) {
   window.history.pushState({}, "", path);
   const { container } = render(<App />);
   const states = [container.cloneNode(true) as HTMLElement];
-  for (const chips of [".split .chips button", ".apps > .chips button"]) {
+  for (const chips of [".apps > .chips button"]) {
     const count = container.querySelectorAll(chips).length;
     for (let i = 0; i < count; i++) {
       fireEvent.click(container.querySelectorAll(chips)[i] as HTMLElement);
@@ -173,7 +173,7 @@ it("reads every page for a comparison with another company's product and finds n
     expect([line, RIVALS.test(line)]).toEqual([line, true]);
   }
   // The assistants the page does name are not rivals: WongStack sets them up.
-  for (const line of ["Claude Code or Codex, for people who don't code.", "Works with the AI you already use"]) {
+  for (const line of ["Claude Code or Codex, for people who don't code.", "Use the best models."]) {
     expect([line, found(line, RIVALS)]).toEqual([line, null]);
   }
 
@@ -238,7 +238,9 @@ it("loads every file from the site itself: the pages, the styles, and the pictur
     for (const state of visit(path)) expectOwnFiles(path, state);
   }
   window.history.pushState({}, "", "/");
-  expect(expectOwnFiles("/", render(<App />).container)).toBeGreaterThan(10);
+  // Seven local loads remain after removing the repeated Supports logos.
+  // Each still passes the same origin and real-file checks above.
+  expect(expectOwnFiles("/", render(<App />).container)).toBe(7);
 
   // The styles load no file: no font, no picture, and nothing from outside.
   expect(css.length).toBeGreaterThan(1000);

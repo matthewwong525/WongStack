@@ -4,16 +4,23 @@
 [![License: MIT](https://img.shields.io/github/license/matthewwong525/WongStack)](LICENSE)
 [![Version](https://img.shields.io/badge/dynamic/yaml?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmatthewwong525%2FWongStack%2Frefs%2Fheads%2Fmain%2FVERSION&query=%24&label=version)](VERSION)
 
-**The most powerful AI tools, such as Claude Code and Codex, for people who don't code.** Out of the box, nothing in them is set up for a business: there is nowhere to put an app, no memory between chats, and no safe place for a key. WongStack is that setup. It is open source and yours to use and change, and everything it builds and learns stays in accounts you own.
+**Claude Code and Codex, for people who don't code.** WongStack sets up the software foundation for running your business, in accounts you own.
 
-With it, your assistant can:
+```mermaid
+flowchart LR
+  P["Processes · code and guides"] --> D["Data · orders, stock, analytics"]
+  C["Conversations"] --> R["Reasons · saved decisions and memories"]
+  P --> K["Shared business context"]
+  D --> K
+  R --> K
+  K --> N["More context for the next task and teammate"]
+  Q["Can we run this promotion?"] --> K
+  K --> A["An answer informed by marketing, finance and operations"]
+```
 
-- **Build.** Ask for a tool in plain words and it makes a real, working app: *"Build a packing checklist for my team."*
-- **Remember.** It keeps what it learns about you and your work, so you never explain twice: *"From now on, orders ship on Fridays."*
-- **Collaborate.** Your team shares the same tools and memory, each person with their own assistant, and you choose who can see and change what: *"Let Sam see the orders tool."*
-- **Get things done.** It runs your errands, uses websites for you, and does jobs while you sleep: *"Every Monday, send me last week's profit."*
+AI needs processes, data, and reasons together. Start with operations: AI helps turn repeatable processes into code, with guides for your team. Building those tools connects the data they need. Saved chats and memories keep the why behind decisions, in accounts you own.
 
-I'm Matt. I built WongStack to run Claymoo, my clay-kit company, and this is my setup, shared for you to change.
+As all three build up, the next task starts with more context. New teammates start with existing knowledge; questions draw on different departments to inform an answer, with access you choose. Any model or setup with a coding agent that reads and changes files and runs commands can use the framework. Your tools and knowledge stay yours.
 
 ## Start in three steps
 
@@ -32,31 +39,11 @@ Paste the message in any folder: if it already has files, setup makes a `wongsta
 
 ## What you get
 
-**Build**
-
-- **Tools that fit your business, from one request.** A [mini app](wiki/stack/mini-apps.md) gets a plan and a link to try, and goes live at `/apps/<name>/` when you publish it.
-- **Your own site, online.** Every change gets its own link to look at before it goes live.
-
-**Remember**
-
-- **One memory for the whole team.** Each chat starts with what earlier chats learned about your business and the people in it. [Memory](wiki/development/memory.md) is kept in your own Cloudflare account.
-- **A notebook that grows.** What the assistant learns — how your business runs, who is who — goes into [a wiki](wiki/README.md) it reads next time.
-
-**Collaborate**
-
-- **One team, one memory.** Each person uses their own assistant. What one person teaches it, everyone gets.
-- **Logins and access, taken care of.** You choose who on your team can see and change what: [employee access](wiki/stack/employee-access.md).
-
-**Get things done**
-
-- **Errands, from one message.** Research, a draft, a plan for your week: it does the work and answers. It asks before it sends or changes anything outside the chat.
-- **Websites, used for you.** It opens a real browser, and sends you a link when a step needs you: [browsing](wiki/development/browsing.md).
-- **Jobs while you sleep.** A [routine](wiki/stack/cloud-routines.md) runs on a schedule in your Cloudflare account, on its paid plan.
-
-**All of it is yours**
-
-- **You own it.** Everything it builds and learns lives in accounts you own. Your keys stay on your computer and in your own accounts.
-- **No lock-in.** It is plain files in a folder you own. Switch assistants, and the knowledge comes with you.
+- **Tools and a site you own.** Build a [mini app](wiki/stack/mini-apps.md) around your process. Review a plan and try a separate preview before publishing at `/apps/<name>/`.
+- **Knowledge between tasks.** [Memory](wiki/development/memory.md) carries what earlier chats learned; [your wiki](wiki/README.md) keeps reusable business knowledge. Both stay in your own accounts.
+- **Team access.** Each person uses their own assistant. Choose who can see and change what through [employee access](wiki/stack/employee-access.md).
+- **Work beyond apps.** Ask for research, drafts, and errands. Your assistant can [use websites](wiki/development/browsing.md), asking when a step needs you. A [routine](wiki/stack/cloud-routines.md) runs on a schedule in your Cloudflare account, on its paid plan.
+- **Freedom to change.** Your tools and knowledge stay yours. Switch assistants and take the context with you.
 
 ## What I use
 

@@ -1,22 +1,4 @@
-// Pictures of the product: chat bubbles drawn in HTML, and real screenshots
-// of Paseo's laptop and phone apps.
-
-/** A chat, as pairs of [who, text]; "you" is the visitor's side. */
-export type Chat = [who: "you" | "agent", text: string][];
-
-export function Bubbles({ chat }: { chat: Chat }) {
-  return chat.map(([who, text]) => (
-    <p className={`bubble bubble-${who}`} key={text}>
-      {text}
-    </p>
-  ));
-}
-
-/**
- * A real Paseo screenshot, from `public/paseo/`: the laptop app in the hero,
- * and the pressed phone screen beside "Built by chatting": chat, plan review,
- * changes, files, or workspaces. Only the hero's loads eagerly.
- */
+/** A real Paseo screenshot, from public/paseo/. */
 export function PaseoShot({
   src,
   alt,

@@ -1,6 +1,6 @@
 // Everything the landing page says about installing WongStack: the message to
 // paste, the steps, the agents, the accounts, the computers, the two ways to
-// install with what each costs, and the add-on. Change how WongStack installs,
+// install with what each costs, and the pictured optional app. Change how WongStack installs,
 // and this is the one file to edit; no other file under src/ names an account,
 // a system, a cost, or the message.
 //
@@ -59,14 +59,8 @@ export const ACCOUNTS = [
 /** The computers the install works on. */
 export const COMPUTERS = ["Mac", "Windows", "Linux"];
 
-/** What a visitor can add once WongStack works, each with what it enables. */
-export const ADD_ONS = [
-  {
-    name: "Add Paseo",
-    href: "https://paseo.sh",
-    enables: "Chat from your phone, and work on several tasks at once.",
-  },
-];
+/** The optional chat app pictured in the hero, linked only in its caption. */
+export const PASEO = { name: "Paseo", href: "https://paseo.sh" };
 
 /** "a", "a and b", or "a, b, and c". */
 const list = (items: string[]) => new Intl.ListFormat("en", { style: "long", type: "conjunction" }).format(items);
@@ -128,12 +122,12 @@ const PAID_COMPUTERS = either(ALONE.computers);
 
 /**
  * The two ways to install, the free one first: each one's accounts, computers,
- * cost, and `line`, the sentence the page prints under the steps. A line is
+ * cost, and `line`, the sentence the page prints in the setup question. A line is
  * built from its own entry, so the two can not disagree.
  */
 export const WAYS = [FREE, ALONE];
 
-/** Under the two lines: nobody is charged by surprise. */
+/** Beside the setup routes: nobody is charged by surprise. */
 export const ASKS_FIRST = `On ${PAID_COMPUTERS}, setup asks which you want before anything costs money.`;
 
 /** The sentence each answer adds about the paid way: "Is WongStack free?", then "What does it cost, with AI?". */
