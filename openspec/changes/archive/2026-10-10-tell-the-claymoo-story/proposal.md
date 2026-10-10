@@ -1,6 +1,8 @@
 # Short definitions and a compact conversation
 
-**Status:** in-progress
+**Status:** ready-to-ship
+
+**Branch:** improve-landing-readme
 
 **Open questions:** none
 
@@ -215,3 +217,5 @@ None.
 - **2026-10-10** — Final compact-layout acceptance: uploaded same landing alias, immutable version `07ce1f22-8cc0-4546-8f31-382d6b149e87` (CSS index-GCS-53_9 / JS index-DY4A2oXN). Browser checked320/390/768/1280px: document width equals viewport and opening/data/chat/team elements stay within bounds. Overview has three short definitions, no role bullets or examples, equal117.78px desktop cards and Processes/Data/Reasons order. Foundation block is absent; setup/code/guides stay in operations paragraph. At1280, Data copy sits left of bounded512px figure with two vertically stacked examples; team copy sits left of544px conversation, with question, exactly three compact gathering-action/finding rows and grounded response in order. At320/390/768, both figures follow copy and result follows all three rows. Desktop team/data and phone conversation pictures shown. Packing scans/completion, Faire profit$11.50/margin44%, brief marker/approval,512px demo frames, keyboard scrolling and reset-to0 work. Install navigation/copy pass. Reduced motion has no animation; normal mode rotates names; no browser errors. Existing coding-agent limits and single short linked Paseo caption remain, no old foundation/bullet/join/support/optional blocks. Owning guide/current README reviewed for actual story and practical facts. No check loosened. Browser closed and captures cleaned after display; all tasks complete, publication pending.
 
 - **2026-10-10** — Shipping synchronization: main added existing-host scheduling and Workers runtime checks. Resolved README as the union of intent: retain the chosen short business-context story and five concise benefit bullets, with the new schedule link/host-availability wording. Changelog retains both upstream release entries below this change. No landing UI or install facts changed.
+
+- **2026-10-10** — Archive checkpoint requested through /ship: all implementation and host-preview tasks are complete. The exact archived change stays selected on improve-landing-readme; main is merged and release40.1.1 is numbered. Combined local checks are running before the single publish checkpoint. Session preference/verification-delay facts were spooled because this checkout has no registered session.

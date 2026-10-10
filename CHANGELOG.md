@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (patch) — Explain the business foundation
+## 40.1.1 — Explain the business foundation
 
 - **The landing page and README show how the system works.** Three short Processes, Data and Reasons definitions lead into one chapter for each: repeatable processes as code, tools connecting data, and saved chats and memories keeping the why. A remembered decision and a compact team conversation with three context-gathering rows and an example answer show more context available for later tasks and new teammates in owned accounts. Setup stays in the operations description; data connections sit beside their explanation.
 - **Examples keep a steady display.** Packing, profit and ad-brief samples sit in a keyboard-scrollable window without moving the page when screens change. The profit sample uses its “Profit by channel” name throughout. The laptop carries the single short, linked optional-Paseo caption; the team phone and old supporting strips are removed.
