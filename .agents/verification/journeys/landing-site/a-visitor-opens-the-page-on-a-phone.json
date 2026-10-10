@@ -1,0 +1,89 @@
+{
+  "format": "verify-journey-1",
+  "id": "a-visitor-opens-the-page-on-a-phone",
+  "scenario": {
+    "capability": "landing-site",
+    "requirement": "The landing page says what WongStack is and how to install it",
+    "scenario": "A visitor opens the page on a phone"
+  },
+  "thenDigest": "77cf1ea2a4595f7e775517df9667c65680eed6754c2c88d481dca54027bc613a",
+  "probe": "browser",
+  "writes": false,
+  "sourcePaths": [
+    "README.md",
+    "site/index.html",
+    "site/src/Landing.tsx",
+    "site/src/Story.tsx",
+    "site/src/WorksWith.tsx",
+    "site/src/__snapshots__/apps.test.tsx.snap",
+    "site/src/apps.tsx",
+    "site/src/index.css",
+    "site/src/install.ts",
+    "site/src/mockups.tsx"
+  ],
+  "recordedAt": "80317a7dc63b6e9a22928b60078fc742f525f308",
+  "steps": [
+    [
+      "set",
+      "viewport",
+      "390",
+      "844"
+    ],
+    [
+      "open",
+      "{url}"
+    ],
+    [
+      "wait",
+      "--load",
+      "networkidle"
+    ],
+    [
+      "get",
+      "text",
+      "body"
+    ],
+    [
+      "eval",
+      "(() => ({viewport:innerWidth,pageWidth:document.documentElement.scrollWidth,wideElements:[...document.querySelectorAll('main *')].filter(x=>{const r=x.getBoundingClientRect();return r.width && (r.left < -1 || r.right>innerWidth+1)}).map(x=>({tag:x.tagName,class:x.className,width:x.getBoundingClientRect().width}))}))()"
+    ],
+    [
+      "scrollintoview",
+      "#install"
+    ],
+    [
+      "wait",
+      "--fn",
+      "Math.abs(document.querySelector('#install').getBoundingClientRect().top)<200"
+    ],
+    [
+      "find",
+      "role",
+      "button",
+      "click",
+      "--name",
+      "Copy message"
+    ],
+    [
+      "wait",
+      "--text",
+      "Copied"
+    ],
+    [
+      "get",
+      "text",
+      "#install"
+    ]
+  ],
+  "expect": [
+    {
+      "text": "for people who don't code."
+    },
+    {
+      "text": "Install it for free"
+    },
+    {
+      "text": "Copied"
+    }
+  ]
+}
