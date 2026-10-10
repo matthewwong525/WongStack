@@ -13,6 +13,8 @@
 
 ## 3. Final verification
 
+Latest result: the complete local pre-check passed after bringing in version 40.1.0. Application checks, script tests, payload links, OpenSpec configuration and specifications, context budget, lint, wiki, skill actions, and the loosened-checks guard passed. Shellcheck is unavailable on this host and remains required in the saved checks. This completed run supersedes the interrupted attempt recorded below.
+
 - [x] 3.1 After all source and tests are authored, run node .github/scripts/checks.mjs --worktree and repair relevant failures; record exact results, including browser coverage and required payload/config checks.
 - [x] 3.2 Validate the change and rebuild its review page from the updated kit; run the loosened-checks check and inspect compact and pending states on a safe preview without sending an actual build or publish request.
 

@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Smaller review controls with visible progress
+## 40.2.0 — Smaller review controls with visible progress
 
 - **The review bar stays on one row, including on small phones.** Send notes stays visible. The three dots open Build it and Build and publish above the bar, with the publish question there too. Escape or a tap outside closes the choices.
 - **Slow replies show progress right away.** Connecting and sending show a spinner and status. Notes and build requests wait together to prevent duplicate taps, and success appears only after the chat answers. Closed links still let you copy your notes.

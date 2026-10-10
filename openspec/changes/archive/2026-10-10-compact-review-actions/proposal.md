@@ -1,6 +1,6 @@
 # A smaller review bar with loading feedback
 
-**Status:** built; final checks pending
+**Status:** ready-to-ship
 
 **Branch:** review-loading-compact-bar
 

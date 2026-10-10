@@ -11,7 +11,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · compact-review-actions</title>
+<title>Review · 2026-10-10-compact-review-actions</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -111,11 +111,11 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="compact-review-actions">
+<body data-change="2026-10-10-compact-review-actions">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>compact-review-actions</h1>
+  <h1>2026-10-10-compact-review-actions</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. <span class="copies">Saving a note copies all your notes.</span> Open a drawing and tap it to see it full screen.</p>
@@ -189,6 +189,7 @@
 <li class="decision card" id="decision-3" data-note="decision-3" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-10</p>Assumed: share one pending state across send and build actions, because overlapping requests use the same rate-limited connection.</li>
 <li class="decision card" id="decision-4" data-note="decision-4" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-10</p>Assumed: place messages and publish confirmation above the bar, because wrapping them into the bar would break the requested one-row layout.</li>
 <li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-10</p>Assumed: retain unconfirmed network requests until their response arrives, because a client timeout could invite a retry after the chat already received the message.</li>
+<li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-10</p>Asked whether to publish after the remaining checks pass → chose publish; publication waits for passing saved checks.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
