@@ -1,3 +1,4 @@
+<!-- wong-review:3 -->
 <!doctype html>
 <!--
   WongStack review kit. build-review.mjs writes the proposal as static HTML at the
@@ -10,7 +11,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · CHANGE-NAME</title>
+<title>Review · compact-review-actions</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -110,17 +111,86 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="CHANGE-NAME">
+<body data-change="compact-review-actions">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>CHANGE-NAME</h1>
+  <h1>compact-review-actions</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. <span class="copies">Saving a note copies all your notes.</span> Open a drawing and tap it to see it full screen.</p>
   <p id="script-error" role="alert" hidden></p>
 </header>
-<!-- review:content -->
+<section id="why" aria-labelledby="why-h"><h2 id="why-h">Why</h2>
+<div class="card">
+<p data-note="why-1" tabindex="0">Review buttons can take a while to answer without showing that the tap worked. The bottom bar also takes up too much of the phone screen.</p>
+</div></section>
+<section id="changes" aria-labelledby="changes-h"><h2 id="changes-h">What Changes</h2>
+<ol class="items">
+<li class="item card" id="item-1"><span class="num">1</span><div class="body"><div class="text" data-note="item-1" tabindex="0"><b>The bottom bar stays on one row.</b> The note count and Send notes stay visible; a three-dot button opens Build it and Build and publish above the bar. The publish question opens there too.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-1-line-1" tabindex="0">BEFORE (phone)</span>
+<span class="ln" data-note="item-1-line-2" tabindex="0">┌──────────────────────────────────┐</span>
+<span class="ln" data-note="item-1-line-3" tabindex="0">│ Plan                             │</span>
+<span class="ln" data-note="item-1-line-4" tabindex="0">├──────────────────────────────────┤</span>
+<span class="ln" data-note="item-1-line-5" tabindex="0">│ 0 notes             [Send notes] │</span>
+<span class="ln" data-note="item-1-line-6" tabindex="0">│ [Build it] [Build and publish]   │</span>
+<span class="ln" data-note="item-1-line-7" tabindex="0">└──────────────────────────────────┘</span>
+
+<span class="ln" data-note="item-1-line-9" tabindex="0">AFTER (phone)</span>
+<span class="ln" data-note="item-1-line-10" tabindex="0">┌──────────────────────────────────┐</span>
+<span class="ln" data-note="item-1-line-11" tabindex="0">│ Plan                             │</span>
+<span class="ln" data-note="item-1-line-12" tabindex="0">├──────────────────────────────────┤</span>
+<span class="ln" data-note="item-1-line-13" tabindex="0">│ 0 notes      [Send notes] [+...] │</span>
+<span class="ln" data-note="item-1-line-14" tabindex="0">└──────────────────────────────────┘</span>
+
+<span class="ln" data-note="item-1-line-16" tabindex="0">MORE OPEN</span>
+<span class="ln" data-note="item-1-line-17" tabindex="0">┌──────────────────────────────────┐</span>
+<span class="ln" data-note="item-1-line-18" tabindex="0">│                   [Build it]     │</span>
+<span class="ln" data-note="item-1-line-19" tabindex="0">│                   [Build and     │</span>
+<span class="ln" data-note="item-1-line-20" tabindex="0">│                    publish]      │</span>
+<span class="ln" data-note="item-1-line-21" tabindex="0">├──────────────────────────────────┤</span>
+<span class="ln" data-note="item-1-line-22" tabindex="0">│ 0 notes      [Send notes] [ ...] │</span>
+<span class="ln" data-note="item-1-line-23" tabindex="0">└──────────────────────────────────┘</span>
+
+<span class="ln" data-note="item-1-line-25" tabindex="0">PUBLISH QUESTION</span>
+<span class="ln" data-note="item-1-line-26" tabindex="0">┌──────────────────────────────────┐</span>
+<span class="ln" data-note="item-1-line-27" tabindex="0">│ Goes live, can't be undone.      │</span>
+<span class="ln" data-note="item-1-line-28" tabindex="0">│ [Yes, publish] [Cancel]          │</span>
+<span class="ln" data-note="item-1-line-29" tabindex="0">├──────────────────────────────────┤</span>
+<span class="ln" data-note="item-1-line-30" tabindex="0">│ 0 notes      [Send notes] [ ...] │</span>
+<span class="ln" data-note="item-1-line-31" tabindex="0">└──────────────────────────────────┘</span></pre></div></details></li>
+<li class="item card" id="item-2"><span class="num">2</span><div class="body"><div class="text" data-note="item-2" tabindex="0"><b>A tap shows that it is working right away.</b> Sending notes or asking for a build shows a spinner and Sending… until the chat answers. Those actions cannot be tapped again while a request is running. Connecting to the chat also shows progress, and each answer or problem appears above the bar.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-2-line-1" tabindex="0">CONNECTING</span>
+<span class="ln" data-note="item-2-line-2" tabindex="0">0 notes       [Connecting...] [ ...]</span>
+
+<span class="ln" data-note="item-2-line-4" tabindex="0">SENDING NOTES</span>
+<span class="ln" data-note="item-2-line-5" tabindex="0">2 notes       [Sending...   ] [ ...]</span>
+
+<span class="ln" data-note="item-2-line-7" tabindex="0">ASKING FOR A BUILD</span>
+<span class="ln" data-note="item-2-line-8" tabindex="0">[spinner] Sending your request...</span>
+<span class="ln" data-note="item-2-line-9" tabindex="0">0 notes       [Send notes  ] [ ...]</span>
+
+<span class="ln" data-note="item-2-line-11" tabindex="0">ANSWER</span>
+<span class="ln" data-note="item-2-line-12" tabindex="0">Asked the chat to build.</span>
+<span class="ln" data-note="item-2-line-13" tabindex="0">0 notes       [Send notes  ]</span>
+
+<span class="ln" data-note="item-2-line-15" tabindex="0">PROBLEM</span>
+<span class="ln" data-note="item-2-line-16" tabindex="0">Wait a few seconds, then tap again.</span>
+<span class="ln" data-note="item-2-line-17" tabindex="0">0 notes       [Send notes  ] [ ...]</span></pre></div></details></li>
+<li class="item card" id="item-3"><span class="num">3</span><div class="body"><div class="text" data-note="item-3" tabindex="0"><b>The menu works with a keyboard and on small phones.</b> Escape or a tap outside closes it. The notes button stays the main visible action, and closed links still let you copy notes.</div></div></li>
+</ol>
+<p class="aside">Non-goals: changing what the chat builds, the publish confirmation, or the connection service.</p>
+
+</section>
+<section id="decisions" aria-labelledby="decisions-h"><h2 id="decisions-h">Decisions</h2>
+<ol class="decisions">
+<li class="decision card" id="decision-1" data-note="decision-1" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-10</p>Assumed: put both build choices in a three-dot popover, because the user suggested that and asked for a single-row bar.</li>
+<li class="decision card" id="decision-2" data-note="decision-2" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-10</p>Assumed: show progress immediately and keep success tied to the chat's response, because a spinner addresses the silent wait without promising faster delivery.</li>
+<li class="decision card" id="decision-3" data-note="decision-3" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-10</p>Assumed: share one pending state across send and build actions, because overlapping requests use the same rate-limited connection.</li>
+<li class="decision card" id="decision-4" data-note="decision-4" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-10</p>Assumed: place messages and publish confirmation above the bar, because wrapping them into the bar would break the requested one-row layout.</li>
+<li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-10</p>Assumed: retain unconfirmed network requests until their response arrives, because a client timeout could invite a retry after the chat already received the message.</li>
+</ol>
+</section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
 <p class="session" hidden>Storage is off. Notes and drafts last for this session only.</p>
 <ul class="note-list" id="note-list"></ul>

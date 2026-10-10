@@ -10,8 +10,9 @@ Each new or changed plan prints *Click here to see the plan:* with a reply link,
 
 - **Send notes.** On the page, save your notes, then tap *Send notes*. Saving copies nothing there. One tap sends every note not yet sent, and each is marked *Sent*, so a second tap sends nothing twice. Change a sent note and it goes again.
 - **The chat takes them as pasted notes.** They arrive under the line *Notes on the plan … Don't build yet.* The chat [updates the plan](../../.agents/skills/plan/SKILL.md#review-notes) and builds nothing.
-- **Build it, or Build and publish.** When the plan is right as it stands, tap one in the bar at the bottom of the screen; no scrolling. The chat starts as if you had picked that choice there. *Build it* shows you the result before anything goes live. *Build and publish* asks once more on the page, because publishing can't be undone.
+- **Build it, or Build and publish.** When the plan is right as it stands, open the three dots in the single-row bar at the bottom, then tap your choice above it; no scrolling. The chat starts as if you had picked that choice there. *Build it* shows you the result before anything goes live. *Build and publish* asks once more above the bar, because publishing can't be undone. Escape or a tap outside closes the choices.
 - **A tap that could build the wrong plan is stopped.** With a note not yet sent, the page says *Send or delete your notes first.* If the plan changed after you opened the page, it says *The plan changed. Reload to read it first.* Each button works once for each version of the plan, so a second tap sends nothing.
+- **A tap shows progress.** Connecting to the chat shows *Connecting…*. Sending notes or asking for a build shows a spinner until the chat answers. Sending and building wait together, so another tap cannot send a duplicate request. The result appears above the bar; its height stays the same. A success message appears only after the chat acknowledges the request.
 - **The first plan of the day waits 5 to 10 seconds** for the connection. Later plans, from any chat on the same computer, share it and print at once.
 
 ## Eight hours, then a new link
