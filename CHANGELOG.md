@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Setup learns from your past chats
+## 40.5.0 — Setup learns from your past chats
 
 - **Setup reads your past AI chats while it installs.** It says so in one line, then reads what you typed in the Claude Code and Codex chats on this computer, newest first, while the install carries on. It keeps short notes about you and your business on your wiki page, in the wiki, and in memory: never passwords, keys, copies of chats, or anything about health, family, or money. Say *skip the chats* and it stops and writes nothing. [Learning from past chats](wiki/stack/learning-from-chats.md) has the steps.
 - **It reads every chat it can, up to a limit.** Helpers read side by side, one part each. A long history gets its newest eight parts, and setup says how far back that reached. No chats, no helpers, or a failed helper never stops setup.

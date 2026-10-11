@@ -1,7 +1,7 @@
 # Setup learns from your past chats while it installs
 
-**Status:** ready-to-build
-**Branch:** flashy-frog
+**Status:** ready-to-ship
+**Branch:** chat-logs-memory-sync
 **Open questions:** none
 
 ## Why
@@ -65,3 +65,6 @@ None.
 - **2026-10-11** — Assumed: Only what the person typed is read, with keys replaced, as today, because the agent's replies and tool output add bulk and risk without saying more about the person.
 - **2026-10-11** — Assumed: The welcome message drops the question rounds along with the chat read, because the request says the copied prompt "is just for changing the UI".
 - **2026-10-11** — Assumed: Slicing chats into parts is code in the memory script, not a judgment the assistant makes, because it is a repeated mechanical step.
+- **2026-10-11** — Assumed: The procedure lives on a wiki page and the setup skill links it in one sentence, because the skills' instruction budget had 38 bytes of room; the offsetting cuts removed lines other text already states.
+- **2026-10-11** — Assumed: The parts count prints one line per part with its dates, because setup must name how far back part eight reached.
+- **2026-10-11** — Archived checkpoint: built the chat read in parts, the setup step and its wiki page, and the page-only welcome message; local checks passed, ready for the publishing checks.
