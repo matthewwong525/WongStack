@@ -8,7 +8,7 @@ user-invocable: true
 
 **Selected schedule:** [route its record](../save/references/schedule-records.md) before code or checkout; preserve its store and pending question.
 
-`/apply` implements [the change loop](../../../wiki/development/the-change-loop.md)'s chosen plan.
+Build [the chosen plan](../../../wiki/development/the-change-loop.md).
 
 ## Pick the path by the work
 
@@ -19,6 +19,8 @@ user-invocable: true
 
 Resolve the change by [the rungs](../save/references/checkpoint-evidence.md#selection-rungs) `explicit`, `session`, `changed-active`, `recorded-branch`, then `sole-active`. An argument naming no existing change is intent for a new plan. An unrelated `sole-active` never overrides work this conversation explored. Unsure → ask, listing what each candidate would implement.
 
+Attached review notes → invoke [review-note handling](../plan/SKILL.md#review-notes) on the existing change before readiness; missing plan or blocker stops. Continue the authorized build without another choice.
+
 Check `applyRequires` in `openspec status --change "<name>" --json`:
 
 - **All done** → apply-ready; continue.
@@ -26,7 +28,7 @@ Check `applyRequires` in `openspec status --change "<name>" --json`:
 - **No change, clear intent** → invoke `plan` with that intent.
 - **Unclear intent** → ask before any plan or code.
 
-`/apply` authorizes planning and building. After `/plan`, verify the `applyRequires` closure; paused/blocked → report and stop. Otherwise announce and keep the change's **exact name**, then [build in a helper](#build-in-a-helper).
+`/apply` authorizes planning and building. After `/plan`, verify the `applyRequires` closure; paused/blocked → report and stop. Otherwise keep its **exact name** and [build in a helper](#build-in-a-helper).
 
 At **all-tasks-complete**, even at invocation, [finish with a preview](#finish-with-a-preview). Final acceptance's saved CI preview skips upload, then joins the pictures/report steps. **When `/ship` invoked you, return instead**, with no upload and no `/save`; `/ship` archives and makes the one checkpoint.
 
@@ -36,7 +38,7 @@ Use a fresh helper on the parent's model: Agent (`general-purpose`) in Claude Co
 
 **Wait quietly** with the longest host wait: the Agent call in Claude Code, `wait_agent` in Codex. Timeouts → wait again; at most one short line per wait. Read none of its edited files; message only the person's answer or a stop.
 
-Move intermediate test gates to the final phase; preserve acceptance and log the timing change, unasked. Finish all source/tests before automatic checks; source completion never claims test passes. Then run local checks once: a pre-check. Explicit early requests stand; unavailable substantive prerequisites block.
+Follow the brief’s final verification phase and log timing changes. Preserve acceptance and explicit early requests; unavailable prerequisites block.
 
 Act on reports:
 
@@ -45,7 +47,7 @@ Act on reports:
 - **Final acceptance** → only after all source/tests are authored, run `/save` and retained live acceptance. Tick observed passes; blocked/failed remains unchecked and stops.
 - **All done** → confirm no unticked box, relay its `local checks:` line, then handle **all-tasks-complete** above.
 
-No helper, or already inside one → work inline by the brief's *Build* steps; handle stops here.
+No helper, or inside one → follow the brief inline.
 
 ## Finish with a preview
 

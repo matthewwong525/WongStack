@@ -301,8 +301,8 @@ test('--link prints the reply link in the same line, with the plan\'s header and
     // Each button's message is fixed here, names the change, and reads as the choice made in the chat.
     assert.deepEqual(page.actions, planActions('example'));
     assert.deepEqual(page.actions, {
-      build: 'Build it now: run /apply for the plan example. Chosen on its review page.',
-      publish: 'Build and publish: run /ship for the plan example. Chosen on its review page.',
+      build: 'Build it now: run /apply for the plan example. Chosen on its review page. Apply any attached review notes to this plan first, then continue without another build choice.',
+      publish: 'Build and publish: run /ship for the plan example. Chosen on its review page. Apply any attached review notes to this plan first, then continue without another build choice.',
     });
     for (const name of ['build', 'publish']) assert.ok(kit.includes(`data-ready="${name}"`), `the kit offers ${name}`);
     assert.ok(kit.includes("'Notes on the plan ' + CHANGE + ' from the review page. Don\\'t build yet.'"), 'the kit copies notes under the same line');

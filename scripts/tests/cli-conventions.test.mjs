@@ -100,3 +100,20 @@ test('isMain is true through a symlinked path and false for an imported module',
     assert.deepEqual(JSON.parse(result.stdout), [true, false], `${path}: ${result.stderr}`);
   }
 });
+
+// Instruction routing is part of the shipped workflow; keep both entry verbs aligned.
+test('attached review notes return to the authorized build while standalone and question notes keep their reach', () => {
+  const plan = readFileSync(join(repo, '.agents/skills/plan/SKILL.md'), 'utf8');
+  const notes = plan.split('## Review notes\n')[1].split('## Finish')[0];
+  assert.match(notes, /Answer question notes without edits\/log entries/);
+  assert.match(notes, /Notes alone.*without building/);
+  assert.match(notes, /explicit build\/publish choice.*return to.*\/apply.*\/ship/);
+  assert.match(notes, /material blocker stops/);
+  for (const verb of ['apply', 'ship']) {
+    const skill = readFileSync(join(repo, `.agents/skills/${verb}/SKILL.md`), 'utf8');
+    assert.match(skill, /Attached review notes.*plan\/SKILL.md#review-notes/);
+    assert.match(skill, /missing plan or blocker stops/);
+    assert.match(skill, /without another choice/);
+    assert.ok(skill.indexOf('Attached review notes') < skill.indexOf(verb === 'apply' ? 'Check `applyRequires`' : 'Check [preconditions]'));
+  }
+});
