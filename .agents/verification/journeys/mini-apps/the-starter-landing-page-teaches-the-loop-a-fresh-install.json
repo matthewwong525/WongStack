@@ -1,0 +1,53 @@
+{
+  "format": "verify-journey-1",
+  "id": "the-starter-landing-page-teaches-the-loop-a-fresh-install",
+  "scenario": {
+    "capability": "mini-apps",
+    "requirement": "The starter landing page teaches the loop",
+    "scenario": "A fresh install"
+  },
+  "thenDigest": "2f3c13c45fbc355ccb8f6b48fe276a18909f9a98583c39f79b238c71f071f72b",
+  "probe": "browser",
+  "writes": false,
+  "sourcePaths": [
+    ".agents/skills/memory/SKILL.md",
+    ".agents/skills/memory/references/areas.json",
+    ".agents/skills/memory/scripts/lib/transcripts.mjs",
+    ".agents/skills/memory/scripts/memory.mjs",
+    ".agents/skills/wong-setup/SKILL.md",
+    "app/src/pages/home/Tutorial.tsx"
+  ],
+  "recordedAt": "688f9807b9aa05f68ea2d9d8408ef2be3ab33a95",
+  "steps": [
+    [
+      "open",
+      "{url}/"
+    ],
+    [
+      "wait",
+      "--load",
+      "networkidle"
+    ],
+    [
+      "wait",
+      "--text",
+      "Make it yours"
+    ],
+    [
+      "get",
+      "text",
+      "body"
+    ]
+  ],
+  "expect": [
+    {
+      "text": "Make it yours"
+    },
+    {
+      "text": "Make this home page mine. Ask what to call this page, update its heading, remove this welcome guide, explain each step, and show me a preview before publishing."
+    },
+    {
+      "text": "Hello"
+    }
+  ]
+}
