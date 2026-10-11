@@ -224,8 +224,8 @@ export const notesHeader = name => `Notes on the plan ${name} from the review pa
 
 // What each button on a live page tells the chat: the person's choice at the finished-plan question.
 export const planActions = name => ({
-  build: `Build it now: run /apply for the plan ${name}. Chosen on its review page.`,
-  publish: `Build and publish: run /ship for the plan ${name}. Chosen on its review page.`,
+  build: `Build it now: run /apply for the plan ${name}. Chosen on its review page. Apply any attached review notes to this plan first, then continue without another build choice.`,
+  publish: `Build and publish: run /ship for the plan ${name}. Chosen on its review page. Apply any attached review notes to this plan first, then continue without another build choice.`,
 });
 
 // The page's reply link when one can open, else its file.

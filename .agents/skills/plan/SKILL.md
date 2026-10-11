@@ -16,7 +16,7 @@ Create an apply-ready OpenSpec change and its required `review.html`, the offlin
 
 Run [`/explore`](../explore/SKILL.md) in bounded mode; it asks by [the exit round](../explore/SKILL.md#the-exit-round). Log each decision in the Decision log: `**YYYY-MM-DD** — Asked <question> → chose <answer>.` for every answer, `**YYYY-MM-DD** — Assumed: <decision>, because <reason>.` for each inferred one.
 
-When the exit round chose new workspaces, [open one per other part](references/new-workspace.md) and report them before drafting; then plan only the part this chat keeps.
+New workspaces chosen → [open one per other part](references/new-workspace.md), report before drafting, and plan only this chat’s part.
 
 ## Draft with the CLI
 
@@ -24,7 +24,7 @@ Write every artifact in the planning set by [the CLI contract](references/opensp
 
 Before tasks, weigh deterministic code for a repeated process ([the principles](../../../wiki/agent-knowledge-center.md#most-process-improvements-shouldnt-use-ai)); raise it in the exit round if it changes scope. Testable behavior gets test authoring beside source tasks; prose-only changes do not.
 
-Write Why and What Changes in [plain words](../explore/references/asking-the-user.md#write-in-plain-words) for the person who asked: what they will see, get, or be able to do. When the change deletes or reshapes data, sends a message, or removes a key, one plain What Changes line says it can't be undone; otherwise none. File names, code, and commands go in the design, specs, and tasks, which the page hides. Capabilities and Impact may stay technical.
+Why and What Changes use [plain words](../explore/references/asking-the-user.md#write-in-plain-words): what the person will see or do. Deleting/reshaping data, sending a message, or removing a key gets one line saying it can't be undone; otherwise none. Put file names, code and commands in design/specs/tasks, hidden on the page. Capabilities and Impact may be technical.
 
 ## Draw in the proposal, then build the page
 
@@ -50,7 +50,7 @@ A change that adds or restructures a screen gets [a `## UX` design section](../.
 
 ## Review notes
 
-`Notes on the plan <name> from the review page` (also `Update the plan <name> with these notes`) pasted or sent from the page, updates a plan without a verb, build or [explore round](#explore-first). Get paths from `openspec status --change "<name>" --json` ([contract](references/openspec-cli.md)); missing change: report and stop. Trust each quoted text over its spot label. Answer question notes in chat without edits/log entries; offer suggested edits in the closing question. Apply other notes coherently, logging each change or reason for declining. Substantial rewrites follow CLI instructions; validate, create only requested artifacts, rebuild the page and [finish](#finish) standalone. Notes never start a build.
+`Notes on the plan <name> from the review page` (also `Update the plan <name> with these notes`) updates its existing plan without an [explore round](#explore-first). Get paths from `openspec status --change "<name>" --json` ([contract](references/openspec-cli.md)); missing change: report and stop. Trust quoted text over spot labels. Answer question notes without edits/log entries; offer suggested edits only when standalone. Apply change notes coherently, logging changes or declines. Substantial rewrites follow CLI instructions; validate, create only requested artifacts, rebuild and print the page's link. Notes alone [finish](#finish) without building. With an explicit build/publish choice, return to `/apply` or `/ship` and continue the authorized action without another choice; a material blocker stops.
 
 ## Finish
 

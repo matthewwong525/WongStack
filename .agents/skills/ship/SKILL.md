@@ -10,7 +10,7 @@ Invoking `/ship` authorizes every step below without a prompt: archive, checkpoi
 
 [The change loop](../../../wiki/development/the-change-loop.md) owns the record, the pull-in, and [the gate](../../../wiki/development/the-change-loop.md#the-gate); PR review owns cleanliness, consolidation, and downstream breakage. `main` means [the default branch](../save/references/git-gate.md#the-default-branch).
 
-Two commands run the mechanical steps; each ends with `NEXT:`, what to do:
+Commands end with `NEXT:`:
 
 ```bash
 SHIP="$(git rev-parse --show-toplevel)/.claude/skills/ship/scripts/ship.mjs"
@@ -24,9 +24,11 @@ A selected routine definition or finite goal follows [record-only delivery](../s
 
 ## Step 1 — preflight
 
+Attached review notes → invoke [review-note handling](../plan/SKILL.md#review-notes) on the existing change; missing plan or blocker stops. Continue the authorized publish without another choice.
+
 Check [preconditions](../save/references/preconditions.md), then run `prepare`. Uncommitted changes on the default branch go on in the same tree; Step 3's save cuts the feature branch.
 
-A `NEXT:` that says `main`'s check run was *cut off* is no failure: run its restart, then the command again.
+`main`'s check run *cut off* → restart it, then rerun.
 
 ### The pull-in: nothing to ship yet
 

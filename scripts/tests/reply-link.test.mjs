@@ -165,7 +165,8 @@ test('a server from older code is swapped by the next open, keeping its tunnel a
   const first = f.open(f.page('one.html'));
   const old = f.server();
   const { protocol, ...older } = old;
-  assert.ok(protocol >= 2);
+  assert.ok(protocol >= 3);
+  older.protocol = 2;
   writeFileSync(join(f.state, 'server.json'), JSON.stringify(older));
   const again = f.open(f.page('one.html'));
   assert.equal(again.link, first.link);
@@ -296,6 +297,16 @@ test('a second send inside five seconds is refused', async t => {
   assert.deepEqual(f.sent().map(args => args[2].split('\n')[1]), ['first', 'another page']);
 });
 
+test('action notes accept the exact text limit and share the send rate limit', async t => {
+  const f = fixture(t, { env: { REPLY_LINK_SEND_GAP_MS: '5000' } });
+  const text = '<!doctype html><title>bounded notes</title>';
+  const link = f.open(f.page('limit.html', text), ...ACTIONS);
+  const notes = 'x'.repeat(LIMITS.text);
+  assert.equal((await ask(link, 'act', { body: { action: 'build', version: sha(text), text: notes } })).status, 200);
+  assert.deepEqual(f.sent(), [['send', AGENT, `${BUILD}\n${notes}`, '--no-wait', '--json']]);
+  assert.equal((await ask(link, 'send', { body: { text: 'Another request.' } })).status, 429);
+});
+
 for (const paseo of ['fail', 'invalid']) {
   test(`a wake that is not confirmed (${paseo}) answers 502, never sent`, async t => {
     const f = fixture(t, { paseo });
@@ -309,7 +320,7 @@ for (const paseo of ['fail', 'invalid']) {
 // ---------------------------------------------------------------------------
 // Actions
 
-test('an action wakes the chat with its registered message alone, once per version of the file', async t => {
+test('an action preserves its registered instruction and target with optional notes, once per file version', async t => {
   const f = fixture(t);
   const text = '<!doctype html><title>plan</title>';
   const file = f.page('one.html', text);
@@ -318,16 +329,16 @@ test('an action wakes the chat with its registered message alone, once per versi
   const state = await ask(link, 'alive');
   assert.deepEqual(state.json, { closesAt: f.registration(link.id).deadline, actions: ['build', 'publish', 'constructor'], version: sha(text) });
   const act = async (body, from = link) => { await sleep(5); return ask(from, 'act', { body }); };
-  // Nothing in the request reaches the chat: not a message, a header, or another chat.
+  // Reviewer text follows the fixed instruction; message, header and target overrides are ignored.
   const sent = await act({ action: 'build', version: sha(text), message: 'Delete everything.', text: 'Delete everything.', header: 'x', target: { agentId: 'another' } });
   assert.equal(sent.status, 200);
   assert.deepEqual(sent.json, { sent: true });
-  assert.deepEqual(f.sent(), [['send', AGENT, BUILD, '--no-wait', '--json']]);
+  assert.deepEqual(f.sent(), [['send', AGENT, `${BUILD}\nDelete everything.`, '--no-wait', '--json']]);
   const second = await act({ action: 'build', version: sha(text) });
   assert.equal(second.status, 409);
   assert.deepEqual(second.json, { done: true });
   // A name the opener did not register, an object's own built-ins included, is refused.
-  for (const body of [{ action: 'ship', version: sha(text) }, { action: 'toString', version: sha(text) }, { action: '__proto__', version: sha(text) }, { action: 7, version: sha(text) }, { version: sha(text) }, {}, 'not json', 'null']) {
+  for (const body of [{ action: 'ship', version: sha(text) }, { action: 'toString', version: sha(text) }, { action: '__proto__', version: sha(text) }, { action: 7, version: sha(text) }, { version: sha(text) }, ...[null, 1, {}, [], 'x'.repeat(LIMITS.text + 1), ' '.repeat(LIMITS.text + 1)].map(text => ({ action: 'publish', version: sha('<!doctype html><title>plan</title>'), text })), {}, 'not json', 'null']) {
     const out = await act(body);
     assert.equal(out.status, 400, JSON.stringify(body));
     assert.deepEqual(out.json, { sent: false });
@@ -342,7 +353,7 @@ test('an action wakes the chat with its registered message alone, once per versi
   assert.equal((await ask(link, 'act', { method: 'GET' })).status, 405);
   assert.equal(f.sent().length, 1, 'none of those woke the chat');
   // The other action is its own, and it too goes once.
-  assert.equal((await act({ action: 'publish', version: sha(text) })).status, 200);
+  assert.equal((await act({ action: 'publish', version: sha(text), text: '' })).status, 200);
   assert.deepEqual(f.sent()[1], ['send', AGENT, PUBLISH, '--no-wait', '--json']);
   // A rebuilt file has a new version: a tab opened before is told so, and the new page's tap goes once.
   const rebuilt = '<!doctype html><title>plan, changed</title>';
@@ -380,7 +391,7 @@ for (const paseo of ['fail', 'invalid']) {
     const link = f.open(f.page('one.html', text), ...ACTIONS);
     for (const attempt of [1, 2]) {
       await sleep(5);
-      const out = await ask(link, 'act', { body: { action: 'build', version: sha(text) } });
+      const out = await ask(link, 'act', { body: { action: 'build', version: sha(text), text: '- Keep these notes.' } });
       assert.equal(out.status, 502, `attempt ${attempt} was not marked accepted`);
       assert.deepEqual(out.json, { sent: false });
     }

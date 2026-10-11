@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 40.3.0 — Build straight from review notes
+
+- **Three buttons stay visible below the plan.** Send notes, Build it, and Build and publish are available directly, including on small phones. Desktop text is larger, with shorter buttons aligned with the content. Publishing still asks once more.
+- **Build with notes in one step.** Either build choice carries saved unsent notes with it. The assistant updates the plan and continues into building or publishing without waiting for another choice. Send notes alone only updates the plan.
+- **Notes wait for acknowledgement.** Failed requests keep notes available, and edits made while a request waits remain unsent.
+
+**Updating.** Ask your assistant to rebuild active review pages and reopen their reply links so the buttons and registered messages use this flow. Archived reviews and saved notes stay as they are.
+
 ## 40.2.0 — Smaller review controls with visible progress
 
 - **The review bar stays on one row, including on small phones.** Send notes stays visible. The three dots open Build it and Build and publish above the bar, with the publish question there too. Escape or a tap outside closes the choices.

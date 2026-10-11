@@ -22,15 +22,15 @@
 //     GET  /p/<id>/        the file, read from disk each time
 //     GET  /p/<id>/alive   200 {closesAt, actions, version}        needs the key
 //     POST /p/<id>/send    {text} -> 200 {sent:true} | 502 {sent:false}   needs the key
-//     POST /p/<id>/act     {action, version} -> 200 {sent:true} | 502 {sent:false}
+//     POST /p/<id>/act     {action, version, text?} -> 200 {sent:true} | 502 {sent:false}
 //                          | 409 {changed:true} | 409 {done:true}  needs the key
 //
 // The key rides in the link's fragment, which a browser never sends, and returns in an `x-reply-key`
 // header. `send` wakes the registered chat with the header line, a newline, then the text: at most
 // 20,000 characters, one send per 5 seconds per page. It answers `sent:true` only when the host
 // confirms that chat got it. `alive` names the actions and gives `version`, the SHA-256 of the file as
-// it stands. `act` wakes the chat with the action's registered message alone: no header, and nothing
-// from the request. It answers 400 for a name the opener did not register, 409 `changed` when
+// it stands. `act` sends the registered instruction, then optional notes within the text limit;
+// the request cannot replace the header, instruction, or chat target. It answers 400 for a name the opener did not register, 409 `changed` when
 // `version` is not the file's now, and 409 `done` once that action was accepted for that version; an
 // unconfirmed wake is not accepted, so it can be tried again. It shares `send`'s 5 seconds. Accepted
 // actions are held in memory, so a restarted server allows one repeat, which the chat sees.
@@ -72,7 +72,7 @@ const USAGE = `usage: reply-link.mjs open <file> --header "<line>" [--hours N] [
 export const LIMITS = { text: 20_000, body: 128 * 1024, header: 300, action: 300, actions: 6 };
 const HOURS = 8;
 // Raised when the server's routes change: a running server from older code is swapped for this one.
-const PROTOCOL = 2;
+const PROTOCOL = 3;
 const ID = /^[0-9a-f]{32}$/;
 const ACTION = /^[a-z][a-z0-9-]{0,30}$/;
 const ROUTE = /^\/p\/([0-9a-f]{32})\/(alive|send|act)?$/;
@@ -207,7 +207,8 @@ export function replyRoutes(state, { wake = wakeChat } = {}) {
     const body = await readBody(request);
     const actions = actionsOf(page);
     const name = typeof body?.action === 'string' && Object.hasOwn(actions, body.action) ? body.action : null;
-    if (!name) return reply(response, 400, { sent: false });
+    if (!name || (Object.hasOwn(body, 'text') && (typeof body.text !== 'string' || body.text.length > LIMITS.text))) return reply(response, 400, { sent: false });
+    const text = body.text?.trim() || '';
     const version = fileVersion(page);
     if (!version) return reply(response, 410, { closed: true });
     if (body.version !== version) return reply(response, 409, { changed: true });
@@ -215,7 +216,7 @@ export function replyRoutes(state, { wake = wakeChat } = {}) {
     if (names.has(name)) return reply(response, 409, { done: true });
     // Marked before the wake, so a tap that arrives during it is refused; unmarked when the chat did not get it.
     names.add(name);
-    const sent = (await wake(page.target, actions[name])) === 'notified';
+    const sent = (await wake(page.target, actions[name] + (text ? `\n${text}` : ''))) === 'notified';
     if (!sent) names.delete(name);
     return reply(response, sent ? 200 : 502, { sent });
   }

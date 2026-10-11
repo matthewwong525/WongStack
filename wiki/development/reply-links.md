@@ -1,6 +1,6 @@
 # Reply links
 
-A reply link opens a page the agent made at a web address, and the page's buttons reach the chat that made it: one sends what you wrote, with nothing to copy and paste, and others can each send one fixed message. A plan's review page is the first page that uses one; [`reply-link.mjs`](../../.agents/skills/hand-over/scripts/reply-link.mjs) opens them. Part of [development](README.md).
+A reply link opens a page the agent made at a web address, and the page's buttons reach the chat that made it: one sends what you wrote, with nothing to copy and paste, and others send a fixed action with optional notes. A plan's review page is the first page that uses one; [`reply-link.mjs`](../../.agents/skills/hand-over/scripts/reply-link.mjs) opens them. Part of [development](README.md).
 
 It is not a [private link](browsing.md#how-private-links-work). A private link takes a secret the agent must never see, and nothing typed into it reaches the chat. A reply link does the opposite: everything you send goes into the chat. **Never send a password, a key, or a card through one.**
 
@@ -10,8 +10,8 @@ Each new or changed plan prints *Click here to see the plan:* with a reply link,
 
 - **Send notes.** On the page, save your notes, then tap *Send notes*. Saving copies nothing there. One tap sends every note not yet sent, and each is marked *Sent*, so a second tap sends nothing twice. Change a sent note and it goes again.
 - **The chat takes them as pasted notes.** They arrive under the line *Notes on the plan … Don't build yet.* The chat [updates the plan](../../.agents/skills/plan/SKILL.md#review-notes) and builds nothing.
-- **Build it, or Build and publish.** When the plan is right as it stands, open the three dots in the single-row bar at the bottom, then tap your choice above it; no scrolling. The chat starts as if you had picked that choice there. *Build it* shows you the result before anything goes live. *Build and publish* asks once more above the bar, because publishing can't be undone. Escape or a tap outside closes the choices.
-- **A tap that could build the wrong plan is stopped.** With a note not yet sent, the page says *Send or delete your notes first.* If the plan changed after you opened the page, it says *The plan changed. Reload to read it first.* Each button works once for each version of the plan, so a second tap sends nothing.
+- **Three choices stay visible at the bottom.** *Send notes*, *Build it*, and *Build and publish* are directly available, including on small phones. Either build choice includes your saved unsent notes in the same request: the chat updates the plan, answers question notes, then continues into the chosen action without another build choice. Drafts stay out. *Build it* shows the result before anything goes live. *Build and publish* asks once more above the bar. Escape or an outside tap dismisses that question; Escape returns focus to *Build and publish*.
+- **Only acknowledged notes become Sent.** A saved edit made while a request waits remains unsent. Failures keep notes available for retry or copying. If the plan changed after you opened it, reload to read it first. Each action works once per version; a duplicate request cannot mark new notes sent.
 - **A tap shows progress.** Connecting to the chat shows *Connecting…*. Sending notes or asking for a build shows a spinner until the chat answers. Sending and building wait together, so another tap cannot send a duplicate request. The result appears above the bar; its height stays the same. A success message appears only after the chat acknowledges the request.
 - **The first plan of the day waits 5 to 10 seconds** for the connection. Later plans, from any chat on the same computer, share it and print at once.
 
@@ -40,7 +40,7 @@ A page opened from the plan's file, or from a pull request, is the same page wit
 - **Sending needs the link's key.** The key rides after the `#`, which a browser never sends as part of an address, and goes back in a header.
 - **A send reaches one chat, under one fixed line.** The chat and the first line are set when the link opens; the page can change neither. For a plan that line says *Don't build yet.*
 - **A send is bounded:** 20,000 characters, and one every 5 seconds for each page.
-- **A button sends only its name.** The chat that opened the link wrote each button's message; the page can never change it or add to it. So the most a plan's link can do is send notes, start that plan's build, or start its publish.
+- **A button names a fixed action and may attach notes.** The opener fixes its instruction and chat target; reviewer text follows that instruction and is limited to 20,000 characters. Invalid or oversized notes never reach the chat. So the most a plan's link can do is send notes, start that plan's build, or start its publish.
 - **The link is in the chat's text.** Anyone who can read it there can send notes to that chat, and start that build or publish, until it closes.
 - **It never blocks a private link.** A reply link keeps its own state, apart from [`hand-over.mjs`](../../.agents/skills/hand-over/scripts/hand-over.mjs), so a key link opens at once during a review, and several pages hold links at the same time.
 
@@ -62,7 +62,7 @@ The page reads the key from its own address and asks three routes beside itself:
 |---|---|
 | `GET alive` | `200 {closesAt, actions, version}` while the link is open |
 | `POST send` with `{"text": "…"}` | `200 {"sent": true}` once the chat has it; anything else means it did not arrive |
-| `POST act` with `{"action": "…", "version": "…"}` | `200 {"sent": true}` once the chat has [the button's message](#give-a-page-a-button) |
+| `POST act` with `{"action": "…", "version": "…", "text": "optional notes"}` | `200 {"sent": true}` once the chat has [the button's message](#give-a-page-a-button) |
 
 All need the key in an `x-reply-key` header. A closed link answers `410`, a second send inside 5 seconds `429`.
 
@@ -87,7 +87,7 @@ node .claude/skills/hand-over/scripts/reply-link.mjs open "$page" --header "Chan
   --action "send-all=Send every draft in $page as it stands."
 ```
 
-`--action <name>=<message>` repeats, 6 at most. A name is lowercase letters, digits, and hyphens; a message is one line of 300 characters at most. Opening the file again replaces them all. **The page sends only the name**, so nothing typed or changed on the page can alter what the chat is told: the chat gets the message alone, without the header line.
+`--action <name>=<message>` repeats, 6 at most. A name is lowercase letters, digits, and hyphens; a message is one line of 300 characters at most. Opening the file again replaces them all. **The page sends the name and optionally reviewer text.** The chat receives the registered instruction, then a newline and the notes; the fixed header is not included. Omitted or empty text sends the instruction alone. The page cannot replace that instruction or the chat target.
 
 ```js
 const state = await (await fetch('alive', { headers: { 'x-reply-key': key } })).json();   // once, right after load

@@ -182,7 +182,7 @@ Every control SHALL work by keyboard and touch with visible labels and focus, an
 
 ### Requirement: Pasted notes update the plan and stop
 
-Pasted notes SHALL update that change's artifacts with no question round, only for notes that ask for a change, and log what each such note changed or why it was declined; a note that asks a question SHALL be answered as `asking-the-user` requires, with no edit. The reply SHALL rebuild the page when anything changed and end with the plan's link and whether to build now. Notes SHALL build nothing, and SHALL change nothing when the change is not in this checkout.
+Pasted notes sent alone SHALL update that change's artifacts with no question round, only for notes that ask for a change, and log what each such note changed or why it was declined; a note that asks a question SHALL be answered as `asking-the-user` requires, with no edit. The reply SHALL rebuild the page when anything changed and end with the plan's link and whether to build now. Notes alone SHALL build nothing; an explicit accompanying build choice SHALL authorize applying those notes and continuing directly to that action, and SHALL change nothing when the change is not in this checkout.
 
 #### Scenario: Notes pasted
 
@@ -247,17 +247,17 @@ On an open reply link, the page's one notes control SHALL send every saved note 
 
 ### Requirement: A plan on a reply link can start its build
 
-On an open reply link, the review page SHALL offer *Build it* and *Build and publish* through a labeled three-dot control in a single-row bottom bar, accessible without scrolling on a phone included, and a tap SHALL tell the chat that made the plan to do exactly that for this change. Opening the control SHALL show those choices above the bar without increasing its height; Escape and an outside tap SHALL dismiss the choices and keyboard dismissal SHALL return focus to the control. *Build and publish* SHALL ask once more on the page, saying it can't be undone, before anything is sent. The page SHALL send nothing while a saved note is unsent, saying to send or delete it first, or when the plan changed after the page opened, saying to reload. Opened from disk, or once the link has closed, the page SHALL show neither build choice. Notes SHALL still build nothing.
+On an open reply link, the review page SHALL offer Send notes, Build it, and Build and publish as three directly visible bottom buttons, reachable without scrolling on a phone. A build choice SHALL send the selected action with every saved unsent note in one request, so the chat applies the notes and continues into the selected build or publish action without another build choice. Build and publish SHALL ask once more on the page before sending. The page SHALL mark only acknowledged submitted notes as sent and SHALL preserve unsent notes on failure. A changed plan SHALL prevent the action and ask for reload. Opened from disk or after the link closes, the page SHALL show no build choices and SHALL retain note copying. Send notes alone SHALL build nothing.
 
 #### Scenario: Build it from the page
 
-- **WHEN** the reviewer opens the three-dot control and taps *Build it* at the top of a long plan on a phone, on an open reply link with no unsent note
-- **THEN** the choices are reachable without scrolling, the bottom bar stays one row, the chat starts building that change, and the page says the chat was asked
+- **WHEN** the reviewer taps *Build it* at the top of a long plan on a phone, on an open reply link with no unsent note
+- **THEN** all three buttons are directly reachable without scrolling, the bottom bar has no sideways overflow, the chat starts building that change, and the page says the chat was asked
 
 #### Scenario: An unsent note
 
-- **WHEN** the reviewer opens the choices and taps *Build and publish* with one saved note not yet sent
-- **THEN** nothing reaches the chat, and the page says to send or delete the note first
+- **WHEN** the reviewer taps *Build and publish* with one saved note not yet sent and confirms publishing
+- **THEN** the chat receives the chosen action and note together, updates the plan, and builds and publishes without a further build choice; the acknowledged note is marked sent
 
 ### Requirement: Review requests show immediate progress
 
