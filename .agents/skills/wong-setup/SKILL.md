@@ -6,8 +6,6 @@ user-invocable: true
 
 # /wong-setup
 
-Pick target/source/tools/token, then `/explore`. Installed targets use `/wong-sync` with their recorded source.
-
 ## Pick the folder
 
 Select before writing; preserve existing projects:
@@ -28,7 +26,7 @@ Before cloning/writing, read the selected source's setup/[tools](references/tool
 
 ## Get the latest source
 
-Use a separate clean [source checkout](../wong-sync/references/latest-source.md), reading that reference there. Install its version/commit into the target.
+Use a separate clean [source checkout](../wong-sync/references/latest-source.md), reading that reference there. Install its version/commit into the target. When installing, start [learning from past chats](../../../wiki/stack/learning-from-chats.md) now.
 
 ## Get the Cloudflare token
 

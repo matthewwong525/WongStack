@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 40.5.0 — Setup learns from your past chats
+
+- **Setup reads your past AI chats while it installs.** It says so in one line, then reads what you typed in the Claude Code and Codex chats on this computer, newest first, while the install carries on. It keeps short notes about you and your business on your wiki page, in the wiki, and in memory: never passwords, keys, copies of chats, or anything about health, family, or money. Say *skip the chats* and it stops and writes nothing. [Learning from past chats](wiki/stack/learning-from-chats.md) has the steps.
+- **It reads every chat it can, up to a limit.** Helpers read side by side, one part each. A long history gets its newest eight parts, and setup says how far back that reached. No chats, no helpers, or a failed helper never stops setup.
+- **The *Make it yours* message only changes the page.** It asks what to call the page, updates the heading, removes the welcome box, explains each step, and shows a preview before publishing. It no longer asks to read chats or asks rounds of questions.
+- **The chat read comes in numbered parts.** `recent-chats` takes `--all` for every chat, `--parts` to count the parts and their dates, and `--part <k>` to print one. Without them it reads the last 30 days as before.
+
+**Updating.** The welcome box changes only where your home page still shows it; its message now only changes the page. An update does not read your past chats. To have the assistant learn from them, ask it: *get to know me from my past chats*. It asks before it reads.
+
 ## 40.4.0 — Make design rules available in app checks
 
 - **App checks load shadcn/lint.** The design-rule plugin joins the existing code checks. No new design rules are enabled; choose them separately when agreeing on a shared look.

@@ -12,7 +12,8 @@ Want new projects to start with your own tools and site? [Make WongStack your ow
 - A separate address for every version you're still working on, so you can look at a change before it's real
 - A place your data lives, and a practice copy of it that test versions use
 - Automatic publishing: when a change is approved, it goes live
-- A **starter site**: a working page that lists *Your apps* under a *Make it yours* box. Press **Copy** in that box and paste the message into your chat: the agent gets to know you, asking before it skims your recent chats, then makes the page yours, removes the box, and explains each step as it goes. The site is yours to change, replace, or delete.
+- A **starter site**: a working page that lists *Your apps* under a *Make it yours* box. Press **Copy** in that box and paste the message into your chat: the agent asks what to call the page, makes it yours, removes the box, and explains each step as it goes. The message only changes the page. The site is yours to change, replace, or delete.
+- An assistant that **already knows you**: while it installs, setup reads what you typed in your past AI chats on this computer and keeps short notes about you and your business. It tells you first; say *skip the chats* and it stops. [Learning from past chats](learning-from-chats.md) says what it reads and what it keeps.
 
 ## What it costs
 

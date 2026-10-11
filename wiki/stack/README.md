@@ -9,6 +9,7 @@ The pack uses **merge = deploy**, independent staging and branch previews. [One 
 ## Pages
 
 - [Getting started](getting-started.md) — what installing costs, what you do by hand, and what to do when something goes wrong; start here if you're setting this up for the first time.
+- [Learning from past chats](learning-from-chats.md) — how setup learns about you and your business from what you typed in past AI chats while it installs: what is read, the one line it says, what the notes hold, and how to skip it.
 - [Make WongStack your own](customizing-wongstack.md) — change the defaults in your fork, install it with one request, and keep projects following your version.
 - [Testing the app](testing.md) — focused Workers-runtime checks, unit tests and what still needs a deployed check.
 - [Core stack](core-stack.md) — *what* you build on: React + Vite on Cloudflare Workers with D1, and why the combo suits AI-driven dev.

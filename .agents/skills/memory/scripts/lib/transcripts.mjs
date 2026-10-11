@@ -1,7 +1,7 @@
 // Discover, claim, parse, and strip Claude Code and Codex transcripts. Code only: no model reads raw files.
 import { appendFileSync, existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { join, sep } from 'node:path';
+import { basename, join, sep } from 'node:path';
 import { readJson, statePath } from './store.mjs';
 
 const IDLE_MS = 60 * 60 * 1000;
@@ -129,22 +129,23 @@ export const strip = (messages, readThrough = 0) => messages
 
 // ---------- discovery ----------
 
+const folders = dir => stat(dir)?.isDirectory() ? readdirSync(dir).map(name => join(dir, name)) : [];
+
 // Recent-chat reading is explicit; capture discovery below uses registered owners only.
+// With no day cutoff, every year/month/day folder is read.
 function codexRollouts(days, now) {
-  const found = [];
-  for (let offset = 0; offset <= days; offset += 1) {
-    const dir = codexDayDir(codexHome(), new Date(now - offset * 86400000));
-    if (!existsSync(dir)) continue;
-    for (const name of readdirSync(dir)) {
-      const match = name.match(CODEX_NAME);
-      if (match) found.push({ agent: 'codex', id: `codex:${match[1]}`, file: join(dir, name) });
-    }
-  }
-  return found;
+  const home = codexHome();
+  const dayDirs = Number.isFinite(days)
+    ? Array.from({ length: days + 1 }, (_, offset) => codexDayDir(home, new Date(now - offset * 86400000)))
+    : folders(home).flatMap(year => folders(year).flatMap(folders));
+  return dayDirs.flatMap(dir => folders(dir).flatMap(file => {
+    const match = basename(file).match(CODEX_NAME);
+    return match ? [{ agent: 'codex', id: `codex:${match[1]}`, file }] : [];
+  }));
 }
 
-// Every top-level chat on this computer changed in the last `days` days, from any folder, newest first.
-// Subagents, the excluded session, and background runs in `registry` are left out.
+// Every top-level chat on this computer changed in the last `days` days, from any folder, newest first;
+// `days: Infinity` takes every chat. Subagents, the excluded session, and background runs in `registry` are left out.
 export function recentTranscripts({ days = 30, now = Date.now(), registry = new Map() } = {}) {
   const home = claudeHome();
   const claude = (existsSync(home) ? readdirSync(home) : []).flatMap(folder => {
