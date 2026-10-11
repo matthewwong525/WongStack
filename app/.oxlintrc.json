@@ -1,6 +1,7 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "plugins": ["react", "typescript", "oxc"],
+  "jsPlugins": ["@shadcn/lint"],
   "rules": {
     "complexity": ["error", 21],
     "max-lines": ["error", 500],
