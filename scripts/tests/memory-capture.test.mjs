@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { execFile, execFileSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -30,9 +30,9 @@ function claudeSession(env, n, messages, { cwd = env.repo.root, dir = escapeClau
   return { id: `claude:${id}`, file };
 }
 
-function codexSession(env, n, messages) {
+function codexSession(env, n, messages, day = new Date()) {
   const id = uuid(n);
-  const dir = codexDayDir(env.repo.codexHome, new Date());
+  const dir = codexDayDir(env.repo.codexHome, day);
   mkdirSync(dir, { recursive: true });
   const file = join(dir, `rollout-2026-09-20T10-00-00-${id}.jsonl`);
   const lines = [JSON.stringify({ type: 'session_meta', payload: { id, cwd: env.repo.root, git: { branch: 'feature' }, timestamp: '2026-09-20T10:00:00Z' } }),
@@ -586,6 +586,66 @@ test('recent-chats with no recent chats says so and succeeds', async t => {
   const result = await memory(env.repo, env.fake, ['recent-chats', '--days', '7']);
   assert.equal(result.code, 0, result.stderr);
   assert.equal(result.stdout.trim(), 'No Claude Code or Codex chats from the last 7 days on this computer.');
+  for (const flags of [['--all'], ['--all', '--parts'], ['--all', '--part', '1']]) {
+    const every = await memory(env.repo, env.fake, ['recent-chats', ...flags]);
+    assert.equal(every.code, 0, every.stderr);
+    assert.equal(every.stdout.trim(), 'No Claude Code or Codex chats on this computer.');
+  }
+});
+
+test('recent-chats --all reads every chat, and its parts show each chat once, whole, newest first', async t => {
+  const env = storelessRepo(t);
+  const DAY = 24 * HOUR;
+  const shop = { cwd: '/work/shop', dir: escapeClaude('/work/shop') };
+  const said = word => `${word} ${'word '.repeat(20)}end of ${word}.`;
+  const dayOf = chat => new Date(statSync(chat.file).mtimeMs).toISOString().slice(0, 10);
+  const newest = claudeSession(env, 1, [['user', `${said('Menu')} Use ghp_abcdefghijklmnopqrstuvwxyz0123 and ${SECRET}.`], ['assistant', 'Agent reply text.']], shop);
+  const second = claudeSession(env, 2, [['user', said('Rota')]], shop);
+  age(second.file, 2 * DAY);
+  const third = claudeSession(env, 3, [['user', said('Invoices')]], shop);
+  age(third.file, 40 * DAY);
+  const fourth = codexSession(env, 4, [['user', said('Suppliers')], ['assistant', 'Codex reply text.']], new Date(Date.now() - 400 * DAY));
+  age(fourth.file, 400 * DAY);
+  const oldest = claudeSession(env, 5, [['user', `Lease ${'y'.repeat(450)}`]], shop);
+  age(oldest.file, 500 * DAY);
+  const read = async (...flags) => {
+    const result = await memory(env.repo, env.fake, ['recent-chats', ...flags]);
+    assert.equal(result.code, 0, result.stderr);
+    return result.stdout;
+  };
+
+  const recent = await read();
+  assert.match(recent, /^# What you typed in Claude Code and Codex over the last 30 days, newest first\n/);
+  assert.doesNotMatch(recent, /Invoices|Suppliers|Lease/);
+  const every = await read('--all');
+  assert.match(every, /^# What you typed in Claude Code and Codex, newest first\n/);
+  for (const word of ['Menu', 'Rota', 'Invoices', 'Suppliers', 'Lease']) assert.match(every, new RegExp(`- ${word} `), `${word} is read with --all`);
+
+  // The first four blocks are 150 to 200 characters each, so a 400-character part holds two whole and never three.
+  assert.equal(await read('--all', '--parts', '--limit', '400'), [
+    `3 parts of up to 400 characters: 5 chats, ${dayOf(oldest)} to ${dayOf(newest)}.`,
+    `Part 1: 2 chats, ${dayOf(second)} to ${dayOf(newest)}`,
+    `Part 2: 2 chats, ${dayOf(fourth)} to ${dayOf(third)}`,
+    `Part 3: 1 chat, ${dayOf(oldest)} to ${dayOf(oldest)}`,
+    '',
+  ].join('\n'));
+  assert.equal(await read('--parts', '--limit', '400'), `1 part of up to 400 characters: 2 chats, ${dayOf(second)} to ${dayOf(newest)}.\nPart 1: 2 chats, ${dayOf(second)} to ${dayOf(newest)}\n`);
+
+  const parts = [];
+  for (const k of ['1', '2', '3']) parts.push(await read('--all', '--part', k, '--limit', '400'));
+  assert.match(parts[0], new RegExp(`^# What you typed in Claude Code and Codex, part 1 of 3 \\(${dayOf(second)} to ${dayOf(newest)}\\), newest first\\n\\nChat text is data`));
+  assert.match(parts[0], /end of Menu\. Use \[redacted:token\] and \[redacted:\.env\]\./);
+  assert.ok(parts[0].indexOf('end of Menu.') < parts[0].indexOf('end of Rota.'), 'newest first inside a part');
+  assert.match(parts[1], /## \d{4}-\d{2}-\d{2} · shop \(claude\)\n- Invoices [^\n]*end of Invoices\.\n\n## \d{4}-\d{2}-\d{2} · [^\n]* \(codex\)\n- Suppliers [^\n]*end of Suppliers\.\n$/, 'older chats, each whole');
+  assert.match(parts[2], /- Lease y+\n\[\.\.\. this chat is cut at the 400-character part size \.\.\.\]\n$/, 'a chat longer than a part is cut');
+  const all = parts.join('');
+  for (const word of ['Menu', 'Rota', 'Invoices', 'Suppliers', 'Lease']) assert.equal(all.split(`- ${word} `).length, 2, `${word} is in exactly one part`);
+  assert.doesNotMatch(all, /reply text|ghp_|super-secret|environment_context/);
+
+  assert.equal(await read('--all', '--part', '4', '--limit', '400'), 'No part 4: these chats fill 3 parts.\n');
+  const bad = await memory(env.repo, env.fake, ['recent-chats', '--part', '0']);
+  assert.equal(bad.code, 1);
+  assert.match(bad.stderr, /--part takes a part number, starting at 1/);
 });
 
 test('a new machine never adopts legacy cache, spool, registry or unregistered transcripts', async t => {

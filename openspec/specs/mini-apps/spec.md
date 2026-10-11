@@ -26,7 +26,7 @@ A mini app's plan SHALL include tests for its logic in its own folders. The main
 
 ### Requirement: The starter landing page teaches the loop
 
-The starter landing page SHALL have a permanent workspace heading and open its employer guidance with one removable welcome, titled *Make it yours*, that makes clear that changes begin by asking in the person's existing chat. It SHALL offer one selectable, copyable first request that asks the agent to get to know the person, personalize the workspace heading, remove the welcome, explain the steps, and show a preview before publishing. The page SHALL confirm a successful copy and retain a way to copy by hand if clipboard access is unavailable. The mini-app list SHALL sit below the welcome. Removing the welcome SHALL leave the workspace heading and app list usable. Sync SHALL update the welcome only while the target still shows it. Every signed-in person SHALL see one assistant connection prompt on the page. Once Access per-app permissions have started, employees SHALL see that prompt and their authorized apps without employer personalization or administration guidance; the employer's existing removable welcome SHALL be preserved.
+The starter landing page SHALL have a permanent workspace heading and open its employer guidance with one removable welcome, titled *Make it yours*, that makes clear that changes begin by asking in the person's existing chat. It SHALL offer one selectable, copyable first request that asks the agent to personalize the workspace heading, remove the welcome, explain the steps, and show a preview before publishing. The page SHALL confirm a successful copy and retain a way to copy by hand if clipboard access is unavailable. The mini-app list SHALL sit below the welcome. Removing the welcome SHALL leave the workspace heading and app list usable. Sync SHALL update the welcome only while the target still shows it. Every signed-in person SHALL see one assistant connection prompt on the page. Once Access per-app permissions have started, employees SHALL see that prompt and their authorized apps without employer personalization or administration guidance; the employer's existing removable welcome SHALL be preserved.
 
 #### Scenario: A fresh install
 
@@ -225,20 +225,6 @@ When an installed repo still has mini apps in the old separate folder, its next 
 - **WHEN** the moved `runs` app reads the table its old version wrote
 - **THEN** it finds the same rows, because the move changes no database table
 
-### Requirement: The first request learns about the person
-
-The first request SHALL ask the agent to ask permission before reading anything, then skim the person's Claude Code and Codex chats from the last 30 days on this computer, then ask two or three short rounds of questions about what it could not find. It SHALL ask the agent to save short notes about the person on their wiki page and in memory, never passwords, keys, or copies of chats, and only then to personalize the page with a preview and ask before publishing. The request SHALL name no file, folder, or command.
-
-#### Scenario: Past chats found
-
-- **WHEN** a person pastes the request on a computer with recent chats and allows the skim
-- **THEN** the agent asks only what the chats did not answer, saves short notes about them, and shows a preview of their page before publishing
-
-#### Scenario: No past chats or no permission
-
-- **WHEN** the person declines the skim, or the computer has no recent chats, such as a hosted server
-- **THEN** the agent reads nothing and goes straight to the question rounds
-
 ### Requirement: Screens on the earlier plain look move onto the parts on update
 
 When an installed repo has screens of its own built on the earlier shared stylesheet, its next update SHALL plan moving each one onto the ready-made parts, and SHALL name every screen it moves. Each moved screen SHALL appear in the update's preview before anything is published. A moved screen SHALL keep its address, its behavior, and its data.
@@ -261,3 +247,13 @@ A mini app's page and server side SHALL import only from the app's own folder, t
 
 - **WHEN** a mini app imports its own files, the ready-made parts, and the shared helpers
 - **THEN** the folder rule reports nothing
+
+### Requirement: The first request changes only the page
+
+The first request SHALL ask the agent to ask what to call the page, update its heading, remove the welcome, explain each step, and show a preview before publishing. It SHALL NOT ask the agent to read the person's chats or to interview them about themselves; setup owns learning about the person. The request SHALL name no file, folder, or command.
+
+#### Scenario: The request is pasted
+
+- **WHEN** a person pastes the request into their chat
+- **THEN** the agent asks what to call the page, shows a preview with the new heading and no welcome, and asks before publishing
+- **AND** it reads no past chats on account of the request

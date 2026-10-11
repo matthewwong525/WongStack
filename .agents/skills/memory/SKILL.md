@@ -6,7 +6,7 @@ user-invocable: true
 
 # /memory
 
-The [memory convention](../../../wiki/development/memory.md) owns storage/access; [writing facts](references/writing-facts.md) owns writing. Facts are superseded, never edited.
+The [memory convention](../../../wiki/development/memory.md) owns storage/access; [writing facts](references/writing-facts.md) owns writing.
 
 From the repo root:
 
@@ -30,7 +30,7 @@ node .claude/skills/memory/scripts/memory.mjs <command>
 | Tags; fix one, or merge a look-alike (admin) | `tags`; `tag <name> --definition <text>` or `--alias-of <tag>` |
 | Counts, embeddings trigger | `stats` |
 | Close stale threads, add path tags (`put-facts` runs it) | `upkeep` |
-| What the person typed in this computer's recent Claude Code and Codex chats, keys hidden, no store needed; ask first | `recent-chats [--days 30]` |
+| What the person typed in this computer's Claude Code and Codex chats, keys hidden, no store; ask first outside [setup](../../../wiki/stack/learning-from-chats.md) | `recent-chats [--days 30 \| --all] [--parts \| --part <k>]` |
 
 One format per query; fetch sources on demand. Obey [visibility](../../../wiki/development/memory.md#who-sees-what); `--everyone` widens only admins' direct reads. The repo wins over dated facts.
 
@@ -63,7 +63,7 @@ The **write gate**:
 }
 ```
 
-**From a session**, use a quoted heredoc: `node .claude/skills/memory/scripts/memory.mjs put-facts --file - <<'EOF'`, JSON, then `EOF`.
+**From a session**, use a quoted heredoc: `put-facts --file - <<'EOF'`, JSON, then `EOF`.
 
 `gate` takes the same JSON without `action`. Tags must exist or be in `newTags`; `"session": "current"` names this session. The script rejects a fact matching a `.env` value or token pattern, and spools facts when the store is unreachable. [`/close`](../close/SKILL.md) runs `keep-transcript current` to upload this session's transcript now.
 
