@@ -12,6 +12,13 @@
 
 **Updating.** The welcome box changes only where your home page still shows it; its message now only changes the page. An update does not read your past chats. To have the assistant learn from them, ask it: *get to know me from my past chats*. It asks before it reads.
 
+## 40.4.0 — Make design rules available in app checks
+
+- **App checks load shadcn/lint.** The design-rule plugin joins the existing code checks. No new design rules are enabled; choose them separately when agreeing on a shared look.
+- **The testing guide explains where to configure it.** Run `npm run lint` from the app folder for the checks alone.
+
+**Updating.** Run `npm install` in the app folder after syncing to install shadcn/lint, the tool for checking design rules. Existing rules and screens stay as they are.
+
 ## 40.3.0 — Build straight from review notes
 
 - **Three buttons stay visible below the plan.** Send notes, Build it, and Build and publish are available directly, including on small phones. Desktop text is larger, with shorter buttons aligned with the content. Publishing still asks once more.

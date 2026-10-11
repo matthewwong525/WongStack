@@ -4,6 +4,8 @@ AI can write or change a mistake as easily as any developer. Tests keep the beha
 
 ## Local checks
 
+Run `npm run lint` from `app/` for the code checks alone. [Oxlint](https://oxc.rs/docs/guide/usage/linter.html) loads [shadcn/lint](https://github.com/shadcn-ui/lint) through `jsPlugins` in `app/.oxlintrc.json`. The plugin is available for design rules, but no new design rules are enabled. Add selected rules to that file's `rules` section after agreeing on the design policy.
+
 The app's `npm test` command runs the existing unit and screen tests with their coverage limits, then a focused suite in Cloudflare's local Workers runtime. The extra suite reuses the installed Wrangler and Vite packages; it adds no dependency, browser download or service login.
 
 Run `npm run test:runtime` from `app/` for just the runtime cases. It builds only the Worker, starts one local runtime, applies the project's real migrations to a fresh temporary D1 database, and checks signed requests and Access saves. Setup prints build/startup and migration times. Node's built-in bytecode cache stays in the app's ignored dependency folder to speed later runs of the same installed tools. The suite closes its runtime and removes the temporary build when finished, including after a failing assertion.
