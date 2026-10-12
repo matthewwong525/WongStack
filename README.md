@@ -6,21 +6,13 @@
 
 **Claude Code and Codex, for people who don't code.** WongStack sets up the software foundation for running your business, in accounts you own.
 
-```mermaid
-flowchart LR
-  P["Processes · code and guides"] --> D["Data · orders, stock, analytics"]
-  C["Conversations"] --> R["Reasons · saved decisions and memories"]
-  P --> K["Shared business context"]
-  D --> K
-  R --> K
-  K --> N["More context for the next task and teammate"]
-  Q["Can we run this promotion?"] --> K
-  K --> A["An answer informed by marketing, finance and operations"]
-```
+AI works best with three things together:
 
-AI needs processes, data, and reasons together. Start with operations: AI helps turn repeatable processes into code, with guides for your team. Building those tools connects the data they need. Saved chats and memories keep the why behind decisions, in accounts you own.
+- **Processes.** Repeatable work becomes code, with guides for your team.
+- **Data.** Building those tools connects the data they need: orders, stock, analytics.
+- **Reasons.** Saved chats and memories keep the why behind decisions.
 
-As all three build up, the next task starts with more context. New teammates start with existing knowledge; questions draw on different departments to inform an answer, with access you choose. Any model or setup with a coding agent that reads and changes files and runs commands can use the framework. Your tools and knowledge stay yours.
+All three build up as you work, so the next task, and the next teammate, starts with more context. Ask *Can we run this promotion?* and the answer is informed by marketing, finance, and operations.
 
 ## Start in three steps
 
@@ -31,11 +23,14 @@ As all three build up, the next task starts with more context. New teammates sta
    Install WongStack from github.com/matthewwong525/WongStack. Read and follow https://raw.githubusercontent.com/matthewwong525/WongStack/refs/heads/main/.agents/skills/wong-setup/SKILL.md
    ```
 
-3. **Answer a few questions.** The agent asks before it installs any free tool it needs. You open one [link](wiki/stack/cloudflare-credentials.md#create-the-token) in a [Cloudflare](https://cloudflare.com) account, where your apps run, and paste the key it shows you. Your files are kept in Cloudflare too, on its paid plan (about $5 a month, Mac or Linux), or in a free [GitHub](https://github.com/signup) account: [the two ways](wiki/stack/artifacts-route.md).
+3. **Answer a few questions.** It asks before installing any free tool it needs. You open one [link](wiki/stack/cloudflare-credentials.md#create-the-token) in a [Cloudflare](https://cloudflare.com) account, where your apps run, and paste the key it shows.
 
-You end with a working assistant, a starter site online, and memory that carries over between chats. Open the site and paste its *Make it yours* message, and the assistant makes the page yours. [Getting started](wiki/stack/getting-started.md) says what it costs, what you do by hand, and what to do when something goes wrong.
+You end with a working assistant, a starter site online, and memory that carries between chats.
 
-Paste the message in any folder: if it already has files, setup makes a `wongstack` folder in your home folder.
+- **Make it yours.** Open the site and paste its *Make it yours* message.
+- **Your files** live in a free [GitHub](https://github.com/signup) account, or in Cloudflare on its paid plan (about $5 a month, Mac or Linux): [the two ways](wiki/stack/artifacts-route.md).
+- **Any folder works.** If yours already has files, setup makes a `wongstack` folder in your home folder.
+- **More:** [Getting started](wiki/stack/getting-started.md) covers costs, what you do by hand, and fixes when something goes wrong.
 
 ## What you get
 
@@ -54,7 +49,10 @@ I use [Claude Code](https://code.claude.com/docs/en/setup) in the free [Paseo](h
 
 ## Requirements
 
-You bring an assistant on a plan of your own, such as Claude or ChatGPT, and a [Cloudflare](https://cloudflare.com) account. The free way to install adds a free [GitHub](https://github.com/signup) account, and works on Mac, Windows, or Linux; [step 3](#start-in-three-steps) says what the other way costs. Setup asks, then installs what is missing: `git`, [Node.js](https://nodejs.org/) 22, [OpenSpec](https://github.com/Fission-AI/OpenSpec), and, for the free way, GitHub's tool [`gh`](https://cli.github.com/). The one Cloudflare token you make stays on your computer; [`SECURITY.md`](SECURITY.md) says what each token can do. [Required tools](wiki/development/required-tools.md) says why each is needed, and what [Windows](wiki/development/required-tools.md#symbolic-links-in-the-agent-folder) adds.
+- **An assistant on a plan of your own**, such as Claude or ChatGPT.
+- **A [Cloudflare](https://cloudflare.com) account.** The one token you make stays on your computer; [`SECURITY.md`](SECURITY.md) says what each token can do.
+- **A free [GitHub](https://github.com/signup) account, for the free way to install**, on Mac, Windows, or Linux. [Start in three steps](#start-in-three-steps) says what the other way costs.
+- **A few free tools.** Setup asks, then installs what is missing: `git`, [Node.js](https://nodejs.org/) 22, [OpenSpec](https://github.com/Fission-AI/OpenSpec), and, for the free way, GitHub's tool [`gh`](https://cli.github.com/). [Required tools](wiki/development/required-tools.md) says why each is needed, and what [Windows](wiki/development/required-tools.md#symbolic-links-in-the-agent-folder) adds.
 
 ## Learn more
 
