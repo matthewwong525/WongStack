@@ -10,18 +10,10 @@
   "probe": "browser",
   "writes": true,
   "sourcePaths": [
-    ".agents/skills/wong-setup/references/cloudflare.md",
-    ".agents/skills/wong-setup/scripts/provision.mjs",
-    "app/src/apps/access/Notices.tsx",
-    "app/src/apps/access/PersonPage.tsx",
-    "app/src/apps/access/ProjectStep.tsx",
-    "app/src/apps/access/SetFields.tsx",
-    "app/src/apps/access/status.ts",
-    "app/src/lib/access.ts",
-    "app/worker/employee-access/code.ts",
-    "app/worker/employee-access/members.ts"
+    ".agents/skills/verify/references/walkthrough.md",
+    ".agents/skills/verify/scripts/verify-journeys.mjs"
   ],
-  "recordedAt": "30721248afa61100d9c11c98e427ffe00a66370f",
+  "recordedAt": "9172c58924c41fd60dae0522301490c316fdb75b",
   "steps": [
     [
       "open",
@@ -36,6 +28,11 @@
       "wait",
       "--text",
       "Add person"
+    ],
+    [
+      "get",
+      "text",
+      "body"
     ],
     [
       "find",
@@ -83,6 +80,11 @@
       "wait",
       "--text",
       "Can install the project"
+    ],
+    [
+      "get",
+      "text",
+      "body"
     ]
   ],
   "expect": [

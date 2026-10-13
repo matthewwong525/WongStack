@@ -14,7 +14,7 @@ When the check before publishing passes a promise about a page or a request, it 
 
 - **Where.** `.agents/verification/journeys/<capability>/<id>.json`, beside your [verification recipes](staging-walkthrough.md#adopt-a-ci-capture), one file per scenario. It is saved with your code, because every branch shares one staging and a branch that changes a screen must carry the check that matches it.
 - **It points at the written promise, never copies it.** A second copy goes stale when the promise changes. The file holds a fingerprint of the scenario's `THEN`, so a rewritten promise shows.
-- **It holds no address.** The preview's address is swapped for `{url}`, so the same file replays against the next preview.
+- **It holds no address.** The preview's address is swapped for `{url}`, so the same file replays against the next preview. A check recorded on a second site with its own preview, such as a landing page, names that site in `site`: the commit status that carries its preview address. The replay reads the address from that status and opens the check there, not on the app's preview, where its steps find nothing and it reads `changed` on every publish. The second site gets no app login key: anyone who can save to the project can write a commit status.
 - **It is proven first.** A check is kept only after it replays cleanly once, alone, from fresh sample data. A recording that fails on the next person's publish would cost them a fresh look for nothing. One that fails its proof is named and left out, and the verdict stands.
 - **It expects only what was seen.** A page check expects text that showed, text that was gone, or the address it landed on. A request check expects a status or text in the answer. Nothing else: this is a recording, not a test language.
 
@@ -51,7 +51,7 @@ Checks recorded against files your change touched go first. Files nearly every c
 | `same` | It is listed as *replayed, unchanged*. What was seen is still seen; the promise was not graded again. |
 | `changed` | The assistant takes one fresh look and grades it against the written promise. |
 | `skipped` | Your change rewrites that promise, so its own check covers it and keeps it again. A promise your change removes takes its kept check with it. |
-| `not-run` | It is named with its reason: the limit, a login wall, an unreadable file, no rebuild. Never a pass, never a failure. |
+| `not-run` | It is named with its reason: the limit, a login wall, an unreadable file, no rebuild, or no preview of the check's own site, as when a change leaves that site alone. Never a pass, never a failure. |
 
 A fresh look ends one of three ways:
 
