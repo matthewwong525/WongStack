@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## 40.7.1 — The tip calculator is gone
+## 40.8.1 — The tip calculator is gone
 
 - **WongStack's own site no longer has a tip calculator.** Hello is the one example app. The tip calculator never came with an install, so your home page and your apps are as they were.
 - **The practice people in Access hold Hello alone.** On a preview, two of them were given a tip calculator your site never had. Those three rows did nothing and are gone, so Access on a preview looks the same.

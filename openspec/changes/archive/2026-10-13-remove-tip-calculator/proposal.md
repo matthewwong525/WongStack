@@ -40,6 +40,7 @@ WongStack's own site carries two sample apps, Hello and a tip calculator. Hello 
 - **2026-10-13** — Check: `app/src/apps/tips/App.test.tsx` and `app/src/apps/tips/tip.test.ts` are deleted with the app, because each tests only the tip calculator's page and its sum and guards no file that stays.
 - **2026-10-13** — Archive checkpoint: built in one pass with every task ticked and the local checks green; numbered 40.7.1 and saved for the check before publishing.
 - **2026-10-13** — Archive checkpoint: the check before publishing passed; it kept one new check, the home page's app list, and the five rewritten Access checks replayed unchanged.
+- **2026-10-13** — Archive checkpoint: another release took 40.7.1 first, so main was brought in and this one renumbered 40.8.1; the local checks passed again.
 
 ## Capabilities
 
