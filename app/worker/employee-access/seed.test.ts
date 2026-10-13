@@ -18,16 +18,13 @@ it('staging starts with practice people, two roles, one manager and key levels o
       expect(sql.prepare(`SELECT COUNT(*) count FROM ${table}`).get()).toEqual({ count: 0 });
     }
     const opened = await body(await management(req('status', 'GET'), env, owner));
-    // The seed also names apps only WongStack's own repository builds, and a row for a folder this build lacks
-    // counts for nothing: each set is what the seed gives, kept to the apps built here. Hello is in every build.
     const built = catalogue().filter(id => id !== 'access');
     expect(built).toContain('hello');
-    const here = (apps: string[]) => apps.filter(id => built.includes(id));
-    // One role held by two people, with one app and Project code; one role nobody holds; one person with every app
+    // One role held by two people, with one app and Project code; one role nobody holds; one person with Hello
     // and Project code; one who holds no app and no key. Dana is the one manager.
     const helpers = { apps: ['hello'], keys: { cloudflare: 'read', code: 'read' } };
     const nothing = { apps: [], keys: {} };
-    const dana = here(['hello', 'tips']);
+    const dana = ['hello'];
     const sets = Object.fromEntries([...opened.roles, ...opened.people].map(({ name, email, apps, keys }) => [name ?? email, { apps, keys }]));
     expect(sets).toEqual({ Helpers: helpers, Trainees: nothing, 'ada@example.invalid': helpers, 'bo@example.invalid': helpers, 'casey@example.invalid': nothing,
       'dana@example.invalid': { apps: dana, keys: { cloudflare: 'read', code: 'read' } }, 'eli@example.invalid': nothing });
