@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 40.7.0 — The first message builds your first app
+
+- **The *Make it yours* message asks for your first app.** Paste it into your chat and the assistant asks about your work and where your time goes, one question at a time, starting from what it already knows about you. It then suggests a few apps you would use, builds the one you pick, removes the welcome box, explains each step, and shows a preview before publishing.
+- **The box says what the message is for.** The line under *Make it yours* now reads *Start with an app built for how you work.* The title and the *Copy your first request* button stay.
+- **The message no longer renames the page.** Ask in your chat any time to change the heading.
+- **It still reads no past chats.** Setup does that while it installs.
+
+**Updating.** The welcome box's message changes only where your home page still shows it; a box you removed stays removed. Nothing else on your site changes.
+
 ## 40.6.0 — Fewer rules, each with its reason
 
 - **Each step says what to achieve and why.** The pages behind thinking it through, planning, building, saving, publishing, picking up later, and checking read as lists of "never" lines. A rule now carries its reason, so the assistant can handle a case the list never named.
