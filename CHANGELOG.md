@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 40.8.0 — Kept checks replay on their own site
+
+- **A saved check remembers which site it belongs to.** Most belong to your app and say nothing. A check recorded on a second site with its own preview, such as a landing page, carries that site's name, and the replay before publishing opens it on that site's preview. Before, it opened every check on the app's preview, found nothing of the second site there, and called the check broken.
+- **No preview of that site, no replay.** A change that leaves the second site alone gets no preview of it. Its checks are then listed as not run, with the reason that no address was posted for that site. They are never called broken, take no time from the two-minute limit, and never count as a pass.
+- **The second site never gets your app's login key.** The replay sends the key only to the app's preview, and opens a second site as any visitor would.
+- **Recording a check on a second site keeps its name.** The assistant passes `--site <name>` when it saves the check, where the name is the commit status that carries the site's preview address. `replay` also takes `--site-url <name>=<address>` to be given an address directly.
+
+**Updating.** Nothing to do. Checks you already keep replay as before.
+
 ## 40.7.0 — The first message builds your first app
 
 - **The *Make it yours* message asks for your first app.** Paste it into your chat and the assistant asks about your work and where your time goes, one question at a time, starting from what it already knows about you. It then suggests a few apps you would use, builds the one you pick, removes the welcome box, explains each step, and shows a preview before publishing.

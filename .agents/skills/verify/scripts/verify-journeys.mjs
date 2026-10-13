@@ -14,11 +14,17 @@
 // `skipped`: the change rewrites that promise, so its own walk covers it. `not-run`: named with its
 // reason, never a pass and never a failure.
 //
+// A check recorded on a second site, such as a landing page with its own preview, names it in `site`:
+// the commit status that carries that site's preview address. The replay reads the address from the
+// head commit through `gh`, or takes it from --site-url, and opens the check there with no Access
+// credentials. No address means `not-run`, never `changed`: the main preview is a different site.
+//
 // A candidate is proven by `replay --from <run-dir>/keep`: alone, on staging rebuilt from the seed.
 // `keep --install` copies in only the candidates that proof called `same`.
 //
 // The runner stays the only thing that talks to the browser, so Access headers, the throwaway profile,
-// and the login-wall exit apply to a replay unchanged. Needs git, bash, and Node; nothing is installed.
+// and the login-wall exit apply to a replay unchanged. Needs git, bash, and Node, and `gh` only to
+// look a second site's address up; nothing is installed.
 import { execFileSync, spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { closeSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
@@ -29,8 +35,8 @@ import { findCredential, secretValues } from '../../memory/scripts/lib/scan.mjs'
 import { loadEnv, repoContext } from '../../memory/scripts/lib/store.mjs';
 
 const USAGE = `usage: verify-journeys.mjs check [--root <repo>]
-       verify-journeys.mjs replay --run-dir <dir> --url <preview> [--change-root <path>] [--from <dir>] [--only <ids>] [--budget <seconds>] [--root <repo>]
-       verify-journeys.mjs keep --run-dir <dir> --url <preview> --id <journey> --expect <json> [--writes] [--root <repo>]
+       verify-journeys.mjs replay --run-dir <dir> --url <preview> [--site-url <name>=<url>]... [--change-root <path>] [--from <dir>] [--only <ids>] [--budget <seconds>] [--root <repo>]
+       verify-journeys.mjs keep --run-dir <dir> --url <preview> --id <journey> --expect <json> [--site <name>] [--writes] [--root <repo>]
        verify-journeys.mjs keep --install --run-dir <dir> [--root <repo>]`;
 
 const FORMAT = 'verify-journey-1';
@@ -39,8 +45,11 @@ const RUNNER = join(dirname(fileURLToPath(import.meta.url)), 'verify-runner.sh')
 const BUDGET_SECONDS = 120;
 const CHECK_SECONDS = 30;
 const EXPECT_WAIT_MS = 5000;
+const LOOKUP_MS = 15000;
 const NAME = /^[a-z0-9][a-z0-9-]*$/;
-const WALK_KEYS = ['CLOUDFLARE_API_TOKEN', 'CLOUDFLARE_ACCOUNT_ID', 'CF_ACCESS_CLIENT_ID', 'CF_ACCESS_CLIENT_SECRET'];
+const SITE = /^[\w.-]{1,64}$/;
+const ACCESS_KEYS = ['CF_ACCESS_CLIENT_ID', 'CF_ACCESS_CLIENT_SECRET'];
+const WALK_KEYS = ['CLOUDFLARE_API_TOKEN', 'CLOUDFLARE_ACCOUNT_ID', ...ACCESS_KEYS];
 
 class Refusal extends Error {}
 const refuse = reason => { throw new Refusal(reason); };
@@ -107,7 +116,7 @@ function ownRequirements(changeRoot) {
 
 // ── The file format ───────────────────────────────────────────────────────────
 
-const FIELDS = ['format', 'id', 'scenario', 'thenDigest', 'probe', 'writes', 'sourcePaths', 'recordedAt', 'steps', 'expect'];
+const FIELDS = ['format', 'id', 'scenario', 'thenDigest', 'probe', 'site', 'writes', 'sourcePaths', 'recordedAt', 'steps', 'expect'];
 const within = (value, keys) => object(value) && Object.keys(value).every(key => keys.includes(key));
 const oneOf = (row, keys) => within(row, keys) && Object.keys(row).length === 1 && text(Object.values(row)[0]);
 
@@ -133,6 +142,7 @@ const RULES = [
     && text(scenario.requirement) && text(scenario.scenario), 'its scenario reference is malformed'],
   [journey => /^[a-f0-9]{64}$/.test(journey.thenDigest), 'its thenDigest is malformed'],
   [journey => Object.hasOwn(PROBES, journey.probe), 'its probe is neither browser nor request'],
+  [journey => journey.site === undefined || (text(journey.site) && SITE.test(journey.site)), 'its site is not a short name of letters, digits, and - _ .'],
   [journey => ['undefined', 'boolean'].includes(typeof journey.writes), 'its writes is neither true nor false'],
   [journey => strings(journey.sourcePaths) && /^[a-f0-9]{7,40}$/.test(journey.recordedAt), 'its sourcePaths or recordedAt is malformed'],
   [({ probe, steps }) => Array.isArray(steps) && steps.length > 0 && steps.every(PROBES[probe].step),
@@ -226,6 +236,35 @@ function walkEnv(root) {
   return env;
 }
 
+// Every commit status on the head commit, newest first as GitHub lists them; or, as a string, why they
+// could not be read.
+function headStatuses(root, head) {
+  try {
+    const listed = JSON.parse(execFileSync('gh', ['api', `repos/{owner}/{repo}/commits/${head}/statuses?per_page=100`],
+      { cwd: root, encoding: 'utf8', timeout: LOOKUP_MS, stdio: ['ignore', 'pipe', 'pipe'] }));
+    return Array.isArray(listed) ? listed : 'gh returned no list of statuses';
+  } catch (error) {
+    if (error.code === 'ENOENT') return 'gh is not installed';
+    if (error.code === 'ETIMEDOUT') return 'gh did not answer in time';
+    return String(error.stderr ?? '').trim().split('\n')[0].slice(0, 120) || 'gh gave no answer to read';
+  }
+}
+
+// Where a named site's preview is for the head commit, as { url } or { reason }. An address given with
+// --site-url wins; otherwise it is the newest successful commit status of that name, read once for
+// every site. Anyone who can push can write a status, so only an https address is taken from one.
+function sitePreviews(root, head, given) {
+  let statuses;
+  return site => {
+    if (given.has(site)) return { url: given.get(site) };
+    statuses ??= headStatuses(root, head);
+    if (typeof statuses === 'string') return { reason: `the ${site} address could not be read (${statuses})` };
+    const address = statuses.find(status => status?.context === site && status.state === 'success')?.target_url;
+    return text(address) && address.startsWith('https://') && URL.canParse(address)
+      ? { url: address.replace(/\/+$/, '') } : { reason: `no ${site} address was posted for this change` };
+  };
+}
+
 // Run a command to its end or to its limit. Past the limit, it and everything it started are asked to
 // stop, so the runner removes its browser profile, and are killed two seconds later if they have not.
 // Output goes to a file, not a pipe, so a browser left running can not hold this open.
@@ -300,7 +339,8 @@ function readRequests(journey, evidence, stem) {
   return SAME;
 }
 
-// One check through the runner. `stop` on a result means no later check can run either.
+// One check through the runner. `stop` on a result means no later check can run either: none at all
+// past the limit, and none of the same site behind its login wall.
 async function runCheck({ journey, stem, runnerDir, url, env, deadline, checkSeconds, budgetSeconds }) {
   const browser = journey.probe === 'browser' ? browserBatch(journey, url) : null;
   const input = join(runnerDir, 'journeys', `${stem}.${browser ? 'batch.json' : 'requests.txt'}`);
@@ -314,20 +354,23 @@ async function runCheck({ journey, stem, runnerDir, url, env, deadline, checkSec
     // The stopped journey's browser session outlives it; close it so no browser is left running.
     if (browser) await run('agent-browser', ['--session', `verify-${basename(runnerDir)}-${stem}`, 'close'], { env, limitMs: 5000, log });
     return capped ? changed(`it took longer than ${checkSeconds} seconds`)
-      : { result: 'not-run', reason: `the ${budgetSeconds}-second limit was reached`, stop: true };
+      : { result: 'not-run', reason: `the ${budgetSeconds}-second limit was reached`, stop: 'all' };
   }
-  if (ran.status === 3) return { result: 'not-run', reason: 'the preview answered with a login wall', stop: true };
+  if (ran.status === 3) return { result: 'not-run', reason: 'the preview answered with a login wall', stop: 'site' };
   if (ran.status !== 0) return { result: 'not-run', reason: `the driver could not run it (${lastLine(log)})` };
   const evidence = join(runnerDir, 'evidence');
   return browser ? readBrowser(journey, browser, evidence, stem) : readRequests(journey, evidence, stem);
 }
 
 // Why a check is settled before anything runs, or null when it should run.
-function settledEarly(entry, { own, facts }) {
+function settledEarly(entry, { own, facts, preview }) {
   if (entry.state === 'unreadable') return ['not-run', `unreadable: ${entry.reason}`];
   const { scenario } = entry.journey;
   if (own.has(JSON.stringify([scenario.capability, scenario.requirement]))) return ['skipped', 'this change rewrites its promise, so the change\'s own check covers it'];
   if (entry.gone) return ['not-run', entry.reason];
+  // Before `stale`: with no preview of its own site, a check is never called changed.
+  const missing = entry.journey.site && preview(entry.journey.site).reason;
+  if (missing) return ['not-run', missing];
   if (entry.state === 'stale') return ['changed', entry.reason];
   if (facts.SEEDED !== 'yes') return ['not-run', `staging was not rebuilt from the sample data (${facts.SEEDED?.replace(/^no ?/, '') || 'this check made no rebuild'})`];
   if (writes(entry.journey) && facts.PLAYGROUND !== 'yes') return ['not-run', 'it writes, and staging is not a safe place to write'];
@@ -337,15 +380,18 @@ function settledEarly(entry, { own, facts }) {
 /**
  * Replay the kept checks under `from` (default: the project's) against `url`, and write replay.json
  * beside them when `from` is given, else into the run folder. With `from`, every check is a proof:
- * it starts from a rebuilt staging, read-only or not.
+ * it starts from a rebuilt staging, read-only or not. A check that names a `site` runs against that
+ * site's preview: its address in `siteUrls` (a Map), else the head commit's status of that name.
  */
-export async function replay({ root, runDir, url, changeRoot, from, ids, budgetSeconds = BUDGET_SECONDS, checkSeconds = CHECK_SECONDS }) {
+export async function replay({ root, runDir, url, siteUrls = new Map(), changeRoot, from, ids, budgetSeconds = BUDGET_SECONDS, checkSeconds = CHECK_SECONDS }) {
   const started = Date.now();
-  const deadline = started + budgetSeconds * 1000;
-  const context = { own: changeRoot ? ownRequirements(changeRoot) : new Set(), facts: stagingFacts(runDir) };
   const branch = branchChanges(root);
+  const preview = sitePreviews(root, branch.head, siteUrls);
+  const context = { own: changeRoot ? ownRequirements(changeRoot) : new Set(), facts: stagingFacts(runDir), preview };
   const results = [];
-  const settle = (entry, result, reason, more = {}) => results.push({ key: entry.key, sha256: entry.sha256, result, ...(reason ? { reason } : {}), ...more });
+  const settle = (entry, result, reason, more = {}) => results.push({
+    key: entry.key, sha256: entry.sha256, ...(entry.journey?.site ? { site: entry.journey.site } : {}), result, ...(reason ? { reason } : {}), ...more,
+  });
   const runnable = [];
   for (const entry of classify(root, from)) {
     if (ids && !ids.includes(entry.key) && !ids.includes(basename(entry.key))) continue;
@@ -354,14 +400,21 @@ export async function replay({ root, runDir, url, changeRoot, from, ids, budgetS
     else runnable.push(entry);
   }
 
+  // The limit starts here, so reading a second site's address spends none of it.
+  const deadline = Date.now() + budgetSeconds * 1000;
   const runnerDir = mkdtempSync(join(runDir, 'replay-'));
   mkdirSync(join(runnerDir, 'journeys'));
   const env = { ...walkEnv(root), VERIFY_URL: url.replace(/\/+$/, '') };
+  // A second site is opened as any visitor opens it: at its own address, with no Access credentials.
+  const visitor = Object.fromEntries(Object.entries(env).filter(([key]) => !ACCESS_KEYS.includes(key)));
   let stop = null;
+  const walled = new Map(); // site → the login wall that stopped its checks; the main preview is `undefined`
   let dirty = false; // a kept check wrote since the last rebuild
   for (const [index, entry] of replayOrder(runnable, branch).entries()) {
+    const { site } = entry.journey;
     if (!stop && Date.now() >= deadline) stop = `the ${budgetSeconds}-second limit was reached`;
-    if (stop) { settle(entry, 'not-run', stop); continue; }
+    const halted = stop ?? walled.get(site);
+    if (halted) { settle(entry, 'not-run', halted); continue; }
     const stem = String(index + 1).padStart(2, '0');
     const before = Date.now();
     if (from || dirty || writes(entry.journey)) {
@@ -373,10 +426,12 @@ export async function replay({ root, runDir, url, changeRoot, from, ids, budgetS
         continue;
       }
     }
-    const outcome = await runCheck({ journey: entry.journey, stem, runnerDir, url: env.VERIFY_URL, env, deadline, checkSeconds, budgetSeconds });
+    const target = site ? { ...visitor, VERIFY_URL: preview(site).url } : env;
+    const outcome = await runCheck({ journey: entry.journey, stem, runnerDir, url: target.VERIFY_URL, env: target, deadline, checkSeconds, budgetSeconds });
     dirty = writes(entry.journey);
-    if (outcome.stop) stop = outcome.reason;
-    settle(entry, outcome.result, outcome.reason, { evidence: join(basename(runnerDir), 'evidence', stem), seconds: Math.round((Date.now() - before) / 100) / 10 });
+    if (outcome.stop === 'site') walled.set(site, outcome.reason);
+    else if (outcome.stop) stop = outcome.reason;
+    settle(entry, outcome.result, outcome.reason, { ...(site ? { url: target.VERIFY_URL } : {}), evidence: join(basename(runnerDir), 'evidence', stem), seconds: Math.round((Date.now() - before) / 100) / 10 });
   }
 
   const count = word => results.filter(entry => entry.result === word).length;
@@ -435,8 +490,11 @@ const NEVER_KEPT = [
   [({ expect }) => !Array.isArray(expect) || !expect.length, 'it has no expectation the passing evidence showed'],
 ];
 
-/** Build a candidate from the walked journey `id` and write it under <run-dir>/keep/. Throws a Refusal naming why not. */
-export function keep({ root, runDir, url, id, expect, writing = false }) {
+/**
+ * Build a candidate from the walked journey `id` and write it under <run-dir>/keep/. Throws a Refusal
+ * naming why not. With `site`, `url` is that site's address and the candidate names the site.
+ */
+export function keep({ root, runDir, url, id, expect, site, writing = false }) {
   const journeys = join(runDir, 'journeys');
   const { probe, steps } = keptSteps(journeys, id, url.replace(/\/+$/, ''));
   // Each value also as JSON writes it, the way the walk's scrub matches them.
@@ -452,6 +510,7 @@ export function keep({ root, runDir, url, id, expect, writing = false }) {
     scenario,
     thenDigest: promiseDigest(root, scenario),
     probe,
+    ...(site ? { site } : {}),
     writes: writing || steps.some(step => probe === 'request' && !['GET', 'HEAD'].includes(step[0])),
     sourcePaths: branch.changed.filter(path => !SHARED.test(path)),
     recordedAt: branch.head,
@@ -500,6 +559,7 @@ async function main() {
     allowPositionals: true,
     options: {
       root: { type: 'string' }, 'run-dir': { type: 'string' }, url: { type: 'string' }, 'change-root': { type: 'string' }, from: { type: 'string' },
+      'site-url': { type: 'string', multiple: true }, site: { type: 'string' },
       only: { type: 'string' }, budget: { type: 'string' }, id: { type: 'string' }, expect: { type: 'string' }, writes: { type: 'boolean' }, install: { type: 'boolean' },
     },
   });
@@ -521,7 +581,7 @@ async function main() {
     const budgetSeconds = Number(values.budget ?? BUDGET_SECONDS);
     if (!(budgetSeconds > 0)) usageError(USAGE, '--budget is a number of seconds');
     const { results, summary } = await replay({
-      root, runDir, url: values.url, budgetSeconds, ids: values.only?.split(',').filter(Boolean),
+      root, runDir, url: values.url, siteUrls: readSiteUrls(values['site-url']), budgetSeconds, ids: values.only?.split(',').filter(Boolean),
       changeRoot: values['change-root'] && resolve(values['change-root']), from: values.from && resolve(values.from),
     });
     for (const entry of results) console.log(line(entry));
@@ -535,13 +595,22 @@ async function main() {
   } else {
     need('run-dir', 'url', 'id', 'expect');
     try {
-      console.log(`KEEP=candidate ${keep({ root, runDir, url: values.url, id: values.id, expect: readExpect(values.expect), writing: values.writes })}`);
+      console.log(`KEEP=candidate ${keep({ root, runDir, url: values.url, id: values.id, expect: readExpect(values.expect), site: values.site, writing: values.writes })}`);
     } catch (error) {
       if (!(error instanceof Refusal)) throw error;
       console.log(`KEEP=refused ${values.id} — ${error.message}`);
       process.exitCode = 1;
     }
   }
+}
+
+// Each --site-url as a named site's address, without its closing slash.
+function readSiteUrls(pairs = []) {
+  return new Map(pairs.map(pair => {
+    const [, site, address] = /^([^=]+)=(.+)$/.exec(pair) ?? [];
+    if (!SITE.test(site ?? '') || !/^https?:\/\//.test(address) || !URL.canParse(address)) usageError(USAGE, '--site-url is <name>=<address>, such as landing-preview=https://…');
+    return [site, address.replace(/\/+$/, '')];
+  }));
 }
 
 function readExpect(source) {

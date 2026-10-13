@@ -43,7 +43,7 @@ A change that breaks one updates the page's sentence and its *Last updated* date
 [The Landing page workflow](../../.github/workflows/site.yml) owns all three, apart from the starter app's:
 
 1. **Check.** A change that touches `site/` or the workflow runs the site's lint, type check, tests, and build. A change that leaves both alone skips them, and the check still reports, in one line.
-2. **Preview.** On a branch, the workflow publishes the staging site and posts the change's own address on the commit as the `landing-preview` status. It shows as a *Details* link beside the change's checks. Read it with `gh api repos/<repo>/commits/<sha>/statuses`. The main preview link stays the starter app's.
+2. **Preview.** On a branch, the workflow publishes the staging site and posts the change's own address on the commit as the `landing-preview` status. It shows as a *Details* link beside the change's checks. Read it with `gh api repos/<repo>/commits/<sha>/statuses`. The main preview link stays the starter app's. [Kept checks](../development/kept-checks.md#what-is-kept) of the landing page name `landing-preview` as their `site`, so they replay at this address, and read *not run* on a change that gets none.
 3. **Publish.** A merge to the default branch puts the site live at [wongstack.com](#wongstackcom-is-the-sites-address). It keeps its own `workers.dev` address too.
 
 A change under `site/` also runs the starter app's checks and staging deploy, as any code folder does: [the gate](../development/the-change-loop.md#the-gate) treats every path outside the docs as the main app.
