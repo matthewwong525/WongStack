@@ -40,7 +40,6 @@ VALUES (1, '11111111-1111-4111-8111-111111111111', 'https://access-fixture.examp
   'fixture-audience', 'fixture-owner', 'owner@example.invalid', 1, '', 1, 1, '2026-10-04T00:00:00Z');
 INSERT INTO wong_access_apps VALUES
   ('11111111-1111-4111-8111-111111111111', 'hello'),
-  ('11111111-1111-4111-8111-111111111111', 'tips'),
   ('11111111-1111-4111-8111-111111111111', 'access');
 -- Ada and Bo hold the Helpers role. Dana and Eli have their own sets, Casey was removed, and Fay is an Admin.
 INSERT INTO wong_access_members VALUES
@@ -67,13 +66,11 @@ INSERT INTO wong_access_member_roles VALUES
   ('11111111-1111-4111-8111-111111111111', 'ada@example.invalid', '22222222-2222-4222-8222-222222222222'),
   ('11111111-1111-4111-8111-111111111111', 'bo@example.invalid', '22222222-2222-4222-8222-222222222222'),
   ('11111111-1111-4111-8111-111111111111', 'fay@example.invalid', 'admin');
--- Dana's own set holds every app, with Cloudflare at Read and Project code. Eli could only look at two
--- apps, so holds neither, and has no key level: None.
+-- Dana's own set holds Hello, with Cloudflare at Read and Project code. Eli could only look at
+-- Hello, so holds no app, and has no key level: None.
 INSERT INTO wong_access_grants VALUES
   ('11111111-1111-4111-8111-111111111111', 'dana@example.invalid', 'hello', 1, 'write'),
-  ('11111111-1111-4111-8111-111111111111', 'dana@example.invalid', 'tips', 1, 'write'),
-  ('11111111-1111-4111-8111-111111111111', 'eli@example.invalid', 'hello', 1, 'read'),
-  ('11111111-1111-4111-8111-111111111111', 'eli@example.invalid', 'tips', 1, 'read');
+  ('11111111-1111-4111-8111-111111111111', 'eli@example.invalid', 'hello', 1, 'read');
 INSERT INTO wong_access_key_grants VALUES
   ('11111111-1111-4111-8111-111111111111', 'dana@example.invalid', 'cloudflare', 'read', 1),
   ('11111111-1111-4111-8111-111111111111', 'dana@example.invalid', 'code', 'read', 1);

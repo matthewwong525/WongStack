@@ -129,21 +129,6 @@ The welcome SHALL confirm when its first request is copied. If the browser canno
 - **WHEN** clipboard access is missing or the browser rejects the copy
 - **THEN** the full request remains selectable and the person receives a copy-by-hand instruction
 
-### Requirement: The existing calculator matches the starter
-
-The repository's existing tip calculator SHALL use the same editable brand header and neutral light/dark appearance as the starter and Hello, with the brand linking home. It SHALL retain immediate recalculation, accessible input labels and selected tip state, announced results, and existing empty/invalid-input guidance. Its controls and results SHALL fit narrow phone screens. This requirement SHALL NOT add the calculator to the distributed starter payload.
-
-#### Scenario: Calculate a share
-
-- **WHEN** a person changes the bill, selected tip, or number of people
-- **THEN** the share updates immediately in the styled result area and the selected tip remains clear
-- **AND** tapping the brand returns home
-
-#### Scenario: Empty or invalid input
-
-- **WHEN** the bill is empty or an input is invalid
-- **THEN** the existing guidance appears and all fields remain editable without horizontal scrolling
-
 ### Requirement: A mini app reaches everything but memory
 
 A mini app's server side SHALL receive the main app's business bindings, the saved business-service keys its app lists and no others, and the verified identity of the caller: a person's email or a service token's name. It SHALL receive no memory-store bindings or Access login-management credential. Identity-checked finite core operations SHALL provide required administration without exposing those secrets. The Worker SHALL keep other runtime routes to bindings, such as importing them, turned off. The docs SHALL say mini apps share the Worker with core authorization and memory, so binding exclusions stop mistakes rather than malicious deployed code. A preview SHALL use staging data and keys, never production management credentials or provider mutations.

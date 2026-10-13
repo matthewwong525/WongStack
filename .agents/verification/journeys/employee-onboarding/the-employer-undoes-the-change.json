@@ -106,10 +106,10 @@
   ],
   "expect": [
     {
-      "text": "2 apps, 2 keys"
+      "text": "Can install the project"
     },
     {
-      "gone": "now has Helpers"
+      "gone": "From the Helpers role:"
     },
     {
       "path": "/apps/access/people/dana%40example.invalid"
