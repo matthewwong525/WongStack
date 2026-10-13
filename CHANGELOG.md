@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## 40.9.1 — Setup shows the sign-in link at once
+## 41.0.1 — Setup shows the sign-in link at once
 
 - **The assistant shows the sign-in link the moment setup prints it, then waits.** A person connecting their assistant had to ask for the link: the setup message said to keep login output out of the chat, so the assistant held the link back. Both setup messages now ask for the link, and the setup tool says beside it that it is safe to show.
 - **Nothing else from the sign-in is shown.** Only this business's own sign-in address is passed on, as before.
