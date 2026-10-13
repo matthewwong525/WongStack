@@ -296,6 +296,20 @@ Where a person's own set or a role is opened, Access SHALL show the apps as choi
 - **WHEN** the employer gives an app and closes the panel without saving
 - **THEN** Access asks before leaving, and the person's access is unchanged
 
+### Requirement: Setup shows the sign-in link at once
+
+When assistant setup needs the person to sign in, the copied setup prompt and the setup tool's own output SHALL both tell the assistant to show the person the sign-in link as soon as it is printed and to wait for them. Only a link checked to be this business's own sign-in address SHALL be passed on, and the tool SHALL say beside it that it is safe to show. No credential and no other sign-in output SHALL be shown.
+
+#### Scenario: The assistant runs setup where it can open no browser
+
+- **WHEN** an assistant runs the setup step and the tool prints the sign-in link
+- **THEN** the person sees the link in the chat without asking for it, and the assistant waits while they sign in
+
+#### Scenario: The sign-in prints something that is not this business's sign-in address
+
+- **WHEN** the sign-in output carries another address or a credential
+- **THEN** it is not passed on and nothing tells the assistant to show it
+
 ### Requirement: A built-in Admin role holds everything and manages Access
 
 Every installation SHALL have one built-in role named Admin, listed first among the roles, that nobody can rename, change or remove. A current person who holds Admin SHALL hold every built app and every saved key at the highest level the key offers, apps and keys added later included, once key levels have started, and SHALL be able to do in Access what the employer can: add, change and remove people, create, change, give and remove other roles, and set app grants and key levels. Wherever these requirements name a manager, they SHALL mean a current person who holds Admin. Only the employer SHALL give Admin, take it away, or remove a person who holds it; such a request from anyone else, about themselves included, SHALL be denied and change nothing. Giving Admin SHALL ask the employer first and say that it is full trust. An Admin SHALL NOT be the employer: no screen SHALL change who the employer is. Admin's authority SHALL be read on every request: once the employer takes it away or removes the person, that person's next management request SHALL be refused, and a removed person added again SHALL NOT hold Admin. No one SHALL be given Admin without the employer choosing it, and on the live app the verification service token SHALL never hold it.
