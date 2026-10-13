@@ -10,7 +10,7 @@ Work through it in order:
 
    Write its rules so they last:
 
-   - **Cut a rule before you cut words.** A page shortened with every rule kept reads as a tight list of *never*s, and it grows back. Ask of each rule whether it is needed: drop one a script enforces, one another page states, and one with no known cause.
+   - **Cut a rule before you cut words.** A page shortened with every rule kept reads as a tight list of *never*s, and it grows back. Ask of each rule whether it is needed: drop one a script enforces, one another page states, and one with no known cause. A cause is a mistake on record, a person's request, or something that can't be undone; the release that added the rule is not one.
    - **Give a rule its reason**, in a clause: *let the helper build unwatched: it exists so the build does not fill this chat*. A goal with its reason covers the case a bare *never* misses. The long why goes in the wiki.
    - **Let a script own what it already decides.** The skill keeps the command and how to read its result; a second copy of the script's logic goes stale.
 
