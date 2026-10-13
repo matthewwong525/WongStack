@@ -4,7 +4,6 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync, rmSync, statSync, 
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
 import { companyClient, cleanEnvironment, connectionState, signInNotice } from '../employee-bootstrap.mjs';
 const origin = 'https://business.example.com';
 const identity = { email: 'employee@example.com', subject: 'employee-subject' };
@@ -24,7 +23,7 @@ test('standalone copied file runs without checkout, memory packages or any repos
   // It downloads the project from the app's own address alone: no provider API, no repository credential route.
   assert.doesNotMatch(source.toString(), /api\.github\.com|github\.com\/|projectClient|\/api\/access\/(?:token|identity|activate|prepare|rollout|login)|ownerSetup|GH_TOKEN|credential-store/);
   const denied = spawnSync(process.execPath, [file, 'git', 'clone', 'existing-work'], { cwd: f.root, encoding: 'utf8' });
-  assert.equal(denied.status, 1); assert.match(denied.stderr, /employee-bootstrap\.mjs install .*\| login/);
+  assert.equal(denied.status, 1); assert.match(denied.stderr, /employee-bootstrap\.mjs \[install\] .*\| login/);
 });
 test('empty-folder connection proves current API permission with zero apps and private noncredential state', async t => {
   const f = directories(t), requests = [];
@@ -134,17 +133,4 @@ test('the sign-in line tells the assistant to show the link now, and leaves the 
   const lines = signInNotice(link).split('\n');
   assert.equal(lines.length, 2); assert.equal(lines[1], link);
   assert.match(lines[0], /^Show this link to the person now and wait/); assert.match(lines[0], /safe to show/);
-});
-test('published immutable bootstrap pins carry the digest of the checked source', () => {
-  const root = new URL('../..', import.meta.url);
-  const pin = JSON.parse(readFileSync(new URL('app/worker/employee-access/bootstrap-release.json', root), 'utf8'));
-  assert.equal(pin.version, 1);
-  if (!pin.commit && !pin.sha256) return; // missing pins deliberately leave setup unavailable
-  assert.match(pin.commit, /^[a-f0-9]{40}$/); assert.match(pin.sha256, /^[a-f0-9]{64}$/);
-  const checked = readFileSync(new URL('../employee-bootstrap.mjs', import.meta.url));
-  assert.equal(createHash('sha256').update(checked).digest('hex'), pin.sha256);
-  // Publishing squashes the branch, so the pinned commit is not in main's history and ancestry
-  // can not be required. Where this checkout holds the commit, its bytes are the checked source.
-  const pinned = spawnSync('git', ['show', `${pin.commit}:scripts/employee-bootstrap.mjs`], { cwd: root });
-  if (pinned.status === 0) assert.deepEqual(pinned.stdout, checked);
 });

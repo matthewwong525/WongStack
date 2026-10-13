@@ -1,23 +1,7 @@
-// Only reviewed immutable public Source bytes belong in a copied setup prompt.
-import release from './bootstrap-release.json' with { type: 'json' };
-// `project` picks the short text for a person who gets the project: the installer signs in, downloads and
-// reports, and enforces the rules the apps-only text spells out. The apps-only text never changes.
-export function setupPrompt(origin: string, artifact = release, project = false) {
-  const target = new URL(origin);
-  if (target.protocol !== 'https:' || target.origin !== origin ||
-    artifact.version !== 1 || !/^[a-f0-9]{40}$/.test(artifact.commit) || !/^[a-f0-9]{64}$/.test(artifact.sha256)) {
-    return { state: 'unavailable' as const, message: 'Ask your employer to finish the reviewed assistant setup.' };
-  }
-  const url = `https://raw.githubusercontent.com/matthewwong525/WongStack/${artifact.commit}/scripts/employee-bootstrap.mjs`;
-  if (project) return { state: 'ready' as const, text: `Install my company's project from ${origin} and connect my assistant to it, using my own business app login.
-Download the reviewed installer ${url} without credentials and refuse redirects. Run it only if its SHA-256 is ${artifact.sha256}.
-Save it as bootstrap.mjs in a private directory outside every project folder, then run: node <private-directory>/bootstrap.mjs install --origin ${origin}
-If it names Node, cloudflared or Git as missing, install that from its official distribution and run the same step again.
-Show me the sign-in link the moment it prints, then wait while I sign in. Never print credentials or any other login output.
-Run the same step again later to update. Tell me what it reports as working, and what it does not.` };
-  return { state: 'ready' as const, text: `Connect my assistant to the company API at ${origin} using my own business app login.
-Use the reviewed standalone Node bootstrap at ${url} (SHA-256 ${artifact.sha256}).
-Download without credentials and refuse redirects. Verify the complete SHA-256 digest before execution. Save it as bootstrap.mjs in an OS-user-private directory outside every checkout (directory 0700, file 0600); preserve all existing files and memory settings.
-Run node <private-directory>/bootstrap.mjs login --state <private-directory> --origin ${origin}, then status with the same --state. Install Node/cloudflared from their official distributions if needed. Show me its validated login link the moment it prints, then wait while I approve this same business login. Never print credentials, any other login output or place tokens in arguments, URLs or tracked files.
-Confirm authenticated API status and my currently allowed apps. Discover only actions needed for my work using list, describe and call with the same --state. Use my existing separate memory access only if already installed. Repository access and authentication are manual through its provider; app login grants none. Report unavailable access honestly and never substitute employer, deployment, verification or memory credentials.` };
-}
+// The one setup message, the same for everyone who may connect. It names the app's own setup file and holds no
+// key; setup decides what a person receives from their access when it runs. wiki/stack/employee-project.md
+export const SETUP_PATH = "/_memory/setup.mjs";
+export const setupMessage = (origin: string) => `Set up my company's project for me in this folder.
+Download ${origin}${SETUP_PATH} and run it with node.
+Print the sign-in link it shows into the chat and wait while I sign in.
+Then tell me what works and what is left.`;

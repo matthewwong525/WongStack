@@ -25,8 +25,8 @@ function Steps({ text, email, apps, titles, code }: { text: string; email: strin
 
 // The body of the Connect your assistant popup, for every signed-in person: the one place the steps are. Its
 // heading names the popup, and the line under it says what an assistant is. The message holds no keys. When the
-// steps can't be read it says so and offers to try again; when there is nothing to copy, because setup is not ready on this app or the
-// person lacks Project code, it says what the app answered, such as who to ask. One column that can shrink keeps the long message inside the popup.
+// steps can't be read it says so and offers to try again; when there is nothing to copy, because the person lacks
+// Project code, it says what the app answered: who to ask. One column that can shrink keeps the message inside the popup.
 export function AssistantSetup() {
   const { data, error, reload } = useAccess('setup', setupSchema)
   return <section aria-label="Connect your assistant"><div className="grid grid-cols-[minmax(0,1fr)] gap-4 wrap-anywhere">

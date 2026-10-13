@@ -11,6 +11,7 @@ import { keyUse } from "./key-use";
 import { currentPolicy } from "./policy";
 import { handleAccess } from "./router";
 import { changedSet } from "./sets";
+import { setupMessage } from "./prompt";
 import { setupStatus } from "./setup";
 import { body } from "../../tests/body";
 import { fakeArtifacts, fakeEnv } from "../../tests/env";
@@ -213,12 +214,13 @@ it("tells setup and the home page who may connect: ready, lacked, or off for eve
   const lacker = { ...employee, id: "lacker@example.com", claims: { ...employee.claims, email: "lacker@example.com", sub: "lacker" } };
   f.sql.prepare("INSERT INTO wong_access_members VALUES (?, ?, 'active', 0, 1, 'now')").run(site.installationId, lacker.id);
   const today = await setup(employee, f.env);
-  // Off: today's apps-only text, for every signed-in person, the one who lacks Project code included.
-  expect([today.code, (await setup(lacker, f.env)).prompt, await apps(lacker, f.env)]).toEqual(["off", today.prompt, "off"]);
+  // Off: the one message, for every signed-in person, the one who lacks Project code included.
+  expect([today.code, (await setup(lacker, f.env)).prompt, await apps(lacker, f.env)]).toEqual(["off", { state: "ready", text: setupMessage(site.origin) }, "off"]);
   for (const identity of [owner, employee]) {
     const ready = await setup(identity);
     expect([ready.code, await apps(identity)], identity.id).toEqual(["ready", "ready"]);
-    if (today.prompt.state === "ready") expect([ready.prompt.text.includes("bootstrap.mjs install --origin"), ready.prompt.text === today.prompt.text]).toEqual([true, false]);
+    // Ready and off get the same message: setup decides what each person receives.
+    expect(ready.prompt).toEqual(today.prompt);
   }
   // Lacked: no prompt at all, and the words that send them to their admin.
   expect([(await setup(lacker)).code, (await setup(lacker)).prompt, await apps(lacker)])

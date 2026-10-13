@@ -23,7 +23,6 @@
     "app/src/pages/home/Home.tsx",
     "app/worker/api/contract.ts",
     "app/worker/employee-access/apps.ts",
-    "app/worker/employee-access/bootstrap-release.json",
     "app/worker/employee-access/code.ts",
     "app/worker/employee-access/core.ts",
     "app/worker/employee-access/key-catalogue.ts",

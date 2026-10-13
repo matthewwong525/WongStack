@@ -72,9 +72,9 @@ it('gives three numbered steps with one solid Copy button, who signs in, what to
 })
 
 it('says what the app answered when there is nothing to copy, with no steps', async () => {
-  own.prompt = { state: 'unavailable', message: 'Ask your employer to finish the reviewed assistant setup.' }
+  Object.assign(own, { code: 'lacked', prompt: { state: 'unavailable', message: 'Ask your admin for access to Connect your assistant.' } })
   const popup = within(open())
-  expect(await popup.findByText('Ask your employer to finish the reviewed assistant setup.')).toBeTruthy()
+  expect(await popup.findByText('Ask your admin for access to Connect your assistant.')).toBeTruthy()
   expect([popup.queryByRole('list'), popup.queryByRole('button', { name: 'Copy' }), popup.queryByRole('textbox'), popup.queryByRole('alert')]).toEqual([null, null, null, null])
   expect(popup.queryByText(/You sign in as/)).toBeNull()
 })

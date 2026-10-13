@@ -4,10 +4,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { createServer } from 'node:http';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { cleanEnvironment, companyClient, git, projectCopy } from '../employee-bootstrap.mjs';
+import { cleanEnvironment, companyClient, git, otherCopy, ownCopy, projectCopy } from '../employee-bootstrap.mjs';
 
 const TOKEN = `eyJhbGciOiJSUzI1NiJ9.${Buffer.from(JSON.stringify({ email: 'employee@example.com', sub: 'employee-subject', exp: Date.now() / 1000 + 1000 })).toString('base64url')}.c2ln`;
 const PATH = '/api/access/code/git/';
@@ -96,6 +96,12 @@ test('clones the project into a missing or empty folder with its history, and se
   const empty = join(f.base, 'empty');
   mkdirSync(empty);
   assert.equal((await f.copy(empty)).project, 'installed');
+  // A downloaded setup file is not one of the folder's files: it goes before the copy is made, since Git refuses a folder that is not empty.
+  const fetched = join(f.base, 'fetched'), self = join(fetched, 'setup.mjs');
+  mkdirSync(fetched);
+  writeFileSync(self, 'the setup file\n');
+  assert.deepEqual(await projectCopy({ address: f.address, folder: fetched, token: TOKEN, self }), { project: 'installed', folder: fetched });
+  assert.deepEqual(snapshot(fetched).files, { 'README.md': 'first\n' });
 });
 
 test('refuses a folder that holds other work, or another project, and changes nothing there', async t => {
@@ -105,6 +111,12 @@ test('refuses a folder that holds other work, or another project, and changes no
   writeFileSync(join(busy, 'notes.txt'), 'mine\n');
   await assert.rejects(f.copy(busy), /already holds other files\. Choose an empty folder with --dir; nothing was changed\./);
   assert.deepEqual(readdirSync(busy), ['notes.txt']);
+  // A setup file beside other files changes nothing either, and is not removed here.
+  const self = join(busy, 'setup.mjs');
+  writeFileSync(self, 'the setup file\n');
+  await assert.rejects(projectCopy({ address: f.address, folder: busy, token: TOKEN, self }), /already holds other files/);
+  assert.deepEqual(readdirSync(busy), ['notes.txt', 'setup.mjs']);
+  rmSync(self);
   const other = join(f.base, 'other');
   plain(f.base, 'init', '--quiet', '-b', 'main', other);
   plain(other, 'remote', 'add', 'origin', 'https://github.com/someone/else.git');
@@ -202,23 +214,41 @@ test('install signs in, downloads the project for a person who holds Project cod
   // The download asks the app's own address, as the person who signed in.
   assert.deepEqual(f.state.copies, [{ address: `${origin}/api/access/code/git/`, folder, token: TOKEN }]);
   assert.ok(!JSON.stringify(report).includes(TOKEN));
-  assert.equal(statSync(join(f.stateDir, 'project.json')).mode & 0o777, 0o600);
-  assert.ok(!readFileSync(join(f.stateDir, 'project.json'), 'utf8').includes(TOKEN));
-  // Again, with no folder named: the same copy is brought up to date, and an update that was not applied is passed on.
+  // No folder is remembered between runs: the folder is the one it is run in.
+  assert.ok(!existsSync(join(f.stateDir, 'project.json')));
+  // Again: an update that was not applied is passed on, and a downloaded setup file is named to the download.
   f.state.result = { project: 'kept your changes; update not applied', applied: false };
-  assert.deepEqual(await f.client.install(origin, undefined, f.copy), { ...report, project: 'kept your changes; update not applied', applied: false });
-  assert.equal(f.state.copies[1].folder, folder);
+  assert.deepEqual(await f.client.install(origin, folder, f.copy, '/tmp/setup.mjs'), { ...report, project: 'kept your changes; update not applied', applied: false });
+  assert.deepEqual(f.state.copies[1], { address: `${origin}/api/access/code/git/`, folder, token: TOKEN, self: '/tmp/setup.mjs' });
   // `code` alone needs a connection first, and uses the same address.
   await f.client.code(join(f.base, 'again'), f.copy);
   assert.deepEqual(f.state.copies[2], { address: `${origin}/api/access/code/git/`, folder: join(f.base, 'again'), token: TOKEN });
   await assert.rejects(connected(t).client.code(folder, f.copy), /Connect first/);
 });
 
-test('install with no folder named picks one in the home directory, named for the app', async t => {
-  const f = connected(t), home = process.env.HOME;
-  process.env.HOME = f.base;
-  try { assert.equal((await f.client.install(origin, undefined, f.copy)).folder, join(f.base, 'business')); }
-  finally { process.env.HOME = home; }
+test('install leaves a copy of the project from elsewhere as it is, whatever the person holds', async t => {
+  const base = mkdtempSync(join(tmpdir(), 'employee-elsewhere-'));
+  t.after(() => rmSync(base, { recursive: true, force: true }));
+  const address = `${origin}/api/access/code/git/`, mine = join(base, 'mine');
+  plain(base, 'init', '--quiet', '-b', 'main', mine);
+  plain(mine, 'remote', 'add', 'origin', 'https://github.com/owner/project.git');
+  // A Git folder that is not this project is not a copy of it.
+  assert.equal(await otherCopy(mine, address), false);
+  mkdirSync(join(mine, 'scripts'));
+  writeFileSync(join(mine, 'scripts', 'employee-bootstrap.mjs'), '');
+  assert.equal(await otherCopy(mine, address), true);
+  // The copy the app itself handed out is the one setup updates.
+  plain(mine, 'remote', 'set-url', 'origin', address);
+  assert.equal(await otherCopy(mine, address), false);
+  assert.equal(await otherCopy(join(base, 'missing'), address), false);
+  // Signed in, copy left alone, and never told the project is not included.
+  for (const code of ['ready', 'lacked', 'off']) {
+    const f = connected(t, { code }), asked = [];
+    const report = await f.client.install(origin, mine, f.copy, undefined, async (...args) => { asked.push(args); return true; });
+    assert.deepEqual(report, { connected: origin, signedInAs: identity.email, apps: ['orders'], state: f.stateDir, project: 'already on this computer; left as it is', folder: mine,
+      next: `cd ${mine} && node scripts/company-api.mjs list --state ${f.stateDir}` });
+    assert.deepEqual([asked, f.state.copies], [[[mine, address]], []]);
+  }
 });
 
 test('install connects the apps and downloads nothing when the person lacks Project code, or the app hands none out', async t => {
@@ -226,18 +256,21 @@ test('install connects the apps and downloads nothing when the person lacks Proj
     const f = connected(t, { code });
     assert.deepEqual(await f.client.install(origin, join(f.base, 'project'), f.copy), { connected: origin, signedInAs: identity.email, apps: ['orders'], state: f.stateDir, project });
     assert.deepEqual(f.state.copies, []);
-    assert.ok(!existsSync(join(f.stateDir, 'project.json')));
   }
 });
 
-test('the packaged command installs in one step, updates on the next, and ends as a failure when an update is not applied', t => {
-  const base = mkdtempSync(join(tmpdir(), 'employee-command-'));
+const MARKER = "const SERVED_FROM = '';";
+/**
+ * The real file run as a command, with a stand-in sign-in, app and Git. `git.jsonl` records how Git was called;
+ * the stand-in plays a copy whose tracked file may have been edited, or one that came from elsewhere.
+ */
+function packaged(t, { code = 'ready' } = {}) {
+  const base = realpathSync(mkdtempSync(join(tmpdir(), 'employee-command-')));
   t.after(() => rmSync(base, { recursive: true, force: true }));
-  const bin = join(base, 'bin'), home = join(base, 'home'), helper = join(base, 'bootstrap.mjs'), log = join(base, 'git.jsonl');
+  const bin = join(base, 'bin'), home = join(base, 'home'), log = join(base, 'git.jsonl');
   mkdirSync(bin); mkdirSync(home);
-  writeFileSync(helper, readFileSync(new URL('../employee-bootstrap.mjs', import.meta.url)));
+  const source = readFileSync(new URL('../employee-bootstrap.mjs', import.meta.url), 'utf8');
   writeFileSync(join(bin, 'cloudflared'), `#!${process.execPath}\nconsole.log('${TOKEN}');\n`, { mode: 0o700 });
-  // A stand-in Git that records how it was called and plays a copy whose tracked file may have been edited.
   writeFileSync(join(bin, 'git'), `#!${process.execPath}
     const { appendFileSync, existsSync, mkdirSync, writeFileSync } = require('node:fs'); const { join } = require('node:path');
     const args = process.argv.slice(2), config = {};
@@ -245,17 +278,33 @@ test('the packaged command installs in one step, updates on the next, and ends a
     appendFileSync(${JSON.stringify(log)}, JSON.stringify({ args, config, prompt: process.env.GIT_TERMINAL_PROMPT, extra: Object.keys(process.env).filter(key => /TOKEN|SECRET|CLOUDFLARE/.test(key)) }) + '\\n');
     const dir = args[0] === '-C' ? args[1] : args.at(-1), verb = args[0] === '-C' ? args[2] : args[0];
     if (verb === 'clone') { mkdirSync(join(dir, '.git'), { recursive: true }); writeFileSync(join(dir, 'README.md'), 'first'); }
-    if (verb === 'config') console.log('${origin}${PATH}');
+    if (verb === 'config') console.log(existsSync(join(dir, 'elsewhere')) ? 'https://github.com/owner/project.git' : '${origin}${PATH}');
     if (verb === 'symbolic-ref') console.log(args.at(-1) === 'HEAD' ? 'main' : 'origin/main');
     if (verb === 'status' && existsSync(join(dir, 'edited'))) console.log(' M README.md');
     console.error('diagnostics ${TOKEN}');\n`, { mode: 0o700 });
   const preloader = join(base, 'transport.mjs');
-  writeFileSync(preloader, `globalThis.fetch = async () => Response.json(${JSON.stringify({ identity, role: 'employee', apps: [], api: 'authenticated', code: 'ready' })});\n`);
+  writeFileSync(preloader, `globalThis.fetch = async () => Response.json(${JSON.stringify({ identity, role: 'employee', apps: [], api: 'authenticated', code })});\n`);
   const env = { ...cleanEnvironment(), HOME: home, PATH: `${bin}:${process.env.PATH}`, CLOUDFLARE_API_TOKEN: 'owner-token', GH_TOKEN: 'provider-secret' };
-  // Run from the home folder itself, where an assistant often starts: the private files still sit outside the working folder.
-  const run = (...args) => spawnSync(process.execPath, ['--import', preloader, helper, ...args], { cwd: home, env, encoding: 'utf8' });
-  const calls = () => readFileSync(log, 'utf8').trim().split('\n').map(line => JSON.parse(line));
+  const run = (file, cwd, ...args) => spawnSync(process.execPath, ['--import', preloader, file, ...args], { cwd, env, encoding: 'utf8' });
+  const calls = () => existsSync(log) ? readFileSync(log, 'utf8').trim().split('\n').map(line => JSON.parse(line)) : [];
   const verbs = () => calls().map(({ args }) => args[0] === '-C' ? args[2] : args[0]);
+  /** The file as the app serves it, downloaded into `folder`. */
+  const served = folder => {
+    assert.equal(source.split(MARKER).length, 2, 'the one line the app fills in');
+    mkdirSync(folder, { recursive: true });
+    const file = join(folder, 'setup.mjs');
+    writeFileSync(file, source.replace(MARKER, `const SERVED_FROM = ${JSON.stringify(origin)};`));
+    return file;
+  };
+  return { base, home, source, run, calls, verbs, served };
+}
+
+test('the packaged command installs in one step, updates on the next, and ends as a failure when an update is not applied', t => {
+  const { base, home, source, run: start, calls, verbs } = packaged(t);
+  const helper = join(base, 'bootstrap.mjs');
+  writeFileSync(helper, source);
+  // Run from the home folder itself, where an assistant often starts: the private files still sit outside the working folder.
+  const run = (...args) => start(helper, home, ...args);
   const folder = join(base, 'installed');
 
   const installed = run('install', '--origin', origin, '--dir', folder);
@@ -275,8 +324,8 @@ test('the packaged command installs in one step, updates on the next, and ends a
   assert.deepEqual([clone.prompt, clone.extra, asked.config], ['0', [], clone.config]);
   assert.equal(calls().length, 2);
 
-  // The same step again, with no folder named, updates that copy.
-  const updated = run('install', '--origin', origin);
+  // The same step again updates that copy.
+  const updated = run('install', '--origin', origin, '--dir', folder);
   assert.deepEqual([updated.status, JSON.parse(updated.stdout).project, JSON.parse(updated.stdout).folder], [0, 'up to date', folder]);
   assert.deepEqual(verbs().slice(2), ['config', 'ls-remote', 'fetch', 'symbolic-ref', 'symbolic-ref', 'status', 'merge']);
   assert.deepEqual(calls().at(-1).args, ['-C', folder, 'merge', '--quiet', '--ff-only', 'origin/main']);
@@ -293,5 +342,87 @@ test('the packaged command installs in one step, updates on the next, and ends a
   // Nothing Git was told, and nothing it or the helper printed, holds the session.
   assert.ok(calls().every(({ args }) => args.every(arg => !arg.includes('eyJ'))));
   for (const result of [installed, updated, kept]) assert.ok(!`${result.stdout}${result.stderr}`.includes(TOKEN));
-  for (const usage of [run('install'), run('code', '--state', report.state)]) assert.deepEqual([usage.status, /employee-bootstrap\.mjs install/.test(usage.stderr)], [1, true]);
+  // With no app named, served from nowhere and outside any copy, there is nothing to set up against.
+  for (const usage of [run('install'), run(), run('code', '--state', report.state)]) assert.deepEqual([usage.status, /employee-bootstrap\.mjs \[install\]/.test(usage.stderr)], [1, true]);
+  assert.ok(existsSync(helper), 'a file the app did not serve stays');
+});
+
+test('the file the app serves sets up the folder it is run in, with no command and no address, and removes itself', t => {
+  const f = packaged(t), here = join(f.base, 'here');
+  // Nothing: installs the project.
+  let file = f.served(here);
+  const installed = f.run(file, here);
+  assert.equal(installed.status, 0, installed.stderr);
+  const report = JSON.parse(installed.stdout);
+  assert.deepEqual([report.project, report.folder, report.connected], ['installed', here, origin]);
+  assert.match(report.state, /\.local\/state\/wong-company\/[a-f0-9]{64}$/);
+  assert.deepEqual(f.calls()[1].args, ['clone', '--quiet', '--origin', 'origin', `${origin}${PATH}`, here]);
+  assert.deepEqual(readdirSync(here).sort(), ['.git', 'README.md'], 'the setup file is gone');
+  // Our read-only copy: updates it.
+  file = f.served(here);
+  const updated = f.run(file, here);
+  assert.deepEqual([updated.status, JSON.parse(updated.stdout).project, JSON.parse(updated.stdout).folder, existsSync(file)], [0, 'up to date', here, false]);
+  assert.equal(f.verbs().at(-1), 'merge');
+  // Another folder can still be named.
+  const named = join(f.base, 'named');
+  file = f.served(here);
+  assert.deepEqual([JSON.parse(f.run(file, here, '--dir', named).stdout).folder, existsSync(file)], [named, false]);
+});
+
+test('the served file stops at a folder that holds other files, changes nothing there, and still removes itself', t => {
+  const f = packaged(t), busy = join(f.base, 'busy');
+  const file = f.served(busy);
+  writeFileSync(join(busy, 'notes.txt'), 'mine\n');
+  const stopped = f.run(file, busy);
+  assert.equal(stopped.status, 1);
+  assert.match(stopped.stderr, /already holds other files\. Choose an empty folder with --dir; nothing was changed\./);
+  assert.deepEqual([readdirSync(busy), readFileSync(join(busy, 'notes.txt'), 'utf8'), f.calls()], [['notes.txt'], 'mine\n', []]);
+});
+
+test('the served file signs in and leaves another copy of the project as it is, for a person with or without Project code', t => {
+  for (const code of ['ready', 'lacked']) {
+    const f = packaged(t, { code }), mine = join(f.base, 'mine');
+    mkdirSync(join(mine, '.git'), { recursive: true }); mkdirSync(join(mine, 'scripts'));
+    writeFileSync(join(mine, 'scripts', 'employee-bootstrap.mjs'), f.source);
+    writeFileSync(join(mine, 'elsewhere'), '');
+    const file = f.served(mine);
+    const left = f.run(file, mine);
+    assert.equal(left.status, 0, left.stderr);
+    const report = JSON.parse(left.stdout);
+    assert.deepEqual([report.signedInAs, report.project, report.folder], [identity.email, 'already on this computer; left as it is', mine]);
+    assert.doesNotMatch(left.stdout, /not included/);
+    assert.deepEqual([f.verbs(), existsSync(file), existsSync(join(mine, 'scripts', 'employee-bootstrap.mjs'))], [['config'], false, true]);
+  }
+});
+
+test('with no project to hand out, the served file leaves its folder empty and keeps a client beside the sign-in', t => {
+  for (const [code, project] of [['off', 'not handed out by this app; apps only'], ['lacked', 'not included. Ask your admin for access to Connect your assistant.']]) {
+    const f = packaged(t, { code }), here = join(f.base, 'here');
+    const connected = f.run(f.served(here), here);
+    assert.equal(connected.status, 0, connected.stderr);
+    const report = JSON.parse(connected.stdout), client = join(report.state, 'bootstrap.mjs');
+    assert.deepEqual([report.project, report.next, readdirSync(here), f.calls()], [project, `node ${client} list --state ${report.state}`, [], []]);
+    assert.equal(statSync(client).mode & 0o777, 0o600);
+    assert.ok(readFileSync(client, 'utf8').includes(MARKER), 'the kept client is served from nowhere');
+    // The kept client reads the same sign-in, and stays for the next call.
+    const status = f.run(client, here, 'status', '--state', report.state);
+    assert.deepEqual([status.status, JSON.parse(status.stdout).code, existsSync(client)], [0, code, true]);
+  }
+});
+
+test('the copy inside the project uses the address and the folder of that project, and never removes itself', t => {
+  const f = packaged(t), copy = join(f.base, 'copy'), inside = join(copy, 'scripts', 'employee-bootstrap.mjs');
+  mkdirSync(join(copy, '.git'), { recursive: true }); mkdirSync(join(copy, 'scripts')); mkdirSync(join(copy, '.claude'));
+  writeFileSync(inside, f.source);
+  assert.deepEqual([ownCopy(inside), ownCopy(join(copy, 'setup.mjs')), ownCopy(join(f.base, 'scripts', 'employee-bootstrap.mjs'))], [copy, undefined, undefined]);
+  // With no address recorded there is nothing to set up against.
+  assert.deepEqual([f.run(inside, f.home).status, f.calls()], [1, []]);
+  writeFileSync(join(copy, '.claude', '.wong-stack.json'), JSON.stringify({ components: { companyApi: { origin } } }));
+  // Run from another folder: the copy the file sits in is still the one set up.
+  const updated = f.run(inside, f.home);
+  assert.equal(updated.status, 0, updated.stderr);
+  const report = JSON.parse(updated.stdout);
+  assert.deepEqual([report.connected, report.project, report.folder, existsSync(inside)], [origin, 'up to date', copy, true]);
+  // A failed run leaves it too.
+  assert.deepEqual([f.run(inside, f.home, 'nothing').status, existsSync(inside)], [1, true]);
 });

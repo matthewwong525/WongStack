@@ -1,6 +1,6 @@
 # Employee assistant connection
 
-*Connect your assistant* puts the company's project on a person's device and links their assistant to their apps, with their own business app login as the only credential. They sign in to the app, copy its setup prompt and paste it into their assistant. They need no GitHub or Cloudflare account, type no key and install nothing by hand. This page owns the device side; [Access](employee-access.md) owns who is given what. The setup prompt is copied from one place: the [*Connect your assistant*](mini-apps.md#the-home-page-lists-the-apps) card on the home page.
+*Connect your assistant* puts the company's project on a person's device and links their assistant to their apps, with their own business app login as the only credential. They sign in to the app, copy its setup message and paste it into their assistant. They need no GitHub or Cloudflare account, type no key and install nothing by hand. This page owns the device side; [Access](employee-access.md) owns who is given what. The setup message is copied from one place: the [*Connect your assistant*](mini-apps.md#the-home-page-lists-the-apps) card on the home page.
 
 ```text
 you          the app        their device
@@ -18,7 +18,7 @@ The owner or [an Admin](employee-access.md#admin) gives the project in [Access](
 
 The tick is off for a new person, and saves before the key is in. While the app can't hand the project out, the ticked box names the step left: [a read-only GitHub key](#the-owners-one-step-on-github), or [finishing Access setup](employee-access.md#finish-access-setup) on an install with no project recorded. The owner gets a request to copy for their assistant; an Admin reads that the step is the owner's. The person gets the project once the step is done, with no further change in Access.
 
-| The person | The Connect card | What the prompt does |
+| The person | The Connect card | What setup does |
 |---|---|---|
 | holds Project code | opens the steps | installs the project and connects their apps |
 | lacks it | greyed, *No access* | nothing: a press says *Ask your admin for access to Connect your assistant.* |
@@ -28,28 +28,48 @@ The tick is off for a new person, and saves before the key is in. While the app 
 
 ## Install in one step
 
-The prompt names the app, [the reviewed bootstrap](#get-the-reviewed-bootstrap) and one command:
+Everyone who may connect copies the same short message. It holds no key:
 
-```bash
-node "$PRIVATE/bootstrap.mjs" install --origin https://business.example.com
+```text
+Set up my company's project for me in this folder.
+Download https://business.example.com/_memory/setup.mjs and run it with node.
+Print the sign-in link it shows into the chat and wait while I sign in.
+Then tell me what works and what is left.
 ```
 
-`install` does three things and prints one summary:
+The message never decides what a person gets: setup asks the app when it runs. The file does three things and prints one summary:
 
-1. **Signs in.** The tool prints a sign-in link, checked to be this business's own, and the assistant shows it at once and waits. The person opens it and approves their own app sign-in. Nothing else from the sign-in is shown.
-2. **Downloads the project** from the app's own address into a folder, with its history. With no `--dir`, the folder is the one used last time, else one in the home directory named for the app.
+1. **Signs in.** It prints a sign-in link, checked to be this business's own, and the assistant shows it at once and waits. The person opens it and approves their own app sign-in. Nothing else from the sign-in is shown.
+2. **Looks at the folder it is run in**, and downloads the project from the app's own address when the person holds Project code:
+
+   | The folder holds | What setup does |
+   |---|---|
+   | nothing | installs the project, with its history |
+   | the read-only copy the app handed out | [updates it](#update-the-copy) |
+   | another copy of the project, such as one from GitHub | signs in and leaves it as it is |
+   | other files | stops and changes nothing |
+
 3. **Reads back what works**: who is signed in, their apps, where the project is, and the line to run company actions from it.
 
-It keeps its private files in one directory per company under `~/.local/state/wong-company/`, outside every project folder.
+The downloaded file removes itself when it ends, pass or fail, so no stray file is left in the folder. `--dir <folder>` names another folder. Setup keeps its private files in one directory per company under `~/.local/state/wong-company/`, outside every project folder.
 
-The device needs Node, `cloudflared` and Git. When `install` names one as missing, the assistant installs it from its official distribution and runs the same step again. None needs an account.
+The device needs Node, `cloudflared` and Git. When setup names one as missing, it says where to get it; none needs an account. Run the same step again afterwards.
+
+### The setup file's fixed link
+
+The app serves the file at `/_memory/setup.mjs` on its own address: the same link for every person, every time, with no sign-in. The message never goes stale.
+
+- **The file is [`scripts/employee-bootstrap.mjs`](../../scripts/employee-bootstrap.mjs)** with one line filled in: the address it was fetched from. The copy inside the project leaves that line blank, and never removes itself.
+- **It holds no key.** Everything it does needs the person's own sign-in. A person with no account stops at sign-in and gets nothing.
+- **It sits under the memory address** because that is [the one opening the sign-in wall already has](cloudflare-access.md#4-bypass-the-public-surface). It shares nothing with memory.
+- **Only the live app answers it without a sign-in.** A preview's link asks for one, so people connect to the live app.
 
 ## Update the copy
 
-Run the same `install` again, or `code` alone:
+Paste the same message again in the copy's folder, or run the copy's own file from anywhere:
 
 ```bash
-node "$PRIVATE/bootstrap.mjs" code --dir ~/business --state "$PRIVATE_CONNECTION"
+node ~/business/scripts/employee-bootstrap.mjs --origin https://business.example.com
 ```
 
 - **A clean copy moves forward** to the newest published project.
@@ -72,7 +92,7 @@ Unticking Project code, or removing the person, refuses their next download at o
 
 ## The apps-only connection
 
-Until the app can hand the project out, Connect works as it did before for every signed-in person: the prompt connects company actions and nothing else. That is the case when:
+Until the app can hand the project out, the same message connects company actions and nothing else, for every signed-in person. That is the case when:
 
 - a GitHub project has no [read-only key](#the-owners-one-step-on-github) saved yet;
 - [permissions or key levels have not started](employee-access.md#the-first-open);
@@ -80,10 +100,9 @@ Until the app can hand the project out, Connect works as it did before for every
 
 An assistant connected this way keeps working after the project is switched on. Its person gets the project once they are given Project code and run Connect again.
 
-After verifying the artifact, the apps-only commands use one private directory for this business:
+With no project on the device, setup keeps its client in the private directory, and its summary names the line to run. The commands share that one directory:
 
 ```bash
-node "$PRIVATE_CONNECTION/bootstrap.mjs" login --state "$PRIVATE_CONNECTION" --origin https://business.example.com
 node "$PRIVATE_CONNECTION/bootstrap.mjs" status --state "$PRIVATE_CONNECTION"
 node "$PRIVATE_CONNECTION/bootstrap.mjs" list --state "$PRIVATE_CONNECTION" --q orders
 node "$PRIVATE_CONNECTION/bootstrap.mjs" describe orders.lookup --state "$PRIVATE_CONNECTION"
@@ -103,7 +122,7 @@ The app passes Git's two read calls through to where the project is kept and add
 - **The address** is `/api/access/code/git/` on the app, behind [the sign-in wall](cloudflare-access.md).
 - **Before anything is asked upstream**, the caller must be a signed-in person who holds Project code now. A service token is refused on the live app; on a preview [the checker stands in for the owner](employee-access.md#the-checker-on-a-preview).
 - **Only reading is forwarded.** Every other call answers 403 before any upstream request.
-- **The credential never leaves the server.** It is in no prompt, answer or log, and the upstream's cookies and sign-in challenge are dropped. A refusal upstream reads as `code_unavailable`.
+- **The credential never leaves the server.** It is in no message, answer or log, and the upstream's cookies and sign-in challenge are dropped. A refusal upstream reads as `code_unavailable`.
 - **The device sends its session to the app alone**, as a request header set in Git's environment: never an argument, the saved address or a config file. Redirects are refused.
 - **No mini app or action is handed the credential**, even one that lists the key.
 
@@ -127,20 +146,8 @@ Then `npm run secrets:push` loads it into the live app and the preview app. To r
 
 On [the Artifacts route](artifacts-route.md) the Access step binds both Workers to the account's `wongstack` namespace. The app asks that binding for a five-minute read token for the one recorded repository on each call, so no key is made or pasted, and Project code shows as saved after the next publish.
 
-## Get the reviewed bootstrap
-
-The prompt names an exact public WongStack Source commit and SHA-256 digest for `scripts/employee-bootstrap.mjs`, at `https://raw.githubusercontent.com/matthewwong525/WongStack/<full-commit>/scripts/employee-bootstrap.mjs`. A mutable branch URL, business-server script or invented release asset is unsuitable. Missing release pins show setup unavailable.
-
-Fetch the exact URL without credentials and refuse redirects. Verify its complete digest before running anything. Save it as `bootstrap.mjs` in an OS-user-private directory outside every checkout (directory 0700, file 0600). The business origin must be HTTPS without a path, query, fragment or credentials. The helper checks its own private files and refuses a redirect that asks for the session, so the short prompt need not repeat those rules.
-
 ## Memory keeps its own setup
 
 Company login grants no memory permission or machine enrollment. Preserve already installed memory and its target. A fresh computer reports independent operator setup required without blocking company actions. Follow [memory access](../development/memory-key.md) through the trusted owner when needed.
-
-## Publish checked artifact pins
-
-[The committed release record](../../app/worker/employee-access/bootstrap-release.json) carries `version: 1`, a full public Source `commit` and complete `sha256`; blank pins deliberately leave prompt copying unavailable. The final source checkpoint may create a complete source commit, pin its artifact bytes in a subsequent commit, and push once. Distribution tests prove the pinned digest is the bootstrap under test's, and that the pinned commit's bytes equal it wherever the checkout holds that commit. Publishing squashes the branch, so the commit is not in the default branch's history; its public address still serves it. Confirm the exact public raw URL after those checks pass. Commit existence alone proves no readiness.
-
-If bootstrap bytes change afterward, establish a new immutable source commit and matching digest before claiming the copied prompt ready. Never change existing pins to a mutable URL. Customized installs retain their branding, login, app routes, dirty local work and separate memory.
 
 Part of the [Cloudflare stack](README.md).

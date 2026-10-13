@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — One connect message for every assistant
+
+- **One short setup message, the same for everyone.** *Connect your assistant* no longer picks between a project message and an apps-only one, and the message carries no fingerprint and no rules about folders. Setup works out what the person is allowed when it runs.
+- **The assistant downloads the setup file from your own app**, at a fixed link: your app's address plus `/_memory/setup.mjs`. The link is the same for everyone and needs no sign-in. The file holds no key, and nothing works until the person signs in. [The setup file's fixed link](wiki/stack/employee-project.md#the-setup-files-fixed-link) has the details.
+- **Setup installs into the folder the chat is in**, not a fixed folder in your home. An empty folder gets the project; the read-only copy is updated; another copy of the project, such as one from GitHub, is left as it is; a folder with other files is left untouched and setup stops.
+- **The downloaded setup file removes itself when it finishes.** With no project to install, it keeps a copy beside the person's sign-in so their assistant can still call the apps.
+- **No fingerprint to match at each release.** The record of a fixed address and fingerprint, `app/worker/employee-access/bootstrap-release.json`, is gone, so an app can no longer show *Ask your employer to finish the reviewed assistant setup*.
+
+**Updating.** Nothing needs doing by hand. A message copied earlier keeps working. The update removes `app/worker/employee-access/bootstrap-release.json` and adds the file that serves the setup link; your sign-in rules do not change. A preview's link asks for a sign-in, so people connect to the live app.
+
 ## 41.0.1 — Setup shows the sign-in link at once
 
 - **The assistant shows the sign-in link the moment setup prints it, then waits.** A person connecting their assistant had to ask for the link: the setup message said to keep login output out of the chat, so the assistant held the link back. Both setup messages now ask for the link, and the setup tool says beside it that it is safe to show.
