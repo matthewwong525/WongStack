@@ -1,0 +1,131 @@
+{
+  "format": "verify-journey-1",
+  "id": "the-employer-makes-a-person-an-admin",
+  "scenario": {
+    "capability": "employee-onboarding",
+    "requirement": "A built-in Admin role holds everything and manages Access",
+    "scenario": "The employer makes a person an Admin"
+  },
+  "thenDigest": "c88e7d601a7100302037d5b77b00f880f53006a26ce3cb2d83d32a2b2027531b",
+  "probe": "browser",
+  "writes": true,
+  "sourcePaths": [
+    ".agents/skills/wong-sync/references/payload-files.json",
+    "app/src/apps/access/App.tsx",
+    "app/src/apps/access/Confirm.tsx",
+    "app/src/apps/access/Notices.tsx",
+    "app/src/apps/access/Owner.tsx",
+    "app/src/apps/access/Page.tsx",
+    "app/src/apps/access/People.tsx",
+    "app/src/apps/access/PersonPage.tsx",
+    "app/src/apps/access/ProjectStep.tsx",
+    "app/src/apps/access/RolePage.tsx",
+    "app/src/apps/access/RoleSelect.tsx",
+    "app/src/apps/access/Roles.tsx",
+    "app/src/apps/access/SetFields.tsx",
+    "app/src/apps/access/Table.tsx",
+    "app/src/apps/access/levels.ts",
+    "app/src/apps/access/subjects.ts",
+    "app/src/lib/access.ts",
+    "app/worker/employee-access/core.ts",
+    "app/worker/employee-access/management.ts",
+    "app/worker/employee-access/members.ts",
+    "app/worker/employee-access/policy.ts",
+    "app/worker/employee-access/roles.ts",
+    "app/worker/employee-access/sets.ts",
+    "app/worker/employee-access/setup.ts",
+    "schema/migrations/20261013205049_admin_role.sql",
+    "schema/seed.sql",
+    "scripts/retired-names.json"
+  ],
+  "recordedAt": "7deca825635b53479800cbe372d677504d74f3b4",
+  "steps": [
+    [
+      "open",
+      "{url}/apps/access/roles"
+    ],
+    [
+      "wait",
+      "--load",
+      "networkidle"
+    ],
+    [
+      "wait",
+      "--text",
+      "Everything"
+    ],
+    [
+      "open",
+      "{url}/apps/access/roles/admin"
+    ],
+    [
+      "wait",
+      "--load",
+      "networkidle"
+    ],
+    [
+      "wait",
+      "--text",
+      "Only the owner gives it"
+    ],
+    [
+      "open",
+      "{url}/apps/access/"
+    ],
+    [
+      "wait",
+      "--load",
+      "networkidle"
+    ],
+    [
+      "wait",
+      "--text",
+      "bo@example.invalid"
+    ],
+    [
+      "select",
+      "select[aria-label='Role for bo@example.invalid']",
+      "Admin"
+    ],
+    [
+      "wait",
+      "--text",
+      "Make bo@example.invalid an Admin?"
+    ],
+    [
+      "find",
+      "role",
+      "button",
+      "click",
+      "--name",
+      "Make Admin"
+    ],
+    [
+      "wait",
+      "--text",
+      "now has Admin"
+    ],
+    [
+      "open",
+      "{url}/apps/access/people/bo%40example.invalid"
+    ],
+    [
+      "wait",
+      "--load",
+      "networkidle"
+    ],
+    [
+      "wait",
+      "--text",
+      "Full trust"
+    ]
+  ],
+  "expect": [
+    {
+      "text": "Every app and key. Can manage Access. Full trust."
+    },
+    {
+      "path": "/apps/access/people/bo%40example.invalid"
+    }
+  ]
+}

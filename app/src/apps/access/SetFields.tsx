@@ -6,7 +6,7 @@ import { ProjectStep } from './ProjectStep'
 import { keyLine, keyState, type AccessSet } from './levels'
 
 /** What a key that is not saved yet waits for. Setup makes one key itself: on the live app the owner asks their
- *  assistant to finish, with the request to copy, and a manager is told it is the owner's step; no step can finish
+ *  assistant to finish, with the request to copy, and an Admin is told it is the owner's step; no step can finish
  *  it on a preview. Any other key comes through its link. */
 function NextStep({ status, item }: { status: Status; item: SavedKey }) {
   if (!item.setup) return <p className="text-sm">Ask your assistant for the key link.</p>

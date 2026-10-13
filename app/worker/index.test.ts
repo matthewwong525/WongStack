@@ -110,7 +110,7 @@ describe("private Worker routing", () => {
     const forged = `${header}.${encode({ email: ownerEmail, sub: "any-signed-subject" })}.${signature}`;
     expect((await call("/api/access/status", { "Cf-Access-Jwt-Assertion": forged }, bindings)).status).toBe(401);
     expect(db.withSession).not.toHaveBeenCalled();
-    // A signed-in visitor could be a manager, so the database decides: unreadable, they are refused with no detail.
+    // A signed-in visitor could be an Admin, so the database decides: unreadable, they are refused with no detail.
     const visitor = await token({ email: "visitor@example.com", sub: "visitor" });
     for (const [endpoint, method] of [["/api/access/status", "GET"], ["/api/access/people", "POST"], ["/api/access/retry", "POST"]]) {
       const refused = await call(endpoint, { Origin: origin, "Cf-Access-Jwt-Assertion": visitor }, bindings, method);
@@ -255,7 +255,7 @@ describe("private Worker routing", () => {
   });
 
   it("checks current grants and self-service membership after signed login on every request", async () => {
-    const row = { policy_enabled: 1, keys_enabled: 0, revision: 1, status: "active", manager: 0, apps: '["hello"]', keys: "{}" };
+    const row = { policy_enabled: 1, keys_enabled: 0, revision: 1, status: "active", held: null, apps: '["hello"]', keys: "{}" };
     const first = vi.fn(async () => row);
     const db = { withSession: vi.fn(() => ({ prepare: () => ({ bind: () => ({ first }) }) })) };
     const bindings = { ...env, WONG_ENVIRONMENT: "production", WONG_OWNER_EMAIL: "owner@example.com", DB: db };

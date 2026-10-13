@@ -2,7 +2,8 @@
 import { z } from "zod";
 import { type Core, AccessError, now } from "./core.ts";
 import { catalogue } from "./catalogue.ts";
-import { heldLevels, offered, registered, type Level } from "./key-levels.ts";
+import { everyKey, heldLevels, offered, registered, type Level } from "./key-levels.ts";
+import { ADMIN_ROLE } from "./policy.ts";
 
 type Levels = Record<string, Level>;
 /** `apps` names apps by folder, sorted. A given app is the whole app; a key's level is for the key used by itself. */
@@ -10,8 +11,9 @@ export type AccessSet = { apps: string[]; keys: Levels };
 /** What a save may carry: per app given or not, and per key a level or null for None. An omitted one stays as it is. */
 type SetChange = { apps?: Record<string, boolean>; keys?: Record<string, Level | null> };
 // `unticked`: the apps this person or role could only look at, which a tick can not say, so they are not held.
-type PersonRow = { email: string; status: "active" | "removed"; settled: boolean; role: string | null; manager: boolean; own: AccessSet; unticked: string[] };
-type RoleRow = { id: string; name: string; set: AccessSet; unticked: string[] };
+type PersonRow = { email: string; status: "active" | "removed"; settled: boolean; role: string | null; own: AccessSet; unticked: string[] };
+// `builtIn`: the Admin role, which nobody renames, changes or removes.
+type RoleRow = { id: string; name: string; builtIn: boolean; set: AccessSet; unticked: string[] };
 export type Sets = { people: PersonRow[]; roles: RoleRow[] };
 
 const level = z.enum(["read", "write"]);
@@ -31,7 +33,7 @@ export const businessApps = () => catalogue().filter(app => app !== "access");
 /** Owner reads and saves keep every built app listed, so a new one shows up unticked. */
 export const catalogueWrites = (core: Core) => catalogue().map(app =>
   core.db.prepare("INSERT INTO wong_access_apps VALUES (?, ?) ON CONFLICT DO NOTHING").bind(core.installationId, app));
-/** Each change is recorded under the person who made it: the owner, or a manager. */
+/** Each change is recorded under the person who made it: the owner, or an Admin. */
 export const audit = (core: Core, event: string) => core.db.prepare(`INSERT INTO wong_access_audit
   SELECT ?, installation_id, ?, ?, revision, ? FROM wong_access_installation WHERE installation_id = ?`)
   .bind(crypto.randomUUID(), core.actor, event, now(), core.installationId);
@@ -81,8 +83,12 @@ const setColumns = (kind: SetKind, alias: string) => {
     (SELECT json_group_object(key_id, level) FROM ${keys} WHERE ${mine}) AS keys`;
 };
 
-/** Everyone and every role, each with the set stored for it. `settled`: the sign-in list matches the person's last change.
- *  `manager`: a current person the owner lets manage Access; a removed person is never one. */
+/** What Admin gives: every app a person can be given and every key at its highest level, worked out on each read
+ *  and never stored, so an app or key added later is in it. */
+const everything = (): AccessSet => ({ apps: businessApps(), keys: Object.fromEntries(everyKey()) });
+
+/** Everyone and every role, each with the set stored for it, Admin first with the set worked out for it.
+ *  `settled`: the sign-in list matches the person's last change. */
 export async function readSets(core: Core): Promise<Sets> {
   const id = core.installationId;
   const [people, roles] = await Promise.all([
@@ -90,21 +96,20 @@ export async function readSets(core: Core): Promise<Sets> {
       m.revision <= COALESCE((SELECT c.generation FROM wong_access_connections c
         WHERE c.installation_id = m.installation_id AND c.provider = 'access'), 1) AS settled,
       (SELECT h.role_id FROM wong_access_member_roles h
-        WHERE h.installation_id = m.installation_id AND h.email = m.email) AS role,
-      m.status = 'active' AND EXISTS (SELECT 1 FROM wong_access_managers a
-        WHERE a.installation_id = m.installation_id AND a.email = m.email) AS manager, ${setColumns("people", "m")}
+        WHERE h.installation_id = m.installation_id AND h.email = m.email) AS role, ${setColumns("people", "m")}
       FROM wong_access_members m WHERE m.installation_id = ? ORDER BY m.email`).bind(id)
-      .all<StoredRow & { email: string; status: "active" | "removed"; settled: number; role: string | null; manager: number }>(),
+      .all<StoredRow & { email: string; status: "active" | "removed"; settled: number; role: string | null }>(),
     core.db.prepare(`SELECT r.role_id AS id, r.name, ${setColumns("roles", "r")}
-      FROM wong_access_roles r WHERE r.installation_id = ? ORDER BY lower(r.name)`).bind(id)
+      FROM wong_access_roles r WHERE r.installation_id = ? ORDER BY r.role_id = ? DESC, lower(r.name)`).bind(id, ADMIN_ROLE)
       .all<StoredRow & { id: string; name: string }>(),
   ]);
   return {
     people: people.results.map(person => {
       const { set, unticked } = storedSet(person);
-      return { email: person.email, status: person.status, settled: person.settled === 1, role: person.role, manager: person.manager === 1, own: set, unticked };
+      return { email: person.email, status: person.status, settled: person.settled === 1, role: person.role, own: set, unticked };
     }),
-    roles: roles.results.map(role => ({ id: role.id, name: role.name, ...storedSet(role) })),
+    roles: roles.results.map(({ id, name, ...row }) => id === ADMIN_ROLE
+      ? { id, name, builtIn: true, set: everything(), unticked: [] } : { id, name, builtIn: false, ...storedSet(row) }),
   };
 }
 

@@ -22,8 +22,8 @@
 -- Access practice people. A preview keeps its own list: the owner tries Access
 -- here, and the real sign-in list is never touched. Permissions and key levels
 -- have started, so a preview shows each person only their apps and gives each
--- only their level. Dana is a manager, so a preview shows the tick and its
--- labels. The owner is the committed WONG_OWNER_EMAIL, not this row; its
+-- only their level. Fay holds the built-in Admin role, so a preview shows what
+-- an Admin sees. The owner is the committed WONG_OWNER_EMAIL, not this row; its
 -- identifiers are made up and name nothing real.
 --
 -- wong_access_key_direct holds no row and nothing reads it: a key's level
@@ -41,16 +41,19 @@ VALUES (1, '11111111-1111-4111-8111-111111111111', 'https://access-fixture.examp
 INSERT INTO wong_access_apps VALUES
   ('11111111-1111-4111-8111-111111111111', 'hello'),
   ('11111111-1111-4111-8111-111111111111', 'access');
--- Ada and Bo hold the Helpers role. Dana and Eli have their own sets, and Casey was removed.
+-- Ada and Bo hold the Helpers role. Dana and Eli have their own sets, Casey was removed, and Fay is an Admin.
 INSERT INTO wong_access_members VALUES
   ('11111111-1111-4111-8111-111111111111', 'ada@example.invalid', 'active', 0, 1, '2026-10-04T00:00:00Z'),
   ('11111111-1111-4111-8111-111111111111', 'bo@example.invalid', 'active', 0, 1, '2026-10-04T00:00:00Z'),
   ('11111111-1111-4111-8111-111111111111', 'casey@example.invalid', 'removed', 0, 1, '2026-10-04T00:00:00Z'),
   ('11111111-1111-4111-8111-111111111111', 'dana@example.invalid', 'active', 0, 1, '2026-10-04T00:00:00Z'),
-  ('11111111-1111-4111-8111-111111111111', 'eli@example.invalid', 'active', 0, 1, '2026-10-04T00:00:00Z');
+  ('11111111-1111-4111-8111-111111111111', 'eli@example.invalid', 'active', 0, 1, '2026-10-04T00:00:00Z'),
+  ('11111111-1111-4111-8111-111111111111', 'fay@example.invalid', 'active', 0, 1, '2026-10-04T00:00:00Z');
 -- The Helpers role: one app, Cloudflare look-ups, and the project through Connect your assistant.
 -- The Trainees role, which nobody holds, could only look at Hello: it holds no app.
+-- The Admin role is built in: every app and key, worked out on each request, so it has no app or key rows.
 INSERT INTO wong_access_roles VALUES
+  ('11111111-1111-4111-8111-111111111111', 'admin', 'Admin', 1),
   ('11111111-1111-4111-8111-111111111111', '22222222-2222-4222-8222-222222222222', 'Helpers', 1),
   ('11111111-1111-4111-8111-111111111111', '33333333-3333-4333-8333-333333333333', 'Trainees', 1);
 INSERT INTO wong_access_role_apps VALUES
@@ -61,7 +64,8 @@ INSERT INTO wong_access_role_keys VALUES
   ('11111111-1111-4111-8111-111111111111', '22222222-2222-4222-8222-222222222222', 'code', 'read');
 INSERT INTO wong_access_member_roles VALUES
   ('11111111-1111-4111-8111-111111111111', 'ada@example.invalid', '22222222-2222-4222-8222-222222222222'),
-  ('11111111-1111-4111-8111-111111111111', 'bo@example.invalid', '22222222-2222-4222-8222-222222222222');
+  ('11111111-1111-4111-8111-111111111111', 'bo@example.invalid', '22222222-2222-4222-8222-222222222222'),
+  ('11111111-1111-4111-8111-111111111111', 'fay@example.invalid', 'admin');
 -- Dana's own set holds Hello, with Cloudflare at Read and Project code. Eli could only look at
 -- Hello, so holds no app, and has no key level: None.
 INSERT INTO wong_access_grants VALUES
@@ -70,6 +74,3 @@ INSERT INTO wong_access_grants VALUES
 INSERT INTO wong_access_key_grants VALUES
   ('11111111-1111-4111-8111-111111111111', 'dana@example.invalid', 'cloudflare', 'read', 1),
   ('11111111-1111-4111-8111-111111111111', 'dana@example.invalid', 'code', 'read', 1);
--- Dana also manages Access. It gives her no app and no key: her set above is unchanged.
-INSERT INTO wong_access_managers VALUES
-  ('11111111-1111-4111-8111-111111111111', 'dana@example.invalid');

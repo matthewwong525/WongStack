@@ -1,9 +1,9 @@
 // The owner is the verified person whose sign-in email setup recorded; no private pin exists.
 // On a preview, the verification service token counts as the owner too.
-// A manager is a current person the owner ticked: they pass the same gate and are never the owner.
+// An Admin is a current person the owner gave the built-in role: they pass the same gate and are never the owner.
 import type { AccessIdentity } from "../access.ts";
 import type { CodeEnv } from "./code.ts";
-import { checkerOwns, humanEmail, ownerEmail, type PolicyEnv } from "./policy.ts";
+import { ADMIN_ROLE, checkerOwns, humanEmail, ownerEmail, type PolicyEnv } from "./policy.ts";
 
 export interface ConnectionEnv extends PolicyEnv, CodeEnv {
   CF_ACCESS_APP_ID?: string;
@@ -19,7 +19,7 @@ declare const checked: unique symbol;
 export type Core = { db: D1DatabaseSession; env: ConnectionEnv; installationId: string; origin: string;
   email: string; actor: string; owner: boolean; subject: string; live: boolean; holder?: string;
   readonly [checked]: true };
-/** The owner's own pass. A save only the owner may make takes this, so it cannot run for a manager. */
+/** The owner's own pass. A save only the owner may make takes this, so it cannot run for an Admin. */
 export type OwnerCore = Core & { owner: true };
 export const isOwner = (core: Core): core is OwnerCore => core.owner;
 export class AccessError extends Error {
@@ -41,10 +41,10 @@ export async function ownerCore(request: Request, env: ConnectionEnv, identity: 
   const machine = checkerOwns(env, identity);
   const person = humanEmail(identity);
   const owns = machine || person === owner;
-  // A machine, or a sign-in with no verified person, is never a manager: refused before anything is read.
+  // A machine, or a sign-in with no verified person, is never an Admin: refused before anything is read.
   if (!owns && !person) throw new AccessError("owner_required", 403);
   const db = env.DB.withSession("first-primary");
-  // Any other person passes only as a manager, read on this request: unticked or removed, the next one is refused.
+  // Any other person passes only as an Admin, read on this request: once the role is taken or they are removed, the next one is refused.
   const managed = owns ? null : await managedInstallation(db, person!);
   if (!owns && !managed) throw new AccessError("owner_required", 403);
   const origin = new URL(request.url).origin;
@@ -52,7 +52,7 @@ export async function ownerCore(request: Request, env: ConnectionEnv, identity: 
   if (request.method !== "GET" && request.headers.get("Origin") !== origin) throw new AccessError("origin_required", 403);
   // The checker has no user id: its subject is the token's own name.
   const subject = machine ? identity.id : identity.claims.sub!;
-  // Only an owner request creates the installation row: a manager exists only once it does.
+  // Only an owner request creates the installation row: an Admin exists only once it does.
   const installationId = managed ?? await installation(db, env, { origin, owner, subject });
   // The checker stands in for the owner, so its changes are recorded under the owner's email.
   // The mark has no value to write, so the pass is asserted here, and nowhere else: every check above has run.
@@ -60,12 +60,12 @@ export async function ownerCore(request: Request, env: ConnectionEnv, identity: 
     live: env.WONG_ENVIRONMENT === "production" } satisfies Omit<Core, typeof checked> as Core;
 }
 
-/** The installation a current person manages, or null: a manager row the owner made, for a person not removed. */
+/** The installation a current person manages, or null: the Admin role the owner gave, for a person not removed. */
 async function managedInstallation(db: D1DatabaseSession, email: string): Promise<string | null> {
-  const row = await db.prepare(`SELECT a.installation_id FROM wong_access_managers a
-    JOIN wong_access_installation i ON i.installation_id = a.installation_id AND i.slot = 1
-    JOIN wong_access_members m ON m.installation_id = a.installation_id AND m.email = a.email AND m.status = 'active'
-    WHERE a.email = ?`).bind(email).first<{ installation_id: string }>();
+  const row = await db.prepare(`SELECT h.installation_id FROM wong_access_member_roles h
+    JOIN wong_access_installation i ON i.installation_id = h.installation_id AND i.slot = 1
+    JOIN wong_access_members m ON m.installation_id = h.installation_id AND m.email = h.email AND m.status = 'active'
+    WHERE h.email = ? AND h.role_id = ?`).bind(email, ADMIN_ROLE).first<{ installation_id: string }>();
   return row?.installation_id ?? null;
 }
 
@@ -88,6 +88,9 @@ async function installation(db: D1DatabaseSession, env: ConnectionEnv,
     db.prepare(`INSERT INTO wong_access_audit SELECT ?, installation_id, owner_email,
       'owner_first_seen:' || owner_subject, revision, activated_at
       FROM wong_access_installation WHERE installation_id = ?`).bind(crypto.randomUUID(), id),
+    // Every installation has the Admin role. It goes on the row that won, whichever request wrote it.
+    db.prepare(`INSERT INTO wong_access_roles SELECT installation_id, ?, 'Admin', revision
+      FROM wong_access_installation WHERE slot = 1 ON CONFLICT DO NOTHING`).bind(ADMIN_ROLE),
   ]);
   // A concurrent first request may have won; either way one row exists now.
   return (await read())!.installation_id;

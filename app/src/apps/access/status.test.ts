@@ -6,7 +6,7 @@ const status = (changes: Partial<Status> = {}): Status => ({ ownerEmail: 'owner@
   environment: 'live', key: 'ready', started: true, imported: 0, keysStarted: true, unticked: { people: [], roles: [] },
   apps: [{ id: 'hello', title: 'Hello', description: '' }, { id: 'orders', title: 'Orders', description: '' }],
   keys: [], roles: [], people: [], work: [], project: 'ready', ...changes })
-const person = (changes: Partial<Person> = {}): Person => ({ email: 'bo@example.com', status: 'active', settled: true, role: null, manager: false, apps: ['hello'], keys: {}, ...changes })
+const person = (changes: Partial<Person> = {}): Person => ({ email: 'bo@example.com', status: 'active', settled: true, role: null, apps: ['hello'], keys: {}, ...changes })
 
 it('gives each person one sign-in status', () => {
   expect(signInLine(person(), status())).toEqual({ text: 'Can sign in', unfinished: false })

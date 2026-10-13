@@ -26,8 +26,9 @@ export const levelLabels = (status: Status, keys: Levels) => status.keys.flatMap
   return level ? [levelLabel(key.title, level)] : []
 })
 
-/** What a set comes to on one line of a list: `2 apps, 1 key`, or `No apps`. */
-export const summary = (status: Status, set: AccessSet) => {
+/** What a set comes to on one line of a list: `2 apps, 1 key`, or `No apps`. The built-in role's is `Everything`. */
+export const summary = (status: Status, set: AccessSet & { builtIn?: boolean }) => {
+  if (set.builtIn) return 'Everything'
   const apps = appLabels(status, set.apps).length
   const keys = levelLabels(status, set.keys).length
   return [apps ? count(apps, 'app') : 'No apps', keys > 0 && count(keys, 'key')].filter(Boolean).join(', ')

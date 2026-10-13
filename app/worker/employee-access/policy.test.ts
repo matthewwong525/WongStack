@@ -32,7 +32,7 @@ const answering = (row: unknown) => ({ ...env, DB: fakeDatabase({ withSession: (
 
 beforeEach(() => {
   sql = new DatabaseSync(":memory:");
-  for (const file of ["0001_employee_access.sql", "0003_key_levels.sql", "20261005142459_access_managers.sql", "20261006031500_area_levels.sql", "20261007220000_key_direct_use.sql"]) {
+  for (const file of ["0001_employee_access.sql", "0003_key_levels.sql", "20261005142459_access_managers.sql", "20261006031500_area_levels.sql", "20261007220000_key_direct_use.sql", "20261013205049_admin_role.sql"]) {
     sql.exec(readFileSync(new URL(`../../../schema/migrations/${file}`, import.meta.url), "utf8"));
   }
   sql.exec(`INSERT INTO wong_access_installation
@@ -40,6 +40,7 @@ beforeEach(() => {
       issuer, audience, owner_subject, owner_email, repository_id, repository_name, policy_enabled, activated_at)
     VALUES (1, 'installation', '${origin}', 'account', 'worker', 'application', 'policy',
       '${issuer}', 'business-app', 'owner-subject', 'owner@example.com', 123, 'business/project', 1, 'now');
+    INSERT INTO wong_access_roles VALUES ('installation', 'admin', 'Admin', 1);
     INSERT INTO wong_access_members VALUES ('installation', 'employee@example.com', 'active', 0, 1, 'now');
     INSERT INTO wong_access_apps VALUES ('installation', 'orders');
     INSERT INTO wong_access_apps VALUES ('installation', 'payroll');
@@ -160,29 +161,36 @@ it("lets the verification machine open every built app, and manage people on a p
   expect(await read(machine)).toEqual({ state: "not_started", role: "employee", manages: false });
 });
 
-it("lets a current person the owner ticked manage Access, and gives them no app, key or owner route for it", async () => {
-  const tick = () => sql.exec("INSERT INTO wong_access_managers VALUES ('installation', 'employee@example.com')");
+it("gives a current person who holds Admin every app, every key once key levels start, and Access to manage, and never an owner route", async () => {
+  const give = () => sql.exec("INSERT INTO wong_access_member_roles VALUES ('installation', 'employee@example.com', 'admin')");
   expect(await read()).toMatchObject({ role: "employee", manages: false });
   expect(await read(owner)).toMatchObject({ role: "owner", manages: true });
-  tick();
-  // The role stays as it was, and so do their apps: managing is its own flag.
+  // The old manager switch is read by nothing: a row left there gives nothing.
+  sql.exec("INSERT INTO wong_access_managers VALUES ('installation', 'employee@example.com')");
+  expect(await read()).toMatchObject({ manages: false, apps: new Set(["orders"]) });
+  give();
+  // Still an employee, with every built app: the ones with no row yet, as an app built later has none, and none stored for the role.
   const policy = await read();
-  expect(policy).toEqual({ state: "current", role: "employee", manages: true, revision: 1, apps: new Set(["orders"]), keys: null, keysStarted: false });
-  expect(policyAllows(policy, access)).toBe(true);
-  // A manager is still refused an unmapped route, an owner route and an app they were not given.
-  for (const mapping of [undefined, { kind: "owner" as const }, { apps: ["payroll"] }]) expect(policyAllows(policy, mapping)).toBe(false);
+  expect(policy).toEqual({ state: "current", role: "employee", manages: true, revision: 1,
+    apps: new Set(["access", "frontend-only", "hello", "new-app", "orders", "payroll", "reports"]), keys: null, keysStarted: false });
+  expect(policyAllows(policy, { apps: ["orders", "payroll", "new-app"] })).toBe(true);
+  expect(sql.prepare("SELECT COUNT(*) count FROM wong_access_role_apps").get()).toEqual({ count: 0 });
+  // An Admin is still refused an unmapped route, an owner route and a name nothing is built for.
+  for (const mapping of [undefined, { kind: "owner" as const }, { apps: ["not-built"] }]) expect(policyAllows(policy, mapping)).toBe(false);
+  expect(policyAllows(await read(owner), { apps: ["not-built"] })).toBe(true);
   expect((await authorizeRequest(env, employee, { kind: "owner" }))?.status).toBe(403);
-  // Their key levels are their own too: the owner holds every key, a manager only what they were given.
-  sql.exec("UPDATE wong_access_installation SET keys_enabled = 1");
-  expect(await read()).toMatchObject({ manages: true, keys: new Map() });
+  // Their keys wait for key levels, like everyone's but the owner's; then each key is theirs at the highest level it offers.
   expect((await authorizeRequest(env, employee, { keys: ["cloudflare"] }, "read"))?.status).toBe(403);
+  sql.exec("UPDATE wong_access_installation SET keys_enabled = 1");
+  expect(await read()).toMatchObject({ manages: true, keys: new Map([["cloudflare", "read"], ["code", "read"]]) });
+  expect(await authorizeRequest(env, employee, { keys: ["cloudflare"] }, "read")).toBeNull();
   expect(await authorizeRequest(env, owner, { keys: ["cloudflare"] }, "read")).toBeNull();
-  // A machine carrying a manager's email is no person, on the live app and on a preview.
+  // A machine carrying an Admin's email is no person, on the live app and on a preview.
   const machines = [{ ...employee, kind: "service" as const }, { ...employee, claims: { ...employee.claims, common_name: "machine" } }];
   for (const bindings of [env, { ...env, WONG_ENVIRONMENT: "staging" }]) {
     for (const machine of machines) expect(await read(machine, bindings)).toEqual({ state: "denied" });
   }
-  // The tick counts as soon as the owner makes it, before permissions start. A machine still manages nothing.
+  // The role counts as soon as the owner gives it, before permissions start. A machine still manages nothing.
   sql.exec("UPDATE wong_access_installation SET policy_enabled = 0");
   expect(await read()).toEqual({ state: "not_started", role: "employee", manages: true });
   for (const machine of machines) expect(await read(machine)).toEqual({ state: "not_started", role: "employee", manages: false });
@@ -191,9 +199,9 @@ it("lets a current person the owner ticked manage Access, and gives them no app,
   expect(await read()).toEqual({ state: "not_started", role: "employee", manages: false });
   sql.exec("UPDATE wong_access_installation SET policy_enabled = 1");
   expect(await read()).toEqual({ state: "denied" });
-  // Unticked, the same person is an ordinary employee on their next request.
-  sql.exec("UPDATE wong_access_members SET status = 'active'; DELETE FROM wong_access_managers");
-  expect(await read()).toMatchObject({ state: "current", role: "employee", manages: false });
+  // Moved off the role, the same person is an ordinary employee on their next request, with their own apps.
+  sql.exec("UPDATE wong_access_members SET status = 'active'; DELETE FROM wong_access_member_roles");
+  expect(await read()).toMatchObject({ state: "current", role: "employee", manages: false, apps: new Set(["orders"]), keys: new Map() });
 });
 
 it("refuses service, unlisted and invalid human identities once permissions have started", async () => {
@@ -221,7 +229,7 @@ it("leaves everyone every app until permissions start, and names the owner meanw
   expect(await read(owner)).toEqual({ state: "not_started", role: "owner", manages: true });
   expect(await authorizeRequest(env, employee, { apps: ["payroll"] })).toBeNull();
   // The owner has never opened Access: no row exists, and nothing has started.
-  sql.exec("DELETE FROM wong_access_grants; DELETE FROM wong_access_members; DELETE FROM wong_access_apps; DELETE FROM wong_access_installation");
+  sql.exec("DELETE FROM wong_access_roles; DELETE FROM wong_access_grants; DELETE FROM wong_access_members; DELETE FROM wong_access_apps; DELETE FROM wong_access_installation");
   expect(await read()).toEqual({ state: "not_started", role: "employee", manages: false });
   expect(await read(owner)).toEqual({ state: "not_started", role: "owner", manages: true });
 });
@@ -242,10 +250,10 @@ it("denies rather than opens when started permission data is missing, unreadable
   expect(denied?.status).toBe(503);
   expect(denied?.headers.get("Cache-Control")).toBe("no-store");
   expect(await denied?.json()).toMatchObject({ error: { code: "unavailable", message: "Access unavailable", requestId: expect.any(String) } });
-  const row = { policy_enabled: 1, keys_enabled: 0, revision: 1, status: "active", manager: 0, apps: '["orders"]', keys: "{}" };
+  const row = { policy_enabled: 1, keys_enabled: 0, revision: 1, status: "active", held: null, apps: '["orders"]', keys: "{}" };
   expect(await read(employee, answering(row))).toMatchObject({ state: "current", apps: new Set(["orders"]) });
   // An unreadable list of apps never reads as held: levels from before ticks, a name that is no text.
-  for (const change of [{ policy_enabled: 2 }, { keys_enabled: 2 }, { revision: 0 }, { status: "unknown" }, { manager: 2 }, { manager: undefined }, { apps: "not json" }, { apps: '{"orders":"write"}' },
+  for (const change of [{ policy_enabled: 2 }, { keys_enabled: 2 }, { revision: 0 }, { status: "unknown" }, { held: 2 }, { held: undefined }, { apps: "not json" }, { apps: '{"orders":"write"}' },
     { apps: "[1]" }, { apps: '"orders"' }, { apps: undefined },
     { keys: undefined }, { keys_enabled: 1, keys: "not json" }, { keys_enabled: 1, keys: '{"cloudflare":"admin"}' }]) {
     expect(await read(employee, answering({ ...row, ...change }))).toEqual({ state: "unavailable" });
@@ -253,11 +261,13 @@ it("denies rather than opens when started permission data is missing, unreadable
   // Until key levels start, an unreadable key level takes no app away; the owner never depends on a stored level.
   expect(await read(employee, answering({ ...row, keys: "not json" }))).toMatchObject({ state: "current", keys: null, keysStarted: false });
   expect(await read(owner, answering({ ...row, keys_enabled: 1, status: null, apps: "not json", keys: "not json" }))).toMatchObject({ state: "current", role: "owner" });
-  // A database from before the managers table denies too: it never reads as nobody managing and carries on.
-  sql.exec("DROP TABLE wong_access_managers");
+  // An Admin never depends on a stored list either: their set is worked out, whatever the role's rows say.
+  expect(await read(employee, answering({ ...row, held: "admin", apps: "not json", keys: "not json" }))).toMatchObject({ state: "current", role: "employee", manages: true });
+  // A database from before roles denies: it never reads as nobody holding one and carries on.
+  sql.exec("DROP TABLE wong_access_member_roles");
   expect(await read()).toEqual({ state: "unavailable" });
   expect(await read(owner)).toEqual({ state: "unavailable" });
-  sql.exec("DROP TABLE wong_access_grants; DROP TABLE wong_access_members; DROP TABLE wong_access_apps; DROP TABLE wong_access_installation");
+  sql.exec("DELETE FROM wong_access_roles; DROP TABLE wong_access_grants; DROP TABLE wong_access_members; DROP TABLE wong_access_apps; DROP TABLE wong_access_installation");
   expect(await read()).toEqual({ state: "unavailable" });
 });
 
@@ -403,7 +413,7 @@ it("fails discovery closed on unavailable started policy, and keeps the existing
   sql.exec("UPDATE wong_access_installation SET policy_enabled = 0");
   // Not started: the same actions as before Access existed, and never a cached started answer.
   expect(await ids()).toEqual(["employee.setup", "main.health", "new.read", "orders.read", "orders.unmapped", "owner.manage", "unrelated.name"]);
-  sql.exec("DELETE FROM wong_access_grants; DELETE FROM wong_access_members; DELETE FROM wong_access_apps; DELETE FROM wong_access_installation");
+  sql.exec("DELETE FROM wong_access_roles; DELETE FROM wong_access_grants; DELETE FROM wong_access_members; DELETE FROM wong_access_apps; DELETE FROM wong_access_installation");
   expect(await ids()).toContain("orders.unmapped");
 });
 
@@ -417,12 +427,12 @@ it("reads each person's apps and key levels with zero-app Access self-service, o
   // The owner holds every app, and every saved key at its highest level.
   expect(await (await readback(owner)).json()).toEqual({ state: "current", role: "owner", manages: true, signIn: true, code: "off", revision: 1, apps: catalogue,
     keys: [{ id: "cloudflare", title: "Cloudflare", level: "read" }, { id: "code", title: "Project code", level: "read" }] });
-  // A manager is told they manage, and keeps their own role, apps and levels.
-  sql.exec("INSERT INTO wong_access_managers VALUES ('installation', 'employee@example.com')");
-  expect(await (await readback()).json()).toEqual({ state: "current", code: "off", role: "employee", manages: true, signIn: true, revision: 1, apps: ["access", "orders"], keys: [] });
+  // An Admin is told they manage and stays an employee, with every app; their keys wait for key levels.
+  sql.exec("INSERT INTO wong_access_member_roles VALUES ('installation', 'employee@example.com', 'admin')");
+  expect(await (await readback()).json()).toEqual({ state: "current", code: "off", role: "employee", manages: true, signIn: true, revision: 1, apps: catalogue, keys: [] });
   sql.exec("UPDATE wong_access_installation SET policy_enabled = 0");
   expect(await (await readback()).json()).toEqual({ state: "not_started", code: "off", role: "employee", manages: true, signIn: true, apps: catalogue });
-  sql.exec("UPDATE wong_access_installation SET policy_enabled = 1; DELETE FROM wong_access_managers");
+  sql.exec("UPDATE wong_access_installation SET policy_enabled = 1; DELETE FROM wong_access_member_roles");
   // Client-only apps come from manifests and are allowed only when explicitly assigned.
   sql.exec("INSERT INTO wong_access_apps VALUES ('installation', 'frontend-only'); INSERT INTO wong_access_grants VALUES ('installation', 'employee@example.com', 'frontend-only', 1, 'write')");
   expect((await body(await readback())).apps).toEqual(["access", "frontend-only", "orders"]);
