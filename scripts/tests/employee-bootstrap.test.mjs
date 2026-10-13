@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { companyClient, cleanEnvironment, connectionState } from '../employee-bootstrap.mjs';
+import { companyClient, cleanEnvironment, connectionState, signInNotice } from '../employee-bootstrap.mjs';
 const origin = 'https://business.example.com';
 const identity = { email: 'employee@example.com', subject: 'employee-subject' };
 const jwt = (extra = {}) => `eyJhbGciOiJSUzI1NiJ9.${Buffer.from(JSON.stringify({ email: identity.email, sub: identity.subject, exp: Date.now() / 1000 + 1000, ...extra })).toString('base64url')}.c2ln`;
@@ -128,6 +128,12 @@ test('actual packaged CLI connects from empty folder and keeps headless login ou
   assert.equal(uncertain.status, 1); assert.ok(!`${uncertain.stdout}${uncertain.stderr}`.includes(session));
   assert.deepEqual(JSON.parse(uncertain.stdout).error, { code: 'timeout', message: 'Action timed out; its outcome may be unknown', requestId: 'synthetic', confirmWith: 'orders.lookup' });
   assert.equal(statSync(join(f.base, '.cloudflared')).mode & 0o777, 0o700);
+});
+test('the sign-in line tells the assistant to show the link now, and leaves the link alone on its last line', () => {
+  const link = 'https://business.example.com/cdn-cgi/access/cli?aud=public&redirect_url=https%3A%2F%2Fbusiness.example.com%3Ftoken%3Dabc';
+  const lines = signInNotice(link).split('\n');
+  assert.equal(lines.length, 2); assert.equal(lines[1], link);
+  assert.match(lines[0], /^Show this link to the person now and wait/); assert.match(lines[0], /safe to show/);
 });
 test('published immutable bootstrap pins carry the digest of the checked source', () => {
   const root = new URL('../..', import.meta.url);

@@ -56,6 +56,8 @@ export function loginUrl(value, origin) {
   } catch { /* never forward arbitrary helper diagnostics */ }
   return null;
 }
+/** What the assistant reads when sign-in needs the person: the link is checked by `loginUrl`, so it is theirs to see. */
+export const signInNotice = link => `Show this link to the person now and wait while they sign in with their own company account. It is safe to show: this business's checked sign-in address, not a credential.\n${link}`;
 export function cloudflared(args, { onLoginUrl = () => {}, timeoutMs = 120000 } = {}) {
   return new Promise((resolve, reject) => {
     const origin = companyOrigin(args.at(-1).replace(/^-app=/, ''));
@@ -313,7 +315,7 @@ export async function main(args = process.argv.slice(2)) {
   if (args.includes('--help')) { console.log(`usage: ${USAGE}`); return; }
   const { positionals: [command, ...rest], values } = parseArgs({ args, allowPositionals: true, options: Object.fromEntries(['origin', 'state', 'dir', 'file', 'q', 'app', 'limit', 'offset'].map(key => [key, { type: 'string' }])) });
   const stateDir = values.state || (command === 'install' && values.origin ? installState(values.origin) : undefined);
-  const client = companyClient({ ...(['install', 'code'].includes(command) && { root: neutralRoot() }), stateDir, onLoginUrl: link => console.error(`Sign in with your own company account: ${link}`) });
+  const client = companyClient({ ...(['install', 'code'].includes(command) && { root: neutralRoot() }), stateDir, onLoginUrl: link => console.error(signInNotice(link)) });
   let result;
   if (command === 'login' && !rest.length) result = await client.login(values.origin);
   else if (command === 'install' && !rest.length && values.origin) result = await client.install(values.origin, values.dir);

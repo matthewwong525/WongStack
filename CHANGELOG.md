@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (patch) — Setup shows the sign-in link at once
+
+- **The assistant shows the sign-in link the moment setup prints it, then waits.** A person connecting their assistant had to ask for the link: the setup message said to keep login output out of the chat, so the assistant held the link back. Both setup messages now ask for the link, and the setup tool says beside it that it is safe to show.
+- **Nothing else from the sign-in is shown.** Only this business's own sign-in address is passed on, as before.
+
+**Updating.** Nothing needs doing. A person gets the new wording the next time they copy the setup message from the app.
+
 ## 40.9.0 — Buy through Shop
 
 - **The assistant shops through Shop.** Ask for a product and it searches Shop, Shopify's shopping service, before it opens a store's website: one search covers many stores, with no login and no robot check. Each option names the seller and the price and links the product. [Shopping](wiki/development/shopping.md) has the rules.

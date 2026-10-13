@@ -36,7 +36,7 @@ node "$PRIVATE/bootstrap.mjs" install --origin https://business.example.com
 
 `install` does three things and prints one summary:
 
-1. **Signs in.** The person approves their own app sign-in on that computer. A computer with no browser shows only a validated sign-in link for this business.
+1. **Signs in.** The tool prints a sign-in link, checked to be this business's own, and the assistant shows it at once and waits. The person opens it and approves their own app sign-in. Nothing else from the sign-in is shown.
 2. **Downloads the project** from the app's own address into a folder, with its history. With no `--dir`, the folder is the one used last time, else one in the home directory named for the app.
 3. **Reads back what works**: who is signed in, their apps, where the project is, and the line to run company actions from it.
 
