@@ -26,13 +26,13 @@
 // and the login-wall exit apply to a replay unchanged. Needs git, bash, and Node, and `gh` only to
 // look a second site's address up; nothing is installed.
 import { execFileSync, spawn } from 'node:child_process';
-import { createHash } from 'node:crypto';
 import { closeSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain, parseCli, usageError } from '../../memory/scripts/lib/cli.mjs';
 import { findCredential, secretValues } from '../../memory/scripts/lib/scan.mjs';
 import { loadEnv, repoContext } from '../../memory/scripts/lib/store.mjs';
+import { digest, readSpec, rewrittenRequirements, sameJourney, scenarioDigest } from './kept-promises.mjs';
 
 const USAGE = `usage: verify-journeys.mjs check [--root <repo>]
        verify-journeys.mjs replay --run-dir <dir> --url <preview> [--site-url <name>=<url>]... [--change-root <path>] [--from <dir>] [--only <ids>] [--budget <seconds>] [--root <repo>]
@@ -56,38 +56,11 @@ const refuse = reason => { throw new Refusal(reason); };
 const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const text = value => typeof value === 'string' && value.length > 0;
 const strings = value => Array.isArray(value) && value.every(item => typeof item === 'string');
-const digest = bytes => createHash('sha256').update(bytes).digest('hex');
 const readJson = file => { try { return JSON.parse(readFileSync(file, 'utf8')); } catch { return null; } };
 const git = (root, ...args) => { try { return execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim(); } catch { return ''; } };
 const writes = journey => journey.writes !== false;
 
 // ── The written promises ──────────────────────────────────────────────────────
-
-// A spec or delta file as its requirements: the `## ` section each sits under, its scenarios, and each
-// scenario's `promise`: its lines from THEN to the end.
-function readSpec(source) {
-  const requirements = [];
-  let section = '';
-  let requirement = null;
-  let scenario = null;
-  for (const line of source.split(/\r?\n/)) {
-    const [, level, title] = /^(#{1,4}) +(.*?)\s*$/.exec(line) ?? [];
-    if (!level) {
-      if (scenario && line.trim() && (scenario.promise.length || /^\s*[-*]\s*\*\*THEN\*\*/.test(line))) scenario.promise.push(line.trim());
-      continue;
-    }
-    scenario = null;
-    if (level.length < 3) { section = title; requirement = null; }
-    else if (level.length === 3) {
-      requirement = title.startsWith('Requirement: ') ? { section, name: title.slice('Requirement: '.length).trim(), scenarios: [] } : null;
-      if (requirement) requirements.push(requirement);
-    } else if (requirement && title.startsWith('Scenario: ')) {
-      scenario = { name: title.slice('Scenario: '.length).trim(), promise: [] };
-      requirement.scenarios.push(scenario);
-    }
-  }
-  return requirements;
-}
 
 const capabilitySpec = (root, capability) => {
   const file = join(root, 'openspec/specs', capability, 'spec.md');
@@ -95,10 +68,7 @@ const capabilitySpec = (root, capability) => {
 };
 
 // The hash of a scenario's THEN lines as openspec/specs/ holds them now; null when it is not there.
-function promiseDigest(root, { capability, requirement, scenario }) {
-  const found = capabilitySpec(root, capability).find(entry => entry.name === requirement)?.scenarios.find(entry => entry.name === scenario);
-  return found ? digest(found.promise.join('\n')) : null;
-}
+const promiseDigest = (root, { capability, ...scenario }) => scenarioDigest(capabilitySpec(root, capability), scenario);
 
 // What a change rewrites: each requirement its delta specs list as MODIFIED or REMOVED.
 function ownRequirements(changeRoot) {
@@ -107,9 +77,7 @@ function ownRequirements(changeRoot) {
   for (const capability of existsSync(specs) ? readdirSync(specs) : []) {
     const delta = join(specs, capability, 'spec.md');
     if (!existsSync(delta)) continue;
-    for (const requirement of readSpec(readFileSync(delta, 'utf8'))) {
-      if (/^(MODIFIED|REMOVED)\b/.test(requirement.section)) own.add(JSON.stringify([capability, requirement.name]));
-    }
+    for (const name of rewrittenRequirements(readSpec(readFileSync(delta, 'utf8')))) own.add(JSON.stringify([capability, name]));
   }
   return own;
 }
@@ -525,19 +493,24 @@ export function keep({ root, runDir, url, id, expect, site, writing = false }) {
 
 /**
  * Copy each candidate its own proof called `same` into the project, and remove the kept checks whose
- * scenario no longer exists. Returns one line per file it kept, left out, or removed.
+ * scenario no longer exists. Returns one line per file it kept, left out, or removed, then one
+ * `REPLACED=<path>` or `REMOVED=<path>` line per kept file whose steps or expectations it changed or
+ * that it deleted: the files the loosened-check guard wants a reason for.
  */
 export function install({ root, runDir }) {
   const keepDir = join(runDir, 'keep');
   const proof = readJson(join(keepDir, 'replay.json'))?.results ?? [];
   const lines = [];
+  const weakened = [];
   for (const entry of classify(root, keepDir)) {
     const proven = proof.find(result => result.key === entry.key && result.sha256 === entry.sha256);
     if (proven?.result !== 'same') {
       lines.push(`left out ${entry.key} — ${proven ? proven.reason ?? proven.result : 'it was not replayed alone first'}`);
       continue;
     }
-    const target = join(root, JOURNEYS, `${entry.key}.json`);
+    const path = `${JOURNEYS}/${entry.key}.json`;
+    const target = join(root, path);
+    if (existsSync(target) && !sameJourney(readJson(target), entry.journey)) weakened.push(`REPLACED=${path}`);
     mkdirSync(dirname(target), { recursive: true });
     copyFileSync(entry.file, target);
     lines.push(`kept ${entry.key}`);
@@ -545,8 +518,9 @@ export function install({ root, runDir }) {
   for (const entry of classify(root).filter(kept => kept.gone)) {
     rmSync(entry.file);
     lines.push(`removed ${entry.key} — ${entry.reason}`);
+    weakened.push(`REMOVED=${JOURNEYS}/${entry.key}.json`);
   }
-  return lines;
+  return [...lines, ...weakened];
 }
 
 // ── The command line ──────────────────────────────────────────────────────────

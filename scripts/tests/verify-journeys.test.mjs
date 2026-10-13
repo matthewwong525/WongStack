@@ -694,6 +694,7 @@ test('a candidate is installed only after it replayed the same, alone, from a re
     'left out notes/submitting-with-no-title-is-rejected — it was not replayed alone first',
     'left out notes/the-list-api-counts-its-notes — it was not replayed alone first',
     'removed notes/scenario-gone — its scenario is no longer in openspec/specs/',
+    'REMOVED=.agents/verification/journeys/notes/scenario-gone.json',
     'KEEP=kept 0, left out 2, removed 1',
   ]);
   assert.deepEqual([existsSync(gone), existsSync(stale)], [false, true], 'only a kept check with no scenario left is removed');
@@ -720,6 +721,33 @@ test('a candidate is installed only after it replayed the same, alone, from a re
   await keepHere('01-list', [{ step: 1, status: 200 }]);
   assert.match((await install()).stdout, /^left out notes\/the-list-api-counts-its-notes — it was not replayed alone first$/m);
   assert.equal(readFileSync(installed, 'utf8'), proven);
+});
+
+test('install names each kept check it replaced with other steps or expectations, and none it re-kept the same', async t => {
+  const f = project(t);
+  const site = await practiceSite(t);
+  const name = 'the-list-api-counts-its-notes';
+  const path = `.agents/verification/journeys/notes/${name}.json`;
+  const rekeep = async expect => {
+    walked(f, '01-list', 'The list API counts its notes', { requests: `GET\t${site.url}/api/notes\n` });
+    await cli(f, ['keep', '--run-dir', f.runDir, '--url', site.url, '--id', '01-list', '--expect', JSON.stringify(expect)]);
+    await replay(f, site.url, ['--from', join(f.runDir, 'keep')]);
+    return (await cli(f, ['keep', '--install', '--run-dir', f.runDir])).stdout.trim().split('\n');
+  };
+  const full = [{ step: 1, status: 200, includes: '"count":6' }];
+
+  assert.deepEqual(await rekeep(full), [`kept notes/${name}`, 'KEEP=kept 1, left out 0, removed 0'], 'a new kept check replaces nothing');
+
+  // The same steps and expectations, recorded at a later commit.
+  f.write('app/later.js', '// later\n');
+  f.git('add', '.');
+  f.git('commit', '-q', '-m', 'later');
+  const before = JSON.parse(readFileSync(join(f.root, path), 'utf8'));
+  assert.deepEqual(await rekeep(full), [`kept notes/${name}`, 'KEEP=kept 1, left out 0, removed 0']);
+  assert.notEqual(JSON.parse(readFileSync(join(f.root, path), 'utf8')).recordedAt, before.recordedAt, 'it was re-recorded');
+
+  assert.deepEqual(await rekeep([{ step: 1, status: 200 }]), [`kept notes/${name}`, `REPLACED=${path}`, 'KEEP=kept 1, left out 0, removed 0']);
+  assert.deepEqual(JSON.parse(readFileSync(join(f.root, path), 'utf8')).expect, [{ step: 1, status: 200 }]);
 });
 
 test('keep --site records the site and no address, and the proof replays on that site', async t => {
