@@ -68,3 +68,4 @@ The starter app's `Tutorial.tsx` message and supporting line, its test, the kept
 - **2026-10-13** — Assumed: The box keeps its *Make it yours* title and button label, because the request names the prompt, and the title is what other pages and checks point at.
 - **2026-10-13** — Assumed: This reverses the 2026-10-11 choice that the message "is just for changing the UI", because the newer request is explicit; reading past chats stays with setup.
 - **2026-10-13** — Archived checkpoint: replaced the first message and its supporting line, updated the three wiki pages, the sync manifest line and the kept check; local checks passed, ready for the publishing checks.
+- **2026-10-13** — Archived checkpoint: the preview showed the new message at computer and phone width; kept the home-page check again with the new message. The two landing-page kept checks were not run, because the replay opens them on the app preview.
