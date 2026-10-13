@@ -29,4 +29,4 @@
 ## 6. Final verification
 
 - [x] 6.1 After all source, tests and docs are written, run `npm test` in `app/` and `node .github/scripts/checks.mjs --worktree`, and repair failures this change caused: unit and runtime tests at full coverage, payload links, retired names, wiki checks, and `openspec validate "admin-role-by-default" --strict --no-interactive`. Report local evidence without claiming remote checks passed.
-- [ ] 6.2 `/save`, then on the preview walk Access as the owner: Roles lists Admin first and opens it read-only; picking Admin for a practice person asks, saves and offers *Undo*; that person's row shows *Admin*. Report what the walk showed and what it could not, such as an Admin's own view.
+- [x] 6.2 `/save`, then on the preview walk Access as the owner: Roles lists Admin first and opens it read-only; picking Admin for a practice person asks, saves and offers *Undo*; that person's row shows *Admin*. Report what the walk showed and what it could not, such as an Admin's own view.

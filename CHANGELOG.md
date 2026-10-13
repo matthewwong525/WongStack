@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (major) — An Admin role that holds everything
+## 41.0.0 — An Admin role that holds everything
 
 - **Every Roles list has an Admin role.** It is first. It gives every app and every key at its highest level, ones added later included, and lets its holder manage Access. It can't be renamed, changed or removed. Nobody is given it for you: you pick who.
 - **Admin replaces the *Can manage Access* tick.** A person's panel no longer has the *Managing* group. Make someone an Admin by picking it as their role, in their row or in their panel. The pick asks first, because it is full trust. The *Manager* mark beside an email is gone; the Role column says *Admin*.

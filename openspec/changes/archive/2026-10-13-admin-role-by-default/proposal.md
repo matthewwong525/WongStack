@@ -1,6 +1,6 @@
 # An Admin role that holds everything, there from the start
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** default-admin-role
 **Open questions:** none
 
@@ -98,3 +98,4 @@ Access's Worker (`app/worker/employee-access/`: policy, caller check, people and
 - **2026-10-13** — Assumed: the move from managers to Admins runs as a database migration, not at the owner's next open, because the app would otherwise read both the old switch and the new role until every install's owner opened Access.
 - **2026-10-13** — Asked what to do with the finished plan → chose build and publish.
 - **2026-10-13** — Built: tasks 1.1 to 6.1 are written and pass the local checks; the preview walk, 6.2, waits on this save. Decided while building: the question before giving Admin from a row lives with the people list, not the picker, because a click inside the popup would otherwise open the person; the read-only Admin panel is the shared panel with no save action; the words *Can manage Access.* stay as a line describing Admin, so the retired tick's name is allowed in those two screens and their tests; the main specs keep the word *manager*, which the new requirement defines as a current person who holds Admin; the journey *the employer makes a person an Admin* was written by hand and first runs at the preview walk.
+- **2026-10-13** — Archive checkpoint: the preview walk, task 6.2, showed Admin first in Roles and read-only when opened, the question before giving it, the save with *Undo*, and the row and panel naming Admin; an own-set person's panel has no manager tick. Not shown by the walk and left to the code tests: anything done while signed in as an Admin who is not the owner, an app built after the pick, and the move from managers, because a preview signs the checker in as the owner and starts from the seed. Released as 41.0.0.

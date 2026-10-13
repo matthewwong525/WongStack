@@ -11,7 +11,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · admin-role-by-default</title>
+<title>Review · 2026-10-13-admin-role-by-default</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -119,11 +119,11 @@
   }
 </style>
 </head>
-<body data-change="admin-role-by-default">
+<body data-change="2026-10-13-admin-role-by-default">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>admin-role-by-default</h1>
+  <h1>2026-10-13-admin-role-by-default</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. <span class="copies">Saving a note copies all your notes.</span> Open a drawing and tap it to see it full screen.</p>
@@ -204,6 +204,7 @@
 <li class="decision card" id="decision-10" data-note="decision-10" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-13</p>Assumed: the move from managers to Admins runs as a database migration, not at the owner's next open, because the app would otherwise read both the old switch and the new role until every install's owner opened Access.</li>
 <li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-13</p>Asked what to do with the finished plan → chose build and publish.</li>
 <li class="decision card" id="decision-12" data-note="decision-12" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-13</p>Built: tasks 1.1 to 6.1 are written and pass the local checks; the preview walk, 6.2, waits on this save. Decided while building: the question before giving Admin from a row lives with the people list, not the picker, because a click inside the popup would otherwise open the person; the read-only Admin panel is the shared panel with no save action; the words <i>Can manage Access.</i> stay as a line describing Admin, so the retired tick's name is allowed in those two screens and their tests; the main specs keep the word <i>manager</i>, which the new requirement defines as a current person who holds Admin; the journey <i>the employer makes a person an Admin</i> was written by hand and first runs at the preview walk.</li>
+<li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-13</p>Archive checkpoint: the preview walk, task 6.2, showed Admin first in Roles and read-only when opened, the question before giving it, the save with <i>Undo</i>, and the row and panel naming Admin; an own-set person's panel has no manager tick. Not shown by the walk and left to the code tests: anything done while signed in as an Admin who is not the owner, an app built after the pick, and the move from managers, because a preview signs the checker in as the owner and starts from the seed. Released as 41.0.0.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
