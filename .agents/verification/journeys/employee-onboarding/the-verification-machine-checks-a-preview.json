@@ -85,7 +85,7 @@
       "checkbox",
       "click",
       "--name",
-      "Tip calculator"
+      "Hello"
     ],
     [
       "find",
@@ -121,7 +121,7 @@
     ],
     [
       "open",
-      "{url}/apps/tips/"
+      "{url}/apps/hello/"
     ],
     [
       "wait",
@@ -136,10 +136,10 @@
   ],
   "expect": [
     {
-      "text": "Tip calculator"
+      "text": "Hello"
     },
     {
-      "path": "/apps/tips/"
+      "path": "/apps/hello/"
     }
   ]
 }

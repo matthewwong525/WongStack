@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 40.7.1 — The tip calculator is gone
+
+- **WongStack's own site no longer has a tip calculator.** Hello is the one example app. The tip calculator never came with an install, so your home page and your apps are as they were.
+- **The practice people in Access hold Hello alone.** On a preview, two of them were given a tip calculator your site never had. Those three rows did nothing and are gone, so Access on a preview looks the same.
+- **"Make me a tip calculator" is still the example request** on an empty home page and in the guide. Ask for one and the assistant builds it for you.
+
+**Updating.** Nothing to do. A tip calculator you built yourself stays as it is.
+
 ## 40.7.0 — The first message builds your first app
 
 - **The *Make it yours* message asks for your first app.** Paste it into your chat and the assistant asks about your work and where your time goes, one question at a time, starting from what it already knows about you. It then suggests a few apps you would use, builds the one you pick, removes the welcome box, explains each step, and shows a preview before publishing.

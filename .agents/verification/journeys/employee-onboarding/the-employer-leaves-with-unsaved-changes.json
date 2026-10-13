@@ -85,7 +85,7 @@
       "checkbox",
       "click",
       "--name",
-      "Tip calculator"
+      "Hello"
     ],
     [
       "wait",
