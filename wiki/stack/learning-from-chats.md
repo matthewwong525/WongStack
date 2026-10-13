@@ -1,6 +1,6 @@
 # Learning from past chats
 
-Setup learns about you and your business from what you typed in your past AI chats on this computer, while it installs. It tells you in one line, keeps only short notes, and stops when you say *skip the chats*. So a new install already knows you, and [the starter page's first request](mini-apps.md#the-home-page-lists-the-apps) only changes the page.
+Setup learns about you and your business from what you typed in your past AI chats on this computer, while it installs. It tells you in one line, keeps only short notes, and stops when you say *skip the chats*. So a new install already knows you, and [the starter page's first request](mini-apps.md#the-home-page-lists-the-apps) starts from that: it asks about your work and builds your first app.
 
 This page owns the steps the assistant follows. [Getting started](getting-started.md) tells the rest of setup's story.
 

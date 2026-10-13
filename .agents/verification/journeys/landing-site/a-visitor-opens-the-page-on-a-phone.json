@@ -8,6 +8,7 @@
   },
   "thenDigest": "77cf1ea2a4595f7e775517df9667c65680eed6754c2c88d481dca54027bc613a",
   "probe": "browser",
+  "site": "landing-preview",
   "writes": false,
   "sourcePaths": [
     "README.md",
