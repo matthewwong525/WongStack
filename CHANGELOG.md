@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Buy through Shop
+## 40.9.0 — Buy through Shop
 
 - **The assistant shops through Shop.** Ask for a product and it searches Shop, Shopify's shopping service, before it opens a store's website: one search covers many stores, with no login and no robot check. Each option names the seller and the price and links the product. [Shopping](wiki/development/shopping.md) has the rules.
 - **Looking needs no account.** It searches, compares, and fills a cart without one, and always gives you the store's checkout link, so you can pay yourself.
