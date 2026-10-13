@@ -1,10 +1,11 @@
 // Kept checks: the file format, the replay against the practice site, and what may be kept.
 // Request checks run for real. Browser checks run through scripts/fixtures/verify-journeys/fake-browser.mjs,
-// and once through a real browser where one is installed.
+// and once through a real browser where one is installed. A second site is another local site, and
+// `gh` is a stub first on PATH, so no test reaches the network.
 import assert from 'node:assert/strict';
 import { execFile, execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -154,6 +155,8 @@ test('a file outside the format or its closed set of expectations is unreadable,
     ['digest', () => ({ ...listCount(), thenDigest: 'abc' }), /thenDigest is malformed/],
     ['probe', () => ({ ...listCount(), probe: 'state' }), /neither browser nor request/],
     ['writes', () => ({ ...listCount(), writes: 'no' }), /writes is neither true nor false/],
+    ['site-address', () => ({ ...listCount(), site: 'https://landing.example.com' }), /site is not a short name/],
+    ['site-blank', () => ({ ...listCount(), site: '' }), /site is not a short name/],
     ['recorded', () => ({ ...listCount(), recordedAt: 'yesterday' }), /sourcePaths or recordedAt is malformed/],
     ['no-steps', () => ({ ...listCount(), steps: [] }), /a step is malformed/],
     ['host', () => ({ ...emptyTitle(), steps: [['open', 'https://preview.example.com/new']] }), /names a site/],
@@ -402,6 +405,161 @@ test('a promise the change rewrites is skipped; a changed, removed, or unreadabl
   assert.match(out.stdout, /^REPLAY=same 1, changed 1, skipped 2, not-run 2; /m);
 });
 
+// ── a second site ─────────────────────────────────────────────────────────────
+
+const SECOND = 'landing-preview';
+const onSecond = (id, note, more = {}) => editPage(id, note, { site: SECOND, ...more });
+
+// A stand-in for gh: it logs its arguments, then prints these commit statuses, or fails with this message.
+function stubGh(f, answer) {
+  const calls = join(f.base, 'gh-calls.txt');
+  const act = typeof answer === 'string' ? `echo '${answer}' >&2\nexit 1` : `cat <<'JSON'\n${JSON.stringify(answer)}\nJSON`;
+  writeFileSync(join(f.bin, 'gh'), `#!/usr/bin/env bash\necho "$*" >>"${calls}"\n${act}\n`);
+  chmodSync(join(f.bin, 'gh'), 0o755);
+  return () => (existsSync(calls) ? readFileSync(calls, 'utf8').trim().split('\n') : []);
+}
+
+// A site that answers every request with "ok" and keeps the headers it was sent.
+async function recorder(t) {
+  const seen = [];
+  const server = createServer((req, res) => {
+    seen.push(req.headers);
+    res.end('ok');
+  });
+  await new Promise(done => server.listen(0, '127.0.0.1', done));
+  t.after(() => new Promise(done => { server.closeAllConnections(); server.close(done); }));
+  return { url: `http://127.0.0.1:${server.address().port}`, seen };
+}
+
+test('a check whose site has no preview for this commit is not run, never changed, and nothing is opened for it', async t => {
+  const f = project(t);
+  const site = await practiceSite(t);
+  // Newest first, as GitHub lists them: none is a successful https status named landing-preview.
+  const calls = stubGh(f, [
+    { context: SECOND, state: 'pending', target_url: 'https://pending.example.com' },
+    { context: 'another-preview', state: 'success', target_url: 'https://another.example.com' },
+    { context: SECOND, state: 'success', target_url: 'http://not-https.example.com' },
+  ]);
+  f.kept(listCount());
+  f.kept(onSecond('on-landing', 1));
+  f.kept({ ...onSecond('landing-promise-changed', 2), thenDigest: hash('- **THEN** an older promise') });
+  const out = await replay(f, site.url);
+  for (const id of ['on-landing', 'landing-promise-changed']) {
+    const { site: named, result, reason, url, evidence } = out.byId[id];
+    assert.deepEqual([named, result, reason, url, evidence], [SECOND, 'not-run', 'no landing-preview address was posted for this change', undefined, undefined], id);
+  }
+  assert.equal(out.byId['list-count'].result, 'same', 'the main preview\'s checks replay as before');
+  assert.deepEqual(site.paths(), ['/api/notes']);
+  const replayDir = join(f.runDir, dirname(dirname(out.byId['list-count'].evidence)));
+  assert.deepEqual(readdirSync(replayDir).filter(name => name.endsWith('.log')), ['01.log'], 'no runner started for a check with no preview');
+  assert.match(out.stdout, /^not-run notes\/on-landing — no landing-preview address was posted for this change$/m);
+  assert.match(out.stdout, /^REPLAY=same 1, changed 0, skipped 0, not-run 2; /m);
+  assert.deepEqual(calls(), [`api repos/{owner}/{repo}/commits/${f.git('rev-parse', 'HEAD')}/statuses?per_page=100`], 'the statuses are read once for every check');
+
+  // A promise the change rewrites is skipped first, with no lookup.
+  const change = join(f.base, 'change');
+  mkdirSync(join(change, 'specs/notes'), { recursive: true });
+  writeFileSync(join(change, 'specs/notes/spec.md'), `## MODIFIED Requirements\n\n### Requirement: ${requirementOf('The list API counts its notes')}\n`);
+  const rewritten = await replay(f, site.url, ['--change-root', change]);
+  assert.deepEqual(rewritten.written.results.map(entry => entry.result), ['skipped', 'skipped', 'skipped']);
+  assert.equal(calls().length, 1);
+});
+
+test('with an address, a named check replays on its own site and the others on the preview', async t => {
+  const f = project(t);
+  const main = await practiceSite(t);
+  const second = await practiceSite(t);
+  const calls = stubGh(f, 'an address given with --site-url needs no lookup');
+  f.kept(listCount());
+  f.kept(onSecond('on-landing', 1));
+  f.kept(emptyTitle({ site: SECOND, writes: false, expect: [{ text: 'Title required' }] }));
+  const out = await replay(f, main.url, ['--site-url', `${SECOND}=${second.url}/`]);
+  assert.deepEqual(out.written.results.map(entry => entry.result), ['same', 'same', 'same'], out.stdout);
+  assert.deepEqual(main.paths(), ['/api/notes'], 'the preview saw only its own check');
+  assert.ok(second.paths().includes('/notes/1/edit') && second.paths().includes('/new'), 'request and browser checks both went to the named site');
+  assert.ok(!second.paths().includes('/api/notes'));
+  for (const id of ['on-landing', 'empty-title']) assert.deepEqual([out.byId[id].site, out.byId[id].url], [SECOND, second.url], 'the address is kept without its closing slash');
+  assert.deepEqual([out.byId['list-count'].site, out.byId['list-count'].url, out.written.url], [undefined, undefined, main.url]);
+  assert.deepEqual(calls(), []);
+});
+
+test('the lookup takes the newest successful https status of the site\'s name', async t => {
+  const f = project(t);
+  stubGh(f, [
+    { context: SECOND, state: 'pending', target_url: 'https://pending.example.com' },
+    { context: 'another-preview', state: 'success', target_url: 'https://another.example.com' },
+    { context: SECOND, state: 'success', target_url: 'https://127.0.0.1:9/' },
+    { context: SECOND, state: 'success', target_url: 'https://older.example.com' },
+  ]);
+  f.kept(onSecond('on-landing', 1));
+  // Nothing listens there, so the check ran, against that address, and got no answer.
+  const { 'on-landing': ran } = (await replay(f, 'http://127.0.0.1:9')).byId;
+  assert.deepEqual([ran.url, ran.result, ran.reason], ['https://127.0.0.1:9', 'changed', 'request 1 answered nothing, not 200']);
+});
+
+test('a lookup that fails reads not-run with the reason, and the preview\'s checks still run', async t => {
+  const f = project(t);
+  const site = await practiceSite(t);
+  const calls = stubGh(f, 'gh: Not Found (HTTP 404)');
+  f.kept(listCount());
+  f.kept(onSecond('on-landing', 1));
+  f.kept(onSecond('on-landing-too', 2));
+  const out = await replay(f, site.url);
+  for (const id of ['on-landing', 'on-landing-too']) {
+    assert.deepEqual([out.byId[id].result, out.byId[id].reason], ['not-run', 'the landing-preview address could not be read (gh: Not Found (HTTP 404))'], id);
+  }
+  assert.equal(out.byId['list-count'].result, 'same');
+  assert.equal(calls().length, 1, 'a failed lookup is not tried again');
+  assert.deepEqual(site.paths(), ['/api/notes']);
+});
+
+test('a named site is sent no Access credential; the preview still is', async t => {
+  const f = project(t);
+  const main = await recorder(t);
+  const second = await recorder(t);
+  const page = (id, more) => journey(id, 'The list API counts its notes', 'browser', [['open', '{url}/']], [{ text: 'ok' }], { writes: false, ...more });
+  f.kept(listCount({ expect: [{ step: 1, status: 200 }] }));
+  f.kept(page('main-page'));
+  f.kept(onSecond('on-landing', 1));
+  f.kept(page('landing-page', { site: SECOND }));
+  const out = await replay(f, main.url, ['--site-url', `${SECOND}=${second.url}`], { CF_ACCESS_CLIENT_ID: 'id.access', CF_ACCESS_CLIENT_SECRET: 'access-secret-value' });
+  assert.deepEqual(out.written.results.map(entry => entry.result), ['same', 'same', 'same', 'same'], out.stdout);
+  const sent = site => site.seen.map(headers => [headers['cf-access-client-id'], headers['cf-access-client-secret']]);
+  assert.ok(sent(main).some(([id, secret]) => id === 'id.access' && secret === 'access-secret-value'), 'the preview\'s request check carried the credential');
+  assert.deepEqual(sent(second), [[undefined, undefined], [undefined, undefined]], 'the named site saw two requests and no credential');
+  assert.equal(f.browserCalls().match(/ batch$/gm).length, 2);
+  assert.equal(f.browserCalls().match(/ set$/gm).length, 1, 'only the preview\'s browser was given the Access headers');
+});
+
+test('a login wall stops the checks of its own site, and no other site\'s', async t => {
+  const f = project(t);
+  const site = await practiceSite(t);
+  let requests = 0;
+  const wall = createServer((req, res) => {
+    requests += 1;
+    res.writeHead(302, { Location: 'https://team.cloudflareaccess.com/cdn-cgi/access/login' }).end();
+  });
+  await new Promise(done => wall.listen(0, '127.0.0.1', done));
+  t.after(() => wall.close());
+  const walled = `http://127.0.0.1:${wall.address().port}`;
+  const results = out => Object.fromEntries(Object.entries(out.byId).map(([id, entry]) => [id, entry.reason ?? entry.result]));
+  // The named site's checks go first: they were recorded against a file the branch changed.
+  const first = { sourcePaths: ['app/notes.js'] };
+  f.kept(onSecond('landing-a', 1, first));
+  f.kept(onSecond('landing-b', 2, first));
+  f.kept(listCount());
+  f.kept(editPage('edit-one', 1));
+  assert.deepEqual(results(await replay(f, site.url, ['--site-url', `${SECOND}=${walled}`])), {
+    'landing-a': 'the preview answered with a login wall', 'landing-b': 'the preview answered with a login wall', 'list-count': 'same', 'edit-one': 'same',
+  });
+  assert.equal(requests, 1, 'the named site\'s second check was not sent');
+  // And the other way round: the preview's wall leaves the named site's checks running.
+  assert.deepEqual(results(await replay(f, walled, ['--site-url', `${SECOND}=${site.url}`])), {
+    'landing-a': 'same', 'landing-b': 'same', 'list-count': 'the preview answered with a login wall', 'edit-one': 'the preview answered with a login wall',
+  });
+  assert.equal(requests, 2);
+});
+
 test('a real browser replays a kept promise the same and a broken one changed', { skip: !hasBrowser && 'no browser is installed here', timeout: 180000 }, async t => {
   const f = project(t);
   const site = await practiceSite(t);
@@ -564,11 +722,34 @@ test('a candidate is installed only after it replayed the same, alone, from a re
   assert.equal(readFileSync(installed, 'utf8'), proven);
 });
 
+test('keep --site records the site and no address, and the proof replays on that site', async t => {
+  const f = project(t);
+  const second = await practiceSite(t);
+  const name = 'submitting-with-no-title-is-rejected';
+  walked(f, '01-empty-title', 'Submitting with no title is rejected', { batch: [['open', `${second.url}/new`], ['find', 'role', 'button', 'click', '--name', 'Save']] });
+  const keepOn = site => cli(f, ['keep', '--run-dir', f.runDir, '--url', second.url, '--site', site, '--id', '01-empty-title', '--expect', '[{"text":"Title required"}]']);
+  const refused = await keepOn('https://landing.example.com');
+  assert.deepEqual([refused.status, refused.stdout], [1, 'KEEP=refused 01-empty-title — its site is not a short name of letters, digits, and - _ .\n']);
+  assert.equal((await keepOn(SECOND)).stdout, `KEEP=candidate notes/${name}\n`);
+  const written = readFileSync(join(f.runDir, 'keep/notes', `${name}.json`), 'utf8');
+  assert.deepEqual([candidate(f, name).site, candidate(f, name).steps[0]], [SECOND, ['open', '{url}/new']]);
+  assert.ok(!written.includes('127.0.0.1'), 'the kept file holds no address');
+
+  // The proof is told the preview is somewhere nothing answers, so a pass came from the named site.
+  const proof = await replay(f, 'http://127.0.0.1:9', ['--from', join(f.runDir, 'keep'), '--site-url', `${SECOND}=${second.url}`]);
+  assert.deepEqual([proof.byId[name].result, proof.byId[name].url], ['same', second.url], proof.stdout);
+  assert.match((await cli(f, ['keep', '--install', '--run-dir', f.runDir])).stdout, new RegExp(`^kept notes/${name}$`, 'm'));
+  assert.equal(readFileSync(join(f.keptDir, 'notes', `${name}.json`), 'utf8'), written);
+  assert.match((await cli(f, ['check'])).stdout, new RegExp(`^ok notes/${name}$`, 'm'));
+});
+
 // ── the command line ──────────────────────────────────────────────────────────
 
 test('a command with a missing or wrong argument is a usage error', async t => {
   const f = project(t);
   for (const args of [[], ['walk'], ['check', 'extra'], ['replay'], ['replay', '--run-dir', f.runDir], ['replay', '--run-dir', f.runDir, '--url', PREVIEW, '--budget', 'soon'],
+    ['replay', '--run-dir', f.runDir, '--url', PREVIEW, '--site-url', 'landing-preview'], ['replay', '--run-dir', f.runDir, '--url', PREVIEW, '--site-url', 'landing preview=https://x.example.com'],
+    ['replay', '--run-dir', f.runDir, '--url', PREVIEW, '--site-url', 'landing-preview=x.example.com'],
     ['replay', '--run-dir', join(f.base, 'missing'), '--url', PREVIEW], ['keep', '--run-dir', f.runDir, '--url', PREVIEW, '--id', 'x'],
     ['keep', '--run-dir', f.runDir, '--url', PREVIEW, '--id', 'x', '--expect', '{'], ['keep', '--install']]) {
     const out = await cli(f, args);
