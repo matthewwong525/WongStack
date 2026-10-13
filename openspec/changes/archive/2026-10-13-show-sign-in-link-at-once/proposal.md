@@ -1,7 +1,7 @@
 # Show the sign-in link at once
 
 **Status:** ready-to-ship
-**Branch:** supreme-shrimp
+**Branch:** ship-print-link
 **Open questions:** none
 
 ## Why
@@ -31,6 +31,7 @@ A person pasted the setup message into their assistant and waited. The assistant
 - **2026-10-13** — Assumed: the link is safe to show, because the setup tool already passes on only this business's own sign-in address and drops anything that holds a login.
 - **2026-10-13** — Assumed: the apps-only setup message changes too, though it was kept word for word until now, because it said to show the link only when no browser is there, and an assistant can not tell.
 - **2026-10-13** — Assumed: the Claymoo app's own setup message, the one in the picture, is fixed in its own project, because it is a separate copy this change can not reach.
+- **2026-10-13** — Archive checkpoint: built in one pass with every task ticked and the local checks green; the setup tool was re-pinned, numbered 40.9.1 and saved for the check before publishing.
 
 ## Capabilities
 
