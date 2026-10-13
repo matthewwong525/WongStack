@@ -2,9 +2,9 @@ import { useState } from 'react'
 import { Link } from 'react-router'
 import { Button } from '@/components/ui/button'
 import { DropdownMenuItem } from '@/components/ui/dropdown-menu'
-import type { Person } from '../../lib/access'
+import { isAdmin, type Person } from '../../lib/access'
 import { at, type ViewProps } from './address'
-import { Confirm } from './Confirm'
+import { Confirm, MakeAdmin } from './Confirm'
 import { dots, summary } from './levels'
 import { PersonPage } from './PersonPage'
 import { RoleSelect } from './RoleSelect'
@@ -16,14 +16,16 @@ import { View } from './View'
 const COLUMNS = ['Person', 'Sign-in', 'Role', 'Apps and keys']
 
 // The view that opens first: one row per person, each one line with the same parts whatever state they are in.
-// The owner is the first row, with nothing to change. You and Manager sit beside the email. A role is picked right
-// in the row; the rest of what a row offers sits behind its menu. The last cell counts apps and keys; the names show
-// where the person is opened, in the panel beside the list. Only the owner removes a manager, so a manager's menu has
-// no Remove there.
+// The owner is the first row, with nothing to change. You sits beside the email. A role is picked right
+// in the row, and picking Admin asks first; the rest of what a row offers sits behind its menu. The last cell counts
+// apps and keys; the names show where the person is opened, in the panel beside the list. Only the owner removes an
+// Admin, so an Admin's menu has no Remove there.
 export function People(props: ViewProps) {
   const { status, id, pending, save } = props
   const { owner, email: viewer } = status.viewer
   const [removing, setRemoving] = useState<Person | null>(null)
+  // The person Admin was picked for in their row, with the save that gives it once the owner says yes.
+  const [making, setMaking] = useState<{ email: string; give: () => void } | null>(null)
   const opened = status.people.find(item => item.email === id)
   const you = (email: string) => email === viewer && 'You'
   return <View {...props} add={<Button asChild><Link to={at('people', 'new')}><span aria-hidden="true">+ </span>Add person</Link></Button>}>
@@ -31,7 +33,7 @@ export function People(props: ViewProps) {
       <Row>
         <Name title={status.ownerEmail} marks={[you(status.ownerEmail)]} />
         <Cell className="text-muted-foreground">Can sign in</Cell>
-        <Cell>{dots('Owner', !owner && 'picks managers')}</Cell>
+        <Cell>{dots('Owner', !owner && 'picks Admins')}</Cell>
         <Cell>Everything</Cell>
         <Cell actions />
       </Row>
@@ -39,15 +41,16 @@ export function People(props: ViewProps) {
         const signIn = signInLine(person, status)
         const active = person.status === 'active'
         const page = at('people', person.email)
+        const admin = isAdmin(status, person)
         return <Row key={person.email} to={page} current={person === opened}>
-          <Name title={person.email} to={page} marks={[you(person.email), person.manager && 'Manager']} />
+          <Name title={person.email} to={page} marks={[you(person.email)]} />
           <Cell className="text-muted-foreground">{signIn.text}</Cell>
-          <Cell>{active ? <RoleSelect {...props} person={person} /> : 'No role'}</Cell>
-          <Cell>{summary(status, person)}</Cell>
+          <Cell>{active ? <RoleSelect {...props} person={person} ask={give => setMaking({ email: person.email, give })} /> : 'No role'}</Cell>
+          <Cell>{summary(status, { ...person, builtIn: admin })}</Cell>
           <Cell actions><RowMenu label={`Actions for ${person.email}`}>
             <DropdownMenuItem asChild><Link to={page}>{active ? 'Open' : 'Add back'}</Link></DropdownMenuItem>
             {signIn.unfinished && canRetry(status) && <DropdownMenuItem disabled={pending} onSelect={() => save('retry')}>Try again</DropdownMenuItem>}
-            {active && (owner || !person.manager) && <DropdownMenuItem disabled={pending} onSelect={() => setRemoving(person)}>Remove</DropdownMenuItem>}
+            {active && (owner || !admin) && <DropdownMenuItem disabled={pending} onSelect={() => setRemoving(person)}>Remove</DropdownMenuItem>}
           </RowMenu></Cell>
         </Row>
       })}
@@ -58,8 +61,9 @@ export function People(props: ViewProps) {
       {status.environment === 'live'
         ? "They are blocked at once and can no longer download the project. Everyone is signed out and signs in again. This can't be undone. A copy of the project already on their device stays there. Access given where the project is kept is removed there."
         : 'They leave the practice list. The real sign-in list is not touched.'}
-      {removing.manager && ' They stop managing Access too.'}
+      {isAdmin(status, removing) && ' They stop managing Access too.'}
     </Confirm>}
+    {making && <MakeAdmin email={making.email} pending={pending} onConfirm={making.give} onCancel={() => setMaking(null)} />}
     {(opened || id === 'new') && <PersonPage key={id} {...props} person={opened} />}
   </View>
 }

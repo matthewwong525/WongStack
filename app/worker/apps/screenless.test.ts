@@ -21,7 +21,7 @@ afterEach(() => { calls.count = 0; });
 const employee: AccessIdentity = { id: "employee@example.com", kind: "user", claims: { sub: "employee", email: "employee@example.com",
   iss: "https://business.cloudflareaccess.com", aud: "app", exp: 9999999999 } };
 // One permission row: key levels have started, and the person holds no app and no level yet.
-const row = { policy_enabled: 1, keys_enabled: 1, revision: 1, status: "active", manager: 0, apps: "[]", keys: "{}" };
+const row = { policy_enabled: 1, keys_enabled: 1, revision: 1, status: "active", held: null, apps: "[]", keys: "{}" };
 const env = fakeEnv({ DB: { withSession: () => ({ prepare: () => ({ bind: () => ({ first: async () => row }) }) }) }, WONG_CLOUDFLARE_READ: "cloudflare-read-key",
   WONG_OWNER_EMAIL: "owner@example.com", CF_ACCESS_TEAM_DOMAIN: "business.cloudflareaccess.com", CF_ACCESS_AUD: "app" });
 const call = (route: string, method = "GET") => handleApp(new Request(`https://workspace.example.com/apps/hello/api/${route}`, { method }), env, employee);

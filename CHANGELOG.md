@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (major) — An Admin role that holds everything
+
+- **Every Roles list has an Admin role.** It is first. It gives every app and every key at its highest level, ones added later included, and lets its holder manage Access. It can't be renamed, changed or removed. Nobody is given it for you: you pick who.
+- **Admin replaces the *Can manage Access* tick.** A person's panel no longer has the *Managing* group. Make someone an Admin by picking it as their role, in their row or in their panel. The pick asks first, because it is full trust. The *Manager* mark beside an email is gone; the Role column says *Admin*.
+- **Only the owner gives or takes Admin.** An Admin adds, changes and removes people and makes and edits roles, as a manager did. An Admin can't make another Admin, remove one, give up their own, or change the owner, and their role picker doesn't offer Admin.
+- **Taking Admin away stops managing at once.** Moved to another role, the person has exactly that role. Moved to their own set, they keep every app and key until you untick them.
+- **The old switch is refused.** Saving a person no longer takes a `manager` field. Anything you built that sends it gets an error; send the Admin role as the person's role instead.
+
+**Updating.** Everyone who could manage Access now holds Admin, so they also have every app and every key. Their earlier role, or their own apps and key levels, is replaced, and this can't be undone. Open Access, go to People, and pick another role for anyone who should not have everything. A role you had named Admin is now *Admin (custom)*, with the same apps, keys and people. If a page of yours links *Managers* on the employee access page (`wiki/stack/employee-access.md#managers`), link *Admin* (`#admin`) instead. The database change comes with the update; there is no step to do by hand.
+
 ## 40.7.0 — The first message builds your first app
 
 - **The *Make it yours* message asks for your first app.** Paste it into your chat and the assistant asks about your work and where your time goes, one question at a time, starting from what it already knows about you. It then suggests a few apps you would use, builds the one you pick, removes the welcome box, explains each step, and shows a preview before publishing.

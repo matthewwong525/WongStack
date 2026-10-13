@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 
-/** A removal, or leaving with changes not saved, asks first and says what it leaves behind, in a popup over the page:
+/** A removal, giving Admin, or leaving with changes not saved, asks first and says what it leaves behind, in a popup over the page:
  *  the one way Access asks a question. It is open while it is drawn. The way out is focused first and is Escape's
  *  answer too; the action is the one solid button; a click on the dimmed page answers nothing. Once answered, the
  *  keyboard goes back to where it was. */
@@ -22,4 +22,9 @@ export function Confirm({ title, action, cancel = 'Cancel', pending, onConfirm, 
       </AlertDialogFooter>
     </AlertDialogContent>
   </AlertDialog>
+}
+
+/** Giving Admin asks first, in a person's row and in their panel: it is full trust. */
+export function MakeAdmin({ email, ...props }: { email: string; pending: boolean; onConfirm: () => void; onCancel: () => void }) {
+  return <Confirm title={`Make ${email} an Admin?`} action="Make Admin" {...props}>Every app, every key, and can change anyone's access.</Confirm>
 }

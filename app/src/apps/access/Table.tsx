@@ -27,13 +27,12 @@ const EVEN = 'h-14 @max-[44rem]:h-auto'
 const OPEN = 'aria-[current=true]:bg-muted aria-[current=true]:[&>td:first-child]:shadow-[inset_0.2rem_0_0_var(--color-primary)]'
 
 /** A list: a table whose columns every row shares, each row one line on a computer. The current link in the switch
- *  above is its heading and names it. `actions` names a last column of row menus, for a screen reader alone. With
- *  `empty`, that is said in the table's place. The table itself is a plain one: the ready-made frame round a table
- *  scrolls sideways, and these rows stack instead. */
-export function Table({ view, columns, actions, empty, children }: {
-  view: ViewProps['view']; columns: string[]; actions?: string; empty?: ReactNode; children: ReactNode
+ *  above is its heading and names it. `actions` names a last column of row menus, for a screen reader alone. The
+ *  table itself is a plain one: the ready-made frame round a table scrolls sideways, and these rows stack instead. */
+export function Table({ view, columns, actions, children }: {
+  view: ViewProps['view']; columns: string[]; actions?: string; children: ReactNode
 }) {
-  return empty || <table className={cn('w-full text-sm', STACK.table)} aria-labelledby={viewLabel(view)}>
+  return <table className={cn('w-full text-sm', STACK.table)} aria-labelledby={viewLabel(view)}>
       <TableHeader className={STACK.head}><TableRow className="hover:bg-transparent">
         {columns.map(column => <TableHead scope="col" className="text-muted-foreground" key={column}>{column}</TableHead>)}
         {actions && <TableHead scope="col"><span className="sr-only">{actions}</span></TableHead>}

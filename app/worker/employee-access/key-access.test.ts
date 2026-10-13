@@ -149,6 +149,28 @@ it("gives the owner and the machine that checks previews every app and every key
   expect((await run(action(), orders, null)).status).toBe(403);
 });
 
+it("gives an Admin every app and each key at the highest level it offers, no key before key levels start, and no owner route", async () => {
+  f.sql.prepare("INSERT INTO wong_access_member_roles VALUES (?, ?, 'admin')").run(id, employee.id);
+  expect(await currentPolicy(env, employee)).toMatchObject({ role: "employee", manages: true, apps: new Set(["access", "orders", "payroll"]),
+    keys: new Map([["stripe", "write"], ["bank", "write"], ["cloudflare", "read"]]) });
+  // Payroll has no row and was never given: it is theirs as an app built after they were made Admin is.
+  expect(f.sql.prepare("SELECT app_id FROM wong_access_apps").all()).toEqual([{ app_id: "orders" }]);
+  expect((await run(action({ effect: "write" }), { apps: ["payroll"], keys: ["bank"] })).status).toBe(200);
+  expect((await run(action({ effect: "write" }), alone)).status).toBe(200);
+  expect((await run(action(), { keys: ["cloudflare"] })).status).toBe(200);
+  // A key gives no more than it offers, to an Admin as to the owner.
+  expect(await message(await run(action({ effect: "write" }), { keys: ["cloudflare"] }))).toBe("Cloudflare: Read & write needed");
+  // Never the owner: an owner route, and a name nothing is built for, stay closed.
+  expect((await run(action(), { kind: "owner" })).status).toBe(403);
+  expect(await message(await run(action(), { apps: ["not-built"] }))).toBe("App access denied");
+  expect((await run(action(), { apps: ["not-built"] }, owner)).status).toBe(200);
+  // Before key levels start an Admin's keys wait, like everyone's but the owner's; their apps do not.
+  f.sql.exec("UPDATE wong_access_installation SET keys_enabled = 0");
+  expect(await currentPolicy(env, employee)).toMatchObject({ manages: true, apps: new Set(["access", "orders", "payroll"]), keys: null });
+  expect((await run(action({ effect: "write" }), { apps: ["payroll"], keys: ["bank"] })).status).toBe(200);
+  expect(await message(await run(action(), { keys: ["cloudflare"] }))).toBe("Cloudflare: Read needed");
+});
+
 it("never lets a key work alone before key levels start, while apps run as they do after", async () => {
   f.sql.exec("UPDATE wong_access_installation SET keys_enabled = 0");
   expect(await currentPolicy(env, employee)).toMatchObject({ state: "current", keys: null });

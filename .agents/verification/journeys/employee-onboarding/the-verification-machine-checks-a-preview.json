@@ -77,7 +77,7 @@
     [
       "wait",
       "--text",
-      "Can manage Access"
+      "Save access"
     ],
     [
       "find",
@@ -112,7 +112,7 @@
     [
       "wait",
       "--text",
-      "Can manage Access"
+      "Save access"
     ],
     [
       "get",

@@ -10,7 +10,7 @@ const offenders = (sources: Record<string, string>) =>
   Object.entries(sources).filter(([file, text]) => file !== home && text.match(asserted)).map(([file]) => `worker/${file} ${reason}`);
 
 it("flags a pass asserted by hand, naming the file and the reason", () => {
-  expect(offenders({ "made.ts": "return { db, env, owner: true } as Core;", "raised.ts": "managerWrites(core as OwnerCore, email, true)",
+  expect(offenders({ "made.ts": "return { db, env, owner: true } as Core;", "raised.ts": "adminWrite(core as OwnerCore, email)",
     "twice.ts": "const core = {} as unknown as Core;", "taken.ts": "export async function save(core: Core) { if (isOwner(core)) await owned(core); }",
     "other.ts": "const view = value as CoreView; // it has Core in it", [home]: "return { db, env } as Core;" }))
     .toEqual([`worker/made.ts ${reason}`, `worker/raised.ts ${reason}`, `worker/twice.ts ${reason}`]);

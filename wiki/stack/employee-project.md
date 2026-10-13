@@ -14,9 +14,9 @@ you          the app        their device
 
 ## Who gets what
 
-The owner or a manager gives the project in [Access](access-screens.md#a-panel-has-apps-and-keys): the tick *Can install the project* on a person's panel, or on a role's. The tick is **Project code** at Read, [a key with one level](employee-access.md#a-key-with-no-app). It needs no app ticked: ticking an app never gives it. The owner always holds it; nobody else does until it is given. It shows as saved once the app can read the project.
+The owner or [an Admin](employee-access.md#admin) gives the project in [Access](access-screens.md#a-panel-has-apps-and-keys): the tick *Can install the project* on a person's panel, or on a role's. The tick is **Project code** at Read, [a key with one level](employee-access.md#a-key-with-no-app). It needs no app ticked: ticking an app never gives it. The owner always holds it; nobody else does until it is given. It shows as saved once the app can read the project.
 
-The tick is off for a new person, and saves before the key is in. While the app can't hand the project out, the ticked box names the step left: [a read-only GitHub key](#the-owners-one-step-on-github), or [finishing Access setup](employee-access.md#finish-access-setup) on an install with no project recorded. The owner gets a request to copy for their assistant; a manager reads that the step is the owner's. The person gets the project once the step is done, with no further change in Access.
+The tick is off for a new person, and saves before the key is in. While the app can't hand the project out, the ticked box names the step left: [a read-only GitHub key](#the-owners-one-step-on-github), or [finishing Access setup](employee-access.md#finish-access-setup) on an install with no project recorded. The owner gets a request to copy for their assistant; an Admin reads that the step is the owner's. The person gets the project once the step is done, with no further change in Access.
 
 | The person | The Connect card | What the prompt does |
 |---|---|---|

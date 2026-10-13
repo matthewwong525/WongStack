@@ -11,6 +11,16 @@ import { Page } from './Page'
 import { SetFields } from './SetFields'
 import { holdersLine } from './subjects'
 
+/** Admin, opened: what it gives and who holds it. Nothing here changes, so the panel only closes. */
+export function BuiltInRole({ role, ...props }: ViewProps & { role: Role }) {
+  return <Page {...props} name={role.name} changed={false}>
+    <p>Every app and every key, including new ones.</p>
+    <p>Can manage Access.</p>
+    <p>Only the owner gives it.</p>
+    <p>People: {holdersLine(props.status, role.id)}</p>
+  </Page>
+}
+
 /** One role, opened: a name, its apps and key levels, and who holds it. Without `role`, a new one. Removing it asks first, over the panel. */
 export function RolePage({ role, ...props }: ViewProps & { role?: Role }) {
   const { status, pending, save } = props

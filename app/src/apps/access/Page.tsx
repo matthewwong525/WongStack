@@ -26,9 +26,9 @@ function Held({ pending }: { pending: boolean }) {
  *  the ✕, Escape, a press on the page beside it, or Cancel. Its name is the panel's title, its fields scroll, and
  *  Save and Cancel stay in view under them: Save is the panel's one solid button, with a line above it while a
  *  change waits to be saved. The page beside it stays in use (`modal` off), so the two views and the list's rows
- *  still work. With `changed`, every way out asks first. */
+ *  still work. With `changed`, every way out asks first. Without `action`, nothing here changes: the panel only closes. */
 export function Page({ name, changed, action, onSave, extra, children, ...props }: ViewProps & {
-  name: string; changed: boolean; action: string; onSave: () => void; extra?: ReactNode; children: ReactNode
+  name: string; changed: boolean; action?: string; onSave?: () => void; extra?: ReactNode; children: ReactNode
 }) {
   const { view, pending } = props
   const navigate = useNavigate()
@@ -53,13 +53,13 @@ export function Page({ name, changed, action, onSave, extra, children, ...props 
       {changed && held && <Held pending={pending} />}
       {leaving && <Leave onLeave={() => void navigate(leaving)} onStay={() => setLeaving(null)} />}
       <SheetHeader className="pe-12"><SheetTitle className="wrap-anywhere">{name}</SheetTitle></SheetHeader>
-      <form className="flex min-h-0 flex-1 flex-col" onSubmit={event => { event.preventDefault(); onSave() }}>
+      <form className="flex min-h-0 flex-1 flex-col" onSubmit={event => { event.preventDefault(); onSave?.() }}>
         <fieldset className="flex min-h-0 min-w-0 flex-1 flex-col" disabled={pending}>
           <div className="grid min-h-0 flex-1 content-start gap-4 overflow-y-auto px-4 pb-4">{children}</div>
           <SheetFooter className="flex-row flex-wrap gap-2.5 border-t">
             {changed && <p className="basis-full text-sm font-semibold">Not saved yet</p>}
-            <Button type="submit">{action}</Button>
-            <Button type="button" variant="outline" onClick={close}>Cancel</Button>
+            {action && <Button type="submit">{action}</Button>}
+            <Button type="button" variant="outline" onClick={close}>{action ? 'Cancel' : 'Close'}</Button>
             {extra}
           </SheetFooter>
         </fieldset>

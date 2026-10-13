@@ -22,7 +22,7 @@ vi.mock("./key-use.ts", () => ({ keyUse: [
 
 type Person = { email: string; status: string; role: string | null; apps: string[]; keys: Record<string, string> };
 type Status = { keysStarted: boolean; imported: number; started: boolean; people: Person[];
-  roles: { id: string; name: string; apps: string[]; keys: Record<string, string> }[] };
+  roles: { id: string; name: string; builtIn: boolean; apps: string[]; keys: Record<string, string> }[] };
 let f: ReturnType<typeof fixture>;
 let cf: ReturnType<typeof cloudflare>["state"];
 let fetch: ReturnType<typeof vi.fn>;
@@ -64,6 +64,8 @@ afterEach(() => { f.sql.close(); vi.unstubAllGlobals(); });
 const orders: RouteAccess = { apps: ["orders"], keys: ["stripe"] };
 const stripe: RouteAccess = { keys: ["stripe"] };
 const enabled = () => f.sql.prepare("SELECT keys_enabled FROM wong_access_installation").get();
+// What Admin gives: every app a person can be given, and each key at the highest level it offers.
+const everything = { apps: ["orders", "payroll", "reports"], keys: { stripe: "write", bank: "write", cloudflare: "read" } };
 
 it("starts key levels at the owner's first open with nobody given one, and keeps a level already held", async () => {
   add("noapps@example.com"); add("chosen@example.com", ["orders"]);
@@ -125,7 +127,8 @@ it("shows every app and every key the app holds, who has which level, and never 
       { id: "stripe", title: "Stripe", levels: ["read", "write"], saved: true, setup: false, alone: false },
       { id: "bank", title: "Bank", levels: ["read", "write"], saved: false, setup: false, alone: false },
       { id: "cloudflare", title: "Cloudflare", levels: ["read"], saved: false, setup: true, alone: true }],
-    unticked: { people: [], roles: [] }, roles: [], people: [{ email: employee.id, role: null, apps: ["orders"], keys: {} }] });
+    unticked: { people: [], roles: [] }, roles: [{ id: "admin", name: "Admin", builtIn: true, ...everything }],
+    people: [{ email: employee.id, role: null, apps: ["orders"], keys: {} }] });
   for (const gone of ["areas", "skills", "kept", "appKeys"]) expect(shown, gone).not.toHaveProperty(gone);
   for (const key of shown.keys) expect(key, key.id).not.toHaveProperty("usedBy");
   for (const secret of ["stripe-secret-value", "bank-id-value", "STRIPE_SECRET_KEY"]) expect(body).not.toContain(secret);
@@ -229,7 +232,7 @@ it("starts a role from a person, refuses a taken name, and removes a held role w
   expect(named(await save("roles", { id: office.id, name: "Office" }), "Office")).toMatchObject(set);
   const before = revision();
   const removed = await save("roles", { id: office.id, removed: true });
-  expect(removed.roles.map(role => role.name)).toEqual(["Office two"]);
+  expect(removed.roles.map(role => role.name)).toEqual(["Admin", "Office two"]);
   for (const email of [bo, cy]) {
     // Each holder keeps the role's apps and levels, as their own.
     expect(one(removed, email)).toMatchObject({ role: null, ...set });
@@ -237,6 +240,34 @@ it("starts a role from a person, refuses a taken name, and removes a held role w
   }
   expect([revision(), count("wong_access_member_roles"), count("wong_access_role_apps"), count("wong_access_role_keys")]).toEqual([before + 1, 0, 2, 1]);
   expect(events().slice(-2)).toEqual(["role_changed", "role_removed"]);
+});
+
+it("gives Admin like a role, with a set nothing stores and nobody changes, and leaves its holder everything when they move off it", async () => {
+  await status();
+  const bo = "bo@example.com";
+  // Admin is listed first, ahead of a role whose name sorts before it.
+  const listed = await save("roles", { name: "Aardvarks" });
+  expect(listed.roles.map(role => [role.id === "admin", role.name, role.builtIn])).toEqual([[true, "Admin", true], [false, "Aardvarks", false]]);
+  expect(listed.roles[0]).toMatchObject(everything);
+  // The owner gives it in the save that adds the person. Nothing is stored for what it gives.
+  expect(one(await save("people", { email: bo, removed: false, role: "admin" }), bo)).toMatchObject({ role: "admin", ...everything });
+  expect([count("wong_access_role_apps"), count("wong_access_role_keys"), count("wong_access_grants"), count("wong_access_key_grants")]).toEqual([0, 0, 1, 0]);
+  expect([await may(bo, { apps: ["reports"] }, "write"), await may(bo, stripe, "write"), await may(bo, { keys: ["cloudflare"] }, "read"), await may(bo, { kind: "owner" }, "read")])
+    .toEqual([true, true, true, false]);
+  // A role is the whole answer, Admin too: no exceptions on top.
+  await refused("people", { email: bo, removed: false, role: "admin", apps: { orders: false } }, "role_with_own_set");
+  // Nobody renames, changes or removes it, and no second role takes its name in any case.
+  for (const body of [{ id: "admin", name: "Bosses" }, { id: "admin", name: "Admin", apps: { orders: false } }, { id: "admin", name: "Admin", keys: { stripe: null } },
+    { id: "admin", name: "Admin", from: bo }, { id: "admin", removed: true }]) await refused("roles", body, "role_locked", 403);
+  for (const name of ["admin", "Admin", " ADMIN "]) await refused("roles", { name }, "role_name_taken", 409);
+  expect((await status()).roles[0]).toMatchObject({ id: "admin", name: "Admin", builtIn: true, ...everything });
+  // A role can start from an Admin: a copy of what they hold now, under its own name.
+  expect(named(await save("roles", { name: "Office", from: bo }), "Office")).toMatchObject({ builtIn: false, ...everything });
+  // Moved to their own set, they keep every app and key as their own, with the save's own change on top.
+  const own = one(await save("people", { email: bo, removed: false, role: null, apps: { reports: false } }), bo);
+  expect([own.role, own.apps, own.keys]).toEqual([null, ["orders", "payroll"], everything.keys]);
+  expect([await may(bo, stripe, "write"), await may(bo, { apps: ["reports"] }, "read")]).toEqual([true, false]);
+  expect(events().filter(event => event.startsWith("admin_"))).toEqual(["admin_given", "admin_taken"]);
 });
 
 it("has no save that sets one app or one key for several at once: a role does that", async () => {

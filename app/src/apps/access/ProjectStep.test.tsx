@@ -27,7 +27,7 @@ it('asks the owner for the read-only GitHub key, with the words to say and the w
   // The request names the key and the page that owns the steps, and repeats none of them.
   expect(PROJECT_REQUEST).toMatch(/^Let teammates install the project: .*WONG_CODE_READ.*wiki\/stack\/employee-project\.md/)
 })
-it("tells a manager the GitHub key is the owner's step, with nothing to copy", () => {
+it("tells an Admin the GitHub key is the owner's step, with nothing to copy", () => {
   const { container } = render(<ProjectStep status={status('key', false)} />)
   expect(container.textContent).toBe('One step first for the owner. owner@shop.com adds a read-only GitHub key.')
   expect(screen.queryByRole('button')).toBeNull()
@@ -38,7 +38,7 @@ it('sends the owner of an install with no project recorded to finish Access setu
   expect(container.textContent).not.toMatch(/GitHub/)
   await copies(FINISH_REQUEST)
 })
-it("tells a manager that finishing Access setup is the owner's step, with nothing to copy", () => {
+it("tells an Admin that finishing Access setup is the owner's step, with nothing to copy", () => {
   const { container } = render(<ProjectStep status={status('setup', false)} />)
   expect(container.textContent).toBe('One step first for the owner. owner@shop.com finishes Access setup.')
   expect(screen.queryByRole('button')).toBeNull()
