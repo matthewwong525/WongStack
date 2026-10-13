@@ -14,6 +14,7 @@ How this repo plans, builds, checks, and ships changes. Every WongStack install 
 - [Browsing](browsing.md) — how the agent uses websites as the person: saved logins, pictures of key moments, private links for what only the person can give or do, and what it does when a site refuses its browser.
   - [Save your passwords](passwords.md) — give the agent the logins you choose through a private link; it never sees a password.
   - [Login codes](login-codes.md) — the agent reads a one-time code from your email or asks for it in the chat, with no link.
+  - [Shopping](shopping.md) — the agent finds, compares, and buys products through Shop: no account to look, your yes to connect and to pay, one payment per purchase, and no card detail the agent can read.
   - [Live view](live-view.md) — at a robot check, a private link shows the agent's browser so you can tap through it: when it opens, what the link can do, and how the agent runs one.
 - [Memory dream](wiki-dream.md) — type `/dream-memory` and the assistant checks the wiki, saved facts, specs, and plans against each other and the code: what it fixes, what it only lists, the dry run, and how to undo one.
 - [Session memory](memory.md) — the private fact store: who sees what, the start-of-session digest, capture by `/save` and the background run, and consolidation.
