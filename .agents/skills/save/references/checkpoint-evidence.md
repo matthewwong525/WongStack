@@ -8,13 +8,15 @@ Options: `--repo <repo>` and `--changes-dir <relative-changes-path>` for a selec
 
 ## Selection rungs
 
-Each verb walks its own list of rungs in order; the first with exactly one candidate selects it. Several → ask, with [them as the options](../../explore/references/asking-the-user.md); never fall through.
+A verb walks the rungs in order; the first with exactly one candidate selects it. Several → ask, with [them as the options](../../explore/references/asking-the-user.md); never fall through: a guess saves or publishes the wrong work.
 
 - `explicit` — the change the user names, or the exact path a calling verb hands off.
 - `session` — a change created, selected, or discussed this session.
 - `changed-active` — the one `active` candidate, from the dirty paths or branch diff.
 - `recorded-branch` — the one `recorded` candidate: an active proposal whose `**Branch:**` line names this branch.
-- `sole-active` — the only `openspec list` entry, when the session names no other work.
-- `changed-archive` — the one `archive` candidate, from the same paths.
+- `sole-active` — the only `openspec list` entry, when the session names no other work. `/apply` only: no save, walk, or publish takes a plan merely because it is the only one open.
+- `changed-archive` — the one `archive` candidate, from the same paths. `/save` (before `recorded-branch`) and `/verify` only.
+
+`/ship`'s `prepare`, and `/continue` on a pull request's head branch, walk only `changed-active`, then `recorded-branch`.
 
 A branch name alone never selects a change: a proposal with no Branch line needs an earlier rung. Keep the change name separate from the branch name.

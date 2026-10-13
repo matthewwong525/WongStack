@@ -6,13 +6,13 @@ user-invocable: true
 
 # /continue
 
-**Selected schedule:** [route its record](../save/references/schedule-records.md) before code or checkout; preserve its store and pending question.
+**Selected schedule:** [route its record](../save/references/schedule-records.md) before code or checkout.
 
-Resume a saved OpenSpec change in a fresh session. **The change is the plan and the source of truth**, kept current by `/save`: `openspec/changes/<name>/proposal.md` holds the intent, `tasks.md` the checklist, its memory facts the session context.
+Resume a saved OpenSpec change in a fresh session. **The change is the plan and the source of truth** ([where it lives](../../../wiki/development/the-change-loop.md#where-the-plan-and-record-live)); its memory facts hold the session context.
 
 Check [preconditions](../save/references/preconditions.md). This skill owns checkout; `gh` resolves only GitHub; [Artifacts](../../../wiki/stack/artifacts-route.md) lists saved branches.
 
-A handle selects by [the rungs](../save/references/checkpoint-evidence.md#selection-rungs): a change name is `explicit`; a PR uses `changed-active`, then `recorded-branch`, on its head branch.
+A handle names the work ([the rungs](../save/references/checkpoint-evidence.md#selection-rungs)): a change name is that change; a PR is the one active change its head branch carries.
 
 ## Workflow
 
@@ -45,7 +45,7 @@ A handle selects by [the rungs](../save/references/checkpoint-evidence.md#select
   ```bash
   gh pr view <N> --json headRefName,url,title,state
   ```
-  After `git fetch origin`, run `bash "$(git rev-parse --show-toplevel)/.claude/skills/save/scripts/change-candidates.sh" --json --ref "origin/<headRefName>" --branch "<headRefName>"`. If you ask, give each candidate's status and task progress. Read the selected folder after checkout; never infer its name from the PR branch.
+  After `git fetch origin`, run `bash "$(git rev-parse --show-toplevel)/.claude/skills/save/scripts/change-candidates.sh" --json --ref "origin/<headRefName>" --branch "<headRefName>"`. If you ask, give each candidate's status and task progress. Read the selected folder after checkout.
 - **A bare number matching both a PR and an `openspec list` index** → ask which, naming the PR and the change it would load.
 
 A change with no PR yet is fine: load it.
@@ -72,7 +72,7 @@ Recap so the user can confirm the loaded state:
 - **The change**: 2–4 lines on the work and task progress, its `Status:` line, and any open questions.
 - **The journey**: the last 1–3 `## Decision log` entries, so the resumer inherits the *why*.
 - **The session context**: open threads first, then live facts the change lacks, with ages. No facts → skip the line; say so when [the store is unreachable](../memory/SKILL.md#read).
-- **State**: the checked-out branch, and the PR as a markdown link — only the link, as *the change on GitHub*, unless asked ([plain words](../explore/references/asking-the-user.md#write-in-plain-words)).
+- **State**: the checked-out branch, and the PR as *the change on GitHub* ([plain words](../explore/references/asking-the-user.md#write-in-plain-words)).
 - **Drift check**: **counts only**; never reload the PR diff or review threads unless asked:
   ```bash
   git log origin/main..HEAD --oneline | wc -l   # commits on the branch (vs how tasks.md reads)
@@ -90,5 +90,3 @@ Then:
 - **Not checked out** (declined or failed in step 3) → build and edit nothing, even with an instruction. End with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step), offering step 3's three choices.
 - **An explicit instruction** → do *that*, with the change as backdrop.
 - **Otherwise** (checked out, or no branch yet) → **invoke the `/apply` skill** to work the tasks.
-
-`/continue` resumes and implements; it drafts no specs ([`/apply` vs `/continue`](../../../wiki/development/the-change-loop.md#apply-vs-continue)).

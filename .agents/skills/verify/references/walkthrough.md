@@ -4,7 +4,7 @@ Check saved-revision behavior through deployed probes or existing CI captures. [
 
 ## a — scout the scenarios
 
-Select delta scenarios and capabilities touched by the branch diff. `WHEN`/`THEN` remain authoritative. Inspect confirmed callers/data contracts; add narrowly relevant existing consumer scenarios, even across capabilities. Name the relationship and expectation; exclude speculation, report missing expectations. Consumer checks grant no repair scope.
+Select delta scenarios and capabilities touched by the branch diff. `WHEN`/`THEN` remain authoritative. Inspect confirmed callers/data contracts; add narrowly relevant existing consumer scenarios, even across capabilities. Name the relationship and expectation; exclude speculation, report missing expectations.
 
 Match each scenario to the strongest existing route:
 
@@ -13,11 +13,11 @@ Match each scenario to the strongest existing route:
 3. **State probe** — trigger through the deployed interface, then read with an existing machine or stack command.
 4. **CI capture** — saved-source command/output and follow-ups. Read project-owned `.agents/verification/*.json` and owning capture instructions; [CI evidence](ci-evidence.md) owns commands. Validate sources, scenarios, prerequisites, source/run identity and integrity. Never execute downloads/repo code locally. No recipe preserves ordinary probes; drift blocks its check, without editing recipes.
 
-Ledger: scenario, probe, prerequisites, revision, runnable/blocked status, owned cleanup. Prepare surfaces independently: no preview blocks deployed checks alone. No route → name scenario/reason as unverified. Stage runnable checks; blocked/failed prerequisites pause dependents only. Finish independent safe checks.
+Ledger: scenario, probe, prerequisites, revision, runnable/blocked status, owned cleanup. Prepare surfaces independently: no preview blocks deployed checks alone. No route → name scenario/reason as unverified. Stage runnable checks.
 
 **Before writes**: `preflight`'s `PLAYGROUND=yes` → create/change/delete staging data freely: no prompt, ownership or cleanup; the next walk rebuilds it. Otherwise establish staging-only bindings and owned disposable records with safe cleanup, or defer, naming the need. Production data, paid resources or access changes beyond the authorized heal need permission.
 
-**Outside services**: `node "$ROOT/scripts/cf-secrets.mjs" shared` lists key names. Trigger a service only on an `own` key; `shared`/unknown destination → never trigger; name the service and that a staging-only key unlocks it.
+**Outside services**: `node "$ROOT/scripts/cf-secrets.mjs" shared` lists key names. Trigger a service only on an `own` key: on a shared one, a staging email could reach a real customer. `shared`/unknown destination → never trigger; name the service and that a staging-only key unlocks it.
 
 **Missing seed records** → create through the app's screens, else unverified, naming the missing sample data. **Scheduled work** → run the project's manual trigger on staging, grade its result; the timetable stays partly shown; no trigger → unverified.
 
@@ -85,7 +85,7 @@ Evidence rules:
 bash "$ROOT/.claude/skills/verify/scripts/verify-staging.sh" run "$RUN_DIR" "$URL"
 ```
 
-After source/test authoring and the final gate, stage independent journeys together; grade prerequisites before dependent stages. Move completed inputs out of `journeys/` before retries: every staged mutation replays. The driver runs browsers then requests; finish state/readbacks and CI imports before grading. CI-only needs no browser/preview. Failed cleanup: retain owned record IDs, defer dependent mutations, finish independent checks.
+Stage independent journeys together; grade prerequisites before dependent stages. Move completed inputs out of `journeys/` before retries: every staged mutation replays. The driver runs browsers then requests; finish state/readbacks and CI imports before grading. CI-only needs no browser/preview. Failed cleanup: retain owned record IDs, defer dependent mutations.
 
 `run`/`publish` print `REDACTED=<n>` credential-bearing text files scrubbed. Above 0, report it. `unknown`: inspect text evidence and `comment.md` for credentials before posting.
 
@@ -105,7 +105,7 @@ Read evidence beside each verbatim `then`: screenshots and `evidence/<id>.result
 
 ## e — after a failure
 
-Finish independent checks; retain retry evidence. `PLAYGROUND=yes` → clean up nothing: `preflight` rebuilds staging before each re-walk. Otherwise clean up owned test data; preserve shared data.
+Retain retry evidence. `PLAYGROUND=yes` → clean up nothing (§ a). Otherwise clean up owned test data; preserve shared data.
 
 A failure is **in scope** only when both hold:
 
@@ -122,11 +122,11 @@ Usually **out of scope**: app `401` with valid service token (app authentication
 
 One `$RUN_DIR/comment.md` covers every surface/retry: verdict, saved SHA, preview/run links, each verbatim `THEN`, probe/environment, raw observations/readbacks and result. Name consumer relationships, compared revisions/results/limits. Label practice/simulated evidence. Show pass, fail, `◐` partial (shown/missing claims and why) and unverified checks. Text stands without images; numbered browser links: `Pictures (log in to open): [<label>](<url>)`.
 
-Apply the skill's verdict precedence; inherently unobservable claims stay partly shown (§ d). UNKNOWN/TIMEOUT lead **Not verified.**, naming completed checks, blocks, and remedies. Name heals or missing credentials.
+Apply the skill's verdict precedence. UNKNOWN/TIMEOUT lead **Not verified.**, naming completed checks, blocks, and remedies.
 
-Before handoff, attempt safe simulations through existing deployed interfaces, disposable synthetic data or sandbox integrations (§ a). No local repo execution or invented tooling. Label **simulated** evidence, supported claims and real behavior unproved; simulated delivery proves no real delivery or personal experience. No safe simulation → name the limit.
+Before handoff, attempt safe simulations through existing deployed interfaces, disposable synthetic data or sandbox integrations (§ a). Label **simulated** evidence, supported claims and real behavior unproved; simulated delivery proves no real delivery or personal experience. No safe simulation → name the limit.
 
-After independent checks/simulations, make **one handoff** in comment/chat, including human-checkable partial claims. Each remaining check names its reason, needed action/permission, expected observation and dependents. Offer help or selected/all skips in [the shared ask format](../../explore/references/asking-the-user.md). Skips stay **skipped, unverified**, grant no permission/pass and erase no failure; ask again only if reopened. Blocked reachable checks prevent SUCCESS.
+After independent checks/simulations, make **one handoff** in comment/chat, including human-checkable partial claims. Each remaining check names its reason, needed action/permission, expected observation and dependents. Offer help or selected/all skips in [the shared ask format](../../explore/references/asking-the-user.md). Skips stay **skipped, unverified**, grant no permission/pass and erase no failure; ask again only if reopened.
 
 Use [key links](../../../../wiki/development/secrets.md#receive-a-key-through-a-private-link) or [password links](../../../../wiki/development/passwords.md) for credentials/login. Waiting grants no permission. Resume pending checks after help; repeat completed checks only on changed conditions. Retain observations, pending/skipped ledger and owned IDs before cleanup.
 
@@ -138,12 +138,12 @@ gh pr comment --body-file "$RUN_DIR/comment.md"
 bash "$ROOT/.claude/skills/verify/scripts/verify-staging.sh" cleanup "$RUN_DIR"
 ```
 
-`publish`: `<local-path>\t<url>`, then `MEDIA=`. **private** → links; **public** → `![<label>](<url>)`; **none** → report `REASON`, omit pictures, verdict unchanged. Never cite missing URLs or cleaned local paths; other evidence is inline text, no video.
+`publish`: `<local-path>\t<url>`, then `MEDIA=`. **private** → links; **public** → `![<label>](<url>)`; **none** → report `REASON`, omit pictures, verdict unchanged. Never cite missing URLs or cleaned local paths; no video.
 
 ## g — kept checks
 
 Inside `/ship` only, before § f's post. `J` is `node "$ROOT/.claude/skills/verify/scripts/verify-journeys.mjs"`; every call takes `--run-dir "$RUN_DIR"`, `replay` and `keep` also `--url "$URL"`.
 
 1. **Replay** once §§ c–e settle: `J replay --change-root <archive>`. `same` → list as *replayed, unchanged*, no fresh grade. `changed` → walk it fresh once, three per walk, the rest unverified: pass → keep; contradiction → § e, naming the older promise. `skipped` → this change's walk covers it. `not-run` → name its reason; no pass, no failure.
-2. **Keep** each passed browser/request journey, its inputs back in `journeys/`: `J keep --id <id> --expect '<json>'`, `--writes` if it submits or changes data. `expect` rows hold shown claims only: `{"text"}`, `{"gone"}`, `{"path"}`; request `{"step","status","includes"}`. Never one using a private link, an outside service or a manual job trigger.
+2. **Keep** each passed browser/request journey, its inputs back in `journeys/`: `J keep --id <id> --expect '<json>'`, `--writes` if it submits or changes data. `expect` rows hold shown claims only: `{"text"}`, `{"gone"}`, `{"path"}`; request `{"step","status","includes"}`. Never one using a private link, an outside service or a manual job trigger ([why](../../../../wiki/development/kept-checks.md#what-is-never-kept)).
 3. **Prove, install**: `J replay --from "$RUN_DIR/keep"`, then `J keep --install`; name each *left out*. After the post, a changed tree → `/save` once; that commit needs no re-walk.

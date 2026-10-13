@@ -14,7 +14,7 @@ A plain request — research, an errand, a reminder, a question — is not a cha
             resume saved work later, on any machine
 ```
 
-Each WongStack skill calls the OpenSpec CLI (setup runs `openspec init --tools none`). **OpenSpec owns plans; WongStack skills own all git**: `/explore`, `/plan`, and `/apply` run none; `/save`, `/continue`, `/ship`, and `/close` own branches, PRs, and merges. A finished `/apply` [uploads a preview and shows changed screens in the chat](../../.agents/skills/apply/SKILL.md#finish-with-a-preview) before asking whether to publish; the work stays in the working tree. Pictures unavailable → say why and keep the choice.
+Each WongStack skill calls the OpenSpec CLI (setup runs `openspec init --tools none`). **OpenSpec owns plans; WongStack skills own all git**: `/explore`, `/plan`, and `/apply` run none; `/save`, `/continue`, `/ship`, and `/close` own branches, PRs, and merges. A finished `/apply` [uploads a preview and shows changed screens in the chat](../../.agents/skills/apply/SKILL.md#finish-with-a-preview) before asking whether to publish; the work stays in the working tree.
 
 **A verb whose precondition is missing invokes the verb before it**, nested, so you can enter anywhere:
 
@@ -66,7 +66,7 @@ Before planning, the agent [checks for other work](../../.agents/skills/explore/
 Each skill owns its own procedure; this list is what each stage is for.
 
 - **[`/explore`](../../.agents/skills/explore/SKILL.md)** thinks a problem through and owns the [questions before a plan](#asking-before-drafting). It **always runs**, except for notes pasted from a review page, and writes nothing.
-- **[`/plan`](../../.agents/skills/plan/SKILL.md)** drafts the change folder and its `review.html` page, with no git. **A behavior change plans test authoring beside source**; build the complete implementation before automatic tests or remote checks. Source-review completion never claims passing tests; delivery runs required verification at the end. `/save` never authors tests; coverage grows where the context is richest.
+- **[`/plan`](../../.agents/skills/plan/SKILL.md)** drafts the change folder and its `review.html` page, with no git. **A behavior change plans test authoring beside source**, and its checks at the end ([why](#apply-never-saves-to-stop-but-may-save-to-finish-a-task)). `/save` never authors tests; coverage grows where the context is richest.
 - **[`/apply`](../../.agents/skills/apply/SKILL.md)** ensures a plan, works `tasks.md` [in a fresh helper agent](../../.agents/skills/apply/SKILL.md#build-in-a-helper) so the build does not carry the planning talk, waits quietly for it, and ends with [the local pre-check](#the-gate) and a host preview. It never saves on completion; invoked by `/ship`, it returns with no upload.
 - **[`/save`](../../.agents/skills/save/SKILL.md)** is the git stage: it commits code and [the synced change](#the-change-is-a-living-handoff-not-just-a-plan) together, pushes, opens or updates the PR, waits for CI when present, and returns a preview URL, all in one command once the files are staged; it also records the session's facts in the [memory store](memory.md). With no plan, it authors one from the session, so nothing ships without its handoff. `/ship` reuses it for the archive, so the git, PR, and CI logic exists once.
 - **[`/continue`](../../.agents/skills/continue/SKILL.md)** resumes a change or an open non-code thread, cold, on any machine, and hands off to `/apply`.
@@ -77,9 +77,9 @@ Loop back any time: each `/save` keeps the plan and Status current and **appends
 
 ### `/apply` never saves to stop, but may save to finish a task
 
-`/apply` never saves to stop or between implementation parts. Prepare all source and tests first, then run the local pre-check once; tick implementation boxes on source review and report the pre-check as local. Move existing intermediate test gates to the final phase without new approval or lost acceptance obligations, and log the timing change. Routine final checks belong to `/save` or `/ship`, rather than source checklist boxes. Explicit early requests retain their reach.
+`/apply` writes the whole change, source and tests, before it checks any of it, and never saves to stop or between parts. Long builds used to stop after each part to check the unfinished change: on one, the checks took over three minutes a run, and every part ran them again, with more runs for repairs. So the checks run once, at the end. [The helper brief](../../.agents/skills/apply/references/build-helper.md) owns how the build does it, and [`/plan`](../../.agents/skills/plan/SKILL.md#finish) lays the tasks out for it. Routine final checks belong to `/save` or `/ship`, rather than source checklist boxes.
 
-Substantive deployed acceptance still needs evidence after implementation; `/save` can establish it, and only observed acceptance completes its task. An unavailable prerequisite stays a blocker. A later archive can require another checked revision; report that reason honestly. Final required checks, fresh preview evidence and the single live look remain intact. After failures, batch repairs and repeat affected checks under existing limits; every pushed source revision still takes all required CI jobs.
+Nothing is checked less. Substantive deployed acceptance still needs evidence after implementation; `/save` can establish it, and only observed acceptance completes its task. A later archive can require another checked revision; report that reason honestly. Final required checks, fresh preview evidence and the single live look remain intact. After failures, batch repairs and repeat affected checks under existing limits; every pushed source revision still takes all required CI jobs.
 
 ### Verbs for any work
 

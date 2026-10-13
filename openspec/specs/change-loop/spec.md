@@ -20,25 +20,6 @@ The agent SHALL do a plain request (research, an errand, a reminder, a question)
 - **WHEN** the person says "remember that invoices go out on the 1st" and the agent writes it to the wiki
 - **THEN** the reply ends by asking whether to publish it, recommended first, and a yes runs `/ship`
 
-### Requirement: A change asked with no verb stops twice
-
-A code or process change asked for with no verb SHALL stop at the plan's review link to ask whether to build it now, and after `/apply`'s preview to ask whether to publish, running the next verb on yes. The question at the plan SHALL also offer to build and publish in one go, which runs `/ship` with no stop before the merge. A verb the person types SHALL keep its own reach.
-
-#### Scenario: Yes to both stops
-
-- **WHEN** the person asks to change how the app stores data, then says yes at both stops
-- **THEN** the agent runs `/plan`, `/apply`, and `/ship` without the person naming a verb
-
-#### Scenario: Build and publish at the plan
-
-- **WHEN** the person picks *Build and publish* in the question under a finished plan
-- **THEN** the agent runs `/ship`, which builds, checks, and merges with no stop at the preview
-
-#### Scenario: The person types /ship
-
-- **WHEN** the person invokes `/ship add a sign-up page`
-- **THEN** the chain runs to the merge with no stop at the plan or before the merge
-
 ### Requirement: A new page or tool is a mini app
 
 A request for a new standalone page or small tool SHALL run the change loop like any code change and SHALL be built as a mini app, as `mini-apps` defines.
@@ -126,3 +107,17 @@ An explicitly confirmed schedule registration or lifecycle checkpoint SHALL be p
 
 - **WHEN** a record-only publish also contains application changes or an incomplete code plan
 - **THEN** that route stops and the ordinary code change loop is required
+
+### Requirement: A change asked with no verb stops at the plan and at the preview
+
+A code or process change asked for with no verb SHALL stop at the plan's review link to ask whether to build it, and after the build's preview to ask whether to publish, running the next verb on yes. The question at the plan SHALL also offer to build and publish in one go, with no stop before the merge. A verb the person types SHALL keep its own reach.
+
+#### Scenario: Yes to both stops
+
+- **WHEN** the person asks to change how the app stores data, then says yes at both stops
+- **THEN** the agent runs `/plan`, `/apply`, and `/ship` without the person naming a verb
+
+#### Scenario: The person types /ship
+
+- **WHEN** the person invokes `/ship add a sign-up page`
+- **THEN** the chain runs to the merge with no stop at the plan or before the merge

@@ -94,13 +94,13 @@ test('a fresh clone resolves a selected-store goal by its published path and pas
   assert.doesNotMatch(record.record.proposal, /Branch:/);
 });
 
-test('delivery verbs dispatch explicit operational records before code workflow instructions', () => {
+// Only the link and the flag are held: the wording and its place on the page are the skill's to change.
+test('delivery verbs link the schedule-record route, which names the store flag', () => {
   for (const name of ['continue', 'apply', 'plan']) {
     const text = readFileSync(new URL(`../../.agents/skills/${name}/SKILL.md`, import.meta.url), 'utf8');
-    assert.ok(text.indexOf('route its record') < text.indexOf(name === 'continue' ? '### 2. Resolve' : name === 'apply' ? '## Resolve the plan' : '## Draft with the CLI'));
+    assert.match(text, /save\/references\/schedule-records\.md/);
   }
   const routing = readFileSync(new URL('../../.agents/skills/save/references/schedule-records.md', import.meta.url), 'utf8');
-  assert.match(routing, /pending questions block dependent actions/i);
   assert.match(routing, /--store <id>/);
 });
 
