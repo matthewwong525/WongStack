@@ -5,7 +5,7 @@ import { primaryRoot } from '../.agents/skills/memory/scripts/lib/primary-root.m
 import { isMain, parseCli } from './lib-cli.mjs';
 import { memoryOperations, callMemory } from '../.agents/skills/memory/scripts/operations.mjs';
 import { selectOperations, parseOperationInput } from '../.agents/skills/memory/scripts/lib/operations.mjs';
-import { companyClient as transport } from './employee-bootstrap.mjs';
+import { companyClient as transport, signInNotice } from './employee-bootstrap.mjs';
 export { companyOrigin, cloudflared, loginUrl } from './employee-bootstrap.mjs';
 export function companyClient(options = {}) { return transport({ root: options.root || primaryRoot().root, onboarding: false, ...options }); }
 
@@ -36,7 +36,7 @@ if (isMain(import.meta.url)) {
   const { positionals: [command, id, ...extra], values } = parseCli({ usage: USAGE, allowPositionals: true, options: Object.fromEntries(['origin', 'state', 'scope', 'q', 'app', 'limit', 'offset', 'file'].map(name => [name, { type: 'string' }])) });
   try {
     if (extra.length) throw new Error(USAGE);
-    const client = companyClient({ stateDir: values.state, onLoginUrl: link => console.error(`Sign in with your own company account: ${link}`) });
+    const client = companyClient({ stateDir: values.state, onLoginUrl: link => console.error(signInNotice(link)) });
     let result;
     if (command === 'login') result = await client.login(values.origin);
     else if (command === 'list') result = await combinedList(client, { scope: values.scope, q: values.q, app: values.app, limit: values.limit === undefined ? 20 : Number(values.limit), offset: values.offset === undefined ? 0 : Number(values.offset) });

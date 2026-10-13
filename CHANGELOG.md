@@ -13,6 +13,13 @@
 
 **Updating.** Nothing to do by hand. `/wong-sync` brings the new workflow file, `.github/workflows/guard.yml`, and two changed guard scripts, `.github/scripts/loosened-checks.mjs` and `.github/scripts/check-settings.mjs`; each needs a `Check:` bullet in the sync plan's Decision log. The `guard` check first shows on the pull request after the one that brings it. Optional: `/ship` already stops on a red `guard`, but a person merging by hand on GitHub can pass one. To stop that, open the project on GitHub, go to *Settings → Rules → Rulesets*, open the rule set for your main branch, and add `guard` under *Require status checks to pass*.
 
+## 41.0.1 — Setup shows the sign-in link at once
+
+- **The assistant shows the sign-in link the moment setup prints it, then waits.** A person connecting their assistant had to ask for the link: the setup message said to keep login output out of the chat, so the assistant held the link back. Both setup messages now ask for the link, and the setup tool says beside it that it is safe to show.
+- **Nothing else from the sign-in is shown.** Only this business's own sign-in address is passed on, as before.
+
+**Updating.** Nothing needs doing. A person gets the new wording the next time they copy the setup message from the app.
+
 ## 41.0.0 — An Admin role that holds everything
 
 - **Every Roles list has an Admin role.** It is first. It gives every app and every key at its highest level, ones added later included, and lets its holder manage Access. It can't be renamed, changed or removed. Nobody is given it for you: you pick who.
