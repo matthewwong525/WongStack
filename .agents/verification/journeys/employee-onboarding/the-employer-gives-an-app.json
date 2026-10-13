@@ -132,7 +132,7 @@
   ],
   "expect": [
     {
-      "text": "Tip calculator"
+      "text": "Hello"
     },
     {
       "gone": "Unticked in this update"

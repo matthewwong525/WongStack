@@ -15,6 +15,14 @@
 
 **Updating.** The update installs nothing and connects nothing. The first time you ask the assistant to shop, it asks to add Shop's small tool to your home folder; say no and it shops in the browser as before. Connecting your Shop account is optional and is asked separately, only when a purchase needs it. Shop sees what the assistant searches for and which assistant app you use. Searching was tried for real; connecting an account and paying were tested only against a stand-in, so the first real purchase may end with the store's checkout link for you to finish. Not tried on Windows.
 
+## 40.8.1 — The tip calculator is gone
+
+- **WongStack's own site no longer has a tip calculator.** Hello is the one example app. The tip calculator never came with an install, so your home page and your apps are as they were.
+- **The practice people in Access hold Hello alone.** On a preview, two of them were given a tip calculator your site never had. Those three rows did nothing and are gone, so Access on a preview looks the same.
+- **"Make me a tip calculator" is still the example request** on an empty home page and in the guide. Ask for one and the assistant builds it for you.
+
+**Updating.** Nothing to do. A tip calculator you built yourself stays as it is.
+
 ## 40.8.0 — Kept checks replay on their own site
 
 - **A saved check remembers which site it belongs to.** Most belong to your app and say nothing. A check recorded on a second site with its own preview, such as a landing page, carries that site's name, and the replay before publishing opens it on that site's preview. Before, it opened every check on the app's preview, found nothing of the second site there, and called the check broken.
