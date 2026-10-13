@@ -10,6 +10,16 @@
 
 **Updating.** Nothing needs doing. A person gets the new wording the next time they copy the setup message from the app.
 
+## 41.0.0 — An Admin role that holds everything
+
+- **Every Roles list has an Admin role.** It is first. It gives every app and every key at its highest level, ones added later included, and lets its holder manage Access. It can't be renamed, changed or removed. Nobody is given it for you: you pick who.
+- **Admin replaces the *Can manage Access* tick.** A person's panel no longer has the *Managing* group. Make someone an Admin by picking it as their role, in their row or in their panel. The pick asks first, because it is full trust. The *Manager* mark beside an email is gone; the Role column says *Admin*.
+- **Only the owner gives or takes Admin.** An Admin adds, changes and removes people and makes and edits roles, as a manager did. An Admin can't make another Admin, remove one, give up their own, or change the owner, and their role picker doesn't offer Admin.
+- **Taking Admin away stops managing at once.** Moved to another role, the person has exactly that role. Moved to their own set, they keep every app and key until you untick them.
+- **The old switch is refused.** Saving a person no longer takes a `manager` field. Anything you built that sends it gets an error; send the Admin role as the person's role instead.
+
+**Updating.** Everyone who could manage Access now holds Admin, so they also have every app and every key. Their earlier role, or their own apps and key levels, is replaced, and this can't be undone. Open Access, go to People, and pick another role for anyone who should not have everything. A role you had named Admin is now *Admin (custom)*, with the same apps, keys and people. If a page of yours links *Managers* on the employee access page (`wiki/stack/employee-access.md#managers`), link *Admin* (`#admin`) instead. The database change comes with the update; there is no step to do by hand.
+
 ## 40.9.0 — Buy through Shop
 
 - **The assistant shops through Shop.** Ask for a product and it searches Shop, Shopify's shopping service, before it opens a store's website: one search covers many stores, with no login and no robot check. Each option names the seller and the price and links the product. [Shopping](wiki/development/shopping.md) has the rules.

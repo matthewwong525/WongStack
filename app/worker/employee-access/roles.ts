@@ -2,6 +2,7 @@
 import { z } from "zod";
 import { type Core, AccessError } from "./core.ts";
 import { type Sets, changedSet, heldSet, readSets, save, setFields, setWrites } from "./sets.ts";
+import { ADMIN_ROLE } from "./policy.ts";
 
 // `from` starts a new role from one person's current access; `removed` takes a role away.
 const roleSchema = z.object({ id: z.string().min(1).optional(), name: z.string().trim().min(1).max(60).optional(),
@@ -19,11 +20,13 @@ function removal(core: Core, role: Role, people: Sets["people"]): D1PreparedStat
   ];
 }
 
-/** Create a role, change one, or remove one. A change reaches every holder on their next request. */
+/** Create a role, change one, or remove one. A change reaches every holder on their next request.
+ *  Admin is nobody's to rename, change or remove, the owner's included. */
 export async function changeRole(core: Core, value: unknown): Promise<void> {
   const parsed = roleSchema.safeParse(value);
   if (!parsed.success) throw new AccessError("invalid_role", 400);
   const { id, name, from, removed, ...change } = parsed.data;
+  if (id === ADMIN_ROLE) throw new AccessError("role_locked", 403);
   const { people, roles } = await readSets(core);
   const existing = roles.find(role => role.id === id);
   if (id !== undefined && !existing) throw new AccessError("unknown_role", 400);

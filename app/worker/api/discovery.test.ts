@@ -75,7 +75,7 @@ it("names a write's confirming read only to a caller who may see that read", asy
 });
 it("shows a person who holds an app its look-ups and its changes, whatever their key levels, and nothing of an app they lack", async () => {
   // Key levels have started and the person holds none. Hello is theirs, and one of its changes uses a saved key.
-  const row = { policy_enabled: 1, keys_enabled: 1, revision: 1, status: "active", manager: 0, apps: '["hello"]', keys: "{}" };
+  const row = { policy_enabled: 1, keys_enabled: 1, revision: 1, status: "active", held: null, apps: '["hello"]', keys: "{}" };
   const bindings = fakeEnv({ DB: fakeDatabase({ withSession: () => ({ prepare: () => ({ bind: () => ({ first: async () => row }) }) }) }),
     WONG_OWNER_EMAIL: "owner@example.com", WONG_CLOUDFLARE_READ: "saved" });
   const person = { ...identity, claims: { ...identity.claims, sub: "employee", email: identity.id } };

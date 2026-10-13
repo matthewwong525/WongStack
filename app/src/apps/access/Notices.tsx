@@ -25,7 +25,7 @@ export function FinishStep({ plain = false, say = 'Finish Access setup', request
 // that did not finish interrupts, a finished one is only said, and a role picked in the list offers Undo.
 // Then a preview's practice list, and who an update unticked: each person and role who could only look at an app,
 // until the next save. The steps left before people can sign in show on People alone, with a person opened or not.
-// The missing key is the owner's step, made with their Cloudflare token: a manager is told so, with nothing to copy.
+// The missing key is the owner's step, made with their Cloudflare token: an Admin is told so, with nothing to copy.
 export function Notices({ status, view, said, pending, save, reload }: ViewProps) {
   const people = view.name === 'people'
   const unticked = [...status.unticked.people.map(person => `${person.email}: ${person.apps.join(', ')}`),

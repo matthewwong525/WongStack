@@ -18,7 +18,7 @@ export const setupSchema = z.object({ role, api: z.literal('authenticated'),
   identity: z.object({ email: z.string(), subject: z.string() }), apps: z.array(z.string()), titles: z.record(z.string(), z.string()).default({}), prompt, code,
   repository: z.literal('manual_provider_setup'), memory: z.literal('independent_operator_setup') })
 // `legacy` has no recorded owner. `not_started` knows the owner, and everyone still keeps every app.
-// `manages`: the person may manage Access, as the owner or a manager the owner chose; left out means no.
+// `manages`: the person may manage Access, as the owner or an Admin the owner chose; left out means no.
 const manages = z.boolean().optional()
 // `signIn`: the site stands behind a sign-in, so there is a session to end; left out or false, the frame offers no Sign out.
 const signIn = z.boolean().optional()
@@ -36,7 +36,8 @@ export const appAccessSchema = z.discriminatedUnion('state', [
 // `unticked` names each person and role who could only look at an app, and so lost it, by the app's title, until
 // the next save. A key's `alone` means it works with no app, `setup` that setup makes it, and `saved` that the app
 // holds it. No key's value is ever here. `viewer` is who is looking,
-// the owner or a manager; a person's `manager` says the owner lets them manage Access. The server checks both again
+// the owner or an Admin. A role's `builtIn` marks Admin, the one role made for you: every app and key, and managing
+// Access; left out means no. Only the owner gives it or takes it, and the server checks that again
 // on every save. A key's `direct` says its service is set up to be used directly, so a level for the key also
 // reaches the service itself; left out means no. `project` says whether the app can hand its
 // project out: `ready`, or the step left, a read-only GitHub `key` or Access `setup`. A status from before the
@@ -51,9 +52,9 @@ export const statusSchema = z.object({ ownerEmail: z.string(), environment: z.en
   keys: z.array(z.object({ id: z.string(), title: z.string(), levels: z.array(level), saved: z.boolean(), setup: z.boolean(),
     alone: z.boolean(),
     direct: z.boolean().optional() })),
-  roles: z.array(z.object({ id: z.string(), name: z.string(), apps: z.array(z.string()), keys: levels })),
+  roles: z.array(z.object({ id: z.string(), name: z.string(), builtIn: z.boolean().optional(), apps: z.array(z.string()), keys: levels })),
   people: z.array(z.object({ email: z.string(), status: z.enum(['active', 'removed']), settled: z.boolean(),
-    role: z.string().nullable(), manager: z.boolean(), apps: z.array(z.string()), keys: levels })),
+    role: z.string().nullable(), apps: z.array(z.string()), keys: levels })),
   work: z.array(z.object({ kind: z.enum(['policy', 'sessions']), status: z.enum(['pending', 'ready', 'failed']) })),
   project: project.optional() })
   .transform(status => ({ ...status, project: status.project ?? (status.keys.some(key => key.id === 'code' && key.saved) ? 'ready' : 'key') }))
@@ -63,6 +64,9 @@ export type Role = Status['roles'][number]
 export type SavedKey = Status['keys'][number]
 export type BuiltApp = Status['apps'][number]
 export type Level = z.infer<typeof level>
+
+/** Whether a person holds the built-in Admin role. */
+export const isAdmin = (status: Pick<Status, 'roles'>, person: Pick<Person, 'role'>) => status.roles.some(role => role.builtIn && role.id === person.role)
 
 export async function readAccess<T>(path: string, schema: z.ZodType<T>, signal?: AbortSignal): Promise<T> {
   const response = await fetch(`/api/access/${path}`, { signal, cache: 'no-store', redirect: 'error' })

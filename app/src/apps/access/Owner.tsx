@@ -9,7 +9,7 @@ import { Roles } from './Roles'
 const SCREENS = { people: People, roles: Roles }
 const UNFINISHED = 'That did not finish. Check the list below before trying again.'
 
-// The owner's screens, and a manager's. One read of the whole status serves the two views and the pages under them.
+// The owner's screens, and an Admin's. One read of the whole status serves the two views and the pages under them.
 export function Owner() {
   const { data, error, reload } = useAccess('status', statusSchema)
   const [pending, setPending] = useState(false)
