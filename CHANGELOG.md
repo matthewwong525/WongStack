@@ -3,6 +3,18 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 40.9.0 — Buy through Shop
+
+- **The assistant shops through Shop.** Ask for a product and it searches Shop, Shopify's shopping service, before it opens a store's website: one search covers many stores, with no login and no robot check. Each option names the seller and the price and links the product. [Shopping](wiki/development/shopping.md) has the rules.
+- **Looking needs no account.** It searches, compares, and fills a cart without one, and always gives you the store's checkout link, so you can pay yourself.
+- **It connects your Shop account only on your yes.** It asks in the chat, sends you Shop's link and code, and you approve in Shop. One connection serves every project on the computer.
+- **It pays only on a yes that names the purchase**: the store, the items, the total, the delivery address, and the card by brand and last digits. If the total moves after your yes, nothing is paid and it asks again.
+- **A payment is sent once.** When no clear answer comes back, it looks the purchase up, tells you it is not confirmed, and gives you the checkout link. It never pays a second time or by a second route.
+- **It never sees a card number or a payment secret.** Of a saved card it reads the brand and last digits. A card typed into a website's own form still goes through the private form.
+- **Shopping adds one small tool on first use**: Shop's own command, about 2 MB in your home folder, in the one version WongStack has tried. A download that differs from that version installs nothing. The dependency check lists a newer version and leaves moving to it to a person.
+
+**Updating.** The update installs nothing and connects nothing. The first time you ask the assistant to shop, it asks to add Shop's small tool to your home folder; say no and it shops in the browser as before. Connecting your Shop account is optional and is asked separately, only when a purchase needs it. Shop sees what the assistant searches for and which assistant app you use. Searching was tried for real; connecting an account and paying were tested only against a stand-in, so the first real purchase may end with the store's checkout link for you to finish. Not tried on Windows.
+
 ## 40.8.1 — The tip calculator is gone
 
 - **WongStack's own site no longer has a tip calculator.** Hello is the one example app. The tip calculator never came with an install, so your home page and your apps are as they were.

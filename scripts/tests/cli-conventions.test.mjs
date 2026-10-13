@@ -45,6 +45,7 @@ const scripts = {
   '.agents/skills/hand-over/scripts/hand-over.mjs': [],
   '.agents/skills/hand-over/scripts/reply-link.mjs': [],
   '.agents/skills/browser/scripts/browse.mjs': [],
+  '.agents/skills/shop/scripts/shop.mjs': [],
   '.agents/skills/ship/scripts/number-release.mjs': [],
   '.agents/skills/wong-sync/scripts/preflight.mjs': [],
   '.agents/skills/wong-sync/scripts/merge-check.mjs': [],
