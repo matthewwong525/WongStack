@@ -10,28 +10,64 @@
   "probe": "browser",
   "writes": true,
   "sourcePaths": [
+    ".agents/skills/wong-sync/references/payload-files.json",
+    "app/src/apps/access/App.tsx",
     "app/src/apps/access/Confirm.tsx",
+    "app/src/apps/access/Notices.tsx",
+    "app/src/apps/access/Owner.tsx",
     "app/src/apps/access/Page.tsx",
     "app/src/apps/access/People.tsx",
     "app/src/apps/access/PersonPage.tsx",
+    "app/src/apps/access/ProjectStep.tsx",
     "app/src/apps/access/RolePage.tsx",
     "app/src/apps/access/RoleSelect.tsx",
     "app/src/apps/access/Roles.tsx",
+    "app/src/apps/access/SetFields.tsx",
     "app/src/apps/access/Table.tsx",
     "app/src/apps/access/levels.ts",
     "app/src/apps/access/subjects.ts",
     "app/src/lib/access.ts",
     "app/worker/employee-access/core.ts",
+    "app/worker/employee-access/management.ts",
     "app/worker/employee-access/members.ts",
     "app/worker/employee-access/policy.ts",
     "app/worker/employee-access/roles.ts",
     "app/worker/employee-access/sets.ts",
     "app/worker/employee-access/setup.ts",
     "schema/migrations/20261013205049_admin_role.sql",
-    "schema/seed.sql"
+    "schema/seed.sql",
+    "scripts/retired-names.json"
   ],
-  "recordedAt": "da03ae97",
+  "recordedAt": "7deca825635b53479800cbe372d677504d74f3b4",
   "steps": [
+    [
+      "open",
+      "{url}/apps/access/roles"
+    ],
+    [
+      "wait",
+      "--load",
+      "networkidle"
+    ],
+    [
+      "wait",
+      "--text",
+      "Everything"
+    ],
+    [
+      "open",
+      "{url}/apps/access/roles/admin"
+    ],
+    [
+      "wait",
+      "--load",
+      "networkidle"
+    ],
+    [
+      "wait",
+      "--text",
+      "Only the owner gives it"
+    ],
     [
       "open",
       "{url}/apps/access/"
@@ -70,20 +106,26 @@
       "now has Admin"
     ],
     [
-      "get",
-      "text",
-      "body"
+      "open",
+      "{url}/apps/access/people/bo%40example.invalid"
+    ],
+    [
+      "wait",
+      "--load",
+      "networkidle"
+    ],
+    [
+      "wait",
+      "--text",
+      "Full trust"
     ]
   ],
   "expect": [
     {
-      "text": "bo@example.invalid now has Admin."
+      "text": "Every app and key. Can manage Access. Full trust."
     },
     {
-      "text": "Undo"
-    },
-    {
-      "path": "/apps/access/"
+      "path": "/apps/access/people/bo%40example.invalid"
     }
   ]
 }
