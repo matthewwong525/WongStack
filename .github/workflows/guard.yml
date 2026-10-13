@@ -1,0 +1,80 @@
+# The loosened-check guard, run from the copy a pull request can not edit.
+#
+# The Test workflow runs `.github/scripts/loosened-checks.mjs` from the branch it
+# tests, so a change that weakens the guard is judged by the weakened guard.
+# This workflow runs the default branch's copy against the same change. A
+# change to the guard still passes with a `Check:` bullet in its Decision log;
+# the published guard is the one that asks for it.
+# wiki/development/the-change-loop.md#the-gate owns the rule.
+#
+# ---------------------------------------------------------------------------
+# Why `pull_request_target` is safe here
+#
+# `pull_request_target` takes this file from the base branch, never from the
+# pull request, so a change can not edit or remove the run that judges it. That
+# trigger is dangerous when a job runs the pull request's code with the base
+# repository's rights. This job runs none of it:
+#
+#   - the script, its imports and the Node version all come from `guard/`, the
+#     default branch;
+#   - `pr/` is the pull request's commit, read only through git, as text: the
+#     guard asks git for the changed files and their contents, and opens no
+#     file of `pr/` from disk;
+#   - nothing from `pr/` is installed, imported, sourced or executed: no
+#     `npm install`, no local action, no script path under `pr/`;
+#   - the token can only read (`contents: read`), and the `pr/` checkout does
+#     not keep it;
+#   - the branch name reaches the shell through `env:`, never pasted into the
+#     script.
+#
+# Keep it that way: a step that runs a file under `pr/` hands a fork the
+# repository. `scripts/tests/guard-workflow.test.mjs` fails when one appears.
+#
+# The check is named `guard`. It is not a required check unless the owner adds
+# it to the branch's rules; `/ship` stops on it either way.
+
+name: Guard
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Check out the published guard
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          path: guard
+          persist-credentials: false
+
+      # Full history: the guard compares the whole branch with where it left its base.
+      - name: Check out the pull request, to read only
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/pull/${{ github.event.pull_request.number }}/head
+          path: pr
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: guard/.nvmrc
+
+      - name: Run the published guard on the pull request
+        working-directory: pr
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        # Without pipefail the step would take tee's exit code and always pass.
+        run: |
+          set -o pipefail
+          base=$(git merge-base HEAD "refs/remotes/origin/$BASE_REF")
+          node "$GITHUB_WORKSPACE/guard/.github/scripts/loosened-checks.mjs" --base "$base" | tee -a "$GITHUB_STEP_SUMMARY"

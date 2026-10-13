@@ -61,13 +61,15 @@ A fresh look ends one of three ways:
 
 At most three fresh looks per publish. One renamed menu could otherwise send the assistant through every kept check; the rest are named as not checked.
 
+**A replaced or removed kept check is reported with its reason.** When the assistant replaces a kept check with other steps or expectations, or removes one whose promise still stands, [the automatic checks fail until it writes why](loosened-checks.md#a-kept-check-is-flagged-only-when-it-gets-weaker), and you read that reason under *Checks loosened* before *publish it?*. A check recorded again with the same steps and expectations is not reported, and neither is one whose promise your change rewrites or removes.
+
 ## How a kept check reaches the publish
 
 `/ship` saves the kept checks once more, and publishes that commit only when [the gate](the-change-loop.md#the-gate) passes. The commit changes no code and no promise, so nothing is checked again.
 
 Publishing takes a little longer: up to two minutes of replay, about 15 seconds to prove each new check, and one short save.
 
-To stop, delete `.agents/verification/journeys/`. With no kept checks the check before publishing behaves as before.
+To stop, delete `.agents/verification/journeys/`; each deleted check needs its reason, like any removed one. With no kept checks the check before publishing behaves as before.
 
 ## What was declined
 

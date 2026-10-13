@@ -24,9 +24,10 @@ const SETTINGS_FILE = [
   /^\.nycrc/,
 ];
 
-/** A known config file, any workflow file, or a script under .github/scripts/. */
+/** A known config file, any workflow file, a file of a shared workflow action, or a script under .github/scripts/. */
 export const isSettings = path =>
   /^\.github\/workflows\/[^/]+\.ya?ml$/.test(path)
+  || path.startsWith('.github/actions/')
   || path.startsWith('.github/scripts/')
   || SETTINGS_FILE.some(pattern => pattern.test(basename(path)));
 

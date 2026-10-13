@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Checks the assistant can't quietly change
+
+- **A rewritten or removed saved check is reported.** Before each publish the assistant replays the saved checks of older features. It could re-record or delete one with no word to you. Now the automatic checks fail until it writes down why, and you read that reason under *Checks loosened* in the build and publish reports. A new saved check needs no reason. Neither does one recorded again with the same steps and expectations, or one whose promise your change rewrites or removes.
+- **A change can't edit the guard that judges it.** The guard that catches a loosened check ran from the change's own copy, so a change that weakened the guard was judged by the weakened one. On GitHub a second check, named `guard`, now runs the copy already published and reads your change only as text; it runs none of it. A change to the guard still needs a written reason, and the published guard is the one that asks for it. A project kept elsewhere keeps the one guard it has today.
+- **Shared steps of the automatic checks count as settings.** A change to a file under `.github/actions/` now needs a reason, like a change to any other check setting.
+- **Saving waits for the new check.** GitHub starts `guard` a moment after the others, so a save waits for it by name, up to a minute, before it calls the checks passed.
+- **A new page lists what is flagged**: [Loosened checks](wiki/development/loosened-checks.md). The list moved there from [the change loop](wiki/development/the-change-loop.md#a-loosened-check-needs-a-reason), which keeps the rule.
+
+**Updating.** Nothing to do by hand. `/wong-sync` brings the new workflow file, `.github/workflows/guard.yml`, and two changed guard scripts, `.github/scripts/loosened-checks.mjs` and `.github/scripts/check-settings.mjs`; each needs a `Check:` bullet in the sync plan's Decision log. The `guard` check first shows on the pull request after the one that brings it. Optional: `/ship` already stops on a red `guard`, but a person merging by hand on GitHub can pass one. To stop that, open the project on GitHub, go to *Settings → Rules → Rulesets*, open the rule set for your main branch, and add `guard` under *Require status checks to pass*.
+
 ## 41.0.0 — An Admin role that holds everything
 
 - **Every Roles list has an Admin role.** It is first. It gives every app and every key at its highest level, ones added later included, and lets its holder manage Access. It can't be renamed, changed or removed. Nobody is given it for you: you pick who.

@@ -13,9 +13,17 @@
 //     skipped, focused, or to-do test in a test file);
 //   - deletes a test file, other than by moving it to another test file;
 //   - changes a check's settings: a known config file, any workflow file, a
-//     script under .github/scripts/ (check-settings.mjs holds that list), or a
-//     package.json `test` script or a script it runs. Any change counts, stricter ones too: a script can not
-//     tell stricter from looser for every setting.
+//     file of a shared workflow action, a script under .github/scripts/
+//     (check-settings.mjs holds that list), or a package.json `test` script or
+//     a script it runs. Any change counts, stricter ones too: a script can not
+//     tell stricter from looser for every setting;
+//   - changes the steps or expectations of a kept check under
+//     .agents/verification/journeys/, or removes one. A kept check the change
+//     adds, moves unchanged, or re-records with the same steps and
+//     expectations is left alone, and so is one whose written promise the
+//     change rewrites or removes: its openspec/specs/ scenario reads
+//     differently at the base, or a delta spec in the change lists its
+//     requirement as MODIFIED or REMOVED.
 // Prose (wiki/, openspec/, *.md) is never read for markers, and neither is this
 // script, because it names every marker. A change to it is still a settings change.
 //
@@ -28,6 +36,11 @@
 // flagged file is explained, 1 when one is not, 2 on a usage error. An empty
 // --base (app-untouched.sh found nothing to compare with) prints why and exits 0.
 //
+// With --base it reads the change only through git, as text, and runs no file
+// of it: .github/workflows/guard.yml runs the default branch's copy of this
+// script from inside a pull request's checkout, so a change can not edit the
+// guard that judges it.
+//
 // Usage: node .github/scripts/loosened-checks.mjs --base <sha>
 //        node .github/scripts/loosened-checks.mjs --worktree
 
@@ -36,6 +49,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseCli, usageError } from '../../.claude/skills/memory/scripts/lib/cli.mjs';
+import { readSpec, rewrittenRequirements, sameJourney, scenarioDigest } from '../../.claude/skills/verify/scripts/kept-promises.mjs';
 import { changedFiles, git, isSettings } from './check-settings.mjs';
 import { TEST_FILE } from './test-file.mjs';
 
@@ -68,11 +82,16 @@ const SKIP_TESTS = [
 ];
 
 const PROPOSAL = /^openspec\/changes\/(archive\/)?[^/]+\/proposal\.md$/;
+const DELTA_SPEC = /^openspec\/changes\/(?:archive\/)?[^/]+\/specs\/([^/]+)\/spec\.md$/;
+
+// A kept check, by where verify-journeys.mjs keeps them.
+const isKept = path => path.startsWith('.agents/verification/journeys/') && path.endsWith('.json') && basename(path) !== 'replay.json';
 
 const KIND = {
   skip: 'turns a check off on a line',
   test: 'deletes a test',
   settings: "changes a check's settings",
+  kept: 'changes or removes a kept check',
 };
 
 const isProse = path => /^(wiki|openspec)\//.test(path) || path.endsWith('.md');
@@ -136,6 +155,54 @@ function testScripts(text) {
   return reached;
 }
 
+// A kept check as an object, or null when its text is absent or unreadable.
+function journeyOf(text) {
+  try {
+    const journey = JSON.parse(text ?? '');
+    return journey !== null && typeof journey === 'object' ? journey : null;
+  } catch {
+    return null;
+  }
+}
+
+// Each requirement the change's own delta specs rewrite, as JSON of [capability, requirement].
+function rewrittenByDeltas(files, read) {
+  const own = new Set();
+  for (const { status, path } of files) {
+    const capability = status === 'D' ? null : DELTA_SPEC.exec(path)?.[1];
+    if (!capability) continue;
+    for (const name of rewrittenRequirements(readSpec(read.after(path) ?? ''))) own.add(JSON.stringify([capability, name]));
+  }
+  return own;
+}
+
+// Whether the change rewrites or removes the promise a kept check points at.
+function promiseMoved(journey, read, deltas) {
+  const { capability, requirement, scenario } = journey?.scenario ?? {};
+  if (![capability, requirement, scenario].every(part => typeof part === 'string') || !/^[a-z0-9][a-z0-9-]*$/.test(capability)) return false;
+  if (deltas.has(JSON.stringify([capability, requirement]))) return true;
+  const spec = `openspec/specs/${capability}/spec.md`;
+  const at = text => scenarioDigest(readSpec(text ?? ''), { requirement, scenario });
+  return at(read.before(spec)) !== at(read.after(spec));
+}
+
+// The kept checks the change weakens: the path to name for each, never one it adds.
+function weakenedKept(files, read) {
+  const deltas = rewrittenByDeltas(files, read);
+  const weakened = [];
+  for (const { status, path, from } of files) {
+    const was = from ?? path;
+    if (!['M', 'T', 'R', 'D'].includes(status) || !isKept(was)) continue;
+    const before = journeyOf(read.before(was));
+    const gone = status === 'D' || !isKept(path);
+    if (!gone && sameJourney(before, journeyOf(read.after(path)))) continue;
+    // The base says which promise the check guards; the change's own copy only when the base's is unreadable.
+    if (promiseMoved(before ?? journeyOf(gone ? null : read.after(path)), read, deltas)) continue;
+    weakened.push(gone ? was : path);
+  }
+  return weakened;
+}
+
 function flag(flags, path, kind) {
   if (path === SELF && kind === 'skip') return;
   if (!flags.has(path)) flags.set(path, new Set());
@@ -156,6 +223,7 @@ function findFlags(files, added, read) {
     const gone = status === 'D' ? path : (status === 'R' && !TEST_FILE.test(path) ? from : null);
     if (gone && TEST_FILE.test(gone)) flag(flags, gone, 'test');
   }
+  for (const path of weakenedKept(files, read)) flag(flags, path, 'kept');
   for (const [path, lines] of added) {
     if (isProse(path)) continue;
     const patterns = TEST_FILE.test(path) ? [...SKIP_COMMENTS, ...SKIP_TESTS] : SKIP_COMMENTS;
