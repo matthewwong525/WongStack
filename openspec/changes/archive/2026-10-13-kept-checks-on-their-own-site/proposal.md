@@ -58,3 +58,4 @@ None.
 - **2026-10-13** — Asked what to do with the finished plan → chose "Build and publish".
 - **2026-10-13** — Assumed: The not-run reason names the status, as in *no landing-preview address was posted for this change*, because the script knows only that name and "no landing-preview preview" read as a slip.
 - **2026-10-13** — Archived checkpoint: built the `site` field, the address lookup, the credential-free visit and `keep --site`, with tests against a second practice site; marked the two landing-page checks; local checks passed, ready for the publishing checks. The same-or-changed path on a real landing preview stays unproven until a change touches the landing page.
+- **2026-10-13** — Archived checkpoint: on the preview the two landing-page checks read not run with the reason and opened no page; given the landing practice site's address by hand, both replayed unchanged. One key-access check ran slow, passed a fresh look, and was kept again.
