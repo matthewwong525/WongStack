@@ -43,7 +43,7 @@ When a promise says a result lasts, observe it freshly through its real consumer
 ## Why a walk runs the way it does
 
 - **The scout runs first, so having nothing to verify costs nothing.** No deployed or existing CI capture route means `NONE` after a few file reads: no push, no CI wait, no browser. A known route with missing evidence stays unverified.
-- **Finish the implementation before automatic verification.** Write tests with source; source-complete work is not a passing test result. Explicit early requests still work.
+- **A build is written before it is checked** ([why](the-change-loop.md#apply-never-saves-to-stop-but-may-save-to-finish-a-task)). A walk you ask for still runs at any point.
 - **`/verify` saves only unsaved or unpushed work.** A read-only identity check binds the clean local and authoritative remote head to its newest gate. Reuse the final checkpoint without record-only commits or another settled wait. Unreadable or foreign identity stays unverified; a newer run attempt defeats old success. Every invocation still gathers fresh walkthrough evidence. Changed source, scenarios or relevant runtime require affected evidence again; repaired source gets a fresh gate.
 - **Journeys come from scenarios, not routes,** because the scenarios are what the change promised.
 - **Safe checks finish before you are asked to help.** A missing login or unclear result holds up only the checks that depend on it. You get one list of what remains, the exact help needed, and what the check should show. You can help, skip selected checks, or skip them all. Skipped checks stay unverified; the assistant does not ask again unless you reopen them. Once you help, the walk resumes those checks; it repeats completed checks only if their conditions changed.

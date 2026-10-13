@@ -10,7 +10,7 @@ Invoking `/ship` authorizes every step below without a prompt: archive, checkpoi
 
 [The change loop](../../../wiki/development/the-change-loop.md) owns the record, the pull-in, and [the gate](../../../wiki/development/the-change-loop.md#the-gate); PR review owns cleanliness, consolidation, and downstream breakage. `main` means [the default branch](../save/references/git-gate.md#the-default-branch).
 
-Commands end with `NEXT:`:
+Each command ends with a `NEXT:` line; do what it says:
 
 ```bash
 SHIP="$(git rev-parse --show-toplevel)/.claude/skills/ship/scripts/ship.mjs"
@@ -24,11 +24,9 @@ A selected routine definition or finite goal follows [record-only delivery](../s
 
 ## Step 1 — preflight
 
-Attached review notes → invoke [review-note handling](../plan/SKILL.md#review-notes) on the existing change; missing plan or blocker stops. Continue the authorized publish without another choice.
+Attached review notes → [apply them to the existing change](../plan/SKILL.md#review-notes) first, then keep publishing: the person already chose.
 
 Check [preconditions](../save/references/preconditions.md), then run `prepare`. Uncommitted changes on the default branch go on in the same tree; Step 3's save cuts the feature branch.
-
-`main`'s check run *cut off* → restart it, then rerun.
 
 ### The pull-in: nothing to ship yet
 
@@ -36,17 +34,17 @@ Check [preconditions](../save/references/preconditions.md), then run `prepare`. 
 
 - **`/ship <intent>`** → pass the intent **verbatim**.
 - **No argument** → invoke `/apply` bare when [its resolve order](../apply/SKILL.md#resolve-the-plan-first) lands before `sole-active`, or the session states clear intent with no change yet.
-- **The cold stop.** Landing on `sole-active` or nothing → **say** there is nothing to continue and `/ship <intent>` starts a new change, then stop.
+- **The cold stop.** Landing on `sole-active` or nothing → **say** there is nothing to continue and `/ship <intent>` starts a new change, then stop: a cold `/ship` never publishes the only open plan.
 
 A feature branch with work runs the ordinary runbook, intent or not; `/ship` resolves nothing itself.
 
-`/plan` pauses, tasks stay pending, or a task-driven `/save` fails or is unverifiable → report the blocker and stop before Step 2: no verb merges to stop. A one-go run has **one** checkpoint: Step 3's.
+`/plan` pauses, tasks stay pending, or a task-driven `/save` fails or is unverifiable → report the blocker and stop before Step 2: [no verb merges to stop](../../../wiki/development/the-change-loop.md).
 
 **Work that changes no repo file** finishes in `/apply`: say so in one line and stop, with no git change.
 
 ## Step 2 — archive the change
 
-`CHANGE_NAME` is separate from `BRANCH`. Pass `--change` for an `explicit` or `session` change; without it `prepare` takes [the rungs](../save/references/checkpoint-evidence.md#selection-rungs) `changed-active`, then `recorded-branch`. `sole-active` never authorizes a cold merge. None selects → apply [`/save`'s route table](../save/SKILL.md#1-protect-credentials-and-select-the-route) to the branch diff: code or a plan for code gets a change by [the new-plan fallback](../save/references/new-plan.md), passed as `--change`; anything else passes `--no-change`.
+`CHANGE_NAME` is separate from `BRANCH`. Pass `--change` for a change the person or this chat named; without it `prepare` picks by [the rungs](../save/references/checkpoint-evidence.md#selection-rungs). None selects → apply [`/save`'s route table](../save/SKILL.md#1-protect-credentials-and-select-the-route) to the branch diff: code or a plan for code gets a change by [the new-plan fallback](../save/references/new-plan.md), passed as `--change`; anything else passes `--no-change`.
 
 `prepare` archives by [the CLI contract](../plan/references/openspec-cli.md#validate-and-archive), which owns `--skip-specs`, after two stops:
 
@@ -55,13 +53,13 @@ A feature branch with work runs the ordinary runbook, intent or not; `/ship` res
 
 ## Step 3 — delegate the checkpoint to /save
 
-`prepare` numbers `CHANGELOG.md`'s `## Next` entry from `main`'s version, merging `main` in first when behind, so two changes in flight never share a number. After a merge it reruns the local checks, so allow 15 minutes; `NEXT:` carries any repair. A file it cannot merge → resolve it as the **union of intent**, `git add`, rerun. Any other failure → report its message and stop before `/save`.
+`prepare` numbers `CHANGELOG.md`'s `## Next` entry from `main`'s version, merging `main` in first when behind, so two changes in flight never share a number. After a merge it reruns the local checks, so allow 15 minutes; `NEXT:` carries any repair.
 
 **Invoke the `save` skill exactly once as ordinary `/save` and follow it verbatim**, with `prepare`'s `CHANGE` and `ARCHIVE` if any. Proceed only on `SUCCESS` or `NONE`. Any other result → stop before merge and report `/save`'s reason; never repeat, bypass, or reinterpret the gate.
 
 ## Step 4 — verify the preview (evidence, not a gate)
 
-**Invoke `verify` once with Step 3's exact checkpoint receipt**, never again for a better verdict. It reuses the gate without another save; the walk itself runs fresh. No `verify` skill → say so in one line and go on; never install it.
+**Invoke `verify` once with Step 3's exact checkpoint receipt**, never again for a better verdict. No `verify` skill → say so in one line and go on; never install it.
 
 Any verdict but `FAILURE` → report it and merge. `FAILURE` after `/verify`'s own fixes → **stop and ask** [two options](../explore/references/asking-the-user.md#confirmations-offers-and-menus-are-asks): fix it first *(Recommended)*, or *publish anyway* and record that the walk failed. Say in plain words what they would see not working on the preview. If the walk's fixes, or its one `/save` of [kept checks](../verify/references/walkthrough.md#g--kept-checks), advanced `HEAD`, merge that commit only when that `/save` result is `SUCCESS` or `NONE`.
 
@@ -79,4 +77,4 @@ Merge, not rebase, unless asked. Never check out, switch, stash, reset, or force
 
 Lead with the outcome in plain words: *it is live*, what changed for the person, the live link, then [the plan's link](../explore/references/asking-the-user.md#print-the-plans-link) to the archived `review.html`. Always add **Checks loosened**: each `Check:` bullet in the archived Decision log, one plain line; omit when none. Only when asked, add `finish`'s `key=value` lines, the archive path or that no change was needed, `/save`'s result with its CI outcome and auto-fix pushes, the walk's verdict and evidence link (a merged-anyway `FAILURE` says the user chose it), and the secret key names promoted, skipped, or unresolved.
 
-Close with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step), whose options and order [next work](../plan/references/new-workspace.md#next-work) owns; after a stop, the ways to clear the blocker.
+Close with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step), whose options and order [next work](../plan/references/new-workspace.md#next-work) owns.

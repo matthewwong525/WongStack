@@ -75,35 +75,6 @@ A reply that hands control back SHALL end with the decision that moves the work 
 - **WHEN** `/ship` moves from one of its stages to the next
 - **THEN** it continues without a next-step question
 
-### Requirement: A reply that makes or changes a plan prints its link
-
-A reply that creates a plan, or changes what it says or its checklist, SHALL print *Click here to see the plan:* with the full link to the change's review page, as its own chat line above any closing question, never inside it. The link SHALL be the page's reply link when one is open, else the page's file. Record-keeping alone (status, branch, decision log) SHALL NOT count as a change. The closing question SHALL offer *Review the plan*; picking it SHALL end the next reply with the link line and, after a blank line, *When you're ready, type `/apply` to build it.*, with no question, and SHALL start nothing. No other reply SHALL print that line: a closing question that offers to build is the one way on. The link SHALL NOT add a stop.
-
-#### Scenario: The person picks Review the plan
-
-- **WHEN** a plan finishes and the person picks *Review the plan* in its closing question
-- **THEN** the next reply ends with *Click here to see the plan:*, the full link, a blank line, and *When you're ready, type `/apply` to build it.*, with no question box after it, and nothing is built
-
-#### Scenario: Apply plans first
-
-- **WHEN** `/apply` plans a change and goes on to build it
-- **THEN** the reply prints the plan's link before the build continues, with no line telling the person to type `/apply`
-
-#### Scenario: A save that only records progress
-
-- **WHEN** `/save` updates only the plan's status and decision log
-- **THEN** its report prints no plan link and its question offers no *Review the plan*
-
-#### Scenario: A standalone plan finishes
-
-- **WHEN** `/plan` finishes and its closing question offers *Build it now*
-- **THEN** the reply prints the plan's link above the question and no line telling the person to type `/apply`
-
-#### Scenario: No chat can be woken
-
-- **WHEN** a plan finishes on a host that can not open a reply link
-- **THEN** the link line carries the full path of the page's file
-
 ### Requirement: Plans, asks, and reports use plain words
 
 For every reader, a plan's Why and What Changes, every ask, and every report SHALL name what the person will see, get, lose, or risk, with no file path, identifier, command, or engineering term unless the person used it first or asked for that detail. Messages SHALL be short, in the voice `wiki/voice.md` owns: the point first, a few lines, and more only when asked. Git, OpenSpec, or CI SHALL be named only when the person asks or must act; code, commands, identifiers, and quotations SHALL stay exact. A skill SHALL try a fix within its own rules before asking, and SHALL NOT offer a choice that needs judgment the person lacks.
@@ -198,25 +169,6 @@ At the move into planning, however planning was invoked, `/explore` SHALL ask on
 - **THEN** `/explore` asks a follow-up multiple-choice group before the plan is drafted
 - **AND** while its answer is pending, that material choice remains open rather than being reported as settled or silently assumed
 
-### Requirement: A reply that prints a preview link offers to show it again
-
-A reply that prints a preview link SHALL print it as *Click here to see the preview:* with the full URL of the page that shows the change, such as a mini app's `/apps/<name>/` page, and the home page only when the change has no page of its own, as its own chat line above any closing question, never inside it. That closing question SHALL offer *See the preview*; picking it SHALL end the next reply with the same link lines and no question, and SHALL start, save, or publish nothing.
-
-#### Scenario: The person picks See the preview
-
-- **WHEN** a build finishes with a preview and the person picks *See the preview* in its closing question
-- **THEN** the next reply ends with *Click here to see the preview:* and the full URL, with no question box after it, and nothing is saved or published
-
-#### Scenario: A change to one page
-
-- **WHEN** a build changes the settings page and uploads a preview
-- **THEN** the preview link opens the settings page on the preview, not its home page
-
-#### Scenario: No preview was uploaded
-
-- **WHEN** a build finishes but no preview was uploaded, because the app is untouched or the upload cannot run
-- **THEN** its closing question offers no *See the preview*
-
 ### Requirement: Changed premises revise only affected decisions
 
 When a person's answer or newly discovered evidence invalidates an earlier premise, exploration SHALL reflect that change in every affected decision and recommendation. It SHALL preserve unrelated settled choices and SHALL explain why an affected choice needs revisiting.
@@ -261,20 +213,6 @@ Exploration SHALL ground its recommendation in the relevant available project or
 - **WHEN** proving a claim requires a prototype, a write, or an unavailable observation
 - **THEN** exploration names the evidence gap without claiming the result or performing that work
 
-### Requirement: Consequential alternatives receive a grounded recommendation
-
-When an open consequential choice has multiple viable approaches, exploration SHALL provide meaningfully different alternatives, their practical consequences, and a recommended approach supported by the available context. A fully specified or mechanically determined request SHALL NOT acquire artificial alternatives or new clarification questions merely to fill a comparison.
-
-#### Scenario: Two approaches could satisfy the outcome
-
-- **WHEN** the choice between viable approaches changes the outcome, compatibility, or acceptance criteria
-- **THEN** the person receives distinct options with their consequences and a reasoned recommendation
-
-#### Scenario: The request is already settled
-
-- **WHEN** the requested result and its material constraints already determine the approach
-- **THEN** exploration reuses those decisions without inventing another choice
-
 ### Requirement: Exploration handoffs expose consequential assumptions
 
 An exploration handoff SHALL distinguish settled choices, supported minor assumptions, and remaining evidence gaps. Its recommendation SHALL reflect available evidence about consequential assumptions and plausible failure paths; unsupported hypotheticals SHALL NOT create extra requirements or questions. A bounded pass SHALL reuse prior findings unless a new material gap exists.
@@ -302,3 +240,40 @@ When review notes accompany an explicit Build it or Build and publish choice, th
 
 - **WHEN** the reviewer sends the same note through Send notes
 - **THEN** the plan is updated and building waits for a separate build choice
+
+### Requirement: A changed plan's reply carries its link
+
+A reply that creates a plan, or changes what it says or its checklist, SHALL show the full link to the plan's review page as its own chat line above any closing question, never inside it, and that question SHALL offer to review the plan. Choosing to review SHALL show the link again and start nothing. Record-keeping alone (status, branch, decision log) SHALL NOT count as a change, and the link SHALL NOT add a stop.
+
+#### Scenario: A plan finishes
+
+- **WHEN** `/plan` finishes, or `/apply` plans a change and goes on to build it
+- **THEN** the reply shows the plan's link above any closing question, and a closing question offers to review the plan
+
+#### Scenario: A save that only records progress
+
+- **WHEN** `/save` updates only the plan's status and decision log
+- **THEN** its report prints no plan link and its question offers no review of the plan
+
+### Requirement: A preview link opens the page that changed
+
+A reply that prints a preview link SHALL print the full address of the page that shows the change, and the home page only when the change has no page of its own, as its own chat line above any closing question, never inside it. That question SHALL offer to show the preview again; choosing it SHALL show the link and start, save, or publish nothing.
+
+#### Scenario: A change to one page
+
+- **WHEN** a build changes the settings page and uploads a preview
+- **THEN** the preview link opens the settings page on the preview, not its home page, and the closing question offers to show the preview again
+
+#### Scenario: No preview was uploaded
+
+- **WHEN** a build finishes but no preview was uploaded, because the app is untouched or the upload cannot run
+- **THEN** its closing question offers no preview
+
+### Requirement: A consequential choice gets a grounded recommendation
+
+When an open consequential choice has multiple viable approaches, exploration SHALL provide meaningfully different alternatives, their practical consequences, and a recommended approach supported by the available context.
+
+#### Scenario: Two approaches could satisfy the outcome
+
+- **WHEN** the choice between viable approaches changes the outcome, compatibility, or acceptance criteria
+- **THEN** the person receives distinct options with their consequences and a reasoned recommendation

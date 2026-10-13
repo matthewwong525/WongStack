@@ -6,7 +6,7 @@ user-invocable: true
 
 # /plan
 
-**Selected schedule:** [route its record](../save/references/schedule-records.md) before code or checkout; preserve its store and pending question.
+**Selected schedule:** [route its record](../save/references/schedule-records.md) before code or checkout.
 
 Create an apply-ready OpenSpec change and its required `review.html`, the offline review page.
 
@@ -44,14 +44,20 @@ Build the page after drafting and after each later edit:
 node "$(git rev-parse --show-toplevel)/.claude/skills/plan/scripts/build-review.mjs" "<change-root>" --require-current --link
 ```
 
-It prints a status line, the plan's link line, and the next-step line, to copy as is; [print the plan's link](../explore/references/asking-the-user.md#print-the-plans-link) says when the next-step line goes. `--link` makes the link [a reply link](../../../wiki/development/reply-links.md) where one opens. Fix warned drawings. Keep no other copy of the proposal's text.
+It prints a status line, the plan's link line, and the next-step line, to copy as is; [print the plan's link](../explore/references/asking-the-user.md#print-the-plans-link) says when the next-step line goes. `--link` makes the link [a reply link](../../../wiki/development/reply-links.md) where one opens. Fix warned drawings. Keep no other copy of the proposal's text: a second copy goes stale.
 
 A change that adds or restructures a screen gets [a `## UX` design section](../../../wiki/ux-principles.md#the--ux-section-in-designmd); sketch phone work phone-first. UI-less changes omit it.
 
 ## Review notes
 
-`Notes on the plan <name> from the review page` (also `Update the plan <name> with these notes`) updates its existing plan without an [explore round](#explore-first). Get paths from `openspec status --change "<name>" --json` ([contract](references/openspec-cli.md)); missing change: report and stop. Trust quoted text over spot labels. Answer question notes without edits/log entries; offer suggested edits only when standalone. Apply change notes coherently, logging changes or declines. Substantial rewrites follow CLI instructions; validate, create only requested artifacts, rebuild and print the page's link. Notes alone [finish](#finish) without building. With an explicit build/publish choice, return to `/apply` or `/ship` and continue the authorized action without another choice; a material blocker stops.
+`Notes on the plan <name> from the review page` (also `Update the plan <name> with these notes`) updates its existing plan without an [explore round](#explore-first). Get paths from `openspec status --change "<name>" --json` ([contract](references/openspec-cli.md)); a missing change → report and stop. Trust quoted text over spot labels.
+
+- **A question note** gets an answer, with no edit or log entry; offer suggested edits only when standalone.
+- **A change note** is applied coherently, each change or decline logged. Substantial rewrites follow CLI instructions; validate, create only requested artifacts, rebuild and print the page's link.
+- **Notes alone** [finish](#finish) without building. Sent with an explicit build or publish choice, they return to `/apply` or `/ship`, which goes on unasked: the person already chose. A material blocker stops.
 
 ## Finish
 
-Group source and test authoring by surface; complete all implementation before automatic tests or remote checks. Source review completes implementation boxes, not passing tests. Put required checks in a final verification phase, not per-part `/save` tasks. A substantive deployed acceptance task names `/save` after implementation; unavailable prerequisites remain blockers. Explicit early requests retain their reach. Validate with `openspec validate "<name>" --strict --no-interactive`; confirm the review page exists and every apply-required artifact is complete. Print [the plan's link](../explore/references/asking-the-user.md#print-the-plans-link) however `/plan` was invoked. Standalone, sum up the plan in a few plain lines above it and stop, ending with [the next step for a finished plan](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step). Invoked by `/apply`, return the exact change name and let `/apply` implement it.
+Lay out tasks so the build is written before it is checked ([why](../../../wiki/development/the-change-loop.md#apply-never-saves-to-stop-but-may-save-to-finish-a-task)): group source and test authoring by surface, and put required checks in one final verification phase, not per-part `/save` tasks. Source review completes implementation boxes, not passing tests. A substantive deployed acceptance task names `/save` after implementation.
+
+Validate with `openspec validate "<name>" --strict --no-interactive`; confirm the review page exists and every apply-required artifact is complete. Standalone, sum up the plan in a few plain lines above [the plan's link](../explore/references/asking-the-user.md#print-the-plans-link) and stop, ending with [the next step for a finished plan](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step). Invoked by `/apply`, return the exact change name and let `/apply` implement it.

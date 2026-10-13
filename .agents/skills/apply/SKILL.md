@@ -6,7 +6,7 @@ user-invocable: true
 
 # /apply
 
-**Selected schedule:** [route its record](../save/references/schedule-records.md) before code or checkout; preserve its store and pending question.
+**Selected schedule:** [route its record](../save/references/schedule-records.md) before code or checkout.
 
 Build [the chosen plan](../../../wiki/development/the-change-loop.md).
 
@@ -17,9 +17,9 @@ Build [the chosen plan](../../../wiki/development/the-change-loop.md).
 
 ## Resolve the plan first
 
-Resolve the change by [the rungs](../save/references/checkpoint-evidence.md#selection-rungs) `explicit`, `session`, `changed-active`, `recorded-branch`, then `sole-active`. An argument naming no existing change is intent for a new plan. An unrelated `sole-active` never overrides work this conversation explored. Unsure → ask, listing what each candidate would implement.
+Build the change this chat is about, found by [the rungs](../save/references/checkpoint-evidence.md#selection-rungs). An argument naming no existing change is intent for a new plan, and the only open plan is not the answer when the chat explored something else.
 
-Attached review notes → invoke [review-note handling](../plan/SKILL.md#review-notes) on the existing change before readiness; missing plan or blocker stops. Continue the authorized build without another choice.
+Attached review notes → [apply them to the existing change](../plan/SKILL.md#review-notes) first, then keep building: the person already chose to build.
 
 Check `applyRequires` in `openspec status --change "<name>" --json`:
 
@@ -34,17 +34,15 @@ At **all-tasks-complete**, even at invocation, [finish with a preview](#finish-w
 
 ## Build in a helper
 
-Use a fresh helper on the parent's model: Agent (`general-purpose`) in Claude Code, a sub-agent in Codex. Prompt: the exact change name, then *read `$(git rev-parse --show-toplevel)/.claude/skills/apply/references/build-helper.md`, then build*. Add `store <id>` when selected. [The brief](references/build-helper.md) owns its work and return.
+Use a fresh helper on the parent's model, so the build does not carry the planning talk: Agent (`general-purpose`) in Claude Code, a sub-agent in Codex. Prompt: the exact change name, then *read `$(git rev-parse --show-toplevel)/.claude/skills/apply/references/build-helper.md`, then build*. Add `store <id>` when selected. [The brief](references/build-helper.md) owns its work, its build order, and its return.
 
-**Wait quietly** with the longest host wait: the Agent call in Claude Code, `wait_agent` in Codex. Timeouts → wait again; at most one short line per wait. Read none of its edited files; message only the person's answer or a stop.
-
-Follow the brief’s final verification phase and log timing changes. Preserve acceptance and explicit early requests; unavailable prerequisites block.
+**Let it build unwatched**, with the longest host wait (the Agent call in Claude Code, `wait_agent` in Codex), waiting again on a timeout. The helper exists so the build does not fill this chat: don't narrate each wait or read the files it edits, and message it only with the person's answer or a stop.
 
 Act on reports:
 
 - **A question** → ask the person in [the shared ask format](../explore/references/asking-the-user.md), log the answer as an `Asked` [Decision-log line](../plan/SKILL.md#explore-first), then start a new helper.
-- **A blocker** → report it and stop.
-- **Final acceptance** → only after all source/tests are authored, run `/save` and retained live acceptance. Tick observed passes; blocked/failed remains unchecked and stops.
+- **A blocker** → report it and stop, ending with [the ways to clear it](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step).
+- **Final acceptance** → once the build and its tests are written, run `/save` and the retained live acceptance. Tick only what you saw pass; a blocked or failed check stays unticked and stops.
 - **All done** → confirm no unticked box, relay its `local checks:` line, then handle **all-tasks-complete** above.
 
 No helper, or inside one → follow the brief inline.
@@ -71,8 +69,8 @@ No helper, or inside one → follow the brief inline.
    ```
 
    Fix each file marked *needs a reason* without asking: switch the check back on, or add [the `Check:` bullet](../../../wiki/development/the-change-loop.md#a-loosened-check-needs-a-reason). Rerun until it exits 0.
-4. **Show the changed screens** before the question. Use [`/verify`'s plain checks](../verify/SKILL.md#plain-checks) on the exact current preview URL: agent-browser, temporary files, existing privacy safeguards and cleanup; no scout, save or PR comment. Prefer two distinct changed screens; a useful state or phone view can supply the second. One meaningful view → one picture. Open each image with the host image tool (Claude Read, Codex image view), with a short plain caption above it; a file link alone is insufficient. No preview, no changed UI, or capture/access failure → say why, keep any preview link and the choice; never substitute a live page or login screen.
-5. **Report and ask** in [plain words](../explore/references/asking-the-user.md#write-in-plain-words): what was built, any can't-be-undone line, [the preview link](../explore/references/asking-the-user.md#print-the-previews-link), each `Check:` bullet under *Checks loosened* (what is no longer checked, why), and unfixed files. End with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step): publish it *(Recommended)* via [`/ship`](../ship/SKILL.md), change it more, or save via [`/save`](../save/SKILL.md); plus *See the preview* when available.
+4. **Show a couple of the screens that changed**, one when only one view matters, as pictures in the chat before the question, from this exact preview: [`/verify`'s plain checks](../verify/SKILL.md#plain-checks) on the current preview URL, with no scout, save, or PR comment. Open each image with the host image tool (Claude Read, Codex image view) under a short plain caption: a file link shows the person nothing. No preview, no changed screen, or a capture or access failure → say why and keep the preview link and the choice.
+5. **Report and ask** in [plain words](../explore/references/asking-the-user.md#write-in-plain-words): what was built, any can't-be-undone line, [the preview link](../explore/references/asking-the-user.md#print-the-previews-link), each `Check:` bullet under *Checks loosened* (what is no longer checked, why), and unfixed files. End with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step): publish it *(Recommended)* via [`/ship`](../ship/SKILL.md), change it more, or save via [`/save`](../save/SKILL.md).
 
 Repeat under the same alias for further edits; added tasks go to a new helper.
 
@@ -83,11 +81,10 @@ Work the conversation's numbered to-do in order, outward steps marked; write one
 - **Reading, searching, and drafting** need no prompt.
 - **Each outward step** (a sent message, a post, a created or changed record, a payment, a deletion) shows exactly what it will do (recipient, full text, amount, target) and asks in [the shared ask format](../explore/references/asking-the-user.md). One confirmation, one action, unless the person asked for a batch. Skip and report a declined step.
 
-Report the result without `/save`; nothing is committed. To stop halfway, the person runs `/save`, which keeps a memory thread for `/continue`.
+Report the result without `/save`; nothing is committed.
 
 ## Boundaries
 
-- **Git stays with `/save`** ([the change loop](../../../wiki/development/the-change-loop.md)): no commit, push, branch, PR, or CI step here, on [either route](../../../wiki/stack/artifacts-route.md). The preview upload is not git and gates nothing.
-- **Never save to stop or between parts.** After source/tests are prepared, substantive live acceptance may use `/save`; tick only observed acceptance. Routine final gates belong to delivery, not implementation boxes ([why](../../../wiki/development/the-change-loop.md#apply-never-saves-to-stop-but-may-save-to-finish-a-task)).
+- **Git stays with `/save`** ([the change loop](../../../wiki/development/the-change-loop.md)), on [either route](../../../wiki/stack/artifacts-route.md); the preview upload is not git and gates nothing.
+- **Never save to stop or between parts**; a task that needs deployed evidence may save once the build is written ([why](../../../wiki/development/the-change-loop.md#apply-never-saves-to-stop-but-may-save-to-finish-a-task)).
 - **Resuming cold** → [`/continue <name>`](../continue/SKILL.md).
-- **Pause on ambiguity or blockers** (the proposal is the intent), ending with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step): ways to clear it, recommended first.

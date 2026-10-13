@@ -3,6 +3,17 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 40.6.0 — Fewer rules, each with its reason
+
+- **Each step says what to achieve and why.** The pages behind thinking it through, planning, building, saving, publishing, picking up later, and checking read as lists of "never" lines. A rule now carries its reason, so the assistant can handle a case the list never named.
+- **A rule is written once.** Where the same rule sat in a step's page, the wiki, and the always-loaded instructions, one copy stays and the others link to it. What a command already decides and prints is left to the command.
+- **Guards read as before.** Rules about forced pushes, deleting, merging, sending messages, paying, and keeping keys out of saved files are untouched. A rule with a recorded mistake or a request behind it stays, as one line with its reason.
+- **Eighteen rules are gone**, each because a goal beside it already covers it or a command already says it. Two were small limits: one progress line per wait during a build, and ten lines for the build helper's report. The rest were reminders, such as to ask when a request is unclear, to stay within the question tool's limits, and to do what a command had just printed. A release that added a rule no longer counts as a reason to keep it.
+- **The build helper finishes before it reports.** It no longer ends its turn while a helper or check it started still runs, because the assistant reads a stop as done.
+- **The written records hold promises again**, without step order or exact wording, and three tests no longer fail when an instruction is reworded.
+
+**Updating.** Each changed skill comes with the update; a skill you adapted shows as a merge to review. No command, flag, or heading changed, so links from your own pages keep working.
+
 ## 40.5.0 — Setup learns from your past chats
 
 - **Setup reads your past AI chats while it installs.** It says so in one line, then reads what you typed in the Claude Code and Codex chats on this computer, newest first, while the install carries on. It keeps short notes about you and your business on your wiki page, in the wiki, and in memory: never passwords, keys, copies of chats, or anything about health, family, or money. Say *skip the chats* and it stops and writes nothing. [Learning from past chats](wiki/stack/learning-from-chats.md) has the steps.

@@ -14,11 +14,11 @@ Start [the change loop](../../../wiki/development/the-change-loop.md): compare o
 
 Read owning docs and source; trace trigger, result, and constraints. For non-code, read the process and authoritative sources. Discover facts; separate observations from inferences. Use proportional, authorized read-only checks; no prototypes or local builds. Name unavailable evidence and a later check.
 
-For consequential choices, compare viable approaches, outcomes, costs; recommend with evidence. Invent no alternatives for settled or mechanical requests. Before handoff, check material assumptions and failures against the flow; revise contradictions. Speculative or cheaply changed concerns need no questions.
+For consequential choices, compare viable approaches, outcomes, costs; recommend with evidence. Before handoff, check material assumptions and failures against the flow; revise contradictions. Speculative or cheaply changed concerns need no questions.
 
 ## Questions during standalone exploration
 
-Ask [the shared way](references/asking-the-user.md): two or three related ready choices, one if alone, within tool capacity. Track decisions and prerequisites in chat. Investigate missing facts; hold only dependent choices and ask independent ones as the host permits. Never ask the person to guess facts.
+Ask [the shared way](references/asking-the-user.md): two or three related ready choices, one if alone, within tool capacity. Track decisions and prerequisites in chat. Investigate a missing fact yourself; never ask the person to guess it. Hold only dependent choices and ask independent ones as the host permits.
 
 Update dependencies after answers or evidence. Explain changed premises; reopen only affected decisions. Keep findings in chat, [drawn](../plan/references/drawings.md) when useful.
 
@@ -26,7 +26,7 @@ Update dependencies after answers or evidence. Explain changed premises; reopen 
 
 ## Search memory before asking
 
-Before asking, recall the task and look up likely paths once; read cited originals:
+Before asking, recall the task and look up likely paths once, then read the originals it cites:
 
 ```bash
 node "$(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/memory.mjs" recall <question>
@@ -58,11 +58,10 @@ Resolve remaining material choices [the shared way](references/asking-the-user.m
 - Apply [80/20](#questions-during-standalone-exploration) and tool capacity; ask only ready choices.
 - **Separate parts?** Ask about a new workspace for each ([how](../plan/references/new-workspace.md#ask-once)).
 - **Answers open another choice?** Follow up; stop once none remains.
-- Never repeat settled choices, nested calls included, except affected ones after changed premises.
-- Keep unanswered material preferences open, never disguised as assumptions or evidence gaps. Preserve authorized defaults and [the fallback when nobody can answer](references/asking-the-user.md#which-tool-carries-it).
-- Use supported minor assumptions with reasons. Evidence gaps may remain if an approach is coherent; otherwise name the prerequisite, never guess.
+- A settled choice stays settled, nested calls included; reopen only one a changed premise affects.
+- Keep an unanswered material preference open: called an assumption or an evidence gap, it hides a choice the person never made. Preserve authorized defaults and [the fallback when nobody can answer](references/asking-the-user.md#which-tool-carries-it).
 
-Clarification limits preserve authorization and delivery gates. Summarize outcome, approach, reasons over a serious alternative, minor assumptions, and evidence limits; no extra sign-off.
+Summarize outcome, approach, reasons over a serious alternative, minor assumptions, and evidence limits.
 
 - **Bounded:** return by [the steps below](#when-plan-invokes-explore).
 - **Standalone:** [offer next steps](references/asking-the-user.md#end-every-reply-with-the-next-step). Only *Plan it* starts `/plan`; its bounded pass asks open choices.

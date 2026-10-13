@@ -156,7 +156,7 @@ When a walk meets a Cloudflare Access login and a Cloudflare API token is availa
 
 ### Requirement: A failed walk resets staging, then fixes in scope or stops
 
-On `FAILURE`, `/verify` SHALL fix a failure in this change's own scope, save, rebuild staging from the seed under its turn, and walk again, at most twice, and SHALL report any other failure without fixing it; the report SHALL state the scope judgement. When an existing CI harness can cheaply reproduce an in-scope defect, the repair SHALL retain a focused regression check and evidence of that same check failing on the earlier source for the observed defect and passing on the repaired source. Where a lasting check is impractical, the report SHALL retain the available reproduction and explain the limitation without requiring new test infrastructure or weakening the delivery gate. A failure SHALL NOT prevent independent safe checks from completing. Additional consumer checks SHALL NOT expand repair authorization.
+On `FAILURE`, `/verify` SHALL fix a failure in this change's own scope, save, rebuild staging from the seed under its turn, and walk again, at most twice, and SHALL report any other failure without fixing it; the report SHALL state the scope judgement. When an existing CI harness can cheaply reproduce an in-scope defect, the repair SHALL retain a focused regression check and evidence of that same check failing on the earlier source for the observed defect and passing on the repaired source. Where a lasting check is impractical, the report SHALL retain the available reproduction and explain the limitation without requiring new test infrastructure or weakening the delivery gate. A failure SHALL NOT prevent independent safe checks from completing.
 
 #### Scenario: An in-scope failure
 
@@ -297,25 +297,6 @@ An install that sets `WALK_MEDIA_BUCKET` and `WALK_MEDIA_BASE_URL` SHALL keep pu
 - **WHEN** a repo with both `WALK_MEDIA_` variables set takes this update and runs a walk
 - **THEN** its comment shows the screenshots inline from the public bucket, as before
 
-### Requirement: Safe checks finish before a consolidated handoff
-
-Within the requested scope, `/verify` SHALL complete every safe check possible with existing authorization and tools before asking for help. A blocked check SHALL pause only its dependents. The report SHALL distinguish completed, failed, partly shown, and unverified checks. Remaining checks SHALL form one consolidated handoff naming the reason, exact manual action or authorization needed, and expected observation, with options to help, skip selected checks, or skip all remaining checks. Skipped checks SHALL remain explicitly unverified and SHALL NOT be requested again unless the person reopens them. Skipping SHALL NOT imply authorization, erase an observed failure, or count as a pass. After the person helps, verification SHALL resume pending checks and repeat completed checks only when their conditions changed. Waiting or an unattended run SHALL NOT imply authorization.
-
-#### Scenario: One check needs a person's login
-
-- **WHEN** a login blocks one journey while other journeys need no person
-- **THEN** those other journeys complete, and the final handoff names the blocked journey and how to enable or manually complete it
-
-#### Scenario: Help enables the pending check
-
-- **WHEN** the person supplies the requested authorization without changing completed checks' conditions
-- **THEN** only the pending journey and its dependents resume
-
-#### Scenario: The person skips remaining manual checks
-
-- **WHEN** the person chooses to skip selected or all remaining checks
-- **THEN** the report names those checks as skipped and unverified, retains observed failures and coverage gaps, and no further help is requested for them unless the person reopens them
-
 ### Requirement: Safe simulations explain their evidence limits
 
 For checks that cannot be completed directly, `/verify` SHALL attempt the strongest safe simulation possible with existing authorization, tools, and deployed test surfaces before asking for help. Simulation SHALL preserve the same staging and external-system safety boundaries. Its report SHALL identify simulated evidence, claims it supports, and real behavior it does not prove. Simulated effects SHALL NOT count as proof of unobserved real effects. If no safe simulation exists, the check SHALL remain unverified with its limitation explained.
@@ -388,7 +369,7 @@ For an explicit fix or preservation claim, verification SHALL compare available 
 
 ### Requirement: Related consumers are checked through confirmed contracts
 
-Verification SHALL examine the material assumptions connecting changed behavior to its consumers and select a small set of existing checks that can disprove them. Selected checks SHALL name the concrete caller or data-contract relationship and their canonical expected behavior, including consumers in another capability. Speculative relationships SHALL NOT justify a whole-app sweep. Missing expectations or unavailable observation routes SHALL be reported as coverage gaps rather than invented promises. An unrelated consumer failure SHALL remain outside repair scope.
+Verification SHALL examine the material assumptions connecting changed behavior to its consumers and select a small set of existing checks that can disprove them. Selected checks SHALL name the concrete caller or data-contract relationship and their canonical expected behavior, including consumers in another capability. Speculative relationships SHALL NOT justify a whole-app sweep. Missing expectations or unavailable observation routes SHALL be reported as coverage gaps rather than invented promises.
 
 #### Scenario: An API change feeds another screen
 
@@ -529,3 +510,26 @@ When a fresh walk of a changed kept check contradicts its scenario's `THEN` and 
 
 - **WHEN** the fresh walk contradicts an older scenario's `THEN` and the cause lies outside the branch's files
 - **THEN** the walk is a `FAILURE` that names the older promise, with no repair
+
+### Requirement: Safe checks finish before one handoff
+
+Within the requested scope, `/verify` SHALL complete every safe check possible with existing authorization and tools before asking for help. A blocked check SHALL pause only its dependents. Remaining checks SHALL form one handoff naming, for each, the reason, the exact action or authorization needed, and what the check should show. After the person helps, verification SHALL resume pending checks and repeat completed checks only when their conditions changed. Waiting or an unattended run SHALL NOT imply authorization.
+
+#### Scenario: One check needs a person's login
+
+- **WHEN** a login blocks one journey while other journeys need no person
+- **THEN** those other journeys complete, and the final handoff names the blocked journey and how to enable or manually complete it
+
+#### Scenario: Help enables the pending check
+
+- **WHEN** the person supplies the requested authorization without changing completed checks' conditions
+- **THEN** only the pending journey and its dependents resume
+
+### Requirement: A skipped check stays unverified
+
+The handoff SHALL let the person help, skip selected checks, or skip all that remain. A skipped check SHALL be reported as skipped and unverified, and SHALL NOT be requested again unless the person reopens it. Skipping SHALL NOT imply authorization, erase an observed failure, or count as a pass. The report SHALL distinguish completed, failed, partly shown, and unverified checks.
+
+#### Scenario: The person skips remaining manual checks
+
+- **WHEN** the person chooses to skip selected or all remaining checks
+- **THEN** the report names those checks as skipped and unverified, retains observed failures and coverage gaps, and no further help is requested for them unless the person reopens them
