@@ -10,14 +10,10 @@
   "probe": "browser",
   "writes": false,
   "sourcePaths": [
-    ".agents/skills/memory/SKILL.md",
-    ".agents/skills/memory/references/areas.json",
-    ".agents/skills/memory/scripts/lib/transcripts.mjs",
-    ".agents/skills/memory/scripts/memory.mjs",
-    ".agents/skills/wong-setup/SKILL.md",
+    ".agents/skills/wong-sync/references/payload-manifest.md",
     "app/src/pages/home/Tutorial.tsx"
   ],
-  "recordedAt": "688f9807b9aa05f68ea2d9d8408ef2be3ab33a95",
+  "recordedAt": "b39c2ec6a1cbc8dc11da6cd156343babd19a4d1a",
   "steps": [
     [
       "open",
@@ -37,6 +33,17 @@
       "get",
       "text",
       "body"
+    ],
+    [
+      "set",
+      "viewport",
+      "390",
+      "844"
+    ],
+    [
+      "wait",
+      "--text",
+      "Make it yours"
     ]
   ],
   "expect": [
@@ -44,7 +51,10 @@
       "text": "Make it yours"
     },
     {
-      "text": "Make this home page mine. Ask what to call this page, update its heading, remove this welcome guide, explain each step, and show me a preview before publishing."
+      "text": "Help me build my first app. Grill me first: start from what you already know about me and ask about my work and where my time goes, one question at a time. Then suggest a few apps I'd use, build the one I pick, remove this welcome guide, explain each step, and show me a preview before publishing."
+    },
+    {
+      "text": "Start with an app built for how you work."
     },
     {
       "text": "Hello"
