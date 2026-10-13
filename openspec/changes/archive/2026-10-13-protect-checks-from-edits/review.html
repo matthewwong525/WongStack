@@ -11,7 +11,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · protect-checks-from-edits</title>
+<title>Review · 2026-10-13-protect-checks-from-edits</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -119,11 +119,11 @@
   }
 </style>
 </head>
-<body data-change="protect-checks-from-edits">
+<body data-change="2026-10-13-protect-checks-from-edits">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>protect-checks-from-edits</h1>
+  <h1>2026-10-13-protect-checks-from-edits</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. <span class="copies">Saving a note copies all your notes.</span> Open a drawing and tap it to see it full screen.</p>
@@ -164,6 +164,14 @@
 <li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-13</p>Assumed: the new check is not added to the repository's required checks by this change, because <code>/ship</code> already stops on any failing check and the rule set is the owner's to edit; the changelog names it as an optional hand step.</li>
 <li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-10-13</p>Check: <code>.github/scripts/loosened-checks.mjs</code> and <code>.github/scripts/check-settings.mjs</code> gain kept checks and shared actions as things to flag, because this change is the one that adds them; nothing they flagged before stops being flagged.</li>
 <li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-10-13</p>Check: <code>.github/workflows/guard.yml</code> is new, because the guard needs a run the change can not edit.</li>
+<li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-13</p>Built in one pass: each task's own check moved to one run of the local checks at the end, with its acceptance kept.</li>
+<li class="decision card" id="decision-10" data-note="decision-10" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-13</p>The spec reader, the promise fingerprint and the &quot;same steps and expectations&quot; test moved to <code>.agents/skills/verify/scripts/kept-promises.mjs</code>, which both the kept-check script and the guard import, so there is one copy.</li>
+<li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-13</p>The guard uses the default branch's copy of a kept check to say which promise it guards, and the change's copy only when the older one is unreadable; otherwise a change could point a check at a promise it rewrote and dodge the reason. A kept check moved out of its folder counts as removed. A check whose promise was already gone before the change still needs a reason when deleted, as the design's &quot;differs between base and head&quot; reads.</li>
+<li class="decision card" id="decision-12" data-note="decision-12" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-13</p><code>guard.yml</code> checks out the pull request as <code>refs/pull/&lt;number&gt;/head</code> from the project itself, because a fork's commit can not be fetched by its hash alone, and takes the script path from <code>$GITHUB_WORKSPACE/guard/</code>. It has no concurrency group: a cancelled run reads as a failed check.</li>
+<li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-13</p>Found for task 4.2: <code>/save</code>'s wait (<code>.agents/skills/save/scripts/wait-for-checks.sh</code>) calls a pass once two polls ten seconds apart list the same finished checks. GitHub starts <code>guard</code> for the pull request, not the push, so on a fast change it could be listed after that. The wait now holds a pass until a check named <code>guard</code> is listed, for up to the 60-second grace, when <code>origin/HEAD</code> or <code>origin/main</code> holds <code>guard.yml</code>. Tested in <code>scripts/tests/wait-for-checks.test.mjs</code>.</li>
+<li class="decision card" id="decision-14" data-note="decision-14" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-13</p>The list of what is flagged moved from <code>wiki/development/the-change-loop.md</code> to a new page, <code>wiki/development/loosened-checks.md</code>, because the first page stood 17 words under the 3,000-word limit and the additions needed about 200. The old heading and its link stay; the new page is in the payload list, the development hub and the <code>ci</code> area.</li>
+<li class="decision card" id="decision-15" data-note="decision-15" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-13</p><code>scripts/tests/payload-rule-paths.test.mjs</code> now expects three shipped workflows and reads <code>guard/</code> paths in <code>guard.yml</code> as the default branch's files.</li>
+<li class="decision card" id="decision-16" data-note="decision-16" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-13</p>Archive checkpoint for publishing as 41.1.0. Review before the save found <code>guard.yml</code>'s run step piped the guard into <code>tee</code> with no <code>pipefail</code>, so the step would have passed whatever the guard said; <code>set -o pipefail</code> now leads the step and the contract test pins it. <code>guard.yml</code> can not run on its own pull request, so its first real run is the next one.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Checks the assistant can't quietly change
+## 41.1.0 — Checks the assistant can't quietly change
 
 - **A rewritten or removed saved check is reported.** Before each publish the assistant replays the saved checks of older features. It could re-record or delete one with no word to you. Now the automatic checks fail until it writes down why, and you read that reason under *Checks loosened* in the build and publish reports. A new saved check needs no reason. Neither does one recorded again with the same steps and expectations, or one whose promise your change rewrites or removes.
 - **A change can't edit the guard that judges it.** The guard that catches a loosened check ran from the change's own copy, so a change that weakened the guard was judged by the weakened one. On GitHub a second check, named `guard`, now runs the copy already published and reads your change only as text; it runs none of it. A change to the guard still needs a written reason, and the published guard is the one that asks for it. A project kept elsewhere keeps the one guard it has today.

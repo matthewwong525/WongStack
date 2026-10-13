@@ -1,6 +1,6 @@
 # Checks the assistant can't quietly change
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** verify-machine-checks
 **Open questions:** none
 
@@ -68,3 +68,4 @@ None.
 - **2026-10-13** — Found for task 4.2: `/save`'s wait (`.agents/skills/save/scripts/wait-for-checks.sh`) calls a pass once two polls ten seconds apart list the same finished checks. GitHub starts `guard` for the pull request, not the push, so on a fast change it could be listed after that. The wait now holds a pass until a check named `guard` is listed, for up to the 60-second grace, when `origin/HEAD` or `origin/main` holds `guard.yml`. Tested in `scripts/tests/wait-for-checks.test.mjs`.
 - **2026-10-13** — The list of what is flagged moved from `wiki/development/the-change-loop.md` to a new page, `wiki/development/loosened-checks.md`, because the first page stood 17 words under the 3,000-word limit and the additions needed about 200. The old heading and its link stay; the new page is in the payload list, the development hub and the `ci` area.
 - **2026-10-13** — `scripts/tests/payload-rule-paths.test.mjs` now expects three shipped workflows and reads `guard/` paths in `guard.yml` as the default branch's files.
+- **2026-10-13** — Archive checkpoint for publishing as 41.1.0. Review before the save found `guard.yml`'s run step piped the guard into `tee` with no `pipefail`, so the step would have passed whatever the guard said; `set -o pipefail` now leads the step and the contract test pins it. `guard.yml` can not run on its own pull request, so its first real run is the next one.
