@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — One connect message for every assistant
+## 41.2.0 — One connect message for every assistant
 
 - **One short setup message, the same for everyone.** *Connect your assistant* no longer picks between a project message and an apps-only one, and the message carries no fingerprint and no rules about folders. Setup works out what the person is allowed when it runs.
 - **The assistant downloads the setup file from your own app**, at a fixed link: your app's address plus `/_memory/setup.mjs`. The link is the same for everyone and needs no sign-in. The file holds no key, and nothing works until the person signs in. [The setup file's fixed link](wiki/stack/employee-project.md#the-setup-files-fixed-link) has the details.
