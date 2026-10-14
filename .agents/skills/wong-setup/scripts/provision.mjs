@@ -96,14 +96,19 @@ export const CLOUDFLARE_READ_KEY = [
 /** The to-do a report carries when the token could not make that key. Everything else in Access still works. */
 export const CLOUDFLARE_READ_KEY_TODO = `the app has no read-only Cloudflare key for look-ups, ${KEY_LINK_STEP}`;
 
-/** The steps the owner follows on GitHub for the key that lets the app hand the project out. */
+/**
+ * The steps the owner follows on GitHub for the wide key, which lets the app hand the project out and save
+ * changes to it. `read` is the read-only key it replaces: still enough to hand the project out.
+ */
 export const CODE_KEY = {
-  name: 'WONG_CODE_READ',
+  name: 'WONG_CODE_WRITE',
+  read: 'WONG_CODE_READ',
   url: 'https://github.com/settings/personal-access-tokens/new',
   steps: (repository) => [
     `Repository access: Only select repositories, then pick ${repository}`,
-    'Permissions: Repository permissions, Contents, Read-only',
-    'Add no other permission',
+    'Repository permissions: set Contents to Read and write, and Pull requests to Read and write',
+    'Set three more to Read-only: Actions, Commit statuses, Deployments',
+    'Add no other permission, and never Workflows: that one would let a saved change rewrite the checks',
     'Expiration: No expiration, or renew it before it ends',
     'Tap Generate token and copy it',
   ],
@@ -335,7 +340,7 @@ function dropLines(text, from, to) {
  * An open `access` (no Zero Trust yet) leaves the Access ids blank and adds `WORKSPACE_LOGIN: "off"` to
  * production's and staging's vars: the committed switch the Worker and the deploy check both read.
  */
-export function wranglerConfig({ base, ids, bucket, today, access }, fragment = wranglerFragment()) {
+export function wranglerConfig({ base, ids, bucket, access }, fragment = wranglerFragment()) {
   const n = namesFor(base);
   let text = fragment;
   if (!bucket) text = dropLines(text, /\/\/ Only when the memory store has a bucket/, /^\s*\],?\s*$/);
@@ -343,7 +348,6 @@ export function wranglerConfig({ base, ids, bucket, today, access }, fragment = 
   text = text.replace(/,(\s*\n\s*[}\]])/g, '$1');
   const fill = {
     '<your-worker>': n.worker,
-    '<today, YYYY-MM-DD>': today,
     '<your-db-name>': n.db,
     '<production database_id>': ids.db,
     '<staging database_id>': ids.stagingDb,
@@ -433,22 +437,25 @@ const setOwnerEmail = (file, email) => setVar(file, 'WONG_OWNER_EMAIL', email);
 export const githubRepo = (url) => /^(?:https:\/\/github\.com\/|git@github\.com:|ssh:\/\/git@github\.com\/)([A-Za-z0-9-]+\/[A-Za-z0-9._-]+?)(?:\.git)?\/?$/.exec(String(url ?? '').trim())?.[1] ?? null;
 
 /**
- * Binds production and staging to the account's Artifacts namespace in an existing config, in place, comments
- * kept, so the app can read its own repository with no key. Returns `updated`, `current`, or false, with the
- * file restored, when the config has no place for both.
+ * Adds one binding, `entry` under `key`, to production and staging in an existing config, in place, comments
+ * kept. Returns `updated`, `current`, or false, with the file restored, when the config has no place for both.
+ * Also false, with nothing written, when either already lists other entries under `key`: a second line
+ * would hide them.
  */
-function addCodeBinding(file) {
-  const bound = (config) => Boolean(config?.artifacts?.some((each) => each.binding === 'ARTIFACTS' && each.namespace === NAMESPACE));
-  const both = () => {
+function addCodeBinding(file, key, entry, comment) {
+  const bound = (config) => Boolean(config?.[key]?.some((each) => Object.entries(entry).every(([name, value]) => each[name] === value)));
+  const blocks = () => {
     const config = parseConfig(file);
-    return [bound(config), bound(config.env?.staging)];
+    return [config, config.env?.staging];
   };
+  const both = () => blocks().map(bound);
   const [production, staging] = both();
   if (production && staging) return 'current';
+  if (blocks().some((block) => block?.[key] && !bound(block))) return false;
   const before = readFileSync(file, 'utf8');
-  const line = `"artifacts": [{ "binding": "ARTIFACTS", "namespace": "${NAMESPACE}" }],`;
+  const line = `"${key}": [{ ${Object.entries(entry).map(([name, value]) => `"${name}": "${value}"`).join(', ')} }],`;
   let text = before;
-  if (!production) text = text.replace(/^([ \t]+)"env"\s*:/m, (match, indent) => `${indent}// The project's own repository, which Connect your assistant hands out. wiki/stack/employee-project.md\n${indent}${line}\n${match}`);
+  if (!production) text = text.replace(/^([ \t]+)"env"\s*:/m, (match, indent) => `${indent}// ${comment} wiki/stack/employee-project.md\n${indent}${line}\n${match}`);
   if (!staging) text = text.replace(/^([ \t]+)"staging"\s*:\s*\{[ \t]*$/m, (match, indent) => `${match}\n${indent}${indent.startsWith('\t') ? '\t' : indent.slice(indent.length / 2)}${line}`);
   writeFileSync(file, text);
   try {
@@ -462,32 +469,50 @@ function addCodeBinding(file) {
 
 /**
  * The config half of `projectCode`, calling nothing: the project's name in both Workers' vars, and on a project
- * kept in Cloudflare the binding to its repository. `{ named, bound }`, each `updated`, `current`, or false.
+ * kept in Cloudflare the binding to its repository and, for saving, the one to its check runner's runs, named
+ * `runner`. `{ named, bound, checks }`, each `updated`, `current`, or false.
  * WongStack's own `scripts/check-target-app.mjs` builds an install's config through it too.
  */
-export function codeInConfig(config, repository, artifacts) {
+export function codeInConfig(config, repository, artifacts, runner) {
   const named = repository && existsSync(config) ? setVar(config, 'WONG_CODE_REPOSITORY', repository) : false;
-  return { named, bound: named && artifacts ? addCodeBinding(config) : false };
+  const bound = named && artifacts ? addCodeBinding(config, 'artifacts', { binding: 'ARTIFACTS', namespace: NAMESPACE }, "The project's own repository, which Connect your assistant hands out.") : false;
+  const checks = bound && runner ? addCodeBinding(config, 'workflows', { binding: 'CODE_CHECKS', name: runner, script_name: runner, class_name: 'Checks' }, "The check runner's runs, which the app reads for a change saved through it.") : false;
+  return { named, bound, checks };
 }
 
+/** The to-do left when a project kept in Cloudflare can be handed out but not yet saved to. */
+const saveTodo = (runner) =>
+  runner
+    ? `add the "workflows" binding CODE_CHECKS for the check runner ${runner} to production and staging in app/wrangler.jsonc, so people can save changes through the app, as wiki/stack/employee-project.md describes`
+    : 'the install record names no check runner, so people can not save changes through the app yet: run `provision.mjs provision --route artifacts` again, which records it, then `provision.mjs access`';
+
 /**
- * Tells the app which project Connect your assistant hands out: the name in both Workers' vars, and on a
- * project kept in Cloudflare the binding to its repository, so no key is made. On GitHub the read-only key is
- * the owner's one step: `ready` once both Workers hold it, else `missing` with the steps. It is no to-do: Access
- * asks for it when the owner first lets someone install the project. Changes nothing that is already right.
+ * Tells the app which project Connect your assistant hands out, and whether people can save changes to it
+ * through the app: `status` is the install answer and `save` the save answer, each `ready` or `missing`.
+ * The name goes in both Workers' vars. On a project kept in Cloudflare so do the bindings to its repository
+ * and to its check runner's runs, so no key is made: `save` is `ready` once both are in, else a to-do is left.
+ * On GitHub the wide key is the owner's one step: `save` is `ready` once both Workers hold it, and `status`
+ * once both hold it or the read-only key it replaces; else the report names the wide key with its steps. That
+ * is no to-do: Access asks for it when the owner first lets someone install the project. Changes nothing that
+ * is already right.
  */
-async function projectCode(cf, { account, config, repository, artifacts, workers, note, todo }) {
-  const { named, bound } = codeInConfig(config, repository, artifacts);
+async function projectCode(cf, { account, config, repository, artifacts, runner, workers, note, todo }) {
+  const { named, bound, checks } = codeInConfig(config, repository, artifacts, runner);
   if (named === 'updated') note('updated', 'app/wrangler.jsonc WONG_CODE_REPOSITORY');
   if (bound === 'updated') note('updated', 'app/wrangler.jsonc ARTIFACTS');
+  if (checks === 'updated') note('updated', 'app/wrangler.jsonc CODE_CHECKS');
   if (!named || (artifacts && !bound)) {
     todo.push(`add "WONG_CODE_REPOSITORY"${artifacts ? ` and the "artifacts" binding ARTIFACTS for the ${NAMESPACE} namespace` : ''} to production and staging in app/wrangler.jsonc, as wiki/stack/employee-project.md describes`);
-    return { status: 'missing' };
+    return { status: 'missing', save: 'missing' };
   }
-  if (artifacts) return { status: 'ready', kept: 'cloudflare', repository };
+  if (artifacts) {
+    if (!checks) todo.push(saveTodo(runner));
+    return { status: 'ready', save: checks ? 'ready' : 'missing', kept: 'cloudflare', repository };
+  }
   const held = await Promise.all(workers.map((worker) => orNull(() => cf('GET', `/accounts/${account}/workers/scripts/${worker}/secrets`))));
-  if (held.every((list) => list?.some((secret) => secret.name === CODE_KEY.name))) return { status: 'ready', kept: 'github', repository };
-  return { status: 'missing', kept: 'github', repository, key: CODE_KEY.name, url: CODE_KEY.url, steps: CODE_KEY.steps(repository) };
+  const all = (...names) => held.every((list) => list?.some((secret) => names.includes(secret.name)));
+  if (all(CODE_KEY.name)) return { status: 'ready', save: 'ready', kept: 'github', repository };
+  return { status: all(CODE_KEY.name, CODE_KEY.read) ? 'ready' : 'missing', save: 'missing', kept: 'github', repository, key: CODE_KEY.name, url: CODE_KEY.url, steps: CODE_KEY.steps(repository) };
 }
 
 /** Notes the owner email in an existing config, or leaves a to-do when the config has no place for it. */
@@ -773,7 +798,7 @@ export async function provision({ token, api, fetch, account, repo, base, route 
   const config = join(dir, 'app', 'wrangler.jsonc');
   if (!keepConfig) {
     if (!existsSync(config)) {
-      writeFileSync(config, wranglerConfig({ base, ids: { db, stagingDb, memory: memoryId }, bucket, today, access: report.access }));
+      writeFileSync(config, wranglerConfig({ base, ids: { db, stagingDb, memory: memoryId }, bucket, access: report.access }));
       note('created', 'app/wrangler.jsonc');
     } else {
       if (!open && /"WORKSPACE_LOGIN"/.test(readFileSync(config, 'utf8'))) {
@@ -813,7 +838,7 @@ export async function provision({ token, api, fetch, account, repo, base, route 
     // Like the owner email, it waits while the config is still open.
     if (!keepConfig && !/"WORKSPACE_LOGIN"/.test(readFileSync(config, 'utf8'))) report.codeKey = await step('cloudflare', () => projectCode(cf, {
       account, config, repository: route === 'artifacts' ? artifactNamesFor(base).repo : githubRepo(`https://github.com/${repo}`),
-      artifacts: route === 'artifacts', workers: [n.worker, n.staging], note, todo: report.todo,
+      artifacts: route === 'artifacts', runner: artifactNamesFor(base).runner, workers: [n.worker, n.staging], note, todo: report.todo,
     }));
   };
   if (route === 'artifacts') {
@@ -877,7 +902,7 @@ export async function accessSetup({ token, api, fetch, account, ownerEmail, dir 
   const origin = artifacts ? '' : (await exec('git', ['-C', dir, 'remote', 'get-url', 'origin']).catch(() => ({ stdout: '' }))).stdout;
   const codeKey = await step('cloudflare', () => projectCode(cf, {
     account, config, repository: artifacts ? delivery.repo : (githubRepo(origin) ?? githubRepo(`https://github.com/${state.repo}`)),
-    artifacts, workers: access.workers.map((each) => each.name), note, todo: report.todo,
+    artifacts, runner: delivery?.workflow, workers: access.workers.map((each) => each.name), note, todo: report.todo,
   }));
   recordComponent(dir, 'access', { ownerEmail: email }, note);
   recordComponent(dir, 'accessKey', key, note);
@@ -900,8 +925,10 @@ const USAGE = `usage: provision.mjs <command> [--dir <repo>] [--account <id>] [-
                                           vars, give the live app its own key for the sign-in list and the read-only
                                           key for Cloudflare look-ups; the preview app gets the read-only key when
                                           Cloudflare takes it, and is reported as waiting when not. It also names
-                                          the project Connect your assistant hands out: codeKey is ready, or
-                                          missing with the owner's steps on GitHub, which Access asks for later
+                                          the project Connect your assistant hands out: codeKey's status is
+                                          ready or missing, and its save says whether people can save changes
+                                          through the app. On GitHub a missing one comes with the owner's steps
+                                          for the one key that does both, which Access asks for later
 --route artifacts keeps the project in Cloudflare with no GitHub: widen adds its groups, names checks its
 names, and provision makes the repository and the check runner in place of the GitHub secrets.
 --dir is the target repo (default: here). The token is CLOUDFLARE_API_TOKEN and the account CLOUDFLARE_ACCOUNT_ID,

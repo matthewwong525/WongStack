@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Which way this checkout saves and publishes: `github` or `artifacts`.
+// Which way this checkout saves and publishes: `github`, `artifacts` or `app`.
 //
 //     node .claude/skills/save/scripts/delivery-route.mjs [dir]
 //
@@ -8,6 +8,11 @@
 // origin on <account>.artifacts.cloudflare.net and `components.delivery.route: "artifacts"`; every
 // other checkout is `github`, with or without an origin. Prints the route and exits 0. A record and
 // an origin that disagree print the reason on stderr and exit 1: no verb guesses a route.
+//
+// One origin is asked before the record: `https://<app>/api/access/code/git/`, the address of a copy
+// installed through Connect your assistant (wiki/stack/employee-project.md). That copy is `app`
+// whatever the record says: the record is the owner's, committed, and names where the project is
+// kept, not how this copy reaches it.
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -17,6 +22,16 @@ import { isMain } from '../../memory/scripts/lib/cli.mjs';
 export const ARTIFACTS_HOST = /^([0-9a-f]{32})\.artifacts\.cloudflare\.net$/;
 
 export class RouteError extends Error {}
+
+/** True for the app's own Git address and nothing near it: https, that exact path, no credentials, query or hash. */
+export function appOrigin(origin) {
+  const text = String(origin ?? '').trim();
+  try {
+    return text === `${new URL(text).origin}/api/access/code/git/` && text.startsWith('https://');
+  } catch {
+    return false;
+  }
+}
 
 /** The host of a Git remote address, for `https://host/…` and `git@host:…`; null when there is none. */
 export function originHost(origin) {
@@ -33,6 +48,7 @@ export function originHost(origin) {
 
 /** The route for one origin address and one install record; a RouteError when they disagree. */
 export function routeOf({ origin, record }) {
+  if (appOrigin(origin)) return 'app';
   const delivery = record?.components?.delivery;
   const recorded = delivery?.route === 'artifacts';
   const host = originHost(origin);

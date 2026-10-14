@@ -151,15 +151,17 @@ it('gives a preview its own practice list and makes no provider call', async () 
   expect(f.sql.prepare('SELECT COUNT(*) count FROM wong_access_work').get()).toEqual({ count: 0 });
 });
 
-it('says in the status why the project can not be handed out yet, and never a secret', async () => {
+it('says in the status why the project can not be handed out or saved to yet, and never a secret', async () => {
   const TOKEN = 'github_pat_synthetic_read_only_value';
-  const read = async (vars: object) => json<{ project: string; keys: { id: string; saved: boolean }[] }>(await run('status', 'GET', undefined, { ...f.env, ...vars }));
-  // No project recorded: setup has a step left. On GitHub with no key: the key. With it: ready, as Project code is saved.
-  const [unset, waiting, ready] = [await read({}), await read({ WONG_CODE_REPOSITORY: 'acme/recipe-box' }), await read({ WONG_CODE_REPOSITORY: 'acme/recipe-box', WONG_CODE_READ: TOKEN })];
-  expect([unset, waiting, ready].map(status => [status.project, status.keys.find(key => key.id === 'code')?.saved]))
-    .toEqual([['setup', false], ['key', false], ['ready', true]]);
-  // The status carries one word: no token, no secret's name, and not the repository either.
-  for (const status of [unset, waiting, ready]) expect(JSON.stringify(status)).not.toMatch(/github_pat|WONG_CODE|recipe-box/);
+  const read = async (vars: object) => json<{ project: string; projectSave: string; keys: { id: string; saved: boolean }[] }>(await run('status', 'GET', undefined, { ...f.env, ...vars }));
+  // No project recorded: setup has a step left. On GitHub with no key: the key. With the older key: handed out, and
+  // saving waits for the newer one. With the newer one: both.
+  const [unset, waiting, reading, ready] = [await read({}), await read({ WONG_CODE_REPOSITORY: 'acme/recipe-box' }), await read({ WONG_CODE_REPOSITORY: 'acme/recipe-box', WONG_CODE_READ: TOKEN }),
+    await read({ WONG_CODE_REPOSITORY: 'acme/recipe-box', WONG_CODE_WRITE: TOKEN })];
+  expect([unset, waiting, reading, ready].map(status => [status.project, status.projectSave, status.keys.find(key => key.id === 'code')?.saved]))
+    .toEqual([['setup', 'setup', false], ['key', 'key', false], ['ready', 'key', true], ['ready', 'ready', true]]);
+  // The status carries one word each: no token, no secret's name, and not the repository either.
+  for (const status of [unset, waiting, reading, ready]) expect(JSON.stringify(status)).not.toMatch(/github_pat|WONG_CODE|recipe-box/);
 });
 it('opens for the owner with no other setup, lists every built app and starts permissions once', async () => {
   f.sql.close(); f = fixture({ started: false });

@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## 41.2.0 — One connect message for every assistant
+## Next (minor) — One connect message for every assistant
 
 - **One short setup message, the same for everyone.** *Connect your assistant* no longer picks between a project message and an apps-only one, and the message carries no fingerprint and no rules about folders. Setup works out what the person is allowed when it runs.
 - **The assistant downloads the setup file from your own app**, at a fixed link: your app's address plus `/_memory/setup.mjs`. The link is the same for everyone and needs no sign-in. The file holds no key, and nothing works until the person signs in. [The setup file's fixed link](wiki/stack/employee-project.md#the-setup-files-fixed-link) has the details.
@@ -13,6 +13,26 @@
 - **No fingerprint to match at each release.** The record of a fixed address and fingerprint, `app/worker/employee-access/bootstrap-release.json`, is gone, so an app can no longer show *Ask your employer to finish the reviewed assistant setup*.
 
 **Updating.** Nothing needs doing by hand. A message copied earlier keeps working. The update removes `app/worker/employee-access/bootstrap-release.json` and adds the file that serves the setup link; your sign-in rules do not change. A preview's link asks for a sign-in, so people connect to the live app.
+
+## 41.2.1 — A new install's first save passes
+
+- **A brand-new install can save its first change.** Setup stamped a new app with the day it was installed. The app's own checks run on a test engine that ships with WongStack, and that engine refuses a date more than a week newer than itself. So an install made more than a week after the engine was last updated failed its first save. Setup now gives a new app the date WongStack itself is tested on, on any day, wherever the project is kept.
+- **WongStack's own checks now catch this.** The check that builds a pretend install used a made-up old date; it now uses the date setup really writes. A second check fails if that date and WongStack's own app's date ever differ.
+- **Installs you already have keep their date.** An update never changed it and still doesn't.
+
+**Updating.** Nothing to do. Only an install made in the last few days can be affected: if a save fails saying the app *requires compatibility date*, ask your assistant to set the app's date to the one in that message.
+
+## 41.2.0 — Teammates save changes through the app
+
+- **A teammate who can install the project can now save a change.** They ask their assistant, and the change is saved from their copy with their app sign-in alone: no GitHub or Cloudflare account. Their assistant reports the automatic checks and a link to look at, then says the owner or an Admin publishes it. On GitHub the saved change is a pull request that names who saved it.
+- **They save; you publish.** The app takes one new commit on one branch. It refuses a push to the published branch, a delete, a tag and more than one branch, each with a plain line, before anything reaches where the project is kept. It never merges, closes or deletes.
+- **One tick still.** *Can install the project* in Access now says under it: *They can save changes too.* There is no second tick or level.
+- **A change to the files that define the checks can't be saved this way.** On GitHub the app's key may not write workflow files, so such a change is refused with a line that says to ask the owner.
+- **On GitHub the app's key is wider.** One key, `WONG_CODE_WRITE`, now both hands the project out and saves changes. The older read-only key keeps handing the project out; Access says *Saving needs one more step* until the new key is in.
+- **A project kept in Cloudflare needs no key.** The app reads a saved change's check run through a new link to the check runner, which Access setup adds.
+- [Employee assistant connection](wiki/stack/employee-project.md#save-a-change-through-the-app) owns the details.
+
+**Updating.** Everyone who can install the project can now save changes for you to publish. Open Access and untick *Can install the project* for anyone who should not. Then one step, by where your project is kept. In Cloudflare: ask your assistant to *finish Access setup* once more, then publish; saving works after that, with no key. On GitHub: Access shows *Saving needs one more step* under the tick, with a request to copy for your assistant. It sends you a private link and the steps to make one new key on GitHub, which lets the app save changes to this one project. Until then teammates keep installing the project as before, and saving is refused with a plain line. So that nothing reaches your published branch without you, set that branch on GitHub to require a pull request.
 
 ## 41.1.0 — Checks the assistant can't quietly change
 

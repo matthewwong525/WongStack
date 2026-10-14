@@ -265,6 +265,8 @@ it('gives the project with one tick, off for a new person, and asks for the GitH
   Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: vi.fn(async () => {}) } })
   open('people/new'); await panel('Add person')
   expect(install().checked).toBe(false); expect(project().getAllByRole('checkbox')).toHaveLength(1)
+  // The one tick says what it gives, ticked or not.
+  expect(project().getByText('They can save changes too.')).toBeTruthy()
   // The tick stands in for the level choice: Project code is no line among the keys.
   expect(lines().map(title)).toEqual(['Stripe', 'Bank', 'Cloudflare']); expect(screen.queryByRole('group', { name: 'Project code' })).toBeNull()
   // After the keys.
@@ -272,7 +274,7 @@ it('gives the project with one tick, off for a new person, and asks for the GitH
   // Off, nothing is asked. On, the step is right under the tick, with the words to say and the request to copy.
   expect(project().queryByText(/One step first/)).toBeNull(); expect(screen.queryByRole('button', { name: /Copy/ })).toBeNull()
   tick()
-  expect(project().getByText('One step first.')).toBeTruthy(); expect(project().getByText(/The app needs a read-only GitHub key to hand the project out\. Ask your assistant:/)).toBeTruthy()
+  expect(project().getByText('One step first.')).toBeTruthy(); expect(project().getByText(/The app needs a GitHub key to hand the project out\. Ask your assistant:/)).toBeTruthy()
   expect(project().getByText('Let teammates install the project')).toBeTruthy()
   fireEvent.click(project().getByRole('button', { name: 'Copy that request' }))
   await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalledWith(PROJECT_REQUEST))
@@ -289,6 +291,12 @@ it('shows a saved tick as on, with nothing under it once the app can hand the pr
   tick(); expect(install().checked).toBe(false)
   click('Save access'); await screen.findByText('Saved.')
   expect(sent('people')).toEqual([{ email: 'kim@shop.com', removed: false, role: null, apps: { ...NO_APPS, hello: true }, keys: { ...NO_KEYS, stripe: 'read' } }])
+  // An install that hands the project out and can not save yet: the tick says saving needs one more step, and blocks nothing.
+  cleanup(); roster.projectSave = 'key'
+  open('people/kim@shop.com'); await panel('kim@shop.com')
+  expect(project().getByText('Saving needs one more step.')).toBeTruthy(); expect(project().getByText('Let teammates save changes')).toBeTruthy()
+  expect(install().checked).toBe(true); expect(project().queryByText(/One step first/)).toBeNull()
+  roster.projectSave = undefined
   // An install that has no project recorded is sent to finish Access setup, not to make a GitHub key.
   cleanup(); lacking('setup')
   open('people/kim@shop.com'); await panel('kim@shop.com')
@@ -301,7 +309,7 @@ it("tells an Admin who ticks it that the key is the owner's step, with nothing t
   open('people/lee@shop.com'); await panel('lee@shop.com'); fireEvent.change(role(), { target: { value: '' } })
   expect(install().checked).toBe(false); expect(project().queryByText(/One step first/)).toBeNull()
   tick()
-  expect(project().getByText('One step first for the owner.').parentElement!.textContent).toBe('One step first for the owner. owner@shop.com adds a read-only GitHub key.')
+  expect(project().getByText('One step first for the owner.').parentElement!.textContent).toBe('One step first for the owner. owner@shop.com adds a GitHub key.')
   expect(screen.queryByRole('button', { name: /Copy/ })).toBeNull(); expect(screen.queryByText('Let teammates install the project')).toBeNull()
   click('Save access'); await screen.findByText('Saved.')
   expect(sent('people')).toEqual([{ email: 'lee@shop.com', removed: false, role: null, apps: { hello: true, payroll: false, tips: true }, keys: { ...NO_KEYS, stripe: 'read', code: 'read' } }])

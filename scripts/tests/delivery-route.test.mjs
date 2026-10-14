@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { ARTIFACTS_HOST, delivery, originHost, routeOf, RouteError } from '../../.agents/skills/save/scripts/delivery-route.mjs';
+import { appOrigin, ARTIFACTS_HOST, delivery, originHost, routeOf, RouteError } from '../../.agents/skills/save/scripts/delivery-route.mjs';
 
 const script = new URL('../../.agents/skills/save/scripts/delivery-route.mjs', import.meta.url).pathname;
 const ACCOUNT = '0123456789abcdef'.repeat(2);
@@ -114,4 +114,31 @@ test('an origin that is not the repository the record names is refused', (t) => 
   refused(checkout(t, { origin: other, record: RECORDED }), /not the repository the install record names/);
   // A record with no address of its own still takes the route from the origin's host.
   assert.equal(routeOf({ origin: other, record: { components: { delivery: { ...DELIVERY, remote: undefined } } } }), 'artifacts');
+});
+
+// A copy installed through Connect your assistant: origin is the app's own Git address.
+const APP = 'https://app.example.com/api/access/code/git/';
+
+test('a copy whose origin is the app is the app route, whatever the install record says', (t) => {
+  for (const record of [undefined, NO_ROUTE, RECORDED, '{ not json']) {
+    const dir = checkout(t, { origin: APP, record });
+    assert.deepEqual(delivery(dir), { route: 'app', root: dir, delivery: null });
+    const result = cli(dir);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout, 'app\n');
+  }
+  assert.equal(routeOf({ origin: `  ${APP}\n`, record: RECORDED }), 'app');
+  assert.equal(routeOf({ origin: 'https://app.example.com:8443/api/access/code/git/', record: null }), 'app');
+});
+
+test('only https, that exact path, and nothing else in the address is the app', () => {
+  assert.equal(appOrigin(APP), true);
+  const near = ['http://app.example.com/api/access/code/git/', 'https://app.example.com/api/access/code/git', 'https://app.example.com/api/access/code/git/x',
+    'https://app.example.com/other/api/access/code/git/', 'https://someone@app.example.com/api/access/code/git/', 'https://a:b@app.example.com/api/access/code/git/',
+    `${APP}?branch=main`, `${APP}#top`, 'git@app.example.com:api/access/code/git/', '', null, undefined, 'not an address'];
+  for (const origin of near) assert.equal(appOrigin(origin), false, String(origin));
+  // Near the app's address is not the app: the record still decides, and a disagreement still throws.
+  assert.equal(routeOf({ origin: near[1], record: null }), 'github');
+  assert.throws(() => routeOf({ origin: near[1], record: RECORDED }), RouteError);
+  assert.throws(() => routeOf({ origin: `${APP}?x=1`, record: RECORDED }), /says artifacts, but origin is on app\.example\.com/);
 });

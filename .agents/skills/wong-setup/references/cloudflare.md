@@ -138,7 +138,7 @@ Create/reuse distinct production and staging databases; branch deploys never wri
 
 With no config, write the [fragment](../../wong-sync/references/stack-pack-fragments.md) with actual production/staging D1 and Access IDs; an open site gets blank Access IDs and `WORKSPACE_LOGIN: "off"` instead. Bind memory only at the top level, plus R2 when available. Fill the two `db:migrate:*` scripts. Preserve the fragment's entry point, assets, flags, and date. Existing config stays apart from a new memory bucket and [adding the card later](#adding-the-card-later); plan other privacy updates as a reviewed merge. The [scaffold](../../wong-sync/references/payload-manifest.md#the-app-scaffold) supplies the Worker.
 
-**The project Connect hands out.** The script names it in both Workers' vars. The Artifacts route also binds both to the repository, so no key is made. On GitHub the report's `codeKey` is `missing` with [the owner's steps](../../../../wiki/stack/employee-project.md#the-owners-one-step-on-github). Say nothing of it: Access asks for the key when the owner first lets someone install the project.
+**The project Connect hands out.** The script names it in both Workers' vars. The Artifacts route also binds both to the repository and its check runner: no key is made. On GitHub the report's `codeKey` carries [the owner's steps](../../../../wiki/stack/employee-project.md#the-owners-one-step-on-github). Say nothing of it: Access asks for the key when the owner first lets someone install the project.
 
 The same Worker serves the [mini apps](../../../../wiki/stack/mini-apps.md) under `/apps/`, as part of the main app; they need no Worker or config of their own.
 

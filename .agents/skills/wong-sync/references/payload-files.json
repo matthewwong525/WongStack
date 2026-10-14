@@ -132,6 +132,7 @@
       "scripts/check-runner/worker.mjs",
       "scripts/check-runner/pipeline.mjs",
       "scripts/check-runner/run-id.mjs",
+      "scripts/check-runner/run-id.d.mts",
       "scripts/check-runner/wrangler.template.jsonc",
       "scripts/check-runner/package.json",
       "scripts/check-runner/package-lock.json",
