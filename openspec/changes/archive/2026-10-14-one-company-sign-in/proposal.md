@@ -2,7 +2,7 @@
 
 **Status:** ready-to-ship
 
-**Branch:** macho-flamingo
+**Branch:** setup-signin-link
 
 **Open questions:** none
 
@@ -138,3 +138,4 @@ Things have changed: the company sign-in should work for everything, and everyth
 - **2026-10-14** — Asked whether to close the paused draft PR #242 → chose close it; it was already closed, so a comment now links this change.
 - **2026-10-14** — Asked whether to move notes and turn off old memory keys right after publishing → chose yes, right after.
 - **2026-10-14** — Assumed: moving notes on the live store and rerunning setup as a first-time teammate are after-publish steps outside the task list, because both need the live deploy that publishing makes.
+- **2026-10-14** — Assumed: archive checkpoint saved by /ship on branch setup-signin-link, because the build and local checks passed.
