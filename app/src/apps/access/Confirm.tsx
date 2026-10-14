@@ -21,3 +21,8 @@ export function Confirm({ title, action, cancel = 'Cancel', pending, onConfirm, 
     </AlertDialogContent>
   </AlertDialog>
 }
+
+/** Giving Admin asks first, in a person's row and in their panel: it is full trust. */
+export function MakeAdmin({ email, ...props }: { email: string; pending: boolean; onConfirm: () => void; onCancel: () => void }) {
+  return <Confirm title={`Make ${email} an Admin?`} action="Make Admin" {...props}>Every app, every key, and can change anyone's access.</Confirm>
+}

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { chmodSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -364,6 +364,35 @@ test('an Artifacts install lists saved branches in place of pull requests, and n
   assert.equal(status, 0);
   assert.deepEqual(json.notes, []);
   assert.deepEqual(json.pullRequests, [], 'gh had pull requests to offer, and was not asked');
+  assert.deepEqual(json.savedBranches, [{
+    branch: 'add-recipes',
+    changes: [{ name: 'add-recipes', title: 'Add recipes', status: 'in-progress' }],
+    files: ['openspec/changes/add-recipes/proposal.md'],
+  }]);
+  assert.equal(json.workspaces.find(ws => ws.path === s.dirs.feature).pr, undefined);
+});
+
+test('a copy installed through the app lists saved branches in place of pull requests, and never runs gh', t => {
+  const s = setup(t);
+  git(s.primary, 'checkout', '-q', '-b', 'add-recipes');
+  commit(s.primary, 'openspec/changes/add-recipes/proposal.md', PROPOSAL);
+  git(s.primary, 'push', '-q', 'origin', 'add-recipes');
+  git(s.primary, 'checkout', '-q', 'main');
+  git(s.primary, 'branch', '-q', '-D', 'add-recipes');
+  // No local main, so the default branch is read from origin/HEAD, where the GitHub route asks gh.
+  git(s.primary, 'checkout', '-q', '--detach');
+  git(s.primary, 'branch', '-q', '-D', 'main');
+  git(s.primary, 'update-ref', 'refs/remotes/origin/trunk', 'refs/remotes/origin/main');
+  git(s.primary, 'update-ref', '-d', 'refs/remotes/origin/main');
+  git(s.primary, 'symbolic-ref', 'refs/remotes/origin/HEAD', 'refs/remotes/origin/trunk');
+  git(s.primary, 'remote', 'set-url', 'origin', 'https://app.example.com/api/access/code/git/');
+  const asked = path.join(s.base, 'gh-was-run');
+  writeFileSync(path.join(s.base, 'bin/gh'), `#!/usr/bin/env bash\necho "$*" >> "${asked}"\nexit 1\n`);
+  const { status, json } = run(s.dirs.current, s.env());
+  assert.equal(status, 0);
+  assert.equal(existsSync(asked), false, 'gh was run in a copy that has only the app sign-in');
+  assert.deepEqual(json.notes, []);
+  assert.deepEqual(json.pullRequests, []);
   assert.deepEqual(json.savedBranches, [{
     branch: 'add-recipes',
     changes: [{ name: 'add-recipes', title: 'Add recipes', status: 'in-progress' }],

@@ -26,18 +26,22 @@ export type CurrentPolicy = { state: "legacy" } | { state: "unavailable" } | { s
 /** What a refused caller lacks: an app, or a mapping that opens anything; or one key at the level the call needs. */
 type Refusal = "app" | { key: string; need: Level };
 
+// The built-in role's id: its holder has every app and key and manages Access.
+// A role the owner makes gets a random id, never this one.
+export const ADMIN_ROLE = "admin";
+
 const appId = z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
 const bit = z.union([z.literal(0), z.literal(1)]);
 const policyRow = z.object({
   policy_enabled: bit, keys_enabled: bit,
-  revision: z.number().int().positive().safe(), status: z.enum(["active", "removed"]).nullable(), manager: bit,
+  revision: z.number().int().positive().safe(), status: z.enum(["active", "removed"]).nullable(), held: z.string().nullable(),
   apps: z.string(), keys: z.string(),
 });
 /** Key levels are read only once they have started: until then an unreadable one takes no app away. */
 const storedLevels = (value: string) => z.record(z.string(), z.enum(["read", "write"])).parse(JSON.parse(value));
 /** Apps are read on every call. A grant for an app that is no longer built is ignored. */
 const storedApps = (value: string) => new Set(z.array(z.string()).parse(JSON.parse(value)).filter(app => catalogue().includes(app)));
-/** Every built app: the owner, and the machine that checks previews. */
+/** Every built app: the owner, an Admin, and the machine that checks previews. */
 const everyApp = (): Set<string> => new Set(catalogue());
 
 /** The owner email setup recorded, or null on an older install. */
@@ -73,9 +77,7 @@ export async function currentPolicy(env: PolicyEnv, identity: AccessIdentity | n
   const role = email === owner || checkerOwns(env, identity) ? "owner" : "employee";
   try {
     const found = await env.DB.withSession("first-primary").prepare(`
-      SELECT i.policy_enabled, i.keys_enabled, i.revision, m.status,
-        EXISTS (SELECT 1 FROM wong_access_managers a
-          WHERE a.installation_id = m.installation_id AND a.email = m.email) AS manager,
+      SELECT i.policy_enabled, i.keys_enabled, i.revision, m.status, h.role_id AS held,
         CASE WHEN h.role_id IS NULL
           THEN (SELECT json_group_array(g.app_id) FROM wong_access_grants g
             WHERE g.installation_id = i.installation_id AND g.email = m.email AND g.level = 'write')
@@ -93,8 +95,10 @@ export async function currentPolicy(env: PolicyEnv, identity: AccessIdentity | n
     // No row yet: the owner has not opened Access, so nothing has started.
     if (!found) return { state: "not_started", role, manages: role === "owner" };
     const row = policyRow.parse(found);
-    // The owner manages Access, and so does a current person the owner ticked. No machine has a person's row.
-    const manages = role === "owner" || (!!email && row.status === "active" && row.manager === 1);
+    // The owner manages Access, and so does an Admin: a current person holding the built-in role.
+    // No machine has a person's row.
+    const admin = !!email && row.status === "active" && row.held === ADMIN_ROLE;
+    const manages = role === "owner" || admin;
     if (!row.policy_enabled) return { state: "not_started", role, manages };
     const keysStarted = row.keys_enabled === 1;
     // The checker keeps every built app and every key, as before permissions started, so preview walks
@@ -105,6 +109,9 @@ export async function currentPolicy(env: PolicyEnv, identity: AccessIdentity | n
     // The owner holds every app and every key. A person's apps and levels come from their role when they hold one.
     // Only a row at `write` is a held app: one left at `read` could only look, and a tick can not say that.
     if (role === "owner") return { state: "current", role, manages, revision: row.revision, apps: everyApp(), keys: everyKey(), keysStarted };
+    // An Admin's set is worked out like the owner's, so an app built later is theirs too.
+    // Their keys wait for key levels.
+    if (admin) return { state: "current", role, manages, revision: row.revision, apps: everyApp(), keys: keysStarted ? everyKey() : null, keysStarted };
     return { state: "current", role, manages, revision: row.revision, apps: storedApps(row.apps), keys: keysStarted ? heldLevels(storedLevels(row.keys)) : null, keysStarted };
   } catch {
     // Unreadable permission data never falls back to open.
@@ -129,7 +136,7 @@ function lackingKey(held: ReadonlyMap<string, Level> | null, keys: readonly stri
  *  turn an unreviewed business route into an exception. */
 function holdsApps(policy: CurrentPolicy & { state: "current" }, apps: readonly string[]): boolean {
   if (!apps.length || !apps.every(app => appId.safeParse(app).success)) return false;
-  // The owner reaches a route mapped to a name that is not built yet; nobody else does.
+  // The owner reaches a route mapped to a name that is not built yet; nobody else does, an Admin included.
   return policy.role === "owner" || apps.every(app => policy.apps.has(app));
 }
 

@@ -8,7 +8,7 @@ import type { BuiltApp, Person, SavedKey, Status } from '../../lib/access'
 // A shop with three apps: Hello changes things with Stripe, Payroll with Bank, and the tip calculator uses no key.
 const key = (id: string, title: string, changes: Partial<SavedKey> = {}): SavedKey => ({ id, title, levels: ['read', 'write'], saved: true, setup: false, alone: false, ...changes })
 const built = (id: string, title: string): BuiltApp => ({ id, title, description: `${title} for the shop` })
-const person = (email: string, changes: Partial<Person> = {}): Person => ({ email, status: 'active', settled: true, role: null, manager: false, apps: [], keys: {}, ...changes })
+const person = (email: string, changes: Partial<Person> = {}): Person => ({ email, status: 'active', settled: true, role: null, apps: [], keys: {}, ...changes })
 const sales = () => ({ apps: ['hello', 'tips'], keys: { stripe: 'read' as const } })
 // Support has Hello, which changes things with Stripe, and holds Stripe at Read: the two are not tied to each other.
 const support = () => ({ apps: ['hello'], keys: { stripe: 'read' as const } })
@@ -77,15 +77,34 @@ const held = () => Object.fromEntries(Object.entries(levels()).filter(([, at]) =
 const NO_APPS = { hello: false, payroll: false, tips: false }
 const NO_KEYS = { stripe: null, bank: null, cloudflare: null, code: null }
 
-it('says what a role is for when there are none yet, with one way to add the first', async () => {
-  roster.roles = []; roster.people = [person('kim@shop.com')]
+// Admin, the role made for you, as the status sends it: every app, and each key at its highest level.
+const ADMIN: Status['roles'][number] = { id: 'admin', name: 'Admin', builtIn: true, apps: ['hello', 'payroll', 'tips'], keys: { stripe: 'write', bank: 'write', cloudflare: 'read', code: 'read' } }
+
+it('lists Admin first as Everything, and opens it to what it gives and who holds it, with nothing to name, save or remove', async () => {
+  roster.roles = [ADMIN]; roster.people = [person('kim@shop.com')]
   open('roles'); const add = await screen.findByRole('link', { name: 'Add role' })
   expect(add.getAttribute('href')).toBe('/apps/access/roles/new')
-  const purpose = screen.getByText('A role saves a set of apps and key levels to give to several people.')
-  expect(screen.getByText('No roles yet.').compareDocumentPosition(purpose) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-  // The add button ends the views' line, above both lines, and no empty table is drawn.
-  expect(add.compareDocumentPosition(screen.getByText('No roles yet.')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-  expect(screen.getByRole('navigation', { name: 'Access views' }).parentElement!.lastElementChild).toBe(add); expect(screen.queryByRole('table')).toBeNull()
+  // The list is never empty: with no role of the owner's own it still holds Admin,
+  // and the add button ends the views' line.
+  expect(await cells('Admin')).toEqual(['Admin', 'Everything', 'Nobody yet'])
+  expect(screen.getByRole('navigation', { name: 'Access views' }).parentElement!.lastElementChild).toBe(add)
+  cleanup(); roster = status(); roster.roles = [ADMIN, ...roster.roles]; roster.people[1] = person('kim@shop.com', { role: 'admin', apps: ADMIN.apps, keys: ADMIN.keys })
+  open('roles'); const table = await screen.findByRole('table', { name: 'Roles' })
+  expect(Array.from(table.querySelectorAll('tbody td:first-child a')).map(link => link.textContent)).toEqual(['Admin', 'Office', 'Sales', 'Support'])
+  expect(await cells('Admin')).toEqual(['Admin', 'Everything', '1 person'])
+  fireEvent.click((await row('Admin')).getByText('Everything'))
+  const opened = await panel('Admin'); expect(where()).toBe('/apps/access/roles/admin')
+  expect(table.querySelector('tr[aria-current="true"] a')!.textContent).toBe('Admin')
+  expect(Array.from(opened.querySelectorAll('p')).map(line => line.textContent)).toEqual(['Every app and every key, including new ones.', 'Can manage Access.', 'Only the owner gives it.', 'People: kim@shop.com'])
+  // Nothing here changes: no field, tick or level, and each button only closes the panel.
+  expect(opened.querySelectorAll('input, select, textarea')).toHaveLength(0)
+  expect(within(opened).getAllByRole('button').map(button => button.textContent)).toEqual(['Close', 'Close'])
+  // Enter saves nothing, and closing asks nothing.
+  fireEvent.submit(opened.querySelector('form')!); fireEvent.click(within(opened).getAllByRole('button', { name: 'Close' })[0])
+  await closed(); expect([where(), screen.queryByRole('alertdialog'), posts('roles')]).toEqual(['/apps/access/roles', null, []])
+  // Another role still opens to its fields.
+  fireEvent.click((await row('Sales')).getByRole('link', { name: 'Sales' })); await panel('Sales')
+  expect([named().value, screen.getAllByRole('button', { name: /Save role|Remove role|Cancel/ }).map(button => button.textContent)]).toEqual(['Sales', ['Save role', 'Cancel', 'Remove role']])
 })
 it('lists each role on one line with how many apps, keys and people it has, with nothing marked as missing, and changes one in the panel beside the list', async () => {
   open(); fireEvent.click(await screen.findByRole('link', { name: /^Roles/ }))
@@ -95,7 +114,7 @@ it('lists each role on one line with how many apps, keys and people it has, with
   expect([await cells('Office'), await cells('Sales'), await cells('Support')]).toEqual([['Office', 'No apps', 'Nobody yet'], ['Sales', '2 apps, 1 key', '2 people'], ['Support', '1 app, 1 key', '1 person']])
   expect(table.textContent).not.toMatch(/!|gap/); expect(document.querySelector('[data-slot="badge"]')).toBeNull()
   const sales = await row('Sales')
-  expect(screen.queryByText('No roles yet.')).toBeNull(); expect(screen.queryByRole('link', { name: 'Edit' })).toBeNull()
+  expect(screen.queryByRole('link', { name: 'Edit' })).toBeNull()
   expect(sales.getByRole('link', { name: 'Sales' }).getAttribute('href')).toBe('/apps/access/roles/sales')
   // A click anywhere on the row opens the role beside the list, with its row marked.
   fireEvent.click(sales.getByText('2 people'))
@@ -154,6 +173,12 @@ it("gives a whole role the project with the same tick as a person's, and names t
   expect(install().checked).toBe(true); expect(project().queryByText(/One step first/)).toBeNull(); expect(project().queryByRole('button')).toBeNull()
   fireEvent.click(install()); click('Save role'); await screen.findByText('Saved.')
   expect(sent('roles')[1]).toEqual({ id: 'office', name: 'Office', apps: NO_APPS, keys: NO_KEYS })
+  // The role's tick says it also saves, and names the one step left while the app hands the project out
+  // and can not save yet.
+  cleanup(); roster.projectSave = 'key'
+  open('roles/office'); await panel('Office')
+  expect(project().getByText('They can save changes too.')).toBeTruthy()
+  expect(project().getByText('Saving needs one more step.')).toBeTruthy(); expect(project().getByRole('button', { name: 'Copy that request' })).toBeTruthy()
 })
 it('adds a role, which can copy what one person has now', async () => {
   open('roles'); fireEvent.click(await screen.findByRole('link', { name: 'Add role' }))

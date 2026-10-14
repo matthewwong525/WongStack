@@ -60,13 +60,14 @@ test('shipped workflows and their local action receive every static file depende
   const shipped = path => !excluded.some(item => path === item || path.startsWith(`${item}/`)) &&
     (files.has(path) || dirs.some(dir => path.startsWith(`${dir}/`)));
   const workflows = [...files].filter(path => path.startsWith('.github/workflows/'));
-  assert.deepEqual(workflows.sort(), ['.github/workflows/deploy.yml', '.github/workflows/test.yml']);
+  assert.deepEqual(workflows.sort(), ['.github/workflows/deploy.yml', '.github/workflows/guard.yml', '.github/workflows/test.yml']);
   const checked = new Set();
   const check = path => {
     assert.ok(shipped(path), `${path} is referenced by installed CI but absent from the full payload`);
     if (checked.has(path)) return;
     checked.add(path);
-    const text = read(path).replace(/^\s*#.*$/gm, '');
+    // guard.yml checks the default branch out into `guard/` and runs its files from there.
+    const text = read(path).replace(/^\s*#.*$/gm, '').replaceAll('$GITHUB_WORKSPACE/guard/', '').replace(/(node-version-file:\s*)guard\//g, '$1');
     for (const match of text.matchAll(/node-version-file:\s*([^\s#]+)/g)) check(match[1]);
     for (const match of text.matchAll(/uses:\s*\.\/([^\s#]+)/g)) check(`${match[1]}/action.yml`);
     for (const match of text.matchAll(/(?:node|bash)\s+["']?(?:\$GITHUB_WORKSPACE\/)?((?:scripts|\.github)\/[\w./-]+\.(?:mjs|sh))/g)) check(match[1]);

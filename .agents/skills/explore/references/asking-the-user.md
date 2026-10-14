@@ -11,7 +11,7 @@ Where should the convention live?
   3. A wiki page — best hub placement, one hop further from the ask site.
 ```
 
-- **A confirmation normally has two options.** Only [*Review the plan*](#print-the-plans-link) and [*See the preview*](#print-the-previews-link) may add a fourth.
+- **Only [*Review the plan*](#print-the-plans-link) and [*See the preview*](#print-the-previews-link) may add a fourth option.**
 - **Put `(Recommended)` in the option text itself.**
 - **A tradeoff says what the user gets and what it costs**; an option with no consequence is not a choice.
 - **Keep the custom answer in the tool's own free-text field**, never an added Other option, and use it as given, not forced into the nearest option.
@@ -35,8 +35,6 @@ Use the first callable tool:
 2. Claude **`AskUserQuestion`**
 3. Another host's equivalent structured question tool
 4. **Numbered chat** with the same questions, options, recommendation, and custom-answer path; wait for the answer.
-
-Follow the tool's schema, mode limits, and real capacity; four questions is not a universal limit. A missing named tool moves you down the list, not into non-interactive mode.
 
 **Only where nobody can answer**, as in an unattended run, take the recommended options, label each **assumed**, not chosen, and continue. Otherwise **a question stays pending until answered**, however long it waits and whatever is preselected; meanwhile do only independent work.
 
@@ -64,14 +62,10 @@ Before you finish, ask **what the user must decide for the work to continue**, i
 
 ## Print the plan's link
 
-When a reply makes or changes a plan or its checklist, print *Click here to see the plan:* and the link as one chat line, copied from the page builder, never shortened: [the reply link](../../../../wiki/development/reply-links.md) when one opens, else the `review.html` file. On *new link*, rerun the builder. Status, branch, Open questions, and Decision-log lines alone are record-keeping, not a change. Print it even when the build goes on; it adds no stop. Put it just above the closing question, never inside it: a tool's card may not make a link clickable.
+When a reply makes or changes a plan or its checklist, print *Click here to see the plan:* and the link as one chat line just above the closing question, even when the build goes on: it adds no stop. Copy the line whole from the page builder, never shortened: [the reply link](../../../../wiki/development/reply-links.md) when one opens, else the `review.html` file; on *new link*, rerun the builder. Keep it out of the question itself: a tool's card may not make a link clickable. Status, branch, Open questions, and Decision-log lines alone are record-keeping, not a change.
 
-The builder also prints *When you're ready, type `/apply` to build it.* after a blank line. Copy it only on the *Review the plan* reply, which ends with no question. Leave it out everywhere else: a closing question that offers to build is the one way on.
-
-Some hosts hide text above a question card, so **any closing question in a reply that made or changed a plan offers *Review the plan*.** Picking it starts nothing: the next reply ends with the link line, its next-step line, and no question.
+Some hosts hide text above a question card, so **any closing question in a reply that made or changed a plan offers *Review the plan*.** Picking it starts nothing: the next reply ends with the link line, a blank line, the builder's *When you're ready, type `/apply` to build it.* line, and no question. Leave that line out of every other reply: a closing question that offers to build is the one way on.
 
 ## Print the preview's link
 
 Print a preview the same way: *Click here to see the preview:* and the full URL of the page showing the change (`/apps/<name>/`, `/settings`), the home page only when none does. Its closing question offers *See the preview*, whose reply ends with that line and no question, and starts nothing.
-
-Write prose short and plain, in [our voice](../../../../wiki/voice.md).

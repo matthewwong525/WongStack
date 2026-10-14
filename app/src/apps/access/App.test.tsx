@@ -12,25 +12,26 @@ import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-rou
 const setup = { role: 'employee', api: 'authenticated', identity: { email: 'employee@example.com', subject: 'employee' }, apps: ['hello'],
   repository: 'manual_provider_setup', memory: 'independent_operator_setup', prompt: { state: 'ready', text: 'Synthetic reviewed setup prompt' } }
 // Two apps. The person here has Hello ticked.
-const person = (changes: Partial<Person> = {}): Person => ({ email: 'employee@example.com', status: 'active', settled: true, role: null, manager: false, apps: ['hello'], keys: {}, ...changes })
+const person = (changes: Partial<Person> = {}): Person => ({ email: 'employee@example.com', status: 'active', settled: true, role: null, apps: ['hello'], keys: {}, ...changes })
 const status = (): Status => ({ ownerEmail: 'owner@example.com', viewer: { email: 'owner@example.com', owner: true }, environment: 'live', key: 'ready', started: true, imported: 0,
   keysStarted: true, unticked: { people: [], roles: [] }, apps: [{ id: 'hello', title: 'Hello', description: '' }, { id: 'custom', title: 'Custom', description: '' }],
   keys: [], roles: [], people: [person()], work: [], project: 'ready' })
 const saved = (id: string, title: string): Status['keys'][number] => ({ id, title, levels: ['read', 'write'], saved: true, setup: false, alone: false })
-let mode: 'owner' | 'manager' | 'employee' | 'legacy' | 'waiting-owner' | 'waiting-employee'; let catalogue: string[]
+let mode: 'owner' | 'admin' | 'employee' | 'legacy' | 'waiting-owner' | 'waiting-employee'; let catalogue: string[]
 // What a person holds themselves beside their apps: their level per key.
 let held: { id: string; title: string; level: Level }[] | undefined
 let own: typeof setup; let roster: Status; let failed: Set<string>; let fetchMock: ReturnType<typeof vi.fn>
-// A manager is an employee who manages: the role stays, and `manages` says so. The owner manages too.
+// An Admin is an employee who manages: the role stays, and `manages` says so. The owner manages too.
 function appAccess() {
   if (mode === 'legacy') return { state: 'legacy' }
   const role = mode.endsWith('owner') ? 'owner' : 'employee'
-  const manages = role === 'owner' || mode === 'manager'
+  const manages = role === 'owner' || mode === 'admin'
   if (mode.startsWith('waiting')) return { state: 'not_started', role, manages, apps: catalogue }
   return { state: 'current', role, manages, apps: catalogue, revision: 1, keys: held }
 }
-// The status as a manager is sent it: the same lists, and a viewer who is not the owner.
-const asManager = () => { mode = 'manager'; roster.viewer = { email: 'employee@example.com', owner: false } }
+// The status an Admin is sent: the same lists, a viewer who is not the owner. Admin itself is the role made for you.
+const asAdmin = () => { mode = 'admin'; roster.viewer = { email: 'employee@example.com', owner: false } }
+const ADMIN: Status['roles'][number] = { id: 'admin', name: 'Admin', builtIn: true, apps: ['hello', 'custom'], keys: {} }
 // One person's row in the People table, what each of its cells says, and the role picked in it.
 const tr = (email: string) => within(screen.getByRole('table', { name: 'People' })).getByText(email).closest('tr')!
 const line = (email: string) => within(tr(email))
@@ -46,7 +47,7 @@ const moment = () => act(async () => { await new Promise(resolve => setTimeout(r
 // Every label on the screen: only an opened person shows them. And the box a notice sits in.
 const labels = () => Array.from(document.querySelectorAll('[data-slot="badge"]')).map(item => item.textContent)
 const notice = (text: Element) => text.closest<HTMLElement>('[data-slot="alert"]')!
-// Every tick in an opened panel, and the ones that are on, by their words: each app, then the owner's, for managing.
+// Every tick in an opened panel, and the ones that are on, by their words: one for each app.
 const boxes = () => screen.getAllByRole('checkbox') as HTMLInputElement[]
 const ticked = () => boxes().filter(box => box.checked).map(box => box.parentElement!.textContent)
 const tick = (name: string) => fireEvent.click(screen.getByRole('checkbox', { name }))
@@ -112,7 +113,7 @@ it('the owner sees people as a table of one-line rows with their own row first, 
   expect([!!(await panel('Add person')), !!screen.getByRole('table', { name: 'People' }), where()]).toEqual([true, true, '/apps/access/people/new'])
   fireEvent.change(email, { target: { value: 'new@example.com' } })
   // A new person starts with nothing ticked, and Access itself is never offered.
-  expect([ticked(), boxes().map(box => box.parentElement!.textContent)]).toEqual([[], ['Hello', 'Custom', 'Can manage Access']])
+  expect([ticked(), boxes().map(box => box.parentElement!.textContent)]).toEqual([[], ['Hello', 'Custom']])
   // A tick each, with no level beside one. Until the save, a line says nothing is saved.
   tick('Hello'); tick('Custom')
   expect([ticked(), screen.queryByRole('radio'), !!screen.getByText('Not saved yet')]).toEqual([['Hello', 'Custom'], null, true])
@@ -357,8 +358,8 @@ it('a person who manages nothing sees only what they can use, each app by its ti
   mode = 'waiting-owner'; open(); await screen.findByRole('link', { name: 'Add person' })
   expect(screen.queryByRole('region', { name: 'You can use' })).toBeNull()
 })
-it('draws three sides in the one frame: the owner and a manager the two views, everyone else what they can use, and none a Connect button or a width of its own', async () => {
-  for (const [side, manages] of [['owner', true], ['manager', true], ['employee', false]] as const) {
+it('draws three sides in the one frame: the owner and an Admin the two views, everyone else what they can use, and none a Connect button or a width of its own', async () => {
+  for (const [side, manages] of [['owner', true], ['admin', true], ['employee', false]] as const) {
     mode = side; roster.viewer.owner = side === 'owner'
     open(); await screen.findByRole(manages ? 'navigation' : 'region', { name: manages ? 'Access views' : 'You can use' })
     const page = screen.getByRole('heading', { name: 'Access' }).parentElement!
@@ -380,23 +381,24 @@ async function opensAndCloses(side: string) {
   }
   press()
 }
-it('a manager finds their own row marked You under the owner row, which says who picks managers, with no Remove on a manager', async () => {
-  asManager(); roster.people = [person({ manager: true }), person({ email: 'kim@example.com', manager: true }), person({ email: 'lee@example.com' })]
+it('an Admin finds their own row marked You under the owner row, which says who picks Admins, with no Remove and nothing to pick on an Admin', async () => {
+  asAdmin(); roster.roles = [ADMIN]; roster.people = [person({ role: 'admin' }), person({ email: 'kim@example.com', role: 'admin' }), person({ email: 'lee@example.com' })]
   open(); await screen.findByRole('link', { name: 'Add person' })
   // No box of their own above the views and no line naming the owner: the table says both.
   expect(screen.queryByRole('region', { name: 'You can use' })).toBeNull(); expect(screen.queryByText(/You manage Access/)).toBeNull()
-  expect(tabs().map(link => link.textContent)).toEqual(['People 4', 'Roles 0'])
+  expect(tabs().map(link => link.textContent)).toEqual(['People 4', 'Roles 1'])
   // The owner's row is first, with nothing to change or remove.
   const first = within(screen.getByRole('table', { name: 'People' })).getAllByRole('row')[1]
-  expect(Array.from(first.querySelectorAll('td')).map(cell => cell.textContent)).toEqual(['owner@example.com', 'Can sign in', 'Owner · picks managers', 'Everything', ''])
+  expect(Array.from(first.querySelectorAll('td')).map(cell => cell.textContent)).toEqual(['owner@example.com', 'Can sign in', 'Owner · picks Admins', 'Everything', ''])
   expect(first.querySelector('a, button, select')).toBeNull()
-  // A manager is marked beside the email, after You, and no manager's menu has Remove: on their own row or another's.
-  expect([cells('employee@example.com')[0], cells('kim@example.com')[0], cells('lee@example.com')[0]]).toEqual(['employee@example.com You Manager', 'kim@example.com Manager', 'lee@example.com'])
+  // No mark sits beside an email but You: the Role column says Admin, in words with nothing to pick,
+  // and no Admin's menu has Remove: not their own row, not another's.
+  expect([cells('employee@example.com')[0], cells('kim@example.com')[0], cells('lee@example.com')[0]]).toEqual(['employee@example.com You', 'kim@example.com', 'lee@example.com'])
   for (const email of ['employee@example.com', 'kim@example.com']) {
-    expect(line(email).getByText('Manager')).toBeTruthy(); expect(items(email)).toEqual(['Open'])
-    expect(role(email).disabled).toBe(false)
+    expect(cells(email).slice(2, 4)).toEqual(['Admin', 'Everything']); expect(items(email)).toEqual(['Open'])
+    expect(line(email).queryByRole('combobox')).toBeNull()
   }
-  expect(line('lee@example.com').queryByText('Manager')).toBeNull(); expect(items('lee@example.com')).toEqual(['Open', 'Remove'])
+  expect([role('lee@example.com').disabled, role('lee@example.com').textContent]).toEqual([false, 'Own set']); expect(items('lee@example.com')).toEqual(['Open', 'Remove'])
   // Everyone else is theirs to remove, with the confirm the owner sees and no word about managing.
   fireEvent.click(menu('lee@example.com').getByRole('menuitem', { name: 'Remove' }))
   expect(screen.getByText(/Everyone is signed out and signs in again\. This can't be undone\./)).toBeTruthy(); expect(screen.queryByText(/stop managing/)).toBeNull()
@@ -410,17 +412,17 @@ it('a manager finds their own row marked You under the owner row, which says who
     expect(screen.queryByRole('region', { name: 'You can use' })).toBeNull()
   }
 })
-it('the owner sees who manages: Manager beside the email, their own row marked You, and a removal that says managing ends', async () => {
-  roster.roles = [{ id: 'sales', name: 'Sales', apps: ['hello'], keys: {} }]
-  roster.people = [person({ manager: true, role: 'sales' }), person({ email: 'lee@example.com' })]
+it('the owner sees who manages: Admin as the role, their own row marked You, and a removal that says managing ends', async () => {
+  roster.roles = [ADMIN, { id: 'sales', name: 'Sales', apps: ['hello'], keys: {} }]
+  roster.people = [person({ role: 'admin' }), person({ email: 'lee@example.com' })]
   open(); await screen.findByRole('link', { name: 'Add person' })
   expect(cells('owner@example.com').slice(0, 3)).toEqual(['owner@example.com You', 'Can sign in', 'Owner'])
-  expect(screen.queryByText(/picks managers/)).toBeNull(); expect(screen.queryByRole('region', { name: 'You can use' })).toBeNull()
-  // The word sits beside the email, in the text itself, whatever the role: the row stays one line.
-  expect([role('employee@example.com').value, cells('employee@example.com')[0]]).toEqual(['sales', 'employee@example.com Manager'])
+  expect(screen.queryByText(/picks Admins/)).toBeNull(); expect(screen.queryByRole('region', { name: 'You can use' })).toBeNull()
+  // The role says it, and the last cell that it is everything: no word sits beside the email.
+  expect([role('employee@example.com').value, cells('employee@example.com')[0], cells('employee@example.com')[3]]).toEqual(['admin', 'employee@example.com', 'Everything'])
   expect([role('lee@example.com').value, cells('lee@example.com')[0]]).toEqual(['', 'lee@example.com'])
   expect([items('employee@example.com'), items('lee@example.com')]).toEqual([['Open', 'Remove'], ['Open', 'Remove']])
-  // Removing a manager says so; removing anyone else does not.
+  // Removing an Admin says so; removing anyone else does not.
   fireEvent.click(menu('lee@example.com').getByRole('menuitem', { name: 'Remove' }))
   expect(screen.queryByText(/stop managing/)).toBeNull(); click('Cancel'); await moment()
   fireEvent.click(menu('employee@example.com').getByRole('menuitem', { name: 'Remove' }))
@@ -430,8 +432,8 @@ it('the owner sees who manages: Manager beside the email, their own row marked Y
   open(); await screen.findByRole('link', { name: 'Add person' }); fireEvent.click(menu('employee@example.com').getByRole('menuitem', { name: 'Remove' }))
   expect(screen.getByText(/The real sign-in list is not touched\. They stop managing Access too\./)).toBeTruthy()
 })
-it('tells a manager that one setup step is left for the owner, with nothing to copy', async () => {
-  asManager(); roster.key = 'missing'; roster.people[0].settled = false; roster.work = [{ kind: 'policy', status: 'pending' }]
+it('tells an Admin that one setup step is left for the owner, with nothing to copy', async () => {
+  asAdmin(); roster.key = 'missing'; roster.people[0].settled = false; roster.work = [{ kind: 'policy', status: 'pending' }]
   open(); const step = (await screen.findByText('One step left for the owner.')).closest('p')!
   expect([!!notice(step), step.textContent]).toEqual([true, 'One step left for the owner. You can choose apps now. New people can sign in once owner@example.com finishes Access setup.'])
   expect(screen.queryByRole('button', { name: 'Copy that request' })).toBeNull(); expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull()

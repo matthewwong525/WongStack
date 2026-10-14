@@ -1,6 +1,6 @@
 # Employee access
 
-Access is the mini app where the owner chooses who can sign in to the business app, which [apps](#apps) each person may use, and what each person's assistant may do with [the keys the app holds](#key-levels). It opens for the owner with no command, and each person gets a prompt there to [connect their assistant](employee-project.md). The owner can let [managers](#managers) do the same work.
+Access is the mini app where the owner chooses who can sign in to the business app, which [apps](#apps) each person may use, and what each person's assistant may do with [the keys the app holds](#key-levels). It opens for the owner with no command, and each person gets a prompt there to [connect their assistant](employee-project.md). An [Admin](#admin), whom only the owner picks, does the same work.
 
 [Cloudflare's sign-in wall](cloudflare-access.md#the-wall-decides-who-the-app-decides-what) decides who gets in. The app decides the rest, on every request.
 
@@ -41,7 +41,7 @@ Permissions start by themselves the first time the owner opens Access, and take 
 1. Until then, every signed-in person keeps every app, as before Access.
 2. On the live app, the first open reads the sign-in list, lists each person on it with every built app, and turns permissions on, in one step.
 3. With no key, or a list that can not be read, nothing changes and permissions stay off: nobody is locked out.
-4. [Key levels](#key-levels) start next, in the same open, with nobody given one: an app needs none. Nobody is given a role. A step that can not be saved changes nothing, and levels stay off.
+4. [Key levels](#key-levels) start next, in the same open, with nobody given one: an app needs none. Nobody is given a role, [Admin](#admin) included. A step that can not be saved changes nothing, and levels stay off.
 
 On an app that already had people, key levels start at the owner's next open. A level a person or a role already holds is kept.
 
@@ -80,15 +80,15 @@ Each saved key has a level per person. A level governs the key used by itself: [
 | Read & write | yes | yes |
 
 - **The server checks the level on every such request**, by [what the call does](company-api.md#list-the-keys-a-route-uses). A refusal names the key and the level needed, such as `Stripe: Read & write needed`, never the key's value. Lowering a level governs the person's next request, with no sign-out.
-- **A level changes only when the owner or [a manager](#managers) changes it**, where the person or their role is opened. A role's level is each holder's.
+- **A level changes only when the owner or [an Admin](#admin) changes it**, where the person or their role is opened. A role's level is each holder's.
 - **An app is handed only [the keys it lists](company-api.md#list-the-keys-a-route-uses).** Access does not say which apps use a key: the two are set apart.
 - **A key that offers only Read shows two choices.** [The supplied Cloudflare key](company-api.md#look-things-up-in-cloudflare) is one.
-- **The owner holds every key.** So does the verification service token, as it keeps every app. A manager holds only the levels they were given.
+- **The owner holds every key.** So does the verification service token, as it keeps every app. [An Admin](#admin) holds every key at its highest level.
 - **Direct use makes a level mean more.** A key whose service is set up can be [used directly](company-api.md#use-a-key-directly), with no built action. The level alone decides, with no switch: Read lets a person's assistant look up anything the key can see, and Read & write also changes it. So setting a service up opens it to the owner at once, and to everyone who holds a level for that key. Set a person's level to *None* to stop it. [Their panel](access-screens.md#a-panel-has-apps-and-keys) marks such a key.
 
 ### A key with no app
 
-A call can belong to a key alone. A person with that key's level can run it with no app ticked, and every app's actions stay refused. Cloudflare look-ups and [Project code](employee-project.md#who-gets-what) ship this way, and so does [a server folder with no screen](mini-apps.md#work-with-no-screen). For another key, ask the usual way, such as *let the team look up a charge*, and the assistant [builds the action](company-api.md#list-the-keys-a-route-uses). Direct use needs no app either, only the key's level. No key works alone until levels have started.
+A call can belong to a key alone. A person with that key's level can run it with no app ticked, and every app's actions stay refused. Cloudflare look-ups and [Project code](employee-project.md#who-gets-what) ship this way; Project code's one level installs the project and also [saves changes through the app](employee-project.md#save-a-change-through-the-app). So does [a server folder with no screen](mini-apps.md#work-with-no-screen). For another key, ask the usual way, such as *let the team look up a charge*, and the assistant [builds the action](company-api.md#list-the-keys-a-route-uses). Direct use needs no app either, only the key's level. No key works alone until levels have started.
 
 ## Roles
 
@@ -97,22 +97,23 @@ A role is a named set of apps and key levels, such as *Sales*, that several peop
 - **A person has one role, or their own set, never both.** There are no exceptions on top of a role: one place answers what a person can do.
 - **A role is read live.** Changing it governs every holder's next request.
 - **Moving a person off a role, or removing a role people hold, takes nothing away.** Each person keeps what the role gave, as their own set.
-- **A new role can start from a person's current access.** No role is made for you, and people who were there before roles keep their own set.
-- **Only the owner or [a manager](#managers) makes, changes, gives or removes a role.** Giving one changes nobody's sign-in, and never makes its holder a manager.
+- **One role is made for you: [Admin](#admin).** A new role can start from a person's current access, and people who were there before roles keep their own set.
+- **Only the owner or [an Admin](#admin) makes, changes, gives or removes a role.** Giving one changes nobody's sign-in, and no role but Admin lets its holder manage Access.
 
-## Managers
+## Admin
 
-A manager is a person the owner lets manage Access. The owner ticks *Can manage Access* where the person is opened; nobody is a manager until then.
+Admin is the one role made for you: its holder has every app and every key, and manages Access. It is first in *Roles*, and nobody holds it until the owner picks them.
 
-- **Only the owner picks managers.** The tick shows for the owner alone. A manager's save that names it is refused, so a manager never makes or unmakes one.
-- **A manager does what the owner does in Access.** They add, change and remove people, make and edit roles, and set apps and key levels, for anyone: themselves and other managers included.
-- **A manager can't remove a manager, themselves included, or change the owner.** So the owner can always step in. [Who the owner is](#how-the-owner-is-known) stays a setup step.
-- **It is full trust, and the panel says so under the tick.** A manager can give themselves any app or key level. Each change is recorded under its maker's email; no screen shows that record yet.
-- **Managing gives no app and no key.** A manager keeps their own apps, levels and home page, and a route [with no entry](#what-a-persons-apps-govern) still denies them.
-- **It is a switch on a person, never part of a role.** A manager edits roles, so a role that carried it would let a manager pick managers.
-- **Taking it back works at once.** Untick it and the person's next request in Access is refused, with no sign-out; they keep their apps and levels. Removing a manager ends it too; adding them back does not restore it.
-- **The missing key stays the owner's step.** With [no key yet](#finish-access-setup), a manager reads that one step is left for the owner, with nothing to copy: it needs the owner's Cloudflare token.
-- **A manager's open can finish [the first open](#the-first-open)** when the owner's could not, such as before the key arrived. It takes nothing away.
+- **It always means everything.** Every built app and every saved key at its highest level, ones added later included. The app works that out on each request, so no list goes stale. Its keys wait for [key levels](#key-levels) to start, as everyone's do.
+- **It can't be renamed, changed or removed**, and no other role takes its name. Opened, it says what it gives and who holds it.
+- **Only the owner gives it or takes it.** Pick it as a person's role, in their row or their panel; Access asks first, because it is full trust. An Admin's picker doesn't offer it, and an Admin's save that gives or takes it is refused.
+- **An Admin does what the owner does in Access.** They add, change and remove people, make and edit other roles, and set apps and key levels.
+- **An Admin can't remove an Admin, themselves included, or change the owner.** So the owner can always step in. [Who the owner is](#how-the-owner-is-known) stays a setup step.
+- **An Admin is not the owner.** A route [with no entry](#what-a-persons-apps-govern) still denies them. Each change is recorded under its maker's email; no screen shows that record yet.
+- **Taking it back works at once.** Pick another role or their own set, and the person's next request in Access is refused, with no sign-out. On their own set they keep every app and key until you untick them, as when [leaving any role](#roles). Removing an Admin ends it too; adding them back does not restore it.
+- **The missing key stays the owner's step.** With [no key yet](#finish-access-setup), an Admin reads that one step is left for the owner, with nothing to copy: it needs the owner's Cloudflare token.
+- **An Admin's open can finish [the first open](#the-first-open)** when the owner's could not, such as before the key arrived. It takes nothing away.
+- **It replaced a tick on each person.** The update that brought it gave Admin to everyone who had that tick, and renamed a role you had called Admin to *Admin (custom)*, with its apps, keys and people as they were.
 
 A new Access save takes a [`Core`](../../app/worker/employee-access/core.ts), the sign-in check's pass; an owner-only one takes an `OwnerCore`. Building either by hand [fails the checks](../../app/worker/checked-caller.test.ts).
 
@@ -132,7 +133,7 @@ A person's current apps decide their app cards, direct visits, app calls and ass
 
 ## The practice list on previews
 
-A preview has its own people, roles and key levels. On staging the owner opens Access, adds people and chooses apps and levels against the preview's database, which [starts from made-up people](d1-pipeline.md#seeded-staging-production-untouched) with permissions and levels on: one role held by two people, one person with their own set who is also a manager, and one person and one role that could only look at an app, so [the unticked notice](#unticked-in-an-update) shows. A preview holds no sign-in list key and makes no Cloudflare call for the list, and the screen says the real sign-in list is not touched. When a preview holds no [read-only look-up key](cloudflare-credentials.md#the-read-only-look-up-key), [a person's panel](access-screens.md#a-panel-has-apps-and-keys) shows Cloudflare as *Not on previews yet*, with no step to ask for: none can finish it there. A practice person can sign in to a preview only if the real list admits them.
+A preview has its own people, roles and key levels. On staging the owner opens Access, adds people and chooses apps and levels against the preview's database, which [starts from made-up people](d1-pipeline.md#seeded-staging-production-untouched) with permissions and levels on: one role held by two people, one person with their own set, one who holds [Admin](#admin), and one person and one role that could only look at an app, so [the unticked notice](#unticked-in-an-update) shows. A preview holds no sign-in list key and makes no Cloudflare call for the list, and the screen says the real sign-in list is not touched. When a preview holds no [read-only look-up key](cloudflare-credentials.md#the-read-only-look-up-key), [a person's panel](access-screens.md#a-panel-has-apps-and-keys) shows Cloudflare as *Not on previews yet*, with no step to ask for: none can finish it there. A practice person can sign in to a preview only if the real list admits them.
 
 ### The checker on a preview
 
@@ -140,7 +141,7 @@ On staging and its previews, the verification service token counts as the owner:
 
 - **Only where `WONG_ENVIRONMENT` is `staging`.** That name is committed in `app/wrangler.jsonc`, never something a request sets. On the live app, and on a local run, the same token is refused: it keeps every app and manages nobody.
 - **Nothing real is in reach.** A preview holds no sign-in-list key, makes no Cloudflare call, and its people are made up.
-- **The checker no longer sees the view of someone who is not the owner** on a preview, a manager's included; code tests cover those views, and a waiting sign-in.
+- **The checker no longer sees the view of someone who is not the owner** on a preview, an Admin's included; code tests cover those views, and a waiting sign-in.
 
 ## What Access leaves alone
 

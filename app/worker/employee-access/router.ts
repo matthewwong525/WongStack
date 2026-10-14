@@ -1,6 +1,7 @@
 // Finite core operations keep people management and setup readback out of discovery.
 import type { AccessIdentity } from "../access.ts";
 import { appAccess } from "./apps.ts";
+import { CODE_CHANGE, codeChange } from "./change.ts";
 import { CODE_GIT, codeGit, codeState, codeUnavailable } from "./code.ts";
 import { checkerOwns, currentPolicy, humanEmail, policyDenied } from "./policy.ts";
 import { setupStatus } from "./setup.ts";
@@ -13,6 +14,7 @@ export async function handleAccess(request: Request, env: ConnectionEnv,
   if (path === "/api/access/setup") return setupStatus(request, env, identity);
   if (path === "/api/access/apps") return appAccess(request, env, identity);
   if (path.startsWith(CODE_GIT)) return (await codeDenied(env, identity)) ?? codeGit(request, env);
+  if (path.startsWith(CODE_CHANGE)) return (await codeDenied(env, identity)) ?? codeChange(request, env, humanEmail(identity) ?? "the preview check");
   return management(request, env, identity);
 }
 

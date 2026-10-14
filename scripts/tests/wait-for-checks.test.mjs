@@ -38,6 +38,7 @@ const FAKE_GIT = `#!/usr/bin/env bash
 case "$*" in
   "rev-parse HEAD") echo "$LOCAL" ;;
   "rev-parse --show-toplevel") echo "$FAKE_DIR/repo" ;;
+  "cat-file -e origin/main:.github/workflows/guard.yml") [ -n "\${GUARD_ON_MAIN:-}" ] ;;
   *) exit 1 ;;
 esac
 `;
@@ -159,4 +160,59 @@ test('a check that appears after the others finished is waited for', t => {
 test('a repo whose checks all skip passes once the grace period ends', t => {
   const { out } = run(t, { env: { CHECKS: SKIPPED } });
   assert.match(out, /RESULT: SUCCESS/);
+});
+
+// guard.yml starts for the pull request, not the push, so its check can be listed last.
+const GUARD_FAILED = 'fail\\tguard\\thttps://ci/9';
+
+test('with guard.yml on the default branch, a pass waits for the guard check to be listed', t => {
+  const { out, calls } = run(t, { env: { GUARD_ON_MAIN: '1', WAIT_FOR_CHECKS_GRACE: '30', CHECKS_SEQ: [PASS, PASS, PASS, `${PASS}\\n${GUARD_FAILED}`].join('|') } });
+  assert.match(out, /RESULT: FAILURE/);
+  assert.match(out, /- guard {2}https:\/\/ci\/9/);
+  assert.equal(polls(calls), 4);
+});
+
+test('a listed guard check settles a pass on two polls, like any other', t => {
+  const { out, calls } = run(t, { env: { GUARD_ON_MAIN: '1', WAIT_FOR_CHECKS_GRACE: '30', CHECKS: `${PASS}\\npass\\tguard\\thttps://ci/9` } });
+  assert.match(out, /RESULT: SUCCESS/);
+  assert.equal(polls(calls), 2);
+});
+
+test('a guard check that never appears stops holding the pass once the grace period ends', t => {
+  // A grace of 1 can leave under a second, which two polls fill; 3 leaves room to see the wait.
+  const { out, calls } = run(t, { env: { GUARD_ON_MAIN: '1', WAIT_FOR_CHECKS_GRACE: '3', CHECKS: PASS } });
+  assert.match(out, /RESULT: SUCCESS/);
+  assert.ok(polls(calls) > 2, 'it waited past the two polls a pass needs');
+});
+
+test('without guard.yml on the default branch, a pass waits for no guard check', t => {
+  const { out, calls } = run(t, { env: { WAIT_FOR_CHECKS_GRACE: '30', CHECKS: PASS } });
+  assert.match(out, /RESULT: SUCCESS/);
+  assert.equal(polls(calls), 2);
+});
+
+// A copy installed through Connect your assistant: origin is the app's own Git address.
+test('a copy installed through the app hands the wait to app-change.mjs, and gh is never asked', t => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'wong-test-wait-checks-app-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  for (const name of ['bin', 'repo']) mkdirSync(path.join(dir, name));
+  // `node` runs delivery-route.mjs for real and stands in for app-change.mjs; `gh` only logs.
+  const tools = {
+    gh: '#!/usr/bin/env bash\necho "gh $*" >> "$FAKE_DIR/calls"\nexit 1\n',
+    node: `#!/usr/bin/env bash
+case "$1" in */app-change.mjs) echo "app-change.mjs \${*:2}" >> "$FAKE_DIR/calls"; printf 'RESULT: FAILURE\\n  - unit  https://ci/1\\n'; exit 0 ;; esac
+exec "$REAL_NODE" "$@"
+`,
+  };
+  for (const [name, body] of Object.entries(tools)) {
+    writeFileSync(path.join(dir, 'bin', name), body);
+    chmodSync(path.join(dir, 'bin', name), 0o755);
+  }
+  writeFileSync(path.join(dir, 'calls'), '');
+  const repo = path.join(dir, 'repo');
+  for (const args of [['init', '-q'], ['remote', 'add', 'origin', 'https://app.example.com/api/access/code/git/']]) spawnSync('git', args, { cwd: repo });
+  const result = spawnSync('bash', [script, '7'], { cwd: repo, encoding: 'utf8', env: { ...process.env, PATH: `${path.join(dir, 'bin')}:${process.env.PATH}`, FAKE_DIR: dir, REAL_NODE: process.execPath } });
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout, 'RESULT: FAILURE\n  - unit  https://ci/1\n');
+  assert.equal(readFileSync(path.join(dir, 'calls'), 'utf8'), 'app-change.mjs wait 7\n');
 });

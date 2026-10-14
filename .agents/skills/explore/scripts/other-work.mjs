@@ -89,10 +89,12 @@ function realpath(file) {
 const lines = text => (text ?? '').split('\n').filter(Boolean);
 const firstLine = text => String(text ?? '').trim().split('\n')[0];
 
-/** `main` when it exists here or on origin, else the forge's default branch, else null. No fetch. */
-function defaultBranch(cwd) {
+// `main` when it exists here or on origin, else the forge's default branch, else null. No fetch.
+// A copy installed through the app has no `gh` to ask: it reads what its own `origin/HEAD` names.
+function defaultBranch(cwd, route) {
   const has = ref => tryGit(cwd, 'rev-parse', '--verify', '--quiet', ref) !== null;
   if (has('refs/heads/main') || has('refs/remotes/origin/main')) return 'main';
+  if (route === 'app') return tryGit(cwd, 'symbolic-ref', '--quiet', '--short', 'refs/remotes/origin/HEAD')?.replace(/^origin\//, '') || null;
   try {
     const name = execFileSync('gh', ['repo', 'view', '--json', 'defaultBranchRef', '--jq', '.defaultBranchRef.name'],
       { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: GH_TIMEOUT_MS }).trim();
@@ -176,7 +178,7 @@ export function savedBranches(git, base, skip = new Set()) {
   return entries;
 }
 
-/** `artifacts` or `github`; a route that can not be told is a note, and counts as `github`. */
+/** `artifacts`, `app` or `github`; a route that can not be told is a note, and counts as `github`. */
 function routeOf(cwd, notes) {
   try {
     return delivery(cwd).route;
@@ -230,7 +232,8 @@ export async function otherWork(cwd = process.cwd(), env = process.env) {
   const notes = [];
   const current = realpath(repo.root);
   const currentBranch = tryGit(repo.root, 'symbolic-ref', '--quiet', '--short', 'HEAD');
-  const branch = defaultBranch(repo.primary);
+  const route = routeOf(repo.primary, notes);
+  const branch = defaultBranch(repo.primary, route);
   const base = baseRef(repo.primary, branch);
   if (!base) notes.push('The default branch was not found, so commits not yet published were not counted.');
   const facts = await paseoFacts(env, notes);
@@ -258,7 +261,7 @@ export async function otherWork(cwd = process.cwd(), env = process.env) {
     if (isLive(entry)) workspaces.push(entry);
   }
 
-  if (routeOf(repo.primary, notes) === 'artifacts') {
+  if (route !== 'github') {
     const listed = new Set([currentBranch, ...workspaces.map(ws => ws.branch)].filter(Boolean));
     return { ok: true, workspaces, pullRequests: [], schedules, savedBranches: savedBranches((...args) => tryGit(repo.primary, ...args), base, listed), notes };
   }

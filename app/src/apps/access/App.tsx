@@ -4,7 +4,7 @@ import { Owner } from './Owner'
 import { Own } from './Own'
 import { FinishStep } from './Notices'
 
-// The owner and a manager manage people and roles, and find themselves in the People table; everyone else sees what
+// The owner and an Admin manage people and roles, and find themselves in the People table; everyone else sees what
 // they can use. The page sets no width or margin of its own; it measures itself, so rows stack by the room they have.
 export function App() {
   const { data, error, reload } = useAccess('apps', appAccessSchema)

@@ -26,7 +26,7 @@ A mini app's plan SHALL include tests for its logic in its own folders. The main
 
 ### Requirement: The starter landing page teaches the loop
 
-The starter landing page SHALL have a permanent workspace heading and open its employer guidance with one removable welcome, titled *Make it yours*, that makes clear that changes begin by asking in the person's existing chat. It SHALL offer one selectable, copyable first request that asks the agent to personalize the workspace heading, remove the welcome, explain the steps, and show a preview before publishing. The page SHALL confirm a successful copy and retain a way to copy by hand if clipboard access is unavailable. The mini-app list SHALL sit below the welcome. Removing the welcome SHALL leave the workspace heading and app list usable. Sync SHALL update the welcome only while the target still shows it. Every signed-in person SHALL see one assistant connection prompt on the page. Once Access per-app permissions have started, employees SHALL see that prompt and their authorized apps without employer personalization or administration guidance; the employer's existing removable welcome SHALL be preserved.
+The starter landing page SHALL have a permanent workspace heading and open its employer guidance with one removable welcome, titled *Make it yours*, that makes clear that changes begin by asking in the person's existing chat. It SHALL offer one selectable, copyable first request that asks the agent to question the person about a first app, build it, remove the welcome, explain the steps, and show a preview before publishing. The page SHALL confirm a successful copy and retain a way to copy by hand if clipboard access is unavailable. The mini-app list SHALL sit below the welcome. Removing the welcome SHALL leave the workspace heading and app list usable. Sync SHALL update the welcome only while the target still shows it. Every signed-in person SHALL see one assistant connection prompt on the page. Once Access per-app permissions have started, employees SHALL see that prompt and their authorized apps without employer personalization or administration guidance; the employer's existing removable welcome SHALL be preserved.
 
 #### Scenario: A fresh install
 
@@ -128,21 +128,6 @@ The welcome SHALL confirm when its first request is copied. If the browser canno
 
 - **WHEN** clipboard access is missing or the browser rejects the copy
 - **THEN** the full request remains selectable and the person receives a copy-by-hand instruction
-
-### Requirement: The existing calculator matches the starter
-
-The repository's existing tip calculator SHALL use the same editable brand header and neutral light/dark appearance as the starter and Hello, with the brand linking home. It SHALL retain immediate recalculation, accessible input labels and selected tip state, announced results, and existing empty/invalid-input guidance. Its controls and results SHALL fit narrow phone screens. This requirement SHALL NOT add the calculator to the distributed starter payload.
-
-#### Scenario: Calculate a share
-
-- **WHEN** a person changes the bill, selected tip, or number of people
-- **THEN** the share updates immediately in the styled result area and the selected tip remains clear
-- **AND** tapping the brand returns home
-
-#### Scenario: Empty or invalid input
-
-- **WHEN** the bill is empty or an input is invalid
-- **THEN** the existing guidance appears and all fields remain editable without horizontal scrolling
 
 ### Requirement: A mini app reaches everything but memory
 
@@ -248,12 +233,13 @@ A mini app's page and server side SHALL import only from the app's own folder, t
 - **WHEN** a mini app imports its own files, the ready-made parts, and the shared helpers
 - **THEN** the folder rule reports nothing
 
-### Requirement: The first request changes only the page
+### Requirement: The first request builds a first app
 
-The first request SHALL ask the agent to ask what to call the page, update its heading, remove the welcome, explain each step, and show a preview before publishing. It SHALL NOT ask the agent to read the person's chats or to interview them about themselves; setup owns learning about the person. The request SHALL name no file, folder, or command.
+The first request SHALL ask the agent to question the person about their work and where their time goes, one question at a time, starting from what the agent already knows about them. It SHALL ask the agent to then suggest a few apps the person would use, build the one they pick, remove the welcome, explain each step, and show a preview before publishing. It SHALL NOT ask the agent to read the person's chats; setup owns that. The request SHALL name no file, folder, or command.
 
 #### Scenario: The request is pasted
 
 - **WHEN** a person pastes the request into their chat
-- **THEN** the agent asks what to call the page, shows a preview with the new heading and no welcome, and asks before publishing
+- **THEN** the agent asks about their work one question at a time, suggests a few apps, and builds the one they pick
+- **AND** it shows a preview with the new app and no welcome, and asks before publishing
 - **AND** it reads no past chats on account of the request

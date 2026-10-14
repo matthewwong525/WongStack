@@ -183,30 +183,6 @@ After a merge that deploys, `/ship` SHALL wait a bounded time for the default br
 - **WHEN** the merged commit's release fails, or the live app answers with an error
 - **THEN** the chat says what is not working, a fix is built and previewed, and the person is asked whether to publish it
 
-### Requirement: A finished build is checked locally where the tools exist
-
-Where the machine has the repo's tools, a finished build SHALL run, once and before the first push, the checks CI would run for the kinds of file the change touches, and SHALL repair what fails within the existing repair limits. When `/ship`'s preparation merges the default branch into the branch, it SHALL run the same checks once more before the checkpoint and SHALL state their result and the next action; a failure SHALL be repaired before the checkpoint within the same limits. A preparation that merges nothing SHALL run no local check. A local result SHALL NOT stop a save or a publish. A machine without the tools SHALL skip the run, say so in one line, and continue. Local runs on one machine SHALL take turns. The report SHALL name the run as local.
-
-#### Scenario: A test fails before the first push
-
-- **WHEN** a finished build's change fails one of its own tests on a machine that has the tools
-- **THEN** the failure is repaired before the first push, and the report says the local checks passed, apart from the gate's result
-
-#### Scenario: The machine has no tools
-
-- **WHEN** the repo's tools are not installed and can not be installed
-- **THEN** the build says in one line that nothing ran locally, and `/save` and `/ship` proceed on the gate alone
-
-#### Scenario: The default branch brings a failure in
-
-- **WHEN** `/ship`'s preparation merges the default branch in and a check then fails on this machine
-- **THEN** the preparation's output names the failed checks and a repair as the next action, and the checkpoint follows the repair
-
-#### Scenario: Nothing is merged in
-
-- **WHEN** `/ship`'s preparation finds the branch already holds the default branch
-- **THEN** it runs no local check and its output is as before
-
 ### Requirement: Delivery's mechanical steps run as single commands
 
 Once the files are staged, a `/save` checkpoint's commit, push, pull-request update, check wait, and preview lookup SHALL run as one command. `/ship`'s preparation (archive, release number, sync with the default branch) and its finish (merge, secret promotion, live look) SHALL each run as one command. Each command's output SHALL state the result and the next action, and a failed gate's output SHALL name every failing check with the cause its log shows. Results, attempt caps, and refusals SHALL stay as they are.
@@ -253,3 +229,47 @@ For GitHub repositories, `/save`, `/continue`, and `/ship` SHALL check that `gh`
 
 - **WHEN** `/save` runs and `gh` is not signed in
 - **THEN** it stops before the push and says to run `gh auth login`
+
+### Requirement: A finished build is checked locally before the first push
+
+Where the machine has the repo's tools, a finished build SHALL run, once and before the first push, the checks CI would run for the kinds of file the change touches, and SHALL repair what fails. A local result SHALL NOT stop a save or a publish, and the report SHALL name the run as local. A machine without the tools SHALL skip the run, say so, and continue. Local runs on one machine SHALL take turns.
+
+#### Scenario: A test fails before the first push
+
+- **WHEN** a finished build's change fails one of its own tests on a machine that has the tools
+- **THEN** the failure is repaired before the first push, and the report says the local checks passed, apart from the gate's result
+
+#### Scenario: The machine has no tools
+
+- **WHEN** the repo's tools are not installed and can not be installed
+- **THEN** the build says that nothing ran locally, and `/save` and `/ship` proceed on the gate alone
+
+### Requirement: Bringing the default branch in rechecks locally
+
+When `/ship`'s preparation merges the default branch into the branch, it SHALL run the local checks once more before the checkpoint and SHALL state their result and the next action; a failure SHALL be repaired before the checkpoint. A preparation that merges nothing SHALL run no local check.
+
+#### Scenario: The default branch brings a failure in
+
+- **WHEN** `/ship`'s preparation merges the default branch in and a check then fails on this machine
+- **THEN** the preparation's output names the failed checks and a repair as the next action, and the checkpoint follows the repair
+
+#### Scenario: Nothing is merged in
+
+- **WHEN** `/ship`'s preparation finds the branch already holds the default branch
+- **THEN** it runs no local check and its output is as before
+
+### Requirement: Save works in a copy installed through the app
+
+In a copy installed through Connect your assistant, `/save` SHALL commit, send the change up through the app, and wait on the same gate, with no `gh` call, no GitHub sign-in and no repository credential on the device. It SHALL report the same gate result, failing output and preview it reports elsewhere, for the pushed commit only, and a result the app can not give SHALL be unverified, never passed and never "no checks". It SHALL NOT merge, force-push, or bypass hooks. `/save`, `/continue` and `/ship` SHALL check there that the person is signed in to the app, in place of the GitHub checks.
+
+No verb SHALL publish from such a copy: `/ship` SHALL stop after the save and say that the employer or a manager publishes it, and a reply SHALL NOT offer to publish. A copy whose origin and install record disagree in any other way SHALL still stop the verb, never fall back to a guessed route.
+
+#### Scenario: A teammate saves from an installed copy
+
+- **WHEN** `/save` runs in a copy installed through Connect by a person who holds Project code
+- **THEN** the change goes up through the app, the report ends with one gate result and the preview, and no `gh` command ran
+
+#### Scenario: A teammate asks to publish
+
+- **WHEN** `/ship` runs in a copy installed through Connect
+- **THEN** it saves, publishes nothing, and says the employer or a manager publishes the change

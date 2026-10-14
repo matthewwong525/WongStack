@@ -12,6 +12,102 @@
 
 **Updating.** After the update, the check fails on any comment over two lines, or any comment line wider than 120 characters, in your app's code. Ask your assistant: *shorten the long comments in the app*. It cuts each one to two lines, turns any that stated a rule into a test, and lists what it removed. Nothing about how your app works changes.
 
+## 41.2.1 — A new install's first save passes
+
+- **A brand-new install can save its first change.** Setup stamped a new app with the day it was installed. The app's own checks run on a test engine that ships with WongStack, and that engine refuses a date more than a week newer than itself. So an install made more than a week after the engine was last updated failed its first save. Setup now gives a new app the date WongStack itself is tested on, on any day, wherever the project is kept.
+- **WongStack's own checks now catch this.** The check that builds a pretend install used a made-up old date; it now uses the date setup really writes. A second check fails if that date and WongStack's own app's date ever differ.
+- **Installs you already have keep their date.** An update never changed it and still doesn't.
+
+**Updating.** Nothing to do. Only an install made in the last few days can be affected: if a save fails saying the app *requires compatibility date*, ask your assistant to set the app's date to the one in that message.
+
+## 41.2.0 — Teammates save changes through the app
+
+- **A teammate who can install the project can now save a change.** They ask their assistant, and the change is saved from their copy with their app sign-in alone: no GitHub or Cloudflare account. Their assistant reports the automatic checks and a link to look at, then says the owner or an Admin publishes it. On GitHub the saved change is a pull request that names who saved it.
+- **They save; you publish.** The app takes one new commit on one branch. It refuses a push to the published branch, a delete, a tag and more than one branch, each with a plain line, before anything reaches where the project is kept. It never merges, closes or deletes.
+- **One tick still.** *Can install the project* in Access now says under it: *They can save changes too.* There is no second tick or level.
+- **A change to the files that define the checks can't be saved this way.** On GitHub the app's key may not write workflow files, so such a change is refused with a line that says to ask the owner.
+- **On GitHub the app's key is wider.** One key, `WONG_CODE_WRITE`, now both hands the project out and saves changes. The older read-only key keeps handing the project out; Access says *Saving needs one more step* until the new key is in.
+- **A project kept in Cloudflare needs no key.** The app reads a saved change's check run through a new link to the check runner, which Access setup adds.
+- [Employee assistant connection](wiki/stack/employee-project.md#save-a-change-through-the-app) owns the details.
+
+**Updating.** Everyone who can install the project can now save changes for you to publish. Open Access and untick *Can install the project* for anyone who should not. Then one step, by where your project is kept. In Cloudflare: ask your assistant to *finish Access setup* once more, then publish; saving works after that, with no key. On GitHub: Access shows *Saving needs one more step* under the tick, with a request to copy for your assistant. It sends you a private link and the steps to make one new key on GitHub, which lets the app save changes to this one project. Until then teammates keep installing the project as before, and saving is refused with a plain line. So that nothing reaches your published branch without you, set that branch on GitHub to require a pull request.
+
+## 41.1.0 — Checks the assistant can't quietly change
+
+- **A rewritten or removed saved check is reported.** Before each publish the assistant replays the saved checks of older features. It could re-record or delete one with no word to you. Now the automatic checks fail until it writes down why, and you read that reason under *Checks loosened* in the build and publish reports. A new saved check needs no reason. Neither does one recorded again with the same steps and expectations, or one whose promise your change rewrites or removes.
+- **A change can't edit the guard that judges it.** The guard that catches a loosened check ran from the change's own copy, so a change that weakened the guard was judged by the weakened one. On GitHub a second check, named `guard`, now runs the copy already published and reads your change only as text; it runs none of it. A change to the guard still needs a written reason, and the published guard is the one that asks for it. A project kept elsewhere keeps the one guard it has today.
+- **Shared steps of the automatic checks count as settings.** A change to a file under `.github/actions/` now needs a reason, like a change to any other check setting.
+- **Saving waits for the new check.** GitHub starts `guard` a moment after the others, so a save waits for it by name, up to a minute, before it calls the checks passed.
+- **A new page lists what is flagged**: [Loosened checks](wiki/development/loosened-checks.md). The list moved there from [the change loop](wiki/development/the-change-loop.md#a-loosened-check-needs-a-reason), which keeps the rule.
+
+**Updating.** Nothing to do by hand. `/wong-sync` brings the new workflow file, `.github/workflows/guard.yml`, and two changed guard scripts, `.github/scripts/loosened-checks.mjs` and `.github/scripts/check-settings.mjs`; each needs a `Check:` bullet in the sync plan's Decision log. The `guard` check first shows on the pull request after the one that brings it. Optional: `/ship` already stops on a red `guard`, but a person merging by hand on GitHub can pass one. To stop that, open the project on GitHub, go to *Settings → Rules → Rulesets*, open the rule set for your main branch, and add `guard` under *Require status checks to pass*.
+
+## 41.0.1 — Setup shows the sign-in link at once
+
+- **The assistant shows the sign-in link the moment setup prints it, then waits.** A person connecting their assistant had to ask for the link: the setup message said to keep login output out of the chat, so the assistant held the link back. Both setup messages now ask for the link, and the setup tool says beside it that it is safe to show.
+- **Nothing else from the sign-in is shown.** Only this business's own sign-in address is passed on, as before.
+
+**Updating.** Nothing needs doing. A person gets the new wording the next time they copy the setup message from the app.
+
+## 41.0.0 — An Admin role that holds everything
+
+- **Every Roles list has an Admin role.** It is first. It gives every app and every key at its highest level, ones added later included, and lets its holder manage Access. It can't be renamed, changed or removed. Nobody is given it for you: you pick who.
+- **Admin replaces the *Can manage Access* tick.** A person's panel no longer has the *Managing* group. Make someone an Admin by picking it as their role, in their row or in their panel. The pick asks first, because it is full trust. The *Manager* mark beside an email is gone; the Role column says *Admin*.
+- **Only the owner gives or takes Admin.** An Admin adds, changes and removes people and makes and edits roles, as a manager did. An Admin can't make another Admin, remove one, give up their own, or change the owner, and their role picker doesn't offer Admin.
+- **Taking Admin away stops managing at once.** Moved to another role, the person has exactly that role. Moved to their own set, they keep every app and key until you untick them.
+- **The old switch is refused.** Saving a person no longer takes a `manager` field. Anything you built that sends it gets an error; send the Admin role as the person's role instead.
+
+**Updating.** Everyone who could manage Access now holds Admin, so they also have every app and every key. Their earlier role, or their own apps and key levels, is replaced, and this can't be undone. Open Access, go to People, and pick another role for anyone who should not have everything. A role you had named Admin is now *Admin (custom)*, with the same apps, keys and people. If a page of yours links *Managers* on the employee access page (`wiki/stack/employee-access.md#managers`), link *Admin* (`#admin`) instead. The database change comes with the update; there is no step to do by hand.
+
+## 40.9.0 — Buy through Shop
+
+- **The assistant shops through Shop.** Ask for a product and it searches Shop, Shopify's shopping service, before it opens a store's website: one search covers many stores, with no login and no robot check. Each option names the seller and the price and links the product. [Shopping](wiki/development/shopping.md) has the rules.
+- **Looking needs no account.** It searches, compares, and fills a cart without one, and always gives you the store's checkout link, so you can pay yourself.
+- **It connects your Shop account only on your yes.** It asks in the chat, sends you Shop's link and code, and you approve in Shop. One connection serves every project on the computer.
+- **It pays only on a yes that names the purchase**: the store, the items, the total, the delivery address, and the card by brand and last digits. If the total moves after your yes, nothing is paid and it asks again.
+- **A payment is sent once.** When no clear answer comes back, it looks the purchase up, tells you it is not confirmed, and gives you the checkout link. It never pays a second time or by a second route.
+- **It never sees a card number or a payment secret.** Of a saved card it reads the brand and last digits. A card typed into a website's own form still goes through the private form.
+- **Shopping adds one small tool on first use**: Shop's own command, about 2 MB in your home folder, in the one version WongStack has tried. A download that differs from that version installs nothing. The dependency check lists a newer version and leaves moving to it to a person.
+
+**Updating.** The update installs nothing and connects nothing. The first time you ask the assistant to shop, it asks to add Shop's small tool to your home folder; say no and it shops in the browser as before. Connecting your Shop account is optional and is asked separately, only when a purchase needs it. Shop sees what the assistant searches for and which assistant app you use. Searching was tried for real; connecting an account and paying were tested only against a stand-in, so the first real purchase may end with the store's checkout link for you to finish. Not tried on Windows.
+
+## 40.8.1 — The tip calculator is gone
+
+- **WongStack's own site no longer has a tip calculator.** Hello is the one example app. The tip calculator never came with an install, so your home page and your apps are as they were.
+- **The practice people in Access hold Hello alone.** On a preview, two of them were given a tip calculator your site never had. Those three rows did nothing and are gone, so Access on a preview looks the same.
+- **"Make me a tip calculator" is still the example request** on an empty home page and in the guide. Ask for one and the assistant builds it for you.
+
+**Updating.** Nothing to do. A tip calculator you built yourself stays as it is.
+
+## 40.8.0 — Kept checks replay on their own site
+
+- **A saved check remembers which site it belongs to.** Most belong to your app and say nothing. A check recorded on a second site with its own preview, such as a landing page, carries that site's name, and the replay before publishing opens it on that site's preview. Before, it opened every check on the app's preview, found nothing of the second site there, and called the check broken.
+- **No preview of that site, no replay.** A change that leaves the second site alone gets no preview of it. Its checks are then listed as not run, with the reason that no address was posted for that site. They are never called broken, take no time from the two-minute limit, and never count as a pass.
+- **The second site never gets your app's login key.** The replay sends the key only to the app's preview, and opens a second site as any visitor would.
+- **Recording a check on a second site keeps its name.** The assistant passes `--site <name>` when it saves the check, where the name is the commit status that carries the site's preview address. `replay` also takes `--site-url <name>=<address>` to be given an address directly.
+
+**Updating.** Nothing to do. Checks you already keep replay as before.
+
+## 40.7.0 — The first message builds your first app
+
+- **The *Make it yours* message asks for your first app.** Paste it into your chat and the assistant asks about your work and where your time goes, one question at a time, starting from what it already knows about you. It then suggests a few apps you would use, builds the one you pick, removes the welcome box, explains each step, and shows a preview before publishing.
+- **The box says what the message is for.** The line under *Make it yours* now reads *Start with an app built for how you work.* The title and the *Copy your first request* button stay.
+- **The message no longer renames the page.** Ask in your chat any time to change the heading.
+- **It still reads no past chats.** Setup does that while it installs.
+
+**Updating.** The welcome box's message changes only where your home page still shows it; a box you removed stays removed. Nothing else on your site changes.
+
+## 40.6.0 — Fewer rules, each with its reason
+
+- **Each step says what to achieve and why.** The pages behind thinking it through, planning, building, saving, publishing, picking up later, and checking read as lists of "never" lines. A rule now carries its reason, so the assistant can handle a case the list never named.
+- **A rule is written once.** Where the same rule sat in a step's page, the wiki, and the always-loaded instructions, one copy stays and the others link to it. What a command already decides and prints is left to the command.
+- **Guards read as before.** Rules about forced pushes, deleting, merging, sending messages, paying, and keeping keys out of saved files are untouched. A rule with a recorded mistake or a request behind it stays, as one line with its reason.
+- **Eighteen rules are gone**, each because a goal beside it already covers it or a command already says it. Two were small limits: one progress line per wait during a build, and ten lines for the build helper's report. The rest were reminders, such as to ask when a request is unclear, to stay within the question tool's limits, and to do what a command had just printed. A release that added a rule no longer counts as a reason to keep it.
+- **The build helper finishes before it reports.** It no longer ends its turn while a helper or check it started still runs, because the assistant reads a stop as done.
+- **The written records hold promises again**, without step order or exact wording, and three tests no longer fail when an instruction is reworded.
+
+**Updating.** Each changed skill comes with the update; a skill you adapted shows as a merge to review. No command, flag, or heading changed, so links from your own pages keep working.
+
 ## 40.5.0 — Setup learns from your past chats
 
 - **Setup reads your past AI chats while it installs.** It says so in one line, then reads what you typed in the Claude Code and Codex chats on this computer, newest first, while the install carries on. It keeps short notes about you and your business on your wiki page, in the wiki, and in memory: never passwords, keys, copies of chats, or anything about health, family, or money. Say *skip the chats* and it stops and writes nothing. [Learning from past chats](wiki/stack/learning-from-chats.md) has the steps.

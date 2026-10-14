@@ -10,36 +10,35 @@
   "probe": "browser",
   "writes": true,
   "sourcePaths": [
-    "app/src/Layout.tsx",
+    ".agents/skills/wong-sync/references/payload-files.json",
     "app/src/apps/access/App.tsx",
     "app/src/apps/access/Confirm.tsx",
-    "app/src/apps/access/Connect.tsx",
-    "app/src/apps/access/Fields.tsx",
-    "app/src/apps/access/Labels.tsx",
-    "app/src/apps/access/LevelChoice.tsx",
     "app/src/apps/access/Notices.tsx",
-    "app/src/apps/access/Own.tsx",
     "app/src/apps/access/Owner.tsx",
     "app/src/apps/access/Page.tsx",
     "app/src/apps/access/People.tsx",
     "app/src/apps/access/PersonPage.tsx",
+    "app/src/apps/access/ProjectStep.tsx",
     "app/src/apps/access/RolePage.tsx",
     "app/src/apps/access/RoleSelect.tsx",
     "app/src/apps/access/Roles.tsx",
-    "app/src/apps/access/RowMenu.tsx",
     "app/src/apps/access/SetFields.tsx",
     "app/src/apps/access/Table.tsx",
-    "app/src/apps/access/View.tsx",
-    "app/src/apps/access/address.ts",
     "app/src/apps/access/levels.ts",
     "app/src/apps/access/subjects.ts",
-    "app/src/index.css",
     "app/src/lib/access.ts",
-    "app/worker/access.ts",
-    "app/worker/employee-access/apps.ts",
-    "app/worker/employee-access/members.ts"
+    "app/worker/employee-access/core.ts",
+    "app/worker/employee-access/management.ts",
+    "app/worker/employee-access/members.ts",
+    "app/worker/employee-access/policy.ts",
+    "app/worker/employee-access/roles.ts",
+    "app/worker/employee-access/sets.ts",
+    "app/worker/employee-access/setup.ts",
+    "schema/migrations/20261013205049_admin_role.sql",
+    "schema/seed.sql",
+    "scripts/retired-names.json"
   ],
-  "recordedAt": "1e62ead342c19bed7fad4b618dd63de9c8264089",
+  "recordedAt": "7deca825635b53479800cbe372d677504d74f3b4",
   "steps": [
     [
       "open",
@@ -53,27 +52,22 @@
     [
       "wait",
       "--text",
-      "eli@example.invalid"
+      "dana@example.invalid"
     ],
     [
       "select",
-      "select[aria-label='Role for eli@example.invalid']",
+      "select[aria-label='Role for dana@example.invalid']",
       "Helpers"
     ],
     [
       "wait",
       "--text",
       "now has Helpers"
-    ],
-    [
-      "get",
-      "text",
-      "body"
     ]
   ],
   "expect": [
     {
-      "text": "eli@example.invalid now has Helpers."
+      "text": "dana@example.invalid now has Helpers."
     },
     {
       "text": "Undo"

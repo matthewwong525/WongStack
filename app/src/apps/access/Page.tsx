@@ -24,7 +24,7 @@ function Held({ pending }: { pending: boolean }) {
 /** One person or role in a panel beside its list. The address opens it; closing goes back to the view's own address.
  *  The page beside it stays in use (`modal` off), so views and rows still work. With `changed`, every way out asks. */
 export function Page({ name, changed, action, onSave, extra, children, ...props }: ViewProps & {
-  name: string; changed: boolean; action: string; onSave: () => void; extra?: ReactNode; children: ReactNode
+  name: string; changed: boolean; action?: string; onSave?: () => void; extra?: ReactNode; children: ReactNode
 }) {
   const { view, pending } = props
   const navigate = useNavigate()
@@ -49,13 +49,13 @@ export function Page({ name, changed, action, onSave, extra, children, ...props 
       {changed && held && <Held pending={pending} />}
       {leaving && <Leave onLeave={() => void navigate(leaving)} onStay={() => setLeaving(null)} />}
       <SheetHeader className="pe-12"><SheetTitle className="wrap-anywhere">{name}</SheetTitle></SheetHeader>
-      <form className="flex min-h-0 flex-1 flex-col" onSubmit={event => { event.preventDefault(); onSave() }}>
+      <form className="flex min-h-0 flex-1 flex-col" onSubmit={event => { event.preventDefault(); onSave?.() }}>
         <fieldset className="flex min-h-0 min-w-0 flex-1 flex-col" disabled={pending}>
           <div className="grid min-h-0 flex-1 content-start gap-4 overflow-y-auto px-4 pb-4">{children}</div>
           <SheetFooter className="flex-row flex-wrap gap-2.5 border-t">
             {changed && <p className="basis-full text-sm font-semibold">Not saved yet</p>}
-            <Button type="submit">{action}</Button>
-            <Button type="button" variant="outline" onClick={close}>Cancel</Button>
+            {action && <Button type="submit">{action}</Button>}
+            <Button type="button" variant="outline" onClick={close}>{action ? 'Cancel' : 'Close'}</Button>
             {extra}
           </SheetFooter>
         </fieldset>

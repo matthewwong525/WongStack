@@ -19,7 +19,7 @@ Setup reads the source's default branch, so name the branch in the line you past
 Install WongStack from github.com/matthewwong525/WongStack, using its branch <branch> in place of the default branch. Read and follow https://raw.githubusercontent.com/matthewwong525/WongStack/refs/heads/<branch>/.agents/skills/wong-setup/SKILL.md
 ```
 
-The install record then names that branch, so the test install's later updates follow it. Keep the install throwaway: the branch is deleted when it publishes.
+The install record names no branch, so the test install's later updates follow the default branch. Keep the install throwaway: the branch is deleted when it publishes.
 
 **Name the throwaway folder so it can not match a real install** in the same account: never `~/wongstack` on a machine that holds WongStack. Setup names the Worker, the database and the repository after the folder, and teardown deletes by that name.
 
@@ -35,6 +35,7 @@ Ask first: the install makes billable resources in a real Cloudflare account.
 4. *Publish it?*, then the live site. Read the live page twice: for a few seconds after a deploy it can still serve the previous version.
 5. A second change from the new `main`.
 6. A teammate's Connect, **under a separate `HOME`**. A saved sign-in to the same Cloudflare login connects silently as the owner, and proves nothing about a teammate.
+   It needs a person: the connection tool takes only a signed-in person's session, so the checker can not install through Connect. To try [a save through the app](../stack/employee-project.md#save-a-change-through-the-app) alone, clone and save against the install's preview app with [the checker standing in](../stack/employee-access.md#the-checker-on-a-preview), after `npm run db:reset:staging`: a new install's preview database holds no people, and the app answers `code_unavailable` until it does.
 7. Each step an update runs alone, such as [`provision.mjs access`](../../.agents/skills/wong-setup/scripts/provision.mjs), against the real account, then `node scripts/cf-secrets.mjs check`. A step that stores a key in the live app but not the preview app passes its fake-Cloudflare tests and then fails [the parity check](../stack/staging-bindings.md#what-the-gate-can-and-cant-see) on every branch.
 
 Run it once from this machine, fix what breaks, then have the owner run it by hand on a Mac. Their chat log is the best review of the install wording: read it for retries, steps written by hand, and anything the assistant had to work around.

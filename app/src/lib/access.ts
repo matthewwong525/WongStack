@@ -17,7 +17,7 @@ export const setupSchema = z.object({ role, api: z.literal('authenticated'),
   identity: z.object({ email: z.string(), subject: z.string() }), apps: z.array(z.string()), titles: z.record(z.string(), z.string()).default({}), prompt, code,
   repository: z.literal('manual_provider_setup'), memory: z.literal('independent_operator_setup') })
 // `legacy` has no recorded owner. `not_started` knows the owner, and everyone still keeps every app.
-// `manages`: the person may manage Access, as the owner or a manager the owner chose; left out means no.
+// `manages`: the person may manage Access, as the owner or an Admin the owner chose; left out means no.
 const manages = z.boolean().optional()
 // `signIn`: the site stands behind a sign-in, so there is a session to end; left out or false, no Sign out shows.
 const signIn = z.boolean().optional()
@@ -29,8 +29,8 @@ export const appAccessSchema = z.discriminatedUnion('state', [
   z.object({ state: z.literal('current'), role, manages, signIn, code, apps: z.array(z.string()), revision: z.number(),
     keys: z.array(z.object({ id: z.string(), title: z.string(), level })).optional() }),
 ])
-// The whole Access status. No key's value is ever here, and the server checks `viewer` and `manager` again on every
-// save. `project`: `ready`, or the step left; a status from before the field reads it from Project code being saved.
+// The whole Access status. No key's value is ever here, and the server checks `viewer` again on every save.
+// `project` and `projectSave`: `ready`, or the step left; left out, an older status, and no step shows.
 const project = z.enum(['ready', 'key', 'setup'])
 export const statusSchema = z.object({ ownerEmail: z.string(), environment: z.enum(['live', 'practice']),
   viewer: z.object({ email: z.string(), owner: z.boolean() }),
@@ -41,11 +41,11 @@ export const statusSchema = z.object({ ownerEmail: z.string(), environment: z.en
   keys: z.array(z.object({ id: z.string(), title: z.string(), levels: z.array(level), saved: z.boolean(), setup: z.boolean(),
     alone: z.boolean(),
     direct: z.boolean().optional() })),
-  roles: z.array(z.object({ id: z.string(), name: z.string(), apps: z.array(z.string()), keys: levels })),
+  roles: z.array(z.object({ id: z.string(), name: z.string(), builtIn: z.boolean().optional(), apps: z.array(z.string()), keys: levels })),
   people: z.array(z.object({ email: z.string(), status: z.enum(['active', 'removed']), settled: z.boolean(),
-    role: z.string().nullable(), manager: z.boolean(), apps: z.array(z.string()), keys: levels })),
+    role: z.string().nullable(), apps: z.array(z.string()), keys: levels })),
   work: z.array(z.object({ kind: z.enum(['policy', 'sessions']), status: z.enum(['pending', 'ready', 'failed']) })),
-  project: project.optional() })
+  project: project.optional(), projectSave: project.optional() })
   .transform(status => ({ ...status, project: status.project ?? (status.keys.some(key => key.id === 'code' && key.saved) ? 'ready' : 'key') }))
 export type Status = z.infer<typeof statusSchema>
 export type Person = Status['people'][number]
@@ -53,6 +53,9 @@ export type Role = Status['roles'][number]
 export type SavedKey = Status['keys'][number]
 export type BuiltApp = Status['apps'][number]
 export type Level = z.infer<typeof level>
+
+/** Whether a person holds the built-in Admin role. */
+export const isAdmin = (status: Pick<Status, 'roles'>, person: Pick<Person, 'role'>) => status.roles.some(role => role.builtIn && role.id === person.role)
 
 export async function readAccess<T>(path: string, schema: z.ZodType<T>, signal?: AbortSignal): Promise<T> {
   const response = await fetch(`/api/access/${path}`, { signal, cache: 'no-store', redirect: 'error' })

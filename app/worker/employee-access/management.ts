@@ -8,7 +8,7 @@ import { reconcileLogin } from "./login-management.ts";
 import { startKeyLevels, startPermissions } from "./start.ts";
 import { boundedJson } from "./json.ts";
 
-// Each save the owner or a manager can make. Only a people save can change who signs in, or who manages.
+// Each save the owner or an Admin can make. Only a people save can change who signs in, or who manages.
 const saves = new Map([["people", changeMember], ["roles", changeRole]]);
 
 export async function management(request: Request, env: ConnectionEnv, identity: AccessIdentity | null): Promise<Response> {
@@ -19,7 +19,7 @@ export async function management(request: Request, env: ConnectionEnv, identity:
     if (request.method === "GET") {
       if (path !== "status") return reply({ code: "not_found" }, 404);
       // A read lists every built app and, the first time, starts permissions and then key levels.
-      // A manager's read runs the same steps: they take nothing away, and do nothing once run.
+      // An Admin's read runs the same steps: they take nothing away, and do nothing once run.
       await core.db.batch(catalogueWrites(core));
       await startPermissions(core);
       await startKeyLevels(core);

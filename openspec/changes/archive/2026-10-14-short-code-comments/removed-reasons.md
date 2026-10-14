@@ -193,3 +193,28 @@ No rename or extract was made: the code is unchanged.
 - `wiki/stack/cloudflare-credentials.md`: a widened token refused for a short while.
 - `wiki/development/required-tools.md`: the two screen-tool gotchas, the clean shell a path test needs, and two Paseo quirks.
 - `wiki/development/live-view.md`: the 5-minute idle close, and the secret sent as the WebSocket subprotocol.
+
+## After main's ten releases were merged in
+
+Main's releases 40.6.0 to 41.2.1 brought back long comments in 50 files: the ones it rewrote where this change had cut them, and the ones in its new files. Each was cut to two lines by the same rules. No comment was removed whole, and the code is main's, byte for byte once comments are taken out.
+
+| File | Comment | What was dropped |
+|---|---|---|
+| `.agents/skills/save/scripts/app-change.mjs` | file header | The eight commands, the two answer shapes, and exit codes 0, 1 and 2. `USAGE` lists the commands; the codes show at each `return`. |
+| `.agents/skills/save/scripts/app-change.mjs` | `waitRows` | That a pass needs the same finished list on two reads, more than skipped rows, and a `guard` row. `scripts/tests/app-change.test.mjs` holds each. |
+| `.agents/skills/save/scripts/checkpoint.mjs` | file header | Cut again as before, now with the paragraph on a copy installed through the app. `wiki/stack/employee-project.md` owns it. |
+| `.agents/skills/save/scripts/delivery-route.mjs` | file header | Why the app's address is asked before the record: the record is the owner's and names where the project is kept. |
+| `.agents/skills/ship/scripts/ship.mjs` | file header | Cut again as before, now with exit code 8: this copy saves through the app and never publishes. It shows at its `Stop(8, …)` call. |
+| `.agents/skills/shop/scripts/shop.mjs` | file header | 41 lines: the install and its fingerprint, the allow-list, what is hidden from an answer, the `pay` steps, the printed `SHOP_` lines, and the exit codes. `.agents/skills/shop/SKILL.md` and `USAGE` hold what the assistant acts on. The largest loss of this round. |
+| `.agents/skills/verify/scripts/verify-journeys.mjs` | file header, `replay`, `install` | Cut again as before, now with the second-site paragraph. `wiki/development/kept-checks.md` owns it. |
+| `.agents/skills/verify/scripts/kept-promises.mjs` | file header | Which script does what with a kept check. |
+| `.agents/skills/wong-setup/scripts/provision.mjs` | `wranglerConfig`, `addCodeBinding`, `codeInConfig`, `projectCode` | The bucket binding and cron details, and the GitHub-or-Cloudflare walk of `projectCode`. `wiki/stack/employee-project.md` and `scripts/tests/provision.test.mjs` hold them. |
+| `.github/scripts/loosened-checks.mjs` | file header | 44 lines: what is flagged and how a reason is written. `wiki/development/loosened-checks.md`, new on main, owns it; the header now links there. |
+| `scripts/check-target-app.mjs` | file header | Cut again as before. `wiki/maintaining/test-a-setup-change.md` owns the steps. |
+| `scripts/tests/*.test.mjs` (six files) | headers and notes | Detail of the stand-ins that the stand-in code shows. |
+| `app/src/apps/access/*.tsx` (15 files) | component notes | Cut again as before, with *Admin* in place of *manager*: how each part looks and behaves, which its tests assert. |
+| `app/src/lib/access.ts` | `statusSchema` | The field glossary, cut again as before; `projectSave` is named in the two lines kept. |
+| `app/worker/employee-access/*.ts` (14 files) | one-line notes over 120 characters | Nothing: each was split into two lines, or lost a few words. |
+| `app/worker/keys.ts` | the commented-out example keys | The five-line Notion example. The comment links `wiki/stack/company-api.md#use-a-key-directly`, which shows it. |
+
+One code line changed shape and not meaning: in `checkpoint.mjs` an empty `if` body that held a comment on a 138-character line now holds it on its own line.

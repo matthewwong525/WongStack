@@ -5,6 +5,7 @@ How this repo plans, builds, checks, and ships changes. Every WongStack install 
 ## Processes
 
 - [The change loop](the-change-loop.md) — how work moves from idea to shipped, archived spec: `/explore → /plan → /apply → /save → /ship`, with `/continue` to pick saved work back up, each a thin verb over an OpenSpec step, with the change as a living handoff (Status header + append-only Decision log + PR-body mirror).
+  - [Loosened checks](loosened-checks.md) — what the loosened-check guard flags, when a kept check needs a reason, and the copy of the guard a pull request can not edit.
 - [Reply links](reply-links.md) — a plan's page opens at a link whose *Send notes* button puts your notes straight into the chat, and whose *Build it* and *Build and publish* start the build: the 8 hours, *new link*, the fallback to copying, and how another page opens the same way.
 - [Staging walkthrough](staging-walkthrough.md) — why `/verify` probes the deployed preview, what you need for it, and what it deliberately is not.
   - [Kept checks](kept-checks.md) — passed preview checks saved in the project and replayed, with no AI, before each publish.
@@ -14,6 +15,7 @@ How this repo plans, builds, checks, and ships changes. Every WongStack install 
 - [Browsing](browsing.md) — how the agent uses websites as the person: saved logins, pictures of key moments, private links for what only the person can give or do, and what it does when a site refuses its browser.
   - [Save your passwords](passwords.md) — give the agent the logins you choose through a private link; it never sees a password.
   - [Login codes](login-codes.md) — the agent reads a one-time code from your email or asks for it in the chat, with no link.
+  - [Shopping](shopping.md) — the agent finds, compares, and buys products through Shop: no account to look, your yes to connect and to pay, one payment per purchase, and no card detail the agent can read.
   - [Live view](live-view.md) — at a robot check, a private link shows the agent's browser so you can tap through it: when it opens, what the link can do, and how the agent runs one.
 - [Memory dream](wiki-dream.md) — type `/dream-memory` and the assistant checks the wiki, saved facts, specs, and plans against each other and the code: what it fixes, what it only lists, the dry run, and how to undo one.
 - [Session memory](memory.md) — the private fact store: who sees what, the start-of-session digest, capture by `/save` and the background run, and consolidation.

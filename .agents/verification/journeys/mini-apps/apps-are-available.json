@@ -1,0 +1,57 @@
+{
+  "format": "verify-journey-1",
+  "id": "apps-are-available",
+  "scenario": {
+    "capability": "mini-apps",
+    "requirement": "The home page's app list guides first use",
+    "scenario": "Apps are available"
+  },
+  "thenDigest": "f89bcc0199a41d544f19790de41790e53c0e68766bac8ae043fb388821ba6ec8",
+  "probe": "browser",
+  "writes": false,
+  "sourcePaths": [
+    "app/src/apps/tips/App.tsx",
+    "app/src/apps/tips/app.json",
+    "app/src/apps/tips/tip.ts",
+    "schema/seed.sql"
+  ],
+  "recordedAt": "8248deca44974d5f07036ecb9995c83f990b1da5",
+  "steps": [
+    [
+      "open",
+      "{url}/"
+    ],
+    [
+      "wait",
+      "--load",
+      "networkidle"
+    ],
+    [
+      "wait",
+      "--text",
+      "Connect your assistant"
+    ],
+    [
+      "get",
+      "text",
+      "body"
+    ]
+  ],
+  "expect": [
+    {
+      "text": "Hello"
+    },
+    {
+      "text": "Example"
+    },
+    {
+      "text": "A small example you can try and change."
+    },
+    {
+      "text": "Connect your assistant"
+    },
+    {
+      "path": "/"
+    }
+  ]
+}

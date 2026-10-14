@@ -27,11 +27,14 @@ const person = (email: string, apps: string[] = [], removed = false) => ({ email
 const both = ['orders', 'payroll'];
 const built = [{ id: 'orders', title: 'Orders' }, { id: 'payroll', title: 'Payroll' }];
 const staging = () => ({ ...f.env, WONG_ENVIRONMENT: 'staging', WONG_ACCESS_LOGIN_MANAGEMENT: undefined });
-// Kim is a person the owner makes a manager; `ask` is a request from whoever signs in.
+// Kim is a person the owner makes an Admin; `ask` is a request from whoever signs in.
 const kim: AccessIdentity = { ...employee, id: 'kim@example.com', claims: { ...employee.claims, email: 'kim@example.com', sub: 'kim-subject' } };
 const ask = (identity: AccessIdentity, path: string, body?: unknown, method = 'POST') => management(req(path, method, body), f.env, identity);
-const pick = (email: string, apps: string[] = [], manager = true) => run('people', 'POST', { ...person(email, apps), manager });
-const managers = () => f.sql.prepare('SELECT email FROM wong_access_managers ORDER BY email').all().map(row => row.email);
+// A save that names a role and nothing else: the built-in one, another role's id, or null for the person's own set.
+const to = (email: string, role: string | null = 'admin') => ({ email, removed: false, role });
+const pick = (email: string) => run('people', 'POST', to(email));
+const admins = () => f.sql.prepare("SELECT email FROM wong_access_member_roles WHERE role_id = 'admin' ORDER BY email").all().map(row => row.email);
+const everyKey = { cloudflare: 'read', code: 'read' };
 const acted = () => f.sql.prepare("SELECT actor_email, event FROM wong_access_audit WHERE event NOT LIKE '%started:%' ORDER BY rowid").all()
   .map(row => `${row.actor_email} ${row.event}`);
 const refusedAs = async (identity: AccessIdentity, path: string, body: unknown, code = 'owner_required', method = 'POST') => {
@@ -147,15 +150,17 @@ it('gives a preview its own practice list and makes no provider call', async () 
   expect(f.sql.prepare('SELECT COUNT(*) count FROM wong_access_work').get()).toEqual({ count: 0 });
 });
 
-it('says in the status why the project can not be handed out yet, and never a secret', async () => {
+it('says in the status why the project can not be handed out or saved to yet, and never a secret', async () => {
   const TOKEN = 'github_pat_synthetic_read_only_value';
-  const read = async (vars: object) => json<{ project: string; keys: { id: string; saved: boolean }[] }>(await run('status', 'GET', undefined, { ...f.env, ...vars }));
-  // No project recorded: setup has a step left. On GitHub with no key: the key. With it: ready, Project code saved.
-  const [unset, waiting, ready] = [await read({}), await read({ WONG_CODE_REPOSITORY: 'acme/recipe-box' }), await read({ WONG_CODE_REPOSITORY: 'acme/recipe-box', WONG_CODE_READ: TOKEN })];
-  expect([unset, waiting, ready].map(status => [status.project, status.keys.find(key => key.id === 'code')?.saved]))
-    .toEqual([['setup', false], ['key', false], ['ready', true]]);
-  // The status carries one word: no token, no secret's name, and not the repository either.
-  for (const status of [unset, waiting, ready]) expect(JSON.stringify(status)).not.toMatch(/github_pat|WONG_CODE|recipe-box/);
+  const read = async (vars: object) => json<{ project: string; projectSave: string; keys: { id: string; saved: boolean }[] }>(await run('status', 'GET', undefined, { ...f.env, ...vars }));
+  // No project recorded: setup has a step left. On GitHub with no key: the key. With the older key: handed out, and
+  // saving waits for the newer one. With the newer one: both.
+  const [unset, waiting, reading, ready] = [await read({}), await read({ WONG_CODE_REPOSITORY: 'acme/recipe-box' }), await read({ WONG_CODE_REPOSITORY: 'acme/recipe-box', WONG_CODE_READ: TOKEN }),
+    await read({ WONG_CODE_REPOSITORY: 'acme/recipe-box', WONG_CODE_WRITE: TOKEN })];
+  expect([unset, waiting, reading, ready].map(status => [status.project, status.projectSave, status.keys.find(key => key.id === 'code')?.saved]))
+    .toEqual([['setup', 'setup', false], ['key', 'key', false], ['ready', 'key', true], ['ready', 'ready', true]]);
+  // The status carries one word each: no token, no secret's name, and not the repository either.
+  for (const status of [unset, waiting, reading, ready]) expect(JSON.stringify(status)).not.toMatch(/github_pat|WONG_CODE|recipe-box/);
 });
 it('opens for the owner with no other setup, lists every built app and starts permissions once', async () => {
   f.sql.close(); f = fixture({ started: false });
@@ -182,7 +187,7 @@ it('lists a newly built app unticked, ignores a grant for an app no longer built
     INSERT INTO wong_access_role_apps VALUES ('${site.installationId}', 'desk', 'payroll', 'read')`);
   const looked = { people: [{ email: employee.id, apps: ['Orders'] }], roles: [{ name: 'Front desk', apps: ['Payroll'] }] };
   // A tick can not say look-only, so neither holds the app: nobody gains the power to change things. Access names both.
-  expect(await json(await run('status', 'GET'))).toMatchObject({ apps: built, people: [{ email: employee.id, apps: [] }], roles: [{ name: 'Front desk', apps: [] }], unticked: looked });
+  expect(await json(await run('status', 'GET'))).toMatchObject({ apps: built, people: [{ email: employee.id, apps: [] }], roles: [{ name: 'Admin' }, { name: 'Front desk', apps: [] }], unticked: looked });
   expect(await (await setupStatus(req('setup', 'GET'), f.env, employee)).json()).toMatchObject({ apps: [], titles: {} });
   for (const app of ['orders', 'payroll', 'retired']) expect((await authorizeRequest(f.env, employee, { apps: [app] }, 'read'))?.status, app).toBe(403);
   // A refused save clears nothing.
@@ -252,97 +257,136 @@ it('routes setup, app readback and management, and no longer answers the withdra
   for (const path of ['identity', 'activate']) expect((await handleAccess(req(path, 'GET'), f.env, owner)).status).toBe(404);
 });
 
-it('lets a manager the owner picked add people, edit roles and set levels as the owner does, recorded under their own email', async () => {
+it('lets an Admin the owner picked add people, edit roles and set levels as the owner does, recorded under their own email', async () => {
   await run('status', 'GET');
-  const picked = await (await pick(kim.id, ['orders'])).json();
+  const picked = await json<{ people: object[] }>(await pick(kim.id));
+  // Admin is the first role, built in, and gives every app and each key at the highest level it offers.
   expect(picked).toMatchObject({ ownerEmail: site.ownerEmail, viewer: { email: site.ownerEmail, owner: true },
-    people: [{ email: employee.id, manager: false }, { email: kim.id, manager: true, apps: ['orders'] }] });
-  expect(managers()).toEqual([kim.id]);
-  // Managing gives no app, no key and no owner route: Kim holds what she was given.
-  expect(await (await handleAccess(req('apps', 'GET'), f.env, kim)).json()).toMatchObject({ role: 'employee', manages: true, apps: ['access', 'orders'], keys: [] });
+    roles: [{ id: 'admin', name: 'Admin', builtIn: true, apps: both, keys: everyKey }],
+    people: [{ email: employee.id, role: null, apps: [] }, { email: kim.id, role: 'admin', apps: both, keys: everyKey }] });
+  for (const shown of picked.people) expect(shown).not.toHaveProperty('manager');
+  expect(admins()).toEqual([kim.id]);
+  // Nothing is stored for what Admin gives: it is worked out on each request.
+  for (const table of ['role_apps', 'role_keys', 'grants', 'key_grants']) expect(f.sql.prepare(`SELECT COUNT(*) count FROM wong_access_${table}`).get(), table).toEqual({ count: 0 });
+  // Kim is still an employee: every app and key, Access to manage, and no owner route.
+  expect(await (await handleAccess(req('apps', 'GET'), f.env, kim)).json()).toMatchObject({ role: 'employee', manages: true, apps: ['access', 'orders', 'payroll'],
+    keys: [{ id: 'cloudflare', level: 'read' }, { id: 'code', level: 'read' }] });
+  // Her own setup lists the apps a person can be given: Access itself is nobody's to list.
+  expect(await (await setupStatus(req('setup', 'GET'), f.env, kim)).json()).toMatchObject({ role: 'employee', apps: both });
   expect((await authorizeRequest(f.env, kim, { kind: 'owner' }))?.status).toBe(403);
-  expect((await authorizeRequest(f.env, kim, { apps: ['payroll'] }))?.status).toBe(403);
+  expect(await authorizeRequest(f.env, kim, { apps: ['payroll'] })).toBeNull();
   // She opens the same status, told she is not the owner.
   expect(await (await ask(kim, 'status', undefined, 'GET')).json()).toMatchObject({ ownerEmail: site.ownerEmail, viewer: { email: kim.id, owner: false }, key: 'ready' });
   // She adds a person, and the sign-in list follows in the same request.
   const added = await (await ask(kim, 'people', person('bo@example.com', ['orders']))).json();
   expect(added).toMatchObject({ work: [{ kind: 'policy', status: 'ready', outcome: 'policy_readback_matches' }],
-    people: [{ email: 'bo@example.com', status: 'active', settled: true, manager: false, apps: ['orders'] }, { email: employee.id }, { email: kim.id }] });
+    people: [{ email: 'bo@example.com', status: 'active', settled: true, role: null, apps: ['orders'] }, { email: employee.id }, { email: kim.id }] });
   expect(cf.writes).toHaveLength(2);
   expect(cf.writes[1].include).toEqual(['bo@example.com', employee.id, kim.id, site.ownerEmail].sort().map(email => ({ email: { email } })));
   // She makes a role and sets a level.
-  expect(await (await ask(kim, 'roles', { name: 'Sales', apps: { payroll: true } })).json()).toMatchObject({ roles: [{ name: 'Sales', apps: ['payroll'] }] });
+  expect(await (await ask(kim, 'roles', { name: 'Sales', apps: { payroll: true } })).json()).toMatchObject({ roles: [{ name: 'Admin' }, { name: 'Sales', builtIn: false, apps: ['payroll'] }] });
   expect((await ask(kim, 'people', { email: 'bo@example.com', removed: false, keys: { cloudflare: 'read' } })).status).toBe(200);
-  // She changes her own set, and another manager's: neither save names the switch, so both keep it.
-  expect((await ask(kim, 'people', person(kim.id, ['orders', 'payroll']))).status).toBe(200);
+  // She saves herself, and another Admin: neither save names a role, so both keep Admin.
   await pick(employee.id);
-  const after = await (await ask(kim, 'people', person(employee.id, ['payroll']))).json();
-  expect(after).toMatchObject({ people: [{ email: 'bo@example.com', manager: false, apps: ['orders'], keys: { cloudflare: 'read' } },
-    { email: employee.id, manager: true, apps: ['payroll'] }, { email: kim.id, manager: true, apps: both }] });
+  const after = await (await ask(kim, 'people', { email: employee.id, removed: false })).json();
+  expect((await ask(kim, 'people', { email: kim.id, removed: false })).status).toBe(200);
+  expect(after).toMatchObject({ people: [{ email: 'bo@example.com', role: null, apps: ['orders'], keys: { cloudflare: 'read' } },
+    { email: employee.id, role: 'admin', apps: both }, { email: kim.id, role: 'admin', apps: both }] });
   expect(await (await ask(kim, 'retry')).json()).toMatchObject({ viewer: { email: kim.id, owner: false } });
   // Each change names who made it.
-  expect(acted()).toEqual([`${site.ownerEmail} person_changed`, `${site.ownerEmail} manager_added`, `${kim.id} person_changed`,
-    `${kim.id} role_changed`, `${kim.id} person_changed`, `${kim.id} key_level_changed`, `${kim.id} person_changed`, `${site.ownerEmail} person_changed`,
-    `${site.ownerEmail} manager_added`, `${kim.id} person_changed`]);
+  expect(acted()).toEqual([`${site.ownerEmail} person_changed`, `${site.ownerEmail} admin_given`, `${kim.id} person_changed`,
+    `${kim.id} role_changed`, `${kim.id} person_changed`, `${kim.id} key_level_changed`, `${site.ownerEmail} person_changed`,
+    `${site.ownerEmail} admin_given`, `${kim.id} person_changed`, `${kim.id} person_changed`]);
 });
 
-it("leaves the manager switch alone when a manager changes another manager's apps", async () => {
-  await pick(employee.id); await pick(kim.id, ['orders']);
-  const rows = () => f.sql.prepare('SELECT rowid, email FROM wong_access_managers ORDER BY email').all();
+it("leaves the row the owner wrote alone when an Admin saves another Admin", async () => {
+  await pick(employee.id); await pick(kim.id);
+  const rows = () => f.sql.prepare('SELECT rowid, email, role_id FROM wong_access_member_roles ORDER BY email').all();
   const before = rows();
-  const saved = await (await ask(kim, 'people', person(employee.id, ['payroll']))).json();
-  expect(saved).toMatchObject({ people: [{ email: employee.id, manager: true, apps: ['payroll'] }, { email: kim.id, manager: true, apps: ['orders'] }] });
-  // No manager row was written: each is still the row the owner made.
+  const saved = await (await ask(kim, 'people', { email: employee.id, removed: false })).json();
+  expect(saved).toMatchObject({ people: [{ email: employee.id, role: 'admin', apps: both }, { email: kim.id, role: 'admin', apps: both }] });
+  // No Admin row was written: each is still the row the owner made.
+  // Naming the role they already hold is no change either.
   expect(rows()).toEqual(before);
-  // The person she changed still manages, and the record shows nobody's switch moved.
+  expect((await ask(kim, 'people', to(employee.id))).status).toBe(200);
+  expect(rows()).toEqual(before);
+  // The person she saved still manages, and the record shows nobody was given or lost Admin.
   expect((await ask(employee, 'status', undefined, 'GET')).status).toBe(200);
-  expect(acted()).toEqual([`${site.ownerEmail} person_changed`, `${site.ownerEmail} manager_added`, `${site.ownerEmail} person_changed`,
-    `${site.ownerEmail} manager_added`, `${kim.id} person_changed`]);
+  expect(acted()).toEqual([`${site.ownerEmail} person_changed`, `${site.ownerEmail} admin_given`, `${site.ownerEmail} person_changed`,
+    `${site.ownerEmail} admin_given`, `${kim.id} person_changed`, `${kim.id} person_changed`]);
 });
 
-it('refuses a manager who picks, unpicks or removes a manager, or touches the owner, and writes nothing', async () => {
-  await pick(kim.id, ['orders']); await pick('lee@example.com');
-  const tables = ['installation', 'members', 'managers', 'grants', 'key_grants', 'member_roles', 'audit', 'work'];
+it('refuses an Admin who gives or takes Admin, removes an Admin, changes the Admin role or touches the owner, and writes nothing', async () => {
+  await pick(kim.id); await pick('lee@example.com');
+  const sales = (await json<{ roles: { id: string }[] }>(await run('roles', 'POST', { name: 'Sales', apps: { orders: true } }))).roles[1].id;
+  const tables = ['installation', 'members', 'managers', 'grants', 'key_grants', 'roles', 'role_apps', 'role_keys', 'member_roles', 'audit', 'work'];
   const stored = () => tables.map(table => f.sql.prepare(`SELECT * FROM wong_access_${table} ORDER BY 1, 2`).all());
   const before = stored();
-  for (const body of [{ ...person('bo@example.com'), manager: true }, { ...person(employee.id), manager: true },
-    { ...person('lee@example.com'), manager: false }, { ...person(kim.id, ['orders']), manager: true }, { ...person(kim.id), manager: false },
-    { ...person(employee.id), manager: false }, person('lee@example.com', [], true), person(kim.id, [], true)]) {
+  // Giving: to a new person and to a current one. Taking: another Admin's and her own, to an own set or to a role.
+  // Removing: another Admin, and herself.
+  for (const body of [to('bo@example.com'), to(employee.id), to('lee@example.com', null), to('lee@example.com', sales),
+    { ...person('lee@example.com', ['orders']), role: null }, to(kim.id, null), to(kim.id, sales),
+    person('lee@example.com', [], true), person(kim.id, [], true)]) {
     await refusedAs(kim, 'people', body);
   }
-  for (const body of [person(site.ownerEmail, ['orders']), person(site.ownerEmail, [], true), { ...person(site.ownerEmail), manager: false }]) {
+  // The Admin role is nobody's to rename, change or remove: not an Admin's, and not the owner's.
+  for (const body of [{ id: 'admin', name: 'Bosses' }, { id: 'admin', name: 'Admin', apps: { orders: false } },
+    { id: 'admin', name: 'Admin', keys: { cloudflare: null } }, { id: 'admin', removed: true }]) {
+    for (const who of [kim, owner]) await refusedAs(who, 'roles', body, 'role_locked');
+  }
+  // No second role takes its name, in any case.
+  for (const who of [kim, owner]) {
+    for (const name of ['Admin', 'admin', ' ADMIN ']) expect([(await ask(who, 'roles', { name })).status, name]).toEqual([409, name]);
+  }
+  for (const body of [person(site.ownerEmail, ['orders']), person(site.ownerEmail, [], true), to(site.ownerEmail), to(site.ownerEmail, null)]) {
     await refusedAs(kim, 'people', body, 'owner_cannot_be_changed');
   }
-  // Removing a person and making them a manager in one save means nothing, from anyone.
-  for (const who of [kim, owner]) expect((await ask(who, 'people', { ...person('lee@example.com', [], true), manager: true })).status).toBe(400);
+  // The old switch is no field any more: a save that names it is refused whole, from anyone.
+  for (const who of [kim, owner]) {
+    for (const manager of [true, false]) {
+      const refused = await ask(who, 'people', { ...person('bo@example.com'), manager });
+      expect([refused.status, await refused.json()]).toEqual([400, { code: 'invalid_person' }]);
+    }
+  }
   expect(stored()).toEqual(before);
   expect(cf.writes).toHaveLength(2);
-  // An ordinary person is hers to remove, as for the owner.
-  expect(await (await ask(kim, 'people', person(employee.id, [], true))).json()).toMatchObject({ people: [{ email: employee.id, status: 'removed', manager: false }, {}, {}] });
-  expect(managers()).toEqual([kim.id, 'lee@example.com']);
+  // An ordinary person is hers to give a role, and to remove, as for the owner.
+  expect(await (await ask(kim, 'people', to(employee.id, sales))).json()).toMatchObject({ people: [{ email: employee.id, role: sales, apps: ['orders'] }, {}, {}] });
+  expect(await (await ask(kim, 'people', person(employee.id, [], true))).json()).toMatchObject({ people: [{ email: employee.id, status: 'removed', role: null }, {}, {}] });
+  expect(admins()).toEqual([kim.id, 'lee@example.com']);
 });
 
-it('takes managing back at the next request, ends it with a removal, and does not bring it back', async () => {
+it('takes Admin back at the next request, ends it with a removal, and does not bring it back', async () => {
   const asks = [['status', undefined, 'GET'], ['people', person('bo@example.com'), 'POST'], ['roles', { name: 'Sales' }, 'POST'],
     ['retry', undefined, 'POST']] as const;
   const refusedAll = async () => { for (const [path, body, method] of asks) await refusedAs(kim, path, body, 'owner_required', method); };
-  await pick(kim.id, ['orders']);
+  const own = () => f.sql.prepare('SELECT COUNT(*) count FROM wong_access_grants WHERE email = ?').get(kim.id);
+  // Kim has one app of her own, then Admin: the role is the whole answer, so her own rows go.
+  await run('people', 'POST', person(kim.id, ['orders']));
+  await refusedAll();
+  await pick(kim.id);
   expect((await ask(kim, 'status', undefined, 'GET')).status).toBe(200);
-  // The owner unticks: no sign-out and no sign-in change, and Kim keeps her apps.
-  const unticked = await (await pick(kim.id, ['orders'], false)).json();
-  expect(unticked).toMatchObject({ people: [{ email: employee.id }, { email: kim.id, status: 'active', settled: true, manager: false, apps: ['orders'] }] });
+  expect([await currentPolicy(f.env, kim), own()]).toMatchObject([{ manages: true, apps: new Set(['access', 'orders', 'payroll']) }, { count: 0 }]);
+  // The owner moves her to her own set: no sign-out and no sign-in change.
+  // She keeps what Admin gave, less what the save unticks.
+  const taken = await (await run('people', 'POST', { ...to(kim.id, null), apps: { payroll: false } })).json();
+  expect(taken).toMatchObject({ people: [{ email: employee.id }, { email: kim.id, status: 'active', settled: true, role: null, apps: ['orders'], keys: everyKey }] });
   expect(cf.writes).toHaveLength(1);
   await refusedAll();
   expect(await currentPolicy(f.env, kim)).toMatchObject({ state: 'current', role: 'employee', manages: false, apps: new Set(['orders']) });
-  // Ticked again and then removed: the removal ends it, with no row left behind.
-  await pick(kim.id, ['orders']);
-  expect(await (await run('people', 'POST', person(kim.id, [], true))).json()).toMatchObject({ people: [{}, { email: kim.id, status: 'removed', manager: false }] });
-  expect(managers()).toEqual([]);
+  // Moved off with nothing unticked, she keeps every app and key as her own.
+  await pick(kim.id);
+  expect(await (await run('people', 'POST', to(kim.id, null))).json()).toMatchObject({ people: [{}, { email: kim.id, role: null, apps: both, keys: everyKey }] });
+  expect(own()).toEqual({ count: 2 });
+  // Given again and then removed: the removal ends it, with no row left behind.
+  await pick(kim.id);
+  expect(await (await run('people', 'POST', person(kim.id, [], true))).json()).toMatchObject({ people: [{}, { email: kim.id, status: 'removed', role: null, apps: [], keys: {} }] });
+  expect(admins()).toEqual([]);
   await refusedAll();
-  // Added back, by a save that names no switch: a person again, never a manager.
-  expect(await (await run('people', 'POST', person(kim.id, ['orders']))).json()).toMatchObject({ people: [{}, { email: kim.id, status: 'active', manager: false, apps: ['orders'] }] });
+  // Added back, by a save that names no role: a person again, never an Admin.
+  expect(await (await run('people', 'POST', person(kim.id, ['orders']))).json()).toMatchObject({ people: [{}, { email: kim.id, status: 'active', role: null, apps: ['orders'] }] });
   await refusedAll();
   expect(f.sql.prepare("SELECT COUNT(*) count FROM wong_access_members WHERE email = 'bo@example.com'").get()).toEqual({ count: 0 });
-  expect(acted().filter(line => line.includes('manager_'))).toEqual([`${site.ownerEmail} manager_added`, `${site.ownerEmail} manager_removed`,
-    `${site.ownerEmail} manager_added`, `${site.ownerEmail} manager_removed`]);
+  expect(acted().filter(line => line.includes('admin_'))).toEqual([`${site.ownerEmail} admin_given`, `${site.ownerEmail} admin_taken`,
+    `${site.ownerEmail} admin_given`, `${site.ownerEmail} admin_taken`, `${site.ownerEmail} admin_given`, `${site.ownerEmail} admin_taken`]);
 });

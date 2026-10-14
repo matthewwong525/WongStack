@@ -32,6 +32,8 @@ const here = dirname(fileURLToPath(import.meta.url));
 const CAP = 3;
 const LOG_LINES = 60;
 const RERUN = 'node .claude/skills/save/scripts/checkpoint.mjs';
+const APP = join(here, 'app-change.mjs');
+const APP_STOP = 'NEXT: the app did not take this, so nothing after it ran. Report the line above in plain words and stop; try no other way to save.';
 const NO_CHANGE_FOOTER = '\n\n---\n_No change record was needed for this edit. `/ship` publishes it._\n';
 
 class Stop extends Error {
@@ -54,8 +56,8 @@ function must(command, args, what) {
 
 const readJson = file => { try { return JSON.parse(readFileSync(file, 'utf8')); } catch { return null; } };
 
-// Which way this checkout saves and publishes, asked once a command: `{ route }`, or `{ lines }`, the stop to print
-// when origin and the install record disagree: no command guesses a route, and none falls back to GitHub.
+// Which way this checkout saves and publishes, asked once a command: `{ route }`, or `{ lines }`, the stop to
+// print when origin and the install record disagree. No command guesses a route, and none falls back to GitHub.
 export function askRoute(cwd = process.cwd()) {
   try {
     return { route: delivery(cwd).route };
@@ -66,13 +68,14 @@ export function askRoute(cwd = process.cwd()) {
   }
 }
 
-// `main`, unless neither a local nor a remote `main` exists; then what GitHub names. An Artifacts install has no
-// GitHub to ask, and its setup makes `main`.
+// `main`, unless neither a local nor a remote `main` exists; then what GitHub names. An Artifacts install and a
+// copy installed through the app have no GitHub to ask: the first has `main`, the second reads `origin/HEAD`.
 export function defaultBranch(route = 'github') {
   for (const ref of ['refs/remotes/origin/main', 'refs/heads/main']) {
     if (sh('git', ['rev-parse', '--verify', '--quiet', `${ref}^{commit}`]).status === 0) return 'main';
   }
   if (route === 'artifacts') return 'main';
+  if (route === 'app') return sh('git', ['symbolic-ref', '--quiet', '--short', 'refs/remotes/origin/HEAD']).stdout.trim().replace(/^origin\//, '') || 'main';
   const named = sh('gh', ['repo', 'view', '--json', 'defaultBranchRef', '--jq', '.defaultBranchRef.name']);
   return named.status === 0 && named.stdout.trim() ? named.stdout.trim() : 'main';
 }
@@ -144,6 +147,32 @@ function readPr() {
     'NEXT: gh could not read the pull request. Fix it by .claude/skills/save/references/preconditions.md, then rerun this command.']);
 }
 
+// One app-change.mjs command, `node` by name as the shell scripts beside this one call it. A refusal stops with
+// the one line it printed: the app's own words, never Git's output.
+function viaApp(args) {
+  const result = sh('node', [APP, ...args]);
+  if (result.status !== 0) throw new Stop(1, [`error=${firstLine(result.stderr) || `app-change.mjs exit ${result.status}`}`, APP_STOP]);
+  return result.stdout.trim();
+}
+
+/** The change as the app holds it: `{ state, url, number }`, each null when there is none. */
+function appChange(args) {
+  const text = viaApp(args);
+  try { return JSON.parse(text); } catch { throw new Stop(1, ['error=app-change.mjs printed no answer', APP_STOP]); }
+}
+
+/** Open the change, or update the open one's body. A later update that fails keeps the old body, as patchBody does. */
+function openChange(title, bodyFile, { again = false } = {}) {
+  try { return appChange(['open', title, bodyFile]); } catch (error) {
+    if (!again) throw error;
+    say(`PR_BODY=stale (${error.message.replace(/^error=/, '')})`);
+    return {};
+  }
+}
+
+/** The project's GitHub address, read from its change's link; '' for a change with no link. */
+const repoOf = url => /^(https:\/\/[^/]+\/[^/]+\/[^/]+)\/pull\/\d+$/.exec(url ?? '')?.[1] ?? '';
+
 /** Write the body file. With a change it mirrors the change; without one it is the summary and a footer. */
 function renderBody({ root, branch, values, summaryFile, bodyFile, repoUrl, previewUrl }) {
   try {
@@ -176,13 +205,15 @@ export function failingChecks(waiterOutput) {
   });
 }
 
-/** Each failing check, its rerun command, and the tail of the log that shows its cause. */
-function printFailures(checks) {
+// Each failing check, its rerun command, and the tail of the log that shows its cause. Through the app there is
+// no rerun, and the log is the one the app reads for that job.
+function printFailures(checks, app) {
   for (const { name, link } of checks) {
     say(`FAILED_CHECK=${name}`);
     say(`LINK=${link}`);
     const ids = link.match(/\/actions\/runs\/(\d+)(?:\/job\/(\d+))?/);
-    if (!ids) { say('CAUSE=no GitHub Actions log for this check; open LINK'); continue; }
+    if (!ids || (app && !ids[2])) { say('CAUSE=no GitHub Actions log for this check; open LINK'); continue; }
+    if (app) { say(sh('node', [APP, 'log', ids[2]]).stdout.trimEnd() || 'CAUSE=the log could not be read (empty); open LINK'); continue; }
     say(`RERUN=gh run rerun ${ids[1]} --failed`);
     const log = sh('gh', ['run', 'view', ...(ids[2] ? ['--job', ids[2]] : [ids[1]]), '--log-failed']);
     const lines = log.stdout.trimEnd().split('\n').filter(Boolean).slice(-LOG_LINES);
@@ -223,6 +254,15 @@ function artifactsNextLine(result, fixes) {
   return `NEXT: fix the cause the lines under RESULT show, in one push. Where this computer has the tools, rerun the failed check first (node .github/scripts/checks.mjs --worktree). Then stage and rerun this command: fix attempt ${fixes + 1} of ${CAP}. A failure outside the diff has no rerun on this route: stop and report it, with no code edit.`;
 }
 
+// A copy installed through Connect: a pass ends at the save, and someone else publishes.
+// The rest is as on Artifacts.
+function appNextLine(result, fixes) {
+  const saved = 'the change is saved, and the owner or an Admin publishes it. Report the save and say who publishes it; never offer to publish.';
+  if (result === 'SUCCESS') return `NEXT: checks passed: ${saved}`;
+  if (result === 'NONE') return `NEXT: no checks are configured: ${saved}`;
+  return artifactsNextLine(result, fixes);
+}
+
 async function checkpoint(values) {
   const root = must('git', ['rev-parse', '--show-toplevel'], 'not inside a git repository');
   const wait = Boolean(values.wait);
@@ -236,6 +276,8 @@ async function checkpoint(values) {
   if (asked.lines) throw new Stop(1, asked.lines);
   // An Artifacts install has no pull request: the pushed branch and its check run are the save.
   const artifacts = asked.route === 'artifacts';
+  // A copy installed through the app asks the app, and gh nothing.
+  const app = asked.route === 'app';
   const base = defaultBranch(asked.route);
   if (branch === 'HEAD' || branch === base) {
     throw new Stop(4, [`REFUSED=HEAD is ${branch === 'HEAD' ? 'detached' : `the default branch (${base})`}`, 'NEXT: cut the feature branch (git checkout -b <name>), then rerun this command.']);
@@ -251,7 +293,7 @@ async function checkpoint(values) {
   const fixing = !wait && state.last === 'FAILURE';
   if (fixing && state.fixes >= CAP) {
     throw new Stop(6, [`REFUSED=the ${CAP} fix attempts of this /save run are spent`, `ATTEMPT=${state.fixes}`,
-      `NEXT: stop and report the failing checks${artifacts ? '' : ' with the pull request link'}. A later /save run starts a new count with --new-run.`]);
+      `NEXT: stop and report the failing checks${artifacts || app ? '' : ' with the pull request link'}. A later /save run starts a new count with --new-run.`]);
   }
 
   if (!wait) {
@@ -284,10 +326,11 @@ async function checkpoint(values) {
   const head = must('git', ['rev-parse', 'HEAD'], 'cannot read HEAD');
   say(`SAVE_HEAD=${head}`);
 
-  let pr = artifacts ? null : readPr();
+  let pr = artifacts ? null : app ? appChange(['change']) : readPr();
   if (pr?.state === 'CLOSED') {
     throw new Stop(3, [`PR_URL=${pr.url}`, 'REFUSED=the pull request is closed and not merged; nothing was pushed',
-      'NEXT: ask the person: reopen it (gh pr reopen, then rerun this command), or push to a fresh branch (git checkout -b <name>, then rerun).']);
+      app ? 'NEXT: tell the person this change was closed without being published. New work goes on a fresh branch (git checkout -b <name>, then rerun).'
+        : 'NEXT: ask the person: reopen it (gh pr reopen, then rerun this command), or push to a fresh branch (git checkout -b <name>, then rerun).']);
   }
   if (pr?.state === 'MERGED') {
     say(`PR_URL=${pr.url}`);
@@ -299,20 +342,30 @@ async function checkpoint(values) {
   }
 
   let repoUrl = '';
+  const title = wait ? '' : firstLine(readFileSync(files.message, 'utf8'));
   if (!wait) {
-    if (values['change-root'] && !artifacts) repoUrl = must('gh', ['repo', 'view', '--json', 'url', '--jq', '.url'], 'gh repo view');
+    // The app has no gh to name the project: its links come from the change's own, once one exists.
+    if (values['change-root'] && app) repoUrl = repoOf(pr.url) || remote.stdout.trim();
+    else if (values['change-root'] && !artifacts) repoUrl = must('gh', ['repo', 'view', '--json', 'url', '--jq', '.url'], 'gh repo view');
     if (!artifacts) renderBody({ root, branch, values, summaryFile: files.summary, bodyFile, repoUrl });
-    must('git', pr ? ['push'] : ['push', '-u', 'origin', 'HEAD'], 'git push');
+    if (app) viaApp(['push']);
+    else must('git', pr ? ['push'] : ['push', '-u', 'origin', 'HEAD'], 'git push');
     if (fixing) state.fixes += 1;
-    if (pr) patchBody(pr.number, bodyFile);
+    if (app) {
+      pr = { ...pr, ...openChange(title, bodyFile) };
+      // A change opened just now gave its link only now: render the body's links again.
+      if (values['change-root'] && repoOf(pr.url) && repoUrl !== repoOf(pr.url)) {
+        repoUrl = repoOf(pr.url);
+        if (renderBody({ root, branch, values, summaryFile: files.summary, bodyFile, repoUrl })) openChange(title, bodyFile, { again: true });
+      }
+    } else if (pr) patchBody(pr.number, bodyFile);
     else if (!artifacts) {
-      const title = firstLine(readFileSync(files.message, 'utf8'));
       const created = must('gh', ['pr', 'create', '--title', title, '--body-file', bodyFile], 'gh pr create');
       const url = created.split('\n').findLast(line => /^https?:\/\//.test(line)) ?? '';
       pr = { state: 'OPEN', url, number: Number(url.match(/\/(\d+)$/)?.[1]) || null };
     }
   }
-  if (!artifacts) say(`PR_URL=${pr?.url ?? 'none'}`);
+  if (app ? pr.url : !artifacts) say(`PR_URL=${pr?.url ?? 'none'}`);
 
   const minutes = values['max-minutes'] ?? '20';
   say(`WAITING=checks for ${head.slice(0, 7)}, up to ${minutes} minutes`);
@@ -321,12 +374,17 @@ async function checkpoint(values) {
   if (waiterOutput) say(waiterOutput);
   const result = waiterOutput.match(/^RESULT: (SUCCESS|FAILURE|NONE|TIMEOUT|UNKNOWN)$/m)?.[1] ?? 'UNKNOWN';
   // On an Artifacts install the lines just printed under RESULT are the failing stage's output.
-  if (result === 'FAILURE' && !artifacts) printFailures(failingChecks(waiterOutput));
+  // So are they through the app when the project is kept in Cloudflare: only rows name a check and its link.
+  if (result === 'FAILURE' && !artifacts && (!app || pr.rows)) printFailures(failingChecks(waiterOutput), app);
 
-  const receipt = artifacts ? 'none (this route keeps no receipt; /verify reads the gate again)' : writeReceipt(root, branch, result, receiptFile);
+  const receipt = artifacts || app ? 'none (this route keeps no receipt; /verify reads the gate again)' : writeReceipt(root, branch, result, receiptFile);
   const preview = result === 'UNKNOWN' ? '' : firstLine(sh('bash', [join(here, 'preview-url.sh')]).stdout);
   if (preview && !wait && values['change-root'] && pr?.number) {
-    if (renderBody({ root, branch, values, summaryFile: files.summary, bodyFile, repoUrl, previewUrl: preview })) patchBody(pr.number, bodyFile);
+    if (!renderBody({ root, branch, values, summaryFile: files.summary, bodyFile, repoUrl, previewUrl: preview })) {
+      // the body is already this one
+    }
+    else if (app) openChange(title, bodyFile, { again: true });
+    else patchBody(pr.number, bodyFile);
   }
   say(`PREVIEW_URL=${preview || 'none'}`);
   say(`RECEIPT=${receipt}`);
@@ -341,7 +399,7 @@ async function checkpoint(values) {
   const rerun = result === 'FAILURE' && state.fixes < CAP;
   if (files.summary && rerun) say(`SUMMARY_FILE=${files.summary} (kept for the rerun)`);
   else if (files.summary) rmSync(files.summary, { force: true });
-  say((artifacts ? artifactsNextLine : nextLine)(result, state.fixes));
+  say((app ? appNextLine : artifacts ? artifactsNextLine : nextLine)(result, state.fixes));
   return result;
 }
 

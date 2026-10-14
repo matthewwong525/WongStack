@@ -168,7 +168,7 @@ On staging and previews the employer SHALL be able to open Access, add people an
 
 ### Requirement: A role gives several people the same access
 
-The employer SHALL be able to name a role holding a set of apps and key levels and give it to people. A person SHALL have one role or their own set, never both. A person with a role SHALL have exactly the role's apps and levels, and a change to the role SHALL govern each such person's next request. Moving a person from a role to their own set, or removing a role people hold, SHALL leave each person with the access they had. People who existed before roles SHALL keep their own set until the employer gives them a role. Only the employer or a manager SHALL create, change, give or remove a role, a role SHALL never make its holder a manager, and giving a role SHALL NOT change who can sign in.
+The employer SHALL be able to name a role holding a set of apps and key levels and give it to people. A person SHALL have one role or their own set, never both. A person with a role SHALL have exactly the role's apps and levels, and a change to the role SHALL govern each such person's next request. Moving a person from a role to their own set, or removing a role people hold, SHALL leave each person with the access they had. People who existed before roles SHALL keep their own set until the employer gives them a role. Only the employer or a manager SHALL create, change, give or remove a role, no role but the built-in Admin SHALL let its holder manage Access, no role SHALL take the name Admin, and giving a role SHALL NOT change who can sign in.
 
 #### Scenario: The employer changes a role
 
@@ -189,20 +189,6 @@ Access SHALL tell the employer plainly whether a save finished, where they land 
 - **WHEN** the employer changes a level on a person's page and opens another view without saving
 - **THEN** Access asks whether to leave, and staying keeps the change on the page
 
-### Requirement: The employer chooses who else manages Access
-
-The employer SHALL be able to make a current person a manager, and only the employer SHALL make or unmake one. A manager SHALL be able to do in Access what the employer can: add, change and remove people, create, change, give and remove roles, and set app grants and key levels, for any person, themselves and other managers included. A manager SHALL NOT make or unmake a manager, remove a manager, or change or remove the employer, and no screen SHALL change who the employer is. Being a manager SHALL give no app, no key level and no other employer authority by itself. Where the employer chooses a manager, Access SHALL say that a manager can give themselves any app or key level. A manager's authority SHALL be read on every request: once the employer unmakes or removes a manager, that person's next management request SHALL be refused, and a removed person added again SHALL NOT be a manager. On the live app the verification service token SHALL never be a manager.
-
-#### Scenario: A manager adds a person
-
-- **WHEN** a manager saves a new person's email with Orders access
-- **THEN** that person is assigned Orders only and their sign-in status is reported, as it would be for the employer
-
-#### Scenario: A manager tries to pick or remove a manager
-
-- **WHEN** a manager sends a request that makes someone a manager, unmakes one, removes one, or changes the employer
-- **THEN** it is denied and nobody's access or authority changes
-
 ### Requirement: Access lists line up and keep one frame
 
 Access SHALL have two views, People and Roles, each listing its rows with the same columns, each row one line on a computer, readable on a phone without sideways scrolling. Apps and key levels SHALL be set only where a person or a role is opened. The people list SHALL include the employer, marked as the owner, with nothing on that row to change. A person's row SHALL keep the same parts whether they can sign in, are waiting, or were removed. Opening a person or a role SHALL show it with its list still in place, at an address that opens it again, and closing it SHALL return to the list. The switch between the views and the place where Access reports a save, a practice list or an unfinished step SHALL stay the same on every Access screen, an opened person or role included. A removal and leaving with unsaved changes SHALL ask in the same way.
@@ -219,7 +205,7 @@ Access SHALL have two views, People and Roles, each listing its rows with the sa
 
 ### Requirement: The employer changes a person's role from the people list
 
-The employer or a manager SHALL be able to give a current person a role, or their own set, from the people list without opening the person's page. The change SHALL be saved at once and govern the person's next request. Access SHALL then say what changed and offer to undo it, and undoing SHALL return the person to the role or own set they had, with the same apps and key levels. A role change that did not save SHALL be reported and SHALL leave the list showing what the person has.
+The employer or a manager SHALL be able to give a current person a role, or their own set, from the people list without opening the person's page. The change SHALL be saved at once and govern the person's next request, except that picking Admin SHALL ask first and SHALL be offered to the employer alone. Access SHALL then say what changed and offer to undo it, and undoing SHALL return the person to the role or own set they had, with the same apps and key levels. A role change that did not save SHALL be reported and SHALL leave the list showing what the person has.
 
 #### Scenario: A role is picked in the list
 
@@ -247,7 +233,7 @@ The app SHALL offer Connect your assistant from one place, the home page's list,
 
 ### Requirement: Connect installs the project for a person who holds Project code
 
-Once the installation can hand its project out, a signed-in person who currently holds Project code SHALL be able to install the whole project on their device from the app's setup prompt, with their own app login as the only credential: no repository account, no pasted key. Running the same step again SHALL bring the copy up to date. The copy SHALL be read-only: the app SHALL refuse every attempt to publish through it and say how publishing is granted. The employer SHALL hold Project code always; nobody else SHALL hold it until the employer or a manager gives it. Each download SHALL be judged against the person's current access, so unticking or removing a person refuses their next download without sign-out. The repository credential the app uses SHALL never reach a device, a prompt, a response body or a log. Until the installation can hand its project out, every signed-in person SHALL keep the apps-only connection they had.
+Once the installation can hand its project out, a signed-in person who currently holds Project code SHALL be able to install the whole project on their device from the app's setup prompt, with their own app login as the only credential: no repository account, no pasted key. Running the same step again SHALL bring the copy up to date. The copy SHALL NOT publish: the app SHALL refuse every attempt to change the published project through it and say that it saves changes and never publishes. The employer SHALL hold Project code always; nobody else SHALL hold it until the employer or a manager gives it. Each download SHALL be judged against the person's current access, so unticking or removing a person refuses their next download without sign-out. The repository credential the app uses SHALL never reach a device, a prompt, a response body or a log. Until the installation can hand its project out, every signed-in person SHALL keep the apps-only connection they had.
 
 #### Scenario: A ticked person connects from an empty folder
 
@@ -261,8 +247,8 @@ Once the installation can hand its project out, a signed-in person who currently
 
 #### Scenario: A person tries to publish through the app
 
-- **WHEN** a connected person pushes a change to the address their copy came from
-- **THEN** it is refused, nothing in the project changes, and the message says the employer grants publishing where the project is kept
+- **WHEN** a connected person pushes to the published branch at the address their copy came from
+- **THEN** it is refused before anything is asked of where the project is kept, nothing in the project changes, and the message says the app saves changes and never publishes
 
 ### Requirement: A given app is the whole app
 
@@ -309,3 +295,61 @@ Where a person's own set or a role is opened, Access SHALL show the apps as choi
 
 - **WHEN** the employer gives an app and closes the panel without saving
 - **THEN** Access asks before leaving, and the person's access is unchanged
+
+### Requirement: Setup shows the sign-in link at once
+
+When assistant setup needs the person to sign in, the copied setup prompt and the setup tool's own output SHALL both tell the assistant to show the person the sign-in link as soon as it is printed and to wait for them. Only a link checked to be this business's own sign-in address SHALL be passed on, and the tool SHALL say beside it that it is safe to show. No credential and no other sign-in output SHALL be shown.
+
+#### Scenario: The assistant runs setup where it can open no browser
+
+- **WHEN** an assistant runs the setup step and the tool prints the sign-in link
+- **THEN** the person sees the link in the chat without asking for it, and the assistant waits while they sign in
+
+#### Scenario: The sign-in prints something that is not this business's sign-in address
+
+- **WHEN** the sign-in output carries another address or a credential
+- **THEN** it is not passed on and nothing tells the assistant to show it
+
+### Requirement: A built-in Admin role holds everything and manages Access
+
+Every installation SHALL have one built-in role named Admin, listed first among the roles, that nobody can rename, change or remove. A current person who holds Admin SHALL hold every built app and every saved key at the highest level the key offers, apps and keys added later included, once key levels have started, and SHALL be able to do in Access what the employer can: add, change and remove people, create, change, give and remove other roles, and set app grants and key levels. Wherever these requirements name a manager, they SHALL mean a current person who holds Admin. Only the employer SHALL give Admin, take it away, or remove a person who holds it; such a request from anyone else, about themselves included, SHALL be denied and change nothing. Giving Admin SHALL ask the employer first and say that it is full trust. An Admin SHALL NOT be the employer: no screen SHALL change who the employer is. Admin's authority SHALL be read on every request: once the employer takes it away or removes the person, that person's next management request SHALL be refused, and a removed person added again SHALL NOT hold Admin. No one SHALL be given Admin without the employer choosing it, and on the live app the verification service token SHALL never hold it.
+
+#### Scenario: The employer makes a person an Admin
+
+- **WHEN** the employer picks Admin for a person who held one app, confirms, and a new app is built afterwards
+- **THEN** the person opens every app, the new one included, uses every saved key at its highest level, and can add a person in Access
+
+#### Scenario: An Admin tries to pick or remove an Admin
+
+- **WHEN** an Admin sends a request that gives someone Admin, takes it from anyone, removes a person who holds it, renames, changes or removes the Admin role, or changes the employer
+- **THEN** it is denied and nobody's access or authority changes
+
+### Requirement: An update moves managers onto Admin and takes nothing else
+
+When an installation updates from the per-person manager switch, each current person who was a manager SHALL hold Admin, and nobody else SHALL gain it. A role the employer had already named Admin SHALL keep its apps, key levels and holders under another name that says it is their own, and its holders SHALL gain nothing. Every other person and role SHALL keep the apps and key levels they had.
+
+#### Scenario: An installation with a manager updates
+
+- **WHEN** an installation whose employer had made one person a manager updates
+- **THEN** that person holds Admin and still manages Access, and a person who was not a manager holds what they held before
+
+#### Scenario: A role was already named Admin
+
+- **WHEN** an installation with its own role named Admin, giving one app to two people, updates
+- **THEN** that role shows under its new name with the same app and the same two people, and neither person can manage Access
+
+### Requirement: A person who holds Project code sends their work up through the app
+
+A signed-in person who currently holds Project code SHALL be able to send a change from their installed copy up through the app, with their own app login as the only credential, on a project kept on GitHub and on one kept in the employer's Cloudflare account. The app SHALL then give back that change's checks, the output of a check that failed, and its preview, for the exact commit sent. Each such request SHALL be judged against the person's access at that moment, and a machine SHALL be refused on the live app.
+
+The app SHALL accept one change at a time and nothing else: it SHALL refuse, before anything is asked of where the project is kept, a request that would move the published project, delete anything, or touch anything that is not a change. Where the project is kept on GitHub, the change SHALL be opened or updated there for the employer to review, and SHALL say who saved it. The credential the app uses to save SHALL never reach a device, a prompt, a response body or a log.
+
+#### Scenario: A teammate saves with no GitHub account
+
+- **WHEN** a person who holds Project code saves work from a copy installed through Connect, on a device with no GitHub account and no GitHub tool
+- **THEN** the change is where the project is kept, its checks ran for that commit, and the person's assistant has their result and the preview
+
+#### Scenario: Project code is taken away before a save
+
+- **WHEN** the employer unticks Project code for a person, who then saves from the copy on their device
+- **THEN** the save is refused with ask-your-admin guidance and nothing reaches where the project is kept

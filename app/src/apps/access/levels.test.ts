@@ -38,6 +38,8 @@ it('labels the apps and the key levels a set holds, in the order they are shown'
 
 it('sums a set up for one line of a list: how many apps and how many keys, and nothing else', () => {
   expect(summary(status, NOTHING)).toBe('No apps')
+  // The built-in role is everything, whatever is built or saved today.
+  expect([summary(status, { ...NOTHING, builtIn: true }), summary(status, { ...NOTHING, builtIn: false })]).toEqual(['Everything', 'No apps'])
   expect(summary(status, { apps: ['payroll'], keys: {} })).toBe('1 app')
   expect(summary(status, { apps: ['hello', 'tips', 'payroll'], keys: { stripe: 'write', maps: 'read', cloudflare: 'read' } })).toBe('3 apps, 3 keys')
   // An app counts whatever level its keys are held at: Hello changes things with Stripe, and no level is no gap.

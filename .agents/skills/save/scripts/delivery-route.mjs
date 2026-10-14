@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Which way this checkout saves and publishes: `github` or `artifacts`, the one switch every verb asks
-// (wiki/stack/artifacts-route.md). `origin` and the install record must agree; if not it exits 1: no verb guesses.
+// Which way this checkout saves and publishes: `github`, `artifacts` or `app` (wiki/stack/artifacts-route.md).
+// `origin` and the install record must agree, else it exits 1. A copy installed through the app is always `app`.
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -10,6 +10,16 @@ import { isMain } from '../../memory/scripts/lib/cli.mjs';
 export const ARTIFACTS_HOST = /^([0-9a-f]{32})\.artifacts\.cloudflare\.net$/;
 
 export class RouteError extends Error {}
+
+/** True for the app's own Git address and nothing near it: https, that exact path, no credentials, query or hash. */
+export function appOrigin(origin) {
+  const text = String(origin ?? '').trim();
+  try {
+    return text === `${new URL(text).origin}/api/access/code/git/` && text.startsWith('https://');
+  } catch {
+    return false;
+  }
+}
 
 /** The host of a Git remote address, for `https://host/…` and `git@host:…`; null when there is none. */
 export function originHost(origin) {
@@ -26,6 +36,7 @@ export function originHost(origin) {
 
 /** The route for one origin address and one install record; a RouteError when they disagree. */
 export function routeOf({ origin, record }) {
+  if (appOrigin(origin)) return 'app';
   const delivery = record?.components?.delivery;
   const recorded = delivery?.route === 'artifacts';
   const host = originHost(origin);

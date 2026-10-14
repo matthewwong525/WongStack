@@ -5,7 +5,7 @@ import { FinishStep } from './Notices'
 import { ProjectStep } from './ProjectStep'
 import { keyLine, keyState, type AccessSet } from './levels'
 
-/** What a key that is not saved yet waits for. Setup makes one key itself: the owner copies a request, a manager is
+/** What a key that is not saved yet waits for. Setup makes one key itself: the owner copies a request, an Admin is
  *  told it is the owner's step, and a preview has no step. Any other key comes through its link. */
 function NextStep({ status, item }: { status: Status; item: SavedKey }) {
   if (!item.setup) return <p className="text-sm">Ask your assistant for the key link.</p>
@@ -37,6 +37,7 @@ export function SetFields({ status, set, onChange }: { status: Status; set: Acce
     </Group>
     {project && <Group legend="Project">
       <Tick checked={installs} onChange={to => onChange({ ...set, keys: { ...set.keys, code: to ? 'read' : null } })}>Can install the project</Tick>
+      <p className="text-sm text-muted-foreground">They can save changes too.</p>
       {installs && <ProjectStep status={status} />}
     </Group>}
   </>

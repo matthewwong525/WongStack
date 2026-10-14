@@ -13,11 +13,11 @@ export function setupPrompt(origin: string, artifact = release, project = false)
 Download the reviewed installer ${url} without credentials and refuse redirects. Run it only if its SHA-256 is ${artifact.sha256}.
 Save it as bootstrap.mjs in a private directory outside every project folder, then run: node <private-directory>/bootstrap.mjs install --origin ${origin}
 If it names Node, cloudflared or Git as missing, install that from its official distribution and run the same step again.
-Let me approve the sign-in on this computer. Never print credentials or raw login output.
+Show me the sign-in link the moment it prints, then wait while I sign in. Never print credentials or any other login output.
 Run the same step again later to update. Tell me what it reports as working, and what it does not.` };
   return { state: 'ready' as const, text: `Connect my assistant to the company API at ${origin} using my own business app login.
 Use the reviewed standalone Node bootstrap at ${url} (SHA-256 ${artifact.sha256}).
 Download without credentials and refuse redirects. Verify the complete SHA-256 digest before execution. Save it as bootstrap.mjs in an OS-user-private directory outside every checkout (directory 0700, file 0600); preserve all existing files and memory settings.
-Run node <private-directory>/bootstrap.mjs login --state <private-directory> --origin ${origin}, then status with the same --state. Install Node/cloudflared from their official distributions if needed. Let me approve this same business login on this computer; only show its validated login link when a browser is unavailable. Never print credentials, raw login output or place tokens in arguments, URLs or tracked files.
+Run node <private-directory>/bootstrap.mjs login --state <private-directory> --origin ${origin}, then status with the same --state. Install Node/cloudflared from their official distributions if needed. Show me its validated login link the moment it prints, then wait while I approve this same business login. Never print credentials, any other login output or place tokens in arguments, URLs or tracked files.
 Confirm authenticated API status and my currently allowed apps. Discover only actions needed for my work using list, describe and call with the same --state. Use my existing separate memory access only if already installed. Repository access and authentication are manual through its provider; app login grants none. Report unavailable access honestly and never substitute employer, deployment, verification or memory credentials.` };
 }

@@ -3,6 +3,7 @@ import { AccessError, lease, leaseCurrent, ownerCore, permissionsStarted, releas
 import { boundedJson } from "./json";
 import { provider } from "./provider";
 import { management } from "./management";
+import { ADMIN_ROLE } from "./policy";
 import type { AccessIdentity } from "../access";
 import { fixture, owner, employee, site, req } from "../../tests/employee-access/connections";
 import { body } from "../../tests/body";
@@ -69,39 +70,52 @@ it("lets the verification machine read and save as the owner on a preview, and n
   }
 });
 
-it("admits a manager the owner ticked under their own email, and nobody the owner did not", async () => {
+it("admits an Admin the owner picked under their own email, and nobody the owner did not", async () => {
   const asks = (identity: AccessIdentity, request = req("status", "GET")) => ownerCore(request, f.env, identity);
   await expect(asks(employee)).rejects.toMatchObject({ code: "owner_required", status: 403 });
-  f.sql.prepare("INSERT INTO wong_access_managers VALUES (?, ?)").run(site.installationId, employee.id);
-  // The owner's email stays the owner's; the actor is the manager, who is never the owner.
+  // Another role gives no way in: only the built-in one does.
+  f.sql.prepare("INSERT INTO wong_access_roles VALUES (?, 'sales', 'Sales', 1)").run(site.installationId);
+  f.sql.prepare("INSERT INTO wong_access_member_roles VALUES (?, ?, 'sales')").run(site.installationId, employee.id);
+  await expect(asks(employee)).rejects.toMatchObject({ code: "owner_required", status: 403 });
+  f.sql.exec("UPDATE wong_access_member_roles SET role_id = 'admin'");
+  // The owner's email stays the owner's; the actor is the Admin, who is never the owner.
   expect(await asks(employee, req("people"))).toMatchObject({ email: site.ownerEmail, actor: employee.id, owner: false,
     subject: "employee-subject", installationId: site.installationId, origin: site.origin, live: true });
-  // Nothing is created or logged for a manager: the row was already the owner's.
+  // Nothing is created or logged for an Admin: the row was already the owner's.
   expect(f.sql.prepare("SELECT COUNT(*) count FROM wong_access_installation").get()).toEqual({ count: 1 });
   expect(f.sql.prepare("SELECT COUNT(*) count FROM wong_access_audit").get()).toEqual({ count: 0 });
-  // A manager's save needs this site's own origin too.
+  // An Admin's save needs this site's own origin too.
   await expect(asks(employee, new Request(`${site.origin}/api/access/people`, { method: "POST" })))
     .rejects.toMatchObject({ code: "origin_required", status: 403 });
-  // A machine, or a stale sign-in, carrying a manager's email is nobody.
+  // A machine, or a stale sign-in, carrying an Admin's email is nobody.
   for (const identity of [{ ...employee, kind: "service" as const }, { ...employee, claims: { ...employee.claims, common_name: "machine" } },
     { ...employee, claims: { ...employee.claims, exp: 1 } }, { ...employee, claims: { ...employee.claims, sub: "" } }]) {
     await expect(asks(identity)).rejects.toMatchObject({ code: "owner_required", status: 403 });
   }
-  // A former manager is refused on the next request: removed with the row left behind, or unticked.
+  // A former Admin is refused on the next request: removed with the row left behind, or moved off the role.
   f.sql.exec("UPDATE wong_access_members SET status = 'removed'");
   await expect(asks(employee)).rejects.toMatchObject({ code: "owner_required", status: 403 });
   f.sql.exec("UPDATE wong_access_members SET status = 'active'");
   expect(await asks(employee)).toMatchObject({ actor: employee.id, owner: false });
-  f.sql.exec("DELETE FROM wong_access_managers");
+  f.sql.exec("DELETE FROM wong_access_member_roles");
+  await expect(asks(employee)).rejects.toMatchObject({ code: "owner_required", status: 403 });
+  // The old manager switch is read by nothing: a row left there admits nobody.
+  f.sql.prepare("INSERT INTO wong_access_managers VALUES (?, ?)").run(site.installationId, employee.id);
   await expect(asks(employee)).rejects.toMatchObject({ code: "owner_required", status: 403 });
 });
 
-it("creates the installation row on the first owner request and logs the first-seen subject once", async () => {
+it("creates the installation row and its Admin role on the first owner request and logs the first-seen subject once", async () => {
   f.sql.close(); f = fixture({ started: false });
   // Nobody but the owner can make the row exist.
   await expect(ownerCore(req("status", "GET"), f.env, employee)).rejects.toMatchObject({ code: "owner_required" });
   expect(f.sql.prepare("SELECT COUNT(*) count FROM wong_access_installation").get()).toEqual({ count: 0 });
+  expect(f.sql.prepare("SELECT COUNT(*) count FROM wong_access_roles").get()).toEqual({ count: 0 });
   const core = await ownerCore(req("status", "GET"), f.env, owner);
+  // The built-in role comes with the row: one role, with the reserved id, named Admin, that nobody holds yet.
+  const roles = () => f.sql.prepare("SELECT installation_id, role_id, name FROM wong_access_roles").all();
+  expect(roles()).toEqual([{ installation_id: core.installationId, role_id: ADMIN_ROLE, name: "Admin" }]);
+  expect(ADMIN_ROLE).toBe("admin");
+  expect(f.sql.prepare("SELECT COUNT(*) count FROM wong_access_member_roles").get()).toEqual({ count: 0 });
   expect(f.sql.prepare("SELECT * FROM wong_access_installation").get()).toMatchObject({ slot: 1, installation_id: core.installationId,
     origin: site.origin, account_id: "", worker_id: site.workerId, access_app_id: site.accessAppId, access_policy_id: "",
     issuer: site.issuer, audience: site.audience, owner_subject: site.ownerSubject, owner_email: site.ownerEmail,
@@ -110,6 +124,7 @@ it("creates the installation row on the first owner request and logs the first-s
   expect(await permissionsStarted({ ...core, installationId: "unknown" })).toBe(false);
   const again = await ownerCore(req("status", "GET"), f.env, { ...owner, claims: { ...owner.claims, sub: "another-device" } });
   expect(again.installationId).toBe(core.installationId);
+  expect(roles()).toHaveLength(1);
   expect(f.sql.prepare("SELECT actor_email, event, revision FROM wong_access_audit").all())
     .toEqual([{ actor_email: site.ownerEmail, event: `owner_first_seen:${site.ownerSubject}`, revision: 1 }]);
   // A config with no Access identifiers still gets its one row.
@@ -131,6 +146,8 @@ it("keeps the winner's row when two first owner requests race", async () => {
   });
   const core = await ownerCore(req("status", "GET"), f.env, owner);
   expect(f.sql.prepare("SELECT installation_id FROM wong_access_installation").all()).toEqual([{ installation_id: core.installationId }]);
+  // The role is on the row that won, once.
+  expect(f.sql.prepare("SELECT installation_id, role_id FROM wong_access_roles").all()).toEqual([{ installation_id: core.installationId, role_id: "admin" }]);
   expect(f.sql.prepare("SELECT COUNT(*) count FROM wong_access_audit").get()).toEqual({ count: 1 });
 });
 

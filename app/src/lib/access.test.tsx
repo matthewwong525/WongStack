@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
-import { appAccessSchema, statusSchema, useAccess } from './access'
+import { appAccessSchema, isAdmin, statusSchema, useAccess } from './access'
 
 afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 const allowed = { state: 'current', role: 'employee', apps: ['hello'], revision: 1, code: 'off' }
@@ -55,6 +55,9 @@ it('reads why the project can not be handed out, and works it out from Project c
   // An older app, or a cached page: saved means ready, anything else asks for the key.
   expect([status({ keys: [code(true)] }).project, status({ keys: [code(false)] }).project, status({}).project]).toEqual(['ready', 'key', 'key'])
   expect(statusSchema.safeParse({ ...status({}), project: 'soon' }).success).toBe(false)
+  // Whether a change can be saved through the app is read as sent, and left out by an older app: no step shows.
+  expect([...['ready', 'key', 'setup'].map(projectSave => status({ projectSave }).projectSave), status({}).projectSave]).toEqual(['ready', 'key', 'setup', undefined])
+  expect(statusSchema.safeParse({ ...status({}), projectSave: 'soon' }).success).toBe(false)
 })
 
 it("reads whether a key is set up to be used directly as a yes or no, and a status sent without it", () => {
@@ -67,7 +70,7 @@ it("reads whether a key is set up to be used directly as a yes or no, and a stat
 })
 
 it('reads apps as ticks: a list of apps per person and role, who an update unticked, and what a person holds themselves', () => {
-  const person = (apps: unknown) => ({ email: 'kim@example.com', status: 'active', settled: true, role: null, manager: false, apps, keys: { stripe: 'read' } })
+  const person = (apps: unknown) => ({ email: 'kim@example.com', status: 'active', settled: true, role: null, apps, keys: { stripe: 'read' } })
   const status = (changes: object) => statusSchema.safeParse({ ...base, ...changes })
   const read = status({ apps: [{ id: 'orders', title: 'Orders', description: 'Every order' }], roles: [{ id: 'sales', name: 'Sales', apps: ['orders'], keys: {} }], people: [person(['orders'])],
     unticked: { people: [{ email: 'kim@example.com', apps: ['Orders'] }], roles: [{ name: 'Sales', apps: ['Payroll'] }] } })
@@ -78,4 +81,13 @@ it('reads apps as ticks: a list of apps per person and role, who an update untic
   // What a person holds themselves: the screens they can open, and a level per key.
   const own = appAccessSchema.parse({ state: 'current', role: 'employee', apps: ['orders'], revision: 1, keys: [{ id: 'stripe', title: 'Stripe', level: 'read' }] })
   expect(own).toEqual({ state: 'current', role: 'employee', apps: ['orders'], revision: 1, code: 'off', keys: [{ id: 'stripe', title: 'Stripe', level: 'read' }] })
+})
+
+it('reads the built-in role, a status sent without the mark, and who holds Admin', () => {
+  const role = (id: string, builtIn?: unknown) => ({ id, name: id, apps: [], keys: {}, ...(builtIn !== undefined && { builtIn }) })
+  const read = statusSchema.parse({ ...base, roles: [role('admin', true), role('sales', false), role('office')] })
+  expect(read.roles.map(item => item.builtIn)).toEqual([true, false, undefined])
+  expect(statusSchema.safeParse({ ...base, roles: [role('admin', 'yes')] }).success).toBe(false)
+  // Holding the built-in role is the whole test: another role, or a person's own set, is not Admin.
+  expect(['admin', 'sales', 'office', null].map(held => isAdmin(read, { role: held }))).toEqual([true, false, false, false])
 })

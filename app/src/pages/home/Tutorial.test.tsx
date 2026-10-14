@@ -10,7 +10,7 @@ afterEach(() => {
 });
 
 const message =
-  "Make this home page mine. Ask what to call this page, update its heading, remove this welcome guide, explain each step, and show me a preview before publishing.";
+  "Help me build my first app. Grill me first: start from what you already know about me and ask about my work and where my time goes, one question at a time. Then suggest a few apps I'd use, build the one I pick, remove this welcome guide, explain each step, and show me a preview before publishing.";
 
 const press = async () => {
   await act(async () => {
@@ -24,8 +24,8 @@ it("offers one first request and explains the preview and existing chat", () => 
 
   const tutorial = screen.getByRole("region", { name: "Make it yours" });
   expect(screen.getByRole("heading", { level: 2, name: "Make it yours" })).toBeTruthy();
-  expect(screen.getByText(/Want something different/).textContent).toBe(
-    "Want something different? Just ask in your chat. You’ll see a preview before anything goes live.",
+  expect(screen.getByText(/Start with an app built/).textContent).toBe(
+    "Start with an app built for how you work. Just ask in your chat. You’ll see a preview before anything goes live.",
   );
   expect(tutorial.querySelector("blockquote")?.textContent).toBe(message);
   expect(tutorial.querySelectorAll("blockquote")).toHaveLength(1);

@@ -24,6 +24,9 @@ it("lists every app a person can be given, and no skill, area or level beside on
   // Access itself is everyone's own page: nobody is given it.
   expect(status.apps).toEqual([{ id: "orders", title: "Orders", description: "The orders app." }, { id: "reports", title: "Reports", description: "The reports app." }]);
   expect(status.unticked).toEqual({ people: [], roles: [] });
+  // One role is there from the start: Admin, built in, with every one of those apps
+  // and each key at the highest level it offers.
+  expect(status.roles).toEqual([{ id: "admin", name: "Admin", builtIn: true, apps: ["orders", "reports"], keys: { cloudflare: "read", code: "read" } }]);
   for (const gone of ["areas", "skills", "kept", "appKeys"]) expect(status, gone).not.toHaveProperty(gone);
   // Nothing is stored for a skill: its calls are judged by the caller's apps and key levels, like any other call.
   expect(f.sql.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE '%skill%'").all()).toEqual([]);
@@ -39,7 +42,7 @@ it("names each person and each role that could only look at an app, by the app's
   const status = await run("status");
   // A row at `write` is the tick; one at `read` ends, and an app no longer built is not named.
   expect(status.unticked).toEqual({ people: [{ email: employee.id, apps: ["Orders"] }], roles: [{ name: "Front desk", apps: ["Reports"] }] });
-  expect(status).toMatchObject({ people: [{ email: employee.id, apps: ["reports"] }], roles: [{ name: "Front desk", apps: [] }, { name: "Sales", apps: ["orders"] }] });
+  expect(status).toMatchObject({ people: [{ email: employee.id, apps: ["reports"] }], roles: [{ name: "Admin", builtIn: true }, { name: "Front desk", builtIn: false, apps: [] }, { name: "Sales", apps: ["orders"] }] });
   // Nobody gained the power to change things: the look-only app is refused whole, and the held one is whole.
   expect([await may("orders", "read"), await may("orders", "write"), await may("reports", "write")]).toEqual([false, false, true]);
   const own = await json(await appAccess(new Request(`${site.origin}/api/access/apps`), f.env, employee));
@@ -47,7 +50,7 @@ it("names each person and each role that could only look at an app, by the app's
   expect(own).not.toHaveProperty("areas");
   // The owner ticks the app again and saves: the person holds all of it, and the names are gone, the role's too.
   const saved = await run("people", "POST", { email: employee.id, removed: false, apps: { orders: true } });
-  expect(saved).toMatchObject({ unticked: { people: [], roles: [] }, people: [{ email: employee.id, apps: ["orders", "reports"] }], roles: [{ apps: [] }, { apps: ["orders"] }] });
+  expect(saved).toMatchObject({ unticked: { people: [], roles: [] }, people: [{ email: employee.id, apps: ["orders", "reports"] }], roles: [{ name: "Admin" }, { apps: [] }, { apps: ["orders"] }] });
   expect([await may("orders", "read"), await may("orders", "write")]).toEqual([true, true]);
   expect((await run("status")).unticked).toEqual({ people: [], roles: [] });
 });

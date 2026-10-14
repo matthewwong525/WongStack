@@ -31,7 +31,6 @@ const INSTALL = {
   base: BASE,
   ids: { db: id('1'), stagingDb: id('2'), memory: id('3') },
   bucket: `${BASE}-memory`,
-  today: '2026-01-01',
   access: { mode: 'private', teamDomain: 'target-check.cloudflareaccess.com', audience: 'a'.repeat(64), appId: id('4'), ownerEmail: 'owner@example.invalid', workers: [{ id: 'b'.repeat(32) }, { id: 'c'.repeat(32) }] },
 };
 
@@ -91,8 +90,9 @@ function linkModules(from, to) {
 function writeConfig(app) {
   const config = join(app, 'wrangler.jsonc');
   writeFileSync(config, wranglerConfig(INSTALL));
-  const { named, bound } = codeInConfig(config, artifactNamesFor(BASE).repo, true);
-  if (!named || !bound) throw new Error('provisioning could not add the project and its repository binding to the config it wrote');
+  const { repo, runner } = artifactNamesFor(BASE);
+  const { named, bound, checks } = codeInConfig(config, repo, true, runner);
+  if (!named || !bound || !checks) throw new Error('provisioning could not add the project and its repository and check runner bindings to the config it wrote');
 }
 
 // No step may reach Cloudflare, so none is handed a credential.
@@ -132,8 +132,8 @@ export function checkTarget(root, { keep = false, log = console.log } = {}) {
     }
     const types = sh('bash', [join(dest, 'scripts', 'cf-build.sh'), '--types'], dest);
     const generated = join(app, 'worker-configuration.d.ts');
-    if (!types.ok || !existsSync(generated) || !/\bARTIFACTS\s*:/.test(readFileSync(generated, 'utf8'))) {
-      return fail('types', `${types.output}\nThe binding types were not regenerated with the project's repository binding, so the tests would compile against the wrong ones.`);
+    if (!types.ok || !existsSync(generated) || !['ARTIFACTS', 'CODE_CHECKS'].every(name => new RegExp(`\\b${name}\\s*:`).test(readFileSync(generated, 'utf8')))) {
+      return fail('types', `${types.output}\nThe binding types were not regenerated with the project's repository and check runner bindings, so the tests would compile against the wrong ones.`);
     }
     const tests = sh('npm', ['test'], app);
     if (!tests.ok) return fail('tests', failureDigest(tests.output));

@@ -12,8 +12,8 @@ const status: Status = { ownerEmail: 'owner@shop.com', viewer: { email: 'owner@s
   keysStarted: true, unticked: { people: [{ email: 'kim@shop.com', apps: ['Hello'] }], roles: [] }, apps: [{ id: 'hello', title: 'Hello', description: 'A small example.' }],
   keys: [{ id: 'stripe', title: 'Stripe', levels: ['read', 'write'], saved: true, setup: false, alone: false, direct: true }],
   roles: [{ id: 'sales', name: 'Sales', apps: ['hello'], keys: { stripe: 'read' } }],
-  people: [{ email: 'kim@shop.com', status: 'active', settled: true, role: null, manager: false, apps: ['hello'], keys: { stripe: 'read' } },
-    { email: 'lee@shop.com', status: 'active', settled: true, role: 'sales', manager: false, apps: ['hello'], keys: { stripe: 'read' } }], work: [], project: 'ready' }
+  people: [{ email: 'kim@shop.com', status: 'active', settled: true, role: null, apps: ['hello'], keys: { stripe: 'read' } },
+    { email: 'lee@shop.com', status: 'active', settled: true, role: 'sales', apps: ['hello'], keys: { stripe: 'read' } }], work: [], project: 'ready' }
 
 beforeEach(() => vi.stubGlobal('fetch', vi.fn(async (url: string) => {
   if (url.endsWith('/apps')) return Response.json({ state: 'current', role: 'owner', manages: true, apps: ['access', 'hello'], revision: 1 })
@@ -143,6 +143,6 @@ it('marks the current view, the open row, a level, a notice and a label by more 
   }
   // A tick stays on screen too: the device draws it, on or off.
   const ticks = screen.getAllByRole('checkbox') as HTMLInputElement[]
-  expect(ticks.map(tick => [tick.parentElement!.textContent, tick.checked])).toEqual([['Hello', true], ['Can manage Access', false]])
+  expect(ticks.map(tick => [tick.parentElement!.textContent, tick.checked])).toEqual([['Hello', true]])
   for (const tick of ticks) expect(classes(tick).filter(name => GONE.test(name))).toEqual([])
 })

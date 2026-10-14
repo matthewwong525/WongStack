@@ -9,7 +9,7 @@ import type { BuiltApp, Person, SavedKey, Status } from '../../lib/access'
 // A shop where Hello changes things with Stripe, and the tip calculator uses no key.
 const key = (id: string, title: string, changes: Partial<SavedKey> = {}): SavedKey => ({ id, title, levels: ['read', 'write'], saved: true, setup: false, alone: false, ...changes })
 const built = (id: string, title: string): BuiltApp => ({ id, title, description: `${title} for the shop` })
-const person = (email: string, changes: Partial<Person> = {}): Person => ({ email, status: 'active', settled: true, role: null, manager: false, apps: [], keys: {}, ...changes })
+const person = (email: string, changes: Partial<Person> = {}): Person => ({ email, status: 'active', settled: true, role: null, apps: [], keys: {}, ...changes })
 const hello = () => ({ apps: ['hello'], keys: { stripe: 'read' as const } })
 const status = (): Status => ({ ownerEmail: 'owner@shop.com', viewer: { email: 'owner@shop.com', owner: true }, environment: 'live', key: 'ready', started: true, imported: 0,
   keysStarted: true, unticked: { people: [], roles: [] },

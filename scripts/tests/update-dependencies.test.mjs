@@ -6,8 +6,9 @@ import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { CAMOFOX } from '../../.agents/skills/browser/scripts/browse.mjs';
 import { VIEWER } from '../../.agents/skills/hand-over/scripts/view.mjs';
+import { SHOP } from '../../.agents/skills/shop/scripts/shop.mjs';
 import {
-  CAMOFOX_PINS, PIN_FILES, VIEWER_PIN, bumpRange, isMajor, latestInMajor, lockInSync, planPackages, readCamofoxPins, readPin, readViewerPin, rewritePins, run,
+  CAMOFOX_PINS, PIN_FILES, SHOP_PIN, VIEWER_PIN, bumpRange, isMajor, latestInMajor, lockInSync, planPackages, readCamofoxPins, readPin, readShopPin, readViewerPin, rewritePins, run,
 } from '../../.agents/skills/update-dependencies/scripts/update.mjs';
 
 test('a bump keeps the range prefix and never goes backwards', () => {
@@ -75,6 +76,14 @@ test('the viewer\'s pin is read from view.mjs itself', () => {
   assert.equal(readViewerPin(text), VIEWER.version);
   assert.equal(readViewerPin("export const VIEWER = { version: 'latest' };"), null, 'a name is no pin');
   assert.equal(readViewerPin("export const VIEWER = { version: '^1.6.0' };"), null, 'a range is no pin');
+});
+
+// Shop's command is pinned in shop.mjs alone; the updater reads that file, not a copy.
+test('the pin of Shop\'s command is read from shop.mjs itself', () => {
+  const text = readFileSync(join(import.meta.dirname, '../..', SHOP_PIN), 'utf8');
+  assert.equal(readShopPin(text), SHOP.version);
+  assert.equal(readShopPin("export const SHOP = { version: 'latest' };"), null, 'a name is no pin');
+  assert.equal(readShopPin("export const SHOP = { version: '^1.1.0' };"), null, 'a range is no pin');
 });
 
 test('a lock is in sync only when its root entry names the same ranges', () => {
@@ -413,4 +422,35 @@ test('a view.mjs that pins nothing fails the survey, and a repo without it skips
   const unpinned = await f.go();
   assert.equal(unpinned.code, 1);
   assert.match(unpinned.out, /^FAIL \.agents\/skills\/hand-over\/scripts\/view\.mjs — names no pinned noVNC version$/m);
+});
+
+const SHOP_FILE = "export const SHOP = { version: '1.1.0', integrity: 'sha512-abc', node: [[22, 21]] };\n";
+
+test('the pin of Shop\'s command is surveyed and never moved: a newer one is handed to the person with the rule', async t => {
+  const f = fixture(t, withRegistry({ '@shopify/shop': '1.1.0' }));
+  write(f.root, SHOP_PIN, SHOP_FILE);
+  const current = await f.go();
+  assert.equal(current.code, 0, current.out);
+  assert.match(current.out, /^shop 1\.1\.0 current$/m);
+  assert.doesNotMatch(current.out, /needs you/);
+
+  f.setState(withRegistry({ '@shopify/shop': '1.2.0' }));
+  const newer = await f.go();
+  assert.equal(newer.code, 0, newer.out);
+  assert.match(newer.out, /^shop 1\.1\.0 -> 1\.2\.0 pinned$/m);
+  assert.match(newer.out, /^needs you: shop 1\.1\.0 -> 1\.2\.0: move the version and the fingerprint in \.agents\/skills\/shop\/scripts\/shop\.mjs together, and only after reading what the new version adds and running a search and a checkout read through it$/m);
+  assert.match(newer.out, /^status: needs-agent$/m);
+  assert.equal(f.read(SHOP_PIN), SHOP_FILE, 'the pin is left as it is');
+  assert.doesNotMatch(f.calls(), /npm install/);
+});
+
+test('a shop.mjs that pins nothing fails the survey, and a repo without it skips Shop\'s command', async t => {
+  const f = fixture(t);
+  const without = await f.go();
+  assert.doesNotMatch(without.out, /^shop /m);
+  assert.doesNotMatch(f.calls(), /@shopify\/shop/);
+  write(f.root, SHOP_PIN, "export const SHOP = { version: 'latest' };\n");
+  const unpinned = await f.go();
+  assert.equal(unpinned.code, 1);
+  assert.match(unpinned.out, /^FAIL \.agents\/skills\/shop\/scripts\/shop\.mjs — names no pinned version of Shop's command$/m);
 });

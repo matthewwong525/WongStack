@@ -26,12 +26,12 @@ const CUT = 'truncate @max-[44rem]:whitespace-normal'
 const EVEN = 'h-14 @max-[44rem]:h-auto'
 const OPEN = 'aria-[current=true]:bg-muted aria-[current=true]:[&>td:first-child]:shadow-[inset_0.2rem_0_0_var(--color-primary)]'
 
-/** A list: a table whose columns every row shares, named by the current link in the switch. `empty` is said in its
- *  place. It is a plain table: the ready-made frame round a table scrolls sideways, and these rows stack instead. */
-export function Table({ view, columns, actions, empty, children }: {
-  view: ViewProps['view']; columns: string[]; actions?: string; empty?: ReactNode; children: ReactNode
+/** A list: a table whose columns every row shares, named by the current link in the switch. `actions` names a last
+ *  column of row menus. A plain table: the ready-made frame scrolls sideways, and these rows stack instead. */
+export function Table({ view, columns, actions, children }: {
+  view: ViewProps['view']; columns: string[]; actions?: string; children: ReactNode
 }) {
-  return empty || <table className={cn('w-full text-sm', STACK.table)} aria-labelledby={viewLabel(view)}>
+  return <table className={cn('w-full text-sm', STACK.table)} aria-labelledby={viewLabel(view)}>
       <TableHeader className={STACK.head}><TableRow className="hover:bg-transparent">
         {columns.map(column => <TableHead scope="col" className="text-muted-foreground" key={column}>{column}</TableHead>)}
         {actions && <TableHead scope="col"><span className="sr-only">{actions}</span></TableHead>}

@@ -6,7 +6,7 @@
 
 Every install starts empty and takes **every** category.
 
-- **Core** ships every listed skill's scripts/references, including browser discovery, private/reply links, camofox, improvement, scheduling and memory. It also ships `scheduled-work`, Claude/Codex memory hooks and project settings, `paseo.json`, rules, process pages, `.nvmrc`, portable checks, test workflow/change-scope action, and `WONG-STACK` block.
+- **Core** ships every listed skill's scripts/references, including browser discovery, private/reply links, camofox, shopping through Shop, improvement, scheduling and memory. It also ships `scheduled-work`, Claude/Codex memory hooks and project settings, `paseo.json`, rules, process pages, `.nvmrc`, portable checks, test and guard workflows/change-scope action, and the `WONG-STACK` block.
 - **UI** adds [`ux-principles.md`](../../../../wiki/ux-principles.md) for user-facing screens.
 - **Pack** adds scripts, [comment rule](../../../../scripts/lint-comment-length.mjs), workflow, schema, `wiki/stack/`, [check runner](../../../../scripts/check-runner/worker.mjs) and [company calls](../../../../scripts/company-api.mjs). Employee migrations are additive; memory imports need no app packages.
 - **Scaffold** adds `app/`, except `app/wrangler.jsonc`, which holds source-repo database IDs.
@@ -84,7 +84,7 @@ Create database IDs/secrets in the target. Copy no live `database_id` or source 
 
 React/Vite Worker starter with tests/package manifest. `app/worker/index.ts` routes memory and authenticated walk requests into their skill modules; keep only those imports/branches and memory's authenticated root callback in the app. Adapt that callback using the signed-identity validator; add no page/binding.
 
-The [welcome](../../../../wiki/stack/mini-apps.md) offers naming/removing the guide with explanation and preview. Update Tutorial and its test only while Home (older flat layout: `app/src/App.tsx`) renders `<Tutorial />`; otherwise preserve its removal. `/apps/` redirects home; compile the app list from `app/src/apps/`. Tests run root/one-folder-down `npm test`, passing when none exists. Copy no root package manifest. Plan each older screen's move onto shared UI parts.
+The [welcome](../../../../wiki/stack/mini-apps.md) offers a first app/guide removal, explained and previewed. Update Tutorial and its test only while Home (older flat layout: `app/src/App.tsx`) renders `<Tutorial />`; otherwise preserve its removal. `/apps/` redirects home; compile the app list from `app/src/apps/`. Tests run root/one-folder-down `npm test`, passing when none exists. Copy no root package manifest. Plan each older screen's move onto shared UI parts.
 
 [Mini apps](../../../../wiki/stack/mini-apps.md): hello/access ship; scaffold exclusions omit source-only apps. Preserve target apps/routes/branding/welcome removal/independent memory. Access bootstrap/migrations ship explicitly; repository access stays manual. Merge target key entries; never replace a populated `app/worker/keys.ts`.
 

@@ -51,10 +51,14 @@ function must(command, args, what) {
   return result.stdout.trim();
 }
 
-/** `github` or `artifacts`; a route that can not be told stops the command. */
-function routeOf(cwd) {
+const APP_NEXT = 'NEXT: this copy saves through the app and never publishes. Save the change with /save, then say the owner or an Admin publishes it; publish nothing, and never offer to.';
+
+// `github` or `artifacts`; a route that can not be told stops the command. So does `app`, with `appCode`: a copy
+// installed through Connect has nothing to prepare and nothing to merge.
+function routeOf(cwd, appCode) {
   const asked = askRoute(cwd);
   if (asked.lines) throw new Stop(1, asked.lines);
+  if (asked.route === 'app') throw new Stop(appCode, [APP_NEXT]);
   return asked.route;
 }
 
@@ -214,7 +218,7 @@ async function prepare(values) {
   // Every git and OpenSpec call below sees the whole repo, whichever folder the command was started in.
   process.chdir(root);
   const branch = must('git', ['rev-parse', '--abbrev-ref', 'HEAD'], 'cannot read the current branch');
-  const route = routeOf(root);
+  const route = routeOf(root, 8);
   const artifacts = route === 'artifacts';
   const base = defaultBranch(route);
 
@@ -347,7 +351,7 @@ function liveLook(commit) {
 
 async function finish(values) {
   const root = must('git', ['rev-parse', '--show-toplevel'], 'not inside a git repository');
-  const route = routeOf(root);
+  const route = routeOf(root, 1);
   if (values['schedule-record']) {
     try { await scheduleRecord({ root, reference: values['schedule-record'], store: values.store, base: `origin/${defaultBranch(route)}` }); }
     catch (error) { throw new Stop(1, [`error=schedule record before merge: ${error.message}`]); }

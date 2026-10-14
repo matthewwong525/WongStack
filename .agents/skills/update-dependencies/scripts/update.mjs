@@ -11,9 +11,9 @@ const USAGE = `Usage: node .claude/skills/update-dependencies/scripts/update.mjs
 
 Surveys and updates the OpenSpec and browser CLIs, the OpenSpec pins, and the app/,
 scripts/tests/, and site/ dependencies, then checks the OpenSpec contract and reports.
-camofox's two pins in browse.mjs and the live view's viewer pin in view.mjs are surveyed and
-never moved: a newer one is handed to you. Each stage prints "== <stage>", a line per item,
-then "ok", or "FAIL <what> — <error>" and exits 1.
+camofox's two pins in browse.mjs, the live view's viewer pin in view.mjs, and the pin of Shop's
+command in shop.mjs are surveyed and never moved: a newer one is handed to you. Each stage prints
+"== <stage>", a line per item, then "ok", or "FAIL <what> — <error>" and exits 1.
 Run it again after a fix: finished stages report current.
 
   --dry-run  survey, and print what each later stage would change; write nothing
@@ -33,6 +33,8 @@ const PROSE_FILE = '.github/CONTRIBUTING.md';
 export const CAMOFOX_PINS = '.agents/skills/browser/scripts/browse.mjs';
 // The live view's viewer, noVNC, is pinned by version and by its files' fingerprint in one constant here.
 export const VIEWER_PIN = '.agents/skills/hand-over/scripts/view.mjs';
+// Shop's command is pinned by version and by its package's fingerprint in one constant here.
+export const SHOP_PIN = '.agents/skills/shop/scripts/shop.mjs';
 // Each stage's name and folder. site/ is the landing page (meta-only); a repo without a folder skips its stage.
 const PACKAGE_STAGES = [['app', 'app'], ['test-tools', 'scripts/tests'], ['site', 'site']];
 const NPM_TOOLS = { openspec: '@fission-ai/openspec', 'agent-browser': 'agent-browser' };
@@ -97,6 +99,11 @@ export function readCamofoxPins(text) {
 /** The noVNC version view.mjs installs, or null when the text pins none. */
 export function readViewerPin(text) {
   return text.match(/VIEWER = \{ version: '(\d+\.\d+\.\d+)'/)?.[1] ?? null;
+}
+
+/** The version of Shop's command shop.mjs installs, or null when the text pins none. */
+export function readShopPin(text) {
+  return text.match(/SHOP = \{ version: '(\d+\.\d+\.\d+)'/)?.[1] ?? null;
 }
 
 /** `text` with every OpenSpec pin, and with `prose` its "OpenSpec x.y.z" too, set to `version`. */
@@ -235,6 +242,7 @@ async function survey(ctx) {
 
   await surveyCamofox(ctx);
   await surveyViewer(ctx);
+  await surveyShop(ctx);
 
   ctx.plans = {};
   for (const [label, dir] of PACKAGE_STAGES) {
@@ -284,6 +292,18 @@ async function surveyViewer(ctx) {
   if (compareVersions(latest, pin) <= 0) { ctx.log(`novnc ${pin} current`); return; }
   ctx.log(`novnc ${pin} -> ${latest} pinned`);
   needsYou(ctx, `novnc ${pin} -> ${latest}: move the version, the address, and the fingerprint in ${VIEWER_PIN} together, and only after a live view works from a phone with the new files`);
+}
+
+// The pin of Shop's command is read, never moved here: its logic is a sealed file that reaches a person's money,
+// so the version and the fingerprint move together, by hand.
+async function surveyShop(ctx) {
+  if (!existsSync(join(ctx.root, SHOP_PIN))) return;
+  const pin = readShopPin(readText(ctx, SHOP_PIN));
+  if (!pin) throw new StageFailure(SHOP_PIN, 'names no pinned version of Shop\'s command');
+  const latest = versionOf(await need(ctx, 'npm', ['view', '@shopify/shop', 'version']));
+  if (compareVersions(latest, pin) <= 0) { ctx.log(`shop ${pin} current`); return; }
+  ctx.log(`shop ${pin} -> ${latest} pinned`);
+  needsYou(ctx, `shop ${pin} -> ${latest}: move the version and the fingerprint in ${SHOP_PIN} together, and only after reading what the new version adds and running a search and a checkout read through it`);
 }
 
 async function updateTools(ctx) {

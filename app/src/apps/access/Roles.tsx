@@ -2,19 +2,18 @@ import { Link } from 'react-router'
 import { Button } from '@/components/ui/button'
 import { at, type ViewProps } from './address'
 import { count, summary } from './levels'
-import { RolePage } from './RolePage'
+import { BuiltInRole, RolePage } from './RolePage'
 import { holders } from './subjects'
 import { Cell, Name, Row, Table } from './Table'
 import { View } from './View'
 
-// Each role on one line: how many apps and keys it gives, and how many people hold it. The names show where the
-// role is opened, in the panel beside the list.
+// Each role on one line: how many apps and keys it gives, and how many people hold it. Admin, the role made for
+// you, is first and gives everything: its panel only says so.
 export function Roles(props: ViewProps) {
   const { status, id } = props
   const opened = status.roles.find(item => item.id === id)
   return <View {...props} add={<Button asChild><Link to={at('roles', 'new')}><span aria-hidden="true">+ </span>Add role</Link></Button>}>
-    <Table view={props.view} columns={['Role', 'Apps and keys', 'People']}
-      empty={!status.roles.length && <><p>No roles yet.</p><p>A role saves a set of apps and key levels to give to several people.</p></>}>
+    <Table view={props.view} columns={['Role', 'Apps and keys', 'People']}>
       {status.roles.map(role => {
         const page = at('roles', role.id)
         const people = holders(status, role.id).length
@@ -25,6 +24,6 @@ export function Roles(props: ViewProps) {
         </Row>
       })}
     </Table>
-    {(opened || id === 'new') && <RolePage key={id} {...props} role={opened} />}
+    {opened?.builtIn ? <BuiltInRole {...props} role={opened} /> : (opened || id === 'new') && <RolePage key={id} {...props} role={opened} />}
   </View>
 }

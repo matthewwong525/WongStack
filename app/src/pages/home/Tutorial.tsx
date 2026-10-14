@@ -2,10 +2,10 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 
-// The first request names the workspace and walks through the change loop; setup already learned about the person.
+// The first request asks about the person's work and builds their first app; setup already learned about them.
 // Remove this file, Tutorial.test.tsx, and the Tutorial import/render in Home.tsx.
 const message =
-  "Make this home page mine. Ask what to call this page, update its heading, remove this welcome guide, explain each step, and show me a preview before publishing."
+  "Help me build my first app. Grill me first: start from what you already know about me and ask about my work and where my time goes, one question at a time. Then suggest a few apps I'd use, build the one I pick, remove this welcome guide, explain each step, and show me a preview before publishing."
 
 const labels = { ready: 'Copy your first request', copied: 'Copied', failed: 'Select the message and copy it' }
 
@@ -26,7 +26,7 @@ export function Tutorial() {
       <Card className="gap-3 p-6">
         <h2 id="make-it-yours">Make it yours</h2>
         <p className="text-muted-foreground">
-          Want something different? Just ask in your chat. You’ll see a preview before anything goes live.
+          Start with an app built for how you work. Just ask in your chat. You’ll see a preview before anything goes live.
         </p>
         <blockquote className="my-3 rounded-md border-s-[3px] border-primary bg-muted p-4 wrap-anywhere select-all">{message}</blockquote>
         <Button className="h-auto min-h-11 self-start whitespace-normal" type="button" aria-live="polite" onClick={copy}>

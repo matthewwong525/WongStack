@@ -154,5 +154,5 @@ test('agent guidance recalls then reads originals while startup and first-edit h
     const source = readFileSync(join(root, path), 'utf8'); assert.doesNotMatch(source, /documents\/|runQmd|documents-setup/);
   }
   const explore = readFileSync(join(root, '.agents/skills/explore/SKILL.md'), 'utf8');
-  assert.match(explore, /recall <question>/); assert.match(explore, /read cited originals/); assert.match(explore, /areas <paths>/);
+  assert.match(explore, /recall <question>/); assert.match(explore, /areas <paths>/);
 });

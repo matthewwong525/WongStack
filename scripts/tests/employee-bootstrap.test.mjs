@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { companyClient, cleanEnvironment, connectionState } from '../employee-bootstrap.mjs';
+import { companyClient, cleanEnvironment, connectionState, git, signInNotice } from '../employee-bootstrap.mjs';
 const origin = 'https://business.example.com';
 const identity = { email: 'employee@example.com', subject: 'employee-subject' };
 const jwt = (extra = {}) => `eyJhbGciOiJSUzI1NiJ9.${Buffer.from(JSON.stringify({ email: identity.email, sub: identity.subject, exp: Date.now() / 1000 + 1000, ...extra })).toString('base64url')}.c2ln`;
@@ -128,6 +128,41 @@ test('actual packaged CLI connects from empty folder and keeps headless login ou
   assert.equal(uncertain.status, 1); assert.ok(!`${uncertain.stdout}${uncertain.stderr}`.includes(session));
   assert.deepEqual(JSON.parse(uncertain.stdout).error, { code: 'timeout', message: 'Action timed out; its outcome may be unknown', requestId: 'synthetic', confirmWith: 'orders.lookup' });
   assert.equal(statSync(join(f.base, '.cloudflared')).mode & 0o777, 0o700);
+});
+test('Git in the project copy carries the session in the child environment only, and a copy from elsewhere is refused first', async t => {
+  const f = directories(t), address = `${origin}/api/access/code/git/`, copy = join(f.base, 'copy'), bin = join(f.base, 'bin');
+  const tokens = [], credential = jwt();
+  const client = companyClient({ ...f, run: async args => { tokens.push(args); return credential; }, request: async () => Response.json(setup()) });
+  await client.login(origin); tokens.length = 0;
+  // A stand-in for Git: it answers the origin lookup, and records what every other call was given.
+  const runs = [];
+  const standIn = remote => async (args, session) => { runs.push({ args, session }); return args.includes('remote.origin.url') ? { code: 0, stdout: remote, stderr: '' } : { code: 1, stdout: '', stderr: 'remote: refused' }; };
+  await assert.rejects(client.git(['push', '-u', 'origin', 'HEAD'], copy, standIn('https://github.com/team/repo.git')), { message: 'This copy did not come from the connected company; nothing was sent.' });
+  await assert.rejects(client.git(['push'], copy, standIn(`${address}?x=1`)), /did not come from the connected company/);
+  assert.equal(tokens.length, 0, 'no session is asked for a foreign copy');
+  assert.deepEqual(runs.map(row => row.session), [undefined, undefined]); runs.length = 0;
+  // The app's own copy: the arguments are the caller's, the session rides beside them, and Git's messages come back.
+  assert.deepEqual(await client.git(['push', '-u', 'origin', 'HEAD'], copy, standIn(address)), { code: 1, stdout: '', stderr: 'remote: refused' });
+  assert.deepEqual(runs[1], { args: ['-C', copy, 'push', '-u', 'origin', 'HEAD'], session: { address, token: credential } });
+  assert.ok(!runs.some(row => row.args.join(' ').includes(credential)));
+  // The real child: a fake `git` on PATH prints what it was started with, and its stderr is returned unprinted.
+  mkdirSync(bin);
+  writeFileSync(join(bin, 'git'), `#!${process.execPath}\nconsole.log(JSON.stringify({ args: process.argv.slice(2), env: process.env }));\nconsole.error('remote: the app said no');\nprocess.exit(1);\n`, { mode: 0o700 });
+  const path = process.env.PATH; process.env.PATH = `${bin}:${path}`;
+  let child;
+  try { child = await git(['-C', copy, 'push'], { address, token: credential }); } finally { process.env.PATH = path; }
+  assert.equal(child.code, 1); assert.equal(child.stderr, 'remote: the app said no\n');
+  const started = JSON.parse(child.stdout);
+  assert.deepEqual(started.args, ['-C', copy, 'push']);
+  assert.ok(Object.entries(started.env).some(([key, value]) => key.startsWith('GIT_CONFIG_VALUE_') && value === `cf-access-token: ${credential}`));
+  assert.ok(Object.values(started.env).includes(`http.${address}.extraHeader`));
+  assert.equal(typeof client.http, 'function');
+});
+test('the sign-in line tells the assistant to show the link now, and leaves the link alone on its last line', () => {
+  const link = 'https://business.example.com/cdn-cgi/access/cli?aud=public&redirect_url=https%3A%2F%2Fbusiness.example.com%3Ftoken%3Dabc';
+  const lines = signInNotice(link).split('\n');
+  assert.equal(lines.length, 2); assert.equal(lines[1], link);
+  assert.match(lines[0], /^Show this link to the person now and wait/); assert.match(lines[0], /safe to show/);
 });
 test('published immutable bootstrap pins carry the digest of the checked source', () => {
   const root = new URL('../..', import.meta.url);
