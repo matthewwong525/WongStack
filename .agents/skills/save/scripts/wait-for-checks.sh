@@ -32,6 +32,11 @@
 # polls in a row, and a list of only skipped checks keeps the wait going until
 # the grace period ends. FAILURE needs no second poll: one red check decides.
 #
+# The `guard` check comes from guard.yml, which GitHub starts for the pull
+# request, not the push, so it can be listed after every push check has passed.
+# Where the default branch holds guard.yml, a pass also waits for a check named
+# `guard`, until the grace period ends.
+#
 # ── Why UNKNOWN exists ────────────────────────────────────────────────────────
 # An earlier version ran `gh pr checks --json …` with stderr sent to /dev/null
 # and treated empty output as "no checks". `--json` is only available on newer
@@ -99,6 +104,12 @@ while :; do
 done
 CHECKS_DEADLINE=$(( $(date +%s) + GRACE ))
 
+# Does the default branch run the guard workflow? (See "Why a pass is settled".)
+WANT_GUARD=0
+for ref in origin/HEAD origin/main; do
+  git cat-file -e "$ref:.github/workflows/guard.yml" 2>/dev/null && WANT_GUARD=1
+done
+
 # Probe once: does this gh support `gh pr checks --json`? Ask --help rather than
 # running the command, so the probe can't be confused by a pending/failing exit
 # code (see the note in the poll loop).
@@ -157,9 +168,13 @@ while :; do
       exit 0
     fi
     # A pass needs the same finished list twice in a row, and more than skipped
-    # checks until the grace period ends (see "Why a pass is settled" above).
+    # checks and any expected `guard` until the grace period ends (see "Why a
+    # pass is settled" above).
     SETTLED=$(printf '%s\n' "$LINES" | sort)
-    if printf '%s\n' "$LINES" | grep -qv '^skipping	' || [ "$(date +%s)" -ge "$CHECKS_DEADLINE" ]; then
+    COMPLETE=1
+    printf '%s\n' "$LINES" | grep -qv '^skipping	' || COMPLETE=0
+    [ "$WANT_GUARD" = 0 ] || [[ "$LINES" == *$'\tguard\t'* ]] || COMPLETE=0
+    if [ "$COMPLETE" = 1 ] || [ "$(date +%s)" -ge "$CHECKS_DEADLINE" ]; then
       [ "$SETTLED" = "$PREVIOUS" ] && { echo "RESULT: SUCCESS"; exit 0; }
     fi
     PREVIOUS=$SETTLED

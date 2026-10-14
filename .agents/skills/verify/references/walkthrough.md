@@ -25,7 +25,7 @@ Ledger: scenario, probe, prerequisites, revision, runnable/blocked status, owned
 
 `preflight` prints the saved `SHA` and owned `RUN_DIR`; deployed checks also need its `URL`, browser journeys its `BROWSER`. CI-only preparation uses `--no-preview --no-browser`. Files live per journey in `$RUN_DIR/journeys/`, named alike and numbered in walk order.
 
-**`<id>.meta.json`** is for the grader, not the scripts: `then` is the scenario's **THEN** **verbatim**, never paraphrased; `probe` names the ladder rung:
+**`<id>.meta.json`**: `then` is the scenario's **THEN** **verbatim**, never paraphrased; `probe` names the ladder rung:
 
 ```json
 {
@@ -75,7 +75,7 @@ Evidence rules:
 - **Wait after navigation before screenshots**: `wait --load networkidle`; use `wait --text ...` for updates without navigation.
 - **Screenshot where a person would look**, at numbered absolute paths under `$RUN_DIR/evidence/<id>/`; use `--full`, or `--annotate` for element labels.
 - **Use semantic elements** (`find role/text/label`) or same-batch snapshot refs; re-snapshot after navigation/re-render.
-- **Write no assertions**: a journey produces evidence; it does not decide.
+- **Write no assertions**: a journey produces evidence.
 - **Never capture request headers**, `network requests` or HARs: they contain Access credentials.
 - Browser URLs must be full; only request paths use the preview base.
 
@@ -91,7 +91,7 @@ Stage independent journeys together; grade prerequisites before dependent stages
 
 ## d — grade against the written expectation
 
-Read evidence beside each verbatim `then`: screenshots and `evidence/<id>.result.json` for browsers, numbered request responses, state/CI output and fresh readbacks. Grade the written promise.
+Read evidence beside each verbatim `then`: screenshots and `evidence/<id>.result.json` for browsers, numbered request responses, state/CI output and fresh readbacks.
 
 **Partly shown**: some claims observed, others inherently unobservable through available routes (delivery, screen-reader speech). Name every missing claim and why; neither failure nor plain pass, verdict unchanged.
 
@@ -146,4 +146,4 @@ Inside `/ship` only, before § f's post. `J` is `node "$ROOT/.claude/skills/veri
 
 1. **Replay** once §§ c–e settle: `J replay --change-root <archive>`. `same` → list as *replayed, unchanged*, no fresh grade. `changed` → walk it fresh once, three per walk, the rest unverified: pass → keep; contradiction → § e, naming the older promise. `skipped` → this change's walk covers it. `not-run` → name its reason; no pass, no failure.
 2. **Keep** each passed browser/request journey, its inputs back in `journeys/`: `J keep --id <id> --expect '<json>'`, `--writes` if it submits or changes data, `--site <status name>` with that site's `--url` if walked on a second site ([why](../../../../wiki/development/kept-checks.md#what-is-kept)). `expect` rows hold shown claims only: `{"text"}`, `{"gone"}`, `{"path"}`; request `{"step","status","includes"}`. Never one using a private link, an outside service or a manual job trigger ([why](../../../../wiki/development/kept-checks.md#what-is-never-kept)).
-3. **Prove, install**: `J replay --from "$RUN_DIR/keep"`, then `J keep --install`; name each *left out*. After the post, a changed tree → `/save` once; that commit needs no re-walk.
+3. **Prove, install**: `J replay --from "$RUN_DIR/keep"`, then `J keep --install`; name each *left out*. Each `REPLACED=`/`REMOVED=` path → a `Check:` bullet in the archived proposal before that save ([why](../../../../wiki/development/the-change-loop.md#a-loosened-check-needs-a-reason)). After the post, a changed tree → `/save` once; that commit needs no re-walk.

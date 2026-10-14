@@ -214,6 +214,190 @@ test('an unexplained deploy workflow edit fails, naming the file', t => {
   assertFails(f.check(), '.github/workflows/deploy.yml');
 });
 
+test('a shared workflow action is settings', t => {
+  const f = fixture(t);
+  f.commit({ '.github/actions/change-scope/action.yml': 'name: Change scope\n', '.github/actions/change-scope/read.sh': 'exit 0\n' });
+  const result = f.check();
+  assertFails(result, '.github/actions/change-scope/action.yml');
+  assertFails(result, '.github/actions/change-scope/read.sh');
+  assert.match(result.stdout, /`\.github\/actions\/change-scope\/action\.yml` changes a check's settings/);
+});
+
+// ── Kept checks ───────────────────────────────────────────────────────────────
+
+const KEPT = '.agents/verification/journeys/notes/the-list-counts-its-notes.json';
+const NOTES_SPEC = 'openspec/specs/notes/spec.md';
+const notesSpec = (then = 'the answer holds the count') => `# Notes
+
+## Requirements
+
+### Requirement: Notes are listed with a count
+
+The list SHALL count its notes.
+
+#### Scenario: The list counts its notes
+
+- **WHEN** the list is asked for
+- **THEN** ${then}
+`;
+const kept = (more = {}) => `${JSON.stringify({
+  format: 'verify-journey-1',
+  id: 'the-list-counts-its-notes',
+  scenario: { capability: 'notes', requirement: 'Notes are listed with a count', scenario: 'The list counts its notes' },
+  thenDigest: 'a'.repeat(64),
+  probe: 'request',
+  writes: false,
+  sourcePaths: ['app/src/sum.ts'],
+  recordedAt: 'abc1234',
+  steps: [['GET', '/api/notes']],
+  expect: [{ step: 1, status: 200 }, { step: 1, includes: '"count":6' }],
+  ...more,
+}, null, 2)}\n`;
+
+// The fixture with one kept check and its written promise already on the default branch.
+function keptFixture(t) {
+  const f = fixture(t);
+  f.git('checkout', '-q', 'main');
+  f.commit({ [KEPT]: kept(), [NOTES_SPEC]: notesSpec() }, 'a kept check');
+  f.git('push', '-q', 'origin', 'main');
+  const base = f.git('rev-parse', 'HEAD');
+  f.git('checkout', '-q', '-B', 'feature');
+  return { ...f, check: (args = ['--base', base]) => f.check(args) };
+}
+
+const assertNotFlagged = result => {
+  assertPasses(result);
+  assert.doesNotMatch(result.stdout, /kept check/);
+};
+
+test('a kept check that loses an expectation fails, naming the file', t => {
+  const f = keptFixture(t);
+  f.commit({ [KEPT]: kept({ expect: [{ step: 1, status: 200 }] }) });
+  const result = f.check();
+  assertFails(result, KEPT);
+  assert.match(result.stdout, /changes or removes a kept check: \*\*needs a reason\*\*/);
+});
+
+test('a kept check with a changed step fails', t => {
+  const f = keptFixture(t);
+  f.commit({ [KEPT]: kept({ steps: [['GET', '/api/health']] }) });
+  assertFails(f.check(), KEPT);
+});
+
+test('a deleted kept check fails', t => {
+  const f = keptFixture(t);
+  unlinkSync(join(f.work, KEPT));
+  f.commit();
+  assertFails(f.check(), KEPT);
+});
+
+test('a kept check moved out of the kept folder counts as removed', t => {
+  const f = keptFixture(t);
+  mkdirSync(join(f.work, 'attic'));
+  renameSync(join(f.work, KEPT), join(f.work, 'attic/old.json'));
+  f.commit();
+  assertFails(f.check(), KEPT);
+});
+
+test('a re-keep that changes only when and from which files it was recorded is not flagged', t => {
+  const f = keptFixture(t);
+  f.commit({ [KEPT]: kept({ recordedAt: 'def5678', sourcePaths: ['app/src/list.ts'], thenDigest: 'b'.repeat(64) }) });
+  assertNotFlagged(f.check());
+});
+
+test('an added kept check is not flagged', t => {
+  const f = keptFixture(t);
+  f.commit({ '.agents/verification/journeys/notes/another.json': kept({ id: 'another', expect: [{ step: 1, status: 200 }] }) });
+  assertNotFlagged(f.check());
+});
+
+test('a kept check moved unchanged is not flagged; moved with fewer expectations it is', t => {
+  const f = keptFixture(t);
+  const moved = '.agents/verification/journeys/lists/the-list-counts-its-notes.json';
+  mkdirSync(join(f.work, dirname(moved)), { recursive: true });
+  renameSync(join(f.work, KEPT), join(f.work, moved));
+  f.commit();
+  assertNotFlagged(f.check());
+  f.commit({ [moved]: kept({ expect: [{ step: 1, status: 200 }] }) });
+  assertFails(f.check(), moved);
+});
+
+test('a rewritten THEN in the main spec exempts its re-recorded kept check', t => {
+  const f = keptFixture(t);
+  f.commit({ [KEPT]: kept({ expect: [{ step: 1, includes: '"total":6' }] }), [NOTES_SPEC]: notesSpec('the answer holds the total') });
+  assertNotFlagged(f.check());
+});
+
+test('a promise the branch removes takes its kept check with it', t => {
+  const f = keptFixture(t);
+  unlinkSync(join(f.work, KEPT));
+  f.commit({ [NOTES_SPEC]: '# Notes\n\n## Requirements\n' });
+  assertNotFlagged(f.check());
+});
+
+test('a spec edit that leaves the promise alone exempts nothing', t => {
+  const f = keptFixture(t);
+  f.commit({ [KEPT]: kept({ expect: [{ step: 1, status: 200 }] }), [NOTES_SPEC]: notesSpec().replace('SHALL count its notes', 'SHALL count every note') });
+  assertFails(f.check(), KEPT);
+});
+
+test('a MODIFIED delta spec in the change exempts the kept check; an ADDED one does not', t => {
+  const delta = section => `## ${section} Requirements\n\n### Requirement: Notes are listed with a count\n\nThe list SHALL count its notes.\n\n#### Scenario: The list counts its notes\n\n- **WHEN** the list is asked for\n- **THEN** the answer holds the total\n`;
+  const f = keptFixture(t);
+  f.commit({ [KEPT]: kept({ expect: [{ step: 1, includes: '"total":6' }] }), 'openspec/changes/x/specs/notes/spec.md': delta('ADDED') });
+  assertFails(f.check(), KEPT);
+  f.commit({ 'openspec/changes/x/specs/notes/spec.md': delta('MODIFIED') });
+  assertNotFlagged(f.check());
+});
+
+test('a delta spec for another capability exempts nothing', t => {
+  const f = keptFixture(t);
+  f.commit({
+    [KEPT]: kept({ expect: [{ step: 1, status: 200 }] }),
+    'openspec/changes/x/specs/lists/spec.md': '## REMOVED Requirements\n\n### Requirement: Notes are listed with a count\n',
+  });
+  assertFails(f.check(), KEPT);
+});
+
+test('a kept check that can no longer be read fails', t => {
+  const f = keptFixture(t);
+  f.commit({ [KEPT]: '{ "steps": [' });
+  assertFails(f.check(), KEPT);
+});
+
+test('a kept check that points at a rewritten promise only in its new copy is still flagged', t => {
+  const f = keptFixture(t);
+  const other = notesSpec().replace('Scenario: The list counts its notes', 'Scenario: Another promise');
+  f.git('checkout', '-q', 'main');
+  f.commit({ 'openspec/specs/lists/spec.md': other }, 'another promise');
+  const base = f.git('rev-parse', 'HEAD');
+  f.git('checkout', '-q', '-B', 'feature');
+  f.commit({
+    [KEPT]: kept({ scenario: { capability: 'lists', requirement: 'Notes are listed with a count', scenario: 'Another promise' }, expect: [{ step: 1, status: 200 }] }),
+    'openspec/specs/lists/spec.md': other.replace('holds the count', 'holds nothing'),
+  });
+  assertFails(f.check(['--base', base]), KEPT);
+});
+
+test('a Check: bullet naming the kept check explains it', t => {
+  const f = keptFixture(t);
+  f.commit({
+    [KEPT]: kept({ expect: [{ step: 1, status: 200 }] }),
+    'openspec/changes/archive/2026-10-13-x/proposal.md': proposal(`Check: \`${KEPT}\` no longer expects the count, because the page shows it as a picture.`),
+  });
+  const result = f.check();
+  assertPasses(result);
+  assert.match(result.stdout, /the-list-counts-its-notes\.json` changes or removes a kept check: explained/);
+});
+
+test('--worktree reads a kept check edited but not yet saved', t => {
+  const f = keptFixture(t);
+  f.write({ [KEPT]: kept({ expect: [{ step: 1, status: 200 }] }) });
+  assertFails(f.check(['--worktree']), KEPT);
+  f.write({ [KEPT]: kept({ recordedAt: 'def5678' }) });
+  assertNotFlagged(f.check(['--worktree']));
+});
+
 test('prose is never read for markers', t => {
   const f = fixture(t);
   f.commit({ 'wiki/README.md': `# Wiki\n\n${STRYKER_SKIP}\n`, 'notes.md': `${SKIPPED_TEST}\n` });

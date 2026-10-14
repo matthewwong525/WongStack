@@ -39,6 +39,7 @@ const FAKE_GIT = `#!/usr/bin/env bash
 case "$*" in
   "rev-parse HEAD") echo "$LOCAL" ;;
   "rev-parse --show-toplevel") echo "$FAKE_DIR/repo" ;;
+  "cat-file -e origin/main:.github/workflows/guard.yml") [ -n "\${GUARD_ON_MAIN:-}" ] ;;
   *) exit 1 ;;
 esac
 `;
@@ -160,4 +161,33 @@ test('a check that appears after the others finished is waited for', t => {
 test('a repo whose checks all skip passes once the grace period ends', t => {
   const { out } = run(t, { env: { CHECKS: SKIPPED } });
   assert.match(out, /RESULT: SUCCESS/);
+});
+
+// guard.yml starts for the pull request, not the push, so its check can be listed last.
+const GUARD_FAILED = 'fail\\tguard\\thttps://ci/9';
+
+test('with guard.yml on the default branch, a pass waits for the guard check to be listed', t => {
+  const { out, calls } = run(t, { env: { GUARD_ON_MAIN: '1', WAIT_FOR_CHECKS_GRACE: '30', CHECKS_SEQ: [PASS, PASS, PASS, `${PASS}\\n${GUARD_FAILED}`].join('|') } });
+  assert.match(out, /RESULT: FAILURE/);
+  assert.match(out, /- guard {2}https:\/\/ci\/9/);
+  assert.equal(polls(calls), 4);
+});
+
+test('a listed guard check settles a pass on two polls, like any other', t => {
+  const { out, calls } = run(t, { env: { GUARD_ON_MAIN: '1', WAIT_FOR_CHECKS_GRACE: '30', CHECKS: `${PASS}\\npass\\tguard\\thttps://ci/9` } });
+  assert.match(out, /RESULT: SUCCESS/);
+  assert.equal(polls(calls), 2);
+});
+
+test('a guard check that never appears stops holding the pass once the grace period ends', t => {
+  // A grace of 1 can leave under a second, which two polls fill; 3 leaves room to see the wait.
+  const { out, calls } = run(t, { env: { GUARD_ON_MAIN: '1', WAIT_FOR_CHECKS_GRACE: '3', CHECKS: PASS } });
+  assert.match(out, /RESULT: SUCCESS/);
+  assert.ok(polls(calls) > 2, 'it waited past the two polls a pass needs');
+});
+
+test('without guard.yml on the default branch, a pass waits for no guard check', t => {
+  const { out, calls } = run(t, { env: { WAIT_FOR_CHECKS_GRACE: '30', CHECKS: PASS } });
+  assert.match(out, /RESULT: SUCCESS/);
+  assert.equal(polls(calls), 2);
 });
