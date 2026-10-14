@@ -95,10 +95,17 @@ esac
 exec "$REAL_GIT" "$@"
 `;
 
-// Its `node`, which the scripts call by name, stands in for artifacts-run.mjs alone: `result` prints MAIN_RESULT (main)
-// or RUN_RESULT (the branch), and `live` prints RUN_LIVE for the published commit. Other scripts run on the real node.
+// Its `node`, which the scripts call by name, stands in for artifacts-run.mjs: `result` prints MAIN_RESULT (main) or
+// RUN_RESULT (the branch), and `live` prints RUN_LIVE; app-change.mjs answers CAN_PUBLISH, PUBLISH_OUT, PUBLISH_RC.
 const FAKE_NODE = `#!/usr/bin/env bash
 case "\${1:-}" in
+  */app-change.mjs)
+    echo "node app-change.mjs \${*:2}" >> "$FAKE_DIR/calls"
+    case "\${2:-}" in
+      can-publish) echo "\${CAN_PUBLISH-no}" ;;
+      publish) printf '%s' "\${PUBLISH_OUT-}"; exit "\${PUBLISH_RC-0}" ;;
+    esac
+    exit 0 ;;
   */artifacts-run.mjs)
     echo "node artifacts-run.mjs \${*:2}" >> "$FAKE_DIR/calls"
     case "\${2:-}" in
@@ -722,6 +729,29 @@ test('a copy installed through the app never publishes: prepare and finish stop 
   assert.equal(f.git('rev-parse', 'HEAD'), head);
   assert.equal(f.has('openspec/changes/demo/proposal.md'), true, 'nothing was archived');
   assert.match(f.git('ls-remote', '--heads', 'origin', 'main'), new RegExp(`^${main}`));
+});
+
+test('a teammate with the publish tick ships through the app: archive, save, then the app publishes the checked commit', t => {
+  const f = fixture(t, { artifacts: true, openspec: {} });
+  f.commit({ ...f.change('demo'), 'CHANGELOG.md': withEntry(NEXT_ENTRY), 'app.txt': 'two\n' });
+  f.git('push', '-q', '-u', 'origin', 'work');
+  const app = { FAKE_REMOTE: 'https://app.example.com/api/access/code/git/', CAN_PUBLISH: 'yes' };
+  const r = f.run(['prepare'], app);
+  assert.equal(r.status, 0, `${r.stdout}${r.stderr}`);
+  assert.equal(r.stdout, ['BRANCH=work', 'DIRTY=no', 'AHEAD=1', 'DEFAULT_CHECKS=not read (the app checks this change before it publishes)', 'CHANGE=demo',
+    `ARCHIVE=${ARCHIVE}`, 'RELEASE=1.1.0 from 1.0.0', 'SYNC=none', 'REVIEW=rebuilt', `NEXT: ${SAVE_NEXT}`, ''].join('\n'));
+  assert.equal(f.has('openspec/changes/demo/proposal.md'), false, 'archived');
+  // /save commits and pushes; then finish asks the app to publish, and merges, pushes and looks at nothing itself.
+  f.git('add', '-A'); f.git('commit', '-q', '-m', 'ship'); f.git('push', '-q', 'origin', 'work');
+  const done = f.run(['finish'], { ...app, PUBLISH_OUT: 'published=yes\ncommit=abc\nchange=none\n' });
+  assert.equal(done.status, 0, `${done.stdout}${done.stderr}`);
+  assert.equal(done.stdout, 'published=yes\ncommit=abc\nchange=none\nNEXT: it is published. Report it goes live once the published version passes its checks.\n');
+  // A refusal is app-change.mjs's own line, and nothing else runs.
+  const no = f.run(['finish'], { ...app, PUBLISH_RC: '1' });
+  assert.equal(no.status, 1);
+  assert.match(no.stdout, /^NEXT: not published, and nothing changed\. Report the line above and stop\.$/m);
+  assert.deepEqual(f.calls().match(/^node app-change\.mjs .*$/gm), ['node app-change.mjs can-publish', 'node app-change.mjs can-publish', 'node app-change.mjs publish', 'node app-change.mjs can-publish', 'node app-change.mjs publish']);
+  assert.doesNotMatch(f.calls(), /^(gh|git push|git merge|node artifacts-run) /m);
 });
 
 test('record-only routine prepare keeps normal default checks and leaves the definition unarchived', async t => {

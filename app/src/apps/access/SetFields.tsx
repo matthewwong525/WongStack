@@ -18,9 +18,10 @@ function NextStep({ status, item }: { status: Status; item: SavedKey }) {
 /** One set, a person's own or a role's, in two groups that don't depend on each other: a tick per app, and a level
  *  per key, set whether the key is saved or not. Project code is one tick of its own after them. Nothing here saves. */
 export function SetFields({ status, set, onChange }: { status: Status; set: AccessSet; onChange: (set: AccessSet) => void }) {
-  // Project code is Read or nothing, so it is a tick: the same choice as its level in Keys.
-  const project = status.keys.some(key => key.id === 'code')
-  const installs = set.keys.code === 'read'
+  // Project code is two ticks: Read installs and saves, Write also publishes, so publishing needs the install tick.
+  const project = status.keys.find(key => key.id === 'code')
+  const installs = set.keys.code === 'read' || set.keys.code === 'write'
+  const code = (level: 'read' | 'write' | null) => onChange({ ...set, keys: { ...set.keys, code: level } })
   return <>
     <Group legend="Apps">
       {status.apps.map(app => <Tick key={app.id} checked={set.apps.includes(app.id)}
@@ -36,8 +37,12 @@ export function SetFields({ status, set, onChange }: { status: Status; set: Acce
       {!status.keys.length && <p>No keys saved yet.</p>}
     </Group>
     {project && <Group legend="Project">
-      <Tick checked={installs} onChange={to => onChange({ ...set, keys: { ...set.keys, code: to ? 'read' : null } })}>Can install the project</Tick>
+      <Tick checked={installs} onChange={to => code(to ? 'read' : null)}>Can install the project</Tick>
       <p className="text-sm text-muted-foreground">They can save changes too.</p>
+      {project.levels.includes('write') && <>
+        <Tick checked={set.keys.code === 'write'} disabled={!installs} onChange={to => code(to ? 'write' : 'read')}>Can publish</Tick>
+        <p className="text-sm text-muted-foreground">Their changes go live once the checks pass.</p>
+      </>}
       {installs && <ProjectStep status={status} />}
     </Group>}
   </>

@@ -89,7 +89,7 @@ Setup also mints `<worker>-cloudflare-read`, the key behind [Cloudflare look-ups
 - **Setup stores it; no file holds it.** `secrets:push` refuses any `.dev.vars` file that names it, and the install record keeps the key's id under `components.cloudflareReadKey`. An install from before it gets it from [the `access` step](employee-access.md#finish-access-setup). When the saved token can not make keys, that step reports it missing and Access says one step is left.
 - **To rotate it**, delete the `<worker>-cloudflare-read` token in Cloudflare and run the `access` step again.
 
-The session memory store needs no Cloudflare token of its own. Provisioning uses this token to create the store and to write your memory key to `CLOUDFLARE_MEMORY_TOKEN`, which never becomes a GitHub secret. [The memory page](../development/memory-key.md) owns that name and what a key can reach.
+The session memory store needs no Cloudflare token of its own. Provisioning uses this token to create the store; memory then uses your company sign-in. Only an app with no sign-in yet gets a memory key in `CLOUDFLARE_MEMORY_TOKEN`, which never becomes a GitHub secret. [The memory page](../development/memory.md#sign-in-and-expiry) owns that name.
 
 ## How two permission rows become enough
 

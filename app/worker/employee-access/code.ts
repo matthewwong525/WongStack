@@ -103,6 +103,9 @@ export function codeState(env: object, policy: CurrentPolicy, person: boolean): 
 
 const plain = (line: string, status: number) => new Response(`${line}\n`,
   { status, headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" } });
+/** Git asks its credential helper only after this challenge, then prints the body as the app's own words. */
+export const gitSignIn = (origin: string) => new Response(`Sign in to the company app again, then retry: cloudflared access login ${origin}\n`,
+  { status: 401, headers: { "WWW-Authenticate": 'Basic realm="company app"', "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" } });
 /** No upstream text ever leaves: a refusal there reads the same as a missing key here. */
 export const codeUnavailable = () => Response.json({ error: { code: "code_unavailable", message: "The project is not available from this app right now.", requestId: crypto.randomUUID() } },
   { status: 503, headers: { "Cache-Control": "no-store" } });
@@ -154,7 +157,7 @@ export const publishedBranch = (source: SaveSource) => "github" in source ? defa
 const FLUSH = "0000";
 const HEAD_LIMIT = 65_536;
 const UPDATE = /^[0-9a-f]{40,64} ([0-9a-f]{40,64}) ([\x21-\x7e]+)$/;
-const pkt = (line: string) => `${(line.length + 4).toString(16).padStart(4, "0")}${line}`;
+export const pkt = (line: string) => `${(line.length + 4).toString(16).padStart(4, "0")}${line}`;
 
 // The bytes read so far and the lines before the first flush packet.
 // Null for a head that is no pkt-lines or runs past the limit.

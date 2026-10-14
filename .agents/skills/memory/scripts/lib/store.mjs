@@ -1,5 +1,5 @@
 // Memory store client: repo context, config, credentials, local state, the D1 and R2 calls, and the spool.
-// A memory key's calls go to the app's production Worker; any other token's go to the Cloudflare REST API.
+// A sign-in's calls go to the app's production Worker; the admin's API token goes to the Cloudflare REST API.
 import { execFileSync } from 'node:child_process';
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { hostname } from 'node:os';
@@ -12,8 +12,11 @@ export { isMain } from './cli.mjs';
 
 export const SCRIPT = 'node .claude/skills/memory/scripts/memory.mjs';
 const TOKEN_VAR = 'CLOUDFLARE_MEMORY_TOKEN';
-const TOKEN_PAGE = 'wiki/development/memory-key.md';
-const SPOOLABLE = new Set(['unconfigured', 'auth', 'network', 'server']);
+const TOKEN_PAGE = 'wiki/development/memory.md#sign-in-and-expiry';
+const SPOOLABLE = new Set(['unconfigured', 'auth', 'network', 'server', 'signin']);
+const DAY_MS = 86400000;
+// Each new chat warns this long before the company sign-in ends.
+export const WARN_DAYS = 5;
 const CLOUDFLARE_API = 'https://api.cloudflare.com/client/v4';
 
 // The payload is metadata; the Worker trusts only the credential's hashed grant.
@@ -24,7 +27,7 @@ export function keyMachine(token) {
   return payload.startsWith('machine:') && MACHINE_ID.test(payload.slice(8)) ? payload.slice(8) : null;
 }
 
-// kind: unconfigured | auth | network | server | query. `reason` is the short form for one-line reports.
+// kind: unconfigured | signin | auth | network | server | query. `reason` is the short form for one-line reports.
 export class StoreError extends Error {
   constructor(reason, { kind = 'query', help } = {}) {
     super(help ? `${reason}. See ${help}.` : reason);
@@ -115,30 +118,71 @@ export function adminToken(ctx) {
   return token;
 }
 
+// The JWT's claims, read without verifying it: only for display and to name the owner the Worker checks.
+export function tokenClaims(token) {
+  try { return JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString('utf8')); } catch { return null; }
+}
+
+// The company sign-in `cloudflared` saved for the app. It never logs in, so it never waits on a person.
+const signIns = new Map();
+export function signIn(origin, now = Date.now()) {
+  if (!signIns.has(origin)) {
+    let token = null;
+    try {
+      const out = execFileSync('cloudflared', ['access', 'token', `-app=${origin}`], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 3000 });
+      token = out.match(/eyJ[\w-]+\.[\w-]+\.[\w-]+/)?.[0] || null;
+    } catch { /* none saved, or cloudflared is not installed */ }
+    signIns.set(origin, token);
+  }
+  const token = signIns.get(origin), claims = token && tokenClaims(token);
+  if (!claims?.sub || typeof claims.exp !== 'number') return { state: 'missing', origin };
+  const days = Math.ceil((claims.exp * 1000 - now) / DAY_MS);
+  const state = claims.exp * 1000 <= now ? 'expired' : days <= WARN_DAYS ? 'near' : 'valid';
+  return { state, origin, days, token, subject: claims.sub, email: claims.email || null };
+}
+
+// What the assistant runs to show the person the sign-in link: a login waits on them, so memory never runs it.
+export const signInHelp = origin => `to sign in, run \`cloudflared access login ${origin}\` and show the person the link it prints`;
+
+export const memoryOrigin = config => { try { return new URL(config.worker).origin; } catch { return null; } };
+
+// How a call proves who it is: a schedule's own sign-in, the person's company sign-in, or an old admin key.
+function memoryAccess(ctx, config, env) {
+  const id = process.env.WONG_MEMORY_CLIENT_ID, secret = process.env.WONG_MEMORY_CLIENT_SECRET;
+  if (id && secret) return { headers: { 'CF-Access-Client-Id': id, 'CF-Access-Client-Secret': secret }, owner: null, email: null };
+  const origin = memoryOrigin(config);
+  const person = origin ? signIn(origin) : { state: 'missing' };
+  if (['valid', 'near'].includes(person.state)) return { headers: { 'cf-access-token': person.token }, owner: person.subject, email: person.email };
+  const key = process.env[TOKEN_VAR] || env[TOKEN_VAR];
+  if (keyMachine(key)) {
+    if (keyMachine(key) !== ctx.machineId) throw new StoreError('the memory key in .env belongs to another computer', { kind: 'auth' });
+    return { headers: { Authorization: `Bearer ${key}` }, owner: null, email: null };
+  }
+  const why = person.state === 'expired' ? 'your company sign-in has ended' : 'this computer is not signed in to the company app';
+  throw new StoreError(origin ? `${why}; ${signInHelp(origin)}` : why, { kind: 'signin', help: TOKEN_PAGE });
+}
+
 // `admin` goes straight to the Cloudflare API with the provisioning token: for migrations (a Worker's D1 binding
-// runs one statement at a time) and for memory keys (the Worker refuses the keys table to every key).
-export function openStore(ctx, { timeoutMs = 15000, admin = false, credential = null, signal, onRequest = () => {} } = {}) {
+// runs one statement at a time) and for the sign-in tables the Worker refuses to every caller.
+export function openStore(ctx, { timeoutMs = 15000, admin = false, signal, onRequest = () => {} } = {}) {
   const config = loadConfig(ctx);
   const env = loadEnv(ctx);
-  const token = admin ? adminToken(ctx) : credential || process.env[TOKEN_VAR] || env[TOKEN_VAR];
-  if (!token) throw new StoreError(`${TOKEN_VAR} is not set in .env; ${SCRIPT} join --file <private-file> installs a credential issued by the repo admin`, { kind: 'unconfigured', help: TOKEN_PAGE });
-  if (!admin && !keyMachine(token)) throw new StoreError('unsupported or legacy memory key; ask the admin for a machine credential replacement', { kind: 'auth', help: TOKEN_PAGE });
-  if (!admin && keyMachine(token) !== ctx.machineId) throw new StoreError('memory credential belongs to another installation; ask the admin for this machine’s credential', { kind: 'auth' });
-  if (!admin && keyMachine(token) && !config.worker && !process.env.WONG_MEMORY_API) {
-    throw new StoreError(`${TOKEN_VAR} holds a memory key, but .claude/.wong-stack.json records no components.memory.worker; pull the latest main or ask the admin`, { kind: 'unconfigured', help: TOKEN_PAGE });
+  if (!admin && !config.worker && !process.env.WONG_MEMORY_API) {
+    throw new StoreError('.claude/.wong-stack.json records no components.memory.worker; pull the latest main or ask the admin', { kind: 'unconfigured', help: TOKEN_PAGE });
   }
-  const viaWorker = !admin && Boolean(keyMachine(token));
-  const api = admin ? cloudflareApi() : (process.env.WONG_MEMORY_API || (viaWorker ? config.worker : cloudflareApi())).replace(/\/$/, '');
+  const access = admin ? { headers: { Authorization: `Bearer ${adminToken(ctx)}` }, owner: null, email: null } : memoryAccess(ctx, config, env);
+  const viaWorker = !admin;
+  const api = (admin ? cloudflareApi() : process.env.WONG_MEMORY_API || config.worker).replace(/\/$/, '');
   const base = `${api}/accounts/${config.accountId}`;
   const objectPath = key => `/r2/buckets/${config.bucket}/objects/${encodeURI(key)}`;
-  // The key's role, as the Worker last named it; a Cloudflare token reads the store whole, as the admin does.
+  // The caller's role, as the Worker last named it; a Cloudflare token reads the store whole, as the admin does.
   let role = viaWorker ? config.role : 'admin';
 
   async function call(path, init = {}, budget = timeoutMs) {
     let response;
     try {
       onRequest();
-      response = await fetch(`${path === '/login-link' ? api : base}${path}`, { ...init, redirect: 'manual', headers: { Authorization: `Bearer ${token}`, ...init.headers }, signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(budget)]) : AbortSignal.timeout(budget) });
+      response = await fetch(`${base}${path}`, { ...init, redirect: 'manual', headers: { ...access.headers, ...init.headers }, signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(budget)]) : AbortSignal.timeout(budget) });
     } catch (error) {
       throw new StoreError(`memory store unreachable (${error.name === 'TimeoutError' ? 'timeout' : 'network'})`, { kind: 'network' });
     }
@@ -146,14 +190,14 @@ export function openStore(ctx, { timeoutMs = 15000, admin = false, credential = 
     if (viaWorker) role = recordTeam(ctx, response.headers.get(TEAM_HEADER), response.headers.get(ROLE_HEADER)) || role;
     if (response.status === 403) {
       const code = (await response.clone().json().catch(() => ({}))).errors?.[0]?.code;
-      if (code === 'not_author') throw new StoreError('only the owning machine and the admin can read this transcript', { kind: 'forbidden' });
+      if (code === 'not_author') throw new StoreError('only its owner and the admin can read this transcript', { kind: 'forbidden' });
       if (code === 'member_read') throw new StoreError(`the memory store refused this read: ${(await response.clone().json()).errors[0].message}`, { kind: 'forbidden' });
-      // One session or statement refused (another computer's, or private): the key itself is fine.
+      // One session or statement refused (another person's, or private): the sign-in itself is fine.
       if (code === 'member_write') throw new StoreError(`the memory store refused this write: ${(await response.clone().json()).errors[0].message}`, { kind: 'forbidden' });
     }
     if (response.status === 401 || response.status === 403) {
       if (viaWorker) writeJson(statePath(ctx, 'authorization-refused.json'), { at: new Date().toISOString() });
-      throw new StoreError(`the memory store rejected ${admin ? ADMIN_TOKEN_VAR : TOKEN_VAR} (HTTP ${response.status})`, { kind: 'auth', help: TOKEN_PAGE });
+      throw new StoreError(`the memory store refused ${admin ? ADMIN_TOKEN_VAR : 'this sign-in'} (HTTP ${response.status})`, { kind: 'auth', help: TOKEN_PAGE });
     }
     if (viaWorker && response.ok) rmSync(join(ctx.stateDir, 'authorization-refused.json'), { force: true });
     if (response.status >= 500) throw new StoreError(`memory store error (HTTP ${response.status})`, { kind: 'server' });
@@ -185,20 +229,13 @@ export function openStore(ctx, { timeoutMs = 15000, admin = false, credential = 
     return Buffer.from(await response.arrayBuffer());
   }
 
-  const ownerMachineId = admin ? ctx.machineId : keyMachine(token);
-  const author = ctx.author || ownerMachineId;
-  async function loginLink() {
-    const response = await call('/login-link', { method: 'POST' });
-    const data = await response.json();
-    if (!response.ok || !data.success) throw new StoreError('could not prepare the normal login link', { kind: 'server' });
-    return data.result.url;
-  }
-  return { config, env, ownerMachineId, author, get role() { return role; }, loginLink, batch, query: async (sql, params) => (await batch([[sql, params]]))[0], putObject, getObject };
+  const author = ctx.author || access.email || access.owner;
+  return { config, env, owner: access.owner, email: access.email, author, get role() { return role; }, batch, query: async (sql, params) => (await batch([[sql, params]]))[0], putObject, getObject };
 }
 
-// The memory Worker says on every answer that machine privacy is enforced, and the key's role; remember
+// The memory Worker says on every answer that personal privacy is enforced, and the caller's role; remember
 // both for the next session's digest and search. An unchanged answer writes nothing. Returns the role.
-const ROLES = new Set(['admin', 'member', 'reader']);
+const ROLES = new Set(['admin', 'member', 'reader', 'team']);
 function recordTeam(ctx, header, roleHeader) {
   if (header !== '0' && header !== '1') return null;
   const file = join(ctx.stateDir, 'team.json');

@@ -6,7 +6,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { createServer } from 'node:http';
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { cleanEnvironment, companyClient, git, otherCopy, ownCopy, projectCopy } from '../employee-bootstrap.mjs';
 
 const TOKEN = `eyJhbGciOiJSUzI1NiJ9.${Buffer.from(JSON.stringify({ email: 'employee@example.com', sub: 'employee-subject', exp: Date.now() / 1000 + 1000 })).toString('base64url')}.c2ln`;
@@ -27,14 +27,16 @@ const snapshot = dir => ({
 });
 
 // A project with one commit on `main`, served over HTTP under the app's code path. `seen` holds each request's
-// method, address and session header; `mode` makes the next answers a redirect or a refusal.
+// method, address and session, as a header or a Basic password; `mode` makes the next answers a redirect or a refusal.
 async function project(t) {
   const base = mkdtempSync(join(tmpdir(), 'employee-project-'));
   t.after(() => rmSync(base, { recursive: true, force: true }));
   const bare = join(base, 'served.git'), work = join(base, 'author');
   plain(base, 'init', '--quiet', '--bare', '-b', 'main', bare);
+  plain(bare, 'config', 'http.receivepack', 'true');
   plain(base, 'init', '--quiet', '-b', 'main', work);
   const publish = (name, text, message) => {
+    mkdirSync(dirname(join(work, name)), { recursive: true });
     writeFileSync(join(work, name), text);
     plain(work, 'add', '-A');
     plain(work, 'commit', '--quiet', '-m', message);
@@ -47,9 +49,14 @@ async function project(t) {
   const other = createServer((request, response) => { fixture.elsewhere.push(request.headers['cf-access-token'] ?? null); response.writeHead(404).end(); });
   const server = createServer((request, response) => {
     const url = new URL(request.url, 'http://localhost');
-    fixture.seen.push({ method: request.method, path: url.pathname, query: url.search, session: request.headers['cf-access-token'] ?? null });
+    const basic = /^Basic (.+)$/.exec(request.headers.authorization ?? '')?.[1];
+    const password = basic && Buffer.from(basic, 'base64').toString().replace(/^[^:]*:/, '');
+    const session = request.headers['cf-access-token'] ?? password ?? null;
+    fixture.seen.push({ method: request.method, path: url.pathname, query: url.search, session, basic: !!basic });
     if (fixture.mode === 'redirect') return response.writeHead(302, { Location: `http://127.0.0.1:${other.address().port}${request.url}` }).end();
-    if (fixture.mode === 'refuse' || request.headers['cf-access-token'] !== TOKEN || !url.pathname.startsWith(PATH)) return response.writeHead(403, { 'Content-Type': 'application/json' }).end('{"error":{"code":"forbidden"}}');
+    if (fixture.mode === 'refuse' || !url.pathname.startsWith(PATH)) return response.writeHead(403, { 'Content-Type': 'application/json' }).end('{"error":{"code":"forbidden"}}');
+    // As the app answers: Git asks its credential helper only after this challenge.
+    if (session !== TOKEN) return response.writeHead(401, { 'WWW-Authenticate': 'Basic realm="company app"', 'Content-Type': 'text/plain' }).end('Sign in again\n');
     const backend = spawn('git', ['http-backend'], { env: { ...cleanEnvironment(), GIT_PROJECT_ROOT: bare, GIT_HTTP_EXPORT_ALL: '1', REQUEST_METHOD: request.method,
       PATH_INFO: `/${url.pathname.slice(PATH.length)}`, QUERY_STRING: url.search.slice(1), CONTENT_TYPE: request.headers['content-type'] ?? '',
       HTTP_CONTENT_ENCODING: request.headers['content-encoding'] ?? '', GIT_PROTOCOL: request.headers['git-protocol'] ?? '' } });
@@ -87,6 +94,10 @@ test('clones the project into a missing or empty folder with its history, and se
   assert.equal(plain(folder, 'config', '--get', 'remote.origin.url'), f.address);
   const config = readFileSync(join(folder, '.git', 'config'), 'utf8');
   assert.ok(!config.includes(TOKEN) && !/extraheader|cf-access-token/i.test(config));
+  // The copy's own Git asks the helper beside it, at the app's address alone, after clearing any computer-wide one.
+  const scope = `credential.${f.address.slice(0, -1)}`;
+  assert.equal(plain(folder, 'config', '--get-all', '-z', `${scope}.helper`), `\0!"${process.execPath}" "${join(folder, 'scripts', 'company-git-credential.mjs')}"\0`);
+  assert.equal(plain(folder, 'config', '--get', `${scope}.useHttpPath`), 'true');
   for (const name of readdirSync(join(folder, '.git'), { recursive: true }).filter(each => statSync(join(folder, '.git', each)).isFile())) {
     assert.ok(!readFileSync(join(folder, '.git', name)).includes(TOKEN), `${name} holds the session`);
   }
@@ -100,6 +111,38 @@ test('clones the project into a missing or empty folder with its history, and se
   writeFileSync(self, 'the setup file\n');
   assert.deepEqual(await projectCopy({ address: f.address, folder: fetched, token: TOKEN, self }), { project: 'installed', folder: fetched });
   assert.deepEqual(snapshot(fetched).files, { 'README.md': 'first\n' });
+});
+
+test('plain Git in the copy fetches and saves with the helper\'s sign-in, and a computer-wide helper never stores it', async t => {
+  const f = await project(t);
+  // A stand-in for the helper, published in the project as the real one is: it answers `get` alone.
+  f.publish('scripts/company-git-credential.mjs', `if (process.argv[2] === 'get') console.log('username=x-access\\npassword=${TOKEN}');\n`, 'helper');
+  const folder = join(f.base, 'copy'), home = join(f.base, 'home');
+  await f.copy(folder);
+  mkdirSync(home);
+  writeFileSync(join(home, '.gitconfig'), '[credential]\n\thelper = store\n');
+  const newer = f.publish('README.md', 'newer\n', 'newer');
+  const before = process.env.HOME;
+  process.env.HOME = home;
+  try {
+    f.seen.length = 0;
+    // Plain Git, as Paseo runs it: no session from this side, so the app's challenge reaches the copy's helper.
+    assert.equal((await git(['-C', folder, 'fetch', '--quiet', 'origin'], { address: f.address })).code, 0);
+    assert.equal(plain(folder, 'rev-parse', 'origin/main'), newer);
+    assert.ok(f.seen.some(request => request.basic && request.session === TOKEN));
+    // Saving is a push the same way.
+    plain(folder, 'switch', '--quiet', '-c', 'ada/fix');
+    writeFileSync(join(folder, 'fix.txt'), 'fix\n');
+    plain(folder, 'add', '-A'); plain(folder, 'commit', '--quiet', '-m', 'fix');
+    assert.equal((await git(['-C', folder, 'push', '--quiet', 'origin', 'ada/fix'], { address: f.address })).code, 0);
+    assert.equal(plain(f.bare, 'rev-parse', 'ada/fix'), plain(folder, 'rev-parse', 'HEAD'));
+    assert.ok(!existsSync(join(home, '.git-credentials')), 'the computer-wide helper stored nothing');
+    // Without the clearing entry, the same fetch hands the sign-in to that helper: the entry is what stops it.
+    plain(folder, 'config', '--unset', `credential.${f.address.slice(0, -1)}.helper`, '^$');
+    assert.equal((await git(['-C', folder, 'fetch', '--quiet', 'origin'], { address: f.address })).code, 0);
+    assert.ok(readFileSync(join(home, '.git-credentials'), 'utf8').includes(TOKEN));
+  } finally { process.env.HOME = before; }
+  assert.ok(!readFileSync(join(folder, '.git', 'config'), 'utf8').includes(TOKEN));
 });
 
 test('refuses a folder that holds other work, or another project, and changes nothing there', async t => {
@@ -196,6 +239,7 @@ function connected(t, { code = 'ready' } = {}) {
   const state = { code, copies: [], requests: [], result: {} };
   const client = companyClient({ root, stateDir, cacheDir, routesDir: join(base, 'routes'), run: async () => TOKEN, request: async (url, init) => {
     state.requests.push({ path: url.pathname, session: init.headers['cf-access-token'] });
+    if (state.memoryDown && url.pathname === '/_memory/caller') return new Response('', { status: 404 });
     return Response.json({ identity, role: 'employee', apps: ['orders'], api: 'authenticated', code: state.code, repository: 'manual_provider_setup', memory: 'independent_operator_setup' });
   } });
   const copy = async options => { state.copies.push(options); return { project: 'installed', folder: options.folder, ...state.result }; };
@@ -203,12 +247,16 @@ function connected(t, { code = 'ready' } = {}) {
 }
 const origin = 'https://business.example.com';
 
-test('install signs in, downloads the project for a person who holds Project code, and says where it is and what to run', async t => {
+const DONE = folder => `Signed in as ${identity.email}. Apps that work: orders. Memory works. The project is in ${folder}, and new chats keep it up to date. Nothing else is needed.`;
+test('install signs in, downloads the project for a person who holds Project code, confirms memory, and says it is done', async t => {
   const f = connected(t);
   const folder = join(f.base, 'project');
   const report = await f.client.install(origin, folder, f.copy);
-  assert.deepEqual(report, { connected: origin, signedInAs: identity.email, apps: ['orders'], state: f.stateDir, project: 'installed', folder,
-    next: `cd ${folder} && node scripts/company-api.mjs list --state ${f.stateDir}` });
+  assert.deepEqual(report, { connected: origin, signedInAs: identity.email, apps: ['orders'], memory: 'works', state: f.stateDir, project: 'installed', folder, summary: DONE(folder) });
+  // Memory is asked once, with the same sign-in.
+  assert.deepEqual(f.state.requests.filter(row => row.path === '/_memory/caller'), [{ path: '/_memory/caller', session: TOKEN }]);
+  // The report names no command to run, no environment file and no key.
+  assert.doesNotMatch(JSON.stringify(report), /\bnode\b|company-api|--state|\.env\b|\bkey\b|\bnext\b/i);
   // The download asks the app's own address, as the person who signed in.
   assert.deepEqual(f.state.copies, [{ address: `${origin}/api/access/code/git/`, folder, token: TOKEN }]);
   assert.ok(!JSON.stringify(report).includes(TOKEN));
@@ -216,7 +264,12 @@ test('install signs in, downloads the project for a person who holds Project cod
   assert.ok(!existsSync(join(f.stateDir, 'project.json')));
   // Again: an update that was not applied is passed on, and a downloaded setup file is named to the download.
   f.state.result = { project: 'kept your changes; update not applied', applied: false };
-  assert.deepEqual(await f.client.install(origin, folder, f.copy, '/tmp/setup.mjs'), { ...report, project: 'kept your changes; update not applied', applied: false });
+  assert.deepEqual(await f.client.install(origin, folder, f.copy, '/tmp/setup.mjs'), { ...report, project: 'kept your changes; update not applied', applied: false,
+    summary: `Signed in as ${identity.email}. Apps that work: orders. Memory works. Project: kept your changes; update not applied, in ${folder}. Your changes were kept, so the update waits.` });
+  // Memory that does not answer is said plainly, and setup still ends.
+  const quiet = connected(t);
+  quiet.state.memoryDown = true;
+  assert.equal((await quiet.client.install(origin, folder, quiet.copy)).memory, 'not reachable yet');
   assert.deepEqual(f.state.copies[1], { address: `${origin}/api/access/code/git/`, folder, token: TOKEN, self: '/tmp/setup.mjs' });
   // `code` alone needs a connection first, and uses the same address.
   await f.client.code(join(f.base, 'again'), f.copy);
@@ -243,8 +296,8 @@ test('install leaves a copy of the project from elsewhere as it is, whatever the
   for (const code of ['ready', 'lacked', 'off']) {
     const f = connected(t, { code }), asked = [];
     const report = await f.client.install(origin, mine, f.copy, undefined, async (...args) => { asked.push(args); return true; });
-    assert.deepEqual(report, { connected: origin, signedInAs: identity.email, apps: ['orders'], state: f.stateDir, project: 'already on this computer; left as it is', folder: mine,
-      next: `cd ${mine} && node scripts/company-api.mjs list --state ${f.stateDir}` });
+    assert.deepEqual(report, { connected: origin, signedInAs: identity.email, apps: ['orders'], memory: 'works', state: f.stateDir, project: 'already on this computer; left as it is', folder: mine,
+      summary: `Signed in as ${identity.email}. Apps that work: orders. Memory works. Project: already on this computer; left as it is, in ${mine}. Nothing else is needed.` });
     assert.deepEqual([asked, f.state.copies], [[[mine, address]], []]);
   }
 });
@@ -252,7 +305,8 @@ test('install leaves a copy of the project from elsewhere as it is, whatever the
 test('install connects the apps and downloads nothing when the person lacks Project code, or the app hands none out', async t => {
   for (const [code, project] of [['lacked', 'not included. Ask your admin for access to Connect your assistant.'], ['off', 'not handed out by this app; apps only'], [null, 'not handed out by this app; apps only']]) {
     const f = connected(t, { code });
-    assert.deepEqual(await f.client.install(origin, join(f.base, 'project'), f.copy), { connected: origin, signedInAs: identity.email, apps: ['orders'], state: f.stateDir, project });
+    assert.deepEqual(await f.client.install(origin, join(f.base, 'project'), f.copy), { connected: origin, signedInAs: identity.email, apps: ['orders'], memory: 'works', state: f.stateDir, project,
+      summary: `Signed in as ${identity.email}. Apps that work: orders. Memory works. Project: ${project}. Nothing else is needed.` });
     assert.deepEqual(f.state.copies, []);
   }
 });
@@ -310,20 +364,25 @@ test('the packaged command installs in one step, updates on the next, and ends a
   assert.match(report.state, /\.local\/state\/wong-company\/[a-f0-9]{64}$/);
   assert.ok(report.state.startsWith(home));
   assert.equal(statSync(report.state).mode & 0o777, 0o700);
-  assert.equal(report.next, `cd ${folder} && node scripts/company-api.mjs list --state ${report.state}`);
+  assert.equal(report.next, undefined);
+  assert.match(report.summary, /Nothing else is needed\.$/);
   // One download, from the app's own address. The session is a header for that address alone, set in Git's
   // environment: never an argument. No redirect, no prompt, no credential helper, and no other credential.
-  const [asked, clone] = calls();
+  const [asked, clone, ...pointed] = calls();
   assert.deepEqual(asked.args, ['ls-remote', '--quiet', '--exit-code', `${origin}${PATH}`, 'HEAD']);
   assert.deepEqual(clone.args, ['clone', '--quiet', '--origin', 'origin', `${origin}${PATH}`, folder]);
   assert.deepEqual(clone.config, { 'credential.helper': '', 'http.followRedirects': 'false', [`http.${origin}${PATH}.extraHeader`]: `cf-access-token: ${TOKEN}` });
   assert.deepEqual([clone.prompt, clone.extra, asked.config], ['0', [], clone.config]);
-  assert.equal(calls().length, 2);
+  // Then the copy's own Git is pointed at the helper beside it, for the app's address alone.
+  const scope = `credential.${origin}/api/access/code/git`;
+  assert.deepEqual(pointed.map(({ args }) => args.slice(2)), [['config', '--replace-all', `${scope}.helper`, ''],
+    ['config', '--add', `${scope}.helper`, `!"${process.execPath}" "${join(folder, 'scripts', 'company-git-credential.mjs')}"`], ['config', `${scope}.useHttpPath`, 'true']]);
+  assert.equal(calls().length, 5);
 
   // The same step again updates that copy.
   const updated = run('install', '--origin', origin, '--dir', folder);
   assert.deepEqual([updated.status, JSON.parse(updated.stdout).project, JSON.parse(updated.stdout).folder], [0, 'up to date', folder]);
-  assert.deepEqual(verbs().slice(2), ['config', 'ls-remote', 'fetch', 'symbolic-ref', 'symbolic-ref', 'status', 'merge']);
+  assert.deepEqual(verbs().slice(5), ['config', 'ls-remote', 'fetch', 'config', 'config', 'config', 'symbolic-ref', 'symbolic-ref', 'status', 'merge']);
   assert.deepEqual(calls().at(-1).args, ['-C', folder, 'merge', '--quiet', '--ff-only', 'origin/main']);
   // Only the calls that reach the app carry the session.
   assert.deepEqual(calls().filter(call => Object.keys(call.config).length === 3).map(({ args }) => args.find(arg => ['ls-remote', 'clone', 'fetch'].includes(arg))), ['ls-remote', 'clone', 'ls-remote', 'fetch']);
@@ -333,7 +392,7 @@ test('the packaged command installs in one step, updates on the next, and ends a
   const before = calls().length;
   const kept = run('code', '--dir', folder, '--state', report.state);
   assert.deepEqual([kept.status, JSON.parse(kept.stdout)], [1, { project: 'kept your changes; update not applied', folder, applied: false }]);
-  assert.deepEqual(verbs().slice(before), ['config', 'ls-remote', 'fetch', 'symbolic-ref', 'symbolic-ref', 'status']);
+  assert.deepEqual(verbs().slice(before), ['config', 'ls-remote', 'fetch', 'config', 'config', 'config', 'symbolic-ref', 'symbolic-ref', 'status']);
   for (const never of ['reset', 'clean', 'stash', 'checkout', 'push']) assert.ok(!verbs().includes(never), never);
   // Nothing Git was told, and nothing it or the helper printed, holds the session.
   assert.ok(calls().every(({ args }) => args.every(arg => !arg.includes('eyJ'))));
@@ -397,7 +456,7 @@ test('with no project to hand out, the served file leaves its folder empty and k
     const connected = f.run(f.served(here), here);
     assert.equal(connected.status, 0, connected.stderr);
     const report = JSON.parse(connected.stdout), client = join(report.state, 'bootstrap.mjs');
-    assert.deepEqual([report.project, report.next, readdirSync(here), f.calls()], [project, `node ${client} list --state ${report.state}`, [], []]);
+    assert.deepEqual([report.project, report.client, report.next, readdirSync(here), f.calls()], [project, client, undefined, [], []]);
     assert.equal(statSync(client).mode & 0o777, 0o600);
     assert.ok(readFileSync(client, 'utf8').includes(MARKER), 'the kept client is served from nowhere');
     // The kept client reads the same sign-in, and stays for the next call.

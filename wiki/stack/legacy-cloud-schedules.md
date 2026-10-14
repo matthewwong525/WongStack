@@ -27,7 +27,7 @@ Teardown is destructive. First list the exact installed resources and ask for co
 1. The Worker: `DELETE /accounts/{account_id}/workers/scripts/<base>-routines?force=true`. Its stored jobs and keys go with it.
 2. Its separately listed container application and Workflow: `DELETE /accounts/{account_id}/containers/applications/<id>` for the matching application, and `DELETE /accounts/{account_id}/workflows/<base>-routines`.
 3. Its AI Gateway and model-only token: `DELETE /accounts/{account_id}/ai-gateway/gateways/<base>-routines`, and `DELETE /accounts/{account_id}/tokens/<id>` for the verified token named `<base>-routines-ai`.
-4. Its recorded run identity's memory credential, following [memory-key revocation](../development/memory-key.md#add-or-remove-a-teammate). The id is in `components.routines.memoryMachine`; deleting the Worker alone does not revoke it.
+4. Its recorded run identity's memory credential: `memory.mjs member remove <id>` ([memory sign-in](../development/memory.md#sign-in-and-expiry)). The id is in `components.routines.memoryMachine`; deleting the Worker alone does not revoke it.
 5. The selected install's local `WONG_ROUTINES_KEY` and `WONG_ROUTINE_*` declarations and values, `components.routines`, and any old generated runner config. Preserve them while cleanup remains uncertain.
 6. At their services, the dedicated legacy model key and GitHub token, after checking no other job uses them. Follow [token website steps](../development/secrets.md#api-token-website-steps) when a person must act.
 

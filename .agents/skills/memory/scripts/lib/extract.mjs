@@ -29,7 +29,7 @@ export function admitCandidates(facts, maxBytes = 4096) {
   return { facts: admitted, truncated: admitted.length < facts.length || facts.length === 20 };
 }
 export const selectionPrompt = (question, scope, pool, round) => JSON.stringify({ question, scope, round, candidates: [...pool.values()] });
-const forbidden = error => ['auth', 'forbidden'].includes(error.kind);
+const forbidden = error => ['auth', 'forbidden', 'signin'].includes(error.kind);
 export async function extractMemory(ctx, { task, identity, scope = {}, question, loaded = [], agent, model, usageReport = false }, dependencies = {}) {
   const started = Date.now(), deadline = started + EXTRACT_LIMITS.deadline;
   const report = { version: 1, experimental: true, evidence: dependencies.host ? 'recorded protocol' : 'live host', agent: agent || 'unknown', model: model || null, inputBytes: 0, outputBytes: 0, candidateSearches: 0, storeRequests: 0, modelCalls: 0, usage: [], tokenUsage: 'unknown' };

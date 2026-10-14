@@ -112,25 +112,25 @@ P provision --repo <owner/name> --base <base> --owner-email <reachable-owner-ema
 
 Resolve a reachable owner email before provisioning; reject `.invalid` and GitHub noreply addresses. The git author email may remain private. Private setup reuses or creates Zero Trust/PIN, creates unavailable production/staging Workers, and attaches the owned Worker-ID app before content publication. Review overlapping hostname/path/preview apps first; preserve unrelated resources. Machine credentials are saved to ignored primary/branch `.env`; public identifiers go in `components.access`. See [Access](../../../../wiki/stack/cloudflare-access.md).
 
-**Open until the card.** When Cloudflare wants a card before it turns on Zero Trust, `--open-without-login` lets setup finish: the report's `access.mode` is `open`, no Access resources are made, and the config carries `WORKSPACE_LOGIN: "off"` ([open until the card](../../../../wiki/stack/cloudflare-access.md#open-until-the-card)). Say it plainly, then go on: *"Cloudflare wants a card on file before it turns on the private email login, so for now anyone with your site's link can see it. Your memory stays private behind its own key. I'll show you how to add the card at the end."* Any other Access stop still stops setup, and a site that is already private never opens.
+**Open until the card.** When Cloudflare wants a card before it turns on Zero Trust, `--open-without-login` lets setup finish: the report's `access.mode` is `open`, no Access resources are made, and the config carries `WORKSPACE_LOGIN: "off"` ([open until the card](../../../../wiki/stack/cloudflare-access.md#open-until-the-card)). Say it plainly, then go on: *"Cloudflare wants a card on file before it turns on the private email login, so for now anyone with your site's link can see it. Your memory stays private behind its own key until then. I'll show you how to add the card at the end."* Any other Access stop still stops setup, and a site that is already private never opens.
 
 ### 4b. The memory store
 
-[The memory convention](../../../../wiki/development/memory-key.md) owns what it holds, who reads it, and why only the production Worker binds it; it has no staging twin.
+[The memory convention](../../../../wiki/development/memory.md) owns what it holds, who reads it, and why only the production Worker binds it; it has no staging twin.
 
 1. **Is R2 on?** An error listing R2 buckets that says to enable R2 means no; the report says `"r2": false`. No token can turn R2 on ([without R2](../../../../wiki/development/memory.md#without-r2)), so continue without a bucket, and let [the card list](#the-card-list) at the close give the steps: *"Memory works without it; it just won't keep full session transcripts until R2 is on."*
 2. **The database.** It reuses or creates `<repo>-memory`.
 3. **The bucket, only when R2 is on.** It reuses or creates `<repo>-memory`, never with public access.
 4. **Record.** It writes `components.memory` in `.claude/.wong-stack.json`: `accountId`, `databaseId`, `database`, `bucket` (or `null`), and the memory URL as `worker`, `https://<worker>.<subdomain>.workers.dev/_memory`. An account with no `workers.dev` subdomain gets one named for the GitHub owner. It also records the production origin under `components.companyApi.origin`, using the account hostname read back; [company actions](../../../../wiki/stack/company-api.md) owns employee access. None is secret.
-5. **Apply the schema.** It runs the target's `memory.mjs migrate` with `CLOUDFLARE_API_TOKEN`, retrying while the new store takes effect. Historical authors and raw references remain unchanged; machine ownership is added without a backfill.
-6. **The admin key.** With no valid machine credential in `.env`, run `memory.mjs member admin`. It installs this local OS-user ID’s admin key in the primary ignored `.env`, with no memory email or GitHub prerequisite. In the same trusted issuance transaction it seeds a one-use login-marker hash, because the production deploy follows this step. The report’s `appUrl` is the normal app link to give the person: ordinary email login labels this machine automatically. Never print the reusable key or make it a CI secret. Repository contributors receive member credentials through [trusted issuance and installation](../../../../wiki/development/memory-key.md#add-or-remove-a-teammate); readers retain private-only writes.
+5. **Apply the schema.** It runs the target's `memory.mjs migrate` with `CLOUDFLARE_API_TOKEN`, retrying while the new store takes effect. Historical authors and raw references remain unchanged.
+6. **No memory key.** Memory uses the owner's company sign-in, made at [4g](#4g-smoke-test-what-you-built); teammates get theirs from Connect. Only an open site, which has no sign-in yet, runs `memory.mjs member admin` for this computer's admin key in the primary ignored `.env`; never print it or make it a CI secret.
 
 
 Memory answers once CI deploys production; until then, facts wait in the local spool. By hand, the memory commands are `$M`, with `M="node $(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/memory.mjs"`.
 
 **Re-runs.** A store that verifies is current. A store with no bucket, on an account that now has R2, gets one: the script creates and records it, adds `MEMORY_BUCKET` to the production config, and gives `<repo>-deploy` the R2 row of [the CI deploy token table](permission-groups.md#the-ci-deploy-token). The key stays. Make by hand any edit the report's `todo` lists.
 
-**Moving an older store.** Add the production route, authenticated login callback, bindings, and install record in the update. After deployment, run `$M migrate`, replace credentials through the [key procedure](../../../../wiki/development/memory-key.md#add-or-remove-a-teammate), and check `$M digest`. Shared history stays available; private history remains unassigned. A failure pauses memory. Retire an old Cloudflare memory token only after replacement succeeds; never restore an email-only Worker after private machine writes.
+**Moving an older store.** Add the production route, authenticated login callback, bindings, and install record in the update. After deployment, run `$M migrate`, sign the owner in as in [4g](#4g-smoke-test-what-you-built), run `$M migrate-people` to hand each linked computer's notes to its person, and check `$M digest`. Shared history stays available; notes from an unlinked computer wait for an admin. A failure pauses memory. Retire an old Cloudflare memory token only after replacement succeeds; never restore an email-only Worker after private machine writes.
 
 ### 4c. The two app databases and the config
 
@@ -138,7 +138,7 @@ Create/reuse distinct production and staging databases; branch deploys never wri
 
 With no config, write the [fragment](../../wong-sync/references/stack-pack-fragments.md) with actual production/staging D1 and Access IDs; an open site gets blank Access IDs and `WORKSPACE_LOGIN: "off"` instead. Bind memory only at the top level, plus R2 when available. Fill the two `db:migrate:*` scripts. Preserve the fragment's entry point, assets, flags, and date. Existing config stays apart from a new memory bucket and [adding the card later](#adding-the-card-later); plan other privacy updates as a reviewed merge. The [scaffold](../../wong-sync/references/payload-manifest.md#the-app-scaffold) supplies the Worker.
 
-**The project Connect hands out.** The script names it in both Workers' vars. The Artifacts route also binds both to the repository and its check runner: no key is made. On GitHub the report's `codeKey` carries [the owner's steps](../../../../wiki/stack/employee-project.md#the-owners-one-step-on-github). Say nothing of it: Access asks for the key when the owner first lets someone install the project.
+**The project Connect hands out.** The script names it in both Workers' vars. The Artifacts route also binds both to the repository and its check runner: no key is made. On GitHub the report's `codeKey` carries [the owner's steps](../../../../wiki/stack/project-git-route.md#the-owners-one-step-on-github). Say nothing of it: Access asks for the key when the owner first lets someone install the project.
 
 The same Worker serves the [mini apps](../../../../wiki/stack/mini-apps.md) under `/apps/`, as part of the main app; they need no Worker or config of their own.
 
@@ -177,7 +177,7 @@ The check runs itself; never ask the person to sign in by email code on each sit
 
 Retry propagation; name a real failure. Human login stays unverified until Step 5's human check. The [browser runbook](../../../../wiki/stack/cloudflare-access.md#verify-it-works--in-a-browser) is for `/verify` and later changes, not setup.
 
-Once production has deployed, check memory with `$M digest`, through the production Worker with 4b's admin key; before, it reports the Worker does not answer.
+Once production has deployed, sign the owner in once on a private site: run `node scripts/company-api.mjs login --origin <production URL>` in the background, show the link it prints in the chat, and wait. Then check memory with `$M digest`; before the deploy, it reports the Worker does not answer. Without `cloudflared`, skip both and say memory waits.
 
 ## Step 5 — the closing report
 

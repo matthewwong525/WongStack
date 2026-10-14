@@ -36,7 +36,7 @@ One format per query; fetch sources on demand. Obey [visibility](../../../wiki/d
 
 **Store unavailable: say facts were not loaded; continue.**
 
-[Read adapter](../../../wiki/stack/company-api.md#memory-keeps-its-own-access).
+[Read adapter](../../../wiki/stack/company-api.md#memory-uses-the-same-sign-in).
 
 ## Write
 
@@ -69,7 +69,7 @@ The **write gate**:
 
 ## Team access
 
-Repo contributors receive trusted member credentials; readers’ writes stay private. The admin runs `member add <machine-id> --key-file <private-file>`; install with `join --file <private-file>`, revoke with `member remove <machine-id>`, list with `member list` ([the key](../../../wiki/development/memory-key.md#add-or-remove-a-teammate)). Private files and the primary ignored `.env` hold secrets. Chats capture automatically. Setup’s app link labels the machine after ordinary website login; labels never change ownership.
+Memory uses the company sign-in; [Access](../../../wiki/development/memory.md#who-sees-what) sets each role. A failure saying the sign-in ended: run the `cloudflared access login` it names and show the person the link. After the update, the admin runs `migrate-people`, then `assign <machine-id> <email>` for waiting notes.
 
 ## Background run
 

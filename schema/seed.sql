@@ -66,11 +66,12 @@ INSERT INTO wong_access_member_roles VALUES
   ('11111111-1111-4111-8111-111111111111', 'ada@example.invalid', '22222222-2222-4222-8222-222222222222'),
   ('11111111-1111-4111-8111-111111111111', 'bo@example.invalid', '22222222-2222-4222-8222-222222222222'),
   ('11111111-1111-4111-8111-111111111111', 'fay@example.invalid', 'admin');
--- Dana's own set holds Hello, with Cloudflare at Read and Project code. Eli could only look at
--- Hello, so holds no app, and has no key level: None.
+-- Dana's own set holds Hello, with Cloudflare at Read and Project code with the publish tick, so
+-- a preview shows one teammate who publishes beside the Helpers, who only save. Eli could only look
+-- at Hello, so holds no app, and has no key level: None.
 INSERT INTO wong_access_grants VALUES
   ('11111111-1111-4111-8111-111111111111', 'dana@example.invalid', 'hello', 1, 'write'),
   ('11111111-1111-4111-8111-111111111111', 'eli@example.invalid', 'hello', 1, 'read');
 INSERT INTO wong_access_key_grants VALUES
   ('11111111-1111-4111-8111-111111111111', 'dana@example.invalid', 'cloudflare', 'read', 1),
-  ('11111111-1111-4111-8111-111111111111', 'dana@example.invalid', 'code', 'read', 1);
+  ('11111111-1111-4111-8111-111111111111', 'dana@example.invalid', 'code', 'write', 1);

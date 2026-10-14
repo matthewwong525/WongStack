@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs';
 import { promisify } from 'node:util';
 import { isMain } from '../../memory/scripts/lib/cli.mjs';
 import { primaryRoot, PrimaryRootError } from '../../memory/scripts/lib/primary-root.mjs';
+import { delivery } from '../../save/scripts/delivery-route.mjs';
 import { EXIT, PaseoError, findPaseo, git, paseo, parseCommand, runPaseo } from './lib/paseo.mjs';
 
 const USAGE = `usage: workspace.mjs open --title <part> --brief <file>
@@ -111,6 +112,16 @@ async function defaultBranch(cwd) {
   throw new PaseoError(EXIT.input, 'No `main` branch here or on origin, and `gh` could not name the default branch.');
 }
 
+/** The step that fixes a failed fetch in a copy installed through the app: its sign-in has usually run out. */
+function signInStep(cwd) {
+  try {
+    if (delivery(cwd).route !== 'app') return '';
+    return ` Sign in to the company app again, then retry: cloudflared access login ${new URL(git(cwd, 'remote', 'get-url', 'origin')).origin}`;
+  } catch {
+    return '';
+  }
+}
+
 /** Fetches the default branch (unless a dry run) and returns the ref to branch from, preferring origin's copy. */
 async function freshBase(cwd, branch, { fetch }) {
   let warning = null;
@@ -118,7 +129,7 @@ async function freshBase(cwd, branch, { fetch }) {
     try {
       git(cwd, 'fetch', '--quiet', 'origin', branch);
     } catch (error) {
-      warning = `Could not fetch origin/${branch}, so the workspace starts from the last fetched copy: ${String(error.stderr ?? error.message).trim()}`;
+      warning = `Could not fetch origin/${branch}, so the workspace starts from the last fetched copy: ${String(error.stderr ?? error.message).trim()}${signInStep(cwd)}`;
     }
   }
   if (await hasRef(cwd, `refs/remotes/origin/${branch}`)) return { base: `origin/${branch}`, warning };

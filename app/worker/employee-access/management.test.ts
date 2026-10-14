@@ -35,7 +35,7 @@ const ask = (identity: AccessIdentity, path: string, body?: unknown, method = 'P
 const to = (email: string, role: string | null = 'admin') => ({ email, removed: false, role });
 const pick = (email: string) => run('people', 'POST', to(email));
 const admins = () => f.sql.prepare("SELECT email FROM wong_access_member_roles WHERE role_id = 'admin' ORDER BY email").all().map(row => row.email);
-const everyKey = { cloudflare: 'read', code: 'read' };
+const everyKey = { cloudflare: 'read', code: 'write' };
 const acted = () => f.sql.prepare("SELECT actor_email, event FROM wong_access_audit WHERE event NOT LIKE '%started:%' ORDER BY rowid").all()
   .map(row => `${row.actor_email} ${row.event}`);
 const refusedAs = async (identity: AccessIdentity, path: string, body: unknown, code = 'owner_required', method = 'POST') => {
@@ -228,7 +228,7 @@ it('refuses a missing installation snapshot rather than inventing a status', asy
 
 it('serves the setup prompt to every signed-in person, before and after permissions start', async () => {
   const read = (identity = employee, env = f.env) => setupStatus(req('setup', 'GET'), env, identity);
-  const base = { api: 'authenticated', code: 'off', repository: 'manual_provider_setup', memory: 'independent_operator_setup', prompt: { state: 'ready', text: setupMessage(site.origin) } };
+  const base = { api: 'authenticated', code: 'off', repository: 'manual_provider_setup', memory: 'independent_operator_setup', prompt: { state: 'ready', text: setupMessage(site.origin, 'business.example.com') } };
   // Started: a person with no apps keeps their own setup, and the owner keeps every app.
   expect(await (await read()).json()).toEqual({ ...base, identity: { email: employee.id, subject: employee.claims.sub }, role: 'employee', permissions: 'started', apps: [], titles: {} });
   expect(await (await read(owner)).json()).toMatchObject({ role: 'owner', permissions: 'started', apps: ['orders', 'payroll'] });
@@ -271,7 +271,7 @@ it('lets an Admin the owner picked add people, edit roles and set levels as the 
   for (const table of ['role_apps', 'role_keys', 'grants', 'key_grants']) expect(f.sql.prepare(`SELECT COUNT(*) count FROM wong_access_${table}`).get(), table).toEqual({ count: 0 });
   // Kim is still an employee: every app and key, Access to manage, and no owner route.
   expect(await (await handleAccess(req('apps', 'GET'), f.env, kim)).json()).toMatchObject({ role: 'employee', manages: true, apps: ['access', 'orders', 'payroll'],
-    keys: [{ id: 'cloudflare', level: 'read' }, { id: 'code', level: 'read' }] });
+    keys: [{ id: 'cloudflare', level: 'read' }, { id: 'code', level: 'write' }] });
   // Her own setup lists the apps a person can be given: Access itself is nobody's to list.
   expect(await (await setupStatus(req('setup', 'GET'), f.env, kim)).json()).toMatchObject({ role: 'employee', apps: both });
   expect((await authorizeRequest(f.env, kim, { kind: 'owner' }))?.status).toBe(403);

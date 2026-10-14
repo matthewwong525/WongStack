@@ -39,7 +39,7 @@ When the assistant saves a key your app will use, it also adds the key to [the a
 
 When the service takes one fixed key, the assistant also adds where the service lives and which of its requests only look things up, so the key [can be used directly](company-api.md#use-a-key-directly). From then on your assistant can use it that way, and so can the assistant of anyone you give a level for it: *Read* looks things up, *Read & write* also changes them. Set a person's level to *None* to stop it.
 
-One key is not a service's: [Project code](employee-project.md#the-owners-one-step-on-github) is a GitHub key for your own project, made once by the owner through the same link, so teammates can install the project and save changes.
+One key is not a service's: [Project code](project-git-route.md#the-owners-one-step-on-github) is a GitHub key for your own project, made once by the owner through the same link, so teammates can install the project and save changes.
 
 Each app says which keys it uses, and gets only those ([list the keys a route uses](company-api.md#list-the-keys-a-route-uses)). Nobody on your team is ever handed a key: the app holds it, and each person's level decides what they can do with it.
 

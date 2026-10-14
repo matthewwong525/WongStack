@@ -10,7 +10,7 @@ import { READ_INPUTS, readArguments } from './lib/read-options.mjs';
 import { validateRetrieval } from './lib/documents/input.mjs';
 import { PACKET_BYTES } from './lib/documents/packet.mjs';
 import { redact, secretValues } from './lib/scan.mjs';
-import { loadEnv, repoContext } from './lib/store.mjs';
+import { loadConfig, loadEnv, memoryOrigin, repoContext, signIn } from './lib/store.mjs';
 import { isMain, parseCli } from './lib/cli.mjs';
 
 const runFile = promisify(execFile);
@@ -27,7 +27,7 @@ const documentSchema = { type: 'object', required: ['path', 'role', 'hash', 'hea
 const descriptions = Object.entries(READ_INPUTS).filter(([command]) => ['search', 'show'].includes(command)).map(([command, properties]) => ({
   operationId: `memory.${command}`, summary: command === 'search' ? 'Search remembered facts' : 'Read a memory topic',
   description: command === 'search' ? 'Use the existing memory search and permitted filters.' : 'Read existing topic facts and open threads.',
-  source: 'memory', transport: 'installed-client', authentication: 'installed-memory-credential', effect: 'read',
+  source: 'memory', transport: 'installed-client', authentication: 'company-sign-in', effect: 'read',
   readiness: 'not_checked', app: 'memory',
   inputSchema: { type: 'object', properties, additionalProperties: false, ...(command === 'show' ? { required: ['slug'] } : {}) },
   outputSchema: { type: 'object', required: ['text', 'truncated'], additionalProperties: false, properties: {
@@ -38,8 +38,8 @@ const descriptions = Object.entries(READ_INPUTS).filter(([command]) => ['search'
 for (const command of ['documents', 'recall']) descriptions.push({
   operationId: `memory.${command}`, summary: command === 'documents' ? 'Find original wiki and OpenSpec passages' : 'Recall permitted facts and original document evidence',
   description: 'Search current checkout guidance by default; history and proposed work require explicit scope. Read cited originals before acting. Optional prepared QMD improves ranking; live keyword fallback remains available.',
-  source: 'memory', transport: 'installed-client', authentication: command === 'documents' ? 'local-checkout' : 'local-checkout-and-installed-memory-credential-for-facts',
-  sourceAuthentication: { documents: 'local-checkout', ...(command === 'recall' ? { facts: 'installed-memory-credential' } : {}) },
+  source: 'memory', transport: 'installed-client', authentication: command === 'documents' ? 'local-checkout' : 'local-checkout-and-company-sign-in-for-facts',
+  sourceAuthentication: { documents: 'local-checkout', ...(command === 'recall' ? { facts: 'company-sign-in' } : {}) },
   effect: 'read', cacheEffects: 'May maintain checkout-specific derived document index; never installs or downloads on a read.',
   readiness: 'not_checked', app: 'memory',
   inputSchema: { type: 'object', properties: READ_INPUTS[command], additionalProperties: false, required: ['question'] },
@@ -58,6 +58,16 @@ for (const command of ['documents', 'recall']) descriptions.push({
       coverage: 'unavailable', requestedModeState: 'ok', filters: {}, sources: { facts: { state: 'unavailable' }, documents: { state: 'empty' } },
       facts: [], documents: [], omitted: { facts: 0, documents: 0 } } }],
 });
+// Why memory has no sign-in to use, or null: a schedule's sign-in, an old key or a live sign-in all count.
+export function signedOut(ctx) {
+  if (process.env.WONG_MEMORY_CLIENT_ID || loadEnv(ctx).CLOUDFLARE_MEMORY_TOKEN) return null;
+  try {
+    const { state } = signIn(memoryOrigin(loadConfig(ctx)));
+    return state === 'expired' ? 'your company sign-in has ended' : state === 'missing' ? 'this computer is not signed in to the company app' : null;
+  } catch { return null; }
+}
+const SIGN_IN_AGAIN = 'Sign in again: run `node scripts/company-api.mjs login`, which prints a link to show the person.';
+
 const revision = createHash('sha256').update(JSON.stringify(descriptions)).digest('hex');
 export const memoryOperations = descriptions.map(operation => ({ ...operation, revision }));
 
@@ -84,10 +94,11 @@ export async function callMemory(operationId, input, { cwd = process.cwd(), exec
     // Existing commands own detailed private diagnostics; the adapter never forwards stderr.
     return { error: { code: error.code === 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER' ? 'output_limit' : 'unavailable',
       message: command === 'documents' ? 'Local document read did not complete. See wiki/development/document-retrieval.md.'
-        : 'Memory read did not complete. See wiki/development/memory-key.md for the existing installation and access procedure.' } };
+        : signedOut(ctx) ? `Memory read did not complete: ${signedOut(ctx)}. ${SIGN_IN_AGAIN}`
+          : 'Memory read did not complete. See wiki/development/memory.md#sign-in-and-expiry.' } };
   }
 }
-const USAGE = 'usage: operations.mjs list | describe <id> | call <id> --file <JSON file or ->  described memory reads with the existing credential';
+const USAGE = 'usage: operations.mjs list | describe <id> | call <id> --file <JSON file or ->  described memory reads with the company sign-in';
 if (isMain(import.meta.url)) {
   const { positionals: [command, id], values } = parseCli({ usage: USAGE, allowPositionals: true, options: { file: { type: 'string' } } });
   try {

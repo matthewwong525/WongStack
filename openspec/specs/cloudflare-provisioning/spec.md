@@ -68,7 +68,7 @@ CI SHALL deploy with a separate `<repo>-deploy` token limited to deploying Worke
 
 ### Requirement: The memory store is production-only
 
-Provisioning SHALL bind the memory store to the production Worker only, write the installer's memory key to `.env` as `CLOUDFLARE_MEMORY_TOKEN` without printing it, and record the store's ids under `components.memory` in the install record. The key SHALL NOT be a CI secret. On an account without R2, the store SHALL be made without a transcript bucket, the report SHALL say so with the dashboard step, and a later run SHALL add the bucket.
+Provisioning SHALL bind the memory store to the production Worker only and record the store's ids under `components.memory` in the install record. It SHALL issue no memory key and write none to `.env`. On an account without R2, the store SHALL be made without a transcript bucket, the report SHALL say so with the dashboard step, and a later run SHALL add the bucket.
 
 #### Scenario: R2 is off
 
@@ -279,17 +279,17 @@ The workspace's Access protection SHALL cover its production and staging Workers
 
 ### Requirement: Machine access uses explicit authentication
 
-Provisioning SHALL supply a dedicated app-specific service-token policy for automated verification. Membership updates SHALL preserve that machine policy. The production memory route SHALL remain authenticated by its memory keys and SHALL be the only automatic route exception; other public routes require explicit reviewed configuration. Staging and CI branch previews SHALL carry no memory bindings.
+Provisioning SHALL supply a dedicated app-specific service-token policy for automated verification. Membership updates SHALL preserve that machine policy. The production memory route and the project's git route SHALL be the only automatic exceptions to the edge sign-in wall, and the Worker SHALL verify the company sign-in on each of them itself; other public routes require explicit reviewed configuration. Staging and CI branch previews SHALL carry no memory bindings.
 
 #### Scenario: Automated checks and memory
 
-- **WHEN** automated checks use the dedicated service token and a memory caller uses a valid memory key
-- **THEN** each reaches its intended protected service, while an anonymous memory caller is denied
+- **WHEN** automated checks use the dedicated service token and a memory caller sends a valid company sign-in
+- **THEN** each reaches its intended protected service, while an anonymous memory or git caller is denied by the Worker
 
 #### Scenario: Team membership changes
 
 - **WHEN** a person is added or removed
-- **THEN** machine permissions and exact memory-route authentication remain intact, and no broad public prefix becomes exempt
+- **THEN** machine permissions and the two Worker-checked routes remain intact, and no broad public prefix becomes exempt
 
 ### Requirement: Login sessions last thirty days by default
 
@@ -389,3 +389,12 @@ The person SHALL need only a user-scoped token holding `API Tokens Write` and `A
 
 - **WHEN** the caller will finish open and Cloudflare still refuses an Access check after the full wait, while the database check passes
 - **THEN** the widen finishes, and the Zero Trust step opens the site only if Cloudflare refuses the organization, stopping on anything else
+
+### Requirement: Cloud schedules get a revocable service sign-in
+
+Provisioning SHALL let the owner make a separate service sign-in for each cloud schedule, named for it, and switch it off without touching any other sign-in. It SHALL reach memory's team notes only and SHALL NOT reach business apps beyond what its schedule lists. Its secret SHALL go only to the schedule's own secret store, never chat, git or logs.
+
+#### Scenario: The owner makes and revokes one
+
+- **WHEN** the owner makes a sign-in for a nightly cloud schedule and later switches it off
+- **THEN** the schedule reaches team notes until then, and every call after is refused while other sign-ins keep working

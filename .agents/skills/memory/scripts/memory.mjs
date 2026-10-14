@@ -16,10 +16,9 @@ import { BRIEF_DEFAULT_LIMIT, BRIEF_LIMIT, renderBrief, SCOPE_FILTERS } from './
 export { ftsQuery, tagClause } from './lib/read-facts.mjs';
 import { backlinks } from './lib/links.mjs';
 import { closingBody, tagSync, upkeepPlan } from './lib/upkeep.mjs';
-import { JOIN_COMMANDS } from './lib/join.mjs';
 import { MEMBER_COMMANDS } from './lib/members.mjs';
 import { findCredential, redact, secretValues } from './lib/scan.mjs';
-import { isMain, loadEnv, openStore, readJson, repoContext, RUN_TALLY, spoolList, spoolRemove, spoolWrite, statePath, StoreError, writeJson } from './lib/store.mjs';
+import { isMain, loadConfig, loadEnv, memoryOrigin, openStore, signIn, readJson, repoContext, RUN_TALLY, spoolList, spoolRemove, spoolWrite, statePath, StoreError, writeJson } from './lib/store.mjs';
 import { FormatError, inside, parseTranscriptText, pending, pruneRegistry, readRegistry, recentTranscripts, sessionFile, strip } from './lib/transcripts.mjs';
 import { ADMIN_WRITES, FTS_HITS, supersedeSql, WRITES } from '../worker/statements.mjs';
 import { MAX_TRANSCRIPT_BYTES } from '../worker/memory-worker.mjs';
@@ -151,21 +150,21 @@ function sessionRecord(ctx, id) {
   return file ? recordFor(id, file, parseTranscriptText(readFileSync(file, 'utf8'))) : { id, agent: id.split(':')[0] };
 }
 
-function sessionUpsert(record, status, { reason, author, machine, ownerMachineId }) {
+function sessionUpsert(record, status, { reason, author, machine, owner, email }) {
   const meta = record.meta || {};
   return [WRITES.session.sql,
   [record.id, record.agent, author || null, machine || null, meta.branch || null, meta.cwd || null, meta.startedAt || null, record.endedAt || null,
-    status, reason || null, record.readThrough == null ? null : String(record.readThrough), record.rawKey || null, record.rawBytes || null, now(), ownerMachineId]];
+    status, reason || null, record.readThrough == null ? null : String(record.readThrough), record.rawKey || null, record.rawBytes || null, now(), owner, email || null]];
 }
 
 // Statements for one write: the session row, new tags, then each kept fact with its tags and supersedes. Fact
 // inserts return ids in order. A fact's own createdAt, sessionId, or author overrides the batch's, keeping its origin.
-function writeStatements({ record, status, reason, newTags = [], facts, source, sessionId, createdAt, author, machine, ownerMachineId }) {
-  const statements = record ? [sessionUpsert(record, status, { reason, author, machine, ownerMachineId })] : [];
+function writeStatements({ record, status, reason, newTags = [], facts, source, sessionId, createdAt, author, machine, owner, email }) {
+  const statements = record ? [sessionUpsert(record, status, { reason, author, machine, owner, email })] : [];
   for (const tag of newTags) statements.push([WRITES.tag.sql, [tag.name, tag.definition, tag.aliasOf || null, author || null, now()]]);
   for (const fact of facts) {
     statements.push([WRITES.fact.sql,
-      [fact.slug, fact.type, fact.body.trim(), own(fact, 'sessionId', sessionId), source, fact.createdAt || createdAt, own(fact, 'author', author), own(fact, 'ownerMachineId', ownerMachineId), fact.shared ?? 1]]);
+      [fact.slug, fact.type, fact.body.trim(), own(fact, 'sessionId', sessionId), source, fact.createdAt || createdAt, own(fact, 'author', author), own(fact, 'owner', owner), fact.shared ?? 1]]);
     for (const tag of fact.tags || []) statements.push([WRITES.factTag.sql, [tag]]);
     const ids = (fact.supersedes || []).map(Number).filter(Boolean);
     if (ids.length) statements.push([supersedeSql(ids.length), ids]);
@@ -188,7 +187,7 @@ export async function putFacts(ctx, input) {
   const source = input.source || 'save';
   if (!SOURCES.includes(source)) throw new StoreError(`source must be one of ${SOURCES.join(', ')}`);
   // Only retag restates a fact under its old session and author; a put-facts fact takes the batch's.
-  const facts = (input.facts || []).map(fact => ({ ...fact, slug: fact.slug || input.slug, sessionId: undefined, author: undefined, ownerMachineId: undefined, shared: undefined }));
+  const facts = (input.facts || []).map(fact => ({ ...fact, slug: fact.slug || input.slug, sessionId: undefined, author: undefined, owner: undefined, shared: undefined }));
   const kept = facts.filter(fact => fact.action !== 'drop');
   const secrets = secretValues(loadEnv(ctx));
   kept.forEach((fact, index) => {
@@ -200,7 +199,7 @@ export async function putFacts(ctx, input) {
   const record = input.session ? sessionRecord(ctx, input.session) : null;
   const status = facts.length ? 'captured' : 'skipped';
   const plan = await digestPlan(ctx, store);
-  const writes = writeStatements({ record, status, reason: input.reason, newTags, facts: kept, source, sessionId: input.session, createdAt: input.createdAt || now(), author: store.author, machine: ctx.machine, ownerMachineId: store.ownerMachineId });
+  const writes = writeStatements({ record, status, reason: input.reason, newTags, facts: kept, source, sessionId: input.session, createdAt: input.createdAt || now(), author: store.author, machine: ctx.machine, owner: store.owner, email: store.email });
   const results = await store.batch([...writes, ...plan.statements]);
   markSeen(ctx, record);
   try { plan.finish(results); } catch { /* the cache is best effort */ }
@@ -268,7 +267,7 @@ export async function retag(ctx, input, store = openStore(ctx)) {
     [`SELECT fact_id, tag FROM fact_tags WHERE fact_id IN (${list})`, ids],
   ]);
   const byId = new Map(found.map(fact => [fact.id, fact]));
-  const me = store.ownerMachineId;
+  const me = store.owner;
   const skipped = [];
   const facts = [];
   for (const { id, tags } of asks) {
@@ -277,14 +276,14 @@ export async function retag(ctx, input, store = openStore(ctx)) {
     const adds = tags.filter(tag => !old.includes(tag));
     const why = !fact ? 'not found'
       : fact.superseded_by ? `superseded by #${fact.superseded_by}`
-        : store.role !== 'admin' && fact.owner_machine_id !== me ? `${fact.author || 'no one'} wrote it, so only they or the admin can re-tag it`
+        : store.role !== 'admin' && fact.owner_subject !== me ? `${fact.author || 'no one'} wrote it, so only they or the admin can re-tag it`
           : !adds.length ? 'already carries every tag' : null;
     if (why) { skipped.push({ id, why }); continue; }
-    facts.push({ slug: fact.slug, type: fact.type, body: fact.body, createdAt: fact.created_at, sessionId: fact.session_id, author: fact.author, ownerMachineId: fact.owner_machine_id, shared: fact.shared, tags: [...old, ...adds], supersedes: [id] });
+    facts.push({ slug: fact.slug, type: fact.type, body: fact.body, createdAt: fact.created_at, sessionId: fact.session_id, author: fact.author, owner: fact.owner_subject, shared: fact.shared, tags: [...old, ...adds], supersedes: [id] });
   }
   if (!facts.length) return { written: 0, skipped };
   const newTags = await checkedTags(store, facts, input.newTags);
-  await store.batch(writeStatements({ newTags, facts, source: 'consolidation', createdAt: now(), author: store.author, ownerMachineId: store.ownerMachineId }));
+  await store.batch(writeStatements({ newTags, facts, source: 'consolidation', createdAt: now(), author: store.author, owner: store.owner }));
   return { written: facts.length, skipped };
 }
 
@@ -293,21 +292,21 @@ export async function retag(ctx, input, store = openStore(ctx)) {
 export async function upkeep(ctx, store = openStore(ctx)) {
   if (!store.role) await store.query('SELECT 1');
   const team = await teamWhere(ctx, store, { everyone: store.role === 'admin' });
-  const live = `SELECT f.id, f.slug, f.type, f.body, f.author, f.owner_machine_id, f.shared, f.created_at FROM facts f WHERE f.superseded_by IS NULL${team.sql}`;
+  const live = `SELECT f.id, f.slug, f.type, f.body, f.author, f.owner_subject, f.shared, f.created_at FROM facts f WHERE f.superseded_by IS NULL${team.sql}`;
   const [found, tagged, tagRows] = await store.batch([
     [live, team.params],
     ['SELECT fact_id, tag FROM fact_tags WHERE fact_id IN (SELECT id FROM facts WHERE superseded_by IS NULL)'],
     ['SELECT name, definition, alias_of FROM tags'],
   ]);
   const admin = store.role === 'admin';
-  const me = store.ownerMachineId;
-  const facts = found.filter(fact => admin || fact.owner_machine_id === me)
+  const me = store.owner;
+  const facts = found.filter(fact => admin || fact.owner_subject === me)
     .map(fact => ({ ...fact, tags: tagged.filter(row => row.fact_id === fact.id).map(row => row.tag) }));
   const areas = loadAreas();
   const plan = upkeepPlan(facts, tagRows, { areas, root: ctx.root });
-  const closing = plan.close.map(thread => ({ slug: thread.slug, type: 'project', body: closingBody(thread), tags: thread.tags, supersedes: [thread.id], author: thread.author, ownerMachineId: thread.owner_machine_id, shared: thread.shared }));
+  const closing = plan.close.map(thread => ({ slug: thread.slug, type: 'project', body: closingBody(thread), tags: thread.tags, supersedes: [thread.id], author: thread.author, owner: thread.owner_subject, shared: thread.shared }));
   const tags = admin ? tagSync(tagRows, areas, { author: store.author, now: now() }) : [];
-  const writes = [...writeStatements({ facts: closing, source: 'consolidation', createdAt: now(), author: store.author, ownerMachineId: store.ownerMachineId }), ...tags];
+  const writes = [...writeStatements({ facts: closing, source: 'consolidation', createdAt: now(), author: store.author, owner: store.owner }), ...tags];
   if (writes.length) await store.batch(writes);
   const { written } = await retag(ctx, { retag: plan.retag }, store);
   return { closed: closing.length, retagged: written, tags: tags.filter(([sql]) => sql === ADMIN_WRITES.tagUpdate.sql).length };
@@ -369,7 +368,7 @@ async function source(ctx, { positionals: [raw] }) {
   const [row] = await store.query('SELECT f.session_id, s.raw_key, s.raw_bytes FROM facts f LEFT JOIN sessions s ON s.id = f.session_id WHERE f.id = ?', [id]);
   if (!row) throw new StoreError(`no fact #${id}`);
   const tooLarge = row.raw_bytes > MAX_TRANSCRIPT_BYTES && `the transcript was ${megabytes(row.raw_bytes)}, over the ${megabytes(MAX_TRANSCRIPT_BYTES)} limit, so it was not kept`;
-  let missing = !store.config.bucket ? 'this store has no R2 bucket, so transcripts are not stored' : !row.raw_key ? tooLarge || (row.session_id && store.role !== 'admin' ? 'only the owning machine and the admin can read this transcript' : 'no transcript was stored for this session') : null;
+  let missing = !store.config.bucket ? 'this store has no R2 bucket, so transcripts are not stored' : !row.raw_key ? tooLarge || (row.session_id && store.role !== 'admin' ? 'only its owner and the admin can read this transcript' : 'no transcript was stored for this session') : null;
   let object = null;
   try { object = missing ? null : await store.getObject(row.raw_key); } catch (error) {
     if (error.kind !== 'forbidden') throw error;
@@ -492,7 +491,7 @@ async function keepRaw(store, record, raw) {
   const body = redact(raw, secretValues(store.env));
   record.rawBytes = Buffer.byteLength(body);
   if (record.rawBytes > MAX_TRANSCRIPT_BYTES) return `The full transcript is ${megabytes(record.rawBytes)}, over the ${megabytes(MAX_TRANSCRIPT_BYTES)} limit, so it is not kept`;
-  record.rawKey = `sessions/${store.ownerMachineId}/${record.agent}/${record.id.split(':')[1]}.jsonl`;
+  record.rawKey = `sessions/${store.owner ?? 'unassigned'}/${record.agent}/${record.id.split(':')[1]}.jsonl`;
   await store.putObject(record.rawKey, body);
   return '';
 }
@@ -514,9 +513,9 @@ async function keepTranscript(ctx, { positionals: [id] }) {
     if (ledger?.status === 'private') return skip(`${id} was recorded as private, so nothing was uploaded`);
     const record = { ...recordFor(id, file, parsed), readThrough: null };
     const status = ledger?.status || 'skipped';
-    await store.batch([sessionUpsert(record, status, { author: store.author, machine: ctx.machine, ownerMachineId: store.ownerMachineId, reason: ledger ? ledger.reason : 'not captured yet' })]);
+    await store.batch([sessionUpsert(record, status, { author: store.author, machine: ctx.machine, owner: store.owner, email: store.email, reason: ledger ? ledger.reason : 'not captured yet' })]);
     const tooLarge = await keepRaw(store, record, raw);
-    await store.batch([sessionUpsert(record, status, { author: store.author, machine: ctx.machine, ownerMachineId: store.ownerMachineId, reason: ledger ? ledger.reason : 'not captured yet' })]);
+    await store.batch([sessionUpsert(record, status, { author: store.author, machine: ctx.machine, owner: store.owner, email: store.email, reason: ledger ? ledger.reason : 'not captured yet' })]);
     console.log(tooLarge ? `transcript not kept: ${tooLarge}` : `kept: ${id}'s redacted transcript is in ${record.rawKey}`);
   } catch (error) {
     if (!(error instanceof StoreError || error instanceof FormatError)) throw error;
@@ -549,11 +548,11 @@ async function stripCommand(ctx, { positionals: [id], tally }) {
   }
   let tooLarge;
   try {
-    await store.batch([sessionUpsert({ ...record, readThrough: null }, ledger?.status || 'skipped', { author: store.author, machine: ctx.machine, ownerMachineId: store.ownerMachineId, reason: 'awaiting capture' })]);
+    await store.batch([sessionUpsert({ ...record, readThrough: null }, ledger?.status || 'skipped', { author: store.author, machine: ctx.machine, owner: store.owner, email: store.email, reason: 'awaiting capture' })]);
     // Over the limit, the session's facts are still captured; only its full transcript is not kept.
     tooLarge = store.config.bucket ? await keepRaw(store, record, raw) : '';
   } catch (error) {
-    // The store refused this one session (another computer's, or unowned history): skip it, not the run.
+    // The store refused this one session (another person's, or unowned history): skip it, not the run.
     if (error.kind !== 'forbidden') throw error;
     markSeen(ctx, record);
     addToTally(tally, { skipped: 1 });
@@ -766,8 +765,12 @@ async function migrate(ctx) {
 }
 
 function extractIdentity(ctx, scope) {
-  const token = process.env.CLOUDFLARE_MEMORY_TOKEN || loadEnv(ctx).CLOUDFLARE_MEMORY_TOKEN || '';
-  return taskIdentity(ctx, scope, createHash('sha256').update(token).digest('hex'));
+  let who = process.env.CLOUDFLARE_MEMORY_TOKEN || loadEnv(ctx).CLOUDFLARE_MEMORY_TOKEN || '';
+  try {
+    const origin = memoryOrigin(loadConfig(ctx));
+    who = (origin && signIn(origin).subject) || who;
+  } catch { /* no store recorded */ }
+  return taskIdentity(ctx, scope, createHash('sha256').update(who).digest('hex'));
 }
 async function extractCommand(ctx, { values, positionals }) {
   const scope = scopeOf(values), question = positionals.join(' ').trim();
@@ -792,7 +795,6 @@ export const COMMANDS = {
   upkeep: async ctx => console.log(await upkeepLine(ctx)),
   'finish-run': finishRun,
   ...MEMBER_COMMANDS,
-  ...JOIN_COMMANDS,
 };
 
 const OPTIONS = { ...READ_OPTIONS, ...Object.fromEntries([
@@ -802,7 +804,7 @@ const OPTIONS = { ...READ_OPTIONS, ...Object.fromEntries([
 
 const USAGE = `usage: memory.mjs <command>
   recall <question> [--scope current|history|active|all] [--mode auto|keyword|semantic|deep] [--change slug] [--limit 1..5] [--tag t] [--type t] [--slug s] [--since d] [--until d] [--json]
-  documents <question> [--scope ...] [--mode ...] [--change slug] [--limit 1..5] [--json]   original wiki/OpenSpec evidence; no memory credential needed
+  documents <question> [--scope ...] [--mode ...] [--change slug] [--limit 1..5] [--json]   original wiki/OpenSpec evidence; no sign-in needed
   documents-setup [--deep] [--cpu]   explicit pinned QMD/model preparation; ordinary reads never install
   documents-refresh               reconcile this checkout's derived index
   documents-status                runtime, model and index readiness
@@ -829,8 +831,9 @@ const USAGE = `usage: memory.mjs <command>
                                (in a team, search, show, and live hide other people's personal and reader facts; only the admin's --everyone shows them)
   finish-run --kind capture|consolidation --status ok|failed [--counts JSON] [--reason text]
   migrate                      (with a memory Worker recorded, runs with the admin's CLOUDFLARE_API_TOKEN)
-  join --file <private-file>    install this machine’s repository credential
-  member admin | member add <machine-id> --key-file <private-file> [--role member|reader] | member remove <machine-id> | member list`;
+  migrate-people               move each signed-in computer's private notes to its person, then turn old keys off (admin)
+  assign <machine-id> <email>  give an unlinked computer's private notes to a person who has used memory (admin)
+  member list | member remove <machine-id>   old memory keys (admin); who sees memory is set in Access`;
 
 if (isMain(import.meta.url)) {
   const [command, ...rest] = process.argv.slice(2);

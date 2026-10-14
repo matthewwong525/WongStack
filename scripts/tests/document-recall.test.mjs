@@ -4,13 +4,12 @@ import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node
 import { execFileSync } from 'node:child_process';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { newKey, hashKey } from '../../.agents/skills/memory/worker/memory-worker.mjs';
 import { buildDigest } from '../../.agents/skills/memory/scripts/lib/digest.mjs';
 import { renderPacket, byteSize } from '../../.agents/skills/memory/scripts/lib/documents/packet.mjs';
 import { validateRetrieval } from '../../.agents/skills/memory/scripts/lib/documents/input.mjs';
 import { recallPacket } from '../../.agents/skills/memory/scripts/lib/documents/commands.mjs';
 import { callMemory, memoryOperations } from '../../.agents/skills/memory/scripts/operations.mjs';
-import { memory, node, setup, tempDir } from './fixtures/memory/harness.mjs';
+import { memory, node, setup, signInAs, tempDir } from './fixtures/memory/harness.mjs';
 
 const root = resolve(fileURLToPath(new URL('../..', import.meta.url)));
 function document(repo, text = '# Delivery guidance\nDelivery waits for approved checks.\n') {
@@ -86,7 +85,7 @@ test('document CLI requires no memory configuration or secret and invalid input 
 });
 test('combined CLI returns live fact metadata once with independently verified local documents', async t => {
   const { repo, fake } = await setup(t); document(repo);
-  fake.db.prepare("INSERT INTO facts (slug,type,body,source,created_at,author,owner_machine_id,shared) VALUES ('delivery','project','Delivery uses approved checks.','migration','2026-10-04','synthetic@example.com',?,1)").run(repo.machineId);
+  fake.db.prepare("INSERT INTO facts (slug,type,body,source,created_at,author,owner_subject,shared) VALUES ('delivery','project','Delivery uses approved checks.','migration','2026-10-04','synthetic@example.com',NULL,1)").run();
   const result = await memory(repo, fake, ['recall', 'delivery', '--mode', 'keyword', '--json']);
   assert.equal(result.code, 0, result.stderr); const packet = JSON.parse(result.stdout);
   assert.equal(packet.facts.length, 1); assert.equal(packet.facts[0].body, 'Delivery uses approved checks.');
@@ -104,13 +103,12 @@ test('denied or offline facts leave usable documents and no hidden fact identifi
 });
 test('member installed recall keeps personal facts private and never expands admin scope', async t => {
   const { repo, fake } = await setup(t); document(repo);
-  const key = newKey(repo.machineId);
-  fake.db.prepare("INSERT INTO memory_keys (hash,email,role,created_at,machine_id) VALUES (?,'same@example.com','member','now',?)").run(await hashKey(key), repo.machineId);
-  const insert = fake.db.prepare("INSERT INTO facts (slug,type,body,source,created_at,author,owner_machine_id,shared) VALUES ('delivery',?,?,'migration','2026-10-04','same@example.com',?,?)");
-  insert.run('project', 'Delivery shared evidence.', repo.machineId, 1);
+  signInAs(repo, { sub: 'same', email: 'same@example.com', role: 'member' });
+  const insert = fake.db.prepare("INSERT INTO facts (slug,type,body,source,created_at,author,owner_subject,shared) VALUES ('delivery',?,?,'migration','2026-10-04','same@example.com',?,?)");
+  insert.run('project', 'Delivery shared evidence.', 'same', 1);
   insert.run('user', 'Delivery private evidence.', 'other-owner', 0);
   const result = await node(repo, fake, 'operations.mjs', ['call', 'memory.recall', '--file', '-'],
-    { input: JSON.stringify({ question: 'delivery', mode: 'keyword' }), env: { CLOUDFLARE_MEMORY_TOKEN: key } });
+    { input: JSON.stringify({ question: 'delivery', mode: 'keyword' }) });
   assert.equal(result.code, 0, result.stderr); const packet = JSON.parse(result.stdout);
   assert.equal(packet.version, 1); assert.deepEqual(packet.facts.map(fact => fact.body), ['Delivery shared evidence.']);
   assert.ok(!result.stdout.includes('private evidence')); assert.ok(packet.documents.length > 0);

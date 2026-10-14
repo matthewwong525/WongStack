@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { CHECK_FILES, cli, NEVER_PUBLISHES, NOT_SET_UP, refusal, waitRows } from '../../.agents/skills/save/scripts/app-change.mjs';
+import { CHECK_FILES, cli, NEVER_PUBLISHES, NO_PUBLISH, NOT_SET_UP, refusal, waitRows } from '../../.agents/skills/save/scripts/app-change.mjs';
 
 const script = new URL('../../.agents/skills/save/scripts/app-change.mjs', import.meta.url).pathname;
 const APP = 'https://app.example.com/api/access/code/git/';
@@ -344,6 +344,40 @@ test('push sends HEAD up with the connection\'s Git, and a refusal is one plain 
   assert.equal(refusal(undefined), PLAIN);
   const foreign = await run(f, ['push'], pushing(new Error('This copy did not come from the connected company; nothing was sent.')));
   assert.deepEqual([foreign.code, foreign.err], [1, ['This copy did not come from the connected company; nothing was sent.']]);
+});
+
+test('can-publish says yes only for a person who holds Project code at its publish level', async (t) => {
+  const f = checkout(t);
+  const holding = level => connection([{ state: 'current', keys: [{ id: 'cloudflare', title: 'Cloudflare', level: 'write' }, { id: 'code', title: 'Project code', level }] }]);
+  const yes = holding('write');
+  assert.deepEqual([(await run(f, ['can-publish'], yes)).out, yes.calls], [['yes'], [{ path: '/api/access/apps', init: undefined }]]);
+  assert.deepEqual((await run(f, ['can-publish'], holding('read'))).out, ['no']);
+  assert.deepEqual((await run(f, ['can-publish'], connection([{ state: 'legacy' }]))).out, ['no']);
+  const down = await run(f, ['can-publish'], connection([new Error('Company session expired or access was denied; use the employee’s own login.')]));
+  assert.deepEqual([down.code, down.out], [1, []]);
+});
+
+test('publish asks the app to publish this exact commit, prints what went live, and fetches; a refusal is one line', async (t) => {
+  const f = checkout(t);
+  const fetched = [];
+  const publishing = answer => connection([answer], { git: async (args, cwd) => { fetched.push({ args, cwd }); return { code: 0, stdout: '', stderr: '' }; } });
+  const client = publishing({ published: true, commit: 'abc', url: 'https://github.com/team/repo/pull/7' });
+  const ok = await run(f, ['publish'], client);
+  assert.deepEqual([ok.code, ok.text], [0, 'published=yes\ncommit=abc\nchange=https://github.com/team/repo/pull/7']);
+  assert.deepEqual(client.calls, [{ path: '/api/access/code/change/publish', init: { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ branch: 'work', sha: f.sha }) } }]);
+  assert.deepEqual(fetched, [{ args: ['fetch', 'origin'], cwd: f.dir }]);
+  // On Cloudflare there is no change page; a failed fetch leaves the publish standing.
+  const failing = connection([{ published: true, commit: f.sha, url: null }], { git: async () => { throw new Error('offline'); } });
+  assert.deepEqual((await run(f, ['publish'], failing)).out, [`published=yes\ncommit=${f.sha}\nchange=none`]);
+  // No tick: the plain line, never the app's level words. Any other refusal is the app's own line.
+  const denied = await run(f, ['publish'], publishing(refusedBy(403, 'forbidden', 'Project code: Read & write needed')));
+  assert.deepEqual([denied.code, denied.out, denied.err], [1, [], [NO_PUBLISH]]);
+  const failed = 'The check "test" did not pass, so nothing was published.';
+  const red = await run(f, ['publish'], publishing(refusedBy(409, 'checks_not_passed', failed)));
+  assert.deepEqual([red.code, red.out, red.err], [1, [], [failed]]);
+  f.git('checkout', '-q', '--detach');
+  const detached = publishing({ published: true });
+  assert.deepEqual([(await run(f, ['publish'], detached)).code, detached.calls], [1, []]);
 });
 
 test('heads lists the project\'s branch heads through the connection\'s Git', async (t) => {

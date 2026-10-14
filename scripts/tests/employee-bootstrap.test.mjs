@@ -128,7 +128,7 @@ test('actual packaged CLI connects from empty folder and keeps headless login ou
   assert.deepEqual(JSON.parse(uncertain.stdout).error, { code: 'timeout', message: 'Action timed out; its outcome may be unknown', requestId: 'synthetic', confirmWith: 'orders.lookup' });
   assert.equal(statSync(join(f.base, '.cloudflared')).mode & 0o777, 0o700);
 });
-test('Git in the project copy carries the session in the child environment only, and a copy from elsewhere is refused first', async t => {
+test('Git in the project copy leaves the sign-in to the copy\'s own helper, and a copy from elsewhere is refused first', async t => {
   const f = directories(t), address = `${origin}/api/access/code/git/`, copy = join(f.base, 'copy'), bin = join(f.base, 'bin');
   const tokens = [], credential = jwt();
   const client = companyClient({ ...f, run: async args => { tokens.push(args); return credential; }, request: async () => Response.json(setup()) });
@@ -140,21 +140,26 @@ test('Git in the project copy carries the session in the child environment only,
   await assert.rejects(client.git(['push'], copy, standIn(`${address}?x=1`)), /did not come from the connected company/);
   assert.equal(tokens.length, 0, 'no session is asked for a foreign copy');
   assert.deepEqual(runs.map(row => row.session), [undefined, undefined]); runs.length = 0;
-  // The app's own copy: the arguments are the caller's, the session rides beside them, and Git's messages come back.
+  // The app's own copy: the arguments are the caller's, only the address rides beside them; Git's messages come back.
   assert.deepEqual(await client.git(['push', '-u', 'origin', 'HEAD'], copy, standIn(address)), { code: 1, stdout: '', stderr: 'remote: refused' });
-  assert.deepEqual(runs[1], { args: ['-C', copy, 'push', '-u', 'origin', 'HEAD'], session: { address, token: credential } });
-  assert.ok(!runs.some(row => row.args.join(' ').includes(credential)));
+  assert.deepEqual(runs[1], { args: ['-C', copy, 'push', '-u', 'origin', 'HEAD'], session: { address } });
+  assert.equal(tokens.length, 0, 'the copy\'s helper reads the sign-in, not this client');
   // The real child: a fake `git` on PATH prints what it was started with, and its stderr is returned unprinted.
   mkdirSync(bin);
   writeFileSync(join(bin, 'git'), `#!${process.execPath}\nconsole.log(JSON.stringify({ args: process.argv.slice(2), env: process.env }));\nconsole.error('remote: the app said no');\nprocess.exit(1);\n`, { mode: 0o700 });
   const path = process.env.PATH; process.env.PATH = `${bin}:${path}`;
-  let child;
-  try { child = await git(['-C', copy, 'push'], { address, token: credential }); } finally { process.env.PATH = path; }
+  let child, own;
+  try { [child, own] = [await git(['-C', copy, 'push'], { address, token: credential }), await git(['-C', copy, 'push'], { address })]; } finally { process.env.PATH = path; }
   assert.equal(child.code, 1); assert.equal(child.stderr, 'remote: the app said no\n');
   const started = JSON.parse(child.stdout);
   assert.deepEqual(started.args, ['-C', copy, 'push']);
+  // Setup's own download sends the session as a header, and asks no helper.
   assert.ok(Object.entries(started.env).some(([key, value]) => key.startsWith('GIT_CONFIG_VALUE_') && value === `cf-access-token: ${credential}`));
   assert.ok(Object.values(started.env).includes(`http.${address}.extraHeader`));
+  assert.ok(Object.values(started.env).includes('credential.helper'));
+  // In the copy, the copy's helper answers: nothing clears it, and no session is set.
+  const config = Object.entries(JSON.parse(own.stdout).env).filter(([key]) => key.startsWith('GIT_CONFIG_')).map(([, value]) => value);
+  assert.deepEqual(config.sort(), ['1', 'false', 'http.followRedirects']);
   assert.equal(typeof client.http, 'function');
 });
 test('the sign-in line tells the assistant to show the link now, and leaves the link alone on its last line', () => {

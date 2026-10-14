@@ -1,4 +1,3 @@
-import { hashKey, newKey } from '../../.agents/skills/memory/worker/memory-worker.mjs';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -11,7 +10,7 @@ import { writeEnvKey } from '../../.agents/skills/memory/scripts/lib/members.mjs
 import { MAX_BYTES, MAX_LINES, PERSON_MAX_BYTES } from '../../.agents/skills/memory/scripts/lib/digest.mjs';
 import { BRIEF_MAX_BYTES, renderBrief } from '../../.agents/skills/memory/scripts/lib/brief.mjs';
 import { wordTags } from '../../.agents/skills/memory/scripts/lib/upkeep.mjs';
-import { memory, rows, SECRET, setup, tempDir, writeJsonFile } from './fixtures/memory/harness.mjs';
+import { memory, rows, SECRET, setup, signInAs, tempDir, writeJsonFile } from './fixtures/memory/harness.mjs';
 
 const put = (env, input) => memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, `in-${Date.now()}-${Math.random()}.json`, input)]);
 
@@ -114,7 +113,7 @@ test("the gate never lists a teammate's thread that only its author sees", async
   const env = await setup(t);
   mkdirSync(env.repo.stateDir, { recursive: true });
   writeFileSync(join(env.repo.stateDir, 'team.json'), JSON.stringify({ team: true }));
-  const insert = env.fake.db.prepare("INSERT INTO facts (slug, type, body, source, created_at, author, shared) VALUES ('setup-flow', 'thread', ?, 'save', '2026-09-01T00:00:00Z', 'ana@example.com', ?)");
+  const insert = env.fake.db.prepare("INSERT INTO facts (slug, type, body, source, created_at, author, owner_subject, shared) VALUES ('setup-flow', 'thread', ?, 'save', '2026-09-01T00:00:00Z', 'ana@example.com', 'ana', ?)");
   insert.run('Ana asks: does a real setup from one token work?', 0);
   insert.run('Ana also asks: does a real setup from one token finish quickly?', 1);
   const result = await memory(env.repo, env.fake, ['gate', '--file', writeJsonFile(env.repo.home, 'team-gate.json', { slug: 'release', facts: [{ type: 'project', body: 'A real setup from one token worked.' }] })]);
@@ -516,22 +515,14 @@ test("search by change keeps the team filter on a teammate's personal facts", as
   const env = await setup(t);
   mkdirSync(env.repo.stateDir, { recursive: true });
   writeFileSync(join(env.repo.stateDir, 'team.json'), JSON.stringify({ team: true }));
-  const boMachine = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
-  const boKey = newKey(boMachine);
-  env.fake.db.prepare('INSERT INTO memory_keys (hash, email, role, created_at, machine_id) VALUES (?, ?, ?, ?, ?)').run(await hashKey(boKey), 'bo@example.com', 'admin', 'now', boMachine);
-  const currentId = env.repo.machineId;
-  env.repo.machineId = boMachine;
-  writeFileSync(join(env.repo.dataHome, 'wongstack', 'machine-id'), `${boMachine}\n`);
-  const currentEnv = readFileSync(join(env.repo.root, '.env'), 'utf8');
-  writeFileSync(join(env.repo.root, '.env'), `CLOUDFLARE_MEMORY_TOKEN=${boKey}\n`);
+  // Bo signs in as a member on this computer, then the admin's old key reads.
+  signInAs(env.repo, { sub: 'bo', email: 'bo@example.com', role: 'member' });
   execFileSync('git', ['config', 'user.email', 'bo@example.com'], { cwd: env.repo.root });
   await sessionFacts(env, 'claude:bo', 'bo-branch', [
     { action: 'add', type: 'project', slug: 'add-home-repo', body: 'Bo shipped the home schema.' },
     { action: 'add', type: 'feedback', slug: 'prefs', body: 'Bo wants short replies.' },
   ]);
-  env.repo.machineId = currentId;
-  writeFileSync(join(env.repo.dataHome, 'wongstack', 'machine-id'), `${currentId}\n`);
-  writeFileSync(join(env.repo.root, '.env'), currentEnv);
+  signInAs(env.repo, null);
   execFileSync('git', ['config', 'user.email', 'dev@example.com'], { cwd: env.repo.root });
   const mine = await memory(env.repo, env.fake, ['search', '--change', 'add-home-repo']);
   assert.deepEqual(lines(mine), ['- [project] Bo shipped the home schema.']);
@@ -609,14 +600,14 @@ test('a store with no bucket keeps working and says transcripts are not stored',
   assert.ok(!env.fake.calls.some(call => call.includes('/r2/')));
 });
 
-test('a missing token names the variable and prints no value', async t => {
+test('a missing sign-in names the command that signs in and prints no value', async t => {
   const env = await setup(t);
   const result = await memory(env.repo, env.fake, ['search', 'x'], { env: { WONG_MEMORY_STATE_DIR: env.repo.stateDir } });
   assert.equal(result.code, 0);
   writeFileSync(join(env.repo.root, '.env'), 'OTHER=1\n');
   const missing = await memory(env.repo, env.fake, ['search', 'x']);
   assert.equal(missing.code, 1);
-  assert.match(missing.stderr, /CLOUDFLARE_MEMORY_TOKEN is not set in \.env; node \.claude\/skills\/memory\/scripts\/memory\.mjs join --file <private-file> installs a credential issued by the repo admin\. See wiki\/development\/memory-key\.md/);
+  assert.match(missing.stderr, /this computer is not signed in to the company app; to sign in, run `cloudflared access login http:\/\/127\.0\.0\.1:\d+` and show the person the link it prints\. See wiki\/development\/memory\.md#sign-in-and-expiry/);
 });
 
 test('helpers: FTS query, tag normalization, near tags, redaction', () => {
@@ -823,9 +814,25 @@ test('the ownership migration preserves historical bodies, authors, sources and 
   assert.throws(() => db.exec("UPDATE sessions SET owner_machine_id = 'claimed'"), /ownership cannot change/);
 });
 
-test('login-link markers are redacted and rejected from facts even when absent from .env', async t => {
+test('the person-ownership migration lets a row gain an owner once, never change it', async t => {
+  const { DatabaseSync } = await import('node:sqlite'); const db = new DatabaseSync(':memory:'); t.after(() => db.close());
+  const dir = new URL('../../.agents/skills/memory/migrations/', import.meta.url);
+  for (const file of readdirSync(dir).filter(name => name.endsWith('.sql')).sort()) db.exec(readFileSync(new URL(file, dir), 'utf8'));
+  db.exec("INSERT INTO sessions (id, agent, status, updated_at) VALUES ('claude:a', 'claude', 'captured', 'now')");
+  db.exec("INSERT INTO facts (slug, type, body, source, created_at) VALUES ('x', 'feedback', 'Unassigned fact', 'save', 'now')");
+  for (const table of ['facts', 'sessions']) {
+    db.exec(`UPDATE ${table} SET owner_subject = 'ana', owner_email = 'ana@example.com'`);
+    db.exec(`UPDATE ${table} SET owner_subject = 'ana'`);
+    assert.throws(() => db.exec(`UPDATE ${table} SET owner_subject = 'bo'`), /ownership cannot change/);
+    assert.throws(() => db.exec(`UPDATE ${table} SET owner_subject = NULL`), /ownership cannot change/);
+  }
+  assert.deepEqual(db.prepare('SELECT name FROM pragma_table_info(?) ORDER BY cid').all('memory_schedules').map(row => row.name),
+    ['client_id', 'name', 'secret_hash', 'token_id', 'created_at', 'revoked_at']);
+});
+
+test('old login-link markers are redacted and rejected from facts even when absent from .env', async t => {
   const env = await setup(t); const marker = `wongl_${'m'.repeat(43)}`;
-  assert.ok(!redact(`Open ?memory_login_link=${marker}`, []).includes(marker));
+  assert.ok(!redact(`Open ?link=${marker}`, []).includes(marker));
   const result = await put(env, { slug: 'x', facts: [{ action: 'add', type: 'project', body: `Use ${marker}` }] });
   assert.equal(result.code, 1); assert.doesNotMatch(result.stdout + result.stderr, /wongl_/);
 });

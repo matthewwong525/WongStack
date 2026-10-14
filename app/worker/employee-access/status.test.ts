@@ -26,7 +26,7 @@ it("lists every app a person can be given, and no skill, area or level beside on
   expect(status.unticked).toEqual({ people: [], roles: [] });
   // One role is there from the start: Admin, built in, with every one of those apps
   // and each key at the highest level it offers.
-  expect(status.roles).toEqual([{ id: "admin", name: "Admin", builtIn: true, apps: ["orders", "reports"], keys: { cloudflare: "read", code: "read" } }]);
+  expect(status.roles).toEqual([{ id: "admin", name: "Admin", builtIn: true, apps: ["orders", "reports"], keys: { cloudflare: "read", code: "write" } }]);
   for (const gone of ["areas", "skills", "kept", "appKeys"]) expect(status, gone).not.toHaveProperty(gone);
   // Nothing is stored for a skill: its calls are judged by the caller's apps and key levels, like any other call.
   expect(f.sql.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE '%skill%'").all()).toEqual([]);

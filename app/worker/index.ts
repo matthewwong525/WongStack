@@ -1,22 +1,17 @@
-// Verify signed Access identity before all business content; memory keeps its own keys.
+// Verify signed Access identity before all business content; memory and git check the same sign-in themselves.
 import { handleMemory, MEMORY_PREFIX } from "../../.agents/skills/memory/worker/memory-worker.mjs";
-import { associateLogin } from "../../.agents/skills/memory/worker/login-link.mjs";
 import { handleWalkPictures, WALK_PREFIX } from "../../.agents/skills/verify/worker/walk-pictures.mjs";
 import { discovery } from "./api/discovery.ts";
 import { API_PREFIX, handleApi } from "./api/router.ts";
 import { APP_API, handleApp } from "./apps/index.ts";
-import { getAccessIdentity, type AccessEnv, type AccessIdentity } from "./access.ts";
+import { getAccessIdentity, type AccessEnv } from "./access.ts";
+import { memoryCaller } from "./memory-caller.ts";
 import type { ConnectionEnv } from "./employee-access/core.ts";
 import { appPageDenied } from "./employee-access/apps.ts";
+import { CODE_GIT, gitSignIn } from "./employee-access/code.ts";
 import { SETUP_PATH } from "./employee-access/prompt.ts";
 import { handleAccess } from "./employee-access/router.ts";
 import { setupFile } from "./employee-access/setup-file.ts";
-
-async function labelMemoryLogin(env: Env, link: string, identity: AccessIdentity | null, open: boolean): Promise<void> {
-  if (!open && env.MEMORY_DB && identity?.kind === "user") {
-    await associateLogin(env.MEMORY_DB, link, identity).catch(() => false);
-  }
-}
 
 export default {
   async fetch(request, env) {
@@ -29,9 +24,9 @@ export default {
     }
 
     // Session memory, served by the memory skill from production's MEMORY_DB and MEMORY_BUCKET; staging binds
-    // neither and answers 404. A memory key authenticates each call: wiki/development/memory.md.
+    // neither and answers 404. The company sign-in authenticates each call: wiki/development/memory.md.
     if (url.pathname.startsWith(MEMORY_PREFIX)) {
-      return handleMemory(request, env);
+      return handleMemory(request, env, memoryCaller);
     }
 
     const identity = await getAccessIdentity(request, env);
@@ -40,6 +35,8 @@ export default {
     const open = env.WORKSPACE_LOGIN === "off" && !env.CF_ACCESS_TEAM_DOMAIN && !env.CF_ACCESS_AUD;
     if (!identity && !open) {
       const configured = env.CF_ACCESS_TEAM_DOMAIN && env.CF_ACCESS_AUD;
+      // Git's route skips the edge sign-in, so its sign-in is checked here: wiki/stack/cloudflare-access.md
+      if (configured && url.pathname.startsWith(CODE_GIT)) return gitSignIn(url.origin);
       return new Response(configured ? "Unauthorized" : "Workspace access is not configured", {
         status: configured ? 401 : 503,
         headers: { "Cache-Control": "no-store" },
@@ -54,13 +51,6 @@ export default {
     // Discovery always requires company login, even on an open starter.
     if (["/api/openapi.json", "/api/actions"].includes(url.pathname)) {
       return discovery(request, env, identity);
-    }
-
-    // A setup link labels its assistant machine after ordinary human login.
-    // Always clean the URL; association failure does not interrupt the app.
-    if (url.pathname === "/" && url.searchParams.has("memory_login_link")) {
-      await labelMemoryLogin(env, url.searchParams.get("memory_login_link") || "", identity, open);
-      return new Response(null, { status: 303, headers: { Location: new URL("/", request.url).href, "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" } });
     }
 
     // A preview check's kept pictures, served from the verify skill. The route gets the memory bucket alone and

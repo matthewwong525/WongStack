@@ -81,7 +81,7 @@ it('says what the app answered when there is nothing to copy, with no steps', as
 
 it('follows whether the person may have the project: the project when ready, the apps alone when off, who to ask when they lack Project code', async () => {
   const drawn = () => [!!screen.queryByText(/^It can use:/), !!screen.queryByText('Project: the whole project, kept up to date'), !!screen.queryByRole('button', { name: 'Copy' }),
-    !!screen.queryByText('This connects the apps above. Project code and memory are set up separately.'), !!screen.queryByText('Your copy is for using, not publishing. Memory is set up separately.')]
+    !!screen.queryByText('This connects the apps above and memory. Project code is set up separately.'), !!screen.queryByText('Your copy is for using, not publishing. Memory comes with the same sign-in.')]
   Object.assign(own, { code: 'ready' }); open(); await screen.findByText('Project: the whole project, kept up to date')
   expect(drawn()).toEqual([true, true, true, false, true]); cleanup()
   // Off, as before the app could hand the project out, and when the answer leaves it out.

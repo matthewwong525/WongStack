@@ -9,7 +9,7 @@ import { isDeepStrictEqual, parseArgs } from 'node:util';
 import { isMain } from '../../memory/scripts/lib/cli.mjs';
 import { machineId, machineIdFile } from '../../memory/scripts/lib/machine-id.mjs';
 import { keyMachine, parseEnv } from '../../memory/scripts/lib/store.mjs';
-import { AccessSetupError, accessOrganization, cloudflareReadKey, loginManagementKey, ownerIdentity, provisionAccess, provisionAccessPolicies } from './private-access.mjs';
+import { AccessSetupError, accessExceptions, accessOrganization, cloudflareReadKey, loginManagementKey, ownerIdentity, provisionAccess, provisionAccessPolicies } from './private-access.mjs';
 import { helperConfig } from '../../save/scripts/artifacts-credential.mjs';
 import {
   CloudflareError, PROPAGATION, ProvisionError, accountPolicy, cloudflare, durableEnv, fillConfig, grant, installRunner, orNull, paidPlan, pending,
@@ -705,16 +705,15 @@ export async function provision({ token, api, fetch, account, repo, base, route 
   // `sub` was read back from the account; never copy an upstream installation's origin.
   recordComponent(dir, 'companyApi', { origin: `https://${n.worker}.${sub}.workers.dev` }, note);
 
-  // The schema, retried while a new database or a widened token takes effect, then the admin key.
+  // The schema, retried while a new database or a widened token takes effect. Memory uses the owner's company
+  // sign-in; only an app with no sign-in yet keeps an admin key in .env.
   const memory = join(dir, '.claude', 'skills', 'memory', 'scripts', 'memory.mjs');
   const admin = { cwd: dir, env: { ...env, CLOUDFLARE_API_TOKEN: token } };
   await step('cloudflare', () => retry(() => exec('node', [memory, 'migrate'], admin), sleep, () => true));
-  if (needsKey) {
-    const issued = await step('cloudflare', () => exec('node', [memory, 'member', 'admin'], admin));
-    const appUrl = issued.stdout?.match(/Open the app and sign in normally: (\S+)/)?.[1];
-    if (appUrl) report.appUrl = appUrl;
+  if (open && needsKey) {
+    await step('cloudflare', () => exec('node', [memory, 'member', 'admin'], admin));
     note('created', 'admin machine memory key in .env');
-  } else note('reused', 'admin memory key in .env');
+  } else if (open) note('reused', 'admin memory key in .env');
 
   // The app's databases and config.
   const db = await step('cloudflare', () => database(cf, account, n.db, note));
@@ -792,8 +791,8 @@ export async function provision({ token, api, fetch, account, repo, base, route 
   return report;
 }
 
-/** What Access needs on a repo installed before it knew its owner: the owner's email in both Workers' vars, the
- * two keys, and the project's name. It reads the install record and makes nothing else, so an update runs it alone. */
+/** What Access needs on an older install: the owner's email in both Workers' vars, the two keys, the memory and git
+ * exceptions, and the project's name. It reads the install record, so an update runs it alone. */
 export async function accessSetup({ token, api, fetch, account, ownerEmail, dir = '.', exec = run }) {
   const cf = cloudflare(token, { api, fetch });
   const report = { created: [], reused: [], updated: [], todo: [] };
@@ -801,6 +800,7 @@ export async function accessSetup({ token, api, fetch, account, ownerEmail, dir 
   const { access, delivery } = readJson(recordFile(dir))?.components ?? {};
   const worker = access?.workers?.[0]?.name;
   if (!access?.appId || !access.humanPolicyId || !worker) throw new ProvisionError('repo', 'this repo has no private sign-in on record; run provision first');
+  await step('cloudflare', () => accessExceptions(cf, { account, access, note }));
   const email = ownerIdentity(ownerEmail ?? access.ownerEmail);
   const provisionStateFile = await stateFile(dir, exec);
   const state = readJson(provisionStateFile, {});
@@ -839,8 +839,8 @@ const USAGE = `usage: provision.mjs <command> [--dir <repo>] [--account <id>] [-
   provision --repo <owner/name> --base <base> [--owner-email <email>] [--keep-config] [--open-without-login]
                                           make or reuse the memory store, databases, config, and deploy token;
                                           --open-without-login goes on, open, when Zero Trust needs onboarding
-  access [--owner-email <email>]          on an installed repo with sign-in on: put the owner's email in both Workers'
-                                          vars, give the live app its own key for the sign-in list and the read-only
+  access [--owner-email <email>]          on an installed repo with sign-in on: let memory and git past the sign-in
+                                          wall, put the owner's email in both Workers' vars, give the live app its own key for the sign-in list and the read-only
                                           key for Cloudflare look-ups; the preview app gets the read-only key when
                                           Cloudflare takes it, and is reported as waiting when not. It also names
                                           the project Connect your assistant hands out: codeKey's status is

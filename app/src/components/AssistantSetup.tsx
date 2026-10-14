@@ -7,7 +7,7 @@ import { CopyText } from './CopyText'
 const STEP = 'font-semibold'
 
 // The three steps, numbered by the list itself: copy, paste, approve; then what to ask and what the connection reaches.
-// While the app can not hand the project out, the closing line says code and memory are set up separately.
+// While the app can not hand the project out, the closing line says project code is set up separately.
 function Steps({ text, email, apps, titles, code }: { text: string; email: string; apps: string[]; titles: Record<string, string>; code: Code }) {
   return <>
     <ol className="grid list-decimal gap-4 ps-6 marker:font-semibold">
@@ -17,8 +17,8 @@ function Steps({ text, email, apps, titles, code }: { text: string; email: strin
     </ol>
     <p>Then ask it: <q>What can I do here?</q></p>
     <p className="text-muted-foreground">It can use: {apps.length ? apps.map(app => titles[app] ?? appTitle(app)).join(', ') : 'no apps yet. Ask your employer.'}</p>
-    {code === 'ready' && <><p className="text-muted-foreground">Project: the whole project, kept up to date</p><p className="text-muted-foreground">Your copy is for using, not publishing. Memory is set up separately.</p></>}
-    {code === 'off' && <p className="text-muted-foreground">This connects the apps above. Project code and memory are set up separately.</p>}
+    {code === 'ready' && <><p className="text-muted-foreground">Project: the whole project, kept up to date</p><p className="text-muted-foreground">Your copy is for using, not publishing. Memory comes with the same sign-in.</p></>}
+    {code === 'off' && <p className="text-muted-foreground">This connects the apps above and memory. Project code is set up separately.</p>}
   </>
 }
 
