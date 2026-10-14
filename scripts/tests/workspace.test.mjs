@@ -258,6 +258,16 @@ test('a failed fetch still opens, from the last fetched copy', t => {
   assert.match(both.json.warning, /Could not fetch origin\/main[^]*kept Paseo's name/);
 });
 
+test('a failed fetch in a copy installed through the app names the sign-in step', t => {
+  const { root } = repo(t);
+  // An address nothing answers on, as an app whose sign-in ran out answers no fetch.
+  git(root, 'remote', 'set-url', 'origin', 'https://127.0.0.1:9/api/access/code/git/');
+  const r = runCli(root, ['open', '--title', 'B', '--brief', brief(t)], { ...fakePaseo(t).env, GIT_TERMINAL_PROMPT: '0' });
+  assert.equal(r.status, 0, JSON.stringify(r.json));
+  assert.equal(r.json.base, 'origin/main');
+  assert.match(r.json.warning, /Could not fetch origin\/main[^]*Sign in to the company app again, then retry: cloudflared access login https:\/\/127\.0\.0\.1:9$/);
+});
+
 test('dry run prints the command and runs nothing', t => {
   const { root, publish } = repo(t);
   const before = git(root, 'rev-parse', 'refs/remotes/origin/main');

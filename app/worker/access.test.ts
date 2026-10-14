@@ -302,6 +302,37 @@ describe("getAccessIdentity — verified assertions", () => {
     }
   });
 
+  it("reads the app token from cf-access-token and from a git Basic password", async () => {
+    const token = await signToken({ alg: "RS256", kid: KID }, claims({ email: "human@example.com" }));
+    const basic = (pair: string) => requestWith({ Authorization: `Basic ${Buffer.from(pair).toString("base64")}` });
+
+    for (const request of [requestWith({ "cf-access-token": token }), basic(`x-access:${token}`), basic(`:${token}`)]) {
+      expect(await getAccessIdentity(request, ENV)).toMatchObject({ id: "human@example.com", kind: "user" });
+    }
+  });
+
+  it("refuses anonymous, malformed Basic, wrong-aud, expired and service tokens on the new sources alike", async () => {
+    const now = 1_800_000_000;
+    vi.spyOn(Date, "now").mockReturnValue(now * 1000);
+    const sign = (extra: Record<string, unknown>) => signToken({ alg: "RS256", kid: KID }, { ...claims({}), ...extra });
+    const wrongAud = await sign({ email: "human@example.com", aud: "some-other-app" });
+    const expired = await sign({ email: "human@example.com", exp: now - 1 });
+    const service = await sign({ common_name: "client-id-1", exp: now + 600 });
+
+    const cases: Record<string, string>[] = [
+      {},
+      { Authorization: "Basic !!!" },
+      { Authorization: `Basic ${Buffer.from("x-access:").toString("base64")}` },
+      { Authorization: `Bearer ${service}` },
+      { "cf-access-token": wrongAud },
+      { "cf-access-token": expired },
+    ];
+    for (const headers of cases) {
+      expect(await getAccessIdentity(requestWith(headers), ENV), JSON.stringify(headers)).toBeNull();
+    }
+    expect(await getAccessIdentity(requestWith({ "cf-access-token": service }), ENV)).toMatchObject({ kind: "service" });
+  });
+
   it("rejects an assertion issued for a different application or organization", async () => {
     const wrongAud = await signToken(
       { alg: "RS256", kid: KID },

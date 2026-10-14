@@ -15,13 +15,13 @@ const invalid = () => new AccessError("invalid_request", 400);
 const missing = () => new AccessError("not_found", 404);
 // What the caller sent, held to a shape. An answer from where the project is kept is parsed plainly:
 // a surprise there is a failure, not the caller's mistake.
-function sent<T>(shape: z.ZodType<T>, value: unknown): T {
+export function sent<T>(shape: z.ZodType<T>, value: unknown): T {
   const read = shape.safeParse(value);
   if (!read.success) throw invalid();
   return read.data;
 }
 const branch = z.string().refine(savedBranch);
-const commit = z.object({ branch, sha: z.string().regex(/^[0-9a-f]{40}$/) });
+export const commit = z.object({ branch, sha: z.string().regex(/^[0-9a-f]{40}$/) });
 const opening = z.object({ branch, title: z.string().trim().min(1).max(200), body: z.string().max(60_000) });
 const logOf = z.object({ job: z.string().regex(/^\d{1,20}$/) });
 
@@ -37,7 +37,7 @@ const deployed = z.array(z.object({ environment_url: z.string().nullish() }));
 const workflows = z.object({ total_count: z.number() });
 
 /** The change opened for a branch: the open one, else the newest. */
-async function changeOf(source: Github, name: string) {
+export async function changeOf(source: Github, name: string) {
   const all = pulls.parse(await github(source, `/pulls?head=${source.github.split("/")[0]}:${encodeURIComponent(name)}&state=all&per_page=20`));
   const found = all.find(pull => pull.state === "open") ?? all.at(0);
   return found ? { state: found.merged_at ? "MERGED" : found.state === "open" ? "OPEN" : "CLOSED", url: found.html_url, number: found.number, head: found.head.sha } : null;
@@ -50,7 +50,7 @@ const row = (check: z.infer<typeof jobs>["jobs"][number], job: number | null) =>
 
 // Every check on one commit: each workflow run's jobs, or the run itself before it has any,
 // then each status's newest word.
-async function rows(source: Github, sha: string) {
+export async function rows(source: Github, sha: string) {
   const { workflow_runs: found } = runs.parse(await github(source, `/actions/runs?head_sha=${sha}&per_page=20`));
   const ran = await Promise.all(found.map(async run => {
     const { jobs: list } = jobs.parse(await github(source, `/actions/runs/${run.id}/jobs?per_page=100`));
@@ -128,7 +128,7 @@ type Run = { state: "missing" | "pending" } | { state: "done"; output: unknown }
 type Instance = Awaited<ReturnType<ChecksBinding["get"]>>;
 
 /** One commit's run, in the shape the save scripts already judge, and the run itself for starting it again. */
-async function runOf(checks: ChecksBinding, { branch: name, sha }: z.infer<typeof commit>): Promise<{ run: Run; instance?: Instance }> {
+export async function runOf(checks: ChecksBinding, { branch: name, sha }: z.infer<typeof commit>): Promise<{ run: Run; instance?: Instance }> {
   try {
     const instance = await checks.get(await runId(sha, `refs/heads/${name}`));
     const { status, output, error } = await instance.status();

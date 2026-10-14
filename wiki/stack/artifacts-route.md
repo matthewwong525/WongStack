@@ -142,7 +142,7 @@ Setup makes this key for the runner alone. It reaches the objects of the runner'
 
 ## Limits
 
-- **One person publishes.** You can work from several of your own computers. A teammate gets the project through [Connect your assistant](employee-project.md#no-step-on-a-project-kept-in-cloudflare) and can [save a change through the app](employee-project.md#save-a-change-through-the-app) for you to publish. Adding a teammate who publishes is not built yet.
+- **One person publishes.** You can work from several of your own computers. A teammate gets the project through [Connect your assistant](project-git-route.md#no-step-on-a-project-kept-in-cloudflare) and can [save a change through the app](employee-project.md#save-a-change-through-the-app) for you to publish. Adding a teammate who publishes is not built yet.
 - **Mac and Linux.** On Windows, setup offers the GitHub route.
 - **No pull requests**, and no second person's review of a change.
 - **New installs only.** Moving a GitHub install here is not built.

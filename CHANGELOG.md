@@ -3,6 +3,20 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (major) — One company sign-in for everything
+
+- **One sign-in opens everything.** The company sign-in a person makes once at setup now also opens memory and the project's updates, not only company actions. It lasts 30 days. There is no memory key to hand out.
+- **Old memory keys stop working.** The update hands each computer's private notes to the person it was signed in as, then turns every memory key off. Each computer signs in instead. Turning the keys off can't be undone: a computer that never signed in needs the new sign-in, not a new key.
+- **Private notes follow the person, not the computer.** They are the same on every computer a person signs in on. Teammates still never see each other's. Notes from a computer that was never linked to a sign-in stay visible to the owner and Admins only, until one of them hands the notes to a person.
+- **Who sees what follows Access.** The owner and Admins see all memory; anyone who can install the project is a member; anyone else signed in is a reader. A change in Access applies on the person's next memory call.
+- **New chats and worktrees start from the latest version.** Plain git, Paseo's included, now gets the project through the app with the person's sign-in. A new chat in a teammate's unchanged copy moves it forward in the background; edits are never touched.
+- **A new *Can publish* tick in Access.** The owner can let a trusted teammate or role publish, not only save: the app publishes their change once its checks pass, with no GitHub account. The owner and Admins always hold it; nobody else gets it on update. A push straight to the published project is still refused.
+- **Cloud schedules get their own sign-in.** The owner makes one per schedule and can switch it off. It sees and writes team notes only.
+- **The sign-in warns before it runs out.** Five days ahead, each new chat says when it ends. Once it has run out, chats keep working from the last saved memory and the last downloaded project, and company actions show the sign-in link.
+- **The setup message names your business** and says what the file does, so an assistant does not mistake it for phishing. Setup ends with a plain summary and no command to run.
+
+**Updating.** Your assistant signs you in once and shows the link: open it and approve with your company email. It then moves your memory notes to you and turns the old memory keys off; it reports how many notes moved and how many wait for an owner. Each teammate's next chat shows a sign-in link if they have not signed in since setup. A site that is open until the card keeps its memory key for now. The update also runs the private sign-in step once more, so git can reach the app; until it does, a teammate's updates keep coming from setup only.
+
 ## 42.0.0 — Short comments only
 
 - **A check fails on a long comment.** A comment longer than two lines, or a comment line wider than 120 characters, now fails the code checks and names the file and the line. It covers the app's JavaScript and TypeScript. A code line has no width limit. A short, helpful comment still passes.
@@ -443,7 +457,7 @@
 - **Ticking it asks for the key when the app still needs one.** Right under the tick the panel says one step comes first and gives you the words to say to your assistant, *Let teammates install the project*, with a button to copy the full request. Your assistant then sends the private link with the five GitHub steps. You can save the tick straight away: the person gets the project as soon as the key is in. A manager reads that the step is the owner's. *Project code* opened from *Keys* shows the same step.
 - **The step names what is really missing.** An older install that has not yet told the app which project it hands out is told to finish Access setup, not to make a GitHub key.
 
-[Employee access](wiki/stack/employee-access.md#give-an-app-and-its-level-in-one-place) describes the tick, and [the assistant connection](wiki/stack/employee-project.md#the-owners-one-step-on-github) the key.
+[Employee access](wiki/stack/employee-access.md#give-an-app-and-its-level-in-one-place) describes the tick, and [the assistant connection](wiki/stack/project-git-route.md#the-owners-one-step-on-github) the key.
 
 **Updating.** Nothing needs doing by hand. If your project is kept in GitHub and the app has no read-only key yet, Access asks for it the first time you let someone install the project. Anyone you already gave *Project code* keeps it, and shows as ticked.
 

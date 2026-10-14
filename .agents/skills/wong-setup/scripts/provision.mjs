@@ -705,16 +705,15 @@ export async function provision({ token, api, fetch, account, repo, base, route 
   // `sub` was read back from the account; never copy an upstream installation's origin.
   recordComponent(dir, 'companyApi', { origin: `https://${n.worker}.${sub}.workers.dev` }, note);
 
-  // The schema, retried while a new database or a widened token takes effect, then the admin key.
+  // The schema, retried while a new database or a widened token takes effect. Memory uses the owner's company
+  // sign-in; only an app with no sign-in yet keeps an admin key in .env.
   const memory = join(dir, '.claude', 'skills', 'memory', 'scripts', 'memory.mjs');
   const admin = { cwd: dir, env: { ...env, CLOUDFLARE_API_TOKEN: token } };
   await step('cloudflare', () => retry(() => exec('node', [memory, 'migrate'], admin), sleep, () => true));
-  if (needsKey) {
-    const issued = await step('cloudflare', () => exec('node', [memory, 'member', 'admin'], admin));
-    const appUrl = issued.stdout?.match(/Open the app and sign in normally: (\S+)/)?.[1];
-    if (appUrl) report.appUrl = appUrl;
+  if (open && needsKey) {
+    await step('cloudflare', () => exec('node', [memory, 'member', 'admin'], admin));
     note('created', 'admin machine memory key in .env');
-  } else note('reused', 'admin memory key in .env');
+  } else if (open) note('reused', 'admin memory key in .env');
 
   // The app's databases and config.
   const db = await step('cloudflare', () => database(cf, account, n.db, note));

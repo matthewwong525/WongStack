@@ -13,7 +13,7 @@ No customer existed: no payment was ever taken.
 ## What is kept
 
 - **The repo**, archived. Reading works; a save needs it unlocked in its settings first.
-- **Its memory**: the archive's own memory database and bucket, in the same Cloudflare account as this repo's. Nothing serves them, because [the memory route](../development/memory.md#the-memory-key) lived in the app's Worker. Read the database directly, or attach both to a Worker again.
+- **Its memory**: the archive's own memory database and bucket, in the same Cloudflare account as this repo's. Nothing serves them, because [the memory route](../development/memory.md#sign-in-and-expiry) lived in the app's Worker. Read the database directly, or attach both to a Worker again.
 - **Mail to the support address**, which the domain forwards to the owner. No other address at the domain receives mail.
 
 The rest of what was kept, and where, is in [session memory](../development/memory.md): search it for the hosted app's shutdown.

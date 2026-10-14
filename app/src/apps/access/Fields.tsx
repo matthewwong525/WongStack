@@ -13,9 +13,9 @@ export function Group({ legend, children }: { legend: string; children: ReactNod
 }
 
 /** One tick with its words: a real checkbox, so the device draws it and the keyboard reaches it. */
-export function Tick({ checked, onChange, children }: { checked: boolean; onChange: (checked: boolean) => void; children: ReactNode }) {
+export function Tick({ checked, onChange, disabled, children }: { checked: boolean; onChange: (checked: boolean) => void; disabled?: boolean; children: ReactNode }) {
   return <Label className="font-semibold">
-    <input type="checkbox" className="size-4 accent-primary" checked={checked} onChange={event => onChange(event.target.checked)} />
+    <input type="checkbox" className="size-4 accent-primary" checked={checked} disabled={disabled} onChange={event => onChange(event.target.checked)} />
     {children}
   </Label>
 }

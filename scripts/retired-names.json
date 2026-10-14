@@ -14,7 +14,7 @@
   {"name": "the `walk` skill", "replacement": "the `verify` skill"},
   {"name": "archived-save.md", "replacement": "`save/SKILL.md#the-archived-handoff`", "allow": ["scripts/fixtures/context-baseline.json"], "why": "the fixture is the measured before-state of 19.0.0"},
   {"name": "spec-sync.md", "replacement": "`plan/references/openspec-cli.md#reconcile-deltas`", "allow": ["scripts/fixtures/context-baseline.json"], "why": "the fixture is the measured before-state of 19.0.0"},
-  {"name": "#the-memory-token", "replacement": "`wiki/development/memory-key.md`"},
+  {"name": "#the-memory-token", "replacement": "`wiki/development/memory.md#sign-in-and-expiry`"},
   {"name": "mini-app-save.md", "replacement": "the normal `/save` route; see `wiki/stack/mini-apps.md`"},
   {"name": "mini-app-push.sh", "replacement": "the normal `/save` route"},
   {"name": "app/review/", "replacement": "`scripts/tests/review-browser.test.mjs`"},
@@ -86,7 +86,8 @@
   {"name": "hand-over-page.mjs", "replacement": "`hand-over/scripts/form-page.mjs`, the private form's page script"},
   {"name": "hand-over-page.test.mjs", "replacement": "`scripts/tests/form-page.test.mjs`"},
   {"name": "#hand-the-browser-over", "replacement": "`wiki/development/browsing.md#when-a-step-needs-you`, or `#how-private-links-work` for what every private link shares", "allow": ["scripts/tests/fixtures/document-retrieval/corpus/wiki/development/browsing.md", "scripts/tests/fixtures/document-retrieval/corpus/wiki/development/required-tools.md"], "why": "this exact frozen retrieval fixture preserves the wording of its pinned snapshot and its reviewed source hash"},
-  {"name": "#repository-access-stays-manual", "replacement": "`wiki/stack/employee-project.md#publishing-stays-manual`"},
+  {"name": "#repository-access-stays-manual", "replacement": "`wiki/stack/employee-project.md#who-publishes`"},
+  {"name": "#publishing-stays-manual", "replacement": "`wiki/stack/employee-project.md#who-publishes`"},
   {"name": "paseo-routines", "replacement": "the host-schedules capability and wiki/stack/host-schedules.md"},
   {"name": "ROUTINE_PASEO_BIN", "replacement": "the available host tools used by /schedule"},
   {"name": "`/improve`", "replacement": "`/improve-code`, which plans one code-structure improvement and stops", "allow": ["scripts/tests/fixtures/document-retrieval/corpus/wiki/agent-knowledge-center.md"], "why": "frozen retrieval fixtures retain their pinned wording and reviewed hashes"},
@@ -113,5 +114,10 @@
   {"name": "Can manage Access", "replacement": "the built-in Admin role, picked as a person's role (wiki/stack/employee-access.md#admin)", "allow": ["app/src/apps/access/PersonPage.tsx", "app/src/apps/access/PersonPage.test.tsx", "app/src/apps/access/RolePage.tsx", "app/src/apps/access/Roles.test.tsx", ".agents/verification/journeys/employee-onboarding/the-employer-makes-a-person-an-admin.json"], "why": "the tick is gone; the Admin role's panel and a person's panel still say in these words what Admin gives, and their tests and the kept check for the Admin pick read that line"},
   {"name": "bootstrap-release.json", "replacement": "nothing: the app serves the setup file itself at `/_memory/setup.mjs` (`app/worker/employee-access/setup-file.ts`), with no pinned commit or digest"},
   {"name": "#get-the-reviewed-bootstrap", "replacement": "`wiki/stack/employee-project.md#the-setup-files-fixed-link`"},
-  {"name": "#publish-checked-artifact-pins", "replacement": "`wiki/stack/employee-project.md#the-setup-files-fixed-link`: no pins remain"}
+  {"name": "#publish-checked-artifact-pins", "replacement": "`wiki/stack/employee-project.md#the-setup-files-fixed-link`: no pins remain"},
+  {"name": "memory-key.md", "replacement": "`wiki/development/memory.md#sign-in-and-expiry`: memory uses the company sign-in", "allow": ["scripts/tests/fixtures/document-retrieval/corpus/wiki/development/memory.md", "scripts/tests/fixtures/document-retrieval/corpus/wiki/development/required-tools.md", "scripts/tests/fixtures/document-retrieval/questions.json"], "why": "this exact frozen retrieval fixture preserves the wording of its pinned snapshot and its reviewed source hash"},
+  {"name": "#the-memory-key", "replacement": "`wiki/development/memory.md#sign-in-and-expiry`"},
+  {"name": "memory_login_link", "replacement": "nothing: memory uses the company sign-in, so no link labels a machine"},
+  {"name": "memory.mjs join", "replacement": "the company sign-in: give the person access in the app's Access page (`wiki/development/memory.md#who-sees-what`)", "allow": [".agents/skills/memory/migrations/0003_key_machines.sql", ".agents/skills/memory/migrations/0004_readers.sql", "scripts/tests/fixtures/document-retrieval/corpus/wiki/development/memory-key.md"], "why": "an applied migration keeps its words, and the frozen retrieval fixture keeps its pinned snapshot"},
+  {"name": "#memory-keeps-its-own-access", "replacement": "`wiki/stack/company-api.md#memory-uses-the-same-sign-in`"}
 ]

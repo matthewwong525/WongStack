@@ -7,12 +7,14 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import { loadDigest, readCache } from './lib/digest.mjs';
-import { isMain, loadConfig, openStore, repoContext, spoolList } from './lib/store.mjs';
+import { isMain, loadConfig, memoryOrigin, openStore, repoContext, signIn, signInHelp, spoolList } from './lib/store.mjs';
 import { pending, registerSession } from './lib/transcripts.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const BUDGET_MS = 1500;
 const TIDY = join(HERE, '../../schedule/scripts/tidy.mjs');
+// Moves a clean teammate's copy forward in the background: wiki/stack/employee-project.md#update-the-copy
+const UPDATE = join(HERE, '../../save/scripts/update-copy.mjs');
 
 const fallbackInstruction = sessionId => `Memory: past sessions wait for capture, and a background run could not start on its own. Start one background subagent with the smallest capable model. Tell it to follow the "Background run" section of .claude/skills/memory/SKILL.md and to exclude session ${sessionId}. Do not wait for it.`;
 
@@ -52,6 +54,15 @@ function branchWorkerLine(ctx) {
   } catch { return ''; }
 }
 
+// The first line when the company sign-in ends soon: a 30-day sign-in can not renew on its own.
+function signInLine(ctx) {
+  try {
+    const origin = memoryOrigin(loadConfig(ctx));
+    const person = origin && signIn(origin);
+    return person?.state === 'near' ? `Memory: your company sign-in ends in ${person.days} day${person.days === 1 ? '' : 's'}; ${signInHelp(origin)}.` : '';
+  } catch { return ''; }
+}
+
 const USAGE = 'usage: session-start.mjs [--agent claude|codex]   the SessionStart hook; reads the hook\'s JSON on stdin';
 
 async function main(agent) {
@@ -62,6 +73,7 @@ async function main(agent) {
   const background = process.env.WONG_MEMORY_RUN === '1';
   registerSession(ctx, { id: sessionId, agent, transcript: input.transcript_path || null, cwd: input.cwd || ctx.root, startedAt: new Date().toISOString(), ...(background ? { background } : {}) });
   if (background) return '';
+  await import(pathToFileURL(UPDATE).href).then(module => module.updateCopy(ctx.root), () => {});
 
   // The digest fetch runs while local discovery reads the disk.
   const digest = (async () => loadDigest(ctx, openStore(ctx, { timeoutMs: BUDGET_MS }), BUDGET_MS))().catch(error => ({ error }));
@@ -69,14 +81,15 @@ async function main(agent) {
   const localWork = spoolList(ctx).length > 0 || pending(ctx, { exclude: [sessionId] }).length > 0;
   const result = await digest;
 
-  const out = [];
+  const out = [signInLine(ctx)].filter(Boolean);
   const tidied = await tidy;
   if (tidied) out.push(tidied);
   const redirected = branchWorkerLine(ctx);
   if (redirected) out.push(redirected);
   if (result.error) {
-    const cache = result.error.kind === 'network' ? readCache(ctx) : null;
-    if (cache) out.push(`${cache.text}\n(This digest is cached and ${cache.age} old: the memory store did not answer.)`);
+    const signedOut = result.error.kind === 'signin';
+    const cache = signedOut || result.error.kind === 'network' ? readCache(ctx) : null;
+    if (cache) out.push(`${cache.text}\n(This digest is cached and ${cache.age} old: ${signedOut ? 'memory is not up to date until you sign in' : 'the memory store did not answer'}.)`);
     out.push(`Memory: skipped the store (${result.error.reason || result.error.message}).`);
   } else if (result.text) out.push(result.text);
   if (!result.error && (result.due || localWork) && !startRun(ctx, agent, sessionId)) out.push(fallbackInstruction(sessionId));

@@ -3,7 +3,7 @@
 import type { AccessIdentity } from "../access.ts";
 import { type ConnectionEnv, reply } from "./core.ts";
 import { codeState } from "./code.ts";
-import { setupMessage } from "./prompt.ts";
+import { businessName, setupMessage } from "./prompt.ts";
 import { appTitle } from "./catalogue.ts";
 import { businessApps } from "./sets.ts";
 import { currentPolicy, humanEmail, policyDenied } from "./policy.ts";
@@ -24,6 +24,6 @@ export async function setupStatus(request: Request, env: ConnectionEnv, identity
     // Each app's title travels with its id, so the popup names apps as Home does.
     apps, titles: Object.fromEntries(apps.map(app => [app, appTitle(app)])),
     code, prompt: code === "lacked" ? { state: "unavailable", message: "Ask your admin for access to Connect your assistant." }
-      : { state: "ready", text: setupMessage(origin) }, api: "authenticated",
+      : { state: "ready", text: setupMessage(origin, businessName(env, origin)) }, api: "authenticated",
     repository: "manual_provider_setup", memory: "independent_operator_setup" });
 }

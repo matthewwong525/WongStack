@@ -146,27 +146,13 @@ With a bucket, each captured session's full transcript up to 50 MB SHALL be kept
 - **WHEN** a captured session's transcript is 60 MB
 - **THEN** its facts are saved, no transcript is stored, and asking for its source names the 50 MB limit
 
-### Requirement: Memory is reached through the production Worker with a memory key
-
-Every store call SHALL go through the repo's production app Worker at `/_memory/` with a memory key in `CLOUDFLARE_MEMORY_TOKEN` in the git-ignored `.env`, never a person's Cloudflare token outside admin commands. The Worker's address SHALL come from the primary checkout's install record, never a linked worktree's, so a branch cannot redirect a key. A key SHALL open one repo's store and SHALL NOT be committed or set as a CI secret, the key table SHALL be unreadable through any key, and the staging Worker and previews SHALL answer `/_memory/` with 404.
-
-#### Scenario: A key for another repo
-
-- **WHEN** a key made for `billing` is sent to another repo's Worker
-- **THEN** the Worker answers 401 and runs nothing
-
-#### Scenario: A branch names another memory address
-
-- **WHEN** a session starts in a worktree whose branch changed the recorded memory Worker address
-- **THEN** the key and any credential validation go only to the primary checkout's address, and the digest says the branch's address was ignored
-
 ### Requirement: Teammates cannot change or hide each other's facts
 
-A member or reader key SHALL write facts only for its stored machine owner and SHALL supersede only facts with that owner, with its own new fact in the same write; a supersede aimed at another machine's fact SHALL leave that fact live. Author labels SHALL NOT grant ownership. Only the admin key SHALL supersede anyone's fact. The Worker SHALL refuse, running nothing in the batch, any member statement that edits or deletes a fact, claims another machine owner, overwrites another machine's or an unowned historical session, or hides a write inside a read.
+A member or reader SHALL write facts only as its signed-in person and SHALL supersede only facts that person owns, with its own new fact in the same write; a supersede aimed at another person's fact SHALL leave that fact live. Author labels SHALL NOT grant ownership. Only a memory admin SHALL supersede anyone's fact. The Worker SHALL refuse, running nothing in the batch, any member statement that edits or deletes a fact, claims another owner, overwrites another person's or an unowned historical session, or hides a write inside a read.
 
 #### Scenario: A member deletes a fact
 
-- **WHEN** a member key sends a delete or a body edit for fact 3
+- **WHEN** a member sends a delete or a body edit for fact 3
 - **THEN** the Worker answers 403 and fact 3 is unchanged
 
 #### Scenario: A member replaces a teammate's fact
@@ -176,12 +162,12 @@ A member or reader key SHALL write facts only for its stored machine owner and S
 
 #### Scenario: A member writes under another name
 
-- **WHEN** Ana's key sends a fact claiming Bo's machine owner
+- **WHEN** Ana's save sends a fact claiming Bo as owner
 - **THEN** the Worker answers 403 and no fact is stored
 
 ### Requirement: A team keeps personal facts personal
 
-The Worker SHALL return to a member or reader key only everyone's shared `project`, `reference`, and `thread` facts plus personal and unshared facts owned by the credential's machine, however the read is written and even when only one machine remains authorized. Machine IDs, emails, labels, hostnames, and people pages supplied by a caller SHALL NOT expand that scope. The admin's key SHALL retain access to every fact; its default digest and search SHALL narrow personal and unshared facts to its own machine, and only its explicit `--everyone` SHALL widen that view.
+The Worker SHALL return to a member or reader only everyone's shared `project`, `reference`, and `thread` facts plus personal and unshared facts owned by the signed-in person, however the read is written. Emails, labels, hostnames, and people pages supplied by a caller SHALL NOT expand that scope. A memory admin SHALL retain access to every fact; their default digest and search SHALL narrow personal and unshared facts to their own, and only an explicit `--everyone` SHALL widen that view.
 
 #### Scenario: A teammate's preference
 
@@ -200,7 +186,7 @@ The Worker SHALL return to a member or reader key only everyone's shared `projec
 
 #### Scenario: A member writes its own read
 
-- **WHEN** a member key sends a hand-written read of the facts table, its text search, or a schema-qualified name
+- **WHEN** a member sends a hand-written read of the facts table, its text search, or a schema-qualified name
 - **THEN** the Worker returns no teammate's personal or unshared fact, or refuses the read
 
 ### Requirement: An older store moves behind the Worker safely
@@ -470,62 +456,6 @@ Memory SHALL provide opt-in structured search results containing fact identifier
 - **WHEN** a structured search matches facts hidden from that caller
 - **THEN** neither the hidden bodies nor their evidence identifiers appear
 
-### Requirement: Private memory belongs to an installation
-
-Private memory SHALL belong to a stable, randomly generated local OS-user installation ID reused across sessions, linked worktrees, and repositories. Each repository SHALL retain its independent store and secret credential. Hostnames, git authorship, emails, browser data, and optional labels SHALL NOT establish ownership or permission. Normal assistant sessions SHALL retain automatic memory loading and capture once authorized.
-
-#### Scenario: Another session or linked worktree
-
-- **WHEN** an authorized installation starts a normal chat or resumes in a linked worktree
-- **THEN** it uses the same machine owner and automatically loads and captures memory through the existing hooks
-
-#### Scenario: Matching names on another machine
-
-- **WHEN** two installations use the same email or hostname, including when one copies a repository
-- **THEN** their private memory remains separate, and choosing the other's ID without its repo secret grants no access
-
-### Requirement: Installation setup and trusted admins issue machine credentials
-
-Repository authorization SHALL be sufficient policy for memory access, with no separate memory or device approval: authorized repository contributors SHALL receive member credentials through the existing trusted setup/admin tooling and SHALL be able to contribute shared memory. Read-only access SHALL retain the existing reader role and unshared-write restriction. Only trusted installation setup or an administrator using the repository's existing provisioning authority SHALL issue, replace, or revoke memory credentials and assign admin, member, or reader roles. Credential ownership SHALL be bound to the machine recorded with its server-side hash. Labels SHALL be metadata only. No Git-host check, person login, device approval screen, hosted account, or extra service SHALL be required for memory. The credential SHALL reach only a private transfer file or the target's ignored primary credential file, never chat, logs, git, or CI secrets. A recipient SHALL install only a credential for its local machine and the configured repository. Once installed, permitted memory loading and capture SHALL operate automatically in ordinary chats without further approval or enrollment. New credentials SHALL remain valid until revoked or replaced; replacement/removal SHALL refuse all earlier affected credentials on their next request. Listing SHALL reveal no secrets; insufficient provisioning permission SHALL stop without changing grants.
-
-#### Scenario: Normal installation and a teammate
-
-- **WHEN** trusted setup issues its local admin key or a trusted admin issues a member or reader credential for a teammate's installation
-- **THEN** each credential opens only its repository with its assigned role and machine owner, and an authorized contributor's ordinary chats automatically load and contribute permitted shared memory without a separate memory approval, GitHub check, or person sign-in for memory
-
-#### Scenario: Unauthorized enrollment or revocation
-
-- **WHEN** a clone without a valid secret requests memory or issuance, or a revoked/replaced credential requests memory
-- **THEN** the request is denied without granting access, issuing a key, or adopting a supplied machine ID
-
-### Requirement: Website login identifies a machine automatically
-
-The normal WongStack website login SHALL automatically associate its verified login issuer and subject with the authorized assistant machine carried by the setup-supplied app link. Completing ordinary email login SHALL require no matching code, extra screen, button, or separate approval. Email SHALL be display metadata, not the stable identity or permission. Association SHALL identify the machine alongside records already stored under that machine ID without rewriting original authors or transferring ownership. Memory SHALL keep working before login and if association fails. Login association SHALL NOT grant memory access, change roles, combine different machines' private memory, or claim historical records with no machine owner.
-
-#### Scenario: Normal login after notes were stored
-
-- **WHEN** a person opens the app link supplied for their authorized assistant installation and completes the website's normal email login
-- **THEN** its verified login ID is associated with that machine automatically, existing machine-owned notes can be identified through that association, the person reaches the usual app without an extra step, and memory permissions and original authors remain unchanged
-
-#### Scenario: Missing context or invalid association
-
-- **WHEN** a website visit has no machine context, uses an invalid, expired, replayed, or revoked association marker, lacks a verified human login ID, or attempts to replace an established link with a different person
-- **THEN** no machine identity or permission is inferred or reassigned, unrelated private memory stays inaccessible, and permitted machine memory continues independently of the association
-
-### Requirement: Historic private data is not automatically claimed
-
-An ownership update SHALL preserve authored history and stored raw objects. Existing credentials without machine ownership SHALL require trusted replacement and SHALL NOT gain machine authority by matching email or hostname. Legacy private facts and sources SHALL remain admin-readable and SHALL NOT be automatically reassigned. Unowned historic sessions, old local caches, and spooled work SHALL NOT be silently adopted under a new owner; ownership remapping SHALL remain outside this change.
-
-#### Scenario: A fresh ID matches historic metadata
-
-- **WHEN** a newly authorized installation shares an old author's email or hostname
-- **THEN** shared history remains available but historical private memory is not assigned to that machine, and the admin retains explicit access
-
-#### Scenario: A historic fact is restated
-
-- **WHEN** authorized upkeep restates a historic fact
-- **THEN** the new fact preserves its author and original ownership, including unassigned ownership, rather than claiming it for the admin's machine
-
 ### Requirement: A selective helper leaves simple lookups fast
 
 Memory SHALL offer an explicitly requested experimental helper for broad or ambiguous questions that may reformulate searches and select original facts with evidence. Ordinary search, factual briefs, and automatic session loading SHALL make no additional model call for this helper. The helper SHALL create no stored memory or generated conclusions, and SHALL not receive the parent conversation or automatically retrieve source transcripts.
@@ -610,20 +540,6 @@ Memory SHALL describe its existing search and topic-read operations with stable 
 - **WHEN** a helper memory call supplies raw SQL, another owner, arbitrary commands or paths, or an unsupported admin-wide option
 - **THEN** the adapter refuses it before any store request without changing existing direct-command behavior
 
-### Requirement: Shared discovery preserves memory credentials and private ownership
-
-Shared operation discovery SHALL NOT change memory enrollment, roles, machine ownership, website-login association, data bindings or credential lifecycle. A memory call through the helper SHALL require the existing repository credential for its installation, retain the existing team/private server checks, and use the primary checkout's recorded production memory target. Company login alone SHALL grant no memory access. A company origin override, staging target or remote schema SHALL NOT select the destination for a memory credential. No credential SHALL reach descriptions, arguments, model context or ordinary diagnostics, and no missing or refused memory credential SHALL cause fallback to owner credentials or website login.
-
-#### Scenario: The same employee uses two machines
-
-- **WHEN** two installations have the same verified website identity and make memory calls through the shared helper
-- **THEN** each retains its credential's permitted shared knowledge and machine-private scope, with no combining of private facts or reassignment of ownership
-
-#### Scenario: A logged-in employee lacks an active memory credential
-
-- **WHEN** an employee with valid company login calls a described memory operation without a valid installed memory credential
-- **THEN** memory access is refused with a safe existing installation or denial instruction, without issuing a credential or widening access
-
 ### Requirement: Recall combines sources without combining authority
 
 Memory SHALL offer a bounded recall response containing authorized live facts and local document evidence, identified separately and written in their original words. Fact reads SHALL preserve existing permissions, private scope and source access. Fact bodies and transcripts SHALL NOT reach the document index or semantic backend. Documents SHALL remain available independently of fact authorization, with failures reported per source.
@@ -679,3 +595,82 @@ A moment where a session shows the assistant struggled SHALL become one `thread`
 
 - **WHEN** the assistant retried a failing step during a task about the person's health
 - **THEN** the note names the failing step and its cost, and says nothing of the health matter
+
+### Requirement: Memory is reached through the production Worker with the company sign-in
+
+Every non-admin store call SHALL go through the repo's production app Worker at `/_memory/` carrying the person's saved company sign-in, the same one company actions use. The Worker SHALL verify it as a signed sign-in for this app before running anything, and SHALL take the person from it, never from anything the caller sends. No memory key SHALL be issued, stored in `.env`, or accepted after the update that moves notes to people. The Worker's address SHALL come from the primary checkout's install record, never a linked worktree's. Staging and previews SHALL answer `/_memory/` with 404.
+
+#### Scenario: A signed-in teammate starts a chat
+
+- **WHEN** a teammate who signed in at setup starts a new chat in their copy
+- **THEN** memory loads and saves with no key to install and no admin step
+
+#### Scenario: A sign-in for another app
+
+- **WHEN** a valid sign-in for another business's app is sent to this Worker's memory route
+- **THEN** the Worker answers 401 and runs nothing
+
+### Requirement: Private memory belongs to a person
+
+Private facts and transcripts SHALL belong to the signed-in person, identified by the sign-in's verified subject, and SHALL be the same for that person on every computer. Emails, hostnames, labels and git authors SHALL NOT establish ownership. A copied folder without a valid sign-in SHALL open nothing.
+
+#### Scenario: One person, two computers
+
+- **WHEN** Ana saves a preference on her laptop and later starts a chat on her desktop
+- **THEN** the desktop's digest shows the preference, and Bo never sees it
+
+#### Scenario: A copied folder
+
+- **WHEN** someone copies Ana's project folder to a computer where nobody is signed in
+- **THEN** memory reports it is not signed in, shows the sign-in link, and returns no fact
+
+### Requirement: Access roles decide memory roles
+
+A person's memory role SHALL follow their current access in the app: the owner and Admins are memory admins, anyone holding Project code is a member, and any other signed-in person is a reader. A change in Access SHALL apply on the person's next memory call, with no step in memory.
+
+#### Scenario: Project code is taken away
+
+- **WHEN** the owner unticks Project code for a member
+- **THEN** that person's next save is stored as a reader's, unshared, and their earlier facts stay
+
+### Requirement: Machine notes move to their person
+
+The update SHALL move each machine's private facts and transcripts to the person that machine was linked to by a verified sign-in, keeping every original author and time. Notes from a machine with no verified link SHALL stay visible only to memory admins until an admin assigns them. Nothing SHALL be deleted. The update SHALL report how many notes moved and how many wait, and SHALL turn off every old memory key only after the move succeeds.
+
+#### Scenario: A labelled machine
+
+- **WHEN** the update runs on a store whose only active machine is linked to `matthewwong525@gmail.com`
+- **THEN** all its private notes belong to that person and show in their digest on any computer
+
+#### Scenario: An unlabelled machine
+
+- **WHEN** a machine never linked to a sign-in owns private notes
+- **THEN** only memory admins see them, the report says they wait for an owner, and no teammate sees them
+
+### Requirement: Cloud schedules use their own sign-in
+
+A schedule that runs with no person signed in SHALL reach memory with its own sign-in, made by the owner and revocable by the owner. It SHALL read and write team notes only and never see a person's private notes. A schedule that runs on a computer SHALL use that computer's signed-in person.
+
+#### Scenario: A cloud schedule reads memory
+
+- **WHEN** a cloud schedule searches memory with its own sign-in
+- **THEN** it gets team notes only, and its saves are team notes
+
+#### Scenario: The owner switches a schedule's sign-in off
+
+- **WHEN** the owner revokes a schedule's sign-in
+- **THEN** its next memory call is refused
+
+### Requirement: An expired sign-in keeps memory readable from its last copy
+
+When the saved sign-in is missing or expired, a chat SHALL start with the last saved digest, say that memory is not up to date, and show the sign-in link. Saves SHALL wait locally and send once the person signs in again. Five days before the sign-in ends, each new chat SHALL say when it ends and show the link.
+
+#### Scenario: The sign-in ends in three days
+
+- **WHEN** a chat starts and the saved sign-in ends in three days
+- **THEN** the digest's first line says it ends in three days with the sign-in link
+
+#### Scenario: The sign-in has run out
+
+- **WHEN** a chat starts after the sign-in ended
+- **THEN** the last saved digest loads, the chat shows the sign-in link, and the session's facts are sent after the next sign-in

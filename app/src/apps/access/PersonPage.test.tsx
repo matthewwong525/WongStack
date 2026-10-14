@@ -15,7 +15,7 @@ const status = (): Status => ({ ownerEmail: 'owner@shop.com', viewer: { email: '
   keysStarted: true, unticked: { people: [], roles: [] },
   apps: [built('hello', 'Hello'), built('payroll', 'Payroll'), built('tips', 'Tip calculator')],
   keys: [key('stripe', 'Stripe'), key('bank', 'Bank'),
-    key('cloudflare', 'Cloudflare', { levels: ['read'], setup: true, alone: true }), key('code', 'Project code', { levels: ['read'], alone: true })],
+    key('cloudflare', 'Cloudflare', { levels: ['read'], setup: true, alone: true }), key('code', 'Project code', { levels: ['read', 'write'], alone: true })],
   roles: [{ id: 'office', name: 'Office', apps: [], keys: {} }, { id: 'sales', name: 'Sales', ...sales() }, { id: 'support', name: 'Support', apps: ['hello'], keys: { stripe: 'read' } }],
   // Kim has Hello, which changes things with Stripe, and holds Stripe at Read: the two are not tied to each other.
   people: [person('gone@shop.com', { status: 'removed' }), person('kim@shop.com', { apps: ['hello'], keys: { stripe: 'read', cloudflare: 'read' } }),
@@ -68,7 +68,9 @@ const give = (name: string) => fireEvent.click(level('Apps').getByRole('checkbox
 const given = () => checked(level('Apps').queryAllByRole('checkbox'))
 // Project code is no line in Keys but a tick in its own group; the step left sits under it until the project is ready.
 const INSTALL = 'Can install the project'
+const PUBLISH = 'Can publish'
 const install = () => screen.getByRole('checkbox', { name: INSTALL }) as HTMLInputElement
+const publish = () => screen.getByRole('checkbox', { name: PUBLISH }) as HTMLInputElement
 const tick = () => fireEvent.click(install())
 const project = () => level('Project')
 const lacking = (step: 'key' | 'setup') => { roster.keys[3].saved = false; roster.project = step }
@@ -135,8 +137,8 @@ it('with their own set, the panel has two groups, a tick for every app and then 
   open('people/kim@shop.com'); await panel('kim@shop.com')
   expect(role().value).toBe('')
   expect(within(role()).getAllByRole('option').map(option => option.textContent)).toEqual(['Their own set', 'Office', 'Sales', 'Support'])
-  // Apps: a tick per app, in the order they are shown, with no level beside one. Then the project's tick.
-  expect(boxes()).toEqual(['Hello', 'Payroll', 'Tip calculator', INSTALL]); expect([given(), level('Apps').queryAllByRole('radio'), ticks()]).toEqual([['Hello'], [], ['Hello']])
+  // Apps: a tick per app, in the order they are shown, with no level beside one. Then the project's two ticks.
+  expect(boxes()).toEqual(['Hello', 'Payroll', 'Tip calculator', INSTALL, PUBLISH]); expect([given(), level('Apps').queryAllByRole('radio'), ticks()]).toEqual([['Hello'], [], ['Hello']])
   // Keys: every key but Project code, each with its level.
   expect(lines().map(title)).toEqual(['Stripe', 'Bank', 'Cloudflare']); expect(levels()).toEqual({ Stripe: 'Read', Bank: 'None', Cloudflare: 'Read' })
   // A key offers three levels, or two when it is Read only.
@@ -169,7 +171,7 @@ it('says beside each key whether the app holds it, with the step left under one 
   // A step with a request to copy folds the request under it, in a group of its own: only the keys' are read here.
   const keys = () => lines().filter(line => line.tagName === 'FIELDSET')
   roster.keys = [key('stripe', 'Stripe'), key('maps', 'Maps', { saved: false }), key('cloudflare', 'Cloudflare', { levels: ['read'], saved: false, setup: true, alone: true }),
-    key('code', 'Project code', { levels: ['read'], alone: true })]
+    key('code', 'Project code', { levels: ['read', 'write'], alone: true })]
   open('people/kim@shop.com'); await panel('kim@shop.com')
   // The state sits in the key's own legend, in quiet words, so the name stays the first thing read.
   expect(keys().map(state)).toEqual(['Stripe · Saved', 'Maps · Not saved yet', 'Cloudflare · One step left']); expect(keys().map(title)).toEqual(['Stripe', 'Maps', 'Cloudflare'])
@@ -255,19 +257,20 @@ it('says so when there is no app or key to give yet', async () => {
   expect([given(), lines(), screen.queryByRole('group', { name: 'Project' })]).toEqual([[], [], null])
   fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'new@shop.com' } }); click('Save access'); await screen.findByText('Saved.')
   expect(sent('people')).toEqual([{ email: 'new@shop.com', removed: false, role: null, apps: {}, keys: {} }])
-  // With one app and Project code the only key, the two ticks are all there is: no key is listed, and no line says so.
+  // With one app and Project code the only key, its ticks are all there is: no key is listed, and no line says so.
   cleanup(); roster.apps = status().apps.slice(0, 1); roster.keys = status().keys.slice(3)
   open('people/new'); await panel('Add person')
-  expect([boxes(), lines()]).toEqual([['Hello', INSTALL], []])
+  expect([boxes(), lines()]).toEqual([['Hello', INSTALL, PUBLISH], []])
   expect([screen.queryByText('No keys saved yet.'), screen.queryByText('No apps built yet. Ask your assistant to make one.')]).toEqual([null, null])
 })
-it('gives the project with one tick, off for a new person, and asks for the GitHub key under it only while it is on', async () => {
+it('gives the project with two ticks, off for a new person, and asks for the GitHub key under it only while it is on', async () => {
   lacking('key')
   Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: vi.fn(async () => {}) } })
   open('people/new'); await panel('Add person')
-  expect(install().checked).toBe(false); expect(project().getAllByRole('checkbox')).toHaveLength(1)
-  // The one tick says what it gives, ticked or not.
-  expect(project().getByText('They can save changes too.')).toBeTruthy()
+  expect(install().checked).toBe(false); expect(checked(project().getAllByRole('checkbox'))).toEqual([])
+  // Each tick says what it gives, ticked or not; publishing waits for the install tick.
+  expect([project().getByText('They can save changes too.'), project().getByText('Their changes go live once the checks pass.')]).toBeTruthy()
+  expect(publish().disabled).toBe(true)
   // The tick stands in for the level choice: Project code is no line among the keys.
   expect(lines().map(title)).toEqual(['Stripe', 'Bank', 'Cloudflare']); expect(screen.queryByRole('group', { name: 'Project code' })).toBeNull()
   // After the keys.
@@ -284,6 +287,16 @@ it('gives the project with one tick, off for a new person, and asks for the GitH
   fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'new@shop.com' } })
   click('Save access'); await screen.findByText('Saved.')
   expect(sent('people')).toEqual([{ email: 'new@shop.com', removed: false, role: null, apps: NO_APPS, keys: { ...NO_KEYS, code: 'read' } }])
+})
+it('gives publishing as a second tick on top of the install tick, and unticking the install takes both', async () => {
+  roster.people[1].keys = { stripe: 'read', code: 'read' }
+  open('people/kim@shop.com'); await panel('kim@shop.com')
+  expect([install().checked, publish().checked, publish().disabled]).toEqual([true, false, false])
+  // Unticking publish keeps the install; unticking the install takes publishing too.
+  fireEvent.click(publish()); fireEvent.click(publish()); expect([install().checked, publish().checked]).toEqual([true, false])
+  fireEvent.click(publish()); tick(); expect([install().checked, publish().checked, publish().disabled]).toEqual([false, false, true])
+  tick(); fireEvent.click(publish()); click('Save access'); await screen.findByText('Saved.')
+  expect(sent('people')[0].keys).toEqual({ ...NO_KEYS, stripe: 'read', code: 'write' })
 })
 it('shows a saved tick as on, with nothing under it once the app can hand the project out, and unticking saves none', async () => {
   roster.people[1].keys = { stripe: 'read', code: 'read' }
@@ -317,7 +330,7 @@ it("tells an Admin who ticks it that the key is the owner's step, with nothing t
   expect(sent('people')).toEqual([{ email: 'lee@shop.com', removed: false, role: null, apps: { hello: true, payroll: false, tips: true }, keys: { ...NO_KEYS, stripe: 'read', code: 'read' } }])
 })
 // Admin, the role made for you, as the status sends it: every app, and each key at its highest level.
-const ADMIN = { id: 'admin', name: 'Admin', builtIn: true, apps: ['hello', 'payroll', 'tips'], keys: { stripe: 'write', bank: 'write', cloudflare: 'read', code: 'read' } } as const
+const ADMIN = { id: 'admin', name: 'Admin', builtIn: true, apps: ['hello', 'payroll', 'tips'], keys: { stripe: 'write', bank: 'write', cloudflare: 'read', code: 'write' } } as const
 const admin = () => ({ role: 'admin', apps: [...ADMIN.apps], keys: { ...ADMIN.keys } })
 const asking = (email: string) => within(screen.getByRole('alertdialog', { name: `Make ${email} an Admin?` }))
 const answer = (email: string, name: string) => fireEvent.click(asking(email).getByRole('button', { name }))

@@ -4,7 +4,9 @@ export const MEMORY_PREFIX: string;
 export const TEAM_HEADER: string;
 export const ROLE_HEADER: string;
 export const MAX_TRANSCRIPT_BYTES: number;
-export function handleMemory(request: Request, env: object): Promise<Response>;
+export type MemoryCaller = { role: 'admin' | 'member' | 'reader' | 'team'; subject: string | null; email: string | null };
+export function handleMemory<E extends object>(request: Request, env: E,
+  signedIn?: (request: Request, env: E) => Promise<MemoryCaller | null>): Promise<Response>;
 export function hashKey(key: string): Promise<string>;
 export function newKey(machineId: string): string;
-export function mayTouch(grant: { machine_id: string; role: string }, key: string): boolean;
+export function mayTouch(caller: MemoryCaller, key: string): boolean;

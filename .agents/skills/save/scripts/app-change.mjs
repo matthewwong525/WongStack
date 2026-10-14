@@ -7,7 +7,7 @@ import { isMain } from '../../memory/scripts/lib/cli.mjs';
 import { companyClient, installState, neutralRoot } from '../../../../scripts/employee-bootstrap.mjs';
 import { print, verdict, waitFor } from './artifacts-run.mjs';
 
-const USAGE = 'usage: app-change.mjs wait [minutes] | preview | result <sha> <ref> | log <job> | change | push | open <title> <body file> | heads [ref]';
+const USAGE = 'usage: app-change.mjs wait [minutes] | preview | result <sha> <ref> | log <job> | change | push | open <title> <body file> | heads [ref] | can-publish | publish';
 const CHANGE = '/api/access/code/change';
 const LOG_LINES = 60;
 /** The app's own refusals of a push, word for word (app/worker/employee-access). */
@@ -15,6 +15,7 @@ export const NOT_SET_UP = 'Saving through the app is not set up yet. Ask the own
 export const NEVER_PUBLISHES = 'The app saves a change and never publishes. Push one branch that is not main.';
 export const CHECK_FILES = 'This change edits the files that define the checks, which can not be saved through the app. Ask the owner to save it.';
 const REFUSED = 'The save was refused. Ask your admin for access to Connect your assistant, or sign in again.';
+export const NO_PUBLISH = 'Publishing needs the Can publish tick. Ask your admin to give it to you in Access.';
 
 /** The one line to show for a failed push: the app's own when Git's messages hold it, else the plain one. */
 export const refusal = stderr => [NOT_SET_UP, NEVER_PUBLISHES, CHECK_FILES].find(line => String(stderr ?? '').includes(line)) ?? REFUSED;
@@ -32,11 +33,11 @@ function connection(root) {
   return { http: (...args) => client().http(...args), git: (...args) => client().git(...args) };
 }
 
-/** One call to the app: its answer, or `{ why }` when it refused or could not be read. */
+/** One call to the app: its answer, or `{ why, status }` when it refused or could not be read. */
 async function ask(client, path, body) {
   try {
     const { value, status } = await client.http(path, body && { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-    return status === 200 ? value : { why: value?.error?.message ?? `the app answered HTTP ${status}` };
+    return status === 200 ? value : { why: value?.error?.message ?? `the app answered HTTP ${status}`, status };
   } catch (error) {
     return { why: error.message };
   }
@@ -137,7 +138,13 @@ export async function cli(argv, { cwd = process.cwd(), env = process.env, out = 
       return refused(error.message);
     }
   }
-  if (!['wait', 'preview', 'change', 'push', 'open'].includes(command)) return usage();
+  if (command === 'can-publish') {
+    const answer = await ask(client, '/api/access/apps');
+    if (answer.why) return refused(answer.why);
+    out(answer.keys?.some(key => key.id === 'code' && key.level === 'write') ? 'yes' : 'no');
+    return 0;
+  }
+  if (!['wait', 'preview', 'change', 'push', 'open', 'publish'].includes(command)) return usage();
   const named = sha && branch;
   if (command === 'wait') {
     const timing = { minutes: Number(rest[0] ?? 20), grace: Number(env.WAIT_FOR_CHECKS_GRACE ?? 60), interval: Number(env.WAIT_FOR_CHECKS_INTERVAL ?? 10), sleep, now };
@@ -162,6 +169,14 @@ export async function cli(argv, { cwd = process.cwd(), env = process.env, out = 
     } catch (error) {
       return refused(error.message);
     }
+  }
+  if (command === 'publish') {
+    const answer = await ask(client, `${CHANGE}/publish`, { branch, sha });
+    if (answer.why) return refused(answer.status === 403 ? NO_PUBLISH : answer.why);
+    out(`published=yes\ncommit=${answer.commit}\nchange=${answer.url ?? 'none'}`);
+    // Best effort: the copy learns the new main now, and the next save brings it in anyway.
+    try { await client.git(['fetch', 'origin'], root); } catch { /* the publish stands */ }
+    return 0;
   }
   if (command === 'open' && rest.length !== 2) return usage();
   const answer = command === 'open'

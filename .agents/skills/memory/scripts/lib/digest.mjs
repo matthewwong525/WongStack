@@ -17,11 +17,12 @@ const SEARCH = `${SCRIPT} search <terms>`;
 const RECALL = `${SCRIPT} recall <question>`;
 const TYPE_ORDER = "CASE f.type WHEN 'feedback' THEN 1 WHEN 'project' THEN 2 WHEN 'reference' THEN 3 WHEN 'user' THEN 4 ELSE 5 END";
 
-export const FACT_COLUMNS = 'id, slug, type, body, author, created_at, session_id, superseded_by, owner_machine_id, shared';
+export const FACT_COLUMNS = 'id, slug, type, body, author, created_at, session_id, superseded_by, owner_subject, shared';
 const F_COLUMNS = FACT_COLUMNS.split(', ').map(column => `f.${column}`).join(', ');
-// Attribution never expands privacy. Admin defaults use the same machine scope.
+// Attribution never expands privacy. The admin's default view uses the same personal scope; an old admin key's is
+// the unassigned rows.
 export async function personalFilter(ctx, store) {
-  return { clause: "((f.type NOT IN ('user', 'feedback') AND f.shared = 1) OR f.owner_machine_id = ?)", params: [store.ownerMachineId || ctx.machineId] };
+  return { clause: "((f.type NOT IN ('user', 'feedback') AND f.shared = 1) OR f.owner_subject IS ?)", params: [store.owner] };
 }
 
 // When consolidation last ran, and how many sessions were captured since.

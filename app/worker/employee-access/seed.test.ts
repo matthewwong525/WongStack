@@ -25,10 +25,10 @@ it('staging starts with practice people, the Admin role and two more, one Admin 
     const helpers = { apps: ['hello'], keys: { cloudflare: 'read', code: 'read' } };
     const nothing = { apps: [], keys: {} };
     const dana = ['hello'];
-    const everything = { apps: built, keys: { cloudflare: 'read', code: 'read' } };
+    const everything = { apps: built, keys: { cloudflare: 'read', code: 'write' } };
     const sets = Object.fromEntries([...opened.roles, ...opened.people].map(({ name, email, apps, keys }) => [name ?? email, { apps, keys }]));
     expect(sets).toEqual({ Admin: everything, 'fay@example.invalid': everything, Helpers: helpers, Trainees: nothing, 'ada@example.invalid': helpers, 'bo@example.invalid': helpers, 'casey@example.invalid': nothing,
-      'dana@example.invalid': { apps: dana, keys: { cloudflare: 'read', code: 'read' } }, 'eli@example.invalid': nothing });
+      'dana@example.invalid': { apps: dana, keys: { cloudflare: 'read', code: 'write' } }, 'eli@example.invalid': nothing });
     expect(opened).toMatchObject({ environment: 'practice', key: 'practice', started: true, keysStarted: true,
       viewer: { email: owner.id, owner: true },
       roles: [{ id: 'admin', name: 'Admin', builtIn: true }, { name: 'Helpers', builtIn: false }, { name: 'Trainees', builtIn: false }], people: [
@@ -49,15 +49,15 @@ it('staging starts with practice people, the Admin role and two more, one Admin 
     expect(sql.prepare("SELECT COUNT(*) count FROM wong_access_role_apps WHERE role_id = 'admin'").get()).toEqual({ count: 0 });
     // The supplied apps use no saved key; the Cloudflare key and Project code work alone.
     expect(opened.keys).toMatchObject([{ id: 'cloudflare', title: 'Cloudflare', levels: ['read'], saved: false, setup: true, alone: true },
-      { id: 'code', title: 'Project code', levels: ['read'], saved: false, setup: false, alone: true }]);
+      { id: 'code', title: 'Project code', levels: ['read', 'write'], saved: false, setup: false, alone: true }]);
     expect(await currentPolicy(env, practice('ada@example.invalid'))).toMatchObject({ state: 'current', role: 'employee', apps: new Set(['hello']), keys: new Map([['cloudflare', 'read'], ['code', 'read']]) });
     expect(await currentPolicy(env, practice('casey@example.invalid'))).toEqual({ state: 'denied' });
     // Dana has her own apps and levels and manages nothing.
     // Fay, the Admin, has every built app and key and opens the practice list.
     expect(await currentPolicy(env, practice('dana@example.invalid'))).toMatchObject({ state: 'current', role: 'employee', manages: false,
-      apps: new Set(dana), keys: new Map([['cloudflare', 'read'], ['code', 'read']]) });
+      apps: new Set(dana), keys: new Map([['cloudflare', 'read'], ['code', 'write']]) });
     expect(await currentPolicy(env, practice('fay@example.invalid'))).toMatchObject({ state: 'current', role: 'employee', manages: true,
-      apps: new Set(catalogue()), keys: new Map([['cloudflare', 'read'], ['code', 'read']]) });
+      apps: new Set(catalogue()), keys: new Map([['cloudflare', 'read'], ['code', 'write']]) });
     expect((await management(req('status', 'GET'), env, practice('dana@example.invalid'))).status).toBe(403);
     // Eli holds no app: Hello is refused whole, a look-up too. Dana's Hello is whole.
     for (const [email, allowed] of [['eli@example.invalid', false], ['dana@example.invalid', true]] as const) {

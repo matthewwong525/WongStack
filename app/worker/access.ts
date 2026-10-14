@@ -117,6 +117,30 @@ function identityFromClaims(
   return null;
 }
 
+/** The app token as the edge, a browser, `cloudflared access token`, or git's Basic password sends it.
+ *  Every source is verified the same way, so reading more of them widens no one's access. */
+function accessToken(request: Request): string | undefined {
+  const { headers } = request;
+  return (
+    headers.get("Cf-Access-Jwt-Assertion") ??
+    headers.get("Cookie")?.match(/(?:^|;\s*)CF_Authorization=([^;]+)/)?.[1] ??
+    headers.get("cf-access-token") ??
+    basicPassword(headers.get("Authorization"))
+  );
+}
+
+/** Git sends the credential helper's password as HTTP Basic; the username is ignored. */
+function basicPassword(authorization: string | null): string | undefined {
+  const encoded = authorization?.match(/^Basic\s+(\S+)$/i)?.[1];
+  if (!encoded) return undefined;
+  try {
+    const decoded = atob(encoded);
+    return decoded.slice(decoded.indexOf(":") + 1) || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /** The Access-verified identity behind this request, or `null`. FAILS CLOSED: every failure path returns `null`.
  *  Treat `null` as 401; never fall through to an anonymous default. */
 export async function getAccessIdentity(
@@ -137,10 +161,7 @@ export async function getAccessIdentity(
   // knowing which application to verify against cannot verify anything.
   if (!teamDomain || !audience) return null;
 
-  const token =
-    request.headers.get("Cf-Access-Jwt-Assertion") ??
-    // The cookie carries the same assertion for a browser navigation.
-    request.headers.get("Cookie")?.match(/(?:^|;\s*)CF_Authorization=([^;]+)/)?.[1];
+  const token = accessToken(request);
   if (!token) return null;
 
   const segments = token.split(".");

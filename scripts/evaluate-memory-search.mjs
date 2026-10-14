@@ -1,17 +1,18 @@
 #!/usr/bin/env node
 // Meta-only: migrate and query a throwaway synthetic store, never the checkout's memory.
 import { mkdirSync, readFileSync } from 'node:fs';
-import { memory, setup, writeJsonFile } from './tests/fixtures/memory/harness.mjs';
+import { memory, setup, signInAs, writeJsonFile } from './tests/fixtures/memory/harness.mjs';
 import { isMain, parseCli } from './lib-cli.mjs';
 
 const FIXTURE = new URL('./tests/fixtures/memory-search-questions.json', import.meta.url);
 export const loadFixture = () => JSON.parse(readFileSync(FIXTURE, 'utf8'));
-const OTHER_MACHINE = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+export const SELF = 'dev-subject';
+const OTHER = 'other-subject';
 // Fixture ownership is explicit and independent of its attribution label.
-export function fixtureOwner(fact, ownMachine) {
+export function fixtureOwner(fact, own) {
   switch (fact.owner || 'self') {
-    case 'self': return ownMachine;
-    case 'other': return OTHER_MACHINE;
+    case 'self': return own;
+    case 'other': return OTHER;
     case 'unassigned': return null;
     default: throw new Error(`invalid synthetic owner for ${fact.key}`);
   }
@@ -20,10 +21,11 @@ export function fixtureOwner(fact, ownMachine) {
 export function seed(env, fixture, { includeContext = false } = {}) {
   mkdirSync(env.repo.stateDir, { recursive: true });
   writeJsonFile(env.repo.stateDir, 'team.json', { team: true });
-  const insert = env.fake.db.prepare('INSERT INTO facts (slug, type, body, source, created_at, author, shared, owner_machine_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id');
+  signInAs(env.repo, { sub: SELF, email: 'dev@example.com', role: 'admin' });
+  const insert = env.fake.db.prepare('INSERT INTO facts (slug, type, body, source, created_at, author, shared, owner_subject) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id');
   const ids = new Map();
   for (const fact of [...fixture.facts, ...(fixture.diagnosticFacts || []), ...(includeContext ? fixture.contextFacts || [] : [])]) {
-    const { id } = insert.get(fact.slug, fact.type, fact.body, 'migration', fact.createdAt || '2026-10-01T00:00:00Z', fact.author || 'dev@example.com', fact.shared ?? 1, fixtureOwner(fact, env.repo.machineId));
+    const { id } = insert.get(fact.slug, fact.type, fact.body, 'migration', fact.createdAt || '2026-10-01T00:00:00Z', fact.author || 'dev@example.com', fact.shared ?? 1, fixtureOwner(fact, SELF));
     ids.set(fact.key, id);
   }
   for (const fact of fixture.diagnosticFacts || []) {

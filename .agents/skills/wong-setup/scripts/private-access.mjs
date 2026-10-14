@@ -133,7 +133,9 @@ export async function provisionAccess(cf, { account, repo, base, names, subdomai
 }
 
 export const HUMAN_SESSION_DURATION = '720h';
-const MEMORY_OVERRIDE = [{ behavior: 'public', path_pattern: '/_memory/*' }];
+// The routes the Worker checks the sign-in on itself: git sends it as a password, which the edge can not read.
+const GIT_OVERRIDE = { behavior: 'public', path_pattern: '/api/access/code/git/*' };
+const LIVE_OVERRIDES = [{ behavior: 'public', path_pattern: '/_memory/*' }, GIT_OVERRIDE];
 
 /** Activate the new unavailable production anchor once; later publication choices stay untouched. */
 async function bootstrapLogin(cf, { account, access, state, checkpoint, note }) {
@@ -216,7 +218,7 @@ async function ownedPolicy(cf, { path, policies, name, id, body, note }) {
   return created;
 }
 
-/** Separate exact human permissions, machine authentication, and only the production memory exception. */
+/** Separate exact human permissions, machine authentication, and only the memory and git exceptions. */
 export async function provisionAccessPolicies(cf, { account, ownerEmail, teammateEmails, access, state, checkpoint, credentials, saveCredentials, note }) {
   const root = `/accounts/${account}/access`;
   const appPath = `${root}/apps/${access.appId}`;
@@ -243,12 +245,12 @@ export async function provisionAccessPolicies(cf, { account, ownerEmail, teammat
   });
   state.access.machinePolicyId = service.id;
   checkpoint();
-  const destinations = access.workers.map((worker, index) => ({ type: 'worker', worker_id: worker.id, ...(index === 0 ? { overrides: MEMORY_OVERRIDE } : {}) }));
-  destinations.push({ type: 'public', uri: app.domain, overrides: MEMORY_OVERRIDE });
+  const destinations = access.workers.map((worker, index) => ({ type: 'worker', worker_id: worker.id, overrides: index === 0 ? LIVE_OVERRIDES : [GIT_OVERRIDE] }));
+  destinations.push({ type: 'public', uri: app.domain, overrides: LIVE_OVERRIDES });
   const desired = { name: app.name, type: 'self_hosted', domain: app.domain, destinations, session_duration: app.session_duration ?? HUMAN_SESSION_DURATION, allowed_idps: [access.identityProviderId] };
   if (Object.entries(desired).some(([key, value]) => !isDeepStrictEqual(app[key], value))) {
     await cf('PUT', appPath, { ...desired, policies: [{ id: human.id }, { id: service.id }] });
-    note('updated', 'production memory exception and workspace email login');
+    note('updated', 'memory and project-download exceptions and workspace email login');
   }
   const checked = await cf('GET', appPath);
   if (!matchesFields(checked, { ...desired, id: access.appId, aud: access.audience })) {

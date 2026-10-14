@@ -9,12 +9,31 @@ import { join, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
 import { handleMemory, hashKey, newKey } from '../../../../.agents/skills/memory/worker/memory-worker.mjs';
+import { tokenClaims } from '../../../../.agents/skills/memory/scripts/lib/store.mjs';
 import { d1Query } from '../d1.mjs';
 
 const REPO = resolve(fileURLToPath(new URL('../../../..', import.meta.url)));
 const SCRIPTS = join(REPO, '.agents/skills/memory/scripts');
 const TOKEN = 'test-memory-token-value';
 export const SECRET = 'super-secret-value-123';
+export const TEST_AUD = 'test-aud';
+
+// An unsigned stand-in for an Access token: the fake Worker trusts its claims, as the app trusts a verified one.
+const part = value => Buffer.from(JSON.stringify(value)).toString('base64url');
+export const testToken = claims => [part({ alg: 'none' }), part({ aud: TEST_AUD, exp: Math.floor(Date.now() / 1000) + 30 * 86400, ...claims }), 'sig'].join('.');
+
+// The app's sign-in check, faked: the token's own role, subject and email, for this app's audience only.
+export async function fakeSignIn(request) {
+  const claims = tokenClaims(request.headers.get('cf-access-token') || '');
+  if (claims?.aud !== TEST_AUD || !(claims.exp * 1000 > Date.now())) return null;
+  return { role: claims.role, subject: claims.sub, email: claims.email };
+}
+
+// A fake `cloudflared` on the repo's PATH that prints this sign-in's token (claims or a token), or none for `null`.
+export function signInAs(repo, claims) {
+  mkdirSync(repo.bin, { recursive: true });
+  writeFileSync(join(repo.bin, 'cloudflared'), claims ? `#!/bin/sh\necho ${typeof claims === 'string' ? claims : testToken(claims)}\n` : '#!/bin/sh\nexit 1\n', { mode: 0o755 });
+}
 
 async function fakeCloudflare({ bucket = true } = {}) {
   const db = new DatabaseSync(':memory:');
@@ -44,7 +63,7 @@ async function fakeCloudflare({ bucket = true } = {}) {
       const response = await handleMemory(request, { MEMORY_DB: binding, ...(bucket ? { MEMORY_BUCKET: {
         get: async key => objects.has(key) ? { body: objects.get(key) } : null,
         put: async (key, value) => objects.set(key, Buffer.from(value)),
-      } } : {}) });
+      } } : {}) }, fakeSignIn);
       res.writeHead(response.status, Object.fromEntries(response.headers));
       res.end(Buffer.from(await response.arrayBuffer()));
       return;
@@ -96,12 +115,18 @@ function makeRepo(t, { bucket = true } = {}) {
   const dataHome = join(home, 'data');
   mkdirSync(join(dataHome, 'wongstack'), { recursive: true });
   writeFileSync(join(dataHome, 'wongstack', 'machine-id'), `${machineId}\n`, { mode: 0o600 });
-  return { root, home, machineId, dataHome, stateBase: join(home, 'state'), claudeHome: join(home, 'claude'), codexHome: join(home, 'codex'), stateDir: join(home, 'state', machineId) };
+  const bin = join(home, 'bin');
+  mkdirSync(bin);
+  writeFileSync(join(bin, 'cloudflared'), '#!/bin/sh\nexit 1\n', { mode: 0o755 });
+  return { root, home, bin, machineId, dataHome, stateBase: join(home, 'state'), claudeHome: join(home, 'claude'), codexHome: join(home, 'codex'), stateDir: join(home, 'state', machineId) };
 }
 
 function envFor(repo, fake, extra = {}) {
   return {
     ...process.env,
+    PATH: `${repo.bin}:${process.env.PATH}`,
+    WONG_MEMORY_CLIENT_ID: '',
+    WONG_MEMORY_CLIENT_SECRET: '',
     WONG_MEMORY_API: fake.api,
     WONG_MEMORY_STATE_DIR: repo.stateBase,
     XDG_DATA_HOME: repo.dataHome,

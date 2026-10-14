@@ -17,7 +17,7 @@ Cloudflare turns on Zero Trust only once the account has a card on file. [`/wong
 - **The switch is committed config, not a secret.** Production's and staging's `vars` carry `WORKSPACE_LOGIN: "off"`, with the `CF_ACCESS_*` ids blank, so a reviewer sees it. A secret would hide it from review.
 - **The Worker honors it only while no Access id is set.** Once `CF_ACCESS_TEAM_DOMAIN` or `CF_ACCESS_AUD` has a value, a request without a valid assertion is refused, so a leftover switch can't weaken a private site.
 - **The deploy check accepts only this exact state.** Both environments must carry the switch and no Access ids; the Worker names and the secrets rule still hold. Every publish prints one warning that the site is open. The switch beside Access ids fails the check.
-- **Memory stays private.** `/_memory/*` checks its own key either way.
+- **Memory and the project's Git address stay private.** The Worker checks the sign-in on `/_memory/*` and `/api/access/code/git/*` either way.
 - **Anyone with the link sees production, staging, and previews.** Staging binds no production data or memory.
 
 **Turning it private later:** the person adds the card from [the card list](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#the-card-list), and the runbook's [adding the card later](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#adding-the-card-later) reruns `provision`. It makes the Access app over the deployed Workers, fills the ids, and removes the switch in `app/wrangler.jsonc`, ready for `/save` to publish. The deploy check then runs in full.
@@ -26,7 +26,8 @@ Cloudflare turns on Zero Trust only once the account has a card on file. [`/wong
 
 ```text
 visitor → Access email or machine authentication → Worker signed-JWT verification → app
-memory client → production /_memory/* → independent memory-key verification
+memory client → production /_memory/* ────────┐
+git           → /api/access/code/git/* ───────┴→ Worker checks the same sign-in itself
 ```
 
 Native Worker destinations cover each actual Worker ID, including default addresses, custom domains, and old/new version previews. The Worker also verifies the signed assertion's audience, issuer, signature, and expiration. A forged email header gives no identity.
@@ -71,11 +72,18 @@ Every business-app request needs a permitted identity. Existing intentionally pu
 
 The human policy uses exact reachable owner and teammate emails, deduplicated with the owner retained. A separate machine policy accepts only the workspace's verification service token. Membership changes edit the human policy and preserve machine access. Once the owner opens [Access](employee-access.md), the app keeps that policy's email list itself, from the people saved there.
 
-New applications and human policies default to `720h` (30 days). This is the app's login/session-token lifetime. A reviewed existing shorter application or human-policy duration stays intact; it does not change machine, API, or memory-key lifetimes. A removed teammate's email permission is removed and this application's existing sessions are revoked, so a still-unexpired token does not wait for its natural expiration. Provider propagation is asynchronous, and failed updates remain visibly pending.
+New applications and human policies default to `720h` (30 days). This is the app's login/session-token lifetime. A reviewed existing shorter application or human-policy duration stays intact; it does not change machine or API lifetimes. Memory's sign-in is this session, so it lasts as long. A removed teammate's email permission is removed and this application's existing sessions are revoked, so a still-unexpired token does not wait for its natural expiration. Provider propagation is asynchronous, and failed updates remain visibly pending.
 
 ### 4. Bypass the public surface
 
-Only production `/_memory/*` has a public destination override, on the production Worker and its default-hostname anchor. It remains protected by the memory route’s own machine credential. Repository authorization is its policy; the repo secret proves it to the store. Staging binds no production memory and gets no public override. A destination override lets a request reach the Worker; it never disables the memory key check.
+Two routes skip the wall, and the Worker checks the company sign-in on each itself, before any other work. Anyone else gets a 401.
+
+| Route | Where | Why it skips the wall |
+|---|---|---|
+| `/_memory/*` | the production Worker and its default-hostname anchor | memory clients send the sign-in in a `cf-access-token` header |
+| `/api/access/code/git/*` | every Worker and the anchor | Git sends the sign-in as a password, which the wall can't read |
+
+The Worker verifies the same signed token the wall would: from the wall's header, the browser cookie, a `cf-access-token` header, or a Git password ([`access.ts`](../../app/worker/access.ts)). A Git call with none gets a 401 that asks for a password, so Git asks [the copy's credential helper](employee-project.md#update-the-copy), and its text names the sign-in step. Staging binds no memory and opens only the Git route. A destination override lets a request reach the Worker; it never skips the Worker's check.
 
 One address under it is not memory: `/_memory/setup.mjs`, [the setup file](employee-project.md#the-setup-files-fixed-link) *Connect your assistant* names. It answers anyone, holds no key, and reads no store. It sits there so no install needs a second override: the publish check matches the destinations exactly.
 
@@ -89,7 +97,7 @@ The service token authenticates automated previews. Its default lifetime is sepa
 
 ## Verify it works — in a browser
 
-Check anonymous denial, machine access, memory-key access, and real email login independently. The machine walk cannot substitute for a human login. Open production, staging, an existing version/alias, and a fresh branch preview in a browser with the allowed email, on default and configured custom addresses; confirm the app renders after PIN login. Capture credential-free evidence, keeping cookies and tokens in private files.
+Check anonymous denial, machine access, memory through the sign-in, and real email login independently. The machine walk cannot substitute for a human login. Open production, staging, an existing version/alias, and a fresh branch preview in a browser with the allowed email, on default and configured custom addresses; confirm the app renders after PIN login. Capture credential-free evidence, keeping cookies and tokens in private files.
 
 Repeat the status probes with saved ignored credentials:
 
@@ -98,7 +106,7 @@ node scripts/probe-private-access.mjs --url https://your-worker.your-subdomain.w
 node scripts/probe-private-access.mjs --url https://your-preview.your-subdomain.workers.dev/favicon.svg
 ```
 
-The output includes only independent anonymous/machine statuses and leaves human login unverified. Anonymous requests should receive an Access redirect or a closed denial, and machine requests should render the app. Check memory separately with `memory.mjs digest` and its own key. Also test teammate removal using an already active human session and preserve owner/machine access; report pending provider propagation or retry honestly.
+The output includes only independent anonymous/machine statuses and leaves human login unverified. Anonymous requests should receive an Access redirect or a closed denial, and machine requests should render the app. Check memory separately with `memory.mjs digest` under the owner's sign-in. Also test teammate removal using an already active human session and preserve owner/machine access; report pending provider propagation or retry honestly.
 
 ## The auth model: verify the signed assertion
 
@@ -106,7 +114,7 @@ The template entry point enforces `app/worker/access.ts` before every app route 
 
 ### Verify the JWT; don't trust the header
 
-Human JWT claims carry an email; machine claims carry `common_name`, the service token's client ID. Both require a valid signed assertion from the configured organization and audience. `Cf-Access-Authenticated-User-Email` alone is attacker-controlled and never accepted. Access also sets no such header for a service token, and strips the `CF-Access-Client-Id` and `CF-Access-Client-Secret` it was sent, so a Worker that reads the header refuses every machine caller. Cloudflare rotates the signing keys: fetch and cache them, and fetch again on an unknown `kid` ([`access.ts`](../../app/worker/access.ts)). Memory routes run their separate credential check before this app guard. The setup-supplied app link carries an optional one-use machine marker: normal verified human login labels that installation, then redirects to the clean app URL. A bare unrelated visit identifies no machine. Labels change no memory permission ([the memory key](../development/memory-key.md#ordinary-login-labels-the-machine)).
+Human JWT claims carry an email; machine claims carry `common_name`, the service token's client ID. Both require a valid signed assertion from the configured organization and audience. `Cf-Access-Authenticated-User-Email` alone is attacker-controlled and never accepted. Access also sets no such header for a service token, and strips the `CF-Access-Client-Id` and `CF-Access-Client-Secret` it was sent, so a Worker that reads the header refuses every machine caller. Cloudflare rotates the signing keys: fetch and cache them, and fetch again on an unknown `kid` ([`access.ts`](../../app/worker/access.ts)). Memory routes verify the same sign-in before this app guard, and also take a cloud schedule's own memory sign-in, which the store checks against its own list ([memory sign-in](../development/memory.md#sign-in-and-expiry)).
 
 ### Turning it on
 

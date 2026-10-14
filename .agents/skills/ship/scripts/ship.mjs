@@ -19,11 +19,12 @@ prepare  preflight, tasks check, validate, archive, number the release, sync, ma
   --allow-others   ship other active changes on this branch on purpose
   --skip-specs     archive without a spec update (the deltas already equal the main specs)
   --sync           merge the default branch in even when no release is behind it
-finish   merge the gated pull request, promote secret edits, look at the live app`;
+finish   merge the gated pull request, promote secret edits, look at the live app; in an app copy, publish through the app`;
 
 const here = dirname(fileURLToPath(import.meta.url));
 const SELF = 'node .claude/skills/ship/scripts/ship.mjs';
 const ARTIFACTS_RUN = join(here, '..', '..', 'save', 'scripts', 'artifacts-run.mjs');
+const APP_CHANGE = join(here, '..', '..', 'save', 'scripts', 'app-change.mjs');
 const MAIN_CHECKS = '.check_runs[] | [.name, .conclusion // "pending"] | @tsv';
 // Dependabot's own update job attaches to the default branch's commit, and fails when a security
 // fix has no version to move to. It is not one of the project's checks.
@@ -53,12 +54,13 @@ function must(command, args, what) {
 
 const APP_NEXT = 'NEXT: this copy saves through the app and never publishes. Save the change with /save, then say the owner or an Admin publishes it; publish nothing, and never offer to.';
 
-// `github` or `artifacts`; a route that can not be told stops the command. So does `app`, with `appCode`: a copy
-// installed through Connect has nothing to prepare and nothing to merge.
+// `github`, `artifacts` or `app`; a route that can not be told stops the command. So does `app`, with `appCode`,
+// for a person without the publish tick: their copy, installed through Connect, has nothing to prepare or merge.
 function routeOf(cwd, appCode) {
   const asked = askRoute(cwd);
   if (asked.lines) throw new Stop(1, asked.lines);
-  if (asked.route === 'app') throw new Stop(appCode, [APP_NEXT]);
+  // `node` by name, as for artifacts-run.mjs.
+  if (asked.route === 'app' && sh('node', [APP_CHANGE, 'can-publish']).stdout.trim() !== 'yes') throw new Stop(appCode, [APP_NEXT]);
   return asked.route;
 }
 
@@ -213,6 +215,23 @@ function recheck(root, base) {
     ?? `not run (checks.mjs exited ${run.status} with no LOCAL_CHECKS line)`;
 }
 
+/** A red or unreadable default branch stops every ship, a new intent included, before any build. */
+function defaultChecks(artifacts, base) {
+  const checks = artifacts ? artifactsDefaultChecks(base) : sh('gh', ['api', `repos/:owner/:repo/commits/${base}/check-runs`, '--jq', MAIN_CHECKS]);
+  // An empty jq listing alone is ambiguous. Confirm a successful API read of
+  // zero checks before using PR review, the existing gate for repos without CI.
+  const emptyCount = !artifacts && checks.status === 0 && !checks.stdout.trim()
+    ? sh('gh', ['api', `repos/:owner/:repo/commits/${base}/check-runs`, '--jq', '.total_count']) : null;
+  const answer = checks.status !== 0 ? '' : artifacts ? checks.stdout.trim()
+    : emptyCount?.status === 0 && emptyCount.stdout.trim() === '0' ? 'ok' : mainVerdict(checks.stdout);
+  say(`DEFAULT_CHECKS=${answer || 'unknown'}`);
+  if (answer === 'failure') throw new Stop(6, [`NEXT: ${base}'s checks are failing. Fix the default branch first; ship nothing onto it.`]);
+  // Cut off is not failing: nothing is wrong with the commit, and the same run can be started again.
+  if (answer === 'interrupted') throw new Stop(6, [`NEXT: ${base}'s check run was cut off, not failed. ${restartSteps(checks.sha, base)} Rerun this command when that prints an address or none; on anything else, report it and stop.`]);
+  if (answer !== 'ok' && artifacts) throw new Stop(6, [`error=${checks.stderr}`, `NEXT: ${base}'s checks could not be read. Report the message above and stop.`]);
+  if (answer !== 'ok') throw new Stop(6, [`error=${firstLine(checks.stderr) || 'gh returned no answer'}`, `NEXT: ${base}'s checks could not be read. Report gh's message and stop.`]);
+}
+
 async function prepare(values) {
   const root = must('git', ['rev-parse', '--show-toplevel'], 'not inside a git repository');
   // Every git and OpenSpec call below sees the whole repo, whichever folder the command was started in.
@@ -236,20 +255,9 @@ async function prepare(values) {
   say(`BRANCH=${branch}`);
   say(`DIRTY=${dirty ? 'yes' : 'no'}`);
   say(`AHEAD=${ahead}`);
-  // A red or unreadable default branch stops every ship, a new intent included, before any build.
-  const checks = artifacts ? artifactsDefaultChecks(base) : sh('gh', ['api', `repos/:owner/:repo/commits/${base}/check-runs`, '--jq', MAIN_CHECKS]);
-  // An empty jq listing alone is ambiguous. Confirm a successful API read of
-  // zero checks before using PR review, the existing gate for repos without CI.
-  const emptyCount = !artifacts && checks.status === 0 && !checks.stdout.trim()
-    ? sh('gh', ['api', `repos/:owner/:repo/commits/${base}/check-runs`, '--jq', '.total_count']) : null;
-  const answer = checks.status !== 0 ? '' : artifacts ? checks.stdout.trim()
-    : emptyCount?.status === 0 && emptyCount.stdout.trim() === '0' ? 'ok' : mainVerdict(checks.stdout);
-  say(`DEFAULT_CHECKS=${answer || 'unknown'}`);
-  if (answer === 'failure') throw new Stop(6, [`NEXT: ${base}'s checks are failing. Fix the default branch first; ship nothing onto it.`]);
-  // Cut off is not failing: nothing is wrong with the commit, and the same run can be started again.
-  if (answer === 'interrupted') throw new Stop(6, [`NEXT: ${base}'s check run was cut off, not failed. ${restartSteps(checks.sha, base)} Rerun this command when that prints an address or none; on anything else, report it and stop.`]);
-  if (answer !== 'ok' && artifacts) throw new Stop(6, [`error=${checks.stderr}`, `NEXT: ${base}'s checks could not be read. Report the message above and stop.`]);
-  if (answer !== 'ok') throw new Stop(6, [`error=${firstLine(checks.stderr) || 'gh returned no answer'}`, `NEXT: ${base}'s checks could not be read. Report gh's message and stop.`]);
+  // The app reads this change's own checks before it publishes; a teammate's copy can not read main's.
+  if (route === 'app') say('DEFAULT_CHECKS=not read (the app checks this change before it publishes)');
+  else defaultChecks(artifacts, base);
   if (!dirty && (branch === base || ahead === 0)) {
     throw new Stop(3, ['NEXT: nothing to ship yet. Take the pull-in in the ship skill: invoke apply inside /ship, or say there is nothing to continue.']);
   }
@@ -349,6 +357,19 @@ function liveLook(commit) {
   return look.stdout.trim() || 'LIVE_LOOK=unknown\nREASON=the live look printed nothing';
 }
 
+// The app publishes the saved change once its checks passed; it refuses anything else and says why.
+function publishThroughApp() {
+  const sent = sh('node', [APP_CHANGE, 'publish']);
+  process.stdout.write(sent.stdout);
+  process.stderr.write(sent.stderr);
+  if (sent.status !== 0) {
+    say('NEXT: not published, and nothing changed. Report the line above and stop.');
+    return 1;
+  }
+  say('NEXT: it is published. Report it goes live once the published version passes its checks.');
+  return 0;
+}
+
 async function finish(values) {
   const root = must('git', ['rev-parse', '--show-toplevel'], 'not inside a git repository');
   const route = routeOf(root, 1);
@@ -361,6 +382,7 @@ async function finish(values) {
       assertCodeScope(evidence, evidence.operationalRoots);
     } catch (error) { throw new Stop(1, [`error=${error.message}`]); }
   }
+  if (route === 'app') return publishThroughApp();
   const artifacts = route === 'artifacts';
   const merge = sh('bash', [join(here, 'merge.sh')]);
   process.stdout.write(merge.stdout);

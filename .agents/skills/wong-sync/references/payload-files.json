@@ -65,7 +65,6 @@
       "wiki/development/wiki-dream.md",
       "wiki/development/document-retrieval.md",
       "wiki/development/memory-extraction.md",
-      "wiki/development/memory-key.md",
       "wiki/development/browsing.md",
       "wiki/development/reply-links.md",
       "wiki/development/passwords.md",
@@ -137,7 +136,8 @@
       "scripts/check-runner/wrangler.template.jsonc",
       "scripts/check-runner/package.json",
       "scripts/check-runner/package-lock.json",
-      "scripts/employee-bootstrap.mjs"
+      "scripts/employee-bootstrap.mjs",
+      "scripts/company-git-credential.mjs"
     ],
     "dirs": [
       "wiki/stack"
