@@ -5,7 +5,9 @@ import { privateDeployment, accessConflicts } from './lib-access-config.mjs';
 import { findWranglerConfig, parseConfig, redirectedConfig } from './lib-wrangler-config.mjs';
 import { isMain, parseCli, usageError } from './lib-cli.mjs';
 
-const memory = [{ behavior: 'public', path_pattern: '/_memory/*' }];
+// The two routes the Worker checks the sign-in on itself; staging has no memory.
+const git = { behavior: 'public', path_pattern: '/api/access/code/git/*' };
+const live = [{ behavior: 'public', path_pattern: '/_memory/*' }, git];
 
 export async function checkPrivateAccess(config, environment, cf, generated) {
   const production = privateDeployment(config, 'production');
@@ -42,12 +44,12 @@ export async function checkPrivateAccess(config, environment, cf, generated) {
   const app = await cf(appPath);
   const anchor = `${production.name}.${subdomain}.workers.dev`;
   const desired = [
-    { type: 'worker', worker_id: production.workerId, overrides: memory },
-    { type: 'worker', worker_id: staging.workerId },
-    { type: 'public', uri: anchor, overrides: memory },
+    { type: 'worker', worker_id: production.workerId, overrides: live },
+    { type: 'worker', worker_id: staging.workerId, overrides: [git] },
+    { type: 'public', uri: anchor, overrides: live },
   ];
   const destinations = app.destinations ?? [];
-  if (app.id !== target.appId || app.aud !== target.audience || app.type !== 'self_hosted' || app.domain !== anchor || destinations.length !== desired.length || desired.some(item => !destinations.some(value => isDeepStrictEqual(value, item)))) throw new Error('Access coverage or its memory exception is missing or broader than this workspace');
+  if (app.id !== target.appId || app.aud !== target.audience || app.type !== 'self_hosted' || app.domain !== anchor || destinations.length !== desired.length || desired.some(item => !destinations.some(value => isDeepStrictEqual(value, item)))) throw new Error('Access coverage or its memory and git exceptions are missing or broader than this workspace');
   const policies = await list(`${appPath}/policies`);
   const human = policies.filter(policy => policy.decision === 'allow');
   const machine = policies.filter(policy => policy.decision === 'non_identity');

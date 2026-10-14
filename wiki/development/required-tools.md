@@ -33,8 +33,8 @@ Each is a **tool, not a toolchain**: nothing is added to your repository — no 
 | Need | Why |
 |---|---|
 | A Cloudflare account | Holds the memory database and hosts the app. [Setup's provisioning](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md) creates both from one user token. |
-| The user token, `CLOUDFLARE_API_TOKEN` in `.env` | Provisions everything, manages memory keys, and mints the CI deploy token. It stays on your computer. The [credentials page](../stack/cloudflare-credentials.md) owns how to make it. |
-| The memory key, `CLOUDFLARE_MEMORY_TOKEN` | Opens this repo's store through the production Worker's memory route. [The memory page](memory-key.md) owns its name and what it reaches. |
+| The user token, `CLOUDFLARE_API_TOKEN` in `.env` | Provisions everything, runs memory's admin jobs, and mints the CI deploy token. It stays on your computer. The [credentials page](../stack/cloudflare-credentials.md) owns how to make it. |
+| The memory key, `CLOUDFLARE_MEMORY_TOKEN` | Only in an app with no sign-in yet: opens this repo's store through the production Worker's memory route. [The memory page](memory.md#sign-in-and-expiry) owns its name. |
 | R2, optional | Keeps raw transcripts. It needs a payment method on file; without it, memory works and keeps no transcripts. |
 
 ## Symbolic links in the agent folder
@@ -60,13 +60,13 @@ The pack's deploy workflow is the file that trips this, so every install needs t
 
 ## `gh` needs the `user:email` scope for memory
 
-This heading remains for older links. Memory uses [trusted machine credentials](memory-key.md#add-or-remove-a-teammate) and needs no GitHub scope. Setup may read verified GitHub emails to fill git authorship; that is separate from memory access.
+This heading remains for older links. Memory uses [the company sign-in](memory.md#sign-in-and-expiry) and needs no GitHub scope. Setup may read verified GitHub emails to fill git authorship; that is separate from memory access.
 
 ## Runtimes install at the point of need
 
 **Nothing is installed without asking.** Installing a runtime changes the machine, not the repo. When a step needs a tool and it is missing, the skill explains what and why, and asks.
 
-**Setup is the one skill that checks ahead**, because nothing works until its tools exist. Before it writes anything, it checks for `git`, `gh` (not on [the Artifacts route](../stack/artifacts-route.md)), Node.js, and `openspec`, and asks once to install the missing ones ([get the computer ready](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/tools.md)). The same question covers `agent-browser` and `cloudflared`, so nothing stops later to ask; a failed install of either is named and skipped, since setup needs neither. It uses the system package manager — Homebrew when it is already there, `winget`, or `apt` — only when that needs no password, because an agent can't type one. Otherwise it installs into your home folder, `~/.local`, which also works on managed laptops. It never installs a package manager. Every other skill keeps point-of-need installs: on a machine setup didn't ready, or where a helper failed, `/verify` adds its browser the first time it needs one, and a private link its tunnel tool. An errand on your accounts always asks for [camofox](#installing-camofox) itself, and a shopping request for [Shop's command](#installing-shops-command).
+**Setup is the one skill that checks ahead**, because nothing works until its tools exist. Before it writes anything, it checks for `git`, `gh` (not on [the Artifacts route](../stack/artifacts-route.md)), Node.js, and `openspec`, and asks once to install the missing ones ([get the computer ready](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/tools.md)). The same question covers `agent-browser` and `cloudflared`, so nothing stops later to ask; a failed install of either is named and skipped, since setup finishes without them. The owner's memory waits for `cloudflared`, which signs them in once. It uses the system package manager — Homebrew when it is already there, `winget`, or `apt` — only when that needs no password, because an agent can't type one. Otherwise it installs into your home folder, `~/.local`, which also works on managed laptops. It never installs a package manager. Every other skill keeps point-of-need installs: on a machine setup didn't ready, or where a helper failed, `/verify` adds its browser the first time it needs one, and a private link its tunnel tool. An errand on your accounts always asks for [camofox](#installing-camofox) itself, and a shopping request for [Shop's command](#installing-shops-command).
 
 ### Installing `cloudflared`
 

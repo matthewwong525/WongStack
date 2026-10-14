@@ -6,7 +6,8 @@ import { pack, logger } from './fixtures/pack.mjs';
 const account = 'a'.repeat(32), productionId = 'b'.repeat(32), stagingId = 'c'.repeat(32);
 const vars = environment => ({ WONG_ENVIRONMENT: environment, CF_ACCESS_TEAM_DOMAIN: 'team.cloudflareaccess.com', CF_ACCESS_AUD: 'aud', CF_ACCESS_APP_ID: 'app', CF_ACCESS_WORKER_ID: environment === 'production' ? productionId : stagingId });
 const config = { account_id: account, name: 'demo', assets: { run_worker_first: true }, vars: vars('production'), env: { staging: { name: 'demo-staging', vars: vars('staging') } } };
-const memory = [{ behavior: 'public', path_pattern: '/_memory/*' }];
+const git = { behavior: 'public', path_pattern: '/api/access/code/git/*' };
+const memory = [{ behavior: 'public', path_pattern: '/_memory/*' }, git];
 function resources() {
   return {
     '/workers/workers/demo': { name: 'demo', id: productionId, references: { domains: [{ hostname: 'app.example.com' }] } },
@@ -15,7 +16,7 @@ function resources() {
     '/workers/scripts': [{ id: 'demo' }, { id: 'demo-staging' }],
     '/workers/subdomain': { subdomain: 'example' },
     '/access/apps/app': { id: 'app', type: 'self_hosted', aud: 'aud', domain: 'demo.example.workers.dev', destinations: [
-      { overrides: memory, worker_id: productionId, type: 'worker' }, { worker_id: stagingId, type: 'worker' }, { overrides: memory, uri: 'demo.example.workers.dev', type: 'public' },
+      { overrides: memory, worker_id: productionId, type: 'worker' }, { overrides: [git], worker_id: stagingId, type: 'worker' }, { overrides: memory, uri: 'demo.example.workers.dev', type: 'public' },
     ], policies: [{ id: 'human' }, { id: 'machine' }] },
     '/access/apps/app/policies': [
       { id: 'human', decision: 'allow', include: [{ email: { email: 'owner@example.com' } }], exclude: [], require: [] },
@@ -41,6 +42,8 @@ test('missing coverage, broad exceptions, policies, precedence and secret overri
     data => { data['/access/apps/app'].destinations.pop(); },
     data => { data['/workers/workers/demo'].id = 'd'.repeat(32); },
     data => { data['/access/apps/app'].destinations[0].overrides[0].path_pattern = '/*'; },
+    data => { data['/access/apps/app'].destinations[1].overrides[0].path_pattern = '/api/*'; },
+    data => { data['/access/apps/app'].destinations[1].overrides.push(memory[0]); },
     data => { data['/access/apps/app/policies'][0].include = [{ everyone: {} }]; },
     data => { data['/access/apps/app/policies'][1].decision = 'bypass'; },
     data => { data['/access/apps/app'].policies.pop(); },

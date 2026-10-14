@@ -12,7 +12,7 @@ import { keyUse } from "./key-use";
 import { currentPolicy } from "./policy";
 import { handleAccess } from "./router";
 import { changedSet } from "./sets";
-import { setupMessage } from "./prompt";
+import { businessName, setupMessage } from "./prompt";
 import { setupStatus } from "./setup";
 import { body } from "../../tests/body";
 import { fakeArtifacts, fakeEnv } from "../../tests/env";
@@ -78,14 +78,14 @@ beforeEach(() => {
 });
 afterEach(() => { f.sql.close(); vi.unstubAllGlobals(); });
 
-it("registers Project code as a key with Read alone, offered with no app, that no route lists and no app tick gives", () => {
-  expect(keys.code).toEqual({ title: "Project code", secrets: ["WONG_CODE_READ", "WONG_CODE_WRITE"], levels: ["read"], alone: true, bindings: ["ARTIFACTS", "CODE_CHECKS"] });
-  expect([offered("code"), everyKey().get("code")]).toEqual([["read"], "read"]);
+it("registers Project code as a key with Read to install and Write to publish, offered with no app, that no route lists and no app tick gives", () => {
+  expect(keys.code).toEqual({ title: "Project code", secrets: ["WONG_CODE_READ", "WONG_CODE_WRITE"], levels: ["read", "write"], alone: true, bindings: ["ARTIFACTS", "CODE_CHECKS"] });
+  expect([offered("code"), everyKey().get("code")]).toEqual([["read", "write"], "write"]);
   expect(keyUse.some(use => use.keys.includes("code"))).toBe(false);
   expect(changedSet({ apps: [], keys: {} }, { apps: { orders: true } })).toEqual({ apps: ["orders"], keys: {} });
   // Saved follows whether the project can be handed out: a Cloudflare-kept one needs no secret.
   const row = (bindings: object) => keyCatalogue(bindings).find(key => key.id === "code");
-  expect(row({})).toEqual({ id: "code", title: "Project code", levels: ["read"], saved: false, setup: false, alone: true, direct: false });
+  expect(row({})).toEqual({ id: "code", title: "Project code", levels: ["read", "write"], saved: false, setup: false, alone: true, direct: false });
   expect([row(github)!.saved, row(saving)!.saved, row(artifacts().env)!.saved, saved({ WONG_CODE_READ: TOKEN }, "code")]).toEqual([true, true, true, false]);
   // No route is handed the credential or the binding, even one that lists the key.
   const all = { DB: {}, ...github, WONG_CODE_WRITE: WIDE, ARTIFACTS: {}, CODE_CHECKS: {}, WONG_CLOUDFLARE_READ: "look-up" };
@@ -380,12 +380,12 @@ it("tells setup and the home page who may connect: ready, lacked, or off for eve
   f.sql.prepare("INSERT INTO wong_access_members VALUES (?, ?, 'active', 0, 1, 'now')").run(site.installationId, lacker.id);
   const today = await setup(employee, f.env);
   // Off: the one message, for every signed-in person, the one who lacks Project code included.
-  expect([today.code, (await setup(lacker, f.env)).prompt, await apps(lacker, f.env)]).toEqual(["off", { state: "ready", text: setupMessage(site.origin) }, "off"]);
+  expect([today.code, (await setup(lacker, f.env)).prompt, await apps(lacker, f.env)]).toEqual(["off", { state: "ready", text: setupMessage(site.origin, "business.example.com") }, "off"]);
   for (const identity of [owner, employee]) {
     const ready = await setup(identity);
     expect([ready.code, await apps(identity)], identity.id).toEqual(["ready", "ready"]);
-    // Ready and off get the same message: setup decides what each person receives.
-    expect(ready.prompt).toEqual(today.prompt);
+    // Ready and off get the same message, named for the app's project: setup decides what each person receives.
+    expect(ready.prompt).toEqual({ state: "ready", text: setupMessage(site.origin, businessName(env, site.origin)) });
   }
   // Lacked: no prompt at all, and the words that send them to their admin.
   expect([(await setup(lacker)).code, (await setup(lacker)).prompt, await apps(lacker)])

@@ -18,10 +18,9 @@ How this repo plans, builds, checks, and ships changes. Every WongStack install 
   - [Shopping](shopping.md) — the agent finds, compares, and buys products through Shop: no account to look, your yes to connect and to pay, one payment per purchase, and no card detail the agent can read.
   - [Live view](live-view.md) — at a robot check, a private link shows the agent's browser so you can tap through it: when it opens, what the link can do, and how the agent runs one.
 - [Memory dream](wiki-dream.md) — type `/dream-memory` and the assistant checks the wiki, saved facts, specs, and plans against each other and the code: what it fixes, what it only lists, the dry run, and how to undo one.
-- [Session memory](memory.md) — the private fact store: who sees what, the start-of-session digest, capture by `/save` and the background run, and consolidation.
+- [Session memory](memory.md) — the private fact store: who sees what, the company sign-in and its expiry, the start-of-session digest, capture by `/save` and the background run, and consolidation.
   - [Document retrieval](document-retrieval.md) — task recall with cited wiki/OpenSpec passages, optional local semantic setup, scopes, freshness and fallback.
   - [Experimental extraction](memory-extraction.md) — bounded fact selection, supported hosts, task limits, and comparative evaluation.
-  - [The memory key](memory-key.md) — the key that opens the store: the admin, member, and reader roles, machine ownership, trusted credential installation, login labels, and revocation.
 - [Secrets and environment variables](secrets.md) — the `.env.example`-as-source-of-truth convention: blank declarations stay on the active branch, while real values persist outside git in the primary worktree across linked checkouts.
 - [Contributing upstream](../contributing.md) — the other side of the payload: how a target repo sends an improvement back by hand, and the generality bar it has to clear before you'd merge it here.
 - [Maintaining WongStack](../maintaining/README.md) — editing the toolkit itself: adding a skill, the folder links, and cutting a release.

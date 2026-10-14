@@ -12,6 +12,8 @@ The host is the app running your assistant, independently of which model you use
 
 Before activation, it reports the destination, timezone, due time or cadence, working folder, model settings, required connections, and what must remain running. Local schedules may need the computer and app on. A loop tied to this chat cannot promise a fresh session after it closes. Claude cloud sessions cannot manage their cloud schedules from inside the run; stopping needs a separate verified control route. Future sessions must read instructions and progress and stop their owned schedule when the goal is achieved. Fixed checks do not need native timing updates.
 
+**Memory follows where it runs.** A local schedule uses the person's own [company sign-in](../development/memory.md#sign-in-and-expiry), so it stops with a warning when that sign-in ends. A cloud schedule gets its own memory sign-in from the owner, kept in that host's secret store, never in the prompt or the repo: it reads and writes team facts only, never a person's private ones. Before activation, check that the schedule can reach memory from where it will run.
+
 ## What stays in the repo
 
 An ongoing routine has a lightweight `schedules/<name>.json` definition: owner, instructions, timing, permitted actions, and the host binding. It stays visible after successful runs and after cancellation, when its definition is disabled. Its format ships with [the schedule helper](../../.agents/skills/schedule/scripts/schedule.mjs); each install owns its definitions.

@@ -8,6 +8,7 @@ import { prepareIndex, runtimeReady } from './qmd.mjs';
 import { documentsStatus, setupDocuments } from './setup.mjs';
 import { retrieveDocuments } from './retrieve.mjs';
 import { renderPacket } from './packet.mjs';
+const REFUSED = ['auth', 'forbidden', 'signin'];
 
 export async function recallPacket(ctx, options, { includeFacts = true, paths = documentPaths(ctx),
   factsRead = (signal) => readFacts(ctx, { positionals: [options.question], values: { ...options.filters, limit: 8 } }, openStore(ctx, { signal, timeoutMs: 16000 })),
@@ -17,7 +18,8 @@ export async function recallPacket(ctx, options, { includeFacts = true, paths = 
   let onDocumentTimeout;
   const factPromise = includeFacts ? Promise.resolve().then(() => factsRead(controller.signal)).then(result => ({ facts: result.facts,
     filters: result.filters, factSource: { state: result.facts.length ? 'ok' : 'empty' } })).catch(error => ({ facts: [],
-    factSource: { state: ['auth', 'forbidden'].includes(error.kind) ? 'denied' : 'unavailable', reason: ['auth', 'forbidden'].includes(error.kind) ? 'fact access refused' : 'fact memory unavailable; documents remain usable' } }))
+    factSource: REFUSED.includes(error.kind) ? { state: 'denied', reason: error.kind === 'signin' ? 'not signed in to the company app; documents remain usable' : 'fact access refused' }
+      : { state: 'unavailable', reason: 'fact memory unavailable; documents remain usable' } }))
     : Promise.resolve({ facts: [], factSource: { state: 'empty', reason: 'not requested' } });
   // A dependency that ignores cancellation cannot hold the packet past its deadline.
   const boundedFacts = Promise.race([factPromise, new Promise(resolve => {

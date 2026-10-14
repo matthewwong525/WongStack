@@ -16,7 +16,7 @@ const status = (): Status => ({ ownerEmail: 'owner@shop.com', viewer: { email: '
   keysStarted: true, unticked: { people: [], roles: [] },
   apps: [built('hello', 'Hello'), built('payroll', 'Payroll'), built('tips', 'Tip calculator')],
   keys: [key('stripe', 'Stripe'), key('bank', 'Bank'),
-    key('cloudflare', 'Cloudflare', { levels: ['read'], setup: true, alone: true }), key('code', 'Project code', { levels: ['read'], alone: true })],
+    key('cloudflare', 'Cloudflare', { levels: ['read'], setup: true, alone: true }), key('code', 'Project code', { levels: ['read', 'write'], alone: true })],
   roles: [{ id: 'office', name: 'Office', apps: [], keys: {} }, { id: 'sales', name: 'Sales', ...sales() }, { id: 'support', name: 'Support', ...support() }],
   people: [person('gone@shop.com', { status: 'removed' }), person('kim@shop.com', { apps: ['hello'], keys: { stripe: 'read', cloudflare: 'read' } }),
     person('lee@shop.com', { role: 'sales', ...sales() }), person('sam@shop.com', { role: 'sales', ...sales() }), person('pat@shop.com', { role: 'support', ...support() })],
@@ -78,7 +78,7 @@ const NO_APPS = { hello: false, payroll: false, tips: false }
 const NO_KEYS = { stripe: null, bank: null, cloudflare: null, code: null }
 
 // Admin, the role made for you, as the status sends it: every app, and each key at its highest level.
-const ADMIN: Status['roles'][number] = { id: 'admin', name: 'Admin', builtIn: true, apps: ['hello', 'payroll', 'tips'], keys: { stripe: 'write', bank: 'write', cloudflare: 'read', code: 'read' } }
+const ADMIN: Status['roles'][number] = { id: 'admin', name: 'Admin', builtIn: true, apps: ['hello', 'payroll', 'tips'], keys: { stripe: 'write', bank: 'write', cloudflare: 'read', code: 'write' } }
 
 it('lists Admin first as Everything, and opens it to what it gives and who holds it, with nothing to name, save or remove', async () => {
   roster.roles = [ADMIN]; roster.people = [person('kim@shop.com')]
@@ -123,7 +123,7 @@ it('lists each role on one line with how many apps, keys and people it has, with
   expect(named().value).toBe('Sales'); expect(screen.queryByLabelText('Copy from a person')).toBeNull()
   // The same two groups as for a person: a tick per app, then a level per key. The project's tick too; none to manage.
   expect([given(), levels()]).toEqual([['Hello', 'Tip calculator'], { Stripe: 'Read', Bank: 'None', Cloudflare: 'None' }])
-  expect(screen.getAllByRole('checkbox').map(box => box.parentElement!.textContent)).toEqual(['Hello', 'Payroll', 'Tip calculator', INSTALL]); expect(install().checked).toBe(false)
+  expect(screen.getAllByRole('checkbox').map(box => box.parentElement!.textContent)).toEqual(['Hello', 'Payroll', 'Tip calculator', INSTALL, 'Can publish']); expect(install().checked).toBe(false)
   expect([note('Stripe'), note('Bank'), note('Cloudflare')]).toEqual([[], [], []])
   // Each key says whether the app holds it, as where a person is opened, and no Key settings is offered.
   expect(lines().map(state)).toEqual(['Stripe · Saved', 'Bank · Saved', 'Cloudflare · Saved']); expect(screen.queryByRole('link', { name: 'Key settings' })).toBeNull()

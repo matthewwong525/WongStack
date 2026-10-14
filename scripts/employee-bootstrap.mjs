@@ -87,7 +87,7 @@ export function cloudflared(args, { onLoginUrl = () => {}, timeoutMs = 120000 } 
     });
   });
 }
-function employeeToken(output) {
+export function employeeToken(output) {
   const matches = output.match(/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g) || [];
   const token = matches.at(-1);
   try {
@@ -116,10 +116,11 @@ export async function responseJson(response) {
 const CODE_PATH = '/api/access/code/git/';
 const NOT_APPLIED = 'kept your changes; update not applied';
 const REFUSED = 'The project download was refused. Ask your admin for access to Connect your assistant, or sign in again. The copy on this computer is unchanged.';
-// Git as a child process. A `token` goes to `address` alone, as a header in the child's environment, never an argument,
-// URL or config file. Redirects are refused, no helper or prompt is asked, and Git's own messages are never printed.
+// Git as a child process. A `token` goes to `address` alone, as a header in its environment, never an argument or file;
+// an address alone is the copy's own helper's to answer. No redirect, no prompt, and Git's messages are never printed.
 export function git(args, { address, token } = {}) {
-  const config = [['credential.helper', ''], ['http.followRedirects', 'false'], ...(token ? [[`http.${address}.extraHeader`, `cf-access-token: ${token}`]] : [])];
+  const config = [...(address && !token ? [] : [['credential.helper', '']]), ['http.followRedirects', 'false'],
+    ...(token ? [[`http.${address}.extraHeader`, `cf-access-token: ${token}`]] : [])];
   const env = { ...cleanEnvironment(), GIT_TERMINAL_PROMPT: '0', GIT_CONFIG_COUNT: String(config.length),
     ...Object.fromEntries(config.flatMap(([key, value], index) => [[`GIT_CONFIG_KEY_${index}`, key], [`GIT_CONFIG_VALUE_${index}`, value]])) };
   return new Promise((resolve, reject) => {
@@ -130,6 +131,13 @@ export function git(args, { address, token } = {}) {
     child.on('error', () => reject(new Error(missing('Git', 'https://git-scm.com/downloads'))));
     child.on('close', code => resolve({ code, stdout: stdout.trim(), stderr }));
   });
+}
+/** The copy's own Git asks the helper beside this file for the sign-in, at the app's address alone. The empty entry
+ *  first stops a computer-wide helper, which would store the sign-in. */
+async function useHelper(here, dir, address) {
+  const scope = `credential.${address.replace(/\/$/, '')}`;
+  const helper = `!"${process.execPath}" "${join(dir, 'scripts', 'company-git-credential.mjs')}"`;
+  for (const args of [['--replace-all', `${scope}.helper`, ''], ['--add', `${scope}.helper`, helper], [`${scope}.useHttpPath`, 'true']]) await here(['config', ...args]);
 }
 // Put the project in `folder`, or update the copy there. `self`, a downloaded setup file, goes first: Git refuses a
 // non-empty folder. An update moves the default branch forward only when nothing changed; it never resets or forces.
@@ -146,11 +154,13 @@ export async function projectCopy({ address, folder, token, self, run = git }) {
     await reached();
     if (self) rmSync(self, { force: true });
     if ((await run(['clone', '--quiet', '--origin', 'origin', address, dir], { address, token })).code !== 0) throw new Error(REFUSED);
+    await useHelper(here, dir, address);
     return { project: 'installed', folder: dir };
   }
   if ((await here(['config', '--get', 'remote.origin.url'])).stdout !== address) throw new Error(`${dir} holds a different project. Choose an empty folder with --dir; nothing was changed.`);
   await reached();
   if ((await here(['fetch', '--quiet', 'origin'], { address, token })).code !== 0) throw new Error(REFUSED);
+  await useHelper(here, dir, address);
   const said = async (...args) => (await here(args)).stdout;
   const latest = await said('symbolic-ref', '--quiet', '--short', 'refs/remotes/origin/HEAD');
   const branch = await said('symbolic-ref', '--quiet', '--short', 'HEAD');
@@ -297,24 +307,41 @@ export function companyClient({ root = process.cwd(), stateDir, routesDir = defa
     const origin = target();
     return copy({ address: `${origin}${CODE_PATH}`, folder, token: await session(origin), ...(self && { self }) });
   }
-  /** Git in the copy at `cwd`, against the app, as the signed-in person. A copy from anywhere else is refused first. */
+  /** Git in the copy at `cwd`, against the app, with the copy's own helper; a copy from elsewhere is refused first. */
   async function projectGit(args, cwd, runGit = git) {
-    const origin = target(), address = `${origin}${CODE_PATH}`;
+    const address = `${target()}${CODE_PATH}`;
     if ((await runGit(['-C', cwd, 'config', '--get', 'remote.origin.url'])).stdout !== address) throw new Error('This copy did not come from the connected company; nothing was sent.');
-    return runGit(['-C', cwd, ...args], { address, token: await session(origin) });
+    return runGit(['-C', cwd, ...args], { address });
+  }
+  /** One call to memory with the same sign-in: whether it answers this person. */
+  async function memory(origin) {
+    try {
+      const response = await request(new URL('/_memory/caller', origin), { redirect: 'manual', headers: { 'cf-access-token': await session(origin) }, signal: AbortSignal.timeout(20000) });
+      await response.body?.cancel();
+      return response.ok ? 'works' : 'not reachable yet';
+    } catch { return 'not reachable yet'; }
   }
   // One step: sign in, then look at `folder`. A copy from elsewhere is left as it is; otherwise download or update
   // the project when the app hands it to this person. Either way, say what works.
   async function install(origin, folder, copy, self, other = otherCopy) {
     const { connected } = await login(origin);
     const status = await setup();
-    const report = { connected, signedInAs: status.identity.email, apps: status.apps, state: dir };
-    const next = `cd ${resolve(folder)} && node scripts/company-api.mjs list --state ${dir}`;
-    if (await other(resolve(folder), `${connected}${CODE_PATH}`)) return { ...report, project: 'already on this computer; left as it is', folder: resolve(folder), next };
-    if (status.code !== 'ready') return { ...report, project: status.code === 'lacked' ? 'not included. Ask your admin for access to Connect your assistant.' : 'not handed out by this app; apps only' };
-    return { ...report, ...await code(folder, copy, self), next };
+    const titles = status.apps.map(app => status.titles?.[app] ?? app);
+    const report = { connected, signedInAs: status.identity.email, apps: status.apps, memory: await memory(connected), state: dir };
+    const done = result => ({ ...result, summary: summary(result, titles) });
+    if (await other(resolve(folder), `${connected}${CODE_PATH}`)) return done({ ...report, project: 'already on this computer; left as it is', folder: resolve(folder) });
+    if (status.code !== 'ready') return done({ ...report, project: status.code === 'lacked' ? 'not included. Ask your admin for access to Connect your assistant.' : 'not handed out by this app; apps only' });
+    return done({ ...report, ...await code(folder, copy, self) });
   }
   return { login, list, describe, call, setup, code, install, target, git: projectGit, http, get stateDirectory() { return directory(); } };
+}
+/** Setup's last words, for the assistant to repeat: who, which apps, memory, the project, and what is left. */
+function summary({ signedInAs, memory, project, folder, applied }, titles) {
+  const current = folder && ['installed', 'up to date'].includes(project);
+  return [`Signed in as ${signedInAs}.`, titles.length ? `Apps that work: ${titles.join(', ')}.` : 'No apps yet: ask your admin.',
+    memory === 'works' ? 'Memory works.' : 'Memory is not reachable yet; chats still work without it.',
+    current ? `The project is in ${folder}, and new chats keep it up to date.` : `Project: ${project}${folder ? `, in ${folder}` : ''}.`,
+    applied === false ? 'Your changes were kept, so the update waits.' : 'Nothing else is needed.'].join(' ');
 }
 const USAGE = 'employee-bootstrap.mjs [install] [--origin <HTTPS origin>] [--dir <folder>] | login --origin <HTTPS origin> | status | code --dir <folder> | list | describe <id> | call <id> --file <JSON file or -> [--state <private directory>]';
 /** `install` keeps one private directory per company, so a second run finds the first. */
@@ -327,11 +354,11 @@ export function neutralRoot() {
   return root;
 }
 // With no project on the device, a downloaded setup file is the person's client: keep a copy beside their
-// sign-in, served from nowhere so it stays, and name the line that calls it.
+// sign-in, served from nowhere so it stays, and name where it is.
 function keptClient(state) {
   const file = join(state, 'bootstrap.mjs');
   writeFileSync(file, readFileSync(SELF, 'utf8').replace(JSON.stringify(SERVED_FROM), "''"), { mode: 0o600 });
-  return `node ${file} list --state ${state}`;
+  return file;
 }
 // The command line. No command means `install`. Its app is `--origin`, else the one that served this file, else the
 // copy's record; its folder is `--dir`, else that copy, else the folder it is run in.
@@ -347,7 +374,7 @@ async function run(args) {
   if (command === 'login' && !rest.length) result = await client.login(origin);
   else if (install) {
     result = await client.install(origin, values.dir || project || process.cwd(), undefined, SERVED_FROM && SELF);
-    if (SERVED_FROM && !result.folder) result.next = keptClient(result.state);
+    if (SERVED_FROM && !result.folder) result.client = keptClient(result.state);
   }
   else if (command === 'code' && !rest.length && values.dir) result = await client.code(values.dir);
   else if (command === 'status' && !rest.length) result = await client.setup();

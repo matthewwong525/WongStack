@@ -10,7 +10,7 @@ import { memory, node, rows, setup, writeJsonFile } from './fixtures/memory/harn
 test('memory contracts are deterministic, synthetic, standalone, truthful and limited to supported reads', () => {
   assert.deepEqual(memoryOperations.map(action => action.operationId), ['memory.search', 'memory.show', 'memory.documents', 'memory.recall']);
   for (const action of memoryOperations.slice(0, 2)) {
-    assert.equal(action.authentication, 'installed-memory-credential'); assert.equal(action.transport, 'installed-client');
+    assert.equal(action.authentication, 'company-sign-in'); assert.equal(action.transport, 'installed-client');
     assert.equal(action.outputSchema.properties.text.maxLength, 32768); assert.equal(action.readiness, 'not_checked');
     assert.ok(action.revision.length === 64); assert.ok(!Object.hasOwn(action.inputSchema.properties, 'everyone'));
     assert.ok(!Object.hasOwn(action, 'path')); assert.equal(action.examples[0].output.truncated, false);

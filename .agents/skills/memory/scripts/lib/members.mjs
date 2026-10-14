@@ -1,13 +1,14 @@
-// Trusted provisioning authority issues per-machine repository credentials.
-// Ordinary memory keys cannot access this table. Secrets go only to private files.
-import { chmodSync, existsSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
-import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
+// The admin's sign-in jobs on the memory store, through the Cloudflare API: moving notes to people, and old keys.
+// Who sees memory is set in Access; an install with no sign-in yet keeps one admin key.
+import { chmodSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { hashKey, newKey } from '../../worker/memory-worker.mjs';
-import { loginMarker } from '../../worker/login-link.mjs';
 import { MACHINE_ID } from './machine-id.mjs';
-import { loadConfig, openStore, SCRIPT, statePath, StoreError, writeJson } from './store.mjs';
+import { configFile, loadConfig, openStore, readJson, SCRIPT, StoreError } from './store.mjs';
 
 const now = () => new Date().toISOString();
+export const RETIRED = 'memory takes the company sign-in now: no key to hand out. Give a person access in the app\'s Access page, and they sign in once. See wiki/development/memory.md#who-sees-what';
+
 async function keys(ctx, statements) {
   try { return await openStore(ctx, { admin: true }).batch(statements); } catch (error) {
     if (error.kind === 'auth') throw new StoreError('CLOUDFLARE_API_TOKEN lacks D1 Write; widen the provisioning token and run again', { kind: 'auth', help: '.claude/skills/wong-setup/references/permission-groups.md' });
@@ -15,13 +16,13 @@ async function keys(ctx, statements) {
     throw error;
   }
 }
-export const keyFile = ctx => join(ctx.stateDir, 'key.json');
-export function envKeyFile(ctx) {
-  if (!ctx.primaryRoot) throw new StoreError('Git cannot confirm the primary checkout; run from the main checkout', { kind: 'unconfigured' });
-  return join(ctx.primaryRoot, '.env');
-}
+
+// Whether the app has a company sign-in: with none yet ("open until the card"), memory keeps the admin key.
+const signInOn = ctx => Boolean(readJson(configFile(ctx), {}).components?.access?.audience);
+
 export function writeEnvKey(ctx, key) {
-  const file = envKeyFile(ctx);
+  if (!ctx.primaryRoot) throw new StoreError('Git cannot confirm the primary checkout; run from the main checkout', { kind: 'unconfigured' });
+  const file = join(ctx.primaryRoot, '.env');
   const text = existsSync(file) ? readFileSync(file, 'utf8') : '';
   const lines = text.split('\n').filter(line => !/^\s*(?:export\s+)?CLOUDFLARE_MEMORY_TOKEN\s*=/.test(line));
   writeFileSync(file, `${lines.join('\n').replace(/\n*$/, '')}\nCLOUDFLARE_MEMORY_TOKEN=${key}\n`, { mode: 0o600 });
@@ -29,78 +30,77 @@ export function writeEnvKey(ctx, key) {
   return file;
 }
 
-// Prepare a restricted transfer file before touching grants. No tracked file or
-// file inside a checkout may carry a transferable credential.
-function transferFile(ctx, path) {
-  if (!path || !isAbsolute(path)) throw new StoreError('--key-file must be an absolute private path outside the checkout');
-  const file = join(realpathSync(dirname(resolve(path))), basename(path));
-  for (let dir = dirname(file); ; dir = dirname(dir)) {
-    if (existsSync(join(dir, '.git'))) throw new StoreError('the transfer file must be outside a repository');
-    if (dirname(dir) === dir) break;
-  }
-  if ([ctx.root, ctx.primaryRoot].filter(Boolean).some(root => file === root || file.startsWith(`${root}/`))) throw new StoreError('the transfer file must be outside every checkout');
-  writeFileSync(file, '', { flag: 'wx', mode: 0o600 });
-  return file;
+async function admin(ctx) {
+  if (signInOn(ctx)) throw new StoreError(RETIRED);
+  if (!loadConfig(ctx).worker) throw new StoreError('no production memory Worker URL is recorded', { kind: 'unconfigured' });
+  const key = newKey(ctx.machineId), created = now();
+  await keys(ctx, [
+    ['INSERT INTO memory_keys (hash, email, role, reader, created_at, machine_id) VALUES (?, ?, ?, 0, ?, ?)', [await hashKey(key), ctx.author || '', 'admin', created, ctx.machineId]],
+    ['UPDATE memory_keys SET expires_at = ? WHERE machine_id = ? AND hash != ?', [created, ctx.machineId, await hashKey(key)]],
+  ]);
+  console.log(`Installed this computer's admin memory key in ${writeEnvKey(ctx, key)}. Once the app has a sign-in, memory uses it instead.`);
 }
 
-async function issue(ctx, machineId, role, label, marker = null) {
-  const key = newKey(machineId);
-  const created = now();
-  const hash = await hashKey(key);
-  // Retain old rows and association labels. Replacement invalidates all older
-  // keys and pending markers in the same transaction as the new hash insert.
-  await keys(ctx, [
-    [`INSERT INTO memory_keys (hash, email, role, reader, created_at, machine_id, login_link_hash, login_link_expires_at, login_identity)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, (SELECT login_identity FROM memory_keys WHERE machine_id = ? AND login_identity IS NOT NULL ORDER BY created_at DESC LIMIT 1))`,
-      [hash, label || '', role === 'admin' ? 'admin' : 'member', role === 'reader' ? 1 : 0, created, machineId, marker ? await hashKey(marker) : null, marker ? new Date(Date.now() + 24 * 3600000).toISOString() : null, machineId]],
-    ['UPDATE memory_keys SET expires_at = ?, login_link_hash = NULL, login_link_expires_at = NULL WHERE machine_id = ? AND hash != ?', [created, machineId, hash]],
-  ]);
-  return key;
-}
-export async function prepareAppLink(ctx, credential = null) {
-  try {
-    const url = await openStore(ctx, { credential }).loginLink();
-    writeJson(statePath(ctx, 'key.json'), { machineId: ctx.machineId, appUrl: url });
-    return url;
-  } catch { return null; }
-}
-async function admin(ctx) {
-  const config = loadConfig(ctx);
-  const file = envKeyFile(ctx);
-  if (!config.worker) throw new StoreError('no production memory Worker URL is recorded', { kind: 'unconfigured' });
-  const marker = loginMarker();
-  const key = await issue(ctx, ctx.machineId, 'admin', ctx.author, marker);
-  writeEnvKey(ctx, key);
-  const link = new URL('/', config.worker);
-  link.searchParams.set('memory_login_link', marker);
-  const appUrl = link.href;
-  writeJson(statePath(ctx, 'key.json'), { machineId: ctx.machineId, appUrl });
-  console.log(`Installed this machine’s admin memory credential in ${file}. Open the app and sign in normally: ${appUrl}`);
-}
-async function add(ctx, machineId, values) {
-  const role = values.role || 'member';
-  if (!['member', 'reader'].includes(role)) throw new StoreError('--role must be member or reader');
-  const file = transferFile(ctx, values['key-file']);
-  const config = loadConfig(ctx);
-  if (!config.worker) throw new StoreError('no production memory Worker URL is recorded', { kind: 'unconfigured' });
-  const key = await issue(ctx, machineId, role, values.label);
-  writeFileSync(file, `${JSON.stringify({ key, machineId, worker: config.worker, databaseId: config.databaseId })}\n`, { mode: 0o600 });
-  console.log(`Prepared ${role} repository access for machine ${machineId} in the private transfer file. The recipient installs it with join --file <private-file>. Earlier credentials for this machine are revoked.`);
-}
 async function remove(ctx, machineId) {
-  await keys(ctx, [['UPDATE memory_keys SET expires_at = ?, login_link_hash = NULL, login_link_expires_at = NULL WHERE machine_id = ?', [now(), machineId]]]);
-  console.log(`Revoked every repository credential for machine ${machineId}.`);
+  await keys(ctx, [['UPDATE memory_keys SET expires_at = ? WHERE machine_id = ?', [now(), machineId]]]);
+  console.log(`Turned off every memory key for computer ${machineId}.`);
 }
+
 async function list(ctx) {
   const [rows] = await keys(ctx, [['SELECT machine_id, email, role, reader, expires_at, login_identity FROM memory_keys ORDER BY machine_id, created_at']]);
-  console.log(rows.map(row => `- ${row.machine_id || 'unassigned legacy key'} (${row.reader ? 'reader' : row.role}, ${row.email || 'no label'}, ${row.expires_at ? 'revoked' : 'active'})${row.login_identity ? `; login ${JSON.parse(row.login_identity).issuer} / ${JSON.parse(row.login_identity).subject}` : ''}`).join('\n') || 'No credentials.');
+  const login = row => row.login_identity ? `; signed in as ${JSON.parse(row.login_identity).email}` : '';
+  console.log(rows.map(row => `- ${row.machine_id || 'unassigned legacy key'} (${row.reader ? 'reader' : row.role}, ${row.email || 'no label'}, ${row.expires_at ? 'off' : 'on'})${login(row)}`).join('\n') || 'No keys.');
 }
-const USAGE = 'usage: member admin | member add <machine-id> --key-file <private-path> [--role member|reader] | member remove <machine-id> | member list';
-export const MEMBER_COMMANDS = { member: (ctx, { positionals: [action, id], values }) => {
-  if (action === 'admin') return admin(ctx);
-  if (action === 'list') return list(ctx);
-  if (!MACHINE_ID.test(id || '')) throw new StoreError(USAGE);
-  if (action === 'add') return add(ctx, id, values);
-  if (action === 'remove') return remove(ctx, id);
-  throw new StoreError(USAGE);
-} };
+
+// Each computer's newest verified login, read once from the old keys: the only link from a computer to a person.
+async function linkedMachines(ctx) {
+  const [rows] = await keys(ctx, [["SELECT machine_id, json_extract(login_identity, '$.subject') AS subject, json_extract(login_identity, '$.email') AS email FROM memory_keys WHERE machine_id IS NOT NULL AND login_identity IS NOT NULL ORDER BY created_at"]]);
+  return new Map(rows.filter(row => row.subject).map(row => [row.machine_id, row]));
+}
+
+const move = (subject, email, machineId) => ['facts', 'sessions'].map(table =>
+  [`UPDATE ${table} SET owner_subject = ?, owner_email = ? WHERE owner_machine_id = ? AND owner_subject IS NULL RETURNING 1 AS moved`, [subject, email, machineId]]);
+
+const WAITING = [`SELECT machine_id, sum(fact) AS facts, sum(1 - fact) AS sessions FROM (
+  SELECT owner_machine_id AS machine_id, 1 AS fact FROM facts WHERE owner_subject IS NULL AND owner_machine_id IS NOT NULL
+  UNION ALL SELECT owner_machine_id, 0 FROM sessions WHERE owner_subject IS NULL AND owner_machine_id IS NOT NULL) GROUP BY machine_id`, []];
+
+// Moves linked computers' notes in one transaction, then turns every old key off in a second, only once it committed.
+async function migratePeople(ctx) {
+  const linked = [...(await linkedMachines(ctx)).values()];
+  const moved = linked.length ? await keys(ctx, linked.flatMap(row => move(row.subject, row.email, row.machine_id))) : [];
+  const count = table => moved.filter((_, index) => index % 2 === (table === 'facts' ? 0 : 1)).flat().length;
+  const [waiting] = await keys(ctx, [WAITING]);
+  const off = signInOn(ctx);
+  if (off) await keys(ctx, [['UPDATE memory_keys SET expires_at = ? WHERE expires_at IS NULL OR expires_at > ?', [now(), now()]]]);
+  console.log([
+    `Moved ${count('facts')} facts and ${count('sessions')} chats to their people.`,
+    waiting.length ? `Waiting for an owner, seen only by admins: ${waiting.map(row => `${row.machine_id} (${row.facts} facts, ${row.sessions} chats)`).join(', ')}. Give them to a person with ${SCRIPT} assign <machine-id> <email>.` : 'No notes wait for an owner.',
+    off ? 'Old memory keys are off: each computer signs in to the company app instead.' : 'This app has no sign-in yet, so the admin key stays on.',
+  ].join('\n'));
+}
+
+// The person is found by the subject their own signed-in chats recorded, never by an email someone typed alone.
+async function assign(ctx, machineId, email) {
+  const [[person]] = await keys(ctx, [['SELECT owner_subject AS subject FROM sessions WHERE lower(owner_email) = lower(?) AND owner_subject IS NOT NULL LIMIT 1', [email]]]);
+  if (!person) throw new StoreError(`${email} has not used memory with the company sign-in yet; ask them to start one chat, then run assign again`);
+  const moved = await keys(ctx, move(person.subject, email.toLowerCase(), machineId));
+  console.log(`Gave ${moved[0].length} facts and ${moved[1].length} chats from computer ${machineId} to ${email}.`);
+}
+
+const USAGE = 'usage: member list | member remove <machine-id>';
+export const MEMBER_COMMANDS = {
+  member: (ctx, { positionals: [action, id] }) => {
+    if (action === 'admin') return admin(ctx);
+    if (action === 'add') throw new StoreError(RETIRED);
+    if (action === 'list') return list(ctx);
+    if (action === 'remove' && MACHINE_ID.test(id || '')) return remove(ctx, id);
+    throw new StoreError(USAGE);
+  },
+  join: () => { throw new StoreError(RETIRED); },
+  'migrate-people': migratePeople,
+  assign: (ctx, { positionals: [machineId, email] }) => {
+    if (!MACHINE_ID.test(machineId || '') || !/^[^\s@]+@[^\s@]+$/.test(email || '')) throw new StoreError(`usage: assign <machine-id> <email>`);
+    return assign(ctx, machineId, email);
+  },
+};

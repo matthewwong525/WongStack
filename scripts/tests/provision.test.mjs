@@ -113,9 +113,15 @@ test('with --open-without-login an onboarding refusal finishes open; without it,
   assert.deepEqual([report.accessKey, report.cloudflareReadKey], [undefined, undefined]);
   assert.deepEqual(env.fake.state.workerSecrets, {});
   assert.equal(config.env.local.vars.WORKSPACE_LOGIN, undefined);
+  // With no sign-in to use, memory keeps the admin key in .env.
+  assert.ok(report.created.includes('admin machine memory key in .env'));
+  const key = readEnv(join(env.dir, '.env')).CLOUDFLARE_MEMORY_TOKEN;
+  assert.match(key, /^wongm_/);
   const again = await env.provision({ openWithoutLogin: true });
   assert.equal(again.access.mode, 'open');
   assert.deepEqual(again.updated, []);
+  assert.ok(again.reused.includes('admin memory key in .env'));
+  assert.equal(readEnv(join(env.dir, '.env')).CLOUDFLARE_MEMORY_TOKEN, key);
 });
 
 test('a later Access error stops even with --open-without-login, and a private site never opens', async (t) => {
@@ -373,16 +379,17 @@ test('exact human emails retain the owner and exclude synthetic workspace identi
   assert.throws(() => humanEmails(EMAIL, ['not-an-email']), /reachable owner email/);
 });
 
-test('human membership changes preserve separate machine permissions and only production memory is exempt', async (t) => {
+test('human membership changes preserve separate machine permissions and only memory and git are exempt', async (t) => {
   const env = await setup(t);
   const first = await env.provision({ teammateEmails: ['Friend@Example.com', 'extra@workspace.invalid'] });
   const [app] = env.fake.state.accessApps;
   const machine = structuredClone(app.policies.find(p => p.decision === 'non_identity'));
   assert.deepEqual(app.policies.find(p => p.decision === 'allow').include, [{ email: { email: EMAIL } }, { email: { email: 'friend@example.com' } }]);
-  const override = [{ behavior: 'public', path_pattern: '/_memory/*' }];
-  assert.deepEqual(app.destinations[0].overrides, override);
-  assert.equal(app.destinations[1].overrides, undefined);
-  assert.deepEqual(app.destinations[2].overrides, override);
+  const git = { behavior: 'public', path_pattern: '/api/access/code/git/*' };
+  const live = [{ behavior: 'public', path_pattern: '/_memory/*' }, git];
+  assert.deepEqual(app.destinations[0].overrides, live);
+  assert.deepEqual(app.destinations[1].overrides, [git], 'staging opens git alone: it has no memory');
+  assert.deepEqual(app.destinations[2].overrides, live);
   assert.ok(!JSON.stringify(app.destinations).includes('/public'));
   const saved = readEnv(join(env.dir, '.env'));
   assert.equal(saved.CF_ACCESS_CLIENT_SECRET, env.fake.state.serviceTokens[0].client_secret);
@@ -725,11 +732,11 @@ test('safeName makes a Workers and D1 name, and falls back to wongstack', () => 
   assert.equal(safeName('___'), 'wongstack');
 });
 
-test('a fresh provision with R2 on makes the memory store, the key, both databases, the config, and the deploy token', async (t) => {
+test('a fresh provision with R2 on makes the memory store, both databases, the config, and the deploy token', async (t) => {
   const env = await setup(t);
   const report = await env.provision();
 
-  // The memory store, recorded with the Worker that serves it, migrated, with the admin key in .env.
+  // The memory store, recorded with the Worker that serves it and migrated. Memory uses the company sign-in: no key.
   assert.equal(report.r2, true);
   assert.deepEqual(env.record().components.companyApi, { origin: "https://recipe-box.ada.workers.dev" });
   assert.deepEqual(env.fake.state.buckets, ['recipe-box-memory']);
@@ -738,12 +745,9 @@ test('a fresh provision with R2 on makes the memory store, the key, both databas
     worker: 'https://recipe-box.ada.workers.dev/_memory',
   });
   assert.ok(env.fake.rows('recipe-box-memory', 'SELECT version FROM schema_migrations').length >= 3);
-  const [admin] = env.fake.rows('recipe-box-memory', 'SELECT email, role, github_id, machine_id, login_link_hash, expires_at IS NOT NULL AS ends FROM memory_keys');
-  assert.equal(admin.email, EMAIL); assert.equal(admin.role, 'admin'); assert.equal(admin.github_id, null); assert.equal(admin.ends, 0);
-  assert.match(admin.machine_id, /^[0-9a-f-]{36}$/); assert.match(admin.login_link_hash, /^[0-9a-f]{64}$/);
-  assert.match(report.appUrl, /memory_login_link=wongl_/);
-  assert.deepEqual(env.fake.rows('recipe-box-memory', 'SELECT github_id, login, email FROM memory_admins'), []);
-  assert.match(readEnv(join(env.dir, '.env')).CLOUDFLARE_MEMORY_TOKEN, /^wongm_/);
+  assert.deepEqual(env.fake.rows('recipe-box-memory', 'SELECT * FROM memory_keys'), []);
+  assert.equal(readEnv(join(env.dir, '.env')).CLOUDFLARE_MEMORY_TOKEN, undefined);
+  assert.ok(!report.created.some(item => item.includes('memory key')));
   assert.equal(readEnv(join(env.dir, '.env')).CLOUDFLARE_API_TOKEN, TOKEN, 'the other .env lines stay');
 
   // The app's databases and config, from the fragment, through the pipeline's own parser.
@@ -1001,7 +1005,14 @@ test('the access command gives an installed repo its owner email and both keys, 
   env.fake.state.accountTokens = env.fake.state.accountTokens.filter((token) => token.name === 'recipe-box-deploy');
   env.fake.state.workerSecrets = {};
   env.fake.state.forbidTokens = true;
+  // An install from before git went through the app: only memory skips the sign-in wall.
+  const [app] = env.fake.state.accessApps;
+  const exceptions = structuredClone(app.destinations);
+  for (const destination of app.destinations) destination.overrides = destination.overrides.filter((item) => item.path_pattern === '/_memory/*');
+  const policies = app.policies.map((policy) => policy.id);
   const missing = await run();
+  assert.ok(missing.report.updated.includes('memory and project-download exceptions'));
+  assert.deepEqual([app.destinations, app.policies.map((policy) => policy.id)], [exceptions, policies], 'git is let through and the policies stay');
   assert.equal(missing.code, 0, 'a token that can not make keys stops nothing');
   assert.deepEqual([missing.report.accessKey, missing.report.cloudflareReadKey], [{ status: 'missing' }, { status: 'missing' }]);
   assert.deepEqual(missing.report.todo, [ACCESS_KEY_TODO, CLOUDFLARE_READ_KEY_TODO]);
@@ -1046,9 +1057,8 @@ test('with R2 off the store has no bucket, the config binds none, and the deploy
   assert.ok(!deploy.policies[0].permission_groups.some((g) => g.id === groupId('Workers R2 Storage Write')));
 });
 
-// The key lives in the primary checkout's .env, never in a worktree that may be deleted. The primary
-// records the memory Worker, as an installed primary does, so the worktree's memory script can reach it.
-test('provisioning from a linked worktree keeps the key in the primary checkout\'s .env', async (t) => {
+// Credentials live in the primary checkout's .env, never only in a worktree that may be deleted.
+test('provisioning from a linked worktree keeps the credentials in the primary checkout\'s .env', async (t) => {
   const env = await setup(t);
   const git = (...args) => execFileSync('git', ['-C', env.dir, '-c', 'user.name=Ada', ...args], { env: env.env });
   writeFileSync(join(env.dir, '.gitignore'), '.env\n');
@@ -1059,10 +1069,8 @@ test('provisioning from a linked worktree keeps the key in the primary checkout\
   git('worktree', 'add', '-q', '-b', 'wt', worktree);
 
   const report = await env.provision({ dir: worktree });
-  assert.ok(report.created.includes('admin machine memory key in .env'), JSON.stringify(report));
-  assert.match(readEnv(join(env.dir, '.env')).CLOUDFLARE_MEMORY_TOKEN, /^wongm_/);
+  assert.ok(readEnv(join(env.dir, '.env')).CF_ACCESS_CLIENT_SECRET, JSON.stringify(report));
   const branchEnv = readEnv(join(worktree, '.env'));
-  assert.equal(branchEnv.CLOUDFLARE_MEMORY_TOKEN, undefined, 'the admin memory key stays in the primary checkout');
   assert.equal(branchEnv.CLOUDFLARE_API_TOKEN, undefined, 'the user token is not copied');
   assert.equal(branchEnv.CF_ACCESS_CLIENT_SECRET, readEnv(join(env.dir, '.env')).CF_ACCESS_CLIENT_SECRET, 'verification credentials follow the branch-copy convention');
 });
@@ -1082,7 +1090,7 @@ test('provisioning stops, naming why, when the main copy of the repo is unknown'
   assert.deepEqual(env.fake.state.databases, [], 'nothing was made on Cloudflare');
 });
 
-test('a second run creates nothing, keeps the key, and leaves the secrets alone', async (t) => {
+test('a second run creates nothing and leaves the secrets alone', async (t) => {
   const env = await setup(t);
   await env.provision();
   const key = readEnv(join(env.dir, '.env')).CLOUDFLARE_MEMORY_TOKEN;
@@ -1091,7 +1099,6 @@ test('a second run creates nothing, keeps the key, and leaves the secrets alone'
   const report = await env.provision({ today: '2027-01-01' });
   assert.deepEqual(report.created, []);
   assert.deepEqual(report.updated, []);
-  assert.ok(report.reused.includes('admin memory key in .env'));
   assert.equal(readEnv(join(env.dir, '.env')).CLOUDFLARE_MEMORY_TOKEN, key);
   assert.equal(readFileSync(join(env.dir, 'app/wrangler.jsonc'), 'utf8'), config);
   assert.equal(env.gh.calls().slice(calls.length), `secret list -R ${REPO}\n`);
@@ -1118,7 +1125,6 @@ for (const [where, refuse] of [
     assert.equal(env.fake.state.databases.length, 3);
     assert.deepEqual(env.fake.state.buckets, ['recipe-box-memory']);
     assert.deepEqual(env.fake.state.accountTokens.map((token) => token.name), ['recipe-box-deploy', 'recipe-box-access', 'recipe-box-cloudflare-read']);
-    assert.equal(env.fake.rows('recipe-box-memory', 'SELECT count(*) AS n FROM memory_keys')[0].n, 1);
     // The app's two keys are minted last and go to the Workers, never to GitHub.
     assert.equal(env.gh.secrets().CLOUDFLARE_API_TOKEN, env.fake.state.minted.at(-3));
     assert.equal(JSON.parse(env.fake.state.workerSecrets['recipe-box'].WONG_ACCESS_LOGIN_MANAGEMENT).token, env.fake.state.minted.at(-2));
@@ -1169,14 +1175,6 @@ test('keepConfig leaves the committed files alone and adds no bucket they would 
   assert.deepEqual(env.fake.state.buckets, []);
   assert.deepEqual(Object.keys(env.gh.secrets()).sort(), ['CLOUDFLARE_ACCOUNT_ID', 'CLOUDFLARE_API_TOKEN'], 'a rebuilt host sets the secrets again');
   assert.ok(report.updated.includes('deploy token recipe-box-deploy: new value sent to GitHub'));
-});
-
-test('memory admin issuance needs no git email or GitHub account, while the website keeps its reachable owner', async (t) => {
-  const env = await setup(t, { email: null });
-  const report = await env.provision({ ownerEmail: EMAIL });
-  const [key] = env.fake.rows('recipe-box-memory', 'SELECT machine_id, role, expires_at, github_id FROM memory_keys');
-  assert.match(key.machine_id, /^[0-9a-f-]{36}$/); assert.equal(key.role, 'admin'); assert.equal(key.expires_at, null); assert.equal(key.github_id, null);
-  assert.match(report.appUrl, /memory_login_link=wongl_/);
 });
 
 test('the memory schema is retried while the store takes effect', async (t) => {

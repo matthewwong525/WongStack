@@ -28,9 +28,9 @@ type Key = {
 export const keys = {
   // Look-ups only, so Read is the one level. wiki/stack/company-api.md#look-things-up-in-cloudflare
   cloudflare: { title: "Cloudflare", secrets: ["WONG_CLOUDFLARE_READ"], levels: ["read"], setup: true },
-  // The project itself, read and saved through /api/access/code/ and nowhere else: either secret reads, the second
-  // also saves. On Cloudflare the ARTIFACTS binding stands in for both. wiki/stack/employee-project.md
-  code: { title: "Project code", secrets: ["WONG_CODE_READ", "WONG_CODE_WRITE"], levels: ["read"], alone: true, bindings: ["ARTIFACTS", "CODE_CHECKS"] },
+  // The project, through /api/access/code/ only: Read installs and saves, Write also publishes. Either secret reads,
+  // the second saves and publishes; on Cloudflare ARTIFACTS stands in for both. wiki/stack/employee-project.md
+  code: { title: "Project code", secrets: ["WONG_CODE_READ", "WONG_CODE_WRITE"], levels: ["read", "write"], alone: true, bindings: ["ARTIFACTS", "CODE_CHECKS"] },
   // Add a key as: stripe: { title: "Stripe", secrets: ["STRIPE_SECRET_KEY"] },
   // Direct use adds a `forward` entry: wiki/stack/company-api.md#use-a-key-directly
 } as const satisfies Record<string, Key>;

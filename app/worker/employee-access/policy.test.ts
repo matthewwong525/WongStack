@@ -129,7 +129,7 @@ it("lets the verification machine open every built app, and manage people on a p
   } };
   const policy = await read(machine);
   expect(policy).toEqual({ state: "current", role: "employee", manages: false, revision: 1,
-    apps: new Set(["access", "frontend-only", "hello", "new-app", "orders", "payroll", "reports"]), keys: new Map([["cloudflare", "read"], ["code", "read"]]), keysStarted: false });
+    apps: new Set(["access", "frontend-only", "hello", "new-app", "orders", "payroll", "reports"]), keys: new Map([["cloudflare", "read"], ["code", "write"]]), keysStarted: false });
   expect(humanEmail(machine)).toBeNull();
   expect(policyAllows(policy, { apps: ["orders", "payroll"] })).toBe(true);
   expect(policyAllows(policy, { kind: "owner" })).toBe(false);
@@ -184,7 +184,7 @@ it("gives a current person who holds Admin every app, every key once key levels 
   // then each key is theirs at the highest level it offers.
   expect((await authorizeRequest(env, employee, { keys: ["cloudflare"] }, "read"))?.status).toBe(403);
   sql.exec("UPDATE wong_access_installation SET keys_enabled = 1");
-  expect(await read()).toMatchObject({ manages: true, keys: new Map([["cloudflare", "read"], ["code", "read"]]) });
+  expect(await read()).toMatchObject({ manages: true, keys: new Map([["cloudflare", "read"], ["code", "write"]]) });
   expect(await authorizeRequest(env, employee, { keys: ["cloudflare"] }, "read")).toBeNull();
   expect(await authorizeRequest(env, owner, { keys: ["cloudflare"] }, "read")).toBeNull();
   // A machine carrying an Admin's email is no person, on the live app and on a preview.
@@ -428,7 +428,7 @@ it("reads each person's apps and key levels with zero-app Access self-service, o
   expect(await first.json()).toEqual({ state: "current", role: "employee", manages: false, signIn: true, code: "off", revision: 1, apps: ["access", "orders"], keys: [] });
   // The owner holds every app, and every saved key at its highest level.
   expect(await (await readback(owner)).json()).toEqual({ state: "current", role: "owner", manages: true, signIn: true, code: "off", revision: 1, apps: catalogue,
-    keys: [{ id: "cloudflare", title: "Cloudflare", level: "read" }, { id: "code", title: "Project code", level: "read" }] });
+    keys: [{ id: "cloudflare", title: "Cloudflare", level: "read" }, { id: "code", title: "Project code", level: "write" }] });
   // An Admin is told they manage and stays an employee, with every app; their keys wait for key levels.
   sql.exec("INSERT INTO wong_access_member_roles VALUES ('installation', 'employee@example.com', 'admin')");
   expect(await (await readback()).json()).toEqual({ state: "current", code: "off", role: "employee", manages: true, signIn: true, revision: 1, apps: catalogue, keys: [] });

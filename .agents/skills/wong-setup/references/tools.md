@@ -59,11 +59,11 @@ Then check every tool again; one still missing is a failed install. [Why the lin
 After the four pass, install each missing helper the same yes covered ([why each](../../../../wiki/development/required-tools.md)):
 
 - **`agent-browser`:** `npm install -g agent-browser` (`--prefix ~/.local` when it needs `sudo`), then `agent-browser install` for its Chrome, with `--with-deps` on Linux only when `sudo -n true` succeeds.
-- **`cloudflared`:** [its route](../../../../wiki/development/required-tools.md#installing-cloudflared) for this system.
+- **`cloudflared`:** [its route](../../../../wiki/development/required-tools.md#installing-cloudflared) for this system. It also signs the owner in for memory and company actions at [the first deploy](cloudflare.md#4g-smoke-test-what-you-built).
 
 Never offer camofox here: the first errand asks, then runs `browse.mjs install` ([why](../../../../wiki/development/required-tools.md#installing-camofox)). Nor Shop's command: the first shopping request [asks](../../../../wiki/development/required-tools.md#installing-shops-command).
 
-A helper still missing after its install is not a stop: say so in one plain line (*"The browser didn't install; I'll offer it again when I need it."*) and continue.
+A helper still missing after its install is not a stop: say so in one plain line (*"The browser didn't install; I'll offer it again when I need it."*) and continue. Without `cloudflared`, memory waits on this computer until it is in.
 
 ### Paseo: point to it, never install it
 
@@ -98,7 +98,7 @@ git config --global user.email "$(gh api user/emails --jq '[.[] | select(.primar
 
 With no `gh`, ask the person for both and set those.
 
-Git authorship needs a name and email for saved changes. Memory ownership uses a local installation ID and needs no GitHub or email check.
+Git authorship needs a name and email for saved changes. Memory follows the owner's company sign-in, not git's email.
 
 ## 4. Windows folder links
 

@@ -4,7 +4,7 @@ import { extractMemory } from '../.agents/skills/memory/scripts/lib/extract.mjs'
 import { bytes, issueTask, scopeOf } from '../.agents/skills/memory/scripts/lib/extract-ledger.mjs';
 import { renderExtractPacket } from '../.agents/skills/memory/scripts/lib/extract-packet.mjs';
 import { setup } from './tests/fixtures/memory/harness.mjs';
-import { loadFixture, permissionForbidden, seed } from './evaluate-memory-search.mjs';
+import { SELF, loadFixture, permissionForbidden, seed } from './evaluate-memory-search.mjs';
 export function scoreContext(question, returned) {
   const expected = question.expected || (question.finds ? [question.finds] : []), critical = question.critical || expected;
   const forbidden = returned.filter(key => (question.forbidden || []).includes(key));
@@ -46,7 +46,7 @@ export async function evaluateMemoryContext({ fixture = loadFixture(), live = fa
         const scoped = { ...question, forbidden: permissionForbidden(fixture, question) }, scope = scopeOf(question.filters);
         for (const mode of ['direct-eight', 'direct-twenty', 'helper']) {
           let requests = 0;
-          const store = { config: { team: true }, role: 'admin', ownerMachineId: env.repo.machineId, async query(sql, params = []) { requests += 1; return env.fake.db.prepare(sql).all(...params).map(row => ({ ...row })); } };
+          const store = { config: { team: true }, role: 'admin', owner: SELF, async query(sql, params = []) { requests += 1; return env.fake.db.prepare(sql).all(...params).map(row => ({ ...row })); } };
           const started = Date.now(); let packet, report;
           if (mode === 'helper') {
             const task = issueTask(ctx, 'synthetic-evaluation');

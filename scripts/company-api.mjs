@@ -31,6 +31,9 @@ export async function combinedList(client, { scope = 'all', ...filters } = {}) {
   return { total, offset, next: offset + limit < total ? offset + limit : null, actions, companyStatus,
     revisions: { company: company.revision, memory: memoryOperations[0].revision } };
 }
+// An ended or refused sign-in names the one step that gets a new one: login prints the link to show the person.
+const SIGNED_OUT = /session (?:is absent or )?expired|access was denied/i;
+export const SIGN_IN_AGAIN = 'Sign in again: run `node scripts/company-api.mjs login`, which prints a link to show the person.';
 const USAGE = 'usage: company-api.mjs login [--origin <HTTPS origin>] | list [--scope all|company|memory] [--q words] [--app name] [--limit 1..50] [--offset n] | describe <id> | call <id> --file <JSON file or ->';
 if (isMain(import.meta.url)) {
   const { positionals: [command, id, ...extra], values } = parseCli({ usage: USAGE, allowPositionals: true, options: Object.fromEntries(['origin', 'state', 'scope', 'q', 'app', 'limit', 'offset', 'file'].map(name => [name, { type: 'string' }])) });
@@ -48,5 +51,5 @@ if (isMain(import.meta.url)) {
     console.log(JSON.stringify(result, null, packet ? undefined : 2));
     // A returned error is still printed, and ends as a failure a script can see.
     if (command === 'call' && result.error && typeof result.error === 'object') process.exitCode = 1;
-  } catch (error) { console.error(error.message); process.exitCode = 1; }
+  } catch (error) { console.error(command !== 'login' && SIGNED_OUT.test(error.message) ? `${error.message}\n${SIGN_IN_AGAIN}` : error.message); process.exitCode = 1; }
 }

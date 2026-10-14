@@ -12,7 +12,7 @@ import { COMMANDS } from '../../.agents/skills/memory/scripts/memory.mjs';
 import { SCRIPT } from '../../.agents/skills/memory/scripts/lib/store.mjs';
 import { MAX_TRANSCRIPT_BYTES } from '../../.agents/skills/memory/worker/memory-worker.mjs';
 import { agentCommand, runbook, takeLock, withInputDir } from '../../.agents/skills/memory/scripts/run.mjs';
-import { memory, node, rows, SECRET, setup, tempDir, writeJsonFile } from './fixtures/memory/harness.mjs';
+import { memory, node, rows, SECRET, setup, signInAs, tempDir, writeJsonFile } from './fixtures/memory/harness.mjs';
 
 const HOUR = 3600 * 1000;
 const age = (file, ms) => { const time = new Date(Date.now() - ms); utimesSync(file, time, time); };
@@ -83,7 +83,7 @@ test('strip redacts and uploads the raw file, drops injected text, and a save ma
   assert.match(stripped.stdout, /pushed with \[redacted:token\] and read billing's memory with \[redacted:token\]\./);
   assert.match(stripped.stdout, /\[error\] Error: ENOENT/);
   assert.doesNotMatch(stripped.stdout, /ignore me|super-secret|ghp_|wongm_/);
-  const object = env.fake.objects.get(`sessions/${env.repo.machineId}/claude/${session.id.split(':')[1]}.jsonl`).toString('utf8');
+  const object = env.fake.objects.get(`sessions/unassigned/claude/${session.id.split(':')[1]}.jsonl`).toString('utf8');
   assert.ok(object.includes('[redacted:.env]') && !object.includes(SECRET));
   assert.ok(object.includes('[redacted:token]') && !object.includes(github) && !object.includes(otherKey));
   for (const line of object.trim().split('\n')) JSON.parse(line);
@@ -155,7 +155,7 @@ test('keep-transcript uploads the redacted transcript and sets raw_key without t
   const before = rows(env, 'SELECT status, read_through FROM sessions')[0];
   const kept = await memory(env.repo, env.fake, ['keep-transcript', 'current']);
   assert.equal(kept.code, 0, kept.stderr);
-  const key = `sessions/${env.repo.machineId}/claude/${session.id.split(':')[1]}.jsonl`;
+  const key = `sessions/unassigned/claude/${session.id.split(':')[1]}.jsonl`;
   assert.match(kept.stdout, new RegExp(`kept: .* is in ${key}`));
   const object = env.fake.objects.get(key).toString('utf8');
   assert.ok(object.includes('[redacted:.env]') && !object.includes(SECRET));
@@ -666,13 +666,14 @@ test('a new machine never adopts legacy cache, spool, registry or unregistered t
 
 test('new registered transcript capture writes its owned ledger before upload and leaves historical rows untouched', async t => {
   const env = await setup(t); const current = claudeSession(env, 9, [['user', 'New conversation']]);
+  signInAs(env.repo, { sub: 'me', email: 'dev@example.com', role: 'member' });
   const kept = await memory(env.repo, env.fake, ['keep-transcript', current.id]); assert.match(kept.stdout, /kept:/);
-  const row = rows(env, 'SELECT owner_machine_id, raw_key FROM sessions WHERE id = ?', current.id)[0];
-  assert.equal(row.owner_machine_id, env.repo.machineId); assert.ok(env.fake.objects.has(row.raw_key));
+  const row = rows(env, 'SELECT owner_subject, raw_key FROM sessions WHERE id = ?', current.id)[0];
+  assert.equal(row.owner_subject, 'me'); assert.equal(row.raw_key, `sessions/me/claude/${current.id.split(':')[1]}.jsonl`); assert.ok(env.fake.objects.has(row.raw_key));
   const historical = claudeSession(env, 7, [['user', 'Historical unowned private conversation']]);
   env.fake.db.prepare("INSERT INTO sessions (id, agent, author, status, updated_at) VALUES (?, 'claude', 'dev@example.com', 'captured', 'now')").run(historical.id);
   const count = env.fake.objects.size;
   const refused = await memory(env.repo, env.fake, ['strip', historical.id]); assert.equal(refused.code, 1);
   assert.doesNotMatch(refused.stdout, /Historical unowned private conversation/); assert.equal(env.fake.objects.size, count);
-  assert.equal(rows(env, 'SELECT owner_machine_id FROM sessions WHERE id = ?', historical.id)[0].owner_machine_id, null);
+  assert.equal(rows(env, 'SELECT owner_subject FROM sessions WHERE id = ?', historical.id)[0].owner_subject, null);
 });

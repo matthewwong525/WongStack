@@ -88,7 +88,7 @@ Each saved key has a level per person. A level governs the key used by itself: [
 
 ### A key with no app
 
-A call can belong to a key alone. A person with that key's level can run it with no app ticked, and every app's actions stay refused. Cloudflare look-ups and [Project code](employee-project.md#who-gets-what) ship this way; Project code's one level installs the project and also [saves changes through the app](employee-project.md#save-a-change-through-the-app). So does [a server folder with no screen](mini-apps.md#work-with-no-screen). For another key, ask the usual way, such as *let the team look up a charge*, and the assistant [builds the action](company-api.md#list-the-keys-a-route-uses). Direct use needs no app either, only the key's level. No key works alone until levels have started.
+A call can belong to a key alone. A person with that key's level can run it with no app ticked, and every app's actions stay refused. Cloudflare look-ups and [Project code](employee-project.md#who-gets-what) ship this way; Project code is two ticks, not a level choice: *Can install the project* is Read, which installs the project and [saves changes through the app](employee-project.md#save-a-change-through-the-app); *Can publish* is Read & write, which also [publishes them once the checks pass](employee-project.md#who-publishes), and needs the first tick. So does [a server folder with no screen](mini-apps.md#work-with-no-screen). For another key, ask the usual way, such as *let the team look up a charge*, and the assistant [builds the action](company-api.md#list-the-keys-a-route-uses). Direct use needs no app either, only the key's level. No key works alone until levels have started.
 
 ## Roles
 
@@ -129,6 +129,8 @@ Access has two views, People and Roles. [The Access screens](access-screens.md) 
 
 A person's current apps decide their app cards, direct visits, app calls and assistant actions; client state and an existing sign-in grant nothing more. Taking an app away blocks the next request. A mini app's routes follow its folder name. A route in [the main router](../../app/worker/api/router.ts) lists the apps it serves, and one with no entry denies everyone but the owner ([map business routes](company-api.md#map-business-routes-before-employee-policy)). Once permissions are on, only the owner and listed people pass. The verification service token keeps every built app, as before, so preview walks and the look at the live app still open them. On the live app it never manages people; [on a preview it stands in for the owner](#the-checker-on-a-preview).
 
+**Memory follows the same sign-in.** The owner and Admins are memory admins, a person with Project code a member, anyone else a reader: [who sees what](../development/memory.md#who-sees-what).
+
 **An app's name and screen layout stay in the page everyone downloads.** A signed-in teammate without an app sees no card for it, can't open it, and gets none of its data or actions. Its title, its description and its screen's code are still packed into the page, so someone who reads that code could find them. Keep anything private in the app's data, never in its screen.
 
 ## The practice list on previews
@@ -145,8 +147,7 @@ On staging and its previews, the verification service token counts as the owner:
 
 ## What Access leaves alone
 
-- **Publishing the project.** It is [granted where the project is kept](employee-project.md#publishing-stays-manual), by hand.
-- **Memory.** [Memory access](../development/memory-key.md) keeps its own setup.
+- **Access to where the project is kept.** Access gives [the publish tick](employee-project.md#who-publishes), never a GitHub or Cloudflare account; those are granted there, by hand.
 - **Downloaded copies.** Removing a person does not reach what they already saved.
 
 Part of the [Cloudflare stack](README.md).
