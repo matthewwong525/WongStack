@@ -1,7 +1,7 @@
 # Smoother install and connect
 
-**Status:** planned
-**Branch:** uneven-scorpion
+**Status:** ready-to-ship
+**Branch:** improve-install-setup
 **Open questions:** none
 
 ## Why
@@ -64,3 +64,4 @@ Non-goals: wording around Claude's safety prompts (the user said one prompt is f
 - **2026-10-14** — Assumed: the missing-company-actions line goes to the error output with exit 0, because the memory actions in the same list still work.
 - **2026-10-14** — Check: `.github/scripts/loosened-checks.mjs` passes a branch whose base holds no files without reading it, because an empty first commit has no check to loosen (design decision 2); its quieter Git reads and skipped folder links change no verdict.
 - **2026-10-14** — Assumed: provisioning refreshes the generated binding types right after it writes the project's settings, because that is the moment they change.
+- **2026-10-14** — Assumed: inside a downloaded copy, signing in to a different company without `--state` is refused, because it would overwrite the saved sign-in the copy's git updates use. Archive checkpoint: archived by /ship on branch `improve-install-setup`.

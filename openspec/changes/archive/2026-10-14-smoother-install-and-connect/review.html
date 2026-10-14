@@ -11,7 +11,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · smoother-install-and-connect</title>
+<title>Review · 2026-10-14-smoother-install-and-connect</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -119,11 +119,11 @@
   }
 </style>
 </head>
-<body data-change="smoother-install-and-connect">
+<body data-change="2026-10-14-smoother-install-and-connect">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>smoother-install-and-connect</h1>
+  <h1>2026-10-14-smoother-install-and-connect</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. <span class="copies">Saving a note copies all your notes.</span> Open a drawing and tap it to see it full screen.</p>
@@ -164,7 +164,9 @@
 <li class="decision card" id="decision-4" data-note="decision-4" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-14</p>Assumed: the project's tools find the sign-in by falling back to setup's per-company folder named by the project's recorded address, not by a new pointer file, because the git helper already finds it that way and computers already connected are fixed without running setup again.</li>
 <li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-14</p>Assumed: publishing switches only the primary checkout, only when it is clean and still on the merged branch, because a linked worktree holding <code>main</code> would block the primary one from it later.</li>
 <li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-14</p>Assumed: the missing-company-actions line goes to the error output with exit 0, because the memory actions in the same list still work.</li>
-<li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-14</p>Assumed: provisioning refreshes the generated binding types right after it writes the project's settings, because that is the moment they change.</li>
+<li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-10-14</p>Check: <code>.github/scripts/loosened-checks.mjs</code> passes a branch whose base holds no files without reading it, because an empty first commit has no check to loosen (design decision 2); its quieter Git reads and skipped folder links change no verdict.</li>
+<li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-14</p>Assumed: provisioning refreshes the generated binding types right after it writes the project's settings, because that is the moment they change.</li>
+<li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-14</p>Assumed: inside a downloaded copy, signing in to a different company without <code>--state</code> is refused, because it would overwrite the saved sign-in the copy's git updates use. Archive checkpoint: archived by /ship on branch <code>improve-install-setup</code>.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
