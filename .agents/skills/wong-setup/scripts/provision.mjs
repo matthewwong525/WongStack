@@ -340,7 +340,7 @@ function dropLines(text, from, to) {
  * An open `access` (no Zero Trust yet) leaves the Access ids blank and adds `WORKSPACE_LOGIN: "off"` to
  * production's and staging's vars: the committed switch the Worker and the deploy check both read.
  */
-export function wranglerConfig({ base, ids, bucket, today, access }, fragment = wranglerFragment()) {
+export function wranglerConfig({ base, ids, bucket, access }, fragment = wranglerFragment()) {
   const n = namesFor(base);
   let text = fragment;
   if (!bucket) text = dropLines(text, /\/\/ Only when the memory store has a bucket/, /^\s*\],?\s*$/);
@@ -348,7 +348,6 @@ export function wranglerConfig({ base, ids, bucket, today, access }, fragment = 
   text = text.replace(/,(\s*\n\s*[}\]])/g, '$1');
   const fill = {
     '<your-worker>': n.worker,
-    '<today, YYYY-MM-DD>': today,
     '<your-db-name>': n.db,
     '<production database_id>': ids.db,
     '<staging database_id>': ids.stagingDb,
@@ -799,7 +798,7 @@ export async function provision({ token, api, fetch, account, repo, base, route 
   const config = join(dir, 'app', 'wrangler.jsonc');
   if (!keepConfig) {
     if (!existsSync(config)) {
-      writeFileSync(config, wranglerConfig({ base, ids: { db, stagingDb, memory: memoryId }, bucket, today, access: report.access }));
+      writeFileSync(config, wranglerConfig({ base, ids: { db, stagingDb, memory: memoryId }, bucket, access: report.access }));
       note('created', 'app/wrangler.jsonc');
     } else {
       if (!open && /"WORKSPACE_LOGIN"/.test(readFileSync(config, 'utf8'))) {

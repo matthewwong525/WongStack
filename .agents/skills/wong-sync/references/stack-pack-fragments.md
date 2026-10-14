@@ -37,7 +37,7 @@ The **only thing in the payload that creates a wrangler config**, so a deployabl
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "<your-worker>",
   "main": "worker/index.ts",
-  "compatibility_date": "<today, YYYY-MM-DD>",
+  "compatibility_date": "2026-07-28",
   // disallow_importable_env: code reaches a binding only through the env a
   // route hands it, and a mini app's env leaves out the memory store, so it
   // can not import it.
@@ -108,7 +108,7 @@ The **only thing in the payload that creates a wrangler config**, so a deployabl
 Six rules the scripts depend on:
 
 - **Write `migrations_dir` per layout; the block shows `app/`'s.** Wrangler resolves it from the **config file**, but `schema/` sits at the **repo root**: `../schema/migrations` in `app/`, `schema/migrations` with the config at the root. Repeat it inside the environment. A wrong path stops `cf-build.sh` with `No migrations present at …` on the first migration, and CI goes red.
-- **Describe a deployable Worker, not just bindings.** `app/wrangler.jsonc` is [not copied](payload-manifest.md#the-app-scaffold), and a config with no entry point deploys nothing while provisioning reports success; hence `main`, `assets`, `compatibility_date`, and `compatibility_flags`. `main` also resolves from the config file, so `worker/index.ts` fits both layouts. Set `compatibility_date` to the day you create the config.
+- **Describe a deployable Worker, not just bindings.** `app/wrangler.jsonc` is [not copied](payload-manifest.md#the-app-scaffold), and a config with no entry point deploys nothing while provisioning reports success; hence `main`, `assets`, `compatibility_date`, and `compatibility_flags`. `main` also resolves from the config file, so `worker/index.ts` fits both layouts. Keep the `compatibility_date` given: the shipped local runtime refuses a newer one, and the first save fails.
 - **Give `env.staging` its own `name`,** or it inherits production's and a branch deploy lands on the production Worker. `cf-deploy.sh` refuses that deploy; declare the name so the check never fires.
 - **Redeclare every stateful binding in `env.staging`, pointing at its twin** ([the twin table](../../../../wiki/stack/staging-bindings.md#twin-every-stateful-binding)): an environment inherits no `vars` or bindings. Its `d1_databases` entry needs the staging database's own `database_name`; `cf-build.sh` and `reset-staging-d1.mjs` read it from *inside* the block and stop rather than touch production. A forgotten binding is absent in staging, and `npm run secrets:check` fails the build; a *service* binding copied without repointing quietly calls production, and it warns.
 - **Cron `triggers` do inherit** ([why](../../../../wiki/stack/staging-bindings.md#cron-triggers-inherit-omitting-them-does-not-disable-them)): omitted, production's schedule fires silently on staging. Keep the empty `crons` list unless staging *should* run production's schedule.
