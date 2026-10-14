@@ -41,6 +41,7 @@ export function SetFields({ status, set, onChange }: { status: Status; set: Acce
     </Group>
     {project && <Group legend="Project">
       <Tick checked={installs} onChange={to => onChange({ ...set, keys: { ...set.keys, code: to ? 'read' : null } })}>Can install the project</Tick>
+      <p className="text-sm text-muted-foreground">They can save changes too.</p>
       {installs && <ProjectStep status={status} />}
     </Group>}
   </>

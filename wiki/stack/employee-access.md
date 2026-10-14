@@ -88,7 +88,7 @@ Each saved key has a level per person. A level governs the key used by itself: [
 
 ### A key with no app
 
-A call can belong to a key alone. A person with that key's level can run it with no app ticked, and every app's actions stay refused. Cloudflare look-ups and [Project code](employee-project.md#who-gets-what) ship this way, and so does [a server folder with no screen](mini-apps.md#work-with-no-screen). For another key, ask the usual way, such as *let the team look up a charge*, and the assistant [builds the action](company-api.md#list-the-keys-a-route-uses). Direct use needs no app either, only the key's level. No key works alone until levels have started.
+A call can belong to a key alone. A person with that key's level can run it with no app ticked, and every app's actions stay refused. Cloudflare look-ups and [Project code](employee-project.md#who-gets-what) ship this way; Project code's one level installs the project and also [saves changes through the app](employee-project.md#save-a-change-through-the-app). So does [a server folder with no screen](mini-apps.md#work-with-no-screen). For another key, ask the usual way, such as *let the team look up a charge*, and the assistant [builds the action](company-api.md#list-the-keys-a-route-uses). Direct use needs no app either, only the key's level. No key works alone until levels have started.
 
 ## Roles
 

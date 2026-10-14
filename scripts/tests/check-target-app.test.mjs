@@ -88,7 +88,7 @@ for (const file of readdirSync('worker').filter(name => name.endsWith('.test.mjs
 const WRANGLER = `#!/usr/bin/env bash
 [ "$1" = types ] || exit 1
 [ -z "\${FAKE_WRANGLER_FAILS:-}" ] || { echo "wrangler: could not start workerd" >&2; exit 1; }
-if grep -q '"binding": "ARTIFACTS"' wrangler.jsonc; then echo 'interface Env { DB: D1Database; ARTIFACTS: Artifacts; }' > worker-configuration.d.ts
+if grep -q '"binding": "ARTIFACTS"' wrangler.jsonc && grep -q '"binding": "CODE_CHECKS"' wrangler.jsonc; then echo 'interface Env { DB: D1Database; ARTIFACTS: Artifacts; CODE_CHECKS: Workflow; }' > worker-configuration.d.ts
 else echo 'interface Env { DB: D1Database; }' > worker-configuration.d.ts; fi
 `;
 // npx, as the pack's scripts call it: the app's own installed tool.
@@ -178,9 +178,10 @@ test('an app that needs only what an install receives passes, built as an instal
   assert.doesNotMatch(config, /the-source-repo-own-worker/);
   assert.match(config, /"name": "target-check"/);
   assert.equal(config.match(/"artifacts": \[\{ "binding": "ARTIFACTS", "namespace": "wongstack" \}\]/g)?.length, 2, 'production and staging both bind the repository');
+  assert.equal(config.match(/"workflows": \[\{ "binding": "CODE_CHECKS", "name": "target-check-checks", "script_name": "target-check-checks", "class_name": "Checks" \}\]/g)?.length, 2, 'production and staging both read the check runner');
   assert.equal(config.match(/"WONG_CODE_REPOSITORY": "target-check"/g)?.length, 2);
   // The types were regenerated from that config before the tests ran, in the copy alone.
-  assert.match(built('app/worker-configuration.d.ts'), /ARTIFACTS: Artifacts/);
+  assert.match(built('app/worker-configuration.d.ts'), /ARTIFACTS: Artifacts; CODE_CHECKS: Workflow/);
   assert.equal(f.read('app/worker-configuration.d.ts'), COMMITTED_TYPES, 'the source repository\'s committed types were rewritten');
   assert.equal(f.read('app/wrangler.jsonc'), '{ "name": "the-source-repo-own-worker" }\n');
   // The packages are linked, and a tool's cache is the copy's own.

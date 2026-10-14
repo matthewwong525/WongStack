@@ -172,6 +172,11 @@ it("gives a whole role the project with the same tick as a person's, and names t
   expect(install().checked).toBe(true); expect(project().queryByText(/One step first/)).toBeNull(); expect(project().queryByRole('button')).toBeNull()
   fireEvent.click(install()); click('Save role'); await screen.findByText('Saved.')
   expect(sent('roles')[1]).toEqual({ id: 'office', name: 'Office', apps: NO_APPS, keys: NO_KEYS })
+  // The role's tick says it also saves, and names the one step left while the app hands the project out and can not save yet.
+  cleanup(); roster.projectSave = 'key'
+  open('roles/office'); await panel('Office')
+  expect(project().getByText('They can save changes too.')).toBeTruthy()
+  expect(project().getByText('Saving needs one more step.')).toBeTruthy(); expect(project().getByRole('button', { name: 'Copy that request' })).toBeTruthy()
 })
 it('adds a role, which can copy what one person has now', async () => {
   open('roles'); fireEvent.click(await screen.findByRole('link', { name: 'Add role' }))

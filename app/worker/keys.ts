@@ -34,9 +34,10 @@ type Key = {
 export const keys = {
   // Look-ups only, so Read is the one level. wiki/stack/company-api.md#look-things-up-in-cloudflare
   cloudflare: { title: "Cloudflare", secrets: ["WONG_CLOUDFLARE_READ"], levels: ["read"], setup: true },
-  // The project itself, read through /api/access/code/git/ and nowhere else. On a project kept in Cloudflare
-  // the ARTIFACTS binding stands in for the secret. wiki/stack/employee-project.md
-  code: { title: "Project code", secrets: ["WONG_CODE_READ"], levels: ["read"], alone: true, bindings: ["ARTIFACTS"] },
+  // The project itself, read and saved through /api/access/code/ and nowhere else: either secret reads, the
+  // second also saves a change. On a project kept in Cloudflare the ARTIFACTS binding stands in for both, and
+  // CODE_CHECKS reads a saved change's check run. wiki/stack/employee-project.md
+  code: { title: "Project code", secrets: ["WONG_CODE_READ", "WONG_CODE_WRITE"], levels: ["read"], alone: true, bindings: ["ARTIFACTS", "CODE_CHECKS"] },
   // stripe: { title: "Stripe", secrets: ["STRIPE_SECRET_KEY"] },
   // notion: { title: "Notion", secrets: ["NOTION_TOKEN"], forward: {
   //   base: "https://api.notion.com/v1/", secret: "NOTION_TOKEN", header: "Authorization", prefix: "Bearer ",

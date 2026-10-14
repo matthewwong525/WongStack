@@ -16,7 +16,7 @@
  *
  *   1. copy the files `payload-files.json` lists, minus its excludes, to a temporary folder;
  *   2. write the app's wrangler config through provisioning's own functions, with placeholder ids
- *      and the binding to the project's repository;
+ *      and the bindings to the project's repository and its check runner;
  *   3. link the installed `app/node_modules`, entry by entry, so the copy's caches stay its own;
  *   4. regenerate the binding types (`scripts/cf-build.sh --types`), as the check runner does;
  *   5. run the app's `npm test`: lint, type check, tests at 100% coverage, and the rest;
@@ -122,8 +122,9 @@ function linkModules(from, to) {
 function writeConfig(app) {
   const config = join(app, 'wrangler.jsonc');
   writeFileSync(config, wranglerConfig(INSTALL));
-  const { named, bound } = codeInConfig(config, artifactNamesFor(BASE).repo, true);
-  if (!named || !bound) throw new Error('provisioning could not add the project and its repository binding to the config it wrote');
+  const { repo, runner } = artifactNamesFor(BASE);
+  const { named, bound, checks } = codeInConfig(config, repo, true, runner);
+  if (!named || !bound || !checks) throw new Error('provisioning could not add the project and its repository and check runner bindings to the config it wrote');
 }
 
 // No step may reach Cloudflare, so none is handed a credential.
@@ -165,8 +166,8 @@ export function checkTarget(root, { keep = false, log = console.log } = {}) {
     }
     const types = sh('bash', [join(dest, 'scripts', 'cf-build.sh'), '--types'], dest);
     const generated = join(app, 'worker-configuration.d.ts');
-    if (!types.ok || !existsSync(generated) || !/\bARTIFACTS\s*:/.test(readFileSync(generated, 'utf8'))) {
-      return fail('types', `${types.output}\nThe binding types were not regenerated with the project's repository binding, so the tests would compile against the wrong ones.`);
+    if (!types.ok || !existsSync(generated) || !['ARTIFACTS', 'CODE_CHECKS'].every(name => new RegExp(`\\b${name}\\s*:`).test(readFileSync(generated, 'utf8')))) {
+      return fail('types', `${types.output}\nThe binding types were not regenerated with the project's repository and check runner bindings, so the tests would compile against the wrong ones.`);
     }
     const tests = sh('npm', ['test'], app);
     if (!tests.ok) return fail('tests', failureDigest(tests.output));

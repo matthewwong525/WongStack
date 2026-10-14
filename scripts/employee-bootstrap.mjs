@@ -115,18 +115,19 @@ const REFUSED = 'The project download was refused. Ask your admin for access to 
 /**
  * Git as a child process. With a `token`, the employee session goes to `address` alone, as a request header set
  * in the child's environment: never an argument, the remote URL or a config file. Redirects are refused, and no
- * credential helper or prompt is asked. Git's own messages are dropped, so nothing it prints reaches a chat.
+ * credential helper or prompt is asked. Git's own messages are never printed: a caller reads them for the app's own words.
  */
 export function git(args, { address, token } = {}) {
   const config = [['credential.helper', ''], ['http.followRedirects', 'false'], ...(token ? [[`http.${address}.extraHeader`, `cf-access-token: ${token}`]] : [])];
   const env = { ...cleanEnvironment(), GIT_TERMINAL_PROMPT: '0', GIT_CONFIG_COUNT: String(config.length),
     ...Object.fromEntries(config.flatMap(([key, value], index) => [[`GIT_CONFIG_KEY_${index}`, key], [`GIT_CONFIG_VALUE_${index}`, value]])) };
   return new Promise((resolve, reject) => {
-    const child = spawn('git', args, { stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true, env });
-    let stdout = '';
+    const child = spawn('git', args, { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, env });
+    let stdout = '', stderr = '';
     child.stdout.on('data', chunk => { stdout += chunk; });
+    child.stderr.on('data', chunk => { stderr += chunk; });
     child.on('error', () => reject(new Error(missing('Git', 'https://git-scm.com/downloads'))));
-    child.on('close', code => resolve({ code, stdout: stdout.trim() }));
+    child.on('close', code => resolve({ code, stdout: stdout.trim(), stderr }));
   });
 }
 /**
@@ -285,6 +286,12 @@ export function companyClient({ root = process.cwd(), stateDir, routesDir = defa
     const origin = target();
     return copy({ address: `${origin}${CODE_PATH}`, folder, token: await session(origin) });
   }
+  /** Git in the copy at `cwd`, against the app, as the signed-in person. A copy from anywhere else is refused first. */
+  async function projectGit(args, cwd, runGit = git) {
+    const origin = target(), address = `${origin}${CODE_PATH}`;
+    if ((await runGit(['-C', cwd, 'config', '--get', 'remote.origin.url'])).stdout !== address) throw new Error('This copy did not come from the connected company; nothing was sent.');
+    return runGit(['-C', cwd, ...args], { address, token: await session(origin) });
+  }
   /**
    * One step: sign in, download or update the project when the app hands it to this person, and say what works.
    * The folder is the one given, else the one used last time, else a folder in the home directory named for the app.
@@ -299,14 +306,14 @@ export function companyClient({ root = process.cwd(), stateDir, routesDir = defa
     writeFileSync(noted, `${JSON.stringify({ folder: result.folder })}\n`, { mode: 0o600 });
     return { ...report, ...result, next: `cd ${result.folder} && node scripts/company-api.mjs list --state ${dir}` };
   }
-  return { login, list, describe, call, setup, code, install, target, get stateDirectory() { return directory(); } };
+  return { login, list, describe, call, setup, code, install, target, git: projectGit, http, get stateDirectory() { return directory(); } };
 }
 const USAGE = 'employee-bootstrap.mjs install --origin <HTTPS origin> [--dir <folder>] | login --origin <HTTPS origin> | status | code --dir <folder> | list | describe <id> | call <id> --file <JSON file or -> [--state <private directory>]';
 /** `install` keeps one private directory per company, so a second run finds the first. */
 const installBase = () => join(homedir(), '.local', 'state', 'wong-company');
-const installState = origin => join(installBase(), createHash('sha256').update(companyOrigin(origin)).digest('hex'));
+export const installState = origin => join(installBase(), createHash('sha256').update(companyOrigin(origin)).digest('hex'));
 /** `install` and `code` run from any folder, the home folder included, so they work from an empty one beside the state. */
-function neutralRoot() {
+export function neutralRoot() {
   const root = join(installBase(), 'anywhere');
   mkdirSync(root, { recursive: true, mode: 0o700 });
   return root;

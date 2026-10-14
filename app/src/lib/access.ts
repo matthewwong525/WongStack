@@ -40,8 +40,9 @@ export const appAccessSchema = z.discriminatedUnion('state', [
 // Access; left out means no. Only the owner gives it or takes it, and the server checks that again
 // on every save. A key's `direct` says its service is set up to be used directly, so a level for the key also
 // reaches the service itself; left out means no. `project` says whether the app can hand its
-// project out: `ready`, or the step left, a read-only GitHub `key` or Access `setup`. A status from before the
-// field reads it from whether Project code is saved.
+// project out: `ready`, or the step left, a GitHub `key` or Access `setup`. A status from before the
+// field reads it from whether Project code is saved. `projectSave` says the same for saving a change through
+// the app; left out means nothing is known, and no step shows.
 const project = z.enum(['ready', 'key', 'setup'])
 export const statusSchema = z.object({ ownerEmail: z.string(), environment: z.enum(['live', 'practice']),
   viewer: z.object({ email: z.string(), owner: z.boolean() }),
@@ -56,7 +57,7 @@ export const statusSchema = z.object({ ownerEmail: z.string(), environment: z.en
   people: z.array(z.object({ email: z.string(), status: z.enum(['active', 'removed']), settled: z.boolean(),
     role: z.string().nullable(), apps: z.array(z.string()), keys: levels })),
   work: z.array(z.object({ kind: z.enum(['policy', 'sessions']), status: z.enum(['pending', 'ready', 'failed']) })),
-  project: project.optional() })
+  project: project.optional(), projectSave: project.optional() })
   .transform(status => ({ ...status, project: status.project ?? (status.keys.some(key => key.id === 'code' && key.saved) ? 'ready' : 'key') }))
 export type Status = z.infer<typeof statusSchema>
 export type Person = Status['people'][number]

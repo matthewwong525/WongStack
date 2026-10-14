@@ -191,3 +191,29 @@ test('without guard.yml on the default branch, a pass waits for no guard check',
   assert.match(out, /RESULT: SUCCESS/);
   assert.equal(polls(calls), 2);
 });
+
+// A copy installed through Connect your assistant: origin is the app's own Git address.
+test('a copy installed through the app hands the wait to app-change.mjs, and gh is never asked', t => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'wong-test-wait-checks-app-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  for (const name of ['bin', 'repo']) mkdirSync(path.join(dir, name));
+  // `node` runs delivery-route.mjs for real and stands in for app-change.mjs; `gh` only logs.
+  const tools = {
+    gh: '#!/usr/bin/env bash\necho "gh $*" >> "$FAKE_DIR/calls"\nexit 1\n',
+    node: `#!/usr/bin/env bash
+case "$1" in */app-change.mjs) echo "app-change.mjs \${*:2}" >> "$FAKE_DIR/calls"; printf 'RESULT: FAILURE\\n  - unit  https://ci/1\\n'; exit 0 ;; esac
+exec "$REAL_NODE" "$@"
+`,
+  };
+  for (const [name, body] of Object.entries(tools)) {
+    writeFileSync(path.join(dir, 'bin', name), body);
+    chmodSync(path.join(dir, 'bin', name), 0o755);
+  }
+  writeFileSync(path.join(dir, 'calls'), '');
+  const repo = path.join(dir, 'repo');
+  for (const args of [['init', '-q'], ['remote', 'add', 'origin', 'https://app.example.com/api/access/code/git/']]) spawnSync('git', args, { cwd: repo });
+  const result = spawnSync('bash', [script, '7'], { cwd: repo, encoding: 'utf8', env: { ...process.env, PATH: `${path.join(dir, 'bin')}:${process.env.PATH}`, FAKE_DIR: dir, REAL_NODE: process.execPath } });
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout, 'RESULT: FAILURE\n  - unit  https://ci/1\n');
+  assert.equal(readFileSync(path.join(dir, 'calls'), 'utf8'), 'app-change.mjs wait 7\n');
+});
