@@ -82,7 +82,7 @@ export function defaultBranch(route = 'github') {
 
 /** A file the agent wrote outside the repo; the command deletes it when the run ends. */
 function outsideFile(root, path, flag) {
-  if (!existsSync(path)) usageError(USAGE, `${flag}: no such file`);
+  if (!existsSync(path)) usageError(USAGE, `${flag}: no such file (a passing save deletes it; write a new one)`);
   const file = realpathSync(resolve(path));
   const inside = relative(realpathSync(root), file);
   if (!inside.startsWith('..') && !isAbsolute(inside)) usageError(USAGE, `${flag} must be a file outside the repo`);

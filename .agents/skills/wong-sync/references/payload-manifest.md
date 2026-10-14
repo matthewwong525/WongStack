@@ -13,7 +13,7 @@ Every install starts empty and takes **every** category.
 
 ## The agent folder
 
-Install logical `.claude/` paths into real `.agents/`, linked as `.claude` and `.codex`. Hooks and config serve both agents; Codex config enables Default-mode questions. Codex loads `.agents/skills` natively, once.
+Logical `.claude/` paths live in real `.agents/`, linked as `.claude` and `.codex`; [setup's install program](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/scripts/install.mjs) makes them. Hooks and config serve both agents; Codex config enables Default-mode questions. Codex loads `.agents/skills` natively, once.
 
 Real `AGENTS.md` holds `WONG-STACK`; `CLAUDE.md` links to it. Codex and Claude read their respective names; the inventory block remains `CLAUDE.md`. Sync preserves every target-owned line:
 
@@ -21,7 +21,7 @@ Real `AGENTS.md` holds `WONG-STACK`; `CLAUDE.md` links to it. Codex and Claude r
 - a real `CLAUDE.md` and a real `AGENTS.md` — a reviewed task merges both into `AGENTS.md` with one `WONG-STACK` block, then links `CLAUDE.md`; never overwrite either file;
 - `CLAUDE.md` already links to `AGENTS.md` — nothing.
 
-On Windows, link with `MSYS=winsymlinks:nativestrict ln -s AGENTS.md CLAUDE.md`, as setup does for `.claude` and `.codex`.
+On Windows, link with `MSYS=winsymlinks:nativestrict ln -s AGENTS.md CLAUDE.md`, so a refused link fails instead of becoming a copy.
 
 [Catch-up](catch-up.md) moves pre-19.0.0 real agent folders and reversed `AGENTS.md` links, plus other missed migrations.
 
@@ -108,4 +108,4 @@ Preserve custom handlers/paths/checks. Describe selected [company actions](../..
 
 ## Install record
 
-Create target `.claude/.wong-stack.json` from its selected source: repo (including forks), checkout version/commit, clone-cache hint. Record target memory IDs, production-verified public company origin, local skill names and dates. Copy no source record/bindings/live config. Advance after agreed changes and generated-layer migration; retain no mode.
+[Setup's install program](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/scripts/install.mjs) writes target `.claude/.wong-stack.json` from its selected source; provisioning adds memory IDs and the production-verified public company origin. Copy no source record/bindings/live config. Advance after agreed changes and generated-layer migration; retain no mode.

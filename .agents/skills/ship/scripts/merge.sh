@@ -7,7 +7,7 @@
 #
 # Prints key=value lines for the ship report:
 #   merged=yes|no  pr=<number> url=<url>  retargeted=<numbers>
-#   branch=deleted|deleted-at-merge|kept  synced=<path>|ref|skipped (<reason>)
+#   branch=deleted|deleted-at-merge|kept  synced=<path>[ (switched from <branch>)]|ref|skipped (<reason>)
 #   stale_version=<version>  with merged=no: another release took this one's
 #     number; /ship numbers it again from <version>, saves, and reruns this
 #
@@ -121,7 +121,15 @@ if [ -n "$MAIN_WT" ]; then
     say "synced=skipped ($MAIN_WT could not fast-forward)"
   fi
 elif git fetch origin "$DEFAULT:$DEFAULT" >/dev/null 2>&1; then
-  say "synced=ref"
+  # Work done straight in the project folder leaves it on the default branch; a linked worktree keeps its own.
+  { read -r GIT_DIR_ABS; read -r COMMON_DIR_ABS; } < <(git rev-parse --path-format=absolute --git-dir --git-common-dir 2>/dev/null)
+  TOP=$(git rev-parse --show-toplevel 2>/dev/null)
+  if [ -n "${GIT_DIR_ABS:-}" ] && [ "$GIT_DIR_ABS" = "${COMMON_DIR_ABS:-}" ] && [ "$(git rev-parse --abbrev-ref HEAD)" = "$BRANCH" ] \
+    && STATUS=$(git status --porcelain 2>/dev/null) && [ -z "$STATUS" ] && git switch -q "$DEFAULT" >/dev/null 2>&1; then
+    say "synced=$TOP (switched from $BRANCH)"
+  else
+    say "synced=ref"
+  fi
 else
   say "synced=skipped (local $DEFAULT could not fast-forward)"
 fi

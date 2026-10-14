@@ -95,8 +95,8 @@ esac
 exec "$REAL_GIT" "$@"
 `;
 
-// Its `node`, which the scripts call by name, stands in for artifacts-run.mjs: `result` prints MAIN_RESULT (main) or
-// RUN_RESULT (the branch), and `live` prints RUN_LIVE; app-change.mjs answers CAN_PUBLISH, PUBLISH_OUT, PUBLISH_RC.
+// Its `node` stands in for artifacts-run.mjs: `result` prints MAIN_RESULT (MAIN_AFTER after a `restart`) or RUN_RESULT,
+// `live` prints RUN_LIVE; app-change.mjs answers CAN_PUBLISH, PUBLISH_OUT and PUBLISH_RC.
 const FAKE_NODE = `#!/usr/bin/env bash
 case "\${1:-}" in
   */app-change.mjs)
@@ -111,7 +111,9 @@ case "\${1:-}" in
     case "\${2:-}" in
       result)
         if [ -n "\${RESULT_RC:-}" ]; then exit "$RESULT_RC"; fi
-        if [ "\${4:-}" = refs/heads/main ]; then echo "\${MAIN_RESULT-SUCCESS}"; else echo "\${RUN_RESULT-SUCCESS}"; fi ;;
+        if [ "\${4:-}" != refs/heads/main ]; then echo "\${RUN_RESULT-SUCCESS}"
+        elif [ -e "$FAKE_DIR/restarted" ]; then rm "$FAKE_DIR/restarted"; echo "\${MAIN_AFTER-SUCCESS}"; else echo "\${MAIN_RESULT-SUCCESS}"; fi ;;
+      restart) : > "$FAKE_DIR/restarted" ;;
       live) echo "\${RUN_LIVE-none}" ;;
     esac
     exit 0 ;;
@@ -498,10 +500,11 @@ test('finish prints merge.sh\'s lines unchanged, promotes secrets, and looks at 
   f.git('push', '-q', '-u', 'origin', 'work');
   const r = f.run(['finish']);
   assert.equal(r.status, 0, `${r.stdout}${r.stderr}`);
-  assert.match(r.stdout, /^merged=yes\npr=7 url=https:\/\/github\.com\/team\/repo\/pull\/7\nretargeted=\nbranch=deleted\nsynced=ref\n/);
+  assert.match(r.stdout, /^merged=yes\npr=7 url=https:\/\/github\.com\/team\/repo\/pull\/7\nretargeted=\nbranch=deleted\nsynced=.*\/work \(switched from work\)\n/);
+  assert.equal(f.git('branch', '--show-current'), 'main', 'a clean primary checkout leaves the merged branch');
   assert.match(r.stdout, /^SECRETS=\{"primary":true,/m);
   assert.match(r.stdout, /^LIVE_LOOK=unknown\nREASON=this repo records no release to wait for\nNEXT: it merged\. Report it is live, with REASON as one line\.$/m);
-  assert.match(f.calls(), new RegExp(`gh pr merge --squash --match-head-commit ${f.git('rev-parse', 'HEAD')} --subject feat: a thing \\(#7\\)\\n`));
+  assert.match(f.calls(), new RegExp(`gh pr merge --squash --match-head-commit ${f.git('rev-parse', 'work')} --subject feat: a thing \\(#7\\)\\n`));
   assert.equal(f.git('ls-remote', '--heads', 'origin', 'work'), '');
 });
 
@@ -532,6 +535,8 @@ test('a refused merge says whether a conflict or something else stopped it', t =
 test('a failed live look hands the reason to one more build, and never fails the ship', t => {
   const f = fixture(t, { gh: { deployment: 'failure\t' } });
   f.commit({ '.github/workflows/deploy.yml': 'on: push\n' });
+  // The fake merge leaves main without deploy.yml, so an unsaved file keeps the checkout off it.
+  f.write('notes.txt', 'unsaved\n');
   const r = f.run(['finish']);
   assert.equal(r.status, 0, `${r.stdout}${r.stderr}`);
   assert.match(r.stdout, /^LIVE_LOOK=failed\nREASON=the release did not finish: its deploy failed\nNEXT: it merged, but the live app is not right\.[^\n]*invoke apply once with REASON and URL[^\n]*no retry and no revert\.$/m);
@@ -596,10 +601,10 @@ test('an Artifacts install: a red or unread main stops prepare before any change
     assert.match(r.stderr, new RegExp(`^error=main's check run for ${moved.slice(0, 7)} reads ${word}, so it is unverified$`, 'm'));
     assert.match(r.stdout, /^NEXT: main's checks could not be read\. Report the message above and stop\.$/m);
   }
-  // A main whose run was cut off is not failing: NEXT names the restart of that same run, and nothing is archived.
-  const cut = f.run(['prepare', '--change', 'demo'], { MAIN_RESULT: 'INTERRUPTED' });
+  // A main whose run was cut off is not failing: it is restarted once, and only a second cut-off names the restart.
+  const cut = f.run(['prepare', '--change', 'demo'], { MAIN_RESULT: 'INTERRUPTED', MAIN_AFTER: 'INTERRUPTED' });
   assert.equal(cut.status, 6);
-  assert.equal(cut.value('DEFAULT_CHECKS'), 'interrupted');
+  assert.match(cut.stdout, /^DEFAULT_CHECKS=restarted\nDEFAULT_CHECKS=interrupted$/m);
   const again = 'node .claude/skills/save/scripts/artifacts-run.mjs';
   assert.ok(cut.stdout.includes(`NEXT: main's check run was cut off, not failed. Start it again with \`${again} restart ${moved} refs/heads/main\`, then wait for it with \`${again} live ${moved}\`. Rerun this command when that prints an address or none; on anything else, report it and stop.\n`), cut.stdout);
   assert.doesNotMatch(cut.stdout, /checks are failing|could not be read/);
@@ -614,13 +619,29 @@ test('an Artifacts install: a red or unread main stops prepare before any change
   assert.equal(f.has('openspec/changes/demo'), true);
 });
 
+test('an Artifacts install: a cut-off main is restarted and waited for once; a pass goes on to archive, a failure stops', t => {
+  const f = fixture(t, { artifacts: true });
+  f.commit({ ...f.change('demo'), 'CHANGELOG.md': withEntry(NEXT_ENTRY), 'app.txt': 'two\n' });
+  const main = f.git('rev-parse', 'origin/main');
+  const failed = f.run(['prepare', '--change', 'demo'], { MAIN_RESULT: 'INTERRUPTED', MAIN_AFTER: 'FAILURE' });
+  assert.equal(failed.status, 6);
+  assert.match(failed.stdout, /^DEFAULT_CHECKS=restarted\nDEFAULT_CHECKS=failure\nNEXT: main's checks are failing\./m);
+  assert.equal(f.has('openspec/changes/demo'), true);
+  const passed = f.run(['prepare', '--change', 'demo'], { MAIN_RESULT: 'INTERRUPTED' });
+  assert.equal(passed.status, 0, `${passed.stdout}${passed.stderr}`);
+  assert.match(passed.stdout, /^DEFAULT_CHECKS=restarted\nDEFAULT_CHECKS=ok$/m);
+  assert.equal(passed.value('ARCHIVE'), ARCHIVE);
+  assert.match(f.calls(), new RegExp(`^node artifacts-run\\.mjs restart ${main} refs/heads/main\nnode artifacts-run\\.mjs live ${main}$`, 'm'));
+  noGh(f);
+});
+
 test('an Artifacts install: finish publishes without gh, and looks at the commit merge.sh names', t => {
   const f = fixture(t, { artifacts: true });
   f.commit({ 'app.txt': 'two\n' }, 'feat: a thing');
   f.git('push', '-q', '-u', 'origin', 'work');
   const r = f.run(['finish']);
   assert.equal(r.status, 0, `${r.stdout}${r.stderr}`);
-  assert.match(r.stdout, /^merged=yes\ncommit=[0-9a-f]{40}\nmain=SUCCESS\nbranch=deleted\nsynced=ref\n/);
+  assert.match(r.stdout, /^merged=yes\ncommit=[0-9a-f]{40}\nmain=SUCCESS\nbranch=deleted\nsynced=\S+ \(switched from work\)\n/);
   const commit = r.value('commit');
   assert.equal(f.git('rev-parse', 'origin/main'), commit, 'main moved forward to the publish commit');
   assert.equal(f.git('log', '-1', '--format=%s', commit), 'feat: a thing');

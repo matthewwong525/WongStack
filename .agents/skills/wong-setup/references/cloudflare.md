@@ -140,6 +140,8 @@ With no config, write the [fragment](../../wong-sync/references/stack-pack-fragm
 
 **The project Connect hands out.** The script names it in both Workers' vars. The Artifacts route also binds both to the repository and its check runner: no key is made. On GitHub the report's `codeKey` carries [the owner's steps](../../../../wiki/stack/project-git-route.md#the-owners-one-step-on-github). Say nothing of it: Access asks for the key when the owner first lets someone install the project.
 
+Last, it refreshes the binding types in `app/`; a failure is a `warnings` line, not a stop.
+
 The same Worker serves the [mini apps](../../../../wiki/stack/mini-apps.md) under `/apps/`, as part of the main app; they need no Worker or config of their own.
 
 **Moving older mini apps.** Apps kept outside the main app move into it by [the update's catch-up step](../../wong-sync/references/catch-up.md), `mini-apps-folder`. An install with its own mini-app Worker also merges `/apps/` routing and Worker-first assets into the main Worker. Remove the obsolete mini-app config, Worker, tsconfig, ignore files, and assetsignore only as reviewed changes. After production deploys, verify `/apps/` and every saved app; only then delete the old `<repo>-mini` and `<repo>-mini-staging` Workers and `staging-mini` GitHub environment. Keep them on failure.

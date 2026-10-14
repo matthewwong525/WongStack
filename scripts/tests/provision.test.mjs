@@ -11,7 +11,7 @@ import { test } from 'node:test';
 
 import {
   ACCESS_KEY, ACCESS_KEY_TODO, ARTIFACTS_PROVISION, CLOUDFLARE_READ_KEY, CLOUDFLARE_READ_KEY_TODO, CODE_KEY, CloudflareError, DEPLOY_TOKEN, NAMESPACE, NORMAL_PROVISION, PROPAGATION, R2_OFF, SNAPSHOT_DAYS, STORAGE_TOKEN, USER_GRANTS,
-  accounts, artifactNamesFor, cli, cloudflare, githubRepo, names, plan, provision, readEnv, run, runnerConfig, safeName, widen, widenBy, wranglerConfig, wranglerFragment,
+  accounts, artifactNamesFor, bindingTypes, cli, cloudflare, githubRepo, names, plan, provision, readEnv, run, runnerConfig, safeName, widen, widenBy, wranglerConfig, wranglerFragment,
 } from '../../.agents/skills/wong-setup/scripts/provision.mjs';
 import { helperConfig } from '../../.agents/skills/save/scripts/artifacts-credential.mjs';
 import { databaseName, parseConfig, stripJsonc, workerName } from '../lib-wrangler-config.mjs';
@@ -491,7 +491,7 @@ async function setup(t, { r2 = true, email = EMAIL, subdomain, ...cloudflareOpti
   delete env.CLOUDFLARE_API_TOKEN;
   delete env.CLOUDFLARE_ACCOUNT_ID;
   const sleeps = [];
-  const base = { token: TOKEN, api: fake.api, account: ACCOUNT, repo: REPO, dir, env, sleep: async (ms) => sleeps.push(ms) };
+  const base = { token: TOKEN, api: fake.api, account: ACCOUNT, repo: REPO, dir, env, sleep: async (ms) => sleeps.push(ms), types: async () => null };
   return {
     root, dir, fake, gh, env, sleeps,
     provision: (options = {}) => provision({ ...base, base: 'recipe-box', today: TODAY, ...options }),
@@ -780,6 +780,30 @@ test('a fresh provision with R2 on makes the memory store, both databases, the c
   assert.ok(report.created.includes('deploy token recipe-box-deploy'));
   assert.deepEqual(report.reused, ['Zero Trust organization', 'one-time PIN identity provider']);
   assertNoSecret(env, JSON.stringify(report));
+});
+
+test('provisioning refreshes the binding types after it writes the config, and a failed refresh is only a warning', async (t) => {
+  const env = await setup(t);
+  const seen = [];
+  const report = await env.provision({ types: async (app) => { seen.push(readFileSync(join(app, 'wrangler.jsonc'), 'utf8')); return null; } });
+  assert.equal(seen.length, 1);
+  assert.equal(seen[0], readFileSync(join(env.dir, 'app/wrangler.jsonc'), 'utf8'), 'the types see the config as provisioning left it');
+  assert.equal(report.warnings, undefined);
+
+  const calls = [];
+  const failing = async (file, args, { cwd }) => {
+    calls.push([file, ...args, cwd]);
+    if (file === 'npx') throw new Error('npx exited with 1: wrangler not found');
+  };
+  const again = await env.provision({ types: (app) => bindingTypes(app, failing) });
+  const app = join(env.dir, 'app');
+  assert.deepEqual(calls, [['npm', 'ci', '--no-audit', '--no-fund', app], ['npx', '--no-install', 'wrangler', 'types', app]]);
+  assert.match(again.warnings[0], /binding types were not refreshed \(npx exited with 1: wrangler not found\)/);
+  mkdirSync(join(app, 'node_modules'));
+  calls.length = 0;
+  assert.equal(await bindingTypes(app, async (...call) => { calls.push(call[0]); }), null);
+  assert.deepEqual(calls, ['npx'], 'installed packages are not installed again');
+  assert.equal((await env.provision({ keepConfig: true, types: () => assert.fail('keepConfig leaves the types alone') })).warnings, undefined);
 });
 
 test('setup records the owner for Access and gives the live app alone its own sign-in list key', async (t) => {

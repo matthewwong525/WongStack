@@ -7,7 +7,7 @@ import { createServer } from 'node:http';
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { cleanEnvironment, companyClient, git, otherCopy, ownCopy, projectCopy } from '../employee-bootstrap.mjs';
+import { cleanEnvironment, companyClient, git, installState, otherCopy, ownCopy, projectCopy } from '../employee-bootstrap.mjs';
 
 const TOKEN = `eyJhbGciOiJSUzI1NiJ9.${Buffer.from(JSON.stringify({ email: 'employee@example.com', sub: 'employee-subject', exp: Date.now() / 1000 + 1000 })).toString('base64url')}.c2ln`;
 const PATH = '/api/access/code/git/';
@@ -231,10 +231,10 @@ test('names Git plainly when it is not installed', async () => {
 });
 
 /** A client whose sign-in and app are faked, and whose download is recorded instead of run. */
-function connected(t, { code = 'ready' } = {}) {
+function connected(t, { code = 'ready', installed = false } = {}) {
   const base = mkdtempSync(join(tmpdir(), 'employee-install-'));
   t.after(() => rmSync(base, { recursive: true, force: true }));
-  const root = join(base, 'here'), stateDir = join(base, 'private'), cacheDir = join(base, 'cache');
+  const root = join(base, 'here'), stateDir = installed ? installState(origin) : join(base, 'private'), cacheDir = join(base, 'cache');
   mkdirSync(root);
   const state = { code, copies: [], requests: [], result: {} };
   const client = companyClient({ root, stateDir, cacheDir, routesDir: join(base, 'routes'), run: async () => TOKEN, request: async (url, init) => {
@@ -242,17 +242,25 @@ function connected(t, { code = 'ready' } = {}) {
     if (state.memoryDown && url.pathname === '/_memory/caller') return new Response('', { status: 404 });
     return Response.json({ identity, role: 'employee', apps: ['orders'], api: 'authenticated', code: state.code, repository: 'manual_provider_setup', memory: 'independent_operator_setup' });
   } });
-  const copy = async options => { state.copies.push(options); return { project: 'installed', folder: options.folder, ...state.result }; };
+  const copy = async options => {
+    state.copies.push(options);
+    mkdirSync(join(options.folder, '.claude'), { recursive: true });
+    writeFileSync(join(options.folder, '.claude', '.wong-stack.json'), JSON.stringify({ components: { companyApi: { origin } } }));
+    return { project: 'installed', folder: options.folder, ...state.result };
+  };
   return { base, stateDir, client, state, copy };
 }
 const origin = 'https://business.example.com';
 
-const DONE = folder => `Signed in as ${identity.email}. Apps that work: orders. Memory works. The project is in ${folder}, and new chats keep it up to date. Nothing else is needed.`;
+const DONE = folder => `Used this computer's existing sign-in as ${identity.email}. Apps that work: orders. Memory works. The project is in ${folder}, and new chats keep it up to date. Nothing else is needed.`;
 test('install signs in, downloads the project for a person who holds Project code, confirms memory, and says it is done', async t => {
-  const f = connected(t);
+  // Setup keeps the sign-in where the downloaded copy's own tools look for it.
+  const home = process.env.HOME; process.env.HOME = mkdtempSync(join(tmpdir(), 'employee-home-'));
+  t.after(() => { rmSync(process.env.HOME, { recursive: true, force: true }); process.env.HOME = home; });
+  const f = connected(t, { installed: true });
   const folder = join(f.base, 'project');
   const report = await f.client.install(origin, folder, f.copy);
-  assert.deepEqual(report, { connected: origin, signedInAs: identity.email, apps: ['orders'], memory: 'works', state: f.stateDir, project: 'installed', folder, summary: DONE(folder) });
+  assert.deepEqual(report, { connected: origin, signedInAs: identity.email, signIn: 'reused', apps: ['orders'], memory: 'works', state: f.stateDir, project: 'installed', folder, summary: DONE(folder) });
   // Memory is asked once, with the same sign-in.
   assert.deepEqual(f.state.requests.filter(row => row.path === '/_memory/caller'), [{ path: '/_memory/caller', session: TOKEN }]);
   // The report names no command to run, no environment file and no key.
@@ -265,7 +273,7 @@ test('install signs in, downloads the project for a person who holds Project cod
   // Again: an update that was not applied is passed on, and a downloaded setup file is named to the download.
   f.state.result = { project: 'kept your changes; update not applied', applied: false };
   assert.deepEqual(await f.client.install(origin, folder, f.copy, '/tmp/setup.mjs'), { ...report, project: 'kept your changes; update not applied', applied: false,
-    summary: `Signed in as ${identity.email}. Apps that work: orders. Memory works. Project: kept your changes; update not applied, in ${folder}. Your changes were kept, so the update waits.` });
+    summary: `Used this computer's existing sign-in as ${identity.email}. Apps that work: orders. Memory works. Project: kept your changes; update not applied, in ${folder}. Your changes were kept, so the update waits.` });
   // Memory that does not answer is said plainly, and setup still ends.
   const quiet = connected(t);
   quiet.state.memoryDown = true;
@@ -296,8 +304,8 @@ test('install leaves a copy of the project from elsewhere as it is, whatever the
   for (const code of ['ready', 'lacked', 'off']) {
     const f = connected(t, { code }), asked = [];
     const report = await f.client.install(origin, mine, f.copy, undefined, async (...args) => { asked.push(args); return true; });
-    assert.deepEqual(report, { connected: origin, signedInAs: identity.email, apps: ['orders'], memory: 'works', state: f.stateDir, project: 'already on this computer; left as it is', folder: mine,
-      summary: `Signed in as ${identity.email}. Apps that work: orders. Memory works. Project: already on this computer; left as it is, in ${mine}. Nothing else is needed.` });
+    assert.deepEqual(report, { connected: origin, signedInAs: identity.email, signIn: 'reused', apps: ['orders'], memory: 'works', state: f.stateDir, project: 'already on this computer; left as it is', folder: mine,
+      summary: `Used this computer's existing sign-in as ${identity.email}. Apps that work: orders. Memory works. Project: already on this computer; left as it is, in ${mine}. Nothing else is needed.` });
     assert.deepEqual([asked, f.state.copies], [[[mine, address]], []]);
   }
 });
@@ -305,8 +313,8 @@ test('install leaves a copy of the project from elsewhere as it is, whatever the
 test('install connects the apps and downloads nothing when the person lacks Project code, or the app hands none out', async t => {
   for (const [code, project] of [['lacked', 'not included. Ask your admin for access to Connect your assistant.'], ['off', 'not handed out by this app; apps only'], [null, 'not handed out by this app; apps only']]) {
     const f = connected(t, { code });
-    assert.deepEqual(await f.client.install(origin, join(f.base, 'project'), f.copy), { connected: origin, signedInAs: identity.email, apps: ['orders'], memory: 'works', state: f.stateDir, project,
-      summary: `Signed in as ${identity.email}. Apps that work: orders. Memory works. Project: ${project}. Nothing else is needed.` });
+    assert.deepEqual(await f.client.install(origin, join(f.base, 'project'), f.copy), { connected: origin, signedInAs: identity.email, signIn: 'reused', apps: ['orders'], memory: 'works', state: f.stateDir, project,
+      summary: `Used this computer's existing sign-in as ${identity.email}. Apps that work: orders. Memory works. Project: ${project}. Nothing else is needed.` });
     assert.deepEqual(f.state.copies, []);
   }
 });
@@ -327,7 +335,8 @@ function packaged(t, { code = 'ready' } = {}) {
     for (let i = 0; i < Number(process.env.GIT_CONFIG_COUNT); i++) config[process.env['GIT_CONFIG_KEY_' + i]] = process.env['GIT_CONFIG_VALUE_' + i];
     appendFileSync(${JSON.stringify(log)}, JSON.stringify({ args, config, prompt: process.env.GIT_TERMINAL_PROMPT, extra: Object.keys(process.env).filter(key => /TOKEN|SECRET|CLOUDFLARE/.test(key)) }) + '\\n');
     const dir = args[0] === '-C' ? args[1] : args.at(-1), verb = args[0] === '-C' ? args[2] : args[0];
-    if (verb === 'clone') { mkdirSync(join(dir, '.git'), { recursive: true }); writeFileSync(join(dir, 'README.md'), 'first'); }
+    if (verb === 'clone') { mkdirSync(join(dir, '.git'), { recursive: true }); mkdirSync(join(dir, '.claude')); writeFileSync(join(dir, 'README.md'), 'first');
+      writeFileSync(join(dir, '.claude', '.wong-stack.json'), '{"components":{"companyApi":{"origin":"${origin}"}}}'); }
     if (verb === 'config') console.log(existsSync(join(dir, 'elsewhere')) ? 'https://github.com/owner/project.git' : '${origin}${PATH}');
     if (verb === 'symbolic-ref') console.log(args.at(-1) === 'HEAD' ? 'main' : 'origin/main');
     if (verb === 'status' && existsSync(join(dir, 'edited'))) console.log(' M README.md');
@@ -412,7 +421,7 @@ test('the file the app serves sets up the folder it is run in, with no command a
   assert.deepEqual([report.project, report.folder, report.connected], ['installed', here, origin]);
   assert.match(report.state, /\.local\/state\/wong-company\/[a-f0-9]{64}$/);
   assert.deepEqual(f.calls()[1].args, ['clone', '--quiet', '--origin', 'origin', `${origin}${PATH}`, here]);
-  assert.deepEqual(readdirSync(here).sort(), ['.git', 'README.md'], 'the setup file is gone');
+  assert.deepEqual(readdirSync(here).sort(), ['.claude', '.git', 'README.md'], 'the setup file is gone');
   // Our read-only copy: updates it.
   file = f.served(here);
   const updated = f.run(file, here);

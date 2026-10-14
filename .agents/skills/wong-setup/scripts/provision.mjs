@@ -616,7 +616,7 @@ const hasKey = (env, localId) => keyMachine(env.CLOUDFLARE_MEMORY_TOKEN) === loc
 
 /** Everything after the one billable ask, under `base`. `keepConfig` leaves an installed repo's committed files alone.
  * `openWithoutLogin` goes on without Access when Cloudflare refuses Zero Trust; a site already private never opens. */
-export async function provision({ token, api, fetch, account, repo, base, route = 'github', ownerEmail, teammateEmails, dir = '.', today = isoDate(), keepConfig = false, openWithoutLogin = false, sleep = wait, exec = run, env = process.env }) {
+export async function provision({ token, api, fetch, account, repo, base, route = 'github', ownerEmail, teammateEmails, dir = '.', today = isoDate(), keepConfig = false, openWithoutLogin = false, sleep = wait, exec = run, env = process.env, types = bindingTypes }) {
   const cf = cloudflare(token, { api, fetch });
   // An Artifacts install needs the paid plan: look before anything is created or written.
   if (route === 'artifacts' && !(await step('cloudflare', () => paidPlan(cf, account, sleep)))) {
@@ -765,9 +765,16 @@ export async function provision({ token, api, fetch, account, repo, base, route 
       artifacts: route === 'artifacts', runner: artifactNamesFor(base).runner, workers: [n.worker, n.staging], note, todo: report.todo,
     }));
   };
+  // The first save then carries types that match this config, not a stray change at publish.
+  const refreshTypes = async () => {
+    if (keepConfig || !existsSync(config)) return;
+    const warning = await types(join(dir, 'app'), exec, env);
+    if (warning) (report.warnings ??= []).push(warning);
+  };
   if (route === 'artifacts') {
     report.delivery = await artifactsDelivery(cf, { account, base, token, groups, buckets, deployRows: rows, dir, env, exec, state, checkpoint, note, todo: report.todo, sleep });
     await accessKey();
+    await refreshTypes();
     return report;
   }
 
@@ -788,7 +795,19 @@ export async function provision({ token, api, fetch, account, repo, base, route 
   }
 
   await accessKey();
+  await refreshTypes();
   return report;
+}
+
+/** Regenerates `app/worker-configuration.d.ts` as CI's `wong_regenerate_types` does; returns a warning, never throws */
+export async function bindingTypes(app, exec = run, env = process.env) {
+  try {
+    if (!existsSync(join(app, 'node_modules'))) await exec('npm', ['ci', '--no-audit', '--no-fund'], { cwd: app, env });
+    await exec('npx', ['--no-install', 'wrangler', 'types'], { cwd: app, env });
+    return null;
+  } catch (error) {
+    return `the app's binding types were not refreshed (${error.message}); run \`npx wrangler types\` in app/ before the first save`;
+  }
 }
 
 /** What Access needs on an older install: the owner's email in both Workers' vars, the two keys, the memory and git

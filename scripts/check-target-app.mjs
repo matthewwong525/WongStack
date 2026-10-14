@@ -6,8 +6,11 @@ import { copyFileSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSy
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { targetFiles } from '../.agents/skills/wong-setup/scripts/install.mjs';
 import { artifactNamesFor, codeInConfig, wranglerConfig } from '../.agents/skills/wong-setup/scripts/provision.mjs';
 import { isMain, parseCli } from './lib-cli.mjs';
+
+export { targetFiles };
 
 const USAGE = `usage: node scripts/check-target-app.mjs [--root <repo>] [--keep]
 
@@ -16,7 +19,6 @@ Build the app from only the files an install receives, set up as an install kept
 --keep  leave the temporary folder, and print where it is`;
 
 const INVENTORY = '.agents/skills/wong-sync/references/payload-files.json';
-const CATEGORIES = ['core', 'ui', 'pack', 'scaffold'];
 const NO_TOOLS = 7;
 const NAMED = 60;
 const TAIL = 120;
@@ -33,23 +35,6 @@ const INSTALL = {
   bucket: `${BASE}-memory`,
   access: { mode: 'private', teamDomain: 'target-check.cloudflareaccess.com', audience: 'a'.repeat(64), appId: id('4'), ownerEmail: 'owner@example.invalid', workers: [{ id: 'b'.repeat(32) }, { id: 'c'.repeat(32) }] },
 };
-
-/** A repo path in the inventory's logical form: `.agents/` reads as `.claude/`. */
-const logical = path => path.replace(/^\.agents(?=\/)/, '.claude');
-const under = (path, dir) => path === dir || path.startsWith(`${dir}/`);
-
-// The repo paths an install receives: every category's files, skill folders and whole folders,
-// without anything `exclude` names, by file or by folder.
-export function targetFiles(paths, manifest) {
-  const categories = CATEGORIES.map(name => manifest[name] ?? {});
-  const files = new Set(categories.flatMap(category => category.files ?? []));
-  const dirs = categories.flatMap(category => [...(category.dirs ?? []), ...(category.skillDirs ?? []).map(skill => `.claude/skills/${skill}`)]);
-  const excluded = categories.flatMap(category => category.exclude ?? []);
-  return paths.filter(path => {
-    const name = logical(path);
-    return (files.has(name) || dirs.some(dir => under(name, dir))) && !excluded.some(gone => under(name, gone));
-  });
-}
 
 /** What a red run names: failed test files, failed tests, and type errors. */
 export function failureDigest(output) {

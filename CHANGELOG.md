@@ -3,6 +3,19 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Smoother install and connect
+
+- **Setup puts the files in place in one ready-made step.** The assistant no longer writes its own copy step. One step copies everything, makes the folder links, the wiki's starting pages, the ignore rules and the install record, the same way on every install. If this computer refuses a folder link, it stops, leaves the folder as it found it, and says how to fix it.
+- **A new install's first save passes the loosened-checks check.** Nothing existed before the first change, so nothing could have been weakened: the check says so and passes, with no reason asked per settings file. Its quick run on your computer no longer crashes on brand-new files or the folder links.
+- **The first save already matches your project's settings.** Setup refreshes one generated file to fit your project, so it no longer shows up as a stray change when you publish.
+- **Publishing restarts a cut-off check run by itself.** When Cloudflare cuts off the main version's last check run, publishing starts it again once, waits, and carries on.
+- **After publishing, your folder is on the live version.** When you work straight in the project folder and nothing is unsaved, publishing moves it to `main`, the version that went live. A folder with unsaved work, or a separate workspace, stays as it is.
+- **A save explains a missing summary file.** A passing save deletes its summary file; reusing it now says so and asks for a new one.
+- **The project's own tools find your sign-in right after connect.** Before, they said *Connect first* until given a hidden folder path. Setup now checks this before it says nothing else is needed. Computers already connected are fixed by the update, with nothing to rerun.
+- **Connect says when it reused a sign-in, and whose.** On a computer that was already signed in, the report says *Used this computer's existing sign-in as <email>*, so a shared computer can't silently connect as someone else.
+- **Listing actions says when the company ones are missing.** When you're not signed in, the list still shows memory actions and now adds one plain line: company actions are missing, and how to sign in.
+- **Setup asks for a new enough Node.** The tool check now asks for the Node version the app's packages accept, such as 24.15 or later on Node 24, so installs stop printing engine warnings.
+
 ## 43.0.0 — One company sign-in for everything
 
 - **One sign-in opens everything.** The company sign-in a person makes once at setup now also opens memory and the project's updates, not only company actions. It lasts 30 days. There is no memory key to hand out.

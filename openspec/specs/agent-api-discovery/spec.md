@@ -27,7 +27,7 @@ The protected company Worker SHALL publish OpenAPI 3.1 generated from its curren
 
 ### Requirement: One helper describes company and memory operations without combining authority
 
-The helper SHALL provide one bounded, filterable catalogue and selected-operation descriptions for live company actions and installed memory read operations. Every description SHALL identify its source, transport, required authentication, input/output schemas, effect and contract revision. Installed-client operations SHALL NOT be presented as deployed HTTP endpoints in OpenAPI. Company operations SHALL NOT override the memory namespace or select arbitrary local commands. Memory discovery and calls SHALL remain usable independently of company login; knowing a schema SHALL NOT establish an authorized connection.
+The helper SHALL provide one bounded, filterable catalogue and selected-operation descriptions for live company actions and installed memory read operations. Every description SHALL identify its source, transport, required authentication, input/output schemas, effect and contract revision. Installed-client operations SHALL NOT be presented as deployed HTTP endpoints in OpenAPI. Company operations SHALL NOT override the memory namespace or select arbitrary local commands. Memory discovery and calls SHALL remain usable independently of company login; knowing a schema SHALL NOT establish an authorized connection. A combined list that could not reach the company SHALL also say so in one plain line outside its result, naming the sign-in step.
 
 #### Scenario: A task needs both company information and remembered context
 
@@ -37,7 +37,7 @@ The helper SHALL provide one bounded, filterable catalogue and selected-operatio
 #### Scenario: Company login is unavailable
 
 - **WHEN** the agent lacks company login but its installed memory credential is valid
-- **THEN** it can still discover and use the described memory reads, and the unavailable company connection is reported separately
+- **THEN** it can still discover and use the described memory reads, the unavailable company connection is reported separately, and a plain line says company actions are missing and how to sign in
 
 ### Requirement: Agent context is selective and available by default
 

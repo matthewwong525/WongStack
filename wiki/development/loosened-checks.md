@@ -13,6 +13,8 @@ A file is flagged when the change does one of four things to it:
 
 Prose is never read for skip markers: `wiki/`, `openspec/`, and any `.md` file.
 
+A project's first change passes with nothing flagged when its base holds no files, such as a new install's first commit: there is no check yet to loosen.
+
 ## A kept check is flagged only when it gets weaker
 
 A kept check needs no reason when the change:

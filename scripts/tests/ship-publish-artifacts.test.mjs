@@ -37,6 +37,10 @@ case "$*" in
   "-C "*" status --porcelain") printf '%b' "\${DIRTY:-}" ;;
   "-C "*" merge --ff-only "*) exit "\${FF_RC:-0}" ;;
   "fetch origin main:main") exit "\${FETCHMAIN_RC:-0}" ;;
+  "rev-parse --path-format=absolute --git-dir --git-common-dir") printf '%s\\n' "\${GIT_DIR_ABS:-/work/feature/.git}" /work/primary/.git ;;
+  "rev-parse --show-toplevel") echo /work/primary ;;
+  "status --porcelain") printf '%b' "\${TOP_DIRTY:-}" ;;
+  "switch -q main") exit 0 ;;
   *) exit 1 ;;
 esac
 `;
@@ -254,6 +258,20 @@ test('the sync never fails a publish: a dirty main checkout is skipped, and with
   assert.equal(none.status, 0, none.stderr);
   assert.match(none.stdout, /^synced=ref$/m);
   assert.match(none.calls, /^git fetch origin main:main$/m);
+});
+
+test('a clean project folder on the published branch is moved onto main; a dirty one or a linked worktree is left', t => {
+  const OTHER = 'worktree /work/primary\\nHEAD def\\nbranch refs/heads/feature\\n';
+  const clean = run(t, { WORKTREES: OTHER, GIT_DIR_ABS: '/work/primary/.git' });
+  assert.equal(clean.status, 0, clean.stderr);
+  assert.match(clean.stdout, /^synced=\/work\/primary \(switched from feature\)$/m);
+  assert.match(clean.calls, /^git switch -q main$/m);
+  const dirty = run(t, { WORKTREES: OTHER, GIT_DIR_ABS: '/work/primary/.git', TOP_DIRTY: '?? notes.txt\\n' });
+  assert.match(dirty.stdout, /^synced=ref$/m);
+  assert.doesNotMatch(dirty.calls, /switch/);
+  const linked = run(t, { WORKTREES: OTHER });
+  assert.match(linked.stdout, /^synced=ref$/m);
+  assert.doesNotMatch(linked.calls, /switch/);
 });
 
 test('merge.sh tells the route and hands an Artifacts install over before its first gh call', () => {

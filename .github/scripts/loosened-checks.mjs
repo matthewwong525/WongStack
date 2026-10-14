@@ -3,7 +3,7 @@
 // What is flagged, and the `Check:` bullet that explains it: wiki/development/loosened-checks.md
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, lstatSync, readFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseCli, usageError } from '../../.claude/skills/memory/scripts/lib/cli.mjs';
@@ -19,6 +19,9 @@ const USAGE = `usage: node .github/scripts/loosened-checks.mjs --base <sha>
               app-untouched.sh --worktree finds`;
 
 const SELF = '.github/scripts/loosened-checks.mjs';
+
+// A base holding no files, such as a new install's `Start the project` commit, has no check to loosen.
+const EMPTY_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
 
 // A comment that turns a check off for the lines it covers.
 const SKIP_COMMENTS = [
@@ -68,7 +71,8 @@ function addedLines(range, files, worktree) {
   }
   if (worktree) {
     for (const { path } of files) {
-      if (added.has(path) || !existsSync(path)) continue;
+      // A folder link such as `.claude -> .agents` lists as one untracked path; reading it would crash.
+      if (added.has(path) || !existsSync(path) || !lstatSync(path).isFile()) continue;
       const text = readFileSync(path, 'utf8');
       if (!text.includes('\0')) added.set(path, text.split('\n'));
     }
@@ -80,7 +84,10 @@ function addedLines(range, files, worktree) {
 function reader(base, worktree) {
   const at = (rev, path) => {
     try {
-      return git(['show', `${rev}:${path}`]);
+      // A file new in the change is absent at the base; Git's `fatal:` would only alarm the reader.
+      return execFileSync('git', ['-c', 'core.quotePath=false', 'show', `${rev}:${path}`], {
+        encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'],
+      });
     } catch {
       return null;
     }
@@ -239,6 +246,10 @@ function main() {
   const base = worktree ? worktreeBase() : values.base.trim();
   if (!base) {
     console.log('### Loosened checks\n\nThere was nothing to compare with, so no check was read for loosening.\n');
+    return;
+  }
+  if (git(['rev-parse', `${base}^{tree}`]).trim() === EMPTY_TREE) {
+    console.log("### Loosened checks\n\nThere was nothing to loosen: this is the project's first change.\n");
     return;
   }
   const range = worktree ? [base] : [base, 'HEAD'];

@@ -1,0 +1,54 @@
+schema: spec-driven
+
+# Project context shown to the AI when it drafts change artifacts.
+context: |
+  This project runs on WongStack: skills under .agents/skills/, the wiki/
+  progressive-disclosure wiki, and AGENTS.md. CI is the gate when checks
+  exist, else review is; a local check run is a pre-check, never the gate.
+
+  Planning runs on OpenSpec: a change is openspec/changes/<name>/ (proposal,
+  specs, design, tasks). An active change is saved with its code on a feature
+  branch; its archive reaches the default branch after merge. The proposal
+  records the actual feature branch. The WongStack skills own all git;
+  OpenSpec never runs git itself.
+
+# Per-artifact rules.
+rules:
+  proposal:
+    - Keep it tight — what changes and why, plus a Non-goals line.
+    - Write Why and What Changes in plain words, by "Write in plain words" in
+      .agents/skills/explore/references/asking-the-user.md - say what the
+      person will see, get, or be able to do, and put file names, code, and
+      commands in the design, specs, and tasks. Capabilities and Impact may
+      stay technical.
+    - A What Changes bullet that needs a picture carries it as a fenced text
+      block indented inside the bullet, drawn by
+      .agents/skills/plan/references/drawings.md - aim for 40 columns, and up
+      to 56 for options side by side, a table, or a before-and-after. One
+      drawing carries the change by default; sketch each new or restructured
+      user-facing screen, a changed one before and after. Other bullets stay
+      text. Bullets carry no review anchors.
+    - Each Decision log bullet holds one decision and starts after its date with
+      Asked (a question the user answered) or Assumed (an inferred choice and
+      its reason), so the review page can label it.
+  design:
+    - Every change gets a standalone review page at openspec/changes/<name>/review.html,
+      built by .agents/skills/plan/scripts/build-review.mjs from the proposal and
+      the fixed review kit. The page shows Why, What Changes with their text
+      drawings, and the Decision log. Never hand-edit the generated page. Do not
+      rewrite historical archives.
+    - If the change adds or meaningfully restructures a user-facing screen (a page
+      or component — not merely touching a UI file), also include a "## UX" section
+      following wiki/ux-principles.md — use-case brief (who, the job, what done
+      looks like, context of use, common vs edge case, stated frequency assumptions),
+      the shortest flow from intent to done, hierarchy (the one primary action per
+      screen), the component inventory, and a "### Review" subsection that links
+      review.html and names the What Changes items that sketch each screen, without
+      repeating the sketches. Prefer mirroring the closest existing screen; name it
+      in the brief. When the brief says the job is done on a phone, sketch the phone
+      layout first. A UI-less change (worker, CLI, library) skips this section and
+      still gets the review page.
+  tasks:
+    - Group tasks by the surface they touch (skill, script, docs, AGENTS.md).
+  specs:
+    - Write each requirement as a promise, not a procedure, by the spec bar in .agents/rules/openspec.md - one or two scenarios each, and the steps left to the skill.

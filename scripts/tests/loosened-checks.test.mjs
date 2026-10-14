@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, renameSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, renameSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -412,6 +412,27 @@ test('an empty base passes and says why', t => {
   const result = f.check(['--base', '']);
   assertPasses(result);
   assert.match(result.stdout, /nothing to compare with/);
+});
+
+test("settings added onto an empty first commit pass: there was nothing to loosen", t => {
+  const f = fixture(t);
+  f.git('checkout', '-q', '--orphan', 'first');
+  f.git('rm', '-rqf', '.');
+  f.commit({}, 'Start the project');
+  const empty = f.git('rev-parse', 'HEAD');
+  f.commit({ 'app/vitest.config.ts': 'export default {};\n', '.github/workflows/test.yml': 'on: push\n' });
+  const result = f.check(['--base', empty]);
+  assertPasses(result);
+  assert.match(result.stdout, /There was nothing to loosen: this is the project's first change\./);
+});
+
+test('--worktree reads past an untracked folder link and prints no Git error', t => {
+  const f = fixture(t);
+  f.write({ '.agents/settings.json': '{}\n', 'package.json': `${PACKAGE}\n` });
+  symlinkSync('.agents', join(f.work, '.claude'), 'dir');
+  const result = f.check(['--worktree']);
+  assertFails(result, 'package.json');
+  assert.doesNotMatch(result.stderr, /fatal:/);
 });
 
 test('--worktree reads uncommitted and untracked work', t => {
