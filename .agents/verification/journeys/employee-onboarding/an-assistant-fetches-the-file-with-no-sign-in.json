@@ -12,7 +12,6 @@
   "sourcePaths": [
     ".agents/skills/wong-sync/references/payload-files.json",
     "app/src/components/AssistantSetup.tsx",
-    "app/worker/employee-access/bootstrap-release.json",
     "app/worker/employee-access/prompt.ts",
     "app/worker/employee-access/setup-file.ts",
     "app/worker/employee-access/setup.ts",
