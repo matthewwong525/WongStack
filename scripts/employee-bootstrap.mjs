@@ -210,7 +210,7 @@ export function companyClient({ root = process.cwd(), stateDir, routesDir = defa
   }
   async function token(origin, login = false) {
     safeCache(cacheDir, root);
-    if (login) await run(['login', origin], { onLoginUrl });
+    if (login) await run(['login', origin], { onLoginUrl, timeoutMs: 600000 }); // a person needs longer than a token read
     return employeeToken(await run(['token', `-app=${origin}`], { onLoginUrl }));
   }
   /** The saved connection's session: the same person who connected, or nothing. */
