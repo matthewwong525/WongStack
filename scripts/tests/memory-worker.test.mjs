@@ -6,7 +6,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { handleMemory, hashKey, newKey, MAX_TRANSCRIPT_BYTES, mayTouch } from '../../.agents/skills/memory/worker/memory-worker.mjs';
-import { ADMIN_WRITES, FTS_HITS, readRefusal, shadowCtes, supersedeSql, WRITES } from '../../.agents/skills/memory/worker/statements.mjs';
+import { ADMIN_WRITES, FTS_HITS, LEGACY_FTS_HITS, readRefusal, shadowCtes, supersedeSql, WRITES } from '../../.agents/skills/memory/worker/statements.mjs';
 import { keyMachine } from '../../.agents/skills/memory/scripts/lib/store.mjs';
 import { personalFilter } from '../../.agents/skills/memory/scripts/lib/digest.mjs';
 import { fakeSignIn, memory, node, setup, signInAs, tempDir, testToken, writeJsonFile } from './fixtures/memory/harness.mjs';
@@ -176,15 +176,35 @@ test('filtered FTS, nested reads and tag counts expose only visible facts', asyn
   insert(env, OTHER, 'feedback', 'hidden deploy preference');
   env.fake.db.exec("INSERT INTO tags (name, definition, created_at) VALUES ('deploy', 'Deploys', 'now')");
   env.fake.db.prepare('INSERT INTO fact_tags (fact_id, tag) SELECT id, ? FROM facts').run('deploy');
-  const queries = [
-    [`SELECT hits.rowid AS id FROM (SELECT 1 AS id) f JOIN ${FTS_HITS} hits ON 1 = 1 ORDER BY hits.rowid`, ['hidden OR visible']],
+  // The current fragment and the one a computer that has not updated still sends.
+  const queries = [FTS_HITS, LEGACY_FTS_HITS].map(fragment =>
+    [`SELECT hits.rowid AS id FROM (SELECT 1 AS id) f JOIN ${fragment} hits ON 1 = 1 ORDER BY hits.rowid`, ['hidden OR visible']]).concat([
     ['SELECT id FROM (WITH x AS (SELECT * FROM facts) SELECT * FROM x)', []],
     ['WITH x AS (SELECT id FROM facts) SELECT id FROM x', []],
     ['WITH RECURSIVE x(id) AS (SELECT id FROM facts) SELECT id FROM x', []],
-  ];
+  ]);
   for (const [sql, params] of queries) assert.deepEqual((await (await query(env, key, { sql, params })).json()).result[0].results.map(row => row.id), [visible]);
   assert.deepEqual((await (await query(env, key, { sql: 'SELECT count(*) AS n FROM fact_tags' })).json()).result[0].results, [{ n: 1 }]);
   assert.match(shadowCtes(OWNER), /sessions AS .*owner_subject/);
+});
+
+test('a search runs its full-text match once, not once per stored fact, and finds what the old fragment found', async t => {
+  const env = await setup(t);
+  const words = ['preview', 'deploy', 'cache', 'cold', 'worker', 'memory', 'search', 'branch'];
+  for (let i = 0; i < 200; i++) insert(env, OWNER, 'project', `Fact ${i}: ${words[i % 8]} ${words[(i * 3) % 8]}.`);
+  // The save gate's neighbour lookup (memory.mjs) and a search (lib/read-facts.mjs).
+  const shapes = fragment => [
+    [`SELECT f.id FROM facts f JOIN ${fragment} hits ON hits.rowid = f.id WHERE f.superseded_by IS NULL AND f.slug != ? ORDER BY hits.rank LIMIT 5`, ['"cold" OR "preview" OR "memory"', 'y']],
+    [`SELECT f.id FROM facts f JOIN ${fragment} hits ON hits.rowid = f.id WHERE f.superseded_by IS NULL ORDER BY hits.rank, f.created_at DESC, f.id DESC LIMIT 30`, ['"cold" OR "preview" OR "memory"']],
+  ];
+  const ids = ([sql, params]) => env.fake.db.prepare(sql).all(...params).map(row => row.id);
+  for (const [index, [sql, params]] of shapes(FTS_HITS).entries()) {
+    const plan = env.fake.db.prepare(`EXPLAIN QUERY PLAN ${sql}`).all(...params).map(row => String(row.detail));
+    // facts_fts leads on its MATCH alone; an `=` after the colon is a rowid lookup that re-runs the MATCH per fact.
+    assert.match(plan[0], /^SCAN facts_fts VIRTUAL TABLE INDEX \d+:M/, plan.join(' | '));
+    assert.ok(ids([sql, params]).length > 0);
+    assert.deepEqual(ids([sql, params]), ids(shapes(LEGACY_FTS_HITS)[index]));
+  }
 });
 
 test('an old admin key opens memory with no person; an old member key needs the sign-in', async t => {

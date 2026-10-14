@@ -77,7 +77,7 @@ Hook run: use only the memory script; pass JSON files from the input folder.
 
 1. **Spool.** Run `spool`. For each file it lists, decide its candidates from the printed neighbours and send the decisions to `put-facts --file <input> --spooled <path>`.
 2. **Pending sessions.** Run `pending --limit 5 --exclude <the session named in your instructions>`. For each session, newest first:
-   1. Run `strip <session-id>`. On `private:`, write nothing for it. On `not recognized:`, count it and go on.
+   1. Run `strip <session-id>`. On `private:`, write nothing for it. On `refused:`, write nothing for it, count it skipped, and go on. On `not recognized:`, count it and go on.
    2. Follow [writing facts](references/writing-facts.md). Slug: the change name, else an existing topic from `search`, else a short topic slug.
    3. Run `gate --file <input>`, decide each candidate, and run `put-facts --file <input>` with `"session": "<session-id>"` and `"source": "backfill"`. Nothing to keep: `put-facts` with empty `facts` and a `reason` records skipped.
 3. **Consolidation.** Run `due`. If it prints `consolidation due`:
