@@ -24,6 +24,10 @@ const SCRIPT = join(repoRoot, '.agents/skills/wong-setup/scripts/provision.mjs')
 const REPO = 'ada/recipe-box';
 const TODAY = '2026-09-27';
 const EMAIL = 'ada@example.com';
+const SOURCE_CONFIG = 'app/wrangler.jsonc';
+const FRAGMENT = '.agents/skills/wong-sync/references/stack-pack-fragments.md';
+/** The compatibility date WongStack's own app is tested on. */
+const sourceDate = () => JSON.parse(stripJsonc(readFileSync(join(repoRoot, SOURCE_CONFIG), 'utf8'))).compatibility_date;
 const noSleep = async () => {};
 // A Worker upload, as distinct from the secret or the subdomain setting under the same script.
 const SCRIPT_UPLOAD = /\/workers\/scripts\/[^/]+$/;
@@ -753,7 +757,7 @@ test('a fresh provision with R2 on makes the memory store, the key, both databas
   assert.equal(workerName(config, 'staging'), 'recipe-box-staging');
   assert.equal(databaseName(config), 'recipe-box-db');
   assert.equal(databaseName(config, 'staging'), 'recipe-box-db-staging');
-  assert.equal(config.compatibility_date, TODAY);
+  assert.equal(config.compatibility_date, sourceDate(), 'a new install gets the source app\'s date, not the install day');
   assert.deepEqual(config.d1_databases[1], { binding: 'MEMORY_DB', database_name: 'recipe-box-memory', database_id: 'uuid-recipe-box-memory' });
   assert.deepEqual(config.r2_buckets, [{ binding: 'MEMORY_BUCKET', bucket_name: 'recipe-box-memory' }]);
   assert.equal(config.env.staging.triggers, undefined);
@@ -1204,18 +1208,26 @@ test('five taken subdomains stop with cloudflare', async (t) => {
 
 // ── the config fragment ─────────────────────────────────────────────────────
 
+// The source's runtime tests prove its own date against the pinned runtime; this proves an install gets that date.
+test('a new install gets the compatibility date the source app is tested on', () => {
+  const built = JSON.parse(stripJsonc(wranglerConfig({ base: 'demo', ids: { db: 'id-db', stagingDb: 'id-staging', memory: 'id-memory' }, bucket: null })));
+  assert.match(built.compatibility_date, /^\d{4}-\d{2}-\d{2}$/);
+  assert.equal(built.compatibility_date, sourceDate(),
+    `${FRAGMENT} and ${SOURCE_CONFIG} must share one compatibility_date: change both together, to a date the pinned workerd in app/package-lock.json accepts`);
+});
+
 test('the wrangler config fills every placeholder, and a new placeholder fails', () => {
   const ids = { db: 'id-db', stagingDb: 'id-staging', memory: 'id-memory' };
-  const text = wranglerConfig({ base: 'demo', ids, bucket: null, today: TODAY });
+  const text = wranglerConfig({ base: 'demo', ids, bucket: null });
   const config = JSON.parse(stripJsonc(text));
   assert.equal(config.assets.binding, 'ASSETS');
   assert.equal(config.main, 'worker/index.ts');
   assert.deepEqual(config.env.staging.d1_databases[0], { binding: 'DB', database_name: 'demo-db-staging', database_id: 'id-staging', migrations_dir: '../schema/migrations' });
   assert.equal(config.vars.WORKSPACE_LOGIN, undefined);
-  const open = JSON.parse(stripJsonc(wranglerConfig({ base: 'demo', ids, bucket: null, today: TODAY, access: { mode: 'open' } })));
+  const open = JSON.parse(stripJsonc(wranglerConfig({ base: 'demo', ids, bucket: null, access: { mode: 'open' } })));
   assert.deepEqual([open.vars.WORKSPACE_LOGIN, open.env.staging.vars.WORKSPACE_LOGIN, open.env.local.vars.WORKSPACE_LOGIN], ['off', 'off', undefined]);
   assert.equal(open.vars.CF_ACCESS_AUD, '');
-  assert.throws(() => wranglerConfig({ base: 'demo', ids, bucket: null, today: TODAY }, `${wranglerFragment()}// <your-new-thing>\n`), { reason: 'repo', message: /<your-new-thing>/ });
+  assert.throws(() => wranglerConfig({ base: 'demo', ids, bucket: null }, `${wranglerFragment()}// <your-new-thing>\n`), { reason: 'repo', message: /<your-new-thing>/ });
   const other = join(mkdtempSync(join(tmpdir(), 'wong-test-fragment-')), 'none.md');
   writeFileSync(other, '# Nothing here\n');
   assert.throws(() => wranglerFragment(other), { reason: 'repo' });

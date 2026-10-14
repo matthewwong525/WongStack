@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 41.2.1 — A new install's first save passes
+
+- **A brand-new install can save its first change.** Setup stamped a new app with the day it was installed. The app's own checks run on a test engine that ships with WongStack, and that engine refuses a date more than a week newer than itself. So an install made more than a week after the engine was last updated failed its first save. Setup now gives a new app the date WongStack itself is tested on, on any day, wherever the project is kept.
+- **WongStack's own checks now catch this.** The check that builds a pretend install used a made-up old date; it now uses the date setup really writes. A second check fails if that date and WongStack's own app's date ever differ.
+- **Installs you already have keep their date.** An update never changed it and still doesn't.
+
+**Updating.** Nothing to do. Only an install made in the last few days can be affected: if a save fails saying the app *requires compatibility date*, ask your assistant to set the app's date to the one in that message.
+
 ## 41.2.0 — Teammates save changes through the app
 
 - **A teammate who can install the project can now save a change.** They ask their assistant, and the change is saved from their copy with their app sign-in alone: no GitHub or Cloudflare account. Their assistant reports the automatic checks and a link to look at, then says the owner or an Admin publishes it. On GitHub the saved change is a pull request that names who saved it.

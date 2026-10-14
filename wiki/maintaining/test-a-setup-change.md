@@ -19,7 +19,7 @@ Setup reads the source's default branch, so name the branch in the line you past
 Install WongStack from github.com/matthewwong525/WongStack, using its branch <branch> in place of the default branch. Read and follow https://raw.githubusercontent.com/matthewwong525/WongStack/refs/heads/<branch>/.agents/skills/wong-setup/SKILL.md
 ```
 
-The install record then names that branch, so the test install's later updates follow it. Keep the install throwaway: the branch is deleted when it publishes.
+The install record names no branch, so the test install's later updates follow the default branch. Keep the install throwaway: the branch is deleted when it publishes.
 
 **Name the throwaway folder so it can not match a real install** in the same account: never `~/wongstack` on a machine that holds WongStack. Setup names the Worker, the database and the repository after the folder, and teardown deletes by that name.
 

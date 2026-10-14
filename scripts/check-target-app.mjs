@@ -60,7 +60,6 @@ const INSTALL = {
   base: BASE,
   ids: { db: id('1'), stagingDb: id('2'), memory: id('3') },
   bucket: `${BASE}-memory`,
-  today: '2026-01-01',
   access: { mode: 'private', teamDomain: 'target-check.cloudflareaccess.com', audience: 'a'.repeat(64), appId: id('4'), ownerEmail: 'owner@example.invalid', workers: [{ id: 'b'.repeat(32) }, { id: 'c'.repeat(32) }] },
 };
 
