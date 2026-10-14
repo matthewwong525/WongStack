@@ -34,6 +34,8 @@ A person need not know the verbs. Asked for a change to the repo's code or proce
 2. On yes, **`/apply`** builds, uploads a preview from the agent host, and asks *publish it?* A change that leaves the app untouched gets no preview; the agent says so and still asks.
 3. On yes, **`/ship`**: one save, CI, the walk, and the merge.
 
+**A teammate working in [a copy installed through the app](../stack/employee-project.md#save-a-change-through-the-app) saves and does not publish.** Their loop ends at the save: the reply says the change is saved and that the owner or an Admin publishes it, in place of *publish it?*
+
 A verb the person types keeps its own reach: `/ship` runs the whole chain with no stop, and `/apply` plans and builds without one. Every plan, question, and report is in [plain words](../../.agents/skills/explore/references/asking-the-user.md#write-in-plain-words), so the person reviews outcomes, not mechanisms.
 
 ### Offer a routine or an app

@@ -16,6 +16,7 @@ export function githubFixture(overrides = {}) {
       if (key === 'remote get-url origin') return overrides.remote ?? 'git@github.com:team/repo.git';
       if (key.startsWith('ls-remote ')) return overrides.refs ?? `${HEAD}\trefs/heads/work`;
     }
+    if (command === 'node' && / heads refs\/heads\//.test(key)) return overrides.refs ?? `${HEAD}\trefs/heads/work`;
     if (command === 'node' && / result [a-f0-9]{40} refs\/heads\//.test(key)) return overrides.runResult ?? 'SUCCESS';
     if (key === 'repo view --json nameWithOwner') return JSON.stringify({ nameWithOwner: overrides.repository ?? 'team/repo' });
     if (key.startsWith('pr view ')) return JSON.stringify({ number: 5, headRefOid: overrides.rollupHead ?? HEAD, headRefName: 'work', statusCheckRollup: checks });

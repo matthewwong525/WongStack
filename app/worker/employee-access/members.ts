@@ -3,7 +3,7 @@ import { z } from "zod";
 import { type Core, type OwnerCore, AccessError, isOwner, now } from "./core.ts";
 import { loginAuthority } from "./login-management.ts";
 import { apps, appTitle } from "./catalogue.ts";
-import { codeStep } from "./code.ts";
+import { codeStep, saveStep } from "./code.ts";
 import { keyCatalogue } from "./key-catalogue.ts";
 import { ADMIN_ROLE } from "./policy.ts";
 import { type AccessSet, type Sets, changedSet, heldSet, readSets, save, setFields, setWrites } from "./sets.ts";
@@ -121,6 +121,8 @@ export async function accessStatus(core: Core): Promise<object> {
       roles: roles.filter(role => role.unticked.length).map(role => ({ name: role.name, apps: titles(role.unticked) })) },
     // Why Project code can not be given out yet: a word, never a secret's name or value.
     project: codeStep(core.env),
+    // The same for saving a change through the app, which an install that hands the project out may still lack.
+    projectSave: saveStep(core.env),
     // `builtIn` marks Admin, the one role nobody changes.
     roles: roles.map(role => ({ id: role.id, name: role.name, builtIn: role.builtIn, ...role.set })),
     people: people.map(person => ({ email: person.email, status: person.status, settled: person.settled, role: person.role,

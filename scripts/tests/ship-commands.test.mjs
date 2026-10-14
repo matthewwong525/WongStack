@@ -709,6 +709,25 @@ test('a route that can not be told stops prepare and finish, and neither falls b
   assert.notEqual(f.git('ls-remote', '--heads', 'origin', 'work'), '');
 });
 
+test('a copy installed through the app never publishes: prepare and finish stop with one line saying who does', t => {
+  // The fixture that logs git, with origin answered as the app's own Git address: origin alone decides.
+  const f = fixture(t, { artifacts: true, openspec: {} });
+  f.commit({ ...f.change('demo'), 'app.txt': 'two\n' });
+  f.git('push', '-q', '-u', 'origin', 'work');
+  const main = f.git('rev-parse', 'origin/main');
+  const head = f.git('rev-parse', 'HEAD');
+  for (const [command, code] of [['prepare', 8], ['finish', 1]]) {
+    const r = f.run([command], { FAKE_REMOTE: 'https://app.example.com/api/access/code/git/' });
+    assert.equal(r.status, code, `${command}: ${r.stdout}${r.stderr}`);
+    assert.equal(r.stdout, 'NEXT: this copy saves through the app and never publishes. Save the change with /save, then say the owner or an Admin publishes it; publish nothing, and never offer to.\n');
+    assert.equal(r.stderr, '');
+  }
+  assert.doesNotMatch(f.calls(), /^(gh|openspec|git push|git merge|git fetch|git commit|node artifacts-run) /m);
+  assert.equal(f.git('rev-parse', 'HEAD'), head);
+  assert.equal(f.has('openspec/changes/demo/proposal.md'), true, 'nothing was archived');
+  assert.match(f.git('ls-remote', '--heads', 'origin', 'main'), new RegExp(`^${main}`));
+});
+
 test('record-only routine prepare keeps normal default checks and leaves the definition unarchived', async t => {
   const { ROUTINE_REFERENCE, routine } = await import('./fixtures/schedule-records.mjs');
   const f = fixture(t);

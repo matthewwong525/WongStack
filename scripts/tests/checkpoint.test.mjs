@@ -4,6 +4,7 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, wr
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
+import { CHECK_FILES, NEVER_PUBLISHES, NOT_SET_UP } from '../../.agents/skills/save/scripts/app-change.mjs';
 import { failingChecks } from '../../.agents/skills/save/scripts/checkpoint.mjs';
 
 const script = new URL('../../.agents/skills/save/scripts/checkpoint.mjs', import.meta.url).pathname;
@@ -15,6 +16,9 @@ const PASS = [`pass\tunit\t${run(10, 1)}`];
 const ARTIFACTS_REMOTE = `https://${'0123456789abcdef'.repeat(2)}.artifacts.cloudflare.net/git/wongstack/repo.git`;
 const ARTIFACTS_RECORD = { components: { delivery: { route: 'artifacts', accountId: '0123456789abcdef'.repeat(2), remote: ARTIFACTS_REMOTE, workflow: 'repo-checks' } } };
 const PREVIEW = 'https://work.example.workers.dev';
+// A copy installed through Connect your assistant: origin is the app's own Git address.
+const APP_REMOTE = 'https://app.example.com/api/access/code/git/';
+const NO_CHANGE = { state: null, url: null, number: null };
 
 // The real git, against a bare origin in the fixture. Every call is logged, and the origin
 // address reads as a GitHub one so the receipt helper can name the repository.
@@ -83,8 +87,23 @@ fail('unexpected gh call: ' + line, 97);
 // for real, over the fake git's origin and the committed install record. artifacts-run.mjs is
 // stood in for: `wait` prints $FAKE_DIR/run.txt, as the check run's reader would, and `preview`
 // prints $FAKE_DIR/preview.txt. Every other script, the fake gh included, runs on the real node.
+// app-change.mjs is stood in for the same way, since its connection can not be faked from outside:
+// `<command>.err` is the one line a refusal prints, `push` sends the branch to the fixture's origin
+// with the real git, unlogged, and `open` keeps the body it was given.
 const FAKE_NODE = `#!/usr/bin/env bash
 case "\${1:-}" in
+  */app-change.mjs)
+    echo "node app-change.mjs \${*:2}" >> "$FAKE_DIR/calls"
+    [ -f "$FAKE_DIR/$2.err" ] && { cat "$FAKE_DIR/$2.err" >&2; exit 1; }
+    case "\${2:-}" in
+      change) cat "$FAKE_DIR/change.json" ;;
+      push) "$REAL_GIT" push -q -u origin HEAD ;;
+      open) cp "$4" "$FAKE_DIR/body.md"; cat "$FAKE_DIR/open.json" ;;
+      wait) cat "$FAKE_DIR/run.txt" ;;
+      preview) cat "$FAKE_DIR/preview.txt" 2>/dev/null ;;
+      log) cat "$FAKE_DIR/log.txt" 2>/dev/null ;;
+    esac
+    exit 0 ;;
   */artifacts-run.mjs)
     echo "node artifacts-run.mjs \${*:2}" >> "$FAKE_DIR/calls"
     case "\${2:-}" in
@@ -96,13 +115,13 @@ esac
 exec "$REAL_NODE" "$@"
 `;
 
-function fixture(t, { pushed = true, workflows = true, gh = { pr: PR, checks: PASS }, artifacts = false } = {}) {
+function fixture(t, { pushed = true, workflows = true, gh = { pr: PR, checks: PASS }, artifacts = false, app = false } = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'wong-test-checkpoint-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const work = join(dir, 'work');
   const origin = join(dir, 'origin.git');
   for (const name of ['bin', 'work', 'notes', 'state']) mkdirSync(join(dir, name));
-  for (const [name, body] of [['git', FAKE_GIT], ['gh', FAKE_GH], ...(artifacts ? [['node', FAKE_NODE]] : [])]) {
+  for (const [name, body] of [['git', FAKE_GIT], ['gh', FAKE_GH], ...(artifacts || app ? [['node', FAKE_NODE]] : [])]) {
     writeFileSync(join(dir, 'bin', name), body);
     chmodSync(join(dir, 'bin', name), 0o755);
   }
@@ -112,7 +131,7 @@ function fixture(t, { pushed = true, workflows = true, gh = { pr: PR, checks: PA
     GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null',
     GIT_AUTHOR_NAME: 'Fixture', GIT_AUTHOR_EMAIL: 'fixture@example.test', GIT_COMMITTER_NAME: 'Fixture', GIT_COMMITTER_EMAIL: 'fixture@example.test',
     WONG_SAVE_STATE_DIR: join(dir, 'state'), WAIT_FOR_CHECKS_GRACE: '1', WAIT_FOR_CHECKS_INTERVAL: '0.2',
-    ...(artifacts ? { FAKE_REMOTE: ARTIFACTS_REMOTE, REAL_NODE: process.execPath } : {}),
+    ...(artifacts || app ? { FAKE_REMOTE: app ? APP_REMOTE : ARTIFACTS_REMOTE, REAL_NODE: process.execPath } : {}),
   };
   const git = (...args) => execFileSync(REAL_GIT, args, { cwd: work, env, encoding: 'utf8' }).trim();
   const write = (path, text) => {
@@ -152,7 +171,16 @@ function fixture(t, { pushed = true, workflows = true, gh = { pr: PR, checks: PA
     writeFileSync(join(dir, 'run.txt'), `${text}\n`);
     writeFileSync(join(dir, 'preview.txt'), preview ? `${preview}\n` : '');
   };
-  return { dir, work, git, write, stage, set, save, call, calls, checkRun, message, summary, body: () => readFileSync(join(dir, 'body.md'), 'utf8') };
+  // What the app answers: the branch's change, the change `open` returns, and one refusal line a command.
+  const answer = ({ change = { ...PR, rows: true }, open = PR, log, refuse = {} } = {}) => {
+    writeFileSync(join(dir, 'change.json'), JSON.stringify(change));
+    writeFileSync(join(dir, 'open.json'), JSON.stringify(open));
+    if (log) writeFileSync(join(dir, 'log.txt'), `${log}\n`);
+    for (const command of ['change', 'push', 'open']) rmSync(join(dir, `${command}.err`), { force: true });
+    for (const [command, line] of Object.entries(refuse)) writeFileSync(join(dir, `${command}.err`), `${line}\n`);
+  };
+  if (app) answer();
+  return { dir, work, git, write, stage, set, save, call, calls, checkRun, answer, message, summary, body: () => readFileSync(join(dir, 'body.md'), 'utf8') };
 }
 
 const lastLine = result => result.stdout.trimEnd().split('\n').at(-1);
@@ -516,6 +544,152 @@ test('an Artifacts install: a check run that can not be read is UNKNOWN, and --w
   assert.equal(f.calls().match(/git commit/g).length, 1);
   assert.equal(f.calls().match(/git push/g).length, 1, 'the one save push; --wait pushes nothing');
   for (const result of [r, waiting, none]) neverGitHub(f, result);
+});
+
+// ---------------------------------------------------------------------------
+// A copy installed through the app: the same command, with only the app to ask
+
+const APP_STOP = 'NEXT: the app did not take this, so nothing after it ran. Report the line above in plain words and stop; try no other way to save.';
+const SAVED_BY_APP = 'the change is saved, and the owner or an Admin publishes it. Report the save and say who publishes it; never offer to publish.';
+// gh logs every call, and checkpoint.mjs itself never pushes: the stand-in's push is unlogged.
+const onlyTheApp = f => assert.doesNotMatch(f.calls(), /^gh |^git push/m, 'gh is never asked, and only app-change.mjs pushes');
+
+test('through the app: one command sends the branch up, opens the change, waits, and asks gh nothing', t => {
+  const f = fixture(t, { app: true, pushed: false });
+  f.answer({ change: { ...NO_CHANGE, rows: true } });
+  f.checkRun('RESULT: SUCCESS', PREVIEW);
+  f.stage('openspec/changes/demo/proposal.md', '# Demo\n\n**Status:** in-progress\n**Branch:** work\n\n## Why\n\nIt is faster.\n\n## What Changes\n\n- One thing.\n');
+  f.stage('openspec/changes/demo/tasks.md', '- [x] 1.1 Done\n');
+  f.stage('app.txt', 'two\n');
+  const r = f.save(['--change-root', 'openspec/changes/demo', '--mode', 'active']);
+  assert.equal(r.status, 0, `${r.stdout}${r.stderr}`);
+  const head = f.git('rev-parse', 'HEAD');
+  assert.equal(r.value('SAVE_HEAD'), head);
+  assert.equal(r.value('PR_URL'), PR.url);
+  assert.equal(r.value('PREVIEW_URL'), PREVIEW);
+  assert.equal(r.value('RECEIPT'), 'none (this route keeps no receipt; /verify reads the gate again)');
+  assert.match(r.stdout, /^RESULT: SUCCESS$/m);
+  assert.match(r.stdout, new RegExp(`^NEXT: checks passed: ${SAVED_BY_APP}$`, 'm'));
+  assert.equal(lastLine(r), 'SAVE_GATE_RESULT=SUCCESS');
+  assert.match(f.git('ls-remote', '--heads', 'origin', 'work'), new RegExp(`^${head}`));
+  // The change's own link names the project, so the body is rendered again once it is known, and once more with the preview.
+  assert.match(f.calls(), /git commit -F [^\n]*\n[\s\S]*node app-change\.mjs change\n[\s\S]*node app-change\.mjs push\n[\s\S]*node app-change\.mjs open feat: a thing [^\n]*\n[\s\S]*node app-change\.mjs open [\s\S]*node app-change\.mjs wait 20\n[\s\S]*node app-change\.mjs preview\n[\s\S]*node app-change\.mjs open /);
+  assert.match(f.body(), /https:\/\/github\.com\/team\/repo\//);
+  assert.doesNotMatch(f.body(), /app\.example\.com/);
+  assert.match(f.body(), new RegExp(PREVIEW.replaceAll('.', '\\.')));
+  onlyTheApp(f);
+  assert.equal(existsSync(f.message) || existsSync(f.summary), false, 'the temporary files are deleted');
+});
+
+test('through the app: a failed check is named with the tail of its log, and no rerun is offered', t => {
+  const f = fixture(t, { app: true });
+  f.answer({ log: 'CAUSE: last 2 lines of the failed log\n  | lint\tRun oxlint\tfirst\n  | lint\tRun oxlint\terror: unused variable `old`' });
+  f.checkRun(`RESULT: FAILURE\n  - lint  ${run(10, 2)}\n  - deploy  https://ci.example/9\n  - e2e  https://github.com/team/repo/actions/runs/11`);
+  f.stage('app.txt', 'two\n');
+  const r = f.save();
+  assert.equal(r.status, 0, `${r.stdout}${r.stderr}`);
+  assert.equal(lastLine(r), 'SAVE_GATE_RESULT=FAILURE');
+  assert.match(r.stdout, new RegExp(`^FAILED_CHECK=lint\nLINK=${run(10, 2)}\nCAUSE: last 2 lines of the failed log\n {2}\\| lint\tRun oxlint\tfirst\n {2}\\| lint\tRun oxlint\terror: unused variable \`old\`$`, 'm'));
+  // A check with no job to read says so: the app reads a log by its job alone.
+  assert.match(r.stdout, /^FAILED_CHECK=deploy\nLINK=https:\/\/ci\.example\/9\nCAUSE=no GitHub Actions log for this check; open LINK$/m);
+  assert.match(r.stdout, /^FAILED_CHECK=e2e\nLINK=\S+\nCAUSE=no GitHub Actions log for this check; open LINK$/m);
+  assert.doesNotMatch(r.stdout, /^RERUN=/m);
+  assert.match(r.stdout, /^NEXT: fix the cause the lines under RESULT show, in one push\.[^\n]*fix attempt 1 of 3[^\n]*no rerun on this route: stop and report it, with no code edit\.$/m);
+  assert.equal(r.value('PREVIEW_URL'), 'none');
+  assert.equal(r.value('RECEIPT'), 'none (this route keeps no receipt; /verify reads the gate again)');
+  assert.equal(r.value('SUMMARY_FILE'), `${f.summary} (kept for the rerun)`);
+  assert.equal(f.calls().match(/node app-change\.mjs log /g).length, 1);
+  assert.match(f.calls(), /node app-change\.mjs log 2\n/);
+  onlyTheApp(f);
+  // The fix is counted as on GitHub, and a pass ends the run.
+  f.checkRun('RESULT: SUCCESS');
+  f.stage('app.txt', 'three\n');
+  const fixed = f.save();
+  assert.equal(fixed.value('ATTEMPT'), '1');
+  assert.equal(lastLine(fixed), 'SAVE_GATE_RESULT=SUCCESS');
+  onlyTheApp(f);
+});
+
+test('through the app: a refused push stops with the app\'s own line, and nothing after it runs', t => {
+  const PLAIN = 'The save was refused. Ask your admin for access to Connect your assistant, or sign in again.';
+  for (const line of [NOT_SET_UP, NEVER_PUBLISHES, CHECK_FILES, PLAIN]) {
+    const f = fixture(t, { app: true, pushed: false });
+    f.answer({ change: { ...NO_CHANGE, rows: true }, refuse: { push: line } });
+    f.stage('app.txt', 'two\n');
+    const r = f.save();
+    assert.equal(r.status, 1);
+    assert.equal(r.stderr, `error=${line}\n`);
+    assert.equal(lastLine(r), APP_STOP);
+    assert.equal(r.stdout.match(/^NEXT:/gm).length, 1);
+    assert.doesNotMatch(r.stdout, /SAVE_GATE_RESULT|PR_URL|RECEIPT/);
+    assert.doesNotMatch(f.calls(), /app-change\.mjs (open|wait|preview)/);
+    assert.equal(f.git('ls-remote', '--heads', 'origin', 'work'), '');
+    assert.equal(existsSync(f.summary), true, 'the files stay for the rerun');
+    onlyTheApp(f);
+  }
+});
+
+test('through the app: saving that is not set up yet stops before any push', t => {
+  const f = fixture(t, { app: true, pushed: false });
+  f.answer({ refuse: { change: NOT_SET_UP } });
+  f.stage('app.txt', 'two\n');
+  const r = f.save();
+  assert.equal(r.status, 1);
+  assert.equal(r.stderr, `error=${NOT_SET_UP}\n`);
+  assert.equal(lastLine(r), APP_STOP);
+  assert.doesNotMatch(f.calls(), /app-change\.mjs (push|open|wait)/);
+  onlyTheApp(f);
+  // The same answer when the change is opened: the branch is up, and the stop names the reason.
+  f.answer({ change: { ...NO_CHANGE, rows: true }, refuse: { open: NOT_SET_UP } });
+  const later = f.save();
+  assert.equal(later.status, 1);
+  assert.equal(later.stderr, `error=${NOT_SET_UP}\n`);
+  assert.doesNotMatch(f.calls(), /app-change\.mjs wait/);
+  onlyTheApp(f);
+});
+
+test('through the app: a closed change stops with a fresh branch as the only way on, and a merged one is done', t => {
+  const closed = fixture(t, { app: true });
+  closed.answer({ change: { ...PR, state: 'CLOSED', rows: true } });
+  closed.stage('app.txt', 'two\n');
+  const r = closed.save();
+  assert.equal(r.status, 3);
+  assert.equal(r.value('PR_URL'), PR.url);
+  assert.match(r.stdout, /^NEXT: tell the person this change was closed without being published\. New work goes on a fresh branch \(git checkout -b <name>, then rerun\)\.$/m);
+  assert.doesNotMatch(r.stdout, /gh pr reopen/);
+  assert.doesNotMatch(closed.calls(), /app-change\.mjs (push|open|wait)/);
+  onlyTheApp(closed);
+  const merged = fixture(t, { app: true });
+  merged.answer({ change: { ...PR, state: 'MERGED', rows: true } });
+  merged.stage('app.txt', 'two\n');
+  const done = merged.save();
+  assert.equal(done.status, 0, `${done.stdout}${done.stderr}`);
+  assert.equal(done.value('RECEIPT'), 'none (the pull request already merged)');
+  assert.match(done.stdout, /^NEXT: this branch already shipped, so nothing was pushed/m);
+  assert.equal(lastLine(done), 'SAVE_GATE_RESULT=UNKNOWN');
+  assert.doesNotMatch(merged.calls(), /app-change\.mjs (push|open|wait)/);
+  onlyTheApp(merged);
+});
+
+test('through the app, for a project kept in Cloudflare: no change link, and a failure is the run\'s own lines', t => {
+  const f = fixture(t, { app: true });
+  f.answer({ change: { ...NO_CHANGE, rows: false }, open: NO_CHANGE });
+  f.checkRun(`RESULT: FAILURE\n  checks failed\n  not ok 1 - adds two numbers\n  - lint  ${run(10, 2)}`);
+  f.stage('app.txt', 'two\n');
+  const r = f.save();
+  assert.equal(r.status, 0, `${r.stdout}${r.stderr}`);
+  assert.equal(lastLine(r), 'SAVE_GATE_RESULT=FAILURE');
+  assert.doesNotMatch(r.stdout, /^(PR_URL|FAILED_CHECK|LINK|RERUN|CAUSE)/m);
+  assert.doesNotMatch(f.calls(), /app-change\.mjs log/);
+  assert.equal(r.value('RECEIPT'), 'none (this route keeps no receipt; /verify reads the gate again)');
+  onlyTheApp(f);
+  f.checkRun('RESULT: NONE');
+  const none = f.call(['--wait', '--max-minutes', '1']);
+  assert.equal(lastLine(none), 'SAVE_GATE_RESULT=NONE');
+  assert.match(none.stdout, new RegExp(`^NEXT: no checks are configured: ${SAVED_BY_APP}$`, 'm'));
+  assert.match(f.calls(), /node app-change\.mjs wait 1\n/);
+  assert.equal(f.calls().match(/app-change\.mjs push/g).length, 1, 'the one save push; --wait pushes nothing');
+  onlyTheApp(f);
 });
 
 test('a route that can not be told stops before any commit, and never falls back to GitHub', t => {

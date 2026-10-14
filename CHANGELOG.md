@@ -3,6 +3,18 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Teammates save changes through the app
+
+- **A teammate who can install the project can now save a change.** They ask their assistant, and the change is saved from their copy with their app sign-in alone: no GitHub or Cloudflare account. Their assistant reports the automatic checks and a link to look at, then says the owner or an Admin publishes it. On GitHub the saved change is a pull request that names who saved it.
+- **They save; you publish.** The app takes one new commit on one branch. It refuses a push to the published branch, a delete, a tag and more than one branch, each with a plain line, before anything reaches where the project is kept. It never merges, closes or deletes.
+- **One tick still.** *Can install the project* in Access now says under it: *They can save changes too.* There is no second tick or level.
+- **A change to the files that define the checks can't be saved this way.** On GitHub the app's key may not write workflow files, so such a change is refused with a line that says to ask the owner.
+- **On GitHub the app's key is wider.** One key, `WONG_CODE_WRITE`, now both hands the project out and saves changes. The older read-only key keeps handing the project out; Access says *Saving needs one more step* until the new key is in.
+- **A project kept in Cloudflare needs no key.** The app reads a saved change's check run through a new link to the check runner, which Access setup adds.
+- [Employee assistant connection](wiki/stack/employee-project.md#save-a-change-through-the-app) owns the details.
+
+**Updating.** Everyone who can install the project can now save changes for you to publish. Open Access and untick *Can install the project* for anyone who should not. Then one step, by where your project is kept. In Cloudflare: ask your assistant to *finish Access setup* once more, then publish; saving works after that, with no key. On GitHub: Access shows *Saving needs one more step* under the tick, with a request to copy for your assistant. It sends you a private link and the steps to make one new key on GitHub, which lets the app save changes to this one project. Until then teammates keep installing the project as before, and saving is refused with a plain line. So that nothing reaches your published branch without you, set that branch on GitHub to require a pull request.
+
 ## 41.1.0 — Checks the assistant can't quietly change
 
 - **A rewritten or removed saved check is reported.** Before each publish the assistant replays the saved checks of older features. It could re-record or delete one with no word to you. Now the automatic checks fail until it writes down why, and you read that reason under *Checks loosened* in the build and publish reports. A new saved check needs no reason. Neither does one recorded again with the same steps and expectations, or one whose promise your change rewrites or removes.

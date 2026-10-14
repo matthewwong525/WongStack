@@ -83,6 +83,12 @@ if [ "$ROUTE" = artifacts ]; then
   node "$SCRIPTS/artifacts-run.mjs" wait "$MAX_MIN"
   exit 0
 fi
+# A copy installed through Connect your assistant has no gh: the app reads the
+# checks, and app-change.mjs keeps the waiting rules below over what it answers.
+if [ "$ROUTE" = app ]; then
+  node "$SCRIPTS/app-change.mjs" wait "$MAX_MIN"
+  exit 0
+fi
 
 LOCAL=$(git rev-parse HEAD 2>"$ERR_FILE") || unknown "$(err_or 'git rev-parse HEAD failed')"
 ROOT=$(git rev-parse --show-toplevel 2>"$ERR_FILE") || unknown "$(err_or 'git rev-parse --show-toplevel failed')"

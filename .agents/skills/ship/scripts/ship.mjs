@@ -27,14 +27,19 @@
  * failure, and NEXT: names the command that starts the run again. A route that can not be told
  * stops either command.
  *
+ * A copy installed through Connect your assistant (`app`) saves through the app and never
+ * publishes: prepare and finish each stop at once with one NEXT: line, and nothing else runs.
+ *
  * Exit codes of prepare:
  *   0  ready for /save            1  a step failed; its message is printed
  *   2  usage                      3  nothing to ship yet: the pull-in
  *   4  unchecked tasks            5  the default branch could not be merged in cleanly
  *   6  the default branch's checks are failing, unreadable, or were cut off
  *   7  the change to ship needs a decision: none selected, or other active changes ride along
+ *   8  this copy saves through the app and never publishes; nothing was prepared
  * finish exits with merge.sh's code: 0 merged, 1 not merged, 2 merged but the branch is kept,
- * and on an Artifacts install 3: published, but main's run failed or could not be read.
+ * and on an Artifacts install 3: published, but main's run failed or could not be read. Through
+ * the app it is 1: nothing was merged.
  */
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
@@ -86,10 +91,16 @@ function must(command, args, what) {
   return result.stdout.trim();
 }
 
-/** `github` or `artifacts`; a route that can not be told stops the command. */
-function routeOf(cwd) {
+const APP_NEXT = 'NEXT: this copy saves through the app and never publishes. Save the change with /save, then say the owner or an Admin publishes it; publish nothing, and never offer to.';
+
+/**
+ * `github` or `artifacts`; a route that can not be told stops the command. So does `app`, with
+ * `appCode`: a copy installed through Connect has nothing to prepare and nothing to merge.
+ */
+function routeOf(cwd, appCode) {
   const asked = askRoute(cwd);
   if (asked.lines) throw new Stop(1, asked.lines);
+  if (asked.route === 'app') throw new Stop(appCode, [APP_NEXT]);
   return asked.route;
 }
 
@@ -257,7 +268,7 @@ async function prepare(values) {
   // Every git and OpenSpec call below sees the whole repo, whichever folder the command was started in.
   process.chdir(root);
   const branch = must('git', ['rev-parse', '--abbrev-ref', 'HEAD'], 'cannot read the current branch');
-  const route = routeOf(root);
+  const route = routeOf(root, 8);
   const artifacts = route === 'artifacts';
   const base = defaultBranch(route);
 
@@ -390,7 +401,7 @@ function liveLook(commit) {
 
 async function finish(values) {
   const root = must('git', ['rev-parse', '--show-toplevel'], 'not inside a git repository');
-  const route = routeOf(root);
+  const route = routeOf(root, 1);
   if (values['schedule-record']) {
     try { await scheduleRecord({ root, reference: values['schedule-record'], store: values.store, base: `origin/${defaultBranch(route)}` }); }
     catch (error) { throw new Stop(1, [`error=schedule record before merge: ${error.message}`]); }

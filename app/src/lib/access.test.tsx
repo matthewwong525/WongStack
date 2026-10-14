@@ -55,6 +55,9 @@ it('reads why the project can not be handed out, and works it out from Project c
   // An older app, or a cached page: saved means ready, anything else asks for the key.
   expect([status({ keys: [code(true)] }).project, status({ keys: [code(false)] }).project, status({}).project]).toEqual(['ready', 'key', 'key'])
   expect(statusSchema.safeParse({ ...status({}), project: 'soon' }).success).toBe(false)
+  // Whether a change can be saved through the app is read as sent, and left out by an older app: no step shows.
+  expect([...['ready', 'key', 'setup'].map(projectSave => status({ projectSave }).projectSave), status({}).projectSave]).toEqual(['ready', 'key', 'setup', undefined])
+  expect(statusSchema.safeParse({ ...status({}), projectSave: 'soon' }).success).toBe(false)
 })
 
 it("reads whether a key is set up to be used directly as a yes or no, and a status sent without it", () => {

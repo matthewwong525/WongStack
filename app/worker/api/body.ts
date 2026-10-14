@@ -17,3 +17,10 @@ export async function boundedBytes(body: ReadableStream<Uint8Array>, max: number
   for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
   return bytes;
 }
+/** Two byte runs as one. */
+export function joined(first: Uint8Array, second: Uint8Array): Uint8Array<ArrayBuffer> {
+  const bytes = new Uint8Array(first.length + second.length);
+  bytes.set(first);
+  bytes.set(second, first.length);
+  return bytes;
+}

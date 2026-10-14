@@ -23,6 +23,12 @@ if [ "$ROUTE" = artifacts ]; then
   node "$SCRIPTS/artifacts-run.mjs" preview
   exit 0
 fi
+# A copy installed through Connect your assistant asks the app, which filters
+# the address as the methods below do.
+if [ "$ROUTE" = app ]; then
+  node "$SCRIPTS/app-change.mjs" preview
+  exit 0
+fi
 
 REPO=$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null)
 [ -z "$REPO" ] && exit 0

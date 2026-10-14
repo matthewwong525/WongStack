@@ -137,16 +137,21 @@ export function restartRefusal(run, read) {
  * Polls one run until it settles. `grace` bounds how long a missing run is waited for. A run the
  * runner reported as interrupted is started again once, and the wait goes on inside the same limit.
  */
-export async function waitRun(target, { sha, ref }, { minutes, grace, interval, fetch: fetchFn, sleep, now = () => Date.now() }) {
-  const id = await runId(sha, ref);
+export async function waitRun(target, head, { fetch: fetchFn, ...timing }) {
+  const run = { ...target, id: await runId(head.sha, head.ref), fetch: fetchFn };
+  return waitFor({ read: () => readRun(run), restart: () => restartRun(run) }, head, timing);
+}
+
+/** The wait itself, over any reader of one run: `read()` gives the run, `restart()` gives `{ ok, why }`. */
+export async function waitFor({ read: readOnce, restart }, { sha, ref }, { minutes, grace, interval, sleep, now = () => Date.now() }) {
   const start = now();
   let restarted = false;
   for (;;) {
-    const run = await readRun({ ...target, id, fetch: fetchFn });
+    const run = await readOnce();
     const read = verdict(run, { sha, ref });
     if (read.retry && !restarted) {
       restarted = true;
-      const again = await restartRun({ ...target, id, fetch: fetchFn });
+      const again = await restart();
       if (!again.ok) return { ...read, lines: [...read.lines, `it could not be started again: ${again.why}`] };
       await sleep(interval * 1000);
       continue;
@@ -159,7 +164,7 @@ export async function waitRun(target, { sha, ref }, { minutes, grace, interval, 
   }
 }
 
-const print = (out, { result, lines }, label = 'RESULT') => {
+export const print = (out, { result, lines }, label = 'RESULT') => {
   out(`${label}: ${result}`);
   for (const line of lines.filter(Boolean)) out(`  ${line}`);
 };

@@ -5,8 +5,11 @@ import type { Person, Status } from '../../lib/access'
 export const FINISH_REQUEST = 'Finish Access setup: run the Access setup step, so the live app has its key for the sign-in list and the read-only key for Cloudflare look-ups, as wiki/stack/employee-access.md describes.'
 
 // What the owner pastes when they let someone install a project kept on GitHub and the app holds no key to
-// read it. The steps on GitHub stay on the page it names.
-export const PROJECT_REQUEST = 'Let teammates install the project: the app needs its read-only key for this project. Send me the key link for WONG_CODE_READ with the steps in wiki/stack/employee-project.md, then load it into the app.'
+// read it: the one key that also saves. The steps on GitHub stay on the page it names.
+export const PROJECT_REQUEST = 'Let teammates install the project: the app needs its key for this project. Send me the key link for WONG_CODE_WRITE with the steps in wiki/stack/employee-project.md, then load it into the app.'
+
+// What the owner pastes when the app holds only the older key, which reads the project and can not save a change.
+export const SAVE_REQUEST = 'Let teammates save changes: the app needs its newer key for this project. Send me the key link for WONG_CODE_WRITE with the steps in wiki/stack/employee-project.md, then load it into the app.'
 
 const live = (status: Status) => status.environment === 'live'
 

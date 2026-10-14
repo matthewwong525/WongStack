@@ -119,3 +119,27 @@ test('a remote that is neither GitHub nor Artifacts is still refused', async () 
   const result = await savedRevision(githubFixture({ remote: 'https://example.com/team/repo.git' }));
   assert.deepEqual([result.state, result.reason], ['UNKNOWN', 'Unsupported or foreign repository identity']);
 });
+
+const APP = 'https://app.example.com/api/access/code/git/';
+test('a copy installed through the app reads its remote head and its gate through app-change.mjs, and never asks gh', async () => {
+  for (const [word, gateResult] of [['SUCCESS', 'SUCCESS'], ['NONE', 'NONE'], ['FAILURE', 'FAILURE'], ['PENDING', 'UNKNOWN'], ['UNKNOWN', 'UNKNOWN']]) {
+    const fixture = githubFixture({ remote: APP, runResult: word });
+    const result = await savedRevision(fixture);
+    assert.deepEqual([result.state, result.gateResult, result.repository, result.reused, result.reason], ['SAVED', gateResult, APP, false, 'Read through the app for this exact commit'], word);
+    // Git reads only this checkout: the project's own address needs the app sign-in, which app-change.mjs holds.
+    assert.ok(fixture.calls.every(([command, args]) => command === 'node' || (command === 'git' && !args.startsWith('ls-remote'))), 'gh or a bare ls-remote was asked');
+    assert.deepEqual(fixture.calls.slice(-2).map(([, args]) => args.replace(/^.*\/app-change\.mjs /, '')), ['heads refs/heads/work', `result ${HEAD} refs/heads/work`]);
+  }
+});
+test('a copy installed through the app with unsaved or unpushed work asks for a save, and a refused read is UNKNOWN', async () => {
+  for (const overrides of [{ dirty: ' M source.mjs' }, { refs: '' }, { refs: `${OLD}\trefs/heads/work` }]) {
+    const fixture = githubFixture({ remote: APP, ...overrides });
+    assert.equal((await savedRevision(fixture)).state, 'NEEDS_SAVE');
+    assert.ok(fixture.calls.every(([command, args]) => command !== 'gh' && !/ result /.test(args)));
+  }
+  const refused = githubFixture({ remote: APP });
+  const run = (command, args) => { if (command === 'node') throw Error('The save was refused.'); return refused.run(command, args); };
+  assert.equal((await savedRevision({ run })).state, 'UNKNOWN');
+  // An address that only looks like the app's is no repository this reader knows.
+  assert.equal((await savedRevision(githubFixture({ remote: 'https://app.example.com/api/access/code/git' }))).reason, 'Unsupported or foreign repository identity');
+});
