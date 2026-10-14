@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (patch) — Memory search stays fast on a big store
+## 43.0.1 — Memory search stays fast on a big store
 
 - **A search runs its text match once, not once per stored fact.** The search fragment let SQLite look facts up one at a time and re-run the full-text match for each. On a store of about 2,850 facts one search took 12–14 seconds; D1 then hit its CPU limit, reset (code 7429), and failed other people's calls with it. The search now takes about 10 ms and finds the same top matches. The memory Worker still accepts the old fragment from a computer that has not updated yet.
 - **One refused session no longer reads as a refused sign-in.** When the store refuses to save one past session (another person's, or old history no one owns), `strip` prints `refused:`, skips that session, and does not offer it again. The background run counts it skipped and carries on; before, the run stopped.
