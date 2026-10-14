@@ -6,6 +6,7 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 
 export const MACHINE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const CHMOD_REFUSED = new Set(['EPERM', 'EACCES', 'EROFS']);
 export function machineIdFile(environment = process.env) {
   const userHome = environment.HOME || environment.USERPROFILE || homedir();
   const data = process.platform === 'win32' ? environment.LOCALAPPDATA || join(userHome, 'AppData', 'Local')
@@ -16,7 +17,8 @@ export function machineId(file = machineIdFile()) {
   const read = () => {
     const id = readFileSync(file, 'utf8').trim();
     if (!MACHINE_ID.test(id)) throw new Error(`Invalid WongStack machine identity at ${file}; restore the original file or ask the admin. Ownership was not changed.`);
-    chmodSync(file, 0o600);
+    // A sandbox (such as Codex's background run) may refuse the re-chmod; the file was made 0600, so read on.
+    try { chmodSync(file, 0o600); } catch (error) { if (!CHMOD_REFUSED.has(error.code)) throw error; }
     return id;
   };
   try { return read(); } catch (error) { if (error.code !== 'ENOENT') throw error; }

@@ -546,10 +546,20 @@ async function stripCommand(ctx, { positionals: [id], tally }) {
     console.log(`private: ${id} was recorded as private. Nothing was uploaded, and no fact may be written for it.`);
     return;
   }
-  await store.batch([sessionUpsert({ ...record, readThrough: null }, ledger?.status || 'skipped', { author: store.author, machine: ctx.machine, owner: store.owner, email: store.email, reason: 'awaiting capture' })]);
+  let tooLarge;
+  try {
+    await store.batch([sessionUpsert({ ...record, readThrough: null }, ledger?.status || 'skipped', { author: store.author, machine: ctx.machine, owner: store.owner, email: store.email, reason: 'awaiting capture' })]);
+    // Over the limit, the session's facts are still captured; only its full transcript is not kept.
+    tooLarge = store.config.bucket ? await keepRaw(store, record, raw) : '';
+  } catch (error) {
+    // The store refused this one session (another person's, or unowned history): skip it, not the run.
+    if (error.kind !== 'forbidden') throw error;
+    markSeen(ctx, record);
+    addToTally(tally, { skipped: 1 });
+    console.log(`refused: ${error.reason}. Nothing was saved for ${id}, and no fact may be written for it.`);
+    return;
+  }
   const secrets = secretValues(store.env);
-  // Over the limit, the session's facts are still captured; only its full transcript is not kept.
-  const tooLarge = store.config.bucket ? await keepRaw(store, record, raw) : '';
   const kept = tooLarge && `${tooLarge}; capture its facts as usual.`;
   writeJson(stripFile(ctx, id), record);
   const after = Number(ledger?.read_through) || 0;
