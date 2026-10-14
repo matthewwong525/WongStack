@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (major) — One company sign-in for everything
+## 43.0.0 — One company sign-in for everything
 
 - **One sign-in opens everything.** The company sign-in a person makes once at setup now also opens memory and the project's updates, not only company actions. It lasts 30 days. There is no memory key to hand out.
 - **Old memory keys stop working.** The update hands each computer's private notes to the person it was signed in as, then turns every memory key off. Each computer signs in instead. Turning the keys off can't be undone: a computer that never signed in needs the new sign-in, not a new key.

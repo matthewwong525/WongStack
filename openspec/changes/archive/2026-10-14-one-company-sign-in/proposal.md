@@ -1,6 +1,6 @@
 # One company sign-in for everything
 
-**Status:** planned
+**Status:** ready-to-ship
 
 **Branch:** macho-flamingo
 
