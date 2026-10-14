@@ -29,7 +29,6 @@
     "app/src/apps/access/status.ts",
     "app/src/lib/access.ts",
     "app/worker/api/body.ts",
-    "app/worker/employee-access/bootstrap-release.json",
     "app/worker/employee-access/change.ts",
     "app/worker/employee-access/code.ts",
     "app/worker/employee-access/github.ts",

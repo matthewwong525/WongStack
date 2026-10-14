@@ -209,6 +209,21 @@ describe("private Worker routing", () => {
     }
     expect(assets.fetch).not.toHaveBeenCalled();
   });
+  it("serves the setup file with no sign-in and no memory store, and leaves every other memory address to memory", async () => {
+    const memory = vi.fn();
+    // Anonymous, on a private app, on one with no Access set up, and on an open one: the file, carrying the address asked.
+    for (const bindings of [env, { ASSETS: assets }, { ASSETS: assets, WORKSPACE_LOGIN: "off" }, { ...env, MEMORY_DB: { prepare: memory } }]) {
+      const served = await call("/_memory/setup.mjs", {}, bindings);
+      expect([served.status, served.headers.get("Content-Type"), served.headers.get("Cache-Control")]).toEqual([200, "text/javascript; charset=utf-8", "no-store"]);
+      expect(await served.text()).toContain('const SERVED_FROM = "https://workspace.example.com";');
+    }
+    expect((await call("/_memory/setup.mjs", {}, env, "POST")).status).toBe(405);
+    expect(memory).not.toHaveBeenCalled();
+    // A neighbouring address is memory's, and still needs a memory key.
+    for (const path of ["/_memory/setup.mjs/", "/_memory/setup", "/_memory/setup.mjsx"]) expect((await call(path, {}, { ...env, MEMORY_DB: {} })).status, path).toBe(401);
+    expect((await call("/setup.mjs")).status).toBe(401);
+    expect(assets.fetch).not.toHaveBeenCalled();
+  });
   it("labels a setup machine from a verified normal human login and redirects to the clean app", async () => {
     const marker = `wongl_${"m".repeat(43)}`;
     const first = vi.fn(async () => ({ machine_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" }));

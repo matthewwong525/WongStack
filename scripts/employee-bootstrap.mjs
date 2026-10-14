@@ -1,13 +1,18 @@
 #!/usr/bin/env node
-// Standalone reviewed bootstrap: only Node built-ins; never memory/checkout authority.
-// `install` signs in, downloads the project when the app hands it to this person, and reports what works.
+// Standalone setup file: only Node built-ins; never memory/checkout authority.
+// `install`, the default, signs in, downloads the project into this folder when the app hands it to this
+// person, and reports what works. The app serves this file with its own address written into SERVED_FROM.
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdirSync, readFileSync, writeFileSync, lstatSync, readdirSync, realpathSync, existsSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync, lstatSync, readdirSync, realpathSync, existsSync, rmSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, dirname, resolve, relative, isAbsolute, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
+
+// Blank in the project's own copy. The app fills it in when it serves this file: app/worker/employee-access/setup-file.ts
+const SERVED_FROM = '';
+const SELF = fileURLToPath(import.meta.url);
 
 function refuseExternalReferences(value) {
   if (!value || typeof value !== 'object') return value;
@@ -132,11 +137,12 @@ export function git(args, { address, token } = {}) {
 }
 /**
  * Put the project in `folder`, or bring the copy there up to date. A new copy goes only into a missing or empty
- * folder. An update fetches, then moves the checked-out default branch forward when nothing tracked was changed
+ * folder. `self`, a downloaded setup file, is not one of the folder's files: it goes before the copy is made,
+ * since Git refuses a folder that is not empty. An update fetches, then moves the checked-out default branch forward when nothing tracked was changed
  * and nothing was committed on top; otherwise everything is kept as it is and the result says so. It never
  * resets, cleans, stashes or forces a checkout.
  */
-export async function projectCopy({ address, folder, token, run = git }) {
+export async function projectCopy({ address, folder, token, self, run = git }) {
   const dir = resolve(folder);
   const here = (args, session) => run(['-C', dir, ...args], session);
   // The app must answer with the project itself first. A sign-in page or a redirect lists no branch, and Git
@@ -145,8 +151,9 @@ export async function projectCopy({ address, folder, token, run = git }) {
     if ((await run(['ls-remote', '--quiet', '--exit-code', address, 'HEAD'], { address, token })).code !== 0) throw new Error(REFUSED);
   };
   if (!existsSync(join(dir, '.git'))) {
-    if (existsSync(dir) && readdirSync(dir).length) throw new Error(`${dir} already holds other files. Choose an empty folder with --dir; nothing was changed.`);
+    if (existsSync(dir) && readdirSync(dir).some(name => join(realpathSync(dir), name) !== self)) throw new Error(`${dir} already holds other files. Choose an empty folder with --dir; nothing was changed.`);
     await reached();
+    if (self) rmSync(self, { force: true });
     if ((await run(['clone', '--quiet', '--origin', 'origin', address, dir], { address, token })).code !== 0) throw new Error(REFUSED);
     return { project: 'installed', folder: dir };
   }
@@ -159,6 +166,18 @@ export async function projectCopy({ address, folder, token, run = git }) {
   const changed = await said('status', '--porcelain', '--untracked-files=no');
   const applied = latest === `origin/${branch}` && !changed && (await here(['merge', '--quiet', '--ff-only', latest])).code === 0;
   return applied ? { project: 'up to date', folder: dir } : { project: NOT_APPLIED, folder: dir, applied: false };
+}
+/** The app's address a project copy records for itself. */
+const recorded = root => readJson(join(root, '.claude', '.wong-stack.json')).components?.companyApi?.origin;
+/** The project copy this file sits in as `scripts/employee-bootstrap.mjs`; a downloaded file sits in none. */
+export function ownCopy(self = SELF) {
+  const root = resolve(dirname(self), '..');
+  return self === join(root, 'scripts', 'employee-bootstrap.mjs') && existsSync(join(root, '.git')) ? root : undefined;
+}
+/** True when `folder` is a copy of the project that came from somewhere other than the app: it has its own way to update. */
+export async function otherCopy(folder, address, run = git) {
+  return existsSync(join(folder, '.git')) && existsSync(join(folder, 'scripts', 'employee-bootstrap.mjs')) &&
+    (await run(['-C', folder, 'config', '--get', 'remote.origin.url'])).stdout !== address;
 }
 
 const defaultRoutes = () => join(homedir(), '.local', 'state', 'wong-company', 'projects');
@@ -181,7 +200,7 @@ export function companyClient({ root = process.cwd(), stateDir, routesDir = defa
     if (!stateDir) dir = connectionState(root, routesDir) || dir;
     file = join(dir, 'target.json'); return dir;
   }
-  const record = () => readJson(join(root, '.claude', '.wong-stack.json')).components?.companyApi?.origin;
+  const record = () => recorded(root);
   function target() {
     safeCache(directory(), root);
     const saved = readJson(file).origin;
@@ -192,7 +211,7 @@ export function companyClient({ root = process.cwd(), stateDir, routesDir = defa
   }
   async function token(origin, login = false) {
     safeCache(cacheDir, root);
-    if (login) await run(['login', origin], { onLoginUrl });
+    if (login) await run(['login', origin], { onLoginUrl, timeoutMs: 600000 }); // a person needs longer than a token read
     return employeeToken(await run(['token', `-app=${origin}`], { onLoginUrl }));
   }
   /** The saved connection's session: the same person who connected, or nothing. */
@@ -282,9 +301,9 @@ export function companyClient({ root = process.cwd(), stateDir, routesDir = defa
     return result.value;
   }
   /** Download the project into `folder`, or update the copy there, as the signed-in person. */
-  async function code(folder, copy = projectCopy) {
+  async function code(folder, copy = projectCopy, self) {
     const origin = target();
-    return copy({ address: `${origin}${CODE_PATH}`, folder, token: await session(origin) });
+    return copy({ address: `${origin}${CODE_PATH}`, folder, token: await session(origin), ...(self && { self }) });
   }
   /** Git in the copy at `cwd`, against the app, as the signed-in person. A copy from anywhere else is refused first. */
   async function projectGit(args, cwd, runGit = git) {
@@ -293,22 +312,21 @@ export function companyClient({ root = process.cwd(), stateDir, routesDir = defa
     return runGit(['-C', cwd, ...args], { address, token: await session(origin) });
   }
   /**
-   * One step: sign in, download or update the project when the app hands it to this person, and say what works.
-   * The folder is the one given, else the one used last time, else a folder in the home directory named for the app.
+   * One step: sign in, then look at `folder`. A copy of the project from elsewhere is left as it is. Otherwise
+   * download or update the project when the app hands it to this person. Either way, say what works.
    */
-  async function install(origin, folder, copy) {
+  async function install(origin, folder, copy, self, other = otherCopy) {
     const { connected } = await login(origin);
     const status = await setup();
     const report = { connected, signedInAs: status.identity.email, apps: status.apps, state: dir };
+    const next = `cd ${resolve(folder)} && node scripts/company-api.mjs list --state ${dir}`;
+    if (await other(resolve(folder), `${connected}${CODE_PATH}`)) return { ...report, project: 'already on this computer; left as it is', folder: resolve(folder), next };
     if (status.code !== 'ready') return { ...report, project: status.code === 'lacked' ? 'not included. Ask your admin for access to Connect your assistant.' : 'not handed out by this app; apps only' };
-    const noted = join(dir, 'project.json');
-    const result = await code(folder || readJson(noted).folder || join(homedir(), new URL(connected).hostname.split('.')[0]), copy);
-    writeFileSync(noted, `${JSON.stringify({ folder: result.folder })}\n`, { mode: 0o600 });
-    return { ...report, ...result, next: `cd ${result.folder} && node scripts/company-api.mjs list --state ${dir}` };
+    return { ...report, ...await code(folder, copy, self), next };
   }
   return { login, list, describe, call, setup, code, install, target, git: projectGit, http, get stateDirectory() { return directory(); } };
 }
-const USAGE = 'employee-bootstrap.mjs install --origin <HTTPS origin> [--dir <folder>] | login --origin <HTTPS origin> | status | code --dir <folder> | list | describe <id> | call <id> --file <JSON file or -> [--state <private directory>]';
+const USAGE = 'employee-bootstrap.mjs [install] [--origin <HTTPS origin>] [--dir <folder>] | login --origin <HTTPS origin> | status | code --dir <folder> | list | describe <id> | call <id> --file <JSON file or -> [--state <private directory>]';
 /** `install` keeps one private directory per company, so a second run finds the first. */
 const installBase = () => join(homedir(), '.local', 'state', 'wong-company');
 export const installState = origin => join(installBase(), createHash('sha256').update(companyOrigin(origin)).digest('hex'));
@@ -318,14 +336,33 @@ export function neutralRoot() {
   mkdirSync(root, { recursive: true, mode: 0o700 });
   return root;
 }
-export async function main(args = process.argv.slice(2)) {
+/**
+ * With no project on the device, a downloaded setup file is the person's client: keep a copy beside their
+ * sign-in, served from nowhere so it stays, and name the line that calls it.
+ */
+function keptClient(state) {
+  const file = join(state, 'bootstrap.mjs');
+  writeFileSync(file, readFileSync(SELF, 'utf8').replace(JSON.stringify(SERVED_FROM), "''"), { mode: 0o600 });
+  return `node ${file} list --state ${state}`;
+}
+/**
+ * The command line. No command means `install`. Its app is `--origin`, else the one that served this file, else
+ * the one the copy this file sits in records; its folder is `--dir`, else that copy, else the folder it is run in.
+ */
+async function run(args) {
   if (args.includes('--help')) { console.log(`usage: ${USAGE}`); return; }
-  const { positionals: [command, ...rest], values } = parseArgs({ args, allowPositionals: true, options: Object.fromEntries(['origin', 'state', 'dir', 'file', 'q', 'app', 'limit', 'offset'].map(key => [key, { type: 'string' }])) });
-  const stateDir = values.state || (command === 'install' && values.origin ? installState(values.origin) : undefined);
+  const { positionals: [command = 'install', ...rest], values } = parseArgs({ args, allowPositionals: true, options: Object.fromEntries(['origin', 'state', 'dir', 'file', 'q', 'app', 'limit', 'offset'].map(key => [key, { type: 'string' }])) });
+  const install = command === 'install' && !rest.length, project = ownCopy();
+  const origin = values.origin || SERVED_FROM || (install && project ? recorded(project) : undefined);
+  if (install && !origin) throw new Error(USAGE);
+  const stateDir = values.state || (install ? installState(origin) : undefined);
   const client = companyClient({ ...(['install', 'code'].includes(command) && { root: neutralRoot() }), stateDir, onLoginUrl: link => console.error(signInNotice(link)) });
   let result;
-  if (command === 'login' && !rest.length) result = await client.login(values.origin);
-  else if (command === 'install' && !rest.length && values.origin) result = await client.install(values.origin, values.dir);
+  if (command === 'login' && !rest.length) result = await client.login(origin);
+  else if (install) {
+    result = await client.install(origin, values.dir || project || process.cwd(), undefined, SERVED_FROM && SELF);
+    if (SERVED_FROM && !result.folder) result.next = keptClient(result.state);
+  }
   else if (command === 'code' && !rest.length && values.dir) result = await client.code(values.dir);
   else if (command === 'status' && !rest.length) result = await client.setup();
   else if (command === 'list' && !rest.length) result = await client.list(Object.fromEntries(['q', 'app', 'limit', 'offset'].filter(key => values[key] !== undefined).map(key => [key, values[key]])));
@@ -335,6 +372,11 @@ export async function main(args = process.argv.slice(2)) {
   console.log(JSON.stringify(result, null, 2));
   // A returned error is still printed, and ends as a failure a script can see.
   if ((command === 'call' && result?.error && typeof result.error === 'object') || result?.applied === false) process.exitCode = 1;
+}
+/** A downloaded setup file removes itself when it ends, pass or fail; the project's own copy, served from nowhere, stays. */
+export async function main(args = process.argv.slice(2)) {
+  try { await run(args); }
+  finally { if (SERVED_FROM) rmSync(SELF, { force: true }); }
 }
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   main().catch(error => { console.error(error instanceof SyntaxError ? 'Invalid command input' : error.message); process.exitCode = error.code?.startsWith('ERR_PARSE_ARGS') ? 2 : 1; });

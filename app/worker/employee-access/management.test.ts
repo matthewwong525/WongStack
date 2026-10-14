@@ -4,6 +4,7 @@ import { body as json } from '../../tests/body';
 import { accessStatus } from './members';
 import { management } from './management';
 import { mainRouteInventory } from '../api/router';
+import { setupMessage } from './prompt';
 import { setupStatus } from './setup';
 import { handleAccess } from './router';
 import { lease } from './core';
@@ -227,7 +228,7 @@ it('refuses a missing installation snapshot rather than inventing a status', asy
 
 it('serves the setup prompt to every signed-in person, before and after permissions start', async () => {
   const read = (identity = employee, env = f.env) => setupStatus(req('setup', 'GET'), env, identity);
-  const base = { api: 'authenticated', code: 'off', repository: 'manual_provider_setup', memory: 'independent_operator_setup', prompt: expect.objectContaining({ state: expect.any(String) }) };
+  const base = { api: 'authenticated', code: 'off', repository: 'manual_provider_setup', memory: 'independent_operator_setup', prompt: { state: 'ready', text: setupMessage(site.origin) } };
   // Started: a person with no apps keeps their own setup, and the owner keeps every app.
   expect(await (await read()).json()).toEqual({ ...base, identity: { email: employee.id, subject: employee.claims.sub }, role: 'employee', permissions: 'started', apps: [], titles: {} });
   expect(await (await read(owner)).json()).toMatchObject({ role: 'owner', permissions: 'started', apps: ['orders', 'payroll'] });

@@ -46,6 +46,9 @@ it("verifies signed callers and rejects forged email and wrong audiences", async
     expect(await response.json()).toEqual({ ok: true });
   }
   expect((await request("/api/unknown")).status).toBe(404);
+  // The setup file is the one address an unsigned caller is answered, and the real build carries the script.
+  const setup = await runtime.worker.fetch(`${site.origin}/_memory/setup.mjs`);
+  expect([setup.status, (await setup.text()).includes(`const SERVED_FROM = "${site.origin}";`)]).toEqual([200, true]);
 });
 
 it("initializes Access using fresh real migrations and synthetic bindings", async () => {
