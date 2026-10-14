@@ -73,6 +73,7 @@ A teammate who connects through *Connect your assistant* can read the project an
 - **2026-10-14** — Archived for publishing as 41.2.0: every task settled, the Cloudflare half seen passing on a real account, the GitHub half carried by tests alone by Matthew's choice.
 - **Check:** `.agents/verification/journeys/employee-onboarding/a-person-tries-to-publish-through-the-app.json` no longer checks the refusal's wording on a preview. The old line, *This copy is for reading*, is gone by design, and WongStack's preview holds no save key, so it refuses a push earlier with *Saving through the app is not set up yet*. The check still shows a download works and that the app reports its save step; `code.test.ts` and the router's tests hold the refusal of `main`, a delete and a tag.
 - **Check:** `.agents/verification/journeys/key-access/the-project-can-be-handed-out.json` is re-recorded for the reworded scenario: it now also expects *They can save changes too.* under the tick, and keeps every earlier expectation.
+- **Check:** `scripts/retired-names.json` drops its entry for `app/worker/employee-access/github.ts`, because this change brings a file of that name back, to open a change on GitHub and read its checks. The three sibling entries stay.
 
 ## Capabilities
 
