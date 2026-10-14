@@ -17,7 +17,7 @@ const status = (): Status => ({ ownerEmail: 'owner@shop.com', viewer: { email: '
   keys: [key('stripe', 'Stripe'), key('bank', 'Bank'),
     key('cloudflare', 'Cloudflare', { levels: ['read'], setup: true, alone: true }), key('code', 'Project code', { levels: ['read'], alone: true })],
   roles: [{ id: 'office', name: 'Office', apps: [], keys: {} }, { id: 'sales', name: 'Sales', ...sales() }, { id: 'support', name: 'Support', apps: ['hello'], keys: { stripe: 'read' } }],
-  // Kim has Hello, which changes things with Stripe, and holds Stripe at Read: the two have nothing to do with each other.
+  // Kim has Hello, which changes things with Stripe, and holds Stripe at Read: the two are not tied to each other.
   people: [person('gone@shop.com', { status: 'removed' }), person('kim@shop.com', { apps: ['hello'], keys: { stripe: 'read', cloudflare: 'read' } }),
     person('lee@shop.com', { role: 'sales', ...sales() }), person('sam@shop.com', { role: 'sales', ...sales() })],
   work: [], project: 'ready' })
@@ -56,7 +56,8 @@ const closed = () => waitFor(() => expect(screen.queryByRole('dialog')).toBeNull
 // Every tick in the panel by its words: each app, then the one that gives the project.
 const ticks = () => checked(screen.queryAllByRole('checkbox'))
 const boxes = () => screen.queryAllByRole('checkbox').map(input => input.parentElement!.textContent)
-// A named group: Apps, Keys or Project, or one key's level choice by the name its legend starts with, with the quiet lines under it.
+// A named group: Apps, Keys or Project, or one key's level choice by the name its legend starts with,
+// with the quiet lines under it.
 const part = (name: string) => screen.getByRole('group', { name: new RegExp(`^${name}( · |$)`) })
 const level = (name: string) => within(part(name))
 const pick = (name: string, to: string) => fireEvent.click(level(name).getByRole('radio', { name: to }))
@@ -65,7 +66,7 @@ const follows = (first: string, second: string) => !!(part(first).compareDocumen
 // Apps: a press on one app's tick, and the apps that are ticked.
 const give = (name: string) => fireEvent.click(level('Apps').getByRole('checkbox', { name }))
 const given = () => checked(level('Apps').queryAllByRole('checkbox'))
-// Project code is no line in Keys: it is one tick in a group of its own, with the step left under it while the app can't hand the project out.
+// Project code is no line in Keys but a tick in its own group; the step left sits under it until the project is ready.
 const INSTALL = 'Can install the project'
 const install = () => screen.getByRole('checkbox', { name: INSTALL }) as HTMLInputElement
 const tick = () => fireEvent.click(install())
@@ -87,7 +88,7 @@ const NO_KEYS = { stripe: null, bank: null, cloudflare: null, code: null }
 it('shows each person on one line with their role and counts, with nothing marked as missing, and opened, a role as labels with one link to it and no ticks', async () => {
   open(); const lee = await row('lee@shop.com')
   expect(picked('lee@shop.com')).toBe('Sales'); expect(lee.getByText('Can sign in')).toBeTruthy()
-  // How many apps and keys, never their names: the list holds no label. Sales has Hello with Stripe at Read, and no row marks that.
+  // How many apps and keys, never their names: the list holds no label. Sales has Hello with Stripe at Read, unmarked.
   expect([(await cells('lee@shop.com'))[3], labels(screen)]).toEqual(['2 apps, 1 key', []])
   expect(picked('kim@shop.com')).toBe('Own set'); expect((await cells('kim@shop.com'))[3]).toBe('1 app, 2 keys')
   expect(screen.getByRole('table', { name: 'People' }).textContent).not.toMatch(GONE)
@@ -100,7 +101,7 @@ it('shows each person on one line with their role and counts, with nothing marke
   expect(screen.getByRole('table', { name: 'People' }).querySelector('tr[aria-current="true"] a')!.textContent).toBe('lee@shop.com'); expect(screen.getByRole('navigation', { name: 'Access views' })).toBeTruthy()
   expect(opened.getByText('Can sign in')).toBeTruthy()
   expect(role().value).toBe('sales'); expect(screen.queryByLabelText('Email')).toBeNull()
-  // Opened, the names show: each kind of label is its own named list, an app by its title alone and a key with its level.
+  // Opened, the names show: each kind of label is its own named list, an app by its title alone, a key with its level.
   expect(screen.getByText('From the Sales role:')).toBeTruthy()
   expect(labels(opened)).toEqual(['Hello', 'Tip calculator', 'Stripe Read'])
   expect(opened.getAllByRole('list').map(list => list.getAttribute('aria-label'))).toEqual(['Apps', 'Keys'])
@@ -146,7 +147,7 @@ it('with their own set, the panel has two groups, a tick for every app and then 
   // Apps come first, then Keys, then the project, and no group is for managing.
   expect([follows('Apps', 'Keys'), follows('Keys', 'Project'), screen.queryByRole('group', { name: 'Managing' })]).toEqual([true, true, null])
   expect(screen.queryByText('Not saved yet')).toBeNull()
-  // A tick moves no key level: Payroll changes things with Bank, and Bank stays at None. Unticking Hello leaves Stripe where it is.
+  // A tick moves no key level: Payroll changes things with Bank, and Bank stays at None. Unticking Hello leaves Stripe.
   give('Payroll'); expect([given(), levels()]).toEqual([['Hello', 'Payroll'], { Stripe: 'Read', Bank: 'None', Cloudflare: 'Read' }]); expect(screen.getByText('Not saved yet')).toBeTruthy()
   give('Hello'); expect([given(), levels()]).toEqual([['Payroll'], { Stripe: 'Read', Bank: 'None', Cloudflare: 'Read' }])
   // A level moves no tick.
@@ -165,7 +166,7 @@ it('says beside each key whether the app holds it, with the step left under one 
   Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: vi.fn(async () => {}) } })
   const LINK = 'Ask your assistant for the key link.'
   const said = (name: string) => note(name).filter(Boolean)
-  // A step with a request to copy folds the request under it, which is a group of its own: only the keys' are read here.
+  // A step with a request to copy folds the request under it, in a group of its own: only the keys' are read here.
   const keys = () => lines().filter(line => line.tagName === 'FIELDSET')
   roster.keys = [key('stripe', 'Stripe'), key('maps', 'Maps', { saved: false }), key('cloudflare', 'Cloudflare', { levels: ['read'], saved: false, setup: true, alone: true }),
     key('code', 'Project code', { levels: ['read'], alone: true })]
@@ -173,7 +174,7 @@ it('says beside each key whether the app holds it, with the step left under one 
   // The state sits in the key's own legend, in quiet words, so the name stays the first thing read.
   expect(keys().map(state)).toEqual(['Stripe · Saved', 'Maps · Not saved yet', 'Cloudflare · One step left']); expect(keys().map(title)).toEqual(['Stripe', 'Maps', 'Cloudflare'])
   expect(part('Maps').querySelector('legend span')!.className).toMatch(/text-muted-foreground/)
-  // A saved key has no step. One that waits for its link says so; the key setup makes gives the owner the request to copy.
+  // A saved key has no step. One that waits for its link says so; the key setup makes gives the owner the request.
   expect([said('Stripe'), said('Maps')]).toEqual([[], [LINK]]); expect(level('Maps').queryByRole('button')).toBeNull()
   expect(said('Cloudflare')).toEqual(['Look-ups need a read-only key. Ask your assistant: Finish Access setup'])
   expect(level('Cloudflare').getByRole('button', { name: 'Copy that request' })).toBeTruthy()
@@ -228,7 +229,7 @@ it('adds a person with a role in one save, from the keyboard, with every control
   // Each level choice is one radio group with its key as the legend: arrow keys move inside it, Tab moves to the next.
   const groups = lines().map(line => new Set(within(line).getAllByRole('radio').map(radio => (radio as HTMLInputElement).name)))
   expect(groups.map(names => names.size)).toEqual(Array(3).fill(1)); expect(new Set(groups.flatMap(names => Array.from(names))).size).toBe(3)
-  // Two keys with three levels each and one that is Read only. Project code is a tick, so it adds none, and no app has a level.
+  // Two keys with three levels each and one that is Read only. Project code is a tick, adding none; no app has a level.
   expect(level('Keys').getAllByRole('radio')).toHaveLength(8); expect(screen.getAllByRole('radio')).toHaveLength(8)
   fireEvent.change(email, { target: { value: 'new@shop.com' } }); fireEvent.change(role(), { target: { value: 'sales' } })
   // Enter in a field submits the form: no pointer is needed.
@@ -254,7 +255,7 @@ it('says so when there is no app or key to give yet', async () => {
   expect([given(), lines(), screen.queryByRole('group', { name: 'Project' })]).toEqual([[], [], null])
   fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'new@shop.com' } }); click('Save access'); await screen.findByText('Saved.')
   expect(sent('people')).toEqual([{ email: 'new@shop.com', removed: false, role: null, apps: {}, keys: {} }])
-  // With one app, and Project code the only key, the two ticks are all there is: Keys lists no key, and no line says none is built or saved.
+  // With one app and Project code the only key, the two ticks are all there is: no key is listed, and no line says so.
   cleanup(); roster.apps = status().apps.slice(0, 1); roster.keys = status().keys.slice(3)
   open('people/new'); await panel('Add person')
   expect([boxes(), lines()]).toEqual([['Hello', INSTALL], []])
@@ -291,7 +292,8 @@ it('shows a saved tick as on, with nothing under it once the app can hand the pr
   tick(); expect(install().checked).toBe(false)
   click('Save access'); await screen.findByText('Saved.')
   expect(sent('people')).toEqual([{ email: 'kim@shop.com', removed: false, role: null, apps: { ...NO_APPS, hello: true }, keys: { ...NO_KEYS, stripe: 'read' } }])
-  // An install that hands the project out and can not save yet: the tick says saving needs one more step, and blocks nothing.
+  // An install that hands the project out and can not save yet:
+  // the tick says saving needs one more step, and blocks nothing.
   cleanup(); roster.projectSave = 'key'
   open('people/kim@shop.com'); await panel('kim@shop.com')
   expect(project().getByText('Saving needs one more step.')).toBeTruthy(); expect(project().getByText('Let teammates save changes')).toBeTruthy()
@@ -378,7 +380,8 @@ it('an Admin is not offered Admin to give, and reads an Admin\'s role as plain w
   open(); const kim = await row('kim@shop.com')
   expect([(await cells('kim@shop.com')).slice(2, 4), kim.queryByRole('combobox')]).toEqual([['Admin', 'Everything'], null])
   expect(within(screen.getByRole('combobox', { name: 'Role for lee@shop.com' })).getAllByRole('option').map(option => option.textContent)).toEqual(['Own set', 'Office', 'Sales', 'Support'])
-  // Opened: a plain line where the role would be picked, then what Admin gives. Her save changes nothing and asks nothing.
+  // Opened: a plain line where the role would be picked, then what Admin gives.
+  // Her save changes nothing and asks nothing.
   fireEvent.click(kim.getByRole('link', { name: 'kim@shop.com' })); const opened = await panel('kim@shop.com')
   const said = opened.getByText('Admin · only the owner changes this')
   expect(said.compareDocumentPosition(opened.getByText(/Full trust\./)) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()

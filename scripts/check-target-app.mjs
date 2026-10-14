@@ -1,35 +1,6 @@
 #!/usr/bin/env node
-/**
- * Tests the app as an install receives it. Meta-only: no install receives this file.
- * `.github/scripts/checks.mjs` runs it, in CI and with `--worktree`, when the change touches
- * `app/` or the payload inventory.
- *
- *     node scripts/check-target-app.mjs [--root <repo>] [--keep]
- *
- * WHY THIS REPO CAN NOT SEE THESE FAULTS BY ITSELF
- *
- * This repository holds more than it ships (two sample apps, a sample skill), and it is a GitHub
- * install. So a shipped test that needs a file that does not ship passes here and fails in every
- * install, and an app that stops compiling once Cloudflare keeps the project, and types that
- * connection its own way, compiles here. Both reached a release. The check builds what an install
- * kept in Cloudflare has, and asks it:
- *
- *   1. copy the files `payload-files.json` lists, minus its excludes, to a temporary folder;
- *   2. write the app's wrangler config through provisioning's own functions, with placeholder ids
- *      and the bindings to the project's repository and its check runner;
- *   3. link the installed `app/node_modules`, entry by entry, so the copy's caches stay its own;
- *   4. regenerate the binding types (`scripts/cf-build.sh --types`), as the check runner does;
- *   5. run the app's `npm test`: lint, type check, tests at 100% coverage, and the rest;
- *   6. remove the folder (`--keep` leaves it, and prints where).
- *
- * It reaches nothing live: no step holds a Cloudflare credential, and `wrangler types` only reads
- * the config. `--root` builds from another checkout, for the tests; the config fragment is always
- * this script's own repository's, as provisioning reads it.
- *
- * A failure prints the lines that name what failed, then the end of the output. The last line is
- * TARGET_APP=pass, fail (<step>), or not run (<reason>). Exit 0, 1, or 7 (the app's packages are
- * not installed here). In `--worktree` it is a pre-check, never the gate.
- */
+// Tests the app as an install receives it: copies the payload to a temporary folder and runs its `npm test`.
+// Meta-only; `.github/scripts/checks.mjs` runs it. Doc: wiki/maintaining/test-a-setup-change.md
 import { execFileSync, spawnSync } from 'node:child_process';
 import { copyFileSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -67,10 +38,8 @@ const INSTALL = {
 const logical = path => path.replace(/^\.agents(?=\/)/, '.claude');
 const under = (path, dir) => path === dir || path.startsWith(`${dir}/`);
 
-/**
- * The repo paths an install receives, from the repo's own file list: every category's files, skill
- * folders and whole folders, without anything `exclude` names, by file or by folder.
- */
+// The repo paths an install receives: every category's files, skill folders and whole folders,
+// without anything `exclude` names, by file or by folder.
 export function targetFiles(paths, manifest) {
   const categories = CATEGORIES.map(name => manifest[name] ?? {});
   const files = new Set(categories.flatMap(category => category.files ?? []));
@@ -96,7 +65,7 @@ function repoFiles(root) {
     .split('\0').filter(Boolean);
 }
 
-/** Copies the install's files into `dest`, laid out as an install is: a real `.agents/` with the two links to it. */
+/** Copies the install's files into `dest`, laid out as an install: a real `.agents/` with the two links to it. */
 function copyTarget(root, dest, manifest) {
   const present = repoFiles(root).filter(path => existsSync(join(root, path)) && lstatSync(join(root, path)).isFile());
   const files = targetFiles(present, manifest);
@@ -117,7 +86,7 @@ function linkModules(from, to) {
   }
 }
 
-/** The app's config as provisioning writes it for an install kept in Cloudflare. Throws when the binding has no place. */
+/** The app's config as provisioning writes it for a Cloudflare-kept install. Throws when the binding has no place. */
 function writeConfig(app) {
   const config = join(app, 'wrangler.jsonc');
   writeFileSync(config, wranglerConfig(INSTALL));
@@ -138,10 +107,8 @@ const sh = (command, args, cwd) => {
   return { ok: result.status === 0, output: `${result.stdout ?? ''}${result.stderr ?? ''}${result.error ? `${result.error.message}\n` : ''}` };
 };
 
-/**
- * Builds the install in a temporary folder and runs its tests. Returns `{ result, step?, reason? }`:
- * `pass`, `fail` with the step that failed, or `not run` with why. Prints as it goes.
- */
+// Builds the install in a temporary folder and runs its tests, printing as it goes. Returns
+// `{ result, step?, reason? }`: `pass`, `fail` with the step that failed, or `not run` with why.
 export function checkTarget(root, { keep = false, log = console.log } = {}) {
   const manifest = JSON.parse(readFileSync(join(root, INVENTORY), 'utf8'));
   const [folder] = manifest.scaffold?.dirs ?? [];

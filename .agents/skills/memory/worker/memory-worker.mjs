@@ -1,9 +1,5 @@
-// The memory route in the app's production Worker: every memory call reaches it with a memory key, under
-// /_memory/. It answers the two Cloudflare REST requests memory.mjs sends — a D1 query batch and an R2
-// object PUT or GET — on the Worker's MEMORY_DB and MEMORY_BUCKET bindings, so the client keeps one
-// code path. Each Worker serves one store, so the ids in the path are ignored. Key hashes live in the
-// store’s memory_keys table; legacy memory_admins is retained without authority.
-// Only the trusted provisioning token manages grants; ordinary keys name neither table.
+// The memory route in the app's production Worker, under /_memory/. It answers the Cloudflare REST requests
+// memory.mjs sends (a D1 batch, an R2 PUT or GET) on its own bindings, so the path's ids are ignored.
 import { issueLoginLink } from './login-link.mjs';
 import { batchRefusal, isWrite, memberStatements, readRefusal, sessionIds, shadowRead } from './statements.mjs';
 

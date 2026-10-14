@@ -1,7 +1,6 @@
 /// <reference types="node" />
-// Rules every page keeps: no word about paid hosting and no cost but the ones install.ts lists,
-// every file loaded from the site itself, nothing stored in the browser, and nothing that asks a
-// visitor to sign in.
+// Rules every page keeps: no word about paid hosting, no cost but the ones install.ts lists, every file loaded
+// from the site itself, nothing stored in the browser, and nothing that asks a visitor to sign in.
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -40,7 +39,7 @@ function words(root: Element) {
   return [root.textContent ?? "", ...labels].join("\n");
 }
 
-/** Renders `path` and returns a copy of the page as it opens, then after each press that shows more of it: every sample app. */
+/** Renders `path` and returns a copy of the page as it opens, then after each press that shows a sample app. */
 function visit(path: string) {
   window.history.pushState({}, "", path);
   const { container } = render(<App />);
@@ -70,10 +69,8 @@ const OLD_LINK = /^\/(pricing|login|pay|terms|launch|join|dashboard)\b|#pricing/
 // The company whose charge the page may name: an account the install uses.
 const CHARGES = "Cloudflare";
 
-/**
- * `text` without the cost lines install.ts lists. Each is removed as a whole sentence, so a
- * reworded copy, or any other word about a price, is still read.
- */
+/** `text` without the cost lines install.ts lists. Each is removed as a whole sentence, so a reworded copy, or
+ * any other word about a price, is still read. */
 const withoutCostLines = (text: string) => COST_LINES.reduce((rest, line) => rest.split(line).join(""), text);
 
 it("reads every page for hosting words and finds none, allowing the sample apps their made-up prices and install.ts its cost lines", () => {

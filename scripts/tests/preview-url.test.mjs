@@ -9,9 +9,8 @@ import { fileURLToPath } from 'node:url';
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const script = join(repo, '.agents/skills/save/scripts/preview-url.sh');
 
-// A stub `gh` answers the repo lookup and the PR comment read, one comment per
-// line and newest first, as the script's jq asks, with @SHA@ as the head commit.
-// Every Deployment, status, and check-run list is empty, so only method 4 can match.
+// A stub `gh` answers the repo lookup and the PR comment read (one comment per line, newest first, @SHA@ as the head
+// commit). Every Deployment, status, and check-run list is empty, so only method 4 can match.
 function discover(t, commentBody) {
   const root = mkdtempSync(join(tmpdir(), 'wong-test-preview-url-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));

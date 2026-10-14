@@ -67,10 +67,8 @@ function setup(t) {
   return { base, primary, parent, paseoHome, temp, worktree, ...fakes };
 }
 
-// A fake `paseo` and `gh`. paseo answers `workspace ls` with FAKE_WORKSPACES,
-// `ls -g` with FAKE_AGENTS, `inspect <id>` from the FAKE_INSPECT map, and `wait`
-// with FAKE_WAIT_STATUS; `workspace archive` removes the worktree from
-// FAKE_PRIMARY. gh prints FAKE_GH_PR, or fails when it is unset. Every call is logged.
+// A fake `paseo` answers from FAKE_WORKSPACES, FAKE_AGENTS, FAKE_INSPECT and FAKE_WAIT_STATUS; `workspace archive`
+// removes the worktree from FAKE_PRIMARY. A fake `gh` prints FAKE_GH_PR, or fails when unset. Every call is logged.
 function fakeTools(base) {
   const bin = path.join(base, 'bin');
   mkdirSync(bin);
@@ -133,9 +131,6 @@ async function waitFor(check, what) {
   }
   assert.fail(`timed out waiting for ${what}`);
 }
-
-// ---------------------------------------------------------------------------
-// The ownership tests, pure
 
 test('inside matches a folder and what it holds, never a sibling with the same prefix', () => {
   assert.equal(inside('/w/a', '/w/a'), true);
@@ -222,9 +217,6 @@ test('the lock admits one holder, and a stale lock is taken over', t => {
   assert.equal(takeLock(lock), true);
 });
 
-// ---------------------------------------------------------------------------
-// scratch
-
 test('scratch makes .scratch/ and excludes it only when git does not ignore it yet', t => {
   const s = setup(t);
   const wt = s.worktree('scratchy');
@@ -247,9 +239,6 @@ test('scratch makes .scratch/ and excludes it only when git does not ignore it y
   assert.equal(run(ignored.primary, ['scratch'], envFor(ignored)).json.excluded, false);
   assert.equal(readFileSync(path.join(ignored.primary, '.git', 'info', 'exclude'), 'utf8'), before);
 });
-
-// ---------------------------------------------------------------------------
-// close
 
 test('close refuses the primary checkout, a chat outside Paseo, unsaved files, and unpushed commits', t => {
   const s = setup(t);
@@ -394,9 +383,6 @@ test('close --discard with no pull request or online branch, and never in the pr
   assert.equal(git(s.primary, 'status', '--porcelain'), '', 'the primary checkout is untouched');
 });
 
-// ---------------------------------------------------------------------------
-// sweep
-
 function sweepFixture(t) {
   const s = setup(t);
   const idle = s.worktree('idle');
@@ -539,9 +525,6 @@ test('sweep stops a process left in a deleted worktree, and not one in a live fo
   assert.equal(keeper.child.exitCode, null);
   assert.equal(keeper.child.signalCode, null);
 });
-
-// ---------------------------------------------------------------------------
-// The command line
 
 test('usage, unknown commands and flags, and a folder outside git', t => {
   const dir = tmp(t);

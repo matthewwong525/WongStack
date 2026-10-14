@@ -1,24 +1,6 @@
 #!/usr/bin/env node
-// Saves a change through the app and reads its checks, in a copy installed through Connect your
-// assistant (wiki/stack/employee-project.md). The app sign-in is the only login: no gh, and no
-// key of the project on this computer.
-//
-//     app-change.mjs wait [minutes]       wait for HEAD's checks; print `RESULT: …` as wait-for-checks.sh does
-//     app-change.mjs preview              print HEAD's own preview address, or nothing
-//     app-change.mjs result <sha> <ref>   print one RESULT word for that commit, without waiting
-//     app-change.mjs log <job>            print the tail of one failed check's log, as CAUSE lines
-//     app-change.mjs change               print this branch's change as JSON: { state, url, number, rows }
-//     app-change.mjs push                 send HEAD up as this branch
-//     app-change.mjs open <title> <file>  open the change with that body file, or update the open one's body; print { state, url, number }
-//     app-change.mjs heads [ref]          print the project's branch heads, as `git ls-remote --heads origin` does
-//
-// The app answers in one of two shapes. A project kept on GitHub gives `rows`, one per check, and
-// the rules of wait-for-checks.sh decide over them. A project kept in Cloudflare gives `run`, the
-// check run of the exact commit and branch, and `verdict` in artifacts-run.mjs decides. An answer
-// that can not be read is UNKNOWN with its reason, never passed and never "no checks".
-//
-// Exit codes: 0 answered; 1 `change`, `push`, `open` or `heads` was refused or could not be read,
-// with one plain line on stderr (the app's own words when it gave them, never Git's output); 2 usage.
+// Saves a change through the app and reads its checks, in a copy installed through Connect your assistant
+// (wiki/stack/employee-project.md). The app sign-in is the only login. Commands: `USAGE` below.
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { isMain } from '../../memory/scripts/lib/cli.mjs';
@@ -42,11 +24,8 @@ const git = (cwd, ...args) => {
   return { ok: result.status === 0, text: (result.stdout ?? '').trim() };
 };
 
-/**
- * The connection this copy was installed through, made on first use, so a copy with no such
- * connection is one more answer that could not be read. The copy is never the client's root: its
- * install record is the owner's and may name another origin.
- */
+// The connection this copy was installed through, made on first use. Never the client's root: its install
+// record is the owner's and may name another origin.
 function connection(root) {
   let made;
   const client = () => made ??= companyClient({ root: neutralRoot(), stateDir: installState(new URL(git(root, 'config', '--get', 'remote.origin.url').text).origin) });
@@ -67,12 +46,8 @@ const readChange = (client, branch, sha) => ask(client, `${CHANGE}?branch=${enco
 const red = row => row.bucket === 'fail' || row.bucket === 'cancel';
 const unknown = line => ({ result: 'UNKNOWN', lines: [line] });
 
-/**
- * The rules of wait-for-checks.sh over the app's rows: `{ result, lines }`. The change's head must
- * first reach `sha`, so an earlier commit's green rows never answer for this push. One red row
- * decides at once. A pass needs the same finished list on two reads in a row, more than skipped
- * rows, and a row named `guard` when `guard` is set; the last two only until the grace ends.
- */
+// The rules of wait-for-checks.sh over the app's rows: `{ result, lines }`. The head must first reach `sha`, so
+// an earlier commit's green rows never answer for this push.
 export async function waitRows(read, { sha, guard }, { minutes, grace, interval, sleep, now = () => Date.now() }) {
   const deadline = now() + minutes * 60_000;
   let since = now();

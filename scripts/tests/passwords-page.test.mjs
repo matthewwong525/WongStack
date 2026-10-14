@@ -23,10 +23,8 @@ const SECOND = 'name,url,username,password\n'
   + 'Netflix,https://netflix.com/,me@x.com,pw-other,\n'
   + 'Target,https://target.com/,me@x.com,pw-target,\n';
 
-/**
- * The page with a fake server. `reply(body)` answers each `/save`: a `{saved, failed}` result by
- * default, from the hosts sent; `open` says whether `page.mjs` still loads (a closed link's 403).
- */
+/** The page with a fake server. `reply(body)` answers each `/save`: a `{saved, failed}` result by default, from the
+ * hosts sent; `open` says whether `page.mjs` still loads (a closed link's 403). */
 function page({ reply, open = true, hash = 'key=abc' } = {}) {
   const calls = [];
   const errors = [];

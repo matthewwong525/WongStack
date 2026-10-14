@@ -85,7 +85,7 @@ export function paseoAdapter({ env = process.env, call, now = () => Date.now() }
     return row;
   };
   async function mutation(action, id, args, verify) {
-    try { await invoke(['schedule', ...args]); } catch { /* an uncertain response is read back, never blindly retried */ }
+    try { await invoke(['schedule', ...args]); } catch { /* an uncertain response is read back, never retried */ }
     try {
       const observation = await inspect(id);
       if (!verify(observation)) return { version: 1, host: 'paseo', action, nativeId: id, outcome: 'unknown' };

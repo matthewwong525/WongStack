@@ -1,32 +1,6 @@
 #!/usr/bin/env node
-/**
- * Where a task's time goes, counted from this computer's session logs. Meta-only: it reads
- * private chat logs, so no install receives it, and it prints counts, never message text.
- *
- *     node scripts/measure-sessions.mjs [--repo <path>] [--since YYYY-MM-DD] [--until YYYY-MM-DD] [--json]
- *       [--cwd <folder>]... [--all-repos] [--codex <dir>]... [--claude <dir>]...
- *
- * It reads Codex rollouts (~/.codex/sessions and ~/.codex/archived_sessions) and Claude Code
- * transcripts (~/.claude/projects), keeps the sessions of one repo, and prints one row per
- * model and thinking level. Run it twice with --since and --until to compare two periods.
- *
- * What is counted:
- *   turn     one request and the work it started. Its verb is the `$ship` or `/ship` that opens
- *            it, `helper` in a helper's own session, else `none`.
- *   step     one tool call the model made.
- *   command  one shell command (a Codex step can run several), or one Claude file read.
- *   page read  a command that reads a skill page, a wiki page, or AGENTS.md; a repeat when the
- *            same chat already read every page it names.
- *   parent steps during a helper  steps the parent took while its helper's turn was open,
- *            waits counted apart.
- *   failed-check lookups  `gh run view ... --log` commands.
- *   local check runs  test or check commands run on this computer.
- * Seconds per step is the time of the turns that took a step, over their steps.
- *
- * A session belongs to the repo when its working folder is the repo, one of its worktrees, or a
- * --cwd folder, or when the log records the repo's origin address (Codex only). A Claude
- * transcript that records no thinking level is grouped under `unrecorded`; compare those by date.
- */
+// Where a task's time goes, counted from this computer's session logs; prints counts, never message text.
+// Meta-only: it reads private chat logs. Doc: wiki/maintaining/measure-session-speed.md
 import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';

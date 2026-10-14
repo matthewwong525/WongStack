@@ -1,50 +1,6 @@
 #!/usr/bin/env node
-// Opens a reply link: a page the assistant made, at a web address that closes itself, whose send puts
-// the person's text into the chat that opened it, and whose named actions each send one fixed message.
-//
-//     node .claude/skills/hand-over/scripts/reply-link.mjs open <file> --header "<line>" [--hours N] [--action <name>=<message>]...
-//     node .claude/skills/hand-over/scripts/reply-link.mjs close <file>
-//     node .claude/skills/hand-over/scripts/reply-link.mjs list
-//
-// `open` registers one self-contained HTML file in ~/.wong-stack/reply-link/pages/<id>.json: its path,
-// a random key, the fixed header line, its actions, the chat to wake, and a deadline 8 hours on. An
-// action is a name ([a-z][a-z0-9-]{0,30}) and the one-line message, 300 characters at most, that a tap
-// on its button sends: 6 at most, and opening a file again replaces them. One detached server
-// and one Cloudflare quick tunnel serve every registered page, so the first `open` waits for the tunnel
-// (30 seconds at most) and later ones print at once. It prints `REPLY_LINK=<origin>/p/<id>/#key=<hex>`
-// only once the public address answers. Opening a file again keeps its id and key and moves its
-// deadline. Where no link can open it prints `REPLY_LINK=none` and `REPLY_REASON=<why>` and exits 0, so
-// the caller falls back to the file: `off` (REPLY_LINK=off is set), `no-chat` (the host names no chat or
-// has no way to wake one), `no-cloudflared`, or `tunnel-down`. It never asks to install anything.
-//
-// The server answers, for a registered and unexpired `<id>`:
-//
-//     GET  /p/<id>/        the file, read from disk each time
-//     GET  /p/<id>/alive   200 {closesAt, actions, version}        needs the key
-//     POST /p/<id>/send    {text} -> 200 {sent:true} | 502 {sent:false}   needs the key
-//     POST /p/<id>/act     {action, version, text?} -> 200 {sent:true} | 502 {sent:false}
-//                          | 409 {changed:true} | 409 {done:true}  needs the key
-//
-// The key rides in the link's fragment, which a browser never sends, and returns in an `x-reply-key`
-// header. `send` wakes the registered chat with the header line, a newline, then the text: at most
-// 20,000 characters, one send per 5 seconds per page. It answers `sent:true` only when the host
-// confirms that chat got it. `alive` names the actions and gives `version`, the SHA-256 of the file as
-// it stands. `act` sends the registered instruction, then optional notes within the text limit;
-// the request cannot replace the header, instruction, or chat target. It answers 400 for a name the opener did not register, 409 `changed` when
-// `version` is not the file's now, and 409 `done` once that action was accepted for that version; an
-// unconfirmed wake is not accepted, so it can be tried again. It shares `send`'s 5 seconds. Accepted
-// actions are held in memory, so a restarted server allows one repeat, which the chat sees.
-// An unknown, closed, or expired id answers 410. The server logs nothing,
-// and exits, killing its tunnel, once no page is unexpired or the tunnel has died.
-//
-// This is not a private link: it carries plan text and notes, never a secret, and shares no state with
-// hand-over.mjs, so neither kind of link can block the other. `close` ends one page; `list` prints each
-// open page's file and deadline, never a key.
-//
-// Exit codes: 0 ok, a `none` answer included · 1 the file is missing · 2 usage. Node built-ins only.
-// For tests: REPLY_LINK_TUNNEL_WAIT_MS overrides the 30-second tunnel wait, REPLY_LINK_POLL_MS the
-// server's 5-second check, REPLY_LINK_SEND_GAP_MS the 5 seconds between sends, and
-// HANDOVER_PROBE_ORIGIN the address asked before the link prints.
+// Opens a reply link: a page the assistant made, at a web address that closes itself, whose send puts the person's
+// text into the chat that opened it. Not a private link: it never carries a secret. wiki/development/reply-links.md
 
 import { spawn } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
@@ -89,9 +45,6 @@ function files(env = process.env) {
   return { dir, pages: join(dir, 'pages'), server: join(dir, 'server.json'), lock: join(dir, 'starting.lock'), log: join(dir, 'tunnel.log'), config: join(dir, 'cloudflared.yml') };
 }
 
-// ---------------------------------------------------------------------------
-// Registrations
-
 const pageFile = (state, id) => join(state.pages, `${id}.json`);
 
 /** A registration as written, or null when it is missing, malformed, or past its deadline. */
@@ -130,7 +83,7 @@ function checkActions(pairs) {
 /** A registration's actions; one written before actions has none. */
 const actionsOf = page => (page.actions && typeof page.actions === 'object' ? page.actions : {});
 
-/** Writes the file's registration, keeping an open one's id and key so its link stays the same; its actions are replaced. */
+/** Writes the file's registration, keeping an open one's id and key so its link stays; its actions are replaced. */
 function register(state, { file, header, actions, hours, target }) {
   mkdirSync(state.pages, { recursive: true, mode: 0o700 });
   const kept = openPages(state).find(page => page.file === file);
@@ -138,9 +91,6 @@ function register(state, { file, header, actions, hours, target }) {
   writeFileSync(pageFile(state, page.id), `${JSON.stringify(page)}\n`, { mode: 0o600 });
   return page;
 }
-
-// ---------------------------------------------------------------------------
-// The server
 
 const PAGE_HEADERS = { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'referrer-policy': 'no-referrer', 'x-frame-options': 'DENY', 'content-security-policy': "frame-ancestors 'none'" };
 const CLOSED_PAGE = '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>This link has closed</title><body style="font:16px/1.5 system-ui,sans-serif;margin:2em"><h1 style="font-size:22px">This link has closed</h1><p>Ask your assistant for a new link.</p></body></html>';
@@ -154,7 +104,7 @@ function html(response, status, text) {
   response.writeHead(status, PAGE_HEADERS).end(text);
 }
 
-/** The request's JSON body, or null when it is over the limit or not JSON; the rest of an oversized one is read and dropped. */
+/** The request's JSON body, or null when it is over the limit or not JSON; an oversized one is read and dropped. */
 async function readBody(request) {
   const chunks = [];
   let size = 0;
@@ -177,10 +127,8 @@ function fileVersion(page) {
   try { return createHash('sha256').update(readFileSync(page.file)).digest('hex'); } catch { return null; }
 }
 
-/**
- * The request handler for every registered page. `wake(target, message)` resolves to wakeChat's
- * answer; the page supplies neither the header, nor the target, nor an action's message.
- */
+/** The request handler for every registered page. `wake(target, message)` resolves to wakeChat's
+ * answer; the page supplies neither the header, nor the target, nor an action's message. */
 export function replyRoutes(state, { wake = wakeChat } = {}) {
   const lastSend = new Map();
   const accepted = new Map();
@@ -264,9 +212,6 @@ async function serve(port, tunnelPid) {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Opening
-
 /** The running server's record when it and its tunnel are alive and the public address answers, else null. */
 async function liveServer(state) {
   const server = readJson(state.server);
@@ -303,10 +248,8 @@ function spawnServer(port, tunnelPid, env) {
   return child;
 }
 
-/**
- * Replaces a running server from older code with this one on the same port, keeping its tunnel, so
- * every open link keeps its address. Resolves to the new record, or null when the address stops answering.
- */
+/** Replaces a running server from older code with this one on the same port, keeping its tunnel, so
+ * every open link keeps its address. Resolves to the new record, or null when the address stops answering. */
 async function swapServer(state, old, env) {
   // SIGKILL, not SIGTERM: the old server's own ending would take the tunnel with it.
   signal(old.pid, 'SIGKILL');
@@ -366,17 +309,11 @@ async function openLink({ file, header, actions = {}, hours = HOURS, env = proce
   return { link: `${server.origin}/p/${page.id}/#key=${page.key}` };
 }
 
-/**
- * The file's reply link, or null, quickly and quietly, where none can open: the caller then offers
- * the file itself. `header` is the fixed first line of every message the page sends; `actions` maps
- * each button the page may offer to the one-line message a tap on it sends.
- */
+/** The file's reply link, or null, quickly and quietly, where none can open: the caller then offers the file.
+ * `header` is the fixed first line of every message; `actions` maps each button to the one-line message it sends. */
 export async function openReplyLink(options) {
   try { return (await openLink(options)).link; } catch { return null; }
 }
-
-// ---------------------------------------------------------------------------
-// CLI
 
 /** The file's real path, or exit 1 once it has said the file is missing. */
 function realFile(file) {

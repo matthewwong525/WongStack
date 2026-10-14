@@ -1,8 +1,5 @@
-// Three guards for the landing page in site/. Meta-only, like the site itself.
-//
-// They live here, not in site/, because a change that edits only the README or
-// only a script never runs the site's own workflow (.github/workflows/site.yml).
-// wiki/maintaining/landing-page.md says what each one protects.
+// Three guards for the landing page in site/, kept here because a README-only or script-only change never runs the
+// site's own workflow (.github/workflows/site.yml). wiki/maintaining/landing-page.md says what each one protects.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -24,8 +21,6 @@ const SITE_CONFIG = 'site/wrangler.site.jsonc';
 const LOOKUP = 'scripts/lib-wrangler-config.mjs';
 const PAYLOAD = '.agents/skills/wong-sync/references/payload-files.json';
 
-// ---- Guard 1: the page's install message is the README's ----
-
 // The text of every fenced block in a Markdown file, without its indent.
 function fencedBlocks(markdown) {
   const blocks = [];
@@ -41,9 +36,8 @@ function fencedBlocks(markdown) {
   return blocks;
 }
 
-// Why the README does not carry `prompt` as a fenced message, or null when it
-// does. A whole block must equal it: a README message that only starts with the
-// page's, or contains it, has changed.
+// Why the README does not carry `prompt` as a fenced message, or null when it does. A whole block must equal it:
+// a README message that only starts with the page's, or contains it, has changed.
 function messageProblem(readme, prompt) {
   if (fencedBlocks(readme).includes(prompt)) return null;
   return `${README} has no fenced message equal to INSTALL_PROMPT in ${INSTALL}. `
@@ -74,8 +68,6 @@ test('a README whose message differs from the page is refused, naming both files
   }
 });
 
-// ---- Guard 2: the starter app's scripts find only the starter app's config ----
-
 // The names the lookup searches each folder for, read from the lookup itself.
 function lookupNames() {
   const list = read(LOOKUP).match(/const CONFIG_NAMES = (\[[^\]]*\]);/);
@@ -83,9 +75,8 @@ function lookupNames() {
   return JSON.parse(list[1]);
 }
 
-// Every place the lookup would find a config under `root`: '.' for the root
-// itself, else the name of an immediate subfolder. The lookup takes the first
-// in whatever order the file system lists them, so more than one is a coin toss.
+// Every place the lookup would find a config under `root`: '.' or an immediate subfolder's name. The lookup takes
+// the first in whatever order the file system lists them, so more than one is a coin toss.
 function configHolders(root, names) {
   const holds = dir => names.some(name => existsSync(join(dir, name)));
   const folders = readdirSync(root, { withFileTypes: true })
@@ -162,13 +153,10 @@ test('a second findable config is refused, and so is a payload list that names s
   );
 });
 
-// ---- Guard 3: a publish attaches wongstack.com, and a preview never does ----
-
 const DOMAINS = ['wongstack.com', 'www.wongstack.com'];
 
-// Why deploying `config` would not leave wongstack.com on the live site alone,
-// or null. A wrangler environment inherits the top-level `routes`, so one with
-// no empty list of its own takes the domain on a branch deploy.
+// Why deploying `config` would not leave wongstack.com on the live site alone, or null. A wrangler environment
+// inherits the top-level `routes`, so one with no empty list of its own takes the domain on a branch deploy.
 function domainProblem(config) {
   const routes = DOMAINS.map(pattern => ({ pattern, custom_domain: true }));
   if (!isDeepStrictEqual(config.routes, routes)) {

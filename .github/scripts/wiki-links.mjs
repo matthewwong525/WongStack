@@ -1,19 +1,6 @@
 #!/usr/bin/env node
-// Does the wiki hold? One run on every push, docs-only included, in every repo.
-//
-// A wiki page nothing links to is lost: no reader drills down to it. A link to a
-// page that moved or went away, or to a heading since renamed, is a dead end. A
-// hub (a folder's README.md) that skips a page beside it breaks the tree. A page
-// over 3,000 words is slow to read and costly to load, so it splits by its
-// sections. A page opens with one # title and a sentence saying what it is,
-// because a reader lands from search. wiki/wiki-style.md owns the rules; the
-// memory skill's lib/links.mjs owns how a link and a heading are read, so
-// `memory.mjs areas` and this check never disagree.
-//
-// Prints one line per problem and exits 1, or one summary line and exits 0.
-// A repo with no wiki/ passes. Needs only the runner's Node.
-//
-// Usage: node .github/scripts/wiki-links.mjs [repo root]
+// Does the wiki hold? One run on every push, docs-only included, in every repo; a repo with no wiki/ passes.
+// wiki/wiki-style.md owns the rules; the memory skill's lib/links.mjs reads links, as `memory.mjs areas` does.
 
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';

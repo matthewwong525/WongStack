@@ -1,6 +1,5 @@
-// The built screen folders are the whole catalogue; nobody edits a second list of apps. An app is a folder with
-// a screen (src/apps/<name>/app.json): a page and a card on Home, and the one thing a person is given. A server
-// folder with no screen is no app: its routes belong to the saved keys they list. wiki/stack/mini-apps.md
+// The built screen folders are the whole catalogue: an app is a folder with a screen (src/apps/<name>/app.json).
+// A server folder with no screen is no app: its routes belong to the saved keys they list. wiki/stack/mini-apps.md
 import type { RouteAccess } from "./policy.ts";
 
 type Named = { title?: unknown; description?: unknown };
@@ -9,10 +8,8 @@ type App = { id: string; title: string; description: string };
 
 const text = (value: unknown) => typeof value === "string" && value.trim() !== "";
 
-/**
- * Every app, sorted by id. Throws, naming the file, when one has no title or no description, so the `test`
- * check fails before Access lists a folder nobody can name.
- */
+/** Every app, sorted by id. Throws, naming the file, when one has no title or no description, so the `test`
+ *  check fails before Access lists a folder nobody can name. */
 export function listApps(manifests: ReadonlyMap<string, Named>): App[] {
   return [...manifests.keys()].sort().map(id => {
     const { title, description } = manifests.get(id)!;
@@ -30,13 +27,10 @@ export const apps = (): readonly App[] => built;
 export const catalogue = (): string[] => built.map(app => app.id);
 /** Whether a server folder is an app: it has a screen. One with none belongs to the keys its routes list. */
 export const hasScreen = (id: string): boolean => catalogue().includes(id);
-/** A built app's title. */
 export const appTitle = (id: string): string => built.find(app => app.id === id)!.title;
 
-/**
- * A main route may be mapped only to built apps. Throws, naming the route and the name, where one is not:
- * such a route would deny everyone but the owner, with no error until a person calls it.
- */
+/** A main route may be mapped only to built apps. Throws, naming the route and the name, where one is not:
+ *  such a route would deny everyone but the owner, with no error until a person calls it. */
 export function routeApps(routes: readonly { route: string; access?: RouteAccess }[]): void {
   for (const { route, access } of routes) {
     const unknown = (access && "apps" in access ? access.apps : []).find(app => !catalogue().includes(app));

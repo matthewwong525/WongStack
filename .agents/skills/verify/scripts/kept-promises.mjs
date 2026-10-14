@@ -1,15 +1,11 @@
-// How a kept check and a written promise are read, for the two scripts that need the same answer:
-// verify-journeys.mjs, which keeps and replays the checks, and .github/scripts/loosened-checks.mjs,
-// which wants a reason when one is weakened. Both take text, so the guard can read a spec as git
-// holds it at two commits. Needs Node only.
+// How a kept check and a written promise are read, for verify-journeys.mjs and .github/scripts/loosened-checks.mjs.
+// Both take text, so the guard can read a spec as git holds it at two commits. Needs Node only.
 import { createHash } from 'node:crypto';
 
 export const digest = bytes => createHash('sha256').update(bytes).digest('hex');
 
-/**
- * A spec or delta file as its requirements: the `## ` section each sits under, its scenarios, and
- * each scenario's `promise`: its lines from THEN to the end.
- */
+// A spec or delta file as its requirements: the `## ` section each sits under, its scenarios, and each
+// scenario's `promise`: its lines from THEN to the end.
 export function readSpec(source) {
   const requirements = [];
   let section = '';

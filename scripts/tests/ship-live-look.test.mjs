@@ -96,12 +96,8 @@ test('a release that has not landed when the wait runs out is unknown', t => {
   assert.deepEqual(gets, []);
 });
 
-// ---------------------------------------------------------------------------
-// An Artifacts install: main's check run is the release, and gh is never asked
-
-// A fake node answers the two calls that tell the route and read main's run for the commit
-// (RUN_LIVE is the word `artifacts-run.mjs live` prints), and hands every other call, which reads
-// .env and the memory store, to the real node.
+// A fake node answers the two calls that tell the route and read main's run for the commit (RUN_LIVE is the word
+// `artifacts-run.mjs live` prints), and hands every other call (.env and memory store reads) to the real node.
 const FAKE_NODE = `#!/usr/bin/env bash
 case "$1" in
   */delivery-route.mjs)

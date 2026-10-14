@@ -11,9 +11,8 @@ const repo = resolve(dirname(here), '../..');
 // Private downstream repositories and services. This list lives here only.
 const PRIVATE = /claymooapp|wongos|wongstack-cloud/i;
 
-// The changelog and the archive are the record and keep their names. Active
-// changes are exempt too: a change that removes a name has to say it, and it
-// moves to the archive when it ships. This file holds the list itself.
+// The changelog and the archive are the record and keep their names. Active changes are exempt too: one that removes
+// a name has to say it, and moves to the archive when it ships. This file holds the list itself.
 const isRecord = path =>
   path === 'CHANGELOG.md' || path.startsWith('openspec/changes/') || path === relative(repo, here);
 

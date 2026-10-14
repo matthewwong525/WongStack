@@ -16,9 +16,8 @@ const LINK = 'https://store.example.com/checkouts/abc';
 // A credential no id, path, or total can hold, so a search for it never matches by chance.
 const SECRET = 'tok_Zq9-SECRET-credential-7f3a91c2';
 
-// A stand-in for Shop's command: it appends each call's argv, `SHOP_` settings, and stdin to calls.jsonl,
-// then answers from replies.json, keyed by the call's first two words or its first. A key's replies are
-// used in order and the last one repeats. `hang` never answers.
+// A stand-in for Shop's command: it logs each call's argv, `SHOP_` settings, and stdin to calls.jsonl, then answers
+// from replies.json by the call's first two words or its first. The last reply repeats; `hang` never answers.
 const FAKE = control => `import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 const file = name => ${JSON.stringify(control)} + '/' + name;
 const argv = process.argv.slice(2);

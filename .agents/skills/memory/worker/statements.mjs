@@ -1,8 +1,5 @@
-// The memory script's write statements, shared with the memory route. A member key may run only these
-// writes, with its stored machine owner, and plain reads: it adds facts, but cannot change or delete them.
-// In a team, a member's or reader's reads see only the facts it may (shadowCtes below).
-// `owner` is the ownership parameter index; author fields are attribution only. The client sends these
-// for every role; the route swaps in MEMBER_WRITES for a member key.
+// The memory script's write statements, shared with the memory route. A member key may run only these writes, with
+// its stored machine owner, and plain reads. The client sends these for every role; the route swaps in MEMBER_WRITES.
 
 export const WRITES = {
   session: {
@@ -84,16 +81,14 @@ export function memberStatements(statements, { machine_id, reader }) {
   });
 }
 
-// ---------- what a member or reader key may read in a team ----------
-
 // The one way any read searches the full-text index: a subquery that matches only facts the key may see,
 // because `facts` inside it is the shadow below. The client joins it as `hits` and orders by `hits.rank`.
 export const FTS_HITS = '(SELECT rowid, rank FROM facts_fts WHERE facts_fts MATCH ? AND rowid IN (SELECT id FROM facts))';
 
 const quote = text => `'${String(text).replaceAll("'", "''")}'`;
 
-// The CTEs that stand in for `facts` and `fact_tags` for a member or reader key in a team: everyone's shared
-// facts that are not personal, plus the key's own. SQLite resolves a CTE before a table of the same name, so every read sees only these.
+// The CTEs that stand in for `facts` and `fact_tags` for a member or reader key in a team: shared facts that are
+// not personal, plus the key's own. SQLite resolves a CTE before a same-named table, so every read sees only these.
 export function shadowCtes(machineId) {
   const owner = quote(machineId);
   return `facts AS (SELECT * FROM main.facts WHERE (type NOT IN ('user', 'feedback') AND shared = 1) OR owner_machine_id = ${owner}), `
@@ -112,12 +107,11 @@ export function shadowRead(sql, machineId, options) {
 // A schema-qualified name skips a CTE, and a raw page read skips every name, so a shadowed read names neither.
 const SCHEMA_NAME = /(?<![\w$])(?:main|temp)(?![\w$])|sqlite_dbpage/i;
 
-// A CTE of its own named `facts` or `fact_tags`, at any depth: a nested one would stand in for the shadow inside FTS_HITS.
+// A CTE of its own named `facts` or `fact_tags`, at any depth: a nested one would replace the shadow inside FTS_HITS.
 const OWN_SHADOW = /(?<![\w$.])["`[]?(?:facts|fact_tags|sessions)["`\]]?\s*(?:\([^)]*\)\s*)?AS\s*(?:NOT\s+)?(?:MATERIALIZED\s*)?\(/i;
 
-// Why a member or reader key in a team may not run this read, or null when it may: it names no schema, defines
-// no `facts` or `fact_tags` of its own, and reads the full-text index only through FTS_HITS. Checked before the
-// shadow is added.
+// Why a member or reader key in a team may not run this read, or null: it must name no schema, define no `facts` or
+// `fact_tags` of its own, and reach the full-text index only through FTS_HITS. Checked before the shadow is added.
 export function readRefusal(sql) {
   const text = String(sql);
   if (SCHEMA_NAME.test(text)) return 'a member key reads facts only by their plain names, never main., temp., or raw pages';

@@ -79,9 +79,8 @@ function blocks(section, noun) {
   return out.map(block => ({ ...block, text: block.text.join(' ') }));
 }
 
-// A box's right edge must sit under its ┐. Walk down from each ┐: │ ┤ ┼ continue the box and ┘ closes it.
-// A │ or ┘ within two columns means a miscounted line; anything else means the ┐ was no box's corner, as in ┌──┴──┐.
-// + and | are skipped: they show up in ordinary text.
+// A box's right edge must sit under its ┐: a │ or ┘ within two columns below it means a miscounted line.
+// Anything else means the ┐ was no box's corner, as in ┌──┴──┐. + and | are skipped: ordinary text has them.
 function crooked(rows) {
   const found = [];
   rows.forEach((row, top) => row.forEach((char, corner) => {
@@ -214,7 +213,7 @@ function writeIfDifferent(path, next) {
 // The line under the link on the *Review the plan* reply only; the rule, not the builder, decides when to copy it.
 export const NEXT_STEP = "When you're ready, type `/apply` to build it.";
 
-// The chat line an agent copies as printed: a path with a space or parenthesis goes in <…> so the Markdown link still parses.
+// The chat line an agent copies as printed: a path with a space or parenthesis goes in <…> so the link still parses.
 export function planLink(page) {
   return `Click here to see the plan: [review.html](${/[\s()]/.test(page) ? `<${page}>` : page})`;
 }

@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 42.0.0 — Short comments only
+
+- **A check fails on a long comment.** A comment longer than two lines, or a comment line wider than 120 characters, now fails the code checks and names the file and the line. It covers the app's JavaScript and TypeScript. A code line has no width limit. A short, helpful comment still passes.
+- **Some comments are never counted.** A license header, the first line that makes a script runnable, and the lines a tool reads, such as one that switches a single check off. The ready-made parts in `app/src/components/ui/` and the machine-written types file are skipped too.
+- **The shipped code already passes.** Every long comment was cut to two lines, or removed when it only repeated the code. Short, helpful comments stayed as they were.
+- **The assistant comments less.** [The coding rules](.agents/rules/code.md) now say: comment only what the code can not say, why and not what, two lines at most. A longer reason goes in a test, a clearer name, or the wiki.
+
+**Updating.** After the update, the check fails on any comment over two lines, or any comment line wider than 120 characters, in your app's code. Ask your assistant: *shorten the long comments in the app*. It cuts each one to two lines, turns any that stated a rule into a test, and lists what it removed. Nothing about how your app works changes.
+
 ## 41.3.0 — One connect message for every assistant
 
 - **One short setup message, the same for everyone.** *Connect your assistant* no longer picks between a project message and an apps-only one, and the message carries no fingerprint and no rules about folders. Setup works out what the person is allowed when it runs.

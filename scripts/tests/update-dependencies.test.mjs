@@ -11,8 +11,6 @@ import {
   CAMOFOX_PINS, PIN_FILES, SHOP_PIN, VIEWER_PIN, bumpRange, isMajor, latestInMajor, lockInSync, planPackages, readCamofoxPins, readPin, readShopPin, readViewerPin, rewritePins, run,
 } from '../../.agents/skills/update-dependencies/scripts/update.mjs';
 
-// ---- Pure helpers ----
-
 test('a bump keeps the range prefix and never goes backwards', () => {
   assert.equal(bumpRange('^1.2.3', '1.4.0'), '^1.4.0');
   assert.equal(bumpRange('~7.0.2', '7.1.0'), '~7.1.0');
@@ -95,8 +93,6 @@ test('a lock is in sync only when its root entry names the same ranges', () => {
   assert.equal(lockInSync(pkg, { packages: { '': { dependencies: { a: '^1.0.0' } } } }), false);
   assert.equal(lockInSync(pkg, null), false);
 });
-
-// ---- The stages, against a fixture repo and fake npm, openspec, agent-browser, gh, and node ----
 
 const NODE_INDEX = [{ version: 'v24.1.0' }, { version: 'v22.9.0' }, { version: 'v22.8.0' }];
 const APP = { name: 'app', dependencies: { react: '^19.0.0' }, devDependencies: { '@types/node': '^22.1.0' } };

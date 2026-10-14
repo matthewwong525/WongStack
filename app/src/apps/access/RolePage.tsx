@@ -21,7 +21,8 @@ export function BuiltInRole({ role, ...props }: ViewProps & { role: Role }) {
   </Page>
 }
 
-/** One role, opened: a name, its apps and key levels, and who holds it. Without `role`, a new one. Removing it asks first, over the panel. */
+/** One role, opened: a name, its apps and key levels, and who holds it. Without `role`, a new one.
+ *  Removing it asks first, over the panel. */
 export function RolePage({ role, ...props }: ViewProps & { role?: Role }) {
   const { status, pending, save } = props
   const [name, setName] = useState(role?.name ?? '')

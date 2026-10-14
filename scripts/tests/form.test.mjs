@@ -89,10 +89,8 @@ test('checkValues takes one value per field: text on one line, a dropdown\'s own
   assert.equal(checkValues(null, CARD), 400);
 });
 
-/**
- * A browser client that logs everything a send does, in order. `fail(step, target)` makes a step throw;
- * each dropdown shows `was` before the person's pick.
- */
+/** A browser client that logs everything a send does, in order. `fail(step, target)` makes a step throw;
+ * each dropdown shows `was` before the person's pick. */
 function tools({ fail = () => false, reached = async () => true, was = 'Choose' } = {}) {
   const log = [];
   const step = name => async (target, value) => {

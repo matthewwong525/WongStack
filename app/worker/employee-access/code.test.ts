@@ -52,7 +52,8 @@ const push = (sent: BodyInit | null = `${updates([to("refs/heads/kim/fix")])}${P
   return git("git-receive-pack", init);
 };
 const chunks = (...parts: string[]) => new ReadableStream<Uint8Array>({ start(controller) { for (const part of parts) controller.enqueue(new TextEncoder().encode(part)); controller.close(); } });
-/** Where the project is kept, standing in: GitHub's API names the published branch, and Git's address takes the push. */
+// Where the project is kept, standing in: GitHub's API names the published branch,
+// and Git's address takes the push.
 const kept = (answer: () => Response = () => new Response(`${pkt("unpack ok\n")}${pkt("ok refs/heads/kim/fix\n")}0000`, { headers: { "Content-Type": "application/x-git-receive-pack-result", "Set-Cookie": "upstream=1" } })) =>
   fetched.mockImplementation(async (address: string) => address.startsWith("https://api.github.com/")
     ? address.includes("/acme/down") ? new Response("down", { status: 500 }) : Response.json({ default_branch: address.includes("/acme/trunk-box") ? "trunk" : "main" })
@@ -102,7 +103,7 @@ it("finds where the project is kept without calling anything, and refuses a name
     expect([codeSource(bad), await upstream(bad)]).toEqual([null, null]);
   }
   expect(fetched).not.toHaveBeenCalled();
-  // A Cloudflare-kept project: the one recorded repository, and a short-lived read token. Nothing else is asked of the binding.
+  // A Cloudflare-kept project: the one recorded repository and a short-lived read token. The binding is asked no more.
   const kept = artifacts();
   expect(codeSource(kept.env)).toMatchObject({ name: "recipe-box" });
   expect(kept.calls).toEqual([]);
@@ -128,9 +129,8 @@ it("says why the project can not be handed out yet: a missing GitHub key, or no 
   expect(fetched).not.toHaveBeenCalled();
 });
 
-// An install kept in Cloudflare has `ARTIFACTS: Artifacts` in its generated Env, and Cloudflare's type for a repository
-// is not the shape this file calls. The type check reads this line: it compiles only while a connection's env takes
-// that binding as Cloudflare types it.
+// An install kept in Cloudflare has `ARTIFACTS: Artifacts` in its generated Env, not the shape this file calls.
+// The type check reads this line: it compiles only while a connection's env takes that binding as Cloudflare types it.
 const generated = (bound: Env & { ARTIFACTS: Artifacts }): ConnectionEnv => bound;
 it("takes the binding as Cloudflare types it wherever a connection's env is asked for, and still checks it before use", async () => {
   const kept = artifacts();
@@ -170,7 +170,8 @@ it("says whether a change can be saved, for each pair of keys and bindings, with
     { github: "acme/recipe-box", token: WIDE }, { github: "acme/recipe-box", token: WIDE }]);
   expect([github, saving, both, artifacts().env, runner].map(bindings => [codeStep(bindings), saveStep(bindings)]))
     .toEqual([["ready", "key"], ["ready", "ready"], ["ready", "ready"], ["ready", "setup"], ["ready", "ready"]]);
-  // No key at all, a wide key that is no text, a check runner that is no binding, and no project: the step left is named.
+  // No key at all, a wide key that is no text, a check runner that is no binding, and no project:
+  // the step left is named.
   expect([{ WONG_CODE_REPOSITORY: "acme/recipe-box" }, { ...github, WONG_CODE_WRITE: " " }, { ...artifacts().env, CODE_CHECKS: {} }, { ...artifacts().env, CODE_CHECKS: null }, { WONG_CODE_WRITE: WIDE }, { CODE_CHECKS: CHECKS, WONG_CODE_REPOSITORY: "recipe-box" }]
     .map(bindings => [saveStep(bindings), saveSource(bindings)])).toEqual([["key", null], ["key", null], ["setup", null], ["setup", null], ["setup", null], ["setup", null]]);
   expect(await upstream(saving, "write")).toEqual({ url: "https://github.com/acme/recipe-box.git", authorization: `Basic ${btoa(`x-access-token:${WIDE}`)}` });
@@ -247,7 +248,8 @@ it("turns down every push that is not one new commit on one branch, in words Git
     expect([refused.status, await refused.text()], name).toEqual([403, NEVER]);
   }
   expect(fetched).not.toHaveBeenCalled();
-  // A branch that reads as fine is held to the branch GitHub says the project publishes from: asked once, and no push goes on.
+  // A branch that reads as fine is held to the branch GitHub says the project publishes from:
+  // asked once, and no push goes on.
   const trunk = { ...saving, WONG_CODE_REPOSITORY: "acme/trunk-box" };
   for (let again = 0; again < 2; again++) expect(await (await codeGit(push(updates([to("refs/heads/trunk")], "report-status")), trunk)).text()).toBe(ng("refs/heads/trunk"));
   expect(fetched.mock.calls.map(([address]) => address)).toEqual(["https://api.github.com/repos/acme/trunk-box"]);

@@ -10,9 +10,8 @@ export interface PolicyEnv extends AccessEnv {
   WONG_OWNER_EMAIL?: string;
 }
 
-/** What a route asks of its caller: apps, whatever saved keys it uses; keys alone; or a reviewed exception.
- *  `apps` names apps by folder, and holding them is all an app's route asks. `direct` marks a route that
- *  passes a request on to its one key's service: the caller's level decides it, once key levels have started. */
+/** What a route asks of its caller: apps, whatever saved keys it uses; keys alone; or a reviewed exception. `direct`
+ *  marks a route that passes a request on to its one key's service: the caller's level decides, once levels start. */
 export type RouteAccess = { apps: readonly string[]; keys?: readonly string[] } | { keys: readonly string[]; direct?: true } |
   { kind: "infrastructure" | "self-service" | "owner" };
 type Role = "owner" | "employee";
@@ -20,15 +19,15 @@ export type CurrentPolicy = { state: "legacy" } | { state: "unavailable" } | { s
   // The owner is known and permissions have not started: everyone keeps every app.
   // `manages`: the caller may manage Access. It is its own flag and gives no app, key or owner route.
   { state: "not_started"; role: Role; manages: boolean } |
-  // `apps` is the apps held: each one whole, look-ups and changes alike.
-  // `keys` is the level held for each key used by itself, null until key levels start: no key works alone yet.
-  // `keysStarted` says key levels have started: until then no key is used directly, the owner's included.
+  // `apps`: the apps held, each whole. `keys`: the level held per key used by itself, null until key levels start.
+  // `keysStarted`: until key levels start no key is used directly, the owner's included.
   { state: "current"; role: Role; manages: boolean; revision: number; apps: ReadonlySet<string>; keys: ReadonlyMap<string, Level> | null;
     keysStarted: boolean };
 /** What a refused caller lacks: an app, or a mapping that opens anything; or one key at the level the call needs. */
 type Refusal = "app" | { key: string; need: Level };
 
-/** The built-in role's id: its holder has every app and key and manages Access. A role the owner makes gets a random id, never this one. */
+// The built-in role's id: its holder has every app and key and manages Access.
+// A role the owner makes gets a random id, never this one.
 export const ADMIN_ROLE = "admin";
 
 const appId = z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
@@ -96,7 +95,8 @@ export async function currentPolicy(env: PolicyEnv, identity: AccessIdentity | n
     // No row yet: the owner has not opened Access, so nothing has started.
     if (!found) return { state: "not_started", role, manages: role === "owner" };
     const row = policyRow.parse(found);
-    // The owner manages Access, and so does an Admin: a current person holding the built-in role. No machine has a person's row.
+    // The owner manages Access, and so does an Admin: a current person holding the built-in role.
+    // No machine has a person's row.
     const admin = !!email && row.status === "active" && row.held === ADMIN_ROLE;
     const manages = role === "owner" || admin;
     if (!row.policy_enabled) return { state: "not_started", role, manages };
@@ -109,7 +109,8 @@ export async function currentPolicy(env: PolicyEnv, identity: AccessIdentity | n
     // The owner holds every app and every key. A person's apps and levels come from their role when they hold one.
     // Only a row at `write` is a held app: one left at `read` could only look, and a tick can not say that.
     if (role === "owner") return { state: "current", role, manages, revision: row.revision, apps: everyApp(), keys: everyKey(), keysStarted };
-    // An Admin's set is worked out like the owner's, so an app built later is theirs too. Their keys wait for key levels.
+    // An Admin's set is worked out like the owner's, so an app built later is theirs too.
+    // Their keys wait for key levels.
     if (admin) return { state: "current", role, manages, revision: row.revision, apps: everyApp(), keys: keysStarted ? everyKey() : null, keysStarted };
     return { state: "current", role, manages, revision: row.revision, apps: storedApps(row.apps), keys: keysStarted ? heldLevels(storedLevels(row.keys)) : null, keysStarted };
   } catch {
@@ -125,7 +126,7 @@ export const listedKeys = (access: RouteAccess | undefined): readonly string[] =
 /** Whether a route passes a request on to its key's service. */
 export const usedDirectly = (access: RouteAccess | undefined): boolean => !!access && "direct" in access && access.direct === true;
 
-/** The first listed key the caller does not hold at the level needed. Until key levels start, nobody but the owner holds one. */
+/** The first listed key the caller lacks at the level needed. Until key levels start, only the owner holds one. */
 function lackingKey(held: ReadonlyMap<string, Level> | null, keys: readonly string[], need: Level): Refusal | null {
   const key = keys.find(id => !holds(held?.get(id), need));
   return key ? { key, need } : null;
@@ -157,12 +158,12 @@ function refusal(policy: CurrentPolicy, access: RouteAccess | undefined, need: L
   if ("kind" in access) return access.kind !== "owner" || policy.role === "owner" ? null : "app";
   // An app's call asks for the app and nothing else: no key level, whatever the call does.
   if ("apps" in access) return holdsApps(policy, access.apps) ? null : "app";
-  // A key's own call is judged by what it does and the caller's level, a direct one like any other once key levels start.
+  // A key's own call is judged by what it does and the caller's level; a direct one too, once key levels start.
   if (direct && !policy.keysStarted) return { key: keys[0], need };
   return lackingKey(policy.keys, keys, need);
 }
 
-/** `need` is what the call does with a key of its own: `read` looks up, `write` changes or sends. An app's call ignores it. */
+/** `need` is what a key's own call does: `read` looks up, `write` changes or sends. An app's call ignores it. */
 export function policyAllows(policy: CurrentPolicy, access: RouteAccess | undefined, need: Level = "write"): boolean {
   return refusal(policy, access, need) === null;
 }

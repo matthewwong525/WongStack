@@ -348,8 +348,6 @@ test('the default-branch deploy records its outcome and live address, and a fail
   assert.match(readFileSync(join(repo, 'scripts/cf-deploy.sh'), 'utf8'), /LIVE_URL=\$\(wong_production_url "\$DEPLOY_LOG"\)[\s\S]*production-url=\$LIVE_URL/);
 });
 
-// ── The pre-check on this computer: `--worktree` ───────────────────────────────
-
 // The same fixture, with origin/main at the base commit and a lock file of its own, so a
 // run under test never waits on a real one.
 function localFixture(t, files) {
@@ -614,8 +612,6 @@ test('the pre-check refuses commit arguments, and its options need --worktree', 
   assert.deepEqual(f.calls(), []);
   assert.equal(existsSync(f.lock), false);
 });
-
-// ── The proof that each check still fails on a bad sample ──────────────────────
 
 const steps = f => f.calls().map(call => call.split('|')[1]);
 const INSTALL = 'ci --no-audit --no-fund';

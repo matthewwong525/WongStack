@@ -1,6 +1,5 @@
-// The landing page from top to bottom, the privacy page, the header and footer, and which
-// address shows which page. Landing.test.tsx covers the install section; Site.test.tsx
-// covers the rules every page keeps.
+// The landing page top to bottom, the privacy page, the header and footer, and which address shows which page.
+// Landing.test.tsx covers the install section; Site.test.tsx covers the rules every page keeps.
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import App from "./App";

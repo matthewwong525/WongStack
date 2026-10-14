@@ -1,45 +1,6 @@
 #!/usr/bin/env node
-// Installs Shop's command and stands between it and the agent: which commands run, what the agent
-// reads back, and the one pay step.
-//
-//     node .claude/skills/shop/scripts/shop.mjs install
-//     node .claude/skills/shop/scripts/shop.mjs guide [references/<name>.md]
-//     node .claude/skills/shop/scripts/shop.mjs search|catalog|cart|checkout|account|order|tools …
-//     node .claude/skills/shop/scripts/shop.mjs pay <checkout-id> --shop <seller.domain> --instrument <n> --total <minor units> --currency <code>
-//
-// Shop's command (`@shopify/shop`) reaches Shop's catalog, checkouts, and the person's Shop account. Its
-// logic is a sealed file, so `install` takes the one version in SHOP and no other: it downloads that
-// version's package from the npm registry, compares its SHA-512 with the fingerprint recorded beside
-// the version, and only then unpacks it into ~/.wong-stack/shop/<version>/. The package has no
-// dependencies, so no npm and no install script runs. Any command that finds no install prints
-// `SHOP_NEEDS=install` and exits 3: the agent asks the person, runs `install`, and retries. A Node
-// outside the command's range prints `SHOP_NEEDS=node`. The command runs by its path, never from PATH.
-//
-// Commands pass through by an allow-list; `refusal` holds each refused one and its reason, printed as
-// `SHOP_REFUSED=<reason>`, exit 2. A command a later version adds stays off until someone reads it.
-// The command starts with every `SHOP_` setting cleared, so none sends a request to another address,
-// and, off Windows, with `SHOP_AUTH_FILE` at ~/.wong-stack/shop/credentials.json: one sign-in for
-// every repo on the computer. On Windows the command keeps its own store.
-//
-// What Shop returns for a saved payment method can hold a credential. Every JSON answer is walked:
-// each entry of a list whose name ends `instruments` is cut to `{n, id, type, display, selected}`, and
-// any `credential` is dropped, wherever it sits. A credential's text found anywhere else in the answer
-// or on stderr is written `[hidden]`, and so is each token in the sign-in file. A checkout's full entries go to
-// ~/.wong-stack/shop/checkouts/<sha256 of shop and checkout id>.json, mode 0600, replaced at each read
-// and removed after a day. An answer that is not JSON, on a checkout or the account, is not shown.
-//
-// `pay` reads the checkout once and sends nothing unless it is `ready_for_complete`, its total and
-// currency are the ones given, and entry `n`, as last shown, is still offered. It then pipes that
-// entry to `checkout complete … --instrument -` on stdin, once, and notes in the kept file that a
-// payment was sent: a later `pay` for that checkout only reads. Any answer but a completed order gets
-// one more read. It prints `SHOP_PAY=completed` with `SHOP_ORDER=` and `SHOP_ORDER_URL=`;
-// `SHOP_PAY=changed` with `SHOP_WHY=` and `SHOP_TOTAL=`, nothing sent; `SHOP_PAY=not-completed` when
-// Shop answered and the checkout is not paid; or `SHOP_PAY=unknown`. Each but `completed` carries
-// `SHOP_CHECKOUT_URL=`, and the checkout, masked, follows.
-//
-// Exit codes: 0 ok · 1 failed · 2 usage or refused · 3 not installed; a passed-through command keeps
-// its own, where 3 means not signed in. Node built-ins, plus `tar`. For tests: SHOP_NODE stands in for
-// Node's version and SHOP_CALL_MS for `pay`'s two-minute deadline per call.
+// Installs Shop's command and stands between it and the agent: which commands run, what the agent reads back,
+// and the one pay step. The shop skill's SKILL.md owns the rules. Node built-ins, plus `tar`.
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
@@ -56,7 +17,8 @@ const USAGE = `usage: shop.mjs <command> [...]
   pay <checkout-id> --shop <seller.domain> --instrument <n> --total <minor units> --currency <code>
                                 pay once; prints SHOP_PAY=completed|changed|unknown|not-completed`;
 
-/** The only version installed, its package's fingerprint, and the Node lines it runs on. Moved together, by a release. */
+// The only version installed, its package's fingerprint, and the Node lines it runs on.
+// Moved together, by a release.
 export const SHOP = { version: '1.1.0', integrity: 'sha512-tWFsBAWQFWLUdvRiuYzFCrF9leAaIyoHRuZRMbUMH451dw6la1/SkoBFMAMWvjYtIxxbubXFSetVUn1+qRfYUA==', node: [[22, 21], [24, 5]] };
 const NODE_RANGE = SHOP.node.map(([major, minor]) => `${major}.${minor} or newer in the ${major} line`).join(', or ');
 const NEEDS = {
@@ -96,7 +58,8 @@ export function nodeFits(version = process.env.SHOP_NODE ?? process.versions.nod
   return lines.some(([line, from]) => major === line && minor >= from);
 }
 
-/** The environment the command starts in: no `SHOP_` setting but the sign-in file, which Windows leaves to the command. */
+// The environment the command starts in: no `SHOP_` setting but the sign-in file, which Windows leaves to
+// the command.
 export function shopEnv(env = process.env, { platform = process.platform, home = homedir() } = {}) {
   const clean = Object.fromEntries(Object.entries(env).filter(([name]) => !name.startsWith('SHOP_')));
   return platform === 'win32' ? clean : { ...clean, SHOP_AUTH_FILE: places(home).auth };
@@ -144,10 +107,8 @@ function signInSecrets(node = readJson(places().auth), found = [], secret = fals
   return found;
 }
 
-/**
- * `doc` as the agent may read it. Resolves to `{doc, checkouts, secrets}`: `checkouts` is each
- * checkout's `{id, instruments}` in full, and `secrets` every credential text that was dropped.
- */
+// `doc` as the agent may read it, as `{doc, checkouts, secrets}`: `checkouts` is each checkout's
+// `{id, instruments}` in full, and `secrets` every credential text that was dropped.
 export function mask(doc) {
   const checkouts = [];
   const secrets = [];
@@ -223,7 +184,8 @@ function ready() {
 const readJson = file => { try { return JSON.parse(readFileSync(file, 'utf8')); } catch { return null; } };
 const keptFile = (shop, id) => join(places().kept, `${createHash('sha256').update(`${shop}\n${id}`).digest('hex')}.json`);
 
-/** Replaces a checkout's kept file, 0600, with what it held and `more` over it: new entries keep the note that a payment was sent. */
+// Replaces a checkout's kept file, 0600, with what it held and `more` over it: new entries keep the note that
+// a payment was sent.
 function keep(shop, id, more) {
   const file = keptFile(shop, id);
   const next = { ...readJson(file), ...more };
@@ -242,7 +204,8 @@ function sweep(now = Date.now()) {
 // ---------------------------------------------------------------------------
 // Running the command
 
-/** One run of Shop's command. `input` is its stdin; without one it reads this script's. `result` is its JSON answer, if it gave one. */
+// One run of Shop's command. `input` is its stdin; without one it reads this script's.
+// `result` is its JSON answer, if it gave one.
 function call(args, { input, timeout } = {}) {
   const done = spawnSync(process.execPath, [binOf(homedir(), SHOP.version), ...args], { env: shopEnv(), encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, timeout, input, stdio: [input === undefined ? 'inherit' : 'pipe', 'pipe', 'pipe'] });
   return { status: done.status ?? 1, stdout: done.stdout ?? '', stderr: done.stderr ?? '', result: readAnswer(done.stdout) };
@@ -287,17 +250,16 @@ function through(args) {
 // ---------------------------------------------------------------------------
 // Pay
 
-/** Why a checkout can not be paid as the person agreed, or null when it can. `entry` is the agreed payment entry as now offered. */
+// Why a checkout can not be paid as the person agreed, or null when it can.
+// `entry` is the agreed payment entry as now offered.
 function changed(checkout, entry, { n, total, currency }) {
   if (checkout.status !== 'ready_for_complete') return `the checkout is ${checkout.status}, not ready_for_complete`;
   if (totalOf(checkout) !== `${total} ${currency}`) return `the total is ${totalOf(checkout)}, not ${total} ${currency}`;
   return entry ? null : `payment entry ${n} was not shown for this checkout, or is no longer offered; read the entries below and ask again`;
 }
 
-/**
- * Pays checkout `id` at `shop` once with entry `n`, when its total is still `total` `currency`.
- * Returns the exit code; the header says what it prints.
- */
+// Pays checkout `id` at `shop` once with entry `n`, when its total is still `total` `currency`.
+// Returns the exit code.
 function pay(id, { shop, n, total, currency }) {
   const read = () => call(['checkout', 'get', id, '--shop', shop], { input: '', timeout: CALL_MS });
   const first = read();
@@ -305,7 +267,8 @@ function pay(id, { shop, n, total, currency }) {
   const key = now?.id ?? id;
   const before = readJson(keptFile(shop, key));
   let link = now?.continue_url ?? before?.link;
-  /** Prints where the checkout stands in `run`, which follows a sent payment. `answered`: Shop answered that payment. */
+  // Prints where the checkout stands in `run`, which follows a sent payment.
+  // `answered`: Shop answered that payment.
   const settle = (run, answered) => {
     const checkout = checkoutOf(run.result);
     link = checkout?.continue_url ?? link;

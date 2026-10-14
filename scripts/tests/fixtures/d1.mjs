@@ -4,7 +4,7 @@
 /** Rows for a statement with params; a multi-statement script with none runs as one `exec`. */
 export const run = (db, sql, params = []) => (params.length === 0 && /;\s*\S/.test(sql.trim().replace(/;\s*$/, '')) ? (db.exec(sql), []) : db.prepare(sql).all(...params));
 
-/** `POST …/d1/database/<id>/query` with a parsed `body`: `[status, json]`; a failed statement rolls back and is code 7500. */
+/** `POST …/d1/database/<id>/query` with a parsed `body`: `[status, json]`; a failure rolls back, code 7500. */
 export function d1Query(db, body) {
   const statements = body.batch || [body];
   try {

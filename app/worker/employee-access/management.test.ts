@@ -306,7 +306,8 @@ it("leaves the row the owner wrote alone when an Admin saves another Admin", asy
   const before = rows();
   const saved = await (await ask(kim, 'people', { email: employee.id, removed: false })).json();
   expect(saved).toMatchObject({ people: [{ email: employee.id, role: 'admin', apps: both }, { email: kim.id, role: 'admin', apps: both }] });
-  // No Admin row was written: each is still the row the owner made. Naming the role they already hold is no change either.
+  // No Admin row was written: each is still the row the owner made.
+  // Naming the role they already hold is no change either.
   expect(rows()).toEqual(before);
   expect((await ask(kim, 'people', to(employee.id))).status).toBe(200);
   expect(rows()).toEqual(before);
@@ -367,7 +368,8 @@ it('takes Admin back at the next request, ends it with a removal, and does not b
   await pick(kim.id);
   expect((await ask(kim, 'status', undefined, 'GET')).status).toBe(200);
   expect([await currentPolicy(f.env, kim), own()]).toMatchObject([{ manages: true, apps: new Set(['access', 'orders', 'payroll']) }, { count: 0 }]);
-  // The owner moves her to her own set: no sign-out and no sign-in change. She keeps what Admin gave, less what the save unticks.
+  // The owner moves her to her own set: no sign-out and no sign-in change.
+  // She keeps what Admin gave, less what the save unticks.
   const taken = await (await run('people', 'POST', { ...to(kim.id, null), apps: { payroll: false } })).json();
   expect(taken).toMatchObject({ people: [{ email: employee.id }, { email: kim.id, status: 'active', settled: true, role: null, apps: ['orders'], keys: everyKey }] });
   expect(cf.writes).toHaveLength(1);

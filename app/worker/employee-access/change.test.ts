@@ -64,7 +64,8 @@ it("reads a commit's checks from its workflow jobs and its statuses, each as pas
     // A status's newest word wins.
     { name: "deploy", bucket: "pass", link: "https://example.com/build/1", job: null }, { name: "scan", bucket: "pending", link: null, job: null }, { name: "guard", bucket: "fail", link: null, job: null }] });
   expect(JSON.stringify(change)).not.toContain("upstream words");
-  // No change opened yet, a project with no workflow at all, then the newest change when none is open: published, or closed.
+  // No change opened yet, a project with no workflow at all, then the newest change when none is open:
+  // published, or closed.
   Object.assign(answers, { [PULLS]: [], "GET /actions/workflows?per_page=1": { total_count: 0 } });
   expect((await read(AT))[1]).toMatchObject({ head: null, state: null, url: null, number: null, workflows: false });
   answers[PULLS] = [pull(8, "closed", "2026-10-01T00:00:00Z"), pull(7, "closed")];

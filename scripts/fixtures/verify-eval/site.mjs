@@ -1,23 +1,10 @@
-// The practice site scripts/eval-verify.mjs checks /verify's instructions against: a small notes
-// app whose twelve promises are in change/specs/notes/spec.md. Five are quietly broken, four work,
-// and three work in the part a page can show and add a part no page or address can: an email to
-// the owner, an audit-log entry, a nightly re-index. The site does none of those three and has no
-// address for them. key.json holds the answers. State is in memory, so each start is a fresh site.
-// Meta-only: no target receives it. Nothing the site serves may name a planted mistake.
-//
-// The planted mistakes:
-//   1. Saving with no title saves nothing, and shows "Title required", not "Title is required".
-//   2. Deleting a note drops the count by one, and removes the note below the chosen one.
-//   3. POST /api/notes with no title answers 422 and names the title, and creates a blank note anyway.
-//   4. A new note shows in the list as typed once, and without its last character on every load after.
-//   5. A search lists the matches, then one note that does not match as the last row.
-// One control is slow on purpose: the "Saved" badge appears 800 ms after a save.
+// The practice site scripts/eval-verify.mjs checks /verify's instructions against; key.json holds the answers.
+// Meta-only. Nothing the site serves may name a planted mistake: wiki/maintaining/measure-a-skill-change.md
 import { createServer } from 'node:http';
 import { exportTitles } from './mixed/exports.mjs';
 
-// The mixed exercise's made-up sample orders, as a seeded staging would hold them. Two more mistakes
-// are planted there: a delete removes the order and leaves the shown total as it was, and the
-// nightly summary's manual trigger counts one open order too many.
+// The mixed exercise's made-up sample orders. Two more mistakes are planted there: a delete leaves the shown
+// total as it was, and the nightly summary's manual trigger counts one open order too many.
 const ORDERS = [
   { id: 1001, customer: 'Ada Example', amount: 40, status: 'open' },
   { id: 1002, customer: 'Ben Sample', amount: 25.5, status: 'open' },

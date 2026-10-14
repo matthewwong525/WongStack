@@ -1,18 +1,6 @@
 #!/usr/bin/env node
-// Which way this checkout saves and publishes: `github`, `artifacts` or `app`.
-//
-//     node .claude/skills/save/scripts/delivery-route.mjs [dir]
-//
-// The one switch every verb asks (wiki/stack/artifacts-route.md). It reads two things and they must
-// agree: where `origin` points, and the route the install record names. An Artifacts install has an
-// origin on <account>.artifacts.cloudflare.net and `components.delivery.route: "artifacts"`; every
-// other checkout is `github`, with or without an origin. Prints the route and exits 0. A record and
-// an origin that disagree print the reason on stderr and exit 1: no verb guesses a route.
-//
-// One origin is asked before the record: `https://<app>/api/access/code/git/`, the address of a copy
-// installed through Connect your assistant (wiki/stack/employee-project.md). That copy is `app`
-// whatever the record says: the record is the owner's, committed, and names where the project is
-// kept, not how this copy reaches it.
+// Which way this checkout saves and publishes: `github`, `artifacts` or `app` (wiki/stack/artifacts-route.md).
+// `origin` and the install record must agree, else it exits 1. A copy installed through the app is always `app`.
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';

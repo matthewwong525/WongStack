@@ -1,8 +1,5 @@
-// Wakes a chat with a message, even an idle one. This is the only code that names the host's way to
-// do it: today `paseo send`. A host with another way adds it here; with none, `chatTarget` has no
-// agent and `wakeChat` answers `unavailable`, so the caller keeps its neutral route.
-//
-// Node built-ins only. For tests: HANDOVER_PASEO_BIN names the `paseo` binary.
+// Wakes a chat with a message, even an idle one. The only code that names the host's way to do it: today
+// `paseo send`. With no way, `chatTarget` has no agent and `wakeChat` answers `unavailable`.
 
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -23,11 +20,8 @@ export function canWake(target, env = process.env) {
   return Boolean(target?.agentId && wakeCommand(env));
 }
 
-/**
- * Sends `message` to the chat `target` names. `notified` only when the host confirms that same chat
- * got it; `unconfirmed` when the send failed or its answer does not say so; `unavailable` when there
- * is no chat or no way to wake one.
- */
+/** Sends `message` to the chat `target` names. `notified` only when the host confirms that same chat got it;
+ * `unconfirmed` when the send failed or its answer does not say so; `unavailable` with no chat or no way to wake. */
 export async function wakeChat(target, message, env = process.env) {
   if (!target?.agentId) return 'unavailable';
   const bin = wakeCommand(env);

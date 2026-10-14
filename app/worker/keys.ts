@@ -1,14 +1,8 @@
-// Every saved business-service key the owner sees in Access. One entry per key: a stable id,
-// a plain title, the runtime secrets it covers (declared in ../.dev.vars.example), and the
-// levels it offers: Read and Read & write unless it says otherwise. A key listed here shows in
-// Access (wiki/stack/api-keys.md), and a route reaches only the keys it lists
-// (wiki/stack/company-api.md).
+// Every saved business-service key the owner sees in Access (wiki/stack/api-keys.md): an id, a title, the secrets
+// it covers (in ../.dev.vars.example) and its levels. A route reaches only the keys it lists: wiki/stack/company-api.md
 export type Level = "read" | "write";
-/** How the app passes one request on to the key's service, for a caller whose level for the key allows it.
- *  `base` is the service's one HTTPS address, ending in `/`. `secret` is the one of the key's `secrets` that
- *  is sent, in the request header `header`, after `prefix`. `headers` are fixed extras the service needs. `lookups`
- *  are requests that only read although their method is not GET or HEAD, as `METHOD path` with `*` for one path
- *  part: list only what the service's own guide documents as read-only. wiki/stack/company-api.md#use-a-key-directly */
+/** How the app passes one request on to the key's service: wiki/stack/company-api.md#use-a-key-directly.
+ *  `lookups` are non-GET requests that only read, as `METHOD path`, `*` for one path part: only documented ones. */
 export type Forward = {
   base: string;
   secret: string;
@@ -34,15 +28,11 @@ type Key = {
 export const keys = {
   // Look-ups only, so Read is the one level. wiki/stack/company-api.md#look-things-up-in-cloudflare
   cloudflare: { title: "Cloudflare", secrets: ["WONG_CLOUDFLARE_READ"], levels: ["read"], setup: true },
-  // The project itself, read and saved through /api/access/code/ and nowhere else: either secret reads, the
-  // second also saves a change. On a project kept in Cloudflare the ARTIFACTS binding stands in for both, and
-  // CODE_CHECKS reads a saved change's check run. wiki/stack/employee-project.md
+  // The project itself, read and saved through /api/access/code/ and nowhere else: either secret reads, the second
+  // also saves. On Cloudflare the ARTIFACTS binding stands in for both. wiki/stack/employee-project.md
   code: { title: "Project code", secrets: ["WONG_CODE_READ", "WONG_CODE_WRITE"], levels: ["read"], alone: true, bindings: ["ARTIFACTS", "CODE_CHECKS"] },
-  // stripe: { title: "Stripe", secrets: ["STRIPE_SECRET_KEY"] },
-  // notion: { title: "Notion", secrets: ["NOTION_TOKEN"], forward: {
-  //   base: "https://api.notion.com/v1/", secret: "NOTION_TOKEN", header: "Authorization", prefix: "Bearer ",
-  //   headers: { "Notion-Version": "2022-06-28" }, lookups: ["POST search", "POST databases/*/query"],
-  // } },
+  // Add a key as: stripe: { title: "Stripe", secrets: ["STRIPE_SECRET_KEY"] },
+  // Direct use adds a `forward` entry: wiki/stack/company-api.md#use-a-key-directly
 } as const satisfies Record<string, Key>;
 
 /** A registered key's id, for a route's `keys` list. @public */

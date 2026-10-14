@@ -14,7 +14,7 @@ const hash = value => createHash('sha256').update(JSON.stringify(value)).digest(
 const githubRepo = remote => remote.match(/^(?:https:\/\/github\.com\/|git@github\.com:)([\w.-]+\/[\w.-]+?)(?:\.git)?$/)?.[1];
 // An Artifacts install has no pull request: its gate is the check run named for the commit and branch.
 const RUN = join(dirname(fileURLToPath(import.meta.url)), 'artifacts-run.mjs');
-// A copy installed through the app is named by that address; app-change.mjs reads its remote head and its gate with the app sign-in.
+// A copy installed through the app is named by that address; app-change.mjs reads its head and gate there.
 const APP = join(dirname(fileURLToPath(import.meta.url)), 'app-change.mjs');
 const artifactsRepo = remote => { try { return ARTIFACTS_HOST.test(originHost(remote) ?? '') ? remote : undefined; } catch { return undefined; } };
 const failure = value => ['failure', 'cancelled', 'timed_out', 'action_required', 'startup_failure', 'error'].includes(value);

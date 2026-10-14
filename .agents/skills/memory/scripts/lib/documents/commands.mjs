@@ -31,7 +31,7 @@ export async function recallPacket(ctx, options, { includeFacts = true, paths = 
       onDocumentTimeout = () => {
         let documents = [];
         try { documents = interleaveSources(lexicalSearch(scanCorpus(ctx, { deadline: Date.now() + 400 }), options.question, { ...options, deadline: Date.now() + 800 })
-          .map(hit => verifyPassage(ctx, hit)).filter(Boolean), options.limit); } catch { /* explicit unavailable source below */ }
+          .map(hit => verifyPassage(ctx, hit)).filter(Boolean), options.limit); } catch { /* unavailable below */ }
         resolve({ documents, backend: 'lexical-fallback', coverage: 'unavailable', requestedModeState: 'unavailable',
           documentSource: { state: documents.length ? 'partial' : 'unavailable', reason: 'document deadline reached; verified keyword evidence retained' } });
       };

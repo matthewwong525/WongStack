@@ -32,7 +32,7 @@ The agent's browser fills the page, already on the check, with one box under it:
 
 **While it's open, the link drives a browser signed in as you.** Anyone who gets it can use every account that browser is signed in to, address bar included. Send it to nobody.
 
-- **The same guards as [every private link](browsing.md#how-private-links-work).** A new Cloudflare address and a secret only the link carries, one link open at a time, and no screen without the secret.
+- **The same guards as [every private link](browsing.md#how-private-links-work).** A new Cloudflare address and a secret only the link carries, one link open at a time, and no screen without the secret. The screen's connection sends it as the WebSocket subprotocol, since a browser can send no header there, and the helper echoes it back ([`ws-bridge.mjs`](../../.agents/skills/hand-over/scripts/lib/ws-bridge.mjs)).
 - **Open for up to 8 hours.** It closes when the site lets you through, when you say *done* in the chat, or at the limit, even if the chat stops. A closed link never works again.
 - **The agent learns only how it ended.** It sees nothing you tapped or typed. Afterwards it reads the page afresh and trusts nothing from before.
 - **Tasks share the screen.** Another task's new page can cover yours for a second or two; yours comes back to the front by itself.
@@ -51,7 +51,7 @@ The agent's browser fills the page, already on the check, with one box under it:
    ```
 
    Name where the site goes once the check is passed, as for [a private form](browsing.md#the-private-form): not "left this page", since an error page would count too. `--note` is the one line the page shows. A task that passes `--session <name>` to [`browse.mjs`](../../.agents/skills/browser/scripts/browse.mjs) passes it here too. Exit 1 means the task has no page open, the page already meets the finish, or another link is open. No page open usually means you took a while to say *Ready* and the browser closed the idle page: the agent opens the site's page again, then the view.
-4. **Hands off while it's open.** From `open` until `wait` prints, the agent sends its browser no commands and takes no pictures: the page is yours. The link's helper reads only the page's address, or whether a named part is still there. It keeps the page's window in front, and once a minute sets the page's size again, since the browser closes a page it thinks is idle and your taps don't count.
+4. **Hands off while it's open.** From `open` until `wait` prints, the agent sends its browser no commands and takes no pictures: the page is yours. The link's helper reads only the page's address, or whether a named part is still there. It keeps the page's window in front, and once a minute sets the page's size again, since the browser closes a page left alone for 5 minutes and your taps don't count ([`hand-over.mjs`](../../.agents/skills/hand-over/scripts/hand-over.mjs)).
 5. **Read how it ended.**
    - `done`: the site moved on. The agent takes a fresh snapshot, shows [a picture](browsing.md#show-what-the-browser-is-doing), and carries on. It says it's signed in only once the page shows it.
    - `closed` or `timeout`: the check is still there. If you never got to it, the agent offers a new link. If you tried and the site refused you, that was [the site's one view](#one-view-per-site).

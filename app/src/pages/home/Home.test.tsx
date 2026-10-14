@@ -60,7 +60,7 @@ it("has no setup box: the Connect card opens the steps over the page, and closin
   await screen.findByRole("region", { name: "Make it yours" });
   expect([steps(), screen.queryByRole("dialog")]).toEqual([null, null]);
   fireEvent.click(connect()!);
-  // An install with no recorded owner still offers everyone the popup; here setup is not ready, and it says what the app answered.
+  // With no recorded owner everyone still gets the popup; here setup is not ready, and it says what the app answered.
   await screen.findByText("Finish reviewed setup");
   expect(screen.getByRole("dialog", { name: "Connect your assistant" }).contains(steps())).toBe(true);
   fireEvent.click(screen.getByRole("button", { name: "Close" }));

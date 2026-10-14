@@ -1,7 +1,5 @@
-// The guard a pull request can not edit: .github/workflows/guard.yml runs the default branch's copy
-// of loosened-checks.mjs from inside the pull request's checkout. The first test runs it that way,
-// from two checkouts of a throwaway repo. The second pins the workflow's shape, since a step that
-// runs a file of the pull request under `pull_request_target` hands a fork the repository.
+// The guard a pull request can not edit: guard.yml runs the default branch's loosened-checks.mjs inside the pull
+// request's checkout. One test runs it that way; one pins the workflow's shape, which keeps a fork from the repo.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';

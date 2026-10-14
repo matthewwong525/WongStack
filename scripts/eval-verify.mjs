@@ -1,10 +1,6 @@
 #!/usr/bin/env node
-// Measure how well /verify's walkthrough instructions catch a broken promise. Each run starts the
-// practice site (scripts/fixtures/verify-eval/site.mjs: twelve promises, five quietly broken, three
-// with a part no page can show), hands a headless agent the reference, the promises, and the site,
-// and scores its verdicts against key.json.
-// The agent works in a temp folder outside the repo that holds the promises only, never the answers.
-// Meta-only: no target receives it. Run it by hand: every run is a paid agent session.
+// Measure how well /verify's walkthrough instructions catch a broken promise on the practice site
+// (scripts/fixtures/verify-eval/site.mjs). Meta-only, paid per run: wiki/maintaining/measure-a-skill-change.md
 import { execFileSync, spawn } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -89,10 +85,8 @@ function outcome(truth, verdict) {
   return verdict ? 'passed' : 'ungraded';
 }
 
-// A planted mistake is caught only by a "fail": a "pass", a "partial", or no verdict misses it, and
-// an "ask" is counted apart. A working promise graded "fail" or "partial" is a false alarm. A promise
-// with a part no page can show is named by a "partial" and overclaimed by a "pass"; anything else
-// is counted as other.
+// A planted mistake is caught only by a "fail"; an "ask" is counted apart. A working promise graded "fail" or
+// "partial" is a false alarm. A part no page can show wants "partial"; a "pass" there overclaims.
 function score(key, verdicts) {
   const given = new Map();
   for (const entry of Array.isArray(verdicts) ? verdicts : []) {

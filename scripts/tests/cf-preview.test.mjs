@@ -20,9 +20,8 @@ function mainConfig(staging = {}) {
   }, null, 2);
 }
 
-// A fake @cloudflare/vite-plugin build: the client assets, a generated config
-// for the environment CLOUDFLARE_ENV selects, and the redirect wrangler reads.
-// FAKE_BUILD_NAME forces the generated name, to fake a build that went wrong.
+// A fake @cloudflare/vite-plugin build: client assets, a generated config for the CLOUDFLARE_ENV environment, and
+// the redirect wrangler reads. FAKE_BUILD_NAME forces the generated name, to fake a build that went wrong.
 const fakeBuild = `import { mkdirSync, writeFileSync } from 'node:fs';
 const name = process.env.FAKE_BUILD_NAME || (process.env.CLOUDFLARE_ENV === 'staging' ? 'demo-staging' : 'demo');
 mkdirSync('dist/client', { recursive: true });
@@ -33,9 +32,8 @@ mkdirSync('.wrangler/deploy', { recursive: true });
 writeFileSync('.wrangler/deploy/config.json', JSON.stringify({ configPath: '../../dist/' + name + '/wrangler.json' }));
 `;
 
-// A fake npm and npx log "<cwd relative to the repo>|<tool> <args>". npm runs
-// the fake build; `wrangler versions upload` fails like real wrangler until a
-// deploy has created the staging Worker.
+// A fake npm and npx log "<cwd relative to the repo>|<tool> <args>". npm runs the fake build; `wrangler versions
+// upload` fails like real wrangler until a deploy has created the staging Worker.
 const fakeNpm = `#!/usr/bin/env bash
 echo "\${PWD#"$FAKE_ROOT"/}|npm $*" >> "$FAKE_LOG"
 case "$*" in
@@ -61,8 +59,7 @@ esac
 
 const PACK = ['cf-preview.sh', 'cf-build.sh', 'lib-wrangler-config.sh', 'lib-wrangler-config.mjs', 'lib-cli.mjs'];
 
-// A throwaway repo on `branch`: the pack scripts and a main app in app/.
-// `config: null` leaves out app/wrangler.jsonc.
+// A throwaway repo on `branch`: the pack scripts and a main app in app/; `config: null` leaves out app/wrangler.jsonc.
 // Each repo root's pack fixture (fixtures/pack.mjs), which runs its scripts.
 const fixtures = new Map();
 
@@ -98,8 +95,6 @@ function run(root, script, args = [], vars = {}) {
 
 const preview = (root, args, vars) => run(root, 'cf-preview.sh', args, vars);
 
-// ── The build ───────────────────────────────────────────────────────────────
-
 test('cf-build outside CI only builds the app, with nothing copied in after', t => {
   const root = previewRepo(t);
   const result = run(root, 'cf-build.sh');
@@ -134,8 +129,6 @@ test('cf-build --types skips a repo with no wrangler config, and an app that is 
   assert.equal(plain.status, 0, plain.out);
   assert.deepEqual(plain.calls, []);
 });
-
-// ── The preview from the agent host ─────────────────────────────────────────
 
 test('preview refuses the default branch and uploads nothing', t => {
   const root = previewRepo(t, { branch: 'main' });

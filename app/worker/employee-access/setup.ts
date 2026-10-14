@@ -15,7 +15,8 @@ export async function setupStatus(request: Request, env: ConnectionEnv, identity
   if (policy.state === "unavailable" || policy.state === "denied" || !email) return policyDenied(policy);
   const code = codeState(env, policy, true);
   const origin = new URL(request.url).origin;
-  // Before permissions start, everyone keeps every app; the owner and an Admin always do. Access itself is nobody's to list.
+  // Before permissions start, everyone keeps every app; the owner and an Admin always do.
+  // Access itself is nobody's to list.
   const apps = policy.state === "current" ? businessApps().filter(app => policy.apps.has(app)) : businessApps();
   return reply({ identity: { email, subject: identity!.claims.sub },
     role: policy.state === "legacy" ? "employee" : policy.role,

@@ -1,17 +1,5 @@
-// The keyed screen connection a live view's page opens (see hand-over.mjs `open --view`): a WebSocket
-// answered here, in Node built-ins, and piped to the screen source's Unix socket.
-//
-// `screenBridge({key, socketPath, isOpen})` gives the handler for an HTTP server's `upgrade` event. A
-// browser's WebSocket can send no header of its own, so the link's key travels as the WebSocket
-// subprotocol, compared with `keyMatches`, and is echoed back, as a browser requires. Nothing upgrades
-// without it: another path answers 404, a handshake that is no WebSocket's 400, a missing or wrong key
-// 401, a link that is ending 410, and a screen source that is not there 503.
-//
-// Once upgraded, each data frame the page sends, whole or in fragments, at any of the three length
-// sizes, is unmasked and written to the socket in order; what the socket sends goes back as unmasked
-// binary frames. A ping is answered with a pong, a pong is dropped, and a close is answered and ends
-// both sides. A frame no browser sends, unmasked or over 1 MB, ends both sides at once. Each side waits
-// when the other is slow. `close()` on the handler ends every connection. Nothing here logs.
+// The keyed screen connection a live view's page opens: a WebSocket answered in Node built-ins and piped to the
+// screen source's Unix socket. A browser's WebSocket can send no header, so the key travels as the subprotocol.
 
 import { createHash } from 'node:crypto';
 import { connect } from 'node:net';
@@ -39,11 +27,8 @@ export function frame(opcode, payload = Buffer.alloc(0)) {
   return Buffer.concat([head, payload]);
 }
 
-/**
- * Takes the complete frames off the front of `buffer`. Resolves to `{frames, rest}`, each frame
- * `{opcode, payload}` with its mask removed, or to null for a frame no browser sends: unmasked, or
- * over the size limit.
- */
+/** Takes the complete frames off the front of `buffer`: `{frames, rest}`, each frame `{opcode, payload}` with
+ * its mask removed, or null for a frame no browser sends: unmasked, or over the size limit. */
 export function takeFrames(buffer) {
   const frames = [];
   let at = 0;
@@ -79,11 +64,8 @@ function pace(taken, from, to) {
   to.once('drain', () => from.resume());
 }
 
-/**
- * The `upgrade` handler that bridges the page's WebSocket at `/screen` to the Unix socket at
- * `socketPath`, for the link whose key is `key`, while `isOpen()` holds. Its `close()` ends every
- * connection it holds.
- */
+/** The `upgrade` handler that bridges the page's WebSocket at `/screen` to the Unix socket at `socketPath`,
+ * for the link whose key is `key`, while `isOpen()` holds. Its `close()` ends every connection it holds. */
 export function screenBridge({ key, socketPath, isOpen = () => true }) {
   const open = new Set();
   const refuse = (socket, status) => socket.end(`HTTP/1.1 ${status}\r\nConnection: close\r\nContent-Length: 0\r\n\r\n`);

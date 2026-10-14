@@ -1,9 +1,5 @@
-// A stand-in for Cloudflare's tunnel tool, shared by the private-link tests. `fakeTunnel(bin, calls)`
-// writes a `cloudflared` into `bin` that logs each call to `calls`, prints the lines cloudflared
-// 2026.9.3 prints for a quick tunnel at ORIGIN, and sleeps until it is killed. TUNNEL_ENV points the
-// link's public-address check at the page's own loopback port, so no test needs the network.
-// `fakePaseo(bin, sent, kind)` writes a `paseo` that records each call's arguments to `sent`, one JSON
-// line each, and answers as `kind` says: `ok` confirms the chat, `fail` exits 1, `invalid` names no chat.
+// Stand-ins shared by the private-link tests. `fakeTunnel` writes a logging `cloudflared` that prints cloudflared
+// 2026.9.3's quick-tunnel lines; TUNNEL_ENV keeps the address check on loopback; `fakePaseo` logs each call to `sent`.
 
 import { chmodSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';

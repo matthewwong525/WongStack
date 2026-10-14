@@ -61,7 +61,7 @@ const PRESS = 'click e31';
 // What an expression the watcher evaluates is called as a step.
 const READS = { 'location.href': 'url', '[innerWidth, innerHeight]': 'size', 1: 'keep-alive' };
 
-/** One browser request as a step: the route and its target, with a pick's choice or a page's size, never a typed value. */
+/** One browser request as a step: its route and target, with a pick's choice or a page's size, never a typed value. */
 function stepOf({ method, path, body }) {
   const route = path.split('/').at(-1);
   const target = body?.ref ?? body?.selector;
@@ -71,13 +71,8 @@ function stepOf({ method, path, body }) {
   return method === 'POST' && target ? `${route} ${target}` : route;
 }
 
-// A HOME of its own, a fake cloudflared first on PATH that logs each call to one file, and a fake camofox
-// install that browse.mjs starts as the real one. `openPage` opens the card page in the browser session
-// `card`, as the agent does before it sends a form; `set` and `unset` write the fake browser's control
-// files (fake-camofox-server.mjs lists them). With `checkout`, commands run in a Git checkout of their
-// own that declares MAPS_API_KEY, for a key link. Every command finds fake-view-tools.mjs's stand-ins for
-// a live view's tools, never the computer's own; with `view`, the browser also has a screen and the
-// pinned viewer is installed, as a live view needs.
+// A HOME of its own, a logging fake cloudflared first on PATH, and the fake camofox and view tools, never the
+// computer's own. `openPage` opens the card page in session `card`; `checkout` and `view` add a checkout and a screen.
 function fixture(t, { cloudflared = true, silent = false, paseo = null, agentId, checkout = false, view = false } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'wong-test-hand-over-'));
   const bin = join(root, 'bin');
@@ -200,9 +195,6 @@ function send(f, { port, key }, { moves = true } = {}) {
   if (moves) f.set('click-url', RECEIPT);
   return route(port, key, 'send', { values: VALUES });
 }
-
-// ---------------------------------------------------------------------------
-// Opening a link
 
 test('open tunnels to its own page and prints a keyed Cloudflare link, touching no browser page for a password link', async t => {
   const f = fixture(t);
@@ -360,9 +352,6 @@ test('keyMatches accepts only the exact key', () => {
   assert.equal(keyMatches(`${key.slice(0, -1)}c`, key), false);
   assert.equal(keyMatches(null, key), false);
 });
-
-// ---------------------------------------------------------------------------
-// The private form
 
 test('open --form reads only the finish, then sends the browser nothing until the send', async t => {
   const f = fixture(t);
@@ -645,9 +634,6 @@ test('a private form keeps its page open with one constant a minute, and stops a
   assert.deepEqual(during.filter(step => step !== 'keep-alive' && step !== 'url'), [...FILL, PRESS]);
   assert.ok(!during.slice(during.indexOf(PRESS)).includes('keep-alive'), 'no keep-alive once the send is under way');
 });
-
-// ---------------------------------------------------------------------------
-// The live view
 
 // The checks that read the real /proc run where a live view does.
 const linux = { skip: process.platform !== 'linux' && 'a live view runs on Linux only' };
@@ -1019,9 +1005,6 @@ test('a closed view refuses every route and the screen', async t => {
   assert.equal(fits, 0);
 });
 
-// ---------------------------------------------------------------------------
-// Waking the chat
-
 test('a finished send notifies the full originating workspace without wait; the receipt dispatches once', async t => {
   const f = fixture(t, { paseo: 'ok' });
   const link = openedForm(f);
@@ -1066,9 +1049,6 @@ test('a CLI without originating identity never infers a target or opens another 
   assert.equal(f.sent().length, 0);
   assert.equal(JSON.parse(readFileSync(join(f.state, 'result.json'), 'utf8')).notification, 'unavailable');
 });
-
-// ---------------------------------------------------------------------------
-// Private-link time limits, the key link's guide flag, and giving way
 
 const deadlineOf = f => JSON.parse(readFileSync(join(f.state, 'state.json'), 'utf8')).deadline;
 const FORM_ARGS = f => ['--form', f.form, '--session', SESSION, '--until', '**/receipt/*'];

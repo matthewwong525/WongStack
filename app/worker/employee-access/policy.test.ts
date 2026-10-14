@@ -169,7 +169,8 @@ it("gives a current person who holds Admin every app, every key once key levels 
   sql.exec("INSERT INTO wong_access_managers VALUES ('installation', 'employee@example.com')");
   expect(await read()).toMatchObject({ manages: false, apps: new Set(["orders"]) });
   give();
-  // Still an employee, with every built app: the ones with no row yet, as an app built later has none, and none stored for the role.
+  // Still an employee, with every built app: the ones with no row yet, as an app built later has none,
+  // and none stored for the role.
   const policy = await read();
   expect(policy).toEqual({ state: "current", role: "employee", manages: true, revision: 1,
     apps: new Set(["access", "frontend-only", "hello", "new-app", "orders", "payroll", "reports"]), keys: null, keysStarted: false });
@@ -179,7 +180,8 @@ it("gives a current person who holds Admin every app, every key once key levels 
   for (const mapping of [undefined, { kind: "owner" as const }, { apps: ["not-built"] }]) expect(policyAllows(policy, mapping)).toBe(false);
   expect(policyAllows(await read(owner), { apps: ["not-built"] })).toBe(true);
   expect((await authorizeRequest(env, employee, { kind: "owner" }))?.status).toBe(403);
-  // Their keys wait for key levels, like everyone's but the owner's; then each key is theirs at the highest level it offers.
+  // Their keys wait for key levels, like everyone's but the owner's;
+  // then each key is theirs at the highest level it offers.
   expect((await authorizeRequest(env, employee, { keys: ["cloudflare"] }, "read"))?.status).toBe(403);
   sql.exec("UPDATE wong_access_installation SET keys_enabled = 1");
   expect(await read()).toMatchObject({ manages: true, keys: new Map([["cloudflare", "read"], ["code", "read"]]) });
@@ -450,7 +452,7 @@ it("reads each person's apps and key levels with zero-app Access self-service, o
   sql.exec("UPDATE wong_access_installation SET policy_enabled = 0");
   expect(await (await readback()).json()).toEqual({ state: "not_started", code: "off", role: "employee", manages: false, signIn: true, apps: catalogue });
   expect(await (await readback(owner)).json()).toEqual({ state: "not_started", code: "off", role: "owner", manages: true, signIn: true, apps: catalogue });
-  // The frame offers Sign out only where a sign-in stands in front of the site: not while it is open until the card, nor on a local run.
+  // The frame offers Sign out only where a sign-in stands in front of the site: not while it is open, nor locally.
   const open = { ...env, CF_ACCESS_TEAM_DOMAIN: undefined, CF_ACCESS_AUD: undefined, WORKSPACE_LOGIN: "off" };
   for (const [bindings, signIn] of [[env, true], [{ ...env, WONG_ENVIRONMENT: "staging" }, true], [open, false], [{ ...env, CF_ACCESS_AUD: undefined }, false],
     [{ ...env, WONG_ENVIRONMENT: "local", SKIP_AUTH: "true" }, false]] as const) {

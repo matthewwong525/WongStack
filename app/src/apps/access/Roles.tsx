@@ -7,9 +7,8 @@ import { holders } from './subjects'
 import { Cell, Name, Row, Table } from './Table'
 import { View } from './View'
 
-// Each role on one line: how many apps and keys it gives, and how many people hold it. The names show where the
-// role is opened, in the panel beside the list. Admin, the role made for you, is first and gives everything: its
-// panel only says so.
+// Each role on one line: how many apps and keys it gives, and how many people hold it. Admin, the role made for
+// you, is first and gives everything: its panel only says so.
 export function Roles(props: ViewProps) {
   const { status, id } = props
   const opened = status.roles.find(item => item.id === id)

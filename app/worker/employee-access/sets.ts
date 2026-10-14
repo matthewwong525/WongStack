@@ -39,8 +39,7 @@ export const audit = (core: Core, event: string) => core.db.prepare(`INSERT INTO
   .bind(crypto.randomUUID(), core.actor, event, now(), core.installationId);
 
 /** One batch per save: the built apps listed, the revision moved once, the changes, and an audit row per event.
- *  A row left at `read` from when an app could be held to look only is never held, and is cleared here: Access
- *  names who lost an app that way until the next save, which is this one. */
+ *  A row left at `read`, from when an app could be held to look only, is never held and is cleared here. */
 export async function save(core: Core, events: string[], changes: D1PreparedStatement[]): Promise<void> {
   await core.db.batch([...catalogueWrites(core),
     core.db.prepare("UPDATE wong_access_installation SET revision = revision + 1 WHERE installation_id = ?").bind(core.installationId),

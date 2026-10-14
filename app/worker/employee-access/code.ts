@@ -1,6 +1,5 @@
-// The project, read and saved through the app: Git's two read calls, and its two write calls for one change at
-// a time, are passed to where the project is kept, with the server's own credential added. The Worker stores no
-// copy and hands no credential to a device. wiki/stack/employee-project.md
+// The project, read and saved through the app: Git's read and write calls are passed to where the project is kept,
+// with the server's credential added. No copy is stored; no device gets a credential. wiki/stack/employee-project.md
 import { boundedBytes, joined } from "../api/body.ts";
 import { type Github, defaultBranch } from "./github.ts";
 import type { CurrentPolicy } from "./policy.ts";
@@ -12,7 +11,7 @@ export const NOT_SET_UP = "Saving through the app is not set up yet. Ask the own
 const NEVER_PUBLISHES = "The app saves a change and never publishes. Push one branch that is not main.";
 const CHECK_FILES = "This change edits the files that define the checks, which can not be saved through the app. Ask the owner to save it.";
 
-/** Only what this file calls on a Cloudflare-kept project's binding: one repository, its address, and a token for it. */
+// Only what this file calls on a Cloudflare-kept project's binding: one repository, its address, and a token.
 // The handle carries no metadata of its own: its address comes from `info()`.
 type CodeBinding = { get(name: string): Promise<{ info(): Promise<{ remote: string }>; createToken(scope: Scope, ttl: number): Promise<{ plaintext: string }> }> };
 /** A Cloudflare-kept project's check runs, as the binding to its check runner answers: one run by name. */
@@ -22,7 +21,8 @@ export interface CodeEnv {
   WONG_CODE_REPOSITORY?: string;
   /** A GitHub token that reads this one repository's contents and nothing else. The wide key replaces it. */
   WONG_CODE_READ?: string;
-  /** A GitHub token for this one repository that also saves a change: it reads, pushes a branch, and opens the change. */
+  // A GitHub token for this one repository that also saves a change:
+  // it reads, pushes a branch, and opens the change.
   WONG_CODE_WRITE?: string;
   /** Cloudflare's binding to a project kept there. Declared as unknown, because `wrangler types` writes its own
    *  type for it into `Env` on such an install; `binding()` narrows it to what this file calls. */
@@ -50,7 +50,8 @@ const bound = (value: unknown) => typeof value === "object" && value !== null &&
 const binding = (value: unknown): value is CodeBinding => bound(value);
 const checksBinding = (value: unknown): value is ChecksBinding => bound(value);
 
-/** Where the project is kept, or null when this install can not hand it out yet. Either GitHub key reads. Calls nothing. */
+// Where the project is kept, or null when this install can not hand it out yet.
+// Either GitHub key reads. Calls nothing.
 export function codeSource(env: object): Source | null {
   const repository = text(env, "WONG_CODE_REPOSITORY");
   const artifacts: unknown = Reflect.get(env, "ARTIFACTS");
@@ -73,10 +74,8 @@ export function saveSource(env: object): SaveSource | null {
 }
 
 const step = (env: object, ready: boolean) => ready ? "ready" : onGithub(text(env, "WONG_CODE_REPOSITORY")) ? "key" : "setup";
-/**
- * Why the project can not be handed out yet, for Access to name the step left. `key`: it is kept on GitHub and
- * no key is saved. `setup`: no project the app can trust is recorded. Calls nothing.
- */
+// Why the project can not be handed out yet, for Access to name the step left. `key`: it is kept on GitHub and
+// no key is saved. `setup`: no project the app can trust is recorded. Calls nothing.
 export const codeStep = (env: object): "ready" | "key" | "setup" => step(env, codeSource(env) !== null);
 /** The same for saving a change. `key`: GitHub holds no key that can save. `setup`: Access setup has a step left. */
 export const saveStep = (env: object): "ready" | "key" | "setup" => step(env, saveSource(env) !== null);
@@ -95,11 +94,8 @@ export async function upstream(env: object, scope: Scope = "read"): Promise<Upst
   } catch { return null; }
 }
 
-/**
- * Who may connect with the project. `off`: the install can not hand it out, or permissions or key levels have
- * not started, so everyone keeps the apps-only connection. `ready`: a person who holds Project code now.
- * `lacked`: anyone else, a machine included.
- */
+/** Who may connect with the project. `off`: the install can not hand it out, or key levels have not started, so all
+ *  keep the apps-only connection. `ready`: holds Project code now. `lacked`: anyone else, a machine included. */
 export function codeState(env: object, policy: CurrentPolicy, person: boolean): "ready" | "lacked" | "off" {
   if (policy.state !== "current" || !policy.keys || !codeSource(env)) return "off";
   return person && policy.keys.has("code") ? "ready" : "lacked";
@@ -111,7 +107,8 @@ const plain = (line: string, status: number) => new Response(`${line}\n`,
 export const codeUnavailable = () => Response.json({ error: { code: "code_unavailable", message: "The project is not available from this app right now.", requestId: crypto.randomUUID() } },
   { status: 503, headers: { "Cache-Control": "no-store" } });
 
-/** One of Git's four calls, as the path under CODE_GIT that is passed on, and whether it writes. Anything else is refused. */
+// One of Git's four calls, as the path under CODE_GIT that is passed on, and whether it writes.
+// Anything else is refused.
 function gitCall(request: Request, url: URL): { path: string; write: boolean } | null {
   const path = url.pathname.slice(CODE_GIT.length);
   for (const [service, write] of [["git-upload-pack", false], ["git-receive-pack", true]] as const) {
@@ -159,7 +156,8 @@ const HEAD_LIMIT = 65_536;
 const UPDATE = /^[0-9a-f]{40,64} ([0-9a-f]{40,64}) ([\x21-\x7e]+)$/;
 const pkt = (line: string) => `${(line.length + 4).toString(16).padStart(4, "0")}${line}`;
 
-/** The bytes read so far and the lines before the first flush packet. Null for a head that is no pkt-lines or runs past the limit. */
+// The bytes read so far and the lines before the first flush packet.
+// Null for a head that is no pkt-lines or runs past the limit.
 async function pushHead(reader: ReadableStreamDefaultReader<Uint8Array>): Promise<{ bytes: Uint8Array; lines: string[] } | null> {
   const decoder = new TextDecoder();
   const lines: string[] = [];
@@ -190,7 +188,8 @@ function asked(lines: string[]) {
   return { refs: updates.flatMap(update => update ? [update[2]] : []), caps, branch: savedBranch(name) ? name : null };
 }
 
-/** A refusal Git prints as its own: every ref turned down with the one line. A push that named no ref is a plain 403. */
+// A refusal Git prints as its own: every ref turned down with the one line.
+// A push that named no ref is a plain 403.
 function refused(refs: string[], caps: string, line: string): Response {
   if (!refs.length) return plain(line, 403);
   const report = `${pkt("unpack ok\n")}${refs.map(ref => pkt(`ng ${ref} ${line}\n`)).join("")}${FLUSH}`;
@@ -217,7 +216,8 @@ async function push(request: Request, env: object, source: SaveSource): Promise<
   const stop = async (answer: Response) => { await reader.cancel(); return answer; };
   const head = await pushHead(reader);
   if (!head) return stop(plain(NEVER_PUBLISHES, 403));
-  // Before a large push Git first sends a flush packet alone, to see that it may: it updates nothing, and only it goes on.
+  // Before a large push Git first sends a flush packet alone, to see that it may:
+  // it updates nothing, and only it goes on.
   if (!head.lines.length) return stop(relayed(await passed(env, "write", request, "git-receive-pack", FLUSH)));
   const { refs, caps, branch } = asked(head.lines);
   if (!branch) return stop(refused(refs, caps, NEVER_PUBLISHES));

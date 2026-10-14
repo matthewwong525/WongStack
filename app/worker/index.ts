@@ -22,16 +22,14 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
-    // The setup file Connect your assistant names: public, with no key in it, and not memory. It sits under
-    // the memory prefix because that is the one opening every install's sign-in wall already has.
-    // wiki/stack/employee-project.md
+    // The setup file Connect your assistant names: public, no key in it. It sits under the memory prefix, the one
+    // opening every install's sign-in wall already has: wiki/stack/employee-project.md
     if (url.pathname === SETUP_PATH) {
       return setupFile(request);
     }
 
-    // Session memory, served from the memory skill on the production Worker's
-    // MEMORY_DB and MEMORY_BUCKET; staging binds neither and answers 404. A
-    // memory key authenticates each call: wiki/development/memory.md.
+    // Session memory, served by the memory skill from production's MEMORY_DB and MEMORY_BUCKET; staging binds
+    // neither and answers 404. A memory key authenticates each call: wiki/development/memory.md.
     if (url.pathname.startsWith(MEMORY_PREFIX)) {
       return handleMemory(request, env);
     }
@@ -65,16 +63,14 @@ export default {
       return new Response(null, { status: 303, headers: { Location: new URL("/", request.url).href, "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" } });
     }
 
-    // A preview check's kept pictures, served from the verify skill. The route
-    // gets the memory bucket alone and reaches only its walks/ folder.
-    // wiki/development/staging-walkthrough.md
+    // A preview check's kept pictures, served from the verify skill. The route gets the memory bucket alone and
+    // reaches only its walks/ folder: wiki/development/staging-walkthrough.md
     if (url.pathname.startsWith(WALK_PREFIX)) {
       return handleWalkPictures(request, env.MEMORY_BUCKET, identity);
     }
 
-    // Mini apps: the home page lists them, so /apps/ goes there. Each app's
-    // page is the single-page app's, and /apps/<name>/api/* goes to the app's
-    // handler with who is calling. wiki/stack/mini-apps.md
+    // Mini apps: the home page lists them, so /apps/ goes there. Each app's page is the single-page app's, and
+    // /apps/<name>/api/* goes to the app's handler with who is calling. wiki/stack/mini-apps.md
     if (url.pathname === "/apps/") {
       return Response.redirect(new URL("/", request.url).href, 302);
     }

@@ -1,9 +1,5 @@
-// The Cloudflare quick tunnel a link opens through, shared by hand-over.mjs and reply-link.mjs: start
-// one to a loopback port, ask its public address until it answers, and kill it. Each caller keeps its
-// own log and config files, so neither touches the other's state.
-//
-// Node built-ins only. For tests: HANDOVER_PROBE_ORIGIN is the address asked before a link prints,
-// `{port}` standing for the page's port.
+// The Cloudflare quick tunnel a link opens through, shared by hand-over.mjs and reply-link.mjs. Each caller
+// keeps its own log and config files, so neither touches the other's state. Node built-ins only.
 
 import { spawn, spawnSync } from 'node:child_process';
 import { timingSafeEqual } from 'node:crypto';
@@ -60,10 +56,8 @@ export function hasCloudflared() {
   return !spawnSync('cloudflared', ['--version'], { stdio: 'ignore' }).error;
 }
 
-/**
- * Starts the quick tunnel to `port` in its own process group, logging to `files.log` with the empty
- * config `files.config`, and waits until `deadline` for its registered origin.
- */
+/** Starts the quick tunnel to `port` in its own process group, logging to `files.log` with the empty
+ * config `files.config`, and waits until `deadline` for its registered origin. */
 export async function startTunnel(port, deadline, files) {
   writeFileSync(files.config, '');
   const log = openSync(files.log, 'w');
@@ -80,10 +74,8 @@ export async function startTunnel(port, deadline, files) {
   return { pid, origin: null };
 }
 
-/**
- * True once the link's public address serves the page, so a first tap never lands on Cloudflare's
- * error page; false at `deadline` or when the tunnel dies.
- */
+/** True once the link's public address serves the page, so a first tap never lands on Cloudflare's
+ * error page; false at `deadline` or when the tunnel dies. */
 export async function linkAnswers(origin, port, tunnelPid, deadline) {
   const address = `${PROBE_ORIGIN ? PROBE_ORIGIN.replace('{port}', port) : origin}/`;
   while (Date.now() < deadline && alive(tunnelPid)) {

@@ -3,9 +3,8 @@ import { Label } from '@/components/ui/label'
 import type { Level } from '../../lib/access'
 import { levelName } from './levels'
 
-/** One level as a segmented choice in one row that wraps. Real radio buttons, kept on screen: arrow keys move it,
- *  and the dot marks the current one, with its words in bold. `state` is a quiet word beside the name, such as
- *  whether the key is saved. `notes` are quiet lines under the row, the empty ones left out; `children` come after them. */
+/** One level as a segmented choice: real radio buttons kept on screen, so arrow keys move it. `state` is a quiet word
+ *  beside the name; `notes` are quiet lines under the row, the empty ones left out; `children` come after them. */
 export function LevelChoice({ legend, state, levels, value, notes = [], onChange, children }: {
   legend: string; state?: string; levels: Level[]; value: Level | null; notes?: string[]
   onChange: (level: Level | null) => void; children?: ReactNode

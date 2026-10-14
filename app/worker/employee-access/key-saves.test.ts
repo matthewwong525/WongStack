@@ -185,7 +185,7 @@ it("gives several people one role, read live, and never a role with a person's o
   expect([count("wong_access_grants"), count("wong_access_member_roles")]).toEqual([1, 2]);
   for (const [body, code] of [[{ role: sales.id, apps: { orders: true } }, "role_with_own_set"], [{ role: sales.id, keys: {} }, "role_with_own_set"],
     [{ apps: { payroll: true } }, "role_with_own_set"], [{ role: "missing" }, "unknown_role"]] as const) await refused("people", { email: bo, removed: false, ...body }, code);
-  // Changing the role reaches both holders on their next request, and nobody else: they read the role's apps and levels.
+  // Changing the role reaches both holders on their next request and nobody else: they read the role's set.
   const changed = named(await save("roles", { id: sales.id, name: "Sales team", apps: { payroll: true }, keys: { stripe: "read" } }), "Sales team");
   expect([changed.id, changed.apps, changed.keys]).toEqual([sales.id, ["orders", "payroll"], { stripe: "read" }]);
   for (const email of [bo, cy]) {
@@ -283,7 +283,7 @@ it("has no save that sets one app or one key for several at once: a role does th
   const sales = named(await save("roles", { name: "Sales", apps: { payroll: true }, keys: { stripe: "read" } }), "Sales");
   for (const email of [bo, cy]) await save("people", { email, removed: false, role: sales.id });
   for (const email of [bo, cy]) {
-    // Payroll uses the bank key, and neither holds a bank level: every call of Payroll runs, and the bank key alone stays shut.
+    // Payroll uses the bank key and neither holds a bank level: every Payroll call runs; the bank key alone stays shut.
     expect([await may(email, { apps: ["payroll"], keys: ["bank"] }, "write"), await may(email, { keys: ["stripe"] }, "read"), await may(email, { keys: ["bank"] }, "read")], email).toEqual([true, true, false]);
   }
   expect(fetch).not.toHaveBeenCalled();

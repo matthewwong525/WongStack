@@ -6,8 +6,8 @@ import { appAccessSchema, useAccess } from './lib/access'
 // with each page's heading. Every page takes the whole of it: none narrows itself.
 const FRAME = 'mx-auto w-full max-w-[60rem] px-4'
 
-// The frame and editable starter identity shared by every page: a bar across the screen, then the page. Sign out goes to the address Cloudflare's sign-in serves on this site, which ends the session; it is
-// a plain link, so the browser leaves the app for it. A site with no sign-in has no session and shows none.
+// The frame and editable starter identity shared by every page: a bar, then the page. Sign out is a plain link to
+// the address Cloudflare's sign-in serves on this site, which ends the session; a site with no sign-in shows none.
 export function Layout() {
   const { data } = useAccess('apps', appAccessSchema)
   return (

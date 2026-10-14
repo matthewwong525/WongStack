@@ -8,7 +8,7 @@ Every install starts empty and takes **every** category.
 
 - **Core** ships every listed skill's scripts/references, including browser discovery, private/reply links, camofox, shopping through Shop, improvement, scheduling and memory. It also ships `scheduled-work`, Claude/Codex memory hooks and project settings, `paseo.json`, rules, process pages, `.nvmrc`, portable checks, test and guard workflows/change-scope action, and the `WONG-STACK` block.
 - **UI** adds [`ux-principles.md`](../../../../wiki/ux-principles.md) for user-facing screens.
-- **Pack** adds scripts, workflow, schema, `wiki/stack/`, the [check runner](../../../../scripts/check-runner/worker.mjs) and [company calls](../../../../scripts/company-api.mjs). Employee migrations are additive; memory imports need no app packages.
+- **Pack** adds scripts, [comment rule](../../../../scripts/lint-comment-length.mjs), workflow, schema, `wiki/stack/`, [check runner](../../../../scripts/check-runner/worker.mjs) and [company calls](../../../../scripts/company-api.mjs). Employee migrations are additive; memory imports need no app packages.
 - **Scaffold** adds `app/`, except `app/wrangler.jsonc`, which holds source-repo database IDs.
 
 ## The agent folder

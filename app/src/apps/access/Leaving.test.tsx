@@ -115,7 +115,7 @@ it("a view's link asks before a changed panel is left, goes where it led on leav
 })
 it('closes at once a panel put back the way it was', async () => {
   open('people/kim@shop.com'); await screen.findByRole('button', { name: 'Save access' })
-  // A level raised and lowered again, a key picked and put back to None, an app ticked and unticked, an app unticked and ticked: nothing to lose.
+  // A level raised and lowered, a key picked and set back to None, an app ticked and unticked or back: no change.
   fireEvent.click(radio('Stripe', 'Read & write')); expect(screen.getByText('Not saved yet')).toBeTruthy(); fireEvent.click(radio('Stripe', 'Read'))
   fireEvent.click(radio('Bank', 'Read')); fireEvent.click(radio('Bank', 'None'))
   for (const name of ['Tip calculator', 'Hello']) { fireEvent.click(app(name)); expect([name, unloadAsks()]).toEqual([name, true]); fireEvent.click(app(name)) }

@@ -20,9 +20,8 @@ const browse = join(repo, '.agents/skills/browser/scripts/browse.mjs');
 const KEY = /#key=([0-9a-f]{64})$/m;
 const SECRET = 'hunter2-Secret!';
 
-// A HOME of its own, a fake tunnel tool first on PATH, and a fake camofox install with a page open in
-// the default browser session, for the one-link-at-a-time test's private form. `vault()` is the saved
-// logins file; `form` is a small private form's file.
+// A HOME of its own, a fake tunnel tool first on PATH, and a fake camofox install with a page open in the default
+// browser session, for the private form. `vault()` is the saved logins file; `form` is a small private form's file.
 function fixture(t) {
   const root = mkdtempSync(join(tmpdir(), 'wong-test-passwords-'));
   const bin = join(root, 'bin');

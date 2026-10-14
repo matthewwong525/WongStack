@@ -1,11 +1,5 @@
-// One guard: the README and the getting-started guide say what the landing page
-// says about each way to install: its cost, its computers, and which way is
-// free. Meta-only, like the landing page.
-//
-// It is its own file with its own step in scripts/payload-checks.mjs, because a
-// change under wiki/ alone skips the script suite, and that is how the guide
-// came to disagree. It reads three files and installs nothing.
-// wiki/maintaining/landing-page.md
+// One guard: the README and the getting-started guide say what the landing page says about each way to install.
+// Its own step in scripts/payload-checks.mjs: a wiki-only change skips the suite. wiki/maintaining/landing-page.md
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

@@ -1,7 +1,5 @@
-// Kept checks: the file format, the replay against the practice site, and what may be kept.
-// Request checks run for real. Browser checks run through scripts/fixtures/verify-journeys/fake-browser.mjs,
-// and once through a real browser where one is installed. A second site is another local site, and
-// `gh` is a stub first on PATH, so no test reaches the network.
+// Kept checks: the file format, the replay against the practice site, and what may be kept. Request checks run for
+// real; browser checks run through scripts/fixtures/verify-journeys/fake-browser.mjs. No test reaches the network.
 import assert from 'node:assert/strict';
 import { execFile, execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -117,8 +115,6 @@ async function practiceSite(t) {
   return { ...site, paths: () => site.observations.map(seen => seen.path) };
 }
 
-// ── check ─────────────────────────────────────────────────────────────────────
-
 test('check calls each kept file ok, stale, or unreadable against the written promises', async t => {
   const f = project(t);
   f.kept(listCount());
@@ -178,8 +174,6 @@ test('a file outside the format or its closed set of expectations is unreadable,
   }
   assert.match(found['elsewhere/list-count'].reason, /not at <capability>\/<id>\.json/);
 });
-
-// ── replay ────────────────────────────────────────────────────────────────────
 
 test('a request check for a kept promise replays the same, and one for a broken promise comes back changed', async t => {
   const f = project(t);
@@ -570,8 +564,6 @@ test('a real browser replays a kept promise the same and a broken one changed', 
   assert.equal(out.byId['saved-badge'].result, 'same', out.stdout);
   assert.deepEqual([out.byId['empty-title'].result, out.byId['empty-title'].reason], ['changed', 'the page no longer shows "Title is required"']);
 });
-
-// ── keep ──────────────────────────────────────────────────────────────────────
 
 const PREVIEW = 'http://127.0.0.1:4000';
 

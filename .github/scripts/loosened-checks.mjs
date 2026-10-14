@@ -1,48 +1,6 @@
 #!/usr/bin/env node
 // Did this change loosen a check without saying why? One answer for CI and /apply.
-//
-// Agents write almost all the code, and every check has an escape hatch: a skip
-// comment, a skipped or deleted test, a lowered limit in a config. CI stays
-// green through all of them, and a person who does not read code can not see
-// them. So each one needs a reason written where the person reads: a bullet in
-// the change's Decision log that starts with `Check:` and names the file, as
-// wiki/development/the-change-loop.md#the-gate says.
-//
-// A file is flagged when the change:
-//   - adds a line that turns a check off (a skip comment anywhere, or a
-//     skipped, focused, or to-do test in a test file);
-//   - deletes a test file, other than by moving it to another test file;
-//   - changes a check's settings: a known config file, any workflow file, a
-//     file of a shared workflow action, a script under .github/scripts/
-//     (check-settings.mjs holds that list), or a package.json `test` script or
-//     a script it runs. Any change counts, stricter ones too: a script can not
-//     tell stricter from looser for every setting;
-//   - changes the steps or expectations of a kept check under
-//     .agents/verification/journeys/, or removes one. A kept check the change
-//     adds, moves unchanged, or re-records with the same steps and
-//     expectations is left alone, and so is one whose written promise the
-//     change rewrites or removes: its openspec/specs/ scenario reads
-//     differently at the base, or a delta spec in the change lists its
-//     requirement as MODIFIED or REMOVED.
-// Prose (wiki/, openspec/, *.md) is never read for markers, and neither is this
-// script, because it names every marker. A change to it is still a settings change.
-//
-// A flagged file is explained when a proposal.md the change adds or edits,
-// under openspec/changes/ or its archive, names it in backticks in a
-// Decision-log bullet whose text after the date starts with `Check:`. Only
-// changed proposals count, so an old archive never excuses a new loosening.
-//
-// Prints a Markdown report on stdout for the job summary. Exit 0 when every
-// flagged file is explained, 1 when one is not, 2 on a usage error. An empty
-// --base (app-untouched.sh found nothing to compare with) prints why and exits 0.
-//
-// With --base it reads the change only through git, as text, and runs no file
-// of it: .github/workflows/guard.yml runs the default branch's copy of this
-// script from inside a pull request's checkout, so a change can not edit the
-// guard that judges it.
-//
-// Usage: node .github/scripts/loosened-checks.mjs --base <sha>
-//        node .github/scripts/loosened-checks.mjs --worktree
+// What is flagged, and the `Check:` bullet that explains it: wiki/development/loosened-checks.md
 
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';

@@ -1,13 +1,5 @@
 // The password link's routes, mounted by `hand-over.mjs open --passwords`, which checks the key first.
-//
-// `POST /save` takes `{logins: [{url, username, password}]}`, at most 500 logins, a 256 KB body, and
-// 1,024 characters a field. It reads the saved logins file once (logins.mjs owns it:
-// `~/.wong-stack/logins.json`, mode 0600 in a 0700 folder), names each login (the same host and
-// username reuse their name, so a new password replaces the old; otherwise `slug(host)`, then `-2`,
-// `-3` for another account), and replaces the file in one step for each. It replies
-// `{saved: [{name, host}], failed: [index]}`, the indexes into the request's logins; a file that can
-// not be read answers 503. `POST /done` ends the link. Nothing here logs, and no password reaches
-// argv, env, or any other file.
+// Nothing here logs, and no password reaches argv, env, or any file but logins.mjs's saved logins file.
 
 import { hostOf, readLogins, writeLogins } from '../../browser/scripts/logins.mjs';
 
@@ -70,7 +62,8 @@ function reply(response, status, body) {
   response.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store', 'content-length': Buffer.byteLength(text) }).end(text);
 }
 
-/** Saves each login in order, so a second account in one request sees the first's name taken. Null when the file can not be read. */
+/** Saves each login in order, so a second account in one request sees the first's name taken.
+ * Null when the file can not be read. */
 function saveAll(logins, onSaved, isOpen) {
   let file;
   try { file = readLogins(); } catch { return null; }
@@ -88,10 +81,8 @@ function saveAll(logins, onSaved, isOpen) {
   return { saved, failed };
 }
 
-/**
- * The password routes. `onSaved(name)` hears each saved name; `onDone()` runs once `/done`'s reply
- * has gone. Saves run one request at a time.
- */
+/** The password routes. `onSaved(name)` hears each saved name; `onDone()` runs once `/done`'s reply
+ * has gone. Saves run one request at a time. */
 export function passwordRoutes({ onSaved = () => {}, onDone = () => {}, onContinue = async () => null, isOpen = () => true } = {}) {
   let queue = Promise.resolve();
   let terminal = false;

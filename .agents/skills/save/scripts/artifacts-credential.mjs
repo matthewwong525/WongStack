@@ -1,15 +1,6 @@
 #!/usr/bin/env node
-// Git's credential helper for an Artifacts install: Git asks, this answers with a short-lived
-// token for the one repository, and nobody types or stores a password.
-//
-//     git config credential.https://<account>.artifacts.cloudflare.net.helper '!node …/artifacts-credential.mjs'
-//     node artifacts-credential.mjs install [dir]     # writes that config for a checkout
-//
-// On `get` it reads Git's request from stdin. For this install's Artifacts host it answers with a
-// cached token, or mints a one-day one from CLOUDFLARE_API_TOKEN in the primary worktree's ignored
-// `.env`, and caches it, mode 0600, under ~/.local/state/wongstack/. Any other host gets no answer,
-// so Git carries on as it would without this helper. `erase` forgets the cached token. The token
-// goes only to Git on stdout and to the cache file: never to stderr, an argument, or the address.
+// Git's credential helper for an Artifacts install: Git asks, this answers with a short-lived token for the one
+// repository. The token goes only to Git on stdout and the 0600 cache file: never stderr, an argument, or the address.
 import { execFileSync } from 'node:child_process';
 import { chmodSync, existsSync, lstatSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
@@ -47,11 +38,8 @@ export function repositoryOf(request, recorded) {
 /** Where one repository's token is cached. */
 export const cacheFile = (home, { account, namespace, repo }) => join(home, '.local', 'state', 'wongstack', `artifacts-${account}-${namespace}-${repo}.json`);
 
-/**
- * The cached token when it is safe and still good, else null. A link is refused outright: the
- * helper would otherwise read, or later overwrite, a file someone else chose. A file others can
- * read is thrown away.
- */
+// The cached token when it is safe and still good, else null. A link is refused: the helper would otherwise read,
+// or later overwrite, a file someone else chose. A file others can read is thrown away.
 export function readCache(file, now) {
   let stat;
   try {
@@ -112,10 +100,8 @@ async function mint(repository, token, { api, fetch: fetchFn }) {
   return plaintext;
 }
 
-/**
- * Answers one helper call. Returns the text for stdout: the credential for `get` on this install's
- * host, and nothing for a foreign remote or for `store`.
- */
+// Answers one helper call with the text for stdout: the credential for `get` on this install's host, and nothing
+// for a foreign remote or for `store`.
 export async function credential(operation, input, { cwd = process.cwd(), env = process.env, home = homedir(), now = Math.floor(Date.now() / 1000), fetch: fetchFn = globalThis.fetch } = {}) {
   if (operation !== 'get' && operation !== 'erase') return '';
   let recorded = null;
@@ -140,11 +126,8 @@ export async function credential(operation, input, { cwd = process.cwd(), env = 
   return `username=x\npassword=${secret}\npassword_expiry_utc=${expires}\n`;
 }
 
-/**
- * The Git config that points one account's Artifacts host at this helper, as `[key, value]` pairs:
- * the helper, found from whichever checkout Git runs in, and the setting that makes Git send the
- * repository's path, so one helper serves every repository on the host.
- */
+// The Git config pointing one account's Artifacts host at this helper, as `[key, value]` pairs: the helper, and the
+// setting that makes Git send the repository's path, so one helper serves every repository on the host.
 export function helperConfig(account) {
   const scope = `credential.https://${account}.artifacts.cloudflare.net`;
   return [

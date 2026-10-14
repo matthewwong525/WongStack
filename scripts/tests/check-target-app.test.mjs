@@ -11,8 +11,6 @@ const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const script = join(repo, 'scripts/check-target-app.mjs');
 const INVENTORY = '.agents/skills/wong-sync/references/payload-files.json';
 
-// ── Which files an install receives ──────────────────────────────────────────
-
 test('an install receives the listed files, skill folders and whole folders, without what the inventory leaves out', () => {
   const manifest = {
     core: { skillDirs: ['save'], files: ['.claude/settings.json', 'wiki/voice.md', 'paseo.json'] },
@@ -61,8 +59,6 @@ test('a red run names its failed files, tests and type errors before the end of 
   assert.match(many, /^ {2}and 20 more$/m);
 });
 
-// ── A whole run, on a small stand-in repository ──────────────────────────────
-
 // The stand-in app's `npm test`. It plays the type check (the declared binding must take the generated
 // one) and the test runner (each test file is loaded), and notes what it could see.
 const SUITE = `import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
@@ -96,11 +92,8 @@ const NPX = '#!/usr/bin/env bash\ntool=$1; shift\nexec "./node_modules/.bin/$too
 const COMMITTED_TYPES = 'interface Env { DB: D1Database; }\n';
 const PACK = ['cf-build.sh', 'lib-wrangler-config.sh', 'lib-wrangler-config.mjs', 'lib-cli.mjs'];
 
-/**
- * A repository shaped like this one: an app with a shipped Hello, a source-only extra folder the
- * inventory leaves out, the pack's real build scripts, and its packages installed. `files` adds or
- * replaces files; `installed: false` leaves the packages out.
- */
+/** A repository shaped like this one: an app with a shipped Hello, a source-only extra folder, the pack's real build
+ * scripts, and its packages installed. `files` adds or replaces files; `installed: false` leaves the packages out. */
 function fixture(t, { files = {}, installed = true } = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'wong-test-target-app-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));

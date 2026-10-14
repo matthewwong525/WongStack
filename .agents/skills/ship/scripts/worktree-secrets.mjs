@@ -1,22 +1,6 @@
 #!/usr/bin/env node
-/**
- * Keep a linked worktree's copies of the live secrets files in step with the
- * primary checkout.
- *
- *     node .claude/skills/ship/scripts/worktree-secrets.mjs seed      # new worktree: copy + baseline
- *     node .claude/skills/ship/scripts/worktree-secrets.mjs status    # what this branch changed
- *     node .claude/skills/ship/scripts/worktree-secrets.mjs promote   # after the merge: apply it
- *
- * A branch writes an add or a rotation to both copies at once, and keeps a
- * deletion or a branch-only value in its own copy until the merge. `promote`
- * then applies to the primary only what this branch changed. It compares three
- * ways against the baseline `seed` recorded, so a key another branch added to
- * the primary is not read as a deletion here. The baseline holds value hashes,
- * never values, in this worktree's own Git directory.
- *
- * Output is JSON of paths and key names. No command prints a value.
- * The convention: wiki/development/secrets.md
- */
+// Keep a linked worktree's copies of the live secrets files in step with the primary checkout: `seed`, `status`,
+// `promote`. Output is JSON of paths and key names, never a value. The convention: wiki/development/secrets.md
 
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -84,8 +68,6 @@ function saveBase(ctx, base) {
   writeFileSync(join(ctx.gitDir, BASE_FILE), `${JSON.stringify(base, null, 2)}\n`, { mode: 0o600 });
 }
 
-/* ── seed ──────────────────────────────────────────────────────────────────── */
-
 function seed(ctx) {
   const base = loadBase(ctx) ?? { files: {} };
   const result = { seeded: [], adopted: [], unseeded: [], skipped: [] };
@@ -117,12 +99,8 @@ function seed(ctx) {
   return result;
 }
 
-/* ── status ────────────────────────────────────────────────────────────────── */
-
-/**
- * Classify one key from the worktree (hw), primary (hp), and baseline (hb)
- * hashes. `undefined` means the key is absent there.
- */
+// Classify one key from the worktree (hw), primary (hp), and baseline (hb) hashes. `undefined` means the key is
+// absent there.
 function classify(hw, hp, hb, seeded) {
   if (hw === hp) return null;
   if (!seeded) return hw !== undefined && hp === undefined ? "add" : "unresolved";
@@ -161,8 +139,6 @@ function status(ctx) {
     .filter(hasChanges);
   return { seeded: Object.keys(base?.files ?? {}).sort(), files };
 }
-
-/* ── promote ───────────────────────────────────────────────────────────────── */
 
 /** Remove, replace, or append only the named lines; keep every other line. */
 function applyLines(text, diff, mine) {
@@ -210,8 +186,6 @@ function promote(ctx) {
   if (base) saveBase(ctx, base);
   return result;
 }
-
-/* ── main ──────────────────────────────────────────────────────────────────── */
 
 const COMMANDS = { seed, status, promote };
 

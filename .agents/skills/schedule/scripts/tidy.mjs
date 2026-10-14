@@ -1,35 +1,6 @@
 #!/usr/bin/env node
-// Puts away what WongStack leaves behind, touching nothing it did not make.
-// USAGE below lists the commands.
-//
-// `scratch` makes the git-ignored `.scratch/` folder at the checkout root and
-// prints its path; it adds `.scratch/` to git's local exclude file when git does
-// not ignore the folder yet. `close` checks that this workspace is saved, then
-// hands off to a detached child that waits for this chat's reply to end,
-// archives the workspace, stops processes left running from it, and deletes its
-// local branch when its pull request merged at the local tip. `close --discard`
-// skips the saved check and throws the work away first: it closes the branch's
-// open pull request, deletes the branch online, resets the tree, and has the
-// child delete the local branch too. `sweep` is the
-// background tidy-up the session-start hook starts, at most once every 6 hours
-// per repo: it archives this repo's saved workspaces idle 3+ days, stops
-// processes whose worktree is gone, and deletes `wong-*` temp entries and
-// primary-checkout scratch files untouched for a day. `sweep --report` prints
-// the last results as one plain line and clears them.
-//
-// Every destructive step checks ownership first: a worktree of this repo, a
-// `wong-` name, this user's process, a working folder that is gone. The primary
-// checkout and the current chat's workspace are never archived. Stamp, lock,
-// and report live in <git-common-dir>/wong-tidy/, shared by every worktree.
-//
-// Prints one JSON object on stdout (`sweep --report` prints plain text). Exit
-// codes: 0 ok, 2 bad input or refused, 3 Paseo not installed, 4 daemon not
-// answering, 5 Paseo's output has changed. The sweep never fails for Paseo: it
-// skips that part and tidies the rest.
-//
-// Node built-ins only. TIDY_PASEO_BIN overrides the `paseo` found on PATH;
-// PASEO_HOME moves Paseo's folder (default ~/.paseo), whose `worktrees/` holds
-// the worktrees whose leftover processes may be stopped.
+// Puts away what WongStack leaves behind, touching nothing it did not make: every destructive step checks ownership
+// first. USAGE below lists the commands; the sweep never fails for Paseo, it skips that part and tidies the rest.
 
 import { execFileSync, spawn } from 'node:child_process';
 import {
@@ -60,9 +31,6 @@ const BUSY = new Set(['running', 'initializing']);
 const DELETED = ' (deleted)';
 const SELF = fileURLToPath(import.meta.url);
 
-// ---------------------------------------------------------------------------
-// Pure helpers: the ownership tests
-
 /** True when `file` is `dir` or inside it. */
 export function inside(dir, file) {
   if (!dir || !file) return false;
@@ -75,11 +43,8 @@ export function ownWorkspace(ws, { commonDir, wsCommonDir, primary }) {
   return ws?.isolation === 'worktree' && Boolean(wsCommonDir) && wsCommonDir === commonDir && ws.cwd !== primary;
 }
 
-/**
- * Saved: a clean tree (ignored files, `.scratch/` included, do not count) and
- * no commit missing from every remote, unless the branch's pull request merged
- * at this commit. `porcelain` or `unpushed` null means git could not tell.
- */
+// Saved: a clean tree (ignored files do not count) and no commit missing from every remote, unless the branch's
+// pull request merged at this commit. `porcelain` or `unpushed` null means git could not tell.
 export function savedState({ porcelain, unpushed, merged = false }) {
   if (porcelain === null || porcelain === undefined || unpushed === null || unpushed === undefined) {
     return { saved: false, reason: 'git could not read it', files: [] };
@@ -95,11 +60,8 @@ export function mergedAtTip(pr, tip) {
   return pr?.state === 'MERGED' && Boolean(tip) && pr.headRefOid === tip;
 }
 
-/**
- * Idle: no agent is running, and the newest activity is IDLE_MS old. Agents are
- * { status, updatedAt }; a workspace with no agents uses `fallbackMs`. An
- * unreadable time is never idle.
- */
+// Idle: no agent is running, and the newest activity is IDLE_MS old. Agents are { status, updatedAt }; a workspace
+// with no agents uses `fallbackMs`. An unreadable time is never idle.
 export function isIdle(agents, now, { fallbackMs } = {}) {
   if (agents.some(agent => BUSY.has(agent.status))) return false;
   const times = agents.length ? agents.map(agent => Date.parse(agent.updatedAt)) : [fallbackMs];
@@ -107,11 +69,8 @@ export function isIdle(agents, now, { fallbackMs } = {}) {
   return now - Math.max(...times) >= IDLE_MS;
 }
 
-/**
- * The pids to stop: this user's processes, not this one, whose working folder
- * was deleted, lies under one of `roots`, and lies in no `live` worktree.
- * `procs` are { pid, uid, cwd } with `cwd` as /proc/<pid>/cwd reads.
- */
+// The pids to stop: this user's processes, not this one, whose working folder was deleted, lies under one of
+// `roots`, and lies in no `live` worktree. `procs` are { pid, uid, cwd } with `cwd` as /proc/<pid>/cwd reads.
 export function orphanPids(procs, { uid, self, roots, live = [] }) {
   return procs.filter(proc => {
     if (proc.uid !== uid || proc.pid === self || !proc.cwd?.endsWith(DELETED)) return false;
@@ -168,9 +127,6 @@ export function reportLine(report) {
   const text = parts.join('; ');
   return `Tidy-up: ${text}.`;
 }
-
-// ---------------------------------------------------------------------------
-// Git, files, and processes
 
 function tryGit(cwd, ...args) {
   try { return git(cwd, ...args); } catch { return null; }
@@ -315,9 +271,6 @@ function worktrees(repo, env) {
   return { live: list.filter(dir => existsSync(dir)).map(realpath), parents };
 }
 
-// ---------------------------------------------------------------------------
-// Paseo
-
 function checkList(data, what, fields) {
   if (!Array.isArray(data) || data.some(item => fields.some(field => typeof item?.[field] !== 'string'))) {
     throw new PaseoError(EXIT.client, `Paseo's ${what} output has changed: expected a list with ${fields.join(', ')}.`);
@@ -334,9 +287,6 @@ async function listAgents(bin) {
   return checkList(await paseo(bin, ['ls', '-g']), 'ls', ['id', 'status', 'cwd'])
     .map(agent => ({ id: agent.id, status: agent.status, cwd: realpath(agent.cwd.replace(/^~(?=\/|$)/, home)) }));
 }
-
-// ---------------------------------------------------------------------------
-// Commands
 
 function scratch({ dryRun }) {
   const root = tryGit(process.cwd(), 'rev-parse', '--show-toplevel');
@@ -364,10 +314,8 @@ function refusal(state) {
   return 'Git could not read this workspace, so it stays open.';
 }
 
-/**
- * Throws a worktree's work away: closes the branch's open pull request, deletes
- * the branch online, and resets the tree so Paseo archives it as a clean one.
- */
+// Throws a worktree's work away: closes the branch's open pull request, deletes the branch online, and resets
+// the tree so Paseo archives it as a clean one.
 function throwAway(dir, branch) {
   const notes = [];
   let pr = null;
@@ -428,7 +376,8 @@ async function closeChild(env) {
   try {
     const bin = findPaseo(env, 'TIDY_PASEO_BIN');
     let waited = null;
-    try { waited = await paseo(bin, ['wait', job.agentId, '--timeout', String(WAIT_SECONDS)]); } catch { /* reported below */ }
+    // A wait that throws is reported below.
+    try { waited = await paseo(bin, ['wait', job.agentId, '--timeout', String(WAIT_SECONDS)]); } catch {}
     if (!waited || BUSY.has(waited.status)) {
       report.left.push({ name: job.name, reason: 'the chat never finished, so it was not closed' });
     } else {

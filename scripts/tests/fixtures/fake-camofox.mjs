@@ -1,6 +1,5 @@
-// Installs fake-camofox-server.mjs where browse.mjs looks for camofox, under a test's own HOME, so
-// browse.mjs starts it as it starts the real server. `fakeCamofox(home)` returns the control folder's
-// helpers; fake-camofox-server.mjs lists the control files. BROWSE_ENV makes browse.mjs's waits short.
+// Installs fake-camofox-server.mjs where browse.mjs looks for camofox, under a test's own HOME. `fakeCamofox(home)`
+// returns the control folder's helpers; fake-camofox-server.mjs reads its files. BROWSE_ENV shortens browse.mjs waits.
 
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';

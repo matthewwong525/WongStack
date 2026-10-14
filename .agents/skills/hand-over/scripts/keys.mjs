@@ -1,36 +1,5 @@
-// The key link's routes, mounted by `hand-over.mjs open --keys NAME[,NAME] [--guide <file>]`, which
-// checks the key and the guide first.
-//
-// `resolveKeys` runs at `open`, before any link exists. Each name must be declared, uncommented, in
-// exactly one of the active checkout's example files: `.env.example` sends it to `.env`, and
-// `app/.dev.vars.example` to `app/.dev.vars`. It then proves each destination is git-ignored in the
-// primary worktree, and in this one when it is linked. A key's hint is the first sentence of the
-// comment block directly above its declaration.
-//
-// `checkGuide` runs there too, on the `--guide` file: a JSON object keyed by asked-for name, each entry
-// any of `title` and `open` (40 characters), `url` (an `https` address with a host name, never an IP
-// literal, `localhost`, or one carrying a login), `steps` (6 lines of 140 characters), and `check`, a
-// `{url, auth}` test with `auth` one of `bearer`, `basic` (the key as the username), `header:<Name>`,
-// or `query:<name>`. The first bad entry is returned as `<name>: <reason>`.
-//
-// `GET /keys` lists `{name, hint, set}` and a guide's `title`, `url`, `open`, `steps`, and `checkHost`,
-// the test's host and never its path; `set` is only whether a value is there now. It also gives
-// `closesAt` and `now`, the watcher's clock, and its first call marks the link opened. `POST /save`
-// takes `{keys: {NAME: value}, force: [NAME]}` for asked-for names, a 16 KB body, and one save at a
-// time. Each value is trimmed; an empty one, or one over 4,096 characters, is refused for that name. A
-// value over several lines is stored on one: JSON compacted, other text in double quotes with each line
-// break as `\n`, which dotenv and wrangler read back as a line break; text holding `"`, `\`, `$`, or a
-// backtick is refused, since no quoting keeps it whole.
-//
-// A key with a `check` is tested before it is written, unless `force` names it: one `GET` to the
-// check's address with the key placed by `auth`, no redirect followed, the body cancelled unread, 8
-// seconds at most. 2xx is `works`; 401 or 403 is `refused`, and the key is not written; anything else,
-// or no check, is `untested`. An accepted key replaces its line in the primary worktree's file, or is
-// appended, and goes the same way to a linked worktree's seeded branch copy (worktree-secrets.mjs
-// `seed` recorded it). Each write goes to a temp file beside the target, mode 0600, then renames over
-// it. The reply is `{saved: [NAME], failed: [NAME], refused: [NAME], checked: {NAME: 'works' |
-// 'untested'}}`; the link ends once every asked-for name is saved, or on `POST /done`. Nothing here
-// logs, and no value reaches argv, env, or any file but the live ones: only a check's own address.
+// The key link's routes, mounted by `hand-over.mjs open --keys`, which checks the key and the guide first.
+// Nothing here logs, and no value reaches argv, env, or any file but the live ones: only a check's own address.
 
 import { randomBytes } from 'node:crypto';
 import { existsSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
@@ -51,9 +20,6 @@ export const APP_FILE = 'app/.dev.vars';
 // Written bare, a value of only these reads back unchanged in dotenv, wrangler, the memory parser, and a
 // shell's `source`; `~` is left out, since a shell expands it.
 const BARE = /^[A-Za-z0-9_\-.:/+=@]+$/;
-
-// ---------------------------------------------------------------------------
-// Reading the example and live files
 
 /** The first sentence of a comment block, `#` marks stripped, capped at LIMITS.hint; '' for none. */
 export function firstSentence(comments) {
@@ -96,11 +62,8 @@ function branchCopy(ctx, rel) {
   }
 }
 
-/**
- * Where each name goes, from the active checkout's example files. Resolves to `{keys: [{name, file,
- * hint}], undeclared, ambiguous, unignored}`; the link may open only when the last three are empty.
- * `ctx` is primary-root.mjs's `{root, primary, linked, gitDir}`.
- */
+/** Where each name goes, from the active checkout's example files. The link may open only when
+ * `undeclared`, `ambiguous`, and `unignored` are all empty. `ctx` is primary-root.mjs's result. */
 export function resolveKeys(names, ctx) {
   const declared = DESTINATIONS.map(destination => ({ ...destination, names: declarations(readText(join(ctx.root, destination.example))) }));
   const keys = [];
@@ -119,7 +82,7 @@ export function resolveKeys(names, ctx) {
   return { keys, undeclared, ambiguous, unignored };
 }
 
-/** The page's list: each asked-for key's name, hint, whether a value is set now, and its guide, the test as its host alone. */
+/** The page's list: each key's name, hint, whether a value is set now, and its guide, the test as its host alone. */
 export function describeKeys(config) {
   return config.keys.map(({ name, file, hint, guide }) => {
     const copy = branchCopy(config, file);
@@ -128,16 +91,13 @@ export function describeKeys(config) {
   });
 }
 
-// ---------------------------------------------------------------------------
-// The guide
-
 const isObject = value => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 const isText = (value, most) => typeof value === 'string' && Boolean(value.trim()) && value.length <= most && !/[\r\n\0]/.test(value);
 const HEADER = /^[A-Za-z][A-Za-z0-9-]*$/;
 const BANNED_HEADERS = new Set(['host', 'cookie', 'content-length']);
 const QUERY = /^[A-Za-z0-9_.-]+$/;
 
-/** An `https` address with a dotted host name as a URL; null for an IP literal, `localhost`, or one carrying a login. */
+/** An `https` address with a dotted host name as a URL; null for an IP literal, `localhost`, or one with a login. */
 export function httpsUrl(address) {
   if (typeof address !== 'string' || !URL.canParse(address)) return null;
   const url = new URL(address);
@@ -167,10 +127,8 @@ const GUIDE_FAULTS = [
   ['check takes an https url with a host name and an auth of bearer, basic, header:<Name>, or query:<name>', ({ check }) => check !== undefined && !(isObject(check) && Object.keys(check).every(field => CHECK_FIELDS.has(field)) && httpsUrl(check.url) && authPlace(check.auth))],
 ];
 
-/**
- * Checks the parsed `--guide` file against the asked-for names. Resolves to `{guide}`, or to
- * `{fault: '<name>: <reason>'}` for the first entry that is not asked for or is badly shaped.
- */
+/** Checks the parsed `--guide` file against the asked-for names. Resolves to `{guide}`, or to
+ * `{fault: '<name>: <reason>'}` for the first entry that is not asked for or is badly shaped. */
 export function checkGuide(guide, names) {
   if (!isObject(guide)) return { fault: 'guide: takes a JSON object keyed by key name' };
   for (const [name, entry] of Object.entries(guide)) {
@@ -189,11 +147,8 @@ function checkRequest({ url, auth }, value) {
   return { url: target.href, headers: place.header ? { [place.header]: sent } : {} };
 }
 
-/**
- * Asks the service once whether it takes `value`: 'works' on 2xx, 'refused' on 401 or 403, else
- * 'untested', as for a redirect, a timeout, or a value no header can carry. It follows no redirect,
- * cancels the body unread, and keeps nothing.
- */
+/** Asks the service once whether it takes `value`: 'works' on 2xx, 'refused' on 401 or 403, else 'untested',
+ * as for a redirect or a timeout. It follows no redirect, cancels the body unread, and keeps nothing. */
 export async function checkKey(check, value, ask = globalThis.fetch) {
   try {
     const { url, headers } = checkRequest(check, value);
@@ -206,13 +161,8 @@ export async function checkKey(check, value, ask = globalThis.fetch) {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Writing a key
-
-/**
- * Text over several lines as one storable value: JSON compacted, other text as it is. A `'` inside the
- * JSON is written as its `\u0027` escape, the same data, so single quotes hold any key file.
- */
+/** Text over several lines as one storable value: JSON compacted, other text as it is. A `'` inside the
+ * JSON is written as its `'` escape, the same data, so single quotes hold any key file. */
 function compact(text) {
   try {
     return JSON.stringify(JSON.parse(text)).replaceAll("'", '\\u0027');
@@ -221,10 +171,8 @@ function compact(text) {
   }
 }
 
-/**
- * A value as the page sent it, trimmed, its line breaks as `\n` and a JSON file's taken out; null when
- * it is empty or its stored form is too long.
- */
+/** A value as the page sent it, trimmed, its line breaks as `\n` and a JSON file's taken out; null when
+ * it is empty or its stored form is too long. */
 export function cleanValue(value) {
   if (typeof value !== 'string') return null;
   const text = value.replace(/\r\n?/g, '\n').trim();
@@ -232,12 +180,8 @@ export function cleanValue(value) {
   return clean && clean.replaceAll('\n', '\\n').length <= LIMITS.value && !clean.includes('\0') ? clean : null;
 }
 
-/**
- * The live-file line for a key: bare when it can be, else in single quotes, else in double quotes; null
- * for a value no quoting keeps whole. Neither dotenv nor the memory parser unescapes a quoted value, so
- * quoting picks a mark the value lacks rather than escaping one. The one escape is a line break, as
- * `\n` in double quotes, which dotenv and wrangler turn back.
- */
+/** The live-file line for a key, or null for a value no quoting keeps whole. dotenv and the memory parser
+ * unescape no quoted value, so quoting picks a mark the value lacks; only `\n` in double quotes is turned back. */
 export function formatLine(name, value) {
   if (value.includes('\n')) return /["\\$`]/.test(value) ? null : `${name}="${value.replaceAll('\n', '\\n')}"`;
   if (BARE.test(value)) return `${name}=${value}`;
@@ -246,11 +190,8 @@ export function formatLine(name, value) {
   return null;
 }
 
-/**
- * Sets `name` in the dotenv file at `path`: its first line is replaced in place, keeping any `export`,
- * and any later duplicates dropped; otherwise the line is appended. Every other line stays. The file
- * is written whole to a temp file beside it, mode 0600, then renamed over it.
- */
+/** Sets `name` in the dotenv file at `path`: its first line is replaced in place, keeping any `export`, and later
+ * duplicates dropped; else appended. Written whole to a temp file beside it, mode 0600, then renamed over it. */
 export function setKey(path, name, line) {
   const lines = readText(path).split('\n');
   let found = false;
@@ -287,9 +228,6 @@ function writeKey(config, { name, file }, line) {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Routes
-
 /** A request's JSON body, or a status: 413 past the byte limit, 400 when it isn't JSON. */
 async function readBody(request) {
   const chunks = [];
@@ -311,10 +249,8 @@ function reply(response, status, body) {
   response.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store', 'content-length': Buffer.byteLength(text) }).end(text);
 }
 
-/**
- * A save request's `[name, value]` pairs, or 400 unless it names at least one asked-for key and no
- * other, in `keys` and in any `force` list.
- */
+/** A save request's `[name, value]` pairs, or 400 unless it names at least one asked-for key and no
+ * other, in `keys` and in any `force` list. */
 export function checkKeys(body, asked) {
   if (!isObject(body) || !isObject(body.keys)) return 400;
   const force = body.force ?? [];
@@ -323,12 +259,8 @@ export function checkKeys(body, asked) {
   return pairs.length && pairs.every(([name]) => asked.has(name)) ? pairs : 400;
 }
 
-/**
- * The key routes for `config`, the state's `{root, primary, linked, gitDir, keys}`. `onSaved(name)`
- * hears each saved name; `onDone()` runs once the reply has gone, on `/done` or when a save leaves no
- * asked-for key unsaved. `onOpened()` hears each `GET /keys`, `closesAt` is the deadline that route
- * reports, and `fetch` runs a key's test.
- */
+/** The key routes for `config`. `onSaved(name)` hears each saved name; `onDone()` runs once the reply has
+ * gone, on `/done` or when a save leaves no asked-for key unsaved. `onOpened()` hears each `GET /keys`. */
 export function keyRoutes(config, { onSaved = () => {}, onDone = () => {}, onContinue = async () => null, isOpen = () => true, onOpened = () => {}, closesAt, fetch: ask = globalThis.fetch } = {}) {
   const asked = new Map(config.keys.map(key => [key.name, key]));
   const saved = new Set();

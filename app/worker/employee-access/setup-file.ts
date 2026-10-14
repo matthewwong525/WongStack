@@ -1,6 +1,5 @@
-// The setup file the app serves at SETUP_PATH: the project's own setup script with the address it was fetched
-// from written in. It holds no key, and everything it does needs the person's own sign-in. `?raw` is a
-// build-time import, so it stays in this module, which only the route in ../index.ts reaches.
+// The setup file served at SETUP_PATH: the project's setup script with its fetch address written in. It holds no key.
+// `?raw` is a build-time import, so it stays in this module, which only the route in ../index.ts reaches.
 import script from "../../../scripts/employee-bootstrap.mjs?raw";
 
 const MARKER = "const SERVED_FROM = '';";

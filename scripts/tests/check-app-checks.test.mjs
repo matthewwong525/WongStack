@@ -30,6 +30,7 @@ function repo(t, { scripts: listed = SCRIPTS, without = [], registry = REGISTRY,
   const files = {
     'app/package.json': JSON.stringify({ type: 'module', scripts: listed }),
     'app/.oxlintrc.json': '{}\n',
+    'scripts/lint-comment-length.mjs': 'export default {};\n',
     'app/tsconfig.json': '{ "files": [] }\n',
     'app/tsconfig.app.json': '{}\n',
     'app/worker-configuration.d.ts': 'interface Env {}\n',
@@ -86,6 +87,7 @@ test('every gate that catches its samples passes: each step of `npm test`, in a 
       assert.equal(readFileSync(join(cwd, 'src/too-long.ts'), 'utf8').trimEnd().split('\n').length, 501);
       assert.ok(has('src/apps/first/App.tsx') && has('src/apps/second/value.ts'));
       assert.equal(has('tsconfig.json'), false, 'another gate\'s settings stay out');
+      assert.ok(has('../scripts/lint-comment-length.mjs') && has('src/long-comment.ts') && has('src/wide-comment.ts'), 'the comment rule and its samples');
     }
     if (name === 'types') assert.ok(has('tsconfig.json') && has('tsconfig.app.json') && has('worker-configuration.d.ts') && has('worker/wrong-type-in-test.test.ts'));
     if (name === 'coverage') assert.deepEqual([has('src/setup.ts'), has('src/absent.ts'), has('src/one-branch.test.ts')], [true, false, true]);
@@ -99,7 +101,7 @@ test('every gate that catches its samples passes: each step of `npm test`, in a 
   });
   assert.equal(ok, true);
   assert.deepEqual(commands, ['npm run lint', 'tsc -b', 'vitest run --coverage', 'npm run test:runtime', 'knip', 'jscpd', 'node ../scripts/check-app-keys.mjs --root']);
-  assert.deepEqual(said, ['lint: caught 5 bad samples', 'types: caught 4 bad samples', 'coverage: caught 1 bad sample', 'runtime: caught 1 bad sample',
+  assert.deepEqual(said, ['lint: caught 7 bad samples', 'types: caught 4 bad samples', 'coverage: caught 1 bad sample', 'runtime: caught 1 bad sample',
     'unused code: caught 1 bad sample', 'repeated code: caught 2 bad samples', 'saved keys: caught 1 bad sample',
     'app checks: no gate let a bad sample through']);
   assert.equal(new Set(Object.values(folders)).size, GATES.length, 'one folder per gate');
@@ -122,7 +124,7 @@ test('a gate that exits zero on its bad sample is named, and the proof fails', a
 test('a gate that fails without naming its sample, or without the reason, is named too', async t => {
   const f = repo(t);
   const { ok, said } = await prove(f, (name, proving) => {
-    // A rule fell out of the list: four samples are caught, one is not.
+    // A rule fell out of the list: six samples are caught, one is not.
     if (name === 'lint') return caught({ samples: proving.samples.filter(sample => sample.says !== 'max-lines') });
     // The files are named, for another reason than a wrong type.
     if (name === 'types') return { status: 2, output: proving.samples.map(sample => `${sample.file}: error TS9999`).join('\n') };
@@ -143,7 +145,7 @@ test('a missing settings file is reported, not skipped, and so is a gate `npm te
   const f = repo(t, { without: ['app/.jscpd.json'], scripts: { test: 'pnpm run lint && vitest run --coverage && npm run test:runtime && knip && jscpd && node ../scripts/check-app-keys.mjs', lint: 'oxlint' } });
   const { ok, said, commands } = await prove(f);
   assert.equal(ok, false);
-  assert.deepEqual(said.slice(0, 6), ['lint: caught 5 bad samples', 'types: `npm test` no longer runs it', 'coverage: caught 1 bad sample',
+  assert.deepEqual(said.slice(0, 6), ['lint: caught 7 bad samples', 'types: `npm test` no longer runs it', 'coverage: caught 1 bad sample',
     'runtime: `npm test` no longer runs it', 'unused code: caught 1 bad sample', 'repeated code: its settings file .jscpd.json is missing']);
   assert.deepEqual(commands, ['pnpm run lint', 'vitest run --coverage', 'knip', 'node ../scripts/check-app-keys.mjs --root'], 'neither gate ran');
   assert.match(said.at(-1), /3 of 7 gates no longer prove they can fail: types, runtime, repeated code/);
@@ -182,7 +184,7 @@ test('a tool that throws still leaves no folder behind', async t => {
 // Stand-ins on PATH, as `node_modules/.bin` holds the real tools: each names every file it finds with
 // every reason, as a tool that catches its samples would, and says how colour was set for it.
 const TOOL = `#!/bin/sh
-find src worker tests -type f 2>/dev/null | sed 's/$/: no-explicit-any max-lines complexity rules-of-hooks no-restricted-imports TS2322 threshold RUNTIME_ASSERTION_PROOF Unused files Clone found/'
+find src worker tests -type f 2>/dev/null | sed 's/$/: no-explicit-any max-lines complexity rules-of-hooks no-restricted-imports max-comment-lines max-comment-width TS2322 threshold RUNTIME_ASSERTION_PROOF Unused files Clone found/'
 echo "runtime proof: workerd ready"
 echo "colour:$NO_COLOR:$FORCE_COLOR"
 exit "\${STAND_IN_STATUS:-1}"
@@ -207,7 +209,7 @@ test('the command runs each step through the shell with the app\'s own tools, an
   const run = (vars = {}) => spawnSync(process.execPath, [script, '--root', f.root], { encoding: 'utf8', env: { ...process.env, TMPDIR: f.temp, FORCE_COLOR: '1', ...vars } });
   const proven = run();
   assert.equal(proven.status, 0, `${proven.stdout}${proven.stderr}`);
-  assert.deepEqual(proven.stdout.trimEnd().split('\n'), ['lint: caught 5 bad samples', 'types: caught 4 bad samples', 'coverage: caught 1 bad sample', 'runtime: caught 1 bad sample',
+  assert.deepEqual(proven.stdout.trimEnd().split('\n'), ['lint: caught 7 bad samples', 'types: caught 4 bad samples', 'coverage: caught 1 bad sample', 'runtime: caught 1 bad sample',
     'unused code: caught 1 bad sample', 'repeated code: caught 2 bad samples', 'saved keys: caught 1 bad sample',
     'app checks: no gate let a bad sample through']);
   const quiet = run({ JSCPD_STATUS: '0' });

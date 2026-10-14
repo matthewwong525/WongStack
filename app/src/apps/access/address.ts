@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import type { Status } from '../../lib/access'
 
-/** An address inside Access: `at()` is People, `at('roles')` a view, `at('roles', id)` one role, opened beside its list. */
+/** An address inside Access: `at()` is People, `at('roles')` a view, `at('roles', id)` one role beside its list. */
 export const at = (...parts: string[]) => `/apps/access/${parts.map(encodeURIComponent).join('/')}`
 
 /** The owner's two views, in the order the switch shows them. People opens first. */

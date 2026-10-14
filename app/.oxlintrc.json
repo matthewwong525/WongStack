@@ -1,15 +1,22 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "plugins": ["react", "typescript", "oxc"],
-  "jsPlugins": ["@shadcn/lint"],
+  "jsPlugins": ["@shadcn/lint", "../scripts/lint-comment-length.mjs"],
   "rules": {
     "complexity": ["error", 21],
     "max-lines": ["error", 500],
     "react/rules-of-hooks": "error",
     "react/only-export-components": ["warn", { "allowConstantExport": true }],
-    "typescript/no-explicit-any": "error"
+    "typescript/no-explicit-any": "error",
+    "comment-length/max-comment-lines": ["error", 2],
+    "comment-length/max-comment-width": ["error", 120]
   },
   "overrides": [
+    {
+      // A command writes these parts, and its next run would put long comments back.
+      "files": ["src/components/ui/**"],
+      "rules": { "comment-length/max-comment-lines": "off", "comment-length/max-comment-width": "off" }
+    },
     {
       // A ready-made part exports its style variants beside the component, as its makers wrote it.
       // Every other rule still holds in this folder.

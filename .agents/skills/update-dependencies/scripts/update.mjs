@@ -1,7 +1,6 @@
 #!/usr/bin/env node
-// /update-dependencies' one script: survey every tool and dependency, update what is behind,
-// move the OpenSpec pins together, check the CLI contract, and report. Every stage compares
-// against latest, so a rerun after a fix finds finished stages current. Meta-only; Node built-ins.
+// /update-dependencies' one script: survey every tool and dependency, update what is behind, move the OpenSpec pins
+// together, check the CLI contract, and report. A rerun after a fix finds finished stages current. Meta-only.
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -45,8 +44,6 @@ const LOOKUPS_AT_ONCE = 8;
 class StageFailure extends Error {
   constructor(what, detail) { super(detail ? `${what} — ${detail}` : what); }
 }
-
-// ---- Pure helpers (exported for tests) ----
 
 /** `[major, minor, patch]` from the first x.y.z in `text`, or null. */
 export function parseVersion(text) {
@@ -164,8 +161,6 @@ function tail(text) {
   return lines.slice(-3).join(' / ') || 'no output';
 }
 
-// ---- Running commands ----
-
 function exec(ctx, cmd, args, cwd = ctx.root) {
   return new Promise(done => {
     let stdout = '';
@@ -218,8 +213,6 @@ function baseline(ctx, file) {
   if (shown.status === 0) return shown.stdout;
   return existsSync(join(ctx.root, file)) ? readText(ctx, file) : null;
 }
-
-// ---- Stages ----
 
 async function survey(ctx) {
   ctx.nodeMajor = parseVersion(`${readText(ctx, '.nvmrc').trim().replace(/^v/, '')}.0.0`)[0];
@@ -277,10 +270,8 @@ async function survey(ctx) {
   }
 }
 
-/**
- * camofox's pins are read, never moved here: a newer driver once broke saving a login, so the two move
- * together, by hand, and only once a login saved and came back on a real camofox.
- */
+// camofox's pins are read, never moved here: a newer driver once broke saving a login, so the two move together,
+// by hand, and only once a login saved and came back on a real camofox.
 async function surveyCamofox(ctx) {
   if (!existsSync(join(ctx.root, CAMOFOX_PINS))) return;
   const pins = readCamofoxPins(readText(ctx, CAMOFOX_PINS));
@@ -291,10 +282,8 @@ async function surveyCamofox(ctx) {
   needsYou(ctx, `camofox ${pins.camofox} -> ${latest}: move both pins in ${CAMOFOX_PINS} together, and only after a login saves and survives a restart on a real camofox with them`);
 }
 
-/**
- * The viewer's pin is read, never moved here: its version goes with a fingerprint of its files, so the
- * two move together, by hand, and only once a live view works with the new files.
- */
+// The viewer's pin is read, never moved here: its version goes with a fingerprint of its files, so the two move
+// together, by hand, and only once a live view works with the new files.
 async function surveyViewer(ctx) {
   if (!existsSync(join(ctx.root, VIEWER_PIN))) return;
   const pin = readViewerPin(readText(ctx, VIEWER_PIN));
@@ -305,11 +294,8 @@ async function surveyViewer(ctx) {
   needsYou(ctx, `novnc ${pin} -> ${latest}: move the version, the address, and the fingerprint in ${VIEWER_PIN} together, and only after a live view works from a phone with the new files`);
 }
 
-/**
- * The pin of Shop's command is read, never moved here: its logic is a sealed file that reaches a
- * person's money, so the version and the fingerprint move together, by hand, once someone has read
- * what the new version adds.
- */
+// The pin of Shop's command is read, never moved here: its logic is a sealed file that reaches a person's money,
+// so the version and the fingerprint move together, by hand.
 async function surveyShop(ctx) {
   if (!existsSync(join(ctx.root, SHOP_PIN))) return;
   const pin = readShopPin(readText(ctx, SHOP_PIN));

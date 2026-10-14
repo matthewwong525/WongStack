@@ -102,7 +102,8 @@ test('isMain is true through a symlinked path and false for an imported module',
   }
 });
 
-// Both entry verbs send attached review notes to /plan's one section. Only the link is held: the wording is the skill's to change.
+// Both entry verbs send attached review notes to /plan's one section.
+// Only the link is held: the wording is the skill's to change.
 test('apply and ship link review-note handling', () => {
   for (const verb of ['apply', 'ship']) {
     const skill = readFileSync(join(repo, `.agents/skills/${verb}/SKILL.md`), 'utf8');

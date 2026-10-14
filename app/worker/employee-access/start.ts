@@ -3,11 +3,8 @@ import { type Core, now, permissionsStarted } from "./core.ts";
 import { admittedEmails, loginAuthority } from "./login-management.ts";
 import { audit, businessApps, catalogueWrites } from "./sets.ts";
 
-/**
- * On the live app, everyone the sign-in list already admits becomes a person with every
- * built app, and the switch turns on, in one batch. A missing key or a failed read changes
- * nothing, so nobody is locked out. A preview starts with no import and no provider call.
- */
+/** On the live app, everyone the sign-in list already admits becomes a person with every built app, and the switch
+ *  turns on, in one batch. A missing key or a failed read changes nothing, so nobody is locked out. */
 export async function startPermissions(core: Core): Promise<void> {
   if (await permissionsStarted(core)) return;
   let admitted: string[] = [];
@@ -35,11 +32,8 @@ export async function startPermissions(core: Core): Promise<void> {
   ]);
 }
 
-/**
- * Once permissions have started, key levels turn on, and nothing else changes: nobody is given a level, since
- * an app needs none, and a level already held is kept. The revision does not move, so a first-open note from
- * the same request stays.
- */
+/** Once permissions have started, key levels turn on and nothing else changes: nobody is given a level, and a level
+ *  already held is kept. The revision does not move, so a first-open note from the same request stays. */
 export async function startKeyLevels(core: Core): Promise<void> {
   await core.db.prepare("UPDATE wong_access_installation SET keys_enabled = 1 WHERE installation_id = ? AND policy_enabled = 1 AND keys_enabled = 0")
     .bind(core.installationId).run();

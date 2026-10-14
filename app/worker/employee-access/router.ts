@@ -18,10 +18,8 @@ export async function handleAccess(request: Request, env: ConnectionEnv,
   return management(request, env, identity);
 }
 
-/**
- * The project goes to a person who holds Project code now, judged on every call and before anything is asked of
- * where it is kept. A machine is no person; on a preview the checker stands in for the owner, as elsewhere.
- */
+/** The project goes to a person who holds Project code now, judged on every call and before anything is asked of
+ *  where it is kept. A machine is no person; on a preview the checker stands in for the owner, as elsewhere. */
 async function codeDenied(env: ConnectionEnv, identity: AccessIdentity | null): Promise<Response | null> {
   const policy = await currentPolicy(env, identity);
   if (policy.state === "unavailable" || policy.state === "denied") return policyDenied(policy);

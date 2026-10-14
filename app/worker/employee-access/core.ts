@@ -1,6 +1,5 @@
-// The owner is the verified person whose sign-in email setup recorded; no private pin exists.
-// On a preview, the verification service token counts as the owner too.
-// An Admin is a current person the owner gave the built-in role: they pass the same gate and are never the owner.
+// The owner is the verified person whose sign-in email setup recorded; on a preview, the verification service token
+// counts too. An Admin is a current person the owner gave the built-in role: same gate, never the owner.
 import type { AccessIdentity } from "../access.ts";
 import type { CodeEnv } from "./code.ts";
 import { ADMIN_ROLE, checkerOwns, humanEmail, ownerEmail, type PolicyEnv } from "./policy.ts";
@@ -13,9 +12,8 @@ export interface ConnectionEnv extends PolicyEnv, CodeEnv {
 }
 // A mark that exists in types alone and is not exported: no other file can write a `Core`.
 declare const checked: unique symbol;
-/** The pass every Access read and save takes, made only by `ownerCore()` once it has checked who is asking.
- *  `live` is the production Worker; anywhere else Access keeps a practice list and calls no provider.
- *  `email` is always the owner's. `actor` is who is asking, and `owner` whether that is the owner. */
+/** The pass every Access read and save takes, made only by `ownerCore()` once it has checked who is asking. `live`
+ *  is production; elsewhere Access keeps a practice list. `email` is always the owner's; `actor` is who is asking. */
 export type Core = { db: D1DatabaseSession; env: ConnectionEnv; installationId: string; origin: string;
   email: string; actor: string; owner: boolean; subject: string; live: boolean; holder?: string;
   readonly [checked]: true };
@@ -44,7 +42,8 @@ export async function ownerCore(request: Request, env: ConnectionEnv, identity: 
   // A machine, or a sign-in with no verified person, is never an Admin: refused before anything is read.
   if (!owns && !person) throw new AccessError("owner_required", 403);
   const db = env.DB.withSession("first-primary");
-  // Any other person passes only as an Admin, read on this request: once the role is taken or they are removed, the next one is refused.
+  // Any other person passes only as an Admin, read on this request:
+  // once the role is taken or they are removed, the next one is refused.
   const managed = owns ? null : await managedInstallation(db, person!);
   if (!owns && !managed) throw new AccessError("owner_required", 403);
   const origin = new URL(request.url).origin;

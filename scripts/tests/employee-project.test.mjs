@@ -26,10 +26,8 @@ const snapshot = dir => ({
   head: plain(dir, 'rev-parse', 'HEAD'), status: plain(dir, 'status', '--porcelain'),
 });
 
-/**
- * A project with one commit on `main`, served over HTTP under the app's code path. `seen` holds each
- * request's method, address and session header; `mode` makes the next answers a redirect or a refusal.
- */
+// A project with one commit on `main`, served over HTTP under the app's code path. `seen` holds each request's
+// method, address and session header; `mode` makes the next answers a redirect or a refusal.
 async function project(t) {
   const base = mkdtempSync(join(tmpdir(), 'employee-project-'));
   t.after(() => rmSync(base, { recursive: true, force: true }));
@@ -96,7 +94,7 @@ test('clones the project into a missing or empty folder with its history, and se
   const empty = join(f.base, 'empty');
   mkdirSync(empty);
   assert.equal((await f.copy(empty)).project, 'installed');
-  // A downloaded setup file is not one of the folder's files: it goes before the copy is made, since Git refuses a folder that is not empty.
+  // A downloaded setup file is not one of the folder's files: it goes first, since Git refuses a non-empty folder.
   const fetched = join(f.base, 'fetched'), self = join(fetched, 'setup.mjs');
   mkdirSync(fetched);
   writeFileSync(self, 'the setup file\n');
@@ -138,7 +136,7 @@ test('running it again fast-forwards a clean copy, and keeps a changed or diverg
   assert.deepEqual(await f.copy(folder), { project: 'up to date', folder });
   assert.deepEqual(snapshot(folder), { files: { 'README.md': 'first\n', 'scratch.txt': 'untracked\n', 'wiki.md': 'second\n' }, head: second, status: '?? scratch.txt' });
 
-  // Dirty: a tracked file was edited. Diverged: a commit was made on top. Elsewhere: the person is on a branch of their own.
+  // Dirty: a tracked file was edited. Diverged: a commit was made on top. Elsewhere: the person is on their own branch.
   const cases = {
     dirty: dir => writeFileSync(join(dir, 'README.md'), 'edited by hand\n'),
     diverged: dir => { writeFileSync(join(dir, 'mine.txt'), 'my work\n'); plain(dir, 'add', '-A'); plain(dir, 'commit', '--quiet', '-m', 'mine'); },
@@ -260,10 +258,8 @@ test('install connects the apps and downloads nothing when the person lacks Proj
 });
 
 const MARKER = "const SERVED_FROM = '';";
-/**
- * The real file run as a command, with a stand-in sign-in, app and Git. `git.jsonl` records how Git was called;
- * the stand-in plays a copy whose tracked file may have been edited, or one that came from elsewhere.
- */
+// The real file run as a command, with a stand-in sign-in, app and Git. `git.jsonl` records how Git was called;
+// the stand-in plays a copy whose tracked file may have been edited, or one that came from elsewhere.
 function packaged(t, { code = 'ready' } = {}) {
   const base = realpathSync(mkdtempSync(join(tmpdir(), 'employee-command-')));
   t.after(() => rmSync(base, { recursive: true, force: true }));
@@ -303,7 +299,7 @@ test('the packaged command installs in one step, updates on the next, and ends a
   const { base, home, source, run: start, calls, verbs } = packaged(t);
   const helper = join(base, 'bootstrap.mjs');
   writeFileSync(helper, source);
-  // Run from the home folder itself, where an assistant often starts: the private files still sit outside the working folder.
+  // Run from the home folder, where an assistant often starts: the private files still sit outside the working folder.
   const run = (...args) => start(helper, home, ...args);
   const folder = join(base, 'installed');
 

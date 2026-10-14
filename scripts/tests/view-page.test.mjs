@@ -23,9 +23,8 @@ const DONE = 'Done. Go back to the chat.';
 const CLOSED = 'This link has closed. Ask in the chat for a new one.';
 const [BACK, TAB, ENTER] = [0xff08, 0xff09, 0xff0d];
 
-// The page at `width`, with a stand-in for the viewer: each one made is kept in `viewers`, with the
-// calls it got, and `emit` fires one of its events. `view` is what `GET /view` gives (null: the link
-// has closed); `receipts` what each `GET /receipt` answers in turn; `holder` the width of the stage the screen sits in.
+// The page at `width`, with a stand-in viewer: each is kept in `viewers` with its calls, and `emit` fires its events.
+// `view` is what `GET /view` gives (null: closed); `receipts` answer each `GET /receipt`; `holder` is the stage width.
 function page(t, { width = 390, holder = 366, view = { note: NOTE, fit: FITS.wide }, receipts = [], hash = '#key=secret', viewer = true, before = () => {} } = {}) {
   const calls = [];
   const viewers = [];
@@ -83,7 +82,7 @@ function page(t, { width = 390, holder = 366, view = { note: NOTE, fit: FITS.wid
   };
 }
 
-/** The options a viewer was made with, as its subprotocols, when it has no other: the page's objects are another realm's. */
+/** A viewer's options, as its subprotocols when it has no other: the page's objects are another realm's. */
 const protocols = viewer => (Object.keys(viewer.options).join() === 'wsProtocols' ? [...viewer.options.wsProtocols] : null);
 
 /** A page whose viewer has connected. */

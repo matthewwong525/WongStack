@@ -9,9 +9,8 @@ const script = new URL('../../.agents/skills/save/scripts/wait-for-checks.sh', i
 const NEW = 'b'.repeat(40);
 const OLD = 'a'.repeat(40);
 
-// A fake gh answers from env: PR heads in order (the last repeats), the checks
-// output, and stderr for each call. NO_JSON makes it an older gh without
-// --json. A fake git gives HEAD and the repo root.
+// A fake gh answers from env: PR heads in order (the last repeats), the checks output, and stderr for each call.
+// NO_JSON makes it an older gh without --json. A fake git gives HEAD and the repo root.
 const FAKE_GH = `#!/usr/bin/env bash
 echo "$*" >> "$FAKE_DIR/calls"
 case "$1 $2" in

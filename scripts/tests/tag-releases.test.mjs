@@ -7,10 +7,8 @@ import test from 'node:test';
 
 const script = new URL('../tag-releases.mjs', import.meta.url).pathname;
 
-// A fake gh: `release list` prints $RELEASES (comma-separated); `release create` logs its
-// arguments, then its notes from stdin, to $FAKE_DIR/created. It answers HTTP 403 for the
-// tag in $REFUSE, as GitHub does for the workflow token, HTTP 422 already-exists for the tag in
-// $EXISTS, as it does when another run made it first, and HTTP 502 for the tag in $BREAK.
+// A fake gh: `release list` prints $RELEASES; `release create` logs its arguments and stdin notes to $FAKE_DIR/created.
+// It answers 403 for the tag in $REFUSE (the workflow token), 422 already-exists for $EXISTS, and 502 for $BREAK.
 const FAKE_GH = `#!/usr/bin/env bash
 case "$1 $2" in
   "release list") tr , '\\n' <<< "\${RELEASES:-}" | sed '/^$/d' ;;

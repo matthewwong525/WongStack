@@ -211,7 +211,7 @@ describe("private Worker routing", () => {
   });
   it("serves the setup file with no sign-in and no memory store, and leaves every other memory address to memory", async () => {
     const memory = vi.fn();
-    // Anonymous, on a private app, on one with no Access set up, and on an open one: the file, carrying the address asked.
+    // Anonymous, on a private app, one with no Access set up, or an open one: the file, carrying the address asked.
     for (const bindings of [env, { ASSETS: assets }, { ASSETS: assets, WORKSPACE_LOGIN: "off" }, { ...env, MEMORY_DB: { prepare: memory } }]) {
       const served = await call("/_memory/setup.mjs", {}, bindings);
       expect([served.status, served.headers.get("Content-Type"), served.headers.get("Cache-Control")]).toEqual([200, "text/javascript; charset=utf-8", "no-store"]);

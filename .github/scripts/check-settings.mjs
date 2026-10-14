@@ -1,9 +1,5 @@
-/**
- * What counts as a check's settings, and which files a change touches. One copy for
- * `loosened-checks.mjs`, which wants a written reason when a setting changes, and for
- * `checks.mjs`, which proves the app's checks still fail when one does, so the two lists
- * can not drift.
- */
+// What counts as a check's settings, and which files a change touches.
+// One copy for `loosened-checks.mjs` and `checks.mjs`, so the two lists can not drift.
 import { execFileSync } from 'node:child_process';
 import { basename } from 'node:path';
 

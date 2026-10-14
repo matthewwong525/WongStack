@@ -89,7 +89,8 @@ test('listing merges actual run continuation so waiting and completed work canno
   assert.equal(waiting.state, 'waiting'); assert.equal(waiting.stateSource, 'progress'); assert.equal(waiting.questionId, 'pending-1');
   services.checkCompletion = async () => ({ complete: true, evidence: 'synthetic://done' }); await executeRun(row, services, context);
   const completed = (await scheduleView([row], () => h, { routes: { local: () => s } }))[0]; assert.equal(completed.state, 'completed'); assert.equal(completed.nextRunAt, null);
-  assert.equal(completed.repairNeeded, true); // A still-active native observation conflicts with verified terminal progress.
+  // A still-active native observation conflicts with verified terminal progress.
+  assert.equal(completed.repairNeeded, true);
   await s.write({ revision: row.binding.revision, generation: 1, nextAt: '2026-10-10T11:00:00Z', reschedulePending: true });
   const pending = (await scheduleView([row], () => h, { routes: { local: () => s } }))[0]; assert.equal(pending.state, 'cleanup-pending'); assert.equal(pending.requestedNextAt, '2026-10-10T11:00:00Z'); assert.equal(pending.nextRunAt, null);
   const denied = (await scheduleView([row], () => h, { routes: { local: () => ({ async read() { throw Error('denied'); } }) } }))[0]; assert.equal(denied.progress, 'unavailable'); assert.equal(denied.stateSource, 'checkpoint'); assert.equal(denied.stale, true);

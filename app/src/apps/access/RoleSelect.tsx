@@ -4,10 +4,8 @@ import type { ViewProps } from './address'
 import { fill, ticks } from './levels'
 import { offered } from './subjects'
 
-/** A person's role, picked right in their row, in the device's own picker. A pick saves at once, sending the role alone,
- *  and carries what puts the person back: their old role, or their own apps and key levels, named as their page names them.
- *  Admin is the owner's to give and take: picking it hands the save to `ask`, which asks first, and anyone else reads
- *  an Admin's role as plain words. */
+/** A person's role, picked in their row, in the device's own picker. A pick saves at once, sending the role alone,
+ *  and carries the undo. Admin is the owner's to give: picking it hands the save to `ask`, which asks first. */
 export function RoleSelect({ status, pending, save, person, ask }: Pick<ViewProps, 'status' | 'pending' | 'save'> & { person: Person; ask: (give: () => void) => void }) {
   const roles = offered(status)
   if (isAdmin(status, person) && !status.viewer.owner) return <>Admin</>

@@ -1,22 +1,6 @@
 #!/usr/bin/env node
-// Proof: does each of the app's checks still fail when it should?
-//
-// A check can switch itself off and stay green: a settings file its tool no longer reads, a
-// rule dropped from a list, a tool whose new version reports differently. The app's own code
-// keeps passing, so nothing shows. This hands each check of `npm test` a small piece of code
-// that is wrong on purpose, read through the app's real settings, and fails when a check lets
-// it through. wiki/development/the-change-loop.md#the-gate says when it runs.
-//
-// It builds a throwaway folder in the system's temp directory, one app folder per gate: the
-// app's installed packages linked in, its settings files copied, and the samples written from
-// this script, so no bad file sits in the repo for the real gates to trip on. Each gate runs
-// its own step of the app's `test` script. A gate is caught when that step exits non-zero and
-// its output names every sample with the reason; anything else passed a bad sample. The
-// folder is removed on exit.
-//
-// Prints one line per gate. Exit 0 when every gate caught its samples; 1 when one passed a bad
-// sample, `npm test` no longer runs it, or its settings file is missing; 2 on a usage error.
-// Usage: node scripts/check-app-checks.mjs [--root <repo>]
+// Proof that each check of the app's `npm test` still fails when it should: hands each a sample that is wrong
+// on purpose, in a throwaway folder. wiki/development/the-change-loop.md#the-gate says when it runs.
 
 import { spawnSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
@@ -38,15 +22,12 @@ const WRONG_TYPE = 'export const count: number = "text";\n';
 const repeated = name => `export function ${name}(input: number): number {\n  let total = input;\n${
   lines(38, index => `  total += input * ${index + 2};`)}  return total;\n}\n`;
 
-/**
- * The gates of `npm test`. `tool` finds the gate's step in the `test` script, `settings` are
- * the files it must read, `also` lists more files to copy when the app has them, `files` are
- * written beside the samples, and each sample is caught when the output holds its file name
- * and what the tool `says` of it.
- */
+// The gates of `npm test`. `tool` finds the gate's step, `settings` are the files it must read, `also` are more
+// files to copy, `files` sit beside the samples; a sample is caught when the output has its name and `says`.
 export const GATES = [
   {
     name: 'lint', tool: /\boxlint\b/, settings: ['.oxlintrc.json'],
+    also: () => ['../scripts/lint-comment-length.mjs'],
     files: { 'src/apps/second/value.ts': 'export const value = 2;\n' },
     samples: [
       { file: 'src/explicit-any.ts', says: 'no-explicit-any', text: 'export const loose = (value: any) => value;\n' },
@@ -55,6 +36,8 @@ export const GATES = [
         lines(60, index => `  if (input === ${index}) return ${index};`)}  return -1;\n}\n` },
       { file: 'src/HookInBranch.tsx', says: 'rules-of-hooks', text: 'import { useState } from "react";\n\nexport function HookInBranch({ on }: { on: boolean }) {\n'
         + '  if (on) {\n    const [count] = useState(0);\n    return <p>{count}</p>;\n  }\n  return null;\n}\n' },
+      { file: 'src/long-comment.ts', says: 'max-comment-lines', text: '// one\n// two\n// three\nexport const noted = 1;\n' },
+      { file: 'src/wide-comment.ts', says: 'max-comment-width', text: `// ${'x'.repeat(127)}\nexport const wide = 1;\n` },
       { file: 'src/apps/first/App.tsx', says: 'no-restricted-imports', text: 'import { value } from "../second/value";\n\nexport function App() {\n  return <p>{value}</p>;\n}\n' },
     ],
   },
@@ -180,11 +163,8 @@ async function prove(gate, { app, work, steps, run }) {
   return { ok: false, line: `passed a bad sample (${passed.map(sample => sample.file).join(', ')}); \`${step.command}\` exited ${status} and said:\n${tail}` };
 }
 
-/**
- * Hand each gate of the app at `app` its bad samples. `run(command, cwd, proving)` answers
- * `{ status, output }`, where `proving` holds the gate's name and samples; tests stand in for
- * the tools through it. Returns true when every gate caught its samples.
- */
+// Hand each gate of the app at `app` its bad samples; true when every gate caught them. Tests stand in for
+// the tools through `run(command, cwd, proving)`, which answers `{ status, output }`.
 export async function proveChecks({ app, run = shell, log = console.log, temp = tmpdir() }) {
   if (!existsSync(join(app, 'package.json'))) { log(`app checks: no package.json in ${app}, so there is no app to prove`); return false; }
   if (!existsSync(join(app, 'node_modules'))) { log(`app checks: the app's packages are not installed; run \`npm ci\` in ${app} first`); return false; }

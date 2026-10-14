@@ -24,8 +24,6 @@ const parseLine = line => { try { return JSON.parse(line); } catch { return null
 // The session a background run was started from. It is never captured by that run.
 const excluded = () => process.env.WONG_MEMORY_EXCLUDE || '';
 
-// ---------- registry ----------
-
 export function registerSession(ctx, entry) {
   appendFileSync(statePath(ctx, 'registry.jsonl'), `${JSON.stringify({ ...entry, ownerMachineId: ctx.machineId })}\n`);
 }
@@ -48,8 +46,6 @@ export function pruneRegistry(ctx, now = Date.now()) {
   });
   writeFileSync(statePath(ctx, 'registry.jsonl'), kept.map(entry => `${JSON.stringify({ ...entry, ownerMachineId: ctx.machineId })}\n`).join(''));
 }
-
-// ---------- parsing ----------
 
 const cleanClaudeText = text => text
   .replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, '')
@@ -126,8 +122,6 @@ export function parseTranscriptText(text) {
 
 export const strip = (messages, readThrough = 0) => messages
   .filter(message => message.line > readThrough).map(message => `[${message.role}] ${message.text}`).join('\n\n');
-
-// ---------- discovery ----------
 
 const folders = dir => stat(dir)?.isDirectory() ? readdirSync(dir).map(name => join(dir, name)) : [];
 

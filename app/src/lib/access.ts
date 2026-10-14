@@ -9,9 +9,8 @@ const role = z.enum(['owner', 'employee'])
 // A level for a saved key: `read` looks things up, `write` also changes or sends things. No level is None.
 const level = z.enum(['read', 'write'])
 const levels = z.record(z.string(), level)
-// Whether this person may connect an assistant. `ready`: Connect installs the project for them. `lacked`: they
-// hold no Project code, so Connect is greyed. `off`, or left out: the app can not hand the project out, and
-// everyone keeps the apps-only connection.
+// Whether this person may connect an assistant: `ready` installs the project, `lacked` greys Connect (no Project
+// code), and `off`, or left out, keeps everyone on the apps-only connection.
 const code = z.enum(['ready', 'lacked', 'off']).default('off')
 export type Code = z.infer<typeof code>
 export const setupSchema = z.object({ role, api: z.literal('authenticated'),
@@ -20,7 +19,7 @@ export const setupSchema = z.object({ role, api: z.literal('authenticated'),
 // `legacy` has no recorded owner. `not_started` knows the owner, and everyone still keeps every app.
 // `manages`: the person may manage Access, as the owner or an Admin the owner chose; left out means no.
 const manages = z.boolean().optional()
-// `signIn`: the site stands behind a sign-in, so there is a session to end; left out or false, the frame offers no Sign out.
+// `signIn`: the site stands behind a sign-in, so there is a session to end; left out or false, no Sign out shows.
 const signIn = z.boolean().optional()
 export const appAccessSchema = z.discriminatedUnion('state', [
   z.object({ state: z.literal('legacy'), signIn, code }),
@@ -30,19 +29,8 @@ export const appAccessSchema = z.discriminatedUnion('state', [
   z.object({ state: z.literal('current'), role, manages, signIn, code, apps: z.array(z.string()), revision: z.number(),
     keys: z.array(z.object({ id: z.string(), title: z.string(), level })).optional() }),
 ])
-// `settled` is true once the sign-in list matches a person's last change. A person has a `role`, whose apps and
-// key levels are then theirs, or their own set: `apps` lists the apps they are given, by folder, and `keys` holds a
-// level per key. The status's own `apps` is every app that can be given: each one with a screen, but Access itself.
-// `unticked` names each person and role who could only look at an app, and so lost it, by the app's title, until
-// the next save. A key's `alone` means it works with no app, `setup` that setup makes it, and `saved` that the app
-// holds it. No key's value is ever here. `viewer` is who is looking,
-// the owner or an Admin. A role's `builtIn` marks Admin, the one role made for you: every app and key, and managing
-// Access; left out means no. Only the owner gives it or takes it, and the server checks that again
-// on every save. A key's `direct` says its service is set up to be used directly, so a level for the key also
-// reaches the service itself; left out means no. `project` says whether the app can hand its
-// project out: `ready`, or the step left, a GitHub `key` or Access `setup`. A status from before the
-// field reads it from whether Project code is saved. `projectSave` says the same for saving a change through
-// the app; left out means nothing is known, and no step shows.
+// The whole Access status. No key's value is ever here, and the server checks `viewer` again on every save.
+// `project` and `projectSave`: `ready`, or the step left; left out, an older status, and no step shows.
 const project = z.enum(['ready', 'key', 'setup'])
 export const statusSchema = z.object({ ownerEmail: z.string(), environment: z.enum(['live', 'practice']),
   viewer: z.object({ email: z.string(), owner: z.boolean() }),

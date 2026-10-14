@@ -12,10 +12,8 @@ const TREE = 'f'.repeat(40);
 const COMMIT = 'e'.repeat(40);
 const LIVE = 'https://demo.example.workers.dev';
 
-// Fake git, node and gh answer from env and log every call, so a test can check both the outcome
-// and the order of the calls. Fake node stands in for delivery-route.mjs (always `artifacts`) and
-// for artifacts-run.mjs: RUN_RESULT is the word `result` prints for the branch's own run, RUN_LIVE
-// what `live` prints for main's run. No env name here is one the scripts set themselves.
+// Fake git, node and gh answer from env and log every call. Fake node stands in for delivery-route.mjs (always
+// `artifacts`) and artifacts-run.mjs: `result` prints RUN_RESULT for the branch's run, `live` RUN_LIVE for main's.
 const FAKE_GIT = `#!/usr/bin/env bash
 echo "git $*" >> "$FAKE_DIR/calls"
 case "$*" in
@@ -257,9 +255,6 @@ test('the sync never fails a publish: a dirty main checkout is skipped, and with
   assert.match(none.stdout, /^synced=ref$/m);
   assert.match(none.calls, /^git fetch origin main:main$/m);
 });
-
-// ---------------------------------------------------------------------------
-// The hand-over from merge.sh
 
 test('merge.sh tells the route and hands an Artifacts install over before its first gh call', () => {
   const code = readFileSync(merge, 'utf8').split('\n').filter(line => !line.trimStart().startsWith('#'));

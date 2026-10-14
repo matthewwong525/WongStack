@@ -1,6 +1,5 @@
-// The saved logins file: `~/.wong-stack/logins.json`, mode 0600 in a 0700 folder, outside every repo.
-// It holds `[{name, url, username, password}]` in clear. Only the password link (passwords.mjs) writes
-// it, and only `browse.mjs login` reads a password from it. Nothing here logs.
+// The saved logins file `~/.wong-stack/logins.json`: `[{name, url, username, password}]` in clear, mode 0600.
+// Only passwords.mjs writes it, and only `browse.mjs login` reads a password from it. Nothing here logs.
 
 import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
@@ -18,10 +17,8 @@ export function hostOf(url) {
   }
 }
 
-/**
- * The saved logins, or none when nothing is saved yet. Throws when the file can not be read as a list,
- * with a reason of its own: a parser's message can quote the file.
- */
+/** The saved logins, or none when nothing is saved yet. Throws when the file can not be read as a list,
+ * with a reason of its own: a parser's message can quote the file. */
 export function readLogins(file = LOGINS_FILE) {
   if (!existsSync(file)) return [];
   let logins = null;

@@ -65,7 +65,7 @@ it("says under a key's level what the level does with the key by itself, and nev
   expect([keyLine(cloudflare), keyLine(code)]).toEqual(['', ''])
   // A key apps use says nothing of them: an app asks no level.
   expect([keyLine(stripe), keyLine(spare), keyLine({ ...spare, direct: false })]).toEqual(['', '', ''])
-  // A key whose service is set up: its level also reaches the service itself, by what the level allows and nothing else.
+  // A key whose service is set up: its level also reaches the service itself, by what the level allows and no more.
   expect([keyLine(notion), keyLine(ledger)]).toEqual(['Also reaches Notion directly', 'Also reaches Ledger directly'])
   expect(keyLine({ ...ledger, alone: true })).toBe('Also reaches Ledger directly')
 })

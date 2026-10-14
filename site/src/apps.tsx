@@ -1,7 +1,5 @@
-// "Tools you can build": sample copies of three Claymoo admin screens,
-// laid out as the real ones are (read 2026-09-27), in gray. Every name,
-// number, and address is invented; each runs in the page and sends and saves
-// nothing.
+// "Tools you can build": sample copies of three Claymoo admin screens, laid out as the real ones are, in gray.
+// Every name, number, and address is invented; each runs in the page and sends and saves nothing.
 import { useState, type ReactNode } from "react";
 import { Table } from "./Table";
 

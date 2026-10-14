@@ -1,7 +1,6 @@
 #!/usr/bin/env node
-// Standalone setup file: only Node built-ins; never memory/checkout authority.
-// `install`, the default, signs in, downloads the project into this folder when the app hands it to this
-// person, and reports what works. The app serves this file with its own address written into SERVED_FROM.
+// Standalone setup file: only Node built-ins; never memory/checkout authority. `install`, the default, signs in,
+// downloads the project here when the app hands it over, and says what works. The app fills in SERVED_FROM.
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync, lstatSync, readdirSync, realpathSync, existsSync, rmSync } from 'node:fs';
@@ -10,7 +9,7 @@ import { join, dirname, resolve, relative, isAbsolute, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
-// Blank in the project's own copy. The app fills it in when it serves this file: app/worker/employee-access/setup-file.ts
+// Blank in the project's own copy. The app fills it in when it serves this file: setup-file.ts
 const SERVED_FROM = '';
 const SELF = fileURLToPath(import.meta.url);
 
@@ -61,7 +60,7 @@ export function loginUrl(value, origin) {
   } catch { /* never forward arbitrary helper diagnostics */ }
   return null;
 }
-/** What the assistant reads when sign-in needs the person: the link is checked by `loginUrl`, so it is theirs to see. */
+/** What the assistant reads when sign-in needs the person: `loginUrl` checked the link, so it is theirs to see. */
 export const signInNotice = link => `Show this link to the person now and wait while they sign in with their own company account. It is safe to show: this business's checked sign-in address, not a credential.\n${link}`;
 export function cloudflared(args, { onLoginUrl = () => {}, timeoutMs = 120000 } = {}) {
   return new Promise((resolve, reject) => {
@@ -117,11 +116,8 @@ export async function responseJson(response) {
 const CODE_PATH = '/api/access/code/git/';
 const NOT_APPLIED = 'kept your changes; update not applied';
 const REFUSED = 'The project download was refused. Ask your admin for access to Connect your assistant, or sign in again. The copy on this computer is unchanged.';
-/**
- * Git as a child process. With a `token`, the employee session goes to `address` alone, as a request header set
- * in the child's environment: never an argument, the remote URL or a config file. Redirects are refused, and no
- * credential helper or prompt is asked. Git's own messages are never printed: a caller reads them for the app's own words.
- */
+// Git as a child process. A `token` goes to `address` alone, as a header in the child's environment, never an argument,
+// URL or config file. Redirects are refused, no helper or prompt is asked, and Git's own messages are never printed.
 export function git(args, { address, token } = {}) {
   const config = [['credential.helper', ''], ['http.followRedirects', 'false'], ...(token ? [[`http.${address}.extraHeader`, `cf-access-token: ${token}`]] : [])];
   const env = { ...cleanEnvironment(), GIT_TERMINAL_PROMPT: '0', GIT_CONFIG_COUNT: String(config.length),
@@ -135,13 +131,8 @@ export function git(args, { address, token } = {}) {
     child.on('close', code => resolve({ code, stdout: stdout.trim(), stderr }));
   });
 }
-/**
- * Put the project in `folder`, or bring the copy there up to date. A new copy goes only into a missing or empty
- * folder. `self`, a downloaded setup file, is not one of the folder's files: it goes before the copy is made,
- * since Git refuses a folder that is not empty. An update fetches, then moves the checked-out default branch forward when nothing tracked was changed
- * and nothing was committed on top; otherwise everything is kept as it is and the result says so. It never
- * resets, cleans, stashes or forces a checkout.
- */
+// Put the project in `folder`, or update the copy there. `self`, a downloaded setup file, goes first: Git refuses a
+// non-empty folder. An update moves the default branch forward only when nothing changed; it never resets or forces.
 export async function projectCopy({ address, folder, token, self, run = git }) {
   const dir = resolve(folder);
   const here = (args, session) => run(['-C', dir, ...args], session);
@@ -174,7 +165,7 @@ export function ownCopy(self = SELF) {
   const root = resolve(dirname(self), '..');
   return self === join(root, 'scripts', 'employee-bootstrap.mjs') && existsSync(join(root, '.git')) ? root : undefined;
 }
-/** True when `folder` is a copy of the project that came from somewhere other than the app: it has its own way to update. */
+/** True when `folder` is a copy of the project that came from somewhere other than the app: it updates its own way. */
 export async function otherCopy(folder, address, run = git) {
   return existsSync(join(folder, '.git')) && existsSync(join(folder, 'scripts', 'employee-bootstrap.mjs')) &&
     (await run(['-C', folder, 'config', '--get', 'remote.origin.url'])).stdout !== address;
@@ -211,7 +202,8 @@ export function companyClient({ root = process.cwd(), stateDir, routesDir = defa
   }
   async function token(origin, login = false) {
     safeCache(cacheDir, root);
-    if (login) await run(['login', origin], { onLoginUrl, timeoutMs: 600000 }); // a person needs longer than a token read
+    // A person needs longer than a token read.
+    if (login) await run(['login', origin], { onLoginUrl, timeoutMs: 600000 });
     return employeeToken(await run(['token', `-app=${origin}`], { onLoginUrl }));
   }
   /** The saved connection's session: the same person who connected, or nothing. */
@@ -311,10 +303,8 @@ export function companyClient({ root = process.cwd(), stateDir, routesDir = defa
     if ((await runGit(['-C', cwd, 'config', '--get', 'remote.origin.url'])).stdout !== address) throw new Error('This copy did not come from the connected company; nothing was sent.');
     return runGit(['-C', cwd, ...args], { address, token: await session(origin) });
   }
-  /**
-   * One step: sign in, then look at `folder`. A copy of the project from elsewhere is left as it is. Otherwise
-   * download or update the project when the app hands it to this person. Either way, say what works.
-   */
+  // One step: sign in, then look at `folder`. A copy from elsewhere is left as it is; otherwise download or update
+  // the project when the app hands it to this person. Either way, say what works.
   async function install(origin, folder, copy, self, other = otherCopy) {
     const { connected } = await login(origin);
     const status = await setup();
@@ -330,25 +320,21 @@ const USAGE = 'employee-bootstrap.mjs [install] [--origin <HTTPS origin>] [--dir
 /** `install` keeps one private directory per company, so a second run finds the first. */
 const installBase = () => join(homedir(), '.local', 'state', 'wong-company');
 export const installState = origin => join(installBase(), createHash('sha256').update(companyOrigin(origin)).digest('hex'));
-/** `install` and `code` run from any folder, the home folder included, so they work from an empty one beside the state. */
+/** `install` and `code` run from any folder, the home folder included, so they work from an empty one. */
 export function neutralRoot() {
   const root = join(installBase(), 'anywhere');
   mkdirSync(root, { recursive: true, mode: 0o700 });
   return root;
 }
-/**
- * With no project on the device, a downloaded setup file is the person's client: keep a copy beside their
- * sign-in, served from nowhere so it stays, and name the line that calls it.
- */
+// With no project on the device, a downloaded setup file is the person's client: keep a copy beside their
+// sign-in, served from nowhere so it stays, and name the line that calls it.
 function keptClient(state) {
   const file = join(state, 'bootstrap.mjs');
   writeFileSync(file, readFileSync(SELF, 'utf8').replace(JSON.stringify(SERVED_FROM), "''"), { mode: 0o600 });
   return `node ${file} list --state ${state}`;
 }
-/**
- * The command line. No command means `install`. Its app is `--origin`, else the one that served this file, else
- * the one the copy this file sits in records; its folder is `--dir`, else that copy, else the folder it is run in.
- */
+// The command line. No command means `install`. Its app is `--origin`, else the one that served this file, else the
+// copy's record; its folder is `--dir`, else that copy, else the folder it is run in.
 async function run(args) {
   if (args.includes('--help')) { console.log(`usage: ${USAGE}`); return; }
   const { positionals: [command = 'install', ...rest], values } = parseArgs({ args, allowPositionals: true, options: Object.fromEntries(['origin', 'state', 'dir', 'file', 'q', 'app', 'limit', 'offset'].map(key => [key, { type: 'string' }])) });
@@ -373,7 +359,7 @@ async function run(args) {
   // A returned error is still printed, and ends as a failure a script can see.
   if ((command === 'call' && result?.error && typeof result.error === 'object') || result?.applied === false) process.exitCode = 1;
 }
-/** A downloaded setup file removes itself when it ends, pass or fail; the project's own copy, served from nowhere, stays. */
+/** A downloaded setup file removes itself when it ends, pass or fail; the project's own copy stays. */
 export async function main(args = process.argv.slice(2)) {
   try { await run(args); }
   finally { if (SERVED_FROM) rmSync(SELF, { force: true }); }

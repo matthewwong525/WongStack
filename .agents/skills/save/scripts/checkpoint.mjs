@@ -1,47 +1,6 @@
 #!/usr/bin/env node
-/**
- * One /save checkpoint, after the agent has staged the files: review page, scan, commit, push,
- * pull request, check wait, failing logs, receipt, and preview, in one command. The save skill keeps the
- * judgment (which files, the handoff, the message and summary); this runs the rest, and every
- * step it runs is an existing save script or one git or gh call.
- *
- *     node .claude/skills/save/scripts/checkpoint.mjs --message-file <file> --summary-file <file> \
- *       [--change-root <path> --mode active|archive | --schedule-record <reference> --store <id>]
- *       [--scan-keys NAME,NAME] [--max-minutes 20] [--new-run]
- *     node .claude/skills/save/scripts/checkpoint.mjs --wait [--max-minutes 20]
- *
- * Both files sit outside the repo. The message's first line titles a new pull request.
- * `--wait` commits and pushes nothing: it reads the gate again for the pushed head, after a
- * TIMEOUT or a rerun of a check that failed outside the diff.
- *
- * Prints key=value lines (SAVE_HEAD, PR_URL, PREVIEW_URL, RECEIPT, ATTEMPT), each failing check
- * with the tail of its log, one NEXT: line saying what to do, and SAVE_GATE_RESULT= last.
- *
- * An Artifacts install (wiki/stack/artifacts-route.md) has no GitHub: delivery-route.mjs is asked
- * once, and on `artifacts` no gh call is made. The branch is pushed, no pull request is read,
- * opened, or given a body, no PR_URL is printed, no receipt is kept, and a FAILURE is the failing
- * stage's own output, which the waiter prints under its RESULT line.
- *
- * A copy installed through Connect your assistant (wiki/stack/employee-project.md) is `app`: no gh
- * call is made there either. app-change.mjs reads the change, sends the branch up, opens the change
- * or updates its body, and reads a failed check's log, all with the app sign-in. PR_URL is printed
- * only when the app returned one, no receipt is kept, no rerun is offered, and NEXT: says who
- * publishes: this copy never does.
- *
- * Exit codes:
- *   0  the checkpoint ran; SAVE_GATE_RESULT is the answer
- *   1  a git or gh step failed, the app refused the save, or the route could not be told; its
- *      error is printed and nothing after it ran
- *   2  usage
- *   3  the pull request is CLOSED and not merged: ask, reopen or a fresh branch
- *   4  nothing to save, or HEAD is the default branch or detached
- *   5  a handled credential's value is in the staged files, the message, or the summary
- *   6  the three fix attempts of this /save run are spent
- *
- * The fix count is kept per branch beside the receipt, outside the repo. It starts again after a
- * SUCCESS or NONE, or with --new-run, which each /save run after a spent cap and each /verify
- * re-walk passes.
- */
+// One /save checkpoint, after the agent has staged the files: review page, scan, commit, push, pull request, check
+// wait, failing logs, receipt, preview. The save skill keeps the judgment. Exit codes: each `Stop(code, …)` below.
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
@@ -97,11 +56,8 @@ function must(command, args, what) {
 
 const readJson = file => { try { return JSON.parse(readFileSync(file, 'utf8')); } catch { return null; } };
 
-/**
- * Which way this checkout saves and publishes, asked once a command: `{ route }`, `github`,
- * `artifacts` or `app`. When origin and the install record disagree it is `{ lines }`, the stop to print:
- * no command guesses a route, and none falls back to GitHub.
- */
+// Which way this checkout saves and publishes, asked once a command: `{ route }`, or `{ lines }`, the stop to
+// print when origin and the install record disagree. No command guesses a route, and none falls back to GitHub.
 export function askRoute(cwd = process.cwd()) {
   try {
     return { route: delivery(cwd).route };
@@ -112,11 +68,8 @@ export function askRoute(cwd = process.cwd()) {
   }
 }
 
-/**
- * `main`, unless neither a local nor a remote `main` exists; then what GitHub names. An Artifacts
- * install has no GitHub to ask, and its setup makes `main`. A copy installed through the app has
- * none either: it reads what its own `origin/HEAD` names.
- */
+// `main`, unless neither a local nor a remote `main` exists; then what GitHub names. An Artifacts install and a
+// copy installed through the app have no GitHub to ask: the first has `main`, the second reads `origin/HEAD`.
 export function defaultBranch(route = 'github') {
   for (const ref of ['refs/remotes/origin/main', 'refs/heads/main']) {
     if (sh('git', ['rev-parse', '--verify', '--quiet', `${ref}^{commit}`]).status === 0) return 'main';
@@ -194,10 +147,8 @@ function readPr() {
     'NEXT: gh could not read the pull request. Fix it by .claude/skills/save/references/preconditions.md, then rerun this command.']);
 }
 
-/**
- * One app-change.mjs command, `node` by name as the shell scripts beside this one call it. A
- * refusal stops with the one line it printed: the app's own words, never Git's output.
- */
+// One app-change.mjs command, `node` by name as the shell scripts beside this one call it. A refusal stops with
+// the one line it printed: the app's own words, never Git's output.
 function viaApp(args) {
   const result = sh('node', [APP, ...args]);
   if (result.status !== 0) throw new Stop(1, [`error=${firstLine(result.stderr) || `app-change.mjs exit ${result.status}`}`, APP_STOP]);
@@ -254,10 +205,8 @@ export function failingChecks(waiterOutput) {
   });
 }
 
-/**
- * Each failing check, its rerun command, and the tail of the log that shows its cause. Through the
- * app there is no rerun, and the log is the one the app reads for that job.
- */
+// Each failing check, its rerun command, and the tail of the log that shows its cause. Through the app there is
+// no rerun, and the log is the one the app reads for that job.
 function printFailures(checks, app) {
   for (const { name, link } of checks) {
     say(`FAILED_CHECK=${name}`);
@@ -305,7 +254,8 @@ function artifactsNextLine(result, fixes) {
   return `NEXT: fix the cause the lines under RESULT show, in one push. Where this computer has the tools, rerun the failed check first (node .github/scripts/checks.mjs --worktree). Then stage and rerun this command: fix attempt ${fixes + 1} of ${CAP}. A failure outside the diff has no rerun on this route: stop and report it, with no code edit.`;
 }
 
-/** A copy installed through Connect: a pass ends at the save, and someone else publishes. The rest is as on Artifacts. */
+// A copy installed through Connect: a pass ends at the save, and someone else publishes.
+// The rest is as on Artifacts.
 function appNextLine(result, fixes) {
   const saved = 'the change is saved, and the owner or an Admin publishes it. Report the save and say who publishes it; never offer to publish.';
   if (result === 'SUCCESS') return `NEXT: checks passed: ${saved}`;
@@ -430,7 +380,9 @@ async function checkpoint(values) {
   const receipt = artifacts || app ? 'none (this route keeps no receipt; /verify reads the gate again)' : writeReceipt(root, branch, result, receiptFile);
   const preview = result === 'UNKNOWN' ? '' : firstLine(sh('bash', [join(here, 'preview-url.sh')]).stdout);
   if (preview && !wait && values['change-root'] && pr?.number) {
-    if (!renderBody({ root, branch, values, summaryFile: files.summary, bodyFile, repoUrl, previewUrl: preview })) { /* the body is already this one */ }
+    if (!renderBody({ root, branch, values, summaryFile: files.summary, bodyFile, repoUrl, previewUrl: preview })) {
+      // the body is already this one
+    }
     else if (app) openChange(title, bodyFile, { again: true });
     else patchBody(pr.number, bodyFile);
   }

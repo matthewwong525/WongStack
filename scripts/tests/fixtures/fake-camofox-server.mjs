@@ -1,19 +1,5 @@
-// A stand-in for camofox's server.js, started by browse.mjs as the real one is. It answers the routes
-// browse.mjs calls with the shapes camofox 1.18.1 sends, and keeps its tabs in memory. fake-camofox.mjs
-// installs it and sets `globalThis.FAKE_CAMOFOX_DIR`, the control folder:
-//
-//   env.json        what it was started with; starts.log  a line per start; requests.jsonl  each request, in order
-//   snapshot        the page text every read gives; snapshots.json  a list, one per read, the last repeating
-//   snapshot-more   a second chunk, so a read is paged
-//   count           what a count gives (default 1); no-field  a value read finds no field
-//   size            a new page's size as `[width, height]` (default [2560, 1328]); a viewport call sets a tab's own
-//   display         read at the start: the X display a pretend browser, a child process named camoufox-bin, runs on
-//   shot            the picture's bytes
-//   click-url, click-count, press-url   where a click or a key press moves the address or the count
-//   gone-once       the next tab request loses its tab (410), once; gone  every tab request does
-//   timeout-click-once  the next click times out, once
-//   fail-open, fail-click, fail-type, fail-select, fail-save, fail-viewport   that step is refused
-//   hold-click, hold-type   that step waits until the file is removed
+// A stand-in for camofox's server.js, answering browse.mjs's routes with camofox 1.18.1's shapes; tabs live in memory.
+// Tests steer it with files in `globalThis.FAKE_CAMOFOX_DIR`: each `has`, `once`, `text` or `held` call names one.
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { once as heard } from 'node:events';

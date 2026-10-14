@@ -13,7 +13,8 @@ export const CODE_CHANGE = "/api/access/code/change";
 
 const invalid = () => new AccessError("invalid_request", 400);
 const missing = () => new AccessError("not_found", 404);
-/** What the caller sent, held to a shape. An answer from where the project is kept is parsed plainly: a surprise there is a failure, not the caller's mistake. */
+// What the caller sent, held to a shape. An answer from where the project is kept is parsed plainly:
+// a surprise there is a failure, not the caller's mistake.
 function sent<T>(shape: z.ZodType<T>, value: unknown): T {
   const read = shape.safeParse(value);
   if (!read.success) throw invalid();
@@ -47,7 +48,8 @@ const SAID: Record<string, string> = { success: "pass", pending: "pending" };
 const row = (check: z.infer<typeof jobs>["jobs"][number], job: number | null) =>
   ({ name: check.name ?? "check", bucket: check.status === "completed" ? ENDED[check.conclusion ?? ""] ?? "fail" : "pending", link: check.html_url, job });
 
-/** Every check on one commit: each workflow run's jobs, or the run itself before it has any, then each status's newest word. */
+// Every check on one commit: each workflow run's jobs, or the run itself before it has any,
+// then each status's newest word.
 async function rows(source: Github, sha: string) {
   const { workflow_runs: found } = runs.parse(await github(source, `/actions/runs?head_sha=${sha}&per_page=20`));
   const ran = await Promise.all(found.map(async run => {
@@ -82,7 +84,8 @@ async function githubChange(source: Github, name: string, sha: string) {
   return { head: null, state: null, url: null, number: null, ...change, rows: checks.rows, workflows: count > 0, preview: await preview(source, sha, checks.links) };
 }
 
-/** Opens the change against the branch the project publishes from, or renews an open one's description. A closed or published one is left as it is. */
+// Opens the change against the branch the project publishes from, or renews an open one's description.
+// A closed or published one is left as it is.
 async function open(source: Github, by: string, { branch: name, title, body }: z.infer<typeof opening>) {
   const described = `${body.trim()}\n\nSaved through the app by ${by}`.trim();
   const found = await changeOf(source, name);
@@ -94,7 +97,8 @@ async function open(source: Github, by: string, { branch: name, title, body }: z
 
 const LOG_BYTES = 262_144;
 const LOG_LINES = 60;
-/** The end of one job's log: the lines up to its last error, else its last lines. GitHub answers with a short-lived address, read without the key. */
+// The end of one job's log: the lines up to its last error, else its last lines.
+// GitHub answers with a short-lived address, read without the key.
 async function log(source: Github, job: string) {
   const pointer = await githubFetch(source, `/actions/jobs/${job}/logs`);
   await pointer.body?.cancel();
@@ -137,7 +141,8 @@ async function runOf(checks: ChecksBinding, { branch: name, sha }: z.infer<typeo
 }
 
 const interrupted = z.object({ commit: z.string(), ref: z.string(), result: z.literal("interrupted") });
-/** Starts a run again only when it was cut off: its Workflow stopped, or it reported its own commit and branch unfinished. */
+// Starts a run again only when it was cut off: its Workflow stopped, or it reported its own commit and
+// branch unfinished.
 async function restart(checks: ChecksBinding, asked: z.infer<typeof commit>) {
   const { run, instance } = await runOf(checks, asked);
   const output = interrupted.safeParse(run.state === "done" ? run.output : null).data;

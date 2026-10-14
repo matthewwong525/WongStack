@@ -1,9 +1,6 @@
 #!/usr/bin/env node
-// After a sync merges new WongStack text into files the person edited, list any
-// upstream addition that did not make it in. It reuses the preflight's selection,
-// so it checks exactly the units the preflight called modified and locally adapted.
-// A line match is loose on purpose: a moved or reworded line passes, a dropped
-// section does not. The report names where to look, never file bodies.
+// After a sync merges new WongStack text into files the person edited, list any upstream addition that did not make
+// it in, for the units the preflight called modified. A line match is loose on purpose: only a dropped section fails.
 
 import { spawnSync } from 'node:child_process';
 import { isMain } from '../../memory/scripts/lib/cli.mjs';

@@ -58,9 +58,8 @@ function stream(chunks, onEnd) {
   });
 }
 
-// A stand-in for the SDK's context: the published SDK ships no test fixtures. `answers` maps a step
-// name to what its runner does: a string is its stdout, `{ stdout, stderr }` its logs (strings or
-// streams), an Error its rejection. Every call is recorded with the step it was chained from.
+// A stand-in for the SDK's context, which ships no test fixtures. `answers` maps a step name to its result: a
+// string is stdout, `{ stdout, stderr }` its logs (strings or streams), an Error its rejection. Calls are recorded.
 function standIn(answers = {}) {
   const script = { ...PASSES, ...answers };
   const seen = [];
@@ -83,9 +82,6 @@ const cutOffAt = (result, stage) => {
 };
 // The step names of a stage tried `tries` times.
 const tried = (name, tries) => [name, `${name}-retry`, `${name}-retry-2`, `${name}-retry-3`].slice(0, tries);
-
-// ---------------------------------------------------------------------------
-// One run
 
 test('a passing branch runs prepare, checks and deploy in order, and returns the preview its deploy reported', async () => {
   const drained = [];
@@ -328,9 +324,6 @@ test('a run for another repository, or one naming no branch commit, throws befor
   assert.deepEqual(seen, []);
 });
 
-// ---------------------------------------------------------------------------
-// From a push to a run
-
 test('a branch push maps to the run\'s parameters', () => {
   const params = eventParams(push(), CONFIG);
   assert.deepEqual(
@@ -373,9 +366,6 @@ test('a first push, with no commit before it, leaves beforeSha out', () => {
   assert.equal('beforeSha' in eventParams(push({ before: ZERO }), CONFIG), false);
   assert.equal('beforeSha' in eventParams(push({ before: undefined }), CONFIG), false);
 });
-
-// ---------------------------------------------------------------------------
-// Bounds
 
 test('a run\'s three stages add up to exactly 30 minutes, before any stage an interruption repeats', () => {
   assert.equal(BOUNDS.prepareMs + BOUNDS.checksMs + BOUNDS.deployMs, 30 * 60_000);
@@ -446,9 +436,6 @@ test('a run gets three more tries in all, not three for each stage', async () =>
   assert.deepEqual(names(), ['prepare', 'prepare-retry', 'checks', 'checks-retry', 'checks-retry-2', 'deploy']);
 });
 
-// ---------------------------------------------------------------------------
-// The deploy stage's own install
-
 test('the deploy stage installs the app\'s packages itself, before the deploy token is used for anything', async () => {
   const { ci, seen } = standIn();
   await runPipeline(paramsOf(), ci, CONFIG);
@@ -492,9 +479,6 @@ test('the install runs in the app\'s folder with no Cloudflare credential in rea
   assert.equal(bare.status, 0, bare.stderr);
   assert.match(bare.stdout, /^after=\/$/m);
 });
-
-// ---------------------------------------------------------------------------
-// The runner's config template and pinned tools
 
 const template = () => JSON.parse(read('wrangler.template.jsonc').split('\n').filter(line => !line.trimStart().startsWith('//')).join('\n'));
 const pkg = () => JSON.parse(read('package.json'));

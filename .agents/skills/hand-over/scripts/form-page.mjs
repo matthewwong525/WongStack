@@ -1,14 +1,5 @@
-// The private form's script (see hand-over.mjs `open --form` and form.mjs). It draws the form
-// `GET /form` describes: the title, the note under it, one labelled box per field with its autofill
-// name, a dropdown for a field with choices, an expiry month and year side by side, a line saying what
-// sending does, and one button carrying the site's own label. Every string is set as text. The time
-// left counts down in whole minutes to `closesAt`, on the watcher's clock, and the page closes at the
-// limit.
-//
-// The button posts the boxes once, in order, to `/send`; the page never shows the site. The reply's
-// receipt ends the page on *Sent* or *Not accepted*, with the boxes emptied. A reply that never arrives
-// is looked up at `/receipt` until the link says how it went or stops answering. *Close without
-// sending* cancels through `/done`. `timeLeft`, `rowsOf`, and `ending` are exported for tests.
+// The private form's script (see hand-over.mjs `open --form` and form.mjs): it draws the form `GET /form` describes.
+// It sets every string as text and never shows the site. `timeLeft`, `rowsOf`, and `ending` are exported for tests.
 
 const ENDINGS = {
   done: { title: 'Sent', hint: 'Back to your chat.' },
@@ -94,10 +85,8 @@ function start() {
     lock(false);
   }
 
-  /**
-   * Counts down on the watcher's clock, since this device's may be off, and closes the page at the
-   * limit. A send under way outlasts the limit: its own answer ends the page.
-   */
+  /** Counts down on the watcher's clock, since this device's may be off, and closes the page at the
+   * limit. A send under way outlasts the limit: its own answer ends the page. */
   function countdown(closesAt, serverNow) {
     const ahead = serverNow - Date.now();
     const tick = () => {
@@ -111,7 +100,7 @@ function start() {
     tick();
   }
 
-  /** How a send went when its reply never arrived: the receipt, once the link has one, or null when it stops answering. */
+  /** How a send went when its reply never came: the receipt once the link has one, or null when it stops answering. */
   async function lookUp() {
     for (;;) {
       const response = await call('receipt');

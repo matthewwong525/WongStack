@@ -1,18 +1,7 @@
-// What one check run does, with no Cloudflare import, so the script tests can run it. worker.mjs
-// wires it to the pinned SDK (wiki/stack/artifacts-route.md owns the route).
-//
-//   prepare  the repo's read token only: rebuild the Git history the SDK's checkout leaves out.
-//            Runs no project code.
-//   checks   no credential: the shared checks (.github/scripts/checks.mjs), then the plain build.
-//   deploy   the deploy token only: the pack's own cf-build.sh (migrate) and cf-deploy.sh. It installs
-//            the app's packages itself first, with the token out of reach: the files a stage is
-//            handed from the one before can arrive incomplete, and an install script is project code.
-//
-// A failed stage ends the run, so a commit that fails its checks is never deployed. A stage the
-// Sandbox cut off is tried again, three times a run in all; a run that still does not finish ends
-// `interrupted`, never `failure`: the commit was not shown to fail anything.
+// What one check run does (prepare, checks, deploy), with no Cloudflare import, so the script tests can run it.
+// worker.mjs wires it to the pinned SDK; wiki/stack/artifacts-route.md owns the route.
 
-/** The bounds: one run at a time, 30 minutes of stages per run plus the stages an interruption repeats, snapshots kept a day. */
+/** One run at a time, 30 minutes of stages plus any an interruption repeats, snapshots kept a day. */
 export const BOUNDS = {
   /** How many times in one run a stage the Sandbox cut off is started again, shared by its stages. */
   interruptions: 3,
@@ -81,10 +70,8 @@ if node -e "process.exit(require('$dir/package.json').scripts?.['build:app']?0:1
 echo "WONG_APP built"
 `;
 
-/**
- * The deploy stage's install, run from the app's folder: a fresh `npm ci` in a subshell that holds no
- * Cloudflare credential, whatever name it came under. Its own line, so the script tests can run it.
- */
+// The deploy stage's install: a fresh `npm ci` in a subshell that holds no Cloudflare credential, whatever
+// its name. Its own line, so the script tests can run it.
 export const INSTALL = `(cd "$dir" && unset $(env | sed -n 's/^\\(CLOUDFLARE_[A-Za-z0-9_]*\\)=.*/\\1/p') && npm ci --no-audit --no-fund)`;
 
 const DEPLOY = `set -eu
@@ -100,10 +87,8 @@ bash scripts/cf-deploy.sh
 sed 's/^/WONG_OUTPUT /' "$GITHUB_OUTPUT"
 `;
 
-/**
- * A push event as the run's parameters, or null for a push that starts nothing: another repository,
- * a tag, or a deleted branch.
- */
+// A push event as the run's parameters, or null for a push that starts nothing: another repository,
+// a tag, or a deleted branch.
 export function eventParams(event, config) {
   const { ref, after, before } = event?.payload ?? {};
   if (event?.type !== 'cf.artifacts.repo.pushed') return null;
@@ -144,14 +129,11 @@ export function deployedAddress(logs, key) {
   return ADDRESS.test(value) ? value : null;
 }
 
-/**
- * True for a failure the Sandbox caused, not the commit: the container went away mid-command.
- * A command's own non-zero exit and a timeout are never retried.
- */
+// True for a failure the Sandbox caused, not the commit: the container went away mid-command.
+// A command's own non-zero exit and a timeout are never retried.
 export function interrupted(error) {
-  // The SDK keeps only the end of a long output, under `[diagnostic truncated]`, and the line naming
-  // the exit code goes with the start. So a command that ran to its end is also known by that mark,
-  // by the output headings, and by the error the SDK wrapped.
+  // The SDK keeps only the end of a long output, under `[diagnostic truncated]`, and drops the exit-code line.
+  // So that mark, the output headings and the SDK's wrapped error also show a command ran to its end.
   const texts = [];
   for (let at = error, depth = 0; at !== undefined && at !== null && depth < 5; at = at.cause, depth++) texts.push(String(at?.message ?? at));
   const text = texts.join('\n');
@@ -167,11 +149,8 @@ class CutOff extends Error {}
 /** The step name of a stage's nth try: the stage's own name, then `-retry`, `-retry-2`, `-retry-3`. */
 const tryName = (name, attempt) => (attempt === 0 ? name : attempt === 1 ? `${name}-retry` : `${name}-retry-${attempt}`);
 
-/**
- * Runs one stage; a Sandbox interruption gets another try under its own step name. `retry` is the
- * run's budget of tries, shared by its stages, so a run never outlives its 30 minutes plus the
- * stages an interruption repeats. A stage still cut off when the budget is spent throws `CutOff`.
- */
+// Runs one stage; a Sandbox interruption gets another try under its own step name. `retry` is the run's
+// shared budget of tries; a stage still cut off when it is spent throws `CutOff`.
 async function stage(start, options, retry) {
   for (let attempt = 0; ; attempt++) {
     try {
@@ -184,12 +163,8 @@ async function stage(start, options, retry) {
   }
 }
 
-/**
- * One run for one pushed commit. Returns the result the verbs read: the commit, its ref, `success`,
- * `failure`, `interrupted` (cut off, with the stage; not the commit's doing) or `none` (a commit
- * with no checks to run), and the address the deploy reported.
- * `ci` is the SDK's context; `config` names the account, namespace and repository this runner serves.
- */
+// One run for one pushed commit. Returns what the verbs read: commit, ref, the deploy's address, and
+// `success`, `failure`, `interrupted` (cut off; not the commit's doing) or `none` (no checks to run).
 export async function runPipeline(params, ci, config) {
   if (params?.owner !== config.namespace || params?.repo !== config.repo) throw new Error('this run is for another repository');
   if (!SHA.test(params.sha ?? '') || typeof params.ref !== 'string' || !params.ref.startsWith('refs/heads/')) throw new Error('this run names no branch commit');
@@ -231,11 +206,8 @@ export async function runPipeline(params, ci, config) {
   }
 }
 
-/**
- * The line of runs waiting their turn: `[{ id, at, startedAt? }]`. Returns the next line and whether
- * `id` is at its head. A run's clock starts when it reaches the head, never while it waits, so a long
- * wait is not counted against it. A head older than the turn's lifetime never left, and is dropped.
- */
+// The line of runs waiting their turn: returns the next line and whether `id` is at its head. A run's clock
+// starts at the head, never while it waits; a head older than the turn's lifetime never left, and is dropped.
 export function takeTurn(line, id, now) {
   const heading = (entries) => entries.map((entry, index) => (index === 0 && entry.startedAt === undefined ? { ...entry, startedAt: now } : entry));
   let next = heading(line.some((entry) => entry.id === id) ? line : [...line, { id, at: now }]);

@@ -1,7 +1,5 @@
-// A walk's kept screenshots, served by the app's production Worker at /_walk/ behind its login.
-// app/worker/index.ts hands this the memory bucket alone, after the identity check, and every key is
-// built from a whole-path match, so no request reaches an object outside walks/: a transcript stays
-// out of reach. wiki/development/staging-walkthrough.md
+// A walk's kept screenshots, served by the app's production Worker at /_walk/ behind its login. Every key is built
+// from a whole-path match, so no request reaches an object outside walks/. wiki/development/staging-walkthrough.md
 
 export const WALK_PREFIX = '/_walk/';
 

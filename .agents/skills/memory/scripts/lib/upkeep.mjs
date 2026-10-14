@@ -1,7 +1,5 @@
-// Upkeep: the tidying that needs no judgment, decided in plain code after every write and background run. It
-// closes threads nobody checked in 30 days, adds the area and verb tags a fact's own words name, and keeps
-// area tags' definitions and aliases equal to references/areas.json. memory.mjs reads the store and writes
-// the plan; this file only decides.
+// Upkeep: tidying that needs no judgment, decided in plain code after every write and background run: stale threads
+// closed, tags added, area tags kept equal to references/areas.json. memory.mjs reads and writes; this only decides.
 import { WRITES, ADMIN_WRITES } from '../../worker/statements.mjs';
 import { areasOf } from './areas.mjs';
 

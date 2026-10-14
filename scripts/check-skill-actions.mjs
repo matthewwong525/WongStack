@@ -1,37 +1,6 @@
 #!/usr/bin/env node
-// Code check: does a skill read a saved business key itself, or call a company
-// action it does not declare?
-//
-// A skill does its business work through company actions, under the login of
-// whoever runs it (wiki/stack/company-api.md owns the rule), and Access works
-// out who can run a skill from the actions its `actions.json` lists. A skill
-// that reads a key works only on the device that holds the key. One that calls
-// an action it does not list shows in Access as needing less than it does.
-// This finds both before publishing.
-//
-// A skill folder is a directory under .agents/skills/. The check fails when:
-//   - a file in it names a secret of a registered business-service key
-//     (app/worker/keys.ts is the registry). A key marked `setup` (setup makes
-//     it) or `alone` (the Worker's own route uses it) is the stack's own key,
-//     not a business-service key: wong-setup's scripts name those to install
-//     them, so they are exempt;
-//   - a file in it calls a literal action id through the shared helper, as
-//     `company-api.mjs call <id>` or `.call('<id>'`, and the `actions.json`
-//     beside its SKILL.md does not list that id, or is missing. A `memory.*`
-//     id is a memory read, not a company action, so it needs no listing.
-//     `list` and `describe` call nothing;
-//   - its `actions.json` is not `{ "title": "...", "actions": ["<id>"] }`.
-// Whether each listed id is an action the app has is not checked here: only the
-// app's build knows the registered ids, so a test in the app suite does that.
-// With no key registry, declared actions are still checked. Test files,
-// `node_modules`, and files that are not text or are over 1 MB are not read.
-//
-// It closes the app's `npm test`, and .github/scripts/checks.mjs runs it on
-// every change, a docs-only one included: a skill's text is Markdown, which the
-// suite skips.
-//
-// Exit 0 when every skill passes, 1 when one does not, 2 on a usage error.
-// Usage: node scripts/check-skill-actions.mjs [--root <repo>]
+// Code check: does a skill read a saved business key itself, or call a company action its `actions.json`
+// does not list? wiki/stack/company-api.md owns the rule.
 
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
@@ -77,7 +46,7 @@ function texts(dir) {
 const called = text => [...new Set(CALLS.flatMap(pattern => [...text.matchAll(pattern)].map(match => match[1])))]
   .filter(id => !id.startsWith('memory.'));
 
-/** A skill's actions.json: whether it is there, the ids it lists (null when the list can not be read), and what is wrong with it. */
+/** A skill's actions.json: whether it is there, the ids it lists (null when unreadable), and what is wrong with it. */
 function declared(dir) {
   const file = join(dir, 'actions.json');
   if (!existsSync(file)) return { present: false, ids: new Set(), wrong: [] };

@@ -51,7 +51,8 @@ it("moves each current manager onto Admin, renames a role already called Admin w
   sql.exec(read(MOVE));
   // The built-in role exists, and the owner's keeps its id under a name that says it is their own.
   expect(roles()).toEqual([{ role_id: custom, name: "Admin (custom)" }, { role_id: "admin", name: "Admin" }, { role_id: "sales", name: "Sales" }]);
-  // Both managers hold Admin, and nobody else does: the removed person holds nothing, and the old role's two people keep it.
+  // Both managers hold Admin, and nobody else does: the removed person holds nothing,
+  // and the old role's two people keep it.
   expect(held()).toEqual([{ email: "mia@example.com", role_id: "admin" }, { email: "noor@example.com", role_id: "admin" },
     { email: "pat@example.com", role_id: custom }, { email: "quinn@example.com", role_id: custom }]);
   // A person holds one role or an own set, never both: the managers' own rows are gone, and nobody else's.

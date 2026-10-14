@@ -1,8 +1,7 @@
 // @vitest-environment node
 /// <reference types="node" />
-// The share card: the tags in index.html, which every address serves, and the
-// picture they point at. They name wongstack.com, so a preview shares and
-// indexes as the real site.
+// The share card: the tags in index.html, which every address serves, and the picture they point at.
+// They name wongstack.com, so a preview shares and indexes as the real site.
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { expect, it } from "vitest";

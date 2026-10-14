@@ -1,7 +1,5 @@
 // Memory store client: repo context, config, credentials, local state, the D1 and R2 calls, and the spool.
-// A memory key's calls go to the app's production Worker (components.memory.worker); any other token's go to
-// the Cloudflare REST API. The requests are the same. The Worker's address comes from the main checkout, like
-// .env, so a branch that changes it cannot redirect a credential.
+// A memory key's calls go to the app's production Worker; any other token's go to the Cloudflare REST API.
 import { execFileSync } from 'node:child_process';
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { hostname } from 'node:os';
@@ -39,7 +37,7 @@ export class StoreError extends Error {
 const git = (cwd, ...args) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
 const tryGit = (cwd, ...args) => { try { return git(cwd, ...args); } catch { return ''; } };
 
-// primaryRoot is null when Git cannot confirm the primary worktree: reads fall back to this checkout, and a write stops.
+// primaryRoot is null when Git cannot confirm the primary worktree: reads fall back to this checkout; a write stops.
 export function repoContext(cwd = process.cwd()) {
   const [root, commonDir] = git(cwd, 'rev-parse', '--show-toplevel', '--path-format=absolute', '--git-common-dir').split('\n');
   let author, owner, primary = null;
@@ -117,9 +115,8 @@ export function adminToken(ctx) {
   return token;
 }
 
-// `admin` opens the store straight through the Cloudflare API with the provisioning token, for
-// migrations (a Worker's D1 binding runs one statement at a time, and a migration file holds many)
-// and for memory keys (the Worker refuses the keys table to every key).
+// `admin` goes straight to the Cloudflare API with the provisioning token: for migrations (a Worker's D1 binding
+// runs one statement at a time) and for memory keys (the Worker refuses the keys table to every key).
 export function openStore(ctx, { timeoutMs = 15000, admin = false, credential = null, signal, onRequest = () => {} } = {}) {
   const config = loadConfig(ctx);
   const env = loadEnv(ctx);
@@ -158,7 +155,7 @@ export function openStore(ctx, { timeoutMs = 15000, admin = false, credential = 
     }
     if (viaWorker && response.ok) rmSync(join(ctx.stateDir, 'authorization-refused.json'), { force: true });
     if (response.status >= 500) throw new StoreError(`memory store error (HTTP ${response.status})`, { kind: 'server' });
-    // Only a transcript GET may 404 on its own; any other 404 from the Worker means production has not deployed the route.
+    // Only a transcript GET may 404 on its own; any other Worker 404 means production has not deployed the route.
     if (viaWorker && response.status === 404 && (await response.clone().json().catch(() => ({}))).errors?.[0]?.code !== 10007) {
       throw new StoreError('the memory Worker does not answer yet; it serves memory once production deploys the memory route', { kind: 'unconfigured' });
     }
@@ -209,8 +206,6 @@ function recordTeam(ctx, header, roleHeader) {
   try { writeJson(statePath(ctx, 'team.json'), said); } catch { /* best effort */ }
   return said.role;
 }
-
-// ---------- local state, shared by every worktree of one clone ----------
 
 // The background run's tally of what it stored, in the state folder while run.mjs holds its lock.
 export const RUN_TALLY = 'run-tally.json';

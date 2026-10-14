@@ -15,11 +15,8 @@ import { View } from './View'
 
 const COLUMNS = ['Person', 'Sign-in', 'Role', 'Apps and keys']
 
-// The view that opens first: one row per person, each one line with the same parts whatever state they are in.
-// The owner is the first row, with nothing to change. You sits beside the email. A role is picked right
-// in the row, and picking Admin asks first; the rest of what a row offers sits behind its menu. The last cell counts
-// apps and keys; the names show where the person is opened, in the panel beside the list. Only the owner removes an
-// Admin, so an Admin's menu has no Remove there.
+// The view that opens first: one row per person, each one line, the owner first with nothing to change. A role is
+// picked in the row, and Admin asks first; the rest sits behind its menu. Only the owner removes an Admin.
 export function People(props: ViewProps) {
   const { status, id, pending, save } = props
   const { owner, email: viewer } = status.viewer

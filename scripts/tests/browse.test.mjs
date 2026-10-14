@@ -70,9 +70,6 @@ const alive = pid => { try { process.kill(pid, 0); return true; } catch { return
 /** Every file under `dir`, read as text. */
 const filesUnder = dir => readdirSync(dir, { recursive: true, withFileTypes: true }).filter(entry => entry.isFile()).map(entry => readFileSync(join(entry.parentPath, entry.name), 'utf8')).join('\n');
 
-// ---------------------------------------------------------------------------
-// Install and start
-
 test('with no install, a command prints BROWSE_NEEDS=install with the sizes and exits 3, starting nothing', t => {
   const f = fixture(t, { installed: false });
   for (const args of [['open', SHOP], ['snapshot'], ['save']]) {
@@ -216,9 +213,6 @@ test('a server that never answers is reported, not waited on forever', t => {
   assert.ok(!existsSync(join(f.camofox.install, 'start.lock')), 'the start lock is released');
 });
 
-// ---------------------------------------------------------------------------
-// The commands
-
 test('open reads the page only once it settles, and a second open moves the same tab', t => {
   const f = fixture(t);
   f.camofox.set('snapshots.json', ['loading', 'half', 'done', 'done']);
@@ -326,9 +320,6 @@ test('the default session is the folder a command runs in', t => {
   assert.equal(sessionName('x'.repeat(80)).length, 64);
 });
 
-// ---------------------------------------------------------------------------
-// Retries and deadlines
-
 test('a tab the browser lost is reopened at its last address and the step tried once more', t => {
   const f = fixture(t);
   ok(f, 'open', SHOP, '--session', 'a');
@@ -398,9 +389,6 @@ test('a browser that stops answering is reported', t => {
   assert.equal(f.run('click', 'e1').stdout, 'BROWSE_ERROR=the browser did not start\n');
 });
 
-// ---------------------------------------------------------------------------
-// Tasks share the browser
-
 test('two sessions started at once share one server, and close in one leaves the other\'s tab open', async t => {
   const f = fixture(t);
   const [a, b] = await Promise.all([f.start('open', SHOP, '--session', 'a'), f.start('open', ACCOUNT, '--session', 'b')]);
@@ -430,9 +418,6 @@ test('a start lock left by a dead start is cleared, and a live one is waited on'
   utimesSync(join(f.camofox.install, 'start.lock'), old, old);
   assert.equal(ok(f, 'open', SHOP), `BROWSE_URL=${SHOP}\n`);
 });
-
-// ---------------------------------------------------------------------------
-// Saved logins
 
 /** Asserts no stored username or password is in `text`. */
 function assertNoSecret(text, where) {
@@ -566,13 +551,8 @@ test('save keeps the logins with every tab open', t => {
   assert.equal(f.camofox.tabs().length, 1, 'the tab is still open');
 });
 
-// ---------------------------------------------------------------------------
-// The calls a private link makes
-
-/**
- * Runs `body` on session a's client in a process of its own, as hand-over.mjs holds one, under the
- * fixture's HOME. Resolves to `{value}`, what the body returns, or to `{error, status}`.
- */
+/** Runs `body` on session a's client in its own process, as hand-over.mjs holds one, under the fixture's HOME.
+ * Resolves to `{value}`, what the body returns, or to `{error, status}`. */
 function viaClient(f, body, options = '{ retry: false, start: false }') {
   const code = `import { client } from ${JSON.stringify(pathToFileURL(script).href)};
 const page = client('a', ${options});
@@ -627,9 +607,6 @@ test('the new calls add no command: the usage and the refusals are as before', t
   }
   assert.equal(f.camofox.starts(), 0);
 });
-
-// ---------------------------------------------------------------------------
-// Pure helpers
 
 test('targetOf takes a ref in either spelling, else a selector', () => {
   assert.deepEqual(targetOf('e12'), { ref: 'e12' });

@@ -24,9 +24,8 @@ function RoleSet({ status, role }: Pick<ViewProps, 'status'> & { role: Role }) {
   </div>
 }
 
-/** One person, opened: whether they can sign in, their role, then what it gives by name, or their own apps and
- *  key levels. Admin is the owner's to give and take: a save that newly gives it asks first, and anyone else reads
- *  an Admin's role as plain words. Without `person`, a new one. */
+/** One person, opened: sign-in, role, then what it gives, or their own apps and key levels. Without `person`, a new
+ *  one. Admin is the owner's to give and take: a save that newly gives it asks first. */
 export function PersonPage({ person, ...props }: ViewProps & { person?: Person }) {
   const { status, save } = props
   // Where the fields start: the person as saved, or a new one with nothing.

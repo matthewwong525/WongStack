@@ -83,13 +83,8 @@ if (line.startsWith('run view')) {
 fail('unexpected gh call: ' + line, 97);
 `;
 
-// On an Artifacts install the scripts call `node` by name for two things. delivery-route.mjs runs
-// for real, over the fake git's origin and the committed install record. artifacts-run.mjs is
-// stood in for: `wait` prints $FAKE_DIR/run.txt, as the check run's reader would, and `preview`
-// prints $FAKE_DIR/preview.txt. Every other script, the fake gh included, runs on the real node.
-// app-change.mjs is stood in for the same way, since its connection can not be faked from outside:
-// `<command>.err` is the one line a refusal prints, `push` sends the branch to the fixture's origin
-// with the real git, unlogged, and `open` keeps the body it was given.
+// The scripts call `node` by name: delivery-route.mjs runs for real; artifacts-run.mjs and app-change.mjs are stood
+// in for (`wait` prints $FAKE_DIR/run.txt, `preview` prints preview.txt, `<command>.err` is a refusal's one line).
 const FAKE_NODE = `#!/usr/bin/env bash
 case "\${1:-}" in
   */app-change.mjs)
@@ -442,9 +437,6 @@ test('an unreadable pull request and bad arguments stop early', t => {
   }
 });
 
-// ---------------------------------------------------------------------------
-// The Artifacts route: the same command, with no GitHub to ask
-
 const neverGitHub = (f, result) => {
   assert.doesNotMatch(f.calls(), /^gh /m, 'gh is never asked on an Artifacts install');
   assert.doesNotMatch(result.stdout, /^PR_URL=|GitHub|[Pp]ull request/m, 'nothing names a pull request or GitHub');
@@ -572,7 +564,8 @@ test('through the app: one command sends the branch up, opens the change, waits,
   assert.match(r.stdout, new RegExp(`^NEXT: checks passed: ${SAVED_BY_APP}$`, 'm'));
   assert.equal(lastLine(r), 'SAVE_GATE_RESULT=SUCCESS');
   assert.match(f.git('ls-remote', '--heads', 'origin', 'work'), new RegExp(`^${head}`));
-  // The change's own link names the project, so the body is rendered again once it is known, and once more with the preview.
+  // The change's own link names the project, so the body is rendered again once it is known,
+  // and once more with the preview.
   assert.match(f.calls(), /git commit -F [^\n]*\n[\s\S]*node app-change\.mjs change\n[\s\S]*node app-change\.mjs push\n[\s\S]*node app-change\.mjs open feat: a thing [^\n]*\n[\s\S]*node app-change\.mjs open [\s\S]*node app-change\.mjs wait 20\n[\s\S]*node app-change\.mjs preview\n[\s\S]*node app-change\.mjs open /);
   assert.match(f.body(), /https:\/\/github\.com\/team\/repo\//);
   assert.doesNotMatch(f.body(), /app\.example\.com/);

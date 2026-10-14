@@ -108,6 +108,8 @@ The bounds: one run at a time for the repository, a later run waiting its turn; 
 
 Cloudflare sometimes stops a container mid-stage. That is the Sandbox's doing, not the commit's, so the run is **cut off**, never failed:
 
+- **A long output hides the ending.** The Sandbox keeps only the end of a long output, under `[diagnostic truncated]`, and can lose the line holding the exit code; the runner reads that as cut off too ([`pipeline.mjs`](../../scripts/check-runner/pipeline.mjs)).
+- **A finished run can carry an error flag.** Cloudflare can answer a finished Workflow run with its whole result and an error flag beside it, when one step's detail fails to load. The run's own result stands ([`artifacts-run.mjs`](../../.agents/skills/save/scripts/artifacts-run.mjs)).
 - **The runner tries again by itself.** A cut-off stage is started again, up to three times a run, shared by its stages. A command's own failure or a timeout is never retried.
 - **Still cut off → its own result.** The run ends `interrupted` with its stage. `/save` reports `RESULT: UNKNOWN` with *the check run was cut off* and carries on; a publish stops. A run that never got its turn, and a Workflow that errored or was terminated, read the same way.
 - **The waiter starts it again once.** `artifacts-run.mjs wait` and `live` restart an interrupted run one time, then wait inside the same limit.
@@ -132,7 +134,7 @@ The runner's Node is the container image's, not [`.nvmrc`](../../.nvmrc)'s: the 
 
 ### The check runner's storage key
 
-Setup makes this key for the runner alone. It reaches the objects of the runner's one bucket, and nothing else.
+Setup makes this key for the runner alone. It reaches the objects of the runner's one bucket, and nothing else. R2 takes a token's id as the access key and the SHA-256 of its value as the secret ([`provision.mjs`](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/scripts/provision.mjs)).
 
 | Name | Scope | For | Id |
 |---|---|---|---|

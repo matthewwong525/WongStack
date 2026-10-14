@@ -28,10 +28,8 @@ function target({ removed, role: asked, apps, keys }: Change, existing: Sets["pe
   return { role, own: nothing() };
 }
 
-/**
- * The owner's pass when a save moves a person on or off Admin, a removal included. Null when it does neither.
- * Only the owner picks Admins: anyone else who asks, about themselves included, is refused whole.
- */
+// The owner's pass when a save moves a person on or off Admin, a removal included. Null when it does neither.
+// Only the owner picks Admins: anyone else who asks, about themselves included, is refused whole.
 function picking(core: Core, was: boolean, will: boolean): OwnerCore | null {
   if (was === will) return null;
   if (!isOwner(core)) throw new AccessError("owner_required", 403);
@@ -89,9 +87,7 @@ export async function changeMember(core: Core, value: unknown): Promise<void> {
 }
 
 /** What the owner's screen, and an Admin's, shows. No key's value is here: only whether each one is saved.
- *  `viewer` is who asked, and whether they are the owner: the screen draws by it, and every save checks again.
- *  `apps` is every app a person can be given. `unticked` names each person and role that could only look at an
- *  app, with the app's title: a tick can not say that, so they do not hold it. The next save clears the list. */
+ *  `viewer` is who asked: the screen draws by it, and every save checks again. `unticked`: who lost a look-only app. */
 export async function accessStatus(core: Core): Promise<object> {
   const id = core.installationId;
   // Access itself is everyone's own page, so it is nobody's to give.

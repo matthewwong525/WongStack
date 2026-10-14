@@ -1,36 +1,5 @@
-// The live view's script (see hand-over.mjs `open --view` and view.mjs). It shows the assistant's
-// browser on the page it has open, and carries the person's taps and typing to it.
-//
-// The page has one line while it connects, *Opening the browser...*, and one when it ends: *Done. Go
-// back to the chat.* or *This link has closed. Ask in the chat for a new one.* Live, the browser's
-// screen fills the page, over one box. The note from `GET /view` is the page's title only. When a
-// phone's keyboard opens, the page shrinks to what is still in sight, so the box sits on the keyboard
-// and the screen stays above it. There is no close button: the person closes the tab.
-//
-// The screen is drawn by the viewer view-page.html loads into `RFB`, noVNC's `core/rfb.js` and nothing
-// else of noVNC: its own page and clipboard panel are never loaded. The viewer finishes loading a beat
-// late, so the page's one script tag loads it first and this script only after it; as two tags, this
-// script ran first, found no viewer, and showed the closed line on a link that was open. A viewer that
-// fails to load is reloaded twice by that tag; after that this script says to reload, and keeps the key
-// in the address so a reload works. The viewer connects to `/screen`
-// with the link's key as the WebSocket subprotocol, since a WebSocket can send no header. The key
-// leaves the page only there and in the `x-hand-over-key` header of its own requests.
-//
-// The page reports its shape, `phone` under 700 wide and `wide` otherwise, through `POST /fit` on
-// connect and when it changes, as on a rotate. The reply is the fit: the strip's width and the
-// screen's size. The viewer's box is scaled so the strip fills the page's width, or its height above
-// the bar when that is the tighter one, and the holder cuts off the rest of the screen, so a phone
-// shows only the page's own strip.
-//
-// The box types straight into the browser, key by key, with no send. Each change to the box is turned
-// into key presses by `strokes`: a Backspace for each character that went, then each character that
-// came, so a phone's autocorrect and a paste arrive as they look. Enter, Tab, and a Backspace in an
-// empty box are pressed as they are. A tap on the screen empties the box, since the browser's cursor
-// has moved. A phone's own keyboard never reaches the screen, so this box is how a phone types.
-//
-// When the screen drops, the page asks `/receipt`: a result ends the page, a link still open connects
-// again, and no answer closes it. The page also closes at `closesAt`, on the watcher's clock.
-// `shapeOf` and `ending` are exported for tests.
+// The live view's script (see hand-over.mjs `open --view` and view.mjs): shows the assistant's browser and carries
+// the person's taps and typing to it. view-page.html's one script tag must load the noVNC viewer before this script.
 
 const CONNECTING = 'Opening the browser...';
 const ENDINGS = {
@@ -44,11 +13,8 @@ const RETRY_MS = 500;
 /** The keys pressed as they are, by the name a keydown gives: each one's X keysym. */
 const KEYS = { Backspace: 0xff08, Tab: 0xff09, Enter: 0xff0d };
 
-/**
- * The key presses that turn the box's text from `before` into `after`, as X keysyms: a Backspace for
- * each character past what they share at the start, then each new character. A character's keysym is
- * its own code up to Latin-1, and X's Unicode form above it; a line break is Enter.
- */
+/** The key presses that turn the box's text from `before` into `after`, as X keysyms: a Backspace for each
+ * character past the shared start, then each new one. Above Latin-1 a keysym is X's Unicode form; a break is Enter. */
 export function strokes(before, after) {
   const [was, now] = [[...before], [...after]];
   let same = 0;
@@ -95,7 +61,7 @@ function start(RFB = globalThis.RFB) {
     show(line);
   };
 
-  /** Scales the viewer's box so the fit's strip fills the stage, by its width or its height; the holder cuts off the rest. */
+  /** Scales the viewer's box so the fit's strip fills the stage, by width or height; the holder cuts off the rest. */
   function layout() {
     if (!fit) return;
     const room = $('#stage');

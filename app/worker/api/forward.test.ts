@@ -182,7 +182,7 @@ it("registers a look-up action for each key set up, a change action where the ke
   expect(direct[2].action.description).toContain("GET, HEAD. This key passes on nothing else.");
   expect(apiKeyUse.filter(use => use.direct)).toEqual([{ apps: [], keys: ["notion"], need: "read", direct: true },
     { apps: [], keys: ["notion"], need: "write", direct: true }, { apps: [], keys: ["ledger"], need: "read", direct: true }]);
-  // Through the app's own router the request goes out by the Worker's fetch, and a key that is not saved stops the call first.
+  // Through the app's own router the request leaves by the Worker's fetch; an unsaved key stops the call first.
   vi.stubGlobal("fetch", send);
   const routed = await handleApi(post("notion", "read", { method: "GET", path: "pages" }), env(), owner);
   expect([routed.status, (await body(routed)).status, sent().address]).toEqual([200, 200, "https://api.notion.example/v1/pages"]);

@@ -1,16 +1,5 @@
-/**
- * Locate and read the repo's wrangler config, wherever the app lives.
- *
- * The pipeline scripts sit at `<repo>/scripts/`, but the Worker they drive may
- * live at the repo root (`wrangler.jsonc`) or in a subdirectory (`app/`, the
- * layout the SPA pack ships). Assuming one or the other is what broke these
- * scripts; resolving it at runtime keeps every repo's copy byte-identical.
- *
- * Every pack script reads the config through this one parser. A regex cannot
- * tell `database_name` from `name`, or a `"staging":` inside a comment from the
- * real key, and a staging deploy that reads production's name is the result.
- * The bash scripts call the CLI entry at the bottom via `lib-wrangler-config.sh`.
- */
+// Locate and read the repo's wrangler config, at the repo root or in a subfolder such as `app/`.
+// Every pack script reads it through this one parser; bash calls the CLI below via `lib-wrangler-config.sh`.
 
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -34,10 +23,8 @@ function firstConfigIn(dir) {
   return null;
 }
 
-/**
- * Find the wrangler config: repo root first, then each immediate subdirectory.
- * Returns `null` when the repo has none — the pack's state before provisioning.
- */
+// Find the wrangler config: repo root first, then each immediate subdirectory.
+// Returns `null` when the repo has none, the pack's state before provisioning.
 export function findWranglerConfigOrNull() {
   const atRoot = firstConfigIn(repoRoot);
   if (atRoot) return atRoot;
@@ -62,12 +49,8 @@ export function findWranglerConfig() {
   process.exit(1);
 }
 
-/**
- * Strip `//` and block comments and trailing commas so `JSON.parse` accepts a
- * JSONC file. Scans character by character rather than running a regex over the
- * whole text, so a `//` or `,` inside a string literal survives — a database id
- * or a queue name containing either would otherwise corrupt the parse.
- */
+// Strip comments and trailing commas so `JSON.parse` accepts JSONC. Scans character by character,
+// so a `//` or `,` inside a string literal survives.
 export function stripJsonc(text) {
   let out = "";
   let inString = false;
@@ -149,10 +132,7 @@ export function workerName(config, env) {
   return env ? (block(config, env)?.name ?? `${config.name}-${env}`) : config.name;
 }
 
-/**
- * The app's D1 entries. Session memory's `MEMORY_DB` is not one: the memory
- * skill migrates it, so CI must never apply the app's migrations to it.
- */
+// The app's D1 entries. Session memory's `MEMORY_DB` is left out: the memory skill migrates it, never CI.
 const appDatabases = (config, env) =>
   (block(config, env)?.d1_databases ?? []).filter((entry) => entry.binding !== "MEMORY_DB");
 
@@ -161,11 +141,7 @@ export function hasD1(config, env) {
   return appDatabases(config, env).length > 0;
 }
 
-/**
- * The first app D1 `database_name`. An environment inherits no binding, so the
- * `env.staging` block must declare its own `d1_databases` entry (see the
- * stack-pack config fragments).
- */
+// The first app D1 `database_name`. An environment inherits no binding, so `env.staging` declares its own.
 export function databaseName(config, env) {
   const name = appDatabases(config, env)[0]?.database_name;
   if (name) return name;
@@ -176,15 +152,8 @@ export function databaseName(config, env) {
   );
 }
 
-/**
- * The staging database's name, or `null` when neither production nor staging
- * binds an app D1. Every staging step reads it through here, before any
- * wrangler call. Throws when staging binds none while production does, and
- * when staging's entry names production's database by `database_name` or by
- * `database_id`: a copied entry renamed by hand keeps production's id, and
- * every staging write would then land on live data. Two missing ids are not a
- * match.
- */
+// The staging database's name, or `null` when no app D1 is bound. Throws when staging binds none while
+// production does, or names production's database by name or id: staging writes would land on live data.
 export function stagingDatabase(config) {
   const [prod] = appDatabases(config);
   if (!prod && !hasD1(config, "staging")) return null;
@@ -202,20 +171,8 @@ export function stagingDatabase(config) {
   return name;
 }
 
-/**
- * The Worker name wrangler will actually deploy.
- *
- * Production (no `env`) ALWAYS comes from the source config: it is the thing
- * being protected, so its identity must not come from a generated file that may
- * itself be the mistake. For an environment, a @cloudflare/vite-plugin build
- * leaves `.wrangler/deploy/config.json` redirecting wrangler at a flattened
- * config, and from then on that file decides — so read its `name` when it
- * exists. Its `configPath` is relative to the redirect file's own directory.
- *
- * The asymmetry is what makes `cf-deploy.sh`'s equality check meaningful: a
- * staging build that silently produced production's config returns
- * production's name here, and the two match.
- */
+// The Worker name wrangler will deploy. Production always reads the source config; an environment reads
+// `.wrangler/deploy/config.json` when a @cloudflare/vite-plugin build left one, as wrangler does.
 export function deployedWorkerName(configPath, env) {
   const config = parseConfig(configPath);
   if (!env) return workerName(config);
@@ -234,11 +191,8 @@ export function redirectedConfig(configPath) {
   return generated && existsSync(generated) ? generated : null;
 }
 
-/**
- * The folder wrangler uploads as the Worker's static assets, after a build.
- * A plugin build names it in its generated config; a plain build names it in
- * the source config. Relative to the config that names it.
- */
+// The folder wrangler uploads as static assets after a build, relative to the config that names it:
+// a plugin build's generated config, else the source config.
 export function assetsDirectory(configPath) {
   const from = redirectedConfig(configPath) ?? configPath;
   const directory = parseConfig(from).assets?.directory;
@@ -246,12 +200,8 @@ export function assetsDirectory(configPath) {
   return resolve(dirname(from), directory);
 }
 
-/* ── CLI: `node lib-wrangler-config.mjs <config-path|worker-name|database-name|staging-database|has-d1|assets-dir> [env]` ──
- * `config-path` prints the config found from the repo root, or exits 3 when
- * there is none; `lib-wrangler-config.sh` finds it through this one lookup.
- * Every other answer reads the config named by $WRANGLER_CONFIG, else the one
- * found from the repo root. Prints the answer; on a config error prints it and
- * exits 1. */
+// CLI for `lib-wrangler-config.sh`: `config-path` exits 3 when there is no config; every other answer reads
+// $WRANGLER_CONFIG, else the config found from the repo root, and exits 1 on a config error.
 
 const COMMANDS = {
   "config-path": () => findWranglerConfigOrNull() ?? process.exit(3),

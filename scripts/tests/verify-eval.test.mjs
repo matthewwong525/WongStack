@@ -15,8 +15,6 @@ const fixture = join(repo, 'scripts/fixtures/verify-eval');
 const key = JSON.parse(readFileSync(join(fixture, 'key.json'), 'utf8'));
 const PLANTED = 'Submitting with no title is rejected';
 
-// ── The practice site ─────────────────────────────────────────────────────────
-
 async function site(t) {
   const { url, close } = await startSite();
   t.after(close);
@@ -192,11 +190,8 @@ test('the build notes mark all twelve scenarios done and give nothing away', () 
   assert.doesNotMatch(notes, /key\.json|fixtures|planted|mistake|broken|partial|partly/i);
 });
 
-// ── The harness ───────────────────────────────────────────────────────────────
-
-// A stand-in agent: gives every scenario in the folder it was started in the same verdict, leaves
-// out any scenario named after the verdict, and reports what it was given as `claude -p` would.
-// As `none` it writes no verdicts and prints no JSON.
+// A stand-in agent: gives every scenario in its start folder the same verdict, leaves out any scenario named after
+// the verdict, and reports what it was given as `claude -p` would. As `none` it writes no verdicts and prints no JSON.
 const FAKE_AGENT = `import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 const [verdict, ...omit] = process.argv.slice(2);
@@ -360,8 +355,6 @@ test('a bad --runs, --label, --framing, or --reference is a usage error', t => {
     assert.match(stderr, /usage: eval-verify\.mjs/);
   }
 });
-
-// ── Mixed surfaces: actual observations and the final comment ─────────────────
 
 const mixedKey = JSON.parse(readFileSync(join(fixture, 'mixed/key.json'), 'utf8'));
 

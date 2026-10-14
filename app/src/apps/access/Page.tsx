@@ -21,12 +21,8 @@ function Held({ pending }: { pending: boolean }) {
   return blocker.state === 'blocked' && <Leave onLeave={blocker.proceed} onStay={blocker.reset} />
 }
 
-/** One person or role, opened in a panel on the right with its list still in place beside it; on a
- *  phone the panel fills the screen. The address opens it, and closing it goes back to the view's own address: by
- *  the ✕, Escape, a press on the page beside it, or Cancel. Its name is the panel's title, its fields scroll, and
- *  Save and Cancel stay in view under them: Save is the panel's one solid button, with a line above it while a
- *  change waits to be saved. The page beside it stays in use (`modal` off), so the two views and the list's rows
- *  still work. With `changed`, every way out asks first. Without `action`, nothing here changes: the panel only closes. */
+/** One person or role in a panel beside its list. The address opens it; closing goes back to the view's own address.
+ *  The page beside it stays in use (`modal` off), so views and rows still work. With `changed`, every way out asks. */
 export function Page({ name, changed, action, onSave, extra, children, ...props }: ViewProps & {
   name: string; changed: boolean; action?: string; onSave?: () => void; extra?: ReactNode; children: ReactNode
 }) {

@@ -1,21 +1,6 @@
 #!/usr/bin/env node
-// Code check: does an app's server side, or a main handler, name a saved key
-// its route does not list?
-//
-// The Worker hands a route only the saved keys it lists (app/worker/keys.ts is
-// the registry; wiki/stack/company-api.md owns the rule), and Access shows the
-// owner that same list. A handler that reads a key its route does not list
-// gets nothing at run time, with no error until a person uses it. This finds
-// it before publishing.
-//
-// A file under app/worker/apps/<name>/ may name a registered secret when the
-// key is listed in that file (`keys: ["stripe"]` on its action) or in the app's
-// api.ts (`export const keys = ["stripe"]`). A file under app/worker/api/ may
-// name one when the key is listed in that file or in router.ts's `routeAccess`.
-// Test files are not read.
-//
-// Exit 0 when every named secret is listed, 1 when one is not, 2 on a usage error.
-// Usage: node scripts/check-app-keys.mjs [--root <repo>]
+// Code check: does an app's server side, or a main handler, name a saved key its route does not list?
+// app/worker/keys.ts is the registry; wiki/stack/company-api.md owns the rule.
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';

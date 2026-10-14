@@ -12,12 +12,8 @@ export const REPO = resolve(fileURLToPath(new URL('../../..', import.meta.url)))
 // A fake tool that logs "<prefix><args>" to $FAKE_LOG and does nothing else.
 export const logger = (prefix = '') => `#!/usr/bin/env bash\necho "${prefix}$*" >> "$FAKE_LOG"\n`;
 
-// Builds the repo and removes it when the test ends.
-//   scripts  names under scripts/ to copy from this repo
-//   config   text for app/wrangler.jsonc; omit to leave it out (app/ still exists)
-//   tools    { name: script } fake executables on PATH; each logs to $FAKE_LOG
-//   subdir   put the repo in a folder of the temp dir, beside bin/ (for a sibling worktree)
-// Returns { dir, root, write, run }.
+// Builds a throwaway repo, removed when the test ends: `scripts` are copied from scripts/, `config` is the text of
+// app/wrangler.jsonc, `tools` are fakes on PATH, `subdir` nests the repo. Returns { dir, root, write, run }.
 export function pack(t, { scripts = [], config, tools = {}, subdir, prefix = 'pack-' } = {}) {
   const dir = mkdtempSync(join(tmpdir(), `wong-test-${prefix}`));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
@@ -46,10 +42,8 @@ export function pack(t, { scripts = [], config, tools = {}, subdir, prefix = 'pa
   }
   const log = join(dir, 'calls.log');
 
-  // Runs scripts/<script> (node for .mjs, else bash) from `cwd`, the repo root
-  // by default. `env` adds to or, with `undefined`, removes from a minimal
-  // environment. Returns the exit status, output, and the logged calls, which
-  // it then clears.
+  // Runs scripts/<script> (node for .mjs, else bash) from `cwd`. `env` adds to or, with `undefined`, removes from a
+  // minimal environment. Returns the exit status, output, and the logged calls, which it then clears.
   const run = (script, args = [], { env = {}, cwd = root } = {}) => {
     const vars = {
       PATH: `${bin}:${process.env.PATH}`,

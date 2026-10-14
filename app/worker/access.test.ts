@@ -1,9 +1,8 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { jwk, signingPair } from "../tests/signing";
 
-// The module holds a `keyCache` at module scope. Every test imports it fresh
-// through `vi.resetModules()`, so a key stubbed in one case cannot leak into a
-// later one and turn a real failure into a pass.
+// The module holds `keyCache` at module scope; `vi.resetModules()` gives each test a fresh one, so a key
+// stubbed in one case cannot leak into a later one and turn a real failure into a pass.
 async function loadAccess() {
   vi.resetModules();
   return await import("./access");
@@ -35,10 +34,8 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-// These paths need no network and no cryptography: `getAccessIdentity` returns
-// before it ever reaches for a signing key. They are the majority of the suite
-// on purpose — nothing here is stubbed, so nothing here can pass against a
-// path that did not truly run.
+// No network and no cryptography: `getAccessIdentity` returns before it reaches for a signing key.
+// Nothing here is stubbed, so nothing can pass against a path that did not truly run.
 describe("getAccessIdentity — rejections that need no key", () => {
   let getAccessIdentity: typeof import("./access").getAccessIdentity;
 
@@ -139,14 +136,8 @@ describe("getAccessIdentity — rejections that need no key", () => {
   });
 });
 
-// The headline behaviour, and the one the header-trust reimplementation breaks:
-// Access sends no email header for a service token, so the identity has to come
-// out of the verified assertion.
-//
-// Every accepted token here carries a real RS256 signature. The test generates
-// a key pair, serves the public half as the team's certificate set, and signs
-// with the private half; the platform's key import and signature check run for
-// real, so a wrong algorithm, a malformed key, or a decoding fault fails a case.
+// Access sends no email header for a service token, so the identity must come out of the verified assertion.
+// Each accepted token carries a real RS256 signature from a generated key pair, so the platform's check truly runs.
 describe("getAccessIdentity — verified assertions", () => {
   const KID = "kid-1";
   const RS256 = {
@@ -167,11 +158,8 @@ describe("getAccessIdentity — verified assertions", () => {
       vi.fn(async () => Response.json({ keys })),
     );
 
-  /**
-   * A token signed with `privateKey`. A `jti` nonce is bumped until the
-   * signature holds both `-` and `_`, so every case exercises the URL-safe
-   * decoding rather than passing on a lucky signature.
-   */
+  /** A token signed with `privateKey`. A `jti` nonce is bumped until the signature holds both `-` and `_`,
+   *  so every case exercises the URL-safe decoding rather than passing on a lucky signature. */
   async function signToken(
     header: Record<string, unknown>,
     payload: Record<string, unknown>,

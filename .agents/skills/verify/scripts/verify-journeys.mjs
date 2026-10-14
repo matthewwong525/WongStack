@@ -1,30 +1,6 @@
 #!/usr/bin/env node
-// Kept checks: a passed browser journey or request probe, saved in the project so a later publish can
-// repeat it with no model. The files live at .agents/verification/journeys/<capability>/<id>.json, in
-// the format verify-journey-1: the steps, what the passing evidence showed, and a reference to the
-// scenario. `thenDigest` is the hash of the scenario's THEN lines, so a changed promise shows without
-// keeping a second copy of it.
-//
-//   check     classify each kept check against openspec/specs/: ok, stale, or unreadable
-//   replay    repeat the kept checks against a preview through verify-runner.sh, inside a time limit
-//   keep      build a candidate from a journey the walk just passed; --install copies the proven ones in
-//
-// A replay result is one of four words. `same`: what was recorded is still there, which is not a fresh
-// grade of the THEN. `changed`: it is not, or the written promise changed; the walk looks again.
-// `skipped`: the change rewrites that promise, so its own walk covers it. `not-run`: named with its
-// reason, never a pass and never a failure.
-//
-// A check recorded on a second site, such as a landing page with its own preview, names it in `site`:
-// the commit status that carries that site's preview address. The replay reads the address from the
-// head commit through `gh`, or takes it from --site-url, and opens the check there with no Access
-// credentials. No address means `not-run`, never `changed`: the main preview is a different site.
-//
-// A candidate is proven by `replay --from <run-dir>/keep`: alone, on staging rebuilt from the seed.
-// `keep --install` copies in only the candidates that proof called `same`.
-//
-// The runner stays the only thing that talks to the browser, so Access headers, the throwaway profile,
-// and the login-wall exit apply to a replay unchanged. Needs git, bash, and Node, and `gh` only to
-// look a second site's address up; nothing is installed.
+// Kept checks: a passed browser journey or request probe, saved under .agents/verification/journeys/ so a later
+// publish can repeat it with no model. Only verify-runner.sh talks to the browser, so its guards apply to a replay.
 import { execFileSync, spawn } from 'node:child_process';
 import { closeSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
@@ -158,8 +134,6 @@ export function classify(root, dir = join(root, JOURNEYS)) {
     .map(name => classifyFile(root, dir, name));
 }
 
-// ── Replay ────────────────────────────────────────────────────────────────────
-
 // The head commit, and the files this branch changed since it left the default branch.
 function branchChanges(root) {
   const base = [git(root, 'symbolic-ref', '--quiet', '--short', 'refs/remotes/origin/HEAD'), 'origin/main', 'main']
@@ -170,14 +144,12 @@ function branchChanges(root) {
   };
 }
 
-// Files that tie a check to no area: plans and docs, the release notes and lockfile nearly every
-// change touches, and tests, which change what no page shows. Left out when a check is recorded, and
-// ignored when one is matched, so a kept file written before this rule orders the same way.
+// Files that tie a check to no area: plans, docs, release notes, lockfiles, and tests. Left out when a check is
+// recorded and ignored when one is matched, so a kept file written before this rule orders the same way.
 const SHARED = /^(openspec|wiki|\.agents\/verification)\/|(^|\/)(CHANGELOG\.md|VERSION|package-lock\.json)$|(^|\/)(tests?|__tests__|fixtures)\/|\.(test|spec)\.[a-z]+$/;
 
-// Checks recorded against files the branch changed go first. The rest follow in id order, rotated by
-// the head commit's hash, so every check is reached over several publishes with no stored state.
-// Within each group the read-only checks go before the ones that write.
+// Checks recorded against files the branch changed go first; the rest in id order, rotated by the head commit's
+// hash, so every check is reached over several publishes with no stored state. Read-only ones lead each group.
 function replayOrder(entries, { head, changed }) {
   const touched = entry => entry.journey.sourcePaths.some(path => !SHARED.test(path) && changed.includes(path));
   const rest = entries.filter(entry => !touched(entry));
@@ -218,9 +190,8 @@ function headStatuses(root, head) {
   }
 }
 
-// Where a named site's preview is for the head commit, as { url } or { reason }. An address given with
-// --site-url wins; otherwise it is the newest successful commit status of that name, read once for
-// every site. Anyone who can push can write a status, so only an https address is taken from one.
+// Where a named site's preview is for the head commit, as { url } or { reason }; --site-url wins over a commit
+// status. Anyone who can push can write a status, so only an https address is taken from one.
 function sitePreviews(root, head, given) {
   let statuses;
   return site => {
@@ -233,8 +204,7 @@ function sitePreviews(root, head, given) {
   };
 }
 
-// Run a command to its end or to its limit. Past the limit, it and everything it started are asked to
-// stop, so the runner removes its browser profile, and are killed two seconds later if they have not.
+// Run a command to its end or to its limit; past it, the command and all it started are stopped, then killed.
 // Output goes to a file, not a pipe, so a browser left running can not hold this open.
 function run(command, args, { cwd, env, limitMs, log }) {
   return new Promise(done => {
@@ -345,12 +315,8 @@ function settledEarly(entry, { own, facts, preview }) {
   return null;
 }
 
-/**
- * Replay the kept checks under `from` (default: the project's) against `url`, and write replay.json
- * beside them when `from` is given, else into the run folder. With `from`, every check is a proof:
- * it starts from a rebuilt staging, read-only or not. A check that names a `site` runs against that
- * site's preview: its address in `siteUrls` (a Map), else the head commit's status of that name.
- */
+// Replay the kept checks under `from` (default: the project's) against `url`. With `from`, every check is a proof
+// from a rebuilt staging. A check that names a `site` runs against that site's preview.
 export async function replay({ root, runDir, url, siteUrls = new Map(), changeRoot, from, ids, budgetSeconds = BUDGET_SECONDS, checkSeconds = CHECK_SECONDS }) {
   const started = Date.now();
   const branch = branchChanges(root);
@@ -409,8 +375,6 @@ export async function replay({ root, runDir, url, siteUrls = new Map(), changeRo
   return { results, summary };
 }
 
-// ── Keep ──────────────────────────────────────────────────────────────────────
-
 const slug = words => words.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80).replace(/-+$/, '');
 
 // The preview's address at the start of a step becomes {url}, so no kept file holds a host name.
@@ -458,10 +422,8 @@ const NEVER_KEPT = [
   [({ expect }) => !Array.isArray(expect) || !expect.length, 'it has no expectation the passing evidence showed'],
 ];
 
-/**
- * Build a candidate from the walked journey `id` and write it under <run-dir>/keep/. Throws a Refusal
- * naming why not. With `site`, `url` is that site's address and the candidate names the site.
- */
+// Build a candidate from the walked journey `id` under <run-dir>/keep/; throws a Refusal naming why not.
+// With `site`, `url` is that site's address and the candidate names the site.
 export function keep({ root, runDir, url, id, expect, site, writing = false }) {
   const journeys = join(runDir, 'journeys');
   const { probe, steps } = keptSteps(journeys, id, url.replace(/\/+$/, ''));
@@ -491,12 +453,8 @@ export function keep({ root, runDir, url, id, expect, site, writing = false }) {
   return `${scenario.capability}/${name}`;
 }
 
-/**
- * Copy each candidate its own proof called `same` into the project, and remove the kept checks whose
- * scenario no longer exists. Returns one line per file it kept, left out, or removed, then one
- * `REPLACED=<path>` or `REMOVED=<path>` line per kept file whose steps or expectations it changed or
- * that it deleted: the files the loosened-check guard wants a reason for.
- */
+// Copy each candidate its own proof called `same` into the project; remove kept checks whose scenario is gone.
+// Returns a line per file, then `REPLACED=`/`REMOVED=` lines: the files the loosened-check guard wants a reason for.
 export function install({ root, runDir }) {
   const keepDir = join(runDir, 'keep');
   const proof = readJson(join(keepDir, 'replay.json'))?.results ?? [];
@@ -522,8 +480,6 @@ export function install({ root, runDir }) {
   }
   return [...lines, ...weakened];
 }
-
-// ── The command line ──────────────────────────────────────────────────────────
 
 const line = entry => `${entry.result ?? entry.state} ${entry.key}${entry.reason ? ` — ${entry.reason}` : ''}`;
 

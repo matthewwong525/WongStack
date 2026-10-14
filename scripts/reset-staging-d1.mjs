@@ -1,19 +1,6 @@
 #!/usr/bin/env node
-/**
- * Rebuild the staging D1 from a checked-in seed: drop every object, apply the
- * migrations, then apply `schema/seed.sql` (data-only INSERTs).
- *
- * Staging is a seeded fixture database, NOT a mirror of production. This
- * script never reads, exports, or copies production data, and never touches
- * the production database — it targets the twin database declared by the
- * `staging` environment in wrangler.jsonc, via `--env staging`.
- *
- * Zero-config: the staging database's name is read from that environment's
- * block in wrangler.jsonc, so every repo ships this file byte-for-byte
- * identical.
- *
- * Usage: node scripts/reset-staging-d1.mjs  (from any folder: it finds the config itself)
- */
+// Rebuild the staging D1 from the checked-in seed: drop every object, apply migrations, apply `schema/seed.sql`.
+// Never reads or touches production. Doc: wiki/stack/d1-pipeline.md#seeded-staging-production-untouched
 
 import { execFileSync } from "node:child_process";
 import { dirname, resolve } from "node:path";
@@ -38,12 +25,8 @@ const STAGING_FLAGS = ["--remote", "--env", STAGING_ENV];
 // (migrations_dir, assets) resolve the way wrangler expects.
 const wranglerCwd = dirname(wranglerPath);
 
-/**
- * The staging database's name. Stops, before any wrangler call, when the config
- * cannot be read, when staging binds no database (nothing to reset), or when
- * staging names the production database: `--env staging` would then point
- * every DROP below at production.
- */
+// The staging database's name. Stops before any wrangler call when the config is unreadable, staging binds
+// no database, or staging names production's: `--env staging` would then point every DROP at production.
 function stagingDatabase(configPath) {
   try {
     const name = sharedStagingDatabase(parseConfig(configPath));

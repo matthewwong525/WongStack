@@ -1,0 +1,8 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "jsPlugins": ["../lint-comment-length.mjs"],
+  "rules": {
+    "comment-length/max-comment-lines": ["error", 2],
+    "comment-length/max-comment-width": ["error", 120]
+  }
+}

@@ -5,7 +5,7 @@ import { appActions, appKeyUse, handleApp, keysAlone } from "./index";
 import { body } from "../../tests/body";
 import { fakeEnv } from "../../tests/env";
 
-// Hello's server folder with no screen beside it: the catalogue holds no app of that name. Its api.ts lists a saved key.
+// Hello's server folder with no screen: the catalogue holds no app of that name. Its api.ts lists a saved key.
 vi.mock("../employee-access/catalogue.ts", async () => ({ ...(await import("../../tests/employee-access/catalogue")).builtApps(["access"]), hasScreen: () => false }));
 const calls = vi.hoisted(() => ({ count: 0 }));
 vi.mock("./hello/api.ts", async (original) => ({

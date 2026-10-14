@@ -1,61 +1,5 @@
 #!/usr/bin/env node
-/**
- * Load the Worker's runtime secrets into both Workers, and check they agree.
- *
- *     node scripts/cf-secrets.mjs push     # app/.dev.vars -> production + staging
- *     node scripts/cf-secrets.mjs check    # do the two Workers still match?
- *     node scripts/cf-secrets.mjs shared   # which keys does staging share with production?
- *
- * Wire them up as `secrets:push` and `secrets:check` in package.json.
- *
- * ── Why this is a script and not two documented commands ─────────────────────
- * `wrangler secret bulk <file>` would be the whole of `push`. The reason it is
- * wrapped is the file it must never be pointed at.
- *
- *     .env       what CI and these scripts authenticate WITH.
- *                Holds CLOUDFLARE_API_TOKEN — a user-scoped credential that can
- *                widen its own permissions and create account resources — plus
- *                the Access service tokens.
- *     .dev.vars  what the WORKER reads off `env` at runtime.
- *
- * They look interchangeable and are not. Putting `.env` into a Worker's secret
- * store means any log leak or code-execution bug in that Worker escalates to
- * the entire Cloudflare account. A person typing the command by hand, reaching
- * for "the file with the secrets in it", picks the wrong one exactly once. So
- * the refusal below is a check in code rather than a line in the docs.
- *
- * ── What `check` actually compares ───────────────────────────────────────────
- * `.dev.vars` is git-ignored, so it does not exist in CI — which is the one
- * place this needs to run. A check defined as "diff the Workers against
- * .dev.vars" is therefore unrunnable where it matters.
- *
- * So the assertion that FAILS is Worker against Worker: production's secret
- * names against staging's. No file, no value, no local state — and a more
- * direct statement of the property we want, which is parity between the two
- * environments. `.dev.vars.example` (committed, values blank) is consulted when
- * present, but only ever to WARN: it is uncorroborated, and a repo may set a
- * secret out of band for good reasons.
- *
- * Names only. No secret value is printed or logged anywhere in this file —
- * including on error paths — because `check` runs in CI, where its output is
- * retained in build logs. Only `shared` reads values, to compare them.
- *
- * ── What `shared` reports ─────────────────────────────────────────────────────
- * `push` loads staging from `.dev.vars` unless `.dev.vars.staging` exists, so
- * by default staging holds production's keys and an outside service called from
- * staging reaches real people. `shared` compares the two files, on this machine
- * and with no network call, and prints each key name under `own` (staging's
- * value differs) or `shared` (the same value, or no staging file). `/verify`
- * uses a service only when its key is `own`. It reads the files, not the
- * Workers: a deployed secret can not be read back, so a Worker loaded before
- * the files changed may differ until the next `push`.
- *
- * Worker names and ordinary business keys come from config/files. The private
- * Access management name is explicitly production-only. The read-only
- * Cloudflare key is setup-made: refused in every file, and allowed on
- * production alone while staging waits for it. Every repo ships this file
- * byte-for-byte identical.
- */
+/** Load the Worker's runtime secrets into both Workers, and check they agree: wiki/stack/staging-bindings.md */
 
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -75,7 +19,7 @@ import { parseCli, usageError } from "./lib-cli.mjs";
 const STAGING_ENV = "staging";
 // Setup stores the sign-in list key on the production Worker alone; no file here holds it.
 const PRIVATE_ACCESS = new Set(["WONG_ACCESS_LOGIN_MANAGEMENT"]);
-// Setup stores the read-only Cloudflare key itself, on staging only when Cloudflare takes it; no file here holds it either.
+// Setup stores the read-only Cloudflare key itself, on staging only when Cloudflare takes it; no file holds it.
 const SETUP_MADE = "WONG_CLOUDFLARE_READ";
 
 /** The file the Worker's runtime secrets are declared in. */
@@ -83,26 +27,13 @@ const SOURCE = ".dev.vars";
 /** Committed, values blank — the reviewable list of expected key names. */
 const EXAMPLE = ".dev.vars.example";
 
-/**
- * Never load these into a Worker. `.env` is the account-root credential file;
- * `.env.example` and the example below carry no real values but also no real
- * secrets, so pushing them would quietly blank the Worker's store.
- */
+/** Never load these into a Worker: `.env` holds account credentials, and an example file would blank the store. */
 const REFUSED_FILES = new Set([".env", ".env.local", ".env.example", EXAMPLE]);
 
-/**
- * A backstop, not the control. The file boundary above is what actually keeps
- * account credentials out of Workers; a name list fails open on any credential
- * nobody thought to name. This catches the case where someone has pasted one
- * into `.dev.vars` directly.
- */
+/** A backstop for a credential pasted into `.dev.vars`; the file boundary above is the real control. */
 const SUSPICIOUS_KEY = /^(CLOUDFLARE_|CF_ACCESS_|CF_API|SKIP_AUTH$|WONG_ENVIRONMENT$)/;
 
-/**
- * Bindings that must be twinned in `env.staging`. Durable Objects are absent
- * deliberately: DO storage is per-Worker, so a separate Worker is already
- * isolated and there is nothing to redeclare.
- */
+/** Bindings that must be twinned in `env.staging`. Durable Objects are left out: their storage is per-Worker. */
 const BINDING_KEYS = [
   "d1_databases",
   "kv_namespaces",
@@ -130,13 +61,7 @@ function fail(message) {
   process.exit(1);
 }
 
-/* ── config ────────────────────────────────────────────────────────────────── */
-
-/**
- * The parsed wrangler config, or null with a warning when the shared parser
- * refuses it (TOML, bad JSONC). An unreadable config skips the binding
- * comparison rather than failing the gate.
- */
+/** The parsed wrangler config, or null with a warning: an unreadable config skips the binding comparison. */
 function readConfigOrNull(configPath) {
   try {
     return parseConfig(configPath);
@@ -147,12 +72,7 @@ function readConfigOrNull(configPath) {
   }
 }
 
-/* ── dotenv ────────────────────────────────────────────────────────────────── */
-
-/**
- * The KEY names declared in a dotenv file. Values are deliberately discarded at
- * the parse boundary — nothing downstream can print what was never returned.
- */
+/** The KEY names in a dotenv file. Values are dropped here, so nothing downstream can print them. */
 function readKeyNames(file) {
   const names = [];
   for (const rawLine of readFileSync(file, "utf8").split(/\r?\n/)) {
@@ -164,11 +84,7 @@ function readKeyNames(file) {
   return names;
 }
 
-/**
- * Each KEY with a digest of its value, for `shared` to compare. The value
- * itself never leaves this function. One pair of matching quotes is dropped,
- * so `"x"` in one file and `x` in the other still count as the same key.
- */
+/** Each KEY with a digest of its value, for `shared`. One pair of matching quotes is dropped before hashing. */
 function readKeyDigests(file) {
   const digests = new Map();
   for (const rawLine of readFileSync(file, "utf8").split(/\r?\n/)) {
@@ -180,8 +96,6 @@ function readKeyDigests(file) {
   return digests;
 }
 
-/* ── wrangler ──────────────────────────────────────────────────────────────── */
-
 function wrangler(args, { cwd, capture = false }) {
   return execFileSync("npx", ["wrangler", ...args], {
     cwd,
@@ -190,15 +104,8 @@ function wrangler(args, { cwd, capture = false }) {
   });
 }
 
-/**
- * The secret NAMES held by one environment, or null if they can't be read.
- *
- * `--format json` is the documented default on current wrangler, but the pack
- * pins no wrangler version, so an older CLI that rejects the flag gets a second
- * attempt without it. Either way the output is parsed defensively: returning
- * null (reported as "could not read") is correct, where returning an empty list
- * would assert a parity that was never actually observed.
- */
+// The secret NAMES held by one environment. Retries without `--format json` for an older wrangler.
+// Returns null when unreadable: an empty list would claim a parity nobody observed.
 function readSecretNames(appDir, env) {
   const base = ["secret", "list", ...(env ? ["--env", env] : [])];
   for (const args of [[...base, "--format", "json"], base]) {
@@ -220,12 +127,8 @@ function readSecretNames(appDir, env) {
   return null;
 }
 
-/* ── push ──────────────────────────────────────────────────────────────────── */
-
 function guardSourceFile(file) {
-  // Resolve symlinks before judging the name: `.dev.vars -> .env` is the way a
-  // repo talks itself into "one file for everything" and would otherwise walk
-  // straight past a check on the literal path.
+  // Resolve symlinks before judging the name: `.dev.vars -> .env` would otherwise walk past the check.
   let real = file;
   try {
     real = realpathSync(file);
@@ -257,11 +160,8 @@ function guardSourceFile(file) {
   }
 }
 
-/**
- * The folder to read `.dev.vars` from. A linked worktree that has no copy of
- * its own reads the primary checkout's, at the same repo-relative folder — the
- * secrets convention keeps real values there. A local copy always wins.
- */
+// The folder to read `.dev.vars` from: a linked worktree with no copy reads the primary checkout's.
+// A local copy always wins.
 function secretsDir(appDir) {
   if (existsSync(resolve(appDir, SOURCE))) return appDir;
   let primary;
@@ -279,9 +179,7 @@ function secretsDir(appDir) {
 }
 
 function push(appDir, override) {
-  // An explicit file is allowed — and is exactly the path someone reaches for
-  // when they want "the file with the secrets in it". That is why the guard
-  // below exists and why it runs before anything is read or sent.
+  // An explicit file is how someone picks the wrong one, so the guard runs before anything is read or sent.
   let dir = appDir;
   let source;
   if (override) {
@@ -299,9 +197,7 @@ function push(appDir, override) {
   }
   guardSourceFile(source);
 
-  // Production, then staging. Staging falls back to the same file, which makes
-  // identical values across both Workers the zero-config default; a repo needing
-  // divergence adds `.dev.vars.staging` and changes no command.
+  // Staging falls back to the same file, so both Workers match by default; `.dev.vars.staging` overrides it.
   const stagingSource = resolve(dir, `${SOURCE}.${STAGING_ENV}`);
   const targets = [
     { env: null, label: "production", file: source },
@@ -336,10 +232,7 @@ function push(appDir, override) {
         `${basename(target.file)} declares ${names.length} keys; \`wrangler secret bulk\` accepts at most 100 per call.`,
       );
     }
-    // Fatal, not a warning. The file boundary is the primary control, but if a
-    // Cloudflare account credential has been pasted into `.dev.vars` directly,
-    // warning and then pushing anyway produces exactly the outcome this script
-    // exists to prevent — the credential lands in the Worker either way.
+    // Fatal, not a warning: pushing a Cloudflare account credential anyway is what this script exists to stop.
     const suspicious = names.filter((n) => SUSPICIOUS_KEY.test(n));
     if (suspicious.length > 0) {
       const many = suspicious.length > 1;
@@ -373,8 +266,6 @@ function push(appDir, override) {
   console.log("cf-secrets: both Workers loaded");
 }
 
-/* ── check ─────────────────────────────────────────────────────────────────── */
-
 // Session memory binds only the production Worker (MEMORY_DB, MEMORY_BUCKET):
 // it has no staging twin by design. wiki/development/memory.md
 const PRODUCTION_ONLY = "MEMORY_";
@@ -392,10 +283,8 @@ function bindingsIn(block) {
     if (key === "vars") {
       names = Object.keys(value);
     } else if (key === "queues") {
-      // A producer has a stable `binding` name that survives twinning, so it
-      // compares by name like every other binding. A consumer has only the
-      // queue it reads, and the twin rule requires that queue to DIFFER between
-      // environments, so consumers compare by count in `checkQueueConsumers`.
+      // A producer keeps its `binding` name across twins, so it compares by name. A consumer's queue must
+      // differ between environments, so `checkQueueConsumers` compares consumers by count.
       names = (value.producers ?? []).map((p) => `producer:${p.binding ?? p.queue}`);
     } else if (Array.isArray(value)) {
       names = value.map((entry) => entry.binding ?? entry.name).filter(Boolean);
@@ -414,10 +303,7 @@ function checkBindings(config) {
 
   const staging = config.env?.[STAGING_ENV];
   if (!staging) {
-    // Not a failure. A repo that has not adopted the staging model — or has not
-    // reached that step of the adoption runbook — would otherwise get a
-    // permanently red check, which is precisely what the pack's CI avoids. The
-    // gate exists to catch drift WITHIN the two-Worker model, not to demand it.
+    // Not a failure: a repo not yet on the two-Worker model would get a permanently red check.
     console.log(
       `cf-secrets: no \`env.${STAGING_ENV}\` in the wrangler config — skipping the binding comparison (repo is not on the two-Worker model)`,
     );
@@ -507,7 +393,7 @@ function checkSecrets(appDir) {
   }
   for (const name of production) {
     if (staging.includes(name) || PRIVATE_ACCESS.has(name)) continue;
-    // Cloudflare stores no secret on staging while a newer preview is uploaded, so setup may leave this one waiting.
+    // Cloudflare stores no secret on staging while a newer preview is uploaded, so setup may leave this waiting.
     if (name === SETUP_MADE) console.log(`cf-secrets: '${name}' is on production only — the preview is waiting for it`);
     else problems.push(`secret '${name}' is set on production but missing from ${STAGING_ENV}.`);
   }
@@ -577,13 +463,8 @@ function check(appDir, configPath) {
   );
 }
 
-/* ── shared ────────────────────────────────────────────────────────────────── */
-
-/**
- * Which keys staging holds with its own value, and which with production's.
- * A key the staging file leaves out is in neither list: `push` loads staging
- * from that file alone, so staging does not hold it.
- */
+// Which keys staging holds with its own value, and which with production's. A key the staging file
+// leaves out is in neither list: `push` loads staging from that file alone.
 function shared(appDir) {
   const dir = secretsDir(appDir);
   const source = resolve(dir, SOURCE);
@@ -606,8 +487,6 @@ function shared(appDir) {
   for (const [label, names] of Object.entries(lists)) console.log(`${label}: ${[...new Set(names)].sort().join(" ")}`);
 }
 
-/* ── entry ─────────────────────────────────────────────────────────────────── */
-
 const USAGE = [
   "usage: node scripts/cf-secrets.mjs <push|check|shared> [file]",
   "",
@@ -621,11 +500,8 @@ const USAGE = [
 const [mode, file, ...extra] = parseCli({ usage: USAGE, allowPositionals: true }).positionals;
 if (!["push", "check", "shared"].includes(mode) || extra.length || (file && mode !== "push")) usageError(USAGE);
 
-// `check` resolves the config WITHOUT exiting, because a repo with no config at
-// all is the pack's shipping state — before setup's Cloudflare provisioning runs there is
-// nothing to check, and the gate's requirement is to skip rather than fail.
-// `push` keeps the library's aborting lookup: it has real work to do and cannot
-// do it without a config.
+// `check` must skip, not fail, when no config exists: that is the pack's shipping state before setup.
+// `push` keeps the aborting lookup because it can do nothing without a config.
 const configPath =
   mode === "push" ? findWranglerConfig() : findWranglerConfigOrNull();
 
@@ -635,9 +511,7 @@ if (mode === "shared" && !configPath) {
 }
 
 if (mode === "check" && !configPath) {
-  // The first of the three skip conditions, and the one that occurs earliest in
-  // every adoption: no config has been written yet. Joins no-`env.staging` and
-  // unparseable-config as a skip, not an abort.
+  // No config yet is a skip, not an abort, like no-`env.staging` and an unparseable config.
   console.log(
     "cf-secrets: no wrangler config yet — skipping the parity check (run /wong-sync to plan provisioning)",
   );
