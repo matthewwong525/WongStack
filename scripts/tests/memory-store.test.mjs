@@ -795,6 +795,19 @@ test('concurrent first starts publish one complete private machine ID and a corr
   assert.equal(readFileSync(file, 'utf8'), 'corrupt');
 });
 
+test('a sandbox that refuses the permission change still reads the stored machine ID', async t => {
+  const { execFileSync } = await import('node:child_process');
+  const id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+  const file = join(tempDir(t, 'identity-sandbox-'), 'machine-id'); writeFileSync(file, `${id}\n`, { mode: 0o600 });
+  const module = new URL('../../.agents/skills/memory/scripts/lib/machine-id.mjs', import.meta.url).href;
+  // chmodSync fails EPERM, as under Codex's sandbox; patched before the module binds it.
+  const script = `import fs from 'node:fs'; import { syncBuiltinESMExports } from 'node:module';
+fs.chmodSync = () => { throw Object.assign(new Error('operation not permitted'), { code: 'EPERM' }); };
+syncBuiltinESMExports();
+const { machineId } = await import(process.argv[1]); process.stdout.write(machineId(process.argv[2]));`;
+  assert.equal(execFileSync(process.execPath, ['--input-type=module', '-e', script, module, file], { encoding: 'utf8' }), id);
+});
+
 test('the ownership migration preserves historical bodies, authors, sources and raw references without claiming them', async t => {
   const { DatabaseSync } = await import('node:sqlite'); const db = new DatabaseSync(':memory:'); t.after(() => db.close());
   const dir = new URL('../../.agents/skills/memory/migrations/', import.meta.url);

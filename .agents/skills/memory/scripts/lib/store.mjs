@@ -148,6 +148,8 @@ export function openStore(ctx, { timeoutMs = 15000, admin = false, credential = 
       const code = (await response.clone().json().catch(() => ({}))).errors?.[0]?.code;
       if (code === 'not_author') throw new StoreError('only the owning machine and the admin can read this transcript', { kind: 'forbidden' });
       if (code === 'member_read') throw new StoreError(`the memory store refused this read: ${(await response.clone().json()).errors[0].message}`, { kind: 'forbidden' });
+      // One session or statement refused (another computer's, or private): the key itself is fine.
+      if (code === 'member_write') throw new StoreError(`the memory store refused this write: ${(await response.clone().json()).errors[0].message}`, { kind: 'forbidden' });
     }
     if (response.status === 401 || response.status === 403) {
       if (viaWorker) writeJson(statePath(ctx, 'authorization-refused.json'), { at: new Date().toISOString() });

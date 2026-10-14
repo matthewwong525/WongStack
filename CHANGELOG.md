@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (patch) — Memory search stays fast on a big store
+
+- **A search runs its text match once, not once per stored fact.** The search fragment let SQLite look facts up one at a time and re-run the full-text match for each. On a store of about 2,850 facts one search took 12–14 seconds; D1 then hit its CPU limit, reset (code 7429), and failed other people's calls with it. The search now takes about 10 ms and finds the same top matches. The memory Worker still accepts the old fragment from a computer that has not updated yet.
+- **One refused session no longer reads as a refused key.** When the store refuses to save one past session (another computer's, or old history no computer owns), `strip` prints `refused:`, skips that session, and does not offer it again. The background run counts it skipped and carries on; before, the run stopped and the key was reported as rejected.
+- **A sandbox that blocks a permission change can still read the computer's identity.** Codex's background run may refuse the `chmod` that keeps the identity file private. The file is already private, so memory now reads on.
+
+**Updating.** Nothing to do. The faster search starts working once your app is published with the update; until then a computer's searches still work, only slowly.
+
 ## 42.0.0 — Short comments only
 
 - **A check fails on a long comment.** A comment longer than two lines, or a comment line wider than 120 characters, now fails the code checks and names the file and the line. It covers the app's JavaScript and TypeScript. A code line has no width limit. A short, helpful comment still passes.

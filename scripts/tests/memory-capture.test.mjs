@@ -664,7 +664,7 @@ test('a new machine never adopts legacy cache, spool, registry or unregistered t
   assert.ok(existsSync(join(legacy, 'spool', 'old.json')));
 });
 
-test('new registered transcript capture writes its owned ledger before upload and leaves historical rows untouched', async t => {
+test('new registered transcript capture writes its owned ledger before upload; a refused historical row is skipped', async t => {
   const env = await setup(t); const current = claudeSession(env, 9, [['user', 'New conversation']]);
   const kept = await memory(env.repo, env.fake, ['keep-transcript', current.id]); assert.match(kept.stdout, /kept:/);
   const row = rows(env, 'SELECT owner_machine_id, raw_key FROM sessions WHERE id = ?', current.id)[0];
@@ -672,7 +672,13 @@ test('new registered transcript capture writes its owned ledger before upload an
   const historical = claudeSession(env, 7, [['user', 'Historical unowned private conversation']]);
   env.fake.db.prepare("INSERT INTO sessions (id, agent, author, status, updated_at) VALUES (?, 'claude', 'dev@example.com', 'captured', 'now')").run(historical.id);
   const count = env.fake.objects.size;
-  const refused = await memory(env.repo, env.fake, ['strip', historical.id]); assert.equal(refused.code, 1);
+  const refused = await memory(env.repo, env.fake, ['strip', historical.id]); assert.equal(refused.code, 0, refused.stderr);
+  assert.match(refused.stdout, /^refused: the memory store refused this write: /);
   assert.doesNotMatch(refused.stdout, /Historical unowned private conversation/); assert.equal(env.fake.objects.size, count);
   assert.equal(rows(env, 'SELECT owner_machine_id FROM sessions WHERE id = ?', historical.id)[0].owner_machine_id, null);
+  // One refused session is not a rejected key: nothing marks the key refused, and the session is not offered again.
+  assert.doesNotMatch(refused.stdout + refused.stderr, /rejected CLOUDFLARE_MEMORY_TOKEN/);
+  assert.equal(existsSync(join(env.repo.stateDir, 'authorization-refused.json')), false);
+  assert.ok(JSON.parse(readFileSync(join(env.repo.stateDir, 'seen.json'), 'utf8'))[historical.id]);
+  assert.equal((await memory(env.repo, env.fake, ['search', 'conversation'])).code, 0);
 });

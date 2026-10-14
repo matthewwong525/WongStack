@@ -81,9 +81,11 @@ export function memberStatements(statements, { machine_id, reader }) {
   });
 }
 
-// The one way any read searches the full-text index: a subquery that matches only facts the key may see,
-// because `facts` inside it is the shadow below. The client joins it as `hits` and orders by `hits.rank`.
-export const FTS_HITS = '(SELECT rowid, rank FROM facts_fts WHERE facts_fts MATCH ? AND rowid IN (SELECT id FROM facts))';
+// The one way any read searches the full-text index: only facts the key may see (`facts` is the shadow below).
+// Each unary `+` stops SQLite driving facts_fts by rowid, which re-ran the MATCH once per stored fact.
+export const FTS_HITS = '(SELECT +rowid AS rowid, rank FROM facts_fts WHERE facts_fts MATCH ? AND +rowid IN (SELECT id FROM facts))';
+// The fragment a computer that has not updated still sends; it filters the same way. Drop it once every computer has.
+export const LEGACY_FTS_HITS = '(SELECT rowid, rank FROM facts_fts WHERE facts_fts MATCH ? AND rowid IN (SELECT id FROM facts))';
 
 const quote = text => `'${String(text).replaceAll("'", "''")}'`;
 
@@ -116,7 +118,7 @@ export function readRefusal(sql) {
   const text = String(sql);
   if (SCHEMA_NAME.test(text)) return 'a member key reads facts only by their plain names, never main., temp., or raw pages';
   if (OWN_SHADOW.test(text)) return 'a member key reads facts only by their plain names, never a facts or fact_tags of its own';
-  if (/facts_fts/i.test(text.replaceAll(FTS_HITS, ''))) return 'a member key searches memory only through the shared full-text fragment; update this branch from main to search memory';
+  if (/facts_fts/i.test(text.replaceAll(FTS_HITS, '').replaceAll(LEGACY_FTS_HITS, ''))) return 'a member key searches memory only through the shared full-text fragment; update this branch from main to search memory';
   return null;
 }
 
