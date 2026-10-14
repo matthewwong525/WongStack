@@ -7,6 +7,7 @@ import { existsSync, lstatSync, readFileSync, readdirSync, readlinkSync, statSyn
 import { dirname, join, posix, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { headingAnchors } from "../.agents/skills/memory/scripts/lib/links.mjs";
+import { SEEDS } from "../.agents/skills/wong-setup/scripts/install.mjs";
 import { parseCli } from "./lib-cli.mjs";
 
 const { values } = parseCli({
@@ -56,6 +57,9 @@ function walk(dir) {
 // Files a target has that the payload does not supply but may link to. Read from the manifest's
 // `seededBySetup`: each entry must be a path a `/wong-setup` step really writes.
 const TARGET_PROVIDED = MANIFEST.seededBySetup.files;
+// Setup writes each seeded page from its template, so the template's links are checked as that page's.
+const SEED_DIR = ".agents/skills/wong-setup/references/seed";
+const seedOf = (p) => (SEEDS[p] ? `${SEED_DIR}/${SEEDS[p]}` : null);
 
 /** The files a target receives, as logical paths: every category, plus a real `AGENTS.md` and its `CLAUDE.md`. */
 function payload() {
@@ -115,10 +119,10 @@ function checkDead(files) {
   // Link targets = what ships plus what the target already has. Scanned files = what ships only:
   // a target's own README is a fair destination, but its contents are not ours to lint.
   const targets = new Set([...files, ...TARGET_PROVIDED]);
-  for (const file of files) {
+  for (const file of [...files, ...Object.keys(SEEDS)]) {
     // The rules file is scanned once, as the block `CLAUDE.md` reads through its link.
     if (!file.endsWith(".md") || file === "AGENTS.md") continue;
-    const abs = join(ROOT, file === "CLAUDE.md" ? realPath("CLAUDE.md") : physical(file));
+    const abs = join(ROOT, file === "CLAUDE.md" ? realPath("CLAUDE.md") : seedOf(file) ?? physical(file));
     if (!existsSync(abs)) continue;
     let raw = readFileSync(abs, "utf8");
     // Only the block between the markers travels, so only that is checked; the rest belongs to this repo.
@@ -150,7 +154,7 @@ function checkDead(files) {
 // Files a target provides itself are skipped.
 function missingAnchor(logicalPath, anchor) {
   if (!logicalPath.endsWith(".md")) return false;
-  const path = logicalPath === "CLAUDE.md" ? "AGENTS.md" : physical(logicalPath);
+  const path = logicalPath === "CLAUDE.md" ? "AGENTS.md" : seedOf(logicalPath) ?? physical(logicalPath);
   if (!exists(path)?.isFile()) return false;
   return !anchorsOf(path).has(safeDecode(anchor).toLowerCase());
 }
@@ -300,7 +304,7 @@ function exists(path) {
 function checkSourceOnly() {
   const broken = [];
   for (const skill of sourceOnlySkills()) {
-    for (const file of walk(join(ROOT, ".agents/skills", skill)).filter((f) => f.endsWith(".md"))) {
+    for (const file of walk(join(ROOT, ".agents/skills", skill)).filter((f) => f.endsWith(".md") && !f.startsWith(`${SEED_DIR}/`))) {
       const body = maskCode(readFileSync(join(ROOT, file), "utf8"));
       const links = [...body.matchAll(LINK), ...body.matchAll(REFERENCE)].map((m) => ({ target: m[1], index: m.index }));
       for (const { target, index } of links) {

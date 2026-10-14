@@ -216,7 +216,7 @@ function recheck(root, base) {
 }
 
 /** A red or unreadable default branch stops every ship, a new intent included, before any build. */
-function defaultChecks(artifacts, base) {
+function defaultChecks(artifacts, base, again = true) {
   const checks = artifacts ? artifactsDefaultChecks(base) : sh('gh', ['api', `repos/:owner/:repo/commits/${base}/check-runs`, '--jq', MAIN_CHECKS]);
   // An empty jq listing alone is ambiguous. Confirm a successful API read of
   // zero checks before using PR review, the existing gate for repos without CI.
@@ -224,6 +224,13 @@ function defaultChecks(artifacts, base) {
     ? sh('gh', ['api', `repos/:owner/:repo/commits/${base}/check-runs`, '--jq', '.total_count']) : null;
   const answer = checks.status !== 0 ? '' : artifacts ? checks.stdout.trim()
     : emptyCount?.status === 0 && emptyCount.stdout.trim() === '0' ? 'ok' : mainVerdict(checks.stdout);
+  // A cut-off run is not a failure: start that same run once and wait for it, so the person has no step to take.
+  if (answer === 'interrupted' && again) {
+    say('DEFAULT_CHECKS=restarted');
+    sh('node', [ARTIFACTS_RUN, 'restart', checks.sha, `refs/heads/${base}`]);
+    sh('node', [ARTIFACTS_RUN, 'live', checks.sha]);
+    return defaultChecks(artifacts, base, false);
+  }
   say(`DEFAULT_CHECKS=${answer || 'unknown'}`);
   if (answer === 'failure') throw new Stop(6, [`NEXT: ${base}'s checks are failing. Fix the default branch first; ship nothing onto it.`]);
   // Cut off is not failing: nothing is wrong with the commit, and the same run can be started again.

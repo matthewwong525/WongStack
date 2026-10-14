@@ -45,6 +45,10 @@ case "$*" in
   "-C "*" status --porcelain") printf '%b' "\${DIRTY:-}" ;;
   "-C "*" merge --ff-only "*) exit "\${FF_RC:-0}" ;;
   "fetch origin main:main") exit "\${FETCHMAIN_RC:-0}" ;;
+  "rev-parse --path-format=absolute --git-dir --git-common-dir") [ -n "\${GIT_DIRS:-}" ] || exit 1; printf '%b' "$GIT_DIRS" ;;
+  "rev-parse --show-toplevel") echo /work/project ;;
+  "status --porcelain") printf '%b' "\${HERE_DIRTY:-}" ;;
+  "switch -q main") exit 0 ;;
   *) exit 1 ;;
 esac
 `;
@@ -140,6 +144,21 @@ test('with no checkout on main, the main ref advances in place', t => {
   assert.equal(r.status, 0, r.stderr);
   assert.match(r.stdout, /^synced=ref$/m);
   assert.match(r.calls, /git fetch origin main:main/);
+});
+
+test('with no checkout on main, a clean primary checkout on the merged branch moves to main; any other stays', t => {
+  const ALONE = 'worktree /work/project\\nHEAD def\\nbranch refs/heads/feature\\n';
+  const PRIMARY = '/work/project/.git\\n/work/project/.git\\n';
+  const clean = run(t, { WORKTREES: ALONE, GIT_DIRS: PRIMARY });
+  assert.equal(clean.status, 0, clean.stderr);
+  assert.match(clean.stdout, /^synced=\/work\/project \(switched from feature\)$/m);
+  assert.match(clean.calls, /^git fetch origin main:main\ngit rev-parse .*\n(.*\n)*git switch -q main$/m);
+  for (const env of [{ GIT_DIRS: PRIMARY, HERE_DIRTY: ' M notes.txt\\n' }, { GIT_DIRS: '/work/project/.git/worktrees/x\\n/work/project/.git\\n' }]) {
+    const r = run(t, { WORKTREES: ALONE, ...env });
+    assert.equal(r.status, 0, r.stderr);
+    assert.match(r.stdout, /^synced=ref$/m, JSON.stringify(env));
+    assert.doesNotMatch(r.calls, /git switch/);
+  }
 });
 
 test('a diverged local main is skipped in one line', t => {

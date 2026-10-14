@@ -157,6 +157,15 @@ test('the command ends a call that returns an error as failed, still printing th
   const failed = run(['call', 'orders.lookup', '--file', '-'], '{"reference":"missing"}');
   assert.equal(failed.status, 1); assert.deepEqual(JSON.parse(failed.stdout).error, { code: 'not_found', message: 'No such order', requestId: 'synthetic' });
 });
+test('a list with no sign-in still lists memory, and says on its own line that company actions are missing', t => {
+  const base = mkdtempSync(join(tmpdir(), 'company-cli-')); t.after(() => rmSync(base, { recursive: true, force: true }));
+  const checkout = join(base, 'checkout'); mkdirSync(checkout); execFileSync('git', ['init', '-q'], { cwd: checkout });
+  const listed = spawnSync(process.execPath, [fileURLToPath(new URL('../company-api.mjs', import.meta.url)), 'list', '--state', join(base, 'state')],
+    { cwd: checkout, env: { PATH: process.env.PATH, HOME: base }, encoding: 'utf8' });
+  assert.equal(listed.status, 0, listed.stderr);
+  assert.ok(JSON.parse(listed.stdout).actions.some(action => action.operationId === 'memory.search'));
+  assert.equal(listed.stderr.trim(), 'Company actions are missing: not signed in. Sign in again: run `node scripts/company-api.mjs login`, which prints a link to show the person.');
+});
 test('bounds combined summaries, forwards selective filters/pagination, and keeps memory available independently', async () => {
   const entries = Array.from({ length: 70 }, (_, i) => ({ ...descriptor(), operationId: `sample.item-${i}`, summary: i === 65 ? 'Relevant later action' : 'Sample', revision: 'live' }));
   const client = { list: async filters => ({ ...selectOperations(entries, filters), revision: 'live' }) };

@@ -14,7 +14,7 @@ Check each with `command -v`, in this order, since the clone needs `git` and Ope
 |---|---|
 | `git` | `git --version` answers |
 | `gh`, GitHub route only | `gh --version` answers |
-| Node.js | `node --version` is at least the major version in `<selected raw root>/.nvmrc`; an unreadable or invalid requirement stops setup |
+| Node.js | `node --version` is in the range `engines.node` gives in `<selected raw root>/app/package.json`, such as 24.15 or later on Node 24; an older one is missing. An unreadable or invalid range stops setup |
 | OpenSpec | `openspec --version` answers |
 
 Check [the helpers](#the-helpers-the-browser-and-the-link-tool) too, so the ask names them. Install each missing one of the four by the first route with **no password prompt**, which the agent's shell cannot answer. Never install a package manager.
@@ -23,7 +23,7 @@ Check [the helpers](#the-helpers-the-browser-and-the-link-tool) too, so the ask 
 |---|---|
 | macOS (`Darwin`) | `brew install git gh node` when `brew` is on `PATH`. Without it, `git` is `xcode-select --install`, Apple's own dialog the person clicks; the rest go to the user folder. |
 | Windows (`MINGW*`, `MSYS*`, `CYGWIN*`) | `winget install --id Git.Git`, `GitHub.cli`, or `OpenJS.NodeJS.LTS`, with `--accept-package-agreements --accept-source-agreements`. Windows shows its own consent window. |
-| Linux | `sudo -n apt-get install -y git gh` when `sudo -n true` succeeds. Node comes from `apt` only when `apt-cache policy nodejs` offers the required major; otherwise, and with no passwordless `sudo`, the user folder. |
+| Linux | `sudo -n apt-get install -y git gh` when `sudo -n true` succeeds. Node comes from `apt` only when `apt-cache policy nodejs` offers a version in the Node row's range; otherwise, and with no passwordless `sudo`, the user folder. |
 
 **The user folder** is `~/.local`, with `~/.local/bin` on `PATH`. Map `uname -m` to the archive names: `x86_64` is `x64` for Node and `amd64` for `gh`; `arm64` and `aarch64` are `arm64`.
 

@@ -1,0 +1,14 @@
+.DS_Store
+*.log
+node_modules/
+# Per-machine agent settings. `.claude` links to `.agents`, and git does not resolve a path through a link.
+.agents/settings.local.json
+
+# Real secrets: the committed templates are the .example files. Never commit filled-in values.
+.env*
+!.env.example
+.dev.vars*
+!.dev.vars.example
+
+# Agents' throwaway files.
+.scratch/

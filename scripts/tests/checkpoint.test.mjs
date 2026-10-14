@@ -435,6 +435,9 @@ test('an unreadable pull request and bad arguments stop early', t => {
     ['--message-file', f.message, '--summary-file', join(f.dir, 'notes', 'absent.md')], ['--wait', '--max-minutes', 'soon']]) {
     assert.equal(f.call(args).status, 2, args.join(' '));
   }
+  // A file the last save used up is named as such, so the agent writes a new one rather than hunting for it.
+  const gone = f.call(['--message-file', f.message, '--summary-file', join(f.dir, 'notes', 'absent.md')]);
+  assert.match(gone.stderr, /--summary-file: no such file \(a passing save deletes it; write a new one\)/);
 });
 
 const neverGitHub = (f, result) => {

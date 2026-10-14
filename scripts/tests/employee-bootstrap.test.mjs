@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync, rmSync, statSync, 
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
-import { companyClient, cleanEnvironment, connectionState, git, signInNotice } from '../employee-bootstrap.mjs';
+import { companyClient, cleanEnvironment, connectionState, git, installState, signInNotice } from '../employee-bootstrap.mjs';
 const origin = 'https://business.example.com';
 const identity = { email: 'employee@example.com', subject: 'employee-subject' };
 const jwt = (extra = {}) => `eyJhbGciOiJSUzI1NiJ9.${Buffer.from(JSON.stringify({ email: identity.email, sub: identity.subject, exp: Date.now() / 1000 + 1000, ...extra })).toString('base64url')}.c2ln`;
@@ -167,4 +167,31 @@ test('the sign-in line tells the assistant to show the link now, and leaves the 
   const lines = signInNotice(link).split('\n');
   assert.equal(lines.length, 2); assert.equal(lines[1], link);
   assert.match(lines[0], /^Show this link to the person now and wait/); assert.match(lines[0], /safe to show/);
+});
+test('the downloaded copy finds the sign-in setup saved, and a computer already signed in is named', async t => {
+  const f = directories(t), home = process.env.HOME; process.env.HOME = f.base; t.after(() => { process.env.HOME = home; });
+  const folder = join(f.base, 'project'), links = [];
+  // The download stands in for Git: it leaves the copy's record of its app, as a real copy holds it.
+  const copy = async ({ folder: dir }) => {
+    mkdirSync(join(dir, '.claude'), { recursive: true });
+    writeFileSync(join(dir, '.claude', '.wong-stack.json'), JSON.stringify({ components: { companyApi: { origin } } }));
+    return { project: 'installed', folder: dir };
+  };
+  const install = (stateDir, run = async () => jwt()) => companyClient({ ...f, stateDir, run, request: async () => Response.json({ ...setup(), code: 'ready' }) })
+    .install(origin, folder, copy);
+  const reused = await install(installState(origin));
+  assert.equal(reused.signIn, 'reused');
+  assert.match(reused.summary, /^Used this computer's existing sign-in as employee@example\.com\. .*Nothing else is needed\.$/);
+  assert.equal(companyClient({ root: folder, routesDir: f.routesDir, cacheDir: f.cacheDir }).target(), origin);
+  // Another company's sign-in from inside the copy never overwrites the one its git updates use.
+  await assert.rejects(companyClient({ root: folder, routesDir: f.routesDir, cacheDir: f.cacheDir, run: async () => jwt() }).login('https://other.example.com'),
+    /This copy belongs to .*--state/);
+  assert.equal(companyClient({ root: folder, routesDir: f.routesDir, cacheDir: f.cacheDir }).target(), origin);
+  // A sign-in kept where the copy's tools don't look is said plainly, never called done.
+  const shown = async (args, { onLoginUrl }) => { if (args[0] === 'login') onLoginUrl(`${origin}/cdn-cgi/access/cli?aud=public`); return jwt(); };
+  const elsewhere = await companyClient({ ...f, run: shown, onLoginUrl: link => links.push(link), request: async () => Response.json({ ...setup(), code: 'ready' }) })
+    .install(origin, folder, copy);
+  assert.equal(elsewhere.signIn, 'new'); assert.equal(links.length, 1);
+  assert.match(elsewhere.summary, /^Signed in as employee@example\.com\. .*The project's own tools can't find this sign-in yet\.$/);
+  assert.doesNotMatch(elsewhere.summary, /Nothing else is needed/);
 });

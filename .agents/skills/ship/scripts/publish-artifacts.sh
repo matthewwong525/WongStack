@@ -17,7 +17,7 @@
 #   main=SUCCESS|FAILURE|INTERRUPTED|UNKNOWN  how main's own check run ended;
 #               INTERRUPTED is a run Cloudflare cut off, which can be started again
 #   live=<address>   the address main's deploy reported, when it deployed
-#   branch=deleted|kept  synced=<path>|ref|skipped (<reason>)
+#   branch=deleted|kept  synced=<path>[ (switched from <branch>)]|ref|skipped (<reason>)
 #
 # Exit codes:
 #   0  published, and main's run passed
@@ -117,7 +117,15 @@ if [ -n "$MAIN_WT" ]; then
     say "synced=skipped ($MAIN_WT could not fast-forward)"
   fi
 elif git fetch origin main:main >/dev/null 2>&1; then
-  say "synced=ref"
+  # Work done straight in the project folder leaves it on main; a linked worktree keeps its own.
+  { read -r GIT_DIR_ABS; read -r COMMON_DIR_ABS; } < <(git rev-parse --path-format=absolute --git-dir --git-common-dir 2>/dev/null)
+  TOP=$(git rev-parse --show-toplevel 2>/dev/null)
+  if [ -n "${GIT_DIR_ABS:-}" ] && [ "$GIT_DIR_ABS" = "${COMMON_DIR_ABS:-}" ] && [ "$(git rev-parse --abbrev-ref HEAD)" = "$BRANCH" ] \
+    && STATUS=$(git status --porcelain 2>/dev/null) && [ -z "$STATUS" ] && git switch -q main >/dev/null 2>&1; then
+    say "synced=$TOP (switched from $BRANCH)"
+  else
+    say "synced=ref"
+  fi
 else
   say "synced=skipped (local main could not fast-forward)"
 fi

@@ -47,6 +47,7 @@ if (isMain(import.meta.url)) {
     else if (command === 'call') result = id?.startsWith('memory.') ? await callMemory(id, parseOperationInput(readFileSync(values.file === '-' ? 0 : values.file, 'utf8'))) : await client.call(id, parseOperationInput(readFileSync(values.file === '-' ? 0 : values.file, 'utf8')));
     else throw new Error(USAGE);
     if (!result) throw new Error('Unknown operation');
+    if (result.companyStatus?.startsWith('unavailable')) console.error(`Company actions are missing: not signed in. ${SIGN_IN_AGAIN}`);
     const packet = command === 'call' && ['memory.documents', 'memory.recall'].includes(id);
     console.log(JSON.stringify(result, null, packet ? undefined : 2));
     // A returned error is still printed, and ends as a failure a script can see.

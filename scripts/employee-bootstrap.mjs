@@ -196,9 +196,13 @@ export function connectionState(root = process.cwd(), routesDir = defaultRoutes(
 export function companyClient({ root = process.cwd(), stateDir, routesDir = defaultRoutes(), cacheDir = join(homedir(), '.cloudflared'),
   run = cloudflared, request = fetch, onLoginUrl = () => {}, onboarding = true } = {}) {
   let dir = stateDir || join(homedir(), '.local', 'state', 'wong-company', createHash('sha256').update(root).digest('hex'));
-  let file = join(dir, 'target.json');
+  let file = join(dir, 'target.json'), signIn;
+  // Setup saves the sign-in by origin, before this copy exists: the copy finds it through the origin it records.
+  function installed() {
+    try { const state = installState(record()); return readJson(join(state, 'target.json')).origin === companyOrigin(record()) ? state : undefined; } catch { return undefined; }
+  }
   function directory() {
-    if (!stateDir) dir = connectionState(root, routesDir) || dir;
+    if (!stateDir) dir = connectionState(root, routesDir) || installed() || dir;
     file = join(dir, 'target.json'); return dir;
   }
   const record = () => recorded(root);
@@ -212,8 +216,8 @@ export function companyClient({ root = process.cwd(), stateDir, routesDir = defa
   }
   async function token(origin, login = false) {
     safeCache(cacheDir, root);
-    // A person needs longer than a token read.
-    if (login) await run(['login', origin], { onLoginUrl, timeoutMs: 600000 });
+    // A person needs longer than a token read. No link shown means the computer's existing sign-in was used.
+    if (login) { signIn = 'reused'; await run(['login', origin], { onLoginUrl: link => { signIn = 'new'; onLoginUrl(link); }, timeoutMs: 600000 }); }
     return employeeToken(await run(['token', `-app=${origin}`], { onLoginUrl }));
   }
   /** The saved connection's session: the same person who connected, or nothing. */
@@ -249,6 +253,8 @@ export function companyClient({ root = process.cwd(), stateDir, routesDir = defa
   async function login(origin) {
     safeCache(directory(), root);
     const chosen = companyOrigin(origin || record());
+    // Setup's saved sign-in serves this copy's git updates too: another company never overwrites it.
+    if (!stateDir && dir === installed() && chosen !== companyOrigin(record())) throw new Error(`This copy belongs to ${companyOrigin(record())}; sign in to another company with --state <private directory>`);
     const credential = await token(chosen, true);
     let identity;
     if (onboarding) {
@@ -327,21 +333,26 @@ export function companyClient({ root = process.cwd(), stateDir, routesDir = defa
     const { connected } = await login(origin);
     const status = await setup();
     const titles = status.apps.map(app => status.titles?.[app] ?? app);
-    const report = { connected, signedInAs: status.identity.email, apps: status.apps, memory: await memory(connected), state: dir };
-    const done = result => ({ ...result, summary: summary(result, titles) });
+    const report = { connected, signedInAs: status.identity.email, signIn, apps: status.apps, memory: await memory(connected), state: dir };
+    const done = (result, found = true) => ({ ...result, summary: summary(result, titles, found) });
     if (await other(resolve(folder), `${connected}${CODE_PATH}`)) return done({ ...report, project: 'already on this computer; left as it is', folder: resolve(folder) });
     if (status.code !== 'ready') return done({ ...report, project: status.code === 'lacked' ? 'not included. Ask your admin for access to Connect your assistant.' : 'not handed out by this app; apps only' });
-    return done({ ...report, ...await code(folder, copy, self) });
+    const copied = await code(folder, copy, self);
+    return done({ ...report, ...copied }, finds(copied.folder));
+  }
+  /** Whether the project's own tools, run in `folder` with no option, reach the sign-in just saved. */
+  function finds(folder) {
+    try { return companyClient({ root: folder, routesDir, cacheDir }).stateDirectory === directory(); } catch { return false; }
   }
   return { login, list, describe, call, setup, code, install, target, git: projectGit, http, get stateDirectory() { return directory(); } };
 }
 /** Setup's last words, for the assistant to repeat: who, which apps, memory, the project, and what is left. */
-function summary({ signedInAs, memory, project, folder, applied }, titles) {
+function summary({ signedInAs, signIn, memory, project, folder, applied }, titles, found) {
   const current = folder && ['installed', 'up to date'].includes(project);
-  return [`Signed in as ${signedInAs}.`, titles.length ? `Apps that work: ${titles.join(', ')}.` : 'No apps yet: ask your admin.',
+  return [signIn === 'reused' ? `Used this computer's existing sign-in as ${signedInAs}.` : `Signed in as ${signedInAs}.`, titles.length ? `Apps that work: ${titles.join(', ')}.` : 'No apps yet: ask your admin.',
     memory === 'works' ? 'Memory works.' : 'Memory is not reachable yet; chats still work without it.',
     current ? `The project is in ${folder}, and new chats keep it up to date.` : `Project: ${project}${folder ? `, in ${folder}` : ''}.`,
-    applied === false ? 'Your changes were kept, so the update waits.' : 'Nothing else is needed.'].join(' ');
+    applied === false ? 'Your changes were kept, so the update waits.' : found ? 'Nothing else is needed.' : 'The project\'s own tools can\'t find this sign-in yet.'].join(' ');
 }
 const USAGE = 'employee-bootstrap.mjs [install] [--origin <HTTPS origin>] [--dir <folder>] | login --origin <HTTPS origin> | status | code --dir <folder> | list | describe <id> | call <id> --file <JSON file or -> [--state <private directory>]';
 /** `install` keeps one private directory per company, so a second run finds the first. */

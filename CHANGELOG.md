@@ -3,6 +3,19 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 43.1.0 — Smoother install and connect
+
+- **Setup puts the files in place in one ready-made step.** The assistant no longer writes its own copy step. One step copies everything, makes the folder links, the wiki's starting pages, the ignore rules and the install record, the same way on every install. If this computer refuses a folder link, it stops, leaves the folder as it found it, and says how to fix it.
+- **A new install's first save passes the loosened-checks check.** Nothing existed before the first change, so nothing could have been weakened: the check says so and passes, with no reason asked per settings file. Its quick run on your computer no longer crashes on brand-new files or the folder links.
+- **The first save already matches your project's settings.** Setup refreshes one generated file to fit your project, so it no longer shows up as a stray change when you publish.
+- **Publishing restarts a cut-off check run by itself.** When Cloudflare cuts off the main version's last check run, publishing starts it again once, waits, and carries on.
+- **After publishing, your folder is on the live version.** When you work straight in the project folder and nothing is unsaved, publishing moves it to `main`, the version that went live. A folder with unsaved work, or a separate workspace, stays as it is.
+- **A save explains a missing summary file.** A passing save deletes its summary file; reusing it now says so and asks for a new one.
+- **The project's own tools find your sign-in right after connect.** Before, they said *Connect first* until given a hidden folder path. Setup now checks this before it says nothing else is needed. Computers already connected are fixed by the update, with nothing to rerun.
+- **Connect says when it reused a sign-in, and whose.** On a computer that was already signed in, the report says *Used this computer's existing sign-in as <email>*, so a shared computer can't silently connect as someone else.
+- **Listing actions says when the company ones are missing.** When you're not signed in, the list still shows memory actions and now adds one plain line: company actions are missing, and how to sign in.
+- **Setup asks for a new enough Node.** The tool check now asks for the Node version the app's packages accept, such as 24.15 or later on Node 24, so installs stop printing engine warnings.
+
 ## 43.0.1 — Memory search stays fast on a big store
 
 - **A search runs its text match once, not once per stored fact.** The search fragment let SQLite look facts up one at a time and re-run the full-text match for each. On a store of about 2,850 facts one search took 12–14 seconds; D1 then hit its CPU limit, reset (code 7429), and failed other people's calls with it. The search now takes about 10 ms and finds the same top matches. The memory Worker still accepts the old fragment from a computer that has not updated yet.

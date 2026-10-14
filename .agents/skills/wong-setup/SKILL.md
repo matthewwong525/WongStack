@@ -38,16 +38,16 @@ Before writing, ask whether they have the Cloudflare user token, explaining its 
 
 Work in the target using source-checkout skills/references, starting with [`explore`](../explore/SKILL.md). Setup stays source-only.
 
-Run Step 1 of the source's [provisioning runbook](references/cloudflare.md). Run `openspec init --tools none` when needed, using the source config rules. Commit and push only after installation.
+Run Step 1 of the source's [provisioning runbook](references/cloudflare.md). Commit and push only after installation.
 
 Invoke `/explore` with this description, filled in, plus the user's intent:
 
-> Set up WongStack in <target> from <selected repository> at <source path>, version <version>, commit <commit>. Use a reachable owner login email separately from git authorship. Private pages and previews are automatic when the account allows them; ask no enable-or-public question. An account needing a card finishes open and recommends the card as optional. Install every category from the source inventory, following its folder, rules, hub, ignore, and fresh install-record guidance. If `paseo` is installed, run `node .claude/skills/schedule/scripts/presets.mjs add` in <target>; failure never stops setup. Run Steps 2–5 of <source path>/.agents/skills/wong-setup/references/cloudflare.md. Continue through the requested stage.
+> Set up WongStack in <target> from <selected repository> at <source path>, version <version>, commit <commit>. Use a reachable owner login email separately from git authorship. Private pages and previews are automatic when the account allows them; ask no enable-or-public question. An account needing a card finishes open and recommends the card as optional. Put the files in place as one task: node <source path>/.claude/skills/wong-setup/scripts/install.mjs --source <source path> --target <target> --repo <selected repository>; write no copy step of your own. If `paseo` is installed, run `node .claude/skills/schedule/scripts/presets.mjs add` in <target>; failure never stops setup. Run Steps 2–5 of <source path>/.agents/skills/wong-setup/references/cloudflare.md. Continue through the requested stage.
 
 Explore/plan/apply/save own questions/planning/installation/first deploy. Install all components without a component question; use [shared asks](../explore/references/asking-the-user.md).
 
 <a id="step-7--bootstrap-seed-hand-off"></a>
 
-[The payload inventory and install record](../wong-sync/references/payload-manifest.md) own the install details. Make [the agent folder](../wong-sync/references/payload-manifest.md#the-agent-folder) with `ln -s .agents .claude`, `ln -s .agents .codex`, and, after writing the rules to a real `AGENTS.md`, `ln -s AGENTS.md CLAUDE.md`. On Windows, prefix each with `MSYS=winsymlinks:nativestrict`, so a refused link fails instead of becoming a copy. Before continuing, check all three with `test -L` and verify the skills and rules are readable through them; any failure stops setup. Include `wiki/README.md`, `wiki/development/README.md`, and `.gitignore` rules for `.env*` and `.dev.vars*` with their `.example` exceptions, plus `.scratch/`.
+[`install.mjs`](scripts/install.mjs) copies every [payload](../wong-sync/references/payload-manifest.md) category, makes [the agent folder](../wong-sync/references/payload-manifest.md#the-agent-folder) and its links, the wiki hubs, the ignore rules, the install record and `openspec/`, and prints one JSON report. A stop exits 1 with its `cause` and leaves the folder as it found it; fix it by [the failure map](references/failure-map.md), then run it again.
 
 Evaluation stops in exploration. Installation continues through plan/apply/save without another interview or approval sequence. After first deploy, give [Step 5's report](references/cloudflare.md#step-5--the-closing-report), naming [preset](../schedule/scripts/presets.mjs) additions/keeps/skips or unavailable Paseo.
