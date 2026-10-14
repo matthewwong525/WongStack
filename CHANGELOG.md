@@ -12,6 +12,17 @@
 
 **Updating.** After the update, the check fails on any comment over two lines, or any comment line wider than 120 characters, in your app's code. Ask your assistant: *shorten the long comments in the app*. It cuts each one to two lines, turns any that stated a rule into a test, and lists what it removed. Nothing about how your app works changes.
 
+## 41.3.0 — One connect message for every assistant
+
+- **One short setup message, the same for everyone.** *Connect your assistant* no longer picks between a project message and an apps-only one, and the message carries no fingerprint and no rules about folders. Setup works out what the person is allowed when it runs.
+- **The assistant downloads the setup file from your own app**, at a fixed link: your app's address plus `/_memory/setup.mjs`. The link is the same for everyone and needs no sign-in. The file holds no key, and nothing works until the person signs in. [The setup file's fixed link](wiki/stack/employee-project.md#the-setup-files-fixed-link) has the details.
+- **Setup installs into the folder the chat is in**, not a fixed folder in your home. An empty folder gets the project; the read-only copy is updated; another copy of the project, such as one from GitHub, is left as it is; a folder with other files is left untouched and setup stops.
+- **The downloaded setup file removes itself when it finishes.** With no project to install, it keeps a copy beside the person's sign-in so their assistant can still call the apps.
+- **Signing in waits ten minutes**, up from two: a person needs longer than that to see the link and approve.
+- **No fingerprint to match at each release.** The record of a fixed address and fingerprint, `app/worker/employee-access/bootstrap-release.json`, is gone, so an app can no longer show *Ask your employer to finish the reviewed assistant setup*.
+
+**Updating.** Nothing needs doing by hand. A message copied earlier keeps working. The update removes `app/worker/employee-access/bootstrap-release.json` and adds the file that serves the setup link; your sign-in rules do not change. A preview's link asks for a sign-in, so people connect to the live app.
+
 ## 41.2.1 — A new install's first save passes
 
 - **A brand-new install can save its first change.** Setup stamped a new app with the day it was installed. The app's own checks run on a test engine that ships with WongStack, and that engine refuses a date more than a week newer than itself. So an install made more than a week after the engine was last updated failed its first save. Setup now gives a new app the date WongStack itself is tested on, on any day, wherever the project is kept.

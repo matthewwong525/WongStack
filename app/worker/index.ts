@@ -8,7 +8,9 @@ import { APP_API, handleApp } from "./apps/index.ts";
 import { getAccessIdentity, type AccessEnv, type AccessIdentity } from "./access.ts";
 import type { ConnectionEnv } from "./employee-access/core.ts";
 import { appPageDenied } from "./employee-access/apps.ts";
+import { SETUP_PATH } from "./employee-access/prompt.ts";
 import { handleAccess } from "./employee-access/router.ts";
+import { setupFile } from "./employee-access/setup-file.ts";
 
 async function labelMemoryLogin(env: Env, link: string, identity: AccessIdentity | null, open: boolean): Promise<void> {
   if (!open && env.MEMORY_DB && identity?.kind === "user") {
@@ -19,6 +21,12 @@ async function labelMemoryLogin(env: Env, link: string, identity: AccessIdentity
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+
+    // The setup file Connect your assistant names: public, no key in it. It sits under the memory prefix, the one
+    // opening every install's sign-in wall already has: wiki/stack/employee-project.md
+    if (url.pathname === SETUP_PATH) {
+      return setupFile(request);
+    }
 
     // Session memory, served by the memory skill from production's MEMORY_DB and MEMORY_BUCKET; staging binds
     // neither and answers 404. A memory key authenticates each call: wiki/development/memory.md.
@@ -56,7 +64,7 @@ export default {
     }
 
     // A preview check's kept pictures, served from the verify skill. The route gets the memory bucket alone and
-    // reaches only its walks/ folder. wiki/development/staging-walkthrough.md
+    // reaches only its walks/ folder: wiki/development/staging-walkthrough.md
     if (url.pathname.startsWith(WALK_PREFIX)) {
       return handleWalkPictures(request, env.MEMORY_BUCKET, identity);
     }

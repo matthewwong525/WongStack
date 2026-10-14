@@ -1,9 +1,9 @@
-// Each person's own setup: the prompt that installs the project for someone who holds Project code, the
-// apps-only prompt while the install can not hand the project out, and no prompt for someone who lacks it.
+// Each person's own setup: the one setup message for everyone who may connect, and none for someone who lacks
+// Project code. Setup itself decides what a person receives when it runs.
 import type { AccessIdentity } from "../access.ts";
 import { type ConnectionEnv, reply } from "./core.ts";
 import { codeState } from "./code.ts";
-import { setupPrompt } from "./prompt.ts";
+import { setupMessage } from "./prompt.ts";
 import { appTitle } from "./catalogue.ts";
 import { businessApps } from "./sets.ts";
 import { currentPolicy, humanEmail, policyDenied } from "./policy.ts";
@@ -21,9 +21,9 @@ export async function setupStatus(request: Request, env: ConnectionEnv, identity
   return reply({ identity: { email, subject: identity!.claims.sub },
     role: policy.state === "legacy" ? "employee" : policy.role,
     permissions: policy.state === "current" ? "started" : "not_started",
-    // Each app's title travels with its id, so the prompt names apps as Home does.
+    // Each app's title travels with its id, so the popup names apps as Home does.
     apps, titles: Object.fromEntries(apps.map(app => [app, appTitle(app)])),
     code, prompt: code === "lacked" ? { state: "unavailable", message: "Ask your admin for access to Connect your assistant." }
-      : setupPrompt(origin, undefined, code === "ready"), api: "authenticated",
+      : { state: "ready", text: setupMessage(origin) }, api: "authenticated",
     repository: "manual_provider_setup", memory: "independent_operator_setup" });
 }

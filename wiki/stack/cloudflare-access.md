@@ -77,6 +77,8 @@ New applications and human policies default to `720h` (30 days). This is the app
 
 Only production `/_memory/*` has a public destination override, on the production Worker and its default-hostname anchor. It remains protected by the memory route’s own machine credential. Repository authorization is its policy; the repo secret proves it to the store. Staging binds no production memory and gets no public override. A destination override lets a request reach the Worker; it never disables the memory key check.
 
+One address under it is not memory: `/_memory/setup.mjs`, [the setup file](employee-project.md#the-setup-files-fixed-link) *Connect your assistant* names. It answers anyone, holds no key, and reads no store. It sits there so no install needs a second override: the publish check matches the destinations exactly.
+
 Other public paths need their own reviewed design. A blanket bypass, account-wide wildcard, or permissive human selector fails the deployment check.
 
 ### 5. Create the service token (do it now)

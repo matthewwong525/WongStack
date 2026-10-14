@@ -40,7 +40,8 @@ test('explicit distribution retains Access, additive schema and a standalone API
   // Both code checks close the app's suite: an unlisted key, and a skill reading a key or calling an undeclared action.
   assert.match(JSON.parse(read('app/package.json')).scripts.test, /check-app-keys\.mjs && node \.\.\/scripts\/check-skill-actions\.mjs$/);
   assert.ok(inventory.scaffold.files.includes('app/src/apps/access/App.tsx'));
-  assert.ok(inventory.scaffold.files.includes('app/worker/employee-access/bootstrap-release.json'));
+  // The setup file the app serves ships beside its route, and the retired pins do not.
+  for (const path of ['app/worker/employee-access/setup-file.ts', 'app/worker/employee-access/setup-file.test.ts']) assert.ok(inventory.scaffold.files.includes(path));
   assert.ok(!inventory.scaffold.exclude.includes('app/src/apps/access'));
   assert.ok(!JSON.parse(read('app/package.json')).dependencies.yaml);
   for (const path of ['.env.example', 'app/.dev.vars.example']) assert.ok(!read(path).includes('WONG_GITHUB_PUBLICATION'));

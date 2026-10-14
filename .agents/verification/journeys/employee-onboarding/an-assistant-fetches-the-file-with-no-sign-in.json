@@ -1,0 +1,36 @@
+{
+  "format": "verify-journey-1",
+  "id": "an-assistant-fetches-the-file-with-no-sign-in",
+  "scenario": {
+    "capability": "employee-onboarding",
+    "requirement": "The app serves the setup file at a fixed public link",
+    "scenario": "An assistant fetches the file with no sign-in"
+  },
+  "thenDigest": "9763dd4db33f22164ad606af081683e39ffe02dd5fe47247e1972346703b7a83",
+  "probe": "request",
+  "writes": false,
+  "sourcePaths": [
+    ".agents/skills/wong-sync/references/payload-files.json",
+    "app/src/components/AssistantSetup.tsx",
+    "app/worker/employee-access/prompt.ts",
+    "app/worker/employee-access/setup-file.ts",
+    "app/worker/employee-access/setup.ts",
+    "app/worker/index.ts",
+    "scripts/employee-bootstrap.mjs",
+    "scripts/retired-names.json"
+  ],
+  "recordedAt": "63180280352f1413c2f6c971ce4c05235ef18601",
+  "steps": [
+    [
+      "GET",
+      "/_memory/setup.mjs"
+    ]
+  ],
+  "expect": [
+    {
+      "step": 1,
+      "status": 200,
+      "includes": "const SERVED_FROM = \"https://"
+    }
+  ]
+}

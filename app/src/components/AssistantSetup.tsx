@@ -6,8 +6,8 @@ import { CopyText } from './CopyText'
 
 const STEP = 'font-semibold'
 
-// The three steps, numbered by the list itself: copy, paste, approve. Then what to ask once it works and what the
-// connection reaches. While the app can not hand the project out, the last line says code and memory are separate.
+// The three steps, numbered by the list itself: copy, paste, approve; then what to ask and what the connection reaches.
+// While the app can not hand the project out, the closing line says code and memory are set up separately.
 function Steps({ text, email, apps, titles, code }: { text: string; email: string; apps: string[]; titles: Record<string, string>; code: Code }) {
   return <>
     <ol className="grid list-decimal gap-4 ps-6 marker:font-semibold">
@@ -22,7 +22,7 @@ function Steps({ text, email, apps, titles, code }: { text: string; email: strin
   </>
 }
 
-// The body of the Connect your assistant popup: the one place the steps are. The message holds no keys. With nothing
+// The body of the Connect your assistant popup, the one place the steps are. The message holds no keys. With nothing
 // to copy it says what the app answered. One column that can shrink keeps the long message inside the popup.
 export function AssistantSetup() {
   const { data, error, reload } = useAccess('setup', setupSchema)
