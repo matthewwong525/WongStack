@@ -1,7 +1,7 @@
 # One connect message for every assistant
 
 **Status:** ready-to-ship
-**Branch:** flying-mole
+**Branch:** auto-fetch-connect-github
 **Open questions:** none
 
 ## Why
@@ -91,3 +91,4 @@ None.
 - **2026-10-14** — Assumed: signing in waits ten minutes, up from two, because the first real try timed out before the owner could tap the link. Said to the owner before publishing; not objected to.
 - **2026-10-14** — Archived for publishing: every task is ticked; the no-sign-in fetch from the live app is checked right after it goes live.
 - **2026-10-14** — Archive checkpoint: the check before publishing passed on the preview and kept two checks for later publishes, *The steps can't load* and the setup file at its fixed link; the popup's message stays a check by a signed-in person, because the checker's machine sign-in is refused it by design.
+- **2026-10-14** — Archive checkpoint: the main project gained *Teammates save changes through the app* while this waited, so it was brought in and both kept. This change takes the next number, and the header now names the branch it was built on.

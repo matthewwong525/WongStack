@@ -4,7 +4,6 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync, rmSync, statSync, 
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
 import { companyClient, cleanEnvironment, connectionState, git, signInNotice } from '../employee-bootstrap.mjs';
 const origin = 'https://business.example.com';
 const identity = { email: 'employee@example.com', subject: 'employee-subject' };
