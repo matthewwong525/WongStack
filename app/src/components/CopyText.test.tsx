@@ -4,9 +4,8 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { ConnectDialog } from './ConnectDialog'
 import { CopyText } from './CopyText'
 
-// The setup message is one long line. The text area part grows to fit what it holds unless it is told to keep its
-// size, and a grid or flex child is as wide as its longest word unless it may shrink. These classes are what keep
-// the message inside its box, on the page and in the popup.
+// The setup message is one long line. The text area grows to fit unless told to keep its size, and a grid or flex
+// child is as wide as its longest word unless it may shrink: these classes keep the message inside its box.
 const setup = { role: 'employee', api: 'authenticated', identity: { email: 'person@example.com', subject: 'person' }, apps: ['hello'],
   repository: 'manual_provider_setup', memory: 'independent_operator_setup', prompt: { state: 'ready', text: 'word'.repeat(200) } }
 beforeEach(() => {

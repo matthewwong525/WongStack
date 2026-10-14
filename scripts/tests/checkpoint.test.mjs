@@ -79,10 +79,8 @@ if (line.startsWith('run view')) {
 fail('unexpected gh call: ' + line, 97);
 `;
 
-// On an Artifacts install the scripts call `node` by name for two things. delivery-route.mjs runs
-// for real, over the fake git's origin and the committed install record. artifacts-run.mjs is
-// stood in for: `wait` prints $FAKE_DIR/run.txt, as the check run's reader would, and `preview`
-// prints $FAKE_DIR/preview.txt. Every other script, the fake gh included, runs on the real node.
+// An Artifacts install's scripts call `node` by name: delivery-route.mjs runs for real; artifacts-run.mjs is stood in
+// for (`wait` prints $FAKE_DIR/run.txt, `preview` prints $FAKE_DIR/preview.txt). Other scripts run on the real node.
 const FAKE_NODE = `#!/usr/bin/env bash
 case "\${1:-}" in
   */artifacts-run.mjs)
@@ -413,9 +411,6 @@ test('an unreadable pull request and bad arguments stop early', t => {
     assert.equal(f.call(args).status, 2, args.join(' '));
   }
 });
-
-// ---------------------------------------------------------------------------
-// The Artifacts route: the same command, with no GitHub to ask
 
 const neverGitHub = (f, result) => {
   assert.doesNotMatch(f.calls(), /^gh /m, 'gh is never asked on an Artifacts install');

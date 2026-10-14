@@ -1,19 +1,5 @@
-// The key page's script (see hand-over.mjs `open --keys` and keys.mjs). It lists the keys the agent
-// asked for from `GET /keys`, one hidden box each, and says when a key would replace one saved now. A
-// key with a guide shows its plain title, an *Open …* link to the service's key page in a new tab with
-// its host, and numbered steps, every string set as text; without one it shows its code name and hint.
-// A lone guided key's title heads the page. The time left counts down in whole minutes to `closesAt`,
-// on the watcher's clock, and the page closes at the limit.
-//
-// *Paste* fills a box from the clipboard where the browser offers that; a refusal says to paste by hand.
-// Text over several lines, pasted or picked as a file the device reads itself, is held in memory and
-// shown only as a name and a line count; a file over 16 KB is refused before anything is sent.
-//
-// Save and continue posts filled boxes to `/continue`; partial successes are cleared and locked, with
-// missing/failed rows left editable. A saved key says *Works* or *Saved, not tested*. A key its test
-// refused stays in its box with the test's host and *Save anyway*, which sends it again under `force`.
-// The completion receipt names the notification outcome. Close without continuing cancels through
-// `/done`. `filledKeys`, `timeLeft`, `heldLabel`, and `httpsHost` are exported for tests.
+// The key page's script (see hand-over.mjs `open --keys` and keys.mjs): one hidden box per key `GET /keys` lists.
+// Text over several lines is held out of sight, as a name and a line count; every guide string is set as text.
 
 const MESSAGES = {
   empty: 'Paste a key first.',

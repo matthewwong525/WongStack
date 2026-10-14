@@ -33,7 +33,7 @@ function tree(dir, files) {
 }
 
 // A home folder of its own and fake tools this process's own calls find, as hand-over.mjs's do.
-// `set` and `unset` write the fakes' control files (fake-view-tools.mjs lists them).
+// `set` and `unset` write the fakes' control files (fake-view-tools.mjs reads them).
 function setup(t) {
   const home = mkdtempSync(join(tmpdir(), 'wong-test-view-'));
   const control = join(home, 'control');
@@ -48,9 +48,6 @@ function setup(t) {
     unset: name => rmSync(join(control, name), { force: true }),
   };
 }
-
-// ---------------------------------------------------------------------------
-// What a view needs
 
 test('checkView says unsupported off Linux, and names each missing tool', t => {
   const f = setup(t);
@@ -79,9 +76,6 @@ test('findTool takes the file a test names, else the first on PATH', t => {
   writeFileSync(join(f.home, 'plain'), 'not a program');
   assert.equal(findTool('x11vnc', { HANDOVER_X11VNC_BIN: join(f.home, 'plain') }), null, 'a file that can not run is no tool');
 });
-
-// ---------------------------------------------------------------------------
-// The install
 
 const RELEASE = {
   'core/rfb.js': 'export default class RFB {}\n',
@@ -216,9 +210,6 @@ test('install: an apt-get that fails, or installs nothing, is an error', async t
   await assert.rejects(installView({ platform: 'linux', env, home: f.home, uid: 0, viewer }), /still missing after the install: x11vnc, xdotool/);
 });
 
-// ---------------------------------------------------------------------------
-// The screen and its source
-
 /** A pretend /proc: each process as `pid: {name, parent, env, fds}`, and the kernel's socket tables. */
 function procTree(t, processes, tables = {}) {
   const proc = mkdtempSync(join(tmpdir(), 'wong-test-view-proc-'));
@@ -333,9 +324,6 @@ test('a screen source that holds a network port is stopped and fails the start; 
   assert.ok(!existsSync(absent));
   assert.equal(f.tools.calls('x11vnc').length, 2, 'a missing tool runs nothing in its place');
 });
-
-// ---------------------------------------------------------------------------
-// Fit, front, and restore
 
 /** A process that stands in for a running screen source, and a folder for it. */
 function standIn(t, f) {
@@ -467,9 +455,6 @@ test('a page that can not be resized still has its source stopped; a source with
   await assert.rejects(live.revive(), /the browser has no screen to show/);
   assert.equal(f.tools.calls('x11vnc').length, 0);
 });
-
-// ---------------------------------------------------------------------------
-// The page's routes
 
 test('viewerFile gives only a script under the viewer\'s core/ or vendor/ folder', t => {
   const f = setup(t);

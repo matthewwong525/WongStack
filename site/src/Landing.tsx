@@ -69,7 +69,7 @@ const FAQ: [string, ReactNode][] = [
   ],
 ];
 
-/** "Install for free", which scrolls to the install steps, and the code a quiet link away: the hero and the closing call to action share them. */
+/** "Install for free" and a quiet link to the code: the hero and the closing call to action share them. */
 function Actions() {
   return (
     <p className="actions">

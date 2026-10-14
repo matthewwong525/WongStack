@@ -1,11 +1,5 @@
-// The password page's script (see hand-over.mjs `open --passwords` and passwords.mjs). One screen
-// holds one list: a CSV password export, dropped anywhere on the page or picked, is read on this
-// device and joins the list with none ticked; a login typed or filled into the form joins it ticked.
-// Save and continue sends selected logins and a filled form to `POST /continue`; the file
-// stays local. Close without continuing posts `/done` and cancels without readiness. A `site` and `user`
-// in the link's fragment, beside `key`, pre-fill the form, title the page for that site, move the form
-// above the export box, and focus the first empty box. The pure `parseExport` and `siteUrl` are exported for the tests; the rest runs only
-// in a browser.
+// The password page's script (see hand-over.mjs `open --passwords` and passwords.mjs). A CSV export is read on
+// this device and stays local. The pure `parseExport` and `siteUrl` are exported for the tests.
 
 const SITE = ['url', 'login_uri', 'website', 'web site'];
 const USER = ['username', 'login_username', 'login', 'email', 'user name'];
@@ -58,12 +52,8 @@ function hostOf(url) {
   }
 }
 
-/**
- * A password manager's CSV export as `{url, host, username, password, label}` logins, sorted by host,
- * one per host and username; null when it has no site or password column. Rows with no username or
- * password, whose site isn't http(s), such as `android://`, or that the server would refuse are
- * skipped; other columns, such as notes and one-time code secrets, are dropped.
- */
+/** A password manager's CSV export as logins, sorted by host, one per host and username; null when it has no
+ * site or password column. Rows the server would refuse are skipped; notes and one-time code secrets are dropped. */
 export function parseExport(text) {
   const [header, ...rows] = parseCsv(String(text ?? '').replace(/^\uFEFF/, ''));
   const names = (header ?? []).map(name => name.trim().toLowerCase());

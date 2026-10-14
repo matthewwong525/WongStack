@@ -1,98 +1,6 @@
 #!/usr/bin/env node
 // Opens a private link that closes itself: a private form, the password link, the key link, or a live view.
-//
-//     node .claude/skills/hand-over/scripts/hand-over.mjs open --form <file> (--until <glob> | --until-gone <selector>) [--session <name>] [--minutes N]
-//     node .claude/skills/hand-over/scripts/hand-over.mjs open --view (--until <glob> | --until-gone <selector>) [--session <name>] [--note <line>] [--minutes N]
-//     node .claude/skills/hand-over/scripts/hand-over.mjs open --passwords [--site <url>] [--username <user>] [--minutes N]
-//     node .claude/skills/hand-over/scripts/hand-over.mjs open --keys NAME[,NAME] [--guide <file>] [--minutes N]
-//     node .claude/skills/hand-over/scripts/hand-over.mjs wait
-//     node .claude/skills/hand-over/scripts/hand-over.mjs close
-//     node .claude/skills/hand-over/scripts/hand-over.mjs install-view
-//
-// `open` picks a free loopback port and a random key, starts a Cloudflare quick tunnel to that port,
-// and spawns a detached watcher that serves the link's page there. It then asks the tunnel's public
-// address for the page until it answers, so a first tap never lands on Cloudflare's error page, and
-// only then prints `HANDOVER_LINK=<origin>/#key=<hex>` and exits. A tunnel that never registers and an
-// address that never answers fail the same way, within 30 seconds. Every link goes through the tunnel:
-// there is no loopback link. Each route needs the key in an `x-hand-over-key` header, logs nothing, and
-// answers 410 once the link is ending. On the finish, the deadline, `close`, or a signal the watcher
-// stops taking input, writes `result.json` with no address or key in it, tells the workspace that opened
-// the link when the result is ready, and kills the tunnel. `wait` blocks for that result and prints
-// `HANDOVER_RESULT=done|not-accepted|timeout|closed|error`.
-//
-// `open --form <file>` opens a private form for values the agent must never see, such as card details.
-// form.mjs checks the file before any tunnel: a bad one exits 2 with `FORM_FILE=<where>: <reason>`. The
-// form rides in the state file; it names the site's fields and button, never a value. The form works
-// on the page open in the opener's browser session: browse.mjs's own default, the checkout's folder
-// name, or `--session`. `open` refuses when that session has no page, or the page already meets the
-// finish, since the form could not then tell sent from not accepted. The watcher serves form-page.html
-// and .mjs and mounts form.mjs's keyed `GET /form`, `POST /send`, and `POST /done`. Until the person's
-// one send it sends the browser nothing that types, presses, navigates, or reads: only the keep-alive
-// below. form.mjs then fills the site's fields through browse.mjs's
-// client, which starts no browser and retries no step, and presses the site's button once. The watcher
-// polls for up to 60 seconds, reading only the page's address (matched against `--until`: `**` any
-// run, `*` no `/`) and a count of `--until-gone`'s selector (0 meets it); both given means both must
-// hold. Reached is `done`. Otherwise form.mjs empties the text boxes it typed into and the result is
-// `not-accepted`, which never announces readiness. A send under way outlasts the deadline and `close`.
-//
-// `open --view` opens a live view of the page open in the opener's browser session, for a check that
-// asks whether a person is there: the person sees the browser and taps through it. view.mjs owns its
-// parts. Before anything else, off Linux it prints `HANDOVER_VIEW=unsupported` (exit 1), and with a
-// tool missing `HANDOVER_NEEDS=live-view` (exit 3) and a line per tool. `install-view` adds them and
-// prints `HANDOVER_INSTALLED=live-view`, or `HANDOVER_INSTALL=manual` and the one command for the
-// person (exit 1), with nothing installed. `open` then refuses as a form does when the session has no
-// page or the page already meets the finish, and prints `HANDOVER_VIEW=unsupported` when the browser
-// has no screen. Before any tunnel it reads the page's size once, to put back, and starts the screen
-// source on a private socket. `--note` is the one line the page shows; it rides in the state file. The
-// watcher fits the page, serves view-page.html and .mjs, mounts view.mjs's keyed `GET /view`, `POST
-// /fit`, and `POST /done`, serves the pinned viewer's scripts unkeyed under `/novnc/`, and bridges the
-// screen at `/screen` (lib/ws-bridge.mjs), where the key is the WebSocket subprotocol. Every poll it
-// restarts a screen source that exited, reads the finish as a form's send does, and raises the page's
-// window. It sends the browser no click, key, address, snapshot, or picture: what the person does
-// travels through the screen alone. Met is `done`; the page's button or `close` is `closed`; a source
-// that can not restart is `error`. Every end sets the page's size back, stops the source, and removes
-// its folder, also for a watcher that died.
-//
-// While a private form or a live view is open, the watcher makes one call a minute that camofox counts
-// as use: camofox closes a page left alone for 5 minutes, and the person's own taps do not count. A
-// form evaluates a constant, which reads and changes nothing, and stops at the send; a view sets its
-// fit again.
-//
-// `open --passwords` opens the password link on the same key, tunnel, lock, and deadline, and touches
-// no browser page. It serves passwords-page.html and .mjs and mounts passwords.mjs's keyed `POST /save`
-// and `POST /done`; it ends on `/done`, `close`, or the deadline. `result.json` then also holds `saved`,
-// the names the logins saved under, and `wait` prints `HANDOVER_SAVED=<name>,<name>` after the result: never a
-// host, username, or password. `--site` (an http(s) URL or a bare host) and `--username` pre-fill the
-// page's add-a-login form: they ride only in the printed link's fragment,
-// `#key=<hex>&site=<url>&user=<username>`, URL-encoded, which a browser never sends, so they reach no
-// server, log, or file.
-//
-// `open --keys NAME[,NAME]` opens the key link the same way, also touching no browser page. Before any
-// tunnel, keys.mjs resolves each name against the example files: one declared in neither exits 2 with
-// `KEYS_UNDECLARED=<name>,<name>`, one in both with `KEYS_AMBIGUOUS=`, and a destination not git-ignored
-// exits 1. `--guide <file>` names a JSON file of each key's plain title, key-page address, steps, and
-// test, which keys.mjs checks there too: a bad one exits 2 with `KEYS_GUIDE=<name>: <reason>`. The
-// guide rides in the state file. It serves keys-page.html and .mjs and mounts keys.mjs's keyed
-// `GET /keys`, `POST /save`, and `POST /done`; it ends on `/done`, on the save that leaves no asked-for
-// key unsaved, `close`, or the deadline. `wait` prints `HANDOVER_SAVED=` the key names saved, then
-// `HANDOVER_APP_KEYS=` those that went to app/.dev.vars, which the agent then loads with
-// `npm run secrets:push`: never a value. Then `HANDOVER_OPENED=yes|no`: whether anyone opened the page.
-//
-// Every link's `--minutes` defaults to 480 (eight hours); each deadline starts at `open`. The
-// first keyed `GET /keys` writes an `opened` marker. Until then a key link gives way: a new `open`
-// writes `replaced.json`, the old link's completion identity and the new opener's folder name, signals
-// the old watcher, which ends as `closed`, and takes its place. The first link's `wait` prints
-// `HANDOVER_RESULT=closed` with no saved names, then `HANDOVER_REPLACED_BY=<folder>`, the workspace
-// whose link took its place; no other link's `wait` reads that record as its own. An opened key link,
-// a private form, a password link, or a live view refuses a second `open`.
-//
-// State lives in ~/.wong-stack/hand-over/; one link at a time. Exit codes: 0 ok · 1 failed or a
-// link is already open · 2 usage · 3 `cloudflared` is missing (prints HANDOVER_NEEDS=cloudflared), or
-// a live view's tools are (HANDOVER_NEEDS=live-view). Node built-ins only. For tests: HANDOVER_POLL_MS
-// overrides the 2-second poll, HANDOVER_SEND_WAIT_MS the 60-second wait after a send,
-// HANDOVER_KEEPALIVE_MS the minute between keep-alives, HANDOVER_TUNNEL_WAIT_MS the 30-second tunnel
-// wait, and HANDOVER_PROBE_ORIGIN the address asked before the link prints, `{port}` standing for the
-// page's port.
+// One link at a time, state in ~/.wong-stack/hand-over/. Exit codes: 0 ok · 1 failed · 2 usage · 3 a tool is missing.
 
 import { spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
@@ -159,10 +67,8 @@ const SEND_WAIT_MS = Number(process.env.HANDOVER_SEND_WAIT_MS) || 60_000;
 const KEEP_MS = Number(process.env.HANDOVER_KEEPALIVE_MS) || 60_000;
 const DIR = join(homedir(), '.wong-stack', 'hand-over');
 const FILES = { pid: join(DIR, 'watcher.pid'), state: join(DIR, 'state.json'), result: join(DIR, 'result.json'), log: join(DIR, 'tunnel.log'), config: join(DIR, 'cloudflared.yml'), opened: join(DIR, 'opened'), replaced: join(DIR, 'replaced.json') };
-/**
- * Removes a link's own files, the pid last: `wait` reads its absence as the end. Its result stays, and
- * so does the give-way record, which `wait` may read after this.
- */
+/** Removes a link's own files, the pid last: `wait` reads its absence as the end. Its result stays, and
+ * so does the give-way record, which `wait` may read after this. */
 const clearLink = () => { for (const file of [FILES.state, FILES.log, FILES.config, FILES.opened, FILES.pid]) rmSync(file, { force: true }); };
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SCRIPT = 'text/javascript; charset=utf-8';
@@ -179,9 +85,6 @@ const MET = {
 };
 const sleep = ms => new Promise(done => setTimeout(done, ms));
 
-// ---------------------------------------------------------------------------
-// Pure helpers
-
 /** A URL glob as a whole-string RegExp: `**` any run, `*` anything but `/`. */
 export function globToRegExp(glob) {
   const body = glob.split('**').map(part => part.split('*').map(text => text.replace(/[.+?^${}()|[\]\\]/g, '\\$&')).join('[^/]*')).join('.*');
@@ -196,24 +99,19 @@ export function finished({ until, untilGone }, { url, count }) {
   return true;
 }
 
-// ---------------------------------------------------------------------------
-// Files and processes
-
 const readJson = file => { try { return JSON.parse(readFileSync(file, 'utf8')); } catch { return null; } };
 const readText = file => { try { return readFileSync(file, 'utf8'); } catch { return ''; } };
 
 const watcherPid = () => Number(readText(FILES.pid).trim()) || null;
 
-/** The browser client for a link's session: it starts no browser and retries no step, so nothing is typed or pressed twice. */
+/** A link's browser client: it starts no browser and retries no step, so nothing is typed or pressed twice. */
 const pageOf = session => browseClient(session, { retry: false, start: false });
 
 /** The link's mode from its state: the password link, the key link, a live view, or a private form. */
 const modeOf = ({ passwords, keys, view } = {}) => (passwords ? 'passwords' : keys ? 'keys' : view ? 'view' : 'form');
 
-/**
- * Ends a link whose watcher can not: puts a view's page back and stops its screen source, kills the
- * tunnel, records the result, and clears the rest. The watcher closes its page first.
- */
+/** Ends a link whose watcher can not: puts a view's page back and stops its screen source, kills the
+ * tunnel, records the result, and clears the rest. The watcher closes its page first. */
 async function teardown(result, { tunnelPid, view, session } = {}) {
   if (view) await endView(view, pageOf(session));
   await killTunnel(tunnelPid);
@@ -237,21 +135,14 @@ async function recoverStale(result) {
   await teardown(result, readJson(FILES.state) ?? {});
 }
 
-// ---------------------------------------------------------------------------
-// The link's page
-
 /** Ends a route with a JSON reply, or an empty one. */
 function reply(response, status, body) {
   const text = body ? JSON.stringify(body) : '';
   response.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store', 'content-length': Buffer.byteLength(text) }).end(text);
 }
 
-/**
- * Serves the link's page on 127.0.0.1:`port` and mounts its mode's routes, passing `hooks` to them.
- * Each route needs the key in an `x-hand-over-key` header; a key link's, a form's, and a view's page
- * also hear `deadline`. A view's page gets the pinned viewer's scripts with no key, since an `import`
- * carries none, and its screen at `/screen`, keyed by the WebSocket subprotocol. Resolves to a close().
- */
+/** Serves the link's page on 127.0.0.1:`port`; each route needs the key in an `x-hand-over-key` header.
+ * A view's viewer scripts go unkeyed, since an `import` carries no header. Resolves to a close(). */
 export function servePage({ port, key, passwords = false, keys = null, form = null, view = null, deadline }, hooks = {}) {
   const sockets = new Set();
   let finishing = false;
@@ -320,13 +211,8 @@ async function pageAnswers(port, pid) {
   return false;
 }
 
-// ---------------------------------------------------------------------------
-// Subcommands
-
-/**
- * What a finish is judged by: the page's address and the named element's count, each read only when
- * named. An address that can not be read is null, and a count NaN.
- */
+/** What a finish is judged by: the page's address and the named element's count, each read only when
+ * named. An address that can not be read is null, and a count NaN. */
 async function seen(page, { until, untilGone }) {
   return {
     ...(until && { url: await page.url().catch(() => null) }),
@@ -362,11 +248,8 @@ function readGuide(file, names) {
   return null;
 }
 
-/**
- * The key link's config, `{root, primary, linked, gitDir, keys}`, each key with its guide entry, or an
- * exit code once it has said why not: 2 for a name declared in neither example file or in both, or a
- * bad guide; 1 for a destination not git-ignored.
- */
+/** The key link's config, each key with its guide entry, or an exit code once it has said why not:
+ * 2 for a name declared in neither example file or in both, or a bad guide; 1 for a destination not git-ignored. */
 function keyConfig(names, guideFile) {
   let ctx;
   try {
@@ -392,10 +275,8 @@ function keyConfig(names, guideFile) {
   return { root, primary, linked, gitDir, keys: keys.map(key => ({ ...key, ...(guide[key.name] && { guide: guide[key.name] }) })) };
 }
 
-/**
- * True once the live link has closed for a new one: only a key link nobody has opened gives way. It
- * first records whose place this opener's folder took, for the old link's `wait`.
- */
+/** True once the live link has closed for a new one: only a key link nobody has opened gives way. It
+ * first records whose place this opener's folder took, for the old link's `wait`. */
 async function givesWay(pid) {
   const state = readJson(FILES.state) ?? {};
   if (modeOf(state) !== 'keys' || existsSync(FILES.opened)) return false;
@@ -405,7 +286,7 @@ async function givesWay(pid) {
   return !alive(pid);
 }
 
-/** Why a form or a view can not open on the session's page, or null: no page to read, or a finish it already meets, said as `met`. */
+/** Why a form or a view can not open on the session's page, or null: no page, or a finish already met (`met`). */
 async function pageFault(session, finish, met) {
   const now = await seen(pageOf(session), finish);
   if (now.url === null || Number.isNaN(now.count)) return 'No page is open in this browser session; open the site\'s page with browse.mjs first, or name its --session.';
@@ -430,11 +311,8 @@ function viewRefusal() {
   return 3;
 }
 
-/**
- * A view's state for the session's page: its note, the page's size to put back, the browser's screen,
- * and the screen source, started. Null, once it has said so, when the browser has no screen. Throws
- * when the source does not start.
- */
+/** A view's state for the session's page, its screen source started. Null, once it has said so, when the
+ * browser has no screen. Throws when the source does not start. */
 async function openView(session, note) {
   const display = screenOf();
   if (!display) return void unsupported('The browser has no screen to show.');
@@ -526,10 +404,8 @@ export function linkFragment(key, { site, username } = {}) {
   return new URLSearchParams({ key, ...(site && { site: site.trim() }), ...(username && { user: username.trim() }) }).toString();
 }
 
-/**
- * Serves the page until the link's own finish, `close`, or the deadline. A form's send and a view's
- * poll read only the address and a count; a form's and a view's page is kept open by one call a minute.
- */
+/** Serves the page until the link's own finish, `close`, or the deadline. A form's send and a view's
+ * poll read only the address and a count; a form's and a view's page is kept open by one call a minute. */
 async function watch() {
   const state = readJson(FILES.state);
   if (!state) return 1;
@@ -577,10 +453,8 @@ async function watch() {
   } catch {
     return finish('error');
   }
-  /**
-   * One poll of a live view: a screen source that exited is started again and recorded, the finish is
-   * read, and the page's window is raised. Resolves to the result that ends the view, or null.
-   */
+  /** One poll of a live view: a screen source that exited is started again and recorded, the finish is
+   * read, and the page's window is raised. Resolves to the result that ends the view, or null. */
   const pollView = async () => {
     try {
       if (await live.revive()) writeFileSync(FILES.state, `${JSON.stringify(state)}\n`, { mode: 0o600 });
@@ -613,10 +487,6 @@ function replacedBy(completionId) {
   return mine ? record.by.replace(/[\r\n]+/g, ' ') : null;
 }
 
-/**
- * Prints a link's result lines: the result, then any saved names, whether a key link was opened, the
- * folder whose link took its place, completion identity, and notification.
- */
 function report({ result, saved, appKeys, opened, completionId, notification }) {
   console.log(`HANDOVER_RESULT=${result}`);
   if (Array.isArray(saved)) console.log(`HANDOVER_SAVED=${saved.join(',')}`);
@@ -636,10 +506,8 @@ function gaveWay(mine, outcome) {
   return outcome.completionId ? outcome.completionId !== mine : !outcome.result && !existsSync(FILES.pid);
 }
 
-/**
- * Blocks until the watcher records a result; recovers a watcher that died without one. A key link that
- * gave way to a newer link reports `closed`, unopened, with nothing saved, never the newer link's result.
- */
+/** Blocks until the watcher records a result; recovers a watcher that died without one. A key link that
+ * gave way to a newer link reports `closed`, unopened, with nothing saved, never the newer link's result. */
 async function wait() {
   const mine = readJson(FILES.state)?.completionId;
   for (;;) {
@@ -670,9 +538,6 @@ async function close() {
   if (!readJson(FILES.result)?.result) await recoverStale('closed');
   return wait();
 }
-
-// ---------------------------------------------------------------------------
-// CLI
 
 function usageError(message) {
   console.error(`${message}\n${USAGE}`);

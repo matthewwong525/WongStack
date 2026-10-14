@@ -44,9 +44,8 @@ function repoWithOrigin(base, name, branch = 'main') {
   return primary;
 }
 
-// A fake `paseo` answering `workspace ls` and `ls -g` from FAKE_WORKSPACES and FAKE_AGENTS
-// (FAKE_PASEO_DOWN makes it act like a stopped daemon), and a fake `gh` answering `pr list`
-// with FAKE_GH_PR and `repo view` with FAKE_GH_DEFAULT, failing when either is unset.
+// A fake `paseo` answers `workspace ls` and `ls -g` from FAKE_WORKSPACES and FAKE_AGENTS (FAKE_PASEO_DOWN: a stopped
+// daemon); a fake `gh` answers `pr list` with FAKE_GH_PR and `repo view` with FAKE_GH_DEFAULT, failing when unset.
 function fakeTools(base) {
   const bin = path.join(base, 'bin');
   mkdirSync(bin);
@@ -68,10 +67,8 @@ console.log(answer);
   return bin;
 }
 
-// This repo: a primary, and worktrees under <base>/wt: `planning` holds an unsaved change folder,
-// `published` is clean at main, `shipped` holds a squash-merged branch whose archive is on main,
-// `busy` is clean with a running agent, `feature` has a pushed commit and an open pull request,
-// and `current` is where the script runs. Another project, `other`, has live work of its own.
+// A primary and worktrees under <base>/wt: `planning` (unsaved change folder), `published` (clean at main), `shipped`
+// (squash-merged), `busy` (running agent), `feature` (open pull request), `current` (here). `other` is another project.
 function setup(t) {
   const base = tmp(t);
   const primary = repoWithOrigin(base, 'repo');
@@ -129,9 +126,6 @@ function run(cwd, env, args = []) {
   return { status: r.status, stderr: r.stderr, json: r.stdout.startsWith('{') ? JSON.parse(r.stdout) : null, stdout: r.stdout };
 }
 
-// ---------------------------------------------------------------------------
-// Pure helpers
-
 test('parseWorktrees reads paths and branches, leaving out a bare repo', () => {
   const porcelain = 'worktree /r.git\nbare\n\nworktree /r\nHEAD 1\nbranch refs/heads/main\n\nworktree /w\nHEAD 2\ndetached\n';
   assert.deepEqual(parseWorktrees(porcelain), [{ path: '/r', branch: 'main' }, { path: '/w', branch: null }]);
@@ -177,9 +171,6 @@ test('inside matches a folder and what it holds, never a sibling with the same p
   assert.equal(inside('/a/b', '/a/bc'), false);
   assert.equal(inside('', '/a'), false);
 });
-
-// ---------------------------------------------------------------------------
-// The whole script
 
 test('lists only this repo\'s live work, with names, busy state, plans, and pull requests', t => {
   const s = setup(t);
@@ -273,9 +264,6 @@ test('--help prints usage; an unknown flag or a folder outside git exits 2', t =
   assert.equal(outside.status, 2);
   assert.equal(outside.json.ok, false);
 });
-
-// ---------------------------------------------------------------------------
-// An Artifacts install: saved branches stand in for pull requests
 
 const PROPOSAL = '# Add recipes\n\n**Status:** in-progress\n\nWhy.\n';
 const REFS = 'for-each-ref --format=%(refname) refs/remotes/origin';

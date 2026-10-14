@@ -1,12 +1,11 @@
-// The project, read through the app: Git's two read calls are passed to where the project is kept, with the
-// server's own credential added. The Worker stores no copy and hands no credential to a device.
-// wiki/stack/employee-project.md
+// The project, read through the app: Git's two read calls are passed to where the project is kept, with the server's
+// own credential added. No copy is stored and no credential reaches a device. wiki/stack/employee-project.md
 import type { CurrentPolicy } from "./policy.ts";
 
 /** Everything under here is Git's smart HTTP protocol for the one project. */
 export const CODE_GIT = "/api/access/code/git/";
 
-/** Only what this file calls on a Cloudflare-kept project's binding: one repository, its address, and a read token for it. */
+/** Only what this file calls on a Cloudflare-kept project's binding: one repository, its address, a read token. */
 // The handle carries no metadata of its own: its address comes from `info()`.
 type CodeBinding = { get(name: string): Promise<{ info(): Promise<{ remote: string }>; createToken(scope: "read", ttl: number): Promise<{ plaintext: string }> }> };
 export interface CodeEnv {
@@ -42,10 +41,8 @@ export function codeSource(env: object): Source | null {
   return token && onGithub(repository) ? { github: repository, token } : null;
 }
 
-/**
- * Why the project can not be handed out yet, for Access to name the step left. `key`: it is kept on GitHub and
- * the read-only key is missing. `setup`: no project the app can trust is recorded. Calls nothing.
- */
+/** Why the project can not be handed out yet, for Access to name the step left. `key`: it is kept on GitHub and
+ *  the read-only key is missing. `setup`: no project the app can trust is recorded. Calls nothing. */
 export function codeStep(env: object): "ready" | "key" | "setup" {
   if (codeSource(env)) return "ready";
   return onGithub(text(env, "WONG_CODE_REPOSITORY")) ? "key" : "setup";
@@ -65,11 +62,8 @@ export async function upstream(env: object): Promise<Upstream | null> {
   } catch { return null; }
 }
 
-/**
- * Who may connect with the project. `off`: the install can not hand it out, or permissions or key levels have
- * not started, so everyone keeps the apps-only connection. `ready`: a person who holds Project code now.
- * `lacked`: anyone else, a machine included.
- */
+/** Who may connect with the project. `off`: the install can not hand it out, or key levels have not started, so all
+ *  keep the apps-only connection. `ready`: holds Project code now. `lacked`: anyone else, a machine included. */
 export function codeState(env: object, policy: CurrentPolicy, person: boolean): "ready" | "lacked" | "off" {
   if (policy.state !== "current" || !policy.keys || !codeSource(env)) return "off";
   return person && policy.keys.has("code") ? "ready" : "lacked";

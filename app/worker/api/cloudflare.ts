@@ -1,10 +1,8 @@
 import { z } from "zod";
 import { boundedText, defineAction } from "./contract.ts";
 
-// GET /api/cloudflare/read: one look-up in this business's own Cloudflare account, for a person
-// whose Cloudflare level is Read. It belongs to the key alone, so no app is needed. Setup makes the
-// key read-only and without any permission for stored data; the path rules here are the first lock
-// and the key's own permissions are the second. wiki/stack/company-api.md#look-things-up-in-cloudflare
+// GET /api/cloudflare/read: one Cloudflare look-up, for Read on the key alone, with no app. The path rules here are
+// the first lock, the read-only key the second. wiki/stack/company-api.md#look-things-up-in-cloudflare
 const CLOUDFLARE = "https://api.cloudflare.com/client/v4/";
 // Cloudflare's answer is read up to this size; the action's own output limit leaves room to wrap it.
 const LIMIT = 1_000_000;
@@ -27,10 +25,8 @@ const errors = {
 const refuse = (code: keyof typeof errors, status: number) => Response.json({ error: { code } }, { status });
 const parse = (text: unknown): unknown => { try { return JSON.parse(String(text)); } catch { return null; } };
 
-/**
- * The address to ask, or null. Only this account's own paths and its zones, in plain path characters,
- * nothing under a stored-data product, and nothing a `.` or `..` could turn into another path.
- */
+/** The address to ask, or null. Only this account's own paths and its zones, in plain path characters,
+ *  nothing under a stored-data product, and nothing a `.` or `..` could turn into another path. */
 function address(path: string, query: string | undefined, account: string): URL | null {
   const lower = path.toLowerCase();
   if (!/^[a-z0-9._/-]+$/.test(lower) || lower.includes("//") || STORED.test(lower) ||

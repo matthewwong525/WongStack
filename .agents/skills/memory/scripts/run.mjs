@@ -29,9 +29,8 @@ export function takeLock(file, now = Date.now()) {
   }
 }
 
-// The run's input folder: outside the repo, because Claude Code denies every write under .git/, and a
-// folder in the worktree would show in git status. Resolved, because the permission check matches the
-// real path (macOS tmpdir() is under the /var symlink). Removed when the run ends, even on failure.
+// The run's input folder, removed when the run ends: outside the repo, as Claude Code denies writes under .git/
+// and a worktree folder shows in git status. Resolved: the permission check matches the real path (macOS /var).
 export function withInputDir(fn) {
   const dir = realpathSync(mkdtempSync(join(tmpdir(), 'wong-memory-')));
   try {
@@ -79,7 +78,7 @@ function main(agent) {
   const ctx = repoContext();
   const lock = statePath(ctx, 'run.lock');
   if (!takeLock(lock)) return;
-  // The run's tally: memory.mjs adds what each write stored, and finish-run records it instead of the model's own report.
+  // The run's tally: memory.mjs adds what each write stored, and finish-run records it, not the model's own report.
   const tally = statePath(ctx, RUN_TALLY);
   try {
     writeFileSync(tally, '{}\n');

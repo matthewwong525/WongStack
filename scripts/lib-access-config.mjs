@@ -11,9 +11,8 @@ export function privateDeployment(config, environment = 'production') {
   if (environment === 'staging' && [...(selected.d1_databases ?? []), ...(selected.r2_buckets ?? [])].some(binding => binding.binding?.startsWith('MEMORY_'))) {
     throw new Error('staging and previews must not bind production memory');
   }
-  // The committed open-without-login switch, for an account without Zero Trust
-  // yet. The Worker ignores it once an Access identifier is set, so a config
-  // carrying both is inconsistent: wiki/stack/cloudflare-access.md#open-until-the-card
+  // The committed open-without-login switch. The Worker ignores it once an Access identifier is set, so a
+  // config carrying both is inconsistent: wiki/stack/cloudflare-access.md#open-until-the-card
   if ('WORKSPACE_LOGIN' in vars) {
     if (ACCESS_VARS.some(key => vars[key])) throw new Error('WORKSPACE_LOGIN sits beside Access identifiers; remove the open-without-login switch');
     if (vars.WORKSPACE_LOGIN !== 'off') throw new Error('WORKSPACE_LOGIN may only be "off"');

@@ -34,7 +34,8 @@ export function legacyAdapter(context, { fetch: call = globalThis.fetch, timeout
   };
   async function mutate(action, id) {
     await inspect(id);
-    try { await request(action === 'cancel' ? 'DELETE' : 'POST', action === 'cancel' ? route(id) : `${route(id)}/${action}`); } catch { /* verify the exact job */ }
+    // A failed request is not trusted either way: the read below verifies the exact job.
+    try { await request(action === 'cancel' ? 'DELETE' : 'POST', action === 'cancel' ? route(id) : `${route(id)}/${action}`); } catch {}
     const rows = (await request('GET', '/routines')).routines;
     const row = rows.find(each => each.id === id);
     const verified = action === 'cancel' ? !row : row?.status === (action === 'pause' ? 'paused' : 'active');

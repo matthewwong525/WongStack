@@ -6,9 +6,8 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-// The scripts' coverage floor is a guard like any other, so it is tested refusing: the committed
-// settings file, read by the real tool, on a sample that is half tested. A settings file the tool
-// no longer reads would let the sample pass, and this fails.
+// The coverage floor is tested refusing: the committed settings file, read by the real tool, on a half-tested sample.
+// A settings file the tool no longer reads would let the sample pass, and this fails.
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const settings = join(repo, 'scripts/tests/.c8rc.json');
 const c8 = join(repo, 'scripts/tests/node_modules/.bin/c8');

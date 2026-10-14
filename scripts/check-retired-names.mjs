@@ -1,19 +1,6 @@
 #!/usr/bin/env node
-// Release check: does any live file still name something WongStack removed?
-//
-// Specs, skills, and wiki pages drift when a change removes or renames a feature
-// and misses a mention elsewhere. OpenSpec validates a spec's shape, not whether
-// its words are still true, so a stale name passes every other check. 24.0.3
-// cleaned out mentions of `notes/`, the separate memory Worker, and removed
-// OpenSpec commands that earlier removals had missed.
-//
-// scripts/retired-names.json lists each retired name, what replaced it, and the
-// files allowed to keep naming it (a spec saying the command must stay gone, a
-// migration step for older installs). CHANGELOG.md and openspec/changes/ record
-// history and are never checked. Names are matched as literal text.
-//
-// Owner: .claude/rules/payload.md — removing or renaming a payload feature adds
-// its old name to the list in the same change.
+// Release check: does any live file still name something WongStack removed? scripts/retired-names.json lists
+// each retired name and the files that may keep it. Owner: .claude/rules/payload.md
 
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';

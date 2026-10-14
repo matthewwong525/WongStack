@@ -17,7 +17,8 @@ export function bufferedProcess(command, args, { cwd, env, input = '', signal, c
     if (signal?.aborted) return reject(new Error('deadline'));
     const child = spawn(command, args, { cwd, env, stdio: ['pipe', 'pipe', 'pipe'], detached: process.platform !== 'win32' });
     const chunks = []; let size = 0, settled = false;
-    const kill = () => { try { if (process.platform !== 'win32') process.kill(-child.pid, 'SIGKILL'); else child.kill('SIGKILL'); } catch { /* already exited */ } };
+    // A kill that throws means the child already exited.
+    const kill = () => { try { if (process.platform !== 'win32') process.kill(-child.pid, 'SIGKILL'); else child.kill('SIGKILL'); } catch {} };
     const fail = reason => { if (settled) return; settled = true; kill(); reject(new Error(reason)); };
     const abort = () => fail('deadline'); signal?.addEventListener('abort', abort, { once: true });
     child.stdout.on('data', chunk => { size += chunk.length; if (size > cap) fail('oversized reply'); else chunks.push(chunk); });

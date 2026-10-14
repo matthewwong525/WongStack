@@ -79,7 +79,8 @@ export async function executeRun(item, services, context) {
     if (progress.pendingQuestion) {
       const check = await chooseStep?.({ item, progress, waiting: true });
       const wake = check?.nextAt ? await rearm(binding, progress, store, host, check.nextAt, context.now) : { state: 'waiting' };
-      return { ...wake, questionId: progress.pendingQuestion.id, suppressed: true }; // Deferred actions/questions are ignored while waiting.
+      // Deferred actions/questions are ignored while waiting.
+      return { ...wake, questionId: progress.pendingQuestion.id, suppressed: true };
     }
     if (progress.uncertain) {
       requireValue(inspectAction, 'Prior outward result is uncertain; inspect the service before retry.');

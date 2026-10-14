@@ -124,9 +124,8 @@ export function defineAction(action: Action): Action {
   return action;
 }
 
-/** What a call does: `read` looks things up, `write` changes or sends them. A key's own route asks that level
- *  of its caller; an app's route asks only for the app. A bare handler has no effect to read, so its method decides: describe a `POST` that
- *  only looks things up as an action with `effect: "read"`. */
+/** What a call does: `read` looks things up, `write` changes or sends. A key's own route asks that level of its
+ *  caller; an app's route, only the app. A bare handler's method decides: a look-up `POST` needs `effect: "read"`. */
 export const needFor = (route: Route, method: string): Level =>
   (typeof route === "function" ? ["GET", "HEAD"].includes(method) : route.effect === "read") ? "read" : "write";
 

@@ -1,6 +1,5 @@
-// Kept checks: the file format, the replay against the practice site, and what may be kept.
-// Request checks run for real. Browser checks run through scripts/fixtures/verify-journeys/fake-browser.mjs,
-// and once through a real browser where one is installed.
+// Kept checks: the file format, the replay against the practice site, and what may be kept. Request checks run for
+// real; browser checks run through scripts/fixtures/verify-journeys/fake-browser.mjs, and once in a real browser.
 import assert from 'node:assert/strict';
 import { execFile, execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -116,8 +115,6 @@ async function practiceSite(t) {
   return { ...site, paths: () => site.observations.map(seen => seen.path) };
 }
 
-// ── check ─────────────────────────────────────────────────────────────────────
-
 test('check calls each kept file ok, stale, or unreadable against the written promises', async t => {
   const f = project(t);
   f.kept(listCount());
@@ -175,8 +172,6 @@ test('a file outside the format or its closed set of expectations is unreadable,
   }
   assert.match(found['elsewhere/list-count'].reason, /not at <capability>\/<id>\.json/);
 });
-
-// ── replay ────────────────────────────────────────────────────────────────────
 
 test('a request check for a kept promise replays the same, and one for a broken promise comes back changed', async t => {
   const f = project(t);
@@ -413,8 +408,6 @@ test('a real browser replays a kept promise the same and a broken one changed', 
   assert.deepEqual([out.byId['empty-title'].result, out.byId['empty-title'].reason], ['changed', 'the page no longer shows "Title is required"']);
 });
 
-// ── keep ──────────────────────────────────────────────────────────────────────
-
 const PREVIEW = 'http://127.0.0.1:4000';
 
 // A journey as the walk leaves it in the run folder.
@@ -563,8 +556,6 @@ test('a candidate is installed only after it replayed the same, alone, from a re
   assert.match((await install()).stdout, /^left out notes\/the-list-api-counts-its-notes — it was not replayed alone first$/m);
   assert.equal(readFileSync(installed, 'utf8'), proven);
 });
-
-// ── the command line ──────────────────────────────────────────────────────────
 
 test('a command with a missing or wrong argument is a usage error', async t => {
   const f = project(t);

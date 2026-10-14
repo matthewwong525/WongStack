@@ -37,7 +37,7 @@ test('explicit distribution retains Access, additive schema and a standalone API
     'scripts/check-app-keys.mjs', 'scripts/check-skill-actions.mjs']) assert.ok(inventory.pack.files.includes(path));
   // The key registry and its check ship with the scaffold, so an install's Access lists the keys its apps use.
   for (const path of ['app/worker/keys.ts', 'app/worker/keys.test.ts']) assert.ok(inventory.scaffold.files.includes(path));
-  // Both code checks close the app's suite: a key its route does not list, and a skill that reads a key or calls an undeclared action.
+  // Both code checks close the app's suite: an unlisted key, and a skill reading a key or calling an undeclared action.
   assert.match(JSON.parse(read('app/package.json')).scripts.test, /check-app-keys\.mjs && node \.\.\/scripts\/check-skill-actions\.mjs$/);
   assert.ok(inventory.scaffold.files.includes('app/src/apps/access/App.tsx'));
   assert.ok(inventory.scaffold.files.includes('app/worker/employee-access/bootstrap-release.json'));

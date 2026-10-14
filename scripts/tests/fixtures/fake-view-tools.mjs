@@ -1,22 +1,5 @@
-// Stand-ins for what a live view runs, shared by the view and private-link tests, plus a WebSocket
-// client that builds its own frames.
-//
-// `fakeViewTools(root, control)` writes four commands into `<root>/view-tools/`, each logging its
-// arguments as a JSON line to `calls.jsonl` there, and returns the `env` that names them, as view.mjs's
-// test-only variables do. `control` is a folder of files a test sets, the fake camofox's own:
-//
-//   x11vnc    serves the socket `-unixsock` names: it greets each connection with `RFB 003.008\n`,
-//             appends what it is sent to `screen-input`, and writes its pid to `x11vnc.pid` first.
-//             `x11vnc-fails` makes it exit 1 at once; `x11vnc-listens` makes it open a TCP port first.
-//   xdotool   answers for a 1280x720 screen holding one window per tab in `tabs.json`, the fake
-//             camofox's list, each as wide as its page and 57 taller, found only by
-//             `search --classname Navigator`. `xdotool-fails` makes every call exit 1.
-//   apt-get   creates each file `apt-creates.json` lists, as the real one puts tools on PATH;
-//             `apt-fails` makes it exit 1.
-//   sudo      runs what follows `-n`; `sudo-asks` makes it exit 1, as one that wants a password does.
-//
-// `fakeViewer(home, version)` lays out an installed viewer, with files a link must never serve beside
-// the ones it may. `upgrade` and `clientFrame` are the WebSocket client.
+// Stand-ins for what a live view runs (x11vnc, xdotool, apt-get, sudo), shared by the view and private-link tests, and
+// a WebSocket client that builds its own frames. A test steers each fake with files in `control`, the fake camofox's.
 
 import { randomBytes } from 'node:crypto';
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -111,9 +94,6 @@ export function fakeViewer(home, version) {
   return dir;
 }
 
-// ---------------------------------------------------------------------------
-// A WebSocket client that builds its own frames
-
 /** One client frame: masked unless told otherwise, and whole unless `fin` is false. */
 export function clientFrame(opcode, payload = Buffer.alloc(0), { fin = true, masked = true } = {}) {
   const size = payload.length;
@@ -128,14 +108,8 @@ export function clientFrame(opcode, payload = Buffer.alloc(0), { fin = true, mas
   return Buffer.concat([head, mask, Buffer.from(payload).map((byte, index) => byte ^ mask[index & 3])]);
 }
 
-/**
- * Asks 127.0.0.1:`port` to upgrade `path`, offering the subprotocol `protocol` when given, as an
- * upgrade to `as`, with the bytes `early` in the same packet as the request. Resolves once the reply's
- * head arrives, to its `status` and `headers` with: `send(opcode, payload, options)`,
- * a frame built by `clientFrame`; `raw(bytes)`; `next()`, the next frame received, as `{opcode, fin,
- * masked, payload}`; `bytes(count)`, that many bytes of binary frames; `closed`, which resolves when
- * the connection ends; and `end()`.
- */
+/** Asks 127.0.0.1:`port` to upgrade `path` as `as`, offering `protocol`, with `early` bytes in the same packet.
+ * Resolves at the reply's head to its `status` and `headers`, with `send`, `raw`, `next`, `bytes`, `closed`, `end`. */
 export function upgrade(port, path, { protocol, as = 'websocket', early = Buffer.alloc(0) } = {}) {
   return new Promise((resolve, reject) => {
     const socket = connect(port, '127.0.0.1');

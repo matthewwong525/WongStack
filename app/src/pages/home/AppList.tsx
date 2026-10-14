@@ -34,9 +34,8 @@ function Lacked({ title, description, asked, onAsk }: { title: string; descripti
   </>
 }
 
-// The workspace's apps, each card one link. With `held`, the apps an employee holds once per-app permissions have
-// started, every other app shows greyed. The last card connects an assistant; it is greyed for a person whose
-// `code` is `lacked`: the app hands the project out, and they hold no Project code.
+// The workspace's apps, each card one link. With `held` (an employee's apps once per-app permissions start), the
+// rest show greyed. The last card connects an assistant, greyed when `code` is `lacked`: they hold no Project code.
 export function AppList({ apps, held, code }: { apps: MiniApp[]; held?: string[]; code?: Code }) {
   const [asked, setAsked] = useState('')
   const lacks = (app: MiniApp) => !!held && !held.includes(app.name)

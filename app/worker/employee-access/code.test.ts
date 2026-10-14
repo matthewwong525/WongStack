@@ -78,7 +78,7 @@ it("finds where the project is kept without calling anything, and refuses a name
     expect([codeSource(bad), await upstream(bad)]).toEqual([null, null]);
   }
   expect(fetched).not.toHaveBeenCalled();
-  // A Cloudflare-kept project: the one recorded repository, and a short-lived read token. Nothing else is asked of the binding.
+  // A Cloudflare-kept project: the one recorded repository and a short-lived read token. The binding is asked no more.
   const kept = artifacts();
   expect(codeSource(kept.env)).toMatchObject({ name: "recipe-box" });
   expect(kept.calls).toEqual([]);
@@ -104,9 +104,8 @@ it("says why the project can not be handed out yet: a missing GitHub key, or no 
   expect(fetched).not.toHaveBeenCalled();
 });
 
-// An install kept in Cloudflare has `ARTIFACTS: Artifacts` in its generated Env, and Cloudflare's type for a repository
-// is not the shape this file calls. The type check reads this line: it compiles only while a connection's env takes
-// that binding as Cloudflare types it.
+// An install kept in Cloudflare has `ARTIFACTS: Artifacts` in its generated Env, not the shape this file calls.
+// The type check reads this line: it compiles only while a connection's env takes that binding as Cloudflare types it.
 const generated = (bound: Env & { ARTIFACTS: Artifacts }): ConnectionEnv => bound;
 it("takes the binding as Cloudflare types it wherever a connection's env is asked for, and still checks it before use", async () => {
   const kept = artifacts();

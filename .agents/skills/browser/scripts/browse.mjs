@@ -1,55 +1,6 @@
 #!/usr/bin/env node
-// Installs, starts, and drives camofox, the browser the agent uses websites in as the person.
-//
-//     node .claude/skills/browser/scripts/browse.mjs open <url>
-//     node .claude/skills/browser/scripts/browse.mjs snapshot
-//     node .claude/skills/browser/scripts/browse.mjs click|type|press|select <ref-or-selector|key> [text]
-//     node .claude/skills/browser/scripts/browse.mjs get url | get count <selector> | get value <ref-or-selector>
-//     node .claude/skills/browser/scripts/browse.mjs screenshot [--if-changed]
-//     node .claude/skills/browser/scripts/browse.mjs logins | forget <name>
-//     node .claude/skills/browser/scripts/browse.mjs login <name> [--username <ref>] [--password <ref>] [--submit <ref>]
-//     node .claude/skills/browser/scripts/browse.mjs save | close | status | install | stop
-//
-// camofox (`@askjo/camofox-browser`) is a local REST server over a Firefox build. This script is the only
-// thing that talks to it. `install` puts the two versions in CAMOFOX, and no others, into
-// ~/.wong-stack/camofox/ with `npm install --prefix`, its temp folder on disk beside it, since the 660 MB
-// browser download fails on a small RAM disk. Any command that finds no install prints
-// `BROWSE_NEEDS=install` and exits 3: the agent asks the person, runs `install`, and retries.
-//
-// The server starts on demand, detached, on a free loopback port recorded in `server.json`. Each start
-// binds 127.0.0.1, starts its local forwarder in the same process, switches failure reporting off,
-// keeps logins under `profiles/`, and passes
-// an API key made once into a 0600 file. It keeps no log: camofox logs a failed step's detail, which
-// can hold what was typed. A start is refused when the installed `playwright-core` is not the pinned
-// minor: a newer driver fails to save a login.
-//
-// A task's page is a tab keyed by `--session <name>` (default: the checkout's folder name), camofox's
-// `sessionKey`; the `userId` is always `me`, so every task shares the saved logins and none shares a
-// page. The tab's id and last address sit in `tabs/<session>.json`. `open` waits until two snapshots a
-// gap apart match. A command answered 404 or 410 (the tab is gone), or a click that times out, reopens
-// the tab at its last address and retries once. Every call has a deadline. A failure prints one
-// `BROWSE_ERROR=<reason>` line and exits 1.
-//
-// `logins` prints each saved login's name, host, and username, never a password. `login <name>` reads
-// logins.mjs's file in this process and posts each value to camofox's `/type` for the box the agent
-// named, over loopback, then presses `--submit` or Enter. It prints only
-// `BROWSE_LOGIN=accepted|rejected|missing|typed`: accepted once the address leaves the login page within
-// 15 seconds, typed for a step with no password box, such as an email then Continue. An accepted login
-// is saved at once (`BROWSE_SAVED=yes|no`). `save` checkpoints the logins with every tab open, by
-// posting an empty cookie list. `close` removes this task's tab, and closes camofox's session, which
-// also saves, when no tab is left. No stored value reaches argv, env, output, or a file.
-//
-// `client(session, {retry, start})` is the same driver for hand-over.mjs's private form and live view,
-// which retry nothing and start nothing. Three of its calls have no command and serve those links alone:
-// `size` reads the page's size, `resize` sets it through camofox's `/viewport`, which resizes the page's
-// window too, and `keepAlive` evaluates a constant, so camofox counts a use and an idle page stays open
-// while nothing on it is read or changed. `serverPid` is the running server's process, whose browser
-// child a live view finds the screen from.
-//
-// Exit codes: 0 ok · 1 failed · 2 usage · 3 camofox is not installed. Node built-ins only. For tests:
-// BROWSE_SETTLE_MS and BROWSE_SETTLE_GAP_MS override the 8-second settle and its 1-second gap,
-// BROWSE_LOGIN_WAIT_MS the 15 seconds, BROWSE_COMMAND_MS a call's 45-second deadline, and
-// BROWSE_START_MS the 60-second start.
+// Installs, starts, and drives camofox, the browser the agent uses websites in as the person; the only script
+// that talks to it. Exit codes: 0 ok · 1 failed · 2 usage · 3 camofox is not installed. Node built-ins only.
 import { spawn, spawnSync } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
@@ -104,9 +55,6 @@ export class BrowseError extends Error {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Pure helpers
-
 /** The session a task's tab is keyed by: the name given, else the checkout's folder name. */
 export function sessionName(given) {
   const top = given ?? spawnSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }).stdout?.trim();
@@ -118,7 +66,7 @@ export function targetOf(target) {
   return /^@?e\d+$/.test(target) ? { ref: target.replace(/^@/, '') } : { selector: target };
 }
 
-/** What a field holds, read from a snapshot: a text box's text, or a dropdown's picked choice. Null when the ref is absent. */
+/** What a field holds, read from a snapshot: a text box's text or a dropdown's picked choice; null with no such ref. */
 export function valueIn(snapshot, ref) {
   const lines = snapshot.split('\n');
   const at = lines.findIndex(line => line.includes(`[${ref}]`));
@@ -154,9 +102,6 @@ export function serverEnv(port, key, env = process.env) {
     TMPDIR: FILES.tmp,
   };
 }
-
-// ---------------------------------------------------------------------------
-// Install and server
 
 const readJson = file => { try { return JSON.parse(readFileSync(file, 'utf8')); } catch { return null; } };
 const alive = pid => { try { process.kill(pid, 0); return true; } catch (error) { return error.code === 'EPERM'; } };
@@ -269,13 +214,8 @@ async function status() {
   console.log(`BROWSE_SERVER=${(await liveServer()) ? 'running' : 'stopped'}`);
 }
 
-// ---------------------------------------------------------------------------
-// The driver
-
-/**
- * One call to camofox, with a deadline. A refusal throws a BrowseError with camofox's reason, or with
- * none of its words when `quiet`: a failed typing step can quote what was typed.
- */
+/** One call to camofox, with a deadline. A refusal throws a BrowseError with camofox's reason, or with
+ * none of its words when `quiet`: a failed typing step can quote what was typed. */
 async function call(server, method, path, body, { wait = COMMAND_MS, quiet = false } = {}) {
   let response;
   try {
@@ -293,10 +233,8 @@ async function call(server, method, path, body, { wait = COMMAND_MS, quiet = fal
 /** True when the tab is gone, or a click hung: both end by reopening the page. */
 const reopens = (error, click) => error instanceof BrowseError && (error.status === 404 || error.status === 410 || (click && error.timedOut));
 
-/**
- * The driver for one session's tab. `retry` reopens a lost tab and tries the step once more; `start`
- * starts the server when none runs. Each method throws a BrowseError on failure.
- */
+/** The driver for one session's tab. `retry` reopens a lost tab and tries the step once more; `start`
+ * starts the server when none runs. Each method throws a BrowseError on failure. */
 export function client(given, { retry = true, start = true } = {}) {
   const session = sessionName(given);
   let server = null;
@@ -415,19 +353,13 @@ export function client(given, { retry = true, start = true } = {}) {
   return page;
 }
 
-// ---------------------------------------------------------------------------
-// Saved logins
-
 /** The saved logins; an unreadable file stops with a plain reason. */
 function savedLogins() {
   try { return readLogins(); } catch (error) { throw new BrowseError(error.message); }
 }
 
-/**
- * Types the saved login `name` into the boxes named and submits. Resolves to `{result, saved}`:
- * `missing`, `typed` for a step with no password box, `accepted` once the address leaves the login page,
- * else `rejected`. Only this function reads a stored password.
- */
+/** Types the saved login `name` into the boxes named and submits; `typed` is a step with no password box,
+ * `accepted` an address that left the login page. Only this function reads a stored password. */
 export async function login(page, name, { username, password, submit }) {
   const entry = savedLogins().find(saved => saved.name === name);
   if (!entry) return { result: 'missing' };
@@ -456,9 +388,6 @@ function forget(name) {
   writeLogins(saved.filter(entry => entry.name !== name));
   console.log(`BROWSE_FORGOT=${name}`);
 }
-
-// ---------------------------------------------------------------------------
-// CLI
 
 /** Each command: how many words follow it, and what it runs. */
 const COMMANDS = {

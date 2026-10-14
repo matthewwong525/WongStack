@@ -1,24 +1,6 @@
 #!/usr/bin/env node
-// Opens one new Paseo workspace with its own agent, for one part of a request.
-// The agent's first message is the brief file's text. USAGE below lists the flags.
-//
-// Prints one JSON object on stdout. Exit codes: 0 ok, 2 bad input or Paseo
-// refused, 3 Paseo not installed, 4 daemon not answering, 5 Paseo's output
-// has changed. On 3 to 5 nothing was opened, and `fallback` holds the Paseo
-// app steps.
-//
-// Branch-off workspaces start from the freshly fetched remote default branch
-// of the primary worktree, never from the caller's branch. The new agent
-// copies the caller's provider, model, thinking, and mode, and has no parent:
-// `paseo run` makes a sub-agent whenever PASEO_AGENT_ID is set, so the child
-// process runs without it.
-//
-// `paseo run --title` names only the agent, so the script then renames the
-// workspace to the same title with `paseo workspace rename`, and Paseo's list
-// shows the part, not a generated slug. The workspace is already open by
-// then, so a refused rename is a `warning` with exit 0, never a failure.
-//
-// Node built-ins only. WORKSPACE_PASEO_BIN overrides the `paseo` found on PATH.
+// Opens one new Paseo workspace with its own agent, for one part of a request; the brief file is its first message.
+// It branches from the fetched default branch, never the caller's, and has no parent. USAGE below lists the flags.
 
 import { execFile } from 'node:child_process';
 import { readFileSync } from 'node:fs';
@@ -32,9 +14,6 @@ const USAGE = `usage: workspace.mjs open --title <part> --brief <file>
 const VALUE_FLAGS = ['title', 'brief', 'checkout', 'agent'];
 const MODES = { claude: 'bypassPermissions', codex: 'full-access' };
 const PARENT_VARS = ['PASEO_AGENT_ID', 'PASEO_WORKSPACE_ID'];
-
-// ---------------------------------------------------------------------------
-// Pure helpers
 
 /** The new agent's settings: the caller's, from `paseo inspect`, else the --agent defaults. */
 export function agentSettings(inspected, agent) {
@@ -108,9 +87,6 @@ function appSteps({ primary, title, briefFile, settings, base, checkout }) {
   ].join('\n');
 }
 
-// ---------------------------------------------------------------------------
-// Environment
-
 function primaryWorktree() {
   try {
     return primaryRoot().primary;
@@ -161,9 +137,6 @@ async function nameWorkspace(bin, created, title, env) {
     return { name: created.workspaceName, warning: `The workspace kept Paseo's name, "${created.workspaceName}": ${error.message}` };
   }
 }
-
-// ---------------------------------------------------------------------------
-// Command
 
 function readBrief(file) {
   if (!file) throw new PaseoError(EXIT.input, 'Pass --brief <file>: the new agent\'s first message.');

@@ -1,52 +1,6 @@
 #!/usr/bin/env node
-// Three link checks, one run:
-//
-// 1. Resolve every internal link and import in the payload AS A TARGET REPO WOULD SEE IT,
-//    and every heading anchor on a shipped Markdown page against that page's headings.
-// 2. Reject every live Markdown link that passes through a symlink, because
-//    GitHub's web view and raw host do not follow a directory link.
-// 3. Resolve every link in a source-only skill (one no manifest category lists,
-//    like wong-setup) against this repo, heading anchors included.
-//
-// WHY CHECK 1 CANNOT BE A PLAIN LINK CHECK IN THIS REPO
-//
-// Every link in the payload resolves here, because this repo contains the whole
-// payload plus everything around it. A page that cites `wiki/maintaining/
-// adding-a-skill.md` looks fine in the source and dangles in a target, because
-// that page is not in the manifest. So the check has to build the set of files a
-// target would actually receive, and resolve links against THAT — not against
-// the working tree. The manifest uses logical `.claude/` paths; a target stores
-// them in a real `.agents/` folder, so a link to `.agents/...` resolves against
-// the same inventory.
-//
-// WHY CHECK 2 NEEDS THE GIT TREE
-//
-// `.claude` and `.codex` link to `.agents`, and `CLAUDE.md` links to `AGENTS.md`.
-// On disk every path through them works, so a file-system check passes. On
-// github.com, `blob/main/.claude/...` is a 404. The check reads each symlink from
-// `git ls-tree -r HEAD`, the index, and the working tree (so it works before a
-// commit, and on a Windows checkout that wrote the links as text files), and
-// names the real path to use. Code spans and fenced code are not links: shell
-// commands keep `.claude/`, which Claude Code resolves in every install.
-//
-// Run it as part of releasing a payload change, next to the VERSION bump and the
-// CHANGELOG entry:  node scripts/check-payload-links.mjs
-//
-// WHY CHECK 3 EXISTS
-//
-// A source-only skill never reaches a target, so check 1 never reads it, yet it
-// links deep into this repo's pages by heading. A renamed heading breaks those
-// links silently. Its links resolve against the working tree, and a `#anchor` on
-// a Markdown target must match one of its headings as GitHub slugs them.
-//
-// WHY CHECK 1 READS ANCHORS
-//
-// An installed repo's own pages link shipped pages by heading. A trim that
-// renames a linked heading breaks those links in the install, never here, so a
-// shipped page's anchors must resolve before it ships.
-//
-// Exits 0 when every link passes, 1 with a list when any link dangles, passes
-// through a symlink, or misses in a source-only skill.
+// Checks payload links as a target repo sees them, links through a symlink, and source-only skill links.
+// Docs: .agents/rules/payload.md and wiki/maintaining/repo-layout.md#linking
 
 import { execFileSync } from "node:child_process";
 import { existsSync, lstatSync, readFileSync, readdirSync, readlinkSync, statSync } from "node:fs";
@@ -63,11 +17,8 @@ const { values } = parseCli({
 
 const ROOT = values.root ? resolve(values.root) : resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
-// The manifest, read from the one place that stores it. This file used to keep
-// its own copy of the list, which made three restatements of one fact — the
-// prose, these constants, and whatever an installing agent assembled by hand.
-// Read through the real folder: a Windows checkout without symlinks has no
-// `.claude/` directory.
+// The manifest is read from the one file that stores it, through the real folder: a Windows checkout
+// without symlinks has no `.claude/` directory.
 const MANIFEST = JSON.parse(
   readFileSync(join(ROOT, ".agents/skills/wong-sync/references/payload-files.json"), "utf8"),
 );
@@ -102,24 +53,11 @@ function walk(dir) {
   return out;
 }
 
-// Files a target has that the payload does not supply, but may legitimately link
-// to. EVERY ENTRY IS A CLAIM ABOUT `/wong-setup`: it belongs here only when a step
-// in that skill demonstrably writes the path — which is why the list is read from
-// the manifest's `seededBySetup` rather than kept here as a convenience.
-//
-// This is where the check went wrong before: it exempted `wiki/development/
-// README.md` under the comment "the wiki hubs /wong-setup seeds", when setup
-// seeded only the wiki root. The result was a clean run against an install with
-// eight dead links — a check reporting its own assumption back to itself.
-// `package.json` is gone for the same reason (nothing creates one), and a link to
-// a target's own `README.md` was pointing at the wrong file anyway.
+// Files a target has that the payload does not supply but may link to. Read from the manifest's
+// `seededBySetup`: each entry must be a path a `/wong-setup` step really writes.
 const TARGET_PROVIDED = MANIFEST.seededBySetup.files;
 
-/**
- * The files a target receives, as logical paths: every install takes every
- * category. Every install also keeps its rules in a real `AGENTS.md`, with
- * `CLAUDE.md` linking to it, like this repo.
- */
+/** The files a target receives, as logical paths: every category, plus a real `AGENTS.md` and its `CLAUDE.md`. */
 function payload() {
   const files = new Set(["CLAUDE.md", "AGENTS.md"]);
   const addCategory = (cat) => {
@@ -145,11 +83,7 @@ const IMPORT = /(?:^|[ \t])@((?:\.{1,2}\/)[A-Za-z0-9_./-]*[A-Za-z0-9_/-])/gm;
 const GITHUB_URL =
   /https?:\/\/(?:github\.com\/[^/\s]+\/([^/\s]+)\/(?:blob|tree|raw)\/(?:refs\/heads\/)?[^/\s]+|raw\.githubusercontent\.com\/[^/\s]+\/([^/\s]+)\/(?:refs\/heads\/)?[^/\s]+)\/([^\s)"'`<>#?]+)/g;
 
-/**
- * Blank fenced code and code spans, keeping every newline and offset. Examples
- * and commands in backticks are not links, and flagging them is how a checker
- * cries wolf.
- */
+/** Blank fenced code and code spans, keeping every newline and offset: examples in backticks are not links. */
 function maskCode(text) {
   const blank = (m) => m.replace(/[^\n]/g, " ");
   return text.replace(/(`{3,}|~{3,})[\s\S]*?\1/g, blank).replace(/`[^`\n]*`/g, blank);
@@ -175,14 +109,11 @@ function references(body, { imports = false } = {}) {
   return found.filter(({ target }) => !/^([a-z][a-z0-9+.-]*:|#)/i.test(target));
 }
 
-// --- Check 1: dead links in a target -----------------------------------------
-
 function checkDead(files) {
   const dangling = [];
   const anchors = [];
-  // Link targets = what ships, plus what the target already has. Scanned files =
-  // what ships, only. A target's own README is a legitimate destination but its
-  // contents are the target's business, not ours to lint.
+  // Link targets = what ships plus what the target already has. Scanned files = what ships only:
+  // a target's own README is a fair destination, but its contents are not ours to lint.
   const targets = new Set([...files, ...TARGET_PROVIDED]);
   for (const file of files) {
     // The rules file is scanned once, as the block `CLAUDE.md` reads through its link.
@@ -190,9 +121,7 @@ function checkDead(files) {
     const abs = join(ROOT, file === "CLAUDE.md" ? realPath("CLAUDE.md") : physical(file));
     if (!existsSync(abs)) continue;
     let raw = readFileSync(abs, "utf8");
-    // CLAUDE.md's unit is the block, not the file — only what sits between the
-    // markers travels, so only that is checked. Everything outside belongs to
-    // this repo and may reference anything it likes.
+    // Only the block between the markers travels, so only that is checked; the rest belongs to this repo.
     if (file === "CLAUDE.md") {
       const block = raw.match(/WONG-STACK:BEGIN[\s\S]*?WONG-STACK:END/);
       if (!block) continue;
@@ -217,19 +146,14 @@ function checkDead(files) {
   return { dangling, anchors };
 }
 
-/**
- * True when a shipped Markdown page lacks the heading an anchor names. Installed
- * repos' own pages link these anchors, and a trim that renames a heading breaks
- * them where this repo can not see it. Files a target provides itself are skipped.
- */
+// True when a shipped Markdown page lacks the heading an anchor names; installed repos link these anchors.
+// Files a target provides itself are skipped.
 function missingAnchor(logicalPath, anchor) {
   if (!logicalPath.endsWith(".md")) return false;
   const path = logicalPath === "CLAUDE.md" ? "AGENTS.md" : physical(logicalPath);
   if (!exists(path)?.isFile()) return false;
   return !anchorsOf(path).has(safeDecode(anchor).toLowerCase());
 }
-
-// --- Check 2: links through a symlink ----------------------------------------
 
 /** Every symlink git knows, path -> link text, from HEAD and the index. */
 function gitSymlinks() {
@@ -349,8 +273,6 @@ function checkSymlinked() {
   }
   return found;
 }
-
-// --- Check 3: source-only skills, anchors included --------------------------
 
 /** Skill folders no manifest category lists: they stay in the source repo. */
 function sourceOnlySkills() {

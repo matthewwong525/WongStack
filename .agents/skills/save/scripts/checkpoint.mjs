@@ -1,41 +1,6 @@
 #!/usr/bin/env node
-/**
- * One /save checkpoint, after the agent has staged the files: review page, scan, commit, push,
- * pull request, check wait, failing logs, receipt, and preview, in one command. The save skill keeps the
- * judgment (which files, the handoff, the message and summary); this runs the rest, and every
- * step it runs is an existing save script or one git or gh call.
- *
- *     node .claude/skills/save/scripts/checkpoint.mjs --message-file <file> --summary-file <file> \
- *       [--change-root <path> --mode active|archive | --schedule-record <reference> --store <id>]
- *       [--scan-keys NAME,NAME] [--max-minutes 20] [--new-run]
- *     node .claude/skills/save/scripts/checkpoint.mjs --wait [--max-minutes 20]
- *
- * Both files sit outside the repo. The message's first line titles a new pull request.
- * `--wait` commits and pushes nothing: it reads the gate again for the pushed head, after a
- * TIMEOUT or a rerun of a check that failed outside the diff.
- *
- * Prints key=value lines (SAVE_HEAD, PR_URL, PREVIEW_URL, RECEIPT, ATTEMPT), each failing check
- * with the tail of its log, one NEXT: line saying what to do, and SAVE_GATE_RESULT= last.
- *
- * An Artifacts install (wiki/stack/artifacts-route.md) has no GitHub: delivery-route.mjs is asked
- * once, and on `artifacts` no gh call is made. The branch is pushed, no pull request is read,
- * opened, or given a body, no PR_URL is printed, no receipt is kept, and a FAILURE is the failing
- * stage's own output, which the waiter prints under its RESULT line.
- *
- * Exit codes:
- *   0  the checkpoint ran; SAVE_GATE_RESULT is the answer
- *   1  a git or gh step failed, or the route could not be told; its error is printed and
- *      nothing after it ran
- *   2  usage
- *   3  the pull request is CLOSED and not merged: ask, reopen or a fresh branch
- *   4  nothing to save, or HEAD is the default branch or detached
- *   5  a handled credential's value is in the staged files, the message, or the summary
- *   6  the three fix attempts of this /save run are spent
- *
- * The fix count is kept per branch beside the receipt, outside the repo. It starts again after a
- * SUCCESS or NONE, or with --new-run, which each /save run after a spent cap and each /verify
- * re-walk passes.
- */
+// One /save checkpoint, after the agent has staged the files: review page, scan, commit, push, pull request, check
+// wait, failing logs, receipt, preview. The save skill keeps the judgment. Exit codes: each `Stop(code, …)` below.
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
@@ -89,11 +54,8 @@ function must(command, args, what) {
 
 const readJson = file => { try { return JSON.parse(readFileSync(file, 'utf8')); } catch { return null; } };
 
-/**
- * Which way this checkout saves and publishes, asked once a command: `{ route }`, `github` or
- * `artifacts`. When origin and the install record disagree it is `{ lines }`, the stop to print:
- * no command guesses a route, and none falls back to GitHub.
- */
+// Which way this checkout saves and publishes, asked once a command: `{ route }`, or `{ lines }`, the stop to print
+// when origin and the install record disagree: no command guesses a route, and none falls back to GitHub.
 export function askRoute(cwd = process.cwd()) {
   try {
     return { route: delivery(cwd).route };
@@ -104,10 +66,8 @@ export function askRoute(cwd = process.cwd()) {
   }
 }
 
-/**
- * `main`, unless neither a local nor a remote `main` exists; then what GitHub names. An Artifacts
- * install has no GitHub to ask, and its setup makes `main`.
- */
+// `main`, unless neither a local nor a remote `main` exists; then what GitHub names. An Artifacts install has no
+// GitHub to ask, and its setup makes `main`.
 export function defaultBranch(route = 'github') {
   for (const ref of ['refs/remotes/origin/main', 'refs/heads/main']) {
     if (sh('git', ['rev-parse', '--verify', '--quiet', `${ref}^{commit}`]).status === 0) return 'main';

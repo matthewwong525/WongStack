@@ -1,20 +1,6 @@
 #!/usr/bin/env node
-// Release check: can the OpenSpec CLI actually read openspec/config.yaml?
-//
-// The config carries the per-artifact rules every change is drafted against. When
-// it cannot be parsed the CLI prints a warning and carries on with defaults, so
-// the only symptom is rules quietly not applying — to artifacts nobody is
-// comparing against the rules. That shipped once (13.0.0: an unquoted colon-space
-// inside a plain scalar starts a mapping key) and went unnoticed through a whole
-// release, which is why this check exists.
-//
-// It asks the CLI rather than parsing YAML here: no dependency enters the repo,
-// and the check agrees with the parser that actually matters by construction. A
-// hand-rolled parser could accept a file the CLI rejects, which would be a check
-// that lies.
-//
-// Owner: .claude/rules/payload.md — the release ritual. Run it beside
-// scripts/check-payload-links.mjs on every payload change.
+// Release check: can the OpenSpec CLI read openspec/config.yaml? An unreadable config silently drops every rule.
+// It asks the CLI, so it agrees with the parser that matters. Owner: .claude/rules/payload.md
 
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
@@ -31,9 +17,8 @@ if (!configPath) {
   process.exit(0);
 }
 
-// `context` is read-only, needs no active change, and does read the config.
-// `list` does NOT read it — asking the wrong command is how this check first
-// shipped passing a file the parser rejected.
+// `context` is read-only, needs no active change, and reads the config.
+// `list` does NOT read it, so asking `list` would pass a file the parser rejects.
 const run = spawnSync('openspec', ['context', '--json'], { cwd: root, encoding: 'utf8' });
 
 if (run.error && run.error.code === 'ENOENT') {
@@ -43,9 +28,8 @@ if (run.error && run.error.code === 'ENOENT') {
 
 const output = `${run.stdout || ''}${run.stderr || ''}`;
 const answer = parseJson(run.stdout || '');
-// Three ways the CLI says it could not use the config: an older CLI's parse
-// warning, a warning that it is ignoring part of it (a colon-space in a rule
-// turns the rule into a mapping), and 1.13's error in the JSON status.
+// Three ways the CLI says it could not use the config: an older CLI's parse warning, a warning that it is
+// ignoring part of it, and 1.13's error in the JSON status.
 const complaint =
   output
     .split('\n')

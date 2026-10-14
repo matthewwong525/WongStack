@@ -2,9 +2,8 @@ import type { Status } from '../../lib/access'
 import { FinishStep } from './Notices'
 import { PROJECT_REQUEST } from './status'
 
-/** The one step left before the app can hand its project out, wherever Project code is given: a read-only GitHub
- *  key, or finishing Access setup on an install that has no project recorded. The owner gets the request to copy;
- *  a manager is told it is the owner's step. Nothing once the project can be handed out. */
+/** The one step left before the app can hand its project out: a read-only GitHub key, or finishing Access setup.
+ *  The owner gets the request to copy; a manager is told it is the owner's step. Nothing once the project is ready. */
 export function ProjectStep({ status }: { status: Status }) {
   if (status.project === 'ready') return null
   const key = status.project === 'key'

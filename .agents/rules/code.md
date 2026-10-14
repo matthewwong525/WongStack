@@ -6,6 +6,8 @@ paths: ["app/**", "schema/**", "scripts/**", ".github/workflows/**"]
 
 Write the least code that does the job, and write no code that does not. Decompose branchy logic into named helpers as you write it. Prefer a surgical edit to a file rewrite. Do not use `any`; use `unknown` only when you narrow it before use.
 
+**Comment only what the code can not say:** why, not what, in two lines at most. A longer reason is a test, a clearer name, or a wiki line: a comment goes stale, and no check reads it. [The lint rule](../../scripts/lint-comment-length.mjs) fails on a comment over two lines, or a comment line over 120 characters.
+
 ## Where things go
 
 Follow the files that already do it. Split by job, not by size: each file does one thing and is named for it.

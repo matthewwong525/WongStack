@@ -1,7 +1,5 @@
-// The privacy page. Each sentence says what the site and the software do
-// today. A change that makes one untrue edits this page and UPDATED in the same
-// change. No lawyer has reviewed it. wiki/maintaining/landing-page.md lists the
-// promises the code must keep.
+// The privacy page: what the site and the software do today. A change that makes a sentence untrue edits it and
+// UPDATED. No lawyer has reviewed it. wiki/maintaining/landing-page.md lists the promises the code must keep.
 import { EmailLink } from "./SiteFooter";
 
 const UPDATED = "October 4, 2026";

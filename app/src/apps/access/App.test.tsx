@@ -36,7 +36,7 @@ const tr = (email: string) => within(screen.getByRole('table', { name: 'People' 
 const line = (email: string) => within(tr(email))
 const cells = (email: string) => Array.from(tr(email).querySelectorAll('td')).map(cell => cell.textContent)
 const role = (email: string) => screen.getByRole('combobox', { name: `Role for ${email}` }) as HTMLSelectElement
-// A row's menu: its dots, the menu they open by the keyboard, and what it holds. The part draws a menu only while it is open.
+// A row's menu: its dots, the menu the keyboard opens, and what it holds. The part draws a menu only while it is open.
 const dots = (email: string) => screen.getByLabelText(`Actions for ${email}`); const shown = () => screen.queryByRole('menu')
 const menu = (email: string) => { fireEvent.keyDown(dots(email), { key: 'Enter' }); return within(screen.getByRole('menu')) }
 const shut = () => fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
@@ -52,7 +52,7 @@ const ticked = () => boxes().filter(box => box.checked).map(box => box.parentEle
 const tick = (name: string) => fireEvent.click(screen.getByRole('checkbox', { name }))
 // The popup for connecting an assistant, and whether it shows: the part draws it only while it is open.
 const popup = () => screen.queryByRole('dialog'); const showing = () => !!popup(); const steps = () => screen.queryByRole('region', { name: 'Connect your assistant' })
-// The panel an opened item sits in, by the item's name; that no panel is open any more; and a question, by what it asks.
+// The panel an opened item sits in, by the item's name; that no panel is open any more; a question, by what it asks.
 const panel = (name: string) => screen.findByRole('dialog', { name })
 const closed = () => waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
 const question = (name: string | RegExp) => screen.getByRole('alertdialog', { name })
@@ -99,7 +99,7 @@ it('the owner sees people as a table of one-line rows with their own row first, 
   expect(cells('employee@example.com').slice(0, 2)).toEqual(['employee@example.com', 'Can sign in'])
   expect([role('employee@example.com').value, role('employee@example.com').selectedOptions[0].textContent]).toEqual(['', 'Own set'])
   expect([cells('employee@example.com')[3], labels()]).toEqual(['1 app', []])
-  // The views are the heading: the add button ends their line, with no Key settings beside it, and the list's name is not written again.
+  // The views are the heading: the add button ends their line, no Key settings beside it, and no second list name.
   const views = screen.getByRole('navigation', { name: 'Access views' })
   expect([views.parentElement!.lastElementChild!.textContent, views.parentElement!.children.length, screen.queryByRole('link', { name: 'Key settings' })]).toEqual(['+ Add person', 2, null])
   expect(document.querySelector('h2')).toBeNull()
@@ -390,7 +390,7 @@ it('a manager finds their own row marked You under the owner row, which says who
   const first = within(screen.getByRole('table', { name: 'People' })).getAllByRole('row')[1]
   expect(Array.from(first.querySelectorAll('td')).map(cell => cell.textContent)).toEqual(['owner@example.com', 'Can sign in', 'Owner · picks managers', 'Everything', ''])
   expect(first.querySelector('a, button, select')).toBeNull()
-  // A manager is marked in words beside the email, after You, and no manager's menu has Remove: not their own row, not another's.
+  // A manager is marked beside the email, after You, and no manager's menu has Remove: on their own row or another's.
   expect([cells('employee@example.com')[0], cells('kim@example.com')[0], cells('lee@example.com')[0]]).toEqual(['employee@example.com You Manager', 'kim@example.com Manager', 'lee@example.com'])
   for (const email of ['employee@example.com', 'kim@example.com']) {
     expect(line(email).getByText('Manager')).toBeTruthy(); expect(items(email)).toEqual(['Open'])
@@ -473,7 +473,8 @@ it('failed permissions withhold app cards, failed setup withholds the steps, and
 })
 it('selected home cards and direct app pages obey the same current readback', async () => {
   mode = 'employee'; render(<Home />); await screen.findByRole('link', { name: /Hello Example/ })
-  for (const { title } of built.filter(app => !catalogue.includes(app.name))) { expect(screen.queryByRole('link', { name: new RegExp(title) }), title).toBeNull(); expect(screen.getByRole('button', { name: new RegExp(`^${title} No access`) }).getAttribute('aria-disabled'), title).toBe('true') }; cleanup() // every other app this build holds is greyed; an install holds Hello alone, and AppList's tests cover a greyed card
+  // Every other app this build holds is greyed; an install holds Hello alone, and AppList's tests cover a greyed card.
+  for (const { title } of built.filter(app => !catalogue.includes(app.name))) { expect(screen.queryByRole('link', { name: new RegExp(title) }), title).toBeNull(); expect(screen.getByRole('button', { name: new RegExp(`^${title} No access`) }).getAttribute('aria-disabled'), title).toBe('true') }; cleanup()
   const page = () => render(<MemoryRouter initialEntries={['/apps/hello/']}><Routes><Route path="/apps/:name/" element={<AppPage />} /></Routes></MemoryRouter>)
   catalogue = ['access']; page(); await screen.findByText('App access denied'); expect(screen.queryByText('Enter your name')).toBeNull(); cleanup()
   // Before permissions start, the page opens whatever the list says.
@@ -489,7 +490,7 @@ it('unmounted responses cannot overwrite newer resource state, and malformed ros
   const pending = render(<Setup />); pending.unmount(); await act(async () => reject(new Error('abort')))
   roster.people = [person({ apps: 'invalid' as unknown as Person['apps'] })]
   await expect(readAccess('status', statusSchema)).rejects.toThrow()
-  // A status with no roles, no list of apps, or no word on who an update unticked is refused too: the screen never guesses them.
+  // A status with no roles, no list of apps, or no word on who an update unticked is refused: the screen never guesses.
   for (const old of [{ roles: undefined }, { apps: undefined }, { unticked: undefined }]) { roster = { ...status(), ...old } as unknown as Status; await expect(readAccess('status', statusSchema)).rejects.toThrow() }
   function Probe() { const resource = useAccess('apps', appAccessSchema); return <span>{resource.data?.state}</span> }
   render(<Probe />); await screen.findByText('current')

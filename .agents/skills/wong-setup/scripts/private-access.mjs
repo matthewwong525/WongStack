@@ -270,18 +270,15 @@ export async function provisionAccessPolicies(cf, { account, ownerEmail, teammat
 export const LOGIN_KEY_SECRET = 'WONG_ACCESS_LOGIN_MANAGEMENT';
 /** The secret the read-only Cloudflare key is read from: on production always, on staging when Cloudflare takes it. */
 export const CLOUDFLARE_READ_SECRET = 'WONG_CLOUDFLARE_READ';
-/** Cloudflare stores no secret on a Worker whose newest uploaded version is not the deployed one: a staging Worker's usual state. */
+/** Cloudflare stores no secret on a Worker whose newest uploaded version is not the deployed one:
+ * a staging Worker's usual state. */
 const NEWER_VERSION_UPLOADED = 10215;
 
 /** What a key's result and note say of the Workers that hold no copy; nothing when every Worker holds one. */
 const waitingOn = waiting => waiting.length ? { result: { waiting }, text: `; ${waiting.join(', ')} waiting, as Cloudflare stores no secret there while a newer preview is uploaded` } : { text: '' };
 
-/**
- * One account key the app holds as a Worker secret: made once, stored with the account id and `ids`, and
- * reused on a rerun while the first Worker still holds it. The first of `workers` must take it; a later
- * one Cloudflare refuses for a newer uploaded version is left `waiting`. `policies` builds the key's
- * permissions, lazily. A token that can not make keys leaves the step `missing` and stops nothing else.
- */
+/** One account key the app holds as a Worker secret, reused on a rerun while the first Worker still holds it.
+ * The first of `workers` must take it; a later one Cloudflare refuses is left `waiting`. A 401 or 403 is `missing`. */
 async function workerKey(cf, { account, name, workers, secret, version, ids = {}, slot, label, where, policies, state, checkpoint, note }) {
   const tokens = `/accounts/${account}/tokens`;
   const secrets = workers.map(worker => `/accounts/${account}/workers/scripts/${worker}/secrets`);
@@ -317,20 +314,14 @@ async function workerKey(cf, { account, name, workers, secret, version, ids = {}
   }
 }
 
-/**
- * The live app's own key for its sign-in list, stored in the production Worker alone with the account and
- * human-policy ids. Cloudflare scopes the key to the account; the app calls only its own application and
- * policy.
- */
+/** The live app's own key for its sign-in list, stored in the production Worker alone. Cloudflare scopes
+ * the key to the account; the app calls only its own application and policy. */
 export const loginManagementKey = (cf, { worker, policyId, ...rest }) => workerKey(cf, {
   ...rest, workers: [worker], secret: LOGIN_KEY_SECRET, version: 2, ids: { policyId }, slot: 'loginKey', label: 'sign-in list key', where: 'the live app only',
 });
 
-/**
- * The key behind the app's Cloudflare look-ups: on the production Worker, and with the same value on the
- * staging Worker when Cloudflare takes it. It reads settings, logs and usage: it can change nothing, and
- * reads no stored data.
- */
+/** The key behind the app's Cloudflare look-ups, on production and, when Cloudflare takes it, staging.
+ * It reads settings, logs and usage: it can change nothing, and reads no stored data. */
 export const cloudflareReadKey = (cf, options) => workerKey(cf, {
   ...options, secret: CLOUDFLARE_READ_SECRET, version: 1, slot: 'cloudflareReadKey', label: 'read-only Cloudflare key', where: 'both Workers',
 });

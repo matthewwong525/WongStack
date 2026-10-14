@@ -4,11 +4,8 @@ import type { KeyEntry } from "../employee-access/key-levels.ts";
 import type { RouteAccess } from "../employee-access/policy.ts";
 import type { Forward } from "../keys.ts";
 
-// POST /api/direct/<key>/read and /api/direct/<key>/change: one request passed on to a saved key's own service.
-// Both are made here from the key registry, so a service is a `forward` entry there and no handler code. Each
-// belongs to its key alone, so no app is needed: the person's level for the key decides, and nothing else in
-// Access does. The app adds the key; the caller never holds it.
-// wiki/stack/company-api.md#use-a-key-directly
+// POST /api/direct/<key>/read and /change: one request passed on to a saved key's own service, built here from the
+// registry's `forward` entries. The key's level alone decides, no app. wiki/stack/company-api.md#use-a-key-directly
 
 // The service's answer is read up to this size; the action's own output limit leaves room to wrap it.
 const LIMIT = 1_000_000;
@@ -126,11 +123,8 @@ function action(id: string, key: KeyEntry, forward: Forward, kind: Kind, send: t
   });
 }
 
-/**
- * The direct-use routes of every key whose service is set up: a look-up action, and a change action when the key
- * offers Read & write, each with the mapping it is judged by. Throws, naming the key, on a `forward` entry that
- * breaks a rule. `send` is the request itself, which a test replaces.
- */
+/** The direct-use routes of every key whose service is set up: a look-up action, and a change action when the key
+ *  offers Read & write. Throws, naming the key, on a bad `forward` entry. `send` is the request; a test replaces it. */
 export function forwardRoutes(registry: Readonly<Record<string, KeyEntry>>, send: typeof fetch = (...call) => fetch(...call)) {
   const routes = new Map<string, Action>();
   const access = new Map<string, RouteAccess>();

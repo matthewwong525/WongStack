@@ -125,7 +125,7 @@ it("answers why it is free in one sentence, right after whether it is free", () 
   expect(why?.nextElementSibling?.textContent).toBe("It is open source software you can use, change, and share.");
 });
 
-/** Presses the copy icon on `root`'s install message over a clipboard that copies or refuses; returns what it was asked to copy. */
+/** Presses the copy icon on `root`'s install message; the clipboard copies or refuses. Returns the text it got. */
 async function copyMessage(root: HTMLElement, copies: boolean) {
   const writeText = vi.fn(async () => (copies ? undefined : Promise.reject(new Error("denied"))));
   vi.stubGlobal("navigator", { clipboard: { writeText } });

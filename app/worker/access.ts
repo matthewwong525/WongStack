@@ -1,29 +1,5 @@
-// Cloudflare Access identity — verify the signed assertion, don't trust a header.
-//
-// Enforced by the Worker before pages, assets, APIs and mini apps.
-//
-// WHY VERIFY RATHER THAN READ A HEADER
-//
-//   1. Access sets NO email header for a service token. A machine caller — CI,
-//      /verify, any non-interactive client — arrives carrying only
-//      `cf-access-jwt-assertion` plus the ordinary cf-* headers; the
-//      CF-Access-Client-Id/Secret it sent are stripped at the edge. A Worker
-//      reading `Cf-Access-Authenticated-User-Email` therefore 401s every machine.
-//      The JWT is the one signal that covers humans and machines both.
-//
-//   2. Trusting a header is sound only if the proxy provably covers every
-//      hostname that reaches this Worker — and a policy can silently fail to
-//      cover one. Verifying the signature checks the claim against THIS
-//      application, so it does not depend on a fact you can be wrong about.
-//
-// The verified claims differ by exactly one field, which is what lets one path
-// serve both callers:
-//
-//   human, via your IdP   → { email: "someone@example.com", sub: "<user id>" }
-//   service token         → { common_name: "<client id>",   sub: "" }
-//
-// Setup, and the browser verification that must pass first:
-// wiki/stack/cloudflare-access.md#turning-it-on
+// Cloudflare Access identity: verify the signed assertion, not a header; a service token gets no email header.
+// Enforced before pages, assets, APIs and mini apps. wiki/stack/cloudflare-access.md#turning-it-on
 
 /** A caller Access has authenticated, and whose assertion we verified. */
 export interface AccessIdentity {
@@ -50,24 +26,16 @@ export interface AccessEnv {
   CF_ACCESS_TEAM_DOMAIN?: string;
   /** The application's Audience (AUD) tag — public identifier, not a secret. */
   CF_ACCESS_AUD?: string;
-  /**
-   * "off" while the account has no Zero Trust login yet: a committed switch,
-   * honored only when both Access identifiers above are blank.
-   * wiki/stack/cloudflare-access.md#open-until-the-card
-   */
+  /** "off" while the account has no Zero Trust login yet: a committed switch, honored only when both Access
+   *  identifiers above are blank. wiki/stack/cloudflare-access.md#open-until-the-card */
   WORKSPACE_LOGIN?: string;
-  /**
-   * Local development only. Read from env, never from the request, so no caller
-   * can turn off the wall by sending a header.
-   */
+  /** Local development only. Read from env, never from the request, so no caller can turn off the wall by header. */
   SKIP_AUTH?: string | boolean;
   WONG_ENVIRONMENT?: string;
 }
 
-/**
- * True where Cloudflare's sign-in stands in front of this site, so a caller has a session to end. False while the
- * site is open until the card, and on a local run, where the stand-in identity has none.
- */
+/** True where Cloudflare's sign-in stands in front of this site, so a caller has a session to end. False while the
+ *  site is open until the card, and on a local run, where the stand-in identity has none. */
 export const hasSignIn = (env: AccessEnv): boolean =>
   !!env.CF_ACCESS_TEAM_DOMAIN && !!env.CF_ACCESS_AUD && env.WONG_ENVIRONMENT !== "local";
 
@@ -78,12 +46,8 @@ const DEV_IDENTITY: AccessIdentity = {
   claims: { aud: "", iss: "", exp: 0, email: "dev@example.com" },
 };
 
-/**
- * Cloudflare rotates the signing keys, so they are fetched rather than pinned —
- * and cached, because this runs on every request. A short TTL keeps a rotation
- * from causing more than one window of misses; an unknown `kid` refetches
- * immediately regardless, which is what actually handles rotation.
- */
+/** Cloudflare rotates the signing keys, so they are fetched and cached, not pinned: this runs on every request.
+ *  An unknown `kid` refetches at once, which is what handles a rotation; the TTL only bounds a stale set. */
 const KEY_CACHE_TTL_MS = 60 * 60 * 1000;
 let keyCache: { teamDomain: string; fetchedAt: number; keys: Map<string, CryptoKey> } | null = null;
 
@@ -153,13 +117,8 @@ function identityFromClaims(
   return null;
 }
 
-/**
- * The Access-verified identity behind this request, or `null`.
- *
- * FAILS CLOSED. Every failure path — no assertion, bad signature, wrong
- * audience, wrong issuer, expired, malformed, certs unreachable — returns
- * `null`. Treat `null` as 401; never fall through to an anonymous default.
- */
+/** The Access-verified identity behind this request, or `null`. FAILS CLOSED: every failure path returns `null`.
+ *  Treat `null` as 401; never fall through to an anonymous default. */
 export async function getAccessIdentity(
   request: Request,
   env: AccessEnv,

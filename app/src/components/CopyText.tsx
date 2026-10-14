@@ -2,9 +2,8 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 
-// One button copies the text. Keep the text selectable whether clipboard permission is granted or refused: it sits
-// folded under the button, and opens by itself when the copy fails. `variant` makes the button the solid one
-// where copying is the main thing to do.
+// One button copies the text. The text stays selectable whether the clipboard allows or refuses: it sits folded
+// under the button and opens by itself when the copy fails. `variant` makes the button solid where copying leads.
 export function CopyText({ text, label, variant = 'outline' }: { text: string; label: string; variant?: 'default' | 'outline' }) {
   const [status, setStatus] = useState('')
   const [expanded, setExpanded] = useState(false)

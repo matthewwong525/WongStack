@@ -15,12 +15,8 @@ const CHECK = (
 
 export type CopyResult = "copied" | "refused";
 
-/**
- * Copies `text` in its own click, with nothing else in it, so the page keeps
- * focus and the browser does not ask for permission. It turns into ✓ Copied,
- * and tells its caller whether the browser copied or refused. `iconOnly`
- * shows just the icon, named `label` for screen readers.
- */
+/** Copies `text` in its own click, with nothing else in it, so the page keeps focus and the browser asks for no
+ * permission. `onResult` hears whether it copied; `iconOnly` shows just the icon, named `label` for screen readers. */
 export function CopyButton({ text, label, iconOnly = false, onResult }: { text: string; label: string; iconOnly?: boolean; onResult: (result: CopyResult) => void }) {
   const [copied, setCopied] = useState(false);
   const copy = () =>

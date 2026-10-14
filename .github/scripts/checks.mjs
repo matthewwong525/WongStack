@@ -1,34 +1,6 @@
 #!/usr/bin/env node
-// Portable customer checks. The caller supplies repository context; GitHub
-// and hosted runners use this same entry point without provider credentials.
-//
-// Both routes also run the skill check, `scripts/check-skill-actions.mjs`, on
-// every change, docs-only included: it only reads files, and a skill's text is
-// Markdown the suite skips. The script ships with the Cloudflare pack, so a repo
-// without the pack, or one that has not synced it yet, has none and skips it.
-//
-// In CI, where the checkout is thrown away, the suite compiles against binding
-// types regenerated from the wrangler config (`scripts/cf-build.sh --types`), as
-// the deploy build does: a binding the config has and the committed types lack
-// fails here, never first in the deploy. The `--worktree` run leaves the
-// committed file alone.
-//
-// When the change touches a check's settings, the suite's packages, or the proof
-// itself, it also runs the suite's `test:checks` script, which hands each check a
-// bad sample and fails when one lets it through. Other changes skip that proof and
-// say so; a change with no base to compare runs it.
-//
-// The WongStack source repo also tests its app as an install receives it
-// (`scripts/check-target-app.mjs`), on both runs, when the change touches the
-// suite's folder or the list of shipped files. No install has that script.
-//
-// With `--worktree`, it checks the uncommitted work on this computer before the
-// first push: the same suite, proof, loosened-check guard, and wiki check, scoped by
-// `app-untouched.sh --worktree`. It installs only when `node_modules` is missing
-// or older than the lockfile, and takes turns with other chats through one lock
-// file. This run is a pre-check, never the gate: CI still decides. Its last line
-// is `LOCAL_CHECKS=pass`, `fail (<parts>)`, or `not run (<reason>)`; exit 0, 1,
-// or 7 (no tools here, or the turn never came).
+// Portable customer checks: CI and `--worktree`, a pre-check on this computer that is never the gate, share it.
+// What runs and when: wiki/development/the-change-loop.md#the-gate. The last `--worktree` line is LOCAL_CHECKS=...
 import { execFileSync, spawnSync } from 'node:child_process';
 import { appendFileSync, existsSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -102,11 +74,8 @@ function suiteDir(repo) {
   return null;
 }
 
-/**
- * Whether this change calls for the proof: 'run' when it touches a check's settings, the
- * suite's packages, or the proof itself, and when there is no base to compare; 'unchanged'
- * when it touches none of them; 'none' when the suite has no `test:checks` script.
- */
+/** Whether this change calls for the proof: 'run' when it touches a check's settings, the suite's packages, or
+ * the proof, or has no base to compare; else 'unchanged'; 'none' when the suite has no `test:checks` script. */
 function proofWanted(repo, dir, base, worktree) {
   if (!JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')).scripts[PROOF]) return 'none';
   if (!base) return 'run';
@@ -118,11 +87,8 @@ function proofWanted(repo, dir, base, worktree) {
   return touched ? 'run' : 'unchanged';
 }
 
-/**
- * Whether this change calls for the install-shaped test of the app: 'none' in any repo but the
- * WongStack source, 'run' when it touches the suite's folder, the list of shipped files, or the
- * check itself, and when there is no base to compare; else 'unchanged'.
- */
+/** Whether to run the install-shaped test of the app: 'none' in any repo but the WongStack source; 'run' when the
+ * change touches the suite's folder, the list of shipped files, or the check, or has no base; else 'unchanged'. */
 function targetWanted(repo, dir, base, worktree) {
   if (!existsSync(join(repo, TARGET_SCRIPT))) return 'none';
   if (!base) return 'run';
@@ -173,7 +139,7 @@ function takeTurn(file, seconds) {
     try { holder = readFileSync(file, 'utf8').trim(); } catch { continue; }
     // A run that died left its file behind; a live one keeps its turn.
     if (!/^\d+$/.test(holder) || !alive(Number(holder))) {
-      try { if (readFileSync(file, 'utf8').trim() === holder) rmSync(file, { force: true }); } catch { /* another run took it */ }
+      try { if (readFileSync(file, 'utf8').trim() === holder) rmSync(file, { force: true }); } catch { /* taken */ }
       continue;
     }
     if (Date.now() >= deadline) return false;
@@ -193,11 +159,8 @@ function skillCheck(repo) {
   return { ok, text };
 }
 
-/**
- * Regenerate the binding types where the repo's pack can: the one function the deploy build calls.
- * A repo without the pack, or with one from before `--types`, skips it; the script itself skips a
- * repo with no wrangler config. Never fails the checks: the suite's own compile is the judge.
- */
+/** Regenerate the binding types as the deploy build does, where the repo's pack has `cf-build.sh --types`.
+ * Never fails the checks: the suite's own compile is the judge. */
 function regenerateTypes(repo) {
   const script = join(repo, 'scripts', 'cf-build.sh');
   if (existsSync(script) && readFileSync(script, 'utf8').includes('"--types"')) run('bash', [script, '--types'], repo);

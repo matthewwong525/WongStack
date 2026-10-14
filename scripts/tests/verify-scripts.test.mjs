@@ -58,8 +58,6 @@ test('the walk reads .env through the memory parser and escapes the Access heade
   assert.match(stdout, /^REDACTED=0$/m, 'a walk whose evidence holds no credential changes no file');
 });
 
-// ── The scrub ─────────────────────────────────────────────────────────────────
-
 const GITHUB_TOKEN = 'ghp_abcdefghijklmnopqrstuvwxyz0123';
 const asJson = value => JSON.stringify(value).slice(1, -1);
 const CREDENTIALS = [SECRET, asJson(SECRET), 'client-id.access', GITHUB_TOKEN];
@@ -173,8 +171,6 @@ test('CI-only preflight requires a saved head before allocating evidence storage
   assert.deepEqual(readdirSync(temp), []);
   assert.equal(existsSync(calls), false);
 });
-
-// ── The staging turn and the reset ────────────────────────────────────────────
 
 // Two checkouts of one bare remote: two walks on two machines. `turn` runs the script's turn command
 // in one of them, never waiting unless a test says so.
@@ -469,13 +465,11 @@ test('cleanup removes a real run directory from the temp dir', t => {
   assert.equal(existsSync(runDir), false);
 });
 
-// ── Kept pictures ─────────────────────────────────────────────────────────────
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
 const KEPT = 'abc1234/20261003T140000Z/empty-title/01-landing.png';
 
-// Production's stand-in: the real picture route on a fake bucket, behind a check for the Access
-// token. `site` picks what the walk meets: 'private' (a login and a bucket), 'no-bucket', 'open'
-// (no login), 'old' (a site from before the route), or 'refuses' (the token is turned away).
+// Production's stand-in: the real picture route on a fake bucket, behind an Access token check. `site` picks what the
+// walk meets: 'private', 'no-bucket', 'open' (no login), 'old' (before the route), or 'refuses' (token turned away).
 async function production(t, site = 'private') {
   const objects = new Map();
   const bucket = {

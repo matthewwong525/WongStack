@@ -44,7 +44,7 @@ it("lets the verification machine read and save as the owner on a preview, and n
     iss: site.issuer, aud: site.audience, exp: 9999999999 } };
   const preview = { ...f.env, WONG_ENVIRONMENT: "staging", WONG_ACCESS_LOGIN_MANAGEMENT: undefined };
   const save = () => req("people", "POST", { email: "practice@example.com", apps: {}, removed: false });
-  // Its subject is the token's own name, and the list is the practice list. Its changes are recorded under the owner's email.
+  // Its subject is the token's own name, and the list is the practice list. Its changes go under the owner's email.
   expect(await ownerCore(req("status", "GET"), preview, machine))
     .toMatchObject({ email: site.ownerEmail, actor: site.ownerEmail, owner: true, subject: "checker.access", live: false, installationId: site.installationId });
   expect((await management(req("status", "GET"), preview, machine)).status).toBe(200);

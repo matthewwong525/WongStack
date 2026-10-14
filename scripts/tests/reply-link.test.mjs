@@ -87,9 +87,6 @@ async function until(done, message, ms = 5000) {
   assert.fail(message);
 }
 
-// ---------------------------------------------------------------------------
-// Waking a chat
-
 test('waking a chat is notified only when the host confirms that chat got the message', async t => {
   const root = mkdtempSync(join(tmpdir(), 'wong-test-wake-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
@@ -118,9 +115,6 @@ test('waking a chat is notified only when the host confirms that chat got the me
   assert.deepEqual(chatTarget({ PASEO_AGENT_ID: ` ${AGENT} `, PASEO_HOME: '/h', PASEO_HOST: '' }, '/w'), { agentId: AGENT, cwd: '/w', paseoHome: '/h', paseoHost: null });
   assert.equal(chatTarget({}, '/w').agentId, null);
 });
-
-// ---------------------------------------------------------------------------
-// Opening
 
 test('every page shares one tunnel, and opening a file again keeps its link and moves its deadline', async t => {
   const f = fixture(t);
@@ -197,7 +191,7 @@ for (const [reason, options] of [
     assert.ok(took < 1000, `took ${took} ms`);
     assert.equal(f.tunnels(), 0);
     assert.deepEqual(existsSync(join(f.state, 'pages')) ? readdirSync(join(f.state, 'pages')) : [], [], 'no page stays registered');
-    // In this process the tunnel tool would be looked up on the test's own PATH, so only the earlier answers are asked here.
+    // In this process the tunnel tool would be looked up on the test's own PATH, so only the earlier answers are asked.
     if (reason !== 'no-cloudflared') assert.equal(await openReplyLink({ file, header: HEADER, env: f.env, cwd: f.root }), null);
   });
 }
@@ -232,9 +226,6 @@ test('a missing file and bad arguments are refused before anything opens', t => 
   assert.equal(f.reply('close', f.page('one.html')).stdout, 'REPLY_CLOSED=no\n');
   assert.equal(f.reply('list').stdout, '');
 });
-
-// ---------------------------------------------------------------------------
-// The server's routes
 
 test('a send with the key wakes the chat that opened the link, under the fixed header', async t => {
   const f = fixture(t);
@@ -316,9 +307,6 @@ for (const paseo of ['fail', 'invalid']) {
     assert.deepEqual(out.json, { sent: false });
   });
 }
-
-// ---------------------------------------------------------------------------
-// Actions
 
 test('an action preserves its registered instruction and target with optional notes, once per file version', async t => {
   const f = fixture(t);
@@ -452,9 +440,6 @@ test('the server exits when its tunnel dies, and keeps the pages for the next op
   await until(() => !alive(pid), 'the server outlived its tunnel');
   assert.equal(f.registration(link.id).key, link.key);
 });
-
-// ---------------------------------------------------------------------------
-// Apart from private links
 
 test('a reply link and a private link open while the other is open, and share no state', async t => {
   const f = fixture(t);

@@ -1,22 +1,6 @@
 #!/usr/bin/env node
-/**
- * Number this branch's release from the default branch's version, right before /ship's checkpoint.
- *
- *     node .claude/skills/ship/scripts/number-release.mjs
- *
- * A change writes its CHANGELOG.md entry as `## Next (patch|minor|major) — <Title>` and leaves VERSION
- * alone. This finds the branch's one entry (the `## Next` or `## X.Y.Z` heading the default branch's
- * CHANGELOG.md lacks), bumps the default branch's VERSION by its level, and writes VERSION and the
- * `## X.Y.Z — <Title>` heading, entry on top, one blank line before every `## ` heading. A numbered entry
- * takes its level from the gap to the newest lower version in the file, so a renumber after another
- * release landed, and a branch that raised VERSION by hand, take the same path.
- *
- * Prints one line:
- *   release=none                  nothing to number (no CHANGELOG.md, or no entry of its own); exit 0
- *   release=X.Y.Z from=A.B.C      numbered; exit 0
- *   behind=yes                    merge origin/<default> first, then run again; exit 3
- * Exit 1 names the problem: two entries, an unknown level, or no VERSION on the default branch.
- */
+// Number this branch's release from the default branch's version, right before /ship's checkpoint: its one
+// `## Next (level) — <Title>` entry becomes `## X.Y.Z — <Title>`, and VERSION is bumped by that level.
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';

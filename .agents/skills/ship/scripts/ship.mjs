@@ -1,41 +1,6 @@
 #!/usr/bin/env node
-/**
- * /ship's two mechanical halves, each one command. The ship skill keeps the decisions (the
- * pull-in, which change, several changes on one branch, a failed walk); these run the rest
- * through the existing scripts and the OpenSpec CLI.
- *
- *     node .claude/skills/ship/scripts/ship.mjs prepare [--change <name> | --no-change] \
- *       [--allow-others] [--skip-specs] [--sync] [--store <id>] [--schedule-record <reference>]
- *     node .claude/skills/ship/scripts/ship.mjs finish
- *
- * prepare: preflight (branch, uncommitted work, commits ahead, the default branch's checks),
- * the tasks check, `openspec status`, `validate --strict`, and `archive --yes`, one archive
- * folder, `git fetch`, number-release.mjs, a merge of the default branch when the release is
- * behind it (or with --sync), `ready-to-ship` on the archived proposal, and its review page.
- * It is safe to run again: an already archived change skips to the fetch. A run that merged the
- * default branch in then runs the local checks once (.github/scripts/checks.mjs --worktree), their
- * output on stderr; a failure changes NEXT: to a repair and never the exit code.
- * Prints CHANGE=, ARCHIVE=, RELEASE=, SYNC=, REVIEW=, LOCAL_CHECKS= after a merge, and NEXT:.
- *
- * finish: merge.sh (its lines printed unchanged), then worktree-secrets.mjs promote, then
- * live-look.sh on the merge commit. Prints SECRETS=, the live look's lines, and NEXT:.
- *
- * An Artifacts install (wiki/stack/artifacts-route.md) has no GitHub: delivery-route.mjs is asked
- * once a command, and on `artifacts` no gh call is made. prepare reads main's own check run;
- * finish takes the merge commit from merge.sh's `commit=` line, and a main that moved, failed, or
- * could not be read gets its own NEXT:. So does a main whose check run was cut off: that is not a
- * failure, and NEXT: names the command that starts the run again. A route that can not be told
- * stops either command.
- *
- * Exit codes of prepare:
- *   0  ready for /save            1  a step failed; its message is printed
- *   2  usage                      3  nothing to ship yet: the pull-in
- *   4  unchecked tasks            5  the default branch could not be merged in cleanly
- *   6  the default branch's checks are failing, unreadable, or were cut off
- *   7  the change to ship needs a decision: none selected, or other active changes ride along
- * finish exits with merge.sh's code: 0 merged, 1 not merged, 2 merged but the branch is kept,
- * and on an Artifacts install 3: published, but main's run failed or could not be read.
- */
+// /ship's two mechanical halves, `prepare` and `finish`, each one command. The ship skill keeps the decisions; these
+// run the rest through the existing scripts and the OpenSpec CLI. Exit codes: each `Stop(code, …)` below.
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -97,12 +62,8 @@ function routeOf(cwd) {
 const RUN_AGAIN = 'node .claude/skills/save/scripts/artifacts-run.mjs';
 const restartSteps = (sha, base) => `Start it again with \`${RUN_AGAIN} restart ${sha} refs/heads/${base}\`, then wait for it with \`${RUN_AGAIN} live ${sha}\`.`;
 
-/**
- * The default branch's checks on an Artifacts install, in the shape of the gh answer prepare reads:
- * `ok` for a run that passed or found no checks, `failure` for a red one, `interrupted` for one
- * that was cut off, and nothing, with the reason, for a run that is still going, missing, or unreadable. The branch is fetched first, so
- * an older commit's run never answers for the one a publish would land on.
- */
+// The default branch's checks on an Artifacts install, in the shape of the gh answer prepare reads: `ok`, `failure`,
+// `interrupted`, or nothing with the reason. The branch is fetched first, so an older commit's run never answers.
 function artifactsDefaultChecks(base) {
   const fetch = sh('git', ['fetch', 'origin', base]);
   const sha = fetch.status === 0 ? sh('git', ['rev-parse', `origin/${base}`]).stdout.trim() : '';
@@ -120,10 +81,8 @@ function openspecJson(args, store) {
   try { return JSON.parse(text); } catch { throw new Stop(1, [`error=openspec ${args.join(' ')} printed no JSON`]); }
 }
 
-/**
- * CHANGELOG.md with this branch's entry on top of the default branch's entries: the default
- * branch's file, plus the one `## ` entry of `ours` it lacks. Null when that is not one entry.
- */
+// CHANGELOG.md with this branch's entry on top of the default branch's entries: the default branch's file, plus
+// the one `## ` entry of `ours` it lacks. Null when that is not one entry.
 export function entryOnTop(ours, theirs) {
   const mine = ours.split('\n');
   const base = theirs.split('\n');
@@ -239,10 +198,8 @@ function markReady(archive) {
   }
 }
 
-/**
- * The local pre-check on a tree the default branch was just merged into: the value of its last
- * `LOCAL_CHECKS=` line. Its output goes to stderr. It decides nothing, so it never stops prepare.
- */
+// The local pre-check on a tree the default branch was just merged into: the value of its last `LOCAL_CHECKS=`
+// line. Its output goes to stderr. It decides nothing, so it never stops prepare.
 function recheck(root, base) {
   const script = join(root, '.github', 'scripts', 'checks.mjs');
   if (!existsSync(script)) return 'not run (this repo has no .github/scripts/checks.mjs)';

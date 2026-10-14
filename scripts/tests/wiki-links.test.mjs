@@ -23,7 +23,7 @@ function repo(t, files) {
   return root;
 }
 
-// A whole, linked wiki: the root hub, a page, and a section with its own hub. Each page opens with a title and a sentence.
+// A whole, linked wiki: the root hub, a page, and a section with a hub. Each page opens with a title and a sentence.
 const WIKI = {
   'wiki/README.md': '# Wiki\nStart here.\n- [Voice](voice.md)\n- [Stack](stack/)\n',
   'wiki/voice.md': '# Voice\n\nUp: [the wiki](README.md).\n',

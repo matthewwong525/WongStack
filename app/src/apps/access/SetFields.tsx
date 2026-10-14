@@ -5,9 +5,8 @@ import { FinishStep } from './Notices'
 import { ProjectStep } from './ProjectStep'
 import { keyLine, keyState, type AccessSet } from './levels'
 
-/** What a key that is not saved yet waits for. Setup makes one key itself: on the live app the owner asks their
- *  assistant to finish, with the request to copy, and a manager is told it is the owner's step; no step can finish
- *  it on a preview. Any other key comes through its link. */
+/** What a key that is not saved yet waits for. Setup makes one key itself: the owner copies a request, a manager is
+ *  told it is the owner's step, and a preview has no step. Any other key comes through its link. */
 function NextStep({ status, item }: { status: Status; item: SavedKey }) {
   if (!item.setup) return <p className="text-sm">Ask your assistant for the key link.</p>
   if (status.environment !== 'live') return null
@@ -16,11 +15,8 @@ function NextStep({ status, item }: { status: Status; item: SavedKey }) {
     : <p className="text-sm">Look-ups need a read-only key. {status.ownerEmail} finishes that in Access setup.</p>
 }
 
-/** One set, a person's own or a role's, in two groups that don't depend on each other. Apps: a tick each, and a
- *  ticked app does everything it was built to do. Keys: a level each, for what an assistant does with the key by
- *  itself, and one line says so. Each key says beside its name whether it is saved, with the step left under it
- *  when it is not; a level can be set either way. Project code is one tick of its own after them, with the step left under it while the app can not hand
- *  the project out. Nothing here saves. */
+/** One set, a person's own or a role's, in two groups that don't depend on each other: a tick per app, and a level
+ *  per key, set whether the key is saved or not. Project code is one tick of its own after them. Nothing here saves. */
 export function SetFields({ status, set, onChange }: { status: Status; set: AccessSet; onChange: (set: AccessSet) => void }) {
   // Project code is Read or nothing, so it is a tick: the same choice as its level in Keys.
   const project = status.keys.some(key => key.id === 'code')

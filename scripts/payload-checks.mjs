@@ -1,26 +1,6 @@
 #!/usr/bin/env node
-/**
- * WongStack's own static checks, run on this computer before a push. Meta-only: no install
- * receives this file. `.github/scripts/checks.mjs --worktree` runs it when it exists, inside
- * that command's turn; run it through there, not on its own.
- *
- *     node scripts/payload-checks.mjs [--docs-only] [--only <names>] [--list] [--root <path>]
- *
- * STEPS lists the static steps of `.github/workflows/payload.yml`, each command copied from
- * the workflow. `scripts/tests/payload-checks.test.mjs` fails when the workflow no longer
- * holds a listed command, or runs it under another condition, so the two can not drift. The
- * workflow's capture steps need GitHub's run identity and stay in CI.
- *
- * Which steps run follows the workflow's own rule: a change entirely under `wiki/` or
- * `openspec/` (--docs-only) skips lint, shell checks, and the script suite, and runs the
- * private-names and install-cost tests instead; the release checks always run. A step whose
- * tool is not installed here (shellcheck, openspec) is skipped with a line; CI still runs it.
- *
- * A passing step prints one line; a failing one prints its failed tests by name and file, or the
- * end of its output when it is not a test run. The last line is
- * PAYLOAD_CHECKS=pass, fail (<names>), or not run (<reason>). Exit 0, 1, or 7 (the test tools
- * could not be installed). This is a pre-check, never the gate.
- */
+// WongStack's own static checks, run before a push through `.github/scripts/checks.mjs --worktree`. Meta-only.
+// STEPS copies `.github/workflows/payload.yml`; `scripts/tests/payload-checks.test.mjs` fails when they drift.
 import { spawnSync } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -38,11 +18,8 @@ const NO_TOOLS = 7;
 const TAIL = 120;
 const FAILED_TESTS = 40;
 
-/**
- * What a red step's output says. A `node --test` run names each failed test on a `not ok` line
- * with its file below it; print those and the closing counts, not the passing tests around
- * them. Anything else prints the end of its output.
- */
+// What a red step's output says: a `node --test` run's `not ok` lines, their files and the closing counts.
+// Anything else prints the end of its output.
 export function failureDigest(output) {
   const lines = output.trimEnd().split('\n');
   const failed = [];
@@ -61,7 +38,7 @@ export function failureDigest(output) {
 // when: 'code' skips on a docs-only change, 'docs' runs only on one, 'always' runs on both.
 // deps: needs scripts/tests/node_modules. tool: skipped here when that command is not installed.
 export const STEPS = [
-  { name: 'lint', when: 'code', deps: true, command: 'scripts/tests/node_modules/.bin/oxlint --deny-warnings scripts .agents/skills/*/scripts .agents/skills/*/worker .github/scripts' },
+  { name: 'lint', when: 'code', deps: true, command: 'scripts/tests/node_modules/.bin/oxlint -c scripts/tests/.oxlintrc.json --deny-warnings scripts .agents/skills/*/scripts .agents/skills/*/worker .github/scripts' },
   { name: 'shellcheck', when: 'code', tool: 'shellcheck', command: 'shellcheck --severity=warning scripts/*.sh .github/scripts/*.sh .agents/skills/*/scripts/*.sh' },
   { name: 'script-tests', when: 'code', deps: true, command: 'scripts/tests/node_modules/.bin/c8 --config scripts/tests/.c8rc.json node --test scripts/tests/*.test.mjs' },
   { name: 'private-names', when: 'docs', command: 'node --test scripts/tests/private-names.test.mjs' },

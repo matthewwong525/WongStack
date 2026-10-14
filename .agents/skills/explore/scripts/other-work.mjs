@@ -1,21 +1,6 @@
 #!/usr/bin/env node
-// Lists this repo's other active work, so planning can spot an overlap before it starts.
-//
-//     node .claude/skills/explore/scripts/other-work.mjs
-//
-// Git is the base: every worktree of this repo, from the primary checkout, so another project
-// never appears. A worktree counts when it has unsaved files, commits not on the default branch,
-// an active OpenSpec change on disk (saved or not), or a running agent; the current worktree never
-// counts. Paseo, when it answers, adds each workspace's name and whether an agent is running in it.
-// `gh` adds open pull requests not opened by a bot, each folded into the worktree on its branch.
-// An Artifacts install has no pull requests (wiki/stack/artifacts-route.md): there, `savedBranches[]`
-// lists each remote branch that holds an unarchived change, with the change's Status.
-// The script gathers facts only; the agent judges what overlaps.
-//
-// Prints one JSON object: { ok, workspaces[], pullRequests[], notes[] }. A Paseo or GitHub failure
-// becomes a note, never a failure. Exit codes: 0 ok, 2 bad input or not inside a git checkout.
-//
-// Node built-ins only. OTHER_WORK_PASEO_BIN overrides the `paseo` found on PATH.
+// Lists this repo's other active work as JSON, so planning can spot an overlap before it starts.
+// It gathers facts only; the agent judges what overlaps. A Paseo or GitHub failure becomes a note.
 
 import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, realpathSync } from 'node:fs';
@@ -31,9 +16,6 @@ const USAGE = 'usage: other-work.mjs  prints this repo\'s other active work (wor
 const BUSY = new Set(['running', 'initializing']);
 const LIMIT = 20;
 const GH_TIMEOUT_MS = 30_000;
-
-// ---------------------------------------------------------------------------
-// Pure helpers
 
 /** True when `file` is `dir` or inside it. */
 export function inside(dir, file) {
@@ -76,10 +58,8 @@ export function isLive(tree) {
   return tree.busy || tree.changes.length > 0 || tree.dirtyFiles.length > 0 || tree.commitsAhead > 0;
 }
 
-/**
- * Splits open pull requests: bots and the current branch are dropped, one on a listed worktree's
- * branch folds into it as `pr`, and the rest come back as entries.
- */
+// Splits open pull requests: bots and the current branch are dropped, one on a listed worktree's
+// branch folds into it as `pr`, and the rest come back as entries.
 export function foldPullRequests(prs, workspaces, currentBranch, scheduledGoals = new Set()) {
   const entries = [];
   for (const pr of prs) {
@@ -95,9 +75,6 @@ export function foldPullRequests(prs, workspaces, currentBranch, scheduledGoals 
   }
   return entries;
 }
-
-// ---------------------------------------------------------------------------
-// Git and files
 
 function tryGit(cwd, ...args) {
   try {
@@ -154,10 +131,6 @@ export function archivedIn(files) {
   return [...dirs];
 }
 
-/**
- * One worktree's unpublished state, compared with `base`. A branch whose archived change is already
- * on `base` shipped by squash merge, so its leftover commits count as none ahead.
- */
 function publishedSchedulePath(dir, file) {
   if (/^schedules\/[^/]+\.json$/.test(file)) {
     try { return JSON.parse(readFileSync(path.join(dir, file), 'utf8')).binding?.lifecycle?.published === true; } catch { return false; }
@@ -166,6 +139,8 @@ function publishedSchedulePath(dir, file) {
   return Boolean(match && publishedGoal(dir, match[1]));
 }
 
+// One worktree's unpublished state, compared with `base`. A branch whose archived change is already
+// on `base` shipped by squash merge, so its leftover commits count as none ahead.
 function worktreeState(dir, base) {
   const dirty = lines(tryGit(dir, 'status', '--porcelain')).map(line => line.slice(3));
   let ahead = base ? Number(tryGit(dir, 'rev-list', '--count', `${base}..HEAD`) ?? 0) : 0;
@@ -182,11 +157,8 @@ function worktreeState(dir, base) {
   };
 }
 
-/**
- * An Artifacts install's saved work: each remote branch whose changes against `base` hold an
- * unarchived change, with that change's title and Status. `skip` names branches already listed
- * (the current one, and each worktree's). `git(...args)` returns the output, or null on failure.
- */
+// An Artifacts install's saved work: each remote branch whose changes against `base` hold an unarchived
+// change. `skip` names branches already listed; `git(...args)` returns the output, or null on failure.
 export function savedBranches(git, base, skip = new Set()) {
   const entries = [];
   for (const ref of lines(git('for-each-ref', '--format=%(refname)', 'refs/remotes/origin'))) {
@@ -213,9 +185,6 @@ function routeOf(cwd, notes) {
     return 'github';
   }
 }
-
-// ---------------------------------------------------------------------------
-// Paseo and GitHub
 
 /** Paseo's names and running agents, or a note when Paseo is missing, down, or changed. */
 async function paseoFacts(env, notes) {
@@ -255,9 +224,6 @@ function openPullRequests(cwd, notes) {
     return null;
   }
 }
-
-// ---------------------------------------------------------------------------
-// Main
 
 export async function otherWork(cwd = process.cwd(), env = process.env) {
   const repo = primaryRoot(cwd);

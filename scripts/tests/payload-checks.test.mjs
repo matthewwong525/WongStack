@@ -78,7 +78,7 @@ test('a code change runs lint, shell checks, the suite, and the release checks',
   const r = f.run();
   assert.equal(r.status, 0, `${r.stdout}${r.stderr}`);
   assert.deepEqual(r.stdout.trimEnd().split('\n'), [...names(selectSteps()).map(name => `${name}: pass`), 'PAYLOAD_CHECKS=pass']);
-  assert.match(f.calls(), /^oxlint --deny-warnings scripts /m);
+  assert.match(f.calls(), /^oxlint -c scripts\/tests\/\.oxlintrc\.json --deny-warnings scripts /m);
   assert.match(f.calls(), /^c8 --config scripts\/tests\/\.c8rc\.json node --test /m);
   assert.doesNotMatch(f.calls(), /^npm /m, 'the test tools were already installed');
 });

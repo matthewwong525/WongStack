@@ -3,8 +3,8 @@ import type { Person } from '../../lib/access'
 import type { ViewProps } from './address'
 import { fill, ticks } from './levels'
 
-/** A person's role, picked right in their row, in the device's own picker. A pick saves at once, sending the role alone,
- *  and carries what puts the person back: their old role, or their own apps and key levels, named as their page names them. */
+/** A person's role, picked in their row, in the device's own picker. A pick saves at once, sending the role alone,
+ *  and carries the undo: their old role, or their own apps and key levels, named as their page names them. */
 export function RoleSelect({ status, pending, save, person }: Pick<ViewProps, 'status' | 'pending' | 'save'> & { person: Person }) {
   const who = { email: person.email, removed: false }
   const undo = person.role ? { ...who, role: person.role } : { ...who, role: null, apps: ticks(status, person.apps), keys: fill(status, person.keys) }

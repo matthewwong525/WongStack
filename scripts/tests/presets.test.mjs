@@ -67,8 +67,6 @@ console.log('{"ok":true}');
   return { home, bin, file, run, calls, read };
 }
 
-// ── paseo.json ─────────────────────────────────────────────────────────────
-
 test('paseo.json seeds secrets on worktree setup and carries the four naming instructions', () => {
   const config = JSON.parse(readFileSync(path.join(repo, 'paseo.json'), 'utf8'));
   assert.equal(config.worktree.setup, 'node .claude/skills/ship/scripts/worktree-secrets.mjs seed');
@@ -81,8 +79,6 @@ test('paseo.json seeds secrets on worktree setup and carries the four naming ins
   assert.doesNotMatch(commit, /\bv?\d+\.\d+\.\d+\b/, 'the commit instructions name no version');
   assert.match(config.metadataGeneration.pullRequest.instructions, /Generated with \[Claude Code\]/);
 });
-
-// ── the preset data and the pure helpers ───────────────────────────────────
 
 test('paseo-presets.json has four presets, each with a stable id, a name, and a provider', () => {
   assert.equal(PRESETS.length, 4);
@@ -109,8 +105,6 @@ test('withPresets appends to agentProfiles and keeps every other key', () => {
   assert.deepEqual(Object.keys(out.daemon), Object.keys(CONFIG.daemon));
   assert.deepEqual(withPresets({ version: 1 }, [PRESETS[0]]).daemon, { agentProfiles: [PRESETS[0]] });
 });
-
-// ── the command ────────────────────────────────────────────────────────────
 
 test('a machine with Claude only gets the two Claude presets, skips Codex, keeps the rest, and reloads', t => {
   const m = machine(t);

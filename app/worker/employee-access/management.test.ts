@@ -150,7 +150,7 @@ it('gives a preview its own practice list and makes no provider call', async () 
 it('says in the status why the project can not be handed out yet, and never a secret', async () => {
   const TOKEN = 'github_pat_synthetic_read_only_value';
   const read = async (vars: object) => json<{ project: string; keys: { id: string; saved: boolean }[] }>(await run('status', 'GET', undefined, { ...f.env, ...vars }));
-  // No project recorded: setup has a step left. On GitHub with no key: the key. With it: ready, as Project code is saved.
+  // No project recorded: setup has a step left. On GitHub with no key: the key. With it: ready, Project code saved.
   const [unset, waiting, ready] = [await read({}), await read({ WONG_CODE_REPOSITORY: 'acme/recipe-box' }), await read({ WONG_CODE_REPOSITORY: 'acme/recipe-box', WONG_CODE_READ: TOKEN })];
   expect([unset, waiting, ready].map(status => [status.project, status.keys.find(key => key.id === 'code')?.saved]))
     .toEqual([['setup', false], ['key', false], ['ready', true]]);

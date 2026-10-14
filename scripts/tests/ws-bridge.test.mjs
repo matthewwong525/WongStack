@@ -13,9 +13,8 @@ const KEY = 'ab'.repeat(32);
 const OP = { more: 0, text: 1, binary: 2, close: 8, ping: 9, pong: 10 };
 const pause = ms => new Promise(done => setTimeout(done, ms));
 
-// A pretend screen source on a Unix socket, which sends back whatever it is sent, and a page server
-// whose upgrades go to the bridge. `open` is whether the link is still open; `source: false` leaves
-// the socket out, as a screen source that exited does.
+// A pretend screen source on a Unix socket that echoes what it is sent, and a page server whose upgrades go to the
+// bridge. `open` is whether the link is still open; `source: false` leaves the socket out, as an exited source does.
 async function fixture(t, { source = true } = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'wong-test-ws-bridge-'));
   const socketPath = join(dir, 'screen.sock');

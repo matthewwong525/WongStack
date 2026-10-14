@@ -102,6 +102,7 @@ The token rewrites its own permissions: it reads its own policy, looks permissio
 The authorization covers the widen and nothing else:
 
 - **Creating or deleting anything billable still asks first.** Widening costs nothing; a database is a different question.
+- **A widened token is refused for a short while.** Cloudflare answers 403 or 401 with code `10000` until the widen takes effect, so setup asks again before it stops ([`provision.mjs`](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/scripts/provision.mjs)).
 - **A widen that fails or doesn't verify still stops the run.** Nothing is provisioned on an unconfirmed permission set.
 - **A one-off permission outside that list asks first.** With a yes: a 15-minute account token for it alone, held in memory, then deleted.
 - **Narrowing back is still offered, never assumed.** Below.

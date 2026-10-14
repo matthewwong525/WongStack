@@ -9,7 +9,7 @@ const source = readFileSync(new URL('keys-page.mjs', scripts), 'utf8').replace(/
 const html = readFileSync(new URL('keys-page.html', scripts), 'utf8').replace('<script type="module" src="page.mjs"></script>', () => `<script>${source}</script>`);
 const settle = async () => { for(let i=0;i<8;i++) await new Promise(done=>setTimeout(done,0)); };
 const TWO=[{name:'FIRST',hint:'First key'},{name:'SECOND',hint:'Second key'}];
-// `respond` answers each save; `keys`, `closesAt`, and `now` are what `GET /keys` gives, and `clipboard` the browser's own.
+// `respond` answers each save; `keys`, `closesAt`, `now` are what `GET /keys` gives; `clipboard` is the browser's.
 function page(t, respond, {keys=TWO,closesAt,now,clipboard}={}) {
   const calls=[];
   const answer=(status,body)=>({status,ok:status===200,json:async()=>body});
@@ -59,9 +59,6 @@ test('expired key link clears entered values and shows closed-link fallback',asy
   const p=page(t,(_body,answer)=>answer(410));await settle();p.fill('FIRST','private');p.submit();await settle();
   assert.equal(p.$('#closed').hidden,false);assert.equal(p.$('[name=FIRST]').value,'');
 });
-
-// ---------------------------------------------------------------------------
-// The guided layout, paste and files, the time left, and the test results
 
 const STRIPE = { name: 'STRIPE_SECRET_KEY', hint: 'Secret key for the payments provider.', title: 'Stripe key', url: 'https://dashboard.stripe.com/apikeys', open: "Open Stripe's keys", steps: ['Tap Create restricted key', 'Tick Read charges', 'Copy the key'], checkHost: 'api.stripe.com' };
 const never = () => { throw new Error('nothing should be saved'); };

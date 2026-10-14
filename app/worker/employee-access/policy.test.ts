@@ -440,7 +440,7 @@ it("reads each person's apps and key levels with zero-app Access self-service, o
   sql.exec("UPDATE wong_access_installation SET policy_enabled = 0");
   expect(await (await readback()).json()).toEqual({ state: "not_started", code: "off", role: "employee", manages: false, signIn: true, apps: catalogue });
   expect(await (await readback(owner)).json()).toEqual({ state: "not_started", code: "off", role: "owner", manages: true, signIn: true, apps: catalogue });
-  // The frame offers Sign out only where a sign-in stands in front of the site: not while it is open until the card, nor on a local run.
+  // The frame offers Sign out only where a sign-in stands in front of the site: not while it is open, nor locally.
   const open = { ...env, CF_ACCESS_TEAM_DOMAIN: undefined, CF_ACCESS_AUD: undefined, WORKSPACE_LOGIN: "off" };
   for (const [bindings, signIn] of [[env, true], [{ ...env, WONG_ENVIRONMENT: "staging" }, true], [open, false], [{ ...env, CF_ACCESS_AUD: undefined }, false],
     [{ ...env, WONG_ENVIRONMENT: "local", SKIP_AUTH: "true" }, false]] as const) {

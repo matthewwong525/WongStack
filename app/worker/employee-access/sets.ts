@@ -37,8 +37,7 @@ export const audit = (core: Core, event: string) => core.db.prepare(`INSERT INTO
   .bind(crypto.randomUUID(), core.actor, event, now(), core.installationId);
 
 /** One batch per save: the built apps listed, the revision moved once, the changes, and an audit row per event.
- *  A row left at `read` from when an app could be held to look only is never held, and is cleared here: Access
- *  names who lost an app that way until the next save, which is this one. */
+ *  A row left at `read`, from when an app could be held to look only, is never held and is cleared here. */
 export async function save(core: Core, events: string[], changes: D1PreparedStatement[]): Promise<void> {
   await core.db.batch([...catalogueWrites(core),
     core.db.prepare("UPDATE wong_access_installation SET revision = revision + 1 WHERE installation_id = ?").bind(core.installationId),
@@ -81,7 +80,7 @@ const setColumns = (kind: SetKind, alias: string) => {
     (SELECT json_group_object(key_id, level) FROM ${keys} WHERE ${mine}) AS keys`;
 };
 
-/** Everyone and every role, each with the set stored for it. `settled`: the sign-in list matches the person's last change.
+/** Everyone and every role, each with its stored set. `settled`: the sign-in list matches the person's last change.
  *  `manager`: a current person the owner lets manage Access; a removed person is never one. */
 export async function readSets(core: Core): Promise<Sets> {
   const id = core.installationId;

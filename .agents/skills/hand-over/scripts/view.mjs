@@ -1,44 +1,5 @@
 // The live view's parts, used by `hand-over.mjs open --view` and `install-view`: what a computer needs
-// to show one, the install, the screen source, the fit, and the page's routes.
-//
-// A live view shows camofox's browser, which on Linux draws on a virtual screen, and takes the person's
-// taps and typing. It needs three tools. `x11vnc` serves that screen. `xdotool` reads the screen's size
-// and keeps the page's window in front. noVNC draws the screen on the link's page: the one version in
-// VIEWER, from its source release, kept in `~/.wong-stack/live-view/novnc-<version>/`.
-//
-// `checkView` runs before anything opens: off Linux it answers `unsupported`, else it names each tool
-// that is missing. `installView` adds what is missing. The viewer is downloaded, only its `core/`,
-// `vendor/`, and `LICENSE.txt` unpacked into a scratch folder, and moved into place only when
-// `fingerprint` gives VIEWER's value: the SHA-256 of a `sha256sum` line per file under `core/` and
-// `vendor/`, sorted by path. The two system tools come from `apt-get install -y
-// --no-install-recommends x11vnc xdotool`, run as root or through `sudo -n`. With no `apt-get`, or a
-// `sudo` that wants a password, the result is `manual`, MANUAL is the one command for the person, and
-// nothing is installed, the viewer included.
-//
-// `screenOf` finds the screen from the running browser: `DISPLAY` in the environment of the camofox
-// server's `camoufox-bin` child, else the X socket its `Xvfb` child holds, as camofox's own helper maps
-// it through `/proc/net/unix`. `startSource` starts `x11vnc` there on a Unix socket in the folder it is
-// given, mode 0700, with `-rfbport 0 -rfbportv6 0`: either port flag alone leaves a network port open
-// with no password. `-localhost` is left out on purpose: with it x11vnc drops every client that comes
-// over the Unix socket, right after its first line. It then reads `/proc` and, when `x11vnc` holds any listening TCP socket,
-// stops it and throws. `stopSource` stops it and removes the folder.
-//
-// `liveView` fits the page and keeps it in front, one step at a time. The fit uses browse.mjs's
-// `resize`, camofox's own call, which resizes the page's window too. The first fit sizes the page to
-// the whole screen and reads the bar above it: the window's height less the page's. The wide fit is
-// the screen's width by its height less that bar; the phone fit is 480 wide by the same height, and
-// the page shows only that strip. `front` raises the `Navigator` window (`xdotool search --classname`;
-// `--class` finds none) as tall as the screen and at least as wide as the fit, the narrowest such. `revive` starts a screen source that exited again.
-// `end`, and `endView` for a watcher that died, set the page's first size back and stop the source.
-//
-// `viewRoutes` mounts the page's keyed routes. `GET /view` gives `{note, fit, closesAt, now}`; `POST
-// /fit` takes `{fit: 'phone'|'wide'}` and answers the new fit; `POST /done` closes the link. A fit is
-// `{kind, width, screen: [width, height]}`: the strip's width and the screen's size, never anything from
-// the page. `viewerFile` maps `/novnc/...` to one of the viewer's own scripts under `core/` or
-// `vendor/`, and to nothing else.
-//
-// Node built-ins, plus `tar`. For tests: HANDOVER_X11VNC_BIN, HANDOVER_XDOTOOL_BIN,
-// HANDOVER_APT_GET_BIN, and HANDOVER_SUDO_BIN each name that command's file.
+// to show one, the install, the screen source, the fit, and the page's routes. Node built-ins, plus `tar`.
 
 import { spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -49,10 +10,8 @@ import { serverPid } from '../../browser/scripts/browse.mjs';
 import { readBody, reply } from './form.mjs';
 import { alive, killTunnel } from './lib/tunnel.mjs';
 
-/**
- * The one viewer version WongStack has tried: where its source release is, and the fingerprint of its
- * `core/` and `vendor/` files. The three move together, by hand; update.mjs only reads the version.
- */
+/** The one viewer version WongStack has tried: its source release and the fingerprint of its `core/` and
+ * `vendor/` files. The three move together, by hand; update.mjs only reads the version. */
 export const VIEWER = { version: '1.6.0', url: 'https://github.com/novnc/noVNC/archive/refs/tags/v1.6.0.tar.gz', sha256: '25e27eaae3c616d207ea020ef40d3ba066f4dbaf47ef506fd0457975a137d17a' };
 /** What each tool is for, and what its install needs, as the person is told. */
 export const TOOLS = {
@@ -78,10 +37,7 @@ const sleep = ms => new Promise(done => setTimeout(done, ms));
 const readText = file => { try { return readFileSync(file, 'utf8'); } catch { return ''; } };
 const sha256 = data => createHash('sha256').update(data).digest('hex');
 
-// ---------------------------------------------------------------------------
-// What a view needs
-
-/** A command's file: the one `HANDOVER_<NAME>_BIN` names, for tests, else the first on PATH; null when there is none. */
+/** A command's file: the one `HANDOVER_<NAME>_BIN` names, for tests, else the first on PATH; null with none. */
 export function findTool(name, env = process.env) {
   const named = env[`HANDOVER_${name.toUpperCase().replace('-', '_')}_BIN`];
   const files = named ? [named] : (env.PATH ?? '').split(delimiter).filter(Boolean).map(dir => join(dir, name));
@@ -93,20 +49,15 @@ export function viewerDir(home = homedir(), { version } = VIEWER) {
   return join(home, '.wong-stack', 'live-view', `novnc-${version}`);
 }
 
-/** Why this computer can not open a live view yet: `unsupported` off Linux, else `missing`, each absent tool by name. */
+/** Why this computer can not open a live view yet: `unsupported` off Linux, else `missing`, each absent tool. */
 export function checkView({ platform = process.platform, env = process.env, home = homedir(), viewer = VIEWER } = {}) {
   if (platform !== 'linux') return { unsupported: OFF_LINUX, missing: [] };
   const present = name => (name === 'novnc' ? existsSync(join(viewerDir(home, viewer), 'core', 'rfb.js')) : Boolean(findTool(name, env)));
   return { missing: Object.keys(TOOLS).filter(name => !present(name)) };
 }
 
-// ---------------------------------------------------------------------------
-// The install
-
-/**
- * The viewer's fingerprint: the SHA-256 of a `sha256sum` line for each file under `core/` and
- * `vendor/`, sorted by path. Null when a folder is absent or holds anything but plain files.
- */
+/** The viewer's fingerprint: the SHA-256 of a `sha256sum` line for each file under `core/` and
+ * `vendor/`, sorted by path. Null when a folder is absent or holds anything but plain files. */
 export function fingerprint(dir) {
   const lines = [];
   try {
@@ -123,10 +74,8 @@ export function fingerprint(dir) {
   return sha256(lines.sort((a, b) => (path(a) < path(b) ? -1 : 1)).join(''));
 }
 
-/**
- * Downloads `viewer`'s source release and keeps its `core/`, `vendor/`, and licence in `dir`, only
- * when every file matches the recorded fingerprint. Throws, with nothing installed, when it does not.
- */
+/** Downloads `viewer`'s source release and keeps its `core/`, `vendor/`, and licence in `dir`, only
+ * when every file matches the recorded fingerprint. Throws, with nothing installed, when it does not. */
 export async function installViewer(viewer, dir) {
   mkdirSync(dirname(dir), { recursive: true, mode: 0o700 });
   const scratch = mkdtempSync(join(dirname(dir), 'download-'));
@@ -155,11 +104,8 @@ function aptCommand(env, uid) {
   return sudo && spawnSync(sudo, ['-n', 'true'], { stdio: 'ignore' }).status === 0 ? [sudo, '-n', apt] : null;
 }
 
-/**
- * Installs what `checkView` finds missing. Resolves to `installed`; to `unsupported` off Linux; or to
- * `manual`, with nothing installed, when a system tool is missing and `apt-get` can not run without a
- * password. Throws when the viewer's files miss the fingerprint or an install fails.
- */
+/** Installs what `checkView` finds missing: `installed`, `unsupported` off Linux, or `manual`, with nothing
+ * installed, when `apt-get` can not run without a password. Throws on a fingerprint miss or a failed install. */
 export async function installView({ platform = process.platform, env = process.env, home = homedir(), uid = process.getuid?.(), viewer = VIEWER } = {}) {
   const { unsupported, missing } = checkView({ platform, env, home, viewer });
   if (unsupported) return 'unsupported';
@@ -172,9 +118,6 @@ export async function installView({ platform = process.platform, env = process.e
   if (still.length) throw new Error(`still missing after the install: ${still.join(', ')}`);
   return 'installed';
 }
-
-// ---------------------------------------------------------------------------
-// The screen and its source
 
 /** The processes whose parent is `pid`, as `{pid, name}`. */
 function childrenOf(pid, proc) {
@@ -210,10 +153,8 @@ function xvfbDisplay(pid, proc) {
   return null;
 }
 
-/**
- * The X display camofox's browser draws on, or null when it has none: `DISPLAY` of the server's
- * `camoufox-bin` child, whose value is the browser's own, else the socket of its `Xvfb` child.
- */
+/** The X display camofox's browser draws on, or null when it has none: `DISPLAY` of the server's
+ * `camoufox-bin` child, whose value is the browser's own, else the socket of its `Xvfb` child. */
 export function screenOf(server = serverPid(), proc = '/proc') {
   const children = server ? childrenOf(server, proc) : [];
   for (const { pid } of children.filter(child => child.name === 'camoufox-bin')) {
@@ -240,11 +181,8 @@ export async function stopSource({ sourcePid, dir }) {
   rmSync(dir, { recursive: true, force: true });
 }
 
-/**
- * Starts `x11vnc` on `display`, serving a Unix socket in `dir`, a folder only this user can open.
- * Resolves to `{dir, sourcePid}`. Throws, with the source stopped and the folder removed, when it does
- * not start or holds any TCP listener.
- */
+/** Starts `x11vnc` on a Unix socket in `dir`; throws if it holds a TCP listener. `-rfbport 0` or `-rfbportv6 0`
+ * alone leaves a port open with no password; `-localhost` is left out, since it drops every Unix-socket client. */
 export async function startSource(display, dir) {
   const socket = socketOf(dir);
   rmSync(socket, { force: true });
@@ -258,9 +196,6 @@ export async function startSource(display, dir) {
   await stopSource({ sourcePid: child?.pid, dir });
   throw new Error(fault);
 }
-
-// ---------------------------------------------------------------------------
-// Fit, front, and restore
 
 /** Runs xdotool on `display` and resolves to what it prints; throws when it is missing or fails. */
 function xdotool(display, ...args) {
@@ -277,7 +212,8 @@ function screenSize(display) {
   return { width, height };
 }
 
-/** Each browser page's window on `display`, as `{id, width, height}`; none when the search finds none. */
+/** Each browser page's window on `display`, as `{id, width, height}`; none when the search finds none.
+ * xdotool finds the `Navigator` window by `--classname`; `--class` finds none. */
 function pageWindows(display) {
   const number = (shape, name) => Number(new RegExp(`^${name}=(\\d+)$`, 'm').exec(shape)?.[1]);
   try {
@@ -296,11 +232,8 @@ export async function endView(view, page) {
   await stopSource(view);
 }
 
-/**
- * The open view's fit and source, for the watcher. `view` is the link's `{size, display, dir,
- * sourcePid}` and `page` browse.mjs's client for the session. Each step waits for the one before it,
- * and none acts once `end` has run.
- */
+/** The open view's fit and source, for the watcher. Each step waits for the one before it, and none
+ * acts once `end` has run. */
 export function liveView(view, page) {
   let kind = 'wide';
   let screen = null;
@@ -320,16 +253,12 @@ export function liveView(view, page) {
     const over = pageWindows(view.display).filter(win => win.width === screen.width && win.height >= screen.height).map(win => win.height - screen.height);
     return over.length ? Math.min(...over) : null;
   };
-  /**
-   * Raises the page's window: the one as tall as the screen and at least as wide as the fit, the
-   * narrowest such. Not exactly as wide: the browser's window stops at about 500, so on the phone fit
-   * it is wider than the 480 strip. It gets the keyboard too: with no window manager the newest window
-   * keeps it, so the person's typing would land on another task's page.
-   */
+  /** Raises the narrowest window as tall as the screen and at least as wide as the fit: the browser's window stops
+   * near 500 wide. It takes the keyboard too: with no window manager the newest window keeps it. */
   const front = () => {
     if (!screen || ended) return;
     const own = pageWindows(view.display).filter(win => win.height === screen.height && win.width >= fitted().width).sort((a, b) => a.width - b.width)[0];
-    try { if (own) xdotool(view.display, 'windowraise', own.id, 'windowfocus', own.id); } catch { /* the next poll raises it */ }
+    try { if (own) xdotool(view.display, 'windowraise', own.id, 'windowfocus', own.id); } catch { /* next poll */ }
   };
   return {
     describe,
@@ -359,10 +288,7 @@ export function liveView(view, page) {
   };
 }
 
-// ---------------------------------------------------------------------------
-// The page's routes
-
-/** The pinned viewer's own file for a `/novnc/...` address, or null: only a script under its `core/` or `vendor/` folder. */
+/** The pinned viewer's own file for a `/novnc/...` address, or null: only a script under its `core/` or `vendor/`. */
 export function viewerFile(pathname, dir = viewerDir()) {
   const inside = /^\/novnc\/((?:core|vendor)\/[\w./-]+\.js)$/.exec(pathname)?.[1];
   if (!inside || inside.split('/').includes('..')) return null;
@@ -370,11 +296,8 @@ export function viewerFile(pathname, dir = viewerDir()) {
   return statSync(file, { throwIfNoEntry: false })?.isFile() ? file : null;
 }
 
-/**
- * The view's routes for the link's `{note}`. `fitted()` gives the fit now; `onFit(kind)` refits and
- * resolves to the new one; `onCancel()` runs once `/done`'s reply has gone. `closesAt` is the deadline
- * `GET /view` reports.
- */
+/** The view's routes for the link's `{note}`. `fitted()` gives the fit now; `onFit(kind)` refits and
+ * resolves to the new one; `onCancel()` runs once `/done`'s reply has gone. */
 export function viewRoutes({ note }, { fitted = () => null, onFit = async () => null, onCancel = () => {}, closesAt } = {}) {
   let ended = false;
   return async (pathname, request, response) => {

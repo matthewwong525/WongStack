@@ -1,13 +1,6 @@
 #!/usr/bin/env node
-// Which way this checkout saves and publishes: `github` or `artifacts`.
-//
-//     node .claude/skills/save/scripts/delivery-route.mjs [dir]
-//
-// The one switch every verb asks (wiki/stack/artifacts-route.md). It reads two things and they must
-// agree: where `origin` points, and the route the install record names. An Artifacts install has an
-// origin on <account>.artifacts.cloudflare.net and `components.delivery.route: "artifacts"`; every
-// other checkout is `github`, with or without an origin. Prints the route and exits 0. A record and
-// an origin that disagree print the reason on stderr and exit 1: no verb guesses a route.
+// Which way this checkout saves and publishes: `github` or `artifacts`, the one switch every verb asks
+// (wiki/stack/artifacts-route.md). `origin` and the install record must agree; if not it exits 1: no verb guesses.
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';

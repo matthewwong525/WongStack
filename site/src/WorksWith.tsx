@@ -1,10 +1,8 @@
 import { AGENTS } from "./install";
 import { InstallButton } from "./InstallButton";
 
-// Model flexibility: one card per assistant WongStack sets
-// up, from install.ts, then one for any other assistant with its true limit.
-// Say only what works today: memory loads by itself in the listed assistants,
-// and another one looks it up when asked.
+// One card per assistant WongStack sets up, from install.ts, then one for any other with its true limit. Say only
+// what works today: memory loads by itself in the listed assistants, and another one looks it up when asked.
 
 /** What every assistant in install.ts's list gets on day one. */
 const SET_UP = "Set up on day one: your skills are ready, and memory loads by itself in every chat.";

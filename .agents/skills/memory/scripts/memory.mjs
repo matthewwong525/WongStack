@@ -37,8 +37,6 @@ const now = () => new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
 const megabytes = bytes => `${Math.ceil(bytes / 1024 / 1024)} MB`;
 const readInput = file => JSON.parse(readFileSync(file === '-' || !file ? 0 : file, 'utf8'));
 
-// ---------- small helpers ----------
-
 export const normalizeTag = name => name.toLowerCase().replace(/[^a-z0-9]/g, '').replace(/s$/, '');
 
 function editDistance(a, b) {
@@ -61,11 +59,8 @@ export function nearTag(name, existing) {
   return existing.find(tag => tag !== name && (normalizeTag(tag) === key || (name.length >= 5 && editDistance(tag.toLowerCase(), name.toLowerCase()) <= 2))) || null;
 }
 
-// ---------- the background run's tally ----------
-
-// The counts a run records come from what the store took, never from the model. run.mjs makes the tally file
-// and removes it; a command adds to it only inside a run (WONG_MEMORY_RUN=1) and only while the file exists,
-// so a hand-run command never writes one.
+// A run's counts come from what the store took, never from the model. run.mjs makes and removes the tally file;
+// a command adds to it only inside a run (WONG_MEMORY_RUN=1) while the file exists, so a hand run writes none.
 const CAPTURE_KEYS = ['captured', 'skipped', 'unrecognized', 'added', 'superseded', 'dropped'];
 const CONSOLIDATION_KEYS = { merged: 'merged', superseded: 'consolidationSuperseded' };
 
@@ -94,8 +89,6 @@ function runCounts(kind, tally, reported) {
   const differ = reported ? Object.keys(keys).filter(key => (Number(reported[key]) || 0) !== (counts[key] || 0)) : [];
   return { counts, differ };
 }
-
-// ---------- validation shared by gate, put-facts, and import ----------
 
 function validateFact(fact, index, secrets) {
   const where = `fact ${index + 1}`;
@@ -143,8 +136,6 @@ async function checkedTags(store, facts, given, { threads = false } = {}) {
   return newTags;
 }
 
-// ---------- the one write path ----------
-
 const stripFile = (ctx, id) => statePath(ctx, 'strip', `${id.replace(':', '-')}.json`);
 
 // A session row's inputs, from a transcript parsed once.
@@ -167,9 +158,8 @@ function sessionUpsert(record, status, { reason, author, machine, ownerMachineId
     status, reason || null, record.readThrough == null ? null : String(record.readThrough), record.rawKey || null, record.rawBytes || null, now(), ownerMachineId]];
 }
 
-// Statements for one write: the session row, new tags, then each kept fact with its tags and supersedes.
-// Every fact insert returns its id, in order, so a caller can map its own keys to ids. A fact's own
-// createdAt, sessionId, or author overrides the batch's, so a restated fact keeps its origin.
+// Statements for one write: the session row, new tags, then each kept fact with its tags and supersedes. Fact
+// inserts return ids in order. A fact's own createdAt, sessionId, or author overrides the batch's, keeping its origin.
 function writeStatements({ record, status, reason, newTags = [], facts, source, sessionId, createdAt, author, machine, ownerMachineId }) {
   const statements = record ? [sessionUpsert(record, status, { reason, author, machine, ownerMachineId })] : [];
   for (const tag of newTags) statements.push([WRITES.tag.sql, [tag.name, tag.definition, tag.aliasOf || null, author || null, now()]]);
@@ -264,9 +254,8 @@ async function putFactsCommand(ctx, { values, tally }) {
   }
 }
 
-// Restate live facts with added tags: the same slug, type, body, date, session, and author, plus the old tags,
-// superseding the old fact. A fact that is gone, superseded, already tagged, or (for a member's key) someone
-// else's is skipped and reported, so one bad id never fails the batch.
+// Restate live facts with added tags: same slug, type, body, date, session, author and old tags, superseding the old.
+// A fact gone, superseded, already tagged, or not a member's own is skipped and reported; the batch never fails.
 export async function retag(ctx, input, store = openStore(ctx)) {
   const asks = (input.retag || []).map(ask => ({ id: Number(ask.id), tags: ask.tags || [] })).filter(ask => ask.id);
   if (!asks.length) return { written: 0, skipped: [] };
@@ -339,8 +328,6 @@ async function retagCommand(ctx, { values, tally }) {
   addToTally(tally, { consolidationSuperseded: result.written });
   console.log([`retagged: ${result.written}`, ...result.skipped.map(({ id, why }) => `skipped #${id}: ${why}`)].join('\n'));
 }
-
-// ---------- read commands ----------
 
 async function search(ctx, args) {
   const result = await readFacts(ctx, args);
@@ -429,9 +416,8 @@ async function tagCommand(ctx, { values, positionals: [name] }) {
   console.log(`tag ${name}${next.aliasOf ? ` (alias of ${next.aliasOf})` : ''}: ${next.definition}`);
 }
 
-// Everything linked to these paths, topics, or a change's named paths: their areas, the docs those name, past
-// changes, what links to each path, then the live facts for the areas, threads first, then newest. All but the
-// facts print before the store opens. Memory never stops a build: an unreachable store prints one line and exits 0.
+// Everything linked to these paths, topics, or a change's named paths: areas, their docs, past changes, backlinks,
+// then live facts. All but the facts print before the store opens; an unreachable store prints one line and exits 0.
 async function areas(ctx, { values, positionals }) {
   const list = loadAreas();
   const isTopic = word => !word.includes('/') && Object.hasOwn(list, word) && !existsSync(join(ctx.root, word));
@@ -500,8 +486,6 @@ async function gateFacts(ctx, input, store = openStore(ctx)) {
   console.log(out.join('\n'));
 }
 
-// ---------- background-run commands ----------
-
 // Redact a transcript and upload it to the bucket, recording its size and key on `record`.
 // Returns why it was not kept (over the size limit), or ''.
 async function keepRaw(store, record, raw) {
@@ -513,9 +497,8 @@ async function keepRaw(store, record, raw) {
   return '';
 }
 
-// Keep a session's transcript now, as strip does, so a workspace that closes before the background run
-// loses none. The session's capture status and read_through stay as they are, so the run still captures it.
-// Every skip is one line and exit 0: this never blocks a close.
+// Keep a session's transcript now, as strip does, so a workspace closed before the background run loses none.
+// Capture status and read_through stay, so the run still captures it. Every skip is one line and exit 0.
 async function keepTranscript(ctx, { positionals: [id] }) {
   if (!id) throw new StoreError('usage: memory.mjs keep-transcript <session-id|current>');
   const skip = why => console.log(`transcript not kept: ${why}`);
@@ -592,7 +575,6 @@ async function pendingCommand(ctx, { values }) {
 }
 
 // What the person typed in recent chats from any folder, redacted and capped, newest first. Reads no store.
-// --all drops the day cutoff; --parts and --part split the read into numbered parts of --limit characters.
 // Pasted text and the agent's own task notices are not the person's words.
 const NOT_TYPED = /<(pasted_content|task-notification)\b[^>]*>[\s\S]*?<\/\1>/g;
 
@@ -758,8 +740,7 @@ async function spool(ctx) {
 }
 
 // Apply each migration not yet in schema_migrations, then record it; a recorded one never runs again.
-// With a memory Worker recorded, migrations go straight to Cloudflare with the admin's token (see openStore):
-// the Worker refuses the keys table, and a Worker's D1 binding runs one statement at a time.
+// With a memory Worker recorded, they go straight to Cloudflare with the admin's token (see openStore).
 async function migrate(ctx) {
   const store = openStore(ctx, { admin: true });
   const [{ n }] = await store.query("SELECT count(*) AS n FROM sqlite_master WHERE type = 'table' AND name = 'schema_migrations'");

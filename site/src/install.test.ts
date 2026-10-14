@@ -1,4 +1,4 @@
-// install.ts: the sentences it builds, the two ways to install and what each costs, and that every link in it is a secure address.
+// install.ts: the sentences it builds, the two ways to install with their costs, and that every link is secure.
 /// <reference types="node" />
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";

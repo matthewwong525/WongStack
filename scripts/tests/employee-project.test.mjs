@@ -26,10 +26,8 @@ const snapshot = dir => ({
   head: plain(dir, 'rev-parse', 'HEAD'), status: plain(dir, 'status', '--porcelain'),
 });
 
-/**
- * A project with one commit on `main`, served over HTTP under the app's code path. `seen` holds each
- * request's method, address and session header; `mode` makes the next answers a redirect or a refusal.
- */
+/** A project with one commit on `main`, served over HTTP under the app's code path. `seen` holds each request's
+ * method, address and session header; `mode` makes the next answers a redirect or a refusal. */
 async function project(t) {
   const base = mkdtempSync(join(tmpdir(), 'employee-project-'));
   t.after(() => rmSync(base, { recursive: true, force: true }));
@@ -126,7 +124,7 @@ test('running it again fast-forwards a clean copy, and keeps a changed or diverg
   assert.deepEqual(await f.copy(folder), { project: 'up to date', folder });
   assert.deepEqual(snapshot(folder), { files: { 'README.md': 'first\n', 'scratch.txt': 'untracked\n', 'wiki.md': 'second\n' }, head: second, status: '?? scratch.txt' });
 
-  // Dirty: a tracked file was edited. Diverged: a commit was made on top. Elsewhere: the person is on a branch of their own.
+  // Dirty: a tracked file was edited. Diverged: a commit was made on top. Elsewhere: the person is on their own branch.
   const cases = {
     dirty: dir => writeFileSync(join(dir, 'README.md'), 'edited by hand\n'),
     diverged: dir => { writeFileSync(join(dir, 'mine.txt'), 'my work\n'); plain(dir, 'add', '-A'); plain(dir, 'commit', '--quiet', '-m', 'mine'); },
@@ -252,7 +250,7 @@ test('the packaged command installs in one step, updates on the next, and ends a
   const preloader = join(base, 'transport.mjs');
   writeFileSync(preloader, `globalThis.fetch = async () => Response.json(${JSON.stringify({ identity, role: 'employee', apps: [], api: 'authenticated', code: 'ready' })});\n`);
   const env = { ...cleanEnvironment(), HOME: home, PATH: `${bin}:${process.env.PATH}`, CLOUDFLARE_API_TOKEN: 'owner-token', GH_TOKEN: 'provider-secret' };
-  // Run from the home folder itself, where an assistant often starts: the private files still sit outside the working folder.
+  // Run from the home folder, where an assistant often starts: the private files still sit outside the working folder.
   const run = (...args) => spawnSync(process.execPath, ['--import', preloader, helper, ...args], { cwd: home, env, encoding: 'utf8' });
   const calls = () => readFileSync(log, 'utf8').trim().split('\n').map(line => JSON.parse(line));
   const verbs = () => calls().map(({ args }) => args[0] === '-C' ? args[2] : args[0]);

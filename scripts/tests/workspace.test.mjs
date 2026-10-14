@@ -54,9 +54,8 @@ function repo(t) {
   return { root, linked, publish };
 }
 
-// A fake `paseo`: `inspect` answers FAKE_INSPECT, `run` prints FAKE_RUN_STDOUT and
-// FAKE_RUN_STDERR, and `workspace rename` prints { workspaceId, title } or fails with
-// FAKE_RENAME_FAIL. Every call is appended to log.jsonl with the parent-agent variables it saw.
+// A fake `paseo`: `inspect` answers FAKE_INSPECT, `run` prints FAKE_RUN_STDOUT and FAKE_RUN_STDERR, `workspace rename`
+// prints { workspaceId, title } or fails with FAKE_RENAME_FAIL. Calls go to log.jsonl with the parent-agent variables.
 function fakePaseo(t) {
   const dir = tmp(t, 'workspace-paseo-');
   const log = path.join(dir, 'log.jsonl');

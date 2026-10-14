@@ -1,6 +1,5 @@
-// The check runner: one Worker in the person's own Cloudflare account, on the pinned SDK. A push to
-// the install's Artifacts repository starts a run; the run checks the commit, and deploys it only
-// when its checks pass. pipeline.mjs owns what a run does; wiki/stack/artifacts-route.md owns the route.
+// The check runner: one Worker in the person's own Cloudflare account. A push starts a run that checks the
+// commit and deploys it only when its checks pass. Route: wiki/stack/artifacts-route.md
 import { DurableObject } from 'cloudflare:workers';
 import { CIWorkflow } from '@cloudflare/ci';
 import { BOUNDS, eventParams, leaveTurn, runPipeline, takeTurn } from './pipeline.mjs';

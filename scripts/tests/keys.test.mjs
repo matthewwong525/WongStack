@@ -40,9 +40,8 @@ const IGNORE = '.env*\n!.env.example\n.dev.vars*\n!.dev.vars.example\n';
 
 const git = (cwd, ...args) => execFileSync('git', ['-c', 'user.email=t@example.com', '-c', 'user.name=t', ...args], { cwd, stdio: 'ignore' });
 
-// A primary checkout declaring MAPS_API_KEY (.env), STRIPE_SECRET_KEY (app/.dev.vars), and TWICE (both),
-// with `.env` seeded into a linked worktree and `app/.dev.vars` not. A fake agent-browser and tunnel tool
-// log each call; HOME is the fixture's own.
+// A primary checkout declaring MAPS_API_KEY (.env), STRIPE_SECRET_KEY (app/.dev.vars), and TWICE (both); only `.env`
+// is seeded into a linked worktree. A fake agent-browser and tunnel tool log each call; HOME is the fixture's own.
 function fixture(t, { env = 'A=1\n', ignore = IGNORE } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'wong-test-keys-'));
   const bin = join(root, 'bin');
@@ -298,9 +297,6 @@ test('continue keeps successful keys while missing and failed keys prevent readi
   assert.equal((await route(port,key,'done',{})).status,410);
   f.run('wait');
 });
-
-// ---------------------------------------------------------------------------
-// The guide, the eight-hour limit, the on-save test, and long keys
 
 const GUIDE = {
   title: 'Stripe key',

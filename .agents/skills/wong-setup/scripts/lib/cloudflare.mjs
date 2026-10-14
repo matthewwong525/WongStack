@@ -11,7 +11,7 @@ const API = 'https://api.cloudflare.com/client/v4';
 /** The waits, in seconds, while a widened token or a new store takes effect: about a minute. */
 export const PROPAGATION = [2, 4, 8, 15, 30];
 
-/** Why a step stopped: `token`, `cloudflare`, `repo`, or `plan` (the account lacks the paid plan), with a plain cause. */
+/** Why a step stopped: `token`, `cloudflare`, `repo`, or `plan` (the account lacks the paid plan), with its cause. */
 export class ProvisionError extends Error {
   constructor(reason, cause) {
     super(cause);
@@ -58,10 +58,8 @@ export const wait = (ms) => new Promise((done) => setTimeout(done, ms));
 /** `fn()`, or null when Cloudflare answers 404. */
 export const orNull = (fn) => fn().catch((error) => (error instanceof CloudflareError && error.status === 404 ? null : Promise.reject(error)));
 
-/**
- * Runs a command with no shell and resolves with its output; a non-zero exit rejects with the last line
- * of stderr. `input` goes to stdin, so a secret never sits in the process list.
- */
+/** Runs a command with no shell and resolves with its output; a non-zero exit rejects with the last line
+ * of stderr. `input` goes to stdin, so a secret never sits in the process list. */
 export function run(file, args, { cwd, input, env, timeout } = {}) {
   return new Promise((resolveRun, reject) => {
     const child = spawn(file, args, { cwd, env, timeout, stdio: ['pipe', 'pipe', 'pipe'] });
@@ -110,8 +108,6 @@ const isScope = (key, scope) => key.startsWith(`com.cloudflare.api.${scope}.`) &
 // Cloudflare files a zone group under the account: `com.cloudflare.api.account.zone`.
 export const findGroup = (groups, { name, scope }) => groups.find((group) => group.name === name && group.scopes?.includes(`com.cloudflare.api.${scope === 'zone' ? 'account.zone' : scope}`));
 
-// ── the repo's own files ────────────────────────────────────────────────────
-
 export const recordFile = (dir) => join(dir, '.claude', '.wong-stack.json');
 
 /** The clone's shared git folder: provisioning's own state lives there, outside every commit. */
@@ -129,10 +125,8 @@ export async function recordedBase(dir, exec) {
   return typeof database === 'string' && database.endsWith('-memory') ? database.slice(0, -'-memory'.length) : null;
 }
 
-/**
- * The primary checkout's .env: where the durable secrets and the admin memory key live. Stops when the
- * primary is unknown, rather than write the keys into a worktree that may be deleted.
- */
+/** The primary checkout's .env: where the durable secrets and the admin memory key live. Stops when the
+ * primary is unknown, rather than write the keys into a worktree that may be deleted. */
 export function durableEnv(dir) {
   try {
     return join(primaryRoot(dir).primary, '.env');
@@ -152,13 +146,8 @@ export function recordComponent(dir, component, data, note) {
   note('updated', `.claude/.wong-stack.json components.${component}`);
 }
 
-// ── the token and the plan ──────────────────────────────────────────────────
-
-/**
- * The token grants itself each of `rows` it lacks, in its own policy of that row's scope, keeping
- * every group, `resources`, and condition it has. Returns the names `granted` and already `held`.
- * The caller probes that the new set took.
- */
+/** The token grants itself each of `rows` it lacks, in its own policy of that row's scope, keeping every group,
+ * `resources`, and condition it has. Returns the names `granted` and `held`; the caller probes that the set took. */
 export async function grant(cf, rows) {
   const [self, groups] = await step('token', async () => {
     const { id } = await cf('GET', '/user/tokens/verify');
@@ -181,11 +170,8 @@ export async function grant(cf, rows) {
   return { granted: missing.map(({ name }) => name), held: wanted.filter(({ group }) => held.has(group.id)).map(({ name }) => name) };
 }
 
-/**
- * A widen by `rows` alone, on one account: the token gains what it lacks of them and keeps the rest,
- * then the plan read is tried until the new set works. Containers answer only on a paid account, so
- * that read is the one probe.
- */
+/** A widen by `rows` alone, on one account, then the plan read is tried until the new set works.
+ * Containers answer only on a paid account, so that read is the one probe. */
 export async function widenBy({ token, api, fetch, account, rows, sleep = wait }) {
   const cf = cloudflare(token, { api, fetch });
   const report = await grant(cf, rows);
@@ -215,11 +201,8 @@ export const accountPolicy = (account, groups, rows, within = '*') => [
   },
 ];
 
-/**
- * An account token scoped to `rows`, named `name`: made when missing, given any group it lacks, and
- * its value rolled into its one holder when the holder has none. The value goes straight to
- * `setSecret`. `label` is what reports call it, `sentTo` its holder.
- */
+/** An account token scoped to `rows`, named `name`: made when missing, given any group it lacks, and its value
+ * rolled into its one holder when the holder has none. The value goes straight to `setSecret`. */
 export async function scopedToken(cf, account, name, rows, groups, { secretSet, setSecret, note, label = 'deploy token', sentTo = 'GitHub' }) {
   const base = `/accounts/${account}/tokens`;
   const policies = accountPolicy(account, groups, rows);
@@ -242,9 +225,8 @@ export async function scopedToken(cf, account, name, rows, groups, { secretSet, 
   note('updated', `${label} ${name}: new value sent to ${sentTo}`);
 }
 
-// ── a runner, from the pack's own pinned tools ──────────────────────────────
-
-/** A runner's Wrangler config: `template` with every placeholder in `fill` filled, comments dropped. `what` names the runner in the error. */
+/** A runner's Wrangler config: `template` with every placeholder in `fill` filled, comments dropped.
+ * `what` names the runner in the error. */
 export function fillConfig(template, fill, what) {
   let text = template.replace(/^\/\/.*\n/gm, '');
   for (const [placeholder, value] of Object.entries(fill)) text = text.replaceAll(placeholder, value);
@@ -253,11 +235,8 @@ export function fillConfig(template, fill, what) {
   return text;
 }
 
-/**
- * Installs and deploys one runner from its pack folder: writes `text` as its wrangler.jsonc when it
- * differs, installs the folder's locked tools with no install scripts, and deploys with the token in
- * the environment only. `shown` is the folder as reports name it.
- */
+/** Installs and deploys one runner from its pack folder: writes `text` as its wrangler.jsonc when it differs,
+ * installs its locked tools with no install scripts, and deploys with the token in the environment only. */
 export async function installRunner({ folder, shown, text, token, account, env, exec, note }) {
   const config = join(folder, 'wrangler.jsonc');
   const had = existsSync(config);

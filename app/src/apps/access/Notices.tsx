@@ -11,7 +11,7 @@ function Notice({ role, children }: { role?: 'status' | 'alert'; children: React
 }
 
 /** A step the owner hands to their assistant: the words to say, and the full request to copy. Left out, they
- *  are the ones for finishing Access setup. Where a key or a set is opened it is `plain`: the step needs no box there. */
+ *  are the ones for finishing Access setup. Where a key or a set is opened it is `plain`: no box is needed there. */
 export function FinishStep({ plain = false, say = 'Finish Access setup', request = FINISH_REQUEST, children }:
   { plain?: boolean; say?: string; request?: string; children: ReactNode }) {
   const step = <>
@@ -21,11 +21,8 @@ export function FinishStep({ plain = false, say = 'Finish Access setup', request
   return plain ? <div className="grid gap-2">{step}</div> : <Notice>{step}</Notice>
 }
 
-// The one spot for notices, under the views on every owner screen. First what the last change came to: a save
-// that did not finish interrupts, a finished one is only said, and a role picked in the list offers Undo.
-// Then a preview's practice list, and who an update unticked: each person and role who could only look at an app,
-// until the next save. The steps left before people can sign in show on People alone, with a person opened or not.
-// The missing key is the owner's step, made with their Cloudflare token: a manager is told so, with nothing to copy.
+// The one spot for notices, under the views on every owner screen: the last change, a preview's practice list, who
+// an update unticked and, on People alone, the steps left before sign-in. The missing key is the owner's step.
 export function Notices({ status, view, said, pending, save, reload }: ViewProps) {
   const people = view.name === 'people'
   const unticked = [...status.unticked.people.map(person => `${person.email}: ${person.apps.join(', ')}`),

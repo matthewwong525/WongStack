@@ -1,46 +1,29 @@
-// Everything the landing page says about installing WongStack: the message to
-// paste, the steps, the agents, the accounts, the computers, the two ways to
-// install with what each costs, and the pictured optional app. Change how WongStack installs,
-// and this is the one file to edit; no other file under src/ names an account,
-// a system, a cost, or the message.
-//
-// It describes the install that works today, never one that is planned.
-// wiki/maintaining/landing-page.md
+// Everything the landing page says about installing WongStack as it works today, never as planned. No other file
+// under src/ names an account, a system, a cost, or the message: wiki/maintaining/landing-page.md
 
-/**
- * The one message a visitor pastes into a new chat. It is the README's fenced
- * message, character for character: scripts/tests/landing-site.test.mjs fails
- * when the two differ, so change both in the same change. That test imports
- * this file with plain Node, so the file imports nothing.
- */
+/** The one message a visitor pastes into a new chat: the README's, character for character, as
+ * scripts/tests/landing-site.test.mjs checks. That test imports this file with plain Node, so it imports nothing. */
 export const INSTALL_PROMPT =
   "Install WongStack from github.com/matthewwong525/WongStack. Read and follow https://raw.githubusercontent.com/matthewwong525/WongStack/refs/heads/main/.agents/skills/wong-setup/SKILL.md";
 
 /** Where the code lives: the header's and hero's GitHub links, and the footer's license. */
 export const REPO_URL = "https://github.com/matthewwong525/WongStack";
 
-/**
- * The assistants WongStack sets up, each with its own install page, as the
- * README links them, and its logo in public/logos/. The first step names them
- * as examples; the headline and the works-with section read the same list. Add
- * one only after it has been tried as a working assistant.
- */
+/** The assistants WongStack sets up, each with its install page and its logo in public/logos/. The first step, the
+ * headline and the works-with section read this list. Add one only after it has been tried as a working assistant. */
 export const AGENTS = [
   { name: "Claude Code", href: "https://code.claude.com/docs/en/setup", logo: "claude" },
   { name: "Codex", href: "https://developers.openai.com/codex/cli", logo: "openai" },
 ];
 
-/**
- * The three steps, in order. The first says any assistant before it names one:
- * "<open> <agent> or <agent>". The second shows the message.
- */
+/** The three steps, in order. The first says any assistant before it names one: "<open> <agent> or <agent>". */
 export const STEPS = {
   open: "Open any assistant that can work on your computer, such as",
   paste: "Paste this into a new chat",
   answer: "Answer a few questions",
 };
 
-/** The free accounts the install asks for: each one's name, website, logo in public/logos/, and what it does for you. */
+/** The free accounts the install asks for: each one's name, website, logo in public/logos/, and what it does. */
 export const ACCOUNTS = [
   {
     name: "GitHub",
@@ -68,17 +51,13 @@ const list = (items: string[]) => new Intl.ListFormat("en", { style: "long", typ
 /** The computers, as a sentence names them: "Mac, Windows, and Linux". */
 export const computers = (names = COMPUTERS) => list(names);
 
-/** The accounts, as a sentence names them: "free GitHub and Cloudflare accounts", or "a free Cloudflare account" when one is left. */
+/** The accounts, as a sentence names them: "free GitHub and Cloudflare accounts", or "a free Cloudflare account". */
 export function freeAccounts(names = ACCOUNTS.map((account) => account.name)) {
   return names.length === 1 ? `a free ${list(names)} account` : `free ${list(names)} accounts`;
 }
 
-/**
- * What Cloudflare's paid plan costs: the one figure on the site. The README and
- * the getting-started guide say the same words, and
- * scripts/tests/install-cost.test.mjs fails when one stops: change all three in
- * the same change.
- */
+/** What Cloudflare's paid plan costs: the one figure on the site. The README and the getting-started guide say the
+ * same words, and scripts/tests/install-cost.test.mjs fails when one stops: change all three in the same change. */
 export const PAID_COST = "about $5 a month";
 
 /** "a or b": the computers a way works on, as its line names them. */
@@ -120,11 +99,8 @@ const ALONE = aloneWay(PAID_ACCOUNT, ["Mac", "Linux"], PAID_COST);
 const PAID_PLAN = paidPlan(PAID_ACCOUNT, PAID_COST);
 const PAID_COMPUTERS = either(ALONE.computers);
 
-/**
- * The two ways to install, the free one first: each one's accounts, computers,
- * cost, and `line`, the sentence the page prints in the setup question. A line is
- * built from its own entry, so the two can not disagree.
- */
+/** The two ways to install, the free one first. `line` is the sentence the page prints in the setup question,
+ * built from its own entry, so the two can not disagree. */
 export const WAYS = [FREE, ALONE];
 
 /** Beside the setup routes: nobody is charged by surprise. */
@@ -136,9 +112,6 @@ export const COST_ANSWERS = {
   cost: `${PAID_PLAN}, is needed only to keep everything in ${ALONE.name} or to run jobs on a schedule.`,
 };
 
-/**
- * Every sentence on the site that speaks of a cost. Site.test.tsx allows these
- * exact strings and no other word about a price or a paid plan, so a new cost
- * sentence is added here or it fails.
- */
+/** Every sentence on the site that speaks of a cost. Site.test.tsx allows these exact strings and no other word
+ * about a price or a paid plan, so a new cost sentence is added here or it fails. */
 export const COST_LINES = [ALONE.line, ASKS_FIRST, COST_ANSWERS.free, COST_ANSWERS.cost];

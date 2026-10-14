@@ -1,34 +1,6 @@
 #!/usr/bin/env node
 // What /dream-memory needs that takes no judgment: when the last dream ran, which wiki pages are
 // this install's own, and what has plainly drifted. Every command only reads.
-//
-//     node .claude/skills/dream-memory/scripts/dream.mjs since
-//     node .claude/skills/dream-memory/scripts/dream.mjs pages
-//     node .claude/skills/dream-memory/scripts/dream.mjs drift
-//
-// A dream ends by writing one `project` fact on slug `wiki-dream`, tagged `dream`:
-//     Dream 2026-10-06: read facts up to #1234. Checked: wiki/people/README.md, wiki/people/a.md.
-// `since` reads the newest live one back: its date, the highest fact id it read, the pages it
-// checked. With none, the date is 30 days back, so a first dream is bounded.
-//
-// `pages` prints one line per wiki page and per spec, longest unchecked first:
-//     own|shipped|spec <TAB> words <TAB> last checked (a date, or never) <TAB> path
-// A page is shipped when payload-files.json lists it, by file or by folder; every other page is
-// the install's own; `openspec/specs/*/spec.md` is a spec. Last checked is the newer of the file's
-// last commit and its last mention in a dream fact. With the store unreachable, `pages` uses
-// commit dates alone and says so on stderr.
-//
-// `drift` prints what a rule can find, one line each:
-//     fact <TAB> #id <TAB> the repo paths its words name that are gone <TAB> its words
-//     plan <TAB> name <TAB> done|idle <TAB> tasks ticked, or the date of its folder's last commit
-// A fact drifts when it is live, does not itself say something is gone, and names a path this
-// branch's history once held under one of the repo's top folders that no
-// longer exists, is not git-ignored, and is not an archived plan's old folder. A plan drifts when
-// every task is ticked, or its folder has had no commit for 30 days. With the store or OpenSpec
-// unreachable, `drift` prints the list it can and names the other on stderr.
-//
-// All take --json. Exit codes: 0 ok, 1 the memory store could not be read (`since`), 2 bad input
-// or not inside a git checkout. Node built-ins only.
 
 import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
@@ -53,16 +25,11 @@ const CHANGES = 'openspec/changes';
 // makes those pages once and the install owns them from then on.
 const SHIPPED_GROUPS = ['core', 'ui', 'pack', 'scaffold'];
 
-// ---------------------------------------------------------------------------
-// Pure helpers
-
 const day = stamp => String(stamp).slice(0, 10);
 const newestFirst = (a, b) => String(b.created_at).localeCompare(String(a.created_at)) || b.id - a.id;
 
-/**
- * True for the fact a dream wrote. Upkeep also tags `dream` any fact whose words name this
- * skill's folder, so the tag alone does not mark one.
- */
+// True for the fact a dream wrote. Upkeep also tags `dream` any fact whose words name this
+// skill's folder, so the tag alone does not mark one.
 export const isDreamFact = fact => /^Dream \d{4}-\d{2}-\d{2}:/.test(String(fact.body));
 
 /** The wiki pages and specs a dream fact's body names. */
@@ -109,10 +76,8 @@ export function dreamChecks(facts) {
   return checks;
 }
 
-/**
- * The page list. `pages` is [{ path, text, committed }], `committed` a date or null.
- * Sorted longest unchecked first: never checked, then oldest; ties by path.
- */
+// The page list. `pages` is [{ path, text, committed }], `committed` a date or null.
+// Sorted longest unchecked first: never checked, then oldest; ties by path.
 export function pageList(pages, shipped, checks = new Map()) {
   return pages.map(({ path, text, committed }) => {
     const dates = [committed, checks.get(path)].filter(Boolean).map(day).sort();
@@ -125,12 +90,8 @@ export function pageList(pages, shipped, checks = new Map()) {
   }).sort((a, b) => (a.lastChecked ?? '').localeCompare(b.lastChecked ?? '') || a.path.localeCompare(b.path));
 }
 
-/**
- * The repo paths a fact's words name that are gone. `tops` is the repo's top-level names, so a
- * word counts only when it starts in one; `exists(path)` answers for the checkout; `once(path)`
- * says the branch's history ever held it, so a word that only looks like a path, or names work
- * on another branch, is no drift.
- */
+// The repo paths a fact's words name that are gone: each starts in one of `tops` and fails `exists`.
+// `once(path)` says this branch ever held it, so a path-like word or another branch's work is no drift.
 export function stalePaths(body, { tops, exists, once = () => true }) {
   const gone = new Set();
   for (const word of pathWords(String(body))) {
@@ -144,10 +105,8 @@ export function stalePaths(body, { tops, exists, once = () => true }) {
 /** True when a fact's own words already say something is gone, so its missing path is history, not drift. */
 export const saysGone = body => /\b(removed|deleted|retired|gone|no longer|renamed|moved|replaced)\b/i.test(String(body).replace(/\S*\/\S*/g, ' '));
 
-/**
- * The plans that drifted. `changes` is `openspec list --json`'s list; `committed(name)` is the
- * date of the last commit to the plan's folder, or null for one never committed.
- */
+// The plans that drifted. `changes` is `openspec list --json`'s list; `committed(name)` is the
+// date of the last commit to the plan's folder, or null for one never committed.
 export function planDrift(changes, committed, now = new Date()) {
   const cutoff = day(new Date(now.getTime() - IDLE_PLAN_DAYS * 86_400_000).toISOString());
   return changes.flatMap(({ name, completedTasks = 0, totalTasks = 0 }) => {
@@ -157,9 +116,6 @@ export function planDrift(changes, committed, now = new Date()) {
     return last && last <= cutoff ? [{ name, reason: 'idle', tasks, lastCommit: last }] : [];
   });
 }
-
-// ---------------------------------------------------------------------------
-// Reads
 
 function repoRoot() {
   try {

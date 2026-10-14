@@ -1,6 +1,5 @@
-// A fake Cloudflare API over HTTP, with D1 on node:sqlite, and a fake `gh` on PATH, for the provisioning
-// script's tests. Callers spawn children asynchronously: a synchronous spawn
-// would block the event loop this server answers on.
+// A fake Cloudflare API over HTTP, with D1 on node:sqlite, and a fake `gh` on PATH, for the provisioning tests.
+// Callers spawn children asynchronously: a synchronous spawn would block the event loop this server answers on.
 import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { createHash } from 'node:crypto';
@@ -61,23 +60,8 @@ export const startingPolicies = () => [
   { id: 'p2', effect: 'allow', resources: { [`com.cloudflare.api.account.${ACCOUNT}`]: '*' }, permission_groups: [{ id: groupId('Account API Tokens Write') }] },
 ];
 
-/**
- * The fake. `state` is live: tests read and change it between runs. `refuse` holds `METHOD /path`
- * prefixes that answer 500; `refusedPolls` refuses the widen's probe that many times with `refusedStatus`
- * (`403` or `401`, code `10000`), as Cloudflare does while a widen takes effect; `refusedAccessPolls` does
- * the same to the widen's Access probes, as an account without a card may; `d1Failures` fails that
- * many D1 queries. `needsOnboarding` refuses a new Zero Trust organization with a 403, as an account
- * without a card does.
- *
- * For an Artifacts install: `paid` says whether the account's subscriptions list Workers Paid. `repos`
- * names repositories another project already made in the shared namespace. `repos`, `namespaces` and
- * `repoTokens` (each `active` until revoked) are the Artifacts side; `lifecycles` holds each bucket's
- * rules; `workerSecrets` each Worker's secrets by name, readable only once the Worker exists;
- * `tokenValues` each account token's current value by id.
- * `forbidTokens` answers every account-token call 403, as a user token narrowed back from Account API
- * Tokens Write does. `newerPreview` names Workers whose newest uploaded version is not the deployed one:
- * storing a secret there answers 400, code `10215`. `gateways` holds each AI Gateway a routine runner made.
- */
+/** The fake. `state` is live: tests read and change it between runs. Each option and `state` field is named for what
+ * it fakes: a refusal as Cloudflare gives it (`refuse`, `refusedPolls`, `newerPreview`), or what an account holds. */
 export async function fakeCloudflare({ r2 = true, subdomain = 'ada', accounts = [{ id: ACCOUNT, name: 'Ada' }], paid = true, repos = [] } = {}) {
   const remoteOf = (namespace, name) => `https://${ACCOUNT}.artifacts.cloudflare.net/git/${namespace}/${name}.git`;
   const state = {
@@ -396,10 +380,8 @@ export async function fakeCloudflare({ r2 = true, subdomain = 'ada', accounts = 
   };
 }
 
-/**
- * A fake `gh` in `<dir>/bin`: `secret list` and `secret set` against `<dir>/secrets`, and `api user` as ada's
- * GitHub account, 4242; every argument list logged to `<dir>/calls`. A `<dir>/fail` file makes every secret call fail.
- */
+/** A fake `gh` in `<dir>/bin`: `secret list` and `secret set` against `<dir>/secrets`, and `api user` as ada (4242).
+ * Every argument list is logged to `<dir>/calls`; a `<dir>/fail` file makes every secret call fail. */
 export function fakeGh(dir) {
   const bin = join(dir, 'bin');
   mkdirSync(join(dir, 'secrets'), { recursive: true });

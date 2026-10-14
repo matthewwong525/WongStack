@@ -58,7 +58,8 @@ export function checkpointEvidence({ repo = '.', ref = 'HEAD', base, changesDir 
     const text = local ? readFileSync(resolve(root, path), 'utf8') : git('show', `${sha}:${path}`);
     const metadataPath = `${changes}/${name}/.openspec.yaml`;
     let metadata = '';
-    try { metadata = local ? readFileSync(resolve(root, metadataPath), 'utf8') : git('show', `${sha}:${metadataPath}`); } catch { /* ordinary code record */ }
+    // No metadata file means an ordinary code record.
+    try { metadata = local ? readFileSync(resolve(root, metadataPath), 'utf8') : git('show', `${sha}:${metadataPath}`); } catch {}
     if (/^schema:[ \t]*(?:scheduled-work|'scheduled-work'|"scheduled-work")[ \t]*(?:#.*)?$/m.test(metadata)) operational.add(name);
     proposals.set(name, text.match(/^\*\*Branch:\*\*[ \t]*([^\r\n]*)/m)?.[1].trim() || null);
   }

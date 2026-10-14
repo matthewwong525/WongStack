@@ -1,7 +1,5 @@
-// A stand-in for agent-browser in scripts/tests/verify-journeys.test.mjs. It answers the few commands
-// verify-runner.sh sends, and loads pages with plain requests, so a kept check replays against the
-// practice site with no Chrome. It runs no page script, so a control that needs one is not found.
-// Each call is logged to calls.txt in FAKE_BROWSER_STATE. Meta-only: no target receives it.
+// A stand-in for agent-browser in scripts/tests/verify-journeys.test.mjs: it loads pages with plain requests
+// and runs no page script, so a control that needs one is not found. Calls are logged to calls.txt. Meta-only.
 import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 

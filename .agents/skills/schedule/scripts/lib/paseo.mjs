@@ -1,10 +1,5 @@
 // The helpers the routine scripts share: find the Paseo binary, make one `--json` call, name each
 // failure with a fixed exit code, parse `<command> [flags]`, and run git.
-//
-// Exit codes: 0 ok, 2 bad input, 3 Paseo not installed, 4 daemon not
-// answering, 5 Paseo's client or output has changed.
-//
-// Node built-ins only.
 
 import { execFile, execFileSync } from 'node:child_process';
 import { accessSync, constants } from 'node:fs';
@@ -34,11 +29,8 @@ export function findPaseo(env, override) {
 
 const DAEMON_DOWN = /Cannot connect to daemon|DAEMON_NOT_RUNNING|DAEMON_UNREACHABLE|ECONNREFUSED/i;
 
-/**
- * One public `paseo … --json` call. Returns the parsed stdout (or its trimmed
- * text) and the stderr text. Exit 4 when the daemon does not answer; any other
- * failure is exit 2 with Paseo's own message.
- */
+// One public `paseo … --json` call: the parsed stdout (or its trimmed text) and the stderr text. Exit 4 when the
+// daemon does not answer; any other failure is exit 2 with Paseo's own message.
 export async function runPaseo(bin, args, { env } = {}) {
   try {
     const { stdout, stderr } = await promisify(execFile)(bin, [...args, '--json'], {
@@ -61,11 +53,8 @@ export async function paseo(bin, args, options) {
   return (await runPaseo(bin, args, options)).data;
 }
 
-/**
- * Parses `<command> [flags]`. `values` names the `--name <value>` flags, `booleans` maps a flag to its key
- * (`{ '--dry-run': 'dryRun' }`), and `positional` keeps bare words. Anything else is exit 2 with `unknown(arg)`,
- * the calling script's own message. Returns `{ command, flags, positional }`.
- */
+// Parses `<command> [flags]` into `{ command, flags, positional }`. `values` names the `--name <value>` flags and
+// `booleans` maps a flag to its key (`{ '--dry-run': 'dryRun' }`); anything else is exit 2 with `unknown(arg)`.
 export function parseCommand(argv, { values = [], booleans = {}, positional: keep = false, unknown }) {
   const [command, ...rest] = argv;
   const flags = {};

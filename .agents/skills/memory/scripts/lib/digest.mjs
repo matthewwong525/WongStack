@@ -82,11 +82,8 @@ export function stepLine(steps = []) {
 // The person's page as digest lines: its body, without the `#` title, the `Back to` footer, or blank lines.
 const personLines = text => text.split('\n').map(line => line.trimEnd()).filter(line => line && !line.startsWith('# ') && !line.startsWith('Back to '));
 
-// Builds the digest within MAX_LINES and MAX_BYTES, in this order: the current change's threads, the count of
-// other changes' threads by verb tag, the person's page within PERSON_MAX_BYTES, then the other facts in query
-// rank (feedback, project, reference, user; newest first). Other changes' threads are never listed.
-// Returns '' when there is nothing to say.
-// `personal` says the team filter is on; only the admin's key is told --everyone widens it.
+// Builds the digest within MAX_LINES and MAX_BYTES: the current change's threads, the step line, the person's
+// page, then the other facts in query rank. Other changes' threads are never listed. '' when nothing to say.
 export function buildDigest({ facts, live = facts.length, threads = [], steps = [], person = null, run = null, slug = null, personal = false, admin = false, now = Date.now() }) {
   const runLine = formatRun(run);
   const step = stepLine(steps);
@@ -153,7 +150,7 @@ export async function digestPlan(ctx, store) {
   const params = personal?.params || [];
   const verbTags = VERB_TAGS.map(tag => `'${tag}'`).join(', ');
   const statements = [
-    // Other changes' open threads by verb tag: one with two counts under each, and the untagged come back as a null tag.
+    // Other changes' open threads by verb tag: one with two tags counts under each; untagged ones have a null tag.
     [`SELECT ft.tag, count(*) AS n FROM facts f LEFT JOIN fact_tags ft ON ft.fact_id = f.id AND ft.tag IN (${verbTags}) WHERE ${where} AND f.type = 'thread' AND f.slug != ? GROUP BY ft.tag`, [...params, slug || '']],
     [`SELECT ${F_COLUMNS} FROM facts f WHERE ${where} AND f.type != 'thread' ORDER BY ${TYPE_ORDER}, f.created_at DESC, f.id DESC LIMIT ${FETCH_LIMIT}`, params],
     [`SELECT count(*) AS live FROM facts f WHERE ${where}`, params],
@@ -182,8 +179,6 @@ export function readCache(ctx, now = Date.now()) {
   const text = readFileSync(file, 'utf8');
   return text.trim() ? { text, age: ageDays(new Date(statSync(file).mtimeMs).toISOString(), now) } : null;
 }
-
-// ---------- the person's page ----------
 
 // The page under a repo's wiki/people/ that lists its git email as a whole address, or null.
 export function personPage(ctx) {

@@ -29,17 +29,16 @@ function target({ removed, role: asked, apps, keys }: Change, existing: Sets["pe
   return { role, own: nothing() };
 }
 
-/**
- * The owner's pass when a save asks about the manager switch: it names it, or removes a manager. Null when it
- * does not. Only the owner picks managers: anyone else who asks, about themselves included, is refused whole.
- */
+/** The owner's pass when a save asks about the manager switch: it names it, or removes a manager. Null when it does
+ *  not. Only the owner picks managers: anyone else who asks, about themselves included, is refused whole. */
 function switching(core: Core, { removed, manager }: Change, was: boolean): OwnerCore | null {
   if (manager === undefined && !(removed && was)) return null;
   if (!isOwner(core)) throw new AccessError("owner_required", 403);
   return core;
 }
 
-/** The switch is a row: cleared, then written again when it stays on. A removal clears it, so a person added back starts without it. */
+/** The switch is a row: cleared, then written again when it stays on. A removal clears it, so a person added back
+ *  starts without it. */
 const managerWrites = (core: OwnerCore, email: string, manager: boolean) => [
   core.db.prepare("DELETE FROM wong_access_managers WHERE installation_id = ? AND email = ?").bind(core.installationId, email),
   ...(manager ? [core.db.prepare("INSERT INTO wong_access_managers VALUES (?, ?)").bind(core.installationId, email)] : []),
@@ -86,10 +85,8 @@ export async function changeMember(core: Core, value: unknown): Promise<void> {
     ...(manager === was ? [] : [manager ? "manager_added" : "manager_removed"])], changes);
 }
 
-/** What the owner's screen, and a manager's, shows. No key's value is here: only whether each one is saved.
- *  `viewer` is who asked, and whether they are the owner: the screen draws by it, and every save checks again.
- *  `apps` is every app a person can be given. `unticked` names each person and role that could only look at an
- *  app, with the app's title: a tick can not say that, so they do not hold it. The next save clears the list. */
+/** What the owner's screen, and a manager's, shows: never a key's value, only whether each is saved. `unticked` names
+ *  each person and role that could only look at an app, which a tick can not say; the next save clears the list. */
 export async function accessStatus(core: Core): Promise<object> {
   const id = core.installationId;
   // Access itself is everyone's own page, so it is nobody's to give.

@@ -242,7 +242,7 @@ it("lists every action of a held app, and a key's own action only for a caller w
   const held = ["main.setup", "orders.balance", "orders.read", "orders.refund"];
   expect(await ids()).toEqual(held);
   const listing = await body(await discover());
-  // Each action still says which keys it uses and what it does with them. A reviewed exception is handed no key, so it lists none.
+  // Each action still says which keys it uses and at what level. A reviewed exception is handed no key, so lists none.
   expect(listing.actions).toMatchObject([{ operationId: "main.setup", keys: [] }, { operationId: "orders.balance", keys: [{ id: "bank", level: "read" }] },
     { operationId: "orders.read", keys: [{ id: "stripe", level: "read" }] }, { operationId: "orders.refund", keys: [{ id: "stripe", level: "write" }] }]);
   const selected = await discover("/api/actions?id=orders.refund");
@@ -276,7 +276,7 @@ it("lists every action of a held app, and a key's own action only for a caller w
   expect(keyUses(new Map<string, Route>([["GET /api/a", handler], ["POST /api/b", handler], ["GET /api/c", action()], ["GET /api/d", action()]]),
     "main", new Map<string, RouteAccess>([["GET /api/a", { keys: ["cloudflare"] }], ["POST /api/b", { apps: ["orders", "payroll"], keys: ["bank"] }], ["GET /api/c", { kind: "owner" }]])))
     .toEqual([{ apps: [], keys: ["cloudflare"], need: "read" }, { apps: ["orders", "payroll"], keys: ["bank"], need: "write" }]);
-  // A folder with no screen hands over a mapping for each route: its key use belongs to no app, and an action's own keys still come first.
+  // A folder with no screen maps each route: its key use belongs to no app, and an action's own keys still come first.
   const screenless = new Map<string, RouteAccess>([...routes.keys()].map(key => [key, alone]));
   expect(keyUses(routes, "reports", screenless).map(use => [use.apps, use.keys])).toEqual([[[], ["stripe"]], [[], ["stripe"]], [[], ["bank"]], [[], ["stripe"]]]);
   expect(registrations(routes, "reports", screenless).map(({ path, app, access }) => [path, app, access])).toEqual([["/apps/reports/api/read", "reports", alone],
@@ -313,7 +313,7 @@ it("tells each signed-in person their own apps and levels, with the key's name a
   f.sql.exec("UPDATE wong_access_installation SET keys_enabled = 0");
   expect((await readback(employee)).keys).toEqual([]);
   f.sql.exec("UPDATE wong_access_installation SET keys_enabled = 1");
-  // An app's call asks for no level. A key's own call that names no need is judged by the stricter one, never let through on Read.
+  // An app's call asks for no level. A key's own call that names no need is judged by the stricter one, never by Read.
   const policy = await currentPolicy(env, employee);
   expect([policyAllows(policy, orders), policyAllows(policy, alone), policyAllows(policy, alone, "read")]).toEqual([true, false, true]);
   expect(await authorizeRequest(env, employee, orders)).toBeNull();

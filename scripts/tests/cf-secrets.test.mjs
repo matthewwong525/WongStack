@@ -224,6 +224,16 @@ test('shared with no .dev.vars or no wrangler config lists nothing and passes', 
   assert.match(result.out, /^own: $/m);
 });
 
+// Replaces the long notes in cf-secrets.mjs: `check` skips, never fails, with no config or no staging section.
+test('check with no wrangler config, or a config with no staging section, skips and passes', t => {
+  const bare = pack(t, { scripts: ['cf-secrets.mjs', 'lib-wrangler-config.mjs', 'lib-cli.mjs'], prefix: 'cf-secrets-bare-' }).run('cf-secrets.mjs', ['check']);
+  assert.equal(bare.status, 0, bare.out);
+  assert.match(bare.out, /no wrangler config yet — skipping the parity check/);
+  const oneWorker = check(t, { name: 'demo', d1_databases: [{ binding: 'DB', database_name: 'demo' }] });
+  assert.equal(oneWorker.status, 0, oneWorker.output);
+  assert.match(oneWorker.output, /no `env\.staging` in the wrangler config — skipping the binding comparison/);
+});
+
 test('private production login bindings cannot reach staging through fallback, override, blank declarations or config', t => {
   for (const name of ['WONG_ACCESS_LOGIN_MANAGEMENT']) {
     const f = scaffold(t, { env: { staging: {} } }, { tools: { npx: logger() } });
@@ -290,7 +300,7 @@ test('secret parity lets the setup-made Cloudflare read key wait on staging, nev
   const waitingLine = /'WONG_CLOUDFLARE_READ' is on production only — the preview is waiting for it/;
   const both = checkSecrets(t, { PROD: 'API_KEY,WONG_ACCESS_LOGIN_MANAGEMENT,WONG_CLOUDFLARE_READ', STAGING: 'API_KEY,WONG_CLOUDFLARE_READ' });
   assert.equal(both.status, 0, both.out); assert.doesNotMatch(both.out, waitingLine);
-  // Cloudflare refuses a secret on staging while a newer preview is uploaded, so production alone passes, with one line saying so.
+  // Cloudflare refuses a staging secret while a newer preview is uploaded, so production alone passes, and says so.
   const waiting = checkSecrets(t, { PROD: 'API_KEY,WONG_CLOUDFLARE_READ', STAGING: 'API_KEY' });
   assert.equal(waiting.status, 0, waiting.out); assert.match(waiting.out, waitingLine); assert.match(waiting.out, /cf-secrets: no drift$/m);
   assert.equal(waiting.out.match(/WONG_CLOUDFLARE_READ/g).length, 1);

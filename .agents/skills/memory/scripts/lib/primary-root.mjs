@@ -1,11 +1,6 @@
 #!/usr/bin/env node
 // The primary worktree: where durable secrets live (wiki/development/secrets.md). Every WongStack script finds it here.
-//
-//     node .claude/skills/memory/scripts/lib/primary-root.mjs [dir]   # prints the primary checkout, or exits 1
-//
-// Equal git and common dirs mean the active checkout is the primary. Otherwise the primary is the parent of the
-// common dir, and Git must agree that it is a checkout's top level; a bare repo's worktree fails that check.
-// Skills are copied whole, so another skill imports this file by path; callers decide what a failure means.
+// The primary is the common dir's parent, and Git must agree it is a checkout's top level; a bare repo fails that.
 import { execFileSync } from 'node:child_process';
 import { dirname } from 'node:path';
 import { isMain, parseCli } from './cli.mjs';

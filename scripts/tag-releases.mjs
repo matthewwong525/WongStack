@@ -1,10 +1,6 @@
 #!/usr/bin/env node
-// Give every CHANGELOG.md version a `v<version>` tag and a GitHub Release, on the first commit on this
-// branch's first-parent line that set VERSION to it. Versions that already have a Release are left alone,
-// so a run on each push to main labels the new version and fills in any that a failed run missed. A Release
-// another run created meanwhile counts as done. A `## Next` heading fails the run: /ship numbers each entry
-// before it merges, so one on this branch means a release merged unnumbered.
-// Meta-only: .github/workflows/release.yml runs it; no target receives it.
+// Give every CHANGELOG.md version a `v<version>` tag and a GitHub Release; a `## Next` heading fails the run.
+// Meta-only: .github/workflows/release.yml runs it; .agents/rules/payload.md says when to run it by hand.
 import { execFileSync } from 'node:child_process';
 import { appendFileSync, readFileSync } from 'node:fs';
 import { parseCli } from './lib-cli.mjs';
@@ -18,9 +14,8 @@ const HEADING = /^## (\d+\.\d+\.\d+) — (.+)$/;
 const run = (cmd, args) => execFileSync(cmd, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] }).trim();
 const lines = text => text.split('\n').filter(Boolean);
 
-// Creates one Release: 'created'; 'refused' when GitHub answers HTTP 403, as it does for the workflow's own
-// token on a commit that changes a workflow file; 'done' when HTTP 422 says it already exists, because the
-// other run on a near-simultaneous push made it first. Any other failure is thrown.
+// Creates one Release: 'created'; 'refused' on HTTP 403 (the workflow's token on a commit that changes a
+// workflow file); 'done' on HTTP 422 (another run made it first). Any other failure is thrown.
 function create(args, notes) {
   try {
     execFileSync('gh', args, { encoding: 'utf8', input: notes, stdio: ['pipe', 'pipe', 'pipe'] });

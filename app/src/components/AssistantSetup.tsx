@@ -6,9 +6,8 @@ import { CopyText } from './CopyText'
 
 const STEP = 'font-semibold'
 
-// The three steps, numbered by the list itself: copy, paste, approve. Copy is the one solid button. Then what to
-// ask once it works, and what the connection reaches: the apps, and the whole project for a person given Project
-// code. While the app can not hand the project out, the closing line says code and memory are set up separately.
+// The three steps, numbered by the list itself: copy, paste, approve. Then what to ask once it works and what the
+// connection reaches. While the app can not hand the project out, the last line says code and memory are separate.
 function Steps({ text, email, apps, titles, code }: { text: string; email: string; apps: string[]; titles: Record<string, string>; code: Code }) {
   return <>
     <ol className="grid list-decimal gap-4 ps-6 marker:font-semibold">
@@ -23,10 +22,8 @@ function Steps({ text, email, apps, titles, code }: { text: string; email: strin
   </>
 }
 
-// The body of the Connect your assistant popup, for every signed-in person: the one place the steps are. Its
-// heading names the popup, and the line under it says what an assistant is. The message holds no keys. When the
-// steps can't be read it says so and offers to try again; when there is nothing to copy, because setup is not ready on this app or the
-// person lacks Project code, it says what the app answered, such as who to ask. One column that can shrink keeps the long message inside the popup.
+// The body of the Connect your assistant popup: the one place the steps are. The message holds no keys. With nothing
+// to copy it says what the app answered. One column that can shrink keeps the long message inside the popup.
 export function AssistantSetup() {
   const { data, error, reload } = useAccess('setup', setupSchema)
   return <section aria-label="Connect your assistant"><div className="grid grid-cols-[minmax(0,1fr)] gap-4 wrap-anywhere">

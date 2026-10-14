@@ -1,5 +1,4 @@
-// One CLI convention for every WongStack script: `--help` prints usage and exits 0, a usage
-// error prints to stderr and exits 2, and an unknown flag is a usage error.
+// One CLI convention for every WongStack script: `--help` exits 0; a usage error or unknown flag exits 2.
 // Skills import it by path, like primary-root.mjs; scripts/lib-cli.mjs re-exports it for the pack.
 import { realpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';

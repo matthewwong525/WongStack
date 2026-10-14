@@ -82,10 +82,8 @@ function logicalSourcePath(gitPath) {
   return gitPath;
 }
 
-// A symlink in a Git tree is a blob whose content is the link text, so a payload
-// file stored as a link (this source's CLAUDE.md -> AGENTS.md) must be read
-// through its target. Resolution is one hop, by Git path: links to folders,
-// to other links, or to nothing are dropped, and a real file always wins.
+// A symlink in a Git tree is a blob holding the link text, so a payload file stored as a link (CLAUDE.md -> AGENTS.md)
+// is read through its target: one hop, by Git path. Links to folders, links, or nothing drop; a real file wins.
 function readLinkTargets(source, links) {
   if (links.length === 0) return [];
   const result = spawnSync('git', ['-C', source, 'cat-file', '--batch'], {
@@ -381,9 +379,8 @@ function readRecord(target, recordInput) {
   return record;
 }
 
-// The shared selection behind preflight and merge-check: both commits' payload,
-// expanded for this target, and every unit whose source value changed between them.
-// `from` overrides the record's commit (merge-check checks against the commit a plan started from).
+// The shared selection behind preflight and merge-check: both commits' payload, expanded for this target, and every
+// unit whose source value changed between them. `from` overrides the record's commit, as merge-check needs.
 export function compareSelection({ target: targetInput, source: sourceInput, record: recordInput, from, maxChanges = DEFAULT_MAX_CHANGES }) {
   const target = directory(targetInput, '--target');
   const source = directory(sourceInput, '--source');

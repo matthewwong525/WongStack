@@ -315,7 +315,8 @@ test('--link prints the reply link in the same line, with the plan\'s header and
   } finally {
     let server = null;
     try { server = JSON.parse(readFileSync(join(state, 'server.json'), 'utf8')); } catch { /* none started */ }
-    if (server) for (const [pid, sig] of [[server.pid, 'SIGTERM'], [server.tunnelPid, 'SIGKILL']]) try { process.kill(pid, sig); } catch { /* gone */ }
+    // Either process may already be gone.
+    if (server) for (const [pid, sig] of [[server.pid, 'SIGTERM'], [server.tunnelPid, 'SIGKILL']]) try { process.kill(pid, sig); } catch { }
   }
 }));
 

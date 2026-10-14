@@ -7,10 +7,8 @@ import { Notices } from './Notices'
 // The current view is boxed, bold and underlined: never marked by colour alone.
 const TAB = 'rounded-md border border-transparent px-3 py-2 no-underline aria-[current=page]:border-border aria-[current=page]:font-bold aria-[current=page]:underline'
 
-/** The frame of every owner screen: the switch between the two views, each with its count and this one marked by
- *  more than colour, with the view's add button at the end of that line. The switch is the heading: the current link
- *  names the list under it. Then the one spot for notices, then the list, and beside it whatever is opened. An
- *  opened item with changes holds a move to another view through `useAsk`. */
+/** The frame of every owner screen: the switch between the two views with the add button, the one spot for notices,
+ *  the list, and whatever is opened beside it. An opened item with changes holds a move through `useAsk`. */
 export function View({ add, children, ...props }: ViewProps & { add?: ReactNode; children: ReactNode }) {
   const { status, view } = props
   const ask = useRef<Ask | null>(null)

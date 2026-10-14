@@ -1,30 +1,5 @@
-// The private form's routes and its send, mounted by `hand-over.mjs open --form <file>`, which checks
-// the key first.
-//
-// `checkForm` runs at `open`, before any tunnel, on the `--form` file the agent wrote from its own
-// snapshot: `{title, note, fields, submit}`. `title` (60 characters) says who is paid or what is asked,
-// and the optional `note` (140) is the line under it. `fields` holds 1 to 12 boxes, each `{label, kind,
-// target, options}`: `label` (60) as on the site; `kind`, optional, one HTML autofill name such as
-// `cc-number`, so a password manager can fill the box; `target`, the site's field as a snapshot ref
-// (`e12`, or `@e12`) or a selector (200); and `options`, which makes the box a dropdown of up to 60
-// `{value, text}` choices. `submit` is `{label, target}`, the site's own button. The first fault is
-// returned as `<where>: <reason>`.
-//
-// `GET /form` gives the page `{title, note, fields, submit, closesAt, now}`: each field's label, autofill
-// name, box type, keyboard, and choices, and the button's label, never a target. `POST /send` takes
-// `{values: [...]}`, one string per field in order, in a 16 KB body: a text value is 1 to 256 characters
-// on one line, a dropdown's one of its choices. The first well-formed send is the only one: every later
-// one answers 409. `POST /done` cancels a form nothing was sent from.
-//
-// `sendForm` is the send, through the browser client it is given (browse.mjs's, for the session that
-// opened the form). It fills the site's fields in order: a text box's value goes to `type(target,
-// value)`, which clears the box and types it; a dropdown's own choice is read (`value(target)`), then
-// `select(target, value)` picks a choice the agent supplied. With every field in, it runs
-// `click(submit target)` once and asks `reached()` whether the site moved on. A step that fails stops
-// before the click. When the site did not move on, each text box it typed into is emptied by target,
-// each dropdown is put back to the choice it had, and the result is `not-accepted`. Nothing here logs,
-// it reads only a dropdown's choice before the person's pick, and a typed value travels only in the
-// client's loopback request, never argv, env, or a file.
+// The private form's routes and its send, mounted by `hand-over.mjs open --form <file>`, which checks the key first.
+// Nothing here logs; a typed value travels only in the browser client's loopback request, never argv, env, or a file.
 
 export const LIMITS = { fields: 12, title: 60, note: 140, label: 60, target: 200, options: 60, option: 80, value: 256, body: 16 * 1024 };
 export const FORM_ROUTES = new Set(['/form', '/send', '/done']);
@@ -32,9 +7,6 @@ export const FORM_ROUTES = new Set(['/form', '/send', '/done']);
 /** The HTML autofill field names a box's `kind` may be. */
 export const AUTOFILL_TOKENS = new Set(['name', 'honorific-prefix', 'given-name', 'additional-name', 'family-name', 'honorific-suffix', 'nickname', 'username', 'new-password', 'current-password', 'one-time-code', 'organization-title', 'organization', 'street-address', 'address-line1', 'address-line2', 'address-line3', 'address-level4', 'address-level3', 'address-level2', 'address-level1', 'country', 'country-name', 'postal-code', 'cc-name', 'cc-given-name', 'cc-additional-name', 'cc-family-name', 'cc-number', 'cc-exp', 'cc-exp-month', 'cc-exp-year', 'cc-csc', 'cc-type', 'transaction-currency', 'transaction-amount', 'language', 'bday', 'bday-day', 'bday-month', 'bday-year', 'sex', 'url', 'photo', 'tel', 'tel-country-code', 'tel-national', 'tel-area-code', 'tel-local', 'tel-extension', 'email', 'impp']);
 const NUMERIC_TOKENS = new Set(['cc-number', 'cc-csc', 'one-time-code']);
-
-// ---------------------------------------------------------------------------
-// The form file
 
 const isObject = value => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 const isText = (value, most) => typeof value === 'string' && Boolean(value.trim()) && value.length <= most && !/[\r\n\0]/.test(value);
@@ -100,13 +72,8 @@ export function checkValues(body, form) {
   return values.every((value, index) => fits(value, form.fields[index])) ? values : 400;
 }
 
-// ---------------------------------------------------------------------------
-// The send
-
-/**
- * Puts one value in its field. `undo` first gains what puts the field back: an emptying of a text box,
- * or a pick of the choice the site showed, read before the person's pick lands. Throws when a step fails.
- */
+/** Puts one value in its field. `undo` first gains what puts the field back: an emptying of a text box,
+ * or a pick of the choice the site showed, read before the person's pick lands. Throws when a step fails. */
 async function fillField(field, value, { browser, undo }) {
   if (field.options) {
     const was = await browser.value(field.target);
@@ -118,13 +85,8 @@ async function fillField(field, value, { browser, undo }) {
   await browser.type(field.target, value);
 }
 
-/**
- * The whole send: fill each field in order, press the submit target once, and ask `reached()` whether
- * the site moved on. A press whose step fails still asks, since the site may have taken it; a field
- * that fails presses nothing. Resolves to `done`, or to `not-accepted` after emptying each text box it
- * typed into and putting each dropdown back, so nothing the person gave is left to see. `browser` is a
- * client whose `type`, `select`, `value`, and `click` throw on failure.
- */
+/** The whole send. A press whose step fails still asks `reached()`, since the site may have taken it; a field
+ * that fails presses nothing. On `not-accepted` every field is put back, so nothing the person gave is left to see. */
 export async function sendForm(form, values, { browser, reached }) {
   const undo = [];
   let moved = false;
@@ -137,9 +99,6 @@ export async function sendForm(form, values, { browser, reached }) {
   for (const putBack of undo) await putBack().catch(() => {});
   return 'not-accepted';
 }
-
-// ---------------------------------------------------------------------------
-// Routes
 
 /** A request's JSON body, or a status: 413 past the byte limit, 400 when it isn't JSON. */
 export async function readBody(request) {
@@ -162,11 +121,8 @@ export function reply(response, status, body) {
   response.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store', 'content-length': Buffer.byteLength(text) }).end(text);
 }
 
-/**
- * The form routes for `form`, a checked form file. `onSend(values)` runs the one send and resolves to
- * the receipt `/send` answers with; `onCancel()` runs once `/done`'s reply has gone. `closesAt` is the
- * deadline `GET /form` reports.
- */
+/** The form routes for a checked form file. `onSend(values)` runs the one send and resolves to the receipt
+ * `/send` answers with; `onCancel()` runs once `/done`'s reply has gone. */
 export function formRoutes(form, { onSend = async () => null, onCancel = () => {}, isOpen = () => true, closesAt } = {}) {
   let ended = false;
   return async (pathname, request, response) => {

@@ -1,6 +1,5 @@
-// Markdown links and headings, read fresh from the files on each call: what links to a path, and whether the wiki holds.
-// The one copy of the link and heading rules: `memory.mjs areas`, `.github/scripts/wiki-links.mjs`, and this repo's
-// `scripts/check-payload-links.mjs` all read them here.
+// Markdown links and headings, read fresh on each call: what links to a path, and whether the wiki holds. The one
+// copy of the rules for `memory.mjs areas`, `.github/scripts/wiki-links.mjs` and `scripts/check-payload-links.mjs`.
 import { existsSync, lstatSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, posix, relative, resolve, sep } from 'node:path';
 import { normalizePath } from './areas.mjs';
@@ -30,9 +29,8 @@ export function markdownFiles(root, dir = root) {
 // Blank fenced code and code spans, keeping every newline: a command in backticks is not a link.
 const maskCode = text => text.replace(FENCE, m => m.replace(/[^\n]/g, ' ')).replace(/`[^`\n]*`/g, m => ' '.repeat(m.length));
 
-// Each inline link in a file to a path, not a site: its line, the written target, where it lands (`rel`,
-// repo-relative with .claude/ read as .agents/, null outside the repo), and its decoded `#section` (`anchor`, '' when
-// none). A pure `#section` link lands on its own page. A folder also lands on its README.md.
+// Each inline link in a file to a path, not a site: line, target, `rel` (null outside the repo) and `anchor`.
+// .claude/ reads as .agents/; a pure `#section` link lands on its own page; a folder also lands on its README.md.
 export function linksIn(root, file) {
   const text = maskCode(readFileSync(join(root, file), 'utf8'));
   const out = [];
@@ -51,8 +49,8 @@ export function linksIn(root, file) {
   return out;
 }
 
-// A heading's anchor as GitHub makes it: the rendered text, lowercased, every character but letters, digits, spaces,
-// hyphens, and underscores dropped, and each space a hyphen. `Step 5 — the closing report` -> `step-5--the-closing-report`.
+// A heading's anchor as GitHub makes it: lowercased, each space a hyphen, and every character dropped that is not a
+// letter, digit, space, hyphen or underscore. `Step 5 — the closing report` -> `step-5--the-closing-report`.
 const slug = heading => heading
   .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
   .replace(/<[^>]+>/g, '')
@@ -118,9 +116,8 @@ function pageProblems(root, page) {
   return problems;
 }
 
-// The wiki's problems, one line each: a link to nothing or to a heading its page lacks, a page no other wiki page
-// links to (the root hub aside), a hub (README.md) that skips a page or a subfolder holding pages beside it, and a
-// page over the word cap or not opening with one title and a sentence. No wiki/ has none.
+// The wiki's problems, one line each: a dead link or missing heading, an orphan page, a hub (README.md) that skips
+// a page or subfolder beside it, and a page over the word cap or with a bad opening. No wiki/ has none.
 export function checkWiki(root) {
   const pages = wikiPages(root);
   const links = pages.flatMap(file => linksIn(root, file));

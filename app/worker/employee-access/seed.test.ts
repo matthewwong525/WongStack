@@ -42,7 +42,7 @@ it('staging starts with practice people, two roles, one manager and key levels o
     // Every built app is listed but Access itself, by the words on its card.
     expect(opened.apps.map(app => app.id)).toEqual(built);
     expect(opened.apps.find(app => String(app.id) === 'hello')).toMatchObject({ title: 'Hello' });
-    // Eli and the Trainees role could only look, which a tick can not say: a preview opens with both named, by the apps' titles.
+    // Eli and the Trainees role could only look, which a tick can not say: a preview opens naming both, by app title.
     expect(opened.unticked).toMatchObject({ people: [{ email: 'eli@example.invalid' }], roles: [{ name: 'Trainees', apps: ['Hello'] }] });
     expect(opened.unticked.people[0].apps).toContain('Hello');
     expect(sql.prepare('SELECT email FROM wong_access_managers').all()).toEqual([{ email: 'dana@example.invalid' }]);
@@ -63,7 +63,7 @@ it('staging starts with practice people, two roles, one manager and key levels o
     for (const [email, allowed] of [['bo@example.invalid', true], ['dana@example.invalid', true], ['eli@example.invalid', false]] as const) {
       expect((await authorizeRequest(env, practice(email), { keys: ['cloudflare'] }, 'read')) === null, email).toBe(allowed);
     }
-    // The role's two people and Dana may connect with the project once a preview can hand it out; Eli sees Connect greyed.
+    // The role's two people and Dana may connect with the project once a preview hands it out; Eli sees Connect greyed.
     const handing = { ...env, WONG_CODE_REPOSITORY: 'acme/recipe-box', WONG_CODE_READ: 'synthetic-read-only' };
     for (const [email, state] of [['ada@example.invalid', 'ready'], ['bo@example.invalid', 'ready'], ['dana@example.invalid', 'ready'], ['eli@example.invalid', 'lacked']] as const) {
       expect(codeState(handing, await currentPolicy(handing, practice(email)), true), email).toBe(state);

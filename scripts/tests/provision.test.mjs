@@ -457,12 +457,8 @@ test('an interrupted one-time machine secret handoff recovers only the owned ser
   assertNoSecret(env, JSON.stringify(recovered));
 });
 
-// ── a target repo, a fake Cloudflare, a fake gh ─────────────────────────────
-
-/**
- * A target with the memory skill and the app's package.json, as an install leaves it before provisioning.
- * Any other option (`paid`, `repos`) goes to the fake Cloudflare.
- */
+/** A target with the memory skill and the app's package.json, as an install leaves it before provisioning.
+ * Any other option (`paid`, `repos`) goes to the fake Cloudflare. */
 async function setup(t, { r2 = true, email = EMAIL, subdomain, ...cloudflareOptions } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'wong-test-provision-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
@@ -509,12 +505,10 @@ function assertNoSecret(env, ...texts) {
   }
 }
 
-// ── the permission tables ───────────────────────────────────────────────────
-
 const PERMISSION_GROUPS = '.agents/skills/wong-setup/references/permission-groups.md';
 const ARTIFACTS_ROUTE = 'wiki/stack/artifacts-route.md';
 
-/** The rows of the table under `### <heading>` in `file` (permission-groups.md unless named), keyed by its header cells. */
+/** The rows of the table under `### <heading>` in `file` (permission-groups.md unless named), keyed by header cell. */
 function tableRows(heading, file = PERMISSION_GROUPS) {
   const lines = readFileSync(join(repoRoot, file), 'utf8').split('\n');
   const start = lines.findIndex((line) => line.trim() === `### ${heading}`);
@@ -529,6 +523,14 @@ function tableRows(heading, file = PERMISSION_GROUPS) {
 }
 
 const scopeOf = (scope) => scope.replace(/^com\.cloudflare\.api\./, '');
+
+// Replaces the long note on CLOUDFLARE_READ_KEY: it can only read, and reaches no product that stores data.
+test('the read-only look-up key holds no write permission and no data store', () => {
+  for (const { name } of CLOUDFLARE_READ_KEY) {
+    assert.match(name, / Read$/, name);
+    assert.doesNotMatch(name, /\b(D1|KV|R2|Queues|Durable|Hyperdrive|Vectorize|Secrets)\b/, name);
+  }
+});
 
 test('the group constants match the tables in permission-groups.md and on the Artifacts route page', () => {
   const plain = (rows) => rows.map((row) => ({ name: row.name, scope: scopeOf(row.scope), id: row.id }));
@@ -568,8 +570,6 @@ test('the token link on the credentials page asks for exactly the two groups the
   assert.equal(link.searchParams.get('zoneId'), 'all');
   assert.equal(link.searchParams.get('name'), 'WongStack');
 });
-
-// ── the widen ───────────────────────────────────────────────────────────────
 
 test('the widen grants a normal provision, keeps both token groups, its resources and condition, and waits out a 403', async (t) => {
   const env = await setup(t);
@@ -673,8 +673,6 @@ test('a permission group Cloudflare does not list stops with token', async (t) =
   await assert.rejects(env.widen({ fetch: fetchWithout }), { reason: 'token', message: 'Cloudflare lists no account permission group named Workers CI Read' });
 });
 
-// ── accounts and names ──────────────────────────────────────────────────────
-
 test('accounts lists what the token sees', async (t) => {
   const env = await setup(t);
   assert.deepEqual(await accounts({ token: TOKEN, api: env.fake.api }), { accounts: [{ id: ACCOUNT, name: 'Ada' }] });
@@ -722,8 +720,6 @@ test('safeName makes a Workers and D1 name, and falls back to wongstack', () => 
   assert.equal(safeName('x'.repeat(50)), 'x'.repeat(40));
   assert.equal(safeName('___'), 'wongstack');
 });
-
-// ── provision ───────────────────────────────────────────────────────────────
 
 test('a fresh provision with R2 on makes the memory store, the key, both databases, the config, and the deploy token', async (t) => {
   const env = await setup(t);
@@ -905,7 +901,7 @@ test('a staging Worker that refuses the read-only key is left waiting: the step 
   assert.deepEqual(again.todo, []);
   assert.equal(env.fake.state.minted.length, minted);
   assert.ok(!env.fake.calls.slice(calls).some((call) => call.method === 'PUT' && call.path.endsWith('/secrets')));
-  // Staging holding no copy still reads as waiting once the newer preview is gone: the key is not replaced to try again.
+  // Staging holding no copy still reads as waiting once the newer preview is gone: the key is not replaced to retry.
   env.fake.state.newerPreview = [];
   assert.deepEqual((await env.provision()).cloudflareReadKey, report.cloudflareReadKey);
   assert.equal(env.fake.state.minted.length, minted);
@@ -1202,8 +1198,6 @@ test('five taken subdomains stop with cloudflare', async (t) => {
   assert.equal(env.fake.count(`PUT /accounts/${ACCOUNT}/workers/subdomain`), 5);
 });
 
-// ── the config fragment ─────────────────────────────────────────────────────
-
 test('the wrangler config fills every placeholder, and a new placeholder fails', () => {
   const ids = { db: 'id-db', stagingDb: 'id-staging', memory: 'id-memory' };
   const text = wranglerConfig({ base: 'demo', ids, bucket: null, today: TODAY });
@@ -1221,8 +1215,6 @@ test('the wrangler config fills every placeholder, and a new placeholder fails',
   assert.throws(() => wranglerFragment(other), { reason: 'repo' });
   rmSync(dirname(other), { recursive: true });
 });
-
-// ── the helpers ─────────────────────────────────────────────────────────────
 
 test('a Cloudflare error names the call and codes, never the token or the query', async () => {
   const refused = cloudflare(TOKEN, { api: 'http://x', fetch: async () => new Response(JSON.stringify({ success: false, errors: [{ code: 9109 }, { code: R2_OFF }] }), { status: 403 }) });
@@ -1251,8 +1243,6 @@ test('run feeds stdin, returns output, and rejects with the last line of stderr'
   await assert.rejects(run('sh', ['-c', 'exit 4']), { message: 'sh exited with 4' });
   await assert.rejects(run('/no/such/command', []), { code: 'ENOENT' });
 });
-
-// ── the command line ────────────────────────────────────────────────────────
 
 const lines = () => {
   const out = [];
@@ -1324,8 +1314,6 @@ test('the script runs end to end as a process, and prints no secret', async (t) 
   assertNoSecret(env, made.stdout, made.stderr, found.stdout);
 });
 
-// ── the Artifacts route: a target with a check runner, and tools that never leave the machine ──
-
 const RUNNER_FILES = ['wrangler.template.jsonc', 'package.json', 'package-lock.json', 'worker.mjs', 'pipeline.mjs', 'run-id.mjs'];
 const RUNNER_CONFIG = 'scripts/check-runner/wrangler.jsonc';
 const STATE_FILE = '.git/wong-stack-provision.json';
@@ -1341,14 +1329,8 @@ function gitVerb(args) {
   return args.slice(at);
 }
 
-/**
- * An `exec` for the Artifacts route. `node`, `gh` and git's local calls run for real, against the temp
- * repo and the fake `gh`. `npm` and `npx` never run, and neither do git's calls to the remote
- * (`ls-remote`, `push`, `fetch`): each is recorded and answered here. `calls` holds every argument list,
- * `ran` each npm or npx call with its folder and whether the Cloudflare token was in its environment,
- * and `remote` git's remote calls. A faked `wrangler deploy` makes the Worker its config names on the
- * fake Cloudflare, as a real one does, so the secrets that follow have a Worker to land on.
- */
+/** An `exec` for the Artifacts route: `node`, `gh` and git's local calls run for real; `npm`, `npx` and git's remote
+ * calls are recorded (`calls`, `ran`, `remote`) and answered here. A faked `wrangler deploy` makes its Worker. */
 function fakeTools(fake) {
   const calls = [];
   const ran = [];
@@ -1375,10 +1357,8 @@ function fakeTools(fake) {
   return { exec, calls, ran, remote };
 }
 
-/**
- * A target ready for the Artifacts route: the check runner's folder and the save skill as the pack
- * ships them, a git name beside the email, and `provision` and `names` run through the faked tools.
- */
+/** A target ready for the Artifacts route: the check runner's folder and the save skill as the pack ships them,
+ * a git name beside the email, and `provision` and `names` run through the faked tools. */
 async function artifactsSetup(t, setupOptions) {
   const env = await setup(t, setupOptions);
   execFileSync('git', ['-C', env.dir, 'config', 'user.name', 'Ada']);
@@ -1396,8 +1376,6 @@ async function artifactsSetup(t, setupOptions) {
 
 /** The runner's own part of the fake Cloudflare, copied, to compare before and after a run. */
 const delivered = ({ state }) => structuredClone({ repos: state.repos, repoTokens: state.repoTokens, buckets: state.buckets, lifecycles: state.lifecycles, tokens: state.accountTokens, values: state.tokenValues, secrets: state.workerSecrets, minted: state.minted });
-
-// ── the Artifacts route: the plan, the widen, names ─────────────────────────
 
 test('an Artifacts install on a free account stops with plan before anything is made, and the plan says why', async (t) => {
   const env = await artifactsSetup(t, { paid: false });
@@ -1544,8 +1522,6 @@ test('with no namespace yet, an Artifacts install\'s names are all free', async 
   assert.ok(found.checked.every((item) => item.status === 'free'), JSON.stringify(found.checked));
   assert.deepEqual(env.fake.state.namespaces, [], 'looking makes no namespace');
 });
-
-// ── the Artifacts route: provision ──────────────────────────────────────────
 
 test('a fresh Artifacts install makes the repository, the check runner and its keys, and main\'s first commit, with no GitHub', async (t) => {
   const env = await artifactsSetup(t);
@@ -1703,8 +1679,6 @@ test('an Artifacts install with R2 off stops before the runner is installed, and
   assert.equal(env.tools.remote.filter(([verb]) => verb === 'push').length, 1);
 });
 
-// ── the Artifacts route: the runner's config and the command line ───────────
-
 test('the runner config fills every placeholder, and a new placeholder fails', () => {
   const demo = { account: ACCOUNT, repo: 'demo', runner: 'demo-checks' };
   const text = runnerConfig(demo, readFileSync(join(repoRoot, 'scripts/check-runner/wrangler.template.jsonc'), 'utf8'));
@@ -1750,8 +1724,6 @@ test('the command line prints the plan as one JSON report, and passes --route on
   assertNoSecret(env, paid.out[0], widened.out[0], named.out[0]);
 });
 
-// ── the project Connect your assistant hands out ────────────────────────────
-
 /** `provision.mjs access`, as an update runs it. */
 async function accessCommand(env) {
   const lines = [];
@@ -1791,7 +1763,7 @@ test('a GitHub install names its project for both Workers and reports the read-o
   assertNoSecret(env, waiting.text, ready.text);
   assert.ok(!ready.text.includes('github_pat_synthetic'));
 
-  // An install from before this: no line in the config. The step adds it, from where `origin` points, and keeps the comments.
+  // An install from before this has no config line: the step adds it from where `origin` points, keeping the comments.
   const file = join(env.dir, 'app/wrangler.jsonc');
   writeFileSync(file, readFileSync(file, 'utf8').replace(/^[ \t]*"WONG_CODE_REPOSITORY".*\n/gm, ''));
   assert.deepEqual(codeVars(env), [undefined, undefined, undefined]);

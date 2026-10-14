@@ -2,10 +2,8 @@ import type { ReactNode } from 'react'
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
 import { AssistantSetup } from './AssistantSetup'
 
-// The steps for connecting an assistant, in a popup over the page; the child is what opens it: Home's card, the one
-// way in. The popup part keeps the keyboard inside it, and closes on Escape, on its ✕ and on a click on the dimmed
-// page round it. It is never wider or taller than the screen. The steps are drawn, and so loaded, only while it is
-// open; their heading names the popup and the line under it describes it.
+// The steps for connecting an assistant, in a popup opened by its child: Home's card, the one way in. It is never
+// wider or taller than the screen, and the steps are drawn, and so loaded, only while it is open.
 export function ConnectDialog({ children }: { children: ReactNode }) {
   return <Dialog>
     <DialogTrigger asChild>{children}</DialogTrigger>

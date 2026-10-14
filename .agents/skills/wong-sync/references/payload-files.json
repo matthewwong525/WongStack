@@ -106,6 +106,7 @@
       "scripts/lib-access-config.mjs",
       "scripts/check-private-access.mjs",
       "scripts/check-app-keys.mjs",
+      "scripts/lint-comment-length.mjs",
       "scripts/check-app-checks.mjs",
       "scripts/check-skill-actions.mjs",
       "scripts/probe-private-access.mjs",

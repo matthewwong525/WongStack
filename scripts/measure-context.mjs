@@ -8,9 +8,8 @@ import { isMain, parseCli } from './lib-cli.mjs';
 
 // The vendored browser skill is upstream text; every other skill folder is WongStack-authored.
 const vendored = new Set(['agent-browser']);
-// A skill marked `disable-model-invocation: true` runs only when a person types it or another skill
-// names its file: no session loads its description, and the assistant can not pull its text in on its
-// own. Its files are counted as `on-call`, apart from the instruction total the check holds down.
+// A skill marked `disable-model-invocation: true` runs only when typed or named by another skill, so no
+// session loads its text. Its files count as `on-call`, apart from the instruction total the check holds down.
 export const callOnly = text => /^disable-model-invocation:\s*true\s*$/m.test(text.match(/^---\r?\n([\s\S]*?)\r?\n---/)?.[1] ?? '');
 // Every other skill's `description:`, joined: what each session reads before the first message.
 export const DESCRIPTIONS = 'skill-descriptions';

@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (major) — Short comments only
+
+- **A check fails on a long comment.** A comment longer than two lines, or a comment line wider than 120 characters, now fails the code checks and names the file and the line. It covers the app's JavaScript and TypeScript. A code line has no width limit. A short, helpful comment still passes.
+- **Some comments are never counted.** A license header, the first line that makes a script runnable, and the lines a tool reads, such as one that switches a single check off. The ready-made parts in `app/src/components/ui/` and the machine-written types file are skipped too.
+- **The shipped code already passes.** Every long comment was cut to two lines, or removed when it only repeated the code. Short, helpful comments stayed as they were.
+- **The assistant comments less.** [The coding rules](.agents/rules/code.md) now say: comment only what the code can not say, why and not what, two lines at most. A longer reason goes in a test, a clearer name, or the wiki.
+
+**Updating.** After the update, the check fails on any comment over two lines, or any comment line wider than 120 characters, in your app's code. Ask your assistant: *shorten the long comments in the app*. It cuts each one to two lines, turns any that stated a rule into a test, and lists what it removed. Nothing about how your app works changes.
+
 ## 40.5.0 — Setup learns from your past chats
 
 - **Setup reads your past AI chats while it installs.** It says so in one line, then reads what you typed in the Claude Code and Codex chats on this computer, newest first, while the install carries on. It keeps short notes about you and your business on your wiki page, in the wiki, and in memory: never passwords, keys, copies of chats, or anything about health, family, or money. Say *skip the chats* and it stops and writes nothing. [Learning from past chats](wiki/stack/learning-from-chats.md) has the steps.

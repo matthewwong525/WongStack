@@ -1,19 +1,6 @@
 #!/usr/bin/env node
-// Adds WongStack's agent presets (paseo-presets.json beside this file) to this
-// machine's Paseo: `daemon.agentProfiles` in <home>/config.json, then
-// `paseo reload`. Add-missing only: a preset whose id or name is already there
-// is kept as it is, and one whose agent command (`claude`, `codex`) is not on
-// PATH is skipped. Every other setting stays as it was.
-//
-// Home is --home, else PASEO_HOME, else ~/.paseo. It writes only a config.json
-// Paseo already made, through a temp file and a rename, keeping the file's mode.
-//
-// Prints one JSON object on stdout: { ok, added, kept, skipped, reloaded }, names
-// only. Exit codes: 0 ok, 2 bad input, 3 Paseo not installed or not set up,
-// 5 the config is not what Paseo writes. On 3 and 5 nothing was written. A daemon
-// that does not answer the reload is `reloaded: false` with a warning, not a failure.
-//
-// Node built-ins only. PRESETS_PASEO_BIN overrides the `paseo` found on PATH.
+// Adds WongStack's agent presets (paseo-presets.json beside this file) to this machine's Paseo config, then runs
+// `paseo reload`. Add-missing only: an existing preset is kept; one whose agent command is not on PATH is skipped.
 
 import { accessSync, constants, readFileSync, renameSync, rmSync, statSync, writeFileSync, chmodSync } from 'node:fs';
 import { homedir } from 'node:os';
@@ -25,18 +12,13 @@ import { EXIT, PaseoError, findPaseo, parseCommand, runPaseo } from './lib/paseo
 const USAGE = 'usage: presets.mjs add [--dry-run] [--home <paseo home>]';
 const PRESETS = fileURLToPath(new URL('paseo-presets.json', import.meta.url));
 
-// ---------------------------------------------------------------------------
-// Pure helpers
-
 /** WongStack's presets, from paseo-presets.json. */
 export function loadPresets(file = PRESETS) {
   return JSON.parse(readFileSync(file, 'utf8')).presets;
 }
 
-/**
- * Sorts each preset into added, kept, or skipped against the existing profiles.
- * `installed(provider)` says whether that agent's command is on PATH.
- */
+// Sorts each preset into added, kept, or skipped against the existing profiles.
+// `installed(provider)` says whether that agent's command is on PATH.
 export function plan(profiles, presets, installed) {
   const ids = new Set(profiles.map(p => p?.id));
   const names = new Set(profiles.map(p => p?.name));
@@ -54,9 +36,6 @@ export function withPresets(config, presets) {
   const daemon = config.daemon ?? {};
   return { ...config, daemon: { ...daemon, agentProfiles: [...(daemon.agentProfiles ?? []), ...presets] } };
 }
-
-// ---------------------------------------------------------------------------
-// Environment
 
 /** True when an executable `name` is on env.PATH. */
 function onPath(env, name) {
@@ -106,9 +85,6 @@ function writeAtomic(file, text) {
     throw error;
   }
 }
-
-// ---------------------------------------------------------------------------
-// Command
 
 async function add(flags, env) {
   const bin = findPaseo(env, 'PRESETS_PASEO_BIN');

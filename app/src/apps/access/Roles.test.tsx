@@ -10,7 +10,7 @@ const key = (id: string, title: string, changes: Partial<SavedKey> = {}): SavedK
 const built = (id: string, title: string): BuiltApp => ({ id, title, description: `${title} for the shop` })
 const person = (email: string, changes: Partial<Person> = {}): Person => ({ email, status: 'active', settled: true, role: null, manager: false, apps: [], keys: {}, ...changes })
 const sales = () => ({ apps: ['hello', 'tips'], keys: { stripe: 'read' as const } })
-// Support has Hello, which changes things with Stripe, and holds Stripe at Read: the two have nothing to do with each other.
+// Support has Hello, which changes things with Stripe, and holds Stripe at Read: the two are not tied to each other.
 const support = () => ({ apps: ['hello'], keys: { stripe: 'read' as const } })
 const status = (): Status => ({ ownerEmail: 'owner@shop.com', viewer: { email: 'owner@shop.com', owner: true }, environment: 'live', key: 'ready', started: true, imported: 0,
   keysStarted: true, unticked: { people: [], roles: [] },
@@ -55,7 +55,7 @@ const panel = (name: string) => screen.findByRole('dialog', { name })
 const closed = () => waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
 const moment = () => act(async () => { await new Promise(resolve => setTimeout(resolve)) })
 const named = () => screen.getByLabelText('Name') as HTMLInputElement
-// A named group: Apps, Keys or Project, or one key's level choice by the name its legend starts with, with the quiet lines under it.
+// A named group (Apps, Keys or Project), or one key's level choice by the start of its legend, with its quiet lines.
 const part = (name: string) => screen.getByRole('group', { name: new RegExp(`^${name}( · |$)`) })
 const level = (name: string) => within(part(name))
 const pick = (name: string, to: string) => fireEvent.click(level(name).getByRole('radio', { name: to }))
@@ -91,7 +91,7 @@ it('lists each role on one line with how many apps, keys and people it has, with
   open(); fireEvent.click(await screen.findByRole('link', { name: /^Roles/ }))
   const table = await screen.findByRole('table', { name: 'Roles' })
   expect(within(table).getAllByRole('columnheader').map(cell => cell.textContent)).toEqual(['Role', 'Apps and keys', 'People'])
-  // Counts, not labels: the names show where the role is opened. Sales has Hello with Stripe at Read, and no row marks that.
+  // Counts, not labels: the names show where the role is opened. Sales has Hello with Stripe at Read, unmarked.
   expect([await cells('Office'), await cells('Sales'), await cells('Support')]).toEqual([['Office', 'No apps', 'Nobody yet'], ['Sales', '2 apps, 1 key', '2 people'], ['Support', '1 app, 1 key', '1 person']])
   expect(table.textContent).not.toMatch(/!|gap/); expect(document.querySelector('[data-slot="badge"]')).toBeNull()
   const sales = await row('Sales')
@@ -102,7 +102,7 @@ it('lists each role on one line with how many apps, keys and people it has, with
   const opened = await panel('Sales'); expect(where()).toBe('/apps/access/roles/sales')
   expect(screen.getByRole('table', { name: 'Roles' }).querySelector('tr[aria-current="true"] a')!.textContent).toBe('Sales'); expect(screen.getByRole('navigation', { name: 'Access views' })).toBeTruthy()
   expect(named().value).toBe('Sales'); expect(screen.queryByLabelText('Copy from a person')).toBeNull()
-  // The same two groups as for a person: a tick per app, then a level per key. One more tick, the project's, and none for managing.
+  // The same two groups as for a person: a tick per app, then a level per key. The project's tick too; none to manage.
   expect([given(), levels()]).toEqual([['Hello', 'Tip calculator'], { Stripe: 'Read', Bank: 'None', Cloudflare: 'None' }])
   expect(screen.getAllByRole('checkbox').map(box => box.parentElement!.textContent)).toEqual(['Hello', 'Payroll', 'Tip calculator', INSTALL]); expect(install().checked).toBe(false)
   expect([note('Stripe'), note('Bank'), note('Cloudflare')]).toEqual([[], [], []])
@@ -113,7 +113,7 @@ it('lists each role on one line with how many apps, keys and people it has, with
   expect(opened.textContent).not.toMatch(/Start from|Can reach|Can't yet|can't use|not change|what it needs|Look up|gap|!/)
   expect(screen.getByText('People: lee@shop.com, sam@shop.com')).toBeTruthy(); expect(screen.queryByText('Not saved yet')).toBeNull()
   fireEvent.change(named(), { target: { value: 'Field sales' } }); expect(screen.getByText('Not saved yet')).toBeTruthy()
-  // A tick gives the app and moves no key level: Payroll changes things with Bank, and Bank stays at None until it is picked by hand.
+  // A tick gives the app and moves no key level: Payroll changes things with Bank, and Bank stays at None until picked.
   give('Payroll'); expect([given(), held()]).toEqual([['Hello', 'Payroll', 'Tip calculator'], { Stripe: 'Read' }])
   pick('Bank', 'Read & write'); expect(given()).toEqual(['Hello', 'Payroll', 'Tip calculator'])
   click('Save role'); await screen.findByText('Saved.')

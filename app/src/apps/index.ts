@@ -1,8 +1,7 @@
 import { createElement, lazy, Suspense, type ComponentType, type ReactElement } from 'react'
 
-// Every mini app, found by folder: app/src/apps/<name>/ holds its page
-// (App.tsx, exporting `App`) and its card on the home page (app.json, with a
-// title and a description). A new app needs no edit here. wiki/stack/mini-apps.md
+// Every mini app, found by folder: app/src/apps/<name>/ holds its page (App.tsx, exporting `App`) and its home card
+// (app.json, with a title and a description). A new app needs no edit here. wiki/stack/mini-apps.md
 export type MiniApp = { name: string; title: string; description: string; href: string }
 
 type Manifest = { title?: unknown; description?: unknown }
@@ -15,11 +14,8 @@ const folderOf = (path: string) => path.split('/')[1]
 
 const text = (value: unknown) => (typeof value === 'string' && value.trim() !== '' ? value : null)
 
-/**
- * The checked list, sorted by name. Throws, naming the folder, on a bad name, a
- * missing page or app.json, or an app.json without a title or a description,
- * so the `test` check fails before a broken card reaches the home page.
- */
+/** The checked list, sorted by name. Throws, naming the folder, on a bad name, a missing page or app.json, or an
+ *  app.json without a title or description, so the `test` check fails before a broken card reaches the home page. */
 export function listApps(manifests: Record<string, unknown>, pages: string[]): MiniApp[] {
   const names = new Set([...Object.keys(manifests), ...pages].map(folderOf))
   return [...names].sort().map((name) => {

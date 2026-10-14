@@ -95,9 +95,8 @@ esac
 exec "$REAL_GIT" "$@"
 `;
 
-// And its `node`, which the scripts call by name, stands in for artifacts-run.mjs alone: `result`
-// prints MAIN_RESULT for main's run and RUN_RESULT for the branch's own, and `live` prints RUN_LIVE,
-// what main's run of the published commit ended as. Every other script runs on the real node.
+// Its `node`, which the scripts call by name, stands in for artifacts-run.mjs alone: `result` prints MAIN_RESULT (main)
+// or RUN_RESULT (the branch), and `live` prints RUN_LIVE for the published commit. Other scripts run on the real node.
 const FAKE_NODE = `#!/usr/bin/env bash
 case "\${1:-}" in
   */artifacts-run.mjs)
@@ -545,9 +544,6 @@ test('bad arguments are refused; a changelog conflict keeps this branch\'s entry
   assert.equal(entryOnTop('## A\n\n## B\n', '# Log\n'), null);
   assert.equal(entryOnTop('# Log\n', '# Log\n\n## 1.0.1 — Theirs\n'), null);
 });
-
-// ---------------------------------------------------------------------------
-// The Artifacts route: the same two commands, with no GitHub to ask
 
 const noGh = f => assert.doesNotMatch(f.calls(), /^gh /m, 'gh is never asked on an Artifacts install');
 const TO_MAIN = /^git push origin [0-9a-f]{40}:refs\/heads\/main$/gm;

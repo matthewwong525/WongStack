@@ -7,10 +7,8 @@ import test from 'node:test';
 
 const script = new URL('../../.agents/skills/ship/scripts/merge.sh', import.meta.url).pathname;
 
-// Fake gh and git answer from env and log every call, so a test can check both
-// the outcome and the order of the calls. HEAD_VERSION, BASE_VERSION, and
-// MAIN_VERSION are VERSION at HEAD, the merge base, and origin/main; unset means
-// the file is absent there.
+// Fake gh and git answer from env and log every call, so a test can check the outcome and the order of calls.
+// HEAD_VERSION, BASE_VERSION, MAIN_VERSION are VERSION at HEAD, the merge base, and origin/main; unset means absent.
 const FAKE_GH = `#!/usr/bin/env bash
 echo "gh $*" >> "$FAKE_DIR/calls"
 case "$1 $2" in

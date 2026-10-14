@@ -6,9 +6,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import type { Status } from '../../lib/access'
 import { App } from './App'
 
-// Access brings no stylesheet: its look is the classes on its own elements and on the ready-made parts it is built
-// from. This draws the screens and reads those classes, so what a phone and a screen reader are promised is held
-// where it now lives. That no screen has a CSS file of its own is checked once for the whole app, in src/style.test.ts.
+// Access brings no stylesheet, so this draws the screens and reads the classes a phone and a screen reader rely on.
 // Kim could only look at Hello before an update, so the notice that names her shows on every view here.
 const status: Status = { ownerEmail: 'owner@shop.com', viewer: { email: 'owner@shop.com', owner: true }, environment: 'practice', key: 'practice', started: true, imported: 0,
   keysStarted: true, unticked: { people: [{ email: 'kim@shop.com', apps: ['Hello'] }], roles: [] }, apps: [{ id: 'hello', title: 'Hello', description: 'A small example.' }],
@@ -73,7 +71,7 @@ it('fits a phone: the Access screens wrap, and fix no width in pixels', async ()
 
 it('lists are tables in the shared frame whose rows are one line, and stack on a narrow screen with nothing scrolling sideways', async () => {
   open(); const table = await screen.findByRole('table', { name: 'People' })
-  // Access takes the frame every page shares: no width or margin of its own. It measures itself, so rows stack by the room they have.
+  // Access takes the frame every page shares, with no width or margin of its own, and measures itself so rows stack.
   const page = table.closest('.\\@container')!
   has(page, '@container'); expect(page).toBe(screen.getByRole('heading', { name: 'Access' }).parentElement)
   expect(classes(page).filter(name => /(^|:)-?(m[xselr]?|w|min-w|max-w)-/.test(name))).toEqual([])
@@ -83,7 +81,7 @@ it('lists are tables in the shared frame whose rows are one line, and stack on a
   const row = within(table).getByText('kim@shop.com').closest('tr')!
   const cells = Array.from(row.querySelectorAll('td'))
   has(table, `${STACKED}block`); has(body, `${STACKED}block`); has(row, `${STACKED}grid`, `${STACKED}grid-cols-[minmax(0,1fr)_auto]`)
-  // Every row is one height on a computer, the owner's with no control in it included; a stacked row takes what it needs.
+  // Every row is one height on a computer, the owner's with no control included; a stacked row takes what it needs.
   for (const each of within(table).getAllByRole('row').slice(1)) has(each, 'h-14', `${STACKED}h-auto`)
   // One line on a computer: no cell wraps there. Stacked, a line may wrap and a long word breaks.
   for (const cell of cells) {

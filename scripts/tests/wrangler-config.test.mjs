@@ -61,9 +61,8 @@ const deployConfig = `{
 // A fake npx and npm that only log each call.
 const loggers = { npx: logger('npx '), npm: logger('npm ') };
 
-// A fake `npx` for cf-deploy logs one line per call. For `wrangler versions
-// upload` it prints a version URL first and the alias URL second, like real
-// wrangler. DEPLOY_FAIL makes `wrangler deploy` fail, and UPLOAD_FAIL the upload.
+// A fake `npx` for cf-deploy logs one line per call. For `wrangler versions upload` it prints a version URL, then the
+// alias URL, like real wrangler. DEPLOY_FAIL makes `wrangler deploy` fail, and UPLOAD_FAIL the upload.
 const deployNpx = `#!/usr/bin/env bash
 echo "$*" >> "$FAKE_LOG"
 case "$1 $2 $3" in
@@ -96,10 +95,8 @@ function originHead(root, branch) {
   execFileSync('git', ['-C', root, 'symbolic-ref', 'refs/remotes/origin/HEAD', `refs/remotes/origin/${branch}`], { env });
 }
 
-// Runs cf-deploy on `branch` and returns the exit status, output, recorded npx
-// calls, and GITHUB_OUTPUT. `generated` fakes a plugin build that named that
-// Worker; `remoteDefault` names the remote's default branch. `env` adds to or,
-// with `undefined`, removes from the script's environment.
+// Runs cf-deploy on `branch`; returns the exit status, output, recorded npx calls, and GITHUB_OUTPUT. `generated` fakes
+// a build naming that Worker; `remoteDefault` is the remote's default branch; `env` adds or (`undefined`) removes.
 function deploy(t, { branch, generated, remoteDefault, config = deployConfig, env = {} } = {}) {
   const fixture = pack(t, { scripts: ['cf-deploy.sh', ...LIB], config, tools: { npx: deployNpx }, prefix: 'cf-deploy-' });
   fixture.write('scripts/check-private-access.mjs', '// Routing-only fixture: provider enforcement has its own integration tests.\n');

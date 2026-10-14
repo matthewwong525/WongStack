@@ -1,14 +1,5 @@
-// A later chat finds the tools setup put in the person's own folder, ~/.local/bin.
-// Two shipped texts do that, and this file runs both as they ship, never a copy:
-//
-// - setup's snippet in .agents/skills/wong-setup/references/tools.md, which puts
-//   the PATH line first in the shell's start-up file. Codex reads that file.
-// - the first SessionStart hook in .agents/settings.json, which tells Claude Code,
-//   since it reads no start-up file.
-//
-// Every child starts with `env -i`, SHLVL=1, and no stdin. A bash with no SHLVL
-// and a socket on stdin reads ~/.bashrc on its own, and would pass a broken line.
-// wiki/development/required-tools.md#where-an-assistant-finds-its-tools
+// Runs the two shipped texts that put ~/.local/bin on PATH, never a copy: setup's snippet in tools.md and the first
+// SessionStart hook. Why children start bare: wiki/development/required-tools.md#where-an-assistant-finds-its-tools
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';

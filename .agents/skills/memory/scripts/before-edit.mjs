@@ -1,8 +1,6 @@
 #!/usr/bin/env node
-// PreToolUse hook on file edits (Claude Code's edit tools, Codex's apply_patch): the first time a session edits a file in a mapped folder, show that area's
-// open threads, then its newest live facts, eight lines at most, under the same team filter as search. Once
-// per area per session. It never blocks an edit: an unmapped path, an area already shown, a missing key, or an
-// unreachable store prints nothing, and it always exits 0.
+// PreToolUse hook on file edits: the first time a session edits a file in a mapped folder, show that area's open
+// threads and newest live facts. It never blocks an edit: any failure prints nothing, and it always exits 0.
 import { readFileSync } from 'node:fs';
 import { parseCli } from './lib/cli.mjs';
 import { areasOf, loadAreas } from './lib/areas.mjs';
@@ -46,7 +44,7 @@ export async function beforeEdit(input) {
 if (isMain(import.meta.url)) {
   parseCli({ usage: 'usage: before-edit.mjs   the PreToolUse hook on file edits; reads the hook\'s JSON on stdin' });
   let out = '';
-  try { out = await beforeEdit(JSON.parse(readFileSync(0, 'utf8') || '{}')); } catch { /* memory never blocks an edit */ }
+  try { out = await beforeEdit(JSON.parse(readFileSync(0, 'utf8') || '{}')); } catch { /* never blocks an edit */ }
   // Exit once the output is flushed: an aborted fetch's socket would otherwise hold the hook past its timeout.
   process.stdout.write(out, () => process.exit(0));
 }
