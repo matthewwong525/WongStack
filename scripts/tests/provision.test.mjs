@@ -1005,7 +1005,14 @@ test('the access command gives an installed repo its owner email and both keys, 
   env.fake.state.accountTokens = env.fake.state.accountTokens.filter((token) => token.name === 'recipe-box-deploy');
   env.fake.state.workerSecrets = {};
   env.fake.state.forbidTokens = true;
+  // An install from before git went through the app: only memory skips the sign-in wall.
+  const [app] = env.fake.state.accessApps;
+  const exceptions = structuredClone(app.destinations);
+  for (const destination of app.destinations) destination.overrides = destination.overrides.filter((item) => item.path_pattern === '/_memory/*');
+  const policies = app.policies.map((policy) => policy.id);
   const missing = await run();
+  assert.ok(missing.report.updated.includes('memory and project-download exceptions'));
+  assert.deepEqual([app.destinations, app.policies.map((policy) => policy.id)], [exceptions, policies], 'git is let through and the policies stay');
   assert.equal(missing.code, 0, 'a token that can not make keys stops nothing');
   assert.deepEqual([missing.report.accessKey, missing.report.cloudflareReadKey], [{ status: 'missing' }, { status: 'missing' }]);
   assert.deepEqual(missing.report.todo, [ACCESS_KEY_TODO, CLOUDFLARE_READ_KEY_TODO]);
