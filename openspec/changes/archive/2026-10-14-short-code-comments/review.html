@@ -11,7 +11,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · short-code-comments</title>
+<title>Review · 2026-10-14-short-code-comments</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -119,11 +119,11 @@
   }
 </style>
 </head>
-<body data-change="short-code-comments">
+<body data-change="2026-10-14-short-code-comments">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>short-code-comments</h1>
+  <h1>2026-10-14-short-code-comments</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. <span class="copies">Saving a note copies all your notes.</span> Open a drawing and tap it to see it full screen.</p>
@@ -179,6 +179,23 @@
 <li class="decision card" id="decision-15" data-note="decision-15" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-10-14</p>Check: the script lint step in <code>scripts/payload-checks.mjs</code> and <code>.github/workflows/payload.yml</code> reads a new config that adds the comment-length rule, because the step had no config to carry it. Every rule it ran before still runs.</li>
 <li class="decision card" id="decision-16" data-note="decision-16" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-10-14</p>Check: <code>scripts/check-app-checks.mjs</code> gains bad samples holding a three-line comment and an over-wide comment line, and copies the rule file beside the settings, so the proof covers the new rule.</li>
 <li class="decision card" id="decision-17" data-note="decision-17" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-10-14</p>Check: the scripts under <code>.github/scripts/</code> have comments shortened or removed and nothing else, because the new rule covers them.</li>
+<li class="decision card" id="decision-18" data-note="decision-18" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-14</p>Searched tests for patterns matched against comment text, with <code>grep -rnE</code> for <code>//</code>, <code>/*</code> and escaped <code>\/\/</code> inside quotes and patterns under <code>scripts/</code>, <code>app/</code>, <code>site/src/</code>, the skills' scripts and <code>.github/scripts/</code> → five hits, all in <code>scripts/tests/provision.test.mjs</code> (lines 146, 762, 1013, 1801, 1832, plus 1839) and <code>provision.mjs</code> (341, 342), and all match comments in <code>wrangler.jsonc</code>, a settings file the rule does not cover. Nothing to repoint.</li>
+<li class="decision card" id="decision-19" data-note="decision-19" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-14</p>Found at build: <code>app/worker-configuration.d.ts</code> opens with <code>/* eslint-disable */</code>, which oxlint obeys, so it needs no exemption of its own; only <code>src/components/ui/**</code> is named in <code>app/.oxlintrc.json</code>.</li>
+<li class="decision card" id="decision-20" data-note="decision-20" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-14</p>Found at build: oxlint also reads <code>scripts/tests/.oxlintrc.json</code> by itself for files in that folder; the lint step passes it with <code>-c</code> so every linted folder gets the rule.</li>
+<li class="decision card" id="decision-21" data-note="decision-21" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-14</p>Cleanup result: 3,166 comments before, 3,000 after: 2,496 kept as they were, 504 cut to two lines, 166 removed (163 bare section headings, one that restated a name, two folded into the comment beside them). Seven fresh readers, since <code>scripts</code> and the skills were each split in two. Their rows are in <code>removed-reasons.md</code>.</li>
+<li class="decision card" id="decision-22" data-note="decision-22" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-14</p>Compared every touched file's compiled output before and after with the app's bundler, comments dropped: 214 files, six differ: the four the tasks name (<code>scripts/check-app-checks.mjs</code>, <code>scripts/payload-checks.mjs</code> and their two tests) and the two test files that gained a test (<code>cf-secrets.test.mjs</code>, <code>provision.test.mjs</code>). No rename or extract was made.</li>
+<li class="decision card" id="decision-23" data-note="decision-23" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-14</p>Assumed: where a removed section heading left two blank lines, one was dropped, because a doubled gap is noise and the compiled output is the same.</li>
+<li class="decision card" id="decision-24" data-note="decision-24" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-10-14</p>Check: <code>.github/scripts/check-settings.mjs</code> has comments shortened and nothing else, because the new rule covers it.</li>
+<li class="decision card" id="decision-25" data-note="decision-25" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-10-14</p>Check: <code>.github/scripts/checks.mjs</code> has comments shortened and nothing else, because the new rule covers it.</li>
+<li class="decision card" id="decision-26" data-note="decision-26" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-10-14</p>Check: <code>.github/scripts/loosened-checks.mjs</code> has comments shortened and nothing else, because the new rule covers it.</li>
+<li class="decision card" id="decision-27" data-note="decision-27" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-10-14</p>Check: <code>.github/scripts/test-file.mjs</code> has comments shortened and nothing else, because the new rule covers it.</li>
+<li class="decision card" id="decision-28" data-note="decision-28" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-10-14</p>Check: <code>.github/scripts/wiki-links.mjs</code> has comments shortened and nothing else, because the new rule covers it.</li>
+<li class="decision card" id="decision-29" data-note="decision-29" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-10-14</p>Check: <code>app/vitest.config.ts</code> has comments shortened and nothing else, because the new rule covers it. No setting changes.</li>
+<li class="decision card" id="decision-30" data-note="decision-30" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-10-14</p>Check: <code>scripts/lint-comment-length.mjs</code> is the new rule. It names the comments that switch a check off only to leave them uncounted; it switches nothing off.</li>
+<li class="decision card" id="decision-31" data-note="decision-31" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-10-14</p>Check: <code>scripts/tests/lint-comment-length.test.mjs</code> is the new rule's test. Its samples hold skip comments as text, to prove the rule leaves them uncounted; none of them acts on a real check.</li>
+<li class="decision card" id="decision-32" data-note="decision-32" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-10-14</p>Check: <code>scripts/tests/.oxlintrc.json</code> is new. It adds the comment-length rule to the script lint step and exempts no file: the exemption first built for <code>scripts/employee-bootstrap.mjs</code> went when release 41.3.0 removed the fingerprint that pinned its bytes, and its comments were shortened like the rest.</li>
+<li class="decision card" id="decision-33" data-note="decision-33" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-14</p>Main's releases 40.6.0 to 41.2.1 were merged in. Where both sides touched a file, main's code was taken and its comments cut again by the same rules: 108 comments in 50 files, none removed. Compared with main, comments taken out, only the six files this change edits on purpose differ. <code>removed-reasons.md</code> lists what was dropped.</li>
+<li class="decision card" id="decision-34" data-note="decision-34" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-14</p>Archive checkpoint: release 41.3.0 was merged in too; its four clashing files took main's code, and 27 long comments it brought were cut by the same rules. The exit-code tables in <code>ship.mjs</code> and <code>checkpoint.mjs</code> and the field glossary in <code>app/src/lib/access.ts</code> stay removed, listed in <code>removed-reasons.md</code>, for the owner to restore if wanted.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

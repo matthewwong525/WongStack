@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (major) — Short comments only
+## 42.0.0 — Short comments only
 
 - **A check fails on a long comment.** A comment longer than two lines, or a comment line wider than 120 characters, now fails the code checks and names the file and the line. It covers the app's JavaScript and TypeScript. A code line has no width limit. A short, helpful comment still passes.
 - **Some comments are never counted.** A license header, the first line that makes a script runnable, and the lines a tool reads, such as one that switches a single check off. The ready-made parts in `app/src/components/ui/` and the machine-written types file are skipped too.

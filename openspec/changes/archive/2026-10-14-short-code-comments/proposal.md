@@ -1,7 +1,7 @@
 # Short comments only
 
-**Status:** planned
-**Branch:** rebel-husky
+**Status:** ready-to-ship
+**Branch:** remove-comments-lint
 **Open questions:** none
 
 ## Why
@@ -52,7 +52,7 @@ None.
 
 ## Impact
 
-Branch: `rebel-husky`.
+Branch: `remove-comments-lint`.
 
 One lint rule file under `scripts/`, shipped with the pack and registered in `app/.oxlintrc.json`, `site/.oxlintrc.json`, and a new config for the script lint step in `scripts/payload-checks.mjs` and the Payload checks workflow. Comment edits across `app/`, `site/`, `scripts/`, `.agents/skills/*/scripts`, `.agents/skills/*/worker` and `.github/scripts/`. A new bad sample in `scripts/check-app-checks.mjs`. Edits to `.agents/rules/code.md`, `wiki/stack/mini-apps.md`, the payload file list and manifest, and a `major` entry in `CHANGELOG.md`. No runtime dependency. Six open pull requests (#375, #374, #347, #328, #291, #233) and the `installation-owned-memory-devices` workspace touch the same files and will need their long comments shortened when they next take `main`.
 
@@ -91,3 +91,4 @@ One lint rule file under `scripts/`, shipped with the pack and registered in `ap
 - **2026-10-14** — Check: `scripts/tests/lint-comment-length.test.mjs` is the new rule's test. Its samples hold skip comments as text, to prove the rule leaves them uncounted; none of them acts on a real check.
 - **2026-10-14** — Check: `scripts/tests/.oxlintrc.json` is new. It adds the comment-length rule to the script lint step and exempts no file: the exemption first built for `scripts/employee-bootstrap.mjs` went when release 41.3.0 removed the fingerprint that pinned its bytes, and its comments were shortened like the rest.
 - **2026-10-14** — Main's releases 40.6.0 to 41.2.1 were merged in. Where both sides touched a file, main's code was taken and its comments cut again by the same rules: 108 comments in 50 files, none removed. Compared with main, comments taken out, only the six files this change edits on purpose differ. `removed-reasons.md` lists what was dropped.
+- **2026-10-14** — Archive checkpoint: release 41.3.0 was merged in too; its four clashing files took main's code, and 27 long comments it brought were cut by the same rules. The exit-code tables in `ship.mjs` and `checkpoint.mjs` and the field glossary in `app/src/lib/access.ts` stay removed, listed in `removed-reasons.md`, for the owner to restore if wanted.
