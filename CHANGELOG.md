@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Teammates save changes through the app
+## 41.2.0 — Teammates save changes through the app
 
 - **A teammate who can install the project can now save a change.** They ask their assistant, and the change is saved from their copy with their app sign-in alone: no GitHub or Cloudflare account. Their assistant reports the automatic checks and a link to look at, then says the owner or an Admin publishes it. On GitHub the saved change is a pull request that names who saved it.
 - **They save; you publish.** The app takes one new commit on one branch. It refuses a push to the published branch, a delete, a tag and more than one branch, each with a plain line, before anything reaches where the project is kept. It never merges, closes or deletes.

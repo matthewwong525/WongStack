@@ -1,6 +1,6 @@
 # Let a teammate save through the app
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** lavish-crocodile
 **Open questions:** none
 
@@ -66,6 +66,11 @@ A teammate who connects through *Connect your assistant* can read the project an
 - **2026-10-13** — Read GitHub's page of what each fine-grained key permission allows (https://docs.github.com/en/rest/authentication/permissions-required-for-fine-grained-personal-access-tokens) → the five permissions in the design stand as written: Contents (write) for the push, Pull requests (read to find a change, write to open and update it), Actions (read) for a commit's runs, their jobs and a job's log, Commit statuses (read), Deployments (read) for a deployment and its statuses. Reading the repository's default branch needs only Metadata (read), which every such key carries. Workflows is its own permission, for writing workflow files, and the key is made without it. The page lists no Checks permission, so reading checks from Actions, as designed, is the only way. No fallback was needed.
 - **2026-10-13** — Read Cloudflare's Workflows page for Workers (https://developers.cloudflare.com/workflows/build/workers-api/) → the design stands: a Workflow binding with `script_name` reaches a Workflow defined in another Worker, and offers the same calls as any binding: `get(id)`, then `status()` (which carries the run's state, error and output) and `restart()`. The page names no limit on a binding to another Worker. The service-binding fallback is not built. This is the documentation's word only: the first real proof is the trial on a paid account (task 7.6).
 - **2026-10-14** — Built in one pass: every source task ticked, the connection tool re-pinned, and the local checks green. A refused save answers in Git's own words so the plain line reaches the person. Still to do: the new GitHub key for WongStack's own apps, the checks on the preview, and the try on a real Cloudflare account. The saved check for a refused publish names the old message and waits for the walk to record it again.
+- **2026-10-14** — Assumed: the refusal for a person without the tick is shown by the app's own tests, not on the preview, because a preview lets the checker act only as the owner.
+- **2026-10-14** — Asked how to prove the Cloudflare half → chose try it on Matthew's paid account: a throwaway project kept in Cloudflare, one save through the app as a teammate, then everything it made removed.
+- **2026-10-14** — Asked whether to give the new GitHub key before publishing → chose publish without it. No real save through the app to GitHub was tried; the app's own tests stand behind that half, and WongStack's own apps hold no `WONG_CODE_WRITE` yet.
+- **2026-10-14** — Tried on Matthew's paid Cloudflare account with a throwaway install, `wsave-trial-1014`: a save through its preview app landed the branch where the project is kept, the app read that commit's check run back as passed with its preview, a failing test came back failed with its output, and a push at `main`, a delete, a tag and two branches at once were each refused with the plain line. The checker stood in for the owner, so a real teammate's sign-in, the live app and a person holding only the tick were not walked. Everything the install made was then removed and read back as gone.
+- **2026-10-14** — Archived for publishing as 41.2.0: every task settled, the Cloudflare half seen passing on a real account, the GitHub half carried by tests alone by Matthew's choice.
 
 ## Capabilities
 

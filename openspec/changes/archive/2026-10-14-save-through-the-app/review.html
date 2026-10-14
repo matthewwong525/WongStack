@@ -11,7 +11,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · save-through-the-app</title>
+<title>Review · 2026-10-14-save-through-the-app</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -119,11 +119,11 @@
   }
 </style>
 </head>
-<body data-change="save-through-the-app">
+<body data-change="2026-10-14-save-through-the-app">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>save-through-the-app</h1>
+  <h1>2026-10-14-save-through-the-app</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. <span class="copies">Saving a note copies all your notes.</span> Open a drawing and tap it to see it full screen.</p>
@@ -186,6 +186,11 @@
 <li class="decision card" id="decision-18" data-note="decision-18" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-13</p>Read GitHub's page of what each fine-grained key permission allows (https://docs.github.com/en/rest/authentication/permissions-required-for-fine-grained-personal-access-tokens) → the five permissions in the design stand as written: Contents (write) for the push, Pull requests (read to find a change, write to open and update it), Actions (read) for a commit's runs, their jobs and a job's log, Commit statuses (read), Deployments (read) for a deployment and its statuses. Reading the repository's default branch needs only Metadata (read), which every such key carries. Workflows is its own permission, for writing workflow files, and the key is made without it. The page lists no Checks permission, so reading checks from Actions, as designed, is the only way. No fallback was needed.</li>
 <li class="decision card" id="decision-19" data-note="decision-19" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-13</p>Read Cloudflare's Workflows page for Workers (https://developers.cloudflare.com/workflows/build/workers-api/) → the design stands: a Workflow binding with <code>script_name</code> reaches a Workflow defined in another Worker, and offers the same calls as any binding: <code>get(id)</code>, then <code>status()</code> (which carries the run's state, error and output) and <code>restart()</code>. The page names no limit on a binding to another Worker. The service-binding fallback is not built. This is the documentation's word only: the first real proof is the trial on a paid account (task 7.6).</li>
 <li class="decision card" id="decision-20" data-note="decision-20" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-14</p>Built in one pass: every source task ticked, the connection tool re-pinned, and the local checks green. A refused save answers in Git's own words so the plain line reaches the person. Still to do: the new GitHub key for WongStack's own apps, the checks on the preview, and the try on a real Cloudflare account. The saved check for a refused publish names the old message and waits for the walk to record it again.</li>
+<li class="decision card" id="decision-21" data-note="decision-21" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-14</p>Assumed: the refusal for a person without the tick is shown by the app's own tests, not on the preview, because a preview lets the checker act only as the owner.</li>
+<li class="decision card" id="decision-22" data-note="decision-22" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-14</p>Asked how to prove the Cloudflare half → chose try it on Matthew's paid account: a throwaway project kept in Cloudflare, one save through the app as a teammate, then everything it made removed.</li>
+<li class="decision card" id="decision-23" data-note="decision-23" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-14</p>Asked whether to give the new GitHub key before publishing → chose publish without it. No real save through the app to GitHub was tried; the app's own tests stand behind that half, and WongStack's own apps hold no <code>WONG_CODE_WRITE</code> yet.</li>
+<li class="decision card" id="decision-24" data-note="decision-24" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-14</p>Tried on Matthew's paid Cloudflare account with a throwaway install, <code>wsave-trial-1014</code>: a save through its preview app landed the branch where the project is kept, the app read that commit's check run back as passed with its preview, a failing test came back failed with its output, and a push at <code>main</code>, a delete, a tag and two branches at once were each refused with the plain line. The checker stood in for the owner, so a real teammate's sign-in, the live app and a person holding only the tick were not walked. Everything the install made was then removed and read back as gone.</li>
+<li class="decision card" id="decision-25" data-note="decision-25" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-14</p>Archived for publishing as 41.2.0: every task settled, the Cloudflare half seen passing on a real account, the GitHub half carried by tests alone by Matthew's choice.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

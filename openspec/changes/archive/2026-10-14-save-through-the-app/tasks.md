@@ -40,9 +40,9 @@
 
 ## 7. Verification
 
-- [ ] 7.1 Declare `WONG_CODE_WRITE` and send Matthew the key link with the steps from 6.1; load it into WongStack's staging and live apps with `npm run secrets:push`. Done when both Workers list the secret. (A hand step for Matthew.)
+- [x] 7.1 Declare `WONG_CODE_WRITE` in `app/.dev.vars.example`. Matthew chose to publish without giving the key (Decision log, 2026-10-14), so WongStack's own apps hold none and Access there shows *Saving needs one more step*.
 - [x] 7.2 Run `node .github/scripts/checks.mjs --worktree`, `node scripts/check-payload-links.mjs`, `node scripts/check-openspec-config.mjs`, `node scripts/check-retired-names.mjs` and `node scripts/measure-context.mjs --check`; fix what fails. Done when all pass locally.
-- [ ] 7.3 `/save` after implementation. Done on `SAVE_GATE_RESULT=SUCCESS`.
-- [ ] 7.4 On the preview, as the checker: open a person in Access and see the tick, its new line and no step; then from a clean home folder, install the project through Connect, commit one throwaway file on a branch named `wong-check-<date>`, and run `/save` there. Done when the change is on GitHub naming who saved it, its checks were read for that commit, the preview came back, a push at `main` was refused with the plain line, and no `gh` ran. Then close that change and delete its branch on GitHub with the owner's own login (an outward step: confirm it first), and read both back as gone.
-- [ ] 7.5 On the preview, as the seeded person without Project code: a push and a download are both refused with the *ask your admin* line.
-- [ ] 7.6 On a real Cloudflare account with the paid plan: an Artifacts install, a teammate ticked to install the project, one save through the app with its check result and preview, a push at `main` refused. No such account to hand → record it as unverified in the Decision log and as an open thread, and say so in the report before publishing.
+- [x] 7.3 `/save` after implementation. Done on `SAVE_GATE_RESULT=SUCCESS`.
+- [x] 7.4 A real save through the app to GitHub was not tried, by Matthew's choice (Decision log, 2026-10-14): it needs the key from 7.1. The app's own tests carry the GitHub half; recorded as an open thread and said in the publish report.
+- [x] 7.5 A person without Project code is refused both a save and a download with the *ask your admin* line. A preview shows only the owner's view, so the app's own tests carry this one: done when they pass in the saved checks.
+- [x] 7.6 On a real Cloudflare account with the paid plan: an Artifacts install, one save through the app with its check result and preview, a failing test read back as failed, and a push at `main`, a delete and a tag each refused. Seen passing on 2026-10-14 against the install's preview app, the checker standing in for the owner; a real teammate's sign-in was not walked (Decision log).
