@@ -33,9 +33,14 @@
       "shop",
       "improve-code",
       "schedule",
+      "daily",
       "memory",
       "wong-sync",
       "agent-browser"
+    ],
+    "exclude": [
+      ".claude/skills/daily/team.md",
+      ".claude/skills/daily/people"
     ],
     "files": [
       ".claude/skills/save/scripts/saved-revision.mjs",
@@ -71,6 +76,7 @@
       "wiki/development/login-codes.md",
       "wiki/development/live-view.md",
       "wiki/development/shopping.md",
+      "wiki/development/daily.md",
       ".github/workflows/test.yml",
       ".github/workflows/guard.yml",
       ".github/actions/change-scope/action.yml",

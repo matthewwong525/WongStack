@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Run each person's day with /daily
+
+- **One command starts the day.** Type `/daily`: the assistant checks who you are from your company sign-in, runs the steps the whole team shares, then your own, and replies with what it did and what is left for today.
+- **Signed out, it asks you to sign in first.** It shows the sign-in link, waits, and carries on once you are in. It runs no step under a guessed name. Without the company app, it uses your git email and says so.
+- **You teach it as you go.** Say *add checking yesterday's orders to my daily*: it adds the step to your own list, shows it, and saves it like any other edit. The team's steps change only with the owner's review. A new person gets the team's steps and an offer to start their own.
+- **A long step gets its own workspace where your chat app allows it.** Mark a step `(own workspace)` and it opens apart, once a day: a second `/daily` opens nothing twice. Elsewhere it runs in the chat.
+- **Updates never touch your steps.** The team's file and each person's file belong to your install; an update brings the new `/daily` only.
+
+**Updating.** Nothing to do. To give everyone a first shared step, ask the assistant to *add a team step to /daily*, such as *check yesterday's orders*; the owner reviews it before it saves. [The daily routine](wiki/development/daily.md) shows a step's shape.
+
 ## 43.1.1 — Steadier browser starts
 
 - **The browser starts even when its first start fails.** A start can die at once when something else takes its address first. It now picks a new address and tries again, three starts at most, before it says *the browser did not start*.
