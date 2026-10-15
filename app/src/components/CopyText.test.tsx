@@ -52,6 +52,13 @@ it('opens the text to select when the clipboard is missing, and it can be folded
   await waitFor(() => expect(details.open).toBe(false))
 })
 
+it('adds no fold when the text is already on screen, and points to it when the copy fails', async () => {
+  Object.defineProperty(navigator, 'clipboard', { configurable: true, value: undefined })
+  render(<CopyText text="Safe instructions" label="Copy" shown />)
+  expect(document.querySelector('details')).toBeNull()
+  fireEvent.click(button('Copy')); await screen.findByText('Select the message above to copy it by hand.')
+})
+
 it('keeps the setup steps in one column that can shrink, inside the popup', async () => {
   // Whatever opens the popup is the child; the steps load once it is open.
   render(<ConnectDialog><button type="button">Open</button></ConnectDialog>)

@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 43.2.0 — A clear invite for teammates
+
+- **When you give someone the project in Access, a popup gives you the message to forward.** A save that newly lets a person install the project, whether you just added them, they were already listed, or a role you picked in their row gives it, opens a popup with the message and a *Copy* button. It names the app's address and the email to sign in with, says to install an assistant if they have none, such as Claude Code or Codex, and carries the setup message, so they paste the whole message into their assistant's chat and sign in. The app sends nothing; you send it however you like. Other saves just say *Saved.*. To copy it again, open the person: *Message to send them* folds out under their *Can install the project* tick.
+- **Connect your assistant starts with getting an assistant.** A new first step, *Have an AI assistant on your computer*, links to install pages for Claude Code and Codex, named as examples. Copy, paste and approve follow as steps 2 to 4.
+
+**Updating.** Nothing to do.
+
 ## 43.1.1 — Steadier browser starts
 
 - **The browser starts even when its first start fails.** A start can die at once when something else takes its address first. It now picks a new address and tries again, three starts at most, before it says *the browser did not start*.
