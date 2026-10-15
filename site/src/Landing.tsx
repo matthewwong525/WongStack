@@ -1,7 +1,6 @@
 import { Fragment, type ReactNode } from "react";
 import { CopyMessage } from "./CopyButton";
 import {
-  PASEO,
   AGENTS,
   ASKS_FIRST,
   COST_ANSWERS,
@@ -13,15 +12,13 @@ import {
   freeAccounts,
 } from "./install";
 import { InstallButton } from "./InstallButton";
-import { PaseoShot } from "./mockups";
-import { Rotator } from "./Rotator";
-import { DataScene, KnowledgeScene, OperationsScene, RetentionScene, TeamScene } from "./Story";
+import { Compare } from "./Compare";
+import { DataScene, ExampleScene, ProcessScene, ReasonScene, SameThreeScene, SetupScene } from "./Story";
 import { WorksWith } from "./WorksWith";
 
-/** The headline's fixed line, under the assistant's name that slides: Rotator.tsx. */
-const HEADLINE = "for people who don't code.";
+const HEADLINE = "Self-drive your business.";
 const DESCRIPTION =
-  "AI tools, set up to run your business. Free and open source, in accounts you own.";
+  "A self-driving car sees the road, knows the rules, and knows where to go. Your business needs the same three, and AI sets them up in accounts you own.";
 
 // The questions, for an install on your own computer. The accounts, and every
 // word about what a way to install costs, come from install.ts.
@@ -127,28 +124,30 @@ export function Landing() {
     <>
       <section className="band hero">
         <div className="hero-copy">
-          <Rotator line={HEADLINE} />
+          <h1>{HEADLINE}</h1>
           <p className="lede">{DESCRIPTION}</p>
           <Actions />
         </div>
         <figure className="hero-picture">
-          <PaseoShot
-            src="/paseo/laptop.webp"
-            alt="Paseo on a laptop: a list of workspaces, a chat with the agent, and its plan with choices to pick from"
+          <img
+            src="/art/car.webp"
+            alt="A self-driving car with a sensor on its roof, following a dotted path to a map pin"
             width={1600}
-            height={902}
+            height={480}
           />
-          <figcaption className="note">Shown in <a href={PASEO.href}>{PASEO.name}</a>, an optional chat app.</figcaption>
         </figure>
       </section>
 
-      <KnowledgeScene />
-      <OperationsScene />
+      <SameThreeScene />
       <DataScene />
-      <RetentionScene />
-      <TeamScene />
+      <ProcessScene />
+      <ReasonScene />
+      <ExampleScene />
+      <Compare />
 
       <WorksWith />
+
+      <SetupScene />
 
       <section className="band install-section" id="install">
         <h2>Install it for free</h2>

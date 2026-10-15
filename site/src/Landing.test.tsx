@@ -1,9 +1,10 @@
-// The landing page's story, install steps and their copy button, its
+// The landing page's story, its chart, install steps and their copy button, its
 // install buttons along the way, and its shaded bands. App.test.tsx covers the rest of the page.
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import App from "./App";
-import { AGENTS, PASEO, ASKS_FIRST, INSTALL_PROMPT, REPO_URL, STEPS, WAYS } from "./install";
+import { CHECKED, KINDS, PRODUCTS } from "./compare";
+import { AGENTS, ASKS_FIRST, INSTALL_PROMPT, REPO_URL, STEPS, WAYS } from "./install";
 
 function renderAt(path: string) {
   window.history.pushState({}, "", path);
@@ -18,102 +19,118 @@ afterEach(() => {
 /** The section under an h2, found by its heading. */
 const section = (name: string) => screen.getByRole("heading", { level: 2, name }).closest("section") as HTMLElement;
 
-it("keeps the whole business story in distinct compositions with connected equal knowledge inputs", () => {
+it("tells each slide as its own scene: a step label, a heading, one line, and a picture", () => {
   const { container } = renderAt("/");
-  const context = container.querySelector("dl.knowledge-inputs") as HTMLElement;
-  expect([...context.querySelectorAll("dt")].map((dt) => dt.childNodes[0]?.textContent?.trim())).toEqual(["Processes", "Data", "Reasons"]);
-  expect([...context.children].every((artifact) => artifact.querySelector("dd")?.textContent)).toBe(true);
-  expect([...context.querySelectorAll("dd")].map((item) => item.textContent)).toEqual([
-    "How work gets done, in code and guides.", "The facts your business runs on.", "Why decisions were made.",
-  ]);
-  expect(context.querySelector("ul, blockquote")).toBeNull();
-  expect(container.querySelector(".knowledge-roles")).toBeNull();
-  expect(context.nextElementSibling?.className).toBe("join-rail");
-  expect(context.nextElementSibling?.nextElementSibling?.textContent).toContain("Shared business context");
   const scenes = [...container.querySelectorAll(".story")];
-  expect(scenes).toHaveLength(5);
+  expect(scenes.map((scene) => scene.querySelector(".story-step")?.textContent)).toEqual([
+    "01 / The idea", "02 / Data", "03 / Process", "04 / Reason", "05 / One example",
+  ]);
   for (const scene of scenes) {
     expect(scene.querySelector("h2")?.id).toBe(scene.getAttribute("aria-labelledby"));
+    expect(scene.querySelectorAll(".story-copy > p")).toHaveLength(1);
+    expect(scene.querySelector("figure")).not.toBeNull();
   }
   const words = [...container.querySelectorAll(".story-copy > p")].map((el) => el.textContent).join(" ").split(/\s+/);
   expect(words.length).toBeLessThanOrEqual(120);
-  const operations = section("Start with operations.");
-  expect(operations.querySelectorAll(".app-showcase .browser")).toHaveLength(1);
-  expect(operations.textContent).toContain("Sample data. Nothing is saved.");
-  expect(container.querySelector(".built-tool")).toBeNull();
-  expect(operations.querySelector(".foundation")).toBeNull();
-  expect(operations.querySelector(".story-copy > p")?.textContent).toContain("WongStack sets up the foundation.");
-  expect(operations.querySelector(".pipeline-ingredients")).toBeNull();
-  const data = section("Your processes connect your data.");
-  const connections = within(data).getByRole("figure", { name: "Example tools and the business data they connect" });
-  expect(data.querySelector(".story-copy")?.nextElementSibling).toBe(connections);
-  expect([...connections.querySelectorAll("dt")].map((item) => item.textContent)).toEqual(["Packing tool", "Ad report"]);
-  expect([...connections.querySelectorAll("dd")].map((item) => [...item.querySelectorAll("li")].map((source) => source.textContent))).toEqual([["Order Data", "Stock Levels"], ["Sales Data", "Website Analytics"]]);
-  expect(connections.querySelector("figcaption")?.textContent).toContain("connections you build");
-  const retention = section("The more you chat, the more it knows your business.");
-  const conversation = within(retention).getByRole("figure", { name: /Example conversation remembering/ });
-  expect(conversation.querySelectorAll("blockquote")).toHaveLength(2);
-  expect(conversation.querySelector(".remembered-note")?.textContent).toContain("Broad discounts hurt margins.");
-  expect(conversation.querySelector("figcaption")?.textContent).toContain("example conversation");
-  expect(retention.querySelector(".story-copy > p")?.textContent).toContain("in accounts you own");
-  expect(retention.querySelector(".capture-diagram, .knowledge-carry")).toBeNull();
-  const team = section("The whole team starts with context.");
-  expect(team.textContent).toContain("with access you choose");
-  expect(team.querySelector(".team-use")).toBeNull();
-  expect(team.querySelector(".onboarding")).toBeNull();
-  expect(team.querySelector(".story-copy > p")?.textContent).toContain("New teammates start with existing knowledge.");
-  expect(team.querySelector(".story-copy > p")?.textContent).toContain("the next task starts with more context");
-  const question = within(team).getByRole("figure", { name: /Example promotion question gathering/ });
-  expect(within(team).getAllByText(/“Can we run this promotion\?”/)).toHaveLength(1);
-  expect(team.querySelector(".story-copy")?.nextElementSibling).toBe(question);
-  expect(question.querySelector(".team-question")).not.toBeNull();
-  expect(question.querySelectorAll(".department-evidence > div")).toHaveLength(3);
-  expect([...question.querySelectorAll("dt > span")].map((item) => item.textContent)).toEqual([
-    "Reading the campaign goal", "Checking past discount decisions", "Checking stock and capacity",
+
+  const three = section("Your business has the same three.");
+  expect(three.querySelector(".story-copy > p")?.textContent).toBe("A self-driving car needs sensors, rules, and navigation.");
+  expect([...three.querySelectorAll(".three-pairs > li")].map((pair) => [
+    pair.querySelector(".car-part")?.textContent, pair.querySelector("strong")?.textContent, pair.querySelector(".part-line")?.textContent,
+  ])).toEqual([
+    ["Sensors", "Data", "What your business sees"],
+    ["Rules", "Process", "How the work gets done"],
+    ["Navigation", "Reason", "Where to go, and why"],
   ]);
-  expect([...question.querySelectorAll("dt")].map((item) => item.childNodes[0]?.textContent?.trim())).toEqual(["Marketing", "Finance", "Operations"]);
-  expect([...question.querySelectorAll("dd")].map((item) => item.textContent)).toEqual([
-    "Reach new customers.", "Broad discounts hurt margins.", "Limited stock ready to ship.",
+
+  const data = section("Data is what your business sees.");
+  expect(data.querySelector(".story-copy > p")?.textContent).toBe("Ads in one tool, sales in another: blind spots. In one place you own, AI sees the whole road.");
+  expect([...data.querySelectorAll(".data-sources li")].map((li) => li.textContent)).toEqual(["Ad spend", "Creatives", "Sales", "Customers"]);
+  expect(data.querySelector(".one-place")?.textContent).toBe("One place you own");
+
+  const process = section("Process is how the work gets done.");
+  expect(process.querySelector(".story-copy > p")?.textContent).toBe("The process changes all the time. Only what runs the job stays up to date.");
+  expect([...process.querySelectorAll(".process-steps li")].map((li) => li.textContent)).toEqual(["Research", "Brief", "Creative", "Publish"]);
+  expect([...process.querySelectorAll(".process-kinds dd")].map((dd) => dd.textContent)).toEqual([
+    "Does the same step the same way, every time", "Steps the AI follows when it takes judgment", "Nobody runs it, so it never gets updated",
   ]);
-  const gathered = question.querySelector(".gathered-context") as HTMLElement;
-  expect(question.querySelector(".team-question")?.nextElementSibling).toBe(gathered);
-  expect(gathered.querySelector(".gather-label")?.textContent).toBe("Your assistant gathers context");
-  const answer = gathered.nextElementSibling as HTMLElement;
-  expect(answer.className).toBe("team-answer");
-  expect(answer.querySelector("span")?.textContent).toBe("Example answer");
-  expect(answer.querySelector("p")?.textContent).toBe("Reach new customers with a smaller campaign on stocked items. Offer a bundle to protect margins.");
-  expect(question.querySelector("figcaption")?.textContent).toContain("connections you’ve built, within the access you choose");
-  expect(team.querySelector(".phone-tour, .department-sources, .question-pipeline, .answer-join")).toBeNull();
-  expect(container.querySelector(".about, .points")).toBeNull();
+  expect(process.querySelector(".browser, .app-showcase, a.button")).toBeNull();
+
+  const example = section("One example: publishing an ad.");
+  expect(example.querySelector(".story-copy > p")?.textContent).toBe("Start with one process, and the other two come with it.");
+  expect([...example.querySelectorAll(".example-rows > div")].map((row) => [row.querySelector("dt")?.textContent, row.querySelector("dd")?.textContent])).toEqual([
+    ["Your ad metrics", "Data"], ["Your campaign structure", "Process"], ["Why you have this setup", "Reason"],
+  ]);
+
+  // Each slide figure draws its icons inline, hidden from screen readers: the words beside them say it.
+  const icons = [...container.querySelectorAll(".story svg.icon")];
+  expect(icons.length).toBeGreaterThan(10);
+  for (const icon of icons) expect(icon.getAttribute("aria-hidden")).toBe("true");
+  expect(container.querySelector(".team-scene, .knowledge-inputs, .learning-chat, .remembered-note, .data-connections")).toBeNull();
 });
 
-it("keeps the single optional-app attribution with the laptop and removes phone presentation", () => {
-  const { container } = renderAt("/");
-  const attribution = container.querySelectorAll(".hero-picture figcaption");
-  expect(attribution).toHaveLength(1);
-  expect(attribution[0]?.textContent).toBe("Shown in Paseo, an optional chat app.");
-  expect(within(attribution[0] as HTMLElement).getByRole("link", { name: PASEO.name }).getAttribute("href")).toBe(PASEO.href);
-  expect(screen.getAllByRole("link", { name: PASEO.name })).toHaveLength(1);
-  expect(container.querySelectorAll('img[src^="/paseo/"]')).toHaveLength(1);
-  expect(container.querySelector(".phone-tour")).toBeNull();
-});
-
-it("labels working tools as examples and keeps their contents in a keyboard-scrollable display", () => {
+it("shows an SOP as crossed out in its words and marks, not by color alone", () => {
   renderAt("/");
-  const operations = section("Start with operations.");
-  within(operations).getByRole("heading", { level: 3, name: "Examples you can build" });
-  const frame = operations.querySelector(".browser");
-  let previousContents: HTMLElement | undefined;
-  for (const name of ["Pack Station", "Profit by channel", "Ad briefs"]) {
-    fireEvent.click(within(operations).getByRole("button", { name }));
-    const contents = within(operations).getByRole("region", { name: `${name} example contents` });
-    expect(contents.getAttribute("tabindex")).toBe("0");
-    expect(contents.parentElement?.className).toBe("browser");
-    expect(contents.parentElement).toBe(frame);
-    if (previousContents) expect(contents).not.toBe(previousContents);
-    previousContents = contents;
-    expect(contents.querySelector(".admin")).not.toBeNull();
+  const kinds = section("Process is how the work gets done.").querySelector(".process-kinds") as HTMLElement;
+  const [code, skill, sop] = [...kinds.querySelectorAll(":scope > div")] as HTMLElement[];
+  expect([code?.querySelector("dt")?.textContent, skill?.querySelector("dt")?.textContent]).toEqual(["✓Code", "✓A skill"]);
+  expect(sop?.querySelector("dt s")?.textContent).toBe("An SOP");
+  expect(sop?.querySelector("dt .sr-only")?.textContent).toBe("Not ");
+  expect(sop?.querySelector("dt .kind-mark")?.textContent).toBe("✗");
+});
+
+it("says reasons are saved from chats, and shows no one asking the assistant to remember", () => {
+  renderAt("/");
+  const reason = section("Reason is why you chose this road.");
+  expect(reason.querySelector(".story-copy > p")?.textContent).toBe("Saved from your chats, so the next task starts with the why.");
+  expect([...reason.querySelectorAll(".why-questions li")].map((li) => li.textContent)).toEqual([
+    "Why are we running ads?", "Why this audience?", "Why this message?",
+  ]);
+  expect(reason.textContent).not.toMatch(/remember/i);
+  expect(reason.querySelector("blockquote")).toBeNull();
+  // The talk's road runs under the questions.
+  expect(reason.querySelector("figure img.road")?.getAttribute("src")).toBe("/art/road.webp");
+});
+
+it("shows the chart after the example: a column per product, a row per kind, each mark in words too, in its own scroll box", () => {
+  const { container } = renderAt("/");
+  const chart = section("What each tool says it keeps.");
+  expect(chart.previousElementSibling?.querySelector("h2")?.textContent).toBe("One example: publishing an ad.");
+  expect(chart.nextElementSibling?.querySelector("h2")?.textContent).toBe("Use the best models.");
+
+  const table = within(chart).getByRole("table");
+  expect([...table.querySelectorAll('th[scope="col"]')].map((th) => [th.textContent, th.querySelector("img")?.getAttribute("src"), th.querySelector("img")?.getAttribute("alt")])).toEqual(
+    PRODUCTS.map(({ name, logo }) => [name, logo, ""]),
+  );
+  expect(PRODUCTS[0]?.name).toBe("WongStack");
+  expect([...table.querySelectorAll('th[scope="row"]')].map((th) => th.textContent)).toEqual(KINDS);
+  const rows = [...table.querySelectorAll("tbody tr")].map((row) => [...row.querySelectorAll("td")].map((td) => td.textContent));
+  expect(rows).toEqual(KINDS.map((_, k) => PRODUCTS.map(({ marks }) => (marks[k] === "yes" ? "✓Yes" : "–Not stated"))));
+  for (const td of table.querySelectorAll("td")) {
+    if (!td.textContent) continue;
+    expect([td.querySelector("[aria-hidden=true]")?.textContent?.length, td.querySelector(".sr-only")?.textContent?.length]).toEqual([1, expect.any(Number)]);
   }
+  // Every row has WongStack's mark, and the legend and the date sit under the chart.
+  expect(rows.every((row) => row[0] === "✓Yes")).toBe(true);
+  expect([...chart.querySelectorAll(":scope > .note")].map((note) => note.textContent)).toEqual([
+    "✓ their own pages say so · – not stated",
+    `Checked ${CHECKED}. OpenClaw, Muse, Grok Bot, ChatGPT, and Claude belong to their makers. WongStack is not affiliated with them.`,
+  ]);
+  // A phone scrolls the table in its own box, which a keyboard can reach.
+  const box = table.parentElement as HTMLElement;
+  expect([box.className, box.getAttribute("role"), box.getAttribute("tabindex")]).toEqual(["compare-scroll", "region", "0"]);
+  expect(container.querySelectorAll("table")).toHaveLength(1);
+});
+
+it("lists what setup handles just before the install steps", () => {
+  const { container } = renderAt("/");
+  const setup = section("The hardest part is the setup.");
+  expect(setup.querySelector(".lede")?.textContent).toBe("Handled for you. AI figures out any problems.");
+  expect([...setup.querySelectorAll(".handled li")].map((li) => li.textContent)).toEqual([
+    "Servers and databases", "Security", "Collaboration", "Memory",
+  ]);
+  expect(setup.nextElementSibling).toBe(container.querySelector("#install"));
+  expect(setup.previousElementSibling?.querySelector("h2")?.textContent).toBe("Use the best models.");
 });
 
 it("answers why it is free in one sentence, right after whether it is free", () => {
@@ -208,13 +225,17 @@ it("keeps the install message on the page and says to select it when the browser
   within(install).getByRole("button", { name: "Copy message" });
 });
 
-it("offers install beside the operations example and after compatibility", () => {
+it("offers install in the hero, after the assistants, and at the close, and nowhere in the story", () => {
   const { container } = renderAt("/");
-  for (const name of ["Start with operations.", "Use the best models."]) {
-    expect(within(section(name)).getByRole("link", { name: "Install for free" }).getAttribute("href")).toBe("#install");
-  }
-  expect(container.querySelector(".app-showcase a.button")).toBeNull();
-  expect(container.querySelector(".hero a.button")?.getAttribute("href")).toBe("#install");
+  expect([...container.querySelectorAll("a.button")].map((a) => [
+    a.closest("section")?.querySelector("h1, h2")?.textContent,
+    a.getAttribute("href"),
+  ])).toEqual([
+    ["Self-drive your business.", "#install"],
+    ["Use the best models.", "#install"],
+    ["Make it yours", "#install"],
+  ]);
+  expect(container.querySelector(".story a.button")).toBeNull();
 });
 
 it("keeps one filled button above the fold: the header's links and the hero's GitHub link are plain text", () => {
@@ -235,11 +256,11 @@ it("keeps one filled button above the fold: the header's links and the hero's Gi
   expect(within(hero).getByRole("link", { name: "See it on GitHub →" }).className).toBe("more");
 });
 
-it("shades operations and the FAQ", () => {
+it("shades the process scene and the FAQ", () => {
   const { container } = renderAt("/");
 
   expect([...container.querySelectorAll(".band-shade")].map((band) => band.querySelector("h2")?.textContent)).toEqual([
-    "Start with operations.",
+    "Process is how the work gets done.",
     "Questions",
   ]);
 });

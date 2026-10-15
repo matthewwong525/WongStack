@@ -3,7 +3,7 @@
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import App from "./App";
-import { AGENTS, PASEO, REPO_URL, freeAccounts } from "./install";
+import { AGENTS, REPO_URL, freeAccounts } from "./install";
 
 function renderAt(path: string) {
   window.history.pushState({}, "", path);
@@ -15,14 +15,11 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-// What a screen reader reads as the headline: every name, then the fixed line.
-const HEADLINE = "Claude Code or Codex, for people who don't code.";
-const FIXED_LINE = "for people who don't code.";
+const HEADLINE = "Self-drive your business.";
 const WORKS_WITH = "Use the best models.";
-const SHOWS_PASEO = "Shown in Paseo, an optional chat app.";
 const START_SMALL = "Start with one operational process. Ask your assistant to build a tool around it, then keep what you learn.";
 const DESCRIPTION =
-  "AI tools, set up to run your business. Free and open source, in accounts you own.";
+  "A self-driving car sees the road, knows the rules, and knows where to go. Your business needs the same three, and AI sets them up in accounts you own.";
 
 // Developer words the page keeps out of its copy above the works-with section.
 const JARGON = /\b(repos?|pull requests?|deploy\w*)\b|\b(PR|CI)\b/;
@@ -30,41 +27,19 @@ const JARGON = /\b(repos?|pull requests?|deploy\w*)\b|\b(PR|CI)\b/;
 /** The install button and the quiet link to the code: the hero and the closing call to action share them. */
 const ACTIONS = ["Install for free #install", `See it on GitHub → ${REPO_URL}`];
 
-/** A Paseo screenshot's file and its label. */
-const paseo = (shot: Element) => [shot.getAttribute("src"), shot.getAttribute("alt")];
-
 const links = (root: Element | null) =>
   [...(root?.querySelectorAll("a") ?? [])].map((a) => `${a.textContent} ${a.getAttribute("href")}`);
 
-it("opens with a headline that slides through the assistants the install steps name, and reads as one sentence", () => {
+it("opens with the plain headline, which names no product", () => {
   const { container } = renderAt("/");
   const h1 = screen.getByRole("heading", { level: 1, name: HEADLINE });
-  const [hidden, seen] = [...h1.children] as HTMLElement[];
-  const names = AGENTS.map((agent) => agent.name);
 
-  // A screen reader reads one sentence that names them all, and skips the moving rows.
-  expect(h1.children).toHaveLength(2);
-  expect([hidden?.className, hidden?.textContent]).toEqual(["sr-only", HEADLINE]);
-  expect(seen?.getAttribute("aria-hidden")).toBe("true");
-  // Every product the sentence names is one the install steps name: nothing is left once they are taken out.
-  expect(names.length).toBeGreaterThan(1);
-  let rest = HEADLINE;
-  for (const name of names) {
-    expect([name, rest.includes(name)]).toEqual([name, true]);
-    rest = rest.replace(name, "");
-  }
-  expect(rest).toBe(` or , ${FIXED_LINE}`);
-  for (const other of ["WongStack", "Grok", "Dots", "ChatGPT", "Paseo"]) {
+  expect(h1.textContent).toBe(HEADLINE);
+  expect(h1.children).toHaveLength(0);
+  for (const other of [...AGENTS.map((agent) => agent.name), "WongStack", "Grok", "Dots", "ChatGPT", "Paseo"]) {
     expect([other, h1.textContent?.includes(other)]).toEqual([other, false]);
   }
-  // The rows: each name beside its own logo, in the list's order, then the first again so the loop is seamless.
-  const rows = [...h1.querySelectorAll(".rotator-window .rotator-row")];
-  expect(rows.map((row) => [row.textContent, row.querySelector("img")?.getAttribute("src"), row.querySelector("img")?.getAttribute("alt")])).toEqual(
-    [...AGENTS, ...AGENTS.slice(0, 1)].map(({ name, logo }) => [name, `/logos/${logo}.svg`, ""]),
-  );
-  // A visitor who asks for less motion sees the first row, still: index.css stops the slide.
-  expect(rows[0]?.textContent).toBe("Claude Code");
-  expect(seen?.lastElementChild?.textContent).toBe(FIXED_LINE);
+  expect(container.querySelector(".rotator, .rotator-row")).toBeNull();
   expect(container.querySelector(".hero-copy")?.firstElementChild).toBe(h1);
   expect(container.querySelectorAll("h1")).toHaveLength(1);
 });
@@ -75,35 +50,49 @@ it("opens with a short offer and install actions before the business explanation
   expect(hero.querySelectorAll(".lede")).toHaveLength(1);
   expect(within(hero).getByText(DESCRIPTION).className).toBe("lede");
   expect(links(hero.querySelector(".lede + p.actions"))).toEqual(ACTIONS);
-  expect(hero.querySelector(".hero-picture img")?.getAttribute("src")).toBe("/paseo/laptop.webp");
+  const car = hero.querySelector(".hero-picture img") as HTMLImageElement;
+  expect([car.getAttribute("src"), car.getAttribute("alt"), car.getAttribute("width"), car.getAttribute("height")]).toEqual([
+    "/art/car.webp",
+    "A self-driving car with a sensor on its roof, following a dotted path to a map pin",
+    "1600",
+    "480",
+  ]);
+  expect(hero.querySelector("figcaption")).toBeNull();
   expect(hero.nextElementSibling?.classList.contains("story")).toBe(true);
   expect(container.querySelectorAll('a[href*="claymoo" i]')).toHaveLength(0);
 });
 
-it("puts pictures and operational examples into the story before practical details", () => {
+it("tells the self-drive story in the talk's order, then the chart, the assistants, the setup, and install", () => {
   const { container } = renderAt("/");
   expect(screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent)).toEqual([
-    "Give AI the whole picture.",
-    "Start with operations.",
-    "Your processes connect your data.",
-    "The more you chat, the more it knows your business.",
-    "The whole team starts with context.",
+    "Your business has the same three.",
+    "Data is what your business sees.",
+    "Process is how the work gets done.",
+    "Reason is why you chose this road.",
+    "One example: publishing an ad.",
+    "What each tool says it keeps.",
     WORKS_WITH,
+    "The hardest part is the setup.",
     "Install it for free",
     "Questions",
     "Make it yours",
   ]);
-  expect(container.querySelector(".stack")).toBeNull();
-  const shots = [...container.querySelectorAll('img[src^="/paseo/"]')];
-  expect(shots.map(paseo)).toEqual([
-    ["/paseo/laptop.webp", "Paseo on a laptop: a list of workspaces, a chat with the agent, and its plan with choices to pick from"],
+  // The cut parts stay cut: no screenshot of a chat app, no sample tools, no team scene.
+  expect(container.querySelectorAll('img[src^="/paseo/"]')).toHaveLength(0);
+  expect(container.querySelector(".browser, .app-showcase, .team-scene, .stack, .supports")).toBeNull();
+  expect(screen.queryByRole("link", { name: "Paseo" })).toBeNull();
+  // The talk's two pictures, each with its size set and a plain label.
+  expect([...container.querySelectorAll('img[src^="/art/"]')].map((img) => img.getAttribute("src"))).toEqual([
+    "/art/car.webp",
+    "/art/road.webp",
   ]);
-  expect(shots[0]?.getAttribute("loading")).toBe("eager");
-  expect(container.querySelector(".hero-picture figcaption")?.textContent).toBe(SHOWS_PASEO);
-  expect(screen.getAllByRole("link", { name: PASEO.name })).toHaveLength(1);
-  expect(screen.getByRole("link", { name: PASEO.name }).getAttribute("href")).toBe(PASEO.href);
-  expect(container.querySelector(".phone-tour figcaption")).toBeNull();
-  expect(container.querySelector(".supports")).toBeNull();
+  for (const img of container.querySelectorAll('img[src^="/art/"]')) {
+    expect([img.getAttribute("alt")?.length, img.hasAttribute("width"), img.hasAttribute("height")]).toEqual([
+      expect.any(Number),
+      true,
+      true,
+    ]);
+  }
 });
 
 it("speaks plain business words above the works-with section, and never shares one login", () => {
@@ -112,9 +101,8 @@ it("speaks plain business words above the works-with section, and never shares o
 
   expect(below).toBeDefined();
   expect(above).toContain(HEADLINE);
-  expect(above).toContain("Start with operations.");
-  expect(above).toContain("Examples you can build");
-  expect(above).toContain("The whole team starts with context.");
+  expect(above).toContain("Process is how the work gets done.");
+  expect(above).toContain("Reason is why you chose this road.");
   expect(above).not.toMatch(JARGON);
   expect(container.textContent).not.toMatch(/shares? (one|a|the same) (AI )?login/i);
   expect(screen.getAllByRole("heading").map((h) => h.textContent)).not.toContainEqual(
@@ -138,7 +126,7 @@ it("calls a visitor to act once, after the FAQ, with the install button and the 
 });
 
 it("shows what works with each assistant: a card per agent, another assistant with its limit, the switch line, and the install button", () => {
-  const { container } = renderAt("/");
+  renderAt("/");
   const section = screen.getByRole("heading", { level: 2, name: WORKS_WITH }).closest("section") as HTMLElement;
   expect(section.querySelector(".lede")?.textContent).toBe("The WongStack framework works with any model or setup through a coding agent that can read and change files and run commands.");
   const SET_UP = "Set up on day one: your skills are ready, and memory loads by itself in every chat.";
@@ -167,9 +155,9 @@ it("shows what works with each assistant: a card per agent, another assistant wi
   ]);
   expect(links(section)).toEqual(["Install for free #install"]);
   expect(section.lastElementChild?.className).toBe("button");
-  // No table of other products, and no mark for or against one, anywhere on the page.
+  // The chart sits in its own section, just before this one.
   expect(within(section).queryAllByRole("table")).toHaveLength(0);
-  expect(container.querySelectorAll(".legend, [role=img][aria-label]")).toHaveLength(0);
+  expect(section.previousElementSibling?.querySelector("table.compare")).not.toBeNull();
 });
 
 it("answers a team owner's questions, naming both ways to install and what each costs, without claiming Anthropic's approval", () => {

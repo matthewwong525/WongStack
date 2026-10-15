@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/github/license/matthewwong525/WongStack)](LICENSE)
 [![Version](https://img.shields.io/badge/dynamic/yaml?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmatthewwong525%2FWongStack%2Frefs%2Fheads%2Fmain%2FVERSION&query=%24&label=version)](VERSION)
 
-**Claude Code and Codex, for people who don't code.** WongStack sets up the software foundation for running your business, in accounts you own.
+**Self-drive your business.** WongStack sets up the software foundation for running your business, in accounts you own.
 
 AI works best with three things together:
 

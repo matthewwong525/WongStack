@@ -150,7 +150,7 @@ ol {
   }
 }
 
-/* A wide opening picture beside the offer; copy comes first on a phone. */
+/* The talk's car beside the offer; copy comes first on a phone. */
 .hero {
   display: grid;
   grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.25fr);
@@ -167,16 +167,13 @@ ol {
     letter-spacing: -0.03em;
     text-wrap: balance;
   }
-  .rotator > span[aria-hidden] { align-items: flex-start; }
-  .rotator-row { justify-content: flex-start; }
   .actions { justify-content: flex-start; }
 }
 .hero-copy { display: flex; flex-direction: column; gap: 1.5rem; min-width: 0; }
 .hero-picture {
   min-width: 0;
   margin: 0;
-  .paseo-shot { box-sizing: border-box; box-shadow: 0 1.5rem 5rem #0008; }
-  figcaption { max-width: 32rem; margin-top: 1rem; }
+  img { display: block; width: 100%; height: auto; }
 }
 @media (max-width: 60rem) {
   .hero { grid-template-columns: minmax(0, 1fr); min-height: 0; gap: 2.5rem; padding: 3rem 0 4rem; }
@@ -195,64 +192,10 @@ ol {
   white-space: nowrap;
 }
 
-/* The sliding headline: a window one line tall over three rows (the last
-   repeats the first), stepped up one row every 2.5 s. The fixed heights keep
-   the page from shifting. A name added to install.ts's AGENTS adds a row: add
-   its stop to rotate-names and its 2.5 s to the duration. */
-.rotator > span[aria-hidden] {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.rotator-window {
-  height: 1.15em;
-  overflow: hidden;
-}
-
-.rotator-rows {
-  display: flex;
-  flex-direction: column;
-  animation: rotate-names 5s infinite;
-}
-
-.rotator-row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.25em;
-  height: 1.15em;
-  white-space: nowrap;
-
-  img[src] {
-    width: 0.8em;
-    height: 0.8em;
-    opacity: 1;
-  }
-}
-
-@keyframes rotate-names {
-  0%,
-  39% {
-    transform: translateY(0);
-  }
-  50%,
-  89% {
-    transform: translateY(-33.333%);
-  }
-  100% {
-    transform: translateY(-66.667%);
-  }
-}
-
-/* A visitor who asks for less motion sees the first name, still, and jumps to
-   sections without the smooth scroll. */
+/* A visitor who asks for less motion jumps to sections without the smooth scroll. */
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
-  }
-  .rotator-rows {
-    animation: none;
   }
 }
 
@@ -463,8 +406,8 @@ img[src^="/logos/"] {
   background: var(--card);
 }
 
-/* Distinct chapters: three inputs, working processes, connected data,
-   a remembered reason, then context from across the business. */
+/* The talk's slides, one chapter each: the same three, data, process, reason,
+   one example. Each figure redraws its slide with the slide's colors. */
 .story {
   padding: 6rem 0;
   text-align: left;
@@ -484,226 +427,266 @@ img[src^="/logos/"] {
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
-.knowledge-scene {
+.story {
   display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(0, 2.3fr);
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.2fr);
   align-items: center;
-  gap: 3rem;
-  border-top: 1px solid var(--border);
+  gap: 3.5rem;
 }
-.knowledge-figure {
-  width: 100%; min-width: 0; margin: 0;
+.three-scene { border-top: 1px solid var(--border); }
+.story figure { width: 100%; min-width: 0; margin: 0; }
+
+/* Data, process and reason keep the slides' accent each, wherever they appear:
+   green, blue, and purple, with a dark tint of each for fills. */
+.data { --knowledge-color: #86d5c1; --knowledge-tint: #14261f; --knowledge-edge: #385b50; }
+.processes { --knowledge-color: #93c5fd; --knowledge-tint: #111a23; --knowledge-edge: #33475b; }
+.reasons { --knowledge-color: #c4b5fd; --knowledge-tint: #1d1830; --knowledge-edge: #4a3f6b; }
+
+/* A slide icon at text size; in a colored dot where the slide draws one. */
+.icon { flex-shrink: 0; width: 1.1em; height: 1.1em; }
+.icon-dot {
+  display: inline-grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  color: var(--bg);
+  background: var(--knowledge-color, var(--text));
+  .icon { width: 1.1rem; height: 1.1rem; }
 }
-.knowledge-inputs {
+
+/* Slide 3: each car part in a pill, an arrow down, then the business's card. */
+.three-pairs {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.75rem;
   margin: 0;
+  padding: 0;
+  list-style: none;
+  li { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; text-align: center; }
 }
-.artifact {
-  --knowledge-color: #93c5fd;
-  position: relative;
-  padding: 1rem;
-  border: 1px solid var(--border);
-  border-top: 2px solid var(--knowledge-color);
-  border-radius: 0.75rem;
-  background: var(--card);
-  &::after { content: ""; position: absolute; height: 1.5rem; left: 50%; top: 100%; border-left: 1px solid var(--border); }
-  dt { margin-bottom: 0.75rem; color: var(--knowledge-color); font-size: 1.05rem; font-weight: 600; }
-  dd { margin: 0; color: var(--muted); font-size: 0.95rem; line-height: 1.5; }
+.car-part {
+  padding: 0.3rem 0.9rem;
+  border: 1px solid var(--knowledge-color);
+  border-radius: 999px;
+  color: var(--knowledge-color);
+  font-size: 0.85rem;
 }
-.processes { --knowledge-color: #86d5c1; }
-.reasons { --knowledge-color: #c4b5fd; }
-.join-rail {
-  position: relative;
-  width: calc(66.666% + 0.5rem);
-  height: 2.5rem;
-  margin: 1.5rem auto 0;
-  border-top: 1px solid var(--border);
-  &::before { content: ""; position: absolute; left: 50%; height: 1.75rem; border-left: 1px solid var(--border); }
-  span { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); color: var(--muted); line-height: 1; }
-}
-.shared-context {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  width: fit-content;
-  max-width: 100%;
+.pair-arrow { color: var(--muted); }
+.part-card {
   box-sizing: border-box;
-  margin: 0 auto;
-  padding: 1rem 1.25rem;
-  border: 1px solid #444;
-  border-radius: 0.75rem;
-  background: linear-gradient(120deg, #17202a, #152520 55%, #251d30);
-  strong { display: block; font-weight: 500; }
-  div > span { display: block; margin-top: 0.2rem; font-size: 0.8rem; color: #c0c0c0; }
-}
-.context-mark { font-size: 2rem; color: #d8c9ed; line-height: 1; }
-.operations-scene {
-  display: grid;
-  grid-template-columns: minmax(0, 1.8fr) minmax(0, 1fr);
-  align-items: center;
-  gap: 3.5rem;
-  .story-copy { grid-column: 2; grid-row: 1; }
-  .app-showcase { grid-column: 1; grid-row: 1; }
-}
-.app-showcase {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  min-width: 0;
+  align-items: center;
+  gap: 0.4rem;
   width: 100%;
-  container-type: inline-size;
-  .lede { font-size: 0.95rem; line-height: 1.5; height: 4.5rem; overflow-wrap: anywhere; }
-  .demo-label { color: var(--text); font-size: 1.05rem; font-weight: 500; }
-  .browser { box-sizing: border-box; display: flex; flex-direction: column; height: 32rem; }
-  .browser-bar { flex-shrink: 0; }
-  .example-scroll { flex: 1; min-height: 0; overflow: auto; scrollbar-gutter: stable; overscroll-behavior: auto; }
-  .example-scroll:focus-visible { outline: 2px solid #93c5fd; outline-offset: -3px; }
+  height: 100%;
+  padding: 1.25rem 0.5rem;
+  border-radius: 0.75rem;
+  background: var(--card);
+  strong { color: var(--knowledge-color); font-size: clamp(1.15rem, 2.2vw, 1.6rem); font-weight: 600; }
 }
-/* The live tool needs room at both desktop split and phone widths. */
-@container (max-width: 40rem) {
-  .app-showcase .pack-order, .app-showcase .brief-variations { grid-template-columns: minmax(0, 1fr); }
-  .app-showcase .brief-picture { max-width: 10rem; }
-  .app-showcase .pack-table :is(th, td):is(:nth-child(2), :nth-child(4)) { display: none; }
-}
-/* Keep each process beside the sources it connects, in a compact stack. */
-.data-scene {
+.part-line { color: var(--muted); font-size: 0.85rem; line-height: 1.4; }
+
+/* Slide 4: four tools on the left join into one place you own on the right. */
+.data-figure {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+  grid-template-columns: minmax(0, 1fr) 3rem minmax(0, 1fr);
   align-items: center;
-  gap: 3.5rem;
-  h2 { max-width: 28rem; }
 }
-.data-connections {
-  width: min(100%, 32rem);
-  min-width: 0;
-  margin: 0;
-  justify-self: end;
-  figcaption { margin-top: 1.5rem; color: var(--muted); font-size: 0.75rem; text-align: center; }
-}
-.connected-tools {
+.data-sources {
   display: grid;
-  gap: 1.5rem;
+  gap: 0.75rem;
   margin: 0;
-}
-.data-connection {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
-  align-items: center;
-  min-width: 0;
-  dt {
-    position: relative; display: flex; flex-direction: column; align-items: center; gap: 0.75rem;
-    padding: 1.5rem 1rem; text-align: center; font-size: 1rem; color: #86d5c1;
-    svg { padding: 0.75rem; border: 1px solid #385b50; border-radius: 1rem; background: #14261f; }
-    &::after { content: ""; position: absolute; left: calc(100% - 0.5rem); width: 0.5rem; top: 50%; border-top: 1px solid #3d596e; }
-  }
-  dd { min-width: 0; margin: 0; }
-  ul { display: grid; gap: 1rem; margin: 0; padding: 0 0 0 1.5rem; list-style: none; border-left: 1px solid #3d596e; }
+  padding: 0;
+  list-style: none;
   li {
-    position: relative; padding: 1rem; border: 1px solid #33475b; border-radius: 0.5rem;
-    background: #111a23; font-size: 0.95rem; line-height: 1.4; color: #b1d5fa;
-    &::before { content: ""; position: absolute; width: 1.5rem; right: 100%; top: 50%; border-top: 1px solid #3d596e; }
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.7rem 0.9rem;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    background: var(--card);
+    .icon { color: var(--muted); }
   }
 }
-/* Conversation leaves a small remembered note, without a storage dashboard. */
-.retention-scene {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+.join-arrow {
+  height: 0;
+  border-top: 2px dotted var(--knowledge-color);
+}
+.one-place {
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 5rem;
+  gap: 0.75rem;
+  color: var(--muted);
+  font-size: 0.95rem;
+  text-align: center;
+  .icon-dot { width: clamp(5rem, 12vw, 7.5rem); height: clamp(5rem, 12vw, 7.5rem); }
+  .icon-dot .icon { width: 45%; height: 45%; }
+}
+
+/* Slide 5: the ad's steps, then what keeps them: code and a skill run, an SOP sits. */
+.process-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.6rem;
+  margin: 0 0 1.25rem;
+  padding: 0;
+  list-style: none;
+  li { position: relative; padding: 0.4rem 0.9rem; border: 1px solid var(--knowledge-color); border-radius: 999px; font-size: 0.9rem; }
+  li + li::before { content: "→"; position: absolute; left: -1.3rem; color: var(--knowledge-color); }
+}
+.process-kinds {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+  > div { padding: 1rem; border: 1px solid transparent; border-radius: 0.75rem; background: var(--card); }
+  dt { display: flex; align-items: center; gap: 0.4rem; font-weight: 600; }
+  dd { margin: 0.6rem 0 0; color: var(--muted); font-size: 0.875rem; line-height: 1.4; }
+  .dropped { border: 1px dashed var(--border); background: none; }
+  .dropped .icon-dot { background: var(--border); color: var(--muted); }
+  .dropped dt { color: var(--muted); }
+  .dropped dt s { text-decoration-thickness: 2px; }
+}
+.kind-mark { color: var(--muted); font-size: 0.85rem; }
+
+/* Slide 6: the road, with one question over the middle stop and two under the others. */
+.reason-scene {
   background: #101214;
   box-shadow: 0 0 0 100vmax #101214;
   clip-path: inset(0 -100vmax);
-  h2 { max-width: 33rem; font-size: clamp(2.5rem, 4.5vw, 3.5rem); letter-spacing: -0.035em; }
 }
-.learning-chat {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 1.5rem;
-  min-width: 0;
-  margin: 0;
-  padding: 2.5rem 0;
-  background: radial-gradient(ellipse, #1c302b80, transparent 70%);
-  figcaption { width: 100%; margin-top: 0.5rem; color: var(--muted); font-size: 0.75rem; text-align: center; }
-}
-.learning-message {
-  box-sizing: border-box;
-  max-width: 88%;
-  margin: 0;
-  padding: 1.5rem 1.75rem;
-  background: #24282b;
-  border-radius: 1.5rem;
-  box-shadow: 0 0.75rem 2rem #0002;
-  > span { display: block; margin-bottom: 0.6rem; font-size: 0.75rem; color: #c2c8cd; }
-  p { font-size: clamp(1.1rem, 1.8vw, 1.4rem); line-height: 1.45; text-wrap: balance; }
-}
-.owner-message { align-self: flex-end; border-bottom-right-radius: 0.35rem; }
-.assistant-message { background: #1c302b; border-bottom-left-radius: 0.35rem; }
-.remembered-note {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
-  align-self: flex-end;
-  max-width: 90%;
-  margin-right: 1.5rem;
-  padding: 1rem 1.25rem;
-  background: #b8e5d5;
-  color: #18382d;
-  border-radius: 0.75rem;
-  box-shadow: 0 0.75rem 2rem #0003;
-  svg { flex-shrink: 0; margin-top: 0.15rem; }
-  strong { display: block; font-size: 0.85rem; font-weight: 600; }
-  div > span { display: block; margin-top: 0.2rem; font-size: 0.8rem; }
-}
-/* A compact conversation gathers context before an illustrative answer. */
-.team-scene {
+.reason-figure {
   display: grid;
-  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.15fr);
-  align-items: center;
-  gap: 3.5rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: auto auto auto;
+  row-gap: 0.25rem;
+  .road { grid-column: 1 / -1; grid-row: 2; display: block; width: 100%; height: auto; }
 }
-.team-conversation {
-  width: min(100%, 34rem);
-  min-width: 0;
+.why-questions {
+  display: contents;
+  li {
+    list-style: none;
+    justify-self: center;
+    box-sizing: border-box;
+    max-width: 100%;
+    padding: 0.5rem 0.8rem;
+    border: 1px solid var(--knowledge-color);
+    border-radius: 0.5rem;
+    background: var(--knowledge-tint);
+    font-size: clamp(0.8rem, 1.4vw, 1rem);
+    text-align: center;
+  }
+  li:nth-child(1) { grid-column: 1; grid-row: 3; }
+  li:nth-child(2) { grid-column: 2; grid-row: 1; }
+  li:nth-child(3) { grid-column: 3; grid-row: 3; }
+}
+
+/* Slide 7: each part of one ad, an arrow, then which of the three it is. */
+.example-rows {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.75rem 1rem;
   margin: 0;
-  justify-self: end;
-  figcaption { margin-top: 1.5rem; color: var(--muted); font-size: 0.75rem; line-height: 1.5; text-align: center; }
+  > div {
+    display: grid;
+    grid-template-columns: subgrid;
+    grid-column: 1 / -1;
+    align-items: center;
+  }
+  dt {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.9rem 1.1rem;
+    border-radius: 0.5rem;
+    background: var(--card);
+    font-weight: 600;
+    .icon { color: var(--knowledge-color); }
+  }
+  dd {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0;
+    padding: 0.35rem 1rem 0.35rem 0.35rem;
+    border: 1px solid var(--knowledge-color);
+    border-radius: 999px;
+    color: var(--knowledge-color);
+    font-weight: 600;
+  }
+  dd::before { content: "→"; order: -1; margin-right: 0.25rem; color: var(--knowledge-color); }
 }
-.team-question {
+
+/* The chart: which of the three each product's own pages say it keeps. WongStack's
+   column is set apart by weight and a border, not by color. On a phone the table
+   scrolls inside its own box, never the page. */
+.compare-scroll {
+  position: relative;
   box-sizing: border-box;
-  width: fit-content;
-  max-width: 100%;
-  margin: 0 0 1.5rem auto;
-  padding: 1.25rem 1.5rem;
-  border-radius: 1.5rem 1.5rem 0.35rem 1.5rem;
-  background: #24282b;
-  font-size: clamp(1.35rem, 2vw, 1.75rem);
-  line-height: 1.3;
-  letter-spacing: -0.02em;
-  text-wrap: balance;
-  > span { display: block; margin-bottom: 0.6rem; font-size: 0.75rem; letter-spacing: 0; color: #c2c8cd; }
+  width: 100%;
+  max-width: 52rem;
+  overflow-x: auto;
 }
-.gathered-context { margin: 0 0 1.5rem; }
-.gather-label { display: block; margin-bottom: 0.5rem; color: var(--muted); font-size: 0.8rem; }
-.department-evidence {
-  margin: 0;
-  > div { padding: 0.85rem 0; border-bottom: 1px solid var(--border); }
-  dt { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.3rem 0.65rem; color: var(--source-color); font-size: 0.8rem; font-weight: 500; }
-  dt > span { color: var(--muted); font-size: 0.75rem; font-weight: 400; }
-  dd { margin: 0.3rem 0 0; font-size: 0.95rem; line-height: 1.4; }
+.compare-scroll:focus-visible { outline: 2px solid #93c5fd; outline-offset: 2px; }
+.compare {
+  width: 100%;
+  min-width: 36rem;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+
+  th, td {
+    padding: 0.75rem 0.4rem;
+    border-bottom: 1px solid var(--border);
+    text-align: center;
+  }
+  th[scope="col"] { font-weight: 500; vertical-align: bottom; }
+  th[scope="col"] img { display: block; width: 1.25rem; height: 1.25rem; margin: 0 auto 0.4rem; }
+  /* The kind stays in view while the products scroll past it on a phone. */
+  th[scope="row"] {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    min-width: 8rem;
+    padding-right: 0.75rem;
+    font-weight: 500;
+    text-align: left;
+    background: var(--bg);
+  }
+  td { font-size: 1.1rem; }
+  /* Each row wears its slide color: the kind's name and its ticks. */
+  th[scope="row"] strong { color: var(--knowledge-color); font-weight: 700; }
+  td.yes { color: var(--knowledge-color); }
+  tr > :nth-child(2) { font-weight: 700; border-inline: 2px solid var(--text); }
 }
-.marketing-source { --source-color: #c4b5fd; }
-.finance-source { --source-color: #93c5fd; }
-.operations-source { --source-color: #86d5c1; }
-.team-answer {
-  box-sizing: border-box; margin: 0; padding: 1.25rem 1.5rem;
-  border: 1px solid #345749; border-radius: 0.35rem 1.5rem 1.5rem; background: #1c302b;
-  > span { display: block; margin-bottom: 0.6rem; color: #9dd7c5; font-size: 0.8rem; }
-  p { font-size: 1.1rem; line-height: 1.5; text-wrap: pretty; }
-}
+
 .model-flexibility { padding-bottom: 6rem; }
+
+/* Slide 8: what setup handles, each with its icon, just before the steps. */
+.handled {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(14rem, 100%), 1fr));
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 44rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  li {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.6rem 0.9rem;
+    border-radius: 0.75rem;
+    background: var(--card);
+    font-weight: 500;
+    text-align: left;
+  }
+}
 .install-section {
   background: var(--shade);
   box-shadow: 0 0 0 100vmax var(--shade);
@@ -713,440 +696,17 @@ img[src^="/logos/"] {
 
 button:focus-visible, a:focus-visible { outline: 2px solid #93c5fd; outline-offset: 4px; }
 
-@media (max-width: 68rem) {
-  .knowledge-scene { grid-template-columns: minmax(0, 1fr); gap: 2rem; }
-  .knowledge-scene .story-copy { max-width: 36rem; }
-  .operations-scene { gap: 2rem; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); }
-  .retention-scene { gap: 2.5rem; }
-}
 @media (max-width: 55rem) {
-  .story { padding: 4rem 0; }
-  .operations-scene, .retention-scene, .data-scene, .team-scene { grid-template-columns: minmax(0, 1fr); gap: 2.5rem; }
-  .data-connections, .team-conversation { justify-self: center; }
-  .operations-scene .story-copy, .operations-scene .app-showcase { grid-column: 1; grid-row: auto; }
-  .retention-scene h2 { max-width: 39rem; font-size: clamp(2.5rem, 7vw, 3.5rem); }
-  .learning-chat { width: min(100%, 36rem); margin: 0 auto; padding: 1rem 0; }
-
+  .story { padding: 4rem 0; grid-template-columns: minmax(0, 1fr); gap: 2.5rem; }
 }
 @media (max-width: 40rem) {
   .story { padding: 3rem 0; }
   .hero { gap: 2rem; }
-  .knowledge-inputs { grid-template-columns: minmax(0, 1fr); gap: 0.75rem; margin-left: 0.5rem; padding-left: 1rem; border-left: 1px solid var(--border); }
-  .artifact {
-    &::after { width: 1rem; height: 0; top: 50%; left: -1rem; border-left: 0; border-top: 1px solid var(--border); }
-    dt { margin-bottom: 0.5rem; }
-  }
-  .join-rail {
-    width: 100%; height: 2.5rem; margin-top: 0; border-top: 0;
-    &::before { left: 0.5rem; width: calc(50% - 0.5rem); height: 1.5rem; border-bottom: 1px solid var(--border); }
-  }
-  .shared-context { padding: 1rem; }
-  .data-connection dt { padding: 1rem 0.5rem; font-size: 0.95rem; }
-  .data-connection ul { padding-left: 1rem; }
-  .data-connection li { padding: 0.8rem; &::before { width: 1rem; } }
-  .learning-message { max-width: 92%; padding: 1.25rem; }
-  .remembered-note { margin-right: 0; padding: 0.9rem 1rem; }
-  .team-question { padding: 1.25rem; }
-  .team-answer { padding: 1.25rem; }
-  .app-showcase .lede { height: 5rem; }
-  .app-showcase .browser { height: 32rem; }
-
-}
-
-.chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-
-  button {
-    padding: 0.4rem 0.9rem;
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    font: inherit;
-    font-size: 0.875rem;
-    color: var(--text);
-    background: var(--bg);
-    cursor: pointer;
-  }
-  [aria-pressed="true"] {
-    border-color: var(--text);
-    font-weight: 600;
-  }
-}
-
-/* Local screenshots: responsive pictures with their natural proportions. */
-.hero-picture figcaption a { text-decoration: underline; text-underline-offset: 0.15em; }
-.paseo-shot {
-  width: 100%;
-  height: auto;
-  border: 1px solid var(--border);
-  border-radius: 1rem;
-}
-
-/* "Tools you can build": sample Claymoo admin screens in a browser
-   window, in gray; finished states are near-black, never green or red. The
-   screens keep their own light colors on the dark page. */
-.apps .lede b {
-  color: var(--text);
-}
-
-.browser {
-  --bg: #fff;
-  --text: hsl(0 0% 4%);
-  --muted: hsl(216 4% 51%);
-  --border: hsl(222 19% 86%);
-  --card: hsl(40 18% 97%);
-
-  color: var(--text);
-  color-scheme: light;
-  width: 100%;
-  max-width: 56rem;
-  overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: 1rem;
-  background: var(--bg);
-  font-size: 0.875rem;
-  text-align: left;
-}
-
-.browser-bar {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.5rem 0.75rem;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg);
-
-  i {
-    width: 0.6rem;
-    height: 0.6rem;
-    border-radius: 50%;
-    background: var(--border);
-  }
-  span {
-    flex: 1;
-    min-width: 0;
-    margin-left: 0.5rem;
-    padding: 0.2rem 0.75rem;
-    overflow: hidden;
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    color: var(--muted);
-    background: var(--card);
-    white-space: nowrap;
-    text-overflow: ellipsis;
-  }
-}
-
-.admin {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  padding: 0 1.25rem 1.25rem;
-
-  h3 {
-    font-size: 1.25rem;
-    font-weight: 700;
-    text-align: center;
-  }
-  h4 {
-    font-size: 0.875rem;
-    font-weight: 600;
-  }
-  .card {
-    gap: 0.75rem;
-    padding: 1rem;
-    border-radius: 0.75rem;
-  }
-  .chips button {
-    font-size: 0.8rem;
-  }
-  table {
-    width: 100%;
-    border-collapse: collapse;
-  }
-  th,
-  td {
-    padding: 0.5rem 0.4rem;
-    border-bottom: 1px solid var(--border);
-    text-align: left;
-    vertical-align: top;
-  }
-  th {
-    font-weight: 500;
-    color: var(--muted);
-  }
-  td button {
-    padding: 0;
-    border: 0;
-    font: inherit;
-    font-weight: 600;
-    text-decoration: underline;
-    background: none;
-    cursor: pointer;
-  }
-}
-
-.admin-head {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  margin: 0 -1.25rem;
-  padding: 0.6rem 1.25rem;
-  border-bottom: 1px solid var(--border);
-
-  b {
-    flex: 1;
-  }
-  > span:not(.admin-mark) {
-    color: var(--muted);
-  }
-}
-
-.admin-mark {
-  display: grid;
-  place-items: center;
-  width: 1.5rem;
-  height: 1.5rem;
-  border-radius: 0.3rem;
-  font-weight: 700;
-  color: var(--bg);
-  background: var(--text);
-}
-
-.admin-tabs {
-  display: flex;
-  gap: 1.25rem;
-  border-bottom: 1px solid var(--border);
-
-  > * {
-    padding-bottom: 0.4rem;
-  }
-  b {
-    border-bottom: 2px solid var(--text);
-  }
-  span {
-    color: var(--muted);
-  }
-}
-
-.admin-toolbar {
-  display: flex;
-  gap: 0.5rem;
-
-  input {
-    flex: 1;
-    min-width: 0;
-    padding: 0.5rem 0.75rem;
-    border: 1px solid var(--border);
-    border-radius: 0.5rem;
-    font: inherit;
-    background: var(--card);
-  }
-  .button {
-    padding: 0.5rem 1rem;
-    border-radius: 0.5rem;
-  }
-}
-
-.admin-back {
-  align-self: flex-start;
-  padding: 0;
-  border: 0;
-  font: inherit;
-  color: var(--muted);
-  background: none;
-  cursor: pointer;
-}
-
-.admin-title {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.badge {
-  padding: 0.05rem 0.5rem;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  font-size: 0.75rem;
-  white-space: nowrap;
-}
-
-.badge-dark {
-  border-color: var(--text);
-  color: var(--bg);
-  background: var(--text);
-}
-
-.pack-order {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 12rem;
-  gap: 1rem;
-  align-items: start;
-}
-
-.pack-items {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.pack-item {
-  display: grid;
-  grid-template-columns: 2.5rem minmax(0, 1fr) auto;
-  gap: 0.75rem;
-  align-items: center;
-  padding: 0.75rem;
-  border: 1px solid var(--border);
-  border-radius: 0.75rem;
-  font: inherit;
-  text-align: left;
-  color: var(--text);
-  background: var(--bg);
-  cursor: pointer;
-
-  i {
-    height: 2.5rem;
-    border-radius: 0.4rem;
-    background: var(--border);
-  }
-  span {
-    display: flex;
-    flex-direction: column;
-    color: var(--muted);
-  }
-  b {
-    color: var(--text);
-  }
-  strong {
-    font-size: 1.25rem;
-    font-variant-numeric: tabular-nums;
-  }
-}
-
-.pack-done {
-  border: 2px solid var(--text);
-  cursor: default;
-}
-
-.pack-side .button {
-  margin-top: 0.5rem;
-}
-
-.admin-bars {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 0.5rem;
-  padding: 0;
-  list-style: none;
-  font-size: 0.75rem;
-  text-align: center;
-  color: var(--muted);
-
-  li {
-    display: flex;
-    flex-direction: column;
-    gap: 0.2rem;
-  }
-  span {
-    display: flex;
-    align-items: flex-end;
-    height: 6rem;
-  }
-  i {
-    width: 100%;
-    border-radius: 0.3rem 0.3rem 0 0;
-    background: var(--muted);
-  }
-  b {
-    color: var(--text);
-  }
-}
-
-.admin-tiles {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
-  gap: 0.5rem;
-  margin: 0;
-
-  div {
-    padding: 0.6rem 0.75rem;
-    border: 1px solid var(--border);
-    border-radius: 0.5rem;
-  }
-  dt {
-    font-size: 0.75rem;
-    color: var(--muted);
-  }
-  dd {
-    margin: 0;
-    font-size: 1.1rem;
-    font-weight: 600;
-  }
-}
-
-.admin textarea {
-  min-height: 3.5rem;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid var(--border);
-  border-radius: 0.5rem;
-  font: inherit;
-  resize: vertical;
-}
-
-.brief-variations {
-  display: grid;
-  grid-template-columns: 10rem minmax(0, 1fr);
-  gap: 1rem;
-  align-items: start;
-}
-
-/* The reference picture: a gray card with near-black numbered markers. */
-.brief-picture {
-  display: flex;
-  flex-wrap: wrap;
-  align-content: flex-start;
-  gap: 1.5rem 2.5rem;
-  aspect-ratio: 4 / 5;
-  padding: 1.25rem;
-  border-radius: 0.5rem;
-  background: var(--border);
-
-  b {
-    display: grid;
-    place-items: center;
-    width: 1.5rem;
-    height: 1.5rem;
-    border-radius: 50%;
-    font-size: 0.75rem;
-    color: var(--bg);
-    background: var(--text);
-  }
-}
-
-.brief-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.75rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--border);
-}
-
-/* On a phone the side card and the picture go under, and Pack by and
-   Delivery hide. */
-@media (max-width: 40rem) {
-  .pack-order,
-  .brief-variations {
-    grid-template-columns: 1fr;
-  }
-  .brief-picture {
-    max-width: 10rem;
-  }
-  .pack-table :is(th, td):is(:nth-child(2), :nth-child(4)) {
-    display: none;
-  }
+  .three-pairs { gap: 0.5rem; }
+  .part-card { padding: 1rem 0.25rem; }
+  .data-figure { grid-template-columns: minmax(0, 1.2fr) 1.5rem minmax(0, 1fr); }
+  .process-kinds { grid-template-columns: minmax(0, 1fr); }
+  .example-rows { grid-template-columns: minmax(0, 1fr); }
+  .example-rows > div { gap: 0.4rem; }
+  .example-rows dd { justify-self: start; }
 }

@@ -13,9 +13,17 @@ Four rules:
 - **The message is the README's, character for character.** [The guard test](../../scripts/tests/landing-site.test.mjs) reads `INSTALL_PROMPT` from `install.ts` and fails when [the README](../../README.md)'s fenced message differs, naming both files. Change both in the same change.
 - **A changed cost or computer changes the README and the guide too.** `WAYS` and `PAID_COST` in `install.ts` hold each way's accounts, computers, and cost. [The cost guard](../../scripts/tests/install-cost.test.mjs) reads them and fails when [the README](../../README.md) or [getting started](../stack/getting-started.md#what-it-costs) stops saying the paid way's cost and computers, or which way is free, naming the page and `install.ts`. Change all three in the same change. The guard runs on a wiki-only change too: that is how the guide once came to disagree.
 - **Describe the install that works today**, not one that is planned. A page that promises a route early sends a visitor to a dead end.
-- **Name an assistant or a chat app as an example, never as needed.** `STEPS` in [`site/src/install.ts`](../../site/src/install.ts) says *any assistant that can work on your computer* first, then names one as an example. A picture names the optional chat app shown in its caption. The headline and the text a shared link shows name only assistants in `AGENTS`, each one tried as a working assistant first: a name that was never tried sends a visitor to a dead end.
+- **Name an assistant or a chat app as an example, never as needed.** `STEPS` in [`site/src/install.ts`](../../site/src/install.ts) says *any assistant that can work on your computer* first, then names one as an example. A picture names the optional chat app shown in its caption. The headline and the text a shared link shows name no assistant today; if one ever does, name only assistants in `AGENTS`, each one tried as a working assistant first: a name that was never tried sends a visitor to a dead end.
 
-The site compares WongStack with no other product: a wrong claim about another company's product is a liability. [`Site.test.tsx`](../../site/src/Site.test.tsx) reads every page for one.
+## Keep the comparison chart true
+
+The chart after the story compares WongStack with other products, one row each for Data, Process and Reason. A wrong claim about another company's product is a liability, so every mark is one of two: **what that product's own page says, or *not stated*. Never *no***: an absent quote proves nothing.
+
+1. Open each source in [`site/src/compare.ts`](../../site/src/compare.ts) yourself, on the live page, not through a summary.
+2. Set a mark to `"yes"` only from a quote you read there word for word, and keep the URL and quote beside it. A mark you can't confirm is `"not-stated"`, with no source.
+3. Update `CHECKED` to the month you checked. The chart prints it.
+
+[`Site.test.tsx`](../../site/src/Site.test.tsx) fails when a mark is anything else, a *yes* has no source, the chart says a product lacks something, or a compared product is named outside the chart.
 
 ## No hosting offer
 
@@ -23,7 +31,7 @@ The page never offers or mentions a WongStack paid plan, price, trial, subscript
 
 **No WongStack price, not no price.** The page names one cost: what another company charges for an account the install uses, said with that company's name, such as Cloudflare's paid plan. Every such sentence is in `COST_LINES` in [`site/src/install.ts`](../../site/src/install.ts), and the page prints those strings as they are.
 
-[`Site.test.tsx`](../../site/src/Site.test.tsx) reads every page for those words, and allows only the exact `COST_LINES` sentences: a reworded one, or a price written anywhere else, fails. It also fails when a line that names a price leaves out the company, or names WongStack. The sample apps keep their made-up prices: each is a pretend screen.
+[`Site.test.tsx`](../../site/src/Site.test.tsx) reads every page for those words, and allows only the exact `COST_LINES` sentences: a reworded one, or a price written anywhere else, fails. It also fails when a line that names a price leaves out the company, or names WongStack.
 
 ## Privacy promises
 
@@ -66,12 +74,15 @@ The compatibility section describes any model or setup through a coding agent th
 
 ## Pictures and brand files
 
-- **The business story** sits in [`site/src/Story.tsx`](../../site/src/Story.tsx), styled in [`site/src/index.css`](../../site/src/index.css). It opens with equal Processes, Data and Reasons cards, each with one short definition, then gives each its own chapter. The page loads no business data; later illustrations use invented examples. Processes explains setup, repeatable code and human guides beside the sample tools from [`site/src/apps.tsx`](../../site/src/apps.tsx). Their display and description reserve space across examples; long contents scroll within the labeled, keyboard-focusable window. Check all three examples and their details on phones and laptops.
-- **Data connections** use two native process/source illustrations: packing with orders and stock, and an ad report with sales and website analytics. Their labels show connections the owner builds with their assistant, without promising automatic imports. Keep heading and description together beside a bounded, vertically stacked illustration on desktop; put copy before the examples on a phone.
-- **Reasons and team context** use native text in Story.tsx. Two example chat bubbles and a small remembered reason show why a decision was made, in the owner's accounts. They have no input or live assistant call. Saved chats and memories retain useful context; do not promise every transcript or detail is kept. The team conversation sits beside its explanation on desktop and follows it on phones. Between the question and a clearly labeled example answer, exactly three compact rows show gathering actions and findings from Marketing, Finance and Operations. The made-up recommendation uses the shown campaign goal, remembered margin reason and stock constraint, with connections the owner built and access they choose. Keep the answer grounded in its visible sources; no live business answer or perfect-result promise. Keep context growing through use distinct from model training, and preserve the onboarding explanation.
+- **The business story** sits in [`site/src/Story.tsx`](../../site/src/Story.tsx), styled in [`site/src/index.css`](../../site/src/index.css). It follows Matthew's talk *How to self-drive your business*, one scene per slide: the same three a self-driving car needs, then Data, Process, Reason, and one example (publishing an ad). Each scene has a short step label, a heading, one line, and the slide redrawn in markup; the page loads no business data, and every example is made up. Keep the talk's words when you change one, and keep labels to one short phrase.
+- **The talk's pictures**: the hero's car and the road under Reason's questions are the deck's own drawings, converted to WebP at 1600 px wide in [`site/public/art/`](../../site/public/art/) (`car.webp`, `road.webp`), each with its `width`, `height` and a plain `alt`. The slide icons are drawn inline in [`site/src/icons.tsx`](../../site/src/icons.tsx), so the page loads no icon file.
+- **Data, Process and Reason keep the slides' accent each**, wherever they appear: green, blue, and purple. A crossed-out item, like the SOP card, also carries a ✗ and a hidden *Not*, so it reads right without color.
+- **Reason says reasons are saved from chats**, and never shows the visitor asking the assistant to remember: saving is not their job. Don't promise every transcript or detail is kept.
+- **Keep the page short and about the ideas**, not the app's screens: [Matthew](../people/matthew-wong.md) wants no chat app screenshot, sample tools, or team scene. Add a picture of the app only when he asks.
+- **The setup section** sits right before the install steps and lists what setup handles. Its *Servers and databases* item is the one place the page may say *servers*: [`Site.test.tsx`](../../site/src/Site.test.tsx) allows that exact phrase and still catches any other.
 - **The logo and the share card** are drawn in [`site/brand/`](../../site/brand/). `share-image.svg` is the source of `site/public/share.png`, the picture a shared link shows; its opening comment says how to render it.
-- **The laptop picture** comes from [`site/public/paseo/laptop.webp`](../../site/public/paseo/laptop.webp), through [`site/src/mockups.tsx`](../../site/src/mockups.tsx). The single short caption links the canonical optional-app URL from install.ts; keep its natural proportions. The install steps contain no separate add-on block. The phone pictures remain available in the same folder but are not presented on the page.
-- **The illustrations** remain available in [`site/public/art/`](../../site/public/art/); the current learning section uses native chat shapes and text. These images were generated once with Gemini (`gemini-3.1-flash-image`, 16:9), then resized to 960 px wide WebP. Their shared prompt was: “minimal line illustration, soft white and gray lines on a near-black background, no text, no logos, generous empty space.” The individual prompts are kept here:
+- **The Paseo pictures** remain in [`site/public/paseo/`](../../site/public/paseo/); the page shows none. The share card draws `phone.webp`. The install steps contain no separate add-on block.
+- **The older illustrations** remain in [`site/public/art/`](../../site/public/art/), unused. These images were generated once with Gemini (`gemini-3.1-flash-image`, 16:9), then resized to 960 px wide WebP. Their shared prompt was: “minimal line illustration, soft white and gray lines on a near-black background, no text, no logos, generous empty space.” The individual prompts are kept here:
 
 | File | Subject prompt |
 | --- | --- |

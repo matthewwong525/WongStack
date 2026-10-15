@@ -3,6 +3,17 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (patch) — The landing page tells the self-drive story
+
+- **The landing page reads like the talk *How to self-drive your business*.** The headline is *Self-drive your business.* Below it, one section each: the same three things a self-driving car needs, then Data, Process, Reason, and one example, publishing an ad. The pictures are the talk's own slides.
+- **A chart shows which products keep which of the three.** Another product gets a tick only where its own pages say so, and *not stated* elsewhere, with the month checked.
+- **The page is shorter.** The chat app screenshot, the sample tools, and the team section are gone.
+- **Reasons are saved from your chats.** The page no longer shows anyone asking the assistant to remember.
+- **"The hardest part is the setup" comes right before the install steps**, with what WongStack handles for you.
+- **The README's opening line and a shared link's text and picture say the same headline.**
+
+**Updating.** Nothing to do: installs never receive the landing page.
+
 ## 43.1.1 — Steadier browser starts
 
 - **The browser starts even when its first start fails.** A start can die at once when something else takes its address first. It now picks a new address and tries again, three starts at most, before it says *the browser did not start*.
