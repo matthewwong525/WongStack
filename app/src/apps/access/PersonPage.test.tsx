@@ -298,10 +298,10 @@ it('gives publishing as a second tick on top of the install tick, and unticking 
   tick(); fireEvent.click(publish()); click('Save access'); await screen.findByText('Saved.')
   expect(sent('people')[0].keys).toEqual({ ...NO_KEYS, stripe: 'read', code: 'write' })
 })
-it('shows a saved tick as on, with nothing under it once the app can hand the project out, and unticking saves none', async () => {
+it('shows a saved tick as on, with no step under it once the app can hand the project out, and unticking saves none', async () => {
   roster.people[1].keys = { stripe: 'read', code: 'read' }
   open('people/kim@shop.com'); await panel('kim@shop.com')
-  expect(ticks()).toEqual(['Hello', INSTALL]); expect(project().queryByText(/One step first/)).toBeNull(); expect(project().queryByRole('button')).toBeNull()
+  expect(ticks()).toEqual(['Hello', INSTALL]); expect(project().queryByText(/One step first/)).toBeNull(); expect(project().queryByRole('button', { name: 'Copy that request' })).toBeNull()
   tick(); expect(install().checked).toBe(false)
   click('Save access'); await screen.findByText('Saved.')
   expect(sent('people')).toEqual([{ email: 'kim@shop.com', removed: false, role: null, apps: { ...NO_APPS, hello: true }, keys: { ...NO_KEYS, stripe: 'read' } }])
@@ -325,7 +325,7 @@ it("tells an Admin who ticks it that the key is the owner's step, with nothing t
   expect(install().checked).toBe(false); expect(project().queryByText(/One step first/)).toBeNull()
   tick()
   expect(project().getByText('One step first for the owner.').parentElement!.textContent).toBe('One step first for the owner. owner@shop.com adds a GitHub key.')
-  expect(screen.queryByRole('button', { name: /Copy/ })).toBeNull(); expect(screen.queryByText('Let teammates install the project')).toBeNull()
+  expect(project().queryByRole('button', { name: /Copy/ })).toBeNull(); expect(screen.queryByText('Let teammates install the project')).toBeNull()
   click('Save access'); await screen.findByText('Saved.')
   expect(sent('people')).toEqual([{ email: 'lee@shop.com', removed: false, role: null, apps: { hello: true, payroll: false, tips: true }, keys: { ...NO_KEYS, stripe: 'read', code: 'read' } }])
 })
@@ -350,6 +350,8 @@ it('the owner gives Admin as a role: the panel says it is everything and full tr
   roster.people[1] = person('kim@shop.com', admin())
   click('Save access'); answer('kim@shop.com', 'Make Admin'); await screen.findByText('Saved.')
   expect(sent('people')).toEqual([{ email: 'kim@shop.com', removed: false, role: 'admin' }])
+  // Admin gives the project too, so the message to send her opens.
+  await done()
   // Her row says Admin and Everything, with no mark beside her email.
   expect((await cells('kim@shop.com')).slice(0, 4)).toEqual(['kim@shop.com', 'Can sign in', 'Own setAdminOfficeSalesSupport', 'Everything']); expect(picked('kim@shop.com')).toBe('Admin')
   // An Admin saved again is not asked about, and a new person picked as one is.
@@ -377,13 +379,14 @@ it('picking Admin in a row asks before it saves, and Undo puts the person back o
   expect([shown('kim@shop.com'), posts('people'), where()]).toEqual(['Own set', [], '/apps/access/'])
   answer('kim@shop.com', 'Cancel'); expect([screen.queryByRole('alertdialog'), shown('kim@shop.com'), posts('people')]).toEqual([null, 'Own set', []])
   fireEvent.change(select('kim@shop.com'), { target: { value: 'admin' } }); answer('kim@shop.com', 'Make Admin')
-  await screen.findByText('kim@shop.com now has Admin.'); expect(screen.queryByRole('alertdialog')).toBeNull()
+  // Admin gives the project too, so the message to send her opens.
+  await screen.findByText('kim@shop.com now has Admin.'); await done()
   click('Undo'); await screen.findByText('Undone.')
   expect(sent('people')).toEqual([{ email: 'kim@shop.com', removed: false, role: 'admin' },
     { email: 'kim@shop.com', removed: false, role: null, apps: { ...NO_APPS, hello: true }, keys: { ...NO_KEYS, stripe: 'read', cloudflare: 'read' } }])
   // A person who had a role goes back to that role.
   fireEvent.change(select('lee@shop.com'), { target: { value: 'admin' } }); answer('lee@shop.com', 'Make Admin')
-  await screen.findByText('lee@shop.com now has Admin.'); click('Undo'); await screen.findByText('Undone.')
+  await screen.findByText('lee@shop.com now has Admin.'); await done(); click('Undo'); await screen.findByText('Undone.')
   expect(sent('people').slice(2)).toEqual([{ email: 'lee@shop.com', removed: false, role: 'admin' }, { email: 'lee@shop.com', removed: false, role: 'sales' }])
 })
 it('an Admin is not offered Admin to give, and reads an Admin\'s role as plain words that only the owner changes', async () => {
@@ -410,3 +413,8 @@ it('an Admin is not offered Admin to give, and reads an Admin\'s role as plain w
   fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'new@shop.com' } }); click('Save access'); await screen.findByText('Saved.')
   expect(sent('people')[1]).toEqual({ email: 'new@shop.com', removed: false, role: null, apps: NO_APPS, keys: NO_KEYS })
 })
+// Done closes the popup a save opened.
+const done = async () => {
+  fireEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Done' }))
+  await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull())
+}

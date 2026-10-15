@@ -1,8 +1,9 @@
-import type { SavedKey, Status } from '../../lib/access'
+import type { Person, SavedKey, Status } from '../../lib/access'
 import { Group, Tick } from './Fields'
 import { LevelChoice } from './LevelChoice'
 import { FinishStep } from './Notices'
 import { ProjectStep } from './ProjectStep'
+import { WelcomeFold } from './Welcome'
 import { keyLine, keyState, type AccessSet } from './levels'
 
 /** What a key that is not saved yet waits for. Setup makes one key itself: the owner copies a request, an Admin is
@@ -15,9 +16,9 @@ function NextStep({ status, item }: { status: Status; item: SavedKey }) {
     : <p className="text-sm">Look-ups need a read-only key. {status.ownerEmail} finishes that in Access setup.</p>
 }
 
-/** One set, a person's own or a role's, in two groups that don't depend on each other: a tick per app, and a level
- *  per key, set whether the key is saved or not. Project code is one tick of its own after them. Nothing here saves. */
-export function SetFields({ status, set, onChange }: { status: Status; set: AccessSet; onChange: (set: AccessSet) => void }) {
+/** One set, a person's own or a role's: a tick per app, and a level per key, saved or not. Project code is one tick of
+ *  its own after them; for a saved, active `person` it folds out the message to send them. Nothing here saves. */
+export function SetFields({ status, set, onChange, person }: { status: Status; set: AccessSet; onChange: (set: AccessSet) => void; person?: Person }) {
   // Project code is two ticks: Read installs and saves, Write also publishes, so publishing needs the install tick.
   const project = status.keys.find(key => key.id === 'code')
   const installs = set.keys.code === 'read' || set.keys.code === 'write'
@@ -39,6 +40,7 @@ export function SetFields({ status, set, onChange }: { status: Status; set: Acce
     {project && <Group legend="Project">
       <Tick checked={installs} onChange={to => code(to ? 'read' : null)}>Can install the project</Tick>
       <p className="text-sm text-muted-foreground">They can save changes too.</p>
+      {person?.status === 'active' && installs && status.project === 'ready' && <WelcomeFold status={status} person={{ email: person.email, role: null, keys: set.keys }} />}
       {project.levels.includes('write') && <>
         <Tick checked={set.keys.code === 'write'} disabled={!installs} onChange={to => code(to ? 'write' : 'read')}>Can publish</Tick>
         <p className="text-sm text-muted-foreground">Their changes go live once the checks pass.</p>
