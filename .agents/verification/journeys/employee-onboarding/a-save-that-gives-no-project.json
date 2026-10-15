@@ -1,0 +1,75 @@
+{
+  "format": "verify-journey-1",
+  "id": "a-save-that-gives-no-project",
+  "scenario": {
+    "capability": "employee-onboarding",
+    "requirement": "Giving a person the project offers a message to send",
+    "scenario": "A save that gives no project"
+  },
+  "thenDigest": "d30ee31e4b0557dc04e9486589b52cb393085f263092f2c3d8d026717fba1150",
+  "probe": "browser",
+  "writes": true,
+  "sourcePaths": [
+    "app/src/apps/access/Notices.tsx",
+    "app/src/apps/access/PersonPage.tsx",
+    "app/src/apps/access/RoleSelect.tsx",
+    "app/src/apps/access/SetFields.tsx",
+    "app/src/apps/access/Welcome.tsx",
+    "app/src/apps/access/address.ts",
+    "app/src/apps/access/note.ts",
+    "app/src/components/AssistantSetup.tsx",
+    "app/src/components/CopyText.tsx"
+  ],
+  "recordedAt": "d697c7b492eb536cfb4835021d92a731e32e479e",
+  "steps": [
+    [
+      "set",
+      "viewport",
+      "1500",
+      "1100"
+    ],
+    [
+      "open",
+      "{url}/apps/access/people/new"
+    ],
+    [
+      "wait",
+      "--text",
+      "Save access"
+    ],
+    [
+      "wait",
+      "1500"
+    ],
+    [
+      "find",
+      "label",
+      "Email",
+      "fill",
+      "kept-noproject2@example.com"
+    ],
+    [
+      "find",
+      "text",
+      "Save access",
+      "click"
+    ],
+    [
+      "wait",
+      "--text",
+      "Saved."
+    ],
+    [
+      "wait",
+      "1500"
+    ]
+  ],
+  "expect": [
+    {
+      "text": "Saved."
+    },
+    {
+      "gone": "They paste it into their AI assistant to connect."
+    }
+  ]
+}

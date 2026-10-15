@@ -8,6 +8,7 @@ import { MakeAdmin } from './Confirm'
 import { Field } from './Fields'
 import { SetLabels } from './Labels'
 import { fill, NOTHING, sameSet, ticks, type AccessSet } from './levels'
+import { givesProject } from './note'
 import { Page } from './Page'
 import { SetFields } from './SetFields'
 import { signInLine } from './status'
@@ -40,7 +41,8 @@ export function PersonPage({ person, ...props }: ViewProps & { person?: Person }
   // A role is the whole answer: apps and levels are sent only for a person's own set, every app and every key named.
   const access = chosen ? { role } : { role: null, apps: ticks(status, set.apps), keys: fill(status, set.keys) }
   const changed = email !== start.email || role !== start.role || !sameSet(set, start.set)
-  const send = () => save('people', { email, removed: false, ...access })
+  // A save that newly gives them the project comes back with a message to send them.
+  const send = () => save('people', { email, removed: false, ...access }, givesProject(status, person, { role: role || null, keys: set.keys }) ? { text: 'Saved.', welcome: email } : undefined)
   return <Page {...props} name={person?.email ?? 'Add person'} changed={changed} action="Save access" onSave={chosen?.builtIn && !held ? () => setAsking(true) : send}>
     {asking && <MakeAdmin email={email} pending={props.pending} onConfirm={send} onCancel={() => setAsking(false)} />}
     {person ? <p className="text-muted-foreground">{signInLine(person, status).text}</p>
@@ -51,6 +53,6 @@ export function PersonPage({ person, ...props }: ViewProps & { person?: Person }
         <NativeSelectOption value="">Their own set</NativeSelectOption>
         {offered(status).map(item => <NativeSelectOption key={item.id} value={item.id}>{item.name}</NativeSelectOption>)}
       </NativeSelect></Field>}
-    {chosen ? <RoleSet status={status} role={chosen} /> : <SetFields status={status} set={set} onChange={setSet} />}
+    {chosen ? <RoleSet status={status} role={chosen} /> : <SetFields status={status} set={set} onChange={setSet} person={person} />}
   </Page>
 }
