@@ -83,3 +83,6 @@ Non-goals: the app sending an email or invite itself; a separate *Copy app link*
 - **2026-10-15** — Assumed: the fold-out shows only on a person's own set, because a role's tick names no one to send it to.
 - **2026-10-15** — Assumed: the install step names Claude Code and Codex as examples with their install pages, because WongStack makes no chat app a requirement.
 - **2026-10-15** — Archived and saved for publishing by /ship as 43.2.0.
+- **2026-10-15** — Check: `.agents/verification/journeys/key-access/a-github-installation-holds-only-its-read-only-key.json` is removed, because the requirement it was kept under, *Project code is a key with one level*, is gone from `openspec/specs/key-access/` since an earlier change; the same-named scenario now sits under *Project code has a save level and a publish level* and has no kept check yet.
+- **2026-10-15** — Check: `.agents/verification/journeys/key-access/the-project-can-be-handed-out.json` is removed, because its requirement, *Project code is a key with one level*, and the scenario are gone from `openspec/specs/key-access/` since an earlier change, so nothing is left for it to replay.
+- **2026-10-15** — The preview walk kept two checks: giving someone the project opens the popup, and a save without it opens none.
