@@ -3,6 +3,12 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (patch) — Every link in the chat
+
+- **Every link you need sits in the chat message, on its own line.** Before, a pull request, key link, or private form sometimes landed inside a question box, where it can't be clicked, or only in the assistant's hidden reasoning, where nobody sees it. A choice may still point at the link above it, such as *Review the plan*, but never repeats the address.
+
+**Updating.** Nothing to do.
+
 ## 43.1.1 — Steadier browser starts
 
 - **The browser starts even when its first start fails.** A start can die at once when something else takes its address first. It now picks a new address and tries again, three starts at most, before it says *the browser did not start*.
