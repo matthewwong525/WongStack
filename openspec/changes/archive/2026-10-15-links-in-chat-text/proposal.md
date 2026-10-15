@@ -1,7 +1,7 @@
 # Every link in the chat
 
-**Status:** planned
-**Branch:** heavy-eel
+**Status:** ready-to-ship
+**Branch:** remove-user-prompt-links
 **Open questions:** none
 
 ## Why
@@ -44,3 +44,4 @@ None.
 - **2026-10-15** — Assumed: one general rule on the asking page rather than a sentence per link type, because a copy per link goes stale and the page already owns how a question looks.
 - **2026-10-15** — Assumed: a `patch` release, because it is wording on an existing rule.
 - **2026-10-15** — Built: the rule is shorter than the design's text, with no reasons, and the plan section links its "one chat line" to the rule instead of keeping its own sentence, because the design's wording put skill text 100 bytes over the size limit.
+- **2026-10-15** — Assumed: archived and saved for shipping, because Matthew chose *Publish it*.
