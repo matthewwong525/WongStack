@@ -151,15 +151,15 @@ async function liveServer() {
   return { port: info.port, key: apiKey() };
 }
 
-/** Polls for a server that answers until START_MS passes, or `pid` is given and dies. */
-async function awaitServer(pid = null) {
-  const end = Date.now() + START_MS;
-  while (Date.now() < end && (pid === null || alive(pid))) {
+/** Polls until `end`: `{ live }` once the server answers, `{ died }` if `pid` exits first, else `{}`. */
+async function awaitServer(pid, end) {
+  while (Date.now() < end) {
     const live = await liveServer();
-    if (live) return live;
+    if (live) return { live };
+    if (!alive(pid)) return { died: true };
     await sleep(200);
   }
-  throw new BrowseError('the browser did not start');
+  return {};
 }
 
 /** Takes the start lock; false when another task is starting the server. A lock left by a dead start is cleared. */
@@ -170,29 +170,47 @@ function takeLock() {
   try { mkdirSync(FILES.lock); return true; } catch { return false; }
 }
 
-async function startServer() {
-  if (!installed()) throw new BrowseError(NEEDS, { needs: 'install' });
-  if (!driver().startsWith(`${DRIVER_LINE}.`)) throw new BrowseError(`the browser driver is ${driver()}, not ${DRIVER_LINE}.x, and a login does not save on any other; run \`browse.mjs install\``);
-  privateDirs();
-  if (!takeLock()) return awaitServer();
-  try {
-    // Another task may have started the server between this task's look and its lock.
-    const live = await liveServer();
-    if (live) return live;
+/** Starts the server, holding the lock. A start that dies before answering, as on a taken port,
+ * is tried on a new port, three starts in all; a slow one is not. */
+async function spawnServer() {
+  // Another task may have started the server between this task's look and its lock.
+  const running = await liveServer();
+  if (running) return running;
+  const end = Date.now() + START_MS;
+  for (let tries = 0; tries < 3; tries++) {
     const port = await freePort();
     const child = spawn(process.execPath, [LAUNCHER, SERVER_SCRIPT], { cwd: DIR, detached: true, stdio: 'ignore', env: serverEnv(port, apiKey()) });
     child.unref();
     writeFileSync(FILES.server, `${JSON.stringify({ pid: child.pid, port, proxy: 'local' })}\n`, { mode: 0o600 });
-    try {
-      return await awaitServer(child.pid);
-    } catch (error) {
-      await terminate(child.pid);
-      rmSync(FILES.server, { force: true });
-      throw error;
-    }
-  } finally {
-    rmSync(FILES.lock, { recursive: true, force: true });
+    const { live, died } = await awaitServer(child.pid, end);
+    if (live) return live;
+    if (!died) await terminate(child.pid);
+    rmSync(FILES.server, { force: true });
+    if (!died) break;
   }
+  throw new BrowseError('the browser did not start');
+}
+
+/** A live server, else one this task starts. While another task holds the start, it looks again;
+ * if that start fails, this task takes it over. */
+async function startServer() {
+  if (!installed()) throw new BrowseError(NEEDS, { needs: 'install' });
+  if (!driver().startsWith(`${DRIVER_LINE}.`)) throw new BrowseError(`the browser driver is ${driver()}, not ${DRIVER_LINE}.x, and a login does not save on any other; run \`browse.mjs install\``);
+  privateDirs();
+  const end = Date.now() + START_MS;
+  do {
+    const live = await liveServer();
+    if (live) return live;
+    if (takeLock()) {
+      try {
+        return await spawnServer();
+      } finally {
+        rmSync(FILES.lock, { recursive: true, force: true });
+      }
+    }
+    await sleep(200);
+  } while (Date.now() < end);
+  throw new BrowseError('the browser did not start');
 }
 
 async function terminate(pid) {

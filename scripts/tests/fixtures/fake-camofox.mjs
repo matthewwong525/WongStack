@@ -1,12 +1,12 @@
 // Installs fake-camofox-server.mjs where browse.mjs looks for camofox, under a test's own HOME. `fakeCamofox(home)`
-// returns the control folder's helpers; fake-camofox-server.mjs reads its files. BROWSE_ENV shortens browse.mjs waits.
+// returns the control folder's helpers. BROWSE_ENV sets browse.mjs waits: long caps, so a wait ends by its state.
 
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const SERVER = pathToFileURL(join(dirname(fileURLToPath(import.meta.url)), 'fake-camofox-server.mjs')).href;
-export const BROWSE_ENV = { BROWSE_SETTLE_MS: '300', BROWSE_SETTLE_GAP_MS: '10', BROWSE_LOGIN_WAIT_MS: '300', BROWSE_COMMAND_MS: '15000', BROWSE_START_MS: '15000' };
+export const BROWSE_ENV = { BROWSE_SETTLE_MS: '15000', BROWSE_SETTLE_GAP_MS: '10', BROWSE_LOGIN_WAIT_MS: '300', BROWSE_COMMAND_MS: '15000', BROWSE_START_MS: '15000' };
 
 /** `driver` is the playwright-core version the install holds; `installed: false` leaves camofox out. */
 export function fakeCamofox(home, { driver = '1.58.2', installed = true } = {}) {
@@ -32,6 +32,8 @@ export function fakeCamofox(home, { driver = '1.58.2', installed = true } = {}) 
     env: () => json('env.json'),
     tabs: () => json('tabs.json') ?? [],
     starts: () => (existsSync(file('starts.log')) ? readFileSync(file('starts.log'), 'utf8').trim().split('\n').length : 0),
+    /** The stacks of the server's crashes, '' when none: a failing test prints them. */
+    errors: () => (existsSync(file('errors.log')) ? readFileSync(file('errors.log'), 'utf8') : ''),
     requests: () => (existsSync(file('requests.jsonl')) ? readFileSync(file('requests.jsonl'), 'utf8').trim().split('\n').filter(Boolean).map(line => JSON.parse(line)) : []),
     /** Each request as `METHOD /path`, with each tab's id written `:tab`. */
     calls() { return this.requests().map(({ method, path }) => `${method} ${path.replace(/\/tabs\/[0-9a-f-]{36}/, '/tabs/:tab')}`); },

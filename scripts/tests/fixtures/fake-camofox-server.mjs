@@ -3,7 +3,7 @@
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { once as heard } from 'node:events';
-import { appendFileSync, existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { join } from 'node:path';
 
@@ -14,17 +14,20 @@ const text = name => readFileSync(file(name), 'utf8').trim();
 const once = name => has(name) && (rmSync(file(name)), true);
 const sleep = ms => new Promise(done => setTimeout(done, ms));
 const held = async name => { while (has(name)) await sleep(10); };
+// Written beside, then renamed in, so a test never reads half a file.
+const writeWhole = (name, value) => { writeFileSync(file(`${name}.${process.pid}.tmp`), value); renameSync(file(`${name}.${process.pid}.tmp`), file(name)); };
+// A crash's stack goes to errors.log, which a failing test prints.
+process.on('uncaughtException', error => { appendFileSync(file('errors.log'), `${error.stack}\n`); process.exit(1); });
 
 const tabs = new Map();
 const KEPT = ['CAMOFOX_PORT', 'CAMOFOX_BIND_HOST', 'CAMOFOX_CRASH_REPORT_ENABLED', 'CAMOFOX_CRASH_REPORT_URL', 'SENTRY_DSN', 'CAMOFOX_PROFILE_DIR', 'CAMOFOX_API_KEY', 'TMPDIR', ...Object.keys(process.env).filter(name => name.startsWith('PROXY_'))];
-writeFileSync(file('env.json'), JSON.stringify({ ...Object.fromEntries(KEPT.map(name => [name, process.env[name]])), cwd: process.cwd(), pid: process.pid, argv: process.argv.slice(1) }));
-appendFileSync(file('starts.log'), `${process.pid}\n`);
+writeWhole('env.json', JSON.stringify({ ...Object.fromEntries(KEPT.map(name => [name, process.env[name]])), cwd: process.cwd(), pid: process.pid, argv: process.argv.slice(1) }));
 // The pretend browser ends with this server: its input closes when the server goes, however it goes.
 const browser = has('display') ? spawn(process.execPath, ['-e', "process.title = 'camoufox-bin'; console.log('named'); process.stdin.resume().on('end', () => process.exit());"], { stdio: ['pipe', 'pipe', 'ignore'], env: { ...process.env, DISPLAY: text('display') } }) : null;
 
 /** Replies, writing tabs.json first, so a test reads the tabs as they are once its command returns. */
 function send(response, status, body) {
-  writeFileSync(file('tabs.json'), JSON.stringify([...tabs.values()]));
+  writeWhole('tabs.json', JSON.stringify([...tabs.values()]));
   response.writeHead(status, { 'content-type': 'application/json' }).end(JSON.stringify(body));
 }
 const refuse = (response, status, error, more = {}) => send(response, status, { error, ...more });
@@ -141,7 +144,9 @@ const server = createServer(async (request, response) => {
 });
 // The server answers only once its pretend browser carries its name, so no test reads the name too soon.
 if (browser) await heard(browser.stdout, 'data');
-server.listen(Number(process.env.CAMOFOX_PORT), process.env.CAMOFOX_BIND_HOST);
+// `die-once` stands in for a taken port: the start exits before listening. starts.log counts starts that listened.
+if (once('die-once')) process.exit(1);
+server.listen(Number(process.env.CAMOFOX_PORT), process.env.CAMOFOX_BIND_HOST, () => appendFileSync(file('starts.log'), `${process.pid}\n`));
 
 process.on('SIGTERM', () => {
   writeFileSync(file('stopped'), 'SIGTERM');

@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 43.1.1 — Steadier browser starts
+
+- **The browser starts even when its first start fails.** A start can die at once when something else takes its address first. It now picks a new address and tries again, three starts at most, before it says *the browser did not start*.
+- **A browsing task waiting on another's start takes over when that start fails.** Before, it waited out the full minute and reported that the browser did not start.
+- **The browser script's tests pass on a busy machine.** Three tests failed now and then on the automatic checks and stopped a publish until rerun. They now end their waits by what they wait for, not by a short clock.
+
+**Updating.** Nothing to do.
+
 ## 43.1.0 — Smoother install and connect
 
 - **Setup puts the files in place in one ready-made step.** The assistant no longer writes its own copy step. One step copies everything, makes the folder links, the wiki's starting pages, the ignore rules and the install record, the same way on every install. If this computer refuses a folder link, it stops, leaves the folder as it found it, and says how to fix it.
