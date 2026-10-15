@@ -50,7 +50,7 @@ This page sets how a question **looks**, never which actions **need** one. An ac
 
 ## End every reply with the next step
 
-Before you finish, ask **what the user must decide for the work to continue**, in this format, through [the first callable tool](#which-tool-carries-it). Write the report and any link as chat text first; the tool carries only the question. Only the replies to *Review the plan* and *See the preview* end without a question.
+Before you finish, ask **what the user must decide for the work to continue**, in this format, through [the first callable tool](#which-tool-carries-it). Write the report and each link as its own chat line first, never in the tool's question or options nor only in your reasoning; an option may name a link, never repeat it. Only the replies to *Review the plan* and *See the preview* end without a question.
 
 - Finished standalone `/explore`: *Plan it (Recommended)* / *Keep thinking* / *Stop*.
 - Finished plan: [the plan's link](#print-the-plans-link), then *Build it now (Recommended)* / *Build and publish* / *Review the plan* / *Stop here*. *Build and publish* runs `/ship`. The person may paste notes.
@@ -62,7 +62,7 @@ Before you finish, ask **what the user must decide for the work to continue**, i
 
 ## Print the plan's link
 
-When a reply makes or changes a plan or its checklist, print *Click here to see the plan:* and the link as one chat line just above the closing question, even when the build goes on: it adds no stop. Copy the line whole from the page builder, never shortened: [the reply link](../../../../wiki/development/reply-links.md) when one opens, else the `review.html` file; on *new link*, rerun the builder. Keep it out of the question itself: a tool's card may not make a link clickable. Status, branch, Open questions, and Decision-log lines alone are record-keeping, not a change.
+When a reply makes or changes a plan or its checklist, print *Click here to see the plan:* and the link as [one chat line](#end-every-reply-with-the-next-step) just above the closing question, even when the build goes on: it adds no stop. Copy the line whole from the page builder, never shortened: [the reply link](../../../../wiki/development/reply-links.md) when one opens, else the `review.html` file; on *new link*, rerun the builder. Status, branch, Open questions, and Decision-log lines alone are record-keeping, not a change.
 
 Some hosts hide text above a question card, so **any closing question in a reply that made or changed a plan offers *Review the plan*.** Picking it starts nothing: the next reply ends with the link line, a blank line, the builder's *When you're ready, type `/apply` to build it.* line, and no question. Leave that line out of every other reply: a closing question that offers to build is the one way on.
 

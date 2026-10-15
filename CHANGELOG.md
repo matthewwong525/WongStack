@@ -3,6 +3,12 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 43.2.1 — Every link in the chat
+
+- **Every link you need sits in the chat message, on its own line.** Before, a pull request, key link, or private form sometimes landed inside a question box, where it can't be clicked, or only in the assistant's hidden reasoning, where nobody sees it. A choice may still point at the link above it, such as *Review the plan*, but never repeats the address.
+
+**Updating.** Nothing to do.
+
 ## 43.2.0 — A clear invite for teammates
 
 - **When you give someone the project in Access, a popup gives you the message to forward.** A save that newly lets a person install the project, whether you just added them, they were already listed, or a role you picked in their row gives it, opens a popup with the message and a *Copy* button. It names the app's address and the email to sign in with, says to install an assistant if they have none, such as Claude Code or Codex, and carries the setup message, so they paste the whole message into their assistant's chat and sign in. The app sends nothing; you send it however you like. Other saves just say *Saved.*. To copy it again, open the person: *Message to send them* folds out under their *Can install the project* tick.
