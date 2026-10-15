@@ -62,7 +62,7 @@ fs.writeFileSync(path.join(dir, 'server.js'), '');
 /** Runs a command and asserts it worked; returns its stdout. */
 function ok(f, ...args) {
   const out = f.run(...args);
-  assert.equal(out.status, 0, `${args.join(' ')}: ${out.stdout}${out.stderr}`);
+  assert.equal(out.status, 0, `${args.join(' ')}: ${out.stdout}${out.stderr}${f.camofox.errors()}`);
   return out.stdout;
 }
 
@@ -231,7 +231,32 @@ test('open reads the page only once it settles, and a second open moves the same
 test('a page that never settles is read after the settle wait, not forever', t => {
   const f = fixture(t);
   f.camofox.set('snapshots.json', Array.from({ length: 400 }, (_, index) => `tick ${index}`));
+  const out = f.runWith({ BROWSE_SETTLE_MS: '300' }, 'open', SHOP);
+  assert.equal(out.status, 0, out.stdout + out.stderr + f.camofox.errors());
+  assert.equal(out.stdout, `BROWSE_URL=${SHOP}\n`);
+  const reads = f.camofox.calls().filter(call => call === 'GET /tabs/:tab/snapshot').length;
+  assert.ok(reads < 400, `the settle wait ended the reads, not the page: ${reads} reads`);
+});
+
+test('a start that dies before it answers is tried again on a new port', t => {
+  const f = fixture(t);
+  f.camofox.set('die-once');
   assert.equal(ok(f, 'open', SHOP), `BROWSE_URL=${SHOP}\n`);
+  assert.ok(!f.camofox.has('die-once'), 'the first start died');
+  assert.equal(f.camofox.starts(), 1);
+  assert.ok(!existsSync(join(f.camofox.install, 'start.lock')), 'the start lock is released');
+});
+
+test('a task waiting on another\'s start starts the browser itself when that start ends with none', async t => {
+  const f = fixture(t);
+  mkdirSync(join(f.camofox.install, 'start.lock'), { recursive: true });
+  const opening = f.start('open', SHOP);
+  await new Promise(done => setTimeout(done, 500));
+  rmSync(join(f.camofox.install, 'start.lock'), { recursive: true, force: true });
+  const out = await opening;
+  assert.equal(out.status, 0, out.stdout + out.stderr + f.camofox.errors());
+  assert.equal(out.stdout, `BROWSE_URL=${SHOP}\n`);
+  assert.equal(f.camofox.starts(), 1);
 });
 
 test('each command reaches its own route with the session\'s tab, as the person', t => {
@@ -391,9 +416,10 @@ test('a browser that stops answering is reported', t => {
 
 test('two sessions started at once share one server, and close in one leaves the other\'s tab open', async t => {
   const f = fixture(t);
+  f.camofox.set('die-once');
   const [a, b] = await Promise.all([f.start('open', SHOP, '--session', 'a'), f.start('open', ACCOUNT, '--session', 'b')]);
-  assert.equal(a.status, 0, a.stdout + a.stderr);
-  assert.equal(b.status, 0, b.stdout + b.stderr);
+  assert.equal(a.status, 0, a.stdout + a.stderr + f.camofox.errors());
+  assert.equal(b.status, 0, b.stdout + b.stderr + f.camofox.errors());
   assert.equal(f.camofox.starts(), 1, 'the second waited for the first\'s server');
   assert.deepEqual(f.camofox.tabs().map(tab => [tab.user, tab.session, tab.url]).sort(), [['me', 'a', SHOP], ['me', 'b', ACCOUNT]]);
 
@@ -412,6 +438,9 @@ test('two sessions started at once share one server, and close in one leaves the
 test('a start lock left by a dead start is cleared, and a live one is waited on', t => {
   const f = fixture(t);
   mkdirSync(join(f.camofox.install, 'start.lock'), { recursive: true });
+  // Dated ahead, so the lock reads as live however slowly the waiting task starts.
+  const ahead = new Date(Date.now() + 3_600_000);
+  utimesSync(join(f.camofox.install, 'start.lock'), ahead, ahead);
   const waited = f.runWith({ BROWSE_START_MS: '400' }, 'open', SHOP);
   assert.equal(waited.stdout, 'BROWSE_ERROR=the browser did not start\n', 'another task holds the start and no server came');
   const old = new Date(Date.now() - 3_600_000);
