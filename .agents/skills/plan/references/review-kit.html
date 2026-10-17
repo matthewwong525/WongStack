@@ -51,6 +51,8 @@
   .frame { overflow:auto; border-top:1px solid var(--line); background:var(--fill); touch-action:pan-y; }
   .js .frame { overflow:hidden; cursor:zoom-in; }
   .art { display:block; width:max-content; margin:0; padding:.6em .8em; font-size:13px; line-height:1.2; white-space:pre; overflow-wrap:normal; }
+  .art.pic { box-sizing:content-box; white-space:normal; --pele-bg:transparent; --pele-fg:var(--ink); --pele-muted:var(--muted); --pele-line:var(--ink); --pele-border:var(--line); --pele-surface:#fff; --pele-surface-alt:var(--fill); --pele-accent:var(--ink); }
+  .art.pic svg { display:block; width:100%; height:auto; }
   .art .pin { min-width:1.8em; min-height:1.6em; margin-left:.4em; padding:0 .5em; border-radius:.8em; font-size:.85em; line-height:1.5em; }
   .enlarge { position:absolute; top:6px; right:12px; min-height:32px; padding:2px 10px; font-size:13px; }
   .add { min-width:0; min-height:34px; margin-left:6px; padding:0 12px; border-color:#aaa; border-radius:17px; color:var(--muted); font-size:13px; vertical-align:middle; }
@@ -146,7 +148,7 @@
 <div id="viewer" role="dialog" aria-modal="true" aria-label="Drawing, full screen" hidden>
   <div class="zoom"><span class="level"></span><button type="button" aria-label="Zoom out">−</button><button type="button">Fit</button><button type="button" aria-label="Zoom in">+</button><button type="button" class="primary">Close</button></div>
   <div class="vframe"></div>
-  <p class="vhint">Drag to move · pinch or + to zoom · tap a line to note it</p>
+  <p class="vhint">Drag to move · pinch or + to zoom · tap a line or picture to note it</p>
 </div>
 <div class="bar" data-busy="false"><button type="button" class="primary" id="copy"><span class="spinner" hidden aria-hidden="true"></span><span id="copy-label">Copy notes</span></button>
   <div id="ready" hidden>
@@ -192,15 +194,18 @@
 
   // ── targets: a data-note id names its location; the label pins a note to its text ──
   function where(id) {
-    const m = /^(why|item|decision)-(\d+)(?:-line-(\d+))?$/.exec(id) || [];
+    const m = /^(why|item|decision)-(\d+)(?:-(line|picture)-(\d+))?$/.exec(id) || [];
     if (m[1] === 'why') return { at: '#/why', kind: 'paragraph ' + m[2], spot: 'Why, paragraph ' + m[2] };
-    if (m[1] === 'item') return { at: '#/' + m[2], kind: m[3] ? 'drawing line ' + m[3] : 'item', spot: 'Change #' + m[2] + (m[3] ? ', drawing line ' + m[3] : '') };
+    const part = m[3] === 'picture' ? 'picture ' + m[4] : m[3] ? 'drawing line ' + m[4] : '';
+    if (m[1] === 'item') return { at: '#/' + m[2], kind: part || 'item', spot: 'Change #' + m[2] + (part ? ', ' + part : '') };
     return { at: '#/decisions/' + m[2], kind: 'decision', spot: 'Decision #' + m[2] };
   }
   function labelOf(el) {
     const c = el.cloneNode(true);
-    Array.prototype.forEach.call(c.querySelectorAll('.pin, .meta, .add'), function (n) { n.parentNode.removeChild(n); });
-    const text = c.textContent.replace(/\s+/g, ' ').trim();
+    Array.prototype.forEach.call(c.querySelectorAll('.pin, .meta, .add, title, desc'), function (n) { n.parentNode.removeChild(n); });
+    // A picture's labels are separate SVG text elements: join them with spaces so they read as words.
+    const parts = el.classList.contains('pic') ? Array.prototype.map.call(c.querySelectorAll('text'), function (n) { return n.textContent; }) : [c.textContent];
+    const text = parts.join(' ').replace(/\s+/g, ' ').trim();
     return where(el.getAttribute('data-note')).kind + ' "' + (text.length > 60 ? text.slice(0, 59) + '…' : text) + '"';
   }
   function find(id, label) {

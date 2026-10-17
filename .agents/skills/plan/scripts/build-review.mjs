@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Build a portable review page: parse proposal.md into static, escaped HTML inside the shared kit.
 import { existsSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
@@ -12,14 +13,24 @@ const start = '<!-- proposal:start -->';
 const end = '<!-- proposal:end -->';
 const WIDE = 60;
 const TECHNICAL = 12;
+const PICTURE_WIDE = 640;
+const BASE_PX = 13;
+const PICTURE_FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+const UNSAFE_SVG = ['<script', '<style', '<foreignObject', 'url(', 'href=', 'src='];
 const USAGE = `usage: build-review.mjs <change-root> [--require-current] [--link]
   --link  print the page's reply link, whose buttons send notes to this chat or ask it to build; the file where none can open`;
 const kitPath = resolve(dirname(fileURLToPath(import.meta.url)), '../references/review-kit.html');
+// Pele draws Mermaid at build time. It loads only for a proposal that holds a Mermaid fence,
+// so text-only builds load nothing new.
+let pele = null;
+const loadPele = () => (pele ??= createRequire(import.meta.url)('../vendor/pele.mjs'));
 
 const esc = text => String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const scheduledGoal = root => {
   try { return /^schema:[ \t]*(?:scheduled-work|'scheduled-work'|"scheduled-work")[ \t]*(?:#.*)?$/m.test(readFileSync(join(root, '.openspec.yaml'), 'utf8')); } catch { return false; }
 };
+// Labels are text nodes, escaped by Pele: check only the markup, so a label like `src=x` stays a label.
+export const unsafeSvg = svg => UNSAFE_SVG.find(bad => svg.replace(/>[^<]*</g, '><').includes(bad));
 const safeHref = href => !/^[a-z][\w+.-]*:/i.test(href) || /^(?:https?|mailto):/i.test(href);
 
 function one(text, marker, name) {
@@ -61,10 +72,10 @@ function blocks(section, noun) {
       else fence.lines.push(line.replace(fence.indent, ''));
       return;
     }
-    const open = /^(\s*)`{3,}\s*[\w-]*\s*$/.exec(line);
+    const open = /^(\s*)`{3,}\s*([\w-]*)\s*$/.exec(line);
     if (open) {
       if (!item) throw new Error(`proposal.md line ${at}: a fence outside any bullet in ## ${section.title} (a blank line ends a bullet)`);
-      fence = { at, indent: new RegExp(`^ {0,${open[1].length}}`), lines: [] };
+      fence = { at, lang: open[2].toLowerCase(), indent: new RegExp(`^ {0,${open[1].length}}`), lines: [] };
       item.drawings.push(fence);
       return;
     }
@@ -112,12 +123,37 @@ function drawing(item, fence, first, warnings) {
     + `<div class="frame"><pre class="art">\n${lines.join('\n')}</pre></div></details>`;
 }
 
+// A Mermaid fence becomes an inline SVG picture, drawn once here; the page runs no renderer.
+// The wrapper's width is in em so the kit's font-size fit and zoom resize it like a text drawing.
+function picture(item, fence, k, warnings) {
+  const id = `item-${item.n}-picture-${k}`, where = `item ${item.n}, picture ${k}`;
+  let drawn;
+  try {
+    drawn = loadPele().render(fence.lines.join('\n'), { idPrefix: id, autoDirection: false, fontFamily: PICTURE_FONT, links: false, images: false, now: 0 });
+  } catch (error) {
+    const line = error && error.name === 'PeleError' && error.line > 0 ? fence.at + error.line : fence.at;
+    // Pele's message adds the source and a caret on later lines; the status line keeps only the first.
+    const message = String(error && error.message ? error.message : error).split('\n')[0].replace(/:\s*$/, '');
+    throw new Error(`proposal.md line ${line}: ${where}: ${message}`);
+  }
+  const unsafe = unsafeSvg(drawn.svg);
+  if (unsafe) throw new Error(`proposal.md line ${fence.at}: ${where}: the drawn picture holds ${unsafe}; draw it without links, images, or styles`);
+  if (drawn.width > PICTURE_WIDE) warnings.push(`proposal.md line ${fence.at}: ${where} is ${Math.round(drawn.width)} px wide; keep pictures under ${PICTURE_WIDE}: fewer boxes in a row, or shorter labels`);
+  const em = Number((drawn.width / BASE_PX).toFixed(3));
+  return '<details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary>'
+    + `<div class="frame"><div class="art pic" data-note="${id}" tabindex="0" style="width:${em}em">${drawn.svg}</div></div></details>`;
+}
+
 function changes(section, warnings) {
   let html = '', open = false;
   for (const block of blocks(section, 'item')) {
     if (!block.n) { html += `${open ? '</ol>\n' : ''}<p class="aside">${inline(block.text)}</p>\n`; open = false; continue; }
-    let first = 1;
-    const art = block.drawings.map(fence => { const out = drawing(block, fence, first, warnings); first += fence.lines.length; return out; });
+    // Text drawings number their lines across the item; a picture takes no line numbers.
+    let first = 1, pictures = 0;
+    const art = block.drawings.map(fence => {
+      if (fence.lang === 'mermaid') return picture(block, fence, ++pictures, warnings);
+      const out = drawing(block, fence, first, warnings); first += fence.lines.length; return out;
+    });
     const text = block.text.replace(/\s*\(review\.html#\/[^)]*\)\s*$/, '');
     html += `${open ? '' : '<ol class="items">\n'}<li class="item card" id="item-${block.n}"><span class="num">${block.n}</span><div class="body">`
       + `<div class="text" data-note="item-${block.n}" tabindex="0">${inline(text)}</div></div>${art.join('')}</li>\n`;

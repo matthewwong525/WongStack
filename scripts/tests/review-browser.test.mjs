@@ -937,3 +937,32 @@ browserTest('unconfirmed action responses preserve notes and allow retry with th
     await context.close();
   }
 });
+
+browserTest('a picture fits a 320px screen, zooms full screen, and takes a note on the whole picture', async () => {
+  const { url } = fixture(proposal.replace(`  ${fence}text\n  you ask\n     │\n  done\n  ${fence}`,
+    `  ${fence}mermaid\n  flowchart LR\n    A[you ask] --> B[a plan] --> C[a review] --> D[the build] --> E[live]\n  ${fence}`));
+  const { page, context, errors } = await open(url, { width: 320 });
+  await page.locator('#item-1 summary').click();
+  await page.waitForFunction(() => parseFloat(getComputedStyle(document.querySelector('#item-1 .art.pic')).fontSize) < 13);
+  const fits = await page.evaluate(() => {
+    const frame = document.querySelector('#item-1 .frame').getBoundingClientRect(), svg = document.querySelector('#item-1 .art.pic svg').getBoundingClientRect();
+    return { inside: svg.left >= frame.left - 1 && svg.right <= frame.right + 1, page: document.documentElement.scrollWidth <= innerWidth, drawn: svg.height > 0 };
+  });
+  assert.deepEqual(fits, { inside: true, page: true, drawn: true });
+  await page.locator('#item-1 .enlarge').click();
+  const vframe = page.locator('#viewer .vframe');
+  const width = () => vframe.evaluate(el => el.querySelector('svg').getBoundingClientRect().width);
+  const fitted = await width();
+  await page.locator('#viewer button[aria-label="Zoom in"]').click();
+  assert.ok(await width() > fitted, 'zooming in grows the picture');
+  await page.locator('#viewer [data-note="item-1-picture-1"]').click({ position: { x: 4, y: 4 } });
+  await page.locator('#chip').click();
+  assert.equal(await page.locator('#editor-where').innerText(), '#/1 · picture 1 "you ask a plan a review the build live"');
+  await page.locator('#editor textarea').fill('Add a check step.');
+  await page.locator('#editor [data-act="save"]').click();
+  await page.keyboard.press('Escape');
+  assert.equal(await page.locator('#item-1 summary .count').innerText(), '· 1 note');
+  assert.match(await copied(page), /^- Change #1, picture 1 \("you ask a plan a review the build live"\): Add a check step\.$/m);
+  assert.deepEqual(errors, []);
+  await context.close();
+});

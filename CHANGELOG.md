@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 43.3.0 — Plan pages draw flows as pictures
+
+- **A plan's steps, states, and back-and-forth flows show as clean pictures.** The plan writes a flow as a short Mermaid diagram, and the review page shows it laid out for you, with no crooked boxes. The picture is made when the page is built, so the page still works offline, from a clone, on a laptop or a phone.
+- **Screens, tables, and before-and-after sketches stay text drawings**, and drawings in chat stay text, because chat can't show a picture.
+- **A note on a picture names the picture.** Tap the picture full screen to note it; the copied note says *Change #1, picture 1*.
+- **A mistake in a picture says where, in one line.** The build stops, names the item, the picture, and the line, and the last good page stays. A label that only mentions a link word, such as `src=x`, still draws.
+
+**Updating.** Nothing to do. Plans already written keep their text drawings and look the same.
+
 ## 43.2.1 — Every link in the chat
 
 - **Every link you need sits in the chat message, on its own line.** Before, a pull request, key link, or private form sometimes landed inside a question box, where it can't be clicked, or only in the assistant's hidden reasoning, where nobody sees it. A choice may still point at the link above it, such as *Review the plan*, but never repeats the address.

@@ -28,14 +28,12 @@ Why and What Changes use [plain words](../explore/references/asking-the-user.md#
 
 ## Draw in the proposal, then build the page
 
-Draw as you write, with no second agent or browser. One What Changes bullet carries one drawing by default, plus a sketch of each new or restructured user-facing screen; draw more only where a bullet can not be understood without it. A drawing is a fenced `text` block indented inside its bullet, drawn by [the drawing guide](references/drawings.md) ([what a sketch holds](../../../wiki/ux-principles.md#the-review-file)).
+Draw as you write, with no second agent or browser: one drawing per What Changes bullet by default, plus a sketch of each new or restructured user-facing screen; more only where a bullet needs it. A drawing is a fence indented inside its bullet, by [the drawing guide](references/drawings.md): `mermaid` for a flow, `text` for a screen or table.
 
     - **Save goes through one gate.** …
-      ```text
-      /apply ──▶ archive
-                   │
-                   ▼
-              one /save ──▶ CI
+      ```mermaid
+      flowchart LR
+        apply["/apply"] --> archive --> save["one /save"] --> CI
       ```
 
 Build the page after drafting and after each later edit:
@@ -44,7 +42,7 @@ Build the page after drafting and after each later edit:
 node "$(git rev-parse --show-toplevel)/.claude/skills/plan/scripts/build-review.mjs" "<change-root>" --require-current --link
 ```
 
-It prints a status line, the plan's link line, and the next-step line, to copy as is; [print the plan's link](../explore/references/asking-the-user.md#print-the-plans-link) says when the next-step line goes. `--link` makes the link [a reply link](../../../wiki/development/reply-links.md) where one opens. Fix warned drawings. Keep no other copy of the proposal's text: a second copy goes stale.
+Copy its status, link, and next-step lines as printed; [print the plan's link](../explore/references/asking-the-user.md#print-the-plans-link) says when the last goes. `--link` makes the link [a reply link](../../../wiki/development/reply-links.md) where one opens. Fix warned drawings. Keep no other copy of the proposal's text: a second copy goes stale.
 
 A change that adds or restructures a screen gets [a `## UX` design section](../../../wiki/ux-principles.md#the--ux-section-in-designmd); sketch phone work phone-first. UI-less changes omit it.
 
