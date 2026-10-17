@@ -64,3 +64,4 @@ None.
 - **2026-10-17** — Assumed: a `minor` release, because plans gain a new kind of drawing.
 - **2026-10-17** — Assumed: wrap ClaymooApp's 131-character Pele comment in the builder onto two lines, because WongStack's comment lint caps a line at 120; ClaymooApp takes the wrapped copy at its next sync.
 - **2026-10-17** — Assumed: commit and push the branch but open no pull request until Matthew approves it, because he asked to stop before the public pull request.
+- **2026-10-17** — Asked to publish after the pull request opened with every check passing → chose `/ship`; archived as 43.3.0 and saved for shipping.

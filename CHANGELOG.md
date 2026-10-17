@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Plan pages draw flows as pictures
+## 43.3.0 — Plan pages draw flows as pictures
 
 - **A plan's steps, states, and back-and-forth flows show as clean pictures.** The plan writes a flow as a short Mermaid diagram, and the review page shows it laid out for you, with no crooked boxes. The picture is made when the page is built, so the page still works offline, from a clone, on a laptop or a phone.
 - **Screens, tables, and before-and-after sketches stay text drawings**, and drawings in chat stay text, because chat can't show a picture.
