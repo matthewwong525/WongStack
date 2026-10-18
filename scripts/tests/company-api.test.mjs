@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { companyClient, companyOrigin, combinedList, cloudflared, loginUrl, listLines, saveAnswer, serviceLines, shortAnswer, withNotes } from '../company-api.mjs';
+import { companyClient, companyOrigin, combinedList, cloudflared, loginUrl, listLines, saveAnswer, serviceLines, shortAnswer, withKeyNotes, withNotes } from '../company-api.mjs';
 import { memoryOperations } from '../../.agents/skills/memory/scripts/operations.mjs';
 import { refuseExternalReferences, selectOperations } from '../../.agents/skills/memory/scripts/lib/operations.mjs';
 
@@ -274,6 +274,25 @@ test('describe prints compact JSON without the shared error shape; --json prints
   assert.equal(brief.stdout.trim().split('\n').length, 1); const { errorSchema, ...rest } = operation;
   assert.deepEqual(JSON.parse(brief.stdout), rest); assert.ok(errorSchema);
   assert.deepEqual(JSON.parse(cli.run(['describe', 'hello.greeting', '--json']).stdout), operation);
+});
+test('describe adds each key\'s notes page in this checkout, written or not, and leaves a memory operation as it is', t => {
+  const root = mkdtempSync(join(tmpdir(), 'company-notes-')); t.after(() => rmSync(root, { recursive: true, force: true }));
+  mkdirSync(join(root, 'wiki/services'), { recursive: true }); writeFileSync(join(root, 'wiki/services/stripe.md'), '# Stripe\n');
+  const keys = [{ id: 'stripe', name: 'Stripe', purpose: 'Payments and refunds', docs: 'https://docs.stripe.com/api', level: 'read' },
+    { id: 'xero', name: 'Xero', purpose: 'Books', level: 'write' }, { id: '../odd', level: 'read' }];
+  assert.deepEqual(withKeyNotes(descriptor({ keys }), root).keys, [{ ...keys[0], notes: { path: 'wiki/services/stripe.md', exists: true } },
+    { ...keys[1], notes: { path: 'wiki/services/xero.md', exists: false } }, keys[2]]);
+  const memory = memoryOperations.find(operation => operation.operationId === 'memory.search');
+  assert.equal(withKeyNotes(memory, root), memory); assert.equal(withKeyNotes(undefined, root), undefined);
+  // As a chat runs it: this checkout has no page for a made-up key, in the short and the --json answer alike.
+  const operation = descriptor({ keys: [{ id: 'sample-service', name: 'Sample', purpose: 'Sample work', level: 'read' }] });
+  const cli = helperCli(t, `async target => target.searchParams.has('id') ? Response.json(${JSON.stringify(operation)}) : undefined`);
+  for (const flags of [[], ['--json']]) {
+    const described = cli.run(['describe', 'hello.greeting', ...flags]); assert.equal(described.status, 0, described.stderr);
+    assert.deepEqual(JSON.parse(described.stdout).keys, [{ ...operation.keys[0], notes: { path: 'wiki/services/sample-service.md', exists: false } }]);
+  }
+  const searched = cli.run(['describe', 'memory.search', '--json']); assert.equal(searched.status, 0, searched.stderr);
+  assert.deepEqual(JSON.parse(searched.stdout), JSON.parse(JSON.stringify(memory)));
 });
 test('a call answer over 20 KB is saved whole to a private file and the chat sees its start; --full prints all of it', t => {
   const cli = helperCli(t, `async (target, init) => {
