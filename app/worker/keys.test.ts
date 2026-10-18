@@ -2,9 +2,8 @@ import { readFileSync } from "node:fs";
 import { expect, it } from "vitest";
 import { keys } from "./keys";
 
-// The core's own keys are no business keys: the sign-in list's, and the one that seals MCP sign-ins. No route lists
-// either, and Access shows no level for them.
-const CORE = ["WONG_ACCESS_LOGIN_MANAGEMENT", "WONG_MCP_SEAL"];
+// The core's own key for the sign-in list is no business key: no route lists it and Access shows no level for it.
+const CORE = ["WONG_ACCESS_LOGIN_MANAGEMENT"];
 type Registry = Record<string, { secrets: readonly string[] }>;
 type Described = Record<string, { purpose?: string; docs?: string; forward?: object }>;
 

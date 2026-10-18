@@ -3,7 +3,7 @@ import { Link } from 'react-router'
 import { Button } from '@/components/ui/button'
 import { DropdownMenuItem } from '@/components/ui/dropdown-menu'
 import { isAdmin, type Person } from '../../lib/access'
-import { at, viewLabel, type ViewProps } from './address'
+import { at, type ViewProps } from './address'
 import { Confirm, MakeAdmin } from './Confirm'
 import { dots, summary } from './levels'
 import { PersonPage } from './PersonPage'
@@ -26,7 +26,7 @@ export function People(props: ViewProps) {
   const opened = status.people.find(item => item.email === id)
   const you = (email: string) => email === viewer && 'You'
   return <View {...props} add={<Button asChild><Link to={at('people', 'new')}><span aria-hidden="true">+ </span>Add person</Link></Button>}>
-    <Table labelledBy={viewLabel(props.view)} columns={COLUMNS} actions="Actions">
+    <Table view={props.view} columns={COLUMNS} actions="Actions">
       <Row>
         <Name title={status.ownerEmail} marks={[you(status.ownerEmail)]} />
         <Cell className="text-muted-foreground">Can sign in</Cell>

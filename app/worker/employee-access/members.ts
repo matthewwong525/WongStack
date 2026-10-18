@@ -73,8 +73,6 @@ export async function changeMember(core: Core, value: unknown): Promise<void> {
       .bind(id, member.email, status, id, now()),
     ...setWrites(core, "people", member.email, own),
     ...roleWrites(core, owner, member.email, role),
-    // A person who leaves takes their MCP sign-ins with them, and with those any share.
-    ...(member.removed ? [core.db.prepare("DELETE FROM wong_mcp_connections WHERE installation_id = ? AND email = ?").bind(id, member.email)] : []),
   ];
   // Only a change to who may sign in needs the provider, and only the live app has one.
   const kinds = !core.live || existing?.status === status ? [] : ["policy", ...(member.removed ? ["sessions"] : [])];

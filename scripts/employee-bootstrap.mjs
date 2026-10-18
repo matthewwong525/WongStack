@@ -25,10 +25,8 @@ export function cleanEnvironment() {
   return Object.fromEntries(['PATH', 'HOME', 'USER', 'LOGNAME', 'LANG', 'LC_ALL', 'TMPDIR', 'SYSTEMROOT'].filter(key => process.env[key]).map(key => [key, process.env[key]]));
 }
 const MAX_RESPONSE = 1048576;
-// A call's answer may be an MCP's (the app reads up to 4 MB, then wraps it) and waits up to the app's 60 s.
+// A call's answer may reach an action's largest output, 4 MB, with room to spare, and wait out its longest 60 s.
 const MAX_ANSWER = 8 * MAX_RESPONSE, ANSWER_WAIT = 75000;
-// The app's own refusal, with the step that fixes it, not an ended sign-in.
-const ANSWERED_REFUSALS = new Set(['mcp_share_read_only']);
 const missing = (program, from) => `Install ${program} from its official distribution (${from}), then run this step again. No account or key is needed.`;
 export function companyOrigin(value) {
   let url;
@@ -115,11 +113,6 @@ export async function responseJson(response, limit = MAX_RESPONSE) {
   finally { await reader.cancel(); }
   try { return JSON.parse(text); } catch { throw new Error('Company returned an unreadable response'); }
 }
-
-// The route each kind of operation may call. An MCP tool's name is one encoded segment; a dot segment never passes.
-const ROUTES = { company: /^\/(?:api\/[A-Za-z0-9/_-]+|apps\/[a-z0-9-]+\/api\/[A-Za-z0-9/_-]+)$/,
-  mcp: /^\/api\/mcp\/[a-z0-9][a-z0-9-]*\/tools\/(?!\.*$)(?!.*%2e)(?:[A-Za-z0-9_.~-]|%[0-9A-Fa-f]{2})+$/i };
-const route = source => (Object.hasOwn(ROUTES, source) ? ROUTES[source] : null);
 
 /** Under the company origin: Git's read protocol for the one project, behind the same sign-in. */
 const CODE_PATH = '/api/access/code/git/';
@@ -250,14 +243,12 @@ export function companyClient({ root = process.cwd(), stateDir, routesDir = defa
       throw new Error(business ? `Company call did not complete; its outcome may be unknown. Do not automatically repeat it.${business.check}` : 'Company discovery is unreachable; no business action was called.');
     }
     if (response.status >= 300 && response.status < 400) throw new Error('Company redirect refused; use company login.');
-    const denied = new Error('Company session expired or access was denied; use the employee’s own login.');
-    if (response.status === 401) throw denied;
+    if (response.status === 401 || response.status === 403) throw new Error('Company session expired or access was denied; use the employee’s own login.');
     let value;
     try { value = await responseJson(response, business ? MAX_ANSWER : MAX_RESPONSE); }
-    catch { if (response.status === 403) throw denied; throw new Error(business ? `Company response did not complete; its outcome may be unknown. Do not automatically repeat the action.${business.check}` : 'Company discovery did not complete; no business action was called.'); }
+    catch { throw new Error(business ? `Company response did not complete; its outcome may be unknown. Do not automatically repeat the action.${business.check}` : 'Company discovery did not complete; no business action was called.'); }
     // Headers/session values must never become agent context, even on a bad server response.
     if (JSON.stringify(value).includes(credential)) throw new Error('Company response contained authentication material');
-    if (response.status === 403 && !ANSWERED_REFUSALS.has(value?.error?.code)) throw denied;
     if (!response.ok && !value.error) throw new Error(`Company request failed (HTTP ${response.status})`);
     return { value, status: response.status };
   }
@@ -285,9 +276,9 @@ export function companyClient({ root = process.cwd(), stateDir, routesDir = defa
   async function describe(id) {
     const { value } = await http(`/api/actions?id=${encodeURIComponent(id)}`);
     refuseExternalReferences(value);
-    if (['servers', 'command', 'args', 'adapter', 'executable'].some(key => Object.hasOwn(value, key)) || value.operationId !== id || id.startsWith('memory.') || !route(value.source) || value.transport !== 'http' ||
+    if (['servers', 'command', 'args', 'adapter', 'executable'].some(key => Object.hasOwn(value, key)) || value.operationId !== id || id.startsWith('memory.') || value.source !== 'company' || value.transport !== 'http' ||
       !['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'].includes(value.method) || !['none', 'query', 'json'].includes(value.encoding) ||
-      typeof value.path !== 'string' || !route(value.source).test(value.path) ||
+      typeof value.path !== 'string' || !/^\/(?:api\/[A-Za-z0-9/_-]+|apps\/[a-z0-9-]+\/api\/[A-Za-z0-9/_-]+)$/.test(value.path) ||
       (value.confirmWith !== undefined && (typeof value.confirmWith !== 'string' || !/^[a-z][a-z0-9-]*(\.[a-z][a-z0-9-]*)+$/.test(value.confirmWith)))) throw new Error('Invalid live company operation');
     return value;
   }
@@ -295,7 +286,7 @@ export function companyClient({ root = process.cwd(), stateDir, routesDir = defa
     const query = new URLSearchParams(Object.entries(filters).map(([key, value]) => [key, String(value)]));
     const { value } = await http(`/api/actions?${query}`);
     refuseExternalReferences(value);
-    if (!Array.isArray(value.actions) || value.actions.length > 50 || value.actions.some(action => action.operationId.startsWith('memory.') || !route(action.source) || action.transport !== 'http')) throw new Error('Invalid company catalogue');
+    if (!Array.isArray(value.actions) || value.actions.length > 50 || value.actions.some(action => action.operationId.startsWith('memory.') || action.source !== 'company' || action.transport !== 'http')) throw new Error('Invalid company catalogue');
     return value;
   }
   async function call(id, input) {

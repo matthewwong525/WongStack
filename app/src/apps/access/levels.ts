@@ -11,6 +11,8 @@ const LEVEL = { read: 'Read', write: 'Read & write' }
 export const levelName = (level: Level | null) => level ? LEVEL[level] : 'None'
 /** The parts of one line, the empty ones left out. */
 export const dots = (...parts: (string | false | null | undefined)[]) => parts.filter(Boolean).join(' · ')
+/** The keys Services lists: every registered key but the project's own code, which Access gives as its own ticks. */
+export const keyRows = (keys: SavedKey[]) => keys.filter(key => key.id !== 'code')
 /** A number with its word: `1 app`, `2 apps`, `3 people`. */
 export const count = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
 

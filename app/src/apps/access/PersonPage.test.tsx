@@ -99,7 +99,7 @@ it('shows each person on one line with their role and counts, with nothing marke
   expect((await cells('gone@shop.com')).slice(0, 4)).toEqual(['gone@shop.com', 'Removed', 'No role', 'No apps']); expect(gone.queryByRole('combobox')).toBeNull()
   fireEvent.click(lee.getByRole('link', { name: 'lee@shop.com' }))
   const opened = await panel('lee@shop.com'); expect(where()).toBe('/apps/access/people/lee@shop.com')
-  // The list and the two views stay in place beside the panel, with her row marked.
+  // The list and the views stay in place beside the panel, with her row marked.
   expect(screen.getByRole('table', { name: 'People' }).querySelector('tr[aria-current="true"] a')!.textContent).toBe('lee@shop.com'); expect(screen.getByRole('navigation', { name: 'Access views' })).toBeTruthy()
   expect(opened.getByText('Can sign in')).toBeTruthy()
   expect(role().value).toBe('sales'); expect(screen.queryByLabelText('Email')).toBeNull()

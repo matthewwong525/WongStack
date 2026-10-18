@@ -1,6 +1,5 @@
 import { accessConflicts } from '../../../../scripts/lib-access-config.mjs';
 // Private provisioning for interactive setup.
-import { randomBytes } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 export class AccessSetupError extends Error {
   constructor(message) {
@@ -347,25 +346,3 @@ export const loginManagementKey = (cf, { worker, policyId, ...rest }) => workerK
 export const cloudflareReadKey = (cf, options) => workerKey(cf, {
   ...options, secret: CLOUDFLARE_READ_SECRET, version: 1, slot: 'cloudflareReadKey', label: 'read-only Cloudflare key', where: 'both Workers',
 });
-
-/** The secret the app seals each person's MCP sign-in with before it reaches the database. */
-export const MCP_SEAL_SECRET = 'WONG_MCP_SEAL';
-
-/** A random seal for each of `workers` that holds none, never read back or shown. A seal already held stays:
- * a new one would leave every stored sign-in unreadable. A later Worker Cloudflare refuses is left `waiting`. */
-export async function mcpSeal(cf, { account, workers, note }) {
-  const stored = [];
-  const refused = [];
-  for (const [index, worker] of workers.entries()) {
-    const path = `/accounts/${account}/workers/scripts/${worker}/secrets`;
-    if ((await cf('GET', path)).some(item => item.name === MCP_SEAL_SECRET)) continue;
-    const text = randomBytes(32).toString('base64url');
-    await cf('PUT', path, { name: MCP_SEAL_SECRET, type: 'secret_text', text }).then(() => stored.push(worker), error => {
-      if (!index || !error.codes?.includes(NEWER_VERSION_UPLOADED)) throw error;
-      refused.push(worker);
-    });
-  }
-  const lacking = waitingOn(refused);
-  note(stored.length ? 'created' : 'reused', `MCP sign-in seal${stored.length ? `, stored in ${stored.join(' and ')}` : ''}${lacking.text}`);
-  return { status: 'ready', ...lacking.result };
-}

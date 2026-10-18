@@ -57,7 +57,7 @@ export function humanEmail(identity: AccessIdentity | null): string | null {
 }
 
 /** The verification service token the sign-in wall admits: a machine, never a person. */
-export function isChecker(identity: AccessIdentity | null): boolean {
+function checker(identity: AccessIdentity | null): boolean {
   return identity?.kind === "service" && !identity.claims.email && !!identity.claims.common_name &&
     identity.id === identity.claims.common_name;
 }
@@ -65,7 +65,7 @@ export function isChecker(identity: AccessIdentity | null): boolean {
 /** On staging and its previews the checker stands in for the owner, so a walk can open and save Access against
  *  the practice list. The environment name is committed config, never something a request sets. */
 export const checkerOwns = (env: PolicyEnv, identity: AccessIdentity | null): boolean =>
-  env.WONG_ENVIRONMENT === "staging" && isChecker(identity);
+  env.WONG_ENVIRONMENT === "staging" && checker(identity);
 
 /** The identity has already passed signed Access verification in the Worker. */
 export async function currentPolicy(env: PolicyEnv, identity: AccessIdentity | null): Promise<CurrentPolicy> {
@@ -103,7 +103,7 @@ export async function currentPolicy(env: PolicyEnv, identity: AccessIdentity | n
     const keysStarted = row.keys_enabled === 1;
     // The checker keeps every built app and every key, as before permissions started, so preview walks
     // and the look at the live app still reach them. On the live app it manages nobody: that needs the owner.
-    if (isChecker(identity)) return { state: "current", role, manages, revision: row.revision, apps: everyApp(), keys: everyKey(), keysStarted };
+    if (checker(identity)) return { state: "current", role, manages, revision: row.revision, apps: everyApp(), keys: everyKey(), keysStarted };
     // Once started, only the owner and current people pass.
     if (role !== "owner" && (!email || row.status !== "active")) return { state: "denied" };
     // The owner holds every app and every key. A person's apps and levels come from their role when they hold one.

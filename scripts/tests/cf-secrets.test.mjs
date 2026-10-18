@@ -318,32 +318,3 @@ test('secret parity lets the setup-made Cloudflare read key wait on staging, nev
   assert.equal(warned.status, 0, warned.out); assert.match(warned.out, /'OTHER_KEY' is set but not declared/);
   assert.doesNotMatch(warned.out, /'WONG_CLOUDFLARE_READ' is set but not declared/);
 });
-
-// Setup makes each Worker's MCP sign-in seal itself; a pushed one would lock out every stored sign-in.
-test('the setup-made MCP sign-in seal is refused in every push source, may wait on staging, and is never asked of the example file', t => {
-  const f = scaffold(t, { env: { staging: {} } }, { tools: { npx: logger() } });
-  const refused = file => {
-    const result = f.run('cf-secrets.mjs', ['push']);
-    assert.equal(result.status, 1, result.out); assert.deepEqual(result.calls, []);
-    assert.ok(result.out.includes(`${file} must not declare WONG_MCP_SEAL: setup stores it itself.`), result.out);
-    assert.doesNotMatch(result.out, /seal-synthetic/);
-  };
-  f.write('app/.dev.vars', 'API_KEY=synthetic\nWONG_MCP_SEAL=seal-synthetic\n');
-  refused('.dev.vars');
-  f.write('app/.dev.vars', 'API_KEY=synthetic\n'); f.write('app/.dev.vars.staging', 'API_KEY=test\nWONG_MCP_SEAL=seal-synthetic\n');
-  refused('.dev.vars.staging');
-  // The example's commented-out line declares nothing, so a source copied from it pushes.
-  f.write('app/.dev.vars.staging', 'API_KEY=test\n# WONG_MCP_SEAL=\n');
-  const valid = f.run('cf-secrets.mjs', ['push']); assert.equal(valid.status, 0, valid.out); assert.equal(valid.calls.length, 2);
-
-  const waiting = checkSecrets(t, { PROD: 'API_KEY,WONG_MCP_SEAL', STAGING: 'API_KEY' });
-  assert.equal(waiting.status, 0, waiting.out);
-  assert.match(waiting.out, /'WONG_MCP_SEAL' is on production only — the preview is waiting for it/);
-  const alone = checkSecrets(t, { PROD: 'API_KEY', STAGING: 'API_KEY,WONG_MCP_SEAL' });
-  assert.equal(alone.status, 1); assert.match(alone.out, /secret 'WONG_MCP_SEAL' is set on staging but missing from production/);
-  const listed = scaffold(t, { env: { staging: {} } }, { tools: { npx: secretList }, prefix: 'cf-secrets-check-' });
-  listed.write('app/.dev.vars.example', 'API_KEY=\n# WONG_MCP_SEAL=\n');
-  const held = listed.run('cf-secrets.mjs', ['check'], { env: { CLOUDFLARE_API_TOKEN: 'test', PROD: 'API_KEY,WONG_MCP_SEAL', STAGING: 'API_KEY,WONG_MCP_SEAL' } });
-  assert.equal(held.status, 0, held.out);
-  assert.doesNotMatch(held.out, /WONG_MCP_SEAL/);
-});

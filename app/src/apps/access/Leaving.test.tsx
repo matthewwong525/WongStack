@@ -28,7 +28,6 @@ beforeEach(() => {
   fetchMock = vi.fn(async (url: string) => {
     const path = url.replace('/api/access/', '')
     if (path === 'apps') return Response.json({ state: 'current', role: 'owner', apps: ['access', ...screens()], revision: 1 })
-    if (path === '/api/mcp/servers') return Response.json({ sealed: true, manages: true, me: 'owner@shop.com', servers: [] })
     if (path === 'setup') return Response.json({ role: 'owner', api: 'authenticated', identity: { email: 'owner@shop.com', subject: 'owner' }, apps: screens(),
       repository: 'manual_provider_setup', memory: 'independent_operator_setup', prompt: { state: 'unavailable', message: 'Not on this preview' } })
     return Response.json(roster)
@@ -47,7 +46,7 @@ const panel = (name: string) => screen.getByRole('dialog', { name })
 const closed = () => waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
 // The parts start listening for a press outside them, and hand the keyboard back, a moment after they open or close.
 const moment = () => act(async () => { await new Promise(resolve => setTimeout(resolve)) })
-// One of the two views in the switch, by its title: its count follows.
+// One of the views in the switch, by its title: its count follows.
 const tab = (title: string) => within(screen.getByRole('navigation', { name: 'Access views' })).getByRole('link', { name: new RegExp(`^${title} \\d+$`) })
 const radio = (group: string, name: string) => within(screen.getByRole('group', { name: new RegExp(`^${group} · `) })).getByRole('radio', { name }) as HTMLInputElement
 // An app's tick in an opened person or role: one press gives the app or takes it away, and saves nothing.

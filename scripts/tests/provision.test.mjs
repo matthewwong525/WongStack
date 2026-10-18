@@ -165,8 +165,8 @@ test('a rerun after the card turns an open site private in its committed config'
   // The site is private now, so Access learns its owner and the live app gets its key.
   assert.deepEqual([config.vars.WONG_OWNER_EMAIL, config.env.staging.vars.WONG_OWNER_EMAIL], [EMAIL, EMAIL]);
   assert.ok(report.updated.includes('app/wrangler.jsonc WONG_OWNER_EMAIL'));
-  assert.deepEqual(Object.keys(env.fake.state.workerSecrets['recipe-box']), ['WONG_ACCESS_LOGIN_MANAGEMENT', 'WONG_CLOUDFLARE_READ', 'WONG_MCP_SEAL']);
-  assert.deepEqual(Object.keys(env.fake.state.workerSecrets['recipe-box-staging']), ['WONG_CLOUDFLARE_READ', 'WONG_MCP_SEAL']);
+  assert.deepEqual(Object.keys(env.fake.state.workerSecrets['recipe-box']), ['WONG_ACCESS_LOGIN_MANAGEMENT', 'WONG_CLOUDFLARE_READ']);
+  assert.deepEqual(Object.keys(env.fake.state.workerSecrets['recipe-box-staging']), ['WONG_CLOUDFLARE_READ']);
 });
 
 test('an open config provisioning cannot edit goes to todo, unchanged', async (t) => {
@@ -815,7 +815,7 @@ test('setup records the owner for Access and gives the live app alone its own si
   assert.deepEqual(key.policies, [{ effect: 'allow', resources: { [`com.cloudflare.api.account.${ACCOUNT}`]: '*' }, permission_groups: [{ id: groupId('Access: Apps and Policies Write') }] }]);
   assert.deepEqual(ACCESS_KEY, [{ name: 'Access: Apps and Policies Write', scope: 'account', id: groupId('Access: Apps and Policies Write') }]);
   // Production holds the key with the ids the app needs; staging never holds it.
-  assert.deepEqual(Object.keys(env.fake.state.workerSecrets['recipe-box-staging']), ['WONG_CLOUDFLARE_READ', 'WONG_MCP_SEAL']);
+  assert.deepEqual(Object.keys(env.fake.state.workerSecrets['recipe-box-staging']), ['WONG_CLOUDFLARE_READ']);
   assert.deepEqual(JSON.parse(env.fake.state.workerSecrets['recipe-box'].WONG_ACCESS_LOGIN_MANAGEMENT),
     { version: 2, token: env.fake.state.minted[1], accountId: ACCOUNT, policyId: env.record().components.access.humanPolicyId });
   assert.deepEqual(report.accessKey, { status: 'ready', id: key.id });
@@ -932,7 +932,7 @@ test('a staging Worker that refuses the read-only key is left waiting: the step 
   assert.deepEqual(again.cloudflareReadKey, report.cloudflareReadKey);
   assert.deepEqual(again.todo, []);
   assert.equal(env.fake.state.minted.length, minted);
-  assert.ok(!env.fake.calls.slice(calls).some((call) => call.method === 'PUT' && call.path.endsWith('/secrets') && call.body.includes('"WONG_CLOUDFLARE_READ"')));
+  assert.ok(!env.fake.calls.slice(calls).some((call) => call.method === 'PUT' && call.path.endsWith('/secrets')));
   // Staging holding no copy still reads as waiting once the newer preview is gone: the key is not replaced to retry.
   env.fake.state.newerPreview = [];
   assert.deepEqual((await env.provision()).cloudflareReadKey, report.cloudflareReadKey);
@@ -979,8 +979,7 @@ test('a token that can not make the read-only key leaves it missing, names the s
   // The rest of setup finished: the sign-in list key is ready, and neither Worker holds a look-up key.
   assert.equal(report.accessKey.status, 'ready');
   assert.equal(report.urls.production, 'https://recipe-box.ada.workers.dev');
-  assert.deepEqual(Object.keys(env.fake.state.workerSecrets['recipe-box']), ['WONG_ACCESS_LOGIN_MANAGEMENT', 'WONG_MCP_SEAL']);
-  assert.deepEqual(Object.keys(env.fake.state.workerSecrets['recipe-box-staging']), ['WONG_MCP_SEAL']);
+  assert.deepEqual(env.fake.state.workerSecrets, { 'recipe-box': { WONG_ACCESS_LOGIN_MANAGEMENT: env.fake.state.workerSecrets['recipe-box'].WONG_ACCESS_LOGIN_MANAGEMENT } });
   assert.equal(env.fake.state.accountTokens.length, 2);
   const ready = await env.provision();
   assert.equal(ready.cloudflareReadKey.status, 'ready');
@@ -1005,61 +1004,6 @@ test('a look-up group Cloudflare no longer lists stops the read-only key by name
     assert.equal(env.fake.state.workerSecrets['recipe-box-staging'], undefined);
   }
   assert.equal((await env.provision()).cloudflareReadKey.status, 'ready');
-});
-
-test('setup gives each Worker its own random MCP sign-in seal, prints it nowhere, and never replaces one a Worker holds', async (t) => {
-  const env = await setup(t);
-  const seals = () => ['recipe-box', 'recipe-box-staging'].map((worker) => env.fake.state.workerSecrets[worker]?.WONG_MCP_SEAL);
-  const sealPuts = (from = 0) => env.fake.calls.slice(from).filter((call) => call.method === 'PUT' && call.body?.includes('"WONG_MCP_SEAL"'));
-  const report = await env.provision();
-  const [live, preview] = seals();
-  for (const seal of [live, preview]) assert.match(seal, /^[A-Za-z0-9_-]{43}$/);
-  assert.notEqual(live, preview);
-  assert.deepEqual(report.mcpSeal, { status: 'ready' });
-  assert.deepEqual(env.record().components.mcpSeal, report.mcpSeal);
-  assert.ok(report.created.includes('MCP sign-in seal, stored in recipe-box and recipe-box-staging'));
-  assert.deepEqual(report.todo, []);
-  // A rerun keeps both: a new seal would leave every stored sign-in unreadable.
-  const calls = env.fake.calls.length;
-  const again = await env.provision();
-  assert.ok(again.reused.includes('MCP sign-in seal'));
-  assert.deepEqual([seals(), sealPuts(calls)], [[live, preview], []]);
-  // A Worker that lost its seal gets a new one of its own; the other keeps its seal.
-  delete env.fake.state.workerSecrets['recipe-box-staging'].WONG_MCP_SEAL;
-  const restored = await env.provision({ keepConfig: true });
-  assert.ok(restored.created.includes('MCP sign-in seal, stored in recipe-box-staging'));
-  assert.equal(seals()[0], live);
-  assert.match(seals()[1], /^[A-Za-z0-9_-]{43}$/);
-  assert.notEqual(seals()[1], preview);
-  assertNoSecret(env, JSON.stringify([report, again, restored]));
-  assert.ok(!JSON.stringify([report, again, restored, env.record()]).includes(preview));
-});
-
-test('a staging Worker that refuses the seal is left waiting and gets one on a later run; the live app refusing stops', async (t) => {
-  const env = await setup(t);
-  env.fake.state.newerPreview = ['recipe-box-staging'];
-  const report = await env.provision();
-  assert.deepEqual(report.mcpSeal, { status: 'ready', waiting: ['recipe-box-staging'] });
-  assert.deepEqual(env.record().components.mcpSeal, report.mcpSeal);
-  assert.ok(report.created.includes('MCP sign-in seal, stored in recipe-box; recipe-box-staging waiting, as Cloudflare stores no secret there while a newer preview is uploaded'));
-  const live = env.fake.state.workerSecrets['recipe-box'].WONG_MCP_SEAL;
-  assert.equal(env.fake.state.workerSecrets['recipe-box-staging'], undefined);
-  // Once staging takes secrets again it gets a seal, the live app keeps its own, and the record stops listing it.
-  env.fake.state.newerPreview = [];
-  const later = await env.provision();
-  assert.deepEqual([later.mcpSeal, env.record().components.mcpSeal], [{ status: 'ready' }, { status: 'ready' }]);
-  assert.ok(later.created.includes('MCP sign-in seal, stored in recipe-box-staging'));
-  assert.equal(env.fake.state.workerSecrets['recipe-box'].WONG_MCP_SEAL, live);
-  assert.match(env.fake.state.workerSecrets['recipe-box-staging'].WONG_MCP_SEAL, /^[A-Za-z0-9_-]{43}$/);
-  assertNoSecret(env, JSON.stringify([report, later]));
-
-  const fresh = await setup(t);
-  const refusing = async (url, options) => (options.method === 'PUT' && url.endsWith('/workers/scripts/recipe-box/secrets') && String(options.body).includes('"WONG_MCP_SEAL"')
-    ? new Response(JSON.stringify({ success: false, errors: [{ code: 10215 }] }), { status: 400 })
-    : fetch(url, options));
-  await assert.rejects(fresh.provision({ fetch: refusing }), { reason: 'cloudflare', message: /recipe-box\/secrets: HTTP 400 10215$/ });
-  assert.equal(fresh.fake.state.workerSecrets['recipe-box'].WONG_MCP_SEAL, undefined);
-  assert.equal(fresh.record().components.mcpSeal, undefined);
 });
 
 test('the access command gives an installed repo its owner email and both keys, and names the steps left when the token can not make keys', async (t) => {
@@ -1097,12 +1041,7 @@ test('the access command gives an installed repo its owner email and both keys, 
   assert.deepEqual([missing.report.accessKey, missing.report.cloudflareReadKey], [{ status: 'missing' }, { status: 'missing' }]);
   assert.deepEqual(missing.report.todo, [ACCESS_KEY_TODO, CLOUDFLARE_READ_KEY_TODO]);
   for (const todo of missing.report.todo.slice(0, 2)) assert.match(todo, /wiki\/development\/secrets\.md#receive-a-key-through-a-private-link.*`provision\.mjs access`/);
-  // The seal needs no key-making, so it does not wait: each Worker gets its own, and later runs keep it.
-  const seals = () => ['recipe-box', 'recipe-box-staging'].map((worker) => env.fake.state.workerSecrets[worker].WONG_MCP_SEAL);
-  assert.deepEqual([Object.keys(env.fake.state.workerSecrets['recipe-box']), Object.keys(env.fake.state.workerSecrets['recipe-box-staging'])], [['WONG_MCP_SEAL'], ['WONG_MCP_SEAL']]);
-  assert.deepEqual(missing.report.mcpSeal, { status: 'ready' });
-  assert.ok(missing.report.created.includes('MCP sign-in seal, stored in recipe-box and recipe-box-staging'));
-  const made = seals();
+  assert.deepEqual(env.fake.state.workerSecrets, {});
   // The owner email does not wait for the key: Access opens and names the one step left.
   assert.deepEqual([env.config().vars.WONG_OWNER_EMAIL, env.config().env.staging.vars.WONG_OWNER_EMAIL, env.config().env.local.vars.WONG_OWNER_EMAIL], [EMAIL, EMAIL, undefined]);
   assert.ok(missing.report.updated.includes('app/wrangler.jsonc WONG_OWNER_EMAIL'));
@@ -1113,7 +1052,7 @@ test('the access command gives an installed repo its owner email and both keys, 
   assert.equal(ready.code, 0);
   assert.equal(ready.report.accessKey.status, 'ready');
   assert.deepEqual(ready.report.todo, []);
-  assert.deepEqual(Object.keys(env.fake.state.workerSecrets['recipe-box']).sort(), ['WONG_ACCESS_LOGIN_MANAGEMENT', 'WONG_CLOUDFLARE_READ', 'WONG_MCP_SEAL']);
+  assert.deepEqual(Object.keys(env.fake.state.workerSecrets['recipe-box']), ['WONG_ACCESS_LOGIN_MANAGEMENT', 'WONG_CLOUDFLARE_READ']);
   assert.deepEqual(env.record().components.accessKey, ready.report.accessKey);
   // The same step setup runs: one read-only key, made from the live group list, on both Workers.
   const readKey = env.fake.state.accountTokens.find((token) => token.name === 'recipe-box-cloudflare-read');
@@ -1122,11 +1061,10 @@ test('the access command gives an installed repo its owner email and both keys, 
   assert.deepEqual(env.record().components.cloudflareReadKey, ready.report.cloudflareReadKey);
   assert.deepEqual(JSON.parse(env.fake.state.workerSecrets['recipe-box-staging'].WONG_CLOUDFLARE_READ), { version: 1, token: env.fake.state.minted.at(-1), accountId: ACCOUNT });
   assert.equal(env.fake.state.workerSecrets['recipe-box'].WONG_CLOUDFLARE_READ, env.fake.state.workerSecrets['recipe-box-staging'].WONG_CLOUDFLARE_READ);
-  assert.deepEqual(seals(), made);
   // It makes nothing else, and a second run reuses the key.
   const calls = env.fake.calls.length;
   const again = await run();
-  assert.deepEqual([again.report.created, again.report.updated, again.report.reused], [[], [], ['sign-in list key recipe-box-access', 'read-only Cloudflare key recipe-box-cloudflare-read', 'MCP sign-in seal']]);
+  assert.deepEqual([again.report.created, again.report.updated, again.report.reused], [[], [], ['sign-in list key recipe-box-access', 'read-only Cloudflare key recipe-box-cloudflare-read']]);
   assert.ok(env.fake.calls.slice(calls).every((call) => call.method === 'GET'));
   assert.equal(env.fake.state.databases.length, 3);
   assertNoSecret(env, none.text, missing.text, ready.text, again.text);
@@ -1672,9 +1610,9 @@ test('a fresh Artifacts install makes the repository, the check runner and its k
   assert.deepEqual(state.accountTokens.map((token) => token.name), ['recipe-box-deploy', 'recipe-box-checks-storage', 'recipe-box-access', 'recipe-box-cloudflare-read']);
   assert.deepEqual(state.workerSecrets['recipe-box-checks'], { CF_TOKEN: state.tokenValues[deploy.id], R2_ACCESS_KEY_ID: storage.id, R2_SECRET_ACCESS_KEY: sha256(state.tokenValues[storage.id]) });
   assert.deepEqual(Object.keys(state.workerSecrets), ['recipe-box-checks', 'recipe-box', 'recipe-box-staging']);
-  assert.deepEqual(Object.keys(state.workerSecrets['recipe-box']), ['WONG_ACCESS_LOGIN_MANAGEMENT', 'WONG_CLOUDFLARE_READ', 'WONG_MCP_SEAL']);
+  assert.deepEqual(Object.keys(state.workerSecrets['recipe-box']), ['WONG_ACCESS_LOGIN_MANAGEMENT', 'WONG_CLOUDFLARE_READ']);
   // Staging holds the look-up key and never the sign-in key.
-  assert.deepEqual(Object.keys(state.workerSecrets['recipe-box-staging']), ['WONG_CLOUDFLARE_READ', 'WONG_MCP_SEAL']);
+  assert.deepEqual(Object.keys(state.workerSecrets['recipe-box-staging']), ['WONG_CLOUDFLARE_READ']);
   assert.equal(report.accessKey.status, 'ready');
   assert.match(state.workerSecrets['recipe-box-checks'].R2_SECRET_ACCESS_KEY, /^[0-9a-f]{64}$/);
   assert.deepEqual(storage.policies, [{

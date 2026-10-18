@@ -19,9 +19,8 @@ import { parseCli, usageError } from "./lib-cli.mjs";
 const STAGING_ENV = "staging";
 // Setup stores the sign-in list key on the production Worker alone; no file here holds it.
 const PRIVATE_ACCESS = new Set(["WONG_ACCESS_LOGIN_MANAGEMENT"]);
-// Setup stores the read-only Cloudflare key and the MCP sign-in seal itself, on staging only when Cloudflare takes
-// them; no file holds either, and a pushed seal would lock out every stored sign-in.
-const SETUP_MADE = new Set(["WONG_CLOUDFLARE_READ", "WONG_MCP_SEAL"]);
+// Setup stores the read-only Cloudflare key itself, on staging only when Cloudflare takes it; no file holds it.
+const SETUP_MADE = "WONG_CLOUDFLARE_READ";
 
 /** The file the Worker's runtime secrets are declared in. */
 const SOURCE = ".dev.vars";
@@ -223,8 +222,9 @@ function push(appDir, override) {
     if (target.env === STAGING_ENV && names.some(name => PRIVATE_ACCESS.has(name))) {
       fail("staging secret source must omit private Access management bindings; create a separate .dev.vars.staging before any push.");
     }
-    const made = names.find(name => SETUP_MADE.has(name));
-    if (made) fail(`${basename(target.file)} must not declare ${made}: setup stores it itself. Remove the line and re-run.`);
+    if (names.includes(SETUP_MADE)) {
+      fail(`${basename(target.file)} must not declare ${SETUP_MADE}: setup stores it itself. Remove the line and re-run.`);
+    }
     // `secret bulk` takes at most 100 per call. Far beyond any realistic repo,
     // but say so rather than letting a truncated load look like a success.
     if (names.length > 100) {
@@ -394,7 +394,7 @@ function checkSecrets(appDir) {
   for (const name of production) {
     if (staging.includes(name) || PRIVATE_ACCESS.has(name)) continue;
     // Cloudflare stores no secret on staging while a newer preview is uploaded, so setup may leave this waiting.
-    if (SETUP_MADE.has(name)) console.log(`cf-secrets: '${name}' is on production only — the preview is waiting for it`);
+    if (name === SETUP_MADE) console.log(`cf-secrets: '${name}' is on production only — the preview is waiting for it`);
     else problems.push(`secret '${name}' is set on production but missing from ${STAGING_ENV}.`);
   }
   for (const name of staging) {
@@ -416,8 +416,8 @@ function checkSecrets(appDir) {
       }
     }
     for (const name of held) {
-      // Setup stores these itself, so the example file never lists them.
-      if (!declared.includes(name) && !PRIVATE_ACCESS.has(name) && !SETUP_MADE.has(name)) {
+      // Setup stores its two keys itself, so the example file never lists them.
+      if (!declared.includes(name) && !PRIVATE_ACCESS.has(name) && name !== SETUP_MADE) {
         warn(`secret '${name}' is set but not declared in ${EXAMPLE}.`);
       }
     }

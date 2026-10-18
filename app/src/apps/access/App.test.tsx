@@ -62,7 +62,7 @@ beforeEach(() => {
   mode = 'owner'; own = structuredClone(setup); roster = status(); catalogue = ['access', 'hello']; held = undefined; failed = new Set()
   fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     const path = url.replace('/api/access/', '')
-    if (failed.has(path)) return Response.json({ code: 'unavailable' }, { status: 503 }); if (path === '/api/mcp/servers') return Response.json({ sealed: true, manages: mode !== 'employee', me: 'owner@example.com', servers: [] })
+    if (failed.has(path)) return Response.json({ code: 'unavailable' }, { status: 503 })
     if (init?.method === 'POST') return Response.json(roster)
     if (path === 'apps') return Response.json(appAccess())
     if (path === 'setup') return Response.json(own)
@@ -138,7 +138,7 @@ it('switches between three views, each with its count, whose addresses survive B
   roster.keys = [saved('stripe', 'Stripe')]
   const current = () => Array.from(document.querySelectorAll('[aria-current="page"]')).map(link => link.textContent)
   open(); await screen.findByRole('navigation', { name: 'Access views' })
-  // People counts the owner and everyone who can sign in, never a removed person; Services its keys and MCPs.
+  // People counts the owner and everyone who can sign in, never a removed person; Services counts the keys.
   expect(tabs().map(link => [link.textContent, link.getAttribute('href')])).toEqual([['People 2', '/apps/access/'], ['Roles 1', '/apps/access/roles'], ['Services 1', '/apps/access/services']])
   expect(current()).toEqual(['People 2'])
   follow('Roles 1'); await screen.findByRole('region', { name: 'Roles' })
@@ -148,7 +148,7 @@ it('switches between three views, each with its count, whose addresses survive B
   expect(where()).toBe('/apps/access/'); expect(reads('status')).toHaveLength(1)
   // The Apps, Keys and Skills lists and Key settings are gone: an old address of theirs, like any other that names
   // nothing, shows its view, or People, with nothing opened.
-  for (const [path, name] of [['roles', 'Roles'], ['people', 'People'], ['nothing/new', 'People'], ['skills', 'People'], ['skills/refund', 'People'],
+  for (const [path, name] of [['roles', 'Roles'], ['services', 'Services'], ['people', 'People'], ['nothing/new', 'People'], ['skills', 'People'], ['skills/refund', 'People'],
     ['apps', 'People'], ['apps/hello', 'People'], ['keys', 'People'], ['keys/stripe', 'People'], ['people/keys', 'People'], ['roles/keys', 'Roles'], ['roles/nothing', 'Roles'], ['people/nobody@example.com', 'People']]) {
     cleanup(); open(path); await screen.findByRole('region', { name })
     expect(current().map(text => text!.split(' ')[0]), path).toEqual([name]); expect([screen.queryByRole('button', { name: /^Save/ }), screen.queryByRole('dialog')], path).toEqual([null, null])
@@ -156,7 +156,7 @@ it('switches between three views, each with its count, whose addresses survive B
     expect(document.querySelector('tr[aria-current]'), path).toBeNull()
   }
 })
-it('keeps the views, the one notice spot and the list in place with a person or a role opened beside it, and the ✕ goes back to its view', async () => {
+it('keeps the three views, the one notice spot and the list in place with a person or a role opened beside it, and the ✕ goes back to its view', async () => {
   roster.roles = [{ id: 'sales', name: 'Sales', apps: [], keys: {} }]; roster.keys = [saved('stripe', 'Stripe')]
   roster.environment = 'practice'; roster.key = 'practice'
   for (const [path, view, name] of [['people/employee@example.com', 'People', 'employee@example.com'], ['people/new', 'People', 'Add person'], ['roles/sales', 'Roles', 'Sales'],
@@ -342,9 +342,9 @@ it('a person who manages nothing sees only what they can use, each app by its ti
     // One label per app; with no key level, no Keys line at all.
     expect(within(within(can).getByRole('list', { name: 'Apps' })).getAllByRole('listitem').map(item => item.textContent), viewer).toEqual(titles)
     expect(within(can).getAllByRole('list')).toHaveLength(1); expect(can.querySelector('p')).toBeNull()
-    // Access's heading, then their own view: the switch to Services, and their box under it.
-    await screen.findByRole('link', { name: 'Services 0' }); const yours = screen.getByRole('region', { name: 'Your access' }); expect([Array.from(screen.getByRole('heading', { name: 'Access' }).parentElement!.children), tabs().map(link => link.textContent), yours.lastElementChild], viewer)
-      .toEqual([[screen.getByRole('heading', { name: 'Access' }), yours], ['Your access ', 'Services 0'], can]); expect(screen.queryByRole('link', { name: 'Add person' })).toBeNull(); cleanup()
+    // Access's heading, then their box, and nothing else.
+    expect(Array.from(screen.getByRole('heading', { name: 'Access' }).parentElement!.children), viewer).toEqual([screen.getByRole('heading', { name: 'Access' }), can])
+    expect(screen.queryByRole('link', { name: 'Add person' })).toBeNull(); expect(screen.queryByRole('navigation')).toBeNull(); cleanup()
   }
   expect([reads('status'), reads('setup')]).toEqual([[], []])
   // Each key they hold shows its level. An app shows its title alone: all of it is theirs.
@@ -358,13 +358,13 @@ it('a person who manages nothing sees only what they can use, each app by its ti
   mode = 'waiting-owner'; open(); await screen.findByRole('link', { name: 'Add person' })
   expect(screen.queryByRole('region', { name: 'You can use' })).toBeNull()
 })
-it('draws three sides in the one frame: the owner and an Admin three views, everyone else theirs and Services, and none a Connect button or a width of its own', async () => {
+it('draws three sides in the one frame: the owner and an Admin the three views, everyone else what they can use, and none a Connect button or a width of its own', async () => {
   for (const [side, manages] of [['owner', true], ['admin', true], ['employee', false]] as const) {
     mode = side; roster.viewer.owner = side === 'owner'
     open(); await screen.findByRole(manages ? 'navigation' : 'region', { name: manages ? 'Access views' : 'You can use' })
     const page = screen.getByRole('heading', { name: 'Access' }).parentElement!
     expect([!!screen.queryByRole('button', { name: /Connect/ }), showing(), !!screen.queryByRole('region', { name: 'You can use' }),
-      tabs().map(link => link.textContent!.split(' ')[0]), page.className], side).toEqual([false, false, !manages, manages ? ['People', 'Roles', 'Services'] : ['Your', 'Services'], '@container grid gap-4'])
+      !!screen.queryByRole('navigation', { name: 'Access views' }), page.className], side).toEqual([false, false, !manages, manages, '@container grid gap-4'])
     expect([reads('setup').length, reads('status').length > 0], side).toEqual([0, manages]); cleanup(); fetchMock.mockClear()
   }
 })
@@ -406,8 +406,8 @@ it('an Admin finds their own row marked You under the owner row, which says who 
   click('Remove access'); await screen.findByText('Saved.')
   expect(sent('people')).toEqual([{ email: 'lee@example.com', removed: true }])
   expect(cells('lee@example.com').slice(1, 3)).toEqual(['Removed', 'No role'])
-  // The same two views on every one of them, with no box above.
-  for (const name of ['Roles']) {
+  // The same three views on every one of them, with no box above.
+  for (const name of ['Roles', 'Services']) {
     follow(tabs().find(link => link.textContent!.startsWith(name))!.textContent!); await screen.findByRole('region', { name })
     expect(screen.queryByRole('region', { name: 'You can use' })).toBeNull()
   }

@@ -226,41 +226,30 @@ function helperCli(t, answer = 'async () => undefined') {
   const login = run(['login', '--origin', origin]); assert.equal(login.status, 0, login.stderr);
   return { run, base, temp };
 }
-const link = id => `${origin}/apps/access/services/${id}`;
-const mcpTool = (extra = {}) => descriptor({ operationId: 'mcp.canva.search-designs', summary: 'Search designs', source: 'mcp', app: 'mcp:canva',
-  method: 'POST', encoding: 'json', path: '/api/mcp/canva/tools/search-designs', ...extra });
 
-test('services shows each service on one line: a key\'s level and notes, an MCP\'s sign-in, and the keys left out', t => {
+test('services shows each key on one line with its level, notes page and guide, and counts the keys left out', t => {
   const root = mkdtempSync(join(tmpdir(), 'company-notes-')); t.after(() => rmSync(root, { recursive: true, force: true }));
   mkdirSync(join(root, 'wiki/services'), { recursive: true }); writeFileSync(join(root, 'wiki/services/stripe.md'), '# Stripe\n');
   const answer = { revision: 'r', needAccess: 2, services: [
-    { id: 'stripe', kind: 'key', name: 'Stripe', purpose: 'payments and refunds', ready: true, level: 'read', direct: true, docs: 'https://docs.stripe.com/api' },
-    { id: 'mailchimp', kind: 'key', name: 'Mailchimp', purpose: 'email lists', ready: false, level: 'write', direct: false },
-    { id: 'mcp:notion', kind: 'mcp', name: 'Notion', purpose: 'team notes and docs', ready: false, own: null, tools: 14, connect: link('notion') },
-    { id: 'mcp:canva', kind: 'mcp', name: 'Canva', purpose: 'designs and templates', ready: true, own: 'connected', tools: 30 },
-    { id: 'mcp:linear', kind: 'mcp', name: 'Linear', purpose: 'issues and projects', ready: true, own: null, using: { who: 'kim.lee@example.com', share: 'read' }, tools: 22, connect: link('linear') },
-    { id: 'mcp:figma', kind: 'mcp', name: 'Figma', purpose: '', ready: true, own: 'reconnect', using: { who: 'bo@example.com', share: 'all' }, tools: 5, connect: link('figma') },
-    { id: 'mcp:sentry', kind: 'mcp', name: 'Sentry', purpose: '', ready: false, own: 'reconnect', tools: 5, connect: link('sentry') }] };
+    { id: 'stripe', name: 'Stripe', purpose: 'payments and refunds', ready: true, level: 'read', direct: true, docs: 'https://docs.stripe.com/api' },
+    { id: 'mailchimp', name: 'Mailchimp', purpose: 'email lists', ready: false, level: 'write', direct: false },
+    { id: '../odd', name: 'Odd', purpose: 'an id no page can have', ready: true, level: 'write', direct: false }] };
   const noted = withNotes(answer, root);
-  assert.deepEqual(noted.services[0].notes, { path: 'wiki/services/stripe.md', exists: true });
-  assert.deepEqual(noted.services[1].notes, { path: 'wiki/services/mailchimp.md', exists: false });
-  assert.ok(noted.services.slice(2).every(service => !service.notes), 'an MCP describes itself');
+  assert.deepEqual(noted.services.map(service => service.notes), [{ path: 'wiki/services/stripe.md', exists: true }, { path: 'wiki/services/mailchimp.md', exists: false }, undefined]);
   assert.deepEqual(serviceLines(noted).map(line => line.trimEnd().split(/ {2,}/)), [
     ['Stripe', 'payments and refunds', 'ready', 'Read'], ['', 'notes: wiki/services/stripe.md', 'guide: https://docs.stripe.com/api'],
     ['Mailchimp', 'email lists', 'not saved yet: ask the owner'], ['', 'notes: none yet; start wiki/services/mailchimp.md'],
-    ['Notion', 'team notes and docs', `connect yourself: ${link('notion')}`],
-    ['Canva', 'designs and templates', 'ready', 'yours'],
-    ['Linear', 'issues and projects', 'ready', "Kim's, look-ups"],
-    ['Figma', 'ready', `Bo's, everything; yours needs a new sign-in: ${link('figma')}`],
-    ['Sentry', `sign in again: ${link('sentry')}`],
+    ['Odd', 'an id no page can have', 'ready', 'Read & write'],
     ['2 more keys need access: ask the owner']]);
-  const all = serviceLines({ needAccess: 1, services: [{ id: 'xero', kind: 'key', name: 'Xero', purpose: 'books', ready: true, level: null, direct: false, notes: { path: 'wiki/services/xero.md', exists: false } }] });
+  // With --all the keys left out are rows of their own, so no count follows.
+  const all = serviceLines({ needAccess: 1, services: [{ id: 'xero', name: 'Xero', purpose: 'books', ready: true, level: null, direct: false, notes: { path: 'wiki/services/xero.md', exists: false } }] });
   assert.deepEqual(all.map(line => line.trimEnd().split(/ {2,}/)), [['Xero', 'books', 'needs access: ask the owner'], ['', 'notes: none yet; start wiki/services/xero.md']]);
+  assert.deepEqual(serviceLines({ services: [], needAccess: 1 }), ['1 more key needs access: ask the owner']);
   assert.deepEqual(serviceLines({ services: [], needAccess: 0 }), ['No services yet.']);
 });
 test('the services command asks the app for this caller\'s list, and --json adds each key\'s notes page', t => {
   const cli = helperCli(t, `async target => target.pathname === '/api/services' ? Response.json({ revision: 'r', needAccess: target.searchParams.get('all') === '1' ? 0 : 1,
-    services: [{ id: 'stripe', kind: 'key', name: 'Stripe', purpose: 'payments', ready: true, level: 'write', direct: false }] }) : undefined`);
+    services: [{ id: 'stripe', name: 'Stripe', purpose: 'payments', ready: true, level: 'write', direct: false }] }) : undefined`);
   const short = cli.run(['services']); assert.equal(short.status, 0, short.stderr);
   assert.deepEqual(short.stdout.trimEnd().split('\n').map(line => line.trimEnd().split(/ {2,}/)),
     [['Stripe', 'payments', 'ready', 'Read & write'], ['', 'notes: none yet; start wiki/services/stripe.md'], ['1 more key needs access: ask the owner']]);
@@ -270,51 +259,21 @@ test('the services command asks the app for this caller\'s list, and --json adds
 test('list prints one line per match and where the next page starts; --json keeps the whole object', t => {
   const result = { revision: 'live', total: 3, offset: 0, next: 2, actions: [
     { operationId: 'hello.greeting', summary: 'Greet a person', effect: 'read', readiness: 'available', source: 'company', transport: 'http' },
-    { operationId: 'mcp.canva.create-design', summary: 'Create a design', effect: 'external', readiness: 'needs_connect', source: 'mcp', transport: 'http' }] };
-  assert.deepEqual(listLines(result), ['hello.greeting  read  available  Greet a person', 'mcp.canva.create-design  change  needs_connect  Create a design', 'next: --offset 2']);
+    { operationId: 'stripe.change', summary: 'Change something in Stripe', effect: 'external', readiness: 'unavailable', source: 'company', transport: 'http' }] };
+  assert.deepEqual(listLines(result), ['hello.greeting  read  available  Greet a person', 'stripe.change  change  unavailable  Change something in Stripe', 'next: --offset 2']);
   assert.deepEqual(listLines({ actions: [], next: null }), ['No matches.']);
-  const cli = helperCli(t, `async target => target.pathname === '/api/actions' && target.searchParams.get('q') === 'design' ? Response.json(${JSON.stringify(result)}) : undefined`);
-  const lines = cli.run(['list', '--scope', 'company', '--q', 'design', '--limit', '2']); assert.equal(lines.status, 0, lines.stderr);
+  const cli = helperCli(t, `async target => target.pathname === '/api/actions' && target.searchParams.get('q') === 'stripe' ? Response.json(${JSON.stringify(result)}) : undefined`);
+  const lines = cli.run(['list', '--scope', 'company', '--q', 'stripe', '--limit', '2']); assert.equal(lines.status, 0, lines.stderr);
   assert.equal(lines.stdout, `${listLines(result).join('\n')}\n`);
-  assert.deepEqual(JSON.parse(cli.run(['list', '--scope', 'company', '--q', 'design', '--json']).stdout), result);
+  assert.deepEqual(JSON.parse(cli.run(['list', '--scope', 'company', '--q', 'stripe', '--json']).stdout), result);
 });
 test('describe prints compact JSON without the shared error shape; --json prints all of it', t => {
-  const operation = { ...mcpTool(), errorSchema: { type: 'object' } };
+  const operation = { ...descriptor({ method: 'POST', encoding: 'json', path: '/api/orders' }), errorSchema: { type: 'object' } };
   const cli = helperCli(t, `async target => target.searchParams.has('id') ? Response.json(${JSON.stringify(operation)}) : undefined`);
-  const brief = cli.run(['describe', 'mcp.canva.search-designs']); assert.equal(brief.status, 0, brief.stderr);
+  const brief = cli.run(['describe', 'hello.greeting']); assert.equal(brief.status, 0, brief.stderr);
   assert.equal(brief.stdout.trim().split('\n').length, 1); const { errorSchema, ...rest } = operation;
   assert.deepEqual(JSON.parse(brief.stdout), rest); assert.ok(errorSchema);
-  assert.deepEqual(JSON.parse(cli.run(['describe', 'mcp.canva.search-designs', '--json']).stdout), operation);
-});
-test('an MCP tool runs through the app: whose sign-in it used goes to stderr, and a connect step prints its link and fails', t => {
-  const cli = helperCli(t, `async (target, init) => {
-    if (target.searchParams.has('id')) return Response.json(${JSON.stringify(mcpTool())});
-    if (target.pathname !== '/api/mcp/canva/tools/search-designs' || init.method !== 'POST') return undefined;
-    const { query } = init.body;
-    if (query === 'mine') return Response.json({ content: [{ type: 'text', text: 'Your designs' }] });
-    if (query === 'shared') return Response.json({ content: [{ type: 'text', text: 'Kim designs' }], via: 'kim@example.com' });
-    if (query === 'unconnected') return Response.json({ error: { code: 'mcp_not_connected', message: 'Connect Canva first.', requestId: 'r', connect: '${link('canva')}' } }, { status: 409 });
-    return Response.json({ error: { code: 'mcp_share_read_only', message: 'Kim shares look-ups only: connect your own Canva.', requestId: 'r', connect: '${link('canva')}' } }, { status: 403 });
-  }`);
-  const call = query => cli.run(['call', 'mcp.canva.search-designs', '--file', '-'], { input: JSON.stringify({ query }) });
-  const mine = call('mine'); assert.equal(mine.status, 0, mine.stderr);
-  assert.deepEqual(JSON.parse(mine.stdout), { content: [{ type: 'text', text: 'Your designs' }] }); assert.equal(mine.stderr, '');
-  const shared = call('shared'); assert.equal(shared.status, 0, shared.stderr);
-  assert.equal(JSON.parse(shared.stdout).via, 'kim@example.com'); assert.equal(shared.stderr.trim(), 'Ran with the sign-in kim@example.com shares with the team.');
-  for (const [query, code, message] of [['unconnected', 'mcp_not_connected', 'Connect Canva first.'], ['change', 'mcp_share_read_only', 'Kim shares look-ups only: connect your own Canva.']]) {
-    const refused = call(query); assert.equal(refused.status, 1);
-    assert.equal(JSON.parse(refused.stdout).error.code, code); assert.equal(refused.stderr.trim(), `${message}\n${link('canva')}`);
-  }
-});
-test('an MCP tool\'s route is one encoded name under its MCP; a dot segment or another route is refused', async t => {
-  let live;
-  const f = fixture(t, { request: async url => Response.json(url.searchParams.has('id') ? live : { actions: [] }) });
-  await f.client.login(origin);
-  for (const path of ['/api/mcp/canva/tools/designs.search', '/api/mcp/canva/tools/caf%C3%A9']) { live = mcpTool({ path }); assert.equal((await f.client.describe('mcp.canva.search-designs')).path, path); }
-  for (const path of ['/api/mcp/canva/tools/..', '/api/mcp/canva/tools/%2e%2e', '/api/mcp/canva/tools/a/b', '/api/other', '/apps/hello/api/greeting']) {
-    live = mcpTool({ path }); await assert.rejects(f.client.describe('mcp.canva.search-designs'), /Invalid live/);
-  }
-  for (const source of ['memory', 'constructor', '__proto__']) { live = mcpTool({ source }); await assert.rejects(f.client.describe('mcp.canva.search-designs'), /Invalid live/); }
+  assert.deepEqual(JSON.parse(cli.run(['describe', 'hello.greeting', '--json']).stdout), operation);
 });
 test('a call answer over 20 KB is saved whole to a private file and the chat sees its start; --full prints all of it', t => {
   const cli = helperCli(t, `async (target, init) => {
@@ -342,29 +301,4 @@ test('an answers folder that is not private is refused, and a short answer needs
   assert.throws(() => saveAnswer('{}', dir), /not a private folder/);
   assert.throws(() => shortAnswer('x'.repeat(30000), dir), /not a private folder/);
   assert.equal(shortAnswer('{"short":true}', dir), '{"short":true}'); assert.deepEqual(readdirSync(dir), []);
-});
-test('mcp add adds an address under the caller\'s login and prints the Connect link, or the plain reason it was refused', t => {
-  const cli = helperCli(t, `async (target, init) => {
-    if (target.pathname !== '/api/mcp/servers' || init.method !== 'POST') return undefined;
-    if (init.body.url !== 'https://mcp.canva.com/mcp') return Response.json({ error: { code: 'mcp_refused', message: 'That address has no sign-in we can use.', requestId: 'r' } }, { status: 422 });
-    return Response.json({ server: { id: 'canva', name: init.body.name, url: init.body.url, connect: '${link('canva')}', own: null } }, { status: 201 });
-  }`);
-  const added = cli.run(['mcp', 'add', 'https://mcp.canva.com/mcp', '--name', 'Canva']); assert.equal(added.status, 0, added.stderr);
-  assert.equal(added.stdout, `Added Canva. Open this link and press Connect to sign in as yourself:\n${link('canva')}\n`);
-  const refused = cli.run(['mcp', 'add', 'https://example.com/mcp']); assert.equal(refused.status, 1);
-  assert.equal(refused.stdout, 'https://example.com/mcp: That address has no sign-in we can use.\n');
-  assert.equal(cli.run(['mcp', 'add']).status, 1, 'an address is required');
-});
-test('mcp import offers the MCPs in this computer\'s Claude settings, then adds them with --yes', t => {
-  const cli = helperCli(t, `async (target, init) => {
-    if (target.pathname !== '/api/mcp/servers') return undefined;
-    if (init.method === 'POST') return Response.json({ server: { id: 'canva', name: init.body.name, url: init.body.url, connect: '${link('canva')}' } }, { status: 201 });
-    return Response.json({ sealed: true, manages: false, me: 'employee@example.com', servers: [] });
-  }`);
-  writeFileSync(join(cli.base, '.claude.json'), JSON.stringify({ mcpServers: { canva: { type: 'http', url: 'https://mcp.canva.com/mcp' },
-    files: { command: 'npx', args: ['files'] } } }));
-  const offer = cli.run(['mcp', 'import']); assert.equal(offer.status, 0, offer.stderr);
-  assert.match(offer.stdout, /^Found canva in Claude\. Add it\? Then press Connect\.\n {2}canva {2}https:\/\/mcp\.canva\.com\/mcp\nSkipped: files \(runs on this computer\)\./);
-  const added = cli.run(['mcp', 'import', '--yes']); assert.equal(added.status, 0, added.stderr);
-  assert.match(added.stdout, new RegExp(`^Added canva\\. Open this link and press Connect to sign in as yourself:\\n${link('canva')}\\n`));
 });

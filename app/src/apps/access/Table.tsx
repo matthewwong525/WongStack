@@ -2,6 +2,7 @@ import { Fragment, type ComponentProps, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
+import { viewLabel, type ViewProps } from './address'
 
 // On a narrow page each row stacks into short lines: the name with its menu beside it, then a line per cell.
 // The page measures itself (`@container` on it), so the rows stack by the room they have, and nothing scrolls sideways.
@@ -25,12 +26,12 @@ const CUT = 'truncate @max-[44rem]:whitespace-normal'
 const EVEN = 'h-14 @max-[44rem]:h-auto'
 const OPEN = 'aria-[current=true]:bg-muted aria-[current=true]:[&>td:first-child]:shadow-[inset_0.2rem_0_0_var(--color-primary)]'
 
-/** A list: a table whose columns every row shares, named by the element `labelledBy` names. `actions` names a last
+/** A list: a table whose columns every row shares, named by the current link in the switch. `actions` names a last
  *  column of row menus. A plain table: the ready-made frame scrolls sideways, and these rows stack instead. */
-export function Table({ labelledBy, columns, actions, children }: {
-  labelledBy: string; columns: string[]; actions?: string; children: ReactNode
+export function Table({ view, columns, actions, children }: {
+  view: ViewProps['view']; columns: string[]; actions?: string; children: ReactNode
 }) {
-  return <table className={cn('w-full text-sm', STACK.table)} aria-labelledby={labelledBy}>
+  return <table className={cn('w-full text-sm', STACK.table)} aria-labelledby={viewLabel(view)}>
       <TableHeader className={STACK.head}><TableRow className="hover:bg-transparent">
         {columns.map(column => <TableHead scope="col" className="text-muted-foreground" key={column}>{column}</TableHead>)}
         {actions && <TableHead scope="col"><span className="sr-only">{actions}</span></TableHead>}

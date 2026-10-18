@@ -5,8 +5,6 @@ import { catalogue } from './catalogue';
 import { codeState } from './code';
 import { authorizeRequest, currentPolicy } from './policy';
 import { body } from '../../tests/body';
-import { services } from '../api/services';
-import { fakeEnv } from '../../tests/env';
 it('staging starts with practice people, the Admin role and two more, one Admin and key levels on, names who could only look, and holds no provider work or key', async () => {
   const { sql, env, practice } = seeded();
   try {
@@ -79,13 +77,5 @@ it('staging starts with practice people, the Admin role and two more, one Admin 
     const saved = await body(await management(req('people', 'POST', { email: 'eli@example.invalid', removed: false, apps: { hello: true } }), env, owner));
     expect(saved.unticked).toEqual({ people: [], roles: [] });
     expect(await authorizeRequest(env, practice('eli@example.invalid'), { apps: ['hello'] })).toBeNull();
-  } finally { sql.close(); }
-});
-it('staging holds one practice MCP with its saved tools, and Bo, whose sign-in ended, connects again', async () => {
-  const { sql, env, practice } = seeded();
-  try {
-    const listed = await body<{ services: Record<string, unknown>[] }>(await services(new Request('https://staging.example/api/services'), fakeEnv(env), practice('bo@example.invalid')));
-    expect(listed.services.find(row => row.kind === 'mcp')).toMatchObject({ id: 'mcp:notes', name: 'Notes', purpose: 'Team notes: find and write them.',
-      own: 'reconnect', tools: 2, ready: false, connect: 'https://staging.example/apps/access/services/notes' });
   } finally { sql.close(); }
 });

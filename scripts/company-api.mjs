@@ -43,21 +43,15 @@ export function listLines({ actions, next }) {
   return [...(lines.length ? lines : ['No matches.']), ...(next === null || next === undefined ? [] : [`next: --offset ${next}`])];
 }
 
-/** Each key row gains its notes page in this checkout; the app can't see the checkout. */
+/** Each service gains its notes page in this checkout; the app can't see the checkout. */
 export function withNotes(answer, root = CHECKOUT) {
-  return { ...answer, services: answer.services.map(service => (service.kind === 'key' && /^[a-z0-9][a-z0-9-]*$/.test(service.id)
+  return { ...answer, services: answer.services.map(service => (/^[a-z0-9][a-z0-9-]*$/.test(service.id)
     ? { ...service, notes: { path: `wiki/services/${service.id}.md`, exists: existsSync(join(root, 'wiki', 'services', `${service.id}.md`)) } } : service)) };
 }
 const LEVELS = { read: 'Read', write: 'Read & write' };
-const firstName = email => { const word = String(email).split('@')[0].split(/[._+-]/)[0]; return word.charAt(0).toUpperCase() + word.slice(1); };
 function serviceState(service) {
-  if (service.kind === 'key') {
-    if (!service.level) return 'needs access: ask the owner';
-    return service.ready ? `ready  ${LEVELS[service.level] ?? service.level}` : 'not saved yet: ask the owner';
-  }
-  if (service.own === 'connected') return 'ready  yours';
-  if (service.using) return `ready  ${firstName(service.using.who)}'s, ${service.using.share === 'all' ? 'everything' : 'look-ups'}${service.own === 'reconnect' ? `; yours needs a new sign-in: ${service.connect}` : ''}`;
-  return `${service.own === 'reconnect' ? 'sign in again' : 'connect yourself'}: ${service.connect}`;
+  if (!service.level) return 'needs access: ask the owner';
+  return service.ready ? `ready  ${LEVELS[service.level] ?? service.level}` : 'not saved yet: ask the owner';
 }
 const notesLine = ({ notes, docs }) => `  notes: ${notes.exists ? notes.path : `none yet; start ${notes.path}`}${docs ? `  guide: ${docs}` : ''}`;
 /** The services list as a chat reads it: one line per service, its notes page, and the keys left out. */
@@ -66,7 +60,7 @@ export function serviceLines({ services, needAccess = 0 }) {
   const lines = services.flatMap(service => [
     [service.name.padEnd(width('name')), String(service.purpose ?? '').padEnd(width('purpose')), serviceState(service)].join('  '),
     ...(service.notes ? [notesLine(service)] : [])]);
-  if (needAccess && !services.some(service => service.kind === 'key' && !service.level)) lines.push(`${needAccess} more key${needAccess === 1 ? ' needs' : 's need'} access: ask the owner`);
+  if (needAccess && !services.some(service => !service.level)) lines.push(`${needAccess} more key${needAccess === 1 ? ' needs' : 's need'} access: ask the owner`);
   return lines.length ? lines : ['No services yet.'];
 }
 
@@ -102,27 +96,7 @@ const USAGE = `usage: company-api.mjs <command> [--state <private directory>]
   list [--scope all|company|memory] [--q words] [--app name] [--limit 1..50] [--offset n] [--json]
   describe <id> [--json]
   call <id> --file <JSON file or -> [--full]
-  mcp add <https address> [--name <name>] [--json]
-  mcp import [--yes]                 add the MCPs set up in Claude and Codex here
-  mcp import --remove-local <name> [--yes]
 call prints at most 20 KB; a longer answer is saved to a private file it names. --full prints it all.`;
-
-async function mcp(client, sub, address, values) {
-  const { addMcp, addedText, importMcps, removeLocal } = await import('./lib/mcp-import.mjs');
-  if (sub === 'add') {
-    const value = await addMcp(client, address, values.name);
-    console.log(values.json ? JSON.stringify(value, null, 2) : addedText(value, address));
-    if (value.error) process.exitCode = 1;
-    return;
-  }
-  if (sub !== 'import') throw new Error(USAGE);
-  let primary;
-  try { primary = primaryRoot(CHECKOUT).primary; } catch { primary = undefined; }
-  const where = { checkout: CHECKOUT, projects: [CHECKOUT, primary], yes: values.yes };
-  const { text, ok } = values['remove-local'] === undefined ? await importMcps(client, where) : await removeLocal(client, values['remove-local'], where);
-  console.log(text);
-  if (!ok) process.exitCode = 1;
-}
 
 async function services(client, values) {
   const { value } = await client.http(`/api/services${values.all ? '?all=1' : ''}`);
@@ -138,11 +112,9 @@ function printCall(id, result, values) {
   // A returned error is printed whole, and ends as a failure a script can see.
   if (result.error && typeof result.error === 'object') {
     console.log(text);
-    if (result.error.connect) console.error(`${result.error.message}\n${result.error.connect}`);
     process.exitCode = 1;
     return;
   }
-  if (result.via) console.error(`Ran with the sign-in ${result.via} shares with the team.`);
   let output = text;
   if (!values.full) try { output = shortAnswer(text); } catch (error) { console.error(`${error.message}, so the whole answer follows.`); }
   console.log(output);
@@ -150,14 +122,13 @@ function printCall(id, result, values) {
 
 if (isMain(import.meta.url)) {
   const { positionals: [command, id, ...extra], values } = parseCli({ usage: USAGE, allowPositionals: true, options: {
-    ...Object.fromEntries(['origin', 'state', 'scope', 'q', 'app', 'limit', 'offset', 'file', 'name', 'remove-local'].map(name => [name, { type: 'string' }])),
-    ...Object.fromEntries(['all', 'json', 'full', 'yes'].map(name => [name, { type: 'boolean' }])) } });
+    ...Object.fromEntries(['origin', 'state', 'scope', 'q', 'app', 'limit', 'offset', 'file'].map(name => [name, { type: 'string' }])),
+    ...Object.fromEntries(['all', 'json', 'full'].map(name => [name, { type: 'boolean' }])) } });
   try {
-    if (extra.length !== (command === 'mcp' && id === 'add' ? 1 : 0)) throw new Error(USAGE);
+    if (extra.length) throw new Error(USAGE);
     const client = companyClient({ stateDir: values.state, onLoginUrl: link => console.error(signInNotice(link)) });
     const input = () => parseOperationInput(readFileSync(values.file === '-' ? 0 : values.file, 'utf8'));
     if (command === 'services') await services(client, values);
-    else if (command === 'mcp') await mcp(client, id, extra[0], values);
     else {
       let result;
       if (command === 'login') result = await client.login(values.origin);

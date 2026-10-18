@@ -1,6 +1,6 @@
 # The services list
 
-The services list is where a chat starts for any outside service: one short list of the saved keys you can use and every MCP on the app, then a search, one opened entry, and a call through the app. The app holds every key and sign-in, so a chat never reads one from a file. [Company actions](company-api.md) owns how an action is built and how the helper signs in.
+The services list is where a chat starts for any outside service: one short list of the saved keys you can use, then a search, one opened entry, and a call through the app. The app holds every business key, so a chat never reads one from a file. [Company actions](company-api.md) owns how an action is built and how the helper signs in.
 
 ```mermaid
 flowchart TD
@@ -15,22 +15,21 @@ node scripts/company-api.mjs services
 ```
 
 ```text
-Stripe   Payments and refunds    ready  Read            wiki/services/stripe.md
-Notion   Team notes and docs     connect yourself       https://…/apps/access/services/notion
-Canva    Designs and templates   ready  yours
-Linear   Issues and projects     ready  Kim's, look-ups
+Stripe   Payments and refunds   ready  Read
+  notes: wiki/services/stripe.md  guide: https://docs.stripe.com/api
+Notion   Team notes and docs    not saved yet: ask the owner
+  notes: none yet; start wiki/services/notion.md
 2 more keys need access: ask the owner
 ```
 
 - **A key shows when you hold a level for it**, with its purpose line, whether it is saved, your [level](employee-access.md#key-levels), and for a key used directly the link to the service's API guide. The other keys are one count. `--all` lists them too, each with no level.
-- **Every MCP on the app shows**, with no level: *yours* when your own sign-in is live, *Kim's, look-ups* when a call would use a teammate's [shared sign-in](mcp-connections.md#share-your-sign-in-with-the-team), else *connect yourself* and the link to send the person.
-- **Each key row names its [notes page](#notes-on-each-key-based-service)**, and whether it exists yet.
+- **Each row names its [notes page](#notes-on-each-key-based-service)**, and whether it exists yet.
 - **Project code is left out**: it is the stack's own key, reached through [the project's route](employee-project.md#who-gets-what).
-- **The list stays short.** One row per service, however many tools each has, at most 200 rows, and never a key value or a sign-in. `--json` prints the whole answer.
+- **The list stays short.** One row per service, however many actions each has, at most 200 rows, and never a key value. `--json` prints the whole answer.
 
-A row says what to do next. A key that isn't saved: [send its key link](../development/secrets.md#receive-a-key-through-a-private-link). A key you have no level for: ask the owner or an Admin. An MCP to connect: send the person its link, which opens on [their own Connect](mcp-connections.md#connect-your-own-sign-in).
+A row says what to do next. A key that isn't saved: [send its key link](../development/secrets.md#receive-a-key-through-a-private-link). A key you have no level for: ask the owner or an Admin.
 
-Behind it is `GET /api/services` (`?all=1` for every key), with the same login, cache and credential rules as the action list below. Each saved key's purpose and guide link come from [the key registry](api-keys.md#a-saved-key-shows-in-access); an MCP's purpose is the line it gives about itself.
+Behind it is `GET /api/services` (`?all=1` for every key), with the same login, cache and credential rules as the action list below. Each key's purpose and guide link come from [the key registry](api-keys.md#a-saved-key-shows-in-access).
 
 ## Discover only what the task needs
 
@@ -43,12 +42,6 @@ Verified [company login](cloudflare-access.md) protects these live endpoints, in
 Once [Access permissions have started](employee-access.md#what-a-persons-apps-govern), all three endpoints read current membership, apps and [key levels](employee-access.md#key-levels) before describing an action or answering a conditional request. A person who holds an app sees all its actions, reads and changes; a key's own action shows only at the level it needs. Main registrations use the same reviewed method/path mappings as dispatch; a shared action requires every mapped app. Existing action visibility checks also apply. An unassigned new app stays hidden, and an unavailable policy returns an unavailable response.
 
 The document and summaries carry a deterministic contract revision. Each ETag also includes the caller, current policy revision and selected response, so an old grant, another caller or another query cannot reuse a permitted response. Selected-action authorization and input checks run before a 304 response. Responses require private cache revalidation; denials are never cached. New published registrations appear on the next lookup. Never load the full schema at chat startup; list relevant actions and describe the selected one when needed.
-
-### MCP tools are actions too
-
-Each tool of each MCP on the app is one action, `mcp.<id>.<tool>`, so `list --q canva design` finds Canva's design tools beside the app's own actions and [keys used directly](company-api.md#use-a-key-directly). Its summary and inputs are the MCP's own. Its effect is `read` when the MCP marks the tool as a look-up, else `external`, a change. Its readiness is `available` when you can run it now, with your own sign-in or a share that covers it, else `needs_connect`.
-
-A search reads the app's saved copy of each tool list, so it never contacts an MCP. The copy changes on the MCP's first Connect, on a call naming a tool it lacks, and on *Refresh* in [Services](access-screens.md#the-services-view). A refresh, a Connect or a share change moves the revision, so the next lookup sees it. `describe` and `call` work on a tool as on any action: [MCP connections](mcp-connections.md#calls-and-their-record) owns what a call does.
 
 ## Short answers in the chat
 
@@ -63,17 +56,17 @@ The helper keeps each answer small, so one call can't fill the chat:
 
 ## The shared error shape
 
-Every refusal, from an action, a key used directly or an MCP tool, has one shape:
+Every refusal, from an action or a key used directly, has one shape:
 
 ```json
-{ "error": { "code": "mcp_not_connected", "message": "Connect Notion first.", "requestId": "…", "connect": "https://…/apps/access/services/notion" } }
+{ "error": { "code": "unavailable", "message": "Connection unavailable", "requestId": "…" } }
 ```
 
-`message` is plain words, safe to show the person. A bad input adds `issues`, as [an action's errors](company-api.md#define-an-action-once) say. `connect`, on an MCP refusal, is the link to send the person. A `timeout` means the outcome is unknown: check before you repeat a change.
+`message` is plain words, safe to show the person. A bad input adds `issues`, as [an action's errors](company-api.md#define-an-action-once) say. A `timeout` means the outcome is unknown: check before you repeat a change.
 
 ## Notes on each key-based service
 
-What chats learn about a key-based service lives in that install's wiki, one page per key: `wiki/services/<id>.md`, such as `wiki/services/notion.md`. The guide link stays the source; the notes are what earlier chats proved works. MCPs get no notes page, because their tool list describes itself.
+What chats learn about a key-based service lives in that install's wiki, one page per key: `wiki/services/<id>.md`, such as `wiki/services/notion.md`. The guide link stays the source; the notes are what earlier chats proved works.
 
 1. **Read the notes first.** Before using a key directly, open the page its row in `services` names.
 2. **Make the page on first use.** No page yet: write the `#` title, the purpose line and the guide link, then what you learn. The first page also makes the hub, `wiki/services/README.md`, and links it from the wiki's root, as [people pages](../wiki-style.md#people) do.

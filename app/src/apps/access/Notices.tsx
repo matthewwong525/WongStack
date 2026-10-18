@@ -8,7 +8,7 @@ import { FINISH_REQUEST } from './status'
 import { WelcomeDialog } from './Welcome'
 
 /** One notice in its box. It says nothing aloud unless `role` makes it a status or an alert. */
-export function Notice({ role, children }: { role?: 'status' | 'alert'; children: ReactNode }) {
+function Notice({ role, children }: { role?: 'status' | 'alert'; children: ReactNode }) {
   return <Alert role={role}><AlertDescription className="w-full gap-2 text-foreground wrap-anywhere">{children}</AlertDescription></Alert>
 }
 

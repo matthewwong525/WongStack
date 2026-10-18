@@ -6,7 +6,7 @@ This convention supports any credential-file format; it requires no dotenv libra
 
 ## Tool keys and business services
 
-`.env` holds keys for the tools this computer runs, such as Cloudflare's. A business service's key lives in the app, and so does each person's MCP sign-in. A chat reaches both through [the services list](../stack/service-catalogue.md), never by reading a key from a file: the app decides what each person may do, and a teammate's computer holds no business key. The private link below still saves a new key's value, and the assistant then sends it to the app.
+`.env` holds keys for the tools this computer runs, such as Cloudflare's. A business service's key lives in the app. A chat reaches it through [the services list](../stack/service-catalogue.md), never by reading a key from a file: the app decides what each person may do, and a teammate's computer holds no business key. The private link below still saves a new key's value, and the assistant then sends it to the app.
 
 ## The two files
 

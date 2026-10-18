@@ -3,7 +3,6 @@ import { services } from "./services";
 import type { KeyEntry } from "../employee-access/key-levels";
 import { body } from "../../tests/body";
 import { employee, fixture, owner, site } from "../../tests/employee-access/connections";
-import { mcpFixture, SEAL_VALUE } from "../../tests/mcp";
 import { fakeEnv } from "../../tests/env";
 
 // A made-up registry: Stripe is used directly and has a guide, the bank key is not, and project code never lists.
@@ -15,62 +14,59 @@ const registry = vi.hoisted(() => ({ keys: {
 } satisfies Record<string, KeyEntry> }));
 vi.mock("../keys.ts", () => registry);
 
-let f: ReturnType<typeof mcpFixture>;
-beforeEach(() => { f = mcpFixture(); });
+const STRIPE = "stripe-secret-value";
+let f: ReturnType<typeof fixture>;
+beforeEach(() => { f = fixture(); });
 afterEach(() => { f.sql.close(); });
-const list = (identity = owner, query = "", env: object = { ...f.env, STRIPE_SECRET_KEY: "stripe-secret-value" }, headers = {}) =>
-  services(new Request(`${site.origin}/api/services${query}`, { headers }), env as typeof f.env, identity);
+const saved = (extra: object = {}) => fakeEnv({ ...f.env, STRIPE_SECRET_KEY: STRIPE, ...extra });
+const list = (identity = owner, query = "", env: object = saved(), headers = {}) =>
+  services(new Request(`${site.origin}/api/services${query}`, { headers }), env as ReturnType<typeof saved>, identity);
+const grant = (id: string, level: string) =>
+  f.sql.prepare("INSERT OR REPLACE INTO wong_access_key_grants VALUES (?, ?, ?, ?, 1)").run(site.installationId, employee.id, id, level);
 
-it("lists each saved key the caller holds a level for, with what it is for, and counts the rest", async () => {
-  expect(await body(await list())).toMatchObject({ needAccess: 0, services: [
-    { id: "bank", kind: "key", name: "Bank", purpose: "Balances and transfers", ready: false, level: "read", direct: false },
-    { id: "stripe", kind: "key", name: "Stripe", purpose: "Payments and refunds", docs: "https://docs.stripe.example/api", ready: true, level: "write", direct: true },
+it("lists each key the caller holds a level for, with what it is for and whether it is saved, and counts the rest", async () => {
+  const listed = await body(await list());
+  expect(listed).toEqual({ revision: expect.stringMatching(/^[0-9a-f]{64}$/), needAccess: 0, services: [
+    { id: "bank", name: "Bank", purpose: "Balances and transfers", ready: false, level: "read", direct: false },
+    { id: "stripe", name: "Stripe", purpose: "Payments and refunds", docs: "https://docs.stripe.example/api", ready: true, level: "write", direct: true },
   ] });
+  // Project code is the stack's own key, and no key's value is ever in the answer.
+  expect(JSON.stringify(listed)).not.toMatch(/Project code|stripe-secret-value/);
   // Before key levels start, a teammate holds none.
   expect(await body(await list(employee))).toMatchObject({ services: [], needAccess: 2 });
   f.sql.exec("UPDATE wong_access_installation SET keys_enabled = 1");
-  f.sql.prepare("INSERT INTO wong_access_key_grants VALUES (?, ?, 'stripe', 'read', 1)").run(site.installationId, employee.id);
+  grant("stripe", "read");
   expect(await body(await list(employee))).toMatchObject({ services: [{ id: "stripe", level: "read" }], needAccess: 1 });
+  // `all` lists the rest too, each with no level.
   expect((await body(await list(employee, "?all=1"))).services.map(row => [row.id, row.level])).toEqual([["bank", null], ["stripe", "read"]]);
 });
-it("lists every MCP, ready with the caller's own sign-in or a teammate's share", async () => {
-  await f.add(); await f.signIn(owner);
-  await f.run(owner, "servers/canva/share", "POST", { share: "read" });
-  const mcp = async (identity = owner) => (await body<{ services: Record<string, unknown>[] }>(await list(identity))).services.find(row => row.kind === "mcp");
-  expect(await mcp()).toEqual({ id: "mcp:canva", kind: "mcp", name: "Canva", purpose: "Canva designs and folders.", ready: true, own: "connected", tools: 2 });
-  expect(await mcp(employee)).toEqual({ id: "mcp:canva", kind: "mcp", name: "Canva", purpose: "Canva designs and folders.", ready: true, own: null,
-    using: { who: owner.id, share: "read" }, tools: 2, connect: `${site.origin}/apps/access/services/canva` });
-  await f.run(owner, "servers/canva/share", "POST", { share: "none" });
-  expect(await mcp(employee)).toMatchObject({ ready: false, own: null });
-  // An app that can't seal sign-ins yet lists its MCPs as not ready.
-  expect((await body(await list(owner, "", { ...f.env, WONG_MCP_SEAL: undefined }))).services.at(-1)).toMatchObject({ ready: false });
-});
 it("answers only a signed-in person, and holds back a list that would show a secret", async () => {
-  expect((await services(new Request(`${site.origin}/api/services`), f.env, null)).status).toBe(401);
-  expect((await services(new Request(`${site.origin}/api/services`, { method: "POST" }), f.env, owner)).status).toBe(404);
+  expect((await services(new Request(`${site.origin}/api/services`), saved(), null)).status).toBe(401);
+  expect((await services(new Request(`${site.origin}/api/services`, { method: "POST" }), saved(), owner)).status).toBe(404);
   f.sql.exec("UPDATE wong_access_members SET status = 'removed'");
   expect((await list(employee)).status).toBe(403);
-  await f.add(); await f.signIn(owner);
-  f.sql.prepare("UPDATE wong_mcp_servers SET instructions = ?").run(SEAL_VALUE);
-  expect((await list()).status).toBe(500);
+  // A saved value that matches a purpose would show it, so the list is refused.
+  expect((await list(owner, "", saved({ BANK_SECRET: "Balances and transfers" }))).status).toBe(500);
 });
-it("names a revision, and answers 304 while nothing the caller sees has changed", async () => {
-  const first = await list();
-  expect([first.headers.get("cache-control"), (await body(first)).revision]).toEqual(["private, no-cache", expect.stringMatching(/^[0-9a-f]{64}$/)]);
+it("names a revision, answers 304 while nothing the caller sees has changed, and moves on a level or a saved key", async () => {
+  f.sql.exec("UPDATE wong_access_installation SET keys_enabled = 1");
+  grant("stripe", "read");
+  const first = await list(employee);
+  expect(first.headers.get("cache-control")).toBe("private, no-cache");
   const etag = first.headers.get("etag")!;
-  expect((await list(owner, "", undefined, { "If-None-Match": etag })).status).toBe(304);
-  await f.add();
-  expect((await list(owner, "", undefined, { "If-None-Match": etag })).status).toBe(200);
-  expect((await list(employee)).headers.get("etag")).not.toBe(etag);
+  expect((await list(employee, "", saved(), { "If-None-Match": etag })).status).toBe(304);
+  // A new level, or a key saved, changes what the caller sees.
+  grant("stripe", "write");
+  expect((await list(employee, "", saved(), { "If-None-Match": etag })).status).toBe(200);
+  const now = (await list(employee)).headers.get("etag")!;
+  expect((await list(employee, "", saved({ STRIPE_SECRET_KEY: undefined }), { "If-None-Match": now })).status).toBe(200);
+  // Each caller has their own revision.
+  expect((await list()).headers.get("etag")).not.toBe(now);
 });
-it("gives only the owner every key before Access starts, and lists no MCP until it has", async () => {
+it("gives only the owner every key before Access starts", async () => {
   const fresh = fixture({ started: false });
-  const ask = (identity = owner) => services(new Request(`${site.origin}/api/services`), fakeEnv({ ...fresh.env, WONG_MCP_SEAL: SEAL_VALUE }), identity);
+  const ask = (identity = owner) => services(new Request(`${site.origin}/api/services`), fakeEnv(fresh.env), identity);
   expect((await body(await ask())).services.map(row => [row.id, row.level])).toEqual([["bank", "read"], ["stripe", "write"]]);
   expect(await body(await ask(employee))).toMatchObject({ services: [], needAccess: 2 });
   fresh.sql.close();
-});
-it("still lists the keys when the MCP tables can not be read", async () => {
-  f.sql.exec("DROP TABLE wong_mcp_sign_ins; DROP TABLE wong_mcp_connections; DROP TABLE wong_mcp_servers");
-  expect((await body(await list())).services.map(row => row.id)).toEqual(["bank", "stripe"]);
 });

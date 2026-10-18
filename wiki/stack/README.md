@@ -21,8 +21,7 @@ The pack uses **merge = deploy**, independent staging and branch previews. [One 
 - [CI on GitHub Actions](github-actions.md) — the thin deploy workflow that runs the pipeline's scripts, and why not Cloudflare's Workers Builds.
 - [Fix a broken production database](d1-recovery.md) — the runbooks for when production is red: undo a bad migration with Time Travel, never hand-apply schema, and repair a drifted `d1_migrations` ledger.
 - [Company actions](company-api.md) — described app actions and memory reads for employee assistants, with separate authentication.
-- [The services list](service-catalogue.md) — where a chat starts for any outside service: the keys and MCPs it can use, search, short answers, the shared error shape, and each service's notes page.
-- [MCP connections](mcp-connections.md) — add an MCP from the page, the chat, or Claude and Codex; each person signs in once, may share it with the team, and who can remove it.
+- [The services list](service-catalogue.md) — where a chat starts for any outside service: the keys it can use, search, short answers, the shared error shape, and each service's notes page.
 - [Mini apps](mini-apps.md) — small apps from one request, part of the main app under `/apps/`: the same loop and checks as any change, and a card each on the home page.
 - [Cloudflare Access](cloudflare-access.md) — automatic email login, native Worker and preview coverage, signed identity, and separate machine access.
 - [Employee access](employee-access.md) — the Access mini app: how the owner is known, the live app's key for its sign-in list, the first open, apps by a tick, key levels, and the practice list on previews.

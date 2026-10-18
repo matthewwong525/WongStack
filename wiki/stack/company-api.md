@@ -2,7 +2,7 @@
 
 Company actions let an employee’s assistant use the same approved work as an app, while service keys stay on the company’s server. Ask for the work you want available, such as “let the team look up an order.” The assistant builds a specific action, describes it, and follows [the usual change loop](../development/the-change-loop.md).
 
-A saved key cannot explain which business actions are safe, their inputs, or who may use a record. Each integration needs a deliberately implemented handler. The supplied health and [Hello greeting](../../app/worker/apps/hello/greeting.ts) demonstrate the pattern with synthetic data; they prove no outside service connection. To find what a chat can use, actions, keys used directly and MCP tools, start with [the services list](service-catalogue.md).
+A saved key cannot explain which business actions are safe, their inputs, or who may use a record. Each integration needs a deliberately implemented handler. The supplied health and [Hello greeting](../../app/worker/apps/hello/greeting.ts) demonstrate the pattern with synthetic data; they prove no outside service connection. To find what a chat can use, actions and keys used directly, start with [the services list](service-catalogue.md).
 
 ## Define an action once
 

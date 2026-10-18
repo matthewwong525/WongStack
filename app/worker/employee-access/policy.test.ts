@@ -32,7 +32,7 @@ const answering = (row: unknown) => ({ ...env, DB: fakeDatabase({ withSession: (
 
 beforeEach(() => {
   sql = new DatabaseSync(":memory:");
-  for (const file of ["0001_employee_access.sql", "0003_key_levels.sql", "20261005142459_access_managers.sql", "20261006031500_area_levels.sql", "20261007220000_key_direct_use.sql", "20261013205049_admin_role.sql", "20261018040000_mcp_connections.sql"]) {
+  for (const file of ["0001_employee_access.sql", "0003_key_levels.sql", "20261005142459_access_managers.sql", "20261006031500_area_levels.sql", "20261007220000_key_direct_use.sql", "20261013205049_admin_role.sql"]) {
     sql.exec(readFileSync(new URL(`../../../schema/migrations/${file}`, import.meta.url), "utf8"));
   }
   sql.exec(`INSERT INTO wong_access_installation
@@ -356,8 +356,7 @@ it("uses reviewed method/path scopes across summaries, details and OpenAPI witho
   const ownerListing = await body(await discover("/api/actions", {}, owner));
   expect(ownerListing.actions.map(item => item.operationId))
     .toEqual(["employee.setup", "main.health", "new.read", "orders.read", "owner.manage", "unrelated.name"]);
-  // Each listing reads the caller's permissions once, and the MCPs once.
-  expect(env.DB?.withSession).toHaveBeenCalledTimes(10);
+  expect(env.DB?.withSession).toHaveBeenCalledTimes(5);
 });
 
 it("names a write's confirming read only once the caller holds that read's app", async () => {

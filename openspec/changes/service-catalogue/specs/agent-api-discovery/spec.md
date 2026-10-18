@@ -2,7 +2,7 @@
 
 ### Requirement: Agent context is selective and available by default
 
-Every install SHALL give its agents a short always-read instruction that names the services list as the first step for any outside service, then search, describe and call. An agent SHALL be able to list every service it can reach, list relevant action summaries and load the full contract and local schema dependencies for a selected action. The entire schema SHALL NOT be required in every session's starting context. Newly published contracts and newly connected MCPs SHALL be discoverable without manual employee prompt updates.
+Every install SHALL give its agents a short always-read instruction that names the services list as the first step for any outside service, then search, describe and call. An agent SHALL be able to list every service it can reach, list relevant action summaries and load the full contract and local schema dependencies for a selected action. The entire schema SHALL NOT be required in every session's starting context. Newly published contracts and newly saved keys SHALL be discoverable without manual employee prompt updates.
 
 #### Scenario: A task needs company information
 
@@ -14,21 +14,21 @@ Every install SHALL give its agents a short always-read instruction that names t
 - **WHEN** many described actions are available
 - **THEN** the helper can return bounded filtered summaries and just the selected action's full schema
 
-#### Scenario: An MCP is connected on the page
+#### Scenario: A key is saved
 
-- **WHEN** the owner connects Canva in Services
-- **THEN** a chat's next services list names Canva without any instruction or skill being edited
+- **WHEN** the owner saves a Notion key through its key link
+- **THEN** a chat's next services list names Notion without any instruction or skill being edited
 
 ## ADDED Requirements
 
 ### Requirement: The services list names the services a caller can use
 
-The helper and the company endpoint SHALL return, for the signed-in caller, one bounded entry per registered key the caller holds a level for and per MCP on the app: its id, name, one-line purpose, whether it is ready for them (a key saved; an MCP connected by them, or shared with them and how), their key level, and for a key used directly the link to its service's API guide. Other keys SHALL appear as one count, and the full list SHALL be available on request, each entry marked as needing access. Its size SHALL not grow with the number of operations a service has, and it SHALL contain no key value or sign-in. The helper SHALL add to each key-based entry the checkout path of that service's notes page and whether the page exists yet.
+The helper and the company endpoint SHALL return, for the signed-in caller, one bounded entry per registered key the caller holds a level for: its id, name, one-line purpose, whether it is saved, their level, and for a key used directly the link to its service's API guide. Other keys SHALL appear as one count, and the full list SHALL be available on request, each entry marked as needing access. Its size SHALL not grow with the number of operations a service has, and it SHALL contain no key value. The helper SHALL add to each key-based entry the checkout path of that service's notes page and whether the page exists yet.
 
 #### Scenario: A chat lists services
 
-- **WHEN** a person with Stripe at Read and no Mailchimp level, who has connected Canva but not Notion, lists services
-- **THEN** Stripe shows ready at Read, Canva shows ready as theirs, Notion says to connect, and Mailchimp is only counted among keys that need access
+- **WHEN** a person with Stripe at Read, Notion at Read but not saved, and no Mailchimp level lists services
+- **THEN** Stripe shows ready at Read, Notion says to ask for its key link, and Mailchimp is only counted among services that need access
 
 #### Scenario: A service has notes
 
@@ -44,27 +44,13 @@ The always-read instructions SHALL tell an agent that uses a key-based service d
 - **WHEN** an earlier chat recorded how to search Notion pages and a new chat needs to search Notion
 - **THEN** the new chat uses the recorded call without opening Notion's guide
 
-### Requirement: MCP tools are searched, described and called like actions
-
-Every MCP's saved tools SHALL appear in action search and description, marked as needing the caller's own Connect while they have neither their own nor a shared sign-in, and a change tool marked as needing their own Connect while only a look-ups-only sign-in is shared, each with its name, the MCP's own description, its input, and its effect: a look-up when the MCP marks it as one, else a change. A search SHALL match MCP tools by the same any-order word rule as actions and SHALL use the app's saved copy of each tool list, so it asks no MCP. Calling one SHALL run it once through the app with the sign-in it would use.
-
-#### Scenario: A chat searches for a design tool
-
-- **WHEN** a person who has connected Canva searches `canva design`
-- **THEN** Canva's design tools appear in the results, each marked look-up or change
-
-#### Scenario: A search before connecting
-
-- **WHEN** a person who has not connected Canva, with no shared Canva sign-in, searches `canva design`
-- **THEN** Canva's design tools appear, each marked as needing their Connect, and Canva is not contacted
-
 ### Requirement: The helper keeps lists and answers short in the chat
 
 By default the helper SHALL print one line per search match and a bounded first part of a long answer, saving the whole answer to a private file it names, so one call cannot fill the chat. A script SHALL be able to ask for the full structured list and the whole answer in the output, as before.
 
 #### Scenario: A long answer
 
-- **WHEN** a chat runs a Canva search whose answer is 2 MB
+- **WHEN** a chat runs a Stripe search whose answer is 2 MB
 - **THEN** the chat sees the first part and the path of a private file holding the whole answer
 
 #### Scenario: A script needs the whole answer

@@ -21,7 +21,7 @@ Before a change, **read the owning doc**: start at [`wiki/README.md`](wiki/READM
 
 Before substantial work, `memory.mjs recall <question>` finds [evidence](wiki/development/document-retrieval.md); read originals. Keep `areas <path>` for warnings and `openspec list` for plans.
 
-Credentials for this computer's own tools sit in the git-ignored `.env` at the primary worktree, mapped by the committed, values-blank `.env.example`. For any business service or MCP, start with `node scripts/company-api.mjs services`, then `list --q`, `describe`, `call`: the app holds those keys and sign-ins. Don't stub a call or ask for a key in chat: declare a missing one, then [send the key link](wiki/development/secrets.md#receive-a-key-through-a-private-link).
+Credentials for this computer's own tools sit in the git-ignored `.env` at the primary worktree, mapped by the committed, values-blank `.env.example`. For any business service, start with `node scripts/company-api.mjs services`, then `list --q`, `describe`, `call`: the app holds those keys. Don't stub a call or ask for a key in chat: declare a missing one, then [send the key link](wiki/development/secrets.md#receive-a-key-through-a-private-link).
 
 ## Rules
 
