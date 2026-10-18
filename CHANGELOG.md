@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — The API spec names each service and its guide
+## 43.6.0 — The API spec names each service and its guide
 
 - **Opening one action tells a chat what each service is for.** It shows each service the action uses with its purpose line and a link to that service's own API guide. The helper adds the service's notes page in your wiki, and says whether it exists yet. A chat that goes straight to an action no longer needs the services list first.
 - **The app's API description groups actions by service.** Each service shows once, with its purpose and guide link, above its actions. A service's own look-up and change actions also link the guide. Someone who can't use a service doesn't see its group.

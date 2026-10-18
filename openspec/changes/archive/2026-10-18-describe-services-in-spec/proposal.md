@@ -1,6 +1,6 @@
 # The API spec says enough on its own
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** mcp-memory-services
 **Open questions:** none
 
@@ -65,3 +65,5 @@ None.
 - **2026-10-18** — Assumed: groups are by key only, not by app, because apps carry no purpose line or guide to show.
 - **2026-10-18** — Assumed: the services list stays as it is, because it is the one place that names a key nobody has saved yet, which has no action to describe.
 - **2026-10-18** — Assumed: one save before archive, because the preview check (task 4.2) needs the deployed app.
+- **2026-10-18** — Assumed: the no-level case is proven by the unit test, not the preview, because the preview's verification token holds every key.
+- **2026-10-18** — Asked to build and publish from the review page → archived with every task ticked, and published.

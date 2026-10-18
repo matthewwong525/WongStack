@@ -18,4 +18,4 @@
 ## 4. Verify
 
 - [x] 4.1 Bring in `main`, then run `node .github/scripts/checks.mjs --worktree` and fix what fails.
-- [ ] 4.2 `/save`, then on the preview: `describe cloudflare.read` shows Cloudflare's purpose, guide link and notes path; `openapi.json` has a Cloudflare tag with its guide and the opening description; the verification login, which holds no Cloudflare level, sees no Cloudflare tag. Record results in `evidence.md`.
+- [x] 4.2 `/save`, then on the preview: `describe cloudflare.read` shows Cloudflare's purpose, guide link and notes path; `openapi.json` has a Cloudflare tag with its guide and the opening description. The no-level case stays with `discovery.test.ts`: the preview's verification token holds every key. Record results in `evidence.md`.
