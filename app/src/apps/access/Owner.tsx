@@ -3,15 +3,18 @@ import { useLocation, useNavigate, useParams } from 'react-router'
 import { Button } from '@/components/ui/button'
 import { changeAccess, statusSchema, useAccess } from '../../lib/access'
 import { saidSchema, VIEWS, type ViewProps } from './address'
+import { useServers } from './mcp'
 import { People } from './People'
 import { Roles } from './Roles'
+import { ServicesView } from './Services'
 
-const SCREENS = { people: People, roles: Roles }
+const SCREENS = { people: People, roles: Roles, services: ServicesView }
 const UNFINISHED = 'That did not finish. Check the list below before trying again.'
 
-// The owner's screens, and an Admin's. One read of the whole status serves the two views and the pages under them.
+// The owner's screens, and an Admin's. One read of the whole status serves the views and the pages under them.
 export function Owner() {
   const { data, error, reload } = useAccess('status', statusSchema)
+  const mcp = useServers()
   const [pending, setPending] = useState(false)
   const navigate = useNavigate()
   // What the last change came to, kept with the address it led to, so it is gone on the next screen.
@@ -32,6 +35,6 @@ export function Owner() {
   return <>
     {!data && !error && <p role="status">Loading people…</p>}
     {error && <><p role="alert">Access is unavailable.</p><Button type="button" variant="outline" className="justify-self-start" onClick={reload}>Retry</Button></>}
-    {data && <Screen status={data} id={named ? rest.join('/') : ''} view={view} pending={pending} said={said} save={save} reload={reload} />}
+    {data && <Screen status={data} mcp={mcp} id={named ? rest.join('/') : ''} view={view} pending={pending} said={said} save={save} reload={reload} />}
   </>
 }

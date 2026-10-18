@@ -1,6 +1,6 @@
 import { Link } from 'react-router'
 import { Button } from '@/components/ui/button'
-import { at, type ViewProps } from './address'
+import { at, viewLabel, type ViewProps } from './address'
 import { count, summary } from './levels'
 import { BuiltInRole, RolePage } from './RolePage'
 import { holders } from './subjects'
@@ -13,7 +13,7 @@ export function Roles(props: ViewProps) {
   const { status, id } = props
   const opened = status.roles.find(item => item.id === id)
   return <View {...props} add={<Button asChild><Link to={at('roles', 'new')}><span aria-hidden="true">+ </span>Add role</Link></Button>}>
-    <Table view={props.view} columns={['Role', 'Apps and keys', 'People']}>
+    <Table labelledBy={viewLabel(props.view)} columns={['Role', 'Apps and keys', 'People']}>
       {status.roles.map(role => {
         const page = at('roles', role.id)
         const people = holders(status, role.id).length

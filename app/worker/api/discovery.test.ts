@@ -6,6 +6,8 @@ import { apiActions } from "./router";
 import { appActions } from "../apps/index";
 import { body } from "../../tests/body";
 import { fakeDatabase, fakeEnv } from "../../tests/env";
+import { employee, owner, site } from "../../tests/employee-access/connections";
+import { mcpFixture, SEAL_VALUE } from "../../tests/mcp";
 const env = {} as Env;
 // The supplied actions alone: a build may hold other folders.
 const supplied = [...apiActions, ...appActions].filter(({ app }) => app === "main" || app === "hello");
@@ -119,4 +121,33 @@ it("bounds selected details and full documents even for a very large registry sc
   const action = synthetic("sample.large", { description: "x".repeat(1048576) });
   const rows = registrations(new Map([["POST /api/large", action]]));
   for (const path of ["/api/actions?id=sample.large", "/api/openapi.json"]) expect((await get(path, rows)).status).toBe(500);
+});
+it("lists each saved MCP tool from the saved list alone, and moves its revision when a sign-in or share does", async () => {
+  const f = mcpFixture();
+  const ask = async (who = owner, path = "/api/actions?app=mcp:canva", headers = {}) => discovery(new Request(`${site.origin}${path}`, { headers }), f.env, who, []);
+  await f.add(); await f.signIn(owner);
+  const sent = f.service.state.requests.length;
+  const listed = await ask();
+  expect((await body(listed)).actions.map(a => [a.operationId, a.effect, a.readiness, a.source])).toEqual([["mcp.canva.create", "external", "available", "mcp"], ["mcp.canva.search", "read", "available", "mcp"]]);
+  const selected = await body(await ask(employee, "/api/actions?id=mcp.canva.search"));
+  expect(selected).toMatchObject({ readiness: "needs_connect", path: "/api/mcp/canva/tools/search", method: "POST", inputSchema: { properties: { query: { type: "string" } } } });
+  expect(selected.errorSchema.properties.error.properties.connect.type).toBe("string");
+  expect(Object.keys((await body(await ask(owner, "/api/openapi.json"))).paths)).toEqual(["/api/mcp/canva/tools/create", "/api/mcp/canva/tools/search"]);
+  expect(f.service.state.requests.length).toBe(sent);
+  // The employee's view changes when the owner shares, though no tool changed.
+  const before = (await ask(employee)).headers.get("etag");
+  await f.run(owner, "servers/canva/share", "POST", { share: "read" });
+  const shared = await ask(employee, "/api/actions?app=mcp:canva", { "If-None-Match": before });
+  expect(shared.status).toBe(200);
+  expect((await body(shared)).actions.map(a => a.readiness)).toEqual(["needs_connect", "available"]);
+  const etag = shared.headers.get("etag");
+  f.service.state.tools = [{ name: "search" }];
+  await f.run(owner, "servers/canva/refresh");
+  expect((await ask(employee, "/api/actions?app=mcp:canva", { "If-None-Match": etag })).status).toBe(200);
+  // A tool whose text holds a secret is left out, and unreadable MCP tables list none.
+  f.sql.prepare("UPDATE wong_mcp_servers SET tools_json = ?").run(JSON.stringify([{ name: "leak", description: SEAL_VALUE, readOnly: true, inputSchema: { type: "object", properties: {} } }]));
+  expect((await body(await ask())).total).toBe(0);
+  f.sql.exec("DROP TABLE wong_mcp_sign_ins; DROP TABLE wong_mcp_connections; DROP TABLE wong_mcp_servers");
+  expect((await ask()).status).toBe(200);
+  f.sql.close();
 });

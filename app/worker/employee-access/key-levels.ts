@@ -1,10 +1,11 @@
 // What the key registry means to the rest of the Worker: titles, levels, and which secrets a route may see.
 import { keys, type Forward, type Level } from "../keys.ts";
 import { codeSource } from "./code.ts";
+import { SEAL } from "../mcp/seal.ts";
 
 export type { Level };
 /** One key as the registry holds it. */
-export type KeyEntry = { title: string; secrets: readonly string[]; levels?: readonly Level[]; setup?: true; alone?: true; bindings?: readonly string[]; forward?: Forward };
+export type KeyEntry = { title: string; purpose: string; docs?: string; secrets: readonly string[]; levels?: readonly Level[]; setup?: true; alone?: true; bindings?: readonly string[]; forward?: Forward };
 const registry: Readonly<Record<string, KeyEntry>> = keys;
 
 export const keyIds = (): string[] => Object.keys(registry);
@@ -17,6 +18,9 @@ export const worksAlone = (id: string): boolean => registry[id].alone === true;
 export const offered = (id: string): readonly Level[] => registry[id].levels ?? ["read", "write"];
 /** Whether a key's service is set up to be used directly through the app. */
 export const forwards = (id: string): boolean => registry[id].forward !== undefined;
+/** What a key is for, and its service's API guide when it is used directly. */
+export const described = (id: string): { purpose: string; docs?: string } =>
+  ({ purpose: registry[id].purpose, ...(registry[id].docs && { docs: registry[id].docs }) });
 export const levelName = (level: Level): string => level === "read" ? "Read" : "Read & write";
 /** Read & write covers everything; Read covers looking up. */
 export const holds = (level: Level | undefined, need: Level): boolean => level === "write" || level === need;
@@ -37,11 +41,12 @@ export const saved = (env: object, id: string): boolean => registered(id) && (id
   }));
 
 /** A copy of the bindings without the secrets of any registered key the route does not list.
- *  A key the Worker's own route uses is handed to no route, listed or not. */
+ *  A key the Worker's own route uses is handed to no route, listed or not, nor is the seal on MCP sign-ins. */
 export function scopedEnv<E extends object>(env: E, listed: readonly string[]): E {
   const copy = { ...env } as E & Record<string, unknown>;
   for (const id of keyIds()) {
     if (!listed.includes(id) || worksAlone(id)) for (const name of [...registry[id].secrets, ...registry[id].bindings ?? []]) delete copy[name];
   }
+  delete copy[SEAL];
   return copy;
 }

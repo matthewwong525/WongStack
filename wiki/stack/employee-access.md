@@ -30,7 +30,7 @@ An install made before Access, or one whose key is missing, needs one step: the 
 node "<WongStack source>/.claude/skills/wong-setup/scripts/provision.mjs" access
 ```
 
-It adds `WONG_OWNER_EMAIL` and [the project's name](employee-project.md#how-the-app-hands-the-project-out) to both Workers' `vars`, makes or reuses the key, stores it in the live app, and makes or reuses [the read-only key for Cloudflare look-ups](cloudflare-credentials.md#the-read-only-look-up-key) in the live app. The preview app gets a copy only when Cloudflare accepts it; a report that names it as `waiting` is finished, not failed. It makes nothing else. Publish the config change through [the change loop](../development/the-change-loop.md). When the report's `accessKey.status` or `cloudflareReadKey.status` is `missing`, the saved token can not make keys: [send the key link](../development/secrets.md#receive-a-key-through-a-private-link) for a Cloudflare token with *Account API Tokens Write*, then run it again. Until then Access opens, saves apps and key levels, and says one step is left.
+It adds `WONG_OWNER_EMAIL` and [the project's name](employee-project.md#how-the-app-hands-the-project-out) to both Workers' `vars`, makes or reuses the key, stores it in the live app, and makes or reuses [the read-only key for Cloudflare look-ups](cloudflare-credentials.md#the-read-only-look-up-key) in the live app. The preview app gets a copy only when Cloudflare accepts it; a report that names it as `waiting` is finished, not failed. It also gives each Worker its own [seal for MCP sign-ins](mcp-connections.md#what-is-stored-and-sealed), never shown. Publish the config change through [the change loop](../development/the-change-loop.md). When the report's `accessKey.status` or `cloudflareReadKey.status` is `missing`, the saved token can not make keys: [send the key link](../development/secrets.md#receive-a-key-through-a-private-link) for a Cloudflare token with *Account API Tokens Write*, then run it again. Until then Access opens, saves apps and key levels, and says one step is left.
 
 To rotate the key, delete the `<worker>-access` token in Cloudflare and run the step again.
 
@@ -85,6 +85,7 @@ Each saved key has a level per person. A level governs the key used by itself: [
 - **A key that offers only Read shows two choices.** [The supplied Cloudflare key](company-api.md#look-things-up-in-cloudflare) is one.
 - **The owner holds every key.** So does the verification service token, as it keeps every app. [An Admin](#admin) holds every key at its highest level.
 - **Direct use makes a level mean more.** A key whose service is set up can be [used directly](company-api.md#use-a-key-directly), with no built action. The level alone decides, with no switch: Read lets a person's assistant look up anything the key can see, and Read & write also changes it. So setting a service up opens it to the owner at once, and to everyone who holds a level for that key. Set a person's level to *None* to stop it. [Their panel](access-screens.md#a-panel-has-apps-and-keys) marks such a key.
+- **MCPs take no level.** Each person [signs in to an MCP as themselves](mcp-connections.md#connect-your-own-sign-in), so the service's own account decides. Removing a person deletes their sign-ins and any share.
 
 ### A key with no app
 
@@ -123,7 +124,7 @@ Access gives no skill and lists none. The server judges each call [a skill](comp
 
 ## The screens
 
-Access has two views, People and Roles. [The Access screens](access-screens.md) owns how they look and behave.
+Access has three views, People, Roles and Services. [The Access screens](access-screens.md) owns how they look and behave.
 
 ## What a person's apps govern
 

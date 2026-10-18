@@ -114,7 +114,16 @@ it('puts a person saved before the first read on the sign-in list once the read 
 
 it('removal blocks at once and reports the list and session steps separately', async () => {
   cf.failSessions = true;
+  // A person who leaves takes their MCP sign-ins and share with them; nobody else's goes.
+  f.sql.prepare(`INSERT INTO wong_mcp_servers (installation_id, id, name, url, resource, authorize_endpoint, token_endpoint, registration_endpoint,
+    auth_method, scopes, added_by, added_at) VALUES (?, 'canva', 'Canva', 'https://mcp.example.com/mcp', 'r', 'a', 't', 'g', 'none', '', ?, 'now')`)
+    .run(site.installationId, site.ownerEmail);
+  for (const [email, share] of [[employee.id, 'read'], [site.ownerEmail, 'none']]) {
+    f.sql.prepare("INSERT INTO wong_mcp_connections (installation_id, server_id, email, tokens, connected_at, share) VALUES (?, 'canva', ?, 'v1.x.y', 'now', ?)")
+      .run(site.installationId, email, share);
+  }
   const removed = await (await run('people', 'POST', person(employee.id, [], true))).json();
+  expect(f.sql.prepare('SELECT email FROM wong_mcp_connections').all()).toEqual([{ email: site.ownerEmail }]);
   expect(removed).toMatchObject({ people: [{ email: employee.id, status: 'removed', settled: true, apps: [] }],
     work: [{ kind: 'policy', status: 'ready' }, { kind: 'sessions', status: 'failed', error_code: 'provider_unavailable' }] });
   expect((await authorizeRequest(f.env, employee, { kind: 'self-service' }))?.status).toBe(403);

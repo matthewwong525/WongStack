@@ -3,10 +3,13 @@ import { handleMemory, MEMORY_PREFIX } from "../../.agents/skills/memory/worker/
 import { handleWalkPictures, WALK_PREFIX } from "../../.agents/skills/verify/worker/walk-pictures.mjs";
 import { discovery } from "./api/discovery.ts";
 import { API_PREFIX, handleApi } from "./api/router.ts";
+import { services } from "./api/services.ts";
+import { handleMcp, MCP_PREFIX } from "./mcp/routes.ts";
 import { APP_API, handleApp } from "./apps/index.ts";
 import { getAccessIdentity, type AccessEnv } from "./access.ts";
 import { memoryCaller } from "./memory-caller.ts";
 import type { ConnectionEnv } from "./employee-access/core.ts";
+import type { SealEnv } from "./mcp/seal.ts";
 import { appPageDenied } from "./employee-access/apps.ts";
 import { CODE_GIT, gitSignIn } from "./employee-access/code.ts";
 import { SETUP_PATH } from "./employee-access/prompt.ts";
@@ -52,6 +55,13 @@ export default {
     if (["/api/openapi.json", "/api/actions"].includes(url.pathname)) {
       return discovery(request, env, identity);
     }
+    if (url.pathname === "/api/services") {
+      return services(request, env, identity);
+    }
+    // Remote MCPs and each person's sign-in to them: wiki/stack/mcp-connections.md
+    if (url.pathname.startsWith(MCP_PREFIX)) {
+      return handleMcp(request, env, identity);
+    }
 
     // A preview check's kept pictures, served from the verify skill. The route gets the memory bucket alone and
     // reaches only its walks/ folder: wiki/development/staging-walkthrough.md
@@ -76,4 +86,4 @@ export default {
     if (denied) return denied;
     return env.ASSETS.fetch(request);
   },
-} satisfies ExportedHandler<Env & AccessEnv & ConnectionEnv>;
+} satisfies ExportedHandler<Env & AccessEnv & ConnectionEnv & SealEnv>;

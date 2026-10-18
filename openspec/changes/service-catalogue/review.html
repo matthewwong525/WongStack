@@ -1,0 +1,850 @@
+<!-- wong-review:3 -->
+<!doctype html>
+<!--
+  WongStack review kit. build-review.mjs writes the proposal as static HTML at the
+  review:content marker and puts the change name in place of its token. The one
+  script adds Note buttons, drawing fit and full screen, notes, drafts, and copy. It loads nothing from the network;
+  opened through a reply link (reply-link.mjs), it sends the saved notes to the chat, and its footer
+  asks the chat to build, or to build and publish, with saved unsent notes.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Review · service-catalogue</title>
+<style>
+  :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; }
+  body { margin:0; padding-bottom:var(--bar, 76px); background:#e6e6e6; color:var(--ink); font:16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; overflow-wrap:anywhere; }
+  main { max-width:700px; margin:0 auto; padding:0 12px; }
+  a { color:inherit; }
+  code, pre, .ln { font-family:ui-monospace, Menlo, Consolas, monospace; }
+  code { background:var(--fill); border:1px solid #ddd; border-radius:3px; padding:0 3px; font-size:.88em; }
+  :focus-visible { outline:3px solid #111; outline-offset:2px; }
+  [hidden] { display:none !important; }
+  header { padding:18px 0 4px; }
+  .eyebrow { margin:0; color:var(--muted); font-size:13px; letter-spacing:.06em; text-transform:uppercase; }
+  h1 { margin:2px 0 4px; font-size:22px; line-height:1.25; }
+  .jump { display:flex; flex-wrap:wrap; gap:0 18px; margin:4px 0 0; padding:0; list-style:none; }
+  .jump a { display:inline-block; padding:8px 0; }
+  .hint, .muted { color:var(--muted); font-size:14px; margin:4px 0 0; }
+  #script-error { color:#a00; font-weight:600; }
+  section { margin:18px 0; scroll-margin-top:8px; }
+  h2 { margin:0 0 8px; color:var(--muted); font-size:13px; letter-spacing:.08em; text-transform:uppercase; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:6px; padding:12px; margin:0 0 10px; }
+  .card p { margin:0 0 10px; } .card p:last-child { margin-bottom:0; }
+  .items, .decisions, .note-list { list-style:none; margin:0; padding:0; }
+  .item { display:grid; grid-template-columns:26px minmax(0,1fr); gap:0 10px; overflow:hidden; }
+  .item, .decision { scroll-margin-top:8px; }
+  .num { flex:0 0 26px; height:26px; border-radius:50%; background:#d6d6d6; font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center; }
+  .body { flex:1; min-width:0; }
+  [data-note] { border-radius:3px; }
+  [data-note]:hover, .noting { background:#f1f1f1; }
+  .item > .drawing { position:relative; grid-column:1 / -1; margin:10px -12px 0; }
+  .item > .drawing:last-child { margin-bottom:-12px; }
+  .drawing summary { display:flex; align-items:center; gap:6px; min-height:44px; padding:0 12px; border-top:1px solid #ddd; color:var(--muted); font-size:14px; cursor:pointer; list-style:none; }
+  .drawing summary::-webkit-details-marker { display:none; }
+  .drawing summary::before { content:'\25B8'; display:inline-block; width:1em; }
+  .drawing[open] summary::before { transform:rotate(90deg); }
+  .drawing[open] .show, .drawing:not([open]) .hide { display:none; }
+  .drawing .count { color:var(--ink); font-weight:600; }
+  .frame { overflow:auto; border-top:1px solid var(--line); background:var(--fill); touch-action:pan-y; }
+  .js .frame { overflow:hidden; cursor:zoom-in; }
+  .art { display:block; width:max-content; margin:0; padding:.6em .8em; font-size:13px; line-height:1.2; white-space:pre; overflow-wrap:normal; }
+  .art.pic { box-sizing:content-box; white-space:normal; --pele-bg:transparent; --pele-fg:var(--ink); --pele-muted:var(--muted); --pele-line:var(--ink); --pele-border:var(--line); --pele-surface:#fff; --pele-surface-alt:var(--fill); --pele-accent:var(--ink); }
+  .art.pic svg { display:block; width:100%; height:auto; }
+  .art .pin { min-width:1.8em; min-height:1.6em; margin-left:.4em; padding:0 .5em; border-radius:.8em; font-size:.85em; line-height:1.5em; }
+  .enlarge { position:absolute; top:6px; right:12px; min-height:32px; padding:2px 10px; font-size:13px; }
+  .add { min-width:0; min-height:34px; margin-left:6px; padding:0 12px; border-color:#aaa; border-radius:17px; color:var(--muted); font-size:13px; vertical-align:middle; }
+  .zoom { display:flex; align-items:center; gap:6px; }
+  .zoom .level { margin-right:auto; color:var(--muted); font-size:13px; }
+  #viewer { position:fixed; top:0; left:0; right:0; bottom:0; z-index:8; display:flex; flex-direction:column; background:#fff; }
+  #viewer .zoom { flex:none; padding:calc(6px + env(safe-area-inset-top)) 12px 6px; border-bottom:1px solid var(--line); }
+  #viewer .vframe { flex:1; min-height:0; overflow:auto; background:var(--fill); touch-action:pan-x pan-y; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
+  #viewer .vhint { flex:none; margin:0; padding:6px 12px calc(6px + env(safe-area-inset-bottom)); border-top:1px solid var(--line); color:var(--muted); font-size:13px; }
+  body.viewing { overflow:hidden; }
+  .meta { margin:0 0 4px !important; color:var(--muted); font-size:13px; }
+  .tag { display:inline-block; margin-right:8px; padding:0 8px; border:1px solid #777; border-radius:10px; background:#fff; color:var(--ink); font-size:12px; font-weight:700; }
+  .tag.assumed { border-style:dashed; }
+  .tag.check { border:2px dotted #333; }
+  .hit { outline:3px solid #888; outline-offset:3px; }
+  button { font:inherit; font-size:14px; min-width:40px; min-height:40px; padding:4px 12px; border:1px solid #777; border-radius:4px; background:#fff; color:var(--ink); cursor:pointer; }
+  button.primary { background:#333; border-color:#333; color:#fff; }
+  button:disabled { opacity:.45; cursor:default; }
+  .pin { min-width:24px; min-height:24px; margin-left:6px; padding:0 7px; border-radius:12px; background:#333; border-color:#333; color:#fff; font:700 12px/22px system-ui, sans-serif; vertical-align:middle; }
+  .pin.draft { background:#fff; color:var(--ink); border-style:dashed; }
+  .entry { display:block; width:100%; margin:0 0 8px; padding:8px 10px; text-align:left; }
+  .entry .where { display:block; color:var(--muted); font-size:13px; }
+  .entry .tag { margin:0 0 0 6px; }
+  #chip { position:absolute; z-index:9; box-shadow:0 2px 8px rgba(0,0,0,.3); }
+  #editor { position:absolute; z-index:6; width:260px; padding:10px; background:#fff; border:2px solid #333; border-radius:6px; box-shadow:0 4px 16px rgba(0,0,0,.25); }
+  #editor.docked { position:fixed; left:0; right:0; bottom:0; width:auto; display:flex; flex-direction:column; overflow:auto; border-width:2px 0 0; border-radius:0; padding:8px 12px max(8px, env(safe-area-inset-bottom)); }
+  #editor.docked .where { flex:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #editor.docked textarea { flex:1 1 auto; min-height:44px; }
+  #editor.docked .row { flex:none; }
+  #editor .where { margin:0 0 6px; color:var(--muted); font-size:13px; }
+  #editor .moved { margin:0 0 6px; font-size:13px; font-weight:600; }
+  #editor textarea { display:block; width:100%; min-height:76px; padding:6px 8px; border:1px solid #777; border-radius:4px; font:16px/1.4 system-ui, sans-serif; resize:vertical; }
+  #editor .row { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .bar { position:fixed; left:0; right:0; bottom:0; z-index:4; display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); align-items:stretch; gap:8px; padding:8px 12px calc(8px + env(safe-area-inset-bottom)); background:#fff; border-top:1px solid var(--line); }
+  .bar:has(#ready[hidden]) { grid-template-columns:1fr; }
+  .bar > button, #ready > button { min-width:0; height:64px; padding:6px; white-space:normal; line-height:1.3; }
+  body.docked .bar, body.viewing .bar { display:none; }
+  #ready { display:contents; }
+  #ready-confirm { position:absolute; right:12px; bottom:calc(100% + 8px); width:272px; max-width:calc(100vw - 24px); max-height:calc(100dvh - var(--bar, 76px) - 24px); overflow:auto; padding:12px; background:#fff; border:1px solid var(--line); border-radius:6px; box-shadow:0 4px 16px rgba(0,0,0,.2); }
+  #ready-confirm .row { display:flex; gap:8px; margin-top:10px; }
+  #ready-confirm button { flex:1; min-height:44px; }
+  #ready-confirm p { margin:0; font-size:14px; }
+  #ready-says { position:absolute; right:12px; bottom:calc(100% + 8px); max-width:calc(100vw - 24px); margin:0; padding:8px 12px; background:#fff; border:1px solid var(--line); border-radius:4px; font-size:14px; font-weight:600; pointer-events:none; }
+  .bar:has(#ready-confirm:not([hidden])) #ready-says { bottom:calc(100% + 16px + var(--choices, 0px)); }
+  .spinner { display:inline-block; width:14px; height:14px; margin-right:6px; vertical-align:-2px; border:2px solid currentColor; border-right-color:transparent; border-radius:50%; animation:spin .8s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  @media (prefers-reduced-motion:reduce) { .spinner { animation:none; } }
+  .session, #editor .copies { color:var(--muted); font-size:13px; }
+  #editor .copies { flex:none; margin:6px 0 0; }
+  .pin.sent { background:#fff; color:var(--ink); }
+  #toast { position:fixed; left:50%; bottom:calc(var(--bar, 76px) - 4px); z-index:7; max-width:90vw; transform:translateX(-50%); padding:6px 12px; border-radius:4px; background:#222; color:#fff; font-size:14px; opacity:0; pointer-events:none; transition:opacity .2s; }
+  #toast.show { opacity:1; }
+  #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
+  @media (min-width:701px) {
+    body { font-size:20px; }
+    h1 { font-size:30px; }
+    .eyebrow, h2, .hint, .muted, .num, .drawing summary, .add, .meta, .entry .where, #editor .where, #editor .moved, .session, #editor .copies, #ready-confirm p, #ready-says { font-size:16px; }
+    button { font-size:18px; }
+    .entry { font-size:20px; }
+    .bar { grid-template-columns:repeat(3, minmax(0, 1fr)); padding-left:max(12px, calc((100vw - 700px) / 2 + 12px)); padding-right:max(12px, calc((100vw - 700px) / 2 + 12px)); }
+    .bar:has(#ready[hidden]) { grid-template-columns:1fr; }
+    .bar > button, #ready > button { height:44px; }
+    #ready-confirm, #ready-says { right:max(12px, calc((100vw - 700px) / 2 + 12px)); }
+    #ready-confirm { width:320px; }
+  }
+</style>
+</head>
+<body data-change="service-catalogue">
+<main>
+<header>
+  <p class="eyebrow">Review</p>
+  <h1>service-catalogue</h1>
+  <p class="muted"><span class="note-count">0 notes</span></p>
+  <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
+  <p class="hint">Tap + Note to comment. <span class="copies">Saving a note copies all your notes.</span> Open a drawing and tap it to see it full screen.</p>
+  <p id="script-error" role="alert" hidden></p>
+</header>
+<section id="why" aria-labelledby="why-h"><h2 id="why-h">Why</h2>
+<div class="card">
+<p data-note="why-1" tabindex="0">A chat has no quick way to see which outside services it can use or what each can do. It can search the app's own actions, but it can't list services, so it falls back on reading the long key list or the keys themselves. When it does call something, the whole answer lands in the chat, however long. Tools that offer an MCP, like Canva or Notion, can't be used through the app at all yet: their sign-in is personal and renews itself, so it can't sit in a shared key file.</p>
+</div></section>
+<section id="changes" aria-labelledby="changes-h"><h2 id="changes-h">What Changes</h2>
+<ol class="items">
+<li class="item card" id="item-1"><span class="num">1</span><div class="body"><div class="text" data-note="item-1" tabindex="0"><b>One short list of the services you can use.</b> A chat asks once and gets each saved key you hold a level for and each MCP on the app, with a line saying what it's for and whether it's ready for you: your own sign-in, a teammate's shared one, or <i>connect yourself</i>. Keys you'd need access for show as one count, not a row each. The list stays the same short size however many tools each service has.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-1-line-1" tabindex="0">services</span>
+<span class="ln" data-note="item-1-line-2" tabindex="0">──────────────────────────────────────────</span>
+<span class="ln" data-note="item-1-line-3" tabindex="0">Stripe   payments and refunds   ready  Read</span>
+<span class="ln" data-note="item-1-line-4" tabindex="0">Notion   team notes and docs    connect yourself</span>
+<span class="ln" data-note="item-1-line-5" tabindex="0">Canva    designs and templates  ready  yours</span>
+<span class="ln" data-note="item-1-line-6" tabindex="0">Linear   issues and projects    ready  Kim's, look-ups</span>
+<span class="ln" data-note="item-1-line-7" tabindex="0">2 more keys need access: ask the owner</span></pre></div></details></li>
+<li class="item card" id="item-2"><span class="num">2</span><div class="body"><div class="text" data-note="item-2" tabindex="0"><b>Search across all of them, open one, and get short answers.</b> A chat searches by words and gets one line per match, from the app's own actions, a key used directly, or an MCP's tools. It opens only the one it needs to see what to fill in, then runs it. A long answer shows its first part in the chat and is saved whole to a file the chat can read from, so one big list of designs can't fill the chat.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><div class="art pic" data-note="item-2-picture-1" tabindex="0" style="width:15.769em"><svg xmlns="http://www.w3.org/2000/svg" class="pele pele-flowchart" viewBox="0 0 205 448" width="205" height="448" style="max-width:100%;height:auto;--_bg:var(--pele-bg,#fff);--_fg:var(--pele-fg,#1f1f1f);--_m:var(--pele-muted,#6e6e6e);--_l:var(--pele-line,#1f1f1f);--_s:var(--pele-surface,#f3f3f3);--_a:var(--pele-surface-alt,#e6e6e6);--_b:var(--pele-border,#8a8a8a);--_c:var(--pele-accent,#5b7bd5);color:var(--_fg);--_r:var(--pele-radius,4px);--_fm:var(--pele-font-mono,monospace);font:16px sans-serif;letter-spacing:normal;word-spacing:normal;text-transform:none;direction:ltr;font-family:var(--pele-font,system-ui, -apple-system, &quot;Segoe UI&quot;, Roboto, sans-serif)" fill="var(--_fg)" role="graphics-document document" aria-roledescription="flowchart"><g class="pele-edges" fill="none" stroke="var(--_l)" stroke-linecap="round"><g class="pele-edge" data-id="L_list_search_0"><path d="M102.47,56L102.47,97"/><path class="pele-marker" d="M102.47,104L99.11,96L105.83,96Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge" data-id="L_search_open_0"><path d="M102.47,152L102.47,193"/><path class="pele-marker" d="M102.47,200L99.11,192L105.83,192Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge" data-id="L_open_run_0"><path d="M102.47,248L102.47,289"/><path class="pele-marker" d="M102.47,296L99.11,288L105.83,288Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge" data-id="L_run_short_0"><path d="M102.47,344L102.47,385"/><path class="pele-marker" d="M102.47,392L99.11,384L105.83,384Z" fill="var(--_l)" stroke="none"/></g></g><g class="pele-nodes"><g class="pele-node pele-shape-rect" data-id="list" transform="translate(102.47,32)"><rect x="-27.78" y="-24" width="55.55" height="48" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">list</text></g><g class="pele-node pele-shape-rect" data-id="search" transform="translate(102.47,128)"><rect x="-42.01" y="-24" width="84.02" height="48" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">search</text></g><g class="pele-node pele-shape-rect" data-id="open" transform="translate(102.47,224)"><rect x="-35.79" y="-24" width="71.58" height="48" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">open</text></g><g class="pele-node pele-shape-rect" data-id="run" transform="translate(102.47,320)"><rect x="-29.56" y="-24" width="59.12" height="48" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">run</text></g><g class="pele-node pele-shape-rect" data-id="short" transform="translate(102.47,416)"><rect x="-94.47" y="-24" width="188.94" height="48" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">short answer, or a file</text></g></g></svg></div></div></details></li>
+<li class="item card" id="item-3"><span class="num">3</span><div class="body"><div class="text" data-note="item-3" tabindex="0"><b>Each saved key says what it's for, where its guide is, and what earlier chats learned.</b> When the assistant saves a key, it adds one line about what the service does and a link to the service's own API guide. Each key-based service also gets a notes page in the wiki, linked from its row in the services list. A chat that works out a call writes it there, so the next chat starts from the notes, not the guide. The first chat to use a service makes its page, with just the purpose line and the guide link to start.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><div class="art pic" data-note="item-3-picture-1" tabindex="0" style="width:24.615em"><svg xmlns="http://www.w3.org/2000/svg" class="pele pele-flowchart" viewBox="0 0 320 427" width="320" height="427" style="max-width:100%;height:auto;--_bg:var(--pele-bg,#fff);--_fg:var(--pele-fg,#1f1f1f);--_m:var(--pele-muted,#6e6e6e);--_l:var(--pele-line,#1f1f1f);--_s:var(--pele-surface,#f3f3f3);--_a:var(--pele-surface-alt,#e6e6e6);--_b:var(--pele-border,#8a8a8a);--_c:var(--pele-accent,#5b7bd5);color:var(--_fg);--_r:var(--pele-radius,4px);--_fm:var(--pele-font-mono,monospace);font:16px sans-serif;letter-spacing:normal;word-spacing:normal;text-transform:none;direction:ltr;font-family:var(--pele-font,system-ui, -apple-system, &quot;Segoe UI&quot;, Roboto, sans-serif)" fill="var(--_fg)" role="graphics-document document" aria-roledescription="flowchart"><g class="pele-edges" fill="none" stroke="var(--_l)" stroke-linecap="round"><g class="pele-edge" data-id="L_row_notes_0"><path d="M156.27,56L156.27,97"/><path class="pele-marker" d="M156.27,104L152.91,96L159.63,96Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge" data-id="L_notes_use_0"><path d="M148.27,196.04C148.27,208.79 70.46,208.79 70.46,221.54L70.46,267.04"/><path class="pele-marker" d="M70.46,274.04L67.1,266.04L73.82,266.04Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge" data-id="L_notes_guide_0"><path d="M164.27,196.04C164.27,208.79 242.07,208.79 242.07,221.54L242.07,267.04"/><path class="pele-marker" d="M242.07,274.04L238.71,266.04L245.43,266.04Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge" data-id="L_guide_write_0"><path d="M242.07,322.04L242.07,363.04"/><path class="pele-marker" d="M242.07,370.04L238.71,362.04L245.43,362.04Z" fill="var(--_l)" stroke="none"/></g></g><g class="pele-edge-labels" font-size="14"><g class="pele-edge-label" data-id="L_notes_use_0"><rect x="55.57" y="223.54" width="29.78" height="21" rx="3" fill="var(--_bg)"/><text x="70.46" y="238.94" text-anchor="middle">yes</text></g><g class="pele-edge-label" data-id="L_notes_guide_0"><rect x="230.29" y="223.54" width="23.57" height="21" rx="3" fill="var(--_bg)"/><text x="242.07" y="238.94" text-anchor="middle">no</text></g></g><g class="pele-nodes"><g class="pele-node pele-shape-rect" data-id="row" transform="translate(156.27,32)"><rect x="-56.23" y="-24" width="112.46" height="48" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">Notion row</text></g><g class="pele-node pele-shape-diam" data-id="notes" transform="translate(156.27,152.52)"><polygon points="0,-48.52 77.63,0 0,48.52 -77.63,0" fill="var(--_s)" stroke="var(--_b)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">notes page?</text></g><g class="pele-node pele-shape-rect" data-id="use" transform="translate(70.46,298.04)"><rect x="-62.46" y="-24" width="124.93" height="48" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">use the calls</text></g><g class="pele-node pele-shape-rect" data-id="guide" transform="translate(242.07,298.04)"><rect x="-69.14" y="-24" width="138.29" height="48" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">read the guide</text></g><g class="pele-node pele-shape-rect" data-id="write" transform="translate(242.07,394.04)"><rect x="-68.25" y="-24" width="136.5" height="48" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">write the page</text></g></g></svg></div></div></details></li>
+<li class="item card" id="item-4"><span class="num">4</span><div class="body"><div class="text" data-note="item-4" tabindex="0"><b>Ask for an MCP in the chat; each person signs in once, as themselves.</b> Anyone on the team can say <i>connect Notion</i>: the assistant adds Notion's MCP to the app, with nothing to fill in, then sends a link straight to Notion's Connect button. You sign in at Notion, choose what to share, and come back to <i>Connected</i>. Your chat then uses Notion as you: it sees only what you can see there and acts under your name. The app renews every sign-in by itself, and no computer or chat ever holds one. A teammate's chat that has no sign-in to use says so and gives the same link.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><div class="art pic" data-note="item-4-picture-1" tabindex="0" style="width:36.308em"><svg xmlns="http://www.w3.org/2000/svg" class="pele pele-sequence" viewBox="0 0 472 395" width="472" height="395" style="max-width:100%;height:auto;--_bg:var(--pele-bg,#fff);--_fg:var(--pele-fg,#1f1f1f);--_m:var(--pele-muted,#6e6e6e);--_l:var(--pele-line,#1f1f1f);--_s:var(--pele-surface,#f3f3f3);--_a:var(--pele-surface-alt,#e6e6e6);--_b:var(--pele-border,#8a8a8a);--_c:var(--pele-accent,#5b7bd5);color:var(--_fg);--_r:var(--pele-radius,4px);--_fm:var(--pele-font-mono,monospace);font:16px sans-serif;letter-spacing:normal;word-spacing:normal;text-transform:none;direction:ltr;font-family:var(--pele-font,system-ui, -apple-system, &quot;Segoe UI&quot;, Roboto, sans-serif)" fill="var(--_fg)" role="graphics-document document" aria-roledescription="sequence"><g transform="translate(40,8)"><g class="pele-lifelines" fill="none" stroke="var(--_b)"><path class="pele-lifeline" data-id="you" d="M0,44V335"/><path class="pele-lifeline" data-id="assistant" d="M127.38,44V335"/><path class="pele-lifeline" data-id="app" d="M273.76,44V335"/><path class="pele-lifeline" data-id="Notion" d="M384.88,44V335"/></g><g class="pele-edges" fill="none" stroke="var(--_l)" stroke-linecap="round"><g class="pele-edge pele-message" data-id="i0"><path d="M0,87H120.38"/><path class="pele-marker" d="M127.38,87L119.38,90.36L119.38,83.64Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge pele-message" data-id="i1"><path d="M127.38,124H266.76"/><path class="pele-marker" d="M273.76,124L265.76,127.36L265.76,120.64Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge pele-message" data-id="i2"><path d="M127.38,161H7" stroke-dasharray="4 4"/><path class="pele-marker" d="M0,161L8,157.64L8,164.36Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge pele-message" data-id="i3"><path d="M0,198H377.88"/><path class="pele-marker" d="M384.88,198L376.88,201.36L376.88,194.64Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge pele-message" data-id="i4"><path d="M384.88,235H280.76" stroke-dasharray="4 4"/><path class="pele-marker" d="M273.76,235L281.76,231.64L281.76,238.36Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge pele-message" data-id="i5"><path d="M273.76,272H7" stroke-dasharray="4 4"/><path class="pele-marker" d="M0,272L8,268.64L8,275.36Z" fill="var(--_l)" stroke="none"/></g></g><g class="pele-edge-labels" font-size="14"><g class="pele-edge-label" data-id="i0"><text x="63.69" y="77.4" text-anchor="middle">connect Notion</text></g><g class="pele-edge-label" data-id="i1"><text x="200.57" y="114.4" text-anchor="middle">add Notion's MCP</text></g><g class="pele-edge-label" data-id="i2"><text x="63.69" y="151.4" text-anchor="middle">link to Connect</text></g><g class="pele-edge-label" data-id="i3"><text x="192.44" y="188.4" text-anchor="middle">sign in, Allow</text></g><g class="pele-edge-label" data-id="i4"><text x="329.32" y="225.4" text-anchor="middle">your sign-in</text></g><g class="pele-edge-label" data-id="i5"><rect x="100.03" y="249" width="73.7" height="17" rx="3" fill="var(--_bg)" stroke="none"/><text x="136.88" y="262.4" text-anchor="middle">Connected</text></g></g><g class="pele-notes" font-size="14" fill="var(--_a)" stroke="var(--_b)"><g class="pele-note" data-id="i6"><rect x="257.76" y="282" width="143.12" height="33" style="rx:var(--_r)"/><text class="pele-label" stroke="none" fill="var(--_fg)" x="329.32" y="303.4" text-anchor="middle">renews by itself</text></g></g><g class="pele-nodes"><g class="pele-node pele-actor pele-actor-participant pele-actor-footer" data-id="you"><rect x="-32" y="335" width="64" height="44" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="0" y="362.6" text-anchor="middle">you</text></g><g class="pele-node pele-actor pele-actor-participant pele-actor-footer" data-id="assistant"><rect x="79.81" y="335" width="95.14" height="44" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="127.38" y="362.6" text-anchor="middle">assistant</text></g><g class="pele-node pele-actor pele-actor-participant pele-actor-footer" data-id="app"><rect x="241.76" y="335" width="64" height="44" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="273.76" y="362.6" text-anchor="middle">app</text></g><g class="pele-node pele-actor pele-actor-participant pele-actor-footer" data-id="Notion"><rect x="345.76" y="335" width="78.24" height="44" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="384.88" y="362.6" text-anchor="middle">Notion</text></g><g class="pele-node pele-actor pele-actor-participant" data-id="you"><rect x="-32" y="0" width="64" height="44" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="0" y="27.6" text-anchor="middle">you</text></g><g class="pele-node pele-actor pele-actor-participant" data-id="assistant"><rect x="79.81" y="0" width="95.14" height="44" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="127.38" y="27.6" text-anchor="middle">assistant</text></g><g class="pele-node pele-actor pele-actor-participant" data-id="app"><rect x="241.76" y="0" width="64" height="44" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="273.76" y="27.6" text-anchor="middle">app</text></g><g class="pele-node pele-actor pele-actor-participant" data-id="Notion"><rect x="345.76" y="0" width="78.24" height="44" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="384.88" y="27.6" text-anchor="middle">Notion</text></g></g></g></svg></div></div></details></li>
+<li class="item card" id="item-5"><span class="num">5</span><div class="body"><div class="text" data-note="item-5" tabindex="0"><b>Bring in the MCPs you already use in Claude or Codex.</b> Ask the assistant and it looks at this computer's Claude and Codex settings, finds the MCPs listed there by name and address, and offers to add them. Each one still needs Connect once: a sign-in belongs to the app that got it, so the assistant never reads or copies one. It skips MCPs that run on your computer and ones that use a fixed key, and says why. Once one is connected in the app, it offers to take it out of Claude or Codex, so its tools stop loading into every chat there.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-5-line-1" tabindex="0">┌────────────────────────────────────────┐</span>
+<span class="ln" data-note="item-5-line-2" tabindex="0">│ Found Canva and Linear in Claude, and  │</span>
+<span class="ln" data-note="item-5-line-3" tabindex="0">│ Notion in Codex. Add them? Then press  │</span>
+<span class="ln" data-note="item-5-line-4" tabindex="0">│ Connect on each.                       │</span>
+<span class="ln" data-note="item-5-line-5" tabindex="0">│                                        │</span>
+<span class="ln" data-note="item-5-line-6" tabindex="0">│ Skipped: Files (runs on this computer),│</span>
+<span class="ln" data-note="item-5-line-7" tabindex="0">│ Sentry (uses a fixed key).             │</span>
+<span class="ln" data-note="item-5-line-8" tabindex="0">└────────────────────────────────────────┘</span></pre></div></details></li>
+<li class="item card" id="item-6"><span class="num">6</span><div class="body"><div class="text" data-note="item-6" tabindex="0"><b>Share your sign-in with the team, if you choose.</b> On your own connection, tick <i>Let the team use my sign-in</i> and pick <i>Look-ups only</i> (the default) or <i>Everything</i>. A teammate who hasn't connected their own then uses yours, and their chat says whose it is. Look-ups only means their chat can find and read but not post, edit or delete under your name. A teammate's own sign-in always comes first. One shared sign-in per MCP at a time. Untick it, disconnect, or leave the team, and it stops at once.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-6-line-1" tabindex="0">whose sign-in        │ look-up tools │ other tools</span>
+<span class="ln" data-note="item-6-line-2" tabindex="0">─────────────────────┼───────────────┼────────────</span>
+<span class="ln" data-note="item-6-line-3" tabindex="0">your own             │ yes           │ yes</span>
+<span class="ln" data-note="item-6-line-4" tabindex="0">shared, look-ups only│ yes           │ refused</span>
+<span class="ln" data-note="item-6-line-5" tabindex="0">shared, everything   │ yes           │ yes</span>
+<span class="ln" data-note="item-6-line-6" tabindex="0">none                 │ connect first │ connect first</span></pre></div></details></li>
+<li class="item card" id="item-7"><span class="num">7</span><div class="body"><div class="text" data-note="item-7" tabindex="0"><b>A Services view in Access.</b> Beside People and Roles, everyone sees every MCP on the app: how many people are connected, whose sign-in is shared, and their own Connect, Disconnect and share box, plus Add. The owner and Admins also see every saved key: its name, what it's for, and whether it's saved, never its value. An unsaved key says to ask the assistant for its key link: new key values still come in only through that private link. The person who added an MCP can remove it while nobody else is connected; the owner or an Admin can remove any, and can stop anyone's sharing. Removing an MCP deletes everyone's sign-in for it, and can't be undone.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-7-line-1" tabindex="0">OWNER OR ADMIN</span>
+<span class="ln" data-note="item-7-line-2" tabindex="0">┌────────────────────────────────────────┐</span>
+<span class="ln" data-note="item-7-line-3" tabindex="0">│ People 4   Roles 2   Services 5 [+Add] │</span>
+<span class="ln" data-note="item-7-line-4" tabindex="0">│                                        │</span>
+<span class="ln" data-note="item-7-line-5" tabindex="0">│ Keys                                   │</span>
+<span class="ln" data-note="item-7-line-6" tabindex="0">│ Stripe · payments            Saved     │</span>
+<span class="ln" data-note="item-7-line-7" tabindex="0">│ Notion API · team notes      Saved     │</span>
+<span class="ln" data-note="item-7-line-8" tabindex="0">│   also used directly                   │</span>
+<span class="ln" data-note="item-7-line-9" tabindex="0">│ Mailchimp · email        Not saved     │</span>
+<span class="ln" data-note="item-7-line-10" tabindex="0">│   Ask the assistant for its key link   │</span>
+<span class="ln" data-note="item-7-line-11" tabindex="0">│ ────────────────────────────────────── │</span>
+<span class="ln" data-note="item-7-line-12" tabindex="0">│ MCPs                                   │</span>
+<span class="ln" data-note="item-7-line-13" tabindex="0">│ Canva · 3 connected                    │</span>
+<span class="ln" data-note="item-7-line-14" tabindex="0">│ You: ● Connected · Oct 18  Disconnect  │</span>
+<span class="ln" data-note="item-7-line-15" tabindex="0">│ [ ] Let the team use my sign-in        │</span>
+<span class="ln" data-note="item-7-line-16" tabindex="0">│ Linear · 1 connected · Kim's shared    │</span>
+<span class="ln" data-note="item-7-line-17" tabindex="0">│ You: [ Connect ]   Stop sharing  Remove│</span>
+<span class="ln" data-note="item-7-line-18" tabindex="0">│ Notion · 0 connected                   │</span>
+<span class="ln" data-note="item-7-line-19" tabindex="0">│ You: [ Connect ]               Remove  │</span>
+<span class="ln" data-note="item-7-line-20" tabindex="0">└────────────────────────────────────────┘</span></pre></div></details><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-7-line-21" tabindex="0">A TEAMMATE              ADD</span>
+<span class="ln" data-note="item-7-line-22" tabindex="0">┌────────────────────┐  ┌────────────────────┐</span>
+<span class="ln" data-note="item-7-line-23" tabindex="0">│ Services    [+Add] │  │ Add an MCP         │</span>
+<span class="ln" data-note="item-7-line-24" tabindex="0">│                    │  │ Address            │</span>
+<span class="ln" data-note="item-7-line-25" tabindex="0">│ Canva              │  │ [https://mcp.…   ] │</span>
+<span class="ln" data-note="item-7-line-26" tabindex="0">│ ● Connected        │  │ Name               │</span>
+<span class="ln" data-note="item-7-line-27" tabindex="0">│ as kim · Oct 18    │  │ [Canva           ] │</span>
+<span class="ln" data-note="item-7-line-28" tabindex="0">│ [x] Let the team   │  │   [Cancel]  [Add]  │</span>
+<span class="ln" data-note="item-7-line-29" tabindex="0">│   use my sign-in   │  │ ! That address has │</span>
+<span class="ln" data-note="item-7-line-30" tabindex="0">│   (•) Look-ups     │  │   no sign-in we    │</span>
+<span class="ln" data-note="item-7-line-31" tabindex="0">│   ( ) Everything   │  │   can use.         │</span>
+<span class="ln" data-note="item-7-line-32" tabindex="0">│ Linear             │  └────────────────────┘</span>
+<span class="ln" data-note="item-7-line-33" tabindex="0">│ Using Kim's shared │</span>
+<span class="ln" data-note="item-7-line-34" tabindex="0">│ [ Connect mine ]   │</span>
+<span class="ln" data-note="item-7-line-35" tabindex="0">└────────────────────┘</span></pre></div></details><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-7-line-36" tabindex="0">NO MCPS YET</span>
+<span class="ln" data-note="item-7-line-37" tabindex="0">┌────────────────────────────────────────┐</span>
+<span class="ln" data-note="item-7-line-38" tabindex="0">│ MCPs                                   │</span>
+<span class="ln" data-note="item-7-line-39" tabindex="0">│ No MCPs yet. Ask the assistant to      │</span>
+<span class="ln" data-note="item-7-line-40" tabindex="0">│ connect one, or add it by its address. │</span>
+<span class="ln" data-note="item-7-line-41" tabindex="0">│                               [+ Add]  │</span>
+<span class="ln" data-note="item-7-line-42" tabindex="0">└────────────────────────────────────────┘</span></pre></div></details></li>
+<li class="item card" id="item-8"><span class="num">8</span><div class="body"><div class="text" data-note="item-8" tabindex="0"><b>Every chat knows where to start.</b> The always-read instructions name the services list as the first step for any outside service. The key file on your computer stays for this computer's own tools, so a chat no longer reads business keys from it.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-8-line-1" tabindex="0">BEFORE                       AFTER</span>
+<span class="ln" data-note="item-8-line-2" tabindex="0">&quot;check the key list file&quot;   +&quot;list services, search,</span>
+<span class="ln" data-note="item-8-line-3" tabindex="0">→ reads keys from the file    open one, run it&quot;</span>
+<span class="ln" data-note="item-8-line-4" tabindex="0">                            → goes through the app</span></pre></div></details></li>
+</ol>
+<p class="aside"><b>Non-goals:</b> no form for typing a key into the page; no MCP that signs in with a fixed key; only an MCP's tools, not its prompts or files; ClaymooApp is not edited here. No Access levels for MCPs: each person's own account, or what a sharer allows, decides. <b>Later:</b> Access levels per MCP, if a team wants the owner to decide who may use one; MCPs that need an app made on the service's developer site, whose ID and secret would come in through the key link; the owner marking single tools as look-ups when an MCP marks none; the app itself as one MCP a chat connects to once, with four small tools (find, describe, look up, change), for chats with no terminal.</p>
+
+</section>
+<section id="decisions" aria-labelledby="decisions-h"><h2 id="decisions-h">Decisions</h2>
+<ol class="decisions">
+<li class="decision card" id="decision-1" data-note="decision-1" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-18</p>Asked how MCP connections come into WongStack → chose to build them here now, not bring ClaymooApp's in later.</li>
+<li class="decision card" id="decision-2" data-note="decision-2" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-18</p>Asked how a chat learns what a directly used service can do → chose a one-line purpose and a link to the service's API guide per key.</li>
+<li class="decision card" id="decision-3" data-note="decision-3" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-18</p>Asked where the page for keys and MCPs goes → chose a new view in Access.</li>
+<li class="decision card" id="decision-4" data-note="decision-4" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-18</p>Asked how Access decides who may use each MCP → chose a level per MCP.</li>
+<li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-18</p>Asked what happens to ClaymooApp's MCP build → chose to pause it and take WongStack's through the next update.</li>
+<li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-18</p>Assumed: the view is called Services and the chat command <code>services</code>, because one word for both lets a person and a chat mean the same list.</li>
+<li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-18</p>Assumed: everyone sees every MCP in Services with their own Connect, and keys stay for the owner and Admins, because each person now connects their own MCPs.</li>
+<li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-18</p>Assumed: MCP tools join the existing action search and helper (<code>list</code>, <code>describe</code>, <code>call</code>) rather than a separate <code>mcp</code> command, because one search across everything is what was asked for.</li>
+<li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-18</p>Assumed: stored MCP sign-ins are sealed with a setup-made Worker secret no route is handed, because every mini app shares the app's database and could otherwise read them.</li>
+<li class="decision card" id="decision-10" data-note="decision-10" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-18</p>Assumed: each copy of the app (live, staging, a preview) keeps its own MCP list and connects on its own, because the service registers each copy's return address separately.</li>
+<li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-18</p>Assumed: search uses a saved copy of each MCP's tool list, refreshed on Connect, on a call naming a tool it lacks, and by a Refresh button, never during a search, because a search that sometimes calls out and renews a sign-in is slow and unpredictable.</li>
+<li class="decision card" id="decision-12" data-note="decision-12" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-18</p>Assumed: Canva's sign-in from the app is tried first, before the rest is built, because no copy of the app has done it yet.</li>
+<li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-18</p>Asked how a chat learns a key-based service's endpoints (review note) → chose the guide link plus a wiki notes page per key-based service, linked from its row in <code>services</code>, where a chat writes the calls it worked out.</li>
+<li class="decision card" id="decision-14" data-note="decision-14" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-18</p>Assumed: a notes page starts with just the purpose line and the guide link, and a chat makes it the first time it uses the service, because the wiki grows from use and seeds nothing.</li>
+<li class="decision card" id="decision-15" data-note="decision-15" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-18</p>Assumed: notes pages live at <code>wiki/services/&lt;id&gt;.md</code>, with <code>wiki/services/README.md</code> made with the first one, because they are each install's own knowledge, not WongStack's.</li>
+<li class="decision card" id="decision-16" data-note="decision-16" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-18</p>Asked whether MCPs a person already has in Claude or Codex can move into the app (review note) → chose to add it here: offer the MCPs listed in this computer's Claude and Codex settings by name and address, each still connected once, skipping ones that run on the computer or use a fixed key, with the reason.</li>
+<li class="decision card" id="decision-17" data-note="decision-17" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-18</p>Assumed: the reading happens in the chat's helper, which sends the chosen names and addresses to Add, because the browser page can't read files on the computer.</li>
+<li class="decision card" id="decision-18" data-note="decision-18" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-18</p>Assumed: an MCP already added (same address) and one that only speaks the older event-stream connection are skipped with the reason, because adding either would fail or duplicate a row.</li>
+<li class="decision card" id="decision-19" data-note="decision-19" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-18</p>Asked whether MCP tools show up pre-loaded in the chat (review note) → chose to search them as planned, and later make the app itself one MCP with four small tools (find, describe, look up, change), recorded as a follow-up and not built here.</li>
+<li class="decision card" id="decision-20" data-note="decision-20" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-18</p>Asked whether the app should be one MCP, for progressive disclosure and context → chose to keep the helper as the main path (no tool descriptions loaded up front, answers trimmed before the chat reads them, scripts can use it) and build the one app MCP later, for chats with no terminal.</li>
+<li class="decision card" id="decision-21" data-note="decision-21" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-18</p>Asked whether to fold in the design review (short answers, one-line lists, removing brought-in MCPs from Claude and Codex, listing only usable services, no refresh during search, honest sealing promise, look-up override later) → chose to fold them in.</li>
+<li class="decision card" id="decision-22" data-note="decision-22" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-18</p>Asked whether MCP sign-in is per person or shared → chose per person first, so each chat sees only what its person can see and acts as them; keys stay shared; a Shared choice per MCP comes later.</li>
+<li class="decision card" id="decision-23" data-note="decision-23" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-18</p>Asked whether teammates have their own Canva logins → chose yes, so Canva works per person and needs no shared choice now.</li>
+<li class="decision card" id="decision-24" data-note="decision-24" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-18</p>Asked whether to split the work into two changes → chose to keep one change.</li>
+<li class="decision card" id="decision-25" data-note="decision-25" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-18</p>Assumed: the assistant can add an MCP from the chat (<code>mcp add</code>) and send a link that opens straight on that MCP's Connect, because <i>connect Notion</i> should need no pasting.</li>
+<li class="decision card" id="decision-26" data-note="decision-26" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-18</p>Assumed: <code>call</code> prints at most about 20 KB and saves a longer answer to a private file, with <code>--full</code> for scripts, and <code>list</code> prints one line per match with <code>--json</code> for today's shape, because answers and lists are where chat space goes.</li>
+<li class="decision card" id="decision-27" data-note="decision-27" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-18</p>Assumed: removing a brought-in MCP from Claude or Codex uses their own <code>mcp remove</code> commands after the person agrees, because editing their settings files by hand could break them.</li>
+<li class="decision card" id="decision-28" data-note="decision-28" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-18</p>Assumed: the services list shows only keys you hold a level for (and every MCP), with a count of the other keys and <code>--all</code> to see them, because rows you can't use cost space and say little.</li>
+<li class="decision card" id="decision-29" data-note="decision-29" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-18</p>Assumed: one saved tool list per MCP, read with any live sign-in, because an MCP's tools are the same for everyone and a list per person would multiply the refreshes.</li>
+<li class="decision card" id="decision-30" data-note="decision-30" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-18</p>Assumed: the sealing is promised as stopping mistakes, not code written to get around it, because every mini app runs in the same Worker, as the wiki already says of saved keys.</li>
+<li class="decision card" id="decision-31" data-note="decision-31" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-18</p>Asked (review note on change #6) whether MCPs need Access levels → chose no: each person connects their own MCPs, which replaces the per-MCP level chosen earlier.</li>
+<li class="decision card" id="decision-32" data-note="decision-32" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-18</p>Asked whether a person can share their sign-in in this build → chose yes: a <i>Let the team use my sign-in</i> box on their own connection.</li>
+<li class="decision card" id="decision-33" data-note="decision-33" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-18</p>Asked what a teammate's chat can do with a shared sign-in → chose the sharer decides: <i>Look-ups only</i> (the default) or <i>Everything</i>.</li>
+<li class="decision card" id="decision-34" data-note="decision-34" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-18</p>Asked who can add an MCP → chose anyone signed in; the adder, the owner or an Admin can remove it.</li>
+<li class="decision card" id="decision-35" data-note="decision-35" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-18</p>Assumed: one shared sign-in per MCP at a time, and a person's own sign-in always comes before a shared one, because two shared sign-ins would make whose account a call uses unpredictable.</li>
+<li class="decision card" id="decision-36" data-note="decision-36" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-18</p>Assumed: the person who added an MCP can remove it only while nobody else is connected, and the owner or an Admin can remove any MCP and stop anyone's sharing, because a removal deletes teammates' sign-ins.</li>
+<li class="decision card" id="decision-37" data-note="decision-37" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-18</p>Assumed: each call records whose sign-in it used, because with sharing a call can act as someone other than the caller.</li>
+<li class="decision card" id="decision-38" data-note="decision-38" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-18</p>Assumed: the Canva sign-in proof (task 1.1) moves to the first preview, after the build, because a sign-in round trip needs a published copy and the owner's browser; its public half, reading what Canva and Notion offer for sign-in, ran first and fits the build (<a href="evidence.md">evidence</a>).</li>
+<li class="decision card" id="decision-39" data-note="decision-39" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-18</p>Assumed: the new MCP connections spec joins the <code>worker</code> area at this save, once its main spec exists, because the areas test needs the file to be there.</li>
+</ol>
+</section>
+<section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
+<p class="session" hidden>Storage is off. Notes and drafts last for this session only.</p>
+<ul class="note-list" id="note-list"></ul>
+</section>
+</main>
+<button type="button" id="chip" hidden>Add note</button>
+<div id="editor" role="dialog" aria-labelledby="editor-where" hidden>
+  <p class="where" id="editor-where"></p>
+  <p class="moved">Possibly moved: its text changed, so this note is not attached.</p>
+  <textarea aria-label="Note text" rows="3" placeholder="A question or a change"></textarea>
+  <div class="row"><button type="button" class="primary" data-act="save">Save</button><button type="button" data-act="discard">Discard</button><button type="button" data-act="delete">Delete note</button><button type="button" data-act="close">Close</button></div>
+  <p class="copies">Saving a note copies all your notes.</p>
+  <p class="session" hidden>Notes last for this session only.</p>
+</div>
+<div id="viewer" role="dialog" aria-modal="true" aria-label="Drawing, full screen" hidden>
+  <div class="zoom"><span class="level"></span><button type="button" aria-label="Zoom out">−</button><button type="button">Fit</button><button type="button" aria-label="Zoom in">+</button><button type="button" class="primary">Close</button></div>
+  <div class="vframe"></div>
+  <p class="vhint">Drag to move · pinch or + to zoom · tap a line or picture to note it</p>
+</div>
+<div class="bar" data-busy="false"><button type="button" class="primary" id="copy"><span class="spinner" hidden aria-hidden="true"></span><span id="copy-label">Copy notes</span></button>
+  <div id="ready" hidden>
+    <button type="button" data-ready="build"><span class="spinner" hidden aria-hidden="true"></span><span>Build it</span></button>
+    <button type="button" data-ready="publish" aria-expanded="false" aria-controls="ready-confirm">Build and publish</button>
+    <div id="ready-confirm" role="group" aria-label="Build and publish? This goes live and can't be undone." hidden><p>Goes live, can't be undone.</p><div class="row"><button type="button" class="primary" data-ready="yes"><span class="spinner" hidden aria-hidden="true"></span><span>Yes, publish</span></button><button type="button" data-ready="cancel">Cancel</button></div></div>
+  </div>
+  <p id="ready-says" role="status" aria-live="polite" hidden><span class="spinner" hidden aria-hidden="true"></span><span id="ready-message"></span></p>
+</div>
+<div id="toast" role="status"></div>
+<textarea id="copybuf" aria-hidden="true" tabindex="-1" readonly></textarea>
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  window.addEventListener('error', function (e) {
+    $('script-error').hidden = false;
+    $('script-error').textContent = 'Review script error: ' + e.message + ' (line ' + e.lineno + ')';
+  });
+  const root = document.documentElement;
+  root.classList.add('js');
+  const CHANGE = document.body.getAttribute('data-change');
+  const KEY = 'wong-review3:' + CHANGE;
+  const phone = window.matchMedia ? window.matchMedia('(max-width: 700px)') : { matches: false };
+  const chip = $('chip'), editor = $('editor'), ta = editor.querySelector('textarea');
+  const viewer = $('viewer'), vframe = viewer.querySelector('.vframe'), vbar = viewer.querySelector('.zoom'), vb = vbar.querySelectorAll('button');
+  const all = function (sel, fn) { Array.prototype.forEach.call(document.querySelectorAll(sel), fn); };
+  const esc = function (s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
+
+  // ── storage: a refused store keeps notes for this session ──
+  let store = null, data = { notes: [], drafts: {} };
+  const ok = function (r, id) { return r && typeof r.label === 'string' && typeof r.text === 'string' && /^[\w-]+$/.test(id); };
+  try { store = window.localStorage; store.getItem(KEY); } catch (e) { store = null; }
+  try {
+    const saved = store ? JSON.parse(store.getItem(KEY) || 'null') : null;
+    if (saved && Array.isArray(saved.notes)) data.notes = saved.notes.filter(function (n) { return ok(n, n && n.id); });
+    if (saved && saved.drafts) Object.keys(saved.drafts).forEach(function (id) { if (ok(saved.drafts[id], id)) data.drafts[id] = saved.drafts[id]; });
+  } catch (e) { /* unreadable notes start empty */ }
+  function persist() {
+    if (store) { try { store.setItem(KEY, JSON.stringify(data)); } catch (e) { store = null; } }
+    render();
+  }
+
+  // ── targets: a data-note id names its location; the label pins a note to its text ──
+  function where(id) {
+    const m = /^(why|item|decision)-(\d+)(?:-(line|picture)-(\d+))?$/.exec(id) || [];
+    if (m[1] === 'why') return { at: '#/why', kind: 'paragraph ' + m[2], spot: 'Why, paragraph ' + m[2] };
+    const part = m[3] === 'picture' ? 'picture ' + m[4] : m[3] ? 'drawing line ' + m[4] : '';
+    if (m[1] === 'item') return { at: '#/' + m[2], kind: part || 'item', spot: 'Change #' + m[2] + (part ? ', ' + part : '') };
+    return { at: '#/decisions/' + m[2], kind: 'decision', spot: 'Decision #' + m[2] };
+  }
+  function labelOf(el) {
+    const c = el.cloneNode(true);
+    Array.prototype.forEach.call(c.querySelectorAll('.pin, .meta, .add, title, desc'), function (n) { n.parentNode.removeChild(n); });
+    // A picture's labels are separate SVG text elements: join them with spaces so they read as words.
+    const parts = el.classList.contains('pic') ? Array.prototype.map.call(c.querySelectorAll('text'), function (n) { return n.textContent; }) : [c.textContent];
+    const text = parts.join(' ').replace(/\s+/g, ' ').trim();
+    return where(el.getAttribute('data-note')).kind + ' "' + (text.length > 60 ? text.slice(0, 59) + '…' : text) + '"';
+  }
+  function find(id, label) {
+    const el = document.querySelector('[data-note="' + id + '"]');
+    return el && labelOf(el) === label ? el : null;
+  }
+  function noteOf(id) { return data.notes.filter(function (n) { return n.id === id; })[0] || null; }
+
+  // ── render pins, Note buttons, counts, and the notes list ──
+  function render() {
+    all('.pin, .add', function (p) { p.parentNode.removeChild(p); });
+    const n = data.notes.length, d = Object.keys(data.drafts).length;
+    const count = plural(n) + (d ? ' · ' + d + (d === 1 ? ' draft' : ' drafts') : '');
+    all('.note-count', function (el) { el.textContent = count; });
+    all('.session', function (el) { el.hidden = !!store; });
+    const ids = data.notes.map(function (x) { return x.id; }).concat(Object.keys(data.drafts).filter(function (id) { return !noteOf(id); }));
+    $('note-list').innerHTML = ids.length ? '' : '<li class="muted">No notes yet.</li>';
+    ids.forEach(function (id) {
+      const note = noteOf(id), draft = data.drafts[id], rec = note || draft, num = note ? data.notes.indexOf(note) + 1 : 0, sent = !!(note && note.sent);
+      const el = find(id, rec.label);
+      if (el) {
+        const pin = document.createElement('button');
+        pin.type = 'button'; pin.className = draft ? 'pin draft' : sent ? 'pin sent' : 'pin'; pin.setAttribute('data-open', id);
+        pin.textContent = (num || '') + (num && (draft || sent) ? ' · ' : '') + (draft ? 'Draft' : sent ? 'Sent' : '');
+        pin.setAttribute('aria-label', (num ? 'Open note ' + num : 'Open draft') + (num && draft ? ' and its draft' : ''));
+        el.appendChild(pin);
+      }
+      const li = document.createElement('li');
+      li.innerHTML = '<button type="button" class="entry" data-open="' + id + '"><span class="where">' + (num ? num + '. ' : '')
+        + esc(where(id).at + ' · ' + rec.label) + (draft ? '<span class="tag">Draft</span>' : '') + (sent ? '<span class="tag">Sent</span>' : '') + (el ? '' : '<span class="tag">possibly moved</span>')
+        + '</span>' + esc(draft ? draft.text : note.text) + '</button>';
+      $('note-list').appendChild(li);
+    });
+    all('[data-note]', function (el) {
+      if (el.closest('.art') || el.querySelector('.pin')) return;
+      const id = el.getAttribute('data-note'), add = document.createElement('button');
+      add.type = 'button'; add.className = 'add'; add.setAttribute('data-open', id);
+      add.textContent = '+ Note'; add.setAttribute('aria-label', 'Note on ' + where(id).kind);
+      el.appendChild(add);
+    });
+    drawings.forEach(function (d) {
+      const k = d.art.querySelectorAll('.pin').length;
+      d.count.textContent = k ? ' · ' + k + (k === 1 ? ' note' : ' notes') : '';
+      fit(d);
+    });
+    bar();
+  }
+
+  // ── still-tap to note: a mouse on text, or any pointer on a full-screen drawing line, shows the chip ──
+  let chipFor = null, tap = null;
+  const pointers = {};
+  function showChip(el, x, y, keyboard) {
+    const id = el.getAttribute('data-note');
+    chipFor = el;
+    chip.textContent = noteOf(id) || data.drafts[id] ? 'Edit note' : 'Add note';
+    chip.hidden = false;
+    const w = chip.offsetWidth, vw = root.clientWidth;
+    chip.style.left = Math.max(8, Math.min(x - w / 2, vw - w - 8)) + window.pageXOffset + 'px';
+    chip.style.top = y + 12 + window.pageYOffset + 'px';
+    if (keyboard) chip.focus({ preventScroll: true });
+  }
+  function hideChip() { chip.hidden = true; chipFor = null; }
+  document.addEventListener('pointerdown', function (e) {
+    if (e.isPrimary) Object.keys(pointers).forEach(function (k) { delete pointers[k]; });
+    pointers[e.pointerId] = true;
+    tap = Object.keys(pointers).length === 1 && e.button === 0 ? { id: e.pointerId, x: e.clientX, y: e.clientY, t: Date.now(), target: e.target } : null;
+  });
+  document.addEventListener('pointermove', function (e) {
+    if (tap && e.pointerId === tap.id && Math.abs(e.clientX - tap.x) + Math.abs(e.clientY - tap.y) > 8) tap = null;
+  });
+  document.addEventListener('pointercancel', function (e) { delete pointers[e.pointerId]; tap = null; });
+  document.addEventListener('pointerup', function (e) {
+    const t = tap;
+    delete pointers[e.pointerId]; tap = null;
+    if (!t || t.id !== e.pointerId || Date.now() - t.t > 500) return;
+    if (t.target.closest('a, button, input, textarea, select, label, summary, #editor')) return;
+    const el = t.target.closest('[data-note]');
+    const offer = el && (el.closest('#viewer') || (e.pointerType === 'mouse' && !el.closest('.frame')));
+    if (offer) showChip(el, e.clientX, e.clientY, false); else hideChip();
+  });
+  chip.addEventListener('click', function () { if (chipFor) openEditor(chipFor.getAttribute('data-note'), chipFor); });
+  document.addEventListener('click', function (e) {
+    const t = e.target.closest ? e.target.closest('[data-open]') : null;
+    if (!t) return;
+    const id = t.getAttribute('data-open'), rec = data.drafts[id] || noteOf(id), el = rec ? find(id, rec.label) : t.closest('[data-note]');
+    if (el && t.classList.contains('entry')) { reveal(el); el.scrollIntoView({ block: 'center' }); }
+    openEditor(id, el);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      if (open) closeEditor(true);
+      else if (chipFor) { const el = chipFor; hideChip(); el.focus(); }
+      else if (view) closeViewer(true);
+    } else if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('[data-note]')) {
+      e.preventDefault();
+      const r = e.target.getBoundingClientRect();
+      showChip(e.target, r.left + 48, r.top + Math.min(r.height, 24), true);
+    }
+  });
+
+  // ── the editor: beside its target on a desktop, docked at the bottom of the visible screen on a phone ──
+  let open = null;
+  function openEditor(id, el) {
+    closeViewer(false); closeEditor(false); hideChip();
+    if (el) reveal(el);
+    const note = noteOf(id), draft = data.drafts[id];
+    const label = draft ? draft.label : note ? note.label : labelOf(el);
+    open = { id: id, label: label, el: el };
+    $('editor-where').textContent = where(id).at + ' · ' + label;
+    editor.querySelector('.moved').hidden = !!el;
+    editor.querySelector('[data-act="delete"]').hidden = !note;
+    ta.value = draft ? draft.text : note ? note.text : '';
+    editor.hidden = false;
+    if (el) el.classList.add('noting');
+    place();
+    ta.focus({ preventScroll: editor.classList.contains('docked') });
+  }
+  function closeEditor(restore) {
+    if (!open) return;
+    const el = open.el;
+    open = null; editor.hidden = true;
+    document.body.classList.remove('docked'); document.body.style.paddingBottom = '';
+    bar();
+    if (el) { el.classList.remove('noting'); if (restore) el.focus({ preventScroll: true }); }
+  }
+  function place() {
+    const docked = phone.matches || !open.el;
+    editor.classList.toggle('docked', docked);
+    document.body.classList.toggle('docked', docked);
+    editor.style.left = editor.style.top = editor.style.bottom = editor.style.maxHeight = '';
+    if (docked) {
+      dock();
+      document.body.style.paddingBottom = editor.offsetHeight + 24 + 'px';
+      keepVisible();
+      return;
+    }
+    const r = open.el.getBoundingClientRect(), w = editor.offsetWidth, vw = root.clientWidth;
+    let left = r.right + 12, top = r.top;
+    if (left + w > vw - 8) { left = Math.max(8, Math.min(r.left, vw - w - 8)); top = r.bottom + 8; }
+    editor.style.left = left + window.pageXOffset + 'px';
+    editor.style.top = top + window.pageYOffset + 'px';
+  }
+  // The visible screen: a phone keyboard shrinks it, and a host app may shrink the page too, so place from its top.
+  function screen() {
+    const vv = window.visualViewport;
+    return vv ? { top: vv.offsetTop, h: vv.height } : { top: 0, h: window.innerHeight };
+  }
+  function dock() {
+    if (!open || !editor.classList.contains('docked')) return;
+    const s = screen();
+    editor.style.maxHeight = s.h + 'px';
+    editor.style.bottom = 'auto';
+    editor.style.top = s.top + Math.max(0, s.h - editor.offsetHeight) + 'px';
+  }
+  function keepVisible() {
+    if (!open || !open.el) return;
+    const r = open.el.getBoundingClientRect(), s = screen(), limit = s.top + s.h - editor.offsetHeight - 8;
+    if (r.bottom > limit) window.scrollBy(0, Math.min(r.top - s.top - 8, r.bottom - limit));
+  }
+  let seen = screen().h;
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', function () {
+      const h = screen().h, keyboard = Math.abs(h - seen) > 100;
+      seen = h; dock();
+      if (keyboard) keepVisible();
+    });
+    window.visualViewport.addEventListener('scroll', dock);
+  }
+  ta.addEventListener('input', function () {
+    if (!open) return;
+    const note = noteOf(open.id), text = ta.value;
+    if (!text.trim() || (note && text === note.text)) delete data.drafts[open.id];
+    else data.drafts[open.id] = { label: open.label, text: text };
+    persist();
+  });
+  editor.addEventListener('click', function (e) {
+    const act = e.target.getAttribute('data-act');
+    if (!act || !open) return;
+    const id = open.id, note = noteOf(id), text = ta.value.trim();
+    if (act === 'save') {
+      if (!text) { ta.focus(); return; }
+      if (!note) data.notes.push({ id: id, label: open.label, text: text });
+      else if (note.text !== text) { note.text = text; delete note.sent; }
+    }
+    if (act === 'delete') data.notes = data.notes.filter(function (n) { return n.id !== id; });
+    if (act !== 'close') delete data.drafts[id];
+    closeEditor(true); persist();
+    if (act === 'save' && live) toast('Saved. Tap Send notes to send it to the chat.');
+    else if (act === 'save') {
+      const n = unsent().length;
+      copyNotes(function () { toast('Saved and copied ' + plural(n) + '. Paste them into chat.'); },
+        function () { toast('Saved. Tap Copy notes to copy them.'); });
+    }
+  });
+
+  // ── drawings: fitted by font size on the page; a tap shows one full screen, where it zooms and scrolls natively ──
+  const BASE = 13, drawings = [];
+  let view = null;
+  const V = { f: BASE, lo: BASE, hi: BASE };
+  function size(art, f, max) {
+    art.style.fontSize = f + 'px';
+    for (let i = 0; i < 3 && art.offsetWidth > max; i += 1) { f *= max / art.offsetWidth; art.style.fontSize = f + 'px'; }
+    return f;
+  }
+  function fit(d) {
+    if (!d.fig.open || view === d) return;
+    d.art.style.fontSize = BASE + 'px';
+    const w = d.art.offsetWidth, fw = d.frame.clientWidth - 1;
+    if (w > 0 && fw > 0) size(d.art, BASE * Math.min(1.25, fw / w), fw);
+  }
+  function reveal(el) {
+    const fig = el.closest('details');
+    if (fig && !fig.open) { fig.open = true; drawings.forEach(fit); }
+  }
+  function scale(f, cx, cy) {
+    f = Math.max(V.lo, Math.min(V.hi, f));
+    const k = f / V.f, x = (vframe.scrollLeft + cx) * k - cx, y = (vframe.scrollTop + cy) * k - cy;
+    V.f = f; view.art.style.fontSize = f + 'px';
+    vframe.scrollLeft = x; vframe.scrollTop = y;
+    const atFit = f <= V.lo * 1.001;
+    vbar.firstChild.textContent = (atFit ? 'Fit · ' : '') + Math.round(f / BASE * 100) + '%';
+    vb[0].disabled = atFit; vb[2].disabled = f >= V.hi * 0.999;
+  }
+  function openViewer(d) {
+    hideChip();
+    view = d; viewer.hidden = false; document.body.classList.add('viewing');
+    vframe.appendChild(d.art);
+    d.art.style.fontSize = BASE + 'px';
+    const fw = vframe.clientWidth - 1;
+    V.lo = size(d.art, BASE * fw / Math.max(1, d.art.offsetWidth), fw);
+    V.hi = Math.max(V.lo * 4, 40); V.f = V.lo;
+    vframe.scrollLeft = vframe.scrollTop = 0;
+    scale(V.lo, 0, 0);
+    vb[3].focus({ preventScroll: true });
+  }
+  function closeViewer(restore) {
+    if (!view) return;
+    const d = view;
+    view = null;
+    d.frame.insertBefore(d.art, d.frame.firstChild);
+    viewer.hidden = true; document.body.classList.remove('viewing');
+    fit(d); bar();
+    if (restore) d.enlarge.focus({ preventScroll: true });
+  }
+  vbar.addEventListener('click', function (e) {
+    const i = Array.prototype.indexOf.call(vb, e.target);
+    if (i === 3) closeViewer(true);
+    else if (i >= 0) scale([V.f / 1.25, V.lo, V.f * 1.25][i], vframe.clientWidth / 2, vframe.clientHeight / 2);
+  });
+  vframe.addEventListener('wheel', function (e) {
+    if (!e.ctrlKey && !e.metaKey) return;
+    e.preventDefault();
+    const r = vframe.getBoundingClientRect();
+    scale(V.f * (e.deltaY < 0 ? 1.1 : 1 / 1.1), e.clientX - r.left, e.clientY - r.top);
+  }, { passive: false });
+  // One finger scrolls natively; two fingers pinch around their midpoint.
+  let pinch = null;
+  const span = function (t) { return Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY) || 1; };
+  vframe.addEventListener('touchstart', function (e) { if (e.touches.length === 2) pinch = { f: V.f, dist: span(e.touches) }; }, { passive: true });
+  vframe.addEventListener('touchmove', function (e) {
+    if (!pinch || e.touches.length !== 2) return;
+    if (e.cancelable) e.preventDefault();
+    const r = vframe.getBoundingClientRect(), t = e.touches;
+    scale(pinch.f * span(t) / pinch.dist, (t[0].clientX + t[1].clientX) / 2 - r.left, (t[0].clientY + t[1].clientY) / 2 - r.top);
+  }, { passive: false });
+  vframe.addEventListener('touchend', function (e) { if (e.touches.length < 2) pinch = null; });
+  document.addEventListener('gesturestart', function (e) { if (view) e.preventDefault(); });
+  all('.drawing', function (fig) {
+    const frame = fig.querySelector('.frame'), enlarge = document.createElement('button');
+    enlarge.type = 'button'; enlarge.className = 'enlarge'; enlarge.textContent = 'Full screen';
+    frame.appendChild(enlarge);
+    const d = { fig: fig, frame: frame, art: fig.querySelector('.art'), count: fig.querySelector('.count'), enlarge: enlarge };
+    drawings.push(d);
+    fig.addEventListener('toggle', function () { fit(d); });
+    frame.addEventListener('click', function (e) { if (!e.target.closest('[data-open]')) openViewer(d); });
+  });
+
+  // ── direct links: #/why, #/<n>, #/decisions/<n> ──
+  function jump() {
+    const m = /^#\/(?:decisions\/(\d+)|(\d+)|(why|changes|decisions))$/.exec(location.hash);
+    const el = m ? $(m[1] ? 'decision-' + m[1] : m[2] ? 'item-' + m[2] : m[3]) : null;
+    if (!el) return;
+    all('.hit', function (n) { n.classList.remove('hit'); });
+    el.classList.add('hit');
+    el.scrollIntoView({ block: 'start' });
+  }
+
+  // ── copy: saved notes only, as notes on the plan: each asks or changes something ──
+  // A note sent through a reply link is in the chat already, so it is never copied or sent again.
+  function unsent() { return data.notes.filter(function (n) { return !n.sent; }); }
+  function snapshot() { return unsent().map(function (n) { return { id: n.id, label: n.label, text: n.text }; }); }
+  function acknowledge(notes) {
+    notes.forEach(function (submitted) {
+      data.notes.forEach(function (current) {
+        if (current.id === submitted.id && current.label === submitted.label && current.text === submitted.text) current.sent = true;
+      });
+    });
+    persist();
+  }
+  function bullets(notes) {
+    return notes.map(function (n) {
+      const w = where(n.id);
+      return '- ' + w.spot + ' (' + n.label.slice(w.kind.length + 1) + '): ' + n.text.replace(/\s*\n\s*/g, ' ');
+    });
+  }
+  function notesText() {
+    return ['Notes on the plan ' + CHANGE + ' from the review page. Don\'t build yet.'].concat(bullets(unsent())).join('\n');
+  }
+  function toast(text) {
+    $('toast').textContent = text; $('toast').classList.add('show');
+    setTimeout(function () { $('toast').classList.remove('show'); }, 2000);
+  }
+  function plural(n) { return n + (n === 1 ? ' note' : ' notes'); }
+  // One routine for Copy notes and Save: the Clipboard API, else select #copybuf and execCommand, then hand focus back.
+  function copyNotes(done, failed) {
+    const buf = $('copybuf');
+    buf.value = notesText();
+    const fallback = function () {
+      const back = document.activeElement;
+      buf.select();
+      const ok = document.execCommand('copy');
+      if (back && back !== buf && back.focus) back.focus({ preventScroll: true });
+      if (ok) done(); else failed();
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(buf.value).then(done, fallback); else fallback();
+  }
+  // Nothing to copy or send: say why. True when it spoke.
+  function nothing(verb) {
+    if (unsent().length) return false;
+    toast(data.notes.length ? 'Every note is already sent.' : 'No saved notes yet. Drafts are not ' + verb + '.');
+    return true;
+  }
+
+  // ── reply link: at a web address with #key=, the bar's button sends unsent notes to the chat that made the plan ──
+  // `live` is the link's key while the link is open. The key stays in memory and this tab's session, never in a link.
+  let live = null, connecting = false, pending = null;
+  function setLive(key) {
+    live = key;
+    if (!key) hideActions();
+    all('.copies', function (el) { el.textContent = key ? 'Send notes sends your saved notes to the chat.' : 'Saving a note copies all your notes.'; });
+    bar();
+  }
+  // One request owns every reply control until the response body has been read.
+  function busy(kind) {
+    pending = kind;
+    bar();
+  }
+  function linkKey() {
+    if (!/^https?:$/.test(location.protocol) || !window.fetch) return null;
+    const m = /(?:^#|&)key=([0-9a-f]{64})(?:&|$)/.exec(location.hash), at = 'wong-reply-key:' + location.pathname;
+    try {
+      if (m) window.sessionStorage.setItem(at, m[1]);
+      return m ? m[1] : window.sessionStorage.getItem(at);
+    } catch (e) { return m ? m[1] : null; }
+  }
+  function ask(path, key, body) {
+    const headers = { 'x-reply-key': key };
+    if (body) headers['content-type'] = 'application/json';
+    return fetch(path, { method: body ? 'POST' : 'GET', cache: 'no-store', headers: headers, body: body ? JSON.stringify(body) : undefined });
+  }
+  async function sendNotes() {
+    const notes = snapshot(), n = notes.length;
+    if (pending || connecting || nothing('sent')) return;
+    busy('send'); says('Sending your notes…');
+    // A closed link or an unreachable chat: the same tap copies, and the page goes back to Copy notes.
+    const closed = function () {
+      setLive(null); says('This link has closed. Copy your notes into chat.');
+      copyNotes(function () { toast('This link has closed. Copied ' + plural(n) + ': paste them into chat.'); },
+        function () { toast('This link has closed. Tap Copy notes to copy them.'); });
+    };
+    try {
+      const r = await ask('send', live, { text: bullets(notes).join('\n') });
+      if (r.status === 429) { says('Wait a few seconds, then tap Send notes again.'); toast('Wait a few seconds, then tap Send notes again.'); return; }
+      if (!r.ok) { closed(); return; }
+      const answer = await r.json();
+      if (!answer || answer.sent !== true) { closed(); return; }
+      acknowledge(notes);
+      says('Sent ' + plural(n) + ' to the chat.');
+      toast('Sent ' + plural(n) + ' to the chat.');
+    } catch (e) { closed(); }
+    finally { busy(null); }
+  }
+  $('copy').addEventListener('click', function () {
+    if (pending || connecting) return;
+    if (live) { sendNotes(); return; }
+    const n = unsent().length;
+    if (nothing('copied')) return;
+    copyNotes(function () { toast('Copied ' + plural(n) + '. Paste them into chat.'); },
+      function () { toast('Copy failed. Copy the notes list by hand.'); });
+  });
+
+  // ── visible build choices, with publish confirmation above the footer ──
+  let version = null;
+  const publishButton = $('ready').querySelector('[data-ready="publish"]');
+  function says(text) { $('ready-message').textContent = text; $('ready-says').hidden = !text; }
+  function closeActions(focus) {
+    const wasOpen = !$('ready-confirm').hidden;
+    $('ready-confirm').hidden = true;
+    publishButton.setAttribute('aria-expanded', 'false');
+    if (focus && wasOpen && !$('ready').hidden) publishButton.focus({ preventScroll: true });
+    bar();
+  }
+  function hideActions() {
+    const focused = $('ready').contains(document.activeElement);
+    closeActions(false);
+    $('ready').hidden = true;
+    if (focused) $('copy').focus({ preventScroll: true });
+    bar();
+  }
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !$('ready-confirm').hidden) { e.preventDefault(); closeActions(true); }
+  });
+  document.addEventListener('pointerdown', function (e) {
+    if (!$('ready').contains(e.target)) closeActions(false);
+  });
+  $('ready').addEventListener('focusout', function (e) {
+    if (e.relatedTarget && !$('ready').contains(e.relatedTarget)) closeActions(false);
+  });
+  // Only the row contributes to page padding; popovers and status never increase its height.
+  function bar() {
+    const el = $('copy').parentNode, waiting = connecting || !!pending;
+    $('copy-label').textContent = connecting ? 'Connecting…' : pending === 'send' ? 'Sending…' : live ? 'Send notes' : 'Copy notes';
+    $('copy').disabled = waiting;
+    $('copy').querySelector('.spinner').hidden = !(connecting || pending === 'send');
+    el.setAttribute('data-busy', String(waiting));
+    $('copy').setAttribute('aria-busy', String(connecting || pending === 'send'));
+    root.style.setProperty('--choices', $('ready-confirm').offsetHeight + 'px');
+    $('ready-says').querySelector('.spinner').hidden = !waiting;
+    all('[data-ready]', function (b) {
+      const step = b.getAttribute('data-ready');
+      b.disabled = waiting;
+      b.setAttribute('aria-busy', String(pending === (step === 'yes' ? 'publish' : step) && step !== 'publish'));
+      const spinner = b.querySelector('.spinner');
+      if (spinner) {
+        const active = pending === (step === 'yes' ? 'publish' : step);
+        spinner.hidden = !active;
+        b.querySelector('span:last-child').textContent = active ? 'Sending…' : step === 'yes' ? 'Yes, publish' : 'Build it';
+      }
+    });
+    if (el.offsetHeight) root.style.setProperty('--bar', el.offsetHeight + 19 + 'px');
+  }
+  function offer(answer) {
+    const names = answer && answer.actions;
+    if (!Array.isArray(names) || names.indexOf('build') < 0 || names.indexOf('publish') < 0 || typeof answer.version !== 'string') return;
+    version = answer.version;
+    $('ready').hidden = false;
+    bar();
+  }
+  async function act(name) {
+    if (pending || connecting || !live) return;
+    const notes = snapshot();
+    busy(name); says('Sending your request…');
+    const closed = function () { setLive(null); says('This link has closed. Copy your notes and choose in the chat.'); toast('This link has closed. Copy your notes and choose in the chat.'); };
+    try {
+      const body = { action: name, version: version };
+      if (notes.length) body.text = bullets(notes).join('\n');
+      const r = await ask('act', live, body);
+      if (r.status === 429) { says('Wait a few seconds, then tap again.'); return; }
+      const a = await r.json() || {};
+      const line = r.status === 200 && a.sent === true ? 'Asked the chat to build' + (name === 'publish' ? ' and publish.' : '.')
+        : r.status === 409 && a.changed === true ? 'The plan changed. Reload to read it first.'
+        : r.status === 409 && a.done === true ? 'The chat was already asked.' : '';
+      if (r.status === 410 || r.status === 403) { closed(); return; }
+      if (!line) { says('The request was not confirmed. Your notes are saved. Try again.'); return; }
+      if (r.status === 200 && a.sent === true) acknowledge(notes);
+      hideActions(); says(line);
+    } catch (e) { says('The request was not confirmed. Your notes are saved. Try again.'); }
+    finally { busy(null); }
+  }
+  $('ready').addEventListener('click', function (e) {
+    const button = e.target.closest('[data-ready]');
+    if (!button || pending || connecting) return;
+    const step = button.getAttribute('data-ready');
+    if (step === 'build' || step === 'yes') act(step === 'yes' ? 'publish' : 'build');
+    else if (step === 'cancel' || step === 'publish') {
+      says('');
+      $('ready-confirm').hidden = step === 'cancel';
+      publishButton.setAttribute('aria-expanded', String(step === 'publish'));
+      bar();
+      $('ready').querySelector('[data-ready="' + (step === 'cancel' ? 'publish' : 'cancel') + '"]').focus({ preventScroll: true });
+    }
+  });
+
+  let width = root.clientWidth;
+  window.addEventListener('resize', function () {
+    if (root.clientWidth !== width) {
+      width = root.clientWidth; hideChip();
+      if (view) { const d = view; closeViewer(false); openViewer(d); }
+    }
+    drawings.forEach(fit);
+    if (open) place();
+    bar();
+  });
+  window.addEventListener('hashchange', jump);
+  render();
+  jump();
+  const key = linkKey();
+  if (key) {
+    connecting = true; says('Connecting to the chat…'); bar();
+    (async function () {
+      try {
+        const r = await ask('alive', key);
+        if (!r.ok) return;
+        const answer = await r.json();
+        if (!answer || typeof answer !== 'object') return;
+        setLive(key); offer(answer);
+      } catch (e) { /* not live: the page copies */ }
+      finally { connecting = false; says(''); bar(); }
+    }());
+  }
+}());
+</script>
+</body>
+</html>

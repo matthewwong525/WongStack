@@ -9,7 +9,7 @@ import { isDeepStrictEqual, parseArgs } from 'node:util';
 import { isMain } from '../../memory/scripts/lib/cli.mjs';
 import { machineId, machineIdFile } from '../../memory/scripts/lib/machine-id.mjs';
 import { keyMachine, parseEnv } from '../../memory/scripts/lib/store.mjs';
-import { AccessSetupError, accessExceptions, accessOrganization, cloudflareReadKey, loginManagementKey, ownerIdentity, provisionAccess, provisionAccessPolicies } from './private-access.mjs';
+import { AccessSetupError, accessExceptions, accessOrganization, cloudflareReadKey, loginManagementKey, mcpSeal, ownerIdentity, provisionAccess, provisionAccessPolicies } from './private-access.mjs';
 import { helperConfig } from '../../save/scripts/artifacts-credential.mjs';
 import {
   CloudflareError, PROPAGATION, ProvisionError, accountPolicy, cloudflare, durableEnv, fillConfig, grant, installRunner, orNull, paidPlan, pending,
@@ -483,8 +483,8 @@ function migrateScripts(dir, n, note) {
   note('updated', 'app/package.json db:migrate scripts');
 }
 
-/** The read-only key's record. `waiting` is replaced whole, so a Worker that has since taken the key drops off it. */
-const recordReadKey = (dir, key, note) => recordComponent(dir, 'cloudflareReadKey', { waiting: undefined, ...key }, note);
+/** A Worker secret's record. `waiting` is replaced whole, so a Worker that has since taken it drops off the list. */
+const recordWaiting = (dir, component, result, note) => recordComponent(dir, component, { waiting: undefined, ...result }, note);
 
 /** The read-only key's two policies: its account groups on the account, its zone groups on every zone in it. */
 const readKeyPolicies = (account, groups) => [
@@ -757,7 +757,9 @@ export async function provision({ token, api, fetch, account, repo, base, route 
       policies: () => readKeyPolicies(account, groups), state, checkpoint, note,
     }));
     if (report.cloudflareReadKey.status === 'missing') report.todo.push(CLOUDFLARE_READ_KEY_TODO);
-    recordReadKey(dir, report.cloudflareReadKey, note);
+    recordWaiting(dir, 'cloudflareReadKey', report.cloudflareReadKey, note);
+    report.mcpSeal = await step('cloudflare', () => mcpSeal(cf, { account, workers: [n.worker, n.staging], note }));
+    recordWaiting(dir, 'mcpSeal', report.mcpSeal, note);
     // Which project Connect your assistant hands out: named for both Workers, and bound when Cloudflare keeps it.
     // Like the owner email, it waits while the config is still open.
     if (!keepConfig && !/"WORKSPACE_LOGIN"/.test(readFileSync(config, 'utf8'))) report.codeKey = await step('cloudflare', () => projectCode(cf, {
@@ -810,8 +812,8 @@ export async function bindingTypes(app, exec = run, env = process.env) {
   }
 }
 
-/** What Access needs on an older install: the owner's email in both Workers' vars, the two keys, the memory and git
- * exceptions, and the project's name. It reads the install record, so an update runs it alone. */
+/** What Access needs on an older install: the owner's email in both Workers' vars, the two keys, the MCP seal, the
+ * memory and git exceptions, and the project's name. It reads the install record, so an update runs it alone. */
 export async function accessSetup({ token, api, fetch, account, ownerEmail, dir = '.', exec = run }) {
   const cf = cloudflare(token, { api, fetch });
   const report = { created: [], reused: [], updated: [], todo: [] };
@@ -835,6 +837,7 @@ export async function accessSetup({ token, api, fetch, account, ownerEmail, dir 
     checkpoint: () => writeJson(provisionStateFile, state),
   }));
   if (readKey.status === 'missing') report.todo.push(CLOUDFLARE_READ_KEY_TODO);
+  const seal = await step('cloudflare', () => mcpSeal(cf, { account, workers: access.workers.map((each) => each.name), note }));
   const config = join(dir, 'app', 'wrangler.jsonc');
   if (existsSync(config)) ownerEmailInConfig(config, email, { note, todo: report.todo });
   const artifacts = delivery?.route === 'artifacts';
@@ -845,8 +848,9 @@ export async function accessSetup({ token, api, fetch, account, ownerEmail, dir 
   }));
   recordComponent(dir, 'access', { ownerEmail: email }, note);
   recordComponent(dir, 'accessKey', key, note);
-  recordReadKey(dir, readKey, note);
-  return { ...report, ownerEmail: email, accessKey: key, cloudflareReadKey: readKey, codeKey };
+  recordWaiting(dir, 'cloudflareReadKey', readKey, note);
+  recordWaiting(dir, 'mcpSeal', seal, note);
+  return { ...report, ownerEmail: email, accessKey: key, cloudflareReadKey: readKey, mcpSeal: seal, codeKey };
 }
 
 const USAGE = `usage: provision.mjs <command> [--dir <repo>] [--account <id>] [--route github|artifacts]
@@ -861,7 +865,8 @@ const USAGE = `usage: provision.mjs <command> [--dir <repo>] [--account <id>] [-
   access [--owner-email <email>]          on an installed repo with sign-in on: let memory and git past the sign-in
                                           wall, put the owner's email in both Workers' vars, give the live app its own key for the sign-in list and the read-only
                                           key for Cloudflare look-ups; the preview app gets the read-only key when
-                                          Cloudflare takes it, and is reported as waiting when not. It also names
+                                          Cloudflare takes it, and is reported as waiting when not. Each Worker
+                                          lacking one gets its own seal for MCP sign-ins; a held seal is kept. It also names
                                           the project Connect your assistant hands out: codeKey's status is
                                           ready or missing, and its save says whether people can save changes
                                           through the app. On GitHub a missing one comes with the owner's steps

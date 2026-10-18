@@ -83,6 +83,34 @@ test('a longer name that only starts like a secret is no mention, and a test fil
   assert.equal(near.status, 0, near.out);
 });
 
+test('only app/worker/mcp/ may name the MCP sign-in seal: any other source fails, a test file does not', t => {
+  const inside = check(t, {
+    'mcp/seal.ts': 'export const SEAL = "WONG_MCP_SEAL";\n',
+    'mcp/nested/open.ts': 'export const open = env => env.WONG_MCP_SEAL;\n',
+    'api/router.ts': 'const routeAccess = new Map();\n',
+    'api/router.test.ts': 'const env = { WONG_MCP_SEAL: "x" };\n',
+    '../src/pages/Services.test.tsx': 'const name = "WONG_MCP_SEAL";\n',
+    'mcpish/near.ts': 'export const near = env => env.WONG_MCP_SEAL_HINT;\n',
+  });
+  assert.equal(inside.status, 0, inside.out);
+  const outside = check(t, {
+    'mcp/seal.ts': 'export const SEAL = "WONG_MCP_SEAL";\n',
+    'api/router.ts': 'const routeAccess = new Map();\n',
+    'api/peek.ts': 'export const peek = (_request, env) => env.WONG_MCP_SEAL;\n',
+    'apps/notes/api.ts': 'export const routes = new Map();\n',
+    'apps/notes/read.ts': 'export const read = (_request, env) => env["WONG_MCP_SEAL"];\n',
+    'mcpish/peek.ts': 'export const peek = env => env.WONG_MCP_SEAL;\n',
+    '../src/pages/Services.tsx': 'export const name = "WONG_MCP_SEAL";\n',
+  });
+  assert.equal(outside.status, 1);
+  for (const file of ['app/worker/api/peek.ts', 'app/worker/apps/notes/read.ts', 'app/worker/mcpish/peek.ts', 'app/src/pages/Services.tsx']) {
+    assert.ok(outside.out.includes(`${file}: names WONG_MCP_SEAL, which only app/worker/mcp/ may read`), outside.out);
+  }
+  assert.doesNotMatch(outside.out, /app\/worker\/mcp\/seal\.ts/);
+  assert.match(outside.out, /WONG_MCP_SEAL seals each person's MCP sign-in/);
+  assert.doesNotMatch(outside.out, /saved key\(s\) named but not listed/);
+});
+
 test('a repo with no registry, or with no apps, has nothing to check', t => {
   const none = check(t, { 'api/health.ts': 'export const health = () => new Response();\n' }, null);
   assert.equal(none.status, 0);

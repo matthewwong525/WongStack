@@ -147,6 +147,10 @@ describe("private Worker routing", () => {
     expect(accepted.status).toBe(200);
     // The supplied actions are among them: a build may hold other folders too.
     expect((await body(accepted)).actions.map(a => a.operationId)).toEqual(expect.arrayContaining(["hello.greeting", "main.health"]));
+    // The services list and the MCP routes answer a signed person; this app has no Access database for MCPs.
+    const person = { "Cf-Access-Jwt-Assertion": await token({ email: "human@example.com", sub: "human" }) };
+    expect((await call("/api/services", person)).status).toBe(200);
+    expect((await body(await call("/api/mcp/servers", person))).error.message).toBe("MCPs are not available on this app yet.");
     const [header, , signature] = signed.split(".");
     const forged = `${header}.${encode({ email: "admin@example.com" })}.${signature}`;
     for (const assertion of [forged, await token({ email: "human@example.com", exp: 1 }), await token({ email: "human@example.com", aud: "wrong" })]) {

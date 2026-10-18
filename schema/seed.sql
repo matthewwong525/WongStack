@@ -75,3 +75,13 @@ INSERT INTO wong_access_grants VALUES
 INSERT INTO wong_access_key_grants VALUES
   ('11111111-1111-4111-8111-111111111111', 'dana@example.invalid', 'cloudflare', 'read', 1),
   ('11111111-1111-4111-8111-111111111111', 'dana@example.invalid', 'code', 'write', 1);
+-- One practice MCP, added by Ada, with its saved tools: a look-up and a change. Sign-ins are sealed with
+-- each Worker's own secret, so none is seeded: Bo's ended, and he connects again. The address is made up.
+INSERT INTO wong_mcp_servers (installation_id, id, name, url, resource, authorize_endpoint, token_endpoint,
+  registration_endpoint, auth_method, scopes, tools_json, tools_at, instructions, added_by, added_at) VALUES
+  ('11111111-1111-4111-8111-111111111111', 'notes', 'Notes', 'https://mcp.notes.example/mcp', 'https://mcp.notes.example/mcp',
+   'https://auth.notes.example/authorize', 'https://auth.notes.example/token', 'https://auth.notes.example/register', 'none', '',
+   '[{"name":"search","description":"Find notes by words in them.","inputSchema":{"type":"object","properties":{"query":{"type":"string"}}},"readOnly":true},{"name":"create_note","title":"Create a note","inputSchema":{"type":"object","properties":{"title":{"type":"string"}}},"readOnly":false}]',
+   '2026-10-04T00:00:00Z', 'Team notes: find and write them.', 'ada@example.invalid', '2026-10-04T00:00:00Z');
+INSERT INTO wong_mcp_connections (installation_id, server_id, email, tokens, account_label, connected_at, state, share) VALUES
+  ('11111111-1111-4111-8111-111111111111', 'notes', 'bo@example.invalid', NULL, 'bo@notes.example', '2026-10-04T00:00:00Z', 'reconnect', 'none');

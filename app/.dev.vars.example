@@ -49,6 +49,11 @@
 # refuses any source that names it. See wiki/stack/cloudflare-credentials.md.
 # WONG_CLOUDFLARE_READ=
 
+# The secret that seals each person's MCP sign-in. Setup makes it and stores
+# it in both Workers for you: leave it out of this file. `secrets:push`
+# refuses any source that names it. See wiki/stack/mcp-connections.md.
+# WONG_MCP_SEAL=
+
 # --- The project itself ---
 
 # A GitHub fine-grained token for this one repository, with five permissions and nothing else: Contents:

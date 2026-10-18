@@ -4,6 +4,10 @@ Real secrets stay outside git. Committed, values-blank **`.env.example`** lists 
 
 This convention supports any credential-file format; it requires no dotenv library or application `.env` reader. Each live file has one role: Cloudflare tools use root `.env`, Worker runtime uses `app/.dev.vars` ([routing](../stack/staging-bindings.md#env-and-devvars-are-not-interchangeable), [both Workers](../stack/staging-bindings.md#one-declared-list-of-secrets-two-workers)). Apply these rules to each.
 
+## Tool keys and business services
+
+`.env` holds keys for the tools this computer runs, such as Cloudflare's. A business service's key lives in the app, and so does each person's MCP sign-in. A chat reaches both through [the services list](../stack/service-catalogue.md), never by reading a key from a file: the app decides what each person may do, and a teammate's computer holds no business key. The private link below still saves a new key's value, and the assistant then sends it to the app.
+
 ## The two files
 
 - **`.env.example` — committed on the active branch.** Declare every consumed variable blank, with its purpose and source. Never put real values here.

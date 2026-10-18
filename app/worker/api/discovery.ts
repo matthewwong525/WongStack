@@ -4,11 +4,22 @@ import { apiActions } from "./router.ts";
 import { appActions, type AppEnv } from "../apps/index.ts";
 import type { AccessIdentity } from "../access.ts";
 import { actionError, containsCredential, needFor, schemas, uniqueActions, type Registration } from "./contract.ts";
-import { currentPolicy, listedKeys, policyAllows, policyDenied } from "../employee-access/policy.ts";
+import { currentPolicy, listedKeys, policyAllows, policyDenied, type CurrentPolicy } from "../employee-access/policy.ts";
 import { saved } from "../employee-access/key-levels.ts";
+import { mcpCaller, type McpEnv } from "../mcp/store.ts";
+import { mcpOperations } from "../mcp/tools.ts";
 
 const issuesSchema = { type: "array", maxItems: 10, items: { type: "object", required: ["path", "message"], additionalProperties: false,
   properties: { path: { type: "string", maxLength: 200 }, message: { type: "string", maxLength: 200 } } } };
+
+// The one error shape every action answers with; `connect` is the link that fixes an MCP's sign-in.
+const errorSchema = { type: "object", required: ["error"], additionalProperties: false,
+  properties: { error: { type: "object", required: ["code", "message", "requestId"], additionalProperties: false,
+    properties: { code: { type: "string" }, message: { type: "string" }, requestId: { type: "string" }, issues: issuesSchema, connect: { type: "string" } } } } };
+/** What OpenAPI needs of an operation, a company action's or an MCP tool's. */
+type Described = { operationId: string; summary: string; description: string; method: string; path: string; encoding: string; effect: string;
+  app: string; source: string; transport: string; authentication: string;
+  readiness: string; inputSchema: { properties: Record<string, unknown>; required?: string[] }; outputSchema: unknown; errorSchema: unknown; confirmWith?: string };
 
 // `visible` holds the caller's operation IDs: a confirming read they cannot see is never named.
 function describe({ method, path, app, action, access }: Registration, env: AppEnv, visible: Set<string>) {
@@ -22,9 +33,7 @@ function describe({ method, path, app, action, access }: Registration, env: AppE
     // A listed key that is not saved answers `unavailable` when called, so the list says so first.
     readiness: (action.ready && !action.ready(env)) || !listedKeys(access).every(id => saved(env, id)) ? "unavailable" : "available",
     ...(visible.has(action.confirmWith ?? "") ? { confirmWith: action.confirmWith } : {}),
-    ...schemas(action), errorSchema: { type: "object", required: ["error"], additionalProperties: false,
-      properties: { error: { type: "object", required: ["code", "message", "requestId"], additionalProperties: false,
-        properties: { code: { type: "string" }, message: { type: "string" }, requestId: { type: "string" }, issues: issuesSchema } } } }, errors: action.errors, examples: action.examples,
+    ...schemas(action), errorSchema, errors: action.errors, examples: action.examples,
   };
 }
 
@@ -33,7 +42,7 @@ async function revision(value: unknown): Promise<string> {
   return [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, "0")).join("");
 }
 
-function openApi(operations: ReturnType<typeof describe>[], version: string) {
+function openApi(operations: Described[], version: string) {
   const paths: Record<string, Record<string, unknown>> = {};
   for (const operation of operations) {
     const { operationId, summary, description, inputSchema, outputSchema, encoding, method, path } = operation;
@@ -64,7 +73,17 @@ async function discoveryJson(request: Request, value: unknown, caller: unknown) 
   return Response.json(value, { headers });
 }
 
-export async function discovery(request: Request, env: AppEnv, identity: AccessIdentity | null,
+/** The caller's MCP tools, read from the saved lists alone, and what moves when their readiness does. */
+async function mcpTools(request: Request, env: AppEnv & McpEnv, identity: AccessIdentity, policy: CurrentPolicy) {
+  // MCP tables not migrated yet, or unreadable, leave the company actions listed.
+  const caller = await mcpCaller(request, env, identity, policy).catch(() => null);
+  if (!caller || caller instanceof Response) return { operations: [], state: [] };
+  const { operations, state } = await mcpOperations(caller).catch(() => ({ operations: [], state: [] }));
+  // A tool whose own text looks like a credential is left out, so one MCP can't take the whole catalogue down.
+  return { operations: operations.map(operation => ({ ...operation, errorSchema })).filter(operation => !containsCredential(operation, env)), state };
+}
+
+export async function discovery(request: Request, env: AppEnv & McpEnv, identity: AccessIdentity | null,
   registry: Registration[] = [...apiActions, ...appActions]): Promise<Response> {
   if (!identity) return actionError("authentication_required");
   const url = new URL(request.url);
@@ -74,12 +93,14 @@ export async function discovery(request: Request, env: AppEnv, identity: AccessI
   const visible = uniqueActions(registry).filter(({ action, access, method }) => policyAllows(policy, access, needFor(action, method)) &&
     action.agentAvailable && (!action.allowed || action.allowed(identity)));
   const ids = new Set(visible.map(({ action }) => action.operationId));
-  const operations = visible.map(item => describe(item, env, ids)).sort((a, b) => a.operationId.localeCompare(b.operationId));
-  if (containsCredential(operations, env)) return actionError("internal_error");
+  const company = visible.map(item => describe(item, env, ids));
+  if (containsCredential(company, env)) return actionError("internal_error");
+  const mcp = await mcpTools(request, env, identity, policy);
+  const operations: (Described & { keys?: unknown })[] = [...company, ...mcp.operations].sort((a, b) => a.operationId.localeCompare(b.operationId));
   const version = await revision(operations);
   // Key levels can start with no new revision, so whether they have is part of the caller.
   const caller = { identity: [identity.kind, identity.id, identity.claims.sub],
-    policy: policy.state === "current" ? [policy.revision, policy.keys !== null] : policy.state };
+    policy: policy.state === "current" ? [policy.revision, policy.keys !== null] : policy.state, mcp: mcp.state };
   if (url.pathname === "/api/openapi.json") return discoveryJson(request, openApi(operations, version), caller);
   if (url.searchParams.has("id")) {
     const selected = operations.find(item => item.operationId === url.searchParams.get("id"));

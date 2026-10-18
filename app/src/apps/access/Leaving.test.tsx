@@ -28,6 +28,7 @@ beforeEach(() => {
   fetchMock = vi.fn(async (url: string) => {
     const path = url.replace('/api/access/', '')
     if (path === 'apps') return Response.json({ state: 'current', role: 'owner', apps: ['access', ...screens()], revision: 1 })
+    if (path === '/api/mcp/servers') return Response.json({ sealed: true, manages: true, me: 'owner@shop.com', servers: [] })
     if (path === 'setup') return Response.json({ role: 'owner', api: 'authenticated', identity: { email: 'owner@shop.com', subject: 'owner' }, apps: screens(),
       repository: 'manual_provider_setup', memory: 'independent_operator_setup', prompt: { state: 'unavailable', message: 'Not on this preview' } })
     return Response.json(roster)
@@ -101,8 +102,8 @@ it('asks in a popup before a panel changed only by a tick is closed by its ✕, 
 })
 it("a view's link asks before a changed panel is left, goes where it led on leaving, and leaves at once from an untouched one", async () => {
   open('people/kim@shop.com'); await screen.findByRole('button', { name: 'Save access' })
-  // The two views show beside the panel, each with its count.
-  expect(within(screen.getByRole('navigation', { name: 'Access views' })).getAllByRole('link').map(link => link.textContent)).toEqual(['People 3', 'Roles 1'])
+  // The views show beside the panel, each with its count.
+  expect(within(screen.getByRole('navigation', { name: 'Access views' })).getAllByRole('link').map(link => link.textContent)).toEqual(['People 3', 'Roles 1', 'Services 2'])
   // A key's level raised is a change to lose, and it ticks no app.
   fireEvent.click(radio('Stripe', 'Read & write')); fireEvent.click(tab('Roles'))
   expect(question()).toBeTruthy(); expect(where()).toBe(KIM)
