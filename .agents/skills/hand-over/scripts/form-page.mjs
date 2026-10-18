@@ -9,10 +9,14 @@ const ENDINGS = {
 };
 const RECEIPT_EVERY_MS = 500;
 const VALUE_LIMIT = 256;
+const SOON_MS = 10 * 60_000;
 
-/** `Closes in N min`, in whole minutes rounded up, or null once `closesAt` has passed. */
-export function timeLeft(closesAt, now) {
-  return closesAt > now ? `Closes in ${Math.ceil((closesAt - now) / 60_000)} min` : null;
+/** `Open until <time>` on this device's clock, `ahead` of it being the watcher's, while over ten minutes remain;
+ * then `Closes in N min`, rounded up; null once `closesAt` has passed. */
+export function timeLeft(closesAt, now, { ahead = 0, zone } = {}) {
+  if (closesAt <= now) return null;
+  if (closesAt - now <= SOON_MS) return `Closes in ${Math.ceil((closesAt - now) / 60_000)} min`;
+  return `Open until ${new Date(closesAt - ahead).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', timeZone: zone })}`;
 }
 
 /** The fields as rows of indexes: an expiry year right after its month shares the month's row. */
@@ -81,7 +85,7 @@ function start() {
       return line;
     }));
     $('#send').textContent = submit;
-    $('#does').textContent = `${submit} types these into the site and presses its button, once. Your assistant never sees them.`;
+    $('#does').textContent = `${submit} types these into the site and presses its button, once.`;
     lock(false);
   }
 
@@ -92,7 +96,7 @@ function start() {
     const tick = () => {
       if (!$('#ended').hidden) return;
       const now = Date.now() + ahead;
-      const text = timeLeft(closesAt, now);
+      const text = timeLeft(closesAt, now, { ahead });
       if (!text && !sending) return end(ENDINGS.closed);
       $('#time').textContent = text ?? '';
       setTimeout(tick, text ? Math.min(closesAt - now, 5000) : 1000);

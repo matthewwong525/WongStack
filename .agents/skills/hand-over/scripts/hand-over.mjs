@@ -75,6 +75,7 @@ const SCRIPT = 'text/javascript; charset=utf-8';
 const pages = name => ({
   '/': { file: join(HERE, `${name}.html`), type: 'text/html; charset=utf-8' },
   '/page.mjs': { file: join(HERE, `${name}.mjs`), type: SCRIPT },
+  '/page.css': { file: join(HERE, 'private-page.css'), type: 'text/css; charset=utf-8' },
 });
 const PAGES = { form: pages('form-page'), passwords: pages('passwords-page'), keys: pages('keys-page'), view: pages('view-page') };
 const ROUTES = { form: FORM_ROUTES, passwords: PASSWORD_ROUTES, keys: KEY_ROUTES, view: VIEW_ROUTES };

@@ -300,6 +300,7 @@ test('continue keeps successful keys while missing and failed keys prevent readi
 
 const GUIDE = {
   title: 'Stripe key',
+  why: 'So your assistant can read your charges.',
   url: 'https://dashboard.stripe.com/apikeys',
   open: "Open Stripe's keys",
   steps: ['Tap Create restricted key', 'Tick Read charges', 'Copy the key'],
@@ -308,7 +309,7 @@ const GUIDE = {
 
 test('checkGuide accepts each field alone and together, for asked-for names only', () => {
   const names = ['STRIPE_SECRET_KEY', 'MAPS_API_KEY'];
-  for (const entry of [{}, GUIDE, { title: 'Maps key' }, { steps: [] }, { url: 'https://console.cloud.google.com/apis/credentials' }, { check: { url: 'https://api.example.com:8443/me', auth: 'header:X-Api-Key' } }, { check: { url: 'https://api.example.com/me', auth: 'query:key' } }, { check: { url: 'https://api.example.com/me', auth: 'basic' } }]) {
+  for (const entry of [{}, GUIDE, { title: 'Maps key' }, { why: 'w'.repeat(LIMITS.why) }, { steps: [] }, { url: 'https://console.cloud.google.com/apis/credentials' }, { check: { url: 'https://api.example.com:8443/me', auth: 'header:X-Api-Key' } }, { check: { url: 'https://api.example.com/me', auth: 'query:key' } }, { check: { url: 'https://api.example.com/me', auth: 'basic' } }]) {
     assert.deepEqual(checkGuide({ MAPS_API_KEY: entry }, names), { guide: { MAPS_API_KEY: entry } }, JSON.stringify(entry));
   }
   assert.deepEqual(checkGuide({}, names), { guide: {} });
@@ -320,6 +321,7 @@ test('checkGuide refuses a bad shape, naming the key and the reason', () => {
   const bad = {
     'takes only': [{ html: '<b>' }],
     'title and open take': [{ title: long }, { title: '' }, { title: 7 }, { title: 'two\nlines' }, { url: GUIDE.url, open: long }],
+    'why takes': [{ why: 'x'.repeat(LIMITS.why + 1) }, { why: 'two\nlines' }, { why: '' }, { why: 7 }],
     'url takes an https address': [{ url: 'http://dashboard.stripe.com/apikeys' }, { url: 'javascript:alert(1)' }, { url: 'https://localhost/keys' }, { url: 'https://app.localhost/keys' }, { url: 'https://localhost./keys' }, { url: 'https://127.0.0.1/keys' }, { url: 'https://2130706433/keys' }, { url: 'https://[::1]/keys' }, { url: 'https://intranet/keys' }, { url: 'https://me:pw@stripe.com/' }, { url: 'not a url' }, { url: 7 }],
     'open needs a url': [{ open: 'Open it' }],
     'steps takes at most': [{ steps: Array(LIMITS.steps + 1).fill('Tap') }, { steps: ['x'.repeat(LIMITS.step + 1)] }, { steps: [''] }, { steps: 'Tap' }, { steps: [{ html: 1 }] }],

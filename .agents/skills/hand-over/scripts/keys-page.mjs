@@ -15,6 +15,10 @@ const MESSAGES = {
 };
 const FILE_LIMIT = 16 * 1024;
 const LINE_BREAK = /\r\n?|\n/;
+const SOON_MS = 10 * 60_000;
+const COUNTS = ['', '', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten'];
+/** Words a code name keeps in capitals, or spells its own way; every other word is lower-cased. */
+const WORDS = { API: 'API', URL: 'URL', ID: 'ID', AWS: 'AWS', SMTP: 'SMTP', OAUTH: 'OAuth', JSON: 'JSON' };
 
 /** The boxes' `{name: value}` worth sending: trimmed, the empty ones left out. */
 export function filledKeys(boxes) {
@@ -25,9 +29,18 @@ export function filledKeys(boxes) {
 
 const plural = (n, one) => `${n} ${one}${n === 1 ? '' : 's'}`;
 
-/** `Closes in N min`, in whole minutes rounded up, or null once `closesAt` has passed. */
-export function timeLeft(closesAt, now) {
-  return closesAt > now ? `Closes in ${Math.ceil((closesAt - now) / 60_000)} min` : null;
+/** `Open until <time>` on this device's clock, `ahead` of it being the watcher's, while over ten minutes remain;
+ * then `Closes in N min`, rounded up; null once `closesAt` has passed. */
+export function timeLeft(closesAt, now, { ahead = 0, zone } = {}) {
+  if (closesAt <= now) return null;
+  if (closesAt - now <= SOON_MS) return `Closes in ${Math.ceil((closesAt - now) / 60_000)} min`;
+  return `Open until ${new Date(closesAt - ahead).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', timeZone: zone })}`;
+}
+
+/** A code name as words: `MAPS_API_KEY` reads `Maps API key`. */
+export function readableName(name) {
+  const words = name.split('_').filter(Boolean).map(word => WORDS[word] ?? word.toLowerCase()).join(' ');
+  return words ? words[0].toUpperCase() + words.slice(1) : name;
 }
 
 /** A held key's line: where it came from and its line count, never its content. */
@@ -69,8 +82,9 @@ function start() {
   };
   const completed = receipt => {
     closed();
-    $('#closed h1').textContent = receipt?.notification === 'notified' ? 'Your assistant was notified' : 'Saved; return to your chat';
-    $('#closed .hint').textContent = receipt?.notification === 'notified' ? 'You can return to the chat.' : "Your entries are saved. Return to chat and say continue.";
+    $('#all-set').hidden = false;
+    $('#closed h1').textContent = 'All set';
+    $('#closed .hint').textContent = receipt?.notification === 'notified' ? 'Your assistant is carrying on. You can close this page.' : 'Your keys are saved. Return to your chat and say continue.';
     $('#results').replaceChildren(...[...rows.values()].filter(row => row.verdict).map(row => make('p', { className: 'ok', textContent: `${row.title}: ${MESSAGES[row.verdict]}` })));
   };
   const valueOf = row => row.held ?? row.input.value;
@@ -79,6 +93,8 @@ function start() {
     $('#save').disabled = Boolean(saving) || ![...rows.values()].some(row => !savedNames.has(row.name) && valueOf(row).trim());
     $('#done').disabled = Boolean(saving);
     for (const row of rows.values()) for (const control of row.controls) control.disabled = Boolean(saving) || savedNames.has(row.name);
+    $('#progress').textContent = `${savedNames.size} of ${rows.size} saved`;
+    $('#progress').hidden = rows.size < 2;
   };
   const stillOpen = () => fetch('page.mjs', { cache: 'no-store' }).then(response => response.ok, () => false);
   /** A refused call means a closed link, unless the page still answers. */
@@ -127,8 +143,8 @@ function start() {
     update();
   }
 
-  /** A key's numbered steps, the first the link to the service's key page with its host. */
-  function stepList(link, steps) {
+  /** A key's numbered steps, the first the link to the service's key page with its host, the last `pasteStep`. */
+  function stepList(link, steps, pasteStep) {
     const list = make('ol', { className: 'steps' });
     if (link) {
       const first = make('li');
@@ -136,30 +152,53 @@ function start() {
       list.append(first);
     }
     for (const step of steps) list.append(make('li', { textContent: step }));
+    pasteStep.prepend(make('p', { className: 'step', textContent: 'Paste it here' }));
+    list.append(pasteStep);
     return list;
   }
 
-  function addRow({ name, hint, set, title, url, open, steps = [], checkHost }, alone) {
-    const item = make('li');
+  /** Heads the page: one key's own name and what it's for, or a count of keys. */
+  function heading(keys) {
+    const [only] = keys;
+    const title = keys.length === 1 ? only.title ?? readableName(only.name) : `${COUNTS[keys.length] ?? keys.length} keys for your assistant`;
+    document.title = $('#form h1').textContent = title;
+    if (keys.length > 1) return;
+    $('#why').textContent = only.why ?? '';
+    $('#why').hidden = !only.why;
+    $('#promise').textContent = "Your key goes straight to your assistant's computer, never into the chat.";
+  }
+
+  function addRow({ name, hint, set, title, why, url, open, steps = [], checkHost }, alone) {
+    const card = make('li', { className: 'card' });
     const id = `key-${rows.size}`;
+    const shown = title ?? readableName(name);
     const input = make('input', { id, name, type: 'password', autocomplete: 'off', spellcheck: false });
     input.setAttribute('autocapitalize', 'off');
     input.setAttribute('autocorrect', 'off');
-    if (alone && title) {
-      $('#form h1').textContent = title;
-      document.title = title;
-      input.setAttribute('aria-label', title);
-    } else item.append(make('label', { htmlFor: id, textContent: title ?? name }));
+    const head = make('div', { className: 'head' });
+    const mark = make('span', { className: 'tick', hidden: true });
+    head.append(mark);
+    if (alone) input.setAttribute('aria-label', shown);
+    else head.append(make('label', { htmlFor: id, textContent: shown }));
+    const result = make('p', { className: 'ok', hidden: true });
+    const body = make('div', { className: 'body' });
+    if (!title) body.append(make('p', { className: 'code', textContent: name }));
+    if (why && !alone) body.append(make('p', { className: 'why', textContent: why }));
     const host = httpsHost(url);
-    if (host || steps.length) item.append(stepList(host && { url, open, host }, steps));
-    else if (hint) item.append(make('p', { className: 'hint', textContent: hint }));
-    if (set) item.append(make('p', { className: 'hint', textContent: 'This replaces the one saved now.' }));
+    const guided = Boolean(host || steps.length);
+    const pasteStep = make(guided ? 'li' : 'div', { className: 'paste' });
+    if (guided) body.append(stepList(host && { url, open, host }, steps, pasteStep));
+    else {
+      if (hint) body.append(make('p', { className: 'hint', textContent: hint }));
+      body.append(pasteStep);
+    }
+    if (set) pasteStep.append(make('p', { className: 'hint', textContent: 'This replaces the one saved now.' }));
 
     const quiet = textContent => make('button', { type: 'button', className: 'quiet', textContent });
     const toggle = quiet('Show');
     toggle.setAttribute('aria-controls', id);
     const row = {
-      name, title: title ?? name, checkHost, input, toggle, held: null, verdict: null,
+      name, title: shown, checkHost, input, toggle, held: null, verdict: null, mark, result, body,
       box: make('div', { className: 'row' }),
       heldLine: make('p', { className: 'held', hidden: true }),
       pick: quiet('or pick a file'),
@@ -200,11 +239,12 @@ function start() {
 
     const tools = make('div', { className: 'tools' });
     tools.append(toggle, row.pick, row.remove);
-    item.append(row.box, row.heldLine, tools, row.file);
-    if (checkHost) item.append(make('p', { className: 'hint', textContent: `Saving tests this key once at ${checkHost}.` }));
-    item.append(row.note, row.anyway);
+    pasteStep.append(row.box, row.heldLine, tools, row.file);
+    if (checkHost) pasteStep.append(make('p', { className: 'check', textContent: `We'll check it with ${checkHost}` }));
+    pasteStep.append(row.note, row.anyway);
+    card.append(head, result, body);
     rows.set(name, row);
-    $('#keys').append(item);
+    $('#keys').append(card);
   }
 
   function markSaved(name, verdict) {
@@ -215,13 +255,16 @@ function start() {
     row.input.value = '';
     row.input.type = 'password';
     row.toggle.textContent = 'Show';
-    note(row, MESSAGES[verdict], 'ok');
+    note(row);
+    row.result.textContent = MESSAGES[verdict];
+    row.mark.hidden = row.result.hidden = false;
+    row.body.hidden = true;
   }
 
   /** A key its test refused stays in its box, to fix or to save anyway. */
   function markRefused(name) {
     const row = rows.get(name);
-    note(row, `${row.checkHost} refused this key. Copy it again, or save it anyway.`);
+    note(row, `${row.checkHost} didn't take this key. Copy it again and paste it, or save it anyway.`);
     row.anyway.hidden = false;
   }
 
@@ -231,7 +274,7 @@ function start() {
     const tick = () => {
       if (!$('#closed').hidden) return;
       const now = Date.now() + ahead;
-      const text = timeLeft(closesAt, now);
+      const text = timeLeft(closesAt, now, { ahead });
       if (!text) return closed();
       $('#time').textContent = text;
       setTimeout(tick, Math.min(closesAt - now, 5000));
@@ -258,7 +301,7 @@ function start() {
     for (const name of missing) if (!failed.includes(name) && !unwanted.includes(name)) note(rows.get(name), 'Paste this key before continuing.');
     update();
     if (ready && receipt) return completed(receipt);
-    status(saved.length ? `Saved ${plural(saved.length, 'key')}. Complete the remaining keys.` : '');
+    status();
   }
 
   $('#keys-form').addEventListener('submit', event => {
@@ -278,6 +321,7 @@ function start() {
     const response = await call('keys');
     if (!response?.ok) return (await refused(response)) ? closed() : status(MESSAGES.failed);
     const { keys, closesAt, now } = await response.json();
+    if (keys.length) heading(keys);
     for (const each of keys) addRow(each, keys.length === 1);
     update();
     if (closesAt) countdown(closesAt, now ?? Date.now());

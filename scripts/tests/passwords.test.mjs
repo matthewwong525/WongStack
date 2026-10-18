@@ -79,7 +79,7 @@ test('open --passwords serves the password page and touches no browser page', as
   assert.match(key, /^[0-9a-f]{64}$/);
   assert.equal(f.camofox.starts(), 0, 'no browser started, and nothing read from a page');
   const page = await fetch(`http://127.0.0.1:${port}/`);
-  assert.match(await page.text(), /Save logins for your agent/);
+  assert.match(await page.text(), /Save logins for your assistant/);
   assert.match((await fetch(`http://127.0.0.1:${port}/page.mjs`)).headers.get('content-type'), /javascript/);
   assert.match(await (await fetch(`http://127.0.0.1:${port}/page.mjs`)).text(), /export function parseExport/);
   assert.equal((await route(port, key, 'fields')).status, 404, 'no field routes');
