@@ -218,7 +218,11 @@
       "app/worker/employee-access/sets.ts",
       "app/worker/employee-access/roles.ts",
       "app/worker/employee-access/code.ts",
-      "app/worker/employee-access/code.test.ts"
+      "app/worker/employee-access/code.test.ts",
+      "app/src/apps/access/Services.tsx",
+      "app/src/apps/access/Services.test.tsx",
+      "app/worker/api/services.ts",
+      "app/worker/api/services.test.ts"
     ]
   },
   "seededBySetup": {

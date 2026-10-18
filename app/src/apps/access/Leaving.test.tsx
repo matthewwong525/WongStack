@@ -46,7 +46,7 @@ const panel = (name: string) => screen.getByRole('dialog', { name })
 const closed = () => waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
 // The parts start listening for a press outside them, and hand the keyboard back, a moment after they open or close.
 const moment = () => act(async () => { await new Promise(resolve => setTimeout(resolve)) })
-// One of the two views in the switch, by its title: its count follows.
+// One of the views in the switch, by its title: its count follows.
 const tab = (title: string) => within(screen.getByRole('navigation', { name: 'Access views' })).getByRole('link', { name: new RegExp(`^${title} \\d+$`) })
 const radio = (group: string, name: string) => within(screen.getByRole('group', { name: new RegExp(`^${group} · `) })).getByRole('radio', { name }) as HTMLInputElement
 // An app's tick in an opened person or role: one press gives the app or takes it away, and saves nothing.
@@ -101,8 +101,8 @@ it('asks in a popup before a panel changed only by a tick is closed by its ✕, 
 })
 it("a view's link asks before a changed panel is left, goes where it led on leaving, and leaves at once from an untouched one", async () => {
   open('people/kim@shop.com'); await screen.findByRole('button', { name: 'Save access' })
-  // The two views show beside the panel, each with its count.
-  expect(within(screen.getByRole('navigation', { name: 'Access views' })).getAllByRole('link').map(link => link.textContent)).toEqual(['People 3', 'Roles 1'])
+  // The views show beside the panel, each with its count.
+  expect(within(screen.getByRole('navigation', { name: 'Access views' })).getAllByRole('link').map(link => link.textContent)).toEqual(['People 3', 'Roles 1', 'Services 2'])
   // A key's level raised is a change to lose, and it ticks no app.
   fireEvent.click(radio('Stripe', 'Read & write')); fireEvent.click(tab('Roles'))
   expect(question()).toBeTruthy(); expect(where()).toBe(KIM)

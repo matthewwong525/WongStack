@@ -25,6 +25,8 @@ export function cleanEnvironment() {
   return Object.fromEntries(['PATH', 'HOME', 'USER', 'LOGNAME', 'LANG', 'LC_ALL', 'TMPDIR', 'SYSTEMROOT'].filter(key => process.env[key]).map(key => [key, process.env[key]]));
 }
 const MAX_RESPONSE = 1048576;
+// A call's answer may reach an action's largest output, 4 MB, with room to spare, and wait out its longest 60 s.
+const MAX_ANSWER = 8 * MAX_RESPONSE, ANSWER_WAIT = 75000;
 const missing = (program, from) => `Install ${program} from its official distribution (${from}), then run this step again. No account or key is needed.`;
 export function companyOrigin(value) {
   let url;
@@ -96,14 +98,14 @@ export function employeeToken(output) {
   } catch { throw new Error('Employee session is absent or expired; use company login.'); }
   return token;
 }
-export async function responseJson(response) {
+export async function responseJson(response, limit = MAX_RESPONSE) {
   const reader = response.body?.getReader();
   let text = '', bytes = 0;
   const decoder = new TextDecoder();
   if (reader) try {
     while (true) {
       const { done, value } = await reader.read(); if (done) break;
-      bytes += value.byteLength; if (bytes > MAX_RESPONSE) throw new Error('Company response exceeds its bound');
+      bytes += value.byteLength; if (bytes > limit) throw new Error('Company response exceeds its bound');
       text += decoder.decode(value, { stream: true });
     }
     text += decoder.decode();
@@ -236,14 +238,14 @@ export function companyClient({ root = process.cwd(), stateDir, routesDir = defa
     const credential = suppliedToken || await session(origin);
     let response;
     try {
-      response = await request(new URL(path, origin), { ...init, redirect: 'manual', headers: { 'cf-access-token': credential, ...init.headers }, signal: AbortSignal.timeout(20000) });
+      response = await request(new URL(path, origin), { ...init, redirect: 'manual', headers: { 'cf-access-token': credential, ...init.headers }, signal: AbortSignal.timeout(business ? ANSWER_WAIT : 20000) });
     } catch {
       throw new Error(business ? `Company call did not complete; its outcome may be unknown. Do not automatically repeat it.${business.check}` : 'Company discovery is unreachable; no business action was called.');
     }
     if (response.status >= 300 && response.status < 400) throw new Error('Company redirect refused; use company login.');
     if (response.status === 401 || response.status === 403) throw new Error('Company session expired or access was denied; use the employee’s own login.');
     let value;
-    try { value = await responseJson(response); }
+    try { value = await responseJson(response, business ? MAX_ANSWER : MAX_RESPONSE); }
     catch { throw new Error(business ? `Company response did not complete; its outcome may be unknown. Do not automatically repeat the action.${business.check}` : 'Company discovery did not complete; no business action was called.'); }
     // Headers/session values must never become agent context, even on a bad server response.
     if (JSON.stringify(value).includes(credential)) throw new Error('Company response contained authentication material');

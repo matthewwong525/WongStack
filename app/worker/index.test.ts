@@ -147,6 +147,9 @@ describe("private Worker routing", () => {
     expect(accepted.status).toBe(200);
     // The supplied actions are among them: a build may hold other folders too.
     expect((await body(accepted)).actions.map(a => a.operationId)).toEqual(expect.arrayContaining(["hello.greeting", "main.health"]));
+    // The services list answers a signed person.
+    const person = { "Cf-Access-Jwt-Assertion": await token({ email: "human@example.com", sub: "human" }) };
+    expect((await call("/api/services", person)).status).toBe(200);
     const [header, , signature] = signed.split(".");
     const forged = `${header}.${encode({ email: "admin@example.com" })}.${signature}`;
     for (const assertion of [forged, await token({ email: "human@example.com", exp: 1 }), await token({ email: "human@example.com", aud: "wrong" })]) {

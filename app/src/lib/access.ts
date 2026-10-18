@@ -40,7 +40,8 @@ export const statusSchema = z.object({ ownerEmail: z.string(), environment: z.en
   unticked: z.object({ people: z.array(z.object({ email: z.string(), apps: z.array(z.string()) })), roles: z.array(z.object({ name: z.string(), apps: z.array(z.string()) })) }),
   keys: z.array(z.object({ id: z.string(), title: z.string(), levels: z.array(level), saved: z.boolean(), setup: z.boolean(),
     alone: z.boolean(),
-    direct: z.boolean().optional() })),
+    // What the key's service is for, and its API guide when the key is used directly; an older status has neither.
+    direct: z.boolean().optional(), purpose: z.string().optional(), docs: z.string().optional() })),
   roles: z.array(z.object({ id: z.string(), name: z.string(), builtIn: z.boolean().optional(), apps: z.array(z.string()), keys: levels })),
   people: z.array(z.object({ email: z.string(), status: z.enum(['active', 'removed']), settled: z.boolean(),
     role: z.string().nullable(), apps: z.array(z.string()), keys: levels })),

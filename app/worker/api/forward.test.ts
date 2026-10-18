@@ -10,10 +10,10 @@ import { fakeEnv } from "../../tests/env";
 // A made-up registry. Notion offers both levels and names two searches it sends as POST; Ledger offers Read alone,
 // sends its key bare in a header of its own and covers two secrets; Stripe is not set up for direct use.
 const registry = vi.hoisted(() => ({ keys: {
-  notion: { title: "Notion", secrets: ["NOTION_TOKEN"], forward: { base: "https://api.notion.example/v1/", secret: "NOTION_TOKEN",
+  notion: { title: "Notion", purpose: "Notion work", secrets: ["NOTION_TOKEN"], forward: { base: "https://api.notion.example/v1/", secret: "NOTION_TOKEN",
     header: "Authorization", prefix: "Bearer ", headers: { "Notion-Version": "2022-06-28" }, lookups: ["POST search", "POST databases/*/query"] } },
-  ledger: { title: "Ledger", secrets: ["LEDGER_ID", "LEDGER_KEY"], levels: ["read"], forward: { base: "https://ledger.example/", secret: "LEDGER_KEY", header: "X-Api-Key" } },
-  stripe: { title: "Stripe", secrets: ["STRIPE_SECRET_KEY"] },
+  ledger: { title: "Ledger", purpose: "Ledger work", secrets: ["LEDGER_ID", "LEDGER_KEY"], levels: ["read"], forward: { base: "https://ledger.example/", secret: "LEDGER_KEY", header: "X-Api-Key" } },
+  stripe: { title: "Stripe", purpose: "Stripe work", secrets: ["STRIPE_SECRET_KEY"] },
 } satisfies Record<string, KeyEntry> }));
 vi.mock("../keys.ts", () => registry);
 

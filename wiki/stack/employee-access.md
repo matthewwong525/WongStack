@@ -123,7 +123,7 @@ Access gives no skill and lists none. The server judges each call [a skill](comp
 
 ## The screens
 
-Access has two views, People and Roles. [The Access screens](access-screens.md) owns how they look and behave.
+Access has three views, People, Roles and Services. [The Access screens](access-screens.md) owns how they look and behave.
 
 ## What a person's apps govern
 

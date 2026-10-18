@@ -1,0 +1,67 @@
+{
+  "format": "verify-journey-1",
+  "id": "the-owner-opens-services",
+  "scenario": {
+    "capability": "key-access",
+    "requirement": "Access lists every key's status without its value",
+    "scenario": "The owner opens Services"
+  },
+  "thenDigest": "744662ba2dd14bffbf27ed1571f2d3cc828ead10237ca1b22ce676365565aaf3",
+  "probe": "browser",
+  "writes": false,
+  "sourcePaths": [
+    ".agents/skills/memory/references/areas.json",
+    ".agents/skills/wong-sync/references/payload-files.json",
+    "AGENTS.md",
+    "app/src/apps/access/Owner.tsx",
+    "app/src/apps/access/Services.tsx",
+    "app/src/apps/access/View.tsx",
+    "app/src/apps/access/address.ts",
+    "app/src/apps/access/levels.ts",
+    "app/src/lib/access.ts",
+    "app/worker/api/services.ts",
+    "app/worker/employee-access/key-catalogue.ts",
+    "app/worker/employee-access/key-levels.ts",
+    "app/worker/index.ts",
+    "app/worker/keys.ts",
+    "scripts/company-api.mjs",
+    "scripts/employee-bootstrap.mjs",
+    "scripts/retired-names.json"
+  ],
+  "recordedAt": "599dbff54c87c48cbc4a01a2461d16c835ca5d82",
+  "steps": [
+    [
+      "open",
+      "{url}/apps/access/"
+    ],
+    [
+      "wait",
+      "--load",
+      "networkidle"
+    ],
+    [
+      "find",
+      "role",
+      "link",
+      "click",
+      "--name",
+      "Services 1"
+    ],
+    [
+      "wait",
+      "--load",
+      "networkidle"
+    ]
+  ],
+  "expect": [
+    {
+      "text": "Cloudflare"
+    },
+    {
+      "text": "Not saved"
+    },
+    {
+      "text": "API guide"
+    }
+  ]
+}

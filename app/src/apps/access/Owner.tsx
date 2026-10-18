@@ -5,11 +5,12 @@ import { changeAccess, statusSchema, useAccess } from '../../lib/access'
 import { saidSchema, VIEWS, type ViewProps } from './address'
 import { People } from './People'
 import { Roles } from './Roles'
+import { Services } from './Services'
 
-const SCREENS = { people: People, roles: Roles }
+const SCREENS = { people: People, roles: Roles, services: Services }
 const UNFINISHED = 'That did not finish. Check the list below before trying again.'
 
-// The owner's screens, and an Admin's. One read of the whole status serves the two views and the pages under them.
+// The owner's screens, and an Admin's. One read of the whole status serves the views and the pages under them.
 export function Owner() {
   const { data, error, reload } = useAccess('status', statusSchema)
   const [pending, setPending] = useState(false)

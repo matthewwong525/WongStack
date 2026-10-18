@@ -12,9 +12,9 @@ import { fakeEnv } from "../../tests/env";
 vi.mock("./catalogue.ts", async () => (await import("../../tests/employee-access/catalogue")).builtApps(["access", "orders"]));
 // Notion is set up for direct use at both levels and Ledger at Read alone; Stripe is not set up.
 const registry = vi.hoisted(() => ({ keys: {
-  notion: { title: "Notion", secrets: ["NOTION_TOKEN"], forward: { base: "https://api.notion.example/v1/", secret: "NOTION_TOKEN", header: "Authorization", prefix: "Bearer " } },
-  ledger: { title: "Ledger", secrets: ["LEDGER_KEY"], levels: ["read"], forward: { base: "https://ledger.example/", secret: "LEDGER_KEY", header: "X-Api-Key" } },
-  stripe: { title: "Stripe", secrets: ["STRIPE_SECRET_KEY"] },
+  notion: { title: "Notion", purpose: "Notion work", secrets: ["NOTION_TOKEN"], forward: { base: "https://api.notion.example/v1/", secret: "NOTION_TOKEN", header: "Authorization", prefix: "Bearer " } },
+  ledger: { title: "Ledger", purpose: "Ledger work", secrets: ["LEDGER_KEY"], levels: ["read"], forward: { base: "https://ledger.example/", secret: "LEDGER_KEY", header: "X-Api-Key" } },
+  stripe: { title: "Stripe", purpose: "Stripe work", secrets: ["STRIPE_SECRET_KEY"] },
 } satisfies Record<string, KeyEntry> }));
 vi.mock("../keys.ts", () => registry);
 

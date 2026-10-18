@@ -3,6 +3,7 @@ import { handleMemory, MEMORY_PREFIX } from "../../.agents/skills/memory/worker/
 import { handleWalkPictures, WALK_PREFIX } from "../../.agents/skills/verify/worker/walk-pictures.mjs";
 import { discovery } from "./api/discovery.ts";
 import { API_PREFIX, handleApi } from "./api/router.ts";
+import { services } from "./api/services.ts";
 import { APP_API, handleApp } from "./apps/index.ts";
 import { getAccessIdentity, type AccessEnv } from "./access.ts";
 import { memoryCaller } from "./memory-caller.ts";
@@ -51,6 +52,9 @@ export default {
     // Discovery always requires company login, even on an open starter.
     if (["/api/openapi.json", "/api/actions"].includes(url.pathname)) {
       return discovery(request, env, identity);
+    }
+    if (url.pathname === "/api/services") {
+      return services(request, env, identity);
     }
 
     // A preview check's kept pictures, served from the verify skill. The route gets the memory bucket alone and

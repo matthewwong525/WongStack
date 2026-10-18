@@ -43,13 +43,13 @@ it("judges every route of the app by the keys it lists, bare handlers and descri
 });
 
 // A key's direct-use setup is held to its rules where the routes are built, so a mistake fails here, before publishing.
-const notion: KeyEntry = { title: "Notion", secrets: ["NOTION_TOKEN"], forward: { base: "https://api.notion.example/v1/", secret: "NOTION_TOKEN",
+const notion: KeyEntry = { title: "Notion", purpose: "Team notes", docs: "https://developers.notion.com/reference", secrets: ["NOTION_TOKEN"], forward: { base: "https://api.notion.example/v1/", secret: "NOTION_TOKEN",
   header: "Authorization", prefix: "Bearer ", lookups: ["POST search", "POST databases/*/query"] } };
 const built = (id: string, key: KeyEntry) => () => forwardRoutes({ [id]: key });
 const wrong = (change: Partial<NonNullable<KeyEntry["forward"]>>) => built("notion", { ...notion, forward: { ...notion.forward!, ...change } });
 
 it("builds a clean direct-use setup, and none for the keys this template ships", () => {
-  expect([...forwardRoutes({ notion, stripe: { title: "Stripe", secrets: ["STRIPE_SECRET_KEY"] } }).routes.keys()])
+  expect([...forwardRoutes({ notion, stripe: { title: "Stripe", purpose: "Payments", secrets: ["STRIPE_SECRET_KEY"] } }).routes.keys()])
     .toEqual(["POST /api/direct/notion/read", "POST /api/direct/notion/change"]);
   expect(built("ledger", { ...notion, forward: { ...notion.forward!, base: "https://ledger.example/", lookups: undefined } })).not.toThrow();
   // The Cloudflare look-up key and Project code have no direct use, and no service ships set up.

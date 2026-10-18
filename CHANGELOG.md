@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 43.5.0 — Every key-based service in one list, with short answers
+
+- **A chat sees every service it can use in one short list.** `services` lists each saved key you hold a level for, with a line on what it's for and whether it's ready. Keys you'd need access for show as one count. The always-read instructions now start every outside service here, so a chat no longer reads business keys from a file on your computer.
+- **Search, open one, and get short answers.** A search prints one line per match, across the app's own actions and keys used directly. A long answer shows its first part in the chat and is saved whole to a private file the chat can read, so one big list can't fill the chat.
+- **Each key says what it's for.** Every key in the app's key list has a one-line purpose, and a key used directly also links its service's API guide. The checks fail on a key without them. Each key-based service also gets a notes page in your wiki, made by the first chat that uses it, where chats write down the calls they worked out.
+- **A Services view in Access.** Beside People and Roles, the owner and Admins see every saved key, what it's for, and whether it's saved, never its value. A teammate doesn't see it.
+
+**Updating.** Add a one-line purpose to each key your install added to the app's key list, and a link to the service's API guide for any key used directly: the checks fail until each has one, and the assistant can write them from each service's help pages. If a script of yours reads a long answer from the action helper (`company-api.mjs call`), add `--full` so it still gets the whole answer; short answers are unchanged. There is no new secret and no setup step.
+
 ## 43.4.0 — Friendlier private pages
 
 - **The page where you paste a key reads as a short guided task.** It opens with a small *Private link* label, the key's name, one line from your assistant saying what the key is for, and a line saying the key never goes into the chat. The steps sit in numbered circles: the button to the service is step 1, and the paste box is the last step, *Paste it here*. The test line says *We'll check it with api.stripe.com*.
