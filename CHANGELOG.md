@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 43.6.0 — The API spec names each service and its guide
+
+- **Opening one action tells a chat what each service is for.** It shows each service the action uses with its purpose line and a link to that service's own API guide. The helper adds the service's notes page in your wiki, and says whether it exists yet. A chat that goes straight to an action no longer needs the services list first.
+- **The app's API description groups actions by service.** Each service shows once, with its purpose and guide link, above its actions. A service's own look-up and change actions also link the guide. Someone who can't use a service doesn't see its group.
+- **The description opens with where to start**: search, open one action before calling it, every error's shape, and check a timed-out change before repeating it.
+
+**Updating.** Nothing to do. A service with no guide link shows none.
+
 ## 43.5.0 — Every key-based service in one list, with short answers
 
 - **A chat sees every service it can use in one short list.** `services` lists each saved key you hold a level for, with a line on what it's for and whether it's ready. Keys you'd need access for show as one count. The always-read instructions now start every outside service here, so a chat no longer reads business keys from a file on your computer.

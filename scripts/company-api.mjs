@@ -43,10 +43,16 @@ export function listLines({ actions, next }) {
   return [...(lines.length ? lines : ['No matches.']), ...(next === null || next === undefined ? [] : [`next: --offset ${next}`])];
 }
 
-/** Each service gains its notes page in this checkout; the app can't see the checkout. */
+/** A key gains its notes page in this checkout, whether written yet or not; the app can't see the checkout. */
+const noted = (key, root) => (/^[a-z0-9][a-z0-9-]*$/.test(key.id)
+  ? { ...key, notes: { path: `wiki/services/${key.id}.md`, exists: existsSync(join(root, 'wiki', 'services', `${key.id}.md`)) } } : key);
+/** Each service gains its notes page. */
 export function withNotes(answer, root = CHECKOUT) {
-  return { ...answer, services: answer.services.map(service => (/^[a-z0-9][a-z0-9-]*$/.test(service.id)
-    ? { ...service, notes: { path: `wiki/services/${service.id}.md`, exists: existsSync(join(root, 'wiki', 'services', `${service.id}.md`)) } } : service)) };
+  return { ...answer, services: answer.services.map(service => noted(service, root)) };
+}
+/** Each key a described action uses gains its notes page. A memory operation lists no keys and is left as it is. */
+export function withKeyNotes(operation, root = CHECKOUT) {
+  return Array.isArray(operation?.keys) ? { ...operation, keys: operation.keys.map(key => noted(key, root)) } : operation;
 }
 const LEVELS = { read: 'Read', write: 'Read & write' };
 function serviceState(service) {
@@ -133,7 +139,7 @@ if (isMain(import.meta.url)) {
       let result;
       if (command === 'login') result = await client.login(values.origin);
       else if (command === 'list') result = await combinedList(client, { scope: values.scope, q: values.q, app: values.app, limit: values.limit === undefined ? 20 : Number(values.limit), offset: values.offset === undefined ? 0 : Number(values.offset) });
-      else if (command === 'describe') result = id?.startsWith('memory.') ? memoryOperations.find(operation => operation.operationId === id) : await client.describe(id);
+      else if (command === 'describe') result = id?.startsWith('memory.') ? memoryOperations.find(operation => operation.operationId === id) : withKeyNotes(await client.describe(id));
       else if (command === 'call') result = id?.startsWith('memory.') ? await callMemory(id, input()) : await client.call(id, input());
       else throw new Error(USAGE);
       if (!result) throw new Error('Unknown operation');
