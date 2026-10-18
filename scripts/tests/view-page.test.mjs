@@ -96,6 +96,8 @@ async function live(t, options) {
 test('the page fits a phone and loads only the viewer\'s core, never its own page or clipboard panel', () => {
   assert.match(markup, /<meta name="viewport" content="width=device-width, initial-scale=1">/);
   const style = /<style>([\s\S]*?)<\/style>/.exec(markup)[1];
+  assert.match(markup, /<link rel="stylesheet" href="page\.css">/, 'the look the private pages share');
+  assert.doesNotMatch(style, /#[0-9a-f]{3,8}\b|rgba?\(/i, 'every colour is the app\'s');
   assert.deepEqual(style.match(/(?<!max-)width:\s*\d+px/g), null, 'nothing is wider than the screen it is on');
   assert.match(style, /#holder \{[^}]*overflow: hidden/, 'the holder cuts the screen to the page\'s strip');
   assert.deepEqual(source.match(/import\(/g), null, 'the script loads nothing more');

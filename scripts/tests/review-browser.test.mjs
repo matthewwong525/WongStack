@@ -67,8 +67,8 @@ function fixture(source = proposal) {
   return { dir, url: pathToFileURL(join(dir, 'review.html')).href };
 }
 
-async function open(url, { width = 1200, height = 800, init, touch = false } = {}) {
-  const context = await browser.newContext({ viewport: { width, height }, hasTouch: touch });
+async function open(url, { width = 1200, height = 800, init, touch = false, scheme = 'light' } = {}) {
+  const context = await browser.newContext({ viewport: { width, height }, hasTouch: touch, colorScheme: scheme });
   if (init) await context.addInitScript(init);
   const page = await context.newPage();
   const errors = [];
@@ -965,4 +965,30 @@ browserTest('a picture fits a 320px screen, zooms full screen, and takes a note 
   assert.match(await copied(page), /^- Change #1, picture 1 \("you ask a plan a review the build live"\): Add a check step\.$/m);
   assert.deepEqual(errors, []);
   await context.close();
+});
+
+browserTest('the page takes the device\'s light or dark setting, with readable text on every surface', async () => {
+  const { url } = fixture();
+  for (const scheme of ['light', 'dark']) {
+    const { page, context, errors } = await open(url, { width: 390, scheme });
+    await page.locator('#item-1 summary').click();
+    const seen = await page.evaluate(() => {
+      // A colour as sRGB through a canvas, whatever notation the browser reports it in.
+      const ink = document.createElement('canvas').getContext('2d');
+      const rgb = colour => { ink.clearRect(0, 0, 1, 1); ink.fillStyle = colour; ink.fillRect(0, 0, 1, 1); return [...ink.getImageData(0, 0, 1, 1).data].slice(0, 3); };
+      const lum = c => c.map(v => v / 255).map(v => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)).reduce((t, v, i) => t + v * [0.2126, 0.7152, 0.0722][i], 0);
+      const contrast = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n - m); return (x + 0.05) / (y + 0.05); };
+      const css = sel => getComputedStyle(document.querySelector(sel));
+      const pair = (text, back) => contrast(rgb(css(text).color), rgb(css(back).backgroundColor));
+      return {
+        body: lum(rgb(css('body').backgroundColor)), card: lum(rgb(css('.card').backgroundColor)), bar: lum(rgb(css('.bar').backgroundColor)),
+        text: [pair('body', 'body'), pair('.card .text', '.card'), pair('.hint', 'body'), pair('#copy', '#copy'), pair('.frame .art', '.frame'), pair('.bar [data-ready="build"]', '.bar')],
+      };
+    });
+    const dark = scheme === 'dark';
+    for (const surface of ['body', 'card', 'bar']) assert.equal(seen[surface] < 0.2, dark, `${scheme}: the ${surface} is ${dark ? 'dark' : 'light'}`);
+    seen.text.forEach((ratio, i) => assert.ok(ratio >= 4.5, `${scheme}: text ${i} contrast ${ratio.toFixed(2)} is under 4.5`));
+    assert.deepEqual(errors, []);
+    await context.close();
+  }
 });

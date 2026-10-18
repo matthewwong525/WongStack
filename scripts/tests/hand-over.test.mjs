@@ -369,7 +369,10 @@ test('open --form reads only the finish, then sends the browser nothing until th
   assert.match(await (await fetch(`http://127.0.0.1:${port}/`)).text(), /Not now/);
   const css = await fetch(`http://127.0.0.1:${port}/page.css`);
   assert.deepEqual(['content-type', 'cache-control', 'referrer-policy', 'x-frame-options', 'content-security-policy'].map(name => css.headers.get(name)), ['text/css; charset=utf-8', 'no-store', 'no-referrer', 'DENY', "frame-ancestors 'none'"]);
-  assert.match(await css.text(), /--blue:/, 'the shared look, unkeyed like the page');
+  const sheet = await css.text();
+  assert.match(sheet, /^[\s\S]*:root \{[^}]*--primary:[\s\S]*@media \(prefers-color-scheme: dark\)/, 'the app\'s colours, unkeyed like the page');
+  assert.ok(sheet.indexOf(':where(.card)') < sheet.indexOf('.steps > li::before'), 'the shared parts, then the page rules');
+  assert.doesNotMatch(sheet, /--blue|#[0-9a-f]{6}\b/i, 'no colour of its own');
   assert.match(await (await fetch(`http://127.0.0.1:${port}/page.mjs`)).text(), /export function rowsOf/);
   assert.equal((await fetch(`http://127.0.0.1:${port}/state.json`)).status, 404);
   assert.equal((await route(port, null, 'form')).status, 403);

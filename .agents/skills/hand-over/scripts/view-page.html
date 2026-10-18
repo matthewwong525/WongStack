@@ -5,17 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="no-referrer">
 <title>Live view</title>
+<link rel="stylesheet" href="page.css">
 <style>
-  :root { color-scheme: light dark; font-family: system-ui, -apple-system, sans-serif; }
   html, body { height: 100%; }
-  body { margin: 0; background: #1c1c1e; color: #fff; overflow: hidden; }
+  body { margin: 0; max-width: none; padding: 0; overflow: hidden; }
   #view { display: flex; flex-direction: column; height: 100%; }
-  #stage { flex: 1; min-height: 0; display: flex; align-items: flex-start; justify-content: center; }
-  #holder { overflow: hidden; background: #fff; touch-action: manipulation; }
-  #type { display: flex; gap: 8px; padding: 8px 10px; background: #2c2c2e; }
-  #status { font-size: 1.1rem; margin: 24px 16px; overflow-wrap: anywhere; }
-  input { box-sizing: border-box; flex: 1; min-width: 0; font-size: 1.05rem; padding: 10px 14px; border: 1px solid #8888; border-radius: 20px; background: #1c1c1e; color: inherit; }
-  [hidden] { display: none !important; }
+  #stage { flex: 1; min-height: 0; display: flex; align-items: flex-start; justify-content: center; background: var(--muted); }
+  #holder { overflow: hidden; background: var(--card); touch-action: manipulation; }
+  #type { display: flex; gap: 8px; padding: 8px 10px; border-top: 1px solid var(--border); background: var(--background); }
+  #status { margin: 24px 16px; color: var(--foreground); font-size: 1.1rem; text-align: left; overflow-wrap: anywhere; }
+  #text { flex: 1; min-width: 0; padding: 10px 14px; border-radius: 999px; font-size: 1.05rem; }
 </style>
 </head>
 <body>

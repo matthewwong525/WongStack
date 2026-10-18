@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — One calm look on every page
+
+- **Every page takes the app's colours.** The plan review page and the private key, password, and form pages now use the app's black, white, and soft greys, light or dark to match your device. Red marks only a problem.
+- **The plan review page looks like the app.** A plain background, white cards, rounded buttons, and quiet section labels. The three bottom buttons stay where they are: *Send notes* is filled, *Build it* and *Build and publish* are outlined. It turns dark at night, pictures included.
+- **The private pages lose the blue.** The *Private link* label is a small grey tag with its lock. Steps, fields, and *Save and continue* match the app's, and a saved key shows a black or white tick.
+- **A closed link shows a small card**, not bare text.
+- **The app gets a light polish.** Headings are a touch lighter, the top bar is slimmer and softly see-through, and text renders smoother. Nothing moves.
+
+**Updating.** If you changed the app's colours in `app/src/index.css`, the review and private pages now wear them too. Keep its light and dark colour sets as plain `:root` blocks: the checks fail and name the set they can no longer find. A plan page already open keeps its old look until its next save rebuilds it.
+
 ## 43.5.0 — Every key-based service in one list, with short answers
 
 - **A chat sees every service it can use in one short list.** `services` lists each saved key you hold a level for, with a line on what it's for and whether it's ready. Keys you'd need access for show as one count. The always-read instructions now start every outside service here, so a chat no longer reads business keys from a file on your computer.

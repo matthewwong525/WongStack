@@ -31,7 +31,8 @@
   --color-ring: var(--ring);
 }
 
-/* shadcn's neutral colours. The dark set follows the device, not a class, and so does Tailwind's `dark:`. */
+/* shadcn's neutral colours. The dark set follows the device, not a class, and so does Tailwind's `dark:`.
+   The review page and the private pages read both sets from here (look.mjs), so keep each a plain :root block. */
 :root {
   --radius: 0.625rem;
   --background: oklch(1 0 0);
@@ -88,19 +89,28 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
   }
 
   h1 {
-    font-size: 1.75rem;
+    font-size: 1.5rem;
     line-height: 1.25;
-    font-weight: 700;
+    font-weight: 600;
+    letter-spacing: -0.025em;
+  }
+
+  @media (min-width: 48rem) {
+    h1 {
+      font-size: 1.875rem;
+    }
   }
 
   h2 {
-    font-size: 1.25rem;
+    font-size: 1.125rem;
     line-height: 1.4;
     font-weight: 600;
+    letter-spacing: -0.025em;
   }
 
   /* A link drawn as a part, a button or a menu item, carries `data-slot` and its own look. */

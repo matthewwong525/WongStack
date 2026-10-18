@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { isMain } from '../../memory/scripts/lib/cli.mjs';
 import { primaryRoot } from '../../memory/scripts/lib/primary-root.mjs';
+import { lookCss } from '../../plan/scripts/look.mjs';
 import { client as browseClient, sessionName } from '../../browser/scripts/browse.mjs';
 import { checkForm, FORM_ROUTES, formRoutes, LIMITS as FORM_LIMITS, sendForm } from './form.mjs';
 import { APP_FILE, checkGuide, KEY_ROUTES, keyRoutes, LIMITS as KEY_LIMITS, NAME as KEY_NAME, resolveKeys } from './keys.mjs';
@@ -75,7 +76,7 @@ const SCRIPT = 'text/javascript; charset=utf-8';
 const pages = name => ({
   '/': { file: join(HERE, `${name}.html`), type: 'text/html; charset=utf-8' },
   '/page.mjs': { file: join(HERE, `${name}.mjs`), type: SCRIPT },
-  '/page.css': { file: join(HERE, 'private-page.css'), type: 'text/css; charset=utf-8' },
+  '/page.css': { text: () => `${lookCss()}\n${readFileSync(join(HERE, 'private-page.css'), 'utf8')}`, type: 'text/css; charset=utf-8' },
 });
 const PAGES = { form: pages('form-page'), passwords: pages('passwords-page'), keys: pages('keys-page'), view: pages('view-page') };
 const ROUTES = { form: FORM_ROUTES, passwords: PASSWORD_ROUTES, keys: KEY_ROUTES, view: VIEW_ROUTES };
@@ -177,7 +178,7 @@ export function servePage({ port, key, passwords = false, keys = null, form = nu
       return;
     }
     response.writeHead(200, { 'content-type': page.type, 'cache-control': 'no-store', 'referrer-policy': 'no-referrer', 'x-frame-options': 'DENY', 'content-security-policy': "frame-ancestors 'none'" });
-    response.end(readFileSync(page.file));
+    response.end(page.text ? page.text() : readFileSync(page.file));
   });
   server.on('connection', socket => { sockets.add(socket); socket.on('close', () => sockets.delete(socket)); });
   if (bridge) server.on('upgrade', bridge);

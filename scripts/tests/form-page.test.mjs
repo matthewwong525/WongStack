@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { runInContext } from 'node:vm';
 import { JSDOM } from 'jsdom';
 import { ending, rowsOf, timeLeft } from '../../.agents/skills/hand-over/scripts/form-page.mjs';
+import { lookCss } from '../../.agents/skills/plan/scripts/look.mjs';
 
 const scripts = new URL('../../.agents/skills/hand-over/scripts/', import.meta.url);
 const sourcePath = fileURLToPath(new URL('form-page.mjs', scripts));
@@ -59,7 +60,9 @@ function page(t, respond, { view = VIEW, closesAt, now, receipts = [], hash = '#
 test('the form fits a phone: the device\'s own width, no fixed widths, and boxes that shrink', () => {
   assert.match(markup, /<meta name="viewport" content="width=device-width, initial-scale=1">/);
   assert.match(markup, /<link rel="stylesheet" href="page\.css">/, 'the look the private pages share');
-  const style = /<style>([\s\S]*?)<\/style>/.exec(markup)[1] + readFileSync(new URL('private-page.css', scripts), 'utf8');
+  const own = /<style>([\s\S]*?)<\/style>/.exec(markup)[1] + readFileSync(new URL('private-page.css', scripts), 'utf8');
+  const style = lookCss() + own;
+  assert.doesNotMatch(own, /#[0-9a-f]{3,8}\b|rgba?\(/i, 'every colour is the app\'s');
   assert.deepEqual(style.match(/(?<!max-)width:\s*\d+px/g), null, 'nothing is wider than the screen it is on');
   assert.match(style, /\.box \{ flex: 1; min-width: 0; \}/, 'two boxes side by side share a narrow row');
   assert.match(style, /input:not\(\[type=checkbox\]\), select \{[^}]*width: 100%/);
