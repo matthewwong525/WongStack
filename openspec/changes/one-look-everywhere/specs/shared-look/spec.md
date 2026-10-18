@@ -26,3 +26,12 @@ The app and the standalone pages SHALL keep their text readable in both colour m
 
 - **WHEN** a change rewrites the app's stylesheet so its light or dark colour set is no longer found
 - **THEN** the checks fail and say which set is missing
+
+### Requirement: Loading shows the shape of what loads
+
+While the app's screens or the key page wait for their content, they SHALL show still-announced placeholder blocks shaped like that content, not a line of text alone. A screen reader SHALL still hear that it is loading, and the placeholders SHALL not pulse for a person who turns motion off.
+
+#### Scenario: Home loads its apps
+
+- **WHEN** a person opens Home before their apps have arrived
+- **THEN** grey blocks shaped like app cards fill the apps grid, and the page announces that it is loading the apps

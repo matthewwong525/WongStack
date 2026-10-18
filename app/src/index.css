@@ -124,3 +124,10 @@
     outline-offset: 3px;
   }
 }
+
+/* A skeleton holds still for a person who turns motion off. Unlayered, so it beats the pulse utility. */
+@media (prefers-reduced-motion: reduce) {
+  [data-slot="skeleton"] {
+    animation: none;
+  }
+}

@@ -57,6 +57,20 @@ Element selectors (`button`, `input`) take the same rules, so markup that tests 
 
 In `index.css`'s base layer: `h1` 1.75rem → 1.5rem (1.875rem from `md`), weight 700 → 600, `letter-spacing: -0.025em`; `h2` 1.125rem, weight 600, the same tracking; `body` gets `antialiased` and `font-feature-settings: "rlig" 1, "calt" 1`. In `Layout.tsx`, the bar goes from `h-15 bg-background` to `h-14 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60`. No layout or frame change, so the one-frame tests hold.
 
+### Skeletons
+
+Add shadcn's part with `npx shadcn@latest add skeleton` from `app/` and leave it as written. Each loading state keeps its `role="status"` element, with its words moved into an `sr-only` span, and adds `aria-hidden` skeleton blocks shaped like the result:
+
+| Where | Skeleton |
+|---|---|
+| `Home.tsx` apps | three app cards in the same grid as `AppList`: a title line and two description lines |
+| `AppPage.tsx` | a heading line and one card block |
+| `access/App.tsx`, `access/Owner.tsx` | the view tabs' height, then five table rows of four cells |
+| `AssistantSetup.tsx` | three step lines |
+| `keys-page.html` | one card with a title line, two text lines, and a field-height block, removed once `/keys` answers |
+
+`index.css` stops the pulse under `prefers-reduced-motion`. `look.css` gets a `.skeleton` class drawn the same way: `--accent` fill, md radius, the same pulse and reduced-motion stop. Tests that read the loading words keep finding them, because the words stay in the status element.
+
 ### Saved and missing marks
 
 The saved tick uses `--primary` with `--primary-foreground`. The missing-key mark uses `--destructive`. `.ok` text uses `--foreground` at weight 600.

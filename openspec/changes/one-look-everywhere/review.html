@@ -16,7 +16,7 @@
   /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
    look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
    shadcn's neutral colours stays only for a set it can't find. The parts below draw app/src/components/ui/
-   (button, input, card, badge) in plain CSS. Each sits in :where(), so a page's own rule always wins.
+   (button, input, card, badge, skeleton) in plain CSS. Each sits in :where(), so a page's own rule always wins.
    Nothing here loads a file: these pages fetch nothing from the network. */
 :root {
   --radius: 0.625rem;
@@ -140,6 +140,13 @@
   white-space: nowrap;
 }
 :where(.tag-outline) { border-color: var(--border); background: transparent; color: var(--foreground); }
+
+/* Skeleton (skeleton.tsx): a grey block that pulses while what it stands for loads, and holds still when motion is
+   off. .sr-only keeps the words of a loading state for a screen reader alone. */
+:where(.skeleton) { display: block; border-radius: calc(var(--radius) - 2px); background: var(--accent); animation: look-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+@keyframes look-pulse { 50% { opacity: 0.5; } }
+@media (prefers-reduced-motion: reduce) { :where(.skeleton) { animation: none; } }
+:where(.sr-only) { position: absolute; max-width: 1px; max-height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 
 @media (prefers-color-scheme: dark) {
   :where(button, .btn):where(:not(.primary, .main, .btn-primary, .btn-ghost)) { border-color: var(--input); background: color-mix(in oklab, var(--input) 30%, transparent); }
@@ -310,9 +317,20 @@
 <span class="ln" data-note="item-4-line-9" tabindex="0">│ │Hello │ │Access│  │ │ │Hello │ │Access│  │</span>
 <span class="ln" data-note="item-4-line-10" tabindex="0">│ ╰──────╯ ╰──────╯  │ │ ╰──────╯ ╰──────╯  │</span>
 <span class="ln" data-note="item-4-line-11" tabindex="0">└────────────────────┘ └────────────────────┘</span></pre></div></details></li>
-<li class="item card" id="item-5"><span class="num">5</span><div class="body"><div class="text" data-note="item-5" tabindex="0"><b>The &quot;link has closed&quot; page matches too.</b> A closed private or review link shows the same calm card instead of bare text.</div></div></li>
+<li class="item card" id="item-5"><span class="num">5</span><div class="body"><div class="text" data-note="item-5" tabindex="0"><b>Loading shows the shape of what's coming.</b> Where a screen says <i>Loading your apps…</i> or <i>Loading people…</i>, it shows soft grey placeholder blocks shaped like the cards, rows, or steps about to appear. The key page does the same while its keys load. Screen readers still hear <i>Loading…</i>, and the blocks hold still for anyone who turns motion off.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-5-line-1" tabindex="0">  BEFORE                 AFTER</span>
+<span class="ln" data-note="item-5-line-2" tabindex="0">┌────────────────────┐ ┌────────────────────┐</span>
+<span class="ln" data-note="item-5-line-3" tabindex="0">│ Your apps          │ │ Your apps          │</span>
+<span class="ln" data-note="item-5-line-4" tabindex="0">│ Loading your apps… │ │ ╭──────╮ ╭──────╮  │</span>
+<span class="ln" data-note="item-5-line-5" tabindex="0">│                    │ │ │▒▒▒▒  │ │▒▒▒▒  │  │</span>
+<span class="ln" data-note="item-5-line-6" tabindex="0">│                    │ │ │▒▒▒▒▒▒│ │▒▒▒▒▒▒│  │</span>
+<span class="ln" data-note="item-5-line-7" tabindex="0">│                    │ │ ╰──────╯ ╰──────╯  │</span>
+<span class="ln" data-note="item-5-line-8" tabindex="0">└────────────────────┘ └────────────────────┘</span>
+<span class="ln" data-note="item-5-line-9" tabindex="0"> one line of text       grey blocks where</span>
+<span class="ln" data-note="item-5-line-10" tabindex="0">                        the cards will be</span></pre></div></details></li>
+<li class="item card" id="item-6"><span class="num">6</span><div class="body"><div class="text" data-note="item-6" tabindex="0"><b>The &quot;link has closed&quot; page matches too.</b> A closed private or review link shows the same calm card instead of bare text.</div></div></li>
 </ol>
-<p class="aside">Non-goals: the landing site, which keeps its own dark look. No new screens, no moved buttons, no changed wording, and no change to what any page does.</p>
+<p class="aside">Non-goals: the landing site, which keeps its own dark look. No new screens, no moved buttons, no changed wording beyond the loading lines, and no change to what any page does.</p>
 
 </section>
 <section id="decisions" aria-labelledby="decisions-h"><h2 id="decisions-h">Decisions</h2>
@@ -326,6 +344,8 @@
 <li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-18</p>Assumed: keep the review page's larger desktop text and the private pages' 16px fields, because the first was asked for on 2026-10-11 and the second stops phones zooming in on a field.</li>
 <li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-18</p>Assumed: the landing site's open job is unaffected, because the landing site is out of scope.</li>
 <li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-18</p>Assumed: the review builder and the private pages read colours from the checkout their scripts sit in, not the primary checkout, because it never fails outside a Git checkout and always matches the parts file beside it.</li>
+<li class="decision card" id="decision-10" data-note="decision-10" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-18</p>Asked, after seeing the first build, to use skeletons as well → each loading line becomes placeholder blocks shaped like what loads, on the app's screens and the key page.</li>
+<li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-18</p>Assumed: skeletons show at once, with no delay, and keep a hidden <i>Loading…</i> line for screen readers, because shadcn's skeleton has no delay and the loading status must stay announced.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

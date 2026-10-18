@@ -30,6 +30,8 @@ it('says it is loading under what an assistant is, with nothing to copy yet', ()
   reply = () => new Promise<Response>(() => {})
   const popup = open()
   expect(within(popup).getByRole('status').textContent).toBe('Loading the steps…')
+  // Three grey step lines, hidden from a screen reader.
+  expect(within(popup).getByRole('status').querySelectorAll('[aria-hidden="true"] [data-slot="skeleton"]')).toHaveLength(3)
   // The heading names the popup and the line under it describes it: an assistant, with two named only as examples.
   expect(document.getElementById(popup.getAttribute('aria-describedby')!)!.textContent).toBe(WHAT)
   expect([within(popup).queryByRole('list'), within(popup).queryByRole('button', { name: 'Copy' }), within(popup).queryByRole('alert')]).toEqual([null, null, null])

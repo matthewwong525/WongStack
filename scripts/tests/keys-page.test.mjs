@@ -56,6 +56,15 @@ test('keys saving blocks competing close/show/save actions and rejects double su
   assert.equal(p.$('[name=FIRST]').disabled,false);assert.match(p.$('#keys').textContent,/Couldn't save/);
 });
 
+test('a skeleton key card stands before the list until the keys arrive, its words for a screen reader alone',async t=>{
+  const p=page(t,()=>{});const loading=p.$('#loading');
+  assert.equal(loading.getAttribute('role'),'status');assert.equal(loading.textContent.trim(),'Loading your keys…');
+  assert.equal(loading.querySelector('.sr-only').textContent,'Loading your keys…');
+  assert.equal(loading.querySelectorAll('.card[aria-hidden="true"] .skeleton').length,4);
+  assert.equal(loading.nextElementSibling,p.$('#keys'));assert.equal(p.$('#keys').children.length,0);
+  await settle();assert.equal(p.$('#loading'),null);assert.equal(p.$('#keys').children.length,2);
+});
+
 test('expired key link clears entered values and shows closed-link fallback',async t=>{
   const p=page(t,(_body,answer)=>answer(410));await settle();p.fill('FIRST','private');p.submit();await settle();
   assert.equal(p.$('#closed').hidden,false);assert.equal(p.$('[name=FIRST]').value,'');

@@ -22,6 +22,11 @@
   .held { margin: 0.5rem 0 0; font-weight: 600; }
   .tools { display: flex; flex-wrap: wrap; gap: 0 1.25rem; }
   .check { color: var(--muted-foreground); font-size: 0.9rem; }
+  /* A key's card while the list loads: its title, two lines of text, and the box. */
+  #loading .skeleton { height: 0.9rem; margin-top: 0.5rem; }
+  #loading .skeleton:first-child { height: 1.25rem; width: 40%; margin-top: 0; }
+  #loading .skeleton:nth-child(3) { width: 70%; }
+  #loading .skeleton:last-child { height: 2.25rem; margin-top: 1rem; }
 </style>
 </head>
 <body>
@@ -32,6 +37,9 @@
   <p class="promise" id="promise">Your keys go straight to your assistant's computer, never into the chat.</p>
   <form id="keys-form" autocomplete="off">
     <p class="progress" id="progress" role="status" hidden></p>
+    <div id="loading" role="status"><span class="sr-only">Loading your keys…</span>
+      <div class="card" aria-hidden="true"><span class="skeleton"></span><span class="skeleton"></span><span class="skeleton"></span><span class="skeleton"></span></div>
+    </div>
     <ul id="keys"></ul>
     <div class="actions">
       <button type="submit" class="main" id="save" disabled>Save and continue</button>

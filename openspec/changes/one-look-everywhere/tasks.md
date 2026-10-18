@@ -25,6 +25,13 @@
 - [x] 4.1 Polish `app/src/index.css`'s base layer and `app/src/Layout.tsx`'s bar as [design.md](design.md#app-polish) says. Update `app/src/style.test.ts` if it pins heading sizes. Verify with `npm test` in `app/` (coverage stays 100%).
 - [x] 4.2 Extend the shared-look paragraph in `wiki/stack/mini-apps.md`: the review page and private pages take their colours from `app/src/index.css` through `look.mjs`, so a rebrand reaches them. Verify with the wiki checks.
 
+## 4b. Skeletons
+
+- [x] 4b.1 Run `npx shadcn@latest add skeleton` in `app/` and leave the part as written; stop its pulse under reduced motion in `index.css`. Verify the part is unchanged from the command's output.
+- [x] 4b.2 Replace each loading line in `Home.tsx`, `AppPage.tsx`, `access/App.tsx`, `access/Owner.tsx`, and `AssistantSetup.tsx` with the [skeletons](design.md#skeletons), keeping the words in an `sr-only` span inside the `role="status"` element. Add or update tests so each loading state shows `aria-hidden` skeleton blocks and its status still reads the words. Verify with `npm test` in `app/` (coverage stays 100%).
+- [x] 4b.3 Add `.skeleton` to `look.css` and a skeleton card to `keys-page.html` that shows until `/keys` answers. Verify in `scripts/tests/hand-over.test.mjs` or the key page's test that the card is present before the list and gone after.
+- [x] 4b.4 Mention the skeletons in the shared-look paragraph of `wiki/stack/mini-apps.md` (a loading state shows skeletons shaped like what loads), and in the CHANGELOG entry. Verify with the wiki checks.
+
 ## 5. Release notes and records
 
 - [x] 5.1 Add a `## Next (minor) — One calm look on every page` entry at the top of `CHANGELOG.md`, in plain words, with an **Updating** line: a rebranded `app/src/index.css` now colours the review and private pages too. Verify the payload checks pass.
@@ -32,4 +39,4 @@
 
 ## 6. Final checks
 
-- [ ] 6.1 Run the local pre-check (`node scripts/payload-checks.mjs` and the changed suites), then `/save` and open the preview. Take phone and desktop pictures in light and dark of a built review page, a key link, and Home, and show them in the chat.
+- [ ] 6.1 Run the local pre-check (`node scripts/payload-checks.mjs` and the changed suites), then `/save` and open the preview. Take phone and desktop pictures in light and dark of a built review page, a key link, and Home, plus a loading skeleton, and show them in the chat with a link to an example of each page.

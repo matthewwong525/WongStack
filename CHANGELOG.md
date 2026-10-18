@@ -9,6 +9,7 @@
 - **The plan review page looks like the app.** A plain background, white cards, rounded buttons, and quiet section labels. The three bottom buttons stay where they are: *Send notes* is filled, *Build it* and *Build and publish* are outlined. It turns dark at night, pictures included.
 - **The private pages lose the blue.** The *Private link* label is a small grey tag with its lock. Steps, fields, and *Save and continue* match the app's, and a saved key shows a black or white tick.
 - **A closed link shows a small card**, not bare text.
+- **Loading shows the shape of what's coming.** While Home, an app, Access, the assistant steps, or the key page wait, soft grey blocks shaped like the result stand in, not a line of text. A screen reader still hears that it's loading, and the blocks hold still if you turn motion off.
 - **The app gets a light polish.** Headings are a touch lighter, the top bar is slimmer and softly see-through, and text renders smoother. Nothing moves.
 
 **Updating.** If you changed the app's colours in `app/src/index.css`, the review and private pages now wear them too. Keep its light and dark colour sets as plain `:root` blocks: the checks fail and name the set they can no longer find. A plan page already open keeps its old look until its next save rebuilds it.

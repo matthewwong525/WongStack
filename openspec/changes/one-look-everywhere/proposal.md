@@ -64,9 +64,22 @@ The app, the plan review page, and the private key and password pages each look 
   │ ╰──────╯ ╰──────╯  │ │ ╰──────╯ ╰──────╯  │
   └────────────────────┘ └────────────────────┘
   ```
+- **Loading shows the shape of what's coming.** Where a screen says *Loading your apps…* or *Loading people…*, it shows soft grey placeholder blocks shaped like the cards, rows, or steps about to appear. The key page does the same while its keys load. Screen readers still hear *Loading…*, and the blocks hold still for anyone who turns motion off.
+  ```text
+    BEFORE                 AFTER
+  ┌────────────────────┐ ┌────────────────────┐
+  │ Your apps          │ │ Your apps          │
+  │ Loading your apps… │ │ ╭──────╮ ╭──────╮  │
+  │                    │ │ │▒▒▒▒  │ │▒▒▒▒  │  │
+  │                    │ │ │▒▒▒▒▒▒│ │▒▒▒▒▒▒│  │
+  │                    │ │ ╰──────╯ ╰──────╯  │
+  └────────────────────┘ └────────────────────┘
+   one line of text       grey blocks where
+                          the cards will be
+  ```
 - **The "link has closed" page matches too.** A closed private or review link shows the same calm card instead of bare text.
 
-Non-goals: the landing site, which keeps its own dark look. No new screens, no moved buttons, no changed wording, and no change to what any page does.
+Non-goals: the landing site, which keeps its own dark look. No new screens, no moved buttons, no changed wording beyond the loading lines, and no change to what any page does.
 
 ## Capabilities
 
@@ -85,6 +98,7 @@ None. Behavior and layout requirements in `mini-apps`, `ux-wireframes`, and `bro
 - `review-kit.html` and `build-review.mjs`: the kit's one `<style>` holds the shared look, inlined by the builder, then the kit's own layout.
 - `hand-over.mjs` serves the shared look plus `private-page.css`'s page-only rules at `/page.css`; the four private pages and `reply-link.mjs`'s closed page are restyled.
 - `app/src/index.css` and `app/src/Layout.tsx`: heading weights, smoother text, slimmer translucent bar.
+- shadcn's `skeleton` part added to `app/src/components/ui/`; loading states in `Home.tsx`, `AppPage.tsx`, `access/App.tsx`, `access/Owner.tsx`, and `AssistantSetup.tsx`, and the key page's list, show skeletons.
 - Tests: `review.test.mjs`, `form-page.test.mjs`, `view-page.test.mjs`, `hand-over.test.mjs`, `review-browser.test.mjs`, `app/src/style.test.ts`, and a new `look.test.mjs`.
 - Wiki: `wiki/stack/mini-apps.md` (the shared look) and `wiki/ux-principles.md` (the review file).
 - Payload release: a minor CHANGELOG entry; VERSION stays unchanged until publishing.
@@ -100,3 +114,5 @@ None. Behavior and layout requirements in `mini-apps`, `ux-wireframes`, and `bro
 - **2026-10-18** — Assumed: keep the review page's larger desktop text and the private pages' 16px fields, because the first was asked for on 2026-10-11 and the second stops phones zooming in on a field.
 - **2026-10-18** — Assumed: the landing site's open job is unaffected, because the landing site is out of scope.
 - **2026-10-18** — Assumed: the review builder and the private pages read colours from the checkout their scripts sit in, not the primary checkout, because it never fails outside a Git checkout and always matches the parts file beside it.
+- **2026-10-18** — Asked, after seeing the first build, to use skeletons as well → each loading line becomes placeholder blocks shaped like what loads, on the app's screens and the key page.
+- **2026-10-18** — Assumed: skeletons show at once, with no delay, and keep a hidden *Loading…* line for screen readers, because shadcn's skeleton has no delay and the loading status must stay announced.
