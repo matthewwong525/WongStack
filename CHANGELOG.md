@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — One calm look on every page
+## 43.7.0 — One calm look on every page
 
 - **Every page takes the app's colours.** The plan review page and the private key, password, and form pages now use the app's black, white, and soft greys. Red marks only a problem.
 - **Every page stays light**, the app included, even when your device is set to dark.

@@ -1,6 +1,6 @@
 # One calm look on every page
 
-**Status:** built; final checks pending
+**Status:** ready-to-ship
 
 **Branch:** uniform-sleek-ui
 
@@ -130,3 +130,4 @@ Non-goals: the landing site, which keeps its own dark look. No new screens, no m
 - **2026-10-18** — Assumed: skeletons show at once, with no delay, and keep a hidden *Loading…* line for screen readers, because shadcn's skeleton has no delay and the loading status must stay announced.
 - **2026-10-18** — Asked, after seeing the build, whether pages should start light → chose always light on every page, the app included, over a dark switch or following the device.
 - **2026-10-18** — Assumed: the note box gets a clear shadow and a firmer edge, because the person said it no longer looked like it sits on top, and the first build's thin border and faint shadow made it blend into the page.
+- **2026-10-18** — Archive checkpoint: archived for publishing as 43.7.0, with the new look spec added to the review area's docs.

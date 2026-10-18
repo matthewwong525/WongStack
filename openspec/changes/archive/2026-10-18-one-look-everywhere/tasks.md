@@ -46,4 +46,4 @@
 
 ## 6. Final checks
 
-- [ ] 6.1 Run the local pre-check (`node scripts/payload-checks.mjs` and the changed suites), then `/save` and open the preview. Take phone and desktop pictures in light and dark of a built review page, a key link, and Home, plus a loading skeleton, and show them in the chat with a link to an example of each page.
+- [x] 6.1 Run the local pre-check (`node scripts/payload-checks.mjs` and the changed suites), then `/save` and open the preview. Take phone and desktop pictures, on a light and on a dark device, of a built review page with its note box open, a key link, and Home, plus a loading skeleton, and show them in the chat with a link to an example of each page.
