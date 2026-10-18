@@ -282,7 +282,7 @@ function start() {
     const left = pending().length;
     if (left && !doneArmed) {
       doneArmed = true;
-      return note('#done-note', `${plural(left, 'ticked login')} ${left === 1 ? 'isn\'t' : 'aren\'t'} saved. Tap Close without continuing again to leave without ${left === 1 ? 'it' : 'them'}.`);
+      return note('#done-note', `${plural(left, 'ticked login')} ${left === 1 ? 'isn\'t' : 'aren\'t'} saved. Tap Not now again to leave without ${left === 1 ? 'it' : 'them'}.`);
     }
     $('#done').disabled = true;
     await post('done');

@@ -366,7 +366,10 @@ test('open --form reads only the finish, then sends the browser nothing until th
   await pause(300);
   assert.deepEqual(f.steps(), ['url'], 'no polling before a send');
 
-  assert.match(await (await fetch(`http://127.0.0.1:${port}/`)).text(), /Close without sending/);
+  assert.match(await (await fetch(`http://127.0.0.1:${port}/`)).text(), /Not now/);
+  const css = await fetch(`http://127.0.0.1:${port}/page.css`);
+  assert.deepEqual(['content-type', 'cache-control', 'referrer-policy', 'x-frame-options', 'content-security-policy'].map(name => css.headers.get(name)), ['text/css; charset=utf-8', 'no-store', 'no-referrer', 'DENY', "frame-ancestors 'none'"]);
+  assert.match(await css.text(), /--blue:/, 'the shared look, unkeyed like the page');
   assert.match(await (await fetch(`http://127.0.0.1:${port}/page.mjs`)).text(), /export function rowsOf/);
   assert.equal((await fetch(`http://127.0.0.1:${port}/state.json`)).status, 404);
   assert.equal((await route(port, null, 'form')).status, 403);
@@ -555,7 +558,7 @@ test('a form whose browser stopped before the send types nothing, presses nothin
   assert.equal(f.camofox.starts(), 1);
 });
 
-test('a bad send is refused without using the one send, and Close without sending gives closed', async t => {
+test('a bad send is refused without using the one send, and Not now gives closed', async t => {
   const f = fixture(t);
   const { port, key } = openedForm(f);
   const before = f.steps().length;

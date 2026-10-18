@@ -146,17 +146,17 @@ A key link SHALL stay open for eight hours by default from when it is opened, an
 
 ### Requirement: The key page carries the steps
 
-For each asked-for key the agent MAY give a plain name, the address of the service's key page, and up to six short steps, written for that request from the service's public guidance. The page SHALL show them above that key's field, with a control that opens the address in the person's own browser, and SHALL show them as plain text only. The address SHALL be an `https` address. WongStack SHALL ship no per-service names, addresses, or steps. A key given none SHALL show its declared name and hint.
+For each asked-for key the agent MAY give a plain name, one line saying what the key is for, the address of the service's key page, and up to six short steps, written for that request from the service's public guidance. The page SHALL show them above that key's field, with a control that opens the address in the person's own browser, and SHALL show them as plain text only. The field SHALL read as the last step. The address SHALL be an `https` address. WongStack SHALL ship no per-service names, addresses, or steps. A key given none SHALL show a readable name made from its declared name, the declared name itself, and its hint.
 
 #### Scenario: Steps on the page
 
-- **WHEN** the agent sends a key link for `STRIPE_SECRET_KEY` with the name *Stripe key*, Stripe's key-page address, and four steps
-- **THEN** the page is headed *Stripe key*, lists the four steps with a control that opens Stripe's key page in a new tab, and the chat message carries only the link
+- **WHEN** the agent sends a key link for `STRIPE_SECRET_KEY` with the name *Stripe key*, the line *So your assistant can read your charges.*, Stripe's key-page address, and four steps
+- **THEN** the page is headed *Stripe key* with that line beneath it, lists the four steps with a control that opens Stripe's key page in a new tab, ends them with the field as a fifth step, and the chat message carries only the link
 
 #### Scenario: No steps given
 
 - **WHEN** the agent sends a key link naming only `MAPS_API_KEY`
-- **THEN** the page shows `MAPS_API_KEY` with the hint from its example-file comment
+- **THEN** the page shows *Maps API key*, `MAPS_API_KEY` beneath it, and the hint from its example-file comment
 
 ### Requirement: A key is tested when it is saved
 

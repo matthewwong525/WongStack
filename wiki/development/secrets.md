@@ -53,19 +53,20 @@ Ordinary browsing, saved website logins, use of stored credentials, and existing
 
 When a task lacks a key, or the person asks for *the key link*, send a private link in the same reply, with no *Ready?* question: it waits eight hours by default. Chats are stored; the link takes the key straight to the ignored file.
 
-1. **Declare it first.** The name must be declared, blank, in exactly one example file: `.env.example` for a tool credential, `app/.dev.vars.example` for a Worker secret. A commented-out `# NAME=` is not a declaration. The first sentence of the comment above it is the hint a key with no guide shows, so say where to get the key there.
+1. **Declare it first.** The name must be declared, blank, in exactly one example file: `.env.example` for a tool credential, `app/.dev.vars.example` for a Worker secret. A commented-out `# NAME=` is not a declaration. A key with no guide shows a readable name made from it, such as *Maps API key*, and the first sentence of the comment above it as its hint, so say where to get the key there.
 2. **Write the guide** to a file outside the repo, from the service's public help pages, read as plain pages. WongStack stores no guide.
 
    ```json
    { "STRIPE_SECRET_KEY": {
        "title": "Stripe key",
+       "why": "So your assistant can read your charges.",
        "url": "https://dashboard.stripe.com/apikeys",
        "open": "Open Stripe's keys",
        "steps": ["Tap Create restricted key", "Tick Read charges", "Copy the key"],
        "check": { "url": "https://api.stripe.com/v1/balance", "auth": "bearer" } } }
    ```
 
-   Every field is optional; [`keys.mjs`](../../.agents/skills/hand-over/scripts/keys.mjs) owns their limits. `url` and `steps` come from [the token-website steps](#api-token-website-steps). `check` is a harmless `GET` only a working key answers, sent once on save with `auth` one of `bearer`, `basic`, `header:<Name>`, or `query:<name>`: a 401 or 403 holds the key back until *Save anyway*. Leave it out for a pair, like an id and a secret.
+   Every field is optional; [`keys.mjs`](../../.agents/skills/hand-over/scripts/keys.mjs) owns their limits. `title` heads the page, and `why` is one plain sentence of what you will do with the key, never more than it allows. `url` and `steps` come from [the token-website steps](#api-token-website-steps). `check` is a harmless `GET` only a working key answers, sent once on save with `auth` one of `bearer`, `basic`, `header:<Name>`, or `query:<name>`: a 401 or 403 holds the key back until *Save anyway*. Leave it out for a pair, like an id and a secret.
 3. **Open it**, send the `HANDOVER_LINK` it prints, and run `wait` in the background:
 
    ```bash
