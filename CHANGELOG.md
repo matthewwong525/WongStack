@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Every key-based service in one list, with short answers
+## 43.5.0 — Every key-based service in one list, with short answers
 
 - **A chat sees every service it can use in one short list.** `services` lists each saved key you hold a level for, with a line on what it's for and whether it's ready. Keys you'd need access for show as one count. The always-read instructions now start every outside service here, so a chat no longer reads business keys from a file on your computer.
 - **Search, open one, and get short answers.** A search prints one line per match, across the app's own actions and keys used directly. A long answer shows its first part in the chat and is saved whole to a private file the chat can read, so one big list can't fill the chat.

@@ -1,6 +1,6 @@
 # Every key-based service in one list, with short answers
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** service-catalogue
 **Open questions:** none
 
@@ -129,3 +129,4 @@ None.
 - **2026-10-18** — Assumed: the MCP code, its table, its sealing secret and its wiki page are removed rather than left unused, and the test copy's own seal and MCP rows are cleaned up with the person's go-ahead, because nothing else needs them.
 - **2026-10-18** — Assumed: the earlier choice to pause ClaymooApp's own MCP build no longer follows from this change, because WongStack ships no MCPs now; that is ClaymooApp's call.
 - **2026-10-18** — Assumed: the test copy's MCP tables, rows, migration record and seal secret were cleared by hand after the rebuild, because the option chosen on the review page included clearing them.
+- **2026-10-18** — Archived for release 43.5.0 by `/ship`; every task checked, local checks passing after main was brought in.
