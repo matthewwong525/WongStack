@@ -5,14 +5,15 @@
 
 ## Next (minor) — One calm look on every page
 
-- **Every page takes the app's colours.** The plan review page and the private key, password, and form pages now use the app's black, white, and soft greys, light or dark to match your device. Red marks only a problem.
-- **The plan review page looks like the app.** A plain background, white cards, rounded buttons, and quiet section labels. The three bottom buttons stay where they are: *Send notes* is filled, *Build it* and *Build and publish* are outlined. It turns dark at night, pictures included.
+- **Every page takes the app's colours.** The plan review page and the private key, password, and form pages now use the app's black, white, and soft greys. Red marks only a problem.
+- **Every page stays light**, the app included, even when your device is set to dark.
+- **The plan review page looks like the app.** A plain background, white cards, rounded buttons, and quiet section labels. The three bottom buttons stay where they are: *Send notes* is filled, *Build it* and *Build and publish* are outlined. Adding a note opens a box with a clear shadow, so it plainly sits on top of the page.
 - **The private pages lose the blue.** The *Private link* label is a small grey tag with its lock. Steps, fields, and *Save and continue* match the app's, and a saved key shows a black or white tick.
 - **A closed link shows a small card**, not bare text.
 - **Loading shows the shape of what's coming.** While Home, an app, Access, the assistant steps, or the key page wait, soft grey blocks shaped like the result stand in, not a line of text. A screen reader still hears that it's loading, and the blocks hold still if you turn motion off.
 - **The app gets a light polish.** Headings are a touch lighter, the top bar is slimmer and softly see-through, and text renders smoother. Nothing moves.
 
-**Updating.** If you changed the app's colours in `app/src/index.css`, the review and private pages now wear them too. Keep its light and dark colour sets as plain `:root` blocks: the checks fail and name the set they can no longer find. A plan page already open keeps its old look until its next save rebuilds it.
+**Updating.** If you changed the app's colours in `app/src/index.css`, the review and private pages now wear them too. Keep its colours as one plain `:root` block, or the checks fail. If you relied on the app turning dark with your device, it now stays light: the update removes the dark colours from `app/src/index.css`, and the pages ignore any left behind. A plan page already open keeps its old look until its next save rebuilds it.
 
 ## 43.5.0 — Every key-based service in one list, with short answers
 

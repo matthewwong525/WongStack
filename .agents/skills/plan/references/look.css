@@ -1,7 +1,8 @@
 /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
-   look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
-   shadcn's neutral colours stays only for a set it can't find. The parts below draw app/src/components/ui/
-   (button, input, card, badge, skeleton) in plain CSS. Each sits in :where(), so a page's own rule always wins.
+   look.mjs swaps the colour set between the markers for the app's own, from app/src/index.css; this copy of
+   shadcn's neutral colours stays only for a colour it can't find. Every page stays light, even on a dark device.
+   The parts below draw app/src/components/ui/ (button, input, card, badge, skeleton) in plain CSS. Each sits in
+   :where(), so a page's own rule always wins.
    Nothing here loads a file: these pages fetch nothing from the network. */
 /* tokens:start */
 :root {
@@ -25,36 +26,17 @@
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
 }
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
-  }
-}
 /* tokens:end */
 
-/* Tailwind's shadow-xs, shadow-sm and shadow-lg, and the 3px focus ring at half strength. */
+/* Tailwind's shadow-xs, shadow-sm and shadow-lg; Radix's popover shadow, and its upward twin for a box docked at the
+   bottom, so a layer reads as above the page; and the 3px focus ring at half strength. */
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
   --look-shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   --look-shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
   --look-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --look-shadow-overlay: 0 10px 38px -10px rgb(0 0 0 / 0.35), 0 10px 20px -15px rgb(0 0 0 / 0.2);
+  --look-shadow-up: 0 -8px 24px rgb(0 0 0 / 0.12);
   --look-ring: color-mix(in oklab, var(--ring) 50%, transparent);
 }
 
@@ -134,9 +116,3 @@
 @keyframes look-pulse { 50% { opacity: 0.5; } }
 @media (prefers-reduced-motion: reduce) { :where(.skeleton) { animation: none; } }
 :where(.sr-only) { position: absolute; max-width: 1px; max-height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
-
-@media (prefers-color-scheme: dark) {
-  :where(button, .btn):where(:not(.primary, .main, .btn-primary, .btn-ghost)) { border-color: var(--input); background: color-mix(in oklab, var(--input) 30%, transparent); }
-  :where(button, .btn):where(:not(.primary, .main, .btn-primary, .btn-ghost)):where(:hover:not(:disabled)) { background: color-mix(in oklab, var(--input) 50%, transparent); }
-  :where(input:not([type=checkbox], [type=radio], [type=file], [type=range], [type=button], [type=submit]), select, textarea, .field) { background: color-mix(in oklab, var(--input) 30%, transparent); }
-}

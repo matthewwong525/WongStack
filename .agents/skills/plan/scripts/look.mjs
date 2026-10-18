@@ -10,7 +10,6 @@ const LOOK = resolve(HERE, '../references/look.css');
 export const ROOT = resolve(HERE, '../../../..');
 const START = '/* tokens:start */';
 const END = '/* tokens:end */';
-const DARK = /^@media\s*\(\s*prefers-color-scheme\s*:\s*dark\s*\)$/;
 
 /** The top-level blocks of `css` as `{ prelude, body }`, comments dropped. */
 function blocks(css) {
@@ -38,33 +37,25 @@ function props(body) {
   return out;
 }
 
-/** The light set: the first plain `:root { … }`. The dark set: the `:root` inside the dark media block. */
-function sets(css) {
-  const top = blocks(css);
-  const light = top.find(block => block.prelude === ':root');
-  const media = top.find(block => DARK.test(block.prelude.replace(/\s+/g, ' ')));
-  const dark = media && blocks(media.body).find(block => block.prelude === ':root');
-  return { light: light ? props(light.body) : null, dark: dark ? props(dark.body) : null };
+/** The colour set: the custom properties of the first plain `:root { … }`, or null when there is none. */
+function colourSet(css) {
+  const root = blocks(css).find(block => block.prelude === ':root');
+  return root ? props(root.body) : null;
 }
 
 const read = file => { try { return readFileSync(file, 'utf8'); } catch { return null; } };
 
-/** The app's colour sets under `root`, each laid over look.css's copy; `missing` names a set the app's file lacks. */
+/** The app's colours under `root`, laid over look.css's copy; `missing` is true when the app's file has no set. */
 export function lookColours(root = ROOT) {
-  const fallback = sets(read(LOOK));
-  const app = sets(read(join(root, 'app/src/index.css')) ?? '');
-  const missing = ['light', 'dark'].filter(name => !app[name]?.size);
-  const merged = name => new Map([...fallback[name], ...(app[name] ?? [])]);
-  return { light: merged('light'), dark: merged('dark'), missing };
+  const app = colourSet(read(join(root, 'app/src/index.css')) ?? '');
+  return { colours: new Map([...colourSet(read(LOOK)), ...(app ?? [])]), missing: !app?.size };
 }
 
-const declarations = set => [...set].map(([name, value]) => `  ${name}: ${value};`).join('\n');
-
-/** The finished stylesheet: the app's light and dark colours, then look.css's parts. */
+/** The finished stylesheet: the app's light colours, then look.css's parts. */
 export function lookCss(root = ROOT) {
   const look = read(LOOK);
   const at = look.indexOf(START), to = look.indexOf(END);
   if (at < 0 || to < at) throw new Error(`${LOOK}: expected ${START} … ${END}`);
-  const { light, dark } = lookColours(root);
-  return `${look.slice(0, at)}:root {\n${declarations(light)}\n}\n@media (prefers-color-scheme: dark) {\n  :root {\n${declarations(dark).replace(/^/gm, '  ')}\n  }\n}${look.slice(to + END.length)}`;
+  const declarations = [...lookColours(root).colours].map(([name, value]) => `  ${name}: ${value};`).join('\n');
+  return `${look.slice(0, at)}:root {\n${declarations}\n}${look.slice(to + END.length)}`;
 }

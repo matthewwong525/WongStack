@@ -334,6 +334,31 @@ browserTest('no width from 320px scrolls sideways, and the phone editor docks', 
   await desk.context.close();
 });
 
+browserTest('the note box and the chip sit above the page with a clear shadow and edge, floating and docked', async () => {
+  const f = fixture();
+  const look = (page, sel) => page.locator(sel).evaluate(el => ({ shadow: getComputedStyle(el).boxShadow, edge: getComputedStyle(el).borderTopWidth }));
+  const desk = await open(f.url, { width: 1200 });
+  await tap(desk.page, 'item-2');
+  const chip = await look(desk.page, '#chip');
+  assert.notEqual(chip.shadow, 'none', 'the chip casts a shadow');
+  await desk.page.keyboard.press('Escape');
+  await draft(desk.page, 'item-2', 'Floating');
+  const floating = await look(desk.page, '#editor');
+  assert.doesNotMatch(await desk.page.locator('#editor').getAttribute('class') || '', /docked/);
+  assert.notEqual(floating.shadow, 'none', 'the floating box casts a shadow');
+  assert.match(floating.shadow, /38px/, 'the popover shadow, not the faint card one');
+  assert.equal(floating.edge, '1px');
+  await desk.context.close();
+  const phone = await open(f.url, { width: 390, height: 700 });
+  await draft(phone.page, 'item-2', 'Docked');
+  assert.match(await phone.page.locator('#editor').getAttribute('class'), /docked/);
+  const docked = await look(phone.page, '#editor');
+  assert.notEqual(docked.shadow, 'none', 'the docked box casts a shadow upward');
+  assert.match(docked.shadow, /-8px/, 'the shadow falls on the page above');
+  assert.equal(docked.edge, '1px', 'a top edge');
+  await phone.context.close();
+});
+
 browserTest('#/3 scrolls to item 3, and a keyboard note returns focus to its target', async () => {
   const { page, context } = await open(fixture().url + '#/3', { height: 400 });
   const top = (await page.locator('#item-3').boundingBox()).y;
@@ -967,7 +992,7 @@ browserTest('a picture fits a 320px screen, zooms full screen, and takes a note 
   await context.close();
 });
 
-browserTest('the page takes the device\'s light or dark setting, with readable text on every surface', async () => {
+browserTest('the page stays light on a device set to dark, with readable text on every surface', async () => {
   const { url } = fixture();
   for (const scheme of ['light', 'dark']) {
     const { page, context, errors } = await open(url, { width: 390, scheme });
@@ -985,8 +1010,7 @@ browserTest('the page takes the device\'s light or dark setting, with readable t
         text: [pair('body', 'body'), pair('.card .text', '.card'), pair('.hint', 'body'), pair('#copy', '#copy'), pair('.frame .art', '.frame'), pair('.bar [data-ready="build"]', '.bar')],
       };
     });
-    const dark = scheme === 'dark';
-    for (const surface of ['body', 'card', 'bar']) assert.equal(seen[surface] < 0.2, dark, `${scheme}: the ${surface} is ${dark ? 'dark' : 'light'}`);
+    for (const surface of ['body', 'card', 'bar']) assert.ok(seen[surface] > 0.8, `${scheme} device: the ${surface} is light`);
     seen.text.forEach((ratio, i) => assert.ok(ratio >= 4.5, `${scheme}: text ${i} contrast ${ratio.toFixed(2)} is under 4.5`));
     assert.deepEqual(errors, []);
     await context.close();

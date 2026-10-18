@@ -252,7 +252,8 @@ test('the built page carries the app\'s colours and parts in its one style, and 
   assert.doesNotMatch(style, /\/\* look \*\//, 'the marker is filled');
   const app = readFileSync(resolve(here, '../../app/src/index.css'), 'utf8');
   assert.ok(style.includes(`--primary: ${/\n:root \{[^}]*--primary:\s*([^;]+);/.exec(app)[1]};`), 'the app\'s light primary');
-  assert.match(style, /@media \(prefers-color-scheme: dark\) \{\s*:root \{[^}]*--background:/, 'a dark set');
+  assert.doesNotMatch(style, /prefers-color-scheme/, 'light on every device: no dark set');
+  assert.match(style, /color-scheme: light;/);
   for (const part of [':where(button, .btn)', ':where(.card)', ':where(.tag)']) assert.ok(style.includes(part), part);
   assert.ok(style.indexOf(':where(.card)') < style.indexOf('.bar {'), 'the look first, then the kit\'s own rules');
   assert.doesNotMatch(html, /\b(?:src|href)\s*=\s*["']?(?:https?:)?\/\/|@import|url\(/i, 'no network loads');

@@ -32,6 +32,13 @@
 - [x] 4b.3 Add `.skeleton` to `look.css` and a skeleton card to `keys-page.html` that shows until `/keys` answers. Verify in `scripts/tests/hand-over.test.mjs` or the key page's test that the card is present before the list and gone after.
 - [x] 4b.4 Mention the skeletons in the shared-look paragraph of `wiki/stack/mini-apps.md` (a loading state shows skeletons shaped like what loads), and in the CHANGELOG entry. Verify with the wiki checks.
 
+## 4c. Always light, and the note box
+
+- [x] 4c.1 Make every page light by [always light](design.md#always-light): drop the dark set and media block from `index.css` and `look.css`, add the `dark` custom variant, read one set in `look.mjs`, and set `color-scheme: light` in the kit, private pages, and closed page. Update `look.test.mjs`, `style.test.ts`, and any test that reads the dark set. Verify with `npm test` in `app/` and `node --test scripts/tests/look.test.mjs`.
+- [x] 4c.2 Replace the review page's dark-mode browser test with one that emulates a dark device and finds light surfaces and readable text on the body, a card, and the bar; do the same for a key page if a browser test covers it. Verify with the review browser suite.
+- [x] 4c.3 Give the note box and chip the [overlay shadow and edge](design.md#note-box), docked and floating. Add a browser check that the opened editor has a non-`none` box-shadow in both modes. Verify with the review browser suite.
+- [x] 4c.4 Update `wiki/stack/mini-apps.md` (light on every device, not light or dark to match the device), `wiki/ux-principles.md`'s review-file line, and the CHANGELOG entry, with an **Updating** line for an install that relied on dark mode. Verify with the wiki checks.
+
 ## 5. Release notes and records
 
 - [x] 5.1 Add a `## Next (minor) — One calm look on every page` entry at the top of `CHANGELOG.md`, in plain words, with an **Updating** line: a rebranded `app/src/index.css` now colours the review and private pages too. Verify the payload checks pass.

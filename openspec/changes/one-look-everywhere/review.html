@@ -14,9 +14,10 @@
 <title>Review · one-look-everywhere</title>
 <style>
   /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
-   look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
-   shadcn's neutral colours stays only for a set it can't find. The parts below draw app/src/components/ui/
-   (button, input, card, badge, skeleton) in plain CSS. Each sits in :where(), so a page's own rule always wins.
+   look.mjs swaps the colour set between the markers for the app's own, from app/src/index.css; this copy of
+   shadcn's neutral colours stays only for a colour it can't find. Every page stays light, even on a dark device.
+   The parts below draw app/src/components/ui/ (button, input, card, badge, skeleton) in plain CSS. Each sits in
+   :where(), so a page's own rule always wins.
    Nothing here loads a file: these pages fetch nothing from the network. */
 :root {
   --radius: 0.625rem;
@@ -39,35 +40,16 @@
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
 }
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
-  }
-}
 
-/* Tailwind's shadow-xs, shadow-sm and shadow-lg, and the 3px focus ring at half strength. */
+/* Tailwind's shadow-xs, shadow-sm and shadow-lg; Radix's popover shadow, and its upward twin for a box docked at the
+   bottom, so a layer reads as above the page; and the 3px focus ring at half strength. */
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
   --look-shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   --look-shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
   --look-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --look-shadow-overlay: 0 10px 38px -10px rgb(0 0 0 / 0.35), 0 10px 20px -15px rgb(0 0 0 / 0.2);
+  --look-shadow-up: 0 -8px 24px rgb(0 0 0 / 0.12);
   --look-ring: color-mix(in oklab, var(--ring) 50%, transparent);
 }
 
@@ -148,12 +130,6 @@
 @media (prefers-reduced-motion: reduce) { :where(.skeleton) { animation: none; } }
 :where(.sr-only) { position: absolute; max-width: 1px; max-height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 
-@media (prefers-color-scheme: dark) {
-  :where(button, .btn):where(:not(.primary, .main, .btn-primary, .btn-ghost)) { border-color: var(--input); background: color-mix(in oklab, var(--input) 30%, transparent); }
-  :where(button, .btn):where(:not(.primary, .main, .btn-primary, .btn-ghost)):where(:hover:not(:disabled)) { background: color-mix(in oklab, var(--input) 50%, transparent); }
-  :where(input:not([type=checkbox], [type=radio], [type=file], [type=range], [type=button], [type=submit]), select, textarea, .field) { background: color-mix(in oklab, var(--input) 30%, transparent); }
-}
-
   * { box-sizing:border-box; }
   html { -webkit-text-size-adjust:100%; }
   body { --pad:12px; margin:0; padding-bottom:var(--bar, 76px); font:16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; overflow-wrap:anywhere; }
@@ -213,9 +189,9 @@
   .entry { display:block; width:100%; margin:0 0 8px; padding:8px 10px; text-align:left; font-weight:400; }
   .entry .where { display:block; color:var(--muted-foreground); font-size:13px; }
   .entry .tag { margin:0 0 0 6px; }
-  #chip { position:absolute; z-index:9; box-shadow:var(--look-shadow-lg); }
-  #editor { position:absolute; z-index:6; width:260px; padding:10px; background:var(--popover); color:var(--popover-foreground); border:1px solid var(--border); border-radius:calc(var(--radius) + 4px); box-shadow:var(--look-shadow-lg); }
-  #editor.docked { position:fixed; left:0; right:0; bottom:0; width:auto; display:flex; flex-direction:column; overflow:auto; border-width:1px 0 0; border-radius:0; padding:8px 12px max(8px, env(safe-area-inset-bottom)); }
+  #chip { position:absolute; z-index:9; border-color:var(--input); box-shadow:var(--look-shadow-overlay); }
+  #editor { position:absolute; z-index:6; width:260px; padding:10px; background:var(--popover); color:var(--popover-foreground); border:1px solid var(--input); border-radius:calc(var(--radius) + 4px); box-shadow:var(--look-shadow-overlay); }
+  #editor.docked { position:fixed; left:0; right:0; bottom:0; width:auto; display:flex; flex-direction:column; overflow:auto; border-width:1px 0 0; border-radius:0; box-shadow:var(--look-shadow-up); padding:8px 12px max(8px, env(safe-area-inset-bottom)); }
   #editor.docked .where { flex:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   #editor.docked textarea { flex:1 1 auto; min-height:44px; }
   #editor.docked .row { flex:none; }
@@ -273,14 +249,16 @@
 </div></section>
 <section id="changes" aria-labelledby="changes-h"><h2 id="changes-h">What Changes</h2>
 <ol class="items">
-<li class="item card" id="item-1"><span class="num">1</span><div class="body"><div class="text" data-note="item-1" tabindex="0"><b>Every page takes the app's colours.</b> The review page and the private pages use the same black, white, and soft greys as the app, in light or dark to match your device. Red marks only a problem. When you change the app's colours, these pages follow.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
-<span class="ln" data-note="item-1-line-1" tabindex="0">        │ now          │ after</span>
-<span class="ln" data-note="item-1-line-2" tabindex="0">────────┼──────────────┼─────────────</span>
-<span class="ln" data-note="item-1-line-3" tabindex="0">app     │ black, white │ same</span>
-<span class="ln" data-note="item-1-line-4" tabindex="0">review  │ grey, light  │ app colours,</span>
-<span class="ln" data-note="item-1-line-5" tabindex="0">        │ only         │ light + dark</span>
-<span class="ln" data-note="item-1-line-6" tabindex="0">private │ blue         │ app colours</span></pre></div></details></li>
-<li class="item card" id="item-2"><span class="num">2</span><div class="body"><div class="text" data-note="item-2" tabindex="0"><b>The plan review page looks like the app.</b> It gets a plain background with white cards, rounded buttons, and quiet section labels. The three bottom buttons stay where they are: <i>Send notes</i> is filled black, while <i>Build it</i> and <i>Build and publish</i> are outlined. It turns dark at night.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<li class="item card" id="item-1"><span class="num">1</span><div class="body"><div class="text" data-note="item-1" tabindex="0"><b>Every page takes the app's colours, always in light.</b> The review page and the private pages use the same black, white, and soft greys as the app. Every page, the app included, stays light even when your device is set to dark. Red marks only a problem. When you change the app's colours, these pages follow.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-1-line-1" tabindex="0">        │ now           │ after</span>
+<span class="ln" data-note="item-1-line-2" tabindex="0">────────┼───────────────┼────────────</span>
+<span class="ln" data-note="item-1-line-3" tabindex="0">app     │ light or dark │ always</span>
+<span class="ln" data-note="item-1-line-4" tabindex="0">        │ by the device │ light</span>
+<span class="ln" data-note="item-1-line-5" tabindex="0">review  │ grey, light   │ app colours,</span>
+<span class="ln" data-note="item-1-line-6" tabindex="0">        │               │ light</span>
+<span class="ln" data-note="item-1-line-7" tabindex="0">private │ blue, light   │ app colours,</span>
+<span class="ln" data-note="item-1-line-8" tabindex="0">        │ or dark       │ light</span></pre></div></details></li>
+<li class="item card" id="item-2"><span class="num">2</span><div class="body"><div class="text" data-note="item-2" tabindex="0"><b>The plan review page looks like the app.</b> It gets a plain background with white cards, rounded buttons, and quiet section labels. The three bottom buttons stay where they are: <i>Send notes</i> is filled black, while <i>Build it</i> and <i>Build and publish</i> are outlined. Adding a note opens a box with a clear shadow, so it plainly sits on top of the page.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
 <span class="ln" data-note="item-2-line-1" tabindex="0">  BEFORE                 AFTER</span>
 <span class="ln" data-note="item-2-line-2" tabindex="0">┌────────────────────┐ ┌────────────────────┐</span>
 <span class="ln" data-note="item-2-line-3" tabindex="0">│░REVIEW░░░░░░░░░░░░░│ │ Review             │</span>
@@ -293,7 +271,17 @@
 <span class="ln" data-note="item-2-line-10" tabindex="0">│[Send][Build][Pub.] │ │ ■Send  □Build □Pub │</span>
 <span class="ln" data-note="item-2-line-11" tabindex="0">└────────────────────┘ └────────────────────┘</span>
 <span class="ln" data-note="item-2-line-12" tabindex="0"> grey page, square      plain page, rounded,</span>
-<span class="ln" data-note="item-2-line-13" tabindex="0"> buttons                one filled button</span></pre></div></details></li>
+<span class="ln" data-note="item-2-line-13" tabindex="0"> buttons                one filled button</span>
+
+<span class="ln" data-note="item-2-line-15" tabindex="0">NOTE BOX (phone)</span>
+<span class="ln" data-note="item-2-line-16" tabindex="0">┌────────────────────┐</span>
+<span class="ln" data-note="item-2-line-17" tabindex="0">│ Why  ...           │</span>
+<span class="ln" data-note="item-2-line-18" tabindex="0">│ ▓▓ paragraph ▓▓    │</span>
+<span class="ln" data-note="item-2-line-19" tabindex="0">├══ shadow above ════┤</span>
+<span class="ln" data-note="item-2-line-20" tabindex="0">│ A question or a    │</span>
+<span class="ln" data-note="item-2-line-21" tabindex="0">│ change             │</span>
+<span class="ln" data-note="item-2-line-22" tabindex="0">│ ■Save □Discard     │</span>
+<span class="ln" data-note="item-2-line-23" tabindex="0">└────────────────────┘</span></pre></div></details></li>
 <li class="item card" id="item-3"><span class="num">3</span><div class="body"><div class="text" data-note="item-3" tabindex="0"><b>The private key, password, and form pages lose the blue.</b> The <i>Private link</i> label becomes a small grey tag with its lock. Fields, steps, and the save button match the app's, and <i>Save and continue</i> is filled black. A saved key shows a black or white tick, not a green one.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
 <span class="ln" data-note="item-3-line-1" tabindex="0">  BEFORE                 AFTER</span>
 <span class="ln" data-note="item-3-line-2" tabindex="0">┌────────────────────┐ ┌────────────────────┐</span>
@@ -346,6 +334,8 @@
 <li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-18</p>Assumed: the review builder and the private pages read colours from the checkout their scripts sit in, not the primary checkout, because it never fails outside a Git checkout and always matches the parts file beside it.</li>
 <li class="decision card" id="decision-10" data-note="decision-10" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-18</p>Asked, after seeing the first build, to use skeletons as well → each loading line becomes placeholder blocks shaped like what loads, on the app's screens and the key page.</li>
 <li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-18</p>Assumed: skeletons show at once, with no delay, and keep a hidden <i>Loading…</i> line for screen readers, because shadcn's skeleton has no delay and the loading status must stay announced.</li>
+<li class="decision card" id="decision-12" data-note="decision-12" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-18</p>Asked, after seeing the build, whether pages should start light → chose always light on every page, the app included, over a dark switch or following the device.</li>
+<li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-18</p>Assumed: the note box gets a clear shadow and a firmer edge, because the person said it no longer looked like it sits on top, and the first build's thin border and faint shadow made it blend into the page.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
