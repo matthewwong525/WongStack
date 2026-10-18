@@ -1,0 +1,54 @@
+{
+  "format": "verify-journey-1",
+  "id": "a-chat-lists-services",
+  "scenario": {
+    "capability": "agent-api-discovery",
+    "requirement": "The services list names the services a caller can use",
+    "scenario": "A chat lists services"
+  },
+  "thenDigest": "089e229ca03b0e95f6f6cc3273e7c8f95464cc70736501c77dc0452618c928e6",
+  "probe": "request",
+  "writes": false,
+  "sourcePaths": [
+    ".agents/skills/memory/references/areas.json",
+    ".agents/skills/wong-sync/references/payload-files.json",
+    "AGENTS.md",
+    "app/src/apps/access/Owner.tsx",
+    "app/src/apps/access/Services.tsx",
+    "app/src/apps/access/View.tsx",
+    "app/src/apps/access/address.ts",
+    "app/src/apps/access/levels.ts",
+    "app/src/lib/access.ts",
+    "app/worker/api/services.ts",
+    "app/worker/employee-access/key-catalogue.ts",
+    "app/worker/employee-access/key-levels.ts",
+    "app/worker/index.ts",
+    "app/worker/keys.ts",
+    "scripts/company-api.mjs",
+    "scripts/employee-bootstrap.mjs",
+    "scripts/retired-names.json"
+  ],
+  "recordedAt": "599dbff54c87c48cbc4a01a2461d16c835ca5d82",
+  "steps": [
+    [
+      "GET",
+      "/api/services"
+    ],
+    [
+      "GET",
+      "/api/services?all=1"
+    ]
+  ],
+  "expect": [
+    {
+      "step": 1,
+      "status": 200,
+      "includes": "needAccess"
+    },
+    {
+      "step": 2,
+      "status": 200,
+      "includes": "Cloudflare"
+    }
+  ]
+}

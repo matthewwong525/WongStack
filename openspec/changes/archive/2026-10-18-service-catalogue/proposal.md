@@ -130,3 +130,4 @@ None.
 - **2026-10-18** — Assumed: the earlier choice to pause ClaymooApp's own MCP build no longer follows from this change, because WongStack ships no MCPs now; that is ClaymooApp's call.
 - **2026-10-18** — Assumed: the test copy's MCP tables, rows, migration record and seal secret were cleared by hand after the rebuild, because the option chosen on the review page included clearing them.
 - **2026-10-18** — Archived for release 43.5.0 by `/ship`; every task checked, local checks passing after main was brought in.
+- **2026-10-18** — Archive checkpoint: the preview walk kept two checks (the owner opens Services; a chat lists services). The changed publish check stayed unverified: the push needs a person's sign-in the test login cannot give.
