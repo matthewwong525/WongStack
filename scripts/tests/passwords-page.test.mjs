@@ -241,7 +241,7 @@ test('Done with unsaved ticks needs two taps', needsDom, async () => {
   await p.pick(CHROME);
   p.tick('costco.com');
   await p.click('#done');
-  assert.equal(p.$('#done-note').textContent, '1 ticked login isn\'t saved. Tap Close without continuing again to leave without it.');
+  assert.equal(p.$('#done-note').textContent, '1 ticked login isn\'t saved. Tap Not now again to leave without it.');
   assert.equal(p.calls.some(call => call.path === 'done'), false);
   p.tick('netflix.com');
   assert.equal(p.$('#done-note').hidden, true, 'a tick change disarms Done');
@@ -295,8 +295,11 @@ test('a site and username in the link fill the form, title the page, and focus t
 
 test('a link with no site or username leaves the page as it was', needsDom, () => {
   const p = page();
-  assert.equal(p.$('h1').textContent, 'Save logins for your agent');
+  assert.equal(p.$('h1').textContent, 'Save logins for your assistant');
   const order = el => [...p.document.querySelectorAll('#page *')].indexOf(el);
+  assert.equal(p.$('.private').textContent, 'Private link');
+  assert.ok(order(p.$('.promise')) < order(p.$('#drop')), 'the privacy line comes first');
+  assert.equal(p.$('#done').textContent, 'Not now');
   assert.ok(order(p.$('#drop')) < order(p.$('#add-form')), 'the export box stays first');
   assert.equal(p.$('#site').value, '');
   assert.notEqual(p.document.activeElement, p.$('#site'));

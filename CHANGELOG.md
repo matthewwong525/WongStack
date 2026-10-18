@@ -12,6 +12,17 @@
 
 **Updating.** Add a one-line purpose to each key your install added to the app's key list, and a link to the service's API guide for any key used directly: the checks fail until each has one, and the assistant can write them from each service's help pages. If a script of yours reads a long answer from the action helper (`company-api.mjs call`), add `--full` so it still gets the whole answer; short answers are unchanged. There is no new secret and no setup step.
 
+## 43.4.0 — Friendlier private pages
+
+- **The page where you paste a key reads as a short guided task.** It opens with a small *Private link* label, the key's name, one line from your assistant saying what the key is for, and a line saying the key never goes into the chat. The steps sit in numbered circles: the button to the service is step 1, and the paste box is the last step, *Paste it here*. The test line says *We'll check it with api.stripe.com*.
+- **Clear good news, and a kind no.** A key that works gets a green tick. With several keys, each sits in its own card and the page counts how many are saved. When every key is in, the page shows a big tick and *All set*. A key the service turns down says so, with what to do next, and keeps *Save anyway*.
+- **No code names.** A key your assistant gave no guide for shows a readable name, such as *Maps API key*, with the code name small underneath.
+- **A gentler clock and a softer way out.** The key page and the private form show when they close, such as *Open until 1:30 PM*, and count minutes only in the last ten. *Close without continuing* and *Close without sending* are now *Not now*; it still closes the link, and your assistant hears it.
+- **The password page and the private form match.** Same label, colours, and buttons, with the privacy line at the top. The password page says *assistant*, not *agent*.
+- **Guides gain a `why` line**, up to 140 characters on one line: what the assistant will do with the key.
+
+**Updating.** Nothing to do. Nothing the pages save or send changes.
+
 ## 43.3.0 — Plan pages draw flows as pictures
 
 - **A plan's steps, states, and back-and-forth flows show as clean pictures.** The plan writes a flow as a short Mermaid diagram, and the review page shows it laid out for you, with no crooked boxes. The picture is made when the page is built, so the page still works offline, from a clone, on a laptop or a phone.

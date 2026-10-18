@@ -58,10 +58,11 @@ function page(t, respond, { view = VIEW, closesAt, now, receipts = [], hash = '#
 
 test('the form fits a phone: the device\'s own width, no fixed widths, and boxes that shrink', () => {
   assert.match(markup, /<meta name="viewport" content="width=device-width, initial-scale=1">/);
-  const style = /<style>([\s\S]*?)<\/style>/.exec(markup)[1];
+  assert.match(markup, /<link rel="stylesheet" href="page\.css">/, 'the look the private pages share');
+  const style = /<style>([\s\S]*?)<\/style>/.exec(markup)[1] + readFileSync(new URL('private-page.css', scripts), 'utf8');
   assert.deepEqual(style.match(/(?<!max-)width:\s*\d+px/g), null, 'nothing is wider than the screen it is on');
   assert.match(style, /\.box \{ flex: 1; min-width: 0; \}/, 'two boxes side by side share a narrow row');
-  assert.match(style, /input, select \{[^}]*width: 100%/);
+  assert.match(style, /input:not\(\[type=checkbox\]\), select \{[^}]*width: 100%/);
   assert.doesNotMatch(markup, /<img|<canvas|<iframe|WebSocket/, 'the form never shows the site');
 });
 
@@ -81,8 +82,12 @@ test('the form shows its title, note, one labelled box per field with its autofi
   assert.equal(month.parentElement.parentElement, year.parentElement.parentElement, 'the expiry month and year sit side by side');
   assert.notEqual(number.parentElement.parentElement, month.parentElement.parentElement);
   assert.deepEqual([p.$('#send').textContent, p.$('#send').className, p.$('#send').disabled], ['Pay $45.00', 'main', false]);
-  assert.match(p.$('#does').textContent, /^Pay \$45\.00 types these into the site and presses its button, once\./);
-  assert.equal(p.$('#done').textContent, 'Close without sending');
+  assert.equal(p.$('#does').textContent, 'Pay $45.00 types these into the site and presses its button, once.');
+  assert.equal(p.$('.private').textContent, 'Private link');
+  assert.equal(p.$('.promise').textContent, 'Your assistant never sees what you type.');
+  const order = el => [...p.window.document.querySelectorAll('body *')].indexOf(el);
+  assert.ok(order(p.$('.promise')) < order(number), 'the privacy line sits above the boxes');
+  assert.equal(p.$('#done').textContent, 'Not now');
   assert.equal(p.window.document.activeElement, number);
   assert.deepEqual(p.calls, [{ path: 'form', key: 'secret', body: undefined }]);
   assert.equal(p.window.location.hash, '', 'the key leaves the address bar');
@@ -213,7 +218,7 @@ test('a reply that never arrives is looked up until the link says how it went', 
   assert.deepEqual(late.shown(), { form: false, title: 'This link has closed', hint: 'Ask your assistant for a new one.', status: '' });
 });
 
-test('Close without sending cancels and closes the page', async t => {
+test('Not now cancels and closes the page', async t => {
   const p = page(t, never);
   await settle();
   p.fill();
@@ -235,11 +240,14 @@ test('a link with no key, or one that has closed, shows the closed screen and no
   assert.deepEqual(closed.boxes(), []);
 });
 
-test('the time left shows in whole minutes on the watcher\'s clock, and the page closes at the limit', async t => {
+test('the time reads as a clock time, then in minutes on the watcher\'s clock, and the page closes at the limit', async t => {
   const now = Date.now();
   const p = page(t, never, { closesAt: now + 10 * 60_000 - 5000, now });
   await settle();
   assert.equal(p.$('#time').textContent, 'Closes in 10 min');
+  const later = page(t, never, { closesAt: now + 8 * 3_600_000, now });
+  await settle();
+  assert.match(later.$('#time').textContent, /^Open until /);
   const skewed = page(t, never, { closesAt: 10 * 60_000, now: 1 });
   await settle();
   assert.equal(skewed.$('#time').textContent, 'Closes in 10 min', 'a device clock that is off does not close the page');
@@ -275,6 +283,10 @@ test('the pure helpers: time left, rows, and the closing screen', () => {
   assert.equal(timeLeft(600_000, 59_999), 'Closes in 10 min', 'a part minute rounds up');
   assert.equal(timeLeft(600_000, 599_999), 'Closes in 1 min');
   assert.equal(timeLeft(600_000, 600_000), null);
+  const at = Date.UTC(2026, 9, 18, 13, 30);
+  assert.match(timeLeft(at, at - 8 * 3_600_000, { zone: 'UTC' }), /^Open until (1:30\sPM|13:30)$/);
+  assert.match(timeLeft(at, at - 20 * 60_000, { ahead: -3_600_000, zone: 'UTC' }), /^Open until (2:30\sPM|14:30)$/, 'a watcher clock an hour behind');
+  assert.equal(timeLeft(at, at - 9 * 60_000), 'Closes in 9 min');
 
   const kinds = (...names) => names.map(autocomplete => ({ autocomplete }));
   assert.deepEqual(rowsOf(kinds('cc-number', 'cc-exp-month', 'cc-exp-year', 'cc-csc')), [[0], [1, 2], [3]]);
