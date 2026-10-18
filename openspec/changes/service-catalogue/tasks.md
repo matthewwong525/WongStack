@@ -40,4 +40,4 @@
 
 - [x] 7.1 Bring in `main`, then run `node .github/scripts/checks.mjs --worktree` and fix what fails.
 - [x] 7.2 With the person's go-ahead, clear the test copy's MCP leftovers: the `WONG_MCP_SEAL` secret on `wongstack-staging`, and the MCP tables, rows and migration record in its database.
-- [ ] 7.3 `/save`, then on the preview: `services` lists Cloudflare with its purpose, state and notes path; `list --q cloudflare` prints one line per match; a long answer comes back short with its file; the owner's Services view shows each key's state; the verification login sees no Services view. Record results in `evidence.md`.
+- [x] 7.3 `/save`, then on the preview: `services` lists Cloudflare with its purpose, state and notes path; `list --q cloudflare` prints one line per match; a long answer comes back short with its file; the owner's Services view shows each key's state; the verification login sees no Services view. Record results in `evidence.md`.

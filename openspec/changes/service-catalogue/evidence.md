@@ -44,3 +44,13 @@ The same probe on 24 public MCP addresses: register a throwaway client with the 
 - **Approved apps only (3):** Canva (`/authorize` refuses), Intercom (`/register` answers `invalid_redirect_uri`), Figma (`/register` answers `403`).
 - **No self-registration (4):** Asana, HubSpot, GitHub, Box: they need an app made on the service's developer site, the plan's later step.
 - **Unclear (3):** Klaviyo's page didn't read clearly; Vercel and Shopify didn't answer as MCPs at the guessed address.
+
+## Keys-only build on the preview, 2026-10-18 (task 7.3)
+
+Run at `e6ca8c7` on the preview, signed in as the verification login, which is the owner there:
+
+- `services` and `services --all` print one row: Cloudflare, its purpose, *not saved yet: ask the owner*, the notes path `wiki/services/cloudflare.md` (none yet) and its guide link.
+- `list --q cloudflare` prints one line: `cloudflare.read  read  unavailable  Look something up in Cloudflare`; `list --limit 50` prints 7 lines.
+- `call memory.search` with 100 results: a 32,894-byte answer prints a 4,238-byte envelope (`truncated`, `bytes`, `file`, `preview`); the file is mode `600` in a `700` folder; `--full` prints all 32,895 bytes. A 5,994-byte answer prints whole.
+- Access → Services, on a desk and a phone: the Cloudflare row shows its purpose, the API guide link, *Not saved* and *Ask the assistant to finish Access setup*, with no value.
+- A teammate's view isn't reachable on a preview, where the verification login is the owner; `Services.test.tsx` and `App.test.tsx` cover it.
