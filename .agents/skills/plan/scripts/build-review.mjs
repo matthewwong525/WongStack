@@ -6,9 +6,11 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { isMain } from '../../memory/scripts/lib/cli.mjs';
+import { lookCss } from './look.mjs';
 
 const FORMAT = '<!-- wong-review:3 -->';
 const SLOT = '<!-- review:content -->';
+const LOOK = '/* look */';
 const start = '<!-- proposal:start -->';
 const end = '<!-- proposal:end -->';
 const WIDE = 60;
@@ -227,14 +229,15 @@ function legacyRefresh(markup, markdown) {
   return markup.slice(0, a) + '\n' + text + '\n' + markup.slice(b);
 }
 
-function assemble(name, content) {
-  const kit = readFileSync(kitPath, 'utf8');
+export function assemble(name, content, kit = readFileSync(kitPath, 'utf8')) {
   one(kit, SLOT, 'review kit');
   if (!kit.includes('CHANGE-NAME')) throw new Error('review kit: missing CHANGE-NAME');
   if ((kit.match(/<script\b/g) || []).length !== 1 || (kit.match(/<style\b/g) || []).length !== 1) {
     throw new Error('review kit: expected one <script> and one <style>');
   }
-  const [before, after] = kit.split(SLOT);
+  one(kit, LOOK, 'review kit');
+  // The app's colours and parts go in the kit's one <style>; a function replacement keeps any `$` in them literal.
+  const [before, after] = kit.replace(LOOK, () => lookCss()).split(SLOT);
   return `${FORMAT}\n${before.split('CHANGE-NAME').join(esc(name))}${content}${after.split('CHANGE-NAME').join(esc(name))}`;
 }
 

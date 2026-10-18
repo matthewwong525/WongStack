@@ -397,6 +397,7 @@ test('an expired, closed, or unknown page answers 410 and wakes nothing', async 
     const page = await ask(gone);
     assert.equal(page.status, 410);
     assert.match(page.text, /This link has closed/);
+    assert.match(page.text, /<style>[\s\S]*--primary:[\s\S]*<\/style>[\s\S]*<main class="card">/, 'a card in the app\'s colours');
     assert.doesNotMatch(page.text, /one\.html/);
     assert.equal((await ask(gone, 'alive')).status, 410);
     const send = await ask(gone, 'send', { body: { text: 'x' } });

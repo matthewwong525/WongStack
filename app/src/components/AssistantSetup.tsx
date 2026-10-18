@@ -1,8 +1,10 @@
 import { Button } from '@/components/ui/button'
 import { DialogDescription, DialogTitle } from '@/components/ui/dialog'
+import { Skeleton } from '@/components/ui/skeleton'
 import { setupSchema, useAccess, type Code } from '../lib/access'
 import { appTitle } from '../lib/apps'
 import { CopyText } from './CopyText'
+import { Loading } from './Loading'
 
 const STEP = 'font-semibold'
 
@@ -34,7 +36,7 @@ export function AssistantSetup() {
   return <section aria-label="Connect your assistant"><div className="grid grid-cols-[minmax(0,1fr)] gap-4 wrap-anywhere">
     <DialogTitle asChild><h2 className="pe-8">Connect your assistant</h2></DialogTitle>
     <DialogDescription>Use your apps from an AI assistant on your computer, such as Claude Code or Codex.</DialogDescription>
-    {!data && !error && <p role="status">Loading the steps…</p>}
+    {!data && !error && <Loading label="Loading the steps…" className="grid gap-4">{Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="h-5 w-3/4" />)}</Loading>}
     {error && <><p role="alert">The steps couldn't load.</p><Button type="button" className="justify-self-start" onClick={reload}>Try again</Button></>}
     {data && (data.prompt.state === 'ready' ? <Steps text={data.prompt.text} email={data.identity.email} apps={data.apps} titles={data.titles} code={data.code} /> : <p>{data.prompt.message}</p>)}
   </div></section>

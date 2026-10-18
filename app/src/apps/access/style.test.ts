@@ -5,6 +5,7 @@ import { MemoryRouter, Route, Routes } from 'react-router'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import type { Status } from '../../lib/access'
 import { App } from './App'
+import { AppPage } from '../AppPage'
 
 // Access brings no stylesheet, so this draws the screens and reads the classes a phone and a screen reader rely on.
 // Kim could only look at Hello before an update, so the notice that names her shows on every view here.
@@ -31,6 +32,18 @@ const STACKED = '@max-[44rem]:'
 // A class that takes something off the screen.
 const GONE = /(^|:)(hidden|invisible|opacity-0|sr-only)$/
 
+// While a screen loads, a screen reader hears the words and everyone sees grey blocks shaped like what comes.
+it('loading shows blocks shaped like the screen, hidden from a screen reader, with the words still said', async () => {
+  const blocks = () => screen.getByRole('status').querySelectorAll('[aria-hidden="true"] [data-slot="skeleton"]')
+  // Access: the view tabs' height, then five rows of four cells.
+  open(); expect(screen.getByRole('status').textContent).toBe('Loading people…'); expect(blocks()).toHaveLength(21)
+  await screen.findByRole('table', { name: 'People' }); cleanup()
+  // A mini app's page: a heading line and a card block.
+  render(createElement(MemoryRouter, { initialEntries: ['/apps/hello/'] }, createElement(Routes, null, createElement(Route, { path: '/apps/:name/', element: createElement(AppPage) }))))
+  expect(screen.getByRole('status').textContent).toBe('Loading app access…'); expect(blocks()).toHaveLength(2)
+  await screen.findByRole('heading', { name: 'Hello' })
+})
+
 it('fits a phone: the Access screens wrap, and fix no width in pixels', async () => {
   open(); await screen.findByRole('table', { name: 'People' })
   const pixels = () => all().filter(name => /(^|:)(min-)?w-\[[\d.]+px\]/.test(name))
@@ -47,7 +60,7 @@ it('fits a phone: the Access screens wrap, and fix no width in pixels', async ()
   // An opened item is a panel on the right: the screen's whole width on a phone, a readable one on a computer.
   open('people/new'); const save = await screen.findByRole('button', { name: 'Save access' })
   const panel = screen.getByRole('dialog', { name: 'Add person' })
-  has(panel, 'fixed', 'inset-y-0', 'right-0', 'w-full', 'sm:max-w-md', 'sm:top-15', 'sm:h-auto'); expect(classes(panel)).not.toContain('w-3/4')
+  has(panel, 'fixed', 'inset-y-0', 'right-0', 'w-full', 'sm:max-w-md', 'sm:top-14', 'sm:h-auto'); expect(classes(panel)).not.toContain('w-3/4')
   // Its fields scroll, with the buttons kept in view under them; the buttons and a level choice wrap; a field takes
   // the panel's width.
   has(save.parentElement!, 'flex', 'flex-wrap', 'border-t'); has(save.parentElement!.previousElementSibling!, 'overflow-y-auto', 'flex-1')

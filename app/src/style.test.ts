@@ -26,13 +26,17 @@ it("has one stylesheet: no page or mini app brings a CSS file of its own", () =>
   expect(readFileSync(join(app, "index.html"), "utf8")).not.toMatch(/rel="stylesheet"/);
 });
 
-it("follows the device's light or dark mode, with a set of colours for each", () => {
+it("stays light on every device: one set of colours, and `dark:` tied to a class nothing sets", () => {
   const css = readFileSync(join(app, "src/index.css"), "utf8");
-  expect(css).toMatch(/color-scheme:\s*light dark/);
+  expect(css).toMatch(/color-scheme:\s*light;/);
   expect(css).toMatch(/\n:root \{[^}]*--background:[^}]*--foreground:[^}]*--primary:/);
-  expect(css).toMatch(/@media \(prefers-color-scheme: dark\) \{\s*:root \{[^}]*--background:[^}]*--foreground:[^}]*--primary:/);
-  // The dark set follows the device alone: no class switches it.
-  expect(css).not.toMatch(/\.dark\b|@custom-variant dark/);
+  expect(css).not.toMatch(/prefers-color-scheme/);
+  // Unless tied to a class, Tailwind's `dark:` follows the device, and the parts' `dark:` classes would fire.
+  expect(css).toContain("@custom-variant dark (&:where(.dark, .dark *));");
+  const screens = readdirSync(join(app, "src"), { recursive: true, encoding: "utf8" }).filter((file) => /\.tsx?$/.test(file) && !/\.test\./.test(file));
+  const setsDark = /classList\.(?:add|toggle)\(\s*["']dark["']|className\s*=\s*["']dark\b/;
+  expect(screens.filter((file) => setsDark.test(readFileSync(join(app, "src", file), "utf8")))).toEqual([]);
+  expect(readFileSync(join(app, "index.html"), "utf8")).not.toMatch(/class="[^"]*\bdark\b/);
   expect(css).toMatch(/--font-sans:\s*system-ui, sans-serif/);
 });
 
@@ -51,7 +55,7 @@ it("gives every page one frame: the bar's contents and the page share a width an
   expect(bar.parentElement).toBe(page.parentElement);
   expect(bar.className).not.toMatch(/max-w-|mx-auto|px-/);
   // The bar stays in view at one height, so a panel beside the page can start right under it.
-  expect(bar.className.split(" ")).toEqual(expect.arrayContaining(["sticky", "top-0", "h-15", "bg-background"]));
+  expect(bar.className.split(" ")).toEqual(expect.arrayContaining(["sticky", "top-0", "h-14", "bg-background/80", "backdrop-blur"]));
   const inside = bar.firstElementChild!;
   expect(inside.className.split(" ")).toEqual(expect.arrayContaining([...frame, "flex", "justify-between"]));
   expect(inside.contains(screen.getByRole("link", { name: "Sign out" }))).toBe(true);

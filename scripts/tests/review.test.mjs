@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
-import { buildReview, NEXT_STEP, notesHeader, planActions, planLink } from '../../.agents/skills/plan/scripts/build-review.mjs';
+import { assemble, buildReview, NEXT_STEP, notesHeader, planActions, planLink } from '../../.agents/skills/plan/scripts/build-review.mjs';
 import { fakePaseo, fakeTunnel, ORIGIN, TUNNEL_ENV } from './fixtures/fake-tunnel.mjs';
 import { needs } from './fixtures/needs.mjs';
 
@@ -240,7 +240,25 @@ test('the kit keeps one script, one style, its marker, and older-engine syntax',
   assert.equal((kit.match(/<style\b/g) || []).length, 1);
   assert.doesNotMatch(kit, /\?\.[\w([]|\?\?|catch\s*\{/, 'no optional chaining, nullish coalescing, or optional catch binding');
   assert.doesNotMatch(kit, /\b(?:src|href)\s*=\s*["']?(?:https?:)?\/\/|@import|url\(/i, 'no network loads');
+  assert.ok(kit.indexOf('/* look */') > kit.indexOf('<style>') && kit.indexOf('/* look */') < kit.indexOf('</style>'), 'the look marker sits in the one style');
+  assert.doesNotMatch(/<style>([\s\S]*?)<\/style>/.exec(kit)[1], /#[0-9a-f]{3,8}\b|rgba?\(|text-transform/i, 'every colour is the app\'s, and labels stay in sentence case');
 });
+
+test('the built page carries the app\'s colours and parts in its one style, and still fetches nothing', () => fixture(root => {
+  buildReview(root, { requireCurrent: true });
+  const html = page(root);
+  const style = /<style>([\s\S]*?)<\/style>/.exec(html)[1];
+  assert.equal((html.match(/<style\b/g) || []).length, 1);
+  assert.doesNotMatch(style, /\/\* look \*\//, 'the marker is filled');
+  const app = readFileSync(resolve(here, '../../app/src/index.css'), 'utf8');
+  assert.ok(style.includes(`--primary: ${/\n:root \{[^}]*--primary:\s*([^;]+);/.exec(app)[1]};`), 'the app\'s light primary');
+  assert.doesNotMatch(style, /prefers-color-scheme/, 'light on every device: no dark set');
+  assert.match(style, /color-scheme: light;/);
+  for (const part of [':where(button, .btn)', ':where(.card)', ':where(.tag)']) assert.ok(style.includes(part), part);
+  assert.ok(style.indexOf(':where(.card)') < style.indexOf('.bar {'), 'the look first, then the kit\'s own rules');
+  assert.doesNotMatch(html, /\b(?:src|href)\s*=\s*["']?(?:https?:)?\/\/|@import|url\(/i, 'no network loads');
+  assert.throws(() => assemble('x', '', kit.replace('/* look */', '')), /review kit: expected one \/\* look \*\//);
+}));
 
 test('both builder aliases run from the CLI and report failures', () => fixture(root => {
   for (const alias of ['.agents', '.claude']) {

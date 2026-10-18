@@ -1,54 +1,43 @@
-/* The look the key link, the password link, and the private form share; hand-over.mjs serves it at /page.css.
-   Dark colours sit in a media block, not light-dark(): iOS before 17.5 drops light-dark() and would lose them. */
-:root {
-  color-scheme: light dark;
-  --bg: #f1f4f9; --card: #fff; --ink: #1c1f24; --muted: #5b6270; --line: #d5dae3;
-  --blue: #2f6fe4; --blue-soft: #e6eefc; --green: #1a7f37; --warn: #b54708;
-  font: 16px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #101318; --card: #1b1f27; --ink: #e9ecf1; --muted: #a3aab7; --line: #353c48;
-    --blue: #5b93f6; --blue-soft: #1d2a43; --green: #4cc26e; --warn: #f2a14f;
-  }
-}
+/* What the key link, the password link, the private form, and the live view add to the app's look
+   (plan/references/look.css): hand-over.mjs serves the look first, then this, at /page.css. Colours are its tokens. */
 * { box-sizing: border-box; }
-html { background: var(--bg); -webkit-text-size-adjust: 100%; }
-body { margin: 0 auto; max-width: 560px; padding: 1.25rem 1rem 2rem; background: var(--bg); color: var(--ink); overflow-wrap: anywhere; }
-h1 { font-size: 1.5rem; line-height: 1.25; margin: 0.6rem 0 0.4rem; }
+html { background: var(--background); -webkit-text-size-adjust: 100%; }
+body { margin: 0 auto; max-width: 560px; padding: 1.25rem 1rem 2rem; font-size: 16px; line-height: 1.5; overflow-wrap: anywhere; }
+h1 { font-size: 1.5rem; line-height: 1.25; margin: 0.75rem 0 0.4rem; }
 h2 { font-size: 1.05rem; margin: 1.5rem 0 0.5rem; }
 p { margin: 0.4rem 0; }
 [hidden] { display: none !important; }
 
-.private { display: inline-flex; align-items: center; gap: 0.4rem; margin: 0; padding: 0.25rem 0.7rem; border-radius: 999px; background: var(--blue-soft); color: var(--blue); font-size: 0.8rem; font-weight: 600; }
+.private { display: inline-flex; align-items: center; gap: 0.375rem; margin: 0; padding: 0.2rem 0.625rem; border: 1px solid var(--border); border-radius: 999px; background: var(--secondary); color: var(--secondary-foreground); font-size: 0.75rem; font-weight: 500; }
 .private svg { width: 1em; height: 1em; flex: none; }
 .lead { font-size: 1.05rem; }
-.promise, .hint, #status, .time { color: var(--muted); font-size: 0.9rem; }
+.promise, .hint, #status, .time { color: var(--muted-foreground); font-size: 0.9rem; }
 .promise { font-size: 0.95rem; }
 #status, .time { text-align: center; }
-.code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.8rem; color: var(--muted); }
+.code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.8rem; color: var(--muted-foreground); }
 
-.card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 1rem; margin: 1rem 0; }
-label { display: block; font-weight: 600; margin: 0 0 0.35rem; }
-input:not([type=checkbox]), select { width: 100%; font: inherit; font-size: 1.05rem; padding: 0.75rem; border: 1px solid var(--line); border-radius: 12px; background: var(--card); color: var(--ink); }
-:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
-button { font: inherit; min-height: 3rem; padding: 0.75rem 1rem; border: 1px solid var(--line); border-radius: 12px; background: var(--card); color: var(--ink); cursor: pointer; }
-button.main { width: 100%; background: var(--blue); border-color: var(--blue); color: #fff; font-size: 1.05rem; font-weight: 600; }
-button.quiet { min-height: 2.75rem; padding: 0.6rem 0.25rem; border: 0; background: none; color: var(--muted); font-size: 0.95rem; text-decoration: underline; text-underline-offset: 3px; }
-button:disabled, input:disabled, select:disabled { opacity: 0.5; cursor: default; }
-.open { display: inline-flex; align-items: center; min-height: 2.75rem; padding: 0.6rem 1rem; border: 1.5px solid var(--blue); border-radius: 12px; color: var(--blue); font-weight: 600; text-decoration: none; }
+.card { padding: 1rem; margin: 1rem 0; }
+label { display: block; font-weight: 500; margin: 0 0 0.375rem; }
+input:not([type=checkbox]), select { width: 100%; font-size: 1.05rem; padding: 0.625rem 0.75rem; }
+button { min-height: 3rem; padding: 0.75rem 1rem; }
+button.main { width: 100%; font-size: 1.05rem; }
+button.quiet { min-height: 2.75rem; padding: 0.6rem 0.25rem; border: 0; background: none; box-shadow: none; color: var(--muted-foreground); font-size: 0.95rem; font-weight: 400; text-decoration: underline; text-underline-offset: 3px; }
+button.quiet:hover:not(:disabled) { color: var(--foreground); }
+input:disabled, select:disabled { opacity: 0.5; cursor: default; }
+.open { display: inline-flex; align-items: center; min-height: 2.75rem; padding: 0.6rem 1rem; border: 1px solid var(--border); border-radius: calc(var(--radius) - 2px); background: var(--background); box-shadow: var(--look-shadow-xs); color: var(--foreground); font-weight: 500; text-decoration: none; }
+.open:hover { background: var(--accent); }
 .actions { display: grid; gap: 0.25rem; margin: 1.25rem 0 0; }
 .actions .quiet { justify-self: center; }
 
 .steps { list-style: none; counter-reset: step; margin: 0.75rem 0 0; padding: 0; }
 .steps > li { counter-increment: step; position: relative; min-height: 1.75rem; margin: 0 0 1rem; padding: 0.15rem 0 0 2.5rem; }
 .steps > li:last-child { margin-bottom: 0; }
-.steps > li::before { content: counter(step); position: absolute; left: 0; top: 0; display: grid; place-items: center; width: 1.75rem; height: 1.75rem; border-radius: 50%; background: var(--blue); color: #fff; font-size: 0.85rem; font-weight: 700; }
+.steps > li::before { content: counter(step); position: absolute; left: 0; top: 0; display: grid; place-items: center; width: 1.75rem; height: 1.75rem; border: 1px solid var(--border); border-radius: 50%; background: var(--secondary); color: var(--secondary-foreground); font-size: 0.85rem; font-weight: 600; }
 
-.tick { display: inline-grid; place-items: center; flex: none; width: 1em; height: 1em; border-radius: 50%; background: var(--green); font-size: 1.5rem; }
-.tick::before { content: ''; width: 0.28em; height: 0.5em; border: solid #fff; border-width: 0 0.09em 0.09em 0; transform: translateY(-0.06em) rotate(45deg); }
+.tick { display: inline-grid; place-items: center; flex: none; width: 1em; height: 1em; border-radius: 50%; background: var(--primary); font-size: 1.5rem; }
+.tick::before { content: ''; width: 0.28em; height: 0.5em; border: solid var(--primary-foreground); border-width: 0 0.09em 0.09em 0; transform: translateY(-0.06em) rotate(45deg); }
 .tick.big { display: grid; margin: 1.5rem auto 0.5rem; font-size: 4.5rem; }
-.ok { color: var(--green); font-weight: 600; }
-.miss { display: flex; gap: 0.5rem; align-items: flex-start; color: var(--warn); font-size: 0.95rem; }
-.miss::before { content: '!'; display: grid; place-items: center; flex: none; width: 1.25rem; height: 1.25rem; margin-top: 0.1rem; border-radius: 50%; background: var(--warn); color: var(--card); font-size: 0.8rem; font-weight: 800; }
+.ok { color: var(--foreground); font-weight: 600; }
+.miss { display: flex; gap: 0.5rem; align-items: flex-start; color: var(--destructive); font-size: 0.95rem; }
+.miss::before { content: '!'; display: grid; place-items: center; flex: none; width: 1.25rem; height: 1.25rem; margin-top: 0.1rem; border-radius: 50%; background: var(--destructive); color: var(--background); font-size: 0.8rem; font-weight: 800; }
 .end { text-align: center; }

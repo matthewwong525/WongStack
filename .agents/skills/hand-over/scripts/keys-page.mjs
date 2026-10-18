@@ -319,6 +319,7 @@ function start() {
   (async () => {
     if (!key) return closed();
     const response = await call('keys');
+    $('#loading').remove();
     if (!response?.ok) return (await refused(response)) ? closed() : status(MESSAGES.failed);
     const { keys, closesAt, now } = await response.json();
     if (keys.length) heading(keys);

@@ -12,7 +12,7 @@ export function Layout() {
   const { data } = useAccess('apps', appAccessSchema)
   return (
     <>
-      <header className="sticky top-0 z-40 flex h-15 items-center border-b bg-background">
+      <header className="sticky top-0 z-40 flex h-14 items-center border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className={`${FRAME} flex items-center justify-between gap-4`}>
           <Link className="inline-flex min-h-11 items-center gap-2 font-semibold no-underline" to="/">
             <img className="h-auto w-8" src="/favicon.svg" alt="" />

@@ -120,6 +120,8 @@ it("withholds the whole list, the Connect card included, while app access is loa
   answer(new Promise<Response>((resolve) => { arrive = resolve; }));
   render(<Home />);
   expect(screen.getByRole("status").textContent).toBe("Loading your apps…");
+  // Three grey cards hold the grid's place, hidden from a screen reader, which hears the words alone.
+  expect(screen.getByRole("status").querySelectorAll('[aria-hidden="true"] [data-slot="card"] [data-slot="skeleton"]')).toHaveLength(9);
   expect([hrefs(), connect(), screen.queryByRole("list")]).toEqual([[], null, null]);
   arrive(Response.json({ state: "legacy" }));
   await screen.findByRole("region", { name: "Make it yours" });

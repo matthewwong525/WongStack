@@ -67,8 +67,8 @@ function fixture(source = proposal) {
   return { dir, url: pathToFileURL(join(dir, 'review.html')).href };
 }
 
-async function open(url, { width = 1200, height = 800, init, touch = false } = {}) {
-  const context = await browser.newContext({ viewport: { width, height }, hasTouch: touch });
+async function open(url, { width = 1200, height = 800, init, touch = false, scheme = 'light' } = {}) {
+  const context = await browser.newContext({ viewport: { width, height }, hasTouch: touch, colorScheme: scheme });
   if (init) await context.addInitScript(init);
   const page = await context.newPage();
   const errors = [];
@@ -332,6 +332,31 @@ browserTest('no width from 320px scrolls sideways, and the phone editor docks', 
   const overlap = editor.x < target.x + target.width && target.x < editor.x + editor.width && editor.y < target.y + target.height && target.y < editor.y + editor.height;
   assert.equal(overlap, false);
   await desk.context.close();
+});
+
+browserTest('the note box and the chip sit above the page with a clear shadow and edge, floating and docked', async () => {
+  const f = fixture();
+  const look = (page, sel) => page.locator(sel).evaluate(el => ({ shadow: getComputedStyle(el).boxShadow, edge: getComputedStyle(el).borderTopWidth }));
+  const desk = await open(f.url, { width: 1200 });
+  await tap(desk.page, 'item-2');
+  const chip = await look(desk.page, '#chip');
+  assert.notEqual(chip.shadow, 'none', 'the chip casts a shadow');
+  await desk.page.keyboard.press('Escape');
+  await draft(desk.page, 'item-2', 'Floating');
+  const floating = await look(desk.page, '#editor');
+  assert.doesNotMatch(await desk.page.locator('#editor').getAttribute('class') || '', /docked/);
+  assert.notEqual(floating.shadow, 'none', 'the floating box casts a shadow');
+  assert.match(floating.shadow, /38px/, 'the popover shadow, not the faint card one');
+  assert.equal(floating.edge, '1px');
+  await desk.context.close();
+  const phone = await open(f.url, { width: 390, height: 700 });
+  await draft(phone.page, 'item-2', 'Docked');
+  assert.match(await phone.page.locator('#editor').getAttribute('class'), /docked/);
+  const docked = await look(phone.page, '#editor');
+  assert.notEqual(docked.shadow, 'none', 'the docked box casts a shadow upward');
+  assert.match(docked.shadow, /-8px/, 'the shadow falls on the page above');
+  assert.equal(docked.edge, '1px', 'a top edge');
+  await phone.context.close();
 });
 
 browserTest('#/3 scrolls to item 3, and a keyboard note returns focus to its target', async () => {
@@ -965,4 +990,29 @@ browserTest('a picture fits a 320px screen, zooms full screen, and takes a note 
   assert.match(await copied(page), /^- Change #1, picture 1 \("you ask a plan a review the build live"\): Add a check step\.$/m);
   assert.deepEqual(errors, []);
   await context.close();
+});
+
+browserTest('the page stays light on a device set to dark, with readable text on every surface', async () => {
+  const { url } = fixture();
+  for (const scheme of ['light', 'dark']) {
+    const { page, context, errors } = await open(url, { width: 390, scheme });
+    await page.locator('#item-1 summary').click();
+    const seen = await page.evaluate(() => {
+      // A colour as sRGB through a canvas, whatever notation the browser reports it in.
+      const ink = document.createElement('canvas').getContext('2d');
+      const rgb = colour => { ink.clearRect(0, 0, 1, 1); ink.fillStyle = colour; ink.fillRect(0, 0, 1, 1); return [...ink.getImageData(0, 0, 1, 1).data].slice(0, 3); };
+      const lum = c => c.map(v => v / 255).map(v => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)).reduce((t, v, i) => t + v * [0.2126, 0.7152, 0.0722][i], 0);
+      const contrast = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n - m); return (x + 0.05) / (y + 0.05); };
+      const css = sel => getComputedStyle(document.querySelector(sel));
+      const pair = (text, back) => contrast(rgb(css(text).color), rgb(css(back).backgroundColor));
+      return {
+        body: lum(rgb(css('body').backgroundColor)), card: lum(rgb(css('.card').backgroundColor)), bar: lum(rgb(css('.bar').backgroundColor)),
+        text: [pair('body', 'body'), pair('.card .text', '.card'), pair('.hint', 'body'), pair('#copy', '#copy'), pair('.frame .art', '.frame'), pair('.bar [data-ready="build"]', '.bar')],
+      };
+    });
+    for (const surface of ['body', 'card', 'bar']) assert.ok(seen[surface] > 0.8, `${scheme} device: the ${surface} is light`);
+    seen.text.forEach((ratio, i) => assert.ok(ratio >= 4.5, `${scheme}: text ${i} contrast ${ratio.toFixed(2)} is under 4.5`));
+    assert.deepEqual(errors, []);
+    await context.close();
+  }
 });
