@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Ask next steps with the question box
+## 43.9.0 — Ask next steps with the question box
 
 - **A typed list of choices gets sent back.** When a reply in Claude Code ends with a question and a short list of options, and the question box wasn't used, the assistant is sent back once to ask with the box. You may see the typed list once, with the box below it. Normal reports aren't touched: tried on 1,762 past replies that didn't use the box, it flagged 25, all real slips.
 - **A reminder after a long chat is shortened.** When Claude Code shortens a long conversation to keep going, one line about the question box is added back.
