@@ -56,7 +56,7 @@ A request for a new small page or tool, or a change to one, SHALL take the norma
 
 ### Requirement: Every page shares one stylesheet
 
-The main app SHALL give every page, each mini app's included, one shared look from one stylesheet: the device's font, one light look whatever the device's light or dark setting, and one frame whose left edge is the same on every page. Every page SHALL use the whole frame, none in a narrower column of its own, and a page SHALL never be wider than the screen. Every screen SHALL be built from one set of ready-made parts copied into the app, on a utility CSS framework. A page SHALL NOT carry a stylesheet of its own, and the app's checks SHALL fail when one does. The shared look SHALL provide coherent surfaces, text, accents, and visible keyboard focus, with readable contrast.
+The main app SHALL give every page, each mini app's included, one shared look from one stylesheet: the device's font, a light look to start whatever the device's light or dark setting, a dark look the person can switch to from the top bar, and one frame whose left edge is the same on every page. Every page SHALL use the whole frame, none in a narrower column of its own, and a page SHALL never be wider than the screen. Every screen SHALL be built from one set of ready-made parts copied into the app, on a utility CSS framework. A page SHALL NOT carry a stylesheet of its own, and the app's checks SHALL fail when one does. The shared look SHALL provide coherent surfaces, text, accents, and visible keyboard focus, with readable contrast in light and in dark.
 
 #### Scenario: A fresh install
 

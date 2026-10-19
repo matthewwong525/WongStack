@@ -11,6 +11,7 @@ import { lookCss } from './look.mjs';
 const FORMAT = '<!-- wong-review:3 -->';
 const SLOT = '<!-- review:content -->';
 const LOOK = '/* look */';
+const THEME = '<!-- theme -->';
 const start = '<!-- proposal:start -->';
 const end = '<!-- proposal:end -->';
 const WIDE = 60;
@@ -22,6 +23,7 @@ const UNSAFE_SVG = ['<script', '<style', '<foreignObject', 'url(', 'href=', 'src
 const USAGE = `usage: build-review.mjs <change-root> [--require-current] [--link]
   --link  print the page's reply link, whose buttons send notes to this chat or ask it to build; the file where none can open`;
 const kitPath = resolve(dirname(fileURLToPath(import.meta.url)), '../references/review-kit.html');
+const themePath = resolve(dirname(fileURLToPath(import.meta.url)), '../references/theme.js');
 // Pele draws Mermaid at build time. It loads only for a proposal that holds a Mermaid fence,
 // so text-only builds load nothing new.
 let pele = null;
@@ -236,8 +238,11 @@ export function assemble(name, content, kit = readFileSync(kitPath, 'utf8')) {
     throw new Error('review kit: expected one <script> and one <style>');
   }
   one(kit, LOOK, 'review kit');
-  // The app's colours and parts go in the kit's one <style>; a function replacement keeps any `$` in them literal.
-  const [before, after] = kit.replace(LOOK, () => lookCss()).split(SLOT);
+  one(kit, THEME, 'review kit');
+  // The app's colours and parts go in the kit's one <style>, and the switch in <head>, so a saved dark choice applies
+  // before the first paint; a function replacement keeps any `$` in them literal.
+  const theme = `<script>\n${readFileSync(themePath, 'utf8').replace(/<\/script/gi, '<\\/script')}</script>`;
+  const [before, after] = kit.replace(LOOK, () => lookCss()).replace(THEME, () => theme).split(SLOT);
   return `${FORMAT}\n${before.split('CHANGE-NAME').join(esc(name))}${content}${after.split('CHANGE-NAME').join(esc(name))}`;
 }
 

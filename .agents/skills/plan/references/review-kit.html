@@ -1,8 +1,8 @@
 <!doctype html>
 <!--
   WongStack review kit. build-review.mjs writes the proposal as static HTML at the
-  review:content marker, puts the app's look (look.mjs) at the look marker, and the change name in place of its token. The one
-  script adds Note buttons, drawing fit and full screen, notes, drafts, and copy. It loads nothing from the network;
+  review:content marker, puts the app's look (look.mjs) at the look marker, the light and dark switch (theme.js) at the
+  theme marker, and the change name in place of its token. The one script adds Note buttons, drawing fit and full screen, notes, drafts, and copy. It loads nothing from the network;
   opened through a reply link (reply-link.mjs), it sends the saved notes to the chat, and its footer
   asks the chat to build, or to build and publish, with saved unsent notes.
 -->
@@ -20,7 +20,7 @@
   code, pre, .ln { font-family:ui-monospace, Menlo, Consolas, monospace; }
   code { background:var(--muted); border-radius:4px; padding:.1em .3em; font-size:.88em; }
   [hidden] { display:none !important; }
-  header { padding:20px 0 4px; }
+  header { padding:20px 48px 4px 0; }
   .eyebrow { margin:0; color:var(--muted-foreground); font-size:14px; font-weight:500; }
   h1 { margin:2px 0 4px; font-size:22px; line-height:1.25; }
   .jump { display:flex; flex-wrap:wrap; gap:0 18px; margin:4px 0 0; padding:0; list-style:none; }
@@ -115,6 +115,7 @@
     #ready-confirm { width:320px; }
   }
 </style>
+<!-- theme -->
 </head>
 <body data-change="CHANGE-NAME">
 <main>

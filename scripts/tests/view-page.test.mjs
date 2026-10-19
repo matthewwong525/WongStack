@@ -101,7 +101,8 @@ test('the page fits a phone and loads only the viewer\'s core, never its own pag
   assert.deepEqual(style.match(/(?<!max-)width:\s*\d+px/g), null, 'nothing is wider than the screen it is on');
   assert.match(style, /#holder \{[^}]*overflow: hidden/, 'the holder cuts the screen to the page\'s strip');
   assert.deepEqual(source.match(/import\(/g), null, 'the script loads nothing more');
-  const tags = markup.match(/<script[\s\S]*?<\/script>/g);
+  assert.match(markup, /<head>[\s\S]*<script src="theme\.js"><\/script>[\s\S]*<\/head>/, 'the light and dark switch, in the head');
+  const tags = markup.match(/<script[\s\S]*?<\/script>/g).filter(tag => !tag.includes('src="theme.js"'));
   assert.equal(tags.length, 1, 'one tag loads the viewer, then the page: as two tags the page ran before the viewer had loaded');
   assert.deepEqual(tags[0].match(/import\('[^']+'\)/g), ['import(\'./novnc/core/rfb.js\')', 'import(\'./page.mjs\')'], 'the viewer\'s core and the page, in that order, and nothing else');
   assert.match(tags[0], /if \(tries < 2\) location\.reload\(\);/, 'a viewer that fails to load is tried again twice');
@@ -195,7 +196,7 @@ const keys = viewer => viewer.calls.map(([name, keysym, code, down]) => { assert
 test('the box types straight into the browser as it changes, with no send', async t => {
   const p = await live(t);
   const [viewer] = p.viewers;
-  assert.deepEqual([...p.$('#type').children].map(part => part.id), ['text'], 'one box and nothing else');
+  assert.deepEqual([...p.$('#type').children].filter(part => !part.matches('[data-theme-toggle]')).map(part => part.id), ['text'], 'one box and the switch, nothing else');
   p.type('h');
   p.type('hi');
   assert.deepEqual(keys(viewer), [0x68, 0x69]);

@@ -371,7 +371,12 @@ test('open --form reads only the finish, then sends the browser nothing until th
   assert.deepEqual(['content-type', 'cache-control', 'referrer-policy', 'x-frame-options', 'content-security-policy'].map(name => css.headers.get(name)), ['text/css; charset=utf-8', 'no-store', 'no-referrer', 'DENY', "frame-ancestors 'none'"]);
   const sheet = await css.text();
   assert.match(sheet, /^[\s\S]*:root \{[^}]*--primary:[\s\S]*color-scheme: light;/, 'the app\'s colours, unkeyed like the page');
-  assert.doesNotMatch(sheet, /prefers-color-scheme/, 'light on every device');
+  assert.doesNotMatch(sheet, /prefers-color-scheme/, 'light to start on every device');
+  assert.match(sheet, /\n\.dark \{[^}]*--background:[^}]*\}/, 'the app\'s dark set, under .dark');
+  assert.match(sheet, /\.theme-toggle \{/, 'the switch\'s look');
+  const theme = await fetch(`http://127.0.0.1:${port}/theme.js`);
+  assert.equal(theme.headers.get('content-type'), 'text/javascript; charset=utf-8');
+  assert.match(await theme.text(), /wongstack-theme/, 'the switch, from the same site');
   assert.ok(sheet.indexOf(':where(.card)') < sheet.indexOf('.steps > li::before'), 'the shared parts, then the page rules');
   assert.doesNotMatch(sheet, /--blue|#[0-9a-f]{6}\b/i, 'no colour of its own');
   assert.match(await (await fetch(`http://127.0.0.1:${port}/page.mjs`)).text(), /export function rowsOf/);
@@ -391,6 +396,16 @@ test('open --form reads only the finish, then sends the browser nothing until th
   });
   assert.match(upgrade, /^HTTP\/1\.1 404/, 'no live view of the browser');
   assert.deepEqual(f.steps(), ['url'], 'no refused request reached the browser');
+});
+
+test('each private page loads the switch in its head, from its own site, and the closed page gets none', () => {
+  for (const name of ['keys-page', 'passwords-page', 'form-page', 'view-page']) {
+    const html = readFileSync(join(repo, `.agents/skills/hand-over/scripts/${name}.html`), 'utf8');
+    const head = html.slice(0, html.indexOf('</head>'));
+    assert.ok(head.indexOf('<script src="theme.js"></script>') > head.indexOf('href="page.css"'), `${name}: theme.js after page.css, in <head>`);
+    assert.doesNotMatch(html, /color-scheme:\s*light/, `${name}: no fixed light`);
+  }
+  assert.doesNotMatch(readFileSync(join(repo, '.agents/skills/hand-over/scripts/reply-link.mjs'), 'utf8'), /theme\.js|theme-toggle/, 'the closed page has no switch');
 });
 
 test('a bad form file exits 2 with FORM_FILE= before any link', t => {

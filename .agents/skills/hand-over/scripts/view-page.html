@@ -6,6 +6,7 @@
 <meta name="referrer" content="no-referrer">
 <title>Live view</title>
 <link rel="stylesheet" href="page.css">
+<script src="theme.js"></script>
 <style>
   html, body { height: 100%; }
   body { margin: 0; max-width: none; padding: 0; overflow: hidden; }
@@ -22,6 +23,7 @@
   <div id="stage"><div id="holder"><div id="screen"></div></div></div>
   <div id="type">
     <input id="text" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="enter" placeholder="Tap a box above, then type here" aria-label="Type into the browser">
+    <span data-theme-toggle></span>
   </div>
 </section>
 <p id="status" role="status">Opening the browser...</p>
