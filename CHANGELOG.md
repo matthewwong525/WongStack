@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 43.8.0 — A light and dark switch on every page
+
+- **A sun or moon button sits in the top right of every page.** In the app it's at the right of the top bar, beside *Sign out*, on Home and every mini app. On a plan's review page and the private key, password, form, and live view pages it's in the top right corner.
+- **Pages still start light; one tap turns them dark.** The page switches at once, with no reload. Your browser remembers the choice, so the next page you open on that site starts the same way. Your device's own light or dark setting doesn't change it.
+- **Dark uses the app's own dark colours**, kept beside the light ones in the app's one stylesheet, so the review and private pages turn the same dark. Red still marks only a problem.
+
+**Updating.** If you changed the app's colours in `app/src/index.css`, add your own dark colours as a `.dark` block right after the light `:root` block; without one, the dark look uses plain near-black and greys. A plan page already open gets the switch at its next save.
+
 ## 43.7.0 — One calm look on every page
 
 - **Every page takes the app's colours.** The plan review page and the private key, password, and form pages now use the app's black, white, and soft greys. Red marks only a problem.

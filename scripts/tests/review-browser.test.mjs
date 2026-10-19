@@ -992,27 +992,56 @@ browserTest('a picture fits a 320px screen, zooms full screen, and takes a note 
   await context.close();
 });
 
-browserTest('the page stays light on a device set to dark, with readable text on every surface', async () => {
+browserTest('the page starts light on a dark device, and the switch turns it dark, readable, and remembered', async () => {
   const { url } = fixture();
-  for (const scheme of ['light', 'dark']) {
-    const { page, context, errors } = await open(url, { width: 390, scheme });
-    await page.locator('#item-1 summary').click();
-    const seen = await page.evaluate(() => {
-      // A colour as sRGB through a canvas, whatever notation the browser reports it in.
-      const ink = document.createElement('canvas').getContext('2d');
-      const rgb = colour => { ink.clearRect(0, 0, 1, 1); ink.fillStyle = colour; ink.fillRect(0, 0, 1, 1); return [...ink.getImageData(0, 0, 1, 1).data].slice(0, 3); };
-      const lum = c => c.map(v => v / 255).map(v => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)).reduce((t, v, i) => t + v * [0.2126, 0.7152, 0.0722][i], 0);
-      const contrast = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n - m); return (x + 0.05) / (y + 0.05); };
-      const css = sel => getComputedStyle(document.querySelector(sel));
-      const pair = (text, back) => contrast(rgb(css(text).color), rgb(css(back).backgroundColor));
-      return {
-        body: lum(rgb(css('body').backgroundColor)), card: lum(rgb(css('.card').backgroundColor)), bar: lum(rgb(css('.bar').backgroundColor)),
-        text: [pair('body', 'body'), pair('.card .text', '.card'), pair('.hint', 'body'), pair('#copy', '#copy'), pair('.frame .art', '.frame'), pair('.bar [data-ready="build"]', '.bar')],
-      };
-    });
-    for (const surface of ['body', 'card', 'bar']) assert.ok(seen[surface] > 0.8, `${scheme} device: the ${surface} is light`);
-    seen.text.forEach((ratio, i) => assert.ok(ratio >= 4.5, `${scheme}: text ${i} contrast ${ratio.toFixed(2)} is under 4.5`));
-    assert.deepEqual(errors, []);
-    await context.close();
-  }
+  const { page, context, errors } = await open(url, { width: 390, scheme: 'dark' });
+  const look = () => page.evaluate(() => {
+    // A colour as sRGB through a canvas, whatever notation the browser reports it in.
+    const ink = document.createElement('canvas').getContext('2d');
+    const rgb = colour => { ink.clearRect(0, 0, 1, 1); ink.fillStyle = colour; ink.fillRect(0, 0, 1, 1); return [...ink.getImageData(0, 0, 1, 1).data].slice(0, 3); };
+    const lum = c => c.map(v => v / 255).map(v => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)).reduce((t, v, i) => t + v * [0.2126, 0.7152, 0.0722][i], 0);
+    const contrast = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n - m); return (x + 0.05) / (y + 0.05); };
+    const css = sel => getComputedStyle(document.querySelector(sel));
+    const pair = (text, back) => contrast(rgb(css(text).color), rgb(css(back).backgroundColor));
+    return {
+      body: lum(rgb(css('body').backgroundColor)), card: lum(rgb(css('.card').backgroundColor)), bar: lum(rgb(css('.bar').backgroundColor)),
+      text: [pair('body', 'body'), pair('.card .text', '.card'), pair('.hint', 'body'), pair('#copy', '#copy'), pair('.frame .art', '.frame'), pair('.bar [data-ready="build"]', '.bar'), contrast(rgb(css('.theme-toggle').color), rgb(css('body').backgroundColor))],
+    };
+  });
+  const readable = (seen, when) => seen.text.forEach((ratio, i) => assert.ok(ratio >= 4.5, `${when}: text ${i} contrast ${ratio.toFixed(2)} is under 4.5`));
+  const toggle = page.locator('.theme-toggle');
+  await page.locator('#item-1 summary').click();
+  // A dark device with no saved choice: light, with a moon that offers dark.
+  const light = await look();
+  for (const surface of ['body', 'card', 'bar']) assert.ok(light[surface] > 0.8, `dark device: the ${surface} starts light`);
+  readable(light, 'light');
+  assert.equal(await toggle.getAttribute('aria-label'), 'Switch to dark');
+  // Phone-sized: a 44px target in the top right that covers no header text.
+  const fit = await page.evaluate(() => {
+    const box = document.querySelector('.theme-toggle').getBoundingClientRect();
+    const hits = [...document.querySelectorAll('header .eyebrow, header h1, header .muted, header .jump a')].filter(el => {
+      const r = el.getBoundingClientRect();
+      return r.left < box.right && r.right > box.left && r.top < box.bottom && r.bottom > box.top;
+    }).map(el => el.textContent);
+    return { width: box.width, height: box.height, right: innerWidth - box.right, hits };
+  });
+  assert.ok(fit.width >= 44 && fit.height >= 44, `the switch is ${fit.width}x${fit.height}`);
+  assert.ok(fit.right <= 24, 'the switch sits at the right');
+  assert.deepEqual(fit.hits, [], 'the switch covers no header text');
+  await toggle.click();
+  // Colours ease over 0.15s: read them once every transition has ended.
+  await page.evaluate(() => Promise.all(document.getAnimations().map(animation => animation.finished)));
+  const dark = await look();
+  for (const surface of ['body', 'card', 'bar']) assert.ok(dark[surface] < 0.1, `after the switch: the ${surface} is dark`);
+  readable(dark, 'dark');
+  assert.equal(await toggle.getAttribute('aria-label'), 'Switch to light');
+  assert.equal(await toggle.getAttribute('aria-pressed'), 'true');
+  // Remembered: a reload opens dark.
+  await page.reload();
+  await page.locator('#item-1 summary').click();
+  const again = await look();
+  for (const surface of ['body', 'card', 'bar']) assert.ok(again[surface] < 0.1, `after a reload: the ${surface} stays dark`);
+  assert.equal(await page.locator('.theme-toggle').getAttribute('aria-label'), 'Switch to light');
+  assert.deepEqual(errors, []);
+  await context.close();
 });
