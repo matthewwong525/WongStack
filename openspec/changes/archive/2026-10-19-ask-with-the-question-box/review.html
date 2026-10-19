@@ -2,8 +2,8 @@
 <!doctype html>
 <!--
   WongStack review kit. build-review.mjs writes the proposal as static HTML at the
-  review:content marker, puts the app's look (look.mjs) at the look marker, and the change name in place of its token. The one
-  script adds Note buttons, drawing fit and full screen, notes, drafts, and copy. It loads nothing from the network;
+  review:content marker, puts the app's look (look.mjs) at the look marker, the light and dark switch (theme.js) at the
+  theme marker, and the change name in place of its token. The one script adds Note buttons, drawing fit and full screen, notes, drafts, and copy. It loads nothing from the network;
   opened through a reply link (reply-link.mjs), it sends the saved notes to the chat, and its footer
   asks the chat to build, or to build and publish, with saved unsent notes.
 -->
@@ -11,11 +11,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · ask-with-the-question-box</title>
+<title>Review · 2026-10-19-ask-with-the-question-box</title>
 <style>
   /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
-   look.mjs swaps the colour set between the markers for the app's own, from app/src/index.css; this copy of
-   shadcn's neutral colours stays only for a colour it can't find. Every page stays light, even on a dark device.
+   look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
+   shadcn's neutral light and dark colours stays only for a colour it can't find. Every page starts light, even on a
+   dark device; theme.js adds `.dark` to the root element when the person switches, and draws the switch (.theme-toggle).
    The parts below draw app/src/components/ui/ (button, input, card, badge, skeleton) in plain CSS. Each sits in
    :where(), so a page's own rule always wins.
    Nothing here loads a file: these pages fetch nothing from the network. */
@@ -40,6 +41,26 @@
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
 }
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+}
 
 /* Tailwind's shadow-xs, shadow-sm and shadow-lg; Radix's popover shadow, and its upward twin for a box docked at the
    bottom, so a layer reads as above the page; and the 3px focus ring at half strength. */
@@ -52,6 +73,7 @@
   --look-shadow-up: 0 -8px 24px rgb(0 0 0 / 0.12);
   --look-ring: color-mix(in oklab, var(--ring) 50%, transparent);
 }
+.dark { color-scheme: dark; }
 
 :where(body) {
   background: var(--background);
@@ -130,6 +152,31 @@
 @media (prefers-reduced-motion: reduce) { :where(.skeleton) { animation: none; } }
 :where(.sr-only) { position: absolute; max-width: 1px; max-height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 
+/* The light and dark switch (theme.js): a ghost icon button, 44px, in the page's top right corner, above the page and
+   below a note box or full-screen view. It scrolls away with the page's top, so it never sits over text read later.
+   In a page's [data-theme-toggle] slot it sits in line. The icon shows the look it switches to: moon on light. */
+.theme-toggle {
+  position: absolute;
+  top: calc(12px + env(safe-area-inset-top));
+  right: calc(12px + env(safe-area-inset-right));
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  min-width: 2.75rem;
+  height: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  color: var(--foreground);
+}
+@media (hover: hover) { .theme-toggle:hover { background: var(--accent); color: var(--accent-foreground); } }
+[data-theme-toggle] .theme-toggle { position: static; flex: none; }
+.theme-toggle svg { width: 1.25rem; height: 1.25rem; pointer-events: none; }
+
   * { box-sizing:border-box; }
   html { -webkit-text-size-adjust:100%; }
   body { --pad:12px; margin:0; padding-bottom:var(--bar, 76px); font:16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; overflow-wrap:anywhere; }
@@ -137,7 +184,7 @@
   code, pre, .ln { font-family:ui-monospace, Menlo, Consolas, monospace; }
   code { background:var(--muted); border-radius:4px; padding:.1em .3em; font-size:.88em; }
   [hidden] { display:none !important; }
-  header { padding:20px 0 4px; }
+  header { padding:20px 48px 4px 0; }
   .eyebrow { margin:0; color:var(--muted-foreground); font-size:14px; font-weight:500; }
   h1 { margin:2px 0 4px; font-size:22px; line-height:1.25; }
   .jump { display:flex; flex-wrap:wrap; gap:0 18px; margin:4px 0 0; padding:0; list-style:none; }
@@ -232,12 +279,69 @@
     #ready-confirm { width:320px; }
   }
 </style>
+<script>
+// The light and dark switch outside the app: inlined in the review page's <head>, served to private pages as /theme.js.
+// It applies the saved choice before paint, then adds the button; storage that is off still switches, unremembered.
+(function () {
+  var KEY = 'wongstack-theme';
+  var SVG = 'http://www.w3.org/2000/svg';
+  // lucide's moon and sun. The icon shows the look a tap switches to.
+  var ICONS = {
+    moon: [['path', { d: 'M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z' }]],
+    sun: [['circle', { cx: '12', cy: '12', r: '4' }]].concat(['M12 2v2', 'M12 20v2', 'm4.93 4.93 1.41 1.41', 'm17.66 17.66 1.41 1.41', 'M2 12h2', 'M20 12h2', 'm6.34 17.66-1.41 1.41', 'm19.07 4.93-1.41 1.41'].map(function (d) { return ['path', { d: d }]; })),
+  };
+  var root = document.documentElement;
+  var saved = null;
+  try { saved = localStorage.getItem(KEY); } catch (e) { saved = null; }
+  root.classList.toggle('dark', saved === 'dark');
+
+  function icon(name) {
+    var svg = document.createElementNS(SVG, 'svg');
+    var attrs = { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' };
+    Object.keys(attrs).forEach(function (k) { svg.setAttribute(k, attrs[k]); });
+    ICONS[name].forEach(function (part) {
+      var el = document.createElementNS(SVG, part[0]);
+      Object.keys(part[1]).forEach(function (k) { el.setAttribute(k, part[1][k]); });
+      svg.appendChild(el);
+    });
+    return svg;
+  }
+
+  function draw(button) {
+    var dark = root.classList.contains('dark');
+    button.setAttribute('aria-label', dark ? 'Switch to light' : 'Switch to dark');
+    button.setAttribute('aria-pressed', dark ? 'true' : 'false');
+    button.textContent = '';
+    button.appendChild(icon(dark ? 'sun' : 'moon'));
+  }
+
+  function mount() {
+    if (!document.body || document.querySelector('.theme-toggle')) return;
+    var button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'theme-toggle';
+    draw(button);
+    button.addEventListener('click', function () {
+      var dark = !root.classList.contains('dark');
+      root.classList.toggle('dark', dark);
+      try { localStorage.setItem(KEY, dark ? 'dark' : 'light'); } catch (e) { /* switched, not remembered */ }
+      draw(button);
+    });
+    var slot = document.querySelector('[data-theme-toggle]');
+    if (slot) slot.appendChild(button);
+    else document.body.insertBefore(button, document.body.firstChild);
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount);
+  else mount();
+})();
+</script>
 </head>
-<body data-change="ask-with-the-question-box">
+<body data-change="2026-10-19-ask-with-the-question-box">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>ask-with-the-question-box</h1>
+  <h1>2026-10-19-ask-with-the-question-box</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. <span class="copies">Saving a note copies all your notes.</span> Open a drawing and tap it to see it full screen.</p>
@@ -268,6 +372,11 @@
 <li class="decision card" id="decision-4" data-note="decision-4" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-19</p>Assumed: the check skips background memory runs, because those never ask anyone anything.</li>
 <li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-19</p>Assumed: the reminder is a separate small hook, not the memory hook rerun, because rerunning memory's start would register the session again and refetch the digest.</li>
 <li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-19</p>Assumed: the check counts a list as choices when the line before it ends in a question mark, or any option says <i>(Recommended)</i>, because that caught every slip in the backtest and flagged no normal report.</li>
+<li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-19</p>Backtest of the built <code>ask-check.mjs</code> on this machine's Claude transcripts changed since 2026-10-01: 1,762 turns ended without the question tool, and it flagged 25, the same 25 turns the exploration detector found, all real slips; no false alarm. The 12 fewer turns than the earlier 1,774 are turns that end on a tool call with no closing text, which the check now lets end.</li>
+<li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-19</p>Assumed: the <code>What changed?</code> test fixture uses the real reports' shape, a <code>**What changed**</code> heading with no question mark. A literal <code>What changed?</code> line directly above a 2–4 item list that ends the reply would be sent back, as the rule intends; no past reply ends that way.</li>
+<li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-19</p>Assumed: <code>tools-on-path.test.mjs</code> now expects four node hooks in <code>.agents/settings.json</code>, and <code>cli-conventions.test.mjs</code> lists <code>ask-check.mjs</code>, because both tests count every Claude Code hook script.</li>
+<li class="decision card" id="decision-10" data-note="decision-10" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-19</p>Live check before saving: hooks run from the checkout, so the save wasn't needed first. In a Paseo Claude chat in this checkout, a reply ending in a typed <code>What next?</code> list was sent back once and the assistant then asked with <code>AskUserQuestion</code>. In a headless <code>claude -p</code> run with only the stop check, the box isn't callable, and the assistant dropped the options for a free-text ask. So the message sent back now says to end the turn and leave the typed list when the tool isn't callable. Rerun: it said one line and the list stood. Claude Code shows the send-back as a <i>Stop hook error</i> notice.</li>
+<li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-19</p>Archived and saved for publishing: all tasks done, local checks pass.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

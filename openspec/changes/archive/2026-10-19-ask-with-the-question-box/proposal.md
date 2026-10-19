@@ -1,6 +1,6 @@
 # Ask next steps with the question box, every time
 
-**Status:** in-progress
+**Status:** ready-to-ship
 
 **Branch:** fluffy-parrot
 
@@ -59,3 +59,4 @@ None.
 - **2026-10-19** — Assumed: the `What changed?` test fixture uses the real reports' shape, a `**What changed**` heading with no question mark. A literal `What changed?` line directly above a 2–4 item list that ends the reply would be sent back, as the rule intends; no past reply ends that way.
 - **2026-10-19** — Assumed: `tools-on-path.test.mjs` now expects four node hooks in `.agents/settings.json`, and `cli-conventions.test.mjs` lists `ask-check.mjs`, because both tests count every Claude Code hook script.
 - **2026-10-19** — Live check before saving: hooks run from the checkout, so the save wasn't needed first. In a Paseo Claude chat in this checkout, a reply ending in a typed `What next?` list was sent back once and the assistant then asked with `AskUserQuestion`. In a headless `claude -p` run with only the stop check, the box isn't callable, and the assistant dropped the options for a free-text ask. So the message sent back now says to end the turn and leave the typed list when the tool isn't callable. Rerun: it said one line and the list stood. Claude Code shows the send-back as a *Stop hook error* notice.
+- **2026-10-19** — Archived and saved for publishing: all tasks done, local checks pass.
