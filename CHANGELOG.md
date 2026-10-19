@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Cheapest place first, and a hook for repeat mistakes
+## 43.10.0 — Cheapest place first, and a hook for repeat mistakes
 
 - **A building helper can't quietly stop early.** When the helper building a change stops without its short report, it's sent back once: wait for anything still running, then report. Its next stop always goes through, so it never gets stuck. Every other stop passes untouched. This works in Claude Code and in Codex.
 - **One list says where new guidance goes, cheapest first.** The page that explains WongStack's parts now orders it: a page or skill opened only when needed, then a script or a check, a helper, a hook, and always-loaded text last. A line added to always-loaded text is paid for with a line cut.
