@@ -45,7 +45,7 @@ Maintain the living handoff:
 
 - Proposal header: current `**Status:**`, actual `**Branch:**`, and `**Open questions:**` (`none` when empty).
 - Plan sections: the current intent from the latest agreed plan and diff, self-contained, edited in place under existing headings. Tasks: true checked state and agreed additions.
-- `## Decision log`: append one dated entry; never rewrite, reorder, or delete earlier ones: a cold reader inherits the why from them.
+- `## Decision log`: append one dated entry; never change earlier ones: a cold reader inherits the why from them.
 - Session facts: [write them](../memory/references/writing-facts.md) through [the memory write gate](../memory/SKILL.md#write) with `"session": "current"` and `"source": "save"`. A spooled result does not block the save.
 
 For an active change, [reconcile its deltas](../plan/references/openspec-cli.md#reconcile-deltas). Read artifact and task progress [from the CLI](../plan/references/openspec-cli.md#create-or-read-a-change).

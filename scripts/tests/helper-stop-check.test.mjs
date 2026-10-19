@@ -1,4 +1,4 @@
-// The build helper's stop check: sent back once without a report, and every other stop goes through untouched.
+// The build and review helpers' stop check: sent back once without a report; every other stop goes through.
 // Transcript shapes follow live runs on Claude Code 2.1.287 and Codex 0.159.2.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { REASON, stopCheck } from '../../.agents/skills/apply/scripts/helper-stop-check.mjs';
+import { REASON, REVIEW_REASON, stopCheck } from '../../.agents/skills/apply/scripts/helper-stop-check.mjs';
 
 const SCRIPT = resolve(dirname(fileURLToPath(import.meta.url)), '../../.agents/skills/apply/scripts/helper-stop-check.mjs');
 const BRIEF_PROMPT = 'hooks-for-repeat-mistakes\n\nRead `$(git rev-parse --show-toplevel)/.claude/skills/apply/references/build-helper.md`, then build.';
@@ -130,4 +130,43 @@ test('a helper that opens the brief late, or a forked chat whose history names i
     { type: 'user', message: { role: 'user', content: BRIEF_PROMPT } },
     { type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: 'Summary.' }] } }]);
   assert.equal(stopCheck(subagentStop(fork, 'Summary.')), '');
+});
+
+const REVIEW_PROMPT = 'second-look-before-preview\n\nRead `$(git rev-parse --show-toplevel)/.claude/skills/apply/references/review-helper.md`, then review.';
+const REVIEW_BLOCK = `${JSON.stringify({ decision: 'block', reason: REVIEW_REASON })}\n`;
+
+test('a reviewer that stops without its review line is sent back once with its own reason', t => {
+  const write = scratch(t);
+  const last = 'Read the diff; looking at the tests next.';
+  const path = write('review.jsonl', claudeHelper(REVIEW_PROMPT, last));
+  assert.equal(stopCheck(subagentStop(path, last)), REVIEW_BLOCK);
+  assert.match(REVIEW_REASON, /review-helper\.md/);
+  assert.match(REVIEW_REASON, /`review:`/);
+  assert.equal(stopCheck(subagentStop(path, last, { stop_hook_active: true })), '');
+});
+
+test('a reviewer that ends with its review line stops', t => {
+  const write = scratch(t);
+  for (const last of [
+    'No findings.\nreview: none',
+    '1. app/src/x.ts:12 — the test passes either way (fix)\n**review:** 1',
+    '`review: 2`',
+  ]) assert.equal(stopCheck(subagentStop(write('review.jsonl', claudeHelper(REVIEW_PROMPT, last)), last)), '', last);
+  const builderLine = 'Looked it over.\nlocal checks: pass';
+  assert.equal(stopCheck(subagentStop(write('review.jsonl', claudeHelper(REVIEW_PROMPT, builderLine)), builderLine)), REVIEW_BLOCK);
+});
+
+test('a builder still needs its local checks line, not a review line', t => {
+  const write = scratch(t);
+  const last = 'Fixed the two findings.\nreview: none';
+  assert.equal(stopCheck(subagentStop(write('build.jsonl', claudeHelper(BRIEF_PROMPT, last)), last)), BLOCK);
+});
+
+test('the earliest brief wins: a reviewer that reads the build brief early still needs its review line', t => {
+  const write = scratch(t);
+  const last = 'Checked the build brief too.\nlocal checks: pass';
+  const path = write('review.jsonl', [{ type: 'user', message: { role: 'user', content: REVIEW_PROMPT } },
+    { type: 'assistant', message: { role: 'assistant', content: [{ type: 'tool_use', name: 'Bash', input: { command: 'cat .claude/skills/apply/references/build-helper.md' } }] } },
+    { type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: last }] } }]);
+  assert.equal(stopCheck(subagentStop(path, last)), REVIEW_BLOCK);
 });
