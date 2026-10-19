@@ -1,0 +1,91 @@
+{
+  "format": "verify-journey-1",
+  "id": "turn-a-page-dark",
+  "scenario": {
+    "capability": "shared-look",
+    "requirement": "A light and dark switch on every page",
+    "scenario": "Turn a page dark"
+  },
+  "thenDigest": "25e66e63d2bc486ecd0bb2d3fc732c3f7804cc45db54060099e8191444d22c21",
+  "probe": "browser",
+  "writes": false,
+  "sourcePaths": [
+    ".agents/skills/hand-over/scripts/form-page.html",
+    ".agents/skills/hand-over/scripts/hand-over.mjs",
+    ".agents/skills/hand-over/scripts/keys-page.html",
+    ".agents/skills/hand-over/scripts/passwords-page.html",
+    ".agents/skills/hand-over/scripts/view-page.html",
+    ".agents/skills/plan/references/look.css",
+    ".agents/skills/plan/references/review-kit.html",
+    ".agents/skills/plan/references/theme.js",
+    ".agents/skills/plan/scripts/build-review.mjs",
+    ".agents/skills/plan/scripts/look.mjs",
+    "app/index.html",
+    "app/src/Layout.tsx",
+    "app/src/components/ThemeToggle.tsx",
+    "app/src/index.css"
+  ],
+  "recordedAt": "c06c39fca13a8a69d2b8e3913d0da1302fbf5cd9",
+  "steps": [
+    [
+      "set",
+      "viewport",
+      "390",
+      "844"
+    ],
+    [
+      "open",
+      "{url}/"
+    ],
+    [
+      "wait",
+      "--load",
+      "networkidle"
+    ],
+    [
+      "find",
+      "role",
+      "button",
+      "click",
+      "--name",
+      "Switch to dark"
+    ],
+    [
+      "wait",
+      "500"
+    ],
+    [
+      "open",
+      "{url}/apps/hello/"
+    ],
+    [
+      "wait",
+      "--load",
+      "networkidle"
+    ],
+    [
+      "eval",
+      "document.documentElement.className + ' | ' + localStorage.getItem('wongstack-theme') + ' | ' + getComputedStyle(document.body).backgroundColor"
+    ],
+    [
+      "find",
+      "role",
+      "button",
+      "click",
+      "--name",
+      "Switch to light"
+    ],
+    [
+      "wait",
+      "500"
+    ]
+  ],
+  "expect": [
+    {
+      "text": "Hello"
+    },
+    {
+      "path": "/apps/hello/"
+    }
+  ]
+}
