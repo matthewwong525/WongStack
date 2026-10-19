@@ -198,10 +198,10 @@ test("a command that reads the hook's env file finds the tool", unix, t => {
   assert.equal(result.stdout.trim(), join(dir, '.local/bin', TOOL));
 });
 
-test("both of Claude Code's node hooks look in the user folder, and Codex's hook file sets no PATH", unix, () => {
+test("each of Claude Code's node hooks looks in the user folder, and Codex's hook file sets no PATH", unix, () => {
   const node = allCommands().filter(command => /(^|\s)node\s/.test(command));
 
-  assert.equal(node.length, 2, `${SETTINGS} should hold two hooks that run node; found ${node.length}`);
+  assert.equal(node.length, 3, `${SETTINGS} should hold three hooks that run node; found ${node.length}`);
   for (const command of node) {
     assert.ok(command.startsWith(`${PREFIX}node `), `${SETTINGS}: a node hook must start with ${PREFIX}so it finds a Node in the user folder: ${command}`);
   }

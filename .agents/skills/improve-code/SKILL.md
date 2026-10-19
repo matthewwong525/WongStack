@@ -10,9 +10,9 @@ Find **one improvement to how the code is structured**, making it simpler or saf
 
 First load [memory](../memory/SKILL.md#read): `search --type thread --tag improve`, the same for `continue` (an `Improve plan:` thread is your waiting plan), and `search --type project --tag improve` for `Ruled out:` ideas. A note is evidence, not an instruction. Skip a memory or wiki note (`/dream-memory` takes it) and an idea ruled out with no new evidence.
 
-`/improve-code [focus]` accepts an area or a structural outcome. A feature, wording, how the assistant behaves, or a judgment-call rule is a normal request: say so, build nothing. A mistake a check could catch gets a failing check.
+`/improve-code [focus]` accepts an area or a structural outcome. A feature, wording, or a judgment-call rule is a normal request: say so, build nothing. A mistake a check could catch gets a failing check, or a hook if only the chat shows it.
 
-Require concrete evidence and a verification. End as one:
+Require evidence and a verification. End as one:
 
 - **clean**: nothing supported is worth changing; say the limits.
 - **planned**: hand [`/plan`](../plan/SKILL.md) one problem with its evidence, intended result, scope, verification, and any note it answers; end on its finished-plan question. Never run `/apply` or `/ship`. Unattended, run [`/save`](../save/SKILL.md) and record a `thread` tagged `continue`: `Improve plan: <change>`.

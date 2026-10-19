@@ -53,12 +53,22 @@ The more an agent can reach, the more it does for you, and the more damage a wro
 ## What each surface owns
 
 - **Agent instructions** orient the agent before it acts. [`AGENTS.md`](../AGENTS.md) carries the repo-specific overview plus the generic WongStack rules. `CLAUDE.md` links to it, so Codex and Claude read one file in every install ([the agent folder](../.agents/skills/wong-sync/references/payload-manifest.md#the-agent-folder)).
-- **Path-scoped rules** in [`.agents/rules/`](../.agents/rules/) carry a convention to the moment an agent reads or edits a matching file, such as [the secrets rule](../.agents/rules/secrets.md) for `.env*` and `.dev.vars*`. For an edit-time convention, prefer a rule to a hook: a rule tells the agent what to do, and a hook acts on its own, where a wrong guess is harder to see.
+- **Path-scoped rules** in [`.agents/rules/`](../.agents/rules/) carry a convention to the moment an agent reads or edits a matching file, such as [the secrets rule](../.agents/rules/secrets.md) for `.env*` and `.dev.vars*`. A convention that needs judgment gets a rule, not a hook: a hook acts on its own, where a wrong guess is harder to see. A hook fits one mechanical mistake, on record more than once, that a script can spot as it happens; it names the fix and lets the agent go on ([when to plan one](development/repository-improvement.md#a-check-before-an-instruction)).
 - **The wiki** owns repeatable knowledge — process, people, the company, the project — in the shape [the rulebook](wiki-style.md) sets and the sentences [voice](voice.md) asks for.
 - **Active changes** own work in progress. Each [change loop](development/the-change-loop.md) plan lives under `openspec/changes/<name>/` with its tasks, status, and decision log.
 - **Archived changes** own what shipped and why.
 - **The memory store** owns session context outside the repo: short typed facts that every session reads as a digest at start, and the raw transcripts behind them. [Session memory](development/memory.md) owns how it works.
 - **Skills** turn the process into commands an agent runs: `/explore`, `/plan`, `/apply`, `/save`, `/continue`, `/ship`, `/close`, `/verify`, `/improve-code`, `/dream-memory`, `/schedule`, `/wong-sync`.
+
+**Put new guidance in the cheapest place that works.** Text the agent loads in every chat costs words in every chat; a page it opens only when needed costs nothing until then. Try, in order:
+
+1. A wiki page or skill, opened when the task calls for it.
+2. A script or a check, for a step that runs the same way every time.
+3. A helper, for a job with a large input and a short answer.
+4. A hook, for a repeated mechanical mistake.
+5. Always-loaded text, last: `AGENTS.md`, the skill descriptions, the [wiki style](wiki-style.md) and [voice](voice.md) pages, and the memory digest.
+
+A line added to always-loaded text is paid for with a line cut. In WongStack's own repo, [`measure-context.mjs --check`](https://github.com/matthewwong525/WongStack/blob/main/scripts/measure-context.mjs) fails when it grows.
 
 Claude Code is one way to run these. The durable part is the files: any agent that reads files, edits files, runs shell commands, and follows the skill runbooks can do the same work.
 

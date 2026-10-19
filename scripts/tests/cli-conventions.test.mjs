@@ -57,6 +57,7 @@ const scripts = {
   '.agents/skills/memory/scripts/memory.mjs': ['search'],
   '.agents/skills/memory/scripts/run.mjs': [],
   '.agents/skills/memory/scripts/session-start.mjs': [],
+  '.agents/skills/apply/scripts/helper-stop-check.mjs': [],
 };
 
 // Run from an empty temp dir, with npx, wrangler, and gh stubs first on PATH that record any call
