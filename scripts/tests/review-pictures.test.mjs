@@ -55,7 +55,7 @@ test('a Mermaid fence becomes an inline SVG picture with its note id, adding no 
   const html = page(root);
   assert.match(html, /<div class="art pic" data-note="item-1-picture-1" tabindex="0" style="width:[\d.]+em"><svg [^>]*class="pele pele-flowchart"/);
   assert.match(html, />apply<\/text>[\s\S]*>save<\/text>/);
-  assert.equal((html.match(/<script\b/gi) || []).length, 1, 'still the kit\'s one script');
+  assert.equal((html.match(/<script\b/gi) || []).length, 2, 'still the kit\'s one script, and the switch');
   assert.doesNotMatch(html, /item-1-line-/, 'a picture takes no line numbers');
   assert.match(html, /data-note="item-2-line-1"/, 'the text drawing keeps its lines');
 }));
@@ -126,7 +126,7 @@ test('picture labels stay text: markup is escaped, a click line draws no link, a
   const html = page(root);
   assert.match(html, />a &lt; b &amp; c<\/text>/);
   assert.match(html, />src=x<\/text>[\s\S]*>url\(x\)<\/text>[\s\S]*>href=y<\/text>/);
-  assert.equal((html.match(/<script\b/gi) || []).length, 1, 'only the kit\'s one script');
+  assert.equal((html.match(/<script\b/gi) || []).length, 2, 'only the kit\'s one script, and the switch');
   assert.doesNotMatch(/<svg [\s\S]*?<\/svg>/.exec(html)[0], /\shref=|<a\b/);
 }));
 

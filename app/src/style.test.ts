@@ -26,17 +26,24 @@ it("has one stylesheet: no page or mini app brings a CSS file of its own", () =>
   expect(readFileSync(join(app, "index.html"), "utf8")).not.toMatch(/rel="stylesheet"/);
 });
 
-it("stays light on every device: one set of colours, and `dark:` tied to a class nothing sets", () => {
+it("starts light on every device, with a dark set the switch alone turns on", () => {
   const css = readFileSync(join(app, "src/index.css"), "utf8");
   expect(css).toMatch(/color-scheme:\s*light;/);
+  expect(css).toMatch(/\.dark \{\s*color-scheme:\s*dark;/);
   expect(css).toMatch(/\n:root \{[^}]*--background:[^}]*--foreground:[^}]*--primary:/);
+  // The dark set sits right after the light one, one plain block the review and private pages read too.
+  expect(css).toMatch(/\n:root \{[^}]*--ring:[^}]*\}\n\.dark \{[^}]*--background:[^}]*--foreground:[^}]*--primary:/);
   expect(css).not.toMatch(/prefers-color-scheme/);
   // Unless tied to a class, Tailwind's `dark:` follows the device, and the parts' `dark:` classes would fire.
   expect(css).toContain("@custom-variant dark (&:where(.dark, .dark *));");
+  // Only the switch sets the class; the page never starts dark by markup.
   const screens = readdirSync(join(app, "src"), { recursive: true, encoding: "utf8" }).filter((file) => /\.tsx?$/.test(file) && !/\.test\./.test(file));
   const setsDark = /classList\.(?:add|toggle)\(\s*["']dark["']|className\s*=\s*["']dark\b/;
-  expect(screens.filter((file) => setsDark.test(readFileSync(join(app, "src", file), "utf8")))).toEqual([]);
-  expect(readFileSync(join(app, "index.html"), "utf8")).not.toMatch(/class="[^"]*\bdark\b/);
+  expect(screens.filter((file) => setsDark.test(readFileSync(join(app, "src", file), "utf8")))).toEqual(["components/ThemeToggle.tsx"]);
+  const html = readFileSync(join(app, "index.html"), "utf8");
+  expect(html).not.toMatch(/class="[^"]*\bdark\b/);
+  // Before the first paint, index.html applies only a saved "dark".
+  expect(html).toMatch(/<head>[\s\S]*localStorage\.getItem\('wongstack-theme'\) === 'dark'[\s\S]*<\/head>/);
   expect(css).toMatch(/--font-sans:\s*system-ui, sans-serif/);
 });
 
@@ -59,6 +66,10 @@ it("gives every page one frame: the bar's contents and the page share a width an
   const inside = bar.firstElementChild!;
   expect(inside.className.split(" ")).toEqual(expect.arrayContaining([...frame, "flex", "justify-between"]));
   expect(inside.contains(screen.getByRole("link", { name: "Sign out" }))).toBe(true);
+  // The light and dark switch sits at the bar's right, beside Sign out.
+  const toggle = screen.getByRole("button", { name: "Switch to dark" });
+  expect(toggle.parentElement).toBe(screen.getByRole("link", { name: "Sign out" }).parentElement);
+  expect(inside.lastElementChild!.contains(toggle)).toBe(true);
 });
 
 it("holds every page to the whole frame: none sets a negative side margin, a width worked out from the screen's, or a narrower column", () => {

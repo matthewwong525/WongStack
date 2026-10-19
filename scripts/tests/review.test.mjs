@@ -241,6 +241,7 @@ test('the kit keeps one script, one style, its marker, and older-engine syntax',
   assert.doesNotMatch(kit, /\?\.[\w([]|\?\?|catch\s*\{/, 'no optional chaining, nullish coalescing, or optional catch binding');
   assert.doesNotMatch(kit, /\b(?:src|href)\s*=\s*["']?(?:https?:)?\/\/|@import|url\(/i, 'no network loads');
   assert.ok(kit.indexOf('/* look */') > kit.indexOf('<style>') && kit.indexOf('/* look */') < kit.indexOf('</style>'), 'the look marker sits in the one style');
+  assert.ok(kit.indexOf('<!-- theme -->') > kit.indexOf('</style>') && kit.indexOf('<!-- theme -->') < kit.indexOf('</head>'), 'the switch goes in <head>, before the first paint');
   assert.doesNotMatch(/<style>([\s\S]*?)<\/style>/.exec(kit)[1], /#[0-9a-f]{3,8}\b|rgba?\(|text-transform/i, 'every colour is the app\'s, and labels stay in sentence case');
 });
 
@@ -252,8 +253,18 @@ test('the built page carries the app\'s colours and parts in its one style, and 
   assert.doesNotMatch(style, /\/\* look \*\//, 'the marker is filled');
   const app = readFileSync(resolve(here, '../../app/src/index.css'), 'utf8');
   assert.ok(style.includes(`--primary: ${/\n:root \{[^}]*--primary:\s*([^;]+);/.exec(app)[1]};`), 'the app\'s light primary');
-  assert.doesNotMatch(style, /prefers-color-scheme/, 'light on every device: no dark set');
+  assert.doesNotMatch(style, /prefers-color-scheme/, 'light to start on every device');
   assert.match(style, /color-scheme: light;/);
+  const dark = /\n\.dark \{([^}]*)\}/.exec(app)[1];
+  assert.ok(style.includes(`--background: ${/--background:\s*([^;]+);/.exec(dark)[1]};`), 'the app\'s dark set, under .dark');
+  assert.ok(style.includes('.theme-toggle {'), 'the switch\'s look');
+  // The switch: one script in <head>, ahead of the kit's own, so a saved dark choice paints dark from the start.
+  const head = html.slice(0, html.indexOf('</head>'));
+  assert.equal((html.match(/<script\b/g) || []).length, 2);
+  assert.equal((head.match(/<script\b/g) || []).length, 1);
+  assert.match(head, /localStorage\.getItem\(KEY\)[\s\S]*classList\.toggle\('dark'/);
+  assert.doesNotMatch(html, /<!-- theme -->/, 'the marker is filled');
+  assert.throws(() => assemble('x', '', kit.replace('<!-- theme -->', '')), /review kit: expected one <!-- theme -->/);
   for (const part of [':where(button, .btn)', ':where(.card)', ':where(.tag)']) assert.ok(style.includes(part), part);
   assert.ok(style.indexOf(':where(.card)') < style.indexOf('.bar {'), 'the look first, then the kit\'s own rules');
   assert.doesNotMatch(html, /\b(?:src|href)\s*=\s*["']?(?:https?:)?\/\/|@import|url\(/i, 'no network loads');
