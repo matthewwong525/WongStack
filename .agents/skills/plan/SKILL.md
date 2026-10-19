@@ -28,7 +28,7 @@ Why and What Changes use [plain words](../explore/references/asking-the-user.md#
 
 ## Draw in the proposal, then build the page
 
-Draw as you write, with no second agent or browser: one drawing per What Changes bullet by default, plus a sketch of each new or restructured user-facing screen; more only where a bullet needs it. A drawing is a fence indented inside its bullet, by [the drawing guide](references/drawings.md): `mermaid` for a flow, `text` for a screen or table.
+Draw as you write, with no second agent or browser: one drawing per What Changes bullet by default, plus a sketch of each new or restructured user-facing screen; more only where a bullet needs it. A drawing is a fence indented inside its bullet, by [the drawing guide](references/drawings.md): `mermaid` for a flow, `screen` for a screen, `svg` for arrows, a Markdown table for a table.
 
     - **Save goes through one gate.** …
       ```mermaid

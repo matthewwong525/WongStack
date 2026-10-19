@@ -129,6 +129,42 @@ test('drawings and text holding markup stay text', needsDom, () => fixture(root 
   window.close();
 }, `## Why\n\nShow </script><script>window.injection=1</script> as text.\n\n## What Changes\n\n- [bad](javascript:alert(1)) item\n  ${fence}\n  <b>not bold</b> </script><script>window.injection=2</script>\n  ${fence}\n`));
 
+// A bullet holding a table, then pipes with no separator row, which stay the bullet's text.
+const tabled = `## Why\n\nCompare.\n\n## What Changes\n\n- **Two ways.** Pick one.
+  | way | login |
+  |:----|------:|
+  | local | **none** </script><script>window.injection=3</script> |
+  | sync \\| cloud | needed |
+- **Stray pipes** read | a | b |
+  | c | d |
+`;
+
+test('a Markdown table in a bullet becomes a page table with a note target per body row', needsDom, () => fixture(root => {
+  assert.deepEqual(buildReview(root, { requireCurrent: true }).warnings, []);
+  const html = page(root);
+  assert.match(html, /<div class="table"><table class="tbl"><thead><tr><th>way<\/th><th>login<\/th><\/tr><\/thead><tbody><tr data-note="item-1-row-1" tabindex="0">/);
+  const { window, document } = dom(html);
+  assert.equal(window.injection, undefined, 'a cell holding </script> stays text');
+  const rows = [...document.querySelectorAll('#item-1 tbody tr')];
+  assert.deepEqual(rows.map(row => row.dataset.note), ['item-1-row-1', 'item-1-row-2']);
+  assert.deepEqual(rows.map(row => [...row.cells].map(text)), [['local', 'none </script><script>window.injection=3</script>'], ['sync | cloud', 'needed']]);
+  assert.equal(rows[0].querySelector('b').textContent, 'none', 'cells take inline formatting');
+  assert.equal(rows[0].lastElementChild.lastElementChild.className, 'add', 'a row\'s Note button sits in its last cell');
+  assert.equal(text(document.querySelector('[data-note="item-1"]')), 'Two ways. Pick one.');
+  assert.equal(document.querySelector('#item-2 table'), null, 'pipes without a separator row stay text');
+  assert.equal(text(document.querySelector('[data-note="item-2"]')), 'Stray pipes read | a | b | | c | d |');
+  window.close();
+}, tabled));
+
+test('a row note names its change and row, with the row\'s cells', needsDom, () => fixture(root => {
+  buildReview(root, { requireCurrent: true });
+  const { window, document, errors } = dom(page(root));
+  document.querySelector('.add[data-open="item-1-row-2"]').click();
+  assert.equal(document.getElementById('editor-where').textContent, '#/1 · row 2 "sync | cloud · needed"');
+  assert.deepEqual(errors, []);
+  window.close();
+}, tabled));
+
 test('invalid proposals report the item and line and keep the last page', () => fixture(root => {
   buildReview(root, { requireCurrent: true });
   const good = page(root);

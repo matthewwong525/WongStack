@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 43.12.0 — Screens drawn as pictures
+
+- **A plan's screen sketches are now real pictures.** The assistant draws boxes, buttons, and shading instead of typing them out of line characters, so nothing comes out crooked. Sketches use the page's own colors, so they look right in light and dark mode. They open full screen, zoom, and take a note like flow pictures do.
+- **A table on a plan page is a real table**, and you can leave a note on one row.
+- **A sketch that could do harm never reaches the page.** Anything beyond simple shapes and text, such as a script, a link, or an outside image, stops the page build and names the line; the last good page stays.
+- **Flows stay as they were.** Small listings such as a file list, and drawings in chat, stay plain text. Older plans' pages still build.
+
 ## 43.11.0 — A second look before the preview
 
 - **A second agent reads every finished build before you see the preview.** It starts fresh, with none of the builder's reasoning, and checks the changes against the plan: bugs, missing or weak tests, and work the plan didn't ask for. What it finds goes back to a builder, at most twice, and the report says what was found and fixed.
