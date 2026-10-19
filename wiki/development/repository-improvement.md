@@ -41,7 +41,15 @@ Before removing a piece, ask whether its work would only move somewhere else. If
 
 When the trouble is a mistake a machine could catch, such as a link to a page that does not exist, the fix is a check that fails, added to the project's own checks, not one more written instruction. An instruction can be skipped; a failing check can not.
 
-A written rule is for a judgment call no check could make. `/improve-code` does not write one: its report names the note as one for a normal request.
+Some mistakes happen in the chat, and no file shows them: a helper that stops while its checks still run leaves nothing for a check to find. When notes show one such mistake more than once, and a script can spot it as it happens, the plan may add a hook instead. A hook takes one of three shapes:
+
+- **A hint after an error that keeps coming back**, naming the fix.
+- **A block with a reason**, so the agent learns the fix from the refusal.
+- **A check right after a write**, while the mistake is still cheap.
+
+Ship each hook for Claude Code and Codex, where the host fires the event, in [`.agents/settings.json`](../../.agents/settings.json) and [`.agents/hooks.json`](../../.agents/hooks.json). Let the second attempt through: a hook that traps the agent costs more than the mistake. [The build helper's stop check](../../.agents/skills/apply/scripts/helper-stop-check.mjs) is the example: it sends a helper back once when it stops without its report.
+
+A written rule is for a judgment call no check or hook could make. `/improve-code` does not write one: its report names the note as one for a normal request.
 
 ## Pin, then reshape
 
@@ -85,6 +93,6 @@ Any other scheduler must provide a clean, current checkout and serialize runs so
 
 ## Where the ideas come from
 
-The check-before-an-instruction rule and the deletion test are adapted from Matt Pocock's [`retro`](https://github.com/mattpocock/skills/tree/main/skills/engineering/retro) and [`improve-codebase-architecture`](https://github.com/mattpocock/skills/tree/main/skills/engineering/improve-codebase-architecture) skills (MIT). Pinning behaviour with a test first, and taking away before adding, draw on poteto's [pstack](https://github.com/cursor/plugins/tree/main/pstack). Ideas only; no text is copied.
+The check-before-an-instruction rule and the deletion test are adapted from Matt Pocock's [`retro`](https://github.com/mattpocock/skills/tree/main/skills/engineering/retro) and [`improve-codebase-architecture`](https://github.com/mattpocock/skills/tree/main/skills/engineering/improve-codebase-architecture) skills (MIT). Pinning behaviour with a test first, and taking away before adding, draw on poteto's [pstack](https://github.com/cursor/plugins/tree/main/pstack). The hook shapes, and the cheapest-first order on [the philosophy page](../agent-knowledge-center.md#what-each-surface-owns), draw on Google's [Harness²](https://github.com/google-research/harness2). Ideas only; no text is copied.
 
 Other WongStack development processes live in [Development](README.md).

@@ -44,3 +44,13 @@ test('the Codex settings and hook live in .agents', () => {
   const hooks = JSON.parse(readFileSync(join(repo, '.agents/hooks.json'), 'utf8'));
   assert.ok(Array.isArray(hooks.hooks?.SessionStart), '.agents/hooks.json needs a hooks.SessionStart array');
 });
+
+// Claude Code and Codex both fire SubagentStop for a helper (Codex 0.159.2, by a live run), so both files carry it.
+test('both hosts run the build helper stop check on SubagentStop', () => {
+  for (const file of ['.agents/settings.json', '.agents/hooks.json']) {
+    const entries = JSON.parse(readFileSync(join(repo, file), 'utf8')).hooks?.SubagentStop ?? [];
+    const commands = entries.flatMap(entry => entry.hooks ?? []).map(hook => hook.command);
+    assert.ok(commands.some(command => command.includes('/.claude/skills/apply/scripts/helper-stop-check.mjs')),
+      `${file} needs a SubagentStop hook that runs helper-stop-check.mjs`);
+  }
+});

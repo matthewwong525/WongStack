@@ -49,6 +49,17 @@
           }
         ]
       }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "PATH=\"$HOME/.local/bin:$PATH\" node \"$CLAUDE_PROJECT_DIR/.claude/skills/apply/scripts/helper-stop-check.mjs\"",
+            "timeout": 3
+          }
+        ]
+      }
     ]
   }
 }

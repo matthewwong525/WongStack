@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 43.10.0 — Cheapest place first, and a hook for repeat mistakes
+
+- **A building helper can't quietly stop early.** When the helper building a change stops without its short report, it's sent back once: wait for anything still running, then report. Its next stop always goes through, so it never gets stuck. Every other stop passes untouched. This works in Claude Code and in Codex.
+- **One list says where new guidance goes, cheapest first.** The page that explains WongStack's parts now orders it: a page or skill opened only when needed, then a script or a check, a helper, a hook, and always-loaded text last. A line added to always-loaded text is paid for with a line cut.
+- **Hooks fit one kind of mistake.** Written rules still handle judgment calls. A hook is for a mechanical mistake that keeps happening in the chat, when a script can spot it in the moment. `/improve-code` can now plan one for a mistake no file shows.
+
+**Updating.** Codex may ask once to trust the new hook; say yes. If you changed your hook files, the update adds the new entry beside yours.
+
 ## 43.9.0 — Ask next steps with the question box
 
 - **A typed list of choices gets sent back.** When a reply in Claude Code ends with a question and a short list of options, and the question box wasn't used, the assistant is sent back once to ask with the box. You may see the typed list once, with the box below it. Normal reports aren't touched: tried on 1,762 past replies that didn't use the box, it flagged 25, all real slips.
