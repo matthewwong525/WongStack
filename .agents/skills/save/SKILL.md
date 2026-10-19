@@ -56,7 +56,7 @@ Keep exact `CHANGE_ROOT`; infer `NAME` from its dated folder only if absent. Ret
 
 ## 3. Stage, exclude values, and commit
 
-Stage intended implementation, handoff and removals, never `git add .`, which sweeps in files this save never meant; check for unrelated staged work. A plan-only save commits its artifacts. Write, outside the repo, a one-line repo-style commit message ending `Co-Authored-By: Claude`, and the PR summary.
+Stage intended implementation, handoff and removals, never `git add .`, which sweeps in unmeant files; check for unrelated staged work. A plan-only save commits its artifacts. Write, outside the repo, a one-line repo-style commit message ending `Co-Authored-By: Claude`, and the PR summary.
 
 ## 4. Publish and wait for the gate
 
@@ -74,4 +74,4 @@ node "$(git rev-parse --show-toplevel)/.claude/skills/save/scripts/checkpoint.mj
 
 Report outcome and one link in plain words. Inside a verb or on request, include branch/commit, PR, change/archive Status, fact counts and stored/spooled/skipped state, CI fixes/uncertainty and preview/absence. Return the command's `SAVE_HEAD`, [`RECEIPT`](references/git-gate.md#saved-revision-handoff) and `SAVE_GATE_RESULT` lines; always print the last inside a verb. Explicit errors; continue command only for active changes.
 
-Direct invocation ends with [next steps](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step): continue, publish or stop; failed/unverified gates offer repairs.
+Direct invocation asks [next steps](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step) with the question tool: continue, publish or stop; failed/unverified gates offer repairs.

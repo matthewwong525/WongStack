@@ -2,8 +2,8 @@
 <!doctype html>
 <!--
   WongStack review kit. build-review.mjs writes the proposal as static HTML at the
-  review:content marker, puts the app's look (look.mjs) at the look marker, and the change name in place of its token. The one
-  script adds Note buttons, drawing fit and full screen, notes, drafts, and copy. It loads nothing from the network;
+  review:content marker, puts the app's look (look.mjs) at the look marker, the light and dark switch (theme.js) at the
+  theme marker, and the change name in place of its token. The one script adds Note buttons, drawing fit and full screen, notes, drafts, and copy. It loads nothing from the network;
   opened through a reply link (reply-link.mjs), it sends the saved notes to the chat, and its footer
   asks the chat to build, or to build and publish, with saved unsent notes.
 -->
@@ -11,11 +11,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · hooks-for-repeat-mistakes</title>
+<title>Review · 2026-10-19-light-dark-switch</title>
 <style>
   /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
-   look.mjs swaps the colour set between the markers for the app's own, from app/src/index.css; this copy of
-   shadcn's neutral colours stays only for a colour it can't find. Every page stays light, even on a dark device.
+   look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
+   shadcn's neutral light and dark colours stays only for a colour it can't find. Every page starts light, even on a
+   dark device; theme.js adds `.dark` to the root element when the person switches, and draws the switch (.theme-toggle).
    The parts below draw app/src/components/ui/ (button, input, card, badge, skeleton) in plain CSS. Each sits in
    :where(), so a page's own rule always wins.
    Nothing here loads a file: these pages fetch nothing from the network. */
@@ -40,6 +41,26 @@
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
 }
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+}
 
 /* Tailwind's shadow-xs, shadow-sm and shadow-lg; Radix's popover shadow, and its upward twin for a box docked at the
    bottom, so a layer reads as above the page; and the 3px focus ring at half strength. */
@@ -52,6 +73,7 @@
   --look-shadow-up: 0 -8px 24px rgb(0 0 0 / 0.12);
   --look-ring: color-mix(in oklab, var(--ring) 50%, transparent);
 }
+.dark { color-scheme: dark; }
 
 :where(body) {
   background: var(--background);
@@ -130,6 +152,31 @@
 @media (prefers-reduced-motion: reduce) { :where(.skeleton) { animation: none; } }
 :where(.sr-only) { position: absolute; max-width: 1px; max-height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 
+/* The light and dark switch (theme.js): a ghost icon button, 44px, in the page's top right corner, above the page and
+   below a note box or full-screen view. It scrolls away with the page's top, so it never sits over text read later.
+   In a page's [data-theme-toggle] slot it sits in line. The icon shows the look it switches to: moon on light. */
+.theme-toggle {
+  position: absolute;
+  top: calc(12px + env(safe-area-inset-top));
+  right: calc(12px + env(safe-area-inset-right));
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  min-width: 2.75rem;
+  height: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  color: var(--foreground);
+}
+@media (hover: hover) { .theme-toggle:hover { background: var(--accent); color: var(--accent-foreground); } }
+[data-theme-toggle] .theme-toggle { position: static; flex: none; }
+.theme-toggle svg { width: 1.25rem; height: 1.25rem; pointer-events: none; }
+
   * { box-sizing:border-box; }
   html { -webkit-text-size-adjust:100%; }
   body { --pad:12px; margin:0; padding-bottom:var(--bar, 76px); font:16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; overflow-wrap:anywhere; }
@@ -137,7 +184,7 @@
   code, pre, .ln { font-family:ui-monospace, Menlo, Consolas, monospace; }
   code { background:var(--muted); border-radius:4px; padding:.1em .3em; font-size:.88em; }
   [hidden] { display:none !important; }
-  header { padding:20px 0 4px; }
+  header { padding:20px 48px 4px 0; }
   .eyebrow { margin:0; color:var(--muted-foreground); font-size:14px; font-weight:500; }
   h1 { margin:2px 0 4px; font-size:22px; line-height:1.25; }
   .jump { display:flex; flex-wrap:wrap; gap:0 18px; margin:4px 0 0; padding:0; list-style:none; }
@@ -232,12 +279,69 @@
     #ready-confirm { width:320px; }
   }
 </style>
+<script>
+// The light and dark switch outside the app: inlined in the review page's <head>, served to private pages as /theme.js.
+// It applies the saved choice before paint, then adds the button; storage that is off still switches, unremembered.
+(function () {
+  var KEY = 'wongstack-theme';
+  var SVG = 'http://www.w3.org/2000/svg';
+  // lucide's moon and sun. The icon shows the look a tap switches to.
+  var ICONS = {
+    moon: [['path', { d: 'M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z' }]],
+    sun: [['circle', { cx: '12', cy: '12', r: '4' }]].concat(['M12 2v2', 'M12 20v2', 'm4.93 4.93 1.41 1.41', 'm17.66 17.66 1.41 1.41', 'M2 12h2', 'M20 12h2', 'm6.34 17.66-1.41 1.41', 'm19.07 4.93-1.41 1.41'].map(function (d) { return ['path', { d: d }]; })),
+  };
+  var root = document.documentElement;
+  var saved = null;
+  try { saved = localStorage.getItem(KEY); } catch (e) { saved = null; }
+  root.classList.toggle('dark', saved === 'dark');
+
+  function icon(name) {
+    var svg = document.createElementNS(SVG, 'svg');
+    var attrs = { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' };
+    Object.keys(attrs).forEach(function (k) { svg.setAttribute(k, attrs[k]); });
+    ICONS[name].forEach(function (part) {
+      var el = document.createElementNS(SVG, part[0]);
+      Object.keys(part[1]).forEach(function (k) { el.setAttribute(k, part[1][k]); });
+      svg.appendChild(el);
+    });
+    return svg;
+  }
+
+  function draw(button) {
+    var dark = root.classList.contains('dark');
+    button.setAttribute('aria-label', dark ? 'Switch to light' : 'Switch to dark');
+    button.setAttribute('aria-pressed', dark ? 'true' : 'false');
+    button.textContent = '';
+    button.appendChild(icon(dark ? 'sun' : 'moon'));
+  }
+
+  function mount() {
+    if (!document.body || document.querySelector('.theme-toggle')) return;
+    var button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'theme-toggle';
+    draw(button);
+    button.addEventListener('click', function () {
+      var dark = !root.classList.contains('dark');
+      root.classList.toggle('dark', dark);
+      try { localStorage.setItem(KEY, dark ? 'dark' : 'light'); } catch (e) { /* switched, not remembered */ }
+      draw(button);
+    });
+    var slot = document.querySelector('[data-theme-toggle]');
+    if (slot) slot.appendChild(button);
+    else document.body.insertBefore(button, document.body.firstChild);
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount);
+  else mount();
+})();
+</script>
 </head>
-<body data-change="hooks-for-repeat-mistakes">
+<body data-change="2026-10-19-light-dark-switch">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>hooks-for-repeat-mistakes</h1>
+  <h1>2026-10-19-light-dark-switch</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. <span class="copies">Saving a note copies all your notes.</span> Open a drawing and tap it to see it full screen.</p>
@@ -245,37 +349,41 @@
 </header>
 <section id="why" aria-labelledby="why-h"><h2 id="why-h">Why</h2>
 <div class="card">
-<p data-note="why-1" tabindex="0">Two ideas from Google's <a href="https://github.com/google-research/harness2">Harness²</a> research fit WongStack. First, text the assistant loads in every chat is the most costly place for new guidance; a page it opens only when needed costs nothing until then. Second, a written rule can be skipped, but a hook can't. Today our wiki says to prefer a rule over a hook. Since 2026-09-27, a building helper has stopped five times while its checks were still running, and each fix so far was another written rule.</p>
+<p data-note="why-1" tabindex="0">Every page is now always light. Some people work in a dark room or simply prefer dark, and today they have no way to get it.</p>
 </div></section>
 <section id="changes" aria-labelledby="changes-h"><h2 id="changes-h">What Changes</h2>
 <ol class="items">
-<li class="item card" id="item-1"><span class="num">1</span><div class="body"><div class="text" data-note="item-1" tabindex="0"><b>One list says where new guidance goes, cheapest first.</b> The page that explains WongStack's parts gains a short order: a page or skill opened only when needed, then a script or a check, then a helper, then a hook, and always-loaded text last. Anything added to always-loaded text is paid for by cutting something else. The existing size check already enforces that; this writes down why.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><div class="art pic" data-note="item-1-picture-1" tabindex="0" style="width:18.615em"><svg xmlns="http://www.w3.org/2000/svg" class="pele pele-flowchart" viewBox="0 0 242 496" width="242" height="496" style="max-width:100%;height:auto;--_bg:var(--pele-bg,#fff);--_fg:var(--pele-fg,#1f1f1f);--_m:var(--pele-muted,#6e6e6e);--_l:var(--pele-line,#1f1f1f);--_s:var(--pele-surface,#f3f3f3);--_a:var(--pele-surface-alt,#e6e6e6);--_b:var(--pele-border,#8a8a8a);--_c:var(--pele-accent,#5b7bd5);color:var(--_fg);--_r:var(--pele-radius,4px);--_fm:var(--pele-font-mono,monospace);font:16px sans-serif;letter-spacing:normal;word-spacing:normal;text-transform:none;direction:ltr;font-family:var(--pele-font,system-ui, -apple-system, &quot;Segoe UI&quot;, Roboto, sans-serif)" fill="var(--_fg)" role="graphics-document document" aria-roledescription="flowchart"><g class="pele-edges" fill="none" stroke="var(--_l)" stroke-linecap="round"><g class="pele-edge" data-id="L_page_script_0"><path d="M120.71,80L120.71,121"/><path class="pele-marker" d="M120.71,128L117.35,120L124.07,120Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge" data-id="L_script_helper_0"><path d="M120.71,176L120.71,217"/><path class="pele-marker" d="M120.71,224L117.35,216L124.07,216Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge" data-id="L_helper_hook_0"><path d="M120.71,272L120.71,313"/><path class="pele-marker" d="M120.71,320L117.35,312L124.07,312Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge" data-id="L_hook_always_0"><path d="M120.71,368L120.71,409"/><path class="pele-marker" d="M120.71,416L117.35,408L124.07,408Z" fill="var(--_l)" stroke="none"/></g></g><g class="pele-nodes"><g class="pele-node pele-shape-rect" data-id="page" transform="translate(120.71,44)"><rect x="-100.71" y="-36" width="201.42" height="72" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" text-anchor="middle" xml:space="preserve"><tspan x="0" y="-6.4">1. page or skill, opened</tspan><tspan x="0" y="17.6">when needed</tspan></text></g><g class="pele-node pele-shape-rect" data-id="script" transform="translate(120.71,152)"><rect x="-78.46" y="-24" width="156.93" height="48" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">2. script or check</text></g><g class="pele-node pele-shape-rect" data-id="helper" transform="translate(120.71,248)"><rect x="-49.13" y="-24" width="98.26" height="48" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">3. helper</text></g><g class="pele-node pele-shape-rect" data-id="hook" transform="translate(120.71,344)"><rect x="-44.24" y="-24" width="88.48" height="48" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">4. hook</text></g><g class="pele-node pele-shape-rect" data-id="always" transform="translate(120.71,452)"><rect x="-112.71" y="-36" width="225.42" height="72" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" text-anchor="middle" xml:space="preserve"><tspan x="0" y="-6.4">5. always-loaded text, paid</tspan><tspan x="0" y="17.6">for with a cut</tspan></text></g></g></svg></div></div></details></li>
-<li class="item card" id="item-2"><span class="num">2</span><div class="body"><div class="text" data-note="item-2" tabindex="0"><b>Hooks become a tool for one kind of mistake.</b> Written rules still come first for judgment calls. A hook is for a mechanical mistake that happens repeatedly, when a script can spot it in the moment. A hook says what went wrong and how to fix it, then lets the assistant go on. <code>/improve-code</code> gains this option for mistakes made in the chat, where checks on files can't see them.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
-<span class="ln" data-note="item-2-line-1" tabindex="0">BEFORE: prefer a rule to a hook</span>
-
-<span class="ln" data-note="item-2-line-3" tabindex="0">AFTER</span>
-<span class="ln" data-note="item-2-line-4" tabindex="0">judgment call     → a written rule</span>
-<span class="ln" data-note="item-2-line-5" tabindex="0">mistake in a file → a failing check</span>
-<span class="ln" data-note="item-2-line-6" tabindex="0">repeated mistake  → a hook that names</span>
-<span class="ln" data-note="item-2-line-7" tabindex="0">  in the chat        the fix, then lets</span>
-<span class="ln" data-note="item-2-line-8" tabindex="0">                     the assistant go on</span></pre></div></details></li>
-<li class="item card" id="item-3"><span class="num">3</span><div class="body"><div class="text" data-note="item-3" tabindex="0"><b>The first hook: a building helper can't quietly stop early.</b> When the helper building a change tries to stop without its usual short report, it's sent back once. The message says to wait for anything still running, then report. A second stop always goes through, so it never traps a helper. Everything else that stops passes untouched.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><div class="art pic" data-note="item-3-picture-1" tabindex="0" style="width:27.923em"><svg xmlns="http://www.w3.org/2000/svg" class="pele pele-sequence" viewBox="0 0 363 299" width="363" height="299" style="max-width:100%;height:auto;--_bg:var(--pele-bg,#fff);--_fg:var(--pele-fg,#1f1f1f);--_m:var(--pele-muted,#6e6e6e);--_l:var(--pele-line,#1f1f1f);--_s:var(--pele-surface,#f3f3f3);--_a:var(--pele-surface-alt,#e6e6e6);--_b:var(--pele-border,#8a8a8a);--_c:var(--pele-accent,#5b7bd5);color:var(--_fg);--_r:var(--pele-radius,4px);--_fm:var(--pele-font-mono,monospace);font:16px sans-serif;letter-spacing:normal;word-spacing:normal;text-transform:none;direction:ltr;font-family:var(--pele-font,system-ui, -apple-system, &quot;Segoe UI&quot;, Roboto, sans-serif)" fill="var(--_fg)" role="graphics-document document" aria-roledescription="sequence"><g transform="translate(76.91,8)"><g class="pele-lifelines" fill="none" stroke="var(--_b)"><path class="pele-lifeline" data-id="H" d="M0,44V239"/><path class="pele-lifeline" data-id="K" d="M242.84,44V239"/></g><g class="pele-edges" fill="none" stroke="var(--_l)" stroke-linecap="round"><g class="pele-edge pele-message" data-id="i0"><path d="M0,87H235.84"/><path class="pele-marker" d="M242.84,87L234.84,90.36L234.84,83.64Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge pele-message" data-id="i1"><path d="M242.84,145H7" stroke-dasharray="4 4"/><path class="pele-marker" d="M0,145L8,141.64L8,148.36Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge pele-message" data-id="i2"><path d="M0,182H235.84"/><path class="pele-marker" d="M242.84,182L234.84,185.36L234.84,178.64Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge pele-message" data-id="i3"><path d="M242.84,219H7" stroke-dasharray="4 4"/><path class="pele-marker" d="M0,219L8,215.64L8,222.36Z" fill="var(--_l)" stroke="none"/></g></g><g class="pele-edge-labels" font-size="14"><g class="pele-edge-label" data-id="i0"><text x="121.42" y="77.4" text-anchor="middle">stops, no report</text></g><g class="pele-edge-label" data-id="i1"><text text-anchor="middle" xml:space="preserve"><tspan x="121.42" y="114.4">&quot;Something may still be running.</tspan><tspan x="121.42" y="135.4">Wait for it, then send your report.&quot;</tspan></text></g><g class="pele-edge-label" data-id="i2"><text x="121.42" y="172.4" text-anchor="middle">stops with its report</text></g><g class="pele-edge-label" data-id="i3"><text x="121.42" y="209.4" text-anchor="middle">lets it stop</text></g></g><g class="pele-nodes"><g class="pele-node pele-actor pele-actor-participant pele-actor-footer" data-id="H"><rect x="-68.91" y="239" width="137.82" height="44" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="0" y="266.6" text-anchor="middle">Building helper</text></g><g class="pele-node pele-actor pele-actor-participant pele-actor-footer" data-id="K"><rect x="208.17" y="239" width="69.34" height="44" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="242.84" y="266.6" text-anchor="middle">Hook</text></g><g class="pele-node pele-actor pele-actor-participant" data-id="H"><rect x="-68.91" y="0" width="137.82" height="44" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="0" y="27.6" text-anchor="middle">Building helper</text></g><g class="pele-node pele-actor pele-actor-participant" data-id="K"><rect x="208.17" y="0" width="69.34" height="44" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="242.84" y="27.6" text-anchor="middle">Hook</text></g></g></g></svg></div></div></details></li>
-<li class="item card" id="item-4"><span class="num">4</span><div class="body"><div class="text" data-note="item-4" tabindex="0"><b>Installs get the hook on their next update.</b> Codex may ask once to trust the new hook.</div></div></li>
+<li class="item card" id="item-1"><span class="num">1</span><div class="body"><div class="text" data-note="item-1" tabindex="0"><b>A sun or moon button sits in the top right of every page.</b> In the app it sits at the right of the top bar, beside <i>Sign out</i>, on Home and every mini app. On the plan review page and the private key, password, form, and view pages it sits in the top right corner. It shows a moon while the page is light and a sun while it is dark.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-1-line-1" tabindex="0">APP (phone)               REVIEW / PRIVATE PAGE</span>
+<span class="ln" data-note="item-1-line-2" tabindex="0">┌──────────────────────┐ ┌──────────────────────┐</span>
+<span class="ln" data-note="item-1-line-3" tabindex="0">│W WongStack ☾ Sign out│ │                   ☾  │</span>
+<span class="ln" data-note="item-1-line-4" tabindex="0">├──────────────────────┤ │ Review               │</span>
+<span class="ln" data-note="item-1-line-5" tabindex="0">│ Your apps            │ │ change-name          │</span>
+<span class="ln" data-note="item-1-line-6" tabindex="0">│ ╭──────╮ ╭──────╮    │ │ ╭──────────────────╮ │</span>
+<span class="ln" data-note="item-1-line-7" tabindex="0">│ │ app  │ │ app  │    │ │ │ 1  Item text     │ │</span>
+<span class="ln" data-note="item-1-line-8" tabindex="0">│ ╰──────╯ ╰──────╯    │ │ ╰──────────────────╯ │</span>
+<span class="ln" data-note="item-1-line-9" tabindex="0">└──────────────────────┘ └──────────────────────┘</span></pre></div></details></li>
+<li class="item card" id="item-2"><span class="num">2</span><div class="body"><div class="text" data-note="item-2" tabindex="0"><b>Pages start light; one tap turns them dark, and they stay that way.</b> Each page starts light, as now, whatever the device's setting. A tap flips it at once, with no reload. The browser remembers the choice, so the next visit opens the same way.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><div class="art pic" data-note="item-2-picture-1" tabindex="0" style="width:25.077em"><svg xmlns="http://www.w3.org/2000/svg" class="pele pele-flowchart" viewBox="0 0 326 462" width="326" height="462" style="max-width:100%;height:auto;--_bg:var(--pele-bg,#fff);--_fg:var(--pele-fg,#1f1f1f);--_m:var(--pele-muted,#6e6e6e);--_l:var(--pele-line,#1f1f1f);--_s:var(--pele-surface,#f3f3f3);--_a:var(--pele-surface-alt,#e6e6e6);--_b:var(--pele-border,#8a8a8a);--_c:var(--pele-accent,#5b7bd5);color:var(--_fg);--_r:var(--pele-radius,4px);--_fm:var(--pele-font-mono,monospace);font:16px sans-serif;letter-spacing:normal;word-spacing:normal;text-transform:none;direction:ltr;font-family:var(--pele-font,system-ui, -apple-system, &quot;Segoe UI&quot;, Roboto, sans-serif)" fill="var(--_fg)" role="graphics-document document" aria-roledescription="flowchart"><g class="pele-edges" fill="none" stroke="var(--_l)" stroke-linecap="round"><g class="pele-edge" data-id="L_open_saved_0"><path d="M167.81,56L167.81,97"/><path class="pele-marker" d="M167.81,104L164.45,96L171.17,96Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge" data-id="L_saved_light_0"><path d="M156.16,204.31C156.16,218.2 92.68,218.2 92.68,232.09L92.68,277.59"/><path class="pele-marker" d="M92.68,284.59L89.32,276.59L96.04,276.59Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge" data-id="L_saved_choice_0"><path d="M179.45,204.31C179.45,218.2 242.94,218.2 242.94,232.09L242.94,277.59"/><path class="pele-marker" d="M242.94,284.59L239.58,276.59L246.3,276.59Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge" data-id="L_light_dark_0"><path d="M92.68,332.59L92.68,398.59"/><path class="pele-marker" d="M92.68,405.59L89.32,397.59L96.04,397.59Z" fill="var(--_l)" stroke="none"/></g></g><g class="pele-edge-labels" font-size="14"><g class="pele-edge-label" data-id="L_saved_light_0"><rect x="80.9" y="234.09" width="23.57" height="21" rx="3" fill="var(--_bg)"/><text x="92.68" y="249.49" text-anchor="middle">no</text></g><g class="pele-edge-label" data-id="L_saved_choice_0"><rect x="228.04" y="234.09" width="29.78" height="21" rx="3" fill="var(--_bg)"/><text x="242.94" y="249.49" text-anchor="middle">yes</text></g><g class="pele-edge-label" data-id="L_light_dark_0"><rect x="72.94" y="355.09" width="39.47" height="21" rx="3" fill="var(--_bg)"/><text x="92.68" y="370.49" text-anchor="middle">tap ☾</text></g></g><g class="pele-nodes"><g class="pele-node pele-shape-rect" data-id="open" transform="translate(167.81,32)"><rect x="-64.26" y="-24" width="128.51" height="48" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">Open a page</text></g><g class="pele-node pele-shape-diam" data-id="saved" transform="translate(167.81,157.8)"><polygon points="0,-53.79 86.07,0 0,53.8 -86.07,0" fill="var(--_s)" stroke="var(--_b)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">Chose before?</text></g><g class="pele-node pele-shape-rect" data-id="light" transform="translate(92.68,308.59)"><rect x="-35.34" y="-24" width="70.69" height="48" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">Light</text></g><g class="pele-node pele-shape-rect" data-id="choice" transform="translate(242.94,308.59)"><rect x="-74.91" y="-24" width="149.82" height="48" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">Your last choice</text></g><g class="pele-node pele-shape-rect" data-id="dark" transform="translate(92.68,429.59)"><rect x="-84.68" y="-24" width="169.36" height="48" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">Dark, remembered</text></g></g></svg></div></div></details></li>
+<li class="item card" id="item-3"><span class="num">3</span><div class="body"><div class="text" data-note="item-3" tabindex="0"><b>Dark uses the app's own dark colours.</b> The dark set is shadcn's neutral dark, kept beside the light set in the app's one stylesheet, so a rebranded app's dark colours reach the review and private pages too. Red still marks only a problem, and text stays readable.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-3-line-1" tabindex="0">        │ light          │ dark</span>
+<span class="ln" data-note="item-3-line-2" tabindex="0">────────┼────────────────┼────────────────</span>
+<span class="ln" data-note="item-3-line-3" tabindex="0">page    │ white          │ near black</span>
+<span class="ln" data-note="item-3-line-4" tabindex="0">cards   │ white          │ dark grey</span>
+<span class="ln" data-note="item-3-line-5" tabindex="0">buttons │ black, filled  │ white, filled</span>
+<span class="ln" data-note="item-3-line-6" tabindex="0">problem │ red            │ softer red</span></pre></div></details></li>
 </ol>
-<p class="aside"><b>Non-goals:</b> Adopting Harness² itself. No new size check: the existing one already holds always-loaded text down. No other hooks in this change.</p>
-
 </section>
 <section id="decisions" aria-labelledby="decisions-h"><h2 id="decisions-h">Decisions</h2>
 <ol class="decisions">
-<li class="decision card" id="decision-1" data-note="decision-1" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-19</p>Asked which of five Harness² ideas to plan → chose the cost order with a budget, and hooks for repeat mistakes.</li>
-<li class="decision card" id="decision-2" data-note="decision-2" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-19</p>Asked what idea 1 should add, since <code>measure-context.mjs --check</code> already caps start-up text and the memory digest has its own 6 KB cap → chose to write the order only, with no new check.</li>
-<li class="decision card" id="decision-3" data-note="decision-3" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-19</p>Asked how the wiki's &quot;prefer a rule to a hook&quot; should change → chose to narrow it: rules for judgment calls, a hook for one repeated mechanical mistake.</li>
-<li class="decision card" id="decision-4" data-note="decision-4" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-19</p>Asked whether to build a first hook in this change → chose yes: the helper that stops early, recorded five times (memory #1687).</li>
-<li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-19</p>Assumed: the hook spots an early stop by a missing report, not by open tasks or running jobs, because a helper legitimately returns with tasks open, and running jobs look different in each host's chat files. The brief already requires a report on every return.</li>
-<li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-19</p>Assumed: the hook sends a helper back once, then always lets it stop, and lets any error through, because a hook that traps a helper is worse than the mistake it guards against.</li>
-<li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-19</p>Assumed: on review, a helper counts as a builder only when its first instruction or its first three commands name the brief, because matching anywhere would send back a reviewer that merely opens the brief, or a forked chat whose history names it.</li>
-<li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-19</p>Assumed: Harness² ideas are folded in as our own sentences, with no text copied, because that is how outside skills have been taken in before (<code>improve-skill-lineage</code>).</li>
-<li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-19</p>Checkpoint: built the cheapest-first order, the narrowed hook stance, <code>/improve-code</code>'s hook option and the build helper's stop check on both hosts; on review, narrowed which helpers count as builders. Local checks pass; waiting on the publishing checks for task 5.2.</li>
+<li class="decision card" id="decision-1" data-note="decision-1" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-18</p>Asked (in the request) for a light and dark switch with a symbol in the top right on everything → this replaces the earlier choice of always light, which stays the starting look.</li>
+<li class="decision card" id="decision-2" data-note="decision-2" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-18</p>Assumed: pages start light, not by the device's setting, because the person chose light as the look earlier the same day and asked only for a switch.</li>
+<li class="decision card" id="decision-3" data-note="decision-3" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-18</p>Assumed: &quot;everything&quot; means the app, its mini apps, the review page, and the private pages, because those share one look; the landing site keeps its own look, as chosen for the shared look.</li>
+<li class="decision card" id="decision-4" data-note="decision-4" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-18</p>Assumed: a closed link's page gets no button and stays light, because it is a one-line dead end with nothing to read.</li>
+<li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-18</p>Assumed: each browser remembers the choice per site, because the app, the private pages, and a review file each live at their own address and cannot share one saved setting.</li>
+<li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-18</p>Assumed: building on #392's branch, because the person said it is going to merge.</li>
+<li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-19</p>Assumed: on the review and private pages the switch scrolls away with the page rather than staying pinned, because a pinned button sat over text while scrolling.</li>
+<li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-19</p>Assumed: on the live view page the switch sits in the bottom bar beside the typing box, because a corner button would cover the remote browser's screen.</li>
+<li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-19</p>Archive checkpoint: archived for publishing, built on #392 after it merged; Matthew's wiki page now says pages start light with a switch.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

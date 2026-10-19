@@ -1,20 +1,21 @@
 # Asking the user
 
-Every WongStack ask has one shape: **two or three real options, the recommended one first, a short tradeoff on each, and room for the user's own words.** [`/explore`](../SKILL.md) owns *what to ask and how many*; this page owns *how an ask looks and which tool carries it*.
+Every WongStack ask has one shape: **two or three real options, the recommended one first, a short tradeoff on each, and room for the user's own words.** [`/explore`](../SKILL.md) owns *what to ask and how many*.
 
 ## The anatomy of an ask
 
-```
-Where should the convention live?
-  1. A shared reference (Recommended) — one copy, every skill links it.
-  2. Inside /explore — no new file, but runbooks inherit text they do not need.
-  3. A wiki page — best hub placement, one hop further from the ask site.
+```text
+[ Where should the convention live? ]
+( ) A shared reference (Recommended): one copy, every skill links it.
+( ) Inside /explore: no new file, but runbooks inherit text they do not need.
+( ) A wiki page: best hub placement, one hop further from the ask site.
+[ Your own answer ]
 ```
 
 - **Only [*Review the plan*](#print-the-plans-link) and [*See the preview*](#print-the-previews-link) may add a fourth option.**
 - **Put `(Recommended)` in the option text itself.**
 - **A tradeoff says what the user gets and what it costs**; an option with no consequence is not a choice.
-- **Keep the custom answer in the tool's own free-text field**, never an added Other option, and use it as given, not forced into the nearest option.
+- **Keep the custom answer in the tool's free-text field**, never an added Other option, and use it as given, not forced into the nearest option.
 - **Ask only what changes the result.** Where options would be artificial, as for a credential, ask a structured free-text question; never invent alternatives.
 
 ## Write in plain words
@@ -32,7 +33,7 @@ Write every plan, question, and report in plain words, for everyone. Give more d
 Use the first callable tool:
 
 1. Codex **`request_user_input`**
-2. Claude **`AskUserQuestion`**
+2. Claude **`AskUserQuestion`**; Claude Code's stop hook returns typed choices
 3. Another host's equivalent structured question tool
 4. **Numbered chat** with the same questions, options, recommendation, and custom-answer path; wait for the answer.
 
@@ -50,7 +51,7 @@ This page sets how a question **looks**, never which actions **need** one. An ac
 
 ## End every reply with the next step
 
-Before you finish, ask **what the user must decide for the work to continue**, in this format, through [the first callable tool](#which-tool-carries-it). Write the report and each link as its own chat line first, never in the tool's question or options nor only in your reasoning; an option may name a link, never repeat it. Only the replies to *Review the plan* and *See the preview* end without a question.
+**Call [the question tool](#which-tool-carries-it)** before you finish: ask **what the user must decide for the work to continue**, in this format. Write the report and each link as its own chat line first, never in the tool's question or options nor only in your reasoning; an option may name a link, never repeat it. Only the replies to *Review the plan* and *See the preview* end without a question.
 
 - Finished standalone `/explore`: *Plan it (Recommended)* / *Keep thinking* / *Stop*.
 - Finished plan: [the plan's link](#print-the-plans-link), then *Build it now (Recommended)* / *Build and publish* / *Review the plan* / *Stop here*. *Build and publish* runs `/ship`. The person may paste notes.

@@ -41,6 +41,7 @@ const scripts = {
   '.agents/skills/save/scripts/checkpoint-evidence.mjs': [],
   '.agents/skills/save/scripts/render-pr-body.mjs': [],
   '.agents/skills/explore/scripts/other-work.mjs': [],
+  '.agents/skills/explore/scripts/ask-check.mjs': ['stop'],
   '.agents/skills/dream-memory/scripts/dream.mjs': ['since'],
   '.agents/skills/hand-over/scripts/hand-over.mjs': [],
   '.agents/skills/hand-over/scripts/reply-link.mjs': [],

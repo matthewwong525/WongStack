@@ -124,9 +124,9 @@ One `$RUN_DIR/comment.md` covers every surface/retry: verdict, saved SHA, previe
 
 Apply the skill's verdict precedence. UNKNOWN/TIMEOUT lead **Not verified.**, naming completed checks, blocks, and remedies.
 
-Before handoff, attempt safe simulations through existing deployed interfaces, disposable synthetic data or sandbox integrations (§ a). Label **simulated** evidence, supported claims and real behavior unproved; simulated delivery proves no real delivery or personal experience. No safe simulation → name the limit.
+Before handoff, try safe simulations through deployed interfaces, disposable synthetic data or sandbox integrations (§ a). Label **simulated** evidence, supported claims and real behavior unproved; simulated delivery proves no real delivery or personal experience. No safe simulation → name the limit.
 
-After independent checks/simulations, make **one handoff** in comment/chat, including human-checkable partial claims. Each remaining check names its reason, needed action/permission, expected observation and dependents. Offer help or selected/all skips in [the shared ask format](../../explore/references/asking-the-user.md). Skips stay **skipped, unverified**, grant no permission/pass and erase no failure; ask again only if reopened.
+After independent checks/simulations, make **one handoff**, including human-checkable partial claims: text in the comment, the question tool in chat. Each remaining check names its reason, needed action/permission, expected observation and dependents. Offer help or selected/all skips in [the shared ask format](../../explore/references/asking-the-user.md). Skips stay **skipped, unverified**, grant no permission/pass and erase no failure; ask again only if reopened.
 
 Use [key links](../../../../wiki/development/secrets.md#receive-a-key-through-a-private-link) or [password links](../../../../wiki/development/passwords.md) for credentials/login. Waiting grants no permission. Resume pending checks after help; repeat completed checks only on changed conditions. Retain observations, pending/skipped ledger and owned IDs before cleanup.
 

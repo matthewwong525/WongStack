@@ -37,25 +37,29 @@ function props(body) {
   return out;
 }
 
-/** The colour set: the custom properties of the first plain `:root { … }`, or null when there is none. */
-function colourSet(css) {
-  const root = blocks(css).find(block => block.prelude === ':root');
-  return root ? props(root.body) : null;
+/** A colour set: the custom properties of the first plain `<prelude> { … }`, or null when there is none. */
+function colourSet(css, prelude = ':root') {
+  const found = blocks(css).find(block => block.prelude === prelude);
+  return found ? props(found.body) : null;
 }
 
 const read = file => { try { return readFileSync(file, 'utf8'); } catch { return null; } };
 
-/** The app's colours under `root`, laid over look.css's copy; `missing` is true when the app's file has no set. */
+/** The app's colours under `root`, light (`colours`) and dark (`dark`), each laid over look.css's copy; `missing` is
+ * true when the app's file has no light set. */
 export function lookColours(root = ROOT) {
-  const app = colourSet(read(join(root, 'app/src/index.css')) ?? '');
-  return { colours: new Map([...colourSet(read(LOOK)), ...(app ?? [])]), missing: !app?.size };
+  const app = read(join(root, 'app/src/index.css')) ?? '';
+  const look = read(LOOK);
+  const over = prelude => new Map([...colourSet(look, prelude), ...(colourSet(app, prelude) ?? [])]);
+  return { colours: over(':root'), dark: over('.dark'), missing: !colourSet(app)?.size };
 }
 
-/** The finished stylesheet: the app's light colours, then look.css's parts. */
+/** The finished stylesheet: the app's light colours, its dark ones under `.dark`, then look.css's parts. */
 export function lookCss(root = ROOT) {
   const look = read(LOOK);
   const at = look.indexOf(START), to = look.indexOf(END);
   if (at < 0 || to < at) throw new Error(`${LOOK}: expected ${START} … ${END}`);
-  const declarations = [...lookColours(root).colours].map(([name, value]) => `  ${name}: ${value};`).join('\n');
-  return `${look.slice(0, at)}:root {\n${declarations}\n}${look.slice(to + END.length)}`;
+  const { colours, dark } = lookColours(root);
+  const set = (prelude, map) => `${prelude} {\n${[...map].map(([name, value]) => `  ${name}: ${value};`).join('\n')}\n}`;
+  return `${look.slice(0, at)}${set(':root', colours)}\n${set('.dark', dark)}${look.slice(to + END.length)}`;
 }

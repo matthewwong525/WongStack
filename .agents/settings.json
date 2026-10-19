@@ -15,6 +15,16 @@
             "timeout": 5
           }
         ]
+      },
+      {
+        "matcher": "compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "PATH=\"$HOME/.local/bin:$PATH\" node \"$CLAUDE_PROJECT_DIR/.claude/skills/explore/scripts/ask-check.mjs\" reminder",
+            "timeout": 3
+          }
+        ]
       }
     ],
     "PreToolUse": [
@@ -24,6 +34,17 @@
           {
             "type": "command",
             "command": "PATH=\"$HOME/.local/bin:$PATH\" node \"$CLAUDE_PROJECT_DIR/.claude/skills/memory/scripts/before-edit.mjs\"",
+            "timeout": 3
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "PATH=\"$HOME/.local/bin:$PATH\" node \"$CLAUDE_PROJECT_DIR/.claude/skills/explore/scripts/ask-check.mjs\" stop",
             "timeout": 3
           }
         ]
