@@ -1,6 +1,6 @@
 # Proposal
 
-**Status:** built, saved for review
+**Status:** ready-to-ship
 **Branch:** review-svg-conversion
 **Open questions:** none
 
@@ -83,3 +83,4 @@ Non-goals: changing how flow pictures are drawn; making sketches into finished d
 - **2026-10-19** — Asked whether wireframes should use SVG or the shadcn components → chose shadcn-style HTML for screens, with hand-drawn SVG kept for arrows and freeform drawings, because laid-out HTML wraps text and matches the real app while hand-placed SVG overlaps.
 - **2026-10-19** — Assumed: a screen sketch uses only the look's existing parts (button, text box, card, tag, gray placeholder) plus a few layout helpers, and its controls do nothing when tapped, because the page runs no app code and a tap there must place a note.
 - **2026-10-19** — Check: built and checked locally: the app-parts screen sketch and the SVG arrow drew in light and dark on this page; a screen with `style=` or `<a>` stopped the build and kept the last page; all local checks passed.
+- **2026-10-19** — Archived for publishing; trimmed two phrases from the drawing guide to stay under the instruction-size budget after main came in.

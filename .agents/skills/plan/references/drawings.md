@@ -2,11 +2,11 @@
 
 How [`/plan`](../SKILL.md#draw-in-the-proposal-then-build-the-page) and [`/explore`](../../explore/SKILL.md#questions-during-standalone-exploration) draw: pick by what the bullet explains.
 
-- **A flow is a `mermaid` fence**: steps, states, or a back-and-forth (`sequenceDiagram`). Keep labels few and short: the builder warns past 640 px. Quote `"/apply"`: bare `[/apply]` is a shape.
+- **A flow is a `mermaid` fence**: steps, states, or a back-and-forth (`sequenceDiagram`). Keep labels short: the builder warns past 640 px. Quote `"/apply"`: bare `[/apply]` is a shape.
 - **A screen is a `screen` fence**, HTML in the app's parts: `card`, `btn-primary`, `btn-ghost`, `field`, `tag`, `tag-outline`, `skeleton`; layout `row`, `col`, `gap`, `grow`, `phone` (360 px), `muted`, `danger`, `bar` (gray text), `sep`. No style, id, link, or image: the build stops. Set before and after side by side; sketch each named state ([what it holds](../../../../wiki/ux-principles.md#the-review-file)).
 - **Arrows or layers are an `svg` fence**, painted only `bg`, `fg`, `muted`, `subtle`, `line`, `card`, `danger`.
 - **A table is a Markdown table** in the bullet; each row takes a note.
-- **Chat and file lists stay a `text` fence**, about 40 columns: chat shows no pictures.
+- **Chat and file lists stay a `text` fence**: chat shows no pictures.
 
 **Steps**: usual path in one line, failures below.
 ```mermaid
