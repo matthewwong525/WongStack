@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 43.9.0 — Ask next steps with the question box
+
+- **A typed list of choices gets sent back.** When a reply in Claude Code ends with a question and a short list of options, and the question box wasn't used, the assistant is sent back once to ask with the box. You may see the typed list once, with the box below it. Normal reports aren't touched: tried on 1,762 past replies that didn't use the box, it flagged 25, all real slips.
+- **A reminder after a long chat is shortened.** When Claude Code shortens a long conversation to keep going, one line about the question box is added back.
+- **The instructions say "ask with the question box".** The closing lines of building, saving, publishing and checking now say it, and the example question looks like a box, not a typed list. A preview check still writes its open items into the note on the change, but in chat it asks with the box.
+
+**Updating.** The update adds two small Claude Code hooks to your project settings: one checks how each reply ends, the other adds the reminder line. Your own hooks stay. Codex is unchanged.
+
 ## 43.8.0 — A light and dark switch on every page
 
 - **A sun or moon button sits in the top right of every page.** In the app it's at the right of the top bar, beside *Sign out*, on Home and every mini app. On a plan's review page and the private key, password, form, and live view pages it's in the top right corner.
