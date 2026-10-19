@@ -244,3 +244,68 @@ for (const [what, lines, line, name] of refused) {
     assert.equal(page(root), good);
   }));
 }
+
+// ── `screen` sketches: the look's parts as allowlisted HTML, re-serialized inside an inert box ──
+const screenSource = [
+  '<div class="card col gap phone">',
+  '  <div class="row gap"><h3>Notes &amp; drafts</h3><span class="tag">3</span></div>',
+  '  <div class="bar"></div>',
+  '  <input type="text" placeholder="A question or a change">',
+  '  <label><input type="checkbox" checked> Send now</label>',
+  '  <div class="row gap"><span class="grow"/><button class="btn-ghost">Cancel</button><button class=\'btn-primary\'>Save</button></div>',
+  '</div>',
+];
+const withScreen = (lines = screenSource) => withSketch(lines).replace(`${fence}svg`, `${fence}screen`);
+
+test('a screen fence becomes a phone-wide sketch of the look\'s parts, written out again inside an inert box', () => fixture(root => {
+  assert.deepEqual(buildReview(root, { requireCurrent: true }).warnings, []);
+  const html = page(root);
+  const pic = /<div class="art pic screen" data-note="item-1-picture-1" tabindex="0" style="width:([\d.]+)em"><div class="sk" inert>([\s\S]*?)<\/div><\/div><\/details>/.exec(html);
+  assert.ok(pic, 'the screen sits in the picture wrapper with an inert box');
+  assert.ok(Math.abs(Number(pic[1]) * 13 - 360) < 0.01, 'a phone screen is 360 px in em');
+  assert.match(pic[2], /^<div class="card col gap phone">\s*<div class="row gap"><h3>Notes &amp; drafts<\/h3><span class="tag">3<\/span><\/div>/);
+  assert.match(pic[2], /<div class="sk-bar"><\/div>/, 'the gray bar is renamed apart from the page\'s footer');
+  assert.match(pic[2], /<input type="text" placeholder="A question or a change">/);
+  assert.match(pic[2], /<input type="checkbox" checked> Send now<\/label>/);
+  assert.match(pic[2], /<span class="grow"><\/span><button class="btn-ghost">Cancel<\/button><button class="btn-primary">Save<\/button>/);
+  assert.equal((html.match(/<script\b/gi) || []).length, 2, 'still the kit\'s one script, and the switch');
+}, withScreen()));
+
+test('a screen with no phone class fills the frame, with no width set', () => fixture(root => {
+  assert.deepEqual(buildReview(root, { requireCurrent: true }).warnings, []);
+  assert.match(page(root), /<div class="art pic screen" data-note="item-1-picture-1" tabindex="0"><div class="sk" inert><div class="card"><p>Wide<\/p><\/div><\/div>/);
+}, withScreen(['<div class="card"><p>Wide</p></div>'])));
+
+test('Mermaid, svg, and screen pictures in one item share one count, in order', () => fixture(root => {
+  buildReview(root, { requireCurrent: true });
+  assert.deepEqual([...page(root).matchAll(/class="art (pic(?: \w+)?)" data-note="(item-1-picture-\d+)"/g)].map(m => `${m[2]} ${m[1]}`),
+    ['item-1-picture-1 pic', 'item-1-picture-2 pic screen', 'item-1-picture-3 pic sketch']);
+}, proposal.replace(`  ${fence}\n- **Escapes`, [
+  `  ${fence}`, `  ${fence}screen`, '  <div class="card">x</div>', `  ${fence}`,
+  `  ${fence}svg`, '  <svg viewBox="0 0 40 20"><rect x="0" y="0" width="40" height="20"/></svg>', `  ${fence}`, '- **Escapes'].join('\n'))));
+
+const refusedScreens = [
+  ['a style attribute', ['<div class="card">', '<p style="color:red">x</p>', '</div>'], 12, 'style='],
+  ['an event handler', ['<div class="card">', '<button onclick="alert(1)">Go</button>', '</div>'], 12, 'onclick='],
+  ['a bare event handler', ['<div class="card">', '<button onclick>Go</button>', '</div>'], 12, 'onclick='],
+  ['a link', ['<div class="card">', '<a>Open</a>', '</div>'], 12, '<a>'],
+  ['an image', ['<div class="card">', '<img>', '</div>'], 12, '<img>'],
+  ['an unknown class', ['<div class="card">', '<button class="btn-primray">Save</button>', '</div>'], 12, 'class "btn-primray"'],
+  ['a nested svg', ['<div class="card">', '<svg viewBox="0 0 10 10"></svg>', '</div>'], 12, '<svg>'],
+  ['an id', ['<div id="x" class="card"></div>'], 11, 'id='],
+  ['a file input', ['<input type="file">'], 11, 'type='],
+  ['a url( in a value', ['<input placeholder="url(x)">'], 11, 'url('],
+  ['an end tag on an empty element', ['<div><input></input></div>'], 11, '</input>'],
+  ['a missing end tag', ['<div class="card">', '<p>x'], 12, '<p>, which never closes'],
+];
+for (const [what, lines, line, name] of refusedScreens) {
+  test(`a screen holding ${what} stops the build on one line, and the previous page stays`, () => fixture(root => {
+    buildReview(root, { requireCurrent: true });
+    const good = page(root);
+    writeFileSync(join(root, 'proposal.md'), withScreen(lines));
+    const result = build(root);
+    assert.equal(result.status, 1);
+    assert.equal(result.stderr, `review: proposal.md line ${line}: item 1, picture 1: a screen can not hold ${name}; build it from the look's parts and layout classes only\n`);
+    assert.equal(page(root), good);
+  }));
+}

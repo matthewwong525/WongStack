@@ -1085,3 +1085,45 @@ browserTest('a sketch fits 320px, opens full screen, and repaints on the dark sw
   assert.deepEqual(errors, []);
   await context.close();
 });
+
+browserTest('a phone screen fits 320px, a tap on its button places a note instead of pressing it, and it repaints on the dark switch', async () => {
+  const { url } = fixture(proposal.replace(`  ${fence}text\n  you ask\n     │\n  done\n  ${fence}`, [
+    `  ${fence}screen`, '  <div class="card col gap phone">', '    <div class="row gap"><h3>Notes</h3><span class="tag">3</span></div>', '    <div class="bar"></div>',
+    '    <input type="text" placeholder="A question or a change">',
+    '    <div class="row gap"><span class="grow"></span><button class="btn-ghost">Cancel</button><button class="btn-primary">Save</button></div>',
+    '  </div>', `  ${fence}`,
+  ].join('\n')));
+  const { page, context, errors } = await open(url, { width: 320, touch: true });
+  await page.locator('#item-1 summary').click();
+  // The fold's toggle event fits the sketch a moment after the click.
+  await page.waitForFunction(() => document.querySelector('#item-1 .art.screen').style.fontSize !== '');
+  const fits = await page.evaluate(() => {
+    const frame = document.querySelector('#item-1 .frame').getBoundingClientRect(), card = document.querySelector('#item-1 .art.screen .card').getBoundingClientRect();
+    const save = document.querySelector('#item-1 .art.screen .btn-primary').getBoundingClientRect();
+    return { inside: card.left >= frame.left - 1 && card.right <= frame.right + 1 && save.right <= card.right + 1, page: document.documentElement.scrollWidth <= innerWidth, drawn: card.height > 0 };
+  });
+  assert.deepEqual(fits, { inside: true, page: true, drawn: true });
+  const paint = () => page.evaluate(() => {
+    const css = sel => getComputedStyle(document.querySelector(`#item-1 .art.screen ${sel}`));
+    return { card: css('.card').backgroundColor, save: css('.btn-primary').backgroundColor, bar: css('.sk-bar').height, footer: document.querySelectorAll('.bar').length };
+  });
+  const light = await paint();
+  assert.ok(parseFloat(light.bar) > 0 && light.footer === 1, 'the gray bar draws in the sketch, apart from the page\'s footer');
+  await page.locator('.theme-toggle').click();
+  await page.evaluate(() => Promise.all(document.getAnimations().map(animation => animation.finished)));
+  const dark = await paint();
+  assert.notEqual(dark.card, light.card, 'the card repaints on the switch');
+  assert.notEqual(dark.save, light.save, 'the button repaints on the switch');
+  await page.locator('#item-1 .enlarge').click();
+  const save = page.locator('#viewer .art.screen .btn-primary');
+  const box = await save.boundingBox();
+  await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+  assert.equal(await page.evaluate(() => document.activeElement.closest('.sk')), null, 'the button takes no focus');
+  await page.locator('#chip').click();
+  assert.equal(await page.locator('#editor-where').innerText(), '#/1 · picture 1 "Notes 3 Cancel Save"');
+  await page.locator('#editor textarea').fill('Save on Enter too.');
+  await page.locator('#editor [data-act="save"]').click();
+  assert.match(await copied(page), /^- Change #1, picture 1 \("Notes 3 Cancel Save"\): Save on Enter too\.$/m);
+  assert.deepEqual(errors, []);
+  await context.close();
+});

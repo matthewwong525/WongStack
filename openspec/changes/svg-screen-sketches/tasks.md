@@ -16,6 +16,12 @@
 - [x] 3.2 Update `wiki/ux-principles.md` (the review file section) for SVG sketches, page tables, and text for listings and chat; verify `node scripts/check-payload-links.mjs` passes
 - [x] 3.3 Add a `## Next (minor) — Screens drawn as pictures` entry to `CHANGELOG.md` in plain words, no hand step; verify it sits at the top of the entries
 
-## 4. Verification
+## 4. Screens from app parts
 
-- [x] 4.1 Rebuild this change's own review page with an `svg` sketch and a table in a scratch proposal copy, open it in a browser light and dark, and confirm the pictures and row notes work; then run `node .github/scripts/checks.mjs --worktree` and `/save`
+- [x] 4.1 Add the `screen` fence to `build-review.mjs`: its element, attribute, and class allowlists on the shared tokenizer, re-serialization, the inert picture wrapper, and the shared picture counter; verify with tests for a valid card-and-buttons sketch, and refusals of `style`, `onclick`, `<a>`, `<img>`, an unknown class, and a nested `<svg>`, each leaving the previous page byte-identical
+- [x] 4.2 Add the layout helpers (`row`, `col`, `grow`, `gap`, `phone`, `muted`, `danger`, `bar`, `sep`) and a still `.skeleton` under `.art.screen` to `review-kit.html`; verify in `review-browser.test.mjs` that a `phone` sketch fits 320 px, a tap on its button places a note instead of focusing it, and the dark switch repaints it
+- [x] 4.3 Update `drawings.md` (a `screen` example, a short `svg` free-drawing example), the plan skill's drawing line, `openspec/config.yaml`, and `wiki/ux-principles.md`; redraw this proposal's item 1 sketch as a `screen` fence; verify `measure-context.mjs --check`, `check-openspec-config.mjs`, and `check-payload-links.mjs` pass and the page builds with no warning
+
+## 5. Verification
+
+- [x] 5.1 Rebuild this change's own review page with a `screen` sketch, an `svg` drawing, and a table in a scratch proposal copy, open it in a browser light and dark, and confirm the pictures and row notes work; then run `node .github/scripts/checks.mjs --worktree` and `/save`

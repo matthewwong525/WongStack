@@ -7,6 +7,7 @@ See proposal.md for why. Today `build-review.mjs` turns a `mermaid` fence into i
 ## Goals / Non-Goals
 
 **Goals:**
+- Screen sketches use the look's existing shadcn parts with automatic layout, inert.
 - Hand-written `svg` fences reach the page only as markup the builder re-serialized itself from an allowlist.
 - Sketches follow the page's theme without any style or script inside the SVG.
 - Tables are real HTML tables with a note target per body row.
@@ -34,9 +35,24 @@ The builder then writes the tree back out itself, attribute values escaped, so n
 
 *Alternative:* `var(--muted)` in a presentation attribute. Rejected: presentation attributes don't take `var()`, and `style` is refused.
 
+### Screens are allowlisted HTML in the look's parts
+
+Asked after the SVG build: hand-placed SVG coordinates overlap and SVG text never wraps, while the review page already carries the app's shadcn parts in plain CSS (`look.css`: `button`, `.btn-primary`, `.btn-ghost`, `input`/`.field`, `.card`, `.tag`, `.tag-outline`, `.skeleton`), generated from the app's own tokens by `look.mjs`. A `screen` fence is HTML the builder parses with the same tokenizer, allowlists, and re-serializes.
+
+- Elements: `div`, `span`, `p`, `h3`, `h4`, `b`, `i`, `small`, `ul`, `ol`, `li`, `hr`, `table`, `thead`, `tbody`, `tr`, `th`, `td`, `label`, `button`, `input`, `textarea`, `select`, `option`.
+- Attributes: `class`, `type` (`text`, `checkbox`, `radio`), `placeholder`, `value`, `checked`, `disabled`, `selected`, `colspan`, `rowspan`.
+- Classes: the look's parts (`card`, `btn`, `btn-primary`, `primary`, `btn-ghost`, `field`, `tag`, `tag-outline`, `skeleton`) plus kit layout helpers (`row`, `col`, `grow`, `gap`, `phone`, `muted`, `danger`, `bar`, `sep`). `bar` is a gray text placeholder; `phone` caps the frame at 360 px. Any other class refuses the sketch with its name, so a typo never silently loses styling.
+- Refused: `style`, every `on*`, `id`, `href`, `src`, `<a>`, `<img>`, `<script>`, `<form>`, `<iframe>`, `<svg>` inside a screen, and anything unlisted.
+
+The sketch sits in an inert box (`<div class="sk" inert>`) inside the `.art.pic.screen` picture wrapper, so controls take no focus or taps, and a tap falls through to the wrapper and places a note. The builder writes `bar` out as `sk-bar`, because the page's own footer is `.bar`. `.skeleton` holds still inside sketches (no pulse). Width: `phone` sketches are 360 px; others take the frame width up to 640 px, so no build-time measuring is needed. The kit fits the frame by its em width like other pictures.
+
+*Alternative:* render the app's React components at build time. Rejected: the builder ships with no app dependencies, and installs may have changed or removed components; the look's CSS is already the agreed shared copy.
+
+*Alternative:* SVG only (what was first built). Kept for free drawings, since arrows and layers don't fit a box layout.
+
 ### Sketches reuse the picture frame
 
-An `svg` fence renders through the same wrapper as a Mermaid picture: folded `<details class="drawing">`, `.art.pic.sketch` with `data-note="item-N-picture-K"`, width in em from the `viewBox` width over 13 px, and the 640 px warning. Mermaid and SVG pictures share one counter per item, so labels read *Change #2, picture 1* either way. Full screen, zoom, and whole-picture notes come with no kit change beyond the color classes. No `id` attribute is allowed, so two sketches never collide.
+An `svg` or `screen` fence renders through the same wrapper as a Mermaid picture: folded `<details class="drawing">`, `.art.pic.sketch` with `data-note="item-N-picture-K"`, width in em from the `viewBox` width over 13 px, and the 640 px warning. Mermaid, screen, and SVG pictures share one counter per item, so labels read *Change #2, picture 1* either way. Full screen, zoom, and whole-picture notes come with no kit change beyond the color classes. No `id` attribute is allowed, so two sketches never collide.
 
 ### Tables parse inside the bullet
 
@@ -50,11 +66,13 @@ A `text` (or untagged) fence keeps its current rendering, line notes, width warn
 
 ### Guidance
 
-`drawings.md` swaps its screen and table text patterns for one compact `svg` wireframe example (8 px grid, named colors, labels in `text`) and one Markdown table, and keeps one short text pattern marked *for chat and file lists*. `/explore` keeps drawing `text` in chat. The plan skill's drawing line, the proposal rule in `openspec/config.yaml`, and `wiki/ux-principles.md#the-review-file` name the new kinds. Added words are offset by cuts so `measure-context.mjs --check` stays under its baseline.
+`drawings.md` swaps its screen and table text patterns for one compact `screen` example (a card with a bar, a field, and two buttons), one short `svg` free-drawing example, and one Markdown table, and keeps one short text pattern marked *for chat and file lists*. `/explore` keeps drawing `text` in chat. The plan skill's drawing line, the proposal rule in `openspec/config.yaml`, and `wiki/ux-principles.md#the-review-file` name the new kinds. Added words are offset by cuts so `measure-context.mjs --check` stays under its baseline.
 
 ## Risks / Trade-offs
 
-- [Hand-placed coordinates come out misaligned or labels overflow their boxes] → the guide's example uses a fixed grid and font size; the width warning still runs; a reviewer can note the picture.
+- [Hand-placed SVG coordinates come out misaligned] → screens use laid-out HTML; SVG is only for free drawings; the width warning still runs.
+- [Screen sketches look finished and pull review toward polish] → the guide puts `bar` placeholders where real text isn't the point, and the What Changes text names what's under review.
+- [A future look change restyles old sketches] → acceptable: sketches follow the app, which is the point; archived pages are never rebuilt.
 - [SVG sketches cost more tokens than text] → the guide keeps sketches to gray boxes and labels, and one sketch per screen by default.
 - [The tokenizer misreads odd but valid SVG] → anything it can't read refuses the picture with its line; never passes it through.
 - [A new kit class or `where()` change breaks notes saved on older pages] → note ids for lines and pictures are unchanged; `row` is only added.

@@ -27,6 +27,16 @@ const SKETCH_ATTRS = new Set(['xmlns', 'viewBox', 'width', 'height', 'x', 'y', '
   'fill-opacity', 'font-size', 'font-weight', 'text-anchor', 'dominant-baseline']);
 // Kit colour names: the kit paints each class from the look, so the light and dark switch repaints the sketch.
 const SKETCH_COLORS = new Set(['bg', 'fg', 'muted', 'subtle', 'line', 'card', 'danger']);
+// A `screen` fence passes only these: the look's parts (look.css) and the kit's layout helpers, as inert HTML.
+const SCREEN_TAGS = new Set(['div', 'span', 'p', 'h3', 'h4', 'b', 'i', 'small', 'ul', 'ol', 'li', 'hr', 'table', 'thead', 'tbody', 'tr', 'th',
+  'td', 'label', 'button', 'input', 'textarea', 'select', 'option']);
+const SCREEN_EMPTY = new Set(['hr', 'input']);
+const SCREEN_ATTRS = new Set(['class', 'type', 'placeholder', 'value', 'colspan', 'rowspan']);
+const SCREEN_FLAGS = new Set(['checked', 'disabled', 'selected']);
+const SCREEN_TYPES = new Set(['text', 'checkbox', 'radio']);
+const SCREEN_CLASSES = new Set(['card', 'btn', 'btn-primary', 'primary', 'btn-ghost', 'field', 'tag', 'tag-outline', 'skeleton',
+  'row', 'col', 'grow', 'gap', 'phone', 'muted', 'danger', 'bar', 'sep']);
+const PHONE_WIDE = 360;
 const ENTITIES = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
 const USAGE = `usage: build-review.mjs <change-root> [--require-current] [--link]
   --link  print the page's reply link, whose buttons send notes to this chat or ask it to build; the file where none can open`;
@@ -164,14 +174,14 @@ function picture(item, fence, k, warnings) {
   return frame(fence, id, where, drawn.svg, drawn.width, 'pic', 'fewer boxes in a row, or shorter labels', warnings);
 }
 
-// The folded frame both kinds of picture share; its width is in em so the kit's fit and zoom resize it.
+// The folded frame every picture shares; a width in em lets the kit's fit and zoom resize it, and none fills the frame.
 function frame(fence, id, where, svg, width, kind, narrower, warnings) {
   const unsafe = unsafeSvg(svg);
   if (unsafe) throw new Error(`proposal.md line ${fence.at}: ${where}: the drawn picture holds ${unsafe}; draw it without links, images, or styles`);
-  if (width > PICTURE_WIDE) warnings.push(`proposal.md line ${fence.at}: ${where} is ${Math.round(width)} px wide; keep pictures under ${PICTURE_WIDE}: ${narrower}`);
-  const em = Number((width / BASE_PX).toFixed(3));
+  if (width > PICTURE_WIDE && narrower) warnings.push(`proposal.md line ${fence.at}: ${where} is ${Math.round(width)} px wide; keep pictures under ${PICTURE_WIDE}: ${narrower}`);
+  const style = width ? ` style="width:${Number((width / BASE_PX).toFixed(3))}em"` : '';
   return '<details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary>'
-    + `<div class="frame"><div class="art ${kind}" data-note="${id}" tabindex="0" style="width:${em}em">${svg}</div></div></details>`;
+    + `<div class="frame"><div class="art ${kind}" data-note="${id}" tabindex="0"${style}>${svg}</div></div></details>`;
 }
 
 // Character references: the five XML names and numeric ones decode; any other name refuses the picture.
@@ -183,17 +193,16 @@ function decode(raw, refuse) {
   });
 }
 
-// An `svg` fence: tokenized, held to the allowlist, and written out again here, so no typed markup reaches the page.
-export function sketchSvg(source, refuse) {
-  const parts = [], stack = [], colors = [];
-  let pos = 0, root = null, closed = false;
-  const fail = (at, what) => refuse(at, what);
-  const tag = /<(\/?)([A-Za-z][\w:.-]*)((?:\s+[^\s=/>]+\s*=\s*(?:"[^"]*"|'[^']*'))*)\s*(\/?)>/y;
+// Read a fence's tags and text; `rules` judges each element and attribute, so nothing typed reaches the page verbatim.
+function markup(source, rules, fail) {
+  const parts = [], stack = [];
+  let pos = 0;
+  const tag = /<(\/?)([A-Za-z][\w:.-]*)((?:\s+[^\s=/>]+(?:\s*=\s*(?:"[^"]*"|'[^']*'))?)*)\s*(\/?)>/y;
   while (pos < source.length) {
     const lt = source.indexOf('<', pos);
     const text = source.slice(pos, lt < 0 ? undefined : lt);
     if (text) {
-      if (!stack.length && text.trim()) fail(pos, `text outside <svg>`);
+      if (!stack.length && text.trim()) rules.loose?.(pos);
       parts.push(esc(decode(text, ref => fail(pos, ref))));
     }
     if (lt < 0) break;
@@ -204,53 +213,107 @@ export function sketchSvg(source, refuse) {
     const m = tag.exec(source);
     if (!m) fail(pos, `an unreadable tag ${JSON.stringify(source.slice(pos, pos + 20).split('\n')[0])}`);
     const [whole, end, name, attrs, self] = m;
-    if (!SKETCH_TAGS.has(name)) fail(pos, `<${name}>`);
+    const empty = rules.empty?.has(name);
+    if (!rules.tags.has(name) || (end && empty)) fail(pos, `<${end}${name}>`);
     if (end) {
       const open = stack.pop();
       if (attrs.trim() || self || open !== name) fail(pos, open ? `</${name}> while <${open}> is open` : `</${name}> with nothing open`);
       parts.push(`</${name}>`);
-      if (!stack.length) closed = true;
+      if (!stack.length) rules.rootEnd?.();
     } else {
-      if (!stack.length && (closed || name !== 'svg')) fail(pos, closed ? `a second root <${name}>` : `<${name}> as the root; a sketch is one <svg>`);
+      if (!stack.length) rules.root?.(name, attrs, pos);
       const seen = new Set(), out = [], classes = [];
-      for (const [, key, quoted] of attrs.matchAll(/([^\s=/>]+)\s*=\s*("[^"]*"|'[^']*')/g)) {
-        if (!SKETCH_ATTRS.has(key) || seen.has(key)) fail(pos, seen.has(key) ? `${key} twice` : `${key}=`);
+      for (const [, key, quoted] of attrs.matchAll(/([^\s=/>]+)(?:\s*=\s*("[^"]*"|'[^']*'))?/g)) {
+        if (seen.has(key)) fail(pos, `${key} twice`);
         seen.add(key);
-        const value = decode(quoted.slice(1, -1), ref => fail(pos, ref));
-        if (/url\s*\(/i.test(value)) fail(pos, 'url(');
-        if ((key === 'fill' || key === 'stroke') && SKETCH_COLORS.has(value)) { classes.push(`${key[0]}-${value}`); continue; }
-        if ((key === 'fill' || key === 'stroke') && !/^(?:none|currentColor)$/.test(value)) colors.push(value);
-        out.push(` ${key}="${esc(value)}"`);
+        const value = quoted === undefined ? null : decode(quoted.slice(1, -1), ref => fail(pos, ref));
+        if (value !== null && /url\s*\(/i.test(value)) fail(pos, 'url(');
+        const kept = rules.attr(key, value, classes, what => fail(pos, what ?? `${key}=`));
+        if (kept !== undefined) out.push(kept === null ? ` ${key}` : ` ${key}="${esc(kept)}"`);
       }
-      if (!stack.length) {
-        const box = /^\s*(-?[\d.]+)[\s,]+(-?[\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)\s*$/.exec(decode(/viewBox\s*=\s*("[^"]*"|'[^']*')/.exec(attrs)?.[1].slice(1, -1) ?? '', () => ''));
-        if (!box || !(Number(box[3]) > 0) || !(Number(box[4]) > 0)) fail(pos, '<svg> without a viewBox of four numbers');
-        root = { width: Number(box[3]) };
-      }
-      parts.push(`<${name}${classes.length ? ` class="${classes.join(' ')}"` : ''}${out.join('')}${self ? '/>' : '>'}`);
-      if (!self) stack.push(name);
-      else if (!stack.length) closed = true;
+      const shut = rules.html ? (self && !empty ? `></${name}>` : '>') : self ? '/>' : '>';
+      parts.push(`<${name}${classes.length ? ` class="${classes.join(' ')}"` : ''}${out.join('')}${shut}`);
+      if (!self && !empty) stack.push(name);
+      else if (!stack.length) rules.rootEnd?.();
     }
     pos += whole.length;
   }
   if (stack.length) fail(source.length, `<${stack[stack.length - 1]}>, which never closes`);
-  if (!root) fail(0, 'no <svg> root with a viewBox');
-  return { svg: parts.join('').trim(), width: root.width, colors };
+  return parts.join('').trim();
+}
+
+// An `svg` fence: one <svg> root with a viewBox; named colours become kit classes, any other colour is reported.
+export function sketchSvg(source, refuse) {
+  const colors = [];
+  let root = null, closed = false;
+  const svg = markup(source, {
+    tags: SKETCH_TAGS,
+    loose: at => refuse(at, 'text outside <svg>'),
+    root(name, attrs, at) {
+      if (closed || name !== 'svg') refuse(at, closed ? `a second root <${name}>` : `<${name}> as the root; a sketch is one <svg>`);
+      const box = /^\s*(-?[\d.]+)[\s,]+(-?[\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)\s*$/.exec(decode(/viewBox\s*=\s*("[^"]*"|'[^']*')/.exec(attrs)?.[1].slice(1, -1) ?? '', () => ''));
+      if (!box || !(Number(box[3]) > 0) || !(Number(box[4]) > 0)) refuse(at, '<svg> without a viewBox of four numbers');
+      root = { width: Number(box[3]) };
+    },
+    rootEnd: () => { closed = true; },
+    attr(key, value, classes, no) {
+      if (!SKETCH_ATTRS.has(key) || value === null) no();
+      const paint = key === 'fill' || key === 'stroke';
+      if (paint && SKETCH_COLORS.has(value)) return void classes.push(`${key[0]}-${value}`);
+      if (paint && !/^(?:none|currentColor)$/.test(value)) colors.push(value);
+      return value;
+    },
+  }, refuse);
+  if (!root) refuse(0, 'no <svg> root with a viewBox');
+  return { svg, width: root.width, colors };
+}
+
+// A `screen` fence: HTML in the look's parts and layout classes, inert form controls, no styles, links, or images.
+export function sketchScreen(source, refuse) {
+  let phone = false;
+  const html = markup(source, {
+    tags: SCREEN_TAGS, empty: SCREEN_EMPTY, html: true,
+    attr(key, value, classes, no) {
+      if (SCREEN_FLAGS.has(key)) return value === null || value === '' || value === key ? null : no();
+      if (value === null || !SCREEN_ATTRS.has(key)) no();
+      if (key === 'type' && !SCREEN_TYPES.has(value)) no();
+      if (key !== 'class') return value;
+      for (const name of value.split(/\s+/).filter(Boolean)) {
+        if (!SCREEN_CLASSES.has(name)) no(`class "${name}"`);
+        if (name === 'phone') phone = true;
+        // The page's own footer is `.bar`: the placeholder is written as `sk-bar` so neither styles the other.
+        classes.push(name === 'bar' ? 'sk-bar' : name);
+      }
+    },
+  }, refuse);
+  return { html, phone };
 }
 
 // A hand-drawn sketch shares the Mermaid picture's frame, counter, and note; its colours follow the look.
 function sketch(item, fence, k, warnings) {
   const id = `item-${item.n}-picture-${k}`, where = `item ${item.n}, picture ${k}`;
-  const source = fence.lines.join('\n');
-  const drawn = sketchSvg(source, (at, what) => {
-    const line = fence.at + 1 + (source.slice(0, at).match(/\n/g) || []).length;
-    throw new Error(`proposal.md line ${line}: ${where}: a sketch can not hold ${what}; draw with shapes, text, and named colors only`);
-  });
+  const drawn = sketchSvg(fence.lines.join('\n'), refuser(fence, where, 'a sketch', 'draw with shapes, text, and named colors only'));
   if (drawn.colors.length) {
     const more = drawn.colors.length > 1 ? ` (and ${drawn.colors.length - 1} more)` : '';
     warnings.push(`proposal.md line ${fence.at}: ${where} paints ${drawn.colors[0]}${more}, which will not follow dark mode; use ${[...SKETCH_COLORS].join(', ')}`);
   }
   return frame(fence, id, where, drawn.svg, drawn.width, 'pic sketch', 'draw it narrower, or stack its parts', warnings);
+}
+
+// A screen fills the frame up to 640 px, or 360 px as a phone; its controls sit in an inert box, so a tap notes it.
+function screen(item, fence, k, warnings) {
+  const id = `item-${item.n}-picture-${k}`, where = `item ${item.n}, picture ${k}`;
+  const drawn = sketchScreen(fence.lines.join('\n'), refuser(fence, where, 'a screen', "build it from the look's parts and layout classes only"));
+  return frame(fence, id, where, `<div class="sk" inert>${drawn.html}</div>`, drawn.phone ? PHONE_WIDE : null, 'pic screen', '', warnings);
+}
+
+// One line naming the item, the picture, the proposal line, and the refused part.
+function refuser(fence, where, what, how) {
+  const source = fence.lines.join('\n');
+  return (at, name) => {
+    const line = fence.at + 1 + (source.slice(0, at).match(/\n/g) || []).length;
+    throw new Error(`proposal.md line ${line}: ${where}: ${what} can not hold ${name}; ${how}`);
+  };
 }
 
 // A Markdown table: a header, a separator, and body rows, each row a note target named by its number in the item.
@@ -267,11 +330,12 @@ function changes(section, warnings) {
   let html = '', open = false;
   for (const block of blocks(section, 'item')) {
     if (!block.n) { html += `${open ? '</ol>\n' : ''}<p class="aside">${inline(block.text)}</p>\n`; open = false; continue; }
-    // Text drawings number lines across the item, tables their rows; Mermaid and SVG pictures share one count.
+    // Text drawings number lines across the item, tables their rows; Mermaid, SVG, and screen pictures share one count.
     let first = 1, pictures = 0, rows = 1;
     const art = block.drawings.map(fence => {
       if (fence.lang === 'mermaid') return picture(block, fence, ++pictures, warnings);
       if (fence.lang === 'svg') return sketch(block, fence, ++pictures, warnings);
+      if (fence.lang === 'screen') return screen(block, fence, ++pictures, warnings);
       if (fence.lang === 'table') { const out = table(block, fence, rows); rows += fence.lines.length - 2; return out; }
       const out = drawing(block, fence, first, warnings); first += fence.lines.length; return out;
     });

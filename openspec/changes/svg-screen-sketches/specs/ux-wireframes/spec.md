@@ -9,7 +9,7 @@
 
 ### Requirement: A visual is a narrow drawing
 
-A visual SHALL be a fence inside its What Changes bullet, drawn by the planning agent in the same pass with no other agent and no browser, from the shared drawing guide's patterns: a `mermaid` fence for steps, states, and back-and-forth flows; an `svg` fence for screens and before-and-after layouts; a Markdown table for a table; and a `text` fence for a small listing such as a file tree. Mermaid and SVG fences SHALL show on the page as inline pictures made at build time. A change SHALL draw one visual by default, plus a sketch of each screen it adds or restructures. A text drawing SHALL aim for 40 columns and MAY reach 56. The builder SHALL warn about a text line wider than 60 columns, or a picture wider than 640 pixels, and still build. A proposal with only text fences SHALL build as it did before pictures.
+A visual SHALL be a fence inside its What Changes bullet, drawn by the planning agent in the same pass with no other agent and no browser, from the shared drawing guide's patterns: a `mermaid` fence for steps, states, and back-and-forth flows; a `screen` fence for screens and before-and-after layouts, built from the shared look's app parts; an `svg` fence for a free drawing such as arrows or layers; a Markdown table for a table; and a `text` fence for a small listing such as a file tree. Mermaid, screen, and SVG fences SHALL show on the page as inline pictures made at build time. A change SHALL draw one visual by default, plus a sketch of each screen it adds or restructures. A text drawing SHALL aim for 40 columns and MAY reach 56. The builder SHALL warn about a text line wider than 60 columns, or a picture wider than 640 pixels, and still build. A proposal with only text fences SHALL build as it did before pictures.
 
 #### Scenario: A wide line
 
@@ -26,7 +26,12 @@ A visual SHALL be a fence inside its What Changes bullet, drawn by the planning 
 - **WHEN** a What Changes bullet holds a valid `mermaid` fence
 - **THEN** the page shows it as a picture that fits a 320px-wide screen and opens full screen, with no script or network load added to the page
 
-#### Scenario: A screen drawn in SVG
+#### Scenario: A screen sketched from app parts
+
+- **WHEN** a What Changes bullet holds a valid `screen` fence with a card, a text box, and two buttons
+- **THEN** the page shows them in the app's look, wrapping text to fit, fitting a 320px-wide screen, opening full screen, taking a note on the whole sketch, following light or dark mode, and doing nothing when a control is tapped
+
+#### Scenario: A free drawing in SVG
 
 - **WHEN** a What Changes bullet holds a valid `svg` fence
 - **THEN** the page shows it as a picture that fits a 320px-wide screen, opens full screen, takes a note on the whole picture, and follows the page's light or dark colors
@@ -38,7 +43,7 @@ A visual SHALL be a fence inside its What Changes bullet, drawn by the planning 
 
 ### Requirement: Proposal text never runs as code
 
-The page SHALL escape all proposal text, drawings and picture labels included, so script-closing text or HTML examples show as written and never execute. The builder SHALL refuse a drawn picture whose markup holds a script, a style, a foreign object, a link, an image source, or a `url(` reference, and SHALL judge only the markup, so a label that merely names one of these still draws. An `svg` fence SHALL pass an allowlist: only drawing shapes, text, and grouping elements, and only geometry, paint, text, and the kit's color class attributes; any other element or attribute, an event handler included, SHALL refuse the picture.
+The page SHALL escape all proposal text, drawings and picture labels included, so script-closing text or HTML examples show as written and never execute. The builder SHALL refuse a drawn picture whose markup holds a script, a style, a foreign object, a link, an image source, or a `url(` reference, and SHALL judge only the markup, so a label that merely names one of these still draws. An `svg` fence SHALL pass an allowlist: only drawing shapes, text, and grouping elements, and only geometry, paint, text, and the kit's color class attributes; any other element or attribute, an event handler included, SHALL refuse the picture. A `screen` fence SHALL pass its own allowlist: only layout, text, list, table, and form elements, and only the look's part and layout classes and inert form attributes; any other element, attribute, or class, an inline style or event handler included, SHALL refuse the sketch.
 
 #### Scenario: Markup in a proposal
 
@@ -52,12 +57,12 @@ The page SHALL escape all proposal text, drawings and picture labels included, s
 
 #### Scenario: A sketch carries an event handler
 
-- **WHEN** an `svg` fence holds `<rect onclick="…"/>` or an `<a>` element
+- **WHEN** an `svg` fence holds `<rect onclick="…"/>`, or a `screen` fence holds an `<a>` element or a `style` attribute
 - **THEN** the build stops, naming the item, picture, proposal line, and the refused element or attribute, and the previous page stays byte-identical
 
 ### Requirement: A failed build keeps the last page
 
-The builder SHALL name the item and line of a missing `## Why` or `## What Changes`, an unclosed fence, a fenced block outside any bullet, a `mermaid` fence it can not draw, or an `svg` fence it refuses or can not read, and SHALL keep the previous page. A picture error SHALL be reported on one line, naming the item, the picture, and the proposal line. A clean build SHALL NOT be reported as proof that a drawing explains its bullet.
+The builder SHALL name the item and line of a missing `## Why` or `## What Changes`, an unclosed fence, a fenced block outside any bullet, a `mermaid` fence it can not draw, or a `screen` or `svg` fence it refuses or can not read, and SHALL keep the previous page. A picture error SHALL be reported on one line, naming the item, the picture, and the proposal line. A clean build SHALL NOT be reported as proof that a drawing explains its bullet.
 
 #### Scenario: An unclosed fence
 

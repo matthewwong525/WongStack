@@ -30,10 +30,11 @@ rules:
       stay technical.
     - A What Changes bullet that needs a picture carries it as a fence indented
       inside the bullet, drawn by .agents/skills/plan/references/drawings.md - a
-      flow (steps, a back-and-forth, states) as a mermaid fence and a screen as
-      an svg wireframe in the kit's named colors, both drawn as pictures under
-      640 px wide; a table as a Markdown table; a small listing such as a file
-      tree as a text fence about 40 columns wide. One drawing carries the
+      flow (steps, a back-and-forth, states) as a mermaid fence, a screen as a
+      screen fence built from the app's parts, and arrows or layers as an svg
+      fence in the kit's named colors, all drawn as pictures under 640 px wide;
+      a table as a Markdown table; a small listing such as a file tree as a
+      text fence about 40 columns wide. One drawing carries the
       change by default; sketch each new or restructured user-facing screen, a
       changed one before and after.
       Other bullets stay text. Bullets carry no review anchors.
@@ -44,7 +45,8 @@ rules:
     - Every change gets a standalone review page at openspec/changes/<name>/review.html,
       built by .agents/skills/plan/scripts/build-review.mjs from the proposal and
       the fixed review kit. The page shows Why, What Changes with their drawings
-      (mermaid flows and svg screens as inline pictures, tables, text listings), and
+      (mermaid flows, screens, and svg drawings as inline pictures, tables, text
+      listings), and
       the Decision log. The page runs no diagram code. Never hand-edit the
       generated page. Do not rewrite historical archives.
     - If the change adds or meaningfully restructures a user-facing screen (a page
