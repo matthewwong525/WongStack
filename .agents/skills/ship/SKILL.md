@@ -24,13 +24,13 @@ A selected routine definition or finite goal follows [record-only delivery](../s
 
 ## Step 1 — preflight
 
-Attached review notes → [apply them to the existing change](../plan/SKILL.md#review-notes) first, then keep publishing: the person already chose.
+Attached review notes → [apply them to the existing change](../plan/SKILL.md#review-notes) first, then keep publishing.
 
 Check [preconditions](../save/references/preconditions.md), then run `prepare`. Uncommitted changes on the default branch go on in the same tree; Step 3's save cuts the feature branch.
 
 ### The pull-in: nothing to ship yet
 
-**Invoke the [`apply` skill](../apply/SKILL.md)**, saying it runs inside `/ship`: it returns with **no** preview upload or `/save`, and you go on to Step 2 in the same tree.
+**Invoke the [`apply` skill](../apply/SKILL.md)**, saying it runs inside `/ship`, then go on to Step 2 in the same tree.
 
 - **`/ship <intent>`** → pass the intent **verbatim**.
 - **No argument** → invoke `/apply` bare when [its resolve order](../apply/SKILL.md#resolve-the-plan-first) lands before `sole-active`, or the session states clear intent with no change yet.

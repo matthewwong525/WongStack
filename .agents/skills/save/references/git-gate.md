@@ -30,7 +30,7 @@ The command waits up to 20 minutes and ends with `SAVE_GATE_RESULT=`; save may f
 
 ### The auto-fix loop
 
-`FAILURE` lists every failing check with the cause its log shows. Fix all in one push, after rerunning the failed check here where the tools exist: `node .github/scripts/checks.mjs --worktree`, a pre-check, never the gate. A failure outside the diff gets one rerun; still red: stop, no code edit.
+`FAILURE` lists every failing check with the cause its log shows. Fix all by [fix it or ask](../../../../wiki/development/the-change-loop.md#fix-it-or-ask) in one push, after rerunning the failed check here where the tools exist: `node .github/scripts/checks.mjs --worktree`, a pre-check. A failure outside the diff gets one rerun; still red: stop, no code edit.
 
 **Cap: 3 attempts per `/save` run**, counted by the command; each of [`/verify`](../../verify/SKILL.md)'s two re-walks passes `--new-run` for a fresh cap (budgets nest, never share). Still red → stop with the error and the checks link. Never bypass with `--no-verify` or `--force`.
 
@@ -38,4 +38,4 @@ The command waits up to 20 minutes and ends with `SAVE_GATE_RESULT=`; save may f
 
 `RECEIPT` is a temporary nonsecret file with the saved revision's identity and the waiter's result. Return its path and `SAVE_HEAD` inside a chain; keep `SAVE_GATE_RESULT`. UNKNOWN yields no receipt.
 
-`/verify --checkpoint <receipt>` reuses SUCCESS/NONE only for the same head and newest check/run identity; a new attempt invalidates it. Otherwise it reads the existing gate, without reruns, pushes or record edits. UNKNOWN is never NONE. Delete receipts at chain end.
+`/verify --checkpoint <receipt>` reuses SUCCESS/NONE only for the same head and newest check/run identity; a new attempt invalidates it. Otherwise it reads the existing gate, without reruns, pushes or record edits. Delete receipts at chain end.
