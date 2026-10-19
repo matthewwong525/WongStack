@@ -1,13 +1,17 @@
 #!/usr/bin/env node
-// SubagentStop hook, Claude Code and Codex: a build helper that stops without its report is sent back once.
+// SubagentStop hook, Claude Code and Codex: a build or review helper that stops without its report is sent back once.
 // It never traps: a second stop, any other agent, and anything it cannot read go through with no output.
 import { readFileSync } from 'node:fs';
 import { isMain, parseCli } from '../../memory/scripts/lib/cli.mjs';
 
-export const BRIEF = 'apply/references/build-helper.md';
-export const REASON = 'You stopped without your report. If a check or helper you started still runs, wait for it to finish. '
-  + `Then end with the report ${BRIEF} asks for, including its \`local checks:\` line.`;
-const REPORT_LINE = /^[\s>*_`#-]*local checks[*_`]*\s*:/im;
+// Each helper is known by its brief and ends its report with its own line.
+const helper = (brief, label) => ({
+  brief, line: new RegExp(`^[\\s>*_\`#-]*${label}[*_\`]*\\s*:`, 'im'),
+  reason: 'You stopped without your report. If a check or helper you started still runs, wait for it to finish. '
+    + `Then end with the report ${brief} asks for, including its \`${label}:\` line.`,
+});
+export const HELPERS = [helper('apply/references/build-helper.md', 'local checks'), helper('apply/references/review-helper.md', 'review')];
+export const [{ brief: BRIEF, reason: REASON }, { reason: REVIEW_REASON }] = HELPERS;
 
 const texts = content => typeof content === 'string' ? [content]
   : Array.isArray(content) ? content.filter(part => /^(text|input_text|output_text)$/.test(part?.type)).map(part => part.text) : [];
@@ -20,7 +24,7 @@ export function ownEntries(entries) {
   return start < 0 ? entries : entries.slice(start);
 }
 
-// Only its first ask and first three commands count: a reviewer opening the brief later is no builder.
+// Only its first ask and first three commands count: an agent opening a brief later is no such helper.
 // A Codex helper's task arrives encrypted, so there its early read of the brief names it.
 export function taskTexts(entries) {
   const asked = [], ran = [];
@@ -51,10 +55,13 @@ export function stopCheck(input) {
     try { return line.trim() ? [JSON.parse(line)] : []; } catch { return []; }
   });
   const own = ownEntries(entries);
-  if (!taskTexts(own).some(text => text.includes(BRIEF))) return '';
+  // The earliest text naming a brief decides: a reviewer that later opens the build brief is still a reviewer.
+  const named = taskTexts(own).find(text => HELPERS.some(({ brief }) => text.includes(brief)));
+  if (!named) return '';
+  const matched = HELPERS.filter(({ brief }) => named.includes(brief));
   const last = typeof input.last_assistant_message === 'string' ? input.last_assistant_message : lastAssistantText(own);
-  if (REPORT_LINE.test(last)) return '';
-  return `${JSON.stringify({ decision: 'block', reason: REASON })}\n`;
+  if (matched.some(({ line }) => line.test(last))) return '';
+  return `${JSON.stringify({ decision: 'block', reason: matched[0].reason })}\n`;
 }
 
 if (isMain(import.meta.url)) {

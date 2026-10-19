@@ -10,6 +10,15 @@
 - **A sketch that could do harm never reaches the page.** Anything beyond simple shapes and text, such as a script, a link, or an outside image, stops the page build and names the line; the last good page stays.
 - **Flows stay as they were.** Small listings such as a file list, and drawings in chat, stay plain text. Older plans' pages still build.
 
+## 43.11.0 — A second look before the preview
+
+- **A second agent reads every finished build before you see the preview.** It starts fresh, with none of the builder's reasoning, and checks the changes against the plan: bugs, missing or weak tests, and work the plan didn't ask for. What it finds goes back to a builder, at most twice, and the report says what was found and fixed.
+- **One rule decides what the agent fixes alone and what comes to you.** It fixes what the plan already settles: a broken plan step, a failing check, or a bug the reviewer found. It asks you when a fix goes outside the plan, would weaken a check, can't be undone or is risky, still fails after two tries, or when the builder and reviewer disagree. You get one plain question with a recommended answer.
+- **Building, saving and the preview check follow the same rule**, so a problem gets the same treatment wherever it turns up.
+- **A reviewer can't quietly stop early.** Like the builder, it is sent back once if it stops without its short report.
+
+**Updating.** Nothing to do by hand. Each build takes one more agent run.
+
 ## 43.10.0 — Cheapest place first, and a hook for repeat mistakes
 
 - **A building helper can't quietly stop early.** When the helper building a change stops without its short report, it's sent back once: wait for anything still running, then report. Its next stop always goes through, so it never gets stuck. Every other stop passes untouched. This works in Claude Code and in Codex.

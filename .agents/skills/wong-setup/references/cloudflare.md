@@ -1,6 +1,6 @@
 # Provision Cloudflare
 
-This runbook turns a fresh WongStack install into a running app with session memory. [`/wong-setup`](../SKILL.md) runs Step 1 before it plans the install, `/apply` runs Steps 2–5 after the payload lands, and `/wong-sync` follows the parts an update adds.
+This runbook turns a fresh install into a running app with session memory. [`/wong-setup`](../SKILL.md) runs Step 1 before it plans the install, `/apply` runs Steps 2–5 after the payload lands, and `/wong-sync` follows the parts an update adds.
 
 **Idempotent.** Reuse existing owned resources; resume a stopped run from the top.
 
@@ -28,7 +28,7 @@ gh auth status
 git remote get-url origin || gh repo create "$(basename "$PWD")" --private --source . --remote origin
 ```
 
-- **`gh auth status` fails** → the person signed out since setup signed them in. **Stop before any Cloudflare call**, create nothing, and rerun [the GitHub sign-in](tools.md#2-the-github-sign-in).
+- **`gh auth status` fails** → the person signed out since setup. **Stop before any Cloudflare call**, create nothing, and rerun [the GitHub sign-in](tools.md#2-the-github-sign-in).
 - **`origin` exists** → use it; create nothing.
 
 ### 1b. Make the file, not the user
@@ -42,7 +42,7 @@ DURABLE_ENV="$PRIMARY_ROOT/.env"
 ACTIVE_ENV="$ACTIVE_ROOT/.env"
 ```
 
-A non-zero exit → stop **before** asking for the token, saying the primary worktree could not be resolved safely. Never fall back to the linked checkout.
+A non-zero exit → stop **before** asking for the token: the primary worktree couldn't be found safely. Never fall back to the linked checkout.
 
 Confirm Git ignores the destination: `git -C "$PRIMARY_ROOT" check-ignore -q .env`. In a fresh folder, first add the `.env*` / `!.env.example` and `.dev.vars*` / `!.dev.vars.example` pairs to the file `git rev-parse --path-format=absolute --git-path info/exclude` returns, then re-check; the install still commits the `.gitignore` fragment. A failed re-check → stop before accepting a secret.
 
@@ -52,9 +52,9 @@ Later `.env` means `DURABLE_ENV`; replace or append only the exact `KEY=` line.
 
 ### 1c. Ask for the token
 
-If `CLOUDFLARE_API_TOKEN` in `DURABLE_ENV` is empty, ask for it with the filled-in token link from [the credentials page](../../../../wiki/stack/cloudflare-credentials.md#create-the-token), read from that page rather than copied here: open it, check the two rows, Create, copy. When the link fails, give the page's click path instead, calling out **Account Resources**, the field people miss. Say what it is for: *"This token stays on this computer. I use it to set up your hosting and to make a smaller token for automatic publishing."*
+If `CLOUDFLARE_API_TOKEN` in `DURABLE_ENV` is empty, ask for it with the filled-in token link from [the credentials page](../../../../wiki/stack/cloudflare-credentials.md#create-the-token), read from that page rather than copied here: open it, check the two rows, Create, copy. If the link fails, give the page's click path, calling out **Account Resources**, the field people miss. Say what it is for: *"This token stays on this computer. I use it to set up your hosting and to make a smaller token for automatic publishing."*
 
-They paste it into the durable file, or to you to write. Re-read `DURABLE_ENV` and export the value without printing it. **No token → setup stops here and writes nothing else**; pasting it later continues from this step.
+They paste it into the durable file, or to you to write. Re-read `DURABLE_ENV`; export the value unprinted. **No token → setup stops here and writes nothing else**; pasting it later continues from this step.
 
 ### 1d. Verify before doing anything
 
@@ -74,7 +74,7 @@ P() { node "<source checkout>/.agents/skills/wong-setup/scripts/provision.mjs" "
 P widen
 ```
 
-It runs [the widen protocol](permission-groups.md), granting only [a normal provision](permission-groups.md#a-normal-provision). Tell the user what the report's `granted` list names. Access permissions are part of normal private setup.
+It runs [the widen protocol](permission-groups.md), granting only [a normal provision](permission-groups.md#a-normal-provision). Tell the user what its `granted` list names. Access permissions are part of normal private setup.
 
 ## Step 3 — which account
 
@@ -84,7 +84,7 @@ P accounts
 
 - **Exactly one** → use it, and say which.
 - **More than one** → **stop and ask**, offering each by name and id, and **create nothing until the user picks.** Never infer it from the repo name, the email, or the API's order.
-- **Zero, with a valid token** → the Account Resources miss ([failure map](failure-map.md)). Explain, offer to re-check once they save it, and create nothing.
+- **Zero, with a valid token** → the Account Resources miss ([failure map](failure-map.md)). Explain, offer to re-check after they save it; create nothing.
 
 Write the chosen id to `CLOUDFLARE_ACCOUNT_ID` in `DURABLE_ENV` and export it.
 
@@ -94,15 +94,15 @@ Ask once before the billable parts, as [a two-option choice](../../explore/refer
 
 ### 4a. Name things; don't ask
 
-The script derives every name from the repository name and checks it against the account; state them, and never make the user invent one:
+The script derives every name from the repository name and checks it against the account; state them, never make the user invent one:
 
 ```bash
 P names --repo "$(gh repo view --json nameWithOwner -q .nameWithOwner)"
 ```
 
-The report's `checked` list marks each name `free`, `ours` (made by this repo earlier), or `taken`. Name any `taken` one and offer the report's `base`, the first suffix that frees every name, such as `recipe-box-2`.
+The report's `checked` list marks each name `free`, `ours` (this repo's, from before), or `taken`. Name any `taken` one and offer the report's `base`, the first suffix freeing every name, such as `recipe-box-2`.
 
-Apply the id-free fragments now (the `package.json` scripts, `.env.example` variables, and `.gitignore` entries) from [`stack-pack-fragments.md`](../../wong-sync/references/stack-pack-fragments.md). No copied payload file may carry a database name, so the script fills `db:migrate:staging` and `db:migrate:prod` with the literal names in 4c.
+Apply the id-free fragments now (the `package.json` scripts, `.env.example` variables, and `.gitignore` entries) from [`stack-pack-fragments.md`](../../wong-sync/references/stack-pack-fragments.md). No copied payload file may carry a database name, so the script fills `db:migrate:staging` and `db:migrate:prod` with real names in 4c.
 
 After the one ask, one command runs 4b through 4d:
 
@@ -112,13 +112,13 @@ P provision --repo <owner/name> --base <base> --owner-email <reachable-owner-ema
 
 Resolve a reachable owner email before provisioning; reject `.invalid` and GitHub noreply addresses. The git author email may remain private. Private setup reuses or creates Zero Trust/PIN, creates unavailable production/staging Workers, and attaches the owned Worker-ID app before content publication. Review overlapping hostname/path/preview apps first; preserve unrelated resources. Machine credentials are saved to ignored primary/branch `.env`; public identifiers go in `components.access`. See [Access](../../../../wiki/stack/cloudflare-access.md).
 
-**Open until the card.** When Cloudflare wants a card before it turns on Zero Trust, `--open-without-login` lets setup finish: the report's `access.mode` is `open`, no Access resources are made, and the config carries `WORKSPACE_LOGIN: "off"` ([open until the card](../../../../wiki/stack/cloudflare-access.md#open-until-the-card)). Say it plainly, then go on: *"Cloudflare wants a card on file before it turns on the private email login, so for now anyone with your site's link can see it. Your memory stays private behind its own key until then. I'll show you how to add the card at the end."* Any other Access stop still stops setup, and a site that is already private never opens.
+**Open until the card.** When Cloudflare wants a card before it turns on Zero Trust, `--open-without-login` lets setup finish: the report's `access.mode` is `open`, no Access resources are made, and the config carries `WORKSPACE_LOGIN: "off"` ([open until the card](../../../../wiki/stack/cloudflare-access.md#open-until-the-card)). Say it plainly and go on: *"Cloudflare wants a card on file before it turns on the private email login, so for now anyone with your site's link can see it. Your memory stays private behind its own key until then. I'll show you how to add the card at the end."* Any other Access stop still stops setup; an already private site never opens.
 
 ### 4b. The memory store
 
 [The memory convention](../../../../wiki/development/memory.md) owns what it holds, who reads it, and why only the production Worker binds it; it has no staging twin.
 
-1. **Is R2 on?** An error listing R2 buckets that says to enable R2 means no; the report says `"r2": false`. No token can turn R2 on ([without R2](../../../../wiki/development/memory.md#without-r2)), so continue without a bucket, and let [the card list](#the-card-list) at the close give the steps: *"Memory works without it; it just won't keep full session transcripts until R2 is on."*
+1. **Is R2 on?** A bucket-list error saying to enable R2 means no; the report says `"r2": false`. No token can turn R2 on ([without R2](../../../../wiki/development/memory.md#without-r2)), so continue without a bucket, and let [the card list](#the-card-list) at the close give the steps: *"Memory works without it; it just won't keep full session transcripts until R2 is on."*
 2. **The database.** It reuses or creates `<repo>-memory`.
 3. **The bucket, only when R2 is on.** It reuses or creates `<repo>-memory`, never with public access.
 4. **Record.** It writes `components.memory` in `.claude/.wong-stack.json`: `accountId`, `databaseId`, `database`, `bucket` (or `null`), and the memory URL as `worker`, `https://<worker>.<subdomain>.workers.dev/_memory`. An account with no `workers.dev` subdomain gets one named for the GitHub owner. It also records the production origin under `components.companyApi.origin`, using the account hostname read back; [company actions](../../../../wiki/stack/company-api.md) owns employee access. None is secret.
@@ -126,9 +126,9 @@ Resolve a reachable owner email before provisioning; reject `.invalid` and GitHu
 6. **No memory key.** Memory uses the owner's company sign-in, made at [4g](#4g-smoke-test-what-you-built); teammates get theirs from Connect. Only an open site, which has no sign-in yet, runs `memory.mjs member admin` for this computer's admin key in the primary ignored `.env`; never print it or make it a CI secret.
 
 
-Memory answers once CI deploys production; until then, facts wait in the local spool. By hand, the memory commands are `$M`, with `M="node $(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/memory.mjs"`.
+Memory answers once CI deploys production; until then facts wait in the local spool. By hand, the memory commands are `$M`, with `M="node $(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/memory.mjs"`.
 
-**Re-runs.** A store that verifies is current. A store with no bucket, on an account that now has R2, gets one: the script creates and records it, adds `MEMORY_BUCKET` to the production config, and gives `<repo>-deploy` the R2 row of [the CI deploy token table](permission-groups.md#the-ci-deploy-token). The key stays. Make by hand any edit the report's `todo` lists.
+**Re-runs.** A store that verifies is current. One with no bucket, on an account now with R2, gets one: the script creates and records it, adds `MEMORY_BUCKET` to the production config, and gives `<repo>-deploy` the R2 row of [the CI deploy token table](permission-groups.md#the-ci-deploy-token). The key stays. Make by hand any edit the report's `todo` lists.
 
 **Moving an older store.** Add the production route, authenticated login callback, bindings, and install record in the update. After deployment, run `$M migrate`, sign the owner in as in [4g](#4g-smoke-test-what-you-built), run `$M migrate-people` to hand each linked computer's notes to its person, and check `$M digest`. Shared history stays available; notes from an unlinked computer wait for an admin. A failure pauses memory. Retire an old Cloudflare memory token only after replacement succeeds; never restore an email-only Worker after private machine writes.
 
@@ -140,9 +140,9 @@ With no config, write the [fragment](../../wong-sync/references/stack-pack-fragm
 
 **The project Connect hands out.** The script names it in both Workers' vars. The Artifacts route also binds both to the repository and its check runner: no key is made. On GitHub the report's `codeKey` carries [the owner's steps](../../../../wiki/stack/project-git-route.md#the-owners-one-step-on-github). Say nothing of it: Access asks for the key when the owner first lets someone install the project.
 
-Last, it refreshes the binding types in `app/`; a failure is a `warnings` line, not a stop.
+Last, it refreshes the binding types in `app/`; a failure is a `warnings` line, no stop.
 
-The same Worker serves the [mini apps](../../../../wiki/stack/mini-apps.md) under `/apps/`, as part of the main app; they need no Worker or config of their own.
+The same Worker serves the [mini apps](../../../../wiki/stack/mini-apps.md) under `/apps/`; they need no Worker or config of their own.
 
 **Moving older mini apps.** Apps kept outside the main app move into it by [the update's catch-up step](../../wong-sync/references/catch-up.md), `mini-apps-folder`. An install with its own mini-app Worker also merges `/apps/` routing and Worker-first assets into the main Worker. Remove the obsolete mini-app config, Worker, tsconfig, ignore files, and assetsignore only as reviewed changes. After production deploys, verify `/apps/` and every saved app; only then delete the old `<repo>-mini` and `<repo>-mini-staging` Workers and `staging-mini` GitHub environment. Keep them on failure.
 
@@ -151,7 +151,7 @@ The same Worker serves the [mini apps](../../../../wiki/stack/mini-apps.md) unde
 CI gets its own narrow token, never the user token ([why](../../../../wiki/stack/cloudflare-credentials.md#the-ci-deploy-token)). The script pipes every value to `gh secret set` on stdin, never an argument, a file, or the terminal.
 
 - **No `<repo>-deploy` token** → it creates one on this account with [the CI deploy token table](permission-groups.md#the-ci-deploy-token)'s `always` rows, plus the R2 row only when the store has a bucket, and sets it as the `CLOUDFLARE_API_TOKEN` secret.
-- **Token and `CLOUDFLARE_API_TOKEN` secret both exist** (`gh secret list`) → current; it only adds a row the token now needs.
+- **Token and `CLOUDFLARE_API_TOKEN` secret both exist** (`gh secret list`) → current; it only adds a row now needed.
 - **The token exists, the secret doesn't** → it rolls the value and sets the secret. To rotate on request, run `gh secret delete CLOUDFLARE_API_TOKEN`, then the script again.
 
 It sets a missing `CLOUDFLARE_ACCOUNT_ID` too. `gh secret set` needs only the `repo` scope from `gh auth login`. It can publish app/data changes and inspect private coverage; it cannot write Access policies; the live app's own key does.
@@ -164,9 +164,9 @@ Missing `workflow` scope → offer `gh auth refresh --scopes workflow` ([why](..
 
 ### 4f. First deploy
 
-The workflow deploys on push, so the first deploy comes when `/save` pushes; never push from here. Diagnose a red build with `gh run view --log-failed`; it needs no Cloudflare credential.
+The workflow deploys on push, so the first deploy comes with `/save`'s push; never push from here. Diagnose a red build with `gh run view --log-failed`, which needs no Cloudflare credential.
 
-Use the report's production URL. Treat preview URLs as patterns until CI returns an actual deployed URL ([discovery](../../../../wiki/stack/d1-pipeline.md#how-the-alias-url-reaches-the-tooling)). A new hostname may need a propagation retry.
+Use the report's production URL. Treat preview URLs as patterns until CI returns an actual deployed URL ([discovery](../../../../wiki/stack/d1-pipeline.md#how-the-alias-url-reaches-the-tooling)). A new hostname may need a retry while it spreads.
 
 ### 4g. Smoke-test what you built
 
