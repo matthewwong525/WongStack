@@ -20,6 +20,14 @@ const PICTURE_WIDE = 640;
 const BASE_PX = 13;
 const PICTURE_FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 const UNSAFE_SVG = ['<script', '<style', '<foreignObject', 'url(', 'href=', 'src='];
+// A hand-drawn `svg` fence passes only these, then the builder writes it out again itself.
+const SKETCH_TAGS = new Set(['svg', 'g', 'rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon', 'path', 'text', 'tspan', 'title']);
+const SKETCH_ATTRS = new Set(['xmlns', 'viewBox', 'width', 'height', 'x', 'y', 'x1', 'y1', 'x2', 'y2', 'cx', 'cy', 'r', 'rx', 'ry', 'dx', 'dy',
+  'points', 'd', 'transform', 'fill', 'stroke', 'stroke-width', 'stroke-dasharray', 'stroke-linecap', 'stroke-linejoin', 'opacity',
+  'fill-opacity', 'font-size', 'font-weight', 'text-anchor', 'dominant-baseline']);
+// Kit colour names: the kit paints each class from the look, so the light and dark switch repaints the sketch.
+const SKETCH_COLORS = new Set(['bg', 'fg', 'muted', 'subtle', 'line', 'card', 'danger']);
+const ENTITIES = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
 const USAGE = `usage: build-review.mjs <change-root> [--require-current] [--link]
   --link  print the page's reply link, whose buttons send notes to this chat or ask it to build; the file where none can open`;
 const kitPath = resolve(dirname(fileURLToPath(import.meta.url)), '../references/review-kit.html');
@@ -66,9 +74,16 @@ function sections(markdown) {
 }
 
 // A bullet runs to the next bullet or a blank line outside a fence; a fence inside a bullet is its drawing.
+// In What Changes, pipe lines over a separator row become a table drawing; other pipe lines stay text.
 function blocks(section, noun) {
   const out = [];
-  let item = null, para = null, fence = null, count = 0;
+  let item = null, para = null, fence = null, table = null, count = 0;
+  const settle = () => {
+    if (!table) return;
+    if (table.lines.length > 1 && /^\|(?:\s*:?-+:?\s*\|)+$/.test(table.lines[1])) item.drawings.push(table);
+    else item.text.push(...table.lines);
+    table = null;
+  };
   section.lines.forEach((line, i) => {
     const at = section.at + i + 1;
     if (fence) {
@@ -76,6 +91,11 @@ function blocks(section, noun) {
       else fence.lines.push(line.replace(fence.indent, ''));
       return;
     }
+    if (noun === 'item' && item && /^\|.+\|$/.test(line.trim())) {
+      (table ??= { at, lang: 'table', lines: [] }).lines.push(line.trim());
+      return;
+    }
+    settle();
     const open = /^(\s*)`{3,}\s*([\w-]*)\s*$/.exec(line);
     if (open) {
       if (!item) throw new Error(`proposal.md line ${at}: a fence outside any bullet in ## ${section.title} (a blank line ends a bullet)`);
@@ -91,6 +111,7 @@ function blocks(section, noun) {
     else out.push(para = { text: [line.trim()] });
   });
   if (fence) throw new Error(`proposal.md line ${fence.at}: ${noun} ${item.n} opens a fence that never closes`);
+  settle();
   return out.map(block => ({ ...block, text: block.text.join(' ') }));
 }
 
@@ -140,22 +161,118 @@ function picture(item, fence, k, warnings) {
     const message = String(error && error.message ? error.message : error).split('\n')[0].replace(/:\s*$/, '');
     throw new Error(`proposal.md line ${line}: ${where}: ${message}`);
   }
-  const unsafe = unsafeSvg(drawn.svg);
+  return frame(fence, id, where, drawn.svg, drawn.width, 'pic', 'fewer boxes in a row, or shorter labels', warnings);
+}
+
+// The folded frame both kinds of picture share; its width is in em so the kit's fit and zoom resize it.
+function frame(fence, id, where, svg, width, kind, narrower, warnings) {
+  const unsafe = unsafeSvg(svg);
   if (unsafe) throw new Error(`proposal.md line ${fence.at}: ${where}: the drawn picture holds ${unsafe}; draw it without links, images, or styles`);
-  if (drawn.width > PICTURE_WIDE) warnings.push(`proposal.md line ${fence.at}: ${where} is ${Math.round(drawn.width)} px wide; keep pictures under ${PICTURE_WIDE}: fewer boxes in a row, or shorter labels`);
-  const em = Number((drawn.width / BASE_PX).toFixed(3));
+  if (width > PICTURE_WIDE) warnings.push(`proposal.md line ${fence.at}: ${where} is ${Math.round(width)} px wide; keep pictures under ${PICTURE_WIDE}: ${narrower}`);
+  const em = Number((width / BASE_PX).toFixed(3));
   return '<details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary>'
-    + `<div class="frame"><div class="art pic" data-note="${id}" tabindex="0" style="width:${em}em">${drawn.svg}</div></div></details>`;
+    + `<div class="frame"><div class="art ${kind}" data-note="${id}" tabindex="0" style="width:${em}em">${svg}</div></div></details>`;
+}
+
+// Character references: the five XML names and numeric ones decode; any other name refuses the picture.
+function decode(raw, refuse) {
+  return raw.replace(/&(#x[0-9a-f]+|#\d+|[a-z][\w.-]*);/gi, (m, ref) => {
+    if (ref[0] !== '#') return ENTITIES[ref] ?? refuse(m);
+    const code = ref[1] === 'x' || ref[1] === 'X' ? parseInt(ref.slice(2), 16) : Number(ref.slice(1));
+    try { return String.fromCodePoint(code); } catch { return refuse(m); }
+  });
+}
+
+// An `svg` fence: tokenized, held to the allowlist, and written out again here, so no typed markup reaches the page.
+export function sketchSvg(source, refuse) {
+  const parts = [], stack = [], colors = [];
+  let pos = 0, root = null, closed = false;
+  const fail = (at, what) => refuse(at, what);
+  const tag = /<(\/?)([A-Za-z][\w:.-]*)((?:\s+[^\s=/>]+\s*=\s*(?:"[^"]*"|'[^']*'))*)\s*(\/?)>/y;
+  while (pos < source.length) {
+    const lt = source.indexOf('<', pos);
+    const text = source.slice(pos, lt < 0 ? undefined : lt);
+    if (text) {
+      if (!stack.length && text.trim()) fail(pos, `text outside <svg>`);
+      parts.push(esc(decode(text, ref => fail(pos, ref))));
+    }
+    if (lt < 0) break;
+    pos = lt;
+    const special = /^<(?:!([A-Za-z]+)|!\[CDATA\[|\?[\w-]*)/.exec(source.slice(pos, pos + 12));
+    if (special) fail(pos, special[1] ? `<!${special[1]}>` : special[0]);
+    tag.lastIndex = pos;
+    const m = tag.exec(source);
+    if (!m) fail(pos, `an unreadable tag ${JSON.stringify(source.slice(pos, pos + 20).split('\n')[0])}`);
+    const [whole, end, name, attrs, self] = m;
+    if (!SKETCH_TAGS.has(name)) fail(pos, `<${name}>`);
+    if (end) {
+      const open = stack.pop();
+      if (attrs.trim() || self || open !== name) fail(pos, open ? `</${name}> while <${open}> is open` : `</${name}> with nothing open`);
+      parts.push(`</${name}>`);
+      if (!stack.length) closed = true;
+    } else {
+      if (!stack.length && (closed || name !== 'svg')) fail(pos, closed ? `a second root <${name}>` : `<${name}> as the root; a sketch is one <svg>`);
+      const seen = new Set(), out = [], classes = [];
+      for (const [, key, quoted] of attrs.matchAll(/([^\s=/>]+)\s*=\s*("[^"]*"|'[^']*')/g)) {
+        if (!SKETCH_ATTRS.has(key) || seen.has(key)) fail(pos, seen.has(key) ? `${key} twice` : `${key}=`);
+        seen.add(key);
+        const value = decode(quoted.slice(1, -1), ref => fail(pos, ref));
+        if (/url\s*\(/i.test(value)) fail(pos, 'url(');
+        if ((key === 'fill' || key === 'stroke') && SKETCH_COLORS.has(value)) { classes.push(`${key[0]}-${value}`); continue; }
+        if ((key === 'fill' || key === 'stroke') && !/^(?:none|currentColor)$/.test(value)) colors.push(value);
+        out.push(` ${key}="${esc(value)}"`);
+      }
+      if (!stack.length) {
+        const box = /^\s*(-?[\d.]+)[\s,]+(-?[\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)\s*$/.exec(decode(/viewBox\s*=\s*("[^"]*"|'[^']*')/.exec(attrs)?.[1].slice(1, -1) ?? '', () => ''));
+        if (!box || !(Number(box[3]) > 0) || !(Number(box[4]) > 0)) fail(pos, '<svg> without a viewBox of four numbers');
+        root = { width: Number(box[3]) };
+      }
+      parts.push(`<${name}${classes.length ? ` class="${classes.join(' ')}"` : ''}${out.join('')}${self ? '/>' : '>'}`);
+      if (!self) stack.push(name);
+      else if (!stack.length) closed = true;
+    }
+    pos += whole.length;
+  }
+  if (stack.length) fail(source.length, `<${stack[stack.length - 1]}>, which never closes`);
+  if (!root) fail(0, 'no <svg> root with a viewBox');
+  return { svg: parts.join('').trim(), width: root.width, colors };
+}
+
+// A hand-drawn sketch shares the Mermaid picture's frame, counter, and note; its colours follow the look.
+function sketch(item, fence, k, warnings) {
+  const id = `item-${item.n}-picture-${k}`, where = `item ${item.n}, picture ${k}`;
+  const source = fence.lines.join('\n');
+  const drawn = sketchSvg(source, (at, what) => {
+    const line = fence.at + 1 + (source.slice(0, at).match(/\n/g) || []).length;
+    throw new Error(`proposal.md line ${line}: ${where}: a sketch can not hold ${what}; draw with shapes, text, and named colors only`);
+  });
+  if (drawn.colors.length) {
+    const more = drawn.colors.length > 1 ? ` (and ${drawn.colors.length - 1} more)` : '';
+    warnings.push(`proposal.md line ${fence.at}: ${where} paints ${drawn.colors[0]}${more}, which will not follow dark mode; use ${[...SKETCH_COLORS].join(', ')}`);
+  }
+  return frame(fence, id, where, drawn.svg, drawn.width, 'pic sketch', 'draw it narrower, or stack its parts', warnings);
+}
+
+// A Markdown table: a header, a separator, and body rows, each row a note target named by its number in the item.
+function table(item, fence, first) {
+  const cells = line => line.slice(1, -1).split(/(?<!\\)\|/).map(cell => inline(cell.trim().replace(/\\\|/g, '|')));
+  const [head, , ...body] = fence.lines.map(cells);
+  const pad = row => head.map((cell, i) => row[i] ?? '');
+  return `<div class="table"><table class="tbl"><thead><tr>${head.map(cell => `<th>${cell}</th>`).join('')}</tr></thead><tbody>`
+    + body.map((row, i) => `<tr data-note="item-${item.n}-row-${first + i}" tabindex="0">${pad(row).map(cell => `<td>${cell}</td>`).join('')}</tr>`).join('')
+    + '</tbody></table></div>';
 }
 
 function changes(section, warnings) {
   let html = '', open = false;
   for (const block of blocks(section, 'item')) {
     if (!block.n) { html += `${open ? '</ol>\n' : ''}<p class="aside">${inline(block.text)}</p>\n`; open = false; continue; }
-    // Text drawings number their lines across the item; a picture takes no line numbers.
-    let first = 1, pictures = 0;
+    // Text drawings number lines across the item, tables their rows; Mermaid and SVG pictures share one count.
+    let first = 1, pictures = 0, rows = 1;
     const art = block.drawings.map(fence => {
       if (fence.lang === 'mermaid') return picture(block, fence, ++pictures, warnings);
+      if (fence.lang === 'svg') return sketch(block, fence, ++pictures, warnings);
+      if (fence.lang === 'table') { const out = table(block, fence, rows); rows += fence.lines.length - 2; return out; }
       const out = drawing(block, fence, first, warnings); first += fence.lines.length; return out;
     });
     const text = block.text.replace(/\s*\(review\.html#\/[^)]*\)\s*$/, '');

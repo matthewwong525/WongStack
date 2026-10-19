@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Screens drawn as pictures
+
+- **A plan's screen sketches are now real pictures.** The assistant draws boxes, buttons, and shading instead of typing them out of line characters, so nothing comes out crooked. Sketches use the page's own colors, so they look right in light and dark mode. They open full screen, zoom, and take a note like flow pictures do.
+- **A table on a plan page is a real table**, and you can leave a note on one row.
+- **A sketch that could do harm never reaches the page.** Anything beyond simple shapes and text, such as a script, a link, or an outside image, stops the page build and names the line; the last good page stays.
+- **Flows stay as they were.** Small listings such as a file list, and drawings in chat, stay plain text. Older plans' pages still build.
+
 ## 43.10.0 — Cheapest place first, and a hook for repeat mistakes
 
 - **A building helper can't quietly stop early.** When the helper building a change stops without its short report, it's sent back once: wait for anything still running, then report. Its next stop always goes through, so it never gets stuck. Every other stop passes untouched. This works in Claude Code and in Codex.
