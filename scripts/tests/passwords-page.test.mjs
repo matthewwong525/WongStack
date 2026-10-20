@@ -10,6 +10,7 @@ import { needs } from './fixtures/needs.mjs';
 const scripts = resolve(dirname(fileURLToPath(import.meta.url)), '../../.agents/skills/hand-over/scripts');
 const html = readFileSync(resolve(scripts, 'passwords-page.html'), 'utf8');
 const source = readFileSync(resolve(scripts, 'passwords-page.mjs'), 'utf8').replace(/^export /gm, '');
+const viewer = readFileSync(resolve(scripts, 'picture-view.mjs'), 'utf8').replace(/^export /gm, '');
 // jsdom comes from scripts/tests/node_modules (`npm ci` there).
 let JSDOM, VirtualConsole;
 try { ({ JSDOM, VirtualConsole } = await import('jsdom')); } catch { /* reported by needsDom */ }
@@ -24,28 +25,36 @@ const SECOND = 'name,url,username,password\n'
   + 'Target,https://target.com/,me@x.com,pw-target,\n';
 
 /** The page with a fake server. `reply(body)` answers each `/save`: a `{saved, failed}` result by default, from the
- * hosts sent; `open` says whether `page.mjs` still loads (a closed link's 403). */
-function page({ reply, open = true, hash = 'key=abc' } = {}) {
+ * hosts sent; `open` says whether `page.mjs` still loads (a closed link's 403); `picture` is the link's picture. */
+function page({ reply, open = true, hash = 'key=abc', picture } = {}) {
   const calls = [];
   const errors = [];
   const virtualConsole = new VirtualConsole();
   virtualConsole.on('jsdomError', error => errors.push(error.message));
-  const answer = (status, body) => ({ ok: status === 200, status, json: async () => body });
+  const answer = (status, body) => ({ ok: status === 200, status, json: async () => body, blob: async () => body });
+  // The page asks for its picture while it loads, before `window` below is set.
+  let Blob;
   const fetch = async (path, init = {}) => {
     const body = init.body ? JSON.parse(init.body) : undefined;
     calls.push({ path, body, key: init.headers?.['x-hand-over-key'] });
     if (path === 'page.mjs') return answer(open ? 200 : 404);
     if (path === 'done') return answer(200, { ok: true });
+    if (path === 'picture') return picture ? answer(200, new Blob([picture])) : answer(404);
     if (reply) return reply(body, answer);
     const hostOf = url => new URL(url).hostname.replace(/^www\./, '');
     return answer(200, { saved: body.logins.map(login => ({ name: hostOf(login.url), host: hostOf(login.url) })), failed: [] });
   };
-  const markup = html.replace('<script type="module" src="page.mjs"></script>', () => `<script>${source}</script>`);
+  const markup = html.replace('<script type="module" src="picture-view.mjs"></script>', () => `<script>${viewer}</script>`)
+    .replace('<script type="module" src="page.mjs"></script>', () => `<script>${source}</script>`);
   const { window } = new JSDOM(markup, {
     url: `https://pw.test/#${hash}`,
     runScripts: 'dangerously',
     virtualConsole,
-    beforeParse(win) { win.fetch = fetch; },
+    beforeParse(win) {
+      win.fetch = fetch;
+      ({ Blob } = win);
+      win.URL.createObjectURL = blob => `blob:${blob.size}`;
+    },
   });
   const { document } = window;
   const $ = selector => document.querySelector(selector);
@@ -285,7 +294,7 @@ test('a site and username in the link fill the form, title the page, and focus t
   assert.equal(p.$('#save').disabled, true, 'a site alone is not a login yet');
   const order = el => [...p.document.querySelectorAll('#page *')].indexOf(el);
   assert.ok(order(p.$('#add-form')) < order(p.$('#drop')), 'the form for this site comes before the export box');
-  assert.match(p.$('#drop').textContent, /^Or drop/);
+  assert.equal(p.$('#drop').textContent, 'Or drop your password export here, or tap to pick it');
 
   const q = page({ hash: 'key=abc&site=netflix.com&user=me%2B1%40x.com' });
   assert.equal(q.$('#username').value, 'me+1@x.com');
@@ -300,7 +309,7 @@ test('a link with no site or username leaves the page as it was', needsDom, () =
   assert.equal(p.$('.private').textContent, 'Private link');
   assert.ok(order(p.$('.promise')) < order(p.$('#drop')), 'the privacy line comes first');
   assert.equal(p.$('#done').textContent, 'Not now');
-  assert.ok(order(p.$('#drop')) < order(p.$('#add-form')), 'the export box stays first');
+  assert.ok(order(p.$('#add-form')) < order(p.$('#drop')), 'the export box sits under the form on every link');
   assert.equal(p.$('#site').value, '');
   assert.notEqual(p.document.activeElement, p.$('#site'));
 });
@@ -308,11 +317,32 @@ test('a link with no site or username leaves the page as it was', needsDom, () =
 test('a pre-filled form is saved by Save and continue alone, and the fragment never reaches the server', needsDom, async () => {
   const p = page({ hash: 'key=abc&site=netflix.com&user=me%40x.com' });
   assert.equal(p.window.location.hash, '', 'the site and username leave the address bar with the key');
-  assert.deepEqual(p.calls, [], 'nothing is sent on load');
+  assert.deepEqual(p.calls.map(call => [call.path, call.body, call.key]), [['picture', undefined, 'abc']], 'nothing is sent on load: only the picture is asked for');
   p.$('#password').value = 'pw-new';
   p.$('#add-form').dispatchEvent(new p.window.Event('input', { bubbles: true }));
   assert.equal(p.$('#save').disabled, false);
   await p.click('#save');
   assert.deepEqual(p.saves(), [[{ url: 'https://netflix.com', username: 'me@x.com', password: 'pw-new' }]]);
   assert.ok(p.calls.every(call => !/[#?]/.test(call.path)), 'no request carries the fragment');
+});
+
+test('a one-site link shows the site\'s login page under the privacy line, and no other link asks for one', needsDom, async () => {
+  const p = page({ hash: 'key=abc&site=netflix.com', picture: 'png' });
+  await settle();
+  const thumb = p.$('#picture .picture-thumb');
+  assert.equal(p.$('#picture').hidden, false);
+  assert.equal(thumb.querySelector('img').src, 'blob:3');
+  assert.equal(thumb.textContent, 'The site\'s login page. Tap to zoom.');
+  const order = el => [...p.document.querySelectorAll('#page *')].indexOf(el);
+  assert.ok(order(p.$('.promise')) < order(thumb) && order(thumb) < order(p.$('#add-form')), 'between the privacy line and the form');
+  assert.equal(p.document.activeElement, p.$('#username'), 'the form still takes the focus');
+  assert.deepEqual(p.errors, []);
+
+  const none = page({ hash: 'key=abc&site=netflix.com' });
+  await settle();
+  assert.deepEqual([none.$('#picture').hidden, none.$('#picture').children.length], [true, 0], 'no picture, no empty frame');
+  const plain = page({ picture: 'png' });
+  await settle();
+  assert.ok(!plain.calls.some(call => call.path === 'picture'), 'a link for every site has no one page to show');
+  assert.equal(plain.$('#picture').hidden, true);
 });

@@ -12,6 +12,7 @@
   .row:first-child { margin-top: 0; }
   .box { flex: 1; min-width: 0; }
   #does { margin: 0.75rem 0 0; }
+  #keep-row { display: flex; gap: 0.5rem; align-items: center; margin: 0; font-weight: 400; }
 </style>
 </head>
 <body>
@@ -20,8 +21,10 @@
   <h1>Private form</h1>
   <p class="lead" id="note" hidden></p>
   <p class="promise">Your assistant never sees what you type.</p>
+  <div class="picture" id="picture" hidden></div>
   <form id="details">
     <div class="card" id="fields"></div>
+    <label id="keep-row" hidden><input type="checkbox" id="keep">Save for next time</label>
     <p class="hint" id="does"></p>
     <div class="actions">
       <button type="submit" class="main" id="send" disabled>Send</button>
@@ -36,6 +39,7 @@
   <p class="hint">Ask your assistant for a new one.</p>
 </section>
 <p id="status" role="status"></p>
+<script type="module" src="picture-view.mjs"></script>
 <script type="module" src="page.mjs"></script>
 </body>
 </html>

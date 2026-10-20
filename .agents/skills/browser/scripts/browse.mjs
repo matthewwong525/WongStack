@@ -19,7 +19,9 @@ const USAGE = `usage: browse.mjs <command> [--session <name>]
   press <key>
   select <ref-or-selector> <option>
   get url | get count <selector> | get value <ref-or-selector>
-  screenshot [--if-changed]     prints BROWSE_SHOT=<temp path>, or none when unchanged
+  screenshot [--if-changed] [--full-page]
+                                prints BROWSE_SHOT=<temp path>, or none when unchanged;
+                                --full-page takes the whole page, not just what shows
   logins                        each saved login's name, host, and username
   login <name> [--username <ref>] [--password <ref>] [--submit <ref>]
                                 type a saved login; prints BROWSE_LOGIN=accepted|rejected|missing|typed
@@ -340,13 +342,16 @@ export function client(given, { retry = true, start = true } = {}) {
     keepAlive: () => evaluate('1'),
     async value(target) {
       const { ref, selector } = targetOf(target);
-      const value = ref ? valueIn((await page.snapshot()).snapshot, ref) : await evaluate(`document.querySelector(${JSON.stringify(selector)})?.value ?? null`);
+      // A dropdown reads as its picked choice's text, as a ref's snapshot shows it.
+      const value = ref ? valueIn((await page.snapshot()).snapshot, ref) : await evaluate(`(field => field && (field.tagName === 'SELECT' ? field.selectedOptions[0]?.label ?? '' : field.value))(document.querySelector(${JSON.stringify(selector)})) ?? null`);
       if (value === null) throw new BrowseError(`no field ${target} on the page`);
       return value;
     },
+    /** A picture of the page as PNG bytes: what shows, or with `fullPage` the whole page. */
+    png: async ({ fullPage = false } = {}) => Buffer.from(await (await onTab(tabId => send('GET', `/tabs/${tabId}/screenshot?userId=${USER}${fullPage ? '&fullPage=true' : ''}`))).arrayBuffer()),
     /** A picture of the page in the temp folder; null when `ifChanged` and it shows what the last one did. */
-    async screenshot(ifChanged = false) {
-      const png = Buffer.from(await (await onTab(tabId => send('GET', `/tabs/${tabId}/screenshot?userId=${USER}`))).arrayBuffer());
+    async screenshot({ ifChanged = false, fullPage = false } = {}) {
+      const png = await page.png({ fullPage });
       const shot = createHash('sha256').update(png).digest('hex');
       const tab = readTab();
       if (ifChanged && tab.shot === shot) return null;
@@ -415,7 +420,7 @@ const COMMANDS = {
   type: [2, (page, [target, text]) => page.type(target, text)],
   press: [1, (page, [key]) => page.press(key)],
   select: [2, (page, [target, option]) => page.select(target, option)],
-  screenshot: [0, async (page, _, flags) => console.log(`BROWSE_SHOT=${(await page.screenshot(flags['if-changed'])) ?? 'none'}`)],
+  screenshot: [0, async (page, _, flags) => console.log(`BROWSE_SHOT=${(await page.screenshot({ ifChanged: flags['if-changed'], fullPage: flags['full-page'] })) ?? 'none'}`)],
   logins: [0, logins],
   forget: [1, (_, [name]) => forget(name)],
   save: [0, async page => { await page.save(); console.log('BROWSE_SAVED=yes'); }],
@@ -454,7 +459,7 @@ function runnerFor(command, words, flags) {
 }
 
 if (isMain(import.meta.url)) {
-  const { values: flags, positionals: [command, ...words] } = parseCli({ usage: USAGE, allowPositionals: true, options: { session: { type: 'string' }, 'if-changed': { type: 'boolean' }, username: { type: 'string' }, password: { type: 'string' }, submit: { type: 'string' } } });
+  const { values: flags, positionals: [command, ...words] } = parseCli({ usage: USAGE, allowPositionals: true, options: { session: { type: 'string' }, 'if-changed': { type: 'boolean' }, 'full-page': { type: 'boolean' }, username: { type: 'string' }, password: { type: 'string' }, submit: { type: 'string' } } });
   const runner = runnerFor(command, words, flags);
   try {
     await runner(client(flags.session, { retry: command !== 'login' }), words, flags);

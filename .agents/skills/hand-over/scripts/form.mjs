@@ -7,6 +7,8 @@ export const FORM_ROUTES = new Set(['/form', '/send', '/done']);
 /** The HTML autofill field names a box's `kind` may be. */
 export const AUTOFILL_TOKENS = new Set(['name', 'honorific-prefix', 'given-name', 'additional-name', 'family-name', 'honorific-suffix', 'nickname', 'username', 'new-password', 'current-password', 'one-time-code', 'organization-title', 'organization', 'street-address', 'address-line1', 'address-line2', 'address-line3', 'address-level4', 'address-level3', 'address-level2', 'address-level1', 'country', 'country-name', 'postal-code', 'cc-name', 'cc-given-name', 'cc-additional-name', 'cc-family-name', 'cc-number', 'cc-exp', 'cc-exp-month', 'cc-exp-year', 'cc-csc', 'cc-type', 'transaction-currency', 'transaction-amount', 'language', 'bday', 'bday-day', 'bday-month', 'bday-year', 'sex', 'url', 'photo', 'tel', 'tel-country-code', 'tel-national', 'tel-area-code', 'tel-local', 'tel-extension', 'email', 'impp']);
 const NUMERIC_TOKENS = new Set(['cc-number', 'cc-csc', 'one-time-code']);
+/** Kinds never kept for next time: a code dies in minutes, and a password saves through the password link. */
+export const UNKEPT = new Set(['one-time-code', 'current-password', 'new-password']);
 
 const isObject = value => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 const isText = (value, most) => typeof value === 'string' && Boolean(value.trim()) && value.length <= most && !/[\r\n\0]/.test(value);
@@ -54,31 +56,39 @@ export function boxFor(kind = '') {
   return { autocomplete: kind, type, inputmode: NUMERIC_TOKENS.has(kind) ? 'numeric' : '' };
 }
 
-/** What the page draws: labels, autofill names, choices, and the button's label, never a target. */
+/** True when a box's details could be kept for next time: it has a kind, and not one never kept. */
+export const keepable = ({ kind }) => Boolean(kind) && !UNKEPT.has(kind);
+
+/** What the page draws: labels, autofill names, choices, the button's label, and whether *Save for next time*
+ * could keep anything; never a target. */
 export function describeForm({ title, note, fields, submit }) {
   return {
     title,
     ...(note && { note }),
     fields: fields.map(({ label, kind, options }) => ({ label, ...boxFor(kind), ...(options && { options: options.map(({ value, text }) => ({ value, text: text ?? value })) }) })),
     submit: submit.label,
+    keep: fields.some(keepable),
   };
 }
 
-/** A send's values, one per field in order, or 400: a text value on one line, a dropdown's one of its choices. */
+/** A send's values, one per field in order, or 400: a text value on one line, a dropdown's one of its choices,
+ * and `save`, when given, true or false. */
 export function checkValues(body, form) {
   const values = body?.values;
   if (!Array.isArray(values) || values.length !== form.fields.length) return 400;
+  if (body.save !== undefined && typeof body.save !== 'boolean') return 400;
   const fits = (value, { options }) => (options ? options.some(option => option.value === value) : isText(value, LIMITS.value));
   return values.every((value, index) => fits(value, form.fields[index])) ? values : 400;
 }
 
-/** Puts one value in its field. `undo` first gains what puts the field back: an emptying of a text box,
- * or a pick of the choice the site showed, read before the person's pick lands. Throws when a step fails. */
+/** Puts one value in its field, first giving `undo` what puts it back: an emptied box, or the shown choice. A pick
+ * goes by text: camofox tries it first, waiting out its timeout on a miss. Throws if a step fails. */
 async function fillField(field, value, { browser, undo }) {
   if (field.options) {
     const was = await browser.value(field.target);
-    await browser.select(field.target, value);
+    // Camofox picks no choice with empty text.
     if (was) undo.push(() => browser.select(field.target, was));
+    await browser.select(field.target, field.options.find(option => option.value === value)?.text ?? value);
     return;
   }
   undo.push(() => browser.type(field.target, ''));
@@ -121,12 +131,12 @@ export function reply(response, status, body) {
   response.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store', 'content-length': Buffer.byteLength(text) }).end(text);
 }
 
-/** The form routes for a checked form file. `onSend(values)` runs the one send and resolves to the receipt
- * `/send` answers with; `onCancel()` runs once `/done`'s reply has gone. */
-export function formRoutes(form, { onSend = async () => null, onCancel = () => {}, isOpen = () => true, closesAt } = {}) {
+/** The form routes for a checked form file. `onSend(values, save)` runs the one send and resolves to the receipt
+ * `/send` answers with; `onCancel()` runs once `/done`'s reply has gone. `picture` says the page has one. */
+export function formRoutes(form, { onSend = async () => null, onCancel = () => {}, isOpen = () => true, closesAt, picture = false } = {}) {
   let ended = false;
   return async (pathname, request, response) => {
-    if (pathname === '/form') return request.method === 'GET' ? reply(response, 200, { ...describeForm(form), closesAt, now: Date.now() }) : reply(response, 405);
+    if (pathname === '/form') return request.method === 'GET' ? reply(response, 200, { ...describeForm(form), picture, closesAt, now: Date.now() }) : reply(response, 405);
     if (request.method !== 'POST') return reply(response, 405);
     const body = pathname === '/done' ? null : await readBody(request);
     // No await sits between this check and `ended = true`, so two sends at once can not both pass.
@@ -140,7 +150,7 @@ export function formRoutes(form, { onSend = async () => null, onCancel = () => {
     const values = typeof body === 'number' ? body : checkValues(body, form);
     if (typeof values === 'number') return reply(response, values);
     ended = true;
-    const receipt = await onSend(values);
+    const receipt = await onSend(values, body.save === true);
     reply(response, 200, { receipt });
   };
 }

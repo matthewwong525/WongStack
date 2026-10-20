@@ -47,10 +47,14 @@ function evaluate(tab, expression) {
   if (expression === '[innerWidth, innerHeight]') return tab.size;
   if (expression === '1') return 1;
   if (/^document\.querySelectorAll\(.*\)\.length$/.test(expression)) return has('count') ? Number(text('count')) : 1;
-  const field = /^document\.querySelector\((".*")\)\?\.value \?\? null$/.exec(expression);
-  if (!field) throw new Error(`the fake evaluates no such expression: ${expression}`);
-  const selector = JSON.parse(field[1]);
-  return has('no-field') ? null : tab.typed[selector] ?? tab.picked[selector] ?? '';
+  if (!/document\.querySelector\(".*"\)\) \?\? null$/.test(expression)) throw new Error(`the fake evaluates no such expression: ${expression}`);
+  // A field read runs as written, on a page whose picked fields are dropdowns and the rest text boxes.
+  const querySelector = selector => {
+    if (has('no-field')) return null;
+    const picked = tab.picked[selector];
+    return picked === undefined ? { tagName: 'INPUT', value: tab.typed[selector] ?? '' } : { tagName: 'SELECT', value: `value of ${picked}`, selectedOptions: [{ label: picked }] };
+  };
+  return new Function('document', `return ${expression}`)({ querySelector });
 }
 
 const STEPS = {
@@ -94,7 +98,7 @@ const STEPS = {
     tab.reads++;
     return send(response, 200, { url: tab.url, snapshot, hasMore: has('snapshot-more'), nextOffset: snapshot.length });
   },
-  screenshot: (_, __, response) => response.writeHead(200, { 'content-type': 'image/png' }).end(has('shot') ? text('shot') : 'png-1'),
+  screenshot: (_, __, response) => (has('fail-shot') ? refuse(response, 500, 'screenshot failed') : response.writeHead(200, { 'content-type': 'image/png' }).end(has('shot') ? text('shot') : 'png-1')),
 };
 
 /** A request on one tab: its step, or the tab closed, or the reply camofox gives for a tab it lost. */

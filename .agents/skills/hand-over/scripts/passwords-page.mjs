@@ -1,5 +1,5 @@
-// The password page's script (see hand-over.mjs `open --passwords` and passwords.mjs). A CSV export is read on
-// this device and stays local. The pure `parseExport` and `siteUrl` are exported for the tests.
+// The password page's script (see hand-over.mjs `open --passwords` and passwords.mjs). A CSV export is read on this
+// device and stays local. The page loads picture-view.mjs first; `parseExport` and `siteUrl` are exported for tests.
 
 const SITE = ['url', 'login_uri', 'website', 'web site'];
 const USER = ['username', 'login_username', 'login', 'email', 'user name'];
@@ -295,17 +295,21 @@ function start() {
     $('#site').value = site;
     $('#username').value = username;
     const host = hostOf(siteUrl(site));
-    if (host) {
-      document.title = $('#page h1').textContent = `Save your ${host} login`;
-      $('#drop').before($('#add-title'), $('#add-form'));
-      $('#drop').textContent = 'Or drop your password export here, or tap to pick it';
-    }
+    if (host) document.title = $('#page h1').textContent = `Save your ${host} login`;
     ['#site', '#username', '#password'].map($).find(input => !input.value)?.focus();
+  }
+
+  /** A one-site link may come with a picture of that site's login page, fetched behind the key. */
+  async function showPicture() {
+    const response = await fetch('picture', { cache: 'no-store', headers: { 'x-hand-over-key': key } }).catch(() => null);
+    const blob = response?.ok && (await response.blob().catch(() => null));
+    if (blob && $('#closed').hidden) globalThis.pictureView($('#picture'), URL.createObjectURL(blob), 'The site\'s login page. Tap to zoom.');
   }
 
   prefill(fragment.get('site') ?? '', fragment.get('user') ?? '');
   draw();
-  if (!key) closed();
+  if (!key) return closed();
+  if (fragment.get('site')) showPicture();
 }
 
 if (typeof document !== 'undefined') start();

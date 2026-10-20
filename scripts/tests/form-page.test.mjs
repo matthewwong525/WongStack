@@ -5,14 +5,17 @@ import { fileURLToPath } from 'node:url';
 import { runInContext } from 'node:vm';
 import { JSDOM } from 'jsdom';
 import { ending, rowsOf, timeLeft } from '../../.agents/skills/hand-over/scripts/form-page.mjs';
+import { clampZoom, keepPoint, stepZoom, ZOOMS } from '../../.agents/skills/hand-over/scripts/picture-view.mjs';
 import { lookCss } from '../../.agents/skills/plan/scripts/look.mjs';
 
 const scripts = new URL('../../.agents/skills/hand-over/scripts/', import.meta.url);
 const sourcePath = fileURLToPath(new URL('form-page.mjs', scripts));
 // Keep byte offsets and the real filename so V8 records coverage for the browser code exercised.
 const source = readFileSync(sourcePath, 'utf8').replace(/^export /gm, '       ');
+const viewerPath = fileURLToPath(new URL('picture-view.mjs', scripts));
+const viewer = readFileSync(viewerPath, 'utf8').replace(/^export /gm, '       ');
 const markup = readFileSync(new URL('form-page.html', scripts), 'utf8');
-const html = markup.replace('<script type="module" src="page.mjs"></script>', '');
+const html = markup.replace('<script type="module" src="picture-view.mjs"></script>', '').replace('<script type="module" src="page.mjs"></script>', '');
 const settle = async () => { for (let i = 0; i < 10; i++) await new Promise(done => setTimeout(done, 0)); };
 const PHONE = 390;
 
@@ -27,6 +30,7 @@ const VIEW = {
     { label: 'Security code', autocomplete: 'cc-csc', type: 'text', inputmode: 'numeric' },
   ],
   submit: 'Pay $45.00',
+  keep: true,
 };
 const VALUES = ['4242 4242 4242 4242', '03', '2028', '737'];
 const sent = (result, notification = 'notified') => (_body, answer) => answer(200, { receipt: { result, notification } });
@@ -34,19 +38,25 @@ const never = () => { throw new Error('nothing should be sent'); };
 
 // The page at a phone's width. `respond` answers the send; `view`, `closesAt`, and `now` are what
 // `GET /form` gives, and `receipts` what each `GET /receipt` answers in turn.
-function page(t, respond, { view = VIEW, closesAt, now, receipts = [], hash = '#key=secret' } = {}) {
+function page(t, respond, { view = VIEW, closesAt, now, receipts = [], hash = '#key=secret', picture } = {}) {
   const calls = [];
-  const answer = (status, body) => ({ status, ok: status === 200, json: async () => body });
+  const answer = (status, body) => ({ status, ok: status === 200, json: async () => body, blob: async () => body });
   const dom = new JSDOM(html, { url: `https://private.test/${hash}`, runScripts: 'outside-only', beforeParse(win) {
     Object.defineProperty(win, 'innerWidth', { value: PHONE });
+    // jsdom draws no dialog and makes no object URL: these stand in for the browser's.
+    win.HTMLDialogElement.prototype.showModal = function showModal() { this.open = true; };
+    win.HTMLDialogElement.prototype.close = function close() { this.open = false; this.dispatchEvent(new win.Event('close')); };
+    win.URL.createObjectURL = blob => `blob:${blob.size}`;
     win.fetch = async (path, init = {}) => {
       calls.push({ path, key: init.headers?.['x-hand-over-key'], body: init.body && JSON.parse(init.body) });
-      if (path === 'form') return view ? answer(200, { ...view, closesAt, now }) : answer(410);
+      if (path === 'form') return view ? answer(200, { ...view, ...(picture !== undefined && { picture: true }), closesAt, now }) : answer(410);
+      if (path === 'picture') return picture ? answer(200, new win.Blob([picture])) : answer(404);
       if (path === 'done') return answer(200, { ok: true });
       if (path === 'receipt') return answer(...(receipts.shift() ?? [404]));
       return respond(JSON.parse(init.body), answer);
     };
   } });
+  runInContext(viewer, dom.getInternalVMContext(), { filename: viewerPath });
   runInContext(source, dom.getInternalVMContext(), { filename: sourcePath });
   t.after(() => dom.window.close());
   const $ = selector => dom.window.document.querySelector(selector);
@@ -66,7 +76,8 @@ test('the form fits a phone: the device\'s own width, no fixed widths, and boxes
   assert.deepEqual(style.match(/(?<!max-)width:\s*\d+px/g), null, 'nothing is wider than the screen it is on');
   assert.match(style, /\.box \{ flex: 1; min-width: 0; \}/, 'two boxes side by side share a narrow row');
   assert.match(style, /input:not\(\[type=checkbox\]\), select \{[^}]*width: 100%/);
-  assert.doesNotMatch(markup, /<img|<canvas|<iframe|WebSocket/, 'the form never shows the site');
+  assert.doesNotMatch(markup, /<img|<canvas|<iframe|WebSocket/, 'no live view of the site: only the one picture the link brings');
+  assert.ok(markup.indexOf('src="picture-view.mjs"') < markup.indexOf('src="page.mjs"'), 'the viewer loads before the page\'s script');
 });
 
 test('the form shows its title, note, one labelled box per field with its autofill name, and the site\'s button', async t => {
@@ -121,9 +132,9 @@ test('the button sends the boxes once, in order, locks the page, and ends on Sen
   p.fill();
   p.submit();
   await settle();
-  assert.deepEqual(p.sends(), [{ path: 'send', key: 'secret', body: { values: VALUES } }]);
+  assert.deepEqual(p.sends(), [{ path: 'send', key: 'secret', body: { values: VALUES, save: false } }]);
   assert.equal(p.shown().status, 'Sending…');
-  assert.ok([...p.boxes(), p.$('#send'), p.$('#done')].every(control => control.disabled), 'nothing can be changed or tapped again');
+  assert.ok([...p.boxes(), p.$('#keep'), p.$('#send'), p.$('#done')].every(control => control.disabled), 'nothing can be changed or tapped again');
   p.submit();
   p.$('#done').click();
   await settle();
@@ -302,4 +313,120 @@ test('the pure helpers: time left, rows, and the closing screen', () => {
   assert.equal(ending({ result: 'not-accepted' }).title, 'Not accepted');
   for (const result of ['timeout', 'closed', 'error']) assert.equal(ending({ result }).hint, 'Ask your assistant for a new one.', result);
   for (const none of [null, undefined]) assert.equal(ending(none).hint, 'Back to your chat to see how it went.');
+});
+
+test('the site\'s page shows above the boxes, fetched behind the key, and nothing is drawn when the link has none', async t => {
+  const p = page(t, never, { picture: 'png' });
+  await settle();
+  assert.deepEqual(p.calls.map(call => [call.path, call.key]), [['form', 'secret'], ['picture', 'secret']]);
+  assert.equal(p.$('#picture').hidden, false);
+  const thumb = p.$('#picture .picture-thumb');
+  assert.equal(thumb.querySelector('img').src, 'blob:3');
+  assert.equal(thumb.textContent, 'The site\'s page. Tap to zoom.');
+  const order = el => [...p.window.document.querySelectorAll('body *')].indexOf(el);
+  assert.ok(order(thumb) < order(p.boxes()[0]), 'the picture sits above the boxes');
+  assert.equal(p.window.document.activeElement, p.boxes()[0], 'the first box still takes the focus');
+
+  for (const picture of [undefined, '']) {
+    const none = page(t, never, { picture });
+    await settle();
+    assert.equal(none.$('#picture').hidden, true, `picture ${JSON.stringify(picture)}`);
+    assert.equal(none.$('#picture').children.length, 0, 'no empty frame');
+  }
+  assert.ok(!page(t, never).calls.some(call => call.path === 'picture'), 'a link with no picture is not asked for one');
+});
+
+test('the picture opens full screen fitted to the width, zooms by steps to 4x or by a pinch, drags, and closes to the thumbnail', async t => {
+  const p = page(t, never, { picture: 'png' });
+  await settle();
+  const full = p.$('#picture dialog');
+  const [zoomOut, zoomIn, close] = full.querySelectorAll('.picture-bar button');
+  const big = full.querySelector('.picture-stage img');
+  const stage = full.querySelector('.picture-stage');
+  assert.equal(full.open, false);
+  p.$('.picture-thumb').click();
+  assert.equal(full.open, true);
+  assert.deepEqual([big.style.width, zoomOut.disabled, zoomIn.disabled], ['100%', true, false], 'fitted to the width');
+  assert.deepEqual([zoomOut.getAttribute('aria-label'), zoomIn.getAttribute('aria-label'), close.textContent], ['Zoom out', 'Zoom in', 'Close']);
+  const widths = [];
+  for (let i = 0; i < 5; i++) { zoomIn.click(); widths.push(big.style.width); }
+  assert.deepEqual(widths, ['150%', '200%', '300%', '400%', '400%']);
+  assert.equal(zoomIn.disabled, true, 'no further than 4x');
+  zoomOut.click();
+  assert.equal(big.style.width, '300%');
+
+  const pointer = (type, pointerId, clientX, clientY = 0) => stage.dispatchEvent(new p.window.PointerEvent(type, { pointerId, clientX, clientY, bubbles: true }));
+  pointer('pointerdown', 1, 100, 100);
+  pointer('pointermove', 1, 60, 70);
+  assert.deepEqual([stage.scrollLeft, stage.scrollTop], [40, 30], 'one finger moves around the picture');
+  pointer('pointerdown', 2, 160, 70);
+  pointer('pointermove', 2, 130, 70);
+  assert.equal(big.style.width, `${300 * (70 / 100)}%`, 'two fingers pinch from the zoom they started at');
+  pointer('pointermove', 2, 1000, 70);
+  assert.equal(big.style.width, '400%', 'a pinch stops at 4x');
+  for (const id of [1, 2]) pointer('pointerup', id, 0);
+
+  close.click();
+  assert.equal(full.open, false);
+  assert.equal(p.window.document.activeElement, p.$('.picture-thumb'), 'Close goes back to the form, at the picture');
+  p.$('.picture-thumb').click();
+  assert.equal(big.style.width, '100%', 'it opens fitted again');
+  p.boxes()[0].focus();
+  full.close();
+  assert.equal(p.window.document.activeElement, p.$('.picture-thumb'), 'Escape, which closes the dialog, does the same');
+});
+
+test('a zoom holds still the view\'s centre for + and −, and the fingers\' midpoint for a pinch', async t => {
+  const p = page(t, never, { picture: 'png' });
+  await settle();
+  const full = p.$('#picture dialog');
+  const [zoomOut, zoomIn] = full.querySelectorAll('.picture-bar button');
+  const stage = full.querySelector('.picture-stage');
+  // JSDOM lays nothing out: the view is given a size and a place, 400 by 600 pixels, 50 down the screen.
+  Object.defineProperties(stage, { clientWidth: { value: 400 }, clientHeight: { value: 600 } });
+  stage.getBoundingClientRect = () => ({ left: 0, top: 50 });
+  p.$('.picture-thumb').click();
+  const scroll = () => [stage.scrollLeft, stage.scrollTop];
+  zoomIn.click();
+  assert.deepEqual(scroll(), [100, 150], 'at 1.5x the centre, 200 by 300 in, is now 300 by 450 in, still mid-view');
+  zoomIn.click();
+  assert.deepEqual(scroll(), [200, 300]);
+  zoomOut.click();
+  assert.deepEqual(scroll(), [100, 150], 'zooming out comes back the same way');
+
+  const pointer = (type, pointerId, clientX, clientY) => stage.dispatchEvent(new p.window.PointerEvent(type, { pointerId, clientX, clientY, bubbles: true }));
+  pointer('pointerdown', 1, 100, 150);
+  pointer('pointerdown', 2, 200, 150);
+  pointer('pointermove', 2, 300, 150);
+  assert.equal(stage.querySelector('img').style.width, '300%', 'the fingers twice as far apart: 3x');
+  assert.deepEqual(scroll(), [400, 400], 'the point under the midpoint, 200 by 100 into the view, stays under it');
+  for (const id of [1, 2]) pointer('pointerup', id, 0, 0);
+  full.close();
+  p.$('.picture-thumb').click();
+  assert.deepEqual(scroll(), [0, 0], 'it opens at the top-left again');
+});
+
+test('the zoom helpers step from fitting the width to 4x and hold a pinch inside it', () => {
+  assert.deepEqual([keepPoint(0, 200, 1, 2), keepPoint(200, 200, 2, 1), keepPoint(0, 200, 2, 1)], [200, 0, 0], 'never scrolled past the start');
+  assert.deepEqual(ZOOMS, [1, 1.5, 2, 3, 4]);
+  assert.deepEqual([stepZoom(1, true), stepZoom(2.5, true), stepZoom(4, true), stepZoom(1.2, false), stepZoom(1, false)], [1.5, 3, 4, 1, 1]);
+  assert.deepEqual([clampZoom(0.5), clampZoom(2.7), clampZoom(9)], [1, 2.7, 4]);
+});
+
+test('Save for next time starts unticked, sends the person\'s choice, and shows only when something could be kept', async t => {
+  const p = page(t, sent('done'));
+  await settle();
+  assert.deepEqual([p.$('#keep-row').hidden, p.$('#keep').checked, p.$('#keep-row').textContent], [false, false, 'Save for next time']);
+  const order = el => [...p.window.document.querySelectorAll('body *')].indexOf(el);
+  assert.ok(order(p.boxes().at(-1)) < order(p.$('#keep')) && order(p.$('#keep')) < order(p.$('#send')), 'under the boxes, above the button');
+  p.fill();
+  p.$('#keep').checked = true;
+  p.submit();
+  await settle();
+  assert.equal(p.sends()[0].body.save, true);
+  assert.equal(p.$('#keep').checked, false, 'cleared with the boxes');
+
+  const code = page(t, never, { view: { ...VIEW, keep: false } });
+  await settle();
+  assert.equal(code.$('#keep-row').hidden, true, 'a backup code is never kept');
 });
