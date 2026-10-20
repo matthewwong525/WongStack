@@ -312,7 +312,7 @@ test('--form needs a finish, and a finish or a session goes with --form only', t
 
 test('--site and --username go only with --passwords, and only as a website and one line', t => {
   const f = fixture(t);
-  for (const args of [['--site', 'netflix.com'], ['--username', 'me'], ['--keys', 'MAPS_API_KEY', '--site', 'netflix.com'], ['--passwords', '--site', 'not a site'], ['--passwords', '--site', 'ftp://netflix.com'], ['--passwords', '--username', ' '], ['--passwords', '--username', 'me\nyou']]) {
+  for (const args of [['--site', 'netflix.com'], ['--username', 'me'], ['--keys', 'MAPS_API_KEY', '--site', 'netflix.com'], ['--passwords', '--site', 'not a site'], ['--passwords', '--site', 'ftp://netflix.com'], ['--passwords', '--username', ' '], ['--passwords', '--username', 'me\nyou'], ['--passwords', '--email-first'], ['--passwords', '--username', 'me', '--email-first'], ['--email-first']]) {
     const out = f.run('open', ...args);
     assert.equal(out.status, 2, args.join(' '));
     assert.match(out.stderr, /usage:/);
@@ -334,6 +334,19 @@ test('--site and --username ride URL-encoded in the link\'s fragment beside the 
   assert.ok(!/netflix|me\+1/.test(f.stateFiles()), 'the watcher\'s files hold neither');
   assert.equal(f.run('close').status, 0);
   assert.match(opened(f, '--passwords').link, /#key=[0-9a-f]{64}$/, 'no flags, no extra fragment');
+});
+
+test('--email-first rides in the link\'s fragment beside the site, and needs --site', t => {
+  const f = fixture(t);
+  const alone = f.run('open', '--passwords', '--email-first');
+  assert.equal(alone.status, 2);
+  assert.match(alone.stderr, /--email-first goes with --passwords --site only/);
+  const out = f.run('open', '--passwords', '--site', 'shopify.com', '--email-first');
+  assert.equal(out.status, 0, out.stderr);
+  const link = new URL(/^HANDOVER_LINK=(.+)$/m.exec(out.stdout)[1]);
+  assert.match(link.hash, /^#key=[0-9a-f]{64}&site=shopify\.com&emailFirst=1$/);
+  assert.ok(!/shopify|emailFirst/.test(f.stateFiles()), 'the watcher\'s files hold neither');
+  assert.equal(f.run('close').status, 0);
 });
 
 test('the pure helpers follow the URL glob and the recorded output shapes', () => {
@@ -715,6 +728,8 @@ test('--view needs a finish, and --note goes with --view only, as one line', t =
   assert.match(help, /open --view \(--until <glob> \| --until-gone <selector>\) \[--session <name>\] \[--note <line>\] \[--minutes N\]/);
   assert.match(help, /wait \| close \| install-view/);
   assert.match(help, /HANDOVER_NEEDS=live-view/);
+  assert.match(help, /a check that asks whether a person is\s+there, or a stuck login/);
+  assert.match(help, /--passwords \[--site <url> \[--email-first\]\]/);
   assert.deepEqual(f.calls(), []);
   assert.deepEqual(f.tools.calls('x11vnc'), []);
 });

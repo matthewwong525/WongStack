@@ -547,6 +547,21 @@ test('login says rejected when the page stays, typed for a step with no password
   assertNoSecret(rejected.stdout + rejected.stderr, 'the output');
 });
 
+test('a login saved with the email only types nothing at a password box, and still types the email step', t => {
+  const f = fixture(t);
+  f.saveLogins([{ name: 'shop-example-com', url: SHOP, username: USERNAME, password: '' }]);
+  ok(f, 'open', SHOP, '--session', 'a');
+  const before = f.camofox.calls().length;
+  for (const args of [['--password', 'e2'], ['--username', 'e1', '--password', 'e2', '--submit', 'e3']]) {
+    const out = f.run('login', 'shop-example-com', ...args, '--session', 'a');
+    assert.equal(out.status, 0, out.stderr);
+    assert.equal(out.stdout, 'BROWSE_LOGIN=missing\n', args.join(' '));
+  }
+  assert.deepEqual(f.camofox.calls().slice(before), [], 'nothing typed, nothing submitted');
+  assert.equal(ok(f, 'login', 'shop-example-com', '--username', 'e1', '--submit', 'e3', '--session', 'a'), 'BROWSE_LOGIN=typed\n');
+  assert.deepEqual(f.camofox.requests().filter(request => request.path.endsWith('/type')).map(request => request.body.text), [USERNAME]);
+});
+
 test('a login step the browser refuses is reported without what was typed, and never retried', t => {
   const f = fixture(t);
   f.saveLogins(LOGINS);

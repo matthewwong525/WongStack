@@ -381,11 +381,11 @@ function savedLogins() {
   try { return readLogins(); } catch (error) { throw new BrowseError(error.message); }
 }
 
-/** Types the saved login `name` into the boxes named and submits; `typed` is a step with no password box,
- * `accepted` an address that left the login page. Only this function reads a stored password. */
+/** Types the saved login `name` and submits: `typed` a step with no password box, `accepted` an address that left
+ * the login page, `missing` none typed (no login, or one saved with no password). Only this reads a password. */
 export async function login(page, name, { username, password, submit }) {
   const entry = savedLogins().find(saved => saved.name === name);
-  if (!entry) return { result: 'missing' };
+  if (!entry || (password && !entry.password)) return { result: 'missing' };
   const before = await page.url();
   if (username) await page.type(username, entry.username);
   if (password) await page.type(password, entry.password);

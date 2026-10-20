@@ -326,6 +326,39 @@ test('a pre-filled form is saved by Save and continue alone, and the fragment ne
   assert.ok(p.calls.every(call => !/[#?]/.test(call.path)), 'no request carries the fragment');
 });
 
+test('an email-first link makes the password optional and saves a blank one flagged', needsDom, async () => {
+  const p = page({ hash: 'key=abc&site=shopify.com&emailFirst=1' });
+  assert.equal(p.$('#password-label').textContent, 'Password (optional)');
+  assert.equal(p.$('#password').required, false);
+  assert.equal(p.$('#password-hint').hidden, false);
+  assert.equal(p.$('#password-hint').textContent, 'Leave it blank if the site sends you a code.');
+  p.$('#username').value = 'me@x.com';
+  p.$('#add-form').dispatchEvent(new p.window.Event('input', { bubbles: true }));
+  assert.equal(p.$('#save').disabled, false, 'a site and username are enough');
+  await p.click('#save');
+  assert.deepEqual(p.saves(), [[{ url: 'https://shopify.com', username: 'me@x.com', password: '', emailFirst: true }]]);
+  assert.equal(p.$('#status').textContent, 'Saved: shopify.com');
+
+  const q = page({ hash: 'key=abc&site=shopify.com&emailFirst=1' });
+  q.type('shopify.com', 'me@x.com', 'pw');
+  await q.click('#save');
+  assert.deepEqual(q.saves(), [[{ url: 'https://shopify.com', username: 'me@x.com', password: 'pw' }]], 'a given password goes as usual');
+  assert.deepEqual([...p.errors, ...q.errors], []);
+});
+
+test('without an email-first link the password stays required, and a mark with no site changes nothing', needsDom, async () => {
+  for (const hash of ['key=abc&site=shopify.com', 'key=abc&emailFirst=1']) {
+    const p = page({ hash });
+    assert.equal(p.$('#password-label').textContent, 'Password', hash);
+    assert.equal(p.$('#password').required, true, hash);
+    assert.equal(p.$('#password-hint').hidden, true, hash);
+    p.type('shopify.com', 'me@x.com', '');
+    assert.equal(p.$('#save').disabled, true, hash);
+    await p.click('#save');
+    assert.deepEqual(p.saves(), [], hash);
+  }
+});
+
 test('a one-site link shows the site\'s login page under the privacy line, and no other link asks for one', needsDom, async () => {
   const p = page({ hash: 'key=abc&site=netflix.com', picture: 'png' });
   await settle();

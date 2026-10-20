@@ -215,6 +215,24 @@ test('slug, hostOf, and chooseName name each saved login', () => {
   assert.equal(checkLogins(null), 400);
 });
 
+test('an empty password passes only on a login flagged emailFirst, and saves as an empty password', async t => {
+  assert.deepEqual(checkLogins({ logins: [{ ...login('https://shopify.com', 'me', ''), emailFirst: true }] }), [{ url: 'https://shopify.com', username: 'me', password: '', host: 'shopify.com' }]);
+  for (const bad of [login('https://shopify.com', 'me', ''), { ...login('https://shopify.com', 'me', ''), emailFirst: 'yes' }, { ...login('https://shopify.com', 'me'), password: undefined, emailFirst: true }, { ...login('https://shopify.com', '', ''), emailFirst: true }]) {
+    assert.equal(checkLogins({ logins: [bad] }), 400, JSON.stringify(bad));
+  }
+  assert.ok(!parseExport('url,username,password\nhttps://shopify.com/,me,\n').length, 'an export row still needs a password');
+
+  const f = fixture(t);
+  const out = f.run('open', '--passwords', '--site', 'shopify.com', '--email-first');
+  assert.equal(out.status, 0, out.stderr);
+  const key = /#key=([0-9a-f]{64})&/.exec(out.stdout)[1];
+  const { port } = JSON.parse(readFileSync(join(f.state, 'state.json'), 'utf8'));
+  assert.equal((await route(port, key, 'save', { logins: [login('https://shopify.com', 'me@mail.com', '')] })).status, 400, 'unflagged');
+  const saved = await route(port, key, 'save', { logins: [{ ...login('https://shopify.com', 'me@mail.com', ''), emailFirst: true }] });
+  assert.deepEqual(saved.json, { saved: [{ name: 'shopify-com', host: 'shopify.com' }], failed: [] });
+  assert.deepEqual(f.vault(), [{ name: 'shopify-com', url: 'https://shopify.com', username: 'me@mail.com', password: '' }], 'no flag is kept');
+});
+
 // Each password manager's CSV export, with the header it writes and one login row.
 const EXPORTS = {
   Chrome: ['name,url,username,password,note', 'netflix.com,https://www.netflix.com/login,me@mail.com,pw-chrome,', 'Netflix app,android://Abc123==@com.netflix.mediaclient/,me@mail.com,pw-app,'],
