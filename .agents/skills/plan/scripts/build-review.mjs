@@ -85,12 +85,13 @@ function sections(markdown) {
 
 // A bullet runs to the next bullet or a blank line outside a fence; a fence inside a bullet is its drawing.
 // In What Changes, pipe lines over a separator row become a table drawing; other pipe lines stay text.
+const SEPARATOR = /^\|(?:\s*:?-+:?\s*\|)+$/;
 function blocks(section, noun) {
   const out = [];
   let item = null, para = null, fence = null, table = null, count = 0;
   const settle = () => {
     if (!table) return;
-    if (table.lines.length > 1 && /^\|(?:\s*:?-+:?\s*\|)+$/.test(table.lines[1])) item.drawings.push(table);
+    if (table.lines.length > 1 && SEPARATOR.test(table.lines[1])) item.drawings.push(table);
     else item.text.push(...table.lines);
     table = null;
   };
@@ -101,7 +102,11 @@ function blocks(section, noun) {
       else fence.lines.push(line.replace(fence.indent, ''));
       return;
     }
-    if (noun === 'item' && item && /^\|.+\|$/.test(line.trim())) {
+    const pipes = noun === 'item' && /^\|.+\|$/.test(line.trim());
+    if (pipes && !item && SEPARATOR.test(section.lines[i + 1]?.trim() ?? '')) {
+      throw new Error(`proposal.md line ${at}: a table outside any bullet in ## ${section.title} (a blank line ends a bullet)`);
+    }
+    if (pipes && item) {
       (table ??= { at, lang: 'table', lines: [] }).lines.push(line.trim());
       return;
     }
