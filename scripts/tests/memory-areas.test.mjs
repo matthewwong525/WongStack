@@ -220,7 +220,8 @@ test('code users: direct, .claude/, re-export via, and alias imports count; a sa
     'scripts/lib-cli.mjs': "export * from '../.claude/skills/memory/scripts/lib/cli.mjs';\n",
     'c.mjs': "import { parseCli } from './scripts/lib-cli.mjs';\nparseCli([]);\n",
     'd.mjs': 'function parseCli() { return 1; }\nparseCli();\n',
-    'app/tsconfig.json': '{\n  // tsconfig comments and trailing commas are legal\n  "compilerOptions": { "paths": { "@/*": ["../.agents/skills/memory/scripts/lib/*"] } },\n}\n',
+    'app/tsconfig.json': '{\n  // tsconfig comments and trailing commas are legal\n  "compilerOptions": { "paths": { "@/*": ["../.agents/skills/memory/scripts/lib/*"] } },\n  "include": ["src", "../shared"],\n}\n',
+    'shared/f.ts': "import { parseCli } from '@/cli.mjs';\nexport const F = () => parseCli([]);\n",
     'app/src/e.tsx': "import { parseCli } from '@/cli.mjs';\nexport const E = () => parseCli([]);\n",
     'app/src/v.tsx': "import { parseCli } from '~alias/cli.mjs';\nexport const V = () => parseCli([]);\n",
     'app/vite.config.ts': "export default { resolve: { alias: { '~alias': './src' } } };\n",
@@ -230,7 +231,32 @@ test('code users: direct, .claude/, re-export via, and alias imports count; a sa
     { file: 'app/src/e.tsx', lines: [2], names: ['parseCli'], via: null },
     { file: 'b.mjs', lines: [3], names: ['parseCli'], via: null },
     { file: 'c.mjs', lines: [2], names: ['parseCli'], via: 'scripts/lib-cli.mjs' },
+    { file: 'shared/f.ts', lines: [2], names: ['parseCli'], via: null },
   ], 'the decoy, the vite-only alias, and the re-exporter itself are not listed');
+});
+
+test('code users: a shortcut resolves through the app config that includes the shared folder, and through extends', t => {
+  const root = tempDir(t, 'callers-include-');
+  files(root, {
+    'tsconfig.json': '{ "files": [], "references": [{ "path": "./apps/admin/tsconfig.app.json" }] }\n',
+    'tsconfig.base.app.json': '{ "compilerOptions": { "strict": true } }\n',
+    'apps/admin/tsconfig.app.json': '{\n  "extends": "../../tsconfig.base.app.json",\n  "compilerOptions": { "baseUrl": ".", "paths": { "@/*": ["../../packages/spa/*"] } },\n  "include": ["src", "../../packages/spa"],\n  "exclude": ["../../packages/spa/**/*.test.ts"],\n}\n',
+    'apps/admin/src/main.tsx': "import { x } from '@/lib/x';\nx();\n",
+    'packages/spa/lib/x.ts': 'export function x() { return 1; }\n',
+    'packages/spa/pages/home.tsx': "import { x } from '@/lib/x';\nexport const Home = () => x();\n",
+    'packages/spa/lib/x.test.ts': "import { x } from '@/lib/x';\nx();\n",
+    'apps/other/tsconfig.app.json': '{ "compilerOptions": { "paths": { "@/*": ["./src/*"] } }, "include": ["src"] }\n',
+    'tools/t.ts': "import { x } from '@/lib/x';\nx();\n",
+    'store/tsconfig.json': '{ "extends": "../configs/tsconfig.paths", "include": ["app/**/*.ts"] }\n',
+    'configs/tsconfig.paths.json': '{ "compilerOptions": { "paths": { "~/*": ["../store/app/*"] } } }\n',
+    'store/app/util.ts': 'export const util = () => 1;\n',
+    'store/app/root.ts': "import { util } from '~/util';\nutil();\n",
+  });
+  assert.deepEqual(codeUsers(root, 'packages/spa/lib/x.ts').map(user => user.file),
+    ['apps/admin/src/main.tsx', 'packages/spa/lib/x.test.ts', 'packages/spa/pages/home.tsx'],
+    'the shared folder has no config of its own; the app that includes it maps @/, an excluded test still counts, and tools/, which no config includes, does not');
+  assert.deepEqual(codeUsers(root, 'store/app/util.ts').map(user => user.file), ['store/app/root.ts'],
+    'paths set only in an extended config outside the folder resolve against that config\'s folder');
 });
 
 test('code users: comments and strings are not uses; .js lands on .ts; namespace, default, and value uses count', t => {

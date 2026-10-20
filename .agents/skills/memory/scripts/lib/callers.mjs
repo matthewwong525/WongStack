@@ -127,7 +127,7 @@ function parseFile(root, file) {
 export function scanCode(root) {
   const configs = new Map();
   const files = existsSync(root) ? codeFiles(root, root, configs) : [];
-  return { root, set: new Set(files), records: files.map(file => parseFile(root, file)), configs, aliases: new Map() };
+  return { root, set: new Set(files), records: files.map(file => parseFile(root, file)), configs, aliases: new Map(), loaded: new Map(), covering: new Map() };
 }
 
 // Parse JSON that may carry comments and trailing commas, as tsconfig allows; null when it still fails.
@@ -147,32 +147,94 @@ function looseJson(text) {
   return null;
 }
 
-// The alias patterns a folder's own tsconfig*/jsconfig files define, or null when none defines any.
-function aliasesIn(dir, scan) {
-  const out = [];
-  for (const name of scan.configs.get(dir) || []) {
-    const options = looseJson(readFileSync(join(scan.root, dir === '.' ? '' : dir, name), 'utf8'))?.compilerOptions || {};
-    const base = posix.normalize(posix.join(dir, options.baseUrl || '.'));
-    for (const [pattern, targets] of Object.entries(options.paths || {})) {
-      const star = pattern.includes('*');
-      const [prefix, suffix = ''] = pattern.split('*');
-      const target = String(targets?.[0] ?? '');
-      if (target) out.push({ prefix, suffix, star, target, base });
+// A config with its relative `extends` applied, as TypeScript resolves it: paths against baseUrl, else the
+// folder that set them; globs against the folder that set them. Package extends and cycles end the chain.
+function loadConfig(rel, scan, seen = new Set()) {
+  if (scan.loaded.has(rel)) return scan.loaded.get(rel);
+  const full = join(scan.root, rel);
+  const json = !seen.has(rel) && existsSync(full) ? looseJson(readFileSync(full, 'utf8')) : null;
+  seen.add(rel);
+  const config = { paths: null, pathsDir: null, baseUrl: null, include: null, files: null };
+  if (json) {
+    const dir = posix.dirname(rel);
+    for (const parent of [json.extends ?? []].flat()) {
+      if (typeof parent !== 'string' || !parent.startsWith('.')) continue;
+      const path = posix.normalize(posix.join(dir, parent));
+      const base = loadConfig(path.endsWith('.json') ? path : `${path}.json`, scan, seen);
+      for (const key of Object.keys(config)) config[key] = base[key] ?? config[key];
+    }
+    const options = json.compilerOptions || {};
+    if (options.paths) Object.assign(config, { paths: options.paths, pathsDir: dir });
+    if (options.baseUrl) config.baseUrl = posix.normalize(posix.join(dir, options.baseUrl));
+    for (const key of ['include', 'files']) {
+      if (Array.isArray(json[key])) config[key] = json[key].map(pattern => globOf(dir, String(pattern), key === 'files')).filter(Boolean);
     }
   }
-  return out.length ? out.sort((a, b) => b.prefix.length - a.prefix.length) : null;
+  config.aliases = config.paths ? aliasPatterns(config.paths, config.baseUrl ?? config.pathsDir) : null;
+  scan.loaded.set(rel, config);
+  return config;
 }
 
-// The nearest folder at or above `dir` whose own config defines paths, memoized per folder.
+// The alias patterns of a `paths` map, longest prefix first, resolved against `base`.
+function aliasPatterns(paths, base) {
+  const out = [];
+  for (const [pattern, targets] of Object.entries(paths)) {
+    const star = pattern.includes('*');
+    const [prefix, suffix = ''] = pattern.split('*');
+    const target = String([targets ?? []].flat()[0] ?? '');
+    if (target) out.push({ prefix, suffix, star, target, base });
+  }
+  return out.sort((a, b) => b.prefix.length - a.prefix.length);
+}
+
+// A tsconfig glob as a regex over repo paths: a plain entry covers that file or folder; `**/`, `*`, and `?`
+// match as TypeScript reads them. Null for a pattern outside the repo.
+function globOf(dir, pattern, exact) {
+  const rel = posix.normalize(posix.join(dir, pattern)).replace(/\/+$/, '');
+  if (rel.startsWith('..')) return null;
+  if (rel === '.') return /^/;
+  const body = rel.replace(/\*\*\/|\*\*|[*?]|[.+^${}()|[\]\\]/g, part =>
+    ({ '**/': '(?:.*/)?', '**': '.*', '*': '[^/]*', '?': '[^/]' })[part] ?? `\\${part}`);
+  return new RegExp(exact ? `^${body}$` : /[*?]/.test(rel) ? `^${body}$` : `^${body}(?:/.*)?$`);
+}
+
+// Whether a config claims a file. `exclude` is ignored: it mostly drops test files, which still load the
+// code through the test runner's own copy of the alias.
+function covers(config, dir, file) {
+  const globs = config.include || config.files ? [...config.include || [], ...config.files || []] : [globOf(dir, '.', false)];
+  return globs.some(glob => glob.test(file));
+}
+
+// The configs at `dir`, each loaded once.
+function configsIn(dir, scan) {
+  return (scan.configs.get(dir) || []).map(name => loadConfig(dir === '.' ? name : `${dir}/${name}`, scan));
+}
+
+// The alias patterns of the nearest folder at or above `dir` whose configs define paths, memoized per folder.
 function aliasesFor(dir, scan) {
   if (!scan.aliases.has(dir)) {
-    scan.aliases.set(dir, aliasesIn(dir, scan) ?? (dir === '.' ? [] : aliasesFor(posix.dirname(dir), scan)));
+    const own = configsIn(dir, scan).flatMap(config => config.aliases || []);
+    scan.aliases.set(dir, own.length ? own.sort((a, b) => b.prefix.length - a.prefix.length)
+      : dir === '.' ? [] : aliasesFor(posix.dirname(dir), scan));
   }
   return scan.aliases.get(dir);
 }
 
-function aliasTarget(spec, file, scan) {
-  for (const { prefix, suffix, star, target, base } of aliasesFor(posix.dirname(file), scan)) {
+// Alias lists to try for an importer: the nearest config's, then each config whose include or files cover the
+// file, as a TypeScript project would claim it.
+function aliasListsFor(file, scan) {
+  if (!scan.covering.has(file)) {
+    const lists = [aliasesFor(posix.dirname(file), scan)];
+    for (const dir of [...scan.configs.keys()].sort()) {
+      for (const config of configsIn(dir, scan)) if (config.aliases && covers(config, dir, file)) lists.push(config.aliases);
+    }
+    scan.covering.set(file, lists);
+  }
+  return scan.covering.get(file);
+}
+
+function aliasTarget(spec, aliases) {
+  for (const { prefix, suffix, star, target, base } of aliases) {
     const hits = star ? spec.startsWith(prefix) && spec.endsWith(suffix) && spec.length >= prefix.length + suffix.length : spec === prefix;
     if (hits) return posix.join(base, target.replace('*', star ? spec.slice(prefix.length, spec.length - suffix.length) : ''));
   }
@@ -183,8 +245,16 @@ function aliasTarget(spec, file, scan) {
 // TypeScript's extension swap and index files; null for a package or an unmapped alias.
 function resolveSpec(spec, file, scan) {
   const clean = spec.split(/[?#]/)[0];
-  const joined = clean.startsWith('.') ? posix.join(posix.dirname(file), clean) : aliasTarget(clean, file, scan);
-  if (!joined) return null;
+  if (clean.startsWith('.')) return landOn(posix.join(posix.dirname(file), clean), scan);
+  for (const aliases of aliasListsFor(file, scan)) {
+    const joined = aliasTarget(clean, aliases);
+    const hit = joined && landOn(joined, scan);
+    if (hit) return hit;
+  }
+  return null;
+}
+
+function landOn(joined, scan) {
   const rel = normalizePath(posix.normalize(joined));
   if (!rel || rel.startsWith('..')) return null;
   return findFile(rel.replace(/\/+$/, ''), scan.set);
