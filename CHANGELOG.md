@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 43.13.0 — Tests don't run twice
+
+- **Code that already passed isn't tested again when it goes live.** When a change goes live and its files are exactly what passed on its branch, the test check passes in seconds and names the pull request it trusted. When anything differs, such as another change going live first, or the check can't tell, the tests run as before. The app still deploys every time.
+- **This saves GitHub minutes.** About 6 in 10 changes go live unchanged, so each skips a full test run.
+
+**Updating.** If your deploy step runs its own lint or tests, remove them, because the test check already runs them. Keep any other edit there.
+
 ## 43.12.0 — Screens drawn as pictures
 
 - **A plan's screen sketches are now real pictures.** The assistant draws boxes, buttons, and shading instead of typing them out of line characters, so nothing comes out crooked. Sketches use the page's own colors, so they look right in light and dark mode. They open full screen, zoom, and take a note like flow pictures do.

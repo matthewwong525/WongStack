@@ -20,6 +20,13 @@
 # `test` check still reports. When the comparison can not be made, the suite
 # runs. The last step writes one summary line either way.
 #
+# Code that already passed is not tested again when it goes live. On a push to
+# the default branch, `.github/scripts/already-passed.sh` finds the merged pull
+# request: when the pushed files are identical to its head and that head's
+# `test` check passed, the shared checks skip and the summary names the pull
+# request. Any doubt (a direct push, the default branch moved first, a failed
+# or missing check, an API error) runs them.
+#
 # ---------------------------------------------------------------------------
 # Why one commit does not test twice
 #
@@ -62,6 +69,9 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: read
+      # already-passed.sh reads the merged pull request and its head's test check.
+      checks: read
+      pull-requests: read
     steps:
       # Full history: the untouched check compares the whole branch with its base.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -78,8 +88,21 @@ jobs:
         with:
           node-version-file: .nvmrc
 
+      - name: Check whether this code already passed
+        id: passed
+        if: ${{ github.event_name == 'push' && github.ref_name == github.event.repository.default_branch }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash .github/scripts/already-passed.sh >> "$GITHUB_OUTPUT"
+
+      - name: Say the code already passed
+        if: ${{ steps.passed.outputs.passed == 'true' }}
+        env:
+          PR: ${{ steps.passed.outputs.pr }}
+        run: echo "Skipped the checks: this exact code already passed on pull request #$PR." >> "$GITHUB_STEP_SUMMARY"
+
       - name: Run shared checks
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.passed.outputs.passed != 'true' }}
         env:
           CHECK_REPO: ${{ github.workspace }}
           CHECK_BASE: ${{ steps.scope.outputs.base }}

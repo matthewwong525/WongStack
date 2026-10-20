@@ -75,6 +75,7 @@
       ".github/workflows/guard.yml",
       ".github/actions/change-scope/action.yml",
       ".github/scripts/app-untouched.sh",
+      ".github/scripts/already-passed.sh",
       ".github/scripts/checks.mjs",
       ".github/scripts/check-settings.mjs",
       ".github/scripts/loosened-checks.mjs",
