@@ -114,40 +114,7 @@ A private link is a page only you can open, for something the agent must never s
 
 ### The private form
 
-The private form takes a sensitive detail from you to a website without the agent seeing it. It shows a title, a line saying what it's for, one box per detail labelled as on the site, and one button with the site's own label, such as *Pay $45.00*. Each box says what it holds (card number, expiry, security code), so 1Password or your phone's autofill can fill the form in one tap. Your tap on the button types the details into the site and presses the site's button once. That tap is your yes for that action alone, so the chat asks nothing more. The form never shows the site, ends on *Sent* or *Not accepted*, and never sends twice.
-
-1. **Finish the rest of the page first.** The agent asks the ordinary answers in the chat, types them, and shows a picture of the page with the *Ready?* question.
-2. **Name the boxes.** From its own snapshot, the agent writes a form file outside the repo: each box's label as on the site, its autofill kind, and its field as a snapshot ref or a selector. A dropdown lists the site's own choices. No value goes in the file.
-
-   ```json
-   { "title": "Pay City of Markham",
-     "note": "$45.00 · ticket P0178390",
-     "fields": [
-       { "label": "Card number", "kind": "cc-number", "target": "e12" },
-       { "label": "Expiry month", "kind": "cc-exp-month", "target": "e13",
-         "options": [{ "value": "03", "text": "03 - March" }] },
-       { "label": "Security code", "kind": "cc-csc", "target": "e15" }
-     ],
-     "submit": { "label": "Pay $45.00", "target": "e31" } }
-   ```
-
-   `kind` is an HTML autofill name, left out for a box with none, such as a backup code. [`form.mjs`](../../.agents/skills/hand-over/scripts/form.mjs) owns the limits, 12 boxes among them. A ref is written `e12`; `@e12` works too. A ref reaches a field inside a payment provider's embedded box, where a selector can't.
-3. **Open it with the finish**, send the `HANDOVER_LINK` it prints, and run `wait` in the background:
-
-   ```bash
-   node .claude/skills/hand-over/scripts/hand-over.mjs open --form "$form" --until "**/receipt/**"   # where the site goes once it accepts
-   node .claude/skills/hand-over/scripts/hand-over.mjs open --form "$form" --until-gone "#card-form"  # a page that changes in place
-   node .claude/skills/hand-over/scripts/hand-over.mjs wait                                           # prints HANDOVER_RESULT=...
-   ```
-
-   Name the page the site reaches once it accepts, not "left the card page": an error page would count too. The form works on the page this task has open; a task that passes `--session <name>` to `browse.mjs` passes it here too. `FORM_FILE=` (exit 2) names the fault in the file. Exit 1 means the page already meets the finish, the task has no page open, or another link is open.
-4. **Hands off while it's open.** From `open` until `wait` prints, the agent sends its browser no commands and takes no pictures. A page it changed would also renumber the refs the form uses. Once a minute its helper makes one call that types, presses, and reads nothing, to keep the page open.
-5. **Read how it ended.**
-   - `done`: the site moved on. The agent takes a fresh snapshot, shows the picture, say of the receipt, and carries on.
-   - `not-accepted`: the site kept its page within 60 seconds, or a box could not be filled. The form has emptied the boxes it typed into and put each dropdown back, so the agent may look. It reads the site's message, tells you what it said, and offers a new form. It never says a payment failed before reading the page: a slow site may still have taken it. It never sends a new form unasked.
-   - `timeout` or `closed`: the agent says so and offers a new form.
-
-A site whose fields take no typing from the form ends as `not-accepted` with nothing sent. The step is then yours, with [steps to finish it yourself](#steps-for-you-to-finish).
+The private form takes a sensitive detail, such as a card or a backup code, from you to a website without the agent seeing it. It shows one picture of the site's page, and can save a card for next time. [The private form](private-form.md) owns how it works and how the agent opens one.
 
 ## When a site refuses the browser
 
