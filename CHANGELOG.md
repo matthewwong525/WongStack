@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 43.14.0 — See the page, and save what you fill
+
+- **A private form shows the site's page.** One picture, taken before you type anything, so you see what you are paying or signing into. Tap it to open it full screen, then pinch or use + and − to zoom and drag to move around.
+- **A login link for one site shows that site's login page too**, when the assistant's browser is on it. On every login link, the form now comes first and the export box sits under it.
+- **Save a card for next time.** Tick *Save for next time* on the private form; once the site accepts the card, it stays on your computer. Next time the chat asks *Pay with your card ending 4242?* and one tap pays. The assistant only ever sees *card ending 4242*. Say *forget my card* to delete it.
+- **Keep everyday answers too.** After you give an email, name, address, or phone for a form, the assistant asks once whether to keep them.
+
+**Updating.** Nothing to do by hand. Saved cards and answers sit in `~/.wong-stack/details.json` on the computer the assistant runs on, readable only by your user, beside your saved logins.
+
 ## 43.13.2 — Reading CI failures
 
 - **The wiki explains a run that fails before any step.** Its workflow file doesn't load; the page shows the usual cause and how to check a file before saving.

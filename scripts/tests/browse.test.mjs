@@ -274,6 +274,8 @@ test('each command reaches its own route with the session\'s tab, as the person'
   assert.equal(on('get', 'url'), `${SHOP}\n`);
   assert.equal(on('get', 'count', '#cart li'), '1\n');
   assert.equal(on('get', 'value', '#name'), 'Jo\n');
+  assert.equal(on('select', '#month', '03 - March'), 'BROWSE_DONE=select\n');
+  assert.equal(on('get', 'value', '#month'), '03 - March\n', 'a dropdown reads as its picked choice\'s text, as by a ref');
   const sent = f.camofox.requests().slice(before);
   assert.deepEqual(sent.map(({ method, path, body }) => [`${method} ${path.replace(/^\/tabs\/[^/]+/, '')}`, body]), [
     ['POST /click', { userId: 'me', ref: 'e2' }],
@@ -285,7 +287,9 @@ test('each command reaches its own route with the session\'s tab, as the person'
     ['POST /select', { userId: 'me', ref: 'e3', option: 'Large' }],
     ['POST /evaluate', { userId: 'me', expression: 'location.href' }],
     ['POST /evaluate', { userId: 'me', expression: 'document.querySelectorAll("#cart li").length' }],
-    ['POST /evaluate', { userId: 'me', expression: 'document.querySelector("#name")?.value ?? null' }],
+    ['POST /evaluate', { userId: 'me', expression: '(field => field && (field.tagName === \'SELECT\' ? field.selectedOptions[0]?.label ?? \'\' : field.value))(document.querySelector("#name")) ?? null' }],
+    ['POST /select', { userId: 'me', selector: '#month', option: '03 - March' }],
+    ['POST /evaluate', { userId: 'me', expression: '(field => field && (field.tagName === \'SELECT\' ? field.selectedOptions[0]?.label ?? \'\' : field.value))(document.querySelector("#month")) ?? null' }],
   ]);
 
   f.camofox.set('snapshot', '- textbox "Card number" [e12]: 4111\n- combobox "Expiry month" [e13]:\n  - option "02 - February"\n  - option "03 - March" [selected]');
@@ -321,6 +325,10 @@ test('screenshot prints a private temp path, and none when --if-changed finds th
   t.after(() => rmSync(second, { force: true }));
   assert.notEqual(second, first);
   assert.equal(readFileSync(second, 'utf8'), 'png-2');
+  const shots = () => f.camofox.requests().filter(request => request.path.endsWith('/screenshot')).map(request => request.query);
+  assert.ok(shots().every(query => query === 'userId=me'), 'what shows, by default');
+  ok(f, 'screenshot', '--full-page', '--session', 'a');
+  assert.equal(shots().at(-1), 'userId=me&fullPage=true', '--full-page asks for the whole page');
 });
 
 test('a command with no page open says so, and bad words are a usage error', t => {

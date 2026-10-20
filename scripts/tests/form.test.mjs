@@ -69,9 +69,12 @@ test('describeForm gives the page labels, autofill names, and choices, never a t
       { label: 'Security code', autocomplete: 'cc-csc', type: 'text', inputmode: 'numeric' },
     ],
     submit: 'Pay $45.00',
+    keep: true,
   });
   assert.doesNotMatch(JSON.stringify(view), /@e\d|iframe|target/);
   assert.equal('note' in describeForm({ ...CARD, note: undefined }), false);
+  const only = (...kinds) => describeForm({ ...CARD, fields: kinds.map(kind => ({ label: 'Box', kind, target: '#box' })) }).keep;
+  assert.deepEqual([only(undefined), only('one-time-code', 'current-password', 'new-password'), only(undefined, 'email')], [false, false, true], 'Save for next time shows only when a box could be kept');
   assert.deepEqual(boxFor(), { autocomplete: '', type: 'text', inputmode: '' }, 'a box with no kind, such as a backup code');
   assert.deepEqual(boxFor('one-time-code'), { autocomplete: 'one-time-code', type: 'text', inputmode: 'numeric' });
   assert.deepEqual(boxFor('current-password'), { autocomplete: 'current-password', type: 'password', inputmode: '' });
@@ -87,6 +90,8 @@ test('checkValues takes one value per field: text on one line, a dropdown\'s own
     assert.equal(checkValues({ values }, CARD), 400, JSON.stringify(values)?.slice(0, 60));
   }
   assert.equal(checkValues(null, CARD), 400);
+  for (const save of [true, false]) assert.deepEqual(checkValues({ values: VALUES, save }, CARD), VALUES);
+  for (const save of ['yes', 1, null]) assert.equal(checkValues({ values: VALUES, save }, CARD), 400, `save ${save}`);
 });
 
 /** A browser client that logs everything a send does, in order. `fail(step, target)` makes a step throw;
@@ -101,7 +106,8 @@ function tools({ fail = () => false, reached = async () => true, was = 'Choose' 
   return { log, browser: { type: step('type'), select: step('select'), value: step('value'), click: step('click') }, reached: async () => { log.push('reached?'); return reached(); } };
 }
 
-const FILLED = [['type', '@e12', NUMBER], ['value', '@e13'], ['select', '@e13', '03'], ['value', '@e14'], ['select', '@e14', '2028'], ['type', CVC, '737']];
+// A dropdown is picked by its choice's text: camofox waits out its timeout before it tries a value.
+const FILLED = [['type', '@e12', NUMBER], ['value', '@e13'], ['select', '@e13', '03 - March'], ['value', '@e14'], ['select', '@e14', '2028'], ['type', CVC, '737']];
 const PUT_BACK = [['type', '@e12', ''], ['select', '@e13', 'Choose'], ['select', '@e14', 'Choose'], ['type', CVC, '']];
 
 test('sendForm types each text box, reads then picks each dropdown, presses once, then asks the finish', async () => {
@@ -129,7 +135,7 @@ test('sendForm takes a ref in either spelling and a selector, passing each targe
 test('sendForm presses nothing when a step fails, and puts back only what it changed', async () => {
   const stale = tools({ fail: (step, target) => step === 'select' && target === '@e14' });
   assert.equal(await sendForm(CARD, VALUES, stale), 'not-accepted');
-  assert.deepEqual(stale.log, [...FILLED.slice(0, 5), ...PUT_BACK.slice(0, 2)], 'a stale ref on the year: no press, no finish asked');
+  assert.deepEqual(stale.log, [...FILLED.slice(0, 5), ...PUT_BACK.slice(0, 3)], 'a stale ref on the year: no press, no finish asked, and the year put back, since a pick that timed out may have landed');
 
   const unread = tools({ fail: step => step === 'value' });
   assert.equal(await sendForm(CARD, VALUES, unread), 'not-accepted');
@@ -140,10 +146,14 @@ test('sendForm presses nothing when a step fails, and puts back only what it cha
   assert.deepEqual(untyped.log, [...FILLED, ...PUT_BACK], 'a box that failed mid-value is emptied too, though emptying it fails again');
 });
 
-test('sendForm leaves a dropdown that showed no choice as it is', async () => {
+test('sendForm puts a dropdown back on its placeholder, by its text, and leaves one that showed no text as it is', async () => {
+  const placeholder = tools({ was: 'Month', reached: async () => false });
+  assert.equal(await sendForm(CARD, VALUES, placeholder), 'not-accepted');
+  assert.deepEqual(placeholder.log.slice(-4), [PUT_BACK[0], ['select', '@e13', 'Month'], ['select', '@e14', 'Month'], PUT_BACK[3]]);
+
   const t = tools({ was: '', reached: async () => false });
   assert.equal(await sendForm(CARD, VALUES, t), 'not-accepted');
-  assert.deepEqual(t.log.slice(-2), [PUT_BACK[0], PUT_BACK[3]], 'only the text boxes are emptied');
+  assert.deepEqual(t.log.slice(-2), [PUT_BACK[0], PUT_BACK[3]], 'camofox picks no choice with empty text, so only the text boxes are emptied');
 });
 
 test('sendForm still asks the finish after a press whose step failed, and a finish that throws is not accepted', async () => {
@@ -177,7 +187,8 @@ test('GET /form describes the form with the watcher\'s clock, and each route tak
   assert.equal(status, 200);
   assert.equal(json.closesAt, 1234);
   assert.ok(Math.abs(json.now - Date.now()) < 5000);
-  assert.deepEqual({ ...json, closesAt: undefined, now: undefined }, { ...describeForm(CARD), closesAt: undefined, now: undefined });
+  assert.deepEqual({ ...json, closesAt: undefined, now: undefined }, { ...describeForm(CARD), picture: false, closesAt: undefined, now: undefined });
+  assert.equal((await (await mounted(t, { picture: true })).call('form')).json.picture, true);
   assert.equal((await call('form', {})).status, 405);
   assert.equal((await call('send')).status, 405);
   assert.equal((await call('done')).status, 405);
@@ -187,7 +198,7 @@ test('GET /form describes the form with the watcher\'s clock, and each route tak
 test('POST /send runs the one send and refuses every later one, a second tap included', async t => {
   let finish;
   const { call, heard } = await mounted(t, { onSend: values => new Promise(done => { finish = () => done({ result: 'not-accepted', values: values.length }); }) });
-  for (const body of ['{', {}, { values: VALUES.slice(1) }, { values: [NUMBER, '13', '2028', '737'] }]) assert.equal((await call('send', body)).status, 400, 'a bad send does not use the one send');
+  for (const body of ['{', {}, { values: VALUES.slice(1) }, { values: [NUMBER, '13', '2028', '737'] }, { values: VALUES, save: 'yes' }]) assert.equal((await call('send', body)).status, 400, 'a bad send does not use the one send');
   assert.equal((await call('send', { values: VALUES, pad: 'x'.repeat(LIMITS.body) })).status, 413);
   const first = call('send', { values: VALUES });
   while (!finish) await new Promise(done => setTimeout(done, 5));
@@ -211,4 +222,13 @@ test('POST /done cancels once, and a closed link refuses a send', async t => {
   assert.equal((await closed.call('send', { values: VALUES })).status, 410);
   assert.equal((await closed.call('done', {})).status, 410);
   assert.deepEqual(closed.heard, { sends: [], cancels: 0 });
+});
+
+test('POST /send passes on whether the person ticked Save for next time, unticked when not said', async t => {
+  for (const [body, save] of [[{ values: VALUES, save: true }, true], [{ values: VALUES, save: false }, false], [{ values: VALUES }, false]]) {
+    let heard;
+    const { call } = await mounted(t, { onSend: async (values, keep) => { heard = keep; return { result: 'done' }; } });
+    assert.equal((await call('send', body)).status, 200);
+    assert.equal(heard, save, JSON.stringify(body).slice(0, 40));
+  }
 });

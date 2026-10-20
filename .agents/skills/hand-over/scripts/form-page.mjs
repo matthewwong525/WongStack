@@ -1,5 +1,5 @@
-// The private form's script (see hand-over.mjs `open --form` and form.mjs): it draws the form `GET /form` describes.
-// It sets every string as text and never shows the site. `timeLeft`, `rowsOf`, and `ending` are exported for tests.
+// The private form's script (see hand-over.mjs `open --form` and form.mjs), loaded after picture-view.mjs. It sets
+// every string as text. `timeLeft`, `rowsOf`, and `ending` are exported for tests.
 
 const ENDINGS = {
   done: { title: 'Sent', hint: 'Back to your chat.' },
@@ -50,9 +50,11 @@ function start() {
     headers: { 'x-hand-over-key': key, ...(body && { 'content-type': 'application/json' }) },
     body: body && JSON.stringify(body),
   }).catch(() => null);
-  const lock = on => { for (const control of [...controls, $('#send'), $('#done')]) control.disabled = on; };
+  const lock = on => { for (const control of [...controls, $('#keep'), $('#send'), $('#done')]) control.disabled = on; };
   const end = ({ title, hint }) => {
     for (const control of controls) control.value = '';
+    $('#keep').checked = false;
+    $('#picture').replaceChildren();
     status();
     $('#ended h1').textContent = title;
     $('#ended .hint').textContent = hint;
@@ -74,7 +76,7 @@ function start() {
     return wrap;
   }
 
-  function draw({ title, note, fields, submit }) {
+  function draw({ title, note, fields, submit, keep }) {
     document.title = title;
     $('#form h1').textContent = title;
     $('#note').textContent = note ?? '';
@@ -84,6 +86,7 @@ function start() {
       line.append(...row.map(index => box(fields[index], index)));
       return line;
     }));
+    $('#keep-row').hidden = !keep;
     $('#send').textContent = submit;
     $('#does').textContent = `${submit} types these into the site and presses its button, once.`;
     lock(false);
@@ -122,7 +125,7 @@ function start() {
     const values = controls.map(control => control.value);
     lock(true);
     status('Sending…');
-    const response = await call('send', { values });
+    const response = await call('send', { values, save: $('#keep').checked });
     if (response?.status === 400) {
       sending = false;
       lock(false);
@@ -143,11 +146,19 @@ function start() {
     if (!key) return end(ENDINGS.closed);
     const response = await call('form');
     if (!response?.ok) return end(ENDINGS.closed);
-    const { closesAt, now, ...view } = await response.json();
+    const { closesAt, now, picture, ...view } = await response.json();
     draw(view);
     if (closesAt) countdown(closesAt, now ?? Date.now());
     controls[0]?.focus();
+    if (picture) await showPicture();
   })();
+
+  /** Fetches the picture behind the key and shows it above the boxes; none when it does not load. */
+  async function showPicture() {
+    const response = await call('picture');
+    const blob = response?.ok && (await response.blob().catch(() => null));
+    if (blob && $('#ended').hidden) globalThis.pictureView($('#picture'), URL.createObjectURL(blob), 'The site\'s page. Tap to zoom.');
+  }
 }
 
 if (typeof document !== 'undefined') start();
