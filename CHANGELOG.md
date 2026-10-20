@@ -10,6 +10,12 @@
 
 **Updating.** Nothing to do by hand.
 
+## 43.13.1 — What a Cloudflare outage looks like in a deploy
+
+- **The Cloudflare Access page explains one confusing deploy error.** `private-access: Unexpected token '<'` means Cloudflare itself is down, not that your setup broke: check its status page and rerun the deploy once it clears.
+
+**Updating.** Nothing to do by hand.
+
 ## 43.13.0 — Tests don't run twice
 
 - **Code that already passed isn't tested again when it goes live.** When a change goes live and its files are exactly what passed on its branch, the test check passes in seconds and names the pull request it trusted. When anything differs, such as another change going live first, or the check can't tell, the tests run as before. The app still deploys every time.
