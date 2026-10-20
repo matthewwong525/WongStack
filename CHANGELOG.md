@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 43.13.1 — Reading two CI failures
+
+- **The wiki explains two puzzling check failures.** A run that fails before any step means its workflow file doesn't load, and the page shows the usual cause and how to check a file first. A preview that stops with `Unexpected token '<'` means Cloudflare is having an outage, not that the app's login setup broke.
+- **The wiki shows how to see where GitHub minutes go**, per workflow and per repo.
+
+**Updating.** Nothing to do by hand.
+
 ## 43.13.0 — Tests don't run twice
 
 - **Code that already passed isn't tested again when it goes live.** When a change goes live and its files are exactly what passed on its branch, the test check passes in seconds and names the pull request it trusted. When anything differs, such as another change going live first, or the check can't tell, the tests run as before. The app still deploys every time.

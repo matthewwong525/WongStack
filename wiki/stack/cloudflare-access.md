@@ -122,6 +122,8 @@ Setup writes public `CF_ACCESS_TEAM_DOMAIN`, `CF_ACCESS_AUD`, `CF_ACCESS_APP_ID`
 
 Both CI backends and host previews run `scripts/check-private-access.mjs` before content publication. It reads actual Worker metadata, secret names, destinations, policies, and overlapping apps, and checks generated config against source; an [open](#open-until-the-card) config gets only the Worker and secret checks, and a warning. Missing coverage or provider/read permission stops publication. Repair private setup or restore the CI token's account-scoped `Access: Apps and Policies Read`, then retry; never disable the check to get a preview.
 
+**`Unexpected token '<'` from the check means Cloudflare sent an error page, not that your setup broke.** During a Zero Trust outage, reading the Access app times out with a 504 page. Look at [Cloudflare's status page](https://www.cloudflarestatus.com), and retry once the check passes twice in a row from this computer: one answer can succeed mid-outage.
+
 ### Local development
 
 `npm run dev` selects the dedicated `local` environment. Authentication substitution requires all three: `WONG_ENVIRONMENT=local`, `SKIP_AUTH=true`, and a loopback request hostname. Production/staging config and secret names cannot carry local overrides. Local D1 uses `remote: false`; production memory is not bound locally.
