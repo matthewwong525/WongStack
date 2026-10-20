@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 43.13.2 — Reading CI failures
+
+- **The wiki explains a run that fails before any step.** Its workflow file doesn't load; the page shows the usual cause and how to check a file before saving.
+- **Waiting out a Cloudflare outage:** rerun once the login check passes twice in a row, since one answer can succeed mid-outage.
+- **The wiki shows how to see where GitHub minutes go**, per workflow and per repo.
+
+**Updating.** Nothing to do by hand.
+
 ## 43.13.1 — What a Cloudflare outage looks like in a deploy
 
 - **The Cloudflare Access page explains one confusing deploy error.** `private-access: Unexpected token '<'` means Cloudflare itself is down, not that your setup broke: check its status page and rerun the deploy once it clears.

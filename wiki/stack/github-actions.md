@@ -28,11 +28,13 @@ CF_PRODUCTION_BRANCH: ${{ github.event.repository.default_branch }}
 
 **A job cancelled with no step run never started.** GitHub cancels a job that waits out its time limit in the runner queue, and reports it as failed with an empty log. Nothing in the change caused it: rerun it with `gh run rerun <id> --failed`, on the default branch too, where a red check holds every publish and a cancelled deploy leaves the release not live.
 
+**A run that fails with no job means the workflow file doesn't load.** GitHub says *This run likely failed because of a workflow file issue* and keeps no log. A `run:` value holding `: ` is the usual cause: plain YAML reads it as a key. Write that command as a block, `run: |` with the command on the next line. Check a workflow before pushing with `npx --yes @action-validator/cli <file>`.
+
 ## Why not Cloudflare's own Workers Builds
 
 It can't be automated. Cloudflare's Builds API triggers builds, patches existing triggers, and reads logs, but **cannot create the repository connection, set the production branch, or create the first trigger** — and the GitHub App it needs requires browser OAuth consent that `gh` cannot grant. That's three dashboard steps per repo, forever.
 
-Actions is `gh secret set` plus this file. It also produces a real pull-request check, and a red build is `gh run view --log-failed` — the surface `/save` reads for ordinary checkpoints and on `/ship`'s behalf, with no Cloudflare credential involved. The costs, plainly: Actions minutes are billable on private repos (2,000/month free; public unlimited), and the credentials also live in GitHub secrets.
+Actions is `gh secret set` plus this file. It also produces a real pull-request check, and a red build is `gh run view --log-failed` — the surface `/save` reads for ordinary checkpoints and on `/ship`'s behalf, with no Cloudflare credential involved. The costs, plainly: Actions minutes are billable on private repos (2,000/month free; public unlimited), and the credentials also live in GitHub secrets. To see where the minutes go, sum each workflow's run times from `gh run list -R <repo> --json workflowName,event,startedAt,updatedAt`; an organization's minutes per repo come from `gh api /organizations/<id>/settings/billing/usage`.
 
 Staying on Workers Builds is supported and needs no changes — point its build command at `scripts/cf-build.sh` and its deploy command at `scripts/cf-deploy.sh`, and don't add the workflow.
 
