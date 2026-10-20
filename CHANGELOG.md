@@ -3,9 +3,10 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## 43.13.1 — Reading two CI failures
+## 43.13.2 — Reading CI failures
 
-- **The wiki explains two puzzling check failures.** A run that fails before any step means its workflow file doesn't load, and the page shows the usual cause and how to check a file first. A preview that stops with `Unexpected token '<'` means Cloudflare is having an outage, not that the app's login setup broke.
+- **The wiki explains a run that fails before any step.** Its workflow file doesn't load; the page shows the usual cause and how to check a file before saving.
+- **Waiting out a Cloudflare outage:** rerun once the login check passes twice in a row, since one answer can succeed mid-outage.
 - **The wiki shows how to see where GitHub minutes go**, per workflow and per repo.
 
 **Updating.** Nothing to do by hand.
