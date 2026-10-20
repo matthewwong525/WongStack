@@ -27,7 +27,7 @@ export { keyMatches, tunnelOrigin } from './lib/tunnel.mjs';
 
 const USAGE = `usage: hand-over.mjs open --form <file> (--until <glob> | --until-gone <selector>) [--session <name>] [--minutes N]
        hand-over.mjs open --view (--until <glob> | --until-gone <selector>) [--session <name>] [--note <line>] [--minutes N]
-       hand-over.mjs open --passwords [--site <url>] [--username <user>] [--session <name>] [--minutes N]
+       hand-over.mjs open --passwords [--site <url> [--email-first]] [--username <user>] [--session <name>] [--minutes N]
        hand-over.mjs open --keys NAME[,NAME] [--guide <file>] [--minutes N]
        hand-over.mjs wait | close | install-view
   open    start the private link, print HANDOVER_LINK=<url> once it answers through
@@ -39,13 +39,15 @@ const USAGE = `usage: hand-over.mjs open --form <file> (--until <glob> | --until
           --session names the browse.mjs session whose page it is, when not the default;
           the page shows one picture of the whole site page, taken before the link opens
           --view: a live view of that page for a check that asks whether a person is
-          there; the person taps through it, and it closes once the page meets --until
+          there, or a stuck login; the person taps or signs in through it, and it closes once the page meets --until
           or --until-gone; --note is the one line the page shows; open for 480 minutes;
           HANDOVER_VIEW=unsupported where the browser has no screen to show, and
           HANDOVER_NEEDS=live-view (exit 3) with a line per missing tool
           --passwords: save logins and continue, or cancel; --site and --username
           fill in the add-a-login form, carried only in the link; with --site, a
-          picture of the --session page when it is on that site
+          picture of the --session page when it is on that site; --email-first,
+          for a site that asks the email on a page of its own, makes the password
+          optional
           --keys: one box per declared name; it ends on cancellation or
           once every key is saved (exit 2 with KEYS_UNDECLARED= or KEYS_AMBIGUOUS=);
           an unopened one gives way to a new open
@@ -440,9 +442,9 @@ async function open(values) {
   return 0;
 }
 
-/** The link's `#` part: the key, then any site and username to pre-fill, URL-encoded. */
-export function linkFragment(key, { site, username } = {}) {
-  return new URLSearchParams({ key, ...(site && { site: site.trim() }), ...(username && { user: username.trim() }) }).toString();
+/** The link's `#` part: the key, then any site and username to pre-fill, and an email-first mark, URL-encoded. */
+export function linkFragment(key, { site, username, 'email-first': emailFirst } = {}) {
+  return new URLSearchParams({ key, ...(site && { site: site.trim() }), ...(username && { user: username.trim() }), ...(site && emailFirst && { emailFirst: '1' }) }).toString();
 }
 
 /** Serves the page until the link's own finish, `close`, or the deadline. A form's send and a view's
@@ -588,7 +590,7 @@ function usageError(message) {
 function parse(args) {
   let parsed;
   try {
-    parsed = parseArgs({ args, allowPositionals: true, strict: true, options: { form: { type: 'string' }, view: { type: 'boolean' }, note: { type: 'string' }, until: { type: 'string' }, 'until-gone': { type: 'string' }, passwords: { type: 'boolean' }, session: { type: 'string' }, site: { type: 'string' }, username: { type: 'string' }, keys: { type: 'string' }, guide: { type: 'string' }, minutes: { type: 'string' }, help: { type: 'boolean' } } });
+    parsed = parseArgs({ args, allowPositionals: true, strict: true, options: { form: { type: 'string' }, view: { type: 'boolean' }, note: { type: 'string' }, until: { type: 'string' }, 'until-gone': { type: 'string' }, passwords: { type: 'boolean' }, session: { type: 'string' }, site: { type: 'string' }, username: { type: 'string' }, 'email-first': { type: 'boolean' }, keys: { type: 'string' }, guide: { type: 'string' }, minutes: { type: 'string' }, help: { type: 'boolean' } } });
   } catch (error) {
     usageError(error.message);
   }
@@ -623,9 +625,11 @@ function checkMode(values) {
 /** True for one line of text, not blank, of at most `most` characters. */
 const oneLine = (text, most) => Boolean(text.trim()) && !/[\r\n]/.test(text) && text.length <= most;
 
-/** `--site` and `--username` come only with `--passwords`: a website and one line of username, or a usage error. */
-function checkPrefill({ passwords, site, username }) {
+/** `--site` and `--username` come only with `--passwords`: a website and one line of username, or a usage error.
+ * `--email-first` comes only with `--site`. */
+function checkPrefill({ passwords, site, username, 'email-first': emailFirst }) {
   if ((site !== undefined || username !== undefined) && !passwords) usageError('--site and --username go with --passwords only');
+  if (emailFirst && site === undefined) usageError('--email-first goes with --passwords --site only');
   if (site !== undefined && (!hostOf(siteUrl(site)) || site.length > PASSWORD_LIMITS.field)) usageError(`--site takes a website, like netflix.com or https://www.netflix.com/login: '${site}'`);
   if (username !== undefined && !oneLine(username, PASSWORD_LIMITS.field)) usageError('--username takes one line of text');
 }

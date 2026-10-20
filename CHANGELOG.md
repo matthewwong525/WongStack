@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 43.17.0 — Show the browser when a login is stuck
+
+- **No API? The assistant uses its browser.** When no saved key or company action can do a task on a website, the assistant does it in its browser as you, without being asked, instead of sending you steps first.
+- **A stuck login shows you the browser.** When a login keeps reloading, or sits with no error and no check, you get the same private link a robot check gets: it shows the assistant's browser, and you sign in there yourself. A saved login, the password link, and a code from your email still come first. A password you type there isn't saved.
+- **One ask for email and password.** When a site asks for your email on one page and your password on the next, the password link asks for both at once. The password is optional there, since some of those sites send a code instead. Leave it blank and the site does want one? The link comes back for the password only.
+- **Steps are only steps.** When you do get steps to finish something yourself, you get one line on what stopped it, the numbered steps, and what to tell the assistant after. Nothing else.
+
+**Updating.** Nothing to do by hand.
+
 ## 43.16.1 — The code lookup follows shared-code shortcuts
 
 - **Shared code's shortcut links now show.** When a folder of shared code has no settings of its own, the lookup reads the settings of the apps that list it as theirs, so its `@/` links count. On one private repo that's 2,302 more links, nearly all of its shared app code. Settings that build on another settings file get that file's shortcuts too.

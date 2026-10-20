@@ -1,6 +1,8 @@
 # Browsing
 
-Browsing lets the agent use websites as you: saved logins, pictures, and chat questions or private forms. It shows its browser only for [a robot check](live-view.md). Every repo on the computer shares it.
+Browsing lets the agent use websites as you: saved logins, pictures, and chat questions or private forms. It shows its browser only for [a robot check or a stuck login](live-view.md). Every repo on the computer shares it.
+
+**No API? The browser.** When no [company action or saved key](../stack/service-catalogue.md) can do a task on a website, the agent does it here as you, without being asked. It doesn't hand you steps first.
 
 **API key and token website steps use your own browser.** Before opening or interacting with a token page, follow [the token website procedure](secrets.md#api-token-website-steps), including when ordinary browsing reaches such a step. It takes precedence over saved logins, pictures, and private forms below; the agent gives you the service link and short steps.
 
@@ -27,11 +29,11 @@ A failed command prints one `BROWSE_ERROR=` line. A ref comes from the newest sn
      node $B login netflix-com --username e4 --password e5 --submit e6   # BROWSE_LOGIN=accepted|rejected|missing
      ```
 
-     `accepted` means the address left the login page within 15 seconds; the login is saved at once. A page that asks for the email first gets two commands, each with the one box it shows: the first prints `BROWSE_LOGIN=typed`.
+     `accepted` means the address left the login page within 15 seconds; the login is saved at once. A page that asks for the email first gets two commands, each with the one box it shows: the first prints `BROWSE_LOGIN=typed`. A login saved with no password prints `missing` at the password box, and types nothing.
    - **Two matches:** it asks in the chat which account to use, as a multiple choice.
-   - **No match, `missing`, or `rejected`:** it sends [the password link](passwords.md) with the site, and a rejected login's username, already filled in, then logs in with what you save.
+   - **No match, `missing`, or `rejected` with a message:** it sends [the password link](passwords.md) with the site, and a known username, already filled in, then logs in with what you save. A first page that asks only the email gets the link at once, with `--email-first`: you give the email and an optional password together, never the email in the chat.
    - **A code page or an app approval:** it reads the code from your email or asks you in the chat: [login codes](login-codes.md).
-   - **A robot check:** you tap through it in [a live view](live-view.md).
+   - **A robot check, or a stuck login:** you tap through it or sign in yourself in [a live view](live-view.md#when-it-opens). A `rejected` with no message, or a `typed` email step that stays put, is stuck.
 3. **A login through another provider follows the provider.** When the page offers only *Sign in with Google* or *Apple*, the agent taps it and treats the provider's own sign-in page as any login: a saved login for that provider, else [the password link](passwords.md) with the provider's website filled in. A code or an emailed sign-in link comes [through the chat](login-codes.md). A passkey or a device check is [yours, on your own device](#when-a-step-needs-you).
 4. **Later tasks reuse the session.** No login step, until the site logs you out.
 
@@ -66,18 +68,18 @@ The agent shows page pictures in the chat at key moments, so you can catch a wro
 
 ## When a step needs you
 
-When a step needs something only you can give, the agent gets it without showing you its browser, except at a robot check. Each kind of step has one route:
+When a step needs something only you can give, the agent gets it without showing you its browser, except at a robot check or a stuck login. Each kind of step has one route:
 
-- **A password** goes through [the password link](passwords.md).
+- **A password**, or the email a login asks for, goes through [the password link](passwords.md).
 - **A one-time code, an emailed sign-in link, or an app approval** comes through the chat or your signed-in email: [login codes](login-codes.md).
 - **An ordinary answer** is asked in the chat: an email, a name, an address, a choice, a yes or no, or agreeing to terms. The agent types your answers itself and shows you [a picture of the page](#show-what-the-browser-is-doing). It never ticks *I agree* without your yes.
 - **A sensitive detail** goes through [the private form](#the-private-form): card details, a backup or recovery code, or another lasting secret the page asks for. Never the chat: these don't expire, so they must not sit in the stored chat.
 - **An API key or token page** is yours, in your own browser: [the own-browser procedure](secrets.md#api-token-website-steps).
-- **A robot check**, a tick box or a picture puzzle, gets [a live view](live-view.md) you tap through.
-- **A site that refuses the browser**, or a check your try doesn't clear, [ends with steps for you](#when-a-site-refuses-the-browser).
+- **A robot check**, a tick box or a picture puzzle, or **a stuck login** gets [a live view](live-view.md#when-it-opens) you tap through or sign in on.
+- **A site that refuses the browser**, or a check or login your try doesn't clear, [ends with steps for you](#when-a-site-refuses-the-browser).
 - **A step only your own device can do** ends with you: a passkey or a device check. The agent stops that step and gives you [steps to finish it yourself](#steps-for-you-to-finish).
 
-*Let me take over* opens nothing, except [a live view](live-view.md) at a robot check. Elsewhere the agent names the route above that fits. It never solves a check that asks whether a person is there, even when asked.
+*Let me take over* opens nothing, except [a live view](live-view.md) at a robot check or a stuck login. Elsewhere the agent names the route above that fits. It never solves a check that asks whether a person is there, even when asked.
 
 ## Steps for you to finish
 
@@ -89,6 +91,7 @@ When a login or check stops the agent, it gives you steps for the rest of the jo
 - **The site's own words.** Each button and box is named as the site labels it.
 - **What it already knows, filled in**: the item, the date, the amount, the address, so you copy and don't look up. Never a password, a card, or a code.
 - **What comes back.** The last step says what to tell the agent, and what it does next.
+- **Nothing else.** No section on how things work, no background, and no other route to try.
 
 ```text
 The shop wants a passkey, which only your phone can give. To finish the order:
@@ -118,7 +121,7 @@ The private form takes a sensitive detail, such as a card or a backup code, from
 
 ## When a site refuses the browser
 
-Some sites turn the browser away or keep it on a *Verify you are human* page, as DoorDash does. A check first gets [one live view](live-view.md#one-view-per-site), where it can show one. If the site still refuses, the agent stops:
+Some sites turn the browser away, keep it on a *Verify you are human* page as DoorDash does, or reload their login with no message. A check or a stuck login first gets [one live view](live-view.md#one-view-per-site), where it can show one. If the site still refuses, the agent stops:
 
 1. **Say so in one line.** *DoorDash won't let my browser in.*
 2. **Stop browsing that site.** No other browser and no second link.

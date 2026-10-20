@@ -25,15 +25,17 @@ export function chooseName(profiles, { host, username }) {
 
 const fieldOk = value => typeof value === 'string' && value.length > 0 && value.length <= LIMITS.field;
 
-/** The request's logins with their hosts, or a status: 413 for too many, 400 for a bad one. */
+/** The request's logins with their hosts, or a status: 413 for too many, 400 for a bad one. A login flagged
+ * `emailFirst`, typed on an email-first link, may come with an empty password, saved as `''`. */
 export function checkLogins(body) {
   const logins = body?.logins;
   if (!Array.isArray(logins) || !logins.length) return 400;
   if (logins.length > LIMITS.logins) return 413;
   const checked = [];
   for (const login of logins) {
-    const { url, username, password } = login ?? {};
-    if (![url, username, password].every(fieldOk) || /[\r\n]/.test(username)) return 400;
+    const { url, username, password, emailFirst } = login ?? {};
+    const passwordOk = fieldOk(password) || (emailFirst === true && password === '');
+    if (![url, username].every(fieldOk) || !passwordOk || /[\r\n]/.test(username)) return 400;
     const host = hostOf(url);
     if (!host) return 400;
     checked.push({ url, username, password, host });
