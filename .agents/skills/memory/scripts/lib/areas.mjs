@@ -36,7 +36,13 @@ function longestArea(path, areas, root) {
   return { tags: [...new Set(tags)], longest };
 }
 
-export const areasOf = (path, areas, root) => longestArea(path, areas, root).tags;
+// A path's areas: its longest matching folder prefix, plus each area that names it among its docs, so a spec
+// or wiki page lands on its own subject, not only the folder that holds it.
+export function areasOf(path, areas, root) {
+  const rel = normalizePath(path, root);
+  const named = rel ? Object.keys(areas).filter(tag => (areas[tag].docs || []).includes(rel)) : [];
+  return [...new Set([...longestArea(path, areas, root).tags, ...named])];
+}
 
 // The docs the tags' areas name, in list order, once each; a doc this repo lacks is skipped.
 export function areaDocs(tags, areas, root) {
