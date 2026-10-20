@@ -50,10 +50,9 @@ function start() {
     headers: { 'x-hand-over-key': key, ...(body && { 'content-type': 'application/json' }) },
     body: body && JSON.stringify(body),
   }).catch(() => null);
-  const lock = on => { for (const control of [...controls, $('#keep'), $('#send'), $('#done')]) control.disabled = on; };
+  const lock = on => { for (const control of [...controls, $('#send'), $('#done')]) control.disabled = on; };
   const end = ({ title, hint }) => {
     for (const control of controls) control.value = '';
-    $('#keep').checked = false;
     $('#picture').replaceChildren();
     status();
     $('#ended h1').textContent = title;
@@ -76,7 +75,7 @@ function start() {
     return wrap;
   }
 
-  function draw({ title, note, fields, submit, keep }) {
+  function draw({ title, note, fields, submit }) {
     document.title = title;
     $('#form h1').textContent = title;
     $('#note').textContent = note ?? '';
@@ -86,7 +85,6 @@ function start() {
       line.append(...row.map(index => box(fields[index], index)));
       return line;
     }));
-    $('#keep-row').hidden = !keep;
     $('#send').textContent = submit;
     $('#does').textContent = `${submit} types these into the site and presses its button, once.`;
     lock(false);
@@ -125,7 +123,7 @@ function start() {
     const values = controls.map(control => control.value);
     lock(true);
     status('Sending…');
-    const response = await call('send', { values, save: $('#keep').checked });
+    const response = await call('send', { values });
     if (response?.status === 400) {
       sending = false;
       lock(false);

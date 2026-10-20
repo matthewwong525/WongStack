@@ -120,5 +120,9 @@
   {"name": "#the-memory-key", "replacement": "`wiki/development/memory.md#sign-in-and-expiry`"},
   {"name": "memory_login_link", "replacement": "nothing: memory uses the company sign-in, so no link labels a machine"},
   {"name": "memory.mjs join", "replacement": "the company sign-in: give the person access in the app's Access page (`wiki/development/memory.md#who-sees-what`)", "allow": [".agents/skills/memory/migrations/0003_key_machines.sql", ".agents/skills/memory/migrations/0004_readers.sql", "scripts/tests/fixtures/document-retrieval/corpus/wiki/development/memory-key.md"], "why": "an applied migration keeps its words, and the frozen retrieval fixture keeps its pinned snapshot"},
-  {"name": "#memory-keeps-its-own-access", "replacement": "`wiki/stack/company-api.md#memory-uses-the-same-sign-in`"}
+  {"name": "#memory-keeps-its-own-access", "replacement": "`wiki/stack/company-api.md#memory-uses-the-same-sign-in`"},
+  {"name": "hand-over.mjs fill", "replacement": "the agent types a saved everyday answer with `browse.mjs` after a yes, and a card goes through a private form (`wiki/development/private-form.md#saved-details`)"},
+  {"name": "--use <name>", "replacement": "nothing: `hand-over.mjs fill` is gone (`wiki/development/private-form.md#saved-details`)"},
+  {"name": "HANDOVER_SAVED_HINT", "replacement": "nothing: a private form saves nothing"},
+  {"name": "Save for next time", "replacement": "nothing: a private form saves nothing, and a card goes through it every time (`wiki/development/private-form.md`)", "allow": ["openspec/specs/browser-logins/spec.md", "openspec/specs/saved-details/spec.md"], "why": "each spec keeps the 43.14.0 requirement naming the tick until the never-save-cards archive replaces it"}
 ]

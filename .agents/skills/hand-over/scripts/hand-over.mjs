@@ -14,7 +14,6 @@ import { isMain } from '../../memory/scripts/lib/cli.mjs';
 import { primaryRoot } from '../../memory/scripts/lib/primary-root.mjs';
 import { lookCss } from '../../plan/scripts/look.mjs';
 import { client as browseClient, sessionName } from '../../browser/scripts/browse.mjs';
-import { keepForm, readDetails, valuesFor } from './details.mjs';
 import { checkForm, FORM_ROUTES, formRoutes, LIMITS as FORM_LIMITS, sendForm } from './form.mjs';
 import { APP_FILE, checkGuide, KEY_ROUTES, keyRoutes, LIMITS as KEY_LIMITS, NAME as KEY_NAME, resolveKeys } from './keys.mjs';
 import { alive, freePort, hasCloudflared, keyMatches, killTunnel, linkAnswers, signal, startTunnel } from './lib/tunnel.mjs';
@@ -30,7 +29,6 @@ const USAGE = `usage: hand-over.mjs open --form <file> (--until <glob> | --until
        hand-over.mjs open --view (--until <glob> | --until-gone <selector>) [--session <name>] [--note <line>] [--minutes N]
        hand-over.mjs open --passwords [--site <url>] [--username <user>] [--session <name>] [--minutes N]
        hand-over.mjs open --keys NAME[,NAME] [--guide <file>] [--minutes N]
-       hand-over.mjs fill --form <file> --use <name> (--until <glob> | --until-gone <selector>) [--session <name>]
        hand-over.mjs wait | close | install-view
   open    start the private link, print HANDOVER_LINK=<url> once it answers through
           Cloudflare, and watch for the finish
@@ -54,19 +52,12 @@ const USAGE = `usage: hand-over.mjs open --form <file> (--until <glob> | --until
           --guide: a JSON file keyed by name, each with any of title, url, open,
           steps, and check {url, auth}, shown on the key page (exit 2 with KEYS_GUIDE=)
           --minutes: time limit for any link, default 480 (eight hours)
-  fill    type the saved details set <name> (see details.mjs) into the form file's
-          fields and press its button once, with no link; prints
-          HANDOVER_RESULT=done|not-accepted, or HANDOVER_RESULT=missing and
-          HANDOVER_MISSING=<label> having typed nothing, when a field has no saved
-          kind or no one choice fits
   wait    block until the link closes; print
           HANDOVER_RESULT=done|not-accepted|timeout|closed|error,
-          then HANDOVER_SAVED=<name>,<name> for a password or key link, or a form
-          kept for next time with HANDOVER_SAVED_HINT=<hint>, and
+          then HANDOVER_SAVED=<name>,<name> for a password or key link, and
           HANDOVER_APP_KEYS=<name>,<name> and HANDOVER_OPENED=yes|no (whether
           anyone opened it) for a key link, then HANDOVER_REPLACED_BY=<folder>
-          for a key link that gave way to that workspace's link; while a fill
-          types, wait and close say so and exit 1, with no result
+          for a key link that gave way to that workspace's link
   close   close an open link (the person said done)
   install-view
           add the live view's tools once the person agrees: prints
@@ -466,14 +457,14 @@ async function watch() {
   const live = state.view ? liveView(state.view, page) : null;
   const saved = page ? undefined : [];
   let finishingPromise = null;
-  const finish = (result, ready = result === 'done', kept = null) => {
+  const finish = (result, ready = result === 'done') => {
     if (finishingPromise) return finishingPromise;
     done = true;
     finishingPromise = (async () => {
       await closePage?.stopInput();
       await live?.end();
       const appKeys = state.keys && saved.filter(name => state.keys.keys.some(key => key.name === name && key.file === APP_FILE));
-      const outcome = { result, ready, ...(saved && { saved }), ...(kept && { saved: [kept.name], hint: kept.hint }), ...(appKeys && { appKeys }), ...(state.keys && { opened: existsSync(FILES.opened) }), completionId: state.completionId, notification: ready ? 'pending' : 'not-requested' };
+      const outcome = { result, ready, ...(saved && { saved }), ...(appKeys && { appKeys }), ...(state.keys && { opened: existsSync(FILES.opened) }), completionId: state.completionId, notification: ready ? 'pending' : 'not-requested' };
       writeFileSync(FILES.result, `${JSON.stringify(outcome)}\n`, { mode: 0o600 });
       outcome.notification = ready ? await notifyWorkspace(state, outcome) : 'not-requested';
       writeFileSync(FILES.result, `${JSON.stringify(outcome)}\n`, { mode: 0o600 });
@@ -491,10 +482,9 @@ async function watch() {
   };
   // A send under way ends the link itself: stopping it midway could leave a card typed on the page.
   for (const sig of ['SIGTERM', 'SIGINT', 'SIGHUP']) process.on(sig, () => { if (!sending) finish('closed', false); });
-  const onSend = async (values, save) => {
+  const onSend = async values => {
     sending = true;
-    const result = await sendForm(state.form, values, { browser: page, reached: () => reachesFinish(page, state) });
-    return finish(result, undefined, result === 'done' && save ? keep(state.form, values) : null);
+    return finish(await sendForm(state.form, values, { browser: page, reached: () => reachesFinish(page, state) }));
   };
   const hooks = { onSaved: name => { if (!saved.includes(name)) saved.push(name); }, onDone: ready => finish('done', ready), onContinue: () => finish('done', true), onOpened: () => writeFileSync(FILES.opened, ''), onSend, onCancel: () => finish('closed', false), fitted: () => live.describe(), onFit: kind => live.fit(kind) };
   try {
@@ -531,11 +521,6 @@ async function watch() {
   }
 }
 
-/** Keeps a sent form's details for next time; null when none may be kept or the file can not be written. */
-function keep(form, values) {
-  try { return keepForm(form, values); } catch { return null; }
-}
-
 /** The folder name of the opener whose link took this one's place, on one line, or null. */
 function replacedBy(completionId) {
   const record = readJson(FILES.replaced);
@@ -543,10 +528,9 @@ function replacedBy(completionId) {
   return mine ? record.by.replace(/[\r\n]+/g, ' ') : null;
 }
 
-function report({ result, saved, hint, appKeys, opened, completionId, notification }) {
+function report({ result, saved, appKeys, opened, completionId, notification }) {
   console.log(`HANDOVER_RESULT=${result}`);
   if (Array.isArray(saved)) console.log(`HANDOVER_SAVED=${saved.join(',')}`);
-  if (typeof hint === 'string') console.log(`HANDOVER_SAVED_HINT=${hint.replace(/[\r\n]+/g, ' ')}`);
   if (Array.isArray(appKeys)) console.log(`HANDOVER_APP_KEYS=${appKeys.join(',')}`);
   if (typeof opened === 'boolean') console.log(`HANDOVER_OPENED=${opened ? 'yes' : 'no'}`);
   const by = replacedBy(completionId);
@@ -554,16 +538,6 @@ function report({ result, saved, hint, appKeys, opened, completionId, notificati
   if (completionId) console.log(`HANDOVER_COMPLETION=${completionId}`);
   if (notification) console.log(`HANDOVER_NOTIFICATION=${notification}`);
   return 0;
-}
-
-/** True while `fill` holds the lock: a live lock with no link's state and no result. A link writes its state
- * before its lock and its result before it clears, so neither looks like a fill. */
-const filling = () => alive(watcherPid()) && !existsSync(FILES.state) && !existsSync(FILES.result);
-
-/** Says a fill is typing, in place of any earlier link's result. */
-function fillUnderWay() {
-  console.error('A saved-details fill is typing on the page; it ends on its own and prints its own result.');
-  return 1;
 }
 
 /** True when the link `wait` began on, `mine`, gave way: another link holds the state, or took its result. */
@@ -578,7 +552,6 @@ function gaveWay(mine, outcome) {
 async function wait() {
   const mine = readJson(FILES.state)?.completionId;
   for (;;) {
-    if (filling()) return fillUnderWay();
     const outcome = readJson(FILES.result) ?? {};
     if (mine && gaveWay(mine, outcome)) return report({ result: 'closed', saved: [], appKeys: [], opened: false, completionId: mine, notification: 'not-requested' });
     if (outcome.result && outcome.notification !== 'pending' && !existsSync(FILES.pid)) return report(outcome);
@@ -591,53 +564,12 @@ async function wait() {
   }
 }
 
-/** Types a saved set into the form file's fields and presses its button once, with no link. Holds the link's
- * lock throughout, so no private form types on the page at the same time. Prints only the result. */
-async function fill(values) {
-  const form = readForm(values.form);
-  if (!form) return 2;
-  let set;
-  try { set = readDetails().find(saved => saved.name === values.use); } catch (error) { console.error(`${error.message}.`); return 1; }
-  const { values: filled, missing } = set ? valuesFor(form, set) : { missing: null };
-  if (!filled) {
-    console.log(`HANDOVER_RESULT=missing${missing ? `\nHANDOVER_MISSING=${missing}` : ''}`);
-    if (!set) console.error(`No saved details are named ${values.use}; see details.mjs list.`);
-    return 0;
-  }
-  mkdirSync(DIR, { recursive: true });
-  if (alive(watcherPid())) {
-    console.error('A private link is open on a page. Run `hand-over.mjs close` first, or wait for it.');
-    return 1;
-  }
-  if (existsSync(FILES.pid)) await recoverStale('error');
-  writeFileSync(FILES.pid, `${process.pid}\n`);
-  // An earlier link's result goes, so a wait or close during the fill never reports it.
-  rmSync(FILES.result, { force: true });
-  // A close mid-fill must not stop it halfway: a card could be left typed on the page.
-  for (const sig of ['SIGTERM', 'SIGINT', 'SIGHUP']) process.on(sig, () => {});
-  try {
-    const finish = { until: values.until ?? null, untilGone: values['until-gone'] ?? null };
-    const session = sessionName(values.session);
-    const fault = await pageFault(session, finish, MET.form);
-    if (fault) {
-      console.error(fault);
-      return 1;
-    }
-    const page = pageOf(session);
-    console.log(`HANDOVER_RESULT=${await sendForm(form, filled, { browser: page, reached: () => reachesFinish(page, finish) })}`);
-    return 0;
-  } finally {
-    rmSync(FILES.pid, { force: true });
-  }
-}
-
 async function close() {
   const pid = watcherPid();
   if (!pid) {
     console.error('No private link is open.');
     return 0;
   }
-  if (filling()) return fillUnderWay();
   if (alive(pid)) {
     process.kill(pid, 'SIGTERM');
     for (let i = 0; i < 50 && alive(pid); i++) await sleep(100);
@@ -656,7 +588,7 @@ function usageError(message) {
 function parse(args) {
   let parsed;
   try {
-    parsed = parseArgs({ args, allowPositionals: true, strict: true, options: { form: { type: 'string' }, view: { type: 'boolean' }, note: { type: 'string' }, until: { type: 'string' }, 'until-gone': { type: 'string' }, passwords: { type: 'boolean' }, use: { type: 'string' }, session: { type: 'string' }, site: { type: 'string' }, username: { type: 'string' }, keys: { type: 'string' }, guide: { type: 'string' }, minutes: { type: 'string' }, help: { type: 'boolean' } } });
+    parsed = parseArgs({ args, allowPositionals: true, strict: true, options: { form: { type: 'string' }, view: { type: 'boolean' }, note: { type: 'string' }, until: { type: 'string' }, 'until-gone': { type: 'string' }, passwords: { type: 'boolean' }, session: { type: 'string' }, site: { type: 'string' }, username: { type: 'string' }, keys: { type: 'string' }, guide: { type: 'string' }, minutes: { type: 'string' }, help: { type: 'boolean' } } });
   } catch (error) {
     usageError(error.message);
   }
@@ -666,11 +598,10 @@ function parse(args) {
     process.exit(0);
   }
   const [command, ...rest] = parsed.positionals;
-  if (!['open', 'fill', 'watch', 'wait', 'close', 'install-view'].includes(command) || rest.length) usageError(command ? `unknown command: ${[command, ...rest].join(' ')}` : 'missing command');
+  if (!['open', 'watch', 'wait', 'close', 'install-view'].includes(command) || rest.length) usageError(command ? `unknown command: ${[command, ...rest].join(' ')}` : 'missing command');
   const minutes = Number(values.minutes ?? 480);
   if (!(minutes > 0)) usageError('--minutes must be a positive number');
   if (command === 'open') checkMode(values);
-  if (command === 'fill') checkFill(values);
   return { command, values: { ...values, minutes, ...(values.keys !== undefined && { keys: keyNames(values.keys) }) } };
 }
 
@@ -683,19 +614,10 @@ function checkMode(values) {
   const [mode] = modes;
   const onPage = mode === 'form' || mode === 'view';
   const finish = values.until !== undefined || values['until-gone'] !== undefined;
-  if (values.use !== undefined) usageError('--use goes with fill only');
   if (finish && !onPage) usageError('--until and --until-gone go with --form or --view only');
   if (values.session !== undefined && !onPage && mode !== 'passwords') usageError('--session goes with --form, --view, or --passwords only');
   if (!finish && onPage) usageError(`--${mode} needs --until or --until-gone, to tell ${mode === 'form' ? 'sent from not accepted' : 'when the site lets the person through'}`);
   if (values.note !== undefined && (mode !== 'view' || !oneLine(values.note, FORM_LIMITS.note))) usageError(`--note goes with --view only, as one line of up to ${FORM_LIMITS.note} characters`);
-}
-
-/** `fill` takes a form file, a saved set's name, and a finish, and no flag of `open`'s, or a usage error. */
-function checkFill(values) {
-  const extra = ['view', 'note', 'passwords', 'site', 'username', 'keys', 'guide', 'minutes'].filter(flag => values[flag] !== undefined);
-  if (extra.length) usageError(`fill takes no --${extra[0]}`);
-  if (values.form === undefined || values.use === undefined) usageError('fill takes --form and --use');
-  if (values.until === undefined && values['until-gone'] === undefined) usageError('fill needs --until or --until-gone, to tell done from not accepted');
 }
 
 /** True for one line of text, not blank, of at most `most` characters. */
@@ -719,7 +641,7 @@ function keyNames(list) {
 
 if (isMain(import.meta.url)) {
   const { command, values } = parse(process.argv.slice(2));
-  const run = { open: () => open(values), fill: () => fill(values), watch, wait, close, 'install-view': installViewTools }[command];
+  const run = { open: () => open(values), watch, wait, close, 'install-view': installViewTools }[command];
   const code = await run();
   process.exitCode = typeof code === 'number' ? code : 0;
 }

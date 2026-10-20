@@ -135,7 +135,7 @@ When a browsing step needs something only the person can give, the agent SHALL g
 
 ### Requirement: The person gives sensitive details through a private form
 
-For a sensitive value, the agent SHALL ask in the chat whether the person is ready, then send a private link to a form holding one box for each value it named, labelled as on the site, with a dropdown offering the site's own choices, a line saying what sending will do, and one button carrying the site's own action label. Each box SHALL carry the kind of value it holds, so a password manager or a phone's autofill can fill the form. Above the boxes, the form SHALL show one picture of the whole site page, taken as the link opens, before anything private is typed; the person SHALL be able to view it full screen, zoom, and move around it. The form SHALL show no other view of the site. The form SHALL offer *Save for next time*, unticked at the start. The person's tap on that button SHALL enter the values in the site's fields and press the site's action once. When the site does not move on, the form SHALL say so, SHALL NOT send again by itself, and the agent SHALL tell the person what the site said and offer a new form.
+For a sensitive value, the agent SHALL ask in the chat whether the person is ready, then send a private link to a form holding one box for each value it named, labelled as on the site, with a dropdown offering the site's own choices, a line saying what sending will do, and one button carrying the site's own action label. Each box SHALL carry the kind of value it holds, so a password manager or a phone's autofill can fill the form. Above the boxes, the form SHALL show one picture of the whole site page, taken as the link opens, before anything private is typed; the person SHALL be able to view it full screen, zoom, and move around it. The form SHALL show no other view of the site, and SHALL offer no way to keep its details for next time. Every card payment SHALL go through a private form. The person's tap on that button SHALL enter the values in the site's fields and press the site's action once. When the site does not move on, the form SHALL say so, SHALL NOT send again by itself, and the agent SHALL tell the person what the site said and offer a new form.
 
 #### Scenario: A card from a phone
 
@@ -154,12 +154,12 @@ For a sensitive value, the agent SHALL ask in the chat whether the person is rea
 
 ### Requirement: The agent never sees what a private form carries
 
-What the person types in a private form SHALL reach the site's fields without appearing in any command, file, log, message, or picture the agent can read, and SHALL NOT be read back. It SHALL be stored only when the person ticked *Save for next time* and the site accepted it, and then only as the saved details requirement says. A dropdown pick SHALL be one of the choices the agent named. While a private form is open, the agent SHALL send its browser no commands. The agent SHALL NOT read or picture the page between the form's send and the site's answer; when the site keeps the page, the boxes the form filled SHALL be emptied, and its dropdowns put back to the site's own choice, before the agent looks. The agent SHALL learn only the outcome, and for saved details, the name they were saved under.
+What the person types in a private form SHALL reach the site's fields without appearing in any command, file, log, message, or picture the agent can read, and SHALL NOT be read back or stored. A dropdown pick SHALL be one of the choices the agent named. While a private form is open, the agent SHALL send its browser no commands. The agent SHALL NOT read or picture the page between the form's send and the site's answer; when the site keeps the page, the boxes the form filled SHALL be emptied, and its dropdowns put back to the site's own choice, before the agent looks. The agent SHALL learn only the outcome.
 
 #### Scenario: A card typed into the form
 
-- **WHEN** the person types a card number into the private form
-- **THEN** the number reaches the site's card field, and appears in no command, file, log, or message the agent can read
+- **WHEN** the person types a card number into the private form and the site accepts it
+- **THEN** the number reaches the site's card field, appears in no command, file, log, or message the agent can read, and the next payment sends a new private form
 
 #### Scenario: A backup code
 
@@ -168,8 +168,8 @@ What the person types in a private form SHALL reach the site's fields without ap
 
 #### Scenario: A card the site refused
 
-- **WHEN** the person ticks *Save for next time* and the site rejects the card
-- **THEN** nothing is saved
+- **WHEN** the site rejects the card the form sent
+- **THEN** the card boxes are emptied before the agent looks, and nothing from the form is stored
 
 ### Requirement: Every private link goes through Cloudflare and closes itself
 A password link, a key link, and a private form SHALL each open at a new address through Cloudflare's tunnel, with a secret key only the link carries, including when the person is at the computer the agent runs on. The agent SHALL give the person a link only once it answers from outside that computer. Each link SHALL default to an eight-hour time limit from opening and SHALL honor an explicit time override. A link SHALL stop working on successful completion, on closure, or at its time limit, even if the agent's session has ended, and a closed link SHALL never work again.

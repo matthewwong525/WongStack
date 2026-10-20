@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 43.16.0 — Cards are never saved
+
+- **The private form saves nothing.** The *Save for next time* tick is gone. You type your card through the private form for every payment, and it isn't kept on the computer.
+- **Every payment asks for the private form.** The chat no longer offers *Pay with your card ending 4242?*; it asks whether you're ready and sends the form.
+- **Everyday answers still save.** After you give an email, name, address, or phone in the chat, the assistant still asks once whether to keep them, and next time asks *Use 1 Main St?* before typing them.
+- **A card saved before this update is deleted** the first time saved details are read. You type it again next time.
+- `hand-over.mjs fill` and its `--use` flag are removed; `wait` no longer prints `HANDOVER_SAVED_HINT`.
+
+**Updating.** Run `node .claude/skills/hand-over/scripts/details.mjs list` once. It deletes any saved card and lists the everyday answers that stay.
+
 ## 43.15.0 — The lookup lists the code that uses a file
 
 - **Looking up a file or folder now lists the code that uses it.** Below the pages that link to it, the lookup shows each file that loads its functions and uses them, with line numbers — including through the `.claude` shortcut folder, a file that passes it on, or a folder shortcut your repo's own settings define. A file that only has its own function of the same name doesn't count. The list is read fresh on each call and still prints when memory is offline.
