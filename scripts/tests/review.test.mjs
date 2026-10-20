@@ -171,6 +171,7 @@ test('invalid proposals report the item and line and keep the last page', () => 
   const cases = [
     [proposal.replace('**Non-goals:**', `${fence}text\nloose\n${fence}\n\n**Non-goals:**`), /proposal\.md line 23: a fence outside any bullet in ## What Changes/],
     [proposal.replace('  onto an indented line', `  onto\n\n  ${fence}text\n  after a blank line\n  ${fence}`), /proposal\.md line 15: a fence outside any bullet/],
+    [proposal.replace('  onto an indented line', '  onto\n\n  | a | b |\n  |-|-|\n  | c | d |'), /proposal\.md line 15: a table outside any bullet in ## What Changes \(a blank line ends a bullet\)/],
     [proposal.replace(/  c ─→ d\n  ```\n/, '  c ─→ d\n'), /proposal\.md line 16: item 2 opens a fence that never closes/],
     [proposal.replace('## Why', '## Reason'), /missing ## Why/],
     [proposal.replace('## What Changes', '## Changes'), /missing ## What Changes/],

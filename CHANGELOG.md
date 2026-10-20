@@ -3,6 +3,12 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (patch) — A plan's tables stay in their step
+
+- **A table cut off from its step by a blank line no longer shows as a run of pipes.** Before, it fell out of its step on the plan page as plain text. Now the page build stops and names the line, so the assistant moves the table back under its step and you see a real table.
+
+**Updating.** Nothing to do by hand.
+
 ## 43.12.0 — Screens drawn as pictures
 
 - **A plan's screen sketches are now real pictures.** The assistant draws boxes, buttons, and shading instead of typing them out of line characters, so nothing comes out crooked. Sketches use the page's own colors, so they look right in light and dark mode. They open full screen, zoom, and take a note like flow pictures do.
