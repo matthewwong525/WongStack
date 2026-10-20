@@ -99,7 +99,8 @@ jobs:
         if: ${{ steps.passed.outputs.passed == 'true' }}
         env:
           PR: ${{ steps.passed.outputs.pr }}
-        run: echo "Skipped the checks: this exact code already passed on pull request #$PR." >> "$GITHUB_STEP_SUMMARY"
+        run: |
+          echo "Skipped the checks: this exact code already passed on pull request #$PR." >> "$GITHUB_STEP_SUMMARY"
 
       - name: Run shared checks
         if: ${{ !cancelled() && steps.passed.outputs.passed != 'true' }}
