@@ -7,8 +7,9 @@ import { dirname, join, resolve } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { areasOf, loadAreas } from '../../.agents/skills/memory/scripts/lib/areas.mjs';
+import { codeUsers } from '../../.agents/skills/memory/scripts/lib/callers.mjs';
 import { editedPaths } from '../../.agents/skills/memory/scripts/before-edit.mjs';
-import { memory, node, rows, setup, writeJsonFile } from './fixtures/memory/harness.mjs';
+import { memory, node, rows, setup, tempDir, writeJsonFile } from './fixtures/memory/harness.mjs';
 
 const AREAS = loadAreas();
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -36,6 +37,8 @@ test('the list maps .claude/ like .agents/, and the most specific folder wins', 
   assert.deepEqual(areasOf('/repo/app/worker/index.ts', AREAS, '/repo'), ['worker']);
   assert.deepEqual(areasOf('/elsewhere/app/worker/index.ts', AREAS, '/repo'), []);
   assert.deepEqual(areasOf('README.md', AREAS), []);
+  assert.deepEqual(areasOf('openspec/specs/memory/spec.md', AREAS), ['openspec', 'memory'], 'a path among an area\'s docs matches that area');
+  assert.deepEqual(areasOf('wiki/stack/mini-apps.md', AREAS).sort(), ['mini-apps', 'wiki', 'worker']);
 });
 
 test('every area in the list has a definition and a folder', () => {
@@ -102,7 +105,7 @@ test('areas says memory was not loaded and exits 0 when the store is unreachable
   env.fake.setOffline(true);
   const result = await memory(env.repo, env.fake, ['areas', 'app/worker/index.ts']);
   assert.equal(result.code, 0, result.stderr);
-  assert.match(result.stdout, /^Areas: worker \(app\/worker\/index\.ts\)\nMemory was not loaded \(memory store unreachable \(network\)\); go on without it\.\n$/);
+  assert.match(result.stdout, /^Areas: worker \(app\/worker\/index\.ts\)\nCode: app\/worker\/, app\/worker\/apps\/\nMemory was not loaded \(memory store unreachable \(network\)\); go on without it\.\n$/);
 });
 
 test('an area tag defines itself from the list on its first write', async t => {
@@ -145,6 +148,7 @@ test('areas prints docs, past changes, and backlinks before the facts, even with
   const expected = [
     'Areas: worker (app/worker/apps/hello/index.ts), mini-apps (app/worker/apps/hello/index.ts)',
     'Docs: wiki/stack/mini-apps.md',
+    'Code: app/worker/, app/worker/apps/, app/src/apps/',
     'Past changes:',
     '- [2026-09-01-add-mini-apps](openspec/changes/archive/2026-09-01-add-mini-apps/proposal.md) — Add mini apps',
     'Linked to app/worker/apps/hello/index.ts from:',
@@ -153,8 +157,8 @@ test('areas prints docs, past changes, and backlinks before the facts, even with
   await put(env, { source: 'save', slug: 'routes', facts: [{ action: 'add', type: 'project', body: 'Test every route, not only the new one.', tags: ['worker'] }] });
   const loaded = await memory(env.repo, env.fake, ['areas', 'app/worker/apps/hello/index.ts']);
   assert.equal(loaded.code, 0, loaded.stderr);
-  assert.deepEqual(loaded.stdout.trim().split('\n').slice(0, 6), expected, 'openspec/specs/mini-apps/spec.md is missing here, so it is skipped');
-  assert.match(loaded.stdout.trim().split('\n')[6], /^- \[project\] Test every route/);
+  assert.deepEqual(loaded.stdout.trim().split('\n').slice(0, 7), expected, 'openspec/specs/mini-apps/spec.md is missing here, so it is skipped');
+  assert.match(loaded.stdout.trim().split('\n')[7], /^- \[project\] Test every route/);
   env.fake.setOffline(true);
   const unreachable = await memory(env.repo, env.fake, ['areas', 'app/worker/apps/hello/index.ts']);
   assert.equal(unreachable.code, 0, unreachable.stderr);
@@ -203,6 +207,161 @@ test('a topic name loads its area, unless a file has that name', async t => {
   files(env.repo.root, { 'mini-apps': '' });
   const file = await memory(env.repo, env.fake, ['areas', 'mini-apps', 'not-an-area']);
   assert.equal(file.stdout.trim(), 'No mapped area for these paths.');
+});
+
+const CLI_MODULE = 'export function parseCli(args) { return args; }\nexport default function main() { return 0; }\n';
+
+test('code users: direct, .claude/, re-export via, and alias imports count; a same-name decoy does not', t => {
+  const root = tempDir(t, 'callers-');
+  files(root, {
+    '.agents/skills/memory/scripts/lib/cli.mjs': CLI_MODULE,
+    'a.mjs': "import { parseCli } from './.agents/skills/memory/scripts/lib/cli.mjs';\nparseCli([]);\n",
+    'b.mjs': "import { parseCli } from './.claude/skills/memory/scripts/lib/cli.mjs';\n\nexport const run = () => parseCli(process.argv);\n",
+    'scripts/lib-cli.mjs': "export * from '../.claude/skills/memory/scripts/lib/cli.mjs';\n",
+    'c.mjs': "import { parseCli } from './scripts/lib-cli.mjs';\nparseCli([]);\n",
+    'd.mjs': 'function parseCli() { return 1; }\nparseCli();\n',
+    'app/tsconfig.json': '{\n  // tsconfig comments and trailing commas are legal\n  "compilerOptions": { "paths": { "@/*": ["../.agents/skills/memory/scripts/lib/*"] } },\n}\n',
+    'app/src/e.tsx': "import { parseCli } from '@/cli.mjs';\nexport const E = () => parseCli([]);\n",
+    'app/src/v.tsx': "import { parseCli } from '~alias/cli.mjs';\nexport const V = () => parseCli([]);\n",
+    'app/vite.config.ts': "export default { resolve: { alias: { '~alias': './src' } } };\n",
+  });
+  assert.deepEqual(codeUsers(root, '.claude/skills/memory/scripts/lib/cli.mjs'), [
+    { file: 'a.mjs', lines: [2], names: ['parseCli'], via: null },
+    { file: 'app/src/e.tsx', lines: [2], names: ['parseCli'], via: null },
+    { file: 'b.mjs', lines: [3], names: ['parseCli'], via: null },
+    { file: 'c.mjs', lines: [2], names: ['parseCli'], via: 'scripts/lib-cli.mjs' },
+  ], 'the decoy, the vite-only alias, and the re-exporter itself are not listed');
+});
+
+test('code users: comments and strings are not uses; .js lands on .ts; namespace, default, and value uses count', t => {
+  const root = tempDir(t, 'callers-uses-');
+  files(root, {
+    'lib/cli.mjs': CLI_MODULE,
+    'commented.mjs': "import { parseCli } from './lib/cli.mjs';\n// parseCli() in a comment is no use\nconst s = 'parseCli()';\nparseCli([]);\n",
+    'only-text.mjs': "import { parseCli } from './lib/cli.mjs';\n// parseCli() in a comment only\nconst s = 'parseCli()';\n",
+    'template.mjs': "import { parseCli } from './lib/cli.mjs';\nconst t = `ran ${parseCli([])} times`;\n",
+    'space.mjs': "import * as cli from './lib/cli.mjs';\nimport main from './lib/cli.mjs';\nmain(cli.parseCli([]));\n",
+    'value.mjs': "import { parseCli } from './lib/cli.mjs';\nexport const handlers = [parseCli];\n",
+    'util.ts': 'export const redact = (x: string) => x;\n',
+    'swapped.mjs': "import { redact } from './util.js';\nredact('');\n",
+  });
+  assert.deepEqual(codeUsers(root, 'lib/cli.mjs').map(({ file, lines, names }) => [file, lines, names]), [
+    ['commented.mjs', [4], ['parseCli']],
+    ['space.mjs', [3], ['cli', 'main']],
+    ['template.mjs', [2], ['parseCli']],
+    ['value.mjs', [2], ['parseCli']],
+  ], 'a file whose only mention is a comment or string is not a user');
+  assert.deepEqual(codeUsers(root, 'util.ts').map(user => user.file), ['swapped.mjs']);
+});
+
+test('code users: a quote inside a regex opens no string, and division is not a regex', t => {
+  const root = tempDir(t, 'callers-regex-');
+  files(root, {
+    'lib/cli.mjs': CLI_MODULE,
+    'regex.mjs': "import { parseCli } from './lib/cli.mjs';\nconst re = /'/; const s = 'parseCli is unused here';\n",
+    'class.mjs': "import { parseCli } from './lib/cli.mjs';\nconst k = /[/'\\]]/; const s = 'parseCli';\n",
+    'division.mjs': "import { parseCli } from './lib/cli.mjs';\nconst n = a / parseCli(b) / c;\n",
+    'incr.mjs': "import { parseCli } from './lib/cli.mjs';\nconst n = x++ / 2; const s = 'a/b parseCli unused';\n",
+  });
+  assert.deepEqual(codeUsers(root, 'lib/cli.mjs').map(({ file, lines, names }) => [file, lines, names]), [
+    ['division.mjs', [2], ['parseCli']],
+  ], 'a name inside a string after a regex is not a use');
+});
+
+test('code users: a JSX self-closing tag after a {…} attribute opens no regex', t => {
+  const root = tempDir(t, 'callers-jsx-');
+  files(root, {
+    'lib/cli.mjs': CLI_MODULE,
+    'selfclose.tsx': "import { parseCli } from './lib/cli.mjs';\nexport const A = () => <Box><Icon size={16} /><a title='x/y parseCli unused'>hi</a></Box>;\n",
+    'hidden.tsx': "import { parseCli } from './lib/cli.mjs';\nexport const B = () => <div><Spacer h={2} /> {parseCli([])} </div>;\n",
+  });
+  assert.deepEqual(codeUsers(root, 'lib/cli.mjs').map(({ file, lines, names }) => [file, lines, names]), [
+    ['hidden.tsx', [2], ['parseCli']],
+  ], 'a name in a JSX string is no use, and a call after a self-closing tag is');
+});
+
+test('code users: import type and export type re-exports count', t => {
+  const root = tempDir(t, 'callers-types-');
+  files(root, {
+    'lib/shared.ts': 'export interface Props { id: string }\n',
+    'src/typeuser.ts': "import type { Props } from '../lib/shared';\nexport const p: Props = { id: '' };\n",
+    'src/types.ts': "export type { Props } from '../lib/shared';\n",
+    'src/via.ts': "import type { Props } from './types';\nexport const q: Props = { id: '' };\n",
+  });
+  assert.deepEqual(codeUsers(root, 'lib/shared.ts'), [
+    { file: 'src/typeuser.ts', lines: [2], names: ['Props'], via: null },
+    { file: 'src/via.ts', lines: [2], names: ['Props'], via: 'src/types.ts' },
+  ]);
+});
+
+test('code users: a side-effect import and a literal require list the loader with no names', t => {
+  const root = tempDir(t, 'callers-load-');
+  files(root, {
+    'lib/cli.mjs': CLI_MODULE,
+    'lib/sibling.mjs': "import { parseCli } from './cli.mjs';\nparseCli([]);\n",
+    'boot.mjs': "import './lib/cli.mjs';\n",
+    'old.cjs': "const cli = require('./lib/cli.mjs');\nmodule.exports = cli;\n",
+    'computed.mjs': "const name = './lib/cli.mjs';\nconst mod = await import(name);\n",
+  });
+  assert.deepEqual(codeUsers(root, 'lib/cli.mjs').map(({ file, lines, names, via }) => [file, lines, names, via]), [
+    ['boot.mjs', [1], [], null],
+    ['lib/sibling.mjs', [2], ['parseCli'], null],
+    ['old.cjs', [1], [], null],
+  ], 'a computed specifier does not count');
+  assert.deepEqual(codeUsers(root, 'lib/').map(user => user.file), ['boot.mjs', 'old.cjs'], 'a file inside the asked folder is not an outside user');
+});
+
+test('code users on a generated 2,000-file repo answer in under a second', t => {
+  const root = tempDir(t, 'callers-perf-');
+  const map = { 'lib/cli.mjs': CLI_MODULE, 'lib/helper.mjs': 'export const helper = () => 1;\n' };
+  for (let i = 0; i < 2000; i += 1) {
+    map[`src/part-${i}/mod.mjs`] = i % 4
+      ? "import { helper } from '../../lib/helper.mjs';\nexport const run = () => helper();\n"
+      : "import { parseCli } from '../../lib/cli.mjs';\nexport const run = () => parseCli([]);\n";
+  }
+  files(root, map);
+  const start = performance.now();
+  const users = codeUsers(root, 'lib/cli.mjs');
+  const elapsed = performance.now() - start;
+  assert.equal(users.length, 500);
+  assert.ok(elapsed < 1000, `${Math.round(elapsed)} ms for 2,000 files`);
+});
+
+test('areas prints Code using with ten files and +N more, but never for a change, a Markdown page, or a missing path', async t => {
+  const env = await setup(t);
+  env.fake.setOffline(true);
+  const map = {
+    'lib/cli.mjs': CLI_MODULE,
+    'wiki/README.md': '# Wiki\n\n[cli](../lib/cli.mjs)\n',
+    'openspec/changes/fix-cli/tasks.md': '- [ ] 1.1 Edit `lib/cli.mjs`.\n',
+    'app/worker/widget.ts': 'export const widget = () => 1;\n',
+    'app/main.ts': "import { widget } from './worker/widget';\nexport const total = widget();\n",
+  };
+  for (let i = 0; i < 12; i += 1) map[`src/user-${String(i).padStart(2, '0')}.mjs`] = "import { parseCli } from '../lib/cli.mjs';\nparseCli([]);\n";
+  files(env.repo.root, map);
+  const direct = await memory(env.repo, env.fake, ['areas', 'lib/cli.mjs']);
+  assert.equal(direct.code, 0, direct.stderr);
+  const block = direct.stdout.split('Code using lib/cli.mjs:\n')[1];
+  assert.ok(block, direct.stdout);
+  const lines = block.trim().split('\n');
+  assert.deepEqual(lines.slice(0, 2), ['- src/user-00.mjs:2 (parseCli)', '- src/user-01.mjs:2 (parseCli)']);
+  assert.deepEqual([lines.length, lines[10]], [11, '+2 more']);
+  const offline = await memory(env.repo, env.fake, ['areas', 'app/worker/widget.ts']);
+  assert.match(offline.stdout, /Code using app\/worker\/widget\.ts:\n- app\/main\.ts:2 \(widget\)\nMemory was not loaded /, 'the block prints with the store unreachable');
+  const byChange = await memory(env.repo, env.fake, ['areas', '--change', 'fix-cli']);
+  assert.doesNotMatch(byChange.stdout, /Code using/);
+  const markdown = await memory(env.repo, env.fake, ['areas', 'wiki/README.md', 'gone/file.mjs']);
+  assert.doesNotMatch(markdown.stdout, /Code using/);
+});
+
+test("a page named among an area's docs matches that area, and the lookup prints its code folders", async t => {
+  const env = await setup(t);
+  env.fake.setOffline(true);
+  files(env.repo.root, { 'openspec/specs/memory/spec.md': '# memory\n' });
+  const loaded = await memory(env.repo, env.fake, ['areas', 'openspec/specs/memory/spec.md']);
+  assert.equal(loaded.code, 0, loaded.stderr);
+  assert.match(loaded.stdout, /^Areas: openspec \(openspec\/specs\/memory\/spec\.md\), memory \(openspec\/specs\/memory\/spec\.md\)\n/);
+  assert.match(loaded.stdout, /^Code: openspec\/, \.agents\/skills\/memory\/$/m);
 });
 
 const daysAgo = days => new Date(Date.now() - days * 86400000).toISOString().replace(/\.\d{3}Z$/, 'Z');
