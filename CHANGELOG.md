@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Show the browser when a login is stuck
+## 43.17.0 — Show the browser when a login is stuck
 
 - **No API? The assistant uses its browser.** When no saved key or company action can do a task on a website, the assistant does it in its browser as you, without being asked, instead of sending you steps first.
 - **A stuck login shows you the browser.** When a login keeps reloading, or sits with no error and no check, you get the same private link a robot check gets: it shows the assistant's browser, and you sign in there yourself. A saved login, the password link, and a code from your email still come first. A password you type there isn't saved.

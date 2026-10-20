@@ -1,6 +1,7 @@
 # Proposal
 
-**Status:** planned
+**Status:** ready-to-ship
+**Branch:** browser-ask-auth-help
 **Open questions:** none
 
 ## Why
@@ -81,3 +82,4 @@ None.
 - **2026-10-20** — Assumed: a login the site rejects with a message still gets the password link, and only one with no message counts as stuck, because a wrong password needs a new password, not a view.
 - **2026-10-20** — Assumed: a blank password saves the login with the email only, because the next login then types the email without asking again.
 - **2026-10-20** — Assumed, after the second look: a stuck login's view finishes at the signed-in address, or when every login box is gone, not when the box last typed into is gone, because an email-first login drops its email box at the password page and would close the view before the person is signed in.
+- **2026-10-20** — Archive checkpoint: built, reviewed (two finish-guidance fixes), and checked live on a pretend site: an email-first link saved a blank password, and a later login printed `missing`.
