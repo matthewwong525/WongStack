@@ -306,7 +306,7 @@ test('--form needs a finish, and a finish or a session goes with --form only', t
   const keys = f.run('open', '--keys', 'MAPS_API_KEY', '--session', 'card');
   assert.equal(keys.status, 2);
   assert.match(keys.stderr, /--session goes with --form, --view, or --passwords only/);
-  assert.equal(f.run('open', '--passwords', '--use', 'card').status, 2, '--use goes with fill only');
+  for (const args of [['open', '--passwords', '--use', 'card'], ['fill', '--form', f.form, '--use', 'card', '--until', '**']]) assert.equal(f.run(...args).status, 2, `${args.join(' ')}: fill and --use are gone`);
   assert.deepEqual(f.calls(), []);
 });
 
@@ -1234,109 +1234,16 @@ test('a one-site password link pictures the session\'s page only when it is on t
   }
 });
 
-test('Save for next time keeps a card the site accepted, and wait names it by its last four digits', async t => {
-  const f = fixture(t);
-  const link = openedForm(f);
-  f.set('click-url', RECEIPT);
-  const { json } = await route(link.port, link.key, 'send', { values: VALUES, save: true });
-  assert.equal(json.receipt.result, 'done');
-  assert.deepEqual([json.receipt.saved, json.receipt.hint], [['pay-city-of-markham'], 'card ending 4242']);
-  const file = join(f.root, '.wong-stack/details.json');
-  assert.equal(statSync(file).mode & 0o777, 0o600);
-  const [set] = JSON.parse(readFileSync(file, 'utf8'));
-  assert.deepEqual(set, { name: 'pay-city-of-markham', hint: 'card ending 4242', private: true, fields: CARD.fields.map(({ kind, label, options }, index) => ({ kind, label, value: VALUES[index], ...(options && { text: index === 1 ? '03 - March' : VALUES[index] }) })) });
-  const out = f.run('wait');
-  assert.equal(out.stdout, 'HANDOVER_RESULT=done\nHANDOVER_SAVED=pay-city-of-markham\nHANDOVER_SAVED_HINT=card ending 4242\n');
-  assert.doesNotMatch(out.rawStdout + f.stateFiles(), PRIVATE, 'the agent sees the name and hint, never the card');
-});
-
-test('a card the site refused, or one sent without the tick, is not saved', async t => {
-  for (const [save, moves] of [[true, false], [false, true]]) {
+test('a sent card is never saved, accepted or refused, even when the send asks to', async t => {
+  for (const moves of [true, false]) {
     const f = fixture(t);
     const link = openedForm(f);
     if (moves) f.set('click-url', RECEIPT);
-    const { json } = await route(link.port, link.key, 'send', { values: VALUES, save });
+    const { json } = await route(link.port, link.key, 'send', { values: VALUES, save: true });
+    assert.equal(json.receipt.result, moves ? 'done' : 'not-accepted');
     assert.equal(json.receipt.saved, undefined);
-    assert.ok(!existsSync(join(f.root, '.wong-stack/details.json')), `save ${save}, moves ${moves}`);
+    assert.ok(!existsSync(join(f.root, '.wong-stack/details.json')), `moves ${moves}`);
+    const out = f.run('wait');
+    assert.doesNotMatch(out.stdout, /HANDOVER_SAVED/);
   }
-});
-
-// A card saved from an earlier form, its expiry written as another site took it.
-const SAVED_CARD = { name: 'pay-city-of-markham', hint: 'card ending 4242', private: true, fields: [
-  { kind: 'cc-number', label: 'Card number', value: NUMBER },
-  { kind: 'cc-exp-month', label: 'Month', value: '3' },
-  { kind: 'cc-exp-year', label: 'Year', value: '28' },
-  { kind: 'cc-csc', label: 'CVC', value: CODE },
-] };
-/** Saves `sets` as the fixture's saved details, opens the card page, and runs `fill` with `args` after the name. */
-function filled(f, sets, ...args) {
-  mkdirSync(join(f.root, '.wong-stack'), { recursive: true });
-  writeFileSync(join(f.root, '.wong-stack/details.json'), JSON.stringify(sets));
-  f.openPage();
-  return f.run('fill', '--form', f.form, '--use', sets[0]?.name ?? 'none', '--session', SESSION, '--until', '**/receipt/*', ...args);
-}
-
-test('fill types a saved card by kind, fitting each dropdown, presses once, and prints done with no value', t => {
-  const f = fixture(t);
-  f.set('click-url', RECEIPT);
-  const out = filled(f, [SAVED_CARD]);
-  assert.equal(out.status, 0, out.stderr);
-  assert.equal(out.stdout, 'HANDOVER_RESULT=done\n');
-  const steps = f.steps();
-  assert.deepEqual(steps.slice(0, 8), ['url', ...FILL, PRESS], 'the address first, then the same send as a private form');
-  assert.deepEqual([f.page().typed, f.page().picked], [{ e12: NUMBER, '#cvv': CODE }, { e13: '03 - March', e14: '2028' }], '3 fits 03, picked by its text 03 - March, and 28 fits 2028');
-  assert.equal(f.calls().length, 0, 'no tunnel, no link');
-  assert.doesNotMatch(out.stdout + out.stderr + f.stateFiles(), PRIVATE);
-  assert.doesNotMatch(JSON.stringify(f.camofox.requests().filter(request => !request.path.endsWith('/type'))), PRIVATE, 'only in the loopback /type bodies');
-  assert.ok(!existsSync(join(f.state, 'watcher.pid')), 'the lock is let go');
-});
-
-test('fill on a site that keeps its page empties the boxes and prints not-accepted', t => {
-  const f = fixture(t);
-  const out = filled(f, [SAVED_CARD]);
-  assert.equal(out.stdout, 'HANDOVER_RESULT=not-accepted\n');
-  assert.deepEqual(f.steps().slice(-4), CLEAR);
-  assert.deepEqual(f.page().typed, { e12: '', '#cvv': '' });
-});
-
-test('fill types nothing when a field has no saved kind or no one choice fits, or no set has the name', t => {
-  const noCode = { ...SAVED_CARD, fields: SAVED_CARD.fields.slice(0, 3) };
-  const badMonth = { ...SAVED_CARD, fields: SAVED_CARD.fields.map(field => (field.kind === 'cc-exp-month' ? { ...field, value: '13' } : field)) };
-  for (const [sets, line] of [[[noCode], 'HANDOVER_MISSING=Security code\n'], [[badMonth], 'HANDOVER_MISSING=Expiry month\n'], [[], '']]) {
-    const f = fixture(t);
-    const out = filled(f, sets);
-    assert.equal(out.status, 0, out.stderr);
-    assert.equal(out.stdout, `HANDOVER_RESULT=missing\n${line}`);
-    assert.deepEqual(f.steps(), [], 'the browser was not touched');
-  }
-});
-
-test('close and wait during a fill say a fill is typing, never an earlier link\'s result', async t => {
-  const f = fixture(t);
-  openedForm(f);
-  assert.equal(f.run('close').stdout.trim(), 'HANDOVER_RESULT=closed', 'an earlier link left its result');
-  mkdirSync(join(f.root, '.wong-stack'), { recursive: true });
-  writeFileSync(join(f.root, '.wong-stack/details.json'), JSON.stringify([SAVED_CARD]));
-  f.set('hold-type', '');
-  f.set('click-url', RECEIPT);
-  const filling = f.start('fill', '--form', f.form, '--use', SAVED_CARD.name, '--session', SESSION, '--until', '**/receipt/*');
-  await eventually(() => f.steps().includes('type e12'));
-  assert.ok(!existsSync(join(f.state, 'result.json')), 'the fill took the earlier result away');
-  for (const command of ['close', 'wait']) {
-    const out = await f.start(command);
-    assert.deepEqual([out.status, out.stdout], [1, ''], command);
-    assert.match(out.stderr, /fill is typing/, command);
-  }
-  f.unset('hold-type');
-  assert.equal((await filling).stdout, 'HANDOVER_RESULT=done\n', 'the close never stopped the fill');
-});
-
-test('fill refuses while a private link is open, and takes fill\'s flags only', t => {
-  const f = fixture(t);
-  openedForm(f);
-  const out = filled(f, [SAVED_CARD]);
-  assert.equal(out.status, 1);
-  assert.match(out.stderr, /A private link is open/);
-  assert.ok(!f.steps().some(step => step.startsWith('type')));
-  for (const args of [['fill', '--form', f.form, '--until', '**'], ['fill', '--use', 'x', '--until', '**'], ['fill', '--form', f.form, '--use', 'x'], ['fill', '--form', f.form, '--use', 'x', '--until', '**', '--passwords']]) assert.equal(f.run(...args).status, 2, args.join(' '));
 });

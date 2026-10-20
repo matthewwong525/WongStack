@@ -114,7 +114,7 @@ A private link is a page only you can open, for something the agent must never s
 
 ### The private form
 
-The private form takes a sensitive detail, such as a card or a backup code, from you to a website without the agent seeing it. It shows one picture of the site's page, and can save a card for next time. [The private form](private-form.md) owns how it works and how the agent opens one.
+The private form takes a sensitive detail, such as a card or a backup code, from you to a website without the agent seeing it. It shows one picture of the site's page, and saves nothing you type. [The private form](private-form.md) owns how it works and how the agent opens one.
 
 ## When a site refuses the browser
 

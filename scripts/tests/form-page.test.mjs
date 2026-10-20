@@ -30,7 +30,6 @@ const VIEW = {
     { label: 'Security code', autocomplete: 'cc-csc', type: 'text', inputmode: 'numeric' },
   ],
   submit: 'Pay $45.00',
-  keep: true,
 };
 const VALUES = ['4242 4242 4242 4242', '03', '2028', '737'];
 const sent = (result, notification = 'notified') => (_body, answer) => answer(200, { receipt: { result, notification } });
@@ -132,9 +131,9 @@ test('the button sends the boxes once, in order, locks the page, and ends on Sen
   p.fill();
   p.submit();
   await settle();
-  assert.deepEqual(p.sends(), [{ path: 'send', key: 'secret', body: { values: VALUES, save: false } }]);
+  assert.deepEqual(p.sends(), [{ path: 'send', key: 'secret', body: { values: VALUES } }]);
   assert.equal(p.shown().status, 'Sending…');
-  assert.ok([...p.boxes(), p.$('#keep'), p.$('#send'), p.$('#done')].every(control => control.disabled), 'nothing can be changed or tapped again');
+  assert.ok([...p.boxes(), p.$('#send'), p.$('#done')].every(control => control.disabled), 'nothing can be changed or tapped again');
   p.submit();
   p.$('#done').click();
   await settle();
@@ -413,20 +412,13 @@ test('the zoom helpers step from fitting the width to 4x and hold a pinch inside
   assert.deepEqual([clampZoom(0.5), clampZoom(2.7), clampZoom(9)], [1, 2.7, 4]);
 });
 
-test('Save for next time starts unticked, sends the person\'s choice, and shows only when something could be kept', async t => {
+test('the form offers no way to keep what is typed, and its send carries only the values', async t => {
   const p = page(t, sent('done'));
   await settle();
-  assert.deepEqual([p.$('#keep-row').hidden, p.$('#keep').checked, p.$('#keep-row').textContent], [false, false, 'Save for next time']);
-  const order = el => [...p.window.document.querySelectorAll('body *')].indexOf(el);
-  assert.ok(order(p.boxes().at(-1)) < order(p.$('#keep')) && order(p.$('#keep')) < order(p.$('#send')), 'under the boxes, above the button');
+  assert.equal(p.$('input[type=checkbox], #keep, #keep-row'), null);
+  assert.doesNotMatch(p.$('#form').textContent, /next time/i);
   p.fill();
-  p.$('#keep').checked = true;
   p.submit();
   await settle();
-  assert.equal(p.sends()[0].body.save, true);
-  assert.equal(p.$('#keep').checked, false, 'cleared with the boxes');
-
-  const code = page(t, never, { view: { ...VIEW, keep: false } });
-  await settle();
-  assert.equal(code.$('#keep-row').hidden, true, 'a backup code is never kept');
+  assert.deepEqual(Object.keys(p.sends()[0].body), ['values']);
 });

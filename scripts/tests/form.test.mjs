@@ -69,12 +69,9 @@ test('describeForm gives the page labels, autofill names, and choices, never a t
       { label: 'Security code', autocomplete: 'cc-csc', type: 'text', inputmode: 'numeric' },
     ],
     submit: 'Pay $45.00',
-    keep: true,
   });
   assert.doesNotMatch(JSON.stringify(view), /@e\d|iframe|target/);
   assert.equal('note' in describeForm({ ...CARD, note: undefined }), false);
-  const only = (...kinds) => describeForm({ ...CARD, fields: kinds.map(kind => ({ label: 'Box', kind, target: '#box' })) }).keep;
-  assert.deepEqual([only(undefined), only('one-time-code', 'current-password', 'new-password'), only(undefined, 'email')], [false, false, true], 'Save for next time shows only when a box could be kept');
   assert.deepEqual(boxFor(), { autocomplete: '', type: 'text', inputmode: '' }, 'a box with no kind, such as a backup code');
   assert.deepEqual(boxFor('one-time-code'), { autocomplete: 'one-time-code', type: 'text', inputmode: 'numeric' });
   assert.deepEqual(boxFor('current-password'), { autocomplete: 'current-password', type: 'password', inputmode: '' });
@@ -90,8 +87,6 @@ test('checkValues takes one value per field: text on one line, a dropdown\'s own
     assert.equal(checkValues({ values }, CARD), 400, JSON.stringify(values)?.slice(0, 60));
   }
   assert.equal(checkValues(null, CARD), 400);
-  for (const save of [true, false]) assert.deepEqual(checkValues({ values: VALUES, save }, CARD), VALUES);
-  for (const save of ['yes', 1, null]) assert.equal(checkValues({ values: VALUES, save }, CARD), 400, `save ${save}`);
 });
 
 /** A browser client that logs everything a send does, in order. `fail(step, target)` makes a step throw;
@@ -198,7 +193,7 @@ test('GET /form describes the form with the watcher\'s clock, and each route tak
 test('POST /send runs the one send and refuses every later one, a second tap included', async t => {
   let finish;
   const { call, heard } = await mounted(t, { onSend: values => new Promise(done => { finish = () => done({ result: 'not-accepted', values: values.length }); }) });
-  for (const body of ['{', {}, { values: VALUES.slice(1) }, { values: [NUMBER, '13', '2028', '737'] }, { values: VALUES, save: 'yes' }]) assert.equal((await call('send', body)).status, 400, 'a bad send does not use the one send');
+  for (const body of ['{', {}, { values: VALUES.slice(1) }, { values: [NUMBER, '13', '2028', '737'] }]) assert.equal((await call('send', body)).status, 400, 'a bad send does not use the one send');
   assert.equal((await call('send', { values: VALUES, pad: 'x'.repeat(LIMITS.body) })).status, 413);
   const first = call('send', { values: VALUES });
   while (!finish) await new Promise(done => setTimeout(done, 5));
@@ -224,11 +219,9 @@ test('POST /done cancels once, and a closed link refuses a send', async t => {
   assert.deepEqual(closed.heard, { sends: [], cancels: 0 });
 });
 
-test('POST /send passes on whether the person ticked Save for next time, unticked when not said', async t => {
-  for (const [body, save] of [[{ values: VALUES, save: true }, true], [{ values: VALUES, save: false }, false], [{ values: VALUES }, false]]) {
-    let heard;
-    const { call } = await mounted(t, { onSend: async (values, keep) => { heard = keep; return { result: 'done' }; } });
-    assert.equal((await call('send', body)).status, 200);
-    assert.equal(heard, save, JSON.stringify(body).slice(0, 40));
-  }
+test('POST /send hands on only the values, and nothing to keep', async t => {
+  let heard;
+  const { call } = await mounted(t, { onSend: async (...args) => { heard = args; return { result: 'done' }; } });
+  assert.equal((await call('send', { values: VALUES, save: true })).status, 200);
+  assert.deepEqual(heard, [VALUES]);
 });
