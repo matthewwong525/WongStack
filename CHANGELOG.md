@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (patch) — A plan's tables stay in their step
+## 43.12.1 — A plan's tables stay in their step
 
 - **A table cut off from its step by a blank line no longer shows as a run of pipes.** Before, it fell out of its step on the plan page as plain text. Now the page build stops and names the line, so the assistant moves the table back under its step and you see a real table.
 
