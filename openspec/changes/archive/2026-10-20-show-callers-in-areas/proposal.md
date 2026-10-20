@@ -1,7 +1,7 @@
 # Proposal
 
-**Status:** planned
-**Branch:** golden-starfish
+**Status:** ready-to-ship
+**Branch:** graphify-memory-review
 **Open questions:** none
 
 ## Why
@@ -66,3 +66,4 @@ Non-goals: installing Graphify or any code parser; naming which function inside 
 - **2026-10-20** — Asked whether the edit-time warning should also say when other files depend on the file being edited → chose no: the list shows up only when the assistant looks a file up, at planning time and on request.
 - **2026-10-20** — Asked whether this works on a bigger repo like ClaymooApp → measured there: 2,812 code files read in half a second, but a third of its internal connections use a `@/` folder shortcut the plan skipped; chose to follow shortcuts defined in a repo's own settings files, still skipping ones defined only in build code.
 - **2026-10-20** — Assumed: wiki/development/memory.md lost a few meaning-preserving trims beyond the bullet task 2.1 extends, because the page has a 3,000-word cap and the longer bullet pushed it over.
+- **2026-10-20** — Archive checkpoint: built, reviewed in two rounds (type-only imports, regex literals, JSX self-closing tags and `x++ / y` fixed with tests), local checks pass; saved for `/ship`.

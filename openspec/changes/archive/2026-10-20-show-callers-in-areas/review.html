@@ -11,7 +11,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · show-callers-in-areas</title>
+<title>Review · 2026-10-20-show-callers-in-areas</title>
 <style>
   /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
    look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
@@ -360,11 +360,11 @@
 })();
 </script>
 </head>
-<body data-change="show-callers-in-areas">
+<body data-change="2026-10-20-show-callers-in-areas">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>show-callers-in-areas</h1>
+  <h1>2026-10-20-show-callers-in-areas</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. <span class="copies">Saving a note copies all your notes.</span> Open a drawing and tap it to see it full screen.</p>
@@ -408,6 +408,8 @@
 <li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-20</p>Assumed: a use that arrives through a passing-on file counts only when the looked-up code really provides that name, because a passing-on file with its own additions would otherwise blame the wrong source.</li>
 <li class="decision card" id="decision-12" data-note="decision-12" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-20</p>Asked whether the edit-time warning should also say when other files depend on the file being edited → chose no: the list shows up only when the assistant looks a file up, at planning time and on request.</li>
 <li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-20</p>Asked whether this works on a bigger repo like ClaymooApp → measured there: 2,812 code files read in half a second, but a third of its internal connections use a <code>@/</code> folder shortcut the plan skipped; chose to follow shortcuts defined in a repo's own settings files, still skipping ones defined only in build code.</li>
+<li class="decision card" id="decision-14" data-note="decision-14" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-20</p>Assumed: wiki/development/memory.md lost a few meaning-preserving trims beyond the bullet task 2.1 extends, because the page has a 3,000-word cap and the longer bullet pushed it over.</li>
+<li class="decision card" id="decision-15" data-note="decision-15" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-20</p>Archive checkpoint: built, reviewed in two rounds (type-only imports, regex literals, JSX self-closing tags and <code>x++ / y</code> fixed with tests), local checks pass; saved for <code>/ship</code>.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

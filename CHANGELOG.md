@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — The lookup lists the code that uses a file
+## 43.15.0 — The lookup lists the code that uses a file
 
 - **Looking up a file or folder now lists the code that uses it.** Below the pages that link to it, the lookup shows each file that loads its functions and uses them, with line numbers — including through the `.claude` shortcut folder, a file that passes it on, or a folder shortcut your repo's own settings define. A file that only has its own function of the same name doesn't count. The list is read fresh on each call and still prints when memory is offline.
 - **Looking up a spec or wiki page lands on its own subject.** A page listed among a subject's docs now matches that subject, not only the folder that holds it, and every lookup prints the subject's code folders, so a spec and its code find each other in one step.
