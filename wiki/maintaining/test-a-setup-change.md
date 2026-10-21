@@ -41,6 +41,16 @@ Ask first: the install makes billable resources in a real Cloudflare account.
 
 Run it once from this machine, fix what breaks, then have the owner run it by hand on a Mac. Their chat log is the best review of the install wording: read it for retries, steps written by hand, and anything the assistant had to work around.
 
+## Test a deploy workflow change
+
+A change to `deploy.yml` or the deploy scripts can't prove itself on its own save: [its preview runs the default branch's scripts](../stack/github-actions.md#where-the-deploy-key-is). Prove it in a throwaway private repo whose `main` is the branch, with no setup run:
+
+1. Rename the Workers and the staging database in its `app/wrangler.jsonc` (`<name>-keytest`). Point production's bindings at names that don't exist, so a stray live deploy stops at its migration.
+2. Delete every other workflow, and push `main` before you set any deploy secret: its first run builds and deploys nothing.
+3. Set a disposable deploy token that expires in a day, then push the test branch.
+
+Then delete the repo, the token, the Worker and the database, and read each back as gone.
+
 ## Remove it
 
 Follow [teardown](../stack/getting-started.md#teardown), and [the Artifacts route's](../stack/artifacts-route.md#teardown) for an install with no GitHub. List by exact name first, delete, then read each back as gone and fetch both addresses for a 404. Delete the folder's `.env` with it: it holds a copy of the token.
