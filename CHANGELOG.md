@@ -3,6 +3,12 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 43.20.1 — Note how Paseo opens a saved branch
+
+- **The tools page says how a new workspace on a saved branch starts.** Paseo uses the branch already on your computer and runs that branch's own setup without asking, which is why a teammate's change is reviewed before it opens.
+
+**Updating.** Nothing to do by hand.
+
 ## 43.20.0 — Picking up a teammate's change asks first
 
 - **You see a teammate's work before it runs.** When `/continue` picks up a saved change that holds work this computer has never had, it shows the files that work changes, code first, and asks. Nothing switches, and nothing from it runs, until you say yes. Before, a teammate's saved change could run its own code as you the moment you picked it up.
