@@ -282,14 +282,15 @@ function readRequests(journey, evidence, stem) {
 
 // One check through the runner. `stop` on a result means no later check can run either: none at all
 // past the limit, and none of the same site behind its login wall.
-async function runCheck({ journey, stem, runnerDir, url, env, deadline, checkSeconds, budgetSeconds }) {
+async function runCheck({ root, journey, stem, runnerDir, url, env, deadline, checkSeconds, budgetSeconds }) {
   const browser = journey.probe === 'browser' ? browserBatch(journey, url) : null;
   const input = join(runnerDir, 'journeys', `${stem}.${browser ? 'batch.json' : 'requests.txt'}`);
   writeFileSync(input, browser ? JSON.stringify(browser.commands) : `${journey.steps.map(step => step.join('\t')).join('\n')}\n`);
   const left = deadline - Date.now();
   const capped = checkSeconds * 1000 <= left;
   const log = join(runnerDir, `${stem}.log`);
-  const ran = await run('bash', [RUNNER, runnerDir], { env, limitMs: capped ? checkSeconds * 1000 : left, log });
+  // From the project's own checkout, where the runner reads which site is this install's own.
+  const ran = await run('bash', [RUNNER, runnerDir], { cwd: root, env, limitMs: capped ? checkSeconds * 1000 : left, log });
   rmSync(input);
   if (ran.timedOut) {
     // The stopped journey's browser session outlives it; close it so no browser is left running.
@@ -364,7 +365,7 @@ export async function replay({ root, runDir, url, siteUrls = new Map(), changeRo
       }
     }
     const target = site ? { ...visitor, VERIFY_URL: preview(site).url } : env;
-    const outcome = await runCheck({ journey: entry.journey, stem, runnerDir, url: target.VERIFY_URL, env: target, deadline, checkSeconds, budgetSeconds });
+    const outcome = await runCheck({ root, journey: entry.journey, stem, runnerDir, url: target.VERIFY_URL, env: target, deadline, checkSeconds, budgetSeconds });
     dirty = writes(entry.journey);
     if (outcome.stop === 'site') walled.set(site, outcome.reason);
     else if (outcome.stop) stop = outcome.reason;

@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 44.0.2 — Keys and passwords go only to their own site
+
+- **A saved password is typed only on its own site.** Before typing a saved login, the assistant's browser checks the page is on the site the login was saved for, or one under it, as `login.netflix.com` sits under `netflix.com`. It checks again right before the password, so a page that jumps elsewhere after the email gets nothing more. On any other site it types nothing and says *wrong site*, and you get the password link for the page's real site instead.
+- **Checking a preview sends its access pass only to your own site.** The pass that opens your previews goes only to a secure address on your own app's site: the live address, and the staging and preview addresses Cloudflare gives your account. Any other address is checked without it, and the report says the key was not sent. A login wall there is reported as *not your site*, and no new key is made for it.
+- **The key reaches only the preview itself.** A font or script a page loads from another site no longer gets it, and nor does a request check naming another site's address.
+- **Only a deploy app's comment names the preview.** Finding the preview from pull request comments now reads only comments posted by an installed app, such as Cloudflare's or Vercel's deploy bot, never a person's. Every way of finding it takes only a secure (`https`) address.
+- `browse.mjs login` can print `BROWSE_LOGIN=wrong-site`; `verify-staging.sh run` can print `ACCESS=withheld` and `BLOCK=not-own-site`.
+
+**Updating.** Nothing to do by hand. A preview announced only by a person's comment is no longer found; one announced by a deploy, a status, or a check still is. A copy with no recorded live address now checks previews without the access key; setting up the memory store with `/wong-sync` records one.
+
 ## 44.0.1 — Recover a preview whose staging rebuild was cut off
 
 - **A preview that says *Access unavailable* everywhere after a walk** had its staging rebuild cut off. The [D1 pipeline page](wiki/stack/d1-pipeline.md#seeded-staging-production-untouched) now says to run the reset again.

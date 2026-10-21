@@ -507,17 +507,33 @@ test('a lookup that fails reads not-run with the reason, and the preview\'s chec
   assert.deepEqual(site.paths(), ['/api/notes']);
 });
 
+// This install's own preview, served from `site` through a stand-in curl and the fake browser, so no test leaves the
+// machine: the runner sends the Access key only to the live app's own https site.
+function ownPreview(f, site) {
+  const own = 'https://pr-1-app-staging.acct.workers.dev';
+  f.write('.claude/.wong-stack.json', JSON.stringify({ components: { memory: { accountId: 'a', databaseId: 'd', worker: 'https://app.acct.workers.dev/_memory' } } }));
+  const curl = execFileSync('bash', ['-c', 'command -v curl'], { encoding: 'utf8' }).trim();
+  writeFileSync(join(f.bin, 'curl'), `#!/usr/bin/env bash
+from='${own}' to='${site.url}' args=()
+for arg; do args+=("\${arg/#"$from"/"$to"}"); done
+exec "${curl}" "\${args[@]}"
+`);
+  chmodSync(join(f.bin, 'curl'), 0o755);
+  return { url: own, env: { FAKE_BROWSER_RESOLVE: `${own}=${site.url}` } };
+}
+
 test('a named site is sent no Access credential; the preview gets its own pair, never the live one', async t => {
   const f = project(t);
   const main = await recorder(t);
   const second = await recorder(t);
+  const own = ownPreview(f, main);
   const page = (id, more) => journey(id, 'The list API counts its notes', 'browser', [['open', '{url}/']], [{ text: 'ok' }], { writes: false, ...more });
   f.kept(listCount({ expect: [{ step: 1, status: 200 }] }));
   f.kept(page('main-page'));
   f.kept(onSecond('on-landing', 1));
   f.kept(page('landing-page', { site: SECOND }));
-  const out = await replay(f, main.url, ['--site-url', `${SECOND}=${second.url}`], {
-    CF_ACCESS_STAGING_CLIENT_ID: 'id.access', CF_ACCESS_STAGING_CLIENT_SECRET: 'access-secret-value', CF_ACCESS_CLIENT_ID: 'live-id.access', CF_ACCESS_CLIENT_SECRET: 'live-secret-value',
+  const out = await replay(f, own.url, ['--site-url', `${SECOND}=${second.url}`], {
+    ...own.env, CF_ACCESS_STAGING_CLIENT_ID: 'id.access', CF_ACCESS_STAGING_CLIENT_SECRET: 'access-secret-value', CF_ACCESS_CLIENT_ID: 'live-id.access', CF_ACCESS_CLIENT_SECRET: 'live-secret-value',
   });
   assert.deepEqual(out.written.results.map(entry => entry.result), ['same', 'same', 'same', 'same'], out.stdout);
   const sent = site => site.seen.map(headers => [headers['cf-access-client-id'], headers['cf-access-client-secret']]);
@@ -525,7 +541,18 @@ test('a named site is sent no Access credential; the preview gets its own pair, 
   assert.ok(sent(main).every(([id]) => id !== 'live-id.access'), 'the preview was sent the live pair');
   assert.deepEqual(sent(second), [[undefined, undefined], [undefined, undefined]], 'the named site saw two requests and no credential');
   assert.equal(f.browserCalls().match(/ batch$/gm).length, 2);
-  assert.equal(f.browserCalls().match(/ set$/gm).length, 1, 'only the preview\'s browser was given the Access headers');
+  assert.equal(f.browserCalls().match(/ open --headers$/gm).length, 1, 'only the preview\'s browser was given the Access headers');
+  assert.doesNotMatch(f.browserCalls(), / set$/m, 'no header is set for every host');
+});
+
+test('a preview off this install\'s own site is replayed without the Access credential', async t => {
+  const f = project(t);
+  const main = await recorder(t);
+  f.write('.claude/.wong-stack.json', JSON.stringify({ components: { memory: { accountId: 'a', databaseId: 'd', worker: 'https://app.acct.workers.dev/_memory' } } }));
+  f.kept(listCount({ expect: [{ step: 1, status: 200 }] }));
+  const out = await replay(f, main.url, [], { CF_ACCESS_STAGING_CLIENT_ID: 'id.access', CF_ACCESS_STAGING_CLIENT_SECRET: 'access-secret-value' });
+  assert.equal(out.byId['list-count'].result, 'same', out.stdout);
+  assert.deepEqual(main.seen.map(headers => headers['cf-access-client-id']), [undefined], 'a loopback http address is not this install\'s own');
 });
 
 test('a login wall stops the checks of its own site, and no other site\'s', async t => {
