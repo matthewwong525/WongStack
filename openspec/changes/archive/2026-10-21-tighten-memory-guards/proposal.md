@@ -79,3 +79,4 @@ None.
 - **2026-10-21** — Archive checkpoint: built; the second look found three fixes (the dream accepted non-UTC or unreadable dates, old unowned runs reached every schedule, and a teammate could read everyone's run records), all fixed with tests, the last by the person's choice; 228 tests and the local checks pass; `0009` applied to the live store before merging; archived for ship as 43.20.0.
 - **2026-10-21** — Renumbered 43.21.0: two other releases reached main first (43.19.1, 43.20.0).
 - **2026-10-21** — Renumbered 44.1.0 after main's deploy recovered at 44.0.2; merged main's split of preview sign-in (both cloudflare-provisioning requirements and both provision test changes kept).
+- **2026-10-21** — Renumbered 44.2.0 after main's deploy-key fix (44.1.0) landed; the preview build's staging auth failure was that change's to fix.

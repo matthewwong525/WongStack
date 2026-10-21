@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## 44.1.0 — Memory guards hold against crafted searches, old keys and future dates
+## 44.2.0 — Memory guards hold against crafted searches, old keys and future dates
 
 - **A search can't reach notes you aren't allowed to see.** However a teammate writes a memory search, it looks only through shared team notes and their own. Before, a hand-written search could probe, word by word, what someone else's private notes said.
 - **Your start-of-chat summary shows only your own background run.** Its run line is one short line within the summary's size, and a broken run record is left out instead of blanking the summary. When your next memory tidy-up is due is counted from your own runs too. A teammate's own memory lookups see only their own runs.
