@@ -56,7 +56,8 @@ export function People(props: ViewProps) {
     {removing && <Confirm title={`Remove ${removing.email}?`} action="Remove access" pending={pending}
       onConfirm={() => save('people', { email: removing.email, removed: true })} onCancel={() => setRemoving(null)}>
       {status.environment === 'live'
-        ? "They are blocked at once and can no longer download the project. Everyone is signed out and signs in again. This can't be undone. A copy of the project already on their device stays there. Access given where the project is kept is removed there."
+        ? `They are blocked at once and can no longer download the project. ${status.started ? 'Everyone is signed out and signs in again.'
+          : 'Once Access setup finishes, they leave the sign-in list, and everyone is signed out and signs in again.'} This can't be undone. A copy of the project already on their device stays there. Access given where the project is kept is removed there.`
         : 'They leave the practice list. The real sign-in list is not touched.'}
       {isAdmin(status, removing) && ' They stop managing Access too.'}
     </Confirm>}

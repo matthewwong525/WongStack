@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (patch) — A removed person is blocked before Access setup finishes
+
+- **Removed means blocked at once, even before setup finishes.** On a live app whose Access setup isn't finished, a person you remove is now refused on their next app page, app request or memory request. Before, they kept every app until setup finished. Everyone else still keeps every app until then, and adding them back gives every app back.
+- **The remove box says what waits.** Before setup finishes, it says they leave the sign-in list, and everyone is signed out, once Access setup finishes. After setup, it reads as before.
+
+**Updating.** Nothing to do by hand.
+
 ## 43.18.1 — The browser types into the right box
 
 - **Your answers land in the box you meant.** When a payment box inside a page has boxes with the same names as the page's own, such as *Email* and *Full name*, the assistant's browser now labels each one for itself. Before, your email and name could land in the payment box and tick its *Save my information* for you.
