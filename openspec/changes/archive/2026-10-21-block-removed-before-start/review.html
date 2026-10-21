@@ -11,7 +11,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · block-removed-before-start</title>
+<title>Review · 2026-10-21-block-removed-before-start</title>
 <style>
   /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
    look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
@@ -360,11 +360,11 @@
 })();
 </script>
 </head>
-<body data-change="block-removed-before-start">
+<body data-change="2026-10-21-block-removed-before-start">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>block-removed-before-start</h1>
+  <h1>2026-10-21-block-removed-before-start</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. <span class="copies">Saving a note copies all your notes.</span> Open a drawing and tap it to see it full screen.</p>
@@ -401,6 +401,7 @@
 <li class="decision card" id="decision-2" data-note="decision-2" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-21</p>Assumed: the check keys on the saved <i>removed</i> status, because only a removal writes it, so nobody else is locked out before setup and the pre-start promise to people never added still holds.</li>
 <li class="decision card" id="decision-3" data-note="decision-3" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-21</p>Assumed: also reword the remove box before setup finishes, because the sign-in list and sign-out really do wait for setup; cheap to change.</li>
 <li class="decision card" id="decision-4" data-note="decision-4" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-21</p>Assumed: a patch release, because it fixes a broken promise and adds nothing new.</li>
+<li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-21</p>Archive checkpoint: built; the second look found nothing to fix. The deny moved into a <code>refusedOnceStarted</code> helper to stay under the lint complexity limit, and <code>management.test.ts</code> was updated for the new pre-start denial. Local checks passed (one unrelated <code>Welcome.test.tsx</code> timeout under load passed on rerun). Archived for ship as 43.19.1.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

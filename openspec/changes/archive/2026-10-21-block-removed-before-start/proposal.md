@@ -1,6 +1,6 @@
 # Proposal
 
-**Status:** planned
+**Status:** ready-to-ship
 **Branch:** nifty-panda
 **Open questions:** none
 
@@ -64,3 +64,4 @@ None.
 - **2026-10-21** — Assumed: the check keys on the saved *removed* status, because only a removal writes it, so nobody else is locked out before setup and the pre-start promise to people never added still holds.
 - **2026-10-21** — Assumed: also reword the remove box before setup finishes, because the sign-in list and sign-out really do wait for setup; cheap to change.
 - **2026-10-21** — Assumed: a patch release, because it fixes a broken promise and adds nothing new.
+- **2026-10-21** — Archive checkpoint: built; the second look found nothing to fix. The deny moved into a `refusedOnceStarted` helper to stay under the lint complexity limit, and `management.test.ts` was updated for the new pre-start denial. Local checks passed (one unrelated `Welcome.test.tsx` timeout under load passed on rerun). Archived for ship as 43.19.1.
