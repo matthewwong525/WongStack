@@ -3,6 +3,10 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 44.0.1 — Recover a preview whose staging rebuild was cut off
+
+- **A preview that says *Access unavailable* everywhere after a walk** had its staging rebuild cut off. The [staging walkthrough](wiki/development/staging-walkthrough.md) now says to rerun the rebuild.
+
 ## 44.0.0 — Previews get their own sign-in and keys
 
 - **A preview can't act as the live app.** Previews run changes nobody has published yet, so they now have their own private app. A sign-in made on a preview no longer opens the live app, its memory or its keys. The same people sign in to both: when you add or remove someone in Access, both lists change together.
