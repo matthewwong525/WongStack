@@ -6,7 +6,8 @@ import { connect } from 'node:net';
 import { basename, dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { boxAt, boxChanged, boxesIn, CAMOFOX, googleResults, leftPage, NO_REF_NOTE, relabel, sameSite, serverEnv, sessionName, targetOf, valueIn } from '../../.agents/skills/browser/scripts/browse.mjs';
+import { JSDOM } from 'jsdom';
+import { boxAt, boxChanged, boxesIn, CAMOFOX, googleResults, leftPage, MARK_SCRIPT, NO_REF_NOTE, relabel, sameSite, SECRETS_SCRIPT, fieldScript, hideSecrets, joinPieces, serverEnv, sessionName, targetOf, valueIn } from '../../.agents/skills/browser/scripts/browse.mjs';
 import { hostOf, readLogins, writeLogins } from '../../.agents/skills/browser/scripts/logins.mjs';
 import { localProxyEnv } from '../../.agents/skills/browser/scripts/server.mjs';
 import { BROWSE_ENV, fakeCamofox } from './fixtures/fake-camofox.mjs';
@@ -290,13 +291,14 @@ test('each command reaches its own route with the session\'s tab, as the person'
     ['POST /select', { userId: 'me', ref: 'e3', option: 'Large' }],
     ['POST /evaluate', { userId: 'me', expression: 'location.href' }],
     ['POST /evaluate', { userId: 'me', expression: 'document.querySelectorAll("#cart li").length' }],
-    ['POST /evaluate', { userId: 'me', expression: '(field => field && (field.tagName === \'SELECT\' ? field.selectedOptions[0]?.label ?? \'\' : field.value))(document.querySelector("#name")) ?? null' }],
+    ['POST /evaluate', { userId: 'me', expression: fieldScript('#name') }],
     ['POST /select', { userId: 'me', selector: '#month', option: '03 - March' }],
-    ['POST /evaluate', { userId: 'me', expression: '(field => field && (field.tagName === \'SELECT\' ? field.selectedOptions[0]?.label ?? \'\' : field.value))(document.querySelector("#month")) ?? null' }],
+    ['POST /evaluate', { userId: 'me', expression: fieldScript('#month') }],
   ]);
 
+  // A main-page ref at its place: camofox numbers the main page in order.
   f.camofox.set('snapshot', '- textbox "Card number" [e1]: 4111\n- combobox "Expiry month" [e2]:\n  - option "02 - February"\n  - option "03 - March" [selected]');
-  assert.equal(on('get', 'value', 'e1'), '4111\n');
+  assert.equal(on('get', 'value', 'e1'), '[hidden]\n', 'a card number is never read back');
   assert.equal(on('get', 'value', '@e2'), '03 - March\n', 'a dropdown\'s picked choice');
   const missing = f.run('get', 'value', 'e99', '--session', 'a');
   assert.equal(missing.status, 1);
@@ -305,12 +307,45 @@ test('each command reaches its own route with the session\'s tab, as the person'
   assert.equal(f.run('get', 'value', '#gone', '--session', 'a').stdout, 'BROWSE_ERROR=no field #gone on the page\n');
 });
 
-test('snapshot prints the address and the whole page, every chunk of a long one', t => {
+test('snapshot and get value hide a filled secret box, by its name or by a secret value the page holds', t => {
+  const f = fixture(t);
+  ok(f, 'open', SHOP, '--session', 'a');
+  f.camofox.set('snapshot', '- textbox "Email" [e1]: jo@example.com\n- textbox "Password" [e2]: hunter2\n- textbox "Shown" [e3]: Vault-7781');
+  f.camofox.set('secrets.json', ['Vault-7781']);
+  assert.equal(ok(f, 'snapshot', '--session', 'a'), `BROWSE_URL=${SHOP}\n- textbox "Email" [e1]: jo@example.com\n- textbox "Password" [e2]: [hidden]\n- textbox "Shown" [e3]: [hidden]\n`);
+  assert.equal(ok(f, 'get', 'value', 'e2', '--session', 'a'), '[hidden]\n');
+  assert.equal(ok(f, 'get', 'value', 'e3', '--session', 'a'), '[hidden]\n');
+  assert.equal(ok(f, 'get', 'value', 'e1', '--session', 'a'), 'jo@example.com\n');
+  const reads = f.camofox.requests().filter(request => request.path.endsWith('/evaluate')).map(request => request.body.expression);
+  assert.ok(reads.length && reads.every(expression => expression === SECRETS_SCRIPT), 'one read of the secret values per reading');
+});
+
+test('snapshot prints the address and a long page whole, a secret box cut between pieces hidden', t => {
   const f = fixture(t);
   ok(f, 'open', SHOP);
-  f.camofox.set('snapshot', '- heading "Part one"');
-  f.camofox.set('snapshot-more', '- heading "Part two"');
-  assert.equal(ok(f, 'snapshot'), `BROWSE_URL=${SHOP}\n- heading "Part one"- heading "Part two"\n`);
+  // camofox cuts at character 74,800 and 149,600: inside the password, then inside the email.
+  const password = '- textbox "Password" [e3]: fake-trial-123';
+  const email = '- textbox "Email" [e1]: jo@example.com';
+  const first = `- heading "Top"\n- text: ${'a'.repeat(74_800 - 5 - password.indexOf('fake') - 25)}\n`;
+  const second = `${password}\n- text: ${'b'.repeat(149_596 - first.length - password.length - 10 - email.indexOf('jo@'))}\n`;
+  const page = `${first}${second}${email}\n- text: ${'c'.repeat(9000)}\n- link "Next page" [e9]`;
+  assert.deepEqual([page.slice(74_795, 74_805), page.slice(149_596, 149_604)], ['fake-trial', 'jo@examp'], 'the cuts land in the boxes');
+  f.camofox.set('snapshot', page);
+  const out = ok(f, 'snapshot');
+  assert.equal(out, `BROWSE_URL=${SHOP}\n${page.replace('fake-trial-123', '[hidden]')}\n`);
+  assert.ok(!/fake|trial|truncated/.test(out), 'no part of the password, and no piece marker');
+  const pieces = f.camofox.requests().filter(request => request.path.endsWith('/snapshot') && request.query.includes('offset'));
+  assert.deepEqual(pieces.map(request => new URLSearchParams(request.query).get('offset')), ['74800', '149600']);
+});
+
+test('joinPieces refuses pieces it can not join exactly, never joining them raw', () => {
+  const tail = 'e'.repeat(10);
+  const marker = end => `\n[... truncated at char ${end} of 30. Call snapshot with offset=${end} to see more. Pagination links below. ...]\n`;
+  const whole = `${'a'.repeat(12)}${'b'.repeat(8)}${tail}`;
+  const firstPiece = { snapshot: `${'a'.repeat(12)}${marker(12)}${tail}`, hasMore: true, nextOffset: 12, totalChars: 30 };
+  assert.equal(joinPieces([firstPiece, { snapshot: `${'b'.repeat(8)}ee\n${tail}`, hasMore: false, totalChars: 30 }]), whole, 'the last part overlaps the end');
+  assert.throws(() => joinPieces([{ ...firstPiece, snapshot: `${'a'.repeat(12)}\n[cut]\n${tail}` }, { snapshot: `\n${tail}`, totalChars: 30 }]), /can not join/);
+  assert.throws(() => joinPieces([firstPiece, { snapshot: `${'b'.repeat(3)}\n${tail}`, totalChars: 30 }]), /can not join/, 'a gap before the end');
 });
 
 test('screenshot prints a private temp path, and none when --if-changed finds the same picture', t => {
@@ -518,6 +553,7 @@ test('login types a saved login where the agent pointed, and says accepted once 
     ['POST /type', { userId: 'me', ref: 'e1', text: USERNAME }],
     ['POST /evaluate', { userId: 'me', expression: 'location.href' }],
     ['POST /type', { userId: 'me', ref: 'e2', text: PASSWORD }],
+    ['POST /evaluate', { userId: 'me', expression: MARK_SCRIPT }],
     ['POST /press', { userId: 'me', key: 'Enter' }],
     ['POST /evaluate', { userId: 'me', expression: 'location.href' }],
     ['POST /sessions/me/cookies', { cookies: [] }],
@@ -549,6 +585,11 @@ test('login says rejected when the page stays, typed for a step with no password
   assert.equal(rejected.status, 0);
   assert.ok(!f.camofox.calls().includes('POST /sessions/me/cookies'), 'a rejected login saves nothing');
   assertNoSecret(rejected.stdout + rejected.stderr, 'the output');
+
+  f.camofox.set('snapshot', `- textbox "Email" [e1]\n- textbox "Shown" [e2]: ${PASSWORD}`);
+  const shown = ok(f, 'snapshot', '--session', 'a');
+  assert.equal(shown, `BROWSE_URL=${SHOP}?error=wrong-password\n- textbox "Email" [e1]\n- textbox "Shown" [e2]: [hidden]\n`, 'the box the login marked stays hidden as plain text');
+  assertNoSecret(shown, 'a reading after the login');
 });
 
 test('login types nothing on a site other than the login\'s own, and a page that moves after the email gets no password', t => {
@@ -722,6 +763,9 @@ test('valueIn reads a text box\'s text, under its placeholder too, and a dropdow
     '- textbox "Email" [e6]:',
     '  - /placeholder: you@example.com',
     '  - text: jo@example.com',
+    '- combobox "Country" [e7]:',
+    '  - /placeholder: Search',
+    '  - text: Canada',
   ].join('\n');
   assert.equal(valueIn(snapshot, 'e1'), 'Jo Smith');
   assert.equal(valueIn(snapshot, 'e2'), '', 'an empty box');
@@ -729,7 +773,112 @@ test('valueIn reads a text box\'s text, under its placeholder too, and a dropdow
   assert.equal(valueIn(snapshot, 'e4'), '', 'nothing marked as picked');
   assert.equal(valueIn(snapshot, 'e5'), 'Markham');
   assert.equal(valueIn(snapshot, 'e6'), 'jo@example.com', 'a box with a placeholder shows its text below it');
+  assert.equal(valueIn(snapshot, 'e7'), 'Canada', 'a typed-in dropdown too');
   assert.equal(valueIn(snapshot, 'e9'), null);
+  const placeheld = '- textbox "Email" [e1]:\n  - /placeholder: you@example.com\n  - text: jo@example.com\n- textbox "Name" [e2]:\n  - /placeholder: Jo';
+  assert.equal(valueIn(placeheld, 'e1'), 'jo@example.com', 'a box whose placeholder differs from its name holds its text on a child line');
+  assert.equal(valueIn(placeheld, 'e2'), '', 'an empty box with a placeholder');
+});
+
+test('hideSecrets hides a filled password, card, expiry, code, or secret value, and nothing else', () => {
+  const snapshot = [
+    '- textbox "Password" [e1]: fake-trial-123',
+    '- textbox "Card number" [e2]: 4111 1111 1111 1111',
+    '- textbox "Expiration date (MM / YY)" [e3]: 03 / 28',
+    '- spinbutton "One-time code" [e4]: "123456"',
+    '- textbox "Promo" [e5]: "Vault 7781"',
+    '- textbox "Email" [e6]: jo@example.com',
+    '- combobox "Expiry month" [e7]:',
+    '  - option "03 - March" [selected]',
+    '- textbox "Password" [e8]',
+    '- searchbox "Shipping notes" [e9] [disabled]: leave at door',
+    '- text: fake-trial-123',
+  ].join('\n');
+  assert.equal(hideSecrets(snapshot, ['Vault  7781', '', '  ']), [
+    '- textbox "Password" [e1]: [hidden]',
+    '- textbox "Card number" [e2]: [hidden]',
+    '- textbox "Expiration date (MM / YY)" [e3]: [hidden]',
+    '- spinbutton "One-time code" [e4]: [hidden]',
+    '- textbox "Promo" [e5]: [hidden]',
+    '- textbox "Email" [e6]: jo@example.com',
+    '- combobox "Expiry month" [e7]:',
+    '  - option "03 - March" [selected]',
+    '- textbox "Password" [e8]',
+    '- searchbox "Shipping notes" [e9] [disabled]: leave at door',
+    '- text: fake-trial-123',
+  ].join('\n'), 'a matched value under a plain name hides; an empty box, a dropdown, and page text read as given');
+  assert.equal(valueIn(hideSecrets(snapshot), 'e7'), '03 - March', 'a dropdown\'s pick still reads back');
+  assert.equal(hideSecrets('- textbox [e1]: "bad \\q"', ['bad \\q']), '- textbox [e1]: [hidden]', 'a quote JSON can not read is compared inside its quotes');
+});
+
+test('hideSecrets hides a value on a box\'s child line, and a box line Playwright quotes', () => {
+  const placeheld = [
+    '- textbox "Password" [e3]:',
+    '  - /placeholder: Enter your password',
+    '  - text: fake-trial-123',
+    '- textbox "Promo" [e4]:',
+    '  - /placeholder: Code',
+    '  - text: Vault-7781',
+    '- textbox "Email" [e5]:',
+    '  - /placeholder: you@example.com',
+    '  - text: jo@example.com',
+    '- text: fake-trial-123',
+  ].join('\n');
+  const hidden = hideSecrets(placeheld, ['Vault-7781']);
+  assert.equal(hidden, placeheld.replace('  - text: fake-trial-123', '  - text: [hidden]').replace('Vault-7781', '[hidden]'));
+  assert.equal(valueIn(hidden, 'e3'), '[hidden]');
+  assert.equal(valueIn(hidden, 'e5'), 'jo@example.com');
+  // camofox adds no ref to a quoted line; a ref there still hides.
+  assert.equal(hideSecrets([
+    `- 'textbox "Password: case-sensitive"': fake-trial-123`,
+    `- 'textbox "Password: case-sensitive"' [e3]: fake-trial-123`,
+    `- 'textbox "Owner''s card number {main}" [disabled]':`,
+    '  - /placeholder: 0000 0000 0000 0000',
+    '  - text: 4111 1111 1111 1111',
+    `- 'textbox "Note: \`gift\`"': fake-trial-123`,
+    `- 'textbox "Note: \`gift\`"': happy birthday`,
+    `- textbox "Owner's name" [e7]: Jo`,
+  ].join('\n'), ['fake-trial-123']), [
+    `- 'textbox "Password: case-sensitive"': [hidden]`,
+    `- 'textbox "Password: case-sensitive"' [e3]: [hidden]`,
+    `- 'textbox "Owner''s card number {main}" [disabled]':`,
+    '  - /placeholder: 0000 0000 0000 0000',
+    '  - text: [hidden]',
+    `- 'textbox "Note: \`gift\`"': [hidden]`,
+    `- 'textbox "Note: \`gift\`"': happy birthday`,
+    `- textbox "Owner's name" [e7]: Jo`,
+  ].join('\n'));
+});
+
+/** A page made of `html`, its same-origin frame holding `frame`, for the scripts the browser runs. */
+function domOf(html, frame = '') {
+  const dom = new JSDOM(html, { runScripts: 'outside-only', url: 'https://shop.example.com/' });
+  const inner = dom.window.document.querySelector('iframe');
+  if (inner) inner.contentDocument.body.innerHTML = frame;
+  return dom.window;
+}
+
+test('the page scripts find secret values in frames and shadow roots, read a secret field as hidden, and mark the focused box', () => {
+  const page = domOf(`<input type="password" value="pw-1"><input autocomplete="section-pay cc-number" value="4111">
+    <select autocomplete="cc-exp-month"><option selected>03</option></select><input name="email" value="jo@example.com">
+    <input type="password" value=""><div id="host"></div><iframe></iframe>`, '<input autocomplete="one-time-code" value="123456">');
+  page.document.querySelector('#host').attachShadow({ mode: 'open' }).innerHTML = '<input data-wong-hidden value="shown-pw">';
+  assert.deepEqual([...page.eval(SECRETS_SCRIPT)], ['pw-1', '4111', 'shown-pw', '123456']);
+
+  const fields = domOf(`<input id="password" type="password" value="fake-trial-123"><label>PIN <input id="pin" value="0000"></label>
+    <input id="code" aria-label="Verification code" value="77"><input id="user" value="tomsmith"><input id="empty" type="password">
+    <span id="l">Card number</span><input id="cc" aria-labelledby="x l" value="4111">
+    <select id="month" autocomplete="cc-exp-month"><option>02</option><option selected>03</option></select>`);
+  const read = selector => fields.eval(fieldScript(selector));
+  assert.deepEqual(['#password', '#pin', '#code', '#cc', '#user', '#empty', '#month', '#gone'].map(read), ['[hidden]', '[hidden]', '[hidden]', '[hidden]', 'tomsmith', '', '03', null]);
+
+  const login = domOf('<input id="user"><iframe></iframe>', '<input id="pw" type="text" value="typed-pw">');
+  const frame = login.document.querySelector('iframe').contentDocument;
+  frame.querySelector('#pw').focus();
+  login.eval(MARK_SCRIPT);
+  assert.ok(frame.querySelector('#pw').hasAttribute('data-wong-hidden'), 'the focused box inside a same-origin frame is marked');
+  assert.deepEqual([...login.eval(SECRETS_SCRIPT)], ['typed-pw']);
+  assert.doesNotThrow(() => domOf('<p></p>').eval(MARK_SCRIPT), 'with nothing focused, the body is marked and nothing breaks');
 });
 
 test('googleResults names Google\'s results page as camofox does, and nothing else', () => {
@@ -858,6 +1007,19 @@ test('boxAt reads the match camofox\'s click and focus both take, and nothing wh
   assert.deepEqual(boxAt(doc(box(false, { size: 0 }), box(true)), '.agree, #x', checks), ['checkbox', '', false], 'a selector list stays as given');
 });
 
+test('a filled card box in a payment frame stays hidden under its renumbered ref', t => {
+  const f = fixture(t);
+  ok(f, 'open', SHOP);
+  f.camofox.set('snapshot', CHECKOUT.replace('"Card number" [e7]', '"Card number" [e7]: 4242 4242 4242 4242').replace('"CVC" [e9]', '"CVC" [e9]: "123"'));
+  f.camofox.set('refs-count', '9');
+  const out = ok(f, 'snapshot');
+  assert.match(out, /^ {2}- textbox "Card number" \[e7\]: \[hidden\]$/m, 'a cross-site frame, hidden by its name');
+  assert.match(out, /^ {2}- textbox "CVC" \[e9\]: \[hidden\]$/m);
+  assert.match(out, /^ {2}- textbox "Email" \[e4\]: zq-link@mail\.example$/m, 'other frame boxes read as given');
+  assert.ok(!/4242|123/.test(out));
+  assert.equal(ok(f, 'get', 'value', 'e7'), '[hidden]\n');
+});
+
 test('snapshot prints a frame page\'s renumbered refs, and get value reads the frame box by its own ref', t => {
   const f = fixture(t);
   ok(f, 'open', SHOP);
@@ -888,7 +1050,8 @@ test('a tick box that ticks on click takes one click and one read; a button take
   const f = boxPage(t);
   let before = f.camofox.calls().length;
   assert.equal(ok(f, 'click', 'e3'), 'BROWSE_DONE=click\n');
-  assert.deepEqual(f.camofox.calls().slice(before), ['POST /tabs/:tab/click', 'GET /tabs/:tab/snapshot']);
+  // A reading is the page text and one read of its secret values.
+  assert.deepEqual(f.camofox.calls().slice(before), ['POST /tabs/:tab/click', 'GET /tabs/:tab/snapshot', 'POST /tabs/:tab/evaluate']);
   assert.equal(f.camofox.tabs()[0].ticked, true);
   assert.equal(ok(f, 'click', 'e3'), 'BROWSE_DONE=click\n', 'unticking is a change too');
   assert.equal(f.camofox.tabs()[0].ticked, false);
@@ -907,8 +1070,8 @@ test('a tick box that ignores the click but takes Space ends ticked, by ref or s
   let before = f.camofox.requests().length;
   assert.equal(ok(f, 'click', 'e3'), 'BROWSE_DONE=click\n');
   const sent = f.camofox.requests().slice(before);
-  assert.deepEqual(sent.map(({ method, path }) => `${method} ${path.replace(/\/tabs\/[^/]+/, '/tabs/:tab')}`), ['POST /tabs/:tab/click', 'GET /tabs/:tab/snapshot', 'POST /tabs/:tab/type', 'POST /tabs/:tab/press', 'GET /tabs/:tab/snapshot']);
-  assert.deepEqual([sent[2].body, sent[3].body], [{ userId: 'me', ref: 'e3', text: '', mode: 'keyboard' }, { userId: 'me', key: 'Space' }]);
+  assert.deepEqual(sent.map(({ method, path }) => `${method} ${path.replace(/\/tabs\/[^/]+/, '/tabs/:tab')}`), ['POST /tabs/:tab/click', 'GET /tabs/:tab/snapshot', 'POST /tabs/:tab/evaluate', 'POST /tabs/:tab/type', 'POST /tabs/:tab/press', 'GET /tabs/:tab/snapshot', 'POST /tabs/:tab/evaluate']);
+  assert.deepEqual([sent[3].body, sent[4].body], [{ userId: 'me', ref: 'e3', text: '', mode: 'keyboard' }, { userId: 'me', key: 'Space' }]);
   assert.equal(f.camofox.tabs()[0].ticked, true);
 
   before = f.camofox.calls().length;
@@ -934,7 +1097,7 @@ test('a ref that names another box after the click is not pressed: camofox renum
   f.camofox.set('click-snapshot', '- link "Shop" [e1]\n- button "Pay" [e2]\n- checkbox "Save my information" [e3]');
   const before = f.camofox.calls().length;
   assert.equal(ok(f, 'click', 'e3'), 'BROWSE_DONE=click\n');
-  assert.deepEqual(f.camofox.calls().slice(before), ['POST /tabs/:tab/click', 'GET /tabs/:tab/snapshot'], 'no type, no Space');
+  assert.deepEqual(f.camofox.calls().slice(before), ['POST /tabs/:tab/click', 'GET /tabs/:tab/snapshot', 'POST /tabs/:tab/evaluate'], 'no type, no Space');
 });
 
 test('a tab file from before tick boxes were kept, or a page opened since, clicks as before', t => {

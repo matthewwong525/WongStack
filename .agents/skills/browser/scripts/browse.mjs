@@ -84,15 +84,91 @@ export function valueIn(snapshot, ref) {
   if (inline) return inline[1].replace(/^"(.*)"$/, '$1');
   const depth = lines[at].search(/\S/);
   // A box with a placeholder shows its text as a child line instead of after its ref.
-  const typed = /^\s*-\s+(?:textbox|searchbox|combobox)\b/.test(lines[at]);
+  const box = boxOf(lines[at]);
   for (const line of lines.slice(at + 1)) {
     if (line.search(/\S/) <= depth) break;
+    const text = box && valueLine(line, box);
+    if (text) return text[2].replace(/^"(.*)"$/, '$1');
     const picked = /option "([^"]*)".*\[selected\]/.exec(line);
     if (picked) return picked[1];
-    const text = typed && /^\s*- text: (.*)$/.exec(line);
-    if (text) return text[1].replace(/^"(.*)"$/, '$1');
   }
   return '';
+}
+
+/** A secret box's name, in the words sites use: a password, PIN, card, or one-time code. */
+const SECRET_NAME = /password|passcode|passwort|\bpin\b|card (?:number|no\b)|\bcvc\b|\bcvv\b|\bcsc\b|security code|expir|one-time|verification code|\botp\b/i;
+/** A secret box by its kind, or by the mark `login` leaves on the box it typed a password into. */
+const SECRET_FIELDS = ['input[type=password]', ...['cc-number', 'cc-csc', 'cc-exp', 'cc-exp-month', 'cc-exp-year', 'one-time-code'].map(kind => `[autocomplete~="${kind}"]`), '[data-wong-hidden]'].join(', ');
+/** A snapshot line: its indent, its start quoted or bare, and its value, or a lone `:` when it sits on a child line. */
+const LINE = /^(\s*)- (?:'((?:[^']|'')*)'(?: \[[^\]]*\])*|([^'].*?))(?:: (.*)|(:))?$/;
+/** A box's start: its role, its name, and its marks, camofox's ref among them. A dropdown is a combobox too, but its
+ * pick sits on an option line, which no rule here hides. */
+const BOX_KEY = /^(?:textbox|searchbox|spinbutton|combobox)(?: "((?:[^"\\]|\\.)*)")?(?: \[[^\]]*\])*$/;
+/** The values of the page's secret boxes, dropdowns left out, in the page, same-origin frames, and shadow roots. */
+export const SECRETS_SCRIPT = `(() => { const found = []; const walk = root => { for (const field of root.querySelectorAll(${JSON.stringify(SECRET_FIELDS)})) if (field.tagName !== 'SELECT' && field.value) found.push(field.value); for (const inner of root.querySelectorAll('*')) { if (inner.shadowRoot) walk(inner.shadowRoot); try { if (inner.contentDocument) walk(inner.contentDocument); } catch { /* another site's frame */ } } }; walk(document); return found; })()`;
+/** Marks the box a password was just typed into, the focused one, so it stays secret once the site shows it as text. */
+export const MARK_SCRIPT = `(() => { let field = document.activeElement; for (let inner; (inner = field?.contentDocument?.activeElement ?? field?.shadowRoot?.activeElement);) field = inner; field?.setAttribute('data-wong-hidden', ''); })()`;
+/** Reads one field by selector: a dropdown's picked choice, `[hidden]` for a filled secret box, else its text. */
+export const fieldScript = selector => `(field => field && (field.tagName === 'SELECT' ? field.selectedOptions[0]?.label ?? '' : field.value && (field.matches(${JSON.stringify(SECRET_FIELDS)}) || ${SECRET_NAME}.test([field.getAttribute('aria-label'), field.placeholder, field.title, ...(field.getAttribute('aria-labelledby') ?? '').split(/\\s+/).filter(Boolean).map(id => field.getRootNode().getElementById?.(id)?.textContent), ...[...(field.labels ?? [])].map(label => label.textContent)].join(' '))) ? '[hidden]' : field.value))(document.querySelector(${JSON.stringify(selector)})) ?? null`;
+
+/** A box's text as the snapshot quotes it, unquoted, with its spaces as Playwright collapses them. */
+function plain(text) {
+  let unquoted = text;
+  if (/^".*"$/.test(text)) try { unquoted = JSON.parse(text); } catch { unquoted = text.slice(1, -1); }
+  return unquoted.replace(/\s+/g, ' ').trim();
+}
+
+/** A box line's indent, name, and inline value, else null. Playwright single-quotes a start whose name holds `: `,
+ * ` #`, `{`, `}` or a backtick, and camofox gives that line no ref. */
+function boxOf(line) {
+  const parts = LINE.exec(line);
+  const box = parts && BOX_KEY.exec(parts[3] ?? parts[2].replaceAll("''", "'"));
+  return box ? { indent: parts[1].length, name: box[1] ?? '', value: parts[4], children: Boolean(parts[5]) } : null;
+}
+
+/** A box's value on its own child line, as Playwright prints it beside a `/placeholder` line. */
+const valueLine = (line, box) => line.search(/\S/) === box.indent + 2 ? /^(\s*- text: )(.+)$/.exec(line) : null;
+
+/** The snapshot with each filled secret box's value shown as `[hidden]`: a box named like one, or one holding a
+ * value in `secretValues`. Empty boxes, dropdown picks, and every other line read as given. */
+export function hideSecrets(snapshot, secretValues = []) {
+  const secrets = new Set(secretValues.map(plain).filter(Boolean));
+  const secret = (box, value) => SECRET_NAME.test(box.name) || secrets.has(plain(value));
+  const lines = snapshot.split('\n');
+  lines.forEach((line, at) => {
+    const box = boxOf(line);
+    if (box?.value && secret(box, box.value)) lines[at] = `${line.slice(0, -box.value.length)}[hidden]`;
+    for (let next = at + 1; box?.children && lines[next]?.search(/\S/) > box.indent; next++) {
+      const text = valueLine(lines[next], box);
+      if (text && secret(box, text[2])) lines[next] = `${text[1]}[hidden]`;
+    }
+  });
+  return lines.join('\n');
+}
+
+/** A long page whole again. Past 80,000 characters camofox sends a page in pieces, each its part, a marker, and the
+ * page's last 5,000 characters; a raw join would cut a line, a secret box's among them, past hiding. */
+export function joinPieces(pieces) {
+  const total = pieces[0].totalChars;
+  const unknown = () => new BrowseError('the browser sent a long page in pieces this script can not join');
+  let whole = '';
+  let tail = null;
+  for (const { snapshot: text = '', hasMore, nextOffset } of pieces) {
+    if (hasMore) {
+      const marker = `\n[... truncated at char ${nextOffset} of ${total}. Call snapshot with offset=${nextOffset} to see more. Pagination links below. ...]\n`;
+      const cut = nextOffset - whole.length;
+      if (text.slice(cut, cut + marker.length) !== marker || (tail !== null && text.slice(cut + marker.length) !== tail)) throw unknown();
+      tail = text.slice(cut + marker.length);
+      whole += text.slice(0, cut);
+    } else {
+      if (tail === null || !text.endsWith(`\n${tail}`)) throw unknown();
+      whole += text.slice(0, -tail.length - 1);
+      // The last part can stop short of the repeated end; the end finishes it.
+      whole += tail.slice(tail.length - (total - whole.length));
+    }
+  }
+  if (whole.length !== total) throw unknown();
+  return whole;
 }
 
 // A line's role and name as camofox reads them, its ref mark where camofox writes one, and a frame block's first line.
@@ -372,15 +448,13 @@ export function client(given, { retry = true, start = true } = {}) {
   const noteUrl = url => { const tab = readTab(); if (tab && url && tab.url !== url) writeTab({ ...tab, url }); return url; };
 
   const read = async tabId => {
-    let page = await json('GET', `/tabs/${tabId}/snapshot?userId=${USER}`);
-    let text = page.snapshot ?? '';
+    const pieces = [await json('GET', `/tabs/${tabId}/snapshot?userId=${USER}`)];
     // A long page comes in windows, each repeating its end, so its lines can't be counted as camofox counted them.
-    const refsCount = page.hasMore ? null : page.refsCount;
-    while (page.hasMore) {
-      page = await json('GET', `/tabs/${tabId}/snapshot?userId=${USER}&offset=${page.nextOffset}`);
-      text += page.snapshot ?? '';
-    }
-    return { url: page.url, snapshot: googleResults(page.url) ? text : relabel(text, refsCount) };
+    const refsCount = pieces[0].hasMore ? null : pieces[0].refsCount;
+    while (pieces.at(-1).hasMore) pieces.push(await json('GET', `/tabs/${tabId}/snapshot?userId=${USER}&offset=${pieces.at(-1).nextOffset}`));
+    const { url } = pieces.at(-1);
+    const text = pieces.length > 1 ? joinPieces(pieces) : pieces[0].snapshot ?? '';
+    return { url, snapshot: googleResults(url) ? text : relabel(text, refsCount) };
   };
   /** Waits until two reads a gap apart match, so a half-loaded page is not read as the page. */
   const settle = async tabId => {
@@ -410,7 +484,8 @@ export function client(given, { retry = true, start = true } = {}) {
     }
   };
   const act = (route, target, more = {}, options) => onTab(tabId => send('POST', `/tabs/${tabId}/${route}`, { userId: USER, ...targetOf(target), ...more }, options), { click: route === 'click' });
-  const evaluate = expression => onTab(async tabId => (await json('POST', `/tabs/${tabId}/evaluate`, { userId: USER, expression })).result);
+  const evaluateOn = async (tabId, expression) => (await json('POST', `/tabs/${tabId}/evaluate`, { userId: USER, expression })).result;
+  const evaluate = expression => onTab(tabId => evaluateOn(tabId, expression));
 
   const page = {
     session,
@@ -429,10 +504,12 @@ export function client(given, { retry = true, start = true } = {}) {
       }
       return (await newTab(url)).url;
     },
-    /** The page as text; the tab file keeps its tick boxes, so a click on one knows what it clicks. */
+    /** The page as text, every secret box's value hidden; `settle` alone reads it raw, to compare. The tab file keeps
+     * its tick boxes, so a click on one knows what it clicks. */
     async snapshot() {
-      const seen = await onTab(read);
-      writeTab({ ...readTab(), ...(seen.url && { url: seen.url }), refs: boxesIn(seen.snapshot) });
+      const { url, snapshot, secrets } = await onTab(async tabId => ({ ...(await read(tabId)), secrets: await evaluateOn(tabId, SECRETS_SCRIPT) }));
+      const seen = { url, snapshot: hideSecrets(snapshot, secrets ?? []) };
+      writeTab({ ...readTab(), ...(url && { url }), refs: boxesIn(seen.snapshot) });
       return seen;
     },
     /** Clicks; a tick box, radio, or switch that didn't change gets Space, as a person would press, then a stop. */
@@ -457,10 +534,12 @@ export function client(given, { retry = true, start = true } = {}) {
     resize: (width, height) => onTab(tabId => send('POST', `/tabs/${tabId}/viewport`, { userId: USER, width, height })),
     /** A use camofox counts, so it keeps an idle page open; it reads and changes nothing on the page. */
     keepAlive: () => evaluate('1'),
+    /** Marks the focused box as secret, as `login` does after typing a password. */
+    mark: () => evaluate(MARK_SCRIPT),
     async value(target) {
       const { ref, selector } = targetOf(target);
       // A dropdown reads as its picked choice's text, as a ref's snapshot shows it.
-      const value = ref ? valueIn((await page.snapshot()).snapshot, ref) : await evaluate(`(field => field && (field.tagName === 'SELECT' ? field.selectedOptions[0]?.label ?? '' : field.value))(document.querySelector(${JSON.stringify(selector)})) ?? null`);
+      const value = ref ? valueIn((await page.snapshot()).snapshot, ref) : await evaluate(fieldScript(selector));
       if (value === null) throw new BrowseError(`no field ${target} on the page`);
       return value;
     },
@@ -514,7 +593,11 @@ export async function login(page, name, { username, password, submit }) {
   if (username) await page.type(username, entry.username);
   // A page that moved after the email step gets no password.
   if (password && username && !onSite(await page.url())) return { result: 'wrong-site' };
-  if (password) await page.type(password, entry.password);
+  if (password) {
+    await page.type(password, entry.password);
+    // Best effort: a password box is secret by its kind anyway; the mark covers one a site later shows as text.
+    await page.mark().catch(() => {});
+  }
   await (submit ? page.click(submit) : page.press('Enter'));
   if (!password) return { result: 'typed' };
   for (const end = Date.now() + LOGIN_WAIT_MS; ;) {
