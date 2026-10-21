@@ -489,8 +489,8 @@ function skillNames(target) {
   return [...names].sort();
 }
 
-// The moves an install made before 19.0.0 may still need, from its layout (lstat
-// only) and its record. references/catch-up.md owns what each code asks of the plan.
+// The moves an install may still need, from its layout (lstat only, plus deploy.yml's secret name) and its
+// record. references/catch-up.md owns what each code asks of the plan.
 function catchUpNeeds(target, record, installedVersion, baseline) {
   const reasons = [];
   const at = path => kindAt(resolve(target, path));
@@ -519,6 +519,11 @@ function catchUpNeeds(target, record, installedVersion, baseline) {
   if (generated.length) reasons.push({ code: 'generated-openspec', paths: generated.map(name => `.claude/skills/${name}`) });
   if (below(installedVersion, [18, 0, 0]) && at('.github/workflows/deploy.yml') !== null) {
     reasons.push({ code: 'deploy-token', paths: ['.github/workflows/deploy.yml'] });
+  }
+  // Its deploy workflow reads the deploy key under the old name, where branch code runs: the update renames it.
+  const deploy = resolve(target, '.github/workflows/deploy.yml');
+  if (at('.github/workflows/deploy.yml') === 'file' && /secrets\.CLOUDFLARE_API_TOKEN\b/.test(readFileSync(deploy, 'utf8'))) {
+    reasons.push({ code: 'deploy-key-name', paths: ['.github/workflows/deploy.yml'] });
   }
   // Mini apps from before they moved into the main app: each one converts.
   if (at('mini-apps/apps') === 'dir') {

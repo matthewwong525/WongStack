@@ -53,6 +53,18 @@
 # the deployed staging Worker runs queue consumers and crons. See
 # wiki/stack/d1-pipeline.md.
 #
+# ── Where the deploy key is ───────────────────────────────────────────────────
+# GitHub Actions and the check runner build a branch with no key, then run THIS
+# file from the default branch's own checkout, with the key, on the build:
+#
+#   bash scripts/cf-deploy.sh --take-build <folder>
+#
+# keeps the checkout's config aside, copies in only the built files and the
+# build's redirect (and on a branch, its config and migrations), then checks
+# the build (wong_refuse_untrusted_build). Every later run here and in `cf-build.sh
+# --migrate` checks it again before any wrangler call. wrangler comes from
+# WONG_WRANGLER when set (wong_wrangler_command).
+#
 # Zero-config: no Worker name, environment id, or database id is baked in here.
 # The environment is always `staging`; everything else comes from the branch and
 # the wrangler config. Every repo ships this file byte-for-byte identical.
@@ -69,6 +81,17 @@ source "$SCRIPT_DIR/lib-wrangler-config.sh"
 
 wong_ci_branch "$ROOT"
 
+if [ "${1:-}" = "--take-build" ] && [ $# -eq 2 ]; then
+  wong_resolve_wrangler_config "$ROOT"
+  wong_config take-build "$2" "$(wong_build_mode)"
+  wong_refuse_untrusted_build cf-deploy
+  exit 0
+fi
+if [ $# -ne 0 ]; then
+  echo "usage: bash scripts/cf-deploy.sh [--take-build <built-repo-folder>]" >&2
+  exit 2
+fi
+
 # Local (non-CI) runs: deploy nothing.
 if [ -z "$BRANCH" ]; then
   echo "cf-deploy: not in CI — nothing deployed"
@@ -76,6 +99,11 @@ if [ -z "$BRANCH" ]; then
 fi
 
 wong_resolve_wrangler_config "$ROOT"
+
+# Fail closed, before any wrangler call or access check: a build taken in must
+# land where the default branch's config says. A no-op when none was taken.
+wong_refuse_untrusted_build cf-deploy
+wong_wrangler_command
 
 echo "cf-deploy: branch=$BRANCH (production branch: $PRODUCTION_BRANCH)"
 
@@ -99,7 +127,7 @@ if [ "$BRANCH" = "$PRODUCTION_BRANCH" ]; then
   fi
   node "$SCRIPT_DIR/check-private-access.mjs" --environment production
   DEPLOY_LOG=$(mktemp)
-  (cd "$APP_DIR" && npx wrangler deploy ${REPO_VAR[@]+"${REPO_VAR[@]}"}) 2>&1 | tee "$DEPLOY_LOG"
+  (cd "$APP_DIR" && "${WRANGLER[@]}" deploy ${REPO_VAR[@]+"${REPO_VAR[@]}"}) 2>&1 | tee "$DEPLOY_LOG"
   # Hand the live address to the workflow, which records it on the commit so
   # `/ship` can open the live app once after a release. Actions only.
   LIVE_URL=$(wong_production_url "$DEPLOY_LOG")
@@ -138,13 +166,13 @@ ALIAS=$(wong_preview_alias "$ALIAS" "$STAGING_NAME")
 node "$SCRIPT_DIR/check-private-access.mjs" --environment staging
 
 echo "cf-deploy: preview branch — deploying the staging Worker ($STAGING_NAME)"
-(cd "$APP_DIR" && npx wrangler deploy ${STAGING_ENV[@]+"${STAGING_ENV[@]}"})
+(cd "$APP_DIR" && "${WRANGLER[@]}" deploy ${STAGING_ENV[@]+"${STAGING_ENV[@]}"})
 
 # Must come *after* the deploy — see the header. A version can only be uploaded
 # against a Worker that already exists.
 echo "cf-deploy: uploading a staging version (alias: $ALIAS)"
 UPLOAD_LOG=$(mktemp)
-(cd "$APP_DIR" && npx wrangler versions upload ${STAGING_ENV[@]+"${STAGING_ENV[@]}"} --preview-alias "$ALIAS") 2>&1 \
+(cd "$APP_DIR" && "${WRANGLER[@]}" versions upload ${STAGING_ENV[@]+"${STAGING_ENV[@]}"} --preview-alias "$ALIAS") 2>&1 \
   | tee "$UPLOAD_LOG"
 
 # ── Publish the alias URL so something downstream can find it ─────────────────

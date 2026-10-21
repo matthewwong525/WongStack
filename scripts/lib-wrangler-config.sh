@@ -17,7 +17,7 @@
 # Sets: WRANGLER_CONFIG, APP_DIR, BUILD_DIR (see wong_resolve_wrangler_config);
 # BRANCH, PRODUCTION_BRANCH (see wong_ci_branch); STAGING_ENV (see
 # wong_staging_env_args); PROD_NAME, STAGING_NAME (see
-# wong_refuse_production_worker).
+# wong_refuse_production_worker); WRANGLER (see wong_wrangler_command).
 
 _WONG_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
@@ -55,7 +55,7 @@ wong_resolve_wrangler_config() {
 # `database_name`, or a comment from a key. Call wong_resolve_wrangler_config
 # first; the parser reads the same file.
 #
-# Usage: wong_config <worker-name|database-name|staging-database|has-d1|assets-dir> [environment]
+# Usage: wong_config <worker-name|database-name|staging-database|has-d1|assets-dir|routes|...> [environment]
 #   worker-name    the Worker wrangler will deploy. Production always comes from
 #                  the source config; an environment reads the build's generated
 #                  config when a plugin build redirected wrangler at one.
@@ -64,6 +64,14 @@ wong_resolve_wrangler_config() {
 #                  fails when staging binds production's database by name or id
 #   has-d1         `true` or `false`
 #   assets-dir     the static-assets folder of the last build (after a build only)
+#   routes         the routes production or the environment attaches, as JSON
+#   take-build <from> <production|staging>   keep this checkout's config
+#                  aside, then copy in the build at <from>: its built files and
+#                  redirect, plus a preview's config and migrations
+#   migrate-database  the staging D1 a migrate targets: the default branch's
+#                  own when this checkout took a build, else this config's
+#
+# The full list is the COMMANDS table in `lib-wrangler-config.mjs`.
 #
 # Prints the answer. On a config error (TOML, bad JSONC, a missing key) it prints
 # the reason and returns 1, so call it in an assignment under `set -e`.
@@ -163,6 +171,40 @@ wong_refuse_production_worker() {
     echo "$p:     for @cloudflare/vite-plugin builds"
   } >&2
   return 1
+}
+
+# Which Worker a taken build is for: `production` on the production branch,
+# else `staging`.
+#
+# Usage: wong_build_mode   (after wong_ci_branch)
+wong_build_mode() {
+  if [ "$BRANCH" = "$PRODUCTION_BRANCH" ]; then echo production; else echo staging; fi
+}
+
+# Fail closed on a build this checkout took with `cf-deploy.sh --take-build`:
+# the default branch's own config decides where it may land. Either way the
+# build must be a plugin build with its redirect in the app folder, no extra
+# Workers, no build command and no file outside the project. A preview must
+# also name main's staging Worker exactly, claim no route, and bind only main's
+# own staging databases; production must name main's production Worker and
+# keep its databases and routes. A
+# checkout that took no build, as on Workers Builds or a laptop, has nothing to
+# check. Prints why under `<prefix>:` and returns 1.
+#
+# Usage: wong_refuse_untrusted_build <prefix>   (after wong_ci_branch and wong_resolve_wrangler_config)
+wong_refuse_untrusted_build() {
+  wong_config refuse-untrusted-build "$(wong_build_mode)" >/dev/null && return 0
+  echo "$1: the default branch's deploy scripts refused this build, so nothing was migrated or deployed." >&2
+  return 1
+}
+
+# The wrangler every credentialed call runs: WONG_WRANGLER, the deploy job's own
+# install of the default branch's tools, when set; else `npx wrangler`. Expand
+# it as "${WRANGLER[@]}".
+#
+# Usage: wong_wrangler_command
+wong_wrangler_command() {
+  if [ -n "${WONG_WRANGLER:-}" ]; then WRANGLER=("$WONG_WRANGLER"); else WRANGLER=(npx wrangler); fi
 }
 
 # The preview alias for a branch or a name. An alias must be lowercase

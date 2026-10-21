@@ -146,6 +146,8 @@ A push to the published branch is still refused, so nothing skips the checks. A 
 
 The owner or an Admin who picks up a teammate's saved change with [`/continue`](../../.agents/skills/continue/SKILL.md#3-check-out-the-branch) sees its changed files first, before any of it runs on their computer.
 
+A saved branch never reaches the deploy key either: its own code builds with no key, and the published branch's scripts deploy the build ([where the deploy key is](github-actions.md#where-the-deploy-key-is)). A GitHub write collaborator can still reach it, so give a teammate this save access, not GitHub write access.
+
 The owner and Admins can also publish where the project is kept, with their own sign-in and [gates](../development/the-change-loop.md#the-gate). App login issues no repository credential or invitation and changes no personal GitHub login.
 
 ## When access is taken away

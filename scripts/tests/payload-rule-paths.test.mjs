@@ -66,8 +66,9 @@ test('shipped workflows and their local action receive every static file depende
     assert.ok(shipped(path), `${path} is referenced by installed CI but absent from the full payload`);
     if (checked.has(path)) return;
     checked.add(path);
-    // guard.yml checks the default branch out into `guard/` and runs its files from there.
-    const text = read(path).replace(/^\s*#.*$/gm, '').replaceAll('$GITHUB_WORKSPACE/guard/', '').replace(/(node-version-file:\s*)guard\//g, '$1');
+    // guard.yml and deploy.yml's deploy job check the default branch out into `guard/` or `trusted/` and run its files.
+    const text = read(path).replace(/^\s*#.*$/gm, '').replaceAll('$GITHUB_WORKSPACE/guard/', '').replace(/(node-version-file:\s*)guard\//g, '$1')
+      .replace(/(^|[\s"'])trusted\//gm, '$1');
     for (const match of text.matchAll(/node-version-file:\s*([^\s#]+)/g)) check(match[1]);
     for (const match of text.matchAll(/uses:\s*\.\/([^\s#]+)/g)) check(`${match[1]}/action.yml`);
     for (const match of text.matchAll(/(?:node|bash)\s+["']?(?:\$GITHUB_WORKSPACE\/)?((?:scripts|\.github)\/[\w./-]+\.(?:mjs|sh))/g)) check(match[1]);

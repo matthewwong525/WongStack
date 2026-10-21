@@ -66,23 +66,37 @@ dir=$(bash scripts/cf-build.sh --app-dir) || status=$?
 if [ "$status" -eq 3 ]; then echo "WONG_APP unconfigured"; exit 0; fi
 [ "$status" -eq 0 ]
 [ -d "$dir/node_modules" ] || (cd "$dir" && npm ci --no-audit --no-fund)
-if node -e "process.exit(require('$dir/package.json').scripts?.['build:app']?0:1)"; then (cd "$dir" && npm run build:app); else (cd "$dir" && npm run build); fi
+# A branch builds staging. cf-build.sh --build-only chooses it itself; the plain builds below, for a branch whose
+# scripts predate it, read it from here.
+if [ "$WONG_BRANCH" != main ]; then export CLOUDFLARE_ENV=staging; fi
+if ! node -e "process.exit(require('$dir/package.json').scripts?.['build:app']?0:1)"; then (cd "$dir" && npm run build)
+elif grep -q -- --build-only scripts/cf-build.sh; then CF_BRANCH="$WONG_BRANCH" CF_PRODUCTION_BRANCH=main bash scripts/cf-build.sh --build-only
+else (cd "$dir" && npm run build:app); fi
 echo "WONG_APP built"
 `;
 
-// The deploy stage's install: a fresh `npm ci` in a subshell that holds no Cloudflare credential, whatever
-// its name. Its own line, so the script tests can run it.
-export const INSTALL = `(cd "$dir" && unset $(env | sed -n 's/^\\(CLOUDFLARE_[A-Za-z0-9_]*\\)=.*/\\1/p') && npm ci --no-audit --no-fund)`;
-
+// The deploy stage runs main's own scripts and tools from a fresh /tmp/trusted, never a file in /workspace, which
+// the checks stage could change: the build is copied from there as data. No package's install script runs.
 const DEPLOY = `set -eu
-cd /workspace
-[ "$(git rev-parse HEAD)" = "$WONG_HEAD" ]
-export CF_BRANCH="$WONG_BRANCH" CF_PRODUCTION_BRANCH=main GITHUB_OUTPUT=/tmp/wong-output
+rm -rf /tmp/trusted
+git init -q /tmp/trusted
+cd /tmp/trusted
+ref=refs/heads/main
+if [ "$WONG_BRANCH" = main ]; then ref=$WONG_HEAD; fi
+GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=http.extraHeader GIT_CONFIG_VALUE_0="Authorization: Bearer $ARTIFACTS_TOKEN" git fetch -q --no-tags "$ARTIFACTS_REMOTE" "$ref"
+unset ARTIFACTS_TOKEN ARTIFACTS_REMOTE
+if [ "$WONG_BRANCH" = main ]; then [ "$(git rev-parse FETCH_HEAD)" = "$WONG_HEAD" ]; fi
+git checkout -q -f --detach FETCH_HEAD
+status=0
+dir=$(bash scripts/cf-build.sh --app-dir) || status=$?
+if [ "$status" -eq 3 ] || ! grep -q -- --take-build scripts/cf-deploy.sh; then echo "WONG_DEPLOY after-publish"; exit 0; fi
+[ "$status" -eq 0 ]
+export CF_BRANCH="$WONG_BRANCH" CF_PRODUCTION_BRANCH=main GITHUB_OUTPUT=/tmp/wong-output WONG_WRANGLER="$dir/node_modules/.bin/wrangler"
 : > "$GITHUB_OUTPUT"
-dir=$(bash scripts/cf-build.sh --app-dir)
-${INSTALL}
+(cd "$dir" && npm ci --ignore-scripts --no-audit --no-fund)
+bash scripts/cf-deploy.sh --take-build /workspace
 node scripts/cf-secrets.mjs check
-bash scripts/cf-build.sh
+bash scripts/cf-build.sh --migrate
 bash scripts/cf-deploy.sh
 sed 's/^/WONG_OUTPUT /' "$GITHUB_OUTPUT"
 `;
@@ -195,8 +209,10 @@ export async function runPipeline(params, ci, config) {
   if (app !== 'built') return { ...outcome, result: 'success', deployed: false, app };
 
   try {
-    const deployed = await stage(checked.runner, { name: 'deploy', command: DEPLOY, env, cloudflareCredentials: { accountId: config.account }, sourceControlCredentials: false, config: runnerConfig(BOUNDS.deployMs) }, retry);
+    const deployed = await stage(checked.runner, { name: 'deploy', command: DEPLOY, env, cloudflareCredentials: { accountId: config.account }, sourceControlCredentials: true, config: runnerConfig(BOUNDS.deployMs) }, retry);
     const logs = await readLogs(deployed.logs);
+    // Main's scripts predate taking a build, or main has no app yet: this commit previews once it is on main.
+    if (marked(logs, 'WONG_DEPLOY') === 'after-publish') return { ...outcome, result: 'success', deployed: false, app, deploy: 'after-publish' };
     const key = branch === 'main' ? 'production' : 'preview';
     const address = deployedAddress(logs, `${key}-url`);
     if (!address) throw new Error(`the deploy reported no ${key} address`);

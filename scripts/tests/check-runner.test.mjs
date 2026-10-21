@@ -1,13 +1,14 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import {
-  BOUNDS, deployedAddress, eventParams, INSTALL, interrupted, leaveTurn, marked, readLogs, runnerConfig, runPipeline, takeTurn,
+  BOUNDS, deployedAddress, eventParams, interrupted, leaveTurn, marked, readLogs, runnerConfig, runPipeline, takeTurn,
 } from '../check-runner/pipeline.mjs';
 import { runId } from '../check-runner/run-id.mjs';
+import { HUNTS_KEY, KEY, demoRepo, fakeTools, plant, wranglerCalls } from './fixtures/workflow.mjs';
 
 const folder = new URL('../check-runner/', import.meta.url);
 const read = name => readFileSync(new URL(name, folder), 'utf8');
@@ -115,7 +116,8 @@ test('each stage holds only the credential it needs, and the project\'s own chec
   const [prepare, checks, deploy] = seen.map(call => call.options);
   assert.deepEqual([prepare.sourceControlCredentials, prepare.cloudflareCredentials], [true, false]);
   assert.deepEqual([checks.sourceControlCredentials, checks.cloudflareCredentials], [false, false]);
-  assert.deepEqual([deploy.sourceControlCredentials, deploy.cloudflareCredentials], [false, { accountId: CONFIG.account }]);
+  // The deploy stage fetches main's own scripts, so it reads the repository too.
+  assert.deepEqual([deploy.sourceControlCredentials, deploy.cloudflareCredentials], [true, { accountId: CONFIG.account }]);
 });
 
 test('a stage is told the commit and branch only, and they never enter its command text', async () => {
@@ -436,48 +438,116 @@ test('a run gets three more tries in all, not three for each stage', async () =>
   assert.deepEqual(names(), ['prepare', 'prepare-retry', 'checks', 'checks-retry', 'checks-retry-2', 'deploy']);
 });
 
-test('the deploy stage installs the app\'s packages itself, before the deploy token is used for anything', async () => {
+// The deploy stage's command, played on this machine: its fixed paths moved under `root`, git on a local remote.
+function deployScript(root) {
   const { ci, seen } = standIn();
-  await runPipeline(paramsOf(), ci, CONFIG);
-  const lines = seen.find(call => call.options.name === 'deploy').options.command.split('\n');
-  const at = text => lines.findIndex(line => line === text);
-  const order = ['dir=$(bash scripts/cf-build.sh --app-dir)', INSTALL, 'node scripts/cf-secrets.mjs check', 'bash scripts/cf-build.sh', 'bash scripts/cf-deploy.sh'].map(at);
-  assert.ok(order.every(index => index > -1), `a deploy step is missing: ${order}`);
-  assert.deepEqual(order, [...order].sort((a, b) => a - b), 'the packages are installed first: the files carried over from the checks can arrive incomplete');
-  assert.match(INSTALL, /npm ci --no-audit --no-fund/);
-  assert.equal(lines.filter(line => line.includes('npm ')).length, 1, 'the deploy stage runs npm once, in the scrubbed install');
-  const checks = seen.find(call => call.options.name === 'checks').options.command;
-  assert.ok(!checks.includes(INSTALL), 'the checks stage holds no credential to scrub');
+  return runPipeline(paramsOf(), ci, CONFIG).then(() => seen.find(call => call.options.name === 'deploy').options.command
+    .replaceAll('/tmp/trusted', join(root, 'trusted')).replaceAll('/tmp/wong-output', join(root, 'output')).replaceAll('/workspace', join(root, 'workspace')));
+}
+
+const GIT_ENV = { GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null' };
+const git = (cwd, ...args) => {
+  const result = spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@example.com', ...args], { cwd, encoding: 'utf8', env: { ...process.env, ...GIT_ENV } });
+  assert.equal(result.status, 0, result.stderr);
+  return result.stdout.trim();
+};
+
+// A remote whose main is a clean demo app, and a workspace the checks stage left: the branch's commit, built, with a
+// planted deploy script, a package setting and an install script that hunts for the key. Returns the run's env.
+function deployWorld(t, { mainScript = text => text, extra = '{}' } = {}) {
+  const root = mkdtempSync(join(tmpdir(), 'wong-test-runner-deploy-'));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const tools = fakeTools(t);
+  const main = join(root, 'main');
+  demoRepo(main, { scripts: { postinstall: HUNTS_KEY } });
+  const deploy = join(main, 'scripts/cf-deploy.sh');
+  writeFileSync(deploy, mainScript(readFileSync(deploy, 'utf8')));
+  git(main, 'init', '-q', '-b', 'main');
+  git(main, 'add', '-A');
+  git(main, 'commit', '-qm', 'main');
+  git(root, 'clone', '-q', '--bare', main, 'remote.git');
+  const workspace = join(root, 'workspace');
+  git(root, 'clone', '-q', join(root, 'remote.git'), 'workspace');
+  git(workspace, 'checkout', '-qb', BRANCH);
+  plant(workspace, 'cf-deploy.sh', 'echo PLANTED-DEPLOY');
+  writeFileSync(join(workspace, 'app/.npmrc'), 'script-shell=/tmp/evil\n');
+  git(workspace, 'commit', '-qam', 'branch');
+  const built = spawnSync('node', ['build.mjs'], { cwd: join(workspace, 'app'), encoding: 'utf8', env: { ...process.env, CLOUDFLARE_ENV: 'staging', BUILD_EXTRA: extra } });
+  assert.equal(built.status, 0, built.stderr);
+  const env = {
+    PATH: `${tools.bin}:${process.env.PATH}`, HOME: root, ...GIT_ENV, ...tools.env, CLOUDFLARE_API_TOKEN: KEY, CLOUDFLARE_ACCOUNT_ID: CONFIG.account,
+    ARTIFACTS_REMOTE: join(root, 'remote.git'), ARTIFACTS_TOKEN: 'artifacts-token', WONG_HEAD: git(workspace, 'rev-parse', 'HEAD'), WONG_BRANCH: BRANCH,
+  };
+  return { root, env, tools };
+}
+
+async function playDeploy(world) {
+  const result = spawnSync('bash', ['-c', await deployScript(world.root)], { cwd: world.root, encoding: 'utf8', env: world.env });
+  return { ...result, log: `${result.stdout}${result.stderr}`, calls: world.tools.calls() };
+}
+
+test('the deploy stage deploys the checked build with main\'s own scripts, and no branch file or install script runs', async t => {
+  const world = deployWorld(t);
+  const result = await playDeploy(world);
+  assert.equal(result.status, 0, result.log);
+  assert.match(result.stdout, /^WONG_OUTPUT preview-url=https:\/\/add-recipes-demo-staging\.example\.workers\.dev$/m);
+  assert.ok(!result.log.includes('PLANTED-DEPLOY'), 'the branch\'s copy of cf-deploy.sh ran');
+  assert.ok(!result.log.includes('KEY-FOUND'), `an install script found the key:\n${result.log}`);
+  assert.ok(!existsSync(join(world.root, 'trusted/app/.npmrc')), 'the branch\'s package setting was copied in');
+  const wrangler = wranglerCalls(result.calls);
+  for (const call of wrangler) assert.ok(call.cwd.startsWith(join(world.root, 'trusted')), `wrangler ran outside main's checkout: ${call.cwd}`);
+  assert.deepEqual(wrangler.filter(call => call.args[0] === 'deploy').map(call => call.worker), ['demo-staging']);
 });
 
-test('the install runs in the app\'s folder with no Cloudflare credential in reach, and the stage keeps its own', t => {
-  const root = mkdtempSync(join(tmpdir(), 'wong-test-runner-install-'));
+test('the deploy stage refuses a build that names production, before any wrangler call', async t => {
+  const result = await playDeploy(deployWorld(t, { extra: '{"name":"demo"}' }));
+  assert.notEqual(result.status, 0);
+  assert.match(result.log, /this build can not deploy/);
+  assert.deepEqual(wranglerCalls(result.calls), []);
+});
+
+test('a main whose scripts can not take a build yet deploys nothing, and the run says it previews after publish', async t => {
+  const result = await playDeploy(deployWorld(t, { mainScript: text => text.replaceAll('--take-build', '--take-a-build') }));
+  assert.equal(result.status, 0, result.log);
+  assert.match(result.stdout, /^WONG_DEPLOY after-publish$/m);
+  assert.deepEqual(wranglerCalls(result.calls), []);
+  const { ci } = standIn({ deploy: 'WONG_DEPLOY after-publish\n' });
+  assert.deepEqual(await runPipeline(paramsOf(), ci, CONFIG), { commit: SHA, ref: REF, result: 'success', deployed: false, app: 'built', deploy: 'after-publish' });
+});
+
+// The checks stage's command, played on a workspace whose cf-build.sh predates --build-only, as a branch made before
+// this release has. The plain fallback build must still build staging on a branch.
+async function playOldChecks(t, branch) {
+  const { ci, seen } = standIn();
+  await runPipeline(paramsOf(branch === 'main' ? { ref: MAIN } : {}), ci, CONFIG);
+  const root = mkdtempSync(join(tmpdir(), 'wong-test-runner-checks-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
-  mkdirSync(join(root, 'bin'));
-  mkdirSync(join(root, 'app'));
-  // A stand-in npm: what an install script would see.
-  writeFileSync(join(root, 'bin/npm'), '#!/bin/sh\n{ echo "cwd=$PWD"; echo "args=$*"; env; } > "$SEEN"\nexit "${NPM_STATUS:-0}"\n');
-  chmodSync(join(root, 'bin/npm'), 0o755);
-  const seenFile = join(root, 'seen');
-  const run = (vars = {}) => spawnSync('bash', ['-c', `set -eu\n${INSTALL}\necho "after=\${CLOUDFLARE_API_TOKEN:-}/\${CLOUDFLARE_ACCOUNT_ID:-}"\n`], { encoding: 'utf8', env: {
-    PATH: `${join(root, 'bin')}:${process.env.PATH}`, HOME: root, SEEN: seenFile, dir: join(root, 'app'), KEPT: 'project-setting',
-    CLOUDFLARE_API_TOKEN: 'deploy-token', CLOUDFLARE_ACCOUNT_ID: 'a'.repeat(32), CLOUDFLARE_API_KEY: 'older-key', CLOUDFLARE_EMAIL: 'owner@example.com', ...vars } });
-  const result = run();
-  assert.equal(result.status, 0, result.stderr);
-  const seen = readFileSync(seenFile, 'utf8');
-  assert.match(seen, new RegExp(`^cwd=${join(root, 'app')}$`, 'm'));
-  assert.match(seen, /^args=ci --no-audit --no-fund$/m);
-  assert.ok(!/^CLOUDFLARE_/m.test(seen) && !seen.includes('deploy-token') && !seen.includes('older-key'), `the install saw a Cloudflare credential:\n${seen}`);
-  assert.match(seen, /^KEPT=project-setting$/m, 'only the credential is removed');
-  assert.match(result.stdout, new RegExp(`^after=deploy-token/${'a'.repeat(32)}$`, 'm'), 'the deploy that follows still holds its credential');
-  // A failed install stops the stage, under `set -e`, before anything is deployed.
-  const failed = run({ NPM_STATUS: '1' });
-  assert.notEqual(failed.status, 0);
-  assert.ok(!failed.stdout.includes('after='));
-  // With no credential set at all there is nothing to remove, and the install still runs.
-  const bare = run({ CLOUDFLARE_API_TOKEN: undefined, CLOUDFLARE_ACCOUNT_ID: undefined, CLOUDFLARE_API_KEY: undefined, CLOUDFLARE_EMAIL: undefined });
-  assert.equal(bare.status, 0, bare.stderr);
-  assert.match(bare.stdout, /^after=\/$/m);
+  const tools = fakeTools(t);
+  const workspace = join(root, 'workspace');
+  const { write } = demoRepo(workspace);
+  const build = join(workspace, 'scripts/cf-build.sh');
+  writeFileSync(build, readFileSync(build, 'utf8').replaceAll('--build-only', '--old-flag'));
+  write('.github/scripts/checks.mjs', "if (process.argv.includes('--discover')) console.log(JSON.stringify({ scope: { untouched: false } }));\n");
+  write('tools/jq', '#!/usr/bin/env bash\necho false\n');
+  spawnSync('chmod', ['+x', join(workspace, 'tools/jq')]);
+  git(workspace, 'init', '-q', '-b', branch);
+  git(workspace, 'add', '-A');
+  git(workspace, 'commit', '-qm', 'branch');
+  writeFileSync(join(workspace, '.git/wong-base'), '');
+  const command = seen.find(call => call.options.name === 'checks').options.command
+    .replaceAll('/workspace', workspace).replaceAll('/tmp/wong-summary.md', join(root, 'summary.md'));
+  const result = spawnSync('bash', ['-c', command], { cwd: root, encoding: 'utf8', env: {
+    PATH: `${join(workspace, 'tools')}:${tools.bin}:${process.env.PATH}`, HOME: root, ...GIT_ENV, ...tools.env,
+    WONG_HEAD: git(workspace, 'rev-parse', 'HEAD'), WONG_BRANCH: branch,
+  } });
+  assert.equal(result.status, 0, `${result.stdout}${result.stderr}`);
+  assert.match(result.stdout, /^WONG_APP built$/m);
+  return JSON.parse(readFileSync(join(workspace, 'app/dist/demo/wrangler.json'), 'utf8')).name;
+}
+
+test('a branch whose own cf-build.sh predates --build-only still builds staging in the checks stage, and main builds production', async t => {
+  assert.equal(await playOldChecks(t, BRANCH), 'demo-staging');
+  assert.equal(await playOldChecks(t, 'main'), 'demo');
 });
 
 const template = () => JSON.parse(read('wrangler.template.jsonc').split('\n').filter(line => !line.trimStart().startsWith('//')).join('\n'));

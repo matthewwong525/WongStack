@@ -9,7 +9,7 @@ WongStack uses three Cloudflare tokens. Each one lives in one place, and only on
 | Token | Stored in | What it can do |
 |---|---|---|
 | User token (`CLOUDFLARE_API_TOKEN` in `.env`) | The git-ignored `.env` of the primary worktree, on your computer only | Mint and edit tokens, and grant itself more permissions. Setup widens it only to the groups each step needs. Treat it like a root password. |
-| CI deploy token (`<repo>-deploy`) | The GitHub secret `CLOUDFLARE_API_TOKEN`, and nowhere else | `Workers Scripts Write`, `D1 Write`, and `Account Settings Read` on your account. It cannot mint tokens or change Access. |
+| CI deploy token (`<repo>-deploy`) | The GitHub secret `CLOUDFLARE_DEPLOY_TOKEN`, and nowhere else | `Workers Scripts Write`, `D1 Write`, and `Account Settings Read` on your account. It cannot mint tokens or change Access. |
 | Memory key (`CLOUDFLARE_MEMORY_TOKEN`) | The git-ignored `.env` | Only in an app with no sign-in yet; otherwise memory uses the company sign-in. Not a Cloudflare token: it opens one repo's memory store, as its admin, through that repo's production Worker, and nothing else. It is never a GitHub secret. |
 
 The Cloudflare account ID in [`.agents/.wong-stack.json`](.agents/.wong-stack.json) is an identifier, not a secret. It grants no access without a token.

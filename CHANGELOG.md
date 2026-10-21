@@ -12,6 +12,18 @@
 
 **Updating.** Before publishing, the admin runs `node .claude/skills/memory/scripts/memory.mjs migrate` once: it records who wrote each background run. Runs saved before it reach no one, so everyone's summary, a cloud schedule's too, shows no run line until their next background run. Skip it and memory still searches and saves, but chats start without their summary and background runs aren't recorded until it runs. If memory still used an old key on a private app, it now asks for the company sign-in; `memory.mjs migrate-people` gives notes still waiting to their people.
 
+## 44.1.0 — Branch code never holds the deploy key
+
+- **A saved branch can't reach your Cloudflare deploy key.** On GitHub, the app's deploy now runs in two jobs. The first installs, tests and builds the branch with no key. The second uses your published branch's own scripts and tools, installed with their install scripts off, takes in only the built files, and deploys with the key. The same goes for the check runner on a project kept in Cloudflare.
+- **The key has a new name, so older branches can't reach it either.** A branch started before this update carries the old deploy steps, which look for the key under its old name. That old copy is deleted.
+- **A preview stays on its own staging app.** The deploy refuses a build that names any app but your staging one, claims a web address, runs a command of its own, uses any database but your staging one, or reads a file from outside the project. A change that adds a database previews once published.
+- **The live deploy gets the same checks.** It refuses a build that runs a command of its own, reads a file from outside the project, or uses a database or web address your published settings don't. It keeps your published settings and database changes.
+- **A fork's pull request only builds.** Even one from a branch named `main`, it never deploys.
+- **A change to the deploy scripts shows once published.** Its preview runs the published scripts.
+- **Anyone who can edit a workflow on GitHub can still reach the key.** Give a teammate the app's save access, not GitHub write access.
+
+**Updating.** While it builds this update, before publishing, your assistant runs setup's deploy key step once. It gives the key a new value under its new name, then deletes the old copy. Deleting it can't be undone. From then until the update is published, the live app doesn't update. This update's own preview runs your old published scripts, so it previews only once it is published; after that, every change previews as before.
+
 ## 44.0.2 — Keys and passwords go only to their own site
 
 - **A saved password is typed only on its own site.** Before typing a saved login, the assistant's browser checks the page is on the site the login was saved for, or one under it, as `login.netflix.com` sits under `netflix.com`. It checks again right before the password, so a page that jumps elsewhere after the email gets nothing more. On any other site it types nothing and says *wrong site*, and you get the password link for the page's real site instead.
