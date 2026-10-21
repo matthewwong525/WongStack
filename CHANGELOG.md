@@ -13,6 +13,10 @@
 
 **Updating.** Nothing to do by hand. A preview announced only by a person's comment is no longer found; one announced by a deploy, a status, or a check still is. A copy with no recorded live address now checks previews without the access key; setting up the memory store with `/wong-sync` records one.
 
+## 44.0.1 — Recover a preview whose staging rebuild was cut off
+
+- **A preview that says *Access unavailable* everywhere after a walk** had its staging rebuild cut off. The [D1 pipeline page](wiki/stack/d1-pipeline.md#seeded-staging-production-untouched) now says to run the reset again.
+
 ## 44.0.0 — Previews get their own sign-in and keys
 
 - **A preview can't act as the live app.** Previews run changes nobody has published yet, so they now have their own private app. A sign-in made on a preview no longer opens the live app, its memory or its keys. The same people sign in to both: when you add or remove someone in Access, both lists change together.
