@@ -1,8 +1,8 @@
 // Locate and read the repo's wrangler config, at the repo root or in a subfolder such as `app/`.
 // Every pack script reads it through this one parser; bash calls the CLI below via `lib-wrangler-config.sh`.
 
-import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { copyFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { basename, dirname, isAbsolute, join, normalize, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { isMain, parseCli, usageError } from "./lib-cli.mjs";
 
@@ -200,26 +200,226 @@ export function assetsDirectory(configPath) {
   return resolve(dirname(from), directory);
 }
 
+// The routes a Worker attaches: an environment inherits the top-level `route`/`routes` when it names none.
+export function routesOf(config, env) {
+  const own = (entry) => entry?.routes ?? (entry?.route ? [entry.route] : undefined);
+  return own(block(config, env)) ?? (env ? own(config) : undefined) ?? [];
+}
+
+// Where `cf-deploy.sh --take-build` keeps the default branch's own config, before a build is copied over it.
+const TRUSTED_CONFIG = ".wong/trusted-wrangler.jsonc";
+
+const inside = (root, path) => {
+  const rel = relative(root, path);
+  return rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel);
+};
+
+// Keys whose strings are not files wrangler reads: the Worker's own settings, and where a build ran.
+const NOT_PATHS = new Set(["vars", "configPath", "userConfigPath", "run_worker_first"]);
+
+/** The first string under `value` that names a file outside `root`, or null. */
+function strayPath(value, base, root) {
+  if (typeof value === "string") {
+    return value.startsWith("~") || isAbsolute(value) || !inside(root, resolve(base, value)) ? value : null;
+  }
+  if (!value || typeof value !== "object") return null;
+  for (const [key, inner] of Object.entries(value)) {
+    const found = NOT_PATHS.has(key) ? null : strayPath(inner, base, root);
+    if (found) return found;
+  }
+  return null;
+}
+
+const sameDatabase = (entry, prod) =>
+  Boolean((entry.database_name && entry.database_name === prod.database_name) || (entry.database_id && entry.database_id === prod.database_id));
+
+const sameEntry = (entry, want) => entry.database_name === want.database_name && entry.database_id === want.database_id;
+const databasesOf = (entries) => entries.map((entry) => `'${entry.database_name}' (${entry.database_id})`).join(", ");
+
+// Why a preview's databases are not the default branch's own staging ones, or null. Every D1 entry, memory's
+// included, must be one of main's `env.staging` entries by name and id: never production's, never a branch's pick.
+function stagingDatabaseProblem(trusted, built, source) {
+  const bound = [...(built.d1_databases ?? []), ...(source.env?.staging?.d1_databases ?? [])];
+  const taken = bound.find((entry) => (trusted.d1_databases ?? []).some((prod) => sameDatabase(entry, prod)));
+  if (taken) return `it binds the production database '${taken.database_name ?? taken.database_id}'.`;
+  stagingDatabase(source);
+  const allowed = trusted.env?.staging?.d1_databases ?? [];
+  const other = bound.find((entry) => !allowed.some((want) => sameEntry(entry, want)));
+  if (!other) return null;
+  const named = other.database_name ?? other.database_id;
+  return allowed.length
+    ? `it binds the database '${named}', not ${databasesOf(allowed)}, the default branch's staging database.`
+    : `it binds the database '${named}', and the default branch's staging Worker binds none; a new database previews once published.`;
+}
+
+// Why a production build's databases or routes are not main's own top-level ones, or null. Wrangler deploys the
+// generated config, not main's, so a build that adds a database or a web address must not reach the live Worker.
+function productionBindingProblem(trusted, built) {
+  const key = (entries) => JSON.stringify((entries ?? []).map((entry) => [entry.database_name, entry.database_id]).sort());
+  if (key(built.d1_databases) !== key(trusted.d1_databases)) {
+    return `it binds ${databasesOf(built.d1_databases ?? []) || "no database"}, not ${databasesOf(trusted.d1_databases ?? []) || "none"}, the default branch's own databases.`;
+  }
+  if (JSON.stringify(routesOf(built)) !== JSON.stringify(routesOf(trusted))) {
+    return "its routes or custom domains differ from the default branch's own.";
+  }
+  return null;
+}
+
+// Why a copied build must not deploy, or null; `trusted` is main's config. Production is branch code until built, and
+// wrangler deploys its generated config: it gets a preview's refusals, its name, databases and routes held to main's.
+function buildProblem(trusted, configPath, root, production) {
+  const appDir = dirname(configPath);
+  const source = parseConfig(configPath);
+  const generatedPath = redirectedConfig(configPath);
+  if (!generatedPath || !inside(appDir, generatedPath)) {
+    return "it left no generated config inside the app folder (.wrangler/deploy/config.json), so it is not a finished build.";
+  }
+  if (parseConfig(resolve(appDir, ".wrangler/deploy/config.json")).auxiliaryWorkers?.length) {
+    return "it deploys extra Workers (auxiliaryWorkers); a deploy sends the app's own Worker alone.";
+  }
+  const built = parseConfig(generatedPath);
+  const want = production ? workerName(trusted) : workerName(trusted, "staging");
+  if (workerName(built) !== want) {
+    return `it names the Worker '${built.name}', not '${want}', the ${production ? "production Worker" : "default branch's staging Worker"}.`;
+  }
+  if (!production && (built.route || built.routes?.length)) return "it claims a route or custom domain; a preview gets neither.";
+  if ([built, source, source.env?.staging].some((entry) => entry?.build)) {
+    return "it carries a `build` command of its own, which wrangler would run with the deploy key.";
+  }
+  const database = production ? productionBindingProblem(trusted, built) : stagingDatabaseProblem(trusted, built, source);
+  if (database) return database;
+  const stray = strayPath(built, dirname(generatedPath), root) ?? strayPath(source, appDir, root);
+  return stray ? `it names '${stray}', a path outside the project, which wrangler would read and upload.` : null;
+}
+
+/** Why a copied build must not deploy, or null; `buildProblem` owns the rules. `trustedPath` is main's config. */
+export function untrustedBuildProblem(trustedPath, configPath, { production, root = repoRoot } = {}) {
+  return buildProblem(parseConfig(trustedPath), configPath, root, Boolean(production));
+}
+
+/** The first symlink on the way from `root` down to `path`, or null. */
+function linkOnTheWay(root, path) {
+  let at = root;
+  for (const part of relative(root, path).split(sep).filter(Boolean)) {
+    at = join(at, part);
+    if (lstatSync(at, { throwIfNoEntry: false })?.isSymbolicLink()) return at;
+  }
+  return null;
+}
+
+// Copies plain files and folders from `from` to `to`; a link or device is refused, never followed. Returns the count.
+export function copyTree(from, to) {
+  const stat = lstatSync(from, { throwIfNoEntry: false });
+  if (!stat) return 0;
+  if (stat.isDirectory()) {
+    mkdirSync(to, { recursive: true });
+    return readdirSync(from).reduce((count, name) => count + copyTree(join(from, name), join(to, name)), 0);
+  }
+  if (!stat.isFile()) throw new WranglerConfigError(`${from} is not a plain file or folder; a build copies no links.`);
+  mkdirSync(dirname(to), { recursive: true });
+  copyFileSync(from, to);
+  return 1;
+}
+
+// The migration files a build's config names, repo-relative: the top-level `*.sql` of each app database's folder.
+function migrationFiles(from, app, config) {
+  const entries = [...appDatabases(config), ...appDatabases(config, "staging")];
+  const files = new Set();
+  for (const dir of new Set(entries.map((entry) => normalize(join(app, entry.migrations_dir ?? "migrations"))))) {
+    const parts = dir.split(sep);
+    if (isAbsolute(dir) || parts.some((part) => part === ".." || part.startsWith(".") || part === "node_modules")) {
+      throw new WranglerConfigError(`migrations_dir '${dir}' leaves the project or names a hidden or package folder.`);
+    }
+    const listed = lstatSync(join(from, dir), { throwIfNoEntry: false })?.isDirectory() ? readdirSync(join(from, dir), { withFileTypes: true }) : [];
+    for (const entry of listed) if (entry.isFile() && entry.name.endsWith(".sql")) files.add(join(dir, entry.name));
+  }
+  return [...files];
+}
+
+// Copies a built app from `from` to `to`: built files and redirect, plus, unless `builtOnly`, config and migrations.
+// Never a script, package file, `.npmrc` or tool, which would run with the deploy key.
+export function copyBuild(configPath, from, to, { builtOnly = false } = {}) {
+  const app = relative(repoRoot, dirname(configPath));
+  const config = join(app, basename(configPath));
+  const refuse = (path) => {
+    const link = linkOnTheWay(from, join(from, path));
+    if (link) throw new WranglerConfigError(`${link} is a link; a build copies no links.`);
+  };
+  const built = [join(app, "dist"), join(app, ".wrangler/deploy/config.json")];
+  let paths = built;
+  if (!builtOnly) {
+    refuse(config);
+    if (!lstatSync(join(from, config), { throwIfNoEntry: false })?.isFile()) throw new WranglerConfigError(`the build has no ${config}.`);
+    paths = [config, ...built, ...migrationFiles(from, app, parseConfig(join(from, config)))];
+  }
+  let count = 0;
+  for (const path of paths) {
+    refuse(path);
+    count += copyTree(join(from, path), join(to, path));
+  }
+  return `copied ${count} built files`;
+}
+
+// Keeps main's config aside, once: a second take would keep the build's. Production keeps main's config and
+// migrations, so its deploy migrates main's SQL; a preview takes the branch's, checked against main's.
+export function takeBuild(configPath, from, mode) {
+  if (!["production", "staging"].includes(mode)) throw new WranglerConfigError("take-build takes production or staging.");
+  const kept = resolve(repoRoot, TRUSTED_CONFIG);
+  if (existsSync(kept)) throw new WranglerConfigError(`${TRUSTED_CONFIG} already exists: this checkout already took a build.`);
+  mkdirSync(dirname(kept), { recursive: true });
+  writeFileSync(kept, readFileSync(configPath));
+  return copyBuild(configPath, from, repoRoot, { builtOnly: mode === "production" });
+}
+
+// The staging database `cf-build.sh --migrate` targets: the default branch's own when this checkout took a build,
+// else this config's. Empty when none is bound.
+function migrateDatabase(configPath) {
+  const kept = resolve(repoRoot, TRUSTED_CONFIG);
+  return stagingDatabase(parseConfig(existsSync(kept) ? kept : configPath)) ?? "";
+}
+
+/** Refuses a taken build `untrustedBuildProblem` names; a checkout that took none has nothing to check. */
+function refuseUntrustedBuild(configPath, mode) {
+  if (!["production", "staging"].includes(mode)) throw new WranglerConfigError("refuse-untrusted-build takes production or staging.");
+  const kept = resolve(repoRoot, TRUSTED_CONFIG);
+  if (!existsSync(kept)) return "no build was taken; nothing to check";
+  const problem = untrustedBuildProblem(kept, configPath, { production: mode === "production" });
+  if (problem) throw new WranglerConfigError(`this build can not deploy: ${problem}`);
+  return `the build stays on the ${mode} Worker`;
+}
+
 // CLI for `lib-wrangler-config.sh`: `config-path` exits 3 when there is no config; every other answer reads
 // $WRANGLER_CONFIG, else the config found from the repo root, and exits 1 on a config error.
 
+const config = () => process.env.WRANGLER_CONFIG || findWranglerConfig();
 const COMMANDS = {
   "config-path": () => findWranglerConfigOrNull() ?? process.exit(3),
-  "worker-name": (path, env) => deployedWorkerName(path, env),
-  "database-name": (path, env) => databaseName(parseConfig(path), env),
-  "staging-database": (path) => stagingDatabase(parseConfig(path)) ?? "",
-  "has-d1": (path, env) => String(hasD1(parseConfig(path), env)),
-  "assets-dir": (path) => assetsDirectory(path),
+  "worker-name": (env) => deployedWorkerName(config(), env),
+  "database-name": (env) => databaseName(parseConfig(config()), env),
+  "staging-database": () => stagingDatabase(parseConfig(config())) ?? "",
+  "migrate-database": () => migrateDatabase(config()),
+  "has-d1": (env) => String(hasD1(parseConfig(config()), env)),
+  "assets-dir": () => assetsDirectory(config()),
+  routes: (env) => JSON.stringify(routesOf(parseConfig(config()), env)),
+  "refuse-untrusted-build": (mode) => refuseUntrustedBuild(config(), mode),
+  "take-build": (from, mode) => takeBuild(config(), resolve(from), mode),
+  "copy-build": (from, to) => copyBuild(config(), resolve(from), resolve(to)),
+  "copy-tree": (from, to) => {
+    const count = copyTree(resolve(from), resolve(to));
+    if (!count) throw new WranglerConfigError(`${from} holds no files to copy.`);
+    return `copied ${count} files`;
+  },
 };
+// Commands that take exactly this many words; every other takes an optional environment.
+const ARITY = { "config-path": 0, "migrate-database": 0, "refuse-untrusted-build": 1, "take-build": 2, "copy-build": 2, "copy-tree": 2 };
 
 if (isMain(import.meta.url)) {
-  const usage = `usage: node lib-wrangler-config.mjs <${Object.keys(COMMANDS).join("|")}> [env]`;
-  const [command, env, ...extra] = parseCli({ usage, allowPositionals: true }).positionals;
+  const usage = `usage: node lib-wrangler-config.mjs <${Object.keys(COMMANDS).join("|")}> [env | from [to | mode]]`;
+  const [command, ...args] = parseCli({ usage, allowPositionals: true }).positionals;
   const run = COMMANDS[command];
-  if (!run || extra.length || (command === "config-path" && env)) usageError(usage);
-  const configPath = command === "config-path" ? null : process.env.WRANGLER_CONFIG || findWranglerConfig();
+  if (!run || (command in ARITY ? args.length !== ARITY[command] : args.length > 1)) usageError(usage);
   try {
-    console.log(run(configPath, env));
+    console.log(run(...args));
   } catch (error) {
     if (!(error instanceof WranglerConfigError)) throw error;
     console.error(`wong: ERROR — ${error.message}`);

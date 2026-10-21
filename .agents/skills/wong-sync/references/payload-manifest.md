@@ -43,7 +43,7 @@ Pre-inventory installs use an empty baseline: all units are `added`. Missing `HE
 
 Two additional fields retain `schemaVersion: 1` compatibility:
 
-- `catchUp: { needed, reasons }` derives code/path reasons from layout/record alone: `agent-folder`, `codex-folder`, `rules-file`, `rules-file-reversed`, `wiki-elsewhere`, `opted-out`, `generated-openspec`, `deploy-token`, `mini-apps-folder`, `no-baseline`. Any reason or version below 19.0.0 means needed; [catch-up](catch-up.md) owns the moves.
+- `catchUp: { needed, reasons }` derives code/path reasons from layout/record (plus `deploy.yml`): `agent-folder`, `codex-folder`, `rules-file`, `rules-file-reversed`, `wiki-elsewhere`, `opted-out`, `generated-openspec`, `deploy-token`, `deploy-key-name`, `mini-apps-folder`, `no-baseline`. Any reason or version below 19.0.0 means needed; [catch-up](catch-up.md) owns the moves.
 - `updating` lists newer changelog entries newest-first as `{ version, title, note }`; note is Updating/Moving-an-existing-install text or null. Unreadable changelog/version sets `updatingComplete: false`, without error.
 
 Reports expose paths/classes/counts only. Invalid/non-ancestor commits, invalid inventory, unsafe paths, missing markers, read/Git failures or oversized changes return `status: error`; [`wong-sync`](../SKILL.md) handles them.

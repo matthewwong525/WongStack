@@ -8,6 +8,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
 import { findWranglerConfigOrNull, parseConfig } from '../lib-wrangler-config.mjs';
+import { KEY, PRINTS_KEY, demoRepo, fakeTools, loadWorkflow, runWorkflow, secretProblems, trustedJobProblems, wranglerCalls } from './fixtures/workflow.mjs';
 // The page's own message, read from the file the page reads. Node strips the
 // types, so this is the module itself, never a copy.
 import { INSTALL_PROMPT } from '../../site/src/install.ts';
@@ -20,6 +21,7 @@ const INSTALL = 'site/src/install.ts';
 const SITE_CONFIG = 'site/wrangler.site.jsonc';
 const LOOKUP = 'scripts/lib-wrangler-config.mjs';
 const PAYLOAD = '.agents/skills/wong-sync/references/payload-files.json';
+const WORKFLOW = '.github/workflows/site.yml';
 
 // The text of every fenced block in a Markdown file, without its indent.
 function fencedBlocks(markdown) {
@@ -202,4 +204,57 @@ test('a config whose staging block has no routes is refused, naming the environm
     assert.match(broken(change), /top-level `routes`/, name);
   }
   assert.match(broken(config => { delete config.workers_dev; }), /workers_dev/);
+});
+
+test('the site job names no secret, and the deploy job runs only the default branch\'s files', () => {
+  const workflow = loadWorkflow(join(repo, WORKFLOW));
+  assert.deepEqual(Object.keys(workflow.jobs), ['site', 'deploy']);
+  assert.deepEqual(secretProblems(workflow, ['site']), []);
+  assert.deepEqual(trustedJobProblems('deploy', workflow.jobs.deploy), []);
+  assert.match(workflow.jobs.deploy.if, /github\.event_name == 'push'/);
+});
+
+// A repo with the site, its real config, and a package whose install, test and build print whether they see the key.
+function siteTree(t, change) {
+  const root = mkdtempSync(join(tmpdir(), 'wong-test-site-tree-'));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const { write } = demoRepo(root);
+  const config = parseConfig(join(repo, SITE_CONFIG));
+  change?.(config);
+  write(SITE_CONFIG, `${JSON.stringify(config, null, 2)}\n`);
+  write('site/package.json', JSON.stringify({ name: 'site', private: true, scripts: {
+    postinstall: PRINTS_KEY, test: PRINTS_KEY, build: `${PRINTS_KEY} && mkdir -p dist && echo '<h1>site</h1>' > dist/index.html`,
+  } }));
+  return root;
+}
+
+function runSite(t, { head, main = siteTree(t) }) {
+  const tools = fakeTools(t);
+  const github = { event_name: 'push', ref_name: 'feature-x', head_ref: '', sha: 'f'.repeat(40), repository: 'ana/wongstack', token: 'gh-token',
+    event: { repository: { default_branch: 'main' } } };
+  const result = runWorkflow(t, loadWorkflow(join(repo, WORKFLOW)), { github, secrets: { CLOUDFLARE_DEPLOY_TOKEN: KEY, CLOUDFLARE_ACCOUNT_ID: 'a'.repeat(32) },
+    trees: { main, head }, tools });
+  return { ...result, calls: tools.calls() };
+}
+
+test('a branch that renames the staging Worker or drops its empty routes still previews on wongstack-site-staging alone', t => {
+  for (const [name, change] of [
+    ['staging named as the live site', config => { config.env.staging.name = 'wongstack-site'; }],
+    ['staging named as another Worker', config => { config.env.staging.name = 'wongstack'; }],
+    ['staging with its routes dropped', config => { delete config.env.staging.routes; }],
+  ]) {
+    const result = runSite(t, { head: siteTree(t, change) });
+    assert.ok(!result.log.includes(KEY), `${name}: the deploy key reached the branch's code`);
+    const deploys = wranglerCalls(result.calls).filter(call => ['deploy', 'versions'].includes(call.args[0]));
+    assert.deepEqual(deploys.map(call => [call.worker, call.routes]), [['wongstack-site-staging', []], ['wongstack-site-staging', []]], name);
+    assert.match(result.log, /KEY-SEEN:none/, `${name}: the branch's own scripts ran`);
+    assert.equal(result.jobs.deploy?.result, 'success', `${name}:\n${result.log}`);
+  }
+});
+
+test('a default branch whose own staging block lost its empty routes deploys no preview', t => {
+  const result = runSite(t, { head: siteTree(t), main: siteTree(t, config => { delete config.env.staging.routes; }) });
+  assert.deepEqual(wranglerCalls(result.calls).filter(call => ['deploy', 'versions'].includes(call.args[0])), []);
+  assert.match(result.log, /a preview deploys only wongstack-site-staging with no routes/);
+  assert.equal(result.jobs.deploy?.result, 'failure', result.log);
 });

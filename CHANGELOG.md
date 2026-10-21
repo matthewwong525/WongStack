@@ -3,6 +3,18 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Branch code never holds the deploy key
+
+- **A saved branch can't reach your Cloudflare deploy key.** On GitHub, the app's deploy now runs in two jobs. The first installs, tests and builds the branch with no key. The second uses your published branch's own scripts and tools, installed with their install scripts off, takes in only the built files, and deploys with the key. The same goes for the check runner on a project kept in Cloudflare.
+- **The key has a new name, so older branches can't reach it either.** A branch started before this update carries the old deploy steps, which look for the key under its old name. That old copy is deleted.
+- **A preview stays on its own staging app.** The deploy refuses a build that names any app but your staging one, claims a web address, runs a command of its own, uses any database but your staging one, or reads a file from outside the project. A change that adds a database previews once published.
+- **The live deploy gets the same checks.** It refuses a build that runs a command of its own, reads a file from outside the project, or uses a database or web address your published settings don't. It keeps your published settings and database changes.
+- **A fork's pull request only builds.** Even one from a branch named `main`, it never deploys.
+- **A change to the deploy scripts shows once published.** Its preview runs the published scripts.
+- **Anyone who can edit a workflow on GitHub can still reach the key.** Give a teammate the app's save access, not GitHub write access.
+
+**Updating.** While it builds this update, before publishing, your assistant runs setup's deploy key step once. It gives the key a new value under its new name, then deletes the old copy. Deleting it can't be undone. From then until the update is published, the live app doesn't update. This update's own preview runs your old published scripts, so it previews only once it is published; after that, every change previews as before.
+
 ## 44.0.0 — Previews get their own sign-in and keys
 
 - **A preview can't act as the live app.** Previews run changes nobody has published yet, so they now have their own private app. A sign-in made on a preview no longer opens the live app, its memory or its keys. The same people sign in to both: when you add or remove someone in Access, both lists change together.

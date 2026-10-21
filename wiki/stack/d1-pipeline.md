@@ -68,7 +68,7 @@ Nothing rewrites `wrangler.jsonc`. Which database a branch binds follows from wh
 
 ### The two commands
 
-`scripts/cf-build.sh` is the **build step**. It reads both database names from `wrangler.jsonc` — the top-level one for production, the one inside `env.staging` for staging — so nothing is baked in. Your real build lives under `build:app`, which the wrapper calls after migrating.
+`scripts/cf-build.sh` is the **build step**. It reads both database names from `wrangler.jsonc` — the top-level one for production, the one inside `env.staging` for staging — so nothing is baked in. Your real build lives under `build:app`, which the wrapper calls after migrating. CI splits the two where the key starts: `--build-only` builds with no key, and `--migrate` migrates from the default branch's own copy. A preview's migrate targets the default branch's own staging database, never one a branch names ([where the deploy key is](github-actions.md#where-the-deploy-key-is)).
 
 `scripts/cf-deploy.sh` is the **deploy step**. On the pack's [GitHub Actions workflow](github-actions.md) — the default — both are invoked by `deploy.yml` and there is nothing to configure. The production branch defaults to `main`; set `CF_PRODUCTION_BRANCH` in CI if yours differs.
 
@@ -196,8 +196,8 @@ All of them read repo-specific values from `wrangler.jsonc` (names, ids) or `.en
 
 | Script | Run by | Does |
 |---|---|---|
-| `scripts/cf-build.sh` | the workflow's **build** step | Migrate production or staging by branch, then build. `--app-dir` prints where `package.json` lives, so CI can install in the right place. |
-| `scripts/cf-deploy.sh` | the workflow's **deploy** step | Deploy the production Worker on the default branch; on any other, deploy the staging Worker and then upload a per-commit staging version for the alias URL. |
+| `scripts/cf-build.sh` | the workflow's **build** (`--build-only`) and **migrate** (`--migrate`) steps | Migrate production or staging by branch, then build. `--app-dir` prints where `package.json` lives, so CI can install in the right place. |
+| `scripts/cf-deploy.sh` | the workflow's **deploy** step | Deploy the production Worker on the default branch; on any other, deploy the staging Worker and then upload a per-commit staging version for the alias URL. `--take-build <folder>` copies a build in and refuses one that leaves the default branch's Workers. |
 | `scripts/cf-preview.sh` | [`/apply`](../../.agents/skills/apply/SKILL.md), for a preview from the agent's machine | Install, migrate staging, build, upload a staging version under the preview alias, and print its URL. Never deploys production. |
 | `scripts/reset-staging-d1.mjs` | `npm run db:reset:staging`, and `/verify` before each walk | Drop staging → apply migrations → apply `schema/seed.sql`. Never touches production. |
 | `scripts/cf-secrets.mjs` | `npm run secrets:push` / `secrets:check`, and the workflow's **parity** step | Load each Worker from its own file, refusing `.env`; check staging's secret names and bindings against production's; `shared` lists which keys staging shares with production. |
