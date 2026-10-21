@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (patch) — The browser types into the right box
+
+- **Your answers land in the box you meant.** When a payment box inside a page has boxes with the same names as the page's own, such as *Email* and *Full name*, the assistant's browser now labels each one for itself. Before, your email and name could land in the payment box and tick its *Save my information* for you.
+- **When it can't tell them apart, it doesn't guess.** Those boxes get no label, and the assistant reaches them another way.
+- **A tick box that won't tick gets the keyboard.** After clicking a tick box, a round choice, or a switch, the assistant checks it changed. If not, it presses Space on it, as you would; if it still didn't change, the assistant hears so, instead of a quiet *done*. Ticking *I agree* still needs your yes first.
+
+**Updating.** Nothing to do by hand.
+
 ## 43.17.0 — Show the browser when a login is stuck
 
 - **No API? The assistant uses its browser.** When no saved key or company action can do a task on a website, the assistant does it in its browser as you, without being asked, instead of sending you steps first.

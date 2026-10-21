@@ -6,7 +6,7 @@ import { connect } from 'node:net';
 import { basename, dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { CAMOFOX, leftPage, serverEnv, sessionName, targetOf, valueIn } from '../../.agents/skills/browser/scripts/browse.mjs';
+import { boxAt, boxChanged, boxesIn, CAMOFOX, googleResults, leftPage, NO_REF_NOTE, relabel, serverEnv, sessionName, targetOf, valueIn } from '../../.agents/skills/browser/scripts/browse.mjs';
 import { hostOf, readLogins, writeLogins } from '../../.agents/skills/browser/scripts/logins.mjs';
 import { localProxyEnv } from '../../.agents/skills/browser/scripts/server.mjs';
 import { BROWSE_ENV, fakeCamofox } from './fixtures/fake-camofox.mjs';
@@ -66,6 +66,8 @@ function ok(f, ...args) {
   return out.stdout;
 }
 
+/** The expression a click sends to read a selector's tick box. */
+const boxRead = selector => `(${boxAt})(document, ${JSON.stringify(selector)}, ["checkbox","radio","switch","menuitemcheckbox"])`;
 const alive = pid => { try { process.kill(pid, 0); return true; } catch { return false; } };
 /** Every file under `dir`, read as text. */
 const filesUnder = dir => readdirSync(dir, { recursive: true, withFileTypes: true }).filter(entry => entry.isFile()).map(entry => readFileSync(join(entry.parentPath, entry.name), 'utf8')).join('\n');
@@ -266,7 +268,7 @@ test('each command reaches its own route with the session\'s tab, as the person'
   const before = f.camofox.requests().length;
   assert.equal(on('click', 'e2'), 'BROWSE_DONE=click\n');
   assert.equal(on('click', '@e2'), 'BROWSE_DONE=click\n');
-  assert.equal(on('click', '#go'), 'BROWSE_DONE=click\n');
+  assert.equal(on('click', '#go'), 'BROWSE_DONE=click\n', 'a selector that finds no tick box clicks once');
   assert.equal(on('type', 'e1', 'Jo Smith'), 'BROWSE_DONE=type\n');
   assert.equal(on('type', '#name', 'Jo'), 'BROWSE_DONE=type\n');
   assert.equal(on('press', 'Enter'), 'BROWSE_DONE=press\n');
@@ -280,6 +282,7 @@ test('each command reaches its own route with the session\'s tab, as the person'
   assert.deepEqual(sent.map(({ method, path, body }) => [`${method} ${path.replace(/^\/tabs\/[^/]+/, '')}`, body]), [
     ['POST /click', { userId: 'me', ref: 'e2' }],
     ['POST /click', { userId: 'me', ref: 'e2' }],
+    ['POST /evaluate', { userId: 'me', expression: boxRead('#go') }],
     ['POST /click', { userId: 'me', selector: '#go' }],
     ['POST /type', { userId: 'me', ref: 'e1', text: 'Jo Smith' }],
     ['POST /type', { userId: 'me', selector: '#name', text: 'Jo' }],
@@ -292,9 +295,9 @@ test('each command reaches its own route with the session\'s tab, as the person'
     ['POST /evaluate', { userId: 'me', expression: '(field => field && (field.tagName === \'SELECT\' ? field.selectedOptions[0]?.label ?? \'\' : field.value))(document.querySelector("#month")) ?? null' }],
   ]);
 
-  f.camofox.set('snapshot', '- textbox "Card number" [e12]: 4111\n- combobox "Expiry month" [e13]:\n  - option "02 - February"\n  - option "03 - March" [selected]');
-  assert.equal(on('get', 'value', 'e12'), '4111\n');
-  assert.equal(on('get', 'value', '@e13'), '03 - March\n', 'a dropdown\'s picked choice');
+  f.camofox.set('snapshot', '- textbox "Card number" [e1]: 4111\n- combobox "Expiry month" [e2]:\n  - option "02 - February"\n  - option "03 - March" [selected]');
+  assert.equal(on('get', 'value', 'e1'), '4111\n');
+  assert.equal(on('get', 'value', '@e2'), '03 - March\n', 'a dropdown\'s picked choice');
   const missing = f.run('get', 'value', 'e99', '--session', 'a');
   assert.equal(missing.status, 1);
   assert.equal(missing.stdout, 'BROWSE_ERROR=no field e99 on the page\n');
@@ -666,7 +669,7 @@ test('targetOf takes a ref in either spelling, else a selector', () => {
   for (const selector of ['#card', 'iframe#pay >> input[name="cvc"]', 'email', '@card', 'e12x']) assert.deepEqual(targetOf(selector), { selector });
 });
 
-test('valueIn reads a text box\'s text and a dropdown\'s picked choice from a snapshot', () => {
+test('valueIn reads a text box\'s text, under its placeholder too, and a dropdown\'s picked choice from a snapshot', () => {
   const snapshot = [
     '- textbox "Name" [e1]: "Jo Smith"',
     '- textbox "Email" [e2]',
@@ -676,13 +679,25 @@ test('valueIn reads a text box\'s text and a dropdown\'s picked choice from a sn
     '- combobox "Year" [e4]:',
     '  - option "2028"',
     '- textbox "City" [e5]: Markham',
+    '- textbox "Email" [e6]:',
+    '  - /placeholder: you@example.com',
+    '  - text: jo@example.com',
   ].join('\n');
   assert.equal(valueIn(snapshot, 'e1'), 'Jo Smith');
   assert.equal(valueIn(snapshot, 'e2'), '', 'an empty box');
   assert.equal(valueIn(snapshot, 'e3'), 'March');
   assert.equal(valueIn(snapshot, 'e4'), '', 'nothing marked as picked');
   assert.equal(valueIn(snapshot, 'e5'), 'Markham');
+  assert.equal(valueIn(snapshot, 'e6'), 'jo@example.com', 'a box with a placeholder shows its text below it');
   assert.equal(valueIn(snapshot, 'e9'), null);
+});
+
+test('googleResults names Google\'s results page as camofox does, and nothing else', () => {
+  assert.equal(googleResults('https://www.google.com/search?q=ring'), true);
+  assert.equal(googleResults('https://www.google.ca/search'), true);
+  assert.equal(googleResults('https://www.google.com/maps'), false);
+  assert.equal(googleResults(SHOP), false);
+  assert.equal(googleResults('not a url'), false);
 });
 
 test('leftPage ignores a changed query, and counts a new path or fragment', () => {
@@ -690,4 +705,213 @@ test('leftPage ignores a changed query, and counts a new path or fragment', () =
   assert.equal(leftPage(`${SHOP}?next=/cart`, SHOP), false);
   assert.equal(leftPage(SHOP, ACCOUNT), true);
   assert.equal(leftPage(SHOP, `${SHOP}#/home`), true);
+});
+
+// The 2026-10-21 shape: the page's Email and Full name, Stripe Link's frame with the same names, and a card frame.
+// camofox numbered e1 Email, e2 Full name, e3 Pay, e4–e6 Link's, e7–e9 the card's, then marked by role and name alone.
+const CHECKOUT = [
+  '- heading "Checkout" [level=1]',
+  '- textbox "Email" [e4]',
+  '- textbox "Full name" [e5]',
+  '- button "Calendar"',
+  '- button "Pay" [e3]',
+  '- iframe "link":',
+  '  - textbox "Email": zq-link@mail.example',
+  '  - textbox "Full name"',
+  '  - checkbox "Save my information for faster checkout" [e6] [checked]',
+  '- iframe "js.stripe.com":',
+  '  - textbox "Card number" [e7]',
+  '  - textbox "Expiration" [e8]',
+  '  - textbox "CVC" [e9]',
+].join('\n');
+
+test('relabel gives each box in a frame page its place in camofox\'s order, and skips what camofox skips', () => {
+  assert.equal(relabel(CHECKOUT, 9), [
+    '- heading "Checkout" [level=1]',
+    '- textbox "Email" [e1]',
+    '- textbox "Full name" [e2]',
+    '- button "Calendar"',
+    '- button "Pay" [e3]',
+    '- iframe "link":',
+    '  - textbox "Email" [e4]: zq-link@mail.example',
+    '  - textbox "Full name" [e5]',
+    '  - checkbox "Save my information for faster checkout" [e6] [checked]',
+    '- iframe "js.stripe.com":',
+    '  - textbox "Card number" [e7]',
+    '  - textbox "Expiration" [e8]',
+    '  - textbox "CVC" [e9]',
+  ].join('\n'));
+  const dates = '- textbox "Date"\n- button "Open datepicker"\n- textbox "Name" [e1]\n- iframe "pay":\n  - textbox "Name"\n  - link [e3]';
+  assert.equal(relabel(dates, 3), '- textbox "Date"\n- button "Open datepicker"\n- textbox "Name" [e1]\n- iframe "pay":\n  - textbox "Name" [e2]\n  - link [e3]', 'an unnamed link counts');
+});
+
+test('relabel leaves a page with no frame block byte for byte, and a bare iframe line is no block', () => {
+  for (const page of ['- textbox "Email" [e1]\n- textbox "Email" [e2]\n', '- iframe\n- button "Go" [e1]', '- iframe "pay":\n- button "Go" [e1]', '- textbox "Date"\n- link [e1]\n- textbox "Name"\n- button "Go" [e3]', '']) assert.equal(relabel(page, 99), page);
+});
+
+test('relabel drops a main-page mark that isn\'t the line\'s place, as when a frame went missing from the second read', () => {
+  const page = '- heading "Checkout" [level=1]\n- textbox "Email" [e4]\n- textbox "Full name" [e2]\n- button "Pay" [e3]';
+  assert.equal(relabel(page, 6), `- heading "Checkout" [level=1]\n- textbox "Email"\n- textbox "Full name" [e2]\n- button "Pay" [e3]\n${NO_REF_NOTE}`);
+  assert.equal(relabel(page, null), page, 'a windowed read is left to the frame-page rule');
+  const framed = '- textbox "Email" [e4]\n- textbox "Phone" [e5]\n- iframe "card":\n  - textbox "Card number" [e3]';
+  assert.equal(relabel(framed, 5), `- textbox "Email"\n- textbox "Phone"\n- iframe "card":\n  - textbox "Card number" [e3]\n${NO_REF_NOTE}`, 'a frame page\'s main marks are checked too');
+});
+
+test('relabel keeps camofox\'s marks when the counts disagree, drops those shared across blocks, and says so', () => {
+  const expected = [
+    '- heading "Checkout" [level=1]',
+    '- textbox "Email"',
+    '- textbox "Full name"',
+    '- button "Calendar"',
+    '- button "Pay" [e3]',
+    '- iframe "link":',
+    '  - textbox "Email": zq-link@mail.example',
+    '  - textbox "Full name"',
+    '  - checkbox "Save my information for faster checkout" [e6] [checked]',
+    '- iframe "js.stripe.com":',
+    '  - textbox "Card number" [e7]',
+    '  - textbox "Expiration" [e8]',
+    '  - textbox "CVC" [e9]',
+    NO_REF_NOTE,
+  ].join('\n');
+  for (const count of [8, 10, null, undefined]) assert.equal(relabel(CHECKOUT, count), expected, String(count));
+  const big = ['- iframe "pay":', ...Array.from({ length: 501 }, (_, index) => `  - button "B${index}" [e${index + 1}]`)].join('\n');
+  assert.equal(relabel(big, 501), `${big}\n${NO_REF_NOTE}`, 'past 500, camofox stopped numbering');
+});
+
+test('boxesIn reads each tick box, radio, and switch with its state; boxChanged says when a click took', () => {
+  const page = '- checkbox "A" [e1]\n- checkbox "B" [e2] [checked]\n- radio "C" [e3] [checked=mixed]\n- switch [e4]\n- button "D" [e5]\n- checkbox "E"';
+  assert.deepEqual(boxesIn(page), { e1: ['checkbox', 'A', false], e2: ['checkbox', 'B', true], e3: ['radio', 'C', 'mixed'], e4: ['switch', '', false] });
+  assert.equal(boxChanged(['checkbox', 'A', false], ['checkbox', 'A', true]), true);
+  assert.equal(boxChanged(['checkbox', 'A', true], ['checkbox', 'A', true]), false);
+  assert.equal(boxChanged(['radio', 'C', true], ['radio', 'C', true]), true, 'a picked radio stays picked');
+  assert.equal(boxChanged(['radio', 'C', false], ['radio', 'C', false]), false);
+  assert.equal(boxChanged(['checkbox', 'A', false], null), true, 'the box went: the click did something');
+  assert.equal(boxChanged(['checkbox', 'A', false], ['button', 'A', false]), true, 'another thing holds the ref now');
+  assert.equal(boxChanged(['checkbox', 'A', false], ['checkbox', 'Save my information', false]), true, 'another box of the same role holds the ref now');
+});
+
+test('boxAt reads a native or ARIA tick box, and nothing else', () => {
+  const checks = ['checkbox', 'radio', 'switch', 'menuitemcheckbox'];
+  const doc = (...found) => ({ querySelectorAll: selector => { if (selector === 'bad') throw new SyntaxError('bad'); return found; } });
+  const el = (fields, attributes = {}) => ({ ...fields, getAttribute: name => attributes[name] ?? null });
+  assert.deepEqual(boxAt(doc(el({ tagName: 'INPUT', type: 'checkbox', checked: true })), '#a', checks), ['checkbox', '', true]);
+  assert.deepEqual(boxAt(doc(el({ tagName: 'INPUT', type: 'radio', checked: false })), '#a', checks), ['radio', '', false]);
+  assert.deepEqual(boxAt(doc(el({ tagName: 'INPUT', type: 'checkbox', checked: true }, { role: 'switch' })), '#a', checks), ['switch', '', true]);
+  assert.deepEqual(boxAt(doc(el({ tagName: 'DIV' }, { role: 'checkbox', 'aria-checked': 'true' })), '#a', checks), ['checkbox', '', true]);
+  assert.deepEqual(boxAt(doc(el({ tagName: 'DIV' }, { role: 'menuitemcheckbox', 'aria-checked': 'mixed' })), '#a', checks), ['menuitemcheckbox', '', 'mixed']);
+  assert.deepEqual(boxAt(doc(el({ tagName: 'DIV' }, { role: 'switch' })), '#a', checks), ['switch', '', false]);
+  assert.equal(boxAt(doc(el({ tagName: 'BUTTON', type: 'submit' })), '#a', checks), null);
+  assert.equal(boxAt(doc(), '#a', checks), null);
+  assert.equal(boxAt(doc(), 'bad', checks), null, 'a selector the page can\'t parse');
+});
+
+test('boxAt reads the match camofox\'s click and focus both take, and nothing when they differ', () => {
+  const checks = ['checkbox'];
+  const doc = (...found) => ({ querySelectorAll: () => found, defaultView: { getComputedStyle: element => ({ visibility: element.shown === false ? 'hidden' : 'visible' }) } });
+  const box = (checked, { size = 20, shown } = {}) => ({ tagName: 'INPUT', type: 'checkbox', checked, shown, getAttribute: () => null, getBoundingClientRect: () => ({ width: size, height: size }) });
+  assert.deepEqual(boxAt(doc(box(false, { size: 0 }), box(true)), '.agree', checks), null, 'a hidden copy first: the click takes the second, focus the first');
+  assert.deepEqual(boxAt(doc(box(false, { shown: false }), box(true)), '.agree', checks), null, 'visibility: hidden first');
+  assert.deepEqual(boxAt(doc(box(true), box(false, { size: 0 })), '.agree', checks), ['checkbox', '', true], 'the visible one first');
+  assert.deepEqual(boxAt(doc(box(false), box(true)), '.agree', checks), ['checkbox', '', false], 'two visible: the first');
+  assert.deepEqual(boxAt(doc(box(false, { size: 0 }), box(true, { size: 0 })), '.agree', checks), ['checkbox', '', false], 'none visible: the first');
+  assert.deepEqual(boxAt(doc(box(false, { size: 0 }), box(true)), '.agree, #x', checks), ['checkbox', '', false], 'a selector list stays as given');
+});
+
+test('snapshot prints a frame page\'s renumbered refs, and get value reads the frame box by its own ref', t => {
+  const f = fixture(t);
+  ok(f, 'open', SHOP);
+  f.camofox.set('snapshot', CHECKOUT);
+  f.camofox.set('refs-count', '9');
+  const out = ok(f, 'snapshot');
+  assert.match(out, /^- textbox "Email" \[e1\]$/m);
+  assert.match(out, /^ {2}- textbox "Email" \[e4\]: zq-link@mail\.example$/m);
+  assert.equal(ok(f, 'get', 'value', 'e4'), 'zq-link@mail.example\n');
+  assert.equal(ok(f, 'get', 'value', 'e1'), '\n', 'the page\'s own Email is empty');
+  f.camofox.set('refs-count', '7');
+  const unsure = ok(f, 'snapshot');
+  assert.match(unsure, /^- textbox "Email"$/m);
+  assert.ok(unsure.endsWith(`${NO_REF_NOTE}\n`));
+});
+
+/** Opens the shop with a tick box at e3 (also `#agree`) and a button at e2, read once so the tab file knows them. */
+function boxPage(t) {
+  const f = fixture(t);
+  ok(f, 'open', SHOP);
+  f.camofox.set('box', 'e3');
+  f.camofox.set('snapshot', '- link "Shop" [e1]\n- button "Pay" [e2]\n- checkbox "I understand" [e3]{ticked}');
+  ok(f, 'snapshot');
+  return f;
+}
+
+test('a tick box that ticks on click takes one click and one read; a button takes the click alone', t => {
+  const f = boxPage(t);
+  let before = f.camofox.calls().length;
+  assert.equal(ok(f, 'click', 'e3'), 'BROWSE_DONE=click\n');
+  assert.deepEqual(f.camofox.calls().slice(before), ['POST /tabs/:tab/click', 'GET /tabs/:tab/snapshot']);
+  assert.equal(f.camofox.tabs()[0].ticked, true);
+  assert.equal(ok(f, 'click', 'e3'), 'BROWSE_DONE=click\n', 'unticking is a change too');
+  assert.equal(f.camofox.tabs()[0].ticked, false);
+  before = f.camofox.calls().length;
+  ok(f, 'click', 'e2');
+  assert.deepEqual(f.camofox.calls().slice(before), ['POST /tabs/:tab/click']);
+  before = f.camofox.calls().length;
+  ok(f, 'click', '#agree');
+  assert.deepEqual(f.camofox.calls().slice(before), ['POST /tabs/:tab/evaluate', 'POST /tabs/:tab/click', 'POST /tabs/:tab/evaluate'], 'a selector reads before and after');
+  assert.equal(f.camofox.tabs()[0].ticked, true);
+});
+
+test('a tick box that ignores the click but takes Space ends ticked, by ref or selector', t => {
+  const f = boxPage(t);
+  f.camofox.set('box-ignores-click');
+  let before = f.camofox.requests().length;
+  assert.equal(ok(f, 'click', 'e3'), 'BROWSE_DONE=click\n');
+  const sent = f.camofox.requests().slice(before);
+  assert.deepEqual(sent.map(({ method, path }) => `${method} ${path.replace(/\/tabs\/[^/]+/, '/tabs/:tab')}`), ['POST /tabs/:tab/click', 'GET /tabs/:tab/snapshot', 'POST /tabs/:tab/type', 'POST /tabs/:tab/press', 'GET /tabs/:tab/snapshot']);
+  assert.deepEqual([sent[2].body, sent[3].body], [{ userId: 'me', ref: 'e3', text: '', mode: 'keyboard' }, { userId: 'me', key: 'Space' }]);
+  assert.equal(f.camofox.tabs()[0].ticked, true);
+
+  before = f.camofox.calls().length;
+  assert.equal(ok(f, 'click', '#agree'), 'BROWSE_DONE=click\n');
+  assert.deepEqual(f.camofox.calls().slice(before), ['POST /tabs/:tab/evaluate', 'POST /tabs/:tab/click', 'POST /tabs/:tab/evaluate', 'POST /tabs/:tab/type', 'POST /tabs/:tab/press', 'POST /tabs/:tab/evaluate']);
+  assert.equal(f.camofox.tabs()[0].ticked, false);
+});
+
+test('a tick box nothing ticks says the box did not change, by ref or selector', t => {
+  const f = boxPage(t);
+  f.camofox.set('box-ignores-click');
+  f.camofox.set('box-ignores-space');
+  for (const target of ['e3', '#agree']) {
+    const out = f.run('click', target);
+    assert.equal(out.status, 1, target);
+    assert.equal(out.stdout, 'BROWSE_ERROR=the box did not change\n', target);
+  }
+});
+
+test('a ref that names another box after the click is not pressed: camofox renumbered', t => {
+  const f = boxPage(t);
+  f.camofox.set('box-ignores-click');
+  f.camofox.set('click-snapshot', '- link "Shop" [e1]\n- button "Pay" [e2]\n- checkbox "Save my information" [e3]');
+  const before = f.camofox.calls().length;
+  assert.equal(ok(f, 'click', 'e3'), 'BROWSE_DONE=click\n');
+  assert.deepEqual(f.camofox.calls().slice(before), ['POST /tabs/:tab/click', 'GET /tabs/:tab/snapshot'], 'no type, no Space');
+});
+
+test('a tab file from before tick boxes were kept, or a page opened since, clicks as before', t => {
+  const f = boxPage(t);
+  f.camofox.set('box-ignores-click');
+  const tabFile = join(f.camofox.install, 'tabs', `${basename(f.home)}.json`);
+  const { refs, ...old } = JSON.parse(readFileSync(tabFile, 'utf8'));
+  assert.deepEqual(refs, { e3: ['checkbox', 'I understand', false] });
+  writeFileSync(tabFile, JSON.stringify(old));
+  let before = f.camofox.calls().length;
+  ok(f, 'click', 'e3');
+  assert.deepEqual(f.camofox.calls().slice(before), ['POST /tabs/:tab/click']);
+
+  ok(f, 'snapshot');
+  ok(f, 'open', ACCOUNT);
+  assert.equal(JSON.parse(readFileSync(tabFile, 'utf8')).refs, undefined, 'the last page\'s boxes are gone');
+  before = f.camofox.calls().length;
+  ok(f, 'click', 'e3');
+  assert.deepEqual(f.camofox.calls().slice(before), ['POST /tabs/:tab/click']);
 });

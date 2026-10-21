@@ -35,8 +35,11 @@ const CARD = {
   ],
   submit: { label: 'Pay $45.00', target: 'e31' },
 };
-// The card page as the browser reads it: each dropdown shows the choice the site picked.
-const CARD_PAGE = `- textbox "Card number" [e12]
+// The card page as the browser reads it: each dropdown shows the choice the site picked. camofox numbers a page's
+// boxes in order, so the links around the form hold e1–e11 and e16–e30.
+const links = (from, to) => Array.from({ length: to - from + 1 }, (_, at) => `- link "Help ${from + at}" [e${from + at}]`).join('\n');
+const CARD_PAGE = `${links(1, 11)}
+- textbox "Card number" [e12]
 - combobox "Expiry month" [e13]:
   - option "01 - January" [selected]
   - option "03 - March"
@@ -44,6 +47,7 @@ const CARD_PAGE = `- textbox "Card number" [e12]
   - option "2027" [selected]
   - option "2028"
 - textbox "Security code" [e15]
+${links(16, 30)}
 - button "Pay $45.00" [e31]`;
 const NUMBER = '4242 XKCD 4242 QWZP';
 const CODE = 'ZQ7';

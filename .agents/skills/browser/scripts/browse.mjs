@@ -30,8 +30,15 @@ const USAGE = `usage: browse.mjs <command> [--session <name>]
   close                         close this task's tab
   status | install | stop       the install and the server`;
 
-/** The only versions installed, moved together and only with a passing save on a real camofox. */
+/** The only versions installed, moved together and only with a passing save on a real camofox. That check also
+ * compares the two lists below with the installed `lib/interactive-roles.js` and `server.js`'s `SKIP_PATTERNS`. */
 export const CAMOFOX = { '@askjo/camofox-browser': '1.18.1', 'playwright-core': '1.58.2' };
+// camofox's roles that get a ref (lib/interactive-roles.js), and names it gives none (server.js SKIP_PATTERNS).
+const INTERACTIVE_ROLES = ['button', 'link', 'textbox', 'checkbox', 'radio', 'menuitem', 'listitem', 'combobox', 'tab', 'searchbox', 'slider', 'spinbutton', 'switch'];
+const SKIP_PATTERNS = [/datepicker/i, /date.?picker/i, /calendar/i, /^date$/i];
+const MAX_REFS = 500;
+const CHECKS = ['checkbox', 'radio', 'switch', 'menuitemcheckbox'];
+export const NO_REF_NOTE = '- note: some boxes have no ref; read the page again or use a selector';
 const DRIVER_LINE = CAMOFOX['playwright-core'].split('.').slice(0, 2).join('.');
 const NEEDS = 'camofox is not installed. It needs about 1.4 GB of disk and about 700 MB of memory while it runs. Ask the person, then run `browse.mjs install`.';
 const USER = 'me';
@@ -76,12 +83,107 @@ export function valueIn(snapshot, ref) {
   const inline = /\[e\d+\](?: \[[^\]]*\])*: (.*)$/.exec(lines[at]);
   if (inline) return inline[1].replace(/^"(.*)"$/, '$1');
   const depth = lines[at].search(/\S/);
+  // A box with a placeholder shows its text as a child line instead of after its ref.
+  const typed = /^\s*-\s+(?:textbox|searchbox|combobox)\b/.test(lines[at]);
   for (const line of lines.slice(at + 1)) {
     if (line.search(/\S/) <= depth) break;
     const picked = /option "([^"]*)".*\[selected\]/.exec(line);
     if (picked) return picked[1];
+    const text = typed && /^\s*- text: (.*)$/.exec(line);
+    if (text) return text[1].replace(/^"(.*)"$/, '$1');
   }
   return '';
+}
+
+// A line's role and name as camofox reads them, its ref mark where camofox writes one, and a frame block's first line.
+const HEAD = /^(\s*-\s+(\w+)(?:\s+"([^"]*)")?)/;
+const MARK = /^(\s*-\s+\w+(?:\s+"[^"]*")?) \[(e\d+)\]/;
+const FRAME = /^- iframe "[^\n]*":$/;
+
+/** The `role:name` camofox numbers a line by, or null for a line it gives no ref. */
+function refKey(line) {
+  const [, , role = '', name = ''] = HEAD.exec(line) ?? [];
+  if (!INTERACTIVE_ROLES.includes(role.toLowerCase()) || (name && SKIP_PATTERNS.some(skip => skip.test(name)))) return null;
+  return `${role.toLowerCase()}:${name}`;
+}
+
+/** True on a Google results page, which camofox reads its own way, numbering every line it marks. */
+export function googleResults(url) {
+  try { const { hostname, pathname } = new URL(url); return hostname.includes('google.') && pathname === '/search'; } catch { return false; }
+}
+
+/** Page text whose refs act on the line they mark: frame pages renumber in camofox's order; if `refsCount` disagrees,
+ * marks shared across blocks go, and on any page so does a main-page mark that isn't the line's place. */
+export function relabel(snapshot, refsCount) {
+  const lines = snapshot.split('\n');
+  const keys = lines.map(refKey);
+  const frames = lines.map((line, at) => FRAME.test(line) && lines[at + 1]?.startsWith('  '));
+  const firstFrame = frames.indexOf(true);
+  const count = keys.filter(Boolean).length;
+  if (firstFrame >= 0 && count === refsCount && count <= MAX_REFS) {
+    let next = 0;
+    return lines.map((line, at) => (keys[at] ? line.replace(MARK, '$1').replace(HEAD, `$1 [e${++next}]`) : line)).join('\n');
+  }
+  // camofox numbers the main page first, so a frame it counted but didn't print leaves its ref on a main-page namesake.
+  // A windowed read, with no count, skips this; a page with nothing dropped reads byte for byte.
+  const mainEnd = refsCount == null ? 0 : firstFrame >= 0 ? firstFrame : lines.length;
+  const wrong = new Set();
+  let place = 0;
+  lines.slice(0, mainEnd).forEach((line, at) => {
+    if (!keys[at]) return;
+    place++;
+    const mark = MARK.exec(line)?.[2];
+    if (mark && mark !== `e${place}`) wrong.add(at);
+  });
+  if (firstFrame < 0 && !wrong.size) return snapshot;
+  const blocks = new Map();
+  let block = 0;
+  lines.forEach((line, at) => {
+    if (frames[at]) block++;
+    if (keys[at]) blocks.set(keys[at], (blocks.get(keys[at]) ?? new Set()).add(block));
+  });
+  return [...lines.map((line, at) => (wrong.has(at) || blocks.get(keys[at])?.size > 1 ? line.replace(MARK, '$1') : line)), NO_REF_NOTE].join('\n');
+}
+
+/** Each tick box, radio, and switch in a snapshot by ref: `[role, name, ticked]`, ticked true, false, or `'mixed'`. */
+export function boxesIn(snapshot) {
+  const boxes = {};
+  for (const line of snapshot.split('\n')) {
+    const [, role, name = '', ref, rest] = /^\s*-\s+(\w+)(?:\s+"([^"]*)")? \[(e\d+)\](.*)$/.exec(line) ?? [];
+    if (!CHECKS.includes(role)) continue;
+    const ticked = /\[checked(?:=(\w+))?\]/.exec(rest);
+    boxes[ref] = [role, name, ticked ? ticked[1] ?? true : false];
+  }
+  return boxes;
+}
+
+/** A selector's element as `[role, '', ticked]` when it is a tick box, radio, or switch, else null, also when camofox's
+ * click and focus would take different matches. It runs in the page, so it uses nothing outside itself. */
+export function boxAt(document, selector, checks) {
+  let found;
+  try { found = [...document.querySelectorAll(selector)]; } catch { return null; }
+  // camofox's click takes the only visible match when exactly one is, a selector list left alone
+  // (`visibleSelectorCandidate`), else the first. Visible is Playwright's: a size, and shown.
+  const visible = element => {
+    const { width, height } = element.getBoundingClientRect();
+    return width > 0 && height > 0 && document.defaultView.getComputedStyle(element).visibility === 'visible';
+  };
+  const shown = found.length > 1 && !selector.includes(',') ? found.filter(visible) : [];
+  // camofox's keyboard focus takes the first match, so a visible pick behind it gets no read, and so no Space retry.
+  if (shown.length === 1 && shown[0] !== found[0]) return null;
+  const box = found[0];
+  const native = /^(checkbox|radio)$/.test(box?.type) && box.tagName === 'INPUT';
+  const role = box?.getAttribute('role') || (native ? box.type : '');
+  if (!checks.includes(role)) return null;
+  const aria = box.getAttribute('aria-checked');
+  return [role, '', native ? box.checked : aria === 'mixed' ? 'mixed' : aria === 'true'];
+}
+
+/** True when `now`, a box's state after a click, shows the click took: a radio picked, else any change. Another role or
+ * name means camofox renumbered and the ref holds another thing: a change, so Space never lands on it. */
+export function boxChanged(before, now) {
+  if (!now || now[0] !== before[0] || now[1] !== before[1]) return true;
+  return before[0] === 'radio' ? now[2] === true : now[2] !== before[2];
 }
 
 /** True when `now` is another page than `before`: the address differs with its query left out. */
@@ -272,11 +374,13 @@ export function client(given, { retry = true, start = true } = {}) {
   const read = async tabId => {
     let page = await json('GET', `/tabs/${tabId}/snapshot?userId=${USER}`);
     let text = page.snapshot ?? '';
+    // A long page comes in windows, each repeating its end, so its lines can't be counted as camofox counted them.
+    const refsCount = page.hasMore ? null : page.refsCount;
     while (page.hasMore) {
       page = await json('GET', `/tabs/${tabId}/snapshot?userId=${USER}&offset=${page.nextOffset}`);
       text += page.snapshot ?? '';
     }
-    return { url: page.url, snapshot: text };
+    return { url: page.url, snapshot: googleResults(page.url) ? text : relabel(text, refsCount) };
   };
   /** Waits until two reads a gap apart match, so a half-loaded page is not read as the page. */
   const settle = async tabId => {
@@ -316,19 +420,32 @@ export function client(given, { retry = true, start = true } = {}) {
         try {
           const moved = await json('POST', `/tabs/${tab.tabId}/navigate`, { userId: USER, url }, { wait: COMMAND_MS + SETTLE_MS });
           await settle(tab.tabId);
-          return noteUrl(moved.url ?? url);
+          // The last page's tick boxes don't hold here.
+          writeTab({ ...tab, url: moved.url ?? url, refs: undefined });
+          return moved.url ?? url;
         } catch (error) {
           if (!reopens(error, false)) throw error;
         }
       }
       return (await newTab(url)).url;
     },
+    /** The page as text; the tab file keeps its tick boxes, so a click on one knows what it clicks. */
     async snapshot() {
       const seen = await onTab(read);
-      noteUrl(seen.url);
+      writeTab({ ...readTab(), ...(seen.url && { url: seen.url }), refs: boxesIn(seen.snapshot) });
       return seen;
     },
-    click: target => act('click', target),
+    /** Clicks; a tick box, radio, or switch that didn't change gets Space, as a person would press, then a stop. */
+    async click(target) {
+      const { ref, selector } = targetOf(target);
+      const box = async () => (ref ? boxesIn((await page.snapshot()).snapshot)[ref] : await evaluate(`(${boxAt})(document, ${JSON.stringify(selector)}, ${JSON.stringify(CHECKS)})`)) ?? null;
+      const before = ref ? readTab()?.refs?.[ref] : await box();
+      await act('click', target);
+      if (!before || boxChanged(before, await box())) return;
+      await act('type', target, { text: '', mode: 'keyboard' });
+      await page.press('Space');
+      if (!boxChanged(before, await box())) throw new BrowseError('the box did not change');
+    },
     type: (target, text) => act('type', target, { text }, { quiet: true }),
     select: (target, option) => act('select', target, { option }),
     press: key => onTab(tabId => send('POST', `/tabs/${tabId}/press`, { userId: USER, key })),
