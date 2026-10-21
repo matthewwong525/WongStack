@@ -6,6 +6,7 @@ import { once as heard } from 'node:events';
 import { appendFileSync, existsSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { join } from 'node:path';
+import { MARK_SCRIPT, SECRETS_SCRIPT } from '../../../.agents/skills/browser/scripts/browse.mjs';
 
 const DIR = globalThis.FAKE_CAMOFOX_DIR;
 const file = name => join(DIR, name);
@@ -41,6 +42,17 @@ function pageText(tab) {
   return has('snapshot') ? text('snapshot') : `- heading "Page at ${tab.url}"\n- textbox "Name" [e1]\n- button "Go" [e2]`;
 }
 
+/** One piece of a page as camofox 1.18.1's lib/snapshot.js cuts a long one: a part, a marker, and the page's end. */
+function windowSnapshot(page, offset) {
+  if (page.length <= 80_000) return { snapshot: page, truncated: false, totalChars: page.length };
+  const budget = 80_000 - 5000 - 200;
+  const start = Math.min(offset, page.length - 5000);
+  const end = start + budget;
+  const hasMore = end < page.length - 5000;
+  const marker = hasMore ? `\n[... truncated at char ${end} of ${page.length}. Call snapshot with offset=${end} to see more. Pagination links below. ...]\n` : '\n';
+  return { snapshot: page.slice(start, end) + marker + page.slice(-5000), truncated: true, totalChars: page.length, hasMore, nextOffset: hasMore ? end : null };
+}
+
 /** True when a step's target is the tick box: the ref the `box` file names, or `#agree`; `{ticked}` shows its state. */
 const isBox = body => has('box') && (body.ref === text('box') || body.selector === '#agree');
 const toggle = tab => { tab.ticked = !tab.ticked; };
@@ -58,13 +70,17 @@ function evaluate(tab, expression) {
   if (expression === 'location.href') return tab.url;
   if (expression === '[innerWidth, innerHeight]') return tab.size;
   if (expression === '1') return 1;
+  // The page's secret boxes hold `secrets.json`'s values and what was typed into a marked box.
+  if (expression === SECRETS_SCRIPT) return [...(has('secrets.json') ? JSON.parse(text('secrets.json')) : []), ...tab.marked.map(target => tab.typed[target])];
+  if (expression === MARK_SCRIPT) return void (tab.focused && tab.marked.push(tab.focused));
   if (/^document\.querySelectorAll\(.*\)\.length$/.test(expression)) return has('count') ? Number(text('count')) : 1;
   if (!/document\.querySelector\(".*"\)\) \?\? null$/.test(expression)) throw new Error(`the fake evaluates no such expression: ${expression}`);
-  // A field read runs as written, on a page whose picked fields are dropdowns and the rest text boxes.
+  // A field read runs as written, on a page whose picked fields are dropdowns and the rest plain text boxes.
   const querySelector = selector => {
     if (has('no-field')) return null;
     const picked = tab.picked[selector];
-    return picked === undefined ? { tagName: 'INPUT', value: tab.typed[selector] ?? '' } : { tagName: 'SELECT', value: `value of ${picked}`, selectedOptions: [{ label: picked }] };
+    const box = { tagName: 'INPUT', value: tab.typed[selector] ?? '', placeholder: '', title: '', labels: [], matches: () => false, getAttribute: () => null };
+    return picked === undefined ? box : { tagName: 'SELECT', value: `value of ${picked}`, selectedOptions: [{ label: picked }] };
   };
   return new Function('document', `return ${expression}`)({ querySelector });
 }
@@ -86,6 +102,7 @@ const STEPS = {
     // Playwright's call log quotes what was to be typed, as the real server's refusal can.
     if (has('fail-type')) return refuse(response, 422, `locator.fill: Timeout 10000ms exceeded. Call log: fill("${body.text}")`);
     tab.typed[body.ref ?? body.selector] = body.text;
+    tab.focused = body.ref ?? body.selector;
     if (body.mode === 'keyboard') tab.focus = body;
     return send(response, 200, { ok: true });
   },
@@ -110,12 +127,13 @@ const STEPS = {
     return send(response, 200, { ok: true, width: body.width, height: body.height });
   },
   snapshot(tab, _, response, query) {
-    if (query.get('offset')) return send(response, 200, { url: tab.url, snapshot: text('snapshot-more'), hasMore: false });
-    const snapshot = pageText(tab).replaceAll('{ticked}', tab.ticked ? ' [checked]' : '');
+    // A later piece is cut from the last whole read, as camofox keeps it.
+    if (Number(query.get('offset'))) return send(response, 200, { url: tab.url, ...windowSnapshot(tab.last, Number(query.get('offset'))) });
+    tab.last = pageText(tab).replaceAll('{ticked}', tab.ticked ? ' [checked]' : '');
     tab.reads++;
     // camofox's count is its ref list's size, which a frame page's marks can fall short of.
-    const refsCount = has('refs-count') ? Number(text('refs-count')) : (snapshot.match(/\[e\d+\]/g) ?? []).length;
-    return send(response, 200, { url: tab.url, snapshot, refsCount, hasMore: has('snapshot-more'), nextOffset: snapshot.length });
+    const refsCount = has('refs-count') ? Number(text('refs-count')) : (tab.last.match(/\[e\d+\]/g) ?? []).length;
+    return send(response, 200, { url: tab.url, refsCount, ...windowSnapshot(tab.last, 0) });
   },
   screenshot: (_, __, response) => (has('fail-shot') ? refuse(response, 500, 'screenshot failed') : response.writeHead(200, { 'content-type': 'image/png' }).end(has('shot') ? text('shot') : 'png-1')),
 };
@@ -137,7 +155,7 @@ function route(request, response, path, body, query) {
   const parts = path.split('/').filter(Boolean);
   if (path === '/tabs' && request.method === 'POST') {
     if (has('fail-open')) return refuse(response, 500, 'tab create failed');
-    const tab = { id: randomUUID(), session: body.sessionKey, user: body.userId, url: body.url, reads: 0, typed: {}, picked: {}, ticked: false, size: has('size') ? JSON.parse(text('size')) : [2560, 1328] };
+    const tab = { id: randomUUID(), session: body.sessionKey, user: body.userId, url: body.url, reads: 0, typed: {}, picked: {}, marked: [], ticked: false, size: has('size') ? JSON.parse(text('size')) : [2560, 1328] };
     tabs.set(tab.id, tab);
     return send(response, 200, { tabId: tab.id, url: tab.url, httpStatus: 200, navigationOk: true });
   }

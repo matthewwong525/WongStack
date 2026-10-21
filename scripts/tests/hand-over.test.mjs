@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { SECRETS_SCRIPT } from '../../.agents/skills/browser/scripts/browse.mjs';
 import { finished, globToRegExp, keyMatches, servePage, tunnelOrigin } from '../../.agents/skills/hand-over/scripts/hand-over.mjs';
 import { appendTiming, KEEP, linkOf } from '../../.agents/skills/hand-over/scripts/lib/timings.mjs';
 import { VIEWER } from '../../.agents/skills/hand-over/scripts/view.mjs';
@@ -59,14 +60,14 @@ const SESSION = 'card';
 const DISPLAY = ':97';
 // What a send does in the browser, in order, and what puts the page back. A dropdown's own choice is
 // read from a snapshot before the pick, which goes by the choice's text; a typed value is never part of a step's name.
-const FILL = ['type e12', 'snapshot', 'select e13 03 - March', 'snapshot', 'select e14 2028', 'type #cvv'];
+const FILL = ['type e12', 'snapshot', 'secrets', 'select e13 03 - March', 'snapshot', 'secrets', 'select e14 2028', 'type #cvv'];
 const CLEAR = ['type e12', 'select e13 01 - January', 'select e14 2027', 'type #cvv'];
 const PRESS = 'click e31';
 // The read of the page just before the press, which a watch compares the page with later.
 const PRESSED = ['url', PRESS];
 
-// What an expression the watcher evaluates is called as a step.
-const READS = { 'location.href': 'url', '[innerWidth, innerHeight]': 'size', 1: 'keep-alive' };
+// What an expression the watcher or a reading evaluates is called as a step.
+const READS = { 'location.href': 'url', '[innerWidth, innerHeight]': 'size', 1: 'keep-alive', [SECRETS_SCRIPT]: 'secrets' };
 
 /** One browser request as a step: its route and target, with a pick's choice or a page's size, never a typed value. */
 function stepOf({ method, path, body }) {
@@ -496,8 +497,8 @@ test('a send types each text value through the browser client, presses once, and
   assert.equal(json.receipt.notification, 'notified');
 
   const steps = f.steps().slice(before);
-  assert.deepEqual(steps.slice(0, 8), [...FILL, ...PRESSED]);
-  for (const step of steps.slice(8)) assert.equal(step, 'url', 'after the press, only the address is read');
+  assert.deepEqual(steps.slice(0, FILL.length + PRESSED.length), [...FILL, ...PRESSED]);
+  for (const step of steps.slice(FILL.length + PRESSED.length)) assert.equal(step, 'url', 'after the press, only the address is read');
   assert.equal(f.camofox.starts(), 1, 'the send used the browser that was running');
 
   const out = f.run('wait');
@@ -557,10 +558,10 @@ test('a site that keeps its page is still checking for the watch, then not-accep
   const second = f.run('wait');
   assert.equal(second.stdout, 'HANDOVER_RESULT=not-accepted\n');
   const steps = f.steps().slice(before);
-  assert.deepEqual(steps.slice(0, 8), [...FILL, ...PRESSED]);
+  assert.deepEqual(steps.slice(0, FILL.length + PRESSED.length), [...FILL, ...PRESSED]);
   assert.deepEqual(steps.slice(-4), CLEAR, 'each text box it typed into is emptied and each dropdown put back, last');
   assert.equal(steps.filter(step => step === PRESS).length, 1, 'pressed once, never again');
-  assert.ok(steps.slice(8, -4).length > 10 && steps.slice(8, -4).every(step => step === 'url'), 'the watch only reads the address');
+  assert.ok(steps.slice(FILL.length + PRESSED.length, -4).length > 10 && steps.slice(FILL.length + PRESSED.length, -4).every(step => step === 'url'), 'the watch only reads the address');
   assert.deepEqual(f.page().typed, { e12: '', '#cvv': '' }, 'nothing the person gave is left on the page');
   assert.deepEqual(f.page().picked, { e13: '01 - January', e14: '2027' }, 'each dropdown shows the choice the site had');
   const messages = f.sent().map(message => JSON.parse(/\{.*\}/.exec(message[2])[0]));
@@ -598,7 +599,7 @@ test('a page that moved, or that the browser can no longer read, is never emptie
     assert.equal((await sending).json.receipt.result, 'unconfirmed', how);
     f.run('wait');
     assert.equal(f.run('wait').stdout, 'HANDOVER_RESULT=unconfirmed\n', `${how}: the final result, no longer watching`);
-    const after = f.steps().slice(before).slice(8);
+    const after = f.steps().slice(before).slice(FILL.length + PRESSED.length);
     assert.ok(after.length && after.every(step => step === 'url'), `${how}: nothing typed after the press`);
     if (how === 'moved') assert.deepEqual(f.page().typed, { e12: NUMBER, '#cvv': CODE });
   }
@@ -716,7 +717,7 @@ test('a field that can not be filled presses nothing, empties what was typed, an
   f.set('fail-select', '');
   const { json } = await send(f, link);
   assert.equal(json.receipt.result, 'not-accepted');
-  assert.deepEqual(f.steps().slice(before), [...FILL.slice(0, 3), 'type e12', 'select e13 01 - January'], 'a pick that timed out may still have landed');
+  assert.deepEqual(f.steps().slice(before), [...FILL.slice(0, 4), 'type e12', 'select e13 01 - January'], 'a pick that timed out may still have landed');
   assert.deepEqual(f.page().typed, { e12: '' }, 'nothing past the failed field was typed, and the first box is empty again');
 });
 
