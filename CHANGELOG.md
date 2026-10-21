@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 43.20.0 — Picking up a teammate's change asks first
+
+- **You see a teammate's work before it runs.** When `/continue` picks up a saved change that holds work this computer has never had, it shows the files that work changes, code first, and asks. Nothing switches, and nothing from it runs, until you say yes. Before, a teammate's saved change could run its own code as you the moment you picked it up.
+- **A yes covers what you saw.** If the teammate saves more after you looked, you're shown the new part and asked again. After a yes, the assistant recaps the change and asks before building it, since building runs the change's own tests.
+- **A new workspace asks the same way.** Opening someone else's change in a new workspace needs the same yes, and the workspace starts at exactly what you saw.
+- **Names don't count.** Anyone can type your email onto their work, so the check asks about anything new to this computer, your own work from another computer included, once.
+- New `continue/scripts/pickup.mjs` does the switch; `workspace.mjs open --checkout` takes `--reviewed <commit>`.
+
+**Updating.** Nothing to do by hand. The first time you pick up each teammate's change, the assistant shows it and asks.
+
 ## 43.19.1 — A removed person is blocked before Access setup finishes
 
 - **Removed means blocked at once, even before setup finishes.** On a live app whose Access setup isn't finished, a person you remove is now refused on their next app page, app request or memory request. Before, they kept every app until setup finished. Everyone else still keeps every app until then, and adding them back gives every app back.
