@@ -24,5 +24,5 @@
 ## 5. Verification
 
 - [x] 5.1 With the real agent-browser (0.38.1), serve two local origins: a page on the first that loads a script from the second, then navigates within the first. Run the runner's `open <url> --headers` and a batch `open` of a second page on the first origin; confirm with each server's log that both first-origin requests carry the headers and the second origin's request does not.
-- [ ] 5.2 Run `node --test scripts/tests/browse.test.mjs scripts/tests/own-site.test.mjs scripts/tests/verify-scripts.test.mjs scripts/tests/verify-journeys.test.mjs scripts/tests/preview-url.test.mjs`, `node .github/scripts/checks.mjs --worktree`, and `openspec validate send-secrets-only-to-their-site --strict --no-interactive`, then `/save` for CI.
-- [ ] 5.3 After `/save`, run `/verify` on this branch's own preview with one request probe, and confirm the walk sent the key (no `ACCESS=withheld`) and reached the page past Access.
+- [x] 5.2 Run `node --test scripts/tests/browse.test.mjs scripts/tests/own-site.test.mjs scripts/tests/verify-scripts.test.mjs scripts/tests/verify-journeys.test.mjs scripts/tests/preview-url.test.mjs`, `node .github/scripts/checks.mjs --worktree`, and `openspec validate send-secrets-only-to-their-site --strict --no-interactive`, then `/save` for CI.
+- [x] 5.3 After `/save`, run `/verify` on this branch's own preview with one request probe, and confirm the walk sent the key (no `ACCESS=withheld`) and reached the page past Access.

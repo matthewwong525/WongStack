@@ -1,6 +1,6 @@
 # Proposal
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** sulky-gorilla
 **Open questions:** none
 
@@ -81,3 +81,5 @@ A Cloudflare security check found two places where a secret can reach the wrong 
 - **2026-10-21** — Built: `verify-journeys.mjs` runs the runner from the checkout's root, so `own-site.mjs` finds the install's recorded live address from a journey replay too.
 - **2026-10-21** — Built: the added `/verify` and walkthrough words were offset by trimming nearby wording, to stay inside the instruction budget and the wiki page's 3,000-word cap.
 - **2026-10-21** — Built: the second look found a backslash bypass (`host\@evil` reads as the own host to Node and as userinfo to curl); `own-site.mjs` now requires the written address to start with the parsed origin, and `preview-url.sh` refuses a backslash. Reviewed again: fixed. Saved for CI as final acceptance (tasks 5.2, 5.3).
+- **2026-10-21** — Built: CI passed on 395f3af (PR #420); a request probe of `/api/health` on the branch preview answered 200 past Access with no `ACCESS=withheld`, so the key still reaches the install's own preview (tasks 5.2, 5.3).
+- **2026-10-21** — Archive checkpoint: built, reviewed twice (the backslash bypass fixed), CI passed on 395f3af, live-checked on the branch preview, merged with main's 43.20.0 (browse.mjs `login`, CHANGELOG, browser-logins spec, browse tests and fake camofox conflicts kept both sides, hide-typed-secrets' password mark included), and numbered 43.20.1.
