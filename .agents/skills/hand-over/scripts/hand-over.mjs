@@ -146,7 +146,7 @@ async function teardown(result, { tunnelPid, view, session, completionId } = {},
 /** Result-only completion message; routing and private input are never taken from the page. */
 export function completionMessage(state, result) {
   const names = list => (list ?? []).filter(name => typeof name === 'string' && /^[a-zA-Z0-9_-]{1,200}$/.test(name));
-  return `Private input ended. Resume the existing task once for this completion; if wait already reported it, consume the duplicate without repeating the task. ${JSON.stringify({ completionId: state.completionId, mode: modeOf(state), result: result.result, ...(result.watching && { watching: true }), saved: names(result.saved), appKeys: names(result.appKeys) })}${result.appKeys?.length ? ' Push the saved Worker keys to both Workers as the secrets guide requires.' : ''}`;
+  return `Private input ended. Resume the existing task once for this completion; if wait already reported it, consume the duplicate without repeating the task. ${JSON.stringify({ completionId: state.completionId, mode: modeOf(state), result: result.result, ...(result.watching && { watching: true }), saved: names(result.saved), appKeys: names(result.appKeys) })}${result.appKeys?.length ? ' Push the saved Worker keys to the live app as the secrets guide requires.' : ''}`;
 }
 
 /** Tells the workspace that opened the link its result is ready: `notified`, `unconfirmed`, or `unavailable`. */

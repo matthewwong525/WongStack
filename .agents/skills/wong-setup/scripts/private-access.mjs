@@ -93,8 +93,21 @@ async function bootstrapWorker(cf, { root, name, state, checkpoint, note, today,
   return worker;
 }
 
-/** The two real Worker IDs and default-address login anchor share one owned application. */
-export async function provisionAccess(cf, { account, repo, base, names, subdomain, state, checkpoint, note, today, adoptExisting }) {
+/** The owned app on record, or the one a stopped run was creating; an unrecorded app is never adopted. */
+function findOwned(apps, record, name, recover) {
+  let owned = apps.find(app => app.id === record?.appId);
+  if (!owned && record?.pendingName === name) owned = apps.find(app => app.name === name && recover(app));
+  if (owned && owned.name !== name) throw new AccessSetupError('the recorded Access application has changed ownership; review it before continuing');
+  return owned;
+}
+
+const createApp = (cf, root, { name, domain, destinations }) => cf('POST', `${root}/access/apps`, {
+  name, type: 'self_hosted', session_duration: '720h', domain, ...(destinations && { destinations }), policies: [],
+});
+
+/** Two owned apps: the live one covers the production Worker and its default-address login anchor, the previews one
+ * the staging Worker alone, so a preview's sign-in never opens the live app. Records the previews app as `staging`. */
+export async function provisionAccess(cf, { account, appName, names, subdomain, state, checkpoint, note, today, adoptExisting }) {
   const root = `/accounts/${account}`;
   const workers = [];
   for (const name of [names.worker, names.staging]) {
@@ -102,32 +115,42 @@ export async function provisionAccess(cf, { account, repo, base, names, subdomai
   }
   const scripts = await cf('GET', `${root}/workers/scripts`);
   for (const worker of workers) worker.routes = scripts.find(script => script.id === worker.name)?.routes ?? [];
+  const [production, staging] = workers;
+  const host = worker => `${worker.name}.${subdomain}.workers.dev`;
+  const holds = (app, worker) => app.destinations?.some(d => d.type === 'worker' && d.worker_id === worker.id);
+  const previewsName = `${appName} previews`;
   const apps = await accessList(cf, `${root}/access/apps`);
-  const appName = `WongStack ${repo} (${base})`;
-  let owned = apps.find(app => app.id === state.access?.appId);
-  if (!owned && state.access?.pendingName === appName) {
-    owned = apps.find(app => app.name === appName && workers.every(worker => app.destinations?.some(d => d.type === 'worker' && d.worker_id === worker.id)));
-  }
-  if (owned && owned.name !== appName) throw new AccessSetupError('the recorded Access application has changed ownership; review it before continuing');
-  const conflicts = accessConflicts(apps, workers, subdomain, owned?.id);
+  let live = findOwned(apps, state.access, appName, app => holds(app, production));
+  let previews = findOwned(apps, state.access?.staging, previewsName, app => app.domain === host(staging));
+  const conflicts = accessConflicts(apps, workers, subdomain, [live?.id, previews?.id]);
   if (conflicts.length) throw new AccessSetupError(`Access applications ${conflicts.map(app => app.id).join(', ')} overlap this workspace; review their hostname/path/preview precedence before continuing`);
-  if (!owned && apps.some(app => app.name === appName)) throw new AccessSetupError('an unowned Access application already uses this install name; review it before continuing');
-  if (!owned) {
-    state.access = { pendingName: appName };
+  if ((!live && apps.some(app => app.name === appName)) || (!previews && apps.some(app => app.name === previewsName))) {
+    throw new AccessSetupError('an unowned Access application already uses this install name; review it before continuing');
+  }
+  if (!live) {
+    state.access = { pendingName: appName, ...(state.access?.staging && { staging: state.access.staging }) };
     checkpoint();
-    owned = await cf('POST', `${root}/access/apps`, {
-      name: appName, type: 'self_hosted', session_duration: '720h',
-      domain: `${names.worker}.${subdomain}.workers.dev`,
-      destinations: [...workers.map(worker => ({ type: 'worker', worker_id: worker.id })), { type: 'public', uri: `${names.worker}.${subdomain}.workers.dev` }],
-      policies: [],
-    });
+    live = await createApp(cf, root, { name: appName, domain: host(production), destinations: [{ type: 'worker', worker_id: production.id }, { type: 'public', uri: host(production) }] });
     note('created', `Access application ${appName}`);
   } else note('reused', `Access application ${appName}`);
-  if (!owned.id || !owned.aud || !workers.every(worker => owned.destinations?.some(d => d.type === 'worker' && d.worker_id === worker.id))) {
-    throw new AccessSetupError('Cloudflare did not establish both Worker destinations; business content remains unavailable');
+  if (!live.id || !live.aud || !holds(live, production)) {
+    throw new AccessSetupError('Cloudflare did not establish the live Worker destination; business content remains unavailable');
   }
-  state.access = { ...state.access, appId: owned.id, audience: owned.aud, workers: workers.map(({ name, id }) => ({ name, id })) };
+  state.access = { ...state.access, appId: live.id, audience: live.aud, workers: workers.map(({ name, id }) => ({ name, id })) };
   delete state.access.pendingName;
+  checkpoint();
+  if (!previews) {
+    // Leaving the live app's sign-in: what staging holds was open to branch code, so it is noted before anything moves.
+    if (holds(live, staging)) notePreviewKeys(state, (await cf('GET', `${root}/workers/scripts/${staging.name}/secrets`)).map(secret => secret.name));
+    state.access.staging = { pendingName: previewsName };
+    checkpoint();
+    // Bare at first: Access refuses a Worker two apps claim, so it takes the staging Worker after the live app lets go.
+    previews = await createApp(cf, root, { name: previewsName, domain: host(staging) });
+    note('created', `Access application ${previewsName}`);
+  } else note('reused', `Access application ${previewsName}`);
+  if (!previews.id || !previews.aud) throw new AccessSetupError('Cloudflare did not create the previews sign-in; business content remains unavailable');
+  state.access.staging = { ...state.access.staging, appId: previews.id, audience: previews.aud };
+  delete state.access.staging.pendingName;
   checkpoint();
   return { accountId: account, ...state.access, coverage: 'configured', humanLogin: 'unverified' };
 }
@@ -136,31 +159,11 @@ export const HUMAN_SESSION_DURATION = '720h';
 // The routes the Worker checks the sign-in on itself: git sends it as a password, which the edge can not read.
 const GIT_OVERRIDE = { behavior: 'public', path_pattern: '/api/access/code/git/*' };
 const LIVE_OVERRIDES = [{ behavior: 'public', path_pattern: '/_memory/*' }, GIT_OVERRIDE];
-const accessDestinations = (access, domain) => [
-  ...access.workers.map((worker, index) => ({ type: 'worker', worker_id: worker.id, overrides: index === 0 ? LIVE_OVERRIDES : [GIT_OVERRIDE] })),
-  { type: 'public', uri: domain, overrides: LIVE_OVERRIDES },
-];
-const sameDestinations = (actual = [], desired) => actual.length === desired.length && desired.every(item => actual.some(value => isDeepStrictEqual(value, item)));
-
-/** Lets the memory and git routes past the sign-in wall of an installed app, keeping its policies: the Worker checks
- * the sign-in on both. An update runs it, so it writes only when the exceptions differ. */
-export async function accessExceptions(cf, { account, access, note }) {
-  const appPath = `/accounts/${account}/access/apps/${access.appId}`;
-  const app = await cf('GET', appPath);
-  const destinations = accessDestinations(access, app.domain);
-  if (sameDestinations(app.destinations, destinations)) return;
-  const { name, type, domain, session_duration, allowed_idps } = app;
-  await cf('PUT', appPath, { name, type, domain, destinations, session_duration, allowed_idps, policies: (app.policies ?? []).map(({ id }) => ({ id })) });
-  if (!sameDestinations((await cf('GET', appPath)).destinations, destinations)) {
-    throw new AccessSetupError('Cloudflare did not keep the memory and git exceptions');
-  }
-  note('updated', 'memory and project-download exceptions');
-}
 
 /** Activate the new unavailable production anchor once; later publication choices stay untouched. */
 async function bootstrapLogin(cf, { account, access, state, checkpoint, note }) {
   const worker = access.workers[0];
-  const owned = state.workers[worker.name];
+  const owned = state.workers?.[worker.name];
   if (!owned?.bootstrapLoginPending) return;
   if (owned.id !== worker.id) throw new AccessSetupError('the bootstrap login Worker has changed ownership; review it before continuing');
   const path = `/accounts/${account}/workers/scripts/${worker.name}/subdomain`;
@@ -189,30 +192,35 @@ export function humanEmails(ownerEmail, teammates = []) {
   return [...new Set([owner, ...real])].sort();
 }
 
-async function machineCredential(cf, { root, state, checkpoint, credentials, saveCredentials, note }) {
-  const name = `WongStack ${state.access.appId} verification`;
+/** One app's own checker token, saved in .env under `prefix`: `CF_ACCESS` live, `CF_ACCESS_STAGING` for previews.
+ * `keep` uses the recorded token as it is: never made, rotated or saved, whatever this machine's .env holds. */
+async function machineCredential(cf, { root, record, prefix, label, keep, checkpoint, credentials, saveCredentials, note }) {
+  const name = `WongStack ${record.appId} verification`;
   const tokens = await accessList(cf, `${root}/service_tokens`);
-  let token = tokens.find(item => item.id === state.access.serviceTokenId);
-  if (!token && state.access.pendingServiceName === name) token = tokens.find(item => item.name === name);
+  let token = tokens.find(item => item.id === record.serviceTokenId);
+  if (!token && record.pendingServiceName === name) token = tokens.find(item => item.name === name);
   if (token && token.name !== name) throw new AccessSetupError('the recorded machine token has changed ownership; review it before continuing');
-  if (!token) {
+  if (keep) {
+    if (!token) throw new AccessSetupError(`the ${label} verification service token on record is gone; run setup's provision step to make a new one`);
+    note('reused', `${label} verification service token`);
+  } else if (!token) {
     if (tokens.some(item => item.name === name)) throw new AccessSetupError('an unowned service token uses this install name; review it before continuing');
-    state.access.pendingServiceName = name;
+    record.pendingServiceName = name;
     checkpoint();
     token = await cf('POST', `${root}/service_tokens`, { name, duration: '8760h' });
-    state.access.serviceTokenId = token.id;
+    record.serviceTokenId = token.id;
     checkpoint();
-    await saveCredentials(token);
-    note('created', 'workspace verification service token, in .env');
-  } else if (!credentials.CF_ACCESS_CLIENT_SECRET || credentials.CF_ACCESS_CLIENT_ID !== token.client_id) {
+    await saveCredentials(token, prefix);
+    note('created', `${label} verification service token, in .env`);
+  } else if (!credentials[`${prefix}_CLIENT_SECRET`] || credentials[`${prefix}_CLIENT_ID`] !== token.client_id) {
     // Only this recorded token may rotate after an interrupted one-time secret handoff.
     const rotated = await cf('POST', `${root}/service_tokens/${token.id}/rotate`, {});
-    await saveCredentials(rotated);
-    note('updated', 'workspace verification service secret recovered in .env');
-  } else note('reused', 'workspace verification service token in .env');
+    await saveCredentials(rotated, prefix);
+    note('updated', `${label} verification service secret recovered in .env`);
+  } else note('reused', `${label} verification service token in .env`);
   if (!token.id || token.enabled === false) throw new AccessSetupError('the verification service token is unavailable; restore it before continuing');
-  state.access.serviceTokenId = token.id;
-  delete state.access.pendingServiceName;
+  record.serviceTokenId = token.id;
+  delete record.pendingServiceName;
   checkpoint();
   return token;
 }
@@ -238,111 +246,134 @@ async function ownedPolicy(cf, { path, policies, name, id, body, note }) {
   return created;
 }
 
-/** Separate exact human permissions, machine authentication, and only the memory and git exceptions. */
-export async function provisionAccessPolicies(cf, { account, ownerEmail, teammateEmails, access, state, checkpoint, credentials, saveCredentials, note }) {
-  const root = `/accounts/${account}/access`;
-  const appPath = `${root}/apps/${access.appId}`;
-  const app = await cf('GET', appPath);
-  const policies = await accessList(cf, `${appPath}/policies`);
-  const expectedIds = new Set([state.access.humanPolicyId, state.access.machinePolicyId].filter(Boolean));
+/** An owned app and its policies, refused when it holds a policy this install did not make. */
+async function reviewApp(cf, root, record) {
+  const path = `${root}/apps/${record.appId}`;
+  const app = await cf('GET', path);
+  const policies = await accessList(cf, `${path}/policies`);
+  const expectedIds = new Set([record.humanPolicyId, record.machinePolicyId].filter(Boolean));
   const expectedNames = new Set([`${app.name} people`, `${app.name} verification`]);
   if (policies.some(policy => !expectedIds.has(policy.id) && !expectedNames.has(policy.name))) {
     throw new AccessSetupError('the owned Access application contains an unreviewed policy; review it before continuing');
   }
-  const machine = await machineCredential(cf, { root, state, checkpoint, credentials, saveCredentials, note });
-  const existingHuman = policies.find(policy => policy.id === state.access.humanPolicyId);
-  const teammates = teammateEmails ?? (existingHuman?.include ?? []).map(rule => rule.email?.email).filter(Boolean);
-  const emails = humanEmails(ownerEmail, teammates);
+  return { path, app, policies };
+}
+
+/** One app's exact people list and its own checker token, each in a policy of its own. */
+async function appPolicies(cf, { root, side, emails, checkpoint, credentials, saveCredentials, note }) {
+  const { path, app, policies, record } = side;
+  const machine = await machineCredential(cf, { root, record, prefix: side.prefix, label: side.label, keep: side.keep, checkpoint, credentials, saveCredentials, note });
+  const people = { name: `${app.name} people`, decision: 'allow', include: emails.map(email => ({ email: { email } })), exclude: [], require: [] };
+  const verification = { name: `${app.name} verification`, decision: 'non_identity', include: [{ service_token: { token_id: machine.id } }], exclude: [], require: [] };
   const human = await ownedPolicy(cf, {
-    path: `${appPath}/policies`, policies, name: `${app.name} people`, id: state.access.humanPolicyId, note,
-    body: { name: `${app.name} people`, decision: 'allow', include: emails.map(email => ({ email: { email } })), exclude: [], require: [], session_duration: app.session_duration ?? HUMAN_SESSION_DURATION },
+    path: `${path}/policies`, policies, name: people.name, id: record.humanPolicyId, note,
+    body: { ...people, session_duration: app.session_duration ?? HUMAN_SESSION_DURATION },
   });
-  state.access.humanPolicyId = human.id;
+  record.humanPolicyId = human.id;
   checkpoint();
-  const service = await ownedPolicy(cf, {
-    path: `${appPath}/policies`, policies, name: `${app.name} verification`, id: state.access.machinePolicyId, note,
-    body: { name: `${app.name} verification`, decision: 'non_identity', include: [{ service_token: { token_id: machine.id } }], exclude: [], require: [] },
-  });
-  state.access.machinePolicyId = service.id;
+  const service = await ownedPolicy(cf, { path: `${path}/policies`, policies, name: verification.name, id: record.machinePolicyId, note, body: verification });
+  record.machinePolicyId = service.id;
   checkpoint();
-  const destinations = accessDestinations(access, app.domain);
-  const desired = { name: app.name, type: 'self_hosted', domain: app.domain, destinations, session_duration: app.session_duration ?? HUMAN_SESSION_DURATION, allowed_idps: [access.identityProviderId] };
-  if (Object.entries(desired).some(([key, value]) => !isDeepStrictEqual(app[key], value))) {
-    await cf('PUT', appPath, { ...desired, policies: [{ id: human.id }, { id: service.id }] });
-    note('updated', 'memory and project-download exceptions and workspace email login');
+  if (!human.id || !service.id) throw new AccessSetupError('Cloudflare did not retain both exact workspace policies; content remains unavailable');
+  side.expected = [{ ...people, id: human.id }, { ...verification, id: service.id }];
+}
+
+/** One app's own Worker and default host, its login methods, and its policies in order. */
+async function placeApp(cf, { side, idps, note }) {
+  const { path, app, worker, overrides } = side;
+  const destinations = [{ type: 'worker', worker_id: worker.id, overrides }, { type: 'public', uri: app.domain, overrides }];
+  side.desired = { name: app.name, type: 'self_hosted', domain: app.domain, destinations, session_duration: app.session_duration ?? HUMAN_SESSION_DURATION, allowed_idps: idps };
+  if (Object.entries(side.desired).some(([key, value]) => !isDeepStrictEqual(app[key], value))) {
+    await cf('PUT', path, { ...side.desired, policies: side.expected.map(({ id }) => ({ id })) });
+    note('updated', side.placed);
   }
-  const checked = await cf('GET', appPath);
-  if (!matchesFields(checked, { ...desired, id: access.appId, aud: access.audience })) {
+}
+
+/** Reads one app back: its Worker, login, and exactly its two policies. */
+async function confirmApp(cf, side) {
+  const checked = await cf('GET', side.path);
+  if (!matchesFields(checked, { ...side.desired, id: side.record.appId, aud: side.record.audience })) {
     throw new AccessSetupError('Cloudflare did not retain the private workspace configuration; content remains unavailable');
   }
-  const confirmed = await accessList(cf, `${appPath}/policies`);
-  const expected = [
-    { id: human.id, name: `${app.name} people`, decision: 'allow', include: emails.map(email => ({ email: { email } })), exclude: [], require: [] },
-    { id: service.id, name: `${app.name} verification`, decision: 'non_identity', include: [{ service_token: { token_id: machine.id } }], exclude: [], require: [] },
-  ];
-  if (!human.id || !service.id || confirmed.length !== 2 || !expected.every(policy => confirmed.some(actual => matchesFields(actual, policy)))) {
+  const confirmed = await accessList(cf, `${side.path}/policies`);
+  if (confirmed.length !== 2 || !side.expected.every(policy => confirmed.some(actual => matchesFields(actual, policy)))) {
     throw new AccessSetupError('Cloudflare did not retain both exact workspace policies; content remains unavailable');
   }
+  return checked;
+}
+
+/** Each app gets the same people and login methods, its own checker token and Worker; the staging Worker moves last,
+ * as Access refuses a Worker two apps claim. `keepLiveChecker` leaves the live checker token as it is. */
+export async function provisionAccessPolicies(cf, { account, ownerEmail, teammateEmails, access, state, checkpoint, credentials, saveCredentials, note, keepLiveChecker = false }) {
+  const root = `/accounts/${account}/access`;
+  const [production, staging] = access.workers;
+  const live = { record: state.access, worker: production, overrides: LIVE_OVERRIDES, prefix: 'CF_ACCESS', label: 'workspace', keep: keepLiveChecker, placed: 'memory and project-download exceptions and workspace email login' };
+  const previews = { record: state.access.staging, worker: staging, overrides: [GIT_OVERRIDE], prefix: 'CF_ACCESS_STAGING', label: 'preview', placed: `previews sign-in on ${staging.name}` };
+  for (const side of [live, previews]) Object.assign(side, await reviewApp(cf, root, side.record));
+  const existingHuman = live.policies.find(policy => policy.id === state.access.humanPolicyId);
+  const teammates = teammateEmails ?? (existingHuman?.include ?? []).map(rule => rule.email?.email).filter(Boolean);
+  const emails = humanEmails(ownerEmail, teammates);
+  for (const side of [previews, live]) await appPolicies(cf, { root, side, emails, checkpoint, credentials, saveCredentials, note });
+  // The live app keeps the login methods it has; a new app, which has none yet, gets the email PIN.
+  const idps = live.app.allowed_idps?.length ? live.app.allowed_idps : [access.identityProviderId];
+  for (const side of [live, previews]) await placeApp(cf, { side, idps, note });
+  const checked = await confirmApp(cf, live);
+  await confirmApp(cf, previews);
   await bootstrapLogin(cf, { account, access, state, checkpoint, note });
   return { ...access, ...state.access, sessionDuration: checked.session_duration };
 }
 
 /** The production Worker secret Access reads its sign-in list key from. Staging never holds it. */
 export const LOGIN_KEY_SECRET = 'WONG_ACCESS_LOGIN_MANAGEMENT';
-/** The secret the read-only Cloudflare key is read from: on production always, on staging when Cloudflare takes it. */
+/** The secret the read-only Cloudflare key is read from, on production alone. */
 export const CLOUDFLARE_READ_SECRET = 'WONG_CLOUDFLARE_READ';
-/** Cloudflare stores no secret on a Worker whose newest uploaded version is not the deployed one:
- * a staging Worker's usual state. */
-const NEWER_VERSION_UPLOADED = 10215;
 
-/** What a key's result and note say of the Workers that hold no copy; nothing when every Worker holds one. */
-const waitingOn = waiting => waiting.length ? { result: { waiting }, text: `; ${waiting.join(', ')} waiting, as Cloudflare stores no secret there while a newer preview is uploaded` } : { text: '' };
+/** Adds keys staging held on the live app's sign-in to `state.stagingHeld`, which the Access step names for rotation
+ * until it has once; a newly held read-only key is marked to roll, so a rerun rolls it even after staging lost it. */
+export function notePreviewKeys(state, names) {
+  const added = names.filter(name => !(state.stagingHeld ?? []).includes(name));
+  if (!added.length) return;
+  state.stagingHeld = [...(state.stagingHeld ?? []), ...added];
+  if (added.includes(CLOUDFLARE_READ_SECRET)) state.cloudflareReadKey = { ...state.cloudflareReadKey, pending: true };
+}
 
-/** One account key the app holds as a Worker secret, reused on a rerun while the first Worker still holds it.
- * The first of `workers` must take it; a later one Cloudflare refuses is left `waiting`. A 401 or 403 is `missing`. */
-async function workerKey(cf, { account, name, workers, secret, version, ids = {}, slot, label, where, policies, state, checkpoint, note }) {
+/** One account key the live app holds as a Worker secret, reused while it holds it and its recorded `ids` match, else
+ * rolled. `recorded`, the install record's entry, stands in for absent state; a 401 or 403 is `missing`. */
+async function workerKey(cf, { account, name, worker, secret, version, ids = {}, recorded, slot, label, policies, state, checkpoint, note }) {
   const tokens = `/accounts/${account}/tokens`;
-  const secrets = workers.map(worker => `/accounts/${account}/workers/scripts/${worker}/secrets`);
+  const secrets = `/accounts/${account}/workers/scripts/${worker}/secrets`;
   try {
     const found = (await cf('GET', `${tokens}?per_page=100`)).find(token => token.name === name);
-    const holds = (await Promise.all(secrets.map(path => cf('GET', path)))).map(list => list.some(item => item.name === secret));
-    if (found && holds[0] && matchesFields({ ...ids, ...state[slot] }, ids) && !state[slot]?.pending) {
-      const lacking = waitingOn(workers.filter((_, index) => !holds[index]));
-      note('reused', `${label} ${name}${lacking.text}`);
-      return { status: 'ready', id: found.id, ...lacking.result };
+    const holds = (await cf('GET', secrets)).some(item => item.name === secret);
+    const known = state[slot] ?? (recorded?.status === 'ready' && recorded.id === found?.id ? recorded : {});
+    if (found && holds && matchesFields(known, ids) && !known.pending) {
+      note('reused', `${label} ${name}`);
+      return { status: 'ready', id: found.id, ...ids };
     }
     state[slot] = { name, pending: true };
     checkpoint();
     // A key's value can not be read back, so an interrupted run or a lost secret rolls it.
     const minted = found ? { id: found.id, value: await cf('PUT', `${tokens}/${found.id}/value`, {}) } : await cf('POST', tokens, { name, policies: await policies() });
     if (!minted?.id || typeof minted.value !== 'string' || !minted.value) throw new AccessSetupError(`Cloudflare did not return the ${label}; run setup again`);
-    const text = JSON.stringify({ version, token: minted.value, accountId: account, ...ids });
-    const refused = [];
-    for (const [index, path] of secrets.entries()) {
-      await cf('PUT', path, { name: secret, type: 'secret_text', text }).catch(error => {
-        if (!index || !error.codes?.includes(NEWER_VERSION_UPLOADED)) throw error;
-        refused.push(workers[index]);
-      });
-    }
+    await cf('PUT', secrets, { name: secret, type: 'secret_text', text: JSON.stringify({ version, token: minted.value, accountId: account, ...ids }) });
     state[slot] = { id: minted.id, name, ...ids };
     checkpoint();
-    const lacking = waitingOn(refused);
-    note(found ? 'updated' : 'created', `${label} ${name}, stored in ${refused.length ? 'the live app' : where}${lacking.text}`);
-    return { status: 'ready', id: minted.id, ...lacking.result };
+    note(found ? 'updated' : 'created', `${label} ${name}, stored in the live app only`);
+    return { status: 'ready', id: minted.id, ...ids };
   } catch (error) {
     if (error.status !== 401 && error.status !== 403) throw error;
     return { status: 'missing' };
   }
 }
 
-/** The live app's own key for its sign-in list, stored in the production Worker alone. Cloudflare scopes
- * the key to the account; the app calls only its own application and policy. */
-export const loginManagementKey = (cf, { worker, policyId, ...rest }) => workerKey(cf, {
-  ...rest, workers: [worker], secret: LOGIN_KEY_SECRET, version: 2, ids: { policyId }, slot: 'loginKey', label: 'sign-in list key', where: 'the live app only',
+/** The live app's own key for both apps' sign-in lists, stored in the production Worker alone. Cloudflare scopes
+ * the key to the account; the app calls only its own two applications and people policies. */
+export const loginManagementKey = (cf, { policyId, staging, ...rest }) => workerKey(cf, {
+  ...rest, secret: LOGIN_KEY_SECRET, version: 3, ids: { policyId, staging }, slot: 'loginKey', label: 'sign-in list key',
 });
 
-/** The key behind the app's Cloudflare look-ups, on production and, when Cloudflare takes it, staging.
- * It reads settings, logs and usage: it can change nothing, and reads no stored data. */
+/** The key behind the app's Cloudflare look-ups, on production alone. It reads settings, logs and usage:
+ * it can change nothing, and reads no stored data. */
 export const cloudflareReadKey = (cf, options) => workerKey(cf, {
-  ...options, secret: CLOUDFLARE_READ_SECRET, version: 1, slot: 'cloudflareReadKey', label: 'read-only Cloudflare key', where: 'both Workers',
+  ...options, secret: CLOUDFLARE_READ_SECRET, version: 1, slot: 'cloudflareReadKey', label: 'read-only Cloudflare key',
 });

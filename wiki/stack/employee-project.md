@@ -181,7 +181,7 @@ Inside an installed copy, [company calls](company-api.md#connect-and-call) use t
 
 ## How the app hands the project out
 
-[How the app hands the project out](project-git-route.md) owns the Git address, what it forwards, and the owner's one step on GitHub.
+[How the app hands the project out](project-git-route.md) owns the Git address, what it forwards, and the owner's one step on GitHub. Only the live app hands the project out and takes saves: a preview runs unreviewed code, so it holds no project key and says *Live app only*.
 
 ## Memory comes with the sign-in
 

@@ -134,7 +134,7 @@ Every stateful binding, such as a database, queue, or bucket, gets its own stagi
 
 ## One declared list of secrets, two Workers
 
-One git-ignored `app/.dev.vars` loads both Workers' secrets through `npm run secrets:push`, and `npm run secrets:check` fails when they drift. How it works, and where staging's values should differ: [staging bindings and secrets](staging-bindings.md#one-declared-list-of-secrets-two-workers).
+`npm run secrets:push` loads production from git-ignored `app/.dev.vars` and staging from its own `app/.dev.vars.staging`, and `npm run secrets:check` fails when staging holds a key it may not. How it works, and why previews never get live keys: [staging bindings and secrets](staging-bindings.md#one-declared-list-of-secrets-two-workers).
 
 ## Staging is shared, and that's the trade
 
@@ -186,6 +186,8 @@ Staging is a **seeded fixture database, not a mirror of production.** `npm run d
 
 It never reads, exports, or touches production. That makes the reset safe, fast, and deterministic — the escape hatch when [shared staging](#staging-is-shared-and-thats-the-trade) gets wedged by an abandoned branch's migration.
 
+A reset cut off partway leaves staging empty, and every preview page then answers *Access unavailable* (503). Run the reset once more.
+
 `schema/seed.sql` ships as a commented, empty template. **A change that adds or alters a feature adds the made-up rows its scenarios need, in the same change**: sample customers, orders, or records, realistic in shape, with no real person's details. Every check before publishing [starts from these rows](../development/staging-walkthrough.md#why-a-walk-runs-the-way-it-does), so a feature with no sample data goes unchecked, and the check names it. A change that alters a seeded table updates the file too, so a reset always matches the current schema.
 
 The trade-off, stated plainly: fixtures won't catch a migration that only breaks on production-scale data shapes (400k rows, an unexpected NULL). The mitigation is that production migrations are forward-only and run against real data for the first time at merge, with [Time Travel](d1-recovery.md#a-bad-migration-reached-production) behind them.
@@ -200,7 +202,7 @@ All of them read repo-specific values from `wrangler.jsonc` (names, ids) or `.en
 | `scripts/cf-deploy.sh` | the workflow's **deploy** step | Deploy the production Worker on the default branch; on any other, deploy the staging Worker and then upload a per-commit staging version for the alias URL. |
 | `scripts/cf-preview.sh` | [`/apply`](../../.agents/skills/apply/SKILL.md), for a preview from the agent's machine | Install, migrate staging, build, upload a staging version under the preview alias, and print its URL. Never deploys production. |
 | `scripts/reset-staging-d1.mjs` | `npm run db:reset:staging`, and `/verify` before each walk | Drop staging → apply migrations → apply `schema/seed.sql`. Never touches production. |
-| `scripts/cf-secrets.mjs` | `npm run secrets:push` / `secrets:check`, and the workflow's **parity** step | Load both Workers from `app/.dev.vars`, refusing `.env`; compare the two Workers' secret names and staging's bindings against production's; `shared` lists which keys staging shares with production. |
+| `scripts/cf-secrets.mjs` | `npm run secrets:push` / `secrets:check`, and the workflow's **parity** step | Load each Worker from its own file, refusing `.env`; check staging's secret names and bindings against production's; `shared` lists which keys staging shares with production. |
 | `scripts/check-app-keys.mjs` | the app's `npm test`, with the code checks | Fail when an app's server side or a main handler names a saved key [its route does not list](company-api.md#list-the-keys-a-route-uses). |
 | `scripts/check-app-checks.mjs` | `npm run test:checks`, which the Test check runs when a check's settings or tools change | Hand each check of `npm test` a bad sample, and fail when one lets it through: [a check proves it can still fail](mini-apps.md#the-rules). |
 | `scripts/check-skill-actions.mjs` | the app's `npm test`, and every check run, a docs-only one included | Fail when a skill names a business key's secret or calls an action [it does not list](company-api.md#build-a-skill-on-actions). |
@@ -214,7 +216,7 @@ npm run db:migrate:staging   # apply pending migrations to staging without a res
 npm run db:migrate:prod      # apply pending migrations to production (rare; the deploy does this)
 npm run db:reset:staging     # rebuild staging from migrations + seed
 
-npm run secrets:push         # load both Workers from app/.dev.vars
+npm run secrets:push         # load each Worker from its own file
 npm run secrets:check        # do the two Workers still agree?
 ```
 

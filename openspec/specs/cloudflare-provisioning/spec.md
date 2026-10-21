@@ -178,25 +178,6 @@ The stack section SHALL have a page for a non-developer that says to get a key f
 - **WHEN** a reader has copied a key from a service
 - **THEN** the page tells them to give it through the private key link, and to paste it into the chat only as a fallback
 
-### Requirement: One secrets file loads both Workers
-
-`app/.dev.vars` SHALL be the declared list of Worker runtime secrets, and `secrets:push` SHALL load ordinary runtime secrets into production and staging; a git-ignored `app/.dev.vars.staging` SHALL give staging its own values. A linked worktree with no copy SHALL read the primary worktree's file. The private production Access login-management binding SHALL be omitted entirely from staging sources/config, including a blank declaration. Both target sources and staging config SHALL be validated before the first provider write. Unsafe fallback, explicit override or staging source SHALL load nothing into either Worker.
-
-#### Scenario: Staging diverges
-
-- **WHEN** `app/.dev.vars.staging` exists
-- **THEN** staging gets its values and production gets `app/.dev.vars`
-
-#### Scenario: Production holds private login authority
-
-- **WHEN** a production runtime file contains private Access management bindings and staging would reuse it
-- **THEN** push fails before either Worker changes and requires a separate staging source omitting those bindings
-
-#### Scenario: Staging source is invalid after production source passes
-
-- **WHEN** production's source is valid but staging declares a private Access binding or account credential
-- **THEN** validation fails before any production or staging secret push
-
 ### Requirement: Account credentials never reach a Worker
 
 `secrets:push` MUST refuse `.env`, including through a symlink, and MUST fail when the file declares a `CLOUDFLARE_*` or `CF_ACCESS_*` key, loading nothing into either Worker.
@@ -205,25 +186,6 @@ The stack section SHALL have a page for a non-developer that says to get a key f
 
 - **WHEN** `app/.dev.vars` holds `CLOUDFLARE_API_TOKEN`
 - **THEN** the push exits non-zero, names the key, and loads nothing
-
-### Requirement: A gate keeps the two Workers in step
-
-`secrets:check` SHALL fail when ordinary runtime secret names differ or a stateful top-level binding is absent from `env.staging`, excluding documented production-only memory and private Access management bindings. It SHALL fail if a private Access management binding is present on staging. It SHALL only warn about disagreement with `app/.dev.vars.example`, compare names only, and never read or print secret values.
-
-#### Scenario: A secret on one Worker
-
-- **WHEN** production holds an ordinary runtime secret staging lacks
-- **THEN** the check fails and names the key, with no value in its output
-
-#### Scenario: Production-only Access management
-
-- **WHEN** private Access management names are present only in production and ordinary names match
-- **THEN** the parity check passes without requiring management authority on staging
-
-#### Scenario: Staging holds a private management binding
-
-- **WHEN** staging config or deployed secret names include private Access management authority
-- **THEN** the check fails and names the binding without disclosing its value
 
 ### Requirement: The gate is never permanently red
 
@@ -265,7 +227,7 @@ Provisioning SHALL protect production and staging business content with Cloudfla
 
 ### Requirement: Protection covers every address of this workspace
 
-The workspace's Access protection SHALL cover its production and staging Workers across default addresses, custom domains, routes, branch aliases, and unique version URLs, including addresses added later and previews created before adoption. Provisioning SHALL NOT gate unrelated Workers or create account-wide protection. More-specific conflicting policies SHALL prevent a successful coverage report until resolved.
+The workspace's Access protection SHALL cover its production and staging Workers across default addresses, custom domains, routes, branch aliases, and unique version URLs, including addresses added later and previews created before adoption. The live app's application SHALL cover only the production Worker, and the previews' application only the staging Worker. Provisioning SHALL NOT gate unrelated Workers or create account-wide protection. More-specific conflicting policies SHALL prevent a successful coverage report until resolved.
 
 #### Scenario: A new preview or custom domain
 
@@ -279,7 +241,7 @@ The workspace's Access protection SHALL cover its production and staging Workers
 
 ### Requirement: Machine access uses explicit authentication
 
-Provisioning SHALL supply a dedicated app-specific service-token policy for automated verification. Membership updates SHALL preserve that machine policy. The production memory route and the project's git route SHALL be the only automatic exceptions to the edge sign-in wall, and the Worker SHALL verify the company sign-in on each of them itself; other public routes require explicit reviewed configuration. Staging and CI branch previews SHALL carry no memory bindings.
+Provisioning SHALL supply a dedicated app-specific service-token policy for automated verification on each of the two applications, each admitting only its own service token: one for the live app, one for staging and previews. Automated checks of a preview SHALL use the preview token, never the live app's. Membership updates SHALL preserve both machine policies. The Access step SHALL NOT create or rotate the live app's service token; it SHALL make only the previews token. The production memory route and the project's git route SHALL be the only automatic exceptions to the edge sign-in wall, and the Worker SHALL verify the company sign-in on each of them itself; other public routes require explicit reviewed configuration. Staging and CI branch previews SHALL carry no memory bindings.
 
 #### Scenario: Automated checks and memory
 
@@ -316,7 +278,7 @@ Newly provisioned workspace Access applications and human policies SHALL issue l
 
 ### Requirement: Setup supplies what Access needs
 
-Setup SHALL record the owner's email as committed nonsecret configuration for both Workers, and SHALL create a key limited to Access application-and-policy writes, store it with the account and human-policy identifiers as the production Worker's login-management secret, and record the key's identifier for reuse and rotation. The key SHALL NOT be the deploy key, SHALL NOT be written to staging, and a rerun SHALL reuse it. Updating an existing installation SHALL perform the same step. When the available Cloudflare token cannot create the key, the step SHALL be reported as missing with the private key link and SHALL NOT block the rest of setup or the update.
+Setup SHALL record the owner's email as committed nonsecret configuration for both Workers, and SHALL create a key limited to Access application-and-policy writes. It SHALL store the key with the account identifier and both applications' human-policy identifiers as the production Worker's login-management secret, and record the key's identifier for reuse and rotation. The key SHALL NOT be the deploy key, SHALL NOT be written to staging, and a rerun SHALL reuse it while its recorded identifiers still match, judged from the committed install record when the machine has no provisioning state. Updating an existing installation SHALL perform the same step. When the available Cloudflare token cannot create the key, the step SHALL be reported as missing with the private key link and SHALL NOT block the rest of setup or the update.
 
 #### Scenario: A fresh install
 
@@ -333,28 +295,9 @@ Setup SHALL record the owner's email as committed nonsecret configuration for bo
 - **WHEN** the saved Cloudflare token lacks permission to create the key
 - **THEN** the step is reported missing with the private key link, and Access still opens and names the step left
 
-### Requirement: Setup supplies the read-only Cloudflare key
-
-Setup SHALL create a Cloudflare key limited to reading settings, logs and usage, with no permission that changes anything and none that reads databases, stored files, key-value data, queues or memory, SHALL store it for the production Worker, and SHALL record its identifier for reuse and rotation. Setup SHALL also store it for the staging Worker when Cloudflare accepts it; a staging Worker that refuses the key SHALL be reported as waiting and SHALL NOT fail setup, the update, or the staging and production parity check. The key SHALL NOT be the user token, the deploy key or the login-management key, and the user token SHALL still never reach a Worker. A rerun SHALL reuse the key when the production Worker holds it. Updating an existing installation SHALL perform the same step. When the available Cloudflare token cannot create the key, the step SHALL be reported as missing with the private key link and SHALL NOT block the rest of setup or the update.
-
-#### Scenario: A fresh install
-
-- **WHEN** setup finishes
-- **THEN** the production Worker holds the read-only key, the user token is in neither Worker, and the employer can give a person Cloudflare: Read from Access without another step
-
-#### Scenario: The token cannot create keys
-
-- **WHEN** the saved Cloudflare token lacks permission to create the key
-- **THEN** the step is reported missing with the private key link, and Access shows Cloudflare with one step left
-
-#### Scenario: The staging Worker refuses the key
-
-- **WHEN** Cloudflare refuses to store the key on the staging Worker because a newer preview version is uploaded than the one deployed
-- **THEN** the step completes with the key in the production Worker, reports staging as waiting, writes its record, and the parity check passes
-
 ### Requirement: Setup tells the app which project it hands out
 
-Setup and the Access step SHALL record, as committed nonsecret configuration, the one project the app hands out, on the live app and on staging. On an install whose project is kept in the employer's Cloudflare account they SHALL also connect the app to that repository, so no key is made or pasted. On a GitHub install they SHALL leave the read-only key to the employer through the private key link, and SHALL report it as missing with its numbered steps. They SHALL NOT raise that key as a to-do, and setup's closing report SHALL NOT mention it: the employer is asked in Access when they first let someone install the project. Running the step again SHALL change nothing that is already right. The account token SHALL still never reach a Worker.
+Setup and the Access step SHALL record, as committed nonsecret configuration, the one project the app hands out, on the live app and on staging. On an install whose project is kept in the employer's Cloudflare account they SHALL also connect the live app to that repository, so no key is made or pasted; staging SHALL get no connection that can write to it. On a GitHub install they SHALL leave the read-only key to the employer through the private key link, and SHALL report it as missing with its numbered steps. Whether the project can be handed out and saved SHALL be judged from the production Worker alone; the project write key SHALL never be required on, or stored for, staging. They SHALL NOT raise that key as a to-do, and setup's closing report SHALL NOT mention it: the employer is asked in Access when they first let someone install the project. Running the step again SHALL change nothing that is already right. The account token SHALL still never reach a Worker.
 
 #### Scenario: A Cloudflare-kept install updates
 
@@ -412,3 +355,69 @@ When a provisioning run leaves an install private and the setup computer still h
 
 - **WHEN** provisioning runs again while Zero Trust still wants a payment method and the install stays open
 - **THEN** the admin memory key stays in `.env` and keeps working
+
+### Requirement: Previews have their own sign-in
+
+The live app and staging with its previews SHALL each be protected by their own Access application, with their own audience and their own verification service token. A sign-in or machine assertion issued for staging or a preview SHALL NOT authenticate on the live app, on any route, including the routes the Worker checks itself. Both applications SHALL admit the same people: adding or removing a person through the live app SHALL update both sign-in lists, and SHALL leave each application's machine policy intact. Setup SHALL create both applications on a new install. The Access step SHALL split an existing shared application without changing who can sign in or how: the live application SHALL keep its login methods, and the previews application SHALL get the same ones. The deploy gate SHALL refuse a staging or preview deploy while the two environments share an application or audience, naming the Access step. It SHALL still let the live app publish, with a warning.
+
+#### Scenario: A sign-in copied on a preview
+
+- **WHEN** code running on a preview records a visitor's sign-in and sends it to the live app's memory or git route
+- **THEN** the live app refuses it as signed out, while the same person's own live-app sign-in still works
+
+#### Scenario: An install that still shares one sign-in
+
+- **WHEN** an updated install whose two environments still share an Access application pushes a branch
+- **THEN** the preview deploy stops and names the Access step, and a publish to the live app still goes through
+
+### Requirement: Each Worker loads its own secrets file
+
+`app/.dev.vars` SHALL be the declared list of the live app's runtime secrets, and `secrets:push` SHALL load it into the production Worker alone. Staging SHALL hold only what a git-ignored `app/.dev.vars.staging` declares; with no such file, staging SHALL hold no runtime secret. A push SHALL leave staging holding exactly the staging file's names, removing any other; with no staging Worker yet, it SHALL load production and pass with a note. While the two environments still share one Access application or audience, a push SHALL load production alone and leave staging as it is, with a note naming the Access step. The Access step SHALL prune staging by the same rule, and SHALL NOT change production's secrets. Before it changes anything, the split SHALL record the keys staging held; the Access step SHALL name those it removes for rotation, and roll the read-only Cloudflare key when staging held it, until it has done both once, even after a stopped run. A linked worktree with no copy SHALL read the primary worktree's files. The staging file SHALL NOT declare a production-only secret: the login-management key, the project write key, or the read-only Cloudflare key. It SHALL NOT give any key the same value production holds. Both sources and the staging config SHALL be validated before the first provider write; an invalid source SHALL load nothing into either Worker. Output SHALL name keys only, never values.
+
+#### Scenario: No staging file
+
+- **WHEN** `secrets:push` runs with `app/.dev.vars` and no `app/.dev.vars.staging`
+- **THEN** production gets every key, staging is left holding none, and the output names the keys previews lack
+
+#### Scenario: A push before the Access step
+
+- **WHEN** `secrets:push` runs while both environments still name one Access application or audience
+- **THEN** production gets every key, staging keeps what it holds, and the output names the Access step
+
+#### Scenario: An Access step stopped part-way
+
+- **WHEN** the Access step stops after removing the read-only Cloudflare key from staging, and runs again
+- **THEN** the rerun rolls that key, and names for rotation every key staging held at the split
+
+#### Scenario: A staging file that reaches production
+
+- **WHEN** `app/.dev.vars.staging` declares `WONG_CODE_WRITE`, or repeats production's value for any key
+- **THEN** the push fails before either Worker changes and names the key without its value
+
+### Requirement: A gate keeps previews to their own keys
+
+`secrets:check` SHALL fail when staging holds a runtime secret production does not declare, when staging holds a production-only secret (only warning, naming the Access step, while the two environments still share one Access application or audience), when a stateful top-level binding is absent from `env.staging`, or when staging config carries private Access management authority. It SHALL exclude documented production-only memory bindings. It SHALL list, without failing, the production secrets staging lacks. It SHALL only warn about disagreement with `app/.dev.vars.example`, compare names only, and never read or print secret values.
+
+#### Scenario: Previews lack a business key
+
+- **WHEN** production holds `STRIPE_SECRET_KEY` and staging does not
+- **THEN** the check passes and names `STRIPE_SECRET_KEY` as missing on previews, with no value in its output
+
+#### Scenario: Staging holds the project write key
+
+- **WHEN** the staging Worker's secret names include `WONG_CODE_WRITE`
+- **THEN** the check fails and names it; while both environments still name one Access application, it passes with a warning naming the Access step, so the live app keeps publishing
+
+### Requirement: Setup supplies the read-only Cloudflare key to the live app only
+
+Setup SHALL create a Cloudflare key limited to reading settings, logs and usage, with no permission that changes anything and none that reads databases, stored files, key-value data, queues or memory. It SHALL store the key for the production Worker alone and record its identifier for reuse and rotation. The key SHALL NOT reach staging or previews, and the Access step SHALL remove a copy staging already holds. The key SHALL NOT be the user token, the deploy key or the login-management key, and the user token SHALL still never reach a Worker. A rerun SHALL reuse the key when the production Worker holds it. Updating an existing installation SHALL perform the same step. When the available Cloudflare token cannot create the key, the step SHALL be reported as missing with the private key link and SHALL NOT block the rest of setup or the update.
+
+#### Scenario: A fresh install
+
+- **WHEN** setup finishes
+- **THEN** the production Worker holds the read-only key, staging holds no copy, the user token is in neither Worker, and the employer can give a person Cloudflare: Read from Access without another step
+
+#### Scenario: The token cannot create keys
+
+- **WHEN** the saved Cloudflare token lacks permission to create the key
+- **THEN** the step is reported missing with the private key link, and Access shows Cloudflare with one step left

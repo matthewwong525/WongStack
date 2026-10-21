@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## 43.21.0 — Memory guards hold against crafted searches, old keys and future dates
+## Next (minor) — Memory guards hold against crafted searches, old keys and future dates
 
 - **A search can't reach notes you aren't allowed to see.** However a teammate writes a memory search, it looks only through shared team notes and their own. Before, a hand-written search could probe, word by word, what someone else's private notes said.
 - **Your start-of-chat summary shows only your own background run.** Its run line is one short line within the summary's size, and a broken run record is left out instead of blanking the summary. When your next memory tidy-up is due is counted from your own runs too. A teammate's own memory lookups see only their own runs.
@@ -11,6 +11,36 @@
 - **A note's date is the date it was saved.** A teammate or a cloud schedule can't date a note in the future; a re-tagged note keeps its earlier date. The wiki tidy-up also ignores a record of its last run that is dated ahead or claims to have read later notes.
 
 **Updating.** Before publishing, the admin runs `node .claude/skills/memory/scripts/memory.mjs migrate` once: it records who wrote each background run. Runs saved before it reach no one, so everyone's summary, a cloud schedule's too, shows no run line until their next background run. Skip it and memory still searches and saves, but chats start without their summary and background runs aren't recorded until it runs. If memory still used an old key on a private app, it now asks for the company sign-in; `memory.mjs migrate-people` gives notes still waiting to their people.
+
+## 44.0.2 — Keys and passwords go only to their own site
+
+- **A saved password is typed only on its own site.** Before typing a saved login, the assistant's browser checks the page is on the site the login was saved for, or one under it, as `login.netflix.com` sits under `netflix.com`. It checks again right before the password, so a page that jumps elsewhere after the email gets nothing more. On any other site it types nothing and says *wrong site*, and you get the password link for the page's real site instead.
+- **Checking a preview sends its access pass only to your own site.** The pass that opens your previews goes only to a secure address on your own app's site: the live address, and the staging and preview addresses Cloudflare gives your account. Any other address is checked without it, and the report says the key was not sent. A login wall there is reported as *not your site*, and no new key is made for it.
+- **The key reaches only the preview itself.** A font or script a page loads from another site no longer gets it, and nor does a request check naming another site's address.
+- **Only a deploy app's comment names the preview.** Finding the preview from pull request comments now reads only comments posted by an installed app, such as Cloudflare's or Vercel's deploy bot, never a person's. Every way of finding it takes only a secure (`https`) address.
+- `browse.mjs login` can print `BROWSE_LOGIN=wrong-site`; `verify-staging.sh run` can print `ACCESS=withheld` and `BLOCK=not-own-site`.
+
+**Updating.** Nothing to do by hand. A preview announced only by a person's comment is no longer found; one announced by a deploy, a status, or a check still is. A copy with no recorded live address now checks previews without the access key; setting up the memory store with `/wong-sync` records one.
+
+## 44.0.1 — Recover a preview whose staging rebuild was cut off
+
+- **A preview that says *Access unavailable* everywhere after a walk** had its staging rebuild cut off. The [D1 pipeline page](wiki/stack/d1-pipeline.md#seeded-staging-production-untouched) now says to run the reset again.
+
+## 44.0.0 — Previews get their own sign-in and keys
+
+- **A preview can't act as the live app.** Previews run changes nobody has published yet, so they now have their own private app. A sign-in made on a preview no longer opens the live app, its memory or its keys. The same people sign in to both: when you add or remove someone in Access, both lists change together.
+- **Previews hold only their own keys.** The live app's keys no longer reach previews. Previews load only `app/.dev.vars.staging`, for test keys such as a payment test key; with no such file they hold none, and the save names what they lack. A file that copies a live key's value, or names a live-app-only key, is refused.
+- **Saving changes and Cloudflare look-ups are live-app only.** Access on a preview shows *Live app only* for Project code and Cloudflare, and a business key a preview lacks says *Not on previews yet*.
+- **The preview checker has its own pass,** saved as `CF_ACCESS_STAGING_CLIENT_ID` and `CF_ACCESS_STAGING_CLIENT_SECRET` in `.env`. The live checker no longer opens previews.
+- **A preview still on the live app's sign-in stops publishing.** The live app keeps publishing, with a warning that names the step below.
+
+**Updating.** Three steps, in this order. First publish the update: the live app publishes as before, and previews pause. Then run setup's Access step once, as [Finish Access setup](wiki/stack/employee-access.md#finish-access-setup) says. It makes the previews' own private app with your people and login methods on it, and moves previews onto it. It leaves previews holding only the test keys in `app/.dev.vars.staging`, none without that file; the live app keeps all its keys. Then publish the settings change the step made, and previews come back. Run the step after the update is live, not before: the step changes the live app's key for managing people, and the old live app can't read the new one. Until the step runs, saving a key fills the live app and leaves previews as they are. The keys previews held were open to unpublished changes, and preview links made before keep their copies until each key changes: rotate your GitHub key, and every business key previews held, which the step's report names. The step changes the read-only Cloudflare key itself.
+
+## 43.20.1 — Note how Paseo opens a saved branch
+
+- **The tools page says how a new workspace on a saved branch starts.** Paseo uses the branch already on your computer and runs that branch's own setup without asking, which is why a teammate's change is reviewed before it opens.
+
+**Updating.** Nothing to do by hand.
 
 ## 43.20.0 — Picking up a teammate's change asks first
 

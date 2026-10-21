@@ -24,7 +24,9 @@ const EXPECT_WAIT_MS = 5000;
 const LOOKUP_MS = 15000;
 const NAME = /^[a-z0-9][a-z0-9-]*$/;
 const SITE = /^[\w.-]{1,64}$/;
-const ACCESS_KEYS = ['CF_ACCESS_CLIENT_ID', 'CF_ACCESS_CLIENT_SECRET'];
+const ACCESS_KEYS = ['CF_ACCESS_STAGING_CLIENT_ID', 'CF_ACCESS_STAGING_CLIENT_SECRET'];
+// The live app's pair: a replay talks only to previews, so it never holds it.
+const LIVE_KEYS = ['CF_ACCESS_CLIENT_ID', 'CF_ACCESS_CLIENT_SECRET'];
 const WALK_KEYS = ['CLOUDFLARE_API_TOKEN', 'CLOUDFLARE_ACCOUNT_ID', ...ACCESS_KEYS];
 
 class Refusal extends Error {}
@@ -172,6 +174,7 @@ function dotenv(root) {
 function walkEnv(root) {
   const stored = dotenv(root);
   const env = { ...process.env };
+  for (const key of LIVE_KEYS) delete env[key];
   for (const key of WALK_KEYS) if (!env[key] && stored[key]) env[key] = stored[key];
   return env;
 }
@@ -279,14 +282,15 @@ function readRequests(journey, evidence, stem) {
 
 // One check through the runner. `stop` on a result means no later check can run either: none at all
 // past the limit, and none of the same site behind its login wall.
-async function runCheck({ journey, stem, runnerDir, url, env, deadline, checkSeconds, budgetSeconds }) {
+async function runCheck({ root, journey, stem, runnerDir, url, env, deadline, checkSeconds, budgetSeconds }) {
   const browser = journey.probe === 'browser' ? browserBatch(journey, url) : null;
   const input = join(runnerDir, 'journeys', `${stem}.${browser ? 'batch.json' : 'requests.txt'}`);
   writeFileSync(input, browser ? JSON.stringify(browser.commands) : `${journey.steps.map(step => step.join('\t')).join('\n')}\n`);
   const left = deadline - Date.now();
   const capped = checkSeconds * 1000 <= left;
   const log = join(runnerDir, `${stem}.log`);
-  const ran = await run('bash', [RUNNER, runnerDir], { env, limitMs: capped ? checkSeconds * 1000 : left, log });
+  // From the project's own checkout, where the runner reads which site is this install's own.
+  const ran = await run('bash', [RUNNER, runnerDir], { cwd: root, env, limitMs: capped ? checkSeconds * 1000 : left, log });
   rmSync(input);
   if (ran.timedOut) {
     // The stopped journey's browser session outlives it; close it so no browser is left running.
@@ -361,7 +365,7 @@ export async function replay({ root, runDir, url, siteUrls = new Map(), changeRo
       }
     }
     const target = site ? { ...visitor, VERIFY_URL: preview(site).url } : env;
-    const outcome = await runCheck({ journey: entry.journey, stem, runnerDir, url: target.VERIFY_URL, env: target, deadline, checkSeconds, budgetSeconds });
+    const outcome = await runCheck({ root, journey: entry.journey, stem, runnerDir, url: target.VERIFY_URL, env: target, deadline, checkSeconds, budgetSeconds });
     dirty = writes(entry.journey);
     if (outcome.stop === 'site') walled.set(site, outcome.reason);
     else if (outcome.stop) stop = outcome.reason;
@@ -428,7 +432,7 @@ export function keep({ root, runDir, url, id, expect, site, writing = false }) {
   const journeys = join(runDir, 'journeys');
   const { probe, steps } = keptSteps(journeys, id, url.replace(/\/+$/, ''));
   // Each value also as JSON writes it, the way the walk's scrub matches them.
-  const known = [...Object.values(dotenv(root)), ...WALK_KEYS.map(key => process.env[key])].filter(text);
+  const known = [...Object.values(dotenv(root)), ...[...WALK_KEYS, ...LIVE_KEYS].map(key => process.env[key])].filter(text);
   const secrets = secretValues(known.flatMap(value => [value, JSON.stringify(value).slice(1, -1)]));
   const never = NEVER_KEPT.find(([holds]) => holds({ steps, expect, secrets, runDir }));
   if (never) refuse(never[1]);

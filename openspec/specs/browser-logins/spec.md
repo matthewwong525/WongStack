@@ -469,6 +469,20 @@ Each private form send SHALL record how long each step took (each box, the press
 - **WHEN** a link closes before anyone opens it
 - **THEN** the record names what closed it: a close command, a signal, the person's own close, or the time limit
 
+### Requirement: A saved login is typed only on its saved site
+
+The browser SHALL type a saved login's username or password only while the tab's page is on that login's saved host: the same host, `www.` dropped, or one sitting under the other. It SHALL check right before each value it types, so a page that moves to another site between the username and the password gets no password. On any other host it SHALL type nothing, submit nothing, and report `wrong-site`; the agent SHALL then treat the page as having no saved login.
+
+#### Scenario: A look-alike site
+
+- **WHEN** a login is saved for `bank.example` and the agent runs it on a page at `bank.example.attacker.example`
+- **THEN** the browser reports `wrong-site`, and neither the username nor the password is typed
+
+#### Scenario: The page moves after the email step
+
+- **WHEN** the username is typed on the saved site and the page is on another host before the password is typed
+- **THEN** the browser reports `wrong-site`, and the password is not typed
+
 ### Requirement: A page reading never shows what a secret box holds
 
 Every way the agent reads a page's text SHALL show a filled secret box only as filled, never its contents. A box SHALL count as secret when it is a password box, when its label or kind names a password, passcode, PIN, card number, card expiry, security code, or one-time code, or when the agent's saved-login step typed a password into it, even after the site switches it to plain text. An empty secret box, a dropdown's picked choice, and every other box SHALL read as before.

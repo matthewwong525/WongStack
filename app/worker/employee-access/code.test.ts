@@ -79,13 +79,14 @@ beforeEach(() => {
 afterEach(() => { f.sql.close(); vi.unstubAllGlobals(); });
 
 it("registers Project code as a key with Read to install and Write to publish, offered with no app, that no route lists and no app tick gives", () => {
-  expect(keys.code).toEqual({ title: "Project code", purpose: "This project's own code, to install it and save changes", secrets: ["WONG_CODE_READ", "WONG_CODE_WRITE"], levels: ["read", "write"], alone: true, bindings: ["ARTIFACTS", "CODE_CHECKS"] });
+  expect(keys.code).toEqual({ title: "Project code", purpose: "This project's own code, to install it and save changes", secrets: ["WONG_CODE_READ", "WONG_CODE_WRITE"], levels: ["read", "write"], alone: true, bindings: ["ARTIFACTS", "CODE_CHECKS"],
+    liveOnly: true });
   expect([offered("code"), everyKey().get("code")]).toEqual([["read", "write"], "write"]);
   expect(keyUse.some(use => use.keys.includes("code"))).toBe(false);
   expect(changedSet({ apps: [], keys: {} }, { apps: { orders: true } })).toEqual({ apps: ["orders"], keys: {} });
   // Saved follows whether the project can be handed out: a Cloudflare-kept one needs no secret.
   const row = (bindings: object) => keyCatalogue(bindings).find(key => key.id === "code");
-  expect(row({})).toEqual({ id: "code", title: "Project code", purpose: "This project's own code, to install it and save changes", levels: ["read", "write"], saved: false, setup: false, alone: true, direct: false });
+  expect(row({})).toEqual({ id: "code", title: "Project code", purpose: "This project's own code, to install it and save changes", levels: ["read", "write"], saved: false, setup: false, liveOnly: true, alone: true, direct: false });
   expect([row(github)!.saved, row(saving)!.saved, row(artifacts().env)!.saved, saved({ WONG_CODE_READ: TOKEN }, "code")]).toEqual([true, true, true, false]);
   // No route is handed the credential or the binding, even one that lists the key.
   const all = { DB: {}, ...github, WONG_CODE_WRITE: WIDE, ARTIFACTS: {}, CODE_CHECKS: {}, WONG_CLOUDFLARE_READ: "look-up" };
@@ -127,6 +128,17 @@ it("says why the project can not be handed out yet: a missing GitHub key, or no 
   for (const unset of [{}, { WONG_CODE_READ: TOKEN }, { ...github, WONG_CODE_REPOSITORY: "acme/../other" }, { ...github, WONG_CODE_REPOSITORY: "https://github.com/acme/recipe-box" },
     { ...github, WONG_CODE_REPOSITORY: "recipe-box" }, { WONG_CODE_REPOSITORY: "recipe-box", ARTIFACTS: {} }, { WONG_CODE_REPOSITORY: 7 }]) expect(codeStep(unset)).toBe("setup");
   expect(fetched).not.toHaveBeenCalled();
+});
+
+it("names the live app on a preview, whether the project is kept on GitHub or in Cloudflare, held keys or not", () => {
+  const preview = { WONG_ENVIRONMENT: "staging" };
+  for (const env of [{ WONG_CODE_REPOSITORY: "acme/recipe-box" }, { ...github, WONG_CODE_WRITE: WIDE }, { WONG_CODE_REPOSITORY: "recipe-box" },
+    { ...artifacts().env, CODE_CHECKS: CHECKS }]) {
+    expect([codeStep({ ...env, ...preview }), saveStep({ ...env, ...preview })]).toEqual(["live", "live"]);
+  }
+  // No project recorded is still setup's step, and the live app is unchanged.
+  expect([codeStep(preview), saveStep({ ...preview, WONG_CODE_REPOSITORY: "acme/../other" })]).toEqual(["setup", "setup"]);
+  expect([codeStep({ ...github, WONG_ENVIRONMENT: "production" }), saveStep({ ...github, WONG_ENVIRONMENT: "production" })]).toEqual(["ready", "key"]);
 });
 
 // An install kept in Cloudflare has `ARTIFACTS: Artifacts` in its generated Env, not the shape this file calls.

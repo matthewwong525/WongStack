@@ -24,7 +24,7 @@ const USAGE = `usage: browse.mjs <command> [--session <name>]
                                 --full-page takes the whole page, not just what shows
   logins                        each saved login's name, host, and username
   login <name> [--username <ref>] [--password <ref>] [--submit <ref>]
-                                type a saved login; prints BROWSE_LOGIN=accepted|rejected|missing|typed
+                                type a saved login; prints BROWSE_LOGIN=accepted|rejected|missing|typed|wrong-site
   forget <name>                 delete a saved login
   save                          keep the logins now, with every tab open
   close                         close this task's tab
@@ -577,13 +577,22 @@ function savedLogins() {
   try { return readLogins(); } catch (error) { throw new BrowseError(error.message); }
 }
 
-/** Types the saved login `name` and submits: `typed` a step with no password box, `accepted` an address that left
- * the login page, `missing` none typed (no login, or one saved with no password). Only this reads a password. */
+/** Whether hosts `a` and `b` are one site: equal, or one sits under the other, as `login.x.com` under `x.com`. */
+export function sameSite(a, b) {
+  return Boolean(a && b) && (a === b || a.endsWith(`.${b}`) || b.endsWith(`.${a}`));
+}
+
+/** Types the saved login `name` and submits: `typed` a step with no password box, `accepted` the address left the
+ * page, `missing` none saved, `wrong-site` the tab is off the login's site. Only this reads passwords. */
 export async function login(page, name, { username, password, submit }) {
   const entry = savedLogins().find(saved => saved.name === name);
   if (!entry || (password && !entry.password)) return { result: 'missing' };
+  const onSite = url => sameSite(hostOf(url), hostOf(entry.url));
   const before = await page.url();
+  if (!onSite(before)) return { result: 'wrong-site' };
   if (username) await page.type(username, entry.username);
+  // A page that moved after the email step gets no password.
+  if (password && username && !onSite(await page.url())) return { result: 'wrong-site' };
   if (password) {
     await page.type(password, entry.password);
     // Best effort: a password box is secret by its kind anyway; the mark covers one a site later shows as text.

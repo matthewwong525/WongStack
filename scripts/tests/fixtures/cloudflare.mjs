@@ -180,7 +180,10 @@ export async function fakeCloudflare({ r2 = true, subdomain = 'ada', accounts = 
       const size = Number(query.get('per_page') ?? 1000);
       return ok(state.accessApps.slice((page - 1) * size, page * size));
     }
+    // Access refuses a Worker destination another app already claims.
+    const claimed = (id) => (body?.destinations ?? []).some(d => d.type === 'worker' && state.accessApps.some(app => app.id !== id && app.destinations?.some(other => other.type === 'worker' && other.worker_id === d.worker_id)));
     if (route === `POST ${account}/access/apps`) {
+      if (claimed()) return no(400, 12130, 'a Worker destination is already used by another application');
       const app = { ...body, id: `app-${++serial}`, aud: `aud-${serial}` };
       state.accessApps.push(app);
       return ok(app);
@@ -205,6 +208,7 @@ export async function fakeCloudflare({ r2 = true, subdomain = 'ada', accounts = 
       if (!accessApp[2]) {
         if (method === 'GET') return ok(app);
         if (method === 'PUT') {
+          if (claimed(app.id)) return no(400, 12130, 'a Worker destination is already used by another application');
           const previous = app.policies;
           Object.assign(app, body);
           app.policies = body.policies.map(ref => previous.find(policy => policy.id === ref.id));
@@ -266,6 +270,7 @@ export async function fakeCloudflare({ r2 = true, subdomain = 'ada', accounts = 
     const workerSecret = url.pathname.match(new RegExp(`^${account}/workers/scripts/([^/]+)/secrets/([^/]+)$`));
     if (workerSecret && method === 'DELETE') {
       const [, script, name] = workerSecret;
+      if (state.newerPreview.includes(script)) return no(400, 10215, "Secret edit failed. The latest version of your Worker isn't currently deployed.");
       if (!Object.hasOwn(state.workerSecrets[script] ?? {}, name)) return no(404, 10056, 'Binding not found.');
       delete state.workerSecrets[script][name];
       return ok(null);

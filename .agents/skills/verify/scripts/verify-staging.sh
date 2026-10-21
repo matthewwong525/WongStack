@@ -76,7 +76,10 @@
 # After RESULT come indented human lines, then KEY=VALUE facts for the caller.
 # `run` and `publish` end with REDACTED=<n>: the number of files under the run
 # folder that had a credential replaced, or `unknown` when the scrub could not
-# run and the evidence must be read before it is posted.
+# run and the evidence must be read before it is posted. `run` prints
+# ACCESS=withheld when the walk address was not this install's own site, so
+# the Access key went nowhere (verify-runner.sh); an Access wall there prints
+# BLOCK=not-own-site, never BLOCK=access-challenge, so nothing is minted for it.
 #
 # ── There is no adoption to detect ────────────────────────────────────────────
 # The walk used to read `playwright-core` in the app's devDependencies as the
@@ -126,9 +129,10 @@ resolve_primary_root() {
 # Exported values win. Missing values come from the primary worktree's ignored
 # .env — the same durable store setup's provisioning writes. Load only the
 # allowlisted credentials the walk understands; never source arbitrary shell
-# from a dotenv file and never print a value. All are optional: the Access pair
-# matters only when the preview sits behind Cloudflare Access, and the account
-# id only to the staging rebuild. The memory
+# from a dotenv file and never print a value. All are optional: the staging
+# Access pair matters only when the preview sits behind Cloudflare Access, the
+# live pair only to keep and fetch screenshots on the production site, and the
+# account id only to the staging rebuild. The memory
 # skill's parser reads the file, so quotes, `export`, and CRLF mean the same
 # thing here as there.
 load_credentials() {
@@ -145,11 +149,14 @@ load_credentials() {
       const env = parseEnv((await import("node:fs")).readFileSync(file, "utf8"));
       for (const key of keys) if (env[key]) console.log(`${key}=${env[key]}`);
     ' "$active_root/.claude/skills/memory/scripts/lib/store.mjs" "$env_file" \
-      CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID CF_ACCESS_CLIENT_ID CF_ACCESS_CLIENT_SECRET)
+      CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID CF_ACCESS_CLIENT_ID CF_ACCESS_CLIENT_SECRET \
+      CF_ACCESS_STAGING_CLIENT_ID CF_ACCESS_STAGING_CLIENT_SECRET)
   fi
-  export CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID CF_ACCESS_CLIENT_ID CF_ACCESS_CLIENT_SECRET
+  export CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID CF_ACCESS_CLIENT_ID CF_ACCESS_CLIENT_SECRET \
+    CF_ACCESS_STAGING_CLIENT_ID CF_ACCESS_STAGING_CLIENT_SECRET
 }
 
+# The live site's pair: only publish and pictures, which talk to the production site, send it.
 has_access_token() { [ -n "${CF_ACCESS_CLIENT_ID:-}" ] && [ -n "${CF_ACCESS_CLIENT_SECRET:-}" ]; }
 
 # The production site's address: the Worker the memory store records, read
@@ -250,7 +257,8 @@ scrub() {
     const { loadEnv, repoContext } = await load("store.mjs");
     let env = {};
     try { env = loadEnv(repoContext()); } catch { /* not in a checkout: no .env to read */ }
-    const walk = ["CLOUDFLARE_API_TOKEN", "CF_ACCESS_CLIENT_ID", "CF_ACCESS_CLIENT_SECRET"].map(key => process.env[key]);
+    const walk = ["CLOUDFLARE_API_TOKEN", "CF_ACCESS_CLIENT_ID", "CF_ACCESS_CLIENT_SECRET",
+      "CF_ACCESS_STAGING_CLIENT_ID", "CF_ACCESS_STAGING_CLIENT_SECRET"].map(key => process.env[key]);
     const known = [...Object.values(env), ...walk].filter(value => typeof value === "string");
     const values = secretValues(known.flatMap(value => [value, JSON.stringify(value).slice(1, -1)]));
     let changed = 0;
@@ -449,7 +457,7 @@ preflight)
   URL=""
   if [ "$NEED_PREVIEW" -eq 1 ]; then
     URL=$(bash "$ROOT/.claude/skills/save/scripts/preview-url.sh" 2>/dev/null | tail -1)
-    case "$URL" in http*) ;; *) URL="" ;; esac   # anything that isn't a URL is no URL
+    case "$URL" in https://*) ;; *) URL="" ;; esac   # anything but a secure address is no URL
     if [ -z "$URL" ]; then
       SHORT=$(git rev-parse --short HEAD 2>/dev/null || echo "this commit")
       emit UNKNOWN
@@ -519,14 +527,23 @@ run)
   fi
 
   # Access credentials are re-derived here rather than threaded through from
-  # preflight — `run` may be invoked from a different shell.
+  # preflight — `run` may be invoked from a different shell. The runner talks
+  # only to the preview, so it never holds the live pair.
   load_credentials "$ROOT" || true
 
-  VERIFY_URL="$URL" \
+  env -u CF_ACCESS_CLIENT_ID -u CF_ACCESS_CLIENT_SECRET VERIFY_URL="$URL" \
   timeout "${BUDGET}m" bash "$(dirname "${BASH_SOURCE[0]}")/verify-runner.sh" "$RUN_DIR"
   STATUS=$?
   # Whatever the driver's exit, the evidence it left is on disk and may be read.
   scrub "$RUN_DIR"
+  WITHHELD=""
+  [ -f "$RUN_DIR/access-withheld" ] && WITHHELD=$(head -1 "$RUN_DIR/access-withheld")
+  # A wall on an address that is not this install's own gets no heal: minting
+  # a token there would hand a stranger's site the key. Asked again here, as a
+  # machine with no key yet withheld nothing.
+  if [ "$STATUS" -eq 3 ] && { [ -n "$WITHHELD" ] || ! node "$(dirname "${BASH_SOURCE[0]}")/own-site.mjs" "$URL" >/dev/null 2>&1; }; then
+    STATUS=not-own
+  fi
 
   case "$STATUS" in
     0)   emit WALKED
@@ -546,8 +563,13 @@ run)
          note "BLOCK=access-challenge — with a Cloudflare API token, /verify mints a"
          note "service token and retries once. Without one the heal is unavailable."
          note "Either way this is UNVERIFIED, never a graded login page." ;;
+    not-own) emit UNKNOWN
+         note "the address answered with a Cloudflare Access login, and it is not this install's own site."
+         note "BLOCK=not-own-site — the key was not sent and no new one is made: $URL"
+         note "This is UNVERIFIED, never a graded login page." ;;
     *)   emit UNKNOWN; note "the driver exited $STATUS before finishing" ;;
   esac
+  if [ -n "$WITHHELD" ]; then note "the Access key was not sent: $WITHHELD"; echo "ACCESS=withheld"; fi
   scrubbed
   ;;
 

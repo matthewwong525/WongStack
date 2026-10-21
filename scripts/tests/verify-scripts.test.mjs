@@ -11,6 +11,9 @@ import { handleWalkPictures } from '../../.agents/skills/verify/worker/walk-pict
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const script = join(repo, '.agents/skills/verify/scripts/verify-staging.sh');
 const SECRET = 'sec"ret\\x=y';
+const STAGING_ID = 'staging-id.access';
+const STAGING_SECRET = 'stag"ing\\x=z';
+const ACCESS_KEYS = ['CF_ACCESS_CLIENT_ID', 'CF_ACCESS_CLIENT_SECRET', 'CF_ACCESS_STAGING_CLIENT_ID', 'CF_ACCESS_STAGING_CLIENT_SECRET'];
 
 // A throwaway repo whose .env uses quotes, `export`, a comment, and CRLF line ends, with the
 // memory skill's parser where an installed repo keeps it.
@@ -21,12 +24,13 @@ function fixture(t) {
   mkdirSync(join(work, '.claude/skills/memory/scripts/lib'), { recursive: true });
   for (const lib of ['store.mjs', 'primary-root.mjs', 'cli.mjs']) symlinkSync(join(repo, '.agents/skills/memory/scripts/lib', lib), join(work, '.claude/skills/memory/scripts/lib', lib));
   execFileSync('git', ['init', '-q'], { cwd: work });
-  writeFileSync(join(work, '.env'), ['# Access', 'export CF_ACCESS_CLIENT_ID="client-id.access"', `CF_ACCESS_CLIENT_SECRET='${SECRET}'`, 'CLOUDFLARE_API_TOKEN=tok=en== # api', ''].join('\r\n'));
+  writeFileSync(join(work, '.env'), ['# Access', 'export CF_ACCESS_CLIENT_ID="client-id.access"', `CF_ACCESS_CLIENT_SECRET='${SECRET}'`, `CF_ACCESS_STAGING_CLIENT_ID=${STAGING_ID}`, `CF_ACCESS_STAGING_CLIENT_SECRET='${STAGING_SECRET}'`, 'CLOUDFLARE_API_TOKEN=tok=en== # api', ''].join('\r\n'));
   const bin = join(root, 'bin');
   mkdirSync(bin);
   writeFileSync(join(bin, 'agent-browser'), `#!/usr/bin/env bash
 [ "$1" = "--version" ] && echo "agent-browser 0.0.0"
-[ "$3" = "set" ] && printf '%s' "$5" > "${root}/headers.json" && printf '%s' "$CLOUDFLARE_API_TOKEN" > "${root}/token"
+[ "$5" = "--headers" ] && printf '%s' "$6" > "${root}/headers.json" && printf '%s' "$CLOUDFLARE_API_TOKEN" > "${root}/token"
+[ "$1" = "--session" ] && echo "\${*:3:3}" | sed 's/ --headers$//' >> "${root}/browser-calls"
 [ "$3" = "get" ] && echo "http://127.0.0.1/"
 [ "$3" = "open" ] && printf '%s' "$AGENT_BROWSER_PROFILE" > "${root}/profile"
 [ "$3" = "batch" ] && [ -n "$LIST_REQUESTS" ] && printf '{"requests":[{"headers":%s}]}' "$(cat "${root}/headers.json")"
@@ -40,27 +44,101 @@ exit 0
   return { root, work, bin, run };
 }
 
-test('the walk reads .env through the memory parser and escapes the Access header JSON', async t => {
-  const { root, work, bin, run } = fixture(t);
-  const seen = [];
-  const server = createServer((req, res) => { seen.push(req.headers); res.end('ok'); });
-  await new Promise(done => server.listen(0, '127.0.0.1', done));
-  t.after(() => server.close());
+// This install's own preview, on the memory Worker's account subdomain.
+const OWN_PREVIEW = 'https://pr-1-app-staging.acct.workers.dev';
+const recordWorker = work => {
+  mkdirSync(join(work, '.claude'), { recursive: true });
+  writeFileSync(join(work, '.claude/.wong-stack.json'), JSON.stringify({ components: { memory: { accountId: 'a', databaseId: 'd', worker: 'https://app.acct.workers.dev/_memory' } } }));
+};
+
+// Records the memory Worker, and puts first on PATH a `curl` that logs each call's arguments and answers 200, echoing
+// the Access headers it was given when LIST_REQUESTS is set, so a walk of an https preview reaches no network.
+function ownPreview(setup) {
+  const { root, work, bin } = setup;
+  recordWorker(work);
+  const log = join(root, 'curl.jsonl');
+  writeFileSync(join(bin, 'curl'), `#!/usr/bin/env bash
+"${process.execPath}" -e 'require("fs").appendFileSync(process.argv[1], JSON.stringify(process.argv.slice(2)) + "\\n")' "${log}" "$@"
+printf 'HTTP/1.1 200 OK\\r\\n\\r\\n'
+[ -n "$LIST_REQUESTS" ] && for arg; do case "$arg" in CF-Access-*) printf '%s\\n' "$arg" ;; esac; done
+exit 0
+`);
+  chmodSync(join(bin, 'curl'), 0o755);
+  const curls = () => readFileSync(log, 'utf8').trim().split('\n').map(line => JSON.parse(line));
+  const browserCalls = () => readFileSync(join(root, 'browser-calls'), 'utf8');
+  return { curls, browserCalls };
+}
+const accessOf = args => args.filter(arg => arg.startsWith('CF-Access-'));
+
+test('the walk reads .env through the memory parser, and gives its own preview\'s origin the preview pair only, never the live one', async t => {
+  const setup = fixture(t);
+  const { root, work, bin, run } = setup;
+  const { curls, browserCalls } = ownPreview(setup);
+  writeFileSync(join(run, 'journeys/api.requests.txt'), 'GET\t/probe\nGET\thttps://elsewhere.example/x\n');
   const env = { ...process.env, PATH: `${bin}:${process.env.PATH}` };
-  for (const key of ['CF_ACCESS_CLIENT_ID', 'CF_ACCESS_CLIENT_SECRET', 'CLOUDFLARE_API_TOKEN']) delete env[key];
-  const stdout = await new Promise((done, fail) => execFile('bash', [script, 'run', run, `http://127.0.0.1:${server.address().port}`], { cwd: work, env, encoding: 'utf8' },
-    (error, out, err) => (error ? fail(new Error(err || out)) : done(out))));
+  for (const key of [...ACCESS_KEYS, 'CLOUDFLARE_API_TOKEN']) delete env[key];
+  const { stdout } = await walk(['run', run, OWN_PREVIEW], { cwd: work, env });
   assert.match(stdout, /RESULT: WALKED/);
-  assert.equal(seen[0]['cf-access-client-id'], 'client-id.access');
-  assert.equal(seen[0]['cf-access-client-secret'], SECRET);
-  assert.deepEqual(JSON.parse(readFileSync(join(root, 'headers.json'), 'utf8')), { 'CF-Access-Client-Id': 'client-id.access', 'CF-Access-Client-Secret': SECRET });
+  assert.doesNotMatch(stdout, /ACCESS=withheld/);
+  const [own, elsewhere] = curls();
+  assert.equal(own.at(-1), `${OWN_PREVIEW}/probe`);
+  assert.deepEqual(accessOf(own), ['CF-Access-Client-Id: staging-id.access', `CF-Access-Client-Secret: ${STAGING_SECRET}`]);
+  assert.deepEqual([elsewhere.at(-1), accessOf(elsewhere)], ['https://elsewhere.example/x', []], 'a full address on another host goes without the pair');
+  assert.ok(curls().flat().every(arg => !arg.includes('client-id.access')), 'the preview saw the live pair');
+  assert.deepEqual(JSON.parse(readFileSync(join(root, 'headers.json'), 'utf8')), { 'CF-Access-Client-Id': STAGING_ID, 'CF-Access-Client-Secret': STAGING_SECRET });
+  assert.match(browserCalls(), new RegExp(`^open ${OWN_PREVIEW}$`, 'm'), 'the browser gets the pair by opening the preview with --headers');
+  assert.doesNotMatch(browserCalls(), /^set/m, 'never set headers, which every host a page loads would get');
   assert.equal(readFileSync(join(root, 'token'), 'utf8'), 'tok=en==');
   assert.match(stdout, /^REDACTED=0$/m, 'a walk whose evidence holds no credential changes no file');
 });
 
+test('a walk address Node and curl read differently gets no Access key, though Node parses it as the own preview', async t => {
+  const setup = fixture(t);
+  const { root, work, bin, run } = setup;
+  const { curls } = ownPreview(setup);
+  const env = { ...process.env, PATH: `${bin}:${process.env.PATH}` };
+  for (const key of [...ACCESS_KEYS, 'CLOUDFLARE_API_TOKEN']) delete env[key];
+  const { stdout } = await walk(['run', run, `${OWN_PREVIEW}\\@evil.example`], { cwd: work, env });
+  assert.match(stdout, /^ACCESS=withheld$/m);
+  assert.deepEqual(curls().map(accessOf), [[]], 'the probe went without the pair');
+  assert.equal(existsSync(join(root, 'headers.json')), false, 'the browser was given no headers');
+});
+
+test('a walk of an address off this install\'s site sends no Access key, says so, and an Access wall there is not healed', async t => {
+  const { root, work, bin, run } = fixture(t);
+  recordWorker(work);
+  const seen = [];
+  let wall = false;
+  const server = createServer((req, res) => {
+    seen.push(req.headers);
+    if (wall) res.writeHead(302, { location: 'https://team.cloudflareaccess.com/cdn-cgi/access/login' });
+    res.end('ok');
+  });
+  await new Promise(done => server.listen(0, '127.0.0.1', done));
+  t.after(() => server.close());
+  const env = { ...process.env, PATH: `${bin}:${process.env.PATH}` };
+  for (const key of [...ACCESS_KEYS, 'CLOUDFLARE_API_TOKEN']) delete env[key];
+  const address = `http://127.0.0.1:${server.address().port}`;
+
+  const open = await walk(['run', run, address], { cwd: work, env });
+  assert.match(open.stdout, /RESULT: WALKED/);
+  assert.match(open.stdout, /^ACCESS=withheld$/m);
+  assert.match(open.stdout, /the Access key was not sent: 127\.0\.0\.1:\d+ is not a secure \(https\) address/);
+  assert.ok(seen.length > 0 && seen.every(headers => !Object.keys(headers).some(name => name.startsWith('cf-access-'))), 'no request carried the key');
+  assert.equal(existsSync(join(root, 'headers.json')), false, 'the browser was given no headers');
+  assert.doesNotMatch(readFileSync(join(root, 'browser-calls'), 'utf8'), /^set/m);
+
+  wall = true;
+  const walled = await walk(['run', run, address], { cwd: work, env });
+  assert.match(walled.stdout, /RESULT: UNKNOWN/);
+  assert.match(walled.stdout, /BLOCK=not-own-site/);
+  assert.doesNotMatch(walled.stdout, /BLOCK=access-challenge/, 'nothing tells /verify to mint a token for it');
+  assertScrubbed(run, walled);
+});
+
 const GITHUB_TOKEN = 'ghp_abcdefghijklmnopqrstuvwxyz0123';
 const asJson = value => JSON.stringify(value).slice(1, -1);
-const CREDENTIALS = [SECRET, asJson(SECRET), 'client-id.access', GITHUB_TOKEN];
+const CREDENTIALS = [SECRET, asJson(SECRET), 'client-id.access', STAGING_SECRET, asJson(STAGING_SECRET), STAGING_ID, GITHUB_TOKEN];
 const holdsCredential = text => CREDENTIALS.some(value => text.includes(value));
 
 // Every regular file under the run folder; a link is left out, as the scrub leaves it.
@@ -238,7 +316,7 @@ function stagingFixture(t, { npxExit = 0, staging = { d1_databases: [{ binding: 
   const setup = preflightFixture(t);
   const { root, work, bin, env } = setup;
   mkdirSync(join(work, 'scripts'));
-  for (const name of ['reset-staging-d1.mjs', 'lib-wrangler-config.mjs', 'lib-cli.mjs', 'cf-secrets.mjs']) copyFileSync(join(repo, 'scripts', name), join(work, 'scripts', name));
+  for (const name of ['reset-staging-d1.mjs', 'lib-wrangler-config.mjs', 'lib-cli.mjs', 'cf-secrets.mjs', 'lib-staging-secrets.mjs']) copyFileSync(join(repo, 'scripts', name), join(work, 'scripts', name));
   mkdirSync(join(work, 'app'));
   writeFileSync(join(work, 'app/wrangler.jsonc'), JSON.stringify({ name: 'app', d1_databases: [{ binding: 'DB', database_name: 'app-db', database_id: 'a' }], env: { staging } }));
   writeFileSync(join(bin, 'npx'), `#!/usr/bin/env bash\nprintf 'npx %s\\n' "$*" >> "$VERIFY_TEST_CALLS"\ncase "$*" in *--json*) echo '[{"results":[]}]' ;; esac\nexit ${npxExit}\n`);
@@ -315,10 +393,9 @@ test('staging bound to production\'s database, or missing a twin, is no playgrou
 // The failure the scrub exists for: the driver adds the Access token to every request, a journey lists
 // the requests the browser made, an endpoint echoes its headers, and the token lands in evidence.
 test('run scrubs the Access token it sent out of the evidence, and prints no value', async t => {
-  const { root, work, bin, run } = fixture(t);
-  const server = createServer((req, res) => res.end(JSON.stringify(req.headers)));
-  await new Promise(done => server.listen(0, '127.0.0.1', done));
-  t.after(() => server.close());
+  const setup = fixture(t);
+  const { root, work, bin, run } = setup;
+  ownPreview(setup);
   mkdirSync(join(run, 'evidence/page'), { recursive: true });
   writeFileSync(join(run, 'evidence/page/network.txt'), `CF-Access-Client-Secret: ${SECRET}\nAuthorization: token ${GITHUB_TOKEN}\n`);
   const picture = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x00, 0x00, 0x00, 0x0d, 0xff, 0xfe]);
@@ -326,9 +403,9 @@ test('run scrubs the Access token it sent out of the evidence, and prints no val
   writeFileSync(join(root, 'outside.txt'), SECRET);
   symlinkSync(join(root, 'outside.txt'), join(run, 'evidence/page/linked.txt'));
   const env = { ...process.env, PATH: `${bin}:${process.env.PATH}`, LIST_REQUESTS: '1' };
-  for (const key of ['CF_ACCESS_CLIENT_ID', 'CF_ACCESS_CLIENT_SECRET', 'CLOUDFLARE_API_TOKEN']) delete env[key];
+  for (const key of [...ACCESS_KEYS, 'CLOUDFLARE_API_TOKEN']) delete env[key];
 
-  const output = await walk(['run', run, `http://127.0.0.1:${server.address().port}`], { cwd: work, env });
+  const output = await walk(['run', run, OWN_PREVIEW], { cwd: work, env });
 
   assert.match(output.stdout, /RESULT: WALKED/);
   // The echoed response, the listed requests, and the planted file. The picture and the link are not text files.
@@ -336,7 +413,7 @@ test('run scrubs the Access token it sent out of the evidence, and prints no val
   assertScrubbed(run, output);
   const listed = JSON.parse(readFileSync(join(run, 'evidence/page.result.json'), 'utf8'));
   assert.deepEqual(listed.requests[0].headers, { 'CF-Access-Client-Id': '[redacted:.env]', 'CF-Access-Client-Secret': '[redacted:.env]' });
-  assert.match(readFileSync(join(run, 'evidence/api/01-response.txt'), 'utf8'), /"cf-access-client-secret":"\[redacted:\.env\]"/);
+  assert.match(readFileSync(join(run, 'evidence/api/01-response.txt'), 'utf8'), /^CF-Access-Client-Secret: \[redacted:\.env\]$/m);
   assert.equal(readFileSync(join(run, 'evidence/page/network.txt'), 'utf8'), 'CF-Access-Client-Secret: [redacted:.env]\nAuthorization: token [redacted:token]\n');
   assert.deepEqual(readFileSync(join(run, 'evidence/page/01.png')), picture);
   assert.equal(readFileSync(join(root, 'outside.txt'), 'utf8'), SECRET, 'a file outside the run folder was rewritten');
@@ -350,7 +427,7 @@ test('publish scrubs the comment, a result file, and later evidence before its b
   writeFileSync(join(run, 'evidence/state.result.json'), JSON.stringify({ headers: { 'CF-Access-Client-Secret': SECRET } }));
   writeFileSync(join(run, 'evidence/state/01-query.txt'), `secret=${SECRET} id=client-id.access\n`);
   const env = { ...process.env };
-  for (const key of ['CF_ACCESS_CLIENT_ID', 'CF_ACCESS_CLIENT_SECRET', 'CLOUDFLARE_API_TOKEN', 'WALK_MEDIA_BUCKET', 'WALK_MEDIA_BASE_URL']) delete env[key];
+  for (const key of [...ACCESS_KEYS, 'CLOUDFLARE_API_TOKEN', 'WALK_MEDIA_BUCKET', 'WALK_MEDIA_BASE_URL']) delete env[key];
   const publish = () => spawnSync('bash', [script, 'publish', run], { cwd: work, env, encoding: 'utf8' });
 
   const first = publish();
@@ -400,22 +477,19 @@ test('a request that never answers times out, and HEAD probes return headers', a
 });
 
 test('a linked worktree reads the primary checkout\'s .env', async t => {
-  const { root, work, bin, run } = fixture(t);
+  const setup = fixture(t);
+  const { root, work, bin, run } = setup;
+  const { curls } = ownPreview(setup);
   const git = (...args) => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], { cwd: work });
   git('add', '.claude');
   git('commit', '-q', '-m', 'init');
   const linked = join(root, 'linked');
   git('worktree', 'add', '-q', linked, '-b', 'walk');
-  const seen = [];
-  const server = createServer((req, res) => { seen.push(req.headers); res.end('ok'); });
-  await new Promise(done => server.listen(0, '127.0.0.1', done));
-  t.after(() => server.close());
   const env = { ...process.env, PATH: `${bin}:${process.env.PATH}` };
-  for (const key of ['CF_ACCESS_CLIENT_ID', 'CF_ACCESS_CLIENT_SECRET', 'CLOUDFLARE_API_TOKEN']) delete env[key];
-  const stdout = await new Promise((done, fail) => execFile('bash', [script, 'run', run, `http://127.0.0.1:${server.address().port}`], { cwd: linked, env, encoding: 'utf8' },
-    (error, out, err) => (error ? fail(new Error(err || out)) : done(out))));
+  for (const key of [...ACCESS_KEYS, 'CLOUDFLARE_API_TOKEN']) delete env[key];
+  const { stdout } = await walk(['run', run, OWN_PREVIEW], { cwd: linked, env });
   assert.match(stdout, /RESULT: WALKED/);
-  assert.equal(seen[0]['cf-access-client-id'], 'client-id.access');
+  assert.deepEqual(accessOf(curls()[0]), ['CF-Access-Client-Id: staging-id.access', `CF-Access-Client-Secret: ${STAGING_SECRET}`]);
 });
 
 test('each browser journey runs in a throwaway profile, removed when the walk ends', async t => {
@@ -512,7 +586,7 @@ function pictureFixture(t, origin) {
   for (const tool of ['gh', 'npx']) chmodSync(join(bin, tool), 0o755);
   mkdirSync(join(root, 'tmp'));
   const env = { ...process.env, PATH: `${bin}:${process.env.PATH}`, TMPDIR: join(root, 'tmp') };
-  for (const key of ['CF_ACCESS_CLIENT_ID', 'CF_ACCESS_CLIENT_SECRET', 'CLOUDFLARE_API_TOKEN', 'WALK_MEDIA_BUCKET', 'WALK_MEDIA_BASE_URL']) delete env[key];
+  for (const key of [...ACCESS_KEYS, 'CLOUDFLARE_API_TOKEN', 'WALK_MEDIA_BUCKET', 'WALK_MEDIA_BASE_URL']) delete env[key];
   // Async, so the stand-in server in this process can answer while the script runs.
   const walk = (args, extra = {}) => new Promise(done => execFile('bash', [script, ...args], { cwd: work, env: { ...env, ...extra }, encoding: 'utf8' },
     (error, stdout, stderr) => done({ stdout, stderr, said: stdout + stderr })));

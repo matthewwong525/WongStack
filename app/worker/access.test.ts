@@ -311,6 +311,17 @@ describe("getAccessIdentity — verified assertions", () => {
     }
   });
 
+  it("refuses a preview's sign-in on the live app, wherever the token arrives", async () => {
+    // Same team and signing key, but the previews app's own audience: a sign-in a preview copied.
+    const preview = await signToken({ alg: "RS256", kid: KID }, claims({ email: "human@example.com", aud: "aud-tag-for-previews" }));
+    const live = { ...ENV, WONG_ENVIRONMENT: "production" };
+    const basic = requestWith({ Authorization: `Basic ${Buffer.from(`x-access:${preview}`).toString("base64")}` });
+    for (const request of [bearer(preview), requestWith({ "cf-access-token": preview }), basic]) {
+      expect(await getAccessIdentity(request, live)).toBeNull();
+    }
+    expect(await getAccessIdentity(bearer(preview), { ...live, CF_ACCESS_AUD: "aud-tag-for-previews" })).toMatchObject({ kind: "user" });
+  });
+
   it("refuses anonymous, malformed Basic, wrong-aud, expired and service tokens on the new sources alike", async () => {
     const now = 1_800_000_000;
     vi.spyOn(Date, "now").mockReturnValue(now * 1000);

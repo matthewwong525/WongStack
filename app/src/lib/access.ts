@@ -30,8 +30,8 @@ export const appAccessSchema = z.discriminatedUnion('state', [
     keys: z.array(z.object({ id: z.string(), title: z.string(), level })).optional() }),
 ])
 // The whole Access status. No key's value is ever here, and the server checks `viewer` again on every save.
-// `project` and `projectSave`: `ready`, or the step left; left out, an older status, and no step shows.
-const project = z.enum(['ready', 'key', 'setup'])
+// `project` and `projectSave`: `ready`, the step left, or `live` on a preview; left out, an older status, and no step.
+const project = z.enum(['ready', 'key', 'setup', 'live'])
 export const statusSchema = z.object({ ownerEmail: z.string(), environment: z.enum(['live', 'practice']),
   viewer: z.object({ email: z.string(), owner: z.boolean() }),
   key: z.enum(['ready', 'missing', 'practice']), started: z.boolean(), imported: z.number(),
@@ -40,6 +40,8 @@ export const statusSchema = z.object({ ownerEmail: z.string(), environment: z.en
   unticked: z.object({ people: z.array(z.object({ email: z.string(), apps: z.array(z.string()) })), roles: z.array(z.object({ name: z.string(), apps: z.array(z.string()) })) }),
   keys: z.array(z.object({ id: z.string(), title: z.string(), levels: z.array(level), saved: z.boolean(), setup: z.boolean(),
     alone: z.boolean(),
+    // Only the live app may ever hold it; an older status leaves it out.
+    liveOnly: z.boolean().optional(),
     // What the key's service is for, and its API guide when the key is used directly; an older status has neither.
     direct: z.boolean().optional(), purpose: z.string().optional(), docs: z.string().optional() })),
   roles: z.array(z.object({ id: z.string(), name: z.string(), builtIn: z.boolean().optional(), apps: z.array(z.string()), keys: levels })),

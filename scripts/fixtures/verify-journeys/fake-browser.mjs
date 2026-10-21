@@ -11,12 +11,15 @@ if (args[0] === '--version') {
 const [, session, command] = args;
 const stateDir = process.env.FAKE_BROWSER_STATE;
 const stateFile = join(stateDir, `${session}.json`);
-appendFileSync(join(stateDir, 'calls.txt'), `${session} ${command}\n`);
+appendFileSync(join(stateDir, 'calls.txt'), `${session} ${command}${args.includes('--headers') ? ' --headers' : ''}\n`);
 
 let page = existsSync(stateFile) ? JSON.parse(readFileSync(stateFile, 'utf8')) : { url: '', html: '' };
 
+// FAKE_BROWSER_RESOLVE=<origin>=<local origin> serves an https preview from a local site.
+const [from, to] = (process.env.FAKE_BROWSER_RESOLVE ?? '').split(/=(.*)/);
+
 async function load(url, init) {
-  const response = await fetch(url, init);
+  const response = await fetch(from && url.startsWith(from) ? to + url.slice(from.length) : url, init);
   page = { url: response.url, html: await response.text() };
 }
 

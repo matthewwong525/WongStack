@@ -8,8 +8,8 @@
 #     `.dev.vars` from the folder that holds the wrangler config. Copy it to a
 #     git-ignored `.dev.vars` in this same folder and fill in the real values:
 #         cp app/.dev.vars.example app/.dev.vars
-#   • Load both Workers from it — one command, no per-environment `wrangler
-#     secret put` to forget:
+#   • Load the production Worker from it — one command, no `wrangler secret put`
+#     to forget:
 #         npm run secrets:push
 #   • In a linked worktree, app/.dev.vars is the branch's own copy. Adds and
 #     rotations also go to the primary worktree's copy now; deletions wait for
@@ -22,14 +22,11 @@
 #   wiki/stack/d1-pipeline.md#env-and-devvars-are-not-interchangeable
 #
 # STAGING VALUES
-#   By default both Workers get identical values — `secrets:push` falls back to
-#   `.dev.vars` for staging. To give staging its own value for a key, create a
-#   git-ignored `app/.dev.vars.staging`; no command changes.
-#
-#   Diverge for anything with third-party WRITE side effects — payment keys,
-#   outbound email/SMS, webhook targets. Sharing those lets a branch on staging
-#   charge a real card or email a real customer, re-opening at the API layer the
-#   hole that twinning the database closes. See wiki/stack/d1-pipeline.md.
+#   Previews run unreviewed branch code, so they never get these values. The
+#   staging Worker loads only a git-ignored `app/.dev.vars.staging`, holding test
+#   keys: a payment test key, a sandbox inbox. With no such file, previews hold
+#   no keys. `secrets:push` refuses a staging file that repeats a live value or
+#   names a live-app-only key. See wiki/stack/staging-bindings.md.
 
 # --- Example entries (delete these; replace with your Worker's real secrets) ---
 
@@ -41,11 +38,11 @@
 
 # The live app's key for its own sign-in list. Setup makes it and stores it in
 # the production Worker for you: leave it out of this file. `secrets:push`
-# refuses a staging source that names it. See wiki/stack/employee-access.md.
+# refuses a staging file that names it. See wiki/stack/employee-access.md.
 # WONG_ACCESS_LOGIN_MANAGEMENT=
 
 # The read-only Cloudflare key behind Cloudflare look-ups. Setup makes it and
-# stores it in both Workers for you: leave it out of this file. `secrets:push`
+# stores it in the production Worker for you: leave it out of this file. `secrets:push`
 # refuses any source that names it. See wiki/stack/cloudflare-credentials.md.
 # WONG_CLOUDFLARE_READ=
 
@@ -55,7 +52,7 @@
 # Read and write; Pull requests: Read and write; Actions: Read-only; Commit statuses: Read-only;
 # Deployments: Read-only. It carries no Workflows permission, so a saved change can not rewrite the checks.
 # Connect your assistant uses it to hand the project to people given Project code in Access, and to save
-# their changes. A project kept in Cloudflare needs none: leave it blank there. See
+# their changes. Only the live app holds it. A project kept in Cloudflare needs none: leave it blank there. See
 # wiki/stack/employee-project.md.
 WONG_CODE_WRITE=
 

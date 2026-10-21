@@ -8,6 +8,7 @@ import { isMain, parseCli, usageError } from './lib-cli.mjs';
 // The two routes the Worker checks the sign-in on itself; staging has no memory.
 const git = { behavior: 'public', path_pattern: '/api/access/code/git/*' };
 const live = [{ behavior: 'public', path_pattern: '/_memory/*' }, git];
+const SHARED = "previews still share the live app's sign-in; run setup's Access step (wiki/stack/employee-access.md#finish-access-setup) and publish";
 
 export async function checkPrivateAccess(config, environment, cf, generated) {
   const production = privateDeployment(config, 'production');
@@ -15,7 +16,12 @@ export async function checkPrivateAccess(config, environment, cf, generated) {
   const target = environment === 'production' ? production : staging;
   if (generated && !isDeepStrictEqual(privateDeployment(generated, environment), target)) throw new Error('built configuration differs from the protected source Worker');
   if (production.open || staging.open) return checkOpen(config, environment, cf, production, staging);
-  if (production.appId !== staging.appId || production.audience !== staging.audience || production.teamDomain !== staging.teamDomain || production.workerId === staging.workerId) throw new Error('production and staging must share one private app with distinct Workers');
+  if (production.teamDomain !== staging.teamDomain || production.workerId === staging.workerId) throw new Error('production and staging need one team and distinct Workers');
+  // A shared app lets a preview's sign-in open the live app: previews stop, and the live app publishes with a warning.
+  const shared = production.appId === staging.appId && production.audience === staging.audience;
+  if (shared ? environment === 'staging' : production.appId === staging.appId || production.audience === staging.audience) {
+    throw new Error(shared ? SHARED : 'production and staging must each have their own private app');
+  }
   const account = config.account_id ?? process.env.CLOUDFLARE_ACCOUNT_ID;
   if (!/^[a-f0-9]{32}$/i.test(account ?? '')) throw new Error('the Cloudflare account ID is missing');
   const root = `/accounts/${account}`;
@@ -42,21 +48,22 @@ export async function checkPrivateAccess(config, environment, cf, generated) {
   if (!subdomain) throw new Error('the default Worker hostname is unavailable');
   const appPath = `${root}/access/apps/${target.appId}`;
   const app = await cf(appPath);
-  const anchor = `${production.name}.${subdomain}.workers.dev`;
+  const host = `${target.name}.${subdomain}.workers.dev`;
+  const overrides = target === production ? live : [git];
   const desired = [
-    { type: 'worker', worker_id: production.workerId, overrides: live },
-    { type: 'worker', worker_id: staging.workerId, overrides: [git] },
-    { type: 'public', uri: anchor, overrides: live },
+    { type: 'worker', worker_id: target.workerId, overrides },
+    ...(shared ? [{ type: 'worker', worker_id: staging.workerId, overrides: [git] }] : []),
+    { type: 'public', uri: host, overrides },
   ];
   const destinations = app.destinations ?? [];
-  if (app.id !== target.appId || app.aud !== target.audience || app.type !== 'self_hosted' || app.domain !== anchor || destinations.length !== desired.length || desired.some(item => !destinations.some(value => isDeepStrictEqual(value, item)))) throw new Error('Access coverage or its memory and git exceptions are missing or broader than this workspace');
+  if (app.id !== target.appId || app.aud !== target.audience || app.type !== 'self_hosted' || app.domain !== host || destinations.length !== desired.length || desired.some(item => !destinations.some(value => isDeepStrictEqual(value, item)))) throw new Error('Access coverage or its memory and git exceptions are missing or broader than this workspace');
   const policies = await list(`${appPath}/policies`);
   const human = policies.filter(policy => policy.decision === 'allow');
   const machine = policies.filter(policy => policy.decision === 'non_identity');
   if (policies.length !== 2 || human.length !== 1 || machine.length !== 1 || !app.policies?.some(policy => policy.id === human[0].id) || !app.policies?.some(policy => policy.id === machine[0].id)) throw new Error('the separate human and machine policies are missing or unreviewed');
   if (human[0].include?.length < 1 || !Array.isArray(human[0].include) || human[0].include.some(rule => Object.keys(rule).length !== 1 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rule.email?.email ?? '') || /(?:\.invalid|@(?:[^@]*\.)?noreply\.github\.com)$/i.test(rule.email.email)) || !Array.isArray(machine[0].include) || machine[0].include.length !== 1 || Object.keys(machine[0].include[0]).length !== 1 || !machine[0].include[0].service_token?.token_id || policies.some(policy => (policy.exclude?.length ?? 0) || (policy.require?.length ?? 0))) throw new Error('workspace policies must use exact reachable emails and one separate service token');
-  if (accessConflicts(await list(`${root}/access/apps`), workers, subdomain, app.id).length) throw new Error('another Access application overlaps this workspace; review hostname/path/preview precedence');
-  return { environment, worker: target.name, protection: 'configured', humanLogin: 'unverified' };
+  if (accessConflicts(await list(`${root}/access/apps`), workers, subdomain, [production.appId, staging.appId]).length) throw new Error('another Access application overlaps this workspace; review hostname/path/preview precedence');
+  return { environment, worker: target.name, protection: 'configured', humanLogin: 'unverified', ...(shared && { warning: SHARED }) };
 }
 
 const OPEN_WARNING = 'this workspace is open without login: anyone with its link can see it. Add a card to Cloudflare and rerun provision to make it private: wiki/stack/cloudflare-access.md#open-until-the-card';
@@ -94,6 +101,7 @@ async function main() {
   };
   const result = await checkPrivateAccess(parseConfig(path), values.environment, cf, redirected && parseConfig(redirected));
   if (result.protection === 'open') console.warn(`private-access: WARNING ${OPEN_WARNING}`);
+  if (result.warning) console.warn(`private-access: WARNING ${result.warning}`);
   console.log(JSON.stringify(result));
 }
 if (isMain(import.meta.url)) main().catch(error => {

@@ -60,22 +60,39 @@ if [ "$HAVE_BATCH" -eq 1 ] && ! command -v agent-browser >/dev/null 2>&1; then
   exit 2
 fi
 
-# Access service-token headers, when the preview sits behind a login wall.
+# The preview's own Access service-token headers, when it sits behind a login wall; never the live app's pair.
 # Absent is normal — most previews are open — so this is silent either way.
-# For a browser journey they are staged before the first navigation, which is
-# why the session is opened with no URL first: headers set after a navigation
-# would miss the page they exist to get past. For a request probe the same
-# pair rides as curl headers.
+# The pair goes only to this install's own https site (own-site.mjs says
+# which); any other address is walked without it, and the run says so in
+# access-withheld. This is the one place a walk sends the key, so a kept-check
+# replay gets the same guard. own-site.mjs reads the checkout we run in.
 ACCESS_HEADERS=""
 CURL_ACCESS=()
-if [ -n "${CF_ACCESS_CLIENT_ID:-}" ] && [ -n "${CF_ACCESS_CLIENT_SECRET:-}" ]; then
+rm -f "$RUN_DIR/access-withheld"
+if [ -n "${CF_ACCESS_STAGING_CLIENT_ID:-}" ] && [ -n "${CF_ACCESS_STAGING_CLIENT_SECRET:-}" ]; then
+  if ! withheld=$(node "$(dirname "${BASH_SOURCE[0]}")/own-site.mjs" "$URL_UNDER_TEST" 2>/dev/null); then
+    unset CF_ACCESS_STAGING_CLIENT_ID CF_ACCESS_STAGING_CLIENT_SECRET
+    printf '%s\n' "${withheld:-the own-site check failed}" >"$RUN_DIR/access-withheld"
+    echo "access key not sent: ${withheld:-the own-site check failed}"
+  fi
+fi
+if [ -n "${CF_ACCESS_STAGING_CLIENT_ID:-}" ] && [ -n "${CF_ACCESS_STAGING_CLIENT_SECRET:-}" ]; then
   # JSON.stringify escapes a quote or backslash in a value; printf would not.
   ACCESS_HEADERS=$(node -e '
-    const { CF_ACCESS_CLIENT_ID: id, CF_ACCESS_CLIENT_SECRET: secret } = process.env;
+    const { CF_ACCESS_STAGING_CLIENT_ID: id, CF_ACCESS_STAGING_CLIENT_SECRET: secret } = process.env;
     console.log(JSON.stringify({ "CF-Access-Client-Id": id, "CF-Access-Client-Secret": secret }));')
-  CURL_ACCESS=(-H "CF-Access-Client-Id: $CF_ACCESS_CLIENT_ID" \
-               -H "CF-Access-Client-Secret: $CF_ACCESS_CLIENT_SECRET")
+  CURL_ACCESS=(-H "CF-Access-Client-Id: $CF_ACCESS_STAGING_CLIENT_ID" \
+               -H "CF-Access-Client-Secret: $CF_ACCESS_STAGING_CLIENT_SECRET")
 fi
+
+# scheme://host[:port] of an address, lowercased, so a request line naming
+# another site's full address is told apart from the walk's own.
+origin_of() {
+  case "$1" in *://*) ;; *) return ;; esac
+  local rest="${1#*://}"
+  printf '%s://%s' "${1%%://*}" "${rest%%[/?#]*}" | tr '[:upper:]' '[:lower:]'
+}
+WALK_ORIGIN=$(origin_of "$URL_UNDER_TEST")
 
 # Access redirects to a `*.cloudflareaccess.com` host, so the landing URL (or,
 # for a request probe, the Location header and challenge body) is the reliable
@@ -104,10 +121,13 @@ for batch in "$JOURNEYS"/*.batch.json; do
   export AGENT_BROWSER_PROFILE="$PROFILE_ROOT/$id"
 
   # One session per journey, so a session that dies mid-journey costs that
-  # journey alone and the next one starts clean.
-  agent-browser --session "$session" open >/dev/null 2>&1
+  # journey alone and the next one starts clean. The pair is staged by opening
+  # the walk address with --headers, which agent-browser scopes to that
+  # address's origin; `set headers` would send it to every host a page loads.
   if [ -n "$ACCESS_HEADERS" ]; then
-    agent-browser --session "$session" set headers "$ACCESS_HEADERS" >/dev/null 2>&1
+    agent-browser --session "$session" open "$URL_UNDER_TEST" --headers "$ACCESS_HEADERS" >/dev/null 2>&1
+  else
+    agent-browser --session "$session" open >/dev/null 2>&1
   fi
 
   agent-browser --session "$session" batch --bail --json <"$batch" >"$out" 2>"$RUN_DIR/evidence/$id.stderr"
@@ -149,8 +169,11 @@ for req in "$JOURNEYS"/*.requests.txt; do
     # -X HEAD would wait for a body that never comes; -I asks for headers only.
     # Every request is bounded, so one hung URL can't use up the walk's budget.
     if [ "$method" = HEAD ]; then verb=(-I); else verb=(-X "$method"); fi
+    # The pair rides only to the walk's own origin, never a full address elsewhere.
+    access=()
+    [ "$(origin_of "$url")" = "$WALK_ORIGIN" ] && access=(${CURL_ACCESS[@]+"${CURL_ACCESS[@]}"})
     curl -sS -i "${verb[@]}" --max-time "${VERIFY_REQUEST_TIMEOUT:-30}" \
-      ${CURL_ACCESS[@]+"${CURL_ACCESS[@]}"} \
+      ${access[@]+"${access[@]}"} \
       ${body:+-H "Content-Type: application/json" --data "$body"} \
       "$url" >>"$out" 2>>"$RUN_DIR/evidence/$id.stderr"
     if looks_like_access "$out"; then
