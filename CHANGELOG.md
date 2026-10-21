@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (patch) — Keys and passwords go only to their own site
+## 44.0.1 — Keys and passwords go only to their own site
 
 - **A saved password is typed only on its own site.** Before typing a saved login, the assistant's browser checks the page is on the site the login was saved for, or one under it, as `login.netflix.com` sits under `netflix.com`. It checks again right before the password, so a page that jumps elsewhere after the email gets nothing more. On any other site it types nothing and says *wrong site*, and you get the password link for the page's real site instead.
 - **Checking a preview sends its access pass only to your own site.** The pass that opens your previews goes only to a secure address on your own app's site: the live address, and the staging and preview addresses Cloudflare gives your account. Any other address is checked without it, and the report says the key was not sent. A login wall there is reported as *not your site*, and no new key is made for it.
