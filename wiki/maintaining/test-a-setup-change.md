@@ -37,6 +37,7 @@ Ask first: the install makes billable resources in a real Cloudflare account.
 6. A teammate's Connect, **under a separate `HOME`**. A saved sign-in to the same Cloudflare login connects silently as the owner, and proves nothing about a teammate.
    It needs a person: the connection tool takes only a signed-in person's session, so the checker can not install through Connect. [A save through the app](../stack/employee-project.md#save-a-change-through-the-app) is live-app only, so try it with a person's sign-in on the live app; a preview answers *Live app only*.
 7. Each step an update runs alone, such as [`provision.mjs access`](../../.agents/skills/wong-setup/scripts/provision.mjs), against the real account, then `node scripts/cf-secrets.mjs check`. A step that leaves a live-app-only key on the preview app passes its fake-Cloudflare tests and then fails [the parity check](../stack/staging-bindings.md#what-the-gate-can-and-cant-see) on every branch.
+   Run such a step on this repository's own account only after its change merges. Before that, `main`'s code still checks the old shape: every live publish fails, and [`/ship`](../../.agents/skills/ship/SKILL.md) won't publish onto a red `main`, even the change that fixes it.
 
 Run it once from this machine, fix what breaks, then have the owner run it by hand on a Mac. Their chat log is the best review of the install wording: read it for retries, steps written by hand, and anything the assistant had to work around.
 
