@@ -67,6 +67,10 @@ function checker(identity: AccessIdentity | null): boolean {
 export const checkerOwns = (env: PolicyEnv, identity: AccessIdentity | null): boolean =>
   env.WONG_ENVIRONMENT === "staging" && checker(identity);
 
+/** Once permissions start, only the owner and current people pass. */
+const refusedOnceStarted = (role: Role, email: string | null, status: "active" | "removed" | null) =>
+  role !== "owner" && (!email || status !== "active");
+
 /** The identity has already passed signed Access verification in the Worker. */
 export async function currentPolicy(env: PolicyEnv, identity: AccessIdentity | null): Promise<CurrentPolicy> {
   const owner = ownerEmail(env);
@@ -99,13 +103,15 @@ export async function currentPolicy(env: PolicyEnv, identity: AccessIdentity | n
     // No machine has a person's row.
     const admin = !!email && row.status === "active" && row.held === ADMIN_ROLE;
     const manages = role === "owner" || admin;
+    const outsider = refusedOnceStarted(role, email, row.status);
+    // Only a removal writes `removed`, so it holds even before permissions start.
+    if (outsider && row.status === "removed") return { state: "denied" };
     if (!row.policy_enabled) return { state: "not_started", role, manages };
     const keysStarted = row.keys_enabled === 1;
     // The checker keeps every built app and every key, as before permissions started, so preview walks
     // and the look at the live app still reach them. On the live app it manages nobody: that needs the owner.
     if (checker(identity)) return { state: "current", role, manages, revision: row.revision, apps: everyApp(), keys: everyKey(), keysStarted };
-    // Once started, only the owner and current people pass.
-    if (role !== "owner" && (!email || row.status !== "active")) return { state: "denied" };
+    if (outsider) return { state: "denied" };
     // The owner holds every app and every key. A person's apps and levels come from their role when they hold one.
     // Only a row at `write` is a held app: one left at `read` could only look, and a tick can not say that.
     if (role === "owner") return { state: "current", role, manages, revision: row.revision, apps: everyApp(), keys: everyKey(), keysStarted };

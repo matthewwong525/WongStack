@@ -51,7 +51,26 @@ function repo(t) {
   git(root, 'worktree', 'add', '-q', '-b', 'feature', linked);
   commit(linked, 'unpublished.md');
   const publish = () => { const sha = commit(seed, `later-${Date.now()}.md`); git(seed, 'push', '-q', 'origin', 'HEAD:main'); return sha; };
-  return { root, linked, publish };
+  return { base, origin, root, linked, publish };
+}
+
+// A teammate's clone that saves one commit per call to `branch` on origin, and returns it.
+function teammate(t, origin, branch) {
+  const dir = path.join(tmp(t, 'workspace-teammate-'), 'clone');
+  execFileSync('git', ['clone', '-q', origin, dir]);
+  git(dir, 'config', 'user.email', 'teammate@example.invalid');
+  git(dir, 'config', 'user.name', 'Teammate');
+  git(dir, 'switch', '-q', '-c', branch);
+  return file => { const sha = commit(dir, file); git(dir, 'push', '-q', 'origin', branch); return sha; };
+}
+
+// The owner's own branch, saved to origin from the primary, which then goes back to main.
+function ownerBranch(root, branch) {
+  git(root, 'switch', '-q', '-c', branch);
+  const sha = commit(root, `${branch.replace(/\W/g, '-')}.md`);
+  git(root, 'push', '-q', 'origin', branch);
+  git(root, 'switch', '-q', 'main');
+  return sha;
 }
 
 // A fake `paseo`: `inspect` answers FAKE_INSPECT, `run` prints FAKE_RUN_STDOUT and FAKE_RUN_STDERR, `workspace rename`
@@ -62,9 +81,15 @@ function fakePaseo(t) {
   const bin = path.join(dir, 'paseo');
   writeFileSync(bin, `#!${process.execPath}
 const fs = require('node:fs');
+const { execFileSync } = require('node:child_process');
 const args = process.argv.slice(2);
+const at = name => args[args.indexOf(name) + 1];
+const checkout = args.includes('checkout-branch');
+// A checkout logs the local branch it would use, and adds FAKE_RUN_WORKTREE there, or at FAKE_RUN_AT.
+let pinned = null;
+try { if (checkout) pinned = execFileSync('git', ['-C', at('--cwd'), 'rev-parse', '--verify', 'refs/heads/' + at('--branch')], { encoding: 'utf8', stdio: 'pipe' }).trim(); } catch {}
 fs.appendFileSync(${JSON.stringify(log)}, JSON.stringify({ args, parent: process.env.PASEO_AGENT_ID ?? null,
-  workspace: process.env.PASEO_WORKSPACE_ID ?? null }) + '\\n');
+  workspace: process.env.PASEO_WORKSPACE_ID ?? null, pinned }) + '\\n');
 if (process.env.FAKE_PASEO_DOWN) { console.error('Cannot connect to daemon at home /x: ECONNREFUSED'); process.exit(1); }
 if (args[0] === 'inspect') { console.log(process.env.FAKE_INSPECT); process.exit(0); }
 if (args[0] === 'workspace' && args[1] === 'rename') {
@@ -73,9 +98,14 @@ if (args[0] === 'workspace' && args[1] === 'rename') {
   process.exit(0);
 }
 if (process.env.FAKE_RUN_FAIL) { console.error(process.env.FAKE_RUN_FAIL); process.exit(1); }
+const tree = process.env.FAKE_RUN_WORKTREE;
+if (tree) {
+  const where = process.env.FAKE_RUN_AT ? ['--detach', tree, process.env.FAKE_RUN_AT] : [tree, at('--branch')];
+  execFileSync('git', ['-C', at('--cwd'), 'worktree', 'add', '-q', ...where]);
+}
 process.stderr.write(process.env.FAKE_RUN_STDERR ?? '');
 console.log(process.env.FAKE_RUN_STDOUT ?? JSON.stringify({ agentId: 'agent-1', status: 'running', provider: 'claude',
-  cwd: '/w/clever-otter', title: args[args.indexOf('--title') + 1] }));
+  cwd: tree ?? '/w/clever-otter', title: at('--title') }));
 `);
   chmodSync(bin, 0o755);
   const calls = () => existsSync(log)
@@ -176,16 +206,20 @@ test('opens from a linked worktree: fresh origin/main of the primary, caller set
   assert.equal(r.json.warning, undefined);
 });
 
-test('checkout mode opens the named branch and fetches nothing', t => {
-  const { root, linked } = repo(t);
+test('checkout mode opens the owner\'s own branch with no review, and branches off nothing', t => {
+  const { base, root, linked } = repo(t);
+  const tip = ownerBranch(root, 'feat/auth');
   const before = git(root, 'rev-parse', 'refs/remotes/origin/main');
   const paseo = fakePaseo(t);
-  const r = runCli(linked, ['open', '--title', 'add-auth', '--brief', brief(t, '/continue add-auth'), '--checkout', 'feat/auth'], paseo.env);
+  const env = { ...paseo.env, FAKE_RUN_WORKTREE: path.join(base, 'opened') };
+  const r = runCli(linked, ['open', '--title', 'add-auth', '--brief', brief(t, '/continue add-auth'), '--checkout', 'feat/auth'], env);
   assert.equal(r.status, 0, JSON.stringify(r.json));
   const [run] = paseo.runs();
   assert.equal(flag(run.args, '--worktree-mode'), 'checkout-branch');
   assert.equal(flag(run.args, '--branch'), 'feat/auth');
+  assert.equal(run.pinned, tip);
   assert.equal(r.json.checkout, 'feat/auth');
+  assert.equal(r.json.commit, tip);
   assert.equal(git(root, 'rev-parse', 'refs/remotes/origin/main'), before);
   const [rename] = paseo.renames();
   assert.deepEqual(rename.args, ['workspace', 'rename', 'ws-42', 'add-auth', '--json']);
@@ -193,6 +227,68 @@ test('checkout mode opens the named branch and fetches nothing', t => {
   assert.equal(rename.workspace, null);
   assert.equal(r.json.workspaceName, 'add-auth');
   assert.equal(r.json.warning, undefined);
+});
+
+test('a teammate\'s branch opens nothing without --reviewed at its newest commit', t => {
+  const { root, origin } = repo(t);
+  const save = teammate(t, origin, 'teammate-work');
+  const seen = save('tool.mjs');
+  const paseo = fakePaseo(t);
+  const open = (...more) => runCli(root, ['open', '--title', 'T', '--brief', brief(t, '/continue t'), '--checkout', 'teammate-work', ...more], paseo.env);
+  const unreviewed = open();
+  assert.equal(unreviewed.status, 2, JSON.stringify(unreviewed.json));
+  assert.equal(unreviewed.json.review.tip, seen);
+  assert.deepEqual(unreviewed.json.review.files, [{ path: 'tool.mjs', kind: 'code' }]);
+  assert.equal(unreviewed.json.fallback, undefined);
+  const later = save('more.mjs');
+  const stale = open('--reviewed', seen);
+  assert.equal(stale.status, 2, JSON.stringify(stale.json));
+  assert.equal(stale.json.review.tip, later);
+  assert.deepEqual(stale.json.review.commits.map(c => c.sha), [later]);
+  assert.equal(paseo.runs().length, 0);
+  assert.equal(spawnSync('git', ['-C', root, 'rev-parse', '--verify', '--quiet', 'refs/heads/teammate-work']).status, 1);
+});
+
+test('a teammate\'s `main`, where origin publishes `master`, still needs --reviewed', t => {
+  const base = tmp(t, 'workspace-master-');
+  const origin = path.join(base, 'origin.git');
+  execFileSync('git', ['init', '-q', '--bare', '-b', 'master', origin]);
+  const root = path.join(base, 'demo');
+  execFileSync('git', ['clone', '-q', origin, root]);
+  git(root, 'config', 'user.email', 'fixture@example.invalid');
+  git(root, 'config', 'user.name', 'Fixture');
+  commit(root, 'README.md');
+  git(root, 'push', '-q', 'origin', 'HEAD:master');
+  const tip = teammate(t, origin, 'main')('hook.mjs');
+  git(root, 'fetch', '-q', 'origin');
+  const paseo = fakePaseo(t);
+  const r = runCli(root, ['open', '--title', 'T', '--brief', brief(t, '/continue t'), '--checkout', 'main'], paseo.env);
+  assert.equal(r.status, 2, JSON.stringify(r.json));
+  assert.equal(r.json.review.tip, tip);
+  assert.deepEqual(r.json.review.files, [{ path: 'hook.mjs', kind: 'code' }]);
+  assert.equal(paseo.runs().length, 0);
+});
+
+test('a reviewed open pins the local branch before Paseo runs, and checks where it landed', t => {
+  const { base, root, origin } = repo(t);
+  const save = teammate(t, origin, 'teammate-work');
+  const tip = save('tool.mjs');
+  const paseo = fakePaseo(t);
+  const args = ['open', '--title', 'T', '--brief', brief(t, '/continue t'), '--checkout', 'teammate-work', '--reviewed', tip];
+  const r = runCli(root, args, { ...paseo.env, FAKE_RUN_WORKTREE: path.join(base, 'opened') });
+  assert.equal(r.status, 0, JSON.stringify(r.json));
+  assert.equal(paseo.runs()[0].pinned, tip);
+  assert.equal(r.json.commit, tip);
+  assert.equal(git(path.join(base, 'opened'), 'rev-parse', 'HEAD'), tip);
+
+  const elsewhere = fakePaseo(t);
+  const env = { ...elsewhere.env, FAKE_RUN_WORKTREE: path.join(base, 'astray'), FAKE_RUN_AT: git(root, 'rev-parse', 'main') };
+  const astray = runCli(root, args, env);
+  assert.equal(astray.status, 5, JSON.stringify(astray.json));
+  assert.match(astray.json.error, new RegExp(`not the reviewed ${tip}`));
+  assert.equal(astray.json.opened.agentId, 'agent-1');
+  assert.equal(astray.json.opened.cwd, path.join(base, 'astray'));
+  assert.equal(astray.json.fallback, undefined);
 });
 
 test('outside a Paseo agent it needs --agent and uses Paseo\'s default model', t => {
@@ -294,6 +390,9 @@ test('bad input is exit 2 and opens nothing', t => {
     ['open', '--title', 'B', '--brief', brief(t, '--mode plan')],
     ['open', '--title', 'B', '--brief', '/no/such/file'],
     ['open', '--title', 'B', '--nope', 'x'],
+    ['open', '--title', 'B', '--brief', brief(t), '--reviewed', 'abc1234'],
+    ['open', '--title', 'B', '--brief', brief(t), '--checkout', 'nowhere'],
+    ['open', '--title', 'B', '--brief', brief(t), '--checkout', 'feature', '--reviewed', 'not-a-commit'],
     ['open', '--title'],
     ['close'],
   ];

@@ -7,12 +7,13 @@ import { readFileSync } from 'node:fs';
 import { promisify } from 'node:util';
 import { isMain } from '../../memory/scripts/lib/cli.mjs';
 import { primaryRoot, PrimaryRootError } from '../../memory/scripts/lib/primary-root.mjs';
+import { PickupError, pinBranch, reviewBranch } from '../../continue/scripts/pickup.mjs';
 import { delivery } from '../../save/scripts/delivery-route.mjs';
 import { EXIT, PaseoError, findPaseo, git, paseo, parseCommand, runPaseo } from './lib/paseo.mjs';
 
 const USAGE = `usage: workspace.mjs open --title <part> --brief <file>
-                         [--checkout <branch>] [--agent claude|codex] [--dry-run]`;
-const VALUE_FLAGS = ['title', 'brief', 'checkout', 'agent'];
+                         [--checkout <branch> [--reviewed <commit>]] [--agent claude|codex] [--dry-run]`;
+const VALUE_FLAGS = ['title', 'brief', 'checkout', 'reviewed', 'agent'];
 const MODES = { claude: 'bypassPermissions', codex: 'full-access' };
 const PARENT_VARS = ['PASEO_AGENT_ID', 'PASEO_WORKSPACE_ID'];
 
@@ -77,11 +78,11 @@ export function parseCreated(stderr) {
 }
 
 /** Steps to open the same workspace by hand, for when the script cannot. */
-function appSteps({ primary, title, briefFile, settings, base, checkout }) {
+function appSteps({ primary, title, briefFile, settings, base, checkout, commit }) {
   return [
     'Open it in the Paseo app instead:',
     `- New workspace: worktree of ${primary}`,
-    checkout ? `- Check out branch: ${checkout}` : `- New branch from: ${base}`,
+    checkout ? `- Check out branch: ${checkout}${commit ? ` (it starts at ${commit.slice(0, 12)})` : ''}` : `- New branch from: ${base}`,
     `- Title: ${title}`,
     settings ? `- Agent: ${settings.provider}${settings.model ? `/${settings.model}` : ''}, mode ${settings.mode}` : '- Agent: the same as this chat',
     `- First message: the text of ${briefFile}`,
@@ -136,6 +137,31 @@ async function freshBase(cwd, branch, { fetch }) {
   return { base: branch, warning };
 }
 
+// pickup.mjs's review of a --checkout branch: new work without a matching --reviewed is exit 2. The primary's local
+// branch is then pinned to the commit, so Paseo uses it as it is and fetches nothing newer.
+function reviewedCheckout(primary, branch, reviewed, { dryRun }) {
+  try {
+    const review = reviewBranch({ cwd: primary, branch, reviewed, fetch: !dryRun });
+    if (review.commits.length) {
+      const { tip, commits, files } = review;
+      throw new PaseoError(EXIT.input, `"${branch}" holds work this computer has never had. Show it and ask; on a yes, pass --reviewed ${tip}.`,
+        { review: { branch: review.branch, tip, commits, files } });
+    }
+    return dryRun ? review.tip : pinBranch({ cwd: primary, ...review });
+  } catch (error) {
+    if (error instanceof PickupError) throw new PaseoError(EXIT.input, error.message, error.extra);
+    throw error;
+  }
+}
+
+/** The new worktree's HEAD, checked against the commit it was opened for; a mismatch is exit 5. */
+function checkLanded(cwd, commit, opened) {
+  let head = null;
+  try { head = cwd ? git(cwd, 'rev-parse', 'HEAD') : null; } catch { /* reported below */ }
+  if (head === commit) return;
+  throw new PaseoError(EXIT.client, `The new workspace ${cwd ? `starts at ${head ?? 'an unreadable commit'}` : 'has no folder in Paseo\'s output'}, not the reviewed ${commit}. Close it before anything runs there.`, { opened });
+}
+
 /** Names the opened workspace after its part; any refusal keeps Paseo's name, with a warning. */
 async function nameWorkspace(bin, created, title, env) {
   if (!created) {
@@ -165,7 +191,9 @@ async function open(flags, env) {
   if (!title) throw new PaseoError(EXIT.input, 'Pass --title <part>: the new workspace\'s name.');
   const brief = readBrief(flags.brief);
   const primary = primaryWorktree();
-  const ctx = { primary, title, briefFile: flags.brief, checkout: flags.checkout, settings: null, base: null };
+  const ctx = { primary, title, briefFile: flags.brief, checkout: flags.checkout, commit: null, settings: null, base: null };
+  if (flags.reviewed !== undefined && !ctx.checkout) throw new PaseoError(EXIT.input, '--reviewed goes with --checkout <branch>.');
+  if (ctx.checkout) ctx.commit = reviewedCheckout(primary, ctx.checkout, flags.reviewed ?? null, { dryRun: flags.dryRun });
   try {
     const bin = findPaseo(env, 'WORKSPACE_PASEO_BIN');
     const caller = env.PASEO_AGENT_ID?.trim();
@@ -177,7 +205,7 @@ async function open(flags, env) {
     const args = runArgs({ ...ctx, brief });
     if (flags.dryRun) {
       return {
-        ok: true, dryRun: true, command: ['paseo', ...args, '--json'],
+        ok: true, dryRun: true, command: ['paseo', ...args, '--json'], ...(ctx.commit ? { commit: ctx.commit } : {}),
         rename: ['paseo', ...renameArgs('<workspaceId>', title), '--json'], removedEnv: PARENT_VARS,
       };
     }
@@ -186,6 +214,7 @@ async function open(flags, env) {
       throw new PaseoError(EXIT.client, `Paseo's run output has changed: no agentId in ${JSON.stringify(data)}.`);
     }
     const created = parseCreated(stderr);
+    if (ctx.commit) checkLanded(data.cwd, ctx.commit, { agentId: data.agentId, workspaceId: created?.workspaceId ?? null, cwd: data.cwd ?? null });
     const named = await nameWorkspace(bin, created, title, env);
     const warnings = [warning, named.warning].filter(Boolean);
     return {
@@ -196,7 +225,7 @@ async function open(flags, env) {
       workspaceId: created?.workspaceId ?? null,
       workspaceName: named.name,
       branch: created?.branch ?? ctx.checkout ?? null,
-      ...(ctx.checkout ? { checkout: ctx.checkout } : { base: ctx.base }),
+      ...(ctx.checkout ? { checkout: ctx.checkout, commit: ctx.commit } : { base: ctx.base }),
       provider: ctx.settings.provider,
       model: ctx.settings.model,
       mode: ctx.settings.mode,
@@ -204,7 +233,7 @@ async function open(flags, env) {
       ...(warnings.length ? { warning: warnings.join('\n') } : {}),
     };
   } catch (error) {
-    if (error instanceof PaseoError && error.code !== EXIT.input) error.extra.fallback = { app: appSteps(ctx) };
+    if (error instanceof PaseoError && error.code !== EXIT.input && !error.extra.opened) error.extra.fallback = { app: appSteps(ctx) };
     throw error;
   }
 }

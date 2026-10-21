@@ -38,7 +38,7 @@ To rotate the key, delete the `<worker>-access` token in Cloudflare and run the 
 
 Permissions start by themselves the first time the owner opens Access, and take nothing away.
 
-1. Until then, every signed-in person keeps every app, as before Access.
+1. Until then, every signed-in person keeps every app, as before Access, except a person you remove.
 2. On the live app, the first open reads the sign-in list, lists each person on it with every built app, and turns permissions on, in one step.
 3. With no key, or a list that can not be read, nothing changes and permissions stay off: nobody is locked out.
 4. [Key levels](#key-levels) start next, in the same open, with nobody given one: an app needs none. Nobody is given a role, [Admin](#admin) included. A step that can not be saved changes nothing, and levels stay off.
