@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 43.18.2 — The browser hides typed passwords and cards
+
+- **The assistant never sees a password you saved, even on a failed login.** When a site turns a login down, the password stays in its box. The assistant's view of the page now shows that box as `[hidden]`, not the password.
+- **Cards and codes too.** A card number, expiry, security code, PIN, or one-time code still sitting in a box reads as `[hidden]`. An empty box, and every other box, reads as before.
+- **It stays hidden when the site shows it.** A password typed from your saved logins stays hidden after the site's *show password* button turns it into plain text.
+- **A very long page reads once, start to end.** It used to come back in pieces with its end repeated, and a box cut between two pieces could show part of what it held.
+
+**Updating.** Nothing to do by hand.
+
 ## 43.18.1 — The browser types into the right box
 
 - **Your answers land in the box you meant.** When a payment box inside a page has boxes with the same names as the page's own, such as *Email* and *Full name*, the assistant's browser now labels each one for itself. Before, your email and name could land in the payment box and tick its *Save my information* for you.
