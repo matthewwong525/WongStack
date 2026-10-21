@@ -10,7 +10,11 @@ The form shows a title, a line saying what it's for, and one picture of the site
 - **Each box says what it holds** (card number, expiry, security code), so 1Password or your phone's autofill can fill the form in one tap.
 - **The button** types the details into the site and presses the site's button once. That tap is your yes for that action alone, so the chat asks nothing more.
 
-The form ends on *Sent* or *Not accepted*, and never sends twice.
+While it sends, the form shows each step: *Typing your details…*, *Pressing Pay $45.00…*, *Waiting for the site…*. It never sends twice, and ends one of three ways:
+
+- **Sent:** the site reached its finish.
+- **Sent, waiting for the site:** the site hasn't answered within a minute of the press. *Don't pay again*: the form keeps watching for ten minutes, and your chat says how it went.
+- **Not accepted:** nothing was pressed, or the site kept the same page for the whole watch. It doesn't say you weren't charged.
 
 ## Open a private form
 
@@ -39,11 +43,15 @@ The form ends on *Sent* or *Not accepted*, and never sends twice.
    ```
 
    Name the page the site reaches once it accepts, not "left the card page": an error page would count too. The form works on the page this task has open; a task that passes `--session <name>` to `browse.mjs` passes it here too. `open` takes the page's picture itself. `FORM_FILE=` (exit 2) names the fault in the file. Exit 1 means the page already meets the finish, the task has no page open, or another link is open.
-4. **Hands off while it's open.** From `open` until `wait` prints, the agent sends its browser no commands and takes no pictures. A page it changed would also renumber the refs the form uses. Once a minute its helper makes one call that types, presses, and reads nothing, to keep the page open.
+4. **Hands off while it's open.** From `open` until `wait` prints the final result, the agent sends its browser no commands and takes no pictures, through any watch. A page it changed would also renumber the refs the form uses. Once a minute its helper makes one call that types, presses, and reads nothing, to keep the page open.
 5. **Read how it ended.**
    - `done`: the site moved on. The agent takes a fresh snapshot, shows the picture, say of the receipt, and carries on.
-   - `not-accepted`: the site kept its page within 60 seconds, or a box could not be filled. The form has emptied the boxes it typed into and put each dropdown back, so the agent may look. It reads the site's message, tells you what it said, and offers a new form. It never says a payment failed before reading the page: a slow site may still have taken it. It never sends a new form unasked.
+   - `unconfirmed` with `HANDOVER_WATCHING=10`: the site hasn't answered a minute after the press, and the form watches it for ten more minutes. The link has closed. The agent tells you *still checking, don't pay again*, runs `wait` again in the background, and still sends its browser nothing. That second `wait`, and a second chat notice, bring the final result. When you report a decline, `close` ends the watch early by the same rule.
+   - `not-accepted`: a box could not be filled, so nothing was pressed, or the page kept its address and card boxes for the whole watch. The form has emptied the boxes it typed into and put each dropdown back, so the agent may look. It reads the site's message, tells you what it said, and offers a new form. It never sends a new form unasked.
+   - `unconfirmed` with no `HANDOVER_WATCHING`: the page went somewhere other than the finish, or the browser couldn't read it. Nothing was emptied, since a box on a changed page may be a different one. The agent reads the address first, and takes a snapshot only once the card frames are gone. It says the payment isn't confirmed and asks you to check your email or bank before paying again.
    - `timeout` or `closed`: the agent says so and offers a new form.
+
+Each send adds to a timing record, `~/.wong-stack/hand-over/timings.jsonl`, readable by your user alone and trimmed to its last 500 lines: one line per box, the press, the wait for the site, and the watch, each with its time in milliseconds, plus what ended each link (`send`, `close-command`, `cancel-route`, `deadline`, `gave-way`, `watch`, `error`, or a signal). It names a box by its position and autofill kind, never its value or an error's text. Read it when a send feels slow, or a link closed by itself.
 
 A site whose fields take no typing from the form ends as `not-accepted` with nothing sent. The step is then yours, with [steps to finish it yourself](browsing.md#steps-for-you-to-finish).
 

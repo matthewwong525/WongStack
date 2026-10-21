@@ -86,19 +86,38 @@ async function fillField(field, value, { browser, undo }) {
   await browser.type(field.target, value);
 }
 
-/** The whole send. A press whose step fails still asks `reached()`, since the site may have taken it; a field
- * that fails presses nothing. On `not-accepted` every field is put back, so nothing the person gave is left to see. */
-export async function sendForm(form, values, { browser, reached }) {
+/** Fills each field in order, telling `record` how long each took; false at the first that fails. */
+async function fillAll(form, values, { browser, undo, record }) {
+  for (const [index, field] of form.fields.entries()) {
+    const started = Date.now();
+    const ok = await fillField(field, values[index], { browser, undo }).then(() => true, () => false);
+    record({ step: 'fill', index, kind: field.kind, ms: Date.now() - started, ok });
+    if (!ok) return false;
+  }
+  return true;
+}
+
+/** The whole send, to `{result, putBack}`: a failed field presses nothing and puts all back (`not-accepted`). Once
+ * pressed, the site may be paying: `done` on `reached`, else `unconfirmed`, its `putBack` kept for a still page. */
+export async function sendForm(form, values, { browser, reached, onStep = () => {}, beforePress = async () => {}, record = () => {} }) {
   const undo = [];
-  let moved = false;
-  try {
-    for (const [index, field] of form.fields.entries()) await fillField(field, values[index], { browser, undo });
-    await browser.click(form.submit.target).catch(() => {});
-    moved = await reached();
-  } catch { /* a step that throws counts as not moved on */ }
-  if (moved) return 'done';
-  for (const putBack of undo) await putBack().catch(() => {});
-  return 'not-accepted';
+  const putBack = async () => { for (const step of undo) await step().catch(() => {}); };
+  onStep('typing');
+  if (!(await fillAll(form, values, { browser, undo, record }))) {
+    await putBack();
+    return { result: 'not-accepted', putBack: async () => {} };
+  }
+  await beforePress().catch(() => {});
+  onStep('pressing');
+  const pressedAt = Date.now();
+  // The wait's clock starts as the press is sent: camofox may hold the press for its whole 30 s handler.
+  browser.click(form.submit.target).then(() => true, () => false).then(ok => {
+    record({ step: 'press', ms: Date.now() - pressedAt, ok });
+    onStep('waiting');
+  });
+  const met = await reached(pressedAt).catch(() => false);
+  record({ step: 'finish', ms: Date.now() - pressedAt, ok: met });
+  return { result: met ? 'done' : 'unconfirmed', putBack };
 }
 
 /** A request's JSON body, or a status: 413 past the byte limit, 400 when it isn't JSON. */
