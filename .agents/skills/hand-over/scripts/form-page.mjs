@@ -1,9 +1,10 @@
 // The private form's script (see hand-over.mjs `open --form` and form.mjs), loaded after picture-view.mjs. It sets
-// every string as text. `timeLeft`, `rowsOf`, and `ending` are exported for tests.
+// every string as text. `timeLeft`, `rowsOf`, `stepText`, and `ending` are exported for tests.
 
 const ENDINGS = {
   done: { title: 'Sent', hint: 'Back to your chat.' },
-  'not-accepted': { title: 'Not accepted', hint: 'The site kept its page, and nothing is sent again. Back to your chat.' },
+  unconfirmed: { title: 'Sent, waiting for the site', hint: 'Don\'t pay again. Your chat will say how it went.' },
+  'not-accepted': { title: 'Not accepted', hint: 'The site kept its page. Back to your chat to see what it said.' },
   closed: { title: 'This link has closed', hint: 'Ask your assistant for a new one.' },
   unknown: { title: 'This link has closed', hint: 'Back to your chat to see how it went.' },
 };
@@ -29,6 +30,11 @@ export function rowsOf(fields) {
   return rows;
 }
 
+/** The status line for the step a send is on, named by `/receipt`; the press names the site's own button. */
+export function stepText(step, submit) {
+  return { typing: 'Typing your details…', pressing: `Pressing ${submit}…`, waiting: 'Waiting for the site…' }[step] ?? 'Sending…';
+}
+
 /** The closing screen for a receipt: a send with no receipt says to look in the chat. */
 export function ending(receipt) {
   if (receipt?.result === 'done' && receipt.notification !== 'notified') return { ...ENDINGS.done, hint: 'Back to your chat, and say continue.' };
@@ -42,6 +48,7 @@ function start() {
   history.replaceState(null, '', location.pathname);
   const controls = [];
   let sending = false;
+  let label = '';
 
   const status = text => { $('#status').textContent = text ?? ''; };
   const call = (path, body) => fetch(path, {
@@ -87,6 +94,7 @@ function start() {
     }));
     $('#send').textContent = submit;
     $('#does').textContent = `${submit} types these into the site and presses its button, once.`;
+    label = submit;
     lock(false);
   }
 
@@ -115,6 +123,17 @@ function start() {
     }
   }
 
+  /** Shows the step the send is on, asking `/receipt` every half second until `answered()`. */
+  async function follow(answered) {
+    for (;;) {
+      await new Promise(done => setTimeout(done, RECEIPT_EVERY_MS));
+      if (answered()) return;
+      const response = await call('receipt');
+      const step = response?.status === 202 ? (await response.json().catch(() => null))?.step : null;
+      if (!answered() && step) status(stepText(step, label));
+    }
+  }
+
   $('#details').addEventListener('submit', async event => {
     event.preventDefault();
     if (sending) return;
@@ -122,8 +141,11 @@ function start() {
     sending = true;
     const values = controls.map(control => control.value);
     lock(true);
-    status('Sending…');
+    status(stepText(null, label));
+    let answered = false;
+    follow(() => answered);
     const response = await call('send', { values });
+    answered = true;
     if (response?.status === 400) {
       sending = false;
       lock(false);

@@ -90,75 +90,131 @@ test('checkValues takes one value per field: text on one line, a dropdown\'s own
 });
 
 /** A browser client that logs everything a send does, in order. `fail(step, target)` makes a step throw;
- * each dropdown shows `was` before the person's pick. */
+ * each dropdown shows `was` before the person's pick. `reached(since)` answers the finish. */
 function tools({ fail = () => false, reached = async () => true, was = 'Choose' } = {}) {
   const log = [];
+  const steps = [];
+  const records = [];
   const step = name => async (target, value) => {
     log.push(value === undefined ? [name, target] : [name, target, value]);
-    if (fail(name, target)) throw new Error(`${name} failed`);
+    if (fail(name, target)) throw new Error(`${name} failed ${value ?? ''}`);
     return name === 'value' ? was : undefined;
   };
-  return { log, browser: { type: step('type'), select: step('select'), value: step('value'), click: step('click') }, reached: async () => { log.push('reached?'); return reached(); } };
+  return {
+    log,
+    steps,
+    records,
+    browser: { type: step('type'), select: step('select'), value: step('value'), click: step('click') },
+    reached: async since => { log.push('reached?'); return reached(since); },
+    beforePress: async () => { log.push('read'); },
+    onStep: name => steps.push(name),
+    record: entry => records.push(entry),
+  };
+}
+
+/** Sends CARD's values with `t`, resolving to the result; `t.putBack` keeps what the caller may run later. */
+async function sent(t, form = CARD, values = VALUES) {
+  const { result, putBack } = await sendForm(form, values, t);
+  t.putBack = putBack;
+  return result;
 }
 
 // A dropdown is picked by its choice's text: camofox waits out its timeout before it tries a value.
 const FILLED = [['type', '@e12', NUMBER], ['value', '@e13'], ['select', '@e13', '03 - March'], ['value', '@e14'], ['select', '@e14', '2028'], ['type', CVC, '737']];
 const PUT_BACK = [['type', '@e12', ''], ['select', '@e13', 'Choose'], ['select', '@e14', 'Choose'], ['type', CVC, '']];
+const PRESSED = ['read', ['click', '@e31'], 'reached?'];
 
-test('sendForm types each text box, reads then picks each dropdown, presses once, then asks the finish', async () => {
+test('sendForm types each text box, reads then picks each dropdown, reads the page, presses once, then asks the finish', async () => {
   const t = tools();
-  assert.equal(await sendForm(CARD, VALUES, t), 'done');
-  assert.deepEqual(t.log, [...FILLED, ['click', '@e31'], 'reached?']);
+  assert.equal(await sent(t), 'done');
+  assert.deepEqual(t.log, [...FILLED, ...PRESSED]);
   assert.equal(t.log.filter(step => step[0] === 'click').length, 1);
+  await new Promise(done => setImmediate(done));
+  assert.deepEqual(t.steps, ['typing', 'pressing', 'waiting'], 'each step, for the phone');
 });
 
-test('sendForm empties each typed box and puts each dropdown back when the site does not move on, and never presses twice', async () => {
+test('sendForm starts the finish wait as the press is sent, not when the browser answers it', async () => {
+  let release;
+  const t = tools({ reached: async since => since });
+  t.browser.click = target => { t.log.push(['click', target]); return new Promise(done => { release = done; }); };
+  const before = Date.now();
+  const { result } = await sendForm(CARD, VALUES, { ...t, reached: async since => { t.since = since; return true; } });
+  assert.equal(result, 'done', 'the finish was asked while the press still hung');
+  assert.ok(t.since >= before && t.since <= Date.now());
+  assert.deepEqual(t.steps, ['typing', 'pressing'], 'still pressing while the browser holds the press');
+  release();
+  await new Promise(done => setImmediate(done));
+  assert.deepEqual(t.steps, ['typing', 'pressing', 'waiting']);
+  assert.deepEqual(t.records.map(({ step, ok }) => [step, ok]), [...CARD.fields.map(() => ['fill', true]), ['finish', true], ['press', true]]);
+});
+
+test('sendForm gives unconfirmed when pressed with no finish, and puts nothing back itself', async () => {
   const t = tools({ reached: async () => false });
-  assert.equal(await sendForm(CARD, VALUES, t), 'not-accepted');
-  assert.deepEqual(t.log, [...FILLED, ['click', '@e31'], 'reached?', ...PUT_BACK]);
-  assert.equal(t.log.filter(step => step[0] === 'click').length, 1);
+  assert.equal(await sent(t), 'unconfirmed');
+  assert.deepEqual(t.log, [...FILLED, ...PRESSED], 'pressed once, nothing emptied: the site may still be paying');
+  await t.putBack();
+  assert.deepEqual(t.log.slice(-4), PUT_BACK, 'the caller may put each box back once the page kept still');
 });
 
 test('sendForm takes a ref in either spelling and a selector, passing each target on as written', async () => {
   const form = { ...CARD, fields: [{ label: 'Card number', target: 'e12' }, { label: 'Name', target: '@e13' }, { label: 'Code', target: '#cvv' }], submit: { label: 'Pay', target: 'e31' } };
   assert.deepEqual(checkForm(form), { form });
   const t = tools();
-  assert.equal(await sendForm(form, ['4242', 'Jo', '737'], t), 'done');
-  assert.deepEqual(t.log, [['type', 'e12', '4242'], ['type', '@e13', 'Jo'], ['type', '#cvv', '737'], ['click', 'e31'], 'reached?']);
+  assert.equal(await sent(t, form, ['4242', 'Jo', '737']), 'done');
+  assert.deepEqual(t.log, [['type', 'e12', '4242'], ['type', '@e13', 'Jo'], ['type', '#cvv', '737'], 'read', ['click', 'e31'], 'reached?']);
 });
 
-test('sendForm presses nothing when a step fails, and puts back only what it changed', async () => {
+test('sendForm gives not-accepted, presses nothing, and puts back only what it changed when a box fails', async () => {
   const stale = tools({ fail: (step, target) => step === 'select' && target === '@e14' });
-  assert.equal(await sendForm(CARD, VALUES, stale), 'not-accepted');
+  assert.equal(await sent(stale), 'not-accepted');
   assert.deepEqual(stale.log, [...FILLED.slice(0, 5), ...PUT_BACK.slice(0, 3)], 'a stale ref on the year: no press, no finish asked, and the year put back, since a pick that timed out may have landed');
 
   const unread = tools({ fail: step => step === 'value' });
-  assert.equal(await sendForm(CARD, VALUES, unread), 'not-accepted');
+  assert.equal(await sent(unread), 'not-accepted');
   assert.deepEqual(unread.log, [...FILLED.slice(0, 2), PUT_BACK[0]], 'a dropdown whose own choice can not be read is not picked');
 
   const untyped = tools({ fail: (step, target) => step === 'type' && target === CVC });
-  assert.equal(await sendForm(CARD, VALUES, untyped), 'not-accepted');
+  assert.equal(await sent(untyped), 'not-accepted');
   assert.deepEqual(untyped.log, [...FILLED, ...PUT_BACK], 'a box that failed mid-value is emptied too, though emptying it fails again');
+  assert.deepEqual(untyped.steps, ['typing'], 'never pressing');
+  await untyped.putBack();
+  assert.equal(untyped.log.length, FILLED.length + PUT_BACK.length, 'nothing left to put back later');
 });
 
 test('sendForm puts a dropdown back on its placeholder, by its text, and leaves one that showed no text as it is', async () => {
   const placeholder = tools({ was: 'Month', reached: async () => false });
-  assert.equal(await sendForm(CARD, VALUES, placeholder), 'not-accepted');
+  assert.equal(await sent(placeholder), 'unconfirmed');
+  await placeholder.putBack();
   assert.deepEqual(placeholder.log.slice(-4), [PUT_BACK[0], ['select', '@e13', 'Month'], ['select', '@e14', 'Month'], PUT_BACK[3]]);
 
   const t = tools({ was: '', reached: async () => false });
-  assert.equal(await sendForm(CARD, VALUES, t), 'not-accepted');
+  assert.equal(await sent(t), 'unconfirmed');
+  await t.putBack();
   assert.deepEqual(t.log.slice(-2), [PUT_BACK[0], PUT_BACK[3]], 'camofox picks no choice with empty text, so only the text boxes are emptied');
 });
 
-test('sendForm still asks the finish after a press whose step failed, and a finish that throws is not accepted', async () => {
+test('sendForm still asks the finish after a press whose step failed, and an unreadable page is unconfirmed, never refused', async () => {
   const t = tools({ fail: step => step === 'click' });
-  assert.equal(await sendForm(CARD, VALUES, t), 'done', 'the site may have taken the press');
+  assert.equal(await sent(t), 'done', 'the site may have taken the press');
   assert.deepEqual(t.log.slice(-2), [['click', '@e31'], 'reached?']);
+  await new Promise(done => setImmediate(done));
+  assert.equal(t.records.find(entry => entry.step === 'press').ok, false, 'the record says the press failed');
 
   const thrown = tools({ reached: async () => { throw new Error('the browser vanished'); } });
-  assert.equal(await sendForm(CARD, VALUES, thrown), 'not-accepted');
-  assert.deepEqual(thrown.log.slice(-4), PUT_BACK);
+  assert.equal(await sent(thrown), 'unconfirmed');
+  assert.deepEqual(thrown.log.slice(-3), PRESSED, 'nothing emptied on a page it can not read');
+});
+
+test('sendForm records each step\'s time with its index and kind, and never a value or an error\'s text', async () => {
+  const t = tools({ fail: (step, target) => step === 'type' && target === CVC });
+  await sent(t);
+  assert.deepEqual(t.records.map(({ ms, ...rest }) => (assert.ok(Number.isInteger(ms) && ms >= 0), rest)), [
+    { step: 'fill', index: 0, kind: 'cc-number', ok: true },
+    { step: 'fill', index: 1, kind: 'cc-exp-month', ok: true },
+    { step: 'fill', index: 2, kind: 'cc-exp-year', ok: true },
+    { step: 'fill', index: 3, kind: 'cc-csc', ok: false },
+  ]);
+  assert.doesNotMatch(JSON.stringify(t.records), /4242|737|March|2028|failed/);
 });
 
 /** Mounts the form routes for CARD on a server of their own; resolves to a caller and what the hooks heard. */

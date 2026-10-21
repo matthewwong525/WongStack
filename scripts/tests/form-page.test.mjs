@@ -4,7 +4,7 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { runInContext } from 'node:vm';
 import { JSDOM } from 'jsdom';
-import { ending, rowsOf, timeLeft } from '../../.agents/skills/hand-over/scripts/form-page.mjs';
+import { ending, rowsOf, stepText, timeLeft } from '../../.agents/skills/hand-over/scripts/form-page.mjs';
 import { clampZoom, keepPoint, stepZoom, ZOOMS } from '../../.agents/skills/hand-over/scripts/picture-view.mjs';
 import { lookCss } from '../../.agents/skills/plan/scripts/look.mjs';
 
@@ -162,11 +162,46 @@ test('a site that keeps its page ends on Not accepted, with the boxes emptied an
   p.fill();
   p.submit();
   await settle();
-  assert.deepEqual(p.shown(), { form: false, title: 'Not accepted', hint: 'The site kept its page, and nothing is sent again. Back to your chat.', status: '' });
+  assert.deepEqual(p.shown(), { form: false, title: 'Not accepted', hint: 'The site kept its page. Back to your chat to see what it said.', status: '' });
+  assert.doesNotMatch(p.shown().hint, /nothing is sent/, 'never read as "you were not charged"');
   assert.deepEqual(p.boxes().map(box => box.value), ['', '', '', '']);
   p.submit();
   await settle();
   assert.equal(p.sends().length, 1);
+});
+
+test('a site that has not answered ends on still checking, saying not to pay again', async t => {
+  const p = page(t, (_body, answer) => answer(200, { receipt: { result: 'unconfirmed', watching: true, ready: false, notification: 'notified' } }));
+  await settle();
+  p.fill();
+  p.submit();
+  await settle();
+  assert.deepEqual(p.shown(), { form: false, title: 'Sent, waiting for the site', hint: 'Don\'t pay again. Your chat will say how it went.', status: '' });
+  assert.deepEqual(p.boxes().map(box => box.value), ['', '', '', '']);
+});
+
+test('while it sends, the page shows each step the link names, and stops asking once the send answers', async t => {
+  let finish;
+  const steps = [[202, { finishing: false, step: 'typing' }], [202, { finishing: false, step: 'pressing' }], [202, { finishing: false, step: 'waiting' }]];
+  const p = page(t, () => new Promise(done => { finish = done; }), { receipts: steps });
+  await settle();
+  p.fill();
+  p.submit();
+  await settle();
+  assert.equal(p.shown().status, 'Sending…');
+  const seen = [];
+  for (let i = 0; i < 3; i++) {
+    await new Promise(done => setTimeout(done, 520));
+    await settle();
+    seen.push(p.shown().status);
+  }
+  assert.deepEqual(seen, ['Typing your details…', 'Pressing Pay $45.00…', 'Waiting for the site…']);
+  finish({ status: 200, ok: true, json: async () => ({ receipt: { result: 'done', notification: 'notified' } }) });
+  await settle();
+  const asked = p.calls.filter(call => call.path === 'receipt').length;
+  await new Promise(done => setTimeout(done, 600));
+  assert.equal(p.calls.filter(call => call.path === 'receipt').length, asked, 'no more asking once answered');
+  assert.equal(p.shown().title, 'Sent');
 });
 
 test('an empty box or an unpicked dropdown sends nothing', async t => {
@@ -310,6 +345,8 @@ test('the pure helpers: time left, rows, and the closing screen', () => {
   assert.equal(ending({ result: 'done', notification: 'notified' }).hint, 'Back to your chat.');
   assert.equal(ending({ result: 'done', notification: 'unconfirmed' }).hint, 'Back to your chat, and say continue.');
   assert.equal(ending({ result: 'not-accepted' }).title, 'Not accepted');
+  assert.equal(ending({ result: 'unconfirmed', watching: true }).title, 'Sent, waiting for the site');
+  assert.deepEqual(['typing', 'pressing', 'waiting', null, 'other'].map(step => stepText(step, 'Verify')), ['Typing your details…', 'Pressing Verify…', 'Waiting for the site…', 'Sending…', 'Sending…']);
   for (const result of ['timeout', 'closed', 'error']) assert.equal(ending({ result }).hint, 'Ask your assistant for a new one.', result);
   for (const none of [null, undefined]) assert.equal(ending(none).hint, 'Back to your chat to see how it went.');
 });
