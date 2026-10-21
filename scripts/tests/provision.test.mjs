@@ -11,7 +11,7 @@ import { test } from 'node:test';
 
 import {
   ACCESS_KEY, ACCESS_KEY_TODO, ARTIFACTS_PROVISION, CLOUDFLARE_READ_KEY, CLOUDFLARE_READ_KEY_TODO, CODE_KEY, CloudflareError, DEPLOY_TOKEN, NAMESPACE, NORMAL_PROVISION, PROPAGATION, R2_OFF, SNAPSHOT_DAYS, STORAGE_TOKEN, USER_GRANTS,
-  accounts, artifactNamesFor, bindingTypes, cli, cloudflare, githubRepo, names, plan, provision, readEnv, run, runnerConfig, safeName, widen, widenBy, wranglerConfig, wranglerFragment,
+  KEY_OFF_TODO, accounts, artifactNamesFor, bindingTypes, cli, cloudflare, githubRepo, names, plan, provision, readEnv, run, runnerConfig, safeName, widen, widenBy, wranglerConfig, wranglerFragment,
 } from '../../.agents/skills/wong-setup/scripts/provision.mjs';
 import { helperConfig } from '../../.agents/skills/save/scripts/artifacts-credential.mjs';
 import { databaseName, parseConfig, stripJsonc, workerName } from '../lib-wrangler-config.mjs';
@@ -168,6 +168,27 @@ test('a rerun after the card turns an open site private in its committed config'
   assert.ok(report.updated.includes('app/wrangler.jsonc WONG_OWNER_EMAIL'));
   assert.deepEqual(Object.keys(env.fake.state.workerSecrets['recipe-box']), ['WONG_ACCESS_LOGIN_MANAGEMENT', 'WONG_CLOUDFLARE_READ']);
   assert.equal(env.fake.state.workerSecrets['recipe-box-staging'], undefined, 'previews hold none of the live app\'s keys');
+  // The open-site memory key is off in the store and gone from .env: memory takes the company sign-in.
+  assert.ok(report.updated.includes('memory key turned off; memory uses the company sign-in'));
+  assert.equal(readEnv(join(env.dir, '.env')).CLOUDFLARE_MEMORY_TOKEN, undefined);
+  assert.equal(readEnv(join(env.dir, '.env')).CLOUDFLARE_API_TOKEN, TOKEN, 'every other line stays');
+  const keys = env.fake.rows('recipe-box-memory', 'SELECT expires_at FROM memory_keys');
+  assert.ok(keys.length >= 1 && keys.every(row => row.expires_at), JSON.stringify(keys));
+  const again = await env.provision({ openWithoutLogin: true });
+  assert.ok(!again.updated.includes('memory key turned off; memory uses the company sign-in'), 'a later rerun has no key to turn off');
+});
+
+test('a rerun after the card that keeps the config names the key step instead of claiming it', async (t) => {
+  const env = await setup(t);
+  needsOnboarding(env);
+  await env.provision({ openWithoutLogin: true });
+  const key = readEnv(join(env.dir, '.env')).CLOUDFLARE_MEMORY_TOKEN;
+  env.fake.state.workers.push('recipe-box', 'recipe-box-staging');
+  env.fake.state.needsOnboarding = false;
+  const report = await env.provision({ openWithoutLogin: true, keepConfig: true });
+  assert.ok(report.todo.includes(KEY_OFF_TODO), JSON.stringify(report.todo));
+  assert.ok(!report.updated.includes('memory key turned off; memory uses the company sign-in'));
+  assert.equal(readEnv(join(env.dir, '.env')).CLOUDFLARE_MEMORY_TOKEN, key);
 });
 
 test('an open config provisioning cannot edit goes to todo, unchanged', async (t) => {

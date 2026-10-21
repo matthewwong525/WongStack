@@ -25,11 +25,12 @@ export async function personalFilter(ctx, store) {
   return { clause: "((f.type NOT IN ('user', 'feedback') AND f.shared = 1) OR f.owner_subject IS ?)", params: [store.owner] };
 }
 
-// When consolidation last ran, and how many sessions were captured since.
-const LAST_CONSOLIDATION = "(SELECT max(finished_at) FROM runs WHERE kind = 'consolidation' AND status = 'ok')";
-export const CONSOLIDATION_STATE = [`SELECT ${LAST_CONSOLIDATION} AS last_consolidation,
+// When `owner`'s own consolidation last ran, and how many sessions were captured since. Someone else's run record
+// never puts yours off. `owner` is the store's: the signed-in person's subject, or null for a schedule or an old key.
+const LAST_CONSOLIDATION = "(SELECT max(finished_at) FROM runs WHERE kind = 'consolidation' AND status = 'ok' AND owner_subject IS ?)";
+export const consolidationState = owner => [`SELECT ${LAST_CONSOLIDATION} AS last_consolidation,
   (SELECT count(*) FROM sessions WHERE status = 'captured' AND updated_at > coalesce(${LAST_CONSOLIDATION}, '')) AS captured_since,
-  (SELECT min(created_at) FROM facts) AS first_fact`];
+  (SELECT min(created_at) FROM facts) AS first_fact`, [owner ?? null, owner ?? null]];
 
 // The change whose proposal records the current branch.
 export function currentSlug(root, branch) {
@@ -56,12 +57,21 @@ export function formatFact(fact, now = Date.now()) {
 
 export const DIFFERED = 'model reported other counts';
 
+// Whitespace collapsed to single spaces, cut to `max` characters: a record's text never adds a line of its own.
+const oneLine = (text, max) => String(text ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
+
+// The person's last background run as one short line, or null for a record it can't read. A record is only text
+// its writer sent, so the line never throws, never breaks, and stays short: host 64 characters, reason 300.
 export function formatRun(run) {
-  if (!run) return null;
-  const when = `${(run.finished_at || run.started_at || '').slice(0, 16).replace('T', ' ')} UTC on ${run.host || 'unknown host'}`;
-  if (run.status === 'failed') return `Last background ${run.kind} run failed (${when}): ${run.reason || 'no reason recorded'}`;
-  const counts = Object.entries(JSON.parse(run.counts || '{}')).filter(([, value]) => value).map(([key, value]) => `${key} ${value}`).join(', ');
-  const differed = run.reason?.startsWith(DIFFERED) ? " (the run's own report differed)" : '';
+  if (!run || !['capture', 'consolidation'].includes(run.kind)) return null;
+  let parsed;
+  try { parsed = JSON.parse(run.counts || '{}'); } catch { return null; }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+  const when = `${oneLine(run.finished_at || run.started_at, 16).replace('T', ' ')} UTC on ${oneLine(run.host, 64) || 'unknown host'}`;
+  if (run.status === 'failed') return `Last background ${run.kind} run failed (${when}): ${oneLine(run.reason, 300) || 'no reason recorded'}`;
+  const counts = Object.entries(parsed).filter(([key, value]) => /^[a-z]{1,20}$/.test(key) && Number.isFinite(value) && value)
+    .slice(0, 8).map(([key, value]) => `${key} ${value}`).join(', ');
+  const differed = String(run.reason ?? '').startsWith(DIFFERED) ? " (the run's own report differed)" : '';
   return `Last background ${run.kind} run (${when}): ${counts || 'nothing to do'}${differed}`;
 }
 
@@ -156,8 +166,9 @@ export async function digestPlan(ctx, store) {
     [`SELECT ${F_COLUMNS} FROM facts f WHERE ${where} AND f.type != 'thread' ORDER BY ${TYPE_ORDER}, f.created_at DESC, f.id DESC LIMIT ${FETCH_LIMIT}`, params],
     [`SELECT count(*) AS live FROM facts f WHERE ${where}`, params],
     [`SELECT ${F_COLUMNS} FROM facts f WHERE ${where} AND f.type = 'thread' AND f.slug = ? ORDER BY f.created_at DESC`, [...params, slug || '']],
-    ['SELECT kind, host, started_at, finished_at, status, reason, counts FROM runs ORDER BY id DESC LIMIT 1'],
-    CONSOLIDATION_STATE,
+    // Only this sign-in's own runs: another person's record never reaches this digest.
+    ['SELECT kind, host, started_at, finished_at, status, reason, counts FROM runs WHERE owner_subject IS ? ORDER BY id DESC LIMIT 1', [store.owner ?? null]],
+    consolidationState(store.owner),
   ];
   const finish = results => {
     const [steps, facts, [count], threads, [run], [state]] = results.slice(-statements.length);

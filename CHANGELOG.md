@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 44.2.0 — Memory guards hold against crafted searches, old keys and future dates
+
+- **A search can't reach notes you aren't allowed to see.** However a teammate writes a memory search, it looks only through shared team notes and their own. Before, a hand-written search could probe, word by word, what someone else's private notes said.
+- **Your start-of-chat summary shows only your own background run.** Its run line is one short line within the summary's size, and a broken run record is left out instead of blanking the summary. When your next memory tidy-up is due is counted from your own runs too. A teammate's own memory lookups see only their own runs.
+- **The setup key stops once the app has a sign-in.** The memory store refuses the key an open app keeps in `.env` as soon as the app is private, and rerunning setup after adding the card turns it off and removes it.
+- **A note's date is the date it was saved.** A teammate or a cloud schedule can't date a note in the future; a re-tagged note keeps its earlier date. The wiki tidy-up also ignores a record of its last run that is dated ahead or claims to have read later notes.
+
+**Updating.** Before publishing, the admin runs `node .claude/skills/memory/scripts/memory.mjs migrate` once: it records who wrote each background run. Runs saved before it reach no one, so everyone's summary, a cloud schedule's too, shows no run line until their next background run. Skip it and memory still searches and saves, but chats start without their summary and background runs aren't recorded until it runs. If memory still used an old key on a private app, it now asks for the company sign-in; `memory.mjs migrate-people` gives notes still waiting to their people.
+
 ## 44.1.0 — Branch code never holds the deploy key
 
 - **A saved branch can't reach your Cloudflare deploy key.** On GitHub, the app's deploy now runs in two jobs. The first installs, tests and builds the branch with no key. The second uses your published branch's own scripts and tools, installed with their install scripts off, takes in only the built files, and deploys with the key. The same goes for the check runner on a project kept in Cloudflare.

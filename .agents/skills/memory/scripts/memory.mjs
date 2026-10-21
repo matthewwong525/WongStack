@@ -9,7 +9,7 @@ import { parseArgs } from 'node:util';
 import { createHash } from 'node:crypto';
 import { extractMemory } from './lib/extract.mjs';
 import { issueTask, scopeOf, taskIdentity } from './lib/extract-ledger.mjs';
-import { CONSOLIDATION_STATE, consolidationDue, DIFFERED, digestPlan, FACT_COLUMNS, formatFact, loadDigest, personalFilter, VERB_TAGS } from './lib/digest.mjs';
+import { consolidationDue, consolidationState, DIFFERED, digestPlan, FACT_COLUMNS, formatFact, loadDigest, personalFilter, VERB_TAGS } from './lib/digest.mjs';
 import { areaDocs, changePaths, loadAreas, pastChanges, pathAreas, withAreaTags } from './lib/areas.mjs';
 import { ftsQuery, readFacts, stateOf, tagClause } from './lib/read-facts.mjs';
 import { BRIEF_DEFAULT_LIMIT, BRIEF_LIMIT, renderBrief, SCOPE_FILTERS } from './lib/brief.mjs';
@@ -701,12 +701,14 @@ async function digest(ctx) {
 }
 
 async function stats(ctx) {
-  const [types, [total], runs] = await openStore(ctx).batch([
+  const store = openStore(ctx);
+  const [types, [total], runs] = await store.batch([
     ['SELECT type, count(*) AS n FROM facts WHERE superseded_by IS NULL GROUP BY type ORDER BY type'],
     ["SELECT (SELECT count(*) FROM facts) AS facts, (SELECT count(*) FROM facts WHERE superseded_by IS NULL) AS live, (SELECT count(*) FROM sessions) AS sessions, (SELECT count(*) FROM sessions WHERE status = 'private') AS private"],
-    ["SELECT counts FROM runs WHERE kind = 'consolidation' AND status = 'ok' ORDER BY id DESC LIMIT 10"],
+    ["SELECT counts FROM runs WHERE kind = 'consolidation' AND status = 'ok' AND owner_subject IS ? ORDER BY id DESC LIMIT 10", [store.owner ?? null]],
   ]);
-  const merged = runs.map(run => JSON.parse(run.counts || '{}').merged || 0);
+  // A run's counts are text its writer sent: one that isn't JSON, or whose `merged` isn't a number, counts as 0.
+  const merged = runs.map(run => { try { const { merged: n } = JSON.parse(run.counts || '{}') ?? {}; return Number.isFinite(n) ? n : 0; } catch { return 0; } });
   const growing = merged.length >= 3 && merged[0] > merged[1] && merged[1] > merged[2];
   console.log([
     `live facts: ${total.live} of ${total.facts}; sessions: ${total.sessions} (${total.private} private)`,
@@ -744,7 +746,8 @@ async function finishRun(ctx, { values, tally: tallyFile }) {
 }
 
 async function due(ctx) {
-  const [[state]] = await openStore(ctx).batch([CONSOLIDATION_STATE]);
+  const store = openStore(ctx);
+  const [[state]] = await store.batch([consolidationState(store.owner)]);
   console.log(consolidationDue(state) ? 'consolidation due' : 'consolidation not due');
 }
 

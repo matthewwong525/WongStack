@@ -218,12 +218,15 @@ describe("private Worker routing", () => {
     const memoryDb = {
       prepare: () => ({ bind: (hash: string) => ({ first: async () => hash === validHash ? { email: "owner@example.com", role: "admin", expires_at: null, machine_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" } : null }) }),
     };
-    const memoryEnv = { ...env, MEMORY_DB: memoryDb };
+    // The open-site key works only while the app has no sign-in; on a private app it is refused like any other.
+    const openEnv = { ASSETS: assets, WORKSPACE_LOGIN: "off", MEMORY_DB: memoryDb };
     for (const key of [undefined, "wongm_wrong-key", "wongm_test-memory-key"]) {
-      const response = await call("/_memory/unknown", key ? { Authorization: `Bearer ${key}` } : {}, memoryEnv);
+      const response = await call("/_memory/unknown", key ? { Authorization: `Bearer ${key}` } : {}, openEnv);
       expect(response.status).toBe(key === "wongm_test-memory-key" ? 404 : 401);
       expect(await response.json()).toMatchObject({ errors: [{ code: key === "wongm_test-memory-key" ? "no_route" : 10000 }] });
     }
+    const refused = await call("/_memory/unknown", { Authorization: "Bearer wongm_test-memory-key" }, { ...env, MEMORY_DB: memoryDb });
+    expect(refused.status).toBe(401);
     expect(assets.fetch).not.toHaveBeenCalled();
   });
   it("serves the setup file with no sign-in and no memory store, and leaves every other memory address to memory", async () => {

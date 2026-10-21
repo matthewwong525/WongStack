@@ -9,7 +9,7 @@ import { handleMemory, hashKey, newKey, MAX_TRANSCRIPT_BYTES, mayTouch } from '.
 import { ADMIN_WRITES, FTS_HITS, LEGACY_FTS_HITS, readRefusal, shadowCtes, supersedeSql, WRITES } from '../../.agents/skills/memory/worker/statements.mjs';
 import { keyMachine } from '../../.agents/skills/memory/scripts/lib/store.mjs';
 import { personalFilter } from '../../.agents/skills/memory/scripts/lib/digest.mjs';
-import { fakeSignIn, memory, node, setup, signInAs, tempDir, testToken, writeJsonFile } from './fixtures/memory/harness.mjs';
+import { fakeSignIn, memory, node, setup, signInAs, tempDir, TEST_AUD, testToken, writeJsonFile } from './fixtures/memory/harness.mjs';
 
 const OWNER = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const OTHER = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
@@ -456,4 +456,110 @@ test('described reads keep two people apart and fail closed without a sign-in, n
   const otherApp = local(t, env, OWNER, grant(OWNER, 'member', { aud: 'another-app' }));
   const denied = JSON.parse((await node(otherApp, env.fake, 'operations.mjs', ['call', 'memory.search', '--file', '-'], { input: '{}' })).stdout);
   assert.equal(denied.error.code, 'unavailable'); assert.doesNotMatch(JSON.stringify(denied), /first person private|shared delivery/);
+});
+
+// The security check's four reads: a `facts` of the caller's own, named behind a comment or a quote, around the
+// literal search fragment, so the fragment's filter would read the caller's made-up ids.
+const ids = 'WITH RECURSIVE c(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM c WHERE x<1000) SELECT x AS id FROM c';
+const BYPASSES = [
+  `SELECT rowid AS id FROM (WITH facts/**/AS (${ids}) SELECT rowid FROM ${FTS_HITS})`,
+  `SELECT rowid AS id FROM (WITH facts AS/**/(${ids}) SELECT rowid FROM ${FTS_HITS})`,
+  `SELECT rowid AS id FROM (WITH 'facts' AS (${ids}) SELECT rowid FROM ${FTS_HITS})`,
+  `SELECT rowid AS id FROM (WITH facts(id)/**/AS (SELECT 1 AS id UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5) SELECT rowid FROM ${FTS_HITS})`,
+];
+for (const [index, sql] of BYPASSES.entries()) {
+  test(`a read with a facts of its own learns nothing of a teammate's private note (${index + 1})`, async t => {
+    const env = await setup(t);
+    insert(env, OWNER, 'project', 'shared release plan');
+    const hidden = insert(env, OTHER, 'user', 'confidential salary for chase');
+    for (const role of ['member', 'reader']) {
+      for (const term of ['salary', 'confidential', 'conf*', 'chase']) {
+        const response = await query(env, grant(OWNER, role), { sql, params: [term] });
+        if (response.status === 403) continue;
+        assert.equal(response.status, 200);
+        const found = (await response.json()).result[0].results.map(row => row.id);
+        assert.ok(!found.includes(hidden), `${role} found the hidden fact by ${term}`);
+      }
+    }
+  });
+}
+
+test('a read naming the reserved shadow is refused, and ordinary and old-fragment searches still find shared facts', async t => {
+  const env = await setup(t); const key = grant();
+  const shared = insert(env, OTHER, 'project', 'shared deploy checklist');
+  insert(env, OTHER, 'user', 'hidden deploy salary');
+  for (const sql of ['SELECT id FROM __mem_facts', 'SELECT id FROM "__MEM_facts"', 'WITH __mem_facts AS (SELECT 1 AS id) SELECT id FROM facts']) {
+    assert.equal((await query(env, key, { sql })).status, 403, sql);
+    assert.match(readRefusal(sql), /__mem_/);
+  }
+  for (const fragment of [FTS_HITS, LEGACY_FTS_HITS]) {
+    const sql = `SELECT f.id FROM facts f JOIN ${fragment} hits ON hits.rowid = f.id ORDER BY hits.rank`;
+    const response = await query(env, key, { sql, params: ['deploy'] });
+    assert.deepEqual((await response.json()).result[0].results.map(row => row.id), [shared]);
+  }
+});
+
+test('a run record is stored under the sign-in that sent it, whatever its params say', async t => {
+  const env = await setup(t);
+  const record = params => ({ sql: WRITES.run.sql, params: ['capture', 'laptop', iso(), iso(), 'ok', null, '{}', ...params] });
+  assert.equal((await query(env, grant(OWNER, 'reader'), record([]))).status, 200);
+  // An eighth param naming someone else is dropped: the stored owner comes from the sign-in alone.
+  assert.equal((await query(env, grant(OWNER, 'member'), record([OTHER]))).status, 200);
+  assert.equal((await query(env, grant('owner-subject', 'admin'), record([]))).status, 200);
+  assert.equal((await query(env, await schedule(env), record([]))).status, 200);
+  assert.equal((await query(env, token(env), record([]))).status, 200);
+  assert.deepEqual(env.fake.db.prepare('SELECT owner_subject FROM runs ORDER BY id').all().map(row => row.owner_subject), [OWNER, OWNER, 'owner-subject', null, null]);
+});
+
+test("a teammate's or a schedule's own reads of runs see only their own records, and a read naming no runs needs no 0009", async t => {
+  const env = await setup(t); const team = await schedule(env);
+  env.fake.db.prepare("INSERT INTO runs (kind, host, started_at, finished_at, status, reason, counts, owner_subject) VALUES ('capture', 'legacy-laptop', ?, ?, 'ok', 'legacy reason', '{}', 'legacy:unowned')").run(iso(), iso());
+  const callers = [[grant(OWNER, 'reader'), 'reader-laptop', OWNER], [grant(OTHER), 'member-laptop', OTHER], [team, 'schedule-host', null], [grant('owner-subject', 'admin'), 'admin-laptop', 'owner-subject']];
+  for (const [caller, host] of callers) {
+    assert.equal((await query(env, caller, { sql: WRITES.run.sql, params: ['capture', host, iso(), iso(), 'ok', `${host} reason`, '{}'] })).status, 200);
+  }
+  const read = async caller => (await (await query(env, caller, { sql: 'SELECT host, reason, owner_subject FROM runs ORDER BY id' })).json()).result[0].results;
+  for (const [caller, host, owner] of callers.slice(0, 3)) assert.deepEqual(await read(caller), [{ host, reason: `${host} reason`, owner_subject: owner }], host);
+  assert.equal((await read(callers[3][0])).length, 5, 'the admin reads every run');
+  // A store that skipped `migrate`: a read naming no runs still works, as SQLite compiles only the CTEs a read names.
+  env.fake.db.exec('DROP INDEX runs_owner; ALTER TABLE runs DROP COLUMN owner_subject');
+  assert.deepEqual(await bodies(await query(env, grant(), { sql: "SELECT body FROM facts WHERE body = 'none'" })), []);
+  assert.equal((await query(env, grant(), { sql: 'SELECT host FROM runs' })).status, 400);
+});
+
+test('an open-site key stops once the Worker has a sign-in, and an expiry it can not read has passed', async t => {
+  const env = await setup(t); const key = token(env);
+  const path = `sessions/${OTHER}/claude/${SESSION}.jsonl`;
+  env.fake.objects.set(path, Buffer.from('private transcript'));
+  insert(env, OTHER, 'user', 'private preference');
+  const withAccess = (route, init = {}) => handleMemory(new Request(`https://app.example/_memory/${route}`, { ...init, headers: { Authorization: `Bearer ${key}`, ...init.headers } }),
+    { ...bindings(env), CF_ACCESS_TEAM_DOMAIN: 'team.cloudflareaccess.com', CF_ACCESS_AUD: TEST_AUD }, fakeSignIn);
+  assert.equal((await withAccess('caller')).status, 401);
+  assert.equal((await withAccess('accounts/a/d1/database/db1/query', { method: 'POST', body: JSON.stringify({ sql: 'SELECT body FROM facts' }) })).status, 401);
+  assert.equal((await withAccess(`accounts/a/r2/buckets/b/objects/${encodeURIComponent(path)}`)).status, 401);
+  for (const access of [{ CF_ACCESS_AUD: TEST_AUD }, { CF_ACCESS_TEAM_DOMAIN: 'team.cloudflareaccess.com' }]) {
+    assert.equal((await handleMemory(new Request('https://app.example/_memory/caller', { headers: { Authorization: `Bearer ${key}` } }), { ...bindings(env), ...access })).status, 401);
+  }
+  assert.equal((await (await call(env, key, 'caller')).json()).result.role, 'admin');
+  env.fake.db.prepare('UPDATE memory_keys SET expires_at = ?').run('not-a-date');
+  assert.equal((await call(env, key, 'caller')).status, 401);
+});
+
+test("a teammate's or a schedule's fact dated ahead, or not in plain UTC, is stored at the Worker's time; the admin's is kept", async t => {
+  const env = await setup(t); const team = await schedule(env);
+  const dated = (owner, body, createdAt) => ({ sql: WRITES.fact.sql, params: ['x', 'project', body, null, 'save', createdAt, EMAIL, owner, 1] });
+  const stored = body => env.fake.db.prepare('SELECT created_at FROM facts WHERE body = ?').get(body).created_at;
+  const before = iso();
+  for (const [name, caller, owner] of [['member', grant(), OWNER], ['reader', grant(OWNER, 'reader'), OWNER], ['schedule', team, null]]) {
+    for (const createdAt of ['2999-12-31T00:00:00Z', 'Tue Oct 20 2026']) {
+      const body = `${name} note dated ${createdAt}`;
+      assert.equal((await query(env, caller, dated(owner, body, createdAt))).status, 200);
+      const at = stored(body);
+      assert.match(at, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/); assert.ok(at >= before && at <= iso(), `${name}: ${at}`);
+    }
+    assert.equal((await query(env, caller, dated(owner, `${name} re-tag`, '2026-09-21T08:00:00Z'))).status, 200);
+    assert.equal(stored(`${name} re-tag`), '2026-09-21T08:00:00Z');
+  }
+  assert.equal((await query(env, grant('owner-subject', 'admin'), dated('owner-subject', 'admin note', '2999-12-31T00:00:00Z'))).status, 200);
+  assert.equal(stored('admin note'), '2999-12-31T00:00:00Z');
 });

@@ -347,6 +347,20 @@ Provisioning SHALL let the owner make a separate service sign-in for each cloud 
 - **WHEN** the owner makes a sign-in for a nightly cloud schedule and later switches it off
 - **THEN** the schedule reaches team notes until then, and every call after is refused while other sign-ins keep working
 
+### Requirement: Going private turns the open-site memory key off
+
+When a provisioning run leaves an install private and the setup computer still holds the open-site memory key, it SHALL turn every memory key off and remove the key from `.env`, and its report SHALL say memory now uses the company sign-in. A run that leaves the install open SHALL keep the key.
+
+#### Scenario: The card is added later
+
+- **WHEN** an install set up open until the card is provisioned again after the card is added, and the private login comes on
+- **THEN** `.env` holds no memory key, the store holds no working key, and the report says memory uses the company sign-in
+
+#### Scenario: Still waiting for the card
+
+- **WHEN** provisioning runs again while Zero Trust still wants a payment method and the install stays open
+- **THEN** the admin memory key stays in `.env` and keeps working
+
 ### Requirement: Previews have their own sign-in
 
 The live app and staging with its previews SHALL each be protected by their own Access application, with their own audience and their own verification service token. A sign-in or machine assertion issued for staging or a preview SHALL NOT authenticate on the live app, on any route, including the routes the Worker checks itself. Both applications SHALL admit the same people: adding or removing a person through the live app SHALL update both sign-in lists, and SHALL leave each application's machine policy intact. Setup SHALL create both applications on a new install. The Access step SHALL split an existing shared application without changing who can sign in or how: the live application SHALL keep its login methods, and the previews application SHALL get the same ones. The deploy gate SHALL refuse a staging or preview deploy while the two environments share an application or audience, naming the Access step. It SHALL still let the live app publish, with a warning.

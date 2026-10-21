@@ -651,6 +651,14 @@ const accessCredentials = (dir, envFile, exec, env) => async ({ client_id, clien
 };
 
 const hasKey = (env, localId) => keyMachine(env.CLOUDFLARE_MEMORY_TOKEN) === localId;
+export const KEY_OFF_TODO = 'turn the open-site memory key off: run `node .claude/skills/memory/scripts/memory.mjs migrate-people`, then remove CLOUDFLARE_MEMORY_TOKEN from .env';
+
+/** Drops the open-site memory key's line from `file`, keeping every other line and the file's 0600 mode. */
+function removeMemoryKey(file) {
+  const text = readFileSync(file, 'utf8');
+  writeFileSync(file, text.split('\n').filter(line => !/^\s*(?:export\s+)?CLOUDFLARE_MEMORY_TOKEN\s*=/.test(line)).join('\n'), { mode: 0o600 });
+  chmodSync(file, 0o600);
+}
 
 /** Everything after the one billable ask, under `base`. `keepConfig` leaves an installed repo's committed files alone.
  * `openWithoutLogin` goes on without Access when Cloudflare refuses Zero Trust; a site already private never opens. */
@@ -763,6 +771,16 @@ export async function provision({ token, api, fetch, account, repo, base, route 
       }
     }
     migrateScripts(dir, n, note);
+  }
+  // Private now, so the open-site key goes off in the store and out of .env: memory takes the company sign-in.
+  // migrate-people turns keys off only once the install record has the sign-in, which --keep-config never writes.
+  if (!open && hasKey(readEnv(envFile), machineId(machineIdFile(env)))) {
+    if (keepConfig) report.todo.push(KEY_OFF_TODO);
+    else {
+      await step('cloudflare', () => exec('node', [memory, 'migrate-people'], admin));
+      removeMemoryKey(envFile);
+      note('updated', 'memory key turned off; memory uses the company sign-in');
+    }
   }
 
   const rows = DEPLOY_TOKEN.filter((row) => row.when === 'always' || (row.when === 'bucket' && bucket));
