@@ -1,6 +1,6 @@
 // The memory route in the app's production Worker, under /_memory/. It answers the Cloudflare REST requests
 // memory.mjs sends (a D1 batch, an R2 PUT or GET) on its own bindings, so the path's ids are ignored.
-import { batchRefusal, isWrite, memberStatements, readRefusal, sessionIds, shadowRead } from './statements.mjs';
+import { batchRefusal, isWrite, memberStatements, ownRuns, readRefusal, sessionIds, shadowRead } from './statements.mjs';
 
 export const MEMORY_PREFIX = '/_memory/';
 export const TEAM_HEADER = 'Wong-Memory-Team';
@@ -28,10 +28,12 @@ export const mayTouch = (caller, key) => caller.role === 'admin' || (caller.subj
 // SQLite has no dynamic SQL and no escapes in identifiers, so no statement reaches the keys without naming them.
 const KEYS_GUARD = /memory_keys|memory_admins|memory_schedules|writable_schema/i;
 
-// An old memory key opens memory as admin until migrate-people turns it off; a member key needs the sign-in.
-async function keyCaller(db, bearer) {
+// An open-site admin key opens memory as admin only while the app has no sign-in: once the Worker has Access ids,
+// memory takes the company sign-in alone. A member key needs the sign-in, and an expiry it can't read has passed.
+async function keyCaller(db, bearer, env) {
+  if (env.CF_ACCESS_TEAM_DOMAIN || env.CF_ACCESS_AUD) return null;
   const grant = await db.prepare('SELECT role, email, expires_at FROM memory_keys WHERE hash = ?').bind(await hashKey(bearer)).first();
-  if (grant?.role !== 'admin' || (grant.expires_at && Date.parse(grant.expires_at) <= Date.now())) return null;
+  if (grant?.role !== 'admin' || (grant.expires_at != null && !(Date.parse(grant.expires_at) > Date.now()))) return null;
   return { role: 'admin', subject: null, email: grant.email || null };
 }
 
@@ -44,7 +46,7 @@ async function scheduleCaller(db, id, secret) {
 // Who is calling: an old admin key, a schedule's sign-in, or the company sign-in `signedIn` verified and gave a role.
 async function callerOf(db, request, env, signedIn) {
   const bearer = (request.headers.get('Authorization') || '').match(/^Bearer\s+(wongm_\S+)$/i)?.[1];
-  if (bearer) return keyCaller(db, bearer);
+  if (bearer) return keyCaller(db, bearer, env);
   const id = request.headers.get('CF-Access-Client-Id'), secret = request.headers.get('CF-Access-Client-Secret');
   if (id && secret) return scheduleCaller(db, id, secret);
   const caller = await signedIn(request, env);
@@ -67,11 +69,12 @@ async function query(db, caller, request) {
   if (statements.some(({ sql }) => KEYS_GUARD.test(String(sql)))) return fail(403, 'keys_table', 'no caller can read or change sign-ins');
   const sessionRefusal = await othersSession(db, statements, caller);
   if (sessionRefusal) return fail(403, 'member_write', sessionRefusal);
-  let run = statements;
+  // Every run record is stored under the sign-in that sent it, the admin's too.
+  let run = ownRuns(statements, caller.subject);
   if (caller.role !== 'admin') {
     const refusal = batchRefusal(statements, caller);
     if (refusal) return fail(403, 'member_write', refusal);
-    run = memberStatements(statements, { subject: caller.subject, reader: caller.role === 'reader' });
+    run = ownRuns(memberStatements(statements, { subject: caller.subject, reader: caller.role === 'reader', now: new Date().toISOString() }), caller.subject);
     // Every read sees only the facts this caller may see, however it is written.
     const reads = new Set(statements.filter(statement => !isWrite(statement)));
     const readError = [...reads].map(({ sql }) => readRefusal(sql)).find(Boolean);

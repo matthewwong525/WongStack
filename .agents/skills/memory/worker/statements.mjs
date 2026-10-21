@@ -19,6 +19,10 @@ export const WRITES = {
   run: { sql: 'INSERT INTO runs (kind, host, started_at, finished_at, status, reason, counts) VALUES (?, ?, ?, ?, ?, ?, ?)' },
 };
 
+// What the route runs for every caller's run record, the admin's too: the same insert, stored under the sign-in
+// that sent it (NULL for a schedule or an old key). The request has no parameter that names the owner.
+export const RUN_WITH_OWNER = 'INSERT INTO runs (kind, host, started_at, finished_at, status, reason, counts, owner_subject) VALUES (?, ?, ?, ?, ?, ?, ?, ?)';
+
 // The admin's own writes. They sit outside WRITES, so no member or reader may run them: a tag is shared.
 export const ADMIN_WRITES = {
   tagUpdate: { sql: 'UPDATE tags SET definition = ?, alias_of = ? WHERE name = ?' },
@@ -74,39 +78,56 @@ export function batchRefusal(statements, caller) {
   return null;
 }
 
-// The batch a member runs, once batchRefusal has passed it: each supersede gains the caller's subject, and a
-// reader's fact insert stores the fact unshared, whatever the request said.
-export function memberStatements(statements, { subject, reader }) {
+// A plain UTC timestamp, as the script writes one: anything else, such as `Tue Oct 20 2026`, sorts after every date.
+// The dream's record check uses it too.
+export const PLAIN_UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/;
+// A fact's time: the one sent if it is plain UTC and not after `now`, so a re-tag keeps its date; else `now`.
+const factTime = (sent, now) => PLAIN_UTC.test(String(sent)) && Date.parse(sent) <= Date.parse(now) ? sent : now;
+
+// The batch a member runs, once batchRefusal has passed it: each supersede gains the caller's subject, a fact
+// dated ahead of `now` gets `now`, and a reader's fact insert stores the fact unshared, whatever the request said.
+export function memberStatements(statements, { subject, reader, now = new Date().toISOString() }) {
   return statements.map(statement => {
     const write = BY_SHAPE.get(shape(statement.sql));
     const params = statement.params || [];
     if (write === WRITES.supersede) return { sql: listOf(MEMBER_WRITES.supersede.sql, params.length), params: [...params, subject] };
-    if (write === WRITES.fact && reader) return { sql: MEMBER_WRITES.readerFact.sql, params: params.slice(0, 8) };
-    return statement;
+    if (write !== WRITES.fact) return statement;
+    const dated = params.map((param, index) => index === 5 ? factTime(param, now) : param);
+    return reader ? { sql: MEMBER_WRITES.readerFact.sql, params: dated.slice(0, 8) } : { ...statement, params: dated };
   });
 }
 
-// The one way any read searches the full-text index: only facts the caller may see (`facts` is the shadow below).
-// Each unary `+` stops SQLite driving facts_fts by rowid, which re-ran the MATCH once per stored fact.
+// Every caller's batch, the admin's included: each run record is stored under the caller's own subject.
+export const ownRuns = (statements, subject) => statements.map(statement => BY_SHAPE.get(shape(statement.sql)) === WRITES.run
+  ? { sql: RUN_WITH_OWNER, params: [...(statement.params || []).slice(0, 7), subject ?? null] } : statement);
+
+// The one way a read searches the full-text index; a non-admin's runs as SHADOW_FTS_HITS. Each unary `+` stops
+// SQLite driving facts_fts by rowid, which re-ran the MATCH once per stored fact.
 export const FTS_HITS = '(SELECT +rowid AS rowid, rank FROM facts_fts WHERE facts_fts MATCH ? AND +rowid IN (SELECT id FROM facts))';
 // The fragment a computer that has not updated still sends; it filters the same way. Drop it once every computer has.
 export const LEGACY_FTS_HITS = '(SELECT rowid, rank FROM facts_fts WHERE facts_fts MATCH ? AND rowid IN (SELECT id FROM facts))';
+// The fragment a shadowed read runs: it filters by __mem_facts, a name no read may write, so no `facts` of the
+// caller's own, however it is quoted or commented, can stand in for the facts the caller may see.
+export const SHADOW_FTS_HITS = FTS_HITS.replace('SELECT id FROM facts', 'SELECT id FROM __mem_facts');
 
 const quote = text => `'${String(text).replaceAll("'", "''")}'`;
 
-// The CTEs that stand in for `facts` and `fact_tags` for a member, reader or schedule: shared facts that are not
-// personal, plus the caller's own. SQLite resolves a CTE before a same-named table, so every read sees only these.
+// The CTEs a non-admin's read sees in place of the same-named tables: shared non-personal facts plus the caller's own,
+// under __mem_facts, which the search fragment reads; and only the caller's runs (`IS`, so NULL is a schedule's).
 export function shadowCtes(subject) {
   const owner = subject === null ? 'NULL' : quote(subject);
-  return `facts AS (SELECT * FROM main.facts WHERE (type NOT IN ('user', 'feedback') AND shared = 1) OR owner_subject = ${owner}), `
-    + 'fact_tags AS (SELECT * FROM main.fact_tags WHERE fact_id IN (SELECT id FROM facts)), '
-    + `sessions AS (SELECT * FROM main.sessions WHERE owner_subject = ${owner})`;
+  return `__mem_facts AS (SELECT * FROM main.facts WHERE (type NOT IN ('user', 'feedback') AND shared = 1) OR owner_subject = ${owner}), `
+    + 'facts AS (SELECT * FROM __mem_facts), '
+    + 'fact_tags AS (SELECT * FROM main.fact_tags WHERE fact_id IN (SELECT id FROM __mem_facts)), '
+    + `sessions AS (SELECT * FROM main.sessions WHERE owner_subject = ${owner}), `
+    + `runs AS (SELECT * FROM main.runs WHERE owner_subject IS ${owner})`;
 }
 
-// A read with the shadow CTEs in front, merged into its own WITH list when it has one.
+// A read with each search fragment bound to the reserved filter, and the shadow CTEs in front, merged into its own
+// WITH list when it has one.
 export function shadowRead(sql, subject) {
   const ctes = shadowCtes(subject);
-  const text = String(sql).trim();
+  const text = String(sql).trim().replaceAll(FTS_HITS, SHADOW_FTS_HITS).replaceAll(LEGACY_FTS_HITS, SHADOW_FTS_HITS);
   const own = text.match(/^WITH(\s+RECURSIVE)?\s+/i);
   return own ? `WITH${own[1] || ''} ${ctes}, ${text.slice(own[0].length)}` : `WITH ${ctes} ${text}`;
 }
@@ -114,15 +135,20 @@ export function shadowRead(sql, subject) {
 // A schema-qualified name skips a CTE, and a raw page read skips every name, so a shadowed read names neither.
 const SCHEMA_NAME = /(?<![\w$])(?:main|temp)(?![\w$])|sqlite_dbpage/i;
 
-// A CTE of its own named `facts` or `fact_tags`, at any depth: a nested one would replace the shadow inside FTS_HITS.
-const OWN_SHADOW = /(?<![\w$.])["`[]?(?:facts|fact_tags|sessions)["`\]]?\s*(?:\([^)]*\)\s*)?AS\s*(?:NOT\s+)?(?:MATERIALIZED\s*)?\(/i;
+// A CTE of its own named `facts`, `fact_tags`, `sessions` or `runs`, at any depth. An extra refusal only: the search
+// fragment reads the reserved __mem_facts, so a `facts` this misses (behind a comment or a quote) widens nothing.
+const OWN_SHADOW = /(?<![\w$.])["`[]?(?:facts|fact_tags|sessions|runs)["`\]]?\s*(?:\([^)]*\)\s*)?AS\s*(?:NOT\s+)?(?:MATERIALIZED\s*)?\(/i;
+// The shadow's own names. SQLite has no dynamic names or escapes besides doubled quotes, so no read reaches one
+// without this text.
+const RESERVED = /__mem_/i;
 
-// Why a member, reader or schedule may not run this read, or null: it must name no schema, define no `facts` or
-// `fact_tags` of its own, and reach the full-text index only through FTS_HITS. Checked before the shadow is added.
+// Why a non-admin may not run this read, or null: no schema or reserved name, no `facts` or `fact_tags` of its own,
+// and the full-text index only through FTS_HITS. Checked before the shadow is added.
 export function readRefusal(sql) {
   const text = String(sql);
   if (SCHEMA_NAME.test(text)) return 'a member reads facts only by their plain names, never main., temp., or raw pages';
-  if (OWN_SHADOW.test(text)) return 'a member reads facts only by their plain names, never a facts or fact_tags of its own';
+  if (RESERVED.test(text)) return 'a member reads facts only by their plain names, never the memory store\'s own __mem_ names';
+  if (OWN_SHADOW.test(text)) return 'a member reads facts only by their plain names, never a facts, fact_tags, sessions or runs of its own';
   if (/facts_fts/i.test(text.replaceAll(FTS_HITS, '').replaceAll(LEGACY_FTS_HITS, ''))) return 'a member searches memory only through the shared full-text fragment; update this branch from main to search memory';
   return null;
 }

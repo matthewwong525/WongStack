@@ -216,6 +216,6 @@ Name only what the missing steps cost: an account with R2 but an open site loses
 
 ## Adding the card later
 
-When the person says the card is on, run [Step 4](#step-4--provision)'s `provision` command again, flags and all. It turns on what the card unlocked: the private login, when Zero Trust now answers, and the memory bucket, when R2 is on. It edits `app/wrangler.jsonc` in place: it fills the `CF_ACCESS_*` ids, removes `WORKSPACE_LOGIN`, and adds `MEMORY_BUCKET`. Make by hand any edit its `todo` lists.
+Once the card is on, rerun [Step 4](#step-4--provision)'s `provision` command, flags and all. It turns on the private login, when Zero Trust answers, and the memory bucket, when R2 is on. It fills `app/wrangler.jsonc`'s `CF_ACCESS_*` ids, removes `WORKSPACE_LOGIN`, adds `MEMORY_BUCKET`, and turns the memory key off: memory then uses the app's sign-in. Hand-make any edit its `todo` lists.
 
 Then publish through `/save`, and once it deploys, run 4g's private check. If the report still says `open`, Zero Trust still wants its plan picked: send the list's step 3 again.

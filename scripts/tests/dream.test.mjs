@@ -39,19 +39,20 @@ test('with no earlier dream, the first one reads 30 days back', () => {
 
 test('an earlier dream fact gives its date, the highest fact id it read, and the pages it checked', () => {
   const facts = [
-    { id: 40, created_at: '2026-09-20T08:00:00Z', body: 'Dream 2026-09-20: read facts up to #900. Checked: wiki/people/README.md.' },
-    { id: 55, created_at: '2026-10-01T08:00:00Z', body: 'Dream 2026-10-01: read facts up to #1234. Checked: wiki/people/README.md, wiki/people/a-b.md.' },
+    { id: 901, created_at: '2026-09-20T08:00:00Z', body: 'Dream 2026-09-20: read facts up to #900. Checked: wiki/people/README.md.' },
+    { id: 1240, created_at: '2026-10-01T08:00:00Z', body: 'Dream 2026-10-01: read facts up to #1234. Checked: wiki/people/README.md, wiki/people/a-b.md.' },
     // Upkeep tags `dream` any fact naming the skill's folder; only a dream's own fact counts.
-    { id: 60, created_at: '2026-10-03T08:00:00Z', body: 'Session 2026-10-03: edited .agents/skills/dream-memory/SKILL.md and wiki/people/c.md, PR #9.' },
+    { id: 1250, created_at: '2026-10-03T08:00:00Z', body: 'Session 2026-10-03: edited .agents/skills/dream-memory/SKILL.md and wiki/people/c.md, PR #9.' },
   ];
-  assert.deepEqual(lastDream(facts), { since: '2026-10-01', afterFact: 1234, pages: ['wiki/people/README.md', 'wiki/people/a-b.md'], dream: 55 });
+  assert.deepEqual(lastDream(facts), { since: '2026-10-01', afterFact: 1234, pages: ['wiki/people/README.md', 'wiki/people/a-b.md'], dream: 1240 });
   assert.deepEqual(lastDream([{ id: 7, created_at: '2026-10-02T00:00:00Z', body: 'Dream 2026-10-02: nothing to add.' }]),
     { since: '2026-10-02', afterFact: 0, pages: [], dream: 7 });
 });
 
 test('only a fact worded as a dream is one', () => {
-  assert.equal(isDreamFact({ body: 'Dream 2026-10-06: read facts up to #9. Checked: none.' }), true);
-  assert.equal(isDreamFact({ body: 'The dream skill shipped on 2026-10-06.' }), false);
+  assert.equal(isDreamFact({ created_at: '2026-10-06T08:00:00Z', body: 'Dream 2026-10-06: read facts up to #9. Checked: none.' }), true);
+  assert.equal(isDreamFact({ created_at: '2026-10-06T08:00:00Z', body: 'The dream skill shipped on 2026-10-06.' }), false);
+  assert.equal(isDreamFact({ body: 'Dream 2026-10-06: read facts up to #9. Checked: none.' }), false, 'a record with no saved date is no dream');
 });
 
 test('a dream fact names its pages once each, without the sentence’s full stop', () => {
@@ -81,8 +82,8 @@ test('every other page is the install’s own, the pages setup seeded included',
 test('one dream recorded across two facts counts the pages of both', () => {
   // A fact holds 400 characters, so a dream that checked many pages records them in several facts.
   const checks = dreamChecks([
-    { id: 11, body: 'Dream 2026-10-06: read facts up to #90. Checked: wiki/people/a.md, wiki/people/b.md.', created_at: '2026-10-06T10:00:00Z' },
-    { id: 12, body: 'Dream 2026-10-06: read facts up to #90. Checked: wiki/company/c.md.', created_at: '2026-10-06T10:00:01Z' },
+    { id: 91, body: 'Dream 2026-10-06: read facts up to #90. Checked: wiki/people/a.md, wiki/people/b.md.', created_at: '2026-10-06T10:00:00Z' },
+    { id: 92, body: 'Dream 2026-10-06: read facts up to #90. Checked: wiki/company/c.md.', created_at: '2026-10-06T10:00:01Z' },
   ]);
   assert.deepEqual([...checks.keys()].sort(), ['wiki/company/c.md', 'wiki/people/a.md', 'wiki/people/b.md']);
   assert.equal(checks.get('wiki/people/a.md'), '2026-10-06');
@@ -144,6 +145,8 @@ test('since and pages read the store and the checkout, and write neither', async
     ['shipped', '4', '2026-02-03', 'wiki/stack/core.md'],
   ]);
 
+  // The store has written 400 facts before this dream, so its record comes after the ones it read.
+  env.fake.db.exec("DELETE FROM sqlite_sequence WHERE name = 'facts'; INSERT INTO sqlite_sequence (name, seq) VALUES ('facts', 400)");
   const wrote = await put(env, `Dream ${today}: read facts up to #321. Checked: wiki/people/a.md, wiki/people/b.md.`);
   assert.equal(wrote.code, 0, wrote.stderr);
   const second = await dream(env, 'since');
@@ -206,11 +209,30 @@ test('a path the branch never held, or a fact that says it is gone, is no drift'
   assert.equal(saysGone('The helper lives at scripts/gone.mjs.'), false);
 });
 
+test('a dream record dated ahead or not in plain UTC, or claiming facts written after it, is no dream; the honest one still counts', () => {
+  const honest = { id: 1300, created_at: '2026-10-01T08:00:00Z', body: 'Dream 2026-10-01: read facts up to #1206. Checked: wiki/people/a.md.' };
+  const facts = [
+    { id: 1400, created_at: '2999-12-31T00:00:00Z', body: 'Dream 2999-12-31: read facts up to #999999999. Checked: wiki/people/a.md, wiki/people/b.md.' },
+    { id: 1401, created_at: '2026-10-01T09:00:00Z', body: 'Dream 2026-10-01: read facts up to #999999999. Checked: wiki/people/b.md.' },
+    { id: 1402, created_at: '2026-10-01T09:30:00Z', body: 'Dream 2026-10-01: read facts up to #1500. Checked: wiki/people/b.md.' },
+    // Saved before the Worker kept dates plain: one parses as past but sorts after every ISO date, one never parses.
+    { id: 1403, created_at: 'Tue Oct 20 2026', body: 'Dream 2026-10-20: read facts up to #1402. Checked: wiki/people/b.md.' },
+    { id: 1404, created_at: 'zzzz', body: 'Dream 2026-10-20: read facts up to #1403. Checked: wiki/people/b.md.' },
+    honest,
+  ];
+  assert.deepEqual(facts.filter(isDreamFact), [honest]);
+  assert.deepEqual(lastDream(facts), { since: '2026-10-01', afterFact: 1206, pages: ['wiki/people/a.md'], dream: 1300 });
+  const checks = dreamChecks(facts);
+  assert.deepEqual([...checks], [['wiki/people/a.md', '2026-10-01']]);
+  const pages = ['a', 'b'].map(name => ({ path: `wiki/people/${name}.md`, text: 'words', committed: null }));
+  assert.deepEqual(pageList(pages, SHIPPED, checks).map(page => [page.path, page.lastChecked]), [['wiki/people/b.md', null], ['wiki/people/a.md', '2026-10-01']]);
+});
+
 test('a dream fact split in two gives the pages of both parts', () => {
   const facts = [
-    { id: 70, created_at: '2026-10-06T08:00:00Z', body: 'Dream 2026-10-06: read facts up to #1206. Checked: wiki/people/a.md.' },
-    { id: 71, created_at: '2026-10-06T08:00:01Z', body: 'Dream 2026-10-06: read facts up to #1206. Checked: wiki/people/b.md.' },
-    { id: 55, created_at: '2026-10-01T08:00:00Z', body: 'Dream 2026-10-01: read facts up to #900. Checked: wiki/people/old.md.' },
+    { id: 1207, created_at: '2026-10-06T08:00:00Z', body: 'Dream 2026-10-06: read facts up to #1206. Checked: wiki/people/a.md.' },
+    { id: 1208, created_at: '2026-10-06T08:00:01Z', body: 'Dream 2026-10-06: read facts up to #1206. Checked: wiki/people/b.md.' },
+    { id: 901, created_at: '2026-10-01T08:00:00Z', body: 'Dream 2026-10-01: read facts up to #900. Checked: wiki/people/old.md.' },
   ];
   const last = lastDream(facts);
   assert.deepEqual([last.afterFact, last.pages], [1206, ['wiki/people/a.md', 'wiki/people/b.md']]);

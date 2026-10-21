@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Memory guards hold against crafted searches, old keys and future dates
+
+- **A search can't reach notes you aren't allowed to see.** However a teammate writes a memory search, it looks only through shared team notes and their own. Before, a hand-written search could probe, word by word, what someone else's private notes said.
+- **Your start-of-chat summary shows only your own background run.** Its run line is one short line within the summary's size, and a broken run record is left out instead of blanking the summary. When your next memory tidy-up is due is counted from your own runs too. A teammate's own memory lookups see only their own runs.
+- **The setup key stops once the app has a sign-in.** The memory store refuses the key an open app keeps in `.env` as soon as the app is private, and rerunning setup after adding the card turns it off and removes it.
+- **A note's date is the date it was saved.** A teammate or a cloud schedule can't date a note in the future; a re-tagged note keeps its earlier date. The wiki tidy-up also ignores a record of its last run that is dated ahead or claims to have read later notes.
+
+**Updating.** Before publishing, the admin runs `node .claude/skills/memory/scripts/memory.mjs migrate` once: it records who wrote each background run. Runs saved before it reach no one, so everyone's summary, a cloud schedule's too, shows no run line until their next background run. Skip it and memory still searches and saves, but chats start without their summary and background runs aren't recorded until it runs. If memory still used an old key on a private app, it now asks for the company sign-in; `memory.mjs migrate-people` gives notes still waiting to their people.
+
 ## 43.18.1 — The browser types into the right box
 
 - **Your answers land in the box you meant.** When a payment box inside a page has boxes with the same names as the page's own, such as *Email* and *Full name*, the assistant's browser now labels each one for itself. Before, your email and name could land in the payment box and tick its *Save my information* for you.
