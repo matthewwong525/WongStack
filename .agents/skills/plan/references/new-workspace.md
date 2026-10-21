@@ -1,6 +1,6 @@
 # Open a part in a new workspace
 
-Each part of a request after the first gets its own [Paseo](https://paseo.sh) workspace and agent; this chat keeps the first. [The change loop](../../../../wiki/development/the-change-loop.md#several-parts-several-workspaces) owns the rule; this page carries it out.
+Each part of a request after the first gets its own [Paseo](https://paseo.sh) workspace and agent; this chat keeps the first. [The change loop](../../../../wiki/development/the-change-loop.md#several-parts-several-workspaces) owns the rule.
 
 ## What counts as a part
 
@@ -90,10 +90,10 @@ Before drafting the plan you kept, give one line per workspace: *Opened a new wo
 When `/continue` would switch this workspace away from other unpublished work, recommend a new workspace on the change's branch:
 
 ```bash
-node "$W" open --title '<change name>' --brief <file> --checkout '<branch>'
+node "$W" open --title '<change name>' --brief <file> --checkout '<branch>' [--reviewed <tip>]
 ```
 
-The brief is `/continue <change name>`, plus the person's instruction if any. When another workspace has the branch checked out, Paseo refuses: say so and name that workspace.
+The brief is `/continue <change name>`, plus the person's instruction if any. After [the review](../../continue/SKILL.md#3-check-out-the-branch)'s yes, `--reviewed` opens exactly that commit; the brief adds *ask before building*. Exit 2 with `review`: newer work. When another workspace has the branch checked out, Paseo refuses: say so and name that workspace.
 
 ## Next work
 
