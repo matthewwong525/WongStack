@@ -339,8 +339,10 @@ test('GitHub invokes the shared script once, and staging has no dependency on th
   assert.match(workflow, /- name: Run shared checks\n\s+if: \$\{\{ !cancelled\(\) && steps\.passed\.outputs\.passed != 'true' \}\}/);
   assert.match(workflow, /checks: read\n\s+pull-requests: read/);
   const deploy = readFileSync(join(repo, '.github/workflows/deploy.yml'), 'utf8');
-  assert.doesNotMatch(deploy, /\bneeds:|workflow_run:|workflows:\s*\[?\s*['"]?Test/);
-  assert.match(deploy, /bash scripts\/cf-deploy\.sh/);
+  // The deploy job waits on its own build job only, never on the tests.
+  assert.deepEqual(deploy.match(/\bneeds:.*/g), ['needs: build']);
+  assert.doesNotMatch(deploy, /workflow_run:|workflows:\s*\[?\s*['"]?Test/);
+  assert.match(deploy, /bash trusted\/scripts\/cf-deploy\.sh/);
 });
 
 test('the default-branch deploy records its outcome and live address, and a failed record never fails the job', () => {

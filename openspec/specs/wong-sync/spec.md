@@ -125,7 +125,7 @@ When the repo has no `CLAUDE.md` link to `AGENTS.md`, sync's plan SHALL include 
 
 ### Requirement: An old install catches up in place
 
-Sync SHALL plan the update of an install from before 19.0.0 in place, keeping every local edit, and SHALL NOT route it to a fresh setup. The comparison SHALL report, from the repo's layout and install record alone, each move the install missed: the agent folder, the rules file in either link direction, WongStack pages kept outside `wiki/`, leftover generated OpenSpec skills, parts the record opted out of, and the CI deploy token. The plan SHALL include each reported move and list opted-out parts as left out until the person asks for them.
+Sync SHALL plan the update of an install from before 19.0.0 in place, keeping every local edit, and SHALL NOT route it to a fresh setup. The comparison SHALL report, from the repo's layout, its install record and the secret name its `deploy.yml` reads, each move the install missed: the agent folder, the rules file in either link direction, WongStack pages kept outside `wiki/`, leftover generated OpenSpec skills, parts the record opted out of, the CI deploy token, and the deploy token's old secret name. The plan SHALL include each reported move and list opted-out parts as left out until the person asks for them.
 
 #### Scenario: A months-old, edited install
 
@@ -136,6 +136,11 @@ Sync SHALL plan the update of an install from before 19.0.0 in place, keeping ev
 
 - **WHEN** the install record says the repo declined the starter app
 - **THEN** the plan lists the starter app as left out, with that reason, and adds none of its files
+
+#### Scenario: The deploy key has its old name
+
+- **WHEN** the install's `deploy.yml` reads `secrets.CLOUDFLARE_API_TOKEN`
+- **THEN** the plan runs the deploy key step during the update's build, before publish, and says live deploys pause until the update is published
 
 ### Requirement: Skipped releases' hand steps reach the plan
 

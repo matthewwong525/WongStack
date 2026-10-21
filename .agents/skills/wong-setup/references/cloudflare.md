@@ -150,11 +150,12 @@ The same Worker serves the [mini apps](../../../../wiki/stack/mini-apps.md) unde
 
 CI gets its own narrow token, never the user token ([why](../../../../wiki/stack/cloudflare-credentials.md#the-ci-deploy-token)). The script pipes every value to `gh secret set` on stdin, never an argument, a file, or the terminal.
 
-- **No `<repo>-deploy` token** → it creates one on this account with [the CI deploy token table](permission-groups.md#the-ci-deploy-token)'s `always` rows, plus the R2 row only when the store has a bucket, and sets it as the `CLOUDFLARE_API_TOKEN` secret.
-- **Token and `CLOUDFLARE_API_TOKEN` secret both exist** (`gh secret list`) → current; it only adds a row now needed.
-- **The token exists, the secret doesn't** → it rolls the value and sets the secret. To rotate on request, run `gh secret delete CLOUDFLARE_API_TOKEN`, then the script again.
+- **No `<repo>-deploy` token** → it creates one with [the CI deploy token table](permission-groups.md#the-ci-deploy-token)'s `always` rows, plus the R2 row only when the store has a bucket, and sets it as the `CLOUDFLARE_DEPLOY_TOKEN` secret.
+- **Token and `CLOUDFLARE_DEPLOY_TOKEN` secret both exist** (`gh secret list`) → current; it only adds a row now needed.
+- **The token exists, the secret doesn't** → it rolls the value and sets the secret. To rotate on request, run `gh secret delete CLOUDFLARE_DEPLOY_TOKEN`, then the script again.
+- **An old `CLOUDFLARE_API_TOKEN` secret** → deleted for good once the new one is set, unless a workflow still reads it: then a `todo`.
 
-It sets a missing `CLOUDFLARE_ACCOUNT_ID` too. `gh secret set` needs only the `repo` scope from `gh auth login`. It can publish app/data changes and inspect private coverage; it cannot write Access policies; the live app's own key does.
+It sets a missing `CLOUDFLARE_ACCOUNT_ID` too. `gh secret set` needs only the `repo` scope from `gh auth login`. It can publish app/data changes and read Access, never write it.
 
 ### 4e. The workflow
 

@@ -398,6 +398,7 @@ echo "$*" >> "${dir}/calls"
 case "$1 $2" in
   "secret list") for f in "${dir}/secrets"/*; do [ -e "$f" ] && printf '%s\\t2026-01-01T00:00:00Z\\n' "$(basename "$f")"; done; exit 0 ;;
   "secret set") cat > "${dir}/secrets/$3"; exit 0 ;;
+  "secret delete") rm "${dir}/secrets/$3" || exit 1; exit 0 ;;
 esac
 exit 1
 `;

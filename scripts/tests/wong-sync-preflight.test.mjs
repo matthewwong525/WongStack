@@ -520,6 +520,7 @@ test('each catch-up reason fires on its own layout', t => {
     ['opted-out', f => f.updateRecord({ components: { skills: ['alpha'], stackPack: false, ui: false } })],
     ['generated-openspec', f => mkdirSync(join(f.target, '.agents/skills/openspec-explore'))],
     ['deploy-token', f => { f.updateRecord({ version: '17.2.0' }); write(f.target, '.github/workflows/deploy.yml', 'on: push\n'); }],
+    ['deploy-key-name', f => write(f.target, '.github/workflows/deploy.yml', 'env:\n  T: ${{ secrets.CLOUDFLARE_API_TOKEN }}\n')],
     ['mini-apps-folder', f => mkdirSync(join(f.target, 'mini-apps/apps'), { recursive: true })],
   ];
   for (const [code, arrange] of cases) {

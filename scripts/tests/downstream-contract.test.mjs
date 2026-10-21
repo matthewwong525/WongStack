@@ -62,7 +62,7 @@ test('deploy.yml reads only the two Cloudflare deploy secrets', () => {
   const surface = '/wong-setup and installed repos set exactly these GitHub secrets';
   const names = new Set([...read('.github/workflows/deploy.yml').matchAll(/secrets\.([A-Za-z0-9_]+)/g)].map(match => match[1]));
   const cloudflare = [...names].filter(name => name.startsWith('CLOUDFLARE_')).sort();
-  assert.deepEqual(cloudflare, ['CLOUDFLARE_ACCOUNT_ID', 'CLOUDFLARE_API_TOKEN'], surface);
+  assert.deepEqual(cloudflare, ['CLOUDFLARE_ACCOUNT_ID', 'CLOUDFLARE_DEPLOY_TOKEN'], surface);
   for (const file of readdirSync(join(repo, '.github/workflows')).filter(name => name.endsWith('.yml'))) {
     assert.doesNotMatch(read(`.github/workflows/${file}`), /CLOUDFLARE_MEMORY_TOKEN/,
       `${file} must not read CLOUDFLARE_MEMORY_TOKEN — the memory token stays on the host, never in CI`);

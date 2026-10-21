@@ -2,7 +2,7 @@
 // Cloudflare provisioning for a WongStack repo: the one set of steps setup's runbook (references/cloudflare.md) runs.
 // Every step checks before it acts, so a run that stopped runs again from the top. No command prints a token.
 import { createHash } from 'node:crypto';
-import { chmodSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual, parseArgs } from 'node:util';
@@ -503,6 +503,20 @@ const readKeyPolicies = (account, groups) => [
  * secret when the secret is missing. The value goes straight to `gh` on stdin. */
 const deployToken = scopedToken;
 
+// The deploy token's GitHub secret. Only the current deploy.yml and site.yml read it; a commit from before them reads
+// the old name at job level, where a branch's own code runs, so the old secret is deleted once the new one is set.
+const DEPLOY_SECRET = 'CLOUDFLARE_DEPLOY_TOKEN';
+const OLD_DEPLOY_SECRET = 'CLOUDFLARE_API_TOKEN';
+
+/** The first workflow file in `dir` that reads `secrets.<name>`, repo-relative, or null. */
+function workflowReading(dir, name) {
+  const folder = join(dir, '.github', 'workflows');
+  if (!existsSync(folder)) return null;
+  const reads = new RegExp(`secrets\\.${name}\\b`);
+  const file = readdirSync(folder).sort().find((entry) => /\.ya?ml$/.test(entry) && reads.test(readFileSync(join(folder, entry), 'utf8')));
+  return file ? `.github/workflows/${file}` : null;
+}
+
 /** The runner's Wrangler config: the pack's template with every placeholder filled, comments dropped. */
 export function runnerConfig({ account, repo, runner }, template) {
   return fillConfig(template, { '<runner>': runner, '<account id>': account, '<namespace>': NAMESPACE, '<repo>': repo }, 'check runner');
@@ -800,11 +814,21 @@ export async function provision({ token, api, fetch, account, repo, base, route 
   const listed = (name) => new RegExp(`^${name}\\s`, 'm').test(secrets);
   await step('cloudflare', () =>
     deployToken(cf, account, n.deploy, rows, groups, {
-      secretSet: listed('CLOUDFLARE_API_TOKEN'),
-      setSecret: (value) => gh(['secret', 'set', 'CLOUDFLARE_API_TOKEN'], value),
+      secretSet: listed(DEPLOY_SECRET),
+      setSecret: (value) => gh(['secret', 'set', DEPLOY_SECRET], value),
       note,
     }),
   );
+  // The roll already made the old secret's value dead. A workflow here that still names it is the person's to
+  // rename first; deleting a secret a file still reads can't be undone, so that waits for a rerun.
+  if (listed(OLD_DEPLOY_SECRET)) {
+    const reader = workflowReading(dir, OLD_DEPLOY_SECRET);
+    if (reader) report.todo.push(`${reader} still reads the old GitHub secret ${OLD_DEPLOY_SECRET}, whose value no longer works: make it read ${DEPLOY_SECRET}, then run this step again to delete the old secret`);
+    else {
+      await step('cloudflare', () => gh(['secret', 'delete', OLD_DEPLOY_SECRET]));
+      note('updated', `GitHub secret ${OLD_DEPLOY_SECRET} deleted: the deploy token is ${DEPLOY_SECRET} now`);
+    }
+  }
   if (!listed('CLOUDFLARE_ACCOUNT_ID')) {
     await step('cloudflare', () => gh(['secret', 'set', 'CLOUDFLARE_ACCOUNT_ID'], account));
     note('created', 'GitHub secret CLOUDFLARE_ACCOUNT_ID');

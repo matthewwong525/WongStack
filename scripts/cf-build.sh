@@ -16,6 +16,15 @@
 #     and just build. A remote database is never touched from a developer
 #     machine.
 #
+# Two flags split the job where the deploy key starts, for the GitHub Actions
+# workflow and the check runner, which build branch code with no key:
+#   --build-only  regenerate the types and build, as above, and touch no
+#                 remote database. No credential is needed.
+#   --migrate     the migration alone, building nothing. The deploy side runs
+#                 it, with the key, from the default branch's copy of this
+#                 script, on a build `cf-deploy.sh --take-build` copied in.
+# No flag does both, as Workers Builds and a local preview expect.
+#
 # Nothing here rewrites wrangler.jsonc. Which Worker a branch lands on is
 # decided by `cf-deploy.sh`, wired to the Workers Builds *deploy* command;
 # this script only decides which database the migrations run against.
@@ -76,6 +85,14 @@ if [ "${1:-}" = "--types" ]; then
   exit 0
 fi
 
+MODE=both
+case "${1:-}" in
+  --build-only) MODE=build ;;
+  --migrate) MODE=migrate ;;
+  "") ;;
+  *) echo "usage: bash scripts/cf-build.sh [--build-only | --migrate | --app-dir | --types]" >&2; exit 2 ;;
+esac
+
 wong_resolve_wrangler_config "$ROOT"
 
 wong_ci_branch "$ROOT"
@@ -87,6 +104,10 @@ build() {
 
 # Local (non-CI) runs: skip the migrate, just build.
 if [ -z "$BRANCH" ]; then
+  if [ "$MODE" = migrate ]; then
+    echo "cf-build: not in CI — nothing migrated"
+    exit 0
+  fi
   echo "cf-build: not in CI — running plain build only"
   build
   exit 0
@@ -109,23 +130,36 @@ fi
 # or naming production's database by name or id, so a branch never migrates
 # live data. Each read is an assignment, so a refusal stops the build under
 # `set -e`, before any wrangler call. Empty means no D1 to migrate.
-if [ "$WHICH" = "production" ]; then
-  DB_NAME=""
-  HAS_D1=$(wong_config has-d1)
-  if [ "$HAS_D1" = true ]; then DB_NAME=$(wong_config database-name); fi
-else
-  DB_NAME=$(wong_config staging-database)
-fi
+#
+# A build the default branch's scripts took in must pass their check first;
+# that check is a no-op anywhere no build was taken. Then a preview migrates
+# only the default branch's own staging database (`migrate-database`), which
+# the check made sure is the one the build binds; production keeps main's
+# own config and migrations.
+migrate() {
+  wong_refuse_untrusted_build cf-build
+  wong_wrangler_command
+  if [ "$WHICH" = "production" ]; then
+    DB_NAME=""
+    HAS_D1=$(wong_config has-d1)
+    if [ "$HAS_D1" = true ]; then DB_NAME=$(wong_config database-name); fi
+  else
+    DB_NAME=$(wong_config migrate-database)
+  fi
 
-# A Worker that binds no D1 database has nothing to migrate.
-if [ -n "$DB_NAME" ]; then
-  echo "cf-build: $WHICH branch — applying migrations to the $WHICH D1 ($DB_NAME)"
-  # wrangler resolves config-relative paths (migrations_dir, assets) from the
-  # config's own directory, so run it from there.
-  (cd "$APP_DIR" && npx wrangler d1 migrations apply "$DB_NAME" --remote ${WRANGLER_ENV[@]+"${WRANGLER_ENV[@]}"})
-else
-  echo "cf-build: $WHICH binds no D1 database — skipping migrations"
-fi
+  # A Worker that binds no D1 database has nothing to migrate.
+  if [ -n "$DB_NAME" ]; then
+    echo "cf-build: $WHICH branch — applying migrations to the $WHICH D1 ($DB_NAME)"
+    # wrangler resolves config-relative paths (migrations_dir, assets) from the
+    # config's own directory, so run it from there.
+    (cd "$APP_DIR" && "${WRANGLER[@]}" d1 migrations apply "$DB_NAME" --remote ${WRANGLER_ENV[@]+"${WRANGLER_ENV[@]}"})
+  else
+    echo "cf-build: $WHICH binds no D1 database — skipping migrations"
+  fi
+}
+
+if [ "$MODE" != build ]; then migrate; fi
+if [ "$MODE" = migrate ]; then exit 0; fi
 
 # Regenerate the binding types before building; the checks did the same before
 # they compiled (`--types` above).

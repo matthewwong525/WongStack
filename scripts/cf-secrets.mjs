@@ -84,8 +84,10 @@ function readKeyDigests(file) {
   return digests;
 }
 
+// WONG_WRANGLER is the deploy side's own install of the default branch's wrangler, as in lib-wrangler-config.sh.
 function wrangler(args, { cwd, capture = false }) {
-  return execFileSync("npx", ["wrangler", ...args], {
+  const [command, ...first] = process.env.WONG_WRANGLER ? [process.env.WONG_WRANGLER] : ["npx", "wrangler"];
+  return execFileSync(command, [...first, ...args], {
     cwd,
     encoding: "utf8",
     stdio: capture ? ["ignore", "pipe", "pipe"] : "inherit",

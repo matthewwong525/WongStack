@@ -100,7 +100,7 @@ test('with --open-without-login an onboarding refusal finishes open; without it,
   assert.deepEqual(env.fake.state.accessApps, []);
   assert.deepEqual(env.fake.state.serviceTokens, []);
   assert.equal(env.fake.state.databases.length, 3);
-  assert.ok(env.gh.secrets().CLOUDFLARE_API_TOKEN);
+  assert.ok(env.gh.secrets().CLOUDFLARE_DEPLOY_TOKEN);
   assert.deepEqual(env.record().components.access, report.access);
   const config = env.config();
   for (const environment of ['production', 'staging']) {
@@ -786,7 +786,7 @@ test('a fresh provision with R2 on makes the memory store, both databases, the c
     effect: 'allow', resources: { [`com.cloudflare.api.account.${ACCOUNT}`]: '*' },
     permission_groups: ['Access: Apps and Policies Read', 'Workers Scripts Write', 'D1 Write', 'Account Settings Read', 'Workers R2 Storage Write'].map((name) => ({ id: groupId(name) })),
   }]);
-  assert.deepEqual(env.gh.secrets(), { CLOUDFLARE_API_TOKEN: env.fake.state.minted[0], CLOUDFLARE_ACCOUNT_ID: ACCOUNT });
+  assert.deepEqual(env.gh.secrets(), { CLOUDFLARE_DEPLOY_TOKEN: env.fake.state.minted[0], CLOUDFLARE_ACCOUNT_ID: ACCOUNT });
 
   assert.deepEqual(report.urls, { production: 'https://recipe-box.ada.workers.dev', previews: 'https://<branch>-recipe-box-staging.ada.workers.dev' });
   assert.ok(report.created.includes('deploy token recipe-box-deploy'));
@@ -837,7 +837,7 @@ test('setup records the owner for Access and gives the live app alone its own si
   // The deploy token is not reused and gains no Access write.
   const deploy = env.fake.state.accountTokens.find((token) => token.name === 'recipe-box-deploy');
   assert.ok(!deploy.policies[0].permission_groups.some((g) => g.id === groupId('Access: Apps and Policies Write')));
-  assert.equal(env.gh.secrets().CLOUDFLARE_API_TOKEN, env.fake.state.minted[0]);
+  assert.equal(env.gh.secrets().CLOUDFLARE_DEPLOY_TOKEN, env.fake.state.minted[0]);
   assert.deepEqual(report.todo, []);
   assertNoSecret(env, JSON.stringify(report));
 });
@@ -1251,6 +1251,51 @@ test('a second run creates nothing and leaves the secrets alone', async (t) => {
   assert.equal(env.fake.state.minted.length, 3, 'the deploy token, the sign-in list key and the read-only key, each made once');
 });
 
+// An install from before the rename keeps its deploy token under CLOUDFLARE_API_TOKEN, as old workflows read it.
+function oldSecretName(env) {
+  const held = join(env.gh.bin, '..', 'secrets');
+  writeFileSync(join(held, 'CLOUDFLARE_API_TOKEN'), readFileSync(join(held, 'CLOUDFLARE_DEPLOY_TOKEN')));
+  rmSync(join(held, 'CLOUDFLARE_DEPLOY_TOKEN'));
+}
+
+test('a deploy token under the old secret name gets a new value under CLOUDFLARE_DEPLOY_TOKEN, then the old secret is deleted', async (t) => {
+  const env = await setup(t);
+  await env.provision();
+  oldSecretName(env);
+  const calls = env.gh.calls().length;
+  const report = await env.provision();
+  assert.deepEqual(Object.keys(env.gh.secrets()).sort(), ['CLOUDFLARE_ACCOUNT_ID', 'CLOUDFLARE_DEPLOY_TOKEN']);
+  assert.equal(env.gh.secrets().CLOUDFLARE_DEPLOY_TOKEN, env.fake.state.minted.at(-1), 'the token was rolled, so the old value no longer works');
+  const made = env.gh.calls().slice(calls).split('\n').filter((line) => /^secret (set|delete)/.test(line));
+  assert.deepEqual(made, [`secret set CLOUDFLARE_DEPLOY_TOKEN -R ${REPO}`, `secret delete CLOUDFLARE_API_TOKEN -R ${REPO}`], 'the new secret is set before the old one goes');
+  assert.ok(report.updated.includes('deploy token recipe-box-deploy: new value sent to GitHub'));
+  assert.ok(report.updated.includes('GitHub secret CLOUDFLARE_API_TOKEN deleted: the deploy token is CLOUDFLARE_DEPLOY_TOKEN now'));
+  assert.deepEqual(env.fake.state.accountTokens.filter((token) => token.name === 'recipe-box-deploy').length, 1, 'no second deploy token');
+  assertNoSecret(env, JSON.stringify(report));
+
+  // The next run finds the new name and changes nothing.
+  const after = env.gh.calls().length;
+  const again = await env.provision();
+  assert.ok(again.reused.includes('deploy token recipe-box-deploy'));
+  assert.equal(env.gh.calls().slice(after), `secret list -R ${REPO}\n`);
+});
+
+test('the old secret stays, with a to-do, while a workflow here still reads it', async (t) => {
+  const env = await setup(t);
+  await env.provision();
+  oldSecretName(env);
+  mkdirSync(join(env.dir, '.github/workflows'), { recursive: true });
+  writeFileSync(join(env.dir, '.github/workflows/deploy.yml'), 'env:\n  T: ${{ secrets.CLOUDFLARE_API_TOKEN }}\n');
+  const report = await env.provision();
+  assert.deepEqual(Object.keys(env.gh.secrets()).sort(), ['CLOUDFLARE_ACCOUNT_ID', 'CLOUDFLARE_API_TOKEN', 'CLOUDFLARE_DEPLOY_TOKEN']);
+  assert.doesNotMatch(env.gh.calls(), /secret delete/);
+  assert.deepEqual(report.todo, ['.github/workflows/deploy.yml still reads the old GitHub secret CLOUDFLARE_API_TOKEN, whose value no longer works: make it read CLOUDFLARE_DEPLOY_TOKEN, then run this step again to delete the old secret']);
+
+  writeFileSync(join(env.dir, '.github/workflows/deploy.yml'), 'env:\n  T: ${{ secrets.CLOUDFLARE_DEPLOY_TOKEN }}\n');
+  await env.provision();
+  assert.deepEqual(Object.keys(env.gh.secrets()).sort(), ['CLOUDFLARE_ACCOUNT_ID', 'CLOUDFLARE_DEPLOY_TOKEN']);
+});
+
 // A run that stops at each step, then runs again, ends with one of everything.
 for (const [where, refuse] of [
   ['the R2 check', `GET /accounts/${ACCOUNT}/r2/buckets`],
@@ -1272,7 +1317,7 @@ for (const [where, refuse] of [
     assert.deepEqual(env.fake.state.buckets, ['recipe-box-memory']);
     assert.deepEqual(env.fake.state.accountTokens.map((token) => token.name), ['recipe-box-deploy', 'recipe-box-access', 'recipe-box-cloudflare-read']);
     // The app's two keys are minted last and go to the Workers, never to GitHub.
-    assert.equal(env.gh.secrets().CLOUDFLARE_API_TOKEN, env.fake.state.minted.at(-3));
+    assert.equal(env.gh.secrets().CLOUDFLARE_DEPLOY_TOKEN, env.fake.state.minted.at(-3));
     assert.equal(JSON.parse(env.fake.state.workerSecrets['recipe-box'].WONG_ACCESS_LOGIN_MANAGEMENT).token, env.fake.state.minted.at(-2));
     assert.equal(JSON.parse(env.fake.state.workerSecrets['recipe-box'].WONG_CLOUDFLARE_READ).token, env.fake.state.minted.at(-1));
     assert.equal(env.fake.state.workerSecrets['recipe-box-staging'], undefined);
@@ -1321,7 +1366,7 @@ test('keepConfig leaves the committed files alone and adds no bucket they would 
   const report = await env.provision({ keepConfig: true });
   assert.deepEqual(['app/wrangler.jsonc', 'app/package.json', '.claude/.wong-stack.json'].map((path) => readFileSync(join(env.dir, path), 'utf8')), files);
   assert.deepEqual(env.fake.state.buckets, []);
-  assert.deepEqual(Object.keys(env.gh.secrets()).sort(), ['CLOUDFLARE_ACCOUNT_ID', 'CLOUDFLARE_API_TOKEN'], 'a rebuilt host sets the secrets again');
+  assert.deepEqual(Object.keys(env.gh.secrets()).sort(), ['CLOUDFLARE_ACCOUNT_ID', 'CLOUDFLARE_DEPLOY_TOKEN'], 'a rebuilt host sets the secrets again');
   assert.ok(report.updated.includes('deploy token recipe-box-deploy: new value sent to GitHub'));
 });
 
