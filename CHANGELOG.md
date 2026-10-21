@@ -5,7 +5,7 @@
 
 ## 44.0.1 — Recover a preview whose staging rebuild was cut off
 
-- **A preview that says *Access unavailable* everywhere after a walk** had its staging rebuild cut off. The [staging walkthrough](wiki/development/staging-walkthrough.md) now says to rerun the rebuild.
+- **A preview that says *Access unavailable* everywhere after a walk** had its staging rebuild cut off. The [D1 pipeline page](wiki/stack/d1-pipeline.md#seeded-staging-production-untouched) now says to run the reset again.
 
 ## 44.0.0 — Previews get their own sign-in and keys
 
