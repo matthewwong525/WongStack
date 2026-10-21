@@ -8,7 +8,7 @@ user-invocable: true
 
 Check fresh scenarios on the exact saved revision. [Reference](references/walkthrough.md): how; [wiki](../../../wiki/development/staging-walkthrough.md): why. Gates nothing.
 
-Authorized: needed `/save` (kept checks' too), browser installation, Access heal, staging preparation and § a's writes; other permissions join the handoff.
+Authorized: needed `/save` (kept checks' too), browser install, Access heal, staging preparation and § a's writes; other permissions join the handoff.
 
 ## Order
 
@@ -26,7 +26,7 @@ bash "$ROOT/.claude/skills/verify/scripts/verify-staging.sh" preflight
 
 ## When a block stops the walk
 
-Heal **once per invocation**; retry dependents only.
+Heal **once per invocation**, never on `BLOCK=not-own-site`; retry dependents only.
 
 **BLOCK=access-challenge (exit 3)**: mint a repo-named service token with the Cloudflare API token, widening if needed. Confirm the preview app's machine policy accepts it; keep human permissions. Store it as `CF_ACCESS_STAGING_CLIENT_ID`/`SECRET` in the primary worktree's `.env` only ([secrets](../../../wiki/development/secrets.md), [Access](../../../wiki/stack/cloudflare-access.md), [authorized widen](../../../wiki/stack/cloudflare-credentials.md#the-widen-is-pre-authorized)). Name the mint; never print/commit credentials. Privacy changes need human login/revocation checks; machine access proves no email login.
 

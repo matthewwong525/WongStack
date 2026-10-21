@@ -186,6 +186,8 @@ Staging is a **seeded fixture database, not a mirror of production.** `npm run d
 
 It never reads, exports, or touches production. That makes the reset safe, fast, and deterministic — the escape hatch when [shared staging](#staging-is-shared-and-thats-the-trade) gets wedged by an abandoned branch's migration.
 
+A reset cut off partway leaves staging empty, and every preview page then answers *Access unavailable* (503). Run the reset once more.
+
 `schema/seed.sql` ships as a commented, empty template. **A change that adds or alters a feature adds the made-up rows its scenarios need, in the same change**: sample customers, orders, or records, realistic in shape, with no real person's details. Every check before publishing [starts from these rows](../development/staging-walkthrough.md#why-a-walk-runs-the-way-it-does), so a feature with no sample data goes unchecked, and the check names it. A change that alters a seeded table updates the file too, so a reset always matches the current schema.
 
 The trade-off, stated plainly: fixtures won't catch a migration that only breaks on production-scale data shapes (400k rows, an unexpected NULL). The mitigation is that production migrations are forward-only and run against real data for the first time at merge, with [Time Travel](d1-recovery.md#a-bad-migration-reached-production) behind them.

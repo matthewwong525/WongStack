@@ -7,7 +7,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { JSDOM } from 'jsdom';
-import { boxAt, boxChanged, boxesIn, CAMOFOX, googleResults, leftPage, MARK_SCRIPT, NO_REF_NOTE, relabel, SECRETS_SCRIPT, fieldScript, hideSecrets, joinPieces, serverEnv, sessionName, targetOf, valueIn } from '../../.agents/skills/browser/scripts/browse.mjs';
+import { boxAt, boxChanged, boxesIn, CAMOFOX, googleResults, leftPage, MARK_SCRIPT, NO_REF_NOTE, relabel, sameSite, SECRETS_SCRIPT, fieldScript, hideSecrets, joinPieces, serverEnv, sessionName, targetOf, valueIn } from '../../.agents/skills/browser/scripts/browse.mjs';
 import { hostOf, readLogins, writeLogins } from '../../.agents/skills/browser/scripts/logins.mjs';
 import { localProxyEnv } from '../../.agents/skills/browser/scripts/server.mjs';
 import { BROWSE_ENV, fakeCamofox } from './fixtures/fake-camofox.mjs';
@@ -551,6 +551,7 @@ test('login types a saved login where the agent pointed, and says accepted once 
   assert.deepEqual(sent.map(({ method, path, body }) => [`${method} ${path.replace(/^\/tabs\/[^/]+/, '')}`, body]), [
     ['POST /evaluate', { userId: 'me', expression: 'location.href' }],
     ['POST /type', { userId: 'me', ref: 'e1', text: USERNAME }],
+    ['POST /evaluate', { userId: 'me', expression: 'location.href' }],
     ['POST /type', { userId: 'me', ref: 'e2', text: PASSWORD }],
     ['POST /evaluate', { userId: 'me', expression: MARK_SCRIPT }],
     ['POST /press', { userId: 'me', key: 'Enter' }],
@@ -589,6 +590,45 @@ test('login says rejected when the page stays, typed for a step with no password
   const shown = ok(f, 'snapshot', '--session', 'a');
   assert.equal(shown, `BROWSE_URL=${SHOP}?error=wrong-password\n- textbox "Email" [e1]\n- textbox "Shown" [e2]: [hidden]\n`, 'the box the login marked stays hidden as plain text');
   assertNoSecret(shown, 'a reading after the login');
+});
+
+test('login types nothing on a site other than the login\'s own, and a page that moves after the email gets no password', t => {
+  const f = fixture(t);
+  f.saveLogins(LOGINS);
+  const typed = () => f.camofox.requests().filter(request => request.path.endsWith('/type')).map(request => request.body.text);
+  ok(f, 'open', 'https://shop.example.com.attacker.example/login', '--session', 'a');
+  let before = f.camofox.calls().length;
+  const lookAlike = f.run('login', 'shop-example-com', '--username', 'e1', '--password', 'e2', '--session', 'a');
+  assert.equal(lookAlike.status, 0, lookAlike.stderr);
+  assert.equal(lookAlike.stdout, 'BROWSE_LOGIN=wrong-site\n');
+  assert.deepEqual(f.camofox.calls().slice(before), ['POST /tabs/:tab/evaluate'], 'nothing typed, nothing submitted');
+
+  ok(f, 'open', SHOP, '--session', 'a');
+  f.camofox.set('type-url', 'https://elsewhere.example/login');
+  before = f.camofox.calls().length;
+  const moved = f.run('login', 'shop-example-com', '--username', 'e1', '--password', 'e2', '--session', 'a');
+  assert.equal(moved.stdout, 'BROWSE_LOGIN=wrong-site\n');
+  assert.deepEqual(f.camofox.calls().slice(before), ['POST /tabs/:tab/evaluate', 'POST /tabs/:tab/type', 'POST /tabs/:tab/evaluate'], 'no password, no submit');
+  assert.deepEqual(typed(), [USERNAME]);
+  f.camofox.unset('type-url');
+
+  ok(f, 'open', 'https://login.shop.example.com/', '--session', 'a');
+  f.camofox.set('press-url', ACCOUNT);
+  assert.equal(ok(f, 'login', 'shop-example-com', '--username', 'e1', '--password', 'e2', '--session', 'a'), 'BROWSE_LOGIN=accepted\nBROWSE_SAVED=yes\n', 'a site under the saved one is the same site');
+  assert.deepEqual(typed(), [USERNAME, USERNAME, PASSWORD]);
+  assertNoSecret(lookAlike.stdout + lookAlike.stderr + moved.stdout + moved.stderr, 'the output');
+});
+
+test('sameSite takes a host and the hosts under it, never a look-alike or an empty host', () => {
+  for (const [a, b, same] of [
+    ['shop.example.com', 'shop.example.com', true],
+    ['login.shop.example.com', 'shop.example.com', true],
+    ['shop.example.com', 'login.shop.example.com', true],
+    ['shop.example.com.attacker.example', 'shop.example.com', false],
+    ['evilshop.example.com', 'shop.example.com', false],
+    ['', 'shop.example.com', false],
+    ['', '', false],
+  ]) assert.equal(sameSite(a, b), same, `${a} and ${b}`);
 });
 
 test('a login saved with the email only types nothing at a password box, and still types the email step', t => {

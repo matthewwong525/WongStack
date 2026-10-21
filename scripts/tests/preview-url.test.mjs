@@ -9,18 +9,20 @@ import { fileURLToPath } from 'node:url';
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const script = join(repo, '.agents/skills/save/scripts/preview-url.sh');
 
-// A stub `gh` answers the repo lookup and the PR comment read (one comment per line, newest first, @SHA@ as the head
-// commit). Every Deployment, status, and check-run list is empty, so only method 4 can match.
-function discover(t, commentBody) {
+// A stub `gh` answers only the repo, PR number, and comments, so only method 4 can match. `comments` is newest first:
+// a bot's body, or [type, body]; @SHA@ is the head commit. The stub lists them oldest first, as the API does.
+function discover(t, comments) {
   const root = mkdtempSync(join(tmpdir(), 'wong-test-preview-url-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const bin = join(root, 'bin');
   mkdirSync(bin);
-  writeFileSync(join(root, 'comment.txt'), commentBody);
+  const lines = comments.map(comment => (Array.isArray(comment) ? comment : ['Bot', comment]).join('\t')).reverse();
+  writeFileSync(join(root, 'comments.txt'), `${lines.join('\n')}\n`);
   writeFileSync(join(bin, 'gh'), `#!/usr/bin/env bash
-case "$1 $2" in
-  "repo view") echo fixture/repo ;;
-  "pr view") sed "s/@SHA@/$(git rev-parse --short=7 HEAD)/g" "${join(root, 'comment.txt')}" ;;
+case "$*" in
+  "repo view"*) echo fixture/repo ;;
+  "pr view --json number"*) echo 7 ;;
+  "api --paginate repos/fixture/repo/issues/7/comments?per_page=100"*) sed "s/@SHA@/$(git rev-parse --short=7 HEAD)/g" "${join(root, 'comments.txt')}" ;;
 esac
 exit 0
 `);
@@ -35,21 +37,37 @@ exit 0
 }
 
 test('a bot logo link to the provider apex does not hide the real preview', t => {
-  const body = '[![Cloudflare](https://workers.dev)](https://workers.dev) | Latest commit | @SHA@ | Preview | https://feature-app.example.workers.dev |\n';
-  assert.equal(discover(t, body), 'https://feature-app.example.workers.dev');
+  const body = '[![Cloudflare](https://workers.dev)](https://workers.dev) | Latest commit | @SHA@ | Preview | https://feature-app.example.workers.dev |';
+  assert.equal(discover(t, [body]), 'https://feature-app.example.workers.dev');
 });
 
 test('an apex-only comment yields no preview URL', t => {
-  assert.equal(discover(t, 'Deployed @SHA@ with [Cloudflare](https://workers.dev/) and https://vercel.app\n'), '');
+  assert.equal(discover(t, ['Deployed @SHA@ with [Cloudflare](https://workers.dev/) and https://vercel.app']), '');
 });
 
 test('the newest comment naming the head commit wins over older deploys', t => {
-  const body = ['Deployed @SHA@: https://new-app.example.workers.dev', 'Deployed 0000000: https://old-app.example.workers.dev'].join('\n');
-  assert.equal(discover(t, body), 'https://new-app.example.workers.dev');
+  assert.equal(discover(t, ['Deployed @SHA@: https://new-app.example.workers.dev', 'Deployed 0000000: https://old-app.example.workers.dev']), 'https://new-app.example.workers.dev');
 });
 
 test('a comment for an earlier commit is never reported', t => {
-  assert.equal(discover(t, 'Deployed 0000000: https://old-app.example.workers.dev\n'), '');
+  assert.equal(discover(t, ['Deployed 0000000: https://old-app.example.workers.dev']), '');
+});
+
+test('a person\'s newer comment naming the head commit never becomes the preview; the deploy bot\'s does', t => {
+  const comments = [
+    ['User', 'Preview for @SHA@: <!-- https://deploy-preview.attacker.example/ -->'],
+    'Deployed @SHA@ | Preview | https://feature-app.example.workers.dev |',
+  ];
+  assert.equal(discover(t, comments), 'https://feature-app.example.workers.dev');
+  assert.equal(discover(t, comments.slice(0, 1)), '', 'with no bot comment there is no preview');
+});
+
+test('an address with a backslash is no preview, since curl and a browser read its host differently', t => {
+  assert.equal(discover(t, ['Deployed @SHA@: https://feature-app.example.workers.dev\\@evil.example/']), '');
+});
+
+test('a plain http preview address is no preview', t => {
+  assert.equal(discover(t, ['Deployed @SHA@ to http://preview.localhost:18080/']), '');
 });
 
 test('a copy installed through the app asks app-change.mjs for the preview, and gh nothing', t => {
