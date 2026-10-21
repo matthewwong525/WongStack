@@ -1,6 +1,6 @@
 # Proposal
 
-**Status:** planned
+**Status:** ready-to-ship
 **Branch:** royal-bumblebee
 **Open questions:** none
 
@@ -63,3 +63,4 @@ On 2026-10-21, buying a ring on repebble.com, the browser typed your email and n
 - **2026-10-21** — Assumed: keep the CSS-selector click's one read before the click, even on a button, and say so in the spec, because a selector carries no role, and only that read shows whether it is a tick box; a click by ref on any other element still takes no extra step.
 - **2026-10-21** — Assumed: Google's results page skips the relabel, because camofox builds that page's text in its own pass with no frames, and the main-page mark check would drop correct refs after a link our copied list skips, such as *Calendar*.
 - **2026-10-21** — Assumed: a CSS selector whose only visible match isn't its first match gets no check and no Space retry, because camofox's click takes the visible match but its keyboard focus takes the first, so Space could land on another element.
+- **2026-10-21** — Archive checkpoint: built, reviewed twice, live-checked on a real camofox, merged with main's 43.18.0 (CHANGELOG and browser-logins spec conflicts kept both sides), and numbered 43.18.1.

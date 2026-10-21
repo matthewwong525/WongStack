@@ -11,7 +11,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · browser-frame-refs-and-checkboxes</title>
+<title>Review · 2026-10-21-browser-frame-refs-and-checkboxes</title>
 <style>
   /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
    look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
@@ -360,11 +360,11 @@
 })();
 </script>
 </head>
-<body data-change="browser-frame-refs-and-checkboxes">
+<body data-change="2026-10-21-browser-frame-refs-and-checkboxes">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>browser-frame-refs-and-checkboxes</h1>
+  <h1>2026-10-21-browser-frame-refs-and-checkboxes</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. <span class="copies">Saving a note copies all your notes.</span> Open a drawing and tap it to see it full screen.</p>
@@ -397,6 +397,7 @@
 <li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-21</p>Assumed: keep the CSS-selector click's one read before the click, even on a button, and say so in the spec, because a selector carries no role, and only that read shows whether it is a tick box; a click by ref on any other element still takes no extra step.</li>
 <li class="decision card" id="decision-12" data-note="decision-12" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-21</p>Assumed: Google's results page skips the relabel, because camofox builds that page's text in its own pass with no frames, and the main-page mark check would drop correct refs after a link our copied list skips, such as <i>Calendar</i>.</li>
 <li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-21</p>Assumed: a CSS selector whose only visible match isn't its first match gets no check and no Space retry, because camofox's click takes the visible match but its keyboard focus takes the first, so Space could land on another element.</li>
+<li class="decision card" id="decision-14" data-note="decision-14" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-21</p>Archive checkpoint: built, reviewed twice, live-checked on a real camofox, merged with main's 43.18.0 (CHANGELOG and browser-logins spec conflicts kept both sides), and numbered 43.18.1.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
