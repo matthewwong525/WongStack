@@ -179,6 +179,26 @@ test('directory expansion detects additions and removals while exclusions stay o
   ]);
 });
 
+test("an update never lists a target's daily steps, even when the source holds some", t => {
+  const real = JSON.parse(readFileSync(join(repo, '.agents/skills/wong-sync/references/payload-files.json'), 'utf8'));
+  const manifest = inventory({ core: { skillDirs: ['alpha', 'daily'], exclude: real.core.exclude } });
+  const steps = { '.claude/skills/daily/team.md': '- Team step.\n', '.claude/skills/daily/people/jo.md': '---\nemails: [jo@example.com]\n---\n- Jo step.\n' };
+  const f = fixture(t, { manifest, components: { skills: ['alpha', 'daily'] }, targetFiles: { '.claude/skills/daily/SKILL.md': 'daily base\n', ...steps } });
+  write(f.source, '.agents/skills/daily/SKILL.md', 'daily base\n');
+  f.commit('add daily');
+  f.updateRecord({ commit: git(f.source, 'rev-parse', 'HEAD') });
+  git(f.target, 'add', '.');
+  git(f.target, 'commit', '-m', 'record daily base');
+
+  write(f.source, '.agents/skills/daily/SKILL.md', 'daily latest\n');
+  write(f.source, '.agents/skills/daily/team.md', '- Upstream team step.\n');
+  write(f.source, '.agents/skills/daily/people/sam.md', '- Upstream person.\n');
+  f.commit('change daily');
+  assert.deepEqual(f.inspect().changes.map(change => [change.sourcePath, change.operation]), [
+    ['.claude/skills/daily/SKILL.md', 'modified'],
+  ]);
+});
+
 test('every category is selected, and old component flags are ignored', t => {
   const f = fixture(t, { components: { skills: ['alpha'], stackPack: false, appScaffold: false, ui: false } });
   write(f.source, 'pack.txt', 'pack latest\n');
