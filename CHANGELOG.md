@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Run each person's day with /daily, a chief of staff that keeps agents moving
+## 43.19.0 — Run each person's day with /daily, a chief of staff that keeps agents moving
 
 - **One command starts the day.** Type `/daily`: the assistant checks who you are from your company sign-in, runs the steps the whole team shares, then your own, and replies with what it did and what is left for today.
 - **Signed out, it asks you to sign in first.** It shows the sign-in link, waits, and carries on once you are in. It runs no step under a guessed name. Without the company app, it uses your git email and says so.

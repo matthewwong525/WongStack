@@ -1,6 +1,6 @@
 # Run each person's day with /daily, a chief of staff that keeps agents moving
 
-**Status:** built
+**Status:** ready-to-ship
 **Branch:** daily-routine-skill
 **Open questions:** none
 
@@ -106,3 +106,4 @@ None.
 - **2026-10-21** — Assumed: the chief answers a question card by denying it with the chosen text as the message, because the probe (design decision 13) found Paseo's CLI hides the question that `permit allow --input` keys its answer by, while the agent went on with a denial's message.
 - **2026-10-21** — Assumed: WongOS and ClaymooApp move their dailies onto this later, in their own changes after a sync, because their Notion and board steps are their own.
 - **2026-10-21** — Assumed: the live run (task 6.2) passed with two throwaway agents: keep going, a safe pick, a risky send held back and answered as not approved, done checked against its file, an unhanded chat refused, the sixth unbroken reply refused, and today's reminder listed while tomorrow's was not; so the change is saved as built, not parked.
+- **2026-10-21** — Assumed: archived for publishing at Matthew's *Publish it*; the context budget forced a trim of the payload manifest's install-owns paragraph to fit the daily line, meaning unchanged.
