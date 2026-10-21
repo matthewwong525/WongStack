@@ -11,7 +11,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · tighten-memory-guards</title>
+<title>Review · 2026-10-21-tighten-memory-guards</title>
 <style>
   /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
    look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
@@ -360,11 +360,11 @@
 })();
 </script>
 </head>
-<body data-change="tighten-memory-guards">
+<body data-change="2026-10-21-tighten-memory-guards">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>tighten-memory-guards</h1>
+  <h1>2026-10-21-tighten-memory-guards</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. <span class="copies">Saving a note copies all your notes.</span> Open a drawing and tap it to see it full screen.</p>
@@ -400,6 +400,7 @@
 <li class="decision card" id="decision-12" data-note="decision-12" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-21</p>Assumed: the full-text rank's corpus-wide statistics stay out of scope, because they predate this finding, give no note's words, and go away with the other workspace's fixed reads.</li>
 <li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-21</p>Asked whether a teammate's hand-written lookups should also see only their own background-run records, now that each record names its writer → chose to hide others' records from those lookups too.</li>
 <li class="decision card" id="decision-14" data-note="decision-14" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-21</p>Assumed: the after-publishing live check (admin search and digest, an old key refused, a teammate search on the live store) runs after <code>/ship</code> merges and is reported there, not kept as a task, because the archive takes only finished tasks and the check needs the published Worker. <code>migrate</code> was run on the live store before merging and recorded <code>0009</code>.</li>
+<li class="decision card" id="decision-15" data-note="decision-15" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-21</p>Archive checkpoint: built; the second look found three fixes (the dream accepted non-UTC or unreadable dates, old unowned runs reached every schedule, and a teammate could read everyone's run records), all fixed with tests, the last by the person's choice; 228 tests and the local checks pass; <code>0009</code> applied to the live store before merging; archived for ship as 43.20.0.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

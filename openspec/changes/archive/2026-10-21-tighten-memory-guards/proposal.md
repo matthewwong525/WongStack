@@ -1,6 +1,6 @@
 # Proposal
 
-**Status:** planned
+**Status:** ready-to-ship
 **Branch:** youthful-gopher
 **Open questions:** none
 
@@ -76,3 +76,4 @@ None.
 - **2026-10-21** — Assumed: the full-text rank's corpus-wide statistics stay out of scope, because they predate this finding, give no note's words, and go away with the other workspace's fixed reads.
 - **2026-10-21** — Asked whether a teammate's hand-written lookups should also see only their own background-run records, now that each record names its writer → chose to hide others' records from those lookups too.
 - **2026-10-21** — Assumed: the after-publishing live check (admin search and digest, an old key refused, a teammate search on the live store) runs after `/ship` merges and is reported there, not kept as a task, because the archive takes only finished tasks and the check needs the published Worker. `migrate` was run on the live store before merging and recorded `0009`.
+- **2026-10-21** — Archive checkpoint: built; the second look found three fixes (the dream accepted non-UTC or unreadable dates, old unowned runs reached every schedule, and a teammate could read everyone's run records), all fixed with tests, the last by the person's choice; 228 tests and the local checks pass; `0009` applied to the live store before merging; archived for ship as 43.20.0.
