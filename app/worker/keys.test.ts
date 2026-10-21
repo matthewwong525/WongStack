@@ -28,6 +28,8 @@ it("every secret name the Worker declares, and each key setup makes, belongs to 
   expect(problems(readFileSync(new URL("../.dev.vars.example", import.meta.url), "utf8"), keys)).toEqual([]);
   // The template registers the one key setup makes, offered at Read alone.
   expect(keys.cloudflare).toMatchObject({ title: "Cloudflare", secrets: ["WONG_CLOUDFLARE_READ"], levels: ["read"], setup: true });
+  // Neither the look-up key nor Project code may reach a preview, where branch code runs.
+  expect([keys.cloudflare.liveOnly, keys.code.liveOnly]).toEqual([true, true]);
   // Project code is declared, so its key link can be sent, and it covers both of its names.
   for (const name of [/^WONG_CODE_READ=$/m, /^WONG_CODE_WRITE=$/m]) expect(readFileSync(new URL("../.dev.vars.example", import.meta.url), "utf8")).toMatch(name);
   expect(keys.code.secrets).toEqual(["WONG_CODE_READ", "WONG_CODE_WRITE"]);

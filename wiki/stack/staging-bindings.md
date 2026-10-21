@@ -34,12 +34,12 @@ So: twin by default; a prefix only where a twin genuinely isn't available.
 | KV | twin namespace | |
 | Durable Objects | nothing to do | DO storage is per-Worker; a separate Worker is already isolated |
 | Cron triggers | **explicit** `"triggers": { "crons": [] }` | inheritable — omitting the key inherits production's schedule, it does not disable it |
-| Secrets | `npm run secrets:push` | loads both Workers from `app/.dev.vars`; see [the secret model](#one-declared-list-of-secrets-two-workers) |
+| Secrets | `npm run secrets:push` | loads each Worker from its own file; see [the secret model](#one-declared-list-of-secrets-two-workers) |
 | Service bindings | **repoint** at the staging counterpart | |
 
-The last two bite differently. A missing staging secret fails **loudly** on the first run. A service binding copied into `env.staging` but left pointing at production fails **quietly** — staging code, production side effects, no error anywhere.
+The last two bite differently. A key previews lack fails **loudly** on the first use. A service binding copied into `env.staging` but left pointing at production fails **quietly** — staging code, production side effects, no error anywhere.
 
-You don't have to catch either by eye: **`npm run secrets:check`** fails the build when a binding declared at the top level is missing from `env.staging` or when the two Workers' secret names disagree, and warns when a staging service binding still targets production's service. It runs on every push.
+You don't have to catch either by eye: **`npm run secrets:check`** fails the build when a binding declared at the top level is missing from `env.staging` or when staging holds a key it may not, and warns when a staging service binding still targets production's service. It runs on every push.
 
 The exact JSONC to merge is in the pack's [config fragments](../../.agents/skills/wong-sync/references/stack-pack-fragments.md).
 
@@ -63,53 +63,53 @@ Exercising a cron by manual trigger instead is the convention, and it costs less
 
 ## One declared list of secrets, two Workers
 
-`env.staging` is a second Worker, so it has a second secret store. Nothing syncs the two: a `wrangler secret put` reaches exactly one of them, which makes "remember two commands, forever" the maintenance burden and drift the default state. A secret missing from staging is the most common staging failure. It is the friendly kind: the binding is absent, so the Worker throws on first use rather than doing something subtly wrong.
-
-The pack collapses that to one declared list.
+`env.staging` is a second Worker, so it has a second secret store. A preview runs branch code nobody has reviewed yet, so it never gets the live app's keys: each Worker loads its own file, and one declared list names them all.
 
 ```
-  app/.dev.vars          ─┬─▶  production Worker
-  (git-ignored,           │
-   your real values)      └─▶  staging Worker    ← unless app/.dev.vars.staging exists
+  app/.dev.vars          ───▶  production Worker
+  (git-ignored, your real values)
+
+  app/.dev.vars.staging  ───▶  staging Worker    ← no file: previews hold no keys
+  (git-ignored, test keys only)
 
   app/.dev.vars.example  committed, names only — what `secrets:check` compares against
 ```
 
 ```bash
-npm run secrets:push    # load both Workers from app/.dev.vars
-npm run secrets:check   # do the two Workers still agree?
+npm run secrets:push    # load each Worker from its own file
+npm run secrets:check   # does staging hold only what it may?
 ```
 
-The files sit beside `app/wrangler.jsonc`, because the script reads them from the folder that holds the wrangler config. `wrangler dev` reads `.dev.vars` from the same folder, so one file serves local development and both deployments. In a linked worktree, `app/.dev.vars` is the branch's own copy; the [secrets convention](../development/secrets.md#worktrees-and-branch-copies) owns how its edits reach the primary. A worktree with no copy pushes from the primary checkout's `app/.dev.vars`. A branch copy pushes its own values, branch-only ones included, to both Workers — push from the primary checkout when production must match `main`.
+The files sit beside `app/wrangler.jsonc`, because the script reads them from the folder that holds the wrangler config. `wrangler dev` reads `.dev.vars` from the same folder, so one file serves local development and both deployments. In a linked worktree, `app/.dev.vars` is the branch's own copy; the [secrets convention](../development/secrets.md#worktrees-and-branch-copies) owns how its edits reach the primary. A worktree with no copy pushes from the primary checkout's `app/.dev.vars`. A branch copy pushes its own values, branch-only ones included, to production — push from the primary checkout when production must match `main`.
 
 ### `.env` and `.dev.vars` are not interchangeable
 
 | File | Holds | Reaches |
 |---|---|---|
 | `.env` (repo root) | what you and the pack's scripts authenticate **with** — chiefly `CLOUDFLARE_API_TOKEN` | Cloudflare's API. **Never a Worker.** |
-| `app/.dev.vars` (beside `wrangler.jsonc`) | what the **Worker** reads off `env` | both Workers, via `secrets:push` |
+| `app/.dev.vars` (beside `wrangler.jsonc`) | what the **Worker** reads off `env` | the production Worker, via `secrets:push`; staging reads `app/.dev.vars.staging` |
 
 Each has a committed, values-blank `.example` beside it: `.env.example` at the root, `app/.dev.vars.example` in `app/`.
 
 `CLOUDFLARE_API_TOKEN` can widen its own permissions and create account resources. Put it in a Worker's runtime environment and any log leak or code-execution bug there escalates to the whole Cloudflare account. `secrets:push` **refuses** to load `.env` — it resolves symlinks first, and it also stops if `.dev.vars` itself contains a `CLOUDFLARE_*` or `CF_ACCESS_*` key. That's a guard rather than a note in a doc because the two files look interchangeable and the mistake only has to happen once.
 
-### Same values by default; diverge where writes escape
+### Previews get only their own keys
 
-`secrets:push` falls back to `.dev.vars` for staging, so both Workers get identical values unless you create a git-ignored **`app/.dev.vars.staging`**. No command changes; the file's existence is the switch. [The live app's key for its sign-in list](employee-access.md#the-key) is production-only, and setup stores it for you: leave its name out of staging entirely, even as a blank declaration. A preview keeps [a practice list](employee-access.md#the-practice-list-on-previews) and needs no key. [The read-only Cloudflare key](cloudflare-credentials.md#the-read-only-look-up-key) is the other key setup stores for you: in the production Worker always, and in the staging Worker with the same value [when Cloudflare accepts it](cloudflare-credentials.md#the-read-only-look-up-key). It can change nothing and reads no stored data, so a preview may hold it. Leave its name out of every `.dev.vars` file; `secrets:push` refuses one that names it. Both target files/config are validated before the first push, so an unsafe fallback or override loads nothing.
+`secrets:push` loads `app/.dev.vars` into production and a git-ignored **`app/.dev.vars.staging`** into staging, and removes every other key from staging. With no staging file, previews hold no keys at all: a feature that needs one says so on a preview, and the live app is unchanged. The push prints which keys previews lack. Before the first preview publish there is no staging Worker, so the push loads the live app and notes there is nothing to remove. Until [the Access step](employee-access.md#finish-access-setup) gives previews their own sign-in, the push loads the live app alone and leaves staging as it is: that step removes the live app's keys and names those to change. Both files and the config are validated before the first write, so a refused file loads nothing.
 
-Identical values are fine for read-only or harmless credentials. **Diverge for anything with third-party write side effects** — payment keys, outbound email and SMS, webhook targets. Sharing those lets a branch on staging charge a real card or email a real customer: the same production-contamination hole that twinning the database closes, re-opened one layer up at the API. It fails quietly, in the same family as a service binding left pointing at production.
+Three keys only the live app may hold, and `secrets:push` refuses a staging file that names any of them: [the sign-in list key](employee-access.md#the-key), [the project write key](project-git-route.md#the-owners-one-step-on-github) `WONG_CODE_WRITE`, and [the read-only Cloudflare key](cloudflare-credentials.md#the-read-only-look-up-key). Setup stores the first and last for you, on production alone: leave them out of every `.dev.vars` file. A preview keeps [a practice list](employee-access.md#the-practice-list-on-previews), and [saving changes is live-app only](project-git-route.md).
 
-**Copy `app/.dev.vars` to `app/.dev.vars.staging` and swap each such key for a test key**: a payment provider's test-mode key, a sandbox inbox. The file replaces `.dev.vars` for staging whole, so a key it leaves out is not loaded. The check before publishing uses a service freely only when staging has its own key for it, and leaves a service on a shared key alone, so a missing test key costs a check, never a real charge.
+**Give previews a test key, not a copy.** A shared payment key lets a branch charge a real card; a shared email key lets it reach a real customer. So `secrets:push` refuses a staging file that repeats production's value for any key. Copy the names you need from `app/.dev.vars` into `app/.dev.vars.staging`, each with a test value: a payment provider's test-mode key, a sandbox inbox. The check before publishing uses a service only when staging has its own key for it, so a missing test key costs a check, never a real charge.
 
 ```bash
-node scripts/cf-secrets.mjs shared   # which keys does staging share with production?
+node scripts/cf-secrets.mjs shared   # which keys does staging hold, and are they its own?
 ```
 
-It prints key names in two lists, `own` and `shared`, and never a value; with no staging file, every key is shared. It compares the two files on this machine and makes no network call, because a deployed secret can't be read back: after editing either file, run `secrets:push` so the Workers match. It can only compare, so a live key pasted into the staging file still reads as `own`.
+It prints key names in two lists, `own` and `shared`, and never a value; with no staging file, previews hold no keys. It compares the two files on this machine and makes no network call, because a deployed secret can't be read back: after editing either file, run `secrets:push` so the Workers match. It can only compare, so a live key with a different value, pasted into the staging file, still reads as `own`.
 
 ### When staging refuses a key
 
-`secrets:push` loads production, then staging. Staging often refuses with Cloudflare code `10215`: a preview was uploaded after its last deploy, so its newest version is not the running one. Production then holds a key staging lacks, and `secrets:check` fails on every branch until staging has it.
+`secrets:push` loads production, then staging. Staging often refuses with Cloudflare code `10215`: a preview was uploaded after its last deploy, so its newest version is not the running one. A key staging must lose is then removed as a new version, by itself. A key staging should gain stays missing, and previews lack it until it lands.
 
 Give staging the key as a new version, not a deploy:
 
@@ -118,11 +118,11 @@ Give staging the key as a new version, not a deploy:
 npx wrangler versions secret bulk <file> --env staging
 ```
 
-The names then match, and the next branch deploy carries the key. Don't follow it with `wrangler versions deploy --env staging`: on this config that command aims at the production Worker.
+The next branch deploy carries the key. Don't follow it with `wrangler versions deploy --env staging`: on this config that command aims at the production Worker.
 
 ### What the gate can and can't see
 
-`secrets:check` compares **names only** — no value is read, printed, or logged, so it is safe in CI where output is retained. Because `app/.dev.vars` is git-ignored and absent in CI, the assertion that *fails* is Worker against Worker: production's secret names against staging's, except the documented production-only Access management names. The check rejects those names on staging. One more name may differ: the read-only Cloudflare key may sit on production while staging [waits for it](cloudflare-credentials.md#the-read-only-look-up-key), and the check prints one line saying so. That key on staging without production is still drift. `app/.dev.vars.example` is consulted when present, but only to **warn** — it is uncorroborated, and a repo may set a secret out of band.
+`secrets:check` compares **names only** — no value is read, printed, or logged, so it is safe in CI where output is retained. Because `app/.dev.vars` is git-ignored and absent in CI, the assertion that *fails* is Worker against Worker: a key staging holds that production lacks, or any of the three keys only the live app may hold. While both environments still share one sign-in, a live-app-only key on staging only warns, naming [the Access step](employee-access.md#finish-access-setup) that removes it, so an updated install keeps publishing the live app. A key previews lack is expected, not drift: the check lists those names on one line and passes. `app/.dev.vars.example` is consulted when present, but only to **warn** — it is uncorroborated, and a repo may set a secret out of band.
 
 That leaves one blind spot by construction: a key missing from *both* Workers looks like perfect parity. The example file's warning is what covers it, which is the reason to keep it current.
 

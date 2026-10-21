@@ -56,7 +56,7 @@ it('reads why the project can not be handed out, and works it out from Project c
   expect([status({ keys: [code(true)] }).project, status({ keys: [code(false)] }).project, status({}).project]).toEqual(['ready', 'key', 'key'])
   expect(statusSchema.safeParse({ ...status({}), project: 'soon' }).success).toBe(false)
   // Whether a change can be saved through the app is read as sent, and left out by an older app: no step shows.
-  expect([...['ready', 'key', 'setup'].map(projectSave => status({ projectSave }).projectSave), status({}).projectSave]).toEqual(['ready', 'key', 'setup', undefined])
+  expect([...['ready', 'key', 'setup', 'live'].map(projectSave => status({ projectSave }).projectSave), status({}).projectSave]).toEqual(['ready', 'key', 'setup', 'live', undefined])
   expect(statusSchema.safeParse({ ...status({}), projectSave: 'soon' }).success).toBe(false)
 })
 

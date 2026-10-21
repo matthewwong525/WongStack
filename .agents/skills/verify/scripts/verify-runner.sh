@@ -60,7 +60,7 @@ if [ "$HAVE_BATCH" -eq 1 ] && ! command -v agent-browser >/dev/null 2>&1; then
   exit 2
 fi
 
-# Access service-token headers, when the preview sits behind a login wall.
+# The preview's own Access service-token headers, when it sits behind a login wall; never the live app's pair.
 # Absent is normal — most previews are open — so this is silent either way.
 # For a browser journey they are staged before the first navigation, which is
 # why the session is opened with no URL first: headers set after a navigation
@@ -68,13 +68,13 @@ fi
 # pair rides as curl headers.
 ACCESS_HEADERS=""
 CURL_ACCESS=()
-if [ -n "${CF_ACCESS_CLIENT_ID:-}" ] && [ -n "${CF_ACCESS_CLIENT_SECRET:-}" ]; then
+if [ -n "${CF_ACCESS_STAGING_CLIENT_ID:-}" ] && [ -n "${CF_ACCESS_STAGING_CLIENT_SECRET:-}" ]; then
   # JSON.stringify escapes a quote or backslash in a value; printf would not.
   ACCESS_HEADERS=$(node -e '
-    const { CF_ACCESS_CLIENT_ID: id, CF_ACCESS_CLIENT_SECRET: secret } = process.env;
+    const { CF_ACCESS_STAGING_CLIENT_ID: id, CF_ACCESS_STAGING_CLIENT_SECRET: secret } = process.env;
     console.log(JSON.stringify({ "CF-Access-Client-Id": id, "CF-Access-Client-Secret": secret }));')
-  CURL_ACCESS=(-H "CF-Access-Client-Id: $CF_ACCESS_CLIENT_ID" \
-               -H "CF-Access-Client-Secret: $CF_ACCESS_CLIENT_SECRET")
+  CURL_ACCESS=(-H "CF-Access-Client-Id: $CF_ACCESS_STAGING_CLIENT_ID" \
+               -H "CF-Access-Client-Secret: $CF_ACCESS_STAGING_CLIENT_SECRET")
 fi
 
 # Access redirects to a `*.cloudflareaccess.com` host, so the landing URL (or,

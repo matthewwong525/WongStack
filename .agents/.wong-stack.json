@@ -30,16 +30,25 @@
       ],
       "coverage": "configured",
       "serviceTokenId": "e7866263-6e83-4ceb-b59c-b3b8db765947",
-      "sessionDuration": "720h"
+      "sessionDuration": "720h",
+      "staging": {
+        "appId": "3322a790-78ef-41fd-ace0-b084d1a8eb74",
+        "audience": "e2e9d4aa1282ed404ae1c86ba41221f0352cf6621b89cfc305873c11fea57d6b",
+        "serviceTokenId": "dc204e5c-784e-4712-830b-2570fc2545cf",
+        "humanPolicyId": "c27a4d55-37fb-4c75-8887-f0ae9dcca73e",
+        "machinePolicyId": "f79f4170-985f-4352-b94d-fd50a4181056"
+      }
     },
     "accessKey": {
       "status": "ready",
-      "id": "de334e5543f81c42af89d4b72d0eb776"
+      "id": "de334e5543f81c42af89d4b72d0eb776",
+      "policyId": "bcd7dbd7-0906-4793-b28d-0d945f7daa4c",
+      "staging": {
+        "appId": "3322a790-78ef-41fd-ace0-b084d1a8eb74",
+        "policyId": "c27a4d55-37fb-4c75-8887-f0ae9dcca73e"
+      }
     },
     "cloudflareReadKey": {
-      "waiting": [
-        "wongstack-staging"
-      ],
       "status": "ready",
       "id": "2e3c14775c1db895623bdc94dadae432"
     }

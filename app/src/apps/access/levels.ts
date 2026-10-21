@@ -43,9 +43,11 @@ export const sameSet = (one: AccessSet, other: AccessSet) => given(one) === give
 /** Under a key's level, only for a key whose service is set up for it: the level reaches the service itself too. */
 export const keyLine = (key: SavedKey) => key.direct ? `Also reaches ${key.title} directly` : ''
 
-/** Setup makes some keys itself, for the live app: no step can finish one on a preview. The others come by link. */
+/** Setup makes some keys itself, for the live app: no step can finish one on a preview, and a key only the live app
+ *  may hold never comes to one. The others come by link. */
 export const keyState = (key: SavedKey, environment: Status['environment']) =>
-  key.saved ? 'Saved' : !key.setup ? 'Not saved yet' : environment === 'live' ? 'One step left' : 'Not on previews yet'
+  key.saved ? 'Saved' : environment === 'live' ? (key.setup ? 'One step left' : 'Not saved yet')
+    : key.liveOnly ? 'Live app only' : 'Not on previews yet'
 
 /** Each app as a save names it: given, or not. */
 export const ticks = (status: Status, apps: string[]) => Object.fromEntries(status.apps.map(app => [app.id, apps.includes(app.id)]))

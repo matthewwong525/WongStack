@@ -15,7 +15,7 @@ export const DESTINATIONS = [
   { example: '.env.example', live: '.env' },
   { example: 'app/.dev.vars.example', live: 'app/.dev.vars' },
 ];
-/** The Worker's own file: a key saved here must reach both Workers through `npm run secrets:push`. */
+/** The Worker's own file: a key saved here reaches the live app through `npm run secrets:push`. */
 export const APP_FILE = 'app/.dev.vars';
 // Written bare, a value of only these reads back unchanged in dotenv, wrangler, the memory parser, and a
 // shell's `source`; `~` is left out, since a shell expands it.

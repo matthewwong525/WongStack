@@ -81,7 +81,7 @@ function project(t, { facts = 'SEEDED=yes\nPLAYGROUND=yes\n' } = {}) {
   chmodSync(join(bin, 'agent-browser'), 0o755);
   const rebuildLog = join(base, 'rebuilds.txt');
   const env = { ...process.env, PATH: `${bin}:${process.env.PATH}`, FAKE_BROWSER_STATE: state, REBUILD_LOG: rebuildLog };
-  for (const key of ['CF_ACCESS_CLIENT_ID', 'CF_ACCESS_CLIENT_SECRET', 'CLOUDFLARE_API_TOKEN', 'CLOUDFLARE_ACCOUNT_ID']) delete env[key];
+  for (const key of ['CF_ACCESS_CLIENT_ID', 'CF_ACCESS_CLIENT_SECRET', 'CF_ACCESS_STAGING_CLIENT_ID', 'CF_ACCESS_STAGING_CLIENT_SECRET', 'CLOUDFLARE_API_TOKEN', 'CLOUDFLARE_ACCOUNT_ID']) delete env[key];
   const keptDir = join(root, '.agents/verification/journeys');
   const kept = (check, dir = keptDir) => {
     const file = join(dir, check.scenario.capability, `${check.id}.json`);
@@ -507,7 +507,7 @@ test('a lookup that fails reads not-run with the reason, and the preview\'s chec
   assert.deepEqual(site.paths(), ['/api/notes']);
 });
 
-test('a named site is sent no Access credential; the preview still is', async t => {
+test('a named site is sent no Access credential; the preview gets its own pair, never the live one', async t => {
   const f = project(t);
   const main = await recorder(t);
   const second = await recorder(t);
@@ -516,10 +516,13 @@ test('a named site is sent no Access credential; the preview still is', async t 
   f.kept(page('main-page'));
   f.kept(onSecond('on-landing', 1));
   f.kept(page('landing-page', { site: SECOND }));
-  const out = await replay(f, main.url, ['--site-url', `${SECOND}=${second.url}`], { CF_ACCESS_CLIENT_ID: 'id.access', CF_ACCESS_CLIENT_SECRET: 'access-secret-value' });
+  const out = await replay(f, main.url, ['--site-url', `${SECOND}=${second.url}`], {
+    CF_ACCESS_STAGING_CLIENT_ID: 'id.access', CF_ACCESS_STAGING_CLIENT_SECRET: 'access-secret-value', CF_ACCESS_CLIENT_ID: 'live-id.access', CF_ACCESS_CLIENT_SECRET: 'live-secret-value',
+  });
   assert.deepEqual(out.written.results.map(entry => entry.result), ['same', 'same', 'same', 'same'], out.stdout);
   const sent = site => site.seen.map(headers => [headers['cf-access-client-id'], headers['cf-access-client-secret']]);
   assert.ok(sent(main).some(([id, secret]) => id === 'id.access' && secret === 'access-secret-value'), 'the preview\'s request check carried the credential');
+  assert.ok(sent(main).every(([id]) => id !== 'live-id.access'), 'the preview was sent the live pair');
   assert.deepEqual(sent(second), [[undefined, undefined], [undefined, undefined]], 'the named site saw two requests and no credential');
   assert.equal(f.browserCalls().match(/ batch$/gm).length, 2);
   assert.equal(f.browserCalls().match(/ set$/gm).length, 1, 'only the preview\'s browser was given the Access headers');
@@ -659,7 +662,7 @@ test('keep refuses what must never be kept, names the reason, and writes nothing
   for (const [index, [label, files, expect, reason]] of refusals.entries()) {
     const id = `${String(index + 10)}-refused`;
     walked(f, id, scenario, files);
-    const out = await keep(f, id, expect, [], { CF_ACCESS_CLIENT_SECRET: SECRET });
+    const out = await keep(f, id, expect, [], { CF_ACCESS_STAGING_CLIENT_SECRET: SECRET });
     assert.equal(out.status, 1, label);
     assert.match(out.stdout, new RegExp(`^KEEP=refused ${id} — `), label);
     assert.match(out.stdout, reason, label);

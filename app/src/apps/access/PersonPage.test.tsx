@@ -170,8 +170,8 @@ it('says beside each key whether the app holds it, with the step left under one 
   const said = (name: string) => note(name).filter(Boolean)
   // A step with a request to copy folds the request under it, in a group of its own: only the keys' are read here.
   const keys = () => lines().filter(line => line.tagName === 'FIELDSET')
-  roster.keys = [key('stripe', 'Stripe'), key('maps', 'Maps', { saved: false }), key('cloudflare', 'Cloudflare', { levels: ['read'], saved: false, setup: true, alone: true }),
-    key('code', 'Project code', { levels: ['read', 'write'], alone: true })]
+  roster.keys = [key('stripe', 'Stripe'), key('maps', 'Maps', { saved: false }), key('cloudflare', 'Cloudflare', { levels: ['read'], saved: false, setup: true, alone: true, liveOnly: true }),
+    key('code', 'Project code', { levels: ['read', 'write'], alone: true, liveOnly: true })]
   open('people/kim@shop.com'); await panel('kim@shop.com')
   // The state sits in the key's own legend, in quiet words, so the name stays the first thing read.
   expect(keys().map(state)).toEqual(['Stripe · Saved', 'Maps · Not saved yet', 'Cloudflare · One step left']); expect(keys().map(title)).toEqual(['Stripe', 'Maps', 'Cloudflare'])
@@ -188,9 +188,10 @@ it('says beside each key whether the app holds it, with the step left under one 
   cleanup(); roster.viewer = { email: 'kim@shop.com', owner: false }; open('people/new'); await panel('Add person')
   expect(said('Cloudflare')).toEqual(['Look-ups need a read-only key. owner@shop.com finishes that in Access setup.'])
   expect([level('Cloudflare').queryByRole('button'), said('Maps')]).toEqual([null, [LINK]])
-  // No step can finish that key on a preview, so none is named there.
-  cleanup(); roster.viewer = { email: 'owner@shop.com', owner: true }; roster.environment = 'practice'; open('people/new'); await panel('Add person')
-  expect([state(part('Cloudflare')), said('Cloudflare'), state(part('Maps')), said('Maps')]).toEqual(['Cloudflare · Not on previews yet', [], 'Maps · Not saved yet', [LINK]])
+  // Only the live app may hold that key, so a preview names it so and no step; the project says the same.
+  cleanup(); roster.viewer = { email: 'owner@shop.com', owner: true }; roster.environment = 'practice'; roster.project = 'live'; open('people/new'); await panel('Add person')
+  expect([state(part('Cloudflare')), said('Cloudflare'), state(part('Maps')), said('Maps')]).toEqual(['Cloudflare · Live app only', [], 'Maps · Not on previews yet', [LINK]])
+  expect(screen.getByText('Live app only.').closest('p')!.textContent).toBe('Live app only. People install the project and save changes from the live app.')
 })
 it('a tick saves the app and no key level: every app is sent as given or not, and every key at the level it had', async () => {
   roster.people.push(person('pat@shop.com'))
