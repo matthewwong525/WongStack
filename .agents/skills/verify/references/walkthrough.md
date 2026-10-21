@@ -52,7 +52,7 @@ Ledger: scenario, probe, prerequisites, revision, runnable/blocked status, owned
 ]
 ```
 
-**Request → `<id>.requests.txt`**: tab-separated `METHOD`, path or full URL, optional JSON body. Paths resolve against the preview; the driver adds Access headers and captures responses in order:
+**Request → `<id>.requests.txt`**: tab-separated `METHOD`, path or full URL, optional JSON body. Paths resolve against the preview; the driver captures responses in order:
 
 ```
 POST	/api/notes	{"title":""}
@@ -99,7 +99,7 @@ Read evidence beside each verbatim `then`: screenshots and `evidence/<id>.result
 
 - **A clean exit, green suite or `200` is not a pass.** A clean batch whose screenshot lacks the message the `THEN` requires **fails**, as does exit zero or `200` with contradictory output.
 - A failing command is evidence, not a crash. `--bail` stops a browser journey there, so earlier evidence shows how far it got.
-- A screenshot that looks like the previous page → check the landed URL in `<id>.url`. A missing wait is a defect in the journey, not the app.
+- A screenshot that looks like the previous page → check the landed URL in `<id>.url`. A missing wait is the journey's defect, not the app's.
 - `[redacted:.env]` in text evidence stands for a `.env` value the driver replaced; read the screenshot for it.
 - **Ambiguous → unverified**: retain evidence/`THEN`, offer readings as [options](../../explore/references/asking-the-user.md#confirmations-offers-and-menus-are-asks) at handoff; finish independent checks first.
 

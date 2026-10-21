@@ -86,6 +86,7 @@ const STEPS = {
     // Playwright's call log quotes what was to be typed, as the real server's refusal can.
     if (has('fail-type')) return refuse(response, 422, `locator.fill: Timeout 10000ms exceeded. Call log: fill("${body.text}")`);
     tab.typed[body.ref ?? body.selector] = body.text;
+    if (has('type-url')) tab.url = text('type-url');
     if (body.mode === 'keyboard') tab.focus = body;
     return send(response, 200, { ok: true });
   },

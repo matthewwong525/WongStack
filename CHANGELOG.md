@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (patch) — Keys and passwords go only to their own site
+
+- **A saved password is typed only on its own site.** Before typing a saved login, the assistant's browser checks the page is on the site the login was saved for, or one under it, as `login.netflix.com` sits under `netflix.com`. It checks again right before the password, so a page that jumps elsewhere after the email gets nothing more. On any other site it types nothing and says *wrong site*, and you get the password link for the page's real site instead.
+- **Checking a preview sends your app's access key only to your own site.** The key that opens your private app goes only to a secure address on your own app's site: the live address, and the staging and preview addresses Cloudflare gives your account. Any other address is checked without it, and the report says the key was not sent. A login wall there is reported as *not your site*, and no new key is made for it.
+- **The key reaches only the preview itself.** A font or script a page loads from another site no longer gets it, and nor does a request check naming another site's address.
+- **Only a deploy app's comment names the preview.** Finding the preview from pull request comments now reads only comments posted by an installed app, such as Cloudflare's or Vercel's deploy bot, never a person's. Every way of finding it takes only a secure (`https`) address.
+- `browse.mjs login` can print `BROWSE_LOGIN=wrong-site`; `verify-staging.sh run` can print `ACCESS=withheld` and `BLOCK=not-own-site`.
+
+**Updating.** Nothing to do by hand. A preview announced only by a person's comment is no longer found; one announced by a deploy, a status, or a check still is. A copy with no recorded live address now checks previews without the access key; setting up the memory store with `/wong-sync` records one.
+
 ## 43.18.1 — The browser types into the right box
 
 - **Your answers land in the box you meant.** When a payment box inside a page has boxes with the same names as the page's own, such as *Email* and *Full name*, the assistant's browser now labels each one for itself. Before, your email and name could land in the payment box and tick its *Save my information* for you.

@@ -76,7 +76,10 @@
 # After RESULT come indented human lines, then KEY=VALUE facts for the caller.
 # `run` and `publish` end with REDACTED=<n>: the number of files under the run
 # folder that had a credential replaced, or `unknown` when the scrub could not
-# run and the evidence must be read before it is posted.
+# run and the evidence must be read before it is posted. `run` prints
+# ACCESS=withheld when the walk address was not this install's own site, so
+# the Access key went nowhere (verify-runner.sh); an Access wall there prints
+# BLOCK=not-own-site, never BLOCK=access-challenge, so nothing is minted for it.
 #
 # ── There is no adoption to detect ────────────────────────────────────────────
 # The walk used to read `playwright-core` in the app's devDependencies as the
@@ -449,7 +452,7 @@ preflight)
   URL=""
   if [ "$NEED_PREVIEW" -eq 1 ]; then
     URL=$(bash "$ROOT/.claude/skills/save/scripts/preview-url.sh" 2>/dev/null | tail -1)
-    case "$URL" in http*) ;; *) URL="" ;; esac   # anything that isn't a URL is no URL
+    case "$URL" in https://*) ;; *) URL="" ;; esac   # anything but a secure address is no URL
     if [ -z "$URL" ]; then
       SHORT=$(git rev-parse --short HEAD 2>/dev/null || echo "this commit")
       emit UNKNOWN
@@ -527,6 +530,14 @@ run)
   STATUS=$?
   # Whatever the driver's exit, the evidence it left is on disk and may be read.
   scrub "$RUN_DIR"
+  WITHHELD=""
+  [ -f "$RUN_DIR/access-withheld" ] && WITHHELD=$(head -1 "$RUN_DIR/access-withheld")
+  # A wall on an address that is not this install's own gets no heal: minting
+  # a token there would hand a stranger's site the key. Asked again here, as a
+  # machine with no key yet withheld nothing.
+  if [ "$STATUS" -eq 3 ] && { [ -n "$WITHHELD" ] || ! node "$(dirname "${BASH_SOURCE[0]}")/own-site.mjs" "$URL" >/dev/null 2>&1; }; then
+    STATUS=not-own
+  fi
 
   case "$STATUS" in
     0)   emit WALKED
@@ -546,8 +557,13 @@ run)
          note "BLOCK=access-challenge — with a Cloudflare API token, /verify mints a"
          note "service token and retries once. Without one the heal is unavailable."
          note "Either way this is UNVERIFIED, never a graded login page." ;;
+    not-own) emit UNKNOWN
+         note "the address answered with a Cloudflare Access login, and it is not this install's own site."
+         note "BLOCK=not-own-site — the key was not sent and no new one is made: $URL"
+         note "This is UNVERIFIED, never a graded login page." ;;
     *)   emit UNKNOWN; note "the driver exited $STATUS before finishing" ;;
   esac
+  if [ -n "$WITHHELD" ]; then note "the Access key was not sent: $WITHHELD"; echo "ACCESS=withheld"; fi
   scrubbed
   ;;
 
