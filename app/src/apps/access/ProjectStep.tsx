@@ -8,6 +8,7 @@ export function ProjectStep({ status }: { status: Status }) {
   const installs = status.project === 'ready'
   const left = installs ? status.projectSave ?? 'ready' : status.project
   if (left === 'ready') return null
+  if (left === 'live') return <p><strong>Live app only.</strong> People install the project and save changes from the live app.</p>
   const key = left === 'key'
   const lead = installs ? 'Saving needs one more step' : 'One step first'
   if (!status.viewer.owner) return <p><strong>{lead} for the owner.</strong> {status.ownerEmail} {key ? 'adds a GitHub key' : 'finishes Access setup'}.</p>

@@ -3,19 +3,24 @@ import { z } from "zod";
 import { type ConnectionEnv, type Core, AccessError, now, leaseCurrent, permissionsStarted } from "./core.ts";
 import { provider } from "./provider.ts";
 const cf = "https://api.cloudflare.com/client/v4";
-// Setup stores this in the production Worker alone. Cloudflare scopes the key to the
-// account; the core calls only the recorded application and its human policy.
-const authoritySchema = z.object({ version: z.literal(2), token: z.string().min(1),
-  accountId: z.string().regex(/^[a-f0-9]{32}$/), policyId: z.string().regex(/^[A-Za-z0-9-]+$/) }).strict();
+// Setup stores this in the production Worker alone. Cloudflare scopes the key to the account; the core calls only
+// the recorded applications and their human policies. Version 3 adds the previews app, which mirrors the list.
+const policyId = z.string().regex(/^[A-Za-z0-9-]+$/);
+const authoritySchema = z.object({ version: z.literal([2, 3]), token: z.string().min(1),
+  accountId: z.string().regex(/^[a-f0-9]{32}$/), policyId,
+  staging: z.object({ appId: z.string().regex(/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/), policyId }).strict().optional() })
+  .strict().refine(authority => (authority.version === 3) === (authority.staging !== undefined));
 type Authority = z.infer<typeof authoritySchema>;
 const emailRule = z.object({ email: z.object({ email: z.email() }).strict() }).strict();
 const policySchema = z.object({ id: z.string(), name: z.string(), decision: z.literal("allow"),
   include: z.array(emailRule), exclude: z.array(z.unknown()), require: z.array(z.unknown()), session_duration: z.string(), app_count: z.number().optional(), reusable: z.boolean().optional() }).passthrough();
 type Policy = z.infer<typeof policySchema>;
+/** One application and its human policy, as read and reviewed. */
+type Reviewed = { path: string; policy: Policy };
 const appSchema = z.object({ id: z.string(), aud: z.string(),
   destinations: z.array(z.object({ type: z.string(), worker_id: z.string().optional() })) });
+type App = z.infer<typeof appSchema>;
 const envelope = (value: unknown) => z.object({ success: z.literal(true), result: z.unknown() }).parse(value).result;
-const root = (core: Core, authority: Authority) => `/accounts/${authority.accountId}/access/apps/${core.env.CF_ACCESS_APP_ID}`;
 const sorted = (values: string[]) => [...values].sort().join("\n");
 const emails = (policy: Policy) => policy.include.map(rule => rule.email.email.trim().toLowerCase());
 // Fields Cloudflare owns; everything else in the live policy goes back unchanged.
@@ -29,31 +34,38 @@ export function loginAuthority(env: ConnectionEnv): Authority | null {
   catch { return null; }
 }
 
-async function read(core: Core, authority: Authority): Promise<Policy> {
+/** The live app's application, then the previews app's once split: each reviewed alike, with its own human policy. */
+async function read(core: Core, authority: Authority): Promise<Reviewed[]> {
   const { CF_ACCESS_APP_ID: appId, CF_ACCESS_AUD: audience, CF_ACCESS_WORKER_ID: workerId } = core.env;
   if (!appId || !audience || !workerId) throw new AccessError("login_resource_mismatch");
-  const app = appSchema.parse(envelope(await provider(cf, root(core, authority), authority.token)));
-  // The application must be this app's own and cover this Worker.
-  if (app.id !== appId || app.aud !== audience ||
-    !app.destinations.some(destination => destination.type === "worker" && destination.worker_id === workerId)) {
-    throw new AccessError("login_resource_mismatch");
-  }
+  // The live app's application must be this app's own and cover this Worker.
+  const live = await review(authority, appId, authority.policyId, app => app.aud === audience &&
+    app.destinations.some(destination => destination.type === "worker" && destination.worker_id === workerId));
+  if (!authority.staging) return [live];
+  // This Worker knows no previews audience or Worker, so the previews app is judged by its recorded id alone.
+  return [live, await review(authority, authority.staging.appId, authority.staging.policyId, () => true)];
+}
+
+async function review(authority: Authority, appId: string, policyId: string, owned: (app: App) => boolean): Promise<Reviewed> {
+  const path = `/accounts/${authority.accountId}/access/apps/${appId}`;
+  const app = appSchema.parse(envelope(await provider(cf, path, authority.token)));
+  if (app.id !== appId || !owned(app)) throw new AccessError("login_resource_mismatch");
   const policies = z.array(z.object({ id: z.string(), decision: z.string(), include: z.array(z.unknown()) }).passthrough())
-    .parse(envelope(await provider(cf, `${root(core, authority)}/policies?per_page=1000`, authority.token)));
+    .parse(envelope(await provider(cf, `${path}/policies?per_page=1000`, authority.token)));
   // An unreviewed allow/bypass policy must never become an alternate employee admission.
-  if (policies.length > 2 || policies.some(policy => policy.id !== authority.policyId &&
+  if (policies.length > 2 || policies.some(policy => policy.id !== policyId &&
     (policy.decision !== "non_identity" || !policy.include.length || !policy.include.every(rule =>
       z.object({ service_token: z.object({ token_id: z.string().min(1) }).strict() }).strict().safeParse(rule).success)))) {
     throw new AccessError("login_policy_review_required");
   }
-  const policy = policySchema.parse(policies.find(policy => policy.id === authority.policyId));
+  const policy = policySchema.parse(policies.find(policy => policy.id === policyId));
   if (policy.reusable || (policy.app_count !== undefined && policy.app_count !== 1)) throw new AccessError("login_policy_review_required");
-  return policy;
+  return { path, policy };
 }
 
-/** Everyone the recorded sign-in list admits now, for the first open's import. */
+/** Everyone the live app's sign-in list admits now, for the first open's import. */
 export async function admittedEmails(core: Core, authority: Authority): Promise<string[]> {
-  return emails(await read(core, authority));
+  return emails((await read(core, authority))[0].policy);
 }
 
 export async function reconcileLogin(core: Core, kind: "policy" | "sessions"): Promise<void> {
@@ -80,9 +92,9 @@ export async function reconcileLogin(core: Core, kind: "policy" | "sessions"): P
 async function attempt(core: Core, authority: Authority, kind: "policy" | "sessions", generation: number): Promise<boolean> {
   const id = core.installationId;
   if (!await leaseCurrent(core)) throw new AccessError("provider_lease_expired");
-  const policy = await read(core, authority);
-  if (kind === "policy") await updatePolicy(core, authority, policy, generation);
-  else envelope(await provider(cf, `${root(core, authority)}/revoke_tokens`, authority.token, "POST", {}));
+  const live = await read(core, authority);
+  if (kind === "policy") await updatePolicy(core, authority, live, generation);
+  else for (const { path } of live) envelope(await provider(cf, `${path}/revoke_tokens`, authority.token, "POST", {}));
   const current = await core.db.prepare("SELECT generation FROM wong_access_work WHERE installation_id = ? AND kind = ?")
     .bind(id, kind).first<{ generation: number }>();
   if (!current || current.generation !== generation || !await leaseCurrent(core)) {
@@ -130,14 +142,14 @@ function controls(value: Policy): string {
     .filter(([field]) => field !== "include" && !readOnly.includes(field))
     .sort(([a], [b]) => a.localeCompare(b))));
 }
-/** Read the live policy, change only its email list, and send the rest back unchanged. */
-async function updatePolicy(core: Core, authority: Authority, live: Policy, generation: number): Promise<void> {
+/** Read each live policy, change only its email list, and send the rest back unchanged. */
+async function updatePolicy(core: Core, authority: Authority, live: Reviewed[], generation: number): Promise<void> {
   const id = core.installationId;
   const members = await core.db.prepare("SELECT email FROM wong_access_members WHERE installation_id = ? AND status = 'active'")
     .bind(id).all<{ email: string }>();
   const desired = [...new Set([core.email, ...members.results.map(row => row.email)])].sort();
-  const body = { ...Object.fromEntries(Object.entries(live).filter(([field]) => !readOnly.includes(field))),
-    include: desired.map(email => ({ email: { email } })) };
+  const body = (policy: Policy) => ({ ...Object.fromEntries(Object.entries(policy).filter(([field]) => !readOnly.includes(field))),
+    include: desired.map(email => ({ email: { email } })) });
   const intent = crypto.randomUUID();
   await core.db.batch([
     core.db.prepare(`INSERT INTO wong_access_policy_writes SELECT ?, ?, ?, 'in_flight', ?
@@ -157,12 +169,14 @@ async function updatePolicy(core: Core, authority: Authority, live: Policy, gene
     throw new AccessError("provider_lease_expired");
   }
   try {
-    await provider(cf, `${root(core, authority)}/policies/${authority.policyId}`, authority.token, "PUT", body);
+    for (const { path, policy } of live) await provider(cf, `${path}/policies/${policy.id}`, authority.token, "PUT", body(policy));
     await core.db.prepare("UPDATE wong_access_policy_writes SET status = 'completed' WHERE intent_id = ?").bind(intent).run();
   } catch (error) {
     await core.db.prepare("UPDATE wong_access_policy_writes SET status = 'unknown' WHERE intent_id = ? AND status = 'in_flight'").bind(intent).run();
     throw error;
   }
   const checked = await read(core, authority);
-  if (sorted(emails(checked)) !== sorted(desired) || controls(checked) !== controls(live)) throw new AccessError("login_policy_readback_pending");
+  if (checked.some(({ policy }, at) => sorted(emails(policy)) !== sorted(desired) || controls(policy) !== controls(live[at].policy))) {
+    throw new AccessError("login_policy_readback_pending");
+  }
 }

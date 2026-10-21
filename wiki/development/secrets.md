@@ -2,7 +2,7 @@
 
 Real secrets stay outside git. Committed, values-blank **`.env.example`** lists every variable the project reads, what it does, and where to get it. [API keys](../stack/api-keys.md) explains the private-link route.
 
-This convention supports any credential-file format; it requires no dotenv library or application `.env` reader. Each live file has one role: Cloudflare tools use root `.env`, Worker runtime uses `app/.dev.vars` ([routing](../stack/staging-bindings.md#env-and-devvars-are-not-interchangeable), [both Workers](../stack/staging-bindings.md#one-declared-list-of-secrets-two-workers)). Apply these rules to each.
+This convention supports any credential-file format; it requires no dotenv library or application `.env` reader. Each live file has one role: Cloudflare tools use root `.env`, Worker runtime uses `app/.dev.vars` ([routing](../stack/staging-bindings.md#env-and-devvars-are-not-interchangeable), [each Worker's file](../stack/staging-bindings.md#one-declared-list-of-secrets-two-workers)). Apply these rules to each.
 
 ## Tool keys and business services
 
@@ -83,7 +83,7 @@ When a task lacks a key, or the person asks for *the key link*, send a private l
    ```
 
    `KEYS_UNDECLARED=` or `KEYS_AMBIGUOUS=` (exit 2) means step 1 isn't done, and `KEYS_GUIDE=` names the guide entry to fix. Exit 1 means a destination isn't git-ignored, so fix [the protection](#the-two-files) first, or another link holds the one slot. `HANDOVER_NEEDS=cloudflared` works as for [every private link](browsing.md#how-private-links-work).
-4. **After it closes**, handle its completion identity once, as [workspace return](browsing.md#how-private-links-work) says, even when both `wait` and the workspace notification arrive. Both carry names, never values; absent or unconfirmed dispatch tells the person to return to chat and say *continue*. Name the saved keys in the chat, never a value. A non-empty `HANDOVER_APP_KEYS` means the Worker reads those keys: run `npm run secrets:push` so both Workers get them. When `app/.dev.vars.staging` exists, staging reads that file instead, so say staging still needs its own key. On `timeout`, or a `closed` nobody asked for, say what happened before offering a new link. `HANDOVER_OPENED=no`: nobody opened it, so ask whether it loaded. `yes`: ask where they got stuck.
+4. **After it closes**, handle its completion identity once, as [workspace return](browsing.md#how-private-links-work) says, even when both `wait` and the workspace notification arrive. Both carry names, never values; absent or unconfirmed dispatch tells the person to return to chat and say *continue*. Name the saved keys in the chat, never a value. A non-empty `HANDOVER_APP_KEYS` means the Worker reads those keys: run `npm run secrets:push` so the live app gets them. Previews read only `app/.dev.vars.staging`, so say they need their own test key. On `timeout`, or a `closed` nobody asked for, say what happened before offering a new link. `HANDOVER_OPENED=no`: nobody opened it, so ask whether it loaded. `yes`: ask where they got stuck.
 
 One link is open at a time. A key link nobody has opened gives way to a newer link: its `wait` prints `closed` and `HANDOVER_REPLACED_BY=`, the folder of the workspace whose link took its place. Name that workspace and offer a new link. An opened one keeps its place.
 

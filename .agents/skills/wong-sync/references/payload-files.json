@@ -115,6 +115,7 @@
       "scripts/reset-staging-d1.mjs",
       "scripts/cf-secrets.mjs",
       "scripts/lib-access-config.mjs",
+      "scripts/lib-staging-secrets.mjs",
       "scripts/check-private-access.mjs",
       "scripts/check-app-keys.mjs",
       "scripts/lint-comment-length.mjs",

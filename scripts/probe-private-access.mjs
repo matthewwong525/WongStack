@@ -6,13 +6,15 @@ import { isMain, parseCli, usageError } from './lib-cli.mjs';
 import { primaryRoot } from '../.claude/skills/memory/scripts/lib/primary-root.mjs';
 import { parseEnv } from '../.claude/skills/memory/scripts/lib/store.mjs';
 
-export async function probePrivateAccess(url, credentials, fetchFn = fetch) {
+// A preview has its own private app, so only the preview checker's pair (`CF_ACCESS_STAGING`) opens it.
+export async function probePrivateAccess(url, credentials, fetchFn = fetch, prefix = 'CF_ACCESS') {
+  const id = credentials[`${prefix}_CLIENT_ID`], secret = credentials[`${prefix}_CLIENT_SECRET`];
   const target = new URL(url);
   if (target.protocol !== 'https:' || target.username || target.password || target.search || target.hash) throw new Error('verification needs a plain HTTPS app URL');
-  if (!credentials.CF_ACCESS_CLIENT_ID || !credentials.CF_ACCESS_CLIENT_SECRET) throw new Error('saved verification credentials are missing; run private setup again');
+  if (!id || !secret) throw new Error('saved verification credentials are missing; run private setup again');
   const request = headers => fetchFn(target, { redirect: 'manual', headers });
   const anonymous = await request({});
-  const machine = await request({ 'CF-Access-Client-Id': credentials.CF_ACCESS_CLIENT_ID, 'CF-Access-Client-Secret': credentials.CF_ACCESS_CLIENT_SECRET });
+  const machine = await request({ 'CF-Access-Client-Id': id, 'CF-Access-Client-Secret': secret });
   const redirect = anonymous.headers.get('location');
   const challenged = anonymous.status === 302 && redirect && new URL(redirect, target).hostname.endsWith('.cloudflareaccess.com');
   const denied = challenged || [401, 403].includes(anonymous.status);
@@ -24,13 +26,13 @@ export async function probePrivateAccess(url, credentials, fetchFn = fetch) {
 }
 
 if (isMain(import.meta.url)) {
-  const usage = 'usage: node scripts/probe-private-access.mjs --url <https://app/path>';
-  const { values } = parseCli({ usage, options: { url: { type: 'string' } } });
+  const usage = 'usage: node scripts/probe-private-access.mjs --url <https://app/path> [--preview]';
+  const { values } = parseCli({ usage, options: { url: { type: 'string' }, preview: { type: 'boolean' } } });
   if (!values.url) usageError(usage, '--url is required');
   try {
     const file = join(primaryRoot(process.cwd()).primary, '.env');
     const credentials = existsSync(file) ? parseEnv(readFileSync(file, 'utf8')) : {};
-    const report = await probePrivateAccess(values.url, credentials);
+    const report = await probePrivateAccess(values.url, credentials, fetch, values.preview ? 'CF_ACCESS_STAGING' : 'CF_ACCESS');
     console.log(JSON.stringify(report));
     process.exitCode = report.closed && report.machineVerified ? 0 : 1;
   } catch {

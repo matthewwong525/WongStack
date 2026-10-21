@@ -60,7 +60,7 @@ if [ "$HAVE_BATCH" -eq 1 ] && ! command -v agent-browser >/dev/null 2>&1; then
   exit 2
 fi
 
-# Access service-token headers, when the preview sits behind a login wall.
+# The preview's own Access service-token headers, when it sits behind a login wall; never the live app's pair.
 # Absent is normal — most previews are open — so this is silent either way.
 # The pair goes only to this install's own https site (own-site.mjs says
 # which); any other address is walked without it, and the run says so in
@@ -69,20 +69,20 @@ fi
 ACCESS_HEADERS=""
 CURL_ACCESS=()
 rm -f "$RUN_DIR/access-withheld"
-if [ -n "${CF_ACCESS_CLIENT_ID:-}" ] && [ -n "${CF_ACCESS_CLIENT_SECRET:-}" ]; then
+if [ -n "${CF_ACCESS_STAGING_CLIENT_ID:-}" ] && [ -n "${CF_ACCESS_STAGING_CLIENT_SECRET:-}" ]; then
   if ! withheld=$(node "$(dirname "${BASH_SOURCE[0]}")/own-site.mjs" "$URL_UNDER_TEST" 2>/dev/null); then
-    unset CF_ACCESS_CLIENT_ID CF_ACCESS_CLIENT_SECRET
+    unset CF_ACCESS_STAGING_CLIENT_ID CF_ACCESS_STAGING_CLIENT_SECRET
     printf '%s\n' "${withheld:-the own-site check failed}" >"$RUN_DIR/access-withheld"
     echo "access key not sent: ${withheld:-the own-site check failed}"
   fi
 fi
-if [ -n "${CF_ACCESS_CLIENT_ID:-}" ] && [ -n "${CF_ACCESS_CLIENT_SECRET:-}" ]; then
+if [ -n "${CF_ACCESS_STAGING_CLIENT_ID:-}" ] && [ -n "${CF_ACCESS_STAGING_CLIENT_SECRET:-}" ]; then
   # JSON.stringify escapes a quote or backslash in a value; printf would not.
   ACCESS_HEADERS=$(node -e '
-    const { CF_ACCESS_CLIENT_ID: id, CF_ACCESS_CLIENT_SECRET: secret } = process.env;
+    const { CF_ACCESS_STAGING_CLIENT_ID: id, CF_ACCESS_STAGING_CLIENT_SECRET: secret } = process.env;
     console.log(JSON.stringify({ "CF-Access-Client-Id": id, "CF-Access-Client-Secret": secret }));')
-  CURL_ACCESS=(-H "CF-Access-Client-Id: $CF_ACCESS_CLIENT_ID" \
-               -H "CF-Access-Client-Secret: $CF_ACCESS_CLIENT_SECRET")
+  CURL_ACCESS=(-H "CF-Access-Client-Id: $CF_ACCESS_STAGING_CLIENT_ID" \
+               -H "CF-Access-Client-Secret: $CF_ACCESS_STAGING_CLIENT_SECRET")
 fi
 
 # scheme://host[:port] of an address, lowercased, so a request line naming

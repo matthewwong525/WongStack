@@ -7,7 +7,7 @@ const key = (id: string, title: string, changes: Partial<SavedKey> = {}): SavedK
 const stripe = key('stripe', 'Stripe')
 const maps = key('maps', 'Maps', { saved: false })
 const bank = key('bank', 'Bank')
-const cloudflare = key('cloudflare', 'Cloudflare', { levels: ['read'], saved: false, setup: true, alone: true })
+const cloudflare = key('cloudflare', 'Cloudflare', { levels: ['read'], saved: false, setup: true, alone: true, liveOnly: true })
 const code = key('code', 'Project code', { levels: ['read'], alone: true })
 const spare = key('spare', 'Spare')
 const app = (id: string, title: string) => ({ id, title, description: '' })
@@ -72,7 +72,12 @@ it("says under a key's level what the level does with the key by itself, and nev
 
 it('says whether a key is saved, waits for its link, or waits for setup to make it, which no preview can', () => {
   expect([stripe, maps, cloudflare].map(key => keyState(key, 'live'))).toEqual(['Saved', 'Not saved yet', 'One step left'])
-  expect([stripe, maps, cloudflare].map(key => keyState(key, 'practice'))).toEqual(['Saved', 'Not saved yet', 'Not on previews yet'])
+  // A key only the live app may hold says so on a preview; any other key a preview lacks is still to come.
+  const helpdesk = key('helpdesk', 'Helpdesk', { saved: false, setup: true })
+  const project = key('code', 'Project code', { saved: false, alone: true, liveOnly: true })
+  expect([stripe, maps, cloudflare, project, helpdesk].map(key => keyState(key, 'practice')))
+    .toEqual(['Saved', 'Not on previews yet', 'Live app only', 'Live app only', 'Not on previews yet'])
+  expect([{ ...cloudflare, saved: true }, helpdesk].map(key => keyState(key, 'live'))).toEqual(['Saved', 'One step left'])
 })
 
 it('names every app and every key as a save sends them: an app given or not, a key at the level held or none', () => {

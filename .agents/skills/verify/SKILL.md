@@ -28,7 +28,7 @@ bash "$ROOT/.claude/skills/verify/scripts/verify-staging.sh" preflight
 
 Heal **once per invocation**, never on `BLOCK=not-own-site`; retry dependents only.
 
-**BLOCK=access-challenge (exit 3)**: with a Cloudflare API token, mint a repo-named service token; widen groups if needed. Confirm the owned app's machine policy accepts it; preserve human permissions. Store the pair in **primary worktree** `.env` only ([secrets](../../../wiki/development/secrets.md), [Access](../../../wiki/stack/cloudflare-access.md), [authorized widen](../../../wiki/stack/cloudflare-credentials.md#the-widen-is-pre-authorized)). Name the mint; never print/commit credentials. Privacy changes need human login/revocation checks; machine access proves no email login.
+**BLOCK=access-challenge (exit 3)**: mint a repo-named service token with the Cloudflare API token, widening if needed. Confirm the preview app's machine policy accepts it; keep human permissions. Store it as `CF_ACCESS_STAGING_CLIENT_ID`/`SECRET` in the primary worktree's `.env` only ([secrets](../../../wiki/development/secrets.md), [Access](../../../wiki/stack/cloudflare-access.md), [authorized widen](../../../wiki/stack/cloudflare-credentials.md#the-widen-is-pre-authorized)). Name the mint; never print/commit credentials. Privacy changes need human login/revocation checks; machine access proves no email login.
 
 No token/surviving block → unverified; name credentials/repair gaps.
 

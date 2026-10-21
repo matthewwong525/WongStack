@@ -62,6 +62,13 @@ it('sends the owner of an install with no project recorded to finish Access setu
   expect(container.textContent).not.toMatch(/GitHub/)
   await copies(FINISH_REQUEST)
 })
+it('on a preview, says the project is the live app\'s alone, with no step for the owner or an Admin', () => {
+  for (const owner of [true, false]) {
+    const { container } = render(<ProjectStep status={status('live', owner, 'live')} />)
+    expect(container.textContent).toBe('Live app only. People install the project and save changes from the live app.')
+    expect(screen.queryByRole('button')).toBeNull(); cleanup()
+  }
+})
 it("tells an Admin that finishing Access setup is the owner's step, with nothing to copy", () => {
   const { container } = render(<ProjectStep status={status('setup', false)} />)
   expect(container.textContent).toBe('One step first for the owner. owner@shop.com finishes Access setup.')

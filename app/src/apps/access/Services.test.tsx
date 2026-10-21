@@ -13,14 +13,14 @@ const SHOP = [key('stripe', 'Stripe', { purpose: 'Payments and refunds' }), key(
   key('code', 'Project code', { purpose: "This project's own code", alone: true })]
 const status = (keys: SavedKey[]): Status => ({ ownerEmail: 'owner@shop.com', viewer: { email: 'owner@shop.com', owner: true }, environment: 'live', key: 'ready', started: true,
   imported: 0, keysStarted: true, unticked: { people: [], roles: [] }, apps: [], roles: [], people: [], work: [], project: 'ready', keys })
-let side: 'owner' | 'admin' | 'teammate'; let keys: SavedKey[]; let fetchMock: ReturnType<typeof vi.fn>
+let side: 'owner' | 'admin' | 'teammate'; let keys: SavedKey[]; let fetchMock: ReturnType<typeof vi.fn>; let preview: boolean
 beforeEach(() => {
-  side = 'owner'; keys = SHOP
+  side = 'owner'; keys = SHOP; preview = false
   fetchMock = vi.fn(async (url: string) => {
     if (url === '/api/access/apps') return Response.json(side === 'teammate' ? { state: 'current', role: 'employee', apps: ['access'], revision: 1, keys: [{ id: 'stripe', title: 'Stripe', level: 'read' }] }
       : { state: 'current', role: side === 'owner' ? 'owner' : 'employee', manages: true, apps: ['access'], revision: 1 })
     // A value the server never sends: were one sent, the screen would still not show it.
-    return Response.json({ ...status(keys), ...(side === 'admin' && { viewer: { email: 'kim@shop.com', owner: false } }),
+    return Response.json({ ...status(keys), ...(side === 'admin' && { viewer: { email: 'kim@shop.com', owner: false } }), ...(preview && { environment: 'practice' }),
       keys: keys.map(item => ({ ...item, value: 'sk_live_9f8e' })) })
   })
   vi.stubGlobal('fetch', fetchMock)
@@ -47,6 +47,12 @@ it('the owner and an Admin see every key: what each is for and whether it is sav
     expect([screen.queryByRole('textbox'), within(screen.getByRole('region', { name: 'Services' })).queryByRole('button')]).toEqual([null, null])
     cleanup()
   }
+})
+it('on a preview, names a key only the live app holds as such, with no step to take', async () => {
+  preview = true; keys = SHOP.map(item => item.id === 'cloudflare' ? { ...item, liveOnly: true } : item); open()
+  const table = await screen.findByRole('table', { name: 'Services' })
+  expect([line(table, 'Cloudflare'), line(table, 'Mailchimp')]).toEqual([['Cloudflare', 'Account look-ups', 'Not savedLive app only'],
+    ['Mailchimp', 'Email', 'Not savedAsk the assistant for its key link']])
 })
 it('with no keys yet, says the assistant sends a private link for one', async () => {
   keys = [key('code', 'Project code', { alone: true })]; open()

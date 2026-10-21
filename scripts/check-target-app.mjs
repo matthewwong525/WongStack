@@ -33,7 +33,7 @@ const INSTALL = {
   base: BASE,
   ids: { db: id('1'), stagingDb: id('2'), memory: id('3') },
   bucket: `${BASE}-memory`,
-  access: { mode: 'private', teamDomain: 'target-check.cloudflareaccess.com', audience: 'a'.repeat(64), appId: id('4'), ownerEmail: 'owner@example.invalid', workers: [{ id: 'b'.repeat(32) }, { id: 'c'.repeat(32) }] },
+  access: { mode: 'private', teamDomain: 'target-check.cloudflareaccess.com', audience: 'a'.repeat(64), appId: id('4'), staging: { audience: 'd'.repeat(64), appId: id('5') }, ownerEmail: 'owner@example.invalid', workers: [{ id: 'b'.repeat(32) }, { id: 'c'.repeat(32) }] },
 };
 
 /** What a red run names: failed test files, failed tests, and type errors. */
@@ -117,7 +117,7 @@ export function checkTarget(root, { keep = false, log = console.log } = {}) {
     }
     const types = sh('bash', [join(dest, 'scripts', 'cf-build.sh'), '--types'], dest);
     const generated = join(app, 'worker-configuration.d.ts');
-    if (!types.ok || !existsSync(generated) || !['ARTIFACTS', 'CODE_CHECKS'].every(name => new RegExp(`\\b${name}\\s*:`).test(readFileSync(generated, 'utf8')))) {
+    if (!types.ok || !existsSync(generated) || !['ARTIFACTS', 'CODE_CHECKS'].every(name => new RegExp(`\\b${name}\\??\\s*:`).test(readFileSync(generated, 'utf8')))) {
       return fail('types', `${types.output}\nThe binding types were not regenerated with the project's repository and check runner bindings, so the tests would compile against the wrong ones.`);
     }
     const tests = sh('npm', ['test'], app);
