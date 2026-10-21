@@ -14,6 +14,7 @@ The **payload** is the set that [`/wong-sync`](../../.agents/skills/wong-sync/SK
 - [Measure a skill change](measure-a-skill-change.md) — run a skill's instructions against a practice site with planted mistakes, before and after an edit, and keep only what catches more.
 - [Measure session speed](measure-session-speed.md) — count steps, seconds per step, repeated page reads, and failed-check rounds from this computer's session logs, to see whether a change made tasks faster.
 - [Repo layout](repo-layout.md) — `.claude` and `.codex` are symlinks to `.agents`, and `CLAUDE.md` to `AGENTS.md`: which path to edit and to link, and why a repo-wide `grep` under-counts.
+- [Time the private form](time-the-private-form.md) — time a card send through a practice checkout with a framed card box, and read where the seconds go.
 - [Test a setup change on a real install](test-a-setup-change.md) — install from an unpublished branch into a throwaway folder, what to walk, and how to remove it.
 - [Test a hook in a live session](test-a-hook.md) — run a Claude Code hook headless on its own and in a Paseo chat with the question box, and what a blocking `Stop` hook shows.
 - [The landing page](landing-page.md) — the public site in `site/`, which no install receives: where its install wording lives, what it must never offer, its privacy promises, and how it is checked, previewed, and published.
