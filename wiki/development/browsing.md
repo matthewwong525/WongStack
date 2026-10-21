@@ -21,6 +21,8 @@ node $B close                           # this task's page; keeps the logins
 
 A failed command prints one `BROWSE_ERROR=` line. A ref comes from the newest snapshot.
 
+**Each ref acts on the box it marks.** A box in a payment box gets its own ref, even when the page has a box of the same name. When the script can't tell them apart, those boxes print no ref, and a `- note:` line says so: read the page again or use a selector. A click on a tick box, a round choice, or a switch is read back; if nothing changed, the script presses Space on it, and if it still didn't change, prints `BROWSE_ERROR=the box did not change`.
+
 1. **The first errand installs the browser, once you say yes.** On `BROWSE_NEEDS=install` (exit 3), the agent asks once, saying [what the install needs](required-tools.md#installing-camofox): about 1.4 GB of disk and 700 MB of memory. It then runs `browse.mjs install`.
 2. **A saved login goes first.** When a site asks to log in, the agent runs `browse.mjs logins`, which gives each login's name, site, and username, never a password. It matches the login page's host against each saved site's host, `www.` dropped: they match when they're equal, or when one sits under the other, so `login.netflix.com` matches `netflix.com`.
    - **One match:** the agent logs in without asking, because saving the login was your permission. It names the page's boxes from its own snapshot, and the script types the login into them:
