@@ -258,3 +258,13 @@ test('a default branch whose own staging block lost its empty routes deploys no 
   assert.match(result.log, /a preview deploys only wongstack-site-staging with no routes/);
   assert.equal(result.jobs.deploy?.result, 'failure', result.log);
 });
+
+test("a default branch whose scripts can't take a build yet deploys nothing and says the preview comes after publish", t => {
+  const main = siteTree(t);
+  const lib = join(main, 'scripts/lib-wrangler-config.mjs');
+  writeFileSync(lib, readFileSync(lib, 'utf8').replaceAll('copy-tree', 'copy-gone'));
+  const result = runSite(t, { head: siteTree(t), main });
+  assert.deepEqual(wranglerCalls(result.calls).filter(call => ['deploy', 'versions'].includes(call.args[0])), []);
+  assert.match(result.log, /preview after publish/);
+  assert.equal(result.jobs.deploy?.result, 'success', result.log);
+});

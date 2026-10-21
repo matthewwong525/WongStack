@@ -163,25 +163,37 @@ jobs:
           path: trusted
           persist-credentials: false
 
+      # Main's scripts before this change can't take a build: say so and
+      # deploy nothing until it's published, as deploy.yml does.
+      - name: Can main take the build?
+        if: ${{ env.HAS_DEPLOY_TOKEN == 'true' }}
+        run: |
+          if grep -q -- 'copy-tree' trusted/scripts/lib-wrangler-config.mjs; then
+            echo "CAN_DEPLOY=true" >> "$GITHUB_ENV"
+          else
+            echo "The default branch's deploy scripts can not take a build yet, so this change previews after it is published." >> "$GITHUB_STEP_SUMMARY"
+            echo "preview after publish: the default branch's deploy scripts can not take a build yet"
+          fi
+
       # No cache: a branch job can save cache entries this job would restore.
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        if: ${{ env.HAS_DEPLOY_TOKEN == 'true' }}
+        if: ${{ env.CAN_DEPLOY == 'true' }}
         with:
           node-version-file: trusted/.nvmrc
 
       - name: Install the deploy tools
-        if: ${{ env.HAS_DEPLOY_TOKEN == 'true' }}
+        if: ${{ env.CAN_DEPLOY == 'true' }}
         working-directory: trusted/site
         run: npm ci --ignore-scripts --no-audit --no-fund
 
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        if: ${{ env.HAS_DEPLOY_TOKEN == 'true' }}
+        if: ${{ env.CAN_DEPLOY == 'true' }}
         with:
           name: site-build
           path: ${{ runner.temp }}/site-build
 
       - name: Take the built files
-        if: ${{ env.HAS_DEPLOY_TOKEN == 'true' }}
+        if: ${{ env.CAN_DEPLOY == 'true' }}
         run: node trusted/scripts/lib-wrangler-config.mjs copy-tree "$RUNNER_TEMP/site-build" trusted/site/dist
 
       # The same two calls scripts/cf-deploy.sh makes for a branch, and for the
@@ -191,7 +203,7 @@ jobs:
       # wrangler printed, never built by hand.
       - name: Deploy
         id: deploy
-        if: ${{ env.HAS_DEPLOY_TOKEN == 'true' }}
+        if: ${{ env.CAN_DEPLOY == 'true' }}
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_DEPLOY_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
