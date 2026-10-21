@@ -3,6 +3,18 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 43.18.0 — A payment form that never calls a slow payment refused
+
+- **A slow site isn't a refusal.** If the site hasn't answered a minute after the private form presses Pay, your phone says *Sent, waiting for the site* and *Don't pay again*, and so does your chat. The form keeps watching for ten more minutes, then your chat says how it went, *Sent* included.
+- **Not accepted means the site kept its page.** The form says *Not accepted* only when nothing was pressed, or the card page stayed put for the whole watch. It no longer says "nothing is sent again", which read as "you weren't charged".
+- **Card boxes are emptied only when it's safe.** Never while the site may still be paying, and never on a page that moved on.
+- **You see each step.** While it sends: *Typing your details… Pressing Pay… Waiting for the site…*
+- **Faster to hear back.** The form checks for the site's answer four times as often, and its minute starts when it presses Pay.
+- **A timing record.** Each send notes how long each step took and what ended each link, in `~/.wong-stack/hand-over/timings.jsonl`, never what you typed.
+- `hand-over.mjs wait` can print `HANDOVER_RESULT=unconfirmed` with `HANDOVER_WATCHING=10`; a second `wait` prints the final result.
+
+**Updating.** Nothing to do by hand.
+
 ## 43.17.0 — Show the browser when a login is stuck
 
 - **No API? The assistant uses its browser.** When no saved key or company action can do a task on a website, the assistant does it in its browser as you, without being asked, instead of sending you steps first.
