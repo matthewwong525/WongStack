@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Branch code never holds the deploy key
+## 44.1.0 — Branch code never holds the deploy key
 
 - **A saved branch can't reach your Cloudflare deploy key.** On GitHub, the app's deploy now runs in two jobs. The first installs, tests and builds the branch with no key. The second uses your published branch's own scripts and tools, installed with their install scripts off, takes in only the built files, and deploys with the key. The same goes for the check runner on a project kept in Cloudflare.
 - **The key has a new name, so older branches can't reach it either.** A branch started before this update carries the old deploy steps, which look for the key under its old name. That old copy is deleted.

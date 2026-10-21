@@ -32,7 +32,7 @@
 - [x] 7.2 `.agents/skills/wong-setup/scripts/provision.mjs`: set `CLOUDFLARE_DEPLOY_TOKEN`, rolling `<repo>-deploy` when it is missing, then delete the old `CLOUDFLARE_API_TOKEN` secret unless a local workflow still reads it (then a to-do). `provision.test.mjs`: set-new, delete-old, keep-while-read and reuse; the fake `gh` learns `secret delete`.
 - [x] 7.3 `/wong-sync`: the preflight raises `deploy-key-name` when `deploy.yml` reads the old name (`wong-sync-preflight.test.mjs`), and `catch-up.md` plans the deploy key step during the update's build, before publish, and says live deploys pause until it is published. Update the payload manifest.
 - [x] 7.4 Docs: `wiki/stack/cloudflare-credentials.md`, `.agents/skills/wong-setup/references/cloudflare.md` §4d, `wiki/stack/github-actions.md`, `wiki/stack/getting-started.md`, `SECURITY.md`, `.env.example`, and the CHANGELOG **Updating.** note in plain words. Retire `secrets.CLOUDFLARE_API_TOKEN` in `scripts/retired-names.json`.
-- [ ] 7.5 (outward, confirm first) This repo, `matthewwong525/WongStack`: right before the merge, set `CLOUDFLARE_DEPLOY_TOKEN`, minting or rolling `<repo>-deploy` through `provision.mjs` or the CI deploy token step. That roll makes the old secret's value dead, so main's deploys fail until the merge. Right after the merge, delete the old `CLOUDFLARE_API_TOKEN` secret; it can't be undone. Without both, the meta repo's production deploy and landing page publish stop.
+- [x] 7.5 (outward, confirm first) This repo, `matthewwong525/WongStack`: right before the merge, set `CLOUDFLARE_DEPLOY_TOKEN`, minting or rolling `<repo>-deploy` through `provision.mjs` or the CI deploy token step. That roll makes the old secret's value dead, so main's deploys fail until the merge. Right after the merge, delete the old `CLOUDFLARE_API_TOKEN` secret; it can't be undone. Without both, the meta repo's production deploy and landing page publish stop.
 
 ## 8. Production and database refusals
 
@@ -47,4 +47,4 @@
 
 - [x] 6.1 Run `node .github/scripts/checks.mjs --worktree`, `node scripts/measure-context.mjs --check` and `openspec validate keep-deploy-key-from-branch-code --strict --no-interactive`; all pass.
 - [x] 6.2 (outward, confirm first) In a throwaway GitHub install whose `main` is this branch, with a dummy-free but disposable deploy token: push a branch whose `app/package.json` `preinstall` prints whether `CLOUDFLARE_API_TOKEN` is set. The run log shows it unset, the preview link publishes on the staging Worker, and `npm ci --ignore-scripts` left wrangler working. Delete the throwaway repo, Worker and token afterwards, each confirmed.
-- [ ] 6.3 `/save` this change and wait for CI. This change's own preview runs main's old scripts, so it is proven by 6.2 and by the first branch push after publish.
+- [x] 6.3 `/save` this change and wait for CI. This change's own preview runs main's old scripts, so it is proven by 6.2 and by the first branch push after publish.
