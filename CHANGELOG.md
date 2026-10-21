@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 43.19.1 — A removed person is blocked before Access setup finishes
+
+- **Removed means blocked at once, even before setup finishes.** On a live app whose Access setup isn't finished, a person you remove is now refused on their next app page, app request or memory request. Before, they kept every app until setup finished. Everyone else still keeps every app until then, and adding them back gives every app back.
+- **The remove box says what waits.** Before setup finishes, it says they leave the sign-in list, and everyone is signed out, once Access setup finishes. After setup, it reads as before.
+
+**Updating.** Nothing to do by hand.
+
 ## 43.19.0 — Run each person's day with /daily, a chief of staff that keeps agents moving
 
 - **One command starts the day.** Type `/daily`: the assistant checks who you are from your company sign-in, runs the steps the whole team shares, then your own, and replies with what it did and what is left for today.
