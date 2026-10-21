@@ -4,26 +4,34 @@ import { checkPrivateAccess } from '../check-private-access.mjs';
 import { pack, logger } from './fixtures/pack.mjs';
 
 const account = 'a'.repeat(32), productionId = 'b'.repeat(32), stagingId = 'c'.repeat(32);
-const vars = environment => ({ WONG_ENVIRONMENT: environment, CF_ACCESS_TEAM_DOMAIN: 'team.cloudflareaccess.com', CF_ACCESS_AUD: 'aud', CF_ACCESS_APP_ID: 'app', CF_ACCESS_WORKER_ID: environment === 'production' ? productionId : stagingId });
+const ids = { production: { CF_ACCESS_AUD: 'aud', CF_ACCESS_APP_ID: 'app' }, staging: { CF_ACCESS_AUD: 'previews-aud', CF_ACCESS_APP_ID: 'previews' } };
+const vars = environment => ({ WONG_ENVIRONMENT: environment, CF_ACCESS_TEAM_DOMAIN: 'team.cloudflareaccess.com', ...ids[environment], CF_ACCESS_WORKER_ID: environment === 'production' ? productionId : stagingId });
 const config = { account_id: account, name: 'demo', assets: { run_worker_first: true }, vars: vars('production'), env: { staging: { name: 'demo-staging', vars: vars('staging') } } };
 const git = { behavior: 'public', path_pattern: '/api/access/code/git/*' };
 const memory = [{ behavior: 'public', path_pattern: '/_memory/*' }, git];
+const policies = token => [
+  { id: `human-${token}`, decision: 'allow', include: [{ email: { email: 'owner@example.com' } }], exclude: [], require: [] },
+  { id: `machine-${token}`, decision: 'non_identity', include: [{ service_token: { token_id: token } }], exclude: [], require: [] },
+];
+const app = (id, aud, host, workerId, overrides, token) => ({
+  id, type: 'self_hosted', aud, domain: host,
+  destinations: [{ overrides, worker_id: workerId, type: 'worker' }, { overrides, uri: host, type: 'public' }],
+  policies: [{ id: `human-${token}` }, { id: `machine-${token}` }],
+});
 function resources() {
-  return {
+  // A copy, so one test's mutation never reaches the shared override lists.
+  return structuredClone({
     '/workers/workers/demo': { name: 'demo', id: productionId, references: { domains: [{ hostname: 'app.example.com' }] } },
     '/workers/workers/demo-staging': { name: 'demo-staging', id: stagingId },
     '/workers/scripts/demo/secrets': [], '/workers/scripts/demo-staging/secrets': [],
     '/workers/scripts': [{ id: 'demo' }, { id: 'demo-staging' }],
     '/workers/subdomain': { subdomain: 'example' },
-    '/access/apps/app': { id: 'app', type: 'self_hosted', aud: 'aud', domain: 'demo.example.workers.dev', destinations: [
-      { overrides: memory, worker_id: productionId, type: 'worker' }, { overrides: [git], worker_id: stagingId, type: 'worker' }, { overrides: memory, uri: 'demo.example.workers.dev', type: 'public' },
-    ], policies: [{ id: 'human' }, { id: 'machine' }] },
-    '/access/apps/app/policies': [
-      { id: 'human', decision: 'allow', include: [{ email: { email: 'owner@example.com' } }], exclude: [], require: [] },
-      { id: 'machine', decision: 'non_identity', include: [{ service_token: { token_id: 'service' } }], exclude: [], require: [] },
-    ],
-    '/access/apps': [{ id: 'app' }],
-  };
+    '/access/apps/app': app('app', 'aud', 'demo.example.workers.dev', productionId, memory, 'service'),
+    '/access/apps/app/policies': policies('service'),
+    '/access/apps/previews': app('previews', 'previews-aud', 'demo-staging.example.workers.dev', stagingId, [git], 'preview-service'),
+    '/access/apps/previews/policies': policies('preview-service'),
+    '/access/apps': [{ id: 'app' }, { id: 'previews' }],
+  });
 }
 const provider = data => async route => {
   const key = route.replace(`/accounts/${account}`, '').split('?')[0];
@@ -33,30 +41,60 @@ const provider = data => async route => {
 
 test('read-only coverage validates actual Workers, reordered provider keys, exact policies and memory scope', async () => {
   for (const environment of ['production', 'staging']) {
-    assert.equal((await checkPrivateAccess(config, environment, provider(resources()))).protection, 'configured');
+    const result = await checkPrivateAccess(config, environment, provider(resources()));
+    assert.deepEqual([result.protection, result.warning], ['configured', undefined]);
   }
 });
 
 test('missing coverage, broad exceptions, policies, precedence and secret overrides stop publication', async () => {
   const mutations = [
-    data => { data['/access/apps/app'].destinations.pop(); },
-    data => { data['/workers/workers/demo'].id = 'd'.repeat(32); },
-    data => { data['/access/apps/app'].destinations[0].overrides[0].path_pattern = '/*'; },
-    data => { data['/access/apps/app'].destinations[1].overrides[0].path_pattern = '/api/*'; },
-    data => { data['/access/apps/app'].destinations[1].overrides.push(memory[0]); },
-    data => { data['/access/apps/app/policies'][0].include = [{ everyone: {} }]; },
-    data => { data['/access/apps/app/policies'][1].decision = 'bypass'; },
-    data => { data['/access/apps/app'].policies.pop(); },
-    data => { data['/access/apps'].push({ id: 'foreign', domain: 'app.example.com/admin' }); },
-    data => { data['/access/apps'].push({ id: 'foreign', destinations: [{ type: 'preview_worker', worker_id: stagingId }] }); },
-    data => { data['/workers/scripts/demo-staging/secrets'] = [{ name: 'SKIP_AUTH' }]; },
+    ['staging', data => { data['/access/apps/previews'].destinations.pop(); }],
+    ['production', data => { data['/workers/workers/demo'].id = 'd'.repeat(32); }],
+    ['production', data => { data['/access/apps/app'].destinations[0].overrides[0].path_pattern = '/*'; }],
+    ['staging', data => { data['/access/apps/previews'].destinations[0].overrides[0].path_pattern = '/api/*'; }],
+    ['staging', data => { data['/access/apps/previews'].destinations[0].overrides.push(memory[0]); }],
+    // A previews app that also holds the live Worker, or the live app holding staging's.
+    ['staging', data => { data['/access/apps/previews'].destinations.push({ overrides: [git], worker_id: productionId, type: 'worker' }); }],
+    ['production', data => { data['/access/apps/app'].destinations.push({ overrides: [git], worker_id: stagingId, type: 'worker' }); }],
+    ['staging', data => { data['/access/apps/previews'].domain = 'demo.example.workers.dev'; }],
+    ['staging', data => { data['/access/apps/previews/policies'][0].include = [{ everyone: {} }]; }],
+    ['production', data => { data['/access/apps/app/policies'][1].decision = 'bypass'; }],
+    ['staging', data => { data['/access/apps/previews'].policies.pop(); }],
+    ['staging', data => { data['/access/apps'].push({ id: 'foreign', domain: 'app.example.com/admin' }); }],
+    ['production', data => { data['/access/apps'].push({ id: 'foreign', destinations: [{ type: 'preview_worker', worker_id: stagingId }] }); }],
+    ['staging', data => { data['/workers/scripts/demo-staging/secrets'] = [{ name: 'SKIP_AUTH' }]; }],
   ];
-  for (const mutate of mutations) {
+  for (const [environment, mutate] of mutations) {
     const data = resources(); mutate(data);
-    await assert.rejects(checkPrivateAccess(config, 'staging', provider(data)));
+    await assert.rejects(checkPrivateAccess(config, environment, provider(data)), undefined, `${environment}: ${mutate}`);
   }
   await assert.rejects(checkPrivateAccess(config, 'staging', provider(resources()), { ...config.env.staging, assets: config.assets, vars: vars('local') }));
   await assert.rejects(checkPrivateAccess(config, 'production', async () => { throw new Error('403'); }), /403/);
+});
+
+// Regression: wong-setup/private-access.mjs:provisionAccess:shared-staging-production-access-audience
+test('a config whose previews share the live app stops previews and lets the live app publish with a warning', async () => {
+  const shared = structuredClone(config);
+  Object.assign(shared.env.staging.vars, ids.production);
+  const data = resources();
+  // The one app an install from before the split holds: both Workers, the live anchor.
+  data['/access/apps/app'].destinations.splice(1, 0, { overrides: [git], worker_id: stagingId, type: 'worker' });
+  data['/access/apps'] = [{ id: 'app' }];
+  await assert.rejects(checkPrivateAccess(shared, 'staging', provider(data)), /previews still share the live app's sign-in; run setup's Access step \(wiki\/stack\/employee-access\.md#finish-access-setup\)/);
+  const live = await checkPrivateAccess(shared, 'production', provider(data));
+  assert.equal(live.protection, 'configured');
+  assert.match(live.warning, /previews still share the live app's sign-in/);
+  // Half shared, one id or the audience alone, is never a reviewed shape.
+  for (const key of ['CF_ACCESS_AUD', 'CF_ACCESS_APP_ID']) {
+    const half = structuredClone(config);
+    half.env.staging.vars[key] = ids.production[key];
+    for (const environment of ['production', 'staging']) {
+      await assert.rejects(checkPrivateAccess(half, environment, provider(resources())), /each have their own private app/);
+    }
+  }
+  const team = structuredClone(config);
+  team.env.staging.vars.CF_ACCESS_TEAM_DOMAIN = 'other.cloudflareaccess.com';
+  await assert.rejects(checkPrivateAccess(team, 'staging', provider(resources())), /one team and distinct Workers/);
 });
 
 const openVars = environment => ({ WONG_ENVIRONMENT: environment, WORKSPACE_LOGIN: 'off' });

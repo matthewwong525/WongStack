@@ -110,7 +110,7 @@ After the one ask, one command runs 4b through 4d:
 P provision --repo <owner/name> --base <base> --owner-email <reachable-owner-email> --open-without-login
 ```
 
-Resolve a reachable owner email before provisioning; reject `.invalid` and GitHub noreply addresses. The git author email may remain private. Private setup reuses or creates Zero Trust/PIN, creates unavailable production/staging Workers, and attaches the owned Worker-ID app before content publication. Review overlapping hostname/path/preview apps first; preserve unrelated resources. Machine credentials are saved to ignored primary/branch `.env`; public identifiers go in `components.access`. See [Access](../../../../wiki/stack/cloudflare-access.md).
+Resolve a reachable owner email before provisioning; reject `.invalid` and GitHub noreply addresses. The git author email may remain private. Private setup reuses or creates Zero Trust/PIN and unavailable Workers, then gives each its own app before any content publishes. Review overlapping apps first; keep unrelated ones. Machine credentials go to ignored `.env`; public ids to `components.access`. See [Access](../../../../wiki/stack/cloudflare-access.md).
 
 **Open until the card.** When Cloudflare wants a card before it turns on Zero Trust, `--open-without-login` lets setup finish: the report's `access.mode` is `open`, no Access resources are made, and the config carries `WORKSPACE_LOGIN: "off"` ([open until the card](../../../../wiki/stack/cloudflare-access.md#open-until-the-card)). Say it plainly and go on: *"Cloudflare wants a card on file before it turns on the private email login, so for now anyone with your site's link can see it. Your memory stays private behind its own key until then. I'll show you how to add the card at the end."* Any other Access stop still stops setup; an already private site never opens.
 
@@ -138,7 +138,7 @@ Create/reuse distinct production and staging databases; branch deploys never wri
 
 With no config, write the [fragment](../../wong-sync/references/stack-pack-fragments.md) with actual production/staging D1 and Access IDs; an open site gets blank Access IDs and `WORKSPACE_LOGIN: "off"` instead. Bind memory only at the top level, plus R2 when available. Fill the two `db:migrate:*` scripts. Preserve the fragment's entry point, assets, flags, and date. Existing config stays apart from a new memory bucket and [adding the card later](#adding-the-card-later); plan other privacy updates as a reviewed merge. The [scaffold](../../wong-sync/references/payload-manifest.md#the-app-scaffold) supplies the Worker.
 
-**The project Connect hands out.** The script names it in both Workers' vars. The Artifacts route also binds both to the repository and its check runner: no key is made. On GitHub the report's `codeKey` carries [the owner's steps](../../../../wiki/stack/project-git-route.md#the-owners-one-step-on-github). Say nothing of it: Access asks for the key when the owner first lets someone install the project.
+**The project Connect hands out.** The script names it in both Workers' vars; the Artifacts route binds production alone to it and its check runner, with no key. On GitHub the report's `codeKey` carries [the owner's steps](../../../../wiki/stack/project-git-route.md#the-owners-one-step-on-github). Say nothing of it: Access asks for the key when the owner first lets someone install the project.
 
 Last, it refreshes the binding types in `app/`; a failure is a `warnings` line, no stop.
 
@@ -174,7 +174,7 @@ After `/save` reports the first deploy, fetch the production URL once; never rep
 
 The check runs itself; never ask the person to sign in by email code on each site:
 
-- **Private site:** run `node scripts/probe-private-access.mjs --url <url>` on production and on one preview. Expect the anonymous request closed and the machine request `2xx`.
+- **Private site:** run `node scripts/probe-private-access.mjs --url <url>` on production, and with `--preview` on a preview. Expect anonymous closed, machine `2xx`.
 - **Open site** (`access.mode` is `open`): fetch production and expect `200`.
 
 Retry propagation; name a real failure. Human login stays unverified until Step 5's human check. The [browser runbook](../../../../wiki/stack/cloudflare-access.md#verify-it-works--in-a-browser) is for `/verify` and later changes, not setup.

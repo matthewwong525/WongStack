@@ -73,12 +73,18 @@ export function saveSource(env: object): SaveSource | null {
   return checksBinding(checks) ? { ...source, checks } : null;
 }
 
-const step = (env: object, ready: boolean) => ready ? "ready" : onGithub(text(env, "WONG_CODE_REPOSITORY")) ? "key" : "setup";
+type Step = "ready" | "key" | "setup" | "live";
+function step(env: object, ready: boolean): Step {
+  const repository = text(env, "WONG_CODE_REPOSITORY");
+  // Branch code runs on previews, so the project's keys and bindings stay on the live app.
+  if (Reflect.get(env, "WONG_ENVIRONMENT") === "staging" && (onGithub(repository) || ARTIFACT.test(repository))) return "live";
+  return ready ? "ready" : onGithub(repository) ? "key" : "setup";
+}
 // Why the project can not be handed out yet, for Access to name the step left. `key`: it is kept on GitHub and
-// no key is saved. `setup`: no project the app can trust is recorded. Calls nothing.
-export const codeStep = (env: object): "ready" | "key" | "setup" => step(env, codeSource(env) !== null);
+// no key is saved. `setup`: no project the app can trust is recorded. `live`: a preview, where none ever is.
+export const codeStep = (env: object): Step => step(env, codeSource(env) !== null);
 /** The same for saving a change. `key`: GitHub holds no key that can save. `setup`: Access setup has a step left. */
-export const saveStep = (env: object): "ready" | "key" | "setup" => step(env, saveSource(env) !== null);
+export const saveStep = (env: object): Step => step(env, saveSource(env) !== null);
 
 /** The address to reach and the credential to add, or null when the place it is kept does not answer. */
 export async function upstream(env: object, scope: Scope = "read"): Promise<Upstream | null> {

@@ -81,8 +81,8 @@ The **only thing in the payload that creates a wrangler config**, so a deployabl
         "WONG_ENVIRONMENT": "staging",
         "WONG_OWNER_EMAIL": "<owner email>",
         "CF_ACCESS_TEAM_DOMAIN": "<access team domain>",
-        "CF_ACCESS_AUD": "<access audience>",
-        "CF_ACCESS_APP_ID": "<access app id>",
+        "CF_ACCESS_AUD": "<staging access audience>",
+        "CF_ACCESS_APP_ID": "<staging access app id>",
         "CF_ACCESS_WORKER_ID": "<staging Worker id>"
       },
       "d1_databases": [
@@ -140,9 +140,11 @@ Add these blank, commented lines. The [credentials page](../../../../wiki/stack/
 CLOUDFLARE_API_TOKEN=
 # Your Cloudflare account ID (dashboard → any domain → Overview, or the URL).
 CLOUDFLARE_ACCOUNT_ID=
-# Separate verification credential, provisioned into ignored .env; never a human login token.
+# Verification credentials, live then previews, set by setup in ignored .env; never a human login.
 CF_ACCESS_CLIENT_ID=
 CF_ACCESS_CLIENT_SECRET=
+CF_ACCESS_STAGING_CLIENT_ID=
+CF_ACCESS_STAGING_CLIENT_SECRET=
 ```
 
 ## `.gitignore` → the two secrets files, and scratch

@@ -166,12 +166,12 @@ test('an app that needs only what an install receives passes, built as an instal
   for (const there of ['app/run-tests.mjs', 'app/worker/hello.test.mjs', 'scripts/cf-build.sh', '.agents/skills/memory/scripts/lib/cli.mjs']) assert.ok(existsSync(join(kept, there)), `${there} is missing`);
   // Laid out as an install: a real .agents folder, with the two links to it.
   for (const link of ['.claude', '.codex']) assert.ok(lstatSync(join(kept, link)).isSymbolicLink(), link);
-  // The config is provisioning's own, for a project kept in Cloudflare: named, bound twice, and no real id.
+  // The config is provisioning's own, for a project kept in Cloudflare: named, bound on the live app, no real id.
   const config = built('app/wrangler.jsonc');
   assert.doesNotMatch(config, /the-source-repo-own-worker/);
   assert.match(config, /"name": "target-check"/);
-  assert.equal(config.match(/"artifacts": \[\{ "binding": "ARTIFACTS", "namespace": "wongstack" \}\]/g)?.length, 2, 'production and staging both bind the repository');
-  assert.equal(config.match(/"workflows": \[\{ "binding": "CODE_CHECKS", "name": "target-check-checks", "script_name": "target-check-checks", "class_name": "Checks" \}\]/g)?.length, 2, 'production and staging both read the check runner');
+  assert.equal(config.match(/"artifacts": \[\{ "binding": "ARTIFACTS", "namespace": "wongstack" \}\]/g)?.length, 1, 'production alone binds the repository');
+  assert.equal(config.match(/"workflows": \[\{ "binding": "CODE_CHECKS", "name": "target-check-checks", "script_name": "target-check-checks", "class_name": "Checks" \}\]/g)?.length, 1, 'production alone reads the check runner');
   assert.equal(config.match(/"WONG_CODE_REPOSITORY": "target-check"/g)?.length, 2);
   // The types were regenerated from that config before the tests ran, in the copy alone.
   assert.match(built('app/worker-configuration.d.ts'), /ARTIFACTS: Artifacts; CODE_CHECKS: Workflow/);

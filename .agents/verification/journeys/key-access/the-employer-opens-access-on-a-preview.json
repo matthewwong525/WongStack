@@ -1,0 +1,95 @@
+{
+  "format": "verify-journey-1",
+  "id": "the-employer-opens-access-on-a-preview",
+  "scenario": {
+    "capability": "key-access",
+    "requirement": "A preview names the keys only the live app holds",
+    "scenario": "The employer opens Access on a preview"
+  },
+  "thenDigest": "58760ae8b2245ae0373c14b7b2e12f9062d26dbb64c3f478b63e7824a74e0b91",
+  "probe": "browser",
+  "writes": false,
+  "sourcePaths": [
+    ".agents/.wong-stack.json",
+    ".agents/skills/hand-over/scripts/hand-over.mjs",
+    ".agents/skills/hand-over/scripts/keys.mjs",
+    ".agents/skills/verify/SKILL.md",
+    ".agents/skills/verify/scripts/verify-journeys.mjs",
+    ".agents/skills/verify/scripts/verify-runner.sh",
+    ".agents/skills/verify/scripts/verify-staging.sh",
+    ".agents/skills/wong-setup/references/cloudflare.md",
+    ".agents/skills/wong-setup/scripts/private-access.mjs",
+    ".agents/skills/wong-setup/scripts/provision.mjs",
+    ".agents/skills/wong-sync/references/payload-files.json",
+    ".agents/skills/wong-sync/references/stack-pack-fragments.md",
+    ".env.example",
+    "app/.dev.vars.example",
+    "app/src/apps/access/ProjectStep.tsx",
+    "app/src/apps/access/Services.tsx",
+    "app/src/apps/access/SetFields.tsx",
+    "app/src/apps/access/levels.ts",
+    "app/src/lib/access.ts",
+    "app/worker/employee-access/code.ts",
+    "app/worker/employee-access/key-catalogue.ts",
+    "app/worker/employee-access/key-levels.ts",
+    "app/worker/employee-access/login-management.ts",
+    "app/worker/keys.ts",
+    "app/wrangler.jsonc",
+    "scripts/cf-secrets.mjs",
+    "scripts/check-private-access.mjs",
+    "scripts/check-target-app.mjs",
+    "scripts/eval-verify.mjs",
+    "scripts/lib-access-config.mjs",
+    "scripts/lib-staging-secrets.mjs",
+    "scripts/probe-private-access.mjs"
+  ],
+  "recordedAt": "5052861e7b2df421ceb755000d89fc895cfc6d3b",
+  "steps": [
+    [
+      "set",
+      "viewport",
+      "1280",
+      "1300"
+    ],
+    [
+      "open",
+      "{url}/apps/access/services"
+    ],
+    [
+      "wait",
+      "--load",
+      "networkidle"
+    ],
+    [
+      "wait",
+      "1500"
+    ],
+    [
+      "open",
+      "{url}/apps/access/people/dana%40example.invalid"
+    ],
+    [
+      "wait",
+      "--load",
+      "networkidle"
+    ],
+    [
+      "wait",
+      "1500"
+    ],
+    [
+      "set",
+      "viewport",
+      "1280",
+      "720"
+    ]
+  ],
+  "expect": [
+    {
+      "text": "Live app only"
+    },
+    {
+      "text": "People install the project and save changes from the live app."
+    }
+  ]
+}

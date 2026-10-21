@@ -30,13 +30,13 @@ The install record names no branch, so the test install's later updates follow t
 Ask first: the install makes billable resources in a real Cloudflare account.
 
 1. Setup, on a machine without the tool the change claims not to need. A machine that already has `gh` or Docker proves nothing about skipping them.
-2. A save: the checks pass, and the preview turns a signed-out visitor away (`node scripts/probe-private-access.mjs --url <preview>`).
+2. A save: the checks pass, and the preview turns a signed-out visitor away (`node scripts/probe-private-access.mjs --url <preview> --preview`).
 3. A deliberately failing test: it comes back failed, with no preview.
 4. *Publish it?*, then the live site. Read the live page twice: for a few seconds after a deploy it can still serve the previous version.
 5. A second change from the new `main`.
 6. A teammate's Connect, **under a separate `HOME`**. A saved sign-in to the same Cloudflare login connects silently as the owner, and proves nothing about a teammate.
-   It needs a person: the connection tool takes only a signed-in person's session, so the checker can not install through Connect. To try [a save through the app](../stack/employee-project.md#save-a-change-through-the-app) alone, clone and save against the install's preview app with [the checker standing in](../stack/employee-access.md#the-checker-on-a-preview), after `npm run db:reset:staging`: a new install's preview database holds no people, and the app answers `code_unavailable` until it does.
-7. Each step an update runs alone, such as [`provision.mjs access`](../../.agents/skills/wong-setup/scripts/provision.mjs), against the real account, then `node scripts/cf-secrets.mjs check`. A step that stores a key in the live app but not the preview app passes its fake-Cloudflare tests and then fails [the parity check](../stack/staging-bindings.md#what-the-gate-can-and-cant-see) on every branch.
+   It needs a person: the connection tool takes only a signed-in person's session, so the checker can not install through Connect. [A save through the app](../stack/employee-project.md#save-a-change-through-the-app) is live-app only, so try it with a person's sign-in on the live app; a preview answers *Live app only*.
+7. Each step an update runs alone, such as [`provision.mjs access`](../../.agents/skills/wong-setup/scripts/provision.mjs), against the real account, then `node scripts/cf-secrets.mjs check`. A step that leaves a live-app-only key on the preview app passes its fake-Cloudflare tests and then fails [the parity check](../stack/staging-bindings.md#what-the-gate-can-and-cant-see) on every branch.
 
 Run it once from this machine, fix what breaks, then have the owner run it by hand on a Mac. Their chat log is the best review of the install wording: read it for retries, steps written by hand, and anything the assistant had to work around.
 

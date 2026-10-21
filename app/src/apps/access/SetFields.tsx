@@ -45,7 +45,7 @@ export function SetFields({ status, set, onChange, person }: { status: Status; s
         <Tick checked={set.keys.code === 'write'} disabled={!installs} onChange={to => code(to ? 'write' : 'read')}>Can publish</Tick>
         <p className="text-sm text-muted-foreground">Their changes go live once the checks pass.</p>
       </>}
-      {installs && <ProjectStep status={status} />}
+      {(installs || status.project === 'live') && <ProjectStep status={status} />}
     </Group>}
   </>
 }

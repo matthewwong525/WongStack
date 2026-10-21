@@ -163,8 +163,7 @@ async function runOnce({ run, reference, framing, agentCmd, out, key, exercise, 
     if (framing === 'builder') cpSync(join(FIXTURE, 'build-notes.md'), join(work, NOTES));
     // The site needs no Access headers, and the runner would send any it finds.
     const env = { ...process.env, RUN_DIR: runDir, URL: site.url };
-    delete env.CF_ACCESS_CLIENT_ID;
-    delete env.CF_ACCESS_CLIENT_SECRET;
+    for (const key of ['CF_ACCESS_CLIENT_ID', 'CF_ACCESS_CLIENT_SECRET', 'CF_ACCESS_STAGING_CLIENT_ID', 'CF_ACCESS_STAGING_CLIENT_SECRET']) delete env[key];
     const started = Date.now();
     const options = { reference, url: site.url, runDir, framing };
     const stdout = await runAgent(agentCmd, { cwd: work, env, input: exercise === 'mixed' ? mixedPrompt(options) : prompt(options) });

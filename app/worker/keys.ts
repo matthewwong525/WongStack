@@ -21,6 +21,8 @@ type Key = {
   levels?: readonly ["read"] | readonly ["read", "write"];
   /** Setup makes this key itself, so no private link is sent for it. */
   setup?: true;
+  /** Only the live app may ever hold it: branch code runs on previews. */
+  liveOnly?: true;
   /** The Worker's own route uses it, so it works with no app and no route lists it. */
   alone?: true;
   /** Bindings that go with the key: a route that does not list the key is handed none of them. */
@@ -32,10 +34,11 @@ type Key = {
 export const keys = {
   // Look-ups only, so Read is the one level. wiki/stack/company-api.md#look-things-up-in-cloudflare
   cloudflare: { title: "Cloudflare", purpose: "Look up this account's Workers, databases, logs and usage",
-    docs: "https://developers.cloudflare.com/api/", secrets: ["WONG_CLOUDFLARE_READ"], levels: ["read"], setup: true },
+    docs: "https://developers.cloudflare.com/api/", secrets: ["WONG_CLOUDFLARE_READ"], levels: ["read"], setup: true, liveOnly: true },
   // The project, through /api/access/code/ only: Read installs and saves, Write also publishes. Either secret reads,
   // the second saves and publishes; on Cloudflare ARTIFACTS stands in for both. wiki/stack/employee-project.md
-  code: { title: "Project code", purpose: "This project's own code, to install it and save changes", secrets: ["WONG_CODE_READ", "WONG_CODE_WRITE"], levels: ["read", "write"], alone: true, bindings: ["ARTIFACTS", "CODE_CHECKS"] },
+  code: { title: "Project code", purpose: "This project's own code, to install it and save changes", secrets: ["WONG_CODE_READ", "WONG_CODE_WRITE"], levels: ["read", "write"], alone: true, bindings: ["ARTIFACTS", "CODE_CHECKS"],
+    liveOnly: true },
   // Add a key as: stripe: { title: "Stripe", purpose: "Payments and refunds", secrets: ["STRIPE_SECRET_KEY"] },
   // Direct use adds `forward` and `docs: "https://docs.stripe.com/api"`: wiki/stack/company-api.md#use-a-key-directly
 } as const satisfies Record<string, Key>;

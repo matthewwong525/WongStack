@@ -30,14 +30,15 @@ export function privateDeployment(config, environment = 'production') {
 const escapePattern = value => value.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replaceAll('*', '.*');
 const hostMatches = (pattern, host) => new RegExp(`^${escapePattern(pattern)}$`, 'i').test(host);
 
-/** Any overlapping higher-precedence app needs review, regardless of its policy's current decision. */
-export function accessConflicts(apps, workers, subdomain, ownedId) {
+/** Any overlapping higher-precedence app needs review, regardless of its policy's current decision. `owned` lists
+ * this install's own app ids, which never conflict with each other. */
+export function accessConflicts(apps, workers, subdomain, owned) {
   const hosts = workers.flatMap(worker => [
     `${worker.name}.${subdomain}.workers.dev`,
     ...(worker.references?.domains ?? []).map(domain => domain.hostname),
     ...(worker.routes ?? []).map(route => route.pattern.replace(/^https?:\/\//, '').split('/')[0]),
   ]);
-  return apps.filter(app => app.id !== ownedId && [
+  return apps.filter(app => !owned.includes(app.id) && [
     ...(app.destinations ?? []), ...(app.domain ? [{ type: 'public', uri: app.domain }] : []),
   ].some(destination => {
     if (['worker', 'preview_worker'].includes(destination.type)) return workers.some(worker => worker.id === destination.worker_id);

@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 44.0.0 — Previews get their own sign-in and keys
+
+- **A preview can't act as the live app.** Previews run changes nobody has published yet, so they now have their own private app. A sign-in made on a preview no longer opens the live app, its memory or its keys. The same people sign in to both: when you add or remove someone in Access, both lists change together.
+- **Previews hold only their own keys.** The live app's keys no longer reach previews. Previews load only `app/.dev.vars.staging`, for test keys such as a payment test key; with no such file they hold none, and the save names what they lack. A file that copies a live key's value, or names a live-app-only key, is refused.
+- **Saving changes and Cloudflare look-ups are live-app only.** Access on a preview shows *Live app only* for Project code and Cloudflare, and a business key a preview lacks says *Not on previews yet*.
+- **The preview checker has its own pass,** saved as `CF_ACCESS_STAGING_CLIENT_ID` and `CF_ACCESS_STAGING_CLIENT_SECRET` in `.env`. The live checker no longer opens previews.
+- **A preview still on the live app's sign-in stops publishing.** The live app keeps publishing, with a warning that names the step below.
+
+**Updating.** Three steps, in this order. First publish the update: the live app publishes as before, and previews pause. Then run setup's Access step once, as [Finish Access setup](wiki/stack/employee-access.md#finish-access-setup) says. It makes the previews' own private app with your people and login methods on it, and moves previews onto it. It leaves previews holding only the test keys in `app/.dev.vars.staging`, none without that file; the live app keeps all its keys. Then publish the settings change the step made, and previews come back. Run the step after the update is live, not before: the step changes the live app's key for managing people, and the old live app can't read the new one. Until the step runs, saving a key fills the live app and leaves previews as they are. The keys previews held were open to unpublished changes, and preview links made before keep their copies until each key changes: rotate your GitHub key, and every business key previews held, which the step's report names. The step changes the read-only Cloudflare key itself.
+
 ## 43.20.1 — Note how Paseo opens a saved branch
 
 - **The tools page says how a new workspace on a saved branch starts.** Paseo uses the branch already on your computer and runs that branch's own setup without asking, which is why a teammate's change is reviewed before it opens.

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** Load the Worker's runtime secrets into both Workers, and check they agree: wiki/stack/staging-bindings.md */
+/** Load each Worker's secrets from its own file; check previews hold only theirs: wiki/stack/staging-bindings.md */
 
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -13,17 +13,17 @@ import {
   repoRoot,
   WranglerConfigError,
 } from "./lib-wrangler-config.mjs";
-import { primaryRoot } from "../.claude/skills/memory/scripts/lib/primary-root.mjs";
 import { parseCli, usageError } from "./lib-cli.mjs";
+import { PRODUCTION_ONLY_SECRETS, SOURCE, STAGING_SOURCE, readKeyNames, secretsDir as findSecretsDir, stagingKeeps } from "./lib-staging-secrets.mjs";
 
 const STAGING_ENV = "staging";
-// Setup stores the sign-in list key on the production Worker alone; no file here holds it.
-const PRIVATE_ACCESS = new Set(["WONG_ACCESS_LOGIN_MANAGEMENT"]);
-// Setup stores the read-only Cloudflare key itself, on staging only when Cloudflare takes it; no file holds it.
+// Setup stores the read-only Cloudflare key itself; no file holds it.
 const SETUP_MADE = "WONG_CLOUDFLARE_READ";
+// What wrangler prints when the Worker asked about does not exist yet.
+const NO_WORKER = /\b10007\b|does not exist/i;
+// The step that splits the sign-in and clears the live app's keys from staging.
+const ACCESS_STEP = "run setup's Access step (wiki/stack/employee-access.md#finish-access-setup)";
 
-/** The file the Worker's runtime secrets are declared in. */
-const SOURCE = ".dev.vars";
 /** Committed, values blank — the reviewable list of expected key names. */
 const EXAMPLE = ".dev.vars.example";
 
@@ -72,26 +72,14 @@ function readConfigOrNull(configPath) {
   }
 }
 
-/** The KEY names in a dotenv file. Values are dropped here, so nothing downstream can print them. */
-function readKeyNames(file) {
-  const names = [];
-  for (const rawLine of readFileSync(file, "utf8").split(/\r?\n/)) {
-    const line = rawLine.trim();
-    if (!line || line.startsWith("#")) continue;
-    const match = line.match(/^(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=/);
-    if (match) names.push(match[1]);
-  }
-  return names;
-}
-
-/** Each KEY with a digest of its value, for `shared`. One pair of matching quotes is dropped before hashing. */
+/** Each KEY with a digest of its value, for `shared` and `push`. One pair of matching quotes is dropped first. */
 function readKeyDigests(file) {
   const digests = new Map();
   for (const rawLine of readFileSync(file, "utf8").split(/\r?\n/)) {
     const match = rawLine.trim().match(/^(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=(.*)$/);
     if (!match || rawLine.trim().startsWith("#")) continue;
     const value = match[2].trim().replace(/^(["'])(.*)\1$/, "$2");
-    digests.set(match[1], createHash("sha256").update(value).digest("hex"));
+    digests.set(match[1], value ? createHash("sha256").update(value).digest("hex") : "");
   }
   return digests;
 }
@@ -104,15 +92,17 @@ function wrangler(args, { cwd, capture = false }) {
   });
 }
 
-// The secret NAMES held by one environment. Retries without `--format json` for an older wrangler.
-// Returns null when unreadable: an empty list would claim a parity nobody observed.
+// The secret NAMES one environment holds, retrying without `--format json` for an older wrangler. Null when unreadable,
+// as an empty list would claim a parity nobody observed; `missing` when the Worker does not exist yet.
 function readSecretNames(appDir, env) {
   const base = ["secret", "list", ...(env ? ["--env", env] : [])];
+  let missing = false;
   for (const args of [[...base, "--format", "json"], base]) {
     let raw;
     try {
       raw = wrangler(args, { cwd: appDir, capture: true });
-    } catch {
+    } catch (error) {
+      if (NO_WORKER.test(`${error.stdout ?? ""}${error.stderr ?? ""}`)) missing = true;
       continue;
     }
     try {
@@ -124,7 +114,7 @@ function readSecretNames(appDir, env) {
       // Fall through to the next attempt.
     }
   }
-  return null;
+  return missing ? "missing" : null;
 }
 
 function guardSourceFile(file) {
@@ -163,19 +153,9 @@ function guardSourceFile(file) {
 // The folder to read `.dev.vars` from: a linked worktree with no copy reads the primary checkout's.
 // A local copy always wins.
 function secretsDir(appDir) {
-  if (existsSync(resolve(appDir, SOURCE))) return appDir;
-  let primary;
-  try {
-    ({ primary } = primaryRoot(appDir));
-  } catch {
-    return appDir;
-  }
-  const primaryDir = resolve(primary, relative(repoRoot, appDir));
-  if (primaryDir === appDir || !existsSync(resolve(primaryDir, SOURCE))) return appDir;
-  console.log(
-    `cf-secrets: no ${SOURCE} in this worktree — reading the primary checkout's ${resolve(primaryDir, SOURCE)}`,
-  );
-  return primaryDir;
+  const { dir, primary } = findSecretsDir(appDir, repoRoot);
+  if (primary) console.log(`cf-secrets: no ${SOURCE} in this worktree — reading the primary checkout's ${resolve(dir, SOURCE)}`);
+  return dir;
 }
 
 function push(appDir, override) {
@@ -197,61 +177,22 @@ function push(appDir, override) {
   }
   guardSourceFile(source);
 
-  // Staging falls back to the same file, so both Workers match by default; `.dev.vars.staging` overrides it.
-  const stagingSource = resolve(dir, `${SOURCE}.${STAGING_ENV}`);
-  const targets = [
-    { env: null, label: "production", file: source },
-    {
-      env: STAGING_ENV,
-      label: STAGING_ENV,
-      file: !override && existsSync(stagingSource) ? stagingSource : source,
-    },
-  ];
-
-  // Validate BOTH files/config before the first provider write; no partial push
-  // can leak production login-management authority into a preview.
+  // Validate both files and the config before the first provider write: no partial push reaches a preview.
   const config = parseConfig(findWranglerConfig());
-  const stagingBindings = [...bindingsIn(config.env?.[STAGING_ENV]).values()].flat();
-  if (stagingBindings.some(name => PRIVATE_ACCESS.has(name))) fail("staging must omit private Access management bindings.");
-  for (const target of targets) {
-    guardSourceFile(target.file);
-    const names = readKeyNames(target.file);
-    if (names.length === 0) {
-      fail(`${basename(target.file)} declares no keys — refusing to push.`);
-    }
-    if (target.env === STAGING_ENV && names.some(name => PRIVATE_ACCESS.has(name))) {
-      fail("staging secret source must omit private Access management bindings; create a separate .dev.vars.staging before any push.");
-    }
-    if (names.includes(SETUP_MADE)) {
-      fail(`${basename(target.file)} must not declare ${SETUP_MADE}: setup stores it itself. Remove the line and re-run.`);
-    }
-    // `secret bulk` takes at most 100 per call. Far beyond any realistic repo,
-    // but say so rather than letting a truncated load look like a success.
-    if (names.length > 100) {
-      fail(
-        `${basename(target.file)} declares ${names.length} keys; \`wrangler secret bulk\` accepts at most 100 per call.`,
-      );
-    }
-    // Fatal, not a warning: pushing a Cloudflare account credential anyway is what this script exists to stop.
-    const suspicious = names.filter((n) => SUSPICIOUS_KEY.test(n));
-    if (suspicious.length > 0) {
-      const many = suspicious.length > 1;
-      console.error(
-        `cf-secrets: ERROR — ${basename(target.file)} declares ${suspicious
-          .map((n) => `'${n}'`)
-          .join(", ")}, which ${many ? "look" : "looks"} like ${
-          many ? "Cloudflare account credentials" : "a Cloudflare account credential"
-        }.`,
-      );
-      console.error(
-        `cf-secrets: A Worker must not hold ${many ? "them" : "one"} — move ${
-          many ? "them" : "it"
-        } to .env and re-run.`,
-      );
-      process.exit(1);
-    }
+  // Staging loads only its own file; with none it holds no key. An explicit file loads production alone. Until the
+  // Access step gives previews their own sign-in, staging is left as it is: that step names what it held for rotation.
+  const unsplit = !override && accessShared(config);
+  const stagingSource = resolve(dir, STAGING_SOURCE);
+  const stagingFile = !override && !unsplit && existsSync(stagingSource) ? stagingSource : null;
+  const targets = [{ env: null, label: "production", file: source }];
+  if (stagingFile) targets.push({ env: STAGING_ENV, label: STAGING_ENV, file: stagingFile });
 
-  }
+  const stagingBindings = [...bindingsIn(config.env?.[STAGING_ENV]).values()].flat();
+  const configured = stagingBindings.filter((name) => PRODUCTION_ONLY_SECRETS.has(name));
+  if (configured.length > 0) fail(`env.${STAGING_ENV} must not name ${configured.join(", ")}: only the live app may hold ${configured.length > 1 ? "them" : "it"}.`);
+  for (const target of targets) validateSource(target.file);
+  if (stagingFile) validateStagingSource(stagingFile, source);
+
   for (const target of targets) {
     const names = readKeyNames(target.file);
     console.log(
@@ -262,8 +203,96 @@ function push(appDir, override) {
       { cwd: appDir },
     );
   }
+  if (override) {
+    console.log(`cf-secrets: production loaded from ${basename(source)}; ${STAGING_ENV} left as it was`);
+    return;
+  }
+  if (unsplit) {
+    console.log(`cf-secrets: production loaded; ${STAGING_ENV} left as it was, as previews still share the live app's sign-in: ${ACCESS_STEP}, which removes the live app's keys from previews and names those to change`);
+    return;
+  }
 
+  const kept = stagingKeeps(dir);
+  pruneStaging(appDir, kept);
+  const lacking = readKeyNames(source).filter((name) => !kept.includes(name));
+  if (!stagingFile) console.log(`cf-secrets: ${STAGING_ENV} — no ${basename(stagingSource)}; previews hold none of: ${lacking.join(", ")}`);
+  else if (lacking.length > 0) console.log(`cf-secrets: ${STAGING_ENV} — previews lack: ${lacking.join(", ")}`);
   console.log("cf-secrets: both Workers loaded");
+}
+
+/** Refuses a source file any Worker would be wrong to hold. Exits before any write. */
+function validateSource(file) {
+  guardSourceFile(file);
+  const names = readKeyNames(file);
+  if (names.length === 0) {
+    fail(`${basename(file)} declares no keys — refusing to push.`);
+  }
+  if (names.includes(SETUP_MADE)) {
+    fail(`${basename(file)} must not declare ${SETUP_MADE}: setup stores it itself. Remove the line and re-run.`);
+  }
+  // `secret bulk` takes at most 100 per call. Far beyond any realistic repo,
+  // but say so rather than letting a truncated load look like a success.
+  if (names.length > 100) {
+    fail(
+      `${basename(file)} declares ${names.length} keys; \`wrangler secret bulk\` accepts at most 100 per call.`,
+    );
+  }
+  // Fatal, not a warning: pushing a Cloudflare account credential anyway is what this script exists to stop.
+  const suspicious = names.filter((n) => SUSPICIOUS_KEY.test(n));
+  if (suspicious.length > 0) {
+    const many = suspicious.length > 1;
+    console.error(
+      `cf-secrets: ERROR — ${basename(file)} declares ${suspicious
+        .map((n) => `'${n}'`)
+        .join(", ")}, which ${many ? "look" : "looks"} like ${
+        many ? "Cloudflare account credentials" : "a Cloudflare account credential"
+      }.`,
+    );
+    console.error(
+      `cf-secrets: A Worker must not hold ${many ? "them" : "one"} — move ${
+        many ? "them" : "it"
+      } to .env and re-run.`,
+    );
+    process.exit(1);
+  }
+}
+
+/** Refuses a staging file that hands previews a live-app key: a production-only name, or production's value. */
+function validateStagingSource(file, productionFile) {
+  const own = readKeyNames(file).filter((name) => PRODUCTION_ONLY_SECRETS.has(name));
+  if (own.length > 0) {
+    fail(`${basename(file)} must not declare ${own.join(", ")}: only the live app may hold ${own.length > 1 ? "them" : "it"}. Remove the line and re-run.`);
+  }
+  const production = readKeyDigests(productionFile);
+  const copied = [...readKeyDigests(file)].filter(([name, digest]) => digest && production.get(name) === digest).map(([name]) => name);
+  if (copied.length > 0) {
+    fail(`${basename(file)} repeats production's value for ${copied.join(", ")}: give previews a test key, or leave the line out.`);
+  }
+}
+
+// Removes every staging secret the staging file does not declare; a delete refused as 10215 (a newer preview is
+// uploaded) retries as a new version, and any other failure stops the push before it claims success.
+function pruneStaging(appDir, kept) {
+  const held = readSecretNames(appDir, STAGING_ENV);
+  if (held === "missing") {
+    console.log(`cf-secrets: ${STAGING_ENV} — no ${STAGING_ENV} Worker yet, so it holds nothing to remove; the first preview publish makes it`);
+    return;
+  }
+  if (!held) fail(`could not read the ${STAGING_ENV} Worker's secret names, so nothing was removed from it. Re-run \`npm run secrets:push\`.`);
+  const extra = held.filter((name) => !kept.includes(name));
+  for (const name of extra) {
+    try {
+      wrangler(["secret", "delete", name, "--env", STAGING_ENV], { cwd: appDir, capture: true });
+    } catch (error) {
+      if (!`${error.stdout ?? ""}${error.stderr ?? ""}`.includes("10215")) fail(`could not remove '${name}' from ${STAGING_ENV}. Re-run \`npm run secrets:push\`.`);
+      try {
+        wrangler(["versions", "secret", "delete", name, "--env", STAGING_ENV], { cwd: appDir, capture: true });
+      } catch {
+        fail(`could not remove '${name}' from ${STAGING_ENV}, even as a new version. Re-run \`npm run secrets:push\`.`);
+      }
+    }
+  }
+  if (extra.length > 0) console.log(`cf-secrets: ${STAGING_ENV} — removed ${extra.length} secret(s) its file does not declare: ${extra.join(", ")}`);
 }
 
 // Session memory binds only the production Worker (MEMORY_DB, MEMORY_BUCKET):
@@ -317,7 +346,7 @@ function checkBindings(config) {
   for (const [key, names] of production) {
     const present = stagingBindings.get(key) ?? [];
     for (const name of names) {
-      if (!present.includes(name) && !name.startsWith(PRODUCTION_ONLY) && !PRIVATE_ACCESS.has(name)) {
+      if (!present.includes(name) && !name.startsWith(PRODUCTION_ONLY) && !PRODUCTION_ONLY_SECRETS.has(name)) {
         problems.push(
           `\`${key}\` binding '${name}' is declared at the top level but absent from env.${STAGING_ENV} — an environment inherits no binding it does not redeclare, so staging simply does not have it.`,
         );
@@ -326,7 +355,7 @@ function checkBindings(config) {
   }
 
   for (const names of stagingBindings.values()) {
-    for (const name of names) if (PRIVATE_ACCESS.has(name)) problems.push(`staging binding '${name}' contains private Access management authority; remove it.`);
+    for (const name of names) if (PRODUCTION_ONLY_SECRETS.has(name)) problems.push(`staging binding '${name}' is a live-app-only authority, such as private Access management; remove it.`);
   }
   problems.push(...checkQueueConsumers(config, staging));
 
@@ -369,8 +398,15 @@ function checkQueueConsumers(config, staging) {
   return problems;
 }
 
-/** Worker-against-Worker secret name parity. Returns failures. */
-function checkSecrets(appDir) {
+/** True while both environments still name one Access app or audience: the Access step has not split them yet. */
+function accessShared(config) {
+  const live = config?.vars ?? {};
+  const staging = config?.env?.[STAGING_ENV]?.vars ?? {};
+  return ["CF_ACCESS_APP_ID", "CF_ACCESS_AUD"].some((name) => live[name] && live[name] === staging[name]);
+}
+
+/** Staging holds only names production declares, and no live-app-only key. Returns failures. */
+function checkSecrets(appDir, config) {
   if (!process.env.CLOUDFLARE_API_TOKEN) {
     console.log(
       "cf-secrets: no CLOUDFLARE_API_TOKEN — skipping the secret comparison (repo not provisioned yet)",
@@ -380,7 +416,7 @@ function checkSecrets(appDir) {
 
   const production = readSecretNames(appDir, null);
   const staging = readSecretNames(appDir, STAGING_ENV);
-  if (!production || !staging) {
+  if (!Array.isArray(production) || !Array.isArray(staging)) {
     warn(
       "could not read secret names from wrangler — skipping the secret comparison rather than reporting a parity that was not observed.",
     );
@@ -391,15 +427,15 @@ function checkSecrets(appDir) {
   for (const name of new Set([...production, ...staging])) {
     if (name === 'SKIP_AUTH' || name === 'WONG_ENVIRONMENT') problems.push(`secret '${name}' overrides deployed authentication configuration; remove it before deploying.`);
   }
-  for (const name of production) {
-    if (staging.includes(name) || PRIVATE_ACCESS.has(name)) continue;
-    // Cloudflare stores no secret on staging while a newer preview is uploaded, so setup may leave this waiting.
-    if (name === SETUP_MADE) console.log(`cf-secrets: '${name}' is on production only — the preview is waiting for it`);
-    else problems.push(`secret '${name}' is set on production but missing from ${STAGING_ENV}.`);
-  }
+  // Previews get only the keys their own file gives them, so a key missing there is expected, not drift.
+  const lacking = production.filter((name) => !staging.includes(name) && !PRODUCTION_ONLY_SECRETS.has(name));
+  if (lacking.length > 0) console.log(`cf-secrets: previews lack ${lacking.join(", ")}`);
+  // An install not yet split still holds its old copies: the live app keeps publishing until the Access step runs.
+  const split = !accessShared(config);
   for (const name of staging) {
-    if (PRIVATE_ACCESS.has(name)) problems.push(`secret '${name}' must never be set on staging; remove it.`);
-    if (!production.includes(name)) {
+    if (PRODUCTION_ONLY_SECRETS.has(name) && split) problems.push(`secret '${name}' must never be set on staging; remove it.`);
+    else if (PRODUCTION_ONLY_SECRETS.has(name)) warn(`secret '${name}' is still on staging, where only the live app may hold it: ${ACCESS_STEP}, which removes it.`);
+    else if (!production.includes(name)) {
       problems.push(`secret '${name}' is set on ${STAGING_ENV} but missing from production.`);
     }
   }
@@ -416,16 +452,16 @@ function checkSecrets(appDir) {
       }
     }
     for (const name of held) {
-      // Setup stores its two keys itself, so the example file never lists them.
-      if (!declared.includes(name) && !PRIVATE_ACCESS.has(name) && name !== SETUP_MADE) {
+      // Setup stores its keys itself, so the example file need not list them.
+      if (!declared.includes(name) && !PRODUCTION_ONLY_SECRETS.has(name)) {
         warn(`secret '${name}' is set but not declared in ${EXAMPLE}.`);
       }
     }
   }
 
-  if (problems.length === 0) {
+  if (problems.length === 0 && !staging.some((name) => PRODUCTION_ONLY_SECRETS.has(name))) {
     console.log(
-      `cf-secrets: secret names match across both Workers (${production.length} secret(s))`,
+      `cf-secrets: staging holds only its own keys (${staging.length} of production's ${production.length} name(s))`,
     );
   }
   return problems;
@@ -434,21 +470,19 @@ function checkSecrets(appDir) {
 function check(appDir, configPath) {
   // The binding half needs no credential, so it runs even on an unprovisioned
   // repo — that much signal is available before provisioning.
-  const problems = [
-    ...checkBindings(readConfigOrNull(configPath)),
-    ...checkSecrets(appDir),
-  ];
+  const config = readConfigOrNull(configPath);
+  const problems = [...checkBindings(config), ...checkSecrets(appDir, config)];
 
   if (problems.length > 0) {
     console.error("");
     console.error(
-      `cf-secrets: ERROR — production and ${STAGING_ENV} have drifted:`,
+      `cf-secrets: ERROR — ${STAGING_ENV} does not match what it may hold:`,
     );
     for (const problem of problems) console.error(`cf-secrets:   • ${problem}`);
     console.error("cf-secrets:");
     const source = relative(repoRoot, resolve(secretsDir(appDir), SOURCE));
     console.error(
-      `cf-secrets: Run \`npm run secrets:push\` to load both Workers from ${source},`,
+      `cf-secrets: Run \`npm run secrets:push\` to load each Worker from its own file (${source}, and ${basename(source)}.${STAGING_ENV} for previews),`,
     );
     console.error(
       `cf-secrets: or redeclare the missing binding inside env.${STAGING_ENV}.`,
@@ -464,7 +498,7 @@ function check(appDir, configPath) {
 }
 
 // Which keys staging holds with its own value, and which with production's. A key the staging file
-// leaves out is in neither list: `push` loads staging from that file alone.
+// leaves out is in neither list: `push` loads staging from that file alone, and from nothing without one.
 function shared(appDir) {
   const dir = secretsDir(appDir);
   const source = resolve(dir, SOURCE);
@@ -473,8 +507,7 @@ function shared(appDir) {
   if (!existsSync(source)) {
     console.log(`cf-secrets: no ${relative(repoRoot, source)} on this machine — no key to compare`);
   } else if (!existsSync(stagingSource)) {
-    console.log(`cf-secrets: read ${relative(repoRoot, source)}; no ${basename(stagingSource)}, so staging holds production's value for every key`);
-    lists.shared = readKeyNames(source);
+    console.log(`cf-secrets: read ${relative(repoRoot, source)}; no ${basename(stagingSource)}, so previews hold no keys`);
   } else {
     console.log(`cf-secrets: read ${relative(repoRoot, source)} and ${basename(stagingSource)}`);
     const production = readKeyDigests(source);
@@ -490,12 +523,15 @@ function shared(appDir) {
 const USAGE = [
   "usage: node scripts/cf-secrets.mjs <push|check|shared> [file]",
   "",
-  `  push   load ${SOURCE} into the production and staging Workers`,
-  "  check  fail if the two Workers' secrets or bindings disagree",
+  `  push   load ${SOURCE} into production and ${SOURCE}.${STAGING_ENV} into staging, removing`,
+  "         every other staging key; with no staging file, staging holds none. While previews",
+  "         still share the live app's sign-in, staging is left as it is",
+  "  check  fail if staging holds a key production lacks or only the live app may hold,",
+  "         or a binding is not twinned; list the keys previews lack",
   "  shared list key names only: `own` when staging has its own value, `shared` when it has production's",
   "",
-  `  [file] push only: read a file other than ${SOURCE}. Account-credential`,
-  "         files such as .env are refused.",
+  `  [file] push only: load production from a file other than ${SOURCE}, leaving`,
+  "         staging as it is. Account-credential files such as .env are refused.",
 ].join("\n");
 const [mode, file, ...extra] = parseCli({ usage: USAGE, allowPositionals: true }).positionals;
 if (!["push", "check", "shared"].includes(mode) || extra.length || (file && mode !== "push")) usageError(USAGE);

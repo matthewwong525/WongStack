@@ -264,3 +264,76 @@ it("does not accept email-only readback when the provider drops an approval cont
   await reconcileLogin(f.core, "policy");
   expect(work()).toMatchObject({ status: "failed", error_code: "login_policy_readback_pending" });
 });
+
+// A split install: the previews app has its own id and people policy, served by a second fake.
+const previews = { appId: "dddddddd-dddd-4ddd-8ddd-dddddddddddd", policyId: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee" };
+const previewsRoot = `https://api.cloudflare.com/client/v4/accounts/${site.accountId}/access/apps/${previews.appId}`;
+function split(version = 3) {
+  const fake = cloudflare();
+  fake.state.app = { ...fake.state.app, id: previews.appId, aud: "previews-app", destinations: [{ type: "worker", worker_id: "worker-staging" }] };
+  fake.state.policy = { ...fake.state.policy, id: previews.policyId };
+  f.env.WONG_ACCESS_LOGIN_MANAGEMENT = JSON.stringify({ ...JSON.parse(key), version, ...(version === 3 && { staging: previews }) });
+  fetch.mockImplementation(async (url: string, init: RequestInit) => (url.startsWith(previewsRoot) ? fake.fetch : original)(url, init));
+  return fake;
+}
+
+it("reads a version 3 key only with its previews app, and refuses any other shape", () => {
+  split();
+  expect(loginAuthority(f.env)).toEqual({ ...JSON.parse(key), version: 3, staging: previews });
+  for (const value of [{ version: 3 }, { version: 2, staging: previews }, { version: 3, staging: { ...previews, appId: "../other" } },
+    { version: 3, staging: { ...previews, policyId: "a/b" } }, { version: 3, staging: { ...previews, aud: "extra" } }]) {
+    expect(loginAuthority({ ...f.env, WONG_ACCESS_LOGIN_MANAGEMENT: JSON.stringify({ ...JSON.parse(key), ...value }) })).toBeNull();
+  }
+});
+
+it("mirrors the sign-in list to the previews app, reads both back, and revokes both", async () => {
+  const { state: staging, fetch: previewsFetch } = split();
+  await hold(); await add();
+  await reconcileLogin(f.core, "policy");
+  expect([cf.writes, staging.writes].map(writes => writes.map(write => write.include)))
+    .toEqual([[[{ email: { email: employee.id } }, { email: { email: "new@example.com" } }, ...owners]], [[{ email: { email: employee.id } }, { email: { email: "new@example.com" } }, ...owners]]]);
+  expect(staging.writes[0]).not.toHaveProperty("id");
+  expect(fetch.mock.calls.filter(([, init]) => init.method === "PUT").map(([url]) => url))
+    .toEqual([`${root}/policies/${site.accessPolicyId}`, `${previewsRoot}/policies/${previews.policyId}`]);
+  expect(work()).toMatchObject({ status: "ready", outcome: "policy_readback_matches" });
+  await remove("new@example.com");
+  await reconcileLogin(f.core, "sessions");
+  expect(fetch.mock.calls.filter(([url]) => url.endsWith("/revoke_tokens")).map(([url]) => url))
+    .toEqual([`${root}/revoke_tokens`, `${previewsRoot}/revoke_tokens`]);
+  // The live list matching is not enough: the previews list must read back the same.
+  fetch.mockImplementation(async (url: string, init: RequestInit) => {
+    if (!url.startsWith(previewsRoot)) return original(url, init);
+    const response = await previewsFetch(url, init);
+    if (init.method === "PUT") staging.policy.include = owners.concat({ email: { email: "new@example.com" } });
+    return response;
+  });
+  await reconcileLogin(f.core, "policy");
+  expect(work()).toMatchObject({ status: "failed", error_code: "login_policy_readback_pending" });
+});
+
+it("refuses a previews app with another id or an extra admission, before writing either list", async () => {
+  const staging = split().state;
+  await hold(); await add();
+  staging.app = { ...staging.app, id: "ffffffff-ffff-4fff-8fff-ffffffffffff" };
+  await reconcileLogin(f.core, "policy");
+  expect(work()).toMatchObject({ status: "failed", error_code: "login_resource_mismatch" });
+  staging.app = { ...staging.app, id: previews.appId };
+  for (const extra of [{ id: "extra", decision: "allow", include: [{ everyone: {} }] }, { id: "extra", decision: "bypass", include: [] }]) {
+    staging.extras = [extra];
+    await reconcileLogin(f.core, "policy");
+    expect(work()).toMatchObject({ status: "failed", error_code: "login_policy_review_required" });
+  }
+  staging.extras = []; staging.policy = { ...staging.policy, reusable: true };
+  await reconcileLogin(f.core, "policy");
+  expect(work()).toMatchObject({ status: "failed", error_code: "login_policy_review_required" });
+  expect([cf.writes, staging.writes]).toEqual([[], []]);
+});
+
+it("touches only the live app's sign-in list with a version 2 key", async () => {
+  const staging = split(2).state;
+  await hold(); await add(); await remove("new@example.com");
+  await reconcileLogin(f.core, "policy"); await reconcileLogin(f.core, "sessions");
+  expect([work(), work("sessions")]).toMatchObject([{ status: "ready" }, { status: "ready" }]);
+  expect([cf.writes.length, staging.writes]).toEqual([1, []]);
+  expect(fetch.mock.calls.every(([url]) => url.startsWith(root))).toBe(true);
+});

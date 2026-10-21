@@ -4,13 +4,15 @@ import { codeSource } from "./code.ts";
 
 export type { Level };
 /** One key as the registry holds it. */
-export type KeyEntry = { title: string; purpose: string; docs?: string; secrets: readonly string[]; levels?: readonly Level[]; setup?: true; alone?: true; bindings?: readonly string[]; forward?: Forward };
+export type KeyEntry = { title: string; purpose: string; docs?: string; secrets: readonly string[]; levels?: readonly Level[]; setup?: true; liveOnly?: true; alone?: true; bindings?: readonly string[]; forward?: Forward };
 const registry: Readonly<Record<string, KeyEntry>> = keys;
 
 export const keyIds = (): string[] => Object.keys(registry);
 export const registered = (id: string): boolean => Object.hasOwn(registry, id);
 export const keyTitle = (id: string): string => registry[id].title;
 export const madeBySetup = (id: string): boolean => registry[id].setup === true;
+/** A key only the live app may hold: a preview never gets it. */
+export const liveOnly = (id: string): boolean => registry[id].liveOnly === true;
 /** A key the Worker's own route uses: it works with no app. */
 export const worksAlone = (id: string): boolean => registry[id].alone === true;
 /** The levels a key offers, lowest first. Every key offers Read. */

@@ -9,13 +9,14 @@ import { isDeepStrictEqual, parseArgs } from 'node:util';
 import { isMain } from '../../memory/scripts/lib/cli.mjs';
 import { machineId, machineIdFile } from '../../memory/scripts/lib/machine-id.mjs';
 import { keyMachine, parseEnv } from '../../memory/scripts/lib/store.mjs';
-import { AccessSetupError, accessExceptions, accessOrganization, cloudflareReadKey, loginManagementKey, ownerIdentity, provisionAccess, provisionAccessPolicies } from './private-access.mjs';
+import { AccessSetupError, CLOUDFLARE_READ_SECRET, accessOrganization, cloudflareReadKey, loginManagementKey, notePreviewKeys, ownerIdentity, provisionAccess, provisionAccessPolicies } from './private-access.mjs';
 import { helperConfig } from '../../save/scripts/artifacts-credential.mjs';
 import {
   CloudflareError, PROPAGATION, ProvisionError, accountPolicy, cloudflare, durableEnv, fillConfig, grant, installRunner, orNull, paidPlan, pending,
   readJson, recordComponent, recordFile, recordedBase, retry, run, scopedToken, stateFile, step, wait, widenBy, workerSecrets, writeJson,
 } from './lib/cloudflare.mjs';
 import { privateDeployment } from '../../../../scripts/lib-access-config.mjs';
+import { secretsDir, stagingKeeps } from '../../../../scripts/lib-staging-secrets.mjs';
 import { parseConfig } from '../../../../scripts/lib-wrangler-config.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -321,6 +322,8 @@ export function wranglerConfig({ base, ids, bucket, access }, fragment = wrangle
     '<access team domain>': access?.teamDomain ?? '',
     '<access audience>': access?.audience ?? '',
     '<access app id>': access?.appId ?? '',
+    '<staging access audience>': access?.staging?.audience ?? '',
+    '<staging access app id>': access?.staging?.appId ?? '',
     '<production Worker id>': access?.workers?.[0]?.id ?? '',
     '<staging Worker id>': access?.workers?.[1]?.id ?? '',
     // The owner Access knows. An open site has no sign-in to know anyone by, so it stays blank there.
@@ -345,14 +348,14 @@ function addBucketBinding(file, bucket) {
   return true;
 }
 
-/** Turns an open config private in place, keeping its comments: fills the four `CF_ACCESS_*` vars and drops
- * `WORKSPACE_LOGIN`. Restores the file and returns false unless the result parses to exactly the private config. */
+/** Turns an open config private in place, keeping its comments: fills each environment's four `CF_ACCESS_*` vars and
+ * drops `WORKSPACE_LOGIN`. Restores the file and returns false unless it parses to exactly the private config. */
 function closeOpenConfig(file, access) {
   const before = readFileSync(file, 'utf8');
   const values = {
     CF_ACCESS_TEAM_DOMAIN: [access.teamDomain, access.teamDomain],
-    CF_ACCESS_AUD: [access.audience, access.audience],
-    CF_ACCESS_APP_ID: [access.appId, access.appId],
+    CF_ACCESS_AUD: [access.audience, access.staging?.audience],
+    CF_ACCESS_APP_ID: [access.appId, access.staging?.appId],
     CF_ACCESS_WORKER_ID: [access.workers?.[0]?.id, access.workers?.[1]?.id],
   };
   let text = before.replace(/^[ \t]*"WORKSPACE_LOGIN"\s*:\s*"[^"\n]*",?[ \t]*\n/gm, '');
@@ -365,8 +368,8 @@ function closeOpenConfig(file, access) {
   try {
     const config = parseConfig(file);
     const [production, staging] = ['production', 'staging'].map((environment) => privateDeployment(config, environment));
-    const expected = (deployment, worker) => deployment.appId === access.appId && deployment.audience === access.audience && deployment.teamDomain === access.teamDomain && deployment.workerId === worker?.id;
-    if (expected(production, access.workers?.[0]) && expected(staging, access.workers?.[1])) return true;
+    const expected = (deployment, app, worker) => deployment.appId === app?.appId && deployment.audience === app?.audience && deployment.teamDomain === access.teamDomain && deployment.workerId === worker?.id;
+    if (expected(production, access, access.workers?.[0]) && expected(staging, access.staging, access.workers?.[1])) return true;
   } catch {
     // Falls through to restore the file.
   }
@@ -374,17 +377,15 @@ function closeOpenConfig(file, access) {
   return false;
 }
 
-/** Sets one text var in production's and staging's vars of an existing config, in place, comments kept.
- * Returns `updated`, `current`, or false when the config has neither place twice. */
+/** Sets one text var in production's and staging's vars of an existing config, in place, comments kept: `value`, or
+ * a `[production, staging]` pair. Returns `updated`, `current`, or false when the config has neither place twice. */
 function setVar(file, name, value) {
   const before = readFileSync(file, 'utf8');
+  const values = Array.isArray(value) ? value : [value, value];
   let seen = 0;
-  const count = (text) => {
-    seen++;
-    return text;
-  };
-  let text = before.replace(new RegExp(`("${name}"\\s*:\\s*)"[^"\\n]*"`, 'g'), (_, head) => count(`${head}"${value}"`));
-  if (!seen) text = before.replace(/^([ \t]*)"WONG_ENVIRONMENT": "(?:production|staging)",[ \t]*$/gm, (line, indent) => count(`${line}\n${indent}"${name}": "${value}",`));
+  const next = () => values[seen++];
+  let text = before.replace(new RegExp(`("${name}"\\s*:\\s*)"[^"\\n]*"`, 'g'), (_, head) => `${head}"${next()}"`);
+  if (!seen) text = before.replace(/^([ \t]*)"WONG_ENVIRONMENT": "(?:production|staging)",[ \t]*$/gm, (line, indent) => `${line}\n${indent}"${name}": "${next()}",`);
   if (seen !== 2) return false;
   if (text === before) return 'current';
   writeFileSync(file, text);
@@ -395,26 +396,32 @@ const setOwnerEmail = (file, email) => setVar(file, 'WONG_OWNER_EMAIL', email);
 /** `owner/name` from a GitHub remote address, or null for any other address. */
 export const githubRepo = (url) => /^(?:https:\/\/github\.com\/|git@github\.com:|ssh:\/\/git@github\.com\/)([A-Za-z0-9-]+\/[A-Za-z0-9._-]+?)(?:\.git)?\/?$/.exec(String(url ?? '').trim())?.[1] ?? null;
 
-// Adds one binding, `entry` under `key`, to production and staging in an existing config, comments kept. Returns
-// `updated`, `current`, or false: no place for both, or other entries under `key` that a second line would hide.
+// Adds one binding, `entry` under `key`, to production alone in an existing config, comments kept, and drops a staging
+// copy: previews never hold the project's write reach. Returns `updated`, `current`, or false with no safe place.
 function addCodeBinding(file, key, entry, comment) {
-  const bound = (config) => Boolean(config?.[key]?.some((each) => Object.entries(entry).every(([name, value]) => each[name] === value)));
-  const blocks = () => {
+  const ours = (each) => Object.entries(entry).every(([name, value]) => each[name] === value);
+  const state = () => {
     const config = parseConfig(file);
-    return [config, config.env?.staging];
+    return { live: Boolean(config[key]?.some(ours)), other: Boolean(config[key] && !config[key].some(ours)), staging: config.env?.staging?.[key] };
   };
-  const both = () => blocks().map(bound);
-  const [production, staging] = both();
-  if (production && staging) return 'current';
-  if (blocks().some((block) => block?.[key] && !bound(block))) return false;
+  const now = state();
+  if (now.live && !now.staging) return 'current';
+  if (now.other || (now.staging && !now.staging.every(ours))) return false;
   const before = readFileSync(file, 'utf8');
   const line = `"${key}": [{ ${Object.entries(entry).map(([name, value]) => `"${name}": "${value}"`).join(', ')} }],`;
   let text = before;
-  if (!production) text = text.replace(/^([ \t]+)"env"\s*:/m, (match, indent) => `${indent}// ${comment} wiki/stack/employee-project.md\n${indent}${line}\n${match}`);
-  if (!staging) text = text.replace(/^([ \t]+)"staging"\s*:\s*\{[ \t]*$/m, (match, indent) => `${match}\n${indent}${indent.startsWith('\t') ? '\t' : indent.slice(indent.length / 2)}${line}`);
+  if (!now.live) text = text.replace(/^([ \t]+)"env"\s*:/m, (match, indent) => `${indent}// ${comment} wiki/stack/employee-project.md\n${indent}${line}\n${match}`);
+  if (now.staging) {
+    const lines = text.split('\n');
+    const start = lines.findIndex((each) => /^\s*"staging"\s*:\s*\{\s*$/.test(each));
+    const at = lines.findIndex((each, index) => start >= 0 && index > start && new RegExp(`^\\s*"${key}"\\s*:\\s*\\[.*\\],?\\s*$`).test(each));
+    if (at >= 0) lines.splice(at, 1);
+    text = lines.join('\n');
+  }
   writeFileSync(file, text);
   try {
-    if (both().every(Boolean)) return 'updated';
+    const after = state();
+    if (after.live && !after.staging) return 'updated';
   } catch {
     // Falls through to restore the file.
   }
@@ -422,8 +429,8 @@ function addCodeBinding(file, key, entry, comment) {
   return false;
 }
 
-// The config half of `projectCode`, calling nothing: the project's name in both Workers' vars and, on Cloudflare,
-// the repository and check-runner bindings. `scripts/check-target-app.mjs` builds an install's config through it.
+// The config half of `projectCode`, calling nothing: the project's name in both Workers' vars and, on Cloudflare, the
+// repository and check-runner bindings on the live app alone. `scripts/check-target-app.mjs` builds configs with it.
 export function codeInConfig(config, repository, artifacts, runner) {
   const named = repository && existsSync(config) ? setVar(config, 'WONG_CODE_REPOSITORY', repository) : false;
   const bound = named && artifacts ? addCodeBinding(config, 'artifacts', { binding: 'ARTIFACTS', namespace: NAMESPACE }, "The project's own repository, which Connect your assistant hands out.") : false;
@@ -434,26 +441,26 @@ export function codeInConfig(config, repository, artifacts, runner) {
 /** The to-do left when a project kept in Cloudflare can be handed out but not yet saved to. */
 const saveTodo = (runner) =>
   runner
-    ? `add the "workflows" binding CODE_CHECKS for the check runner ${runner} to production and staging in app/wrangler.jsonc, so people can save changes through the app, as wiki/stack/employee-project.md describes`
+    ? `add the "workflows" binding CODE_CHECKS for the check runner ${runner} to production alone in app/wrangler.jsonc, so people can save changes through the app, as wiki/stack/employee-project.md describes`
     : 'the install record names no check runner, so people can not save changes through the app yet: run `provision.mjs provision --route artifacts` again, which records it, then `provision.mjs access`';
 
-// Tells the app which project Connect your assistant hands out and whether people can save to it: `status` and
-// `save`, each `ready` or `missing`. Changes nothing that is already right (wiki/stack/employee-project.md).
-async function projectCode(cf, { account, config, repository, artifacts, runner, workers, note, todo }) {
+// Tells the app which project Connect hands out and whether people can save to it: `status` and `save`, each
+// `ready` or `missing`, judged on the live app; changes nothing already right. wiki/stack/employee-project.md
+async function projectCode(cf, { account, config, repository, artifacts, runner, worker, note, todo }) {
   const { named, bound, checks } = codeInConfig(config, repository, artifacts, runner);
   if (named === 'updated') note('updated', 'app/wrangler.jsonc WONG_CODE_REPOSITORY');
   if (bound === 'updated') note('updated', 'app/wrangler.jsonc ARTIFACTS');
   if (checks === 'updated') note('updated', 'app/wrangler.jsonc CODE_CHECKS');
   if (!named || (artifacts && !bound)) {
-    todo.push(`add "WONG_CODE_REPOSITORY"${artifacts ? ` and the "artifacts" binding ARTIFACTS for the ${NAMESPACE} namespace` : ''} to production and staging in app/wrangler.jsonc, as wiki/stack/employee-project.md describes`);
+    todo.push(`add "WONG_CODE_REPOSITORY" to production and staging${artifacts ? `, and the "artifacts" binding ARTIFACTS for the ${NAMESPACE} namespace to production alone,` : ''} in app/wrangler.jsonc, as wiki/stack/employee-project.md describes`);
     return { status: 'missing', save: 'missing' };
   }
   if (artifacts) {
     if (!checks) todo.push(saveTodo(runner));
     return { status: 'ready', save: checks ? 'ready' : 'missing', kept: 'cloudflare', repository };
   }
-  const held = await Promise.all(workers.map((worker) => orNull(() => cf('GET', `/accounts/${account}/workers/scripts/${worker}/secrets`))));
-  const all = (...names) => held.every((list) => list?.some((secret) => names.includes(secret.name)));
+  const held = await orNull(() => cf('GET', `/accounts/${account}/workers/scripts/${worker}/secrets`));
+  const all = (...names) => Boolean(held?.some((secret) => names.includes(secret.name)));
   if (all(CODE_KEY.name)) return { status: 'ready', save: 'ready', kept: 'github', repository };
   return { status: all(CODE_KEY.name, CODE_KEY.read) ? 'ready' : 'missing', save: 'missing', kept: 'github', repository, key: CODE_KEY.name, url: CODE_KEY.url, steps: CODE_KEY.steps(repository) };
 }
@@ -483,7 +490,7 @@ function migrateScripts(dir, n, note) {
   note('updated', 'app/package.json db:migrate scripts');
 }
 
-/** The read-only key's record. `waiting` is replaced whole, so a Worker that has since taken the key drops off it. */
+/** The read-only key's record; an older record's `waiting` list drops off, as staging never takes the key now. */
 const recordReadKey = (dir, key, note) => recordComponent(dir, 'cloudflareReadKey', { waiting: undefined, ...key }, note);
 
 /** The read-only key's two policies: its account groups on the account, its zone groups on every zone in it. */
@@ -612,6 +619,23 @@ async function artifactsDelivery(cf, { account, base, token, groups, buckets, de
   return { route: 'artifacts', remote, runner: n.runner, monthlyCost: 'about $5 a month for Cloudflare\'s paid plan; check runs beyond what the plan includes are billed by use', pullRequests: false };
 }
 
+/** Saves an Access checker token in the primary and this worktree's git-ignored .env, under `prefix`. */
+const accessCredentials = (dir, envFile, exec, env) => async ({ client_id, client_secret }, prefix) => {
+  if (![client_id, client_secret].every(value => typeof value === 'string' && /^[a-zA-Z0-9_.=-]+$/.test(value))) {
+    throw new ProvisionError('access', 'Cloudflare did not return safe verification credentials; run private setup again');
+  }
+  for (const file of new Set([envFile, join(dir, '.env')])) {
+    await step('repo', () => exec('git', ['-C', dirname(file), 'check-ignore', '-q', '.env'], { env }));
+    let text = existsSync(file) ? readFileSync(file, 'utf8') : '';
+    for (const [key, value] of Object.entries({ [`${prefix}_CLIENT_ID`]: client_id, [`${prefix}_CLIENT_SECRET`]: client_secret })) {
+      text = text.split('\n').filter(line => !new RegExp(`^\\s*(?:export\\s+)?${key}\\s*=`).test(line)).join('\n');
+      text = `${text}${text && !text.endsWith('\n') ? '\n' : ''}${key}=${value}\n`;
+    }
+    writeFileSync(file, text, { mode: 0o600 });
+    chmodSync(file, 0o600);
+  }
+};
+
 const hasKey = (env, localId) => keyMachine(env.CLOUDFLARE_MEMORY_TOKEN) === localId;
 
 /** Everything after the one billable ask, under `base`. `keepConfig` leaves an installed repo's committed files alone.
@@ -669,7 +693,7 @@ export async function provision({ token, api, fetch, account, repo, base, route 
   }
   const sub = await step('cloudflare', () => subdomain(cf, account, String(repo).split('/')[0], note));
   if (!open) Object.assign(report.access, await provisionAccess(cf, {
-    account, repo, base, names: n, subdomain: sub, state, checkpoint, note, today,
+    account, appName: `WongStack ${repo} (${base})`, names: n, subdomain: sub, state, checkpoint, note, today,
     adoptExisting: readJson(recordFile(dir))?.components?.memory?.accountId === account
       && readJson(recordFile(dir))?.components?.memory?.worker === `https://${n.worker}.${sub}.workers.dev/_memory`,
   }));
@@ -677,21 +701,7 @@ export async function provision({ token, api, fetch, account, repo, base, route 
   if (!open) report.access = await provisionAccessPolicies(cf, {
     account, ownerEmail: loginEmail, teammateEmails, access: report.access, state, checkpoint, note,
     credentials: readEnv(envFile),
-    saveCredentials: async ({ client_id, client_secret }) => {
-      if (![client_id, client_secret].every(value => typeof value === 'string' && /^[a-zA-Z0-9_.=-]+$/.test(value))) {
-        throw new ProvisionError('access', 'Cloudflare did not return safe verification credentials; run private setup again');
-      }
-      for (const file of new Set([envFile, join(dir, '.env')])) {
-        await step('repo', () => exec('git', ['-C', dirname(file), 'check-ignore', '-q', '.env'], { env }));
-        let text = existsSync(file) ? readFileSync(file, 'utf8') : '';
-        for (const [key, value] of Object.entries({ CF_ACCESS_CLIENT_ID: client_id, CF_ACCESS_CLIENT_SECRET: client_secret })) {
-          text = text.split('\n').filter(line => !new RegExp(`^\\s*(?:export\\s+)?${key}\\s*=`).test(line)).join('\n');
-          text = `${text}${text && !text.endsWith('\n') ? '\n' : ''}${key}=${value}\n`;
-        }
-        writeFileSync(file, text, { mode: 0o600 });
-        chmodSync(file, 0o600);
-      }
-    },
+    saveCredentials: accessCredentials(dir, envFile, exec, env),
   });
   if (!keepConfig) {
     const record = readJson(recordFile(dir), {});
@@ -728,8 +738,11 @@ export async function provision({ token, api, fetch, account, repo, base, route 
         if (closeOpenConfig(config, report.access)) note('updated', 'app/wrangler.jsonc: private login on, WORKSPACE_LOGIN removed');
         else report.todo.push('fill the CF_ACCESS_* vars from components.access and remove WORKSPACE_LOGIN in app/wrangler.jsonc');
       }
-      // Access knows its owner only on a private site; a config still open is left as it is.
-      if (!open && !/"WORKSPACE_LOGIN"/.test(readFileSync(config, 'utf8'))) ownerEmailInConfig(config, loginEmail, { note, todo: report.todo });
+      // Access knows its owner, and each environment its own app, only on a private site; an open config stays as is.
+      if (!open && !/"WORKSPACE_LOGIN"/.test(readFileSync(config, 'utf8'))) {
+        ownerEmailInConfig(config, loginEmail, { note, todo: report.todo });
+        accessInConfig(config, report.access, { note, todo: report.todo });
+      }
       if (bucket && !readFileSync(config, 'utf8').includes('MEMORY_BUCKET')) {
         if (addBucketBinding(config, bucket)) note('updated', 'app/wrangler.jsonc MEMORY_BUCKET');
         else report.todo.push(`add MEMORY_BUCKET for ${bucket} to app/wrangler.jsonc`);
@@ -747,22 +760,25 @@ export async function provision({ token, api, fetch, account, repo, base, route 
     if (open) return;
     report.accessKey = await step('cloudflare', () => loginManagementKey(cf, {
       account, name: `${n.worker}-access`, worker: n.worker, policyId: report.access.humanPolicyId,
+      staging: { appId: report.access.staging.appId, policyId: report.access.staging.humanPolicyId },
+      recorded: readJson(recordFile(dir))?.components?.accessKey,
       policies: () => accountPolicy(account, groups, ACCESS_KEY), state, checkpoint, note,
     }));
     if (report.accessKey.status === 'missing') report.todo.push(ACCESS_KEY_TODO);
     recordComponent(dir, 'accessKey', report.accessKey, note);
-    // The Cloudflare look-up key waits for sign-in too: only then do both Workers exist, with an owner to give levels.
+    // The Cloudflare look-up key waits for sign-in too: only then does the live Worker exist, with an owner for levels.
     report.cloudflareReadKey = await step('cloudflare', () => cloudflareReadKey(cf, {
-      account, name: `${n.worker}-cloudflare-read`, workers: [n.worker, n.staging],
+      account, name: `${n.worker}-cloudflare-read`, worker: n.worker,
       policies: () => readKeyPolicies(account, groups), state, checkpoint, note,
     }));
     if (report.cloudflareReadKey.status === 'missing') report.todo.push(CLOUDFLARE_READ_KEY_TODO);
     recordReadKey(dir, report.cloudflareReadKey, note);
-    // Which project Connect your assistant hands out: named for both Workers, and bound when Cloudflare keeps it.
-    // Like the owner email, it waits while the config is still open.
+    if (state.stagingHeld) report.todo.push(PREVIEW_KEYS_TODO);
+    // Which project Connect hands out: named for both Workers, bound on the live one when Cloudflare keeps it. Like the
+    // owner email, it waits while the config is still open.
     if (!keepConfig && !/"WORKSPACE_LOGIN"/.test(readFileSync(config, 'utf8'))) report.codeKey = await step('cloudflare', () => projectCode(cf, {
       account, config, repository: route === 'artifacts' ? artifactNamesFor(base).repo : githubRepo(`https://github.com/${repo}`),
-      artifacts: route === 'artifacts', runner: artifactNamesFor(base).runner, workers: [n.worker, n.staging], note, todo: report.todo,
+      artifacts: route === 'artifacts', runner: artifactNamesFor(base).runner, worker: n.worker, note, todo: report.todo,
     }));
   };
   // The first save then carries types that match this config, not a stray change at publish.
@@ -810,42 +826,98 @@ export async function bindingTypes(app, exec = run, env = process.env) {
   }
 }
 
-/** What Access needs on an older install: the owner's email in both Workers' vars, the two keys, the memory and git
- * exceptions, and the project's name. It reads the install record, so an update runs it alone. */
-export async function accessSetup({ token, api, fetch, account, ownerEmail, dir = '.', exec = run }) {
+/** Writes each environment's own Access app id and audience; a to-do when the config has no place for them. */
+function accessInConfig(config, access, { note, todo }) {
+  const results = [['CF_ACCESS_AUD', 'audience'], ['CF_ACCESS_APP_ID', 'appId']].map(([name, field]) => [name, setVar(config, name, [access[field], access.staging[field]])]);
+  for (const [name, result] of results) if (result === 'updated') note('updated', `app/wrangler.jsonc ${name}`);
+  if (results.some(([, result]) => !result)) todo.push("set each environment's CF_ACCESS_AUD and CF_ACCESS_APP_ID in app/wrangler.jsonc from components.access and its staging");
+}
+
+/** Leaves staging only the `keeps` names, by `secrets:push`'s rule, noting the rest before the first delete. A delete
+ * refused while a newer preview is uploaded (10215) retries through Wrangler as a new version. */
+async function pruneStaging(cf, { account, worker, token, keeps, dir, exec, env, note, state, checkpoint }) {
+  const secrets = `/accounts/${account}/workers/scripts/${worker}/secrets`;
+  const held = ((await orNull(() => cf('GET', secrets))) ?? []).map((secret) => secret.name);
+  const removed = held.filter((name) => !keeps.includes(name));
+  notePreviewKeys(state, removed);
+  checkpoint();
+  for (const name of removed) {
+    await cf('DELETE', `${secrets}/${name}`).catch(async (error) => {
+      if (error.status === 404) return;
+      if (!error.codes?.includes(10215)) throw error;
+      const args = ['--no-install', 'wrangler', 'versions', 'secret', 'delete', name, '--env', 'staging'];
+      await exec('npx', args, { cwd: join(dir, 'app'), env: { ...env, CLOUDFLARE_API_TOKEN: token, CLOUDFLARE_ACCOUNT_ID: account } });
+    });
+    note('updated', `${worker}: removed ${name}, which app/.dev.vars.staging does not declare`);
+  }
+}
+
+/** The to-do for keys staging held: branch code could read them, and preview versions made before keep their copies. */
+const PREVIEW_KEYS_TODO = "previews held the live app's keys before they got their own sign-in: run `provision.mjs access`, which removes them from previews and names those to change";
+const rotateTodo = (names) => `previews held ${names.join(', ')}, which unpublished changes could read, and preview links made before now keep their copies until each key changes: rotate the GitHub key and every business key among them, then run \`npm run secrets:push\``;
+
+// What Access needs on an older install: previews on their own sign-in, apart from the live app's, the owner's email
+// in both Workers' vars, the two keys, staging left with only its own file's keys, and the project's name.
+export async function accessSetup({ token, api, fetch, account, ownerEmail, dir = '.', exec = run, env = process.env }) {
   const cf = cloudflare(token, { api, fetch });
   const report = { created: [], reused: [], updated: [], todo: [] };
   const note = (list, what) => report[list].push(what);
   const { access, delivery } = readJson(recordFile(dir))?.components ?? {};
-  const worker = access?.workers?.[0]?.name;
-  if (!access?.appId || !access.humanPolicyId || !worker) throw new ProvisionError('repo', 'this repo has no private sign-in on record; run provision first');
-  await step('cloudflare', () => accessExceptions(cf, { account, access, note }));
+  const [worker, staging] = (access?.workers ?? []).map((each) => each.name);
+  if (!access?.appId || !access.humanPolicyId || !worker || !staging) throw new ProvisionError('repo', 'this repo has no private sign-in on record; run provision first');
   const email = ownerIdentity(ownerEmail ?? access.ownerEmail);
   const provisionStateFile = await stateFile(dir, exec);
   const state = readJson(provisionStateFile, {});
+  const checkpoint = () => writeJson(provisionStateFile, state);
+  // The record names what this install owns, so a clone with no provisioning state still finds the same apps.
+  const { appId, audience, workers, humanPolicyId, machinePolicyId, serviceTokenId } = access;
+  if (state.access?.appId !== appId) state.access = { appId, audience, workers, humanPolicyId, machinePolicyId, serviceTokenId };
+  state.access.staging ??= access.staging;
+  state.workers ??= {};
+  for (const each of workers) state.workers[each.name] ??= { name: each.name, id: each.id };
+  const root = `/accounts/${account}`;
+  const { name: appName } = await step('cloudflare', () => cf('GET', `${root}/access/apps/${appId}`));
+  const { subdomain } = await step('cloudflare', () => cf('GET', `${root}/workers/subdomain`));
+  await step('cloudflare', () => provisionAccess(cf, { account, appName, names: { worker, staging }, subdomain, state, checkpoint, note, today: isoDate(), adoptExisting: true }));
+  const envFile = durableEnv(dir);
+  const done = await step('cloudflare', () => provisionAccessPolicies(cf, {
+    account, ownerEmail: email, access: { ...access, ...state.access }, state, checkpoint, note, keepLiveChecker: true,
+    credentials: readEnv(envFile), saveCredentials: accessCredentials(dir, envFile, exec, env),
+  }));
+  recordComponent(dir, 'access', { ...done, ownerEmail: email }, note);
+  const config = join(dir, 'app', 'wrangler.jsonc');
+  if (existsSync(config)) {
+    ownerEmailInConfig(config, email, { note, todo: report.todo });
+    if (!/"WORKSPACE_LOGIN"/.test(readFileSync(config, 'utf8'))) accessInConfig(config, done, { note, todo: report.todo });
+  }
+  const keeps = stagingKeeps(secretsDir(join(dir, 'app'), dir).dir);
+  await step('cloudflare', () => pruneStaging(cf, { account, worker: staging, token, keeps, dir, exec, env, note, state, checkpoint }));
+  // Named from what staging held at the split, so a rerun after a stop still names them; setup rolls its own read key.
+  const exposed = (state.stagingHeld ?? []).filter((name) => name !== CLOUDFLARE_READ_SECRET && !keeps.includes(name));
+  if (exposed.length) report.todo.push(rotateTodo(exposed));
   const key = await step('cloudflare', () => loginManagementKey(cf, {
-    account, name: `${worker}-access`, worker, policyId: access.humanPolicyId, state, note,
+    account, name: `${worker}-access`, worker, policyId: done.humanPolicyId, staging: { appId: done.staging.appId, policyId: done.staging.humanPolicyId },
+    recorded: readJson(recordFile(dir))?.components?.accessKey, state, note, checkpoint,
     policies: async () => accountPolicy(account, await cf('GET', '/user/tokens/permission_groups?per_page=1000'), ACCESS_KEY),
-    checkpoint: () => writeJson(provisionStateFile, state),
   }));
   if (key.status === 'missing') report.todo.push(ACCESS_KEY_TODO);
   const readKey = await step('cloudflare', () => cloudflareReadKey(cf, {
-    account, name: `${worker}-cloudflare-read`, workers: access.workers.map((each) => each.name), state, note,
+    account, name: `${worker}-cloudflare-read`, worker, state, note, checkpoint,
     policies: async () => readKeyPolicies(account, await cf('GET', '/user/tokens/permission_groups?per_page=1000')),
-    checkpoint: () => writeJson(provisionStateFile, state),
   }));
   if (readKey.status === 'missing') report.todo.push(CLOUDFLARE_READ_KEY_TODO);
-  const config = join(dir, 'app', 'wrangler.jsonc');
-  if (existsSync(config)) ownerEmailInConfig(config, email, { note, todo: report.todo });
   const artifacts = delivery?.route === 'artifacts';
   const origin = artifacts ? '' : (await exec('git', ['-C', dir, 'remote', 'get-url', 'origin']).catch(() => ({ stdout: '' }))).stdout;
   const codeKey = await step('cloudflare', () => projectCode(cf, {
     account, config, repository: artifacts ? delivery.repo : (githubRepo(origin) ?? githubRepo(`https://github.com/${state.repo}`)),
-    artifacts, runner: delivery?.workflow, workers: access.workers.map((each) => each.name), note, todo: report.todo,
+    artifacts, runner: delivery?.workflow, worker, note, todo: report.todo,
   }));
-  recordComponent(dir, 'access', { ownerEmail: email }, note);
   recordComponent(dir, 'accessKey', key, note);
   recordReadKey(dir, readKey, note);
+  if (state.stagingHeld) {
+    delete state.stagingHeld;
+    checkpoint();
+  }
   return { ...report, ownerEmail: email, accessKey: key, cloudflareReadKey: readKey, codeKey };
 }
 
@@ -858,14 +930,16 @@ const USAGE = `usage: provision.mjs <command> [--dir <repo>] [--account <id>] [-
   provision --repo <owner/name> --base <base> [--owner-email <email>] [--keep-config] [--open-without-login]
                                           make or reuse the memory store, databases, config, and deploy token;
                                           --open-without-login goes on, open, when Zero Trust needs onboarding
-  access [--owner-email <email>]          on an installed repo with sign-in on: let memory and git past the sign-in
-                                          wall, put the owner's email in both Workers' vars, give the live app its own key for the sign-in list and the read-only
-                                          key for Cloudflare look-ups; the preview app gets the read-only key when
-                                          Cloudflare takes it, and is reported as waiting when not. It also names
-                                          the project Connect your assistant hands out: codeKey's status is
-                                          ready or missing, and its save says whether people can save changes
-                                          through the app. On GitHub a missing one comes with the owner's steps
-                                          for the one key that does both, which Access asks for later
+  access [--owner-email <email>]          on an installed repo with sign-in on: give previews their own sign-in, with
+                                          the same people and their own checker in .env (CF_ACCESS_STAGING_*), apart
+                                          from the live app's; write each Worker's own Access ids to app/wrangler.jsonc;
+                                          let memory and git past the sign-in wall; put the owner's email in both
+                                          Workers' vars; leave staging only app/.dev.vars.staging's keys; give the live app
+                                          its own key for both sign-in lists and the read-only key for Cloudflare
+                                          look-ups. It also names the project Connect your assistant hands out:
+                                          codeKey's status is ready or missing, and its save says whether people can
+                                          save changes through the app. On GitHub a missing one comes with the
+                                          owner's steps for the one key that does both, which Access asks for later
 --route artifacts keeps the project in Cloudflare with no GitHub: widen adds its groups, names checks its
 names, and provision makes the repository and the check runner in place of the GitHub secrets.
 --dir is the target repo (default: here). The token is CLOUDFLARE_API_TOKEN and the account CLOUDFLARE_ACCOUNT_ID,

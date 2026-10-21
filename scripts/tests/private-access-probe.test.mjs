@@ -33,3 +33,12 @@ test('public content, unrelated redirects, and unavailable machine auth fail ver
   for (const url of ['http://app.example.com/', 'https://user:secret@app.example.com/', 'https://app.example.com/?key=secret']) await assert.rejects(probePrivateAccess(url, credentials), /plain HTTPS/);
   await assert.rejects(probePrivateAccess('https://app.example.com/', {}), /credentials are missing/);
 });
+
+test('a preview probe sends the preview checker, never the live pair', async () => {
+  const both = { ...credentials, CF_ACCESS_STAGING_CLIENT_ID: 'preview-id', CF_ACCESS_STAGING_CLIENT_SECRET: 'preview-secret' };
+  const sent = [];
+  const fetch = async (url, options) => { sent.push(options.headers['CF-Access-Client-Id']); return new Response(null, { status: 401 }); };
+  await probePrivateAccess('https://preview.example.com/', both, fetch, 'CF_ACCESS_STAGING');
+  assert.deepEqual(sent, [undefined, 'preview-id']);
+  await assert.rejects(probePrivateAccess('https://preview.example.com/', credentials, fetch, 'CF_ACCESS_STAGING'), /credentials are missing/);
+});

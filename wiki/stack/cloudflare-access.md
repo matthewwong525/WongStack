@@ -1,8 +1,8 @@
 # Cloudflare Access
 
-WongStack setup protects the business app automatically. The owner signs in with a code sent to their reachable email. Exact teammate emails can be allowed too; arbitrary domains and synthetic `.invalid` identities receive no grant. Pages, scripts, styles, APIs, mini apps, staging, and version previews share the same protection.
+WongStack setup protects the business app automatically. The owner signs in with a code sent to their reachable email. Exact teammate emails can be allowed too; arbitrary domains and synthetic `.invalid` identities receive no grant. Pages, scripts, styles, APIs, mini apps, staging, and version previews are all protected: the live app by one sign-in, staging and previews by [their own](#two-private-apps-one-per-worker).
 
-Production version URLs run the production version and inherit its bindings, including independently keyed memory. Staging and CI branch previews have no memory bindings. Keep every version protected by the same Worker-scoped wall.
+Production version URLs run the production version and inherit its bindings, including independently keyed memory. Staging and CI branch previews have no memory bindings. Keep every version behind its Worker's own wall.
 
 ## Turning it on through an agent
 
@@ -54,7 +54,16 @@ Setup preserves an existing organization and creates only a missing email PIN pr
 
 ### 2. Create the Access application
 
-One owned self-hosted application covers the production and staging Worker IDs. A production default-hostname destination anchors email login. The shared provisioner records real provider IDs and checks readback; a resource name alone proves neither ownership nor coverage.
+Setup makes two owned self-hosted applications, one per Worker. The shared provisioner records real provider IDs and checks readback; a resource name alone proves neither ownership nor coverage.
+
+#### Two private apps, one per Worker
+
+- **The live app**, `WongStack <repo> (<base>)`, covers the production Worker. Its default address anchors email login.
+- **The previews app**, the same name with ` previews` added, covers the staging Worker and its default address, so every branch preview signs in there.
+
+Each has its own audience, people policy, machine policy and service token, and each Worker accepts only its own app's audience. A sign-in made on a preview is refused by the live app, so branch code nobody has reviewed can't use it to reach memory, keys or the project. The same people sign in to both, the same way: setup copies the live app's list and login methods, and [Access keeps both lists in step](employee-access.md#add-change-and-remove-people).
+
+An install from before has one app over both Workers. [Finish Access setup](employee-access.md#finish-access-setup) splits it: previews stop publishing until it runs, and the live app keeps publishing with a warning.
 
 #### Why `workers.dev` cannot be gated
 
@@ -62,7 +71,7 @@ This heading remains for older links. The earlier hostname-only guidance is supe
 
 #### The hostnames to add
 
-Use the two actual Worker destinations. They follow the production and staging Workers across hostnames and versions. Keep the production default address as the login anchor. Review existing hostname/path apps, preview destinations, Worker routes, and custom domains before adoption: an overlapping higher-precedence app can change protection. Leave unrelated apps untouched and resolve conflicts before publication.
+Give each app its own Worker destination. It follows that Worker across hostnames and versions. Keep the production default address as the login anchor. Review existing hostname/path apps, preview destinations, Worker routes, and custom domains before adoption: an overlapping higher-precedence app can change protection. Leave unrelated apps untouched and resolve conflicts before publication.
 
 #### What you give up
 
@@ -72,7 +81,7 @@ Every business-app request needs a permitted identity. Existing intentionally pu
 
 The human policy uses exact reachable owner and teammate emails, deduplicated with the owner retained. A separate machine policy accepts only the workspace's verification service token. Membership changes edit the human policy and preserve machine access. Once the owner opens [Access](employee-access.md), the app keeps that policy's email list itself, from the people saved there.
 
-New applications and human policies default to `720h` (30 days). This is the app's login/session-token lifetime. A reviewed existing shorter application or human-policy duration stays intact; it does not change machine or API lifetimes. Memory's sign-in is this session, so it lasts as long. A removed teammate's email permission is removed and this application's existing sessions are revoked, so a still-unexpired token does not wait for its natural expiration. Provider propagation is asynchronous, and failed updates remain visibly pending.
+New applications and human policies default to `720h` (30 days). This is the app's login/session-token lifetime. A reviewed existing shorter application or human-policy duration stays intact; it does not change machine or API lifetimes. Memory's sign-in is this session, so it lasts as long. A removed teammate's email permission is removed and both applications' existing sessions are revoked, so a still-unexpired token does not wait for its natural expiration. Provider propagation is asynchronous, and failed updates remain visibly pending.
 
 ### 4. Bypass the public surface
 
@@ -91,9 +100,9 @@ Other public paths need their own reviewed design. A blanket bypass, account-wid
 
 ### 5. Create the service token (do it now)
 
-Setup creates a workspace verification service token and its separate machine policy, saving `CF_ACCESS_CLIENT_ID` and `CF_ACCESS_CLIENT_SECRET` in the primary ignored `.env` and a linked worktree's ignored copy. Never paste values into logs, git, request URLs, screenshots, or a Worker's runtime secrets. [Credentials](cloudflare-credentials.md#access-service-token) distinguish these values from the user token and CI deploy token.
+Setup creates one verification service token per app, each with its own machine policy: the workspace checker opens the live app, saved as `CF_ACCESS_CLIENT_ID` and `CF_ACCESS_CLIENT_SECRET`, and the preview checker opens previews alone, saved as `CF_ACCESS_STAGING_CLIENT_ID` and `CF_ACCESS_STAGING_CLIENT_SECRET`. Both go in the primary ignored `.env` and a linked worktree's ignored copy. Never paste values into logs, git, request URLs, screenshots, or a Worker's runtime secrets. [Credentials](cloudflare-credentials.md#access-service-token) distinguish these values from the user token and CI deploy token.
 
-The service token authenticates automated previews. Its default lifetime is separate from human sessions. `/verify` can recover missing machine access using its authorized heal; it must reuse the owned app, preserve people, and never broaden unrelated policies.
+The preview checker authenticates automated preview checks, so a branch walk never holds a pass the live app accepts. Each token's lifetime is separate from human sessions. `/verify` can recover missing machine access using its authorized heal; it must reuse the owned app, preserve people, and never broaden unrelated policies.
 
 ## Verify it works — in a browser
 
@@ -103,10 +112,10 @@ Repeat the status probes with saved ignored credentials:
 
 ```bash
 node scripts/probe-private-access.mjs --url https://your-worker.your-subdomain.workers.dev/
-node scripts/probe-private-access.mjs --url https://your-preview.your-subdomain.workers.dev/favicon.svg
+node scripts/probe-private-access.mjs --url https://your-preview.your-subdomain.workers.dev/favicon.svg --preview
 ```
 
-The output includes only independent anonymous/machine statuses and leaves human login unverified. Anonymous requests should receive an Access redirect or a closed denial, and machine requests should render the app. Check memory separately with `memory.mjs digest` under the owner's sign-in. Also test teammate removal using an already active human session and preserve owner/machine access; report pending provider propagation or retry honestly.
+`--preview` sends the preview checker, since the workspace checker can't open a preview. The output includes only independent anonymous/machine statuses and leaves human login unverified. Anonymous requests should receive an Access redirect or a closed denial, and machine requests should render the app. Check memory separately with `memory.mjs digest` under the owner's sign-in. Also test teammate removal using an already active human session and preserve owner/machine access; report pending provider propagation or retry honestly.
 
 ## The auth model: verify the signed assertion
 
@@ -118,9 +127,9 @@ Human JWT claims carry an email; machine claims carry `common_name`, the service
 
 ### Turning it on
 
-Setup writes public `CF_ACCESS_TEAM_DOMAIN`, `CF_ACCESS_AUD`, `CF_ACCESS_APP_ID`, `CF_ACCESS_WORKER_ID`, and `WONG_ENVIRONMENT` vars in production and staging configuration. Preserve each environment's real Worker ID and app audience when adapting an installed app. Merge the signed guard into local handlers; replacing them with the scaffold can erase business code.
+Setup writes public `CF_ACCESS_TEAM_DOMAIN`, `CF_ACCESS_AUD`, `CF_ACCESS_APP_ID`, `CF_ACCESS_WORKER_ID`, and `WONG_ENVIRONMENT` vars in production and staging configuration, each environment with its own app's audience and id. Preserve each environment's real Worker ID and app audience when adapting an installed app. Merge the signed guard into local handlers; replacing them with the scaffold can erase business code.
 
-Both CI backends and host previews run `scripts/check-private-access.mjs` before content publication. It reads actual Worker metadata, secret names, destinations, policies, and overlapping apps, and checks generated config against source; an [open](#open-until-the-card) config gets only the Worker and secret checks, and a warning. Missing coverage or provider/read permission stops publication. Repair private setup or restore the CI token's account-scoped `Access: Apps and Policies Read`, then retry; never disable the check to get a preview. A `private-access: Unexpected token '<'` error is Cloudflare's own outage, not your setup: its API sent back an error page, often a 504 timeout. Check [Cloudflare's status page](https://www.cloudflarestatus.com/) for a Zero Trust incident, and rerun the deploy once it clears: run the check from this computer until it passes twice in a row, since one answer can succeed mid-outage.
+Both CI backends and host previews run `scripts/check-private-access.mjs` before content publication. It reads actual Worker metadata, secret names, destinations, policies, and overlapping apps, and checks generated config against source; an [open](#open-until-the-card) config gets only the Worker and secret checks, and a warning. The two environments must name different apps on the same team, each covering its own Worker. A preview still on the live app's sign-in stops the preview publish; the live publish passes with a warning that names [the Access step](employee-access.md#finish-access-setup). Missing coverage or provider/read permission stops publication. Repair private setup or restore the CI token's account-scoped `Access: Apps and Policies Read`, then retry; never disable the check to get a preview. A `private-access: Unexpected token '<'` error is Cloudflare's own outage, not your setup: its API sent back an error page, often a 504 timeout. Check [Cloudflare's status page](https://www.cloudflarestatus.com/) for a Zero Trust incident, and rerun the deploy once it clears: run the check from this computer until it passes twice in a row, since one answer can succeed mid-outage.
 
 ### Local development
 
