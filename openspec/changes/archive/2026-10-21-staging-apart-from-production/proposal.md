@@ -1,6 +1,6 @@
 # Proposal
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** thankful-hound
 **Open questions:** none
 
@@ -111,3 +111,4 @@ None.
 - **2026-10-21** — Assumed: the Access step names `stagingHeld` less the staging file's names, then clears it at the end of a finished run, and a `provision` rerun that splits an install rolls the read-only key and lists the Access step as a to-do without clearing it, because only the Access step removes the keys and reports what to rotate.
 - **2026-10-21** — Assumed: the changelog's update order is publish the update, run the Access step, then publish its config change, because the step rolls the login key to version 3, which the old live code can't read; publishing the live app works before the split, and only previews pause.
 - **2026-10-21** — Checkpoint: built through 4.4 with two review rounds (11 fixes: live publishing before the split, staging pruned by the Access step, no live checker rotation, login methods kept, missing staging Worker, provision rerun writes vars, key reuse from the install record, rotation advice tied to the split, update order). Ran the Access step on this repo's live account: previews app created, wongstack-staging moved onto it, staging's copied WONG_CODE_READ removed; `cf-secrets check` shows staging holds none of production's keys. Saving for CI and the preview check (6.1, 6.2).
+- **2026-10-21** — Archive checkpoint: CI passed on the saved branch, and the preview check passed. The live app refuses the preview's sign-in with 401 on `/_memory/caller` and the git route, and accepts its own. Access on a preview shows Cloudflare and Project code as *Live app only*. Main's Deploy had failed since this repo's Access step ran: main's own code refuses the split sign-in. Putting `WONG_CODE_READ` back on previews didn't clear it, so the key came off again. Asked whether to publish past the failed main Deploy → chose to skip the ship tool's main-checks gate this once, because this change is the fix.

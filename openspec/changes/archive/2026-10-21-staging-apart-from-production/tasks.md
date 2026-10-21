@@ -31,5 +31,5 @@
 
 ## 6. Verification
 
-- [ ] 6.1 Run `node .github/scripts/checks.mjs --worktree` and `openspec validate staging-apart-from-production --strict --no-interactive`, then `/save` for CI.
-- [ ] 6.2 On the saved branch's preview: it opens with its own sign-in and the preview checker; Access shows *Live app only* for Project code and Cloudflare. A token minted for the preview (`cloudflared access token` on the preview host) gets 401 from the live app's `/_memory/client/v4/accounts/x/caller`, while the live app's own token gets 200. Verify by `/verify` with the requests' status codes recorded.
+- [x] 6.1 Run `node .github/scripts/checks.mjs --worktree` and `openspec validate staging-apart-from-production --strict --no-interactive`, then `/save` for CI.
+- [x] 6.2 On the saved branch's preview: it opens with its own sign-in and the preview checker; Access shows *Live app only* for Project code and Cloudflare. A token minted for the preview (`cloudflared access token` on the preview host) gets 401 from the live app's `/_memory/client/v4/accounts/x/caller`, while the live app's own token gets 200. Verify by `/verify` with the requests' status codes recorded.

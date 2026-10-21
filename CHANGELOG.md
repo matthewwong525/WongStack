@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (major) — Previews get their own sign-in and keys
+## 44.0.0 — Previews get their own sign-in and keys
 
 - **A preview can't act as the live app.** Previews run changes nobody has published yet, so they now have their own private app. A sign-in made on a preview no longer opens the live app, its memory or its keys. The same people sign in to both: when you add or remove someone in Access, both lists change together.
 - **Previews hold only their own keys.** The live app's keys no longer reach previews. Previews load only `app/.dev.vars.staging`, for test keys such as a payment test key; with no such file they hold none, and the save names what they lack. A file that copies a live key's value, or names a live-app-only key, is refused.
