@@ -1,6 +1,6 @@
 # Proposal
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** subtle-lion
 **Open questions:** none
 
@@ -62,3 +62,4 @@ None.
 - **2026-10-21** — Assumed: the yes option reads *Switch to it* (then its code runs on this computer, with your keys), because switching starts the change's code at once; a cut duplicate clause in step 2 keeps the skill text in budget.
 - **2026-10-21** — Assumed: `/continue` step 4 builds nothing when told *ask before building*, even with an instruction, rather than dropping the instruction from the new workspace's brief, because the brief already carries those words and one rule costs fewer bytes.
 - **2026-10-21** — Assumed: when fetching, the pickup asks origin which branch it publishes before trusting the saved origin/HEAD, because a rename on the server leaves the saved one naming the old branch, which a teammate can then push.
+- **2026-10-21** — Archive checkpoint: built, second look found six fixes over two rounds (a teammate's `main` on a repo publishing another branch, a stale saved origin/HEAD after a server rename, a file list hidden by the owner's git settings, the yes option not saying the code then runs, a new workspace's instruction building unasked, and a checkout pattern the text test missed), all fixed with tests; local pre-check passed; archived for ship.
