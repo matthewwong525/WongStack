@@ -238,8 +238,10 @@ it('serves the setup prompt to every signed-in person, before and after permissi
   expect(await (await read()).json()).toMatchObject({ apps: [], api: 'authenticated' });
   f.sql.exec("UPDATE wong_access_members SET status = 'removed'");
   expect((await read()).status).toBe(403);
-  // Not started: everyone signed in keeps every app, and gets the prompt.
+  // Not started: a removed person is still refused, and everyone else signed in keeps every app and gets the prompt.
   f.sql.exec('UPDATE wong_access_installation SET policy_enabled = 0');
+  expect((await read()).status).toBe(403);
+  f.sql.exec("UPDATE wong_access_members SET status = 'active'");
   expect(await (await read()).json()).toMatchObject({ role: 'employee', permissions: 'not_started', apps: ['orders', 'payroll'], api: 'authenticated' });
   expect(await (await read(owner)).json()).toMatchObject({ role: 'owner', permissions: 'not_started' });
   // An older install with no recorded owner keeps its behavior and still hands out the prompt.

@@ -267,8 +267,8 @@ it('notes on the first open who could already sign in, and offers another read w
   open(); await screen.findByText('3 people could already sign in. They keep every app until you change them.')
   expect(cells('employee@example.com')[3]).toBe('2 apps'); cleanup()
   roster.imported = 1; open(); await screen.findByText(/^1 person could already sign in/); cleanup()
-  roster.imported = 0; roster.started = false
-  open(); await screen.findByText(/could not be read yet/)
+  roster.imported = 0; roster.started = false; open(); await screen.findByText(/could not be read yet/)
+  fireEvent.click(menu('employee@example.com').getByRole('menuitem', { name: 'Remove' })); expect(question(/^Remove /).textContent).toMatch(/They are blocked at once and can no longer download the project\. Once Access setup finishes, they leave the sign-in list, and everyone is signed out and signs in again\. This can't be undone\./); click('Cancel')
   const before = reads('status').length; roster.started = true
   click('Read it again'); await waitFor(() => expect(screen.queryByText(/could not be read yet/)).toBeNull())
   expect(reads('status').length).toBe(before + 1)
@@ -290,7 +290,7 @@ it('confirms a removal in a popup that says everyone signs in again, saves it on
   const remove = () => menu('employee@example.com').getByRole('menuitem', { name: 'Remove' })
   open(); await screen.findByRole('link', { name: 'Add person' }); fireEvent.click(remove())
   const ask = within(question('Remove employee@example.com?'))
-  expect(ask.getByText(/Everyone is signed out and signs in again\. This can't be undone\./)).toBeTruthy(); expect(ask.getByText(/can no longer download the project\..* A copy of the project already on their device stays there\. Access given where the project is kept is removed there\./)).toBeTruthy()
+  expect(ask.getByText(/They are blocked at once and can no longer download the project\. Everyone is signed out and signs in again\. This can't be undone\./)).toBeTruthy(); expect(ask.getByText(/can no longer download the project\..* A copy of the project already on their device stays there\. Access given where the project is kept is removed there\./)).toBeTruthy()
   // The way out is focused first, and the action is the one solid button.
   const [out, yes] = [ask.getByRole('button', { name: 'Cancel' }), ask.getByRole('button', { name: 'Remove access' })]
   await moment(); expect([document.activeElement, out.getAttribute('data-variant'), yes.getAttribute('data-variant')]).toEqual([out, 'outline', 'default'])

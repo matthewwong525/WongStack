@@ -8,6 +8,7 @@ import { defineAction, dispatch, registrations, type Registration } from "../api
 import { handleApi } from "../api/router";
 import { discovery } from "../api/discovery";
 import { appAccess, appPageDenied } from "./apps";
+import { memoryRole } from "../memory-caller";
 import { body } from "../../tests/body";
 import { fakeDatabase, fakeEnv } from "../../tests/env";
 
@@ -196,9 +197,9 @@ it("gives a current person who holds Admin every app, every key once key levels 
   sql.exec("UPDATE wong_access_installation SET policy_enabled = 0");
   expect(await read()).toEqual({ state: "not_started", role: "employee", manages: true });
   for (const machine of machines) expect(await read(machine)).toEqual({ state: "not_started", role: "employee", manages: false });
-  // A removed person never manages, even with a row left behind: denied once permissions are on, and nobody before.
+  // A removed person never manages, even with a row left behind: denied before permissions start and after.
   sql.exec("UPDATE wong_access_members SET status = 'removed'");
-  expect(await read()).toEqual({ state: "not_started", role: "employee", manages: false });
+  expect(await read()).toEqual({ state: "denied" });
   sql.exec("UPDATE wong_access_installation SET policy_enabled = 1");
   expect(await read()).toEqual({ state: "denied" });
   // Moved off the role, the same person is an ordinary employee on their next request, with their own apps.
@@ -234,6 +235,26 @@ it("leaves everyone every app until permissions start, and names the owner meanw
   sql.exec("DELETE FROM wong_access_roles; DELETE FROM wong_access_grants; DELETE FROM wong_access_members; DELETE FROM wong_access_apps; DELETE FROM wong_access_installation");
   expect(await read()).toEqual({ state: "not_started", role: "employee", manages: false });
   expect(await read(owner)).toEqual({ state: "not_started", role: "owner", manages: true });
+});
+
+it("refuses a removed person before permissions start, and nobody else", async () => {
+  sql.exec("UPDATE wong_access_installation SET policy_enabled = 0; UPDATE wong_access_members SET status = 'removed'");
+  expect(await read()).toEqual({ state: "denied" });
+  expect((await appPageDenied(new Request(`${origin}/apps/hello/`), env, employee))?.status).toBe(403);
+  expect((await authorizeRequest(env, employee, { apps: ["hello"] }))?.status).toBe(403);
+  expect(memoryRole(await read())).toBeNull();
+  // An email with no row keeps every app, as before Access.
+  const unlisted = { ...employee, id: "unlisted@example.com", claims: { ...employee.claims, email: "unlisted@example.com" } };
+  const open = await read(unlisted);
+  expect(open).toEqual({ state: "not_started", role: "employee", manages: false });
+  expect(policyAllows(open, { apps: ["hello"] })).toBe(true);
+  expect(memoryRole(open)).toBe("member");
+  // Added back, they keep every app again on their next request.
+  sql.exec("UPDATE wong_access_members SET status = 'active'");
+  const back = await read();
+  expect(back).toEqual({ state: "not_started", role: "employee", manages: false });
+  expect(await appPageDenied(new Request(`${origin}/apps/hello/`), env, employee)).toBeNull();
+  expect(await authorizeRequest(env, employee, { apps: ["hello"] })).toBeNull();
 });
 
 it("ignores a grant for an app that is no longer built", async () => {
@@ -448,9 +469,9 @@ it("reads each person's apps and key levels with zero-app Access self-service, o
   expect((await readback(null)).status).toBe(403);
   expect((await readback(employee, { ...env, DB: undefined })).status).toBe(503);
   expect(await (await readback(null, { ...env, WONG_OWNER_EMAIL: undefined })).json()).toEqual({ state: "legacy", code: "off", signIn: true });
-  // Before permissions start a removed row means nothing yet: everyone keeps every app.
+  // Before permissions start a removed person is still refused, while the owner keeps every app.
   sql.exec("UPDATE wong_access_installation SET policy_enabled = 0");
-  expect(await (await readback()).json()).toEqual({ state: "not_started", code: "off", role: "employee", manages: false, signIn: true, apps: catalogue });
+  expect((await readback()).status).toBe(403);
   expect(await (await readback(owner)).json()).toEqual({ state: "not_started", code: "off", role: "owner", manages: true, signIn: true, apps: catalogue });
   // The frame offers Sign out only where a sign-in stands in front of the site: not while it is open, nor locally.
   const open = { ...env, CF_ACCESS_TEAM_DOMAIN: undefined, CF_ACCESS_AUD: undefined, WORKSPACE_LOGIN: "off" };
