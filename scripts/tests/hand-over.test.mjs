@@ -8,6 +8,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { finished, globToRegExp, keyMatches, servePage, tunnelOrigin } from '../../.agents/skills/hand-over/scripts/hand-over.mjs';
+import { appendTiming, KEEP, linkOf } from '../../.agents/skills/hand-over/scripts/lib/timings.mjs';
 import { VIEWER } from '../../.agents/skills/hand-over/scripts/view.mjs';
 import { BROWSE_ENV, fakeCamofox } from './fixtures/fake-camofox.mjs';
 import { fakeTunnel, ORIGIN, TUNNEL_ENV } from './fixtures/fake-tunnel.mjs';
@@ -35,8 +36,11 @@ const CARD = {
   ],
   submit: { label: 'Pay $45.00', target: 'e31' },
 };
-// The card page as the browser reads it: each dropdown shows the choice the site picked.
-const CARD_PAGE = `- textbox "Card number" [e12]
+// The card page as the browser reads it: each dropdown shows the choice the site picked. camofox numbers a page's
+// boxes in order, so the links around the form hold e1–e11 and e16–e30.
+const links = (from, to) => Array.from({ length: to - from + 1 }, (_, at) => `- link "Help ${from + at}" [e${from + at}]`).join('\n');
+const CARD_PAGE = `${links(1, 11)}
+- textbox "Card number" [e12]
 - combobox "Expiry month" [e13]:
   - option "01 - January" [selected]
   - option "03 - March"
@@ -44,6 +48,7 @@ const CARD_PAGE = `- textbox "Card number" [e12]
   - option "2027" [selected]
   - option "2028"
 - textbox "Security code" [e15]
+${links(16, 30)}
 - button "Pay $45.00" [e31]`;
 const NUMBER = '4242 XKCD 4242 QWZP';
 const CODE = 'ZQ7';
@@ -53,10 +58,12 @@ const SESSION = 'card';
 // The X display the fake browser says it runs on, for a live view.
 const DISPLAY = ':97';
 // What a send does in the browser, in order, and what puts the page back. A dropdown's own choice is
-// read from a snapshot before the pick; a typed value is never part of a step's name.
-const FILL = ['type e12', 'snapshot', 'select e13 03', 'snapshot', 'select e14 2028', 'type #cvv'];
+// read from a snapshot before the pick, which goes by the choice's text; a typed value is never part of a step's name.
+const FILL = ['type e12', 'snapshot', 'select e13 03 - March', 'snapshot', 'select e14 2028', 'type #cvv'];
 const CLEAR = ['type e12', 'select e13 01 - January', 'select e14 2027', 'type #cvv'];
 const PRESS = 'click e31';
+// The read of the page just before the press, which a watch compares the page with later.
+const PRESSED = ['url', PRESS];
 
 // What an expression the watcher evaluates is called as a step.
 const READS = { 'location.href': 'url', '[innerWidth, innerHeight]': 'size', 1: 'keep-alive' };
@@ -104,7 +111,7 @@ ${paseo === 'fail' ? 'process.exit(1);' : paseo === 'timeout' ? 'setTimeout(() =
     chmodSync(join(bin, 'paseo'), 0o755);
   }
   // Without cloudflared, PATH is the fake bin alone.
-  const env = { ...process.env, ...TUNNEL_ENV, ...BROWSE_ENV, ...tools.env(), PASEO_AGENT_ID: agentId ?? (paseo ? 'a-full-workspace-id' : ''), PASEO_HOME: '', PASEO_HOST: '', HOME: root, PATH: cloudflared ? `${bin}:/usr/bin:/bin` : bin, HANDOVER_POLL_MS: '50', HANDOVER_SEND_WAIT_MS: '400' };
+  const env = { ...process.env, ...TUNNEL_ENV, ...BROWSE_ENV, ...tools.env(), PASEO_AGENT_ID: agentId ?? (paseo ? 'a-full-workspace-id' : ''), PASEO_HOME: '', PASEO_HOST: '', HOME: root, PATH: cloudflared ? `${bin}:/usr/bin:/bin` : bin, HANDOVER_POLL_MS: '50', HANDOVER_SEND_POLL_MS: '50', HANDOVER_SEND_WAIT_MS: '400', HANDOVER_WATCH_MS: '600' };
   const run = (...args) => { const out = spawnSync(process.execPath, [script, ...args], { cwd, env, encoding: 'utf8', timeout: 30_000 }); return { ...out, rawStdout: out.stdout, stdout: legacyOutput(out.stdout) }; };
   /** Runs a command beside the test, so the test's own servers keep answering; resolves to its status and output. */
   const start = (...args) => {
@@ -153,6 +160,8 @@ ${paseo === 'fail' ? 'process.exit(1);' : paseo === 'timeout' ? 'setTimeout(() =
     stateFiles: () => (existsSync(state) ? readdirSync(state).map(name => readFileSync(join(state, name), 'utf8')).join('\n') : ''),
     tunnelPid: () => Number(readFileSync(file('tunnel.pid'), 'utf8')),
     result: () => legacyResult(JSON.parse(readFileSync(join(state, 'result.json'), 'utf8'))),
+    /** The timing record's lines, oldest first. */
+    timings: () => (existsSync(join(state, 'timings.jsonl')) ? readFileSync(join(state, 'timings.jsonl'), 'utf8').trim().split('\n').map(line => JSON.parse(line)) : []),
   };
 }
 
@@ -298,17 +307,21 @@ test('--form needs a finish, and a finish or a session goes with --form only', t
   const none = f.run('open', '--form', f.form);
   assert.equal(none.status, 2);
   assert.match(none.stderr, /--form needs --until or --until-gone/);
-  for (const args of [['--passwords', '--until', '**'], ['--passwords', '--until-gone', '#x'], ['--keys', 'MAPS_API_KEY', '--until', '**'], ['--passwords', '--session', 'card']]) {
+  for (const args of [['--passwords', '--until', '**'], ['--passwords', '--until-gone', '#x'], ['--keys', 'MAPS_API_KEY', '--until', '**']]) {
     const out = f.run('open', ...args);
     assert.equal(out.status, 2, args.join(' '));
-    assert.match(out.stderr, /--until, --until-gone, and --session go with --form or --view only/);
+    assert.match(out.stderr, /--until and --until-gone go with --form or --view only/);
   }
+  const keys = f.run('open', '--keys', 'MAPS_API_KEY', '--session', 'card');
+  assert.equal(keys.status, 2);
+  assert.match(keys.stderr, /--session goes with --form, --view, or --passwords only/);
+  for (const args of [['open', '--passwords', '--use', 'card'], ['fill', '--form', f.form, '--use', 'card', '--until', '**']]) assert.equal(f.run(...args).status, 2, `${args.join(' ')}: fill and --use are gone`);
   assert.deepEqual(f.calls(), []);
 });
 
 test('--site and --username go only with --passwords, and only as a website and one line', t => {
   const f = fixture(t);
-  for (const args of [['--site', 'netflix.com'], ['--username', 'me'], ['--keys', 'MAPS_API_KEY', '--site', 'netflix.com'], ['--passwords', '--site', 'not a site'], ['--passwords', '--site', 'ftp://netflix.com'], ['--passwords', '--username', ' '], ['--passwords', '--username', 'me\nyou']]) {
+  for (const args of [['--site', 'netflix.com'], ['--username', 'me'], ['--keys', 'MAPS_API_KEY', '--site', 'netflix.com'], ['--passwords', '--site', 'not a site'], ['--passwords', '--site', 'ftp://netflix.com'], ['--passwords', '--username', ' '], ['--passwords', '--username', 'me\nyou'], ['--passwords', '--email-first'], ['--passwords', '--username', 'me', '--email-first'], ['--email-first']]) {
     const out = f.run('open', ...args);
     assert.equal(out.status, 2, args.join(' '));
     assert.match(out.stderr, /usage:/);
@@ -332,6 +345,19 @@ test('--site and --username ride URL-encoded in the link\'s fragment beside the 
   assert.match(opened(f, '--passwords').link, /#key=[0-9a-f]{64}$/, 'no flags, no extra fragment');
 });
 
+test('--email-first rides in the link\'s fragment beside the site, and needs --site', t => {
+  const f = fixture(t);
+  const alone = f.run('open', '--passwords', '--email-first');
+  assert.equal(alone.status, 2);
+  assert.match(alone.stderr, /--email-first goes with --passwords --site only/);
+  const out = f.run('open', '--passwords', '--site', 'shopify.com', '--email-first');
+  assert.equal(out.status, 0, out.stderr);
+  const link = new URL(/^HANDOVER_LINK=(.+)$/m.exec(out.stdout)[1]);
+  assert.match(link.hash, /^#key=[0-9a-f]{64}&site=shopify\.com&emailFirst=1$/);
+  assert.ok(!/shopify|emailFirst/.test(f.stateFiles()), 'the watcher\'s files hold neither');
+  assert.equal(f.run('close').status, 0);
+});
+
 test('the pure helpers follow the URL glob and the recorded output shapes', () => {
   assert.ok(globToRegExp('**mail.google.com/mail/**').test('https://mail.google.com/mail/u/0/#inbox'));
   assert.ok(globToRegExp('https://x.com/*').test('https://x.com/home'));
@@ -353,10 +379,10 @@ test('keyMatches accepts only the exact key', () => {
   assert.equal(keyMatches(null, key), false);
 });
 
-test('open --form reads only the finish, then sends the browser nothing until the send', async t => {
+test('open --form reads only the finish and takes one picture, then sends the browser nothing until the send', async t => {
   const f = fixture(t);
   const { port, key } = openedForm(f);
-  assert.deepEqual(f.steps(), ['url'], 'one read of the address, to refuse a finish already met');
+  assert.deepEqual(f.steps(), ['url', 'screenshot'], 'one read of the address, to refuse a finish already met, and the picture');
   assert.equal(f.calls().length, 1);
   assert.match(f.calls()[0], /^cloudflared tunnel /);
   const state = JSON.parse(readFileSync(join(f.state, 'state.json'), 'utf8'));
@@ -364,9 +390,21 @@ test('open --form reads only the finish, then sends the browser nothing until th
   assert.equal(state.until, '**/receipt/*');
   assert.equal(state.session, SESSION);
   await pause(300);
-  assert.deepEqual(f.steps(), ['url'], 'no polling before a send');
+  assert.deepEqual(f.steps(), ['url', 'screenshot'], 'no polling before a send');
 
-  assert.match(await (await fetch(`http://127.0.0.1:${port}/`)).text(), /Close without sending/);
+  assert.match(await (await fetch(`http://127.0.0.1:${port}/`)).text(), /Not now/);
+  const css = await fetch(`http://127.0.0.1:${port}/page.css`);
+  assert.deepEqual(['content-type', 'cache-control', 'referrer-policy', 'x-frame-options', 'content-security-policy'].map(name => css.headers.get(name)), ['text/css; charset=utf-8', 'no-store', 'no-referrer', 'DENY', "frame-ancestors 'none'"]);
+  const sheet = await css.text();
+  assert.match(sheet, /^[\s\S]*:root \{[^}]*--primary:[\s\S]*color-scheme: light;/, 'the app\'s colours, unkeyed like the page');
+  assert.doesNotMatch(sheet, /prefers-color-scheme/, 'light to start on every device');
+  assert.match(sheet, /\n\.dark \{[^}]*--background:[^}]*\}/, 'the app\'s dark set, under .dark');
+  assert.match(sheet, /\.theme-toggle \{/, 'the switch\'s look');
+  const theme = await fetch(`http://127.0.0.1:${port}/theme.js`);
+  assert.equal(theme.headers.get('content-type'), 'text/javascript; charset=utf-8');
+  assert.match(await theme.text(), /wongstack-theme/, 'the switch, from the same site');
+  assert.ok(sheet.indexOf(':where(.card)') < sheet.indexOf('.steps > li::before'), 'the shared parts, then the page rules');
+  assert.doesNotMatch(sheet, /--blue|#[0-9a-f]{6}\b/i, 'no colour of its own');
   assert.match(await (await fetch(`http://127.0.0.1:${port}/page.mjs`)).text(), /export function rowsOf/);
   assert.equal((await fetch(`http://127.0.0.1:${port}/state.json`)).status, 404);
   assert.equal((await route(port, null, 'form')).status, 403);
@@ -383,7 +421,17 @@ test('open --form reads only the finish, then sends the browser nothing until th
     socket.on('data', chunk => { text += chunk; socket.destroy(); }).on('close', () => done(text));
   });
   assert.match(upgrade, /^HTTP\/1\.1 404/, 'no live view of the browser');
-  assert.deepEqual(f.steps(), ['url'], 'no refused request reached the browser');
+  assert.deepEqual(f.steps(), ['url', 'screenshot'], 'no refused request reached the browser');
+});
+
+test('each private page loads the switch in its head, from its own site, and the closed page gets none', () => {
+  for (const name of ['keys-page', 'passwords-page', 'form-page', 'view-page']) {
+    const html = readFileSync(join(repo, `.agents/skills/hand-over/scripts/${name}.html`), 'utf8');
+    const head = html.slice(0, html.indexOf('</head>'));
+    assert.ok(head.indexOf('<script src="theme.js"></script>') > head.indexOf('href="page.css"'), `${name}: theme.js after page.css, in <head>`);
+    assert.doesNotMatch(html, /color-scheme:\s*light/, `${name}: no fixed light`);
+  }
+  assert.doesNotMatch(readFileSync(join(repo, '.agents/skills/hand-over/scripts/reply-link.mjs'), 'utf8'), /theme\.js|theme-toggle/, 'the closed page has no switch');
 });
 
 test('a bad form file exits 2 with FORM_FILE= before any link', t => {
@@ -439,7 +487,7 @@ test('a send types each text value through the browser client, presses once, and
   const sending = send(f, link);
   await eventually(() => f.steps().includes(PRESS));
   assert.deepEqual(f.page().typed, { e12: NUMBER, '#cvv': CODE }, 'the text values reached the site\'s own boxes');
-  assert.deepEqual(f.page().picked, { e13: '03', e14: '2028' });
+  assert.deepEqual(f.page().picked, { e13: '03 - March', e14: '2028' });
   assert.equal((await route(link.port, link.key, 'send', { values: VALUES })).status, 409, 'a second send is refused');
   f.unset('hold-click');
   const { status, json } = await sending;
@@ -448,8 +496,8 @@ test('a send types each text value through the browser client, presses once, and
   assert.equal(json.receipt.notification, 'notified');
 
   const steps = f.steps().slice(before);
-  assert.deepEqual(steps.slice(0, 7), [...FILL, PRESS]);
-  for (const step of steps.slice(7)) assert.equal(step, 'url', 'after the press, only the address is read');
+  assert.deepEqual(steps.slice(0, 8), [...FILL, ...PRESSED]);
+  for (const step of steps.slice(8)) assert.equal(step, 'url', 'after the press, only the address is read');
   assert.equal(f.camofox.starts(), 1, 'the send used the browser that was running');
 
   const out = f.run('wait');
@@ -489,36 +537,186 @@ test('a sent value appears in no command line, environment, log, or file: only i
   assert.ok(!existsSync(join(dirname(f.state), 'logins.json')), 'a card is never saved as a login');
 });
 
-test('a site that keeps its page gives not-accepted: the typed boxes are emptied and nobody is woken', async t => {
+test('a site that keeps its page is still checking for the watch, then not-accepted with the boxes emptied, the chat told twice', async t => {
   const f = fixture(t, { paseo: 'ok' });
+  f.env.HANDOVER_WATCH_MS = '2500';
   const link = openedForm(f);
   const before = f.steps().length;
   const { json } = await send(f, link, { moves: false });
   assert.equal((await route(link.port, link.key, 'send', { values: VALUES })).status, 410, 'the link is over');
-  assert.equal(json.receipt.result, 'not-accepted');
-  assert.equal(json.receipt.ready, false);
-  assert.equal(json.receipt.notification, 'not-requested');
+  assert.deepEqual([json.receipt.result, json.receipt.watching, json.receipt.ready, json.receipt.notification], ['unconfirmed', true, false, 'notified']);
+  assert.deepEqual(f.page().typed, { e12: NUMBER, '#cvv': CODE }, 'nothing emptied while the site may be paying');
+  const first = f.run('wait');
+  assert.equal(first.stdout, 'HANDOVER_RESULT=unconfirmed\nHANDOVER_WATCHING=1\n');
+  assert.match(first.rawStdout, /HANDOVER_NOTIFICATION=notified/);
+  await eventually(async () => !(await answers(link.port)));
+  assert.ok(!alive(f.tunnelPid()), 'the link closed as the watch began');
+  const again = f.run('open', '--passwords');
+  assert.equal(again.status, 1, 'a watch holds the one link');
+  assert.match(again.stderr, /already open/);
+  const second = f.run('wait');
+  assert.equal(second.stdout, 'HANDOVER_RESULT=not-accepted\n');
   const steps = f.steps().slice(before);
-  assert.deepEqual(steps.slice(0, 7), [...FILL, PRESS]);
+  assert.deepEqual(steps.slice(0, 8), [...FILL, ...PRESSED]);
   assert.deepEqual(steps.slice(-4), CLEAR, 'each text box it typed into is emptied and each dropdown put back, last');
   assert.equal(steps.filter(step => step === PRESS).length, 1, 'pressed once, never again');
-  assert.ok(steps.slice(7, -4).length > 1 && steps.slice(7, -4).every(step => step === 'url'));
+  assert.ok(steps.slice(8, -4).length > 10 && steps.slice(8, -4).every(step => step === 'url'), 'the watch only reads the address');
   assert.deepEqual(f.page().typed, { e12: '', '#cvv': '' }, 'nothing the person gave is left on the page');
   assert.deepEqual(f.page().picked, { e13: '01 - January', e14: '2027' }, 'each dropdown shows the choice the site had');
-  const out = f.run('wait');
-  assert.equal(out.stdout.trim(), 'HANDOVER_RESULT=not-accepted');
-  assert.match(out.rawStdout, /HANDOVER_NOTIFICATION=not-requested/);
-  assert.deepEqual(f.sent(), [], 'not accepted never announces readiness');
+  const messages = f.sent().map(message => JSON.parse(/\{.*\}/.exec(message[2])[0]));
+  const { completionId } = JSON.parse(readFileSync(join(f.state, 'result.json'), 'utf8'));
+  assert.deepEqual(messages.map(({ completionId: id, result, watching }) => [id, result, watching]), [[completionId.replace(/:late$/, ''), 'unconfirmed', true], [completionId, 'not-accepted', undefined]], 'a late notice as a new completion');
+  assert.match(completionId, /^[0-9a-f]{32}:late$/);
+  assert.ok(!existsSync(join(f.state, 'watcher.pid')));
 });
 
-test('a field that can not be filled presses nothing and empties what was typed', async t => {
+test('a site that answers during the watch ends done, told late, with nothing emptied', async t => {
+  const f = fixture(t, { paseo: 'ok' });
+  f.env.HANDOVER_WATCH_MS = '20000';
+  const link = openedForm(f, '--until-gone', '#card-form');
+  assert.equal((await send(f, link, { moves: false })).json.receipt.result, 'unconfirmed');
+  assert.match(f.run('wait').stdout, /^HANDOVER_RESULT=unconfirmed\nHANDOVER_WATCHING=1\n$/);
+  f.set('count', '0');
+  assert.equal(f.run('wait').stdout, 'HANDOVER_RESULT=done\n');
+  assert.deepEqual(f.page().typed, { e12: NUMBER, '#cvv': CODE });
+  assert.deepEqual(f.sent().map(message => /"result":"(\w+)"/.exec(message[2])[1]), ['unconfirmed', 'done']);
+  assert.equal(f.timings().at(-1).ended, 'done');
+});
+
+test('a page that moved, or that the browser can no longer read, is never emptied and ends unconfirmed', async t => {
+  for (const how of ['moved', 'unreadable']) {
+    const f = fixture(t);
+    f.env.HANDOVER_WATCH_MS = '2000';
+    const link = openedForm(f);
+    const before = f.steps().length;
+    if (how === 'moved') f.set('click-url', 'https://pay.example.com/card/processing');
+    f.set('hold-click', '');
+    const sending = route(link.port, link.key, 'send', { values: VALUES });
+    await eventually(() => f.steps().includes(PRESS));
+    if (how === 'unreadable') f.set('gone', '');
+    f.unset('hold-click');
+    assert.equal((await sending).json.receipt.result, 'unconfirmed', how);
+    f.run('wait');
+    assert.equal(f.run('wait').stdout, 'HANDOVER_RESULT=unconfirmed\n', `${how}: the final result, no longer watching`);
+    const after = f.steps().slice(before).slice(8);
+    assert.ok(after.length && after.every(step => step === 'url'), `${how}: nothing typed after the press`);
+    if (how === 'moved') assert.deepEqual(f.page().typed, { e12: NUMBER, '#cvv': CODE });
+  }
+});
+
+test('close during a watch ends it at once by the same rule: an unmoved page is emptied, and the record names the close', async t => {
+  const f = fixture(t);
+  f.env.HANDOVER_WATCH_MS = '60000';
+  const link = openedForm(f);
+  assert.equal((await send(f, link, { moves: false })).json.receipt.result, 'unconfirmed');
+  f.run('wait');
+  const started = Date.now();
+  assert.equal(f.run('close').stdout, 'HANDOVER_RESULT=not-accepted\n');
+  assert.ok(Date.now() - started < 10_000, 'the close did not wait out the watch');
+  assert.deepEqual(f.page().typed, { e12: '', '#cvv': '' });
+  assert.deepEqual(f.timings().filter(entry => entry.ended).map(({ ended, cause }) => [ended, cause]), [['unconfirmed', 'send'], ['not-accepted', 'close-command']]);
+});
+
+test('a watch that ends before the link\'s page closes still kills the tunnel and closes the page before it exits', async t => {
+  for (const how of ['close', 'finish']) {
+    const f = fixture(t);
+    f.env.HANDOVER_WATCH_MS = '60000';
+    const link = how === 'close' ? openedForm(f) : openedForm(f, '--until-gone', '#card-form');
+    const tunnel = f.tunnelPid();
+    assert.equal((await send(f, link, { moves: false })).json.receipt.result, 'unconfirmed', how);
+    if (how === 'finish') f.set('count', '0');
+    const out = how === 'close' ? f.run('close') : (f.run('wait'), f.run('wait'));
+    assert.equal(out.stdout, `HANDOVER_RESULT=${how === 'close' ? 'not-accepted' : 'done'}\n`, how);
+    assert.ok(!alive(tunnel), `${how}: the tunnel is not left running`);
+    assert.ok(!(await answers(link.port)), `${how}: the page is closed`);
+  }
+});
+
+test('close during a send is kept: the watch that follows ends at once by the same rule', async t => {
+  const f = fixture(t);
+  f.env.HANDOVER_WATCH_MS = '60000';
+  const link = openedForm(f);
+  f.set('hold-click', '');
+  const sending = route(link.port, link.key, 'send', { values: VALUES });
+  await eventually(() => f.steps().includes(PRESS));
+  const started = Date.now();
+  const closing = f.start('close');
+  await eventually(() => existsSync(join(f.state, 'closing')));
+  await pause(300);
+  f.unset('hold-click');
+  assert.equal((await sending).json.receipt.result, 'unconfirmed');
+  assert.equal((await closing).stdout, 'HANDOVER_RESULT=not-accepted\n');
+  assert.ok(Date.now() - started < 10_000, 'the close did not wait out the watch');
+  assert.deepEqual(f.page().typed, { e12: '', '#cvv': '' });
+  assert.deepEqual(f.timings().filter(entry => entry.ended).map(({ ended, cause }) => [ended, cause]), [['unconfirmed', 'send'], ['not-accepted', 'close-command']]);
+});
+
+test('/receipt names only the step a send is on, never a value or a target', async t => {
+  const f = fixture(t);
+  const link = openedForm(f);
+  f.set('hold-click', '');
+  const sending = send(f, link);
+  await eventually(() => f.steps().includes(PRESS));
+  assert.deepEqual(await route(link.port, link.key, 'receipt'), { status: 202, json: { finishing: false, step: 'pressing' } });
+  f.unset('hold-click');
+  assert.equal((await sending).json.receipt.result, 'done');
+});
+
+test('a send keeps a timing record of each step and how the link ended, with no value, readable by its owner alone', async t => {
+  const f = fixture(t);
+  const link = openedForm(f);
+  assert.equal((await send(f, link)).json.receipt.result, 'done');
+  f.run('wait');
+  const lines = f.timings();
+  const link8 = lines[0].link;
+  assert.match(link8, /^[0-9a-f]{8}$/);
+  assert.ok(lines.every(line => line.link === link8 && !Number.isNaN(Date.parse(line.at))));
+  assert.deepEqual(lines.filter(line => line.step).map(({ step, index, kind, ok }) => [step, index, kind, ok]).sort(), [['fill', 0, 'cc-number', true], ['fill', 1, 'cc-exp-month', true], ['fill', 2, 'cc-exp-year', true], ['fill', 3, 'cc-csc', true], ['finish', undefined, undefined, true], ['press', undefined, undefined, true]].sort());
+  assert.ok(lines.filter(line => line.step).every(line => Number.isInteger(line.ms) && line.ms >= 0), 'each step has its time');
+  assert.deepEqual(lines.filter(line => line.ended).map(({ ended, cause }) => [ended, cause]), [['done', 'send']]);
+  const file = join(f.state, 'timings.jsonl');
+  assert.equal(statSync(file).mode & 0o777, 0o600);
+  assert.doesNotMatch(readFileSync(file, 'utf8'), new RegExp(`${PRIVATE.source}|${link.key}|http|receipt|e12|#cvv`));
+});
+
+test('the timing record names what ended each link: the close command, the time limit, the person\'s own close', async t => {
+  const f = fixture(t);
+  openedForm(f);
+  f.run('close');
+  openedForm(f, '--until', '**/receipt/*', '--minutes', '0.02');
+  f.run('wait');
+  const cancel = openedForm(f);
+  await route(cancel.port, cancel.key, 'done', {});
+  f.run('wait');
+  assert.deepEqual(f.timings().map(({ ended, cause }) => [ended, cause]), [['closed', 'close-command'], ['timeout', 'deadline'], ['closed', 'cancel-route']]);
+});
+
+test('appendTiming keeps only the named fields and the last lines', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'wong-test-timings-'));
+  try {
+    const file = join(dir, 'timings.jsonl');
+    for (let i = 0; i < KEEP + 20; i++) appendTiming(file, { link: 'ab12cd34', step: 'fill', index: i, ms: 1, ok: true, value: '4242', error: 'fill("4242")' }, { now: 0 });
+    const lines = readFileSync(file, 'utf8').trim().split('\n');
+    assert.equal(lines.length, KEEP);
+    assert.deepEqual(JSON.parse(lines[0]), { at: '1970-01-01T00:00:00.000Z', link: 'ab12cd34', step: 'fill', index: 20, ms: 1, ok: true });
+    assert.doesNotMatch(readFileSync(file, 'utf8'), /4242/);
+    assert.equal(statSync(file).mode & 0o777, 0o600);
+    appendTiming(file, { link: 'x', ended: 'closed', cause: 'SIGTERM' }, { keep: 2 });
+    assert.equal(readFileSync(file, 'utf8').trim().split('\n').length, 2);
+    assert.equal(linkOf('0123456789abcdef'), '01234567');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a field that can not be filled presses nothing, empties what was typed, and puts the failed dropdown back', async t => {
   const f = fixture(t);
   const link = openedForm(f);
   const before = f.steps().length;
   f.set('fail-select', '');
   const { json } = await send(f, link);
   assert.equal(json.receipt.result, 'not-accepted');
-  assert.deepEqual(f.steps().slice(before), [...FILL.slice(0, 3), 'type e12']);
+  assert.deepEqual(f.steps().slice(before), [...FILL.slice(0, 3), 'type e12', 'select e13 01 - January'], 'a pick that timed out may still have landed');
   assert.deepEqual(f.page().typed, { e12: '' }, 'nothing past the failed field was typed, and the first box is empty again');
 });
 
@@ -530,7 +728,8 @@ test('a press whose step fails still waits for the site, which may have taken it
   await eventually(() => f.steps().includes(PRESS));
   f.set('count', '0');
   assert.equal((await sending).json.receipt.result, 'done');
-  assert.ok(!f.steps().includes('url'), 'only the named finish is read');
+  const after = f.steps().slice(f.steps().indexOf(PRESS) + 1);
+  assert.ok(after.length && after.every(step => ['url', 'count #card-form'].includes(step)), 'only the address and the named finish are read');
   assert.equal(f.steps().filter(step => step === PRESS).length, 1, 'a failed press is never tried again');
 });
 
@@ -555,7 +754,7 @@ test('a form whose browser stopped before the send types nothing, presses nothin
   assert.equal(f.camofox.starts(), 1);
 });
 
-test('a bad send is refused without using the one send, and Close without sending gives closed', async t => {
+test('a bad send is refused without using the one send, and Not now gives closed', async t => {
   const f = fixture(t);
   const { port, key } = openedForm(f);
   const before = f.steps().length;
@@ -620,7 +819,7 @@ test('a private form keeps its page open with one constant a minute, and stops a
   f.env.HANDOVER_KEEPALIVE_MS = '100';
   const link = openedForm(f);
   await eventually(() => f.steps().filter(step => step === 'keep-alive').length >= 3);
-  assert.deepEqual([...new Set(f.steps())], ['url', 'keep-alive'], 'the one read at open, then only the constant');
+  assert.deepEqual([...new Set(f.steps())], ['url', 'screenshot', 'keep-alive'], 'the one read and the picture at open, then only the constant');
   assert.equal(f.steps().filter(step => step === 'url').length, 1, 'nothing on the page is read');
   const before = f.steps().length;
   f.set('hold-click', '');
@@ -689,6 +888,8 @@ test('--view needs a finish, and --note goes with --view only, as one line', t =
   assert.match(help, /open --view \(--until <glob> \| --until-gone <selector>\) \[--session <name>\] \[--note <line>\] \[--minutes N\]/);
   assert.match(help, /wait \| close \| install-view/);
   assert.match(help, /HANDOVER_NEEDS=live-view/);
+  assert.match(help, /a check that asks whether a person is\s+there, or a stuck login/);
+  assert.match(help, /--passwords \[--site <url> \[--email-first\]\]/);
   assert.deepEqual(f.calls(), []);
   assert.deepEqual(f.tools.calls('x11vnc'), []);
 });
@@ -1151,5 +1352,73 @@ test('an opened key link, a private form, and a password link each refuse a seco
       assert.match(again.stderr, /already open/);
     }
     assert.ok(await answers(port), 'the first link is untouched');
+  }
+});
+
+/** Fetches the link's picture with `key`, or with none when null; resolves to the status, headers, and body. */
+async function picture({ port }, key) {
+  const response = await fetch(`http://127.0.0.1:${port}/picture`, { headers: key === null ? {} : { 'x-hand-over-key': key } });
+  return { status: response.status, type: response.headers.get('content-type'), cache: response.headers.get('cache-control'), body: await response.text() };
+}
+const pictureFile = f => join(f.state, 'picture.png');
+
+test('a form opens with one picture of the whole page, served behind the key and gone once the link closes', async t => {
+  const f = fixture(t);
+  const link = openedForm(f);
+  const shot = f.camofox.requests().find(request => request.path.endsWith('/screenshot'));
+  assert.match(shot.query, /(^|&)fullPage=true(&|$)/, 'the whole page, not just what shows');
+  assert.equal(statSync(pictureFile(f)).mode & 0o777, 0o600);
+  assert.equal((await route(link.port, link.key, 'form')).json.picture, true);
+  assert.equal((await picture(link, null)).status, 403);
+  assert.equal((await picture(link, '0'.repeat(64))).status, 403);
+  assert.deepEqual(await picture(link, link.key), { status: 200, type: 'image/png', cache: 'no-store', body: 'png-1' });
+  assert.match(await (await fetch(`http://127.0.0.1:${link.port}/picture-view.mjs`)).text(), /export function pictureView/);
+  assert.equal(f.run('close').status, 0);
+  assert.ok(!existsSync(pictureFile(f)), 'the picture goes with the link');
+});
+
+test('a picture that fails leaves the form without one, and a key link never serves one', async t => {
+  const f = fixture(t, { checkout: true });
+  f.set('fail-shot');
+  const link = openedForm(f);
+  assert.equal((await route(link.port, link.key, 'form')).json.picture, false);
+  assert.equal((await picture(link, link.key)).status, 404);
+  assert.ok(!existsSync(pictureFile(f)));
+  f.run('close');
+  f.unset('fail-shot');
+  const before = f.steps().length;
+  const keys = opened(f, '--keys', 'MAPS_API_KEY');
+  assert.equal((await picture(keys, keys.key)).status, 404);
+  assert.ok(!f.steps().slice(before).includes('screenshot'), 'a key link takes no picture');
+});
+
+test('a one-site password link pictures the session\'s page only when it is on that site', async t => {
+  const f = fixture(t);
+  f.openPage();
+  for (const [site, session, shows] of [['pay.example.com', SESSION, true], ['https://example.com/login', SESSION, true], ['netflix.com', SESSION, false], ['pay.example.com', 'nobody', false], [null, SESSION, false]]) {
+    const before = f.steps().length;
+    const link = opened(f, '--passwords', '--session', session, ...(site ? ['--site', site] : []));
+    const label = `${site} in ${session}`;
+    // A one-site link's key sits before its `&site=`, where KEY, anchored at the end, misses it.
+    const key = /#key=([0-9a-f]{64})/.exec(link.link)[1];
+    assert.equal((await picture(link, key)).status, shows ? 200 : 404, label);
+    assert.equal(existsSync(pictureFile(f)), shows, label);
+    assert.deepEqual(f.steps().slice(before), session === SESSION && site ? ['url', ...(shows ? ['screenshot'] : [])] : [], `${label}: only the address, then the picture`);
+    assert.ok(!existsSync(join(f.state, 'state.json')) || JSON.parse(readFileSync(join(f.state, 'state.json'), 'utf8')).session === null, 'the password link keeps no page');
+    f.run('close');
+  }
+});
+
+test('a sent card is never saved, accepted or refused, even when the send asks to', async t => {
+  for (const moves of [true, false]) {
+    const f = fixture(t);
+    const link = openedForm(f);
+    if (moves) f.set('click-url', RECEIPT);
+    const { json } = await route(link.port, link.key, 'send', { values: VALUES, save: true });
+    assert.equal(json.receipt.result, moves ? 'done' : 'unconfirmed');
+    assert.equal(json.receipt.saved, undefined);
+    assert.ok(!existsSync(join(f.root, '.wong-stack/details.json')), `moves ${moves}`);
+    const out = f.run('wait');
+    assert.doesNotMatch(out.stdout, /HANDOVER_SAVED/);
   }
 });

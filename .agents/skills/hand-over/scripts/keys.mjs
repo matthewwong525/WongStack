@@ -6,7 +6,7 @@ import { existsSync, readFileSync, renameSync, rmSync, writeFileSync } from 'nod
 import { basename, dirname, join } from 'node:path';
 import { ENTRY, isIgnored, loadBase } from '../../ship/scripts/worktree-secrets.mjs';
 
-export const LIMITS = { names: 20, body: 16 * 1024, value: 4096, hint: 200, title: 40, steps: 6, step: 140 };
+export const LIMITS = { names: 20, body: 16 * 1024, value: 4096, hint: 200, title: 40, why: 140, steps: 6, step: 140 };
 const CHECK_TIMEOUT_MS = 8000;
 export const KEY_ROUTES = new Set(['/keys', '/save', '/continue', '/done']);
 export const NAME = /^[A-Z_][A-Z0-9_]*$/;
@@ -115,12 +115,13 @@ export function authPlace(auth) {
   return kind === 'query' && QUERY.test(name) ? { query: name } : null;
 }
 
-const GUIDE_FIELDS = new Set(['title', 'url', 'open', 'steps', 'check']);
+const GUIDE_FIELDS = new Set(['title', 'why', 'url', 'open', 'steps', 'check']);
 const CHECK_FIELDS = new Set(['url', 'auth']);
 /** Each reason a guide entry is refused, with the test that finds it. */
 const GUIDE_FAULTS = [
-  ['takes only title, url, open, steps, and check', entry => Object.keys(entry).some(field => !GUIDE_FIELDS.has(field))],
+  ['takes only title, why, url, open, steps, and check', entry => Object.keys(entry).some(field => !GUIDE_FIELDS.has(field))],
   [`title and open take 1 to ${LIMITS.title} characters on one line`, ({ title, open }) => [title, open].some(text => text !== undefined && !isText(text, LIMITS.title))],
+  [`why takes 1 to ${LIMITS.why} characters on one line`, ({ why }) => why !== undefined && !isText(why, LIMITS.why)],
   ['url takes an https address with a host name', ({ url }) => url !== undefined && !httpsUrl(url)],
   ['open needs a url', ({ url, open }) => open !== undefined && url === undefined],
   [`steps takes at most ${LIMITS.steps} lines of 1 to ${LIMITS.step} characters`, ({ steps }) => steps !== undefined && !(Array.isArray(steps) && steps.length <= LIMITS.steps && steps.every(step => isText(step, LIMITS.step)))],

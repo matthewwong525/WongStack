@@ -171,3 +171,31 @@ When a finished `/apply` has a preview and is asking what to do next, it SHALL s
 
 - **WHEN** the preview cannot be captured or the app has no changed screen
 - **THEN** `/apply` says why pictures are unavailable, retains any preview link, and still asks what to do next
+
+### Requirement: A helper that stops without its report is sent back once
+
+On a host that runs project hooks, when the helper building a change stops without its report, the host SHALL send it back once, saying to wait for anything it started that still runs and then report. A second stop, any other agent's stop, and a stop the hook cannot read SHALL go through unchanged, so the hook never traps a helper or blocks a chat.
+
+#### Scenario: The helper stops while its checks run
+
+- **WHEN** a building helper ends its turn with no report while a check it started is still running
+- **THEN** it is sent back with a message to wait and report, and its next stop goes through
+
+#### Scenario: Any other stop
+
+- **WHEN** the main chat or a helper not building a change stops
+- **THEN** it stops as before, with no message
+
+### Requirement: A second agent reviews the finished build
+
+When the build's tasks are done and before the preview, or before returning to `/ship`, `/apply` SHALL have a fresh agent, which did not build the change, read the change's diff against its plan. The reviewer SHALL report bugs, missing or weak tests, and work the plan did not ask for. Each finding SHALL be routed by the change loop's fix-or-ask rule: a fixable finding goes back to a builder, and one that needs a decision is asked of the person with a recommended answer. Fix rounds SHALL stop after two, and what remains is brought to the person. The report SHALL list what the review found and what was fixed.
+
+#### Scenario: The reviewer finds a weak test
+
+- **WHEN** the reviewer finds that a new test passes whether or not the feature works, and the builder agrees
+- **THEN** a builder strengthens the test before the preview, and the report lists the fix without asking the person
+
+#### Scenario: The reviewer finds work outside the plan
+
+- **WHEN** the reviewer finds that the build changed a screen the plan never mentioned
+- **THEN** `/apply` asks the person one plain question with a recommended answer before the preview, and changes nothing until they answer

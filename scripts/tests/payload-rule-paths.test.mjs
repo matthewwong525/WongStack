@@ -79,6 +79,7 @@ test('shipped workflows and their local action receive every static file depende
   workflows.forEach(check);
   assert.ok(checked.has('.nvmrc'));
   assert.ok(checked.has('.github/scripts/app-untouched.sh'));
+  assert.ok(checked.has('.github/scripts/already-passed.sh'));
   assert.ok(checked.has('.github/scripts/checks.mjs'));
   assert.ok(checked.has('.github/scripts/loosened-checks.mjs'));
   assert.ok(checked.has('.github/scripts/wiki-links.mjs'));

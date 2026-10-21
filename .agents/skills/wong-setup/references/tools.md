@@ -4,11 +4,11 @@
 
 **[The Artifacts route](../../../../wiki/stack/artifacts-route.md#setup)**, the default on Mac and Linux, has no GitHub: leave `gh` out of the tools and the ask, skip step 2, and ask the person for step 3's name and email. The GitHub route adds `gh` and step 2 when chosen.
 
-**The person types no command.** The agent runs every command below and asks in [the ask format](../../explore/references/asking-the-user.md), in [plain words](../../explore/references/asking-the-user.md#write-in-plain-words): *"I need a few free tools: Node.js and GitHub's app to set things up, a browser for me, and a tool that links you to it. Install them (Recommended), or stop here?"* One yes covers every tool it names. A decline or failed install stops setup with nothing written: say what is missing, what it is for, and that running setup again picks up here. Only a failed [helper](#the-helpers-the-browser-and-the-link-tool) is skipped instead. [The failure map](failure-map.md#getting-the-computer-ready) owns each stop's fix.
+**The person types no command.** The agent runs every command below and asks in [the ask format](../../explore/references/asking-the-user.md), in [plain words](../../explore/references/asking-the-user.md#write-in-plain-words): *"I need a few free tools: Node.js and GitHub's app to set things up, a browser for me, and a tool that links you to it. Install them (Recommended), or stop here?"* One yes covers every tool it names. A decline or failed install stops setup with nothing written: say what is missing, what it is for, and that rerunning setup picks up here. Only a failed [helper](#the-helpers-the-browser-and-the-link-tool) is skipped instead. [The failure map](failure-map.md#getting-the-computer-ready) owns each stop's fix.
 
 ## 1. The tools
 
-Check each with `command -v`, in this order, since the clone needs `git` and OpenSpec needs Node:
+Check each with `command -v`, in this order: the clone needs `git`, OpenSpec needs Node:
 
 | Tool | Ready when |
 |---|---|
@@ -17,7 +17,7 @@ Check each with `command -v`, in this order, since the clone needs `git` and Ope
 | Node.js | `node --version` is in the range `engines.node` gives in `<selected raw root>/app/package.json`, such as 24.15 or later on Node 24; an older one is missing. An unreadable or invalid range stops setup |
 | OpenSpec | `openspec --version` answers |
 
-Check [the helpers](#the-helpers-the-browser-and-the-link-tool) too, so the ask names them. Install each missing one of the four by the first route with **no password prompt**, which the agent's shell cannot answer. Never install a package manager.
+Check [the helpers](#the-helpers-the-browser-and-the-link-tool) too, so the ask names them. Install each missing one of the four by the first route with **no password prompt**: the agent's shell can't answer one. Never install a package manager.
 
 | System (`uname -s`) | Route |
 |---|---|
@@ -41,7 +41,7 @@ On macOS, Node's archive is `node-v…-darwin-<arch>.tar.gz` (unpack with `tar -
 
 **OpenSpec** installs with the command in [the preconditions](../../save/references/preconditions.md), which own the pinned version. When a global npm install needs `sudo`, add `--prefix ~/.local`.
 
-After a user-folder install, start every later command in this chat with `export PATH="$HOME/.local/bin:$PATH"; `, since each command is a new shell. Then put that line first in the start-up file, above the point where the file stops for a shell that is not interactive:
+After a user-folder install, start every later command in this chat with `export PATH="$HOME/.local/bin:$PATH"; `, since each command is a new shell. Then put that line first in the start-up file, above where it returns early for a non-interactive shell:
 
 ```bash
 L='export PATH="$HOME/.local/bin:$PATH"'
@@ -52,7 +52,7 @@ for F; do
 done
 ```
 
-Then check every tool again; one still missing is a failed install. [Why the line goes first](../../../../wiki/development/required-tools.md#where-an-assistant-finds-its-tools).
+Then recheck every tool; one still missing is a failed install. [Why the line goes first](../../../../wiki/development/required-tools.md#where-an-assistant-finds-its-tools).
 
 ### The helpers: the browser and the link tool
 
@@ -63,11 +63,11 @@ After the four pass, install each missing helper the same yes covered ([why each
 
 Never offer camofox here: the first errand asks, then runs `browse.mjs install` ([why](../../../../wiki/development/required-tools.md#installing-camofox)). Nor Shop's command: the first shopping request [asks](../../../../wiki/development/required-tools.md#installing-shops-command).
 
-A helper still missing after its install is not a stop: say so in one plain line (*"The browser didn't install; I'll offer it again when I need it."*) and continue. Without `cloudflared`, memory waits on this computer until it is in.
+A helper still missing after its install doesn't stop setup: say so in one line (*"The browser didn't install; I'll offer it again when I need it."*) and continue. Without `cloudflared`, memory waits on this computer until it is in.
 
 ### Paseo: point to it, never install it
 
-After the tools pass, check `command -v paseo`. Missing → say one plain sentence, then continue: *"Paseo is a free app for chatting with me from your phone and giving each piece of work its own space; get it at [paseo.sh](https://paseo.sh) whenever you like."* Never install it, and never stop setup without it: it is a desktop download with its own window.
+After the tools pass, check `command -v paseo`. Missing → say one plain sentence and continue: *"Paseo is a free app for chatting with me from your phone and giving each piece of work its own space; get it at [paseo.sh](https://paseo.sh) whenever you like."* Never install it or stop setup without it: it is a desktop download with its own window.
 
 ## 2. The GitHub sign-in
 
@@ -85,11 +85,11 @@ I need you to approve GitHub once.
 3. Approve, then tell me you're done
 ```
 
-When they say done, check `gh auth status` again, then run `gh auth setup-git` so the first push needs no second sign-in. No code in the output, or no sign-in after they say done → stop, create nothing, and use the failure map.
+When they say done, recheck `gh auth status`, then run `gh auth setup-git` so the first push needs no second sign-in. No code printed, or still signed out after they say done → stop, create nothing, and use the failure map.
 
 ## 3. The git name and email
 
-Read `git config user.name` and `git config user.email`. Set only an empty value, in the global config; never change a set one:
+Read `git config user.name` and `git config user.email`. Set only an empty one, globally; never change a set one:
 
 ```bash
 git config --global user.name "$(gh api user --jq '.name // .login')"
@@ -98,13 +98,13 @@ git config --global user.email "$(gh api user/emails --jq '[.[] | select(.primar
 
 With no `gh`, ask the person for both and set those.
 
-Git authorship needs a name and email for saved changes. Memory follows the owner's company sign-in, not git's email.
+Saved changes need a git name and email. Memory follows the owner's company sign-in, not git's email.
 
 ## 4. Windows folder links
 
-On native Windows (`MINGW*`, `MSYS*`, `CYGWIN*`), run `git config --global core.symlinks true` before cloning, even if links already work. A failed write stops setup. WSL uses the Linux flow.
+On native Windows (`MINGW*`, `MSYS*`, `CYGWIN*`), run `git config --global core.symlinks true` before cloning, even if links work; a failed write stops setup. WSL uses the Linux flow.
 
-Then test real directory and file links. Run this probe again after any setting change; its subshell keeps cleanup from hiding a failure:
+Then test real folder and file links, again after any setting change; the subshell keeps cleanup from hiding a failure:
 
 ```bash
 (
@@ -120,7 +120,7 @@ Then test real directory and file links. Run this probe again after any setting 
 )
 ```
 
-Zero → continue. Otherwise, enable [Developer Mode](https://learn.microsoft.com/en-us/windows/advanced-settings/developer-mode#use-powershell-to-enable-your-device) yourself. Tell the person first: *"I'll turn on the Windows setting your assistant needs. If Windows asks for permission, approve that window so I can continue."* Run this through `powershell.exe` when available; `RunAs` requests administrator approval, and `Wait` plus `PassThru` checks the result:
+Zero → continue. Otherwise, enable [Developer Mode](https://learn.microsoft.com/en-us/windows/advanced-settings/developer-mode#use-powershell-to-enable-your-device) yourself. Tell the person first: *"I'll turn on the Windows setting your assistant needs. If Windows asks for permission, approve that window so I can continue."* Run it through `powershell.exe` when available; `RunAs` asks for administrator approval, and `Wait` with `PassThru` checks the result:
 
 ```bash
 powershell.exe -NoProfile -Command '
@@ -139,9 +139,9 @@ powershell.exe -NoProfile -Command '
 '
 ```
 
-Zero → rerun the probe and continue only if both links pass. Exit 2 means approval was refused: stop, without asking again. Exit 1 or an error showing workplace policy → stop and explain that an administrator must allow the setting. Never change organization policy.
+Zero → rerun the probe; continue only if both links pass. Exit 2: approval was refused; stop without asking again. Exit 1, or an error naming workplace policy → stop: an administrator must allow the setting. Never change organization policy.
 
-Missing PowerShell or exit 3 without a policy restriction → the permission window could not launch. Only then give this fallback:
+No PowerShell, or exit 3 with no policy restriction → the permission window couldn't open. Only then give this fallback:
 
 ```text
 I couldn't open Windows' permission window.
@@ -150,4 +150,4 @@ I couldn't open Windows' permission window.
 3. Tell me when it's on
 ```
 
-Retest after they finish. A failed final probe stops setup before cloning or writing in the target; use [the failure map](failure-map.md#getting-the-computer-ready). The registry change alone never proves links work.
+Retest after they finish. A failed final probe stops setup before cloning or writing; use [the failure map](failure-map.md#getting-the-computer-ready). The registry change alone never proves links work.

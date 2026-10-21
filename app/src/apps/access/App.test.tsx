@@ -133,13 +133,13 @@ it('the owner sees people as a table of one-line rows with their own row first, 
   // A click on the owner's row opens nothing.
   fireEvent.click(line('owner@example.com').getByText('Everything')); expect(where()).toBe('/apps/access/')
 })
-it('switches between two views, each with its count, whose addresses survive Back and a reload, and shows People at an unknown address, the old Apps, Keys and Skills ones included', async () => {
+it('switches between three views, each with its count, whose addresses survive Back and a reload, and shows People at an unknown address, the old Apps, Keys and Skills ones included', async () => {
   roster.roles = [{ id: 'sales', name: 'Sales', apps: [], keys: {} }]; roster.people.push(person({ email: 'gone@example.com', status: 'removed', apps: [] }))
   roster.keys = [saved('stripe', 'Stripe')]
   const current = () => Array.from(document.querySelectorAll('[aria-current="page"]')).map(link => link.textContent)
   open(); await screen.findByRole('navigation', { name: 'Access views' })
-  // People and Roles, and no third. People counts the owner and everyone who can sign in, never a removed person.
-  expect(tabs().map(link => [link.textContent, link.getAttribute('href')])).toEqual([['People 2', '/apps/access/'], ['Roles 1', '/apps/access/roles']])
+  // People counts the owner and everyone who can sign in, never a removed person; Services counts the keys.
+  expect(tabs().map(link => [link.textContent, link.getAttribute('href')])).toEqual([['People 2', '/apps/access/'], ['Roles 1', '/apps/access/roles'], ['Services 1', '/apps/access/services']])
   expect(current()).toEqual(['People 2'])
   follow('Roles 1'); await screen.findByRole('region', { name: 'Roles' })
   expect(current()).toEqual(['Roles 1']); expect(where()).toBe('/apps/access/roles')
@@ -148,22 +148,22 @@ it('switches between two views, each with its count, whose addresses survive Bac
   expect(where()).toBe('/apps/access/'); expect(reads('status')).toHaveLength(1)
   // The Apps, Keys and Skills lists and Key settings are gone: an old address of theirs, like any other that names
   // nothing, shows its view, or People, with nothing opened.
-  for (const [path, name] of [['roles', 'Roles'], ['people', 'People'], ['nothing/new', 'People'], ['skills', 'People'], ['skills/refund', 'People'],
+  for (const [path, name] of [['roles', 'Roles'], ['services', 'Services'], ['people', 'People'], ['nothing/new', 'People'], ['skills', 'People'], ['skills/refund', 'People'],
     ['apps', 'People'], ['apps/hello', 'People'], ['keys', 'People'], ['keys/stripe', 'People'], ['people/keys', 'People'], ['roles/keys', 'Roles'], ['roles/nothing', 'Roles'], ['people/nobody@example.com', 'People']]) {
     cleanup(); open(path); await screen.findByRole('region', { name })
     expect(current().map(text => text!.split(' ')[0]), path).toEqual([name]); expect([screen.queryByRole('button', { name: /^Save/ }), screen.queryByRole('dialog')], path).toEqual([null, null])
-    expect(tabs().map(link => link.textContent!.split(' ')[0]), path).toEqual(['People', 'Roles'])
+    expect(tabs().map(link => link.textContent!.split(' ')[0]), path).toEqual(['People', 'Roles', 'Services'])
     expect(document.querySelector('tr[aria-current]'), path).toBeNull()
   }
 })
-it('keeps the two views, the one notice spot and the list in place with a person or a role opened beside it, and the ✕ goes back to its view', async () => {
+it('keeps the three views, the one notice spot and the list in place with a person or a role opened beside it, and the ✕ goes back to its view', async () => {
   roster.roles = [{ id: 'sales', name: 'Sales', apps: [], keys: {} }]; roster.keys = [saved('stripe', 'Stripe')]
   roster.environment = 'practice'; roster.key = 'practice'
   for (const [path, view, name] of [['people/employee@example.com', 'People', 'employee@example.com'], ['people/new', 'People', 'Add person'], ['roles/sales', 'Roles', 'Sales'],
     ['roles/new', 'Roles', 'Add role']]) {
     // Every panel saves something.
     open(path); expect(within(await panel(name)).queryAllByRole('button', { name: /^Save/ }), path).toHaveLength(1); const views = screen.getByRole('navigation', { name: 'Access views' })
-    expect(tabs().map(link => link.textContent), path).toEqual(['People 2', 'Roles 1'])
+    expect(tabs().map(link => link.textContent), path).toEqual(['People 2', 'Roles 1', 'Services 1'])
     expect(views.querySelector('[aria-current="page"]')!.textContent!.split(' ')[0], path).toBe(view)
     // Under the views sits the notice spot, then the view's list; the panel is named by what it holds.
     const notice = screen.getByText(/Changes here stay on previews/); const list = screen.getByRole('table', { name: view })
@@ -358,7 +358,7 @@ it('a person who manages nothing sees only what they can use, each app by its ti
   mode = 'waiting-owner'; open(); await screen.findByRole('link', { name: 'Add person' })
   expect(screen.queryByRole('region', { name: 'You can use' })).toBeNull()
 })
-it('draws three sides in the one frame: the owner and an Admin the two views, everyone else what they can use, and none a Connect button or a width of its own', async () => {
+it('draws three sides in the one frame: the owner and an Admin the three views, everyone else what they can use, and none a Connect button or a width of its own', async () => {
   for (const [side, manages] of [['owner', true], ['admin', true], ['employee', false]] as const) {
     mode = side; roster.viewer.owner = side === 'owner'
     open(); await screen.findByRole(manages ? 'navigation' : 'region', { name: manages ? 'Access views' : 'You can use' })
@@ -386,7 +386,7 @@ it('an Admin finds their own row marked You under the owner row, which says who 
   open(); await screen.findByRole('link', { name: 'Add person' })
   // No box of their own above the views and no line naming the owner: the table says both.
   expect(screen.queryByRole('region', { name: 'You can use' })).toBeNull(); expect(screen.queryByText(/You manage Access/)).toBeNull()
-  expect(tabs().map(link => link.textContent)).toEqual(['People 4', 'Roles 1'])
+  expect(tabs().map(link => link.textContent)).toEqual(['People 4', 'Roles 1', 'Services 0'])
   // The owner's row is first, with nothing to change or remove.
   const first = within(screen.getByRole('table', { name: 'People' })).getAllByRole('row')[1]
   expect(Array.from(first.querySelectorAll('td')).map(cell => cell.textContent)).toEqual(['owner@example.com', 'Can sign in', 'Owner · picks Admins', 'Everything', ''])
@@ -406,8 +406,8 @@ it('an Admin finds their own row marked You under the owner row, which says who 
   click('Remove access'); await screen.findByText('Saved.')
   expect(sent('people')).toEqual([{ email: 'lee@example.com', removed: true }])
   expect(cells('lee@example.com').slice(1, 3)).toEqual(['Removed', 'No role'])
-  // The same two views on every one of them, with no box above.
-  for (const name of ['Roles']) {
+  // The same three views on every one of them, with no box above.
+  for (const name of ['Roles', 'Services']) {
     follow(tabs().find(link => link.textContent!.startsWith(name))!.textContent!); await screen.findByRole('region', { name })
     expect(screen.queryByRole('region', { name: 'You can use' })).toBeNull()
   }

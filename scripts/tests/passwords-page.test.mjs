@@ -10,6 +10,7 @@ import { needs } from './fixtures/needs.mjs';
 const scripts = resolve(dirname(fileURLToPath(import.meta.url)), '../../.agents/skills/hand-over/scripts');
 const html = readFileSync(resolve(scripts, 'passwords-page.html'), 'utf8');
 const source = readFileSync(resolve(scripts, 'passwords-page.mjs'), 'utf8').replace(/^export /gm, '');
+const viewer = readFileSync(resolve(scripts, 'picture-view.mjs'), 'utf8').replace(/^export /gm, '');
 // jsdom comes from scripts/tests/node_modules (`npm ci` there).
 let JSDOM, VirtualConsole;
 try { ({ JSDOM, VirtualConsole } = await import('jsdom')); } catch { /* reported by needsDom */ }
@@ -24,28 +25,36 @@ const SECOND = 'name,url,username,password\n'
   + 'Target,https://target.com/,me@x.com,pw-target,\n';
 
 /** The page with a fake server. `reply(body)` answers each `/save`: a `{saved, failed}` result by default, from the
- * hosts sent; `open` says whether `page.mjs` still loads (a closed link's 403). */
-function page({ reply, open = true, hash = 'key=abc' } = {}) {
+ * hosts sent; `open` says whether `page.mjs` still loads (a closed link's 403); `picture` is the link's picture. */
+function page({ reply, open = true, hash = 'key=abc', picture } = {}) {
   const calls = [];
   const errors = [];
   const virtualConsole = new VirtualConsole();
   virtualConsole.on('jsdomError', error => errors.push(error.message));
-  const answer = (status, body) => ({ ok: status === 200, status, json: async () => body });
+  const answer = (status, body) => ({ ok: status === 200, status, json: async () => body, blob: async () => body });
+  // The page asks for its picture while it loads, before `window` below is set.
+  let Blob;
   const fetch = async (path, init = {}) => {
     const body = init.body ? JSON.parse(init.body) : undefined;
     calls.push({ path, body, key: init.headers?.['x-hand-over-key'] });
     if (path === 'page.mjs') return answer(open ? 200 : 404);
     if (path === 'done') return answer(200, { ok: true });
+    if (path === 'picture') return picture ? answer(200, new Blob([picture])) : answer(404);
     if (reply) return reply(body, answer);
     const hostOf = url => new URL(url).hostname.replace(/^www\./, '');
     return answer(200, { saved: body.logins.map(login => ({ name: hostOf(login.url), host: hostOf(login.url) })), failed: [] });
   };
-  const markup = html.replace('<script type="module" src="page.mjs"></script>', () => `<script>${source}</script>`);
+  const markup = html.replace('<script type="module" src="picture-view.mjs"></script>', () => `<script>${viewer}</script>`)
+    .replace('<script type="module" src="page.mjs"></script>', () => `<script>${source}</script>`);
   const { window } = new JSDOM(markup, {
     url: `https://pw.test/#${hash}`,
     runScripts: 'dangerously',
     virtualConsole,
-    beforeParse(win) { win.fetch = fetch; },
+    beforeParse(win) {
+      win.fetch = fetch;
+      ({ Blob } = win);
+      win.URL.createObjectURL = blob => `blob:${blob.size}`;
+    },
   });
   const { document } = window;
   const $ = selector => document.querySelector(selector);
@@ -241,7 +250,7 @@ test('Done with unsaved ticks needs two taps', needsDom, async () => {
   await p.pick(CHROME);
   p.tick('costco.com');
   await p.click('#done');
-  assert.equal(p.$('#done-note').textContent, '1 ticked login isn\'t saved. Tap Close without continuing again to leave without it.');
+  assert.equal(p.$('#done-note').textContent, '1 ticked login isn\'t saved. Tap Not now again to leave without it.');
   assert.equal(p.calls.some(call => call.path === 'done'), false);
   p.tick('netflix.com');
   assert.equal(p.$('#done-note').hidden, true, 'a tick change disarms Done');
@@ -285,7 +294,7 @@ test('a site and username in the link fill the form, title the page, and focus t
   assert.equal(p.$('#save').disabled, true, 'a site alone is not a login yet');
   const order = el => [...p.document.querySelectorAll('#page *')].indexOf(el);
   assert.ok(order(p.$('#add-form')) < order(p.$('#drop')), 'the form for this site comes before the export box');
-  assert.match(p.$('#drop').textContent, /^Or drop/);
+  assert.equal(p.$('#drop').textContent, 'Or drop your password export here, or tap to pick it');
 
   const q = page({ hash: 'key=abc&site=netflix.com&user=me%2B1%40x.com' });
   assert.equal(q.$('#username').value, 'me+1@x.com');
@@ -295,9 +304,12 @@ test('a site and username in the link fill the form, title the page, and focus t
 
 test('a link with no site or username leaves the page as it was', needsDom, () => {
   const p = page();
-  assert.equal(p.$('h1').textContent, 'Save logins for your agent');
+  assert.equal(p.$('h1').textContent, 'Save logins for your assistant');
   const order = el => [...p.document.querySelectorAll('#page *')].indexOf(el);
-  assert.ok(order(p.$('#drop')) < order(p.$('#add-form')), 'the export box stays first');
+  assert.equal(p.$('.private').textContent, 'Private link');
+  assert.ok(order(p.$('.promise')) < order(p.$('#drop')), 'the privacy line comes first');
+  assert.equal(p.$('#done').textContent, 'Not now');
+  assert.ok(order(p.$('#add-form')) < order(p.$('#drop')), 'the export box sits under the form on every link');
   assert.equal(p.$('#site').value, '');
   assert.notEqual(p.document.activeElement, p.$('#site'));
 });
@@ -305,11 +317,65 @@ test('a link with no site or username leaves the page as it was', needsDom, () =
 test('a pre-filled form is saved by Save and continue alone, and the fragment never reaches the server', needsDom, async () => {
   const p = page({ hash: 'key=abc&site=netflix.com&user=me%40x.com' });
   assert.equal(p.window.location.hash, '', 'the site and username leave the address bar with the key');
-  assert.deepEqual(p.calls, [], 'nothing is sent on load');
+  assert.deepEqual(p.calls.map(call => [call.path, call.body, call.key]), [['picture', undefined, 'abc']], 'nothing is sent on load: only the picture is asked for');
   p.$('#password').value = 'pw-new';
   p.$('#add-form').dispatchEvent(new p.window.Event('input', { bubbles: true }));
   assert.equal(p.$('#save').disabled, false);
   await p.click('#save');
   assert.deepEqual(p.saves(), [[{ url: 'https://netflix.com', username: 'me@x.com', password: 'pw-new' }]]);
   assert.ok(p.calls.every(call => !/[#?]/.test(call.path)), 'no request carries the fragment');
+});
+
+test('an email-first link makes the password optional and saves a blank one flagged', needsDom, async () => {
+  const p = page({ hash: 'key=abc&site=shopify.com&emailFirst=1' });
+  assert.equal(p.$('#password-label').textContent, 'Password (optional)');
+  assert.equal(p.$('#password').required, false);
+  assert.equal(p.$('#password-hint').hidden, false);
+  assert.equal(p.$('#password-hint').textContent, 'Leave it blank if the site sends you a code.');
+  p.$('#username').value = 'me@x.com';
+  p.$('#add-form').dispatchEvent(new p.window.Event('input', { bubbles: true }));
+  assert.equal(p.$('#save').disabled, false, 'a site and username are enough');
+  await p.click('#save');
+  assert.deepEqual(p.saves(), [[{ url: 'https://shopify.com', username: 'me@x.com', password: '', emailFirst: true }]]);
+  assert.equal(p.$('#status').textContent, 'Saved: shopify.com');
+
+  const q = page({ hash: 'key=abc&site=shopify.com&emailFirst=1' });
+  q.type('shopify.com', 'me@x.com', 'pw');
+  await q.click('#save');
+  assert.deepEqual(q.saves(), [[{ url: 'https://shopify.com', username: 'me@x.com', password: 'pw' }]], 'a given password goes as usual');
+  assert.deepEqual([...p.errors, ...q.errors], []);
+});
+
+test('without an email-first link the password stays required, and a mark with no site changes nothing', needsDom, async () => {
+  for (const hash of ['key=abc&site=shopify.com', 'key=abc&emailFirst=1']) {
+    const p = page({ hash });
+    assert.equal(p.$('#password-label').textContent, 'Password', hash);
+    assert.equal(p.$('#password').required, true, hash);
+    assert.equal(p.$('#password-hint').hidden, true, hash);
+    p.type('shopify.com', 'me@x.com', '');
+    assert.equal(p.$('#save').disabled, true, hash);
+    await p.click('#save');
+    assert.deepEqual(p.saves(), [], hash);
+  }
+});
+
+test('a one-site link shows the site\'s login page under the privacy line, and no other link asks for one', needsDom, async () => {
+  const p = page({ hash: 'key=abc&site=netflix.com', picture: 'png' });
+  await settle();
+  const thumb = p.$('#picture .picture-thumb');
+  assert.equal(p.$('#picture').hidden, false);
+  assert.equal(thumb.querySelector('img').src, 'blob:3');
+  assert.equal(thumb.textContent, 'The site\'s login page. Tap to zoom.');
+  const order = el => [...p.document.querySelectorAll('#page *')].indexOf(el);
+  assert.ok(order(p.$('.promise')) < order(thumb) && order(thumb) < order(p.$('#add-form')), 'between the privacy line and the form');
+  assert.equal(p.document.activeElement, p.$('#username'), 'the form still takes the focus');
+  assert.deepEqual(p.errors, []);
+
+  const none = page({ hash: 'key=abc&site=netflix.com' });
+  await settle();
+  assert.deepEqual([none.$('#picture').hidden, none.$('#picture').children.length], [true, 0], 'no picture, no empty frame');
+  const plain = page({ picture: 'png' });
+  await settle();
+  assert.ok(!plain.calls.some(call => call.path === 'picture'), 'a link for every site has no one page to show');
+  assert.equal(plain.$('#picture').hidden, true);
 });

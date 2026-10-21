@@ -72,32 +72,52 @@ export function checkValues(body, form) {
   return values.every((value, index) => fits(value, form.fields[index])) ? values : 400;
 }
 
-/** Puts one value in its field. `undo` first gains what puts the field back: an emptying of a text box,
- * or a pick of the choice the site showed, read before the person's pick lands. Throws when a step fails. */
+/** Puts one value in its field, first giving `undo` what puts it back: an emptied box, or the shown choice. A pick
+ * goes by text: camofox tries it first, waiting out its timeout on a miss. Throws if a step fails. */
 async function fillField(field, value, { browser, undo }) {
   if (field.options) {
     const was = await browser.value(field.target);
-    await browser.select(field.target, value);
+    // Camofox picks no choice with empty text.
     if (was) undo.push(() => browser.select(field.target, was));
+    await browser.select(field.target, field.options.find(option => option.value === value)?.text ?? value);
     return;
   }
   undo.push(() => browser.type(field.target, ''));
   await browser.type(field.target, value);
 }
 
-/** The whole send. A press whose step fails still asks `reached()`, since the site may have taken it; a field
- * that fails presses nothing. On `not-accepted` every field is put back, so nothing the person gave is left to see. */
-export async function sendForm(form, values, { browser, reached }) {
+/** Fills each field in order, telling `record` how long each took; false at the first that fails. */
+async function fillAll(form, values, { browser, undo, record }) {
+  for (const [index, field] of form.fields.entries()) {
+    const started = Date.now();
+    const ok = await fillField(field, values[index], { browser, undo }).then(() => true, () => false);
+    record({ step: 'fill', index, kind: field.kind, ms: Date.now() - started, ok });
+    if (!ok) return false;
+  }
+  return true;
+}
+
+/** The whole send, to `{result, putBack}`: a failed field presses nothing and puts all back (`not-accepted`). Once
+ * pressed, the site may be paying: `done` on `reached`, else `unconfirmed`, its `putBack` kept for a still page. */
+export async function sendForm(form, values, { browser, reached, onStep = () => {}, beforePress = async () => {}, record = () => {} }) {
   const undo = [];
-  let moved = false;
-  try {
-    for (const [index, field] of form.fields.entries()) await fillField(field, values[index], { browser, undo });
-    await browser.click(form.submit.target).catch(() => {});
-    moved = await reached();
-  } catch { /* a step that throws counts as not moved on */ }
-  if (moved) return 'done';
-  for (const putBack of undo) await putBack().catch(() => {});
-  return 'not-accepted';
+  const putBack = async () => { for (const step of undo) await step().catch(() => {}); };
+  onStep('typing');
+  if (!(await fillAll(form, values, { browser, undo, record }))) {
+    await putBack();
+    return { result: 'not-accepted', putBack: async () => {} };
+  }
+  await beforePress().catch(() => {});
+  onStep('pressing');
+  const pressedAt = Date.now();
+  // The wait's clock starts as the press is sent: camofox may hold the press for its whole 30 s handler.
+  browser.click(form.submit.target).then(() => true, () => false).then(ok => {
+    record({ step: 'press', ms: Date.now() - pressedAt, ok });
+    onStep('waiting');
+  });
+  const met = await reached(pressedAt).catch(() => false);
+  record({ step: 'finish', ms: Date.now() - pressedAt, ok: met });
+  return { result: met ? 'done' : 'unconfirmed', putBack };
 }
 
 /** A request's JSON body, or a status: 413 past the byte limit, 400 when it isn't JSON. */
@@ -122,11 +142,11 @@ export function reply(response, status, body) {
 }
 
 /** The form routes for a checked form file. `onSend(values)` runs the one send and resolves to the receipt
- * `/send` answers with; `onCancel()` runs once `/done`'s reply has gone. */
-export function formRoutes(form, { onSend = async () => null, onCancel = () => {}, isOpen = () => true, closesAt } = {}) {
+ * `/send` answers with; `onCancel()` runs once `/done`'s reply has gone. `picture` says the page has one. */
+export function formRoutes(form, { onSend = async () => null, onCancel = () => {}, isOpen = () => true, closesAt, picture = false } = {}) {
   let ended = false;
   return async (pathname, request, response) => {
-    if (pathname === '/form') return request.method === 'GET' ? reply(response, 200, { ...describeForm(form), closesAt, now: Date.now() }) : reply(response, 405);
+    if (pathname === '/form') return request.method === 'GET' ? reply(response, 200, { ...describeForm(form), picture, closesAt, now: Date.now() }) : reply(response, 405);
     if (request.method !== 'POST') return reply(response, 405);
     const body = pathname === '/done' ? null : await readBody(request);
     // No await sits between this check and `ended = true`, so two sends at once can not both pass.

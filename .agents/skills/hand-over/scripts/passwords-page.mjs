@@ -1,5 +1,5 @@
-// The password page's script (see hand-over.mjs `open --passwords` and passwords.mjs). A CSV export is read on
-// this device and stays local. The pure `parseExport` and `siteUrl` are exported for the tests.
+// The password page's script (see hand-over.mjs `open --passwords` and passwords.mjs). A CSV export is read on this
+// device and stays local. The page loads picture-view.mjs first; `parseExport` and `siteUrl` are exported for tests.
 
 const SITE = ['url', 'login_uri', 'website', 'web site'];
 const USER = ['username', 'login_username', 'login', 'email', 'user name'];
@@ -83,6 +83,8 @@ function start() {
   const $ = selector => document.querySelector(selector);
   const fragment = new URLSearchParams(location.hash.slice(1));
   const key = fragment.get('key') ?? '';
+  // A site that asks the email on a page of its own may send a code instead of asking a password.
+  const emailFirst = Boolean(fragment.get('site')) && fragment.get('emailFirst') === '1';
   history.replaceState(null, '', location.pathname);
   // Rows are `{url, host, username, password, label, source: 'file' | 'typed', state: 'open' | 'saved'}`,
   // one per `id`: host and username. Ticks are kept by id, so sorting and merging never move them.
@@ -111,19 +113,21 @@ function start() {
 
   /** Saves the logins; resolves to `{saved, failed}`, or an error message, or null once the link has closed. */
   async function save(list) {
-    const response = await post('continue', { logins: list.map(({ url, username, password }) => ({ url, username, password })) });
+    const response = await post('continue', { logins: list.map(({ url, username, password, emailFirst: optional }) => ({ url, username, password, ...(optional && { emailFirst: true }) })) });
     if (response?.ok) return response.json();
     if (!response || [403, 410].includes(response.status)) return response?.status === 410 ? null : (await stillOpen()) ? MESSAGES.failed : null;
     return response.status === 413 ? MESSAGES.tooMany : MESSAGES.failed;
   }
 
-  /** The form's login when all three fields hold text and the site parses; null otherwise. */
+  /** The form's login when all three fields hold text, the password optional on an email-first link, and the
+   * site parses; null otherwise. A blank password is flagged, so the server takes it. */
   function formLogin() {
     const url = siteUrl($('#site').value);
     const username = $('#username').value.trim();
     const password = $('#password').value;
     const host = hostOf(url);
-    return host && username && password ? { url, host, username, password, label: '' } : null;
+    if (!host || !username || !(password || emailFirst)) return null;
+    return { url, host, username, password, label: '', ...(!password && { emailFirst: true }) };
   }
   const pending = () => logins.filter(login => login.state === 'open' && ticked.has(idOf(login)));
   const disarmDone = () => { doneArmed = false; note('#done-note'); };
@@ -190,7 +194,7 @@ function start() {
   function addTyped(typed) {
     const id = idOf(typed);
     const row = logins.find(login => idOf(login) === id);
-    if (row) Object.assign(row, { url: typed.url, password: typed.password, source: 'typed', state: 'open' });
+    if (row) Object.assign(row, { url: typed.url, password: typed.password, emailFirst: typed.emailFirst, source: 'typed', state: 'open' });
     else logins.push({ ...typed, source: 'typed', state: 'open' });
     logins.sort(byHost);
     ticked.add(id);
@@ -246,7 +250,7 @@ function start() {
     if (saving) return;
     const typed = formLogin();
     const hasTyped = ['#site', '#username', '#password'].some(id => $(id).value);
-    if (hasTyped && (!typed || [typed.url, typed.username, typed.password].some(long) || /[\r\n]/.test(typed.username))) return note('#add-error', 'Complete the website, username, and password before continuing.');
+    if (hasTyped && (!typed || [typed.url, typed.username, typed.password].some(long) || /[\r\n]/.test(typed.username))) return note('#add-error', emailFirst ? 'Complete the website and username before continuing.' : 'Complete the website, username, and password before continuing.');
     if (typed) addTyped(typed);
     const list = pending();
     if (!list.length && !savedHosts.size) return;
@@ -282,7 +286,7 @@ function start() {
     const left = pending().length;
     if (left && !doneArmed) {
       doneArmed = true;
-      return note('#done-note', `${plural(left, 'ticked login')} ${left === 1 ? 'isn\'t' : 'aren\'t'} saved. Tap Close without continuing again to leave without ${left === 1 ? 'it' : 'them'}.`);
+      return note('#done-note', `${plural(left, 'ticked login')} ${left === 1 ? 'isn\'t' : 'aren\'t'} saved. Tap Not now again to leave without ${left === 1 ? 'it' : 'them'}.`);
     }
     $('#done').disabled = true;
     await post('done');
@@ -295,17 +299,28 @@ function start() {
     $('#site').value = site;
     $('#username').value = username;
     const host = hostOf(siteUrl(site));
-    if (host) {
-      document.title = $('#page h1').textContent = `Save your ${host} login`;
-      $('#drop').before($('#add-title'), $('#add-form'));
-      $('#drop').textContent = 'Or drop your password export here, or tap to pick it';
-    }
+    if (host) document.title = $('#page h1').textContent = `Save your ${host} login`;
     ['#site', '#username', '#password'].map($).find(input => !input.value)?.focus();
+  }
+
+  /** A one-site link may come with a picture of that site's login page, fetched behind the key. */
+  async function showPicture() {
+    const response = await fetch('picture', { cache: 'no-store', headers: { 'x-hand-over-key': key } }).catch(() => null);
+    const blob = response?.ok && (await response.blob().catch(() => null));
+    if (blob && $('#closed').hidden) globalThis.pictureView($('#picture'), URL.createObjectURL(blob), 'The site\'s login page. Tap to zoom.');
+  }
+
+  // An email-first link makes the password optional.
+  if (emailFirst) {
+    $('#password-label').textContent = 'Password (optional)';
+    $('#password').required = false;
+    $('#password-hint').hidden = false;
   }
 
   prefill(fragment.get('site') ?? '', fragment.get('user') ?? '');
   draw();
-  if (!key) closed();
+  if (!key) return closed();
+  if (fragment.get('site')) showPicture();
 }
 
 if (typeof document !== 'undefined') start();

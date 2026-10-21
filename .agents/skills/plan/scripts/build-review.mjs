@@ -1,25 +1,58 @@
 #!/usr/bin/env node
 // Build a portable review page: parse proposal.md into static, escaped HTML inside the shared kit.
 import { existsSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { isMain } from '../../memory/scripts/lib/cli.mjs';
+import { lookCss } from './look.mjs';
 
 const FORMAT = '<!-- wong-review:3 -->';
 const SLOT = '<!-- review:content -->';
+const LOOK = '/* look */';
+const THEME = '<!-- theme -->';
 const start = '<!-- proposal:start -->';
 const end = '<!-- proposal:end -->';
 const WIDE = 60;
 const TECHNICAL = 12;
+const PICTURE_WIDE = 640;
+const BASE_PX = 13;
+const PICTURE_FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+const UNSAFE_SVG = ['<script', '<style', '<foreignObject', 'url(', 'href=', 'src='];
+// A hand-drawn `svg` fence passes only these, then the builder writes it out again itself.
+const SKETCH_TAGS = new Set(['svg', 'g', 'rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon', 'path', 'text', 'tspan', 'title']);
+const SKETCH_ATTRS = new Set(['xmlns', 'viewBox', 'width', 'height', 'x', 'y', 'x1', 'y1', 'x2', 'y2', 'cx', 'cy', 'r', 'rx', 'ry', 'dx', 'dy',
+  'points', 'd', 'transform', 'fill', 'stroke', 'stroke-width', 'stroke-dasharray', 'stroke-linecap', 'stroke-linejoin', 'opacity',
+  'fill-opacity', 'font-size', 'font-weight', 'text-anchor', 'dominant-baseline']);
+// Kit colour names: the kit paints each class from the look, so the light and dark switch repaints the sketch.
+const SKETCH_COLORS = new Set(['bg', 'fg', 'muted', 'subtle', 'line', 'card', 'danger']);
+// A `screen` fence passes only these: the look's parts (look.css) and the kit's layout helpers, as inert HTML.
+const SCREEN_TAGS = new Set(['div', 'span', 'p', 'h3', 'h4', 'b', 'i', 'small', 'ul', 'ol', 'li', 'hr', 'table', 'thead', 'tbody', 'tr', 'th',
+  'td', 'label', 'button', 'input', 'textarea', 'select', 'option']);
+const SCREEN_EMPTY = new Set(['hr', 'input']);
+const SCREEN_ATTRS = new Set(['class', 'type', 'placeholder', 'value', 'colspan', 'rowspan']);
+const SCREEN_FLAGS = new Set(['checked', 'disabled', 'selected']);
+const SCREEN_TYPES = new Set(['text', 'checkbox', 'radio']);
+const SCREEN_CLASSES = new Set(['card', 'btn', 'btn-primary', 'primary', 'btn-ghost', 'field', 'tag', 'tag-outline', 'skeleton',
+  'row', 'col', 'grow', 'gap', 'phone', 'muted', 'danger', 'bar', 'sep']);
+const PHONE_WIDE = 360;
+const ENTITIES = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
 const USAGE = `usage: build-review.mjs <change-root> [--require-current] [--link]
   --link  print the page's reply link, whose buttons send notes to this chat or ask it to build; the file where none can open`;
 const kitPath = resolve(dirname(fileURLToPath(import.meta.url)), '../references/review-kit.html');
+const themePath = resolve(dirname(fileURLToPath(import.meta.url)), '../references/theme.js');
+// Pele draws Mermaid at build time. It loads only for a proposal that holds a Mermaid fence,
+// so text-only builds load nothing new.
+let pele = null;
+const loadPele = () => (pele ??= createRequire(import.meta.url)('../vendor/pele.mjs'));
 
 const esc = text => String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const scheduledGoal = root => {
   try { return /^schema:[ \t]*(?:scheduled-work|'scheduled-work'|"scheduled-work")[ \t]*(?:#.*)?$/m.test(readFileSync(join(root, '.openspec.yaml'), 'utf8')); } catch { return false; }
 };
+// Labels are text nodes, escaped by Pele: check only the markup, so a label like `src=x` stays a label.
+export const unsafeSvg = svg => UNSAFE_SVG.find(bad => svg.replace(/>[^<]*</g, '><').includes(bad));
 const safeHref = href => !/^[a-z][\w+.-]*:/i.test(href) || /^(?:https?|mailto):/i.test(href);
 
 function one(text, marker, name) {
@@ -51,9 +84,17 @@ function sections(markdown) {
 }
 
 // A bullet runs to the next bullet or a blank line outside a fence; a fence inside a bullet is its drawing.
+// In What Changes, pipe lines over a separator row become a table drawing; other pipe lines stay text.
+const SEPARATOR = /^\|(?:\s*:?-+:?\s*\|)+$/;
 function blocks(section, noun) {
   const out = [];
-  let item = null, para = null, fence = null, count = 0;
+  let item = null, para = null, fence = null, table = null, count = 0;
+  const settle = () => {
+    if (!table) return;
+    if (table.lines.length > 1 && SEPARATOR.test(table.lines[1])) item.drawings.push(table);
+    else item.text.push(...table.lines);
+    table = null;
+  };
   section.lines.forEach((line, i) => {
     const at = section.at + i + 1;
     if (fence) {
@@ -61,10 +102,19 @@ function blocks(section, noun) {
       else fence.lines.push(line.replace(fence.indent, ''));
       return;
     }
-    const open = /^(\s*)`{3,}\s*[\w-]*\s*$/.exec(line);
+    const pipes = noun === 'item' && /^\|.+\|$/.test(line.trim());
+    if (pipes && !item && SEPARATOR.test(section.lines[i + 1]?.trim() ?? '')) {
+      throw new Error(`proposal.md line ${at}: a table outside any bullet in ## ${section.title} (a blank line ends a bullet)`);
+    }
+    if (pipes && item) {
+      (table ??= { at, lang: 'table', lines: [] }).lines.push(line.trim());
+      return;
+    }
+    settle();
+    const open = /^(\s*)`{3,}\s*([\w-]*)\s*$/.exec(line);
     if (open) {
       if (!item) throw new Error(`proposal.md line ${at}: a fence outside any bullet in ## ${section.title} (a blank line ends a bullet)`);
-      fence = { at, indent: new RegExp(`^ {0,${open[1].length}}`), lines: [] };
+      fence = { at, lang: open[2].toLowerCase(), indent: new RegExp(`^ {0,${open[1].length}}`), lines: [] };
       item.drawings.push(fence);
       return;
     }
@@ -76,6 +126,7 @@ function blocks(section, noun) {
     else out.push(para = { text: [line.trim()] });
   });
   if (fence) throw new Error(`proposal.md line ${fence.at}: ${noun} ${item.n} opens a fence that never closes`);
+  settle();
   return out.map(block => ({ ...block, text: block.text.join(' ') }));
 }
 
@@ -112,12 +163,187 @@ function drawing(item, fence, first, warnings) {
     + `<div class="frame"><pre class="art">\n${lines.join('\n')}</pre></div></details>`;
 }
 
+// A Mermaid fence becomes an inline SVG picture, drawn once here; the page runs no renderer.
+// The wrapper's width is in em so the kit's font-size fit and zoom resize it like a text drawing.
+function picture(item, fence, k, warnings) {
+  const id = `item-${item.n}-picture-${k}`, where = `item ${item.n}, picture ${k}`;
+  let drawn;
+  try {
+    drawn = loadPele().render(fence.lines.join('\n'), { idPrefix: id, autoDirection: false, fontFamily: PICTURE_FONT, links: false, images: false, now: 0 });
+  } catch (error) {
+    const line = error && error.name === 'PeleError' && error.line > 0 ? fence.at + error.line : fence.at;
+    // Pele's message adds the source and a caret on later lines; the status line keeps only the first.
+    const message = String(error && error.message ? error.message : error).split('\n')[0].replace(/:\s*$/, '');
+    throw new Error(`proposal.md line ${line}: ${where}: ${message}`);
+  }
+  return frame(fence, id, where, drawn.svg, drawn.width, 'pic', 'fewer boxes in a row, or shorter labels', warnings);
+}
+
+// The folded frame every picture shares; a width in em lets the kit's fit and zoom resize it, and none fills the frame.
+function frame(fence, id, where, svg, width, kind, narrower, warnings) {
+  const unsafe = unsafeSvg(svg);
+  if (unsafe) throw new Error(`proposal.md line ${fence.at}: ${where}: the drawn picture holds ${unsafe}; draw it without links, images, or styles`);
+  if (width > PICTURE_WIDE && narrower) warnings.push(`proposal.md line ${fence.at}: ${where} is ${Math.round(width)} px wide; keep pictures under ${PICTURE_WIDE}: ${narrower}`);
+  const style = width ? ` style="width:${Number((width / BASE_PX).toFixed(3))}em"` : '';
+  return '<details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary>'
+    + `<div class="frame"><div class="art ${kind}" data-note="${id}" tabindex="0"${style}>${svg}</div></div></details>`;
+}
+
+// Character references: the five XML names and numeric ones decode; any other name refuses the picture.
+function decode(raw, refuse) {
+  return raw.replace(/&(#x[0-9a-f]+|#\d+|[a-z][\w.-]*);/gi, (m, ref) => {
+    if (ref[0] !== '#') return ENTITIES[ref] ?? refuse(m);
+    const code = ref[1] === 'x' || ref[1] === 'X' ? parseInt(ref.slice(2), 16) : Number(ref.slice(1));
+    try { return String.fromCodePoint(code); } catch { return refuse(m); }
+  });
+}
+
+// Read a fence's tags and text; `rules` judges each element and attribute, so nothing typed reaches the page verbatim.
+function markup(source, rules, fail) {
+  const parts = [], stack = [];
+  let pos = 0;
+  const tag = /<(\/?)([A-Za-z][\w:.-]*)((?:\s+[^\s=/>]+(?:\s*=\s*(?:"[^"]*"|'[^']*'))?)*)\s*(\/?)>/y;
+  while (pos < source.length) {
+    const lt = source.indexOf('<', pos);
+    const text = source.slice(pos, lt < 0 ? undefined : lt);
+    if (text) {
+      if (!stack.length && text.trim()) rules.loose?.(pos);
+      parts.push(esc(decode(text, ref => fail(pos, ref))));
+    }
+    if (lt < 0) break;
+    pos = lt;
+    const special = /^<(?:!([A-Za-z]+)|!\[CDATA\[|\?[\w-]*)/.exec(source.slice(pos, pos + 12));
+    if (special) fail(pos, special[1] ? `<!${special[1]}>` : special[0]);
+    tag.lastIndex = pos;
+    const m = tag.exec(source);
+    if (!m) fail(pos, `an unreadable tag ${JSON.stringify(source.slice(pos, pos + 20).split('\n')[0])}`);
+    const [whole, end, name, attrs, self] = m;
+    const empty = rules.empty?.has(name);
+    if (!rules.tags.has(name) || (end && empty)) fail(pos, `<${end}${name}>`);
+    if (end) {
+      const open = stack.pop();
+      if (attrs.trim() || self || open !== name) fail(pos, open ? `</${name}> while <${open}> is open` : `</${name}> with nothing open`);
+      parts.push(`</${name}>`);
+      if (!stack.length) rules.rootEnd?.();
+    } else {
+      if (!stack.length) rules.root?.(name, attrs, pos);
+      const seen = new Set(), out = [], classes = [];
+      for (const [, key, quoted] of attrs.matchAll(/([^\s=/>]+)(?:\s*=\s*("[^"]*"|'[^']*'))?/g)) {
+        if (seen.has(key)) fail(pos, `${key} twice`);
+        seen.add(key);
+        const value = quoted === undefined ? null : decode(quoted.slice(1, -1), ref => fail(pos, ref));
+        if (value !== null && /url\s*\(/i.test(value)) fail(pos, 'url(');
+        const kept = rules.attr(key, value, classes, what => fail(pos, what ?? `${key}=`));
+        if (kept !== undefined) out.push(kept === null ? ` ${key}` : ` ${key}="${esc(kept)}"`);
+      }
+      const shut = rules.html ? (self && !empty ? `></${name}>` : '>') : self ? '/>' : '>';
+      parts.push(`<${name}${classes.length ? ` class="${classes.join(' ')}"` : ''}${out.join('')}${shut}`);
+      if (!self && !empty) stack.push(name);
+      else if (!stack.length) rules.rootEnd?.();
+    }
+    pos += whole.length;
+  }
+  if (stack.length) fail(source.length, `<${stack[stack.length - 1]}>, which never closes`);
+  return parts.join('').trim();
+}
+
+// An `svg` fence: one <svg> root with a viewBox; named colours become kit classes, any other colour is reported.
+export function sketchSvg(source, refuse) {
+  const colors = [];
+  let root = null, closed = false;
+  const svg = markup(source, {
+    tags: SKETCH_TAGS,
+    loose: at => refuse(at, 'text outside <svg>'),
+    root(name, attrs, at) {
+      if (closed || name !== 'svg') refuse(at, closed ? `a second root <${name}>` : `<${name}> as the root; a sketch is one <svg>`);
+      const box = /^\s*(-?[\d.]+)[\s,]+(-?[\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)\s*$/.exec(decode(/viewBox\s*=\s*("[^"]*"|'[^']*')/.exec(attrs)?.[1].slice(1, -1) ?? '', () => ''));
+      if (!box || !(Number(box[3]) > 0) || !(Number(box[4]) > 0)) refuse(at, '<svg> without a viewBox of four numbers');
+      root = { width: Number(box[3]) };
+    },
+    rootEnd: () => { closed = true; },
+    attr(key, value, classes, no) {
+      if (!SKETCH_ATTRS.has(key) || value === null) no();
+      const paint = key === 'fill' || key === 'stroke';
+      if (paint && SKETCH_COLORS.has(value)) return void classes.push(`${key[0]}-${value}`);
+      if (paint && !/^(?:none|currentColor)$/.test(value)) colors.push(value);
+      return value;
+    },
+  }, refuse);
+  if (!root) refuse(0, 'no <svg> root with a viewBox');
+  return { svg, width: root.width, colors };
+}
+
+// A `screen` fence: HTML in the look's parts and layout classes, inert form controls, no styles, links, or images.
+export function sketchScreen(source, refuse) {
+  let phone = false;
+  const html = markup(source, {
+    tags: SCREEN_TAGS, empty: SCREEN_EMPTY, html: true,
+    attr(key, value, classes, no) {
+      if (SCREEN_FLAGS.has(key)) return value === null || value === '' || value === key ? null : no();
+      if (value === null || !SCREEN_ATTRS.has(key)) no();
+      if (key === 'type' && !SCREEN_TYPES.has(value)) no();
+      if (key !== 'class') return value;
+      for (const name of value.split(/\s+/).filter(Boolean)) {
+        if (!SCREEN_CLASSES.has(name)) no(`class "${name}"`);
+        if (name === 'phone') phone = true;
+        // The page's own footer is `.bar`: the placeholder is written as `sk-bar` so neither styles the other.
+        classes.push(name === 'bar' ? 'sk-bar' : name);
+      }
+    },
+  }, refuse);
+  return { html, phone };
+}
+
+// A hand-drawn sketch shares the Mermaid picture's frame, counter, and note; its colours follow the look.
+function sketch(item, fence, k, warnings) {
+  const id = `item-${item.n}-picture-${k}`, where = `item ${item.n}, picture ${k}`;
+  const drawn = sketchSvg(fence.lines.join('\n'), refuser(fence, where, 'a sketch', 'draw with shapes, text, and named colors only'));
+  if (drawn.colors.length) {
+    const more = drawn.colors.length > 1 ? ` (and ${drawn.colors.length - 1} more)` : '';
+    warnings.push(`proposal.md line ${fence.at}: ${where} paints ${drawn.colors[0]}${more}, which will not follow dark mode; use ${[...SKETCH_COLORS].join(', ')}`);
+  }
+  return frame(fence, id, where, drawn.svg, drawn.width, 'pic sketch', 'draw it narrower, or stack its parts', warnings);
+}
+
+// A screen fills the frame up to 640 px, or 360 px as a phone; its controls sit in an inert box, so a tap notes it.
+function screen(item, fence, k, warnings) {
+  const id = `item-${item.n}-picture-${k}`, where = `item ${item.n}, picture ${k}`;
+  const drawn = sketchScreen(fence.lines.join('\n'), refuser(fence, where, 'a screen', "build it from the look's parts and layout classes only"));
+  return frame(fence, id, where, `<div class="sk" inert>${drawn.html}</div>`, drawn.phone ? PHONE_WIDE : null, 'pic screen', '', warnings);
+}
+
+// One line naming the item, the picture, the proposal line, and the refused part.
+function refuser(fence, where, what, how) {
+  const source = fence.lines.join('\n');
+  return (at, name) => {
+    const line = fence.at + 1 + (source.slice(0, at).match(/\n/g) || []).length;
+    throw new Error(`proposal.md line ${line}: ${where}: ${what} can not hold ${name}; ${how}`);
+  };
+}
+
+// A Markdown table: a header, a separator, and body rows, each row a note target named by its number in the item.
+function table(item, fence, first) {
+  const cells = line => line.slice(1, -1).split(/(?<!\\)\|/).map(cell => inline(cell.trim().replace(/\\\|/g, '|')));
+  const [head, , ...body] = fence.lines.map(cells);
+  const pad = row => head.map((cell, i) => row[i] ?? '');
+  return `<div class="table"><table class="tbl"><thead><tr>${head.map(cell => `<th>${cell}</th>`).join('')}</tr></thead><tbody>`
+    + body.map((row, i) => `<tr data-note="item-${item.n}-row-${first + i}" tabindex="0">${pad(row).map(cell => `<td>${cell}</td>`).join('')}</tr>`).join('')
+    + '</tbody></table></div>';
+}
+
 function changes(section, warnings) {
   let html = '', open = false;
   for (const block of blocks(section, 'item')) {
     if (!block.n) { html += `${open ? '</ol>\n' : ''}<p class="aside">${inline(block.text)}</p>\n`; open = false; continue; }
-    let first = 1;
-    const art = block.drawings.map(fence => { const out = drawing(block, fence, first, warnings); first += fence.lines.length; return out; });
+    // Text drawings number lines across the item, tables their rows; Mermaid, SVG, and screen pictures share one count.
+    let first = 1, pictures = 0, rows = 1;
+    const art = block.drawings.map(fence => {
+      if (fence.lang === 'mermaid') return picture(block, fence, ++pictures, warnings);
+      if (fence.lang === 'svg') return sketch(block, fence, ++pictures, warnings);
+      if (fence.lang === 'screen') return screen(block, fence, ++pictures, warnings);
+      if (fence.lang === 'table') { const out = table(block, fence, rows); rows += fence.lines.length - 2; return out; }
+      const out = drawing(block, fence, first, warnings); first += fence.lines.length; return out;
+    });
     const text = block.text.replace(/\s*\(review\.html#\/[^)]*\)\s*$/, '');
     html += `${open ? '' : '<ol class="items">\n'}<li class="item card" id="item-${block.n}"><span class="num">${block.n}</span><div class="body">`
       + `<div class="text" data-note="item-${block.n}" tabindex="0">${inline(text)}</div></div>${art.join('')}</li>\n`;
@@ -191,14 +417,18 @@ function legacyRefresh(markup, markdown) {
   return markup.slice(0, a) + '\n' + text + '\n' + markup.slice(b);
 }
 
-function assemble(name, content) {
-  const kit = readFileSync(kitPath, 'utf8');
+export function assemble(name, content, kit = readFileSync(kitPath, 'utf8')) {
   one(kit, SLOT, 'review kit');
   if (!kit.includes('CHANGE-NAME')) throw new Error('review kit: missing CHANGE-NAME');
   if ((kit.match(/<script\b/g) || []).length !== 1 || (kit.match(/<style\b/g) || []).length !== 1) {
     throw new Error('review kit: expected one <script> and one <style>');
   }
-  const [before, after] = kit.split(SLOT);
+  one(kit, LOOK, 'review kit');
+  one(kit, THEME, 'review kit');
+  // The app's colours and parts go in the kit's one <style>, and the switch in <head>, so a saved dark choice applies
+  // before the first paint; a function replacement keeps any `$` in them literal.
+  const theme = `<script>\n${readFileSync(themePath, 'utf8').replace(/<\/script/gi, '<\\/script')}</script>`;
+  const [before, after] = kit.replace(LOOK, () => lookCss()).replace(THEME, () => theme).split(SLOT);
   return `${FORMAT}\n${before.split('CHANGE-NAME').join(esc(name))}${content}${after.split('CHANGE-NAME').join(esc(name))}`;
 }
 

@@ -20,7 +20,7 @@ For consequential choices, compare viable approaches, outcomes, costs; recommend
 
 Ask [the shared way](references/asking-the-user.md): two or three related ready choices, one if alone, within tool capacity. Track decisions and prerequisites in chat. Investigate a missing fact yourself; never ask the person to guess it. Hold only dependent choices and ask independent ones as the host permits.
 
-Update dependencies after answers or evidence. Explain changed premises; reopen only affected decisions. Keep findings in chat, [drawn](../plan/references/drawings.md) when useful.
+Update dependencies after answers or evidence. Explain changed premises; reopen only affected decisions. Keep findings in chat, [drawn](../plan/references/drawings.md) as `text` when useful: chat shows no picture.
 
 **The 80/20 test:** ask where a wrong guess makes the plan *wrong*, not merely *different*: scope, observable behavior, compatibility, acceptance criteria. Assume naming, placement, wording, and cheaply changed details, with reasons.
 

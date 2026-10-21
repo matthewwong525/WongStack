@@ -120,3 +120,50 @@ it("bounds selected details and full documents even for a very large registry sc
   const rows = registrations(new Map([["POST /api/large", action]]));
   for (const path of ["/api/actions?id=sample.large", "/api/openapi.json"]) expect((await get(path, rows)).status).toBe(500);
 });
+it("names each key an action uses with its purpose and guide, and groups the document by key", async () => {
+  // Rows a person may see before permissions start: each is an app's, whatever app it is filed under.
+  const row = (app: string, id: string, keys: string[]) => ({ method: "POST", path: `/api/${id.replace(".", "/")}`, app, action: synthetic(id), access: { apps: ["hello"], keys } });
+  const rows = [row("main", "cloudflare.read", ["cloudflare"]), row("hello", "hello.mark", ["cloudflare"]), row("hello", "hello.save", ["code"]),
+    row("main", "main.both", ["cloudflare", "code"]), row("main", "code.read", ["code"]), row("main", "main.other", ["cloudflare"]), row("hello", "hello.old", ["retired"])];
+  const cloudflare = { id: "cloudflare", name: "Cloudflare", purpose: expect.stringMatching(/Workers/), docs: "https://developers.cloudflare.com/api/", level: "write" };
+  expect((await body(await get("/api/actions?id=hello.mark", rows))).keys).toEqual([cloudflare]);
+  // A key with no guide shows none, and a key the registry no longer holds keeps its id alone.
+  expect((await body(await get("/api/actions?id=main.both", rows))).keys).toEqual([cloudflare, { id: "code", name: "Project code", purpose: expect.any(String), level: "write" }]);
+  expect((await body(await get("/api/actions?id=hello.old", rows))).keys).toEqual([{ id: "retired", level: "write" }]);
+  // A summary keeps each key short.
+  expect((await body(await get("/api/actions?q=mark", rows))).actions[0].keys).toEqual([{ id: "cloudflare", level: "write" }]);
+  const document = await body(await get("/api/openapi.json", rows));
+  expect(document.info.description).toMatch(/\?q=.*\?id=.*requestId.*timeout/s); expect(document.info.description.length).toBeLessThan(600);
+  expect(document.tags).toEqual([
+    { name: "Cloudflare", description: cloudflare.purpose, externalDocs: { url: cloudflare.docs, description: "Cloudflare's API guide" } },
+    { name: "Project code", description: expect.any(String) }]);
+  const operation = (id: string) => document.paths[`/api/${id.replace(".", "/")}`].post;
+  // Only a key's own look-up or change carries the guide: a built action's handler is its contract.
+  expect(operation("cloudflare.read")).toMatchObject({ tags: ["Cloudflare"], externalDocs: { url: cloudflare.docs } });
+  for (const [id, tags] of [["hello.mark", ["Cloudflare"]], ["hello.save", ["Project code"]], ["main.both", ["Cloudflare", "Project code"]],
+    ["code.read", ["Project code"]], ["main.other", ["Cloudflare"]]] as const) {
+    expect(operation(id).tags, id).toEqual(tags); expect(operation(id), id).not.toHaveProperty("externalDocs");
+  }
+  expect(operation("hello.old")).not.toHaveProperty("tags");
+  // An action with no key names no group.
+  const plain = await body(await get("/api/openapi.json"));
+  expect(plain.tags).toEqual([]); expect(plain.paths["/api/health"].get).not.toHaveProperty("tags");
+});
+it("shows a key's group, guide and own look-up only to a person who holds that key", async () => {
+  const row = { policy_enabled: 1, keys_enabled: 1, revision: 1, status: "active", held: null, apps: "[]", keys: '{"cloudflare":"read"}' };
+  const bindings = fakeEnv({ DB: fakeDatabase({ withSession: () => ({ prepare: () => ({ bind: () => ({ first: async () => row }) }) }) }),
+    WONG_OWNER_EMAIL: "owner@example.com", WONG_CLOUDFLARE_READ: "saved-cloudflare-token" });
+  const person = { ...identity, claims: { ...identity.claims, sub: "employee", email: identity.id } };
+  const seen = async (path: string) => body(await discovery(new Request(`https://example.com${path}`), bindings, person, supplied));
+  const described = await seen("/api/actions?id=cloudflare.read");
+  expect(described.keys).toEqual([{ id: "cloudflare", name: "Cloudflare", purpose: expect.any(String), docs: "https://developers.cloudflare.com/api/", level: "read" }]);
+  const document = await seen("/api/openapi.json");
+  expect(document.tags.map(tag => tag.name)).toEqual(["Cloudflare"]);
+  expect(document.paths["/api/cloudflare/read"].get).toMatchObject({ tags: ["Cloudflare"], externalDocs: { url: "https://developers.cloudflare.com/api/" } });
+  expect(JSON.stringify([described, document])).not.toContain("saved-cloudflare-token");
+  // With no level for the key, no group, operation or guide of it shows.
+  row.keys = "{}";
+  const without = await seen("/api/openapi.json");
+  expect(without.tags).toEqual([]);
+  expect(JSON.stringify(without)).not.toMatch(/Cloudflare|cloudflare\.read|developers\.cloudflare\.com/);
+});

@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
-import { buildReview, NEXT_STEP, notesHeader, planActions, planLink } from '../../.agents/skills/plan/scripts/build-review.mjs';
+import { assemble, buildReview, NEXT_STEP, notesHeader, planActions, planLink } from '../../.agents/skills/plan/scripts/build-review.mjs';
 import { fakePaseo, fakeTunnel, ORIGIN, TUNNEL_ENV } from './fixtures/fake-tunnel.mjs';
 import { needs } from './fixtures/needs.mjs';
 
@@ -129,12 +129,49 @@ test('drawings and text holding markup stay text', needsDom, () => fixture(root 
   window.close();
 }, `## Why\n\nShow </script><script>window.injection=1</script> as text.\n\n## What Changes\n\n- [bad](javascript:alert(1)) item\n  ${fence}\n  <b>not bold</b> </script><script>window.injection=2</script>\n  ${fence}\n`));
 
+// A bullet holding a table, then pipes with no separator row, which stay the bullet's text.
+const tabled = `## Why\n\nCompare.\n\n## What Changes\n\n- **Two ways.** Pick one.
+  | way | login |
+  |:----|------:|
+  | local | **none** </script><script>window.injection=3</script> |
+  | sync \\| cloud | needed |
+- **Stray pipes** read | a | b |
+  | c | d |
+`;
+
+test('a Markdown table in a bullet becomes a page table with a note target per body row', needsDom, () => fixture(root => {
+  assert.deepEqual(buildReview(root, { requireCurrent: true }).warnings, []);
+  const html = page(root);
+  assert.match(html, /<div class="table"><table class="tbl"><thead><tr><th>way<\/th><th>login<\/th><\/tr><\/thead><tbody><tr data-note="item-1-row-1" tabindex="0">/);
+  const { window, document } = dom(html);
+  assert.equal(window.injection, undefined, 'a cell holding </script> stays text');
+  const rows = [...document.querySelectorAll('#item-1 tbody tr')];
+  assert.deepEqual(rows.map(row => row.dataset.note), ['item-1-row-1', 'item-1-row-2']);
+  assert.deepEqual(rows.map(row => [...row.cells].map(text)), [['local', 'none </script><script>window.injection=3</script>'], ['sync | cloud', 'needed']]);
+  assert.equal(rows[0].querySelector('b').textContent, 'none', 'cells take inline formatting');
+  assert.equal(rows[0].lastElementChild.lastElementChild.className, 'add', 'a row\'s Note button sits in its last cell');
+  assert.equal(text(document.querySelector('[data-note="item-1"]')), 'Two ways. Pick one.');
+  assert.equal(document.querySelector('#item-2 table'), null, 'pipes without a separator row stay text');
+  assert.equal(text(document.querySelector('[data-note="item-2"]')), 'Stray pipes read | a | b | | c | d |');
+  window.close();
+}, tabled));
+
+test('a row note names its change and row, with the row\'s cells', needsDom, () => fixture(root => {
+  buildReview(root, { requireCurrent: true });
+  const { window, document, errors } = dom(page(root));
+  document.querySelector('.add[data-open="item-1-row-2"]').click();
+  assert.equal(document.getElementById('editor-where').textContent, '#/1 · row 2 "sync | cloud · needed"');
+  assert.deepEqual(errors, []);
+  window.close();
+}, tabled));
+
 test('invalid proposals report the item and line and keep the last page', () => fixture(root => {
   buildReview(root, { requireCurrent: true });
   const good = page(root);
   const cases = [
     [proposal.replace('**Non-goals:**', `${fence}text\nloose\n${fence}\n\n**Non-goals:**`), /proposal\.md line 23: a fence outside any bullet in ## What Changes/],
     [proposal.replace('  onto an indented line', `  onto\n\n  ${fence}text\n  after a blank line\n  ${fence}`), /proposal\.md line 15: a fence outside any bullet/],
+    [proposal.replace('  onto an indented line', '  onto\n\n  | a | b |\n  |-|-|\n  | c | d |'), /proposal\.md line 15: a table outside any bullet in ## What Changes \(a blank line ends a bullet\)/],
     [proposal.replace(/  c ─→ d\n  ```\n/, '  c ─→ d\n'), /proposal\.md line 16: item 2 opens a fence that never closes/],
     [proposal.replace('## Why', '## Reason'), /missing ## Why/],
     [proposal.replace('## What Changes', '## Changes'), /missing ## What Changes/],
@@ -240,7 +277,36 @@ test('the kit keeps one script, one style, its marker, and older-engine syntax',
   assert.equal((kit.match(/<style\b/g) || []).length, 1);
   assert.doesNotMatch(kit, /\?\.[\w([]|\?\?|catch\s*\{/, 'no optional chaining, nullish coalescing, or optional catch binding');
   assert.doesNotMatch(kit, /\b(?:src|href)\s*=\s*["']?(?:https?:)?\/\/|@import|url\(/i, 'no network loads');
+  assert.ok(kit.indexOf('/* look */') > kit.indexOf('<style>') && kit.indexOf('/* look */') < kit.indexOf('</style>'), 'the look marker sits in the one style');
+  assert.ok(kit.indexOf('<!-- theme -->') > kit.indexOf('</style>') && kit.indexOf('<!-- theme -->') < kit.indexOf('</head>'), 'the switch goes in <head>, before the first paint');
+  assert.doesNotMatch(/<style>([\s\S]*?)<\/style>/.exec(kit)[1], /#[0-9a-f]{3,8}\b|rgba?\(|text-transform/i, 'every colour is the app\'s, and labels stay in sentence case');
 });
+
+test('the built page carries the app\'s colours and parts in its one style, and still fetches nothing', () => fixture(root => {
+  buildReview(root, { requireCurrent: true });
+  const html = page(root);
+  const style = /<style>([\s\S]*?)<\/style>/.exec(html)[1];
+  assert.equal((html.match(/<style\b/g) || []).length, 1);
+  assert.doesNotMatch(style, /\/\* look \*\//, 'the marker is filled');
+  const app = readFileSync(resolve(here, '../../app/src/index.css'), 'utf8');
+  assert.ok(style.includes(`--primary: ${/\n:root \{[^}]*--primary:\s*([^;]+);/.exec(app)[1]};`), 'the app\'s light primary');
+  assert.doesNotMatch(style, /prefers-color-scheme/, 'light to start on every device');
+  assert.match(style, /color-scheme: light;/);
+  const dark = /\n\.dark \{([^}]*)\}/.exec(app)[1];
+  assert.ok(style.includes(`--background: ${/--background:\s*([^;]+);/.exec(dark)[1]};`), 'the app\'s dark set, under .dark');
+  assert.ok(style.includes('.theme-toggle {'), 'the switch\'s look');
+  // The switch: one script in <head>, ahead of the kit's own, so a saved dark choice paints dark from the start.
+  const head = html.slice(0, html.indexOf('</head>'));
+  assert.equal((html.match(/<script\b/g) || []).length, 2);
+  assert.equal((head.match(/<script\b/g) || []).length, 1);
+  assert.match(head, /localStorage\.getItem\(KEY\)[\s\S]*classList\.toggle\('dark'/);
+  assert.doesNotMatch(html, /<!-- theme -->/, 'the marker is filled');
+  assert.throws(() => assemble('x', '', kit.replace('<!-- theme -->', '')), /review kit: expected one <!-- theme -->/);
+  for (const part of [':where(button, .btn)', ':where(.card)', ':where(.tag)']) assert.ok(style.includes(part), part);
+  assert.ok(style.indexOf(':where(.card)') < style.indexOf('.bar {'), 'the look first, then the kit\'s own rules');
+  assert.doesNotMatch(html, /\b(?:src|href)\s*=\s*["']?(?:https?:)?\/\/|@import|url\(/i, 'no network loads');
+  assert.throws(() => assemble('x', '', kit.replace('/* look */', '')), /review kit: expected one \/\* look \*\//);
+}));
 
 test('both builder aliases run from the CLI and report failures', () => fixture(root => {
   for (const alias of ['.agents', '.claude']) {

@@ -9,7 +9,7 @@ This is the [Cloudflare stack](README.md)'s answer to *what to build on*. The pa
 | Piece | Role | Notes |
 |---|---|---|
 | **React 19** | The SPA | Mounted at `/` and served by the Worker. |
-| **Tailwind 4** | Styling | Classes on the element, through `@tailwindcss/vite`. `app/src/index.css` is the only stylesheet: the colours, light and dark by the device. |
+| **Tailwind 4** | Styling | Classes on the element, through `@tailwindcss/vite`. `app/src/index.css` is the only stylesheet: the colours, light on every device. |
 | **shadcn** | Ready-made parts | Buttons, fields, tables, menus and popups, copied into `app/src/components/ui/` by `npx shadcn@latest add <part>` and left as written. [Mini apps](mini-apps.md#the-rules) says how a screen uses them. |
 | **Vite 8** | Build + dev | Stable release — no `overrides` pin needed. `@cloudflare/vite-plugin` wires the build to Workers. |
 | **Cloudflare Workers** | The runtime | One Worker serves the SPA, the JSON APIs, and static assets. `wrangler` deploys it. |

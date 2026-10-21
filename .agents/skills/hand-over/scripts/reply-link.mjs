@@ -10,6 +10,7 @@ import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain, parseCli, usageError } from '../../memory/scripts/lib/cli.mjs';
+import { lookCss } from '../../plan/scripts/look.mjs';
 import { alive, freePort, hasCloudflared, keyMatches, killTunnel, linkAnswers, signal, startTunnel } from './lib/tunnel.mjs';
 import { canWake, chatTarget, wakeChat } from './lib/wake.mjs';
 
@@ -93,7 +94,11 @@ function register(state, { file, header, actions, hours, target }) {
 }
 
 const PAGE_HEADERS = { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'referrer-policy': 'no-referrer', 'x-frame-options': 'DENY', 'content-security-policy': "frame-ancestors 'none'" };
-const CLOSED_PAGE = '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>This link has closed</title><body style="font:16px/1.5 system-ui,sans-serif;margin:2em"><h1 style="font-size:22px">This link has closed</h1><p>Ask your assistant for a new link.</p></body></html>';
+const CLOSED_STYLE = 'body{display:grid;place-items:center;min-height:100vh;margin:0;padding:1rem;box-sizing:border-box;line-height:1.5}'
+  + '.card{max-width:24rem;padding:1.5rem}h1{margin:0 0 .25rem;font-size:1.25rem}p{margin:0;color:var(--muted-foreground)}';
+const CLOSED_PAGE = '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
+  + `<title>This link has closed</title><style>${lookCss()}${CLOSED_STYLE}</style>`
+  + '<body><main class="card"><h1>This link has closed</h1><p>Ask your assistant for a new link.</p></main></body></html>';
 
 function reply(response, status, body) {
   const text = body ? JSON.stringify(body) : '';

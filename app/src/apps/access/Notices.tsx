@@ -1,9 +1,11 @@
 import type { ReactNode } from 'react'
+import { useLocation } from 'react-router'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { CopyText } from '../../components/CopyText'
 import type { ViewProps } from './address'
 import { FINISH_REQUEST } from './status'
+import { WelcomeDialog } from './Welcome'
 
 /** One notice in its box. It says nothing aloud unless `role` makes it a status or an alert. */
 function Notice({ role, children }: { role?: 'status' | 'alert'; children: ReactNode }) {
@@ -27,11 +29,15 @@ export function Notices({ status, view, said, pending, save, reload }: ViewProps
   const people = view.name === 'people'
   const unticked = [...status.unticked.people.map(person => `${person.email}: ${person.apps.join(', ')}`),
     ...status.unticked.roles.map(role => `${role.name} role: ${role.apps.join(', ')}`)]
+  // The person a save just gave the project, as the list now holds them. Each save opens its popup once.
+  const given = said?.welcome ? status.people.find(person => person.email === said.welcome!.trim().toLowerCase() && person.status === 'active') : undefined
+  const { key } = useLocation()
   return <>
     {said && <Notice role={said.failed ? 'alert' : 'status'}><p>
       <strong>{said.text}</strong>
       {said.undo && <> <Button type="button" variant="outline" size="sm" className="ms-2" disabled={pending} onClick={() => save('people', said.undo, { text: 'Undone.' })}>Undo</Button></>}
     </p></Notice>}
+    {given && <WelcomeDialog key={key} status={status} person={given} />}
     {status.environment !== 'live' && <Notice><p><strong>Practice list.</strong> Changes here stay on previews. The real sign-in list is not touched.</p></Notice>}
     {/* The "!" and the bold words mark it: nothing depends on colour. */}
     {unticked.length > 0 && <Notice>

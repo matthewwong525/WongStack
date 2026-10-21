@@ -41,25 +41,44 @@ function pageText(tab) {
   return has('snapshot') ? text('snapshot') : `- heading "Page at ${tab.url}"\n- textbox "Name" [e1]\n- button "Go" [e2]`;
 }
 
+/** True when a step's target is the tick box: the ref the `box` file names, or `#agree`; `{ticked}` shows its state. */
+const isBox = body => has('box') && (body.ref === text('box') || body.selector === '#agree');
+const toggle = tab => { tab.ticked = !tab.ticked; };
+
+/** The element a box read finds: the tick box, else a button; a Playwright-only selector doesn't parse. */
+function element(tab, selector) {
+  if (selector.includes('>>')) throw new SyntaxError(`'${selector}' is not a valid selector`);
+  const attributes = { getAttribute: () => null };
+  return isBox({ selector }) ? { ...attributes, tagName: 'INPUT', type: 'checkbox', checked: tab.ticked } : { ...attributes, tagName: 'BUTTON', type: 'submit' };
+}
+
 /** What an expression browse.mjs sends evaluates to on this tab. */
 function evaluate(tab, expression) {
+  if (expression.startsWith('(function boxAt(')) return new Function('document', `return ${expression}`)({ querySelectorAll: selector => [element(tab, selector)] });
   if (expression === 'location.href') return tab.url;
   if (expression === '[innerWidth, innerHeight]') return tab.size;
   if (expression === '1') return 1;
   if (/^document\.querySelectorAll\(.*\)\.length$/.test(expression)) return has('count') ? Number(text('count')) : 1;
-  const field = /^document\.querySelector\((".*")\)\?\.value \?\? null$/.exec(expression);
-  if (!field) throw new Error(`the fake evaluates no such expression: ${expression}`);
-  const selector = JSON.parse(field[1]);
-  return has('no-field') ? null : tab.typed[selector] ?? tab.picked[selector] ?? '';
+  if (!/document\.querySelector\(".*"\)\) \?\? null$/.test(expression)) throw new Error(`the fake evaluates no such expression: ${expression}`);
+  // A field read runs as written, on a page whose picked fields are dropdowns and the rest text boxes.
+  const querySelector = selector => {
+    if (has('no-field')) return null;
+    const picked = tab.picked[selector];
+    return picked === undefined ? { tagName: 'INPUT', value: tab.typed[selector] ?? '' } : { tagName: 'SELECT', value: `value of ${picked}`, selectedOptions: [{ label: picked }] };
+  };
+  return new Function('document', `return ${expression}`)({ querySelector });
 }
 
 const STEPS = {
-  async click(tab, _, response) {
+  async click(tab, body, response) {
     await held('hold-click');
     if (once('timeout-click-once')) return refuse(response, 500, 'click timed out after 30000ms');
     if (has('fail-click')) return refuse(response, 500, 'click failed');
     if (has('click-url')) tab.url = text('click-url');
     if (has('click-count')) writeFileSync(file('count'), text('click-count'));
+    if (isBox(body) && !has('box-ignores-click')) toggle(tab);
+    // A click that redraws the page, so camofox's next read numbers other things.
+    if (has('click-snapshot')) writeWhole('snapshot', text('click-snapshot'));
     return send(response, 200, { ok: true });
   },
   async type(tab, body, response) {
@@ -67,6 +86,7 @@ const STEPS = {
     // Playwright's call log quotes what was to be typed, as the real server's refusal can.
     if (has('fail-type')) return refuse(response, 422, `locator.fill: Timeout 10000ms exceeded. Call log: fill("${body.text}")`);
     tab.typed[body.ref ?? body.selector] = body.text;
+    if (body.mode === 'keyboard') tab.focus = body;
     return send(response, 200, { ok: true });
   },
   select(tab, body, response) {
@@ -74,8 +94,9 @@ const STEPS = {
     tab.picked[body.ref ?? body.selector] = body.option;
     return send(response, 200, { ok: true });
   },
-  press(tab, _, response) {
+  press(tab, body, response) {
     if (has('press-url')) tab.url = text('press-url');
+    if (body.key === 'Space' && tab.focus && isBox(tab.focus) && !has('box-ignores-space')) toggle(tab);
     return send(response, 200, { ok: true });
   },
   navigate(tab, body, response) {
@@ -90,11 +111,13 @@ const STEPS = {
   },
   snapshot(tab, _, response, query) {
     if (query.get('offset')) return send(response, 200, { url: tab.url, snapshot: text('snapshot-more'), hasMore: false });
-    const snapshot = pageText(tab);
+    const snapshot = pageText(tab).replaceAll('{ticked}', tab.ticked ? ' [checked]' : '');
     tab.reads++;
-    return send(response, 200, { url: tab.url, snapshot, hasMore: has('snapshot-more'), nextOffset: snapshot.length });
+    // camofox's count is its ref list's size, which a frame page's marks can fall short of.
+    const refsCount = has('refs-count') ? Number(text('refs-count')) : (snapshot.match(/\[e\d+\]/g) ?? []).length;
+    return send(response, 200, { url: tab.url, snapshot, refsCount, hasMore: has('snapshot-more'), nextOffset: snapshot.length });
   },
-  screenshot: (_, __, response) => response.writeHead(200, { 'content-type': 'image/png' }).end(has('shot') ? text('shot') : 'png-1'),
+  screenshot: (_, __, response) => (has('fail-shot') ? refuse(response, 500, 'screenshot failed') : response.writeHead(200, { 'content-type': 'image/png' }).end(has('shot') ? text('shot') : 'png-1')),
 };
 
 /** A request on one tab: its step, or the tab closed, or the reply camofox gives for a tab it lost. */
@@ -114,7 +137,7 @@ function route(request, response, path, body, query) {
   const parts = path.split('/').filter(Boolean);
   if (path === '/tabs' && request.method === 'POST') {
     if (has('fail-open')) return refuse(response, 500, 'tab create failed');
-    const tab = { id: randomUUID(), session: body.sessionKey, user: body.userId, url: body.url, reads: 0, typed: {}, picked: {}, size: has('size') ? JSON.parse(text('size')) : [2560, 1328] };
+    const tab = { id: randomUUID(), session: body.sessionKey, user: body.userId, url: body.url, reads: 0, typed: {}, picked: {}, ticked: false, size: has('size') ? JSON.parse(text('size')) : [2560, 1328] };
     tabs.set(tab.id, tab);
     return send(response, 200, { tabId: tab.id, url: tab.url, httpStatus: 200, navigationOk: true });
   }

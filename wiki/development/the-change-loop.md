@@ -2,7 +2,7 @@
 
 Repo changes follow this loop. The handoff is an **[OpenSpec](https://github.com/Fission-AI/OpenSpec) change**: `openspec/changes/<name>/` holds its proposal, tasks, and optional specs, saved with the code.
 
-A plain request — research, an errand, a reminder, a question — is not a change. The agent does it directly, with no verb and no question round, and writes anything [repeatable](../wiki-style.md#repeatable-knowledge) it learns to the wiki. One that edited a repo file, such as a wiki note, ends by asking *publish it?*, so no edit is left unsaved. Finished work in a Paseo workspace offers to close it: [`/close`](../../.agents/skills/close/SKILL.md) saves what the chat learned, updates the wiki, and closes the workspace. An invoked verb works for any work: [non-code work](#verbs-for-any-work) gets a to-do, not a change. The full loop is for the repo's code or process, and a new standalone page or tool is code: [a mini app](#mini-apps).
+A plain request — research, an errand, a reminder, a question — is not a change. The agent does it directly, with no verb and no question round, and writes anything [repeatable](../wiki-style.md#repeatable-knowledge) it learns to the wiki. One that edited a repo file, such as a wiki note, ends by asking *publish it?*, so no edit is left unsaved. Finished work in a Paseo workspace offers [`/close`](../../.agents/skills/close/SKILL.md). An invoked verb works for any work: [non-code work](#verbs-for-any-work) gets a to-do, not a change. The full loop is for the repo's code or process, and a new standalone page or tool is code: [a mini app](#mini-apps).
 
 ```
 /explore ─▶ /plan ─▶ /apply ─▶ /save ─▶ /ship ─▶ /close
@@ -14,7 +14,7 @@ A plain request — research, an errand, a reminder, a question — is not a cha
             resume saved work later, on any machine
 ```
 
-Each WongStack skill calls the OpenSpec CLI (setup runs `openspec init --tools none`). **OpenSpec owns plans; WongStack skills own all git**: `/explore`, `/plan`, and `/apply` run none; `/save`, `/continue`, `/ship`, and `/close` own branches, PRs, and merges. A finished `/apply` [uploads a preview and shows changed screens in the chat](../../.agents/skills/apply/SKILL.md#finish-with-a-preview) before asking whether to publish; the work stays in the working tree.
+Each WongStack skill calls the OpenSpec CLI (setup runs `openspec init --tools none`). **OpenSpec owns plans; WongStack skills own all git**: `/explore`, `/plan`, and `/apply` run none; `/save`, `/continue`, `/ship`, and `/close` own branches, PRs, and merges.
 
 **A verb whose precondition is missing invokes the verb before it**, nested, so you can enter anywhere:
 
@@ -69,19 +69,31 @@ Each skill owns its own procedure; this list is what each stage is for.
 
 - **[`/explore`](../../.agents/skills/explore/SKILL.md)** thinks a problem through and owns the [questions before a plan](#asking-before-drafting). It **always runs**, except for notes pasted from a review page, and writes nothing.
 - **[`/plan`](../../.agents/skills/plan/SKILL.md)** drafts the change folder and its `review.html` page, with no git. **A behavior change plans test authoring beside source**, and its checks at the end ([why](#apply-never-saves-to-stop-but-may-save-to-finish-a-task)). `/save` never authors tests; coverage grows where the context is richest.
-- **[`/apply`](../../.agents/skills/apply/SKILL.md)** ensures a plan, works `tasks.md` [in a fresh helper agent](../../.agents/skills/apply/SKILL.md#build-in-a-helper) so the build does not carry the planning talk, waits quietly for it, and ends with [the local pre-check](#the-gate) and a host preview. It never saves on completion; invoked by `/ship`, it returns with no upload.
-- **[`/save`](../../.agents/skills/save/SKILL.md)** is the git stage: it commits code and [the synced change](#the-change-is-a-living-handoff-not-just-a-plan) together, pushes, opens or updates the PR, waits for CI when present, and returns a preview URL, all in one command once the files are staged; it also records the session's facts in the [memory store](memory.md). With no plan, it authors one from the session, so nothing ships without its handoff. `/ship` reuses it for the archive, so the git, PR, and CI logic exists once.
+- **[`/apply`](../../.agents/skills/apply/SKILL.md)** ensures a plan, works `tasks.md` [in a fresh helper agent](../../.agents/skills/apply/SKILL.md#build-in-a-helper), free of the planning talk, has [a second agent review it](../../.agents/skills/apply/SKILL.md#a-second-look), and ends with [the local pre-check](#the-gate) and a host preview. It never saves on completion; invoked by `/ship`, it returns with no upload.
+- **[`/save`](../../.agents/skills/save/SKILL.md)** is the git stage: it commits code and [the synced change](#the-change-is-a-living-handoff-not-just-a-plan) together, pushes, opens or updates the PR, waits for CI when present, and returns a preview URL, in one command; it also records the session's facts in the [memory store](memory.md). With no plan, it authors one from the session, so nothing ships without its handoff. `/ship` reuses it for the archive, so the git, PR, and CI logic exists once.
 - **[`/continue`](../../.agents/skills/continue/SKILL.md)** resumes a change or an open non-code thread, cold, on any machine, and hands off to `/apply`.
 - **[`/ship`](../../.agents/skills/ship/SKILL.md)** archives the change, runs `/save` and [`/verify`](#verifying-the-app) once each, squash-merges on [the gate](#the-gate), then [looks at the live app](staging-walkthrough.md#what-it-is-not): one checkpoint and CI run before the walk, reused after an identity check instead of saving again. A failed walk is fixed in its PR; an unfinished change goes through `/apply` first. Its walk also replays the project's [kept checks](kept-checks.md#when-it-replays) and saves new ones with one more save. It writes no wiki. A check only possible after publishing is a Decision-log line: it refuses unticked tasks.
-- **[`/close`](../../.agents/skills/close/SKILL.md)** wraps up any finished chat, with no question. It records what the chat set out to do and what is left, keeps unfinished work saved on its current provider (or throws it away when asked), and moves the chat's and its change's repeatable facts into the wiki in their own pull request. Then it closes the Paseo workspace. A workspace closed any other way gets no wiki update; its facts stay in memory until [a dream](wiki-dream.md) (`/dream-memory`) places them.
+- **[`/close`](../../.agents/skills/close/SKILL.md)** wraps up any finished chat, with no question. It records the chat's aim and what is left, keeps unfinished work saved (or throws it away when asked), moves repeatable facts into the wiki in their own pull request, and closes the Paseo workspace. A workspace closed any other way gets no wiki update; its facts stay in memory until [a dream](wiki-dream.md) (`/dream-memory`) places them.
 
 Loop back any time: each `/save` keeps the plan and Status current and **appends** to the Decision log, never rewriting it, so the change holds the story of the work. Re-`/plan` if the spec needs to change.
 
+### Fix it or ask
+
+One test decides what an agent fixes alone: **does the plan already settle what is right?** Yes → it fixes it and reports the fix: a broken plan scenario, a failing check, a reviewer's bug the builder accepts. No → it asks you one plain question, recommendation first, when the fix:
+
+1. **goes outside the plan**: a visible change it doesn't name, more scope, a new dependency, or unrelated code;
+2. **weakens a check**: turning one off, loosening it, or deleting a test ([caught after the fact too](#a-loosened-check-needs-a-reason));
+3. **can't be undone, or is risky**: keys, logins, access, lost data, or money;
+4. **still fails after two fixes**, or a step's own cap;
+5. **stays disputed**: builder and reviewer disagree after one exchange.
+
+`/apply`, [`/verify`](../../.agents/skills/verify/references/walkthrough.md#e--after-a-failure) and [`/save`](../../.agents/skills/save/references/git-gate.md#the-auto-fix-loop) link here: a copy goes stale.
+
 ### `/apply` never saves to stop, but may save to finish a task
 
-`/apply` writes the whole change, source and tests, before it checks any of it, and never saves to stop or between parts. Long builds used to stop after each part to check the unfinished change: on one, the checks took over three minutes a run, and every part ran them again, with more runs for repairs. So the checks run once, at the end. [The helper brief](../../.agents/skills/apply/references/build-helper.md) owns how the build does it, and [`/plan`](../../.agents/skills/plan/SKILL.md#finish) lays the tasks out for it. Routine final checks belong to `/save` or `/ship`, rather than source checklist boxes.
+`/apply` writes the whole change, source and tests, before it checks any of it, and never saves to stop or between parts. Checking each part of one long build cost over three minutes a run, again for every part and repair, so the checks run once, at the end. [The helper brief](../../.agents/skills/apply/references/build-helper.md) owns how the build does it, and [`/plan`](../../.agents/skills/plan/SKILL.md#finish) lays the tasks out for it. Routine final checks belong to `/save` or `/ship`, rather than source checklist boxes.
 
-Nothing is checked less. Substantive deployed acceptance still needs evidence after implementation; `/save` can establish it, and only observed acceptance completes its task. A later archive can require another checked revision; report that reason honestly. Final required checks, fresh preview evidence and the single live look remain intact. After failures, batch repairs and repeat affected checks under existing limits; every pushed source revision still takes all required CI jobs.
+Nothing is checked less: deployed acceptance still needs evidence, which `/save` can give, and only acceptance seen to pass ticks its task. Final checks, fresh preview evidence and the one live look stay; batch repairs, and every pushed revision takes all required CI jobs.
 
 ### Verbs for any work
 
@@ -108,15 +120,15 @@ This page owns delivery; other surfaces link here.
 
 **The GitHub gate is CI when present, else PR review**: GitHub Actions is an optional accelerator on pull requests, version control, OpenSpec, and the repo. Where checks exist, push and let CI run; the skills wait and fix failures. Where they don't, a human reviews the PR, with the change and its archive. Either way, **no local run is the gate**; `/apply`'s host preview gates nothing and never reaches production. [Artifacts](../stack/artifacts-route.md) runs them in Cloudflare.
 
-**A finished build is checked on this computer first.** [`checks.mjs --worktree`](../../.github/scripts/checks.mjs) runs CI's checks for the changed files, before the first push and again after publishing brings the default branch in; the build repairs what fails. It is a pre-check, never the gate: it decides no save and no publish, its last line is `LOCAL_CHECKS=pass`, `fail (<parts>)` or `not run (<reason>)`, and exit 7 means no tools here, so nothing ran. Runs on one computer take turns.
+**A finished build is checked on this computer first.** [`checks.mjs --worktree`](../../.github/scripts/checks.mjs) runs CI's checks for the changed files, before the first push and again after publishing brings the default branch in; the build repairs what fails. It is a pre-check, never the gate: it decides no save and no publish, and [the build brief](../../.agents/skills/apply/references/build-helper.md) reads its last line. Runs on one computer take turns.
 
 **Every file edit takes the gate**, through a branch and pull request. Plans and archives stay with the verbs. Only code needs a change record; [`/save`](../../.agents/skills/save/SKILL.md) decides.
 
 **GitHub's ladder is CI-when-present → merge**; a skipped rung is never a failure. The app's test suite runs *inside* CI as an ordinary check, found by its `npm test` script at the repo root **or any immediate subdirectory**, so a repo without tests is not penalized and none receives a package manifest on WongStack's behalf.
 
-**A branch that leaves the main app untouched skips its suite**: when every path the whole branch changes against the default branch is under `wiki/` or `openspec/`, or ends in `.md`. The Test and Deploy jobs skip inside the job and say so, so a required check still reports green. A [mini app](../stack/mini-apps.md) is main-app code, so a change to one runs the suite and deploys. The WongStack source repo's Payload checks run on every push, since skill Markdown is the payload; only a branch entirely under `wiki/` or `openspec/` skips their script tests. The other way round, the Test job skips its wiki check when the branch changes no Markdown file and removes or moves no file, since no wiki link can break.
+**A branch that leaves the main app untouched skips its suite**: when every path the whole branch changes against the default branch is under `wiki/` or `openspec/`, or ends in `.md`. The Test and Deploy jobs skip inside the job and say so, so a required check still reports green. A [mini app](../stack/mini-apps.md) is main-app code, so a change to one runs the suite and deploys. The WongStack source repo's Payload checks run on every push, since skill Markdown is the payload; only a branch entirely under `wiki/` or `openspec/` skips their script tests. The Test job skips its wiki check when the branch changes no Markdown file and removes or moves no file, since no wiki link can break. On the default branch, a merge whose files match a branch head that passed the Test check skips the suite ([`already-passed.sh`](../../.github/scripts/already-passed.sh)); any doubt runs it.
 
-[`checks.mjs`](../../.github/scripts/checks.mjs) owns discovery, tests and quality reports on both routes, and on this computer with `--worktree`. Callers give repo/base/head/default-branch; the base sets the diff and branch labels context. Missing bases run conservatively. Quality checks continue after failed installs or tests.
+[`checks.mjs`](../../.github/scripts/checks.mjs) owns discovery, tests and quality reports on both routes, and on this computer with `--worktree`. Missing bases run conservatively. Quality checks continue after failed installs or tests.
 
 **The GitHub staging walkthrough is no rung either.** `/ship` runs [`/verify`](#verifying-the-app) once and merges on the gate whatever the walk says; a walk that cannot run (no credential, budget spent) never blocks. Only a `FAILURE` stops `/ship`, to **ask the user** to fix or merge anyway: a human decision, with *merge anyway* always available.
 
@@ -134,7 +146,7 @@ The reason is a Decision log bullet that starts with `Check:` and names the file
 - **2026-09-27** — Check: `app/vitest.config.ts` excludes `src/generated/` from coverage, because that code is generated and has no tests of its own.
 ```
 
-Only a proposal the branch adds or edits counts, archived ones included, so an old reason never excuses a new loosening. The agent fixes a flagged file itself, switching the check back on or writing the reason, and lists every `Check:` bullet in plain words before *publish it?* and in the final report.
+Only a proposal the branch adds or edits counts, archived ones included, so an old reason never excuses a new loosening. The agent fixes a flagged file itself, switching the check back on, or writing the reason when the plan settles the loosening; otherwise it [asks](#fix-it-or-ask). It lists every `Check:` bullet in plain words before *publish it?* and in the final report.
 
 ## The change is a living handoff, not just a plan
 
@@ -152,7 +164,7 @@ Most changes are `proposal.md` and `tasks.md` only. A change writes delta specs 
 
 ## `/apply` vs `/continue`
 
-Both work `tasks.md` and end the same way; `/continue` orients you first and hands off to `/apply`. Cold on another machine → `/continue`; already in the session → `/apply`.
+Both work `tasks.md`; `/continue` orients you first. Cold on another machine → `/continue`; already in the session → `/apply`.
 
 To add a verb of your own, write a `SKILL.md` under `.agents/skills/<name>/` and point to it from this page: the loop is a convention, not a hardcoded list.
 
@@ -160,8 +172,4 @@ Part of [development](README.md).
 
 ## Publishing scheduled records
 
-[Host scheduling](../stack/host-schedules.md) keeps routine definitions and open goal plans. Selected records resume before code or checkout; unchanged records do not block unrelated code.
-
-[Record-only delivery](../../.agents/skills/save/references/schedule-records.md) validates the exact definition/schema, binding and file scope through the normal gate. Goals keep their checklist open; routines need no change/page. Mixed code uses the ordinary loop. Publication and native inspection both confirm registration.
-
-Terminal evidence and verified stopping permit goal archival without capability-spec changes; routine cancellation retains a disabled definition. Pauses, pending answers and cleanup failures stay open. Ordinary errands retain [their reach](#verbs-for-any-work).
+[Host scheduling](../stack/host-schedules.md) keeps routine definitions and open goal plans. Selected records resume before code or checkout; unchanged records do not block unrelated code. [Record-only delivery](../../.agents/skills/save/references/schedule-records.md) publishes one through the normal gate and owns the steps; mixed code uses the ordinary loop. Ordinary errands retain [their reach](#verbs-for-any-work).

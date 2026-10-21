@@ -331,6 +331,13 @@ test('GitHub invokes the shared script once, and staging has no dependency on th
   assert.match(workflow, /--default-branch "\$CHECK_DEFAULT"/);
   assert.match(workflow, /github\.event_name == 'push' \|\| github\.event\.pull_request\.head\.repo\.full_name != github\.repository/);
   assert.doesNotMatch(workflow, /run: npm test/);
+  // Code that already passed on its branch skips the suite only on a default-branch push.
+  const passed = workflow.slice(workflow.indexOf('- name: Check whether this code already passed'), workflow.indexOf('- name: Say the code already passed'));
+  assert.match(passed, /if: \$\{\{ github\.event_name == 'push' && github\.ref_name == github\.event\.repository\.default_branch \}\}/);
+  assert.match(passed, /GH_TOKEN: \$\{\{ github\.token \}\}/);
+  assert.match(passed, /bash \.github\/scripts\/already-passed\.sh >> "\$GITHUB_OUTPUT"/);
+  assert.match(workflow, /- name: Run shared checks\n\s+if: \$\{\{ !cancelled\(\) && steps\.passed\.outputs\.passed != 'true' \}\}/);
+  assert.match(workflow, /checks: read\n\s+pull-requests: read/);
   const deploy = readFileSync(join(repo, '.github/workflows/deploy.yml'), 'utf8');
   assert.doesNotMatch(deploy, /\bneeds:|workflow_run:|workflows:\s*\[?\s*['"]?Test/);
   assert.match(deploy, /bash scripts\/cf-deploy\.sh/);

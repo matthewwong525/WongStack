@@ -268,7 +268,8 @@ it("lists every action of a held app, and a key's own action only for a caller w
   expect(listing.actions).toMatchObject([{ operationId: "main.setup", keys: [] }, { operationId: "orders.balance", keys: [{ id: "bank", level: "read" }] },
     { operationId: "orders.read", keys: [{ id: "stripe", level: "read" }] }, { operationId: "orders.refund", keys: [{ id: "stripe", level: "write" }] }]);
   const selected = await discover("/api/actions?id=orders.refund");
-  expect((await body(selected.clone())).keys).toEqual([{ id: "stripe", level: "write" }]);
+  // The selected action also names the key; this made-up registry gives it no purpose.
+  expect((await body(selected.clone())).keys).toEqual([{ id: "stripe", name: "Stripe", level: "write" }]);
   for (const id of ["cloudflare.read", "stripe.charge", "main.unmapped"]) expect((await discover(`/api/actions?id=${id}`)).status, id).toBe(404);
   expect(Object.keys((await body(await discover("/api/openapi.json"))).paths)).toEqual(["/api/setup", "/apps/orders/api/balance", "/apps/orders/api/read", "/apps/orders/api/refund"]);
   expect(await ids(owner)).toEqual(["cloudflare.read", ...held, "stripe.charge"]);

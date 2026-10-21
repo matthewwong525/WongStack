@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { JSDOM } from 'jsdom';
-import { heldLabel, httpsHost, timeLeft } from '../../.agents/skills/hand-over/scripts/keys-page.mjs';
+import { heldLabel, httpsHost, readableName, timeLeft } from '../../.agents/skills/hand-over/scripts/keys-page.mjs';
 
 const scripts = new URL('../../.agents/skills/hand-over/scripts/', import.meta.url);
 const source = readFileSync(new URL('keys-page.mjs', scripts), 'utf8').replace(/^export /gm, '');
@@ -43,7 +43,8 @@ for(const notification of ['notified','unconfirmed']) test(`keys receipt honestl
   const p=page(t,(_body,answer)=>answer(200,{saved:['FIRST','SECOND'],failed:[],missing:[],ready:true,receipt:{notification}}));
   await settle();p.fill('FIRST','one');p.fill('SECOND','two');p.submit();await settle();
   assert.equal(p.$('#form').hidden,true);assert.equal(p.$('[name=FIRST]').value,'');
-  assert.match(p.$('#closed h1').textContent,notification==='notified'?/notified/:/return to your chat/);
+  assert.equal(p.$('#closed h1').textContent,'All set');assert.equal(p.$('#all-set').hidden,false);
+  assert.match(p.$('#closed .hint').textContent,notification==='notified'?/carrying on/:/say continue/);
 });
 
 test('keys saving blocks competing close/show/save actions and rejects double submit',async t=>{
@@ -55,40 +56,110 @@ test('keys saving blocks competing close/show/save actions and rejects double su
   assert.equal(p.$('[name=FIRST]').disabled,false);assert.match(p.$('#keys').textContent,/Couldn't save/);
 });
 
+test('a skeleton key card stands before the list until the keys arrive, its words for a screen reader alone',async t=>{
+  const p=page(t,()=>{});const loading=p.$('#loading');
+  assert.equal(loading.getAttribute('role'),'status');assert.equal(loading.textContent.trim(),'Loading your keys…');
+  assert.equal(loading.querySelector('.sr-only').textContent,'Loading your keys…');
+  assert.equal(loading.querySelectorAll('.card[aria-hidden="true"] .skeleton').length,4);
+  assert.equal(loading.nextElementSibling,p.$('#keys'));assert.equal(p.$('#keys').children.length,0);
+  await settle();assert.equal(p.$('#loading'),null);assert.equal(p.$('#keys').children.length,2);
+});
+
 test('expired key link clears entered values and shows closed-link fallback',async t=>{
   const p=page(t,(_body,answer)=>answer(410));await settle();p.fill('FIRST','private');p.submit();await settle();
   assert.equal(p.$('#closed').hidden,false);assert.equal(p.$('[name=FIRST]').value,'');
 });
 
-const STRIPE = { name: 'STRIPE_SECRET_KEY', hint: 'Secret key for the payments provider.', title: 'Stripe key', url: 'https://dashboard.stripe.com/apikeys', open: "Open Stripe's keys", steps: ['Tap Create restricted key', 'Tick Read charges', 'Copy the key'], checkHost: 'api.stripe.com' };
+test('Not now closes the link as before and shows the closed screen, with no tick', async t => {
+  const p = page(t, never);
+  await settle();
+  p.fill('FIRST', 'private');
+  p.button('Not now').click();
+  await settle();
+  assert.deepEqual(p.calls.map(call => call.path), ['keys', 'done']);
+  assert.deepEqual([p.$('#closed').hidden, p.$('#form').hidden, p.$('#all-set').hidden], [false, true, true]);
+  assert.equal(p.$('#closed h1').textContent, 'This link has closed');
+  assert.equal(p.$('#closed .hint').textContent, 'Ask your assistant for a new one.');
+  assert.equal(p.$('[name=FIRST]').value, '');
+});
+
+const STRIPE = { name: 'STRIPE_SECRET_KEY', hint: 'Secret key for the payments provider.', title: 'Stripe key', why: 'So your assistant can read your charges.', url: 'https://dashboard.stripe.com/apikeys', open: "Open Stripe's keys", steps: ['Tap Create restricted key', 'Tick Read charges', 'Copy the key'], checkHost: 'api.stripe.com' };
 const never = () => { throw new Error('nothing should be saved'); };
 const saved = (verdict, receipt = { notification: 'notified' }, name = STRIPE.name) => (_body, answer) => answer(200, { saved: [name], failed: [], refused: [], checked: { [name]: verdict }, missing: [], ready: true, receipt });
 
-test('a guided key shows its title, an Open link in a new tab with its host, and numbered steps', async t => {
+test('a guided key shows its title, what it\'s for, an Open link in a new tab, and numbered steps ending in the box', async t => {
   const p = page(t, never, { keys: [STRIPE] });
   await settle();
   assert.equal(p.$('#form h1').textContent, 'Stripe key');
   assert.equal(p.window.document.title, 'Stripe key');
+  assert.deepEqual([p.$('#why').textContent, p.$('#why').hidden], [STRIPE.why, false]);
+  assert.match(p.$('.private').textContent, /^Private link$/);
+  assert.match(p.$('#promise').textContent, /^Your key goes straight to your assistant's computer, never into the chat\.$/);
+  const order = el => [...p.window.document.querySelectorAll('body *')].indexOf(el);
+  assert.ok(order(p.$('#promise')) < order(p.$('[name=STRIPE_SECRET_KEY]')), 'the privacy line sits above the box');
+  assert.equal(p.$('#progress').hidden, true, 'one key needs no count');
   const items = [...p.$('#keys ol.steps').children];
-  assert.deepEqual(items.map(item => item.textContent), ["Open Stripe's keysdashboard.stripe.com", ...STRIPE.steps]);
+  assert.deepEqual(items.slice(0, -1).map(item => item.textContent), ["Open Stripe's keysdashboard.stripe.com", ...STRIPE.steps]);
+  const last = items.at(-1);
+  assert.equal(last.querySelector('.step').textContent, 'Paste it here');
+  assert.ok(last.contains(p.$('[name=STRIPE_SECRET_KEY]')), 'the box is the last step');
   const link = items[0].querySelector('a');
   assert.deepEqual([link.href, link.target, link.rel, link.textContent], [STRIPE.url, '_blank', 'noopener noreferrer', "Open Stripe's keys"]);
   assert.equal(p.$('[name=STRIPE_SECRET_KEY]').getAttribute('aria-label'), 'Stripe key');
   assert.equal(p.$('[name=STRIPE_SECRET_KEY]').type, 'password');
   assert.doesNotMatch(p.text(), /STRIPE_SECRET_KEY|payments provider/, 'the guide replaces the code name and hint');
-  assert.match(p.text(), /Saving tests this key once at api\.stripe\.com\./, 'the test host is named before anything is sent');
+  assert.equal(last.querySelector('.check').textContent, "We'll check it with api.stripe.com", 'the test host is named before anything is sent');
+  assert.equal(p.$('#done').textContent, 'Not now');
 });
 
-test('with no guide a key shows its code name and hint, and several keys keep the page\'s own heading', async t => {
+test('with no guide a key shows a readable name over its code name and hint, and several keys get a counted heading', async t => {
   const p = page(t, never, { keys: [{ name: 'MAPS_API_KEY', hint: 'The Maps key.', set: true }, STRIPE] });
   await settle();
-  assert.equal(p.$('#form h1').textContent, 'Keys for your assistant');
+  assert.equal(p.$('#form h1').textContent, 'Two keys for your assistant');
+  assert.equal(p.$('#why').hidden, true, 'each card carries its own line');
+  assert.deepEqual([p.$('#progress').textContent, p.$('#progress').hidden], ['0 of 2 saved', false]);
   const [maps, stripe] = [...p.$('#keys').children];
-  assert.equal(maps.querySelector('label').textContent, 'MAPS_API_KEY');
+  assert.equal(maps.querySelector('label').textContent, 'Maps API key');
+  assert.equal(maps.querySelector('.code').textContent, 'MAPS_API_KEY');
   assert.deepEqual([...maps.querySelectorAll('.hint')].map(hint => hint.textContent), ['The Maps key.', 'This replaces the one saved now.']);
-  assert.equal(maps.querySelector('ol, a'), null);
+  assert.equal(maps.querySelector('ol, a, .step'), null);
   assert.equal(stripe.querySelector('label').textContent, 'Stripe key');
-  assert.equal(stripe.querySelectorAll('ol.steps li').length, 4);
+  assert.equal(stripe.querySelector('.code'), null, 'a guide\'s title stands alone');
+  assert.equal(stripe.querySelector('.why').textContent, STRIPE.why);
+  assert.equal(stripe.querySelectorAll('ol.steps > li').length, 5);
+
+  const alone = page(t, never, { keys: [{ name: 'MAPS_API_KEY', hint: 'The Maps key.' }] });
+  await settle();
+  assert.equal(alone.$('#form h1').textContent, 'Maps API key');
+  assert.equal(alone.$('#keys .code').textContent, 'MAPS_API_KEY');
+  assert.equal(alone.$('#keys label'), null);
+  assert.equal(alone.$('[name=MAPS_API_KEY]').getAttribute('aria-label'), 'Maps API key');
+  assert.equal(alone.$('#why').hidden, true);
+});
+
+test('a readable name splits the code name, keeps known capitals, and lower-cases key', () => {
+  assert.equal(readableName('MAPS_API_KEY'), 'Maps API key');
+  assert.equal(readableName('STRIPE_SECRET_KEY'), 'Stripe secret key');
+  assert.equal(readableName('GOOGLE_OAUTH_CLIENT_ID'), 'Google OAuth client ID');
+  assert.equal(readableName('AWS_SMTP_URL'), 'AWS SMTP URL');
+  assert.equal(readableName('KEY_JSON'), 'Key JSON');
+  assert.equal(readableName('__X__'), 'X');
+  assert.equal(readableName('_'), '_');
+});
+
+test('several keys count up as each is saved, and a saved card folds to its tick and verdict', async t => {
+  const p = page(t, (_body, answer) => answer(200, { saved: ['FIRST'], failed: [], refused: [], checked: { FIRST: 'works' }, missing: ['SECOND'], ready: false }));
+  await settle();
+  const [first, second] = [...p.$('#keys').children];
+  assert.equal(first.querySelector('.tick').hidden, true);
+  p.fill('FIRST', 'one');
+  p.submit();
+  await settle();
+  assert.equal(p.$('#progress').textContent, '1 of 2 saved');
+  assert.equal(p.$('#status').textContent, '', 'the count says it once');
+  assert.deepEqual([first.querySelector('.tick').hidden, first.querySelector('.ok').textContent, first.querySelector('.ok').hidden, first.querySelector('.body').hidden], [false, 'Works', false, true]);
+  assert.equal(second.querySelector('.body').hidden, false);
+  assert.equal(second.querySelector('.tick').hidden, true);
 });
 
 test('guide text is set as text, never markup, and only an https address becomes a link', async t => {
@@ -103,7 +174,7 @@ test('guide text is set as text, never markup, and only an https address becomes
   assert.equal(b.querySelector('a, ol'), null, 'a script address is no link');
   assert.equal(b.querySelector('.hint').textContent, markup);
   assert.equal(c.querySelector('a'), null);
-  assert.deepEqual([...c.querySelectorAll('ol li')].map(item => item.textContent), ['One']);
+  assert.equal(c.querySelector('ol > li').textContent, 'One');
   assert.deepEqual([httpsHost('https://a.example.com:8443/x'), httpsHost('http://a.example.com'), httpsHost('nope')], ['a.example.com:8443', null, null]);
 });
 
@@ -211,16 +282,24 @@ test('a file over 16 KB is refused before it is read or sent, and an empty one s
   assert.equal(p.calls.some(call => call.path === 'continue'), false);
 });
 
-test('the time left shows in whole minutes on the watcher\'s clock, and the page closes at the limit', async t => {
-  assert.equal(timeLeft(1_800_000, 0), 'Closes in 30 min');
-  assert.equal(timeLeft(1_800_000, 359_999), 'Closes in 25 min', 'a part minute rounds up');
-  assert.equal(timeLeft(1_800_000, 1_799_999), 'Closes in 1 min');
-  assert.equal(timeLeft(1_800_000, 1_800_000), null);
+test('the time reads as a clock time on this device until its last ten minutes, then in minutes, and the page closes at the limit', async t => {
+  const at = Date.UTC(2026, 9, 18, 13, 30);
+  assert.match(timeLeft(at, at - 8 * 3_600_000, { zone: 'UTC' }), /^Open until (1:30\sPM|13:30)$/, 'eight hours from 5:30 AM');
+  assert.match(timeLeft(at, at - 8 * 3_600_000, { ahead: 3_600_000, zone: 'UTC' }), /^Open until (12:30\sPM|12:30)$/, 'a watcher clock an hour ahead');
+  assert.match(timeLeft(at, at - 10 * 60_000 - 1), /^Open until /);
+  assert.equal(timeLeft(at, at - 10 * 60_000), 'Closes in 10 min');
+  assert.equal(timeLeft(at, at - 9 * 60_000), 'Closes in 9 min');
+  assert.equal(timeLeft(at, at - 299_999), 'Closes in 5 min', 'a part minute rounds up');
+  assert.equal(timeLeft(at, at - 1), 'Closes in 1 min');
+  assert.equal(timeLeft(at, at), null);
 
   const now = Date.now();
   const p = page(t, never, { closesAt: now + 24 * 60_000 - 5000, now });
   await settle();
-  assert.equal(p.$('#time').textContent, 'Closes in 24 min');
+  assert.match(p.$('#time').textContent, /^Open until /);
+  const soon = page(t, never, { closesAt: now + 9 * 60_000 - 5000, now });
+  await settle();
+  assert.equal(soon.$('#time').textContent, 'Closes in 9 min');
   assert.equal(p.$('#closed').hidden, true);
 
   const skewed = page(t, never, { closesAt: 10 * 60_000, now: 1 });
@@ -255,7 +334,8 @@ test('a tested key says Testing…, then Works beside its name once the link end
   await settle();
   assert.equal(p.$('#closed').hidden, false);
   assert.deepEqual([...p.$('#results').children].map(line => line.textContent), ['Stripe key: Works']);
-  assert.match(p.$('#closed h1').textContent, /notified/);
+  assert.equal(p.$('#closed h1').textContent, 'All set');
+  assert.equal(p.$('#closed .hint').textContent, 'Your assistant is carrying on. You can close this page.');
 });
 
 test('an untested key says Saved, not tested, in its row and once the link ends', async t => {
@@ -288,7 +368,7 @@ test('a refused key stays editable with the test host and Save anyway, and the p
   p.fill(STRIPE.name, 'sk_live_half');
   p.submit();
   await settle();
-  assert.match(p.$('#keys li').textContent, /api\.stripe\.com refused this key\. Copy it again, or save it anyway\./);
+  assert.match(p.$('#keys li .miss').textContent, /^api\.stripe\.com didn't take this key\. Copy it again and paste it, or save it anyway\.$/);
   assert.doesNotMatch(p.$('#keys li').textContent, /Paste this key before continuing/);
   assert.equal(input.disabled, false);
   assert.equal(input.value, 'sk_live_half', 'the key stays in its box');

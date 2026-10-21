@@ -79,7 +79,7 @@ test('open --passwords serves the password page and touches no browser page', as
   assert.match(key, /^[0-9a-f]{64}$/);
   assert.equal(f.camofox.starts(), 0, 'no browser started, and nothing read from a page');
   const page = await fetch(`http://127.0.0.1:${port}/`);
-  assert.match(await page.text(), /Save logins for your agent/);
+  assert.match(await page.text(), /Save logins for your assistant/);
   assert.match((await fetch(`http://127.0.0.1:${port}/page.mjs`)).headers.get('content-type'), /javascript/);
   assert.match(await (await fetch(`http://127.0.0.1:${port}/page.mjs`)).text(), /export function parseExport/);
   assert.equal((await route(port, key, 'fields')).status, 404, 'no field routes');
@@ -213,6 +213,24 @@ test('slug, hostOf, and chooseName name each saved login', () => {
   assert.equal(chooseName(vault, { host: 'costco.com', username: 'me' }), 'costco-com');
   assert.equal(checkLogins({ logins: [login('https://a.example.com', 'me')] })[0].host, 'a.example.com');
   assert.equal(checkLogins(null), 400);
+});
+
+test('an empty password passes only on a login flagged emailFirst, and saves as an empty password', async t => {
+  assert.deepEqual(checkLogins({ logins: [{ ...login('https://shopify.com', 'me', ''), emailFirst: true }] }), [{ url: 'https://shopify.com', username: 'me', password: '', host: 'shopify.com' }]);
+  for (const bad of [login('https://shopify.com', 'me', ''), { ...login('https://shopify.com', 'me', ''), emailFirst: 'yes' }, { ...login('https://shopify.com', 'me'), password: undefined, emailFirst: true }, { ...login('https://shopify.com', '', ''), emailFirst: true }]) {
+    assert.equal(checkLogins({ logins: [bad] }), 400, JSON.stringify(bad));
+  }
+  assert.ok(!parseExport('url,username,password\nhttps://shopify.com/,me,\n').length, 'an export row still needs a password');
+
+  const f = fixture(t);
+  const out = f.run('open', '--passwords', '--site', 'shopify.com', '--email-first');
+  assert.equal(out.status, 0, out.stderr);
+  const key = /#key=([0-9a-f]{64})&/.exec(out.stdout)[1];
+  const { port } = JSON.parse(readFileSync(join(f.state, 'state.json'), 'utf8'));
+  assert.equal((await route(port, key, 'save', { logins: [login('https://shopify.com', 'me@mail.com', '')] })).status, 400, 'unflagged');
+  const saved = await route(port, key, 'save', { logins: [{ ...login('https://shopify.com', 'me@mail.com', ''), emailFirst: true }] });
+  assert.deepEqual(saved.json, { saved: [{ name: 'shopify-com', host: 'shopify.com' }], failed: [] });
+  assert.deepEqual(f.vault(), [{ name: 'shopify-com', url: 'https://shopify.com', username: 'me@mail.com', password: '' }], 'no flag is kept');
 });
 
 // Each password manager's CSV export, with the header it writes and one login row.

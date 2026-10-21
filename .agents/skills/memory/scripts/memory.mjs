@@ -15,6 +15,7 @@ import { ftsQuery, readFacts, stateOf, tagClause } from './lib/read-facts.mjs';
 import { BRIEF_DEFAULT_LIMIT, BRIEF_LIMIT, renderBrief, SCOPE_FILTERS } from './lib/brief.mjs';
 export { ftsQuery, tagClause } from './lib/read-facts.mjs';
 import { backlinks } from './lib/links.mjs';
+import { codeUsers } from './lib/callers.mjs';
 import { closingBody, tagSync, upkeepPlan } from './lib/upkeep.mjs';
 import { MEMBER_COMMANDS } from './lib/members.mjs';
 import { findCredential, redact, secretValues } from './lib/scan.mjs';
@@ -415,8 +416,14 @@ async function tagCommand(ctx, { values, positionals: [name] }) {
   console.log(`tag ${name}${next.aliasOf ? ` (alias of ${next.aliasOf})` : ''}: ${next.definition}`);
 }
 
-// Everything linked to these paths, topics, or a change's named paths: areas, their docs, past changes, backlinks,
-// then live facts. All but the facts print before the store opens; an unreachable store prints one line and exits 0.
+const capped = lines => [...lines.slice(0, 10), ...(lines.length > 10 ? [`+${lines.length - 10} more`] : [])].join('\n');
+const useLine = ({ file, lines, names, via }) => {
+  const note = [names.join(', '), via && `via ${via}`].filter(Boolean).join(', ');
+  return `- ${file}:${lines.join(',')}${note ? ` (${note})` : ''}`;
+};
+
+// Everything linked to these paths, topics, or a change's named paths: areas, docs and code folders, past changes,
+// backlinks, each direct path's code users, then live facts; an unreachable store prints one line and exits 0.
 async function areas(ctx, { values, positionals }) {
   const list = loadAreas();
   const isTopic = word => !word.includes('/') && Object.hasOwn(list, word) && !existsSync(join(ctx.root, word));
@@ -429,10 +436,15 @@ async function areas(ctx, { values, positionals }) {
   const past = pastChanges(ctx.root, [...paths, ...named], tags, list, { skip: values.change });
   console.log(found.size ? `Areas: ${[...found].map(([tag, path]) => `${tag} (${path})`).join(', ')}` : 'No mapped area for these paths.');
   if (docs.length) console.log(`Docs: ${docs.join(', ')}`);
+  const folders = [...new Set(tags.flatMap(tag => (list[tag]?.paths || []).filter(prefix => prefix.endsWith('/'))))];
+  if (folders.length) console.log(`Code: ${folders.join(', ')}`);
   if (past.length) console.log(`Past changes:\n${past.map(change => `- [${change.folder}](${change.proposal}) — ${change.title}`).join('\n')}`);
+  const scans = new Map();
   for (const path of paths) {
     const links = backlinks(ctx.root, path);
-    if (links.length) console.log(`Linked to ${path} from:\n${[...links.slice(0, 10).map(link => `- ${link}`), ...(links.length > 10 ? [`+${links.length - 10} more`] : [])].join('\n')}`);
+    if (links.length) console.log(`Linked to ${path} from:\n${capped(links.map(link => `- ${link}`))}`);
+    const users = codeUsers(ctx.root, path, scans).map(useLine);
+    if (users.length) console.log(`Code using ${path}:\n${capped(users)}`);
   }
   if (!found.size) return;
   try {
@@ -819,7 +831,7 @@ const USAGE = `usage: memory.mjs <command>
   source <fact-id>             the reduced transcript behind a fact
   tags                         every tag with its definition and use count
   tag <name> [--definition text] [--alias-of tag | --no-alias]   correct a tag, or merge a look-alike into another (admin)
-  areas [paths|topics…] [--change name] [--limit n]   everything linked to them: areas, docs, past changes, backlinks, live facts
+  areas [paths|topics…] [--change name] [--limit n]   everything linked to them: areas, docs, past changes, backlinks, code users, live facts
   gate --file -                neighbours for each candidate fact; JSON on stdin (or --file path)
   put-facts --file - [--spooled path]   the decided facts; JSON on stdin (or --file path)
   retag --file -               restate live facts with added tags, keeping date, session, and author: {"retag":[{"id":n,"tags":[...]}]}

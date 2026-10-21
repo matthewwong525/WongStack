@@ -71,6 +71,7 @@
       "wiki/development/document-retrieval.md",
       "wiki/development/memory-extraction.md",
       "wiki/development/browsing.md",
+      "wiki/development/private-form.md",
       "wiki/development/reply-links.md",
       "wiki/development/passwords.md",
       "wiki/development/login-codes.md",
@@ -81,6 +82,7 @@
       ".github/workflows/guard.yml",
       ".github/actions/change-scope/action.yml",
       ".github/scripts/app-untouched.sh",
+      ".github/scripts/already-passed.sh",
       ".github/scripts/checks.mjs",
       ".github/scripts/check-settings.mjs",
       ".github/scripts/loosened-checks.mjs",
@@ -224,7 +226,11 @@
       "app/worker/employee-access/sets.ts",
       "app/worker/employee-access/roles.ts",
       "app/worker/employee-access/code.ts",
-      "app/worker/employee-access/code.test.ts"
+      "app/worker/employee-access/code.test.ts",
+      "app/src/apps/access/Services.tsx",
+      "app/src/apps/access/Services.test.tsx",
+      "app/worker/api/services.ts",
+      "app/worker/api/services.test.ts"
     ]
   },
   "seededBySetup": {

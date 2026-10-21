@@ -67,8 +67,8 @@ function fixture(source = proposal) {
   return { dir, url: pathToFileURL(join(dir, 'review.html')).href };
 }
 
-async function open(url, { width = 1200, height = 800, init, touch = false } = {}) {
-  const context = await browser.newContext({ viewport: { width, height }, hasTouch: touch });
+async function open(url, { width = 1200, height = 800, init, touch = false, scheme = 'light' } = {}) {
+  const context = await browser.newContext({ viewport: { width, height }, hasTouch: touch, colorScheme: scheme });
   if (init) await context.addInitScript(init);
   const page = await context.newPage();
   const errors = [];
@@ -332,6 +332,31 @@ browserTest('no width from 320px scrolls sideways, and the phone editor docks', 
   const overlap = editor.x < target.x + target.width && target.x < editor.x + editor.width && editor.y < target.y + target.height && target.y < editor.y + editor.height;
   assert.equal(overlap, false);
   await desk.context.close();
+});
+
+browserTest('the note box and the chip sit above the page with a clear shadow and edge, floating and docked', async () => {
+  const f = fixture();
+  const look = (page, sel) => page.locator(sel).evaluate(el => ({ shadow: getComputedStyle(el).boxShadow, edge: getComputedStyle(el).borderTopWidth }));
+  const desk = await open(f.url, { width: 1200 });
+  await tap(desk.page, 'item-2');
+  const chip = await look(desk.page, '#chip');
+  assert.notEqual(chip.shadow, 'none', 'the chip casts a shadow');
+  await desk.page.keyboard.press('Escape');
+  await draft(desk.page, 'item-2', 'Floating');
+  const floating = await look(desk.page, '#editor');
+  assert.doesNotMatch(await desk.page.locator('#editor').getAttribute('class') || '', /docked/);
+  assert.notEqual(floating.shadow, 'none', 'the floating box casts a shadow');
+  assert.match(floating.shadow, /38px/, 'the popover shadow, not the faint card one');
+  assert.equal(floating.edge, '1px');
+  await desk.context.close();
+  const phone = await open(f.url, { width: 390, height: 700 });
+  await draft(phone.page, 'item-2', 'Docked');
+  assert.match(await phone.page.locator('#editor').getAttribute('class'), /docked/);
+  const docked = await look(phone.page, '#editor');
+  assert.notEqual(docked.shadow, 'none', 'the docked box casts a shadow upward');
+  assert.match(docked.shadow, /-8px/, 'the shadow falls on the page above');
+  assert.equal(docked.edge, '1px', 'a top edge');
+  await phone.context.close();
 });
 
 browserTest('#/3 scrolls to item 3, and a keyboard note returns focus to its target', async () => {
@@ -936,4 +961,169 @@ browserTest('unconfirmed action responses preserve notes and allow retry with th
     assert.equal(sends().length, 0);
     await context.close();
   }
+});
+
+browserTest('a picture fits a 320px screen, zooms full screen, and takes a note on the whole picture', async () => {
+  const { url } = fixture(proposal.replace(`  ${fence}text\n  you ask\n     │\n  done\n  ${fence}`,
+    `  ${fence}mermaid\n  flowchart LR\n    A[you ask] --> B[a plan] --> C[a review] --> D[the build] --> E[live]\n  ${fence}`));
+  const { page, context, errors } = await open(url, { width: 320 });
+  await page.locator('#item-1 summary').click();
+  await page.waitForFunction(() => parseFloat(getComputedStyle(document.querySelector('#item-1 .art.pic')).fontSize) < 13);
+  const fits = await page.evaluate(() => {
+    const frame = document.querySelector('#item-1 .frame').getBoundingClientRect(), svg = document.querySelector('#item-1 .art.pic svg').getBoundingClientRect();
+    return { inside: svg.left >= frame.left - 1 && svg.right <= frame.right + 1, page: document.documentElement.scrollWidth <= innerWidth, drawn: svg.height > 0 };
+  });
+  assert.deepEqual(fits, { inside: true, page: true, drawn: true });
+  await page.locator('#item-1 .enlarge').click();
+  const vframe = page.locator('#viewer .vframe');
+  const width = () => vframe.evaluate(el => el.querySelector('svg').getBoundingClientRect().width);
+  const fitted = await width();
+  await page.locator('#viewer button[aria-label="Zoom in"]').click();
+  assert.ok(await width() > fitted, 'zooming in grows the picture');
+  await page.locator('#viewer [data-note="item-1-picture-1"]').click({ position: { x: 4, y: 4 } });
+  await page.locator('#chip').click();
+  assert.equal(await page.locator('#editor-where').innerText(), '#/1 · picture 1 "you ask a plan a review the build live"');
+  await page.locator('#editor textarea').fill('Add a check step.');
+  await page.locator('#editor [data-act="save"]').click();
+  await page.keyboard.press('Escape');
+  assert.equal(await page.locator('#item-1 summary .count').innerText(), '· 1 note');
+  assert.match(await copied(page), /^- Change #1, picture 1 \("you ask a plan a review the build live"\): Add a check step\.$/m);
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+browserTest('the page starts light on a dark device, and the switch turns it dark, readable, and remembered', async () => {
+  const { url } = fixture();
+  const { page, context, errors } = await open(url, { width: 390, scheme: 'dark' });
+  const look = () => page.evaluate(() => {
+    // A colour as sRGB through a canvas, whatever notation the browser reports it in.
+    const ink = document.createElement('canvas').getContext('2d');
+    const rgb = colour => { ink.clearRect(0, 0, 1, 1); ink.fillStyle = colour; ink.fillRect(0, 0, 1, 1); return [...ink.getImageData(0, 0, 1, 1).data].slice(0, 3); };
+    const lum = c => c.map(v => v / 255).map(v => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)).reduce((t, v, i) => t + v * [0.2126, 0.7152, 0.0722][i], 0);
+    const contrast = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n - m); return (x + 0.05) / (y + 0.05); };
+    const css = sel => getComputedStyle(document.querySelector(sel));
+    const pair = (text, back) => contrast(rgb(css(text).color), rgb(css(back).backgroundColor));
+    return {
+      body: lum(rgb(css('body').backgroundColor)), card: lum(rgb(css('.card').backgroundColor)), bar: lum(rgb(css('.bar').backgroundColor)),
+      text: [pair('body', 'body'), pair('.card .text', '.card'), pair('.hint', 'body'), pair('#copy', '#copy'), pair('.frame .art', '.frame'), pair('.bar [data-ready="build"]', '.bar'), contrast(rgb(css('.theme-toggle').color), rgb(css('body').backgroundColor))],
+    };
+  });
+  const readable = (seen, when) => seen.text.forEach((ratio, i) => assert.ok(ratio >= 4.5, `${when}: text ${i} contrast ${ratio.toFixed(2)} is under 4.5`));
+  const toggle = page.locator('.theme-toggle');
+  await page.locator('#item-1 summary').click();
+  // A dark device with no saved choice: light, with a moon that offers dark.
+  const light = await look();
+  for (const surface of ['body', 'card', 'bar']) assert.ok(light[surface] > 0.8, `dark device: the ${surface} starts light`);
+  readable(light, 'light');
+  assert.equal(await toggle.getAttribute('aria-label'), 'Switch to dark');
+  // Phone-sized: a 44px target in the top right that covers no header text.
+  const fit = await page.evaluate(() => {
+    const box = document.querySelector('.theme-toggle').getBoundingClientRect();
+    const hits = [...document.querySelectorAll('header .eyebrow, header h1, header .muted, header .jump a')].filter(el => {
+      const r = el.getBoundingClientRect();
+      return r.left < box.right && r.right > box.left && r.top < box.bottom && r.bottom > box.top;
+    }).map(el => el.textContent);
+    return { width: box.width, height: box.height, right: innerWidth - box.right, hits };
+  });
+  assert.ok(fit.width >= 44 && fit.height >= 44, `the switch is ${fit.width}x${fit.height}`);
+  assert.ok(fit.right <= 24, 'the switch sits at the right');
+  assert.deepEqual(fit.hits, [], 'the switch covers no header text');
+  await toggle.click();
+  // Colours ease over 0.15s: read them once every transition has ended.
+  await page.evaluate(() => Promise.all(document.getAnimations().map(animation => animation.finished)));
+  const dark = await look();
+  for (const surface of ['body', 'card', 'bar']) assert.ok(dark[surface] < 0.1, `after the switch: the ${surface} is dark`);
+  readable(dark, 'dark');
+  assert.equal(await toggle.getAttribute('aria-label'), 'Switch to light');
+  assert.equal(await toggle.getAttribute('aria-pressed'), 'true');
+  // Remembered: a reload opens dark.
+  await page.reload();
+  await page.locator('#item-1 summary').click();
+  const again = await look();
+  for (const surface of ['body', 'card', 'bar']) assert.ok(again[surface] < 0.1, `after a reload: the ${surface} stays dark`);
+  assert.equal(await page.locator('.theme-toggle').getAttribute('aria-label'), 'Switch to light');
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+browserTest('a sketch fits 320px, opens full screen, and repaints on the dark switch; a table row copies as its change and row', async () => {
+  const { url } = fixture(proposal.replace(`  ${fence}text\n  you ask\n     │\n  done\n  ${fence}`, [
+    `  ${fence}svg`, '  <svg viewBox="0 0 480 120">', '    <rect x="0" y="0" width="480" height="120" fill="card" stroke="line"/>',
+    '    <rect x="16" y="16" width="200" height="24" fill="muted"/>', '    <text x="16" y="80">Notes</text>', '  </svg>', `  ${fence}`,
+    '  | way | login |', '  |-----|-------|', '  | local | none |', '  | sync | needed |',
+  ].join('\n')));
+  const { page, context, errors } = await open(url, { width: 320 });
+  await page.locator('#item-1 summary').click();
+  const fits = await page.evaluate(() => {
+    const frame = document.querySelector('#item-1 .frame').getBoundingClientRect(), svg = document.querySelector('#item-1 .art.sketch svg').getBoundingClientRect();
+    return { inside: svg.left >= frame.left - 1 && svg.right <= frame.right + 1, page: document.documentElement.scrollWidth <= innerWidth, drawn: svg.height > 0 };
+  });
+  assert.deepEqual(fits, { inside: true, page: true, drawn: true });
+  const paint = () => page.evaluate(() => {
+    const box = getComputedStyle(document.querySelector('#item-1 .art.sketch rect.f-card'));
+    return { box: box.fill, text: getComputedStyle(document.querySelector('#item-1 .art.sketch text')).fill, ink: getComputedStyle(document.body).color };
+  });
+  const light = await paint();
+  assert.equal(light.text, light.ink, 'a label takes the page\'s ink');
+  await page.locator('.theme-toggle').click();
+  await page.evaluate(() => Promise.all(document.getAnimations().map(animation => animation.finished)));
+  const dark = await paint();
+  assert.notEqual(dark.box, light.box, 'the box repaints on the switch');
+  assert.equal(dark.text, dark.ink, 'a label follows the dark ink');
+  await page.locator('#item-1 .enlarge').click();
+  assert.equal(await page.locator('#viewer .art.sketch svg').count(), 1, 'the sketch opens full screen');
+  await page.locator('#viewer [data-note="item-1-picture-1"]').click({ position: { x: 4, y: 4 } });
+  await page.locator('#chip').click();
+  assert.equal(await page.locator('#editor-where').innerText(), '#/1 · picture 1 "Notes"');
+  await page.locator('#editor [data-act="discard"]').click();
+  await page.keyboard.press('Escape');
+  await page.locator('.add[data-open="item-1-row-2"]').click();
+  await page.locator('#editor textarea').fill('Sync first.');
+  await page.locator('#editor [data-act="save"]').click();
+  assert.match(await copied(page), /^- Change #1, row 2 \("sync · needed"\): Sync first\.$/m);
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'the table scrolls nothing sideways');
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+browserTest('a phone screen fits 320px, a tap on its button places a note instead of pressing it, and it repaints on the dark switch', async () => {
+  const { url } = fixture(proposal.replace(`  ${fence}text\n  you ask\n     │\n  done\n  ${fence}`, [
+    `  ${fence}screen`, '  <div class="card col gap phone">', '    <div class="row gap"><h3>Notes</h3><span class="tag">3</span></div>', '    <div class="bar"></div>',
+    '    <input type="text" placeholder="A question or a change">',
+    '    <div class="row gap"><span class="grow"></span><button class="btn-ghost">Cancel</button><button class="btn-primary">Save</button></div>',
+    '  </div>', `  ${fence}`,
+  ].join('\n')));
+  const { page, context, errors } = await open(url, { width: 320, touch: true });
+  await page.locator('#item-1 summary').click();
+  // The fold's toggle event fits the sketch a moment after the click.
+  await page.waitForFunction(() => document.querySelector('#item-1 .art.screen').style.fontSize !== '');
+  const fits = await page.evaluate(() => {
+    const frame = document.querySelector('#item-1 .frame').getBoundingClientRect(), card = document.querySelector('#item-1 .art.screen .card').getBoundingClientRect();
+    const save = document.querySelector('#item-1 .art.screen .btn-primary').getBoundingClientRect();
+    return { inside: card.left >= frame.left - 1 && card.right <= frame.right + 1 && save.right <= card.right + 1, page: document.documentElement.scrollWidth <= innerWidth, drawn: card.height > 0 };
+  });
+  assert.deepEqual(fits, { inside: true, page: true, drawn: true });
+  const paint = () => page.evaluate(() => {
+    const css = sel => getComputedStyle(document.querySelector(`#item-1 .art.screen ${sel}`));
+    return { card: css('.card').backgroundColor, save: css('.btn-primary').backgroundColor, bar: css('.sk-bar').height, footer: document.querySelectorAll('.bar').length };
+  });
+  const light = await paint();
+  assert.ok(parseFloat(light.bar) > 0 && light.footer === 1, 'the gray bar draws in the sketch, apart from the page\'s footer');
+  await page.locator('.theme-toggle').click();
+  await page.evaluate(() => Promise.all(document.getAnimations().map(animation => animation.finished)));
+  const dark = await paint();
+  assert.notEqual(dark.card, light.card, 'the card repaints on the switch');
+  assert.notEqual(dark.save, light.save, 'the button repaints on the switch');
+  await page.locator('#item-1 .enlarge').click();
+  const save = page.locator('#viewer .art.screen .btn-primary');
+  const box = await save.boundingBox();
+  await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+  assert.equal(await page.evaluate(() => document.activeElement.closest('.sk')), null, 'the button takes no focus');
+  await page.locator('#chip').click();
+  assert.equal(await page.locator('#editor-where').innerText(), '#/1 · picture 1 "Notes 3 Cancel Save"');
+  await page.locator('#editor textarea').fill('Save on Enter too.');
+  await page.locator('#editor [data-act="save"]').click();
+  assert.match(await copied(page), /^- Change #1, picture 1 \("Notes 3 Cancel Save"\): Save on Enter too\.$/m);
+  assert.deepEqual(errors, []);
+  await context.close();
 });

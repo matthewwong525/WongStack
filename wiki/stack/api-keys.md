@@ -12,12 +12,12 @@ Changes to an existing key, such as replacing it, editing permissions, or deleti
 
 ## Give it through the private link
 
-When a task needs a key the assistant doesn't have, it sends a private link straight away. You can also ask for it: *send me the key link*. The link stays open for eight hours by default, so open it when you're ready; the page shows the time left.
+When a task needs a key the assistant doesn't have, it sends a private link straight away. You can also ask for it: *send me the key link*. The link stays open for eight hours by default, so open it when you're ready; the page shows the time it closes, such as *Open until 1:30 PM*, and counts minutes only in the last ten.
 
-1. **Open the link** the assistant sends, on your phone or computer.
-2. **Follow the steps on the page.** Tap *Open …*, make the key at the service, copy it, and come back.
-3. **Tap *Paste***, or paste into the box by hand. A key that comes as a file, like Google's key file, goes in through *pick a file*: your device reads it, and the page shows only its name. *This replaces the one saved now* means a new key takes the old one's place.
-4. **Tap *Save and continue*.** When the assistant knows a harmless way to test the key, the page tries it once, at the service's own address, which it names, and says *Works*. If the service says no, copy the key again; *Save anyway* keeps it as it is. *Saved, not tested* means there was no test to run. The link closes by itself once every key is saved, and *Close without continuing* closes it sooner.
+1. **Open the link** the assistant sends, on your phone or computer. The page says what the key is for, and that it goes straight to your assistant's computer, never into the chat.
+2. **Follow the numbered steps.** Tap *Open …*, make the key at the service, copy it, and come back.
+3. **Tap *Paste*** at the last step, *Paste it here*, or paste into the box by hand. A key that comes as a file, like Google's key file, goes in through *pick a file*: your device reads it, and the page shows only its name. *This replaces the one saved now* means a new key takes the old one's place.
+4. **Tap *Save and continue*.** When the assistant knows a harmless way to test the key, the page tries it once, at the service's own address, which it names (*We'll check it with api.stripe.com*), and a green tick says *Works*. If the service says no, copy the key again; *Save anyway* keeps it as it is. *Saved, not tested* means there was no test to run. With several keys, the page counts how many are saved. Once every key is in, it shows *All set* and the link closes by itself; *Not now* closes it sooner.
 
 If you haven't opened the link and the assistant needs another private link on the same computer, the first one closes early. The assistant says so and offers a new one. It can tell a link you never opened from one another chat's link replaced, and asks before it sends another.
 
@@ -35,9 +35,9 @@ Developers who want the details can read [how the assistant sends the link](../d
 
 ## A saved key shows in Access
 
-When the assistant saves a key your app will use, it also adds the key to [the app's key list](../../app/worker/keys.ts): a name you will recognise, such as *Stripe*, and the secret names it covers. From then on the key shows in [Access](access-screens.md#a-panel-has-apps-and-keys), where you open a person or a role and choose whether their assistant may look things up with it by itself, or also change things. An app that uses the key needs no such choice. A check fails before publishing when a secret the app declares is in no key, or in two.
+When the assistant saves a key your app will use, it also adds the key to [the app's key list](../../app/worker/keys.ts): a name you will recognise, such as *Stripe*, one line on what it's for, such as *Payments and refunds*, and the secret names it covers. It writes that line from the service's own help pages. From then on the key shows in [Access](access-screens.md#a-panel-has-apps-and-keys), where you open a person or a role and choose whether their assistant may look things up with it by itself, or also change things. An app that uses the key needs no such choice. A check fails before publishing when a secret the app declares is in no key, or in two, or when a key has no line on what it's for. The line also shows in [Services](access-screens.md#the-services-view) and in a chat's [services list](service-catalogue.md#list-the-services-you-can-use).
 
-When the service takes one fixed key, the assistant also adds where the service lives and which of its requests only look things up, so the key [can be used directly](company-api.md#use-a-key-directly). From then on your assistant can use it that way, and so can the assistant of anyone you give a level for it: *Read* looks things up, *Read & write* also changes them. Set a person's level to *None* to stop it.
+When the service takes one fixed key, the assistant also adds where the service lives, which of its requests only look things up, and a link to the service's API guide, so the key [can be used directly](company-api.md#use-a-key-directly). The link must start with `https://`, and a check fails without it. A chat reads the guide, and [the notes earlier chats left](service-catalogue.md#notes-on-each-key-based-service), before using the key. From then on your assistant can use it that way, and so can the assistant of anyone you give a level for it: *Read* looks things up, *Read & write* also changes them. Set a person's level to *None* to stop it.
 
 One key is not a service's: [Project code](project-git-route.md#the-owners-one-step-on-github) is a GitHub key for your own project, made once by the owner through the same link, so teammates can install the project and save changes.
 

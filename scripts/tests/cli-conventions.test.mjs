@@ -41,6 +41,7 @@ const scripts = {
   '.agents/skills/save/scripts/checkpoint-evidence.mjs': [],
   '.agents/skills/save/scripts/render-pr-body.mjs': [],
   '.agents/skills/explore/scripts/other-work.mjs': [],
+  '.agents/skills/explore/scripts/ask-check.mjs': ['stop'],
   '.agents/skills/dream-memory/scripts/dream.mjs': ['since'],
   '.agents/skills/hand-over/scripts/hand-over.mjs': [],
   '.agents/skills/hand-over/scripts/reply-link.mjs': [],
@@ -57,6 +58,7 @@ const scripts = {
   '.agents/skills/memory/scripts/memory.mjs': ['search'],
   '.agents/skills/memory/scripts/run.mjs': [],
   '.agents/skills/memory/scripts/session-start.mjs': [],
+  '.agents/skills/apply/scripts/helper-stop-check.mjs': [],
 };
 
 // Run from an empty temp dir, with npx, wrangler, and gh stubs first on PATH that record any call

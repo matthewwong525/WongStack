@@ -1,4 +1,7 @@
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Loading } from '../../components/Loading'
 import { apps } from '../../lib/apps'
 import { AppList } from './AppList'
 import { appAccessSchema, useAccess } from '../../lib/access'
@@ -20,7 +23,9 @@ export function Home() {
       </header>
       {data && !held && <Tutorial />}
       <h2 className="mb-4">Your apps</h2>
-      {!data && !error && <p role="status">Loading your apps…</p>}
+      {!data && !error && <Loading label="Loading your apps…" className="mb-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {Array.from({ length: 3 }, (_, index) => <Card key={index} className="gap-2 px-6 py-4"><Skeleton className="h-5 w-1/2" /><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-3/4" /></Card>)}
+      </Loading>}
       {error && <div className="grid justify-items-start gap-3"><p role="alert">Your app access is unavailable.</p><Button type="button" variant="outline" onClick={reload}>Retry apps</Button></div>}
       {data && <AppList apps={listed} held={held} code={data.code} />}
     </div>

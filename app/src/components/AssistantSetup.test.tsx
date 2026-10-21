@@ -30,23 +30,29 @@ it('says it is loading under what an assistant is, with nothing to copy yet', ()
   reply = () => new Promise<Response>(() => {})
   const popup = open()
   expect(within(popup).getByRole('status').textContent).toBe('Loading the steps…')
+  // Three grey step lines, hidden from a screen reader.
+  expect(within(popup).getByRole('status').querySelectorAll('[aria-hidden="true"] [data-slot="skeleton"]')).toHaveLength(3)
   // The heading names the popup and the line under it describes it: an assistant, with two named only as examples.
   expect(document.getElementById(popup.getAttribute('aria-describedby')!)!.textContent).toBe(WHAT)
   expect([within(popup).queryByRole('list'), within(popup).queryByRole('button', { name: 'Copy' }), within(popup).queryByRole('alert')]).toEqual([null, null, null])
 })
 
-it('gives three numbered steps with one solid Copy button, who signs in, what to ask and the apps it reaches', async () => {
+it('gives four numbered steps, starting with an assistant, with one solid Copy button, who signs in, what to ask and the apps it reaches', async () => {
   const popup = within(open())
   const copy = await popup.findByRole('button', { name: 'Copy' })
-  // A numbered list: copy, paste, approve. The list itself draws the numbers.
+  // A numbered list: have an assistant, copy, paste, approve. The list itself draws the numbers.
   const steps = popup.getByRole('list')
   expect([steps.tagName, classesOf(steps).includes('list-decimal')]).toEqual(['OL', true])
   const items = within(steps).getAllByRole('listitem')
-  expect(items.map(item => item.querySelector('p')!.textContent)).toEqual(['Copy your setup message', "Paste it into your assistant's chat", 'Approve the sign-in it opens'])
-  // Copy is in the first step and is the popup's one solid button; the email is in the third.
-  expect([items[0].contains(copy), copy.getAttribute('data-variant')]).toEqual([true, 'default'])
+  expect(items.map(item => item.querySelector('p')!.textContent)).toEqual(['Have an AI assistant on your computer', 'Copy your setup message', "Paste it into your assistant's chat", 'Approve the sign-in it opens'])
+  // The first step names two assistants as examples, each linking to its install page in a new tab.
+  expect(items[0].querySelectorAll('p')[1].textContent).toBe('No assistant yet? Install one, such as Claude Code or Codex.')
+  expect(within(items[0]).getAllByRole('link').map(link => [link.textContent, link.getAttribute('href'), link.getAttribute('target'), link.getAttribute('rel')]))
+    .toEqual([['Claude Code', 'https://claude.com/product/claude-code', '_blank', 'noreferrer'], ['Codex', 'https://developers.openai.com/codex', '_blank', 'noreferrer']])
+  // Copy is in the second step and is the popup's one solid button; the email is in the fourth.
+  expect([items[1].contains(copy), copy.getAttribute('data-variant')]).toEqual([true, 'default'])
   expect(popup.getAllByRole('button').filter(button => button.getAttribute('data-variant') === 'default')).toEqual([copy])
-  expect(within(items[2]).getByText('You sign in as person@example.com')).toBeTruthy()
+  expect(within(items[3]).getByText('You sign in as person@example.com')).toBeTruthy()
   fireEvent.click(copy); await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalledWith('Synthetic setup message'))
   // After the steps: what to ask once it works, and the apps by title.
   const ask = popup.getByText('What can I do here?')
@@ -76,6 +82,8 @@ it('says what the app answered when there is nothing to copy, with no steps', as
   const popup = within(open())
   expect(await popup.findByText('Ask your admin for access to Connect your assistant.')).toBeTruthy()
   expect([popup.queryByRole('list'), popup.queryByRole('button', { name: 'Copy' }), popup.queryByRole('textbox'), popup.queryByRole('alert')]).toEqual([null, null, null, null])
+  // Nothing to copy, so no install step either.
+  expect(popup.queryByText('Have an AI assistant on your computer')).toBeNull()
   expect(popup.queryByText(/You sign in as/)).toBeNull()
 })
 

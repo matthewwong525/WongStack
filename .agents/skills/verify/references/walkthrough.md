@@ -17,7 +17,7 @@ Ledger: scenario, probe, prerequisites, revision, runnable/blocked status, owned
 
 **Before writes**: `preflight`'s `PLAYGROUND=yes` → create/change/delete staging data freely: no prompt, ownership or cleanup; the next walk rebuilds it. Otherwise establish staging-only bindings and owned disposable records with safe cleanup, or defer, naming the need. Production data, paid resources or access changes beyond the authorized heal need permission.
 
-**Outside services**: `node "$ROOT/scripts/cf-secrets.mjs" shared` lists key names. Trigger a service only on an `own` key: on a shared one, a staging email could reach a real customer. `shared`/unknown destination → never trigger; name the service and that a staging-only key unlocks it.
+**Outside services**: `node "$ROOT/scripts/cf-secrets.mjs" shared` lists key names. Trigger a service only on an `own` key: on a shared or unknown one, a staging email could reach a real customer; name the service and that a staging-only key unlocks it.
 
 **Missing seed records** → create through the app's screens, else unverified, naming the missing sample data. **Scheduled work** → run the project's manual trigger on staging, grade its result; the timetable stays partly shown; no trigger → unverified.
 
@@ -68,7 +68,7 @@ npx wrangler d1 execute <staging-db> --remote --env staging --command "SELECT co
 
 **CI →** retain validated raw output, argv/exit, source/run and isolation/cleanup in the owned folder. Missing/stale/malformed/superseded captures stay unverified. Fix/preservation claims compare a named earlier revision with identical behavior, inputs, method and relevant environment. Name revisions/results/limits; incompatible or absent baseline blocks comparison alone, not valid head observations.
 
-**Lasting effects →** after a promised save/export, reopen/reload the record or independently read the file through its real consumer. Keep submitted/readback values and initiating response. Success messages/cached views prove no persistence; read-only promises need none. Compare fresh producer values with rendered consumer output.
+**Lasting effects →** after a promised save/export, reopen/reload the record or independently read the file through its real consumer. Keep submitted/readback values and initiating response. Success messages/cached views prove no persistence: a contradicting readback fails, an unavailable one stays blocked or partly shown; read-only promises need none. Compare fresh producer values with rendered consumer output.
 
 Evidence rules:
 
@@ -97,7 +97,7 @@ Read evidence beside each verbatim `then`: screenshots and `evidence/<id>.result
 
 **Show screenshots while grading, before the verdict**: open numbered images in order, with one plain description above each. [The picture convention](../../../../wiki/development/browsing.md#show-what-the-browser-is-doing) applies; skip recapturing them.
 
-- **A clean exit, green suite or `200` is not a pass.** A clean batch whose screenshot lacks the message the `THEN` requires **fails**, as does exit zero or `200` with contradictory output. A fresh readback contradicting the promised lasting result fails despite a successful initiating response. Unavailable readback stays blocked or partly shown under the existing limits.
+- **A clean exit, green suite or `200` is not a pass.** A clean batch whose screenshot lacks the message the `THEN` requires **fails**, as does exit zero or `200` with contradictory output.
 - A failing command is evidence, not a crash. `--bail` stops a browser journey there, so earlier evidence shows how far it got.
 - A screenshot that looks like the previous page → check the landed URL in `<id>.url`. A missing wait is a defect in the journey, not the app.
 - `[redacted:.env]` in text evidence stands for a `.env` value the driver replaced; read the screenshot for it.
@@ -107,14 +107,9 @@ Read evidence beside each verbatim `then`: screenshots and `evidence/<id>.result
 
 Retain retry evidence. `PLAYGROUND=yes` → clean up nothing (§ a). Otherwise clean up owned test data; preserve shared data.
 
-A failure is **in scope** only when both hold:
+Fix a failure by [fix it or ask](../../../../wiki/development/the-change-loop.md#fix-it-or-ask) only **in scope**: its `THEN` is *this change's own* scenario and the fix lies in files the branch touches (`git diff --name-only origin/main..HEAD`); a [kept check](#g--kept-checks) needs only the files, then `replay --only <id>`. Otherwise report **out of scope** with why.
 
-1. the contradicted `THEN` is one of *this change's own* scenarios, and
-2. the fix plausibly lives in files this branch already touches (`git diff --name-only origin/main..HEAD`).
-
-Otherwise report **out of scope** with why. A [kept check](#g--kept-checks)'s contradiction needs only 2; after each fix, `replay --only <id>`.
-
-For an in-scope repair, retain a focused check when existing CI can cheaply reproduce the defect. `/save` captures the same check's intended failure on exact earlier source and pass on repaired head; the head suite must pass. Inspect failure cause, revision and check identity. Impractical harness → keep the available reproduction, missing proof and limitation. No new infrastructure, weaker checks or unrelated fixes.
+For an in-scope repair CI can cheaply reproduce, retain a focused check: `/save` captures its intended failure on exact earlier source and pass on repaired head; the head suite must pass. Inspect failure cause, revision and check identity. Impractical harness → keep the available reproduction, missing proof and limitation. No new infrastructure.
 
 Usually **out of scope**: app `401` with valid service token (app authentication), previous-page screenshot (repair journey waits and re-walk).
 
@@ -124,9 +119,9 @@ One `$RUN_DIR/comment.md` covers every surface/retry: verdict, saved SHA, previe
 
 Apply the skill's verdict precedence. UNKNOWN/TIMEOUT lead **Not verified.**, naming completed checks, blocks, and remedies.
 
-Before handoff, attempt safe simulations through existing deployed interfaces, disposable synthetic data or sandbox integrations (§ a). Label **simulated** evidence, supported claims and real behavior unproved; simulated delivery proves no real delivery or personal experience. No safe simulation → name the limit.
+Before handoff, try safe simulations through deployed interfaces, disposable synthetic data or sandbox integrations (§ a). Label **simulated** evidence, supported claims and real behavior unproved; simulated delivery proves no real delivery or personal experience. No safe simulation → name the limit.
 
-After independent checks/simulations, make **one handoff** in comment/chat, including human-checkable partial claims. Each remaining check names its reason, needed action/permission, expected observation and dependents. Offer help or selected/all skips in [the shared ask format](../../explore/references/asking-the-user.md). Skips stay **skipped, unverified**, grant no permission/pass and erase no failure; ask again only if reopened.
+After independent checks/simulations, make **one handoff**, including human-checkable partial claims: text in the comment, the question tool in chat. Each remaining check names its reason, needed action/permission, expected observation and dependents. Offer help or selected/all skips in [the shared ask format](../../explore/references/asking-the-user.md). Skips stay **skipped, unverified**, grant no permission/pass and erase no failure; ask again only if reopened.
 
 Use [key links](../../../../wiki/development/secrets.md#receive-a-key-through-a-private-link) or [password links](../../../../wiki/development/passwords.md) for credentials/login. Waiting grants no permission. Resume pending checks after help; repeat completed checks only on changed conditions. Retain observations, pending/skipped ledger and owned IDs before cleanup.
 

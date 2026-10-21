@@ -21,7 +21,7 @@ Before a change, **read the owning doc**: start at [`wiki/README.md`](wiki/READM
 
 Before substantial work, `memory.mjs recall <question>` finds [evidence](wiki/development/document-retrieval.md); read originals. Keep `areas <path>` for warnings and `openspec list` for plans.
 
-Credentials sit in the git-ignored `.env` at the primary worktree, mapped by the committed, values-blank `.env.example`. Don't stub a call or ask for a key in chat: declare a missing one, then [send the key link](wiki/development/secrets.md#receive-a-key-through-a-private-link).
+Credentials for this computer's own tools sit in the git-ignored `.env` at the primary worktree, mapped by the committed, values-blank `.env.example`. For any business service, start with `node scripts/company-api.mjs services`, then `list --q`, `describe`, `call`: the app holds those keys. Don't stub a call or ask for a key in chat: declare a missing one, then [send the key link](wiki/development/secrets.md#receive-a-key-through-a-private-link).
 
 ## Rules
 
@@ -36,7 +36,7 @@ Credentials sit in the git-ignored `.env` at the primary worktree, mapped by the
 - **Send an improvement upstream by hand**: [contributing](wiki/contributing.md).
 - **A scheduled `/improve-code` writes a plan and waits**: [code improvement](wiki/development/repository-improvement.md).
 - **Write repeatable knowledge to the wiki when you learn it**: what will help a different, future task, placed by [the wiki rules](wiki/wiki-style.md#repeatable-knowledge). A change's specifics stay in its proposal and archive.
-- **Company actions and memory reads:** [discover only the actions you need](wiki/stack/company-api.md) through the shared helper; company calls use employee login, memory keeps its installed access; [skills call actions](wiki/stack/company-api.md#build-a-skill-on-actions).
+- **Company actions and memory reads:** [discover only what you need](wiki/stack/service-catalogue.md) through the shared helper; company calls use employee login, memory keeps its installed access; [skills call actions](wiki/stack/company-api.md#build-a-skill-on-actions). Before using a key directly, read its notes page from `services`; add a call you worked out there.
 - **API keys/tokens:** [human steps](wiki/development/secrets.md#api-token-website-steps); never browse.
 - **Browse as the person; show key moments; ask for what needs them**: [logins](wiki/development/browsing.md#saved-browser-logins), [saving passwords](wiki/development/passwords.md), [pictures](wiki/development/browsing.md#show-what-the-browser-is-doing), [asking](wiki/development/browsing.md#when-a-step-needs-you), [buying](wiki/development/shopping.md).
 - **Path-scoped conventions load from [`.claude/rules/`](.agents/rules/)**; an agent that doesn't auto-load them reads those whose `paths:` match its files.

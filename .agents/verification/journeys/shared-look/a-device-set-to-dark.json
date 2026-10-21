@@ -1,0 +1,96 @@
+{
+  "format": "verify-journey-1",
+  "id": "a-device-set-to-dark",
+  "scenario": {
+    "capability": "shared-look",
+    "requirement": "Standalone pages take the app's look",
+    "scenario": "A device set to dark"
+  },
+  "thenDigest": "0bfec42117a65fecc9ff9f2ccb4cd3409a736c7297dc89c3ae6624a2b7bf0d14",
+  "probe": "browser",
+  "writes": false,
+  "sourcePaths": [
+    ".agents/skills/hand-over/scripts/hand-over.mjs",
+    ".agents/skills/hand-over/scripts/keys-page.html",
+    ".agents/skills/hand-over/scripts/keys-page.mjs",
+    ".agents/skills/hand-over/scripts/passwords-page.html",
+    ".agents/skills/hand-over/scripts/private-page.css",
+    ".agents/skills/hand-over/scripts/reply-link.mjs",
+    ".agents/skills/hand-over/scripts/view-page.html",
+    ".agents/skills/memory/references/areas.json",
+    ".agents/skills/plan/references/look.css",
+    ".agents/skills/plan/references/review-kit.html",
+    ".agents/skills/plan/scripts/build-review.mjs",
+    ".agents/skills/plan/scripts/look.mjs",
+    "app/src/Layout.tsx",
+    "app/src/apps/AppPage.tsx",
+    "app/src/apps/access/App.tsx",
+    "app/src/apps/access/Owner.tsx",
+    "app/src/apps/access/Page.tsx",
+    "app/src/components/AssistantSetup.tsx",
+    "app/src/components/Loading.tsx",
+    "app/src/components/ui/skeleton.tsx",
+    "app/src/index.css",
+    "app/src/pages/home/Home.tsx"
+  ],
+  "recordedAt": "8d3c631a4c686e120f109b8b9e1a7be2b8158ef3",
+  "steps": [
+    [
+      "set",
+      "viewport",
+      "390",
+      "844"
+    ],
+    [
+      "set",
+      "media",
+      "dark"
+    ],
+    [
+      "open",
+      "{url}/"
+    ],
+    [
+      "wait",
+      "--load",
+      "networkidle"
+    ],
+    [
+      "wait",
+      "--text",
+      "Your apps"
+    ],
+    [
+      "open",
+      "{url}/apps/hello/"
+    ],
+    [
+      "wait",
+      "--load",
+      "networkidle"
+    ],
+    [
+      "set",
+      "viewport",
+      "1280",
+      "800"
+    ],
+    [
+      "open",
+      "{url}/apps/access/"
+    ],
+    [
+      "wait",
+      "--load",
+      "networkidle"
+    ]
+  ],
+  "expect": [
+    {
+      "text": "Add person"
+    },
+    {
+      "path": "/apps/access/"
+    }
+  ]
+}

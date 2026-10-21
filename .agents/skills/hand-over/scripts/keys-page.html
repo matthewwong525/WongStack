@@ -5,50 +5,53 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="no-referrer">
 <title>Keys for your assistant</title>
+<link rel="stylesheet" href="page.css">
+<script src="theme.js"></script>
 <style>
-  :root { color-scheme: light dark; font-family: system-ui, -apple-system, sans-serif; }
-  body { margin: 0 auto; max-width: 560px; padding: 12px; }
-  h1 { font-size: 1.35rem; margin: 8px 2px 16px; }
-  .hint, #status { font-size: 0.85rem; opacity: 0.65; margin: 4px 2px; overflow-wrap: anywhere; }
-  .miss { font-size: 0.9rem; color: #d33; margin: 6px 2px; }
-  .ok { font-size: 0.95rem; color: #1a8f3c; margin: 6px 2px; overflow-wrap: anywhere; }
+  .progress { margin: 1rem 0 0; font-weight: 600; }
   #keys { list-style: none; margin: 0; padding: 0; }
-  #keys > li { padding: 12px 0; border-bottom: 1px solid #8883; }
-  label { display: block; font-size: 1rem; font-weight: 600; margin: 0 2px 2px; overflow-wrap: anywhere; }
-  .steps { margin: 4px 0 0; padding-left: 1.5rem; font-size: 0.95rem; line-height: 1.4; }
-  .steps li { margin: 8px 0; overflow-wrap: anywhere; }
-  .open { display: inline-block; padding: 10px 14px; border: 1px solid #8888; border-radius: 8px; color: inherit; text-decoration: none; }
-  .host { display: block; font-size: 0.8rem; opacity: 0.65; margin-top: 4px; }
-  .row { display: flex; gap: 8px; margin-top: 8px; }
-  input { box-sizing: border-box; flex: 1; min-width: 0; font-size: 1.1rem; padding: 12px; border: 1px solid #8888; border-radius: 8px; background: none; color: inherit; }
-  input:disabled { opacity: 0.5; }
-  button { font-size: 1.05rem; padding: 12px 16px; border: 1px solid #8888; border-radius: 8px; background: none; color: inherit; }
-  button.main { background: #3478f6; border-color: #3478f6; color: #fff; }
-  button.quiet { border: 0; padding: 12px 2px; font-size: 0.9rem; opacity: 0.75; text-decoration: underline; }
-  button:disabled { opacity: 0.5; }
-  .row button { font-size: 0.95rem; padding: 12px; flex: none; }
-  .held { font-size: 1rem; margin: 12px 2px 0; overflow-wrap: anywhere; }
-  .tools { display: flex; flex-wrap: wrap; gap: 0 18px; margin: 0 2px; }
-  .actions { display: grid; grid-template-columns: 1fr; gap: 4px; margin: 16px 0 0; }
-  #time { text-align: center; }
-  [hidden] { display: none !important; }
+  .head { display: flex; align-items: center; gap: 0.5rem; }
+  .head label { margin: 0; font-size: 1.1rem; }
+  .card > .ok, .card .body > .code { margin: 0.15rem 0 0; }
+  .card .body > .why { margin: 0.5rem 0 0; }
+  .head:not(:has(label)) ~ .body > :first-child { margin-top: 0; }
+  .host { display: block; margin-top: 0.3rem; color: var(--muted-foreground); font-size: 0.8rem; }
+  .step { margin: 0 0 0.5rem; }
+  .row { display: flex; gap: 0.5rem; }
+  .row input { flex: 1; min-width: 0; }
+  .row button { flex: none; }
+  .held { margin: 0.5rem 0 0; font-weight: 600; }
+  .tools { display: flex; flex-wrap: wrap; gap: 0 1.25rem; }
+  .check { color: var(--muted-foreground); font-size: 0.9rem; }
+  /* A key's card while the list loads: its title, two lines of text, and the box. */
+  #loading .skeleton { height: 0.9rem; margin-top: 0.5rem; }
+  #loading .skeleton:first-child { height: 1.25rem; width: 40%; margin-top: 0; }
+  #loading .skeleton:nth-child(3) { width: 70%; }
+  #loading .skeleton:last-child { height: 2.25rem; margin-top: 1rem; }
 </style>
 </head>
 <body>
 <section id="form">
+  <p class="private"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M4.5 7V5a3.5 3.5 0 0 1 7 0v2h.5A1.5 1.5 0 0 1 13.5 8.5v5A1.5 1.5 0 0 1 12 15H4a1.5 1.5 0 0 1-1.5-1.5v-5A1.5 1.5 0 0 1 4 7h.5zm1.5 0h4V5a2 2 0 0 0-4 0v2z"/></svg>Private link</p>
   <h1>Keys for your assistant</h1>
+  <p class="lead" id="why" hidden></p>
+  <p class="promise" id="promise">Your keys go straight to your assistant's computer, never into the chat.</p>
   <form id="keys-form" autocomplete="off">
+    <p class="progress" id="progress" role="status" hidden></p>
+    <div id="loading" role="status"><span class="sr-only">Loading your keys…</span>
+      <div class="card" aria-hidden="true"><span class="skeleton"></span><span class="skeleton"></span><span class="skeleton"></span><span class="skeleton"></span></div>
+    </div>
     <ul id="keys"></ul>
-    <p class="hint">Each key goes straight to a private file on your assistant's computer, never into the chat.</p>
     <div class="actions">
       <button type="submit" class="main" id="save" disabled>Save and continue</button>
-      <button type="button" class="quiet" id="done">Close without continuing</button>
+      <button type="button" class="quiet" id="done">Not now</button>
     </div>
-    <p class="hint" id="time"></p>
+    <p class="time" id="time"></p>
   </form>
 </section>
 
-<section id="closed" hidden>
+<section id="closed" class="end" hidden>
+  <div class="tick big" id="all-set" aria-hidden="true" hidden></div>
   <h1>This link has closed</h1>
   <div id="results"></div>
   <p class="hint">Ask your assistant for a new one.</p>

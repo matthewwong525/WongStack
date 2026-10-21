@@ -1,18 +1,23 @@
-// The private form's script (see hand-over.mjs `open --form` and form.mjs): it draws the form `GET /form` describes.
-// It sets every string as text and never shows the site. `timeLeft`, `rowsOf`, and `ending` are exported for tests.
+// The private form's script (see hand-over.mjs `open --form` and form.mjs), loaded after picture-view.mjs. It sets
+// every string as text. `timeLeft`, `rowsOf`, `stepText`, and `ending` are exported for tests.
 
 const ENDINGS = {
   done: { title: 'Sent', hint: 'Back to your chat.' },
-  'not-accepted': { title: 'Not accepted', hint: 'The site kept its page, and nothing is sent again. Back to your chat.' },
+  unconfirmed: { title: 'Sent, waiting for the site', hint: 'Don\'t pay again. Your chat will say how it went.' },
+  'not-accepted': { title: 'Not accepted', hint: 'The site kept its page. Back to your chat to see what it said.' },
   closed: { title: 'This link has closed', hint: 'Ask your assistant for a new one.' },
   unknown: { title: 'This link has closed', hint: 'Back to your chat to see how it went.' },
 };
 const RECEIPT_EVERY_MS = 500;
 const VALUE_LIMIT = 256;
+const SOON_MS = 10 * 60_000;
 
-/** `Closes in N min`, in whole minutes rounded up, or null once `closesAt` has passed. */
-export function timeLeft(closesAt, now) {
-  return closesAt > now ? `Closes in ${Math.ceil((closesAt - now) / 60_000)} min` : null;
+/** `Open until <time>` on this device's clock, `ahead` of it being the watcher's, while over ten minutes remain;
+ * then `Closes in N min`, rounded up; null once `closesAt` has passed. */
+export function timeLeft(closesAt, now, { ahead = 0, zone } = {}) {
+  if (closesAt <= now) return null;
+  if (closesAt - now <= SOON_MS) return `Closes in ${Math.ceil((closesAt - now) / 60_000)} min`;
+  return `Open until ${new Date(closesAt - ahead).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', timeZone: zone })}`;
 }
 
 /** The fields as rows of indexes: an expiry year right after its month shares the month's row. */
@@ -23,6 +28,11 @@ export function rowsOf(fields) {
     else rows.push([index]);
   });
   return rows;
+}
+
+/** The status line for the step a send is on, named by `/receipt`; the press names the site's own button. */
+export function stepText(step, submit) {
+  return { typing: 'Typing your details…', pressing: `Pressing ${submit}…`, waiting: 'Waiting for the site…' }[step] ?? 'Sending…';
 }
 
 /** The closing screen for a receipt: a send with no receipt says to look in the chat. */
@@ -38,6 +48,7 @@ function start() {
   history.replaceState(null, '', location.pathname);
   const controls = [];
   let sending = false;
+  let label = '';
 
   const status = text => { $('#status').textContent = text ?? ''; };
   const call = (path, body) => fetch(path, {
@@ -49,6 +60,7 @@ function start() {
   const lock = on => { for (const control of [...controls, $('#send'), $('#done')]) control.disabled = on; };
   const end = ({ title, hint }) => {
     for (const control of controls) control.value = '';
+    $('#picture').replaceChildren();
     status();
     $('#ended h1').textContent = title;
     $('#ended .hint').textContent = hint;
@@ -81,7 +93,8 @@ function start() {
       return line;
     }));
     $('#send').textContent = submit;
-    $('#does').textContent = `${submit} types these into the site and presses its button, once. Your assistant never sees them.`;
+    $('#does').textContent = `${submit} types these into the site and presses its button, once.`;
+    label = submit;
     lock(false);
   }
 
@@ -92,7 +105,7 @@ function start() {
     const tick = () => {
       if (!$('#ended').hidden) return;
       const now = Date.now() + ahead;
-      const text = timeLeft(closesAt, now);
+      const text = timeLeft(closesAt, now, { ahead });
       if (!text && !sending) return end(ENDINGS.closed);
       $('#time').textContent = text ?? '';
       setTimeout(tick, text ? Math.min(closesAt - now, 5000) : 1000);
@@ -110,6 +123,17 @@ function start() {
     }
   }
 
+  /** Shows the step the send is on, asking `/receipt` every half second until `answered()`. */
+  async function follow(answered) {
+    for (;;) {
+      await new Promise(done => setTimeout(done, RECEIPT_EVERY_MS));
+      if (answered()) return;
+      const response = await call('receipt');
+      const step = response?.status === 202 ? (await response.json().catch(() => null))?.step : null;
+      if (!answered() && step) status(stepText(step, label));
+    }
+  }
+
   $('#details').addEventListener('submit', async event => {
     event.preventDefault();
     if (sending) return;
@@ -117,8 +141,11 @@ function start() {
     sending = true;
     const values = controls.map(control => control.value);
     lock(true);
-    status('Sending…');
+    status(stepText(null, label));
+    let answered = false;
+    follow(() => answered);
     const response = await call('send', { values });
+    answered = true;
     if (response?.status === 400) {
       sending = false;
       lock(false);
@@ -139,11 +166,19 @@ function start() {
     if (!key) return end(ENDINGS.closed);
     const response = await call('form');
     if (!response?.ok) return end(ENDINGS.closed);
-    const { closesAt, now, ...view } = await response.json();
+    const { closesAt, now, picture, ...view } = await response.json();
     draw(view);
     if (closesAt) countdown(closesAt, now ?? Date.now());
     controls[0]?.focus();
+    if (picture) await showPicture();
   })();
+
+  /** Fetches the picture behind the key and shows it above the boxes; none when it does not load. */
+  async function showPicture() {
+    const response = await call('picture');
+    const blob = response?.ok && (await response.blob().catch(() => null));
+    if (blob && $('#ended').hidden) globalThis.pictureView($('#picture'), URL.createObjectURL(blob), 'The site\'s page. Tap to zoom.');
+  }
 }
 
 if (typeof document !== 'undefined') start();

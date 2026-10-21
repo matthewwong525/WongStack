@@ -41,7 +41,7 @@ The helper SHALL provide one bounded, filterable catalogue and selected-operatio
 
 ### Requirement: Agent context is selective and available by default
 
-Every install SHALL give its agents a short instruction pointing to company API discovery. An agent SHALL be able to list relevant action summaries and load the full contract and local schema dependencies for a selected action. The entire schema SHALL NOT be required in every session's starting context. Newly published contracts SHALL be discoverable without manual employee prompt updates.
+Every install SHALL give its agents a short always-read instruction that names the services list as the first step for any outside service, then search, describe and call. An agent SHALL be able to list every service it can reach, list relevant action summaries and load the full contract and local schema dependencies for a selected action. The entire schema SHALL NOT be required in every session's starting context. Newly published contracts and newly saved keys SHALL be discoverable without manual employee prompt updates.
 
 #### Scenario: A task needs company information
 
@@ -52,6 +52,11 @@ Every install SHALL give its agents a short instruction pointing to company API 
 
 - **WHEN** many described actions are available
 - **THEN** the helper can return bounded filtered summaries and just the selected action's full schema
+
+#### Scenario: A key is saved
+
+- **WHEN** the owner saves a Notion key through its key link
+- **THEN** a chat's next services list names Notion without any instruction or skill being edited
 
 ### Requirement: The employee client reuses normal company login
 
@@ -131,3 +136,54 @@ A memory operation called through the shared helper SHALL use the same saved emp
 
 - **WHEN** a signed-in teammate lists operations and calls a company action and a memory search
 - **THEN** both succeed with the one sign-in, and the search returns only what memory allows that person
+
+### Requirement: The services list names the services a caller can use
+
+The helper and the company endpoint SHALL return, for the signed-in caller, one bounded entry per registered key the caller holds a level for: its id, name, one-line purpose, whether it is saved, their level, and for a key used directly the link to its service's API guide. Other keys SHALL appear as one count, and the full list SHALL be available on request, each entry marked as needing access. Its size SHALL not grow with the number of operations a service has, and it SHALL contain no key value. The helper SHALL add to each key-based entry the checkout path of that service's notes page and whether the page exists yet.
+
+#### Scenario: A chat lists services
+
+- **WHEN** a person with Stripe at Read, Notion at Read but not saved, and no Mailchimp level lists services
+- **THEN** Stripe shows ready at Read, Notion says to ask for its key link, and Mailchimp is only counted among services that need access
+
+#### Scenario: A service has notes
+
+- **WHEN** `wiki/services/notion.md` exists and a chat lists services
+- **THEN** the Notion entry links that page, and an entry with no page names the path to make
+
+### Requirement: Chats keep notes on each key-based service
+
+The always-read instructions SHALL tell an agent that uses a key-based service directly to read its notes page first, and, after working out a call the page lacks, to add that call there in the next wiki save. The first agent to use a service with no page SHALL make it with only the purpose line and the guide link, plus what it learned. No notes page SHALL hold a key value, a sign-in, or a customer's data, and WongStack SHALL ship no notes page.
+
+#### Scenario: The second chat uses Notion
+
+- **WHEN** an earlier chat recorded how to search Notion pages and a new chat needs to search Notion
+- **THEN** the new chat uses the recorded call without opening Notion's guide
+
+### Requirement: The helper keeps lists and answers short in the chat
+
+By default the helper SHALL print one line per search match and a bounded first part of a long answer, saving the whole answer to a private file it names, so one call cannot fill the chat. A script SHALL be able to ask for the full structured list and the whole answer in the output, as before.
+
+#### Scenario: A long answer
+
+- **WHEN** a chat runs a Stripe search whose answer is 2 MB
+- **THEN** the chat sees the first part and the path of a private file holding the whole answer
+
+#### Scenario: A script needs the whole answer
+
+- **WHEN** a skill's script runs the same call asking for the full answer
+- **THEN** it gets the whole answer as JSON on its output
+
+### Requirement: The contract names each service and where to read more
+
+A described action SHALL name each saved key it uses with the key's name, one-line purpose and, when the key has one, the link to its service's public API guide. The OpenAPI document SHALL group operations under each key they use, each group carrying that purpose and guide link, and a key's own direct-use operations SHALL carry the guide link themselves. The document SHALL open with a short description of how to use it: search, open one action before calling it, the shared error shape, and checking a timed-out change before repeating it. When the helper describes an action, it SHALL add each key's notes page path in the checkout and whether the page exists yet. None of this SHALL reveal a key the caller cannot see, or any key value.
+
+#### Scenario: A chat opens a direct-use action
+
+- **WHEN** a person with Stripe at Read describes `stripe.read`
+- **THEN** they see Stripe's purpose, the link to Stripe's API guide and the path of the install's Stripe notes page, without listing services first
+
+#### Scenario: Another caller's keys
+
+- **WHEN** a person who holds no level for Stripe reads the OpenAPI document
+- **THEN** it has no Stripe group and names no Stripe operation or guide

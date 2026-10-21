@@ -99,8 +99,9 @@
   {"name": "#the-skills-view", "replacement": "`wiki/stack/employee-access.md#skills`"},
   {"name": "#an-area-with-no-screen", "replacement": "`wiki/stack/mini-apps.md#work-with-no-screen`"},
   {"name": "#a-set-has-three-parts", "replacement": "`wiki/stack/access-screens.md#a-panel-has-apps-and-keys`"},
-  {"name": "#five-views", "replacement": "`wiki/stack/access-screens.md#two-views`"},
-  {"name": "#four-views", "replacement": "`wiki/stack/access-screens.md#two-views`"},
+  {"name": "#five-views", "replacement": "`wiki/stack/access-screens.md#three-views`"},
+  {"name": "#four-views", "replacement": "`wiki/stack/access-screens.md#three-views`"},
+  {"name": "#two-views", "replacement": "`wiki/stack/access-screens.md#three-views`"},
   {"name": "#key-settings", "replacement": "`wiki/stack/access-screens.md#a-panel-has-apps-and-keys`: a key's saved state shows where a person or a role is opened, and its level alone decides direct use"},
   {"name": "cloud-browser.mjs", "replacement": "`.agents/skills/browser/scripts/browse.mjs`, which drives the one personal browser; no cloud browser remains"},
   {"name": "blocked-sites.md", "replacement": "`wiki/development/browsing.md#when-a-site-refuses-the-browser`", "allow": ["scripts/tests/fixtures/document-retrieval/corpus/wiki/development/browsing.md"], "why": "this exact frozen retrieval fixture preserves the wording of its pinned snapshot and its reviewed source hash"},
@@ -119,5 +120,9 @@
   {"name": "#the-memory-key", "replacement": "`wiki/development/memory.md#sign-in-and-expiry`"},
   {"name": "memory_login_link", "replacement": "nothing: memory uses the company sign-in, so no link labels a machine"},
   {"name": "memory.mjs join", "replacement": "the company sign-in: give the person access in the app's Access page (`wiki/development/memory.md#who-sees-what`)", "allow": [".agents/skills/memory/migrations/0003_key_machines.sql", ".agents/skills/memory/migrations/0004_readers.sql", "scripts/tests/fixtures/document-retrieval/corpus/wiki/development/memory-key.md"], "why": "an applied migration keeps its words, and the frozen retrieval fixture keeps its pinned snapshot"},
-  {"name": "#memory-keeps-its-own-access", "replacement": "`wiki/stack/company-api.md#memory-uses-the-same-sign-in`"}
+  {"name": "#memory-keeps-its-own-access", "replacement": "`wiki/stack/company-api.md#memory-uses-the-same-sign-in`"},
+  {"name": "hand-over.mjs fill", "replacement": "the agent types a saved everyday answer with `browse.mjs` after a yes, and a card goes through a private form (`wiki/development/private-form.md#saved-details`)"},
+  {"name": "--use <name>", "replacement": "nothing: `hand-over.mjs fill` is gone (`wiki/development/private-form.md#saved-details`)"},
+  {"name": "HANDOVER_SAVED_HINT", "replacement": "nothing: a private form saves nothing"},
+  {"name": "Save for next time", "replacement": "nothing: a private form saves nothing, and a card goes through it every time (`wiki/development/private-form.md`)", "allow": ["openspec/specs/browser-logins/spec.md", "openspec/specs/saved-details/spec.md"], "why": "each spec keeps the 43.14.0 requirement naming the tick until the never-save-cards archive replaces it"}
 ]

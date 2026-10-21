@@ -1,0 +1,165 @@
+/* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
+   look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
+   shadcn's neutral light and dark colours stays only for a colour it can't find. Every page starts light, even on a
+   dark device; theme.js adds `.dark` to the root element when the person switches, and draws the switch (.theme-toggle).
+   The parts below draw app/src/components/ui/ (button, input, card, badge, skeleton) in plain CSS. Each sits in
+   :where(), so a page's own rule always wins.
+   Nothing here loads a file: these pages fetch nothing from the network. */
+/* tokens:start */
+:root {
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+}
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+}
+/* tokens:end */
+
+/* Tailwind's shadow-xs, shadow-sm and shadow-lg; Radix's popover shadow, and its upward twin for a box docked at the
+   bottom, so a layer reads as above the page; and the 3px focus ring at half strength. */
+:root {
+  color-scheme: light;
+  --look-shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --look-shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --look-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --look-shadow-overlay: 0 10px 38px -10px rgb(0 0 0 / 0.35), 0 10px 20px -15px rgb(0 0 0 / 0.2);
+  --look-shadow-up: 0 -8px 24px rgb(0 0 0 / 0.12);
+  --look-ring: color-mix(in oklab, var(--ring) 50%, transparent);
+}
+.dark { color-scheme: dark; }
+
+:where(body) {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-feature-settings: "rlig" 1, "calt" 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+:where(h1, h2, h3) { font-weight: 600; letter-spacing: -0.025em; }
+:where(a) { color: inherit; text-underline-offset: 0.25rem; }
+::selection { background: var(--primary); color: var(--primary-foreground); }
+:where(:focus-visible) { outline: 3px solid var(--ring); outline-offset: 2px; }
+
+/* Button (button.tsx): outline by default; .btn-primary, and the pages' button.primary and button.main, filled. */
+:where(button, .btn) {
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
+  background: var(--background);
+  color: var(--foreground);
+  box-shadow: var(--look-shadow-xs);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+:where(button, .btn):where(:hover:not(:disabled)) { background: var(--accent); color: var(--accent-foreground); }
+:where(button.primary, button.main, .btn-primary) { border-color: var(--primary); background: var(--primary); color: var(--primary-foreground); box-shadow: none; }
+:where(button.primary, button.main, .btn-primary):where(:hover:not(:disabled)) { background: color-mix(in oklab, var(--primary) 90%, transparent); color: var(--primary-foreground); }
+:where(.btn-ghost) { border-color: transparent; background: transparent; box-shadow: none; }
+:where(button, .btn):where(:disabled) { opacity: 0.5; cursor: default; }
+
+/* Field (input.tsx): a thin border, a soft shadow, and the ring on focus. */
+:where(input:not([type=checkbox], [type=radio], [type=file], [type=range], [type=button], [type=submit]), select, textarea, .field) {
+  border: 1px solid var(--input);
+  border-radius: calc(var(--radius) - 2px);
+  background: transparent;
+  color: var(--foreground);
+  box-shadow: var(--look-shadow-xs);
+  font: inherit;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+:where(input, textarea)::placeholder { color: var(--muted-foreground); }
+:where(input, select, textarea, .field):where(:focus-visible) { outline: none; border-color: var(--ring); box-shadow: 0 0 0 3px var(--look-ring); }
+:where(input, select, textarea, .field):where([aria-invalid=true]) { border-color: var(--destructive); }
+:where(input[type=checkbox], input[type=radio]) { accent-color: var(--primary); }
+
+/* Card (card.tsx) and tag (badge.tsx, secondary). */
+:where(.card) {
+  background: var(--card);
+  color: var(--card-foreground);
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) + 4px);
+  box-shadow: var(--look-shadow-sm);
+}
+:where(.tag) {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.5rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.33;
+  white-space: nowrap;
+}
+:where(.tag-outline) { border-color: var(--border); background: transparent; color: var(--foreground); }
+
+/* Skeleton (skeleton.tsx): a grey block that pulses while what it stands for loads, and holds still when motion is
+   off. .sr-only keeps the words of a loading state for a screen reader alone. */
+:where(.skeleton) { display: block; border-radius: calc(var(--radius) - 2px); background: var(--accent); animation: look-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+@keyframes look-pulse { 50% { opacity: 0.5; } }
+@media (prefers-reduced-motion: reduce) { :where(.skeleton) { animation: none; } }
+:where(.sr-only) { position: absolute; max-width: 1px; max-height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+
+/* The light and dark switch (theme.js): a ghost icon button, 44px, in the page's top right corner, above the page and
+   below a note box or full-screen view. It scrolls away with the page's top, so it never sits over text read later.
+   In a page's [data-theme-toggle] slot it sits in line. The icon shows the look it switches to: moon on light. */
+.theme-toggle {
+  position: absolute;
+  top: calc(12px + env(safe-area-inset-top));
+  right: calc(12px + env(safe-area-inset-right));
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  min-width: 2.75rem;
+  height: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  color: var(--foreground);
+}
+@media (hover: hover) { .theme-toggle:hover { background: var(--accent); color: var(--accent-foreground); } }
+[data-theme-toggle] .theme-toggle { position: static; flex: none; }
+.theme-toggle svg { width: 1.25rem; height: 1.25rem; pointer-events: none; }

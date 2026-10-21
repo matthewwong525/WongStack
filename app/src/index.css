@@ -1,9 +1,13 @@
 /* The look every page shares, mini apps included, and the only stylesheet in the app: main.tsx imports it.
-   The device's font, light or dark to match the device, and the colours the ready-made parts in
-   src/components/ui/ are drawn with. A screen is styled by Tailwind classes on its own elements and built
-   from those parts; no CSS file sits beside one. A real one-off need goes here, not in a second file. */
+   The device's font, light to start whatever the device's setting, a dark set the switch turns on, and the
+   colours the ready-made parts in src/components/ui/ are drawn with. A screen is styled by Tailwind classes on
+   its own elements and built from those parts; no CSS file sits beside one. A real one-off need goes here, not in a second file. */
 @import "tailwindcss";
 @import "tw-animate-css";
+
+/* Tailwind's `dark:` follows the device by default, so a part's `dark:` classes would fire over light colours on a
+   dark device. Tied to the `.dark` class on <html>, they fire only when the person's switch (ThemeToggle) turns dark on. */
+@custom-variant dark (&:where(.dark, .dark *));
 
 @theme inline {
   --font-sans: system-ui, sans-serif;
@@ -31,7 +35,8 @@
   --color-ring: var(--ring);
 }
 
-/* shadcn's neutral colours. The dark set follows the device, not a class, and so does Tailwind's `dark:`. */
+/* shadcn's neutral light colours, the start on every device, then its dark set under `.dark`. The review page and the
+   private pages read both sets from here (look.mjs), so keep each one plain block. A rebrand sets both. */
 :root {
   --radius: 0.625rem;
   --background: oklch(1 0 0);
@@ -53,34 +58,36 @@
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
 }
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
-  }
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
 }
+
 
 /* What no part sets: the page's own colours, headings, plain links and the focus ring. A part's classes win over these. */
 @layer base {
   :root {
-    color-scheme: light dark;
+    color-scheme: light;
+  }
+
+  .dark {
+    color-scheme: dark;
   }
 
   * {
@@ -88,19 +95,28 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
   }
 
   h1 {
-    font-size: 1.75rem;
+    font-size: 1.5rem;
     line-height: 1.25;
-    font-weight: 700;
+    font-weight: 600;
+    letter-spacing: -0.025em;
+  }
+
+  @media (min-width: 48rem) {
+    h1 {
+      font-size: 1.875rem;
+    }
   }
 
   h2 {
-    font-size: 1.25rem;
+    font-size: 1.125rem;
     line-height: 1.4;
     font-weight: 600;
+    letter-spacing: -0.025em;
   }
 
   /* A link drawn as a part, a button or a menu item, carries `data-slot` and its own look. */
@@ -112,5 +128,12 @@
   :focus-visible {
     outline: 3px solid var(--ring);
     outline-offset: 3px;
+  }
+}
+
+/* A skeleton holds still for a person who turns motion off. Unlayered, so it beats the pulse utility. */
+@media (prefers-reduced-motion: reduce) {
+  [data-slot="skeleton"] {
+    animation: none;
   }
 }

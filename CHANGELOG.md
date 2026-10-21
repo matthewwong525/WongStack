@@ -17,6 +17,196 @@
 
 **Updating.** Nothing to do. To give everyone a first shared step, ask the assistant to *add a team step to /daily*, such as *check yesterday's orders*; the owner reviews it before it saves. [The daily routine](wiki/development/daily.md) shows a step's shape.
 
+## 43.18.1 — The browser types into the right box
+
+- **Your answers land in the box you meant.** When a payment box inside a page has boxes with the same names as the page's own, such as *Email* and *Full name*, the assistant's browser now labels each one for itself. Before, your email and name could land in the payment box and tick its *Save my information* for you.
+- **When it can't tell them apart, it doesn't guess.** Those boxes get no label, and the assistant reaches them another way.
+- **A tick box that won't tick gets the keyboard.** After clicking a tick box, a round choice, or a switch, the assistant checks it changed. If not, it presses Space on it, as you would; if it still didn't change, the assistant hears so, instead of a quiet *done*. Ticking *I agree* still needs your yes first.
+
+**Updating.** Nothing to do by hand.
+
+## 43.18.0 — A payment form that never calls a slow payment refused
+
+- **A slow site isn't a refusal.** If the site hasn't answered a minute after the private form presses Pay, your phone says *Sent, waiting for the site* and *Don't pay again*, and so does your chat. The form keeps watching for ten more minutes, then your chat says how it went, *Sent* included.
+- **Not accepted means the site kept its page.** The form says *Not accepted* only when nothing was pressed, or the card page stayed put for the whole watch. It no longer says "nothing is sent again", which read as "you weren't charged".
+- **Card boxes are emptied only when it's safe.** Never while the site may still be paying, and never on a page that moved on.
+- **You see each step.** While it sends: *Typing your details… Pressing Pay… Waiting for the site…*
+- **Faster to hear back.** The form checks for the site's answer four times as often, and its minute starts when it presses Pay.
+- **A timing record.** Each send notes how long each step took and what ended each link, in `~/.wong-stack/hand-over/timings.jsonl`, never what you typed.
+- `hand-over.mjs wait` can print `HANDOVER_RESULT=unconfirmed` with `HANDOVER_WATCHING=10`; a second `wait` prints the final result.
+
+**Updating.** Nothing to do by hand.
+
+## 43.17.0 — Show the browser when a login is stuck
+
+- **No API? The assistant uses its browser.** When no saved key or company action can do a task on a website, the assistant does it in its browser as you, without being asked, instead of sending you steps first.
+- **A stuck login shows you the browser.** When a login keeps reloading, or sits with no error and no check, you get the same private link a robot check gets: it shows the assistant's browser, and you sign in there yourself. A saved login, the password link, and a code from your email still come first. A password you type there isn't saved.
+- **One ask for email and password.** When a site asks for your email on one page and your password on the next, the password link asks for both at once. The password is optional there, since some of those sites send a code instead. Leave it blank and the site does want one? The link comes back for the password only.
+- **Steps are only steps.** When you do get steps to finish something yourself, you get one line on what stopped it, the numbered steps, and what to tell the assistant after. Nothing else.
+
+**Updating.** Nothing to do by hand.
+
+## 43.16.1 — The code lookup follows shared-code shortcuts
+
+- **Shared code's shortcut links now show.** When a folder of shared code has no settings of its own, the lookup reads the settings of the apps that list it as theirs, so its `@/` links count. On one private repo that's 2,302 more links, nearly all of its shared app code. Settings that build on another settings file get that file's shortcuts too.
+
+**Updating.** Nothing to do by hand.
+
+## 43.16.0 — Cards are never saved
+
+- **The private form saves nothing.** The *Save for next time* tick is gone. You type your card through the private form for every payment, and it isn't kept on the computer.
+- **Every payment asks for the private form.** The chat no longer offers *Pay with your card ending 4242?*; it asks whether you're ready and sends the form.
+- **Everyday answers still save.** After you give an email, name, address, or phone in the chat, the assistant still asks once whether to keep them, and next time asks *Use 1 Main St?* before typing them.
+- **A card saved before this update is deleted** the first time saved details are read. You type it again next time.
+- `hand-over.mjs fill` and its `--use` flag are removed; `wait` no longer prints `HANDOVER_SAVED_HINT`.
+
+**Updating.** Run `node .claude/skills/hand-over/scripts/details.mjs list` once. It deletes any saved card and lists the everyday answers that stay.
+
+## 43.15.0 — The lookup lists the code that uses a file
+
+- **Looking up a file or folder now lists the code that uses it.** Below the pages that link to it, the lookup shows each file that loads its functions and uses them, with line numbers — including through the `.claude` shortcut folder, a file that passes it on, or a folder shortcut your repo's own settings define. A file that only has its own function of the same name doesn't count. The list is read fresh on each call and still prints when memory is offline.
+- **Looking up a spec or wiki page lands on its own subject.** A page listed among a subject's docs now matches that subject, not only the folder that holds it, and every lookup prints the subject's code folders, so a spec and its code find each other in one step.
+
+**Updating.** Nothing to do by hand.
+
+## 43.14.0 — See the page, and save what you fill
+
+- **A private form shows the site's page.** One picture, taken before you type anything, so you see what you are paying or signing into. Tap it to open it full screen, then pinch or use + and − to zoom and drag to move around.
+- **A login link for one site shows that site's login page too**, when the assistant's browser is on it. On every login link, the form now comes first and the export box sits under it.
+- **Save a card for next time.** Tick *Save for next time* on the private form; once the site accepts the card, it stays on your computer. Next time the chat asks *Pay with your card ending 4242?* and one tap pays. The assistant only ever sees *card ending 4242*. Say *forget my card* to delete it.
+- **Keep everyday answers too.** After you give an email, name, address, or phone for a form, the assistant asks once whether to keep them.
+
+**Updating.** Nothing to do by hand. Saved cards and answers sit in `~/.wong-stack/details.json` on the computer the assistant runs on, readable only by your user, beside your saved logins.
+
+## 43.13.2 — Reading CI failures
+
+- **The wiki explains a run that fails before any step.** Its workflow file doesn't load; the page shows the usual cause and how to check a file before saving.
+- **Waiting out a Cloudflare outage:** rerun once the login check passes twice in a row, since one answer can succeed mid-outage.
+- **The wiki shows how to see where GitHub minutes go**, per workflow and per repo.
+
+**Updating.** Nothing to do by hand.
+
+## 43.13.1 — What a Cloudflare outage looks like in a deploy
+
+- **The Cloudflare Access page explains one confusing deploy error.** `private-access: Unexpected token '<'` means Cloudflare itself is down, not that your setup broke: check its status page and rerun the deploy once it clears.
+
+**Updating.** Nothing to do by hand.
+
+## 43.13.0 — Tests don't run twice
+
+- **Code that already passed isn't tested again when it goes live.** When a change goes live and its files are exactly what passed on its branch, the test check passes in seconds and names the pull request it trusted. When anything differs, such as another change going live first, or the check can't tell, the tests run as before. The app still deploys every time.
+- **This saves GitHub minutes.** About 6 in 10 changes go live unchanged, so each skips a full test run.
+
+**Updating.** If your deploy step runs its own lint or tests, remove them, because the test check already runs them. Keep any other edit there.
+
+## 43.12.1 — A plan's tables stay in their step
+
+- **A table cut off from its step by a blank line no longer shows as a run of pipes.** Before, it fell out of its step on the plan page as plain text. Now the page build stops and names the line, so the assistant moves the table back under its step and you see a real table.
+
+**Updating.** Nothing to do by hand.
+
+## 43.12.0 — Screens drawn as pictures
+
+- **A plan's screen sketches are now real pictures.** The assistant draws boxes, buttons, and shading instead of typing them out of line characters, so nothing comes out crooked. Sketches use the page's own colors, so they look right in light and dark mode. They open full screen, zoom, and take a note like flow pictures do.
+- **A table on a plan page is a real table**, and you can leave a note on one row.
+- **A sketch that could do harm never reaches the page.** Anything beyond simple shapes and text, such as a script, a link, or an outside image, stops the page build and names the line; the last good page stays.
+- **Flows stay as they were.** Small listings such as a file list, and drawings in chat, stay plain text. Older plans' pages still build.
+
+## 43.11.0 — A second look before the preview
+
+- **A second agent reads every finished build before you see the preview.** It starts fresh, with none of the builder's reasoning, and checks the changes against the plan: bugs, missing or weak tests, and work the plan didn't ask for. What it finds goes back to a builder, at most twice, and the report says what was found and fixed.
+- **One rule decides what the agent fixes alone and what comes to you.** It fixes what the plan already settles: a broken plan step, a failing check, or a bug the reviewer found. It asks you when a fix goes outside the plan, would weaken a check, can't be undone or is risky, still fails after two tries, or when the builder and reviewer disagree. You get one plain question with a recommended answer.
+- **Building, saving and the preview check follow the same rule**, so a problem gets the same treatment wherever it turns up.
+- **A reviewer can't quietly stop early.** Like the builder, it is sent back once if it stops without its short report.
+
+**Updating.** Nothing to do by hand. Each build takes one more agent run.
+
+## 43.10.0 — Cheapest place first, and a hook for repeat mistakes
+
+- **A building helper can't quietly stop early.** When the helper building a change stops without its short report, it's sent back once: wait for anything still running, then report. Its next stop always goes through, so it never gets stuck. Every other stop passes untouched. This works in Claude Code and in Codex.
+- **One list says where new guidance goes, cheapest first.** The page that explains WongStack's parts now orders it: a page or skill opened only when needed, then a script or a check, a helper, a hook, and always-loaded text last. A line added to always-loaded text is paid for with a line cut.
+- **Hooks fit one kind of mistake.** Written rules still handle judgment calls. A hook is for a mechanical mistake that keeps happening in the chat, when a script can spot it in the moment. `/improve-code` can now plan one for a mistake no file shows.
+
+**Updating.** Codex may ask once to trust the new hook; say yes. If you changed your hook files, the update adds the new entry beside yours.
+
+## 43.9.0 — Ask next steps with the question box
+
+- **A typed list of choices gets sent back.** When a reply in Claude Code ends with a question and a short list of options, and the question box wasn't used, the assistant is sent back once to ask with the box. You may see the typed list once, with the box below it. Normal reports aren't touched: tried on 1,762 past replies that didn't use the box, it flagged 25, all real slips.
+- **A reminder after a long chat is shortened.** When Claude Code shortens a long conversation to keep going, one line about the question box is added back.
+- **The instructions say "ask with the question box".** The closing lines of building, saving, publishing and checking now say it, and the example question looks like a box, not a typed list. A preview check still writes its open items into the note on the change, but in chat it asks with the box.
+
+**Updating.** The update adds two small Claude Code hooks to your project settings: one checks how each reply ends, the other adds the reminder line. Your own hooks stay. Codex is unchanged.
+
+## 43.8.0 — A light and dark switch on every page
+
+- **A sun or moon button sits in the top right of every page.** In the app it's at the right of the top bar, beside *Sign out*, on Home and every mini app. On a plan's review page and the private key, password, form, and live view pages it's in the top right corner.
+- **Pages still start light; one tap turns them dark.** The page switches at once, with no reload. Your browser remembers the choice, so the next page you open on that site starts the same way. Your device's own light or dark setting doesn't change it.
+- **Dark uses the app's own dark colours**, kept beside the light ones in the app's one stylesheet, so the review and private pages turn the same dark. Red still marks only a problem.
+
+**Updating.** If you changed the app's colours in `app/src/index.css`, add your own dark colours as a `.dark` block right after the light `:root` block; without one, the dark look uses plain near-black and greys. A plan page already open gets the switch at its next save.
+
+## 43.7.0 — One calm look on every page
+
+- **Every page takes the app's colours.** The plan review page and the private key, password, and form pages now use the app's black, white, and soft greys. Red marks only a problem.
+- **Every page stays light**, the app included, even when your device is set to dark.
+- **The plan review page looks like the app.** A plain background, white cards, rounded buttons, and quiet section labels. The three bottom buttons stay where they are: *Send notes* is filled, *Build it* and *Build and publish* are outlined. Adding a note opens a box with a clear shadow, so it plainly sits on top of the page.
+- **The private pages lose the blue.** The *Private link* label is a small grey tag with its lock. Steps, fields, and *Save and continue* match the app's, and a saved key shows a black or white tick.
+- **A closed link shows a small card**, not bare text.
+- **Loading shows the shape of what's coming.** While Home, an app, Access, the assistant steps, or the key page wait, soft grey blocks shaped like the result stand in, not a line of text. A screen reader still hears that it's loading, and the blocks hold still if you turn motion off.
+- **The app gets a light polish.** Headings are a touch lighter, the top bar is slimmer and softly see-through, and text renders smoother. Nothing moves.
+
+**Updating.** If you changed the app's colours in `app/src/index.css`, the review and private pages now wear them too. Keep its colours as one plain `:root` block, or the checks fail. If you relied on the app turning dark with your device, it now stays light: the update removes the dark colours from `app/src/index.css`, and the pages ignore any left behind. A plan page already open keeps its old look until its next save rebuilds it.
+
+## 43.6.0 — The API spec names each service and its guide
+
+- **Opening one action tells a chat what each service is for.** It shows each service the action uses with its purpose line and a link to that service's own API guide. The helper adds the service's notes page in your wiki, and says whether it exists yet. A chat that goes straight to an action no longer needs the services list first.
+- **The app's API description groups actions by service.** Each service shows once, with its purpose and guide link, above its actions. A service's own look-up and change actions also link the guide. Someone who can't use a service doesn't see its group.
+- **The description opens with where to start**: search, open one action before calling it, every error's shape, and check a timed-out change before repeating it.
+
+**Updating.** Nothing to do. A service with no guide link shows none.
+
+## 43.5.0 — Every key-based service in one list, with short answers
+
+- **A chat sees every service it can use in one short list.** `services` lists each saved key you hold a level for, with a line on what it's for and whether it's ready. Keys you'd need access for show as one count. The always-read instructions now start every outside service here, so a chat no longer reads business keys from a file on your computer.
+- **Search, open one, and get short answers.** A search prints one line per match, across the app's own actions and keys used directly. A long answer shows its first part in the chat and is saved whole to a private file the chat can read, so one big list can't fill the chat.
+- **Each key says what it's for.** Every key in the app's key list has a one-line purpose, and a key used directly also links its service's API guide. The checks fail on a key without them. Each key-based service also gets a notes page in your wiki, made by the first chat that uses it, where chats write down the calls they worked out.
+- **A Services view in Access.** Beside People and Roles, the owner and Admins see every saved key, what it's for, and whether it's saved, never its value. A teammate doesn't see it.
+
+**Updating.** Add a one-line purpose to each key your install added to the app's key list, and a link to the service's API guide for any key used directly: the checks fail until each has one, and the assistant can write them from each service's help pages. If a script of yours reads a long answer from the action helper (`company-api.mjs call`), add `--full` so it still gets the whole answer; short answers are unchanged. There is no new secret and no setup step.
+
+## 43.4.0 — Friendlier private pages
+
+- **The page where you paste a key reads as a short guided task.** It opens with a small *Private link* label, the key's name, one line from your assistant saying what the key is for, and a line saying the key never goes into the chat. The steps sit in numbered circles: the button to the service is step 1, and the paste box is the last step, *Paste it here*. The test line says *We'll check it with api.stripe.com*.
+- **Clear good news, and a kind no.** A key that works gets a green tick. With several keys, each sits in its own card and the page counts how many are saved. When every key is in, the page shows a big tick and *All set*. A key the service turns down says so, with what to do next, and keeps *Save anyway*.
+- **No code names.** A key your assistant gave no guide for shows a readable name, such as *Maps API key*, with the code name small underneath.
+- **A gentler clock and a softer way out.** The key page and the private form show when they close, such as *Open until 1:30 PM*, and count minutes only in the last ten. *Close without continuing* and *Close without sending* are now *Not now*; it still closes the link, and your assistant hears it.
+- **The password page and the private form match.** Same label, colours, and buttons, with the privacy line at the top. The password page says *assistant*, not *agent*.
+- **Guides gain a `why` line**, up to 140 characters on one line: what the assistant will do with the key.
+
+**Updating.** Nothing to do. Nothing the pages save or send changes.
+
+## 43.3.0 — Plan pages draw flows as pictures
+
+- **A plan's steps, states, and back-and-forth flows show as clean pictures.** The plan writes a flow as a short Mermaid diagram, and the review page shows it laid out for you, with no crooked boxes. The picture is made when the page is built, so the page still works offline, from a clone, on a laptop or a phone.
+- **Screens, tables, and before-and-after sketches stay text drawings**, and drawings in chat stay text, because chat can't show a picture.
+- **A note on a picture names the picture.** Tap the picture full screen to note it; the copied note says *Change #1, picture 1*.
+- **A mistake in a picture says where, in one line.** The build stops, names the item, the picture, and the line, and the last good page stays. A label that only mentions a link word, such as `src=x`, still draws.
+
+**Updating.** Nothing to do. Plans already written keep their text drawings and look the same.
+
+## 43.2.1 — Every link in the chat
+
+- **Every link you need sits in the chat message, on its own line.** Before, a pull request, key link, or private form sometimes landed inside a question box, where it can't be clicked, or only in the assistant's hidden reasoning, where nobody sees it. A choice may still point at the link above it, such as *Review the plan*, but never repeats the address.
+
+**Updating.** Nothing to do.
+
+## 43.2.0 — A clear invite for teammates
+
+- **When you give someone the project in Access, a popup gives you the message to forward.** A save that newly lets a person install the project, whether you just added them, they were already listed, or a role you picked in their row gives it, opens a popup with the message and a *Copy* button. It names the app's address and the email to sign in with, says to install an assistant if they have none, such as Claude Code or Codex, and carries the setup message, so they paste the whole message into their assistant's chat and sign in. The app sends nothing; you send it however you like. Other saves just say *Saved.*. To copy it again, open the person: *Message to send them* folds out under their *Can install the project* tick.
+- **Connect your assistant starts with getting an assistant.** A new first step, *Have an AI assistant on your computer*, links to install pages for Claude Code and Codex, named as examples. Copy, paste and approve follow as steps 2 to 4.
+
+**Updating.** Nothing to do.
+
 ## 43.1.1 — Steadier browser starts
 
 - **The browser starts even when its first start fails.** A start can die at once when something else takes its address first. It now picks a new address and tries again, three starts at most, before it says *the browser did not start*.

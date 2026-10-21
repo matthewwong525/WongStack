@@ -6,7 +6,7 @@ user-invocable: true
 
 # /ship
 
-Invoking `/ship` authorizes every step below without a prompt: archive, checkpoint, walk, merge, remote-branch deletion, sync, and the pull-in with any save a task needs. It never authorizes archiving unchecked tasks; Step 2 finishes them. Confirm anything else (a force push, `--no-verify`, `git reset --hard`, `checkout .`) in [the shared ask format](../explore/references/asking-the-user.md).
+Invoking `/ship` authorizes every step below unprompted: archive, checkpoint, walk, merge, remote-branch deletion, sync, and the pull-in with any save a task needs. It never authorizes archiving unchecked tasks; Step 2 finishes them. Confirm anything else (a force push, `--no-verify`, `git reset --hard`, `checkout .`) in [the shared ask format](../explore/references/asking-the-user.md).
 
 [The change loop](../../../wiki/development/the-change-loop.md) owns the record, the pull-in, and [the gate](../../../wiki/development/the-change-loop.md#the-gate); PR review owns cleanliness, consolidation, and downstream breakage. `main` means [the default branch](../save/references/git-gate.md#the-default-branch).
 
@@ -24,13 +24,13 @@ A selected routine definition or finite goal follows [record-only delivery](../s
 
 ## Step 1 — preflight
 
-Attached review notes → [apply them to the existing change](../plan/SKILL.md#review-notes) first, then keep publishing: the person already chose.
+Attached review notes → [apply them to the existing change](../plan/SKILL.md#review-notes) first, then keep publishing.
 
 Check [preconditions](../save/references/preconditions.md), then run `prepare`. Uncommitted changes on the default branch go on in the same tree; Step 3's save cuts the feature branch.
 
 ### The pull-in: nothing to ship yet
 
-**Invoke the [`apply` skill](../apply/SKILL.md)**, saying it runs inside `/ship`: it returns with **no** preview upload or `/save`, and you go on to Step 2 in the same tree.
+**Invoke the [`apply` skill](../apply/SKILL.md)**, saying it runs inside `/ship`, then go on to Step 2 in the same tree.
 
 - **`/ship <intent>`** → pass the intent **verbatim**.
 - **No argument** → invoke `/apply` bare when [its resolve order](../apply/SKILL.md#resolve-the-plan-first) lands before `sole-active`, or the session states clear intent with no change yet.
@@ -48,7 +48,7 @@ A feature branch with work runs the ordinary runbook, intent or not; `/ship` res
 
 `prepare` archives by [the CLI contract](../plan/references/openspec-cli.md#validate-and-archive), which owns `--skip-specs`, after two stops:
 
-- **Several active change folders** → the merge would carry them all. Ask as options, naming them: move the others off the branch *(Recommended)*, or ship all on purpose.
+- **Several active change folders** → the merge would carry them all. Ask, naming them: move the others off the branch *(Recommended)*, or ship all on purpose.
 - **Unchecked tasks** → invoke `apply` for that change inside `/ship`, then rerun; still pending → report and stop.
 
 ## Step 3 — delegate the checkpoint to /save
@@ -61,7 +61,7 @@ A feature branch with work runs the ordinary runbook, intent or not; `/ship` res
 
 **Invoke `verify` once with Step 3's exact checkpoint receipt**, never again for a better verdict. No `verify` skill → say so in one line and go on; never install it.
 
-Any verdict but `FAILURE` → report it and merge. `FAILURE` after `/verify`'s own fixes → **stop and ask** [two options](../explore/references/asking-the-user.md#confirmations-offers-and-menus-are-asks): fix it first *(Recommended)*, or *publish anyway* and record that the walk failed. Say in plain words what they would see not working on the preview. If the walk's fixes, or its one `/save` of [kept checks](../verify/references/walkthrough.md#g--kept-checks), advanced `HEAD`, merge that commit only when that `/save` result is `SUCCESS` or `NONE`.
+Any verdict but `FAILURE` → report it and merge. `FAILURE` after `/verify`'s own fixes → **stop and ask** [two options](../explore/references/asking-the-user.md#confirmations-offers-and-menus-are-asks): fix it first *(Recommended)*, or *publish anyway* and record that the walk failed. Say plainly what fails on the preview. If the walk's fixes, or its one `/save` of [kept checks](../verify/references/walkthrough.md#g--kept-checks), advanced `HEAD`, merge that commit only when that `/save` result is `SUCCESS` or `NONE`.
 
 ## Step 5 — merge and sync
 
@@ -77,4 +77,4 @@ Merge, not rebase, unless asked. Never check out, switch, stash, reset, or force
 
 Lead with the outcome in plain words: *it is live*, what changed for the person, the live link, then [the plan's link](../explore/references/asking-the-user.md#print-the-plans-link) to the archived `review.html`. Always add **Checks loosened**: each `Check:` bullet in the archived Decision log, one plain line; omit when none. Only when asked, add `finish`'s `key=value` lines, the archive path or that no change was needed, `/save`'s result with its CI outcome and auto-fix pushes, the walk's verdict and evidence link (a merged-anyway `FAILURE` says the user chose it), and the secret key names promoted, skipped, or unresolved.
 
-Close with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step), whose options and order [next work](../plan/references/new-workspace.md#next-work) owns.
+Ask [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step) with the question tool; [next work](../plan/references/new-workspace.md#next-work) owns its options and order.
