@@ -47,11 +47,22 @@ A failed command prints one `BROWSE_ERROR=` line. A ref comes from the newest sn
 
 **Nothing is reported to the browser's makers.** `browse.mjs` switches camofox's failure reports off at every start, and the browser listens only on this computer.
 
-**Every new start uses a local forwarding proxy automatically**, with no extra install or account. It keeps no browsing logs and tunnels secure traffic encrypted. Startup failure stops the browser; stopping the browser closes its proxy.
+**A start with the local look uses a local forwarding proxy automatically**, with no extra install or account; [the US look](#look-american), the default, uses none. It keeps no browsing logs and tunnels secure traffic encrypted. Startup failure stops the browser; stopping the browser closes its proxy.
 
 It uses this computer's own network: Canadian on a Canadian laptop, Finnish on a Finland server. It needs neither WARP nor Paseo's relay, chooses no country, and uses no phone connection. Sites can still [refuse](#when-a-site-refuses-the-browser).
 
-A running browser keeps its pages and logins. The default activates after you ask to stop it and a later errand starts it again. Never restart it just for an update.
+A running browser keeps its pages and logins. A new default activates after you ask to stop it and a later errand starts it again. Never restart it just for an update.
+
+### Look American
+
+The browser looks American by default: pages read US English (`en-US`) and US Eastern time (`America/New_York`), with nothing to ask for. Say *look local* and the agent runs `browse.mjs look local`; *look American* runs `browse.mjs look us`. The choice sits beside your logins in `~/.wong-stack/camofox/look.json`, readable only by you; with no file, the look is US.
+
+- **It changes the language and clock, not the address.** Sites still see this computer's place, so one that picks its language by address, as GoDaddy can, may not switch; use its language switch.
+- **It starts no forwarding proxy.** camofox matches its language and clock to a proxy's address and drops the look's.
+- **A change waits for the next start.** `BROWSE_LOOK_APPLIES=next-start` means a restart is due; the agent asks before `stop`, which closes other tasks' pages. A browser started before this look existed counts as local.
+- **`look local` switches it off**, from the next start, and brings the forwarding proxy back. Use it when a site refuses the browser: a foreign address with a US clock is a pattern some checks score.
+
+`status` prints the saved look as `BROWSE_LOOK=`, and a running browser's as `BROWSE_SERVER_LOOK=`.
 
 ## Show what the browser is doing
 
@@ -129,7 +140,7 @@ Some sites turn the browser away, keep it on a *Verify you are human* page as Do
 2. **Stop browsing that site.** No other browser and no second link.
 3. **Give [steps to finish it yourself](#steps-for-you-to-finish)**, with the page's link.
 
-A check that clears by itself in a few seconds is not a refusal: the agent reads the page again first. It never routes its traffic through a hired or borrowed network address, uses a check-solving service, or solves a check that asks whether a person is there. One refusal ends the try: repeats can lock your account.
+A check that clears by itself in a few seconds is not a refusal: the agent reads the page again first. It never routes its traffic through a hired or borrowed network address, uses a check-solving service, or solves a check that asks whether a person is there. One refusal ends the try: repeats can lock your account. A refused site may accept [the local look](#look-american), which matches the browser to its address; the agent offers it in its steps.
 
 ## Save your passwords
 

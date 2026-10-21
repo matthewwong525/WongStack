@@ -11,6 +11,6 @@ disable-model-invocation: true
 
 - `open`, `snapshot`, `click`, `type`, `press`, `select`, `get`, and `screenshot` work one page.
 - `logins`, `login`, and `forget` use saved logins, never showing a password.
-- `save` and `close` keep the logins; `status`, `install`, and `stop` manage the browser.
+- `save` and `close` keep the logins; `look`, `status`, `install`, and `stop` manage the browser.
 
 Preview checks stay on [agent-browser](../agent-browser/SKILL.md).

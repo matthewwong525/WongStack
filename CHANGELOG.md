@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — The browser looks American
+
+- **The assistant's browser looks American by default.** From its next start, it reads US English and keeps US Eastern time, so sites that follow the browser's language show English. You don't need to ask.
+- **Your address stays where it is.** Sites still see where the assistant's computer sits, so one that picks its language by address may not switch, and a site that refused the browser may still refuse it.
+- **Nothing closes under you.** A browser already open keeps its pages and logins; the assistant asks before restarting it.
+- **Say *look local* to switch it off**, from the next start; *look American* switches it back.
+
+**Updating.** Nothing to do by hand. The browser changes at its next start.
+
 ## 43.19.1 — A removed person is blocked before Access setup finishes
 
 - **Removed means blocked at once, even before setup finishes.** On a live app whose Access setup isn't finished, a person you remove is now refused on their next app page, app request or memory request. Before, they kept every app until setup finished. Everyone else still keeps every app until then, and adding them back gives every app back.

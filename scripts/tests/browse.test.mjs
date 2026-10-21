@@ -82,7 +82,7 @@ test('with no install, a command prints BROWSE_NEEDS=install with the sizes and 
     assert.match(out.stderr, /1\.4 GB of disk/);
     assert.match(out.stderr, /700 MB of memory/);
   }
-  assert.equal(ok(f, 'status'), 'BROWSE_INSTALLED=no\nBROWSE_SERVER=stopped\n');
+  assert.equal(ok(f, 'status'), 'BROWSE_INSTALLED=no\nBROWSE_SERVER=stopped\nBROWSE_LOOK=us\n');
   assert.equal(ok(f, 'close', '--session', 'a'), 'BROWSE_CLOSED=a\n', 'closing with no browser running starts none');
   assert.equal(f.camofox.starts(), 0);
 });
@@ -104,8 +104,9 @@ test('install asks npm for the two pinned versions and no others, into the home 
   assert.match(failed.stderr, /ENOSPC/, 'npm\'s own lines reach the person');
 });
 
-test('the server starts with its own loopback proxy, reporting off, private files, and stops the listener with it', async t => {
+test('with a saved local look, the server starts with its own loopback proxy, reporting off, private files, and stops the listener with it', async t => {
   const f = fixture(t);
+  assert.equal(ok(f, 'look', 'local'), 'BROWSE_LOOK=local\n', 'no server runs, so nothing waits');
   assert.equal(ok(f, 'open', SHOP, '--session', 'a'), `BROWSE_URL=${SHOP}\n`);
   const env = f.camofox.env();
   const key = readFileSync(join(f.camofox.install, 'api-key'), 'utf8').trim();
@@ -133,6 +134,7 @@ test('the server starts with its own loopback proxy, reporting off, private file
   const info = JSON.parse(readFileSync(join(f.camofox.install, 'server.json'), 'utf8'));
   assert.equal(info.port, Number(env.CAMOFOX_PORT));
   assert.equal(info.proxy, 'local');
+  assert.equal(info.look, 'local');
   assert.notEqual(env.PROXY_PORT, env.CAMOFOX_PORT);
   const listening = () => new Promise(resolve => {
     const socket = connect(Number(env.PROXY_PORT), '127.0.0.1');
@@ -143,7 +145,7 @@ test('the server starts with its own loopback proxy, reporting off, private file
   assert.ok(f.camofox.requests().every(request => request.auth === `Bearer ${key}`), 'every request carries the key');
   assert.ok(!existsSync(join(f.camofox.install, 'server.log')), 'the server keeps no log');
 
-  assert.match(ok(f, 'status'), /^BROWSE_INSTALLED=yes camofox 1\.18\.1 driver 1\.58\.2\nBROWSE_SERVER=running\n$/);
+  assert.match(ok(f, 'status'), /^BROWSE_INSTALLED=yes camofox 1\.18\.1 driver 1\.58\.2\nBROWSE_SERVER=running\nBROWSE_LOOK=local\nBROWSE_SERVER_LOOK=local\n$/);
   ok(f, 'snapshot', '--session', 'a');
   assert.equal(f.camofox.starts(), 1, 'a later command uses the running server');
 
@@ -161,7 +163,7 @@ test('native inherited proxy routes and credentials are removed, leaving one loc
   });
 });
 
-test('an already-running older server keeps its pages until explicitly stopped, then starts with the proxy', async t => {
+test('an already-running older server keeps its pages and reads as local until explicitly stopped, then starts with the US look', async t => {
   const f = fixture(t);
   // Start the old entrypoint directly, with an OS-assigned port recorded by the fixture.
   const original = join(f.camofox.install, 'node_modules/@askjo/camofox-browser/server.js');
@@ -185,15 +187,76 @@ test('an already-running older server keeps its pages until explicitly stopped, 
   assert.equal(f.camofox.starts(), 1);
   assert.equal(f.camofox.tabs().length, 2);
   assert.equal(JSON.parse(readFileSync(join(f.camofox.install, 'server.json'), 'utf8')).proxy, undefined);
+  assert.match(ok(f, 'status'), /BROWSE_SERVER=running\nBROWSE_LOOK=us\nBROWSE_SERVER_LOOK=local\n$/, 'a server from before looks reads as local');
+  assert.equal(ok(f, 'look'), 'BROWSE_LOOK=us\n', 'reading the look saves nothing and asks for no start');
+  assert.ok(!existsSync(join(f.camofox.install, 'look.json')));
   ok(f, 'stop');
   ok(f, 'open', SHOP, '--session', 'a');
   assert.equal(f.camofox.starts(), 2);
-  assert.equal(f.camofox.env().PROXY_HOST, '127.0.0.1');
+  assert.equal(f.camofox.env().CAMOFOX_LOCALE, 'en-US');
+  assert.equal(f.camofox.env().PROXY_HOST, undefined);
 });
 
-test('serverEnv overrides whatever the shell set for reporting', () => {
-  const env = serverEnv(4321, 'k', { PATH: '/bin', SENTRY_DSN: 'https://x', CAMOFOX_CRASH_REPORT_ENABLED: 'true', CAMOFOX_BIND_HOST: '0.0.0.0' });
-  assert.deepEqual({ ...env, CAMOFOX_PROFILE_DIR: undefined, TMPDIR: undefined }, { PATH: '/bin', CAMOFOX_PORT: '4321', CAMOFOX_BIND_HOST: '127.0.0.1', CAMOFOX_CRASH_REPORT_ENABLED: 'false', CAMOFOX_CRASH_REPORT_URL: '', SENTRY_DSN: '', CAMOFOX_API_KEY: 'k', CAMOFOX_PROFILE_DIR: undefined, TMPDIR: undefined });
+test('serverEnv overrides whatever the shell set for reporting, and the look\'s language and clock', () => {
+  const shell = { PATH: '/bin', SENTRY_DSN: 'https://x', CAMOFOX_CRASH_REPORT_ENABLED: 'true', CAMOFOX_BIND_HOST: '0.0.0.0', CAMOFOX_LOCALE: 'de-DE', CAMOFOX_TIMEZONE: 'Europe/Berlin', BROWSE_LOOK: 'us' };
+  const base = { PATH: '/bin', CAMOFOX_PORT: '4321', CAMOFOX_BIND_HOST: '127.0.0.1', CAMOFOX_CRASH_REPORT_ENABLED: 'false', CAMOFOX_CRASH_REPORT_URL: '', SENTRY_DSN: '', CAMOFOX_API_KEY: 'k', CAMOFOX_PROFILE_DIR: undefined, TMPDIR: undefined };
+  const without = env => ({ ...env, CAMOFOX_PROFILE_DIR: undefined, TMPDIR: undefined });
+  const us = { ...base, CAMOFOX_LOCALE: 'en-US', CAMOFOX_TIMEZONE: 'America/New_York', BROWSE_LOOK: 'us' };
+  assert.deepEqual(without(serverEnv(4321, 'k', shell)), us, 'us is the default');
+  assert.deepEqual(without(serverEnv(4321, 'k', shell, 'us')), us);
+  assert.deepEqual(without(serverEnv(4321, 'k', shell, 'local')), base, 'local clears a shell\'s stray look');
+});
+
+test('a fresh start looks American with no proxy; look local waits for the next start, which brings the proxy back', async t => {
+  const f = fixture(t);
+  const lookFile = join(f.camofox.install, 'look.json');
+  const info = () => JSON.parse(readFileSync(join(f.camofox.install, 'server.json'), 'utf8'));
+  const usStart = () => {
+    const env = f.camofox.env();
+    assert.equal(env.CAMOFOX_LOCALE, 'en-US');
+    assert.equal(env.CAMOFOX_TIMEZONE, 'America/New_York');
+    assert.deepEqual(Object.keys(env).filter(name => name.startsWith('PROXY_')), [], 'no forwarder and no inherited proxy');
+    assert.equal(info().proxy, 'none');
+    assert.equal(info().look, 'us');
+  };
+  assert.equal(ok(f, 'look'), 'BROWSE_LOOK=us\n', 'no file is us');
+  ok(f, 'open', SHOP, '--session', 'a');
+  usStart();
+  assert.match(ok(f, 'status'), /BROWSE_LOOK=us\nBROWSE_SERVER_LOOK=us\n$/);
+  assert.equal(ok(f, 'look', 'us'), 'BROWSE_LOOK=us\n', 'a look the browser already has needs no start');
+  const before = f.camofox.serverPid();
+
+  assert.equal(ok(f, 'look', 'local'), 'BROWSE_LOOK=local\nBROWSE_LOOK_APPLIES=next-start\n');
+  assert.equal(statSync(lookFile).mode & 0o777, 0o600);
+  assert.deepEqual(JSON.parse(readFileSync(lookFile, 'utf8')), { look: 'local' });
+  assert.ok(alive(before), 'the running browser keeps going');
+  assert.equal(f.camofox.tabs().length, 1, 'its page stays open');
+  assert.equal(ok(f, 'look', 'local'), 'BROWSE_LOOK=local\nBROWSE_LOOK_APPLIES=next-start\n', 'it still waits for a start');
+  assert.match(ok(f, 'status'), /BROWSE_SERVER=running\nBROWSE_LOOK=local\nBROWSE_SERVER_LOOK=us\n$/);
+
+  ok(f, 'stop');
+  ok(f, 'open', SHOP, '--session', 'a');
+  assert.equal(f.camofox.env().PROXY_HOST, '127.0.0.1');
+  assert.equal(f.camofox.env().CAMOFOX_LOCALE, undefined);
+  assert.equal(info().proxy, 'local');
+  assert.equal(info().look, 'local');
+
+  chmodSync(lookFile, 0o644);
+  assert.equal(ok(f, 'look', 'us'), 'BROWSE_LOOK=us\nBROWSE_LOOK_APPLIES=next-start\n');
+  assert.equal(statSync(lookFile).mode & 0o777, 0o600, 'saving keeps the file private');
+  for (const args of [['look', 'de'], ['look', 'US'], ['look', 'us', 'local']]) {
+    const out = f.run(...args);
+    assert.equal(out.status, 2, args.join(' '));
+    assert.match(out.stderr, /usage: browse\.mjs/);
+  }
+  assert.deepEqual(JSON.parse(readFileSync(lookFile, 'utf8')), { look: 'us' }, 'a bad value saves nothing');
+
+  writeFileSync(lookFile, 'not json', { mode: 0o600 });
+  assert.equal(ok(f, 'look'), 'BROWSE_LOOK=us\n', 'an unreadable file is us');
+  ok(f, 'stop');
+  ok(f, 'open', SHOP, '--session', 'a');
+  usStart();
+  assert.equal(f.camofox.starts(), 3);
 });
 
 test('a driver that is not 1.58.x is refused before anything starts', t => {

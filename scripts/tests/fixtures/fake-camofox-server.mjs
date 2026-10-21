@@ -21,7 +21,7 @@ const writeWhole = (name, value) => { writeFileSync(file(`${name}.${process.pid}
 process.on('uncaughtException', error => { appendFileSync(file('errors.log'), `${error.stack}\n`); process.exit(1); });
 
 const tabs = new Map();
-const KEPT = ['CAMOFOX_PORT', 'CAMOFOX_BIND_HOST', 'CAMOFOX_CRASH_REPORT_ENABLED', 'CAMOFOX_CRASH_REPORT_URL', 'SENTRY_DSN', 'CAMOFOX_PROFILE_DIR', 'CAMOFOX_API_KEY', 'TMPDIR', ...Object.keys(process.env).filter(name => name.startsWith('PROXY_'))];
+const KEPT = ['CAMOFOX_PORT', 'CAMOFOX_BIND_HOST', 'CAMOFOX_CRASH_REPORT_ENABLED', 'CAMOFOX_CRASH_REPORT_URL', 'SENTRY_DSN', 'CAMOFOX_PROFILE_DIR', 'CAMOFOX_API_KEY', 'TMPDIR', 'CAMOFOX_LOCALE', 'CAMOFOX_TIMEZONE', 'BROWSE_LOOK', ...Object.keys(process.env).filter(name => name.startsWith('PROXY_'))];
 writeWhole('env.json', JSON.stringify({ ...Object.fromEntries(KEPT.map(name => [name, process.env[name]])), cwd: process.cwd(), pid: process.pid, argv: process.argv.slice(1) }));
 // The pretend browser ends with this server: its input closes when the server goes, however it goes.
 const browser = has('display') ? spawn(process.execPath, ['-e', "process.title = 'camoufox-bin'; console.log('named'); process.stdin.resume().on('end', () => process.exit());"], { stdio: ['pipe', 'pipe', 'ignore'], env: { ...process.env, DISPLAY: text('display') } }) : null;

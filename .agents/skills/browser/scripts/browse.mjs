@@ -3,7 +3,7 @@
 // that talks to it. Exit codes: 0 ok · 1 failed · 2 usage · 3 camofox is not installed. Node built-ins only.
 import { spawn, spawnSync } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { homedir, tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
@@ -28,6 +28,7 @@ const USAGE = `usage: browse.mjs <command> [--session <name>]
   forget <name>                 delete a saved login
   save                          keep the logins now, with every tab open
   close                         close this task's tab
+  look [us|local]               the saved look, from the next start: us, the default, is US English and Eastern time
   status | install | stop       the install and the server`;
 
 /** The only versions installed, moved together and only with a passing save on a real camofox. That check also
@@ -43,7 +44,7 @@ const DRIVER_LINE = CAMOFOX['playwright-core'].split('.').slice(0, 2).join('.');
 const NEEDS = 'camofox is not installed. It needs about 1.4 GB of disk and about 700 MB of memory while it runs. Ask the person, then run `browse.mjs install`.';
 const USER = 'me';
 const DIR = join(homedir(), '.wong-stack', 'camofox');
-const FILES = { server: join(DIR, 'server.json'), key: join(DIR, 'api-key'), lock: join(DIR, 'start.lock'), tmp: join(DIR, 'tmp'), tabs: join(DIR, 'tabs'), profiles: join(DIR, 'profiles') };
+const FILES = { server: join(DIR, 'server.json'), key: join(DIR, 'api-key'), lock: join(DIR, 'start.lock'), tmp: join(DIR, 'tmp'), tabs: join(DIR, 'tabs'), profiles: join(DIR, 'profiles'), look: join(DIR, 'look.json') };
 const packageDir = name => join(DIR, 'node_modules', name);
 const SERVER_SCRIPT = join(packageDir('@askjo/camofox-browser'), 'server.js');
 const LAUNCHER = fileURLToPath(new URL('./server.mjs', import.meta.url));
@@ -268,10 +269,16 @@ export function leftPage(before, now) {
   return page(before) !== page(now);
 }
 
-/** The environment camofox starts in: loopback only, nothing reported, its files under one folder. */
-export function serverEnv(port, key, env = process.env) {
+/** What the US look adds to camofox's start; `server.mjs` starts no forwarder for it, since a proxy drops both. */
+const US_LOOK = { CAMOFOX_LOCALE: 'en-US', CAMOFOX_TIMEZONE: 'America/New_York', BROWSE_LOOK: 'us' };
+
+/** The environment camofox starts in: loopback only, nothing reported, its files under one folder, and the US look's
+ * language and clock, the default; `local` drops any the shell set, so none half-applies. */
+export function serverEnv(port, key, env = process.env, look = 'us') {
+  const kept = Object.fromEntries(Object.entries(env).filter(([name]) => !Object.hasOwn(US_LOOK, name)));
   return {
-    ...env,
+    ...kept,
+    ...(look === 'us' && US_LOOK),
     CAMOFOX_PORT: String(port),
     CAMOFOX_BIND_HOST: '127.0.0.1',
     CAMOFOX_CRASH_REPORT_ENABLED: 'false',
@@ -284,6 +291,8 @@ export function serverEnv(port, key, env = process.env) {
 }
 
 const readJson = file => { try { return JSON.parse(readFileSync(file, 'utf8')); } catch { return null; } };
+/** The saved look: `local` only when saved, else `us`, as with no file or an unreadable one. */
+export const readLook = () => (readJson(FILES.look)?.look === 'local' ? 'local' : 'us');
 const alive = pid => { try { process.kill(pid, 0); return true; } catch (error) { return error.code === 'EPERM'; } };
 const tabFile = session => join(FILES.tabs, `${session}.json`);
 const installed = () => existsSync(SERVER_SCRIPT);
@@ -357,11 +366,12 @@ async function spawnServer() {
   const running = await liveServer();
   if (running) return running;
   const end = Date.now() + START_MS;
+  const look = readLook();
   for (let tries = 0; tries < 3; tries++) {
     const port = await freePort();
-    const child = spawn(process.execPath, [LAUNCHER, SERVER_SCRIPT], { cwd: DIR, detached: true, stdio: 'ignore', env: serverEnv(port, apiKey()) });
+    const child = spawn(process.execPath, [LAUNCHER, SERVER_SCRIPT], { cwd: DIR, detached: true, stdio: 'ignore', env: serverEnv(port, apiKey(), process.env, look) });
     child.unref();
-    writeFileSync(FILES.server, `${JSON.stringify({ pid: child.pid, port, proxy: 'local' })}\n`, { mode: 0o600 });
+    writeFileSync(FILES.server, `${JSON.stringify({ pid: child.pid, port, proxy: look === 'us' ? 'none' : 'local', look })}\n`, { mode: 0o600 });
     const { live, died } = await awaitServer(child.pid, end);
     if (live) return live;
     if (!died) await terminate(child.pid);
@@ -407,9 +417,28 @@ async function stop() {
   console.log('BROWSE_SERVER=stopped');
 }
 
+/** The look the running server started with, or null when none runs. A server from before looks were kept is local. */
+const runningLook = async () => ((await liveServer()) ? readJson(FILES.server)?.look ?? 'local' : null);
+
 async function status() {
   console.log(`BROWSE_INSTALLED=${installed() ? `yes camofox ${readJson(join(packageDir('@askjo/camofox-browser'), 'package.json'))?.version} driver ${driver()}` : 'no'}`);
-  console.log(`BROWSE_SERVER=${(await liveServer()) ? 'running' : 'stopped'}`);
+  const running = await runningLook();
+  console.log(`BROWSE_SERVER=${running ? 'running' : 'stopped'}`);
+  console.log(`BROWSE_LOOK=${readLook()}`);
+  if (running) console.log(`BROWSE_SERVER_LOOK=${running}`);
+}
+
+/** Prints the saved look; `value` saves it first, private to this account. It never stops the browser: a running one
+ * whose look differs prints that the look applies from its next start. */
+async function look(_, [value]) {
+  if (value) {
+    privateDirs();
+    writeFileSync(FILES.look, `${JSON.stringify({ look: value })}\n`, { mode: 0o600 });
+    chmodSync(FILES.look, 0o600);
+  }
+  console.log(`BROWSE_LOOK=${readLook()}`);
+  const running = value && (await runningLook());
+  if (running && running !== value) console.log('BROWSE_LOOK_APPLIES=next-start');
 }
 
 /** One call to camofox, with a deadline. A refusal throws a BrowseError with camofox's reason, or with
@@ -626,6 +655,7 @@ const COMMANDS = {
   save: [0, async page => { await page.save(); console.log('BROWSE_SAVED=yes'); }],
   close: [0, async page => { await page.close(); console.log(`BROWSE_CLOSED=${page.session}`); }],
   status: [0, status],
+  look,
   install: [0, install],
   stop: [0, stop],
   async login(page, [name], flags) {
@@ -651,6 +681,10 @@ function runnerFor(command, words, flags) {
     const fits = words[0] === 'url' ? words.length === 1 : ['count', 'value'].includes(words[0]) && words.length === 2;
     if (!fits) usage('get takes url, count <selector>, or value <ref-or-selector>');
     return COMMANDS.get;
+  }
+  if (command === 'look') {
+    if (words.length > 1 || (words.length && !['us', 'local'].includes(words[0]))) usage('look takes nothing, us, or local');
+    return COMMANDS.look;
   }
   const [count, runner] = COMMANDS[command];
   if (words.length !== count) usage(`${command} takes ${count} word${count === 1 ? '' : 's'} after it`);
