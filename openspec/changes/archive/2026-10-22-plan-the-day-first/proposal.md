@@ -1,6 +1,6 @@
 # One inbox for your agents, planned before they work
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** inbox-daily-planning
 **Open questions:** none
 
@@ -128,3 +128,5 @@ None.
 - **2026-10-22** — Built after PR #435 merged; a second look found six problems (a choice for a still-planning agent was refused, one failed status upload stopped status all day, a late *No plan* never reached its card, a sent *Not today* card showed its plan again, a repeated title, the migration missing from the inbox area), all fixed and reread clean. A choice sent while the agent still plans is held and delivered at its next stop.
 - **2026-10-22** — The preview check found that a sent card moved to *Working* without ever showing *Sent*; fixed by showing *Sent* on the agent's card until the answered item leaves the list, which keeps both the *Working* move and the scenario's *Sent*.
 - **2026-10-22** — The preview's pictures showed the picked *Go* or *Not today* only faintly shaded; the pick is now filled like a picked answer, as the sketch shows.
+- **2026-10-22** — Asked how to run the last check, since this computer's daily reaches only the live inbox, not staging's → chose to check the screens on the preview, publish, then run `/daily` once on the live app with two small test steps and close them after. Task 4.2 now names the preview check; the live run follows the publish.
+- **2026-10-22** — Archived for publishing (archive checkpoint).

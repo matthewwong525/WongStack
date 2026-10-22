@@ -21,4 +21,4 @@
 ## 4. Release
 
 - [x] 4.1 Add a `## Next (minor) — One inbox for your agents, planned before they work` entry to `CHANGELOG.md` with no hand step; verify `node .github/scripts/checks.mjs --worktree` passes
-- [ ] 4.2 `/save`, then on staging run `/daily` with two own-workspace steps: both plan and stop, both plan cards show under Needs you, sending one on Not today starts the other and closes the first's workspace, and the started one moves to Working with its latest step
+- [x] 4.2 `/save`, then on the preview check the inbox screens: agents grouped into Needs you, Working and Done; plan cards on Go, Not today folding one, *Start N agents*, *Sent* after Start, markup shown as text, no hours (PR #437 comment); the full `/daily` run with two planned steps happens on the live app after publishing, since this computer's daily reaches only the live inbox

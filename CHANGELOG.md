@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — One inbox for your agents, planned before they work
+## 44.7.0 — One inbox for your agents, planned before they work
 
 - **The inbox is a list of your agents.** One card per agent, in three groups: *Needs you* when anything waits on your answer, *Working* with its latest step and the chief's last action, and *Done* with the proof the chief checked. Questions, approvals, plans and private links sit inside their agent's card.
 - **Morning agents plan before they work.** Each agent `/daily` opens in the morning reads, writes a short plan, and stops. Once the plans are in, or 15 minutes after the first, each waits in the inbox as a card on *Go*: flip any to *Not today*, answer its questions, add a note, and tap *Start N agents*.
