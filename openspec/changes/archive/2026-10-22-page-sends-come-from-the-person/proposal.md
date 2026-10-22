@@ -1,6 +1,6 @@
 # Page sends arrive as your own message, not from another chat
 
-**Status:** planned
+**Status:** shipping
 **Branch:** suave-husky
 **Open questions:** none
 
@@ -49,3 +49,4 @@ None.
 - **2026-10-22** — Assumed: the docs fix is one added line in `reply-links.md`, because no WongStack page says a page's send arrives from another chat; the wrong sentence lived only in WongOS's `wiki/daily.md`.
 - **2026-10-22** — Assumed: a patch release, because it fixes a bug and adds nothing new to do.
 - **2026-10-22** — Asked, after the second look found that a stale inbox record could stop an unrelated program and that a tap during the one-time swap could be lost → chose to keep the swap and replace only a process confirmed to be the inbox helper, accepting the rare lost tap.
+- **2026-10-22** — Archive checkpoint: every task built and ticked; the second look's one fix (only a confirmed inbox helper is signalled) passed its reread; numbered 44.8.1 after main came in.
