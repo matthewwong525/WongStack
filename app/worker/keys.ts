@@ -1,15 +1,18 @@
 // Every saved business-service key the owner sees in Access (wiki/stack/api-keys.md): an id, a title, the secrets
 // it covers (in ../.dev.vars.example) and its levels. A route reaches only the keys it lists: wiki/stack/company-api.md
 export type Level = "read" | "write";
-/** How the app passes one request on to the key's service: wiki/stack/company-api.md#use-a-key-directly.
- *  `lookups` are non-GET requests that only read, as `METHOD path`, `*` for one path part: only documented ones. */
+/** How the app passes one request on to the key's service: wiki/stack/company-api.md#use-a-key-directly. `lookups`
+ *  are documented non-GET reads, as `METHOD path`, `*` for one part. With no secrets, name no `secret` or `header`. */
 export type Forward = {
   base: string;
-  secret: string;
-  header: string;
+  secret?: string;
+  header?: string;
   prefix?: string;
   headers?: Readonly<Record<string, string>>;
   lookups?: readonly string[];
+  /** An MCP server at `path` under `base`, the one path passed on; `reads` names the tools that only look things up.
+   *  wiki/stack/company-api.md#use-an-mcp-server-through-the-app */
+  mcp?: { path: string; reads: readonly string[] };
 };
 type Key = {
   title: string;
@@ -41,6 +44,9 @@ export const keys = {
     liveOnly: true },
   // Add a key as: stripe: { title: "Stripe", purpose: "Payments and refunds", secrets: ["STRIPE_SECRET_KEY"] },
   // Direct use adds `forward` and `docs: "https://docs.stripe.com/api"`: wiki/stack/company-api.md#use-a-key-directly
+
+  // An MCP server adds `mcp` to `forward`, and a public one has no secrets, `secret` or `header`:
+  // wiki/stack/company-api.md#use-an-mcp-server-through-the-app
 } as const satisfies Record<string, Key>;
 
 /** A registered key's id, for a route's `keys` list. @public */

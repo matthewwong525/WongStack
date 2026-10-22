@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 44.3.0 — MCP servers go through the app
+
+- **An MCP server goes through the app, called only when a task needs it.** The app holds the server's address and key, and a chat runs one short command when it needs the service. A server connected straight to a chat loads all its tool descriptions into every chat, so it never goes in a chat's own settings.
+- **Each call counts as a look-up or a change, by its tool.** Opening the session, listing tools and the tools named as look-ups need *Read*. Any other tool, including one the service adds later, needs *Read & write*.
+- **One command works for every MCP server.** `services` shows how to list an MCP service's tools, and `node scripts/company-api.mjs mcp <key> tools` lists them; `mcp <key> tool <name>` runs one.
+- **A public service needs no key.** It is set up with no secret and still goes through the app, so people's levels still apply.
+
+**Updating.** Nothing to do. An MCP server already in a chat's own settings keeps working; to move it, ask your assistant to set it up through the app.
+
 ## 44.2.0 — Memory guards hold against crafted searches, old keys and future dates
 
 - **A search can't reach notes you aren't allowed to see.** However a teammate writes a memory search, it looks only through shared team notes and their own. Before, a hand-written search could probe, word by word, what someone else's private notes said.

@@ -24,7 +24,7 @@ Notion   Team notes and docs    not saved yet: ask the owner
 2 more keys need access: ask the owner
 ```
 
-- **A key shows when you hold a level for it**, with its purpose line, whether it is saved, your [level](employee-access.md#key-levels), and for a key used directly the link to the service's API guide. The other keys are one count. `--all` lists them too, each with no level.
+- **A key shows when you hold a level for it**, with its purpose line, whether it is saved, your [level](employee-access.md#key-levels), and for a key used directly the link to the service's API guide. An MCP server's row adds the command that lists its tools: [use an MCP server through the app](company-api.md#use-an-mcp-server-through-the-app). The other keys are one count. `--all` lists them too, each with no level.
 - **Each row names its [notes page](#notes-on-each-key-based-service)**, and whether it exists yet.
 - **Project code is left out**: it is the stack's own key, reached through [the project's route](employee-project.md#who-gets-what).
 - **The list stays short.** One row per service, however many actions each has, at most 200 rows, and never a key value. `--json` prints the whole answer.

@@ -70,6 +70,20 @@ Before a direct call, read the service's [notes page](service-catalogue.md#notes
 
 **Set a service up when you save its key.** Doing so opens the service to the owner, and to everyone who holds a level for that key. Add `forward` and `docs`, the guide's HTTPS link, to its entry in [the key registry](../../app/worker/keys.ts), from the service's own API guide, as the commented entries there show. The registry's comments say what each field is. `lookups` names, as `METHOD path` with `*` for one path part, only requests the guide documents as read-only: a wrong entry lets Read change things. A service that works through one `POST`, such as GraphQL, gets none, so it needs Read & write. A key renewed through a sign-in, such as Google's, can't be set up: build an action. The app's tests fail on an entry that breaks a rule.
 
+## Use an MCP server through the app
+
+An outside MCP server goes through the app, never into a chat's own server settings such as `.mcp.json`. A server connected to a chat loads every one of its tool descriptions into every chat, even one that never uses it; through the app, a chat sees them only when a task asks.
+
+- **Set it up as a key used directly**, [as above](#use-a-key-directly), with `mcp: { path, reads }` in its `forward`: `path` is the server's address under `base`, and only that path is passed on. A public server names no secret, `secret` or `header`:
+  ```ts
+  deepwiki: { title: "DeepWiki", purpose: "Questions about public code", secrets: [], docs: "https://docs.devin.ai/work-with-devin/deepwiki-mcp",
+    forward: { base: "https://mcp.deepwiki.com/", mcp: { path: "mcp", reads: ["read_wiki_structure", "ask_wiki_question"] } } },
+  ```
+- **`reads` names the tools that only look things up.** List only tools the server marks read-only, each checked by hand. Opening the session and listing tools also need only Read; any other tool, including one the service adds later, needs Read & write.
+- **Call it with the helper:** `node scripts/company-api.mjs mcp <key> tools` lists the tools, `tools <name>` shows one tool's arguments, and `mcp <key> tool <name> --file -` runs one with its arguments as JSON. It keeps the server's session across calls and tries Read first.
+
+A service-specific helper may wrap [`scripts/mcp-session.mjs`](../../scripts/mcp-session.mjs) for friendlier commands.
+
 ## Connect and call
 
 From an empty folder, use the [setup message](employee-project.md#install-in-one-step). A copy that [Connect your assistant installed](employee-project.md#install-in-one-step) is an installed project: run the helper from inside it with no `--state`. It finds the sign-in setup saved for the origin the copy records, and setup checks this before saying *Nothing else is needed*. A reused sign-in starts the summary with *Used this computer's existing sign-in as <email>*: a shared computer never connects as someone else unnoticed. Installed projects run [the helper](../../scripts/company-api.mjs) from the repository root; `--state` can select the same private connection, while existing private folder locators remain compatible. It reads only public install metadata for company routing. New installs record `components.companyApi.origin` in `.claude/.wong-stack.json`, using the production Worker name and the account hostname read back during provisioning. Older records can use an explicit origin until the reviewed update fills it.

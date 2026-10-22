@@ -5,11 +5,13 @@ import { body } from "../../tests/body";
 import { employee, fixture, owner, site } from "../../tests/employee-access/connections";
 import { fakeEnv } from "../../tests/env";
 
-// A made-up registry: Stripe is used directly and has a guide, the bank key is not, and project code never lists.
+// A made-up registry: Stripe is used directly and has a guide, the bank key is not, Docs is a public MCP server with
+// no key, and project code never lists.
 const registry = vi.hoisted(() => ({ keys: {
   stripe: { title: "Stripe", purpose: "Payments and refunds", docs: "https://docs.stripe.example/api", secrets: ["STRIPE_SECRET_KEY"],
     forward: { base: "https://api.stripe.example/", secret: "STRIPE_SECRET_KEY", header: "Authorization", prefix: "Bearer " } },
   bank: { title: "Bank", purpose: "Balances and transfers", secrets: ["BANK_SECRET"], levels: ["read"] },
+  docs: { title: "Docs", purpose: "Public docs", docs: "https://docs.example/mcp", secrets: [], forward: { base: "https://mcp.docs.example/", mcp: { path: "mcp", reads: ["search"] } } },
   code: { title: "Project code", purpose: "This project's own code", secrets: ["WONG_CODE_READ"], alone: true },
 } satisfies Record<string, KeyEntry> }));
 vi.mock("../keys.ts", () => registry);
@@ -28,17 +30,19 @@ it("lists each key the caller holds a level for, with what it is for and whether
   const listed = await body(await list());
   expect(listed).toEqual({ revision: expect.stringMatching(/^[0-9a-f]{64}$/), needAccess: 0, services: [
     { id: "bank", name: "Bank", purpose: "Balances and transfers", ready: false, level: "read", direct: false },
+    // A key with no secrets is ready as it is, and an MCP server is marked.
+    { id: "docs", name: "Docs", purpose: "Public docs", docs: "https://docs.example/mcp", ready: true, level: "write", direct: true, mcp: { path: "mcp" } },
     { id: "stripe", name: "Stripe", purpose: "Payments and refunds", docs: "https://docs.stripe.example/api", ready: true, level: "write", direct: true },
   ] });
   // Project code is the stack's own key, and no key's value is ever in the answer.
   expect(JSON.stringify(listed)).not.toMatch(/Project code|stripe-secret-value/);
   // Before key levels start, a teammate holds none.
-  expect(await body(await list(employee))).toMatchObject({ services: [], needAccess: 2 });
+  expect(await body(await list(employee))).toMatchObject({ services: [], needAccess: 3 });
   f.sql.exec("UPDATE wong_access_installation SET keys_enabled = 1");
   grant("stripe", "read");
-  expect(await body(await list(employee))).toMatchObject({ services: [{ id: "stripe", level: "read" }], needAccess: 1 });
+  expect(await body(await list(employee))).toMatchObject({ services: [{ id: "stripe", level: "read" }], needAccess: 2 });
   // `all` lists the rest too, each with no level.
-  expect((await body(await list(employee, "?all=1"))).services.map(row => [row.id, row.level])).toEqual([["bank", null], ["stripe", "read"]]);
+  expect((await body(await list(employee, "?all=1"))).services.map(row => [row.id, row.level])).toEqual([["bank", null], ["docs", null], ["stripe", "read"]]);
 });
 it("answers only a signed-in person, and holds back a list that would show a secret", async () => {
   expect((await services(new Request(`${site.origin}/api/services`), saved(), null)).status).toBe(401);
@@ -66,7 +70,7 @@ it("names a revision, answers 304 while nothing the caller sees has changed, and
 it("gives only the owner every key before Access starts", async () => {
   const fresh = fixture({ started: false });
   const ask = (identity = owner) => services(new Request(`${site.origin}/api/services`), fakeEnv(fresh.env), identity);
-  expect((await body(await ask())).services.map(row => [row.id, row.level])).toEqual([["bank", "read"], ["stripe", "write"]]);
-  expect(await body(await ask(employee))).toMatchObject({ services: [], needAccess: 2 });
+  expect((await body(await ask())).services.map(row => [row.id, row.level])).toEqual([["bank", "read"], ["docs", "write"], ["stripe", "write"]]);
+  expect(await body(await ask(employee))).toMatchObject({ services: [], needAccess: 3 });
   fresh.sql.close();
 });

@@ -138,6 +138,7 @@
       "app/.dev.vars.example",
       "scripts/cf-preview.sh",
       "scripts/company-api.mjs",
+      "scripts/mcp-session.mjs",
       "scripts/check-runner/worker.mjs",
       "scripts/check-runner/pipeline.mjs",
       "scripts/check-runner/run-id.mjs",

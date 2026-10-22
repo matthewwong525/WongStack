@@ -4,7 +4,7 @@ import type { AccessIdentity } from "../access.ts";
 import { actionError, containsCredential } from "./contract.ts";
 import type { AppEnv } from "../apps/index.ts";
 import { currentPolicy, policyAllows, policyDenied, type CurrentPolicy } from "../employee-access/policy.ts";
-import { described, forwards, keyIds, keyTitle, offered, saved, type Level } from "../employee-access/key-levels.ts";
+import { described, forwards, keyIds, keyTitle, offered, saved, mcpPath, type Level } from "../employee-access/key-levels.ts";
 
 const MAX = 200;
 
@@ -13,6 +13,9 @@ function heldLevel(policy: CurrentPolicy, id: string): Level | null {
   if (policy.state === "current") return policy.keys?.get(id) ?? null;
   return policy.state === "not_started" && policy.role === "owner" ? offered(id).at(-1)! : null;
 }
+
+/** An MCP server's row names its path, so the helper can open a session. */
+const mcpRow = (id: string) => { const path = mcpPath(id); return path === null ? {} : { mcp: { path } }; };
 
 async function digest(value: unknown): Promise<string> {
   const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(value)));
@@ -27,7 +30,7 @@ export async function services(request: Request, env: AppEnv, identity: AccessId
   const all = new URL(request.url).searchParams.get("all") === "1";
   // Project code is the stack's own key, not a service a chat calls.
   const listed = keyIds().filter(id => id !== "code").map(id => ({ id, name: keyTitle(id), ...described(id),
-    ready: saved(env, id), level: heldLevel(policy, id), direct: forwards(id) }))
+    ready: saved(env, id), level: heldLevel(policy, id), direct: forwards(id), ...mcpRow(id) }))
     .sort((a, b) => a.name.localeCompare(b.name));
   const value = { services: listed.filter(key => all || key.level).slice(0, MAX), needAccess: listed.filter(key => !key.level).length };
   if (containsCredential(value, env)) return actionError("internal_error");
