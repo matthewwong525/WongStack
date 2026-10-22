@@ -72,6 +72,8 @@ function dom(html) {
   const window = new JSDOM(html, { url: 'https://review.test/', runScripts: 'dangerously', virtualConsole }).window;
   return { window, document: window.document, errors };
 }
+/** Waits for the page's load, when the inbox greets its frame and theme.js has drawn the switch. */
+const loaded = window => window.document.readyState === 'complete' ? null : new Promise(done => window.addEventListener('load', done));
 
 test('assembly writes the current format and is deterministic', () => fixture(root => {
   assert.deepEqual(buildReview(root, { requireCurrent: true }), { kind: 'current', changed: true, warnings: [] });
@@ -409,6 +411,24 @@ test('a missing test dependency skips locally and fails in CI', () => {
   }
 });
 
+test("in the inbox frame the page opens in the inbox's look", needsDom, () => fixture(async root => {
+  buildReview(root, { requireCurrent: true });
+  const { window, document, errors } = dom(page(root));
+  const parent = { postMessage: () => {} };
+  const port = { postMessage: () => {}, onmessage: null };
+  Object.defineProperty(window, 'parent', { configurable: true, get: () => parent });
+  await loaded(window);
+  assert.ok(document.querySelector('.theme-toggle'));
+  const event = new window.MessageEvent('message', { data: { type: 'inbox:hello', item: 'i1', version: 'v1', actions: [], theme: 'dark' } });
+  Object.defineProperty(event, 'source', { value: parent });
+  Object.defineProperty(event, 'ports', { value: [port] });
+  window.dispatchEvent(event);
+  assert.equal(document.documentElement.classList.contains('dark'), true);
+  assert.equal(document.querySelector('.theme-toggle'), null);
+  assert.deepEqual(errors, []);
+  window.close();
+}));
+
 test('in the inbox frame the page talks only on the port its first greeting carries, never fetches, and opens links in their own tab', needsDom, () => fixture(async root => {
   buildReview(root, { requireCurrent: true });
   const { window, document, errors } = dom(page(root));
@@ -428,10 +448,22 @@ test('in the inbox frame the page talks only on the port its first greeting carr
   const say = data => port.onmessage({ data });
   const tick = () => new Promise(done => setTimeout(done, 0));
   const hello = { type: 'inbox:hello', item: 'i1', version: 'v1', actions: ['build', 'publish'] };
+  await loaded(window);
   from(hello, { source: window });
   from(hello, { ports: [] });
   assert.equal(port.onmessage, null, 'a greeting from anywhere but the parent, or with no port, is ignored');
+  assert.ok(document.querySelector('.theme-toggle'), 'opened on its own, the page has its own switch');
   from(hello);
+  // An older inbox sends no look: the page keeps the one it has, and the inbox's switch is the only one.
+  assert.equal(document.querySelector('.theme-toggle'), null, 'in the inbox the page drops its own switch');
+  assert.equal(document.documentElement.classList.contains('dark'), false);
+  say({ type: 'inbox:theme', theme: 'dark' });
+  assert.equal(document.documentElement.classList.contains('dark'), true, 'the inbox switches the page in place');
+  say({ type: 'inbox:theme', theme: 'sepia' });
+  say({ type: 'inbox:theme' });
+  assert.equal(document.documentElement.classList.contains('dark'), true, 'an unknown look changes nothing');
+  say({ type: 'inbox:theme', theme: 'light' });
+  assert.equal(document.documentElement.classList.contains('dark'), false);
   assert.deepEqual(port.posted, [{ type: 'inbox:notes-get', key: 'wong-review3:example' }]);
   assert.equal(document.getElementById('ready').hidden, false);
   assert.equal(document.getElementById('copy-label').textContent, 'Send notes');

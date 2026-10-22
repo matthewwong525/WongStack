@@ -17,11 +17,12 @@ const closes = (event: KeyboardEvent) => event.key === 'Escape' || (event.key ==
 /** What a decision's tap said, to copy into the chat: a question's words, or the choice and its note. */
 const copyOf = (tap: Tap) => tap.action === 'send' ? tap.text : [say(tap.action), tap.text].filter(Boolean).join('\n')
 
-/** Where a decision came from: its title, unless that only repeats the question, and its workspace. */
+/** Where a decision came from: its title, unless that only repeats the question, and its workspace. A long line wraps
+ *  under the Risky tag, never cut off, so a phone shows all of it. */
 function Who({ item, question }: { item: Item; question: string }) {
-  return <p className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
-    {item.kind === 'approval' && <Badge variant="outline" className="border-destructive text-destructive">Risky</Badge>}
-    <span className="min-w-0 truncate">{[item.title !== question && item.title, item.workspace].filter(Boolean).join(' · ')}</span>
+  return <p className="min-w-0 text-sm text-muted-foreground">
+    {item.kind === 'approval' && <Badge variant="outline" className="mr-2 border-destructive align-middle text-destructive">Risky</Badge>}
+    <span className="wrap-anywhere">{[item.title !== question && item.title, item.workspace].filter(Boolean).join(' · ')}</span>
   </p>
 }
 

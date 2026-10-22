@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Tidy two inbox display details
+
+- **A plan in the inbox has one light and dark switch.** The app's own switch now changes the plan's page too, in place, with your notes kept, and the page opens in the app's look. The review page hides its own switch inside the inbox; opened from its private link, it keeps it.
+- **A long approval's top line wraps on a phone.** Its title and workspace run onto a second line instead of ending in "…".
+
+**Updating.** No step needed. Plans written before this update still show their own switch in the inbox.
+
 ## 44.4.0 — One inbox for plans to review and decisions waiting on you
 
 - **One page lists what waits on you.** The new Inbox app, at `/apps/inbox/` in your company app, shows *Needs you* questions, *Approvals* and *Plans to review*, each for the person signed in. It refreshes while open. Questions and approvals work like a decisions page: tap a choice on each card, add a note if you like, then one *Send* passes on every answer you picked. Picks and notes stay on that device until you send them, and a computer has keys for each step.
