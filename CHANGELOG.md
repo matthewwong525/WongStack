@@ -3,6 +3,12 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 44.9.1 — Page sends arrive as your own message
+
+- **A page's send shows as yours.** Notes, *Build it*, a form's answers and an inbox tap reach the chat as your own message, the same as if you typed them. Before, they showed under the name of whichever chat first opened a page on this computer.
+
+**Updating.** No step needed. The next page to open replaces the page server still running from older code, and every open link keeps its address. The inbox's helper is replaced the same way the next time a plan goes to the inbox.
+
 ## 44.9.0 — People who can push on GitHub can open previews
 
 - **Push rights on GitHub open previews.** Every 15 minutes, and whenever Access opens, the live app reads who can push to the project and lets them sign in to previews. Never the live app. Take their push rights away, and within 15 minutes they leave the previews' sign-in list and their preview sessions end.

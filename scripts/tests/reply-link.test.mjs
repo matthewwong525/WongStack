@@ -32,9 +32,10 @@ function fixture(t, { cloudflared = true, silent = false, paseo = 'ok', agentId 
   mkdirSync(bin);
   const calls = join(root, 'calls.log');
   const sentFile = join(root, 'sent.jsonl');
+  const envsFile = join(root, 'envs.jsonl');
   if (cloudflared) fakeTunnel(bin, calls, { silent });
   else for (const tool of ['cat', 'rm', 'sleep']) symlinkSync(spawnSync('sh', ['-c', `command -v ${tool}`], { encoding: 'utf8' }).stdout.trim(), join(bin, tool));
-  if (paseo) fakePaseo(bin, sentFile, paseo);
+  if (paseo) fakePaseo(bin, sentFile, paseo, envsFile);
   const env = { ...process.env, ...TUNNEL_ENV, REPLY_LINK: '', PASEO_AGENT_ID: agentId, PASEO_HOME: '', PASEO_HOST: '', HANDOVER_PASEO_BIN: '', HOME: root, PATH: cloudflared ? `${bin}:/usr/bin:/bin` : bin, REPLY_LINK_POLL_MS: '100', REPLY_LINK_SEND_GAP_MS: '1', HANDOVER_POLL_MS: '50', ...extra };
   const state = join(root, '.wong-stack/reply-link');
   const server = () => { try { return JSON.parse(readFileSync(join(state, 'server.json'), 'utf8')); } catch { return null; } };
@@ -68,6 +69,7 @@ function fixture(t, { cloudflared = true, silent = false, paseo = 'ok', agentId 
       writeFileSync(file, JSON.stringify({ ...JSON.parse(readFileSync(file, 'utf8')), deadline: Date.now() - 1 }));
     },
     sent: () => (existsSync(sentFile) ? readFileSync(sentFile, 'utf8').trim().split('\n').map(JSON.parse) : []),
+    envs: () => (existsSync(envsFile) ? readFileSync(envsFile, 'utf8').trim().split('\n').map(JSON.parse) : []),
     tunnels: () => (existsSync(calls) ? readFileSync(calls, 'utf8').split('\n').filter(line => line.startsWith('cloudflared tunnel')).length : 0),
   };
 }
@@ -117,6 +119,22 @@ test('waking a chat is notified only when the host confirms that chat got the me
   assert.equal(chatTarget({}, '/w').agentId, null);
 });
 
+test('a wake arrives as the person: no chat id goes with it, though the waking process has one', async t => {
+  const root = mkdtempSync(join(tmpdir(), 'wong-test-wake-'));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const sent = join(root, 'sent.jsonl'), envs = join(root, 'envs.jsonl');
+  fakePaseo(root, sent, 'ok', envs);
+  const env = { PATH: root, PASEO_AGENT_ID: 'the-server-chat', PASEO_AGENT_CWD: '/elsewhere', PASEO_HOME: '/paseo-home' };
+  const target = { agentId: AGENT, cwd: root, paseoHome: '/paseo-home', paseoHost: null };
+  assert.equal(await wakeChat(target, 'Hello', env), 'notified');
+  assert.deepEqual(JSON.parse(readFileSync(sent, 'utf8')), ['send', AGENT, 'Hello', '--no-wait', '--json', '--home', '/paseo-home']);
+  const ran = JSON.parse(readFileSync(envs, 'utf8'));
+  assert.equal(ran.PASEO_AGENT_ID, undefined);
+  assert.equal(ran.PASEO_AGENT_CWD, undefined);
+  assert.equal(ran.PASEO_HOME, '/paseo-home');
+  assert.deepEqual(env, { PATH: root, PASEO_AGENT_ID: 'the-server-chat', PASEO_AGENT_CWD: '/elsewhere', PASEO_HOME: '/paseo-home' }, 'the caller\'s env is unchanged');
+});
+
 test('every page shares one tunnel, and opening a file again keeps its link and moves its deadline', async t => {
   const f = fixture(t);
   const first = f.open(f.page('one.html'));
@@ -155,13 +173,13 @@ test('a server that died is replaced by the next open, and the page keeps its id
   assert.equal((await ask(again, 'alive')).status, 200);
 });
 
-test('a server from older code is swapped by the next open, keeping its tunnel and every link', async t => {
-  const f = fixture(t);
+test('a server from older code is swapped by the next open, keeping its tunnel and every link, and sends as the person', async t => {
+  const f = fixture(t, { env: { PASEO_AGENT_CWD: '/opener' } });
   const first = f.open(f.page('one.html'));
   const old = f.server();
   const { protocol, ...older } = old;
-  assert.ok(protocol >= 3);
-  older.protocol = 2;
+  assert.ok(protocol > 3);
+  older.protocol = 3;
   writeFileSync(join(f.state, 'server.json'), JSON.stringify(older));
   const again = f.open(f.page('one.html'));
   assert.equal(again.link, first.link);
@@ -172,6 +190,11 @@ test('a server from older code is swapped by the next open, keeping its tunnel a
   assert.equal(f.tunnels(), 1, 'no second tunnel');
   assert.ok(!alive(old.pid));
   assert.equal((await ask(again, 'alive')).status, 200);
+  assert.equal((await ask(again, 'send', { body: { text: 'Looks good.' } })).status, 200);
+  assert.deepEqual(f.sent().at(-1), ['send', AGENT, `${HEADER}\nLooks good.`, '--no-wait', '--json']);
+  assert.equal(f.env.PASEO_AGENT_ID, AGENT, 'the opener had a chat id');
+  assert.equal(f.envs().at(-1).PASEO_AGENT_ID, undefined, 'the send carried none');
+  assert.equal(f.envs().at(-1).PASEO_AGENT_CWD, undefined);
 });
 
 for (const [reason, options] of [

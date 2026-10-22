@@ -20,6 +20,15 @@ export function canWake(target, env = process.env) {
   return Boolean(target?.agentId && wakeCommand(env));
 }
 
+/** `env` with no chat of its own: Paseo names a send's sender from `PASEO_AGENT_ID`, and the shared page server
+ * keeps the id of the chat that started it, so a send must arrive as the person's own message. */
+function personEnv(env) {
+  const rest = { ...env };
+  delete rest.PASEO_AGENT_ID;
+  delete rest.PASEO_AGENT_CWD;
+  return rest;
+}
+
 /** Sends `message` to the chat `target` names. `notified` only when the host confirms that same chat got it;
  * `unconfirmed` when the send failed or its answer does not say so; `unavailable` with no chat or no way to wake. */
 export async function wakeChat(target, message, env = process.env) {
@@ -29,7 +38,7 @@ export async function wakeChat(target, message, env = process.env) {
   try {
     const context = target.paseoHost ? ['--host', target.paseoHost] : target.paseoHome ? ['--home', target.paseoHome] : [];
     const { stdout } = await promisify(execFile)(bin, ['send', target.agentId, message, '--no-wait', '--json', ...context], {
-      cwd: target.cwd, encoding: 'utf8', timeout: 5000, maxBuffer: 64 * 1024,
+      cwd: target.cwd, env: personEnv(env), encoding: 'utf8', timeout: 5000, maxBuffer: 64 * 1024,
     });
     const output = JSON.parse(stdout);
     const ack = output.data ?? output;
