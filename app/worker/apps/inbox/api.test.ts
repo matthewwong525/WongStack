@@ -46,7 +46,7 @@ it("lists only the signed-in person's items, and never lets another read or tap 
   const listed = await call(sam, "GET", "items");
   expect(listed.json.items.map(item => item.id)).toEqual([PLAN, APPROVAL]);
   expect(listed.json.items[1]).toEqual({ id: APPROVAL, kind: "approval", title: "Send the kit quote to Kim", workspace: "email",
-    actions: ["approve", "decline"], version: "q1", createdAt: START, closesAt: plan.closesAt, detail: { text: "It wants to send one message." }, tap: null });
+    actions: ["approve", "decline"], version: "q1", createdAt: START, closesAt: plan.closesAt, detail: { text: "It wants to send one message." }, link: null, tap: null });
   expect(listed.json.items[0].detail).toBeNull();
 
   expect(await call(jo, "GET", "items")).toEqual({ status: 200, json: { items: [], computerOnline: false } });
@@ -57,6 +57,43 @@ it("lists only the signed-in person's items, and never lets another read or tap 
   expect((await call(sam, "GET", "item", { id: PLAN })).json.item.body).toBe("<p>The plan</p>");
   expect((await call(jo, "GET", "item", { id: PLAN })).json.item.body).toBe("<p>Jo's</p>");
   expect(await checkin(jo)).toEqual([]);
+});
+
+const LINK = "d".repeat(32);
+const KEY_URL = "https://quiet-fox-lamp.trycloudflare.com/#key=" + "e".repeat(64);
+const keyLink = { ...plan, id: LINK, kind: "link", title: "Stripe key", body: JSON.stringify({ what: "key", url: KEY_URL }), actions: [], version: "link" };
+
+it("lists a private link by its address alone, takes no tap on it, and shows it to nobody else", async () => {
+  expect((await put(sam, keyLink)).status).toBe(200);
+  expect((await call(sam, "GET", "items")).json.items).toEqual([{ id: LINK, kind: "link", title: "Stripe key", workspace: "lousy-dingo", actions: [],
+    version: "link", createdAt: START, closesAt: plan.closesAt, detail: null, link: { what: "key", url: KEY_URL }, tap: null }]);
+  expect(await tap(sam, { item: LINK, action: "send", version: "link", text: "the key" })).toMatchObject({ status: 400, json: { error: { code: "bad_action" } } });
+  expect((await call(jo, "GET", "items")).json.items).toEqual([]);
+  expect((await call(jo, "GET", "item", { id: LINK })).status).toBe(404);
+  await call(sam, "POST", "item-close", { id: LINK });
+  expect((await call(sam, "GET", "items")).json.items).toEqual([]);
+});
+
+it("refuses a link that is not https on a tunnel, carries a login, runs long, names no kind, or offers an action", async () => {
+  const body = (url: string, what = "card") => JSON.stringify({ what, url });
+  for (const bad of [body("http://quiet-fox-lamp.trycloudflare.com/#key=1"), body("https://example.com/#key=1"),
+    body("https://trycloudflare.com.example.com/"), body("https://kim:pw@quiet-fox-lamp.trycloudflare.com/"),
+    body("https://quiet-fox-lamp.trycloudflare.com:8443/"), body(`https://quiet-fox-lamp.trycloudflare.com/#key=${"k".repeat(2048)}`),
+    body("javascript:alert(1)"), body("not a url"), body(KEY_URL, "vault"), JSON.stringify({ what: "key" }),
+    JSON.stringify({ what: "key", url: KEY_URL, value: "sk_live" }), "not json"]) {
+    expect(await put(sam, { ...keyLink, body: bad })).toMatchObject({ status: 400, json: { error: { code: "bad_link" } } });
+  }
+  expect(await put(sam, { ...keyLink, actions: ["open"] })).toMatchObject({ status: 400, json: { error: { code: "bad_link" } } });
+  expect(await put(sam, { ...keyLink, title: "t".repeat(201) })).toMatchObject({ status: 400 });
+  expect((await call(sam, "GET", "items")).json.items).toEqual([]);
+  expect((await put(sam, { ...keyLink, body: body(`https://quiet-fox-lamp.trycloudflare.com/p/${"a".repeat(32)}/#key=k`, "form") })).status).toBe(200);
+});
+
+it("keeps a question that takes several answers", async () => {
+  const several = { ...approval, kind: "question", body: JSON.stringify({ text: "Which suppliers?", options: ["Acme", "Boxco"], multi: true }), actions: [] };
+  expect((await put(sam, several)).status).toBe(200);
+  expect((await call(sam, "GET", "items")).json.items[0].detail).toEqual({ text: "Which suppliers?", options: ["Acme", "Boxco"], multi: true });
+  expect(await put(sam, { ...several, body: JSON.stringify({ text: "Which?", multi: "yes" }) })).toMatchObject({ status: 400 });
 });
 
 it("refuses a service token and an open workspace, which name no person", async () => {

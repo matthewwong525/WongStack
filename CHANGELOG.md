@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 44.6.0 — Every private link and form listed in your inbox
+
+- **Private links wait in your inbox.** A key, password, card or form link, and a live view, shows under *Needs you* until it closes. *Open* opens it in a new tab. The app holds only its address, kind, title and closing time: never what you type, a username, or a note, so a password link opened there asks for the username.
+- **Forms opened for you show there too**, beside the plan links already in the inbox.
+- **Type your own answer on any decision.** Each question and approval has one box under its choices; what you type is the answer, in place of the old note. A question that allows several answers has tick boxes, sent together with your words.
+- **Links in a question open in a new tab**, without picking a choice.
+- **A question answered in its own chat leaves the inbox.** The daily chief of staff spots it at its next check and says *Answered in its chat*.
+
+**Updating.** No step needed. Links show in the inbox once this computer is signed in to the company app. A note you started on a decision before the update is dropped; type it again in the answer box.
+
 ## 44.5.1 — A check never clears a signed-in browser
 
 - **Browser checks keep your sign-ins.** The browsing page now says a helper that needs a clean browser for a test makes a throwaway profile and deletes it, and never clears the cookies of a browser that holds your sign-ins, because that logs you out of every site for good.

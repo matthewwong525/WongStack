@@ -1,13 +1,14 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { LIMITS, openReplyLink } from '../../.agents/skills/hand-over/scripts/reply-link.mjs';
 import { canWake, chatTarget, wakeChat } from '../../.agents/skills/hand-over/scripts/lib/wake.mjs';
+import { inboxCalls, inboxEnv } from './fixtures/fake-inbox.mjs';
 import { fakePaseo, fakeTunnel, ORIGIN, TUNNEL_ENV } from './fixtures/fake-tunnel.mjs';
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -477,4 +478,45 @@ test('a private link opens first and a reply link opens beside it', async t => {
   await until(() => f.server() === null, 'the reply server did not exit');
   assert.equal(existsSync(join(f.root, '.wong-stack/hand-over/watcher.pid')), true, 'closing the reply link leaves the private link open');
   assert.match(f.run(handOver, 'close').stdout, /^HANDOVER_RESULT=closed$/m);
+});
+
+test('a form at a tunnel is listed in the inbox by its link once it prints, and closed with it; a plan never is', async t => {
+  const f = fixture(t);
+  const log = join(f.root, 'inbox.jsonl');
+  Object.assign(f.env, inboxEnv(log));
+  const form = f.page('intake.html');
+  const { id, link } = f.open(form);
+  const { deadline } = f.registration(id);
+  assert.deepEqual(inboxCalls(log), [{ route: 'item', body: { id, kind: 'link', title: HEADER, workspace: basename(f.root),
+    body: JSON.stringify({ what: 'form', url: link }), actions: [], version: 'link', closesAt: deadline } }]);
+  assert.equal(f.registration(id).listed, true);
+  assert.match(f.reply('close', form).stdout, /^REPLY_CLOSED=yes$/m);
+  assert.deepEqual(inboxCalls(log).at(-1), { route: 'item-close', body: { id } });
+
+  // A plan the inbox can't take falls back to a tunnel, and is still never listed as a link.
+  Object.assign(f.env, inboxEnv(log, { status: 404 }));
+  f.open(f.page('review.html', '<!-- wong-review:3 -->\n<title>Plan</title>'));
+  assert.deepEqual(inboxCalls(log).slice(2).map(call => call.route), ['items']);
+});
+
+test('an inbox that never answers delays no reply link: it prints first, and the command ends once the listing gives up in 3 s', async t => {
+  const f = fixture(t);
+  Object.assign(f.env, inboxEnv(join(f.root, 'inbox.jsonl'), { hang: true }));
+  const form = f.page('intake.html');
+  const started = Date.now();
+  const child = spawn(process.execPath, [script, 'open', form, '--header', HEADER], { cwd: f.root, env: f.env });
+  let printed = 0;
+  let out = '';
+  child.stdout.on('data', chunk => { out += chunk; printed ||= /REPLY_LINK=/.test(out) && Date.now(); });
+  const status = await new Promise(done => child.on('close', done));
+  const ended = Date.now();
+  assert.equal(status, 0);
+  const [, id] = LINK.exec(out);
+  assert.ok(ended - printed >= 2500 && ended - printed < 6000, `${ended - printed} ms after the link`);
+  assert.ok(ended - started < 10_000, `ended ${ended - started} ms after it started, while the app call still hung`);
+  assert.equal(f.registration(id).listed, undefined);
+  // Closing it waits for no hung app either.
+  const closing = Date.now();
+  assert.match(f.reply('close', form).stdout, /^REPLY_CLOSED=yes$/m);
+  assert.ok(Date.now() - closing < 6000, `close took ${Date.now() - closing} ms`);
 });

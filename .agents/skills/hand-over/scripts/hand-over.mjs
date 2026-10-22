@@ -16,6 +16,8 @@ import { lookCss } from '../../plan/scripts/look.mjs';
 import { client as browseClient, sessionName } from '../../browser/scripts/browse.mjs';
 import { checkForm, FORM_ROUTES, formRoutes, LIMITS as FORM_LIMITS, sendForm } from './form.mjs';
 import { APP_FILE, checkGuide, KEY_ROUTES, keyRoutes, LIMITS as KEY_LIMITS, NAME as KEY_NAME, resolveKeys } from './keys.mjs';
+import { readableName } from './keys-page.mjs';
+import { closeItem, companyFor, inTime, listLink } from './lib/inbox.mjs';
 import { appendTiming, linkOf } from './lib/timings.mjs';
 import { alive, freePort, hasCloudflared, keyMatches, killTunnel, linkAnswers, signal, startTunnel } from './lib/tunnel.mjs';
 import { chatTarget, wakeChat } from './lib/wake.mjs';
@@ -32,7 +34,7 @@ const USAGE = `usage: hand-over.mjs open --form <file> (--until <glob> | --until
        hand-over.mjs open --keys NAME[,NAME] [--guide <file>] [--minutes N]
        hand-over.mjs wait | close | install-view
   open    start the private link, print HANDOVER_LINK=<url> once it answers through
-          Cloudflare, and watch for the finish
+          Cloudflare, list its address (no username) in the app's inbox, and watch for the finish
           --form: a JSON file of title, note, fields (label, kind, target, options),
           and submit (label, target), drawn as one box per field (exit 2 with
           FORM_FILE=); the person's one send fills the site's fields and presses its
@@ -76,14 +78,14 @@ const SEND_POLL_MS = Number(process.env.HANDOVER_SEND_POLL_MS) || 500;
 const WATCH_MS = Number(process.env.HANDOVER_WATCH_MS) || 10 * 60_000;
 const KEEP_MS = Number(process.env.HANDOVER_KEEPALIVE_MS) || 60_000;
 const DIR = join(homedir(), '.wong-stack', 'hand-over');
-const FILES = { pid: join(DIR, 'watcher.pid'), state: join(DIR, 'state.json'), result: join(DIR, 'result.json'), log: join(DIR, 'tunnel.log'), config: join(DIR, 'cloudflared.yml'), opened: join(DIR, 'opened'), replaced: join(DIR, 'replaced.json'), picture: join(DIR, 'picture.png'), timings: join(DIR, 'timings.jsonl'), reported: join(DIR, 'reported'), closing: join(DIR, 'closing') };
+const FILES = { pid: join(DIR, 'watcher.pid'), state: join(DIR, 'state.json'), result: join(DIR, 'result.json'), log: join(DIR, 'tunnel.log'), config: join(DIR, 'cloudflared.yml'), opened: join(DIR, 'opened'), replaced: join(DIR, 'replaced.json'), picture: join(DIR, 'picture.png'), timings: join(DIR, 'timings.jsonl'), reported: join(DIR, 'reported'), closing: join(DIR, 'closing'), shown: join(DIR, 'shown') };
 /** The files only a reachable link needs; a watch after the send drops them and keeps the rest. */
 const dropInput = () => { for (const file of [FILES.log, FILES.config, FILES.opened, FILES.picture]) rmSync(file, { force: true }); };
 /** Removes a link's own files, the pid last: `wait` reads its absence as the end. Its result stays, and
  * so does the give-way record, which `wait` may read after this. */
 const clearLink = () => {
   dropInput();
-  for (const file of [FILES.state, FILES.reported, FILES.closing, FILES.pid]) rmSync(file, { force: true });
+  for (const file of [FILES.state, FILES.reported, FILES.closing, FILES.shown, FILES.pid]) rmSync(file, { force: true });
 };
 /** Adds one line to the timing record; a record that can not be written never stops a link. */
 const time = (completionId, entry) => {
@@ -448,7 +450,7 @@ async function open(values) {
     console.error('Cloudflare\'s tunnel tool, cloudflared, is not installed; ask the person, install it, and retry.');
     return 3;
   }
-  for (const file of [FILES.result, FILES.opened, FILES.picture, FILES.reported, FILES.closing]) rmSync(file, { force: true });
+  for (const file of [FILES.result, FILES.opened, FILES.picture, FILES.reported, FILES.closing, FILES.shown]) rmSync(file, { force: true });
   const deadline = Date.now() + values.minutes * 60_000;
   let tunnelPid = null;
   let watcher = null;
@@ -479,15 +481,38 @@ async function open(values) {
   const tunnel = await startTunnel(port, tunnelDeadline, FILES);
   tunnelPid = tunnel.pid;
   if (!tunnel.origin) return fail(tunnelDown);
-  writeFileSync(FILES.state, `${JSON.stringify({ completionId: randomBytes(16).toString('hex'), ...chatTarget(), tunnelPid, port, session, key, passwords: Boolean(values.passwords), keys, form, view, picture: pictured, ...finish, deadline })}\n`, { mode: 0o600 });
-  const child = spawn(process.execPath, [fileURLToPath(import.meta.url), 'watch'], { detached: true, stdio: 'ignore' });
+  const completionId = randomBytes(16).toString('hex');
+  const listing = listingOf({ completionId, key, keys, form, view, deadline }, tunnel.origin, values);
+  writeFileSync(FILES.state, `${JSON.stringify({ completionId, ...chatTarget(), tunnelPid, port, session, key, passwords: Boolean(values.passwords), keys, form, view, picture: pictured, ...finish, deadline })}\n`, { mode: 0o600 });
+  // The listing holds the site, so it rides in the watcher's environment, never in a file.
+  const env = { ...process.env, HANDOVER_LISTING: JSON.stringify(listing) };
+  const child = spawn(process.execPath, [fileURLToPath(import.meta.url), 'watch'], { detached: true, stdio: 'ignore', env });
   watcher = child.pid;
   writeFileSync(FILES.pid, `${watcher}\n`);
   child.unref();
   if (!(await pageAnswers(port, watcher))) return fail('The link\'s page did not start; try again.');
   if (!(await linkAnswers(tunnel.origin, port, tunnelPid, tunnelDeadline))) return fail(tunnelDown);
   console.log(`HANDOVER_LINK=${tunnel.origin}/#${linkFragment(key, values)}`);
+  // The watcher lists the link in the inbox once the chat has it, so open returns at once.
+  writeFileSync(FILES.shown, '');
   return 0;
+}
+
+/** What the inbox lists for a link: its address without the username, and a title from what the opener already has,
+ * never a value, a note, or a picture. */
+export function listingOf({ completionId, key, keys, form, view, deadline }, origin, { site, 'email-first': emailFirst } = {}, cwd = process.cwd()) {
+  const [what, title] = keys ? ['key', keys.keys.map(each => each.guide?.title ?? readableName(each.name)).join(', ')]
+    : form ? ['card', form.title] : view ? ['view', 'Help the browser past a check']
+      : ['login', site ? `Save your ${hostOf(siteUrl(site))} login` : 'Save your logins'];
+  const url = `${origin}/#${linkFragment(key, { site, 'email-first': emailFirst })}`;
+  return { id: completionId, what, title: title.slice(0, 200), url, closesAt: deadline, workspace: basename(cwd).slice(0, 100) };
+}
+
+/** Lists a link in the inbox; resolves to the client that closes it, or null when the app is out of reach. */
+async function list(listing) {
+  const client = await companyFor();
+  if (client) await listLink(client, listing);
+  return client;
 }
 
 /** The link's `#` part: the key, then any site and username to pre-fill, and an email-first mark, URL-encoded. */
@@ -500,6 +525,8 @@ export function linkFragment(key, { site, username, 'email-first': emailFirst } 
 async function watch() {
   const state = readJson(FILES.state);
   if (!state) return 1;
+  const listing = JSON.parse(process.env.HANDOVER_LISTING ?? 'null');
+  delete process.env.HANDOVER_LISTING;
   let done = false;
   // open, then sending once the person sends, then watching once a send is unconfirmed.
   let phase = 'open';
@@ -511,6 +538,13 @@ async function watch() {
   const live = state.view ? liveView(state.view, page) : null;
   const saved = page ? undefined : [];
   const record = entry => time(state.completionId, entry);
+  // The inbox's listing of the link, once open has printed it: every end below closes it.
+  let listed = null;
+  // One 3 s limit for the listing and its close together: a stalled app never holds the link's end back.
+  const unlist = () => inTime((async () => {
+    const client = await listed;
+    if (client) await closeItem(client, listing.id);
+  })());
   /** Writes `outcome` as the result, tells the chat when `notifies`, and writes it again with how that went. */
   const publish = async (outcome, notifies, target = state) => {
     outcome.notification = notifies ? 'pending' : 'not-requested';
@@ -533,9 +567,11 @@ async function watch() {
       const outcome = await publish({ result, ready, ...(watching && { watching: true }), ...(saved && { saved }), ...(appKeys && { appKeys }), ...(state.keys && { opened: existsSync(FILES.opened) }), completionId: state.completionId }, ready || watching);
       closePage?.setReceipt(outcome);
       // Receipt delivery is independent of the client: even a vanished client cannot retain input.
-      inputDown = sleep(1200).then(async () => {
+      const shutDown = sleep(1200).then(async () => {
         await closePage?.();
         await killTunnel(state.tunnelPid);
+      });
+      inputDown = Promise.all([shutDown, unlist()]).then(() => {
         if (watching) return dropInput();
         clearLink();
         process.exit(0);
@@ -607,6 +643,7 @@ async function watch() {
   const keepOpen = () => (live ? live.fit() : page.keepAlive());
   let keepAt = Date.now() + KEEP_MS;
   while (!done) {
+    if (!listed && listing && existsSync(FILES.shown)) listed = list(listing);
     const idle = phase === 'open';
     if (idle && Date.now() >= state.deadline) return finish('timeout', { cause: 'deadline' });
     const ended = live && (await pollView());

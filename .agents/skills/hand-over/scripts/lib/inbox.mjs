@@ -27,7 +27,19 @@ export async function probe(client) {
 
 /** Writes an item: `{id, kind, title, workspace, body, actions, version, closesAt}`. */
 export const upload = (client, item) => ask(client, 'item', 'PUT', item);
-export const closeItem = (client, id) => ask(client, 'item-close', 'POST', { id });
+
+// A private link opens whether or not the app answers: a listing, or its close, waits at most this long.
+const LINK_WAIT_MS = 3_000;
+/** `call`'s answer, or null once LINK_WAIT_MS passes first. */
+export function inTime(call) {
+  let timer;
+  return Promise.race([call, new Promise(done => { timer = setTimeout(done, LINK_WAIT_MS, null); })]).finally(() => clearTimeout(timer));
+}
+
+/** Lists a private link by its address alone, never what the person types into it; null when that failed. */
+export const listLink = (client, { id, what, title, url, closesAt, workspace }) => inTime(upload(client,
+  { id, kind: 'link', title, workspace, body: JSON.stringify({ what, url }), actions: [], version: 'link', closesAt }));
+export const closeItem = (client, id) => inTime(ask(client, 'item-close', 'POST', { id }));
 /** Collects the taps waiting on `items`, `[{id, item, action, text, version}]`, or null. Each one is this computer's
  * to deliver from then on: the app hands it out once, and fails it when no result comes. */
 export const checkin = async (client, items) => (await ask(client, 'checkin', 'POST', { items }))?.taps ?? null;

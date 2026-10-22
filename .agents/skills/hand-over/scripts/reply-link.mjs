@@ -11,7 +11,7 @@ import { basename, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain, parseCli, usageError } from '../../memory/scripts/lib/cli.mjs';
 import { lookCss } from '../../plan/scripts/look.mjs';
-import { checkin, closeItem, companyFor, probe, tapResult, upload } from './lib/inbox.mjs';
+import { checkin, closeItem, companyFor, inTime, listLink, probe, tapResult, upload } from './lib/inbox.mjs';
 import { alive, freePort, hasCloudflared, keyMatches, killTunnel, linkAnswers, signal, startTunnel } from './lib/tunnel.mjs';
 import { canWake, chatTarget, liveChats, wakeChat } from './lib/wake.mjs';
 
@@ -20,7 +20,7 @@ const USAGE = `usage: reply-link.mjs open <file> --header "<line>" [--hours N] [
   open    show one self-contained HTML file at a link that closes itself and print
           REPLY_LINK=<url>; its page sends text to this chat under the header line.
           A plan's review page opens in the live app's inbox when it answers this person;
-          any other page, or no inbox, opens at a tunnel.
+          any other page, or no inbox, opens at a tunnel, and the inbox lists that link after it prints.
           Prints REPLY_LINK=none and REPLY_REASON=off|no-chat|no-cloudflared|tunnel-down
           where no link can open, and exits 0: fall back to the file
           --header: the fixed first line of every message the page sends
@@ -213,6 +213,7 @@ async function serve(port, tunnelPid) {
     server.close();
     server.closeAllConnections();
     await killTunnel(tunnelPid);
+    await unlist(openPages(state));
     if (readJson(state.server)?.pid === process.pid) for (const file of [state.server, state.log, state.config]) rmSync(file, { force: true });
     process.exit(0);
   };
@@ -474,7 +475,23 @@ async function serveInbox() {
   }
 }
 
-/** `{link}` for the file's reply link, the inbox's first, or `{link: null, reason}` where none can open. */
+/** Lists a tunnel page in the inbox as a form, by its link alone, and marks it so its close closes the item there. */
+async function listPage(state, page, link, cwd = process.cwd()) {
+  const client = await companyFor();
+  const item = { id: page.id, what: 'form', title: page.header.slice(0, 200), url: link, closesAt: page.deadline, workspace: basename(cwd).slice(0, 100) };
+  if (!client || !(await listLink(client, item)) || !readPage(state, page.id)) return;
+  writeFileSync(pageFile(state, page.id), `${JSON.stringify({ ...page, listed: true })}\n`, { mode: 0o600 });
+}
+
+/** Closes in the inbox each of `pages` it lists. */
+async function unlist(pages) {
+  const listed = pages.filter(page => page.listed);
+  const client = listed.length > 0 && (await companyFor());
+  if (client) await Promise.all(listed.map(page => closeItem(client, page.id)));
+}
+
+/** `{link}` for the file's reply link, the inbox's first, or `{link: null, reason}` where none can open. A page at a
+ * tunnel that is no plan comes back as `page`, for the inbox to list. */
 async function openLink({ file, header, actions = {}, hours = HOURS, env = process.env, cwd = process.cwd(), inbox = {} }) {
   const checked = checkActions(Object.entries(actions));
   if (env.REPLY_LINK === 'off') return { link: null, reason: 'off' };
@@ -490,7 +507,8 @@ async function openLink({ file, header, actions = {}, hours = HOURS, env = proce
     rmSync(pageFile(state, page.id), { force: true });
     return { link: null, reason: server.reason };
   }
-  return { link: `${server.origin}/p/${page.id}/#key=${page.key}` };
+  const plan = readFileSync(real, 'utf8').startsWith(PLAN_MARK);
+  return { link: `${server.origin}/p/${page.id}/#key=${page.key}`, ...(!plan && { page }) };
 }
 
 /** The file's reply link, or null, quickly and quietly, where none can open: the caller then offers the file.
@@ -508,9 +526,11 @@ function realFile(file) {
 }
 
 async function open(file, { header, actions, hours }) {
-  const { link, reason } = await openLink({ file: realFile(file), header, actions, hours });
+  const { link, reason, page } = await openLink({ file: realFile(file), header, actions, hours });
   console.log(`REPLY_LINK=${link ?? 'none'}`);
   if (!link) console.log(`REPLY_REASON=${reason}`);
+  // The chat has its link first: the inbox's listing waits at most 3 s, and a failed one changes nothing.
+  if (page) await inTime(listPage(files(), page, link));
 }
 
 async function close(file) {
@@ -518,7 +538,10 @@ async function close(file) {
   let path = resolve(file);
   try { path = realpathSync(file); } catch { /* a deleted file's link still closes */ }
   const page = openPages(state).find(open => open.file === path);
-  if (page) rmSync(pageFile(state, page.id), { force: true });
+  if (page) {
+    rmSync(pageFile(state, page.id), { force: true });
+    await unlist([page]);
+  }
   const item = openItems(state).find(open => open.file === path);
   if (item) await closeInboxItem(item.id);
   console.log(`REPLY_CLOSED=${page || item ? 'yes' : 'no'}`);
@@ -541,4 +564,6 @@ if (isMain(import.meta.url)) {
   let actions;
   try { actions = checkActions((values.action ?? []).map(pair => pair.split(/=(.*)/s).slice(0, 2))); } catch (error) { usageError(USAGE, error.message); }
   await { open: () => open(rest[0], { header, actions, hours }), close: () => close(rest[0]), list, serve: () => serve(Number(rest[0]), Number(rest[1])), 'serve-inbox': serveInbox }[command]();
+  // An app call past its 3 s wait would keep the process, and the chat's answer, alive until it fails.
+  if (command === 'open' || command === 'close') process.exit(process.exitCode ?? 0);
 }

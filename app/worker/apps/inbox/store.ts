@@ -6,7 +6,8 @@ import { defineAction, humanEmail, type Action } from "../../api/contract.ts";
 type Env = Parameters<Action["handler"]>[1];
 type Identity = Parameters<NonNullable<Action["allowed"]>>[0];
 
-export const LIMITS = { bodyBytes: 512 * 1024, text: 20_000, title: 200, workspace: 100, actions: 6, detail: 2000, option: 300, options: 6 };
+export const LIMITS = { bodyBytes: 512 * 1024, text: 20_000, title: 200, workspace: 100, actions: 6, detail: 2000, option: 300, options: 6,
+  urlBytes: 2048 };
 /** A computer that checked in this recently is online: six missed check-ins means it is gone, not slow. */
 const ONLINE_MS = 60_000;
 /** A closed item and its taps are kept a day, then removed at a check-in. */
@@ -20,15 +21,29 @@ export const itemId = z.string().regex(/^[0-9a-f]{32}$/);
 export const actionName = z.string().regex(/^[a-z][a-z0-9-]{0,30}$/);
 const time = z.number().int().nonnegative();
 const tapState = z.enum(["waiting", "delivering", "sent", "failed", "changed", "cancelled", "expired"]);
-/** An approval's or a question's words: what it asks, and a question's options. */
+/** An approval's or a question's words: what it asks, a question's options, and whether it takes several of them. */
 export const detail = z.strictObject({
   text: z.string().min(1).max(LIMITS.detail),
   options: z.array(z.string().min(1).max(LIMITS.option)).max(LIMITS.options).optional(),
+  multi: z.boolean().optional(),
 });
+export const KINDS = ["plan", "approval", "question", "link"] as const;
+/** What a private link is for. */
+const LINK_KINDS = ["key", "login", "card", "form", "view"] as const;
+
+/** True for an `https` address on a Cloudflare quick tunnel, with no login in it and within the limit: the only
+ *  address a link item may hold, so the inbox never sends the person anywhere else. */
+function tunnelAddress(text: string) {
+  if (new TextEncoder().encode(text).byteLength > LIMITS.urlBytes || !URL.canParse(text)) return false;
+  const url = new URL(text);
+  return url.protocol === "https:" && url.hostname.endsWith(".trycloudflare.com") && !url.username && !url.password && !url.port;
+}
+/** A private link item's body: what it is for and its address. */
+export const link = z.strictObject({ what: z.enum(LINK_KINDS), url: z.string().refine(tunnelAddress) });
 export const tap = z.strictObject({ id: itemId, item: itemId, action: z.string(), text: z.string(), state: tapState });
 export const item = z.strictObject({
-  id: itemId, kind: z.enum(["plan", "approval", "question"]), title: z.string(), workspace: z.string(), actions: z.array(z.string()),
-  version: z.string(), createdAt: time, closesAt: time, detail: detail.nullable(), tap: tap.nullable(),
+  id: itemId, kind: z.enum(KINDS), title: z.string(), workspace: z.string(), actions: z.array(z.string()),
+  version: z.string(), createdAt: time, closesAt: time, detail: detail.nullable(), link: link.nullable(), tap: tap.nullable(),
 });
 type Item = z.infer<typeof item>;
 
@@ -47,7 +62,7 @@ async function scope(env: Env, identity: Identity): Promise<Scope> {
 const ERRORS = {
   not_found: "No such item or tap.", closed: "This item has closed.", changed: "The plan changed since you loaded it.",
   done: "That was already sent.", not_waiting: "That tap is no longer waiting.", too_large: "The body is larger than 512 KB.",
-  bad_detail: "An approval or question needs its words as JSON.", bad_action: "The item offers no such action, or the notes are empty.",
+  bad_detail: "An approval or question needs its words as JSON.", bad_link: "A link needs its kind and an https tunnel address, and no actions.", bad_action: "The item offers no such action, or the notes are empty.",
   too_soon: "Wait a few seconds, then try again.",
 };
 export const fail = (code: keyof typeof ERRORS, status: number) => Response.json({ error: { code } }, { status });
@@ -89,11 +104,12 @@ export const ITEM_COLUMNS = `id, kind, title, workspace, actions, version, creat
 export type ItemRow = { id: string; kind: Item["kind"]; title: string; workspace: string; actions: string; version: string;
   created_at: number; closes_at: number; closed_at: number | null; detail: string | null; tap: string | null };
 
-export const listed = (row: ItemRow): Item => ({
-  id: row.id, kind: row.kind, title: row.title, workspace: row.workspace, actions: JSON.parse(row.actions), version: row.version,
-  createdAt: row.created_at, closesAt: row.closes_at, detail: row.detail === null ? null : JSON.parse(row.detail),
-  tap: row.tap === null ? null : JSON.parse(row.tap),
-});
+export const listed = (row: ItemRow): Item => {
+  const body = row.detail === null ? null : JSON.parse(row.detail);
+  return { id: row.id, kind: row.kind, title: row.title, workspace: row.workspace, actions: JSON.parse(row.actions), version: row.version,
+    createdAt: row.created_at, closesAt: row.closes_at, detail: row.kind === "link" ? null : body, link: row.kind === "link" ? body : null,
+    tap: row.tap === null ? null : JSON.parse(row.tap) };
+};
 
 /** The caller's open item `id` with `extra` columns, or the answer that says why there is none: unknown or closed. */
 export async function openItem<Row extends ItemRow>(at: Scope, id: string, extra = ""): Promise<Row | Response> {

@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import type { Item } from './api'
 
 type Acts = {
-  item: Item | undefined; move: (item: Item, by: number) => void; pick: (item: Item, n: number) => void; note: (item: Item) => void
+  item: Item | undefined; move: (item: Item, by: number) => void; pick: (item: Item, n: number) => void; write: (item: Item) => void
   clear: (item: Item) => void; send: () => void
 }
 const MOVES: Record<string, number> = { j: 1, arrowdown: 1, k: -1, arrowup: -1 }
@@ -12,7 +12,7 @@ const typing = (target: EventTarget | null) => target instanceof Element && targ
 function action(key: string, acts: Acts, item: Item): (() => void) | null {
   if (Object.hasOwn(MOVES, key)) return () => acts.move(item, MOVES[key])
   if (/^[1-6]$/.test(key)) return () => acts.pick(item, Number(key) - 1)
-  return key === 'n' ? () => acts.note(item) : key === 'z' ? () => acts.clear(item) : null
+  return key === 'n' ? () => acts.write(item) : key === 'z' ? () => acts.clear(item) : null
 }
 
 /** The decisions' keys, as on a daily decisions page. None fires while the person types, but Ctrl/⌘ Enter sends. */

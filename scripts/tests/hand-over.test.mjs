@@ -12,6 +12,7 @@ import { finished, globToRegExp, keyMatches, servePage, tunnelOrigin } from '../
 import { appendTiming, KEEP, linkOf } from '../../.agents/skills/hand-over/scripts/lib/timings.mjs';
 import { VIEWER } from '../../.agents/skills/hand-over/scripts/view.mjs';
 import { BROWSE_ENV, fakeCamofox } from './fixtures/fake-camofox.mjs';
+import { inboxCalls, inboxEnv } from './fixtures/fake-inbox.mjs';
 import { fakeTunnel, ORIGIN, TUNNEL_ENV } from './fixtures/fake-tunnel.mjs';
 import { fakeViewer, fakeViewTools, GREETING, SCREEN, upgrade } from './fixtures/fake-view-tools.mjs';
 
@@ -1422,4 +1423,74 @@ test('a sent card is never saved, accepted or refused, even when the send asks t
     const out = f.run('wait');
     assert.doesNotMatch(out.stdout, /HANDOVER_SAVED/);
   }
+});
+
+/** Fakes the app's inbox for the fixture's commands; returns a reader of each call they made, oldest first. */
+function fakeInbox(f) {
+  const log = join(f.root, 'inbox.jsonl');
+  Object.assign(f.env, inboxEnv(log));
+  return () => inboxCalls(log);
+}
+
+/** The inbox listing of the link `state` describes, once it came, checked to hold only its six fields. */
+async function listing(calls, state) {
+  const put = await eventually(() => calls().find(call => call.route === 'item' && call.body.id === state.completionId));
+  assert.deepEqual(Object.keys(put.body).sort(), ['actions', 'body', 'closesAt', 'id', 'kind', 'title', 'version', 'workspace']);
+  const { body, kind, actions, version, closesAt, ...named } = put.body;
+  assert.deepEqual({ kind, actions, version, closesAt }, { kind: 'link', actions: [], version: 'link', closesAt: state.deadline });
+  assert.deepEqual(Object.keys(JSON.parse(body)).sort(), ['url', 'what']);
+  return { ...named, ...JSON.parse(body) };
+}
+
+const closedIn = calls => calls().filter(call => call.route === 'item-close').map(call => call.body.id);
+
+test('each private link is listed in the inbox by its address alone, and leaves it once given way, closed, or run out', async t => {
+  const f = fixture(t, { checkout: true });
+  const calls = fakeInbox(f);
+  const keys = opened(f, '--keys', 'MAPS_API_KEY');
+  const keyState = stateOf(f);
+  assert.deepEqual(await listing(calls, keyState), { id: keyState.completionId, title: 'Maps API key', workspace: basename(f.cwd), what: 'key', url: keys.link });
+
+  const login = opened(f, '--passwords', '--site', 'https://www.netflix.com/login', '--username', 'sam@example.com', '--email-first');
+  const loginState = stateOf(f);
+  const listed = await listing(calls, loginState);
+  assert.deepEqual(closedIn(calls), [keyState.completionId], 'the key link gave way');
+  assert.match(listed.title, /^Save your (www\.)?netflix\.com login$/);
+  assert.equal(listed.what, 'login');
+  assert.match(login.link, /&user=sam%40example\.com/);
+  assert.equal(listed.url, login.link.replace(/&user=[^&]*/, ''), 'the address without the username');
+  assert.doesNotMatch(JSON.stringify(calls()), /sam/, 'no username leaves the computer');
+  f.run('close');
+  assert.deepEqual(closedIn(calls), [keyState.completionId, loginState.completionId]);
+
+  const form = openedForm(f, '--until', '**/receipt/*', '--minutes', '0.05');
+  const formState = stateOf(f);
+  assert.deepEqual(await listing(calls, formState), { id: formState.completionId, title: CARD.title, workspace: basename(f.cwd), what: 'card', url: form.link });
+  assert.equal(f.run('wait').stdout, 'HANDOVER_RESULT=timeout\n');
+  assert.deepEqual(closedIn(calls).at(-1), formState.completionId);
+  assert.doesNotMatch(JSON.stringify(calls()), /P0178390|\$45|XKCD|png|picture/, 'no note, value, or picture is sent');
+});
+
+test('an app that never answers holds back no link\'s end: a new key link takes an unopened one\'s place, and close returns, in time', async t => {
+  const f = fixture(t, { checkout: true });
+  Object.assign(f.env, inboxEnv(join(f.root, 'inbox.jsonl'), { hang: true }));
+  opened(f, '--keys', 'MAPS_API_KEY');
+  // The listing and its close share one 3 s limit, run beside the 1.2 s pause: well inside close's 5 s check.
+  for (const step of [() => opened(f, '--keys', 'MAPS_API_KEY'), () => assert.match(f.run('close').stdout, /^HANDOVER_RESULT=closed$/m)]) {
+    const began = Date.now();
+    step();
+    assert.ok(Date.now() - began < 5000, `${Date.now() - began} ms`);
+  }
+});
+
+test('a live view is listed by what it asks, never its note, and leaves the inbox once done', linux, async t => {
+  const f = fixture(t, { view: true });
+  const calls = fakeInbox(f);
+  const link = openedView(f, '--until-gone', '#check', '--note', 'Tap the box that says you are human');
+  const state = stateOf(f);
+  assert.deepEqual(await listing(calls, state), { id: state.completionId, title: 'Help the browser past a check', workspace: basename(process.cwd()), what: 'view', url: link.link });
+  f.set('count', '0');
+  assert.equal(f.run('wait').stdout, 'HANDOVER_RESULT=done\n');
+  assert.deepEqual(closedIn(calls), [state.completionId]);
+  assert.doesNotMatch(JSON.stringify(calls()), /human/);
 });
