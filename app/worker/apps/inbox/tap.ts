@@ -13,10 +13,10 @@ async function tooSoon(at: Scope, item: string) {
   return last?.at != null && at.now - last.at < TAP_GAP_MS;
 }
 
-/** The answer that refuses this tap, or null: a link, which only opens, an action the item doesn't offer, notes with no
- *  text, an old version, or an action already waiting or sent for this version. `send` may go more than once. */
+/** The answer that refuses this tap, or null: a link or an agent's status, which take none, an action the item lacks,
+ *  empty notes, an old version, or an action already waiting or sent for this version. `send` may go more than once. */
 async function refused(at: Scope, row: ItemRow, { action, version, text = "" }: Input) {
-  if (row.kind === "link" || (action === "send" ? !text.trim() : !JSON.parse(row.actions).includes(action))) return fail("bad_action", 400);
+  if (row.kind === "link" || row.kind === "agent" || (action === "send" ? !text.trim() : !JSON.parse(row.actions).includes(action))) return fail("bad_action", 400);
   if (version !== row.version) return fail("changed", 409);
   if (action === "send") return null;
   const before = await mine(at, `SELECT 1 FROM inbox_taps WHERE installation_id = ?1 AND email = ?2 AND item_id = ?3 AND action = ?4

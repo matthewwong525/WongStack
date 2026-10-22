@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — One inbox for your agents, planned before they work
+
+- **The inbox is a list of your agents.** One card per agent, in three groups: *Needs you* when anything waits on your answer, *Working* with its latest step and the chief's last action, and *Done* with the proof the chief checked. Questions, approvals, plans and private links sit inside their agent's card.
+- **Morning agents plan before they work.** Each agent `/daily` opens in the morning reads, writes a short plan, and stops. Once the plans are in, or 15 minutes after the first, each waits in the inbox as a card on *Go*: flip any to *Not today*, answer its questions, add a note, and tap *Start N agents*.
+- **Not today closes the agent's workspace.** A one-off task comes back as tomorrow's reminder.
+- **Tasks you hand the daily chat later start at once**, with no plan first.
+- **Without the inbox, the daily chat asks** which agents go today, in one question.
+
+**Updating.** No step needed. *Done* cards clear when the next day's `/daily` starts watching.
+
 ## 44.6.0 — Every private link and form listed in your inbox
 
 - **Private links wait in your inbox.** A key, password, card or form link, and a live view, shows under *Needs you* until it closes. *Open* opens it in a new tab. The app holds only its address, kind, title and closing time: never what you type, a username, or a note, so a password link opened there asks for the username.

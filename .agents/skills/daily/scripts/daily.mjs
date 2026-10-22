@@ -2,13 +2,15 @@
 // /daily's fixed parts: who, which steps file, which workspaces opened today, the chief's watch and hands, reminders.
 // The assistant judges which steps are due and what a stop needs; the script holds the limits a model could drift past.
 import { spawnSync } from 'node:child_process';
-import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain, parseCli, usageError } from '../../memory/scripts/lib/cli.mjs';
 import { loadConfig, memoryOrigin, repoContext, signIn, signInHelp } from '../../memory/scripts/lib/store.mjs';
 import { EXIT, PaseoError, findPaseo, paseo } from '../../schedule/scripts/lib/paseo.mjs';
 import { closeInboxItem, openInboxItem } from '../../hand-over/scripts/reply-link.mjs';
+import { companyFor } from '../../hand-over/scripts/lib/inbox.mjs';
 import { chatTarget } from '../../hand-over/scripts/lib/wake.mjs';
 
 const SKILL = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -19,15 +21,22 @@ const BUCKETS = ['keep-going', 'pick', 'person'];
 // The chief's own actions in a row on one agent before the next stop goes to the person.
 export const STREAK = 5;
 const LAST_CHARS = 4000;
+// How long the morning waits for plans after the first planning agent opened.
+const PLAN_MS = 15 * 60e3;
+// A done card stays until the next day's watch clears it.
+const STATUS_HOURS = 36;
 const USAGE = `usage: daily.mjs who
        daily.mjs opened [--day <YYYY-MM-DD>] [--email <address>]
-       daily.mjs open --step <text> --title <name> --brief <file> [--day <YYYY-MM-DD>] [--email <address>]
+       daily.mjs open --step <text> --title <name> --brief <file> [--plan-first] [--day <YYYY-MM-DD>] [--email <address>]
        daily.mjs watch [--seconds 60] [--hours 10] [--once]
        daily.mjs hand --agent <id|title|workspace>
        daily.mjs reply --agent <id|title|workspace> --file <text file> --bucket keep-going|pick|person --label <line>
        daily.mjs answer --agent <id|title|workspace> --request <id> --file <text file> --bucket keep-going|pick|person --label <line>
        daily.mjs status
        daily.mjs inbox add --kind approval|question --agent <name> --title <line> --file <JSON {text, options?, multi?}> [--request <id>]
+       daily.mjs inbox add --kind start --agent <name>
+       daily.mjs start --agent <id|title|workspace> [--choice go|skip] [--file <note and answers>]
+       daily.mjs done-agent --agent <id|title|workspace> --proof <text>
        daily.mjs inbox close --id <item id>
        daily.mjs remind --day <YYYY-MM-DD> --text <words>
        daily.mjs reminders [--day <YYYY-MM-DD>]
@@ -91,6 +100,7 @@ const readJson = (file, fallback) => { try { return JSON.parse(readFileSync(file
 const writeJson = (file, value) => { mkdirSync(dirname(file), { recursive: true }); writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`); };
 const dayFile = (stateDir, day) => join(stateDir, `${day}.json`);
 const readDay = (stateDir, day) => readJson(dayFile(stateDir, day), []);
+const writeText = (file, text) => { mkdirSync(dirname(file), { recursive: true }); writeFileSync(file, text); };
 const sameStep = step => step.trim().replace(/\s+/g, ' ');
 
 /** The workspaces this person opened or handed over on `day`. */
@@ -106,19 +116,54 @@ export function launchWorkspace({ title, brief, env }) {
   return { ...report, code: run.status };
 }
 
-/** Opens one step's workspace once per person, step and day: `opened`, `already`, `unsupported` or `failed`. */
-export function open({ stateDir, day, email, step, title, brief, env = process.env, launch = launchWorkspace, now = new Date() }) {
+// The brief's sixth part: the script names the plan's file and shape, so a plan is checked by code, not judged.
+const planFirst = file => `\n\n## Plan first\n\nRead only for now: change, save, send or pay for nothing. Write your plan as JSON to ${file}:
+{"willDo": ["…"], "needs": ["…"], "askFirst": ["…"], "questions": [{"text": "…", "options": ["…"], "several": true}]}
+willDo is what you will do; needs, what you need from the person; askFirst, what you will ask before you act outside your
+own work; questions, what you need answered now (options and several are optional). Each list holds up to 6 lines of up
+to 300 characters. Then stop, and wait for Go.\n`;
+
+/** Opens one step's workspace once per person, step and day: `opened`, `already`, `unsupported` or `failed`. With
+ *  `plan`, the agent first writes its plan to `<day>.plans/<n>.json` and stops. */
+export function open({ stateDir, day, email, step, title, brief, plan = false, env = process.env, launch = launchWorkspace, now = new Date() }) {
   const key = { email: email.toLowerCase(), step: sameStep(step) };
   const before = readDay(stateDir, day).find(entry => entry.email === key.email && entry.step === key.step);
   if (before) return { status: 'already', ...before };
   // Only a chat inside Paseo can open a workspace the person sees; elsewhere the step runs in the chat.
   if (!env.PASEO_AGENT_ID) return { status: 'unsupported', ...key, reason: 'This chat is not in Paseo.' };
-  const result = launch({ title, brief, env });
+  const paths = plan ? plansAt(stateDir, day, readDay(stateDir, day).length + 1) : null;
+  if (paths) {
+    const text = readText(brief);
+    if (typeof text !== 'string') return { status: 'failed', ...key, error: text.error };
+    writeText(paths.brief, `${text}${planFirst(paths.plan)}`);
+  }
+  const result = launch({ title, brief: paths?.brief ?? brief, env });
   if (result.code === EXIT.noPaseo || result.code === EXIT.noDaemon) return { status: 'unsupported', ...key, reason: result.error };
   if (!result.ok) return { status: 'failed', ...key, error: result.error ?? 'The workspace did not open.' };
-  const entry = { ...key, title, workspace: result.workspaceName ?? result.title ?? title, workspaceId: result.workspaceId ?? null, agentId: result.agentId ?? null, at: now.toISOString() };
+  const entry = { ...key, title, workspace: result.workspaceName ?? result.title ?? title, workspaceId: result.workspaceId ?? null, agentId: result.agentId ?? null, at: now.toISOString(),
+    ...(result.cwd && { folder: basename(result.cwd) }), ...(paths && { phase: 'planning', plan: paths.plan }) };
   writeJson(dayFile(stateDir, day), [...readDay(stateDir, day), entry]);
   return { status: 'opened', ...entry };
+}
+
+const plansAt = (stateDir, day, n) => ({ brief: join(stateDir, `${day}.plans`, `${n}.md`), plan: join(stateDir, `${day}.plans`, `${n}.json`) });
+const short = (value, max) => typeof value === 'string' && value.trim() !== '' && value.length <= max;
+const only = (value, keys) => value !== null && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).every(key => keys.includes(key));
+const lines = value => Array.isArray(value) && value.length <= 6 && value.every(line => short(line, 300));
+const question = ask => only(ask, ['text', 'options', 'several']) && short(ask.text, 2000) && (ask.options === undefined || lines(ask.options))
+  && [undefined, true, false].includes(ask.several);
+
+/** The plan an agent wrote, `{willDo, needs, askFirst, questions}` within the inbox's limits, or null. */
+export function planOf(file) {
+  const plan = file ? readJson(file, null) : null;
+  const sound = only(plan, ['willDo', 'needs', 'askFirst', 'questions']) && ['willDo', 'needs', 'askFirst'].every(key => lines(plan[key]))
+    && Array.isArray(plan.questions) && plan.questions.length <= 6 && plan.questions.every(question);
+  return sound ? plan : null;
+}
+
+/** Writes `patch` onto one person's row of the day file. */
+function setRow(stateDir, day, row, patch) {
+  writeJson(dayFile(stateDir, day), readDay(stateDir, day).map(entry => (entry.email === row.email && entry.agentId === row.agentId ? { ...entry, ...patch } : entry)));
 }
 
 // The chief of staff. The day file is the watch list: every row with an agent, minus the ones gone.
@@ -184,13 +229,18 @@ const notPaseo = error => error instanceof PaseoError && error.code === EXIT.noP
 
 // The inbox: approvals and Needs-you questions wait in the live app for the person, and a tap wakes this chat.
 const inboxFile = (stateDir, day) => join(stateDir, `${day}.inbox.json`);
-const KINDS = ['approval', 'question'];
-const INBOX = { open: openInboxItem, close: closeInboxItem };
+const KINDS = ['approval', 'question', 'start'];
+// `off`: no company sign-in, so no later pass can reach the inbox either.
+const INBOX = { open: openInboxItem, close: closeInboxItem, off: async () => !(await companyFor()) };
+// One item per day, agent and kind, so a second add or a status pass replaces it.
+const itemIdOf = (day, agentId, kind) => createHash('sha256').update(`${day}:${agentId}:${kind}`).digest('hex').slice(0, 32);
+// The agent's own folder, which the items it sends itself carry, so the inbox shows them on one card.
+const folderOf = row => row.folder ?? row.workspace ?? undefined;
+const headerOf = (title, agent) => `Inbox answer for ${title} (${agent}):`;
 
 /** The words an item asks, `{text, options?, multi?}`, or null outside the inbox's limits. */
 function detailOf(file) {
   const detail = readJson(file, null);
-  const short = (value, max) => typeof value === 'string' && value.trim() !== '' && value.length <= max;
   const options = detail?.options;
   const sound = short(detail?.text, 2000) && (options === undefined || (Array.isArray(options) && options.length <= 6 && options.every(option => short(option, 300))));
   const keys = ['text', 'options', 'multi'];
@@ -200,18 +250,31 @@ function detailOf(file) {
 // Each item this day's chief added, as `{id, agent, at, request?, title}`; an older file held bare ids.
 const inboxItems = (stateDir, day) => readJson(inboxFile(stateDir, day), []).map(item => (typeof item === 'string' ? { id: item } : item));
 
-/** Puts an approval or a question in the person's inbox, aimed at this chat; `unavailable` where the inbox is off. */
+/** A planning agent's start card: `ready` with its plan, else still `planning` or `no-plan`. */
+function startOf(stateDir, day, row) {
+  const plan = planOf(row.plan);
+  if (plan) return { state: 'ready', plan };
+  return { state: readJson(watchFile(stateDir, day), { agents: {} }).agents?.[row.agentId]?.plan === 'no-plan' ? 'no-plan' : 'planning' };
+}
+
+/** Puts an approval, a question or a planning agent's start card in the person's inbox, aimed at this chat, on the
+ *  agent's card; `unavailable` where the inbox is off. */
 export async function inboxAdd({ stateDir, day, email, env = process.env, kind, agent, title, file, request, cwd = process.cwd(), inbox = INBOX, now = new Date() }) {
   if (!env.PASEO_AGENT_ID) return unsupported;
-  const detail = detailOf(file);
-  if (!detail) return { status: 'refused', reason: 'file', error: `${file} needs {"text": "…"} with up to 6 "options".` };
-  const header = `Inbox answer for ${title} (${agent}):`;
-  const actions = kind === 'approval' ? { approve: `${header} Approve`, decline: `${header} Decline` } : {};
-  const item = await inbox.open({ kind, title: title.slice(0, 200), body: JSON.stringify(detail), header, actions, hours: 10, target: chatTarget(env, cwd), cwd }, { env });
-  if (!item) return { status: 'unavailable', reason: 'The inbox did not answer: ask in this chat.' };
   const row = watchedRow(watched({ stateDir, day, email }), agent);
-  const entry = { id: item.id, agent: row?.agentId ?? null, at: now.toISOString(), ...(request && { request }), title: title.slice(0, 200) };
-  writeJson(inboxFile(stateDir, day), [...inboxItems(stateDir, day), entry]);
+  const starts = kind === 'start';
+  if (starts && row?.phase !== 'planning') return { status: 'refused', reason: 'planning', error: `${agent} is not a watched agent waiting on its Go.` };
+  if (starts && row.held) return { status: 'refused', reason: 'chosen', error: `${row.title} already has the person's answer; it goes at its next stop.` };
+  const detail = starts ? startOf(stateDir, day, row) : detailOf(file);
+  if (!detail) return { status: 'refused', reason: 'file', error: `${file} needs {"text": "…"} with up to 6 "options".` };
+  const name = String(title ?? row.title).slice(0, 200);
+  const header = headerOf(name, row?.agentId ?? agent);
+  const actions = { approval: { approve: `${header} Approve`, decline: `${header} Decline` }, start: { go: `${header} Go`, skip: `${header} Not today` } }[kind] ?? {};
+  const item = await inbox.open({ kind, title: name, body: JSON.stringify(detail), header, actions, hours: 10, target: chatTarget(env, cwd), cwd,
+    ...(row && { workspace: folderOf(row) }), ...(starts && { id: itemIdOf(day, row.agentId, kind) }) }, { env });
+  if (!item) return { status: 'unavailable', reason: 'The inbox did not answer: ask in this chat.' };
+  const entry = { id: item.id, agent: row?.agentId ?? null, at: now.toISOString(), ...(request && { request }), title: name, ...(starts && { kind }) };
+  writeJson(inboxFile(stateDir, day), [...inboxItems(stateDir, day).filter(kept => kept.id !== item.id), entry]);
   return { status: 'added', id: item.id, link: item.link };
 }
 
@@ -234,7 +297,7 @@ async function closeInbox({ stateDir, day, env, inbox }) {
 // An item answered in its own chat: the chief sent its agent nothing since, and its card left or its stop ended.
 // A reply quicker than a round leaves the agent idle again, so a new last message counts as the stop ending.
 async function answeredElsewhere(item, { list, pending, log, seen, call }) {
-  if (!item.agent || log.some(action => action.agent === item.agent && action.at > item.at)) return false;
+  if (item.kind === 'start' || !item.agent || log.some(action => action.agent === item.agent && action.at > item.at)) return false;
   if (item.request) return !pending.some(ask => ask.id === item.request);
   const status = list.find(agent => agent.id === item.agent)?.status;
   if (status === 'running') return true;
@@ -244,14 +307,90 @@ async function answeredElsewhere(item, { list, pending, log, seen, call }) {
   return last !== null && last !== before;
 }
 
+// A planning agent's stop: `planned` once its plan is sound, else `stopped` for one nudge, then `no-plan`.
+async function planningStop(row, seen, { status, call }) {
+  if (seen.plan === 'planned') return null;
+  if (planOf(row.plan)) { seen.plan = 'planned'; return { event: 'planned', ...describe(row), plan: row.plan }; }
+  if (seen.plan) return null;
+  seen.stops = (seen.stops ?? 0) + 1;
+  if (seen.stops > 1) { seen.plan = 'no-plan'; return { event: 'no-plan', ...describe(row) }; }
+  const last = await lastMessage(call, row.agentId);
+  if (last !== null) seen.last = last;
+  return { event: 'stopped', ...describe(row), status, last, phase: 'planning', plan: row.plan };
+}
+
+/** `plans-ready` once a day: every planning agent planned or has none, or `PLAN_MS` after the first one opened. */
+function plansReady(state, rows, now) {
+  const planning = rows.filter(row => row.phase === 'planning' && !row.held && !state.gone.includes(row.agentId));
+  if (state.plansReady || !planning.length) return null;
+  const first = Math.min(...planning.map(row => Date.parse(row.at)));
+  if (!planning.every(row => state.agents[row.agentId]?.plan) && !(now - first >= PLAN_MS)) return null;
+  state.plansReady = true;
+  return { event: 'plans-ready', agents: planning.map(row => ({ ...describe(row), plan: state.agents[row.agentId]?.plan ?? 'planning' })) };
+}
+
+// Each watched agent's card in the inbox: one `agent` item each, written only when its words change.
+const statusFile = (stateDir, day) => join(stateDir, `${day}.status.json`);
+const firstLine = text => text?.split('\n').map(part => part.trim()).find(Boolean)?.slice(0, 200);
+
+async function statusOf(row, log, call) {
+  const action = log.filter(entry => entry.agent === row.agentId).at(-1)?.label?.slice(0, 300);
+  if (row.proof) return { state: 'done', proof: row.proof, ...(action && { action }) };
+  if (row.phase === 'planning') return { state: 'planning' };
+  const step = firstLine(await lastMessage(call, row.agentId));
+  return { state: 'working', ...(step && { step }), ...(action && { action }) };
+}
+
+/** Writes each changed status; false when the inbox did not answer, leaving the rest for the next pass. */
+async function reportStatus({ stateDir, day, env, rows, log, call, inbox, cwd }) {
+  const file = statusFile(stateDir, day);
+  const kept = readJson(file, {});
+  for (const row of rows) {
+    const body = JSON.stringify(await statusOf(row, log, call));
+    if (kept[row.agentId]?.body === body) continue;
+    const id = itemIdOf(day, row.agentId, 'agent');
+    const title = String(row.title ?? row.agentId).slice(0, 200);
+    const spec = { id, kind: 'agent', title, body, header: headerOf(title, row.agentId), actions: {}, hours: STATUS_HOURS, target: chatTarget(env, cwd), cwd, workspace: folderOf(row) };
+    if (!(await inbox.open(spec, { env }).catch(() => null))) return false;
+    kept[row.agentId] = { id, body, done: Boolean(row.proof) };
+    writeJson(file, kept);
+  }
+  return true;
+}
+
+/** Closes the status items `which` picks from one day's file. */
+async function closeStatus({ stateDir, day, env, inbox }, which) {
+  const file = statusFile(stateDir, day);
+  const kept = readJson(file, {});
+  const ids = Object.keys(kept).filter(agentId => which(agentId, kept[agentId]));
+  for (const agentId of ids) { await inbox.close(kept[agentId].id, { env }); delete kept[agentId]; }
+  if (ids.length) writeJson(file, kept);
+}
+
+/** Clears every earlier day's status items, a done card included. */
+async function clearEarlier({ stateDir, day, env, inbox }) {
+  const earlier = existsSync(stateDir) ? readdirSync(stateDir).map(name => name.match(/^(\d{4}-\d{2}-\d{2})\.status\.json$/)?.[1]).filter(other => other && other < day) : [];
+  for (const other of earlier) {
+    await closeStatus({ stateDir, day: other, env, inbox }, () => true);
+    rmSync(statusFile(stateDir, other), { force: true });
+  }
+}
+
 // Notices; closes only inbox items answered elsewhere. A stop prints once per idle spell, which ends when the agent
 // runs or the chief acts on it; `<day>.watch.json` keeps that across `--once` calls.
-export async function watch({ stateDir, day, email, call, env = process.env, print = console.log, seconds = 60, hours = 10, once = false, now = () => Date.now(), sleep = ms => new Promise(done => setTimeout(done, ms)), inbox = INBOX }) {
+export async function watch({ stateDir, day, email, call, env = process.env, print = console.log, seconds = 60, hours = 10, once = false, now = () => Date.now(), sleep = ms => new Promise(done => setTimeout(done, ms)), inbox = INBOX, cwd = process.cwd() }) {
   const line = event => print(JSON.stringify(event));
-  const end = async reason => { await closeInbox({ stateDir, day, env, inbox }); line({ event: 'end', reason }); };
+  const at = { stateDir, day, env, inbox };
+  const end = async reason => {
+    await closeInbox(at);
+    await closeStatus(at, (agentId, entry) => !entry.done);
+    line({ event: 'end', reason });
+  };
   if (!env.PASEO_AGENT_ID) { line({ event: 'unsupported', reason: unsupported.reason }); return; }
   const file = watchFile(stateDir, day);
   const start = now();
+  let reporting = true;
+  await clearEarlier(at);
   for (;;) {
     const state = readJson(file, { agents: {}, gone: [], notRead: false });
     const rows = watched({ stateDir, day, email }, state.gone);
@@ -275,6 +414,7 @@ export async function watch({ stateDir, day, email, call, env = process.env, pri
           line({ event: 'gone', ...describe(row) });
           state.gone.push(row.agentId);
           delete state.agents[row.agentId];
+          await closeStatus(at, (agentId, entry) => agentId === row.agentId && !entry.done);
           continue;
         }
         const seen = state.agents[row.agentId] ?? { idle: false, at: null, requests: [] };
@@ -286,7 +426,19 @@ export async function watch({ stateDir, day, email, call, env = process.env, pri
         if (agent.status !== 'idle' && agent.status !== 'error') seen.idle = false;
         else if (!asks.length) {
           const actedSince = log.some(entry => entry.agent === row.agentId && seen.at && entry.at > seen.at);
-          if (!seen.idle || actedSince) {
+          const fresh = !seen.idle || actedSince;
+          // A choice the person made while it ran: its stop is the chief's cue to deliver it, never a planning stop.
+          if (row.held) {
+            if (fresh || !seen.held) {
+              line({ event: 'held', ...describe(row), choice: row.held });
+              Object.assign(seen, { idle: true, held: true, at: new Date(now()).toISOString() });
+            }
+          } else if (row.phase === 'planning' && fresh) {
+            const event = await planningStop(row, seen, { status: agent.status, call });
+            if (event) line(event);
+            seen.idle = true;
+            seen.at = new Date(now()).toISOString();
+          } else if (fresh) {
             const last = await lastMessage(call, row.agentId);
             line({ event: 'stopped', ...describe(row), status: agent.status, last });
             seen.idle = true;
@@ -296,6 +448,11 @@ export async function watch({ stateDir, day, email, call, env = process.env, pri
         }
         state.agents[row.agentId] = seen;
       }
+      const ready = plansReady(state, rows, now());
+      if (ready) line(ready);
+      const live = rows.filter(row => !state.gone.includes(row.agentId));
+      // A missed write is retried next pass; only an inbox with no sign-in stops the reports.
+      if (reporting && !(await reportStatus({ ...at, rows: live, log, call, cwd }))) reporting = !(await inbox.off?.());
       for (const item of inboxItems(stateDir, day)) {
         if (!(await answeredElsewhere(item, { list, pending, log, seen: state.agents, call }))) continue;
         await inboxClose({ stateDir, day, env, id: item.id, inbox });
@@ -369,6 +526,44 @@ export async function answer({ call, env = process.env, request, ...args }) {
   if (!ask) return { status: 'refused', reason: 'request', ...describe(row), error: `${row.title} has no pending request ${request}.` };
   await call(['permit', 'deny', row.agentId, ask.id, '--message', `Answer: ${text}`]);
   return { status: 'answered', ...log({ kind: 'answer', request: ask.id }) };
+}
+
+const nextDay = day => new Date(Date.parse(`${day}T12:00:00Z`) + 86400e3).toISOString().slice(0, 10);
+
+/** Relays Go (note and answers; now working) or Not today (workspace closed; a task comes back tomorrow) to a planning
+ *  agent. A running one holds it on its row until the watch prints `held`; then `start` with no choice sends it. */
+export async function start({ stateDir, day, email, agent: name, choice, file, call, env = process.env, inbox = INBOX, memory = runMemory, now = new Date() }) {
+  if (!env.PASEO_AGENT_ID) return unsupported;
+  const row = watchedRow(watched({ stateDir, day, email }), name);
+  if (row?.phase !== 'planning') return { status: 'refused', reason: 'planning', error: `${name} is not a watched agent waiting on its Go.` };
+  const pick = choice ?? row.held;
+  if (!pick) return { status: 'refused', reason: 'choice', error: `${row.title} holds no choice: give --choice go or skip.` };
+  const go = pick === 'go';
+  const message = join(stateDir, `${day}.plans`, `${row.agentId}.${pick}.md`);
+  if (choice) {
+    const words = file ? readText(file) : '';
+    if (typeof words !== 'string') return { status: 'refused', reason: 'message', error: words.error };
+    writeText(message, go ? ['Go. Work from your plan.', words].filter(Boolean).join('\n\n') : 'Not today; stop here.');
+  }
+  const sent = await reply({ stateDir, day, email, env, call, agent: row.agentId, file: message, bucket: 'person', label: `${go ? 'Started' : 'Not today'}: ${row.title}`, now });
+  if (sent.status !== 'sent' && sent.reason !== 'running') return sent;
+  for (const item of inboxItems(stateDir, day).filter(item => item.kind === 'start' && item.agent === row.agentId)) await inboxClose({ stateDir, day, env, id: item.id, inbox });
+  if (sent.status !== 'sent') { setRow(stateDir, day, row, { held: pick }); return { status: 'held', ...describe(row), choice: pick }; }
+  if (go) { setRow(stateDir, day, row, { phase: 'working', held: undefined }); return { status: 'started', ...describe(row) }; }
+  await call(row.workspaceId ? ['workspace', 'archive', row.workspaceId] : ['archive', row.agentId]);
+  setRow(stateDir, day, row, { phase: 'skipped', held: undefined });
+  const task = row.step.match(/^task:\s*(.+)$/)?.[1];
+  return { status: 'skipped', ...describe(row), ...(task && { reminder: remind({ day: nextDay(day), text: task, memory }) }) };
+}
+
+/** Marks a watched agent done with the proof the chief checked; the next watch pass moves its card to Done. */
+export function doneAgent({ stateDir, day, email, env = process.env, agent: name, proof }) {
+  if (!env.PASEO_AGENT_ID) return unsupported;
+  const row = watchedRow(watched({ stateDir, day, email }), name);
+  if (!row) return { status: 'refused', reason: 'unwatched', error: `${name} is not a chat /daily started or was handed.` };
+  const words = String(proof).trim().slice(0, 2000);
+  setRow(stateDir, day, row, { phase: 'done', proof: words });
+  return { status: 'marked', ...describe(row), proof: words };
 }
 
 /** Each watched agent with its live status, pending requests and the chief's last action on it. */
@@ -464,16 +659,19 @@ export function paseoCalls(env) {
 }
 
 // A store or Paseo that did not answer is news for the reply, not a failed command.
-const OK = new Set(['opened', 'already', 'unsupported', 'handed', 'sent', 'answered', 'read', 'not-read', 'saved', 'spooled', 'added', 'closed', 'unavailable']);
+const OK = new Set(['opened', 'already', 'unsupported', 'handed', 'sent', 'answered', 'read', 'not-read', 'saved', 'spooled', 'added', 'closed', 'unavailable',
+  'started', 'skipped', 'marked', 'held']);
 const OPTIONS = {
   who: {},
   opened: {},
-  open: { step: { type: 'string' }, title: { type: 'string' }, brief: { type: 'string' } },
+  open: { step: { type: 'string' }, title: { type: 'string' }, brief: { type: 'string' }, 'plan-first': { type: 'boolean' } },
   watch: { seconds: { type: 'string' }, hours: { type: 'string' }, once: { type: 'boolean' } },
   hand: { agent: { type: 'string' } },
   reply: { agent: { type: 'string' }, file: { type: 'string' }, bucket: { type: 'string' }, label: { type: 'string' } },
   answer: { agent: { type: 'string' }, request: { type: 'string' }, file: { type: 'string' }, bucket: { type: 'string' }, label: { type: 'string' } },
   status: {},
+  start: { agent: { type: 'string' }, choice: { type: 'string' }, file: { type: 'string' } },
+  'done-agent': { agent: { type: 'string' }, proof: { type: 'string' } },
   inbox: { kind: { type: 'string' }, agent: { type: 'string' }, title: { type: 'string' }, file: { type: 'string' }, request: { type: 'string' }, id: { type: 'string' } },
   remind: { text: { type: 'string' } },
   reminders: {},
@@ -499,8 +697,11 @@ export async function main(argv = process.argv.slice(2), { env = process.env, si
   if (command === 'done') need(['id']);
   if (command === 'open') need(['step', 'title', 'brief']);
   if (command === 'hand') need(['agent']);
-  if (sub === 'add') need(['kind', 'agent', 'title', 'file']);
-  if (sub === 'add' && !KINDS.includes(values.kind)) usageError(USAGE, `--kind takes ${KINDS.join(' or ')}`);
+  if (sub === 'add') need(['kind', 'agent', ...(values.kind === 'start' ? [] : ['title', 'file'])]);
+  if (sub === 'add' && !KINDS.includes(values.kind)) usageError(USAGE, `--kind takes ${KINDS.join(', ')}`);
+  if (command === 'start') need(['agent']);
+  if (command === 'start' && values.choice !== undefined && !['go', 'skip'].includes(values.choice)) usageError(USAGE, '--choice takes go or skip');
+  if (command === 'done-agent') need(['agent', 'proof']);
   if (sub === 'close') need(['id']);
   if (command === 'reply' || command === 'answer') {
     need(['agent', 'file', 'bucket', 'label', ...(command === 'answer' ? ['request'] : [])]);
@@ -521,7 +722,7 @@ export async function main(argv = process.argv.slice(2), { env = process.env, si
   try {
     switch (command) {
       case 'opened': print(JSON.stringify(opened(at), null, 2)); return 0;
-      case 'open': return out(open({ ...at, step: values.step, title: values.title, brief: values.brief, launch }));
+      case 'open': return out(open({ ...at, step: values.step, title: values.title, brief: values.brief, plan: Boolean(values['plan-first']), launch }));
       case 'watch': await watch({ ...at, call: paseoCall, print, seconds: Number(values.seconds ?? 60), hours: Number(values.hours ?? 10), once: Boolean(values.once), ...(inbox && { inbox }) }); return 0;
       case 'inbox': return out(await (sub === 'add' ? inboxAdd({ ...at, kind: values.kind, agent: values.agent, title: values.title, file: values.file, request: values.request, ...(inbox && { inbox }) })
         : inboxClose({ ...at, id: values.id, ...(inbox && { inbox }) })));
@@ -529,6 +730,8 @@ export async function main(argv = process.argv.slice(2), { env = process.env, si
       case 'reply': return out(await reply({ ...at, call: paseoCall, agent: values.agent, file: values.file, bucket: values.bucket, label: values.label }));
       case 'answer': return out(await answer({ ...at, call: paseoCall, agent: values.agent, request: values.request, file: values.file, bucket: values.bucket, label: values.label }));
       case 'status': return out(await status({ ...at, call: paseoCall }));
+      case 'start': return out(await start({ ...at, call: paseoCall, agent: values.agent, choice: values.choice, file: values.file, memory, ...(inbox && { inbox }) }));
+      case 'done-agent': return out(doneAgent({ ...at, agent: values.agent, proof: values.proof }));
       case 'remind': return out(remind({ day, text: values.text, memory }));
       case 'reminders': return out(reminders({ day, authors, memory }));
       default: return out(done({ id: values.id, day, authors, memory }));

@@ -35,7 +35,7 @@ const Key = ({ n, on }: { n: number; on: boolean }) => n < 6 && <span aria-hidde
   className={`min-w-6 rounded px-1 text-center text-xs font-semibold ${on ? 'bg-primary-foreground/20' : 'bg-muted text-muted-foreground'}`}>{n + 1}</span>
 
 /** The answers as large rows, one per line, each with its key. A row is no button, so a link in its words opens. */
-function Choices({ item, desk, question }: Props & { question: string }) {
+export function Choices({ item, desk, question }: Props & { question: string }) {
   const draft = desk.draftOf(item)
   if (multi(item)) return <div role="group" aria-label={question} className="grid gap-2">
     {choicesOf(item).map(({ label }, n) => {
@@ -57,7 +57,7 @@ function Choices({ item, desk, question }: Props & { question: string }) {
 }
 
 /** The person's own words, always open: typing picks them, and Enter or Escape folds the card. */
-function Own({ item, desk }: Props) {
+export function Own({ item, desk }: Props) {
   return <Textarea id={ownId(item)} aria-label="Your own answer" placeholder="Or type your own answer" rows={2}
     value={desk.draftOf(item)?.own ?? ''} onChange={event => desk.own(item, event.target.value)}
     onKeyDown={event => { if (closes(event)) { event.preventDefault(); desk.fold(item) } }} />
