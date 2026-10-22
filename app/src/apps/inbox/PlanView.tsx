@@ -70,7 +70,9 @@ export function PlanView({ id }: { id: string }) {
   const { item } = plan
   // Popups let the page's links open their own tab, outside the sandbox, so the frame itself never leaves the plan.
   return <div className="grid gap-3">
-    <div className="flex flex-wrap items-center gap-2"><Back /><h1 className="text-xl wrap-anywhere">{item.title}</h1></div>
+    {/* The review page shows its own title, so the bar names only where the plan came from. */}
+    <div className="flex min-w-0 items-center gap-2"><Back /><h1 className="sr-only">{item.title}</h1>
+      <p className="min-w-0 truncate text-sm text-muted-foreground">{item.workspace}</p></div>
     {tap && <TapLine tap={tap} online={plan.computerOnline} copy={tap.text || label(tap.action)} onChange={settle} onReload={() => void load()} />}
     <iframe key={item.version} ref={frame} title={item.title} sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" srcDoc={item.body}
       className="h-[80svh] w-full rounded-md border" onLoad={() => greet(item)} />

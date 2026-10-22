@@ -77,12 +77,13 @@ export function List() {
       <Button type="button" variant="outline" className="justify-self-start" onClick={() => void load()}>Retry</Button></>
       : <Loading label="Loading your inbox…" className="grid gap-3"><Skeleton className="h-24" /><Skeleton className="h-24" /></Loading>}
   </div>
-  return <div className="grid gap-6">
+  // One column that never grows past the screen: an auto column would widen to a card's longest unbroken line.
+  return <div className="grid grid-cols-1 gap-6">
     <div className="flex flex-wrap items-center justify-between gap-2"><h1>Inbox</h1><Status online={data.computerOnline} /></div>
     {items.length === 0 && <Empty />}
     {GROUPS.map(([kind, title]) => {
       const group = items.filter(item => item.kind === kind)
-      return group.length > 0 && <section key={kind} className="grid gap-3" aria-labelledby={`inbox-${kind}`}>
+      return group.length > 0 && <section key={kind} className="grid grid-cols-1 gap-3" aria-labelledby={`inbox-${kind}`}>
         <h2 id={`inbox-${kind}`} className="text-lg">{title}</h2>
         {group.map(item => {
           const own = { item, online: data.computerOnline, onTap: (tap: Tap) => keep(item, tap), onReload: () => reload(item.id) }

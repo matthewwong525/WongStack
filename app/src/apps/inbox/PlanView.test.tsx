@@ -74,7 +74,9 @@ it('seals the plan in a frame that can run its page but never reach the app, and
   expect(frame.getAttribute('sandbox')).toBe('allow-scripts allow-popups allow-popups-to-escape-sandbox')
   expect(frame.getAttribute('sandbox')).not.toContain('allow-same-origin')
   expect(frame.getAttribute('srcdoc')).toBe(BODY)
-  expect(screen.getByRole('heading', { level: 1, name: 'One inbox' })).toBeTruthy()
+  // The review page in the frame shows the title; the bar keeps it for screen readers only and shows the workspace.
+  expect(screen.getByRole('heading', { level: 1, name: 'One inbox' }).className).toBe('sr-only')
+  expect(screen.getByText('lousy-dingo')).toBeTruthy()
   expect(screen.getByRole('link', { name: 'Back' }).getAttribute('href')).toBe('/apps/inbox/')
   expect(posted).toHaveBeenCalledWith({ type: 'inbox:hello', item: PLAN, version: 'v1', actions: ['build', 'publish'] }, '*', [port])
 })

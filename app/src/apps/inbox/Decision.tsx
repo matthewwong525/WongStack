@@ -21,7 +21,7 @@ const copyOf = (tap: Tap) => tap.action === 'send' ? tap.text : [say(tap.action)
 function Who({ item, question }: { item: Item; question: string }) {
   return <p className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
     {item.kind === 'approval' && <Badge variant="outline" className="border-destructive text-destructive">Risky</Badge>}
-    <span className="truncate">{[item.title !== question && item.title, item.workspace].filter(Boolean).join(' · ')}</span>
+    <span className="min-w-0 truncate">{[item.title !== question && item.title, item.workspace].filter(Boolean).join(' · ')}</span>
   </p>
 }
 
@@ -70,7 +70,7 @@ export function Decision({ item, desk, online, said, onTap, onReload }: Props & 
   const card = { id: cardId(item), tabIndex: -1, onFocus: () => desk.select(item) }
   if (open && choice && !desk.held(item) && desk.noting !== item.id && !said) {
     return <Card {...card} className={`flex-row items-center gap-3 py-2 pr-2 pl-4 outline-none ${ring}`}>
-      <span className="max-w-[55%] truncate font-medium">✓ {choice.label}</span>
+      <span className="min-w-0 max-w-[55%] truncate font-medium">✓ {choice.label}</span>
       <div className="min-w-0 flex-1"><Who item={item} question={question} /></div>
       <Button type="button" variant="ghost" size="sm" onClick={() => desk.reopen(item)}>Change</Button>
     </Card>

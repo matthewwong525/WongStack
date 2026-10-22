@@ -78,6 +78,10 @@ it('groups what waits on the person, questions first, with the computer shown on
   expect(bar()).toBe('0 of 2 picked')
   expect(screen.getByRole('button', { name: 'Send 0 answers' })).toHaveProperty('disabled', true)
   expect(screen.getByText(/pick and go on/).className).toContain('md:block')
+  // On a phone nothing grows past the screen: the columns can shrink, and a long who-line truncates instead.
+  const columns = [screen.getByRole('heading', { level: 1 }).parentElement!.parentElement!, ...document.querySelectorAll('section')]
+  expect(columns.map(column => column.className.split(' ').includes('grid-cols-1'))).toEqual([true, true, true, true])
+  expect(within(card('Send the quote')).getByText('Send the quote · email').className).toBe('min-w-0 truncate')
 })
 
 it('shows a question once when its title says the same, and a question with no words by its title', async () => {
