@@ -15,9 +15,21 @@ Each new or changed plan prints *Click here to see the plan:* with a reply link,
 - **A tap shows progress.** Connecting to the chat shows *Connecting…*. Sending notes or asking for a build shows a spinner until the chat answers. Sending and building wait together, so another tap cannot send a duplicate request. The result appears above the bar; its height stays the same. A success message appears only after the chat acknowledges the request.
 - **The first plan of the day waits 5 to 10 seconds** for the connection. Later plans, from any chat on the same computer, share it and print at once.
 
-## Eight hours, then a new link
+## In your inbox first
 
-A link stays open for 8 hours from when the chat printed it. Building the plan again moves the time on and keeps the same link.
+When this computer is signed in to [your company app](../stack/company-api.md) and you can open its Inbox, a plan's link opens there, at `/apps/inbox/?item=<id>`, behind your company sign-in. No tunnel starts. Otherwise, it opens through a tunnel, as the rest of this page says. Only a plan's review page goes to the inbox: another page keeps its tunnel.
+
+- **Everything waiting on you sits on one list:** *Needs you* and *Approvals* from [the chief of staff](daily.md#the-chief-of-staff), and *Plans to review*. Each item belongs to the person signed in; no one else sees it.
+- **You answer questions and approvals in one go.** Each card shows its choices one per line. A tap picks one, sends nothing, and folds the card to your answer; *Change* opens it again, and *+ Add a note* adds a line that goes with the answer. One *Send* at the bottom passes on every card you picked, one tap each; the rest wait. Your picks and notes stay on that device until you send them, and drop once their item closes or changes. On a computer, `J` and `K` move, `1` to `6` pick, `N` writes a note, `Z` clears, and `Ctrl/⌘ Enter` sends.
+- **A tap waits in the app until this computer takes it.** The computer checks in every 10 seconds, takes the taps on its own items, wakes the chat, and reports back. The page shows *Waiting…*, or *Waiting for your computer* when it hasn't checked in for a minute, then *Sending…* once the computer has it, then *Sent* once the chat has it.
+- **A tap never fires late or twice.** *Cancel* stops a tap until the computer takes it. One still waiting when its item closes is dropped. A taken tap whose result doesn't come back in 2 minutes shows *Didn't arrive* and never goes again. A plan rebuilt since you opened it says *This plan changed* and asks you to reload.
+- **One tap per item every 5 seconds.** The app refuses a faster one, and the computer wakes a chat at that pace too, as a tunnel page's sends are paced.
+- **The page runs sealed.** It sits in a frame that can run its own script but can't reach the app's sign-in or data. It talks to the inbox only on a private channel handed to it when it first loads, and its notes only under its own plan's name. Its links open in a new tab, so the frame never shows another site; a page that loads there later gets no channel.
+- **The app never holds the chat or its messages.** It keeps the page, its button names and your taps; the chat and each button's message stay on this computer. So a tap in the app can send only the messages this computer fixed.
+
+## A day, then a new link
+
+A link stays open for 24 hours from when the chat printed it, in the inbox and at a tunnel alike. Building the plan again moves the time on and keeps the same link.
 
 - **A closed link costs you nothing.** When the link has closed, or the chat can't be reached, the same tap copies your notes and says so: *This link has closed. Copied 2 notes: paste them into chat.* The button then reads *Copy notes*, as on a file. The build buttons go, and you choose in the chat.
 - **Say *new link*.** The chat runs the plan's build command again and prints a fresh link. Notes you saved at the old address stay there: send or copy them before you ask.
@@ -43,6 +55,7 @@ A page opened from the plan's file, or from a pull request, is the same page wit
 - **A button names a fixed action and may attach notes.** The opener fixes its instruction and chat target; reviewer text follows that instruction and is limited to 20,000 characters. Invalid or oversized notes never reach the chat. So the most a plan's link can do is send notes, start that plan's build, or start its publish.
 - **The link is in the chat's text.** Anyone who can read it there can send notes to that chat, and start that build or publish, until it closes.
 - **It never blocks a private link.** A reply link keeps its own state, apart from [`hand-over.mjs`](../../.agents/skills/hand-over/scripts/hand-over.mjs), so a key link opens at once during a review, and several pages hold links at the same time.
+- **A key, a password or a card never goes to the inbox.** `hand-over.mjs` never calls it, and a test holds that line.
 
 ## Open one for another page
 
@@ -54,7 +67,7 @@ node .claude/skills/hand-over/scripts/reply-link.mjs close "$page"
 node .claude/skills/hand-over/scripts/reply-link.mjs list
 ```
 
-`--header` is the fixed first line of every message the page sends; write it so the chat knows what to do with the text. `--hours N` changes the 8 hours. On `REPLY_LINK=none`, offer the file and take the answers in chat.
+`--header` is the fixed first line of every message the page sends; write it so the chat knows what to do with the text. `--hours N` changes the 24 hours. On `REPLY_LINK=none`, offer the file and take the answers in chat.
 
 The page reads the key from its own address and asks three routes beside itself:
 
@@ -76,7 +89,7 @@ async function submit(text) {
 
 When `submit` is false, show the text for the person to copy: the page must never say *sent* on anything but `sent: true`. The file is read from disk on every visit, so a rebuilt page shows at the same link.
 
-One server and one tunnel serve every open page, and both stop once no page is open. The chat is woken through [`lib/wake.mjs`](../../.agents/skills/hand-over/scripts/lib/wake.mjs), the one place that names how: a host with another way to wake a chat adds it there.
+One server and one tunnel serve every open page, and both stop once no page is open. Inbox items get their own small process, [`reply-link.mjs serve-inbox`](../../.agents/skills/hand-over/scripts/reply-link.mjs), which delivers taps and stops once no item is open. The chat is woken through [`lib/wake.mjs`](../../.agents/skills/hand-over/scripts/lib/wake.mjs), the one place that names how: a host with another way to wake a chat adds it there.
 
 ### Give a page a button
 

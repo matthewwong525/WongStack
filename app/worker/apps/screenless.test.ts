@@ -6,7 +6,7 @@ import { body } from "../../tests/body";
 import { fakeEnv } from "../../tests/env";
 
 // Hello's server folder with no screen: the catalogue holds no app of that name. Its api.ts lists a saved key.
-vi.mock("../employee-access/catalogue.ts", async () => ({ ...(await import("../../tests/employee-access/catalogue")).builtApps(["access"]), hasScreen: () => false }));
+vi.mock("../employee-access/catalogue.ts", async () => ({ ...(await import("../../tests/employee-access/catalogue")).builtApps(["access"]), hasScreen: (id: string) => id !== "hello" }));
 const calls = vi.hoisted(() => ({ count: 0 }));
 vi.mock("./hello/api.ts", async (original) => ({
   keys: ["cloudflare"],
@@ -39,7 +39,8 @@ it("judges a folder with no screen by the saved key its routes list: refused wit
   expect(calls.count).toBe(0);
   // Its key use belongs to no app, and its actions are listed under its folder with the key alone.
   expect(appKeyUse).toEqual([{ apps: [], keys: ["cloudflare"], need: "read" }, { apps: [], keys: ["cloudflare"], need: "write" }]);
-  expect(appActions.map(({ app, action, access }) => [app, action.operationId, access])).toEqual([["hello", "hello.greeting", { keys: ["cloudflare"] }]]);
+  const hello = appActions.filter(({ app }) => app === "hello");
+  expect(hello.map(({ app, action, access }) => [app, action.operationId, access])).toEqual([["hello", "hello.greeting", { keys: ["cloudflare"] }]]);
 });
 
 it("fails when the Worker loads on a folder with no screen whose route lists no key, naming the file, the route and both fixes", () => {

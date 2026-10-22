@@ -368,12 +368,12 @@ test('--guide rides in the state and reaches the page without the test\'s path; 
   assert.doesNotMatch(JSON.stringify(keys), /balance|expand/, 'never the test address\'s path');
 });
 
-test('a key link stays open eight hours from open, says when it closes, and marks its first opening', async t => {
+test('a key link stays open 24 hours from open, says when it closes, and marks its first opening', async t => {
   const f = fixture(t);
   const before = Date.now();
   const { port, key } = opened(f, 'MAPS_API_KEY');
   const { deadline } = JSON.parse(readFileSync(join(f.state, 'state.json'), 'utf8'));
-  assert.ok(deadline >= before + 8 * 3_600_000 && deadline <= Date.now() + 8 * 3_600_000, 'eight hours from open');
+  assert.ok(deadline >= before + 24 * 3_600_000 && deadline <= Date.now() + 24 * 3_600_000, '24 hours from open');
   assert.ok(!existsSync(join(f.state, 'opened')), 'the page alone does not open it');
   await fetch(`http://127.0.0.1:${port}/`);
   assert.equal((await route(port, null, 'keys')).status, 403);

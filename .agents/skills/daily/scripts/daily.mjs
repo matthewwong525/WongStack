@@ -8,6 +8,8 @@ import { fileURLToPath } from 'node:url';
 import { isMain, parseCli, usageError } from '../../memory/scripts/lib/cli.mjs';
 import { loadConfig, memoryOrigin, repoContext, signIn, signInHelp } from '../../memory/scripts/lib/store.mjs';
 import { EXIT, PaseoError, findPaseo, paseo } from '../../schedule/scripts/lib/paseo.mjs';
+import { closeInboxItem, openInboxItem } from '../../hand-over/scripts/reply-link.mjs';
+import { chatTarget } from '../../hand-over/scripts/lib/wake.mjs';
 
 const SKILL = join(dirname(fileURLToPath(import.meta.url)), '..');
 const LAUNCHER = join(SKILL, '..', 'schedule', 'scripts', 'workspace.mjs');
@@ -25,6 +27,8 @@ const USAGE = `usage: daily.mjs who
        daily.mjs reply --agent <id|title|workspace> --file <text file> --bucket keep-going|pick|person --label <line>
        daily.mjs answer --agent <id|title|workspace> --request <id> --file <text file> --bucket keep-going|pick|person --label <line>
        daily.mjs status
+       daily.mjs inbox add --kind approval|question --agent <name> --title <line> --file <JSON {text, options?}>
+       daily.mjs inbox close --id <item id>
        daily.mjs remind --day <YYYY-MM-DD> --text <words>
        daily.mjs reminders [--day <YYYY-MM-DD>]
        daily.mjs done --id <fact id>
@@ -178,17 +182,61 @@ async function lastMessage(call, agentId) {
 // A failed Paseo call: `unsupported` when there is no Paseo at all, else a read that failed.
 const notPaseo = error => error instanceof PaseoError && error.code === EXIT.noPaseo;
 
+// The inbox: approvals and Needs-you questions wait in the live app for the person, and a tap wakes this chat.
+const inboxFile = (stateDir, day) => join(stateDir, `${day}.inbox.json`);
+const KINDS = ['approval', 'question'];
+const INBOX = { open: openInboxItem, close: closeInboxItem };
+
+/** The words an item asks, `{text, options?}`, or null outside the inbox's limits. */
+function detailOf(file) {
+  const detail = readJson(file, null);
+  const short = (value, max) => typeof value === 'string' && value.trim() !== '' && value.length <= max;
+  const options = detail?.options;
+  const sound = short(detail?.text, 2000) && (options === undefined || (Array.isArray(options) && options.length <= 6 && options.every(option => short(option, 300))));
+  return sound && Object.keys(detail).every(key => key === 'text' || key === 'options') ? detail : null;
+}
+
+/** Puts an approval or a question in the person's inbox, aimed at this chat; `unavailable` where the inbox is off. */
+export async function inboxAdd({ stateDir, day, env = process.env, kind, agent, title, file, cwd = process.cwd(), inbox = INBOX }) {
+  if (!env.PASEO_AGENT_ID) return unsupported;
+  const detail = detailOf(file);
+  if (!detail) return { status: 'refused', reason: 'file', error: `${file} needs {"text": "…"} with up to 6 "options".` };
+  const header = `Inbox answer for ${title} (${agent}):`;
+  const actions = kind === 'approval' ? { approve: `${header} Approve`, decline: `${header} Decline` } : {};
+  const item = await inbox.open({ kind, title: title.slice(0, 200), body: JSON.stringify(detail), header, actions, hours: 10, target: chatTarget(env, cwd), cwd }, { env });
+  if (!item) return { status: 'unavailable', reason: 'The inbox did not answer: ask in this chat.' };
+  writeJson(inboxFile(stateDir, day), [...readJson(inboxFile(stateDir, day), []), item.id]);
+  return { status: 'added', id: item.id, link: item.link };
+}
+
+/** Closes one item this day's chief added. */
+export async function inboxClose({ stateDir, day, env = process.env, id, inbox = INBOX }) {
+  const ids = readJson(inboxFile(stateDir, day), []);
+  if (!ids.includes(id)) return { status: 'refused', reason: 'unknown', error: `No inbox item ${id} today.` };
+  await inbox.close(id, { env });
+  writeJson(inboxFile(stateDir, day), ids.filter(open => open !== id));
+  return { status: 'closed', id };
+}
+
+/** Closes every item this day's chief added: the watch that relays their answers has ended. */
+async function closeInbox({ stateDir, day, env, inbox }) {
+  const ids = readJson(inboxFile(stateDir, day), []);
+  for (const id of ids) await inbox.close(id, { env });
+  if (ids.length) writeJson(inboxFile(stateDir, day), []);
+}
+
 // Notices, never acts: a JSON line per asking, stopped, gone, not-read, end. A stop prints once per idle spell, which
 // ends when the agent runs or the chief acts on it; `<day>.watch.json` keeps that across `--once` calls.
-export async function watch({ stateDir, day, email, call, env = process.env, print = console.log, seconds = 60, hours = 10, once = false, now = () => Date.now(), sleep = ms => new Promise(done => setTimeout(done, ms)) }) {
+export async function watch({ stateDir, day, email, call, env = process.env, print = console.log, seconds = 60, hours = 10, once = false, now = () => Date.now(), sleep = ms => new Promise(done => setTimeout(done, ms)), inbox = INBOX }) {
   const line = event => print(JSON.stringify(event));
+  const end = async reason => { await closeInbox({ stateDir, day, env, inbox }); line({ event: 'end', reason }); };
   if (!env.PASEO_AGENT_ID) { line({ event: 'unsupported', reason: unsupported.reason }); return; }
   const file = watchFile(stateDir, day);
   const start = now();
   for (;;) {
     const state = readJson(file, { agents: {}, gone: [], notRead: false });
     const rows = watched({ stateDir, day, email }, state.gone);
-    if (!rows.length) { line({ event: 'end', reason: 'empty' }); return; }
+    if (!rows.length) { await end('empty'); return; }
     let list, pending;
     try {
       list = await call(['ls', '--global']);
@@ -231,8 +279,8 @@ export async function watch({ stateDir, day, email, call, env = process.env, pri
     }
     writeJson(file, state);
     if (once) return;
-    if (now() - start >= hours * 3600e3) { line({ event: 'end', reason: 'time' }); return; }
-    if (!watched({ stateDir, day, email }, state.gone).length) { line({ event: 'end', reason: 'empty' }); return; }
+    if (now() - start >= hours * 3600e3) { await end('time'); return; }
+    if (!watched({ stateDir, day, email }, state.gone).length) { await end('empty'); return; }
     await sleep(seconds * 1000);
   }
 }
@@ -391,7 +439,7 @@ export function paseoCalls(env) {
 }
 
 // A store or Paseo that did not answer is news for the reply, not a failed command.
-const OK = new Set(['opened', 'already', 'unsupported', 'handed', 'sent', 'answered', 'read', 'not-read', 'saved', 'spooled']);
+const OK = new Set(['opened', 'already', 'unsupported', 'handed', 'sent', 'answered', 'read', 'not-read', 'saved', 'spooled', 'added', 'closed', 'unavailable']);
 const OPTIONS = {
   who: {},
   opened: {},
@@ -401,17 +449,20 @@ const OPTIONS = {
   reply: { agent: { type: 'string' }, file: { type: 'string' }, bucket: { type: 'string' }, label: { type: 'string' } },
   answer: { agent: { type: 'string' }, request: { type: 'string' }, file: { type: 'string' }, bucket: { type: 'string' }, label: { type: 'string' } },
   status: {},
+  inbox: { kind: { type: 'string' }, agent: { type: 'string' }, title: { type: 'string' }, file: { type: 'string' }, id: { type: 'string' } },
   remind: { text: { type: 'string' } },
   reminders: {},
   done: { id: { type: 'string' } },
 };
 
 /** The command line. Resolves to the exit code; `deps` stand in for the sign-in, launcher, Paseo and memory. */
-export async function main(argv = process.argv.slice(2), { env = process.env, signedIn, launch, call, memory, print = console.log } = {}) {
+export async function main(argv = process.argv.slice(2), { env = process.env, signedIn, launch, call, memory, inbox, print = console.log } = {}) {
   const [command, ...args] = argv;
   if (command === '--help') { print(USAGE); return 0; }
   const options = OPTIONS[command];
   if (!options) usageError(USAGE, command ? `unknown command ${command}` : 'name a command');
+  const sub = command === 'inbox' ? args.shift() : null;
+  if (command === 'inbox' && sub !== 'add' && sub !== 'close') usageError(USAGE, 'inbox takes add or close');
   const { values } = parseCli({ usage: USAGE, options: command === 'who' ? {} : { ...options, day: { type: 'string' }, email: { type: 'string' } }, args });
   const ctx = repoContext();
   const out = value => { print(JSON.stringify(value, null, 2)); return OK.has(value.status ?? value.state) ? 0 : 1; };
@@ -423,6 +474,9 @@ export async function main(argv = process.argv.slice(2), { env = process.env, si
   if (command === 'done') need(['id']);
   if (command === 'open') need(['step', 'title', 'brief']);
   if (command === 'hand') need(['agent']);
+  if (sub === 'add') need(['kind', 'agent', 'title', 'file']);
+  if (sub === 'add' && !KINDS.includes(values.kind)) usageError(USAGE, `--kind takes ${KINDS.join(' or ')}`);
+  if (sub === 'close') need(['id']);
   if (command === 'reply' || command === 'answer') {
     need(['agent', 'file', 'bucket', 'label', ...(command === 'answer' ? ['request'] : [])]);
     if (!BUCKETS.includes(values.bucket)) usageError(USAGE, `--bucket takes ${BUCKETS.join(', ')}`);
@@ -443,7 +497,9 @@ export async function main(argv = process.argv.slice(2), { env = process.env, si
     switch (command) {
       case 'opened': print(JSON.stringify(opened(at), null, 2)); return 0;
       case 'open': return out(open({ ...at, step: values.step, title: values.title, brief: values.brief, launch }));
-      case 'watch': await watch({ ...at, call: paseoCall, print, seconds: Number(values.seconds ?? 60), hours: Number(values.hours ?? 10), once: Boolean(values.once) }); return 0;
+      case 'watch': await watch({ ...at, call: paseoCall, print, seconds: Number(values.seconds ?? 60), hours: Number(values.hours ?? 10), once: Boolean(values.once), ...(inbox && { inbox }) }); return 0;
+      case 'inbox': return out(await (sub === 'add' ? inboxAdd({ ...at, kind: values.kind, agent: values.agent, title: values.title, file: values.file, ...(inbox && { inbox }) })
+        : inboxClose({ ...at, id: values.id, ...(inbox && { inbox }) })));
       case 'hand': return out(await hand({ ...at, agent: values.agent, call: paseoCall }));
       case 'reply': return out(await reply({ ...at, call: paseoCall, agent: values.agent, file: values.file, bucket: values.bucket, label: values.label }));
       case 'answer': return out(await answer({ ...at, call: paseoCall, agent: values.agent, request: values.request, file: values.file, bucket: values.bucket, label: values.label }));

@@ -286,6 +286,8 @@ test('the time reads as a clock time on this device until its last ten minutes, 
   const at = Date.UTC(2026, 9, 18, 13, 30);
   assert.match(timeLeft(at, at - 8 * 3_600_000, { zone: 'UTC' }), /^Open until (1:30\sPM|13:30)$/, 'eight hours from 5:30 AM');
   assert.match(timeLeft(at, at - 8 * 3_600_000, { ahead: 3_600_000, zone: 'UTC' }), /^Open until (12:30\sPM|12:30)$/, 'a watcher clock an hour ahead');
+  assert.match(timeLeft(at, at - 14 * 3_600_000, { zone: 'UTC' }), /^Open until (1:30\sPM|13:30) tomorrow$/, 'from 11:30 PM the day before');
+  assert.match(timeLeft(at, at - 48 * 3_600_000, { zone: 'UTC' }), /^Open until (1:30\sPM|13:30) Sunday$/, 'two days on, by its weekday');
   assert.match(timeLeft(at, at - 10 * 60_000 - 1), /^Open until /);
   assert.equal(timeLeft(at, at - 10 * 60_000), 'Closes in 10 min');
   assert.equal(timeLeft(at, at - 9 * 60_000), 'Closes in 9 min');

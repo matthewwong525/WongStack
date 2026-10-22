@@ -12,12 +12,16 @@ const RECEIPT_EVERY_MS = 500;
 const VALUE_LIMIT = 256;
 const SOON_MS = 10 * 60_000;
 
-/** `Open until <time>` on this device's clock, `ahead` of it being the watcher's, while over ten minutes remain;
- * then `Closes in N min`, rounded up; null once `closesAt` has passed. */
+/** `Open until <time>` on this device's clock, `ahead` of it being the watcher's, and ` tomorrow` or the weekday past
+ * today, while over ten minutes remain; then `Closes in N min`, rounded up; null once `closesAt` has passed. */
 export function timeLeft(closesAt, now, { ahead = 0, zone } = {}) {
   if (closesAt <= now) return null;
   if (closesAt - now <= SOON_MS) return `Closes in ${Math.ceil((closesAt - now) / 60_000)} min`;
-  return `Open until ${new Date(closesAt - ahead).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', timeZone: zone })}`;
+  const at = new Date(closesAt - ahead);
+  const day = time => Date.parse(new Date(time).toLocaleDateString('en-CA', { timeZone: zone }));
+  const days = Math.round((day(at) - day(now - ahead)) / 86_400_000);
+  const when = days === 1 ? ' tomorrow' : days > 1 ? ` ${at.toLocaleDateString([], { weekday: 'long', timeZone: zone })}` : '';
+  return `Open until ${at.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', timeZone: zone })}${when}`;
 }
 
 /** The fields as rows of indexes: an expiry year right after its month shares the month's row. */

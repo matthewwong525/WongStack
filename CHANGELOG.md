@@ -3,6 +3,17 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 44.4.0 — One inbox for plans to review and decisions waiting on you
+
+- **One page lists what waits on you.** The new Inbox app, at `/apps/inbox/` in your company app, shows *Needs you* questions, *Approvals* and *Plans to review*, each for the person signed in. It refreshes while open. Questions and approvals work like a decisions page: tap a choice on each card, add a note if you like, then one *Send* passes on every answer you picked. Picks and notes stay on that device until you send them, and a computer has keys for each step.
+- **A plan's link opens in the inbox.** When your computer is signed in to the company app, a new plan opens there, behind your company sign-in, with no tunnel. Otherwise its link works as before.
+- **A tap reaches the chat once your computer takes it.** The inbox shows *Waiting…*, *Waiting for your computer* while it's off, *Sending…*, then *Sent*. You can cancel a tap until your computer takes it, one left when its item closes is never sent, and none is sent twice.
+- **The daily chief of staff asks there too.** Its approvals and questions wait in the inbox with one line in the chat; an answer typed in the chat still works.
+- **Plan, key, password and form links stay open 24 hours**, not 8; the live view keeps 8. A private page that closes on another day says so: *Open until 5:30 AM tomorrow*.
+- **Keys, passwords and cards never go to the inbox.** Their private links stay as they are.
+
+**Updating.** No step needed. Publishing adds the inbox's table to your app's database. Plans open in the inbox once this computer is signed in to the company app; until then, links open as before. Teammates don't get the Inbox app on their own: to let one use it, open Access and tick *Inbox* for them or their role. Until then, their plans open at a link as before.
+
 ## 44.3.0 — MCP servers go through the app
 
 - **An MCP server goes through the app, called only when a task needs it.** The app holds the server's address and key, and a chat runs one short command when it needs the service. A server connected straight to a chat loads all its tool descriptions into every chat, so it never goes in a chat's own settings.

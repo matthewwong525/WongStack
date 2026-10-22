@@ -29,12 +29,16 @@ export function filledKeys(boxes) {
 
 const plural = (n, one) => `${n} ${one}${n === 1 ? '' : 's'}`;
 
-/** `Open until <time>` on this device's clock, `ahead` of it being the watcher's, while over ten minutes remain;
- * then `Closes in N min`, rounded up; null once `closesAt` has passed. */
+/** `Open until <time>` on this device's clock, `ahead` of it being the watcher's, and ` tomorrow` or the weekday past
+ * today, while over ten minutes remain; then `Closes in N min`, rounded up; null once `closesAt` has passed. */
 export function timeLeft(closesAt, now, { ahead = 0, zone } = {}) {
   if (closesAt <= now) return null;
   if (closesAt - now <= SOON_MS) return `Closes in ${Math.ceil((closesAt - now) / 60_000)} min`;
-  return `Open until ${new Date(closesAt - ahead).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', timeZone: zone })}`;
+  const at = new Date(closesAt - ahead);
+  const day = time => Date.parse(new Date(time).toLocaleDateString('en-CA', { timeZone: zone }));
+  const days = Math.round((day(at) - day(now - ahead)) / 86_400_000);
+  const when = days === 1 ? ' tomorrow' : days > 1 ? ` ${at.toLocaleDateString([], { weekday: 'long', timeZone: zone })}` : '';
+  return `Open until ${at.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', timeZone: zone })}${when}`;
 }
 
 /** A code name as words: `MAPS_API_KEY` reads `Maps API key`. */

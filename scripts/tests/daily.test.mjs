@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import {
-  answer, done, emailsOf, hand, launchWorkspace, localDay, open, opened, personFile, reminders, remind, reply, status, watch, who,
+  answer, done, emailsOf, hand, inboxAdd, inboxClose, launchWorkspace, localDay, open, opened, personFile, reminders, remind, reply, status, watch, who,
 } from '../../.agents/skills/daily/scripts/daily.mjs';
 import { EXIT, PaseoError } from '../../.agents/skills/schedule/scripts/lib/paseo.mjs';
 
@@ -456,4 +456,74 @@ test('the chief commands refuse bad flags, and outside Paseo say unsupported', t
   const now = run(cwd, ['status']);
   assert.equal(now.status, 0);
   assert.equal(JSON.parse(now.stdout).status, 'unsupported');
+});
+
+// A stand-in for the live app's inbox: records what opened and closed, or answers null when it is off.
+function fakeInbox(on = true) {
+  const opened = [];
+  const closed = [];
+  return { opened, closed, inbox: {
+    open: async spec => { if (!on) return null; opened.push(spec); return { id: `i${opened.length}`, link: `${ORIGIN}/apps/inbox/?item=i${opened.length}` }; },
+    close: async id => { closed.push(id); return true; },
+  } };
+}
+
+test('inbox add puts an approval or a question in the inbox, aimed at this chat, and close ends it', async t => {
+  const at = chief(t);
+  const words = join(at.stateDir, 'ask.json');
+  writeFileSync(words, JSON.stringify({ text: 'Send the March invoice?' }));
+  const { opened, closed, inbox } = fakeInbox();
+  const added = await inboxAdd({ ...at, kind: 'approval', agent: 'a-1', title: 'Invoices', file: words, cwd: '/w/chief', inbox });
+  assert.deepEqual(added, { status: 'added', id: 'i1', link: `${ORIGIN}/apps/inbox/?item=i1` });
+  assert.deepEqual(opened[0].actions, { approve: 'Inbox answer for Invoices (a-1): Approve', decline: 'Inbox answer for Invoices (a-1): Decline' });
+  assert.equal(opened[0].header, 'Inbox answer for Invoices (a-1):');
+  assert.equal(opened[0].target.agentId, 'agent-1');
+  assert.deepEqual(JSON.parse(opened[0].body), { text: 'Send the March invoice?' });
+  writeFileSync(words, JSON.stringify({ text: 'Which day?', options: ['Monday', 'Friday'] }));
+  await inboxAdd({ ...at, kind: 'question', agent: 'b-2', title: 't'.repeat(300), file: words, inbox });
+  assert.deepEqual(opened[1].actions, {});
+  assert.equal(opened[1].title.length, 200);
+  assert.deepEqual(await inboxClose({ ...at, id: 'i1', inbox }), { status: 'closed', id: 'i1' });
+  assert.equal((await inboxClose({ ...at, id: 'i1', inbox })).status, 'refused');
+  assert.deepEqual(closed, ['i1']);
+});
+
+test('inbox add refuses words past the limits, says unavailable when the inbox is off, and needs Paseo', async t => {
+  const at = chief(t);
+  const words = join(at.stateDir, 'ask.json');
+  const { opened, inbox } = fakeInbox();
+  for (const bad of [{}, { text: '' }, { text: 'x'.repeat(2001) }, { text: 'Go?', options: Array(7).fill('a') }, { text: 'Go?', options: ['o'.repeat(301)] },
+    { text: 'Go?', extra: 1 }, [], 'Go?']) {
+    writeFileSync(words, JSON.stringify(bad));
+    assert.equal((await inboxAdd({ ...at, kind: 'approval', agent: 'a-1', title: 'T', file: words, inbox })).status, 'refused');
+  }
+  assert.equal((await inboxAdd({ ...at, kind: 'approval', agent: 'a-1', title: 'T', file: join(at.stateDir, 'missing.json'), inbox })).status, 'refused');
+  assert.equal(opened.length, 0);
+  writeFileSync(words, JSON.stringify({ text: 'Go?' }));
+  assert.equal((await inboxAdd({ ...at, kind: 'approval', agent: 'a-1', title: 'T', file: words, inbox: fakeInbox(false).inbox })).status, 'unavailable');
+  assert.equal((await inboxAdd({ ...at, env: {}, kind: 'approval', agent: 'a-1', title: 'T', file: words, inbox })).status, 'unsupported');
+});
+
+test("the watch's end closes every item the chief added that day", async t => {
+  const at = chief(t, ROWS.slice(0, 1));
+  const words = join(at.stateDir, 'ask.json');
+  writeFileSync(words, JSON.stringify({ text: 'Go?' }));
+  const { closed, inbox } = fakeInbox();
+  for (const title of ['One', 'Two']) await inboxAdd({ ...at, kind: 'approval', agent: 'a-1', title, file: words, inbox });
+  const { lines } = await events(at, [{ ls: [agent('a-1', 'closed')] }], { watch: { inbox } });
+  assert.deepEqual(lines.at(-1), { event: 'end', reason: 'empty' });
+  assert.deepEqual(closed, ['i1', 'i2']);
+  assert.deepEqual(JSON.parse(readFileSync(join(at.stateDir, `${DAY}.inbox.json`), 'utf8')), []);
+});
+
+test('the inbox commands take add or close and check their flags', t => {
+  const cwd = repo(t);
+  assert.equal(run(cwd, ['inbox']).status, 2);
+  assert.equal(run(cwd, ['inbox', 'open']).status, 2);
+  assert.equal(run(cwd, ['inbox', 'add', '--kind', 'approval', '--agent', 'a', '--title', 'T']).status, 2);
+  assert.equal(run(cwd, ['inbox', 'add', '--kind', 'poll', '--agent', 'a', '--title', 'T', '--file', 'f']).status, 2);
+  assert.equal(run(cwd, ['inbox', 'close']).status, 2);
+  const outside = run(cwd, ['inbox', 'add', '--kind', 'question', '--agent', 'a', '--title', 'T', '--file', 'f']);
+  assert.equal(outside.status, 0, outside.stderr);
+  assert.equal(JSON.parse(outside.stdout).status, 'unsupported');
 });

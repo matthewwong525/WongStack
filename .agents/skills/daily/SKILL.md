@@ -14,7 +14,7 @@ disable-model-invocation: true
 3. **Read** `team`, then `file`, when not null. A step runs only on the days its words name; one with none runs daily.
 4. **Run each due step**, team first. One ending `(own workspace)`: write its brief by [the five parts](references/chief.md#brief-before-you-start-an-agent) to `.scratch/daily-<n>.md`, then `D open --step "<line>" --title <short name> --brief <file>`. `opened` and `already` name its workspace; `unsupported` or `failed` runs it here.
 5. **Reply** with a short list: steps run, skipped and why, left for today. With no `file`, offer to start their list, by [the ask convention](../explore/references/asking-the-user.md).
-6. **Stay on.** Where the host runs a command in the background and hands you its lines, start `D watch` that way; elsewhere run `D watch --once` each time the person writes. Handle each line by [the chief of staff](references/chief.md). `unsupported` means no watching: the reply was the day. On `end`, a later `open` or `hand` starts it again.
+6. **Stay on.** Where the host runs a command in the background and hands you its lines, start `D watch` that way; elsewhere run `D watch --once` each time the person writes. Handle each line and `Inbox answer` by [the chief of staff](references/chief.md). `unsupported` means no watching. On `end`, a later `open` or `hand` starts it again.
 
 ## Any time in this chat, or after `/daily`
 

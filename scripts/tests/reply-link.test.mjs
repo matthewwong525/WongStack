@@ -125,8 +125,8 @@ test('every page shares one tunnel, and opening a file again keeps its link and 
   assert.notEqual(second.key, first.key);
   assert.equal(second.port, first.port);
   const before = f.registration(first.id).deadline;
-  assert.ok(Math.abs(before - Date.now() - 8 * 3_600_000) < 60_000, 'a link stays open for 8 hours');
-  const again = f.open(f.page('one.html'), '--hours', '9');
+  assert.ok(Math.abs(before - Date.now() - 24 * 3_600_000) < 60_000, 'a link stays open for 24 hours');
+  const again = f.open(f.page('one.html'), '--hours', '25');
   assert.equal(again.link, first.link);
   assert.ok(f.registration(first.id).deadline > before);
   assert.equal(f.tunnels(), 1);

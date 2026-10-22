@@ -1281,7 +1281,7 @@ test('--guide goes with --keys only, and a bad guide exits 2 with KEYS_GUIDE= be
   assert.deepEqual(JSON.parse(readFileSync(join(f.state, 'state.json'), 'utf8')).keys.keys[0].guide, entry);
 });
 
-test('every private link defaults to eight hours and honors an explicit time limit', t => {
+test('every private link defaults to 24 hours and honors an explicit time limit', t => {
   const f = fixture(t, { checkout: true });
   const minutes = (...args) => {
     const before = Date.now();
@@ -1290,7 +1290,7 @@ test('every private link defaults to eight hours and honors an explicit time lim
     assert.equal(f.run('close').status, 0);
     return [(deadline - Date.now()) / 60_000, (deadline - before) / 60_000];
   };
-  for (const [args, want] of [[['--keys', 'MAPS_API_KEY'], 480], [FORM_ARGS(f), 480], [['--passwords'], 480], [['--keys', 'MAPS_API_KEY', '--minutes', '30'], 30], [[...FORM_ARGS(f), '--minutes', '10'], 10], [['--passwords', '--minutes', '15'], 15]]) {
+  for (const [args, want] of [[['--keys', 'MAPS_API_KEY'], 1440], [FORM_ARGS(f), 1440], [['--passwords'], 1440], [['--keys', 'MAPS_API_KEY', '--minutes', '30'], 30], [[...FORM_ARGS(f), '--minutes', '10'], 10], [['--passwords', '--minutes', '15'], 15]]) {
     const [low, high] = minutes(...args);
     assert.ok(low <= want && high >= want, `${args[0]}: ${low}–${high} minutes, not ${want}`);
   }

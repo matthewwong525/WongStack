@@ -54,7 +54,7 @@ const USAGE = `usage: hand-over.mjs open --form <file> (--until <glob> | --until
           an unopened one gives way to a new open
           --guide: a JSON file keyed by name, each with any of title, url, open,
           steps, and check {url, auth}, shown on the key page (exit 2 with KEYS_GUIDE=)
-          --minutes: time limit for any link, default 480 (eight hours)
+          --minutes: time limit for any link, default 1440 (24 hours); 480 for --view
   wait    block until the link closes; print
           HANDOVER_RESULT=done|not-accepted|unconfirmed|timeout|closed|error,
           then for a form whose site has not answered HANDOVER_WATCHING=<minutes>:
@@ -709,7 +709,8 @@ function parse(args) {
   }
   const [command, ...rest] = parsed.positionals;
   if (!['open', 'watch', 'wait', 'close', 'install-view'].includes(command) || rest.length) usageError(command ? `unknown command: ${[command, ...rest].join(' ')}` : 'missing command');
-  const minutes = Number(values.minutes ?? 480);
+  // A live view holds a browser open while it waits, so it keeps the shorter day.
+  const minutes = Number(values.minutes ?? (values.view ? 480 : 1440));
   if (!(minutes > 0)) usageError('--minutes must be a positive number');
   if (command === 'open') checkMode(values);
   return { command, values: { ...values, minutes, ...(values.keys !== undefined && { keys: keyNames(values.keys) }) } };
