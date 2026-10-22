@@ -25,7 +25,9 @@ export function AgentCard({ group, online, desk, said, onTap, onReload }: Props)
     {group.title && <h3 className="text-base wrap-anywhere">{group.title}</h3>}
     {line && <StatusLine status={group.status!} />}
   </div>
-  if (group.place !== 'Needs you') return <Card className="gap-2 px-4 py-3">{head}</Card>
+  // An answer that just reached the agent says so here, as it did on its own card, until the item leaves the list.
+  const sent = group.items.some(item => item.tap?.state === 'sent')
+  if (group.place !== 'Needs you') return <Card className="gap-2 px-4 py-3">{head}{sent && <p className="text-sm" role="status">Sent</p>}</Card>
   return <Card className="gap-3 p-4">
     {head}
     {group.items.map(item => {

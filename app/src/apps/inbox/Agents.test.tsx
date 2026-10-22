@@ -33,7 +33,7 @@ it('lists agents in Needs you, Working and Done, each with where it stands, and 
   expect(within(section('Working')).queryByRole('radio')).toBeNull()
 })
 
-it('moves an agent to Needs you while it asks, and back to Working once the answer reaches it', async () => {
+it('moves an agent to Needs you while it asks, and back to Working, saying Sent, once the answer reaches it', async () => {
   vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
   const working = status(FIRST, 'landing', 'Check the landing page', { state: 'working', step: 'Checking the banner' })
   server.items = [working]
@@ -49,6 +49,7 @@ it('moves an agent to Needs you while it asks, and back to Working once the answ
   server.items = [working]
   await tick(TAP_POLL_MS)
   expect(titles('Working')).toEqual(['Check the landing page'])
+  expect(within(card('Check the landing page')).getByRole('status').textContent).toBe('Sent')
   expect(screen.queryByRole('heading', { level: 2, name: 'Needs you' })).toBeNull()
 })
 
