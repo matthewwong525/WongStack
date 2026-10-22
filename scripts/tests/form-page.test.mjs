@@ -334,6 +334,8 @@ test('the pure helpers: time left, rows, and the closing screen', () => {
   const at = Date.UTC(2026, 9, 18, 13, 30);
   assert.match(timeLeft(at, at - 8 * 3_600_000, { zone: 'UTC' }), /^Open until (1:30\sPM|13:30)$/);
   assert.match(timeLeft(at, at - 20 * 60_000, { ahead: -3_600_000, zone: 'UTC' }), /^Open until (2:30\sPM|14:30)$/, 'a watcher clock an hour behind');
+  assert.match(timeLeft(at, at - 24 * 3_600_000, { zone: 'UTC' }), /^Open until (1:30\sPM|13:30) tomorrow$/, 'a 24-hour link names the next day');
+  assert.match(timeLeft(at, at - 72 * 3_600_000, { zone: 'UTC' }), /^Open until (1:30\sPM|13:30) Sunday$/);
   assert.equal(timeLeft(at, at - 9 * 60_000), 'Closes in 9 min');
 
   const kinds = (...names) => names.map(autocomplete => ({ autocomplete }));

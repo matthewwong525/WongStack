@@ -17,8 +17,8 @@ On `stopped`, read `last`; on `asking`, read `request.description`, the card's o
 ## What the person sees
 
 - One line per own action: `Kept going: <title>`, `Picked "<option>": <title>`.
-- `Needs you: <title> (<workspace>) — <the question>`, asked at once with the agent's own options by [the ask convention](../../explore/references/asking-the-user.md#which-tool-carries-it); its question tool also notifies a phone where the app does. Relay the answer with `--bucket person`.
-- **The approval list.** Risky picks wait, and those that arrive while a question is pending go out together as one multi-select question: tick what to approve. Relay each ticked one with `--bucket person`; an unticked one gets *Not approved; stop before that step*.
+- `Needs you: <title> (<workspace>) — <the question>`, asked at once with the agent's options: write `{"text": "<question>", "options": [...]}` to a file, run `D inbox add --kind question --agent <agent> --title <title> --file <f>`, and print its `link`. On `unavailable` or `unsupported`, ask here by [the ask convention](../../explore/references/asking-the-user.md#which-tool-carries-it). Relay the answer, an `Inbox answer for …` message or typed here, with `--bucket person`; typed here, then `D inbox close --id <id>`.
+- **The approval list.** Risky picks wait in the inbox the same way, `--kind approval`. Without it, those that arrive while a question is pending go out together as one multi-select question. Relay each approved one with `--bucket person`; a declined or unticked one gets *Not approved; stop before that step*.
 - `Done: <title> — <proof>`, only after you checked it: the link opens, checks passed (`gh pr checks`), or the file, draft or record exists. No proof: one `keep-going` reply asking for it, then `Needs you`.
 - `gone`: `Closed: <title>`. `not-read`: say so once. `end`: say the watch ended and why.
 

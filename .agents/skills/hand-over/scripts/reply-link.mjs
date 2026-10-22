@@ -4,30 +4,33 @@
 
 import { spawn } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
-import { mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { homedir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { basename, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain, parseCli, usageError } from '../../memory/scripts/lib/cli.mjs';
 import { lookCss } from '../../plan/scripts/look.mjs';
+import { checkin, closeItem, companyFor, probe, tapResult, upload } from './lib/inbox.mjs';
 import { alive, freePort, hasCloudflared, keyMatches, killTunnel, linkAnswers, signal, startTunnel } from './lib/tunnel.mjs';
-import { canWake, chatTarget, wakeChat } from './lib/wake.mjs';
+import { canWake, chatTarget, liveChats, wakeChat } from './lib/wake.mjs';
 
 const USAGE = `usage: reply-link.mjs open <file> --header "<line>" [--hours N] [--action <name>=<message>]...
        reply-link.mjs close <file> | list
-  open    serve one self-contained HTML file at a link that closes itself and print
+  open    show one self-contained HTML file at a link that closes itself and print
           REPLY_LINK=<url>; its page sends text to this chat under the header line.
+          A plan's review page opens in the live app's inbox when it answers this person;
+          any other page, or no inbox, opens at a tunnel.
           Prints REPLY_LINK=none and REPLY_REASON=off|no-chat|no-cloudflared|tunnel-down
           where no link can open, and exits 0: fall back to the file
           --header: the fixed first line of every message the page sends
-          --hours: how long the link stays open (default 8)
+          --hours: how long the link stays open (default 24)
           --action: a button the page may offer, and the one-line message a tap on it
           sends to this chat; the page can never change that message (6 at most)
   close   close the file's link
   list    print each open page's file and when it closes`;
 export const LIMITS = { text: 20_000, body: 128 * 1024, header: 300, action: 300, actions: 6 };
-const HOURS = 8;
+const HOURS = 24;
 // Raised when the server's routes change: a running server from older code is swapped for this one.
 const PROTOCOL = 3;
 const ID = /^[0-9a-f]{32}$/;
@@ -35,15 +38,18 @@ const ACTION = /^[a-z][a-z0-9-]{0,30}$/;
 const ROUTE = /^\/p\/([0-9a-f]{32})\/(alive|send|act)?$/;
 const TUNNEL_WAIT_MS = Number(process.env.REPLY_LINK_TUNNEL_WAIT_MS) || 30_000;
 const POLL_MS = Number(process.env.REPLY_LINK_POLL_MS) || 5000;
+const INBOX_POLL_MS = Number(process.env.REPLY_LINK_INBOX_POLL_MS) || 10_000;
 const SEND_GAP_MS = Number(process.env.REPLY_LINK_SEND_GAP_MS) || 5000;
 const PROBE_MS = 4000;
+// The app fails a collected tap after 2 minutes with no result; one older than this here is reported, never woken.
+const DELIVER_MS = 90_000;
 const sleep = ms => new Promise(done => setTimeout(done, ms));
 const readJson = file => { try { return JSON.parse(readFileSync(file, 'utf8')); } catch { return null; } };
 
 /** The state files under `env.HOME`, apart from hand-over's. */
 function files(env = process.env) {
   const dir = join(env.HOME || homedir(), '.wong-stack', 'reply-link');
-  return { dir, pages: join(dir, 'pages'), server: join(dir, 'server.json'), lock: join(dir, 'starting.lock'), log: join(dir, 'tunnel.log'), config: join(dir, 'cloudflared.yml') };
+  return { dir, pages: join(dir, 'pages'), items: join(dir, 'items'), inbox: join(dir, 'inbox.json'), server: join(dir, 'server.json'), lock: join(dir, 'starting.lock'), log: join(dir, 'tunnel.log'), config: join(dir, 'cloudflared.yml') };
 }
 
 const pageFile = (state, id) => join(state.pages, `${id}.json`);
@@ -298,14 +304,187 @@ async function ensureServer(state, env) {
   try { return (live && await swapServer(state, live, env)) || await startServer(state, env); } finally { rmSync(state.lock, { force: true }); }
 }
 
-/** `{link}` for the file's reply link, or `{link: null, reason}` where none can open. */
-async function openLink({ file, header, actions = {}, hours = HOURS, env = process.env, cwd = process.cwd() }) {
+// ── the inbox: the live app lists the page and holds each tap until this computer delivers it ──
+const itemFile = (state, id) => join(state.items, `${id}.json`);
+const PLAN_MARK = '<!-- wong-review:3 -->';
+const sha = text => createHash('sha256').update(text).digest('hex');
+
+/** An inbox item as written, or null when it is missing or malformed; one past its deadline is still read, to close. */
+function readItem(state, id) {
+  const item = ID.test(id) ? readJson(itemFile(state, id)) : null;
+  return item && item.id === id && typeof item.header === 'string' && typeof item.version === 'string' && Number.isFinite(item.deadline) ? item : null;
+}
+
+function openItems(state) {
+  let names;
+  try { names = readdirSync(state.items); } catch { return []; }
+  return names.map(name => readItem(state, name.replace(/\.json$/, ''))).filter(Boolean);
+}
+
+const writeItem = (state, item) => writeFileSync(itemFile(state, item.id), `${JSON.stringify(item)}\n`, { mode: 0o600 });
+/** Writes an item back only while it is still open here: a closed one never comes back. */
+const keepItem = (state, item) => { if (existsSync(itemFile(state, item.id))) writeItem(state, item); };
+
+/** A plan's title from its `<title>`, else the file's name. */
+function titleOf(text, file) {
+  const named = /<title>([^<]{1,400})<\/title>/i.exec(text)?.[1].replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').trim();
+  return (named || basename(file)).slice(0, 200);
+}
+
+/** What the app keeps of an item: its words and actions, never its target chat or messages. */
+const shown = (item, body) => ({ id: item.id, kind: item.kind, title: item.title, workspace: item.workspace, body,
+  actions: Object.keys(item.actions), version: item.version, closesAt: item.deadline });
+
+/** The item's body as it stands: a plan's file, or the words it was made with; null when the file is gone. */
+function bodyOf(item) {
+  if (item.file === null) return item.body;
+  try { return readFileSync(item.file, 'utf8'); } catch { return null; }
+}
+
+/** Starts the inbox server unless one runs: it delivers taps, and stops once no item is open. */
+function startInbox(state, env) {
+  if (alive(readJson(state.inbox)?.pid)) return;
+  const child = spawn(process.execPath, [fileURLToPath(import.meta.url), 'serve-inbox'], { detached: true, stdio: 'ignore', env });
+  child.unref();
+  writeFileSync(state.inbox, `${JSON.stringify({ pid: child.pid })}\n`, { mode: 0o600 });
+}
+
+/** Puts an item in the person's inbox and returns `{id, link}`, or null where the inbox does not answer. `spec` is
+ * `{kind, header, actions, hours, target, cwd}`, plus a plan's `file`, or an item's `title` and `body`. */
+export async function openInboxItem(spec, { env = process.env, clientFor = companyFor, start = startInbox } = {}) {
+  const file = spec.file ?? null;
+  const body = file === null ? spec.body : readFileSync(file, 'utf8');
+  // Only a plan's review page can talk to the inbox around it; any other page keeps its tunnel.
+  if (file !== null && !body.startsWith(PLAN_MARK)) return null;
+  const client = await clientFor();
+  const origin = client && await probe(client);
+  if (!origin) return null;
+  const state = files(env);
+  mkdirSync(state.items, { recursive: true, mode: 0o700 });
+  const kept = file === null ? null : openItems(state).find(item => item.file === file);
+  const item = { id: kept?.id ?? randomBytes(16).toString('hex'), file, kind: spec.kind, title: file === null ? spec.title : titleOf(body, file),
+    workspace: basename(spec.cwd).slice(0, 100), header: spec.header, actions: spec.actions, target: spec.target,
+    deadline: Date.now() + spec.hours * 3_600_000, version: sha(body), ...(file === null && { body }), done: kept?.done ?? { version: null, names: [] } };
+  if (!(await upload(client, shown(item, body)))) return null;
+  writeItem(state, item);
+  start(state, env);
+  return { id: item.id, link: `${origin}/apps/inbox/?item=${item.id}` };
+}
+
+/** Closes the item in the app and here. */
+async function endItem(state, client, item) {
+  rmSync(itemFile(state, item.id), { force: true });
+  if (client) await closeItem(client, item.id);
+}
+
+/** Closes inbox item `id`; true when it was open here. */
+export async function closeInboxItem(id, { env = process.env, clientFor = companyFor } = {}) {
+  const state = files(env);
+  const item = readItem(state, id);
+  if (item) await endItem(state, await clientFor(), item);
+  return Boolean(item);
+}
+
+/** One tap's outcome under `act`'s rules: `changed` on an old version, `sent` with no second wake for a done action.
+ * `gap` paces the item's wakes, one per SEND_GAP_MS, as a page's sends are; a tap held too long is `failed`. */
+async function deliver(state, item, tap, { wake, gap }) {
+  if (tap.version !== item.version) return 'changed';
+  const text = typeof tap.text === 'string' ? tap.text.trim() : '';
+  if (tap.action === 'send') return text && await gap(item.id) && (await wake(item.target, `${item.header}\n${text}`)) === 'notified' ? 'sent' : 'failed';
+  if (!Object.hasOwn(item.actions, tap.action)) return 'failed';
+  if (item.done.version !== item.version) item.done = { version: item.version, names: [] };
+  if (item.done.names.includes(tap.action)) return 'sent';
+  if (!(await gap(item.id))) return 'failed';
+  // Marked before the wake, so a second tap during it is never woken twice; unmarked when the chat did not get it.
+  item.done.names.push(tap.action);
+  keepItem(state, item);
+  if ((await wake(item.target, item.actions[tap.action] + (text ? `\n${text}` : ''))) === 'notified') return 'sent';
+  item.done.names = item.done.names.filter(name => name !== tap.action);
+  keepItem(state, item);
+  return 'failed';
+}
+
+/** Waits out the rest of the item's gap since its last wake, then starts the next; false once the tap is too old. */
+function pacer({ lastWake, wait, collected }) {
+  return async id => {
+    const left = (lastWake.get(id) ?? -Infinity) + SEND_GAP_MS - Date.now();
+    if (left > 0) await wait(left);
+    if (Date.now() - collected > DELIVER_MS) return false;
+    lastWake.set(id, Date.now());
+    return true;
+  };
+}
+
+/** Sends each outcome not yet taken by the app; true while any is left to send. */
+async function report(client, reported) {
+  for (const [id, entry] of reported) if (!entry.told && Date.now() - entry.at < DELIVER_MS) entry.told = Boolean(await tapResult(client, id, entry.outcome));
+  return [...reported.values()].some(entry => !entry.told && Date.now() - entry.at < DELIVER_MS);
+}
+
+/** The items still open here, and those whose taps can go this round: a rebuilt plan the app has not taken waits. */
+async function readyItems(state, { client, chats, now }) {
+  const live = await chats();
+  const all = openItems(state);
+  const items = all.filter(item => item.deadline > now && bodyOf(item) !== null && (!live || live.has(item.target?.agentId)));
+  for (const item of all) if (!items.includes(item)) await endItem(state, client, item);
+  const ready = new Map();
+  for (const item of items) {
+    const version = sha(bodyOf(item));
+    if (version !== item.version && !(await upload(client, shown({ ...item, version }, bodyOf(item))))) continue;
+    if (version !== item.version) writeItem(state, Object.assign(item, { version }));
+    ready.set(item.id, item);
+  }
+  return ready;
+}
+
+/** One inbox round: close what ran out or lost its chat, re-upload rebuilt plans, deliver taps on items made here.
+ * `reported` holds outcomes the app hasn't taken; `lastWake` paces items across rounds. Resolves to open items. */
+export async function inboxTick(state, { client, wake = wakeChat, chats = liveChats, now = Date.now(), reported = new Map(),
+  lastWake = new Map(), wait = sleep }) {
+  await report(client, reported);
+  const ready = await readyItems(state, { client, chats, now });
+  const taps = ready.size ? (await checkin(client, [...ready.keys()])) ?? [] : [];
+  const gap = pacer({ lastWake, wait, collected: Date.now() });
+  for (const tap of taps) {
+    const item = ready.get(tap.item);
+    // An item this round closed takes no second answer; one made elsewhere was never collected for it.
+    const outcome = reported.get(tap.id)?.outcome ?? (item ? await deliver(state, item, tap, { wake, gap }) : 'expired');
+    reported.set(tap.id, { outcome, told: false, at: Date.now() });
+    // An approval or a question is answered once its answer is in the chat.
+    if (item && outcome === 'sent' && item.kind !== 'plan') { await endItem(state, client, item); ready.delete(item.id); }
+  }
+  await report(client, reported);
+  return openItems(state).length;
+}
+
+/** Delivers taps every 10 s until no item is open and every outcome is reported; a computer signed out of the app
+ * ends it at once. */
+async function serveInbox() {
+  const state = files();
+  const client = await companyFor();
+  const memory = { reported: new Map(), lastWake: new Map() };
+  const busy = async () => client && (await inboxTick(state, { client, ...memory }) || await report(client, memory.reported));
+  for (;;) {
+    while (await busy()) await sleep(INBOX_POLL_MS);
+    if (readJson(state.inbox)?.pid !== process.pid) return;
+    rmSync(state.inbox, { force: true });
+    // An item written as this server ended saw it still running and started none: take it up again.
+    if (!client || !openItems(state).length) return;
+    writeFileSync(state.inbox, `${JSON.stringify({ pid: process.pid })}\n`, { mode: 0o600 });
+  }
+}
+
+/** `{link}` for the file's reply link, the inbox's first, or `{link: null, reason}` where none can open. */
+async function openLink({ file, header, actions = {}, hours = HOURS, env = process.env, cwd = process.cwd(), inbox = {} }) {
   const checked = checkActions(Object.entries(actions));
   if (env.REPLY_LINK === 'off') return { link: null, reason: 'off' };
   const target = chatTarget(env, cwd);
   if (!canWake(target, env)) return { link: null, reason: 'no-chat' };
+  const real = realpathSync(file);
+  const item = await openInboxItem({ file: real, kind: 'plan', header, actions: checked, hours, target, cwd }, { env, ...inbox });
+  if (item) return { link: item.link };
   const state = files(env);
-  const page = register(state, { file: realpathSync(file), header, actions: checked, hours, target });
+  const page = register(state, { file: real, header, actions: checked, hours, target });
   const server = await ensureServer(state, env);
   if (server.reason) {
     rmSync(pageFile(state, page.id), { force: true });
@@ -315,7 +494,7 @@ async function openLink({ file, header, actions = {}, hours = HOURS, env = proce
 }
 
 /** The file's reply link, or null, quickly and quietly, where none can open: the caller then offers the file.
- * `header` is the fixed first line of every message; `actions` maps each button to the one-line message it sends. */
+ * `header` is every message's first line; `actions` maps each button to its message; `inbox` takes test stand-ins. */
 export async function openReplyLink(options) {
   try { return (await openLink(options)).link; } catch { return null; }
 }
@@ -334,22 +513,25 @@ async function open(file, { header, actions, hours }) {
   if (!link) console.log(`REPLY_REASON=${reason}`);
 }
 
-function close(file) {
+async function close(file) {
   const state = files();
   let path = resolve(file);
   try { path = realpathSync(file); } catch { /* a deleted file's link still closes */ }
   const page = openPages(state).find(open => open.file === path);
   if (page) rmSync(pageFile(state, page.id), { force: true });
-  console.log(`REPLY_CLOSED=${page ? 'yes' : 'no'}`);
+  const item = openItems(state).find(open => open.file === path);
+  if (item) await closeInboxItem(item.id);
+  console.log(`REPLY_CLOSED=${page || item ? 'yes' : 'no'}`);
 }
 
 function list() {
-  for (const page of openPages(files())) console.log(`${page.file}\tcloses ${new Date(page.deadline).toISOString()}`);
+  const state = files();
+  for (const page of [...openPages(state), ...openItems(state)]) console.log(`${page.file ?? page.title}\tcloses ${new Date(page.deadline).toISOString()}`);
 }
 
 if (isMain(import.meta.url)) {
   const { values, positionals: [command, ...rest] } = parseCli({ usage: USAGE, allowPositionals: true, options: { header: { type: 'string' }, hours: { type: 'string' }, action: { type: 'string', multiple: true } } });
-  const takes = { open: 1, close: 1, list: 0, serve: 2 }[command];
+  const takes = { open: 1, close: 1, list: 0, serve: 2, 'serve-inbox': 0 }[command];
   if (takes === undefined || rest.length !== takes) usageError(USAGE, command ? `unknown command: ${[command, ...rest].join(' ')}` : 'missing command');
   const hours = Number(values.hours ?? HOURS);
   if (!(hours > 0)) usageError(USAGE, '--hours must be a positive number');
@@ -358,5 +540,5 @@ if (isMain(import.meta.url)) {
   if (command !== 'open' && (values.header !== undefined || values.hours !== undefined || values.action !== undefined)) usageError(USAGE, '--header, --hours, and --action go with open only');
   let actions;
   try { actions = checkActions((values.action ?? []).map(pair => pair.split(/=(.*)/s).slice(0, 2))); } catch (error) { usageError(USAGE, error.message); }
-  await { open: () => open(rest[0], { header, actions, hours }), close: () => close(rest[0]), list, serve: () => serve(Number(rest[0]), Number(rest[1])) }[command]();
+  await { open: () => open(rest[0], { header, actions, hours }), close: () => close(rest[0]), list, serve: () => serve(Number(rest[0]), Number(rest[1])), 'serve-inbox': serveInbox }[command]();
 }

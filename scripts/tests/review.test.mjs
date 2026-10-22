@@ -408,3 +408,66 @@ test('a missing test dependency skips locally and fails in CI', () => {
     if (ci === undefined) delete process.env.CI; else process.env.CI = ci;
   }
 });
+
+test('in the inbox frame the page talks only on the port its first greeting carries, never fetches, and opens links in their own tab', needsDom, () => fixture(async root => {
+  buildReview(root, { requireCurrent: true });
+  const { window, document, errors } = dom(page(root));
+  // Each message is copied out of the page's realm, as a real postMessage would.
+  const copy = message => JSON.parse(JSON.stringify(message));
+  const parent = { posted: [], postMessage: message => parent.posted.push(copy(message)) };
+  const port = { posted: [], postMessage: message => port.posted.push(copy(message)), onmessage: null };
+  Object.defineProperty(window, 'parent', { configurable: true, get: () => parent });
+  let fetched = 0;
+  window.fetch = () => { fetched += 1; return Promise.reject(new Error('no fetch')); };
+  const from = (data, { source = parent, ports = [port] } = {}) => {
+    const event = new window.MessageEvent('message', { data });
+    Object.defineProperty(event, 'source', { value: source });
+    Object.defineProperty(event, 'ports', { value: ports });
+    window.dispatchEvent(event);
+  };
+  const say = data => port.onmessage({ data });
+  const tick = () => new Promise(done => setTimeout(done, 0));
+  const hello = { type: 'inbox:hello', item: 'i1', version: 'v1', actions: ['build', 'publish'] };
+  from(hello, { source: window });
+  from(hello, { ports: [] });
+  assert.equal(port.onmessage, null, 'a greeting from anywhere but the parent, or with no port, is ignored');
+  from(hello);
+  assert.deepEqual(port.posted, [{ type: 'inbox:notes-get', key: 'wong-review3:example' }]);
+  assert.equal(document.getElementById('ready').hidden, false);
+  assert.equal(document.getElementById('copy-label').textContent, 'Send notes');
+  // Once greeted, the window is deaf: answers come on the port alone.
+  from({ type: 'inbox:notes', value: JSON.stringify({ notes: [{ id: 'why-1', label: 'p', text: 'From the window' }], drafts: {} }) });
+  say({ type: 'inbox:notes', value: JSON.stringify({ notes: [{ id: 'why-1', label: 'paragraph 1 "Reduce repeated work."', text: 'Shorter' }], drafts: {} }) });
+  document.getElementById('copy').click();
+  assert.deepEqual(port.posted.at(-1), { type: 'inbox:tap', action: 'send', text: port.posted.at(-1).text });
+  assert.match(port.posted.at(-1).text, /Shorter/);
+  assert.doesNotMatch(port.posted.at(-1).text, /From the window/);
+  from({ type: 'inbox:result', state: 'sent' });
+  say({ type: 'inbox:result', state: 'sent' });
+  await tick();
+  assert.equal(port.posted.at(-1).type, 'inbox:notes-set', 'a sent note is saved through the parent');
+  assert.equal(port.posted.at(-1).key, 'wong-review3:example');
+  assert.match(document.getElementById('ready-message').textContent, /^Sent 1 note/);
+  document.querySelector('[data-ready="build"]').click();
+  assert.deepEqual(port.posted.at(-1), { type: 'inbox:tap', action: 'build', text: '' });
+  say({ type: 'inbox:result', state: 'soon' });
+  await tick();
+  assert.equal(document.getElementById('ready-message').textContent, 'Wait a few seconds, then tap again.');
+  document.querySelector('[data-ready="build"]').click();
+  assert.equal(port.posted.filter(message => message.type === 'inbox:tap').length, 3);
+  say({ type: 'inbox:result', state: 'changed' });
+  await tick();
+  assert.equal(document.getElementById('ready-message').textContent, 'The plan changed. Reload to read it first.');
+  // A link leaves in a tab of its own; a jump within the page stays.
+  window.addEventListener('click', event => event.preventDefault());
+  const wiki = document.querySelector('a[href="../wiki/README.md"]');
+  wiki.click();
+  assert.deepEqual([wiki.target, wiki.rel], ['_blank', 'noopener noreferrer']);
+  const jump = document.querySelector('a[href="#why"]');
+  jump.click();
+  assert.equal(jump.target, '');
+  assert.deepEqual(parent.posted, [], 'nothing goes to the window');
+  assert.equal(fetched, 0);
+  assert.deepEqual(errors, []);
+  window.close();
+}));

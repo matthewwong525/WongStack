@@ -36,3 +36,15 @@ export async function wakeChat(target, message, env = process.env) {
     return ack.status === 'sent' && ack.agentId === target.agentId ? 'notified' : 'unconfirmed';
   } catch { return 'unconfirmed'; }
 }
+
+/** The ids of every chat this host still lists and has not closed, or null when it can not say: then none is gone. */
+export async function liveChats(env = process.env) {
+  const bin = wakeCommand(env);
+  if (!bin) return null;
+  try {
+    const { stdout } = await promisify(execFile)(bin, ['ls', '--global', '--json'], { encoding: 'utf8', timeout: 10_000, maxBuffer: 16 * 1024 * 1024 });
+    const list = JSON.parse(stdout);
+    if (!Array.isArray(list) || !list.every(chat => typeof chat?.id === 'string')) return null;
+    return new Set(list.filter(chat => chat.status !== 'closed').map(chat => chat.id));
+  } catch { return null; }
+}

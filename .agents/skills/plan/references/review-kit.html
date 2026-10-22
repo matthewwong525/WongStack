@@ -202,11 +202,14 @@
   let store = null, data = { notes: [], drafts: {} };
   const ok = function (r, id) { return r && typeof r.label === 'string' && typeof r.text === 'string' && /^[\w-]+$/.test(id); };
   try { store = window.localStorage; store.getItem(KEY); } catch (e) { store = null; }
-  try {
-    const saved = store ? JSON.parse(store.getItem(KEY) || 'null') : null;
-    if (saved && Array.isArray(saved.notes)) data.notes = saved.notes.filter(function (n) { return ok(n, n && n.id); });
-    if (saved && saved.drafts) Object.keys(saved.drafts).forEach(function (id) { if (ok(saved.drafts[id], id)) data.drafts[id] = saved.drafts[id]; });
-  } catch (e) { /* unreadable notes start empty */ }
+  function load(text) {
+    try {
+      const saved = JSON.parse(text || 'null');
+      if (saved && Array.isArray(saved.notes)) data.notes = saved.notes.filter(function (n) { return ok(n, n && n.id); });
+      if (saved && saved.drafts) Object.keys(saved.drafts).forEach(function (id) { if (ok(saved.drafts[id], id)) data.drafts[id] = saved.drafts[id]; });
+    } catch (e) { /* unreadable notes start empty */ }
+  }
+  load(store ? store.getItem(KEY) : null);
   function persist() {
     if (store) { try { store.setItem(KEY, JSON.stringify(data)); } catch (e) { store = null; } }
     render();
@@ -592,6 +595,7 @@
     } catch (e) { return m ? m[1] : null; }
   }
   function ask(path, key, body) {
+    if (hosted) return hostedAsk(path, body);
     const headers = { 'x-reply-key': key };
     if (body) headers['content-type'] = 'application/json';
     return fetch(path, { method: body ? 'POST' : 'GET', cache: 'no-store', headers: headers, body: body ? JSON.stringify(body) : undefined });
@@ -609,6 +613,7 @@
     try {
       const r = await ask('send', live, { text: bullets(notes).join('\n') });
       if (r.status === 429) { says('Wait a few seconds, then tap Send notes again.'); toast('Wait a few seconds, then tap Send notes again.'); return; }
+      if (r.status === 409) { says('The plan changed. Reload to read it first.'); toast('The plan changed. Reload to read it first.'); return; }
       if (!r.ok) { closed(); return; }
       const answer = await r.json();
       if (!answer || answer.sent !== true) { closed(); return; }
@@ -729,6 +734,43 @@
     if (open) place();
     bar();
   });
+  // ── hosted: in the live app's inbox, a sealed frame that reaches the inbox only through the port its first greeting carries ──
+  let hosted = null, port = null;
+  const CODES = { sent: 200, changed: 409, done: 409, soon: 429, closed: 410, expired: 410 };
+  function post(message) { port.postMessage(message); }
+  // The inbox answers a tap only once the chat has it, or once it is refused, cancelled or failed.
+  function hostedAsk(path, body) {
+    return new Promise(function (resolve) {
+      hosted.reply = function (state) {
+        const status = Object.prototype.hasOwnProperty.call(CODES, state) ? CODES[state] : 502;
+        const answer = status === 200 ? { sent: true } : state === 'changed' ? { changed: true } : state === 'done' ? { done: true } : { sent: false };
+        resolve({ ok: status === 200, status: status, json: function () { return Promise.resolve(answer); } });
+      };
+      post({ type: 'inbox:tap', action: path === 'send' ? 'send' : body.action, text: body.text || '' });
+    });
+  }
+  function heard(m) {
+    if (!m || typeof m !== 'object') return;
+    if (m.type === 'inbox:notes' && (typeof m.value === 'string' || m.value === null)) { load(m.value); render(); }
+    else if (hosted.reply && m.type === 'inbox:result') { const reply = hosted.reply; hosted.reply = null; reply(m.state); }
+  }
+  window.addEventListener('message', function (e) {
+    const m = e.data;
+    if (hosted || window.parent === window || e.source !== window.parent || !e.ports || !e.ports[0] || !m || m.type !== 'inbox:hello'
+      || typeof m.version !== 'string' || !Array.isArray(m.actions)) return;
+    hosted = { reply: null };
+    port = e.ports[0];
+    port.onmessage = function (ev) { heard(ev.data); };
+    // Notes live with the inbox page: this frame has no storage of its own.
+    store = { setItem: function (key, value) { post({ type: 'inbox:notes-set', key: key, value: value }); } };
+    post({ type: 'inbox:notes-get', key: KEY });
+    setLive('inbox'); offer(m); render();
+  });
+  // In a frame, a link opens its own tab: the frame never leaves this page.
+  document.addEventListener('click', function (e) {
+    const a = window.parent !== window && e.target.closest ? e.target.closest('a[href]') : null;
+    if (a && a.getAttribute('href').charAt(0) !== '#') { a.target = '_blank'; a.rel = 'noopener noreferrer'; }
+  }, true);
   window.addEventListener('hashchange', jump);
   render();
   jump();

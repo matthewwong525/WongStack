@@ -3,6 +3,17 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — One inbox for plans to review and decisions waiting on you
+
+- **One page lists what waits on you.** The new Inbox app, at `/apps/inbox/` in your company app, shows *Needs you* questions, *Approvals* and *Plans to review*, each for the person signed in. It refreshes while open, and *Approve all* clears a run of approvals at once.
+- **A plan's link opens in the inbox.** When your computer is signed in to the company app, a new plan opens there, behind your company sign-in, with no tunnel. Otherwise its link works as before.
+- **A tap reaches the chat once your computer takes it.** The inbox shows *Waiting…*, *Waiting for your computer* while it's off, *Sending…*, then *Sent*. You can cancel a tap until your computer takes it, one left when its item closes is never sent, and none is sent twice.
+- **The daily chief of staff asks there too.** Its approvals and questions wait in the inbox with one line in the chat; an answer typed in the chat still works.
+- **Plan, key, password and form links stay open 24 hours**, not 8; the live view keeps 8. A private page that closes on another day says so: *Open until 5:30 AM tomorrow*.
+- **Keys, passwords and cards never go to the inbox.** Their private links stay as they are.
+
+**Updating.** No step needed. Publishing adds the inbox's table to your app's database. Plans open in the inbox once this computer is signed in to the company app; until then, links open as before. Teammates don't get the Inbox app on their own: to let one use it, open Access and tick *Inbox* for them or their role. Until then, their plans open at a link as before.
+
 ## 44.2.0 — Memory guards hold against crafted searches, old keys and future dates
 
 - **A search can't reach notes you aren't allowed to see.** However a teammate writes a memory search, it looks only through shared team notes and their own. Before, a hand-written search could probe, word by word, what someone else's private notes said.

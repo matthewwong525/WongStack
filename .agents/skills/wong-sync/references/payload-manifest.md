@@ -86,7 +86,7 @@ React/Vite Worker starter with tests/package manifest. `app/worker/index.ts` rou
 
 The [welcome](../../../../wiki/stack/mini-apps.md) offers a first app/guide removal, explained and previewed. Update Tutorial and its test only while Home (older flat layout: `app/src/App.tsx`) renders `<Tutorial />`; otherwise preserve its removal. `/apps/` redirects home; compile the app list from `app/src/apps/`. Tests run root/one-folder-down `npm test`, passing when none exists. Copy no root package manifest. Plan each older screen's move onto shared UI parts.
 
-[Mini apps](../../../../wiki/stack/mini-apps.md): hello/access ship; scaffold exclusions omit source-only apps. Preserve target apps/routes/branding/welcome removal/independent memory. Access bootstrap/migrations ship explicitly; repository access stays manual. Merge target key entries; never replace a populated `app/worker/keys.ts`.
+[Mini apps](../../../../wiki/stack/mini-apps.md): hello/access/inbox ship; scaffold exclusions omit source-only apps. Preserve target apps/routes/branding/welcome removal/independent memory. Access bootstrap/migrations ship explicitly; repository access stays manual. Merge target key entries; never replace a populated `app/worker/keys.ts`.
 
 ## Scheduled-work records
 
