@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 44.7.0 — One inbox for your agents, planned before they work
+
+- **The inbox is a list of your agents.** One card per agent, in three groups: *Needs you* when anything waits on your answer, *Working* with its latest step and the chief's last action, and *Done* with the proof the chief checked. Questions, approvals, plans and private links sit inside their agent's card.
+- **Morning agents plan before they work.** Each agent `/daily` opens in the morning reads, writes a short plan, and stops. Once the plans are in, or 15 minutes after the first, each waits in the inbox as a card on *Go*: flip any to *Not today*, answer its questions, add a note, and tap *Start N agents*.
+- **Not today closes the agent's workspace.** A one-off task comes back as tomorrow's reminder.
+- **Tasks you hand the daily chat later start at once**, with no plan first.
+- **Without the inbox, the daily chat asks** which agents go today, in one question.
+
+**Updating.** No step needed. *Done* cards clear when the next day's `/daily` starts watching.
+
 ## 44.6.1 — A preview check signs in as you for a per-person app
 
 - **A preview check can reach a per-person app**, such as the inbox, by signing in as you; the Cloudflare Access page says how.

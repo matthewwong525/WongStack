@@ -7,7 +7,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import {
-  answer, done, emailsOf, hand, inboxAdd, inboxClose, launchWorkspace, localDay, open, opened, personFile, reminders, remind, reply, status, watch, who,
+  answer, done, doneAgent, emailsOf, hand, inboxAdd, inboxClose, launchWorkspace, localDay, open, opened, personFile, planOf, reminders, remind, reply, start,
+  status, watch, who,
 } from '../../.agents/skills/daily/scripts/daily.mjs';
 import { EXIT, PaseoError } from '../../.agents/skills/schedule/scripts/lib/paseo.mjs';
 
@@ -248,7 +249,7 @@ const CARD = { id: 'permission-77', agentId: 'a-1', name: 'AskUserQuestion', des
 async function events(at, rounds, options = {}) {
   const lines = [];
   const { calls, call } = fakePaseo(rounds, options);
-  await watch({ ...at, call, print: line => lines.push(JSON.parse(line)), seconds: 1, sleep: async () => {}, ...options.watch });
+  await watch({ ...at, call, print: line => lines.push(JSON.parse(line)), seconds: 1, sleep: async () => {}, inbox: fakeInbox(false).inbox, ...options.watch });
   return { lines, calls };
 }
 
@@ -458,15 +459,24 @@ test('the chief commands refuse bad flags, and outside Paseo say unsupported', t
   assert.equal(JSON.parse(now.stdout).status, 'unsupported');
 });
 
-// A stand-in for the live app's inbox: records what opened and closed, or answers null when it is off.
+// A stand-in for the live app's inbox: records what opened and closed, or answers null when it is off. An item given
+// no id gets `i<n>`, counting only those.
 function fakeInbox(on = true) {
   const opened = [];
   const closed = [];
+  let made = 0;
   return { opened, closed, inbox: {
-    open: async spec => { if (!on) return null; opened.push(spec); return { id: `i${opened.length}`, link: `${ORIGIN}/apps/inbox/?item=i${opened.length}` }; },
+    open: async spec => {
+      if (!on) { opened.push(null); return null; }
+      opened.push(spec);
+      const id = spec.id ?? `i${++made}`;
+      return { id, link: `${ORIGIN}/apps/inbox/?item=${id}` };
+    },
     close: async id => { closed.push(id); return true; },
   } };
 }
+// The ids of items the chief added by hand, leaving out the watch's own status items.
+const added = ids => ids.filter(id => /^i\d+$/.test(id));
 
 test('inbox add puts an approval or a question in the inbox, aimed at this chat, and close ends it', async t => {
   const at = chief(t);
@@ -542,7 +552,7 @@ test('the watch closes an item answered in its own chat, keeps one the chief rep
     { event: 'answered-elsewhere', title: 'Card', agent: 'a-1', item: 'i1' },
     { event: 'answered-elsewhere', title: 'Stop', agent: 'b-2', item: 'i2' },
   ]);
-  assert.deepEqual(closed, ['i1', 'i2', 'i0', 'i3']);
+  assert.deepEqual(added(closed), ['i1', 'i2', 'i0', 'i3']);
   assert.deepEqual(lines.at(-1), { event: 'end', reason: 'empty' });
 });
 
@@ -559,7 +569,7 @@ test('the watch closes a stop item when the agent answers between two rounds and
     { ls: [agent('b-2', 'closed')] },
   ], { watch: { inbox } });
   assert.deepEqual(lines.filter(line => line.event === 'answered-elsewhere'), [{ event: 'answered-elsewhere', title: 'Quick', agent: 'b-2', item: 'i1' }]);
-  assert.deepEqual(closed, ['i1']);
+  assert.deepEqual(added(closed), ['i1']);
 });
 
 test('the inbox commands take add or close and check their flags', t => {
@@ -572,4 +582,229 @@ test('the inbox commands take add or close and check their flags', t => {
   const outside = run(cwd, ['inbox', 'add', '--kind', 'question', '--agent', 'a', '--title', 'T', '--file', 'f', '--request', 'permission-1']);
   assert.equal(outside.status, 0, outside.stderr);
   assert.equal(JSON.parse(outside.stdout).status, 'unsupported');
+});
+
+// Plan the day first: two morning agents opened to plan, each with its plan file in the day's state folder.
+const PLAN = { willDo: ['Draft three ad angles'], needs: ['The BFCM offer'], askFirst: ['Before it posts anything'],
+  questions: [{ text: 'Which offer leads the ads?', options: ['Free shipping', 'Gift card'] }] };
+
+function planning(t) {
+  const at = chief(t, []);
+  const rows = [
+    { email: 'jo@example.com', step: 'Weekdays: /ads (own workspace)', title: 'Ads', workspace: 'Ads', folder: 'bfcm-brief', workspaceId: 'ws-ads', agentId: 'p-1' },
+    { email: 'jo@example.com', step: 'task: TikTok Shop', title: 'TikTok Shop', workspace: 'TikTok', folder: 'tiktok', workspaceId: 'ws-tt', agentId: 'p-2' },
+  ].map((row, n) => ({ ...row, phase: 'planning', plan: join(at.stateDir, `${DAY}.plans`, `${n + 1}.json`), at: `2026-10-21T08:0${n}:00.000Z` }));
+  writeFileSync(join(at.stateDir, `${DAY}.json`), JSON.stringify(rows));
+  mkdirSync(join(at.stateDir, `${DAY}.plans`));
+  return { at, rows };
+}
+
+const eventsOf = lines => lines.map(line => `${line.event} ${line.agent ?? ''}`.trim());
+
+test('open --plan-first launches with the plan-first brief and marks the row planning', t => {
+  const dir = tmp(t);
+  const stateDir = join(dir, 'wong-daily');
+  const brief = join(dir, 'brief.md');
+  writeFileSync(brief, '## Goal\nDraft the BFCM ads.\n');
+  const { calls, launch } = fakeLaunch({ ...OPENED, cwd: '/w/bfcm-brief' });
+  const at = { stateDir, day: DAY, email: 'jo@example.com', env: PASEO, launch };
+  const row = open({ ...at, step: 'Weekdays: /ads (own workspace)', title: 'Ads', brief, plan: true });
+  assert.equal(row.status, 'opened');
+  assert.equal(row.phase, 'planning');
+  assert.equal(row.folder, 'bfcm-brief');
+  assert.equal(row.plan, join(stateDir, `${DAY}.plans`, '1.json'));
+  assert.equal(calls[0].brief, join(stateDir, `${DAY}.plans`, '1.md'));
+  const text = readFileSync(calls[0].brief, 'utf8');
+  assert.match(text, /^## Goal\nDraft the BFCM ads\.\n\n## Plan first\n/);
+  assert.ok(text.includes(row.plan));
+  const plain = open({ ...at, step: 'task: packaging', title: 'Packaging', brief });
+  assert.equal(plain.phase, undefined);
+  assert.equal(calls[1].brief, brief);
+  assert.equal(open({ ...at, step: 'task: x', title: 'X', brief: join(dir, 'none.md'), plan: true }).status, 'failed');
+  assert.equal(calls.length, 2);
+});
+
+test('planOf takes only a plan within the inbox limits', t => {
+  const file = join(tmp(t), 'plan.json');
+  const check = value => { writeFileSync(file, typeof value === 'string' ? value : JSON.stringify(value)); return planOf(file); };
+  assert.deepEqual(check(PLAN), PLAN);
+  assert.equal(check({ ...PLAN, questions: [{ text: 'Days?', options: ['Mon'], several: true }] }).questions[0].several, true);
+  for (const bad of ['{"willDo": ["half', [], { ...PLAN, extra: 1 }, { ...PLAN, needs: undefined }, { ...PLAN, willDo: Array(7).fill('a') },
+    { ...PLAN, willDo: ['x'.repeat(301)] }, { ...PLAN, askFirst: [''] }, { ...PLAN, questions: [{ text: '' }] },
+    { ...PLAN, questions: [{ text: 'Q', several: 'yes' }] }, { ...PLAN, questions: Array(7).fill({ text: 'Q' }) }]) {
+    assert.equal(check(bad), null, JSON.stringify(bad));
+  }
+  assert.equal(planOf(`${file}.missing`), null);
+  assert.equal(planOf(undefined), null);
+});
+
+test('the watch prints planned once, a planning stop once, then no-plan, then plans-ready once', async t => {
+  const { at, rows } = planning(t);
+  writeFileSync(rows[0].plan, JSON.stringify(PLAN));
+  const round = [{ ls: [agent('p-1', 'idle'), agent('p-2', 'idle')] }];
+  const at8 = minute => ({ watch: { once: true, now: () => Date.parse(`2026-10-21T08:0${minute}:00Z`) } });
+  const first = await events(at, round, at8(5));
+  assert.deepEqual(eventsOf(first.lines), ['planned p-1', 'stopped p-2']);
+  assert.equal(first.lines[0].plan, rows[0].plan);
+  assert.equal(first.lines[1].phase, 'planning');
+  assert.equal(first.lines[1].plan, rows[1].plan);
+  writeFileSync(join(at.stateDir, `${DAY}.actions.jsonl`), `${JSON.stringify({ at: '2026-10-21T08:06:00.000Z', agent: 'p-2', bucket: 'keep-going' })}\n`);
+  const second = await events(at, round, at8(7));
+  assert.deepEqual(eventsOf(second.lines), ['no-plan p-2', 'plans-ready']);
+  assert.deepEqual(second.lines[1].agents.map(entry => [entry.agent, entry.plan]), [['p-1', 'planned'], ['p-2', 'no-plan']]);
+  assert.deepEqual((await events(at, round, at8(8))).lines, []);
+});
+
+test('plans-ready comes 15 minutes after the first planning agent opened, and a malformed plan counts as none', async t => {
+  const { at, rows } = planning(t);
+  writeFileSync(rows[0].plan, '{"willDo": ["half');
+  const round = [{ ls: [agent('p-1', 'idle'), agent('p-2', 'running')] }];
+  const early = await events(at, round, { watch: { once: true, now: () => Date.parse('2026-10-21T08:14:59Z') } });
+  assert.deepEqual(eventsOf(early.lines), ['stopped p-1']);
+  const late = await events(at, round, { watch: { once: true, now: () => Date.parse('2026-10-21T08:15:00Z') } });
+  assert.deepEqual(eventsOf(late.lines), ['plans-ready']);
+  assert.deepEqual(late.lines[0].agents.map(entry => [entry.agent, entry.plan]), [['p-1', 'planning'], ['p-2', 'planning']]);
+});
+
+test('inbox add --kind start puts a planning agent on its card with Go and Not today, one item per agent', async t => {
+  const { at, rows } = planning(t);
+  writeFileSync(rows[0].plan, JSON.stringify(PLAN));
+  const { opened: sent, inbox } = fakeInbox();
+  const first = await inboxAdd({ ...at, kind: 'start', agent: 'p-1', cwd: '/w/chief', inbox, now: new Date(NOON) });
+  assert.equal(first.status, 'added');
+  assert.match(first.id, /^[0-9a-f]{32}$/);
+  assert.deepEqual([sent[0].id, sent[0].kind, sent[0].title, sent[0].workspace], [first.id, 'start', 'Ads', 'bfcm-brief']);
+  assert.deepEqual(Object.entries(sent[0].actions), [['go', 'Inbox answer for Ads (p-1): Go'], ['skip', 'Inbox answer for Ads (p-1): Not today']]);
+  assert.deepEqual(JSON.parse(sent[0].body), { state: 'ready', plan: PLAN });
+  assert.equal((await inboxAdd({ ...at, kind: 'start', agent: 'Ads', inbox })).id, first.id, 'a second add replaces it');
+  await inboxAdd({ ...at, kind: 'start', agent: 'TikTok Shop', inbox });
+  assert.deepEqual(JSON.parse(sent[2].body), { state: 'planning' });
+  assert.equal(sent[2].header, 'Inbox answer for TikTok Shop (p-2):');
+  writeFileSync(join(at.stateDir, `${DAY}.watch.json`), JSON.stringify({ agents: { 'p-2': { plan: 'no-plan' } }, gone: [] }));
+  await inboxAdd({ ...at, kind: 'start', agent: 'p-2', inbox });
+  assert.deepEqual(JSON.parse(sent[3].body), { state: 'no-plan' });
+  const items = JSON.parse(readFileSync(join(at.stateDir, `${DAY}.inbox.json`), 'utf8'));
+  assert.deepEqual(items.map(item => [item.agent, item.kind, item.title]), [['p-1', 'start', 'Ads'], ['p-2', 'start', 'TikTok Shop']]);
+  assert.equal((await inboxAdd({ ...at, kind: 'start', agent: 'nobody', inbox })).reason, 'planning');
+  assert.equal((await inboxAdd({ ...at, kind: 'start', agent: 'p-1', inbox: fakeInbox(false).inbox })).status, 'unavailable');
+});
+
+test('start relays Go with the note and answers, or Not today with a closed workspace and a reminder', async t => {
+  const { at, rows } = planning(t);
+  writeFileSync(rows[0].plan, JSON.stringify(PLAN));
+  const { closed, inbox } = fakeInbox();
+  const goItem = await inboxAdd({ ...at, kind: 'start', agent: 'p-1', inbox });
+  const skipItem = await inboxAdd({ ...at, kind: 'start', agent: 'p-2', inbox });
+  const words = join(at.stateDir, 'answer.txt');
+  writeFileSync(words, 'Note: Keep it short\n\nWhich offer leads the ads?\nGift card\n');
+  const { calls, call } = fakePaseo([{ ls: [agent('p-1', 'idle'), agent('p-2', 'idle')] }]);
+  const { calls: saved, memory } = fakeMemory([]);
+  const sends = () => calls.filter(args => args[0] === 'send');
+  const go = await start({ ...at, agent: 'Ads', choice: 'go', file: words, call, inbox, memory, now: new Date(NOON) });
+  assert.equal(go.status, 'started');
+  assert.deepEqual(sends()[0].slice(0, 2), ['send', 'p-1']);
+  assert.equal(readFileSync(sends()[0][3], 'utf8'), 'Go. Work from your plan.\n\nNote: Keep it short\n\nWhich offer leads the ads?\nGift card');
+  const log = readFileSync(join(at.stateDir, `${DAY}.actions.jsonl`), 'utf8').trim().split('\n').map(line => JSON.parse(line));
+  assert.deepEqual([log[0].bucket, log[0].label], ['person', 'Started: Ads']);
+  assert.equal(opened(at).find(row => row.agentId === 'p-1').phase, 'working');
+  assert.equal((await start({ ...at, agent: 'p-1', choice: 'go', call, inbox, memory })).reason, 'planning', 'a started agent starts once');
+  const skip = await start({ ...at, agent: 'p-2', choice: 'skip', call, inbox, memory });
+  assert.equal(skip.status, 'skipped');
+  assert.equal(readFileSync(sends()[1][3], 'utf8'), 'Not today; stop here.');
+  assert.deepEqual(calls.at(-1), ['workspace', 'archive', 'ws-tt']);
+  assert.equal(skip.reminder.state, 'saved');
+  assert.equal(saved[0].input.facts[0].body, 'Reminder for 2026-10-22: TikTok Shop');
+  assert.equal(opened(at).find(row => row.agentId === 'p-2').phase, 'skipped');
+  assert.deepEqual(closed, [goItem.id, skipItem.id]);
+  assert.deepEqual(JSON.parse(readFileSync(join(at.stateDir, `${DAY}.inbox.json`), 'utf8')), []);
+  assert.equal((await start({ ...at, env: {}, agent: 'p-1', choice: 'go', call, inbox, memory })).status, 'unsupported');
+});
+
+test('a choice for a running agent is held, the watch prints held at its next stop, and start then delivers it', async t => {
+  const { at, rows } = planning(t);
+  writeFileSync(rows[0].plan, JSON.stringify(PLAN));
+  const { closed, inbox } = fakeInbox();
+  const card = await inboxAdd({ ...at, kind: 'start', agent: 'p-1', inbox });
+  const words = join(at.stateDir, 'answer.txt');
+  writeFileSync(words, 'Note: Keep it short');
+  const { memory } = fakeMemory([]);
+  const busy = fakePaseo([{ ls: [agent('p-1', 'running'), agent('p-2', 'running')] }]);
+  const held = await start({ ...at, agent: 'p-1', choice: 'go', file: words, call: busy.call, inbox, memory });
+  assert.deepEqual([held.status, held.choice], ['held', 'go']);
+  assert.ok(!busy.calls.some(args => args[0] === 'send'));
+  assert.deepEqual(closed, [card.id], 'the answered card leaves the inbox');
+  assert.deepEqual([opened(at)[0].phase, opened(at)[0].held], ['planning', 'go']);
+  assert.equal((await inboxAdd({ ...at, kind: 'start', agent: 'p-1', inbox })).reason, 'chosen', 'a card with a choice is never added again');
+  const round = { ls: [agent('p-1', 'idle'), agent('p-2', 'running')] };
+  const early = { watch: { once: true, now: () => Date.parse('2026-10-21T08:05:00Z') } };
+  const stop = await events(at, [round], early);
+  assert.deepEqual(stop.lines.map(line => `${line.event} ${line.agent} ${line.choice}`), ['held p-1 go'], 'a held row is never planned or plans-ready');
+  assert.deepEqual((await events(at, [round], early)).lines, []);
+  const idle = fakePaseo([round]);
+  assert.equal((await start({ ...at, agent: 'p-1', call: idle.call, inbox, memory })).status, 'started');
+  assert.equal(readFileSync(idle.calls.find(args => args[0] === 'send')[3], 'utf8'), 'Go. Work from your plan.\n\nNote: Keep it short');
+  assert.deepEqual([opened(at)[0].phase, opened(at)[0].held], ['working', undefined]);
+  assert.equal((await start({ ...at, agent: 'p-2', call: idle.call, inbox, memory })).reason, 'choice', 'no choice held, none given');
+});
+
+test("the watch writes each agent's status only when it changes, cut to one line, and keeps a done card a day", async t => {
+  const at = chief(t, [{ ...ROWS[0], folder: 'email-folder' }, ROWS[1]]);
+  const { opened: sent, closed, inbox } = fakeInbox();
+  const once = { watch: { once: true, inbox } };
+  const long = `\nChecked the landing page${'!'.repeat(300)}\nNext I will fix the button.`;
+  const round = [{ ls: [agent('a-1', 'running'), agent('b-2', 'running')], last: long }];
+  await events(at, round, once);
+  assert.deepEqual(sent.map(spec => [spec.kind, spec.title, spec.workspace]), [['agent', 'Email', 'email-folder'], ['agent', 'Research', 'research']]);
+  assert.deepEqual(sent[0].actions, {});
+  const step = `Checked the landing page${'!'.repeat(176)}`;
+  assert.deepEqual(JSON.parse(sent[0].body), { state: 'working', step });
+  const file = join(at.stateDir, `${DAY}.status.json`);
+  const before = readFileSync(file, 'utf8');
+  await events(at, round, once);
+  assert.equal(sent.length, 2, 'an unchanged pass writes nothing');
+  assert.equal(readFileSync(file, 'utf8'), before);
+  writeFileSync(join(at.stateDir, `${DAY}.actions.jsonl`), `${JSON.stringify({ at: NOON, agent: 'a-1', bucket: 'keep-going', label: 'Kept going: Email' })}\n`);
+  await events(at, round, once);
+  assert.equal(sent.length, 3);
+  assert.equal(sent[2].id, sent[0].id);
+  assert.deepEqual(JSON.parse(sent[2].body), { state: 'working', step, action: 'Kept going: Email' });
+  assert.equal(doneAgent({ ...at, agent: 'Research', proof: ' https://example.com/report ' }).status, 'marked');
+  await events(at, [{ ls: [agent('a-1', 'closed'), agent('b-2', 'idle')], last: long }], once);
+  assert.deepEqual(JSON.parse(sent.at(-1).body), { state: 'done', proof: 'https://example.com/report' });
+  assert.deepEqual(closed, [sent[0].id], 'a gone agent leaves the inbox');
+  await events(at, [{ ls: [agent('b-2', 'closed')] }], { watch: { inbox } });
+  assert.deepEqual(closed, [sent[0].id], 'a done card outlasts the watch');
+  await events({ ...at, day: '2026-10-22' }, [{ ls: [] }], { watch: { inbox } });
+  assert.deepEqual(closed, [sent[0].id, sent[1].id], "the next day's watch clears it");
+  assert.equal(existsSync(file), false);
+  assert.equal(doneAgent({ ...at, agent: 'nobody', proof: 'x' }).reason, 'unwatched');
+});
+
+test('a status the inbox missed is tried again next pass, and only an inbox with no sign-in stops the reports', async t => {
+  const at = chief(t, ROWS.slice(0, 2));
+  const running = { ls: [agent('a-1', 'running'), agent('b-2', 'running')] };
+  const rounds = [running, running, running, { ls: [agent('a-1', 'closed'), agent('b-2', 'closed')] }];
+  const flaky = fakeInbox();
+  let misses = 1;
+  const once = flaky.inbox.open;
+  const inbox = { ...flaky.inbox, open: async spec => (misses-- > 0 ? null : once(spec)), off: async () => false };
+  await events(at, rounds, { watch: { inbox } });
+  assert.deepEqual(flaky.opened.map(spec => spec.title), ['Email', 'Research'], 'one miss, then both written on the next pass');
+  const signedOut = chief(t, ROWS.slice(0, 2));
+  const { opened: tried, inbox: off } = fakeInbox(false);
+  await events(signedOut, rounds, { watch: { inbox: { ...off, off: async () => true } } });
+  assert.equal(tried.length, 1);
+  assert.equal(existsSync(join(signedOut.stateDir, `${DAY}.status.json`)), false);
+});
+
+test('start, done-agent and inbox add --kind start check their flags', t => {
+  const cwd = repo(t);
+  assert.equal(run(cwd, ['start', '--agent', 'a', '--choice', 'later']).status, 2);
+  assert.equal(run(cwd, ['done-agent', '--agent', 'a']).status, 2);
+  for (const args of [['start', '--agent', 'a'], ['start', '--agent', 'a', '--choice', 'go'], ['done-agent', '--agent', 'a', '--proof', 'p'], ['inbox', 'add', '--kind', 'start', '--agent', 'a'],
+    ['open', '--step', 's', '--title', 't', '--brief', 'b', '--plan-first']]) {
+    const outside = run(cwd, args);
+    assert.equal(outside.status, 0, outside.stderr);
+    assert.equal(JSON.parse(outside.stdout).status, 'unsupported');
+  }
 });

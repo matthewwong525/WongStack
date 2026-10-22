@@ -3,17 +3,31 @@ import { z } from 'zod'
 // The inbox's own routes, read in the shapes app/worker/apps/inbox/ writes.
 const tap = z.object({ id: z.string(), item: z.string(), action: z.string(), text: z.string(),
   state: z.enum(['waiting', 'delivering', 'sent', 'failed', 'changed', 'cancelled', 'expired']) })
-const item = z.object({ id: z.string(), kind: z.enum(['plan', 'approval', 'question', 'link']), title: z.string(), workspace: z.string(),
-  actions: z.array(z.string()), version: z.string(), createdAt: z.number(), closesAt: z.number(),
-  detail: z.object({ text: z.string(), options: z.array(z.string()).optional(), multi: z.boolean().optional() }).nullable(),
+const question = z.object({ text: z.string(), options: z.array(z.string()).optional(), multi: z.boolean().optional() })
+const lines = z.array(z.string())
+const plan = z.object({ willDo: lines, needs: lines, askFirst: lines,
+  questions: z.array(z.object({ text: z.string(), options: lines.optional(), several: z.boolean().optional() })) })
+const startCard = z.object({ state: z.enum(['ready', 'planning', 'no-plan']), plan: plan.optional() })
+const status = z.object({ state: z.enum(['planning', 'working', 'done']), step: z.string().optional(), action: z.string().optional(),
+  proof: z.string().optional() })
+const wire = z.object({ id: z.string(), kind: z.enum(['plan', 'approval', 'question', 'link', 'start', 'agent']), title: z.string(), workspace: z.string(),
+  actions: z.array(z.string()), version: z.string(), createdAt: z.number(), closesAt: z.number(), detail: z.unknown(),
   // An older app sends no link: such an item is never a link.
   link: z.object({ what: z.enum(['key', 'login', 'card', 'form', 'view']), url: z.string() }).nullable().default(null), tap: tap.nullable() })
+/** The item's body read by its kind: a decision's words, a morning plan card, or where an agent stands; else null. */
+const read = <Raw extends z.infer<typeof wire>>(raw: Raw) => ({ ...raw,
+  detail: raw.kind === 'question' || raw.kind === 'approval' ? question.nullable().catch(null).parse(raw.detail) : null,
+  start: raw.kind === 'start' ? startCard.nullable().catch(null).parse(raw.detail) : null,
+  status: raw.kind === 'agent' ? status.nullable().catch(null).parse(raw.detail) : null })
+const item = wire.transform(read)
 const list = z.object({ items: z.array(item), computerOnline: z.boolean() })
-const one = z.object({ item: item.extend({ body: z.string() }), computerOnline: z.boolean() })
+const one = z.object({ item: wire.extend({ body: z.string() }).transform(read), computerOnline: z.boolean() })
 const tapped = z.object({ tap })
 const refused = z.object({ error: z.object({ code: z.string() }) })
 export type Tap = z.infer<typeof tap>
 export type Item = z.infer<typeof item>
+export type Status = z.infer<typeof status>
+export type MorningPlan = z.infer<typeof plan>
 export type Inbox = z.infer<typeof list>
 export type Plan = z.infer<typeof one>
 /** Why a tap was not queued: the page changed, the action was already sent, too soon after the last, the item closed,
