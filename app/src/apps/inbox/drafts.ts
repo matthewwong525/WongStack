@@ -26,10 +26,11 @@ export function readDrafts(): Drafts {
   }
 }
 export const writeDrafts = (drafts: Drafts) => localStorage.setItem(KEY, JSON.stringify(drafts))
-/** Only the drafts of items still listed at the version shown: a gone or rebuilt item drops its own. */
+/** Only the drafts of items still listed at the version shown: a gone or rebuilt item drops its own, and a plan card
+ *  its questions'. */
 export function keepListed(drafts: Drafts, items: Item[]): Drafts {
   const listed = new Set(items.map(draftKey))
-  return Object.fromEntries(Object.entries(drafts).filter(([key]) => listed.has(key)))
+  return Object.fromEntries(Object.entries(drafts).filter(([key]) => listed.has(key.replace(/^([^.:]+)\.\d+:/, '$1:'))))
 }
 
 /** An approval's action as its choice says it: `decline` → *Don't approve*. The tap still names the action. */
@@ -39,10 +40,33 @@ export const multi = (item: Item) => item.kind === 'question' && item.detail?.mu
 /** `ticks` with `n` ticked or unticked. */
 export const toggle = (ticks: number[] = [], n: number) => ticks.includes(n) ? ticks.filter(each => each !== n) : [...ticks, n]
 
-/** An approval's actions, or a question's options; the person's own words sit one past these. */
+const START: Choice[] = [{ label: 'Go', action: 'go', text: '' }, { label: 'Not today', action: 'skip', text: '' }]
+
+/** An approval's actions, a plan card's Go and Not today, or a question's options; own words sit one past these. */
 export const choicesOf = (item: Item): Choice[] => item.kind === 'approval'
   ? item.actions.map(action => ({ label: say(action), action, text: '' }))
-  : (item.detail?.options ?? []).map(option => ({ label: option, action: 'send', text: option }))
+  : item.kind === 'start' ? START : (item.detail?.options ?? []).map(option => ({ label: option, action: 'send', text: option }))
+
+/** A plan card's questions, each a decision of its own, so it takes the same picks and words. */
+export const questionsOf = (item: Item): Item[] => (item.start?.plan?.questions ?? []).map((question, n) => ({ ...item, id: `${item.id}.${n}`,
+  kind: 'question', title: question.text, actions: [], detail: { text: question.text, options: question.options, multi: question.several },
+  start: null, tap: null }))
+
+/** A plan card's answer: Go unless Not today is picked, with the note, then on Go each question answered. */
+function startPickOf(item: Item, draftOf: (item: Item) => Draft | undefined): Choice {
+  const draft = draftOf(item) ?? {}
+  const go = draft.pick !== 1
+  const note = draft.own?.trim()
+  const answers = go ? questionsOf(item).flatMap(question => {
+    const answer = pickOf(question, draftOf(question))
+    return answer ? [`${question.title}\n${answer.text}`] : []
+  }) : []
+  return { ...START[go ? 0 : 1], text: [note && `Note: ${note}`, ...answers].filter(Boolean).join('\n\n') }
+}
+
+/** The answer an item's drafts give, or null while they give none: a plan card always gives one. */
+export const answerOf = (item: Item, draftOf: (item: Item) => Draft | undefined) =>
+  item.kind === 'start' ? startPickOf(item, draftOf) : pickOf(item, draftOf(item))
 
 /** The answer a draft gives, or null while it gives none. Own words go as `send`, on an approval too; a tick-several
  *  question sends each ticked option on its own line, then the words. */

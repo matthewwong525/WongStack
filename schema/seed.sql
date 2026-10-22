@@ -75,3 +75,22 @@ INSERT INTO wong_access_grants VALUES
 INSERT INTO wong_access_key_grants VALUES
   ('11111111-1111-4111-8111-111111111111', 'dana@example.invalid', 'cloudflare', 'read', 1),
   ('11111111-1111-4111-8111-111111111111', 'dana@example.invalid', 'code', 'write', 1);
+
+-- A sample day in Fay's inbox, one agent per group: the ad brief's morning plan waits on her Go (Needs you), the
+-- landing-page check is working, and Ronald's files are done with their proof. Fay, the Admin, can open the inbox.
+INSERT INTO inbox_items
+  (installation_id, email, id, kind, title, workspace, body, actions, version, created_at, closes_at, closed_at)
+VALUES
+  ('11111111-1111-4111-8111-111111111111', 'fay@example.invalid', 'a0000000000000000000000000000001', 'agent',
+   'Write the BFCM ad brief', 'bfcm-brief', '{"state":"planning"}', '[]', 'seed-1', 1792828800000, 4102444800000, NULL),
+  ('11111111-1111-4111-8111-111111111111', 'fay@example.invalid', 'a0000000000000000000000000000002', 'start',
+   'Write the BFCM ad brief', 'bfcm-brief',
+   '{"state":"ready","plan":{"willDo":["Read last year''s ads and the VIP launch notes.","Draft the brief in the shared drive."],"needs":["Last year''s ad results."],"askFirst":["Sending the brief to the ads team."],"questions":[{"text":"Which offer leads the ads?","options":["$20 gift card","Free shipping"]}]}}',
+   '["go","skip"]', 'seed-1', 1792828800000, 4102444800000, NULL),
+  ('11111111-1111-4111-8111-111111111111', 'fay@example.invalid', 'a0000000000000000000000000000003', 'agent',
+   'Final check of the BFCM landing page', 'landing-check',
+   '{"state":"working","step":"Checking the gift card banner on a phone","action":"Kept going: Final check of the BFCM landing page"}',
+   '[]', 'seed-1', 1792828800000, 4102444800000, NULL),
+  ('11111111-1111-4111-8111-111111111111', 'fay@example.invalid', 'a0000000000000000000000000000004', 'agent',
+   'Get Ronald''s files', 'ronald-files', '{"state":"done","proof":"Files in the shared drive: https://drive.example.invalid/ronald"}',
+   '[]', 'seed-1', 1792828800000, 4102444800000, NULL);
