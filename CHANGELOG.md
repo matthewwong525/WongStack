@@ -3,6 +3,12 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 44.6.1 — A preview check signs in as you for a per-person app
+
+- **A preview check can reach a per-person app**, such as the inbox, by signing in as you; the staging walkthrough page says how.
+
+**Updating.** No step needed.
+
 ## 44.6.0 — Every private link and form listed in your inbox
 
 - **Private links wait in your inbox.** A key, password, card or form link, and a live view, shows under *Needs you* until it closes. *Open* opens it in a new tab. The app holds only its address, kind, title and closing time: never what you type, a username, or a note, so a password link opened there asks for the username.
