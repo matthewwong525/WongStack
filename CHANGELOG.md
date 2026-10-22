@@ -5,7 +5,7 @@
 
 ## 44.4.0 — One inbox for plans to review and decisions waiting on you
 
-- **One page lists what waits on you.** The new Inbox app, at `/apps/inbox/` in your company app, shows *Needs you* questions, *Approvals* and *Plans to review*, each for the person signed in. It refreshes while open, and *Approve all* clears a run of approvals at once.
+- **One page lists what waits on you.** The new Inbox app, at `/apps/inbox/` in your company app, shows *Needs you* questions, *Approvals* and *Plans to review*, each for the person signed in. It refreshes while open. Questions and approvals work like a decisions page: tap a choice on each card, add a note if you like, then one *Send* passes on every answer you picked. Picks and notes stay on that device until you send them, and a computer has keys for each step.
 - **A plan's link opens in the inbox.** When your computer is signed in to the company app, a new plan opens there, behind your company sign-in, with no tunnel. Otherwise its link works as before.
 - **A tap reaches the chat once your computer takes it.** The inbox shows *Waiting…*, *Waiting for your computer* while it's off, *Sending…*, then *Sent*. You can cancel a tap until your computer takes it, one left when its item closes is never sent, and none is sent twice.
 - **The daily chief of staff asks there too.** Its approvals and questions wait in the inbox with one line in the chat; an answer typed in the chat still works.
