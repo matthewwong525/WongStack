@@ -50,7 +50,7 @@ A page opened from the plan's file, or from a pull request, is the same page wit
 
 - **The address alone only shows the page.** It is long and random, and what it shows is plan text, not a secret.
 - **Sending needs the link's key.** The key rides after the `#`, which a browser never sends as part of an address, and goes back in a header.
-- **A send reaches one chat, under one fixed line.** The chat and the first line are set when the link opens; the page can change neither. For a plan that line says *Don't build yet.*
+- **A send reaches one chat, under one fixed line.** The chat and the first line are set when the link opens; the page can change neither. For a plan that line says *Don't build yet.* The send arrives as your own message, never under another chat's name.
 - **A send is bounded:** 20,000 characters, and one every 5 seconds for each page.
 - **A button names a fixed action and may attach notes.** The opener fixes its instruction and chat target; reviewer text follows that instruction and is limited to 20,000 characters. Invalid or oversized notes never reach the chat. So the most a plan's link can do is send notes, start that plan's build, or start its publish.
 - **The link is in the chat's text.** Anyone who can read it there can send notes to that chat, and start that build or publish, until it closes.

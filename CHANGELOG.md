@@ -3,6 +3,12 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (patch) — Page sends arrive as your own message
+
+- **A page's send shows as yours.** Notes, *Build it*, a form's answers and an inbox tap reach the chat as your own message, the same as if you typed them. Before, they showed under the name of whichever chat first opened a page on this computer.
+
+**Updating.** No step needed. The next page to open replaces the page server still running from older code, and every open link keeps its address. The inbox's helper is replaced the same way the next time a plan goes to the inbox.
+
 ## 44.6.1 — A preview check signs in as you for a per-person app
 
 - **A preview check can reach a per-person app**, such as the inbox, by signing in as you; the Cloudflare Access page says how.

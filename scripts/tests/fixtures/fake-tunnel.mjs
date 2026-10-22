@@ -22,10 +22,12 @@ exec sleep 600
   chmodSync(join(bin, 'cloudflared'), 0o755);
 }
 
-export function fakePaseo(bin, sent, kind = 'ok') {
+/** `envs`, when given, receives the env of each call. */
+export function fakePaseo(bin, sent, kind = 'ok', envs = null) {
   writeFileSync(join(bin, 'paseo'), `#!${process.execPath}
 const fs = require('node:fs');
 fs.appendFileSync(${JSON.stringify(sent)}, JSON.stringify(process.argv.slice(2)) + '\\n');
+${envs ? `fs.appendFileSync(${JSON.stringify(envs)}, JSON.stringify(process.env) + '\\n');` : ''}
 ${kind === 'fail' ? 'process.exit(1);' : kind === 'invalid' ? "console.log('{}');" : "console.log(JSON.stringify({agentId: process.argv[3], status: 'sent'}));"}
 `);
   chmodSync(join(bin, 'paseo'), 0o755);

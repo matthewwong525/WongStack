@@ -2,7 +2,7 @@
 // Opens a reply link: a page the assistant made, at a web address that closes itself, whose send puts the person's
 // text into the chat that opened it. Not a private link: it never carries a secret. wiki/development/reply-links.md
 
-import { spawn } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
@@ -32,7 +32,7 @@ const USAGE = `usage: reply-link.mjs open <file> --header "<line>" [--hours N] [
 export const LIMITS = { text: 20_000, body: 128 * 1024, header: 300, action: 300, actions: 6 };
 const HOURS = 24;
 // Raised when the server's routes change: a running server from older code is swapped for this one.
-const PROTOCOL = 3;
+const PROTOCOL = 4;
 const ID = /^[0-9a-f]{32}$/;
 const ACTION = /^[a-z][a-z0-9-]{0,30}$/;
 const ROUTE = /^\/p\/([0-9a-f]{32})\/(alive|send|act)?$/;
@@ -342,12 +342,31 @@ function bodyOf(item) {
   try { return readFileSync(item.file, 'utf8'); } catch { return null; }
 }
 
-/** Starts the inbox server unless one runs: it delivers taps, and stops once no item is open. */
-function startInbox(state, env) {
-  if (alive(readJson(state.inbox)?.pid)) return;
+/** A process's command line, from /proc where it exists, else `ps` (macOS); '' when neither answers. */
+function commandOf(pid) {
+  try { return readFileSync(`/proc/${pid}/cmdline`, 'utf8').split('\0').join(' '); } catch { /* no /proc */ }
+  try { return execFileSync('ps', ['-o', 'command=', '-p', String(pid)], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }); } catch { return ''; }
+}
+
+const isInboxHelper = pid => /reply-link\.mjs serve-inbox\b/.test(commandOf(pid));
+
+const writeInbox = (state, pid) => writeFileSync(state.inbox, `${JSON.stringify({ pid, protocol: PROTOCOL })}\n`, { mode: 0o600 });
+
+/** Starts the inbox server unless a current one runs: it delivers taps, and stops once no item is open. One from
+ * older code is ended first: it reads its record only between rounds, so it would never stop for a newer one. */
+export async function startInbox(state, env) {
+  const running = readJson(state.inbox);
+  if (alive(running?.pid)) {
+    if ((running.protocol ?? 1) >= PROTOCOL) return;
+    // A record outlives its helper, and the pid may since belong to another program: signal only our own helper.
+    if (isInboxHelper(running.pid)) {
+      signal(running.pid, 'SIGTERM');
+      for (let i = 0; i < 50 && alive(running.pid); i++) await sleep(100);
+    }
+  }
   const child = spawn(process.execPath, [fileURLToPath(import.meta.url), 'serve-inbox'], { detached: true, stdio: 'ignore', env });
   child.unref();
-  writeFileSync(state.inbox, `${JSON.stringify({ pid: child.pid })}\n`, { mode: 0o600 });
+  writeInbox(state, child.pid);
 }
 
 /** Puts an item in the person's inbox and returns `{id, link}`, or null where the inbox does not answer. `spec` is
@@ -368,7 +387,7 @@ export async function openInboxItem(spec, { env = process.env, clientFor = compa
     deadline: Date.now() + spec.hours * 3_600_000, version: sha(body), ...(file === null && { body }), done: kept?.done ?? { version: null, names: [] } };
   if (!(await upload(client, shown(item, body)))) return null;
   writeItem(state, item);
-  start(state, env);
+  await start(state, env);
   return { id: item.id, link: `${origin}/apps/inbox/?item=${item.id}` };
 }
 
@@ -471,7 +490,7 @@ async function serveInbox() {
     rmSync(state.inbox, { force: true });
     // An item written as this server ended saw it still running and started none: take it up again.
     if (!client || !openItems(state).length) return;
-    writeFileSync(state.inbox, `${JSON.stringify({ pid: process.pid })}\n`, { mode: 0o600 });
+    writeInbox(state, process.pid);
   }
 }
 

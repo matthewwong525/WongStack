@@ -2,12 +2,13 @@
 // A fake app client and a fake wake stand in for the company helper and Paseo.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { spawn } from 'node:child_process';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { checkin, closeItem, companyFor, listLink, probe, tapResult, upload } from '../../.agents/skills/hand-over/scripts/lib/inbox.mjs';
-import { closeInboxItem, inboxTick, openInboxItem, openReplyLink } from '../../.agents/skills/hand-over/scripts/reply-link.mjs';
+import { closeInboxItem, inboxTick, openInboxItem, openReplyLink, startInbox } from '../../.agents/skills/hand-over/scripts/reply-link.mjs';
 
 const ORIGIN = 'https://app.example.com';
 const BUILD = 'Build it now: run /apply for the plan example.';
@@ -224,6 +225,49 @@ test('an item written during a round keeps the server going', async t => {
   app.taps.push({ id: 't1', item: quote.id, action: 'approve', text: '', version: versionOf('Send the quote') });
   assert.equal(await tick(at, app, { wake }), 1, 'the answered approval closed, and the new one is open');
   assert.deepEqual(readdirSync(at.state.items), [`${added.id}.json`]);
+});
+
+test('an inbox helper from older code is replaced by the next start; a current one is left running', async t => {
+  const at = home(t);
+  mkdirSync(join(at.dir, '.wong-stack', 'reply-link'), { recursive: true });
+  const alive = pid => { try { process.kill(pid, 0); return true; } catch { return false; } };
+  // A stand-in whose command line reads like the real helper's: `reply-link.mjs serve-inbox`.
+  const script = join(at.dir, 'reply-link.mjs');
+  writeFileSync(script, 'setInterval(() => {}, 1e6);\n');
+  const old = spawn(process.execPath, [script, 'serve-inbox'], { detached: true, stdio: 'ignore' });
+  const pids = [old.pid];
+  t.after(() => { for (const pid of pids) try { process.kill(pid, 'SIGKILL'); } catch { /* gone */ } });
+  const record = () => JSON.parse(readFileSync(at.state.inbox, 'utf8'));
+  writeFileSync(at.state.inbox, JSON.stringify({ pid: old.pid }));
+  await startInbox(at.state, at.env);
+  const started = record();
+  pids.push(started.pid);
+  assert.notEqual(started.pid, old.pid);
+  assert.equal(started.protocol, 4);
+  assert.equal(alive(old.pid), false, 'the older helper ended');
+
+  const current = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1e6)'], { detached: true, stdio: 'ignore' });
+  pids.push(current.pid);
+  writeFileSync(at.state.inbox, JSON.stringify({ pid: current.pid, protocol: 4 }));
+  await startInbox(at.state, at.env);
+  assert.deepEqual(record(), { pid: current.pid, protocol: 4 }, 'no second helper starts');
+  assert.ok(alive(current.pid));
+});
+
+test('a recorded pid that is not the inbox helper is a stale record: a new helper starts and it is never signalled', async t => {
+  const at = home(t);
+  mkdirSync(join(at.dir, '.wong-stack', 'reply-link'), { recursive: true });
+  const alive = pid => { try { process.kill(pid, 0); return true; } catch { return false; } };
+  const other = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1e6)'], { detached: true, stdio: 'ignore' });
+  const pids = [other.pid];
+  t.after(() => { for (const pid of pids) try { process.kill(pid, 'SIGKILL'); } catch { /* gone */ } });
+  writeFileSync(at.state.inbox, JSON.stringify({ pid: other.pid }));
+  await startInbox(at.state, at.env);
+  const started = JSON.parse(readFileSync(at.state.inbox, 'utf8'));
+  pids.push(started.pid);
+  assert.notEqual(started.pid, other.pid);
+  assert.equal(started.protocol, 4);
+  assert.ok(alive(other.pid), 'the other program is left running');
 });
 
 test('one wake per item every 5 seconds, and a tap held too long is failed, not woken', async t => {
