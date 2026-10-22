@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — People who can push on GitHub can open previews
+## 44.9.0 — People who can push on GitHub can open previews
 
 - **Push rights on GitHub open previews.** Every 15 minutes, and whenever Access opens, the live app reads who can push to the project and lets them sign in to previews. Never the live app. Take their push rights away, and within 15 minutes they leave the previews' sign-in list and their preview sessions end.
 - **The app finds their email itself** from their GitHub profile or their own commits in the project. When neither has one, Access lists them under People as *Needs an email*, and you type it once.

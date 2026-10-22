@@ -35,5 +35,6 @@
 
 ## 7. Verification
 
-- [ ] 7.1 Run `npm test` in `app/`, `node .github/scripts/checks.mjs --worktree` and `openspec validate preview-access-for-pushers --strict --no-interactive`, then `/save` for CI.
-- [ ] 7.2 On the saved branch's preview, with `/verify`: People shows the section reading *Live app only*. A signed-in person outside the practice list opens every app and sees no Access management (walked by the route tests if no second sign-in is at hand; say which).
+- [x] 7.1 Run `npm test` in `app/`, `node .github/scripts/checks.mjs --worktree` and `openspec validate preview-access-for-pushers --strict --no-interactive`, then `/save` for CI.
+- [x] 7.2 On the saved branch's preview, with `/verify`: People shows the section reading *Live app only*. A signed-in person outside the practice list opens every app and sees no Access management (walked by the route tests if no second sign-in is at hand; say which).
+  - Seen 2026-10-22 on 1da03ca's preview: People shows *Can push on GitHub · 0* reading *Live app only*, on desktop and phone, and `GET /api/access/pushers` answers `{"state":"live_only","pushers":[]}`. The unlisted-person rule was covered by `seed.test.ts` only: no second sign-in was at hand.

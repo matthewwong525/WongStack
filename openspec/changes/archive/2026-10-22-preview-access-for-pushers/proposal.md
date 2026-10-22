@@ -1,6 +1,6 @@
 # Proposal
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** preview-github-behavior
 **Open questions:** none
 
@@ -73,3 +73,4 @@ None.
 - **2026-10-22** — Asked what happens to pushers' preview sign-in when the GitHub key goes away or the project leaves GitHub → chose to keep them until the key is back.
 - **2026-10-22** — Assumed: each refresh reads the previews list once and rewrites it when it lacks the saved pushers, because setup's `access` step rewrites that list to the owner and live people, which would lock pushers out while Access says they can open previews.
 - **2026-10-22** — Saved for its checks inside `/ship`: built, reviewed by a second agent (two bugs fixed: pushers put back after setup rewrites the previews list, a contradictory staging line), local checks passing apart from a known slow `Welcome.test.tsx` under full-suite load, left for CI.
+- **2026-10-22** — Archived for publishing inside `/ship`: CI passed on 1da03ca, the preview showed the pushers section reading *Live app only*, and the migration became `20261025120000_access_pushers.sql` because main took the 20261024120000 stamp for its inbox migration.
