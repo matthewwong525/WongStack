@@ -19,12 +19,15 @@ function Parts({ plan }: { plan: MorningPlan }) {
   </div>)
 }
 
+// The pick is filled like a picked answer: the toggle's own shading is too faint to read at a glance.
+const PICKED = 'px-4 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground'
+
 /** Go or Not today, as one pair of toggles. */
 function GoToggle({ item, desk, go }: { item: Item; desk: Desk; go: boolean }) {
   return <ToggleGroup type="single" variant="outline" aria-label={`Start ${item.title} today?`} value={go ? 'go' : 'skip'}
     onValueChange={value => { if (value) desk.pick(item, value === 'go' ? 0 : 1) }}>
-    <ToggleGroupItem value="go" className="px-4">Go</ToggleGroupItem>
-    <ToggleGroupItem value="skip" className="px-4">Not today</ToggleGroupItem>
+    <ToggleGroupItem value="go" className={PICKED}>Go</ToggleGroupItem>
+    <ToggleGroupItem value="skip" className={PICKED}>Not today</ToggleGroupItem>
   </ToggleGroup>
 }
 
