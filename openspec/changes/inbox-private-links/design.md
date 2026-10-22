@@ -59,7 +59,7 @@ A question's detail may carry `multi: true`. `detailOf` in `daily.mjs` accepts i
 `inboxAdd` stores `{id, agent, at, request}` per item, reading old plain ids as `{id}`. `request` is the permit id when the question came from an `asking` card. Each round, for every open item whose agent the chief has not sent a `reply` or `answer` to since `at`:
 
 - **From a card:** the item closes once that request id is no longer pending.
-- **From a stop:** the item closes once the agent's status is `running`.
+- **From a stop:** the item closes once the agent's status is `running`, or once its last message differs from the one the watch saw at its stop, since a quick reply can start and end between two rounds.
 
 The watch then calls `inboxClose`, prints `{event: 'answered-elsewhere', title, agent, item}`, and `chief.md` says to write *Answered in its chat: `<title>`*. A tap already waiting on a closed item expires through the existing rules, so it's never delivered. *Alternative: let the agent close its own item.* Rejected: agents don't know their question became an inbox item; the watch already sees both sides.
 

@@ -232,10 +232,16 @@ async function closeInbox({ stateDir, day, env, inbox }) {
 }
 
 // An item answered in its own chat: the chief sent its agent nothing since, and its card left or its stop ended.
-function answeredElsewhere(item, list, pending, log) {
+// A reply quicker than a round leaves the agent idle again, so a new last message counts as the stop ending.
+async function answeredElsewhere(item, { list, pending, log, seen, call }) {
   if (!item.agent || log.some(action => action.agent === item.agent && action.at > item.at)) return false;
   if (item.request) return !pending.some(ask => ask.id === item.request);
-  return list.find(agent => agent.id === item.agent)?.status === 'running';
+  const status = list.find(agent => agent.id === item.agent)?.status;
+  if (status === 'running') return true;
+  const before = seen[item.agent]?.last;
+  if (!status || typeof before !== 'string') return false;
+  const last = await lastMessage(call, item.agent);
+  return last !== null && last !== before;
 }
 
 // Notices; closes only inbox items answered elsewhere. A stop prints once per idle spell, which ends when the agent
@@ -285,11 +291,13 @@ export async function watch({ stateDir, day, email, call, env = process.env, pri
             line({ event: 'stopped', ...describe(row), status: agent.status, last });
             seen.idle = true;
             seen.at = new Date(now()).toISOString();
+            if (last !== null) seen.last = last;
           }
         }
         state.agents[row.agentId] = seen;
       }
-      for (const item of inboxItems(stateDir, day).filter(open => answeredElsewhere(open, list, pending, log))) {
+      for (const item of inboxItems(stateDir, day)) {
+        if (!(await answeredElsewhere(item, { list, pending, log, seen: state.agents, call }))) continue;
         await inboxClose({ stateDir, day, env, id: item.id, inbox });
         line({ event: 'answered-elsewhere', title: item.title ?? null, agent: item.agent, item: item.id });
       }

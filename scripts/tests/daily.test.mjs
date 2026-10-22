@@ -236,7 +236,7 @@ function fakePaseo(rounds, { last = 'Tests pass; next I will update the wiki pag
     if (now.fail) throw now.fail === true ? new Error('daemon busy') : now.fail;
     if (args[0] === 'ls') return now.ls;
     if (args.join(' ') === 'permit ls') return now.permits ?? [];
-    if (args[0] === 'logs') return last;
+    if (args[0] === 'logs') return now.last ?? last;
     return { ok: true };
   };
   return { calls, call };
@@ -544,6 +544,22 @@ test('the watch closes an item answered in its own chat, keeps one the chief rep
   ]);
   assert.deepEqual(closed, ['i1', 'i2', 'i0', 'i3']);
   assert.deepEqual(lines.at(-1), { event: 'end', reason: 'empty' });
+});
+
+test('the watch closes a stop item when the agent answers between two rounds and is idle again', async t => {
+  const at = chief(t, ROWS.slice(1, 2));
+  const words = join(at.stateDir, 'ask.json');
+  writeFileSync(words, JSON.stringify({ text: 'Acme or Boxco?', options: ['Acme', 'Boxco'] }));
+  const { closed, inbox } = fakeInbox();
+  await inboxAdd({ ...at, kind: 'question', agent: 'b-2', title: 'Quick', file: words, inbox, now: new Date(NOON) });
+  const { lines } = await events(at, [
+    { ls: [agent('b-2', 'idle')], last: 'Acme or Boxco?' },
+    { ls: [agent('b-2', 'idle')], last: 'Acme or Boxco?' },
+    { ls: [agent('b-2', 'idle')], last: 'Going with Acme.' },
+    { ls: [agent('b-2', 'closed')] },
+  ], { watch: { inbox } });
+  assert.deepEqual(lines.filter(line => line.event === 'answered-elsewhere'), [{ event: 'answered-elsewhere', title: 'Quick', agent: 'b-2', item: 'i1' }]);
+  assert.deepEqual(closed, ['i1']);
 });
 
 test('the inbox commands take add or close and check their flags', t => {

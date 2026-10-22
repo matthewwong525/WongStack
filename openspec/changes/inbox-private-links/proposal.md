@@ -123,3 +123,4 @@ None.
 - **2026-10-22** — Assumed: the listing is best-effort, so a link opens at once even when the app is slow or away, because the link is what the person needs.
 - **2026-10-22** — Assumed: no inbox rows in the sample data, because items belong to one signed-in person, close within a day, and a seeded link would point at a dead address; the preview check makes its own throwaway items.
 - **2026-10-22** — Built every task but the preview check. The second look found that a stalled app could hold up a link's end and the reply-link command; the inbox removal now runs beside the tunnel shutdown, and the command exits once it prints.
+- **2026-10-22** — Preview walk (task 6.2) found an own-chat answer the agent replied to in seconds left its card in the inbox: the watch looks once a minute and saw the agent idle both times. The watch now also closes the card when the agent's last message changed since its stop, with a test.
