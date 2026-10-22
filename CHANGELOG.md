@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Every private link and form listed in your inbox
+## 44.6.0 — Every private link and form listed in your inbox
 
 - **Private links wait in your inbox.** A key, password, card or form link, and a live view, shows under *Needs you* until it closes. *Open* opens it in a new tab. The app holds only its address, kind, title and closing time: never what you type, a username, or a note, so a password link opened there asks for the username.
 - **Forms opened for you show there too**, beside the plan links already in the inbox.

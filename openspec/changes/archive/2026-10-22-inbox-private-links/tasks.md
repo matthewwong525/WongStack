@@ -29,4 +29,4 @@
 ## 6. Verification
 
 - [x] 6.1 Run `node .github/scripts/checks.mjs --worktree` and `cd app && npm test`; all pass, including `measure-context.mjs --check` after bringing `main` in.
-- [ ] 6.2 After implementation, `/save`. On the preview, signed in as the person, confirm: a throwaway key link and a throwaway form each show under *Needs you*; *Open* reaches them in a new tab; each row leaves once its link is done or closed. A throwaway question with a link in it opens the link without picking. Typed words reach a throwaway chat alone. A throwaway question answered in its own chat leaves the inbox at the next watch round.
+- [x] 6.2 After implementation, `/save`. On the preview, signed in as the person, confirm: a throwaway key link and a throwaway form each show under *Needs you*; *Open* reaches them in a new tab; each row leaves once its link is done or closed. A throwaway question with a link in it opens the link without picking. Typed words reach a throwaway chat alone. A throwaway question answered in its own chat leaves the inbox at the next watch round.

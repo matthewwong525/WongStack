@@ -11,7 +11,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · inbox-private-links</title>
+<title>Review · 2026-10-22-inbox-private-links</title>
 <style>
   /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
    look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
@@ -360,11 +360,11 @@
 })();
 </script>
 </head>
-<body data-change="inbox-private-links">
+<body data-change="2026-10-22-inbox-private-links">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>inbox-private-links</h1>
+  <h1>2026-10-22-inbox-private-links</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. <span class="copies">Saving a note copies all your notes.</span> Open a drawing and tap it to see it full screen.</p>
@@ -435,6 +435,7 @@
 <li class="decision card" id="decision-16" data-note="decision-16" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-22</p>Assumed: no inbox rows in the sample data, because items belong to one signed-in person, close within a day, and a seeded link would point at a dead address; the preview check makes its own throwaway items.</li>
 <li class="decision card" id="decision-17" data-note="decision-17" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-22</p>Built every task but the preview check. The second look found that a stalled app could hold up a link's end and the reply-link command; the inbox removal now runs beside the tunnel shutdown, and the command exits once it prints.</li>
 <li class="decision card" id="decision-18" data-note="decision-18" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-22</p>Preview walk (task 6.2) found an own-chat answer the agent replied to in seconds left its card in the inbox: the watch looks once a minute and saw the agent idle both times. The watch now also closes the card when the agent's last message changed since its stop, with a test.</li>
+<li class="decision card" id="decision-19" data-note="decision-19" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-22</p>Archived after the preview walk passed; numbered 44.6.0.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
