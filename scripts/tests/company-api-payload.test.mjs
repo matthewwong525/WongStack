@@ -17,6 +17,8 @@ test('fresh payload carries every helper dependency and memory descriptions stay
   assert.ok(inventory.pack.files.includes('scripts/employee-bootstrap.mjs'));
   cpSync(join(root, 'scripts/employee-bootstrap.mjs'), join(target, 'scripts/employee-bootstrap.mjs'));
   cpSync(join(root, 'scripts/lib-cli.mjs'), join(target, 'scripts/lib-cli.mjs'));
+  assert.ok(inventory.pack.files.includes('scripts/mcp-session.mjs'));
+  cpSync(join(root, 'scripts/mcp-session.mjs'), join(target, 'scripts/mcp-session.mjs'));
   // The real layout is shared by both agent aliases in every installed target.
   cpSync(join(target, '.agents'), join(target, '.claude'), { recursive: true });
   assert.equal(existsSync(join(target, 'app')), false); assert.equal(existsSync(join(target, '.env')), false);
