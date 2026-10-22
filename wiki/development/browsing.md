@@ -43,6 +43,8 @@ A failed command prints one `BROWSE_ERROR=` line. A ref comes from the newest sn
 
 **Tasks share the browser.** Two chats, or a chat and a scheduled run, each get their own page and the same logins; neither waits. A page is named for its task's folder, so a second task in one folder passes `--session <name>` on every command. `close` closes only the task's own page; `stop` ends the browser for every task, so the agent runs it only when you ask. [`/verify`](staging-walkthrough.md) uses a temporary browser of its own, without your logins.
 
+**A check never clears a shared browser's cookies.** A helper that needs a clean or signed-in browser for a test makes a throwaway profile in a temporary folder and deletes it afterwards. Never run `cookies clear` on a profile that holds sign-ins, such as `~/.wong-stack/browser-profile`: it deletes every sign-in there for good, and you must log in again by hand.
+
 **Read a page only after it settles.** `open` waits for two matching reads a second apart. After a click, read again if the page looks unfinished.
 
 **Nothing is reported to the browser's makers.** `browse.mjs` switches camofox's failure reports off at every start, and the browser listens only on this computer.

@@ -13,6 +13,12 @@
 
 **Updating.** No step needed. Links show in the inbox once this computer is signed in to the company app. A note you started on a decision before the update is dropped; type it again in the answer box.
 
+## 44.5.1 — A check never clears a signed-in browser
+
+- **Browser checks keep your sign-ins.** The browsing page now says a helper that needs a clean browser for a test makes a throwaway profile and deletes it, and never clears the cookies of a browser that holds your sign-ins, because that logs you out of every site for good.
+
+**Updating.** Nothing to do.
+
 ## 44.5.0 — Tidy two inbox display details
 
 - **A plan in the inbox has one light and dark switch.** The app's own switch now changes the plan's page too, in place, with your notes kept, and the page opens in the app's look. The review page hides its own switch inside the inbox; opened from its private link, it keeps it.
