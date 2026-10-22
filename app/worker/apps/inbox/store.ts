@@ -7,7 +7,7 @@ type Env = Parameters<Action["handler"]>[1];
 type Identity = Parameters<NonNullable<Action["allowed"]>>[0];
 
 export const LIMITS = { bodyBytes: 512 * 1024, text: 20_000, title: 200, workspace: 100, actions: 6, detail: 2000, option: 300, options: 6,
-  urlBytes: 2048 };
+  urlBytes: 2048, step: 200 };
 /** A computer that checked in this recently is online: six missed check-ins means it is gone, not slow. */
 const ONLINE_MS = 60_000;
 /** A closed item and its taps are kept a day, then removed at a check-in. */
@@ -27,7 +27,22 @@ export const detail = z.strictObject({
   options: z.array(z.string().min(1).max(LIMITS.option)).max(LIMITS.options).optional(),
   multi: z.boolean().optional(),
 });
-export const KINDS = ["plan", "approval", "question", "link"] as const;
+export const KINDS = ["plan", "approval", "question", "link", "start", "agent"] as const;
+const lines = z.array(z.string().min(1).max(LIMITS.option)).max(LIMITS.options);
+/** A morning plan: what the agent will do, needs, asks before it acts outside its work, and its questions now. */
+const plan = z.strictObject({
+  willDo: lines, needs: lines, askFirst: lines,
+  questions: z.array(z.strictObject({ text: z.string().min(1).max(LIMITS.detail), options: lines.optional(), several: z.boolean().optional() }))
+    .max(LIMITS.options),
+});
+/** A morning plan card: `ready` with its plan, or still `planning`, or `no-plan`. It takes `go` or `skip`. */
+export const start = z.strictObject({ state: z.enum(["ready", "planning", "no-plan"]), plan: plan.optional() });
+export const START_ACTIONS = ["go", "skip"];
+/** Where an agent stands: its latest step in one line, the chief's last action, and a done agent's checked proof. */
+export const agent = z.strictObject({
+  state: z.enum(["planning", "working", "done"]), step: z.string().max(LIMITS.step).optional(), action: z.string().max(LIMITS.option).optional(),
+  proof: z.string().max(LIMITS.detail).optional(),
+});
 /** What a private link is for. */
 const LINK_KINDS = ["key", "login", "card", "form", "view"] as const;
 
@@ -43,7 +58,7 @@ export const link = z.strictObject({ what: z.enum(LINK_KINDS), url: z.string().r
 export const tap = z.strictObject({ id: itemId, item: itemId, action: z.string(), text: z.string(), state: tapState });
 export const item = z.strictObject({
   id: itemId, kind: z.enum(KINDS), title: z.string(), workspace: z.string(), actions: z.array(z.string()),
-  version: z.string(), createdAt: time, closesAt: time, detail: detail.nullable(), link: link.nullable(), tap: tap.nullable(),
+  version: z.string(), createdAt: time, closesAt: time, detail: z.union([detail, start, agent]).nullable(), link: link.nullable(), tap: tap.nullable(),
 });
 type Item = z.infer<typeof item>;
 
@@ -62,7 +77,9 @@ async function scope(env: Env, identity: Identity): Promise<Scope> {
 const ERRORS = {
   not_found: "No such item or tap.", closed: "This item has closed.", changed: "The plan changed since you loaded it.",
   done: "That was already sent.", not_waiting: "That tap is no longer waiting.", too_large: "The body is larger than 512 KB.",
-  bad_detail: "An approval or question needs its words as JSON.", bad_link: "A link needs its kind and an https tunnel address, and no actions.", bad_action: "The item offers no such action, or the notes are empty.",
+  bad_detail: "An approval or question needs its words as JSON.", bad_link: "A link needs its kind and an https tunnel address, and no actions.",
+  bad_start: "A plan card needs its state, a plan within the limits once ready, and go and skip.", bad_agent: "An agent's status needs its state and short lines, and no actions.",
+  bad_action: "The item offers no such action, or the notes are empty.",
   too_soon: "Wait a few seconds, then try again.",
 };
 export const fail = (code: keyof typeof ERRORS, status: number) => Response.json({ error: { code } }, { status });

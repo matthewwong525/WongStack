@@ -3,7 +3,7 @@ import { inboxAction, item, ITEM_COLUMNS, type ItemRow, listed, mine, online, se
 
 /** GET items → the caller's open items, newest first, and whether their computer checked in within a minute. */
 export const items = inboxAction({
-  operationId: "inbox.items", summary: "List what waits on you", description: "The signed-in person's open plans, approvals, questions and private links.",
+  operationId: "inbox.items", summary: "List what waits on you", description: "The signed-in person's open plans, approvals, questions, private links, plan cards and agents' status.",
   input: z.strictObject({}), output: z.strictObject({ items: z.array(item), computerOnline: z.boolean() }), encoding: "none", effect: "read",
   // A hundred items at their longest words, each with a short preview of its newest tap.
   limits: { inputBytes: 65536, outputBytes: 4194304, timeoutMs: 15000 },

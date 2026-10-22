@@ -369,8 +369,8 @@ export async function startInbox(state, env) {
   writeInbox(state, child.pid);
 }
 
-/** Puts an item in the person's inbox and returns `{id, link}`, or null where the inbox does not answer. `spec` is
- * `{kind, header, actions, hours, target, cwd}`, plus a plan's `file`, or an item's `title` and `body`. */
+/** Puts an item in the person's inbox: `{id, link}`, or null where it does not answer. `spec` is `{kind, header,
+ * actions, hours, target, cwd}`, a plan's `file` or an item's `title` and `body`; may name its `id` and `workspace`. */
 export async function openInboxItem(spec, { env = process.env, clientFor = companyFor, start = startInbox } = {}) {
   const file = spec.file ?? null;
   const body = file === null ? spec.body : readFileSync(file, 'utf8');
@@ -382,8 +382,8 @@ export async function openInboxItem(spec, { env = process.env, clientFor = compa
   const state = files(env);
   mkdirSync(state.items, { recursive: true, mode: 0o700 });
   const kept = file === null ? null : openItems(state).find(item => item.file === file);
-  const item = { id: kept?.id ?? randomBytes(16).toString('hex'), file, kind: spec.kind, title: file === null ? spec.title : titleOf(body, file),
-    workspace: basename(spec.cwd).slice(0, 100), header: spec.header, actions: spec.actions, target: spec.target,
+  const item = { id: kept?.id ?? spec.id ?? randomBytes(16).toString('hex'), file, kind: spec.kind, title: file === null ? spec.title : titleOf(body, file),
+    workspace: (spec.workspace ?? basename(spec.cwd)).slice(0, 100), header: spec.header, actions: spec.actions, target: spec.target,
     deadline: Date.now() + spec.hours * 3_600_000, version: sha(body), ...(file === null && { body }), done: kept?.done ?? { version: null, names: [] } };
   if (!(await upload(client, shown(item, body)))) return null;
   writeItem(state, item);
