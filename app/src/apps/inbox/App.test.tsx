@@ -1,68 +1,17 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { createMemoryRouter, MemoryRouter, Route, RouterProvider, Routes } from 'react-router'
-import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import type { Item, Tap } from './api'
+import { expect, it, vi } from 'vitest'
 import { routes } from '../../router'
 import { App } from './App'
+import { bar, calls, card, choose, DAYS, FIRST, item, key, open, outlined, PLAN, press, QUESTION, SECOND, send, server, taps, tapOf, tick, type } from './App.test.kit'
 import { REFRESH_MS } from './List'
 import { TAP_POLL_MS } from './TapLine'
-
-// A made-up inbox server: the items it lists, whether the computer is in, and how it answers each call.
-const QUESTION = 'q'.repeat(32)
-const FIRST = 'a'.repeat(32)
-const SECOND = 'b'.repeat(32)
-const PLAN = 'c'.repeat(32)
-const DAYS = { detail: { text: 'Ship Friday or Monday?', options: ['Friday', 'Monday'] } }
-const item = (id: string, kind: Item['kind'], title: string, more: Partial<Item> = {}): Item => ({ id, kind, title, workspace: 'email',
-  actions: kind === 'approval' ? ['approve', 'decline'] : kind === 'plan' ? ['build', 'publish'] : [], version: 'v1', createdAt: 1, closesAt: 2,
-  detail: kind === 'plan' || kind === 'link' ? null : { text: `About ${title}` }, link: null, tap: null, ...more })
-const tapOf = (on: string, state: Tap['state'], more: Partial<Tap> = {}): Tap => ({ id: `t${on}`.slice(0, 32), item: on, action: 'approve', text: '', state, ...more })
-
-let server: { items: Item[]; online: boolean; tap: (input: Record<string, string>) => Response; read: (id: string) => Response; cancel: () => Response }
-let calls: { path: string; body: Record<string, string> | null }[]
-beforeEach(() => {
-  localStorage.clear()
-  server = { items: [], online: true, tap: input => Response.json({ tap: tapOf(input.item, 'waiting', input) }),
-    read: id => Response.json({ tap: tapOf(id, 'sent') }), cancel: () => Response.json({ tap: tapOf(FIRST, 'cancelled') }) }
-  calls = []
-  vi.stubGlobal('fetch', vi.fn(async (path: string, init?: RequestInit) => {
-    const body = init?.body ? JSON.parse(init.body as string) as Record<string, string> : null
-    calls.push({ path, body })
-    const route = path.replace('/apps/inbox/api/', '')
-    if (route === 'items') return Response.json({ items: server.items, computerOnline: server.online })
-    if (route === 'tap') return server.tap(body!)
-    if (route.startsWith('tap?id=')) return server.read(route.slice(7))
-    if (route === 'tap-cancel') return server.cancel()
-    throw new Error(`Unexpected request: ${path}`)
-  }))
-})
-afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.useRealTimers() })
-
-const open = async () => {
-  render(<MemoryRouter initialEntries={['/apps/inbox/']}><Routes><Route path="/apps/:name/*" element={<App />} /></Routes></MemoryRouter>)
-  await screen.findByText(/^Computer (online|offline)$/)
-}
-/** The card whose words hold `title`, folded or open. */
-const card = (title: string) => [...document.querySelectorAll<HTMLElement>('[data-slot="card"]')].find(each => each.textContent!.includes(title))!
-const press = async (name: string, within_: HTMLElement = document.body) => {
-  await act(async () => { fireEvent.click(within(within_).getByRole('button', { name })) })
-}
-const choose = async (name: string, title: string) => { await act(async () => { fireEvent.click(within(card(title)).getByRole('radio', { name })) }) }
-const send = (name = /^Send \d+ answers?$/) => act(async () => { fireEvent.click(screen.getByRole('button', { name })) })
-const key = (key: string, more: KeyboardEventInit = {}, on: Element = document.activeElement ?? document.body) =>
-  act(async () => { fireEvent.keyDown(on, { key, ...more }) })
-const type = (label: string, title: string, value: string) => fireEvent.change(within(card(title)).getByLabelText(label), { target: { value } })
-const tick = async (ms: number) => { await act(async () => { await vi.advanceTimersByTimeAsync(ms) }) }
-const taps = () => calls.filter(call => call.path.endsWith('/tap')).map(call => call.body)
-const bar = () => screen.getByText(/ picked$/).textContent
-const outlined = () => [...document.querySelectorAll('[data-slot="card"].ring-2')].map(each => each.id)
-
 it('groups what waits on the person, questions first, with the computer shown online', async () => {
   server.items = [item(PLAN, 'plan', 'One inbox', { workspace: 'lousy-dingo' }), item(FIRST, 'approval', 'Send the quote'),
     item(QUESTION, 'question', 'Which day?', DAYS)]
   await open()
-  expect(screen.getAllByRole('heading', { level: 2 }).map(heading => heading.textContent)).toEqual(['Needs you', 'Approvals', 'Plans to review'])
+  expect(screen.getAllByRole('heading', { level: 2 }).map(heading => heading.textContent)).toEqual(['Needs you'])
   expect(screen.getByText('Computer online').getAttribute('data-variant')).toBe('secondary')
   expect(within(card('One inbox')).getByRole('link', { name: 'Open plan' }).getAttribute('href')).toBe(`/apps/inbox/?item=${PLAN}`)
   expect(within(card('One inbox')).getByText('lousy-dingo')).toBeTruthy()
@@ -81,7 +30,7 @@ it('groups what waits on the person, questions first, with the computer shown on
   expect(screen.getByText(/pick and go on/).className).toContain('md:block')
   // On a phone nothing grows past the screen: the columns can shrink, and a long who-line wraps, never cut off.
   const columns = [screen.getByRole('heading', { level: 1 }).parentElement!.parentElement!, ...document.querySelectorAll('section')]
-  expect(columns.map(column => column.className.split(' ').includes('grid-cols-1'))).toEqual([true, true, true, true])
+  expect(columns.map(column => column.className.split(' ').includes('grid-cols-1'))).toEqual([true, true])
   const who = within(card('Send the quote')).getByText('Send the quote · email')
   expect(who.className).toBe('wrap-anywhere')
   expect(who.parentElement!.className.split(' ')).toContain('min-w-0')
@@ -336,7 +285,9 @@ it('lists a private link under Needs you after the questions, opening it in a ne
     item(QUESTION, 'question', 'Which day?', DAYS), item(SECOND, 'link', 'Help the browser past a check', { closesAt: closes, workspace: '', link: { what: 'view', url: LOGIN } })]
   await open()
   expect(screen.getAllByRole('heading', { level: 2 }).map(heading => heading.textContent)).toEqual(['Needs you'])
-  expect([...document.querySelectorAll('[data-slot="card"] h3')].map(heading => heading.textContent)).toEqual(['Ship Friday or Monday?', 'Save your example.com login', 'Help the browser past a check'])
+  // Each chat's card is titled by its workspace; a chat with none shows only its item's own title, once.
+  expect([...document.querySelectorAll('[data-slot="card"] h3')].map(heading => heading.textContent)).toEqual(['email', 'Ship Friday or Monday?',
+    'Save your example.com login', 'Help the browser past a check'])
   expect(within(card('Save your example.com login')).getByText(`Login · Closes ${at} · email`)).toBeTruthy()
   expect(within(card('Help the browser')).getByText(`Live view · Closes ${at}`)).toBeTruthy()
   const link = within(card('Save your example.com login')).getByRole('link', { name: 'Open' })

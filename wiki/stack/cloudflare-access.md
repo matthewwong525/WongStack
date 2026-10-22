@@ -104,6 +104,8 @@ Setup creates one verification service token per app, each with its own machine 
 
 The preview checker authenticates automated preview checks, so a branch walk never holds a pass the live app accepts. Each token's lifetime is separate from human sessions. `/verify` can recover missing machine access using its authorized heal; it must reuse the owned app, preserve people, and never broaden unrelated policies.
 
+**An app that serves only the signed-in person**, such as the inbox, refuses the service token, so a preview check signs in as you: `cloudflared access login <preview address>` reuses your existing Cloudflare sign-in without a prompt. To send it items from this computer, `node scripts/company-api.mjs login --origin <preview address>` points one worktree at the preview; remove that sign-in when the check ends.
+
 ## Verify it works — in a browser
 
 Check anonymous denial, machine access, memory through the sign-in, and real email login independently. The machine walk cannot substitute for a human login. Open production, staging, an existing version/alias, and a fresh branch preview in a browser with the allowed email, on default and configured custom addresses; confirm the app renders after PIN login. Capture credential-free evidence, keeping cookies and tokens in private files.

@@ -44,7 +44,12 @@ export function useDesk(decisions: Item[], listed: Item[] | undefined) {
     clear: (item: Item) => setDrafts(all => without(all, draftKey(item))),
     reopen: (item: Item) => { hold(item, true); go(item) },
     fold: (item: Item) => { hold(item, false); go(item) },
-    sent: (item: Item) => { setDrafts(all => without(all, draftKey(item))); hold(item, false) },
+    /** A plan card's note: it never changes Go or Not today. */
+    note: (item: Item, own: string) => update(item, { own }),
+    sent: (item: Item) => {
+      setDrafts(all => Object.fromEntries(Object.entries(all).filter(([key]) => key !== draftKey(item) && !key.startsWith(`${item.id}.`))))
+      hold(item, false)
+    },
   }
 }
 export type Desk = ReturnType<typeof useDesk>

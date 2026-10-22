@@ -3,7 +3,7 @@ import type { AccessIdentity } from "../../access";
 import { handleApp } from "../index";
 import { body } from "../../../tests/body";
 import { fakeEnv } from "../../../tests/env";
-import { database, site } from "../../../tests/employee-access/connections";
+import { database, seeded, site } from "../../../tests/employee-access/connections";
 
 const START = Date.UTC(2026, 9, 22, 9, 0);
 const person = (email: string): AccessIdentity => ({ kind: "user", id: email, claims: { email, sub: `${email}-subject`,
@@ -263,4 +263,63 @@ it("keys rows on the installation once Access has one, and removes items closed 
   vi.setSystemTime(START + 24 * 3_600_000 + 1);
   await checkin();
   expect(db.sql.prepare("SELECT (SELECT COUNT(*) FROM inbox_items) + (SELECT COUNT(*) FROM inbox_taps) AS count").get()).toEqual({ count: 0 });
+});
+
+const START_CARD = "e".repeat(32);
+const STATUS = "f".repeat(32);
+const morning = { willDo: ["Read last year's ads.", "Draft the brief."], needs: ["Last year's results."], askFirst: ["Sending the brief."],
+  questions: [{ text: "Which offer leads?", options: ["Gift card", "Free shipping"] }, { text: "Which channels?", options: ["Meta", "TikTok"], several: true }] };
+const startCard = { ...plan, id: START_CARD, kind: "start", title: "Write the ad brief", workspace: "bfcm-brief",
+  body: JSON.stringify({ state: "ready", plan: morning }), actions: ["go", "skip"], version: "s1" };
+const status = { ...plan, id: STATUS, kind: "agent", title: "Write the ad brief", workspace: "bfcm-brief",
+  body: JSON.stringify({ state: "working", step: "Drafting the brief", action: "Kept going: Write the ad brief" }), actions: [], version: "w1" };
+
+it("keeps a sound morning plan and lists it as the card's detail, and refuses one past its limits or offering other taps", async () => {
+  expect((await put(sam, startCard)).status).toBe(200);
+  expect((await call(sam, "GET", "items")).json.items[0]).toMatchObject({ kind: "start", actions: ["go", "skip"], detail: { state: "ready", plan: morning }, link: null });
+  for (const state of ["planning", "no-plan"]) expect((await put(sam, { ...startCard, body: JSON.stringify({ state }) })).status).toBe(200);
+  const card = (more: Record<string, unknown>) => JSON.stringify({ state: "ready", plan: { ...morning, ...more } });
+  for (const bad of [card({ willDo: Array(7).fill("Read") }), card({ needs: ["n".repeat(301)] }), card({ askFirst: [""] }),
+    card({ questions: [{ text: "q".repeat(2001) }] }), card({ questions: [{ text: "Which?", options: Array(7).fill("o") }] }),
+    card({ questions: [{ text: "Which?", several: "yes" }] }), card({ hours: 3 }), JSON.stringify({ state: "ready" }),
+    JSON.stringify({ state: "planning", plan: morning }), JSON.stringify({ state: "done" }), JSON.stringify({ state: "ready", plan: { willDo: [] } }),
+    "<script>alert(1)</script>"]) {
+    expect(await put(sam, { ...startCard, body: bad })).toMatchObject({ status: 400, json: { error: { code: "bad_start" } } });
+  }
+  for (const actions of [["go"], ["go", "skip", "build"], ["go", "later"]]) {
+    expect(await put(sam, { ...startCard, actions })).toMatchObject({ status: 400, json: { error: { code: "bad_start" } } });
+  }
+});
+
+it("queues a go tap with the person's note and answers, once per version, and only go or skip", async () => {
+  await put(sam, startCard);
+  const go = await tap(sam, { item: START_CARD, version: "s1", action: "go", text: "Note: keep it short\n\nWhich offer leads?\nGift card" });
+  expect(go.json.tap).toMatchObject({ item: START_CARD, action: "go", state: "waiting" });
+  later(5000);
+  expect(await tap(sam, { item: START_CARD, version: "s1", action: "go" })).toMatchObject({ status: 409, json: { error: { code: "done" } } });
+  expect(await tap(sam, { item: START_CARD, version: "s1", action: "build" })).toMatchObject({ status: 400, json: { error: { code: "bad_action" } } });
+  expect(await checkin(sam, [START_CARD])).toEqual([{ id: go.json.tap.id, item: START_CARD, action: "go", text: "Note: keep it short\n\nWhich offer leads?\nGift card", version: "s1" }]);
+});
+
+it("keeps an agent's status, refuses a long step, an action or an unknown state, and takes no tap on it", async () => {
+  expect((await put(sam, status)).status).toBe(200);
+  expect((await call(sam, "GET", "items")).json.items[0]).toMatchObject({ kind: "agent", actions: [], detail: { state: "working", step: "Drafting the brief" } });
+  expect((await put(sam, { ...status, body: JSON.stringify({ state: "done", proof: "https://example.com/brief" }), version: "w2" })).status).toBe(200);
+  for (const bad of [JSON.stringify({ state: "working", step: "s".repeat(201) }), JSON.stringify({ state: "asleep" }), JSON.stringify({ state: "working", last: "all of it" }), "{}"]) {
+    expect(await put(sam, { ...status, body: bad })).toMatchObject({ status: 400, json: { error: { code: "bad_agent" } } });
+  }
+  expect(await put(sam, { ...status, actions: ["approve"] })).toMatchObject({ status: 400, json: { error: { code: "bad_agent" } } });
+  for (const action of ["send", "approve"]) {
+    expect(await tap(sam, { item: STATUS, version: "w2", action, text: "hi" })).toMatchObject({ status: 400, json: { error: { code: "bad_action" } } });
+  }
+  expect((await call(jo, "GET", "items")).json.items).toEqual([]);
+});
+
+it("starts staging with a sample day in Fay's inbox, one agent per group", async () => {
+  const { DB } = seeded().env;
+  const fay = person("fay@example.invalid");
+  const response = await handleApp(new Request("https://business.example.com/apps/inbox/api/items"), fakeEnv({ DB }), fay);
+  const { items } = await body(response);
+  expect(items.map(item => [item.workspace, item.kind, item.detail?.state]).sort()).toEqual([["bfcm-brief", "agent", "planning"], ["bfcm-brief", "start", "ready"],
+    ["landing-check", "agent", "working"], ["ronald-files", "agent", "done"]]);
 });
