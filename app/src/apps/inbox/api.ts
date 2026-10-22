@@ -3,9 +3,11 @@ import { z } from 'zod'
 // The inbox's own routes, read in the shapes app/worker/apps/inbox/ writes.
 const tap = z.object({ id: z.string(), item: z.string(), action: z.string(), text: z.string(),
   state: z.enum(['waiting', 'delivering', 'sent', 'failed', 'changed', 'cancelled', 'expired']) })
-const item = z.object({ id: z.string(), kind: z.enum(['plan', 'approval', 'question']), title: z.string(), workspace: z.string(),
+const item = z.object({ id: z.string(), kind: z.enum(['plan', 'approval', 'question', 'link']), title: z.string(), workspace: z.string(),
   actions: z.array(z.string()), version: z.string(), createdAt: z.number(), closesAt: z.number(),
-  detail: z.object({ text: z.string(), options: z.array(z.string()).optional() }).nullable(), tap: tap.nullable() })
+  detail: z.object({ text: z.string(), options: z.array(z.string()).optional(), multi: z.boolean().optional() }).nullable(),
+  // An older app sends no link: such an item is never a link.
+  link: z.object({ what: z.enum(['key', 'login', 'card', 'form', 'view']), url: z.string() }).nullable().default(null), tap: tap.nullable() })
 const list = z.object({ items: z.array(item), computerOnline: z.boolean() })
 const one = z.object({ item: item.extend({ body: z.string() }), computerOnline: z.boolean() })
 const tapped = z.object({ tap })

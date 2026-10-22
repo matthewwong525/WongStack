@@ -6,15 +6,17 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { answerable, readInbox, sendTap, type Inbox, type Item, type Refusal, type Tap } from './api'
 import { Decision } from './Decision'
 import { useDesk } from './desk'
-import { pickOf, textOf, without } from './drafts'
+import { pickOf, without } from './drafts'
 import { useKeys } from './keys'
+import { LinkRow } from './LinkRow'
 import { PlanCard } from './PlanCard'
 import { SendBar } from './SendBar'
 
 /** How often an open, visible inbox looks again. */
 export const REFRESH_MS = 15_000
 
-const GROUPS = [['question', 'Needs you'], ['approval', 'Approvals'], ['plan', 'Plans to review']] as const
+const GROUPS: [string, Item['kind'][]][] = [['Needs you', ['question', 'link']], ['Approvals', ['approval']], ['Plans to review', ['plan']]]
+const DECIDED = ['question', 'approval'] as const
 const REFUSED: Record<Refusal, string> = {
   changed: 'This changed since you opened it. Reload the page to see it.', done: 'That was already sent.', soon: 'Wait a few seconds, then try again.',
   closed: 'This has closed.', failed: 'Your answer did not reach the inbox. Try again.',
@@ -33,12 +35,13 @@ function Status({ online }: { online: boolean }) {
 function Empty() {
   return <div className="grid gap-1">
     <p className="font-semibold">Nothing is waiting on you.</p>
-    <p className="text-muted-foreground">Plans to review, approvals and questions from your assistant show up here while your computer is signed in to this app.</p>
+    <p className="text-muted-foreground">Plans to review, approvals, questions and private links from your assistant show up here while your computer is
+      signed in to this app.</p>
   </div>
 }
 
-/** Everything waiting on the signed-in person: questions first, then approvals, then plans. Picked decisions go
- *  together on Send, one tap each. */
+/** Everything waiting on the signed-in person: questions and links first, then approvals, then plans. Picked decisions
+ *  go together on Send, one tap each. */
 export function List() {
   const [data, setData] = useState<Inbox | null>(null)
   const [error, setError] = useState(false)
@@ -55,7 +58,7 @@ export function List() {
     return () => { clearInterval(timer); document.removeEventListener('visibilitychange', look) }
   }, [load])
   const items = data ? shown(data.items, answered) : []
-  const decisions = GROUPS.flatMap(([kind]) => items.filter(item => item.kind === kind && kind !== 'plan' && answerable(item.tap)))
+  const decisions = DECIDED.flatMap(kind => items.filter(item => item.kind === kind && answerable(item.tap)))
   const desk = useDesk(decisions, data?.items)
   const picked = decisions.flatMap(item => { const choice = pickOf(item, desk.draftOf(item)); return choice ? [{ item, choice }] : [] })
   const keep = (item: Item, tap: Tap) => setAnswered(all => ({ ...all, [item.id]: { ...item, tap } }))
@@ -63,13 +66,13 @@ export function List() {
   const send = async () => {
     setSending(true)
     await Promise.all(picked.map(async ({ item, choice }) => {
-      const result = await sendTap({ item: item.id, action: choice.action, version: item.version, text: textOf(choice, desk.draftOf(item)) })
+      const result = await sendTap({ item: item.id, action: choice.action, version: item.version, text: choice.text })
       setSaid(all => ({ ...all, [item.id]: typeof result === 'string' ? REFUSED[result] : '' }))
       if (typeof result !== 'string') { desk.sent(item); keep(item, result) }
     }))
     setSending(false)
   }
-  useKeys({ item: desk.current, move: desk.move, pick: (item, n) => { if (desk.pick(item, n)) desk.move(item, 1) }, note: desk.openNote,
+  useKeys({ item: desk.current, move: desk.move, pick: (item, n) => { if (desk.pick(item, n)) desk.move(item, 1) }, write: desk.write,
     clear: desk.clear, send: () => void send() })
   if (!data) return <div className="grid gap-4">
     <h1>Inbox</h1>
@@ -81,13 +84,14 @@ export function List() {
   return <div className="grid grid-cols-1 gap-6">
     <div className="flex flex-wrap items-center justify-between gap-2"><h1>Inbox</h1><Status online={data.computerOnline} /></div>
     {items.length === 0 && <Empty />}
-    {GROUPS.map(([kind, title]) => {
-      const group = items.filter(item => item.kind === kind)
-      return group.length > 0 && <section key={kind} className="grid grid-cols-1 gap-3" aria-labelledby={`inbox-${kind}`}>
-        <h2 id={`inbox-${kind}`} className="text-lg">{title}</h2>
+    {GROUPS.map(([title, kinds]) => {
+      const group = kinds.flatMap(kind => items.filter(item => item.kind === kind))
+      return group.length > 0 && <section key={kinds[0]} className="grid grid-cols-1 gap-3" aria-labelledby={`inbox-${kinds[0]}`}>
+        <h2 id={`inbox-${kinds[0]}`} className="text-lg">{title}</h2>
         {group.map(item => {
           const own = { item, online: data.computerOnline, onTap: (tap: Tap) => keep(item, tap), onReload: () => reload(item.id) }
-          return kind === 'plan' ? <PlanCard key={item.id} {...own} /> : <Decision key={item.id} {...own} desk={desk} said={said[item.id]} />
+          if (item.link) return <LinkRow key={item.id} item={item} link={item.link} />
+          return item.kind === 'plan' ? <PlanCard key={item.id} {...own} /> : <Decision key={item.id} {...own} desk={desk} said={said[item.id]} />
         })}
       </section>
     })}

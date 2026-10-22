@@ -16,7 +16,7 @@ const PLAN = 'c'.repeat(32)
 const DAYS = { detail: { text: 'Ship Friday or Monday?', options: ['Friday', 'Monday'] } }
 const item = (id: string, kind: Item['kind'], title: string, more: Partial<Item> = {}): Item => ({ id, kind, title, workspace: 'email',
   actions: kind === 'approval' ? ['approve', 'decline'] : kind === 'plan' ? ['build', 'publish'] : [], version: 'v1', createdAt: 1, closesAt: 2,
-  detail: kind === 'plan' ? null : { text: `About ${title}` }, tap: null, ...more })
+  detail: kind === 'plan' || kind === 'link' ? null : { text: `About ${title}` }, link: null, tap: null, ...more })
 const tapOf = (on: string, state: Tap['state'], more: Partial<Tap> = {}): Tap => ({ id: `t${on}`.slice(0, 32), item: on, action: 'approve', text: '', state, ...more })
 
 let server: { items: Item[]; online: boolean; tap: (input: Record<string, string>) => Response; read: (id: string) => Response; cancel: () => Response }
@@ -73,10 +73,11 @@ it('groups what waits on the person, questions first, with the computer shown on
   const approval = within(card('Send the quote')).getByRole('radiogroup', { name: 'About Send the quote' })
   expect(within(approval).getAllByRole('radio').map(radio => [radio.textContent, radio.getAttribute('aria-checked')]))
     .toEqual([['1Approve', 'false'], ["2Don't approve", 'false']])
-  expect(within(card('Which day?')).getAllByRole('radio').map(radio => radio.textContent)).toEqual(['1Friday', '2Monday', '3Your own answer'])
+  expect(within(card('Which day?')).getAllByRole('radio').map(radio => radio.textContent)).toEqual(['1Friday', '2Monday'])
+  for (const title of ['Which day?', 'Send the quote']) expect(within(card(title)).getByPlaceholderText('Or type your own answer')).toBeTruthy()
   expect(within(card('Which day?')).queryByText('Risky')).toBeNull()
-  expect(bar()).toBe('0 of 2 picked')
-  expect(screen.getByRole('button', { name: 'Send 0 answers' })).toHaveProperty('disabled', true)
+  type('Your own answer', 'Which day?', 'Tuesday'); type('Your own answer', 'Which day?', ' ')
+  expect([bar(), screen.getByRole('button', { name: 'Send 0 answers' }).hasAttribute('disabled')]).toEqual(['0 of 2 picked', true])
   expect(screen.getByText(/pick and go on/).className).toContain('md:block')
   // On a phone nothing grows past the screen: the columns can shrink, and a long who-line wraps, never cut off.
   const columns = [screen.getByRole('heading', { level: 1 }).parentElement!.parentElement!, ...document.querySelectorAll('section')]
@@ -159,8 +160,7 @@ it('folds a picked card to its answer without sending, and Change opens it again
   expect(screen.getByRole('button', { name: 'Send 1 answer' })).toHaveProperty('disabled', false)
   await press('Change', card('Which day?'))
   expect(document.activeElement).toBe(card('Which day?'))
-  const monday = within(card('Which day?')).getByRole('radio', { name: 'Monday' })
-  expect([monday.getAttribute('aria-checked'), monday.getAttribute('data-variant')]).toEqual(['true', 'default'])
+  expect(within(card('Which day?')).getByRole('radio', { name: 'Monday' }).getAttribute('aria-checked')).toBe('true')
   await choose("Don't approve", 'Send the quote')
   // A folded card keeps its answer to one line; the who-line beside it wraps.
   expect(within(card('Send the quote')).getByText("✓ Don't approve").className).toContain('truncate')
@@ -172,59 +172,43 @@ it('folds a picked card to its answer without sending, and Change opens it again
   expect(bar()).toBe('2 of 2 picked')
 })
 
-it('takes words of the person own, folding them once Enter or Escape closes the field', async () => {
+it('takes the person own words in one box, folding them once Enter or Escape closes it', async () => {
   server.items = [item(QUESTION, 'question', 'Which day?', DAYS)]
   await open()
-  await choose('Your own answer', 'Which day?')
-  const field = within(card('Which day?')).getByLabelText('Your answer')
-  expect(document.activeElement).toBe(field)
+  const field = within(card('Which day?')).getByPlaceholderText('Or type your own answer')
   // Empty words are no answer: the card stays open.
   await key('Enter', {}, field)
   expect(bar()).toBe('0 of 1 picked')
-  type('Your answer', 'Which day?', 'Ask Kim first')
+  type('Your own answer', 'Which day?', 'Ask Kim first')
   await key('Enter', { shiftKey: true }, field)
   await key('Enter', { isComposing: true }, field)
   expect(bar()).toBe('1 of 1 picked')
-  expect(within(card('Which day?')).getByLabelText('Your answer')).toBeTruthy()
+  expect(within(card('Which day?')).getByLabelText('Your own answer')).toBeTruthy()
   await key('Enter', {}, field)
   expect(within(card('Which day?')).getByText('✓ Ask Kim first')).toBeTruthy()
   await press('Change', card('Which day?'))
-  await key('Escape', {}, within(card('Which day?')).getByLabelText('Your answer'))
+  await key('Escape', {}, within(card('Which day?')).getByLabelText('Your own answer'))
   expect(within(card('Which day?')).getByText('✓ Ask Kim first')).toBeTruthy()
   await send()
   expect(taps()).toEqual([{ item: QUESTION, action: 'send', version: 'v1', text: 'Ask Kim first' }])
 })
 
-it('adds a note that goes with the answer: after a question\'s words, or alone with an approval', async () => {
+it('sends only the words once typed after a pick, and only the choice once picked after words, on an approval too', async () => {
   server.items = [item(QUESTION, 'question', 'Which day?', DAYS), item(FIRST, 'approval', 'Send the quote'), item(SECOND, 'approval', 'Book the van')]
   await open()
-  await press('+ Add a note', card('Which day?'))
-  const note = within(card('Which day?')).getByLabelText('Note')
-  expect([document.activeElement, note.getAttribute('maxlength')]).toEqual([note, '500'])
-  type('Note', 'Which day?', 'Tell Kim')
-  await key('Enter', {}, note)
-  expect(within(card('Which day?')).getByText('Note: Tell Kim')).toBeTruthy()
   await choose('Monday', 'Which day?')
-  await press('+ Add a note', card('Send the quote'))
-  type('Note', 'Send the quote', '   ')
-  await key('Escape', {}, within(card('Send the quote')).getByLabelText('Note'))
-  expect(within(card('Send the quote')).getByRole('button', { name: '+ Add a note' })).toBeTruthy()
-  await press('+ Add a note', card('Send the quote'))
-  type('Note', 'Send the quote', 'Copy Jo in')
-  await key('Escape', {}, within(card('Send the quote')).getByLabelText('Note'))
-  await choose('Approve', 'Send the quote')
-  await choose('Approve', 'Book the van')
-  // N on a folded card opens its note, and the card folds again once the note closes.
-  await act(async () => { card('Which day?').focus() })
-  await key('n')
-  expect(within(card('Which day?')).getByLabelText('Note')).toHaveProperty('value', 'Tell Kim')
-  await key('Enter', {}, within(card('Which day?')).getByLabelText('Note'))
-  expect(within(card('Which day?')).getByText('✓ Monday')).toBeTruthy()
   await press('Change', card('Which day?'))
-  expect(within(card('Which day?')).getByRole('button', { name: 'Edit note' })).toBeTruthy()
+  type('Your own answer', 'Which day?', 'Tuesday, once Kim is back')
+  expect(within(card('Which day?')).getByRole('radio', { name: 'Monday' }).getAttribute('aria-checked')).toBe('false')
+  await choose('Approve', 'Send the quote')
+  await press('Change', card('Send the quote'))
+  type('Your own answer', 'Send the quote', 'Only once Jo has checked it')
+  type('Your own answer', 'Book the van', 'Wait')
+  await choose('Approve', 'Book the van')
+  expect(within(card('Book the van')).getByText('✓ Approve')).toBeTruthy()
   await send()
-  expect(taps()).toEqual([{ item: QUESTION, action: 'send', version: 'v1', text: 'Monday\nTell Kim' },
-    { item: FIRST, action: 'approve', version: 'v1', text: 'Copy Jo in' }, { item: SECOND, action: 'approve', version: 'v1', text: '' }])
+  expect(taps()).toEqual([{ item: QUESTION, action: 'send', version: 'v1', text: 'Tuesday, once Kim is back' },
+    { item: FIRST, action: 'send', version: 'v1', text: 'Only once Jo has checked it' }, { item: SECOND, action: 'approve', version: 'v1', text: '' }])
 })
 
 it('sends only the picked decisions, one tap each, and keeps the rest for later', async () => {
@@ -250,18 +234,17 @@ it('sends only the picked decisions, one tap each, and keeps the rest for later'
   expect(within(card('Send the quote')).getByRole('status').textContent).toBe('Sent')
 })
 
-it('keeps picks and notes through a reload, and drops them once the item is gone or changed', async () => {
+it('keeps picks and words through a reload, and drops them once the item is gone or changed', async () => {
   server.items = [item(QUESTION, 'question', 'Which day?', DAYS), item(FIRST, 'approval', 'Send the quote'), item(SECOND, 'approval', 'Book the van')]
   await open()
   await choose('Monday', 'Which day?')
-  await press('+ Add a note', card('Send the quote'))
-  type('Note', 'Send the quote', 'Copy Jo in')
+  type('Your own answer', 'Send the quote', 'Copy Jo in')
   await choose('Approve', 'Book the van')
   cleanup()
   server.items = [item(QUESTION, 'question', 'Which day?', DAYS), item(FIRST, 'approval', 'Send the quote')]
   await open()
   expect(within(card('Which day?')).getByText('✓ Monday')).toBeTruthy()
-  expect(within(card('Send the quote')).getByText('Note: Copy Jo in')).toBeTruthy()
+  expect(within(card('Send the quote')).getByText('✓ Copy Jo in')).toBeTruthy()
   expect(Object.keys(JSON.parse(localStorage.getItem('inbox-decisions')!))).toEqual([`${QUESTION}:v1`, `${FIRST}:v1`])
   cleanup()
   server.items = [item(QUESTION, 'question', 'Which day?', { ...DAYS, version: 'v2' })]
@@ -278,7 +261,16 @@ it('starts clean when what the device kept is unreadable', async () => {
   expect(localStorage.getItem('inbox-decisions')).toBe('{}')
 })
 
-it('works from the keys: move, pick and go on, note, clear and send, but never while the person types', async () => {
+it('reads a pick an older page kept with a note, and drops the note', async () => {
+  localStorage.setItem('inbox-decisions', JSON.stringify({ [`${QUESTION}:v1`]: { pick: 1, note: 'Tell Kim' } }))
+  server.items = [item(QUESTION, 'question', 'Which day?', DAYS)]
+  await open()
+  expect(within(card('Which day?')).getByText('✓ Monday')).toBeTruthy()
+  await send()
+  expect(taps()).toEqual([{ item: QUESTION, action: 'send', version: 'v1', text: 'Monday' }])
+})
+
+it('works from the keys: move, pick and go on, type, clear and send, but never while the person types', async () => {
   server.items = [item(QUESTION, 'question', 'Which day?', DAYS), item(FIRST, 'approval', 'Send the quote'), item(SECOND, 'approval', 'Book the van'),
     item(PLAN, 'approval', 'Pay the bill', { tap: tapOf(PLAN, 'sent') })]
   await open()
@@ -302,11 +294,11 @@ it('works from the keys: move, pick and go on, note, clear and send, but never w
   await key('3')
   expect(outlined()).toEqual([quote])
   await key('n')
-  const note = within(card('Send the quote')).getByLabelText('Note')
-  expect(document.activeElement).toBe(note)
-  for (const typed of ['j', '1', 'z']) await key(typed, {}, note)
+  const words = within(card('Send the quote')).getByLabelText('Your own answer')
+  expect(document.activeElement).toBe(words)
+  for (const typed of ['j', '1', 'z']) await key(typed, {}, words)
   expect(outlined()).toEqual([quote])
-  await key('Escape', {}, note)
+  await key('Escape', {}, words)
   expect(document.activeElement?.id).toBe(quote)
   await key('1')
   expect(outlined()).toEqual([van])
@@ -315,24 +307,94 @@ it('works from the keys: move, pick and go on, note, clear and send, but never w
   expect(within(card('Book the van')).getAllByRole('radio').map(radio => radio.getAttribute('aria-checked'))).toEqual(['false', 'false'])
   await key('k')
   expect(outlined()).toEqual([quote])
-  await press('Change', card('Which day?'))
-  await choose('Your own answer', 'Which day?')
-  await key('Enter', { metaKey: true }, within(card('Which day?')).getByLabelText('Your answer'))
-  expect(taps()).toEqual([{ item: FIRST, action: 'approve', version: 'v1', text: '' }])
+  // N opens a folded card at its own-answer box, and Ctrl/⌘ Enter sends from inside it.
+  await act(async () => { card('Which day?').focus() })
+  await key('n')
+  const box = within(card('Which day?')).getByLabelText('Your own answer')
+  expect(document.activeElement).toBe(box)
+  await key('Enter', { metaKey: true }, box)
+  expect(taps()).toEqual([{ item: QUESTION, action: 'send', version: 'v1', text: 'Monday' }, { item: FIRST, action: 'approve', version: 'v1', text: '' }])
   await act(async () => { card('Book the van').focus() })
   expect(outlined()).toEqual([van])
   await key('3')
   await key('Enter', { ctrlKey: true })
-  expect(taps()).toHaveLength(1)
+  expect(taps()).toHaveLength(2)
 })
 
-it('picks a question\'s own words by key, and numbers only the first six choices', async () => {
-  const options = ['A', 'B', 'C', 'D', 'E', 'F']
-  server.items = [item(QUESTION, 'question', 'Which day?', DAYS), item(SECOND, 'question', 'Which letter?', { detail: { text: 'Which?', options } })]
+it('numbers only the first six choices', async () => {
+  const options = ['A', 'B', 'C', 'D', 'E', 'F', 'G']
+  server.items = [item(SECOND, 'question', 'Which letter?', { detail: { text: 'Which?', options } })]
   await open()
-  await key('3')
-  expect(document.activeElement).toBe(within(card('Which day?')).getByLabelText('Your answer'))
-  expect(within(card('Which letter?')).getAllByRole('radio').map(radio => radio.textContent)).toEqual([...options.map((letter, n) => `${n + 1}${letter}`), 'Your own answer'])
+  expect(within(card('Which letter?')).getAllByRole('radio').map(radio => radio.textContent)).toEqual([...options.slice(0, 6).map((letter, n) => `${n + 1}${letter}`), 'G'])
+})
+
+it('lists a private link under Needs you after the questions, opening it in a new tab, never as a decision', async () => {
+  const closes = Date.UTC(2026, 9, 22, 17, 30)
+  const at = new Date(closes).toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' })
+  const LOGIN = 'https://quiet-fox-lamp.trycloudflare.com/#key=abc&site=example.com'
+  server.items = [item(FIRST, 'link', 'Save your example.com login', { closesAt: closes, link: { what: 'login', url: LOGIN } }),
+    item(QUESTION, 'question', 'Which day?', DAYS), item(SECOND, 'link', 'Help the browser past a check', { closesAt: closes, workspace: '', link: { what: 'view', url: LOGIN } })]
+  await open()
+  expect(screen.getAllByRole('heading', { level: 2 }).map(heading => heading.textContent)).toEqual(['Needs you'])
+  expect([...document.querySelectorAll('[data-slot="card"] h3')].map(heading => heading.textContent)).toEqual(['Ship Friday or Monday?', 'Save your example.com login', 'Help the browser past a check'])
+  expect(within(card('Save your example.com login')).getByText(`Login · Closes ${at} · email`)).toBeTruthy()
+  expect(within(card('Help the browser')).getByText(`Live view · Closes ${at}`)).toBeTruthy()
+  const link = within(card('Save your example.com login')).getByRole('link', { name: 'Open' })
+  expect([link.getAttribute('href'), link.getAttribute('target'), link.getAttribute('rel')]).toEqual([LOGIN, '_blank', 'noopener noreferrer'])
+  expect(within(card('Save your example.com login')).queryByRole('radio')).toBeNull()
+  expect(bar()).toBe('0 of 1 picked')
+  await key('j')
+  expect(outlined()).toEqual([card('Which day?').id])
+})
+
+it('turns web addresses in a decision into new-tab links that pick nothing, and picks a row by click, Enter or Space', async () => {
+  const words = 'Compare https://a.example/q?x=1&y=2. Then pick (see https://b.example/doc).'
+  server.items = [item(QUESTION, 'question', 'Which quote?', { detail: { text: words, options: ['Use https://a.example/q', 'javascript:alert(1)', 'Plain'] } })]
+  await open()
+  const heading = within(card('Which quote?')).getByRole('heading', { level: 3 })
+  expect(heading.textContent).toBe(words)
+  expect(within(heading).getAllByRole('link').map(link => [link.getAttribute('href'), link.getAttribute('target'), link.getAttribute('rel')]))
+    .toEqual([['https://a.example/q?x=1&y=2', '_blank', 'noopener noreferrer'], ['https://b.example/doc', '_blank', 'noopener noreferrer']])
+  const rows = () => within(card('Which quote?')).getAllByRole('radio')
+  expect([1, 2].map(n => within(rows()[n]).queryByRole('link'))).toEqual([null, null])
+  // The test page can't open a tab: the link's own click still runs, and the row under it hears nothing.
+  document.addEventListener('click', event => event.preventDefault(), { once: true, capture: true })
+  await act(async () => { fireEvent.click(within(rows()[0]).getByRole('link')) })
+  await key('Enter', {}, within(rows()[0]).getByRole('link'))
+  await key('x', {}, rows()[0])
+  expect(rows().map(row => row.getAttribute('aria-checked'))).toEqual(['false', 'false', 'false'])
+  expect(rows()[0].tabIndex).toBe(0)
+  await key('Enter', {}, rows()[0])
+  expect(within(card('Which quote?')).getByText('✓ Use https://a.example/q')).toBeTruthy()
+  await press('Change', card('Which quote?'))
+  expect(rows().map(row => row.getAttribute('aria-checked'))).toEqual(['true', 'false', 'false'])
+  await key(' ', {}, rows()[2])
+  await press('Change', card('Which quote?'))
+  expect(rows().map(row => row.getAttribute('aria-checked'))).toEqual(['false', 'false', 'true'])
+  await act(async () => { fireEvent.click(rows()[1]) })
+  expect(within(card('Which quote?')).getByText('✓ javascript:alert(1)')).toBeTruthy()
+})
+
+it('ticks several answers on a tick-several question, sending the ticks, then the words, as one answer', async () => {
+  const tools = (text: string) => ({ detail: { text, options: ['Email', 'Calendar', 'Files'], multi: true } })
+  server.items = [item(QUESTION, 'question', 'Tools', tools('Which tools?')), item(SECOND, 'question', 'Others', tools('Which others?')), item(FIRST, 'question', 'More', tools('Which more?'))]
+  await open()
+  const ticked = (title: string) => within(card(title)).getAllByRole('checkbox').map(box => box.getAttribute('aria-checked'))
+  await act(async () => { fireEvent.click(within(card('Which tools?')).getByRole('checkbox', { name: 'Files' })) })
+  await act(async () => { fireEvent.click(within(card('Which tools?')).getByText('Email')) })
+  type('Your own answer', 'Which tools?', 'And Slack')
+  expect(ticked('Which tools?')).toEqual(['true', 'false', 'true'])
+  type('Your own answer', 'Which others?', 'None of these')
+  expect(ticked('Which others?')).toEqual(['false', 'false', 'false'])
+  // A key ticks or unticks, and stays on the card; nothing ticked or typed is no answer.
+  await act(async () => { card('Which more?').focus() })
+  await key('2')
+  expect([ticked('Which more?'), bar()]).toEqual([['false', 'true', 'false'], '3 of 3 picked'])
+  await key('2')
+  expect([ticked('Which more?'), bar(), outlined()]).toEqual([['false', 'false', 'false'], '2 of 3 picked', [card('Which more?').id]])
+  await send()
+  expect(taps()).toEqual([{ item: QUESTION, action: 'send', version: 'v1', text: 'Email\nFiles\nAnd Slack' },
+    { item: SECOND, action: 'send', version: 'v1', text: 'None of these' }])
 })
 
 it('keeps waiting quietly when a look at the tap fails, and says Waiting while the computer is in', async () => {

@@ -136,6 +136,7 @@
       "schema/migrations/20261007220000_key_direct_use.sql",
       "schema/migrations/20261013205049_admin_role.sql",
       "schema/migrations/20261022120000_inbox.sql",
+      "schema/migrations/20261023120000_inbox_link_items.sql",
       "app/.dev.vars.example",
       "scripts/cf-preview.sh",
       "scripts/company-api.mjs",

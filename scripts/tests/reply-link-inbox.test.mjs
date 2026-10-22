@@ -4,10 +4,9 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { join } from 'node:path';
 import test from 'node:test';
-import { fileURLToPath } from 'node:url';
-import { checkin, closeItem, companyFor, probe, tapResult, upload } from '../../.agents/skills/hand-over/scripts/lib/inbox.mjs';
+import { checkin, closeItem, companyFor, listLink, probe, tapResult, upload } from '../../.agents/skills/hand-over/scripts/lib/inbox.mjs';
 import { closeInboxItem, inboxTick, openInboxItem, openReplyLink } from '../../.agents/skills/hand-over/scripts/reply-link.mjs';
 
 const ORIGIN = 'https://app.example.com';
@@ -293,21 +292,14 @@ test('an item whose time ran out, whose file is gone, or whose chat closed ends;
   assert.equal(await closeInboxItem('0'.repeat(32), { env: at.env, clientFor: async () => null }), false);
 });
 
-/** Every local file `file` imports, and theirs in turn. */
-function localImports(file, seen = new Set()) {
-  const source = readFileSync(file, 'utf8');
-  for (const [, a, b, c] of source.matchAll(/\bfrom\s*['"](\.{1,2}\/[^'"]+)['"]|\bimport\s*\(\s*['"](\.{1,2}\/[^'"]+)['"]\s*\)|\bimport\s*['"](\.{1,2}\/[^'"]+)['"]/g)) {
-    const next = resolve(dirname(file), a ?? b ?? c);
-    if (!seen.has(next) && existsSync(next)) { seen.add(next); localImports(next, seen); }
-  }
-  return seen;
-}
-
-test('hand-over keeps its private links off the inbox: nothing it loads imports the inbox calls', () => {
-  const scripts = fileURLToPath(new URL('../../.agents/skills/hand-over/scripts/', import.meta.url));
-  const loaded = [...localImports(join(scripts, 'hand-over.mjs'))];
-  assert.ok(loaded.includes(join(scripts, 'lib', 'wake.mjs')), 'the walk follows its imports');
-  for (const banned of [join(scripts, 'lib', 'inbox.mjs'), join(scripts, 'reply-link.mjs')]) assert.ok(!loaded.includes(banned), banned);
-  const walked = localImports(join(scripts, 'reply-link.mjs'));
-  assert.ok(walked.has(join(scripts, 'lib', 'inbox.mjs')), 'and would see the inbox where it is imported');
+test('a link is listed by its address and title alone, and a listing or close the app never answers gives up in 3 s', async () => {
+  const app = fakeApp();
+  const link = { id: 'd'.repeat(32), what: 'key', title: 'Maps API key', url: 'https://quiet-fox-lamp.trycloudflare.com/#key=k', closesAt: 5, workspace: 'desk' };
+  assert.deepEqual(await listLink(app.client, link), { id: link.id, version: 'link' });
+  assert.deepEqual(app.calls, [{ route: 'item', method: 'PUT', body: { id: link.id, kind: 'link', title: 'Maps API key', workspace: 'desk',
+    body: JSON.stringify({ what: 'key', url: link.url }), actions: [], version: 'link', closesAt: 5 } }]);
+  const hung = { target: () => ORIGIN, http: () => new Promise(() => {}) };
+  const started = Date.now();
+  assert.deepEqual(await Promise.all([listLink(hung, link), closeItem(hung, link.id)]), [null, null]);
+  assert.ok(Date.now() - started < 4000);
 });

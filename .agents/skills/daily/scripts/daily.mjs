@@ -27,7 +27,7 @@ const USAGE = `usage: daily.mjs who
        daily.mjs reply --agent <id|title|workspace> --file <text file> --bucket keep-going|pick|person --label <line>
        daily.mjs answer --agent <id|title|workspace> --request <id> --file <text file> --bucket keep-going|pick|person --label <line>
        daily.mjs status
-       daily.mjs inbox add --kind approval|question --agent <name> --title <line> --file <JSON {text, options?}>
+       daily.mjs inbox add --kind approval|question --agent <name> --title <line> --file <JSON {text, options?, multi?}> [--request <id>]
        daily.mjs inbox close --id <item id>
        daily.mjs remind --day <YYYY-MM-DD> --text <words>
        daily.mjs reminders [--day <YYYY-MM-DD>]
@@ -187,17 +187,21 @@ const inboxFile = (stateDir, day) => join(stateDir, `${day}.inbox.json`);
 const KINDS = ['approval', 'question'];
 const INBOX = { open: openInboxItem, close: closeInboxItem };
 
-/** The words an item asks, `{text, options?}`, or null outside the inbox's limits. */
+/** The words an item asks, `{text, options?, multi?}`, or null outside the inbox's limits. */
 function detailOf(file) {
   const detail = readJson(file, null);
   const short = (value, max) => typeof value === 'string' && value.trim() !== '' && value.length <= max;
   const options = detail?.options;
   const sound = short(detail?.text, 2000) && (options === undefined || (Array.isArray(options) && options.length <= 6 && options.every(option => short(option, 300))));
-  return sound && Object.keys(detail).every(key => key === 'text' || key === 'options') ? detail : null;
+  const keys = ['text', 'options', 'multi'];
+  return sound && [undefined, true].includes(detail.multi) && Object.keys(detail).every(key => keys.includes(key)) ? detail : null;
 }
 
+// Each item this day's chief added, as `{id, agent, at, request?, title}`; an older file held bare ids.
+const inboxItems = (stateDir, day) => readJson(inboxFile(stateDir, day), []).map(item => (typeof item === 'string' ? { id: item } : item));
+
 /** Puts an approval or a question in the person's inbox, aimed at this chat; `unavailable` where the inbox is off. */
-export async function inboxAdd({ stateDir, day, env = process.env, kind, agent, title, file, cwd = process.cwd(), inbox = INBOX }) {
+export async function inboxAdd({ stateDir, day, email, env = process.env, kind, agent, title, file, request, cwd = process.cwd(), inbox = INBOX, now = new Date() }) {
   if (!env.PASEO_AGENT_ID) return unsupported;
   const detail = detailOf(file);
   if (!detail) return { status: 'refused', reason: 'file', error: `${file} needs {"text": "…"} with up to 6 "options".` };
@@ -205,28 +209,37 @@ export async function inboxAdd({ stateDir, day, env = process.env, kind, agent, 
   const actions = kind === 'approval' ? { approve: `${header} Approve`, decline: `${header} Decline` } : {};
   const item = await inbox.open({ kind, title: title.slice(0, 200), body: JSON.stringify(detail), header, actions, hours: 10, target: chatTarget(env, cwd), cwd }, { env });
   if (!item) return { status: 'unavailable', reason: 'The inbox did not answer: ask in this chat.' };
-  writeJson(inboxFile(stateDir, day), [...readJson(inboxFile(stateDir, day), []), item.id]);
+  const row = watchedRow(watched({ stateDir, day, email }), agent);
+  const entry = { id: item.id, agent: row?.agentId ?? null, at: now.toISOString(), ...(request && { request }), title: title.slice(0, 200) };
+  writeJson(inboxFile(stateDir, day), [...inboxItems(stateDir, day), entry]);
   return { status: 'added', id: item.id, link: item.link };
 }
 
 /** Closes one item this day's chief added. */
 export async function inboxClose({ stateDir, day, env = process.env, id, inbox = INBOX }) {
-  const ids = readJson(inboxFile(stateDir, day), []);
-  if (!ids.includes(id)) return { status: 'refused', reason: 'unknown', error: `No inbox item ${id} today.` };
+  const items = inboxItems(stateDir, day);
+  if (!items.some(item => item.id === id)) return { status: 'refused', reason: 'unknown', error: `No inbox item ${id} today.` };
   await inbox.close(id, { env });
-  writeJson(inboxFile(stateDir, day), ids.filter(open => open !== id));
+  writeJson(inboxFile(stateDir, day), items.filter(item => item.id !== id));
   return { status: 'closed', id };
 }
 
 /** Closes every item this day's chief added: the watch that relays their answers has ended. */
 async function closeInbox({ stateDir, day, env, inbox }) {
-  const ids = readJson(inboxFile(stateDir, day), []);
-  for (const id of ids) await inbox.close(id, { env });
-  if (ids.length) writeJson(inboxFile(stateDir, day), []);
+  const items = inboxItems(stateDir, day);
+  for (const { id } of items) await inbox.close(id, { env });
+  if (items.length) writeJson(inboxFile(stateDir, day), []);
 }
 
-// Notices, never acts: a JSON line per asking, stopped, gone, not-read, end. A stop prints once per idle spell, which
-// ends when the agent runs or the chief acts on it; `<day>.watch.json` keeps that across `--once` calls.
+// An item answered in its own chat: the chief sent its agent nothing since, and its card left or its stop ended.
+function answeredElsewhere(item, list, pending, log) {
+  if (!item.agent || log.some(action => action.agent === item.agent && action.at > item.at)) return false;
+  if (item.request) return !pending.some(ask => ask.id === item.request);
+  return list.find(agent => agent.id === item.agent)?.status === 'running';
+}
+
+// Notices; closes only inbox items answered elsewhere. A stop prints once per idle spell, which ends when the agent
+// runs or the chief acts on it; `<day>.watch.json` keeps that across `--once` calls.
 export async function watch({ stateDir, day, email, call, env = process.env, print = console.log, seconds = 60, hours = 10, once = false, now = () => Date.now(), sleep = ms => new Promise(done => setTimeout(done, ms)), inbox = INBOX }) {
   const line = event => print(JSON.stringify(event));
   const end = async reason => { await closeInbox({ stateDir, day, env, inbox }); line({ event: 'end', reason }); };
@@ -275,6 +288,10 @@ export async function watch({ stateDir, day, email, call, env = process.env, pri
           }
         }
         state.agents[row.agentId] = seen;
+      }
+      for (const item of inboxItems(stateDir, day).filter(open => answeredElsewhere(open, list, pending, log))) {
+        await inboxClose({ stateDir, day, env, id: item.id, inbox });
+        line({ event: 'answered-elsewhere', title: item.title ?? null, agent: item.agent, item: item.id });
       }
     }
     writeJson(file, state);
@@ -449,7 +466,7 @@ const OPTIONS = {
   reply: { agent: { type: 'string' }, file: { type: 'string' }, bucket: { type: 'string' }, label: { type: 'string' } },
   answer: { agent: { type: 'string' }, request: { type: 'string' }, file: { type: 'string' }, bucket: { type: 'string' }, label: { type: 'string' } },
   status: {},
-  inbox: { kind: { type: 'string' }, agent: { type: 'string' }, title: { type: 'string' }, file: { type: 'string' }, id: { type: 'string' } },
+  inbox: { kind: { type: 'string' }, agent: { type: 'string' }, title: { type: 'string' }, file: { type: 'string' }, request: { type: 'string' }, id: { type: 'string' } },
   remind: { text: { type: 'string' } },
   reminders: {},
   done: { id: { type: 'string' } },
@@ -498,7 +515,7 @@ export async function main(argv = process.argv.slice(2), { env = process.env, si
       case 'opened': print(JSON.stringify(opened(at), null, 2)); return 0;
       case 'open': return out(open({ ...at, step: values.step, title: values.title, brief: values.brief, launch }));
       case 'watch': await watch({ ...at, call: paseoCall, print, seconds: Number(values.seconds ?? 60), hours: Number(values.hours ?? 10), once: Boolean(values.once), ...(inbox && { inbox }) }); return 0;
-      case 'inbox': return out(await (sub === 'add' ? inboxAdd({ ...at, kind: values.kind, agent: values.agent, title: values.title, file: values.file, ...(inbox && { inbox }) })
+      case 'inbox': return out(await (sub === 'add' ? inboxAdd({ ...at, kind: values.kind, agent: values.agent, title: values.title, file: values.file, request: values.request, ...(inbox && { inbox }) })
         : inboxClose({ ...at, id: values.id, ...(inbox && { inbox }) })));
       case 'hand': return out(await hand({ ...at, agent: values.agent, call: paseoCall }));
       case 'reply': return out(await reply({ ...at, call: paseoCall, agent: values.agent, file: values.file, bucket: values.bucket, label: values.label }));

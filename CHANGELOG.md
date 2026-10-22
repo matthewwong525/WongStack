@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Every private link and form listed in your inbox
+
+- **Private links wait in your inbox.** A key, password, card or form link, and a live view, shows under *Needs you* until it closes. *Open* opens it in a new tab. The app holds only its address, kind, title and closing time: never what you type, a username, or a note, so a password link opened there asks for the username.
+- **Forms opened for you show there too**, beside the plan links already in the inbox.
+- **Type your own answer on any decision.** Each question and approval has one box under its choices; what you type is the answer, in place of the old note. A question that allows several answers has tick boxes, sent together with your words.
+- **Links in a question open in a new tab**, without picking a choice.
+- **A question answered in its own chat leaves the inbox.** The daily chief of staff spots it at its next check and says *Answered in its chat*.
+
+**Updating.** No step needed. Links show in the inbox once this computer is signed in to the company app. A note you started on a decision before the update is dropped; type it again in the answer box.
+
 ## 44.5.0 — Tidy two inbox display details
 
 - **A plan in the inbox has one light and dark switch.** The app's own switch now changes the plan's page too, in place, with your notes kept, and the page opens in the app's look. The review page hides its own switch inside the inbox; opened from its private link, it keeps it.
