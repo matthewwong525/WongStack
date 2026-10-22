@@ -22,6 +22,14 @@ On `stopped`, read `last`; on `asking`, the card's options in `request.descripti
 - `Done: <title> — <proof>`, only after you checked it: the link opens, `gh pr checks` pass, or the file or record exists. No proof: one `keep-going` reply asking for it, then `Needs you`.
 - `gone`: `Closed: <title>`. `answered-elsewhere`: `Answered in its chat: <title>`. `not-read`: say so once. `end`: say the watch ended and why.
 
+## Quick or big
+
+Each ask in the daily chat is quick or big; you decide, without asking.
+
+- **Quick stays here:** a question, a reminder, where agents stand, a watch, a lookup of a few reads.
+- **Big gets its own workspace:** a task that edits a file, takes several steps, or needs more than a few minutes. In doubt, hand it off: a short task in a workspace costs little, and a long one here stalls your watch. Brief it, open it by [`SKILL.md`](../SKILL.md#any-time-in-this-chat-or-after-daily), and say one line: `Handed to its own workspace: <title>`.
+- **Do it here** in the ask keeps a big task in the chat. Said right after `Handed to its own workspace`, run `D close --agent <agent>`, say `Moved here: <title>`, then do the task here. On `failed` or `unsupported`, say its workspace still works on it and ask first.
+
 ## Brief before you start an agent
 
 Settle what reading can. Ask the person, in one round, each choice the task needs first. Then write the brief in five parts:

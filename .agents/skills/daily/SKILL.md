@@ -19,7 +19,7 @@ disable-model-invocation: true
 ## Any time in this chat, or after `/daily`
 
 - *Remind me Friday to …*: work out the date, then `D remind --day <YYYY-MM-DD> --text <words>`. It saves at once, private to them. *Done* with one: `D done --id <id>`.
-- *Get someone to …*: brief it, then `D open --step "task: <title>" --title <title> --brief <file>`, and name its workspace.
+- *A task past a quick reply*, or *get someone to …*: hand it off by [quick or big](references/chief.md#quick-or-big): brief it, then `D open --step "task: <title>" --title <title> --brief <file>`, and name its workspace. `unsupported` or `failed` runs it here. `D close --agent <agent>` archives one.
 - *Watch flashy-crab*: `D hand --agent flashy-crab`. Never send to a chat the person didn't hand over or `/daily` didn't start.
 - *What's going on?*: `D status`, one line per agent.
 

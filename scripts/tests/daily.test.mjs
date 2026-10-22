@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import {
-  answer, done, emailsOf, hand, inboxAdd, inboxClose, launchWorkspace, localDay, open, opened, personFile, reminders, remind, reply, status, watch, who,
+  answer, close, done, emailsOf, hand, inboxAdd, inboxClose, launchWorkspace, localDay, open, opened, personFile, reminders, remind, reply, status, watch, who,
 } from '../../.agents/skills/daily/scripts/daily.mjs';
 import { EXIT, PaseoError } from '../../.agents/skills/schedule/scripts/lib/paseo.mjs';
 
@@ -327,6 +327,60 @@ test('hand watches a chat by id, title or workspace, and refuses an unknown, dou
   assert.equal(opened(at).length, 1);
 });
 
+test('close archives a watched workspace or agent, and the watch prints nothing more for it', async t => {
+  const at = chief(t, [{ ...ROWS[0], workspaceId: 'ws-1' }, ...ROWS.slice(1)]);
+  const { calls, call } = fakePaseo([{ ls: [agent('a-1', 'running'), agent('b-2', 'running')] }]);
+  const closed = await close({ ...at, agent: 'Email', call });
+  assert.equal(closed.status, 'closed');
+  assert.equal(closed.agent, 'a-1');
+  assert.deepEqual(calls.at(-1), ['workspace', 'archive', 'ws-1']);
+  assert.equal((await close({ ...at, agent: 'research', call })).status, 'closed');
+  assert.deepEqual(calls.at(-1), ['archive', 'b-2', '--force'], 'no workspace id: the agent itself, interrupted');
+  assert.ok(opened(at).every(row => row.closed));
+  const later = await events(at, [{ ls: [agent('a-1', 'idle'), agent('b-2', 'closed')] }]);
+  assert.deepEqual(later.lines.map(line => `${line.event} ${line.reason ?? ''}`.trim()), ['end empty']);
+  assert.equal((await reply({ ...at, call, agent: 'a-1', file: 'x', bucket: 'keep-going', label: 'x' })).reason, 'unwatched');
+  const now = await status({ ...at, call: fakePaseo([{ ls: [agent('a-1', 'idle')] }]).call });
+  assert.deepEqual(now.agents, [], 'a closed agent gets no status line');
+});
+
+test('a step closed today opens again fresh, and its close marks only the old row', async t => {
+  const at = chief(t, [{ ...ROWS[0], workspaceId: 'ws-1' }]);
+  const { call } = fakePaseo([{ ls: [] }]);
+  assert.equal((await close({ ...at, agent: 'a-1', call })).status, 'closed');
+  const { launch } = fakeLaunch({ ...OPENED, agentId: 'a-2', workspaceId: 'ws-2' });
+  const again = open({ ...at, step: ROWS[0].step, title: 'Email', brief: 'brief.md', launch });
+  assert.deepEqual([again.status, again.agentId], ['opened', 'a-2']);
+  assert.equal(open({ ...at, step: ROWS[0].step, title: 'Email', brief: 'brief.md', launch }).status, 'already');
+  assert.deepEqual(opened(at).map(row => [row.agentId, Boolean(row.closed)]), [['a-1', true], ['a-2', false]]);
+});
+
+test('close refuses a chat the person handed over, and never archives it', async t => {
+  const at = chief(t, []);
+  const { calls, call } = fakePaseo([{ ls: [agent('h-1234567', 'running', { name: 'Packaging', cwd: '/w/flashy-crab' })] }]);
+  assert.equal((await hand({ ...at, agent: 'flashy-crab', call })).status, 'handed');
+  const refused = await close({ ...at, agent: 'Packaging', call });
+  assert.deepEqual([refused.status, refused.agent], ['refused', 'h-1234567']);
+  assert.match(refused.error, /handed over/);
+  assert.ok(!calls.some(args => args.includes('archive')));
+  assert.ok(!opened(at).some(row => row.closed));
+});
+
+test('close refuses an unknown or closed agent, and a failed archive keeps it watched', async t => {
+  const at = chief(t);
+  const { calls, call } = fakePaseo([{ ls: [] }]);
+  for (const name of ['c-3', 'Books']) assert.equal((await close({ ...at, agent: name, call })).status, 'unknown');
+  assert.equal(calls.length, 0);
+  const failed = await close({ ...at, agent: 'a-1', call: fakePaseo([{ fail: true }]).call });
+  assert.deepEqual([failed.status, failed.error], ['failed', 'daemon busy']);
+  const missing = await close({ ...at, agent: 'a-1', call: fakePaseo([{ fail: new PaseoError(EXIT.noPaseo, 'no paseo') }]).call });
+  assert.equal(missing.status, 'unsupported');
+  assert.equal((await close({ ...at, env: {}, agent: 'a-1', call })).status, 'unsupported');
+  assert.ok(!opened(at).some(row => row.closed));
+  assert.equal((await close({ ...at, agent: 'a-1', call })).status, 'closed');
+  assert.equal((await close({ ...at, agent: 'a-1', call })).status, 'unknown');
+});
+
 test('reply and answer touch only a watched, stopped agent, log each action, and stop a loop at five', async t => {
   const at = chief(t);
   const file = join(at.stateDir, 'reply.txt');
@@ -450,6 +504,7 @@ test('the chief commands refuse bad flags, and outside Paseo say unsupported', t
   assert.equal(run(cwd, ['answer', '--agent', 'a', '--file', 'f', '--bucket', 'pick', '--label', 'x']).status, 2);
   assert.equal(run(cwd, ['watch', '--seconds', '0']).status, 2);
   assert.equal(run(cwd, ['hand']).status, 2);
+  assert.equal(run(cwd, ['close']).status, 2);
   const watching = run(cwd, ['watch']);
   assert.equal(watching.status, 0, watching.stderr);
   assert.deepEqual(JSON.parse(watching.stdout), { event: 'unsupported', reason: 'This chat is not in Paseo, so it cannot watch other chats.' });

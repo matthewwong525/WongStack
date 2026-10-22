@@ -69,9 +69,11 @@ A small script notices when an agent stops; the chief only judges what the stop 
 
 Before it starts an agent, it writes a short brief: the goal, what *done* looks like, the choices already made, what the agent may do alone, and what it must ask first. A choice only you can make, it asks you then, in one round, not halfway through.
 
+**It keeps the chat free.** It answers quick things itself: a question, a reminder, where its agents stand, a quick lookup. A bigger task, one that edits files, takes several steps, or needs more than a few minutes, it hands to its own workspace without asking, says `Handed to its own workspace: <title>`, and watches it. Say *do it here* with the task to keep it in the chat instead. Said right after that line, the chief closes the new workspace first, so the task never runs twice. Where your chat app can't open a workspace, it does the task in the chat.
+
 Talk to it any time in that chat:
 
-- *Get someone to research packaging suppliers* starts a new agent in its own workspace and watches it.
+- *Rewrite the returns page on the store*, or *get someone to research packaging suppliers*, starts a new agent in its own workspace and watches it.
 - *Watch flashy-crab* hands it a chat you started yourself.
 - *What's going on?* lists each agent, where it stands, and the chief's last action on it.
 
