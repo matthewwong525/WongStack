@@ -24,7 +24,8 @@ The pack uses **merge = deploy**, independent staging and branch previews. [One 
 - [The services list](service-catalogue.md) — where a chat starts for any outside service: the keys it can use, search, short answers, the shared error shape, and each service's notes page.
 - [Mini apps](mini-apps.md) — small apps from one request, part of the main app under `/apps/`: the same loop and checks as any change, and a card each on the home page.
 - [Cloudflare Access](cloudflare-access.md) — automatic email login, native Worker and preview coverage, signed identity, and separate machine access.
-- [Employee access](employee-access.md) — the Access mini app: how the owner is known, the live app's key for its sign-in list, the first open, apps by a tick, key levels, and the practice list on previews.
+- [Employee access](employee-access.md) — the Access mini app: how the owner is known, the live app's key for its sign-in list, the first open, apps by a tick, and key levels.
+- [Access on previews](preview-access.md) — who signs in to previews, GitHub pushers included, the practice list, and the checker.
 - [The Access screens](access-screens.md) — Access's three views, the panel beside a list, the apps and keys a person or a role is given there, and the Services view.
 - [Staging walkthrough](../development/staging-walkthrough.md) — `/verify` exercises the change's own scenarios against the deployed preview — a real browser for UI journeys, direct requests and existing commands for the rest — and grades them against what those scenarios promised. It is not stack-specific and lives with the development docs; this entry points at it because the pack's pipeline is what publishes the preview it walks.
 - [API keys](api-keys.md) — for anyone: get a key from a service, give it through the private link the assistant sends, and what to do if one leaks.

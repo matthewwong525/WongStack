@@ -3,7 +3,7 @@
 The app passes Git's two read calls, and [one kind of push](employee-project.md#what-the-app-takes-and-refuses), through to where the project is kept and adds the server's own credential. It stores no copy, so a wiki-only publish is there on the next download.
 
 - **The address** is `/api/access/code/git/` on the app. It skips [the sign-in wall](cloudflare-access.md#4-bypass-the-public-surface), and the Worker checks the sign-in itself, since Git sends it as a password.
-- **Before anything is asked upstream**, the caller must be a signed-in person who holds Project code now. A service token is refused on the live app; on a preview [the checker stands in for the owner](employee-access.md#the-checker-on-a-preview).
+- **Before anything is asked upstream**, the caller must be a signed-in person who holds Project code now. A service token is refused on the live app; on a preview [the checker stands in for the owner](preview-access.md#the-checker-on-a-preview).
 - **Reading, and one branch's save, are forwarded.** A push's ref updates are read and judged first; the pack is streamed on, never held. Every other call is refused before any upstream request.
 - **A saved change is read at `/api/access/code/change`**, judged the same way: its checks, preview and page, one check's log, and a restart of a cut-off check run on a project kept in Cloudflare. Answers carry chosen fields, never the upstream's own words.
 - **The credential never leaves the server.** It is in no message, answer or log, and the upstream's cookies and sign-in challenge are dropped. A refusal upstream reads as `code_unavailable`.

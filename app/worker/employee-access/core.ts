@@ -54,9 +54,24 @@ export async function ownerCore(request: Request, env: ConnectionEnv, identity: 
   // Only an owner request creates the installation row: an Admin exists only once it does.
   const installationId = managed ?? await installation(db, env, { origin, owner, subject });
   // The checker stands in for the owner, so its changes are recorded under the owner's email.
-  // The mark has no value to write, so the pass is asserted here, and nowhere else: every check above has run.
-  return { db, env, installationId, origin, email: owner, actor: person ?? owner, owner: owns, subject,
-    live: env.WONG_ENVIRONMENT === "production" } satisfies Omit<Core, typeof checked> as Core;
+  return pass({ db, env, installationId, origin, email: owner, actor: person ?? owner, owner: owns, subject,
+    live: env.WONG_ENVIRONMENT === "production" });
+}
+
+/** The mark has no value to write, so a pass is asserted here alone, by the two makers above and below it. */
+const pass = (fields: Omit<Core, typeof checked>) => fields as Core;
+
+/** The live app's own pass for a timed job: no request and no person. Null off the live app, on an older install,
+ *  or before the owner first opened Access. It acts for the owner, as the checker does, yet is never the owner. */
+export async function scheduledCore(env: ConnectionEnv): Promise<Core | null> {
+  const owner = ownerEmail(env);
+  if (env.WONG_ENVIRONMENT !== "production" || !owner || !env.DB) return null;
+  const db = env.DB.withSession("first-primary");
+  const row = await db.prepare("SELECT installation_id, origin FROM wong_access_installation WHERE slot = 1")
+    .first<{ installation_id: string; origin: string }>();
+  if (!row) return null;
+  return pass({ db, env, installationId: row.installation_id, origin: row.origin, email: owner, actor: owner, owner: false,
+    subject: "schedule", live: true });
 }
 
 /** The installation a current person manages, or null: the Admin role the owner gave, for a person not removed. */

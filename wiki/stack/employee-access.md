@@ -8,7 +8,7 @@ Access is the mini app where the owner chooses who can sign in to the business a
 
 The owner is the person whose sign-in email equals `WONG_OWNER_EMAIL`, a committed, nonsecret setting in both Workers' `vars` in `app/wrangler.jsonc`. [Setup](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md) writes it beside the `CF_ACCESS_*` ids.
 
-A request is the owner's when the Worker has [verified its signed sign-in](cloudflare-access.md), the caller is a person, and the email matches. A service token, a git email, a first visit and a request body establish nothing, with one exception: [on a preview, the checker stands in for the owner](#the-checker-on-a-preview). The signed user id is written to the log the first time it is seen, never compared: the sign-in wall already trusts the email.
+A request is the owner's when the Worker has [verified its signed sign-in](cloudflare-access.md), the caller is a person, and the email matches. A service token, a git email, a first visit and a request body establish nothing, with one exception: [on a preview, the checker stands in for the owner](preview-access.md#the-checker-on-a-preview). The signed user id is written to the log the first time it is seen, never compared: the sign-in wall already trusts the email.
 
 - **To change the owner**, run [the `access` step](#finish-access-setup) with `--owner-email <email>` and publish. Access has no transfer button: that would be a takeover path.
 - **No `WONG_OWNER_EMAIL`** means an older install: every signed-in person keeps every app, and Access says its setup is not finished.
@@ -127,7 +127,7 @@ Access has three views, People, Roles and Services. [The Access screens](access-
 
 ## What a person's apps govern
 
-A person's current apps decide their app cards, direct visits, app calls and assistant actions; client state and an existing sign-in grant nothing more. Taking an app away blocks the next request. A mini app's routes follow its folder name. A route in [the main router](../../app/worker/api/router.ts) lists the apps it serves, and one with no entry denies everyone but the owner ([map business routes](company-api.md#map-business-routes-before-employee-policy)). Once permissions are on, only the owner and listed people pass. The verification service token keeps every built app, as before, so preview walks and the look at the live app still open them. On the live app it never manages people; [on a preview it stands in for the owner](#the-checker-on-a-preview).
+A person's current apps decide their app cards, direct visits, app calls and assistant actions; client state and an existing sign-in grant nothing more. Taking an app away blocks the next request. A mini app's routes follow its folder name. A route in [the main router](../../app/worker/api/router.ts) lists the apps it serves, and one with no entry denies everyone but the owner ([map business routes](company-api.md#map-business-routes-before-employee-policy)). Once permissions are on, only the owner and listed people pass. The verification service token keeps every built app, as before, so preview walks and the look at the live app still open them. On the live app it never manages people; [on a preview it stands in for the owner](preview-access.md#the-checker-on-a-preview).
 
 **Memory follows the same sign-in.** The owner and Admins are memory admins, a person with Project code a member, anyone else a reader: [who sees what](../development/memory.md#who-sees-what).
 
@@ -135,15 +135,7 @@ A person's current apps decide their app cards, direct visits, app calls and ass
 
 ## The practice list on previews
 
-A preview has its own people, roles and key levels. On staging the owner opens Access, adds people and chooses apps and levels against the preview's database, which [starts from made-up people](d1-pipeline.md#seeded-staging-production-untouched) with permissions and levels on: one role held by two people, one person with their own set, one who holds [Admin](#admin), and one person and one role that could only look at an app, so [the unticked notice](#unticked-in-an-update) shows. A preview holds no sign-in list key and makes no Cloudflare call, and the screen says the real list is untouched. [A person's panel](access-screens.md#a-panel-has-apps-and-keys) shows the [read-only look-up key](cloudflare-credentials.md#the-read-only-look-up-key) and Project code as *Live app only*, with no step to ask for. A practice person signs in to a preview only if the real list admits them.
-
-### The checker on a preview
-
-On staging and its previews, the preview checker counts as the owner: it opens Access's two views and saves against the practice list, so [a preview walk](../development/browsing.md) can click through a change to Access and show pictures of it.
-
-- **Only where `WONG_ENVIRONMENT` is `staging`.** That name is committed in `app/wrangler.jsonc`, never something a request sets. On the live app, and on a local run, a checker is refused: it keeps every app and manages nobody.
-- **Nothing real is in reach.** A preview holds no sign-in-list key, makes no Cloudflare call, and its people are made up.
-- **The checker no longer sees the view of someone who is not the owner** on a preview, an Admin's included; code tests cover those views, and a waiting sign-in.
+A preview keeps its own practice people, and whoever its sign-in lets in but the list does not name gets every app there. People who can push to the project on GitHub sign in to previews too. [Access on previews](preview-access.md) owns both, and the checker that stands in for the owner there.
 
 ## What Access leaves alone
 

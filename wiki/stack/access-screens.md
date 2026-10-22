@@ -6,7 +6,7 @@ Access's screens are three lists the owner switches between, People, Roles and S
 
 The owner's Access has three views, each with its own address, so Back and reload keep your place. An [Admin](employee-access.md#admin) has the same three. Each is a table of one-line rows that share their columns; on a phone a row stacks.
 
-- **People** opens first: who, whether they can sign in, their role, and a count such as *2 apps, 1 key*. The owner is the first row, with nothing to change. *You* sits beside your own email.
+- **People** opens first: who, whether they can sign in, their role, and a count such as *2 apps, 1 key*. The owner is the first row, with nothing to change. *You* sits beside your own email. Under the table, *Can push on GitHub* lists [who can open previews through GitHub](preview-access.md#people-who-can-push-on-github), with one field and *Save* for a row that *Needs an email*.
 - **Roles** counts each role's apps, keys and holders. [Admin](employee-access.md#admin) is first and reads *Everything*; opened, its panel says what it gives and who holds it, with nothing to save.
 - **Services** lists every key: what it's for, and whether it's saved. [The Services view](#the-services-view) says more.
 

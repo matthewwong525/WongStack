@@ -39,8 +39,8 @@ export async function management(request: Request, env: ConnectionEnv, identity:
   }
 }
 
-/** Bring the sign-in list and open sessions to the saved people, under the lease. */
-async function reconcile(core: Core): Promise<void> {
+/** Bring the sign-in lists and open sessions to the saved people and pushers, under the lease. */
+export async function reconcile(core: Core): Promise<void> {
   // A preview keeps a practice list: no lease, no provider call.
   if (!core.live) return;
   const holder = await lease(core);
