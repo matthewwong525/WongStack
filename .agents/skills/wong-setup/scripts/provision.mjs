@@ -310,7 +310,6 @@ export function wranglerConfig({ base, ids, bucket, access }, fragment = wrangle
   const n = namesFor(base);
   let text = fragment;
   if (!bucket) text = dropLines(text, /\/\/ Only when the memory store has a bucket/, /^\s*\],?\s*$/);
-  text = dropLines(text, /\/\/ Only if production declares crons/, /"triggers"/);
   text = text.replace(/,(\s*\n\s*[}\]])/g, '$1');
   const fill = {
     '<your-worker>': n.worker,

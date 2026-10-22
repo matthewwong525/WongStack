@@ -57,7 +57,7 @@ To keep staging manual-only, say so:
 }
 ```
 
-Omit the key **only** when staging genuinely should run production's schedule.
+Omit the key **only** when staging genuinely should run production's schedule. The app scaffold's own job, which [lets GitHub pushers sign in to previews](preview-access.md#people-who-can-push-on-github), keeps staging's schedule off with `crons: []`. It has no manual trigger on staging either, because it does nothing off the live app: opening People on the live app runs it.
 
 Exercising a cron by manual trigger instead is the convention, and it costs less than it looks: what goes untested is the *schedule*, not the handler. A new scheduled job gets a manual trigger, reachable on staging only, and `scheduled()` and the trigger call the same function so the tested path can't drift from the real one. [`/verify`](../development/staging-walkthrough.md#why-a-walk-runs-the-way-it-does) runs the job through that trigger on the staging Worker's own URL, since an alias version runs no queue consumer. The cron expression itself is only ever verifiable in production — check the Worker's Triggers tab after the first deploy.
 

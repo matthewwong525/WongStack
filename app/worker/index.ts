@@ -11,11 +11,12 @@ import type { ConnectionEnv } from "./employee-access/core.ts";
 import { appPageDenied } from "./employee-access/apps.ts";
 import { CODE_GIT, gitSignIn } from "./employee-access/code.ts";
 import { SETUP_PATH } from "./employee-access/prompt.ts";
+import { refreshOnSchedule } from "./employee-access/pushers.ts";
 import { handleAccess } from "./employee-access/router.ts";
 import { setupFile } from "./employee-access/setup-file.ts";
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
     // The setup file Connect your assistant names: public, no key in it. It sits under the memory prefix, the one
@@ -46,7 +47,7 @@ export default {
 
     // People management answers only the signed-in owner; setup readback answers each person.
     if (url.pathname.startsWith("/api/access/")) {
-      return handleAccess(request, env, identity);
+      return handleAccess(request, env, identity, ctx.waitUntil.bind(ctx));
     }
 
     // Discovery always requires company login, even on an open starter.
@@ -79,5 +80,11 @@ export default {
     const denied = await appPageDenied(request, env, identity);
     if (denied) return denied;
     return env.ASSETS.fetch(request);
+  },
+
+  // Every 15 minutes on the live app alone: who can push on GitHub joins the previews' sign-in list.
+  // Staging's schedule is empty, and a preview never reads GitHub: wiki/stack/preview-access.md
+  async scheduled(_controller, env) {
+    await refreshOnSchedule(env);
   },
 } satisfies ExportedHandler<Env & AccessEnv & ConnectionEnv>;

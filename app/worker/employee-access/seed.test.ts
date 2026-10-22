@@ -3,7 +3,7 @@ import { owner, req, seeded } from '../../tests/employee-access/connections';
 import { management } from './management';
 import { catalogue } from './catalogue';
 import { codeState } from './code';
-import { authorizeRequest, currentPolicy } from './policy';
+import { authorizeRequest, currentPolicy, policyAllows } from './policy';
 import { body } from '../../tests/body';
 it('staging starts with practice people, the Admin role and two more, one Admin and key levels on, names who could only look, and holds no provider work or key', async () => {
   const { sql, env, practice } = seeded();
@@ -77,5 +77,22 @@ it('staging starts with practice people, the Admin role and two more, one Admin 
     const saved = await body(await management(req('people', 'POST', { email: 'eli@example.invalid', removed: false, apps: { hello: true } }), env, owner));
     expect(saved.unticked).toEqual({ people: [], roles: [] });
     expect(await authorizeRequest(env, practice('eli@example.invalid'), { apps: ['hello'] })).toBeNull();
+  } finally { sql.close(); }
+});
+
+it('on a preview, a signed-in person the practice list does not name gets every app and key, and manages nothing', async () => {
+  const { sql, env, practice } = seeded();
+  try {
+    const pusher = practice('pusher@example.invalid');
+    const opened = await currentPolicy(env, pusher);
+    expect(opened).toMatchObject({ state: 'current', role: 'employee', manages: false, apps: new Set(catalogue()), keysStarted: true,
+      keys: new Map([['cloudflare', 'read'], ['code', 'write']]) });
+    expect([policyAllows(opened, { apps: ['hello'] }), policyAllows(opened, { kind: 'owner' })]).toEqual([true, false]);
+    expect((await management(req('status', 'GET'), env, pusher)).status).toBe(403);
+    // The live app refuses them, and a service token is no person.
+    expect(await currentPolicy({ ...env, WONG_ENVIRONMENT: 'production' }, pusher)).toEqual({ state: 'denied' });
+    expect(await currentPolicy(env, { ...pusher, kind: 'service' })).toEqual({ state: 'denied' });
+    sql.exec('UPDATE wong_access_installation SET keys_enabled = 0');
+    expect(await currentPolicy(env, pusher)).toMatchObject({ state: 'current', keys: null, keysStarted: false });
   } finally { sql.close(); }
 });

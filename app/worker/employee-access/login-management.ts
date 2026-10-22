@@ -3,8 +3,8 @@ import { z } from "zod";
 import { type ConnectionEnv, type Core, AccessError, now, leaseCurrent, permissionsStarted } from "./core.ts";
 import { provider } from "./provider.ts";
 const cf = "https://api.cloudflare.com/client/v4";
-// Setup stores this in the production Worker alone. Cloudflare scopes the key to the account; the core calls only
-// the recorded applications and their human policies. Version 3 adds the previews app, which mirrors the list.
+// Setup stores this in the production Worker alone. Cloudflare scopes the key to the account; the core calls only the
+// recorded applications and their human policies. Version 3 adds the previews app: that list plus GitHub pushers.
 const policyId = z.string().regex(/^[A-Za-z0-9-]+$/);
 const authoritySchema = z.object({ version: z.literal([2, 3]), token: z.string().min(1),
   accountId: z.string().regex(/^[a-f0-9]{32}$/), policyId,
@@ -74,11 +74,11 @@ export async function reconcileLogin(core: Core, kind: "policy" | "sessions"): P
   // until the first open has listed everyone already admitted, a write could drop a teammate.
   if (!core.live || !authority || !await permissionsStarted(core)) return;
   for (let pass = 0; pass < 3; pass++) {
-    const work = await core.db.prepare("SELECT generation, status FROM wong_access_work WHERE installation_id = ? AND kind = ?")
-      .bind(core.installationId, kind).first<{ generation: number; status: string }>();
+    const work = await core.db.prepare("SELECT generation, status, scope FROM wong_access_work WHERE installation_id = ? AND kind = ?")
+      .bind(core.installationId, kind).first<{ generation: number; status: string; scope: Scope }>();
     if (!work || work.status === "ready") return;
     try {
-      if (await attempt(core, authority, kind, work.generation)) return;
+      if (await attempt(core, authority, kind, work)) return;
     } catch (error) {
       await core.db.prepare(`UPDATE wong_access_work SET status = 'failed', retry_after = ?, error_code = ?, outcome = NULL
         WHERE installation_id = ? AND kind = ? AND generation = ?`).bind(new Date(Date.now() + 30_000).toISOString(),
@@ -88,13 +88,17 @@ export async function reconcileLogin(core: Core, kind: "policy" | "sessions"): P
   }
 }
 
+/** Which sign-ins a sessions job ends: everyone's, or the previews app's alone when only a pusher left. */
+type Scope = "both" | "previews";
+
 /** One provider attempt. False means a newer change arrived meanwhile, so go round again. */
-async function attempt(core: Core, authority: Authority, kind: "policy" | "sessions", generation: number): Promise<boolean> {
+async function attempt(core: Core, authority: Authority, kind: "policy" | "sessions",
+  { generation, scope }: { generation: number; scope: Scope }): Promise<boolean> {
   const id = core.installationId;
   if (!await leaseCurrent(core)) throw new AccessError("provider_lease_expired");
   const live = await read(core, authority);
   if (kind === "policy") await updatePolicy(core, authority, live, generation);
-  else for (const { path } of live) envelope(await provider(cf, `${path}/revoke_tokens`, authority.token, "POST", {}));
+  else for (const { path } of scope === "previews" ? live.slice(1) : live) envelope(await provider(cf, `${path}/revoke_tokens`, authority.token, "POST", {}));
   const current = await core.db.prepare("SELECT generation FROM wong_access_work WHERE installation_id = ? AND kind = ?")
     .bind(id, kind).first<{ generation: number }>();
   if (!current || current.generation !== generation || !await leaseCurrent(core)) {
@@ -142,14 +146,39 @@ function controls(value: Policy): string {
     .filter(([field]) => field !== "include" && !readOnly.includes(field))
     .sort(([a], [b]) => a.localeCompare(b))));
 }
+/** Each application's list, live app first: the owner and active people; the previews app, once split, adds pushers. */
+async function desiredLists(core: Core, count: number): Promise<string[][]> {
+  const id = core.installationId;
+  const [members, pushers] = await Promise.all([
+    core.db.prepare("SELECT email FROM wong_access_members WHERE installation_id = ? AND status = 'active'").bind(id).all<{ email: string }>(),
+    core.db.prepare("SELECT email FROM wong_access_pushers WHERE installation_id = ? AND email IS NOT NULL").bind(id).all<{ email: string }>(),
+  ]);
+  const people = [core.email, ...members.results.map(row => row.email)];
+  const list = (emails: string[]) => [...new Set(emails)].sort();
+  return Array.from({ length: count }, (_, at) => list(at === 0 ? people : [...people, ...pushers.results.map(row => row.email)]));
+}
+
+/** Whether the previews app's list differs from the saved people and pushers: setup's rerun rewrites it without them.
+ *  One read, and none while a list write waits; an unreadable list counts as matching until the next refresh. */
+export async function previewsDrifted(core: Core): Promise<boolean> {
+  const authority = loginAuthority(core.env);
+  const waiting = await core.db.prepare("SELECT 1 FROM wong_access_work WHERE installation_id = ? AND kind = 'policy' AND status != 'ready'")
+    .bind(core.installationId).first();
+  if (!authority?.staging || waiting) return false;
+  try {
+    const path = `/accounts/${authority.accountId}/access/apps/${authority.staging.appId}/policies?per_page=1000`;
+    const found = z.array(z.object({ id: z.string() }).passthrough()).parse(envelope(await provider(cf, path, authority.token)))
+      .find(policy => policy.id === authority.staging!.policyId);
+    return sorted(emails(policySchema.parse(found))) !== sorted((await desiredLists(core, 2))[1]);
+  } catch { return false; }
+}
+
 /** Read each live policy, change only its email list, and send the rest back unchanged. */
 async function updatePolicy(core: Core, authority: Authority, live: Reviewed[], generation: number): Promise<void> {
   const id = core.installationId;
-  const members = await core.db.prepare("SELECT email FROM wong_access_members WHERE installation_id = ? AND status = 'active'")
-    .bind(id).all<{ email: string }>();
-  const desired = [...new Set([core.email, ...members.results.map(row => row.email)])].sort();
-  const body = (policy: Policy) => ({ ...Object.fromEntries(Object.entries(policy).filter(([field]) => !readOnly.includes(field))),
-    include: desired.map(email => ({ email: { email } })) });
+  const desired = await desiredLists(core, live.length);
+  const body = (policy: Policy, at: number) => ({ ...Object.fromEntries(Object.entries(policy).filter(([field]) => !readOnly.includes(field))),
+    include: desired[at].map(email => ({ email: { email } })) });
   const intent = crypto.randomUUID();
   await core.db.batch([
     core.db.prepare(`INSERT INTO wong_access_policy_writes SELECT ?, ?, ?, 'in_flight', ?
@@ -169,14 +198,14 @@ async function updatePolicy(core: Core, authority: Authority, live: Reviewed[], 
     throw new AccessError("provider_lease_expired");
   }
   try {
-    for (const { path, policy } of live) await provider(cf, `${path}/policies/${policy.id}`, authority.token, "PUT", body(policy));
+    for (const [at, { path, policy }] of live.entries()) await provider(cf, `${path}/policies/${policy.id}`, authority.token, "PUT", body(policy, at));
     await core.db.prepare("UPDATE wong_access_policy_writes SET status = 'completed' WHERE intent_id = ?").bind(intent).run();
   } catch (error) {
     await core.db.prepare("UPDATE wong_access_policy_writes SET status = 'unknown' WHERE intent_id = ? AND status = 'in_flight'").bind(intent).run();
     throw error;
   }
   const checked = await read(core, authority);
-  if (checked.some(({ policy }, at) => sorted(emails(policy)) !== sorted(desired) || controls(policy) !== controls(live[at].policy))) {
+  if (checked.some(({ policy }, at) => sorted(emails(policy)) !== sorted(desired[at]) || controls(policy) !== controls(live[at].policy))) {
     throw new AccessError("login_policy_readback_pending");
   }
 }

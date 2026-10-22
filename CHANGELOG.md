@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — People who can push on GitHub can open previews
+
+- **Push rights on GitHub open previews.** Every 15 minutes, and whenever Access opens, the live app reads who can push to the project and lets them sign in to previews. Never the live app. Take their push rights away, and within 15 minutes they leave the previews' sign-in list and their preview sessions end.
+- **The app finds their email itself** from their GitHub profile or their own commits in the project. When neither has one, Access lists them under People as *Needs an email*, and you type it once.
+- **A preview opens every app for a signed-in person outside its practice list**, with nothing to manage. Practice people keep exactly what the list gives them.
+- **A project kept in Cloudflare, or with no GitHub key, works as before.** Access says what's missing.
+
+**Updating.** Publish the update. Nothing else is needed when the app already holds the project's GitHub key; otherwise Access says which step is left. Your app's settings file gains a 15-minute schedule on the live app and an empty one on previews: the sync plan shows both lines to add.
+
 ## 44.6.0 — Every private link and form listed in your inbox
 
 - **Private links wait in your inbox.** A key, password, card or form link, and a live view, shows under *Needs you* until it closes. *Open* opens it in a new tab. The app holds only its address, kind, title and closing time: never what you type, a username, or a note, so a password link opened there asks for the username.

@@ -337,3 +337,48 @@ it("touches only the live app's sign-in list with a version 2 key", async () => 
   expect([cf.writes.length, staging.writes]).toEqual([1, []]);
   expect(fetch.mock.calls.every(([url]) => url.startsWith(root))).toBe(true);
 });
+
+// GitHub pushers, as pushers.ts saves them: their emails join the previews app's list alone.
+const pusher = (id: number, email: string | null) => f.sql.prepare("INSERT INTO wong_access_pushers VALUES (?, ?, ?, ?, ?, NULL)")
+  .run(site.installationId, id, `pusher-${id}`, email, email && "commit");
+const queue = (kind: string, scope: string) => f.sql.prepare(`INSERT INTO wong_access_work (installation_id, kind, generation, status, scope)
+  VALUES (?, ?, 9, 'pending', ?) ON CONFLICT(installation_id, kind) DO UPDATE SET status = 'pending', scope = excluded.scope`).run(site.installationId, kind, scope);
+
+it("gives the previews app its own list, the live list plus pushers, once each, and reads each back against its own", async () => {
+  const staging = split().state;
+  pusher(1, "kim@example.com"); pusher(2, employee.id); pusher(3, null);
+  await hold(); queue("policy", "both");
+  await reconcileLogin(f.core, "policy");
+  expect(cf.writes.map(write => write.include)).toEqual([[{ email: { email: employee.id } }, ...owners]]);
+  expect(staging.writes.map(write => write.include)).toEqual([[{ email: { email: employee.id } }, { email: { email: "kim@example.com" } }, ...owners]]);
+  expect(work()).toMatchObject({ status: "ready", outcome: "policy_readback_matches" });
+  // A pusher who is also a person stays on both lists when they leave GitHub.
+  f.sql.exec("DELETE FROM wong_access_pushers WHERE github_id = 2");
+  queue("policy", "both");
+  await reconcileLogin(f.core, "policy");
+  expect([cf.writes.at(-1)!.include, staging.writes.at(-1)!.include]).toEqual([[{ email: { email: employee.id } }, ...owners],
+    [{ email: { email: employee.id } }, { email: { email: "kim@example.com" } }, ...owners]]);
+});
+
+it("ends previews sessions alone for a pusher who left, and both apps' for a person removed", async () => {
+  split();
+  await hold(); queue("sessions", "previews");
+  await reconcileLogin(f.core, "sessions");
+  expect(fetch.mock.calls.filter(([url]) => url.endsWith("/revoke_tokens")).map(([url]) => url)).toEqual([`${previewsRoot}/revoke_tokens`]);
+  expect(work("sessions")).toMatchObject({ status: "ready" });
+  await remove();
+  expect(f.sql.prepare("SELECT scope FROM wong_access_work WHERE kind = 'sessions'").get()).toEqual({ scope: "both" });
+  await reconcileLogin(f.core, "sessions");
+  expect(fetch.mock.calls.filter(([url]) => url.endsWith("/revoke_tokens")).map(([url]) => url))
+    .toEqual([`${previewsRoot}/revoke_tokens`, `${root}/revoke_tokens`, `${previewsRoot}/revoke_tokens`]);
+});
+
+it("writes one list with no pusher emails, and ends no sessions for a pusher, with a version 2 key", async () => {
+  const staging = split(2).state;
+  pusher(1, "kim@example.com");
+  await hold(); queue("policy", "both"); queue("sessions", "previews");
+  await reconcileLogin(f.core, "policy"); await reconcileLogin(f.core, "sessions");
+  expect([cf.writes.map(write => write.include), staging.writes]).toEqual([[[{ email: { email: employee.id } }, ...owners]], []]);
+  expect(fetch.mock.calls.filter(([url]) => url.endsWith("/revoke_tokens"))).toEqual([]);
+  expect([work(), work("sessions")]).toMatchObject([{ status: "ready" }, { status: "ready" }]);
+});

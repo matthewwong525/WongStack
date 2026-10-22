@@ -793,7 +793,8 @@ test('a fresh provision with R2 on makes the memory store, both databases, the c
   assert.equal(config.compatibility_date, sourceDate(), 'a new install gets the source app\'s date, not the install day');
   assert.deepEqual(config.d1_databases[1], { binding: 'MEMORY_DB', database_name: 'recipe-box-memory', database_id: 'uuid-recipe-box-memory' });
   assert.deepEqual(config.r2_buckets, [{ binding: 'MEMORY_BUCKET', bucket_name: 'recipe-box-memory' }]);
-  assert.equal(config.env.staging.triggers, undefined);
+  // Production's schedule, and staging's empty one so it does not inherit it.
+  assert.deepEqual([config.triggers, config.env.staging.triggers], [{ crons: ['*/15 * * * *'] }, { crons: [] }]);
   assert.deepEqual(config.env.staging.d1_databases.map((d) => d.database_id), ['uuid-recipe-box-db-staging']);
   const text = readFileSync(join(env.dir, 'app/wrangler.jsonc'), 'utf8');
   assert.match(text, /\/\/ Session memory, production only/, 'the fragment keeps its comments');

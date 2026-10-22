@@ -8,16 +8,19 @@ import { checkerOwns, currentPolicy, humanEmail, policyDenied } from "./policy.t
 import { setupStatus } from "./setup.ts";
 import { management } from "./management.ts";
 import { CODE_PUBLISH, codePublish } from "./publish.ts";
+import { PUSHERS, pushersRoute } from "./pushers.ts";
 import type { ConnectionEnv } from "./core.ts";
 
+/** `wait` keeps work running after the answer: the Worker's `waitUntil`. */
 export async function handleAccess(request: Request, env: ConnectionEnv,
-  identity: AccessIdentity | null): Promise<Response> {
+  identity: AccessIdentity | null, wait: (work: Promise<unknown>) => void = () => {}): Promise<Response> {
   const path = new URL(request.url).pathname;
   if (path === "/api/access/setup") return setupStatus(request, env, identity);
   if (path === "/api/access/apps") return appAccess(request, env, identity);
   if (path.startsWith(CODE_GIT)) return (await codeDenied(env, identity)) ?? codeGit(request, env);
   if (path === CODE_PUBLISH) return (await codeDenied(env, identity, "write")) ?? codePublish(request, env, humanEmail(identity) ?? "the preview check");
   if (path.startsWith(CODE_CHANGE)) return (await codeDenied(env, identity)) ?? codeChange(request, env, humanEmail(identity) ?? "the preview check");
+  if (path === PUSHERS || path.startsWith(`${PUSHERS}/`)) return pushersRoute(request, env, identity, wait);
   return management(request, env, identity);
 }
 
