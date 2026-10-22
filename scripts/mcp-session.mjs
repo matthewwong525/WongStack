@@ -1,5 +1,5 @@
 // One MCP session through the app's direct use of a key: the JSON-RPC client every MCP helper shares. The server
-// is never connected to a chat. Ported from ClaymooApp. wiki/stack/company-api.md#use-an-mcp-server-through-the-app
+// is never connected to a chat. wiki/stack/company-api.md#use-an-mcp-server-through-the-app
 
 export const MCP_VERSION = '2025-06-18';
 /** The most pages of tools a session reads, so a server that never stops paging can't loop the helper. */

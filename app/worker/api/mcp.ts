@@ -1,5 +1,5 @@
-// Sorts one JSON-RPC message to a key's MCP server into a look-up or a change, by its method and tool. From
-// ClaymooApp. wiki/stack/company-api.md#use-an-mcp-server-through-the-app
+// Sorts one JSON-RPC message to a key's MCP server into a look-up or a change, by its method and tool.
+// wiki/stack/company-api.md#use-an-mcp-server-through-the-app
 
 /** The protocol version the door names to the server, as the client's `initialize` does. */
 export const MCP_VERSION = "2025-06-18";
