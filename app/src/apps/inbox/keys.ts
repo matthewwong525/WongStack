@@ -15,7 +15,7 @@ function action(key: string, acts: Acts, item: Item): (() => void) | null {
   return key === 'n' ? () => acts.note(item) : key === 'z' ? () => acts.clear(item) : null
 }
 
-/** The decisions' keys, as on the WongOS decisions page. None fires while the person types, but Ctrl/⌘ Enter sends. */
+/** The decisions' keys, as on a daily decisions page. None fires while the person types, but Ctrl/⌘ Enter sends. */
 export function useKeys(acts: Acts) {
   const latest = useRef(acts)
   useEffect(() => { latest.current = acts })
