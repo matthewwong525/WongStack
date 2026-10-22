@@ -7,4 +7,4 @@
 ## 2. Verification
 
 - [x] 2.1 Run `node .github/scripts/checks.mjs --worktree` as a pre-check (browser tests skip here without a browser).
-- [ ] 2.2 `/save`, then confirm the Payload checks' browser job passes in CI, the real gate for this test.
+- [x] 2.2 `/save`, then confirm the Payload checks' browser job passes in CI, the real gate for this test.

@@ -1,6 +1,6 @@
 # Proposal
 
-**Status:** in review
+**Status:** ready-to-ship
 **Branch:** pleasant-seahorse
 **Open questions:** none
 
@@ -41,3 +41,4 @@ None: test-only, so `skip_specs: true`.
 - **2026-10-22** — Assumed: wait on the same signal the phone-screen test uses (`style.fontSize` set by `fit`), because one signal for one event keeps the two tests alike.
 - **2026-10-22** — Assumed: CI is the only real check, because browser tests skip on this server; the earlier `inside: false` failures (fact #1900) and the newer `page: false` ones come from the same early measure.
 - **2026-10-22** — Assumed: checkpoint before archive to see the CI browser job pass (task 2.2), because browser tests skip on this server.
+- **2026-10-22** — Assumed: archived for publish after the CI browser job passed the sketch test on PR #431.
