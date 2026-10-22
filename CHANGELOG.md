@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## 44.8.1 — Page sends arrive as your own message
+## 44.9.1 — Page sends arrive as your own message
 
 - **A page's send shows as yours.** Notes, *Build it*, a form's answers and an inbox tap reach the chat as your own message, the same as if you typed them. Before, they showed under the name of whichever chat first opened a page on this computer.
 
