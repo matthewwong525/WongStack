@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import type { Tap } from './api'
 import { App } from './App'
+import { REFRESH_MS } from './List'
 import { TAP_POLL_MS } from './TapLine'
 
 const PLAN = 'c'.repeat(32)
@@ -16,6 +17,7 @@ const waiting: Tap = { id: 't'.repeat(32), item: PLAN, action: 'build', text: ''
 let answer: () => Response
 let tapAnswer: () => Response
 let tapState: Tap['state']
+let online: boolean | null
 let calls: { path: string; body: unknown }[]
 // The frame's window as the inbox sees it: jsdom loads each frame once, and that load greets this stand-in.
 let frameWindow: { postMessage: ReturnType<typeof vi.fn> }
@@ -25,12 +27,14 @@ beforeEach(() => {
   answer = () => Response.json({ item: plan(), computerOnline: false })
   tapAnswer = () => Response.json({ tap: waiting })
   tapState = 'sent'
+  online = false
   calls = []
   localStorage.clear()
   vi.stubGlobal('fetch', vi.fn(async (path: string, init?: RequestInit) => {
     calls.push({ path, body: init?.body ? JSON.parse(init.body as string) : null })
     if (path.startsWith('/apps/inbox/api/item?')) return answer()
     if (path === '/apps/inbox/api/tap') return tapAnswer()
+    if (path === '/apps/inbox/api/items') return online === null ? new Response(null, { status: 503 }) : Response.json({ items: [], computerOnline: online })
     return Response.json({ tap: { ...waiting, state: tapState } })
   }))
 })
@@ -146,6 +150,32 @@ it("tells the page at once when the tap is refused, and says nothing to a page t
   expect(screen.getByRole('status').textContent).toBe('Sent')
   await say({ type: 'inbox:notes-get', key: 'cf-access-token' })
   expect(heard).toEqual([])
+})
+
+it('says a waiting tap waits for the computer once the computer goes offline, with no reload', async () => {
+  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+  answer = () => Response.json({ item: plan('v1', waiting), computerOnline: true })
+  tapState = 'waiting'
+  online = true
+  await open()
+  expect(screen.getByRole('status').textContent).toContain('Waiting…')
+  // A hidden tab asks nothing, and a look that fails keeps what it knew.
+  const looks = () => calls.filter(call => call.path === '/apps/inbox/api/items').length
+  vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden')
+  await act(async () => { await vi.advanceTimersByTimeAsync(REFRESH_MS) })
+  expect(looks()).toBe(0)
+  vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
+  online = null
+  await act(async () => { await vi.advanceTimersByTimeAsync(REFRESH_MS) })
+  await until(() => looks() === 1)
+  expect(screen.getByRole('status').textContent).toContain('Waiting…')
+  online = false
+  await act(async () => { await vi.advanceTimersByTimeAsync(REFRESH_MS) })
+  await until(() => screen.getByRole('status').textContent!.includes('Waiting for your computer'))
+  expect(screen.getByRole('status').textContent).toContain('Waiting for your computer')
+  expect(screen.getByRole('button', { name: 'Cancel' })).toBeTruthy()
+  // Only the status is read again: the frame keeps the plan it loaded.
+  expect(calls.filter(call => call.path.includes('item?'))).toHaveLength(1)
 })
 
 it('ignores a message of an unknown kind, too large, or for an action the plan does not offer', async () => {

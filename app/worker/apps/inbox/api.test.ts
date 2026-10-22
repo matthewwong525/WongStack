@@ -108,6 +108,22 @@ it("re-uploading replaces the body and the version, and reopens a closed item wi
   expect((await tap(sam, { action: "build", version: "v2" })).status).toBe(200);
 });
 
+it("shows only a tap on the version shown, so a rebuilt plan opens with no answer from the one before", async () => {
+  await put(sam, plan);
+  const sent = (await tap(sam, { action: "build" })).json.tap;
+  await checkin();
+  await call(sam, "POST", "tap-result", { id: sent.id, state: "sent" });
+  expect((await call(sam, "GET", "item", { id: PLAN })).json.item.tap).toMatchObject({ id: sent.id, state: "sent" });
+  await put(sam, { ...plan, body: "<p>Rebuilt</p>", version: "v2" });
+  expect((await call(sam, "GET", "item", { id: PLAN })).json.item.tap).toBeNull();
+  expect((await call(sam, "GET", "items")).json.items[0].tap).toBeNull();
+  // The old answer is still there to look up by its own id.
+  expect((await call(sam, "GET", "tap", { id: sent.id })).json.tap.state).toBe("sent");
+  later(5000);
+  const next = (await tap(sam, { action: "build", version: "v2" })).json.tap;
+  expect((await call(sam, "GET", "item", { id: PLAN })).json.item.tap).toMatchObject({ id: next.id, state: "waiting" });
+});
+
 it("never hands the computer a cancelled or expired tap", async () => {
   await put(sam, plan);
   await put(sam, { ...approval, closesAt: START + 60_000 });

@@ -79,11 +79,12 @@ export const prune = (at: Scope) => at.db.batch([
   mine(at, "DELETE FROM inbox_items WHERE installation_id = ?1 AND email = ?2 AND closed_at < ?3", at.now - KEEP_MS),
 ]);
 
-// An item's columns as the list shows them: a plan's HTML is left out; its newest tap rides along, its text cut short.
+// An item's columns as the list shows them: a plan's HTML is left out; its newest tap on the version shown rides along,
+// its text cut short. A rebuild starts clean: an answer to the old version never shows above the new one.
 export const ITEM_COLUMNS = `id, kind, title, workspace, actions, version, created_at, closes_at, closed_at,
   CASE WHEN kind = 'plan' THEN NULL ELSE body END AS detail,
   (SELECT json_object('id', t.id, 'item', t.item_id, 'action', t.action, 'text', substr(t.text, 1, ${PREVIEW}), 'state', t.state) FROM inbox_taps t
-    WHERE t.installation_id = i.installation_id AND t.email = i.email AND t.item_id = i.id
+    WHERE t.installation_id = i.installation_id AND t.email = i.email AND t.item_id = i.id AND t.version = i.version
     ORDER BY t.created_at DESC, t.rowid DESC LIMIT 1) AS tap`;
 export type ItemRow = { id: string; kind: Item["kind"]; title: string; workspace: string; actions: string; version: string;
   created_at: number; closes_at: number; closed_at: number | null; detail: string | null; tap: string | null };

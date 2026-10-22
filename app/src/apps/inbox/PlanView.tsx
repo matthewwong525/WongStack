@@ -3,8 +3,9 @@ import { Link } from 'react-router'
 import { Loading } from '@/components/Loading'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Failed, label, pending, readPlan, sendTap, type Plan, type Tap } from './api'
+import { Failed, label, pending, readInbox, readPlan, sendTap, type Plan, type Tap } from './api'
 import { frameMessage, notesKey } from './frame'
+import { REFRESH_MS } from './List'
 import { TapLine } from './TapLine'
 
 function Back() {
@@ -25,6 +26,17 @@ export function PlanView({ id }: { id: string }) {
     (error: unknown) => setGone(error instanceof Failed && (error.status === 404 || error.status === 410) ? 'closed' : 'unavailable')), [id])
   useEffect(() => { void load() }, [load])
   useEffect(() => () => channel.current?.port?.close(), [])
+  // A waiting tap says whether the computer is there, so the view asks again as the list does; the plan itself stays.
+  const waiting = tap?.state === 'waiting'
+  useEffect(() => {
+    if (!waiting) return
+    const look = () => {
+      if (document.visibilityState === 'visible') void readInbox().then(({ computerOnline }) =>
+        setPlan(shown => shown && { ...shown, computerOnline }), () => undefined)
+    }
+    const timer = setInterval(look, REFRESH_MS)
+    return () => clearInterval(timer)
+  }, [waiting])
   const post = (data: object) => channel.current?.port?.postMessage(data)
   const settle = (next: Tap) => {
     setTap(next)
