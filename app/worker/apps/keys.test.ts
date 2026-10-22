@@ -75,3 +75,29 @@ it("fails, naming the key, on a direct-use setup that breaks a rule", () => {
   }
   expect(built("Notion_Key", notion)).toThrow("app/worker/keys.ts: Notion_Key: a key used directly needs an id in lowercase letters, digits and hyphens");
 });
+
+// An MCP server's setup names its one path and the tools that only look things up; a public one names no key.
+const docs: KeyEntry = { title: "Docs", purpose: "Public docs", docs: "https://docs.example/mcp", secrets: [], forward: { base: "https://mcp.docs.example/", mcp: { path: "mcp", reads: ["search"] } } };
+const mcpWrong = (change: Partial<NonNullable<KeyEntry["forward"]>>, key: Partial<KeyEntry> = {}) => built("docs", { ...docs, ...key, forward: { ...docs.forward!, ...change } });
+
+it("builds an MCP or keyless setup, and fails one that breaks its rules", () => {
+  expect(built("docs", docs)).not.toThrow();
+  expect(mcpWrong({ mcp: { path: "api/v2/mcp", reads: [] } })).not.toThrow();
+  expect(built("open", { ...docs, forward: { base: "https://open.example/" } })).not.toThrow();
+  // A key with secrets names its secret and header; a key with none names neither, nor a prefix.
+  expect(mcpWrong({ secret: "DOCS_TOKEN", header: "Authorization" }, { secrets: ["DOCS_TOKEN"] })).not.toThrow();
+  for (const change of [{ secret: "DOCS_TOKEN" }, { header: "Authorization" }, { prefix: "Bearer " }]) {
+    expect(mcpWrong(change), JSON.stringify(change)).toThrow("app/worker/keys.ts: docs: a key with no secrets names no secret, header or prefix");
+  }
+  expect(mcpWrong({ header: "Authorization" }, { secrets: ["DOCS_TOKEN"] })).toThrow("docs: secret must be one of the key's own secrets");
+  expect(mcpWrong({ secret: "DOCS_TOKEN" }, { secrets: ["DOCS_TOKEN"] })).toThrow("docs: header must be one request header name");
+  // The path stays under base, `lookups` has no say, and each look-up is a tool's name.
+  for (const path of ["", "/mcp", "../mcp", "mcp?x=1", "https://evil.example/mcp", "a//mcp"]) {
+    expect(mcpWrong({ mcp: { path, reads: [] } }), path).toThrow("app/worker/keys.ts: docs: the MCP path must stay under base");
+  }
+  expect(mcpWrong({ lookups: ["POST mcp"] })).toThrow("docs: an MCP server's tools decide what reads, so it takes no lookups");
+  expect(mcpWrong({ mcp: { path: "mcp", reads: ["github.search_code", "files/read-1", "x".repeat(128)] } })).not.toThrow();
+  for (const tool of ["", "search tool", "sëarch", "x".repeat(129)]) {
+    expect(mcpWrong({ mcp: { path: "mcp", reads: ["search", tool] } }), tool).toThrow(`app/worker/keys.ts: docs: the MCP look-up "${tool}" must be a tool's name`);
+  }
+});

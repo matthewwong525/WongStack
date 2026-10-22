@@ -1054,6 +1054,8 @@ browserTest('a sketch fits 320px, opens full screen, and repaints on the dark sw
   ].join('\n')));
   const { page, context, errors } = await open(url, { width: 320 });
   await page.locator('#item-1 summary').click();
+  // The fold's toggle event fits the sketch a moment after the click.
+  await page.waitForFunction(() => document.querySelector('#item-1 .art.sketch').style.fontSize !== '');
   const fits = await page.evaluate(() => {
     const frame = document.querySelector('#item-1 .frame').getBoundingClientRect(), svg = document.querySelector('#item-1 .art.sketch svg').getBoundingClientRect();
     return { inside: svg.left >= frame.left - 1 && svg.right <= frame.right + 1, page: document.documentElement.scrollWidth <= innerWidth, drawn: svg.height > 0 };

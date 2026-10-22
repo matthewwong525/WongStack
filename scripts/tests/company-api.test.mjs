@@ -244,6 +244,10 @@ test('services shows each key on one line with its level, notes page and guide, 
   // With --all the keys left out are rows of their own, so no count follows.
   const all = serviceLines({ needAccess: 1, services: [{ id: 'xero', name: 'Xero', purpose: 'books', ready: true, level: null, direct: false, notes: { path: 'wiki/services/xero.md', exists: false } }] });
   assert.deepEqual(all.map(line => line.trimEnd().split(/ {2,}/)), [['Xero', 'books', 'needs access: ask the owner'], ['', 'notes: none yet; start wiki/services/xero.md']]);
+  // An MCP server's row says how to list its tools.
+  assert.deepEqual(serviceLines({ services: [{ id: 'docs', name: 'Docs', purpose: 'public docs', ready: true, level: 'read', direct: true, mcp: { path: 'mcp' },
+    notes: { path: 'wiki/services/docs.md', exists: false } }] }).map(line => line.trimEnd()),
+  ['Docs  public docs  ready  Read', '  notes: none yet; start wiki/services/docs.md', '  tools: node scripts/company-api.mjs mcp docs tools']);
   assert.deepEqual(serviceLines({ services: [], needAccess: 1 }), ['1 more key needs access: ask the owner']);
   assert.deepEqual(serviceLines({ services: [], needAccess: 0 }), ['No services yet.']);
 });
@@ -320,4 +324,35 @@ test('an answers folder that is not private is refused, and a short answer needs
   assert.throws(() => saveAnswer('{}', dir), /not a private folder/);
   assert.throws(() => shortAnswer('x'.repeat(30000), dir), /not a private folder/);
   assert.equal(shortAnswer('{"short":true}', dir), '{"short":true}'); assert.deepEqual(readdirSync(dir), []);
+});
+test('the mcp command runs a session through the app as a chat runs it, and prints the tools or a tool\'s text', t => {
+  const cli = helperCli(t, `async (target, init) => {
+    if (target.pathname === '/api/services') return Response.json({ revision: 'r', needAccess: 0, services: [{ id: 'docs', name: 'Docs', purpose: 'p', ready: true, level: 'write', direct: true, mcp: { path: 'mcp' } }] });
+    const id = target.searchParams.get('id');
+    if (id) return Response.json({ operationId: id, summary: 's', source: 'company', transport: 'http', authentication: 'cloudflare-access', encoding: 'json',
+      effect: 'read', method: 'POST', path: '/api/direct/' + id.replace('.', '/'), inputSchema: { type: 'object' }, outputSchema: { type: 'object' }, revision: 'live' });
+    const message = init.body?.body;
+    if (!message) return undefined;
+    if (target.pathname === '/api/direct/docs/read' && message.method === 'tools/call' && message.params.name !== 'search') return Response.json({ error: { code: 'not_a_lookup', message: 'no' } }, { status: 400 });
+    if (message.method === 'notifications/initialized') return Response.json({ status: 202, contentType: '', body: '' });
+    const result = message.method === 'tools/list' ? { tools: [{ name: 'search', description: 'Find pages. More words.' }, { name: 'delete_page', description: 'Delete one.' }] }
+      : { content: [{ type: 'text', text: message.params?.arguments?.size ? 'y'.repeat(message.params.arguments.size)
+        : 'ran ' + message.params?.name + ' on ' + target.pathname + ' in ' + init.body.session }] };
+    return Response.json({ status: 200, contentType: 'text/event-stream', body: 'data: ' + JSON.stringify({ jsonrpc: '2.0', id: message.id, result }) + '\\n\\n', session: 'S-1' });
+  }`);
+  const tools = cli.run(['mcp', 'docs', 'tools']); assert.equal(tools.status, 0, tools.stderr);
+  assert.equal(tools.stdout, 'search       Find pages.\ndelete_page  Delete one.\n');
+  const ran = cli.run(['mcp', 'docs', 'tool', 'delete_page', '--file', '-'], { input: '{"id":"p1"}' }); assert.equal(ran.status, 0, ran.stderr);
+  assert.equal(ran.stdout, 'ran delete_page on /api/direct/docs/change in S-1\n');
+  const wrong = cli.run(['mcp', 'docs']); assert.equal(wrong.status, 1); assert.match(wrong.stderr, /usage:/);
+  // A tool's text is bounded like a call's answer, --full prints it all, and an unsafe answers folder prints it whole.
+  const big = (...flags) => cli.run(['mcp', 'docs', 'tool', 'search', '--file', '-', ...flags], { input: '{"size":30000}' });
+  const bounded = big(); assert.equal(bounded.status, 0, bounded.stderr);
+  const envelope = JSON.parse(bounded.stdout);
+  assert.deepEqual([envelope.truncated, envelope.bytes, envelope.preview], [true, 30000, 'y'.repeat(4096)]);
+  assert.equal(readFileSync(envelope.file, 'utf8'), `${'y'.repeat(30000)}\n`);
+  assert.equal(big('--full').stdout, `${'y'.repeat(30000)}\n`);
+  chmodSync(join(cli.temp, `wong-answers-${process.getuid()}`), 0o755);
+  const open = big(); assert.equal(open.status, 0, open.stderr);
+  assert.equal(open.stdout, `${'y'.repeat(30000)}\n`); assert.match(open.stderr, /not a private folder.*, so the whole answer follows\./);
 });

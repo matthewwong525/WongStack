@@ -19,6 +19,8 @@ export const worksAlone = (id: string): boolean => registry[id].alone === true;
 export const offered = (id: string): readonly Level[] => registry[id].levels ?? ["read", "write"];
 /** Whether a key's service is set up to be used directly through the app. */
 export const forwards = (id: string): boolean => registry[id].forward !== undefined;
+/** The path of that service's MCP server, called through the app one tool at a time, or null for another service. */
+export const mcpPath = (id: string): string | null => registry[id].forward?.mcp?.path ?? null;
 /** What a key is for, and its service's API guide when it is used directly. */
 export const described = (id: string): { purpose: string; docs?: string } =>
   ({ purpose: registry[id].purpose, ...(registry[id].docs && { docs: registry[id].docs }) });

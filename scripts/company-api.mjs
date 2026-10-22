@@ -10,6 +10,7 @@ import { isMain, parseCli } from './lib-cli.mjs';
 import { memoryOperations, callMemory } from '../.agents/skills/memory/scripts/operations.mjs';
 import { selectOperations, parseOperationInput } from '../.agents/skills/memory/scripts/lib/operations.mjs';
 import { companyClient as transport, signInNotice } from './employee-bootstrap.mjs';
+import { directSend, mcpSession, toolText } from './mcp-session.mjs';
 export { companyOrigin, cloudflared, loginUrl } from './employee-bootstrap.mjs';
 export function companyClient(options = {}) { return transport({ root: options.root || primaryRoot().root, onboarding: false, ...options }); }
 const CHECKOUT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -59,13 +60,14 @@ function serviceState(service) {
   if (!service.level) return 'needs access: ask the owner';
   return service.ready ? `ready  ${LEVELS[service.level] ?? service.level}` : 'not saved yet: ask the owner';
 }
+const toolsLine = ({ id }) => `  tools: node scripts/company-api.mjs mcp ${id} tools`;
 const notesLine = ({ notes, docs }) => `  notes: ${notes.exists ? notes.path : `none yet; start ${notes.path}`}${docs ? `  guide: ${docs}` : ''}`;
 /** The services list as a chat reads it: one line per service, its notes page, and the keys left out. */
 export function serviceLines({ services, needAccess = 0 }) {
   const width = key => Math.max(0, ...services.map(service => String(service[key] ?? '').length));
   const lines = services.flatMap(service => [
     [service.name.padEnd(width('name')), String(service.purpose ?? '').padEnd(width('purpose')), serviceState(service)].join('  '),
-    ...(service.notes ? [notesLine(service)] : [])]);
+    ...(service.notes ? [notesLine(service)] : []), ...(service.mcp ? [toolsLine(service)] : [])]);
   if (needAccess && !services.some(service => !service.level)) lines.push(`${needAccess} more key${needAccess === 1 ? ' needs' : 's need'} access: ask the owner`);
   return lines.length ? lines : ['No services yet.'];
 }
@@ -93,6 +95,30 @@ export function shortAnswer(text, dir) {
   return JSON.stringify({ truncated: true, bytes, file: saveAnswer(text, dir), preview }, null, 2);
 }
 
+/** One line per MCP tool: its name and the first sentence of what it does. */
+export function toolLines(tools) {
+  const width = Math.max(0, ...tools.map(tool => tool.name.length));
+  const first = text => String(text ?? '').replace(/\s+/g, ' ').trim().split(/(?<=[.!?]) /)[0].slice(0, 160);
+  return tools.length ? tools.map(tool => `${tool.name.padEnd(width)}  ${first(tool.description)}`.trimEnd()) : ['No tools.'];
+}
+
+/** `mcp <key> tools [<name>]` and `mcp <key> tool <name>`, through the app: the text to print. */
+export async function mcpCommand(client, key, [verb, name, ...extra], input) {
+  if (!key || extra.length || !(verb === 'tools' || (verb === 'tool' && name))) throw new Error(USAGE);
+  const args = verb === 'tool' ? input() : undefined;
+  if (verb === 'tool' && (!args || typeof args !== 'object' || Array.isArray(args))) throw new Error('Supply the tool\'s arguments as a JSON object');
+  const { value } = await client.http('/api/services?all=1');
+  const row = Array.isArray(value?.services) ? value.services.find(service => service.id === key) : undefined;
+  if (!row?.mcp?.path) throw new Error(row ? `${row.name} is not an MCP server; use call ${key}.read` : `No service named ${key}: run services`);
+  const session = mcpSession({ send: directSend((id, body) => client.call(id, body), key), path: row.mcp.path, name: row.name });
+  if (verb === 'tool') return toolText(await session.tool(name, args), row.name);
+  const tools = await session.tools();
+  if (!name) return toolLines(tools).join('\n');
+  const tool = tools.find(found => found.name === name);
+  if (!tool) throw new Error(`${row.name} has no tool named ${name}`);
+  return JSON.stringify({ name: tool.name, description: tool.description, inputSchema: tool.inputSchema }, null, 2);
+}
+
 // An ended or refused sign-in names the one step that gets a new one: login prints the link to show the person.
 const SIGNED_OUT = /session (?:is absent or )?expired|access was denied/i;
 export const SIGN_IN_AGAIN = 'Sign in again: run `node scripts/company-api.mjs login`, which prints a link to show the person.';
@@ -102,7 +128,9 @@ const USAGE = `usage: company-api.mjs <command> [--state <private directory>]
   list [--scope all|company|memory] [--q words] [--app name] [--limit 1..50] [--offset n] [--json]
   describe <id> [--json]
   call <id> --file <JSON file or -> [--full]
-call prints at most 20 KB; a longer answer is saved to a private file it names. --full prints it all.`;
+  mcp <key> tools [<name>]           an MCP service's tools, or one tool's arguments
+  mcp <key> tool <name> --file <JSON arguments or -> [--full]
+call and mcp print at most 20 KB; a longer answer is saved to a private file it names. --full prints it all.`;
 
 async function services(client, values) {
   const { value } = await client.http(`/api/services${values.all ? '?all=1' : ''}`);
@@ -121,6 +149,11 @@ function printCall(id, result, values) {
     process.exitCode = 1;
     return;
   }
+  printAnswer(text, values);
+}
+
+/** An answer, bounded unless `--full`; when it can't be saved aside, the whole answer follows the reason. */
+function printAnswer(text, values) {
   let output = text;
   if (!values.full) try { output = shortAnswer(text); } catch (error) { console.error(`${error.message}, so the whole answer follows.`); }
   console.log(output);
@@ -131,10 +164,13 @@ if (isMain(import.meta.url)) {
     ...Object.fromEntries(['origin', 'state', 'scope', 'q', 'app', 'limit', 'offset', 'file'].map(name => [name, { type: 'string' }])),
     ...Object.fromEntries(['all', 'json', 'full'].map(name => [name, { type: 'boolean' }])) } });
   try {
-    if (extra.length) throw new Error(USAGE);
+    if (extra.length && command !== 'mcp') throw new Error(USAGE);
     const client = companyClient({ stateDir: values.state, onLoginUrl: link => console.error(signInNotice(link)) });
     const input = () => parseOperationInput(readFileSync(values.file === '-' ? 0 : values.file, 'utf8'));
     if (command === 'services') await services(client, values);
+    else if (command === 'mcp') {
+      printAnswer(await mcpCommand(client, id, extra, input), values);
+    }
     else {
       let result;
       if (command === 'login') result = await client.login(values.origin);
