@@ -1,6 +1,6 @@
 # Proposal
 
-**Status:** ready-to-ship
+**Status:** shipped
 **Branch:** mcp-through-app
 **Open questions:** none
 
@@ -57,3 +57,4 @@ An MCP server connected straight to a chat loads every one of its tool descripti
 - **2026-10-22** — Assumed: the helper's `tools` follows the server's next-page marker for at most 20 pages, then stops with an error, because a server that pages without end must not loop the helper.
 - **2026-10-22** — Assumed: a tool name follows MCP's own rule, 1 to 128 letters, digits, `_`, `.`, `/` or `-`, because the read list matches exact names, so a wider rule only lets more real tools be listed.
 - **2026-10-22** — Saved for review: built, second look found four issues, all fixed, reread clean; the owner decides on publishing.
+- **2026-10-22** — Archived for publishing as 44.3.0 on the owner's `/ship`.

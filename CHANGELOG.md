@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — MCP servers go through the app
+## 44.3.0 — MCP servers go through the app
 
 - **An MCP server goes through the app, called only when a task needs it.** The app holds the server's address and key, and a chat runs one short command when it needs the service. A server connected straight to a chat loads all its tool descriptions into every chat, so it never goes in a chat's own settings.
 - **Each call counts as a look-up or a change, by its tool.** Opening the session, listing tools and the tools named as look-ups need *Read*. Any other tool, including one the service adds later, needs *Read & write*.

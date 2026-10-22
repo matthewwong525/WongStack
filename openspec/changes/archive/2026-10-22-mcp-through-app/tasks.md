@@ -23,5 +23,5 @@
 ## 4. Verify
 
 - [x] 4.1 Live keyless run against DeepWiki's public MCP server through `forwardRoutes` with real fetch: session, tools list, a look-up forwarded, a change sorted as a change (throwaway, not committed)
-- [ ] 4.2 App tests, script tests, `node .github/scripts/checks.mjs --worktree`
-- [ ] 4.3 `/save`: saved PR with its preview
+- [x] 4.2 App tests, script tests, `node .github/scripts/checks.mjs --worktree`
+- [x] 4.3 `/save`: saved PR with its preview
