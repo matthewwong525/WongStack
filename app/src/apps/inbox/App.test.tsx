@@ -78,10 +78,13 @@ it('groups what waits on the person, questions first, with the computer shown on
   expect(bar()).toBe('0 of 2 picked')
   expect(screen.getByRole('button', { name: 'Send 0 answers' })).toHaveProperty('disabled', true)
   expect(screen.getByText(/pick and go on/).className).toContain('md:block')
-  // On a phone nothing grows past the screen: the columns can shrink, and a long who-line truncates instead.
+  // On a phone nothing grows past the screen: the columns can shrink, and a long who-line wraps, never cut off.
   const columns = [screen.getByRole('heading', { level: 1 }).parentElement!.parentElement!, ...document.querySelectorAll('section')]
   expect(columns.map(column => column.className.split(' ').includes('grid-cols-1'))).toEqual([true, true, true, true])
-  expect(within(card('Send the quote')).getByText('Send the quote · email').className).toBe('min-w-0 truncate')
+  const who = within(card('Send the quote')).getByText('Send the quote · email')
+  expect(who.className).toBe('wrap-anywhere')
+  expect(who.parentElement!.className.split(' ')).toContain('min-w-0')
+  expect(who.parentElement!.className).not.toMatch(/truncate|flex/)
 })
 
 it('shows a question once when its title says the same, and a question with no words by its title', async () => {
@@ -159,7 +162,9 @@ it('folds a picked card to its answer without sending, and Change opens it again
   const monday = within(card('Which day?')).getByRole('radio', { name: 'Monday' })
   expect([monday.getAttribute('aria-checked'), monday.getAttribute('data-variant')]).toEqual(['true', 'default'])
   await choose("Don't approve", 'Send the quote')
-  expect(within(card('Send the quote')).getByText("✓ Don't approve")).toBeTruthy()
+  // A folded card keeps its answer to one line; the who-line beside it wraps.
+  expect(within(card('Send the quote')).getByText("✓ Don't approve").className).toContain('truncate')
+  expect(within(card('Send the quote')).getByText('Send the quote · email').className).toBe('wrap-anywhere')
   // The reopened card stays open until a new pick.
   expect(within(card('Which day?')).getByRole('radiogroup')).toBeTruthy()
   await choose('Friday', 'Which day?')

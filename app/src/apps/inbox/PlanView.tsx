@@ -8,6 +8,9 @@ import { frameMessage, notesKey } from './frame'
 import { REFRESH_MS } from './List'
 import { TapLine } from './TapLine'
 
+/** The app's look, which its header switch sets on the root: the sealed page can't read the app's saved choice. */
+const appLook = () => document.documentElement.classList.contains('dark') ? 'dark' : 'light'
+
 function Back() {
   return <Button asChild variant="ghost" className="justify-self-start"><Link to="/apps/inbox/">Back</Link></Button>
 }
@@ -26,6 +29,16 @@ export function PlanView({ id }: { id: string }) {
     (error: unknown) => setGone(error instanceof Failed && (error.status === 404 || error.status === 410) ? 'closed' : 'unavailable')), [id])
   useEffect(() => { void load() }, [load])
   useEffect(() => () => channel.current?.port?.close(), [])
+  // The page follows the app's switch in place, so it keeps its notes.
+  useEffect(() => {
+    let shown = appLook()
+    const observer = new MutationObserver(() => {
+      const theme = appLook()
+      if (theme !== shown) { shown = theme; channel.current?.port?.postMessage({ type: 'inbox:theme', theme }) }
+    })
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
+    return () => observer.disconnect()
+  }, [])
   // A waiting tap says whether the computer is there, so the view asks again as the list does; the plan itself stays.
   const waiting = tap?.state === 'waiting'
   useEffect(() => {
@@ -58,7 +71,7 @@ export function PlanView({ id }: { id: string }) {
     const { port1, port2 } = new MessageChannel()
     port1.onmessage = event => void listen(item, event.data)
     channel.current = { version: item.version, port: port1 }
-    frame.current?.contentWindow?.postMessage({ type: 'inbox:hello', item: item.id, version: item.version, actions: item.actions }, '*', [port2])
+    frame.current?.contentWindow?.postMessage({ type: 'inbox:hello', item: item.id, version: item.version, actions: item.actions, theme: appLook() }, '*', [port2])
   }
   if (!plan) return <div className="grid gap-4">
     <Back />

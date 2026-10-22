@@ -38,7 +38,7 @@ beforeEach(() => {
     return Response.json({ tap: { ...waiting, state: tapState } })
   }))
 })
-afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.restoreAllMocks(); vi.useRealTimers() })
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.restoreAllMocks(); vi.useRealTimers(); document.documentElement.className = '' })
 
 /** Waits, a few milliseconds at a time, for what an answer from the inbox's own calls brings. */
 const until = async (check: () => boolean) => {
@@ -78,7 +78,22 @@ it('seals the plan in a frame that can run its page but never reach the app, and
   expect(screen.getByRole('heading', { level: 1, name: 'One inbox' }).className).toBe('sr-only')
   expect(screen.getByText('lousy-dingo')).toBeTruthy()
   expect(screen.getByRole('link', { name: 'Back' }).getAttribute('href')).toBe('/apps/inbox/')
-  expect(posted).toHaveBeenCalledWith({ type: 'inbox:hello', item: PLAN, version: 'v1', actions: ['build', 'publish'] }, '*', [port])
+  expect(posted).toHaveBeenCalledWith({ type: 'inbox:hello', item: PLAN, version: 'v1', actions: ['build', 'publish'], theme: 'light' }, '*', [port])
+})
+
+it("greets the page in the app's look and tells it each time the app's switch changes it, and nothing else", async () => {
+  document.documentElement.classList.add('dark')
+  const { posted, heard, settled } = await open()
+  expect(posted.mock.calls[0][0]).toMatchObject({ type: 'inbox:hello', theme: 'dark' })
+  document.documentElement.classList.remove('dark')
+  await until(() => heard.length > 0)
+  expect(heard).toEqual([{ type: 'inbox:theme', theme: 'light' }])
+  // Another class on the root is not a change of look.
+  document.documentElement.classList.add('busy')
+  await act(settled)
+  document.documentElement.classList.add('dark')
+  await until(() => heard.length > 1)
+  expect(heard).toEqual([{ type: 'inbox:theme', theme: 'light' }, { type: 'inbox:theme', theme: 'dark' }])
 })
 
 it("keeps the page's notes in this app's storage under its own review page's key, and no other", async () => {

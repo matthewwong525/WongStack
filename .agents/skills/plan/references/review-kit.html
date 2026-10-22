@@ -749,9 +749,12 @@
       post({ type: 'inbox:tap', action: path === 'send' ? 'send' : body.action, text: body.text || '' });
     });
   }
+  // The inbox's switch owns the look: this frame can't remember a choice, so its own switch goes. Unknown looks change nothing.
+  function look(theme) { if (theme === 'light' || theme === 'dark') document.documentElement.classList.toggle('dark', theme === 'dark'); }
   function heard(m) {
     if (!m || typeof m !== 'object') return;
-    if (m.type === 'inbox:notes' && (typeof m.value === 'string' || m.value === null)) { load(m.value); render(); }
+    if (m.type === 'inbox:theme') look(m.theme);
+    else if (m.type === 'inbox:notes' && (typeof m.value === 'string' || m.value === null)) { load(m.value); render(); }
     else if (hosted.reply && m.type === 'inbox:result') { const reply = hosted.reply; hosted.reply = null; reply(m.state); }
   }
   window.addEventListener('message', function (e) {
@@ -761,6 +764,8 @@
     hosted = { reply: null };
     port = e.ports[0];
     port.onmessage = function (ev) { heard(ev.data); };
+    document.querySelectorAll('.theme-toggle').forEach(function (button) { button.remove(); });
+    look(m.theme);
     // Notes live with the inbox page: this frame has no storage of its own.
     store = { setItem: function (key, value) { post({ type: 'inbox:notes-set', key: key, value: value }); } };
     post({ type: 'inbox:notes-get', key: KEY });
