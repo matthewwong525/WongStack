@@ -1,6 +1,6 @@
 # Tidy two inbox display details
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** inbox-display-tidy
 **Open questions:** none
 
@@ -69,3 +69,4 @@ Two small things look off in the inbox. A plan shows two light and dark buttons,
 **2026-10-22** — Assumed: the app's button stays and the review page's goes inside the inbox, because the app bar is on every screen and a sealed frame can't save its own choice.
 **2026-10-22** — Assumed: review pages built before this change still show their own button in the inbox, because they're files already on the computer; they ignore the new message.
 **2026-10-22** — Built: the inbox sends its look with the greeting and on each switch; the page hides its own switch only inside the inbox; the approval line wraps. The second look found the release note marked patch for new behaviour → fixed to minor. Saved to check on the preview (task 3.2).
+**2026-10-22** — Preview check passed (dark plan has one switch and turns light in place with notes kept; approval line wraps at 360 and 390 px with no sideways scroll; the page on its own keeps its switch). Archived for 44.5.0.

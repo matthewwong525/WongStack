@@ -13,4 +13,4 @@
 ## 3. Verification
 
 - [x] 3.1 `npm test` in `app/` and the payload checks pass
-- [ ] 3.2 On the preview, a plan in dark mode shows one switch and switches in place; at 360 and 390px the who-line wraps and `scrollWidth` ≤ `clientWidth`
+- [x] 3.2 On the preview, a plan in dark mode shows one switch and switches in place; at 360 and 390px the who-line wraps and `scrollWidth` ≤ `clientWidth`

@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Tidy two inbox display details
+## 44.5.0 — Tidy two inbox display details
 
 - **A plan in the inbox has one light and dark switch.** The app's own switch now changes the plan's page too, in place, with your notes kept, and the page opens in the app's look. The review page hides its own switch inside the inbox; opened from its private link, it keeps it.
 - **A long approval's top line wraps on a phone.** Its title and workspace run onto a second line instead of ending in "…".
