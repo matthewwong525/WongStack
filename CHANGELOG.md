@@ -5,7 +5,7 @@
 
 ## 44.6.1 — A preview check signs in as you for a per-person app
 
-- **A preview check can reach a per-person app**, such as the inbox, by signing in as you; the staging walkthrough page says how.
+- **A preview check can reach a per-person app**, such as the inbox, by signing in as you; the Cloudflare Access page says how.
 
 **Updating.** No step needed.
 

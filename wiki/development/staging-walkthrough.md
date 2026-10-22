@@ -83,8 +83,6 @@ That is why request probes work: a non-navigation request reaches your applicati
 
 An [Access](../stack/cloudflare-access.md) login wall stops a walk before it sees the app. Where a Cloudflare API token exists, `/verify` [heals it itself](../../.agents/skills/verify/SKILL.md#when-a-block-stops-the-walk) rather than sending you on an errand. The repair is already authorized: pasting a token *is* [the authorization to widen it](../stack/cloudflare-credentials.md#the-widen-is-pre-authorized). With no token, or on a wall off your own site, which gets no new token, the affected checks stay unverified and join the final help list. Other safe checks still run; a login page never counts as the app working.
 
-**An app that serves only the signed-in person**, such as the inbox, refuses the service token, so the walk signs in as you: `cloudflared access login <preview address>` reuses your existing Cloudflare sign-in without a prompt. To send it items from this computer, `node scripts/company-api.mjs login --origin <preview address>` points one worktree at the preview; remove that sign-in when the walk ends.
-
 **One heal and one retry**, never a loop. A surviving block names the attempt in the help list. Completed writes are not replayed because another check needed repair.
 
 ## When a walk fails
