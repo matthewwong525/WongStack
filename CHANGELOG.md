@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — The chief hands off big tasks by itself
+## 44.8.0 — The chief hands off big tasks by itself
 
 - **The daily chat stays free for you.** After `/daily`, the chief of staff answers quick things itself: a question, a reminder, where its agents stand, a quick lookup. A bigger task, one that edits files, takes several steps, or needs more than a few minutes, goes to its own workspace without you asking. It says `Handed to its own workspace: <title>` and watches it like any agent it starts.
 - **Say *do it here* to keep a task in the chat**, with the ask or right after it was handed off. Right after, the chief closes the workspace it just opened, so the task never runs twice. Where your chat app can't open a workspace, the task runs in the chat as before.

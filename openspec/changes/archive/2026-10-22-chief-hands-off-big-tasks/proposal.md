@@ -1,7 +1,7 @@
 # The chief hands off big tasks by itself
 
-**Status:** planned
-**Branch:** gracious-pug
+**Status:** ready-to-ship
+**Branch:** chief-of-staff-delegation
 **Open questions:** none
 
 ## Why
@@ -55,3 +55,4 @@ Non-goals: no change to how the chief sorts an agent's stops, what it may approv
 **2026-10-22** — Assumed while building: `D close` archives an agent with no workspace id with `paseo archive --force`, because a just-handed-off agent is running and a plain archive refuses it; the closed mark lives on its row in the day file, so a running watch can't overwrite it.
 **2026-10-22** — Assumed: `D close` only archives an agent this `/daily` opened and refuses a chat handed in with `D hand`, because a handed-in chat is the person's own.
 **2026-10-22** — Assumed while merging the published `plan-the-day-first`: `D close` also takes the closed agent's status card and open questions out of the inbox, because the watch drops a closed agent before it could notice it leave, so its card would otherwise stay up.
+**2026-10-22** — Archive checkpoint: merged the published `plan-the-day-first` (44.7.0) in, keeping both changes' lines; daily tests 44/44. Local suite pre-check timed out once on `app/src/apps/access/Welcome.test.tsx` (passes alone; no app file changed); CI decides.
