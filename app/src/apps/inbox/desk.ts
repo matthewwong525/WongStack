@@ -13,10 +13,13 @@ export function useDesk(decisions: Item[], listed: Item[] | undefined) {
   const [selected, setSelected] = useState('')
   const [held, setHeld] = useState<ReadonlySet<string>>(new Set())
   const [noting, setNoting] = useState('')
-  // The element to focus once the next render has drawn it.
+  // The element to focus once a render has drawn it: kept until it is there, so a render in between can't drop it.
   const focus = useRef('')
   useEffect(() => writeDrafts(listed ? keepListed(drafts, listed) : drafts), [drafts, listed])
-  useEffect(() => { document.getElementById(focus.current)?.focus(); focus.current = '' })
+  useEffect(() => {
+    const target = focus.current && document.getElementById(focus.current)
+    if (target) { target.focus(); focus.current = '' }
+  })
   const update = (item: Item, patch: Draft) => setDrafts(all => ({ ...all, [draftKey(item)]: { ...all[draftKey(item)], ...patch } }))
   const hold = (item: Item, on: boolean) => setHeld(all => new Set(on ? [...all, item.id] : [...all].filter(id => id !== item.id)))
   const go = (item: Item, element = cardId(item)) => { setSelected(item.id); focus.current = element }
