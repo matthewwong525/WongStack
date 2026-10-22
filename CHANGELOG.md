@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 44.9.0 — People who can push on GitHub can open previews
+
+- **Push rights on GitHub open previews.** Every 15 minutes, and whenever Access opens, the live app reads who can push to the project and lets them sign in to previews. Never the live app. Take their push rights away, and within 15 minutes they leave the previews' sign-in list and their preview sessions end.
+- **The app finds their email itself** from their GitHub profile or their own commits in the project. When neither has one, Access lists them under People as *Needs an email*, and you type it once.
+- **A preview opens every app for a signed-in person outside its practice list**, with nothing to manage. Practice people keep exactly what the list gives them.
+- **A project kept in Cloudflare, or with no GitHub key, works as before.** Access says what's missing.
+
+**Updating.** Publish the update. Nothing else is needed when the app already holds the project's GitHub key; otherwise Access says which step is left. Your app's settings file gains a 15-minute schedule on the live app and an empty one on previews: the sync plan shows both lines to add.
+
 ## 44.8.0 — The chief hands off big tasks by itself
 
 - **The daily chat stays free for you.** After `/daily`, the chief of staff answers quick things itself: a question, a reminder, where its agents stand, a quick lookup. A bigger task, one that edits files, takes several steps, or needs more than a few minutes, goes to its own workspace without you asking. It says `Handed to its own workspace: <title>` and watches it like any agent it starts.

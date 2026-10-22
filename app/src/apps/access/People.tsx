@@ -7,6 +7,7 @@ import { at, type ViewProps } from './address'
 import { Confirm, MakeAdmin } from './Confirm'
 import { dots, summary } from './levels'
 import { PersonPage } from './PersonPage'
+import { Pushers } from './Pushers'
 import { RoleSelect } from './RoleSelect'
 import { RowMenu } from './RowMenu'
 import { canRetry, signInLine } from './status'
@@ -15,8 +16,8 @@ import { View } from './View'
 
 const COLUMNS = ['Person', 'Sign-in', 'Role', 'Apps and keys']
 
-// The view that opens first: one row per person, each one line, the owner first with nothing to change. A role is
-// picked in the row, and Admin asks first; the rest sits behind its menu. Only the owner removes an Admin.
+// The view that opens first: one row per person, the owner first with nothing to change. A role is picked in the row,
+// and Admin asks first; the rest sits behind its menu. Only the owner removes an Admin. GitHub pushers sit below.
 export function People(props: ViewProps) {
   const { status, id, pending, save } = props
   const { owner, email: viewer } = status.viewer
@@ -53,6 +54,7 @@ export function People(props: ViewProps) {
       })}
     </Table>
     {status.people.length === 0 && <p>No people added yet.</p>}
+    <Pushers view={props.view} />
     {removing && <Confirm title={`Remove ${removing.email}?`} action="Remove access" pending={pending}
       onConfirm={() => save('people', { email: removing.email, removed: true })} onCancel={() => setRemoving(null)}>
       {status.environment === 'live'

@@ -61,7 +61,7 @@ Setup makes two owned self-hosted applications, one per Worker. The shared provi
 - **The live app**, `WongStack <repo> (<base>)`, covers the production Worker. Its default address anchors email login.
 - **The previews app**, the same name with ` previews` added, covers the staging Worker and its default address, so every branch preview signs in there.
 
-Each has its own audience, people policy, machine policy and service token, and each Worker accepts only its own app's audience. A sign-in made on a preview is refused by the live app, so branch code nobody has reviewed can't use it to reach memory, keys or the project. The same people sign in to both, the same way: setup copies the live app's list and login methods, and [Access keeps both lists in step](employee-access.md#add-change-and-remove-people).
+Each has its own audience, people policy, machine policy and service token, and each Worker accepts only its own app's audience. A sign-in made on a preview is refused by the live app, so branch code nobody has reviewed can't use it to reach memory, keys or the project. Both admit the same people, the same way: setup copies the live app's list and login methods, and [Access keeps both lists in step](employee-access.md#add-change-and-remove-people). The previews app also admits [people who can push on GitHub](preview-access.md#people-who-can-push-on-github), whose code already runs there.
 
 An install from before has one app over both Workers. [Finish Access setup](employee-access.md#finish-access-setup) splits it: previews stop publishing until it runs, and the live app keeps publishing with a warning.
 

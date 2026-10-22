@@ -57,6 +57,22 @@ export type SavedKey = Status['keys'][number]
 export type BuiltApp = Status['apps'][number]
 export type Level = z.infer<typeof level>
 
+// Who can push to the project on GitHub, each let in to previews alone. `state` says why none are listed: no GitHub
+// key, a project kept elsewhere, Access not started, or a preview. `split`: the previews app has its own list yet.
+export const pushersSchema = z.object({ state: z.enum(['listed', 'unavailable', 'no_github', 'not_github', 'not_started', 'live_only']),
+  split: z.boolean().optional(),
+  pushers: z.array(z.object({ githubId: z.number(), login: z.string(), email: z.string().nullable(),
+    emailSource: z.enum(['owner', 'profile', 'commit']).nullable(), canOpenPreviews: z.boolean() })) })
+export type Pushers = z.infer<typeof pushersSchema>
+export type Pusher = Pushers['pushers'][number]
+
+/** The owner or an Admin types a pusher's email; the server checks again who is asking. */
+export async function savePusherEmail(githubId: number, email: string): Promise<void> {
+  const response = await fetch(`/api/access/pushers/${githubId}`, { method: 'PUT', redirect: 'error',
+    headers: { Origin: window.location.origin, 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) })
+  if (!response.ok) throw new Error('Access change unavailable')
+}
+
 /** Whether a person holds the built-in Admin role. */
 export const isAdmin = (status: Pick<Status, 'roles'>, person: Pick<Person, 'role'>) => status.roles.some(role => role.builtIn && role.id === person.role)
 

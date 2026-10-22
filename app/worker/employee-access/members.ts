@@ -80,7 +80,7 @@ export async function changeMember(core: Core, value: unknown): Promise<void> {
     changes.push(core.db.prepare(`INSERT INTO wong_access_work (installation_id, kind, generation, status)
       SELECT installation_id, ?, revision, 'pending' FROM wong_access_installation WHERE installation_id = ?
       ON CONFLICT(installation_id, kind) DO UPDATE SET generation = excluded.generation,
-      status = 'pending', error_code = NULL, outcome = NULL`).bind(kind, id));
+      status = 'pending', error_code = NULL, outcome = NULL, scope = 'both'`).bind(kind, id));
   }
   await save(core, [member.removed ? "person_removed" : "person_changed", ...(member.keys ? ["key_level_changed"] : []),
     ...(was === will ? [] : [will ? "admin_given" : "admin_taken"])], changes);

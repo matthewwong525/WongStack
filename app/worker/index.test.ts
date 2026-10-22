@@ -13,8 +13,13 @@ vi.mock("./apps/hello/api.ts", async (original) => {
   return { keys: undefined, routes: new Map(routes).set("GET peek", (_request, appEnv) => Response.json({ env: Object.keys(appEnv).sort() })) };
 });
 
+const refreshOnSchedule = vi.hoisted(() => vi.fn(async () => {}));
+vi.mock("./employee-access/pushers.ts", async (original) => ({ ...await original<object>(), refreshOnSchedule }));
+
 const TEAM = "routing-team.cloudflareaccess.com";
 const AUD = "routing-workspace";
+/** A refresh the Worker hands off after answering; these routes start none worth awaiting. */
+const context = { waitUntil: () => {}, passThroughOnException: () => {} } as unknown as ExecutionContext;
 const ASSET_PATHS = ["/", "/index.html", "/assets/main.js", "/assets/index.css", "/apps/hello/", "/apps/hello/app.js", "/unknown/path"];
 
 describe("private Worker routing", () => {
@@ -23,7 +28,7 @@ describe("private Worker routing", () => {
   const assets = { fetch: vi.fn(async () => new Response("asset")) };
   const env = { ASSETS: assets, CF_ACCESS_TEAM_DOMAIN: TEAM, CF_ACCESS_AUD: AUD };
   const call = (path: string, headers: Record<string, string> = {}, bindings: object = env, method = "GET") => worker.fetch(
-    new Request(`https://workspace.example.com${path}`, { headers, method }), fakeEnv(bindings),
+    new Request(`https://workspace.example.com${path}`, { headers, method }), fakeEnv(bindings), context,
   );
   const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
   async function token(claims: Record<string, unknown> = { email: "human@example.com" }) {
@@ -274,4 +279,9 @@ describe("private Worker routing", () => {
     expect(db.withSession).toHaveBeenCalledWith("first-primary");
   });
 
+  it("hands the timetable to the pushers' refresh", async () => {
+    const bindings = fakeEnv(env);
+    await worker.scheduled({} as ScheduledController, bindings);
+    expect(refreshOnSchedule).toHaveBeenCalledWith(bindings);
+  });
 });

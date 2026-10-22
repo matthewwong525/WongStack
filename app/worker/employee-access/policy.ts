@@ -71,6 +71,15 @@ export const checkerOwns = (env: PolicyEnv, identity: AccessIdentity | null): bo
 const refusedOnceStarted = (role: Role, email: string | null, status: "active" | "removed" | null) =>
   role !== "owner" && (!email || status !== "active");
 
+/** On a preview, a signed-in person the practice list does not name: the sign-in wall let them in, a GitHub pusher
+ *  included, and the data is made up. */
+const unlistedOnPreview = (env: PolicyEnv, email: string | null, status: "active" | "removed" | null) =>
+  !!email && status === null && env.WONG_ENVIRONMENT === "staging";
+
+/** Every app, and every key once key levels start. */
+const everything = (role: Role, manages: boolean, revision: number, keysStarted: boolean): CurrentPolicy =>
+  ({ state: "current", role, manages, revision, apps: everyApp(), keys: keysStarted ? everyKey() : null, keysStarted });
+
 /** The identity has already passed signed Access verification in the Worker. */
 export async function currentPolicy(env: PolicyEnv, identity: AccessIdentity | null): Promise<CurrentPolicy> {
   const owner = ownerEmail(env);
@@ -111,13 +120,15 @@ export async function currentPolicy(env: PolicyEnv, identity: AccessIdentity | n
     // The checker keeps every built app and every key, as before permissions started, so preview walks
     // and the look at the live app still reach them. On the live app it manages nobody: that needs the owner.
     if (checker(identity)) return { state: "current", role, manages, revision: row.revision, apps: everyApp(), keys: everyKey(), keysStarted };
+    // One the practice list names keeps what it gives.
+    if (outsider && unlistedOnPreview(env, email, row.status)) return everything(role, false, row.revision, keysStarted);
     if (outsider) return { state: "denied" };
     // The owner holds every app and every key. A person's apps and levels come from their role when they hold one.
     // Only a row at `write` is a held app: one left at `read` could only look, and a tick can not say that.
     if (role === "owner") return { state: "current", role, manages, revision: row.revision, apps: everyApp(), keys: everyKey(), keysStarted };
     // An Admin's set is worked out like the owner's, so an app built later is theirs too.
     // Their keys wait for key levels.
-    if (admin) return { state: "current", role, manages, revision: row.revision, apps: everyApp(), keys: keysStarted ? everyKey() : null, keysStarted };
+    if (admin) return everything(role, manages, row.revision, keysStarted);
     return { state: "current", role, manages, revision: row.revision, apps: storedApps(row.apps), keys: keysStarted ? heldLevels(storedLevels(row.keys)) : null, keysStarted };
   } catch {
     // Unreadable permission data never falls back to open.

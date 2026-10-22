@@ -26,6 +26,11 @@
 		"CF_ACCESS_APP_ID": "10a98858-5fe3-4650-a57f-a02786a1e851",
 		"CF_ACCESS_WORKER_ID": "37236d316a9d49028048b9217deae927"
 	},
+	// Every 15 minutes the live app reads who can push on GitHub and lets them
+	// sign in to previews. wiki/stack/preview-access.md
+	"triggers": {
+		"crons": ["*/15 * * * *"]
+	},
 	"observability": {
 		"enabled": true
 	},
@@ -83,7 +88,12 @@
 					"database_id": "0e5a5be6-1eca-4b99-ab10-5decaa4c55f5",
 					"migrations_dir": "../schema/migrations"
 				}
-			]
+			],
+			// Triggers are inherited: an empty list keeps production's schedule
+			// off staging. wiki/stack/staging-bindings.md
+			"triggers": {
+				"crons": []
+			}
 		},
 		"local": {
 			"name": "wongstack-local",
