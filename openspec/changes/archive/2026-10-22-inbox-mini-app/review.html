@@ -11,7 +11,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · inbox-mini-app</title>
+<title>Review · 2026-10-22-inbox-mini-app</title>
 <style>
   /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
    look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
@@ -360,11 +360,11 @@
 })();
 </script>
 </head>
-<body data-change="inbox-mini-app">
+<body data-change="2026-10-22-inbox-mini-app">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>inbox-mini-app</h1>
+  <h1>2026-10-22-inbox-mini-app</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. <span class="copies">Saving a note copies all your notes.</span> Open a drawing and tap it to see it full screen.</p>
@@ -455,6 +455,8 @@
 <li class="decision card" id="decision-22" data-note="decision-22" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-22</p>Assumed: the inbox stays an app the owner gives in Access, because the app has no way to give one app to everyone signed in; the update note says so.</li>
 <li class="decision card" id="decision-23" data-note="decision-23" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-22</p>Assumed: built, second-looked (six findings fixed: navigated frame, double answer, cancel race, rate limit, check-in size, early exit) and locally checked; saved for the preview acceptance (task 7.2) before archive; the save reconciles the spec deltas, so the inbox spec exists and the memory areas name it.</li>
 <li class="decision card" id="decision-24" data-note="decision-24" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-22</p>Assumed: a rebuild clears an item's last answer in the list as well as on the plan's page, and an open plan reads the list's status every 15 seconds only while an answer waits, because the old answer belongs to the version it was made on and re-reading the plan would reload the page the person is reading.</li>
+<li class="decision card" id="decision-25" data-note="decision-25" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-22</p>Assumed: the preview walk (task 7.2) passed: a plan opened in the inbox with no tunnel and <i>Send notes</i> showed <i>Sent</i> once a throwaway chat had it; a rebuild kept the address and an old tab was told the plan changed; offline, a tap waited with <i>Cancel</i> and nothing arrived after a restart; a throwaway approval reached its chat. A second person without the inbox was refused; one with it was not set up, so per-email isolation rests on the route tests. Two display bugs it found (a stale online status in the plan view, an old version's <i>Sent</i> line) were fixed and rechecked on the preview.</li>
+<li class="decision card" id="decision-26" data-note="decision-26" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-22</p>Assumed: archived for publishing at the review page's <i>Build and publish</i>, numbered 44.4.0; the spec deltas were already reconciled at the earlier save, so the archive changed no main spec.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

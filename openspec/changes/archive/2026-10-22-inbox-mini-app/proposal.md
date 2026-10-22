@@ -1,6 +1,6 @@
 # One inbox for plans to review and decisions waiting on you
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** central-reviews-dashboard
 **Open questions:** none
 
@@ -163,3 +163,5 @@ Non-goals: other pages, such as intake forms or draft lists, come in a later cha
 - **2026-10-22** — Assumed: the inbox stays an app the owner gives in Access, because the app has no way to give one app to everyone signed in; the update note says so.
 - **2026-10-22** — Assumed: built, second-looked (six findings fixed: navigated frame, double answer, cancel race, rate limit, check-in size, early exit) and locally checked; saved for the preview acceptance (task 7.2) before archive; the save reconciles the spec deltas, so the inbox spec exists and the memory areas name it.
 - **2026-10-22** — Assumed: a rebuild clears an item's last answer in the list as well as on the plan's page, and an open plan reads the list's status every 15 seconds only while an answer waits, because the old answer belongs to the version it was made on and re-reading the plan would reload the page the person is reading.
+- **2026-10-22** — Assumed: the preview walk (task 7.2) passed: a plan opened in the inbox with no tunnel and *Send notes* showed *Sent* once a throwaway chat had it; a rebuild kept the address and an old tab was told the plan changed; offline, a tap waited with *Cancel* and nothing arrived after a restart; a throwaway approval reached its chat. A second person without the inbox was refused; one with it was not set up, so per-email isolation rests on the route tests. Two display bugs it found (a stale online status in the plan view, an old version's *Sent* line) were fixed and rechecked on the preview.
+- **2026-10-22** — Assumed: archived for publishing at the review page's *Build and publish*, numbered 44.4.0; the spec deltas were already reconciled at the earlier save, so the archive changed no main spec.

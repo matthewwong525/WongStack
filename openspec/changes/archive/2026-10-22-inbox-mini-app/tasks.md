@@ -37,7 +37,7 @@
 ## 7. Verification
 
 - [x] 7.1 Run `node .github/scripts/checks.mjs --worktree` and `cd app && npm test`; all pass, including `measure-context.mjs --check` after bringing `main` in.
-- [ ] 7.2 After implementation, `/save`. On the preview, signed in as the person, confirm:
+- [x] 7.2 After implementation, `/save`. On the preview, signed in as the person, confirm:
   - A throwaway plan opens in the inbox with no tunnel started. *Send notes* reaches its chat and shows *Sent*. A rebuild shows at the same address, and a tap from the old tab says the plan changed.
   - With the local server stopped, a tap shows *Waiting for your computer*, *Cancel* works, and nothing arrives after a restart.
   - A throwaway `D inbox add --kind approval` shows under *Approvals*, and *Approve* reaches the daily chat.

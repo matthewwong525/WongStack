@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — One inbox for plans to review and decisions waiting on you
+## 44.4.0 — One inbox for plans to review and decisions waiting on you
 
 - **One page lists what waits on you.** The new Inbox app, at `/apps/inbox/` in your company app, shows *Needs you* questions, *Approvals* and *Plans to review*, each for the person signed in. It refreshes while open, and *Approve all* clears a run of approvals at once.
 - **A plan's link opens in the inbox.** When your computer is signed in to the company app, a new plan opens there, behind your company sign-in, with no tunnel. Otherwise its link works as before.
