@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (patch) — Daily's inbox works from every workspace
+## 44.9.2 — Daily's inbox works from every workspace
 
 - **Every workspace uses this computer's sign-in.** A workspace's copy of the project finds the sign-in its main copy uses, so plan cards, questions and approvals reach your inbox with no extra login. A sign-in made before this update works too; one for another app is never used.
 - **A brief written as a list opens its workspace.** A brief that starts with a list dash opens its agent's own workspace, instead of being refused.
