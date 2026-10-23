@@ -3,6 +3,12 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 44.10.1 — A plan in the inbox fills the screen
+
+- **The plan is the page.** A plan opened in the inbox now runs edge to edge and down to the bottom of the screen, under *Back* and its workspace name, with no box around it. Its *Send notes* and *Build it* bar sits on the screen's bottom edge, and only the plan scrolls. Notes, drawings opened full screen and the light and dark switch work as before.
+
+**Updating.** No step needed.
+
 ## 44.10.0 — Ask for a change, get a plan to review
 
 - **A request goes straight to a plan.** Ask for a change in plain words, and the assistant asks only what it must, then writes the plan. It no longer stops at *Plan it?* or says which step it is on. Typing `/explore` yourself still asks *Plan it?* before writing anything.
