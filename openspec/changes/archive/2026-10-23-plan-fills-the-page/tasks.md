@@ -9,4 +9,4 @@
 ## 2. Verification
 
 - [x] 2.1 `npm test` and the lint in `app/` pass, and the payload checks pass
-- [ ] 2.2 `/save`, then on the preview open a plan at 390 px and at 1280 px: the frame spans the window, the bar sits on the bottom edge, the outer page's `scrollHeight` equals its `clientHeight`, and a note and a full-screen drawing open inside the plan as before
+- [x] 2.2 `/save`, then on the preview open a plan at 390 px and at 1280 px: the frame spans the window, the bar sits on the bottom edge, the outer page's `scrollHeight` equals its `clientHeight`, and a note and a full-screen drawing open inside the plan as before

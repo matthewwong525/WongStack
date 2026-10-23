@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (patch) — A plan in the inbox fills the screen
+## 44.9.4 — A plan in the inbox fills the screen
 
 - **The plan is the page.** A plan opened in the inbox now runs edge to edge and down to the bottom of the screen, under *Back* and its workspace name, with no box around it. Its *Send notes* and *Build it* bar sits on the screen's bottom edge, and only the plan scrolls. Notes, drawings opened full screen and the light and dark switch work as before.
 
