@@ -147,7 +147,7 @@ test('builds branch-off and checkout arguments with the brief last', () => {
   const settings = { provider: 'claude', model: null, thinking: null, mode: 'bypassPermissions' };
   const off = runArgs({ primary: '/p', title: 'B', brief: '/plan B', settings, base: 'origin/main' });
   assert.deepEqual(off, ['run', '-d', '--new-workspace', 'worktree', '--worktree-mode', 'branch-off', '--base', 'origin/main',
-    '--cwd', '/p', '--title', 'B', '--provider', 'claude', '--mode', 'bypassPermissions', '/plan B']);
+    '--cwd', '/p', '--title', 'B', '--provider', 'claude', '--mode', 'bypassPermissions', '--', '/plan B']);
   const co = runArgs({ primary: '/p', title: 'B', brief: '/continue b', settings: { ...settings, model: 'm', thinking: 'x' }, checkout: 'feat/b' });
   assert.deepEqual(co.slice(4, 8), ['--worktree-mode', 'checkout-branch', '--branch', 'feat/b']);
   assert.equal(flag(co, '--model'), 'm');
@@ -188,7 +188,7 @@ test('opens from a linked worktree: fresh origin/main of the primary, caller set
   assert.equal(flag(run.args, '--cwd'), root);
   assert.equal(flag(run.args, '--model'), 'claude-opus-5-5');
   assert.equal(flag(run.args, '--mode'), 'bypassPermissions');
-  assert.equal(run.args.at(-2), '/plan Thinner specs\n\nThis is one part of a larger request.');
+  assert.deepEqual(run.args.slice(-3), ['--json', '--', '/plan Thinner specs\n\nThis is one part of a larger request.']);
   assert.equal(run.parent, null);
   assert.equal(run.workspace, null);
   assert.deepEqual(paseo.calls()[0].args, ['inspect', 'caller-1', '--json']);
@@ -364,6 +364,27 @@ test('a failed fetch in a copy installed through the app names the sign-in step'
   assert.match(r.json.warning, /Could not fetch origin\/main[^]*Sign in to the company app again, then retry: cloudflared access login https:\/\/127\.0\.0\.1:9$/);
 });
 
+test('a brief written as a list opens its workspace, unchanged, after the end of the options', t => {
+  const { root } = repo(t);
+  const paseo = fakePaseo(t);
+  const text = '- **Goal**: plan the day\n- **Done when**: the plan is in the inbox';
+  const r = runCli(root, ['open', '--title', 'Daily', '--brief', brief(t, text)], paseo.env);
+  assert.equal(r.status, 0, JSON.stringify(r.json));
+  const [run] = paseo.runs();
+  assert.deepEqual(run.args.slice(-2), ['--', text]);
+  assert.equal(run.args.indexOf('--json'), run.args.length - 3);
+});
+
+test('a title or brief of "--" keeps its place, and --json stays just before the end of the options', t => {
+  const { root } = repo(t);
+  const paseo = fakePaseo(t);
+  const r = runCli(root, ['open', '--title', '--', '--brief', brief(t, '--')], paseo.env);
+  assert.equal(r.status, 0, JSON.stringify(r.json));
+  const [run] = paseo.runs();
+  assert.equal(flag(run.args, '--title'), '--');
+  assert.deepEqual(run.args.slice(-3), ['--json', '--', '--']);
+});
+
 test('dry run prints the command and runs nothing', t => {
   const { root, publish } = repo(t);
   const before = git(root, 'rev-parse', 'refs/remotes/origin/main');
@@ -372,7 +393,7 @@ test('dry run prints the command and runs nothing', t => {
   const r = runCli(root, ['open', '--title', 'B', '--brief', brief(t), '--dry-run'], paseo.env);
   assert.equal(r.status, 0);
   assert.equal(r.json.dryRun, true);
-  assert.equal(r.json.command.at(-1), '--json');
+  assert.deepEqual(r.json.command.slice(-3), ['--json', '--', '/plan Thinner specs\n\nThis is one part of a larger request.']);
   assert.deepEqual(r.json.rename, ['paseo', 'workspace', 'rename', '<workspaceId>', 'B', '--json']);
   assert.deepEqual(r.json.removedEnv, ['PASEO_AGENT_ID', 'PASEO_WORKSPACE_ID']);
   assert.equal(paseo.runs().length, 0);
@@ -387,7 +408,6 @@ test('bad input is exit 2 and opens nothing', t => {
     ['open', '--brief', brief(t)],
     ['open', '--title', 'B'],
     ['open', '--title', 'B', '--brief', brief(t, '  \n')],
-    ['open', '--title', 'B', '--brief', brief(t, '--mode plan')],
     ['open', '--title', 'B', '--brief', '/no/such/file'],
     ['open', '--title', 'B', '--nope', 'x'],
     ['open', '--title', 'B', '--brief', brief(t), '--reviewed', 'abc1234'],

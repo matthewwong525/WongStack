@@ -9,7 +9,7 @@ import { isMain } from '../../memory/scripts/lib/cli.mjs';
 import { primaryRoot, PrimaryRootError } from '../../memory/scripts/lib/primary-root.mjs';
 import { PickupError, pinBranch, reviewBranch } from '../../continue/scripts/pickup.mjs';
 import { delivery } from '../../save/scripts/delivery-route.mjs';
-import { EXIT, PaseoError, findPaseo, git, paseo, parseCommand, runPaseo } from './lib/paseo.mjs';
+import { EXIT, PaseoError, findPaseo, git, paseo, parseCommand, runPaseo, withJson } from './lib/paseo.mjs';
 
 const USAGE = `usage: workspace.mjs open --title <part> --brief <file>
                          [--checkout <branch> [--reviewed <commit>]] [--agent claude|codex] [--dry-run]`;
@@ -37,7 +37,7 @@ export function agentSettings(inspected, agent) {
   return { provider: agent, model: null, thinking: null, mode };
 }
 
-/** The `paseo run` arguments, without the trailing --json. */
+/** The `paseo run` arguments, without --json. `--` ends the options, so a brief of any shape is the prompt. */
 export function runArgs({ primary, title, brief, settings, base, checkout }) {
   const args = ['run', '-d', '--new-workspace', 'worktree'];
   if (checkout) args.push('--worktree-mode', 'checkout-branch', '--branch', checkout);
@@ -45,7 +45,7 @@ export function runArgs({ primary, title, brief, settings, base, checkout }) {
   args.push('--cwd', primary, '--title', title, '--provider', settings.provider);
   if (settings.model) args.push('--model', settings.model);
   if (settings.thinking) args.push('--thinking', settings.thinking);
-  args.push('--mode', settings.mode, brief);
+  args.push('--mode', settings.mode, '--', brief);
   return args;
 }
 
@@ -182,7 +182,6 @@ function readBrief(file) {
     throw new PaseoError(EXIT.input, `Cannot read the brief ${file}: ${error.code ?? error.message}.`);
   }
   if (!text) throw new PaseoError(EXIT.input, `The brief ${file} is empty.`);
-  if (text.startsWith('-')) throw new PaseoError(EXIT.input, 'The brief must not start with "-".');
   return text;
 }
 
@@ -205,7 +204,7 @@ async function open(flags, env) {
     const args = runArgs({ ...ctx, brief });
     if (flags.dryRun) {
       return {
-        ok: true, dryRun: true, command: ['paseo', ...args, '--json'], ...(ctx.commit ? { commit: ctx.commit } : {}),
+        ok: true, dryRun: true, command: ['paseo', ...withJson(args)], ...(ctx.commit ? { commit: ctx.commit } : {}),
         rename: ['paseo', ...renameArgs('<workspaceId>', title), '--json'], removedEnv: PARENT_VARS,
       };
     }

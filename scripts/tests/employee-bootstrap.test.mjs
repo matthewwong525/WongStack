@@ -195,3 +195,68 @@ test('the downloaded copy finds the sign-in setup saved, and a computer already 
   assert.match(elsewhere.summary, /^Signed in as employee@example\.com\. .*The project's own tools can't find this sign-in yet\.$/);
   assert.doesNotMatch(elsewhere.summary, /Nothing else is needed/);
 });
+test('a workspace copy known only by its memory address uses the sign-in its main copy made, and never another app\'s', async t => {
+  const f = directories(t), home = process.env.HOME; process.env.HOME = f.base; t.after(() => { process.env.HOME = home; });
+  // Two copies of one project, as an older install or the source repo records them: memory's address,
+  // no company origin.
+  const copy = (name, components = { memory: { worker: `${origin}/_memory` } }) => {
+    const root = join(f.base, name); mkdirSync(join(root, '.claude'), { recursive: true });
+    writeFileSync(join(root, '.claude', '.wong-stack.json'), JSON.stringify({ components })); return root;
+  };
+  const main = copy('main'), workspace = copy('workspace');
+  const client = (root, options = {}) => companyClient({ root, routesDir: f.routesDir, cacheDir: f.cacheDir, run: async () => jwt(), request: async () => Response.json(setup()), ...options });
+  assert.throws(() => client(workspace).target(), /Connect first/);
+  // Signing in from the main copy keeps the sign-in in the app's folder too, so the workspace finds it with no login.
+  await client(main).login();
+  assert.equal(JSON.parse(readFileSync(join(installState(origin), 'target.json'), 'utf8')).origin, origin);
+  assert.equal(client(workspace).target(), origin);
+  assert.equal(client(workspace).stateDirectory, installState(origin));
+  // A preview sign-in from the workspace stays in its own folder: the app's folder is unchanged,
+  // and the workspace uses it.
+  const preview = 'https://preview.example.com', before = readFileSync(join(installState(origin), 'target.json'), 'utf8');
+  await client(workspace).login(preview);
+  assert.equal(client(workspace).target(), preview);
+  assert.equal(readFileSync(join(installState(origin), 'target.json'), 'utf8'), before);
+  assert.equal(client(main).target(), origin);
+  // A copy on another app never uses this one's sign-in.
+  const elsewhere = copy('elsewhere', { memory: { worker: 'https://other.example.com/_memory' } });
+  assert.throws(() => client(elsewhere).target(), /Connect first/);
+});
+test('the changed-origin guard still reads only the recorded company origin', async t => {
+  const f = directories(t), home = process.env.HOME; process.env.HOME = f.base; t.after(() => { process.env.HOME = home; });
+  const root = join(f.base, 'copy'); mkdirSync(join(root, '.claude'), { recursive: true });
+  const record = components => writeFileSync(join(root, '.claude', '.wong-stack.json'), JSON.stringify({ components }));
+  const client = () => companyClient({ root, routesDir: f.routesDir, cacheDir: f.cacheDir, run: async () => jwt(), request: async () => Response.json(setup()) });
+  record({});
+  await client().login(origin);
+  // A memory record on a separate host is no company origin: the copy's own sign-in still serves.
+  record({ memory: { worker: 'https://memory.example.com/_memory' } });
+  assert.equal(client().target(), origin);
+  // A recorded company origin that moved still needs a confirmed login.
+  record({ companyApi: { origin: 'https://moved.example.com' }, memory: { worker: `${origin}/_memory` } });
+  assert.throws(() => client().target(), /recorded company origin changed/);
+});
+test('a workspace borrows the sign-in its main copy made before the app\'s folder kept it, for the same app only', async t => {
+  const f = directories(t), home = process.env.HOME; process.env.HOME = f.base; t.after(() => { process.env.HOME = home; });
+  const record = (root, worker) => { mkdirSync(join(root, '.claude'), { recursive: true });
+    writeFileSync(join(root, '.claude', '.wong-stack.json'), JSON.stringify({ components: { memory: { worker: `${worker}/_memory` } } })); };
+  const main = join(f.base, 'main'), workspace = join(f.base, 'workspace'), gitdir = join(main, '.git', 'worktrees', 'workspace');
+  record(main, origin); record(workspace, origin);
+  mkdirSync(gitdir, { recursive: true }); writeFileSync(join(gitdir, 'commondir'), '../..\n');
+  writeFileSync(join(workspace, '.git'), `gitdir: ${gitdir}\n`);
+  const client = root => companyClient({ root, routesDir: f.routesDir, cacheDir: f.cacheDir, run: async () => jwt(), request: async () => Response.json(setup()) });
+  // The main copy signed in before this update: its own folder holds the sign-in, the app's folder none.
+  await client(main).login(); rmSync(installState(origin), { recursive: true });
+  const before = client(main).stateDirectory;
+  assert.equal(client(workspace).target(), origin);
+  assert.equal(client(workspace).stateDirectory, before);
+  // Signing in from the workspace never writes into the main copy's folder; the app's folder gains it instead.
+  const mainSignIn = readFileSync(join(before, 'target.json'), 'utf8');
+  await client(workspace).login();
+  assert.equal(readFileSync(join(before, 'target.json'), 'utf8'), mainSignIn);
+  assert.equal(JSON.parse(readFileSync(join(installState(origin), 'target.json'), 'utf8')).origin, origin);
+  // A workspace on another app never borrows it.
+  rmSync(installState(origin), { recursive: true }); rmSync(client(workspace).stateDirectory, { recursive: true });
+  record(workspace, 'https://other.example.com');
+  assert.throws(() => client(workspace).target(), /Connect first/);
+});
