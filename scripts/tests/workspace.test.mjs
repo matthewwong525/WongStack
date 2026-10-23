@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import {
-  agentSettings, childEnv, parseCreated, renameArgs, runArgs,
+  agentSettings, childEnv, parseCreated, renameArgs, runArgs, workspaceTitle,
 } from '../../.agents/skills/schedule/scripts/workspace.mjs';
 
 const cli = new URL('../../.agents/skills/schedule/scripts/workspace.mjs', import.meta.url).pathname;
@@ -160,6 +160,18 @@ test('builds the rename arguments with the title as one element', () => {
     ['workspace', 'rename', 'ws-1', 'Docs, specs, and checks cleanup']);
 });
 
+test('a slug title becomes words, a placeholder is refused, and a plain title passes unchanged', () => {
+  assert.equal(workspaceTitle('customer-brain-confidence'), 'Customer brain confidence');
+  assert.equal(workspaceTitle(' fix_v1.2-login '), 'Fix v1.2 login');
+  assert.equal(workspaceTitle('Customer brain: data-weighted confidence'), 'Customer brain: data-weighted confidence');
+  assert.equal(workspaceTitle('Billing'), 'Billing');
+  assert.equal(workspaceTitle('--'), '--');
+  for (const raw of ['main', 'hello-world', 'Hello World', 'new_workspace', ' WIP ']) {
+    assert.throws(() => workspaceTitle(raw), e => e.code === 2 && /few words/.test(e.message), raw);
+  }
+  assert.throws(() => workspaceTitle('  '), e => e.code === 2 && /--title/.test(e.message));
+});
+
 test('strips only the variables that make a sub-agent', () => {
   assert.deepEqual(childEnv({ PATH: '/bin', PASEO_AGENT_ID: 'a', PASEO_WORKSPACE_ID: 'w', HOME: '/h' }), { PATH: '/bin', HOME: '/h' });
 });
@@ -215,6 +227,7 @@ test('checkout mode opens the owner\'s own branch with no review, and branches o
   const r = runCli(linked, ['open', '--title', 'add-auth', '--brief', brief(t, '/continue add-auth'), '--checkout', 'feat/auth'], env);
   assert.equal(r.status, 0, JSON.stringify(r.json));
   const [run] = paseo.runs();
+  assert.equal(flag(run.args, '--title'), 'Add auth');
   assert.equal(flag(run.args, '--worktree-mode'), 'checkout-branch');
   assert.equal(flag(run.args, '--branch'), 'feat/auth');
   assert.equal(run.pinned, tip);
@@ -222,10 +235,11 @@ test('checkout mode opens the owner\'s own branch with no review, and branches o
   assert.equal(r.json.commit, tip);
   assert.equal(git(root, 'rev-parse', 'refs/remotes/origin/main'), before);
   const [rename] = paseo.renames();
-  assert.deepEqual(rename.args, ['workspace', 'rename', 'ws-42', 'add-auth', '--json']);
+  assert.deepEqual(rename.args, ['workspace', 'rename', 'ws-42', 'Add auth', '--json']);
   assert.equal(rename.parent, null);
   assert.equal(rename.workspace, null);
-  assert.equal(r.json.workspaceName, 'add-auth');
+  assert.equal(r.json.workspaceName, 'Add auth');
+  assert.equal(r.json.title, 'Add auth');
   assert.equal(r.json.warning, undefined);
 });
 
@@ -383,6 +397,22 @@ test('a title or brief of "--" keeps its place, and --json stays just before the
   const [run] = paseo.runs();
   assert.equal(flag(run.args, '--title'), '--');
   assert.deepEqual(run.args.slice(-3), ['--json', '--', '--']);
+});
+
+test('a placeholder title opens nothing, and a slug is named in words on the dry run too', t => {
+  const { root } = repo(t);
+  const paseo = fakePaseo(t);
+  for (const title of ['main', 'hello-world']) {
+    const r = runCli(root, ['open', '--title', title, '--brief', brief(t)], paseo.env);
+    assert.equal(r.status, 2, title);
+    assert.match(r.json.error, /says nothing about the work/);
+    assert.equal(r.json.fallback, undefined);
+  }
+  assert.equal(paseo.calls().length, 0);
+  const dry = runCli(root, ['open', '--title', 'customer-brain-confidence', '--brief', brief(t), '--dry-run'], paseo.env);
+  assert.equal(dry.status, 0, JSON.stringify(dry.json));
+  assert.equal(flag(dry.json.command, '--title'), 'Customer brain confidence');
+  assert.equal(dry.json.rename[4], 'Customer brain confidence');
 });
 
 test('dry run prints the command and runs nothing', t => {

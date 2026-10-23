@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 44.9.4 — New workspaces get a name you can read
+
+- **Every new workspace gets a name in plain words.** A code-style name becomes words: `customer-brain-confidence` shows as *Customer brain confidence*. A workspace that picks up a saved plan takes the plan's title, not its short code.
+- **A placeholder name is refused.** A name like *main*, *test* or *hello-world* opens nothing, and the agent picks one that says what the work is.
+- **Agents open workspaces one way.** The instructions say every new workspace opens through the one helper that names it; one opened any other way shows its branch as its name.
+
+**Updating.** No step needed. A workspace already open with a code-style name keeps it; rename it in Paseo if you like.
+
 ## 44.9.3 — A plan leaves the inbox once you send notes
 
 - **A plan leaves once the chat has your answer.** Send notes, *Build it* or *Build and publish*, and the plan leaves *Needs you* as soon as the chat gets it, the way an answered question does. Before, it stayed there as if it still waited on you. A send that doesn't arrive keeps the plan, so you can try again.
