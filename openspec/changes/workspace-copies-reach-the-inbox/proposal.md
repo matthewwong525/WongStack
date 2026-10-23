@@ -1,6 +1,6 @@
 # Daily's inbox works from every workspace
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** snobbish-cat
 **Open questions:** none
 
@@ -43,3 +43,4 @@ Non-goals: no change to what the inbox shows, or to how a person signs in the fi
 - **2026-10-22** — Assumed: find the sign-in through the app address memory already records, because older installs and this source repo record no company address, while every install records memory's, and memory lives on the same app.
 - **2026-10-23** — Asked whether a workspace should borrow the main copy's sign-in when an older sign-in sits only in the main copy's own folder → chose to borrow it, for the same app only, so nobody signs in again after updating.
 - **2026-10-23** — Built both fixes and saved for the live check (task 4.2). A review caught a title of `--` landing in the wrong place; fixed. The local pre-check passed except an app screen test this change doesn't touch, which passes alone and times out only when every test runs at once.
+- **2026-10-23** — Live check passed from this workspace, whose own sign-in folder was empty: `D open --plan-first` with a list-shaped brief opened workspace *Inbox test*, its agent wrote its plan, and `D inbox add --kind start` reached the live inbox. The test agent, workspace and card were closed after.

@@ -21,4 +21,4 @@
 ## 4. Verification
 
 - [x] 4.1 Run `node .github/scripts/checks.mjs --worktree` as a pre-check.
-- [ ] 4.2 After `/save`, from a fresh workspace with no login of its own, run `D open --plan-first` with a list-shaped test brief and `D inbox add --kind start`: the agent opens and its card reaches the live inbox. Close the test agent, workspace and card after.
+- [x] 4.2 After `/save`, from a fresh workspace with no login of its own, run `D open --plan-first` with a list-shaped test brief and `D inbox add --kind start`: the agent opens and its card reaches the live inbox. Close the test agent, workspace and card after.
