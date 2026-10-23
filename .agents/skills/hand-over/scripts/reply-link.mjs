@@ -32,7 +32,7 @@ const USAGE = `usage: reply-link.mjs open <file> --header "<line>" [--hours N] [
 export const LIMITS = { text: 20_000, body: 128 * 1024, header: 300, action: 300, actions: 6 };
 const HOURS = 24;
 // Raised when the server's routes change: a running server from older code is swapped for this one.
-const PROTOCOL = 4;
+const PROTOCOL = 5;
 const ID = /^[0-9a-f]{32}$/;
 const ACTION = /^[a-z][a-z0-9-]{0,30}$/;
 const ROUTE = /^\/p\/([0-9a-f]{32})\/(alive|send|act)?$/;
@@ -470,8 +470,8 @@ export async function inboxTick(state, { client, wake = wakeChat, chats = liveCh
     // An item this round closed takes no second answer; one made elsewhere was never collected for it.
     const outcome = reported.get(tap.id)?.outcome ?? (item ? await deliver(state, item, tap, { wake, gap }) : 'expired');
     reported.set(tap.id, { outcome, told: false, at: Date.now() });
-    // An approval or a question is answered once its answer is in the chat.
-    if (item && outcome === 'sent' && item.kind !== 'plan') { await endItem(state, client, item); ready.delete(item.id); }
+    // Any item is answered once its answer is in the chat; a rebuilt plan opened again comes back as a new item.
+    if (item && outcome === 'sent') { await endItem(state, client, item); ready.delete(item.id); }
   }
   await report(client, reported);
   return openItems(state).length;

@@ -135,7 +135,7 @@ test('a 404, a refused sign-in, a network error or no connection opens nothing i
   assert.equal(existsSync(at.state.items) ? readdirSync(at.state.items).length : 0, 0, 'nothing kept open here');
 });
 
-test('a tap wakes the chat once per action and version; an old version is changed; a failed wake can be tried again', async t => {
+test('a tap on an old version is changed, a failed wake can be tried again, and a delivered tap closes the plan', async t => {
   const at = home(t);
   const app = fakeApp();
   const file = join(at.dir, 'review.html');
@@ -148,14 +148,31 @@ test('a tap wakes the chat once per action and version; an old version is change
   app.taps.push(tap(1));
   assert.equal(await tick(at, app, { wake }), 1);
   answer = 'notified';
-  app.taps.push(tap(2, { text: '- Why: shorter' }), tap(3), tap(4, { version: 'old' }), tap(5, { action: 'send', text: 'Hello' }),
-    tap(6, { action: 'send', text: '  ' }), tap(7, { action: 'merge' }), tap(8, { item: 'f'.repeat(32) }));
-  await tick(at, app, { wake });
-  assert.deepEqual(reported(app), ['failed', 'sent', 'sent', 'changed', 'sent', 'failed', 'failed']);
+  app.taps.push(tap(4, { version: 'old' }), tap(6, { action: 'send', text: '  ' }), tap(7, { action: 'merge' }),
+    tap(2, { text: '- Why: shorter' }), tap(3), tap(5, { action: 'send', text: 'Hello' }), tap(8, { item: 'f'.repeat(32) }));
+  assert.equal(await tick(at, app, { wake }), 0, 'the build tap answered the plan');
+  assert.deepEqual(reported(app), ['failed', 'changed', 'failed', 'failed', 'sent', 'expired', 'expired']);
   assert.deepEqual(app.taps.map(waiting => waiting.id), ['t8'], 'a tap on an item made elsewhere is left for its own computer');
   assert.deepEqual(app.calls.filter(call => call.route === 'checkin').at(-1).body, { items: [id] });
-  assert.deepEqual(woken.map(w => w.message), [BUILD, `${BUILD}\n- Why: shorter`, `${HEADER}\nHello`]);
+  assert.deepEqual(woken.map(w => w.message), [BUILD, `${BUILD}\n- Why: shorter`]);
   assert.ok(woken.every(w => w.agentId === 'chat-1'));
+  assert.equal(app.items.has(id), false, 'closed in the app');
+});
+
+test('an action this computer already woke the chat with, before a crash, is sent without a second wake', async t => {
+  const at = home(t);
+  const app = fakeApp();
+  const file = join(at.dir, 'review.html');
+  writeFileSync(file, `${MARK}<title>One</title>`);
+  const { id } = await openPlan(at, app, file);
+  const version = sha(`${MARK}<title>One</title>`);
+  const kept = join(at.state.items, `${id}.json`);
+  writeFileSync(kept, JSON.stringify({ ...JSON.parse(readFileSync(kept, 'utf8')), done: { version, names: ['build'] } }));
+  const { woken, wake } = waker();
+  app.taps.push({ id: 't1', item: id, action: 'build', text: '', version });
+  assert.equal(await tick(at, app, { wake }), 0, 'the plan closed');
+  assert.deepEqual(reported(app), ['sent']);
+  assert.deepEqual(woken, []);
 });
 
 const approvalOf = (at, app, title, start = () => {}) => openInboxItem({ kind: 'approval', title, body: JSON.stringify({ text: `${title}?` }),
@@ -190,7 +207,7 @@ test('a tap the app hands out again is reported again without a second wake', as
   const file = join(at.dir, 'review.html');
   writeFileSync(file, `${MARK}<title>One</title>`);
   const { id } = await openPlan(at, app, file);
-  const { woken, wake } = waker();
+  const { woken, wake } = waker('unconfirmed');
   const memory = { reported: new Map() };
   const tap = { id: 't1', item: id, action: 'send', text: 'A note', version: sha(`${MARK}<title>One</title>`) };
   app.taps.push(tap);
@@ -198,7 +215,7 @@ test('a tap the app hands out again is reported again without a second wake', as
   app.taps.push(tap);
   await tick(at, app, { wake, ...memory });
   assert.equal(woken.length, 1);
-  assert.deepEqual(reported(app), ['sent', 'sent']);
+  assert.deepEqual(reported(app), ['failed', 'failed']);
 });
 
 test('two taps on one approval in one check-in wake once; the second is expired, and the other approval stays open', async t => {
@@ -243,14 +260,14 @@ test('an inbox helper from older code is replaced by the next start; a current o
   const started = record();
   pids.push(started.pid);
   assert.notEqual(started.pid, old.pid);
-  assert.equal(started.protocol, 4);
+  assert.equal(started.protocol, 5);
   assert.equal(alive(old.pid), false, 'the older helper ended');
 
   const current = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1e6)'], { detached: true, stdio: 'ignore' });
   pids.push(current.pid);
-  writeFileSync(at.state.inbox, JSON.stringify({ pid: current.pid, protocol: 4 }));
+  writeFileSync(at.state.inbox, JSON.stringify({ pid: current.pid, protocol: 5 }));
   await startInbox(at.state, at.env);
-  assert.deepEqual(record(), { pid: current.pid, protocol: 4 }, 'no second helper starts');
+  assert.deepEqual(record(), { pid: current.pid, protocol: 5 }, 'no second helper starts');
   assert.ok(alive(current.pid));
 });
 
@@ -266,7 +283,7 @@ test('a recorded pid that is not the inbox helper is a stale record: a new helpe
   const started = JSON.parse(readFileSync(at.state.inbox, 'utf8'));
   pids.push(started.pid);
   assert.notEqual(started.pid, other.pid);
-  assert.equal(started.protocol, 4);
+  assert.equal(started.protocol, 5);
   assert.ok(alive(other.pid), 'the other program is left running');
 });
 
@@ -284,7 +301,8 @@ test('one wake per item every 5 seconds, and a tap held too long is failed, not 
   const waits = [];
   let slow = 0;
   const wait = async ms => { waits.push(ms); offset += ms + slow; };
-  const { woken, wake } = waker();
+  // Unanswered wakes keep the plan open, so its later taps are paced too.
+  const { woken, wake } = waker('unconfirmed');
   const lastWake = new Map();
   app.taps.push({ id: 't1', item: id, action: 'send', text: 'One', version }, { id: 't2', item: id, action: 'build', text: '', version });
   await tick(at, app, { wake, wait, lastWake });
@@ -297,7 +315,7 @@ test('one wake per item every 5 seconds, and a tap held too long is failed, not 
   await tick(at, app, { wake, wait, lastWake });
   assert.equal(waits.length, 2);
   assert.equal(woken.length, 2);
-  assert.deepEqual(reported(app), ['sent', 'sent', 'failed']);
+  assert.deepEqual(reported(app), ['failed', 'failed', 'failed']);
 });
 
 test('a rebuilt plan uploads its new version first; a refused upload holds its taps back', async t => {
@@ -315,8 +333,35 @@ test('a rebuilt plan uploads its new version first; a refused upload holds its t
   const { wake } = waker();
   app.taps.push({ id: 't1', item: id, action: 'build', text: '', version: fresh });
   await tick(at, app, { wake });
-  assert.equal(app.items.get(id).version, fresh);
+  assert.equal(app.calls.filter(call => call.route === 'item').at(-1).body.version, fresh);
   assert.deepEqual(reported(app), ['sent']);
+});
+
+test('notes on a plan close it once the chat has them, a failed send keeps it, and the rebuilt plan comes back as a new item', async t => {
+  const at = home(t);
+  const app = fakeApp();
+  const file = join(at.dir, 'review.html');
+  writeFileSync(file, `${MARK}<title>One</title>`);
+  const { id } = await openPlan(at, app, file);
+  const version = sha(`${MARK}<title>One</title>`);
+  let answer = 'unconfirmed';
+  const { woken, wake } = waker(() => answer);
+  app.taps.push({ id: 't1', item: id, action: 'send', text: 'Shorter, please', version });
+  assert.equal(await tick(at, app, { wake }), 1, 'a send the chat did not get keeps the plan');
+  assert.ok(app.items.has(id));
+  answer = 'notified';
+  app.taps.push({ id: 't2', item: id, action: 'send', text: 'Shorter, please', version });
+  assert.equal(await tick(at, app, { wake }), 0);
+  assert.deepEqual(reported(app), ['failed', 'sent']);
+  assert.equal(app.items.has(id), false, 'closed in the app');
+  assert.equal(existsSync(join(at.state.items, `${id}.json`)), false, 'and here');
+  assert.deepEqual(woken.map(w => w.message), [`${HEADER}\nShorter, please`, `${HEADER}\nShorter, please`]);
+  writeFileSync(file, `${MARK}<title>One</title><p>Shorter`);
+  const back = await openPlan(at, app, file);
+  assert.match(back.id, ID);
+  assert.notEqual(back.id, id, 'a new item, at a new address');
+  assert.equal(back.started, 1);
+  assert.equal(app.items.get(back.id).version, sha(`${MARK}<title>One</title><p>Shorter`));
 });
 
 test('an item whose time ran out, whose file is gone, or whose chat closed ends; then the server stops', async t => {
