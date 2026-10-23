@@ -64,3 +64,4 @@ Non-goals: the review page's own look, its bar's size, and the inbox list stay a
 **2026-10-23** — Built: the plan's view fills the window under the header and the frame runs full width with no border; the second look found nothing to fix. Saved to check on the preview (task 2.2).
 **2026-10-23** — Preview check passed at 390 and 1280 px: the plan spans the window to its bottom edge with no border, the outer page doesn't scroll, and a note and a full-screen drawing open inside it. The inbox refuses the checker's machine sign-in, so a sample plan stood in for the inbox's answers.
 **2026-10-23** — Archived for 44.9.4.
+**2026-10-23** — Main moved to 44.10.0 (#445) mid-ship and the branch conflicted on the release note; merged main in and renumbered to 44.10.1.
