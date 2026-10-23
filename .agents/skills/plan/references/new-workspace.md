@@ -4,7 +4,7 @@ Each part of a request after the first gets its own [Paseo](https://paseo.sh) wo
 
 ## What counts as a part
 
-- **A part could be planned, reviewed, and published alone**, unlike the steps of one change. When unsure, keep one change: each part costs its own review and publish.
+- **A part could be planned, reviewed, and published alone**, unlike the steps of one change. When unsure, keep one change.
 - **A workspace holds a change** when `openspec list` shows an active change other than the one asked about, or `git status --porcelain` shows edits. A change `/ship` merged is no longer held.
 
 ## Ask once
@@ -62,9 +62,11 @@ W="$(git rev-parse --show-toplevel)/.claude/skills/schedule/scripts/workspace.mj
 node "$W" open --title '<part>' --brief <file>
 ```
 
-The workspace starts from the freshly fetched default branch, never this one. Its agent gets this chat's model and permission mode and no parent, so it outlives this chat. Outside a Paseo agent (`PASEO_AGENT_ID` unset), add `--agent claude` or `--agent codex` for the agent you are.
+Open every workspace this way: a raw `paseo run --new-workspace` keeps the branch name. Title it in the person's words, like *Sign in with Google*; the script refuses a placeholder like `main`.
 
-It prints one JSON object. Exit `2` is bad input or Paseo refusing: show its `error`. Exits `3` to `5` opened nothing: show `error` and `fallback.app`, then do the parts here, one at a time.
+The workspace starts from the freshly fetched default branch, never this one. Outside a Paseo agent (`PASEO_AGENT_ID` unset), add `--agent claude` or `--agent codex` for the agent you are.
+
+Exit `2` is bad input or Paseo refusing: show `error`. Exits `3` to `5` opened nothing: show `error` and `fallback.app`, then do the parts here.
 
 ## The brief
 
@@ -79,21 +81,21 @@ This is one part of a larger request. Plan only this part.
 - Builds on: <part> — <being built here | in workspace "<title>" | about to publish | none>
 ```
 
-A part that builds on another opens now with the rest, not after that part publishes. Its plan records what it builds on; whichever part publishes second catches up at publish.
+A part that builds on another opens now, with the rest. Its plan records what it builds on; whichever publishes second catches up.
 
 ## Report
 
-Before drafting the plan you kept, give one line per workspace: *Opened a new workspace, "<title>": it will plan <part> and wait for you there.* Add any `warning` the script prints, such as a workspace that kept Paseo's name. On `setupSkippedReason`, say the workspace has no secrets yet and give `paseo workspace setup <workspaceId>`; never approve setup for the person. A technical reader also gets the workspace id and branch.
+Before drafting your plan, give one line per workspace: *Opened a new workspace, "<title>": it will plan <part> and wait for you there.* Add any `warning` the script prints. On `setupSkippedReason`, say the workspace has no secrets yet and give `paseo workspace setup <workspaceId>`; never approve setup for the person. A technical reader also gets the workspace id and branch.
 
 ## Pick up saved work
 
 When `/continue` would switch this workspace away from other unpublished work, recommend a new workspace on the change's branch:
 
 ```bash
-node "$W" open --title '<change name>' --brief <file> --checkout '<branch>' [--reviewed <tip>]
+node "$W" open --title '<plan title>' --brief <file> --checkout '<branch>' [--reviewed <tip>]
 ```
 
-The brief is `/continue <change name>`, plus the person's instruction if any. After [the review](../../continue/SKILL.md#3-check-out-the-branch)'s yes, `--reviewed` opens exactly that commit; the brief adds *ask before building*. Exit 2 with `review`: newer work. When another workspace has the branch checked out, Paseo refuses: say so and name that workspace.
+Its title is the proposal's `#` heading, minus `'` and backticks, else the change name. The brief is `/continue <change name>`, plus the person's instruction if any. After [the review](../../continue/SKILL.md#3-check-out-the-branch)'s yes, `--reviewed` opens exactly that commit; the brief adds *ask before building*. Exit 2 with `review`: newer work. When another workspace has the branch checked out, Paseo refuses: say so and name that workspace.
 
 ## Next work
 
