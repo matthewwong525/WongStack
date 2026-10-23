@@ -172,6 +172,15 @@ export async function projectCopy({ address, folder, token, self, run = git }) {
 }
 /** The app's address a project copy records for itself. */
 const recorded = root => readJson(join(root, '.claude', '.wong-stack.json')).components?.companyApi?.origin;
+/** The app a copy's memory runs on: an older install, and the source repo, record only that address. */
+const memoryApp = root => { try { return companyOrigin(new URL(readJson(join(root, '.claude', '.wong-stack.json')).components?.memory?.worker).origin); } catch { return undefined; } };
+/** The main copy a workspace's copy belongs to, read from its `.git` file; a main copy has no such file. */
+function mainCopy(root) {
+  try {
+    const gitdir = resolve(root, /^gitdir: (.+)$/m.exec(readFileSync(join(root, '.git'), 'utf8'))[1].trim());
+    return dirname(resolve(gitdir, readFileSync(join(gitdir, 'commondir'), 'utf8').trim()));
+  } catch { return undefined; }
+}
 /** The project copy this file sits in as `scripts/employee-bootstrap.mjs`; a downloaded file sits in none. */
 export function ownCopy(self = SELF) {
   const root = resolve(dirname(self), '..');
@@ -197,17 +206,28 @@ export function connectionState(root = process.cwd(), routesDir = defaultRoutes(
 
 export function companyClient({ root = process.cwd(), stateDir, routesDir = defaultRoutes(), cacheDir = join(homedir(), '.cloudflared'),
   run = cloudflared, request = fetch, onLoginUrl = () => {}, onboarding = true } = {}) {
-  let dir = stateDir || join(homedir(), '.local', 'state', 'wong-company', createHash('sha256').update(root).digest('hex'));
+  const keyed = path => join(homedir(), '.local', 'state', 'wong-company', createHash('sha256').update(path).digest('hex'));
+  const own = keyed(root), signedIn = state => readJson(join(state, 'target.json')).origin;
+  let dir = stateDir || own;
   let file = join(dir, 'target.json'), signIn;
-  // Setup saves the sign-in by origin, before this copy exists: the copy finds it through the origin it records.
+  const record = () => recorded(root);
+  // The copy's app: the company origin it records, else the origin its memory runs on.
+  const app = () => record() || memoryApp(root);
+  // Setup and `login` save the sign-in by origin, so every copy of the project finds it through the app it records.
   function installed() {
-    try { const state = installState(record()); return readJson(join(state, 'target.json')).origin === companyOrigin(record()) ? state : undefined; } catch { return undefined; }
+    try { const state = installState(app()); return signedIn(state) === companyOrigin(app()) ? state : undefined; } catch { return undefined; }
   }
+  // A main copy signed in before `login` kept the app's folder holds the sign-in in its own: a workspace borrows it.
+  function borrowed() {
+    const main = mainCopy(root);
+    try { return main && signedIn(keyed(main)) === companyOrigin(app()) ? keyed(main) : undefined; } catch { return undefined; }
+  }
+  // A recorded company origin uses the app's sign-in when there is one. Otherwise a copy uses its own sign-in when it
+  // has one, such as a preview check's, then the app's, then its main copy's.
   function directory() {
-    if (!stateDir) dir = connectionState(root, routesDir) || installed() || dir;
+    if (!stateDir) dir = connectionState(root, routesDir) || (record() && installed()) || (signedIn(own) ? own : installed() || borrowed()) || own;
     file = join(dir, 'target.json'); return dir;
   }
-  const record = () => recorded(root);
   function target() {
     safeCache(directory(), root);
     const saved = readJson(file).origin;
@@ -254,9 +274,15 @@ export function companyClient({ root = process.cwd(), stateDir, routesDir = defa
   }
   async function login(origin) {
     safeCache(directory(), root);
-    const chosen = companyOrigin(origin || record());
-    // Setup's saved sign-in serves this copy's git updates too: another company never overwrites it.
-    if (!stateDir && dir === installed() && chosen !== companyOrigin(record())) throw new Error(`This copy belongs to ${companyOrigin(record())}; sign in to another company with --state <private directory>`);
+    const chosen = companyOrigin(origin || app());
+    // Setup's saved sign-in serves this copy's git updates too: another company never overwrites it. A copy known
+    // only by its memory keeps a sign-in to another address, such as a preview, in its own folder.
+    if (!stateDir && dir === installed() && chosen !== companyOrigin(app())) {
+      if (record()) throw new Error(`This copy belongs to ${companyOrigin(record())}; sign in to another company with --state <private directory>`);
+      safeCache(dir = own, root); file = join(dir, 'target.json');
+    }
+    // A workspace signs in for itself and the app, never into its main copy's folder.
+    if (!stateDir && dir === borrowed()) { safeCache(dir = own, root); file = join(dir, 'target.json'); }
     const credential = await token(chosen, true);
     let identity;
     if (onboarding) {
@@ -270,7 +296,12 @@ export function companyClient({ root = process.cwd(), stateDir, routesDir = defa
     }
     const previous = readJson(file).identity;
     if (previous && identity && (previous.email !== identity.email || previous.subject !== identity.subject)) throw new Error('The signed-in person changed; use a separate private company connection');
-    writeFileSync(file, `${JSON.stringify({ origin: chosen, installedOrigin: record() || null, ...(identity && { identity }) })}\n`, { mode: 0o600 });
+    const saved = `${JSON.stringify({ origin: chosen, installedOrigin: record() || null, ...(identity && { identity }) })}\n`;
+    writeFileSync(file, saved, { mode: 0o600 });
+    // One sign-in per app per computer: the app's folder gains it too, so a workspace's copy finds it with no login.
+    if (!stateDir && dir === own && app() && chosen === companyOrigin(app()) && !installed()) {
+      safeCache(installState(chosen), root); writeFileSync(join(installState(chosen), 'target.json'), saved, { mode: 0o600 });
+    }
     return onboarding ? { connected: chosen, connection: 'employee_setup' } : { connected: chosen };
   }
   async function describe(id) {

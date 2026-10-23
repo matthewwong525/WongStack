@@ -102,3 +102,12 @@ Opening a saved branch in a new workspace SHALL apply the same review as `/conti
 
 - **WHEN** a new workspace opens on reviewed work and its first message also carries the person's instruction
 - **THEN** its agent recaps and asks before building, and runs no install, test, or `/apply` first
+
+### Requirement: A brief of any shape opens its workspace
+
+Opening a workspace SHALL pass its brief to the new agent as its first message whatever the brief's first character, a list dash included, and SHALL never read the brief as a command option.
+
+#### Scenario: A brief written as a list
+
+- **WHEN** /daily opens a workspace with a brief whose first line is `- **Goal**: …`
+- **THEN** the workspace opens and its agent's first message is that brief, unchanged

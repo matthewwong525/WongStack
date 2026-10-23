@@ -29,11 +29,16 @@ export function findPaseo(env, override) {
 
 const DAEMON_DOWN = /Cannot connect to daemon|DAEMON_NOT_RUNNING|DAEMON_UNREACHABLE|ECONNREFUSED/i;
 
+/** `args` with `--json`, ahead of a closing `--` and prompt, so it is never read as the prompt. */
+export function withJson(args) {
+  return args.at(-2) === '--' ? [...args.slice(0, -2), '--json', ...args.slice(-2)] : [...args, '--json'];
+}
+
 // One public `paseo … --json` call: the parsed stdout (or its trimmed text) and the stderr text. Exit 4 when the
 // daemon does not answer; any other failure is exit 2 with Paseo's own message.
 export async function runPaseo(bin, args, { env } = {}) {
   try {
-    const { stdout, stderr } = await promisify(execFile)(bin, [...args, '--json'], {
+    const { stdout, stderr } = await promisify(execFile)(bin, withJson(args), {
       encoding: 'utf8', maxBuffer: 16 * 1024 * 1024, ...(env ? { env } : {}),
     });
     let data;
