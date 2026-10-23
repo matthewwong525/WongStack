@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 44.9.3 — A plan leaves the inbox once you send notes
+
+- **A plan leaves once the chat has your answer.** Send notes, *Build it* or *Build and publish*, and the plan leaves *Needs you* as soon as the chat gets it, the way an answered question does. Before, it stayed there as if it still waited on you. A send that doesn't arrive keeps the plan, so you can try again.
+- **The updated plan comes back.** Once the chat has made your changes and rebuilt the plan, the new version shows under *Needs you* again, at a new link the chat gives you.
+
+**Updating.** No step needed. The next plan opened on this computer replaces the inbox's helper still running from older code.
+
 ## 44.9.2 — Daily's inbox works from every workspace
 
 - **Every workspace uses this computer's sign-in.** A workspace's copy of the project finds the sign-in its main copy uses, so plan cards, questions and approvals reach your inbox with no extra login. A sign-in made before this update works too; one for another app is never used.
