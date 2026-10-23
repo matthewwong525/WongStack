@@ -69,7 +69,7 @@ An idea the run weighed and turned down for a reason that will still hold, a res
 
 ## It plans, then stops
 
-`/improve-code` hands [`/plan`](../../.agents/skills/plan/SKILL.md) one problem with its evidence, intended result, scope, verification, and the note it answers. The run ends at the plan's link with the question every finished plan ends on: build it, change it, or drop it. No code has changed.
+`/improve-code` hands [`/plan`](../../.agents/skills/plan/SKILL.md) one problem with its evidence, intended result, scope, verification, and the note it answers. The run ends at the plan's link, as every finished plan does: you build it from its page, change it, or drop it. No code has changed.
 
 Every run ends one of three ways, named in its report:
 
