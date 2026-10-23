@@ -51,3 +51,4 @@ None.
 - **2026-10-23** — Assumed: the open `customer-brain-confidence` workspace was renamed to its agent's title before drafting, as the earlier naming change did for its two, because a rename is harmless and undone by another.
 - **2026-10-23** — Assumed: ships as a patch, because it tightens existing naming and adds no command.
 - **2026-10-23** — Archive checkpoint: `workspace.mjs` turns a slug title into words and refuses a placeholder; the pickup takes the plan's `#` title minus quotes and backticks, after the review found an apostrophe broke the quoted command. Workspace tests and local checks pass. Ships as 44.9.4.
+- **2026-10-23** — Archive checkpoint: renumbered 44.10.1 after #445 took 44.10.0; trimmed the change loop's new line by a few words to fit the save route's size limit after `main` came in.

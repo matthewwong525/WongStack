@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## 44.9.4 — New workspaces get a name you can read
+## 44.10.1 — New workspaces get a name you can read
 
 - **Every new workspace gets a name in plain words.** A code-style name becomes words: `customer-brain-confidence` shows as *Customer brain confidence*. A workspace that picks up a saved plan takes the plan's title, not its short code.
 - **A placeholder name is refused.** A name like *main*, *test* or *hello-world* opens nothing, and the agent picks one that says what the work is.

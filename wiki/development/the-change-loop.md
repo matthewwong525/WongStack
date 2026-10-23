@@ -53,7 +53,7 @@ No offer after a code change you built, or in an unattended run.
 
 ### Several parts, several workspaces
 
-One workspace holds one change. When a request has parts each publishable alone, the agent [asks once](../../.agents/skills/plan/references/new-workspace.md#ask-once) how to split them; each new [Paseo](https://paseo.sh) workspace plans its part and waits. [Open a part in a new workspace](../../.agents/skills/plan/references/new-workspace.md) owns when the ask returns, parts that build on each other, and the fallbacks. Each opens through [`workspace.mjs`](../../.agents/skills/schedule/scripts/workspace.mjs), which names it; a raw `paseo run --new-workspace` shows the branch.
+One workspace holds one change. When a request has parts each publishable alone, the agent [asks once](../../.agents/skills/plan/references/new-workspace.md#ask-once) how to split them; each new [Paseo](https://paseo.sh) workspace plans its part and waits. [Open a part in a new workspace](../../.agents/skills/plan/references/new-workspace.md) owns when the ask returns, parts that build on each other, and the fallbacks. Each opens through [`workspace.mjs`](../../.agents/skills/schedule/scripts/workspace.mjs), which names it; a raw `paseo run` shows the branch.
 
 Before planning, the agent [checks for other work](../../.agents/skills/explore/SKILL.md#check-for-other-work): other workspaces, their plans, and open pull requests. It speaks only on an overlap, and asks [where to go on](../../.agents/skills/plan/references/new-workspace.md#ask-once).
 
