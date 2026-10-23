@@ -15,7 +15,7 @@ First load [memory](../memory/SKILL.md#read): `search --type thread --tag improv
 Require evidence and a verification. End as one:
 
 - **clean**: nothing supported is worth changing; say the limits.
-- **planned**: hand [`/plan`](../plan/SKILL.md) one problem with its evidence, intended result, scope, verification, and any note it answers; end on its finished-plan question. Never run `/apply` or `/ship`. Unattended, run [`/save`](../save/SKILL.md) and record a `thread` tagged `continue`: `Improve plan: <change>`.
+- **planned**: hand [`/plan`](../plan/SKILL.md) one problem with its evidence, intended result, scope, verification, and any note it answers; end at the plan's link like any finished plan. Never run `/apply` or `/ship`. Unattended, run [`/save`](../save/SKILL.md) and record a `thread` tagged `continue`: `Improve plan: <change>`.
 - **blocked**: what stopped it. A waiting plan blocks a second.
 
 Record a lasting rejection as a `Ruled out:` fact.

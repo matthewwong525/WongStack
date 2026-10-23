@@ -12,6 +12,8 @@ On `stopped`, read `last`; on `asking`, the card's options in `request.descripti
 2. **Pick**: it asked a choice with a `(Recommended)` option, or one its brief settled, and that answer is safe. Answer a card with `D answer --agent <agent> --request <request.id> --file <f> --bucket pick --label 'Picked "<option>": <title>'`, the file holding the option's exact text; answer a chat question with `D reply`.
 3. **Person**: everything else. That covers a risky answer, no clear best answer, the same blocker twice, a login, key or payment form, a result against the brief, a refused `reply` or `answer`, and any doubt.
 
+A stop at a finished plan's link takes no bucket: never reply, build, or publish. The plan waits for the person; a link outside `/apps/inbox/` gets `Needs you: <title> — plan to review` and the link.
+
 **Safe** stays in the agent's workspace and can be undone: plan, build, test, fix, research, draft, checkpoint. **Risky** reaches outside or can't be undone: send or post a message, pay or buy, publish or ship, merge, delete or overwrite data, accept terms, change a business record, share a key. A risky answer is never the chief's, even when recommended: it joins the approval list.
 
 ## What the person sees

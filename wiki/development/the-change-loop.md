@@ -28,9 +28,9 @@ Entering late never skips a stop: **no verb merges as a way of stopping.** A pau
 
 ### Just ask
 
-A person need not know the verbs. Asked for a change to the repo's code or process with no verb, the agent runs the loop and stops twice:
+A person need not know the verbs. Asked for a change to the repo's code or process with no verb, the agent starts at `/plan` and stops twice:
 
-1. **`/plan`** ends with the review link and [the finished-plan question](../../.agents/skills/explore/references/asking-the-user.md#end-every-reply-with-the-next-step). Picking *Build and publish* runs `/ship` instead, with no stop at the preview; picking *Review the plan* prints the link again and waits.
+1. **`/plan`** asks only what it must and ends on [the plan's link](../../.agents/skills/explore/references/asking-the-user.md#print-the-plans-link), never a question. Tap *Build it* on the page, or *Build and publish* to run `/ship` with no stop at the preview. A chat message asking to change the waiting plan updates it.
 2. On yes, **`/apply`** builds, uploads a preview from the agent host, and asks *publish it?* A change that leaves the app untouched gets no preview; the agent says so and still asks.
 3. On yes, **`/ship`**: one save, CI, the walk, and the merge.
 

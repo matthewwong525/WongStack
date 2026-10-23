@@ -74,8 +74,10 @@ After the morning reply, the daily chat keeps watching each agent it started, an
 A small script notices when an agent stops; the chief only judges what the stop needs. Each stop lands in one of three buckets:
 
 1. **Keep going.** *Tests pass; next I'll update the wiki page.* The chief replies *keep going* and shows `Kept going: <title>`.
-2. **Obvious pick.** *Build it now (Recommended) / Review the plan / Stop.* A safe answer, one that stays inside the work and can be undone, it picks and shows `Picked "Build it now": <title>`.
+2. **Obvious pick.** *Run the tests now (Recommended) / Skip them.* A safe answer, one that stays inside the work and can be undone, it picks and shows `Picked "Run the tests now": <title>`.
 3. **Needs you.** *Which supplier should I order from?*, with no recommendation. It asks you at once, with the agent's options, and your phone gets a notification where the app sends one.
+
+**A finished plan waits for you.** An agent that stops at its plan's link gets nothing from the chief: no reply, no build. The plan waits under *Needs you* in [the inbox](reply-links.md#in-your-inbox-first), or as `Needs you: <title> — plan to review` with its link in the daily chat when there is no inbox.
 
 **It never approves alone** anything that sends or posts a message, pays or buys, publishes or merges, deletes or overwrites data, accepts terms, changes a business record, or shares a key, even when the agent recommends it. Those wait on one **approval list**. With [the inbox](reply-links.md#in-your-inbox-first), each waits there with *Approve* and *Don't approve*, and its *Needs you* questions too, plus one line in the chat with the link; a tap answers the agent. Without it, the list is a single question where you tick what to approve, and an answer typed in the chat always works. Answer in the agent's own chat instead, and its inbox item goes at the next check, with `Answered in its chat: <title>`. After five actions in a row on one agent with no word from you, the next stop comes to you too.
 
