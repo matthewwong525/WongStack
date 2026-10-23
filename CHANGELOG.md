@@ -3,6 +3,12 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (patch) — A plan in the inbox fills the screen
+
+- **The plan is the page.** A plan opened in the inbox now runs edge to edge and down to the bottom of the screen, under *Back* and its workspace name, with no box around it. Its *Send notes* and *Build it* bar sits on the screen's bottom edge, and only the plan scrolls. Notes, drawings opened full screen and the light and dark switch work as before.
+
+**Updating.** No step needed.
+
 ## 44.9.3 — A plan leaves the inbox once you send notes
 
 - **A plan leaves once the chat has your answer.** Send notes, *Build it* or *Build and publish*, and the plan leaves *Needs you* as soon as the chat gets it, the way an answered question does. Before, it stayed there as if it still waited on you. A send that doesn't arrive keeps the plan, so you can try again.

@@ -81,13 +81,14 @@ export function PlanView({ id }: { id: string }) {
     {!gone && <Loading label="Loading the plan…" className="grid gap-3"><Skeleton className="h-8" /><Skeleton className="h-96" /></Loading>}
   </div>
   const { item } = plan
-  // Popups let the page's links open their own tab, outside the sandbox, so the frame itself never leaves the plan.
-  return <div className="grid gap-3">
+  // Fills the window under Layout's 3.5rem header and main's 2rem margins, so only the frame scrolls and the page's
+  // fixed bar sits on the window's bottom. Popups let the page's links open their own tab, outside the sandbox.
+  return <div className="-mb-8 flex h-[calc(100dvh-5.5rem)] flex-col gap-3">
     {/* The review page shows its own title, so the bar names only where the plan came from. */}
     <div className="flex min-w-0 items-center gap-2"><Back /><h1 className="sr-only">{item.title}</h1>
       <p className="min-w-0 truncate text-sm text-muted-foreground">{item.workspace}</p></div>
     {tap && <TapLine tap={tap} online={plan.computerOnline} copy={tap.text || label(tap.action)} onChange={settle} onReload={() => void load()} />}
     <iframe key={item.version} ref={frame} title={item.title} sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" srcDoc={item.body}
-      className="h-[80svh] w-full rounded-md border" onLoad={() => greet(item)} />
+      className="ml-[calc(50%-50vw)] min-h-0 w-screen max-w-none flex-1" onLoad={() => greet(item)} />
   </div>
 }
