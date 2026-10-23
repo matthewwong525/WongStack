@@ -9,6 +9,15 @@
 
 **Updating.** No step needed.
 
+## 44.10.0 — Ask for a change, get a plan to review
+
+- **A request goes straight to a plan.** Ask for a change in plain words, and the assistant asks only what it must, then writes the plan. It no longer stops at *Plan it?* or says which step it is on. Typing `/explore` yourself still asks *Plan it?* before writing anything.
+- **A finished plan ends with its link, not a question.** The reply sums up the plan, gives the link, and tells you to review it. You tap *Build it* or *Build and publish* on the page. When the page opens from its file, with no buttons, you say *build it* or *build and publish* in the chat.
+- **Say something about a waiting plan, and it updates.** The assistant asks only what your message opens, updates the plan, and gives the new link, with no restart.
+- **The morning chief of staff leaves plans to you.** It no longer builds a plan from an agent it watches. The plan waits under *Needs you* in your inbox, or as a link in the daily chat.
+
+**Updating.** No step needed.
+
 ## 44.9.3 — A plan leaves the inbox once you send notes
 
 - **A plan leaves once the chat has your answer.** Send notes, *Build it* or *Build and publish*, and the plan leaves *Needs you* as soon as the chat gets it, the way an answered question does. Before, it stayed there as if it still waited on you. A send that doesn't arrive keeps the plan, so you can try again.

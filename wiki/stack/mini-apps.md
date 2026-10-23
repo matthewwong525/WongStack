@@ -52,7 +52,7 @@ export const routes = new Map<string, Route>([["GET lookup", lookup]]);
 
 A mini app goes through [the change loop](../development/the-change-loop.md) like any change.
 
-- **Plan.** [`/plan`](../../.agents/skills/plan/SKILL.md) writes the change, with a task for the app's tests, and asks [the finished-plan question](../../.agents/skills/explore/references/asking-the-user.md#end-every-reply-with-the-next-step).
+- **Plan.** [`/plan`](../../.agents/skills/plan/SKILL.md) writes the change, with a task for the app's tests, and ends on [the plan's link](../../.agents/skills/explore/references/asking-the-user.md#print-the-plans-link), where you build it.
 - **Preview.** When [`/apply`](../../.agents/skills/apply/SKILL.md#finish-with-a-preview) finishes, it uploads a preview of the whole main app from the agent host. Open the app at `/apps/<name>/` on that link. Each further change uploads again to the same link.
 - **Publish.** [`/ship`](../../.agents/skills/ship/SKILL.md) saves, waits for CI, and merges. CI runs the main app's suite and deploys it with the app inside, as [the gate](../development/the-change-loop.md#the-gate) says.
 

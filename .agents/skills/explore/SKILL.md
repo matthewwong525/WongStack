@@ -64,7 +64,7 @@ Resolve remaining material choices [the shared way](references/asking-the-user.m
 Summarize outcome, approach, reasons over a serious alternative, minor assumptions, and evidence limits.
 
 - **Bounded:** return by [the steps below](#when-plan-invokes-explore).
-- **Standalone:** [offer next steps](references/asking-the-user.md#end-every-reply-with-the-next-step). Only *Plan it* starts `/plan`; its bounded pass asks open choices.
+- **Standalone**, typed by the person: [offer next steps](references/asking-the-user.md#end-every-reply-with-the-next-step); only *Plan it* starts `/plan`. A request with no verb starts at `/plan`.
 
 ## When `/plan` invokes `/explore`
 

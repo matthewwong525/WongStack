@@ -110,11 +110,11 @@ An explicitly confirmed schedule registration or lifecycle checkpoint SHALL be p
 
 ### Requirement: A change asked with no verb stops at the plan and at the preview
 
-A code or process change asked for with no verb SHALL stop at the plan's review link to ask whether to build it, and after the build's preview to ask whether to publish, running the next verb on yes. The question at the plan SHALL also offer to build and publish in one go, with no stop before the merge. A verb the person types SHALL keep its own reach.
+A code or process change asked for with no verb SHALL stop at the plan's review link, with no question: from that page the person builds it, or builds and publishes it in one go with no stop before the merge. After a build alone, it SHALL stop at the preview to ask whether to publish, running the next verb on yes. A verb the person types SHALL keep its own reach.
 
 #### Scenario: Yes to both stops
 
-- **WHEN** the person asks to change how the app stores data, then says yes at both stops
+- **WHEN** the person asks to change how the app stores data, taps *Build it* on the plan's page, then says yes at the preview
 - **THEN** the agent runs `/plan`, `/apply`, and `/ship` without the person naming a verb
 
 #### Scenario: The person types /ship

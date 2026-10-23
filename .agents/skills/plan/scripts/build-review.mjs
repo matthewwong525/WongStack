@@ -440,8 +440,9 @@ function writeIfDifferent(path, next) {
   return true;
 }
 
-// The line under the link on the *Review the plan* reply only; the rule, not the builder, decides when to copy it.
-export const NEXT_STEP = "When you're ready, type `/apply` to build it.";
+// The line under the link: a live page has Build it and Build and publish; a file has no buttons, so the chat builds.
+export const REVIEW_ON_PAGE = 'Review the plan, then tap Build it or Build and publish on its page.';
+export const REVIEW_IN_CHAT = 'Review the plan. When you\'re ready, say "build it" or "build and publish".';
 
 // The chat line an agent copies as printed: a path with a space or parenthesis goes in <…> so the link still parses.
 export function planLink(page) {
@@ -451,7 +452,7 @@ export function planLink(page) {
 // The fixed first line of sent and copied notes; the kit writes the same words.
 export const notesHeader = name => `Notes on the plan ${name} from the review page. Don't build yet.`;
 
-// What each button on a live page tells the chat: the person's choice at the finished-plan question.
+// What each button on a live page tells the chat: the person's build choice, made on the page.
 export const planActions = name => ({
   build: `Build it now: run /apply for the plan ${name}. Chosen on its review page. Apply any attached review notes to this plan first, then continue without another build choice.`,
   publish: `Build and publish: run /ship for the plan ${name}. Chosen on its review page. Apply any attached review notes to this plan first, then continue without another build choice.`,
@@ -494,8 +495,10 @@ if (isMain(import.meta.url)) {
       for (const warning of result.warnings) console.error(`review: warning: ${warning}`);
       console.log(`review: ${result.kind}, ${result.changed ? 'updated' : 'unchanged'}`);
       const page = resolve(root, 'review.html');
-      const live = args.values.link && result.kind === 'current';
-      if (result.kind !== 'no-page') console.log(`${planLink(live ? await linked(page, basename(resolve(root)), scheduledGoal(root)) : page)}\n\n${scheduledGoal(root) ? 'Use `/schedule` to confirm this record and its execution destination.' : NEXT_STEP}`);
+      const goal = scheduledGoal(root);
+      const link = args.values.link && result.kind === 'current' ? await linked(page, basename(resolve(root)), goal) : page;
+      const next = goal ? 'Use `/schedule` to confirm this record and its execution destination.' : link === page ? REVIEW_IN_CHAT : REVIEW_ON_PAGE;
+      if (result.kind !== 'no-page') console.log(`${planLink(link)}\n\n${next}`);
     } catch (error) { console.error(`review: ${error.message}`); process.exitCode = 1; }
   }
 }
