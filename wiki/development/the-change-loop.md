@@ -53,11 +53,11 @@ No offer after a code change you built, or in an unattended run.
 
 ### Several parts, several workspaces
 
-One workspace holds one change. When a request has parts that could each be published alone, the agent asks once how to split them, [with these options](../../.agents/skills/plan/references/new-workspace.md#ask-once); each new [Paseo](https://paseo.sh) workspace plans its part and waits at its review link. [Open a part in a new workspace](../../.agents/skills/plan/references/new-workspace.md) owns when the ask returns, parts that build on each other, and the one-at-a-time fallback when Paseo is missing or nobody can answer.
+One workspace holds one change. When a request has parts each publishable alone, the agent [asks once](../../.agents/skills/plan/references/new-workspace.md#ask-once) how to split them; each new [Paseo](https://paseo.sh) workspace plans its part and waits. [Open a part in a new workspace](../../.agents/skills/plan/references/new-workspace.md) owns when the ask returns, parts that build on each other, and the fallbacks. Each opens through [`workspace.mjs`](../../.agents/skills/schedule/scripts/workspace.mjs), which names it; a raw `paseo run` shows the branch.
 
-Before planning, the agent [checks for other work](../../.agents/skills/explore/SKILL.md#check-for-other-work): this repo's other workspaces, their plans, and open pull requests. It speaks only when one overlaps, and asks [where to go on](../../.agents/skills/plan/references/new-workspace.md#ask-once).
+Before planning, the agent [checks for other work](../../.agents/skills/explore/SKILL.md#check-for-other-work): other workspaces, their plans, and open pull requests. It speaks only on an overlap, and asks [where to go on](../../.agents/skills/plan/references/new-workspace.md#ask-once).
 
-**Scratch files** go in the git-ignored `.scratch/` at the checkout root that [`tidy.mjs scratch`](../../.agents/skills/schedule/scripts/tidy.mjs) makes and prints, not the system temp folder. It goes away with its workspace; in the main checkout, each session's tidy-up deletes scratch files older than a day.
+**Scratch files** go in the git-ignored `.scratch/` at the checkout root that [`tidy.mjs scratch`](../../.agents/skills/schedule/scripts/tidy.mjs) makes and prints, not the system temp folder. It goes with its workspace; in the main checkout, each session's tidy-up deletes day-old scratch files.
 
 ### Asking before drafting
 

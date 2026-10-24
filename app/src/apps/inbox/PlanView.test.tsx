@@ -81,6 +81,19 @@ it('seals the plan in a frame that can run its page but never reach the app, and
   expect(posted).toHaveBeenCalledWith({ type: 'inbox:hello', item: PLAN, version: 'v1', actions: ['build', 'publish'], theme: 'light' }, '*', [port])
 })
 
+it('fills the window below the Back row and the tap line, edge to edge with no border, so only the plan scrolls', async () => {
+  answer = () => Response.json({ item: plan('v1', waiting), computerOnline: true })
+  const { frame } = await open()
+  const column = frame.parentElement!
+  expect(column.className.split(' ')).toEqual(expect.arrayContaining(['flex', 'flex-col', 'h-[calc(100dvh-5.5rem)]', '-mb-8']))
+  expect(frame.className.split(' ')).toEqual(expect.arrayContaining(['min-h-0', 'flex-1', 'w-screen', 'ml-[calc(50%-50vw)]']))
+  expect(frame.className).not.toMatch(/border|rounded|svh/)
+  const [top, line, last] = column.children
+  expect(top.contains(screen.getByRole('link', { name: 'Back' }))).toBe(true)
+  expect(line.contains(screen.getByRole('status'))).toBe(true)
+  expect(last).toBe(frame)
+})
+
 it("greets the page in the app's look and tells it each time the app's switch changes it, and nothing else", async () => {
   document.documentElement.classList.add('dark')
   const { posted, heard, settled } = await open()

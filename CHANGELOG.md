@@ -11,6 +11,26 @@
 
 **Updating.** No step needed. The next plan opened on this computer replaces the helper already running, even one started by another project not yet updated.
 
+## 44.10.3 — Checking a screen that only answers a person
+
+- **The wiki says how a preview check opens a person-only screen.** The inbox, for one, refuses the checker's machine sign-in, so the check fills it with sample data in the browser, says so, and judges the screen the preview draws.
+
+**Updating.** No step needed.
+
+## 44.10.2 — New workspaces get a name you can read
+
+- **Every new workspace gets a name in plain words.** A code-style name becomes words: `customer-brain-confidence` shows as *Customer brain confidence*. A workspace that picks up a saved plan takes the plan's title, not its short code.
+- **A placeholder name is refused.** A name like *main*, *test* or *hello-world* opens nothing, and the agent picks one that says what the work is.
+- **Agents open workspaces one way.** The instructions say every new workspace opens through the one helper that names it; one opened any other way shows its branch as its name.
+
+**Updating.** No step needed. A workspace already open with a code-style name keeps it; rename it in Paseo if you like.
+
+## 44.10.1 — A plan in the inbox fills the screen
+
+- **The plan is the page.** A plan opened in the inbox now runs edge to edge and down to the bottom of the screen, under *Back* and its workspace name, with no box around it. Its *Send notes* and *Build it* bar sits on the screen's bottom edge, and only the plan scrolls. Notes, drawings opened full screen and the light and dark switch work as before.
+
+**Updating.** No step needed.
+
 ## 44.10.0 — Ask for a change, get a plan to review
 
 - **A request goes straight to a plan.** Ask for a change in plain words, and the assistant asks only what it must, then writes the plan. It no longer stops at *Plan it?* or says which step it is on. Typing `/explore` yourself still asks *Plan it?* before writing anything.

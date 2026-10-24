@@ -16,6 +16,21 @@ const USAGE = `usage: workspace.mjs open --title <part> --brief <file>
 const VALUE_FLAGS = ['title', 'brief', 'checkout', 'reviewed', 'agent'];
 const MODES = { claude: 'bypassPermissions', codex: 'full-access' };
 const PARENT_VARS = ['PASEO_AGENT_ID', 'PASEO_WORKSPACE_ID'];
+const PLACEHOLDERS = new Set(['main', 'master', 'default', 'hello', 'hello world', 'test', 'testing', 'untitled',
+  'new workspace', 'workspace', 'scratch', 'temp', 'tmp', 'wip']);
+const SLUG = /^(?=.*[A-Za-z0-9])(?=.*[-_])[A-Za-z0-9._-]+$/;
+
+/** The workspace's name in plain words: a slug becomes words; a placeholder, which no conversion fixes, is exit 2. */
+export function workspaceTitle(raw) {
+  const trimmed = String(raw ?? '').trim();
+  if (!trimmed) throw new PaseoError(EXIT.input, 'Pass --title <part>: the new workspace\'s name.');
+  if (PLACEHOLDERS.has(trimmed.toLowerCase().replace(/[-_\s]+/g, ' ').trim())) {
+    throw new PaseoError(EXIT.input, `"${trimmed}" says nothing about the work: pass a --title of a few words that name it.`);
+  }
+  if (!SLUG.test(trimmed)) return trimmed;
+  const words = trimmed.split(/[-_]+/).filter(Boolean).join(' ');
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
 
 /** The new agent's settings: the caller's, from `paseo inspect`, else the --agent defaults. */
 export function agentSettings(inspected, agent) {
@@ -186,8 +201,7 @@ function readBrief(file) {
 }
 
 async function open(flags, env) {
-  const title = String(flags.title ?? '').trim();
-  if (!title) throw new PaseoError(EXIT.input, 'Pass --title <part>: the new workspace\'s name.');
+  const title = workspaceTitle(flags.title);
   const brief = readBrief(flags.brief);
   const primary = primaryWorktree();
   const ctx = { primary, title, briefFile: flags.brief, checkout: flags.checkout, commit: null, settings: null, base: null };
