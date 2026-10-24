@@ -9,6 +9,11 @@
             "command": "node \"$(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/session-start.mjs\" --agent codex",
             "timeout": 5,
             "statusMessage": "Loading memory"
+          },
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.claude/skills/hand-over/scripts/helper.mjs\" start",
+            "timeout": 5
           }
         ]
       }
@@ -20,6 +25,17 @@
           {
             "type": "command",
             "command": "node \"$(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/before-edit.mjs\"",
+            "timeout": 3
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.claude/skills/daily/scripts/daily.mjs\" mark",
             "timeout": 3
           }
         ]

@@ -2,6 +2,7 @@
 // person's installation and email, so one person's item never reaches another. wiki/development/reply-links.md
 import { z } from "zod";
 import { defineAction, humanEmail, type Action } from "../../api/contract.ts";
+import { wake } from "./wake.ts";
 
 type Env = Parameters<Action["handler"]>[1];
 type Identity = Parameters<NonNullable<Action["allowed"]>>[0];
@@ -62,16 +63,25 @@ export const item = z.strictObject({
 });
 type Item = z.infer<typeof item>;
 
-export type Scope = { db: D1DatabaseSession; installation: string; email: string; now: number };
+/** Whose rows a call reads, and `wake`: after a write, tell the person's open inbox, and their computer, to look now.
+ *  `wake()` reaches every computer, `wake(id)` that one, `wake(null)` the inbox alone. */
+export type Scope = { db: D1DatabaseSession; installation: string; email: string; now: number; wake: (computer?: string | null) => Promise<void> };
 
 /** `sql` bound to the caller's installation as ?1 and email as ?2, then `values` from ?3. */
-export const mine = (at: Scope, sql: string, ...values: (string | number | null)[]) =>
+export const mine = (at: Pick<Scope, "db" | "installation" | "email">, sql: string, ...values: (string | number | null)[]) =>
   at.db.prepare(sql).bind(at.installation, at.email, ...values);
+
+/** The installation every inbox row is keyed on: '' on an app whose owner never opened Access. */
+export async function installationOf(db: D1DatabaseSession) {
+  const found = await db.prepare("SELECT installation_id FROM wong_access_installation WHERE slot = 1").first<{ installation_id: string }>();
+  return found?.installation_id ?? "";
+}
 
 async function scope(env: Env, identity: Identity): Promise<Scope> {
   const db = env.DB.withSession("first-primary");
-  const found = await db.prepare("SELECT installation_id FROM wong_access_installation WHERE slot = 1").first<{ installation_id: string }>();
-  return { db, installation: found?.installation_id ?? "", email: humanEmail(identity)!, now: Date.now() };
+  const installation = await installationOf(db);
+  const email = humanEmail(identity)!;
+  return { db, installation, email, now: Date.now(), wake: computer => wake(env, installation, email, computer) };
 }
 
 const ERRORS = {
@@ -81,6 +91,8 @@ const ERRORS = {
   bad_start: "A plan card needs its state, a plan within the limits once ready, and go and skip.", bad_agent: "An agent's status needs its state and short lines, and no actions.",
   bad_action: "The item offers no such action, or the notes are empty.",
   too_soon: "Wait a few seconds, then try again.",
+  already_waiting: "A run is already waiting for your computer.", not_app: "This schedule runs elsewhere; ask your assistant to move it here.",
+  paused: "Resume this schedule first.", bad_timing: "The timing needs a cadence, a timezone and a lateness the app can read.",
 };
 export const fail = (code: keyof typeof ERRORS, status: number) => Response.json({ error: { code } }, { status });
 
@@ -135,10 +147,15 @@ export async function openItem<Row extends ItemRow>(at: Scope, id: string, extra
   return row.closed_at !== null || row.closes_at <= at.now ? fail("closed", 410) : row;
 }
 
+/** Notes that the caller's computer is here now: a check-in, a claim, or a hello on its line. */
+export const seen = (at: Pick<Scope, "db" | "installation" | "email" | "now">) => mine(at, `INSERT INTO inbox_seen
+  (installation_id, email, last_checkin_at) VALUES (?1, ?2, ?3)
+  ON CONFLICT (installation_id, email) DO UPDATE SET last_checkin_at = excluded.last_checkin_at`, at.now).run();
+
 /** Whether the caller's computer checked in within the last minute. */
 export async function online(at: Scope) {
-  const seen = await mine(at, "SELECT last_checkin_at FROM inbox_seen WHERE installation_id = ?1 AND email = ?2").first<{ last_checkin_at: number }>();
-  return !!seen && at.now - seen.last_checkin_at < ONLINE_MS;
+  const last = await mine(at, "SELECT last_checkin_at FROM inbox_seen WHERE installation_id = ?1 AND email = ?2").first<{ last_checkin_at: number }>();
+  return !!last && at.now - last.last_checkin_at < ONLINE_MS;
 }
 
 /** The caller's tap `id`, or null. */

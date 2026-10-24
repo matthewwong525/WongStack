@@ -65,6 +65,14 @@
 			"bucket_name": "wongstack-memory"
 		}
 	],
+	// The inbox's live line: one Durable Object per person, holding their computer's and open inbox's sockets and
+	// the schedule clock. An environment inherits the migration, not the binding. wiki/stack/live-line.md
+	"durable_objects": {
+		"bindings": [{ "name": "LINE", "class_name": "Line" }]
+	},
+	"migrations": [
+		{ "tag": "line-1", "new_sqlite_classes": ["Line"] }
+	],
 	// Staging is a whole second Worker, not a binding swap. It needs its own
 	// `name` (without one, a branch deploy lands on production) and its own
 	// twin of every stateful binding — an environment inherits nothing it
@@ -93,6 +101,9 @@
 			// off staging. wiki/stack/staging-bindings.md
 			"triggers": {
 				"crons": []
+			},
+			"durable_objects": {
+				"bindings": [{ "name": "LINE", "class_name": "Line" }]
 			}
 		},
 		"local": {
@@ -109,7 +120,10 @@
 					"remote": false,
 					"migrations_dir": "../schema/migrations"
 				}
-			]
+			],
+			"durable_objects": {
+				"bindings": [{ "name": "LINE", "class_name": "Line" }]
+			}
 		}
 	}
 	/**

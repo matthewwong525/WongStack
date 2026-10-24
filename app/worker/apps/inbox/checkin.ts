@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { inboxAction, itemId, mine, prune, settleTaps } from "./store.ts";
+import { inboxAction, itemId, mine, prune, seen, settleTaps } from "./store.ts";
 
 const waiting = z.strictObject({ id: itemId, item: itemId, action: z.string(), text: z.string(), version: z.string() });
 type Waiting = z.infer<typeof waiting>;
@@ -20,8 +20,7 @@ export const checkin = inboxAction<{ items: string[] }>({
   output: z.strictObject({ taps: z.array(waiting) }), encoding: "json", effect: "write",
   limits: { inputBytes: 65536, outputBytes: 1048576, timeoutMs: 15000 },
   async run(at, { items }) {
-    await mine(at, `INSERT INTO inbox_seen (installation_id, email, last_checkin_at) VALUES (?1, ?2, ?3)
-      ON CONFLICT (installation_id, email) DO UPDATE SET last_checkin_at = excluded.last_checkin_at`, at.now).run();
+    await seen(at);
     await settleTaps(at);
     await prune(at);
     const { results } = await mine(at, `SELECT id, item_id AS item, action, text, version FROM inbox_taps

@@ -5,14 +5,32 @@ import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { isMain } from '../../memory/scripts/lib/cli.mjs';
 import { loadRecord, listRecords, checkpoint, createGoal, writeRoutine, ScheduleError, requireValue } from './lib/records.mjs';
-import { paseoAdapter, unsupportedAdapter, validateReceipt, startupPrompt, validateCapabilities } from './lib/hosts.mjs';
+import { paseoAdapter, appAdapter, appHost, selectHost, unsupportedAdapter, validateReceipt, startupPrompt, validateCapabilities } from './lib/hosts.mjs';
+import { mirrorRound } from './lib/app-runs.mjs';
+import { moveToApp } from './lib/move.mjs';
+import { computerId } from '../../hand-over/scripts/lib/computer.mjs';
+import { companyFor } from '../../hand-over/scripts/lib/inbox.mjs';
 import { progressRoute } from './lib/progress.mjs';
 import { readyToRun, answerQuestion, register, terminal, nextWake, adopt } from './lib/lifecycle.mjs';
 import { legacyAdapter, legacyContext, teardownLegacy } from './lib/legacy.mjs';
 export { validateBinding, validateRoutine, loadRecord, listRecords } from './lib/records.mjs';
 
-const USAGE = 'usage: schedule.mjs list | inspect|resolve|start|register|adopt|bind|reconcile|release|pause|resume|run|cancel|answer|change --record <reference> [--store <id>] | create-routine|create-goal --file <json> | legacy list|inspect|pause|resume|cancel|teardown [native-id]';
-function hostFor(binding, world) { return world.host ?? (binding.execution.host === 'paseo' ? paseoAdapter({ env: world.env }) : unsupportedAdapter(binding.execution.host)); }
+const USAGE = 'usage: schedule.mjs list | hosts | mirror | move <key> | inspect|resolve|start|register|adopt|bind|reconcile|release|pause|resume|run|cancel|answer|change --record <reference> [--store <id>] | create-routine|create-goal --file <json> | legacy list|inspect|pause|resume|cancel|teardown [native-id]';
+function adapterFor(name, world, item) {
+  if (world.hosts?.[name]) return world.hosts[name];
+  if (name === 'paseo') return paseoAdapter({ env: world.env });
+  if (name === 'app') return appAdapter({ client: () => (world.company ?? companyFor)(world.root), computer: () => world.computer ?? computerId(world.env), item, env: world.env });
+  return unsupportedAdapter(name);
+}
+function hostFor(binding, world, item) { return world.host ?? adapterFor(binding.execution.host, world, item); }
+// The run's report reaches the app just after its chat opens, so a quick first start looks again before refusing.
+async function startedByApp(host, key, agentId, sleep) {
+  for (let tries = 0; tries < 3; tries += 1) {
+    if (tries) await sleep(2000);
+    if ((await host.inspect(key)).runs?.some(run => run.state === 'started' && run.agentId === agentId)) return true;
+  }
+  return false;
+}
 export async function scheduleView(items, hostOf, { routes = {} } = {}) {
   const rows = [];
   for (const item of items) {
@@ -50,16 +68,17 @@ export async function scheduleView(items, hostOf, { routes = {} } = {}) {
   return rows;
 }
 export async function main(argv = process.argv.slice(2), world = {}) {
-  world = { root: process.cwd(), env: process.env, out: text => process.stdout.write(text), ...world };
+  world = { root: process.cwd(), env: process.env, out: text => process.stdout.write(text), sleep: ms => new Promise(done => setTimeout(done, ms)), ...world };
   try {
     const { values, positionals } = parseArgs({ args: argv, allowPositionals: true, options: {
       record: { type: 'string' }, store: { type: 'string' }, root: { type: 'string' }, file: { type: 'string' }, 'native-id': { type: 'string' }, generation: { type: 'string' }, revision: { type: 'string' }, 'run-id': { type: 'string' }, owner: { type: 'string' }, question: { type: 'string' }, answer: { type: 'string' }, evidence: { type: 'string' }, resources: { type: 'string' }, help: { type: 'boolean' },
     } });
     const [command = 'list', action, nativeId] = positionals, root = values.root ?? world.root;
+    world = { ...world, root };
     const options = { store: values.store, openspec: world.openspec };
     let result;
     if (values.help) { world.out(`${USAGE}\n`); return 0; }
-    requireValue(['legacy', 'list', 'ls', 'create-routine', 'create-goal', 'inspect', 'resolve', 'validate', 'start', 'register', 'adopt', 'bind', 'reconcile', 'release', 'pause', 'resume', 'run', 'cancel', 'answer', 'change'].includes(command), `Unknown schedule command ${command}.`);
+    requireValue(['legacy', 'list', 'ls', 'create-routine', 'create-goal', 'inspect', 'resolve', 'validate', 'start', 'register', 'adopt', 'bind', 'reconcile', 'release', 'pause', 'resume', 'run', 'cancel', 'answer', 'change', 'move', 'hosts', 'mirror'].includes(command), `Unknown schedule command ${command}.`);
     if (command === 'legacy') {
       const context = world.legacyContext ?? legacyContext(root, world.env);
       if (action === 'teardown') result = await teardownLegacy(context, values.resources?.split(','), world);
@@ -71,15 +90,26 @@ export async function main(argv = process.argv.slice(2), world = {}) {
     } else if (['list', 'ls'].includes(command)) {
       const found = await listRecords(root, options);
       result = { records: await scheduleView(found.records, binding => hostFor(binding, world), { routes: world.routes }), errors: found.errors };
+    } else if (command === 'hosts') {
+      const app = await (world.appHost ?? appHost)({ env: world.env, root });
+      result = { preferred: selectHost({ enclosing: 'paseo', available: [app, { name: 'paseo', supported: true }] }).name, app };
+    } else if (command === 'mirror') {
+      const client = await (world.company ?? companyFor)(root);
+      requireValue(client, 'The company app does not answer from this checkout.');
+      const mirrored = await mirrorRound(client, { computer: world.computer ?? computerId(world.env), root, list: () => listRecords(root, options), ...(world.host && { inspect: id => world.host.inspect(id) }), env: world.env });
+      if (mirrored === null) throw new ScheduleError('The app did not take the mirror.', 1);
+      result = { mirrored };
     } else if (command === 'create-routine') {
       result = { reference: writeRoutine(root, JSON.parse(readFileSync(values.file, 'utf8'))), activation: 'pending' };
     } else if (command === 'create-goal') {
       const requested = JSON.parse(readFileSync(values.file, 'utf8'));
       result = await createGoal(root, requested.name, { ...requested, ...options });
     } else {
-      requireValue(values.record, 'Select an exact schedule record.');
-      const item = await loadRecord(root, values.record, options), binding = item.binding, host = hostFor(binding, world);
-      if (['inspect', 'resolve', 'validate'].includes(command)) result = { record: item, live: (await scheduleView([item], () => host, { routes: world.routes }))[0] };
+      const reference = values.record ?? (command === 'move' && action ? `schedules/${action}.json` : undefined);
+      requireValue(reference, 'Select an exact schedule record.');
+      const item = await loadRecord(root, reference, options), binding = item.binding, host = hostFor(binding, world, item);
+      if (command === 'move') result = await moveToApp(item, { paseo: adapterFor('paseo', world, item), app: adapterFor('app', world, item) });
+      else if (['inspect', 'resolve', 'validate'].includes(command)) result = { record: item, live: (await scheduleView([item], () => host, { routes: world.routes }))[0] };
       else {
         const store = progressRoute(binding, world.routes);
         if (command === 'start') {
@@ -89,6 +119,8 @@ export async function main(argv = process.argv.slice(2), world = {}) {
           if (binding.execution.host === 'paseo') {
             const observed = await host.inspect(binding.execution.nativeId);
             requireValue(world.env.PASEO_AGENT_ID && observed.runs?.some(run => run.agentId === world.env.PASEO_AGENT_ID && !run.endedAt), 'The current Paseo agent is not an observed active run of this binding.');
+          } else if (binding.execution.host === 'app') {
+            requireValue(world.env.PASEO_AGENT_ID && await startedByApp(host, binding.execution.nativeId, world.env.PASEO_AGENT_ID, world.sleep), 'The current chat is not a run the app started for this schedule.');
           } else requireValue(world.executionProof?.verified === true && world.executionProof.nativeId === binding.execution.nativeId, 'The native host has supplied no verified current-run identity.');
           const runId = values['run-id'] ?? randomUUID();
           requireValue(await store.claim(runId), 'Another session owns this run.');

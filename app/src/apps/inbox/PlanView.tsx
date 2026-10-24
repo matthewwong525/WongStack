@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Failed, label, pending, readInbox, readPlan, sendTap, type Plan, type Tap } from './api'
 import { frameMessage, notesKey } from './frame'
-import { REFRESH_MS } from './List'
+import { LINE_REFRESH_MS, REFRESH_MS, useLine } from './line'
 import { TapLine } from './TapLine'
 
 /** The app's look, which its header switch sets on the root: the sealed page can't read the app's saved choice. */
@@ -41,15 +41,16 @@ export function PlanView({ id }: { id: string }) {
   }, [])
   // A waiting tap says whether the computer is there, so the view asks again as the list does; the plan itself stays.
   const waiting = tap?.state === 'waiting'
+  const look = useCallback(() => {
+    if (document.visibilityState === 'visible') void readInbox().then(({ computerOnline }) =>
+      setPlan(shown => shown && { ...shown, computerOnline }), () => undefined)
+  }, [])
+  const up = useLine(() => { if (waiting) look() })
   useEffect(() => {
     if (!waiting) return
-    const look = () => {
-      if (document.visibilityState === 'visible') void readInbox().then(({ computerOnline }) =>
-        setPlan(shown => shown && { ...shown, computerOnline }), () => undefined)
-    }
-    const timer = setInterval(look, REFRESH_MS)
+    const timer = setInterval(look, up ? LINE_REFRESH_MS : REFRESH_MS)
     return () => clearInterval(timer)
-  }, [waiting])
+  }, [look, waiting, up])
   const post = (data: object) => channel.current?.port?.postMessage(data)
   const settle = (next: Tap) => {
     setTap(next)

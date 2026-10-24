@@ -260,3 +260,16 @@ test('a workspace borrows the sign-in its main copy made before the app\'s folde
   record(workspace, 'https://other.example.com');
   assert.throws(() => client(workspace).target(), /Connect first/);
 });
+test('a socket opens only to the app\'s own paths, over wss, signed as the person', async t => {
+  const f = directories(t), token = jwt(), opened = [];
+  const client = companyClient({ ...f, run: async () => token, request: async () => Response.json(setup()) });
+  await client.login(origin);
+  const open = (url, init) => { opened.push({ url, init }); return { url }; };
+  for (const path of ['/api/actions', 'https://evil.example/apps/inbox/api/line', '//evil.example/apps/x', '/apps/../api/actions', '/apps/x\\y']) {
+    await assert.rejects(client.socket(path, open), /Refused an arbitrary server URL/);
+  }
+  assert.deepEqual(opened, []);
+  const socket = await client.socket('/apps/inbox/api/line?computer=0123456789abcdef0123456789abcdef', open);
+  assert.equal(socket.url, 'wss://business.example.com/apps/inbox/api/line?computer=0123456789abcdef0123456789abcdef');
+  assert.equal(opened[0].init.headers['cf-access-token'], token);
+});

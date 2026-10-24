@@ -360,6 +360,14 @@ export function companyClient({ root = process.cwd(), stateDir, routesDir = defa
       return response.ok ? 'works' : 'not reachable yet';
     } catch { return 'not reachable yet'; }
   }
+  /** A WebSocket to one of the app's own paths, signed as the person; `open` makes it (Node's built-in by default). */
+  async function socket(path, open = (url, init) => new WebSocket(url, init)) {
+    const origin = target();
+    if (!/^\/apps\/[^#]*$/.test(path) || new URL(path, origin).origin !== origin || path.includes('..') || path.includes('\\')) throw new Error('Refused an arbitrary server URL');
+    const url = new URL(path, origin);
+    url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+    return open(url.href, { headers: { 'cf-access-token': await session(origin) } });
+  }
   // One step: sign in, then look at `folder`. A copy from elsewhere is left as it is; otherwise download or update
   // the project when the app hands it to this person. Either way, say what works.
   async function install(origin, folder, copy, self, other = otherCopy) {
@@ -377,7 +385,7 @@ export function companyClient({ root = process.cwd(), stateDir, routesDir = defa
   function finds(folder) {
     try { return companyClient({ root: folder, routesDir, cacheDir }).stateDirectory === directory(); } catch { return false; }
   }
-  return { login, list, describe, call, setup, code, install, target, git: projectGit, http, get stateDirectory() { return directory(); } };
+  return { login, list, describe, call, setup, code, install, target, git: projectGit, http, socket, get stateDirectory() { return directory(); } };
 }
 /** Setup's last words, for the assistant to repeat: who, which apps, memory, the project, and what is left. */
 function summary({ signedInAs, signIn, memory, project, folder, applied }, titles, found) {

@@ -320,7 +320,7 @@ test('a teammate branch that edits the hooks\' shared library runs nothing on pi
     return size() > start;
   });
   const node = commands.filter(command => /\bnode "/.test(command));
-  assert.equal(node.length, 8);
+  assert.equal(node.length, 13);
   assert.deepEqual(runHooks(), []);
   assert.ok(!existsSync(marker), 'branch code ran after the pickup');
 

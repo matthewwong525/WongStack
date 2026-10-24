@@ -8,7 +8,12 @@ Prefer predictable code on an existing timed-job facility: an export, a fixed re
 
 ## Where it runs
 
-The host is the app running your assistant, independently of which model you use. A Codex session inside Paseo can use Paseo's clock. New schedules add no cloud runner or model key. The assistant checks the actual tools and account before offering a mode; a product's documentation alone does not prove this account can run it.
+The host is the clock that starts each run, independently of which model you use. New schedules add no cloud runner or model key.
+
+- **Your company app's clock comes first** when this computer has [the helper](live-line.md#the-helper) running and a chat app that can open a session, Paseo today. At the due time the app says *look now* down [the live line](live-line.md), and your computer opens the schedule's chat from the instructions saved in your repo, only if they still match the revision you approved. The app sends no prompt; your computer builds it.
+- **Otherwise an existing host clock**: a Codex session inside Paseo can use Paseo's clock.
+
+On the app's clock a run starts at most once. A run due while the computer is off starts once when it's back, if it is still within the schedule's allowed lateness, and otherwise shows as *Missed*. A run your computer took but never reported shows as not started after 2 minutes and never goes again. Your computer also refuses a run it already started, and starts one schedule no more often than its `authority.minIntervalMs`, or every 10 minutes when that is unset ([its limits](live-line.md#what-it-carries)). The assistant checks the actual tools and account before offering a mode; a product's documentation alone does not prove this account can run it.
 
 Before activation, it reports the destination, timezone, due time or cadence, working folder, model settings, required connections, and what must remain running. Local schedules may need the computer and app on. A loop tied to this chat cannot promise a fresh session after it closes. Claude cloud sessions cannot manage their cloud schedules from inside the run; stopping needs a separate verified control route. Future sessions must read instructions and progress and stop their owned schedule when the goal is achieved. Fixed checks do not need native timing updates.
 
@@ -38,12 +43,14 @@ When a call would help, the assistant offers it through a verified question surf
 
 ## Manage a schedule
 
+Your inbox's *Schedules* view, beside *Agents*, lists every schedule you own: what it does, when it runs next, and how its last run went. Tap *Pause*, *Resume* or *Run now*; *Run now* while your computer is off waits, with *Cancel*, until it comes back. Nobody else sees your schedules. Schedules still in Paseo show as *Runs in Paseo*, read-only, refreshed every 15 minutes. Setting one up or changing it stays in a chat.
+
 Use `/schedule` to list, inspect, pause, resume, run now, change, or cancel owned schedules where their host supports it. Live timing comes from the host; unreachable hosts show unavailable or stale information. Registration stays pending until both the published instruction record and verified native binding exist. A failed or uncertain change is inspected before retrying.
 
 Cancelling stops only that schedule's owned execution and preserves its disabled definition or terminal goal evidence. If stopping fails after goal completion, further outreach remains blocked and cleanup stays pending. Normal code publishing retains [its checks](../development/the-change-loop.md#the-gate); a [record-only delivery](../development/the-change-loop.md) carries no new implementation. For another record, start from the latest published revision so its changes cannot carry the previous record again.
 
 ## Existing schedules
 
-Updates preserve installed cloud jobs and existing host tasks. They do not move a job, rewrite its prompt, delete secrets, or remove cloud resources. [Legacy migration and teardown](legacy-cloud-schedules.md) explains how to inspect older jobs and move one without duplicate follow-ups.
+Updates preserve installed cloud jobs and existing host tasks; a Paseo schedule stays in Paseo until you ask to move it. `/schedule move` pauses the Paseo copy and reads it back, registers the app's copy and reads it back, then deletes the Paseo copy. A failure in between leaves Paseo paused and the move pending, never both running. Updates do not move a job, rewrite its prompt, delete secrets, or remove cloud resources. [Legacy migration and teardown](legacy-cloud-schedules.md) explains how to inspect older jobs and move one without duplicate follow-ups.
 
 Back to [the Cloudflare stack](README.md), or [development](../development/README.md).

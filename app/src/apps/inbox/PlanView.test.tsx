@@ -4,7 +4,8 @@ import { MemoryRouter, Route, Routes } from 'react-router'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import type { Tap } from './api'
 import { App } from './App'
-import { REFRESH_MS } from './List'
+import { LINE_REFRESH_MS, REFRESH_MS } from './line'
+import { line } from './line.test.kit'
 import { TAP_POLL_MS } from './TapLine'
 
 const PLAN = 'c'.repeat(32)
@@ -206,6 +207,34 @@ it('says a waiting tap waits for the computer once the computer goes offline, wi
   expect(screen.getByRole('button', { name: 'Cancel' })).toBeTruthy()
   // Only the status is read again: the frame keeps the plan it loaded.
   expect(calls.filter(call => call.path.includes('item?'))).toHaveLength(1)
+})
+
+it('reads a waiting tap and the computer at each look on the open line, and stops asking every few seconds', async () => {
+  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+  answer = () => Response.json({ item: plan('v1', waiting), computerOnline: true })
+  tapState = 'waiting'
+  online = true
+  await open()
+  const count = (part: string) => calls.filter(call => call.path.includes(part)).length
+  // The waiting tap joins the line once the page has drawn it; an opened line then looks once, for what changed.
+  await act(async () => { await new Promise(done => setTimeout(done, 0)) })
+  await line().open()
+  await until(() => count('/items') === 1 && count('tap?id=') === 1)
+  await act(async () => { await vi.advanceTimersByTimeAsync(REFRESH_MS) })
+  expect([count('/items'), count('tap?id=')]).toEqual([1, 1])
+  online = false
+  await line().say('{"t":"look"}')
+  await until(() => screen.getByRole('status').textContent!.includes('Waiting for your computer'))
+  expect(count('tap?id=')).toBe(2)
+  // Once a minute it still asks, so a computer that went quiet shows.
+  await act(async () => { await vi.advanceTimersByTimeAsync(LINE_REFRESH_MS - REFRESH_MS) })
+  await until(() => count('/items') === 3)
+  tapState = 'sent'
+  await line().say('{"t":"look"}')
+  await until(() => screen.getByRole('status').textContent === 'Sent')
+  // Nothing waits now: a look reads nothing.
+  await line().say('{"t":"look"}')
+  expect([count('/items'), count('tap?id=')]).toEqual([4, 3])
 })
 
 it('ignores a message of an unknown kind, too large, or for an action the plan does not offer', async () => {

@@ -7,8 +7,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import {
-  answer, close, done, doneAgent, emailsOf, hand, inboxAdd, inboxClose, launchWorkspace, localDay, open, opened, personFile, planOf, reminders,
-  remind, reply, start, status, watch, who,
+  agentEvents, answer, close, done, doneAgent, emailsOf, hand, inboxAdd, inboxClose, launchWorkspace, localDay, main, mark, open, opened, personFile,
+  planOf, reminders, remind, reply, start, status, watch, watchStops, who,
 } from '../../.agents/skills/daily/scripts/daily.mjs';
 import { EXIT, PaseoError } from '../../.agents/skills/schedule/scripts/lib/paseo.mjs';
 
@@ -879,4 +879,52 @@ test('start, done-agent and inbox add --kind start check their flags', t => {
     assert.equal(outside.status, 0, outside.stderr);
     assert.equal(JSON.parse(outside.stdout).status, 'unsupported');
   }
+});
+
+test('mark touches this chat\'s stop report, and without a usable agent id does nothing', async t => {
+  const home = tmp(t);
+  assert.equal(agentEvents({ HOME: home }), join(home, '.wong-stack', 'agent-events'));
+  assert.deepEqual(mark({ env: { HOME: home } }), { status: 'skipped' });
+  for (const id of ['../escape', '..', 'a/b', '']) assert.deepEqual(mark({ env: { HOME: home, PASEO_AGENT_ID: id } }), { status: 'skipped' });
+  assert.equal(existsSync(agentEvents({ HOME: home })), false);
+  const printed = [];
+  assert.equal(await main(['mark'], { env: { HOME: home }, print: line => printed.push(line) }), 0);
+  assert.equal(existsSync(agentEvents({ HOME: home })), false);
+  assert.equal(await main(['mark'], { env: { HOME: home, PASEO_AGENT_ID: 'agent-7' }, print: line => printed.push(line) }), 0);
+  assert.deepEqual(printed, []);
+  assert.match(readFileSync(join(agentEvents({ HOME: home }), 'agent-7'), 'utf8'), /^\d{4}-\d{2}-\d{2}T/);
+});
+
+test('watchStops makes the folder and names the agent behind each report', t => {
+  const home = tmp(t), heard = [];
+  let handler, closed = false;
+  const watcher = (dir, listen) => { assert.equal(dir, agentEvents({ HOME: home })); handler = listen; return { close() { closed = true; } }; };
+  const handle = watchStops({ HOME: home }, name => heard.push(name), watcher);
+  assert.equal(existsSync(agentEvents({ HOME: home })), true);
+  handler('change', 'a-1'); handler('rename', null);
+  assert.deepEqual(heard, ['a-1', null]);
+  handle.close(); assert.equal(closed, true);
+  assert.equal(watchStops({ HOME: home }, () => {}, () => { throw new Error('no watching here'); }), null);
+});
+
+// Runs watch over two minutes, firing `report` on the first wait; returns the clock time of each `ls`.
+async function stopTimes(t, report) {
+  const at = chief(t, ROWS.slice(0, 1));
+  let clock = Date.parse('2026-10-21T10:00:00Z'), notice, closed = false, fired = false;
+  const start = clock, times = [];
+  const { call } = fakePaseo([{ ls: [agent('a-1', 'running')] }, { ls: [agent('a-1', 'idle')] }]);
+  const timed = async args => { if (args[0] === 'ls') times.push(clock - start); return call(args); };
+  const sleep = async ms => { if (!fired) { fired = true; notice(report); } clock += ms; };
+  const stops = listen => { notice = listen; return { close() { closed = true; } }; };
+  await watch({ ...at, call: timed, print: () => {}, seconds: 60, hours: 2 / 60, now: () => clock, sleep, stops, inbox: fakeInbox(false).inbox });
+  assert.equal(closed, true);
+  return times;
+}
+
+test('a marked stop is seen within a second, before the next minute; another chat\'s stop waits for the minute', async t => {
+  const watched = await stopTimes(t, 'a-1');
+  assert.ok(watched[1] - watched[0] <= 1000, `second pass after ${watched[1] - watched[0]} ms`);
+  assert.equal(watched[2] - watched[1], 60_000);
+  const other = await stopTimes(t, 'z-unwatched');
+  assert.equal(other[1] - other[0], 60_000);
 });

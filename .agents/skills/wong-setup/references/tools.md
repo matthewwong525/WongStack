@@ -1,10 +1,10 @@
 # Get the computer ready
 
-[`/wong-setup`](../SKILL.md) runs this before cloning. Use its selected repository and raw root for every source reference. Ready the tools, GitHub sign-in, git identity, and Windows links before writing in the target. [Required tools](../../../../wiki/development/required-tools.md) explains each.
+[`/wong-setup`](../SKILL.md) runs this before cloning, with its selected repository and raw root for every source reference. Ready the tools, GitHub sign-in, git identity, and Windows links before writing in the target; [required tools](../../../../wiki/development/required-tools.md) explains each.
 
 **[The Artifacts route](../../../../wiki/stack/artifacts-route.md#setup)**, the default on Mac and Linux, has no GitHub: leave `gh` out of the tools and the ask, skip step 2, and ask the person for step 3's name and email. The GitHub route adds `gh` and step 2 when chosen.
 
-**The person types no command.** The agent runs every command below and asks in [the ask format](../../explore/references/asking-the-user.md), in [plain words](../../explore/references/asking-the-user.md#write-in-plain-words): *"I need a few free tools: Node.js and GitHub's app to set things up, a browser for me, and a tool that links you to it. Install them (Recommended), or stop here?"* One yes covers every tool it names. A decline or failed install stops setup with nothing written: say what is missing, what it is for, and that rerunning setup picks up here. Only a failed [helper](#the-helpers-the-browser-and-the-link-tool) is skipped instead. [The failure map](failure-map.md#getting-the-computer-ready) owns each stop's fix.
+**The person types no command.** The agent runs every command below and asks in [the ask format](../../explore/references/asking-the-user.md), in [plain words](../../explore/references/asking-the-user.md#write-in-plain-words): *"I need a few free tools: Node.js and GitHub's app to set things up, a browser for me, a tool linking you to it, and one keeping your inbox instant. Install them (Recommended), or stop here?"* One yes covers every tool it names. A decline or failed install stops setup with nothing written: say what is missing, what it is for, and that rerunning setup picks up here. Only a failed [helper](#the-helpers-the-browser-and-the-link-tool) is skipped instead. [The failure map](failure-map.md#getting-the-computer-ready) owns each stop's fix.
 
 ## 1. The tools
 
@@ -14,10 +14,10 @@ Check each with `command -v`, in this order: the clone needs `git`, OpenSpec nee
 |---|---|
 | `git` | `git --version` answers |
 | `gh`, GitHub route only | `gh --version` answers |
-| Node.js | `node --version` is in the range `engines.node` gives in `<selected raw root>/app/package.json`, such as 24.15 or later on Node 24; an older one is missing. An unreadable or invalid range stops setup |
+| Node.js | `node --version` is in the range `engines.node` gives in `<selected raw root>/app/package.json`, such as 24.15+ on Node 24; older counts as missing. An unreadable or invalid range stops setup |
 | OpenSpec | `openspec --version` answers |
 
-Check [the helpers](#the-helpers-the-browser-and-the-link-tool) too, so the ask names them. Install each missing one of the four by the first route with **no password prompt**: the agent's shell can't answer one. Never install a package manager.
+Check [the helpers](#the-helpers-the-browser-and-the-link-tool) too, so the ask names them. Install each missing one of the four by the first route with **no password prompt**, which the agent's shell can't answer. Never install a package manager.
 
 | System (`uname -s`) | Route |
 |---|---|
@@ -32,7 +32,7 @@ mkdir -p ~/.local/bin
 # Node: the newest release of the required major (22 shown), from nodejs.org
 N=$(curl -fsSL https://nodejs.org/dist/latest-v22.x/SHASUMS256.txt | grep -o 'node-v[0-9.]*-linux-x64\.tar\.xz' | head -1)
 curl -fsSL "https://nodejs.org/dist/latest-v22.x/$N" | tar -xJ -C ~/.local --strip-components=1
-# gh: the latest release archive from GitHub
+# gh: the latest release from GitHub
 G=$(curl -fsSL https://api.github.com/repos/cli/cli/releases/latest | grep -o 'https://[^"]*/gh_[0-9.]*_linux_amd64\.tar\.gz' | head -1)
 curl -fsSL "$G" | tar -xz -C ~/.local --strip-components=1
 ```
@@ -41,7 +41,7 @@ On macOS, Node's archive is `node-v…-darwin-<arch>.tar.gz` (unpack with `tar -
 
 **OpenSpec** installs with the command in [the preconditions](../../save/references/preconditions.md), which own the pinned version. When a global npm install needs `sudo`, add `--prefix ~/.local`.
 
-After a user-folder install, start every later command in this chat with `export PATH="$HOME/.local/bin:$PATH"; `, since each command is a new shell. Then put that line first in the start-up file, above where it returns early for a non-interactive shell:
+After a user-folder install, start every later command in this chat with `export PATH="$HOME/.local/bin:$PATH"; `: each command is a new shell. Then put that line first in the start-up file, above its early return for a non-interactive shell:
 
 ```bash
 L='export PATH="$HOME/.local/bin:$PATH"'
@@ -61,9 +61,9 @@ After the four pass, install each missing helper the same yes covered ([why each
 - **`agent-browser`:** `npm install -g agent-browser` (`--prefix ~/.local` when it needs `sudo`), then `agent-browser install` for its Chrome, with `--with-deps` on Linux only when `sudo -n true` succeeds.
 - **`cloudflared`:** [its route](../../../../wiki/development/required-tools.md#installing-cloudflared) for this system. It also signs the owner in for memory and company actions at [the first deploy](cloudflare.md#4g-smoke-test-what-you-built).
 
-Never offer camofox here: the first errand asks, then runs `browse.mjs install` ([why](../../../../wiki/development/required-tools.md#installing-camofox)). Nor Shop's command: the first shopping request [asks](../../../../wiki/development/required-tools.md#installing-shops-command).
+Never offer camofox here: the first errand asks, then runs `browse.mjs install` ([why](../../../../wiki/development/required-tools.md#installing-camofox)). Nor Shop's command: the first shopping request [asks](../../../../wiki/development/required-tools.md#installing-shops-command). The inbox helper installs later, in the target.
 
-A helper still missing after its install doesn't stop setup: say so in one line (*"The browser didn't install; I'll offer it again when I need it."*) and continue. Without `cloudflared`, memory waits on this computer until it is in.
+A helper still missing after install doesn't stop setup: say so in one line (*"The browser didn't install; I'll offer it again when I need it."*) and continue. Without `cloudflared`, memory waits on this computer until it is in.
 
 ### Paseo: point to it, never install it
 
@@ -71,12 +71,12 @@ After the tools pass, check `command -v paseo`. Missing → say one plain senten
 
 ## 2. The GitHub sign-in
 
-GitHub route only. Check `gh auth status`. Setup needs the `workflow` scope, to add the publishing step, and `user:email`, to fill git authorship ([why](../../../../wiki/development/required-tools.md#gh-needs-the-workflow-scope)).
+GitHub route only. Check `gh auth status`. Setup needs the `workflow` scope to add the publishing step and `user:email` to fill git authorship ([why](../../../../wiki/development/required-tools.md#gh-needs-the-workflow-scope)).
 
 - **Signed out** → run `gh auth login --web --hostname github.com --git-protocol https --scopes workflow,user:email` in the background, output to a temporary file.
 - **Signed in, a scope missing** from the `Token scopes:` line → run `gh auth refresh --hostname github.com --scopes <every missing scope>` the same way; one refresh covers them all.
 
-Neither needs a terminal. Each prints `First copy your one-time code: XXXX-XXXX` and `https://github.com/login/device`, then waits for approval. Show the person both:
+Neither needs a terminal. Each prints `First copy your one-time code: XXXX-XXXX` and `https://github.com/login/device`, then awaits approval. Show the person both:
 
 ```text
 I need you to approve GitHub once.
@@ -85,7 +85,7 @@ I need you to approve GitHub once.
 3. Approve, then tell me you're done
 ```
 
-When they say done, recheck `gh auth status`, then run `gh auth setup-git` so the first push needs no second sign-in. No code printed, or still signed out after they say done → stop, create nothing, and use the failure map.
+When they say done, recheck `gh auth status`, then run `gh auth setup-git` so the first push needs no second sign-in. No code printed, or still signed out after done → stop, create nothing, and use the failure map.
 
 ## 3. The git name and email
 
@@ -120,7 +120,7 @@ Then test real folder and file links, again after any setting change; the subshe
 )
 ```
 
-Zero → continue. Otherwise, enable [Developer Mode](https://learn.microsoft.com/en-us/windows/advanced-settings/developer-mode#use-powershell-to-enable-your-device) yourself. Tell the person first: *"I'll turn on the Windows setting your assistant needs. If Windows asks for permission, approve that window so I can continue."* Run it through `powershell.exe` when available; `RunAs` asks for administrator approval, and `Wait` with `PassThru` checks the result:
+Zero → continue. Otherwise, enable [Developer Mode](https://learn.microsoft.com/windows/advanced-settings/developer-mode#use-powershell-to-enable-your-device) yourself. Tell the person first: *"I'll turn on a Windows setting I need. If Windows asks for permission, approve it so I can continue."* Run it through `powershell.exe` when available; `RunAs` asks for administrator approval, and `Wait` with `PassThru` checks the result:
 
 ```bash
 powershell.exe -NoProfile -Command '

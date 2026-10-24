@@ -1,5 +1,7 @@
-// Normalized native receipts. Paseo uses only the public installed CLI.
+// Normalized native receipts. Paseo uses only the public installed CLI; the app host uses the inbox's schedule routes.
 import { findPaseo, paseo } from './paseo.mjs';
+import { helperService, rememberApp } from '../../../hand-over/scripts/lib/computer.mjs';
+import { companyFor } from '../../../hand-over/scripts/lib/inbox.mjs';
 import { credentialFree, requireValue, ScheduleError } from './records.mjs';
 
 export const CAPABILITIES = ['oneOff', 'recurrence', 'freshSession', 'inspect', 'update', 'stop', 'progressRead', 'progressWrite', 'nonOverlap', 'questionDelivery'];
@@ -20,7 +22,8 @@ export function selectExecutable({ predictable, judgment, explicitAssistant = fa
   return { type: 'assistant', reason: judgment ? 'Each run needs interpretation and judgment.' : 'The user explicitly chose assistant sessions.' };
 }
 export function selectHost({ preferred, enclosing, available = [], model: _model }) {
-  const selected = preferred ?? enclosing;
+  // The app host wins whenever it answers: its runs survive this chat and show on the person's page.
+  const selected = preferred ?? (available.some(host => host.name === 'app' && host.supported) ? 'app' : enclosing);
   if (selected) return available.find(host => host.name === selected) ?? { name: selected, supported: false, reason: 'The requested enclosing host has no verified scheduler.' };
   return available.find(host => host.supported) ?? { name: null, supported: false, reason: 'No available persistent host scheduler; an open-session loop is insufficient.' };
 }
@@ -144,6 +147,111 @@ export function paseoAdapter({ env = process.env, call, now = () => Date.now() }
       // Inspected run history distinguishes a request from an observed new run.
       const before = await inspect(id);
       return mutation('run', id, ['run-once', id], row => JSON.stringify(row.runs) !== JSON.stringify(before.runs));
+    },
+  };
+}
+const APP = '/apps/inbox/api/';
+/** One call to the inbox's schedule routes: `{value, status}`; a refused sign-in or network error throws. */
+export function appCall(client, route, method = 'GET', body) {
+  return client.http(APP + route, body ? { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : { method });
+}
+/** A record's timing in the app's shape; a goal's adaptive cadence runs as recurring until it re-arms itself. */
+export function appTiming(timing) {
+  const picked = { mode: timing.mode === 'once' ? 'once' : 'recurring' };
+  for (const field of ['cron', 'every', 'timezone', 'dueAt', 'expiresAt', 'allowedLatenessMs']) if (timing[field] !== undefined) picked[field] = timing[field];
+  return picked;
+}
+const firstLine = text => String(text ?? '').split('\n').map(part => part.trim()).find(Boolean) ?? '';
+/** What the person's page shows for a record: its name, a short summary, and its timing. */
+export function appFields(item, binding = item.binding) {
+  const name = firstLine(item?.name ?? binding.key).slice(0, 200);
+  const summary = firstLine(item?.record?.summary ?? item?.record?.instructions).slice(0, 300);
+  return { name, summary, timing: appTiming(binding.timing) };
+}
+const sameTiming = (observed, sent) => Object.entries(sent).every(([field, value]) => observed?.[field] === value);
+/** The app's schedule as a host observation, shaped like Paseo's inspect: runs oldest first. */
+function appObservation({ schedule, runs = [] }, binding) {
+  const current = binding && (schedule.revision ?? binding.revision) === binding.revision;
+  return {
+    id: schedule.key, status: schedule.state === 'on' ? 'active' : 'paused', computer: schedule.computer, timing: schedule.timing,
+    nextRunAt: schedule.nextRunAt == null ? null : new Date(schedule.nextRunAt).toISOString(), waiting: schedule.waiting?.id ?? null,
+    // The computer builds the prompt from the record at start, so the app holds none to compare.
+    prompt: current ? startupPrompt(binding) : null,
+    runs: runs.map(run => ({ id: run.id, state: run.state, result: run.result, agentId: run.agentId, startedAt: new Date(run.dueAt).toISOString(), endedAt: null })).reverse(),
+  };
+}
+/** True when the helper runs as a service and the person's app answers its schedule routes. */
+export async function appHost({ env = process.env, root = process.cwd(), service = helperService, client = () => companyFor(root) } = {}) {
+  if (!service(env)) return { name: 'app', supported: false, reason: 'The background helper is not installed as a service.' };
+  try {
+    const company = await client();
+    if (company && (await appCall(company, 'schedules')).status === 200) return { name: 'app', supported: true };
+  } catch { /* reported below */ }
+  return { name: 'app', supported: false, reason: 'The company app does not answer.' };
+}
+// The app host: the native id is the record's key. `client` and `computer` are values or functions, read on first use.
+export function appAdapter({ client, computer, item, env = process.env, remember = rememberApp } = {}) {
+  let company, known = item?.binding;
+  const connect = async () => {
+    company ??= await (typeof client === 'function' ? client() : client);
+    if (!company) throw new ScheduleError('The company app does not answer from this checkout.', 3);
+    return company;
+  };
+  const unknown = (action, key) => ({ version: 1, host: 'app', action, nativeId: key, outcome: 'unknown' });
+  const read = async key => {
+    const { value, status } = await appCall(await connect(), `schedule?key=${encodeURIComponent(key)}`);
+    if (status === 404) return null;
+    requireValue(status === 200 && value?.schedule?.key === key, 'The app returned a different schedule.');
+    return value;
+  };
+  const body = (key, fields, binding) => ({ key, computer: fields.computer, name: fields.name, summary: fields.summary, timing: fields.timing, revision: binding.revision,
+    ...(Number.isFinite(binding.authority?.minIntervalMs) ? { minIntervalMs: binding.authority.minIntervalMs } : {}) });
+  async function mutation(action, key, send, verify) {
+    try { await send(await connect()); } catch { /* an uncertain response is read back, never retried */ }
+    try {
+      const found = await read(key);
+      if (!found || !verify(found.schedule)) return unknown(action, key);
+      return normalizedReceipt('app', action, appObservation(found, known), key);
+    } catch { return unknown(action, key); }
+  }
+  const post = (route, key) => target => appCall(target, route, 'POST', { key });
+  return {
+    name: 'app',
+    pausedCreate: false,
+    async inspect(key) {
+      const found = await read(key);
+      requireValue(found, 'The app has no schedule with this key.');
+      return appObservation(found, known);
+    },
+    async create(binding) {
+      requireValue(binding.lifecycle.published, 'Publish guarded instructions before app create.');
+      const cwd = binding.execution.context.cwd;
+      requireValue(cwd && !/[/\\]worktrees[/\\]/.test(cwd), 'Use a durable primary checkout, not a disposable worktree.');
+      known = binding;
+      const sent = body(binding.key, { computer: typeof computer === 'function' ? computer() : computer, ...appFields(item, binding) }, binding);
+      remember(cwd, env);
+      return mutation('create', binding.key, target => appCall(target, 'schedule', 'PUT', sent), row => row.host === 'app' && row.computer === sent.computer && sameTiming(row.timing, sent.timing));
+    },
+    pause: key => mutation('pause', key, post('pause', key), row => row.state === 'paused'),
+    resume: key => mutation('resume', key, post('resume', key), row => row.state === 'on'),
+    async update(key, { timing, prompt } = {}) {
+      requireValue(known, 'Load the record before updating its app schedule.');
+      requireValue(!prompt || prompt === startupPrompt(known), 'The app builds its prompt from the published record.');
+      let current;
+      try { current = (await read(key))?.schedule; } catch { return unknown('update', key); }
+      if (!current) return unknown('update', key);
+      const sent = body(key, { ...current, timing: timing ? appTiming(timing) : current.timing }, known);
+      return mutation('update', key, target => appCall(target, 'schedule', 'PUT', sent), row => sameTiming(row.timing, sent.timing));
+    },
+    async run(key) {
+      let before;
+      try { before = (await read(key))?.schedule; } catch { return unknown('run', key); }
+      return mutation('run', key, post('run-now', key), row => row.waiting?.source === 'now' && row.waiting.id !== before?.waiting?.id);
+    },
+    async cancel(key) {
+      try { await post('delete', key)(await connect()); } catch { /* read back the exact key */ }
+      try { return (await read(key)) ? unknown('cancel', key) : normalizedReceipt('app', 'cancel', { id: key, status: 'deleted' }, key); }
+      catch { return unknown('cancel', key); }
     },
   };
 }

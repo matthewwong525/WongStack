@@ -47,3 +47,6 @@ export const closeItem = (client, id) => inTime(ask(client, 'item-close', 'POST'
  * to deliver from then on: the app hands it out once, and fails it when no result comes. */
 export const checkin = async (client, items) => (await ask(client, 'checkin', 'POST', { items }))?.taps ?? null;
 export const tapResult = (client, id, state) => ask(client, 'tap-result', 'POST', { id, state });
+
+/** The app's live line for this computer, a WebSocket that only ever says look. */
+export const openSocket = (client, computer) => client.socket(`${BASE}line?computer=${computer}`);

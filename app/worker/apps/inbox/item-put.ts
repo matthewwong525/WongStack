@@ -44,6 +44,7 @@ export const itemPut = inboxAction<Input>({
       title = excluded.title, workspace = excluded.workspace, body = excluded.body, actions = excluded.actions, version = excluded.version,
       closes_at = excluded.closes_at, closed_at = NULL`, input.id, input.kind, input.title, input.workspace, input.body,
     JSON.stringify(input.actions), input.version, at.now, input.closesAt).run();
+    await at.wake(null);
     return Response.json({ id: input.id, version: input.version });
   },
 });

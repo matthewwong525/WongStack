@@ -3,6 +3,18 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — A live line to your computer, and schedules in the app
+
+- **Taps reach your chat right away.** Your computer keeps one line open to your company app, connecting out the way a browser tab does. When you tap in the inbox, the app says *look now*, and your computer picks the tap up at once. Nothing opens a way into your computer: no open port and no webhook. If the line drops, your computer checks every 10 seconds, as before, until it reconnects.
+- **The line can't tell your computer to do anything.** It only says *look now*. Your computer then asks for its work, signed in as you, and acts only on what it set up itself. Anything else is ignored and written in its log.
+- **The inbox updates at once.** An open inbox joins the line, so a new card, *Sent* or *Didn't arrive* shows without waiting for a refresh.
+- **A small background helper keeps the line.** It starts with the computer, runs as you, and warns when your Node is too old for its security fixes. Any chat restarts it if it stopped, and you can turn it off.
+- **Your schedules, in your inbox.** A new *Schedules* view beside your agents lists the schedules you own: what each does, when it runs next, and how its last run went, with *Pause*, *Resume* and *Run now*. Only you see yours.
+- **The app's clock starts new schedules.** At the due time your computer opens the schedule's chat from the instructions saved in your repo, only while they match what you approved. A run due while your computer is off starts once when it's back, if not too late, and otherwise shows as *Missed*. Your computer never starts one run twice, nor one schedule more often than every 10 minutes unless its record allows it, so even a broken-into app can't open chat after chat.
+- **The morning check hears a chat stop in seconds.** Each chat says when it stops; the minute check stays as a backstop.
+
+**Updating.** The update offers a small background helper, after asking: it starts with your computer and keeps your inbox and schedules instant. Say yes to install it with `node .claude/skills/hand-over/scripts/helper.mjs install`. The update also adds the line to your app's settings file, `app/wrangler.jsonc`, after showing you the change; it turns on at your next publish. Without it, everything works as before, by checking while a chat runs. Your existing Paseo schedules stay where they are and keep running; ask your assistant to move one to the app when you want it in your inbox's *Schedules* view.
+
 ## 44.10.4 — Plan taps reach their chat from every company app
 
 - **One helper asks every app.** Your computer's inbox helper now asks each project's company app for the taps on its own items, and reports each result back to that app. Before, it asked only the app of the project that started it, so a tap on another project's plan was never picked up.
