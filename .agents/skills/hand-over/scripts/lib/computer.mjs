@@ -14,7 +14,7 @@ export const wongDir = (env = process.env) => join(env.HOME || homedir(), '.wong
 /** The helper's folder and the files in it. */
 export function helperFiles(env = process.env) {
   const dir = join(wongDir(env), 'helper');
-  return { dir, launcher: join(dir, 'run.mjs'), current: join(dir, 'current.json'), apps: join(dir, 'apps.json'), runs: join(dir, 'runs.json'), log: join(dir, 'log.jsonl'), out: join(dir, 'out.log') };
+  return { dir, launcher: join(dir, 'run.mjs'), current: join(dir, 'current.json'), apps: join(dir, 'folders.json'), runs: join(dir, 'runs.json'), log: join(dir, 'log.jsonl'), out: join(dir, 'out.log') };
 }
 
 /** This computer's id, made once: the app wakes only the computer a schedule is bound to. */

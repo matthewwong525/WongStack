@@ -152,7 +152,7 @@ test('a look during a round is kept: the next wait ends at once', async () => {
 test('as the background helper, a look runs exactly one round, a stray message runs none, and down means 10 s', async t => {
   const at = home(t);
   mkdirSync(join(at.dir, '.wong-stack', 'helper'), { recursive: true });
-  writeFileSync(join(at.dir, '.wong-stack', 'helper', 'apps.json'), JSON.stringify({ apps: [{ cwd: REPO }] }));
+  writeFileSync(join(at.dir, '.wong-stack', 'helper', 'folders.json'), JSON.stringify({ apps: [{ cwd: REPO }] }));
   const socket = new FakeSocket();
   const paths = [];
   const client = { target: () => 'https://app.example.com', http: async () => ({ value: null, status: 500 }), socket: async path => { paths.push(path); return socket; } };
@@ -195,7 +195,7 @@ test('a flood of looks runs at most one round a gap, and keeps every checkout si
   mkdirSync(other);
   execFileSync('git', ['init', '-q', other]);
   mkdirSync(join(at.dir, '.wong-stack', 'helper'), { recursive: true });
-  writeFileSync(join(at.dir, '.wong-stack', 'helper', 'apps.json'), JSON.stringify({ apps: [{ cwd: REPO }, { cwd: other }] }));
+  writeFileSync(join(at.dir, '.wong-stack', 'helper', 'folders.json'), JSON.stringify({ apps: [{ cwd: REPO }, { cwd: other }] }));
   const socket = new FakeSocket();
   const client = { target: () => 'https://app.example.com', http: async () => ({ value: null, status: 500 }), socket: async () => socket };
   const runs = [];
