@@ -1,12 +1,15 @@
 // The live app's inbox, reached as the signed-in person through the company helper. Every call answers null on a
 // 404, a refused sign-in or a network error, so the caller falls back to the tunnel. wiki/development/reply-links.md
 
+import { primaryRoot } from '../../../memory/scripts/lib/primary-root.mjs';
+
 const BASE = '/apps/inbox/api/';
 
-/** The person's company client, or null where this copy has no helper or no connection. `load` is for tests. */
-export async function companyFor(load = () => import('../../../../../scripts/company-api.mjs')) {
+/** The person's company client for the checkout holding `cwd`, or null outside one, or where it has no helper or no
+ * connection. `load` is for tests. */
+export async function companyFor(cwd = process.cwd(), load = () => import('../../../../../scripts/company-api.mjs')) {
   try {
-    const client = (await load()).companyClient();
+    const client = (await load()).companyClient({ root: primaryRoot(cwd).root });
     client.target();
     return client;
   } catch { return null; }

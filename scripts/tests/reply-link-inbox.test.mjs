@@ -2,13 +2,13 @@
 // A fake app client and a fake wake stand in for the company helper and Paseo.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { spawn } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { checkin, closeItem, companyFor, listLink, probe, tapResult, upload } from '../../.agents/skills/hand-over/scripts/lib/inbox.mjs';
-import { closeInboxItem, inboxTick, openInboxItem, openReplyLink, startInbox } from '../../.agents/skills/hand-over/scripts/reply-link.mjs';
+import { closeInboxItem, inboxTick, openInboxItem, openReplyLink, startInbox, unlist } from '../../.agents/skills/hand-over/scripts/reply-link.mjs';
 
 const ORIGIN = 'https://app.example.com';
 const BUILD = 'Build it now: run /apply for the plan example.';
@@ -21,7 +21,7 @@ const sha = text => createHash('sha256').update(text).digest('hex');
 
 // The live app's inbox routes, kept in memory; `status` answers every call with that code, and `down` throws. A
 // check-in hands out the taps on the items it names, once, as the app does.
-function fakeApp() {
+function fakeApp(origin = ORIGIN) {
   const app = { calls: [], items: new Map(), taps: [], status: 200, down: false, reports: true };
   const answer = (route, body) => {
     if (route === 'items') return { items: [...app.items.values()], computerOnline: true };
@@ -35,7 +35,7 @@ function fakeApp() {
     return app.reports ? { id: body.id, state: body.state } : null;
   };
   app.client = {
-    target: () => ORIGIN,
+    target: () => origin,
     http: async (path, init) => {
       if (app.down) throw new Error('fetch failed');
       const route = path.replace('/apps/inbox/api/', '');
@@ -69,14 +69,20 @@ function waker(answer = 'notified') {
   return { woken, wake };
 }
 
-const tick = (at, app, options = {}) => inboxTick(at.state, { client: app.client, chats: async () => new Set(['chat-1']), wait: async () => {}, ...options });
+const tick = (at, app, options = {}) => inboxTick(at.state, { clientFor: async () => app.client, chats: async () => new Set(['chat-1']), wait: async () => {}, ...options });
 const reported = app => app.calls.filter(call => call.route === 'tap-result').map(call => call.body.state);
 
-test('the company client counts only once it names an app, and each call answers null unless it succeeded', async () => {
+test('the company client signs in from a folder\'s checkout, counts only once it names an app, and each call answers null unless it succeeded', async t => {
   const app = fakeApp();
-  assert.equal(await companyFor(async () => ({ companyClient: () => app.client })), app.client);
-  assert.equal(await companyFor(async () => ({ companyClient: () => ({ target: () => { throw new Error('Connect first'); } }) })), null);
-  assert.equal(await companyFor(async () => { throw new Error('no helper in this copy'); }), null);
+  const here = process.cwd();
+  const roots = [];
+  assert.equal(await companyFor(here, async () => ({ companyClient: options => { roots.push(options.root); return app.client; } })), app.client);
+  assert.deepEqual(roots, [execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim()]);
+  const outside = realpathSync(mkdtempSync(join(tmpdir(), 'wong-test-no-checkout-')));
+  t.after(() => rmSync(outside, { recursive: true, force: true }));
+  assert.equal(await companyFor(outside, async () => ({ companyClient: () => app.client })), null, 'a folder outside a checkout');
+  assert.equal(await companyFor(here, async () => ({ companyClient: () => ({ target: () => { throw new Error('Connect first'); } }) })), null);
+  assert.equal(await companyFor(here, async () => { throw new Error('no helper in this copy'); }), null);
   assert.equal(await probe(app.client), ORIGIN);
   assert.deepEqual(app.calls[0], { route: 'items', method: 'GET', body: null });
   for (const broken of [{ status: 404 }, { status: 403 }, { down: true }]) {
@@ -109,6 +115,7 @@ test('an inbox that answers takes the plan, and the link is the app address: no 
   assert.doesNotMatch(JSON.stringify(sent), /chat-1|Notes on the plan|run \/apply/, 'the app never holds the chat or its messages');
   const kept = JSON.parse(readFileSync(join(at.state.items, `${id}.json`), 'utf8'));
   assert.deepEqual([kept.target.agentId, kept.header, kept.actions], ['chat-1', HEADER, { build: BUILD }]);
+  assert.deepEqual(kept.app, { cwd: at.dir, origin: ORIGIN }, 'the item names the folder it signed in from, and its app');
   assert.equal((await openPlan(at, app, file)).id, id, 'opening the file again keeps its item');
 });
 
@@ -175,9 +182,9 @@ test('an action this computer already woke the chat with, before a crash, is sen
   assert.deepEqual(woken, []);
 });
 
-const approvalOf = (at, app, title, start = () => {}) => openInboxItem({ kind: 'approval', title, body: JSON.stringify({ text: `${title}?` }),
-  header: 'Inbox answer:', actions: { approve: `Inbox answer: ${title}: Approve`, decline: `Inbox answer: ${title}: Decline` }, hours: 10,
-  target: CHAT, cwd: at.dir }, { env: at.env, clientFor: async () => app.client, start });
+const approvalOf = (at, app, title, { cwd = at.dir, clientFor = async () => app.client } = {}) => openInboxItem({ kind: 'approval', title,
+  body: JSON.stringify({ text: `${title}?` }), header: 'Inbox answer:', actions: { approve: `Inbox answer: ${title}: Approve`,
+    decline: `Inbox answer: ${title}: Decline` }, hours: 10, target: { ...CHAT, cwd }, cwd }, { env: at.env, clientFor, start: () => {} });
 const versionOf = title => sha(JSON.stringify({ text: `${title}?` }));
 
 test('a lost report is sent again next round and never wakes twice; an answered approval closes at once', async t => {
@@ -255,19 +262,20 @@ test('an inbox helper from older code is replaced by the next start; a current o
   const pids = [old.pid];
   t.after(() => { for (const pid of pids) try { process.kill(pid, 'SIGKILL'); } catch { /* gone */ } });
   const record = () => JSON.parse(readFileSync(at.state.inbox, 'utf8'));
-  writeFileSync(at.state.inbox, JSON.stringify({ pid: old.pid }));
+  // Another project's copy ran its helper at 6.
+  writeFileSync(at.state.inbox, JSON.stringify({ pid: old.pid, protocol: 6 }));
   await startInbox(at.state, at.env);
   const started = record();
   pids.push(started.pid);
   assert.notEqual(started.pid, old.pid);
-  assert.equal(started.protocol, 5);
+  assert.equal(started.protocol, 7);
   assert.equal(alive(old.pid), false, 'the older helper ended');
 
   const current = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1e6)'], { detached: true, stdio: 'ignore' });
   pids.push(current.pid);
-  writeFileSync(at.state.inbox, JSON.stringify({ pid: current.pid, protocol: 5 }));
+  writeFileSync(at.state.inbox, JSON.stringify({ pid: current.pid, protocol: 7 }));
   await startInbox(at.state, at.env);
-  assert.deepEqual(record(), { pid: current.pid, protocol: 5 }, 'no second helper starts');
+  assert.deepEqual(record(), { pid: current.pid, protocol: 7 }, 'no second helper starts');
   assert.ok(alive(current.pid));
 });
 
@@ -283,7 +291,7 @@ test('a recorded pid that is not the inbox helper is a stale record: a new helpe
   const started = JSON.parse(readFileSync(at.state.inbox, 'utf8'));
   pids.push(started.pid);
   assert.notEqual(started.pid, other.pid);
-  assert.equal(started.protocol, 5);
+  assert.equal(started.protocol, 7);
   assert.ok(alive(other.pid), 'the other program is left running');
 });
 
@@ -391,4 +399,118 @@ test('a link is listed by its address and title alone, and a listing or close th
   const started = Date.now();
   assert.deepEqual(await Promise.all([listLink(hung, link), closeItem(hung, link.id)]), [null, null]);
   assert.ok(Date.now() - started < 4000);
+});
+
+// Two projects on one computer, each signed in to its own app: `/w/a` to A, `/w/b` to B.
+const A = 'https://a.example.com';
+const B = 'https://b.example.com';
+function twoApps() {
+  const a = fakeApp(A), b = fakeApp(B);
+  const folders = { '/w/a': a, '/w/b': b };
+  return { a, b, folders, clientFor: async cwd => folders[cwd]?.client ?? null };
+}
+const tapOn = (id, item, title) => ({ id, item: item.id, action: 'approve', text: '', version: versionOf(title) });
+const callsTo = (app, route) => app.calls.filter(call => call.route === route).map(call => call.body);
+
+test('taps on two apps\' items in one round reach their chats, each app checked in and told of only its own', async t => {
+  const at = home(t);
+  const { a, b, clientFor } = twoApps();
+  const { woken, wake } = waker();
+  const quote = await approvalOf(at, a, 'Send the quote', { cwd: '/w/a', clientFor });
+  const van = await approvalOf(at, b, 'Book the van', { cwd: '/w/b', clientFor });
+  assert.ok(a.items.has(quote.id) && b.items.has(van.id) && !a.items.has(van.id), 'each item went to its own app');
+  a.taps.push(tapOn('ta', quote, 'Send the quote'));
+  b.taps.push(tapOn('tb', van, 'Book the van'));
+  assert.equal(await tick(at, a, { wake, clientFor }), 0, 'both answered');
+  assert.deepEqual(woken.map(w => w.message).sort(), ['Inbox answer: Book the van: Approve', 'Inbox answer: Send the quote: Approve']);
+  assert.deepEqual(callsTo(a, 'checkin'), [{ items: [quote.id] }]);
+  assert.deepEqual(callsTo(b, 'checkin'), [{ items: [van.id] }]);
+  assert.deepEqual(callsTo(a, 'tap-result'), [{ id: 'ta', state: 'sent' }]);
+  assert.deepEqual(callsTo(b, 'tap-result'), [{ id: 'tb', state: 'sent' }]);
+  assert.deepEqual([a.items.size, b.items.size], [0, 0], 'each closed in its own app');
+});
+
+test('an item from older code, which names no app, is reached through its chat\'s folder', async t => {
+  const at = home(t);
+  const { a, b, clientFor } = twoApps();
+  const { woken, wake } = waker();
+  const quote = await approvalOf(at, a, 'Send the quote', { cwd: '/w/a', clientFor });
+  const kept = join(at.state.items, `${quote.id}.json`);
+  const { app, ...older } = JSON.parse(readFileSync(kept, 'utf8'));
+  assert.deepEqual(app, { cwd: '/w/a', origin: A });
+  writeFileSync(kept, JSON.stringify(older));
+  a.taps.push(tapOn('ta', quote, 'Send the quote'));
+  assert.equal(await tick(at, a, { wake, clientFor }), 0);
+  assert.deepEqual(woken.map(w => w.message), ['Inbox answer: Send the quote: Approve']);
+  assert.deepEqual(callsTo(a, 'tap-result'), [{ id: 'ta', state: 'sent' }]);
+  assert.deepEqual(b.calls, []);
+});
+
+test('an app this computer can\'t reach keeps its item waiting while the other app\'s tap arrives', async t => {
+  const at = home(t);
+  const { a, b, folders, clientFor } = twoApps();
+  const { woken, wake } = waker();
+  const quote = await approvalOf(at, a, 'Send the quote', { cwd: '/w/a', clientFor });
+  const van = await approvalOf(at, b, 'Book the van', { cwd: '/w/b', clientFor });
+  delete folders['/w/b'];
+  b.calls.length = 0;
+  a.taps.push(tapOn('ta', quote, 'Send the quote'));
+  b.taps.push(tapOn('tb', van, 'Book the van'));
+  assert.equal(await tick(at, a, { wake, clientFor }), 0, 'only an item out of reach is left: the helper stops');
+  assert.deepEqual(woken.map(w => w.message), ['Inbox answer: Send the quote: Approve']);
+  assert.ok(existsSync(join(at.state.items, `${van.id}.json`)), 'the unreachable item waits here');
+  assert.deepEqual(b.calls, []);
+  await tick(at, a, { wake, clientFor, now: Date.now() + 11 * 3_600_000 });
+  assert.equal(readdirSync(at.state.items).length, 0, 'once it ran out it closes here');
+  assert.ok(b.items.has(van.id), 'and its app closes it at its own time');
+});
+
+test('an app whose calls hang holds back neither the other app\'s tap nor its reported result', async t => {
+  const at = home(t);
+  const { a, b, clientFor } = twoApps();
+  const { woken, wake } = waker();
+  const memory = { reported: new Map(), lastWake: new Map() };
+  const quote = await approvalOf(at, a, 'Send the quote', { cwd: '/w/a', clientFor });
+  const van = await approvalOf(at, b, 'Book the van', { cwd: '/w/b', clientFor });
+  await approvalOf(at, a, 'Pay the deposit', { cwd: '/w/a', clientFor });
+  a.reports = false;
+  a.taps.push(tapOn('ta', quote, 'Send the quote'));
+  await tick(at, a, { wake, clientFor, ...memory });
+  assert.equal(memory.reported.get('ta').told, false, 'A still owes a result from an earlier round');
+  let release;
+  const held = new Promise(done => { release = done; });
+  const answer = a.client.http;
+  a.client.http = async (...call) => { await held; return answer(...call); };
+  b.taps.push(tapOn('tb', van, 'Book the van'));
+  const round = tick(at, a, { wake, clientFor, ...memory });
+  for (let turn = 0; turn < 200 && !callsTo(b, 'tap-result').length; turn += 1) await new Promise(done => setImmediate(done));
+  assert.deepEqual(woken.map(w => w.message), ['Inbox answer: Send the quote: Approve', 'Inbox answer: Book the van: Approve']);
+  assert.deepEqual(callsTo(b, 'tap-result'), [{ id: 'tb', state: 'sent' }], 'told while A still hangs');
+  release();
+  await round;
+});
+
+test('a folder now signed in to another app is never sent the item, its taps or its close', async t => {
+  const at = home(t);
+  const { a, b, folders, clientFor } = twoApps();
+  const quote = await approvalOf(at, a, 'Send the quote', { cwd: '/w/a', clientFor });
+  folders['/w/a'] = b;
+  assert.equal(await tick(at, a, { clientFor }), 0);
+  assert.equal(await closeInboxItem(quote.id, { env: at.env, clientFor }), true);
+  assert.deepEqual(b.calls, []);
+  assert.ok(a.items.has(quote.id), 'left for its own app to close at its time');
+});
+
+test('an item and a listed form close in the app that lists them, whichever folder asks', async t => {
+  const at = home(t);
+  const { a, b, clientFor } = twoApps();
+  const quote = await approvalOf(at, a, 'Send the quote', { cwd: '/w/a', clientFor });
+  assert.equal(await closeInboxItem(quote.id, { env: at.env, clientFor }), true);
+  assert.equal(a.items.has(quote.id), false);
+  assert.deepEqual(callsTo(b, 'item-close'), []);
+  const [one, two, three] = ['1', '2', '3'].map(n => n.repeat(32));
+  await unlist([{ id: one, listed: true, app: { cwd: '/w/a', origin: A }, target: { cwd: '/w/b' } },
+    { id: two, listed: true, target: { cwd: '/w/b' } }, { id: three, target: { cwd: '/w/a' } }], { clientFor });
+  assert.deepEqual(callsTo(a, 'item-close'), [{ id: quote.id }, { id: one }]);
+  assert.deepEqual(callsTo(b, 'item-close'), [{ id: two }], 'a page from older code closes through its chat\'s folder');
 });
