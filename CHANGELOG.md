@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (patch) — Plan taps reach their chat from every company app
+## 44.10.4 — Plan taps reach their chat from every company app
 
 - **One helper asks every app.** Your computer's inbox helper now asks each project's company app for the taps on its own items, and reports each result back to that app. Before, it asked only the app of the project that started it, so a tap on another project's plan was never picked up.
 - **Closing goes to the right app too.** A plan, approval or form closes in the app that lists it.

@@ -1,6 +1,6 @@
 # Plan taps reach their chat from every company app
 
-**Status:** planned
+**Status:** ready-to-ship
 **Branch:** bad-warthog
 **Open questions:** none
 
@@ -52,3 +52,4 @@ None.
 - **2026-10-23** — Assumed: an app the computer can't reach keeps its items open and the helper running only while another app's items are reachable, because that is today's "signed out stops it" rule applied per app.
 - **2026-10-23** — Assumed: a patch release, because it fixes a bug and adds nothing new to do.
 - **2026-10-24** — Assumed, after the second look: each round checks in, delivers and reports for every app side by side, not one after another, because an app that hangs without answering would otherwise hold the other apps' taps past their 90-second window, against the promise that one app never stops the rest.
+- **2026-10-24** — Archive checkpoint: every task built and ticked; the second look's one finding fixed (apps handled side by side); the live check passed (ClaymooApp's helper at 6 replaced by 7, and a test note through the WongStack inbox reached this chat by itself); numbered 44.10.4.

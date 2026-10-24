@@ -6,8 +6,8 @@ When projects on one computer use different company apps, the computer SHALL col
 
 #### Scenario: Two projects, two apps
 
-- **WHEN** a ClaymooApp chat started the computer's delivery and the person taps *Build and publish* on a WongStack plan in the WongStack app's inbox
-- **THEN** the WongStack plan's chat gets the tap, the WongStack app shows it *Sent*, and taps on ClaymooApp's items still arrive
+- **WHEN** one project's chat started the computer's delivery and the person taps *Build and publish* on another project's plan in that project's own app
+- **THEN** that plan's chat gets the tap, its app shows it *Sent*, and taps on the first project's items still arrive
 
 #### Scenario: One app can't be reached
 
