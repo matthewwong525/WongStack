@@ -56,7 +56,7 @@ A mini app goes through [the change loop](../development/the-change-loop.md) lik
 - **Preview.** When [`/apply`](../../.agents/skills/apply/SKILL.md#finish-with-a-preview) finishes, it uploads a preview of the whole main app from the agent host. Open the app at `/apps/<name>/` on that link. Each further change uploads again to the same link.
 - **Publish.** [`/ship`](../../.agents/skills/ship/SKILL.md) saves, waits for CI, and merges. CI runs the main app's suite and deploys it with the app inside, as [the gate](../development/the-change-loop.md#the-gate) says.
 
-**A preview builds the whole app, so the first one in a worktree waits for the install.** Preview links use the same [native Worker Access protection](cloudflare-access.md#the-hostnames-to-add) as the main app. Use allowed email login or the saved machine credential, and keep staging data separate from production.
+**A preview builds the whole app, so the first one in a worktree waits for the install.** Preview links use the same [native Worker Access protection](cloudflare-access.md#the-hostnames-to-add) as the main app. Use allowed email login or the saved machine credential, and keep staging data separate from production. A route that answers only a person, such as the inbox's, refuses the machine credential: the check answers it with sample data in the browser, labelled simulated, and judges the screen the preview really draws.
 
 ## The home page lists the apps
 

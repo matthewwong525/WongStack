@@ -3,6 +3,12 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 44.10.3 — Checking a screen that only answers a person
+
+- **The wiki says how a preview check opens a person-only screen.** The inbox, for one, refuses the checker's machine sign-in, so the check fills it with sample data in the browser, says so, and judges the screen the preview draws.
+
+**Updating.** No step needed.
+
 ## 44.10.2 — New workspaces get a name you can read
 
 - **Every new workspace gets a name in plain words.** A code-style name becomes words: `customer-brain-confidence` shows as *Customer brain confidence*. A workspace that picks up a saved plan takes the plan's title, not its short code.
