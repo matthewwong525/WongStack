@@ -90,7 +90,7 @@ async function submit(text) {
 
 When `submit` is false, show the text for the person to copy: the page must never say *sent* on anything but `sent: true`. The file is read from disk on every visit, so a rebuilt page shows at the same link.
 
-One server and one tunnel serve every open page, and both stop once no page is open. Inbox items get their own small process, [`reply-link.mjs serve-inbox`](../../.agents/skills/hand-over/scripts/reply-link.mjs), which delivers taps and stops once no item is open. The chat is woken through [`lib/wake.mjs`](../../.agents/skills/hand-over/scripts/lib/wake.mjs), the one place that names how: a host with another way to wake a chat adds it there.
+One server and one tunnel serve every open page, and both stop once no page is open. Inbox items get their own small process, [`reply-link.mjs serve-inbox`](../../.agents/skills/hand-over/scripts/reply-link.mjs), which delivers taps and stops once no item it can reach is open. Each serves every project on the computer, whichever [company app](../stack/company-api.md) it uses: an item, or a listed form, remembers the app it was put in, and is checked in, reported and closed there. An app the computer can't reach keeps its items waiting; the others' taps still go through. A copy that changes either process raises `PROTOCOL` in that file past every other copy's number on the computer, so the next open replaces the one running. The chat is woken through [`lib/wake.mjs`](../../.agents/skills/hand-over/scripts/lib/wake.mjs), the one place that names how: a host with another way to wake a chat adds it there.
 
 ### Give a page a button
 

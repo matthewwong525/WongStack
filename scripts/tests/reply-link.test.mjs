@@ -503,10 +503,16 @@ test('a private link opens first and a reply link opens beside it', async t => {
   assert.match(f.run(handOver, 'close').stdout, /^HANDOVER_RESULT=closed$/m);
 });
 
+// The inbox signs in from the checkout holding the chat's folder.
+const inboxIn = (f, log, options) => {
+  spawnSync('git', ['init', '-q'], { cwd: f.root });
+  Object.assign(f.env, inboxEnv(log, options));
+};
+
 test('a form at a tunnel is listed in the inbox by its link once it prints, and closed with it; a plan never is', async t => {
   const f = fixture(t);
   const log = join(f.root, 'inbox.jsonl');
-  Object.assign(f.env, inboxEnv(log));
+  inboxIn(f, log);
   const form = f.page('intake.html');
   const { id, link } = f.open(form);
   const { deadline } = f.registration(id);
@@ -524,7 +530,7 @@ test('a form at a tunnel is listed in the inbox by its link once it prints, and 
 
 test('an inbox that never answers delays no reply link: it prints first, and the command ends once the listing gives up in 3 s', async t => {
   const f = fixture(t);
-  Object.assign(f.env, inboxEnv(join(f.root, 'inbox.jsonl'), { hang: true }));
+  inboxIn(f, join(f.root, 'inbox.jsonl'), { hang: true });
   const form = f.page('intake.html');
   const started = Date.now();
   const child = spawn(process.execPath, [script, 'open', form, '--header', HEADER], { cwd: f.root, env: f.env });

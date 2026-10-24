@@ -31,8 +31,9 @@ const USAGE = `usage: reply-link.mjs open <file> --header "<line>" [--hours N] [
   list    print each open page's file and when it closes`;
 export const LIMITS = { text: 20_000, body: 128 * 1024, header: 300, action: 300, actions: 6 };
 const HOURS = 24;
-// Raised when the server's routes change: a running server from older code is swapped for this one.
-const PROTOCOL = 5;
+// Raised when the server or inbox helper changes: one from older code is swapped for this one. Every project on the
+// computer shares both, so a copy that changes either raises it past every other copy's number.
+const PROTOCOL = 7;
 const ID = /^[0-9a-f]{32}$/;
 const ACTION = /^[a-z][a-z0-9-]{0,30}$/;
 const ROUTE = /^\/p\/([0-9a-f]{32})\/(alive|send|act)?$/;
@@ -376,7 +377,7 @@ export async function openInboxItem(spec, { env = process.env, clientFor = compa
   const body = file === null ? spec.body : readFileSync(file, 'utf8');
   // Only a plan's review page can talk to the inbox around it; any other page keeps its tunnel.
   if (file !== null && !body.startsWith(PLAN_MARK)) return null;
-  const client = await clientFor();
+  const client = await clientFor(spec.cwd);
   const origin = client && await probe(client);
   if (!origin) return null;
   const state = files(env);
@@ -384,7 +385,8 @@ export async function openInboxItem(spec, { env = process.env, clientFor = compa
   const kept = file === null ? null : openItems(state).find(item => item.file === file);
   const item = { id: kept?.id ?? spec.id ?? randomBytes(16).toString('hex'), file, kind: spec.kind, title: file === null ? spec.title : titleOf(body, file),
     workspace: (spec.workspace ?? basename(spec.cwd)).slice(0, 100), header: spec.header, actions: spec.actions, target: spec.target,
-    deadline: Date.now() + spec.hours * 3_600_000, version: sha(body), ...(file === null && { body }), done: kept?.done ?? { version: null, names: [] } };
+    deadline: Date.now() + spec.hours * 3_600_000, version: sha(body), ...(file === null && { body }), done: kept?.done ?? { version: null, names: [] },
+    app: { cwd: spec.cwd, origin } };
   if (!(await upload(client, shown(item, body)))) return null;
   writeItem(state, item);
   await start(state, env);
@@ -397,11 +399,26 @@ async function endItem(state, client, item) {
   if (client) await closeItem(client, item.id);
 }
 
-/** Closes inbox item `id`; true when it was open here. */
+/** The app an item or listed page was put in; one from older code names none, and was opened from its chat's folder. */
+const appOf = record => record.app ?? { cwd: record.target?.cwd };
+
+/** Each record's client, signed in from its app's folder once per folder; null when that folder can't sign in, or
+ * now signs in to another app than the record's, which must never get this one's ids. */
+function clientsFor(clientFor) {
+  const byFolder = new Map();
+  return async record => {
+    const { cwd, origin } = appOf(record);
+    if (!byFolder.has(cwd)) byFolder.set(cwd, clientFor(cwd));
+    const client = await byFolder.get(cwd);
+    return client && (!origin || client.target() === origin) ? client : null;
+  };
+}
+
+/** Closes inbox item `id`, in the app it was put in; true when it was open here. */
 export async function closeInboxItem(id, { env = process.env, clientFor = companyFor } = {}) {
   const state = files(env);
   const item = readItem(state, id);
-  if (item) await endItem(state, await clientFor(), item);
+  if (item) await endItem(state, await clientsFor(clientFor)(item), item);
   return Boolean(item);
 }
 
@@ -435,78 +452,105 @@ function pacer({ lastWake, wait, collected }) {
   };
 }
 
-/** Sends each outcome not yet taken by the app; true while any is left to send. */
-async function report(client, reported) {
-  for (const [id, entry] of reported) if (!entry.told && Date.now() - entry.at < DELIVER_MS) entry.told = Boolean(await tapResult(client, id, entry.outcome));
-  return [...reported.values()].some(entry => !entry.told && Date.now() - entry.at < DELIVER_MS);
+const untold = entry => !entry.told && Date.now() - entry.at < DELIVER_MS;
+
+/** Sends each outcome not yet taken to the app that handed its tap out, side by side, so an app that never answers
+ * holds back no other's; true while any is left to send. */
+async function report(reported) {
+  await Promise.all([...reported].filter(([, entry]) => untold(entry))
+    .map(async ([id, entry]) => { entry.told = Boolean(await tapResult(entry.client, id, entry.outcome)); }));
+  return [...reported.values()].some(untold);
 }
 
-/** The items still open here, and those whose taps can go this round: a rebuilt plan the app has not taken waits. */
-async function readyItems(state, { client, chats, now }) {
+const isEnded = (item, body, { live, now }) => item.deadline <= now || body === null || Boolean(live && !live.has(item.target?.agentId));
+
+/** The items whose taps can go this round, by app origin: `origin → {client, items}`. One that ran out, lost its chat
+ * or its file closes; one whose app can't be reached waits, as does a rebuilt plan the app has not taken. */
+async function readyApps(state, { clientOf, chats, now }) {
   const live = await chats();
-  const all = openItems(state);
-  const items = all.filter(item => item.deadline > now && bodyOf(item) !== null && (!live || live.has(item.target?.agentId)));
-  for (const item of all) if (!items.includes(item)) await endItem(state, client, item);
-  const ready = new Map();
-  for (const item of items) {
-    const version = sha(bodyOf(item));
-    if (version !== item.version && !(await upload(client, shown({ ...item, version }, bodyOf(item))))) continue;
+  const apps = new Map();
+  for (const item of openItems(state)) {
+    const client = await clientOf(item);
+    const body = bodyOf(item);
+    if (isEnded(item, body, { live, now })) { await endItem(state, client, item); continue; }
+    if (!client) continue;
+    const version = sha(body);
+    if (version !== item.version && !(await upload(client, shown({ ...item, version }, body)))) continue;
     if (version !== item.version) writeItem(state, Object.assign(item, { version }));
-    ready.set(item.id, item);
+    const origin = client.target();
+    if (!apps.has(origin)) apps.set(origin, { client, items: new Map() });
+    apps.get(origin).items.set(item.id, item);
   }
-  return ready;
+  return apps;
 }
 
-/** One inbox round: close what ran out or lost its chat, re-upload rebuilt plans, deliver taps on items made here.
- * `reported` holds outcomes the app hasn't taken; `lastWake` paces items across rounds. Resolves to open items. */
-export async function inboxTick(state, { client, wake = wakeChat, chats = liveChats, now = Date.now(), reported = new Map(),
+/** How many open items can reach their app. */
+async function reachable(state, clientOf) {
+  let count = 0;
+  for (const item of openItems(state)) if (await clientOf(item)) count += 1;
+  return count;
+}
+
+/** One inbox round, each item through its own app: close what ran out, re-upload rebuilt plans, deliver taps.
+ * `reported` and `lastWake` carry across rounds. Resolves to the open items whose app answers. */
+export async function inboxTick(state, { clientFor, wake = wakeChat, chats = liveChats, now = Date.now(), reported = new Map(),
   lastWake = new Map(), wait = sleep }) {
-  await report(client, reported);
-  const ready = await readyItems(state, { client, chats, now });
-  const taps = ready.size ? (await checkin(client, [...ready.keys()])) ?? [] : [];
+  const clientOf = clientsFor(clientFor);
+  const earlier = report(reported);
+  const apps = [...(await readyApps(state, { clientOf, chats, now })).values()];
+  // Side by side: an app that never answers would otherwise hold another's taps past DELIVER_MS.
+  await Promise.all([earlier, ...apps.map(app => serveApp(state, app, { wake, reported, lastWake, wait }))]);
+  return reachable(state, clientOf);
+}
+
+/** One app's round: collect its taps, deliver each, close what got its answer, and tell the app each outcome. */
+async function serveApp(state, { client, items }, { wake, reported, lastWake, wait }) {
+  const taps = (await checkin(client, [...items.keys()])) ?? [];
   const gap = pacer({ lastWake, wait, collected: Date.now() });
+  const outcomes = new Map();
   for (const tap of taps) {
-    const item = ready.get(tap.item);
+    const item = items.get(tap.item);
     // An item this round closed takes no second answer; one made elsewhere was never collected for it.
     const outcome = reported.get(tap.id)?.outcome ?? (item ? await deliver(state, item, tap, { wake, gap }) : 'expired');
-    reported.set(tap.id, { outcome, told: false, at: Date.now() });
+    outcomes.set(tap.id, { outcome, told: false, at: Date.now(), client });
+    reported.set(tap.id, outcomes.get(tap.id));
     // Any item is answered once its answer is in the chat; a rebuilt plan opened again comes back as a new item.
-    if (item && outcome === 'sent') { await endItem(state, client, item); ready.delete(item.id); }
+    if (item && outcome === 'sent') { await endItem(state, client, item); items.delete(item.id); }
   }
-  await report(client, reported);
-  return openItems(state).length;
+  await report(outcomes);
 }
 
-/** Delivers taps every 10 s until no item is open and every outcome is reported; a computer signed out of the app
- * ends it at once. */
+/** Delivers taps every 10 s until no item that can reach its app is open and every outcome is reported. */
 async function serveInbox() {
   const state = files();
-  const client = await companyFor();
   const memory = { reported: new Map(), lastWake: new Map() };
-  const busy = async () => client && (await inboxTick(state, { client, ...memory }) || await report(client, memory.reported));
+  const busy = async () => (await inboxTick(state, { clientFor: companyFor, ...memory })) || await report(memory.reported);
   for (;;) {
     while (await busy()) await sleep(INBOX_POLL_MS);
     if (readJson(state.inbox)?.pid !== process.pid) return;
     rmSync(state.inbox, { force: true });
     // An item written as this server ended saw it still running and started none: take it up again.
-    if (!client || !openItems(state).length) return;
+    if (!(await reachable(state, clientsFor(companyFor)))) return;
     writeInbox(state, process.pid);
   }
 }
 
-/** Lists a tunnel page in the inbox as a form, by its link alone, and marks it so its close closes the item there. */
+/** Lists a tunnel page in the inbox as a form, by its link alone, and marks it with its app so its close closes the
+ * item there. */
 async function listPage(state, page, link, cwd = process.cwd()) {
-  const client = await companyFor();
+  const client = await companyFor(cwd);
   const item = { id: page.id, what: 'form', title: page.header.slice(0, 200), url: link, closesAt: page.deadline, workspace: basename(cwd).slice(0, 100) };
   if (!client || !(await listLink(client, item)) || !readPage(state, page.id)) return;
-  writeFileSync(pageFile(state, page.id), `${JSON.stringify({ ...page, listed: true })}\n`, { mode: 0o600 });
+  writeFileSync(pageFile(state, page.id), `${JSON.stringify({ ...page, listed: true, app: { cwd, origin: client.target() } })}\n`, { mode: 0o600 });
 }
 
-/** Closes in the inbox each of `pages` it lists. */
-async function unlist(pages) {
-  const listed = pages.filter(page => page.listed);
-  const client = listed.length > 0 && (await companyFor());
-  if (client) await Promise.all(listed.map(page => closeItem(client, page.id)));
+/** Closes each of `pages` the inbox lists, in the app that lists it. */
+export async function unlist(pages, { clientFor = companyFor } = {}) {
+  const clientOf = clientsFor(clientFor);
+  await Promise.all(pages.filter(page => page.listed).map(async page => {
+    const client = await clientOf(page);
+    if (client) await closeItem(client, page.id);
+  }));
 }
 
 /** `{link}` for the file's reply link, the inbox's first, or `{link: null, reason}` where none can open. A page at a
