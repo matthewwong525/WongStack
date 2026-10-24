@@ -156,6 +156,16 @@ it("never fails on a socket that is closing", async () => {
   expect(page.attachment).toMatchObject({ lastLook: START });
 });
 
+it("answers a goodbye at once, even from a socket already gone", async () => {
+  const sam = line();
+  const desk = await sam.connect("computer:desk");
+  sam.object.webSocketClose(desk as unknown as WebSocket);
+  expect(desk.closed).toEqual([1000, "bye"]);
+  const page = await sam.connect("page");
+  page.broken = true;
+  expect(() => sam.object.webSocketClose(page as unknown as WebSocket)).not.toThrow();
+});
+
 it("takes a computer's hello as a check-in, and says look when a run waits for it", async () => {
   const sam = line();
   const page = await sam.connect("page");

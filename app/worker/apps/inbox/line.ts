@@ -50,6 +50,11 @@ export class Line {
     await this.arm();
   }
 
+  /** Answers a goodbye, or the other side waits out its close timeout and sees the line drop. */
+  webSocketClose(ws: WebSocket) {
+    try { ws.close(1000, "bye"); } catch { /* already closed */ }
+  }
+
   /** Closes sockets whose sign-in ended, sends the looks held back, starts runs that came due, and re-arms. */
   async alarm() {
     const now = Date.now();

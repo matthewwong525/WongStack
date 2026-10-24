@@ -51,4 +51,4 @@
 ## 8. Verification
 
 - [x] 8.1 Run `node .github/scripts/checks.mjs --worktree` (payload links, OpenSpec config, measure-context, app suite) and fix what fails
-- [ ] 8.2 `/save`, then on the preview: open the line from this computer with a real Access token through the edge, tap a test plan and see it reach the chat within a few seconds, kill the line and see the 10 s fallback deliver, open the inbox and see *Sent* without a refresh, create a test schedule on the app's clock, *Run now* and see its chat open, pause and resume it, and clean up the test schedule and items
+- [x] 8.2 `/save`, then on the preview: open the line from this computer with a real Access token through the edge, tap a test plan and see it reach the chat within a few seconds, kill the line and see the 10 s fallback deliver, open the inbox and see *Sent* without a refresh, create a test schedule on the app's clock, *Run now* and see its chat open, pause and resume it, and clean up the test schedule and items
