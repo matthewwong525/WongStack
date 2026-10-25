@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (patch) — The test line's delete can look like it failed
+## 44.15.1 — The test line's delete can look like it failed
 
 - **Deleting the old test line may end with an error, but the delete worked.** After removing the Worker, Cloudflare's tool can print an error asking for a permission to read your account's members. The test line is gone all the same; [the live line page](wiki/stack/live-line.md#its-own-worker) says how to check.
 

@@ -1,6 +1,6 @@
 # The test line's delete can look like it failed
 
-**Status:** ready-to-build
+**Status:** ready-to-ship
 **Branch:** delete-needs-account
 **Open questions:** none
 
@@ -31,10 +31,12 @@ None: wording only.
 
 ## Impact
 
-`wiki/stack/live-line.md` (a step for retiring the old test line), `CHANGELOG.md` (a `## Next (patch)` entry). No code.
+`wiki/stack/live-line.md` (a step for retiring the old test line), `CHANGELOG.md` (a `## Next (patch)` entry), `scripts/retired-names.json` (the page may name `-line-staging`). No code.
 
 ## Decision log
 
 - **2026-10-25** — Asked what to do next after publishing 44.14.0 → chose to note the delete's error.
 - **2026-10-25** — Assumed: the wiki's live-line page owns the delete step and the patch's **Updating.** note links to it, because one topic has one page and the 44.14.0 note is already published.
 - **2026-10-25** — Assumed: setting `CLOUDFLARE_ACCOUNT_ID` is not the fix, because it was already set from `.env` when the error appeared.
+- **2026-10-25** — Assumed: `wiki/stack/live-line.md` joins the `-line-staging` allow list in `scripts/retired-names.json`, because its delete step must name the old test line and the retired-names check failed on it.
+- **2026-10-25** — Archive checkpoint: archived for the next patch release; local checks pass after bringing in 44.15.0.

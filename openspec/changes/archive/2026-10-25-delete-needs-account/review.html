@@ -11,7 +11,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · delete-needs-account</title>
+<title>Review · 2026-10-25-delete-needs-account</title>
 <style>
   /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
    look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
@@ -360,11 +360,11 @@
 })();
 </script>
 </head>
-<body data-change="delete-needs-account">
+<body data-change="2026-10-25-delete-needs-account">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>delete-needs-account</h1>
+  <h1>2026-10-25-delete-needs-account</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. <span class="copies">Saving a note copies all your notes.</span> Open a drawing and tap it to see it full screen.</p>
@@ -386,6 +386,8 @@
 <li class="decision card" id="decision-1" data-note="decision-1" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-25</p>Asked what to do next after publishing 44.14.0 → chose to note the delete's error.</li>
 <li class="decision card" id="decision-2" data-note="decision-2" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-25</p>Assumed: the wiki's live-line page owns the delete step and the patch's <b>Updating.</b> note links to it, because one topic has one page and the 44.14.0 note is already published.</li>
 <li class="decision card" id="decision-3" data-note="decision-3" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-25</p>Assumed: setting <code>CLOUDFLARE_ACCOUNT_ID</code> is not the fix, because it was already set from <code>.env</code> when the error appeared.</li>
+<li class="decision card" id="decision-4" data-note="decision-4" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-25</p>Assumed: <code>wiki/stack/live-line.md</code> joins the <code>-line-staging</code> allow list in <code>scripts/retired-names.json</code>, because its delete step must name the old test line and the retired-names check failed on it.</li>
+<li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-25</p>Archive checkpoint: archived for the next patch release; local checks pass after bringing in 44.15.0.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
@@ -994,6 +996,15 @@
     else if (m.type === 'inbox:notes' && (typeof m.value === 'string' || m.value === null)) { load(m.value); render(); }
     else if (hosted.reply && m.type === 'inbox:result') { const reply = hosted.reply; hosted.reply = null; reply(m.state); }
   }
+  // Tells the inbox when the reader turns: down past the top zone, or 8 px back up, so its bars tuck while they read on.
+  // A resize moves the page too, as the bars tuck, so it only resets where the last turn was.
+  let down = false, turn = 0, tall = window.innerHeight;
+  function scrolled() {
+    const y = window.scrollY;
+    if (window.innerHeight !== tall) { tall = window.innerHeight; turn = y; return; }
+    if (down ? y <= 48 || turn - y > 8 : y > 48 && y - turn > 8) { down = !down; turn = y; post({ type: 'inbox:scroll', down: down }); }
+    else if (down ? y > turn : y < turn) turn = y;
+  }
   window.addEventListener('message', function (e) {
     const m = e.data;
     if (hosted || window.parent === window || e.source !== window.parent || !e.ports || !e.ports[0] || !m || m.type !== 'inbox:hello'
@@ -1007,6 +1018,7 @@
     store = { setItem: function (key, value) { post({ type: 'inbox:notes-set', key: key, value: value }); } };
     post({ type: 'inbox:notes-get', key: KEY });
     setLive('inbox'); offer(m); render();
+    window.addEventListener('scroll', scrolled, { passive: true });
   });
   // In a frame, a link opens its own tab: the frame never leaves this page.
   document.addEventListener('click', function (e) {
