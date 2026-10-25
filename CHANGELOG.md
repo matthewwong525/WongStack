@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 44.15.3 — Two notes for checking previews
+
+- **Checking a plan in the inbox.** The wiki now says how a preview check reaches a plan shown in the inbox: a tap at its place on the screen works, but scrolling needs a short script in the sample plan.
+- **Checks kept for later.** A check whose steps hold any web address, even inside sample data, is not kept to rerun.
+
+**Updating.** Nothing to do.
+
 ## 44.15.2 — A plan's section links jump inside the inbox
 
 - **A section link scrolls the plan.** In the inbox, tapping *Why*, *Changes*, *Decisions* or *Notes* at the top of a plan used to blank it. Now the plan scrolls to that section and stays on the screen. A link to another page still opens in its own tab.
