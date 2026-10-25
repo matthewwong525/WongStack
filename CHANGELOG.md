@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (patch) — Scrolling a plan in a preview check
+## 44.15.5 — Scrolling a plan in a preview check
 
 - **A preview check scrolls a plan in the inbox with the keyboard.** A tap on the plan's text, then `PageDown`, `ArrowUp` or `Home`, scrolls it; no script added to the sample plan is needed. [Mini apps](wiki/stack/mini-apps.md) says how.
 
