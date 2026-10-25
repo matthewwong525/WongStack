@@ -517,8 +517,8 @@
   });
 
   // ── direct links: #/why, #/<n>, #/decisions/<n> ──
-  function jump() {
-    const m = /^#\/(?:decisions\/(\d+)|(\d+)|(why|changes|decisions))$/.exec(location.hash);
+  function jump(hash) {
+    const m = /^#\/(?:decisions\/(\d+)|(\d+)|(why|changes|decisions))$/.exec(typeof hash === 'string' ? hash : location.hash);
     const el = m ? $(m[1] ? 'decision-' + m[1] : m[2] ? 'item-' + m[2] : m[3]) : null;
     if (!el) return;
     all('.hit', function (n) { n.classList.remove('hit'); });
@@ -781,10 +781,18 @@
     setLive('inbox'); offer(m); render();
     window.addEventListener('scroll', scrolled, { passive: true });
   });
-  // In a frame, a link opens its own tab: the frame never leaves this page.
+  // In a frame, a link opens its own tab and a # link scrolls in place: the frame never leaves this page.
+  // A srcdoc page resolves #why against the inbox's address, so following it would load the inbox here.
   document.addEventListener('click', function (e) {
     const a = window.parent !== window && e.target.closest ? e.target.closest('a[href]') : null;
-    if (a && a.getAttribute('href').charAt(0) !== '#') { a.target = '_blank'; a.rel = 'noopener noreferrer'; }
+    if (!a) return;
+    const href = a.getAttribute('href');
+    if (href.charAt(0) !== '#') { a.target = '_blank'; a.rel = 'noopener noreferrer'; return; }
+    e.preventDefault();
+    if (href.charAt(1) === '/') { jump(href); return; }
+    let el = null;
+    try { el = document.getElementById(decodeURIComponent(href.slice(1))); } catch (err) { /* a bad escape names nothing */ }
+    if (el) el.scrollIntoView({ block: 'start' });
   }, true);
   window.addEventListener('hashchange', jump);
   render();
