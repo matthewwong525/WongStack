@@ -248,8 +248,8 @@ export function secretProblems(workflow, buildJobs) {
 
 const LIB = join(REPO, 'scripts/lib-wrangler-config.mjs');
 
-// wrangler: logs one JSON line per call with the Worker and routes it would use, like the real one reads them: a
-// --config skips the build's redirect. A dry run writes its bundle; FAKE_FAIL_WORKER names a Worker whose deploy fails.
+// wrangler: logs each call's Worker and routes as the real one reads them (--config skips the redirect; a named
+// environment must exist). A dry run writes its bundle; FAKE_FAIL_WORKER names a Worker whose deploy fails.
 const FAKE_WRANGLER = `import { appendFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { basename, extname, join, resolve } from 'node:path';
 import { parseConfig, redirectedConfig, routesOf, workerName } from ${JSON.stringify(LIB)};
@@ -258,10 +258,12 @@ const flag = name => (args.includes(name) ? args[args.indexOf(name) + 1] : undef
 const cwd = process.cwd();
 const config = resolve(cwd, flag('--config') ?? (['wrangler.jsonc', 'wrangler.json'].find(name => existsSync(join(cwd, name))) ?? 'wrangler.jsonc'));
 let target = {};
+let missing;
 try {
   const generated = !flag('--config') && ['deploy', 'versions'].includes(args[0]) && redirectedConfig(config);
   const read = generated ? parseConfig(generated) : parseConfig(config);
-  const env = generated ? undefined : flag('--env');
+  const env = generated ? undefined : (flag('--env') ?? (process.env.CLOUDFLARE_ENV || undefined));
+  if (env && !read.env?.[env]) missing = env;
   target = { worker: workerName(read, env), routes: routesOf(read, env) };
   if (args.includes('--dry-run')) {
     mkdirSync(resolve(cwd, flag('--outdir')), { recursive: true });
@@ -269,6 +271,10 @@ try {
   }
 } catch {}
 appendFileSync(process.env.FAKE_LOG, JSON.stringify({ tool: 'wrangler', args, cwd, ...target, keyed: Boolean(process.env.CLOUDFLARE_API_TOKEN) }) + '\\n');
+if (missing) {
+  console.error('No environment found in configuration with name "' + missing + '".');
+  process.exit(1);
+}
 if (args[0] === 'deploy' && !args.includes('--dry-run') && target.worker === process.env.FAKE_FAIL_WORKER) {
   console.error('fake wrangler: the deploy of ' + target.worker + ' failed');
   process.exit(1);

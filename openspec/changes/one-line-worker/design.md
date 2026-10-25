@@ -26,7 +26,7 @@ See proposal.md, Why. Since 44.12.0 the line runs in `<worker>-line` (`app/wrang
 
 ### 2. Builds and deploys: the line on the default branch only
 
-- `cf-build.sh`: keep bundling `dist/line/` on every build, keyless, previews too. An install's update runs its old default branch's `cf-deploy.sh`, which deploys a preview's test line from that bundle; without it the update's own preview fails (`the build has no dist/line/line-worker.js`). After the update, a preview's bundle goes unused.
+- `cf-build.sh`: keep bundling `dist/line/` on every build, keyless, previews too. An install's update runs its old default branch's `cf-deploy.sh`, which deploys a preview's test line from that bundle; without it the update's own preview fails (`the build has no dist/line/line-worker.js`). After the update, a preview's bundle goes unused. The bundle step clears `CLOUDFLARE_ENV`: a preview build sets it to `staging`, and the line config has no such environment.
 - `cf-deploy.sh`: drop the preview branch's `wong_deploy_line cf-deploy --env staging` and its header lines; production keeps `wong_deploy_line cf-deploy` before the app.
 - `cf-preview.sh`: drop step 5 and its call. The pending-migration retry stays: a new staging Worker still applies `line-1`/`line-2`.
 - `lib-wrangler-config.sh`: `wong_deploy_line` takes no environment.
