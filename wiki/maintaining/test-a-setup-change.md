@@ -51,6 +51,8 @@ A change to `deploy.yml` or the deploy scripts can't prove itself on its own sav
 
 Then delete the repo, the token, the Worker and the database, and read each back as gone.
 
+For the same reason, a build keeps making anything the default branch's deploy script still reads. 44.14.0 stopped bundling the test line on previews, and every preview failed (*the build has no dist/line/line-worker.js*): the old `cf-deploy.sh` still deployed it. Stop making it only once installs carry the new script.
+
 ## Remove it
 
 Follow [teardown](../stack/getting-started.md#teardown), and [the Artifacts route's](../stack/artifacts-route.md#teardown) for an install with no GitHub. List by exact name first, delete, then read each back as gone and fetch both addresses for a 404. Delete the folder's `.env` with it: it holds a copy of the token.
