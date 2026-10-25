@@ -243,3 +243,12 @@ The first request SHALL ask the agent to question the person about their work an
 - **THEN** the agent asks about their work one question at a time, suggests a few apps, and builds the one they pick
 - **AND** it shows a preview with the new app and no welcome, and asks before publishing
 - **AND** it reads no past chats on account of the request
+
+### Requirement: The top bar scrolls with the page
+
+The main app's top bar SHALL sit at the top of every page and scroll off with it, not stay pinned, so a long page gets the whole screen as the person reads down.
+
+#### Scenario: Reading down a long page
+
+- **WHEN** the person scrolls down a page longer than the screen
+- **THEN** the top bar scrolls out of view, and scrolling back to the top shows it again

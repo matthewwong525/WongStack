@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — The inbox reads well on a phone
+
+- **A question opened by its link shows as a question.** The daily's links used to show a question's raw code: braces, quote marks and `\n`. Now a question, an approval or a morning plan opened by its link shows the same card as the inbox, with its answers, the box for your own and *Send*. A plan still opens as its review page.
+- **Long answers wrap.** Each answer grows to as many lines as it needs and stays inside its card and the screen.
+- **A plan gets the whole screen while you read.** Scrolling down a plan hides the app's bar and *Back*; scrolling up brings them back. On every other page the app's bar now scrolls away with the page instead of staying pinned.
+- **A phone-width check.** The app's tests now open the inbox in a real browser 390 px wide and fail if a long answer leaves its card. They use your computer's Chrome; with none, they're skipped on your computer and still run in CI.
+
+**Updating.** Nothing to do. A plan sent before the update keeps its bars pinned until its chat rebuilds it.
+
 ## 44.13.0 — The test copy may run without the live line
 
 The check that keeps your test app apart from the live one now passes when the test app has no live line at all. It still fails when the test app points at the live line. Nothing you see changes; this clears the way for the next release, which takes the test app's line away.

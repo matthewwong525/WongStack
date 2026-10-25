@@ -315,11 +315,14 @@ it("keeps an agent's status, refuses a long step, an action or an unknown state,
   expect((await call(jo, "GET", "items")).json.items).toEqual([]);
 });
 
-it("starts staging with a sample day in Fay's inbox, one agent per group", async () => {
+it("starts staging with a sample day in Fay's inbox, one agent per group, and a question with long answers", async () => {
   const { DB } = seeded().env;
   const fay = person("fay@example.invalid");
   const response = await handleApp(new Request("https://business.example.com/apps/inbox/api/items"), fakeEnv({ DB }), fay);
   const { items } = await body(response);
-  expect(items.map(item => [item.workspace, item.kind, item.detail?.state]).sort()).toEqual([["bfcm-brief", "agent", "planning"], ["bfcm-brief", "start", "ready"],
-    ["landing-check", "agent", "working"], ["ronald-files", "agent", "done"]]);
+  expect(items.map(item => [item.workspace, item.kind, item.detail?.state]).sort()).toEqual([["bfcm-brief", "agent", "planning"],
+    ["bfcm-brief", "question", undefined], ["bfcm-brief", "start", "ready"], ["landing-check", "agent", "working"], ["ronald-files", "agent", "done"]]);
+  const [{ detail }] = items.filter(item => String(item.kind) === "question");
+  expect(String(detail.text).split("\n\n")).toHaveLength(2);
+  expect(detail.options.map(option => String(option).length > 180)).toEqual([true, true]);
 });
