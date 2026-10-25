@@ -3,9 +3,11 @@ import { Link } from 'react-router'
 import { Loading } from '@/components/Loading'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { tuckBars } from '@/lib/bars'
 import { Failed, label, pending, readInbox, readPlan, sendTap, type Plan, type Tap } from './api'
 import { frameMessage, notesKey } from './frame'
 import { LINE_REFRESH_MS, REFRESH_MS, useLine } from './line'
+import { List } from './List'
 import { TapLine } from './TapLine'
 
 /** The app's look, which its header switch sets on the root: the sealed page can't read the app's saved choice. */
@@ -15,10 +17,19 @@ function Back() {
   return <Button asChild variant="ghost" className="justify-self-start"><Link to="/apps/inbox/">Back</Link></Button>
 }
 
-/** A plan's page, sealed in a frame with no access to this app: it reaches the inbox only through the port it is
- *  handed on its first load. A frame that loads again has gone elsewhere: its port closes and nothing replaces it. */
+/** The row above an opened item: Back, and where it came from. The card or page shows the title, so it is for screen
+ *  readers here. */
+function Top({ item, hidden = false }: { item: Plan['item']; hidden?: boolean }) {
+  return <div className={`flex min-w-0 items-center gap-2 ${hidden ? 'hidden' : ''}`}><Back /><h1 className="sr-only">{item.title}</h1>
+    <p className="min-w-0 truncate text-sm text-muted-foreground">{item.workspace}</p></div>
+}
+
+/** Any item opened by its link: another kind's card, or a plan's page sealed in a frame that reaches the inbox only
+ *  through the port its first load is handed. A frame that loads again went elsewhere: nothing replaces the port. */
 export function PlanView({ id }: { id: string }) {
   const [plan, setPlan] = useState<Plan | null>(null)
+  // True while the person reads down the plan: the app's bar and the Back row hide.
+  const [tucked, setTucked] = useState(false)
   const [gone, setGone] = useState<'closed' | 'unavailable' | null>(null)
   const [tap, setTap] = useState<Tap | null>(null)
   const frame = useRef<HTMLIFrameElement>(null)
@@ -29,6 +40,7 @@ export function PlanView({ id }: { id: string }) {
     (error: unknown) => setGone(error instanceof Failed && (error.status === 404 || error.status === 410) ? 'closed' : 'unavailable')), [id])
   useEffect(() => { void load() }, [load])
   useEffect(() => () => channel.current?.port?.close(), [])
+  useEffect(() => { tuckBars(tucked); return () => tuckBars(false) }, [tucked])
   // The page follows the app's switch in place, so it keeps its notes.
   useEffect(() => {
     let shown = appLook()
@@ -40,7 +52,8 @@ export function PlanView({ id }: { id: string }) {
     return () => observer.disconnect()
   }, [])
   // A waiting tap says whether the computer is there, so the view asks again as the list does; the plan itself stays.
-  const waiting = tap?.state === 'waiting'
+  // Another item's card is the list's, which asks for itself.
+  const waiting = plan?.item.kind === 'plan' && tap?.state === 'waiting'
   const look = useCallback(() => {
     if (document.visibilityState === 'visible') void readInbox().then(({ computerOnline }) =>
       setPlan(shown => shown && { ...shown, computerOnline }), () => undefined)
@@ -60,12 +73,15 @@ export function PlanView({ id }: { id: string }) {
     const message = frameMessage(data, { actions: item.actions, key: notesKey(item.body) })
     if (message?.type === 'inbox:notes-get') post({ type: 'inbox:notes', value: localStorage.getItem(message.key) })
     if (message?.type === 'inbox:notes-set') localStorage.setItem(message.key, message.value)
+    if (message?.type === 'inbox:scroll') setTucked(message.down)
     if (message?.type !== 'inbox:tap') return
     const result = await sendTap({ item: item.id, action: message.action, version: item.version, text: message.text })
     if (typeof result === 'string') post({ type: 'inbox:result', state: result })
     else { asked.current = true; settle(result) }
   }
+  // Any page the frame loads opens at its top, so the bars show until it says it scrolled.
   const greet = (item: Plan['item']) => {
+    setTucked(false)
     const before = channel.current
     before?.port?.close()
     if (before?.version === item.version) { before.port = null; return }
@@ -76,18 +92,17 @@ export function PlanView({ id }: { id: string }) {
   }
   if (!plan) return <div className="grid gap-4">
     <Back />
-    {gone === 'closed' && <p role="alert">This plan has closed. Ask its chat for a new link.</p>}
+    {gone === 'closed' && <p role="alert">This has closed. Ask its chat for a new link.</p>}
     {gone === 'unavailable' && <><p role="alert">The inbox is unavailable.</p>
       <Button type="button" variant="outline" className="justify-self-start" onClick={() => void load()}>Retry</Button></>}
-    {!gone && <Loading label="Loading the plan…" className="grid gap-3"><Skeleton className="h-8" /><Skeleton className="h-96" /></Loading>}
+    {!gone && <Loading label="Loading…" className="grid gap-3"><Skeleton className="h-8" /><Skeleton className="h-96" /></Loading>}
   </div>
   const { item } = plan
-  // Fills the window under Layout's 3.5rem header and main's 2rem margins, so only the frame scrolls and the page's
-  // fixed bar sits on the window's bottom. Popups let the page's links open their own tab, outside the sandbox.
-  return <div className="-mb-8 flex h-[calc(100dvh-5.5rem)] flex-col gap-3">
-    {/* The review page shows its own title, so the bar names only where the plan came from. */}
-    <div className="flex min-w-0 items-center gap-2"><Back /><h1 className="sr-only">{item.title}</h1>
-      <p className="min-w-0 truncate text-sm text-muted-foreground">{item.workspace}</p></div>
+  if (item.kind !== 'plan') return <div className="grid grid-cols-1 gap-4"><Top item={item} /><List only={item.id} /></div>
+  // Fills the window under Layout's 3.5rem header and main's 2rem margins, or all of it once tucked, so only the frame
+  // scrolls and the page's fixed bar sits on the window's bottom. Popups let its links open a tab outside the sandbox.
+  return <div className={`-mb-8 flex flex-col gap-3 ${tucked ? '-mt-8 h-dvh' : 'h-[calc(100dvh-5.5rem)]'}`}>
+    <Top item={item} hidden={tucked} />
     {tap && <TapLine tap={tap} online={plan.computerOnline} copy={tap.text || label(tap.action)} onChange={settle} onReload={() => void load()} />}
     <iframe key={item.version} ref={frame} title={item.title} sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" srcDoc={item.body}
       className="ml-[calc(50%-50vw)] min-h-0 w-screen max-w-none flex-1" onLoad={() => greet(item)} />

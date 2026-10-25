@@ -32,8 +32,8 @@ function Empty() {
 }
 
 /** The signed-in person's agents, one card each: those waiting on them first, then working, then done. Picked decisions
- *  and plan cards go together on Send, one tap each. */
-export function List() {
+ *  and plan cards go together on Send, one tap each. With `only`, one item's card alone, as its link opens it. */
+export function List({ only }: { only?: string }) {
   const [data, setData] = useState<Inbox | null>(null)
   const [error, setError] = useState(false)
   // What the person answered here, kept with its newest tap so the answer still shows once its item closes.
@@ -42,7 +42,7 @@ export function List() {
   const [sending, setSending] = useState(false)
   const load = useCallback(() => readInbox().then(inbox => { setData(inbox); setError(false) }, () => setError(true)), [])
   useFresh(load)
-  const items = data ? shown(data.items, answered) : []
+  const items = data ? shown(data.items, answered).filter(item => !only || item.id === only) : []
   const groups = groupsOf(items)
   const decisions = groups.filter(group => group.place === 'Needs you')
     .flatMap(group => group.items.filter(item => DECIDED.includes(item.kind) && answerable(item.tap)))
@@ -65,13 +65,13 @@ export function List() {
   if (!data) return <Unready error={error} label="Loading your inbox…" onRetry={() => void load()} />
   // One column that never grows past the screen: an auto column would widen to a card's longest unbroken line.
   return <div className="grid grid-cols-1 gap-6">
-    <Header online={data.computerOnline} />
-    {items.length === 0 && <Empty />}
+    {!only && <Header online={data.computerOnline} />}
+    {items.length === 0 && (only ? <p role="alert">This has closed. Ask its chat for a new link.</p> : <Empty />)}
     {PLACES.map(place => {
       const cards = groups.filter(group => group.place === place)
       const id = `inbox-${place.toLowerCase().replace(' ', '-')}`
-      return cards.length > 0 && <section key={place} className="grid grid-cols-1 gap-3" aria-labelledby={id}>
-        <div className="flex items-center gap-2"><h2 id={id} className="text-lg">{place}</h2><Badge variant="secondary">{cards.length}</Badge></div>
+      return cards.length > 0 && <section key={place} className="grid grid-cols-1 gap-3" aria-labelledby={only ? undefined : id}>
+        {!only && <div className="flex items-center gap-2"><h2 id={id} className="text-lg">{place}</h2><Badge variant="secondary">{cards.length}</Badge></div>}
         {cards.map(group => <AgentCard key={group.key} group={group} online={data.computerOnline} desk={desk} said={said} onTap={keep}
           onReload={item => reload(item.id)} />)}
       </section>

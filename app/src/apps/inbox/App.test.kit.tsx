@@ -21,6 +21,8 @@ export const item = (id: string, kind: Item['kind'], title: string, more: Partia
 export const tapOf = (on: string, state: Tap['state'], more: Partial<Tap> = {}): Tap => ({ id: `t${on}`.slice(0, 32), item: on, action: 'approve', text: '', state, ...more })
 
 type Server = { items: Wire[]; online: boolean; tap: (input: Record<string, string>) => Response; read: (id: string) => Response; cancel: () => Response
+  // One item as its own link reads it, its body the words the list carries in `detail`.
+  one: (id: string) => Response
   // The person's schedules, or null when the list fails; `change` answers pause, resume, run-now and run-cancel.
   schedules: Schedule[] | null; change: (route: string, input: Record<string, string>) => Response }
 export const server = {} as Server
@@ -29,6 +31,11 @@ beforeEach(() => {
   localStorage.clear()
   Object.assign(server, { items: [], online: true, tap: (input: Record<string, string>) => Response.json({ tap: tapOf(input.item, 'waiting', input) }),
     read: (id: string) => Response.json({ tap: tapOf(id, 'sent') }), cancel: () => Response.json({ tap: tapOf(FIRST, 'cancelled') }),
+    one: (id: string) => {
+      const found = server.items.find(each => each.id === id)
+      return found ? Response.json({ item: { ...found, body: JSON.stringify(found.detail) }, computerOnline: server.online })
+        : Response.json({ error: { code: 'closed' } }, { status: 410 })
+    },
     schedules: [], change: () => Response.json({}) })
   calls.length = 0
   vi.stubGlobal('fetch', vi.fn(async (path: string, init?: RequestInit) => {
@@ -38,6 +45,7 @@ beforeEach(() => {
     if (route === 'items') return Response.json({ items: server.items, computerOnline: server.online })
     if (route === 'tap') return server.tap(body!)
     if (route.startsWith('tap?id=')) return server.read(route.slice(7))
+    if (route.startsWith('item?id=')) return server.one(route.slice(8))
     if (route === 'tap-cancel') return server.cancel()
     if (route === 'schedules') return server.schedules ? Response.json({ schedules: server.schedules, computerOnline: server.online })
       : Response.json({ error: { code: 'internal' } }, { status: 500 })

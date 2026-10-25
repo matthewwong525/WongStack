@@ -7,6 +7,14 @@ import { App } from './App'
 import { bar, calls, card, choose, DAYS, FIRST, item, key, open, outlined, PLAN, press, QUESTION, SECOND, send, server, taps, tapOf, tick, type } from './App.test.kit'
 import { REFRESH_MS } from './line'
 import { TAP_POLL_MS } from './TapLine'
+
+/** Whether a choice row wraps its words: it holds the row's classes and none of the button's one-line ones. */
+const wraps = (row: Element) => {
+  const classes = row.className.split(' ')
+  return ['whitespace-normal', 'justify-start', 'h-auto'].every(each => classes.includes(each))
+    && !classes.some(each => ['whitespace-nowrap', 'justify-center', 'h-9'].includes(each))
+}
+
 it('groups what waits on the person, questions first, with the computer shown online', async () => {
   server.items = [item(PLAN, 'plan', 'One inbox', { workspace: 'lousy-dingo' }), item(FIRST, 'approval', 'Send the quote'),
     item(QUESTION, 'question', 'Which day?', DAYS)]
@@ -35,6 +43,8 @@ it('groups what waits on the person, questions first, with the computer shown on
   expect(who.className).toBe('wrap-anywhere')
   expect(who.parentElement!.className.split(' ')).toContain('min-w-0')
   expect(who.parentElement!.className).not.toMatch(/truncate|flex/)
+  // A long answer wraps inside its card: the row's own classes replace the button's one-line ones, not sit beside them.
+  for (const radio of within(card('Which day?')).getAllByRole('radio')) expect(wraps(radio)).toBe(true)
 })
 
 it('shows a question once when its title says the same, and a question with no words by its title', async () => {
@@ -335,6 +345,7 @@ it('ticks several answers on a tick-several question, sending the ticks, then th
   await act(async () => { fireEvent.click(within(card('Which tools?')).getByText('Email')) })
   type('Your own answer', 'Which tools?', 'And Slack')
   expect(ticked('Which tools?')).toEqual(['true', 'false', 'true'])
+  expect(wraps(within(card('Which tools?')).getAllByRole('checkbox')[0].parentElement!)).toBe(true)
   type('Your own answer', 'Which others?', 'None of these')
   expect(ticked('Which others?')).toEqual(['false', 'false', 'false'])
   // A key ticks or unticks, and stays on the card; nothing ticked or typed is no answer.

@@ -1,0 +1,116 @@
+{
+  "format": "verify-journey-1",
+  "id": "a-question-from-the-daily-s-link",
+  "scenario": {
+    "capability": "inbox",
+    "requirement": "An item opened by its own link shows its card",
+    "scenario": "A question from the daily's link"
+  },
+  "thenDigest": "2d3adf66a65428a09112a224ed9c2c37f0412ff0733e9b25c1e485b3a39b0d79",
+  "probe": "browser",
+  "writes": true,
+  "sourcePaths": [
+    ".agents/skills/plan/references/review-kit.html",
+    "app/.gitignore",
+    "app/knip.jsonc",
+    "app/package.json",
+    "app/src/Layout.tsx",
+    "app/src/apps/inbox/App.test.kit.tsx",
+    "app/src/apps/inbox/Decision.tsx",
+    "app/src/apps/inbox/List.tsx",
+    "app/src/apps/inbox/PlanView.tsx",
+    "app/src/apps/inbox/frame.ts",
+    "app/src/lib/bars.ts",
+    "app/vitest.config.browser.ts",
+    "app/vitest.config.ts",
+    "schema/seed.sql"
+  ],
+  "recordedAt": "427a51007651a9b2e18131b9ef7155f0b75e42d0",
+  "steps": [
+    [
+      "set",
+      "viewport",
+      "390",
+      "844"
+    ],
+    [
+      "network",
+      "route",
+      "**/apps/inbox/api/items",
+      "--body",
+      "{\"items\": [{\"id\": \"a0000000000000000000000000000005\", \"kind\": \"question\", \"title\": \"Which offer leads the BFCM ads?\", \"workspace\": \"bfcm-brief\", \"actions\": [], \"version\": \"v1\", \"createdAt\": 1, \"closesAt\": 4102444800000, \"detail\": {\"text\": \"The brief needs one offer to lead the ads; the other goes lower on the page.\\n\\nWhich offer should lead?\", \"options\": [\"Lead with the $20 gift card for every order over $80 this weekend, because last year's gift card ads brought the most new buyers and the VIP launch notes say returning buyers asked for it by name.\", \"Lead with free shipping on every order and no minimum, because the cart survey says surprise shipping costs were the top reason people left, and it costs less than the gift card on small orders.\"]}, \"link\": null, \"tap\": null}], \"computerOnline\": true}"
+    ],
+    [
+      "network",
+      "route",
+      "**/apps/inbox/api/item?id=a0000000000000000000000000000005",
+      "--body",
+      "{\"item\": {\"id\": \"a0000000000000000000000000000005\", \"kind\": \"question\", \"title\": \"Which offer leads the BFCM ads?\", \"workspace\": \"bfcm-brief\", \"actions\": [], \"version\": \"v1\", \"createdAt\": 1, \"closesAt\": 4102444800000, \"detail\": {\"text\": \"The brief needs one offer to lead the ads; the other goes lower on the page.\\n\\nWhich offer should lead?\", \"options\": [\"Lead with the $20 gift card for every order over $80 this weekend, because last year's gift card ads brought the most new buyers and the VIP launch notes say returning buyers asked for it by name.\", \"Lead with free shipping on every order and no minimum, because the cart survey says surprise shipping costs were the top reason people left, and it costs less than the gift card on small orders.\"]}, \"link\": null, \"tap\": null, \"body\": \"{\\\"text\\\":\\\"The brief needs one offer to lead the ads; the other goes lower on the page.\\\\n\\\\nWhich offer should lead?\\\",\\\"options\\\":[\\\"Lead with the $20 gift card for every order over $80 this weekend, because last year's gift card ads brought the most new buyers and the VIP launch notes say returning buyers asked for it by name.\\\",\\\"Lead with free shipping on every order and no minimum, because the cart survey says surprise shipping costs were the top reason people left, and it costs less than the gift card on small orders.\\\"]}\"}, \"computerOnline\": true}"
+    ],
+    [
+      "network",
+      "route",
+      "**/apps/inbox/api/tap",
+      "--body",
+      "{\"tap\": {\"id\": \"tttttttttttttttttttttttttttttttt\", \"item\": \"a0000000000000000000000000000005\", \"action\": \"send\", \"text\": \"Lead with the $20 gift card for every order over $80 this weekend, because last year's gift card ads brought the most new buyers and the VIP launch notes say returning buyers asked for it by name.\", \"state\": \"waiting\"}}"
+    ],
+    [
+      "network",
+      "route",
+      "**/apps/inbox/api/checkin*",
+      "--abort"
+    ],
+    [
+      "open",
+      "{url}/apps/inbox/?item=a0000000000000000000000000000005"
+    ],
+    [
+      "wait",
+      "--text",
+      "Which offer should lead?"
+    ],
+    [
+      "wait",
+      "500"
+    ],
+    [
+      "eval",
+      "(() => { const rows=[...document.querySelectorAll('[role=radio]')]; const card=rows[0]?.closest('[data-slot=card]'); const c=card?.getBoundingClientRect();\n return JSON.stringify({iframes:document.querySelectorAll('iframe').length, rawJson:document.body.innerText.includes('{\"text\"'), scrollWidth:document.documentElement.scrollWidth, innerWidth:innerWidth,\n card:c&&[Math.round(c.left),Math.round(c.right)], rows:rows.map(r=>{const b=r.getBoundingClientRect();return [Math.round(b.left),Math.round(b.right),Math.round(b.height)]})}) })()"
+    ],
+    [
+      "find",
+      "role",
+      "radio",
+      "click",
+      "--name",
+      "Lead with the $20 gift card for every or"
+    ],
+    [
+      "wait",
+      "300"
+    ],
+    [
+      "find",
+      "role",
+      "button",
+      "click",
+      "--name",
+      "Send 1 answer"
+    ],
+    [
+      "wait",
+      "800"
+    ]
+  ],
+  "expect": [
+    {
+      "text": "Which offer should lead?"
+    },
+    {
+      "text": "Waiting"
+    },
+    {
+      "gone": "{\"text\""
+    }
+  ]
+}

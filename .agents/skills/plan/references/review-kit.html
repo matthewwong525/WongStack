@@ -757,6 +757,15 @@
     else if (m.type === 'inbox:notes' && (typeof m.value === 'string' || m.value === null)) { load(m.value); render(); }
     else if (hosted.reply && m.type === 'inbox:result') { const reply = hosted.reply; hosted.reply = null; reply(m.state); }
   }
+  // Tells the inbox when the reader turns: down past the top zone, or 8 px back up, so its bars tuck while they read on.
+  // A resize moves the page too, as the bars tuck, so it only resets where the last turn was.
+  let down = false, turn = 0, tall = window.innerHeight;
+  function scrolled() {
+    const y = window.scrollY;
+    if (window.innerHeight !== tall) { tall = window.innerHeight; turn = y; return; }
+    if (down ? y <= 48 || turn - y > 8 : y > 48 && y - turn > 8) { down = !down; turn = y; post({ type: 'inbox:scroll', down: down }); }
+    else if (down ? y > turn : y < turn) turn = y;
+  }
   window.addEventListener('message', function (e) {
     const m = e.data;
     if (hosted || window.parent === window || e.source !== window.parent || !e.ports || !e.ports[0] || !m || m.type !== 'inbox:hello'
@@ -770,6 +779,7 @@
     store = { setItem: function (key, value) { post({ type: 'inbox:notes-set', key: key, value: value }); } };
     post({ type: 'inbox:notes-get', key: KEY });
     setLive('inbox'); offer(m); render();
+    window.addEventListener('scroll', scrolled, { passive: true });
   });
   // In a frame, a link opens its own tab: the frame never leaves this page.
   document.addEventListener('click', function (e) {

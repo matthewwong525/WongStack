@@ -95,6 +95,39 @@ it('fills the window below the Back row and the tap line, edge to edge with no b
   expect(last).toBe(frame)
 })
 
+it('tucks the app bar and the Back row while the person reads down the plan, filling the screen, and leaves no page tucked', async () => {
+  const { frame, say } = await open()
+  const column = frame.parentElement!
+  const top = screen.getByRole('link', { name: 'Back' }).parentElement!
+  await say({ type: 'inbox:scroll', down: true })
+  expect(document.documentElement.dataset.bars).toBe('tucked')
+  expect(top.className.split(' ')).toContain('hidden')
+  expect(column.className.split(' ')).toEqual(expect.arrayContaining(['h-dvh', '-mt-8', '-mb-8']))
+  expect(column.className).not.toContain('5.5rem')
+  await say({ type: 'inbox:scroll', down: false })
+  expect(document.documentElement.dataset.bars).toBeUndefined()
+  expect(top.className.split(' ')).not.toContain('hidden')
+  expect(column.className.split(' ')).toContain('h-[calc(100dvh-5.5rem)]')
+  // Leaving while tucked shows the bar on the next page.
+  await say({ type: 'inbox:scroll', down: true })
+  expect(document.documentElement.dataset.bars).toBe('tucked')
+  cleanup()
+  expect(document.documentElement.dataset.bars).toBeUndefined()
+})
+
+it('shows the bars and Back again when a new version of the plan loads at its top', async () => {
+  answer = () => Response.json({ item: plan('v1', { ...waiting, state: 'changed' }), computerOnline: true })
+  const { say } = await open()
+  await say({ type: 'inbox:scroll', down: true })
+  expect(document.documentElement.dataset.bars).toBe('tucked')
+  answer = () => Response.json({ item: plan('v2'), computerOnline: true })
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Reload' })) })
+  await until(() => frameWindow.postMessage.mock.calls.length > 1)
+  expect(frameWindow.postMessage.mock.calls[1][0]).toMatchObject({ type: 'inbox:hello', version: 'v2' })
+  expect(document.documentElement.dataset.bars).toBeUndefined()
+  expect(screen.getByRole('link', { name: 'Back' }).parentElement!.className.split(' ')).not.toContain('hidden')
+})
+
 it("greets the page in the app's look and tells it each time the app's switch changes it, and nothing else", async () => {
   document.documentElement.classList.add('dark')
   const { posted, heard, settled } = await open()
@@ -273,8 +306,8 @@ it('reloads a plan that changed, and says when a plan has closed or the inbox is
   cleanup()
   answer = () => Response.json({ error: { code: 'closed' } }, { status: 410 })
   render(<MemoryRouter initialEntries={[`/apps/inbox/?item=${PLAN}`]}><Routes><Route path="/apps/:name/*" element={<App />} /></Routes></MemoryRouter>)
-  expect(screen.getByRole('status').textContent).toBe('Loading the plan…')
-  expect((await screen.findByRole('alert')).textContent).toBe('This plan has closed. Ask its chat for a new link.')
+  expect(screen.getByRole('status').textContent).toBe('Loading…')
+  expect((await screen.findByRole('alert')).textContent).toBe('This has closed. Ask its chat for a new link.')
   cleanup()
   answer = () => Response.json({ error: { code: 'not_found' } }, { status: 404 })
   render(<MemoryRouter initialEntries={[`/apps/inbox/?item=${PLAN}`]}><Routes><Route path="/apps/:name/*" element={<App />} /></Routes></MemoryRouter>)

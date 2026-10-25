@@ -31,3 +31,4 @@ reports
 !.dev.vars.example
 .env*
 !.env.example
+.vitest
