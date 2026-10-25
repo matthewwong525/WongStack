@@ -2,7 +2,10 @@
 // person's installation and email, so one person's item never reaches another. wiki/development/reply-links.md
 import { z } from "zod";
 import { defineAction, humanEmail, type Action } from "../../api/contract.ts";
+import { mine, type Scope } from "./rows.ts";
 import { wake } from "./wake.ts";
+
+export { mine, seen, type Scope } from "./rows.ts";
 
 type Env = Parameters<Action["handler"]>[1];
 type Identity = Parameters<NonNullable<Action["allowed"]>>[0];
@@ -62,14 +65,6 @@ export const item = z.strictObject({
   version: z.string(), createdAt: time, closesAt: time, detail: z.union([detail, start, agent]).nullable(), link: link.nullable(), tap: tap.nullable(),
 });
 type Item = z.infer<typeof item>;
-
-/** Whose rows a call reads, and `wake`: after a write, tell the person's open inbox, and their computer, to look now.
- *  `wake()` reaches every computer, `wake(id)` that one, `wake(null)` the inbox alone. */
-export type Scope = { db: D1DatabaseSession; installation: string; email: string; now: number; wake: (computer?: string | null) => Promise<void> };
-
-/** `sql` bound to the caller's installation as ?1 and email as ?2, then `values` from ?3. */
-export const mine = (at: Pick<Scope, "db" | "installation" | "email">, sql: string, ...values: (string | number | null)[]) =>
-  at.db.prepare(sql).bind(at.installation, at.email, ...values);
 
 /** The installation every inbox row is keyed on: '' on an app whose owner never opened Access. */
 export async function installationOf(db: D1DatabaseSession) {
@@ -146,11 +141,6 @@ export async function openItem<Row extends ItemRow>(at: Scope, id: string, extra
   if (!row) return fail("not_found", 404);
   return row.closed_at !== null || row.closes_at <= at.now ? fail("closed", 410) : row;
 }
-
-/** Notes that the caller's computer is here now: a check-in, a claim, or a hello on its line. */
-export const seen = (at: Pick<Scope, "db" | "installation" | "email" | "now">) => mine(at, `INSERT INTO inbox_seen
-  (installation_id, email, last_checkin_at) VALUES (?1, ?2, ?3)
-  ON CONFLICT (installation_id, email) DO UPDATE SET last_checkin_at = excluded.last_checkin_at`, at.now).run();
 
 /** Whether the caller's computer checked in within the last minute. */
 export async function online(at: Scope) {

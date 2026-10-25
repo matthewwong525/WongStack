@@ -33,7 +33,7 @@ writeFileSync('.wrangler/deploy/config.json', JSON.stringify({ configPath: '../.
 `;
 
 // A fake npm and npx log "<cwd relative to the repo>|<tool> <args>". npm runs the fake build; `wrangler versions
-// upload` fails like real wrangler until a deploy has created the staging Worker.
+// upload` fails like real wrangler until a deploy has created the staging Worker, or applied a pending migration.
 const fakeNpm = `#!/usr/bin/env bash
 echo "\${PWD#"$FAKE_ROOT"/}|npm $*" >> "$FAKE_LOG"
 case "$*" in
@@ -44,7 +44,13 @@ esac
 const fakeNpx = `#!/usr/bin/env bash
 echo "\${PWD#"$FAKE_ROOT"/}|npx $*" >> "$FAKE_LOG"
 case "$*" in
+  "wrangler deploy --dry-run"*) mkdir -p dist/line && touch dist/line/line-worker.js ;;
+  "wrangler deploy dist/line/"*) ;;
   "wrangler versions upload"*)
+    if [ -f "$FAKE_STATE/pending-migration" ]; then
+      echo "✘ [ERROR] This Worker has a pending Durable Object migration, which cannot be applied by wrangler versions upload." >&2
+      exit 1
+    fi
     if [ ! -f "$FAKE_STATE/staging-exists" ]; then
       echo "✘ [ERROR] You cannot upload a new version of a Worker that does not yet exist." >&2
       exit 1
@@ -53,7 +59,7 @@ case "$*" in
     echo "Version Preview URL: https://0a1b2c3d-demo-staging.example.workers.dev"
     echo "Version Preview Alias URL: https://mini-tips-demo-staging.example.workers.dev"
     ;;
-  "wrangler deploy"*) touch "$FAKE_STATE/staging-exists" ;;
+  "wrangler deploy"*) touch "$FAKE_STATE/staging-exists"; rm -f "$FAKE_STATE/pending-migration" ;;
 esac
 `;
 
@@ -94,6 +100,23 @@ function run(root, script, args = [], vars = {}) {
 }
 
 const preview = (root, args, vars) => run(root, 'cf-preview.sh', args, vars);
+
+test('a preview deploys the staging line before its upload, and deploys once when a version can not apply a migration', t => {
+  const line = { durable_objects: { bindings: [{ name: 'LIVE_LINE', class_name: 'Line', script_name: 'demo-line-staging' }] } };
+  const root = previewRepo(t, { config: mainConfig(line), stagingExists: true });
+  const db = name => [{ binding: 'DB', database_name: name, database_id: `${name}-id` }];
+  fixtures.get(root).write('app/wrangler.line.jsonc', JSON.stringify({
+    name: 'demo-line', main: 'worker/line-worker.ts', workers_dev: false, preview_urls: false, d1_databases: db('demo-db'),
+    env: { staging: { name: 'demo-line-staging', d1_databases: db('demo-db-staging') } },
+  }));
+  writeFileSync(join(root, 'state/pending-migration'), '');
+  const result = preview(root, []);
+  assert.equal(result.status, 0, result.out);
+  const wrangler = result.calls.filter(call => /^npx wrangler (deploy|versions upload)/.test(call)).map(call => call.split(' ').slice(2, 4).join(' '));
+  assert.deepEqual(wrangler, ['deploy --dry-run', 'deploy dist/line/line-worker.js', 'versions upload', 'deploy', 'versions upload']);
+  assert.match(result.out, /has a migration to apply — deploying it once/);
+  assert.match(result.out, /https:\/\/mini-tips-demo-staging\.example\.workers\.dev/);
+});
 
 test('cf-build outside CI only builds the app, with nothing copied in after', t => {
   const root = previewRepo(t);

@@ -1,8 +1,8 @@
 # Stack-pack config fragments
 
-The [Cloudflare stack pack's](payload-manifest.md#the-stack-pack) **drop-in files** (the `scripts/`, `schema/seed.sql`, `schema/migrations/.gitkeep`, the `wiki/stack/` pipeline docs) ride [the manifest](payload-manifest.md): copied if absent, adapted if present, never overwritten. Its four **config fragments**, below, merge into target-owned files, so they are **not** manifest pull-files. Treat each like the `CLAUDE.md` `WONG-STACK` block: read the target's file, **show what you'd add, merge on the user's yes**, and keep all that's there; never blind-write. No file → create it from the fragment.
+The [Cloudflare stack pack's](payload-manifest.md#the-stack-pack) **drop-in files** (the `scripts/`, `schema/seed.sql`, `schema/migrations/.gitkeep`, the `wiki/stack/` pipeline docs) ride [the manifest](payload-manifest.md): copied if absent, adapted if present, never overwritten. Its five **config fragments**, below, merge into target-owned files, **not** manifest pull-files. Treat each like the `WONG-STACK` block: read the target's file, **show what you'd add, merge on the user's yes**, keep all that's there. No file → create it from the fragment.
 
-**[Setup's provisioning runbook](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md) applies them**: the id-free `package.json`, `.env.example`, and `.gitignore` fragments before it creates resources, and the `wrangler.jsonc` block at its config step, with the real ids. A changed upstream fragment comes back in `/wong-sync`'s plan as a guided edit, never auto-merged.
+**[Setup's provisioning runbook](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md) applies them**: the id-free `package.json`, `.env.example`, and `.gitignore` fragments before it creates resources, and the two wrangler configs at its config step, with the real ids. A changed upstream fragment comes back in `/wong-sync`'s plan as a guided edit, never auto-merged.
 
 ## `package.json` → `scripts`
 
@@ -26,11 +26,11 @@ If the repo already has a `build`, rename it to `build:app` (confirm first).
 
 **Paths are relative to the `package.json` you merge into.** In the [app scaffold's](payload-manifest.md#the-app-scaffold) `app/package.json` they become `bash ../scripts/cf-build.sh`, `node ../scripts/reset-staging-d1.mjs`, and `node ../scripts/cf-secrets.mjs`. The `db:migrate:*` scripts call `wrangler` directly, so they stay; run them from the wrangler config's folder. The `scripts/` files find the repo root themselves.
 
-Write the **literal** `database_name` into each `db:migrate:*` script: production's for `db:migrate:prod`, the staging twin's for `db:migrate:staging`. Never use `$npm_package_config_db`: without a `config.db` key it expands to nothing. **These two live only here**: the [scaffold's](payload-manifest.md#the-app-scaffold) `app/package.json` ships without them, and provisioning fills them from the databases it derives ([why](../../../../wiki/stack/d1-pipeline.md#the-scripts)).
+Write the **literal** `database_name` into each `db:migrate:*` script: production's, or the staging twin's. Never use `$npm_package_config_db`: without a `config.db` key it expands to nothing. **These two live only here**: the [scaffold's](payload-manifest.md#the-app-scaffold) `app/package.json` ships without them, and provisioning fills them from the databases it derives ([why](../../../../wiki/stack/d1-pipeline.md#the-scripts)).
 
 ## `wrangler.jsonc` → the Worker entry, bindings, and `env.staging`
 
-The **only thing in the payload that creates a wrangler config**, so a deployable Worker: the top level declares the entry point, static assets, and production's bindings; `staging` its own Worker name and a **twin** of every stateful binding. Merge every part, with ids from the resources you created:
+The **only source of the app's wrangler config**, so a deployable Worker: the top level declares the entry point, static assets, and production's bindings; `staging` its own Worker name and a **twin** of every stateful binding. Merge every part, with ids from the resources you created:
 
 ```jsonc
 {
@@ -62,8 +62,8 @@ The **only thing in the payload that creates a wrangler config**, so a deployabl
   ],
   // Rereads who can push on GitHub, for previews' sign-in.
   "triggers": { "crons": ["*/15 * * * *"] },
-  "durable_objects": { "bindings": [{ "name": "LINE", "class_name": "Line" }] },
-  "migrations": [{ "tag": "line-1", "new_sqlite_classes": ["Line"] }],
+  "durable_objects": { "bindings": [{ "name": "LIVE_LINE", "class_name": "Line", "script_name": "<your-worker>-line" }] },
+  "migrations": [{ "tag": "line-1", "new_sqlite_classes": ["Line"] }, { "tag": "line-2", "deleted_classes": ["Line"] }],
   "env": {
     "staging": {
       "name": "<your-worker>-staging",
@@ -76,14 +76,14 @@ The **only thing in the payload that creates a wrangler config**, so a deployabl
         "CF_ACCESS_WORKER_ID": "<staging Worker id>"
       },
       "d1_databases": [{ "binding": "DB", "database_name": "<your-db-name>-staging", "database_id": "<staging database_id>", "migrations_dir": "../schema/migrations" }],
-      "durable_objects": { "bindings": [{ "name": "LINE", "class_name": "Line" }] },
+      "durable_objects": { "bindings": [{ "name": "LIVE_LINE", "class_name": "Line", "script_name": "<your-worker>-line-staging" }] },
       "triggers": { "crons": [] }
     },
     "local": {
       "name": "<your-worker>-local",
       "vars": { "WONG_ENVIRONMENT": "local", "SKIP_AUTH": "true" },
       "d1_databases": [{ "binding": "DB", "database_name": "<your-db-name>-local", "database_id": "<production database_id>", "remote": false, "migrations_dir": "../schema/migrations" }],
-      "durable_objects": { "bindings": [{ "name": "LINE", "class_name": "Line" }] }
+      "durable_objects": { "bindings": [{ "name": "LIVE_LINE", "class_name": "Line", "script_name": "<your-worker>-line-local" }] }
     }
   }
 }
@@ -109,9 +109,13 @@ A queue twin needs both halves in the environment, or staging messages land on t
 
 **With `@cloudflare/vite-plugin`, the build picks the environment**, not `wrangler deploy --env`: `cf-build.sh` exports `CLOUDFLARE_ENV=staging` off production branches, and `cf-deploy.sh` drops `--env staging`. A mistake deploys branch code to production **with no error** ([how](../../../../wiki/stack/d1-pipeline.md#how-the-environment-actually-gets-selected)). No `preview_database_id` or swap script: the Worker a branch deploys to picks its database.
 
+## `wrangler.line.jsonc` → the live line's own Worker
+
+Fill [this template](wrangler.line.template.jsonc) beside `wrangler.jsonc`, for the [live line's](../../../../wiki/stack/live-line.md) own Worker.
+
 ## Workers Builds fallback only: the deploy command
 
-Not a fragment, and **not in a new install**, whose checks run on [GitHub Actions](../../../../wiki/stack/github-actions.md) or [the Artifacts route's check runner](../../../../wiki/stack/artifacts-route.md#the-check-runner). Mention it only to a repo on the [Workers Builds fallback](../../../../wiki/stack/github-actions.md#why-not-cloudflares-own-workers-builds): its dashboard deploy command runs `bash scripts/cf-deploy.sh`, and that page owns it.
+Not a fragment, and **not in a new install**. A repo on the [Workers Builds fallback](../../../../wiki/stack/github-actions.md#why-not-cloudflares-own-workers-builds) deploys with `bash scripts/cf-deploy.sh`; that page owns it.
 
 ## `.env.example` → Cloudflare variables
 
@@ -146,13 +150,13 @@ Never commit the two credential files: `.env`, whose Cloudflare token is *"effec
 
 Apply it **before** asking for the token, when the repo first gets a credentials `.env`. Widening `.gitignore` doesn't untrack a file, so check `git ls-files .env .dev.vars` first. If either is tracked, say so and give two steps: `git rm --cached .env`, and **rotate the credential**, since every clone's history has it. A repo with the bare `.dev.vars` line keeps working; widening it is the upgrade.
 
-Add one more line so agents' throwaway files in `.scratch/` never show as unsaved work, block closing a workspace, or get committed:
+Add one more so agents' throwaway `.scratch/` files never count as unsaved work or get committed:
 
 ```gitignore
 .scratch/
 ```
 
-An install on [the Artifacts route](../../../../wiki/stack/artifacts-route.md) adds two more for what setup makes in the check runner's folder: its installed tools and the config carrying the account's ids.
+An install on [the Artifacts route](../../../../wiki/stack/artifacts-route.md) also ignores the check runner's installed tools and its config, which carries the account's ids.
 
 ```gitignore
 node_modules/

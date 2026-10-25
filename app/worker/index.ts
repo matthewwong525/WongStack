@@ -15,9 +15,6 @@ import { refreshOnSchedule } from "./employee-access/pushers.ts";
 import { handleAccess } from "./employee-access/router.ts";
 import { setupFile } from "./employee-access/setup-file.ts";
 
-// The inbox's live line: the runtime finds a Durable Object class among the Worker's exports. wiki/stack/live-line.md
-export { Line } from "./apps/inbox/line.ts";
-
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);

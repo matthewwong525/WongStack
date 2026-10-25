@@ -5,7 +5,8 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import {
-  assetsDirectory, databaseName, deployedWorkerName, hasD1, parseConfig, stagingDatabase, workerName, WranglerConfigError,
+  assetsDirectory, databaseName, deployedWorkerName, hasD1, lineAddressProblem, lineProblem, parseConfig, stagingDatabase, workerName,
+  WranglerConfigError,
 } from '../lib-wrangler-config.mjs';
 import { logger, pack, REPO as repo } from './fixtures/pack.mjs';
 
@@ -117,6 +118,20 @@ function configFile(t, text, name = 'wrangler.jsonc') {
   writeFileSync(join(dir, name), text);
   return join(dir, name);
 }
+
+test('the live line keeps to its own two Workers, each on the app\'s database for it, with no web address', () => {
+  const db = { binding: 'DB', database_name: 'app-db', database_id: 'prod' };
+  const stagingDb = { binding: 'DB', database_name: 'app-db-staging', database_id: 'staging' };
+  const app = { name: 'app', d1_databases: [db], env: { staging: { name: 'app-staging', d1_databases: [stagingDb] } } };
+  const line = { name: 'app-line', workers_dev: false, preview_urls: false, d1_databases: [db], env: { staging: { name: 'app-line-staging', d1_databases: [stagingDb] } } };
+  assert.equal(lineProblem(line, app), null);
+  assert.match(lineProblem({ ...line, env: { staging: { ...line.env.staging, name: 'app-line' } } }, app), /its staging Worker is 'app-line', the live line/);
+  assert.match(lineProblem({ ...line, env: { staging: { ...line.env.staging, d1_databases: [db] } } }, app), /its staging line binds 'app-db' \(prod\), not the app's staging database 'app-db-staging'/);
+  assert.match(lineProblem({ ...line, d1_databases: [] }, app), /its production line binds no database/);
+  assert.match(lineAddressProblem({ ...line, preview_urls: undefined }), /its top level must set preview_urls to false/);
+  assert.match(lineAddressProblem({ ...line, env: { staging: { ...line.env.staging, workers_dev: true } } }), /env.staging must set workers_dev to false/);
+  assert.match(lineAddressProblem({ ...line, routes: [{ pattern: 'line.example.com/*' }] }), /claims a route or custom domain/);
+});
 
 test('a database listed before the name and a commented "staging": do not fool the reads', t => {
   const config = parseConfig(configFile(t, tricky));

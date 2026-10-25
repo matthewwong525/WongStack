@@ -248,9 +248,10 @@ export function secretProblems(workflow, buildJobs) {
 
 const LIB = join(REPO, 'scripts/lib-wrangler-config.mjs');
 
-// wrangler: logs one JSON line per call with the Worker and routes it would use, like the real one reads them.
-const FAKE_WRANGLER = `import { appendFileSync, existsSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+// wrangler: logs one JSON line per call with the Worker and routes it would use, like the real one reads them: a
+// --config skips the build's redirect. A dry run writes its bundle; FAKE_FAIL_WORKER names a Worker whose deploy fails.
+const FAKE_WRANGLER = `import { appendFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { basename, extname, join, resolve } from 'node:path';
 import { parseConfig, redirectedConfig, routesOf, workerName } from ${JSON.stringify(LIB)};
 const args = process.argv.slice(2);
 const flag = name => (args.includes(name) ? args[args.indexOf(name) + 1] : undefined);
@@ -258,12 +259,20 @@ const cwd = process.cwd();
 const config = resolve(cwd, flag('--config') ?? (['wrangler.jsonc', 'wrangler.json'].find(name => existsSync(join(cwd, name))) ?? 'wrangler.jsonc'));
 let target = {};
 try {
-  const generated = ['deploy', 'versions'].includes(args[0]) && redirectedConfig(config);
+  const generated = !flag('--config') && ['deploy', 'versions'].includes(args[0]) && redirectedConfig(config);
   const read = generated ? parseConfig(generated) : parseConfig(config);
   const env = generated ? undefined : flag('--env');
   target = { worker: workerName(read, env), routes: routesOf(read, env) };
+  if (args.includes('--dry-run')) {
+    mkdirSync(resolve(cwd, flag('--outdir')), { recursive: true });
+    writeFileSync(join(resolve(cwd, flag('--outdir')), basename(read.main, extname(read.main)) + '.js'), 'export default {};\\n');
+  }
 } catch {}
 appendFileSync(process.env.FAKE_LOG, JSON.stringify({ tool: 'wrangler', args, cwd, ...target, keyed: Boolean(process.env.CLOUDFLARE_API_TOKEN) }) + '\\n');
+if (args[0] === 'deploy' && !args.includes('--dry-run') && target.worker === process.env.FAKE_FAIL_WORKER) {
+  console.error('fake wrangler: the deploy of ' + target.worker + ' failed');
+  process.exit(1);
+}
 if (args[0] === 'deploy') console.log('Deployed ' + target.worker + '\\n  https://' + target.worker + '.example.workers.dev');
 if (args[0] === 'versions') console.log('Version Preview Alias URL: https://' + flag('--preview-alias') + '-' + target.worker + '.example.workers.dev');
 if (args[0] === 'secret') console.log('[]');

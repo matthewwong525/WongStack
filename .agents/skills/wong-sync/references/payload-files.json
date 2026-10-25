@@ -164,6 +164,7 @@
     ],
     "exclude": [
       "app/wrangler.jsonc",
+      "app/wrangler.line.jsonc",
       "app/src/apps/tips",
       "app/worker/apps/tips"
     ],
@@ -298,6 +299,8 @@
       "app/worker/apps/inbox/schedules.test.ts",
       "app/worker/apps/inbox/schedules.ts",
       "app/worker/apps/inbox/wake.ts",
+      "app/worker/line-worker.ts",
+      "app/worker/line-worker.test.ts",
       "app/src/components/ui/alert-dialog.tsx",
       "app/src/components/ui/skeleton.tsx"
     ]

@@ -6,17 +6,16 @@ interface __BaseEnv_Env {
 	ASSETS: Fetcher;
 	MEMORY_BUCKET?: R2Bucket;
 	MEMORY_DB?: D1Database;
-	LINE: DurableObjectNamespace<import("./worker/index").Line>;
+	LIVE_LINE: DurableObjectNamespace /* Line from wongstack-line */;
 }
 declare namespace Cloudflare {
 	interface GlobalProps {
 		mainModule: typeof import("./worker/index");
-		durableNamespaces: "Line";
 	}
 	interface StagingEnv {
 		DB: D1Database;
 		ASSETS: Fetcher;
-		LINE: DurableObjectNamespace<import("./worker/index").Line>;
+		LIVE_LINE: DurableObjectNamespace /* Line from wongstack-line-staging */;
 	}
 	interface Env extends __BaseEnv_Env {}
 }

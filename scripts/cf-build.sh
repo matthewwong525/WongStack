@@ -98,8 +98,17 @@ wong_resolve_wrangler_config "$ROOT"
 wong_ci_branch "$ROOT"
 
 # Build the app; its mini apps are part of it (app/src/apps/, app/worker/apps/).
+# Then bundle the live line's own Worker into dist/line/, keyless, when the app
+# has one: cf-deploy.sh sends it with the default branch's line config. The
+# bundle follows the environment the build chose. wiki/stack/live-line.md
 build() {
+  local line_config line_env=()
   (cd "$BUILD_DIR" && npm run build:app)
+  line_config=$(wong_config line-config)
+  [ -n "$line_config" ] || return 0
+  if [ "${CLOUDFLARE_ENV:-}" = staging ]; then line_env=(--env staging); fi
+  echo "cf-build: bundling the live line's Worker into dist/line"
+  (cd "$APP_DIR" && rm -rf dist/line && npx wrangler deploy --dry-run --outdir dist/line --config "$line_config" ${line_env[@]+"${line_env[@]}"})
 }
 
 # Local (non-CI) runs: skip the migrate, just build.

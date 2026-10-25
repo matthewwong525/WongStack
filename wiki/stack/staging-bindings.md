@@ -32,7 +32,7 @@ So: twin by default; a prefix only where a twin genuinely isn't available.
 | Queues | twin queue | **producer and consumer both**, or staging messages land on the production consumer |
 | R2 | twin bucket | not a `staging/` key prefix |
 | KV | twin namespace | |
-| Durable Objects | nothing to do | DO storage is per-Worker; a separate Worker is already isolated |
+| Durable Objects | nothing to do, unless the binding names another Worker (`script_name`): then point staging's at that Worker's staging twin | DO storage is per-Worker; a separate Worker is already isolated. A `script_name` binding reaches the other Worker's objects, so staging naming the live one would reach live state; `secrets:check` fails on it |
 | Cron triggers | **explicit** `"triggers": { "crons": [] }` | inheritable — omitting the key inherits production's schedule, it does not disable it |
 | Secrets | `npm run secrets:push` | loads each Worker from its own file; see [the secret model](#one-declared-list-of-secrets-two-workers) |
 | Service bindings | **repoint** at the staging counterpart | |

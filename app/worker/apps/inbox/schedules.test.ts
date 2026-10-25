@@ -19,7 +19,7 @@ const REVISION = "f".repeat(64);
 let db: ReturnType<typeof database>;
 let wakes: { line: string; computer: unknown }[];
 // The person's line, recording each wake: which line it reached and which computer it named.
-const LINE = { idFromName: (name: string) => name, get: (line: string) => ({ fetch: async (_url: string, init: RequestInit) => {
+const LIVE_LINE = { idFromName: (name: string) => name, get: (line: string) => ({ fetch: async (_url: string, init: RequestInit) => {
   wakes.push({ line, computer: JSON.parse(init.body as string).computer });
   return new Response(null, { status: 204 });
 } }) };
@@ -35,7 +35,7 @@ async function call(who: AccessIdentity, method: string, route: string, input?: 
   const query = method === "GET" && input ? `?${new URLSearchParams(input as Record<string, string>)}` : "";
   const sends = method !== "GET" && input !== undefined;
   const response = await handleApp(new Request(`https://business.example.com/apps/inbox/api/${route}${query}`, {
-    method, ...(sends && { headers: { "content-type": "application/json" }, body: JSON.stringify(input) }) }), fakeEnv({ DB: db.DB, LINE }), who);
+    method, ...(sends && { headers: { "content-type": "application/json" }, body: JSON.stringify(input) }) }), fakeEnv({ DB: db.DB, LIVE_LINE }), who);
   return { status: response.status, json: await body(response) };
 }
 

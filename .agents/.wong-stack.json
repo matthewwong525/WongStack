@@ -51,6 +51,12 @@
     "cloudflareReadKey": {
       "status": "ready",
       "id": "2e3c14775c1db895623bdc94dadae432"
+    },
+    "liveLine": {
+      "workers": [
+        "wongstack-line",
+        "wongstack-line-staging"
+      ]
     }
   }
 }

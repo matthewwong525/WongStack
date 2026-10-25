@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { checkPrivateAccess } from '../check-private-access.mjs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { checkLineAddress, checkPrivateAccess } from '../check-private-access.mjs';
 import { pack, logger } from './fixtures/pack.mjs';
 
 const account = 'a'.repeat(32), productionId = 'b'.repeat(32), stagingId = 'c'.repeat(32);
@@ -132,6 +135,19 @@ test('an open switch beside Access identifiers, on one side only, or with a bypa
   const memoryBound = openConfig(); memoryBound.env.staging.r2_buckets = [{ binding: 'MEMORY_BUCKET' }];
   await assert.rejects(checkPrivateAccess(memoryBound, 'staging', provider(openResources())), /must not bind production memory/);
   await assert.rejects(checkPrivateAccess(openConfig(), 'staging', provider(openResources()), { ...config.env.staging, assets: config.assets }), /differs from the protected source/);
+});
+
+test('a live line Worker with a web address stops the check; no line, or one with none, passes', t => {
+  const dir = mkdtempSync(join(tmpdir(), 'wong-test-line-access-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const app = join(dir, 'wrangler.jsonc');
+  writeFileSync(app, JSON.stringify(config));
+  checkLineAddress(app);
+  const line = { name: 'demo-line', workers_dev: false, preview_urls: false, env: { staging: { name: 'demo-line-staging' } } };
+  writeFileSync(join(dir, 'wrangler.line.jsonc'), JSON.stringify(line));
+  checkLineAddress(app);
+  writeFileSync(join(dir, 'wrangler.line.jsonc'), JSON.stringify({ ...line, env: { staging: { ...line.env.staging, preview_urls: true } } }));
+  assert.throws(() => checkLineAddress(app), /the live line's Worker config: env.staging must set preview_urls to false/);
 });
 
 test('the check prints one open warning and lets an open deploy through', t => {

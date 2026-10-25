@@ -33,7 +33,8 @@ const REFUSED_FILES = new Set([".env", ".env.local", ".env.example", EXAMPLE]);
 /** A backstop for a credential pasted into `.dev.vars`; the file boundary above is the real control. */
 const SUSPICIOUS_KEY = /^(CLOUDFLARE_|CF_ACCESS_|CF_API|SKIP_AUTH$|WONG_ENVIRONMENT$)/;
 
-/** Bindings that must be twinned in `env.staging`. Durable Objects are left out: their storage is per-Worker. */
+/** Bindings that must be twinned in `env.staging`. A Durable Object in this Worker is left out, as its storage is
+ *  per-Worker; one in another Worker (`script_name`) is checked by `checkDurableObjectTwins`. */
 const BINDING_KEYS = [
   "d1_databases",
   "kv_namespaces",
@@ -360,6 +361,7 @@ function checkBindings(config) {
     for (const name of names) if (PRODUCTION_ONLY_SECRETS.has(name)) problems.push(`staging binding '${name}' is a live-app-only authority, such as private Access management; remove it.`);
   }
   problems.push(...checkQueueConsumers(config, staging));
+  problems.push(...checkDurableObjectTwins(config, staging));
 
   // The quiet one: copied into the environment but never repointed. A shared
   // downstream service is a legitimate if rare choice, so this warns.
@@ -372,6 +374,19 @@ function checkBindings(config) {
     }
   }
 
+  return problems;
+}
+
+/** A Durable Object in another Worker, such as the live line: staging names its own twin Worker. Returns failures. */
+function checkDurableObjectTwins(config, staging) {
+  const twins = staging.durable_objects?.bindings ?? [];
+  const problems = [];
+  for (const entry of (config.durable_objects?.bindings ?? []).filter((each) => each.script_name)) {
+    const twin = twins.find((each) => each.name === entry.name)?.script_name;
+    if (twin && twin !== entry.script_name) continue;
+    const why = twin ? "points at the same Worker, so staging would reach live objects" : "names no other Worker for it";
+    problems.push(`Durable Object binding '${entry.name}' points at the Worker '${entry.script_name}', and env.${STAGING_ENV} ${why}; point it at the staging twin.`);
+  }
   return problems;
 }
 

@@ -14,8 +14,10 @@
 # Behavior:
 #   - production branch (CF_PRODUCTION_BRANCH, else the remote's default
 #     branch, else `main`: wong_production_branch)
+#       → the live line's Worker, when the app has one (wong_deploy_line)
 #       → `wrangler deploy`  — the production Worker.
 #   - any other branch
+#       → the staging line's Worker, when the app has one
 #       → `wrangler deploy --env staging`
 #         (the deployed staging Worker — the thing that receives queue
 #          messages, cron triggers, and every other non-request handler)
@@ -126,6 +128,7 @@ if [ "$BRANCH" = "$PRODUCTION_BRANCH" ]; then
     REPO_VAR=(--var "GITHUB_REPOSITORY:$REPO_SLUG")
   fi
   node "$SCRIPT_DIR/check-private-access.mjs" --environment production
+  wong_deploy_line cf-deploy
   DEPLOY_LOG=$(mktemp)
   (cd "$APP_DIR" && "${WRANGLER[@]}" deploy ${REPO_VAR[@]+"${REPO_VAR[@]}"}) 2>&1 | tee "$DEPLOY_LOG"
   # Hand the live address to the workflow, which records it on the commit so
@@ -164,6 +167,8 @@ ALIAS=$(wong_preview_alias "$ALIAS" "$STAGING_NAME")
 [ -n "$ALIAS" ] || { echo "cf-deploy: ERROR — the staging Worker name '$STAGING_NAME' leaves no room for a preview alias" >&2; exit 1; }
 
 node "$SCRIPT_DIR/check-private-access.mjs" --environment staging
+
+wong_deploy_line cf-deploy --env staging
 
 echo "cf-deploy: preview branch — deploying the staging Worker ($STAGING_NAME)"
 (cd "$APP_DIR" && "${WRANGLER[@]}" deploy ${STAGING_ENV[@]+"${STAGING_ENV[@]}"})

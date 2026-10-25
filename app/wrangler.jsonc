@@ -65,13 +65,14 @@
 			"bucket_name": "wongstack-memory"
 		}
 	],
-	// The inbox's live line: one Durable Object per person, holding their computer's and open inbox's sockets and
-	// the schedule clock. An environment inherits the migration, not the binding. wiki/stack/live-line.md
+	// The live line, in its own Worker (wrangler.line.jsonc) so this one keeps preview links. line-2 drops the
+	// class this Worker held; Cloudflare refuses that while a binding keeps the name LINE. wiki/stack/live-line.md
 	"durable_objects": {
-		"bindings": [{ "name": "LINE", "class_name": "Line" }]
+		"bindings": [{ "name": "LIVE_LINE", "class_name": "Line", "script_name": "wongstack-line" }]
 	},
 	"migrations": [
-		{ "tag": "line-1", "new_sqlite_classes": ["Line"] }
+		{ "tag": "line-1", "new_sqlite_classes": ["Line"] },
+		{ "tag": "line-2", "deleted_classes": ["Line"] }
 	],
 	// Staging is a whole second Worker, not a binding swap. It needs its own
 	// `name` (without one, a branch deploy lands on production) and its own
@@ -103,7 +104,7 @@
 				"crons": []
 			},
 			"durable_objects": {
-				"bindings": [{ "name": "LINE", "class_name": "Line" }]
+				"bindings": [{ "name": "LIVE_LINE", "class_name": "Line", "script_name": "wongstack-line-staging" }]
 			}
 		},
 		"local": {
@@ -122,7 +123,7 @@
 				}
 			],
 			"durable_objects": {
-				"bindings": [{ "name": "LINE", "class_name": "Line" }]
+				"bindings": [{ "name": "LIVE_LINE", "class_name": "Line", "script_name": "wongstack-line-local" }]
 			}
 		}
 	}
