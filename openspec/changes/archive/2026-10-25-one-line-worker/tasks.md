@@ -35,4 +35,4 @@
 ## 7. Check, publish, tidy
 
 - [x] 7.1 Run `node .github/scripts/checks.mjs --worktree` and `bash scripts/cf-preview.sh --alias one-line-worker`: it prints a preview URL and deploys no line Worker
-- [ ] 7.2 `/save`; CI passes and posts the branch's preview link; on it, the inbox opens and refreshes with no line
+- [x] 7.2 `/save`; CI passes and posts the branch's preview link; on it, the inbox opens and refreshes with no line

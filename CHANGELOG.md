@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — One live line, for the live app only
+## 44.14.0 — One live line, for the live app only
 
 - **The test copy of your app has no live line.** Nothing real ever talked to the test line: your computer connects only to the live app. A preview's inbox now checks every few seconds instead of updating at once, and it never reaches the live line or a live computer.
 - **A change to the line is tried on this computer, then on the live app.** Your computer runs the app and its line together; after publishing, a tap in the live inbox shows it working.

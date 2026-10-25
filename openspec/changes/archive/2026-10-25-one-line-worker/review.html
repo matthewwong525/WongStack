@@ -11,7 +11,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · one-line-worker</title>
+<title>Review · 2026-10-25-one-line-worker</title>
 <style>
   /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
    look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
@@ -360,11 +360,11 @@
 })();
 </script>
 </head>
-<body data-change="one-line-worker">
+<body data-change="2026-10-25-one-line-worker">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>one-line-worker</h1>
+  <h1>2026-10-25-one-line-worker</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. <span class="copies">Saving a note copies all your notes.</span> Open a drawing and tap it to see it full screen.</p>
@@ -427,6 +427,7 @@
 <li class="decision card" id="decision-18" data-note="decision-18" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-25</p>Saved: all groups built and reviewed (no findings); local checks failed only on load timeouts in untouched tests, each passing alone; the preview from this computer bound no line and deployed no line Worker.</li>
 <li class="decision card" id="decision-19" data-note="decision-19" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-25</p>Assumed: every build keeps bundling the line, previews too, because the first save's preview failed in CI: the default branch's deploy script still sends a preview's test line and found no bundle. Each install's update would hit the same, so the build bundles it and the new deploy script ignores it on a preview.</li>
 <li class="decision card" id="decision-20" data-note="decision-20" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-25</p>Assumed: the line's bundle step clears the build's environment, because CI's preview build failed with <i>No environment found … &quot;staging&quot;</i>: wrangler reads <code>CLOUDFLARE_ENV</code>, and the line config no longer has a staging section. The tests' fake wrangler now refuses a missing environment the same way.</li>
+<li class="decision card" id="decision-21" data-note="decision-21" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-25</p>Archive checkpoint: archived for release 44.14.0. CI passed on the branch; on its preview the line answered 503 (no line) and the inbox list loaded by checking.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

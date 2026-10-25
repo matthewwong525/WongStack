@@ -1,6 +1,6 @@
 # One live line, for the live app only
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** one-line-worker
 **Open questions:** none
 
@@ -99,3 +99,4 @@ None.
 - **2026-10-25** — Saved: all groups built and reviewed (no findings); local checks failed only on load timeouts in untouched tests, each passing alone; the preview from this computer bound no line and deployed no line Worker.
 - **2026-10-25** — Assumed: every build keeps bundling the line, previews too, because the first save's preview failed in CI: the default branch's deploy script still sends a preview's test line and found no bundle. Each install's update would hit the same, so the build bundles it and the new deploy script ignores it on a preview.
 - **2026-10-25** — Assumed: the line's bundle step clears the build's environment, because CI's preview build failed with *No environment found … "staging"*: wrangler reads `CLOUDFLARE_ENV`, and the line config no longer has a staging section. The tests' fake wrangler now refuses a missing environment the same way.
+- **2026-10-25** — Archive checkpoint: archived for release 44.14.0. CI passed on the branch; on its preview the line answered 503 (no line) and the inbox list loaded by checking.
