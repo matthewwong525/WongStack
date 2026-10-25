@@ -55,4 +55,11 @@ It no longer starts with the computer. Taps then arrive by checking while a chat
 
 The helper writes one line per delivered tap, started or refused run, and ignored message to `~/.wong-stack/helper/log.jsonl`, so you can see everything the app caused. It never holds a message's text. It starts over once it reaches 1 MB, keeping the one before.
 
+## Change or test it
+
+The line is one Durable Object per person, [`line.ts`](../../app/worker/apps/inbox/line.ts), holding hibernating sockets.
+
+- **Answer every goodbye.** Its `webSocketClose` closes the socket back. Without it, the computer waits 10 seconds and sees the line drop (`1006`), not close.
+- **Walk it on staging from a script**, signed in as you: give [`companyClient`](../../scripts/employee-bootstrap.mjs) a `stateDir` holding a `target.json` that names the staging origin. The folder must be private (`0700`) and the file `0600`, or it refuses. Open `/apps/inbox/api/line?computer=<32 hex>`, then make an item, tap it, and time the *look now*. Close the test items and schedules after.
+
 Back to [the Cloudflare stack](README.md).
