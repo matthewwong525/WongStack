@@ -11,6 +11,7 @@ export const tapResult = inboxAction<{ id: string; state: string }>({
     await settleTaps(at);
     await mine(at, `UPDATE inbox_taps SET state = ?4, answered_at = ?5 WHERE installation_id = ?1 AND email = ?2 AND id = ?3
       AND state = 'delivering'`, id, state, at.now).run();
+    await at.wake(null);
     const found = await findTap(at, id);
     return found ? Response.json({ tap: found }) : fail("not_found", 404);
   },

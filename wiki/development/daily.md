@@ -71,7 +71,7 @@ A job that comes back, such as a weekly report or the books on the first of the 
 
 After the morning reply, the daily chat keeps watching each agent it started, and each chat you hand it, for up to 10 hours. It never reads or writes to a chat you started yourself and didn't hand over. Where your chat app can't watch other chats, `/daily` runs its steps in the chat and only reports.
 
-A small script notices when an agent stops; the chief only judges what the stop needs. Each stop lands in one of three buckets:
+A small script notices when an agent stops; the chief only judges what the stop needs. Each chat reports its own stop through the hooks it already runs, so the script hears it in seconds, even a quick second stop right after the chief's reply. It still looks at every agent once a minute, for a chat that reports nothing. Each stop lands in one of three buckets:
 
 1. **Keep going.** *Tests pass; next I'll update the wiki page.* The chief replies *keep going* and shows `Kept going: <title>`.
 2. **Obvious pick.** *Run the tests now (Recommended) / Skip them.* A safe answer, one that stays inside the work and can be undone, it picks and shows `Picked "Run the tests now": <title>`.

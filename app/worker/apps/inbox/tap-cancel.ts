@@ -11,6 +11,7 @@ export const tapCancel = inboxAction<{ id: string }>({
       WHERE installation_id = ?1 AND email = ?2 AND id = ?3 AND state = 'waiting' RETURNING id`, id, at.now).first();
     const found = await findTap(at, id);
     if (!found) return fail("not_found", 404);
+    if (cancelled) await at.wake(null);
     return cancelled ? Response.json({ tap: found }) : fail("not_waiting", 409);
   },
 });

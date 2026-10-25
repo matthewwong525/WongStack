@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { CopyText } from '@/components/CopyText'
 import { Button } from '@/components/ui/button'
 import { cancelTap, pending, PREVIEW, readTap, type Tap } from './api'
+import { useLine } from './line'
 
-/** How often a waiting tap asks where it stands: delivery takes one check-in of the computer, every 10 s. */
+/** How often a waiting tap asks where it stands while the line is down; an open line says when to look. */
 export const TAP_POLL_MS = 3_000
 
 const SAID: Record<Exclude<Tap['state'], 'waiting' | 'delivering' | 'failed' | 'changed'>, string> = {
@@ -19,11 +20,13 @@ export function TapLine({ tap, online, copy, onChange, onReload }: {
   const changed = useRef(onChange)
   useEffect(() => { changed.current = onChange })
   const live = pending(tap)
+  const ask = useCallback(() => void readTap(tap.id).then(next => changed.current(next), () => undefined), [tap.id])
+  const up = useLine(() => { if (live) ask() })
   useEffect(() => {
-    if (!live) return
-    const timer = setInterval(() => void readTap(tap.id).then(next => changed.current(next), () => undefined), TAP_POLL_MS)
+    if (!live || up) return
+    const timer = setInterval(ask, TAP_POLL_MS)
     return () => clearInterval(timer)
-  }, [tap.id, live])
+  }, [ask, live, up])
   // The list carries the start of a long answer: one to copy is read in full.
   const cut = tap.state === 'failed' && tap.text.length >= PREVIEW
   useEffect(() => {

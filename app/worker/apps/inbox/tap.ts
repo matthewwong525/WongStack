@@ -42,6 +42,7 @@ export const tap = inboxAction<Input>({
     const id = crypto.randomUUID().replaceAll("-", "");
     await mine(at, `INSERT INTO inbox_taps (installation_id, email, id, item_id, action, text, version, created_at, state)
       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 'waiting')`, id, row.id, input.action, input.text?.trim() ?? "", input.version, at.now).run();
+    await at.wake();
     return Response.json({ tap: await findTap(at, id) });
   },
 });

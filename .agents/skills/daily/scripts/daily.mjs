@@ -3,7 +3,8 @@
 // The assistant judges which steps are due and what a stop needs; the script holds the limits a model could drift past.
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync, watch as fsWatch } from 'node:fs';
+import { homedir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain, parseCli, usageError } from '../../memory/scripts/lib/cli.mjs';
@@ -29,6 +30,7 @@ const USAGE = `usage: daily.mjs who
        daily.mjs opened [--day <YYYY-MM-DD>] [--email <address>]
        daily.mjs open --step <text> --title <name> --brief <file> [--plan-first] [--day <YYYY-MM-DD>] [--email <address>]
        daily.mjs watch [--seconds 60] [--hours 10] [--once]
+       daily.mjs mark
        daily.mjs hand --agent <id|title|workspace>
        daily.mjs close --agent <id|title|workspace>
        daily.mjs reply --agent <id|title|workspace> --file <text file> --bucket keep-going|pick|person --label <line>
@@ -42,7 +44,7 @@ const USAGE = `usage: daily.mjs who
        daily.mjs remind --day <YYYY-MM-DD> --text <words>
        daily.mjs reminders [--day <YYYY-MM-DD>]
        daily.mjs done --id <fact id>
-  (every command after open also takes --day and --email)`;
+  (every command after open also takes --day and --email; mark takes nothing and prints nothing)`;
 
 /** Today on this computer's clock, as YYYY-MM-DD. */
 export function localDay(now = new Date()) {
@@ -379,7 +381,30 @@ async function clearEarlier({ stateDir, day, env, inbox }) {
 
 // Notices; closes only inbox items answered elsewhere. A stop prints once per idle spell, which ends when the agent
 // runs or the chief acts on it; `<day>.watch.json` keeps that across `--once` calls.
-export async function watch({ stateDir, day, email, call, env = process.env, print = console.log, seconds = 60, hours = 10, once = false, now = () => Date.now(), sleep = ms => new Promise(done => setTimeout(done, ms)), inbox = INBOX, cwd = process.cwd() }) {
+const AGENT_ID = /^(?!\.{1,2}$)[A-Za-z0-9._-]{1,128}$/;
+/** The folder where each chat's stop hook leaves a file named for its agent. */
+export const agentEvents = env => join(env.HOME || homedir(), '.wong-stack', 'agent-events');
+
+/** A chat's stop report: touches its file so a watching chief looks now. Outside Paseo it does nothing. */
+export function mark({ env = process.env, now = new Date() } = {}) {
+  const id = env.PASEO_AGENT_ID;
+  if (!AGENT_ID.test(id ?? '')) return { status: 'skipped' };
+  try { writeText(join(agentEvents(env), id), `${now.toISOString()}\n`); return { status: 'marked' }; } catch { return { status: 'skipped' }; }
+}
+
+/** Calls `notice(agentId)` on each stop report; null when the folder can not be watched, and the minute pass stays. */
+export function watchStops(env, notice, watcher = fsWatch) {
+  const dir = agentEvents(env);
+  try {
+    mkdirSync(dir, { recursive: true });
+    return watcher(dir, (_type, name) => notice(name ? String(name) : null));
+  } catch { return null; }
+}
+
+// A stop wakes the next pass within this long; reports in the same second share one pass.
+const STOP_WAIT_MS = 1000;
+
+export async function watch({ stateDir, day, email, call, env = process.env, print = console.log, seconds = 60, hours = 10, once = false, now = () => Date.now(), sleep = ms => new Promise(done => setTimeout(done, ms)), inbox = INBOX, cwd = process.cwd(), stops = () => null }) {
   const line = event => print(JSON.stringify(event));
   const at = { stateDir, day, env, inbox };
   const end = async reason => {
@@ -392,80 +417,91 @@ export async function watch({ stateDir, day, email, call, env = process.env, pri
   const start = now();
   let reporting = true;
   await clearEarlier(at);
-  for (;;) {
-    const state = readJson(file, { agents: {}, gone: [], notRead: false });
-    const rows = watched({ stateDir, day, email }, state.gone);
-    if (!rows.length) { await end('empty'); return; }
-    let list, pending;
-    try {
-      list = await call(['ls', '--global']);
-      pending = await call(['permit', 'ls']);
-      if (!Array.isArray(list) || !Array.isArray(pending)) throw new Error('Paseo did not return a list.');
-      state.notRead = false;
-    } catch (error) {
-      if (notPaseo(error)) { line({ event: 'unsupported', reason: error.message }); return; }
-      if (!state.notRead) line({ event: 'not-read', error: error.message });
-      state.notRead = true;
-    }
-    if (list) {
-      const log = actions({ stateDir, day });
-      for (const row of rows) {
-        const agent = list.find(entry => entry.id === row.agentId);
-        if (!agent || agent.status === 'closed') {
-          line({ event: 'gone', ...describe(row) });
-          state.gone.push(row.agentId);
-          delete state.agents[row.agentId];
-          await closeStatus(at, (agentId, entry) => agentId === row.agentId && !entry.done);
-          continue;
-        }
-        const seen = state.agents[row.agentId] ?? { idle: false, at: null, requests: [] };
-        const asks = pending.filter(request => request.agentId === row.agentId);
-        for (const request of asks.filter(ask => !seen.requests.includes(ask.id))) {
-          line({ event: 'asking', ...describe(row), request: { id: request.id, name: request.name, description: request.description ?? null } });
-        }
-        seen.requests = asks.map(ask => ask.id);
-        if (agent.status !== 'idle' && agent.status !== 'error') seen.idle = false;
-        else if (!asks.length) {
-          const actedSince = log.some(entry => entry.agent === row.agentId && seen.at && entry.at > seen.at);
-          const fresh = !seen.idle || actedSince;
-          // A choice the person made while it ran: its stop is the chief's cue to deliver it, never a planning stop.
-          if (row.held) {
-            if (fresh || !seen.held) {
-              line({ event: 'held', ...describe(row), choice: row.held });
-              Object.assign(seen, { idle: true, held: true, at: new Date(now()).toISOString() });
-            }
-          } else if (row.phase === 'planning' && fresh) {
-            const event = await planningStop(row, seen, { status: agent.status, call });
-            if (event) line(event);
-            seen.idle = true;
-            seen.at = new Date(now()).toISOString();
-          } else if (fresh) {
-            const last = await lastMessage(call, row.agentId);
-            line({ event: 'stopped', ...describe(row), status: agent.status, last });
-            seen.idle = true;
-            seen.at = new Date(now()).toISOString();
-            if (last !== null) seen.last = last;
+  let heard = false, ids = new Set();
+  const watcher = stops(name => { if (!name || ids.has(name)) heard = true; });
+  try {
+    for (;;) {
+      heard = false;
+      const state = readJson(file, { agents: {}, gone: [], notRead: false });
+      const rows = watched({ stateDir, day, email }, state.gone);
+      ids = new Set(rows.map(row => row.agentId));
+      if (!rows.length) { await end('empty'); return; }
+      let list, pending;
+      try {
+        list = await call(['ls', '--global']);
+        pending = await call(['permit', 'ls']);
+        if (!Array.isArray(list) || !Array.isArray(pending)) throw new Error('Paseo did not return a list.');
+        state.notRead = false;
+      } catch (error) {
+        if (notPaseo(error)) { line({ event: 'unsupported', reason: error.message }); return; }
+        if (!state.notRead) line({ event: 'not-read', error: error.message });
+        state.notRead = true;
+      }
+      if (list) {
+        const log = actions({ stateDir, day });
+        for (const row of rows) {
+          const agent = list.find(entry => entry.id === row.agentId);
+          if (!agent || agent.status === 'closed') {
+            line({ event: 'gone', ...describe(row) });
+            state.gone.push(row.agentId);
+            delete state.agents[row.agentId];
+            await closeStatus(at, (agentId, entry) => agentId === row.agentId && !entry.done);
+            continue;
           }
+          const seen = state.agents[row.agentId] ?? { idle: false, at: null, requests: [] };
+          const asks = pending.filter(request => request.agentId === row.agentId);
+          for (const request of asks.filter(ask => !seen.requests.includes(ask.id))) {
+            line({ event: 'asking', ...describe(row), request: { id: request.id, name: request.name, description: request.description ?? null } });
+          }
+          seen.requests = asks.map(ask => ask.id);
+          if (agent.status !== 'idle' && agent.status !== 'error') seen.idle = false;
+          else if (!asks.length) {
+            const actedSince = log.some(entry => entry.agent === row.agentId && seen.at && entry.at > seen.at);
+            const fresh = !seen.idle || actedSince;
+            // A choice the person made while it ran: its stop is the chief's cue to deliver it, never a planning stop.
+            if (row.held) {
+              if (fresh || !seen.held) {
+                line({ event: 'held', ...describe(row), choice: row.held });
+                Object.assign(seen, { idle: true, held: true, at: new Date(now()).toISOString() });
+              }
+            } else if (row.phase === 'planning' && fresh) {
+              const event = await planningStop(row, seen, { status: agent.status, call });
+              if (event) line(event);
+              seen.idle = true;
+              seen.at = new Date(now()).toISOString();
+            } else if (fresh) {
+              const last = await lastMessage(call, row.agentId);
+              line({ event: 'stopped', ...describe(row), status: agent.status, last });
+              seen.idle = true;
+              seen.at = new Date(now()).toISOString();
+              if (last !== null) seen.last = last;
+            }
+          }
+          state.agents[row.agentId] = seen;
         }
-        state.agents[row.agentId] = seen;
+        const ready = plansReady(state, rows, now());
+        if (ready) line(ready);
+        const live = rows.filter(row => !state.gone.includes(row.agentId));
+        // A missed write is retried next pass; only an inbox with no sign-in stops the reports.
+        if (reporting && !(await reportStatus({ ...at, rows: live, log, call, cwd }))) reporting = !(await inbox.off?.());
+        for (const item of inboxItems(stateDir, day)) {
+          if (!(await answeredElsewhere(item, { list, pending, log, seen: state.agents, call }))) continue;
+          await inboxClose({ stateDir, day, env, id: item.id, inbox });
+          line({ event: 'answered-elsewhere', title: item.title ?? null, agent: item.agent, item: item.id });
+        }
       }
-      const ready = plansReady(state, rows, now());
-      if (ready) line(ready);
-      const live = rows.filter(row => !state.gone.includes(row.agentId));
-      // A missed write is retried next pass; only an inbox with no sign-in stops the reports.
-      if (reporting && !(await reportStatus({ ...at, rows: live, log, call, cwd }))) reporting = !(await inbox.off?.());
-      for (const item of inboxItems(stateDir, day)) {
-        if (!(await answeredElsewhere(item, { list, pending, log, seen: state.agents, call }))) continue;
-        await inboxClose({ stateDir, day, env, id: item.id, inbox });
-        line({ event: 'answered-elsewhere', title: item.title ?? null, agent: item.agent, item: item.id });
-      }
+      writeJson(file, state);
+      if (once) return;
+      if (now() - start >= hours * 3600e3) { await end('time'); return; }
+      if (!watched({ stateDir, day, email }, state.gone).length) { await end('empty'); return; }
+      let waited = 0;
+      do {
+        const step = Math.min(STOP_WAIT_MS, seconds * 1000 - waited);
+        await sleep(step);
+        waited += step;
+      } while (waited < seconds * 1000 && !heard);
     }
-    writeJson(file, state);
-    if (once) return;
-    if (now() - start >= hours * 3600e3) { await end('time'); return; }
-    if (!watched({ stateDir, day, email }, state.gone).length) { await end('empty'); return; }
-    await sleep(seconds * 1000);
-  }
+  } finally { watcher?.close?.(); }
 }
 
 /** Adds a chat the person names to the watch list, once `paseo ls` finds it. */
@@ -703,6 +739,8 @@ const OPTIONS = {
 export async function main(argv = process.argv.slice(2), { env = process.env, signedIn, launch, call, memory, inbox, print = console.log } = {}) {
   const [command, ...args] = argv;
   if (command === '--help') { print(USAGE); return 0; }
+  // A hook runs mark: it never fails the chat, and prints nothing a hook could read as an answer.
+  if (command === 'mark') { mark({ env }); return 0; }
   const options = OPTIONS[command];
   if (!options) usageError(USAGE, command ? `unknown command ${command}` : 'name a command');
   const sub = command === 'inbox' ? args.shift() : null;
@@ -744,7 +782,7 @@ export async function main(argv = process.argv.slice(2), { env = process.env, si
     switch (command) {
       case 'opened': print(JSON.stringify(opened(at), null, 2)); return 0;
       case 'open': return out(open({ ...at, step: values.step, title: values.title, brief: values.brief, plan: Boolean(values['plan-first']), launch }));
-      case 'watch': await watch({ ...at, call: paseoCall, print, seconds: Number(values.seconds ?? 60), hours: Number(values.hours ?? 10), once: Boolean(values.once), ...(inbox && { inbox }) }); return 0;
+      case 'watch': await watch({ ...at, call: paseoCall, print, seconds: Number(values.seconds ?? 60), hours: Number(values.hours ?? 10), once: Boolean(values.once), stops: notice => watchStops(env, notice), ...(inbox && { inbox }) }); return 0;
       case 'inbox': return out(await (sub === 'add' ? inboxAdd({ ...at, kind: values.kind, agent: values.agent, title: values.title, file: values.file, request: values.request, ...(inbox && { inbox }) })
         : inboxClose({ ...at, id: values.id, ...(inbox && { inbox }) })));
       case 'hand': return out(await hand({ ...at, agent: values.agent, call: paseoCall }));

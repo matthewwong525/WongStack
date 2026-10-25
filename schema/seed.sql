@@ -94,3 +94,26 @@ VALUES
   ('11111111-1111-4111-8111-111111111111', 'fay@example.invalid', 'a0000000000000000000000000000004', 'agent',
    'Get Ronald''s files', 'ronald-files', '{"state":"done","proof":"Files in the shared drive: https://drive.example.invalid/ronald"}',
    '[]', 'seed-1', 1792828800000, 4102444800000, NULL);
+
+-- Fay's schedules: the weekday sales digest runs on the app's clock and started its last run, the stock check is
+-- paused, and the weekly newsletter draft is a read-only copy of one kept in Paseo on the same computer.
+INSERT INTO schedules
+  (installation_id, email, key, host, computer_id, name, summary, timing_json, revision, state, next_run_at, min_interval_ms, updated_at)
+VALUES
+  ('11111111-1111-4111-8111-111111111111', 'fay@example.invalid', 'sales-digest', 'app', 'c0ffee00c0ffee00c0ffee00c0ffee00',
+   'Sales digest', 'Sum up yesterday''s orders and refunds for the team.',
+   '{"mode":"recurring","cron":"0 9 * * 1-5","timezone":"America/Toronto","allowedLatenessMs":3600000}',
+   '1111111111111111111111111111111111111111111111111111111111111111', 'on', 1793019600000, 600000, 1792828800000),
+  ('11111111-1111-4111-8111-111111111111', 'fay@example.invalid', 'stock-check', 'app', 'c0ffee00c0ffee00c0ffee00c0ffee00',
+   'Stock check', 'Flag gift card designs running low before the weekend.',
+   '{"mode":"recurring","every":"1d","timezone":"UTC","allowedLatenessMs":3600000}',
+   '2222222222222222222222222222222222222222222222222222222222222222', 'paused', NULL, NULL, 1792828800000),
+  ('11111111-1111-4111-8111-111111111111', 'fay@example.invalid', 'newsletter-draft', 'paseo', 'c0ffee00c0ffee00c0ffee00c0ffee00',
+   'Newsletter draft', 'Draft Friday''s newsletter from the week''s launches.',
+   '{"mode":"recurring","cron":"0 14 * * 5","timezone":"America/Toronto","allowedLatenessMs":0}',
+   '', 'on', 1793383200000, NULL, 1792828800000);
+INSERT INTO schedule_runs
+  (installation_id, email, id, key, due_at, source, state, claimed_at, result, chat_title, agent_id, updated_at)
+VALUES
+  ('11111111-1111-4111-8111-111111111111', 'fay@example.invalid', 'b0000000000000000000000000000001', 'sales-digest', 1792760400000,
+   'clock', 'started', 1792760520000, NULL, 'Sales digest for Friday', 'agent-sales-digest-1', 1792760520000);

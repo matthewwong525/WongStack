@@ -1,18 +1,15 @@
-import { useCallback, useEffect, useState } from 'react'
-import { Loading } from '@/components/Loading'
+import { useCallback, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
 import { AgentCard } from './AgentCard'
 import { answerable, readInbox, sendTap, type Inbox, type Item, type Refusal, type Tap } from './api'
 import { useDesk } from './desk'
 import { answerOf, without } from './drafts'
 import { groupsOf, PLACES } from './groups'
+import { Header } from './Header'
 import { useKeys } from './keys'
+import { useFresh } from './line'
 import { SendBar } from './SendBar'
-
-/** How often an open, visible inbox looks again. */
-export const REFRESH_MS = 15_000
+import { Unready } from './Unready'
 
 const DECIDED: Item['kind'][] = ['start', 'question', 'approval']
 const REFUSED: Record<Refusal, string> = {
@@ -24,10 +21,6 @@ const REFUSED: Record<Refusal, string> = {
 function shown(items: Item[], answered: Record<string, Item>) {
   const open = new Set(items.map(item => item.id))
   return [...items.map(item => answered[item.id] ?? item), ...Object.values(answered).filter(item => !open.has(item.id))]
-}
-
-function Status({ online }: { online: boolean }) {
-  return online ? <Badge variant="secondary">Computer online</Badge> : <Badge variant="destructive">Computer offline</Badge>
 }
 
 function Empty() {
@@ -48,13 +41,7 @@ export function List() {
   const [said, setSaid] = useState<Record<string, string>>({})
   const [sending, setSending] = useState(false)
   const load = useCallback(() => readInbox().then(inbox => { setData(inbox); setError(false) }, () => setError(true)), [])
-  useEffect(() => {
-    void load()
-    const look = () => { if (document.visibilityState === 'visible') void load() }
-    const timer = setInterval(look, REFRESH_MS)
-    document.addEventListener('visibilitychange', look)
-    return () => { clearInterval(timer); document.removeEventListener('visibilitychange', look) }
-  }, [load])
+  useFresh(load)
   const items = data ? shown(data.items, answered) : []
   const groups = groupsOf(items)
   const decisions = groups.filter(group => group.place === 'Needs you')
@@ -75,15 +62,10 @@ export function List() {
   }
   useKeys({ item: desk.current, move: desk.move, pick: (item, n) => { if (desk.pick(item, n)) desk.move(item, 1) }, write: desk.write,
     clear: desk.clear, send: () => void send() })
-  if (!data) return <div className="grid gap-4">
-    <h1>Inbox</h1>
-    {error ? <><p role="alert">The inbox is unavailable.</p>
-      <Button type="button" variant="outline" className="justify-self-start" onClick={() => void load()}>Retry</Button></>
-      : <Loading label="Loading your inbox…" className="grid gap-3"><Skeleton className="h-24" /><Skeleton className="h-24" /></Loading>}
-  </div>
+  if (!data) return <Unready error={error} label="Loading your inbox…" onRetry={() => void load()} />
   // One column that never grows past the screen: an auto column would widen to a card's longest unbroken line.
   return <div className="grid grid-cols-1 gap-6">
-    <div className="flex flex-wrap items-center justify-between gap-2"><h1>Inbox</h1><Status online={data.computerOnline} /></div>
+    <Header online={data.computerOnline} />
     {items.length === 0 && <Empty />}
     {PLACES.map(place => {
       const cards = groups.filter(group => group.place === place)

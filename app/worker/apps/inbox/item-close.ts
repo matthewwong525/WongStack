@@ -9,6 +9,7 @@ export const itemClose = inboxAction<{ id: string }>({
     await mine(at, `UPDATE inbox_items SET closed_at = ?4, body = '' WHERE installation_id = ?1 AND email = ?2 AND id = ?3
       AND closed_at IS NULL`, id, at.now).run();
     await settleTaps(at);
+    await at.wake(null);
     return Response.json({ closed: true });
   },
 });

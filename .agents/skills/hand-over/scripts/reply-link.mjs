@@ -10,8 +10,12 @@ import { homedir } from 'node:os';
 import { basename, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain, parseCli, usageError } from '../../memory/scripts/lib/cli.mjs';
+import { primaryRoot } from '../../memory/scripts/lib/primary-root.mjs';
 import { lookCss } from '../../plan/scripts/look.mjs';
-import { checkin, closeItem, companyFor, inTime, listLink, probe, tapResult, upload } from './lib/inbox.mjs';
+import { computerId, readApps, rememberApp } from './lib/computer.mjs';
+import { logAction } from './lib/helper-log.mjs';
+import { checkin, closeItem, companyFor, inTime, listLink, openSocket, probe, tapResult, upload } from './lib/inbox.mjs';
+import { appLines, nextPoll, waiter } from './lib/line.mjs';
 import { alive, freePort, hasCloudflared, keyMatches, killTunnel, linkAnswers, signal, startTunnel } from './lib/tunnel.mjs';
 import { canWake, chatTarget, liveChats, wakeChat } from './lib/wake.mjs';
 
@@ -33,13 +37,12 @@ export const LIMITS = { text: 20_000, body: 128 * 1024, header: 300, action: 300
 const HOURS = 24;
 // Raised when the server or inbox helper changes: one from older code is swapped for this one. Every project on the
 // computer shares both, so a copy that changes either raises it past every other copy's number.
-const PROTOCOL = 7;
+export const PROTOCOL = 8;
 const ID = /^[0-9a-f]{32}$/;
 const ACTION = /^[a-z][a-z0-9-]{0,30}$/;
 const ROUTE = /^\/p\/([0-9a-f]{32})\/(alive|send|act)?$/;
 const TUNNEL_WAIT_MS = Number(process.env.REPLY_LINK_TUNNEL_WAIT_MS) || 30_000;
 const POLL_MS = Number(process.env.REPLY_LINK_POLL_MS) || 5000;
-const INBOX_POLL_MS = Number(process.env.REPLY_LINK_INBOX_POLL_MS) || 10_000;
 const SEND_GAP_MS = Number(process.env.REPLY_LINK_SEND_GAP_MS) || 5000;
 const PROBE_MS = 4000;
 // The app fails a collected tap after 2 minutes with no result; one older than this here is reported, never woken.
@@ -351,14 +354,15 @@ function commandOf(pid) {
 
 const isInboxHelper = pid => /reply-link\.mjs serve-inbox\b/.test(commandOf(pid));
 
-const writeInbox = (state, pid) => writeFileSync(state.inbox, `${JSON.stringify({ pid, protocol: PROTOCOL })}\n`, { mode: 0o600 });
+const writeInbox = (state, pid, service = false) =>
+  writeFileSync(state.inbox, `${JSON.stringify({ pid, protocol: PROTOCOL, ...(service && { service: true }) })}\n`, { mode: 0o600 });
 
-/** Starts the inbox server unless a current one runs: it delivers taps, and stops once no item is open. One from
- * older code is ended first: it reads its record only between rounds, so it would never stop for a newer one. */
+/** Starts the inbox server unless a current one, or the background helper, runs: it delivers taps, and stops once no
+ * item is open. One from older code is ended first: it reads its record only between rounds, so never stops for us. */
 export async function startInbox(state, env) {
   const running = readJson(state.inbox);
   if (alive(running?.pid)) {
-    if ((running.protocol ?? 1) >= PROTOCOL) return;
+    if (running.service || (running.protocol ?? 1) >= PROTOCOL) return;
     // A record outlives its helper, and the pid may since belong to another program: signal only our own helper.
     if (isInboxHelper(running.pid)) {
       signal(running.pid, 'SIGTERM');
@@ -389,6 +393,7 @@ export async function openInboxItem(spec, { env = process.env, clientFor = compa
     app: { cwd: spec.cwd, origin } };
   if (!(await upload(client, shown(item, body)))) return null;
   writeItem(state, item);
+  rememberApp(spec.cwd, env);
   await start(state, env);
   return { id: item.id, link: `${origin}/apps/inbox/?item=${item.id}` };
 }
@@ -467,9 +472,11 @@ const isEnded = (item, body, { live, now }) => item.deadline <= now || body === 
 /** The items whose taps can go this round, by app origin: `origin → {client, items}`. One that ran out, lost its chat
  * or its file closes; one whose app can't be reached waits, as does a rebuilt plan the app has not taken. */
 async function readyApps(state, { clientOf, chats, now }) {
-  const live = await chats();
   const apps = new Map();
-  for (const item of openItems(state)) {
+  const items = openItems(state);
+  // The helper's rounds with nothing open ask no chat list of Paseo.
+  const live = items.length ? await chats() : null;
+  for (const item of items) {
     const client = await clientOf(item);
     const body = bodyOf(item);
     if (isEnded(item, body, { live, now })) { await endItem(state, client, item); continue; }
@@ -494,24 +501,26 @@ async function reachable(state, clientOf) {
 /** One inbox round, each item through its own app: close what ran out, re-upload rebuilt plans, deliver taps.
  * `reported` and `lastWake` carry across rounds. Resolves to the open items whose app answers. */
 export async function inboxTick(state, { clientFor, wake = wakeChat, chats = liveChats, now = Date.now(), reported = new Map(),
-  lastWake = new Map(), wait = sleep }) {
+  lastWake = new Map(), wait = sleep, log = () => {} }) {
   const clientOf = clientsFor(clientFor);
   const earlier = report(reported);
   const apps = [...(await readyApps(state, { clientOf, chats, now })).values()];
   // Side by side: an app that never answers would otherwise hold another's taps past DELIVER_MS.
-  await Promise.all([earlier, ...apps.map(app => serveApp(state, app, { wake, reported, lastWake, wait }))]);
+  await Promise.all([earlier, ...apps.map(app => serveApp(state, app, { wake, reported, lastWake, wait, log }))]);
   return reachable(state, clientOf);
 }
 
 /** One app's round: collect its taps, deliver each, close what got its answer, and tell the app each outcome. */
-async function serveApp(state, { client, items }, { wake, reported, lastWake, wait }) {
+async function serveApp(state, { client, items }, { wake, reported, lastWake, wait, log }) {
   const taps = (await checkin(client, [...items.keys()])) ?? [];
   const gap = pacer({ lastWake, wait, collected: Date.now() });
   const outcomes = new Map();
   for (const tap of taps) {
     const item = items.get(tap.item);
     // An item this round closed takes no second answer; one made elsewhere was never collected for it.
-    const outcome = reported.get(tap.id)?.outcome ?? (item ? await deliver(state, item, tap, { wake, gap }) : 'expired');
+    const known = reported.get(tap.id)?.outcome;
+    const outcome = known ?? (item ? await deliver(state, item, tap, { wake, gap }) : 'expired');
+    if (!known) log({ event: 'tap', app: client.target(), item: tap.item, tap: tap.id, action: tap.action, outcome });
     outcomes.set(tap.id, { outcome, told: false, at: Date.now(), client });
     reported.set(tap.id, outcomes.get(tap.id));
     // Any item is answered once its answer is in the chat; a rebuilt plan opened again comes back as a new item.
@@ -520,18 +529,99 @@ async function serveApp(state, { client, items }, { wake, reported, lastWake, wa
   await report(outcomes);
 }
 
-/** Delivers taps every 10 s until no item that can reach its app is open and every outcome is reported. */
-async function serveInbox() {
-  const state = files();
-  const memory = { reported: new Map(), lastWake: new Map() };
-  const busy = async () => (await inboxTick(state, { clientFor: companyFor, ...memory })) || await report(memory.reported);
-  for (;;) {
-    while (await busy()) await sleep(INBOX_POLL_MS);
-    if (readJson(state.inbox)?.pid !== process.pid) return;
-    rmSync(state.inbox, { force: true });
-    // An item written as this server ended saw it still running and started none: take it up again.
-    if (!(await reachable(state, clientsFor(companyFor)))) return;
-    writeInbox(state, process.pid);
+/** The apps to keep a line to, `origin → {client, roots}`: each open item's app, and in service mode each remembered
+ * one. `roots` are the primary checkouts signed in to that app, where its schedule records live. */
+async function watchedApps(state, { clientFor, env, service }) {
+  const clientOf = clientsFor(clientFor);
+  const apps = new Map();
+  const add = (client, cwd) => {
+    let origin;
+    try { origin = client?.target(); } catch { return; /* its sign-in changed */ }
+    if (!origin) return;
+    if (!apps.has(origin)) apps.set(origin, { client, roots: [] });
+    let root;
+    try { root = primaryRoot(cwd).primary; } catch { return; /* the folder is gone */ }
+    if (!apps.get(origin).roots.includes(root)) apps.get(origin).roots.push(root);
+  };
+  for (const item of openItems(state)) add(await clientOf(item), appOf(item).cwd);
+  if (service) for (const { cwd } of readApps(env)) add(await clientOf({ app: { cwd } }), cwd);
+  return apps;
+}
+
+const MIRROR_MS = 15 * 60_000;
+/** The least time between two rounds, however many looks arrive. */
+const ROUND_GAP_MS = 1000;
+const appRuns = () => import('../../schedule/scripts/lib/app-runs.mjs');
+
+/** Starts each app's due schedules on this computer, and sends its Paseo schedules to the app every 15 minutes. */
+async function scheduleRounds(apps, { rounds, computer, log, mirrored, now = Date.now() }) {
+  let runs;
+  try { runs = await rounds(); } catch { return; }
+  await Promise.all([...apps].filter(([, app]) => app.roots.length).map(async ([origin, { client, roots }]) => {
+    try { await runs.runRound(client, { computer, roots, log }); } catch { /* the next round tries again */ }
+    if (now - (mirrored.get(origin) ?? -Infinity) < MIRROR_MS) return;
+    mirrored.set(origin, now);
+    try { await runs.mirrorRound(client, { computer, roots, log }); } catch { /* likewise */ }
+  }));
+}
+
+/** Waits until `gap` ms after `since`, or until stopped. */
+function rest(since, gap, stop) {
+  const left = since + gap - Date.now();
+  if (left <= 0 || stop?.aborted) return Promise.resolve();
+  return new Promise(done => {
+    const end = () => { clearTimeout(timer); stop?.removeEventListener('abort', end); done(); };
+    const timer = setTimeout(end, left);
+    stop?.addEventListener('abort', end, { once: true });
+  });
+}
+
+/** Makes this service the one inbox helper: one started for a single item would never stop for it. */
+function takeInbox(state) {
+  const running = readJson(state.inbox);
+  if (running?.pid !== process.pid && alive(running?.pid) && isInboxHelper(running.pid)) signal(running.pid, 'SIGTERM');
+  mkdirSync(state.dir, { recursive: true, mode: 0o700 });
+  writeInbox(state, process.pid, true);
+}
+
+/** True once this helper may end, no item reaching its app. Its record goes first: an item written meanwhile
+ * starts a new helper, or is taken up here. */
+async function released(state, clientFor) {
+  if (readJson(state.inbox)?.pid !== process.pid) return true;
+  rmSync(state.inbox, { force: true });
+  if (!(await reachable(state, clientsFor(clientFor)))) return true;
+  writeInbox(state, process.pid);
+  return false;
+}
+
+/** Delivers taps, keeping a live line to each app so a tap wakes it at once. Alone it stops once no item reaches its
+ * app; as the background helper (`service`) it never stops, and each round also starts this computer's schedules. */
+export async function serveInbox({ service = false, env = process.env, clientFor = companyFor, connect = openSocket, rounds = appRuns,
+  computer = computerId(env), log = entry => logAction(entry, { env }), signal: stop, pollFor = nextPoll, roundGap = ROUND_GAP_MS } = {}) {
+  const state = files(env);
+  const memory = { reported: new Map(), lastWake: new Map(), log };
+  const wakeUp = waiter();
+  const lines = appLines({ connect: client => connect(client, computer), computer, protocol: PROTOCOL, onLook: wakeUp.poke, log });
+  const mirrored = new Map();
+  if (service) takeInbox(state);
+  try {
+    while (!stop?.aborted) {
+      const started = Date.now();
+      let count = 1;
+      try {
+        const apps = await watchedApps(state, { clientFor, env, service });
+        lines.sync(new Map([...apps].map(([origin, app]) => [origin, app.client])));
+        count = await inboxTick(state, { clientFor, ...memory });
+        if (service) await scheduleRounds(apps, { rounds, computer, log, mirrored });
+      } catch (error) { if (!service) throw error; }
+      const owed = [...memory.reported.values()].some(untold);
+      if (!service && !count && !owed && await released(state, clientFor)) return;
+      await wakeUp.wait(pollFor(lines.allOpen() && !owed, env), stop);
+      await rest(started, roundGap, stop);
+    }
+  } finally {
+    lines.close();
+    if (service && readJson(state.inbox)?.pid === process.pid) rmSync(state.inbox, { force: true });
   }
 }
 
@@ -616,7 +706,7 @@ function list() {
 }
 
 if (isMain(import.meta.url)) {
-  const { values, positionals: [command, ...rest] } = parseCli({ usage: USAGE, allowPositionals: true, options: { header: { type: 'string' }, hours: { type: 'string' }, action: { type: 'string', multiple: true } } });
+  const { values, positionals: [command, ...rest] } = parseCli({ usage: USAGE, allowPositionals: true, options: { header: { type: 'string' }, hours: { type: 'string' }, action: { type: 'string', multiple: true }, service: { type: 'boolean' } } });
   const takes = { open: 1, close: 1, list: 0, serve: 2, 'serve-inbox': 0 }[command];
   if (takes === undefined || rest.length !== takes) usageError(USAGE, command ? `unknown command: ${[command, ...rest].join(' ')}` : 'missing command');
   const hours = Number(values.hours ?? HOURS);
@@ -624,9 +714,10 @@ if (isMain(import.meta.url)) {
   const header = values.header?.trim() ?? '';
   if (command === 'open' && (!header || /[\r\n]/.test(header) || header.length > LIMITS.header)) usageError(USAGE, '--header takes one line of text');
   if (command !== 'open' && (values.header !== undefined || values.hours !== undefined || values.action !== undefined)) usageError(USAGE, '--header, --hours, and --action go with open only');
+  if (values.service && command !== 'serve-inbox') usageError(USAGE, '--service goes with serve-inbox only');
   let actions;
   try { actions = checkActions((values.action ?? []).map(pair => pair.split(/=(.*)/s).slice(0, 2))); } catch (error) { usageError(USAGE, error.message); }
-  await { open: () => open(rest[0], { header, actions, hours }), close: () => close(rest[0]), list, serve: () => serve(Number(rest[0]), Number(rest[1])), 'serve-inbox': serveInbox }[command]();
+  await { open: () => open(rest[0], { header, actions, hours }), close: () => close(rest[0]), list, serve: () => serve(Number(rest[0]), Number(rest[1])), 'serve-inbox': () => serveInbox({ service: Boolean(values.service) }) }[command]();
   // An app call past its 3 s wait would keep the process, and the chat's answer, alive until it fails.
   if (command === 'open' || command === 'close') process.exit(process.exitCode ?? 0);
 }

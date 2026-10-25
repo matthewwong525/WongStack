@@ -3,7 +3,7 @@
 import { act, cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { expect, it, vi } from 'vitest'
 import { bar, card, choose, DAYS, FIRST, item, key, open, outlined, PLAN, QUESTION, SECOND, send, server, taps, tick, type } from './App.test.kit'
-import { REFRESH_MS } from './List'
+import { REFRESH_MS } from './line'
 import { TAP_POLL_MS } from './TapLine'
 
 // The agents a day's watch reports, and their morning plans.

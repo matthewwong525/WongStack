@@ -5,7 +5,7 @@ import { expect, it, vi } from 'vitest'
 import { routes } from '../../router'
 import { App } from './App'
 import { bar, calls, card, choose, DAYS, FIRST, item, key, open, outlined, PLAN, press, QUESTION, SECOND, send, server, taps, tapOf, tick, type } from './App.test.kit'
-import { REFRESH_MS } from './List'
+import { REFRESH_MS } from './line'
 import { TAP_POLL_MS } from './TapLine'
 it('groups what waits on the person, questions first, with the computer shown online', async () => {
   server.items = [item(PLAN, 'plan', 'One inbox', { workspace: 'lousy-dingo' }), item(FIRST, 'approval', 'Send the quote'),
