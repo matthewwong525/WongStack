@@ -491,14 +491,19 @@ test('in the inbox frame the page talks only on the port its first greeting carr
   say({ type: 'inbox:result', state: 'changed' });
   await tick();
   assert.equal(document.getElementById('ready-message').textContent, 'The plan changed. Reload to read it first.');
-  // A link leaves in a tab of its own; a jump within the page stays.
+  // A jump within the page scrolls in place: followed, it would load the inbox's own address in the frame.
+  const scrolled = [];
+  window.Element.prototype.scrollIntoView = function () { scrolled.push(this.id); };
+  const address = window.location.href;
+  const jump = document.querySelector('a[href="#why"]');
+  const tapped = new window.MouseEvent('click', { bubbles: true, cancelable: true });
+  assert.equal(jump.dispatchEvent(tapped), false, 'the page keeps the tap from loading anything');
+  assert.deepEqual([jump.target, window.location.href, scrolled], ['', address, ['why']]);
+  // A link leaves in a tab of its own.
   window.addEventListener('click', event => event.preventDefault());
   const wiki = document.querySelector('a[href="../wiki/README.md"]');
   wiki.click();
   assert.deepEqual([wiki.target, wiki.rel], ['_blank', 'noopener noreferrer']);
-  const jump = document.querySelector('a[href="#why"]');
-  jump.click();
-  assert.equal(jump.target, '');
   assert.deepEqual(parent.posted, [], 'nothing goes to the window');
   assert.equal(fetched, 0);
   assert.deepEqual(errors, []);
