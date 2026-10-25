@@ -28,6 +28,7 @@ These stay one-time checks:
 - **A check that triggers an outside service or a timed job.** A replay must not send a real email twice.
 - **A check whose steps hold a password or a key.** The file is saved with your code, where others read it.
 - **A check that clicked by a snapshot reference**, like `@e5`. The reference dies with the page.
+- **A check whose steps hold a web address**, even one inside sample data, such as a plan's page with its drawings' `http://www.w3.org/2000/svg`. A kept step opens only `{url}`, so the file never names a site.
 - **Anything but a page or a request**: a fact read from the database, evidence from the automatic checks, a phone app. A program can't repeat those without the assistant.
 
 ## When it replays
