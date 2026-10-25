@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (patch) — A plan's section links jump inside the inbox
+## 44.15.2 — A plan's section links jump inside the inbox
 
 - **A section link scrolls the plan.** In the inbox, tapping *Why*, *Changes*, *Decisions* or *Notes* at the top of a plan used to blank it. Now the plan scrolls to that section and stays on the screen. A link to another page still opens in its own tab.
 - **A real-browser check.** A test opens a plan in a sealed frame, as the inbox does, taps *Changes*, and fails if the plan leaves the frame or doesn't scroll.

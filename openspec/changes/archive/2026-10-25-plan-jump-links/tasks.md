@@ -10,4 +10,4 @@
 ## 2. Verification
 
 - [x] 2.1 The payload checks pass (`node --test scripts/tests/review.test.mjs scripts/tests/review-browser.test.mjs`, then `node .github/scripts/checks.mjs --worktree`)
-- [ ] 2.2 `/save`, then on the preview at 390 px: a freshly built plan in the inbox scrolls to *What Changes* on a tap of *Changes* and stays shown
+- [x] 2.2 `/save`, then on the preview at 390 px: a freshly built plan in the inbox scrolls to *What Changes* on a tap of *Changes* and stays shown

@@ -1,6 +1,6 @@
 # A plan's section links jump inside the inbox
 
-**Status:** building
+**Status:** ready-to-ship
 **Branch:** plan-jump-links
 **Open questions:** none
 
@@ -40,3 +40,5 @@ Non-goals: how the inbox frames a plan, and links that open other pages.
 - **2026-10-25** — Assumed: a plan sent before the fix stays as it is until its chat rebuilds it, because the inbox shows the page exactly as it was sent.
 - **2026-10-25** — Assumed: a plan opened on its own keeps today's links, because they already work there and change the address bar a reader can share.
 - **2026-10-25** — Built: every task but the preview check; a second look found nothing to fix.
+- **2026-10-25** — Checked on the preview at 390 px: tapping *Changes* on a freshly built plan in the inbox scrolled it to *What Changes*, and the plan stayed in the frame. The jump did not tuck the bars, which no scenario asks for.
+- **2026-10-25** — Archived to publish as 44.15.2.
