@@ -106,3 +106,4 @@ Non-goals: how the daily writes its questions, the review page's own bottom bar,
 - **2026-10-25** — Asked how to go on when Access's side panel couldn't be checked after the preview's sign-in ran out → chose to publish and note it. The panel keeps `sm:top-14`, so a strip may show above it when opened lower down the page; task 3.7 waits for someone to see it.
 - **2026-10-25** — Seen on the preview, not fixed here: tapping a heading link such as *Changes* inside a plan in the inbox blanks the plan's frame, likely because the page's `#` links resolve against the inbox's address.
 - **2026-10-25** — Archived to publish as 44.14.0; every task done, the side panel check skipped as chosen.
+- **2026-10-25** — Renumbered to 44.15.0: the live line change took 44.14.0 first.

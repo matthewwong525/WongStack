@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## 44.14.0 — The inbox reads well on a phone
+## 44.15.0 — The inbox reads well on a phone
 
 - **A question opened by its link shows as a question.** The daily's links used to show a question's raw code: braces, quote marks and `\n`. Now a question, an approval or a morning plan opened by its link shows the same card as the inbox, with its answers, the box for your own and *Send*. A plan still opens as its review page.
 - **Long answers wrap.** Each answer grows to as many lines as it needs and stays inside its card and the screen.
