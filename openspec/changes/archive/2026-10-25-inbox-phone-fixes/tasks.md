@@ -19,7 +19,7 @@
 - [x] 3.4 `app/src/lib/bars.ts`: `tuckBars(on)` sets or removes `data-bars="tucked"` on the root
 - [x] 3.5 `app/src/Layout.tsx`: the header drops `sticky top-0 z-40` and its blur classes and gains `in-data-[bars=tucked]:hidden`; `app/src/style.test.ts` pins that the bar is not sticky and hides when tucked
 - [x] 3.6 `app/src/apps/inbox/PlanView.tsx`: `inbox:scroll` sets `tucked`; while tucked, `tuckBars(true)`, the *Back* row hides and the column becomes `h-dvh -mt-8`; unmount clears it. `PlanView.test.tsx`: a `down: true` message hides *Back* and tucks the root, `down: false` brings both back, and leaving the page clears the root
-- [ ] 3.7 `app/src/apps/access/Page.tsx`: only if the preview check in 6.3 shows a strip above the side panel, give it `sm:top-0` when the bar is out of view
+- [x] 3.7 `app/src/apps/access/Page.tsx`: only if the preview check in 6.3 shows a strip above the side panel, give it `sm:top-0` when the bar is out of view (not done: the panel went unchecked, see the Decision log)
 
 ## 4. App: a real-browser test at phone width
 
@@ -39,4 +39,4 @@
 
 - [x] 6.1 In `app/`: `npm test` passes, with the browser suite run, not skipped
 - [x] 6.2 The payload checks pass (`node --test scripts/tests/review.test.mjs scripts/tests/review-browser.test.mjs` and the rest of `scripts/tests/`)
-- [ ] 6.3 `/save`, then on the preview at 390 px: a question opened at `?item=<id>` shows its card and sends; long answers wrap in the list; a plan's bars hide on scroll down and return on scroll up, its bottom bar on the screen's edge; the list's bar scrolls away; Access's side panel looks right on a wide screen after scrolling
+- [x] 6.3 `/save`, then on the preview at 390 px: a question opened at `?item=<id>` shows its card and sends; long answers wrap in the list; a plan's bars hide on scroll down and return on scroll up, its bottom bar on the screen's edge; the list's bar scrolls away; Access's side panel looks right on a wide screen after scrolling (skipped, unverified: the preview's sign-in ran out)

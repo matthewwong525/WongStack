@@ -1,6 +1,6 @@
 # The inbox reads well on a phone
 
-**Status:** building
+**Status:** ready-to-ship
 **Branch:** pumped-parrot
 **Open questions:** none
 
@@ -102,3 +102,7 @@ Non-goals: how the daily writes its questions, the review page's own bottom bar,
 - **2026-10-25** — Check: `app/knip.jsonc` reads the new browser config, so its test files count as used.
 - **2026-10-25** — Built: every task but the preview checks; the tracking of scroll resets when the window's height changes, so tucking the bars near a plan's bottom doesn't bring them straight back.
 - **2026-10-25** — Saved to check on the preview (task 6.3): the second look's three fixes are in (bars return after a plan reloads, browser-test screenshots ignored, a sample long question seeded for Fay).
+- **2026-10-25** — Checked on the preview at 390 px: a question opened by its link shows its card and sends, long answers wrap in the list with no sideways scroll, a plan's bars hide on reading down and return on scroll up and at the top, and the list's bar scrolls away. The seeded question has two answers, not the scenario's three.
+- **2026-10-25** — Asked how to go on when Access's side panel couldn't be checked after the preview's sign-in ran out → chose to publish and note it. The panel keeps `sm:top-14`, so a strip may show above it when opened lower down the page; task 3.7 waits for someone to see it.
+- **2026-10-25** — Seen on the preview, not fixed here: tapping a heading link such as *Changes* inside a plan in the inbox blanks the plan's frame, likely because the page's `#` links resolve against the inbox's address.
+- **2026-10-25** — Archived to publish as 44.14.0; every task done, the side panel check skipped as chosen.

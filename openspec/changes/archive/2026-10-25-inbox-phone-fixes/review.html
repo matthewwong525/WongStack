@@ -11,7 +11,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · inbox-phone-fixes</title>
+<title>Review · 2026-10-25-inbox-phone-fixes</title>
 <style>
   /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
    look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
@@ -360,11 +360,11 @@
 })();
 </script>
 </head>
-<body data-change="inbox-phone-fixes">
+<body data-change="2026-10-25-inbox-phone-fixes">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>inbox-phone-fixes</h1>
+  <h1>2026-10-25-inbox-phone-fixes</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. <span class="copies">Saving a note copies all your notes.</span> Open a drawing and tap it to see it full screen.</p>
@@ -436,6 +436,10 @@
 <li class="decision card" id="decision-12" data-note="decision-12" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-10-25</p>Check: <code>app/knip.jsonc</code> reads the new browser config, so its test files count as used.</li>
 <li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-25</p>Built: every task but the preview checks; the tracking of scroll resets when the window's height changes, so tucking the bars near a plan's bottom doesn't bring them straight back.</li>
 <li class="decision card" id="decision-14" data-note="decision-14" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-25</p>Saved to check on the preview (task 6.3): the second look's three fixes are in (bars return after a plan reloads, browser-test screenshots ignored, a sample long question seeded for Fay).</li>
+<li class="decision card" id="decision-15" data-note="decision-15" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-25</p>Checked on the preview at 390 px: a question opened by its link shows its card and sends, long answers wrap in the list with no sideways scroll, a plan's bars hide on reading down and return on scroll up and at the top, and the list's bar scrolls away. The seeded question has two answers, not the scenario's three.</li>
+<li class="decision card" id="decision-16" data-note="decision-16" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-25</p>Asked how to go on when Access's side panel couldn't be checked after the preview's sign-in ran out → chose to publish and note it. The panel keeps <code>sm:top-14</code>, so a strip may show above it when opened lower down the page; task 3.7 waits for someone to see it.</li>
+<li class="decision card" id="decision-17" data-note="decision-17" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-25</p>Seen on the preview, not fixed here: tapping a heading link such as <i>Changes</i> inside a plan in the inbox blanks the plan's frame, likely because the page's <code>#</code> links resolve against the inbox's address.</li>
+<li class="decision card" id="decision-18" data-note="decision-18" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-25</p>Archived to publish as 44.14.0; every task done, the side panel check skipped as chosen.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
