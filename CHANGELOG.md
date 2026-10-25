@@ -3,6 +3,12 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 44.11.1 — How to test the live line
+
+The live line's page now says how to test it against your test app from a script, and why the line must answer a goodbye.
+
+**Updating.** Nothing to do.
+
 ## 44.11.0 — A live line to your computer, and schedules in the app
 
 - **Taps reach your chat right away.** Your computer keeps one line open to your company app, connecting out the way a browser tab does. When you tap in the inbox, the app says *look now*, and your computer picks the tap up at once. Nothing opens a way into your computer: no open port and no webhook. If the line drops, your computer checks every 10 seconds, as before, until it reconnects.
