@@ -4,6 +4,7 @@ import { Button, buttonVariants } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Textarea } from '@/components/ui/textarea'
+import { cn } from '@/lib/utils'
 import { answerable, type Item, type Tap } from './api'
 import { cardId, ownId, type Desk } from './desk'
 import { choicesOf, multi, pickOf, say } from './drafts'
@@ -27,6 +28,7 @@ function Who({ item, question }: { item: Item; question: string }) {
   </p>
 }
 
+// Merged with `cn`, not appended, or the button's own `whitespace-nowrap`, `h-9` and `justify-center` win.
 const ROW = 'h-auto min-h-11 w-full cursor-pointer justify-start gap-3 py-2.5 text-left whitespace-normal wrap-anywhere'
 const picks = (event: KeyboardEvent) => event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')
 
@@ -40,17 +42,17 @@ export function Choices({ item, desk, question }: Props & { question: string }) 
   if (multi(item)) return <div role="group" aria-label={question} className="grid gap-2">
     {choicesOf(item).map(({ label }, n) => {
       const on = draft?.ticks?.includes(n) === true
-      return <div key={n} className={buttonVariants({ variant: 'outline', className: ROW })} onClick={() => desk.pick(item, n)}>
-        <Key n={n} on={false} /><Checkbox checked={on} aria-label={label} /><span>{linkify(label)}</span>
+      return <div key={n} className={cn(buttonVariants({ variant: 'outline' }), ROW)} onClick={() => desk.pick(item, n)}>
+        <Key n={n} on={false} /><Checkbox checked={on} aria-label={label} /><span className="min-w-0">{linkify(label)}</span>
       </div>
     })}
   </div>
   return <div role="radiogroup" aria-label={question} className="grid gap-2">
     {choicesOf(item).map(({ label }, n) => {
       const on = draft?.pick === n
-      return <div key={n} role="radio" aria-checked={on} tabIndex={0} className={buttonVariants({ variant: on ? 'default' : 'outline', className: ROW })}
+      return <div key={n} role="radio" aria-checked={on} tabIndex={0} className={cn(buttonVariants({ variant: on ? 'default' : 'outline' }), ROW)}
         onClick={() => desk.pick(item, n)} onKeyDown={event => { if (picks(event)) { event.preventDefault(); desk.pick(item, n) } }}>
-        <Key n={n} on={on} /><span>{linkify(label)}</span>
+        <Key n={n} on={on} /><span className="min-w-0">{linkify(label)}</span>
       </div>
     })}
   </div>

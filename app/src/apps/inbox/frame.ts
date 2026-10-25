@@ -6,6 +6,8 @@ const message = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('inbox:tap'), action: z.string(), text: z.string().max(20_000) }),
   z.strictObject({ type: z.literal('inbox:notes-get'), key }),
   z.strictObject({ type: z.literal('inbox:notes-set'), key, value: z.string().max(1_000_000) }),
+  // Which way the person reads, so the inbox can tuck its bars while they read down.
+  z.strictObject({ type: z.literal('inbox:scroll'), down: z.boolean() }),
 ])
 export type FrameMessage = z.infer<typeof message>
 
@@ -15,10 +17,11 @@ export function notesKey(body: string): string | null {
   return change ? `wong-review3:${change}` : null
 }
 
-/** The page's message, or null: one of three kinds, each field checked, a tap only on an action its item offers, and
+/** The page's message, or null: one of four kinds, each field checked, a tap only on an action its item offers, and
  *  notes only under the plan's own key. */
 export function frameMessage(data: unknown, plan: { actions: string[]; key: string | null }): FrameMessage | null {
   const parsed = message.safeParse(data).data ?? null
   if (parsed?.type === 'inbox:tap') return parsed.action === 'send' || plan.actions.includes(parsed.action) ? parsed : null
+  if (parsed?.type === 'inbox:scroll') return parsed
   return parsed && parsed.key === plan.key ? parsed : null
 }

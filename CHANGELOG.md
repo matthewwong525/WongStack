@@ -9,6 +9,15 @@
 
 **Updating.** If you deleted your old test line and saw an error about reading memberships, check that the line is gone from the Workers list in your Cloudflare dashboard; you don't need a new permission. Nothing else to do.
 
+## 44.15.0 — The inbox reads well on a phone
+
+- **A question opened by its link shows as a question.** The daily's links used to show a question's raw code: braces, quote marks and `\n`. Now a question, an approval or a morning plan opened by its link shows the same card as the inbox, with its answers, the box for your own and *Send*. A plan still opens as its review page.
+- **Long answers wrap.** Each answer grows to as many lines as it needs and stays inside its card and the screen.
+- **A plan gets the whole screen while you read.** Scrolling down a plan hides the app's bar and *Back*; scrolling up brings them back. On every other page the app's bar now scrolls away with the page instead of staying pinned.
+- **A phone-width check.** The app's tests now open the inbox in a real browser 390 px wide and fail if a long answer leaves its card. They use your computer's Chrome; with none, they're skipped on your computer and still run in CI.
+
+**Updating.** Nothing to do. A plan sent before the update keeps its bars pinned until its chat rebuilds it.
+
 ## 44.14.0 — One live line, for the live app only
 
 - **The test copy of your app has no live line.** Nothing real ever talked to the test line: your computer connects only to the live app. A preview's inbox now checks every few seconds instead of updating at once, and it never reaches the live line or a live computer.

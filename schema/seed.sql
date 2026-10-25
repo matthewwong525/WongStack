@@ -77,7 +77,8 @@ INSERT INTO wong_access_key_grants VALUES
   ('11111111-1111-4111-8111-111111111111', 'dana@example.invalid', 'code', 'write', 1);
 
 -- A sample day in Fay's inbox, one agent per group: the ad brief's morning plan waits on her Go (Needs you), the
--- landing-page check is working, and Ronald's files are done with their proof. Fay, the Admin, can open the inbox.
+-- landing-page check is working, Ronald's files are done with their proof, and the brief asks which offer leads, its
+-- long answers wrapping. Fay, the Admin, can open the inbox.
 INSERT INTO inbox_items
   (installation_id, email, id, kind, title, workspace, body, actions, version, created_at, closes_at, closed_at)
 VALUES
@@ -93,6 +94,10 @@ VALUES
    '[]', 'seed-1', 1792828800000, 4102444800000, NULL),
   ('11111111-1111-4111-8111-111111111111', 'fay@example.invalid', 'a0000000000000000000000000000004', 'agent',
    'Get Ronald''s files', 'ronald-files', '{"state":"done","proof":"Files in the shared drive: https://drive.example.invalid/ronald"}',
+   '[]', 'seed-1', 1792828800000, 4102444800000, NULL),
+  ('11111111-1111-4111-8111-111111111111', 'fay@example.invalid', 'a0000000000000000000000000000005', 'question',
+   'Which offer leads the BFCM ads?', 'bfcm-brief',
+   '{"text":"The brief needs one offer to lead the ads; the other goes lower on the page.\n\nWhich offer should lead?","options":["Lead with the $20 gift card for every order over $80 this weekend, because last year''s gift card ads brought the most new buyers and the VIP launch notes say returning buyers asked for it by name.","Lead with free shipping on every order and no minimum, because the cart survey says surprise shipping costs were the top reason people left, and it costs less than the gift card on small orders."]}',
    '[]', 'seed-1', 1792828800000, 4102444800000, NULL);
 
 -- Fay's schedules: the weekday sales digest runs on the app's clock and started its last run, the stock check is

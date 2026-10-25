@@ -1,5 +1,5 @@
 import { fileURLToPath } from "node:url";
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 
 // A config of its own, not `vite.config.ts`: that one loads the Cloudflare plugin, which builds and serves the
 // Worker. This suite imports the Worker's modules directly and needs no runtime around them.
@@ -8,6 +8,8 @@ export default defineConfig({
   resolve: { alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) } },
   test: {
     include: ["worker/**/*.test.ts", "src/**/*.test.{ts,tsx}"],
+    // A real browser runs these: vitest.config.browser.ts.
+    exclude: [...configDefaults.exclude, "src/**/*.browser.test.tsx"],
     environment: "node",
     // What the ready-made parts ask of a browser that the test DOM lacks.
     setupFiles: ["src/dom.test.setup.ts"],
