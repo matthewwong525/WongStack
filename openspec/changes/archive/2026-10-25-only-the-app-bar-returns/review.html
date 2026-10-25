@@ -11,7 +11,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · only-the-app-bar-returns</title>
+<title>Review · 2026-10-25-only-the-app-bar-returns</title>
 <style>
   /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
    look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
@@ -360,11 +360,11 @@
 })();
 </script>
 </head>
-<body data-change="only-the-app-bar-returns">
+<body data-change="2026-10-25-only-the-app-bar-returns">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>only-the-app-bar-returns</h1>
+  <h1>2026-10-25-only-the-app-bar-returns</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. <span class="copies">Saving a note copies all your notes.</span> Open a drawing and tap it to see it full screen.</p>
@@ -407,6 +407,7 @@
 <li class="decision card" id="decision-3" data-note="decision-3" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-25</p>Assumed: a plan built before this update keeps today's behavior, because its page doesn't say when it is at the top.</li>
 <li class="decision card" id="decision-4" data-note="decision-4" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-25</p>Built: the page stays at its top until the reader turns down, so creeping a few px past the top zone doesn't hide <i>Back</i> or move the plan; the second look caught it.</li>
 <li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-25</p>Assumed: when a plan shows the line about a sent tap, the returning bar covers that line until the next read down or the top, because it shows in both places and moving it would move the plan again.</li>
+<li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-25</p>Archived to publish as 44.15.4; every task done. The local pre-check's script tests failed three runs on unrelated timing tests (<code>live-line.test.mjs</code>, <code>hand-over.test.mjs</code>), a different one each run, each passing alone on a loaded machine; the online checks decide.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
@@ -775,8 +776,8 @@
   });
 
   // ── direct links: #/why, #/<n>, #/decisions/<n> ──
-  function jump() {
-    const m = /^#\/(?:decisions\/(\d+)|(\d+)|(why|changes|decisions))$/.exec(location.hash);
+  function jump(hash) {
+    const m = /^#\/(?:decisions\/(\d+)|(\d+)|(why|changes|decisions))$/.exec(typeof hash === 'string' ? hash : location.hash);
     const el = m ? $(m[1] ? 'decision-' + m[1] : m[2] ? 'item-' + m[2] : m[3]) : null;
     if (!el) return;
     all('.hit', function (n) { n.classList.remove('hit'); });
@@ -1043,10 +1044,18 @@
     setLive('inbox'); offer(m); render();
     window.addEventListener('scroll', scrolled, { passive: true });
   });
-  // In a frame, a link opens its own tab: the frame never leaves this page.
+  // In a frame, a link opens its own tab and a # link scrolls in place: the frame never leaves this page.
+  // A srcdoc page resolves #why against the inbox's address, so following it would load the inbox here.
   document.addEventListener('click', function (e) {
     const a = window.parent !== window && e.target.closest ? e.target.closest('a[href]') : null;
-    if (a && a.getAttribute('href').charAt(0) !== '#') { a.target = '_blank'; a.rel = 'noopener noreferrer'; }
+    if (!a) return;
+    const href = a.getAttribute('href');
+    if (href.charAt(0) !== '#') { a.target = '_blank'; a.rel = 'noopener noreferrer'; return; }
+    e.preventDefault();
+    if (href.charAt(1) === '/') { jump(href); return; }
+    let el = null;
+    try { el = document.getElementById(decodeURIComponent(href.slice(1))); } catch (err) { /* a bad escape names nothing */ }
+    if (el) el.scrollIntoView({ block: 'start' });
   }, true);
   window.addEventListener('hashchange', jump);
   render();

@@ -1,5 +1,9 @@
 # Only the app's bar comes back on a plan
 
+**Status:** ready-to-ship
+**Branch:** sticky-header-behavior
+**Open questions:** none
+
 ## Why
 
 Matt said that when he scrolls back up a plan in the inbox, the bars that return push the whole plan down. Both the app's bar and the *Back* row come back, so the jump is big and the line he was reading moves. He wants the app's bar to come back, but *Back* and the plan's name should stay at the top of the plan.
@@ -52,3 +56,4 @@ Non-goals: the plan's own bottom bar, the line about a sent tap, and the app's b
 - **2026-10-25** — Assumed: a plan built before this update keeps today's behavior, because its page doesn't say when it is at the top.
 - **2026-10-25** — Built: the page stays at its top until the reader turns down, so creeping a few px past the top zone doesn't hide *Back* or move the plan; the second look caught it.
 - **2026-10-25** — Assumed: when a plan shows the line about a sent tap, the returning bar covers that line until the next read down or the top, because it shows in both places and moving it would move the plan again.
+- **2026-10-25** — Archived to publish as 44.15.4; every task done. The local pre-check's script tests failed three runs on unrelated timing tests (`live-line.test.mjs`, `hand-over.test.mjs`), a different one each run, each passing alone on a loaded machine; the online checks decide.

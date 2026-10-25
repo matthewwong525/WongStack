@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (patch) — Only the app's bar comes back on a plan
+## 44.15.4 — Only the app's bar comes back on a plan
 
 - **Scrolling back up a plan no longer pushes it down.** Only the app's bar comes back, laid over the plan, so the line you were reading stays put. *Back* and where the plan came from show again when you reach the plan's top. Reading down still hides everything.
 
