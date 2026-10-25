@@ -484,16 +484,16 @@ A push to the default branch SHALL be checked like a preview before any wrangler
 - **WHEN** a build on the default branch binds a database or claims a route or custom domain that the default branch's own config does not
 - **THEN** the deploy stops at taking the build, before any wrangler call, and an unchanged build still deploys
 
-### Requirement: Setup creates the line Workers before the first save
+### Requirement: Setup prepares the live line for its first publish
 
-Setup SHALL create the live and staging line Workers, with their databases bound and no web address, before the app's config points at them, so the first save's deploy, which runs the default branch's scripts, finds them. An install that already holds the line in its app SHALL get the same on its update, and rerunning setup SHALL change nothing that is already right.
+Setup SHALL write the live line's settings, with the live database bound and no web address, and point the live app at it, so the first publish makes the line Worker before the app. Setup SHALL make no test line, and SHALL deploy nothing over a Worker of the line's name that this install has no record of making. An install whose settings hold a test line SHALL have it removed from them on its update, and rerunning setup SHALL change nothing that is already right.
 
 #### Scenario: A new install
 
 - **WHEN** setup provisions a new app
-- **THEN** both line Workers exist before the first save, and the first save prints a preview link
+- **THEN** its settings name one line Worker, for the live app, the first save prints a preview link, and the first publish makes the line before the app
 
-#### Scenario: An install updating from an app that holds the line
+#### Scenario: An install with a test line updates
 
-- **WHEN** the update's setup step runs on an install whose app holds the line
-- **THEN** both line Workers are created from this computer before the update's first save
+- **WHEN** the update's setup step runs on an install whose settings hold a test line
+- **THEN** the test line is gone from its line and app settings, the rest of each file is unchanged, and a rerun changes nothing

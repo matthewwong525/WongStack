@@ -119,17 +119,19 @@ function configFile(t, text, name = 'wrangler.jsonc') {
   return join(dir, name);
 }
 
-test('the live line keeps to its own two Workers, each on the app\'s database for it, with no web address', () => {
+test('the live line keeps to its one Worker, on the app\'s live database, with no web address and no test line', () => {
   const db = { binding: 'DB', database_name: 'app-db', database_id: 'prod' };
   const stagingDb = { binding: 'DB', database_name: 'app-db-staging', database_id: 'staging' };
   const app = { name: 'app', d1_databases: [db], env: { staging: { name: 'app-staging', d1_databases: [stagingDb] } } };
-  const line = { name: 'app-line', workers_dev: false, preview_urls: false, d1_databases: [db], env: { staging: { name: 'app-line-staging', d1_databases: [stagingDb] } } };
+  const local = { name: 'app-line-local', d1_databases: [{ ...db, remote: false }] };
+  const line = { name: 'app-line', workers_dev: false, preview_urls: false, d1_databases: [db], env: { local } };
   assert.equal(lineProblem(line, app), null);
-  assert.match(lineProblem({ ...line, env: { staging: { ...line.env.staging, name: 'app-line' } } }, app), /its staging Worker is 'app-line', the live line/);
-  assert.match(lineProblem({ ...line, env: { staging: { ...line.env.staging, d1_databases: [db] } } }, app), /its staging line binds 'app-db' \(prod\), not the app's staging database 'app-db-staging'/);
-  assert.match(lineProblem({ ...line, d1_databases: [] }, app), /its production line binds no database/);
+  assert.match(lineProblem({ ...line, env: { local, staging: { name: 'app-line-staging', d1_databases: [stagingDb] } } }, app), /previews have no line; remove env.staging/);
+  assert.match(lineProblem({ ...line, d1_databases: [stagingDb] }, app), /its line binds 'app-db-staging' \(staging\), not the app's production database 'app-db'/);
+  assert.match(lineProblem({ ...line, d1_databases: [] }, app), /its line binds no database/);
   assert.match(lineAddressProblem({ ...line, preview_urls: undefined }), /its top level must set preview_urls to false/);
-  assert.match(lineAddressProblem({ ...line, env: { staging: { ...line.env.staging, workers_dev: true } } }), /env.staging must set workers_dev to false/);
+  assert.match(lineAddressProblem({ ...line, env: { local: { ...local, workers_dev: true } } }), /env.local must set workers_dev to false/);
+  assert.match(lineAddressProblem({ ...line, env: { local: { ...local, routes: [{ pattern: 'line.example.com/*' }] } } }), /env.local claims a route/);
   assert.match(lineAddressProblem({ ...line, routes: [{ pattern: 'line.example.com/*' }] }), /claims a route or custom domain/);
 });
 

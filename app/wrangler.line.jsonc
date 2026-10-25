@@ -1,5 +1,5 @@
-// The live line's own Worker: no web address, and the app points at it. Deploys always use the default branch's
-// copy of this file; a branch picks only the line's code. wiki/stack/live-line.md
+// The live line's own Worker, for the live app only: no web address, and the app points at it. Deploys use the
+// default branch's copy of this file; a branch picks only the line's code. wiki/stack/live-line.md
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "wongstack-line",
@@ -14,13 +14,6 @@
 	"durable_objects": { "bindings": [{ "name": "LINE", "class_name": "Line" }] },
 	"migrations": [{ "tag": "line-1", "new_sqlite_classes": ["Line"] }],
 	"env": {
-		"staging": {
-			"name": "wongstack-line-staging",
-			"d1_databases": [
-				{ "binding": "DB", "database_name": "wongstack-db-staging", "database_id": "0e5a5be6-1eca-4b99-ab10-5decaa4c55f5" }
-			],
-			"durable_objects": { "bindings": [{ "name": "LINE", "class_name": "Line" }] }
-		},
 		"local": {
 			"name": "wongstack-line-local",
 			"d1_databases": [

@@ -221,9 +221,8 @@ const nameList = (base) => {
   return [
     { kind: 'worker', name: n.worker },
     { kind: 'worker', name: n.staging },
-    // The live line's own Workers, which provisioning makes from the stack pack's line fragment.
+    // The live line's own Worker, which the first publish makes from the stack pack's line fragment.
     { kind: 'worker', name: `${n.worker}-line` },
-    { kind: 'worker', name: `${n.worker}-line-staging` },
     { kind: 'database', name: n.db },
     { kind: 'database', name: n.stagingDb },
     { kind: 'database', name: n.memory },
@@ -340,19 +339,12 @@ export function wranglerConfig({ base, ids, bucket, access }, fragment = wrangle
   return text.endsWith('\n') ? text : `${text}\n`;
 }
 
-// The live line's own Worker config, filled from the app's config: its Worker name, and each environment's database.
+// The live line's own Worker config, filled from the app's config: its Worker name, and the live database.
 // Null when the app config has no database to give it.
 export function lineConfig(app, fragment = readFileSync(LINE_TEMPLATE, 'utf8')) {
-  const ids = (env) => (env ? app.env?.[env] : app)?.d1_databases?.find((entry) => entry.binding === 'DB');
-  const [db, stagingDb] = [ids(), ids('staging')];
-  if (!db?.database_id || !stagingDb?.database_id) return null;
-  const fill = {
-    '<your-worker>': workerName(app),
-    '<your-db-name>-staging': stagingDb.database_name,
-    '<your-db-name>': db.database_name,
-    '<production database_id>': db.database_id,
-    '<staging database_id>': stagingDb.database_id,
-  };
+  const db = app.d1_databases?.find((entry) => entry.binding === 'DB');
+  if (!db?.database_id) return null;
+  const fill = { '<your-worker>': workerName(app), '<your-db-name>': db.database_name, '<production database_id>': db.database_id };
   let text = fragment;
   for (const [placeholder, value] of Object.entries(fill)) text = text.replaceAll(placeholder, value);
   const left = /<[^<>\n]+>/.exec(text);
@@ -360,23 +352,66 @@ export function lineConfig(app, fragment = readFileSync(LINE_TEMPLATE, 'utf8')) 
   return text.endsWith('\n') ? text : `${text}\n`;
 }
 
-// Points the app config at the line's Workers as LIVE_LINE, adding line-2: Cloudflare refuses the class drop while a
-// binding keeps the name LINE. Returns `updated`, `current`, or false with the file restored when its shape is unknown.
+/** The index of the bracket closing the one at `open`, skipping strings and comments; -1 when it never closes. */
+function closeOf(text, open) {
+  let depth = 0;
+  for (let i = open; i < text.length; i++) {
+    const ch = text[i];
+    if (ch === '"') {
+      for (i++; i < text.length && text[i] !== '"'; i++) if (text[i] === '\\') i++;
+    } else if (ch === '/' && text[i + 1] === '/') {
+      i = text.indexOf('\n', i);
+      if (i < 0) return -1;
+    } else if (ch === '/' && text[i + 1] === '*') {
+      i = text.indexOf('*/', i) + 1;
+      if (i <= 0) return -1;
+    } else if (ch === '{' || ch === '[') depth++;
+    else if ((ch === '}' || ch === ']') && --depth === 0) return i;
+  }
+  return -1;
+}
+
+// The text with the object entry `key` inside the first block `scope` opens removed, with its comma, keeping every
+// comment. Null when that block holds no such entry.
+function withoutEntry(text, key, scope) {
+  const block = scope.exec(text);
+  const end = block ? closeOf(text, block.index + block[0].length - 1) : -1;
+  const entry = new RegExp(`"${key}"\\s*:\\s*\\{`, 'g');
+  entry.lastIndex = block?.index ?? 0;
+  const found = end >= 0 && entry.exec(text);
+  if (!found || found.index > end) return null;
+  let to = closeOf(text, found.index + found[0].length - 1) + 1;
+  if (to <= 0) return null;
+  let head = text.slice(0, found.index).replace(/[ \t]*$/, '');
+  const comma = /^[ \t]*,/.exec(text.slice(to));
+  if (comma) to += comma[0].length;
+  else head = head.replace(/,(\s*)$/, '$1');
+  const tail = text.slice(to);
+  return head + (head.endsWith('\n') ? tail.replace(/^[ \t]*\n/, '') : tail);
+}
+
+const isLine = (binding) => binding.class_name === 'Line';
+const LINE_ENVS = [undefined, 'local'];
+
+// Points the app config at the line's Worker as LIVE_LINE, none in env.staging, with line-2: Cloudflare refuses the
+// class drop while a binding keeps the name LINE. Returns `updated`, `current`, or false with the file restored.
 function lineInConfig(file) {
   const before = readFileSync(file, 'utf8');
   const config = parseConfig(file);
-  const order = [undefined, 'staging', 'local'];
   const want = (env) => `${workerName(config)}-line${env ? `-${env}` : ''}`;
-  const pointed = (parsed) => order.every((env) => {
+  const staging = (parsed) => parsed.env?.staging?.durable_objects?.bindings ?? [];
+  const pointed = (parsed) => !staging(parsed).some(isLine) && LINE_ENVS.every((env) => {
     const at = env ? parsed.env?.[env] : parsed;
     if (env && !at) return true;
     const bindings = at.durable_objects?.bindings ?? [];
     return bindings.length === 1 && bindings[0].name === 'LIVE_LINE' && bindings[0].script_name === want(env);
   }) && parsed.migrations?.some((m) => m.tag === 'line-2' && m.deleted_classes?.includes('Line'));
   if (pointed(config)) return 'current';
+  let text = before;
+  if (staging(config).length && staging(config).every(isLine)) text = withoutEntry(text, 'durable_objects', /"staging"\s*:\s*\{/) ?? text;
   let seen = 0;
-  let text = before.replace(/\{\s*"name"\s*:\s*"LINE"\s*,\s*"class_name"\s*:\s*"Line"\s*\}/g,
-    () => `{ "name": "LIVE_LINE", "class_name": "Line", "script_name": "${want(order[seen++])}" }`);
+  text = text.replace(/\{\s*"name"\s*:\s*"LINE"\s*,\s*"class_name"\s*:\s*"Line"\s*\}/g,
+    () => `{ "name": "LIVE_LINE", "class_name": "Line", "script_name": "${want(LINE_ENVS[seen++])}" }`);
   if (!/"tag"\s*:\s*"line-2"/.test(text)) text = text.replace(/(\{\s*"tag"\s*:\s*"line-1"\s*,\s*"new_sqlite_classes"\s*:\s*\["Line"\]\s*\})/, '$1, { "tag": "line-2", "deleted_classes": ["Line"] }');
   writeFileSync(file, text);
   try {
@@ -388,55 +423,50 @@ function lineInConfig(file) {
   return false;
 }
 
-/** The to-do left when the app config can not be pointed at the line's own Workers by script. */
-export const LINE_TODO = "point app/wrangler.jsonc's live line at its own Worker, as the stack pack's wrangler.jsonc fragment shows: each environment's LIVE_LINE binding with its script_name, and migration line-2";
+// Drops the line config's env.staging, a test line from before previews lost theirs, keeping its comments. An unknown
+// shape restores the file, and the line check after it leaves the to-do.
+function lineFileCurrent(file, note) {
+  const before = readFileSync(file, 'utf8');
+  if (!parseConfig(file).env?.staging) return;
+  const text = withoutEntry(before, 'staging', /"env"\s*:\s*\{/);
+  if (!text) return;
+  writeFileSync(file, text);
+  try {
+    if (!parseConfig(file).env?.staging) return void note('updated', `app/${LINE_FILE} without its test line`);
+  } catch {
+    // Falls through to restore the file.
+  }
+  writeFileSync(file, before);
+}
 
-/** The to-do left when another project's Workers already hold the line's names: nothing deploys over them. */
-export const lineClashTodo = (names) => `this Cloudflare account already has Workers named ${names} that this install has no record of making, so the live line was left alone rather than overwrite them: don't save the update until it's settled. If they are this install's, list them under components.liveLine.workers in .claude/.wong-stack.json and run provisioning again; if they are another project's, this app's line needs those names free`;
+/** The to-do left when the app config can not be pointed at the line's own Worker by script. */
+export const LINE_TODO = "point app/wrangler.jsonc's live line at its own Worker, as the stack pack's wrangler.jsonc fragment shows: a LIVE_LINE binding with its script_name at the top level and in env.local, none in env.staging, and migration line-2";
 
-// Makes each missing line Worker before the first save, whose deploy runs the default branch's older scripts. A Worker
-// already holding a line name is this install's only when the install record lists it; any other is a clash.
-async function liveLine(dir, config, { cf, account, lines, note, todo }) {
+/** The to-do left when another project's Worker already holds the line's name: nothing will deploy over it. */
+export const lineClashTodo = (name) => `this Cloudflare account already has a Worker named ${name} that this install has no record of making, so the live line was left alone rather than overwrite it: don't save the update until it's settled. If it is this install's, list it under components.liveLine.workers in .claude/.wong-stack.json and run provisioning again; if it is another project's, this app's line needs that name free`;
+
+// Writes the live line's settings; the first publish makes its Worker, before the app, and setup deploys nothing. A
+// Worker already holding the line's name is this install's only when the install record lists it; any other clashes.
+async function liveLine(dir, config, { cf, account, note, todo }) {
   const file = join(dir, 'app', LINE_FILE);
   if (!/"class_name"\s*:\s*"Line"/.test(readFileSync(config, 'utf8'))) return;
-  const named = existsSync(file) ? parseConfig(file) : { name: `${workerName(parseConfig(config))}-line` };
-  const wanted = [undefined, 'staging'].map((env) => workerName(named, env));
+  const name = existsSync(file) ? workerName(parseConfig(file)) : `${workerName(parseConfig(config))}-line`;
   const recorded = readJson(recordFile(dir))?.components?.liveLine?.workers ?? [];
   const held = (await step('cloudflare', () => cf('GET', `/accounts/${account}/workers/scripts`))).map((each) => each.id);
-  const clash = wanted.filter((name) => held.includes(name) && !recorded.includes(name));
-  if (clash.length) return void todo.push(lineClashTodo(clash.join(', ')));
+  if (held.includes(name) && !recorded.includes(name)) return void todo.push(lineClashTodo(name));
   if (!existsSync(file)) {
     const text = lineConfig(parseConfig(config));
     if (!text) return void todo.push(LINE_TODO);
     writeFileSync(file, text);
     note('created', `app/${LINE_FILE}`);
-  }
+  } else lineFileCurrent(file, note);
   const pointed = lineInConfig(config);
-  if (pointed === 'updated') note('updated', 'app/wrangler.jsonc LIVE_LINE and migration line-2');
+  if (pointed === 'updated') note('updated', "app/wrangler.jsonc's live line");
   if (!pointed) return void todo.push(LINE_TODO);
   const line = parseConfig(file);
   const problem = lineProblem(line, parseConfig(config));
   if (problem) return void todo.push(`fix app/${LINE_FILE}: ${problem}`);
-  const workers = [undefined, 'staging'].map((env) => workerName(line, env));
-  // Recorded before the deploy, so a rerun after a half-made pair still knows both names are this install's.
-  recordComponent(dir, 'liveLine', { workers }, note);
-  const missing = [undefined, 'staging'].filter((env) => !held.includes(workerName(line, env)));
-  if (!missing.length) return;
-  const names = missing.map((env) => workerName(line, env)).join(', ');
-  try {
-    await lines(join(dir, 'app'), missing);
-  } catch (error) {
-    return void todo.push(`make the live line's Workers ${names} (${error.message}): in app/, run \`npx wrangler deploy --config ${LINE_FILE}\`, then again with \`--env staging\`, before the first save`);
-  }
-  note('created', `live line Workers ${names}`);
-}
-
-/** Deploys the line's Worker for each environment named (undefined is production), installing the app's tools first. */
-export async function lineWorkers(app, environments, exec = run, env = process.env) {
-  if (!existsSync(join(app, 'node_modules'))) await exec('npm', ['ci', '--no-audit', '--no-fund'], { cwd: app, env });
-  for (const environment of environments) {
-    await exec('npx', ['--no-install', 'wrangler', 'deploy', '--config', LINE_FILE, ...(environment ? ['--env', environment] : [])], { cwd: app, env });
-  }
+  recordComponent(dir, 'liveLine', { workers: [workerName(line)] }, note);
 }
 
 /** Adds the bucket binding before the top-level `env` key of an existing config. False when there is none. */
@@ -765,7 +795,7 @@ function removeMemoryKey(file) {
 
 /** Everything after the one billable ask, under `base`. `keepConfig` leaves an installed repo's committed files alone.
  * `openWithoutLogin` goes on without Access when Cloudflare refuses Zero Trust; a site already private never opens. */
-export async function provision({ token, api, fetch, account, repo, base, route = 'github', ownerEmail, teammateEmails, dir = '.', today = isoDate(), keepConfig = false, openWithoutLogin = false, sleep = wait, exec = run, env = process.env, types = bindingTypes, lines }) {
+export async function provision({ token, api, fetch, account, repo, base, route = 'github', ownerEmail, teammateEmails, dir = '.', today = isoDate(), keepConfig = false, openWithoutLogin = false, sleep = wait, exec = run, env = process.env, types = bindingTypes }) {
   const cf = cloudflare(token, { api, fetch });
   // An Artifacts install needs the paid plan: look before anything is created or written.
   if (route === 'artifacts' && !(await step('cloudflare', () => paidPlan(cf, account, sleep)))) {
@@ -874,8 +904,7 @@ export async function provision({ token, api, fetch, account, repo, base, route 
       }
     }
     migrateScripts(dir, n, note);
-    const deployLines = (app, missing) => lineWorkers(app, missing, exec, { ...env, CLOUDFLARE_API_TOKEN: token, CLOUDFLARE_ACCOUNT_ID: account });
-    await liveLine(dir, config, { cf, account, lines: lines ?? deployLines, note, todo: report.todo });
+    await liveLine(dir, config, { cf, account, note, todo: report.todo });
   }
   // Private now, so the open-site key goes off in the store and out of .env: memory takes the company sign-in.
   // migrate-people turns keys off only once the install record has the sign-in, which --keep-config never writes.

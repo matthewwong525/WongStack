@@ -34,7 +34,7 @@ const REFUSED_FILES = new Set([".env", ".env.local", ".env.example", EXAMPLE]);
 const SUSPICIOUS_KEY = /^(CLOUDFLARE_|CF_ACCESS_|CF_API|SKIP_AUTH$|WONG_ENVIRONMENT$)/;
 
 /** Bindings that must be twinned in `env.staging`. A Durable Object in this Worker is left out, as its storage is
- *  per-Worker; one in another Worker (`script_name`) is checked by `checkDurableObjectTwins`. */
+ *  per-Worker; staging may bind none in another Worker (`checkStagingDurableObjects`). */
 const BINDING_KEYS = [
   "d1_databases",
   "kv_namespaces",
@@ -361,7 +361,7 @@ function checkBindings(config) {
     for (const name of names) if (PRODUCTION_ONLY_SECRETS.has(name)) problems.push(`staging binding '${name}' is a live-app-only authority, such as private Access management; remove it.`);
   }
   problems.push(...checkQueueConsumers(config, staging));
-  problems.push(...checkDurableObjectTwins(config, staging));
+  problems.push(...checkStagingDurableObjects(staging));
 
   // The quiet one: copied into the environment but never repointed. A shared
   // downstream service is a legitimate if rare choice, so this warns.
@@ -377,15 +377,14 @@ function checkBindings(config) {
   return problems;
 }
 
-/** A Durable Object in another Worker, such as the live line: staging names its own twin Worker or binds none; a
- *  missing binding can't reach live objects. Returns failures. */
-function checkDurableObjectTwins(config, staging) {
-  const twins = staging.durable_objects?.bindings ?? [];
-  return (config.durable_objects?.bindings ?? [])
-    .filter((entry) => entry.script_name && twins.some((each) => each.name === entry.name && each.script_name === entry.script_name))
+/** A Durable Object in another Worker, such as the live line: staging binds none, whatever production binds, so it
+ *  reaches no other Worker's objects. Returns failures. */
+function checkStagingDurableObjects(staging) {
+  return (staging.durable_objects?.bindings ?? [])
+    .filter((entry) => entry.script_name)
     .map(
       (entry) =>
-        `Durable Object binding '${entry.name}' points at the Worker '${entry.script_name}', and env.${STAGING_ENV} points at the same Worker, so staging would reach live objects; point it at the staging twin or remove it.`,
+        `env.${STAGING_ENV}'s Durable Object binding '${entry.name}' points at the Worker '${entry.script_name}'; staging must reach no other Worker's objects, and previews have no line, so remove it.`,
     );
 }
 

@@ -143,11 +143,11 @@ test('a live line Worker with a web address stops the check; no line, or one wit
   const app = join(dir, 'wrangler.jsonc');
   writeFileSync(app, JSON.stringify(config));
   checkLineAddress(app);
-  const line = { name: 'demo-line', workers_dev: false, preview_urls: false, env: { staging: { name: 'demo-line-staging' } } };
+  const line = { name: 'demo-line', workers_dev: false, preview_urls: false, env: { local: { name: 'demo-line-local' } } };
   writeFileSync(join(dir, 'wrangler.line.jsonc'), JSON.stringify(line));
   checkLineAddress(app);
-  writeFileSync(join(dir, 'wrangler.line.jsonc'), JSON.stringify({ ...line, env: { staging: { ...line.env.staging, preview_urls: true } } }));
-  assert.throws(() => checkLineAddress(app), /the live line's Worker config: env.staging must set preview_urls to false/);
+  writeFileSync(join(dir, 'wrangler.line.jsonc'), JSON.stringify({ ...line, env: { local: { ...line.env.local, preview_urls: true } } }));
+  assert.throws(() => checkLineAddress(app), /the live line's Worker config: env.local must set preview_urls to false/);
 });
 
 test('the check prints one open warning and lets an open deploy through', t => {

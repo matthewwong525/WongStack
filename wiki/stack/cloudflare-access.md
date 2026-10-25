@@ -135,7 +135,7 @@ Both CI backends and host previews run `scripts/check-private-access.mjs` before
 
 ### Local development
 
-`npm run dev` selects the dedicated `local` environment. Authentication substitution requires all three: `WONG_ENVIRONMENT=local`, `SKIP_AUTH=true`, and a loopback request hostname. Production/staging config and secret names cannot carry local overrides. Local D1 uses `remote: false`; production memory is not bound locally.
+`npm run dev` selects the dedicated `local` environment. Authentication substitution requires all three: `WONG_ENVIRONMENT=local`, `SKIP_AUTH=true`, and a loopback request hostname. The stand-in, `dev@example.com`, then counts as a person, with a subject and an hour's sign-in, so person-only pages such as the inbox and its [line](live-line.md#change-or-test-it) open locally. It has no session to end. Production/staging config and secret names cannot carry local overrides. Local D1 uses `remote: false`; production memory is not bound locally.
 
 ## Next
 

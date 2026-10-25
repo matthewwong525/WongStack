@@ -54,8 +54,7 @@
     },
     "liveLine": {
       "workers": [
-        "wongstack-line",
-        "wongstack-line-staging"
+        "wongstack-line"
       ]
     }
   }

@@ -57,19 +57,35 @@ The helper writes one line per delivered tap, started or refused run, and ignore
 
 ## Its own Worker
 
-Cloudflare makes no preview link for a Worker that defines a Durable Object class. When the line lived in the app's Worker, no app change got a link. So the line runs in a Worker of its own, [`line-worker.ts`](../../app/worker/line-worker.ts) with `app/wrangler.line.jsonc`: `<worker>-line`, and `<worker>-line-staging` for previews. It has no web address. The app reaches it through its `LIVE_LINE` binding, which names that Worker (`script_name`). Keep any new Durable Object out of the app's Worker the same way.
+Cloudflare makes no preview link for a Worker that defines a Durable Object class. When the line lived in the app's Worker, no app change got a link. So the line runs in a Worker of its own, [`line-worker.ts`](../../app/worker/line-worker.ts) with `app/wrangler.line.jsonc`: `<worker>-line`, for the live app only. It has no web address. The app reaches it through its `LIVE_LINE` binding, which names that Worker (`script_name`). Keep any new Durable Object out of the app's Worker the same way.
 
-- **The line deploys first.** [`cf-deploy.sh` and `cf-preview.sh`](d1-pipeline.md#the-scripts) send the line's Worker, then the app: Cloudflare refuses a binding to a Worker that doesn't exist yet (`code: 10061`). A failed line deploy stops the app's. Setup's provisioning makes both line Workers before an app's first deploy and lists them in the install record, `.claude/.wong-stack.json`, under `components.liveLine.workers`. A Worker that holds a line name but isn't on that list may be another project's: provisioning deploys nothing over it and leaves a to-do naming it.
-- **Its settings come from the default branch.** A deploy never copies a branch's `app/wrangler.line.jsonc`, only the bundled code in `dist/line/`. A preview whose binding names any Worker but the default branch's staging line is refused, and `secrets:check` fails when staging's binding names the live line.
+- **Previews have no line.** The staging app binds no `LIVE_LINE`, so its line answers `503` *This app has no line yet; the inbox keeps checking*. A preview's inbox refreshes every few seconds, and a computer signed in to it checks every 10 seconds, so its schedules still come due. Nothing on a preview reaches the live line or a live computer. A preview that binds any other Worker's Durable Object is refused, naming the binding, and `secrets:check` fails on it.
+- **The line deploys first, on the default branch only.** [`cf-deploy.sh`](d1-pipeline.md#the-scripts) sends the line's Worker, then the live app: Cloudflare refuses a binding to a Worker that doesn't exist yet (`code: 10061`). A failed line deploy stops the app's. A new app's first publish makes the line.
+- **Setup writes the line's settings and deploys nothing.** It lists the line in the install record, `.claude/.wong-stack.json`, under `components.liveLine.workers`. A Worker that holds the line's name but isn't on that list may be another project's: setup leaves a to-do naming it, and writes nothing.
+- **Its settings come from the default branch.** A deploy never copies a branch's `app/wrangler.line.jsonc`, only the bundled code in `dist/line/`. A line config with an `env.staging` or a web address is refused.
 - **The binding is `LIVE_LINE`, not `LINE`.** Cloudflare refuses to delete a class while a binding keeps its old name, even pointed at another Worker (`code: 10061`). The rename let migration `line-2` drop the app's own copy. Its saved state went with it, and each computer put it back on reconnecting.
 - **A version can't apply a class migration.** `wrangler versions upload` refuses a Worker with one pending; `cf-preview.sh` deploys staging once, then uploads.
 
 ## Change or test it
 
-The line is one Durable Object per person, [`line.ts`](../../app/worker/apps/inbox/line.ts), holding hibernating sockets.
+The line is one Durable Object per person, [`line.ts`](../../app/worker/apps/inbox/line.ts), holding hibernating sockets. A preview can't test a line change: it has no line. Try it on this computer, then on the live app.
 
-- **Test a line change on staging, not on the change's link.** A preview link is a version of the app alone. Every branch's push deploys the staging line, which every preview's app talks to, so the last push wins.
+- **Try it on this computer first.** `npm run dev` runs the app and its line together, the line from `wrangler.line.jsonc`'s `env.local`. The local sign-in, `dev@example.com`, counts as a person there, so the inbox and its line open. From `app/`:
+
+  ```bash
+  npx wrangler d1 migrations apply DB --local --env local   # once: the inbox's tables
+  npm run dev                                               # the app at http://localhost:5173
+  ```
+
+  Open `http://localhost:5173/apps/inbox/`, then join the line as a computer in a second terminal, from the repo's root:
+
+  ```bash
+  node scripts/line-stand-in.mjs
+  ```
+
+  [`line-stand-in.mjs`](../../scripts/line-stand-in.mjs) prints each message it hears, with the seconds since it joined, and closes on Ctrl-C. It refuses any address but this computer's, so it never reaches a live app. Put a test plan the way a chat does, a `PUT` to `/apps/inbox/api/item` with an id of 32 hex characters and `"actions": ["approve"]`. Tap it in the inbox, which needs a button in the plan's HTML that posts `inbox:tap`, or send the inbox's tap yourself: a `POST` to `/apps/inbox/api/tap` with the item, `approve` and its version. The stand-in prints `{"t":"look"}` within a second; the plan alone wakes only the inbox. Close the test item after, with a `POST` to `/apps/inbox/api/item-close`.
+- **Then on the live app, after publishing.** `helper.mjs status` says the helper is running. Tap a test plan in the live inbox and time it reaching its chat; the tap shows in `~/.wong-stack/helper/log.jsonl`. Close the test item and any test schedule after.
 - **Answer every goodbye.** Its `webSocketClose` closes the socket back. Without it, the computer waits 10 seconds and sees the line drop (`1006`), not close.
-- **Walk it on staging from a script**, signed in as you: give [`companyClient`](../../scripts/employee-bootstrap.mjs) a `stateDir` holding a `target.json` that names the staging origin. The folder must be private (`0700`) and the file `0600`, or it refuses. Open `/apps/inbox/api/line?computer=<32 hex>`, then make an item, tap it, and time the *look now*. Close the test items and schedules after.
+- **Walk it from a script**, signed in as you: give [`companyClient`](../../scripts/employee-bootstrap.mjs) a `stateDir` holding a `target.json` that names the app's origin. The folder must be private (`0700`) and the file `0600`, or it refuses. Open `/apps/inbox/api/line?computer=<32 hex>`, then make an item, tap it, and time the *look now*.
 
 Back to [the Cloudflare stack](README.md).

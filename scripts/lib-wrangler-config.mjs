@@ -218,7 +218,8 @@ export function lineConfigPath(configPath) {
 
 /** Why the line config gives the line a web address, or null: only the app's signed-in route reaches it. */
 export function lineAddressProblem(line) {
-  for (const env of [undefined, "staging"]) {
+  for (const env of [undefined, "local"]) {
+    if (env && !block(line, env)) continue;
     const where = env ? `env.${env}` : "its top level";
     for (const key of ["workers_dev", "preview_urls"]) {
       if ((block(line, env)?.[key] ?? line[key]) !== false) return `${where} must set ${key} to false; the line has no web address.`;
@@ -228,18 +229,14 @@ export function lineAddressProblem(line) {
   return null;
 }
 
-// Why the line config could send the line anywhere but its own two Workers, each on the app's database for its
-// environment, or null. `app` is the default branch's own app config.
+// Why the line config could send the line anywhere but its one live Worker, on the app's production database, or
+// null. `app` is the default branch's own app config.
 export function lineProblem(line, app) {
-  if (workerName(line, "staging") === workerName(line)) {
-    return `its staging Worker is '${workerName(line)}', the live line; give env.staging its own name.`;
-  }
-  for (const env of [undefined, "staging"]) {
-    const [want] = appDatabases(app, env);
-    const [bound] = appDatabases(line, env);
-    if ((want || bound) && !(want && bound && sameEntry(bound, want))) {
-      return `its ${env ?? "production"} line binds ${bound ? databasesOf([bound]) : "no database"}, not the app's ${env ?? "production"} database ${want ? databasesOf([want]) : "(none)"}.`;
-    }
+  if (block(line, "staging")) return "it has an env.staging, and previews have no line; remove env.staging.";
+  const [want] = appDatabases(app);
+  const [bound] = appDatabases(line);
+  if ((want || bound) && !(want && bound && sameEntry(bound, want))) {
+    return `its line binds ${bound ? databasesOf([bound]) : "no database"}, not the app's production database ${want ? databasesOf([want]) : "(none)"}.`;
   }
   return lineAddressProblem(line);
 }
@@ -290,15 +287,12 @@ function stagingDatabaseProblem(trusted, built, source) {
     : `it binds the database '${named}', and the default branch's staging Worker binds none; a new database previews once published.`;
 }
 
-// Why a preview points a Durable Object at a Worker other than the default branch's staging line, or null. The line
-// config beside the app is main's own: a build never copies one in.
-function stagingLineProblem(linePath, built, source) {
-  const want = linePath && workerName(parseConfig(linePath), "staging");
+// Why a preview binds a Durable Object in another Worker, or null: previews have no line, and reach no other Worker's
+// objects. wiki/stack/live-line.md
+function stagingLineProblem(built, source) {
   const bindings = [...(built.durable_objects?.bindings ?? []), ...(source.env?.staging?.durable_objects?.bindings ?? [])];
-  const other = bindings.find((entry) => entry.script_name && entry.script_name !== want);
-  if (!other) return null;
-  const pointed = `its Durable Object binding '${other.name}' points at the Worker '${other.script_name}'`;
-  return want ? `${pointed}, not '${want}', the default branch's staging line.` : `${pointed}, and the default branch has no line Worker; it previews once published.`;
+  const other = bindings.find((entry) => entry.script_name);
+  return other ? `its Durable Object binding '${other.name}' points at the Worker '${other.script_name}'; previews have no line.` : null;
 }
 
 // Why a production build's databases or routes are not main's own top-level ones, or null. Wrangler deploys the
@@ -337,7 +331,7 @@ function buildProblem(trusted, configPath, root, production) {
   }
   const database = production ? productionBindingProblem(trusted, built) : stagingDatabaseProblem(trusted, built, source);
   if (database) return database;
-  const line = production ? null : stagingLineProblem(lineConfigPath(configPath), built, source);
+  const line = production ? null : stagingLineProblem(built, source);
   if (line) return line;
   const stray = strayPath(built, dirname(generatedPath), root) ?? strayPath(source, appDir, root);
   return stray ? `it names '${stray}', a path outside the project, which wrangler would read and upload.` : null;

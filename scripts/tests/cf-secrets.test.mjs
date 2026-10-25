@@ -67,15 +67,18 @@ test('a consumer copied into staging but not repointed warns without failing', t
   assert.match(result.output, /reads 'app-jobs', which production also consumes/);
 });
 
-test('a Durable Object in another Worker may have a staging twin or none, never the live one', t => {
+test('staging binds no Durable Object in another Worker, whatever production binds; its own classes pass', t => {
   const line = script => ({ durable_objects: { bindings: [{ name: 'LIVE_LINE', class_name: 'Line', script_name: script }] } });
-  assert.equal(check(t, { ...line('app-line'), env: { staging: line('app-line-staging') } }).status, 0);
-  const same = check(t, { ...line('app-line'), env: { staging: line('app-line') } });
-  assert.equal(same.status, 1);
-  assert.match(same.output, /'LIVE_LINE' points at the Worker 'app-line', and env.staging points at the same Worker/);
+  for (const [live, script] of [[line('app-line'), 'app-line'], [line('app-line'), 'app-line-staging'], [{}, 'billing']]) {
+    const refused = check(t, { ...live, env: { staging: line(script) } });
+    assert.equal(refused.status, 1);
+    assert.match(refused.output, new RegExp(`'LIVE_LINE' points at the Worker '${script}'; staging must reach no other Worker's objects`));
+  }
   const missing = check(t, { ...line('app-line'), env: { staging: {} } });
   assert.equal(missing.status, 0, missing.output);
   assert.doesNotMatch(missing.output, /LIVE_LINE/);
+  const own = { durable_objects: { bindings: [{ name: 'ROOMS', class_name: 'Room' }] } };
+  assert.equal(check(t, { ...own, env: { staging: own } }).status, 0);
 });
 
 // A fake `npx` logging each call: `wrangler secret list` answers PROD or STAGING (comma-separated), or as NO_STAGING
