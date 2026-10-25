@@ -55,10 +55,20 @@ It no longer starts with the computer. Taps then arrive by checking while a chat
 
 The helper writes one line per delivered tap, started or refused run, and ignored message to `~/.wong-stack/helper/log.jsonl`, so you can see everything the app caused. It never holds a message's text. It starts over once it reaches 1 MB, keeping the one before.
 
+## Its own Worker
+
+Cloudflare makes no preview link for a Worker that defines a Durable Object class. When the line lived in the app's Worker, no app change got a link. So the line runs in a Worker of its own, [`line-worker.ts`](../../app/worker/line-worker.ts) with `app/wrangler.line.jsonc`: `<worker>-line`, and `<worker>-line-staging` for previews. It has no web address. The app reaches it through its `LIVE_LINE` binding, which names that Worker (`script_name`). Keep any new Durable Object out of the app's Worker the same way.
+
+- **The line deploys first.** [`cf-deploy.sh` and `cf-preview.sh`](d1-pipeline.md#the-scripts) send the line's Worker, then the app: Cloudflare refuses a binding to a Worker that doesn't exist yet (`code: 10061`). A failed line deploy stops the app's. Setup's provisioning makes both line Workers before an app's first deploy and lists them in the install record, `.claude/.wong-stack.json`, under `components.liveLine.workers`. A Worker that holds a line name but isn't on that list may be another project's: provisioning deploys nothing over it and leaves a to-do naming it.
+- **Its settings come from the default branch.** A deploy never copies a branch's `app/wrangler.line.jsonc`, only the bundled code in `dist/line/`. A preview whose binding names any Worker but the default branch's staging line is refused, and `secrets:check` fails when staging's binding names the live line.
+- **The binding is `LIVE_LINE`, not `LINE`.** Cloudflare refuses to delete a class while a binding keeps its old name, even pointed at another Worker (`code: 10061`). The rename let migration `line-2` drop the app's own copy. Its saved state went with it, and each computer put it back on reconnecting.
+- **A version can't apply a class migration.** `wrangler versions upload` refuses a Worker with one pending; `cf-preview.sh` deploys staging once, then uploads.
+
 ## Change or test it
 
 The line is one Durable Object per person, [`line.ts`](../../app/worker/apps/inbox/line.ts), holding hibernating sockets.
 
+- **Test a line change on staging, not on the change's link.** A preview link is a version of the app alone. Every branch's push deploys the staging line, which every preview's app talks to, so the last push wins.
 - **Answer every goodbye.** Its `webSocketClose` closes the socket back. Without it, the computer waits 10 seconds and sees the line drop (`1006`), not close.
 - **Walk it on staging from a script**, signed in as you: give [`companyClient`](../../scripts/employee-bootstrap.mjs) a `stateDir` holding a `target.json` that names the staging origin. The folder must be private (`0700`) and the file `0600`, or it refuses. Open `/apps/inbox/api/line?computer=<32 hex>`, then make an item, tap it, and time the *look now*. Close the test items and schedules after.
 

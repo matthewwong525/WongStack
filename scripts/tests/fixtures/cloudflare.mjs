@@ -79,6 +79,8 @@ export async function fakeCloudflare({ r2 = true, subdomain = 'ada', accounts = 
     policies: startingPolicies(),
     condition: undefined,
     workers: [],
+    // The live line's Workers, made by Wrangler from the computer, not by an upload the fake receives.
+    lineWorkers: [],
     databases: [],
     buckets: [],
     accountTokens: [],
@@ -251,7 +253,7 @@ export async function fakeCloudflare({ r2 = true, subdomain = 'ada', accounts = 
       if (!sqlite.has(d1[1])) sqlite.set(d1[1], new DatabaseSync(':memory:'));
       return d1Query(sqlite.get(d1[1]), body);
     }
-    if (route === `GET ${account}/workers/scripts`) return ok(state.workers.map((id) => ({ id, routes: state.workerDetails[id]?.routes ?? [] })));
+    if (route === `GET ${account}/workers/scripts`) return ok([...state.workers, ...state.lineWorkers].map((id) => ({ id, routes: state.workerDetails[id]?.routes ?? [] })));
     const workerLookup = url.pathname.match(new RegExp(`^${account}/workers/workers/([^/]+)$`));
     if (method === 'GET' && workerLookup) {
       const name = workerLookup[1];

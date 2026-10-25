@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — App changes get their preview link back
+
+- **Every app change gets its own link again.** Since the live line arrived, saving an app change printed no preview link: Cloudflare makes none for an app that holds the line. The line now runs in a small app of its own beside yours, so your app gets its links back.
+- **Nothing changes in how the line works.** Taps, the inbox and schedules behave as before. A change to the line itself shows on the shared test app, not on its own link.
+- **Deploys stay safe.** The line's settings always come from your published version, never a change being tested, and a test link can only reach the test line.
+
+**Updating.** The update makes two small Cloudflare Workers for the live line, one live and one for test links, and points your app's settings file, `app/wrangler.jsonc`, at them; it shows you the change first. Let setup's Cloudflare step run before the update is first saved, not just before it's published: it makes the two Workers, and even the first save's test link fails without them. If another project in your Cloudflare account already uses their names, the step leaves them alone and lists a step for you instead; don't save the update until that's settled. The line's old saved state inside your app is deleted, which can't be undone; your computer puts it back on its own when it reconnects, within seconds. Your schedules and inbox are untouched. Then publish the update as usual.
+
 ## 44.11.1 — How to test the live line
 
 The live line's page now says how to test it against your test app from a script, and why the line must answer a goodbye.

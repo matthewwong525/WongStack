@@ -2,13 +2,13 @@
 
 How code and data ship on the [Cloudflare stack](README.md): **two environments, two Workers, migrations that apply on deploy.** A push to a feature branch migrates and deploys the *staging* Worker; a merge to the default branch migrates and deploys the *production* Worker. The [pack scripts](#the-scripts) implement it and read every repo-specific value from `wrangler.jsonc`, so they're identical in every repo.
 
-**The pipeline needs a Worker to run through it.** Everything below describes what happens to an application once it exists. An install starts from an empty folder and receives WongStack's own starter app, the [app scaffold](../../.agents/skills/wong-sync/references/payload-manifest.md#the-app-scaffold). The `wrangler.jsonc` that binds it to these two environments is written by [setup's provisioning](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4c-the-two-app-databases-and-the-config) with the ids it provisions — including `main`, so the config points at whichever entry point the repo ended up with.
+**The pipeline needs a Worker to run through it.** An install starts from an empty folder and receives WongStack's own starter app, the [app scaffold](../../.agents/skills/wong-sync/references/payload-manifest.md#the-app-scaffold). The `wrangler.jsonc` that binds it to these two environments is written by [setup's provisioning](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4c-the-two-app-databases-and-the-config) with the ids it provisions — including `main`, so the config points at whichever entry point the repo ended up with.
 
 This is the runnable half of the stack — the [core stack](core-stack.md) is *what* you build on, this is *how* changes reach production safely. Go to [fix a broken production database](d1-recovery.md) when production is red; read top-to-bottom to set it up.
 
 ## Why staging is a whole Worker
 
-Start here, because it explains every other decision on this page.
+Start here: it explains every decision below.
 
 Cloudflare Workers Builds does two different things depending on the branch. On the default branch it **deploys**. On any other branch it uploads a **version** — an immutable snapshot served at its own alias URL. Versions are why per-commit preview URLs are cheap, and they look like a complete deploy. They aren't:
 
@@ -91,7 +91,7 @@ A branch push produces two reachable URLs, and they are not equivalent:
 | `<branch>-<worker>-staging.workers.dev` | a version of the staging Worker, pinned to that commit | ✓ | ✗ |
 | `<worker>-staging.workers.dev` | the deployed staging Worker | ✓ | ✓ |
 
-Use the alias URL for UI review — it's per-commit, so two branches never collide. Use the staging Worker URL when you're exercising an import, a queue, or anything scheduled. "Why didn't my import run?" is almost always "you were on the alias URL."
+Use the alias URL for UI review — it's per-commit, so two branches never collide. Use the staging Worker URL when you're exercising an import, a queue, or anything scheduled. "Why didn't my import run?" is almost always "you were on the alias URL." The alias URL exists only while the app's Worker holds no Durable Object, so [the live line runs in a Worker of its own](live-line.md#its-own-worker), deployed first.
 
 #### How the alias URL reaches the tooling
 
@@ -199,8 +199,8 @@ All of them read repo-specific values from `wrangler.jsonc` (names, ids) or `.en
 | Script | Run by | Does |
 |---|---|---|
 | `scripts/cf-build.sh` | the workflow's **build** (`--build-only`) and **migrate** (`--migrate`) steps | Migrate production or staging by branch, then build. `--app-dir` prints where `package.json` lives, so CI can install in the right place. |
-| `scripts/cf-deploy.sh` | the workflow's **deploy** step | Deploy the production Worker on the default branch; on any other, deploy the staging Worker and then upload a per-commit staging version for the alias URL. `--take-build <folder>` copies a build in and refuses one that leaves the default branch's Workers. |
-| `scripts/cf-preview.sh` | [`/apply`](../../.agents/skills/apply/SKILL.md), for a preview from the agent's machine | Install, migrate staging, build, upload a staging version under the preview alias, and print its URL. Never deploys production. |
+| `scripts/cf-deploy.sh` | the workflow's **deploy** step | Deploy the [live line's Worker](live-line.md#its-own-worker), then the production Worker on the default branch; on any other, the staging line, the staging Worker, then a per-commit staging version for the alias URL. `--take-build <folder>` copies a build in and refuses one that leaves the default branch's Workers. |
+| `scripts/cf-preview.sh` | [`/apply`](../../.agents/skills/apply/SKILL.md), for a preview from the agent's machine | Install, migrate staging, build, deploy the staging line's Worker, upload a staging version under the preview alias, and print its URL. An upload refused for a pending Durable Object migration deploys staging once, then retries. Never deploys production. |
 | `scripts/reset-staging-d1.mjs` | `npm run db:reset:staging`, and `/verify` before each walk | Drop staging → apply migrations → apply `schema/seed.sql`. Never touches production. |
 | `scripts/cf-secrets.mjs` | `npm run secrets:push` / `secrets:check`, and the workflow's **parity** step | Load each Worker from its own file, refusing `.env`; check staging's secret names and bindings against production's; `shared` lists which keys staging shares with production. |
 | `scripts/check-app-keys.mjs` | the app's `npm test`, with the code checks | Fail when an app's server side or a main handler names a saved key [its route does not list](company-api.md#list-the-keys-a-route-uses). |

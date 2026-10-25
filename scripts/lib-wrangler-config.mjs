@@ -2,7 +2,7 @@
 // Every pack script reads it through this one parser; bash calls the CLI below via `lib-wrangler-config.sh`.
 
 import { copyFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
-import { basename, dirname, isAbsolute, join, normalize, relative, resolve, sep } from "node:path";
+import { basename, dirname, extname, isAbsolute, join, normalize, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { isMain, parseCli, usageError } from "./lib-cli.mjs";
 
@@ -206,6 +206,44 @@ export function routesOf(config, env) {
   return own(block(config, env)) ?? (env ? own(config) : undefined) ?? [];
 }
 
+// The live line's own Worker config, beside the app's. A build never copies it, so a deploy always reads the default
+// branch's copy: a branch picks the line's code, never its Worker or database. wiki/stack/live-line.md
+const LINE_CONFIG = "wrangler.line.jsonc";
+
+/** The line's config beside the app's config, or null when this app has no line Worker yet. */
+export function lineConfigPath(configPath) {
+  const path = resolve(dirname(configPath), LINE_CONFIG);
+  return existsSync(path) ? path : null;
+}
+
+/** Why the line config gives the line a web address, or null: only the app's signed-in route reaches it. */
+export function lineAddressProblem(line) {
+  for (const env of [undefined, "staging"]) {
+    const where = env ? `env.${env}` : "its top level";
+    for (const key of ["workers_dev", "preview_urls"]) {
+      if ((block(line, env)?.[key] ?? line[key]) !== false) return `${where} must set ${key} to false; the line has no web address.`;
+    }
+    if (routesOf(line, env).length) return `${where} claims a route or custom domain; the line has no web address.`;
+  }
+  return null;
+}
+
+// Why the line config could send the line anywhere but its own two Workers, each on the app's database for its
+// environment, or null. `app` is the default branch's own app config.
+export function lineProblem(line, app) {
+  if (workerName(line, "staging") === workerName(line)) {
+    return `its staging Worker is '${workerName(line)}', the live line; give env.staging its own name.`;
+  }
+  for (const env of [undefined, "staging"]) {
+    const [want] = appDatabases(app, env);
+    const [bound] = appDatabases(line, env);
+    if ((want || bound) && !(want && bound && sameEntry(bound, want))) {
+      return `its ${env ?? "production"} line binds ${bound ? databasesOf([bound]) : "no database"}, not the app's ${env ?? "production"} database ${want ? databasesOf([want]) : "(none)"}.`;
+    }
+  }
+  return lineAddressProblem(line);
+}
+
 // Where `cf-deploy.sh --take-build` keeps the default branch's own config, before a build is copied over it.
 const TRUSTED_CONFIG = ".wong/trusted-wrangler.jsonc";
 
@@ -252,6 +290,17 @@ function stagingDatabaseProblem(trusted, built, source) {
     : `it binds the database '${named}', and the default branch's staging Worker binds none; a new database previews once published.`;
 }
 
+// Why a preview points a Durable Object at a Worker other than the default branch's staging line, or null. The line
+// config beside the app is main's own: a build never copies one in.
+function stagingLineProblem(linePath, built, source) {
+  const want = linePath && workerName(parseConfig(linePath), "staging");
+  const bindings = [...(built.durable_objects?.bindings ?? []), ...(source.env?.staging?.durable_objects?.bindings ?? [])];
+  const other = bindings.find((entry) => entry.script_name && entry.script_name !== want);
+  if (!other) return null;
+  const pointed = `its Durable Object binding '${other.name}' points at the Worker '${other.script_name}'`;
+  return want ? `${pointed}, not '${want}', the default branch's staging line.` : `${pointed}, and the default branch has no line Worker; it previews once published.`;
+}
+
 // Why a production build's databases or routes are not main's own top-level ones, or null. Wrangler deploys the
 // generated config, not main's, so a build that adds a database or a web address must not reach the live Worker.
 function productionBindingProblem(trusted, built) {
@@ -288,6 +337,8 @@ function buildProblem(trusted, configPath, root, production) {
   }
   const database = production ? productionBindingProblem(trusted, built) : stagingDatabaseProblem(trusted, built, source);
   if (database) return database;
+  const line = production ? null : stagingLineProblem(lineConfigPath(configPath), built, source);
+  if (line) return line;
   const stray = strayPath(built, dirname(generatedPath), root) ?? strayPath(source, appDir, root);
   return stray ? `it names '${stray}', a path outside the project, which wrangler would read and upload.` : null;
 }
@@ -388,6 +439,25 @@ function refuseUntrustedBuild(configPath, mode) {
   return `the build stays on the ${mode} Worker`;
 }
 
+// The line's built entry in `dist/line/`, relative to the app folder, after checking main's line config. Returns ""
+// when this app has no line Worker. The build bundled it keyless; deploys send it with main's settings.
+function lineEntry(configPath) {
+  const linePath = lineConfigPath(configPath);
+  if (!linePath) return "";
+  const kept = resolve(repoRoot, TRUSTED_CONFIG);
+  const line = parseConfig(linePath);
+  const problem = lineProblem(line, parseConfig(existsSync(kept) ? kept : configPath));
+  if (problem) throw new WranglerConfigError(`the line's Worker config ${LINE_CONFIG} can not deploy: ${problem}`);
+  const appDir = dirname(configPath);
+  const entry = join("dist", "line", `${basename(line.main ?? "", extname(line.main ?? "")) || "index"}.js`);
+  const link = linkOnTheWay(appDir, join(appDir, entry));
+  if (link) throw new WranglerConfigError(`${link} is a link; a deploy sends no links.`);
+  if (!lstatSync(join(appDir, entry), { throwIfNoEntry: false })?.isFile()) {
+    throw new WranglerConfigError(`the build has no ${entry}: build with this branch's scripts (bring the default branch in), then save again.`);
+  }
+  return entry;
+}
+
 // CLI for `lib-wrangler-config.sh`: `config-path` exits 3 when there is no config; every other answer reads
 // $WRANGLER_CONFIG, else the config found from the repo root, and exits 1 on a config error.
 
@@ -402,6 +472,8 @@ const COMMANDS = {
   "assets-dir": () => assetsDirectory(config()),
   routes: (env) => JSON.stringify(routesOf(parseConfig(config()), env)),
   "refuse-untrusted-build": (mode) => refuseUntrustedBuild(config(), mode),
+  "line-config": () => lineConfigPath(config()) ?? "",
+  "line-entry": () => lineEntry(config()),
   "take-build": (from, mode) => takeBuild(config(), resolve(from), mode),
   "copy-build": (from, to) => copyBuild(config(), resolve(from), resolve(to)),
   "copy-tree": (from, to) => {
@@ -411,7 +483,7 @@ const COMMANDS = {
   },
 };
 // Commands that take exactly this many words; every other takes an optional environment.
-const ARITY = { "config-path": 0, "migrate-database": 0, "refuse-untrusted-build": 1, "take-build": 2, "copy-build": 2, "copy-tree": 2 };
+const ARITY = { "config-path": 0, "migrate-database": 0, "line-config": 0, "line-entry": 0, "refuse-untrusted-build": 1, "take-build": 2, "copy-build": 2, "copy-tree": 2 };
 
 if (isMain(import.meta.url)) {
   const usage = `usage: node lib-wrangler-config.mjs <${Object.keys(COMMANDS).join("|")}> [env | from [to | mode]]`;

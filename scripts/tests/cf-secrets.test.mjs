@@ -67,6 +67,17 @@ test('a consumer copied into staging but not repointed warns without failing', t
   assert.match(result.output, /reads 'app-jobs', which production also consumes/);
 });
 
+test('a Durable Object in another Worker needs its staging twin, never the live one', t => {
+  const line = script => ({ durable_objects: { bindings: [{ name: 'LIVE_LINE', class_name: 'Line', script_name: script }] } });
+  assert.equal(check(t, { ...line('app-line'), env: { staging: line('app-line-staging') } }).status, 0);
+  const same = check(t, { ...line('app-line'), env: { staging: line('app-line') } });
+  assert.equal(same.status, 1);
+  assert.match(same.output, /'LIVE_LINE' points at the Worker 'app-line', and env.staging points at the same Worker/);
+  const missing = check(t, { ...line('app-line'), env: { staging: {} } });
+  assert.equal(missing.status, 1);
+  assert.match(missing.output, /env.staging names no other Worker for it/);
+});
+
 // A fake `npx` logging each call: `wrangler secret list` answers PROD or STAGING (comma-separated), or as NO_STAGING
 // (no Worker) or UNREADABLE; a plain delete of a name in REFUSE answers 10215.
 const secretList = `#!/usr/bin/env bash

@@ -70,6 +70,10 @@ wong_resolve_wrangler_config() {
 #                  redirect, plus a preview's config and migrations
 #   migrate-database  the staging D1 a migrate targets: the default branch's
 #                  own when this checkout took a build, else this config's
+#   line-config    the live line's own Worker config (wrangler.line.jsonc)
+#                  beside the app's, or an empty line when there is none
+#   line-entry     the line's built entry in dist/line/, after checking the
+#                  line config keeps to its own Workers and databases
 #
 # The full list is the COMMANDS table in `lib-wrangler-config.mjs`.
 #
@@ -196,6 +200,23 @@ wong_refuse_untrusted_build() {
   wong_config refuse-untrusted-build "$(wong_build_mode)" >/dev/null && return 0
   echo "$1: the default branch's deploy scripts refused this build, so nothing was migrated or deployed." >&2
   return 1
+}
+
+# Deploy the live line's own Worker, before the app, when the app has one: its
+# settings from this checkout's wrangler.line.jsonc (the default branch's after
+# a take-build, which never copies one in), its code from the build's
+# dist/line/. A refusal or a failed deploy returns 1, so under `set -e` the app
+# never deploys after it. Extra arguments go to wrangler (`--env staging`).
+#
+# Usage: wong_deploy_line <prefix> [--env staging]   (after wong_resolve_wrangler_config and wong_wrangler_command)
+wong_deploy_line() {
+  local p="$1" line_config line_entry
+  shift
+  line_config=$(wong_config line-config) || return 1
+  [ -n "$line_config" ] || return 0
+  line_entry=$(wong_config line-entry) || { echo "$p: the live line's Worker can not deploy, so the app was not deployed either." >&2; return 1; }
+  echo "$p: deploying the live line's Worker first"
+  (cd "$APP_DIR" && "${WRANGLER[@]}" deploy "$line_entry" --no-bundle --config "$line_config" "$@")
 }
 
 # The wrangler every credentialed call runs: WONG_WRANGLER, the deploy job's own

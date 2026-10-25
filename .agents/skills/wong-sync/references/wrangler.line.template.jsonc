@@ -1,0 +1,26 @@
+// The live line's own Worker, beside the app's config (wiki/stack/live-line.md). Each environment keeps the app's
+// database for it and no web address; a deploy refuses the line otherwise.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "<your-worker>-line",
+  "main": "worker/line-worker.ts",
+  "compatibility_date": "2026-07-28",
+  "compatibility_flags": ["nodejs_compat", "disallow_importable_env"],
+  "workers_dev": false,
+  "preview_urls": false,
+  "d1_databases": [{ "binding": "DB", "database_name": "<your-db-name>", "database_id": "<production database_id>" }],
+  "durable_objects": { "bindings": [{ "name": "LINE", "class_name": "Line" }] },
+  "migrations": [{ "tag": "line-1", "new_sqlite_classes": ["Line"] }],
+  "env": {
+    "staging": {
+      "name": "<your-worker>-line-staging",
+      "d1_databases": [{ "binding": "DB", "database_name": "<your-db-name>-staging", "database_id": "<staging database_id>" }],
+      "durable_objects": { "bindings": [{ "name": "LINE", "class_name": "Line" }] }
+    },
+    "local": {
+      "name": "<your-worker>-line-local",
+      "d1_databases": [{ "binding": "DB", "database_name": "<your-db-name>-local", "database_id": "<production database_id>", "remote": false }],
+      "durable_objects": { "bindings": [{ "name": "LINE", "class_name": "Line" }] }
+    }
+  }
+}

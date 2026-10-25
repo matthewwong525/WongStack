@@ -1,13 +1,13 @@
 // Tells a person's line to say *look now*: their open inbox, and their computer, then fetch what changed through the
 // signed-in routes. The line carries nothing else. wiki/stack/live-line.md
-import type { Line } from "./line.ts";
 
-/** The bindings a wake reads: an app with no line yet has none, and the inbox works by checking. */
-type LineEnv = { LINE?: DurableObjectNamespace<Line> };
+/** The bindings a wake reads: an app with no line yet has none, and the inbox works by checking. The line lives in its
+ *  own Worker, so the app sees an untyped namespace and speaks to it only by `fetch`. */
+type LineEnv = { LIVE_LINE?: DurableObjectNamespace };
 
 /** The person's one line in this install, named as every inbox row is keyed, or null on an app with no line bound. */
 export const lineOf = (env: LineEnv, installation: string, email: string) =>
-  env.LINE ? env.LINE.get(env.LINE.idFromName(`${installation}:${email}`)) : null;
+  env.LIVE_LINE ? env.LIVE_LINE.get(env.LIVE_LINE.idFromName(`${installation}:${email}`)) : null;
 
 /** Wakes every page on the line and `computer`: undefined for every computer, null for none. It never fails a
  *  route: a lost wake is caught by the next check. */

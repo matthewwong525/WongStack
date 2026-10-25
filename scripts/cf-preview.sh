@@ -14,9 +14,12 @@
 #   2. install the app's dependencies when it has no node_modules
 #   3. apply pending migrations to the STAGING database
 #   4. build the app for staging (cf-build.sh)
-#   5. upload a version of the staging Worker under the preview alias; when the
-#      staging Worker does not exist yet, deploy it once and upload again
-#   6. print the preview URL that wrangler reports
+#   5. deploy the staging line's Worker, when the app has one: the line has no
+#      preview link, so a change to it shows on the staging app
+#   6. upload a version of the staging Worker under the preview alias; when the
+#      staging Worker does not exist yet, or holds a Durable Object migration a
+#      version can not apply, deploy it once and upload again
+#   7. print the preview URL that wrangler reports
 # It runs no tests: CI tests the change after the push. It never deploys
 # production.
 #
@@ -119,6 +122,9 @@ BUILT_NAME=$(wong_config worker-name staging)
 
 node "$SCRIPT_DIR/check-private-access.mjs" --environment staging
 
+wong_wrangler_command
+wong_deploy_line cf-preview --env staging
+
 # ── Upload ────────────────────────────────────────────────────────────────────
 UPLOAD_LOG=$(mktemp)
 trap 'rm -f "$UPLOAD_LOG"' EXIT
@@ -133,8 +139,8 @@ upload() {
 # Upload first: the staging Worker exists on every preview but the first, so
 # the common case is one wrangler call.
 if ! upload; then
-  grep -qiE 'does not (yet )?exist|code: 10007' "$UPLOAD_LOG" || fail "the preview upload failed"
-  say "the staging Worker ($STAGING_NAME) does not exist yet — creating it"
+  grep -qiE 'does not (yet )?exist|code: 10007|pending Durable Object migration' "$UPLOAD_LOG" || fail "the preview upload failed"
+  say "the staging Worker ($STAGING_NAME) is missing or has a migration to apply — deploying it once"
   (cd "$APP_DIR" && npx wrangler deploy ${STAGING_ENV[@]+"${STAGING_ENV[@]}"})
   upload || fail "the preview upload failed"
 fi

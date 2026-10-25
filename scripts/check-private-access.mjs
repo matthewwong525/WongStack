@@ -2,7 +2,7 @@
 // Read-only publication gate. Never modifies an Access policy or publishes content.
 import { isDeepStrictEqual } from 'node:util';
 import { privateDeployment, accessConflicts } from './lib-access-config.mjs';
-import { findWranglerConfig, parseConfig, redirectedConfig } from './lib-wrangler-config.mjs';
+import { findWranglerConfig, lineAddressProblem, lineConfigPath, parseConfig, redirectedConfig } from './lib-wrangler-config.mjs';
 import { isMain, parseCli, usageError } from './lib-cli.mjs';
 
 // The two routes the Worker checks the sign-in on itself; staging has no memory.
@@ -86,12 +86,20 @@ async function checkOpen(config, environment, cf, production, staging) {
   return { environment, worker: environment === 'production' ? production.name : staging.name, protection: 'open', humanLogin: 'none' };
 }
 
+/** Refuses a live line Worker that would answer on a web address: it needs no Access app because it has none. */
+export function checkLineAddress(configPath) {
+  const line = lineConfigPath(configPath);
+  const problem = line && lineAddressProblem(parseConfig(line));
+  if (problem) throw new Error(`the live line's Worker config: ${problem}`);
+}
+
 async function main() {
   const usage = 'usage: node scripts/check-private-access.mjs --environment <production|staging> [--source-only]';
   const { values } = parseCli({ usage, options: { environment: { type: 'string' }, 'source-only': { type: 'boolean' } } });
   if (!['production', 'staging'].includes(values.environment)) usageError(usage);
   if (!process.env.CLOUDFLARE_API_TOKEN) throw new Error('the CI/host Cloudflare credential is missing');
   const path = findWranglerConfig();
+  checkLineAddress(path);
   const redirected = values['source-only'] ? null : redirectedConfig(path);
   const cf = async route => {
     const response = await fetch(`https://api.cloudflare.com/client/v4${route}`, { headers: { Authorization: `Bearer ${process.env.CLOUDFLARE_API_TOKEN}` } });

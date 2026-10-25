@@ -1,7 +1,7 @@
 // A person's live line: one Durable Object holding their computer's and open inbox's sockets. It only says *look
 // now*; the routes carry what changed. It also keeps their schedule clock. wiki/stack/live-line.md
 import { nextWake, tick } from "./schedule-store.ts";
-import { seen } from "./store.ts";
+import { seen } from "./rows.ts";
 
 /** A socket's tag (`page` or `computer:<id>`), when its sign-in ends, its last look, and whether one waits. */
 type Socket = { tag: string; exp: number; lastLook: number; pending: boolean };
@@ -27,7 +27,7 @@ export class Line {
     ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair('{"t":"ping"}', '{"t":"pong"}'));
   }
 
-  /** Reached only from this Worker: `/connect` from the line route, `/wake` from a route's write. */
+  /** Reached only through the app's binding: `/connect` from the line route, `/wake` from a route's write. */
   async fetch(request: Request) {
     const { pathname } = new URL(request.url);
     if (pathname === "/connect") return this.connect(request);

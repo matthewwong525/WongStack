@@ -9,7 +9,7 @@ Every install starts empty and takes **every** category.
 - **Core** ships every listed skill's scripts/references, including browser discovery, private/reply links, camofox, shopping through Shop, improvement, scheduling and memory. It also ships `scheduled-work`, Claude/Codex memory hooks, Claude ask hooks, project settings, `paseo.json`, rules, process pages, `.nvmrc`, portable checks, test and guard workflows/change-scope action, and the `WONG-STACK` block.
 - **UI** adds [`ux-principles.md`](../../../../wiki/ux-principles.md) for user-facing screens.
 - **Pack** adds scripts, [comment rule](../../../../scripts/lint-comment-length.mjs), workflow, schema, `wiki/stack/`, [check runner](../../../../scripts/check-runner/worker.mjs) and [company calls](../../../../scripts/company-api.mjs). Employee migrations are additive; memory imports need no app packages.
-- **Scaffold** adds `app/`, except `app/wrangler.jsonc`, which holds source-repo database IDs.
+- **Scaffold** adds `app/`, except `app/wrangler*.jsonc`, which hold source-repo database IDs.
 
 ## The agent folder
 
@@ -78,7 +78,7 @@ Merge target `paseo.json`, preserving its keys. Make `worktree.setup` a list; ap
 
 Every install takes the pack. Copy/adapt drop-ins; merge config [fragments](stack-pack-fragments.md) into target files. `wiki/stack/` ships; [walkthrough](../../../../wiki/development/staging-walkthrough.md) stays core for other hosts.
 
-Create database IDs/secrets in the target. Copy no live `database_id` or source database name; exclude source `app/wrangler.jsonc`. [Provisioning](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4c-the-two-app-databases-and-the-config) builds its config.
+Create database IDs/secrets in the target. Copy no live `database_id` or source database name; exclude source `app/wrangler*.jsonc`. [Provisioning](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4c-the-two-app-databases-and-the-config) builds both configs.
 
 ## The app scaffold
 

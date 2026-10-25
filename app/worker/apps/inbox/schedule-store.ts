@@ -2,7 +2,7 @@
 // settles: one waiting at a time, a late one missed, a taken one with no result failed. wiki/stack/host-schedules.md
 import { Cron } from "croner";
 import { z } from "zod";
-import { mine, type Scope } from "./store.ts";
+import { mine, type Scope } from "./rows.ts";
 
 /** A collected run whose result hasn't come this long after is failed, never handed out again, as a tap is. */
 const DELIVER_MS = 120_000;

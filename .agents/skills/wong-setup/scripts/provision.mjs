@@ -17,10 +17,12 @@ import {
 } from './lib/cloudflare.mjs';
 import { privateDeployment } from '../../../../scripts/lib-access-config.mjs';
 import { secretsDir, stagingKeeps } from '../../../../scripts/lib-staging-secrets.mjs';
-import { parseConfig } from '../../../../scripts/lib-wrangler-config.mjs';
+import { lineProblem, parseConfig, workerName } from '../../../../scripts/lib-wrangler-config.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FRAGMENTS = join(HERE, '..', '..', 'wong-sync', 'references', 'stack-pack-fragments.md');
+const LINE_FILE = 'wrangler.line.jsonc';
+const LINE_TEMPLATE = join(HERE, '..', '..', 'wong-sync', 'references', 'wrangler.line.template.jsonc');
 /** The one Artifacts namespace every install in an account shares: Cloudflare can not delete a namespace. */
 export const NAMESPACE = 'wongstack';
 /** Days a check run's snapshot stays in the runner's bucket before the bucket's own rule deletes it. */
@@ -219,6 +221,9 @@ const nameList = (base) => {
   return [
     { kind: 'worker', name: n.worker },
     { kind: 'worker', name: n.staging },
+    // The live line's own Workers, which provisioning makes from the stack pack's line fragment.
+    { kind: 'worker', name: `${n.worker}-line` },
+    { kind: 'worker', name: `${n.worker}-line-staging` },
     { kind: 'database', name: n.db },
     { kind: 'database', name: n.stagingDb },
     { kind: 'database', name: n.memory },
@@ -333,6 +338,105 @@ export function wranglerConfig({ base, ids, bucket, access }, fragment = wrangle
   const left = /<[^<>\n]+>/.exec(text);
   if (left) throw new ProvisionError('repo', `the wrangler fragment has a placeholder this script does not fill: ${left[0]}`);
   return text.endsWith('\n') ? text : `${text}\n`;
+}
+
+// The live line's own Worker config, filled from the app's config: its Worker name, and each environment's database.
+// Null when the app config has no database to give it.
+export function lineConfig(app, fragment = readFileSync(LINE_TEMPLATE, 'utf8')) {
+  const ids = (env) => (env ? app.env?.[env] : app)?.d1_databases?.find((entry) => entry.binding === 'DB');
+  const [db, stagingDb] = [ids(), ids('staging')];
+  if (!db?.database_id || !stagingDb?.database_id) return null;
+  const fill = {
+    '<your-worker>': workerName(app),
+    '<your-db-name>-staging': stagingDb.database_name,
+    '<your-db-name>': db.database_name,
+    '<production database_id>': db.database_id,
+    '<staging database_id>': stagingDb.database_id,
+  };
+  let text = fragment;
+  for (const [placeholder, value] of Object.entries(fill)) text = text.replaceAll(placeholder, value);
+  const left = /<[^<>\n]+>/.exec(text);
+  if (left) throw new ProvisionError('repo', `the line fragment has a placeholder this script does not fill: ${left[0]}`);
+  return text.endsWith('\n') ? text : `${text}\n`;
+}
+
+// Points the app config at the line's Workers as LIVE_LINE, adding line-2: Cloudflare refuses the class drop while a
+// binding keeps the name LINE. Returns `updated`, `current`, or false with the file restored when its shape is unknown.
+function lineInConfig(file) {
+  const before = readFileSync(file, 'utf8');
+  const config = parseConfig(file);
+  const order = [undefined, 'staging', 'local'];
+  const want = (env) => `${workerName(config)}-line${env ? `-${env}` : ''}`;
+  const pointed = (parsed) => order.every((env) => {
+    const at = env ? parsed.env?.[env] : parsed;
+    if (env && !at) return true;
+    const bindings = at.durable_objects?.bindings ?? [];
+    return bindings.length === 1 && bindings[0].name === 'LIVE_LINE' && bindings[0].script_name === want(env);
+  }) && parsed.migrations?.some((m) => m.tag === 'line-2' && m.deleted_classes?.includes('Line'));
+  if (pointed(config)) return 'current';
+  let seen = 0;
+  let text = before.replace(/\{\s*"name"\s*:\s*"LINE"\s*,\s*"class_name"\s*:\s*"Line"\s*\}/g,
+    () => `{ "name": "LIVE_LINE", "class_name": "Line", "script_name": "${want(order[seen++])}" }`);
+  if (!/"tag"\s*:\s*"line-2"/.test(text)) text = text.replace(/(\{\s*"tag"\s*:\s*"line-1"\s*,\s*"new_sqlite_classes"\s*:\s*\["Line"\]\s*\})/, '$1, { "tag": "line-2", "deleted_classes": ["Line"] }');
+  writeFileSync(file, text);
+  try {
+    if (pointed(parseConfig(file))) return 'updated';
+  } catch {
+    // Falls through to restore the file.
+  }
+  writeFileSync(file, before);
+  return false;
+}
+
+/** The to-do left when the app config can not be pointed at the line's own Workers by script. */
+export const LINE_TODO = "point app/wrangler.jsonc's live line at its own Worker, as the stack pack's wrangler.jsonc fragment shows: each environment's LIVE_LINE binding with its script_name, and migration line-2";
+
+/** The to-do left when another project's Workers already hold the line's names: nothing deploys over them. */
+export const lineClashTodo = (names) => `this Cloudflare account already has Workers named ${names} that this install has no record of making, so the live line was left alone rather than overwrite them: don't save the update until it's settled. If they are this install's, list them under components.liveLine.workers in .claude/.wong-stack.json and run provisioning again; if they are another project's, this app's line needs those names free`;
+
+// Makes each missing line Worker before the first save, whose deploy runs the default branch's older scripts. A Worker
+// already holding a line name is this install's only when the install record lists it; any other is a clash.
+async function liveLine(dir, config, { cf, account, lines, note, todo }) {
+  const file = join(dir, 'app', LINE_FILE);
+  if (!/"class_name"\s*:\s*"Line"/.test(readFileSync(config, 'utf8'))) return;
+  const named = existsSync(file) ? parseConfig(file) : { name: `${workerName(parseConfig(config))}-line` };
+  const wanted = [undefined, 'staging'].map((env) => workerName(named, env));
+  const recorded = readJson(recordFile(dir))?.components?.liveLine?.workers ?? [];
+  const held = (await step('cloudflare', () => cf('GET', `/accounts/${account}/workers/scripts`))).map((each) => each.id);
+  const clash = wanted.filter((name) => held.includes(name) && !recorded.includes(name));
+  if (clash.length) return void todo.push(lineClashTodo(clash.join(', ')));
+  if (!existsSync(file)) {
+    const text = lineConfig(parseConfig(config));
+    if (!text) return void todo.push(LINE_TODO);
+    writeFileSync(file, text);
+    note('created', `app/${LINE_FILE}`);
+  }
+  const pointed = lineInConfig(config);
+  if (pointed === 'updated') note('updated', 'app/wrangler.jsonc LIVE_LINE and migration line-2');
+  if (!pointed) return void todo.push(LINE_TODO);
+  const line = parseConfig(file);
+  const problem = lineProblem(line, parseConfig(config));
+  if (problem) return void todo.push(`fix app/${LINE_FILE}: ${problem}`);
+  const workers = [undefined, 'staging'].map((env) => workerName(line, env));
+  // Recorded before the deploy, so a rerun after a half-made pair still knows both names are this install's.
+  recordComponent(dir, 'liveLine', { workers }, note);
+  const missing = [undefined, 'staging'].filter((env) => !held.includes(workerName(line, env)));
+  if (!missing.length) return;
+  const names = missing.map((env) => workerName(line, env)).join(', ');
+  try {
+    await lines(join(dir, 'app'), missing);
+  } catch (error) {
+    return void todo.push(`make the live line's Workers ${names} (${error.message}): in app/, run \`npx wrangler deploy --config ${LINE_FILE}\`, then again with \`--env staging\`, before the first save`);
+  }
+  note('created', `live line Workers ${names}`);
+}
+
+/** Deploys the line's Worker for each environment named (undefined is production), installing the app's tools first. */
+export async function lineWorkers(app, environments, exec = run, env = process.env) {
+  if (!existsSync(join(app, 'node_modules'))) await exec('npm', ['ci', '--no-audit', '--no-fund'], { cwd: app, env });
+  for (const environment of environments) {
+    await exec('npx', ['--no-install', 'wrangler', 'deploy', '--config', LINE_FILE, ...(environment ? ['--env', environment] : [])], { cwd: app, env });
+  }
 }
 
 /** Adds the bucket binding before the top-level `env` key of an existing config. False when there is none. */
@@ -661,7 +765,7 @@ function removeMemoryKey(file) {
 
 /** Everything after the one billable ask, under `base`. `keepConfig` leaves an installed repo's committed files alone.
  * `openWithoutLogin` goes on without Access when Cloudflare refuses Zero Trust; a site already private never opens. */
-export async function provision({ token, api, fetch, account, repo, base, route = 'github', ownerEmail, teammateEmails, dir = '.', today = isoDate(), keepConfig = false, openWithoutLogin = false, sleep = wait, exec = run, env = process.env, types = bindingTypes }) {
+export async function provision({ token, api, fetch, account, repo, base, route = 'github', ownerEmail, teammateEmails, dir = '.', today = isoDate(), keepConfig = false, openWithoutLogin = false, sleep = wait, exec = run, env = process.env, types = bindingTypes, lines }) {
   const cf = cloudflare(token, { api, fetch });
   // An Artifacts install needs the paid plan: look before anything is created or written.
   if (route === 'artifacts' && !(await step('cloudflare', () => paidPlan(cf, account, sleep)))) {
@@ -770,6 +874,8 @@ export async function provision({ token, api, fetch, account, repo, base, route 
       }
     }
     migrateScripts(dir, n, note);
+    const deployLines = (app, missing) => lineWorkers(app, missing, exec, { ...env, CLOUDFLARE_API_TOKEN: token, CLOUDFLARE_ACCOUNT_ID: account });
+    await liveLine(dir, config, { cf, account, lines: lines ?? deployLines, note, todo: report.todo });
   }
   // Private now, so the open-site key goes off in the store and out of .env: memory takes the company sign-in.
   // migrate-people turns keys off only once the install record has the sign-in, which --keep-config never writes.
