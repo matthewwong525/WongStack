@@ -79,7 +79,7 @@ export async function fakeCloudflare({ r2 = true, subdomain = 'ada', accounts = 
     policies: startingPolicies(),
     condition: undefined,
     workers: [],
-    // The live line's Workers, made by Wrangler from the computer, not by an upload the fake receives.
+    // The live line's Workers, made by a publish's Wrangler deploy, not by an upload the fake receives.
     lineWorkers: [],
     databases: [],
     buckets: [],

@@ -53,17 +53,26 @@ describe("getAccessIdentity — rejections that need no key", () => {
   it("returns the dev identity when SKIP_AUTH is set, reading env and never the request", async () => {
     // The bypass must come from the environment: a caller sending a header of
     // its own must not be able to reach it.
-    for (const value of [true, "true"]) {
-      const identity = await getAccessIdentity(new Request("http://localhost/api/thing"), {
-        SKIP_AUTH: value,
-        WONG_ENVIRONMENT: "local",
-      });
+    vi.useFakeTimers({ now: new Date("2026-10-25T12:00:00Z") });
+    try {
+      const now = Math.floor(Date.now() / 1000);
+      for (const value of [true, "true"]) {
+        for (const host of ["localhost", "127.0.0.1", "[::1]"]) {
+          const identity = await getAccessIdentity(new Request(`http://${host}:5173/api/thing`), {
+            SKIP_AUTH: value,
+            WONG_ENVIRONMENT: "local",
+          });
 
-      expect(identity).toEqual({
-        id: "dev@example.com",
-        kind: "user",
-        claims: { aud: "", iss: "", exp: 0, email: "dev@example.com" },
-      });
+          // A subject and an hour left: the person check takes it, as it takes a real sign-in.
+          expect(identity).toEqual({
+            id: "dev@example.com",
+            kind: "user",
+            claims: { aud: "", iss: "", sub: "local", exp: now + 3600, email: "dev@example.com" },
+          });
+        }
+      }
+    } finally {
+      vi.useRealTimers();
     }
   });
 
@@ -77,6 +86,11 @@ describe("getAccessIdentity — rejections that need no key", () => {
     }
     expect(await getAccessIdentity(new Request("http://localhost/"), { ...ENV, WONG_ENVIRONMENT: "production", SKIP_AUTH: true })).toBeNull();
     expect(await getAccessIdentity(new Request("http://localhost/"), { ...ENV, WONG_ENVIRONMENT: "local", SKIP_AUTH: "false" })).toBeNull();
+    expect(await getAccessIdentity(new Request("http://localhost/"), { ...ENV, WONG_ENVIRONMENT: "local" })).toBeNull();
+    // A name that only starts like this computer's is another host.
+    for (const host of ["localhost.example.com", "127.0.0.1.example.com", "app.example.com"]) {
+      expect(await getAccessIdentity(new Request(`http://${host}/`), { WONG_ENVIRONMENT: "local", SKIP_AUTH: "true" }), host).toBeNull();
+    }
   });
 
   it("denies rather than allows when the team domain or audience is unset", async () => {

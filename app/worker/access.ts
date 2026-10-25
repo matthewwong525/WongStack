@@ -39,12 +39,13 @@ export interface AccessEnv {
 export const hasSignIn = (env: AccessEnv): boolean =>
   !!env.CF_ACCESS_TEAM_DOMAIN && !!env.CF_ACCESS_AUD && env.WONG_ENVIRONMENT !== "local";
 
-/** A fixed identity for local work, used ONLY when SKIP_AUTH is explicitly set. */
-const DEV_IDENTITY: AccessIdentity = {
+/** The stand-in person for local work, used ONLY on a local run with SKIP_AUTH set, from this computer. It has a
+ *  subject and an hour left, so person-only routes, the inbox and its line included, take it there. */
+const devIdentity = (): AccessIdentity => ({
   id: "dev@example.com",
   kind: "user",
-  claims: { aud: "", iss: "", exp: 0, email: "dev@example.com" },
-};
+  claims: { aud: "", iss: "", sub: "local", exp: Math.floor(Date.now() / 1000) + 3600, email: "dev@example.com" },
+});
 
 /** Cloudflare rotates the signing keys, so they are fetched and cached, not pinned: this runs on every request.
  *  An unknown `kid` refetches at once, which is what handles a rotation; the TTL only bounds a stale set. */
@@ -153,7 +154,7 @@ export async function getAccessIdentity(
     env.WONG_ENVIRONMENT === "local" &&
     ["localhost", "127.0.0.1", "[::1]"].includes(new URL(request.url).hostname) &&
     (env.SKIP_AUTH === true || env.SKIP_AUTH === "true")
-  ) return DEV_IDENTITY;
+  ) return devIdentity();
 
   const teamDomain = env.CF_ACCESS_TEAM_DOMAIN;
   const audience = env.CF_ACCESS_AUD;

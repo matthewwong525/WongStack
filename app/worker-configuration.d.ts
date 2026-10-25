@@ -6,7 +6,7 @@ interface __BaseEnv_Env {
 	ASSETS: Fetcher;
 	MEMORY_BUCKET?: R2Bucket;
 	MEMORY_DB?: D1Database;
-	LIVE_LINE: DurableObjectNamespace /* Line from wongstack-line */;
+	LIVE_LINE?: DurableObjectNamespace /* Line from wongstack-line */;
 }
 declare namespace Cloudflare {
 	interface GlobalProps {
@@ -15,7 +15,6 @@ declare namespace Cloudflare {
 	interface StagingEnv {
 		DB: D1Database;
 		ASSETS: Fetcher;
-		LIVE_LINE: DurableObjectNamespace /* Line from wongstack-line-staging */;
 	}
 	interface Env extends __BaseEnv_Env {}
 }

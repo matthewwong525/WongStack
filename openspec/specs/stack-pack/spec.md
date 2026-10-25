@@ -276,30 +276,30 @@ The pack's CI SHALL record each default-branch deploy on the deployed commit wit
 
 ### Requirement: The line Worker deploys before the app
 
-Every deploy that sends the app SHALL first send the line's Worker for the same environment: production before the production app, staging before the staging app and its preview. When the line's deploy fails, the app SHALL NOT be deployed. A repo whose config has no line Worker yet SHALL deploy the app alone, as before.
+Every deploy of the live app SHALL first send the line's Worker: when the line's deploy fails, the live app SHALL NOT be deployed. A preview SHALL deploy no line Worker. A repo whose config has no line Worker yet SHALL deploy the app alone, as before.
 
 #### Scenario: A branch push
 
 - **WHEN** a branch is pushed
-- **THEN** the staging line deploys, then the staging app, then the branch's preview is uploaded
+- **THEN** the staging app deploys and the branch's preview is uploaded, and no line Worker deploys
 
 #### Scenario: The line fails to deploy
 
-- **WHEN** the line's Worker fails to deploy
-- **THEN** the deploy stops and the app stays on its previous version
+- **WHEN** the line's Worker fails to deploy on the default branch
+- **THEN** the deploy stops and the live app stays on its previous version
 
 ### Requirement: A branch picks the line's code, never its Worker or database
 
-A preview deploy SHALL take the line's built code from the branch and its settings (Worker name, database, address) from the default branch's own config. The staging app SHALL never point at the production line: it SHALL point at the staging line or at no line, and the checks SHALL pass a staging app with no line.
+A live deploy SHALL take the line's settings (Worker name, database, address) from the default branch's own config, never a branch's. The staging app SHALL point at no line and at no Durable Object in another Worker; the checks and the deploy SHALL refuse one that does.
 
 #### Scenario: A branch renames the line's Worker or database
 
 - **WHEN** a branch's line settings name another Worker or the production database
-- **THEN** the deploy still sends the line to the default branch's staging line Worker with the staging database
+- **THEN** its preview deploys no line, and the live deploy after merging still uses the default branch's line Worker and database
 
 #### Scenario: Staging points at the live line
 
-- **WHEN** a branch's staging app points its line at the production line Worker, or at any Worker but the default branch's staging line
+- **WHEN** a branch's staging app points its line at the production line Worker, at an old test line, or at any other Worker's Durable Object
 - **THEN** the deploy refuses the build before uploading anything and names the binding
 
 #### Scenario: Staging has no line

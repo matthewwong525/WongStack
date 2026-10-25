@@ -44,8 +44,6 @@ esac
 const fakeNpx = `#!/usr/bin/env bash
 echo "\${PWD#"$FAKE_ROOT"/}|npx $*" >> "$FAKE_LOG"
 case "$*" in
-  "wrangler deploy --dry-run"*) mkdir -p dist/line && touch dist/line/line-worker.js ;;
-  "wrangler deploy dist/line/"*) ;;
   "wrangler versions upload"*)
     if [ -f "$FAKE_STATE/pending-migration" ]; then
       echo "✘ [ERROR] This Worker has a pending Durable Object migration, which cannot be applied by wrangler versions upload." >&2
@@ -101,19 +99,18 @@ function run(root, script, args = [], vars = {}) {
 
 const preview = (root, args, vars) => run(root, 'cf-preview.sh', args, vars);
 
-test('a preview deploys the staging line before its upload, and deploys once when a version can not apply a migration', t => {
-  const line = { durable_objects: { bindings: [{ name: 'LIVE_LINE', class_name: 'Line', script_name: 'demo-line-staging' }] } };
-  const root = previewRepo(t, { config: mainConfig(line), stagingExists: true });
-  const db = name => [{ binding: 'DB', database_name: name, database_id: `${name}-id` }];
+test('a preview deploys no line Worker, and deploys once when a version can not apply a migration', t => {
+  const live = { ...JSON.parse(mainConfig()), durable_objects: { bindings: [{ name: 'LIVE_LINE', class_name: 'Line', script_name: 'demo-line' }] } };
+  const root = previewRepo(t, { config: JSON.stringify(live, null, 2), stagingExists: true });
   fixtures.get(root).write('app/wrangler.line.jsonc', JSON.stringify({
-    name: 'demo-line', main: 'worker/line-worker.ts', workers_dev: false, preview_urls: false, d1_databases: db('demo-db'),
-    env: { staging: { name: 'demo-line-staging', d1_databases: db('demo-db-staging') } },
+    name: 'demo-line', main: 'worker/line-worker.ts', workers_dev: false, preview_urls: false,
+    d1_databases: [{ binding: 'DB', database_name: 'demo-db', database_id: 'demo-db-id' }],
   }));
   writeFileSync(join(root, 'state/pending-migration'), '');
   const result = preview(root, []);
   assert.equal(result.status, 0, result.out);
   const wrangler = result.calls.filter(call => /^npx wrangler (deploy|versions upload)/.test(call)).map(call => call.split(' ').slice(2, 4).join(' '));
-  assert.deepEqual(wrangler, ['deploy --dry-run', 'deploy dist/line/line-worker.js', 'versions upload', 'deploy', 'versions upload']);
+  assert.deepEqual(wrangler, ['versions upload', 'deploy', 'versions upload']);
   assert.match(result.out, /has a migration to apply — deploying it once/);
   assert.match(result.out, /https:\/\/mini-tips-demo-staging\.example\.workers\.dev/);
 });

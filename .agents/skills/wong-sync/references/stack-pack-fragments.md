@@ -76,7 +76,6 @@ The **only source of the app's wrangler config**, so a deployable Worker: the to
         "CF_ACCESS_WORKER_ID": "<staging Worker id>"
       },
       "d1_databases": [{ "binding": "DB", "database_name": "<your-db-name>-staging", "database_id": "<staging database_id>", "migrations_dir": "../schema/migrations" }],
-      "durable_objects": { "bindings": [{ "name": "LIVE_LINE", "class_name": "Line", "script_name": "<your-worker>-line-staging" }] },
       "triggers": { "crons": [] }
     },
     "local": {

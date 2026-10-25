@@ -21,6 +21,7 @@ const scripts = {
   'scripts/check-app-checks.mjs': [],
   'scripts/check-skill-actions.mjs': [],
   'scripts/reset-staging-d1.mjs': [],
+  'scripts/line-stand-in.mjs': [],
   'scripts/cf-secrets.mjs': [],
   'scripts/lib-wrangler-config.mjs': [],
   'scripts/tag-releases.mjs': [],

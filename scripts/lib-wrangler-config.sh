@@ -202,21 +202,20 @@ wong_refuse_untrusted_build() {
   return 1
 }
 
-# Deploy the live line's own Worker, before the app, when the app has one: its
-# settings from this checkout's wrangler.line.jsonc (the default branch's after
-# a take-build, which never copies one in), its code from the build's
+# Deploy the live line's own Worker, before the live app, when the app has one:
+# its settings from this checkout's wrangler.line.jsonc (the default branch's
+# after a take-build, which never copies one in), its code from the build's
 # dist/line/. A refusal or a failed deploy returns 1, so under `set -e` the app
-# never deploys after it. Extra arguments go to wrangler (`--env staging`).
+# never deploys after it. Previews have no line, so nothing else calls it.
 #
-# Usage: wong_deploy_line <prefix> [--env staging]   (after wong_resolve_wrangler_config and wong_wrangler_command)
+# Usage: wong_deploy_line <prefix>   (after wong_resolve_wrangler_config and wong_wrangler_command)
 wong_deploy_line() {
   local p="$1" line_config line_entry
-  shift
   line_config=$(wong_config line-config) || return 1
   [ -n "$line_config" ] || return 0
   line_entry=$(wong_config line-entry) || { echo "$p: the live line's Worker can not deploy, so the app was not deployed either." >&2; return 1; }
   echo "$p: deploying the live line's Worker first"
-  (cd "$APP_DIR" && "${WRANGLER[@]}" deploy "$line_entry" --no-bundle --config "$line_config" "$@")
+  (cd "$APP_DIR" && "${WRANGLER[@]}" deploy "$line_entry" --no-bundle --config "$line_config")
 }
 
 # The wrangler every credentialed call runs: WONG_WRANGLER, the deploy job's own

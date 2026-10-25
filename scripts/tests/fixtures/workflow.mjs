@@ -347,11 +347,12 @@ export const DEMO_CONFIG = {
 };
 
 // What @cloudflare/vite-plugin leaves: the chosen environment flattened into dist/<name>/wrangler.json, and a redirect.
+// As in wrangler, an environment inherits no Durable Object binding.
 const BUILD = `import { mkdirSync, writeFileSync } from 'node:fs';
 import { parseConfig } from ${JSON.stringify(LIB)};
 const source = parseConfig('wrangler.jsonc');
 const env = process.env.CLOUDFLARE_ENV;
-const { env: _, ...flat } = { ...source, ...(env ? source.env[env] : {}) };
+const { env: _, ...flat } = { ...source, ...(env ? { durable_objects: undefined, ...source.env[env] } : {}) };
 const out = 'dist/' + source.name;
 mkdirSync(out, { recursive: true });
 mkdirSync('dist/client', { recursive: true });
