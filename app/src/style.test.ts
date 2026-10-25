@@ -61,9 +61,11 @@ it("gives every page one frame: the bar's contents and the page share a width an
   const bar = screen.getByRole("link", { name: "WongStack" }).closest("header")!;
   expect(bar.parentElement).toBe(page.parentElement);
   expect(bar.className).not.toMatch(/max-w-|mx-auto|px-/);
-  // The bar is one height and scrolls off with the page, so a long page gets the whole screen; a plan tucks it away.
-  expect(bar.className.split(" ")).toEqual(expect.arrayContaining(["h-14", "bg-background", "in-data-[bars=tucked]:hidden"]));
-  expect(bar.className).not.toMatch(/sticky|fixed|backdrop-blur/);
+  // The bar is one height and scrolls off with the page, so a long page gets the whole screen; a plan tucks it away, or
+  // lays it over itself, opaque, so the plan doesn't move.
+  expect(bar.className.split(" ")).toEqual(expect.arrayContaining(["h-14", "bg-background", "in-data-[bars=tucked]:hidden",
+    "in-data-[bars=over]:fixed", "in-data-[bars=over]:inset-x-0", "in-data-[bars=over]:top-0", "in-data-[bars=over]:z-40"]));
+  expect(bar.className.split(" ").filter(name => /sticky|fixed|backdrop-blur/.test(name))).toEqual(["in-data-[bars=over]:fixed"]);
   const inside = bar.firstElementChild!;
   expect(inside.className.split(" ")).toEqual(expect.arrayContaining([...frame, "flex", "justify-between"]));
   expect(inside.contains(screen.getByRole("link", { name: "Sign out" }))).toBe(true);

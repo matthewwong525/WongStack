@@ -3,6 +3,12 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 44.15.4 — Only the app's bar comes back on a plan
+
+- **Scrolling back up a plan no longer pushes it down.** Only the app's bar comes back, laid over the plan, so the line you were reading stays put. *Back* and where the plan came from show again when you reach the plan's top. Reading down still hides everything.
+
+**Updating.** Nothing to do. A plan sent before the update brings both bars back on a scroll up, as before, until its chat rebuilds it.
+
 ## 44.15.3 — Two notes for checking previews
 
 - **Checking a plan in the inbox.** The wiki now says how a preview check reaches a plan shown in the inbox: a tap at its place on the screen works, but scrolling needs a short script in the sample plan.

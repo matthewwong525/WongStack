@@ -99,16 +99,37 @@ it('tucks the app bar and the Back row while the person reads down the plan, fil
   const { frame, say } = await open()
   const column = frame.parentElement!
   const top = screen.getByRole('link', { name: 'Back' }).parentElement!
-  await say({ type: 'inbox:scroll', down: true })
+  await say({ type: 'inbox:scroll', down: true, top: false })
   expect(document.documentElement.dataset.bars).toBe('tucked')
   expect(top.className.split(' ')).toContain('hidden')
   expect(column.className.split(' ')).toEqual(expect.arrayContaining(['h-dvh', '-mt-8', '-mb-8']))
   expect(column.className).not.toContain('5.5rem')
+  // A turn up mid-plan lays only the app's bar over the plan: the column keeps its size and Back stays hidden.
+  await say({ type: 'inbox:scroll', down: false, top: false })
+  expect(document.documentElement.dataset.bars).toBe('over')
+  expect(top.className.split(' ')).toContain('hidden')
+  expect(column.className.split(' ')).toEqual(expect.arrayContaining(['h-dvh', '-mt-8', '-mb-8']))
+  // At the top everything shows, in the flow.
+  await say({ type: 'inbox:scroll', down: false, top: true })
+  expect(document.documentElement.dataset.bars).toBeUndefined()
+  expect(top.className.split(' ')).not.toContain('hidden')
+  expect(column.className.split(' ')).toContain('h-[calc(100dvh-5.5rem)]')
+  // Leaving while tucked or over shows the bar in its place on the next page.
+  await say({ type: 'inbox:scroll', down: false, top: false })
+  cleanup()
+  expect(document.documentElement.dataset.bars).toBeUndefined()
+})
+
+it("brings back the app's bar and Back together on a turn up when the plan's page was built before it said where its top is", async () => {
+  const { frame, say } = await open()
+  const column = frame.parentElement!
+  const top = screen.getByRole('link', { name: 'Back' }).parentElement!
+  await say({ type: 'inbox:scroll', down: true })
+  expect(document.documentElement.dataset.bars).toBe('tucked')
   await say({ type: 'inbox:scroll', down: false })
   expect(document.documentElement.dataset.bars).toBeUndefined()
   expect(top.className.split(' ')).not.toContain('hidden')
   expect(column.className.split(' ')).toContain('h-[calc(100dvh-5.5rem)]')
-  // Leaving while tucked shows the bar on the next page.
   await say({ type: 'inbox:scroll', down: true })
   expect(document.documentElement.dataset.bars).toBe('tucked')
   cleanup()

@@ -28,8 +28,9 @@ function Top({ item, hidden = false }: { item: Plan['item']; hidden?: boolean })
  *  through the port its first load is handed. A frame that loads again went elsewhere: nothing replaces the port. */
 export function PlanView({ id }: { id: string }) {
   const [plan, setPlan] = useState<Plan | null>(null)
-  // True while the person reads down the plan: the app's bar and the Back row hide.
-  const [tucked, setTucked] = useState(false)
+  // At the plan's top everything shows; reading down, the app's bar and the Back row hide; turned up mid-plan, only the
+  // app's bar returns, over the plan, so the plan keeps its size.
+  const [bars, setBars] = useState<'top' | 'down' | 'up'>('top')
   const [gone, setGone] = useState<'closed' | 'unavailable' | null>(null)
   const [tap, setTap] = useState<Tap | null>(null)
   const frame = useRef<HTMLIFrameElement>(null)
@@ -40,7 +41,7 @@ export function PlanView({ id }: { id: string }) {
     (error: unknown) => setGone(error instanceof Failed && (error.status === 404 || error.status === 410) ? 'closed' : 'unavailable')), [id])
   useEffect(() => { void load() }, [load])
   useEffect(() => () => channel.current?.port?.close(), [])
-  useEffect(() => { tuckBars(tucked); return () => tuckBars(false) }, [tucked])
+  useEffect(() => { tuckBars(bars === 'down' ? 'tucked' : bars === 'up' ? 'over' : null); return () => tuckBars(null) }, [bars])
   // The page follows the app's switch in place, so it keeps its notes.
   useEffect(() => {
     let shown = appLook()
@@ -73,7 +74,8 @@ export function PlanView({ id }: { id: string }) {
     const message = frameMessage(data, { actions: item.actions, key: notesKey(item.body) })
     if (message?.type === 'inbox:notes-get') post({ type: 'inbox:notes', value: localStorage.getItem(message.key) })
     if (message?.type === 'inbox:notes-set') localStorage.setItem(message.key, message.value)
-    if (message?.type === 'inbox:scroll') setTucked(message.down)
+    // A page built before it said where its top is turns up only at the top, as the bars then behaved.
+    if (message?.type === 'inbox:scroll') setBars(message.down ? 'down' : (message.top ?? true) ? 'top' : 'up')
     if (message?.type !== 'inbox:tap') return
     const result = await sendTap({ item: item.id, action: message.action, version: item.version, text: message.text })
     if (typeof result === 'string') post({ type: 'inbox:result', state: result })
@@ -81,7 +83,7 @@ export function PlanView({ id }: { id: string }) {
   }
   // Any page the frame loads opens at its top, so the bars show until it says it scrolled.
   const greet = (item: Plan['item']) => {
-    setTucked(false)
+    setBars('top')
     const before = channel.current
     before?.port?.close()
     if (before?.version === item.version) { before.port = null; return }
@@ -99,10 +101,10 @@ export function PlanView({ id }: { id: string }) {
   </div>
   const { item } = plan
   if (item.kind !== 'plan') return <div className="grid grid-cols-1 gap-4"><Top item={item} /><List only={item.id} /></div>
-  // Fills the window under Layout's 3.5rem header and main's 2rem margins, or all of it once tucked, so only the frame
-  // scrolls and the page's fixed bar sits on the window's bottom. Popups let its links open a tab outside the sandbox.
-  return <div className={`-mb-8 flex flex-col gap-3 ${tucked ? '-mt-8 h-dvh' : 'h-[calc(100dvh-5.5rem)]'}`}>
-    <Top item={item} hidden={tucked} />
+  // Fills the window under Layout's 3.5rem header and main's 2rem margins, or all of it away from the top, so only the
+  // frame scrolls and the page's fixed bar sits on the window's bottom. Popups let links open a tab past the sandbox.
+  return <div className={`-mb-8 flex flex-col gap-3 ${bars === 'top' ? 'h-[calc(100dvh-5.5rem)]' : '-mt-8 h-dvh'}`}>
+    <Top item={item} hidden={bars !== 'top'} />
     {tap && <TapLine tap={tap} online={plan.computerOnline} copy={tap.text || label(tap.action)} onChange={settle} onReload={() => void load()} />}
     <iframe key={item.version} ref={frame} title={item.title} sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" srcDoc={item.body}
       className="ml-[calc(50%-50vw)] min-h-0 w-screen max-w-none flex-1" onLoad={() => greet(item)} />
