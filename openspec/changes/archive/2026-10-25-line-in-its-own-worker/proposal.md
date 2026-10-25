@@ -1,6 +1,6 @@
 # App changes get their preview link back: the live line moves to its own small Worker
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** greedy-whale
 **Open questions:** none.
 
@@ -88,3 +88,4 @@ None.
 - **2026-10-25** — Check: `app/knip.jsonc` gains an entry, `worker/line-worker.ts`, because the line's own Worker is a new entry point Wrangler loads from `wrangler.line.jsonc`, which knip can't see; nothing is loosened.
 - **2026-10-25** — Fixed: running the two Workers together locally showed the line Worker crashing at start on Vite-only `import.meta.glob`, reached through the inbox's shared file; the line now imports a small file of its own, and a test fails if it reaches a glob again. `npm run dev` fails before this change too (a blocked import outside the app folder), so the local check used `wrangler dev`, and the tap is walked on the preview.
 - **2026-10-25** — Fixed (second look): an existing Worker with a line name counts as this install's only when its setup record lists it, else setup leaves a step for the person; the update note now says to make the line Workers before the update's first save; the deploy docs' preview row names the line step. Both line Workers were made from this host before the first save, and the host's preview printed a link.
+- **2026-10-25** — Archive checkpoint: the preview walk passed (a tap reached the computer through the staging line in 0.3 seconds); archived as 44.12.0 for `/ship`.

@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — App changes get their preview link back
+## 44.12.0 — App changes get their preview link back
 
 - **Every app change gets its own link again.** Since the live line arrived, saving an app change printed no preview link: Cloudflare makes none for an app that holds the line. The line now runs in a small app of its own beside yours, so your app gets its links back.
 - **Nothing changes in how the line works.** Taps, the inbox and schedules behave as before. A change to the line itself shows on the shared test app, not on its own link.

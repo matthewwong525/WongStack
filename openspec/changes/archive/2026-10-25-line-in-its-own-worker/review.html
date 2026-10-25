@@ -11,7 +11,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · line-in-its-own-worker</title>
+<title>Review · 2026-10-25-line-in-its-own-worker</title>
 <style>
   /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
    look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
@@ -360,11 +360,11 @@
 })();
 </script>
 </head>
-<body data-change="line-in-its-own-worker">
+<body data-change="2026-10-25-line-in-its-own-worker">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>line-in-its-own-worker</h1>
+  <h1>2026-10-25-line-in-its-own-worker</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. <span class="copies">Saving a note copies all your notes.</span> Open a drawing and tap it to see it full screen.</p>
@@ -415,6 +415,7 @@
 <li class="decision card" id="decision-12" data-note="decision-12" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-10-25</p>Check: <code>app/knip.jsonc</code> gains an entry, <code>worker/line-worker.ts</code>, because the line's own Worker is a new entry point Wrangler loads from <code>wrangler.line.jsonc</code>, which knip can't see; nothing is loosened.</li>
 <li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-25</p>Fixed: running the two Workers together locally showed the line Worker crashing at start on Vite-only <code>import.meta.glob</code>, reached through the inbox's shared file; the line now imports a small file of its own, and a test fails if it reaches a glob again. <code>npm run dev</code> fails before this change too (a blocked import outside the app folder), so the local check used <code>wrangler dev</code>, and the tap is walked on the preview.</li>
 <li class="decision card" id="decision-14" data-note="decision-14" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-25</p>Fixed (second look): an existing Worker with a line name counts as this install's only when its setup record lists it, else setup leaves a step for the person; the update note now says to make the line Workers before the update's first save; the deploy docs' preview row names the line step. Both line Workers were made from this host before the first save, and the host's preview printed a link.</li>
+<li class="decision card" id="decision-15" data-note="decision-15" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-25</p>Archive checkpoint: the preview walk passed (a tap reached the computer through the staging line in 0.3 seconds); archived as 44.12.0 for <code>/ship</code>.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

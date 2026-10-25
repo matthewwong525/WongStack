@@ -36,5 +36,5 @@
 
 - [x] 6.1 From this host, with the token: run provisioning's line step for `wongstack-line` and `wongstack-line-staging`; verify both exist in `wrangler deployments list --name <each>` and have no `workers.dev` address
 - [x] 6.2 Run `node .github/scripts/checks.mjs --worktree` and `bash scripts/cf-preview.sh --alias line-in-its-own-worker`: it prints a preview URL
-- [ ] 6.3 `/save`; CI passes and posts a preview link for the branch
-- [ ] 6.4 On the preview link, signed in: open the inbox, make a test item, tap it, and see the computer's helper pick it up within seconds through the staging line; close the test item after
+- [x] 6.3 `/save`; CI passes and posts a preview link for the branch
+- [x] 6.4 On the preview link, signed in: open the inbox, make a test item, tap it, and see the computer's helper pick it up within seconds through the staging line; close the test item after. Walked on the branch's CI preview by a script standing in for the helper (signed in with `cloudflared access token`): line open as a computer, item put, tap sent, `look` arrived 291 ms later through `wongstack-line-staging`; test item closed
