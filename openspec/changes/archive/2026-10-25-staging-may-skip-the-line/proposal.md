@@ -46,3 +46,4 @@ None.
 - **2026-10-25** — Check: `secrets:check` stops failing when production binds a Durable Object in another Worker and staging binds none, because a missing binding can't reach live objects; the failure for staging naming production's Worker stays.
 - **2026-10-25** — Fixed (second look): the `stack-pack` delta had picked up a scenario and a THEN line from `cloudflare-provisioning`'s *A production deploy keeps the default branch's config*; both are gone, here and in [one-line-worker](../one-line-worker/proposal.md)'s delta.
 - **2026-10-25** — Save checkpoint: built and reviewed; the second plan, one-line-worker, is kept off this branch until this release is live.
+- **2026-10-25** — Archive checkpoint: CI passed on the branch's save (PR #454); archived as 44.13.0 for `/ship`.

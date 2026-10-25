@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — The test copy may run without the live line
+## 44.13.0 — The test copy may run without the live line
 
 The check that keeps your test app apart from the live one now passes when the test app has no live line at all. It still fails when the test app points at the live line. Nothing you see changes; this clears the way for the next release, which takes the test app's line away.
 

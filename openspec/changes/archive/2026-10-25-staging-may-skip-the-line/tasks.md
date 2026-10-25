@@ -13,4 +13,4 @@
 ## 3. Check
 
 - [x] 3.1 Run `node .github/scripts/checks.mjs --worktree`; it passes
-- [ ] 3.2 `/save`; CI passes and posts the branch's preview link
+- [x] 3.2 `/save`; CI passes and posts the branch's preview link

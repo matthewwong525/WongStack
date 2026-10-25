@@ -11,7 +11,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · staging-may-skip-the-line</title>
+<title>Review · 2026-10-25-staging-may-skip-the-line</title>
 <style>
   /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
    look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
@@ -360,11 +360,11 @@
 })();
 </script>
 </head>
-<body data-change="staging-may-skip-the-line">
+<body data-change="2026-10-25-staging-may-skip-the-line">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>staging-may-skip-the-line</h1>
+  <h1>2026-10-25-staging-may-skip-the-line</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. <span class="copies">Saving a note copies all your notes.</span> Open a drawing and tap it to see it full screen.</p>
@@ -391,6 +391,7 @@
 <li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-10-25</p>Check: <code>secrets:check</code> stops failing when production binds a Durable Object in another Worker and staging binds none, because a missing binding can't reach live objects; the failure for staging naming production's Worker stays.</li>
 <li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-25</p>Fixed (second look): the <code>stack-pack</code> delta had picked up a scenario and a THEN line from <code>cloudflare-provisioning</code>'s <i>A production deploy keeps the default branch's config</i>; both are gone, here and in <a href="../one-line-worker/proposal.md">one-line-worker</a>'s delta.</li>
 <li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-25</p>Save checkpoint: built and reviewed; the second plan, one-line-worker, is kept off this branch until this release is live.</li>
+<li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-25</p>Archive checkpoint: CI passed on the branch's save (PR #454); archived as 44.13.0 for <code>/ship</code>.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
