@@ -121,3 +121,13 @@ test('a preview whose line binding points at the live line Worker is refused bef
   assert.notEqual(taken.status, 0);
   assert.match(taken.log, /binding 'LIVE_LINE' points at the Worker 'demo-line', not 'demo-line-staging', the default branch's staging line/);
 });
+
+test('a preview whose staging app binds no line is taken', (t) => {
+  const tools = fakeTools(t);
+  const main = repo(t);
+  const config = { ...APP, env: { staging: DEMO_CONFIG.env.staging } };
+  // Wrangler's environments inherit no Durable Object binding; the stand-in build would copy production's.
+  const noLine = { BUILD_EXTRA: JSON.stringify({ durable_objects: { bindings: [] } }) };
+  const taken = script(main.root, tools, 'cf-deploy.sh', ['--take-build', built(t, tools, { config }, noLine)]);
+  assert.equal(taken.status, 0, taken.log);
+});
