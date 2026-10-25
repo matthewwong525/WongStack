@@ -6,8 +6,9 @@ const message = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('inbox:tap'), action: z.string(), text: z.string().max(20_000) }),
   z.strictObject({ type: z.literal('inbox:notes-get'), key }),
   z.strictObject({ type: z.literal('inbox:notes-set'), key, value: z.string().max(1_000_000) }),
-  // Which way the person reads, so the inbox can tuck its bars while they read down.
-  z.strictObject({ type: z.literal('inbox:scroll'), down: z.boolean() }),
+  // Which way the person reads, so the inbox can tuck its bars while they read down, and whether they are at the top. A
+  // page built before it said so sends no `top`.
+  z.strictObject({ type: z.literal('inbox:scroll'), down: z.boolean(), top: z.boolean().optional() }),
 ])
 export type FrameMessage = z.infer<typeof message>
 

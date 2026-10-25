@@ -13,8 +13,9 @@ export function Layout() {
   const { data } = useAccess('apps', appAccessSchema)
   return (
     <>
-      {/* Not pinned: it scrolls off with the page, and hides while a plan is read (lib/bars.ts). */}
-      <header className="flex h-14 items-center border-b bg-background in-data-[bars=tucked]:hidden">
+      {/* Not pinned: it scrolls off with the page. A plan hides it while read down and lays it over itself on a turn
+          up, so the plan doesn't move (lib/bars.ts). */}
+      <header className="flex h-14 items-center border-b bg-background in-data-[bars=tucked]:hidden in-data-[bars=over]:fixed in-data-[bars=over]:inset-x-0 in-data-[bars=over]:top-0 in-data-[bars=over]:z-40">
         <div className={`${FRAME} flex items-center justify-between gap-4`}>
           <Link className="inline-flex min-h-11 items-center gap-2 font-semibold no-underline" to="/">
             <img className="h-auto w-8" src="/favicon.svg" alt="" />

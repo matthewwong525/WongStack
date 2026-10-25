@@ -505,7 +505,7 @@ test('in the inbox frame the page talks only on the port its first greeting carr
   window.close();
 }));
 
-test('in the inbox frame the page says which way the reader turns, so the inbox can tuck its bars; alone it says nothing', needsDom, () => fixture(async root => {
+test('in the inbox frame the page says which way the reader turns and when they reach its top, so the inbox can tuck its bars; alone it says nothing', needsDom, () => fixture(async root => {
   buildReview(root, { requireCurrent: true });
   const { window, errors } = dom(page(root));
   const parent = { postMessage: () => {} };
@@ -515,6 +515,7 @@ test('in the inbox frame the page says which way the reader turns, so the inbox 
   Object.defineProperty(window, 'scrollY', { configurable: true, get: () => y });
   Object.defineProperty(window, 'innerHeight', { configurable: true, get: () => tall });
   const turns = () => port.posted.filter(message => message.type === 'inbox:scroll').map(message => message.down);
+  const tops = () => port.posted.filter(message => message.type === 'inbox:scroll').map(message => message.top);
   const to = (...ys) => { for (const at of ys) { y = at; window.dispatchEvent(new window.Event('scroll')); } };
   await loaded(window);
   to(300, 0);
@@ -531,6 +532,7 @@ test('in the inbox frame the page says which way the reader turns, so the inbox 
   assert.deepEqual(turns(), [true], 'small jitter turns nothing');
   to(380, 300);
   assert.deepEqual(turns(), [true, false], 'scrolling 8 px back up turns');
+  assert.deepEqual(tops(), [false, false], 'a turn up mid-page is not the top');
   to(310, 600);
   assert.deepEqual(turns(), [true, false, true]);
   // The bars tucking makes the frame taller, and the browser moves the page to fit: that is no turn.
@@ -539,6 +541,24 @@ test('in the inbox frame the page says which way the reader turns, so the inbox 
   assert.deepEqual(turns(), [true, false, true]);
   to(30);
   assert.deepEqual(turns(), [true, false, true, false], 'back at the top the bars return');
+  assert.deepEqual(tops(), [false, false, false, true]);
+  // Turned up mid-page, then on to the top: the page says it reached the top without turning again.
+  to(600, 300);
+  assert.deepEqual(turns(), [true, false, true, false, true, false]);
+  to(100, 40);
+  assert.deepEqual(turns(), [true, false, true, false, true, false, false], 'reaching the top says so once');
+  assert.deepEqual(tops().slice(-3), [false, false, true]);
+  to(20, 0);
+  assert.equal(turns().length, 7, 'within the top zone it says nothing more');
+  // Back up into the top zone, then a few px down past it without a turn: still the top.
+  to(600, 45);
+  assert.deepEqual(tops().slice(-1), [true]);
+  const said = turns().length;
+  to(52);
+  assert.equal(turns().length, said, 'creeping past the top zone says nothing');
+  to(60);
+  assert.deepEqual(turns().slice(-1), [true]);
+  assert.deepEqual(tops().slice(-1), [false], 'a turn down leaves the top');
   assert.deepEqual(errors, []);
   window.close();
 }));

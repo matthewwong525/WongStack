@@ -757,14 +757,18 @@
     else if (m.type === 'inbox:notes' && (typeof m.value === 'string' || m.value === null)) { load(m.value); render(); }
     else if (hosted.reply && m.type === 'inbox:result') { const reply = hosted.reply; hosted.reply = null; reply(m.state); }
   }
-  // Tells the inbox when the reader turns: down past the top zone, or 8 px back up, so its bars tuck while they read on.
+  // Tells the inbox when the reader turns, down past the top zone or 8 px back up, and when they are in that zone, so
+  // its bars tuck while they read on and its Back row returns only at the top.
   // A resize moves the page too, as the bars tuck, so it only resets where the last turn was.
-  let down = false, turn = 0, tall = window.innerHeight;
+  let down = false, top = true, turn = 0, tall = window.innerHeight;
   function scrolled() {
-    const y = window.scrollY;
-    if (window.innerHeight !== tall) { tall = window.innerHeight; turn = y; return; }
-    if (down ? y <= 48 || turn - y > 8 : y > 48 && y - turn > 8) { down = !down; turn = y; post({ type: 'inbox:scroll', down: down }); }
+    const y = window.scrollY, was = down, high = top;
+    if (window.innerHeight !== tall) { tall = window.innerHeight; turn = y; }
+    else if (down ? y <= 48 || turn - y > 8 : y > 48 && y - turn > 8) { down = !down; turn = y; }
     else if (down ? y > turn : y < turn) turn = y;
+    // The top zone ends only on a turn down, so creeping past it without one keeps Back and the plan's height.
+    top = y <= 48 || (top && !down);
+    if (down !== was || top !== high) post({ type: 'inbox:scroll', down: down, top: top });
   }
   window.addEventListener('message', function (e) {
     const m = e.data;

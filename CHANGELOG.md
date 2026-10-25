@@ -3,6 +3,12 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (patch) — Only the app's bar comes back on a plan
+
+- **Scrolling back up a plan no longer pushes it down.** Only the app's bar comes back, laid over the plan, so the line you were reading stays put. *Back* and where the plan came from show again when you reach the plan's top. Reading down still hides everything.
+
+**Updating.** Nothing to do. A plan sent before the update brings both bars back on a scroll up, as before, until its chat rebuilds it.
+
 ## 44.15.1 — The test line's delete can look like it failed
 
 - **Deleting the old test line may end with an error, but the delete worked.** After removing the Worker, Cloudflare's tool can print an error asking for a permission to read your account's members. The test line is gone all the same; [the live line page](wiki/stack/live-line.md#its-own-worker) says how to check.
