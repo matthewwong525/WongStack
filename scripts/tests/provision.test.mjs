@@ -11,7 +11,7 @@ import { test } from 'node:test';
 
 import {
   ACCESS_KEY, ACCESS_KEY_TODO, ARTIFACTS_PROVISION, CLOUDFLARE_READ_KEY, CLOUDFLARE_READ_KEY_TODO, CODE_KEY, CloudflareError, DEPLOY_TOKEN, NAMESPACE, NORMAL_PROVISION, PROPAGATION, R2_OFF, SNAPSHOT_DAYS, STORAGE_TOKEN, USER_GRANTS,
-  KEY_OFF_TODO, LINE_TODO, accounts, lineClashTodo, artifactNamesFor, bindingTypes, cli, cloudflare, githubRepo, lineConfig, lineWorkers, names, plan, provision, readEnv, run, runnerConfig, safeName, widen, widenBy, wranglerConfig, wranglerFragment,
+  KEY_OFF_TODO, LINE_TODO, accounts, lineClashTodo, artifactNamesFor, bindingTypes, cli, cloudflare, githubRepo, lineConfig, names, plan, provision, readEnv, run, runnerConfig, safeName, widen, widenBy, wranglerConfig, wranglerFragment,
 } from '../../.agents/skills/wong-setup/scripts/provision.mjs';
 import { helperConfig } from '../../.agents/skills/save/scripts/artifacts-credential.mjs';
 import { databaseName, lineProblem, parseConfig, stripJsonc, workerName } from '../lib-wrangler-config.mjs';
@@ -524,8 +524,7 @@ async function setup(t, { r2 = true, email = EMAIL, subdomain, ...cloudflareOpti
   delete env.CLOUDFLARE_API_TOKEN;
   delete env.CLOUDFLARE_ACCOUNT_ID;
   const sleeps = [];
-  const lines = (app, missing) => { fake.state.lineWorkers.push(...missing.map((each) => `recipe-box-line${each ? `-${each}` : ''}`)); };
-  const base = { token: TOKEN, api: fake.api, account: ACCOUNT, repo: REPO, dir, env, sleep: async (ms) => sleeps.push(ms), types: async () => null, lines };
+  const base = { token: TOKEN, api: fake.api, account: ACCOUNT, repo: REPO, dir, env, sleep: async (ms) => sleeps.push(ms), types: async () => null };
   return {
     root, dir, fake, gh, env, sleeps,
     provision: (options = {}) => provision({ ...base, base: 'recipe-box', today: TODAY, ...options }),
@@ -1259,32 +1258,27 @@ test('provisioning stops, naming why, when the main copy of the repo is unknown'
   assert.deepEqual(env.fake.state.databases, [], 'nothing was made on Cloudflare');
 });
 
-test('provisioning gives the live line its own Workers, live and staging, on the app\'s databases, before the first save', async (t) => {
+test('provisioning writes the live line\'s settings for its first publish: one Worker, the live database, nothing deployed', async (t) => {
   const env = await setup(t);
-  const report = await env.provision();
+  const execs = [];
+  const exec = async (file, args, options) => { execs.push([file, ...args].join(' ')); return run(file, args, options); };
+  const report = await env.provision({ exec });
+  const text = readFileSync(join(env.dir, 'app/wrangler.line.jsonc'), 'utf8');
   const line = parseConfig(join(env.dir, 'app/wrangler.line.jsonc'));
   assert.equal(lineProblem(line, env.config()), null);
-  assert.deepEqual([workerName(line), workerName(line, 'staging'), workerName(line, 'local')], ['recipe-box-line', 'recipe-box-line-staging', 'recipe-box-line-local']);
-  assert.deepEqual(line.env.staging.d1_databases, [{ binding: 'DB', database_name: 'recipe-box-db-staging', database_id: 'uuid-recipe-box-db-staging' }]);
-  assert.doesNotMatch(readFileSync(join(env.dir, 'app/wrangler.line.jsonc'), 'utf8'), /<[^<>\n]+>/, 'no placeholder is left');
-  const bindings = [env.config(), env.config().env.staging, env.config().env.local].map((at) => at.durable_objects.bindings);
-  assert.deepEqual(bindings.map(([binding]) => binding.script_name), ['recipe-box-line', 'recipe-box-line-staging', 'recipe-box-line-local']);
+  assert.deepEqual([workerName(line), workerName(line, 'local')], ['recipe-box-line', 'recipe-box-line-local']);
+  assert.equal(line.env.staging, undefined, 'previews have no line');
+  assert.deepEqual(line.d1_databases, [{ binding: 'DB', database_name: 'recipe-box-db', database_id: 'uuid-recipe-box-db' }]);
+  assert.doesNotMatch(text, /<[^<>\n]+>/, 'no placeholder is left');
+  assert.equal(env.config().env.staging.durable_objects, undefined, 'the staging app points at no line');
+  assert.deepEqual([env.config(), env.config().env.local].map((at) => at.durable_objects.bindings[0].script_name), ['recipe-box-line', 'recipe-box-line-local']);
   assert.ok(report.created.includes('app/wrangler.line.jsonc'));
-  assert.ok(report.created.includes('live line Workers recipe-box-line, recipe-box-line-staging'));
-  assert.deepEqual(env.fake.state.lineWorkers, ['recipe-box-line', 'recipe-box-line-staging']);
-  assert.deepEqual(env.record().components.liveLine, { workers: ['recipe-box-line', 'recipe-box-line-staging'] }, 'the record keeps them as this install\'s');
-
-  // A Worker someone deleted is made again, alone; a failed deploy is a step left, never a stop.
-  env.fake.state.lineWorkers = ['recipe-box-line'];
-  const again = await env.provision();
-  assert.ok(again.created.includes('live line Workers recipe-box-line-staging'));
-  env.fake.state.lineWorkers = [];
-  const failed = await env.provision({ lines: async () => { throw new Error('npx exited with 1: no account'); } });
-  assert.ok(failed.todo.some((item) => item.startsWith("make the live line's Workers recipe-box-line, recipe-box-line-staging (npx exited with 1: no account)")));
+  assert.ok(!execs.some((call) => /wrangler\b.*\bdeploy\b/.test(call)), `setup deployed: ${execs.join('; ')}`);
+  assert.deepEqual(env.record().components.liveLine, { workers: ['recipe-box-line'] }, 'the record keeps it as this install\'s');
 });
 
-test('a Worker holding a line name that the install record does not list is another project\'s: a to-do, no deploy, no write', async (t) => {
-  // An install from before the line had its own Workers: its line lives in the app, and its record lists no line.
+test('a Worker holding the line\'s name that the install record does not list is another project\'s: a to-do, no write', async (t) => {
+  // An install from before the line had its own Worker: its line lives in the app, and its record lists no line.
   const env = await setup(t);
   await env.provision();
   const config = join(env.dir, 'app/wrangler.jsonc');
@@ -1296,75 +1290,71 @@ test('a Worker holding a line name that the install record does not list is anot
   delete record.components.liveLine;
   writeFileSync(join(env.dir, '.claude/.wong-stack.json'), JSON.stringify(record));
   const before = readFileSync(config, 'utf8');
-  // Another install, based on recipe-box-line, already owns Workers named recipe-box-line and recipe-box-line-staging.
+  // Another install, based on recipe-box-line, already owns a Worker named recipe-box-line.
   env.fake.state.lineWorkers = ['recipe-box-line', 'recipe-box-line-staging'];
-  let deployed = false;
-  const report = await env.provision({ lines: async () => { deployed = true; } });
-  assert.equal(deployed, false, 'nothing deploys over the other project\'s line');
-  assert.ok(report.todo.includes(lineClashTodo('recipe-box-line, recipe-box-line-staging')));
-  assert.equal(existsSync(join(env.dir, 'app/wrangler.line.jsonc')), false, 'no line config names its Workers');
-  assert.equal(readFileSync(config, 'utf8'), before, 'the app is not pointed at them');
+  const report = await env.provision();
+  assert.ok(report.todo.includes(lineClashTodo('recipe-box-line')));
+  assert.equal(existsSync(join(env.dir, 'app/wrangler.line.jsonc')), false, 'no line config names its Worker');
+  assert.equal(readFileSync(config, 'utf8'), before, 'the app is not pointed at it');
   assert.equal(env.record().components.liveLine, undefined);
 
   // A rerun still sees the clash: the record, not a name, says what is this install's.
-  assert.ok((await env.provision({ lines: async () => { deployed = true; } })).todo.includes(lineClashTodo('recipe-box-line, recipe-box-line-staging')));
-  assert.equal(deployed, false);
+  assert.ok((await env.provision()).todo.includes(lineClashTodo('recipe-box-line')));
 
-  // One name free and one taken is still a clash on the taken one alone.
-  env.fake.state.lineWorkers = ['recipe-box-line-staging'];
-  assert.ok((await env.provision({ lines: async () => { deployed = true; } })).todo.includes(lineClashTodo('recipe-box-line-staging')));
-  assert.equal(deployed, false);
-
-  // Once the record lists them, as for Workers this install made by hand, they are its own: kept, never redeployed.
-  env.fake.state.lineWorkers = ['recipe-box-line', 'recipe-box-line-staging'];
+  // Once the record lists it, as for a Worker this install made, it is its own.
   const file = join(env.dir, '.claude/.wong-stack.json');
   writeFileSync(file, JSON.stringify({ ...env.record(), components: { ...env.record().components, liveLine: { workers: ['recipe-box-line', 'recipe-box-line-staging'] } } }));
-  const owned = await env.provision({ lines: async () => { deployed = true; } });
-  assert.equal(deployed, false);
+  const owned = await env.provision();
   assert.ok(!owned.todo.some((item) => item.includes('recipe-box-line')));
   assert.ok(owned.created.includes('app/wrangler.line.jsonc'));
+  assert.deepEqual(env.record().components.liveLine, { workers: ['recipe-box-line'] }, 'the old test line leaves the record');
 });
 
-test('an app config from before gets its line pointed at the line Workers, once, comments kept', async (t) => {
+test('an install with a test line loses it from its line and app settings, the rest unchanged, once', async (t) => {
   const env = await setup(t);
   await env.provision();
-  const file = join(env.dir, 'app/wrangler.jsonc');
-  const before = readFileSync(file, 'utf8')
-    .replace(/"LIVE_LINE", "class_name": "Line", "script_name": "[^"]+"/g, '"LINE", "class_name": "Line"')
-    .replace(', { "tag": "line-2", "deleted_classes": ["Line"] }', '');
-  writeFileSync(file, before);
-  rmSync(join(env.dir, 'app/wrangler.line.jsonc'));
-  env.fake.state.lineWorkers = [];
+  const config = join(env.dir, 'app/wrangler.jsonc');
+  const lineFile = join(env.dir, 'app/wrangler.line.jsonc');
+  const [app, line] = [readFileSync(config, 'utf8'), readFileSync(lineFile, 'utf8')];
+  const testLine = (binding) => app.replace(/^(\s*)("triggers": \{ "crons": \[\] \})/m, `$1"durable_objects": { "bindings": [${binding}] },\n$1$2`);
+  // 44.12's shape: the staging app points at its own test line Worker, which the line config's env.staging makes.
+  writeFileSync(config, testLine('{ "name": "LIVE_LINE", "class_name": "Line", "script_name": "recipe-box-line-staging" }'));
+  writeFileSync(lineFile, line.replace(/^(\s*)"env": \{\n/m, (match, indent) => `${match}${indent}  "staging": {\n${indent}    "name": "recipe-box-line-staging",\n${indent}    "d1_databases": [{ "binding": "DB", "database_name": "recipe-box-db-staging", "database_id": "uuid-recipe-box-db-staging" }]\n${indent}  },\n`));
+  assert.ok(parseConfig(lineFile).env.staging && parseConfig(config).env.staging.durable_objects);
   const report = await env.provision();
-  assert.ok(report.updated.includes('app/wrangler.jsonc LIVE_LINE and migration line-2'));
-  assert.deepEqual(env.config().migrations.map((m) => m.tag), ['line-1', 'line-2']);
-  assert.equal(env.config().env.staging.durable_objects.bindings[0].script_name, 'recipe-box-line-staging');
-  assert.match(readFileSync(file, 'utf8'), /\/\/ Session memory, production only/);
-  assert.deepEqual(env.fake.state.lineWorkers, ['recipe-box-line', 'recipe-box-line-staging']);
-  const pointed = readFileSync(file, 'utf8');
-  assert.ok(!(await env.provision()).updated.some((item) => item.includes('LIVE_LINE')));
-  assert.equal(readFileSync(file, 'utf8'), pointed);
+  assert.ok(report.updated.includes('app/wrangler.line.jsonc without its test line'), JSON.stringify(report));
+  assert.ok(report.updated.includes("app/wrangler.jsonc's live line"));
+  assert.equal(readFileSync(config, 'utf8'), app, 'only the test line left the app config, comments kept');
+  assert.equal(readFileSync(lineFile, 'utf8'), line, 'only env.staging left the line config, comments kept');
+  const rerun = await env.provision();
+  assert.ok(!rerun.updated.some((item) => /line/.test(item)), JSON.stringify(rerun.updated));
+  assert.equal(readFileSync(config, 'utf8'), app);
 
-  // A line binding in a shape the script does not know is left for a hand edit, the file unchanged.
-  const odd = pointed.replace(/"LIVE_LINE", "class_name": "Line", "script_name": "recipe-box-line-staging"/, '"STAGING_LINE", "class_name": "Line"');
-  writeFileSync(file, odd);
+  // Before 44.12: every environment's LINE binding named no Worker, and no line-2.
+  const older = app.replace(/"LIVE_LINE", "class_name": "Line", "script_name": "[^"]+"/g, '"LINE", "class_name": "Line"')
+    .replace(', { "tag": "line-2", "deleted_classes": ["Line"] }', '');
+  writeFileSync(config, older.replace(/^(\s*)("triggers": \{ "crons": \[\] \})/m, '$1"durable_objects": { "bindings": [{ "name": "LINE", "class_name": "Line" }] },\n$1$2'));
+  await env.provision();
+  assert.equal(readFileSync(config, 'utf8'), app);
+
+  // A shape the script does not know is restored and left for a hand edit.
+  const odd = testLine('{ "name": "LIVE_LINE", "class_name": "Line", "script_name": "recipe-box-line-staging" }, { "name": "ROOMS", "class_name": "Room" }');
+  writeFileSync(config, odd);
   assert.ok((await env.provision()).todo.includes(LINE_TODO));
-  assert.equal(readFileSync(file, 'utf8'), odd);
+  assert.equal(readFileSync(config, 'utf8'), odd);
+  writeFileSync(config, app);
+  const oddLine = line.replace(/^(\s*)"env": \{\n/m, (match, indent) => `${match}${indent}  "staging" /* old */ : { "name": "recipe-box-line-staging" },\n`);
+  writeFileSync(lineFile, oddLine);
+  assert.ok((await env.provision()).todo.some((item) => item.startsWith('fix app/wrangler.line.jsonc: it has an env.staging')));
+  assert.equal(readFileSync(lineFile, 'utf8'), oddLine);
 });
 
-test('the line Workers deploy from the app folder, staging by name, and the fragment\'s placeholders all fill', async () => {
-  const app = mkdtempSync(join(tmpdir(), 'wong-test-line-'));
-  const calls = [];
-  await lineWorkers(app, [undefined, 'staging'], async (file, args, { cwd }) => { calls.push([file, ...args, cwd]); });
-  assert.deepEqual(calls, [
-    ['npm', 'ci', '--no-audit', '--no-fund', app],
-    ['npx', '--no-install', 'wrangler', 'deploy', '--config', 'wrangler.line.jsonc', app],
-    ['npx', '--no-install', 'wrangler', 'deploy', '--config', 'wrangler.line.jsonc', '--env', 'staging', app],
-  ]);
-  rmSync(app, { recursive: true });
+test('the line fragment\'s placeholders all fill, for the live line alone', () => {
   const ids = { db: 'id-db', stagingDb: 'id-staging', memory: 'id-memory' };
   const appConfig = JSON.parse(stripJsonc(wranglerConfig({ base: 'demo', ids, bucket: null })));
-  assert.equal(lineProblem(JSON.parse(stripJsonc(lineConfig(appConfig))), appConfig), null);
+  const line = JSON.parse(stripJsonc(lineConfig(appConfig)));
+  assert.equal(lineProblem(line, appConfig), null);
+  assert.deepEqual(Object.keys(line.env), ['local']);
   assert.equal(lineConfig({ name: 'demo' }), null, 'no database, no line config');
   assert.throws(() => lineConfig(appConfig, '{ "name": "<your-new-thing>" }'), { reason: 'repo', message: /<your-new-thing>/ });
 });
@@ -1837,7 +1827,7 @@ test('a repository name another project holds is reported taken, and stops the i
   assert.equal(plain.base, 'recipe-box');
   assert.deepEqual(plain.names, { worker: 'recipe-box', staging: 'recipe-box-staging', db: 'recipe-box-db', stagingDb: 'recipe-box-db-staging', memory: 'recipe-box-memory', deploy: 'recipe-box-deploy' });
   assert.deepEqual(plain.checked.map((item) => `${item.kind} ${item.name} ${item.status}`), [
-    'worker recipe-box free', 'worker recipe-box-staging free', 'worker recipe-box-line free', 'worker recipe-box-line-staging free', 'database recipe-box-db free', 'database recipe-box-db-staging free',
+    'worker recipe-box free', 'worker recipe-box-staging free', 'worker recipe-box-line free', 'database recipe-box-db free', 'database recipe-box-db-staging free',
     'database recipe-box-memory free', 'bucket recipe-box-memory free', 'token recipe-box-deploy free',
   ]);
   assert.equal(env.fake.count(`GET /accounts/${ACCOUNT}/artifacts`), 0);
@@ -1876,7 +1866,7 @@ test('with no namespace yet, an Artifacts install\'s names are all free', async 
   const env = await artifactsSetup(t);
   const found = await env.names({ route: 'artifacts' });
   assert.equal(found.base, 'recipe-box');
-  assert.equal(found.checked.length, 13);
+  assert.equal(found.checked.length, 12);
   assert.ok(found.checked.every((item) => item.status === 'free'), JSON.stringify(found.checked));
   assert.deepEqual(env.fake.state.namespaces, [], 'looking makes no namespace');
 });

@@ -12,6 +12,14 @@
 
 **Updating.** Nothing to do. A plan sent before the update keeps its bars pinned until its chat rebuilds it.
 
+## 44.14.0 — One live line, for the live app only
+
+- **The test copy of your app has no live line.** Nothing real ever talked to the test line: your computer connects only to the live app. A preview's inbox now checks every few seconds instead of updating at once, and it never reaches the live line or a live computer.
+- **A change to the line is tried on this computer, then on the live app.** Your computer runs the app and its line together; after publishing, a tap in the live inbox shows it working.
+- **Setup makes no line.** It writes the live line's settings, and the first publish makes the line before the app. It still checks that no other project uses the line's name.
+
+**Updating.** Publish 44.13.0, *The test copy may run without the live line*, first if your live app doesn't have it yet, or this update's first save fails a check. The update's setup step removes the test line from your app's settings files, keeping the rest. After you publish, delete the old test line from Cloudflare: in `app/`, run `npx wrangler delete --name <your-app>-line-staging`, with your app's Worker name. The delete can't be undone; it held only test state.
+
 ## 44.13.0 — The test copy may run without the live line
 
 The check that keeps your test app apart from the live one now passes when the test app has no live line at all. It still fails when the test app points at the live line. Nothing you see changes; this clears the way for the next release, which takes the test app's line away.

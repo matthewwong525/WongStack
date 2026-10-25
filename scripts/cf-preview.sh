@@ -13,13 +13,11 @@
 #      /apply uploads before /save creates a branch
 #   2. install the app's dependencies when it has no node_modules
 #   3. apply pending migrations to the STAGING database
-#   4. build the app for staging (cf-build.sh)
-#   5. deploy the staging line's Worker, when the app has one: the line has no
-#      preview link, so a change to it shows on the staging app
-#   6. upload a version of the staging Worker under the preview alias; when the
+#   4. build the app for staging (cf-build.sh); a preview has no live line
+#   5. upload a version of the staging Worker under the preview alias; when the
 #      staging Worker does not exist yet, or holds a Durable Object migration a
 #      version can not apply, deploy it once and upload again
-#   7. print the preview URL that wrangler reports
+#   6. print the preview URL that wrangler reports
 # It runs no tests: CI tests the change after the push. It never deploys
 # production.
 #
@@ -121,9 +119,6 @@ BUILT_NAME=$(wong_config worker-name staging)
   || fail "the build produced the production Worker's config ('$PROD_NAME'); nothing uploaded"
 
 node "$SCRIPT_DIR/check-private-access.mjs" --environment staging
-
-wong_wrangler_command
-wong_deploy_line cf-preview --env staging
 
 # ── Upload ────────────────────────────────────────────────────────────────────
 UPLOAD_LOG=$(mktemp)

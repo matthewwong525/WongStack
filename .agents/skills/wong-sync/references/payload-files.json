@@ -113,6 +113,7 @@
       "scripts/cf-build.sh",
       "scripts/cf-deploy.sh",
       "scripts/reset-staging-d1.mjs",
+      "scripts/line-stand-in.mjs",
       "scripts/cf-secrets.mjs",
       "scripts/lib-access-config.mjs",
       "scripts/lib-staging-secrets.mjs",

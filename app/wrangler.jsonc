@@ -102,10 +102,8 @@
 			// off staging. wiki/stack/staging-bindings.md
 			"triggers": {
 				"crons": []
-			},
-			"durable_objects": {
-				"bindings": [{ "name": "LIVE_LINE", "class_name": "Line", "script_name": "wongstack-line-staging" }]
 			}
+			// No LIVE_LINE: previews have no line, and their inbox keeps checking. wiki/stack/live-line.md
 		},
 		"local": {
 			"name": "wongstack-local",

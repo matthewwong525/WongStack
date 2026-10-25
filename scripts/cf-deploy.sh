@@ -16,8 +16,7 @@
 #     branch, else `main`: wong_production_branch)
 #       → the live line's Worker, when the app has one (wong_deploy_line)
 #       → `wrangler deploy`  — the production Worker.
-#   - any other branch
-#       → the staging line's Worker, when the app has one
+#   - any other branch (previews have no line: wiki/stack/live-line.md)
 #       → `wrangler deploy --env staging`
 #         (the deployed staging Worker — the thing that receives queue
 #          messages, cron triggers, and every other non-request handler)
@@ -167,8 +166,6 @@ ALIAS=$(wong_preview_alias "$ALIAS" "$STAGING_NAME")
 [ -n "$ALIAS" ] || { echo "cf-deploy: ERROR — the staging Worker name '$STAGING_NAME' leaves no room for a preview alias" >&2; exit 1; }
 
 node "$SCRIPT_DIR/check-private-access.mjs" --environment staging
-
-wong_deploy_line cf-deploy --env staging
 
 echo "cf-deploy: preview branch — deploying the staging Worker ($STAGING_NAME)"
 (cd "$APP_DIR" && "${WRANGLER[@]}" deploy ${STAGING_ENV[@]+"${STAGING_ENV[@]}"})
