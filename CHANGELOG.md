@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — A live line to your computer, and schedules in the app
+## 44.11.0 — A live line to your computer, and schedules in the app
 
 - **Taps reach your chat right away.** Your computer keeps one line open to your company app, connecting out the way a browser tab does. When you tap in the inbox, the app says *look now*, and your computer picks the tap up at once. Nothing opens a way into your computer: no open port and no webhook. If the line drops, your computer checks every 10 seconds, as before, until it reconnects.
 - **The line can't tell your computer to do anything.** It only says *look now*. Your computer then asks for its work, signed in as you, and acts only on what it set up itself. Anything else is ignored and written in its log.

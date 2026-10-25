@@ -1,6 +1,6 @@
 # A live line from your computer to the app, and schedules in your inbox
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** chat-server-communication
 **Open questions:** none
 
@@ -156,3 +156,4 @@ Non-goals: no webhook or open port on your computer; Paseo Hub stays optional an
 - **2026-10-24** — Checkpoint: every build task written and checked locally (local checks pass), the second look's six findings fixed across two rounds; saved for the live preview walk (task 8.2), which is still open.
 - **2026-10-24** — Assumed: the helper's list of signed-in folders is named `folders.json`, because `apps.json` is a retired name and the file lists checkouts, not apps.
 - **2026-10-24** — Live walk on staging, as the signed-in owner through the edge: a tap's look reached the computer in 523 ms and the page read it as *Sent*; schedule writes woke it in 405–886 ms; a run was handed out once; pause refused *Run now* and resume restored the next run; a foreign `Origin` got 403 and the app's own upgraded. The walk found the line never answered a computer's goodbye (a 10 s wait, then 1006), so `Line` now answers it. A real chat opening from *Run now*, the 10 s fallback and the browser page stay covered by tests, not walked: opening a chat needs a published record in the durable checkout.
+- **2026-10-25** — Asked whether plain polling would be safer than the line → chose to keep the line, because it only says look and every safety rule lives on the computer. Archive checkpoint: archived for release 44.11.0.
