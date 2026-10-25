@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 44.15.2 — A plan's section links jump inside the inbox
+
+- **A section link scrolls the plan.** In the inbox, tapping *Why*, *Changes*, *Decisions* or *Notes* at the top of a plan used to blank it. Now the plan scrolls to that section and stays on the screen. A link to another page still opens in its own tab.
+- **A real-browser check.** A test opens a plan in a sealed frame, as the inbox does, taps *Changes*, and fails if the plan leaves the frame or doesn't scroll.
+
+**Updating.** Nothing to do. A plan sent before the update keeps the old links until its chat rebuilds it.
+
 ## 44.15.1 — The test line's delete can look like it failed
 
 - **Deleting the old test line may end with an error, but the delete worked.** After removing the Worker, Cloudflare's tool can print an error asking for a permission to read your account's members. The test line is gone all the same; [the live line page](wiki/stack/live-line.md#its-own-worker) says how to check.

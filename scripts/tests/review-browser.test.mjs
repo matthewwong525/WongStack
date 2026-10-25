@@ -1129,3 +1129,42 @@ browserTest('a phone screen fits 320px, a tap on its button places a note instea
   assert.deepEqual(errors, []);
   await context.close();
 });
+
+browserTest('in the inbox frame a section link scrolls the plan and never leaves it', async () => {
+  const { dir } = fixture();
+  const html = readFileSync(join(dir, 'review.html'), 'utf8');
+  // The inbox seals the plan in a srcdoc frame, so a #why link resolves against the inbox's own address.
+  const inbox = 'https://inbox.test/apps/inbox/?item=i1';
+  const context = await browser.newContext({ viewport: { width: 390, height: 700 }, hasTouch: true });
+  await context.route('https://inbox.test/**', route => route.fulfill({ contentType: 'text/html', body:
+    '<!doctype html><body style="margin:0"><iframe sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" style="border:0;width:100vw;height:100vh"></iframe></body>' }));
+  const page = await context.newPage();
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.goto(inbox);
+  const holder = page.locator('iframe');
+  await holder.evaluate((el, body) => new Promise(done => { el.onload = done; el.srcdoc = body; }), html);
+  const frame = await (await holder.elementHandle()).contentFrame();
+  const state = (id) => frame.evaluate(target => {
+    const el = document.getElementById(target);
+    const plan = location.href === 'about:srcdoc' && Boolean(document.querySelector('.jump'));
+    return { plan, top: el ? Math.round(el.getBoundingClientRect().top) : null, moved: scrollY > 0 };
+  }, id).catch(() => ({ plan: false }));
+  // A navigation, if one starts, has landed by now.
+  const settle = () => page.waitForTimeout(300);
+  await frame.locator('.jump a', { hasText: 'Changes' }).tap();
+  await settle();
+  assert.deepEqual(await state('changes'), { plan: true, top: 8, moved: true }, 'the frame keeps the plan, scrolled to What Changes');
+  const link = href => frame.evaluate(target => {
+    const a = document.createElement('a'); a.href = target; a.textContent = target;
+    document.getElementById('why').append(a); a.scrollIntoView(); a.click();
+  }, href);
+  await link('#/2');
+  await settle();
+  assert.deepEqual(await state('item-2'), { plan: true, top: 8, moved: true }, 'a #/2 route scrolls to its item');
+  await link('#nowhere');
+  await settle();
+  assert.equal((await state('why')).plan, true, 'an unknown target keeps the plan');
+  assert.deepEqual(errors, []);
+  await context.close();
+});

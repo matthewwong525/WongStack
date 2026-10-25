@@ -43,6 +43,11 @@ A plan item SHALL show the same review page the plan's file holds, with its note
 - **WHEN** the person taps a link in a plan's page
 - **THEN** it opens in a new tab, and the frame keeps the plan; a page that later loads in the frame can't tap or read notes
 
+#### Scenario: A section link on the page
+
+- **WHEN** the person taps *Changes* at the top of a plan in the inbox
+- **THEN** the plan scrolls to its list of changes and stays in the frame
+
 ### Requirement: A tap is sent only once its chat has it
 
 A tap on an item SHALL wait in the app until the person's computer delivers it to the chat that made the item. The inbox SHALL show *Sent* only after the computer reports the chat received it, and SHALL say when delivery failed or the page changed since the person loaded it. Each action SHALL be delivered at most once per version of its item.
