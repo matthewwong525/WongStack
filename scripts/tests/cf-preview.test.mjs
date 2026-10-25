@@ -57,6 +57,7 @@ case "$*" in
     echo "Version Preview URL: https://0a1b2c3d-demo-staging.example.workers.dev"
     echo "Version Preview Alias URL: https://mini-tips-demo-staging.example.workers.dev"
     ;;
+  "wrangler deploy --dry-run"*) ;;
   "wrangler deploy"*) touch "$FAKE_STATE/staging-exists"; rm -f "$FAKE_STATE/pending-migration" ;;
 esac
 `;
@@ -109,7 +110,7 @@ test('a preview deploys no line Worker, and deploys once when a version can not 
   writeFileSync(join(root, 'state/pending-migration'), '');
   const result = preview(root, []);
   assert.equal(result.status, 0, result.out);
-  const wrangler = result.calls.filter(call => /^npx wrangler (deploy|versions upload)/.test(call)).map(call => call.split(' ').slice(2, 4).join(' '));
+  const wrangler = result.calls.filter(call => /^npx wrangler (deploy|versions upload)/.test(call) && !call.includes('--dry-run')).map(call => call.split(' ').slice(2, 4).join(' '));
   assert.deepEqual(wrangler, ['versions upload', 'deploy', 'versions upload']);
   assert.match(result.out, /has a migration to apply — deploying it once/);
   assert.match(result.out, /https:\/\/mini-tips-demo-staging\.example\.workers\.dev/);

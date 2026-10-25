@@ -99,12 +99,11 @@ wong_ci_branch "$ROOT"
 
 # Build the app; its mini apps are part of it (app/src/apps/, app/worker/apps/).
 # Then bundle the live line's own Worker into dist/line/, keyless, when the app
-# has one and the build is not for staging: previews have no line. cf-deploy.sh
-# sends it with the default branch's line config. wiki/stack/live-line.md
+# has one, previews too: an older default branch's cf-deploy.sh deploys a test
+# line from it. cf-deploy.sh sends it on the default branch only. wiki/stack/live-line.md
 build() {
   local line_config
   (cd "$BUILD_DIR" && npm run build:app)
-  [ "${CLOUDFLARE_ENV:-}" != staging ] || return 0
   line_config=$(wong_config line-config)
   [ -n "$line_config" ] || return 0
   echo "cf-build: bundling the live line's Worker into dist/line"

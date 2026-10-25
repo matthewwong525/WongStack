@@ -49,14 +49,15 @@ function built(t, tools, options, env) {
 const MAIN = { CF_BRANCH: 'main' };
 const deploys = (tools) => wranglerCalls(tools.calls()).filter((call) => call.args[0] === 'deploy');
 
-test('a live build bundles the line, keyless; a preview build or an app with no line bundles none', (t) => {
+test('every build bundles the line, keyless, so an older default branch can deploy a preview\'s; an app with no line bundles none', (t) => {
   const tools = fakeTools(t);
-  const root = built(t, tools, {}, MAIN);
-  assert.ok(existsSync(join(root, 'app/dist/line/line-worker.js')));
-  const [call] = deploys(tools);
-  assert.deepEqual(call.args, ['deploy', '--dry-run', '--outdir', 'dist/line', '--config', join(root, 'app/wrangler.line.jsonc')]);
-  assert.equal(call.keyed, false);
-  assert.ok(!existsSync(join(built(t, tools), 'app/dist/line')), 'a preview has no line');
+  for (const build of [() => built(t, tools, {}, MAIN), () => built(t, tools)]) {
+    const root = build();
+    assert.ok(existsSync(join(root, 'app/dist/line/line-worker.js')));
+    const [call] = deploys(tools);
+    assert.deepEqual(call.args, ['deploy', '--dry-run', '--outdir', 'dist/line', '--config', join(root, 'app/wrangler.line.jsonc')]);
+    assert.equal(call.keyed, false);
+  }
   assert.ok(!existsSync(join(built(t, tools, { line: null, config: DEMO_CONFIG }, MAIN), 'app/dist/line')));
   assert.deepEqual(deploys(tools), []);
 });
@@ -121,7 +122,7 @@ test('a preview whose staging app binds any other Worker\'s Durable Object is re
     assert.notEqual(taken.status, 0);
     assert.match(taken.log, new RegExp(`binding 'LIVE_LINE' points at the Worker '${script_name}'; previews have no line`));
   }
-  assert.deepEqual(deploys(tools), []);
+  assert.deepEqual(deploys(tools).filter((call) => !call.args.includes('--dry-run')), []);
 });
 
 test('a preview whose staging app binds no line is taken', (t) => {

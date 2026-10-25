@@ -10,7 +10,7 @@
 
 ## 3. Pack scripts
 
-- [x] 3.1 `cf-build.sh`, `cf-deploy.sh`, `cf-preview.sh`, `lib-wrangler-config.sh`: the line builds and deploys on the default branch only (design 2)
+- [x] 3.1 `cf-build.sh`, `cf-deploy.sh`, `cf-preview.sh`, `lib-wrangler-config.sh`: the line deploys on the default branch only; every build still bundles it (design 2)
 - [x] 3.2 `lib-wrangler-config.mjs` (`lineProblem`, `lineAddressProblem`, `stagingLineProblem`) and `cf-secrets.mjs` (the staging Durable Object check): design 3
 - [x] 3.3 Tests in `scripts/tests/` (`line-deploy.test.mjs`, `wrangler-config.test.mjs`, `cf-secrets.test.mjs`, `cf-preview.test.mjs`, `access-coverage.test.mjs`, `fixtures/cloudflare.mjs`): a branch push deploys no line Worker; the default branch deploys the line, then the app, and a failed line stops it; a preview build or staging config binding any `script_name` Durable Object is refused, naming it; a line config with `env.staging` or a local address is refused. Verify with `node --test scripts/tests/`
 
