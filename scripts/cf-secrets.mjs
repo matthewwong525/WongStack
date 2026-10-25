@@ -377,17 +377,16 @@ function checkBindings(config) {
   return problems;
 }
 
-/** A Durable Object in another Worker, such as the live line: staging names its own twin Worker. Returns failures. */
+/** A Durable Object in another Worker, such as the live line: staging names its own twin Worker or binds none; a
+ *  missing binding can't reach live objects. Returns failures. */
 function checkDurableObjectTwins(config, staging) {
   const twins = staging.durable_objects?.bindings ?? [];
-  const problems = [];
-  for (const entry of (config.durable_objects?.bindings ?? []).filter((each) => each.script_name)) {
-    const twin = twins.find((each) => each.name === entry.name)?.script_name;
-    if (twin && twin !== entry.script_name) continue;
-    const why = twin ? "points at the same Worker, so staging would reach live objects" : "names no other Worker for it";
-    problems.push(`Durable Object binding '${entry.name}' points at the Worker '${entry.script_name}', and env.${STAGING_ENV} ${why}; point it at the staging twin.`);
-  }
-  return problems;
+  return (config.durable_objects?.bindings ?? [])
+    .filter((entry) => entry.script_name && twins.some((each) => each.name === entry.name && each.script_name === entry.script_name))
+    .map(
+      (entry) =>
+        `Durable Object binding '${entry.name}' points at the Worker '${entry.script_name}', and env.${STAGING_ENV} points at the same Worker, so staging would reach live objects; point it at the staging twin or remove it.`,
+    );
 }
 
 /** Queue consumers: staging needs as many as production, each on its twin. Returns failures. */

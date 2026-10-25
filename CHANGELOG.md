@@ -3,6 +3,12 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 44.13.0 — The test copy may run without the live line
+
+The check that keeps your test app apart from the live one now passes when the test app has no live line at all. It still fails when the test app points at the live line. Nothing you see changes; this clears the way for the next release, which takes the test app's line away.
+
+**Updating.** Nothing to do. Publish this update before the next one.
+
 ## 44.12.0 — App changes get their preview link back
 
 - **Every app change gets its own link again.** Since the live line arrived, saving an app change printed no preview link: Cloudflare makes none for an app that holds the line. The line now runs in a small app of its own beside yours, so your app gets its links back.
