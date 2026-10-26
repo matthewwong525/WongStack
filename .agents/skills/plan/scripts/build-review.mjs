@@ -39,6 +39,7 @@ const SCREEN_CLASSES = new Set(['card', 'btn', 'btn-primary', 'primary', 'btn-gh
 const PHONE_WIDE = 360;
 const ENTITIES = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
 const USAGE = `usage: build-review.mjs <change-root> [--require-current] [--link]
+  Prints the plan as chat Markdown above the link line, for a reply that ends on the review line.
   --link  print the page's reply link, whose buttons send notes to this chat or ask it to build; the file where none can open`;
 const kitPath = resolve(dirname(fileURLToPath(import.meta.url)), '../references/review-kit.html');
 const themePath = resolve(dirname(fileURLToPath(import.meta.url)), '../references/theme.js');
@@ -398,6 +399,29 @@ function renderGoal(markdown, root) {
     + `<section id="decisions"><h2>Published goal checklist</h2><pre class="card">${esc(readFileSync(join(root, 'tasks.md'), 'utf8'))}</pre><h2>Decisions</h2>${decisions(found['decision log'])}</section>`;
 }
 
+// The plan as chat Markdown, from the same parse as the page: Why, each change numbered, and the assumed decisions.
+// A chat shows no pictures, so Mermaid, SVG, and screen drawings point to the page; tables and text fences print.
+const PICTURE_LANGS = new Set(['mermaid', 'svg', 'screen']);
+export function chatCopy(name, markdown) {
+  const found = sections(markdown);
+  if (!found.why || !found['what changes']) return '';
+  const why = blocks(found.why, 'paragraph').map(block => block.text);
+  const changes = blocks(found['what changes'], 'item').map(block => {
+    if (!block.n) return block.text;
+    const art = block.drawings.map(fence => {
+      if (PICTURE_LANGS.has(fence.lang)) return '   _(picture on the review page)_';
+      const body = fence.lang === 'table' ? fence.lines : ['```text', ...fence.lines, '```'];
+      return body.map(line => (line ? `   ${line}` : '')).join('\n');
+    });
+    return [`${block.n}. ${block.text.replace(/\s*\(review\.html#\/[^)]*\)\s*$/, '')}`, ...art].join('\n\n');
+  });
+  const assumed = (found['decision log'] ? blocks(found['decision log'], 'decision') : [])
+    .map(block => block.text.replace(/^\*\*\d{4}-\d{2}-\d{2}\*\*\s*[—–-]+\s*/, ''))
+    .filter(text => text.startsWith('Assumed:'))
+    .map(text => `- ${text.replace(/^Assumed:\s*(.)/, (m, c) => c.toUpperCase())}`);
+  return [`**Plan: ${name}**`, '**Why**', ...why, '**What changes**', ...changes, ...(assumed.length ? ['**Assumed for you**', assumed.join('\n')] : [])].join('\n\n');
+}
+
 // Older pages (wong-review:2 and before) keep their viewer; only the proposal block between their markers is refreshed.
 function legacySection(markdown, title) {
   const lines = markdown.split('\n');
@@ -498,6 +522,8 @@ if (isMain(import.meta.url)) {
       const goal = scheduledGoal(root);
       const link = args.values.link && result.kind === 'current' ? await linked(page, basename(resolve(root)), goal) : page;
       const next = goal ? 'Use `/schedule` to confirm this record and its execution destination.' : link === page ? REVIEW_IN_CHAT : REVIEW_ON_PAGE;
+      const copy = result.kind === 'current' && !goal ? chatCopy(basename(resolve(root)), readFileSync(join(root, 'proposal.md'), 'utf8')) : '';
+      if (copy) console.log(`${copy}\n`);
       if (result.kind !== 'no-page') console.log(`${planLink(link)}\n\n${next}`);
     } catch (error) { console.error(`review: ${error.message}`); process.exitCode = 1; }
   }

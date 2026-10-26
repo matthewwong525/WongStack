@@ -6,7 +6,7 @@ It is not a [private link](browsing.md#how-private-links-work). A private link t
 
 ## A plan's link
 
-Each new or changed plan prints *Click here to see the plan:* with a reply link, when one can open ([print the plan's link](../../.agents/skills/explore/references/asking-the-user.md#print-the-plans-link)). A finished plan's reply ends there, with *Review the plan, then tap Build it or Build and publish on its page.* and no question.
+Each new or changed plan prints *Click here to see the plan:* with a reply link, when one can open ([print the plan's link](../../.agents/skills/explore/references/asking-the-user.md#print-the-plans-link)). A finished plan's reply prints the plan itself above the link, so you can read it in the chat, and ends there, with *Review the plan, then tap Build it or Build and publish on its page.* and no question.
 
 - **Send notes.** On the page, save your notes, then tap *Send notes*. Saving copies nothing there. One tap sends every note not yet sent, and each is marked *Sent*, so a second tap sends nothing twice. Change a sent note and it goes again.
 - **The chat takes them as pasted notes.** They arrive under the line *Notes on the plan … Don't build yet.* The chat [updates the plan](../../.agents/skills/plan/SKILL.md#review-notes) and builds nothing.
