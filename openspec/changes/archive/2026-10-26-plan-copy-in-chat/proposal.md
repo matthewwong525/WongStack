@@ -1,3 +1,9 @@
+# The plan prints in the chat
+
+**Status:** ready-to-ship
+**Branch:** show-review-chat
+**Open questions:** none
+
 ## Why
 
 A finished plan ends on a link to its review page. To read the plan you have to open that page, even when you only want a quick look before saying build it or publish it.
