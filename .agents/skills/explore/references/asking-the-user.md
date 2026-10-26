@@ -64,7 +64,7 @@ This page sets how a question **looks**, never which actions **need** one. An ac
 
 When a reply makes or changes a plan or its checklist, print *Click here to see the plan:* and the link as [one chat line](#end-every-reply-with-the-next-step) above any closing question, even when the build goes on: it adds no stop. Copy the line whole from the page builder, never shortened: [the reply link](../../../../wiki/development/reply-links.md) when one opens, else the `review.html` file; on *new link*, rerun the builder. Status, branch, Open questions, and Decision-log lines alone are record-keeping, not a change.
 
-**A finished plan's reply asks nothing:** it ends with the link line, a blank line, and the builder's review line, which sends a live page to its build buttons and a file to the chat. Some hosts hide text above a question card, so **any other closing question in a reply that made or changed a plan offers *Review the plan*.** Picking it starts nothing and ends the same way. Leave the review line out of every other reply.
+**A finished plan's reply asks nothing:** it prints the builder's copy of the plan, then ends with the link line, a blank line, and the builder's review line, which sends a live page to its build buttons and a file to the chat. Some hosts hide text above a question card, so **any other closing question in a reply that made or changed a plan offers *Review the plan*.** Picking it starts nothing and ends the same way. Leave the copy and the review line out of every other reply.
 
 ## Print the preview's link
 

@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
-import { assemble, buildReview, notesHeader, planActions, planLink, REVIEW_IN_CHAT, REVIEW_ON_PAGE } from '../../.agents/skills/plan/scripts/build-review.mjs';
+import { assemble, buildReview, chatCopy, notesHeader, planActions, planLink, REVIEW_IN_CHAT, REVIEW_ON_PAGE } from '../../.agents/skills/plan/scripts/build-review.mjs';
 import { fakePaseo, fakeTunnel, ORIGIN, TUNNEL_ENV } from './fixtures/fake-tunnel.mjs';
 import { needs } from './fixtures/needs.mjs';
 
@@ -310,12 +310,29 @@ test('the built page carries the app\'s colours and parts in its one style, and 
   assert.throws(() => assemble('x', '', kit.replace('/* look */', '')), /review kit: expected one \/\* look \*\//);
 }));
 
+// What the CLI prints for the fixture between its status line and the link line.
+const copy = `${chatCopy('example', proposal)}\n`;
+
+test('the chat copy holds Why, each change numbered, and only the assumed decisions', () => {
+  const picture = proposal.replace('- **Third item**', `- **Flow** has a picture.\n  ${fence}mermaid\n  flowchart LR\n    a --> b\n  ${fence}\n- **Rows** have a table.\n  | a | b |\n  | - | - |\n  | 1 | 2 |\n- **Third item**`);
+  assert.equal(chatCopy('example', picture), [
+    '**Plan: example**', '**Why**', 'Reduce repeated work.', 'A second paragraph that wraps.', '**What changes**',
+    '1. **First item** wraps onto an indented line and an unindented one.',
+    '2. **Second item** carries a drawing.\n\n   ```text\n   a ─→ b\n\n   c ─→ d\n   ```',
+    '3. **Flow** has a picture.\n\n   _(picture on the review page)_',
+    '4. **Rows** have a table.\n\n   | a | b |\n   | - | - |\n   | 1 | 2 |',
+    '5. **Third item** links [the wiki](../wiki/README.md) and `code **not bold**`.',
+    '**Non-goals:** anything else.', '**Assumed for you**', '- Forty columns, because phones are narrow.',
+  ].join('\n\n'));
+  assert.doesNotMatch(chatCopy('example', proposal.replace(/- \*\*2026-09-26\*\* — Assumed.*\n/, '')), /Assumed for you/, 'no heading when nothing was assumed');
+});
+
 test('both builder aliases run from the CLI and report failures', () => fixture(root => {
   for (const alias of ['.agents', '.claude']) {
     rmSync(join(root, 'review.html'), { force: true });
     const result = spawnSync(process.execPath, [resolve(here, `../../${alias}/skills/plan/scripts/build-review.mjs`), root, '--require-current'], { encoding: 'utf8' });
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(result.stdout, `review: current, updated\n${planLink(join(resolve(root), 'review.html'))}\n\n${REVIEW_IN_CHAT}\n`, 'the link line, a blank line, then the review line, end the output');
+    assert.equal(result.stdout, `review: current, updated\n${copy}\n${planLink(join(resolve(root), 'review.html'))}\n\n${REVIEW_IN_CHAT}\n`, 'the link line, a blank line, then the review line, end the output');
   }
   writeFileSync(join(root, 'proposal.md'), proposal.replace('  c ─→ d', `  ${'y'.repeat(61)}`));
   const warned = spawnSync(process.execPath, [resolve(here, '../../.claude/skills/plan/scripts/build-review.mjs'), root], { encoding: 'utf8' });
@@ -330,7 +347,7 @@ test('both builder aliases run from the CLI and report failures', () => fixture(
 const builder = resolve(here, '../../.claude/skills/plan/scripts/build-review.mjs');
 
 test('--link prints the file where no reply link can open', () => fixture(root => {
-  const file = `review: current, updated\n${planLink(join(resolve(root), 'review.html'))}\n\n${REVIEW_IN_CHAT}\n`;
+  const file = `review: current, updated\n${copy}\n${planLink(join(resolve(root), 'review.html'))}\n\n${REVIEW_IN_CHAT}\n`;
   const home = join(dirname(root), 'home');
   for (const env of [{ REPLY_LINK: 'off', PASEO_AGENT_ID: 'a-chat' }, { REPLY_LINK: '', PASEO_AGENT_ID: '' }]) {
     rmSync(join(root, 'review.html'), { force: true });
@@ -354,14 +371,14 @@ test('--link prints the reply link in the same line, with the plan\'s header and
   try {
     // Without --link the same setup prints the file and registers nothing.
     const plain = spawnSync(process.execPath, [builder, root, '--require-current'], { encoding: 'utf8', env, timeout: 30_000 });
-    assert.equal(plain.stdout, `review: current, updated\n${planLink(join(resolve(root), 'review.html'))}\n\n${REVIEW_IN_CHAT}\n`);
+    assert.equal(plain.stdout, `review: current, updated\n${copy}\n${planLink(join(resolve(root), 'review.html'))}\n\n${REVIEW_IN_CHAT}\n`);
     assert.equal(existsSync(state), false, 'no link, no actions');
     rmSync(join(root, 'review.html'));
     const out = spawnSync(process.execPath, [builder, root, '--require-current', '--link'], { encoding: 'utf8', env, timeout: 30_000 });
     assert.equal(out.status, 0, out.stderr);
     const [, link] = /^Click here to see the plan: \[review\.html\]\((\S+)\)$/m.exec(out.stdout) ?? [];
     assert.match(link ?? out.stdout, new RegExp(`^${ORIGIN}/p/[0-9a-f]{32}/#key=[0-9a-f]{64}$`));
-    assert.equal(out.stdout, `review: current, updated\n${planLink(link)}\n\n${REVIEW_ON_PAGE}\n`);
+    assert.equal(out.stdout, `review: current, updated\n${copy}\n${planLink(link)}\n\n${REVIEW_ON_PAGE}\n`);
     const [page] = readdirSync(join(state, 'pages')).map(name => JSON.parse(readFileSync(join(state, 'pages', name), 'utf8')));
     assert.equal(page.file, join(resolve(root), 'review.html'));
     assert.equal(page.header, notesHeader('example'));
@@ -376,7 +393,7 @@ test('--link prints the reply link in the same line, with the plan\'s header and
     assert.ok(kit.includes("'Notes on the plan ' + CHANGE + ' from the review page. Don\\'t build yet.'"), 'the kit copies notes under the same line');
     // A second run prints the same link, and an older page, which can not send, keeps its file.
     const again = spawnSync(process.execPath, [builder, root, '--link'], { encoding: 'utf8', env, timeout: 30_000 });
-    assert.equal(again.stdout, `review: current, unchanged\n${planLink(link)}\n\n${REVIEW_ON_PAGE}\n`, 'the same link while the tunnel lives');
+    assert.equal(again.stdout, `review: current, unchanged\n${copy}\n${planLink(link)}\n\n${REVIEW_ON_PAGE}\n`, 'the same link while the tunnel lives');
     writeFileSync(join(root, 'review.html'), '<!-- wong-review:2 -->\n<html><!-- proposal:start -->\nold\n<!-- proposal:end --></html>');
     const older = spawnSync(process.execPath, [builder, root, '--link'], { encoding: 'utf8', env, timeout: 30_000 });
     assert.equal(older.stdout, `review: proposal-only, updated\n${planLink(join(resolve(root), 'review.html'))}\n\n${REVIEW_IN_CHAT}\n`);

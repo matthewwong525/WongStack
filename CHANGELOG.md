@@ -3,6 +3,12 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 44.16.0 — The plan prints in the chat
+
+- **A finished plan prints in the chat, above its link.** The reply shows the plan's why, each change as a numbered point, and the choices assumed for you, so you can read it without opening the review page. Pictures the chat can't show become a pointer to the page. The page builder writes this copy from the same plan as the page, and only a reply that waits on your review prints it ([print the plan's link](.agents/skills/explore/references/asking-the-user.md#print-the-plans-link)).
+
+**Updating.** Nothing to do.
+
 ## 44.15.5 — Scrolling a plan in a preview check
 
 - **A preview check scrolls a plan in the inbox with the keyboard.** A tap on the plan's text, then `PageDown`, `ArrowUp` or `Home`, scrolls it; no script added to the sample plan is needed. [Mini apps](wiki/stack/mini-apps.md) says how.
