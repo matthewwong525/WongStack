@@ -11,7 +11,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · save-check-says-why</title>
+<title>Review · 2026-10-28-save-check-says-why</title>
 <style>
   /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
    look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
@@ -360,11 +360,11 @@
 })();
 </script>
 </head>
-<body data-change="save-check-says-why">
+<body data-change="2026-10-28-save-check-says-why">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>save-check-says-why</h1>
+  <h1>2026-10-28-save-check-says-why</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. <span class="copies">Saving a note copies all your notes.</span> Open a drawing and tap it to see it full screen.</p>
@@ -392,6 +392,8 @@
 <li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-28</p>Assumed: this is a <code>patch</code> release, because it changes only the words of a failure and adds a log line.</li>
 <li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-28</p>Built: the local pre-check passed except <code>view-page.test.mjs</code>'s time-limit test, which reads this device's clock and fails on <code>main</code> too; this change touches no file it reads, so the online checks decide.</li>
 <li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-28</p>Saved for review, built and checked locally; asked for by another agent to stop at the preview, so publishing waits for the owner.</li>
+<li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-28</p>Assumed: the screen-sharing page's timer fix ships inside this change, because <code>view-page.test.mjs:307</code> failed CI on <code>main</code> too (since about 2026-10-26: <code>10_000_000 - Date.now()</code> wraps to about +24 days in a 32-bit timer) and the person ran <code>/ship</code>, which can't pass the gate without it.</li>
+<li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-28</p>Archived to publish as 44.16.1; every task done. The screen-sharing page's timer fix is in, so its test passes locally.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

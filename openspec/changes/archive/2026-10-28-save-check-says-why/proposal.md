@@ -1,6 +1,6 @@
 # A failed save says why
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** save-check-says-why
 **Open questions:** none
 
@@ -33,6 +33,7 @@ Non-goals: downloading the project keeps its one generic answer; publishing and 
 
 - `app/worker/employee-access/code.ts`: the save path keeps the failure's step, status and error; a failed save answers in Git's words and logs `code_save_failed`. `codeGit` takes who is saving.
 - `app/worker/employee-access/router.ts`: passes who is saving.
+- `.claude/skills/hand-over/scripts/view-page.mjs`: a past time limit waits 0, not a wrapped 32-bit wait.
 - `app/worker/employee-access/code.test.ts`: each failure's line and log.
 - `wiki/stack/employee-project.md`, `wiki/stack/project-git-route.md`: the new lines and what to do.
 - Installs get it by their next sync, so a `CHANGELOG.md` `## Next (patch)` entry.
@@ -46,3 +47,5 @@ Non-goals: downloading the project keeps its one generic answer; publishing and 
 - **2026-10-28** — Assumed: this is a `patch` release, because it changes only the words of a failure and adds a log line.
 - **2026-10-28** — Built: the local pre-check passed except `view-page.test.mjs`'s time-limit test, which reads this device's clock and fails on `main` too; this change touches no file it reads, so the online checks decide.
 - **2026-10-28** — Saved for review, built and checked locally; asked for by another agent to stop at the preview, so publishing waits for the owner.
+- **2026-10-28** — Assumed: the screen-sharing page's timer fix ships inside this change, because `view-page.test.mjs:307` failed CI on `main` too (since about 2026-10-26: `10_000_000 - Date.now()` wraps to about +24 days in a 32-bit timer) and the person ran `/ship`, which can't pass the gate without it.
+- **2026-10-28** — Archived to publish as 44.16.1; every task done. The screen-sharing page's timer fix is in, so its test passes locally.

@@ -3,9 +3,10 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (patch) — A failed save says why
+## 44.16.1 — A failed save says why
 
 - **A save that fails where the project is kept says why.** Git used to show only an error number. Now it prints *The app could not finish this save (GitHub answered 403)*, or *could not be reached*, naming the place and never its own words or a key. The live app logs one `code_save_failed` line per failed save, and [the save page](wiki/stack/employee-project.md#what-the-app-takes-and-refuses) says what to do for each reason.
+- **A screen-sharing link past its time limit closes at once.** A limit long past could wrap, in the browser's timer, to a wait of weeks, so the page stayed open.
 
 **Updating.** Nothing to do.
 

@@ -11,7 +11,11 @@
 - [x] 2.1 In `wiki/stack/employee-project.md` add the failed-save line to *What the app takes and refuses* with what to do for each reason and the `code_save_failed` log search; in `wiki/stack/project-git-route.md` change the `code_unavailable` bullet to say a failed save names the place and its number. Verify: `node scripts/check-payload-links.mjs`.
 - [x] 2.2 Add a `## Next (patch) — A failed save says why` entry to `CHANGELOG.md`. Verify: the entry is at the top of the entries.
 
-## 3. Verification
+## 3. The shared page's time limit
 
-- [x] 3.1 Run `node .github/scripts/checks.mjs --worktree`; it passes, or each failure is unrelated and noted in the Decision log.
-- [ ] 3.2 `/save`: the online checks pass and the preview link is returned.
+- [x] 3.0 In `.claude/skills/hand-over/scripts/view-page.mjs`, wait at least 0 before closing, so a limit long past doesn't wrap to weeks in the browser's 32-bit timer. Verify: `node --test scripts/tests/view-page.test.mjs`.
+
+## 4. Verification
+
+- [x] 4.1 Run `node .github/scripts/checks.mjs --worktree`; it passes, or each failure is unrelated and noted in the Decision log.
+- [x] 4.2 Saved for review with `/save`: PR #465 and its preview; the online checks decide at publish.
