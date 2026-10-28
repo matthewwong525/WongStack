@@ -24,9 +24,10 @@ const USAGE = `usage: browse.mjs <command> [--session <name>]
                                 prints BROWSE_SHOT=<temp path>, or none when unchanged;
                                 --full-page takes the whole page, not just what shows
   logins                        each saved login's name, host, and username
-  login <name> [--username <ref>] [--password <ref>] [--submit <ref>]
+  login <name> [--username <ref>] [--password <ref>] [--submit <ref>] [--main-domain]
                                 type a saved login; prints BROWSE_LOGIN=accepted|next-step|rejected|missing|typed|wrong-site;
-                                next-step: the page stayed but its password box went, as on a code page
+                                next-step: the page stayed but its password box went, as on a code page;
+                                --main-domain also types on a site that shares only the main domain
   forget <name>                 delete a saved login
   save                          keep the logins now, with every tab open
   close                         close this task's tab
@@ -678,12 +679,22 @@ export function passwordShown(snapshot, ref, before) {
   return Boolean(now && before && now.name === before.name);
 }
 
+/** The part of `host` a person registers: `janeapp.com`, or `bbc.co.uk` under a country's own second level. */
+export function mainDomain(host) {
+  if (/^[\d.]+$|:/.test(host)) return host;
+  const parts = host.split('.');
+  const country = parts.length > 2 && parts.at(-1).length === 2 && /^(co|com|net|org|gov|ac|edu)$/.test(parts.at(-2));
+  return parts.slice(country ? -3 : -2).join('.');
+}
+
 /** Types the saved login `name` and submits, the one reader of passwords; USAGE lists each result. `wrong-site`
  * means the tab, or the frame of a box, is off the login's site. */
-export async function login(page, name, { username, password, submit }) {
+export async function login(page, name, { username, password, submit, 'main-domain': loose }) {
   const entry = savedLogins().find(saved => saved.name === name);
   if (!entry || (password && !entry.password)) return { result: 'missing' };
-  const hostOn = host => sameSite(host, hostOf(entry.url));
+  // --main-domain is the one try a sibling subdomain gets, as wiki/development/browsing.md says.
+  const hostOn = host => sameSite(host, hostOf(entry.url))
+    || Boolean(loose && host && hostOf(entry.url) && mainDomain(host) === mainDomain(hostOf(entry.url)));
   const onSite = url => hostOn(hostOf(url));
   // A box in a frame is on site only when its frame's site is too; a selector reads the main page.
   const boxOnSite = (snapshot, target) => {
@@ -781,7 +792,7 @@ function runnerFor(command, words, flags) {
 }
 
 if (isMain(import.meta.url)) {
-  const { values: flags, positionals: [command, ...words] } = parseCli({ usage: USAGE, allowPositionals: true, options: { session: { type: 'string' }, 'if-changed': { type: 'boolean' }, 'full-page': { type: 'boolean' }, username: { type: 'string' }, password: { type: 'string' }, submit: { type: 'string' } } });
+  const { values: flags, positionals: [command, ...words] } = parseCli({ usage: USAGE, allowPositionals: true, options: { session: { type: 'string' }, 'if-changed': { type: 'boolean' }, 'full-page': { type: 'boolean' }, username: { type: 'string' }, password: { type: 'string' }, submit: { type: 'string' }, 'main-domain': { type: 'boolean' } } });
   const runner = runnerFor(command, words, flags);
   try {
     await runner(client(flags.session, { retry: command !== 'login' }), words, flags);

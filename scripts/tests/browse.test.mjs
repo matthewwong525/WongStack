@@ -7,7 +7,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { JSDOM } from 'jsdom';
-import { addTyped, boxAt, boxChanged, boxesIn, CAMOFOX, countScript, frameOf, FRAMES_SCRIPT, frameSites, googleResults, labelFrames, leftPage, MARK_SCRIPT, NO_REF_NOTE, passwordShown, relabel, sameSite, SECRETS_SCRIPT, fieldScript, hideSecrets, joinPieces, selectorError, serverEnv, sessionName, targetOf, typedMark, valueIn } from '../../.agents/skills/browser/scripts/browse.mjs';
+import { addTyped, boxAt, boxChanged, boxesIn, CAMOFOX, countScript, frameOf, FRAMES_SCRIPT, frameSites, googleResults, labelFrames, leftPage, MARK_SCRIPT, NO_REF_NOTE, passwordShown, relabel, sameSite, SECRETS_SCRIPT, fieldScript, hideSecrets, joinPieces, mainDomain, selectorError, serverEnv, sessionName, targetOf, typedMark, valueIn } from '../../.agents/skills/browser/scripts/browse.mjs';
 import { hostOf, readLogins, writeLogins } from '../../.agents/skills/browser/scripts/logins.mjs';
 import { localProxyEnv } from '../../.agents/skills/browser/scripts/server.mjs';
 import { BROWSE_ENV, fakeCamofox } from './fixtures/fake-camofox.mjs';
@@ -636,6 +636,29 @@ test('sameSite takes a host and the hosts under it, never a look-alike or an emp
     ['', 'shop.example.com', false],
     ['', '', false],
   ]) assert.equal(sameSite(a, b), same, `${a} and ${b}`);
+});
+
+test('mainDomain keeps the registered part, and a country\'s own second level', () => {
+  assert.equal(mainDomain('myodetox.janeapp.com'), 'janeapp.com');
+  assert.equal(mainDomain('news.bbc.co.uk'), 'bbc.co.uk');
+  assert.equal(mainDomain('10.0.0.1'), '10.0.0.1');
+  assert.equal(sameSite('myodetox.janeapp.com', 'clinic.janeapp.com'), false, 'siblings are not the same site');
+});
+
+test('a sibling subdomain gets the login only with --main-domain, and another main domain never', t => {
+  const f = fixture(t);
+  f.saveLogins([{ name: 'jane', url: 'https://clinic.janeapp.com/login', username: USERNAME, password: PASSWORD }]);
+  const typed = () => f.camofox.requests().filter(request => request.path.endsWith('/type')).map(request => request.body.text).filter(Boolean);
+  ok(f, 'open', 'https://myodetox.janeapp.com/login');
+  assert.equal(ok(f, 'login', 'jane', '--username', 'e1', '--password', 'e2'), 'BROWSE_LOGIN=wrong-site\n');
+  assert.deepEqual(typed(), []);
+  ok(f, 'open', 'https://janeapp.attacker.example/login');
+  assert.equal(ok(f, 'login', 'jane', '--username', 'e1', '--password', 'e2', '--main-domain'), 'BROWSE_LOGIN=wrong-site\n');
+  assert.deepEqual(typed(), []);
+  ok(f, 'open', 'https://myodetox.janeapp.com/login');
+  f.camofox.set('press-url', 'https://myodetox.janeapp.com/home');
+  assert.equal(ok(f, 'login', 'jane', '--username', 'e1', '--password', 'e2', '--main-domain'), 'BROWSE_LOGIN=accepted\nBROWSE_SAVED=yes\n');
+  assert.deepEqual(typed(), [USERNAME, PASSWORD]);
 });
 
 test('a login saved with the email only types nothing at a password box, and still types the email step', t => {
