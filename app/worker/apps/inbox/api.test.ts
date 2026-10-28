@@ -89,6 +89,16 @@ it("refuses a link that is not https on a tunnel, carries a login, runs long, na
   expect((await put(sam, { ...keyLink, body: body(`https://quiet-fox-lamp.trycloudflare.com/p/${"a".repeat(32)}/#key=k`, "form") })).status).toBe(200);
 });
 
+it("keeps a hidden item out of the list, and still hands its taps to the computer", async () => {
+  expect((await put(sam, { ...approval, hidden: true })).status).toBe(200);
+  expect((await call(sam, "GET", "items")).json.items).toEqual([]);
+  expect((await tap(sam, { item: APPROVAL, version: "q1", action: "approve" })).status).toBe(200);
+  expect(await checkin()).toMatchObject([{ item: APPROVAL, action: "approve" }]);
+  // The same item put again with no mark shows.
+  expect((await put(sam, approval)).status).toBe(200);
+  expect((await call(sam, "GET", "items")).json.items.map(item => item.id)).toEqual([APPROVAL]);
+});
+
 it("keeps a question that takes several answers", async () => {
   const several = { ...approval, kind: "question", body: JSON.stringify({ text: "Which suppliers?", options: ["Acme", "Boxco"], multi: true }), actions: [] };
   expect((await put(sam, several)).status).toBe(200);

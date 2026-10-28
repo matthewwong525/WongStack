@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Hidden Inbox items
+
+- **A chat can put an item in the Inbox with no page.** `reply-link.mjs item` gives it a title, the first line of each message and its buttons; the same chat and title replaces it ([put an item with no page](wiki/development/reply-links.md#put-an-item-with-no-page)).
+- **A hidden item shows no card.** A tap on it, such as a Submit in a mini app, still reaches its chat.
+- **A kept-open item stays open.** Each tap wakes the chat again and moves its close; when time runs out, the chat gets one stop message.
+- **Publishing no longer stops when a spec has the change's name.** The check asks for the change by its kind.
+
+**Updating.** Nothing to do. The app's database gets a new column at the next deploy.
+
 ## 44.18.0 — Saved logins work in sign-in boxes from another site
 
 - **The page text says where a sign-in box from another site is.** Many sites put their sign-in box in a frame from another of their own sites, at the very end of the page text. The first line now says frame boxes are at the end and names each frame's site, and each frame's header names its site too ([saved browser logins](wiki/development/browsing.md#saved-browser-logins)).
