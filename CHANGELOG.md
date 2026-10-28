@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 44.17.0 — Private links come in the last message
+
+- **A private link comes in the agent's last message.** A password link, key link, private form or live view used to arrive between the agent's steps, where many chat apps hide text. The agent now starts waiting for the link and then ends its turn with the link on its own line ([how private links work](wiki/development/browsing.md#how-private-links-work)).
+- **The link tool reminds the agent.** Right under `HANDOVER_LINK=`, `hand-over.mjs open` prints a `HANDOVER_SEND=` line telling the agent to end its turn with the link. It holds no part of the link or its key, and a link that fails to open prints neither line.
+
+**Updating.** Nothing to do.
+
 ## 44.16.1 — A failed save says why
 
 - **A save that fails where the project is kept says why.** Git used to show only an error number. Now it prints *The app could not finish this save (GitHub answered 403)*, or *could not be reached*, naming the place and never its own words or a key. The live app logs one `code_save_failed` line per failed save, and [the save page](wiki/stack/employee-project.md#what-the-app-takes-and-refuses) says what to do for each reason.

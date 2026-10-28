@@ -34,7 +34,8 @@ const USAGE = `usage: hand-over.mjs open --form <file> (--until <glob> | --until
        hand-over.mjs open --keys NAME[,NAME] [--guide <file>] [--minutes N]
        hand-over.mjs wait | close | install-view
   open    start the private link, print HANDOVER_LINK=<url> once it answers through
-          Cloudflare, list its address (no username) in the app's inbox, and watch for the finish
+          Cloudflare, then HANDOVER_SEND=<reminder to end the turn with the link>, list its address
+          (no username) in the app's inbox, and watch for the finish
           --form: a JSON file of title, note, fields (label, kind, target, options),
           and submit (label, target), drawn as one box per field (exit 2 with
           FORM_FILE=); the person's one send fills the site's fields and presses its
@@ -70,6 +71,8 @@ const USAGE = `usage: hand-over.mjs open --form <file> (--until <glob> | --until
           add the live view's tools once the person agrees: prints
           HANDOVER_INSTALLED=live-view, or HANDOVER_INSTALL=manual and the one
           command for the person, having installed nothing`;
+// Chat apps often hide text between tool calls; only the turn's last message shows for sure.
+const SEND_REMINDER = 'Run wait in the background, then end this turn with the link above on its own line; text between tool calls may not show.';
 const TUNNEL_WAIT_MS = Number(process.env.HANDOVER_TUNNEL_WAIT_MS) || 30_000;
 const PAGE_WAIT_MS = 10_000;
 const POLL_MS = Number(process.env.HANDOVER_POLL_MS) || 2000;
@@ -493,6 +496,7 @@ async function open(values) {
   if (!(await pageAnswers(port, watcher))) return fail('The link\'s page did not start; try again.');
   if (!(await linkAnswers(tunnel.origin, port, tunnelPid, tunnelDeadline))) return fail(tunnelDown);
   console.log(`HANDOVER_LINK=${tunnel.origin}/#${linkFragment(key, values)}`);
+  console.log(`HANDOVER_SEND=${SEND_REMINDER}`);
   // The watcher lists the link in the inbox once the chat has it, so open returns at once.
   writeFileSync(FILES.shown, '');
   return 0;

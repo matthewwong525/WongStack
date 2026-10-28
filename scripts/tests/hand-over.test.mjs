@@ -178,6 +178,9 @@ function opened(f, ...args) {
   assert.equal(out.status, 0, out.stderr);
   const link = /^HANDOVER_LINK=(.+)$/m.exec(out.stdout)?.[1];
   assert.ok(link, out.stdout);
+  const send = /^HANDOVER_LINK=[^\n]*\nHANDOVER_SEND=([^\n]+)$/m.exec(out.stdout)?.[1];
+  assert.ok(send, `the send reminder sits right under the link:\n${out.stdout}`);
+  assert.doesNotMatch(send, /https?:|key=|trycloudflare/, 'the reminder holds no link or key');
   return { link, key: KEY.exec(link)?.[1], port: JSON.parse(readFileSync(join(f.state, 'state.json'), 'utf8')).port };
 }
 
@@ -243,7 +246,7 @@ test('an address that never answers fails as a tunnel that never registers does,
     const out = await f.start('open', '--passwords');
     assert.equal(out.status, 1, `silent ${silent}`);
     assert.match(out.stderr, /The Cloudflare tunnel did not come up within 30 seconds/);
-    assert.doesNotMatch(out.stdout, /HANDOVER_LINK/);
+    assert.doesNotMatch(out.stdout, /^HANDOVER_(LINK|SEND)=/m);
     assert.ok(!alive(f.tunnelPid()), 'the tunnel was killed');
     assert.ok(!existsSync(join(f.state, 'watcher.pid')));
     assert.deepEqual(f.result(), { result: 'error' });
@@ -277,6 +280,7 @@ test('a second open is refused while a link is open', t => {
     const again = f.run('open', ...args);
     assert.equal(again.status, 1);
     assert.match(again.stderr, /already open/);
+    assert.doesNotMatch(again.stdout, /^HANDOVER_(LINK|SEND)=/m);
   }
   assert.deepEqual([f.calls().length, f.steps().length], before, 'the refused opens touched nothing');
 });

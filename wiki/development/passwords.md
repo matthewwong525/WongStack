@@ -8,7 +8,7 @@ Give the agent the logins you choose through a private link, so it logs in for y
 - **Earlier saved logins aren't carried over.** Logins saved while the agent used its earlier browser sit in that browser's own store, which gives out no password to copy. Nothing there is deleted or read. The first time an errand meets each site, the agent sends this link, and you save that login again.
 - **Keep bank and email out**, unless you trust the agent with them: anyone with that computer can reach what's saved.
 - **Change or forget one in the chat.** Saving the same site and username again replaces the old password, so a changed password is fixed by adding it again. A second account on the same site is kept beside the first. Say *forget my Netflix login* and the agent runs [`browse.mjs`](../../.agents/skills/browser/scripts/browse.mjs) `forget <name>`. Say *which logins do you have?* and it lists the sites and usernames from `browse.mjs logins`.
-- **How.** The agent runs [`hand-over.mjs`](../../.agents/skills/hand-over/scripts/hand-over.mjs) `open --passwords`, sends you the `HANDOVER_LINK` it prints, and runs `wait` in the background. Private input ends after a successful *Save and continue*, on *Not now*, or after 24 hours by default:
+- **How.** The agent runs [`hand-over.mjs`](../../.agents/skills/hand-over/scripts/hand-over.mjs) `open --passwords`, runs `wait` in the background, and then [ends its turn with the `HANDOVER_LINK` it prints](browsing.md#how-private-links-work), as its `HANDOVER_SEND=` line says. Private input ends after a successful *Save and continue*, on *Not now*, or after 24 hours by default:
 
   ```bash
   node .claude/skills/hand-over/scripts/hand-over.mjs open --passwords   # the password link
