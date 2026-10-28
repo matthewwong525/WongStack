@@ -46,7 +46,7 @@ The agent's browser fills the page, already on the check, with one box under it:
 
 1. **Read the page once more.** A check that clears by itself in a few seconds needs no view.
 2. **Ask first**, as a multiple choice, [the shared way](../../.agents/skills/explore/references/asking-the-user.md): *Messenger wants to know you're a person. I'll send a link that shows my browser, for you to tap through.* `Ready, send it / Not now`. At a login: *Shopify's login keeps reloading. I'll send a link that shows my browser, for you to sign in.* A puzzle goes stale and the link can use your accounts, so it's sent only once you're there.
-3. **Open it with the finish**, send the `HANDOVER_LINK` it prints, and run `wait` in the background:
+3. **Open it with the finish**, run `wait` in the background, and then [end your turn with the `HANDOVER_LINK` it prints](browsing.md#how-private-links-work):
 
    ```bash
    H=.claude/skills/hand-over/scripts/hand-over.mjs

@@ -71,7 +71,7 @@ When a task lacks a key, or the person asks for *the key link*, send a private l
    ```
 
    Every field is optional; [`keys.mjs`](../../.agents/skills/hand-over/scripts/keys.mjs) owns their limits. `title` heads the page, and `why` is one plain sentence of what you will do with the key, never more than it allows. `url` and `steps` come from [the token-website steps](#api-token-website-steps). `check` is a harmless `GET` only a working key answers, sent once on save with `auth` one of `bearer`, `basic`, `header:<Name>`, or `query:<name>`: a 401 or 403 holds the key back until *Save anyway*. Leave it out for a pair, like an id and a secret.
-3. **Open it**, send the `HANDOVER_LINK` it prints, and run `wait` in the background:
+3. **Open it**, run `wait` in the background, and then [end your turn with the `HANDOVER_LINK` it prints](browsing.md#how-private-links-work):
 
    ```bash
    node .claude/skills/hand-over/scripts/hand-over.mjs open --keys STRIPE_SECRET_KEY,MAPS_API_KEY --guide "$guide"
@@ -83,7 +83,7 @@ When a task lacks a key, or the person asks for *the key link*, send a private l
    ```
 
    `KEYS_UNDECLARED=` or `KEYS_AMBIGUOUS=` (exit 2) means step 1 isn't done, and `KEYS_GUIDE=` names the guide entry to fix. Exit 1 means a destination isn't git-ignored, so fix [the protection](#the-two-files) first, or another link holds the one slot. `HANDOVER_NEEDS=cloudflared` works as for [every private link](browsing.md#how-private-links-work).
-4. **After it closes**, handle its completion identity once, as [workspace return](browsing.md#how-private-links-work) says, even when both `wait` and the workspace notification arrive. Both carry names, never values; absent or unconfirmed dispatch tells the person to return to chat and say *continue*. Name the saved keys in the chat, never a value. A non-empty `HANDOVER_APP_KEYS` means the Worker reads those keys: run `npm run secrets:push` so the live app gets them. Previews read only `app/.dev.vars.staging`, so say they need their own test key. On `timeout`, or a `closed` nobody asked for, say what happened before offering a new link. `HANDOVER_OPENED=no`: nobody opened it, so ask whether it loaded. `yes`: ask where they got stuck.
+4. **After it closes**, handle its completion identity once, as [workspace return](browsing.md#how-private-links-work) says, even when both `wait` and the workspace notification arrive. Both carry names, never values. Name the saved keys in the chat, never a value. A non-empty `HANDOVER_APP_KEYS` means the Worker reads those keys: run `npm run secrets:push` so the live app gets them. Previews read only `app/.dev.vars.staging`, so say they need their own test key. On `timeout`, or a `closed` nobody asked for, say what happened before offering a new link. `HANDOVER_OPENED=no`: nobody opened it, so ask whether it loaded. `yes`: ask where they got stuck.
 
 One link is open at a time. A key link nobody has opened gives way to a newer link: its `wait` prints `closed` and `HANDOVER_REPLACED_BY=`, the folder of the workspace whose link took its place. Name that workspace and offer a new link. An opened one keeps its place.
 

@@ -34,7 +34,7 @@ While it sends, the form shows each step: *Typing your details…*, *Pressing Pa
    ```
 
    `kind` is an HTML autofill name, left out for a box with none, such as a backup code. [`form.mjs`](../../.agents/skills/hand-over/scripts/form.mjs) owns the limits, 12 boxes among them. A ref is written `e12`; `@e12` works too. A ref reaches a field inside a payment provider's embedded box, where a selector can't.
-3. **Open it with the finish**, send the `HANDOVER_LINK` it prints, and run `wait` in the background:
+3. **Open it with the finish**, run `wait` in the background, and then [end your turn with the `HANDOVER_LINK` it prints](browsing.md#how-private-links-work):
 
    ```bash
    node .claude/skills/hand-over/scripts/hand-over.mjs open --form "$form" --until "**/receipt/**"   # where the site goes once it accepts

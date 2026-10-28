@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Private links come in the last message
+
+- **A private link comes in the agent's last message.** A password link, key link, private form or live view used to arrive between the agent's steps, where many chat apps hide text. The agent now starts waiting for the link and then ends its turn with the link on its own line ([how private links work](wiki/development/browsing.md#how-private-links-work)).
+- **The link tool reminds the agent.** Right under `HANDOVER_LINK=`, `hand-over.mjs open` prints a `HANDOVER_SEND=` line telling the agent to end its turn with the link. It holds no part of the link or its key, and a link that fails to open prints neither line.
+
+**Updating.** Nothing to do.
+
 ## 44.16.0 — The plan prints in the chat
 
 - **A finished plan prints in the chat, above its link.** The reply shows the plan's why, each change as a numbered point, and the choices assumed for you, so you can read it without opening the review page. Pictures the chat can't show become a pointer to the page. The page builder writes this copy from the same plan as the page, and only a reply that waits on your review prints it ([print the plan's link](.agents/skills/explore/references/asking-the-user.md#print-the-plans-link)).
