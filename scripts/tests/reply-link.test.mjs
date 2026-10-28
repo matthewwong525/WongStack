@@ -10,6 +10,7 @@ import { LIMITS, openReplyLink } from '../../.agents/skills/hand-over/scripts/re
 import { canWake, chatTarget, wakeChat } from '../../.agents/skills/hand-over/scripts/lib/wake.mjs';
 import { inboxCalls, inboxEnv } from './fixtures/fake-inbox.mjs';
 import { fakePaseo, fakeTunnel, ORIGIN, TUNNEL_ENV } from './fixtures/fake-tunnel.mjs';
+import { sessionName } from '../../.agents/skills/browser/scripts/browse.mjs';
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const script = join(repo, '.agents/skills/hand-over/scripts/reply-link.mjs');
@@ -472,7 +473,7 @@ test('a reply link and a private link open while the other is open, and share no
   const privateLink = f.run(handOver, 'open', '--passwords');
   assert.equal(privateLink.status, 0, privateLink.stderr);
   assert.match(privateLink.stdout, /^HANDOVER_LINK=/m);
-  const handOverState = join(f.root, '.wong-stack/hand-over');
+  const handOverState = join(f.root, '.wong-stack/hand-over/links', sessionName(f.root));
   const handOverFiles = () => readdirSync(handOverState).map(name => readFileSync(join(handOverState, name), 'utf8')).join('\n');
   assert.ok(!handOverFiles().includes(link.key) && !handOverFiles().includes(link.id), 'hand-over holds nothing of the reply link');
   const privateKey = JSON.parse(readFileSync(join(handOverState, 'state.json'), 'utf8')).key;
@@ -496,10 +497,10 @@ test('a private link opens first and a reply link opens beside it', async t => {
   assert.equal(f.run(handOver, 'open', '--passwords').status, 0);
   const link = f.open(f.page('one.html'));
   assert.equal((await ask(link, 'alive')).status, 200);
-  assert.equal(existsSync(join(f.root, '.wong-stack/hand-over/watcher.pid')), true, 'the private link is still open');
+  assert.equal(existsSync(join(f.root, '.wong-stack/hand-over/links', sessionName(f.root), 'watcher.pid')), true, 'the private link is still open');
   f.reply('close', join(f.root, 'one.html'));
   await until(() => f.server() === null, 'the reply server did not exit');
-  assert.equal(existsSync(join(f.root, '.wong-stack/hand-over/watcher.pid')), true, 'closing the reply link leaves the private link open');
+  assert.equal(existsSync(join(f.root, '.wong-stack/hand-over/links', sessionName(f.root), 'watcher.pid')), true, 'closing the reply link leaves the private link open');
   assert.match(f.run(handOver, 'close').stdout, /^HANDOVER_RESULT=closed$/m);
 });
 

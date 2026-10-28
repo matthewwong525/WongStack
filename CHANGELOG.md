@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 44.20.0 — Each chat gets its own private link
+
+- **Each chat has its own private link.** A key link, password link or private form from one chat stays open while another chat opens, waits on or closes its own. A chat's `/close` closes only its own link ([how private links work](wiki/development/browsing.md#how-private-links-work)).
+- **In one chat, an unopened key link still gives way** to that chat's newer link, as before. Another chat's link never blocks it.
+- **The computer still has one live view.** The browser has one screen, so a second view can't open. Its message names the chat that holds it, such as `A live view is already open in modest-toad.` ([live view](wiki/development/live-view.md#what-the-link-can-do)).
+- **`wait` reads a result that lands as the link closes**, so it no longer says *No private link is open* in that short gap.
+
+**Updating.** Nothing to do. A link open during the update keeps working until it closes.
+
 ## 44.19.1 — Agents write in Simplified Technical English
 
 - **Agents write user-facing text in Simplified Technical English.** A new rule in `AGENTS.md` asks for ASD-STE100, best effort: one meaning per word, short sentences, active voice. Code, commands, names, quotations and prescribed text stay exact ([voice and tone](wiki/voice.md#voice-and-tone)).

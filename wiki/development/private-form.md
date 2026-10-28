@@ -42,7 +42,7 @@ While it sends, the form shows each step: *Typing your details…*, *Pressing Pa
    node .claude/skills/hand-over/scripts/hand-over.mjs wait                                           # prints HANDOVER_RESULT=...
    ```
 
-   Name the page the site reaches once it accepts, not "left the card page": an error page would count too. The form works on the page this task has open; a task that passes `--session <name>` to `browse.mjs` passes it here too. `open` takes the page's picture itself. `FORM_FILE=` (exit 2) names the fault in the file. Exit 1 means the page already meets the finish, the task has no page open, or another link is open.
+   Name the page the site reaches once it accepts, not "left the card page": an error page would count too. The form works on the page this task has open; a task that passes `--session <name>` to `browse.mjs` passes it here too. `open` takes the page's picture itself. `FORM_FILE=` (exit 2) names the fault in the file. Exit 1 means the page already meets the finish, the task has no page open, or another link is open in this chat.
 4. **Hands off while it's open.** From `open` until `wait` prints the final result, the agent sends its browser no commands and takes no pictures, through any watch. A page it changed would also renumber the refs the form uses. Once a minute its helper makes one call that types, presses, and reads nothing, to keep the page open.
 5. **Read how it ended.**
    - `done`: the site moved on. The agent takes a fresh snapshot, shows the picture, say of the receipt, and carries on.
