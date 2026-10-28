@@ -12,7 +12,7 @@ Start [the change loop](../../../wiki/development/the-change-loop.md): compare o
 
 ## Investigate the relevant flow
 
-Read owning docs and source; trace trigger, result, and constraints. For non-code, read the process and authoritative sources. Discover facts; separate observations from inferences. Run proportional, authorized checks: the repo's tests, scripts and builds, and new code only in `.scratch/`. Report results before any plan; take no outward action. Name unavailable evidence and a later check.
+Read owning docs and source; trace trigger, result, and constraints. For non-code, read the process and authoritative sources. Discover facts; separate observations from inferences. Run proportional, authorized checks: tests, scripts, builds; new code only in `.scratch/`. Report results before any plan; nothing outward. Name unavailable evidence and a later check.
 
 For consequential choices, compare viable approaches, outcomes, costs; recommend with evidence. Before handoff, check material assumptions and failures against the flow; revise contradictions.
 
