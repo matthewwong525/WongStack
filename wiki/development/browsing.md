@@ -28,14 +28,15 @@ A failed command prints one `BROWSE_ERROR=` line. A ref comes from the newest sn
    - **One match:** the agent logs in without asking, because saving the login was your permission. It names the page's boxes from its own snapshot, and the script types the login into them:
 
      ```bash
-     node $B login netflix-com --username e4 --password e5 --submit e6   # BROWSE_LOGIN=accepted|rejected|missing|typed|wrong-site
+     node $B login netflix-com --username e4 --password e5 --submit e6   # BROWSE_LOGIN=accepted|next-step|rejected|missing|typed|wrong-site
      ```
 
-     `accepted` means the address left the login page within 15 seconds; the login is saved at once. A page that asks for the email first gets two commands, each with the one box it shows: the first prints `BROWSE_LOGIN=typed`. A login saved with no password prints `missing` at the password box, and types nothing. `wrong-site` means the page is on another site, or moved there after the email: nothing more was typed.
+     `accepted` means the address left the login page within 15 seconds; the login is saved at once. `next-step` means the page stayed but its password box went, as on a code page. A page that asks for the email first gets two commands, each with the one box it shows: the first prints `BROWSE_LOGIN=typed`. A login saved with no password prints `missing` at the password box, and types nothing. `wrong-site` means the page, or a box's frame, is on another site or one the script can't tell, or moved there after the email: nothing more was typed.
+   - **A box in a frame from another site**, such as a sign-in box from the shop's own login site: the page text's first line says frame boxes are at the end, and each frame's header names its site. Use those refs, never a selector, since a selector reads only the main page. None yet? Read the page again.
    - **Two matches:** it asks in the chat which account to use, as a multiple choice.
    - **No match, `missing`, `wrong-site`, or `rejected` with a message:** it sends [the password link](passwords.md) with the site, and a known username, already filled in, then logs in with what you save. A first page that asks only the email gets the link at once, with `--email-first`: you give the email and an optional password together, never the email in the chat.
-   - **A code page or an app approval:** it reads the code from your email or asks you in the chat: [login codes](login-codes.md).
-   - **A robot check, or a stuck login:** you tap through it or sign in yourself in [a live view](live-view.md#when-it-opens). A `rejected` with no message, or a `typed` email step that stays put, is stuck.
+   - **A code page, an app approval, or `next-step`:** it reads the code from your email or asks you in the chat: [login codes](login-codes.md).
+   - **A robot check, or a stuck login:** you tap through it or sign in yourself in [a live view](live-view.md#when-it-opens). A `rejected` with no message, or a `typed` email step that stays put, is stuck. Try a frame's refs and the saved login, or the password link, before a live view.
 3. **A login through another provider follows the provider.** When the page offers only *Sign in with Google* or *Apple*, the agent taps it and treats the provider's own sign-in page as any login: a saved login for that provider, else [the password link](passwords.md) with the provider's website filled in. A code or an emailed sign-in link comes [through the chat](login-codes.md). A passkey or a device check is [yours, on your own device](#when-a-step-needs-you).
 4. **Later tasks reuse the session.** No login step, until the site logs you out.
 
@@ -87,25 +88,7 @@ When a step needs something only you can give, the agent gets it without showing
 
 ## Steps for you to finish
 
-When a login or check stops the agent, it gives you steps for the rest of the job. Signing in on your phone doesn't sign its browser in.
-
-- **One line on what stopped it.** *The shop wants a passkey, which only your phone can give.*
-- **Numbered steps, one action each**, in the order you'll do them on your own phone or computer.
-- **A link on every step that has a page**: the exact page, not the home page. The agent uses the address it was on, or one the site publishes. It never invents one: when unsure, it links the nearest page and makes the rest a step.
-- **The site's own words.** Each button and box is named as the site labels it.
-- **What it already knows, filled in**: the item, the date, the amount, the address, so you copy and don't look up. Never a password, a card, or a code.
-- **What comes back.** The last step says what to tell the agent, and what it does next.
-- **Nothing else.** No section on how things work, no background, and no other route to try.
-
-```text
-The shop wants a passkey, which only your phone can give. To finish the order:
-
-1. Open the trail mix: https://shop.example.com/p/trail-mix-1kg
-2. Set the quantity to 2 and tap Add to cart, then Checkout.
-3. Sign in with your passkey.
-4. Pick Pickup at Markham, Saturday 10 to 11am.
-5. Tap Place order, and tell me the order number. I'll put the pickup in your calendar.
-```
+When a login or check stops the agent, it gives you steps for the rest of the job. Signing in on your phone doesn't sign its browser in. [Steps for you to finish](finish-steps.md) owns how they read, with an example.
 
 ## How private links work
 

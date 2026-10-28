@@ -3,6 +3,18 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 44.18.0 — Saved logins work in sign-in boxes from another site
+
+- **The page text says where a sign-in box from another site is.** Many sites put their sign-in box in a frame from another of their own sites, at the very end of the page text. The first line now says frame boxes are at the end and names each frame's site, and each frame's header names its site too ([saved browser logins](wiki/development/browsing.md#saved-browser-logins)).
+- **A saved login types into a box in a frame, but only on its own site.** Before it types, the login checks the site of the frame holding each box, not only the page's address. A frame from another site, or one whose site can't be read, gets nothing, and the login says `wrong-site`.
+- **A password typed into a frame stays hidden.** The login keeps a scrambled record of what it typed, so the box reads `[hidden]` even when the site shows the password as text. The record can't be turned back into the password.
+- **Enter goes to the box the login typed into**, so a sign-in in a frame submits without a button.
+- **A code page after the password is `next-step`, not `rejected`.** When the page stays but its password box is gone, the agent asks for the code in the chat ([login codes](wiki/development/login-codes.md)).
+- **A selector that can't reach a frame says why.** It reads only the main page; the command now says to use the box's ref instead of showing a code error.
+- **The browsing guide tries a frame's boxes and the saved login, or the password link, before a live view.** Its list of steps for you to finish moved to [its own page](wiki/development/finish-steps.md).
+
+**Updating.** Nothing to do.
+
 ## 44.17.0 — Private links come in the last message
 
 - **A private link comes in the agent's last message.** A password link, key link, private form or live view used to arrive between the agent's steps, where many chat apps hide text. The agent now starts waiting for the link and then ends its turn with the link on its own line ([how private links work](wiki/development/browsing.md#how-private-links-work)).
