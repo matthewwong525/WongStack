@@ -23,3 +23,10 @@ leverage → use · due to the fact that → because.
 
 **Test:** read it back and cut 20%; keep the cut if the meaning survives. Split a sentence that
 needs a second read to parse.
+
+**Simplified Technical English.** User-facing prose and documentation follow ASD-STE100,
+best-effort — the full standard and its controlled vocabulary aren't needed to get the value:
+one meaning per word, short sentences, active voice, no synonyms for the sake of variety.
+The rules above are how it reads in practice. Keep code, commands, identifiers, quotations,
+and prescribed text exact — never rewrite a thing you're quoting to comply. The rule itself is
+stated in the `WONG-STACK` block of [`AGENTS.md`](../AGENTS.md), which owns it.

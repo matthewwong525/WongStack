@@ -25,6 +25,8 @@ Credentials for this computer's own tools sit in the git-ignored `.env` at the p
 
 ## Rules
 
+- **Always use ASD-STE100 Simplified Technical English** for user-facing prose and documentation. Best-effort compliance is sufficient without the full standard. Keep code, commands, identifiers, quotations, and prescribed text exact.
+
 - **Do plain requests directly.** Research, errands, reminders, and questions need no verb; ask only for a needed answer. Repo edits end with *publish it?*: [the change loop](wiki/development/the-change-loop.md).
 - **One task, one workspace.** A finished task closes its Paseo workspace through `/close`, with no question but a routine or app offer; a new task opens a new workspace: [one task, one workspace](wiki/development/the-change-loop.md#one-task-one-workspace).
 - **Offer a schedule or a mini app when a finished task will clearly come back**: they said it recurs, or memory shows they asked before. Offer once, in the closing question; remember a no: [offer a routine or an app](wiki/development/the-change-loop.md#offer-a-routine-or-an-app).
