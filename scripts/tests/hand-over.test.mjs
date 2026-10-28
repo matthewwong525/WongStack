@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { FRAMES_SCRIPT, SECRETS_SCRIPT } from '../../.agents/skills/browser/scripts/browse.mjs';
+import { FRAMES_SCRIPT, SECRETS_SCRIPT, sessionName } from '../../.agents/skills/browser/scripts/browse.mjs';
 import { finished, globToRegExp, keyMatches, servePage, tunnelOrigin } from '../../.agents/skills/hand-over/scripts/hand-over.mjs';
 import { appendTiming, KEEP, linkOf } from '../../.agents/skills/hand-over/scripts/lib/timings.mjs';
 import { VIEWER } from '../../.agents/skills/hand-over/scripts/view.mjs';
@@ -122,7 +122,9 @@ ${paseo === 'fail' ? 'process.exit(1);' : paseo === 'timeout' ? 'setTimeout(() =
     for (const name of ['stdout', 'stderr']) child[name].on('data', chunk => { out[name] += chunk; });
     return new Promise(done => child.on('close', status => done({ ...out, status, rawStdout: out.stdout, stdout: legacyOutput(out.stdout) })));
   };
-  const state = join(root, '.wong-stack/hand-over');
+  // The computer's place keeps the timing record; each chat's link lives in its own folder under it.
+  const hub = join(root, '.wong-stack/hand-over');
+  const state = join(hub, 'links', sessionName(cwd));
   t.after(() => {
     camofox.stop();
     run('close');
@@ -140,6 +142,7 @@ ${paseo === 'fail' ? 'process.exit(1);' : paseo === 'timeout' ? 'setTimeout(() =
     cwd,
     root,
     state,
+    hub,
     camofox,
     tools,
     form: file('form.json'),
@@ -163,7 +166,7 @@ ${paseo === 'fail' ? 'process.exit(1);' : paseo === 'timeout' ? 'setTimeout(() =
     tunnelPid: () => Number(readFileSync(file('tunnel.pid'), 'utf8')),
     result: () => legacyResult(JSON.parse(readFileSync(join(state, 'result.json'), 'utf8'))),
     /** The timing record's lines, oldest first. */
-    timings: () => (existsSync(join(state, 'timings.jsonl')) ? readFileSync(join(state, 'timings.jsonl'), 'utf8').trim().split('\n').map(line => JSON.parse(line)) : []),
+    timings: () => (existsSync(join(hub, 'timings.jsonl')) ? readFileSync(join(hub, 'timings.jsonl'), 'utf8').trim().split('\n').map(line => JSON.parse(line)) : []),
   };
 }
 
@@ -539,8 +542,8 @@ test('a sent value appears in no command line, environment, log, or file: only i
   assert.doesNotMatch(f.calls().join('\n') + JSON.stringify(f.sent()), PRIVATE, 'the tunnel\'s and the chat tool\'s command lines');
   assert.doesNotMatch(f.stateFiles(), PRIVATE, 'the link\'s own files');
   const kept = dir => readdirSync(dir, { recursive: true, withFileTypes: true }).filter(entry => entry.isFile()).map(entry => readFileSync(join(entry.parentPath, entry.name), 'utf8')).join('\n');
-  assert.doesNotMatch(kept(join(dirname(f.state), 'camofox')), PRIVATE, 'the files browse.mjs keeps');
-  assert.ok(!existsSync(join(dirname(f.state), 'logins.json')), 'a card is never saved as a login');
+  assert.doesNotMatch(kept(join(dirname(f.hub), 'camofox')), PRIVATE, 'the files browse.mjs keeps');
+  assert.ok(!existsSync(join(dirname(f.hub), 'logins.json')), 'a card is never saved as a login');
 });
 
 test('a site that keeps its page is still checking for the watch, then not-accepted with the boxes emptied, the chat told twice', async t => {
@@ -680,7 +683,7 @@ test('a send keeps a timing record of each step and how the link ended, with no 
   assert.deepEqual(lines.filter(line => line.step).map(({ step, index, kind, ok }) => [step, index, kind, ok]).sort(), [['fill', 0, 'cc-number', true], ['fill', 1, 'cc-exp-month', true], ['fill', 2, 'cc-exp-year', true], ['fill', 3, 'cc-csc', true], ['finish', undefined, undefined, true], ['press', undefined, undefined, true]].sort());
   assert.ok(lines.filter(line => line.step).every(line => Number.isInteger(line.ms) && line.ms >= 0), 'each step has its time');
   assert.deepEqual(lines.filter(line => line.ended).map(({ ended, cause }) => [ended, cause]), [['done', 'send']]);
-  const file = join(f.state, 'timings.jsonl');
+  const file = join(f.hub, 'timings.jsonl');
   assert.equal(statSync(file).mode & 0o777, 0o600);
   assert.doesNotMatch(readFileSync(file, 'utf8'), new RegExp(`${PRIVATE.source}|${link.key}|http|receipt|e12|#cvv`));
 });
@@ -856,7 +859,7 @@ const openedView = (f, ...args) => opened(f, '--view', '--session', SESSION, ...
 const stateOf = f => { try { return JSON.parse(readFileSync(join(f.state, 'state.json'), 'utf8')); } catch { return null; } };
 /** What a view's end must undo, read while it is open. */
 const kept = (f, link) => ({ view: stateOf(f).view, port: link.port, tunnel: f.tunnelPid() });
-const screenFolders = f => (existsSync(f.state) ? readdirSync(f.state).filter(name => name.startsWith('screen-')) : []);
+const screenFolders = f => (existsSync(f.hub) ? readdirSync(f.hub).filter(name => name.startsWith('screen-')) : []);
 
 /** Asserts a view's end put everything back: the page's size, and no screen source, folder, tunnel, or page left. */
 async function assertPutBack(f, { view, port, tunnel }) {
@@ -912,7 +915,7 @@ test('open --view on a computer without its tools exits 3, naming each one, havi
   assert.match(one.stderr, /ask the person, run `hand-over\.mjs install-view`, and retry/);
 
   Object.assign(f.env, f.tools.env('x11vnc', 'xdotool'));
-  rmSync(join(dirname(f.state), 'live-view'), { recursive: true });
+  rmSync(join(dirname(f.hub), 'live-view'), { recursive: true });
   const all = f.run('open', ...VIEW_ARGS);
   assert.equal(all.status, 3);
   assert.equal(all.stdout, 'HANDOVER_NEEDS=live-view\n');
@@ -988,7 +991,7 @@ test('open --view starts the screen source on a private socket, fits the page, a
   const { view } = state;
   assert.deepEqual({ ...view, dir: null, sourcePid: null }, { note: NOTE, size: FIRST, display: DISPLAY, dir: null, sourcePid: null });
   assert.deepEqual([state.session, state.untilGone, state.until, state.form], [SESSION, '#check', null, null]);
-  assert.equal(dirname(view.dir), f.state);
+  assert.equal(dirname(view.dir), f.hub);
   assert.equal(statSync(view.dir).mode & 0o777, 0o700, 'only this user can reach the screen');
   assert.ok(alive(view.sourcePid));
   assert.deepEqual(f.tools.calls('x11vnc'), [SOURCE_ARGS(view.dir)], 'both network ports switched off');
@@ -1183,12 +1186,12 @@ test('install-view adds what is missing, or prints the one command for the perso
   assert.deepEqual(f.tools.calls('apt-get'), Array(2).fill(['install', '-y', '--no-install-recommends', 'x11vnc', 'xdotool']));
 
   Object.assign(f.env, f.tools.env('apt-get', 'sudo', 'x11vnc'));
-  rmSync(join(dirname(f.state), 'live-view'), { recursive: true });
+  rmSync(join(dirname(f.hub), 'live-view'), { recursive: true });
   const manual = f.run('install-view');
   assert.equal(manual.status, 1);
   assert.equal(manual.stdout, 'HANDOVER_INSTALL=manual\nsudo apt-get install -y --no-install-recommends x11vnc xdotool\n');
   assert.match(manual.stderr, /Nothing was installed/);
-  assert.ok(!existsSync(join(dirname(f.state), 'live-view')), 'not the viewer either, which needs no admin rights');
+  assert.ok(!existsSync(join(dirname(f.hub), 'live-view')), 'not the viewer either, which needs no admin rights');
   assert.equal(f.tools.calls('apt-get').length, 2);
 });
 
