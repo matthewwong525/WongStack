@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 44.16.1 — A failed save says why
+
+- **A save that fails where the project is kept says why.** Git used to show only an error number. Now it prints *The app could not finish this save (GitHub answered 403)*, or *could not be reached*, naming the place and never its own words or a key. The live app logs one `code_save_failed` line per failed save, and [the save page](wiki/stack/employee-project.md#what-the-app-takes-and-refuses) says what to do for each reason.
+- **A screen-sharing link past its time limit closes at once.** A limit long past could wrap, in the browser's timer, to a wait of weeks, so the page stayed open.
+
+**Updating.** Nothing to do.
+
 ## 44.16.0 — The plan prints in the chat
 
 - **A finished plan prints in the chat, above its link.** The reply shows the plan's why, each change as a numbered point, and the choices assumed for you, so you can read it without opening the review page. Pictures the chat can't show become a pointer to the page. The page builder writes this copy from the same plan as the page, and only a reply that waits on your review prints it ([print the plan's link](.agents/skills/explore/references/asking-the-user.md#print-the-plans-link)).
