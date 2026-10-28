@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Private links come in the last message
+## 44.17.0 — Private links come in the last message
 
 - **A private link comes in the agent's last message.** A password link, key link, private form or live view used to arrive between the agent's steps, where many chat apps hide text. The agent now starts waiting for the link and then ends its turn with the link on its own line ([how private links work](wiki/development/browsing.md#how-private-links-work)).
 - **The link tool reminds the agent.** Right under `HANDOVER_LINK=`, `hand-over.mjs open` prints a `HANDOVER_SEND=` line telling the agent to end its turn with the link. It holds no part of the link or its key, and a link that fails to open prints neither line.

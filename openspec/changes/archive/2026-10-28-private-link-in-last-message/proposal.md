@@ -1,5 +1,9 @@
 # Private links come in the last message
 
+**Status:** ready-to-ship
+**Branch:** frantic-lionfish
+**Open questions:** none
+
 ## Why
 
 When the agent sends a password link, a key link, a private form or a live view, the person often never sees it. The agent writes the link between its steps, and many chat apps hide that text: only the last message of a turn shows for sure. Every WongStack computer sends links this way, so every install has the problem; one install already fixed it on 2026-10-28.
@@ -45,3 +49,4 @@ Non-goals: how a link works, opens or closes; reply links such as a plan's link,
 - **2026-10-28** — Assumed: `secrets.md` step 4 drops its *return to chat and say continue* clause, because the new link pushed the key-save reading route 53 bytes over its budget and `browsing.md#how-private-links-work` already owns that fact.
 - **2026-10-28** — Asked whether to open the pull request with the drafted text → chose yes, open it.
 - **2026-10-28** — Assumed: task 3.2 counts as done with one local failure, `view-page.test.mjs` "the page closes at the time limit", because it fails the same way on the untouched branch and CI is the gate.
+- **2026-10-28** — Assumed: archived and saved for publishing, with the pull request text the person approved, because `/ship` runs the checkpoint.
