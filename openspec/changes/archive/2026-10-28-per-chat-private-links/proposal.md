@@ -1,6 +1,6 @@
 # Proposal
 
-**Status:** shipping
+**Status:** ready-to-ship
 **Branch:** one-private-link-per-chat
 **Open questions:** none
 
@@ -55,4 +55,4 @@ Non-goals: no change to what a private link shows, how long it stays open, or it
 - **2026-10-28** — Assumed: the per-chat tests go in their own `scripts/tests/private-links.test.mjs`, since their fixture differs from `hand-over.test.mjs`'s; that file's fixture moves to the chat's folder.
 - **2026-10-28** — Assumed: fix a gap the per-chat test found in WongOS too: `wait` looks for the watcher before it reads the result, so a result that lands as the watcher ends is read, not reported as *No private link is open*. The test also gives `wait` 1.5 s to start, not 0.3 s.
 - **2026-10-28** — Assumed: the live view's screen folder stays in the computer's shared place, not the chat's folder. A long chat folder name made the screen's socket path pass Linux's 108-character limit, so the view failed to start. One view per computer means the folder needs no chat.
-- **2026-10-28** — Archived as 44.19.0 inside `/ship`; the WongOS copy leaves its differences list at the next `/wong-sync`.
+- **2026-10-28** — Archived as 44.20.0 inside `/ship`; the WongOS copy leaves its differences list at the next `/wong-sync`.

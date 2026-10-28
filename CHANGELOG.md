@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## 44.19.0 — Each chat gets its own private link
+## 44.20.0 — Each chat gets its own private link
 
 - **Each chat has its own private link.** A key link, password link or private form from one chat stays open while another chat opens, waits on or closes its own. A chat's `/close` closes only its own link ([how private links work](wiki/development/browsing.md#how-private-links-work)).
 - **In one chat, an unopened key link still gives way** to that chat's newer link, as before. Another chat's link never blocks it.
