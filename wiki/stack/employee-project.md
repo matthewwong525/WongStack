@@ -116,6 +116,13 @@ The app takes one new commit on one branch. Everything else is refused before an
 | any push, while [the app can't save yet](project-git-route.md#an-install-that-holds-the-older-key) | *Saving through the app is not set up yet. Ask the owner to finish it in Access.* |
 | a change to a file under `.github/workflows/`, on GitHub | *This change edits the files that define the checks, which can not be saved through the app. Ask the owner to save it.* |
 
+**A save that fails where the project is kept says why.** Git prints *The app could not finish this save (GitHub answered 403). Try again, or ask the owner to look.* The brackets name the place, GitHub or Cloudflare, and what went wrong, never its own words. The live app logs one line per failed save, with who, the branch and the step: search its logs in Cloudflare for `code_save_failed`.
+
+- *answered 401, 403 or 404*: the key was turned down. The owner saves a new one ([the owner's step](project-git-route.md#the-owners-one-step-on-github)).
+- *could not be reached*: try again; if it keeps failing, tell the owner.
+- *gave no key to save with*: the owner [finishes Access setup](employee-access.md#finish-access-setup) again.
+- *its answer could not be read*: tell the owner; the app needs a fix.
+
 A person without Project code is refused as for a download: *Ask your admin*. A push never publishes: [publishing](#who-publishes) is its own call, after the checks. The app never closes or deletes: removing a saved branch happens where the project is kept.
 
 ### How the verbs differ

@@ -6,7 +6,7 @@ The app passes Git's two read calls, and [one kind of push](employee-project.md#
 - **Before anything is asked upstream**, the caller must be a signed-in person who holds Project code now. A service token is refused on the live app; on a preview [the checker stands in for the owner](preview-access.md#the-checker-on-a-preview).
 - **Reading, and one branch's save, are forwarded.** A push's ref updates are read and judged first; the pack is streamed on, never held. Every other call is refused before any upstream request.
 - **A saved change is read at `/api/access/code/change`**, judged the same way: its checks, preview and page, one check's log, and a restart of a cut-off check run on a project kept in Cloudflare. Answers carry chosen fields, never the upstream's own words.
-- **The credential never leaves the server.** It is in no message, answer or log, and the upstream's cookies and sign-in challenge are dropped. A refusal upstream reads as `code_unavailable`.
+- **The credential never leaves the server.** It is in no message, answer or log, and the upstream's cookies and sign-in challenge are dropped. A refusal upstream reads as `code_unavailable`, and a failed save names only the place and its answer's number ([what Git prints](employee-project.md#what-the-app-takes-and-refuses)).
 - **The device sends its session to the app alone**: setup's download as a header set in Git's environment, and the copy's Git through [its credential helper](employee-project.md#update-the-copy). Never an argument, the saved address or a config file. Redirects are refused.
 - **No mini app or action is handed the credential**, even one that lists the key.
 

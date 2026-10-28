@@ -141,7 +141,8 @@ function start(RFB = globalThis.RFB) {
     const { note, closesAt, now, ...view } = await response.json();
     if (note) document.title = note;
     fit = view.fit;
-    if (closesAt) setTimeout(() => end(ENDINGS.closed), closesAt - (now ?? Date.now()));
+    // A browser keeps a timer's wait in 32 bits, so a limit long past could wrap to weeks: a past limit waits 0.
+    if (closesAt) setTimeout(() => end(ENDINGS.closed), Math.max(0, closesAt - (now ?? Date.now())));
     await report();
     if (!over) connect();
   })();
