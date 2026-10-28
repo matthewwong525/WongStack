@@ -3,6 +3,12 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 44.19.1 — Agents write in Simplified Technical English
+
+- **Agents write user-facing text in Simplified Technical English.** A new rule in `AGENTS.md` asks for ASD-STE100, best effort: one meaning per word, short sentences, active voice. Code, commands, names, quotations and prescribed text stay exact ([voice and tone](wiki/voice.md#voice-and-tone)).
+
+**Updating.** Nothing to do.
+
 ## 44.19.0 — A saved login gets one try on a sibling subdomain
 
 - **A saved login can try a sibling subdomain once.** Some sites, such as Jane booking pages, give each clinic its own subdomain and may keep one account across them. With `--main-domain`, a login saved for `clinic.janeapp.com` also types on `myodetox.janeapp.com`, which shares the main domain `janeapp.com`. The agent tries it once, since a repeat can lock the account ([saved browser logins](wiki/development/browsing.md#saved-browser-logins)).
