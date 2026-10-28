@@ -1,7 +1,7 @@
 // The project, read and saved through the app: Git's read and write calls are passed to where the project is kept,
 // with the server's credential added. No copy is stored; no device gets a credential. wiki/stack/employee-project.md
 import { boundedBytes, joined } from "../api/body.ts";
-import { type Github, defaultBranch } from "./github.ts";
+import { type Github, GithubError, defaultBranch } from "./github.ts";
 import type { CurrentPolicy } from "./policy.ts";
 
 /** Everything under here is Git's smart HTTP protocol for the one project. */
@@ -10,6 +10,7 @@ export const CODE_GIT = "/api/access/code/git/";
 export const NOT_SET_UP = "Saving through the app is not set up yet. Ask the owner to finish it in Access.";
 const NEVER_PUBLISHES = "The app saves a change and never publishes. Push one branch that is not main.";
 const CHECK_FILES = "This change edits the files that define the checks, which can not be saved through the app. Ask the owner to save it.";
+const UNFINISHED = (reason: string) => `The app could not finish this save (${reason}). Try again, or ask the owner to look.`;
 
 // Only what this file calls on a Cloudflare-kept project's binding: one repository, its address, and a token.
 // The handle carries no metadata of its own: its address comes from `info()`.
@@ -86,19 +87,19 @@ export const codeStep = (env: object): Step => step(env, codeSource(env) !== nul
 /** The same for saving a change. `key`: GitHub holds no key that can save. `setup`: Access setup has a step left. */
 export const saveStep = (env: object): Step => step(env, saveSource(env) !== null);
 
-/** The address to reach and the credential to add, or null when the place it is kept does not answer. */
-export async function upstream(env: object, scope: Scope = "read"): Promise<Upstream | null> {
+/** The address to reach and the credential to add, or null for a place the app can not trust. Throws when it fails. */
+async function reach(env: object, scope: Scope): Promise<Upstream | null> {
   const source = scope === "write" ? saveSource(env) : codeSource(env);
   if (!source) return null;
   if ("github" in source) return { url: `https://github.com/${source.github}.git`, authorization: `Basic ${btoa(`x-access-token:${source.token}`)}` };
-  try {
-    const repo = await source.artifacts.get(source.name);
-    const remote = new URL((await repo.info()).remote);
-    if (remote.protocol !== "https:" || remote.username || remote.password || remote.search || remote.hash) return null;
-    const { plaintext } = await repo.createToken(scope, TOKEN_SECONDS);
-    return plaintext ? { url: remote.href.replace(/\/$/, ""), authorization: `Bearer ${plaintext}` } : null;
-  } catch { return null; }
+  const repo = await source.artifacts.get(source.name);
+  const remote = new URL((await repo.info()).remote);
+  if (remote.protocol !== "https:" || remote.username || remote.password || remote.search || remote.hash) return null;
+  const { plaintext } = await repo.createToken(scope, TOKEN_SECONDS);
+  return plaintext ? { url: remote.href.replace(/\/$/, ""), authorization: `Bearer ${plaintext}` } : null;
 }
+/** The same, or null when the place it is kept does not answer. */
+export const upstream = (env: object, scope: Scope = "read"): Promise<Upstream | null> => reach(env, scope).catch(() => null);
 
 /** Who may connect with the project. `off`: the install can not hand it out, or key levels have not started, so all
  *  keep the apps-only connection. `ready`: holds Project code now. `lacked`: anyone else, a machine included. */
@@ -133,19 +134,23 @@ const copied = (from: Headers, names: string[]): [string, string][] => names.fla
   return value === null ? [] : [[name, value]];
 });
 
-/** One call passed on with the server's credential, or null when the place the project is kept refuses or fails. */
-async function passed(env: object, scope: Scope, request: Request, path: string, body: BodyInit | null): Promise<Response | null> {
-  const target = await upstream(env, scope);
-  if (!target) return null;
+/** Where a save stopped: the published branch's look-up, Cloudflare's key, the Git call, or reading its answer. */
+type Failed = { step: "branch" | "key" | "send" | "report"; status?: number; error?: unknown };
+
+/** One call passed on with the server's credential, or where it failed when the place the project is kept fails. */
+async function passed(env: object, scope: Scope, request: Request, path: string, body: BodyInit | null): Promise<Response | Failed> {
+  let target: Upstream | null;
+  try { target = await reach(env, scope); } catch (error) { return { step: "key", error }; }
+  if (!target) return { step: "key" };
   let response: Response;
   try {
     // A redirect comes back unfollowed, so the credential is never sent on. A Worker's fetch rejects the "error" mode.
     response = await fetch(`${target.url}/${path}`, { method: request.method, redirect: "manual", body,
       headers: { ...Object.fromEntries(copied(request.headers, FORWARDED)), Authorization: target.authorization, "User-Agent": "git/WongStack-project-code" } });
-  } catch { return null; }
+  } catch (error) { return { step: "send", error }; }
   if (response.ok) return response;
   await response.body?.cancel();
-  return null;
+  return { step: "send", status: response.status };
 }
 // Only what Git reads comes back: never the upstream's cookies or its sign-in challenge. The body arrives
 // decoded, so its encoding header stays behind.
@@ -206,6 +211,29 @@ function refused(refs: string[], caps: string, line: string): Response {
     { headers: { "Content-Type": "application/x-git-receive-pack-result", "Cache-Control": "no-store" } });
 }
 
+const unreadable = (error: unknown) => error instanceof SyntaxError || (error instanceof Error && error.name === "ZodError");
+/** The reason Git prints: a place, and its status number or a fixed phrase. Never its words, a sha or a key. */
+function reason(source: SaveSource, { step, status, error }: Failed): string {
+  const place = "github" in source ? "GitHub" : "Cloudflare";
+  if (status) return `${place} answered ${status}`;
+  if (step === "key") return `${place} gave no key to save with`;
+  return step === "report" || unreadable(error) ? `${place}'s answer could not be read` : `${place} could not be reached`;
+}
+
+/** One log line per failed save, found in the app's logs by `event`. A `SyntaxError` quotes the answer it read,
+ *  so only its name is kept; every other error here is our own, `fetch`'s or zod's, and holds no key or body. */
+function noteFailed({ step, status, error }: Failed, who: string, branch: string | null): void {
+  const cause = error instanceof SyntaxError ? error.name : error instanceof Error ? `${error.name}: ${error.message}` : null;
+  console.log(JSON.stringify({ event: "code_save_failed", who, branch, step, status: status ?? null, error: cause?.slice(0, 120) ?? null }));
+}
+
+/** A save that failed upstream: every ref turned down with the reason, or a plain answer when no ref was read. */
+function unfinished(source: SaveSource, failed: Failed, who: string, asked: { refs: string[]; caps: string; branch: string | null }): Response {
+  noteFailed(failed, who, asked.branch);
+  const line = UNFINISHED(reason(source, failed));
+  return asked.refs.length ? refused(asked.refs, asked.caps, line) : plain(line, 503);
+}
+
 /** The head already read, then the rest of the body as it arrives: the pack is never held. */
 const whole = (head: Uint8Array, reader: ReadableStreamDefaultReader<Uint8Array>) => new ReadableStream<Uint8Array>({
   start: controller => controller.enqueue(head),
@@ -218,7 +246,7 @@ const whole = (head: Uint8Array, reader: ReadableStreamDefaultReader<Uint8Array>
 
 /** One push: passed on only as one new commit on one branch that is not published from, and nothing is asked of
  *  where the project is kept before that is known. */
-async function push(request: Request, env: object, source: SaveSource): Promise<Response> {
+async function push(request: Request, env: object, source: SaveSource, who: string): Promise<Response> {
   // Git sends a push uncompressed, and only Git sends this type: a page in a browser can not.
   if (!request.body || request.headers.has("Content-Encoding") || request.headers.get("Content-Type") !== "application/x-git-receive-pack-request") return plain(NEVER_PUBLISHES, 403);
   const reader = request.body.getReader();
@@ -227,26 +255,34 @@ async function push(request: Request, env: object, source: SaveSource): Promise<
   if (!head) return stop(plain(NEVER_PUBLISHES, 403));
   // Before a large push Git first sends a flush packet alone, to see that it may:
   // it updates nothing, and only it goes on.
-  if (!head.lines.length) return stop(relayed(await passed(env, "write", request, "git-receive-pack", FLUSH)));
-  const { refs, caps, branch } = asked(head.lines);
+  if (!head.lines.length) return stop(saved(source, await passed(env, "write", request, "git-receive-pack", FLUSH), who));
+  const ask = asked(head.lines);
+  const { refs, caps, branch } = ask;
   if (!branch) return stop(refused(refs, caps, NEVER_PUBLISHES));
   let published: string;
-  try { published = await publishedBranch(source); } catch { return stop(codeUnavailable()); }
+  try { published = await publishedBranch(source); } catch (error) {
+    return stop(unfinished(source, { step: "branch", status: error instanceof GithubError ? error.status : undefined, error }, who, ask));
+  }
   if (branch === published) return stop(refused(refs, caps, NEVER_PUBLISHES));
   const response = await passed(env, "write", request, "git-receive-pack", whole(head.bytes, reader));
+  if (!(response instanceof Response)) return unfinished(source, response, who, ask);
   // The answer is a short report. GitHub turns down a change to a workflow file there, since the key may not write one.
-  const report = response?.body ? await boundedBytes(response.body, HEAD_LIMIT, () => new Error("report")).catch(() => null) : null;
-  if (!response || !report) return codeUnavailable();
+  const report = response.body ? await boundedBytes(response.body, HEAD_LIMIT, () => new Error("report past the limit"))
+    .catch((error: unknown): Failed => ({ step: "report", error })) : { step: "report" } as const;
+  if (!(report instanceof Uint8Array)) return unfinished(source, report, who, ask);
   return /ng \S+ [^\n]*workflow/i.test(new TextDecoder().decode(report)) ? refused(refs, caps, CHECK_FILES) : relay(response, report);
 }
-const relayed = (response: Response | null) => response ? relay(response) : codeUnavailable();
+const relayed = (response: Response | Failed) => response instanceof Response ? relay(response) : codeUnavailable();
+/** A save call's answer passed back, or the reason it failed, as Git prints it. */
+const saved = (source: SaveSource, response: Response | Failed, who: string) =>
+  response instanceof Response ? relay(response) : unfinished(source, response, who, { refs: [], caps: "", branch: null });
 
 /** Called only after the caller was judged: forwards one read call, or one save, and streams the answer back. */
-export async function codeGit(request: Request, env: object): Promise<Response> {
+export async function codeGit(request: Request, env: object, who = "unknown"): Promise<Response> {
   const call = gitCall(request, new URL(request.url));
   if (!call) return plain(NEVER_PUBLISHES, 403);
   if (!call.write) return relayed(await passed(env, "read", request, call.path, request.body));
   const source = saveSource(env);
   if (!source) return plain(NOT_SET_UP, 403);
-  return request.method === "GET" ? relayed(await passed(env, "write", request, call.path, null)) : push(request, env, source);
+  return request.method === "GET" ? saved(source, await passed(env, "write", request, call.path, null), who) : push(request, env, source, who);
 }

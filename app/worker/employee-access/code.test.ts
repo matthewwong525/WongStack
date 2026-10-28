@@ -63,6 +63,9 @@ const git = (path: string, init?: RequestInit) => new Request(`${site.origin}${C
 const refs = () => git("info/refs?service=git-upload-pack", { headers: { "Git-Protocol": "version=2", Cookie: "CF_Authorization=session", "cf-access-token": "session" } });
 const pack = () => git("git-upload-pack", { method: "POST", body: "0011command=fetch", headers: { "Content-Type": "application/x-git-upload-pack-request", "Content-Encoding": "gzip", Accept: "application/x-git-upload-pack-result" } });
 const code = async (response: Response) => (await body(response)).error.code;
+const unfinished = (reason: string) => `The app could not finish this save (${reason}). Try again, or ask the owner to look.`;
+/** The line Git prints for the one ref a failed save named. */
+const printed = async (response: Response) => /ng refs\/heads\/kim\/fix ([^\n]*)\n/.exec(await response.text())?.[1];
 let f: ReturnType<typeof fixture>;
 let env: ConnectionEnv;
 let fetched: ReturnType<typeof vi.fn>;
@@ -227,7 +230,7 @@ it("passes one new commit on one branch to where the project is kept, with the p
   expect([gitCalls()[4][0], gitCalls()[4][1].headers.Authorization, stored.calls.at(-1)]).toEqual([`${REMOTE}/git-receive-pack`, "Bearer art_v1_synthetic_read", ["createToken", "write", 300]]);
   // Where it stops reading, the rest of the person's push is let go.
   fetched.mockImplementationOnce(async (_address: string, init: RequestInit) => { await (init.body as ReadableStream).cancel("stopped"); return new Response("no", { status: 500 }); });
-  expect(await code(await codeGit(push(), { ...stored.env, CODE_CHECKS: CHECKS }))).toBe("code_unavailable");
+  expect(await printed(await codeGit(push(), { ...stored.env, CODE_CHECKS: CHECKS }))).toBe(unfinished("Cloudflare answered 500"));
 });
 
 it("turns down every push that is not one new commit on one branch, in words Git prints, and asks nothing of where the project is kept", async () => {
@@ -265,7 +268,7 @@ it("turns down every push that is not one new commit on one branch, in words Git
   const trunk = { ...saving, WONG_CODE_REPOSITORY: "acme/trunk-box" };
   for (let again = 0; again < 2; again++) expect(await (await codeGit(push(updates([to("refs/heads/trunk")], "report-status")), trunk)).text()).toBe(ng("refs/heads/trunk"));
   expect(fetched.mock.calls.map(([address]) => address)).toEqual(["https://api.github.com/repos/acme/trunk-box"]);
-  expect(await code(await codeGit(push(), { ...saving, WONG_CODE_REPOSITORY: "acme/down" }))).toBe("code_unavailable");
+  expect(await printed(await codeGit(push(), { ...saving, WONG_CODE_REPOSITORY: "acme/down" }))).toBe(unfinished("GitHub answered 500"));
   expect(gitCalls()).toEqual([]);
 });
 
@@ -274,14 +277,47 @@ it("answers a push the place the project is kept refuses, without its words, and
   const refused = await codeGit(push(), saving);
   const line = "ng refs/heads/kim/fix This change edits the files that define the checks, which can not be saved through the app. Ask the owner to save it.\n";
   expect([refused.status, (await refused.text()).slice(5, -4)]).toEqual([200, `${pkt("unpack ok\n")}${pkt(line)}0000`]);
-  for (const answer of [() => new Response(`upstream secret ${WIDE}`, { status: 403 }), () => new Response(null), () => new Response("x".repeat(70_000))]) {
+  for (const [answer, reason] of [[() => new Response(`upstream secret ${WIDE}`, { status: 403 }), "GitHub answered 403"],
+    [() => new Response(null), "GitHub's answer could not be read"], [() => new Response("x".repeat(70_000)), "GitHub's answer could not be read"]] as const) {
     kept(answer);
     const failed = await codeGit(push(), saving);
     const text = await failed.clone().text();
-    expect([failed.status, await code(failed), text.includes("upstream")]).toEqual([503, "code_unavailable", false]);
+    expect([failed.status, await printed(failed), text.includes("upstream")]).toEqual([200, unfinished(reason), false]);
   }
-  kept(() => new Response("upstream", { status: 500 }));
-  for (const probe of [push("0000"), git("info/refs?service=git-receive-pack")]) expect(await code(await codeGit(probe, saving))).toBe("code_unavailable");
+  // With no ref read yet, Git prints a plain answer's words.
+  kept(() => new Response("upstream", { status: 401 }));
+  for (const probe of [push("0000"), git("info/refs?service=git-receive-pack")]) {
+    const failed = await codeGit(probe, saving);
+    expect([failed.status, failed.headers.get("Content-Type"), await failed.text()]).toEqual([503, "text/plain; charset=utf-8", `${unfinished("GitHub answered 401")}\n`]);
+  }
+});
+
+it("says why a save failed upstream, and logs one line with no key, sign-in or upstream words", async () => {
+  const logged = vi.spyOn(console, "log").mockImplementation(() => {});
+  const lines = () => logged.mock.calls.map(([line]) => JSON.parse(String(line)));
+  try {
+    kept(() => new Response(`upstream secret ${WIDE}`, { status: 403 }));
+    expect(await printed(await handleAccess(push(), { ...env, ...saving }, owner))).toBe(unfinished("GitHub answered 403"));
+    expect(lines()).toEqual([{ event: "code_save_failed", who: owner.id, branch: "kim/fix", step: "send", status: 403, error: null }]);
+    // GitHub can't be reached: nothing came back to name.
+    fetched.mockImplementation(async (address: string) => {
+      if (address.startsWith("https://api.github.com/")) return Response.json({ default_branch: "main" });
+      throw new TypeError("fetch failed");
+    });
+    expect(await printed(await codeGit(push(), saving, "sam@example.com"))).toBe(unfinished("GitHub could not be reached"));
+    expect(lines().at(-1)).toEqual({ event: "code_save_failed", who: "sam@example.com", branch: "kim/fix", step: "send", status: null, error: "TypeError: fetch failed" });
+    // GitHub names no published branch it can read: only the error's kind is kept, since it quotes the answer.
+    const sent = gitCalls().length;
+    fetched.mockImplementation(async () => new Response(`not json ${WIDE}`));
+    expect(await printed(await codeGit(push(), { ...saving, WONG_CODE_REPOSITORY: "acme/odd-box" }))).toBe(unfinished("GitHub's answer could not be read"));
+    expect(lines().at(-1)).toMatchObject({ step: "branch", status: null, error: "SyntaxError" });
+    expect(gitCalls()).toHaveLength(sent);
+    // A Cloudflare-kept project whose binding hands out no key.
+    const keyless = { WONG_CODE_REPOSITORY: "recipe-box", CODE_CHECKS: CHECKS, ARTIFACTS: { get: async () => { throw new Error("NOT_FOUND"); } } };
+    expect(await printed(await codeGit(push(), keyless))).toBe(unfinished("Cloudflare gave no key to save with"));
+    expect(lines().at(-1)).toMatchObject({ step: "key", status: null, error: "Error: NOT_FOUND" });
+    for (const secret of [WIDE, btoa(`x-access-token:${WIDE}`), "upstream secret", "not json"]) expect(JSON.stringify(logged.mock.calls)).not.toContain(secret);
+  } finally { logged.mockRestore(); }
 });
 
 it("refuses a save on an install that can not save yet, and every other call, before anything is asked of where the project is kept", async () => {
