@@ -7,7 +7,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { JSDOM } from 'jsdom';
-import { boxAt, boxChanged, boxesIn, CAMOFOX, googleResults, leftPage, MARK_SCRIPT, NO_REF_NOTE, relabel, sameSite, SECRETS_SCRIPT, fieldScript, hideSecrets, joinPieces, serverEnv, sessionName, targetOf, valueIn } from '../../.agents/skills/browser/scripts/browse.mjs';
+import { addTyped, boxAt, boxChanged, boxesIn, CAMOFOX, countScript, frameOf, FRAMES_SCRIPT, frameSites, googleResults, labelFrames, leftPage, MARK_SCRIPT, NO_REF_NOTE, passwordShown, relabel, sameSite, SECRETS_SCRIPT, fieldScript, hideSecrets, joinPieces, mainDomain, selectorError, serverEnv, sessionName, targetOf, typedMark, valueIn } from '../../.agents/skills/browser/scripts/browse.mjs';
 import { hostOf, readLogins, writeLogins } from '../../.agents/skills/browser/scripts/logins.mjs';
 import { localProxyEnv } from '../../.agents/skills/browser/scripts/server.mjs';
 import { BROWSE_ENV, fakeCamofox } from './fixtures/fake-camofox.mjs';
@@ -68,6 +68,8 @@ function ok(f, ...args) {
 }
 
 /** The expression a click sends to read a selector's tick box. */
+/** The one script a page reading evaluates: the secret values, and the main page's iframes. */
+const PAGE_READ = `[${SECRETS_SCRIPT}, ${FRAMES_SCRIPT}]`;
 const boxRead = selector => `(${boxAt})(document, ${JSON.stringify(selector)}, ["checkbox","radio","switch","menuitemcheckbox"])`;
 const alive = pid => { try { process.kill(pid, 0); return true; } catch { return false; } };
 /** Every file under `dir`, read as text. */
@@ -290,7 +292,7 @@ test('each command reaches its own route with the session\'s tab, as the person'
     ['POST /press', { userId: 'me', key: 'Enter' }],
     ['POST /select', { userId: 'me', ref: 'e3', option: 'Large' }],
     ['POST /evaluate', { userId: 'me', expression: 'location.href' }],
-    ['POST /evaluate', { userId: 'me', expression: 'document.querySelectorAll("#cart li").length' }],
+    ['POST /evaluate', { userId: 'me', expression: countScript('#cart li') }],
     ['POST /evaluate', { userId: 'me', expression: fieldScript('#name') }],
     ['POST /select', { userId: 'me', selector: '#month', option: '03 - March' }],
     ['POST /evaluate', { userId: 'me', expression: fieldScript('#month') }],
@@ -317,7 +319,7 @@ test('snapshot and get value hide a filled secret box, by its name or by a secre
   assert.equal(ok(f, 'get', 'value', 'e3', '--session', 'a'), '[hidden]\n');
   assert.equal(ok(f, 'get', 'value', 'e1', '--session', 'a'), 'jo@example.com\n');
   const reads = f.camofox.requests().filter(request => request.path.endsWith('/evaluate')).map(request => request.body.expression);
-  assert.ok(reads.length && reads.every(expression => expression === SECRETS_SCRIPT), 'one read of the secret values per reading');
+  assert.ok(reads.length && reads.every(expression => expression === PAGE_READ), 'one read of the secret values per reading');
 });
 
 test('snapshot prints the address and a long page whole, a secret box cut between pieces hidden', t => {
@@ -550,14 +552,17 @@ test('login types a saved login where the agent pointed, and says accepted once 
   const sent = f.camofox.requests().slice(before);
   assert.deepEqual(sent.map(({ method, path, body }) => [`${method} ${path.replace(/^\/tabs\/[^/]+/, '')}`, body]), [
     ['POST /evaluate', { userId: 'me', expression: 'location.href' }],
+    ['GET /snapshot', null],
+    ['POST /evaluate', { userId: 'me', expression: PAGE_READ }],
     ['POST /type', { userId: 'me', ref: 'e1', text: USERNAME }],
-    ['POST /evaluate', { userId: 'me', expression: 'location.href' }],
+    ['GET /snapshot', null],
+    ['POST /evaluate', { userId: 'me', expression: PAGE_READ }],
     ['POST /type', { userId: 'me', ref: 'e2', text: PASSWORD }],
     ['POST /evaluate', { userId: 'me', expression: MARK_SCRIPT }],
-    ['POST /press', { userId: 'me', key: 'Enter' }],
+    ['POST /type', { userId: 'me', ref: 'e2', text: '', mode: 'keyboard', pressEnter: true }],
     ['POST /evaluate', { userId: 'me', expression: 'location.href' }],
     ['POST /sessions/me/cookies', { cookies: [] }],
-  ], 'the login is saved as soon as it is accepted, with the tab still open');
+  ], 'each box\'s site is read fresh before typing; Enter goes to the typed box; the login is saved as soon as it is accepted');
   assert.equal(f.camofox.tabs().length, 1);
 
   assertNoSecret(out.stdout + out.stderr, 'the output');
@@ -577,8 +582,9 @@ test('login says rejected when the page stays, typed for a step with no password
   ok(f, 'open', SHOP, '--session', 'a');
   const before = f.camofox.calls().length;
   assert.equal(ok(f, 'login', 'shop-example-com', '--username', 'e1', '--submit', 'e3', '--session', 'a'), 'BROWSE_LOGIN=typed\n');
-  assert.deepEqual(f.camofox.calls().slice(before), ['POST /tabs/:tab/evaluate', 'POST /tabs/:tab/type', 'POST /tabs/:tab/click'], 'an email then Continue: no wait, no save');
+  assert.deepEqual(f.camofox.calls().slice(before), ['POST /tabs/:tab/evaluate', 'GET /tabs/:tab/snapshot', 'POST /tabs/:tab/evaluate', 'POST /tabs/:tab/type', 'POST /tabs/:tab/click'], 'an email then Continue: no wait, no save');
 
+  f.camofox.set('snapshot', '- textbox "Email" [e1]\n- textbox "Password" [e2]\n- button "Sign in" [e3]');
   f.camofox.set('click-url', `${SHOP}?error=wrong-password`);
   const rejected = f.run('login', 'shop-example-com', '--password', 'e2', '--submit', 'e3', '--session', 'a');
   assert.equal(rejected.stdout, 'BROWSE_LOGIN=rejected\n', 'the same page with a message is not accepted');
@@ -595,7 +601,8 @@ test('login says rejected when the page stays, typed for a step with no password
 test('login types nothing on a site other than the login\'s own, and a page that moves after the email gets no password', t => {
   const f = fixture(t);
   f.saveLogins(LOGINS);
-  const typed = () => f.camofox.requests().filter(request => request.path.endsWith('/type')).map(request => request.body.text);
+  // Enter in the typed box types nothing, so it is left out.
+  const typed = () => f.camofox.requests().filter(request => request.path.endsWith('/type')).map(request => request.body.text).filter(Boolean);
   ok(f, 'open', 'https://shop.example.com.attacker.example/login', '--session', 'a');
   let before = f.camofox.calls().length;
   const lookAlike = f.run('login', 'shop-example-com', '--username', 'e1', '--password', 'e2', '--session', 'a');
@@ -608,7 +615,7 @@ test('login types nothing on a site other than the login\'s own, and a page that
   before = f.camofox.calls().length;
   const moved = f.run('login', 'shop-example-com', '--username', 'e1', '--password', 'e2', '--session', 'a');
   assert.equal(moved.stdout, 'BROWSE_LOGIN=wrong-site\n');
-  assert.deepEqual(f.camofox.calls().slice(before), ['POST /tabs/:tab/evaluate', 'POST /tabs/:tab/type', 'POST /tabs/:tab/evaluate'], 'no password, no submit');
+  assert.deepEqual(f.camofox.calls().slice(before), ['POST /tabs/:tab/evaluate', 'GET /tabs/:tab/snapshot', 'POST /tabs/:tab/evaluate', 'POST /tabs/:tab/type', 'GET /tabs/:tab/snapshot', 'POST /tabs/:tab/evaluate'], 'no password, no submit');
   assert.deepEqual(typed(), [USERNAME]);
   f.camofox.unset('type-url');
 
@@ -629,6 +636,29 @@ test('sameSite takes a host and the hosts under it, never a look-alike or an emp
     ['', 'shop.example.com', false],
     ['', '', false],
   ]) assert.equal(sameSite(a, b), same, `${a} and ${b}`);
+});
+
+test('mainDomain keeps the registered part, and a country\'s own second level', () => {
+  assert.equal(mainDomain('myodetox.janeapp.com'), 'janeapp.com');
+  assert.equal(mainDomain('news.bbc.co.uk'), 'bbc.co.uk');
+  assert.equal(mainDomain('10.0.0.1'), '10.0.0.1');
+  assert.equal(sameSite('myodetox.janeapp.com', 'clinic.janeapp.com'), false, 'siblings are not the same site');
+});
+
+test('a sibling subdomain gets the login only with --main-domain, and another main domain never', t => {
+  const f = fixture(t);
+  f.saveLogins([{ name: 'jane', url: 'https://clinic.janeapp.com/login', username: USERNAME, password: PASSWORD }]);
+  const typed = () => f.camofox.requests().filter(request => request.path.endsWith('/type')).map(request => request.body.text).filter(Boolean);
+  ok(f, 'open', 'https://myodetox.janeapp.com/login');
+  assert.equal(ok(f, 'login', 'jane', '--username', 'e1', '--password', 'e2'), 'BROWSE_LOGIN=wrong-site\n');
+  assert.deepEqual(typed(), []);
+  ok(f, 'open', 'https://janeapp.attacker.example/login');
+  assert.equal(ok(f, 'login', 'jane', '--username', 'e1', '--password', 'e2', '--main-domain'), 'BROWSE_LOGIN=wrong-site\n');
+  assert.deepEqual(typed(), []);
+  ok(f, 'open', 'https://myodetox.janeapp.com/login');
+  f.camofox.set('press-url', 'https://myodetox.janeapp.com/home');
+  assert.equal(ok(f, 'login', 'jane', '--username', 'e1', '--password', 'e2', '--main-domain'), 'BROWSE_LOGIN=accepted\nBROWSE_SAVED=yes\n');
+  assert.deepEqual(typed(), [USERNAME, PASSWORD]);
 });
 
 test('a login saved with the email only types nothing at a password box, and still types the email step', t => {
@@ -1117,4 +1147,187 @@ test('a tab file from before tick boxes were kept, or a page opened since, click
   before = f.camofox.calls().length;
   ok(f, 'click', 'e3');
   assert.deepEqual(f.camofox.calls().slice(before), ['POST /tabs/:tab/click']);
+});
+
+// A shop page whose sign-in box is a frame from the login site, as camofox prints it: after the footer.
+const FRAMED = [
+  '- navigation "Main":',
+  '  - link "Home" [e1]',
+  '- main:',
+  '  - iframe',
+  '- contentinfo:',
+  '  - link "Privacy" [e2]',
+  '- iframe "auth-widget":',
+  '  - textbox "Email" [e3]',
+  '  - button "Continue" [e4]',
+].join('\n');
+const AUTH_FRAME = ['auth-widget', 'https://login.example.com/start?x=1'];
+const framed = (frames = [AUTH_FRAME], raw = FRAMED) => labelFrames(raw, frameSites(raw, frames));
+
+test('a frame header names its site, and the first line says frame boxes are at the end', () => {
+  const lines = framed().split('\n');
+  assert.equal(lines[0], '- note: boxes in frames are at the end: auth-widget (login.example.com)');
+  assert.ok(lines.includes('- iframe "auth-widget" (login.example.com):'));
+  assert.ok(lines.includes('  - iframe'), 'the bare main-page iframe line stays');
+  assert.equal(frameOf(framed(), 'e3'), 'login.example.com');
+  assert.equal(frameOf(framed(), 'e2'), null, 'a main-page box');
+  assert.equal(frameOf(framed(), 'e99'), '', 'a ref not on the page');
+});
+
+test('a frame labelled by its hostname gets that host; an unknown label reads as unknown site', () => {
+  const raw = '- button "Pay" [e1]\n- iframe "js.pay.example":\n  - textbox "Card number" [e2]\n- iframe "mystery":\n  - textbox "Code" [e3]';
+  const text = labelFrames(raw, frameSites(raw, [['', 'https://js.pay.example/v3/elements'], ['other', 'https://x.example/']]));
+  assert.match(text, /^- iframe "js.pay.example" \(js.pay.example\):$/m);
+  assert.match(text, /^- iframe "mystery" \(unknown site\):$/m);
+  assert.equal(text.split('\n')[0], '- note: boxes in frames are at the end: js.pay.example (js.pay.example), mystery (unknown site)');
+  assert.equal(frameOf(text, 'e3'), '');
+});
+
+test('two same-named frames on different hosts read as unknown site; a frame named by its id gets its src host', () => {
+  assert.match(framed([AUTH_FRAME, ['auth-widget', 'https://evil.example/signin']]), /^- iframe "auth-widget" \(unknown site\):$/m);
+  // FRAMES_SCRIPT gives an iframe with no name its id, as camofox labels it.
+  const frame = new JSDOM('<iframe id="auth-frame" src="https://login.example.com/start"></iframe>', { runScripts: 'outside-only', url: 'https://shop.example.com/' }).window;
+  const frames = frame.eval(FRAMES_SCRIPT);
+  assert.deepEqual([...frames].map(pair => [...pair]), [['auth-frame', 'https://login.example.com/start']]);
+  const raw = '- button "Next" [e1]\n- iframe "auth-frame":\n  - textbox "Email" [e2]';
+  assert.equal(frameOf(labelFrames(raw, frameSites(raw, frames)), 'e2'), 'login.example.com');
+});
+
+test('a page with no frame boxes gets no note', () => {
+  const plainPage = '- textbox "Email" [e1]\n- button "Go" [e2]';
+  assert.equal(framed([], plainPage), plainPage);
+  assert.ok(!framed([['ads', 'https://ads.example/']], '- button "Go" [e1]\n- iframe "ads":\n  - text: hello').startsWith('- note'));
+});
+
+test('a box showing the typed password as text reads [hidden]; another value, or another key, does not', () => {
+  const key = 'k'.repeat(64);
+  const { typed } = addTyped({ tabId: 't1' }, key, PASSWORD);
+  const page = `- iframe "auth-widget":\n  - textbox "Field" [e1]: "${PASSWORD}"\n  - textbox "Other" [e2]: hello`;
+  const shown = hideSecrets(page, [], typed, key);
+  assert.match(shown, /"Field" \[e1\]: \[hidden\]$/m, 'quoted, as Playwright quotes some values');
+  assert.match(shown, /"Other" \[e2\]: hello$/m);
+  assert.equal(hideSecrets(page, [], typed, 'another key'), page);
+});
+
+test('the typed record holds no password text, and keeps the last 5 marks', () => {
+  let tab = { tabId: 't1' };
+  for (const secret of ['a1', 'a2', 'a3', 'a4', 'a5', PASSWORD]) tab = addTyped(tab, 'key', secret);
+  assert.ok(!JSON.stringify(tab).includes(PASSWORD));
+  assert.equal(tab.typed.length, 5);
+  assert.equal(tab.typed.at(-1), typedMark('key', PASSWORD));
+});
+
+test('passwordShown: a password box by name, or the typed box under its old name; a code box is neither', () => {
+  const code = '- heading "Two-factor authentication"\n- textbox "Verification code" [e1]\n- button "Continue" [e2]';
+  assert.equal(passwordShown('- textbox "Passwort" [e5]', 'e1', null), true);
+  assert.equal(passwordShown('- textbox [e1]\n- button "Go" [e2]', 'e1', { name: '' }), true, 'an unnamed box still under its ref');
+  assert.equal(passwordShown(code, 'e1', { name: '' }), false);
+});
+
+test('a login types into a box in its own site\'s frame, and presses Enter in that box', t => {
+  const f = fixture(t);
+  f.saveLogins([{ name: 'example-com', url: 'https://example.com/', username: USERNAME, password: PASSWORD }]);
+  ok(f, 'open', SHOP);
+  f.camofox.set('snapshot', FRAMED);
+  f.camofox.set('frames.json', [AUTH_FRAME]);
+  const read = ok(f, 'snapshot');
+  assert.equal(read.split('\n')[1], '- note: boxes in frames are at the end: auth-widget (login.example.com)');
+  assert.match(read, /^- iframe "auth-widget" \(login\.example\.com\):$/m);
+  const before = f.camofox.requests().length;
+  assert.equal(ok(f, 'login', 'example-com', '--username', 'e3'), 'BROWSE_LOGIN=typed\n');
+  const steps = f.camofox.requests().slice(before).filter(request => request.path.endsWith('/type')).map(request => request.body);
+  assert.deepEqual(steps, [
+    { userId: 'me', ref: 'e3', text: USERNAME },
+    { userId: 'me', ref: 'e3', text: '', mode: 'keyboard', pressEnter: true },
+  ], 'a page-wide Enter misses a box in another site\'s frame');
+});
+
+test('a box in another site\'s frame, or one whose site can not be read, gets nothing and says wrong-site', t => {
+  const f = fixture(t);
+  f.saveLogins([{ name: 'example-com', url: 'https://example.com/', username: USERNAME, password: PASSWORD }]);
+  ok(f, 'open', SHOP);
+  f.camofox.set('snapshot', FRAMED);
+  for (const frames of [[['auth-widget', 'https://evil.example/']], []]) {
+    f.camofox.set('frames.json', frames);
+    assert.equal(ok(f, 'login', 'example-com', '--username', 'e3', '--password', 'e3'), 'BROWSE_LOGIN=wrong-site\n', JSON.stringify(frames));
+  }
+  assert.ok(!f.camofox.requests().some(request => request.path.endsWith('/type')), 'nothing typed');
+  assert.ok(!f.camofox.calls().includes('POST /tabs/:tab/click') && !f.camofox.calls().includes('POST /tabs/:tab/press'), 'nothing submitted');
+});
+
+// Main-page text quoting `[e5]` sits above another site's real `[e5]` box.
+const TEXT_REF = ['- paragraph: Type your code in box [e5]', '- text: see [e5] below', '- iframe "other-widget":', '  - textbox "Password" [e5]'].join('\n');
+
+test('page text holding a ref is not the box: frameOf finds the real box in its frame', () => {
+  assert.equal(frameOf(framed([['other-widget', 'https://evil.example/']], TEXT_REF), 'e5'), 'evil.example');
+});
+
+test('a password ref quoted in main-page text still says wrong-site for a box in another site\'s frame', t => {
+  const f = fixture(t);
+  f.saveLogins([{ name: 'example-com', url: 'https://example.com/', username: USERNAME, password: PASSWORD }]);
+  ok(f, 'open', SHOP);
+  f.camofox.set('snapshot', TEXT_REF);
+  f.camofox.set('frames.json', [['other-widget', 'https://evil.example/']]);
+  assert.equal(ok(f, 'login', 'example-com', '--password', 'e5'), 'BROWSE_LOGIN=wrong-site\n');
+  assert.ok(!f.camofox.requests().some(request => request.path.endsWith('/type')), 'nothing typed');
+});
+
+test('the password box\'s frame is checked again after the email step', t => {
+  const f = fixture(t);
+  f.saveLogins([{ name: 'example-com', url: 'https://example.com/', username: USERNAME, password: PASSWORD }]);
+  ok(f, 'open', SHOP);
+  f.camofox.set('snapshot', FRAMED);
+  f.camofox.set('frames.json', [AUTH_FRAME]);
+  // The email step swaps the frame for one from another site, holding the password box.
+  f.camofox.set('type-snapshot', FRAMED.replace('auth-widget', 'other-widget').replace('"Email" [e3]', '"Password" [e3]'));
+  f.camofox.set('frames.json', [AUTH_FRAME, ['other-widget', 'https://evil.example/']]);
+  assert.equal(ok(f, 'login', 'example-com', '--username', 'e3', '--password', 'e3'), 'BROWSE_LOGIN=wrong-site\n');
+  assert.deepEqual(f.camofox.requests().filter(request => request.path.endsWith('/type')).map(request => request.body.text), [USERNAME]);
+});
+
+test('a password typed into another site\'s frame stays hidden once the site shows it as text, and the tab file holds no copy', t => {
+  const f = fixture(t);
+  f.saveLogins([{ name: 'example-com', url: 'https://example.com/', username: USERNAME, password: PASSWORD }]);
+  ok(f, 'open', SHOP);
+  f.camofox.set('snapshot', FRAMED.replace('"Email" [e3]', '"Password" [e3]'));
+  f.camofox.set('frames.json', [AUTH_FRAME]);
+  f.camofox.set('focus-in-frame');
+  f.camofox.set('click-url', ACCOUNT);
+  assert.equal(ok(f, 'login', 'example-com', '--password', 'e3', '--submit', 'e4'), 'BROWSE_LOGIN=accepted\nBROWSE_SAVED=yes\n');
+  f.camofox.set('snapshot', FRAMED.replace('"Email" [e3]', `"Field" [e3]: ${PASSWORD}`).replace('"Continue" [e4]', '"Continue" [e4]\n  - textbox "Other" [e5]: hello'));
+  const out = ok(f, 'snapshot');
+  assert.match(out, /^ {2}- textbox "Field" \[e3\]: \[hidden\]$/m);
+  assert.match(out, /^ {2}- textbox "Other" \[e5\]: hello$/m, 'another value reads as given');
+  assertNoSecret(out, 'the page reading');
+  const tabs = join(f.home, '.wong-stack/camofox/tabs');
+  assertNoSecret(filesUnder(tabs), 'the tab file');
+  const key = readFileSync(join(f.home, '.wong-stack/camofox/api-key'), 'utf8').trim();
+  assert.deepEqual(JSON.parse(filesUnder(tabs)).typed, [typedMark(key, PASSWORD)]);
+});
+
+test('after the wait, a page with no password box says next-step; one still showing it says rejected', t => {
+  const f = fixture(t);
+  f.saveLogins(LOGINS);
+  ok(f, 'open', SHOP);
+  f.camofox.set('snapshot', '- textbox "Email" [e1]\n- textbox "Password" [e2]\n- button "Sign in" [e3]');
+  f.camofox.set('click-snapshot', '- heading "Two-factor authentication"\n- textbox "Verification code" [e1]\n- button "Continue" [e2]');
+  assert.equal(ok(f, 'login', 'shop-example-com', '--password', 'e2', '--submit', 'e3'), 'BROWSE_LOGIN=next-step\n', 'a code box is no password box');
+  assert.ok(!f.camofox.calls().includes('POST /sessions/me/cookies'), 'a next step saves nothing yet');
+  f.camofox.unset('click-snapshot');
+  f.camofox.set('snapshot', '- text: Wrong password\n- textbox "Email" [e1]\n- textbox "Password" [e2]\n- button "Sign in" [e3]');
+  assert.equal(ok(f, 'login', 'shop-example-com', '--password', 'e2', '--submit', 'e3'), 'BROWSE_LOGIN=rejected\n');
+});
+
+test('a selector the page can not read says to use the box\'s ref, not a code error', t => {
+  const f = fixture(t);
+  ok(f, 'open', SHOP);
+  for (const args of [['get', 'count', 'iframe >> input'], ['get', 'value', 'iframe >> input']]) {
+    const out = f.run(...args);
+    assert.equal(out.status, 1, args.join(' '));
+    assert.equal(out.stdout, 'BROWSE_ERROR=iframe >> input is not a selector this page can read; a selector reads only the main page, so use the box\'s ref\n');
+  }
+  assert.equal(ok(f, 'get', 'count', 'input'), '1\n', 'a selector the page reads counts as before');
+  assert.equal(selectorError('#x').message.endsWith('use the box\'s ref'), true);
+  const broken = { querySelectorAll: () => { throw new TypeError('broken page'); } };
+  assert.throws(() => new Function('document', `return ${countScript('#x')}`)(broken), TypeError, 'only a selector error becomes the plain stop');
 });

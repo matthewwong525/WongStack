@@ -11,6 +11,25 @@
 
 **Updating.** Nothing to do.
 
+## 44.19.0 — A saved login gets one try on a sibling subdomain
+
+- **A saved login can try a sibling subdomain once.** Some sites, such as Jane booking pages, give each clinic its own subdomain and may keep one account across them. With `--main-domain`, a login saved for `clinic.janeapp.com` also types on `myodetox.janeapp.com`, which shares the main domain `janeapp.com`. The agent tries it once, since a repeat can lock the account ([saved browser logins](wiki/development/browsing.md#saved-browser-logins)).
+- **Another main domain still gets nothing.** `janeapp.attacker.example` is not `janeapp.com`, so the login says `wrong-site` and types nothing. Without the flag, a login types only on its own site, as before.
+
+**Updating.** Nothing to do.
+
+## 44.18.0 — Saved logins work in sign-in boxes from another site
+
+- **The page text says where a sign-in box from another site is.** Many sites put their sign-in box in a frame from another of their own sites, at the very end of the page text. The first line now says frame boxes are at the end and names each frame's site, and each frame's header names its site too ([saved browser logins](wiki/development/browsing.md#saved-browser-logins)).
+- **A saved login types into a box in a frame, but only on its own site.** Before it types, the login checks the site of the frame holding each box, not only the page's address. A frame from another site, or one whose site can't be read, gets nothing, and the login says `wrong-site`.
+- **A password typed into a frame stays hidden.** The login keeps a scrambled record of what it typed, so the box reads `[hidden]` even when the site shows the password as text. The record can't be turned back into the password.
+- **Enter goes to the box the login typed into**, so a sign-in in a frame submits without a button.
+- **A code page after the password is `next-step`, not `rejected`.** When the page stays but its password box is gone, the agent asks for the code in the chat ([login codes](wiki/development/login-codes.md)).
+- **A selector that can't reach a frame says why.** It reads only the main page; the command now says to use the box's ref instead of showing a code error.
+- **The browsing guide tries a frame's boxes and the saved login, or the password link, before a live view.** Its list of steps for you to finish moved to [its own page](wiki/development/finish-steps.md).
+
+**Updating.** Nothing to do.
+
 ## 44.17.0 — Private links come in the last message
 
 - **A private link comes in the agent's last message.** A password link, key link, private form or live view used to arrive between the agent's steps, where many chat apps hide text. The agent now starts waiting for the link and then ends its turn with the link on its own line ([how private links work](wiki/development/browsing.md#how-private-links-work)).
