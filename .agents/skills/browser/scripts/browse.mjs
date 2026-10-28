@@ -2,7 +2,7 @@
 // Installs, starts, and drives camofox, the browser the agent uses websites in as the person; the only script
 // that talks to it. Exit codes: 0 ok · 1 failed · 2 usage · 3 camofox is not installed. Node built-ins only.
 import { spawn, spawnSync } from 'node:child_process';
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash, createHmac, randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { homedir, tmpdir } from 'node:os';
@@ -19,12 +19,14 @@ const USAGE = `usage: browse.mjs <command> [--session <name>]
   press <key>
   select <ref-or-selector> <option>
   get url | get count <selector> | get value <ref-or-selector>
+                                a selector reads only the main page; a box in a frame needs its ref
   screenshot [--if-changed] [--full-page]
                                 prints BROWSE_SHOT=<temp path>, or none when unchanged;
                                 --full-page takes the whole page, not just what shows
   logins                        each saved login's name, host, and username
   login <name> [--username <ref>] [--password <ref>] [--submit <ref>]
-                                type a saved login; prints BROWSE_LOGIN=accepted|rejected|missing|typed|wrong-site
+                                type a saved login; prints BROWSE_LOGIN=accepted|next-step|rejected|missing|typed|wrong-site;
+                                next-step: the page stayed but its password box went, as on a code page
   forget <name>                 delete a saved login
   save                          keep the logins now, with every tab open
   close                         close this task's tab
@@ -108,15 +110,27 @@ const BOX_KEY = /^(?:textbox|searchbox|spinbutton|combobox)(?: "((?:[^"\\]|\\.)*
 export const SECRETS_SCRIPT = `(() => { const found = []; const walk = root => { for (const field of root.querySelectorAll(${JSON.stringify(SECRET_FIELDS)})) if (field.tagName !== 'SELECT' && field.value) found.push(field.value); for (const inner of root.querySelectorAll('*')) { if (inner.shadowRoot) walk(inner.shadowRoot); try { if (inner.contentDocument) walk(inner.contentDocument); } catch { /* another site's frame */ } } }; walk(document); return found; })()`;
 /** Marks the box a password was just typed into, the focused one, so it stays secret once the site shows it as text. */
 export const MARK_SCRIPT = `(() => { let field = document.activeElement; for (let inner; (inner = field?.contentDocument?.activeElement ?? field?.shadowRoot?.activeElement);) field = inner; field?.setAttribute('data-wong-hidden', ''); })()`;
+/** What a page script returns for a selector the page can not read, as one naming a box inside a frame. */
+export const BAD_SELECTOR = 'browse:bad-selector';
+/** The plain stop for that selector. */
+export const selectorError = selector => new BrowseError(`${selector} is not a selector this page can read; a selector reads only the main page, so use the box's ref`);
 /** Reads one field by selector: a dropdown's picked choice, `[hidden]` for a filled secret box, else its text. */
-export const fieldScript = selector => `(field => field && (field.tagName === 'SELECT' ? field.selectedOptions[0]?.label ?? '' : field.value && (field.matches(${JSON.stringify(SECRET_FIELDS)}) || ${SECRET_NAME}.test([field.getAttribute('aria-label'), field.placeholder, field.title, ...(field.getAttribute('aria-labelledby') ?? '').split(/\\s+/).filter(Boolean).map(id => field.getRootNode().getElementById?.(id)?.textContent), ...[...(field.labels ?? [])].map(label => label.textContent)].join(' '))) ? '[hidden]' : field.value))(document.querySelector(${JSON.stringify(selector)})) ?? null`;
+export const fieldScript = selector => `(() => { let field; try { field = document.querySelector(${JSON.stringify(selector)}); } catch (error) { if (error.name === 'SyntaxError') return ${JSON.stringify(BAD_SELECTOR)}; throw error; } return (field => field && (field.tagName === 'SELECT' ? field.selectedOptions[0]?.label ?? '' : field.value && (field.matches(${JSON.stringify(SECRET_FIELDS)}) || ${SECRET_NAME}.test([field.getAttribute('aria-label'), field.placeholder, field.title, ...(field.getAttribute('aria-labelledby') ?? '').split(/\\s+/).filter(Boolean).map(id => field.getRootNode().getElementById?.(id)?.textContent), ...[...(field.labels ?? [])].map(label => label.textContent)].join(' '))) ? '[hidden]' : field.value))(field) ?? null; })()`;
+/** Counts a selector's matches in the main page. */
+export const countScript = selector => `(() => { try { return document.querySelectorAll(${JSON.stringify(selector)}).length; } catch (error) { if (error.name === 'SyntaxError') return ${JSON.stringify(BAD_SELECTOR)}; throw error; } })()`;
 
 /** A box's text as the snapshot quotes it, unquoted, with its spaces as Playwright collapses them. */
 function plain(text) {
   let unquoted = text;
   if (/^".*"$/.test(text)) try { unquoted = JSON.parse(text); } catch { unquoted = text.slice(1, -1); }
-  return unquoted.replace(/\s+/g, ' ').trim();
+  return squash(unquoted);
 }
+
+const squash = text => text.replace(/\s+/g, ' ').trim();
+/** A keyed mark of a typed password: it finds the password in page text, but can't be guessed back without `key`. */
+export const typedMark = (key, text) => createHmac('sha256', key).update(squash(text)).digest('hex');
+/** The tab with the mark of a password `login` typed, the last 5 kept. */
+export const addTyped = (tab, key, secret) => ({ ...tab, typed: [...(tab?.typed ?? []), typedMark(key, secret)].slice(-5) });
 
 /** A box line's indent, name, and inline value, else null. Playwright single-quotes a start whose name holds `: `,
  * ` #`, `{`, `}` or a backtick, and camofox gives that line no ref. */
@@ -129,11 +143,12 @@ function boxOf(line) {
 /** A box's value on its own child line, as Playwright prints it beside a `/placeholder` line. */
 const valueLine = (line, box) => line.search(/\S/) === box.indent + 2 ? /^(\s*- text: )(.+)$/.exec(line) : null;
 
-/** The snapshot with each filled secret box's value shown as `[hidden]`: a box named like one, or one holding a
- * value in `secretValues`. Empty boxes, dropdown picks, and every other line read as given. */
-export function hideSecrets(snapshot, secretValues = []) {
+/** The snapshot with each filled secret box's value shown as `[hidden]`: a box named like one, one holding a value in
+ * `secretValues`, or one whose `typedMark` under `key` is in `typed`. Every other line reads as given. */
+export function hideSecrets(snapshot, secretValues = [], typed = [], key = '') {
   const secrets = new Set(secretValues.map(plain).filter(Boolean));
-  const secret = (box, value) => SECRET_NAME.test(box.name) || secrets.has(plain(value));
+  const marks = new Set(typed);
+  const secret = (box, value) => SECRET_NAME.test(box.name) || secrets.has(plain(value)) || Boolean(marks.size && marks.has(typedMark(key, plain(value))));
   const lines = snapshot.split('\n');
   lines.forEach((line, at) => {
     const box = boxOf(line);
@@ -175,6 +190,9 @@ export function joinPieces(pieces) {
 const HEAD = /^(\s*-\s+(\w+)(?:\s+"([^"]*)")?)/;
 const MARK = /^(\s*-\s+\w+(?:\s+"[^"]*")?) \[(e\d+)\]/;
 const FRAME = /^- iframe "[^\n]*":$/;
+
+/** Whether `line` is the box camofox marks `ref`, not page text that holds `[ref]`. */
+const refLine = (line, ref) => MARK.exec(line)?.[2] === ref;
 
 /** The `role:name` camofox numbers a line by, or null for a line it gives no ref. */
 function refKey(line) {
@@ -219,6 +237,59 @@ export function relabel(snapshot, refsCount) {
     if (keys[at]) blocks.set(keys[at], (blocks.get(keys[at]) ?? new Set()).add(block));
   });
   return [...lines.map((line, at) => (wrong.has(at) || blocks.get(keys[at])?.size > 1 ? line.replace(MARK, '$1') : line)), NO_REF_NOTE].join('\n');
+}
+
+/** The main page's frames as `[name, src]`, to tell each frame block's site; the browser names a frame with no
+ * `name` by its `id`. */
+export const FRAMES_SCRIPT = `[...document.querySelectorAll('iframe')].map(frame => [frame.getAttribute('name') || frame.id, frame.src])`;
+/** A frame label as camofox cleans it. */
+const cleanLabel = label => label.replace(/card-fields-/, '').replace(/-[a-z0-9]{10,}$/, '');
+const rawHost = url => { try { return new URL(url).hostname.toLowerCase(); } catch { return ''; } };
+
+/** Each frame block's label in camofox's page text, mapped to its site's host, or '' when it can't be told: a label
+ * that is no iframe's cleaned name or host, or that two iframes on different hosts share. */
+export function frameSites(snapshot, frames) {
+  const sites = new Map();
+  for (const line of snapshot.split('\n')) {
+    const label = FRAME.test(line) && /^- iframe "(.*)":$/.exec(line)[1];
+    if (!label || sites.has(label)) continue;
+    const hosts = new Set(frames.filter(([name, src]) => (name ? cleanLabel(name) : cleanLabel(rawHost(src))) === label).map(([, src]) => hostOf(src)));
+    sites.set(label, hosts.size === 1 ? [...hosts][0] : '');
+  }
+  return sites;
+}
+
+/** The page text with each frame header naming its site, and a first-line note when a frame holds refs. */
+export function labelFrames(snapshot, sites) {
+  const listed = [];
+  let block = null;
+  const lines = snapshot.split('\n').map(line => {
+    const label = FRAME.test(line) ? /^- iframe "(.*)":$/.exec(line)[1] : null;
+    if (label !== null) {
+      const site = sites.get(label) || 'unknown site';
+      block = `${label} (${site})`;
+      return `- iframe "${label}" (${site}):`;
+    }
+    if (!/^\s/.test(line)) block = null;
+    else if (block && /\[e\d+\]/.test(line) && !listed.includes(block)) listed.push(block);
+    return line;
+  });
+  if (listed.length) lines.unshift(`- note: boxes in frames are at the end: ${listed.join(', ')}`);
+  return lines.join('\n');
+}
+
+/** The site of the frame holding `ref`: null on the main page, its header's host, or '' when unknown or not found. */
+export function frameOf(snapshot, ref) {
+  const lines = snapshot.split('\n');
+  const at = lines.findIndex(line => refLine(line, ref));
+  if (at < 0) return '';
+  if (!/^\s/.test(lines[at])) return null;
+  for (let up = at - 1; up >= 0; up--) {
+    if (/^\s/.test(lines[up])) continue;
+    const header = /^- iframe ".*" \((.*)\):$/.exec(lines[up]);
+    return header ? (header[1] === 'unknown site' ? '' : header[1]) : null;
+  }
+  return null;
 }
 
 /** Each tick box, radio, and switch in a snapshot by ref: `[role, name, ticked]`, ticked true, false, or `'mixed'`. */
@@ -486,6 +557,11 @@ export function client(given, { retry = true, start = true } = {}) {
   const act = (route, target, more = {}, options) => onTab(tabId => send('POST', `/tabs/${tabId}/${route}`, { userId: USER, ...targetOf(target), ...more }, options), { click: route === 'click' });
   const evaluateOn = async (tabId, expression) => (await json('POST', `/tabs/${tabId}/evaluate`, { userId: USER, expression })).result;
   const evaluate = expression => onTab(tabId => evaluateOn(tabId, expression));
+  const bySelector = async (selector, expression) => {
+    const result = await evaluate(expression);
+    if (result === BAD_SELECTOR) throw selectorError(selector);
+    return result;
+  };
 
   const page = {
     session,
@@ -507,9 +583,12 @@ export function client(given, { retry = true, start = true } = {}) {
     /** The page as text, every secret box's value hidden; `settle` alone reads it raw, to compare. The tab file keeps
      * its tick boxes, so a click on one knows what it clicks. */
     async snapshot() {
-      const { url, snapshot, secrets } = await onTab(async tabId => ({ ...(await read(tabId)), secrets: await evaluateOn(tabId, SECRETS_SCRIPT) }));
-      const seen = { url, snapshot: hideSecrets(snapshot, secrets ?? []) };
-      writeTab({ ...readTab(), ...(url && { url }), refs: boxesIn(seen.snapshot) });
+      const { url, snapshot, found } = await onTab(async tabId => ({ ...(await read(tabId)), found: await evaluateOn(tabId, `[${SECRETS_SCRIPT}, ${FRAMES_SCRIPT}]`) }));
+      const [secrets = [], frames = []] = found ?? [];
+      const tab = readTab();
+      const hidden = hideSecrets(snapshot, secrets, tab?.typed ?? [], tab?.typed?.length ? apiKey() : '');
+      const seen = { url, snapshot: labelFrames(hidden, frameSites(hidden, frames)) };
+      writeTab({ ...tab, ...(url && { url }), refs: boxesIn(seen.snapshot) });
       return seen;
     },
     /** Clicks; a tick box, radio, or switch that didn't change gets Space, as a person would press, then a stop. */
@@ -526,8 +605,10 @@ export function client(given, { retry = true, start = true } = {}) {
     type: (target, text) => act('type', target, { text }, { quiet: true }),
     select: (target, option) => act('select', target, { option }),
     press: key => onTab(tabId => send('POST', `/tabs/${tabId}/press`, { userId: USER, key })),
+    /** Presses Enter in a box, focused first: a key pressed on the page alone misses a box in another site's frame. */
+    enter: target => act('type', target, { text: '', mode: 'keyboard', pressEnter: true }),
     url: async () => noteUrl(await evaluate('location.href')),
-    count: selector => evaluate(`document.querySelectorAll(${JSON.stringify(selector)}).length`),
+    count: selector => bySelector(selector, countScript(selector)),
     /** The page's size, `[width, height]`. */
     size: () => evaluate('[innerWidth, innerHeight]'),
     /** Sets the page's size; camofox resizes the page's window with it. */
@@ -536,10 +617,12 @@ export function client(given, { retry = true, start = true } = {}) {
     keepAlive: () => evaluate('1'),
     /** Marks the focused box as secret, as `login` does after typing a password. */
     mark: () => evaluate(MARK_SCRIPT),
+    /** Keeps a keyed mark of a password `login` types, so any box showing it reads `[hidden]`. */
+    remember: secret => { const tab = readTab(); if (tab) writeTab(addTyped(tab, apiKey(), secret)); },
     async value(target) {
       const { ref, selector } = targetOf(target);
       // A dropdown reads as its picked choice's text, as a ref's snapshot shows it.
-      const value = ref ? valueIn((await page.snapshot()).snapshot, ref) : await evaluate(fieldScript(selector));
+      const value = ref ? valueIn((await page.snapshot()).snapshot, ref) : await bySelector(selector, fieldScript(selector));
       if (value === null) throw new BrowseError(`no field ${target} on the page`);
       return value;
     },
@@ -582,30 +665,60 @@ export function sameSite(a, b) {
   return Boolean(a && b) && (a === b || a.endsWith(`.${b}`) || b.endsWith(`.${a}`));
 }
 
-/** Types the saved login `name` and submits: `typed` a step with no password box, `accepted` the address left the
- * page, `missing` none saved, `wrong-site` the tab is off the login's site. Only this reads passwords. */
+/** A password box's name, in the words sites use; a code box's name is left out. */
+const PASSWORD_NAME = /password|passcode|passwort/i;
+
+/** The box line holding `ref`, parsed, or null. */
+const boxAtRef = (snapshot, ref) => boxOf(snapshot.split('\n').find(line => refLine(line, ref)) ?? '');
+
+/** True when the page still shows a password box: one named like it, or the typed box under its old name. */
+export function passwordShown(snapshot, ref, before) {
+  if (snapshot.split('\n').some(line => PASSWORD_NAME.test(boxOf(line)?.name ?? ''))) return true;
+  const now = boxAtRef(snapshot, ref);
+  return Boolean(now && before && now.name === before.name);
+}
+
+/** Types the saved login `name` and submits, the one reader of passwords; USAGE lists each result. `wrong-site`
+ * means the tab, or the frame of a box, is off the login's site. */
 export async function login(page, name, { username, password, submit }) {
   const entry = savedLogins().find(saved => saved.name === name);
   if (!entry || (password && !entry.password)) return { result: 'missing' };
-  const onSite = url => sameSite(hostOf(url), hostOf(entry.url));
+  const hostOn = host => sameSite(host, hostOf(entry.url));
+  const onSite = url => hostOn(hostOf(url));
+  // A box in a frame is on site only when its frame's site is too; a selector reads the main page.
+  const boxOnSite = (snapshot, target) => {
+    const { ref } = targetOf(target);
+    const frame = ref ? frameOf(snapshot, ref) : null;
+    return frame === null || hostOn(frame);
+  };
   const before = await page.url();
   if (!onSite(before)) return { result: 'wrong-site' };
+  let seen = (await page.snapshot()).snapshot;
+  if (!boxOnSite(seen, username ?? password)) return { result: 'wrong-site' };
   if (username) await page.type(username, entry.username);
   // A page that moved after the email step gets no password.
-  if (password && username && !onSite(await page.url())) return { result: 'wrong-site' };
+  if (password && username) {
+    const now = await page.snapshot();
+    if (!onSite(now.url) || !boxOnSite(now.snapshot, password)) return { result: 'wrong-site' };
+    seen = now.snapshot;
+  }
+  const passwordBox = password && boxAtRef(seen, targetOf(password).ref);
   if (password) {
+    page.remember(entry.password);
     await page.type(password, entry.password);
-    // Best effort: a password box is secret by its kind anyway; the mark covers one a site later shows as text.
+    // Best effort: the mark covers a same-origin box a site later shows as text.
     await page.mark().catch(() => {});
   }
-  await (submit ? page.click(submit) : page.press('Enter'));
+  await (submit ? page.click(submit) : page.enter(password ?? username));
   if (!password) return { result: 'typed' };
   for (const end = Date.now() + LOGIN_WAIT_MS; ;) {
     const now = await page.url().catch(() => null);
     if (now && leftPage(before, now)) return { result: 'accepted', saved: await page.save().then(() => true, () => false) };
-    if (Date.now() >= end) return { result: 'rejected' };
+    if (Date.now() >= end) break;
     await sleep(Math.min(500, LOGIN_WAIT_MS));
   }
+  const after = await page.snapshot().catch(() => null);
+  return { result: !after || passwordShown(after.snapshot, targetOf(password).ref, passwordBox) ? 'rejected' : 'next-step' };
 }
 
 function logins() {

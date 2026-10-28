@@ -17,6 +17,7 @@ How this repo plans, builds, checks, and ships changes. Every WongStack install 
   - [The private form](private-form.md) — a card or backup code goes to the site through a private link with one picture of the page, every time; everyday answers you choose to keep fill the next form after a yes.
   - [Save your passwords](passwords.md) — give the agent the logins you choose through a private link; it never sees a password.
   - [Login codes](login-codes.md) — the agent reads a one-time code from your email or asks for it in the chat, with no link.
+  - [Steps for you to finish](finish-steps.md) — numbered steps, with links, when a login or check stops the agent.
   - [Shopping](shopping.md) — the agent finds, compares, and buys products through Shop: no account to look, your yes to connect and to pay, one payment per purchase, and no card detail the agent can read.
   - [Live view](live-view.md) — at a robot check or a stuck login, a private link shows the agent's browser so you can tap through it or sign in: when it opens, what the link can do, and how the agent runs one.
 - [Memory dream](wiki-dream.md) — type `/dream-memory` and the assistant checks the wiki, saved facts, specs, and plans against each other and the code: what it fixes, what it only lists, the dry run, and how to undo one.

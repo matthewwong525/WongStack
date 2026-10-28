@@ -6,7 +6,7 @@ import { once as heard } from 'node:events';
 import { appendFileSync, existsSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { join } from 'node:path';
-import { MARK_SCRIPT, SECRETS_SCRIPT } from '../../../.agents/skills/browser/scripts/browse.mjs';
+import { FRAMES_SCRIPT, MARK_SCRIPT, SECRETS_SCRIPT } from '../../../.agents/skills/browser/scripts/browse.mjs';
 
 const DIR = globalThis.FAKE_CAMOFOX_DIR;
 const file = name => join(DIR, name);
@@ -57,9 +57,12 @@ function windowSnapshot(page, offset) {
 const isBox = body => has('box') && (body.ref === text('box') || body.selector === '#agree');
 const toggle = tab => { tab.ticked = !tab.ticked; };
 
-/** The element a box read finds: the tick box, else a button; a Playwright-only selector doesn't parse. */
+/** A Playwright-only selector, as one reaching into a frame, doesn't parse in a page. */
+const parse = selector => { if (selector.includes('>>')) throw new SyntaxError(`'${selector}' is not a valid selector`); };
+
+/** The element a box read finds: the tick box, else a button. */
 function element(tab, selector) {
-  if (selector.includes('>>')) throw new SyntaxError(`'${selector}' is not a valid selector`);
+  parse(selector);
   const attributes = { getAttribute: () => null };
   return isBox({ selector }) ? { ...attributes, tagName: 'INPUT', type: 'checkbox', checked: tab.ticked } : { ...attributes, tagName: 'BUTTON', type: 'submit' };
 }
@@ -71,12 +74,16 @@ function evaluate(tab, expression) {
   if (expression === '[innerWidth, innerHeight]') return tab.size;
   if (expression === '1') return 1;
   // The page's secret boxes hold `secrets.json`'s values and what was typed into a marked box.
-  if (expression === SECRETS_SCRIPT) return [...(has('secrets.json') ? JSON.parse(text('secrets.json')) : []), ...tab.marked.map(target => tab.typed[target])];
-  if (expression === MARK_SCRIPT) return void (tab.focused && tab.marked.push(tab.focused));
-  if (/^document\.querySelectorAll\(.*\)\.length$/.test(expression)) return has('count') ? Number(text('count')) : 1;
-  if (!/document\.querySelector\(".*"\)\) \?\? null$/.test(expression)) throw new Error(`the fake evaluates no such expression: ${expression}`);
+  // `frames.json` holds the main page's iframes as `[name, src]`.
+  if (expression === `[${SECRETS_SCRIPT}, ${FRAMES_SCRIPT}]`) return [[...(has('secrets.json') ? JSON.parse(text('secrets.json')) : []), ...tab.marked.map(target => tab.typed[target])], has('frames.json') ? JSON.parse(text('frames.json')) : []];
+  // A box in another site's frame is out of a page script's reach, as `focus-in-frame` says the focused one is.
+  if (expression === MARK_SCRIPT) return void (tab.focused && !has('focus-in-frame') && tab.marked.push(tab.focused));
+  const querySelectorAll = selector => (parse(selector), Array.from({ length: has('count') ? Number(text('count')) : 1 }));
+  if (expression.startsWith('(() => { try { return document.querySelectorAll(')) return new Function('document', `return ${expression}`)({ querySelectorAll });
+  if (!/document\.querySelector\(".*"\)/.test(expression)) throw new Error(`the fake evaluates no such expression: ${expression}`);
   // A field read runs as written, on a page whose picked fields are dropdowns and the rest plain text boxes.
   const querySelector = selector => {
+    parse(selector);
     if (has('no-field')) return null;
     const picked = tab.picked[selector];
     const box = { tagName: 'INPUT', value: tab.typed[selector] ?? '', placeholder: '', title: '', labels: [], matches: () => false, getAttribute: () => null };
@@ -101,10 +108,15 @@ const STEPS = {
     await held('hold-type');
     // Playwright's call log quotes what was to be typed, as the real server's refusal can.
     if (has('fail-type')) return refuse(response, 422, `locator.fill: Timeout 10000ms exceeded. Call log: fill("${body.text}")`);
-    tab.typed[body.ref ?? body.selector] = body.text;
+    const target = body.ref ?? body.selector;
+    // Keyboard mode types after what the box holds, as key presses do.
+    tab.typed[target] = body.mode === 'keyboard' ? (tab.typed[target] ?? '') + body.text : body.text;
     if (has('type-url')) tab.url = text('type-url');
-    tab.focused = body.ref ?? body.selector;
+    tab.focused = target;
     if (body.mode === 'keyboard') tab.focus = body;
+    if (body.pressEnter && has('press-url')) tab.url = text('press-url');
+    // A step that redraws the page, as an email step that shows the password box.
+    if (body.text && has('type-snapshot')) writeWhole('snapshot', text('type-snapshot'));
     return send(response, 200, { ok: true });
   },
   select(tab, body, response) {

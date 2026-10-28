@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { SECRETS_SCRIPT } from '../../.agents/skills/browser/scripts/browse.mjs';
+import { FRAMES_SCRIPT, SECRETS_SCRIPT } from '../../.agents/skills/browser/scripts/browse.mjs';
 import { finished, globToRegExp, keyMatches, servePage, tunnelOrigin } from '../../.agents/skills/hand-over/scripts/hand-over.mjs';
 import { appendTiming, KEEP, linkOf } from '../../.agents/skills/hand-over/scripts/lib/timings.mjs';
 import { VIEWER } from '../../.agents/skills/hand-over/scripts/view.mjs';
@@ -68,7 +68,7 @@ const PRESS = 'click e31';
 const PRESSED = ['url', PRESS];
 
 // What an expression the watcher or a reading evaluates is called as a step.
-const READS = { 'location.href': 'url', '[innerWidth, innerHeight]': 'size', 1: 'keep-alive', [SECRETS_SCRIPT]: 'secrets' };
+const READS = { 'location.href': 'url', '[innerWidth, innerHeight]': 'size', 1: 'keep-alive', [`[${SECRETS_SCRIPT}, ${FRAMES_SCRIPT}]`]: 'secrets' };
 
 /** One browser request as a step: its route and target, with a pick's choice or a page's size, never a typed value. */
 function stepOf({ method, path, body }) {
