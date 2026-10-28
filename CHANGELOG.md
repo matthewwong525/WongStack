@@ -11,6 +11,13 @@
 
 **Updating.** Nothing to do.
 
+## 44.19.0 — A saved login gets one try on a sibling subdomain
+
+- **A saved login can try a sibling subdomain once.** Some sites, such as Jane booking pages, give each clinic its own subdomain and may keep one account across them. With `--main-domain`, a login saved for `clinic.janeapp.com` also types on `myodetox.janeapp.com`, which shares the main domain `janeapp.com`. The agent tries it once, since a repeat can lock the account ([saved browser logins](wiki/development/browsing.md#saved-browser-logins)).
+- **Another main domain still gets nothing.** `janeapp.attacker.example` is not `janeapp.com`, so the login says `wrong-site` and types nothing. Without the flag, a login types only on its own site, as before.
+
+**Updating.** Nothing to do.
+
 ## 44.18.0 — Saved logins work in sign-in boxes from another site
 
 - **The page text says where a sign-in box from another site is.** Many sites put their sign-in box in a frame from another of their own sites, at the very end of the page text. The first line now says frame boxes are at the end and names each frame's site, and each frame's header names its site too ([saved browser logins](wiki/development/browsing.md#saved-browser-logins)).
