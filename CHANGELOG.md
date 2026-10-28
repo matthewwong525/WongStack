@@ -3,6 +3,12 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 44.18.1 — Agents write in Simplified Technical English
+
+- **Agents write user-facing text in Simplified Technical English.** A new rule in `AGENTS.md` asks for ASD-STE100, best effort: one meaning per word, short sentences, active voice. Code, commands, names, quotations and prescribed text stay exact ([voice and tone](wiki/voice.md#voice-and-tone)).
+
+**Updating.** Nothing to do.
+
 ## 44.18.0 — Saved logins work in sign-in boxes from another site
 
 - **The page text says where a sign-in box from another site is.** Many sites put their sign-in box in a frame from another of their own sites, at the very end of the page text. The first line now says frame boxes are at the end and names each frame's site, and each frame's header names its site too ([saved browser logins](wiki/development/browsing.md#saved-browser-logins)).
