@@ -2,7 +2,7 @@
 
 Repo changes follow this loop. The handoff is an **[OpenSpec](https://github.com/Fission-AI/OpenSpec) change**: `openspec/changes/<name>/` holds its proposal, tasks, and optional specs, saved with the code.
 
-A plain request — research, an errand, a reminder, a question — is not a change. The agent does it directly, with no verb and no question round, and writes anything [repeatable](../wiki-style.md#repeatable-knowledge) it learns to the wiki. One that edited a repo file, such as a wiki note, ends by asking *publish it?*, so no edit is left unsaved. Finished work in a Paseo workspace offers [`/close`](../../.agents/skills/close/SKILL.md). An invoked verb works for any work: [non-code work](#verbs-for-any-work) gets a to-do, not a change. The full loop is for the repo's code or process, and a new standalone page or tool is code: [a mini app](#mini-apps).
+A plain request — research, an errand, a reminder, a question — is not a change. The agent does it directly, with no verb and no question round, and writes anything [repeatable](../wiki-style.md#repeatable-knowledge) it learns to the wiki. One that edited a repo file, such as a wiki note, ends by asking *publish it?*, so no edit is left unsaved. An invoked verb works for any work: [non-code work](#verbs-for-any-work) gets a to-do, not a change. The full loop is for the repo's code or process, and a new standalone page or tool is code: [a mini app](#mini-apps).
 
 ```
 /explore ─▶ /plan ─▶ /apply ─▶ /save ─▶ /ship ─▶ /close
@@ -51,9 +51,13 @@ When a task done by hand — a plain request, or non-code work under a verb — 
 
 No offer after a code change you built, or in an unattended run.
 
+### One task, one workspace
+
+A [Paseo](https://paseo.sh) workspace holds one task. Done, the agent runs [`/close`](../../.agents/skills/close/SKILL.md) unasked, after any [offer](#offer-a-routine-or-an-app); never at a plan's review, mid-build, or on a blocker, failed check, declined publish or open question. A new task opens [a new workspace](../../.agents/skills/plan/references/new-workspace.md#new-task-in-this-chat), unless it is a question on this task or the person says *do it here*.
+
 ### Several parts, several workspaces
 
-One workspace holds one change. When a request has parts each publishable alone, the agent [asks once](../../.agents/skills/plan/references/new-workspace.md#ask-once) how to split them; each new [Paseo](https://paseo.sh) workspace plans its part and waits. [Open a part in a new workspace](../../.agents/skills/plan/references/new-workspace.md) owns when the ask returns, parts that build on each other, and the fallbacks. Each opens through [`workspace.mjs`](../../.agents/skills/schedule/scripts/workspace.mjs), which names it; a raw `paseo run` shows the branch.
+When a request has parts each publishable alone, the agent [asks once](../../.agents/skills/plan/references/new-workspace.md#ask-once) how to split them; each new workspace plans its part and waits. [Open a part in a new workspace](../../.agents/skills/plan/references/new-workspace.md) owns when the ask returns, parts that build on each other, and the fallbacks.
 
 Before planning, the agent [checks for other work](../../.agents/skills/explore/SKILL.md#check-for-other-work): other workspaces, their plans, and open pull requests. It speaks only on an overlap, and asks [where to go on](../../.agents/skills/plan/references/new-workspace.md#ask-once).
 
@@ -137,8 +141,6 @@ An **unverifiable** gate is not an absent one: `/save` reports it and carries on
 ### A loosened check needs a reason
 
 Every check has an escape hatch, and a person who does not read code can not see one used. So the Test check, [`loosened-checks.mjs`](../../.github/scripts/loosened-checks.mjs) on every push, fails when a change loosens a check without saying why: it turns a check off on a line, deletes a test, changes a check's settings, or weakens a [kept check](kept-checks.md). [Loosened checks](loosened-checks.md) lists what is flagged. On GitHub a second check, `guard`, runs [the default branch's copy of the guard](loosened-checks.md#the-guard-a-pull-request-can-not-edit), so a change can not edit the guard that judges it; off GitHub the branch's copy runs alone.
-
-**Read a test file before deleting it with its code.** One test in it may guard files that stay: move that test to the file that owns them, never delete it with the rest. A server's test file once held the only check that every place naming the OpenSpec version agreed.
 
 The reason is a Decision log bullet that starts with `Check:` and names the file:
 

@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — One task, one workspace
+
+- **A finished task closes its own workspace.** In a Paseo workspace, when the change is live or the work is done and reported, the agent runs `/close` by itself, with no *Close this workspace?* question. Unsaved work stays saved. It does not close at a plan's review, during a build, on a blocker, a failed check, a declined publish or a question to you. A routine or app offer still comes first ([one task, one workspace](wiki/development/the-change-loop.md#one-task-one-workspace)).
+- **A new task opens a new workspace.** Ask a chat for something that is not its task, and the agent opens a new workspace with a short brief and says `Opened: <title>`. A quick question about the chat's task stays, and *do it here* keeps a new task here.
+- **`/ship` opens the work left, then closes.** In a Paseo workspace it opens each part you asked for that has no workspace yet, then runs `/close`. Elsewhere it asks the next step as before.
+
+**Updating.** Nothing to do.
+
 ## 44.18.0 — Saved logins work in sign-in boxes from another site
 
 - **The page text says where a sign-in box from another site is.** Many sites put their sign-in box in a frame from another of their own sites, at the very end of the page text. The first line now says frame boxes are at the end and names each frame's site, and each frame's header names its site too ([saved browser logins](wiki/development/browsing.md#saved-browser-logins)).

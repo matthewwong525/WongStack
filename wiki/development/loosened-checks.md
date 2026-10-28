@@ -11,6 +11,8 @@ A file is flagged when the change does one of four things to it:
 - **Changes a check's settings**: a test, coverage, mutation, lint, type, duplicate-code, or unused-code config, a `package.json` `test` script or a script it runs, a workflow file, a file of a shared workflow action under `.github/actions/`, or a script under `.github/scripts/`. Any settings change counts, stricter ones too: a script can not tell stricter from looser. Such a change also makes each check [prove it still fails](../stack/mini-apps.md#the-rules).
 - **Changes the steps or expectations of a [kept check](kept-checks.md), or removes one.**
 
+**Read a test file before deleting it with its code.** One test in it may guard files that stay: move that test to the file that owns them, never delete it with the rest. A server's test file once held the only check that every place naming the OpenSpec version agreed.
+
 Prose is never read for skip markers: `wiki/`, `openspec/`, and any `.md` file.
 
 A project's first change passes with nothing flagged when its base holds no files, such as a new install's first commit: there is no check yet to loosen.

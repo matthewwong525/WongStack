@@ -77,4 +77,4 @@ Merge, not rebase, unless asked. Never check out, switch, stash, reset, or force
 
 Lead with the outcome in plain words: *it is live*, what changed for the person, the live link, then [the plan's link](../explore/references/asking-the-user.md#print-the-plans-link) to the archived `review.html`. Always add **Checks loosened**: each `Check:` bullet in the archived Decision log, one plain line; omit when none. Only when asked, add `finish`'s `key=value` lines, the archive path or that no change was needed, `/save`'s result with its CI outcome and auto-fix pushes, the walk's verdict and evidence link (a merged-anyway `FAILURE` says the user chose it), and the secret key names promoted, skipped, or unresolved.
 
-Ask [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step) with the question tool; [next work](../plan/references/new-workspace.md#next-work) owns its options and order.
+Then end by [next work](../plan/references/new-workspace.md#next-work). A failed live look, or a `/ship` that `/close` invoked, does not close.

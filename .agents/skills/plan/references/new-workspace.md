@@ -1,6 +1,6 @@
 # Open a part in a new workspace
 
-Each part of a request after the first gets its own [Paseo](https://paseo.sh) workspace and agent; this chat keeps the first. [The change loop](../../../../wiki/development/the-change-loop.md#several-parts-several-workspaces) owns the rule.
+Each part of a request after the first gets its own [Paseo](https://paseo.sh) workspace and agent; this chat keeps the first. So does [a new task](#new-task-in-this-chat). [The change loop](../../../../wiki/development/the-change-loop.md#several-parts-several-workspaces) owns the rule.
 
 ## What counts as a part
 
@@ -9,11 +9,10 @@ Each part of a request after the first gets its own [Paseo](https://paseo.sh) wo
 
 ## Ask once
 
-Ask at four points, in [the shared format](../../explore/references/asking-the-user.md):
+Ask at three points, in [the shared format](../../explore/references/asking-the-user.md):
 
 - **`/explore`'s [exit round](../../explore/SKILL.md#the-exit-round)**: the request holds several parts, or a new change is asked for in a workspace that holds another.
 - **[`/continue`](../../continue/SKILL.md#3-check-out-the-branch)**: checking out the change would leave other unpublished work here ([pick up saved work](#pick-up-saved-work)).
-- **[`/ship`](../../ship/SKILL.md)'s closing question**: more work is left ([next work](#next-work)).
 - **[`/explore`'s check for other work](../../explore/SKILL.md#check-for-other-work)**: other work in this repo overlaps the request.
 
 List the parts by short titles in the person's words, then ask:
@@ -52,6 +51,10 @@ When [the check for other work](../../explore/SKILL.md#check-for-other-work) fin
 On option 2, name the workspace to open in Paseo, or the pull request's link, and stop, drafting nothing here.
 
 Check `command -v paseo` first. Without it, drop option 1 from the first two lists and say in one line that new workspaces need Paseo; the busy-workspace ask keeps one option plus the person's own answer. **Never open a workspace when nobody can answer** (an unattended run, a routine): do the first part and record each other part as a memory `thread` fact through [the write gate](../../memory/SKILL.md#write).
+
+## New task in this chat
+
+A chat's task is its first ask, change or to-do. Another task, not a quick question on it, opens [a new workspace](#open-each-workspace) unasked, briefed `/plan <the ask>` for a repo change, else the ask, plus what this chat settled; say `Opened: <title>`. *Do it here*, no Paseo, or nobody to answer keeps it here; Daily, helper and routine chats keep their own rules.
 
 ## Open each workspace
 
@@ -99,11 +102,6 @@ Its title is the proposal's `#` heading, minus `'` and backticks, else the chang
 
 ## Next work
 
-When `/ship` finishes, look for more asked-for work in this conversation, then with `node "$(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/memory.mjs" search --type thread <the change's key terms>`. Name a part already open elsewhere; never open it twice. The closing question offers, in this order:
+When `/ship` finishes, look for more asked-for work in this conversation, then with `node "$(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/memory.mjs" search --type thread <the change's key terms>`. Name a part already open elsewhere; never open it twice.
 
-1. **The next part with no workspace yet:** open it in a new workspace *(Recommended)*.
-2. **Walk the merged app** with [`/verify`](../../verify/SKILL.md).
-3. **Close this workspace**, in a Paseo worktree only: runs [`/close`](../../close/SKILL.md), which updates the wiki. It comes first, recommended, when no next work waits.
-4. **Stop here.**
-
-Keep the question to three options, dropping the walk first.
+In a Paseo worktree, ask nothing: [open](#open-each-workspace) and [report](#report) each part with no workspace, then run [`/close`](../../close/SKILL.md). Elsewhere ask: the next part *(Recommended)*, a [`/verify`](../../verify/SKILL.md) walk, or stop.
