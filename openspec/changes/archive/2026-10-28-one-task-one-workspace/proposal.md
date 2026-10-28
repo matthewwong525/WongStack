@@ -1,6 +1,6 @@
 # One task, one workspace
 
-**Status:** ready-to-ship
+**Status:** shipped
 **Branch:** one-task-one-workspace
 **Open questions:** none
 
@@ -42,3 +42,4 @@ Non-goals: Daily, its helper chats and routine chats keep their own rules; no bo
 - **2026-10-28** — Assumed: the new-task section drops its link to the install's personal Daily page and says "Daily, its helper chats and routine chats keep their own rules", because WongStack's daily has no such section and the wording fits both.
 - **2026-10-28** — Assumed: the board's *Done to-do closes its chat* part stays out, because it belongs with the task-tracking part.
 - **2026-10-28** — Built: the install's text was about 1,750 bytes over the skills' size budget, so the skills now say less and link the change-loop section, which owns the rule. `/close` itself no longer names who runs it. The change loop drops "One workspace holds one change" (the new section says it) and its `workspace.mjs` sentence (the new-workspace page owns it), to fit the save route's budget.
+- **2026-10-28** — Archived at ship as 44.19.0: built, links and size checks pass, saved on `one-task-one-workspace`.
