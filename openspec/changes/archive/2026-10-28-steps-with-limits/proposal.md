@@ -1,7 +1,7 @@
 # Each step says what it may change
 
-**Status:** planned
-**Branch:** flawless-cheetah
+**Status:** ready-to-ship
+**Branch:** enforce-workflow-state-restrictions
 **Open questions:** none
 
 ## Why
@@ -59,3 +59,4 @@ Non-goals: these are written rules the agent follows; nothing blocks an edit. Ap
 - **2026-10-28** — Checked: a throwaway chat given `/explore find out how long node --test scripts/tests/ask-check.test.mjs takes` ran the test three times and reported about 0.7–0.8 s with no plan; the repo's changed-file list was the same before and after.
 - **2026-10-28** — Assumed: plan may also save schedules, because a plain reminder request is done directly and saves one, and the person limited only code changes before their go.
 - **2026-10-28** — Assumed: the review fixes offset their added text by cutting lines another page owns, because the skill-text budget had 12 bytes of headroom and the change loop page 4 words. Cut from `.agents/skills/plan/SKILL.md`: *required* and *the offline* before the review page (its build and *Finish* own both). Cut from `wiki/development/the-change-loop.md`: `/schedule`'s *which uses the available host* ([host schedules](../../../wiki/stack/host-schedules.md) owns it, now linked from the steps' table).
+- **2026-10-28** — Archived to publish as 44.20.0 with main merged in; every task done. The local re-run after the merge didn't start, because another chat's checks held the turn past 600 seconds, so CI decides.
