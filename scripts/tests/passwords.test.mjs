@@ -11,6 +11,7 @@ import { parseExport, siteUrl } from '../../.agents/skills/hand-over/scripts/pas
 import { readLogins } from '../../.agents/skills/browser/scripts/logins.mjs';
 import { BROWSE_ENV, fakeCamofox } from './fixtures/fake-camofox.mjs';
 import { fakeTunnel, TUNNEL_ENV } from './fixtures/fake-tunnel.mjs';
+import { sessionName } from '../../.agents/skills/browser/scripts/browse.mjs';
 
 const legacyOutput = text => text.replace(/^HANDOVER_(COMPLETION|NOTIFICATION)=.*\n/gm, '');
 const legacyResult = ({ completionId: _completionId, notification: _notification, ready: _ready, ...result }) => result;
@@ -32,7 +33,8 @@ function fixture(t) {
   writeFileSync(file('form.json'), JSON.stringify({ title: 'Pay', fields: [{ label: 'Card number', target: 'e1' }], submit: { label: 'Pay', target: 'e2' } }));
   const env = { ...process.env, ...TUNNEL_ENV, ...BROWSE_ENV, HOME: root, PATH: `${bin}:/usr/bin:/bin`, HANDOVER_POLL_MS: '50' };
   const run = (...args) => { const out = spawnSync(process.execPath, [script, ...args], { cwd: root, env, encoding: 'utf8', timeout: 30_000 }); return { ...out, rawStdout: out.stdout, stdout: legacyOutput(out.stdout) }; };
-  const state = join(root, '.wong-stack/hand-over');
+  // The chat's own link place, named by the folder the link opens from.
+  const state = join(root, '.wong-stack/hand-over/links', sessionName(root));
   const logins = join(root, '.wong-stack/logins.json');
   t.after(() => {
     run('close');
