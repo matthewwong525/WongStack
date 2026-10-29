@@ -10,6 +10,7 @@ import { authPlace, checkGuide, checkKey, cleanValue, declarations, firstSentenc
 import { filledKeys } from '../../.agents/skills/hand-over/scripts/keys-page.mjs';
 import { parseEnv } from '../../.agents/skills/memory/scripts/lib/store.mjs';
 import { fakeTunnel, TUNNEL_ENV } from './fixtures/fake-tunnel.mjs';
+import { sessionName } from '../../.agents/skills/browser/scripts/browse.mjs';
 
 const legacyOutput = text => text.replace(/^HANDOVER_(COMPLETION|NOTIFICATION)=.*\n/gm, '');
 const legacyResult = ({ completionId: _completionId, notification: _notification, ready: _ready, ...result }) => result;
@@ -71,7 +72,8 @@ function fixture(t, { env = 'A=1\n', ignore = IGNORE } = {}) {
     out.stdout = legacyOutput(out.stdout);
     return out;
   };
-  const state = join(root, '.wong-stack/hand-over');
+  // The chat's own link place, named by the checkout the link opens from.
+  const state = join(root, '.wong-stack/hand-over/links', sessionName(worktree));
   t.after(() => {
     run(worktree, 'close');
     rmSync(root, { recursive: true, force: true });

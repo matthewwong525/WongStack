@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 // Opens a private link that closes itself: a private form, the password link, the key link, or a live view.
-// One link at a time, state in ~/.wong-stack/hand-over/. Exit codes: 0 ok · 1 failed · 2 usage · 3 a tool is missing.
+// One link per chat, in ~/.wong-stack/hand-over/links/. Exit codes: 0 ok · 1 failed · 2 usage · 3 a tool is missing.
 
 import { spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { homedir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
@@ -54,7 +54,7 @@ const USAGE = `usage: hand-over.mjs open --form <file> (--until <glob> | --until
           optional
           --keys: one box per declared name; it ends on cancellation or
           once every key is saved (exit 2 with KEYS_UNDECLARED= or KEYS_AMBIGUOUS=);
-          an unopened one gives way to a new open
+          an unopened one gives way to a new open from the same chat
           --guide: a JSON file keyed by name, each with any of title, url, open,
           steps, and check {url, auth}, shown on the key page (exit 2 with KEYS_GUIDE=)
           --minutes: time limit for any link, default 1440 (24 hours); 480 for --view
@@ -65,7 +65,7 @@ const USAGE = `usage: hand-over.mjs open --form <file> (--until <glob> | --until
           then HANDOVER_SAVED=<name>,<name> for a password or key link, and
           HANDOVER_APP_KEYS=<name>,<name> and HANDOVER_OPENED=yes|no (whether
           anyone opened it) for a key link, then HANDOVER_REPLACED_BY=<folder>
-          for a key link that gave way to that workspace's link
+          for a key link that gave way to a newer link from this same chat
   close   close an open link (the person said done)
   install-view
           add the live view's tools once the person agrees: prints
@@ -81,7 +81,15 @@ const SEND_POLL_MS = Number(process.env.HANDOVER_SEND_POLL_MS) || 500;
 const WATCH_MS = Number(process.env.HANDOVER_WATCH_MS) || 10 * 60_000;
 const KEEP_MS = Number(process.env.HANDOVER_KEEPALIVE_MS) || 60_000;
 const DIR = join(homedir(), '.wong-stack', 'hand-over');
-const FILES = { pid: join(DIR, 'watcher.pid'), state: join(DIR, 'state.json'), result: join(DIR, 'result.json'), log: join(DIR, 'tunnel.log'), config: join(DIR, 'cloudflared.yml'), opened: join(DIR, 'opened'), replaced: join(DIR, 'replaced.json'), picture: join(DIR, 'picture.png'), timings: join(DIR, 'timings.jsonl'), reported: join(DIR, 'reported'), closing: join(DIR, 'closing'), shown: join(DIR, 'shown') };
+const LINKS = join(DIR, 'links');
+/** The chat's name: its checkout's folder, as the browser session names it. */
+const CHAT = sessionName().replace(/^\.+$/, 'default');
+const CHAT_DIR = join(LINKS, CHAT);
+/** A link's files in `dir`; older code kept them in DIR itself. The timing record stays one for the computer. */
+const filesIn = dir => ({ pid: join(dir, 'watcher.pid'), state: join(dir, 'state.json'), result: join(dir, 'result.json'), log: join(dir, 'tunnel.log'), config: join(dir, 'cloudflared.yml'), opened: join(dir, 'opened'), replaced: join(dir, 'replaced.json'), picture: join(dir, 'picture.png'), reported: join(dir, 'reported'), closing: join(dir, 'closing'), shown: join(dir, 'shown') });
+let FILES = { ...filesIn(CHAT_DIR), timings: join(DIR, 'timings.jsonl') };
+/** The mark an opener leaves in its chat's folder while a view starts, before its state is written. */
+const OPENER = /^view-opener\.(\d+)$/;
 /** The files only a reachable link needs; a watch after the send drops them and keeps the rest. */
 const dropInput = () => { for (const file of [FILES.log, FILES.config, FILES.opened, FILES.picture]) rmSync(file, { force: true }); };
 /** Removes a link's own files, the pid last: `wait` reads its absence as the end. Its result stays, and
@@ -130,7 +138,7 @@ export function finished({ until, untilGone }, { url, count }) {
 const readJson = file => { try { return JSON.parse(readFileSync(file, 'utf8')); } catch { return null; } };
 const readText = file => { try { return readFileSync(file, 'utf8'); } catch { return ''; } };
 
-const watcherPid = () => Number(readText(FILES.pid).trim()) || null;
+const watcherPid = (file = FILES.pid) => Number(readText(file).trim()) || null;
 
 /** A link's browser client: it starts no browser and retries no step, so nothing is typed or pressed twice. */
 const pageOf = session => browseClient(session, { retry: false, start: false });
@@ -356,7 +364,7 @@ function keyConfig(names, guideFile) {
 async function givesWay(pid) {
   const state = readJson(FILES.state) ?? {};
   if (modeOf(state) !== 'keys' || existsSync(FILES.opened)) return false;
-  writeFileSync(FILES.replaced, `${JSON.stringify({ completionId: state.completionId, by: basename(process.cwd()) })}\n`, { mode: 0o600 });
+  writeFileSync(FILES.replaced, `${JSON.stringify({ completionId: state.completionId, by: CHAT })}\n`, { mode: 0o600 });
   try { process.kill(pid, 'SIGTERM'); } catch { /* it ended first */ }
   for (let i = 0; i < 80 && alive(pid); i++) await sleep(100);
   return !alive(pid);
@@ -412,6 +420,7 @@ async function openView(session, note) {
   const display = screenOf();
   if (!display) return void unsupported('The browser has no screen to show.');
   const size = await pageOf(session).size();
+  // The screen's socket stays in the computer's place: a long chat folder would pass the 108-character socket limit.
   return { note: note ?? null, size, display, ...(await startSource(display, mkdtempSync(join(DIR, 'screen-')))) };
 }
 
@@ -434,17 +443,59 @@ async function installViewTools() {
   return 1;
 }
 
+const namesIn = dir => { try { return readdirSync(dir, { withFileTypes: true }); } catch { return []; } };
+
+/** True when another live opener in `dir` is starting a view: its state is not written yet. */
+const viewOpening = dir => namesIn(dir).some(entry => {
+  const pid = Number(OPENER.exec(entry.name)?.[1]);
+  return pid && pid !== process.pid && alive(pid);
+});
+
+/** The chat whose live view is open or opening, from any chat's folder or an older link's shared place, or null. A
+ * view shows the browser's one screen, so it counts on the whole computer; a dead watcher or opener reads as closed. */
+function viewHolder() {
+  const chats = namesIn(LINKS).filter(entry => entry.isDirectory()).map(entry => entry.name);
+  for (const [dir, chat] of [[DIR, null], ...chats.map(name => [join(LINKS, name), name])]) {
+    const { state, pid } = filesIn(dir);
+    const { view, cwd } = readJson(state) ?? {};
+    if (view && alive(watcherPid(pid))) return chat ?? (typeof cwd === 'string' ? basename(cwd) : 'another chat');
+    if (chat && viewOpening(dir)) return chat;
+  }
+  return null;
+}
+
+/** Says a live view is open elsewhere and resolves to exit code 1, or to 0 when none is. */
+function viewTaken() {
+  const holder = viewHolder();
+  if (!holder) return 0;
+  console.error(`A live view is already open in ${holder}.`);
+  return 1;
+}
+
 async function open(values) {
   const keys = values.keys ? keyConfig(values.keys, values.guide) : null;
   if (typeof keys === 'number') return keys;
   const form = values.form === undefined ? null : readForm(values.form);
   if (values.form !== undefined && !form) return 2;
-  const refused = values.view ? viewRefusal() : 0;
+  const refused = values.view ? viewTaken() || viewRefusal() : 0;
   if (refused) return refused;
-  mkdirSync(DIR, { recursive: true });
+  mkdirSync(CHAT_DIR, { recursive: true });
+  // Two views opening at once each see the other's mark, written before the second check, until the state stands.
+  const mark = values.view ? join(CHAT_DIR, `view-opener.${process.pid}`) : null;
+  if (!mark) return startLink(values, keys, form);
+  writeFileSync(mark, `${process.pid}\n`, { mode: 0o600 });
+  try {
+    return viewTaken() || (await startLink(values, keys, form));
+  } finally {
+    rmSync(mark, { force: true });
+  }
+}
+
+/** Opens this chat's link once no other blocks it; resolves to the exit code. */
+async function startLink(values, keys, form) {
   const live = watcherPid();
   if (alive(live) && !(await givesWay(live))) {
-    console.error('A private link is already open. Run `hand-over.mjs close` first.');
+    console.error(`A private link is already open in ${CHAT}. Run \`hand-over.mjs close\` first.`);
     return 1;
   }
   if (existsSync(FILES.pid)) await recoverStale('error');
@@ -695,17 +746,35 @@ function firstReport(outcome) {
   return true;
 }
 
+/** This chat's older link in the shared place: its state names this chat by folder or session; its watcher lives. */
+function ownOlderLink() {
+  const old = filesIn(DIR);
+  const { cwd, session } = readJson(old.state) ?? {};
+  const mine = (typeof cwd === 'string' && sessionName(cwd) === CHAT) || session === CHAT;
+  return mine && alive(watcherPid(old.pid)) ? old : null;
+}
+
+/** Points `wait` and `close` at this chat's older link when the chat never had a link of its own; another chat's
+ * stays. A result left by this chat's own link keeps its `wait` and `close` here. */
+function useOwnPlace() {
+  const old = ![FILES.pid, FILES.state, FILES.result].some((file) => existsSync(file)) && ownOlderLink();
+  if (old) FILES = { ...old, timings: FILES.timings };
+}
+
 /** Blocks until the watcher records a result, recovering a dead watcher; a watching result reports once unless `final`.
  * A key link that gave way reports `closed`, unopened, with nothing saved, never the newer link's result. */
 async function wait({ final = false } = {}) {
+  useOwnPlace();
   const mine = readJson(FILES.state)?.completionId;
   for (;;) {
+    // The watcher writes its result, then removes its pid: look for the pid first, so a result between the two is read.
+    const running = existsSync(FILES.pid);
     const outcome = readJson(FILES.result) ?? {};
     if (mine && gaveWay(mine, outcome)) return report({ result: 'closed', saved: [], appKeys: [], opened: false, completionId: mine, notification: 'not-requested' });
     const landed = outcome.result && outcome.notification !== 'pending';
     if (landed && outcome.watching && !final && firstReport(outcome)) return report(outcome);
     if (landed && !outcome.watching && !existsSync(FILES.pid)) return report(outcome);
-    if (!existsSync(FILES.pid)) {
+    if (!running) {
       console.error('No private link is open.');
       return 1;
     }
@@ -715,6 +784,7 @@ async function wait({ final = false } = {}) {
 }
 
 async function close() {
+  useOwnPlace();
   const pid = watcherPid();
   if (!pid) {
     console.error('No private link is open.');
