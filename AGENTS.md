@@ -25,6 +25,8 @@ Credentials for this computer's own tools sit in the git-ignored `.env` at the p
 
 ## Rules
 
+- **Always use ASD-STE100 Simplified Technical English** for user-facing prose and documentation. Best-effort compliance is sufficient without the full standard. Keep code, commands, identifiers, quotations, and prescribed text exact.
+
 - **Do plain requests directly.** Research, errands, reminders, and questions need no verb; ask only for a needed answer. Repo edits end with *publish it?*: [the change loop](wiki/development/the-change-loop.md).
 - **Offer a schedule or a mini app when a finished task will clearly come back**: they said it recurs, or memory shows they asked before. Offer once, in the closing question; remember a no: [offer a routine or an app](wiki/development/the-change-loop.md#offer-a-routine-or-an-app).
 - **Keep messages short and plain**, in [our voice](wiki/voice.md): a few lines, more only if asked. Name git, OpenSpec, or CI only if the person asks or must act; keep code, commands, identifiers, and quotes exact. Plans, questions, and reports use [plain words](.agents/skills/explore/references/asking-the-user.md#write-in-plain-words) for everyone.
