@@ -1,7 +1,7 @@
 # task-board Specification
 
 ## Purpose
-TBD - created by archiving change daily-task-board. Update Purpose after archive.
+A stored week board in the live app: the owner's tasks by week and day, plus a backlog, that the daily reads and writes and the Inbox shows.
 
 ## Requirements
 

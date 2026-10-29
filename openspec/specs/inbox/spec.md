@@ -1,7 +1,7 @@
 # inbox Specification
 
 ## Purpose
-One inbox in the live app where each person sees and answers the plans, approvals and questions waiting on them, with taps their computer delivers to the chat that made each item.
+One inbox in the live app that opens on the person's week board, where they mark, move and delete their tasks, and where a plan's link still opens its page.
 
 ## Requirements
 
