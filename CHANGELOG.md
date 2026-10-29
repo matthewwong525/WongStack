@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 44.22.0 — Hidden Inbox items
+
+- **A chat can put an item in the Inbox with no page.** `reply-link.mjs item` gives it a title, the first line of each message and its buttons; the same chat and title replaces it ([put an item with no page](wiki/development/reply-links.md#put-an-item-with-no-page)).
+- **A hidden item shows no card.** A tap on it, such as a Submit in a mini app, still reaches its chat.
+- **A kept-open item stays open.** Each tap wakes the chat again and moves its close; when time runs out, the chat gets one stop message.
+- **Publishing no longer stops when a spec has the change's name.** The check asks for the change by its kind.
+
+**Updating.** Nothing to do. The app's database gets a new column at the next deploy.
+
 ## 44.21.0 — Each step says what it may change
 
 - **Each step says what it may change, and every chat starts in plan.** Explore changes nothing in the repo; plan, and `/improve-code`, change only plans, wiki pages and schedules, so a plain *remind me every Monday* still just works; build, publish and any other step you type may change anything. Every step may still read, research, run the repo's tests and scripts, and try things in a throwaway folder. [What each step may change](wiki/development/the-change-loop.md#what-each-step-may-change) holds the table.

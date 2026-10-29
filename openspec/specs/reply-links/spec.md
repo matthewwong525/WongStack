@@ -116,3 +116,12 @@ When projects on one computer use different company apps, the computer SHALL col
 
 - **WHEN** the computer is signed out of one project's app while items from another app are open
 - **THEN** taps on the other app's items still arrive, and the unreachable app's items wait until their link closes
+
+### Requirement: A chat can put an Inbox item with no page
+
+A chat SHALL be able to put an item with a title, a header and buttons, and no file, in the Inbox, and SHALL get its id, or none where no chat can be woken. An open item of the same chat with the same title SHALL be replaced. A hidden item SHALL show in no Inbox list and SHALL still deliver its taps to its chat. A kept-open item SHALL stay open after a delivered tap, SHALL wake its chat on each tap, and SHALL move its close to its hours from that tap. An item with a stop message SHALL wake its chat once with that message when it runs out of time, and SHALL NOT when its chat or file is gone.
+
+#### Scenario: A chat watches a mini app's Submit
+
+- **WHEN** a chat puts a hidden, kept-open item for 8 hours with a stop message, and the person submits twice in a mini app that taps it
+- **THEN** the Inbox shows no card, the chat is woken twice, the item closes 8 hours after the last tap, and the chat then gets the stop message once
