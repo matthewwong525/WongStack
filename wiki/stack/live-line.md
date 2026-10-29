@@ -1,6 +1,6 @@
 # The live line
 
-The live line is one connection your computer keeps open to [your company app](company-api.md), so an inbox tap, a change, or a schedule's due time reaches it in seconds. Your open inbox joins the same line, so a new card or *Sent* shows at once.
+The live line is one connection your computer keeps open to [your company app](company-api.md), so an inbox tap, a change, or a schedule's due time reaches it in seconds. Your open inbox joins the same line, so a change to your week or a plan's *Sent* shows at once.
 
 ## What it carries
 
@@ -19,7 +19,7 @@ Your computer also keeps its own limits, so even a broken-into app can't open ch
 - **A schedule starts no more often than its record allows**: its `authority.minIntervalMs`, or every 10 minutes at most when the record sets none (`too_soon`). A schedule meant to run more often needs that field set.
 - **Rounds stay 1 second apart**, however many *look now* messages arrive.
 
-A refused run shows as not started in the inbox, with its reason, and goes in [the log](#the-log). When the helper can't read or write `runs.json`, it starts nothing (`no_ledger`).
+A refused run is kept as not started, with its reason, and goes in [the log](#the-log). When the helper can't read or write `runs.json`, it starts nothing (`no_ledger`).
 
 The helper starts a run from whichever of your project folders signed in to that app holds the schedule's record, preferring the folder the record names. Paseo schedules from all of them go up to the app together.
 

@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (major) — A week board for your tasks, and a personal daily
+
+- **The Inbox opens on your week.** The app keeps the app owner's tasks by day and week, with a backlog. You tick, drag, move and delete them, and type a new one. Teammates get no board yet. A plan still opens from its link. The list of chat questions and the Schedules view are gone: a chat's question waits in that chat.
+- **Each chat you open gets one to-do on today.** It moves to today each new day while the chat lives, and leaves the board, or is marked done on proof, when the chat closes.
+- **`/daily` reads your settings file.** Each person has `.agents/daily/<name>.json`: what to read, places, and routines with their days. An optional `.agents/daily/team.json` adds routines for everyone. Each due routine starts one time per day in its own chat. Then you get one ordered list of today's tasks and the link to your week ([the daily routine](wiki/development/daily.md)).
+- **The Daily chat keeps your chats going with background helpers.** When a chat stops, the Daily chat starts one helper with fresh context for that stop. It keeps the chat going, picks a safe choice, or leaves the question in its chat. The Daily chat posts nothing for these; ask it *what's going on?*.
+- **Your own parts plug in.** A settings file can name add-on scripts that run at the morning and at each watch pass, and a guide with your own rules. `daily.mjs serve` runs the watch outside a chat if you want it as a service; WongStack installs none.
+
+**Updating.** Your old daily steps files stop working. The update turns each line of `.claude/skills/daily/team.md` into a routine in `.agents/daily/team.json`, and each person's `people/<name>.md` into `.agents/daily/<name>.json`, then removes the old files. Reminders saved in memory are not moved: ask the Daily chat to add each one again. The app update adds the board's tables; tasks you already have stay.
+
 ## 44.18.0 — Saved logins work in sign-in boxes from another site
 
 - **The page text says where a sign-in box from another site is.** Many sites put their sign-in box in a frame from another of their own sites, at the very end of the page text. The first line now says frame boxes are at the end and names each frame's site, and each frame's header names its site too ([saved browser logins](wiki/development/browsing.md#saved-browser-logins)).

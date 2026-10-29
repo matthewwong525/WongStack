@@ -1,805 +1,468 @@
 #!/usr/bin/env node
-// /daily's fixed parts: who, which steps file, which workspaces opened today, the chief's watch and hands, reminders.
-// The assistant judges which steps are due and what a stop needs; the script holds the limits a model could drift past.
-import { spawnSync } from 'node:child_process';
+// /daily's commands; each prints JSON. The model judges; this script holds the limits a model could drift past.
+// wiki/development/daily.md
+import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync, watch as fsWatch } from 'node:fs';
-import { homedir } from 'node:os';
-import { basename, dirname, join } from 'node:path';
+import { closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { homedir, tmpdir } from 'node:os';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
 import { isMain, parseCli, usageError } from '../../memory/scripts/lib/cli.mjs';
+import { primaryRoot } from '../../memory/scripts/lib/primary-root.mjs';
 import { loadConfig, memoryOrigin, repoContext, signIn, signInHelp } from '../../memory/scripts/lib/store.mjs';
-import { EXIT, PaseoError, findPaseo, paseo } from '../../schedule/scripts/lib/paseo.mjs';
-import { closeInboxItem, openInboxItem } from '../../hand-over/scripts/reply-link.mjs';
-import { companyFor } from '../../hand-over/scripts/lib/inbox.mjs';
-import { chatTarget } from '../../hand-over/scripts/lib/wake.mjs';
+import { runAddons } from './addons.mjs';
+import { boardCalls, boardClient } from './board.mjs';
+import { BUCKETS, HAND_SOURCES, allow, answer, chiefDay, chiefEnv, close, doneAgent, hand, mark, noteEnd, paseoCli, readJson,
+  remind, reply, serve, status, todoLink, watch, watchStops, writeJson } from './chief.mjs';
+import { SettingsError, addDays, loadSettings, localDay, mondayOf, occurrence, placePath, settingsFiles, settingsFor, slotOf } from './config.mjs';
 
-const SKILL = join(dirname(fileURLToPath(import.meta.url)), '..');
-const LAUNCHER = join(SKILL, '..', 'schedule', 'scripts', 'workspace.mjs');
-const MEMORY = join(SKILL, '..', 'memory', 'scripts', 'memory.mjs');
-const DAY = /^\d{4}-\d{2}-\d{2}$/;
-const BUCKETS = ['keep-going', 'pick', 'person'];
-// The chief's own actions in a row on one agent before the next stop goes to the person.
-export const STREAK = 5;
-const LAST_CHARS = 4000;
-// How long the morning waits for plans after the first planning agent opened.
-const PLAN_MS = 15 * 60e3;
-// A done card stays until the next day's watch clears it.
-const STATUS_HOURS = 36;
-const USAGE = `usage: daily.mjs who
-       daily.mjs opened [--day <YYYY-MM-DD>] [--email <address>]
-       daily.mjs open --step <text> --title <name> --brief <file> [--plan-first] [--day <YYYY-MM-DD>] [--email <address>]
-       daily.mjs watch [--seconds 60] [--hours 10] [--once]
-       daily.mjs mark
-       daily.mjs hand --agent <id|title|workspace>
-       daily.mjs close --agent <id|title|workspace>
-       daily.mjs reply --agent <id|title|workspace> --file <text file> --bucket keep-going|pick|person --label <line>
-       daily.mjs answer --agent <id|title|workspace> --request <id> --file <text file> --bucket keep-going|pick|person --label <line>
-       daily.mjs status
-       daily.mjs inbox add --kind approval|question --agent <name> --title <line> --file <JSON {text, options?, multi?}> [--request <id>]
-       daily.mjs inbox add --kind start --agent <name>
-       daily.mjs start --agent <id|title|workspace> [--choice go|skip] [--file <note and answers>]
-       daily.mjs done-agent --agent <id|title|workspace> --proof <text>
-       daily.mjs inbox close --id <item id>
-       daily.mjs remind --day <YYYY-MM-DD> --text <words>
-       daily.mjs reminders [--day <YYYY-MM-DD>]
-       daily.mjs done --id <fact id>
-  (every command after open also takes --day and --email; mark takes nothing and prints nothing)`;
+const LAUNCHER = fileURLToPath(new URL('../../schedule/scripts/workspace.mjs', import.meta.url));
+const REPO = fileURLToPath(new URL('../../../../', import.meta.url));
+const KEPT = 400;
+const ROWS = 30;
+const run = promisify(execFile);
+const oneLine = value => String(value).split('\n')[0].slice(0, 200);
 
-/** Today on this computer's clock, as YYYY-MM-DD. */
-export function localDay(now = new Date()) {
-  const pad = n => String(n).padStart(2, '0');
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-}
+/** This computer's private daily state folder for one checkout and person. */
+export const stateDirectory = (project, person, root = join(homedir(), '.local', 'state', 'wongstack', 'daily')) =>
+  join(root, createHash('sha256').update(resolve(project)).digest('hex'), person);
 
-const unquote = value => value.trim().replace(/^(['"])(.*)\1$/, '$2').trim().toLowerCase();
-
-/** The `emails:` of a people file's frontmatter, lowercased: `[a, b]` or one `- a` line each. */
-export function emailsOf(text) {
-  const front = text.match(/^---\r?\n([\s\S]*?)\r?\n---/)?.[1];
-  const lines = front?.split(/\r?\n/) ?? [];
-  const at = lines.findIndex(line => line.startsWith('emails:'));
-  if (at < 0) return [];
-  const inline = lines[at].replace(/^emails:/, '').trim();
-  if (inline) return inline.replace(/^\[|\]$/g, '').split(',').map(unquote).filter(Boolean);
-  const list = [];
-  for (const line of lines.slice(at + 1)) {
-    const item = line.match(/^\s*-\s*(.+)$/);
-    if (!item) break;
-    list.push(unquote(item[1]));
-  }
-  return list.filter(Boolean);
-}
-
-/** The people file whose `emails` holds this one, in any case, or null. */
-export function personFile(dir, email) {
-  if (!email || !existsSync(dir)) return null;
-  const want = email.toLowerCase();
-  const names = readdirSync(dir).filter(name => name.endsWith('.md')).sort();
-  const name = names.find(file => emailsOf(readFileSync(join(dir, file), 'utf8')).includes(want));
-  return name ? join(dir, name) : null;
-}
+// ---------------------------------------------------------------------------
+// who
 
 function appOrigin(ctx) {
   try { return memoryOrigin(loadConfig(ctx)); } catch { return null; }
 }
 
-/** The person: the company sign-in when the install has the app, else the git email with `source: "git"`. */
-export function who({ ctx, origin = appOrigin(ctx), signedIn = signIn, skillDir = SKILL } = {}) {
+/** The settings file: `--config`, else the only one, else the one with the git email, else the sign-in email. */
+export function who({ repo = REPO, ctx = repoContext(repo), origin = appOrigin(ctx), signedIn = signIn, config = null } = {}) {
   let me;
   if (origin) {
     const found = signedIn(origin);
     const ok = found.state === 'valid' || found.state === 'near';
     me = { source: 'sign-in', state: found.state, email: found.email ?? null, origin, days: found.days ?? null, login: ok ? null : signInHelp(origin) };
   } else {
-    const email = ctx.author || null;
-    me = { source: 'git', state: email ? 'valid' : 'missing', email, origin: null, days: null, login: null };
+    me = { source: 'git', state: ctx.author ? 'valid' : 'missing', email: ctx.author || null, origin: null, days: null, login: null };
   }
-  const team = join(skillDir, 'team.md');
-  return { ...me, team: existsSync(team) ? team : null, file: personFile(join(skillDir, 'people'), me.email) };
+  const files = settingsFiles(repo);
+  const file = config ? resolve(config) : files.length === 1 ? files[0].file : settingsFor(repo, ctx.author) ?? settingsFor(repo, me.email);
+  let settings = null, error = null;
+  if (file) { try { settings = loadSettings(file, repo); } catch (failed) { error = failed.message; } }
+  return { ...me, file: file ?? null, person: settings?.person ?? null, team: settings?.teamFile ?? null, guide: settings?.guide ?? null,
+    ...(error ? { error } : {}) };
 }
 
-const readJson = (file, fallback) => { try { return JSON.parse(readFileSync(file, 'utf8')); } catch { return fallback; } };
-const writeJson = (file, value) => { mkdirSync(dirname(file), { recursive: true }); writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`); };
-const dayFile = (stateDir, day) => join(stateDir, `${day}.json`);
-const readDay = (stateDir, day) => readJson(dayFile(stateDir, day), []);
-const writeText = (file, text) => { mkdirSync(dirname(file), { recursive: true }); writeFileSync(file, text); };
-const sameStep = step => step.trim().replace(/\s+/g, ' ');
+// ---------------------------------------------------------------------------
+// The started record: one row per routine, task or morning that started, under a file lock
 
-/** The workspaces this person opened or handed over on `day`. */
-export function opened({ stateDir, day, email }) {
-  return readDay(stateDir, day).filter(entry => entry.email === email.toLowerCase());
-}
+const LOCK_RETRY_MS = 50, LOCK_STALE_MS = 10e3;
+/** A claim that never got its workspace: after this long it counts as failed, and the next run starts it again. */
+export const PENDING_MS = 10 * 60e3;
+const wait = ms => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 
-/** Runs the workspace launcher and reads its JSON report. */
-export function launchWorkspace({ title, brief, env }) {
-  const run = spawnSync(process.execPath, [LAUNCHER, 'open', '--title', title, '--brief', brief], { env, encoding: 'utf8' });
-  let report;
-  try { report = JSON.parse(run.stdout); } catch { report = { ok: false, error: (run.stderr || run.stdout || '').trim() }; }
-  return { ...report, code: run.status };
-}
-
-// The brief's sixth part: the script names the plan's file and shape, so a plan is checked by code, not judged.
-const planFirst = file => `\n\n## Plan first\n\nRead only for now: change, save, send or pay for nothing. Write your plan as JSON to ${file}:
-{"willDo": ["…"], "needs": ["…"], "askFirst": ["…"], "questions": [{"text": "…", "options": ["…"], "several": true}]}
-willDo is what you will do; needs, what you need from the person; askFirst, what you will ask before you act outside your
-own work; questions, what you need answered now (options and several are optional). Each list holds up to 6 lines of up
-to 300 characters. Then stop, and wait for Go.\n`;
-
-/** Opens one step's workspace once per person, step and day: `opened`, `already`, `unsupported` or `failed`. With
- *  `plan`, the agent first writes its plan to `<day>.plans/<n>.json` and stops. */
-export function open({ stateDir, day, email, step, title, brief, plan = false, env = process.env, launch = launchWorkspace, now = new Date() }) {
-  const key = { email: email.toLowerCase(), step: sameStep(step) };
-  const before = readDay(stateDir, day).find(entry => entry.email === key.email && entry.step === key.step && !entry.closed);
-  if (before) return { status: 'already', ...before };
-  // Only a chat inside Paseo can open a workspace the person sees; elsewhere the step runs in the chat.
-  if (!env.PASEO_AGENT_ID) return { status: 'unsupported', ...key, reason: 'This chat is not in Paseo.' };
-  const paths = plan ? plansAt(stateDir, day, readDay(stateDir, day).length + 1) : null;
-  if (paths) {
-    const text = readText(brief);
-    if (typeof text !== 'string') return { status: 'failed', ...key, error: text.error };
-    writeText(paths.brief, `${text}${planFirst(paths.plan)}`);
-  }
-  const result = launch({ title, brief: paths?.brief ?? brief, env });
-  if (result.code === EXIT.noPaseo || result.code === EXIT.noDaemon) return { status: 'unsupported', ...key, reason: result.error };
-  if (!result.ok) return { status: 'failed', ...key, error: result.error ?? 'The workspace did not open.' };
-  const entry = { ...key, title, workspace: result.workspaceName ?? result.title ?? title, workspaceId: result.workspaceId ?? null, agentId: result.agentId ?? null, at: now.toISOString(),
-    ...(result.cwd && { folder: basename(result.cwd) }), ...(paths && { phase: 'planning', plan: paths.plan }) };
-  writeJson(dayFile(stateDir, day), [...readDay(stateDir, day), entry]);
-  return { status: 'opened', ...entry };
-}
-
-const plansAt = (stateDir, day, n) => ({ brief: join(stateDir, `${day}.plans`, `${n}.md`), plan: join(stateDir, `${day}.plans`, `${n}.json`) });
-const short = (value, max) => typeof value === 'string' && value.trim() !== '' && value.length <= max;
-const only = (value, keys) => value !== null && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).every(key => keys.includes(key));
-const lines = value => Array.isArray(value) && value.length <= 6 && value.every(line => short(line, 300));
-const question = ask => only(ask, ['text', 'options', 'several']) && short(ask.text, 2000) && (ask.options === undefined || lines(ask.options))
-  && [undefined, true, false].includes(ask.several);
-
-/** The plan an agent wrote, `{willDo, needs, askFirst, questions}` within the inbox's limits, or null. */
-export function planOf(file) {
-  const plan = file ? readJson(file, null) : null;
-  const sound = only(plan, ['willDo', 'needs', 'askFirst', 'questions']) && ['willDo', 'needs', 'askFirst'].every(key => lines(plan[key]))
-    && Array.isArray(plan.questions) && plan.questions.length <= 6 && plan.questions.every(question);
-  return sound ? plan : null;
-}
-
-/** Writes `patch` onto one person's row of the day file. */
-function setRow(stateDir, day, row, patch) {
-  writeJson(dayFile(stateDir, day), readDay(stateDir, day).map(entry => (entry.email === row.email && entry.agentId === row.agentId ? { ...entry, ...patch } : entry)));
-}
-
-// The chief of staff. The day file is the watch list: every row with an agent, minus the ones gone.
-const watchFile = (stateDir, day) => join(stateDir, `${day}.watch.json`);
-const actionsFile = (stateDir, day) => join(stateDir, `${day}.actions.jsonl`);
-const unsupported = { status: 'unsupported', reason: 'This chat is not in Paseo, so it cannot watch other chats.' };
-
-function watched({ stateDir, day, email }, gone = []) {
-  const seen = new Set(gone);
-  return opened({ stateDir, day, email }).filter(row => row.agentId && !row.closed && !seen.has(row.agentId) && seen.add(row.agentId));
-}
-
-/** The chief's logged actions on `day`, oldest first. */
-export function actions({ stateDir, day }) {
-  const file = actionsFile(stateDir, day);
-  if (!existsSync(file)) return [];
-  return readFileSync(file, 'utf8').split('\n').filter(Boolean).flatMap(line => { try { return [JSON.parse(line)]; } catch { return []; } });
-}
-
-/** The chief's own actions on one agent since the person's last word on it. */
-export function streak(log, agentId) {
-  let count = 0;
-  for (const entry of [...log].reverse()) {
-    if (entry.agent !== agentId) continue;
-    if (entry.bucket === 'person') break;
-    count++;
-  }
-  return count;
-}
-
-const describe = row => ({ agent: row.agentId, workspace: row.workspace ?? null, title: row.title ?? null });
-const lowered = value => String(value ?? '').toLowerCase();
-
-/** The watched row an id, id prefix, title or workspace name names, or null. */
-function watchedRow(rows, name) {
-  const want = lowered(name);
-  return rows.find(row => row.agentId === name) ?? rows.find(row => row.agentId.startsWith(name))
-    ?? rows.find(row => lowered(row.title) === want || lowered(row.workspace) === want) ?? null;
-}
-
-/** The listed agents a name means: its id, an id prefix, its title, or its workspace folder, in that order. */
-export function findAgents(list, name) {
-  const want = lowered(name);
-  for (const match of [
-    agent => agent.id === name,
-    agent => name.length >= 4 && agent.id.startsWith(name),
-    agent => lowered(agent.name) === want,
-    agent => lowered(basename(String(agent.cwd ?? ''))) === want,
-  ]) {
-    const found = list.filter(match);
-    if (found.length) return found;
-  }
-  return [];
-}
-
-// The agent's last message, or null: a stop counts even when its words can't be read.
-async function lastMessage(call, agentId) {
-  try { return String(await call(['logs', agentId, '--tail', '1', '--filter', 'text'])).slice(-LAST_CHARS); } catch { return null; }
-}
-
-// A failed Paseo call: `unsupported` when there is no Paseo at all, else a read that failed.
-const notPaseo = error => error instanceof PaseoError && error.code === EXIT.noPaseo;
-
-// The inbox: approvals and Needs-you questions wait in the live app for the person, and a tap wakes this chat.
-const inboxFile = (stateDir, day) => join(stateDir, `${day}.inbox.json`);
-const KINDS = ['approval', 'question', 'start'];
-// `off`: no company sign-in, so no later pass can reach the inbox either.
-const INBOX = { open: openInboxItem, close: closeInboxItem, off: async () => !(await companyFor()) };
-// One item per day, agent and kind, so a second add or a status pass replaces it.
-const itemIdOf = (day, agentId, kind) => createHash('sha256').update(`${day}:${agentId}:${kind}`).digest('hex').slice(0, 32);
-// The agent's own folder, which the items it sends itself carry, so the inbox shows them on one card.
-const folderOf = row => row.folder ?? row.workspace ?? undefined;
-const headerOf = (title, agent) => `Inbox answer for ${title} (${agent}):`;
-
-/** The words an item asks, `{text, options?, multi?}`, or null outside the inbox's limits. */
-function detailOf(file) {
-  const detail = readJson(file, null);
-  const options = detail?.options;
-  const sound = short(detail?.text, 2000) && (options === undefined || (Array.isArray(options) && options.length <= 6 && options.every(option => short(option, 300))));
-  const keys = ['text', 'options', 'multi'];
-  return sound && [undefined, true].includes(detail.multi) && Object.keys(detail).every(key => keys.includes(key)) ? detail : null;
-}
-
-// Each item this day's chief added, as `{id, agent, at, request?, title}`; an older file held bare ids.
-const inboxItems = (stateDir, day) => readJson(inboxFile(stateDir, day), []).map(item => (typeof item === 'string' ? { id: item } : item));
-
-/** A planning agent's start card: `ready` with its plan, else still `planning` or `no-plan`. */
-function startOf(stateDir, day, row) {
-  const plan = planOf(row.plan);
-  if (plan) return { state: 'ready', plan };
-  return { state: readJson(watchFile(stateDir, day), { agents: {} }).agents?.[row.agentId]?.plan === 'no-plan' ? 'no-plan' : 'planning' };
-}
-
-/** Puts an approval, a question or a planning agent's start card in the person's inbox, aimed at this chat, on the
- *  agent's card; `unavailable` where the inbox is off. */
-export async function inboxAdd({ stateDir, day, email, env = process.env, kind, agent, title, file, request, cwd = process.cwd(), inbox = INBOX, now = new Date() }) {
-  if (!env.PASEO_AGENT_ID) return unsupported;
-  const row = watchedRow(watched({ stateDir, day, email }), agent);
-  const starts = kind === 'start';
-  if (starts && row?.phase !== 'planning') return { status: 'refused', reason: 'planning', error: `${agent} is not a watched agent waiting on its Go.` };
-  if (starts && row.held) return { status: 'refused', reason: 'chosen', error: `${row.title} already has the person's answer; it goes at its next stop.` };
-  const detail = starts ? startOf(stateDir, day, row) : detailOf(file);
-  if (!detail) return { status: 'refused', reason: 'file', error: `${file} needs {"text": "…"} with up to 6 "options".` };
-  const name = String(title ?? row.title).slice(0, 200);
-  const header = headerOf(name, row?.agentId ?? agent);
-  const actions = { approval: { approve: `${header} Approve`, decline: `${header} Decline` }, start: { go: `${header} Go`, skip: `${header} Not today` } }[kind] ?? {};
-  const item = await inbox.open({ kind, title: name, body: JSON.stringify(detail), header, actions, hours: 10, target: chatTarget(env, cwd), cwd,
-    ...(row && { workspace: folderOf(row) }), ...(starts && { id: itemIdOf(day, row.agentId, kind) }) }, { env });
-  if (!item) return { status: 'unavailable', reason: 'The inbox did not answer: ask in this chat.' };
-  const entry = { id: item.id, agent: row?.agentId ?? null, at: now.toISOString(), ...(request && { request }), title: name, ...(starts && { kind }) };
-  writeJson(inboxFile(stateDir, day), [...inboxItems(stateDir, day).filter(kept => kept.id !== item.id), entry]);
-  return { status: 'added', id: item.id, link: item.link };
-}
-
-/** Closes one item this day's chief added. */
-export async function inboxClose({ stateDir, day, env = process.env, id, inbox = INBOX }) {
-  const items = inboxItems(stateDir, day);
-  if (!items.some(item => item.id === id)) return { status: 'refused', reason: 'unknown', error: `No inbox item ${id} today.` };
-  await inbox.close(id, { env });
-  writeJson(inboxFile(stateDir, day), items.filter(item => item.id !== id));
-  return { status: 'closed', id };
-}
-
-/** Closes every item this day's chief added: the watch that relays their answers has ended. */
-async function closeInbox({ stateDir, day, env, inbox }) {
-  const items = inboxItems(stateDir, day);
-  for (const { id } of items) await inbox.close(id, { env });
-  if (items.length) writeJson(inboxFile(stateDir, day), []);
-}
-
-// An item answered in its own chat: the chief sent its agent nothing since, and its card left or its stop ended.
-// A reply quicker than a round leaves the agent idle again, so a new last message counts as the stop ending.
-async function answeredElsewhere(item, { list, pending, log, seen, call }) {
-  if (item.kind === 'start' || !item.agent || log.some(action => action.agent === item.agent && action.at > item.at)) return false;
-  if (item.request) return !pending.some(ask => ask.id === item.request);
-  const status = list.find(agent => agent.id === item.agent)?.status;
-  if (status === 'running') return true;
-  const before = seen[item.agent]?.last;
-  if (!status || typeof before !== 'string') return false;
-  const last = await lastMessage(call, item.agent);
-  return last !== null && last !== before;
-}
-
-// A planning agent's stop: `planned` once its plan is sound, else `stopped` for one nudge, then `no-plan`.
-async function planningStop(row, seen, { status, call }) {
-  if (seen.plan === 'planned') return null;
-  if (planOf(row.plan)) { seen.plan = 'planned'; return { event: 'planned', ...describe(row), plan: row.plan }; }
-  if (seen.plan) return null;
-  seen.stops = (seen.stops ?? 0) + 1;
-  if (seen.stops > 1) { seen.plan = 'no-plan'; return { event: 'no-plan', ...describe(row) }; }
-  const last = await lastMessage(call, row.agentId);
-  if (last !== null) seen.last = last;
-  return { event: 'stopped', ...describe(row), status, last, phase: 'planning', plan: row.plan };
-}
-
-/** `plans-ready` once a day: every planning agent planned or has none, or `PLAN_MS` after the first one opened. */
-function plansReady(state, rows, now) {
-  const planning = rows.filter(row => row.phase === 'planning' && !row.held && !state.gone.includes(row.agentId));
-  if (state.plansReady || !planning.length) return null;
-  const first = Math.min(...planning.map(row => Date.parse(row.at)));
-  if (!planning.every(row => state.agents[row.agentId]?.plan) && !(now - first >= PLAN_MS)) return null;
-  state.plansReady = true;
-  return { event: 'plans-ready', agents: planning.map(row => ({ ...describe(row), plan: state.agents[row.agentId]?.plan ?? 'planning' })) };
-}
-
-// Each watched agent's card in the inbox: one `agent` item each, written only when its words change.
-const statusFile = (stateDir, day) => join(stateDir, `${day}.status.json`);
-const firstLine = text => text?.split('\n').map(part => part.trim()).find(Boolean)?.slice(0, 200);
-
-async function statusOf(row, log, call) {
-  const action = log.filter(entry => entry.agent === row.agentId).at(-1)?.label?.slice(0, 300);
-  if (row.proof) return { state: 'done', proof: row.proof, ...(action && { action }) };
-  if (row.phase === 'planning') return { state: 'planning' };
-  const step = firstLine(await lastMessage(call, row.agentId));
-  return { state: 'working', ...(step && { step }), ...(action && { action }) };
-}
-
-/** Writes each changed status; false when the inbox did not answer, leaving the rest for the next pass. */
-async function reportStatus({ stateDir, day, env, rows, log, call, inbox, cwd }) {
-  const file = statusFile(stateDir, day);
-  const kept = readJson(file, {});
-  for (const row of rows) {
-    const body = JSON.stringify(await statusOf(row, log, call));
-    if (kept[row.agentId]?.body === body) continue;
-    const id = itemIdOf(day, row.agentId, 'agent');
-    const title = String(row.title ?? row.agentId).slice(0, 200);
-    const spec = { id, kind: 'agent', title, body, header: headerOf(title, row.agentId), actions: {}, hours: STATUS_HOURS, target: chatTarget(env, cwd), cwd, workspace: folderOf(row) };
-    if (!(await inbox.open(spec, { env }).catch(() => null))) return false;
-    kept[row.agentId] = { id, body, done: Boolean(row.proof) };
-    writeJson(file, kept);
-  }
-  return true;
-}
-
-/** Closes the status items `which` picks from one day's file. */
-async function closeStatus({ stateDir, day, env, inbox }, which) {
-  const file = statusFile(stateDir, day);
-  const kept = readJson(file, {});
-  const ids = Object.keys(kept).filter(agentId => which(agentId, kept[agentId]));
-  for (const agentId of ids) { await inbox.close(kept[agentId].id, { env }); delete kept[agentId]; }
-  if (ids.length) writeJson(file, kept);
-}
-
-/** Clears every earlier day's status items, a done card included. */
-async function clearEarlier({ stateDir, day, env, inbox }) {
-  const earlier = existsSync(stateDir) ? readdirSync(stateDir).map(name => name.match(/^(\d{4}-\d{2}-\d{2})\.status\.json$/)?.[1]).filter(other => other && other < day) : [];
-  for (const other of earlier) {
-    await closeStatus({ stateDir, day: other, env, inbox }, () => true);
-    rmSync(statusFile(stateDir, other), { force: true });
-  }
-}
-
-// Notices; closes only inbox items answered elsewhere. A stop prints once per idle spell, which ends when the agent
-// runs or the chief acts on it; `<day>.watch.json` keeps that across `--once` calls.
-const AGENT_ID = /^(?!\.{1,2}$)[A-Za-z0-9._-]{1,128}$/;
-/** The folder where each chat's stop hook leaves a file named for its agent. */
-export const agentEvents = env => join(env.HOME || homedir(), '.wong-stack', 'agent-events');
-
-/** A chat's stop report: touches its file so a watching chief looks now. Outside Paseo it does nothing. */
-export function mark({ env = process.env, now = new Date() } = {}) {
-  const id = env.PASEO_AGENT_ID;
-  if (!AGENT_ID.test(id ?? '')) return { status: 'skipped' };
-  try { writeText(join(agentEvents(env), id), `${now.toISOString()}\n`); return { status: 'marked' }; } catch { return { status: 'skipped' }; }
-}
-
-/** Calls `notice(agentId)` on each stop report; null when the folder can not be watched, and the minute pass stays. */
-export function watchStops(env, notice, watcher = fsWatch) {
-  const dir = agentEvents(env);
-  try {
-    mkdirSync(dir, { recursive: true });
-    return watcher(dir, (_type, name) => notice(name ? String(name) : null));
-  } catch { return null; }
-}
-
-// A stop wakes the next pass within this long; reports in the same second share one pass.
-const STOP_WAIT_MS = 1000;
-
-export async function watch({ stateDir, day, email, call, env = process.env, print = console.log, seconds = 60, hours = 10, once = false, now = () => Date.now(), sleep = ms => new Promise(done => setTimeout(done, ms)), inbox = INBOX, cwd = process.cwd(), stops = () => null }) {
-  const line = event => print(JSON.stringify(event));
-  const at = { stateDir, day, env, inbox };
-  const end = async reason => {
-    await closeInbox(at);
-    await closeStatus(at, (agentId, entry) => !entry.done);
-    line({ event: 'end', reason });
-  };
-  if (!env.PASEO_AGENT_ID) { line({ event: 'unsupported', reason: unsupported.reason }); return; }
-  const file = watchFile(stateDir, day);
-  const start = now();
-  let reporting = true;
-  await clearEarlier(at);
-  let heard = false, ids = new Set();
-  const watcher = stops(name => { if (!name || ids.has(name)) heard = true; });
-  try {
-    for (;;) {
-      heard = false;
-      const state = readJson(file, { agents: {}, gone: [], notRead: false });
-      const rows = watched({ stateDir, day, email }, state.gone);
-      ids = new Set(rows.map(row => row.agentId));
-      if (!rows.length) { await end('empty'); return; }
-      let list, pending;
+/** Runs `work` while this process holds `<file>.lock`; a lock older than 10 s is a dead run's, and is taken over. */
+function withLock(file, work) {
+  const lock = `${file}.lock`;
+  mkdirSync(dirname(file), { recursive: true, mode: 0o700 });
+  for (;;) {
+    try { closeSync(openSync(lock, 'wx', 0o600)); break; } catch (error) {
+      if (error.code !== 'EEXIST') throw error;
       try {
-        list = await call(['ls', '--global']);
-        pending = await call(['permit', 'ls']);
-        if (!Array.isArray(list) || !Array.isArray(pending)) throw new Error('Paseo did not return a list.');
-        state.notRead = false;
-      } catch (error) {
-        if (notPaseo(error)) { line({ event: 'unsupported', reason: error.message }); return; }
-        if (!state.notRead) line({ event: 'not-read', error: error.message });
-        state.notRead = true;
-      }
-      if (list) {
-        const log = actions({ stateDir, day });
-        for (const row of rows) {
-          const agent = list.find(entry => entry.id === row.agentId);
-          if (!agent || agent.status === 'closed') {
-            line({ event: 'gone', ...describe(row) });
-            state.gone.push(row.agentId);
-            delete state.agents[row.agentId];
-            await closeStatus(at, (agentId, entry) => agentId === row.agentId && !entry.done);
-            continue;
-          }
-          const seen = state.agents[row.agentId] ?? { idle: false, at: null, requests: [] };
-          const asks = pending.filter(request => request.agentId === row.agentId);
-          for (const request of asks.filter(ask => !seen.requests.includes(ask.id))) {
-            line({ event: 'asking', ...describe(row), request: { id: request.id, name: request.name, description: request.description ?? null } });
-          }
-          seen.requests = asks.map(ask => ask.id);
-          if (agent.status !== 'idle' && agent.status !== 'error') seen.idle = false;
-          else if (!asks.length) {
-            const actedSince = log.some(entry => entry.agent === row.agentId && seen.at && entry.at > seen.at);
-            const fresh = !seen.idle || actedSince;
-            // A choice the person made while it ran: its stop is the chief's cue to deliver it, never a planning stop.
-            if (row.held) {
-              if (fresh || !seen.held) {
-                line({ event: 'held', ...describe(row), choice: row.held });
-                Object.assign(seen, { idle: true, held: true, at: new Date(now()).toISOString() });
-              }
-            } else if (row.phase === 'planning' && fresh) {
-              const event = await planningStop(row, seen, { status: agent.status, call });
-              if (event) line(event);
-              seen.idle = true;
-              seen.at = new Date(now()).toISOString();
-            } else if (fresh) {
-              const last = await lastMessage(call, row.agentId);
-              line({ event: 'stopped', ...describe(row), status: agent.status, last });
-              seen.idle = true;
-              seen.at = new Date(now()).toISOString();
-              if (last !== null) seen.last = last;
-            }
-          }
-          state.agents[row.agentId] = seen;
-        }
-        const ready = plansReady(state, rows, now());
-        if (ready) line(ready);
-        const live = rows.filter(row => !state.gone.includes(row.agentId));
-        // A missed write is retried next pass; only an inbox with no sign-in stops the reports.
-        if (reporting && !(await reportStatus({ ...at, rows: live, log, call, cwd }))) reporting = !(await inbox.off?.());
-        for (const item of inboxItems(stateDir, day)) {
-          if (!(await answeredElsewhere(item, { list, pending, log, seen: state.agents, call }))) continue;
-          await inboxClose({ stateDir, day, env, id: item.id, inbox });
-          line({ event: 'answered-elsewhere', title: item.title ?? null, agent: item.agent, item: item.id });
-        }
-      }
-      writeJson(file, state);
-      if (once) return;
-      if (now() - start >= hours * 3600e3) { await end('time'); return; }
-      if (!watched({ stateDir, day, email }, state.gone).length) { await end('empty'); return; }
-      let waited = 0;
-      do {
-        const step = Math.min(STOP_WAIT_MS, seconds * 1000 - waited);
-        await sleep(step);
-        waited += step;
-      } while (waited < seconds * 1000 && !heard);
+        if (Date.now() - statSync(lock).mtimeMs > LOCK_STALE_MS) rmSync(lock, { force: true });
+      } catch { /* it just went */ }
+      wait(LOCK_RETRY_MS);
     }
-  } finally { watcher?.close?.(); }
-}
-
-/** Adds a chat the person names to the watch list, once `paseo ls` finds it. */
-export async function hand({ stateDir, day, email, agent: name, call, env = process.env, now = new Date() }) {
-  if (!env.PASEO_AGENT_ID) return unsupported;
-  const found = findAgents(await call(['ls', '--global']), name);
-  if (!found.length) return { status: 'unknown', error: `No chat named ${name}: check its name in the app, or give its id.` };
-  if (found.length > 1) return { status: 'ambiguous', error: `${name} names ${found.length} chats: give one id.`, agents: found.map(agent => ({ agent: agent.id, title: agent.name })) };
-  const [agent] = found;
-  if (agent.id === env.PASEO_AGENT_ID) return { status: 'refused', error: 'That is this chat.' };
-  const before = watched({ stateDir, day, email }).find(row => row.agentId === agent.id);
-  if (before) return { status: 'already', ...before };
-  const entry = { email: email.toLowerCase(), step: `hand: ${agent.id}`, title: agent.name ?? name, workspace: basename(String(agent.cwd ?? '')) || null, workspaceId: null, agentId: agent.id, source: 'handed', at: now.toISOString() };
-  writeJson(dayFile(stateDir, day), [...readDay(stateDir, day), entry]);
-  return { status: 'handed', ...entry };
-}
-
-/** Archives a workspace this `/daily` opened, or its agent when it has none, and drops it from the watch for good. */
-export async function close({ stateDir, day, email, agent: name, call, env = process.env, inbox = INBOX, now = new Date() }) {
-  if (!env.PASEO_AGENT_ID) return unsupported;
-  const row = watchedRow(watched({ stateDir, day, email }), name);
-  if (!row) return { status: 'unknown', error: `${name} is not a chat /daily started or was handed, so the chief leaves it alone.` };
-  // A handed-in chat is the person's own: the chief watches it but never archives it.
-  if (row.source === 'handed') return { status: 'refused', ...describe(row), error: `${row.title ?? name} is a chat you handed over; close it yourself.` };
-  try {
-    await call(row.workspaceId ? ['workspace', 'archive', row.workspaceId] : ['archive', row.agentId, '--force']);
-  } catch (error) {
-    return notPaseo(error) ? unsupported : { status: 'failed', ...describe(row), error: error.message };
   }
-  writeJson(dayFile(stateDir, day), readDay(stateDir, day).map(entry => (entry.agentId === row.agentId && !entry.closed ? { ...entry, closed: now.toISOString() } : entry)));
-  // The watch never sees it leave, so its card and anything it asked leave the inbox here.
-  await closeStatus({ stateDir, day, env, inbox }, agentId => agentId === row.agentId);
-  for (const item of inboxItems(stateDir, day).filter(item => item.agent === row.agentId)) await inboxClose({ stateDir, day, env, id: item.id, inbox });
-  return { status: 'closed', ...describe(row) };
+  try { return work(); } finally { rmSync(lock, { force: true }); }
 }
 
-function readText(file) {
-  try { return readFileSync(file, 'utf8').trim(); } catch (error) { return { error: `Cannot read ${file}: ${error.code ?? error.message}.` }; }
-}
+/** True while a row holds its key: a started row, or a claim younger than 10 minutes. */
+export const holds = (entry, now = new Date()) => Boolean(entry) && (!entry.pending || now - Date.parse(entry.at) < PENDING_MS);
 
-// What reply and answer share: a watched agent, a readable message, and room left in the streak.
-async function handFor({ stateDir, day, email, agent: name, file, bucket, label, env, now = new Date() }) {
-  if (!env.PASEO_AGENT_ID) return { refused: unsupported };
-  const row = watchedRow(watched({ stateDir, day, email }), name);
-  if (!row) return { refused: { status: 'refused', reason: 'unwatched', error: `${name} is not a chat /daily started or was handed, so the chief leaves it alone.` } };
-  const text = readText(file);
-  if (typeof text !== 'string' || !text) return { refused: { status: 'refused', reason: 'message', error: text?.error ?? `${file} is empty.` } };
-  if (bucket !== 'person' && streak(actions({ stateDir, day }), row.agentId) >= STREAK) {
-    return { refused: { status: 'refused', reason: 'streak', ...describe(row), error: `${STREAK} actions in a row on ${row.title} with no word from the person: tell the person instead.` } };
-  }
-  const log = entry => {
-    const action = { at: now.toISOString(), email: email.toLowerCase(), ...describe(row), bucket, label, ...entry };
-    mkdirSync(stateDir, { recursive: true });
-    appendFileSync(actionsFile(stateDir, day), `${JSON.stringify(action)}\n`);
-    return action;
-  };
-  return { row, text, log };
-}
-
-/** Sends a watched, stopped agent one message, and logs it. */
-export async function reply({ call, env = process.env, ...args }) {
-  const { refused, row, log } = await handFor({ ...args, env });
-  if (refused) return refused;
-  const agent = (await call(['ls', '--global'])).find(entry => entry.id === row.agentId);
-  if (!agent) return { status: 'refused', reason: 'gone', ...describe(row), error: `${row.title} is gone.` };
-  if (agent.status === 'running') return { status: 'refused', reason: 'running', ...describe(row), error: `${row.title} is working; wait for it to stop.` };
-  await call(['send', row.agentId, '--prompt-file', args.file, '--no-wait']);
-  return { status: 'sent', ...log({ kind: 'reply' }) };
-}
-
-// Answers a watched agent's pending card and logs it. The CLI hides the question `permit allow --input` keys by, so the
-// answer rides on a denial's message, which the agent goes on with (design decision 13); a card keeps it `running`.
-export async function answer({ call, env = process.env, request, ...args }) {
-  const { refused, row, text, log } = await handFor({ ...args, env });
-  if (refused) return refused;
-  const asks = (await call(['permit', 'ls'])).filter(ask => ask.agentId === row.agentId);
-  const ask = asks.find(entry => entry.id === request) ?? asks.find(entry => entry.id.startsWith(request));
-  if (!ask) return { status: 'refused', reason: 'request', ...describe(row), error: `${row.title} has no pending request ${request}.` };
-  await call(['permit', 'deny', row.agentId, ask.id, '--message', `Answer: ${text}`]);
-  return { status: 'answered', ...log({ kind: 'answer', request: ask.id }) };
-}
-
-const nextDay = day => new Date(Date.parse(`${day}T12:00:00Z`) + 86400e3).toISOString().slice(0, 10);
-
-/** Relays Go (note and answers; now working) or Not today (workspace closed; a task comes back tomorrow) to a planning
- *  agent. A running one holds it on its row until the watch prints `held`; then `start` with no choice sends it. */
-export async function start({ stateDir, day, email, agent: name, choice, file, call, env = process.env, inbox = INBOX, memory = runMemory, now = new Date() }) {
-  if (!env.PASEO_AGENT_ID) return unsupported;
-  const row = watchedRow(watched({ stateDir, day, email }), name);
-  if (row?.phase !== 'planning') return { status: 'refused', reason: 'planning', error: `${name} is not a watched agent waiting on its Go.` };
-  const pick = choice ?? row.held;
-  if (!pick) return { status: 'refused', reason: 'choice', error: `${row.title} holds no choice: give --choice go or skip.` };
-  const go = pick === 'go';
-  const message = join(stateDir, `${day}.plans`, `${row.agentId}.${pick}.md`);
-  if (choice) {
-    const words = file ? readText(file) : '';
-    if (typeof words !== 'string') return { status: 'refused', reason: 'message', error: words.error };
-    writeText(message, go ? ['Go. Work from your plan.', words].filter(Boolean).join('\n\n') : 'Not today; stop here.');
-  }
-  const sent = await reply({ stateDir, day, email, env, call, agent: row.agentId, file: message, bucket: 'person', label: `${go ? 'Started' : 'Not today'}: ${row.title}`, now });
-  if (sent.status !== 'sent' && sent.reason !== 'running') return sent;
-  for (const item of inboxItems(stateDir, day).filter(item => item.kind === 'start' && item.agent === row.agentId)) await inboxClose({ stateDir, day, env, id: item.id, inbox });
-  if (sent.status !== 'sent') { setRow(stateDir, day, row, { held: pick }); return { status: 'held', ...describe(row), choice: pick }; }
-  if (go) { setRow(stateDir, day, row, { phase: 'working', held: undefined }); return { status: 'started', ...describe(row) }; }
-  await call(row.workspaceId ? ['workspace', 'archive', row.workspaceId] : ['archive', row.agentId]);
-  setRow(stateDir, day, row, { phase: 'skipped', held: undefined });
-  const task = row.step.match(/^task:\s*(.+)$/)?.[1];
-  return { status: 'skipped', ...describe(row), ...(task && { reminder: remind({ day: nextDay(day), text: task, memory }) }) };
-}
-
-/** Marks a watched agent done with the proof the chief checked; the next watch pass moves its card to Done. */
-export function doneAgent({ stateDir, day, email, env = process.env, agent: name, proof }) {
-  if (!env.PASEO_AGENT_ID) return unsupported;
-  const row = watchedRow(watched({ stateDir, day, email }), name);
-  if (!row) return { status: 'refused', reason: 'unwatched', error: `${name} is not a chat /daily started or was handed.` };
-  const words = String(proof).trim().slice(0, 2000);
-  setRow(stateDir, day, row, { phase: 'done', proof: words });
-  return { status: 'marked', ...describe(row), proof: words };
-}
-
-/** Each watched agent with its live status, pending requests and the chief's last action on it. */
-export async function status({ stateDir, day, email, call, env = process.env }) {
-  if (!env.PASEO_AGENT_ID) return unsupported;
-  const rows = watched({ stateDir, day, email });
-  let list, pending;
-  try {
-    list = await call(['ls', '--global']);
-    pending = await call(['permit', 'ls']);
-  } catch (error) {
-    return notPaseo(error) ? unsupported : { state: 'not-read', error: error.message };
-  }
-  const log = actions({ stateDir, day });
+/** The started record, the newest 400 rows: `claim` writes a pending row or gives the holder; `fill`, `release`. */
+export function startedRecord(stateDir) {
+  const file = join(stateDir, 'started.json');
+  const read = () => readJson(file, {});
+  const write = all => writeJson(file, Object.fromEntries(Object.entries(all).sort(([, a], [, b]) => b.at.localeCompare(a.at)).slice(0, KEPT)));
+  const locked = work => withLock(file, () => work(read()));
   return {
-    state: 'read',
-    agents: rows.map(row => ({
-      ...describe(row),
-      source: row.source ?? 'step',
-      status: list.find(entry => entry.id === row.agentId && entry.status !== 'closed')?.status ?? 'gone',
-      asking: pending.filter(ask => ask.agentId === row.agentId).length,
-      last: log.filter(entry => entry.agent === row.agentId).at(-1) ?? null,
-    })),
+    read,
+    fill: (key, entry) => locked(all => write({ ...all, [key]: entry })),
+    claim: (key, entry, now = new Date()) => locked(all => {
+      if (holds(all[key], now)) return all[key];
+      write({ ...all, [key]: { ...entry, at: now.toISOString(), pending: true } });
+      return null;
+    }),
+    release: key => locked(all => {
+      if (!all[key]?.pending) return;
+      delete all[key];
+      write(all);
+    }),
   };
 }
 
-// Reminders: private memory facts (`user`, tag `reminder`), so a teammate never sees one and upkeep never closes one.
-const REMINDER = /^Reminder for (\d{4}-\d{2}-\d{2}):\s*([\s\S]*)$/;
-const SLUG = 'daily-routine';
-// Sent with every write: the store keeps a tag it already has, and makes it on first use.
-const NEW_TAGS = [{ name: 'reminder', definition: "A dated reminder a person asked /daily to keep; private to them, listed each /daily from its date until done." }];
-
-/** Runs memory.mjs with `input` on stdin. */
-export function runMemory(args, input) {
-  const run = spawnSync(process.execPath, [MEMORY, ...args], { input, encoding: 'utf8' });
-  return { code: run.status, stdout: run.stdout ?? '', stderr: run.stderr ?? '' };
-}
-
-function searchFacts(memory, args) {
-  const run = memory(['search', ...args, '--json']);
-  if (run.code !== 0) throw new Error((run.stderr || run.stdout).trim() || `memory search exited ${run.code}`);
-  const text = run.stdout.trim();
-  const json = JSON.parse(text.startsWith('{') ? text : text.split('\n').filter(line => line.startsWith('{')).at(-1));
-  return json.facts ?? [];
-}
-
-const mine = (fact, authors) => !fact.author || authors.includes(lowered(fact.author));
-const ownReminders = (memory, authors) => searchFacts(memory, ['--tag', 'reminder', '--type', 'user', '--limit', '200'])
-  .map(fact => ({ fact, parts: fact.body.match(REMINDER) })).filter(({ fact, parts }) => parts && mine(fact, authors))
-  .map(({ fact, parts }) => ({ id: fact.id, day: parts[1], text: parts[2].trim() }));
-
-function putFacts(memory, facts) {
-  const run = memory(['put-facts', '--file', '-'], JSON.stringify({ slug: SLUG, newTags: NEW_TAGS, facts }));
-  if (run.code !== 0) return { state: 'failed', error: (run.stderr || run.stdout).trim() || `memory put-facts exited ${run.code}` };
-  if (/^spooled:/m.test(run.stdout)) return { state: 'spooled', note: 'The store did not answer; it is kept here and sent at the next chat start.' };
-  return { state: 'saved' };
-}
-
-/** Saves one private reminder for `day`. */
-export function remind({ day, text, memory = runMemory }) {
-  const words = String(text ?? '').trim();
-  if (!DAY.test(day ?? '')) return { state: 'refused', error: 'The reminder needs its day as YYYY-MM-DD.' };
-  if (!words) return { state: 'refused', error: 'The reminder needs its words.' };
-  return { ...putFacts(memory, [{ type: 'user', body: `Reminder for ${day}: ${words}`, tags: ['reminder'] }]), day, text: words };
-}
-
-/** The person's reminders due on or before `day`, oldest first, and their newest 5 open threads. */
-export function reminders({ day, authors, memory = runMemory }) {
+/** Claims `key`, then opens: `{entry}` once filled, `{holder}` when a row holds it, `{error}` with the claim gone. */
+async function launchOnce({ record, key, now, claim, open, fill }) {
+  const holder = record.claim(key, claim, now);
+  if (holder) return { holder };
   try {
-    const due = ownReminders(memory, authors).filter(reminder => reminder.day <= day)
-      .sort((a, b) => a.day.localeCompare(b.day) || a.id - b.id)
-      .map(reminder => ({ ...reminder, overdue: reminder.day < day }));
-    const open = searchFacts(memory, ['--type', 'thread', '--author', authors[0], '--limit', '5'])
-      .filter(fact => mine(fact, authors)).slice(0, 5).map(fact => ({ id: fact.id, slug: fact.slug, body: fact.body, at: fact.created_at }));
-    return { state: 'read', day, due, open };
+    const opened = await open();
+    if (!opened?.ok) throw new Error(opened?.error ?? 'The launcher did not confirm the workspace.');
+    const entry = fill(opened);
+    record.fill(key, entry);
+    return { entry };
   } catch (error) {
-    return { state: 'not-read', error: error.message };
+    record.release(key);
+    return { error: oneLine(error.message) };
   }
 }
 
-/** Marks one of the person's reminders done, superseding it. */
-export function done({ id, day, authors, memory = runMemory }) {
-  let found;
-  try { found = ownReminders(memory, authors).find(reminder => reminder.id === Number(id)); } catch (error) { return { state: 'not-read', error: error.message }; }
-  if (!found) return { state: 'refused', error: `No open reminder of yours has id ${id}.` };
-  return { ...putFacts(memory, [{ type: 'user', action: 'supersede', supersedes: [found.id], body: `Done ${day}: ${found.text}`, tags: ['reminder'] }]), id: found.id, text: found.text };
+/** The launcher's arguments; it reads `--agent` only when no Paseo agent called it. */
+export const launcherArgs = ({ title, brief }) => [LAUNCHER, 'open', '--title', title, '--brief', brief, '--agent', 'claude'];
+
+/** Opens one workspace in `destination` through the launcher. Throws with the launcher's reason. */
+async function launchWorkspace({ destination, title, message }) {
+  const directory = mkdtempSync(join(tmpdir(), 'daily-'));
+  const brief = join(directory, 'message.txt');
+  try {
+    writeFileSync(brief, `${message}\n`, { mode: 0o600 });
+    const { stdout } = await run(process.execPath, launcherArgs({ title, brief }), { cwd: destination, encoding: 'utf8', maxBuffer: 1024 * 1024 });
+    return JSON.parse(stdout);
+  } catch (error) {
+    let reason = error.message;
+    try { reason = JSON.parse(error.stdout).error ?? reason; } catch { /* no JSON: keep the first reason */ }
+    throw new Error(reason);
+  } finally { rmSync(directory, { recursive: true, force: true }); }
 }
 
-/** The Paseo CLI, one `--json` call at a time. */
-export function paseoCalls(env) {
-  let bin;
-  return args => { bin ??= findPaseo(env, 'DAILY_PASEO_BIN'); return paseo(bin, args, { env }); };
+/** The name the person sees in Paseo's list of worktrees, such as `little-giraffe`. */
+const workspaceOf = opened => (opened.cwd && basename(opened.cwd)) || opened.workspaceName || opened.workspaceId || null;
+
+// ---------------------------------------------------------------------------
+// start
+
+/** `.agents/skills/news/SKILL.md` is `/news`; a routine's `prompt` replaces it. */
+export const firstMessage = task => task.prompt ?? `/${basename(dirname(task.procedure))}`;
+
+/** Each routine due on `day` with the key of its occurrence: `review:2026-10-12`, `finance:2026-11`. */
+export function dueTasks(config, project, day) {
+  return config.checks.filter(check => check.enabled && check.start === 'run').flatMap(check => {
+    const due = occurrence(check, day);
+    return due ? [{ ...check, destination: placePath(config, check.place, project), key: `${check.id}:${check.cadence.kind === 'monthly' ? due.slice(0, 7) : due}` }] : [];
+  });
 }
 
-// A store or Paseo that did not answer is news for the reply, not a failed command.
-const OK = new Set(['opened', 'already', 'unsupported', 'handed', 'sent', 'answered', 'read', 'not-read', 'saved', 'spooled', 'added', 'closed', 'unavailable',
-  'started', 'skipped', 'marked', 'held']);
-const OPTIONS = {
-  who: {},
-  opened: {},
-  open: { step: { type: 'string' }, title: { type: 'string' }, brief: { type: 'string' }, 'plan-first': { type: 'boolean' } },
-  watch: { seconds: { type: 'string' }, hours: { type: 'string' }, once: { type: 'boolean' } },
-  hand: { agent: { type: 'string' } },
-  close: { agent: { type: 'string' } },
-  reply: { agent: { type: 'string' }, file: { type: 'string' }, bucket: { type: 'string' }, label: { type: 'string' } },
-  answer: { agent: { type: 'string' }, request: { type: 'string' }, file: { type: 'string' }, bucket: { type: 'string' }, label: { type: 'string' } },
-  status: {},
-  start: { agent: { type: 'string' }, choice: { type: 'string' }, file: { type: 'string' } },
-  'done-agent': { agent: { type: 'string' }, proof: { type: 'string' } },
-  inbox: { kind: { type: 'string' }, agent: { type: 'string' }, title: { type: 'string' }, file: { type: 'string' }, request: { type: 'string' }, id: { type: 'string' } },
-  remind: { text: { type: 'string' } },
-  reminders: {},
-  done: { id: { type: 'string' } },
-};
+/** One routine's row, or null when its occurrence started on an earlier day. */
+async function startOne(task, { record, day, timezone, now, launch, dryRun }) {
+  const message = firstMessage(task);
+  const held = holder => (localDay(new Date(holder.at), timezone) === day ? { title: task.title, state: 'already', workspace: holder.workspace ?? null } : null);
+  const before = record.read()[task.key];
+  if (holds(before, now)) return held(before);
+  if (!existsSync(join(task.destination, task.procedure))) {
+    return { title: task.title, state: 'failed', workspace: null, reason: `No skill at ${task.procedure} in ${task.destination}.` };
+  }
+  if (dryRun) return { title: task.title, state: 'due', workspace: null, message };
+  const { holder, entry, error } = await launchOnce({ record, key: task.key, now, claim: { title: task.title },
+    open: () => launch({ destination: task.destination, title: task.title, message }),
+    fill: opened => ({ workspace: workspaceOf(opened), cwd: opened.cwd ?? null, agentId: opened.agentId ?? null, title: task.title, at: now.toISOString() }) });
+  if (holder) return held(holder);
+  if (error) return { title: task.title, state: 'failed', workspace: null, reason: error };
+  return { title: task.title, state: 'started', workspace: entry.workspace };
+}
 
-/** The command line. Resolves to the exit code; `deps` stand in for the sign-in, launcher, Paseo and memory. */
-export async function main(argv = process.argv.slice(2), { env = process.env, signedIn, launch, call, memory, inbox, print = console.log } = {}) {
-  const [command, ...args] = argv;
-  if (command === '--help') { print(USAGE); return 0; }
+const morningFile = (stateDir, day) => join(stateDir, `morning-${day}.json`);
+/** What each add-on gets on stdin. */
+const addonContext = (config, project, day, kind) => ({ kind, day, person: config.person, timezone: config.timezone, repo: project });
+
+/** The morning add-ons, once per day: `{lines, events, notRead}`, or null when they already ran today. */
+async function morningAddons({ config, project, record, day, now, addons }) {
+  const list = config.addons?.morning ?? [];
+  if (!list.length) return { lines: [], events: [], notRead: [] };
+  let out;
+  const { holder } = await launchOnce({ record, key: `addons:${day}`, now, claim: { title: 'Morning add-ons' },
+    open: async () => { out = await addons({ list, repo: project, context: addonContext(config, project, day, 'morning') }); return { ok: true }; },
+    fill: () => ({ title: 'Morning add-ons', at: now.toISOString(), addons: true }) });
+  if (holder) return null;
+  return { lines: out.lines, events: out.events, notRead: out.failed.map(each => ({ source: `add-on ${each.addon}`, error: each.error })) };
+}
+
+/** Starts each due routine once, then the morning add-ons once per day; with `dryRun` it starts nothing. */
+export async function start({ config, project, stateDir, now = new Date(), launch = launchWorkspace, dryRun = false, addons = runAddons,
+  env = process.env }) {
+  const day = localDay(now, config.timezone);
+  const record = startedRecord(stateDir);
+  const rows = [];
+  for (const task of dueTasks(config, project, day)) {
+    const row = await startOne(task, { record, day, timezone: config.timezone, now, launch, dryRun });
+    if (row) rows.push(row);
+  }
+  if (dryRun) return { day, tasks: rows, guide: config.guide ?? null };
+  if (env.PASEO_AGENT_ID) dailyRecord(stateDir).write({ ...dailyRecord(stateDir).read(), agentId: env.PASEO_AGENT_ID });
+  const morning = await morningAddons({ config, project, record, day, now, addons });
+  const saved = readJson(morningFile(stateDir, day), { tasks: [], lines: [], events: [], notRead: [] });
+  const report = { ...saved, ...morning, tasks: [...saved.tasks, ...rows.filter(row => row.state !== 'already')] };
+  writeJson(morningFile(stateDir, day), report);
+  return { day, tasks: rows, lines: report.lines, events: report.events, notRead: report.notRead, guide: config.guide ?? null };
+}
+
+/** What today's morning started, with no launch: the started rows, then the saved failed rows, lines and events. */
+export function startReport({ config, stateDir, now = new Date() }) {
+  const day = localDay(now, config.timezone);
+  const record = startedRecord(stateDir).read();
+  const saved = readJson(morningFile(stateDir, day), null);
+  const started = Object.entries(record).filter(([, entry]) => entry?.at && !entry.pending && !entry.addons && localDay(new Date(entry.at), config.timezone) === day)
+    .map(([key, entry]) => ({ key, title: entry.title ?? key, state: 'started', workspace: entry.workspace ?? null }));
+  return { day, morning: saved ? 'done' : 'not run', tasks: [...started, ...(saved?.tasks ?? []).filter(row => row.state === 'failed')],
+    lines: saved?.lines ?? [], events: saved?.events ?? [], notRead: saved?.notRead ?? [], guide: config.guide ?? null };
+}
+
+// ---------------------------------------------------------------------------
+// picture
+
+const WEEK_SLOTS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+const dayOfSlot = (week, slot) => addDays(week, WEEK_SLOTS.indexOf(slot));
+const daysBetween = (from, to) => Math.round((Date.parse(`${to}T12:00:00Z`) - Date.parse(`${from}T12:00:00Z`)) / 86400000);
+/** Late tasks come from the 4 weeks before: older undone work is in the backlog. */
+const PAST_WEEKS = [1, 2, 3, 4];
+const capped = (rows, cut) => { if (rows.length > ROWS) cut.truncated = true; return rows.slice(0, ROWS); };
+
+/** This week's dated tasks and backlog, and `late`: undone tasks on a day of the 4 weeks before, oldest first. */
+function trimTasks(board, past, day) {
+  const cut = {}, undone = task => task.status !== 'done', open = board.tasks.filter(undone);
+  const row = task => ({ id: task.id, title: task.title, status: task.status, slot: task.slot, ...(task.chat ? { chat: task.chat } : {}) });
+  const late = past.flatMap(read => read.tasks.filter(task => task.week === read.week && task.slot !== 'backlog' && undone(task)))
+    .map(task => ({ ...row(task), day: dayOfSlot(task.week, task.slot) })).sort((a, b) => a.day.localeCompare(b.day))
+    .map(task => ({ ...task, lateDays: daysBetween(task.day, day) }));
+  return { week: mondayOf(day), dated: capped(open.filter(task => task.slot !== 'backlog').map(row), cut),
+    backlog: capped(open.filter(task => task.slot === 'backlog').map(row), cut), late: capped(late, cut),
+    ...(cut.truncated || board.truncated || past.some(read => read.truncated) ? { truncated: true } : {}) };
+}
+
+const live = agent => agent && agent.status !== 'closed' && !agent.archivedAt;
+const folderOf = cwd => String(cwd ?? '').replace(/^~(?=\/|$)/, homedir()).replace(/\/+$/, '');
+
+/** The checkout's worktree folders, from git. */
+async function worktrees(project) {
+  const { stdout } = await run('git', ['-C', project, 'worktree', 'list', '--porcelain'], { encoding: 'utf8', timeout: 20000 });
+  return stdout.split('\n').filter(line => line.startsWith('worktree ')).map(line => folderOf(line.slice(9)));
+}
+
+/** Live top-level chats in this checkout's worktrees, never the Daily chat: names and status, no typed text. */
+async function readChats({ call, project, self, trees = worktrees }) {
+  const folders = new Set(await trees(project));
+  const list = await call(['ls', '--global']);
+  if (!Array.isArray(list)) throw new Error('Paseo did not return a list.');
+  const rows = [];
+  for (const agent of list.filter(each => live(each) && each.id !== self && each.name !== 'Daily' && folders.has(folderOf(each.cwd))).slice(0, ROWS)) {
+    if ((await call(['inspect', agent.id]).catch(() => null))?.ParentAgentId) continue;
+    rows.push({ agent: agent.id, title: agent.name ?? null, status: agent.status, workspace: basename(folderOf(agent.cwd)) || null });
+  }
+  return { chats: rows };
+}
+
+/** The day's picture: each source on in the settings, or `off`; a source that does not answer is `unavailable`. */
+export async function picture({ config, project, now = new Date(), board, call, env = process.env, trees }) {
+  const day = localDay(now, config.timezone);
+  const week = mondayOf(day), earlier = PAST_WEEKS.map(count => addDays(week, -7 * count));
+  const calls = {
+    tasks: async () => {
+      const [current, ...past] = await Promise.all([week, ...earlier].map(each => board.tasks(each)));
+      if (![current, ...past].every(read => Array.isArray(read?.tasks))) throw new Error('No tasks in the answer.');
+      return trimTasks(current, past.map((read, index) => ({ ...read, week: earlier[index] })), day);
+    },
+    chats: () => readChats({ call, project, self: env.PASEO_AGENT_ID, ...(trees && { trees }) }),
+  };
+  const result = { day, sources: {} };
+  await Promise.all(Object.keys(calls).map(async source => {
+    if (!config.sources[source]) { result.sources[source] = 'off'; return; }
+    try { Object.assign(result, await calls[source]()); result.sources[source] = 'ok'; } catch { result.sources[source] = 'unavailable'; }
+  }));
+  return result;
+}
+
+// ---------------------------------------------------------------------------
+// start-task: one workspace per board task, one time ever
+
+const TITLE_CHARS = 60;
+/** The line that asks the agent to prepare a step that needs the person, and to say what is left for them. */
+export const OWN_STEPS = 'Do what an agent can. When a step needs the person, such as a call, a visit or a meeting, get it ready and say what is left for them.';
+/** Each risky step waits for the person: the workspace asks with its own card, and the watch leaves it in that chat. */
+export const RISKY_STEPS = 'Before you send, post, pay, buy, publish, merge, delete or sign up, ask and wait for the answer.';
+
+/** The started task's first message; the launcher refuses one that starts with "-". */
+export const taskMessage = ({ title, note = '' }) => `${title.replace(/^[\s-]+/, '') || 'Task'}\n${note ? `Note: ${note}\n` : ''}${OWN_STEPS}\n${RISKY_STEPS}`;
+
+/** Opens one undone board task of today in its own workspace, one time ever, and marks it in progress. */
+export async function startTask({ config, project, stateDir, id, note = '', now = new Date(), board, launch = launchWorkspace }) {
+  const day = localDay(now, config.timezone);
+  const read = await board.tasks(mondayOf(day));
+  const task = (read?.tasks ?? []).find(each => each.id === id && each.week === mondayOf(day) && each.slot === slotOf(day) && each.status !== 'done');
+  if (!task) return { state: 'refused', error: `Task ${id} is not an undone task on today's board.` };
+  if (task.chat || String(task.importKey ?? '').startsWith('chat:')) return { state: 'already', title: task.title, workspace: task.chat ?? null };
+  const named = workspace => (workspace ? board.link({ id, chat: String(workspace).slice(0, 100) }).catch(() => null) : null);
+  const { holder, entry, error } = await launchOnce({ record: startedRecord(stateDir), key: `task:${id}`, now, claim: { title: task.title, id },
+    open: () => launch({ destination: project, title: `Task: ${task.title}`.slice(0, TITLE_CHARS), message: taskMessage({ title: task.title, note }) }),
+    fill: opened => ({ workspace: workspaceOf(opened), cwd: opened.cwd ?? null, agentId: opened.agentId ?? null, at: now.toISOString(), title: task.title, id }) });
+  if (holder) { await named(holder.workspace); return { day, title: task.title, state: 'already', workspace: holder.workspace ?? null }; }
+  if (error) return { day, title: task.title, state: 'failed', workspace: null, reason: error };
+  await named(entry.workspace);
+  try { await board.status({ id, status: 'in_progress' }); } catch {
+    return { day, title: task.title, state: 'started', workspace: entry.workspace, reason: 'not marked in progress' };
+  }
+  return { day, title: task.title, state: 'started', workspace: entry.workspace };
+}
+
+// ---------------------------------------------------------------------------
+// open-daily: the Daily workspace and its /daily, one time per day
+
+/** Where the Daily workspace and agent are saved. */
+export function dailyRecord(stateDir) {
+  const file = join(stateDir, 'daily-workspace.json');
+  return { read: () => readJson(file, {}), write: value => writeJson(file, value) };
+}
+
+const busy = status => status === 'running' || status === 'initializing';
+
+/** Takes the day's open-daily lock; false when a run already took it. */
+function takeDay(stateDir, day) {
+  mkdirSync(stateDir, { recursive: true, mode: 0o700 });
+  try { closeSync(openSync(join(stateDir, `open-daily-${day}.lock`), 'wx', 0o600)); return true; } catch (error) {
+    if (error.code === 'EEXIST') return false;
+    throw error;
+  }
+}
+
+/** Finds or opens the Daily workspace, archives older idle Daily agents with nothing pending, and sends `/daily`. */
+export async function openDaily({ config, project, stateDir, now = new Date(), call, dryRun = false }) {
+  const saved = dailyRecord(stateDir);
+  const workspaces = await call(['workspace', 'ls', '--background']);
+  if (!Array.isArray(workspaces)) throw new Error('Paseo gave no workspace list.');
+  const open = workspaces.find(each => saved.read().workspaceId && each.workspaceId === saved.read().workspaceId)
+    ?? workspaces.find(each => folderOf(each.cwd) === folderOf(project) && each.name === 'Daily') ?? null;
+  if (dryRun) return { dryRun: true, workspace: open?.workspaceId ?? null, create: !open };
+  const day = localDay(now, config.timezone);
+  if (!takeDay(stateDir, day)) return { state: 'already', day, workspace: saved.read().workspaceId ?? null, agent: saved.read().agentId ?? null };
+  let id = open?.workspaceId;
+  if (!id) {
+    id = (await call(['workspace', 'create', '--isolation', 'local', '--path', project, '--title', 'Daily', '--no-background']))?.workspaceId;
+    if (!id) throw new Error('Paseo did not make the Daily workspace.');
+  }
+  saved.write({ workspaceId: id });
+  const kept = [], archived = [];
+  for (const agent of (await call(['ls', '--global', '--label', 'daily-chat=1'])).filter(live)) {
+    const detail = busy(agent.status) ? null : await call(['inspect', agent.id]).catch(() => null);
+    if (!detail || detail.PendingPermissions?.length) kept.push(agent.id);
+    else { await call(['archive', agent.id]); archived.push(agent.id); }
+  }
+  const started = await call(['run', '--workspace', id, '--label', 'daily-chat=1', '--title', 'Daily', '--provider', 'claude', '--mode', 'bypassPermissions',
+    '--no-wait', '/daily']);
+  saved.write({ workspaceId: id, agentId: started?.agentId ?? null });
+  return { state: 'opened', day, workspace: id, created: !open, agent: started?.agentId ?? null, archived, kept };
+}
+
+// ---------------------------------------------------------------------------
+// Command
+
+const USAGE = `usage: daily.mjs who | start [--dry-run] [--report] | picture | open-daily [--dry-run]
+       daily.mjs start-task --id <task id> [--note <words>] | remind --day <YYYY-MM-DD> --text <words>
+       daily.mjs watch [--seconds 60] [--hours 24] [--once] | serve [--seconds 60] [--once] | status
+       daily.mjs hand --agent <id|title|workspace> [--source handed|asked] | close --agent <a>
+       daily.mjs reply --agent <a> --file <text file> --bucket keep-going|pick|person --label <line> [--mark <mark>]
+       daily.mjs answer --agent <a> --request <id> --file <text file> --bucket keep-going|pick|person --label <line>
+       daily.mjs allow --agent <a> --request <id> --bucket keep-going|person --label <line>
+       daily.mjs done-agent --agent <a> --proof <text> | todo link --agent <a> --url <https link> | note-end --line <words>
+       daily.mjs mark
+  each but mark takes --config <settings file>; mark takes nothing and prints nothing; chief-service is serve`;
+const FLAGS = { who: [], start: ['dry-run', 'report'], picture: [], 'open-daily': ['dry-run'], 'start-task': ['id', 'note'], remind: ['day', 'text'],
+  watch: ['seconds', 'hours', 'once'], serve: ['seconds', 'once'], status: [], hand: ['agent', 'source'], close: ['agent'],
+  reply: ['agent', 'file', 'bucket', 'label', 'mark'], answer: ['agent', 'request', 'file', 'bucket', 'label'], allow: ['agent', 'request', 'bucket', 'label'],
+  'done-agent': ['agent', 'proof'], 'todo link': ['agent', 'url'], 'note-end': ['line'] };
+const NEEDS = { 'start-task': ['id'], remind: ['day', 'text'], hand: ['agent'], close: ['agent'], reply: ['agent', 'file', 'bucket', 'label'],
+  answer: ['agent', 'request', 'file', 'bucket', 'label'], allow: ['agent', 'request', 'bucket', 'label'], 'done-agent': ['agent', 'proof'],
+  'todo link': ['agent', 'url'], 'note-end': ['line'] };
+/** An answer that changed nothing it was asked to change. */
+const REFUSED = new Set(['refused', 'unknown', 'ambiguous', 'failed', 'not confirmed', 'unsupported']);
+
+/** The command line as `{command, values}`; a wrong one exits with the usage. */
+export function readArgs(args) {
+  const { values, positionals } = parseCli({ usage: USAGE, allowPositionals: true, args, options: Object.fromEntries([
+    ...['config', 'seconds', 'hours', 'id', 'note', 'agent', 'source', 'file', 'bucket', 'label', 'request', 'day', 'text', 'mark', 'proof', 'url', 'line']
+      .map(name => [name, { type: 'string' }]),
+    ...['dry-run', 'once', 'report'].map(name => [name, { type: 'boolean' }])]) });
+  const [first, ...extra] = positionals;
+  const named = first === 'todo' ? `${first} ${extra.shift()}` : first;
+  const command = named === 'chief-service' ? 'serve' : named;
+  const flags = Object.keys(values).filter(name => name !== 'config');
+  if (!Object.hasOwn(FLAGS, command) || extra.length || flags.some(flag => !FLAGS[command].includes(flag)) || (NEEDS[command] ?? []).some(flag => !values[flag])) {
+    usageError(USAGE);
+  }
+  for (const [name, low, high, fallback] of [['seconds', 5, 3600, 60], ['hours', 1, 24, 24]]) {
+    const value = values[name] === undefined ? fallback : Number(values[name]);
+    if (!Number.isInteger(value) || value < low || value > high) usageError(USAGE, `--${name} must be a whole number from ${low} to ${high}.`);
+    values[name] = value;
+  }
+  if (values.bucket !== undefined && !BUCKETS.includes(values.bucket)) usageError(USAGE, `--bucket takes ${BUCKETS.join(', ')}.`);
+  if (command === 'allow' && values.bucket === 'pick') usageError(USAGE, '--bucket takes keep-going or person.');
+  if (values.source !== undefined && !HAND_SOURCES.includes(values.source)) usageError(USAGE, `--source takes ${HAND_SOURCES.join(', ')}.`);
+  return { command, values };
+}
+
+/** Each command, over the settings, the checkout, the state folder and the injected calls. */
+export function commands({ config, project, stateDir, values, call, board, origin = () => board.origin(), env = process.env, addons = runAddons }) {
+  const started = () => startedRecord(stateDir).read();
+  const daily = dailyRecord(stateDir);
+  const at = { stateDir, started, timezone: config.timezone };
+  const chief = async () => {
+    const dailyId = daily.read().agentId ?? null;
+    return { ...at, day: chiefDay(at), call, dailyId, env: await chiefEnv(env, { daily: dailyId }, call) };
+  };
+  const hosts = async () => { try { return [new URL(await origin()).hostname]; } catch { return []; } };
+  const passAddons = config.addons?.pass?.length
+    ? events => addons({ list: config.addons.pass, repo: project, context: { ...addonContext(config, project, localDay(new Date(), config.timezone), 'pass'), events } })
+    : null;
+  const watching = { board: board.tasks, todos: config.sources.tasks ? board : null, addons: passAddons, stops: notice => watchStops(env, notice) };
+  const said = () => ({ agent: values.agent, text: readFileSync(values.file, 'utf8'), bucket: values.bucket, label: values.label });
+  return {
+    start: () => (values.report ? startReport({ config, stateDir }) : start({ config, project, stateDir, dryRun: Boolean(values['dry-run']), env, addons })),
+    picture: () => picture({ config, project, board, call, env }),
+    'open-daily': () => openDaily({ config, project, stateDir, call, dryRun: Boolean(values['dry-run']) }),
+    'start-task': () => startTask({ config, project, stateDir, id: values.id, note: values.note, board }),
+    remind: () => remind({ day: values.day, text: values.text, today: localDay(new Date(), config.timezone), add: board.add }),
+    watch: async () => {
+      const context = await chief();
+      await watch({ ...context, ...watching, ignore: [context.dailyId].filter(Boolean), seconds: values.seconds, hours: values.hours, once: Boolean(values.once) });
+    },
+    // Lines go to the Daily chat as they happen: no JSON at the end.
+    serve: async () => {
+      await serve({ ...at, ...watching, daily, call, env, seconds: values.seconds, once: Boolean(values.once), log: text => console.error(text) });
+    },
+    status: async () => status(await chief()),
+    hand: async () => hand({ ...(await chief()), agent: values.agent, source: values.source }),
+    close: async () => close({ ...(await chief()), agent: values.agent }),
+    reply: async () => reply({ ...(await chief()), ...said(), mark: values.mark }),
+    answer: async () => answer({ ...(await chief()), ...said(), request: values.request }),
+    allow: async () => allow({ ...(await chief()), agent: values.agent, request: values.request, bucket: values.bucket, label: values.label }),
+    'done-agent': async () => doneAgent({ ...(await chief()), agent: values.agent, proof: values.proof, board }),
+    'todo link': async () => todoLink({ ...(await chief()), agent: values.agent, url: values.url, board, hosts: await hosts() }),
+    'note-end': async () => { const { stateDir: dir, day } = await chief(); return noteEnd({ stateDir: dir, day, line: values.line }); },
+  };
+}
+
+async function main(args = process.argv.slice(2)) {
   // A hook runs mark: it never fails the chat, and prints nothing a hook could read as an answer.
-  if (command === 'mark') { mark({ env }); return 0; }
-  const options = OPTIONS[command];
-  if (!options) usageError(USAGE, command ? `unknown command ${command}` : 'name a command');
-  const sub = command === 'inbox' ? args.shift() : null;
-  if (command === 'inbox' && sub !== 'add' && sub !== 'close') usageError(USAGE, 'inbox takes add or close');
-  const { values } = parseCli({ usage: USAGE, options: command === 'who' ? {} : { ...options, day: { type: 'string' }, email: { type: 'string' } }, args });
-  const ctx = repoContext();
-  const out = value => { print(JSON.stringify(value, null, 2)); return OK.has(value.status ?? value.state) ? 0 : 1; };
-  if (command === 'who') { print(JSON.stringify(who({ ctx, signedIn }), null, 2)); return 0; }
-  const day = values.day ?? localDay();
-  if (!DAY.test(day)) usageError(USAGE, '--day takes YYYY-MM-DD');
-  const need = flags => { for (const flag of flags) if (!values[flag]?.trim()) usageError(USAGE, `${command} needs --${flag}`); };
-  if (command === 'remind') need(['day', 'text']);
-  if (command === 'done') need(['id']);
-  if (command === 'open') need(['step', 'title', 'brief']);
-  if (command === 'hand' || command === 'close') need(['agent']);
-  if (sub === 'add') need(['kind', 'agent', ...(values.kind === 'start' ? [] : ['title', 'file'])]);
-  if (sub === 'add' && !KINDS.includes(values.kind)) usageError(USAGE, `--kind takes ${KINDS.join(', ')}`);
-  if (command === 'start') need(['agent']);
-  if (command === 'start' && values.choice !== undefined && !['go', 'skip'].includes(values.choice)) usageError(USAGE, '--choice takes go or skip');
-  if (command === 'done-agent') need(['agent', 'proof']);
-  if (sub === 'close') need(['id']);
-  if (command === 'reply' || command === 'answer') {
-    need(['agent', 'file', 'bucket', 'label', ...(command === 'answer' ? ['request'] : [])]);
-    if (!BUCKETS.includes(values.bucket)) usageError(USAGE, `--bucket takes ${BUCKETS.join(', ')}`);
-  }
-  for (const flag of ['seconds', 'hours']) if (values[flag] !== undefined && !(Number(values[flag]) > 0)) usageError(USAGE, `--${flag} takes a positive number`);
-  let email = values.email;
-  if (!email) {
-    const me = who({ ctx, signedIn });
-    if (!me.email || !['valid', 'near'].includes(me.state)) return out({ ok: false, status: 'signed-out', error: `Not signed in: ${me.login ?? 'set an email with git config user.email'}.` });
-    email = me.email;
-  }
-  const stateDir = join(ctx.commonDir, 'wong-daily');
-  const at = { stateDir, day, email, env };
-  const paseoCall = call ?? paseoCalls(env);
-  // The store signs a fact with the git email first, so a search by author tries that one first.
-  const authors = [...new Set([ctx.author, email].filter(Boolean).map(lowered))];
-  try {
-    switch (command) {
-      case 'opened': print(JSON.stringify(opened(at), null, 2)); return 0;
-      case 'open': return out(open({ ...at, step: values.step, title: values.title, brief: values.brief, plan: Boolean(values['plan-first']), launch }));
-      case 'watch': await watch({ ...at, call: paseoCall, print, seconds: Number(values.seconds ?? 60), hours: Number(values.hours ?? 10), once: Boolean(values.once), stops: notice => watchStops(env, notice), ...(inbox && { inbox }) }); return 0;
-      case 'inbox': return out(await (sub === 'add' ? inboxAdd({ ...at, kind: values.kind, agent: values.agent, title: values.title, file: values.file, request: values.request, ...(inbox && { inbox }) })
-        : inboxClose({ ...at, id: values.id, ...(inbox && { inbox }) })));
-      case 'hand': return out(await hand({ ...at, agent: values.agent, call: paseoCall }));
-      case 'close': return out(await close({ ...at, agent: values.agent, call: paseoCall }));
-      case 'reply': return out(await reply({ ...at, call: paseoCall, agent: values.agent, file: values.file, bucket: values.bucket, label: values.label }));
-      case 'answer': return out(await answer({ ...at, call: paseoCall, agent: values.agent, request: values.request, file: values.file, bucket: values.bucket, label: values.label }));
-      case 'status': return out(await status({ ...at, call: paseoCall }));
-      case 'start': return out(await start({ ...at, call: paseoCall, agent: values.agent, choice: values.choice, file: values.file, memory, ...(inbox && { inbox }) }));
-      case 'done-agent': return out(doneAgent({ ...at, agent: values.agent, proof: values.proof }));
-      case 'remind': return out(remind({ day, text: values.text, memory }));
-      case 'reminders': return out(reminders({ day, authors, memory }));
-      default: return out(done({ id: values.id, day, authors, memory }));
-    }
-  } catch (error) {
-    if (!(error instanceof PaseoError)) throw error;
-    return out(notPaseo(error) ? unsupported : { status: 'failed', error: error.message });
-  }
+  if (args[0] === 'mark') { mark(); return; }
+  const { command, values } = readArgs(args);
+  const me = who({ config: values.config });
+  if (command === 'who') { console.log(JSON.stringify(me, null, 2)); return; }
+  if (!me.file) throw new SettingsError(`No daily settings for ${me.email ?? 'this person'}: add .agents/daily/<name>.json. See wiki/development/daily.md#your-settings-file.`);
+  const config = loadSettings(me.file, REPO);
+  const project = primaryRoot(REPO).primary;
+  const stateDir = stateDirectory(project, config.person);
+  const board = boardCalls(boardClient(project));
+  const result = await commands({ config, project, stateDir, values, call: paseoCli(), board })[command]();
+  if (result !== undefined) console.log(JSON.stringify(result, null, 2));
+  if (REFUSED.has(result?.status ?? result?.state)) process.exitCode = 1;
 }
 
-if (isMain(import.meta.url)) process.exitCode = await main();
+if (isMain(import.meta.url)) main().catch(error => { console.error(error.message); process.exitCode = 1; });

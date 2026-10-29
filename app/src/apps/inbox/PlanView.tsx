@@ -7,7 +7,6 @@ import { tuckBars } from '@/lib/bars'
 import { Failed, label, pending, readInbox, readPlan, sendTap, type Plan, type Tap } from './api'
 import { frameMessage, notesKey } from './frame'
 import { LINE_REFRESH_MS, REFRESH_MS, useLine } from './line'
-import { List } from './List'
 import { TapLine } from './TapLine'
 
 /** The app's look, which its header switch sets on the root: the sealed page can't read the app's saved choice. */
@@ -19,12 +18,12 @@ function Back() {
 
 /** The row above an opened item: Back, and where it came from. The card or page shows the title, so it is for screen
  *  readers here. */
-function Top({ item, hidden = false }: { item: Plan['item']; hidden?: boolean }) {
+function Top({ item, hidden }: { item: Plan['item']; hidden: boolean }) {
   return <div className={`flex min-w-0 items-center gap-2 ${hidden ? 'hidden' : ''}`}><Back /><h1 className="sr-only">{item.title}</h1>
     <p className="min-w-0 truncate text-sm text-muted-foreground">{item.workspace}</p></div>
 }
 
-/** Any item opened by its link: another kind's card, or a plan's page sealed in a frame that reaches the inbox only
+/** A plan opened by its link: its page sealed in a frame that reaches the inbox only
  *  through the port its first load is handed. A frame that loads again went elsewhere: nothing replaces the port. */
 export function PlanView({ id }: { id: string }) {
   const [plan, setPlan] = useState<Plan | null>(null)
@@ -52,9 +51,8 @@ export function PlanView({ id }: { id: string }) {
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
     return () => observer.disconnect()
   }, [])
-  // A waiting tap says whether the computer is there, so the view asks again as the list does; the plan itself stays.
-  // Another item's card is the list's, which asks for itself.
-  const waiting = plan?.item.kind === 'plan' && tap?.state === 'waiting'
+  // A waiting tap says whether the computer is there, so the view asks again; the plan itself stays.
+  const waiting = tap?.state === 'waiting'
   const look = useCallback(() => {
     if (document.visibilityState === 'visible') void readInbox().then(({ computerOnline }) =>
       setPlan(shown => shown && { ...shown, computerOnline }), () => undefined)
@@ -100,7 +98,6 @@ export function PlanView({ id }: { id: string }) {
     {!gone && <Loading label="Loading…" className="grid gap-3"><Skeleton className="h-8" /><Skeleton className="h-96" /></Loading>}
   </div>
   const { item } = plan
-  if (item.kind !== 'plan') return <div className="grid grid-cols-1 gap-4"><Top item={item} /><List only={item.id} /></div>
   // Fills the window under Layout's 3.5rem header and main's 2rem margins, or all of it away from the top, so only the
   // frame scrolls and the page's fixed bar sits on the window's bottom. Popups let links open a tab past the sandbox.
   return <div className={`-mb-8 flex flex-col gap-3 ${bars === 'top' ? 'h-[calc(100dvh-5.5rem)]' : '-mt-8 h-dvh'}`}>

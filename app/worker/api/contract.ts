@@ -7,8 +7,9 @@ import { saved, scopedEnv, type Level } from "../employee-access/key-levels.ts";
 import type { KeyId } from "../keys.ts";
 import { boundedBytes } from "./body.ts";
 
-// A mini app imports only this file, so one that keys rows on the signed-in person reads the person here.
-export { humanEmail } from "../employee-access/policy.ts";
+// A mini app imports only this file, so one that keys rows on the signed-in person reads the person here, and one
+// that keeps the owner's data alone reads the owner here.
+export { checkerOwns, humanEmail, ownerEmail } from "../employee-access/policy.ts";
 
 /** Supported wire input, also used when building an action. @public */
 export type Encoding = "none" | "query" | "json";

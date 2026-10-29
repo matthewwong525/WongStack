@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "person": "alex",
+  "emails": ["alex@example.com"],
+  "timezone": "America/New_York",
+  "guide": ".agents/daily/alex.md",
+  "sources": { "tasks": true, "chats": true },
+  "places": { "home": "." },
+  "addons": { "morning": [], "pass": [] },
+  "checks": [
+    {
+      "id": "weekly-review",
+      "enabled": true,
+      "title": "Weekly review",
+      "place": "home",
+      "scope": "Last week's tasks and notes",
+      "result": "A short list of what is done and what moves on",
+      "procedure": ".agents/skills/memory/SKILL.md",
+      "prompt": "/memory recall what changed last week",
+      "cadence": { "kind": "weekly", "weekdays": [1] },
+      "effects": "Reads only",
+      "activeFrom": "2026-01-05",
+      "start": "run",
+      "missed": "latest"
+    }
+  ]
+}

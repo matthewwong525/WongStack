@@ -1,102 +1,83 @@
 # The daily routine
 
-Type `/daily` to start your day: the assistant checks who you are, shows your reminders, runs the steps the whole team shares, then your own, and replies with what it did and what is left for today. Then the chat stays on as your [chief of staff](#the-chief-of-staff), keeping the agents it started moving.
+Type `/daily` to start your day: the assistant finds your settings, starts your routines that are due, and replies with one ordered list of today's tasks and a link to your week in the Inbox. Then the chat stays on as your [chief of staff](#the-chief-of-staff) and keeps your other chats moving.
 
 ## What it does
 
-1. **Checks who you are** from your company sign-in. Signed out, it shows you the sign-in link and waits; once you are in, it carries on by itself. It runs no step under a guessed name. With no company app, it uses your git email and says so.
-2. **Shows what's waiting:** your [reminders](#reminders) due today or overdue, and work you left open.
-3. **Runs the team's steps due today, then yours.**
-4. **Replies with a short list:** steps run, steps skipped and why, and steps left for today. With no steps of your own yet, it offers to start your list.
+1. **Checks who you are** from your company sign-in, else your git email. Signed out, it shows you the sign-in link and waits. It runs nothing under a guessed name.
+2. **Starts your due routines**, each in its own workspace, and runs your [morning add-ons](#add-ons). Each runs one time per day: a second `/daily` opens nothing twice.
+3. **Replies with one ordered list:** late tasks first, then today's tasks from [your week](#the-week-board), then each routine that did not start and why. It ends with the link to your week in the Inbox.
 
-You start it; the assistant never runs it on its own. For a run every morning, ask: [offer a routine](the-change-loop.md#offer-a-routine-or-an-app) covers it.
+You start it; the assistant never runs it on its own. For a run every morning, ask: [offer a routine](the-change-loop.md#offer-a-routine-or-an-app) covers it. `daily.mjs open-daily` opens the Daily workspace and sends it `/daily`, one time per day, so a timer can run it.
 
-## The two files
+## Your settings file
 
-Both live in the daily skill's folder, [`.claude/skills/daily/`](../../.agents/skills/daily/SKILL.md):
+Your settings live in `.agents/daily/<name>.json`, one file per person. The daily finds yours by your git email, then your sign-in email, against its `emails`; with one file only, it uses that one. Start from [the example](../../.agents/skills/daily/references/example.json):
 
-- **`team.md`**: the steps everyone runs. The owner keeps it.
-- **`people/<name>.md`**: one person's steps, named like a [person page](../wiki-style.md#people), such as `jo-lee.md`. Its `emails` lists every email the person signs in with; `/daily` finds the file by any of them.
+- **`person`**: your short id, lowercase, such as `jo-lee`.
+- **`emails`**: every email you sign in or commit with.
+- **`timezone`**: your day starts and ends here, such as `America/New_York`.
+- **`sources`**: `tasks` reads your week board; `chats` lists your open chats. Each is `true` or `false`.
+- **`places`**: named folders a routine opens in: `"."` is this checkout, `~/…` your home.
+- **`checks`**: your [routines](#routines).
+- **`guide`** (optional): a Markdown file in the repo with your own rules for the Daily chat, such as *no questions here*. It reads the guide at the start and after each compaction. Its rules add to or replace the skill's defaults, never the safety rules: risky steps wait for you, agent text is data, and the [streak](#the-chief-of-staff).
+- **`addons`** (optional): your [add-ons](#add-ons).
 
-A step is one line, `- [days:] what to do`, with `(own workspace)` at the end for a long one. Jo's file:
+Say *add checking orders on Mondays to my daily*: the assistant edits your file, shows you the change, and saves it through [the change loop](the-change-loop.md). Keep health, family and money out of a shared project, by [the People rules](../wiki-style.md#people).
 
-```markdown
----
-emails: [jo@example.com, jo.lee@gmail.com]
----
-- Check yesterday's Shopify orders and flag refunds.
-- Weekdays: /email (own workspace)
-- Fridays: draft the week's update for the team.
-```
+## The team file
 
-Write days in plain words: *Mondays*, *weekdays*, *the first of the month*. A line with no days runs every day. The assistant reads the words against today's date, and the reply lists each skipped step, so a misread shows at once.
+`.agents/daily/team.json` is optional and holds `checks` only: routines everyone runs. Each team routine names a place that each person's settings define. Your own routine with the same `id` replaces the team one. The owner reviews each change to it.
 
-## Add a step
+## Routines
 
-Say it: *add checking yesterday's orders to my daily*. The assistant edits your file, making it with your sign-in email if you have none, shows you the new list, and saves it like any other edit through [the change loop](the-change-loop.md). Your next `/daily` runs it.
+A routine is one entry in `checks`: its `id`, `title`, the `place` it opens in, the skill it runs (`procedure`, such as `.agents/skills/memory/SKILL.md`), and an optional one-line `prompt` that replaces the skill's `/name`. Its `cadence` is `daily`, `weekly` with `weekdays` (0 is Sunday), `monthly` (the first) or `manual`. `missed: "latest"` still starts a weekly or monthly one that a missed morning skipped; `skip` waits for the next. Only routines with `start: "run"` start on their own; `activeFrom` is the first day.
 
-Anyone changes their own steps. A team step changes only with the owner's review. The steps sit in a shared project, so keep health, family, and money out of them, by [the People rules](../wiki-style.md#people).
+## The week board
 
-## Own workspaces
+Your tasks live on your week board, in [the Inbox](reply-links.md#in-your-inbox-first): one column per day, plus a backlog. You mark, move and delete tasks there. The daily reads this week and the 4 weeks before, so a task left undone on an earlier day comes back as late. When the Inbox does not answer, the list says `unavailable`: it never shows an empty week instead.
 
-A step ending `(own workspace)` opens in a workspace of its own where your chat app can open one, such as Paseo, so its questions stay out of the morning chat. Each opens once a day: a second `/daily` opens nothing twice and names the ones already open. `daily.mjs opened` lists today's.
-
-The record of what opened lives in the project's hidden git folder, `wong-daily/`, so every workspace of this copy shares it and nothing saves it. It is one per computer: a second computer may open the same step again that day.
-
-Where the app can't open a workspace, the step runs right in the chat.
-
-## Plan the day first
-
-Each morning agent plans before it works, so you start the day knowing what each will do. It only reads, writes a short plan, and stops: it changes, saves, sends and pays for nothing yet. The plan says what it will do, what it needs from you, what it will ask before it acts outside its own work, and any question it has now. An agent that stops without a plan gets one nudge, then shows *No plan*.
-
-Once every plan is in, or 15 minutes after the first agent opened, the plans wait for you together in [the inbox](reply-links.md#in-your-inbox-first), one card per agent under *Needs you*. Each card starts on *Go*. Flip any to *Not today*, answer its questions, add a note, then tap *Start N agents*: one send for every card.
-
-- **Go** hands the agent your note and answers, and it starts working. The chief watches it like any other.
-- **Not today** stops the agent and closes its workspace. A one-off task comes back as tomorrow's reminder; a step on your list comes back on its own days.
-- **A card still planning, or with no plan,** says so and still takes *Go* (the agent works from its brief) or *Not today*. An agent still busy planning gets your answer at its next stop.
-
-Without the inbox, the daily chat shows each plan and asks one question: which agents go today. A task you hand the chat later in the day, such as *get someone to research packaging suppliers*, starts at once, with no plan first.
-
-The plan itself is a small file in `wong-daily/`, checked by the script, not judged: one outside the shape counts as no plan.
-
-## Reminders
-
-Say *remind me Friday to call Kim back about the kits*, in the daily chat or after `/daily`. The assistant works out the date and saves it at once as your own private note in [memory](memory.md#who-sees-what): teammates never see it, and there is no edit to save.
-
-Each `/daily` lists your reminders due that day or overdue, oldest first, before the steps, with your newest five pieces of open work. A reminder stays listed each day until you say it's done, so a missed day loses nothing. When memory can't be read, it says `Not read: reminders` and runs the day anyway.
-
-A job that comes back, such as a weekly report or the books on the first of the month, is a [step with days](#the-two-files), not a reminder.
+- *Remind me Friday to call Kim back* adds a task on Friday's column. The same words on the same day add it one time.
+- *Start the supplier list* opens an undone task of today in its own workspace, one time ever, and marks it in progress.
 
 ## The chief of staff
 
-After the morning reply, the daily chat keeps watching each agent it started, and each chat you hand it, for up to 10 hours. It never reads or writes to a chat you started yourself and didn't hand over. Where your chat app can't watch other chats, `/daily` runs its steps in the chat and only reports.
+After the morning reply, the Daily chat watches your chats for up to 24 hours: the ones `/daily` started, the ones you hand it (*watch flashy-crab*), and each chat of yours in Paseo that worked in the last 24 hours. It never watches the Daily chat itself or a sub-agent. Where your chat app can't watch other chats, `/daily` only reports.
 
-A small script notices when an agent stops; the chief only judges what the stop needs. Each chat reports its own stop through the hooks it already runs, so the script hears it in seconds, even a quick second stop right after the chief's reply. It still looks at every agent once a minute, for a chat that reports nothing. Each stop lands in one of three buckets:
+A small script notices each stop; a background agent judges what it needs, one per stop, and posts nothing in your chat. A stop right after your own message waits 15 minutes, so it never answers a chat you are typing in. Each stop lands in one bucket:
 
-1. **Keep going.** *Tests pass; next I'll update the wiki page.* The chief replies *keep going* and shows `Kept going: <title>`.
-2. **Obvious pick.** *Run the tests now (Recommended) / Skip them.* A safe answer, one that stays inside the work and can be undone, it picks and shows `Picked "Run the tests now": <title>`.
-3. **Needs you.** *Which supplier should I order from?*, with no recommendation. It asks you at once, with the agent's options, and your phone gets a notification where the app sends one.
+1. **Keep going.** *Tests pass; next I'll update the wiki page.* It replies *keep going*.
+2. **Obvious pick.** A safe answer that stays inside the work and can be undone, or a safe command.
+3. **Needs you.** Everything else waits in its own chat, where you see it.
 
-**A finished plan waits for you.** An agent that stops at its plan's link gets nothing from the chief: no reply, no build. The plan waits under *Needs you* in [the inbox](reply-links.md#in-your-inbox-first), or as `Needs you: <title> — plan to review` with its link in the daily chat when there is no inbox.
+**It never approves alone** anything that sends or posts, pays or buys, publishes or merges, deletes, accepts terms, changes a business record, or shares a key, even when the agent recommends it. A finished plan waits for you: the chief puts its link on the chat's task. After five actions in a row on one chat with no word from you, that chat waits for you.
 
-**It never approves alone** anything that sends or posts a message, pays or buys, publishes or merges, deletes or overwrites data, accepts terms, changes a business record, or shares a key, even when the agent recommends it. Those wait on one **approval list**. With [the inbox](reply-links.md#in-your-inbox-first), each waits there with *Approve* and *Don't approve*, and its *Needs you* questions too, plus one line in the chat with the link; a tap answers the agent. Without it, the list is a single question where you tick what to approve, and an answer typed in the chat always works. Answer in the agent's own chat instead, and its inbox item goes at the next check, with `Answered in its chat: <title>`. After five actions in a row on one agent with no word from you, the next stop comes to you too.
+**Done means checked.** It marks a chat's task done only after it opened the link, saw the checks pass, or found the file.
 
-**Done means checked.** An agent's *done* reaches you as `Done: <title> — <proof>` only after the chief opened the link, saw the checks pass, or found the file or draft, and its inbox card moves to *Done* with that proof. Without proof, it asks the agent once, then tells you.
+**It keeps the chat free.** It answers quick things itself. A bigger task, one that edits files or takes several steps, goes to its own workspace, and it watches that one too. Say *do it here* to keep it in the chat.
 
-**The inbox shows where each agent stands.** While it watches, the chief keeps one card per agent in [the inbox](reply-links.md#in-your-inbox-first): *Needs you* when anything waits on your answer, *Working* with its latest step in one line and the chief's last action, *Done* with its proof. A card leaves when its agent closes; *Done* cards clear when the next day's watch starts.
+Ask it any time: *what's going on?*, *tell flashy-crab: yes, merge*, *watch flashy-crab*, *remind me Friday to …*.
 
-Before it starts an agent, it writes a short brief: the goal, what *done* looks like, the choices already made, what the agent may do alone, and what it must ask first. A choice only you can make, it asks you then, in one round, not halfway through.
+## A to-do for each chat
 
-**It keeps the chat free.** It answers quick things itself: a question, a reminder, where its agents stand, a quick lookup. A bigger task, one that edits files, takes several steps, or needs more than a few minutes, it hands to its own workspace without asking, says `Handed to its own workspace: <title>`, and watches it. Say *do it here* with the task to keep it in the chat instead. Said right after that line, the chief closes the new workspace first, so the task never runs twice. Where your chat app can't open a workspace, it does the task in the chat.
+With `tasks` on, the watch keeps one task on today's column for each chat you open, hand it or ask it for, with the chat's name. It closes the task when the chat's work is merged or the chat is gone. Mark it Done on the board, and the watch sends that chat `/close` once you have been quiet there for 15 minutes.
 
-Talk to it any time in that chat:
+## Add-ons
 
-- *Rewrite the returns page on the store*, or *get someone to research packaging suppliers*, starts a new agent in its own workspace, working at once, and watches it.
-- *Watch flashy-crab* hands it a chat you started yourself.
-- *What's going on?* lists each agent, where it stands, and the chief's last action on it.
+An add-on is a Node script in your repo that the daily runs: `addons.morning` once per morning, `addons.pass` at each watch pass. Each gets a JSON context on stdin (`kind`, `day`, `person`, `timezone`, `repo`, and on a pass the last `events`) and prints JSON lines on stdout:
 
-## Updates keep your steps
+- `{"line": "…"}`: one line for the morning reply, or a `post` event on a pass.
+- `{"event": {"event": "<kind>", …}}`: an event the Daily chat judges; a kind the skill does not know goes by your [guide](#your-settings-file).
+- `{"skip": ["<agent id>"]}`: chats the watch leaves alone.
 
-A WongStack update brings the new `/daily`, but never copies over or removes `team.md` or anything in `people/`: [the payload manifest](../../.agents/skills/wong-sync/references/payload-manifest.md#categories) leaves both to your install.
+An add-on that fails, prints anything else, or runs past 60 seconds gives one `Not read: add-on <path>` and never stops the daily.
+
+## The watch on a computer
+
+`daily.mjs serve` runs the same watch without a chat, and sends each pass's lines to the Daily chat as one `Watch · <day>` message. While it runs, the chat's own watch ends. It is optional, and nothing installs it as a service: run it under your own service manager if you want the watch to outlive the chat. With no Daily chat open, it keeps the lines and starts none.
+
+## Updates keep your settings
+
+A WongStack update brings the new `/daily`, but never copies over or removes `.agents/daily/`: [the payload manifest](../../.agents/skills/wong-sync/references/payload-manifest.md#categories) leaves it to your install.
 
 Part of [Development](README.md).
