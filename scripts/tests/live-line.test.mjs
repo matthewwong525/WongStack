@@ -172,7 +172,7 @@ test('as the background helper, a look runs exactly one round, a stray message r
   assert.deepEqual(runs[0].roots, [primaryRoot(REPO).primary], 'rounds run from the app\'s main checkout');
 
   socket.open();
-  assert.deepEqual(socket.sent, [{ t: 'hello', computer: COMPUTER, protocol: 8 }]);
+  assert.deepEqual(socket.sent, [{ t: 'hello', computer: COMPUTER, protocol: 9 }]);
   socket.say({ t: 'look' });
   await until(() => runs.length === 2 && polls.length === 2);
   assert.equal(polls[1], true);

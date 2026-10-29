@@ -10,7 +10,7 @@ export const items = inboxAction({
   async run(at) {
     await settleTaps(at);
     const { results } = await mine(at, `SELECT ${ITEM_COLUMNS} FROM inbox_items i WHERE installation_id = ?1 AND email = ?2
-      AND closed_at IS NULL AND closes_at > ?3 ORDER BY created_at DESC LIMIT 100`, at.now).all<ItemRow>();
+      AND closed_at IS NULL AND closes_at > ?3 AND hidden = 0 ORDER BY created_at DESC LIMIT 100`, at.now).all<ItemRow>();
     return Response.json({ items: results.map(listed), computerOnline: await online(at) });
   },
 });

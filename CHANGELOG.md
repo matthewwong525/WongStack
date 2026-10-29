@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## 45.0.0 — A week board for your tasks, and a personal daily
+## Next (major) — A week board for your tasks, and a personal daily
 
 - **The Inbox opens on your week.** The app keeps the app owner's tasks by day and week, with a backlog. You tick, drag, move and delete them, and type a new one. Teammates get no board yet. A plan still opens from its link. The list of chat questions and the Schedules view are gone: a chat's question waits in that chat.
 - **Each chat you open gets one to-do on today.** It moves to today each new day while the chat lives, and leaves the board, or is marked done on proof, when the chat closes.
@@ -12,6 +12,31 @@
 - **Your own parts plug in.** A settings file can name add-on scripts that run at the morning and at each watch pass, and a guide with your own rules. `daily.mjs serve` runs the watch outside a chat if you want it as a service; WongStack installs none.
 
 **Updating.** Your old daily steps files stop working. The update turns each line of `.claude/skills/daily/team.md` into a routine in `.agents/daily/team.json`, and each person's `people/<name>.md` into `.agents/daily/<name>.json`, then removes the old files. Reminders saved in memory are not moved: ask the Daily chat to add each one again. The app update adds the board's tables; tasks you already have stay.
+
+## 44.23.0 — One task, one workspace
+
+- **A finished task closes its own workspace.** In a Paseo workspace, when the change is live or the work is done and reported, the agent runs `/close` by itself, with no *Close this workspace?* question. Unsaved work stays saved. It does not close at a plan's review, during a build, on a blocker, a failed check, a declined publish or a question to you. A routine or app offer still comes first ([one task, one workspace](wiki/development/the-change-loop.md#one-task-one-workspace)).
+- **A new task opens a new workspace.** Ask a chat for something that is not its task, and the agent opens a new workspace with a short brief and says `Opened: <title>`. A quick question about the chat's task stays, and *do it here* keeps a new task here.
+- **`/ship` opens the work left, then closes.** In a Paseo workspace it opens each part you asked for that has no workspace yet, then runs `/close`. Elsewhere it asks the next step as before.
+
+**Updating.** Nothing to do.
+
+## 44.22.0 — Hidden Inbox items
+
+- **A chat can put an item in the Inbox with no page.** `reply-link.mjs item` gives it a title, the first line of each message and its buttons; the same chat and title replaces it ([put an item with no page](wiki/development/reply-links.md#put-an-item-with-no-page)).
+- **A hidden item shows no card.** A tap on it, such as a Submit in a mini app, still reaches its chat.
+- **A kept-open item stays open.** Each tap wakes the chat again and moves its close; when time runs out, the chat gets one stop message.
+- **Publishing no longer stops when a spec has the change's name.** The check asks for the change by its kind.
+
+**Updating.** Nothing to do. The app's database gets a new column at the next deploy.
+
+## 44.21.0 — Each step says what it may change
+
+- **Each step says what it may change, and every chat starts in plan.** Explore changes nothing in the repo; plan, and `/improve-code`, change only plans, wiki pages and schedules, so a plain *remind me every Monday* still just works; build, publish and any other step you type may change anything. Every step may still read, research, run the repo's tests and scripts, and try things in a throwaway folder. [What each step may change](wiki/development/the-change-loop.md#what-each-step-may-change) holds the table.
+- **Only you move a chat past plan.** Code changes start when you type a step, tap *Build it* or *Build and publish* on a plan's page, or pick build or publish when the agent asks.
+- **Explore goes and tries things.** Ask it to test something and it runs the code and reports the results before it offers a plan. New code for a try goes in the throwaway `.scratch/` folder, never in the repo. With no step named, *go test X* is research too, done before any plan.
+
+**Updating.** Nothing to do.
 
 ## 44.20.0 — Each chat gets its own private link
 

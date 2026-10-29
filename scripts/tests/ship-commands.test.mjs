@@ -292,7 +292,7 @@ test('a clean prepare leaves one archive folder, a numbered release, and a rebui
   assert.doesNotMatch(page, /old page/);
   assert.match(page, /Because it helps\./);
   // Tasks, artifacts, and validation are read before anything is archived.
-  assert.match(f.calls(), /openspec instructions apply --change demo --json\n[\s\S]*openspec status --change demo --json\n[\s\S]*openspec validate demo --strict --no-interactive\n[\s\S]*openspec archive demo --yes\n/);
+  assert.match(f.calls(), /openspec instructions apply --change demo --json\n[\s\S]*openspec status --change demo --json\n[\s\S]*openspec validate demo --type change --strict --no-interactive\n[\s\S]*openspec archive demo --yes\n/);
 });
 
 test('unchecked tasks stop before the archive and are listed', t => {

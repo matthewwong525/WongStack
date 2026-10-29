@@ -51,14 +51,14 @@ This page sets how a question **looks**, never which actions **need** one. An ac
 
 ## End every reply with the next step
 
-**Call [the question tool](#which-tool-carries-it)** before you finish: ask **what the user must decide for the work to continue**, in this format. Write the report and each link as its own chat line first, never in the tool's question or options nor only in your reasoning; an option may name a link, never repeat it. Only a finished plan, ending on [its link and review line](#print-the-plans-link), and the replies to *Review the plan* and *See the preview* end without a question.
+**Call [the question tool](#which-tool-carries-it)** before you finish: ask **what the user must decide for the work to continue**, in this format. Write the report and each link as its own chat line first, never in the tool's question or options nor only in your reasoning; an option may name a link, never repeat it. Only a finished plan, ending on [its link and review line](#print-the-plans-link), the replies to *Review the plan* and *See the preview*, and finished work that closes end without a question.
 
 - Finished standalone `/explore`: *Plan it (Recommended)* / *Keep thinking* / *Stop*.
 - Blocked task: the supported ways to clear it, below the intact blocker report.
 - Report or audit: the one fix worth taking next.
 - Finished task that will clearly come back: one [routine or app offer](../../../../wiki/development/the-change-loop.md#offer-a-routine-or-an-app).
-- Asked-for work left after a publish: open it in a new workspace *(Recommended)* ([next work](../../plan/references/new-workspace.md#next-work)).
-- Finished work in a Paseo worktree, a declined publish included: *Close this workspace* ([`/close`](../../close/SKILL.md)), recommended when no asked-for work waits; never at a plan's review, mid-build, or on a blocker.
+- Asked-for work left after a publish, outside Paseo: the next part *(Recommended)* ([next work](../../plan/references/new-workspace.md#next-work)).
+- Finished work in a Paseo worktree: no question but that offer; then run [`/close`](../../close/SKILL.md).
 
 ## Print the plan's link
 

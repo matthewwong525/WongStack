@@ -121,3 +121,18 @@ Show a button only when `state.actions` lists its name. `version` names the file
 | `502 {"sent": false}` | the chat did not get it; the tap can be tried again |
 
 `act` shares `send`'s 5 seconds. Confirm on the page before a button that can't be undone, as [a plan's *Build and publish*](#a-plans-link) does.
+
+### Put an item with no page
+
+A chat that needs a button but no page puts an item straight in [the inbox](#in-your-inbox-first):
+
+```bash
+node .claude/skills/hand-over/scripts/reply-link.mjs item --title "Email watch" --header "Email watch" --hours 8 \
+  --action "round=Take the new notes and picks." --hidden --keep-open --stop "The watch stopped after 8 hours."   # prints REPLY_ITEM=<id>
+```
+
+The Inbox opens on the week and lists no items, so an item with no page shows no card: something else must tap it, such as a mini app's Submit. The item takes the same taps as a page's button. An open item of the same chat with the same title is replaced, not doubled. On `REPLY_ITEM=none`, no chat can be woken here.
+
+- `--hidden`: the inbox shows no card for it, but a tap still reaches the chat. Use it for a watch that something else, such as a Submit in a mini app, taps.
+- `--keep-open`: a tap does not close it. Each tap wakes the chat again, and moves its close to `--hours` from that tap.
+- `--stop "<message>"`: the one message the chat gets when the item runs out of time. A lost chat gets none.
