@@ -76,6 +76,12 @@ Non-goals: no board for each teammate (the board is the app owner's); no notes, 
 - **2026-10-28** — Check: `app/package.json` drops `test:browser` and its packages, for the same reason.
 - **2026-10-28** — Check: `app/vitest.config.browser.ts` is removed, for the same reason.
 - **2026-10-28** — Check: `app/vitest.config.ts` drops the browser-test exclude, because no browser test is left.
-- **2026-10-28** — Check: `app/src/apps/inbox/Agents.test.tsx`, `App.test.kit.tsx`, `Item.test.tsx`, `Line.test.tsx`, `Phone.browser.test.tsx`, `Schedules.test.tsx` and `cadence.test.ts` are removed with the item list and Schedules view they tested; the line keeps its tests in `line.test.tsx` and `TapLine.test.tsx`.
+- **2026-10-28** — Check: `app/src/apps/inbox/Agents.test.tsx` is removed, because it tested the removed working-agent card.
+- **2026-10-28** — Check: `app/src/apps/inbox/App.test.kit.tsx` is removed, because it was the test kit for the removed item list.
+- **2026-10-28** — Check: `app/src/apps/inbox/Item.test.tsx` is removed, because it tested the removed item card.
+- **2026-10-28** — Check: `app/src/apps/inbox/Line.test.tsx` is removed, because it tested the removed list row; the line keeps its tests in `line.test.tsx` and `TapLine.test.tsx`.
+- **2026-10-28** — Check: `app/src/apps/inbox/Phone.browser.test.tsx` is removed, because it tested the removed list on a phone in the removed browser suite.
+- **2026-10-28** — Check: `app/src/apps/inbox/Schedules.test.tsx` is removed, because it tested the removed Schedules view.
+- **2026-10-28** — Check: `app/src/apps/inbox/cadence.test.ts` is removed, because it tested the removed Schedules view's cadence text.
 - **2026-10-28** — Check: `app/src/apps/access/Welcome.test.tsx` gets a 20 s limit for its seven-save test, because a busy full run took over the 5 s default.
 - **2026-10-29** — Assumed: archived and saved for release 45.0.0 by `/ship`, because Matthew chose to build and publish each part without stopping at the plan.
