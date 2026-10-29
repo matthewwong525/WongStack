@@ -183,7 +183,7 @@ function archiveChange(name, values) {
   const unfinished = status.artifacts.filter(artifact => !['done', 'skipped'].includes(artifact.status)).map(artifact => artifact.id);
   if (unfinished.length) throw new Stop(1, [`error=${name} has unfinished artifacts: ${unfinished.join(', ')}`]);
   const storeArgs = store ? ['--store', store] : [];
-  must('openspec', ['validate', name, '--strict', '--no-interactive', ...storeArgs], `openspec validate ${name}`);
+  must('openspec', ['validate', name, '--type', 'change', '--strict', '--no-interactive', ...storeArgs], `openspec validate ${name}`);
   must('openspec', ['archive', name, '--yes', ...(values['skip-specs'] ? ['--skip-specs'] : []), ...storeArgs], `openspec archive ${name}`);
   return status.planningHome.changesDir;
 }

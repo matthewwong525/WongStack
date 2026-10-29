@@ -142,6 +142,7 @@
       "schema/migrations/20261024120000_inbox_agent_items.sql",
       "schema/migrations/20261025120000_access_pushers.sql",
       "schema/migrations/20261026120000_schedules.sql",
+      "schema/migrations/20261101120000_inbox_hidden_items.sql",
       "app/.dev.vars.example",
       "scripts/cf-preview.sh",
       "scripts/company-api.mjs",

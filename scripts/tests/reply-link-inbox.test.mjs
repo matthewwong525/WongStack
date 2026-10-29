@@ -268,14 +268,14 @@ test('an inbox helper from older code is replaced by the next start; a current o
   const started = record();
   pids.push(started.pid);
   assert.notEqual(started.pid, old.pid);
-  assert.equal(started.protocol, 8);
+  assert.equal(started.protocol, 9);
   assert.equal(alive(old.pid), false, 'the older helper ended');
 
   const current = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1e6)'], { detached: true, stdio: 'ignore' });
   pids.push(current.pid);
-  writeFileSync(at.state.inbox, JSON.stringify({ pid: current.pid, protocol: 8 }));
+  writeFileSync(at.state.inbox, JSON.stringify({ pid: current.pid, protocol: 9 }));
   await startInbox(at.state, at.env);
-  assert.deepEqual(record(), { pid: current.pid, protocol: 8 }, 'no second helper starts');
+  assert.deepEqual(record(), { pid: current.pid, protocol: 9 }, 'no second helper starts');
   assert.ok(alive(current.pid));
 });
 
@@ -291,7 +291,7 @@ test('a recorded pid that is not the inbox helper is a stale record: a new helpe
   const started = JSON.parse(readFileSync(at.state.inbox, 'utf8'));
   pids.push(started.pid);
   assert.notEqual(started.pid, other.pid);
-  assert.equal(started.protocol, 8);
+  assert.equal(started.protocol, 9);
   assert.ok(alive(other.pid), 'the other program is left running');
 });
 
@@ -513,4 +513,29 @@ test('an item and a listed form close in the app that lists them, whichever fold
     { id: two, listed: true, target: { cwd: '/w/b' } }, { id: three, target: { cwd: '/w/a' } }], { clientFor });
   assert.deepEqual(callsTo(a, 'item-close'), [{ id: quote.id }, { id: one }]);
   assert.deepEqual(callsTo(b, 'item-close'), [{ id: two }], 'a page from older code closes through its chat\'s folder');
+});
+
+test('a hidden kept-open item wakes its chat on every tap, moves its close each time, and says its stop message once', async t => {
+  const at = home(t);
+  const app = fakeApp();
+  const { woken, wake } = waker();
+  const ROUND = 'Email round submitted: take the notes and picks.';
+  const STOP = 'Email watch stopped after 8 hours.';
+  const item = await openInboxItem({ kind: 'approval', title: 'Email watch', body: JSON.stringify({ text: 'Email watch' }), header: 'Email watch',
+    actions: { round: ROUND }, hours: 8, target: CHAT, cwd: at.dir, hidden: true, keepOpen: true, stop: STOP },
+  { env: at.env, clientFor: async () => app.client, start: () => {} });
+  assert.equal(app.items.get(item.id).hidden, true, 'the app shows no card for it');
+  const version = sha(JSON.stringify({ text: 'Email watch' }));
+  const first = app.items.get(item.id).closesAt;
+  app.taps.push({ id: 't1', item: item.id, action: 'round', text: '', version });
+  assert.equal(await tick(at, app, { wake }), 1, 'still open after its tap');
+  app.taps.push({ id: 't2', item: item.id, action: 'round', text: '', version });
+  assert.equal(await tick(at, app, { wake }), 1);
+  assert.deepEqual(reported(app), ['sent', 'sent']);
+  assert.deepEqual(woken.map(each => each.message), [ROUND, ROUND], 'each Submit is its own wake');
+  assert.ok(app.items.get(item.id).closesAt >= first, 'the close moved to 8 hours after the tap');
+  assert.equal(await tick(at, app, { wake, now: Date.now() + 9 * 3_600_000 }), 0, 'it ran out');
+  assert.equal(await tick(at, app, { wake, now: Date.now() + 9 * 3_600_000 }), 0);
+  assert.deepEqual(woken.map(each => each.message), [ROUND, ROUND, STOP], 'the stop message comes once');
+  assert.equal(app.items.has(item.id), false);
 });

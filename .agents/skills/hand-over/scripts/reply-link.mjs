@@ -20,6 +20,8 @@ import { alive, freePort, hasCloudflared, keyMatches, killTunnel, linkAnswers, s
 import { canWake, chatTarget, liveChats, wakeChat } from './lib/wake.mjs';
 
 const USAGE = `usage: reply-link.mjs open <file> --header "<line>" [--hours N] [--action <name>=<message>]...
+       reply-link.mjs item --title "<words>" --header "<line>" [--hours N] [--action <name>=<message>]...
+                      [--hidden] [--keep-open] [--stop "<message>"]
        reply-link.mjs close <file> | list
   open    show one self-contained HTML file at a link that closes itself and print
           REPLY_LINK=<url>; its page sends text to this chat under the header line.
@@ -31,13 +33,18 @@ const USAGE = `usage: reply-link.mjs open <file> --header "<line>" [--hours N] [
           --hours: how long the link stays open (default 24)
           --action: a button the page may offer, and the one-line message a tap on it
           sends to this chat; the page can never change that message (6 at most)
+  item    put an item with no file in the inbox for this chat and print REPLY_ITEM=<id>, or none;
+          an open item of this chat with the same title is replaced
+          --hidden: the inbox lists no card for it; it still takes taps
+          --keep-open: a tap leaves it open, and moves its close to --hours from then
+          --stop: the one message this chat gets when it closes at its time
   close   close the file's link
   list    print each open page's file and when it closes`;
 export const LIMITS = { text: 20_000, body: 128 * 1024, header: 300, action: 300, actions: 6 };
 const HOURS = 24;
 // Raised when the server or inbox helper changes: one from older code is swapped for this one. Every project on the
 // computer shares both, so a copy that changes either raises it past every other copy's number.
-export const PROTOCOL = 8;
+export const PROTOCOL = 9;
 const ID = /^[0-9a-f]{32}$/;
 const ACTION = /^[a-z][a-z0-9-]{0,30}$/;
 const ROUTE = /^\/p\/([0-9a-f]{32})\/(alive|send|act)?$/;
@@ -338,7 +345,7 @@ function titleOf(text, file) {
 
 /** What the app keeps of an item: its words and actions, never its target chat or messages. */
 const shown = (item, body) => ({ id: item.id, kind: item.kind, title: item.title, workspace: item.workspace, body,
-  actions: Object.keys(item.actions), version: item.version, closesAt: item.deadline });
+  actions: Object.keys(item.actions), version: item.version, closesAt: item.deadline, ...(item.hidden && { hidden: true }) });
 
 /** The item's body as it stands: a plan's file, or the words it was made with; null when the file is gone. */
 function bodyOf(item) {
@@ -390,7 +397,8 @@ export async function openInboxItem(spec, { env = process.env, clientFor = compa
   const item = { id: kept?.id ?? spec.id ?? randomBytes(16).toString('hex'), file, kind: spec.kind, title: file === null ? spec.title : titleOf(body, file),
     workspace: (spec.workspace ?? basename(spec.cwd)).slice(0, 100), header: spec.header, actions: spec.actions, target: spec.target,
     deadline: Date.now() + spec.hours * 3_600_000, version: sha(body), ...(file === null && { body }), done: kept?.done ?? { version: null, names: [] },
-    app: { cwd: spec.cwd, origin } };
+    app: { cwd: spec.cwd, origin }, ...(spec.hidden && { hidden: true }), ...(spec.keepOpen && { keepOpen: true, hours: spec.hours }),
+    ...(spec.stop && { stop: spec.stop }) };
   if (!(await upload(client, shown(item, body)))) return null;
   writeItem(state, item);
   rememberApp(spec.cwd, env);
@@ -434,6 +442,8 @@ async function deliver(state, item, tap, { wake, gap }) {
   const text = typeof tap.text === 'string' ? tap.text.trim() : '';
   if (tap.action === 'send') return text && await gap(item.id) && (await wake(item.target, `${item.header}\n${text}`)) === 'notified' ? 'sent' : 'failed';
   if (!Object.hasOwn(item.actions, tap.action)) return 'failed';
+  // A kept-open item takes the same action again and again: each tap is its own wake.
+  if (item.keepOpen) return await gap(item.id) && (await wake(item.target, item.actions[tap.action])) === 'notified' ? 'sent' : 'failed';
   if (item.done.version !== item.version) item.done = { version: item.version, names: [] };
   if (item.done.names.includes(tap.action)) return 'sent';
   if (!(await gap(item.id))) return 'failed';
@@ -471,7 +481,7 @@ const isEnded = (item, body, { live, now }) => item.deadline <= now || body === 
 
 /** The items whose taps can go this round, by app origin: `origin → {client, items}`. One that ran out, lost its chat
  * or its file closes; one whose app can't be reached waits, as does a rebuilt plan the app has not taken. */
-async function readyApps(state, { clientOf, chats, now }) {
+async function readyApps(state, { clientOf, chats, now, wake }) {
   const apps = new Map();
   const items = openItems(state);
   // The helper's rounds with nothing open ask no chat list of Paseo.
@@ -479,7 +489,12 @@ async function readyApps(state, { clientOf, chats, now }) {
   for (const item of items) {
     const client = await clientOf(item);
     const body = bodyOf(item);
-    if (isEnded(item, body, { live, now })) { await endItem(state, client, item); continue; }
+    if (isEnded(item, body, { live, now })) {
+      // Only an item that ran out of time tells its chat, once: a lost chat or file has no one to tell.
+      if (item.stop && item.deadline <= now && body !== null && !(live && !live.has(item.target?.agentId))) await wake(item.target, item.stop);
+      await endItem(state, client, item);
+      continue;
+    }
     if (!client) continue;
     const version = sha(body);
     if (version !== item.version && !(await upload(client, shown({ ...item, version }, body)))) continue;
@@ -504,10 +519,17 @@ export async function inboxTick(state, { clientFor, wake = wakeChat, chats = liv
   lastWake = new Map(), wait = sleep, log = () => {} }) {
   const clientOf = clientsFor(clientFor);
   const earlier = report(reported);
-  const apps = [...(await readyApps(state, { clientOf, chats, now })).values()];
+  const apps = [...(await readyApps(state, { clientOf, chats, now, wake })).values()];
   // Side by side: an app that never answers would otherwise hold another's taps past DELIVER_MS.
   await Promise.all([earlier, ...apps.map(app => serveApp(state, app, { wake, reported, lastWake, wait, log }))]);
   return reachable(state, clientOf);
+}
+
+/** A kept-open item after a tap: its close moves to its hours from now, here and in the app. */
+async function renew(state, client, item) {
+  item.deadline = Date.now() + item.hours * 3_600_000;
+  keepItem(state, item);
+  await upload(client, shown(item, bodyOf(item)));
 }
 
 /** One app's round: collect its taps, deliver each, close what got its answer, and tell the app each outcome. */
@@ -524,7 +546,8 @@ async function serveApp(state, { client, items }, { wake, reported, lastWake, wa
     outcomes.set(tap.id, { outcome, told: false, at: Date.now(), client });
     reported.set(tap.id, outcomes.get(tap.id));
     // Any item is answered once its answer is in the chat; a rebuilt plan opened again comes back as a new item.
-    if (item && outcome === 'sent') { await endItem(state, client, item); items.delete(item.id); }
+    if (item && outcome === 'sent' && item.keepOpen) await renew(state, client, item);
+    else if (item && outcome === 'sent') { await endItem(state, client, item); items.delete(item.id); }
   }
   await report(outcomes);
 }
@@ -700,24 +723,40 @@ async function close(file) {
   console.log(`REPLY_CLOSED=${page || item ? 'yes' : 'no'}`);
 }
 
+/** Puts a file-less item in the inbox for this chat; replaces this chat's open item of the same title. */
+async function putItem({ title, header, actions, hours, hidden, keepOpen, stop }, env = process.env, cwd = process.cwd()) {
+  const target = chatTarget(env, cwd);
+  if (env.REPLY_LINK === 'off' || !canWake(target, env)) { console.log('REPLY_ITEM=none'); return; }
+  const kept = openItems(files(env)).find(open => open.file === null && open.title === title && open.target?.agentId === target.agentId);
+  const opened = await openInboxItem({ id: kept?.id, kind: 'approval', title, body: JSON.stringify({ text: title }), header, actions, hours,
+    target, cwd, hidden, keepOpen, stop }, { env }).catch(() => null);
+  console.log(`REPLY_ITEM=${opened?.id ?? 'none'}`);
+}
+
 function list() {
   const state = files();
   for (const page of [...openPages(state), ...openItems(state)]) console.log(`${page.file ?? page.title}\tcloses ${new Date(page.deadline).toISOString()}`);
 }
 
 if (isMain(import.meta.url)) {
-  const { values, positionals: [command, ...rest] } = parseCli({ usage: USAGE, allowPositionals: true, options: { header: { type: 'string' }, hours: { type: 'string' }, action: { type: 'string', multiple: true }, service: { type: 'boolean' } } });
-  const takes = { open: 1, close: 1, list: 0, serve: 2, 'serve-inbox': 0 }[command];
+  const { values, positionals: [command, ...rest] } = parseCli({ usage: USAGE, allowPositionals: true, options: { header: { type: 'string' }, hours: { type: 'string' }, action: { type: 'string', multiple: true }, service: { type: 'boolean' },
+    title: { type: 'string' }, hidden: { type: 'boolean' }, 'keep-open': { type: 'boolean' }, stop: { type: 'string' } } });
+  const takes = { open: 1, item: 0, close: 1, list: 0, serve: 2, 'serve-inbox': 0 }[command];
   if (takes === undefined || rest.length !== takes) usageError(USAGE, command ? `unknown command: ${[command, ...rest].join(' ')}` : 'missing command');
   const hours = Number(values.hours ?? HOURS);
   if (!(hours > 0)) usageError(USAGE, '--hours must be a positive number');
   const header = values.header?.trim() ?? '';
-  if (command === 'open' && (!header || /[\r\n]/.test(header) || header.length > LIMITS.header)) usageError(USAGE, '--header takes one line of text');
-  if (command !== 'open' && (values.header !== undefined || values.hours !== undefined || values.action !== undefined)) usageError(USAGE, '--header, --hours, and --action go with open only');
+  const opens = command === 'open' || command === 'item';
+  if (opens && (!header || /[\r\n]/.test(header) || header.length > LIMITS.header)) usageError(USAGE, '--header takes one line of text');
+  if (!opens && (values.header !== undefined || values.hours !== undefined || values.action !== undefined)) usageError(USAGE, '--header, --hours, and --action go with open or item only');
+  const title = values.title?.trim() ?? '', stop = values.stop?.trim() ?? '';
+  if (command === 'item' && (!title || title.length > 200 || stop.length > LIMITS.action)) usageError(USAGE, '--title takes 1 to 200 characters, --stop at most 300');
+  if (command !== 'item' && (values.title ?? values.stop ?? values.hidden ?? values['keep-open']) !== undefined) usageError(USAGE, '--title, --hidden, --keep-open and --stop go with item only');
   if (values.service && command !== 'serve-inbox') usageError(USAGE, '--service goes with serve-inbox only');
   let actions;
   try { actions = checkActions((values.action ?? []).map(pair => pair.split(/=(.*)/s).slice(0, 2))); } catch (error) { usageError(USAGE, error.message); }
-  await { open: () => open(rest[0], { header, actions, hours }), close: () => close(rest[0]), list, serve: () => serve(Number(rest[0]), Number(rest[1])), 'serve-inbox': () => serveInbox({ service: Boolean(values.service) }) }[command]();
+  const itemSpec = { title, header, actions, hours, hidden: Boolean(values.hidden), keepOpen: Boolean(values['keep-open']), stop };
+  await { open: () => open(rest[0], { header, actions, hours }), item: () => putItem(itemSpec), close: () => close(rest[0]), list, serve: () => serve(Number(rest[0]), Number(rest[1])), 'serve-inbox': () => serveInbox({ service: Boolean(values.service) }) }[command]();
   // An app call past its 3 s wait would keep the process, and the chat's answer, alive until it fails.
-  if (command === 'open' || command === 'close') process.exit(process.exitCode ?? 0);
+  if (opens || command === 'close') process.exit(process.exitCode ?? 0);
 }
