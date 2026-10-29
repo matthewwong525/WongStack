@@ -11,6 +11,13 @@
 - **Publishing no longer stops when a spec has the change's name.** The check asks for the change by its kind.
 
 **Updating.** Nothing to do. The app's database gets a new column at the next deploy.
+## 44.21.0 — Each step says what it may change
+
+- **Each step says what it may change, and every chat starts in plan.** Explore changes nothing in the repo; plan, and `/improve-code`, change only plans, wiki pages and schedules, so a plain *remind me every Monday* still just works; build, publish and any other step you type may change anything. Every step may still read, research, run the repo's tests and scripts, and try things in a throwaway folder. [What each step may change](wiki/development/the-change-loop.md#what-each-step-may-change) holds the table.
+- **Only you move a chat past plan.** Code changes start when you type a step, tap *Build it* or *Build and publish* on a plan's page, or pick build or publish when the agent asks.
+- **Explore goes and tries things.** Ask it to test something and it runs the code and reports the results before it offers a plan. New code for a try goes in the throwaway `.scratch/` folder, never in the repo. With no step named, *go test X* is research too, done before any plan.
+
+**Updating.** Nothing to do.
 
 ## 44.20.0 — Each chat gets its own private link
 
