@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Make slide decks
+
+- **Ask for a deck and get a PowerPoint file.** Type `/deck`, or ask *make a deck about X*. The agent writes the slides, builds the file and sends you a link. The link shows every slide with its speaker notes and has a *Download* button ([slide decks](wiki/development/decks.md)).
+- **Send changes from the same page.** Type them in its box and tap *Send changes*. The chat builds the deck again, and the same link shows it.
+- **The slides stay editable.** Text, boxes and arrows are shapes, not pictures, so you can move and retype them in PowerPoint, Keynote, LibreOffice or Google Slides. Short labels go on the slide; the detail goes in the speaker notes.
+- **Nothing new to install.** A Node script builds the file with Node's own modules. Each deck stays in `~/.wong-stack/decks/<name>/`, outside your project, so a later chat can change it.
+
+**Updating.** Nothing to do.
+
 ## 44.21.0 — Each step says what it may change
 
 - **Each step says what it may change, and every chat starts in plan.** Explore changes nothing in the repo; plan, and `/improve-code`, change only plans, wiki pages and schedules, so a plain *remind me every Monday* still just works; build, publish and any other step you type may change anything. Every step may still read, research, run the repo's tests and scripts, and try things in a throwaway folder. [What each step may change](wiki/development/the-change-loop.md#what-each-step-may-change) holds the table.

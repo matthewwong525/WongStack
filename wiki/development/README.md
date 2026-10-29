@@ -9,6 +9,7 @@ How this repo plans, builds, checks, and ships changes. Every WongStack install 
 - [Reply links](reply-links.md) — a plan's page opens at a link whose *Send notes* button puts your notes straight into the chat, and whose *Build it* and *Build and publish* start the build: the inbox, the 24 hours, *new link*, the fallback to copying, and how another page opens the same way.
 - [Staging walkthrough](staging-walkthrough.md) — why `/verify` probes the deployed preview, what you need for it, and what it deliberately is not.
   - [Kept checks](kept-checks.md) — passed preview checks saved in the project and replayed, with no AI, before each publish.
+- [Slide decks](decks.md) — ask for a deck and get a PowerPoint file you can edit, with a link to look at every slide, download it, and send changes; the outline's format and how a good deck reads.
 - [The daily routine](daily.md) — type `/daily` to start your day: your reminders, the team's steps, then your own; then it stays on as your chief of staff, keeping the agents it started moving.
 - [Code improvement](repository-improvement.md) — run or schedule `/improve-code` to find one way to make the code simpler or safer to change; it writes the plan and stops for your yes.
 - [Host schedules](../stack/host-schedules.md) — `/schedule` chooses predictable scripts first and verifies an existing host clock for assistant work; ongoing definitions and finite goals stay visible.

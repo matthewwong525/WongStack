@@ -9,7 +9,7 @@ This runbook turns a fresh install into a running app with session memory. [`/wo
 ## Boundaries
 
 - **No commits or pushes.** Step 1a makes the GitHub repository; everything else lands uncommitted for `/save`. The Artifacts route's one empty first commit on `main` is the exception.
-- **One script does the Cloudflare work, not `wrangler`**, so no app dependency is needed: [`provision.mjs`](../scripts/provision.mjs), in the source checkout, needs only Node ([required tools](../../../../wiki/development/required-tools.md)). Each command prints one JSON report: created, reused, names, URLs. A stop exits 1 with `error.reason` (`token`, `cloudflare`, or `repo`) and a plain `error.cause`; translate it with the [failure map](failure-map.md).
+- **One script does the Cloudflare work, not `wrangler`**: [`provision.mjs`](../scripts/provision.mjs), in the source checkout, needs only Node ([required tools](../../../../wiki/development/required-tools.md)). Each command prints one JSON report: created, reused, names, URLs. A stop exits 1 with `error.reason` (`token`, `cloudflare`, or `repo`) and a plain `error.cause`; translate it with the [failure map](failure-map.md).
 - **Never print a token value**: not in a summary, an error, or an echoed command.
 - **The user token stays on the host**, only in the primary worktree's `.env`. No step copies it or makes it a GitHub secret.
 - **Ask before creating or deleting anything billable**, as [a choice with a recommendation](../../explore/references/asking-the-user.md): say what you will make, then make it.
@@ -52,7 +52,7 @@ Later `.env` means `DURABLE_ENV`; replace or append only the exact `KEY=` line.
 
 ### 1c. Ask for the token
 
-If `CLOUDFLARE_API_TOKEN` in `DURABLE_ENV` is empty, ask for it with the filled-in token link from [the credentials page](../../../../wiki/stack/cloudflare-credentials.md#create-the-token), read from that page rather than copied here: open it, check the two rows, Create, copy. If the link fails, give the page's click path, calling out **Account Resources**, the field people miss. Say what it is for: *"This token stays on this computer. I use it to set up your hosting and to make a smaller token for automatic publishing."*
+If `CLOUDFLARE_API_TOKEN` in `DURABLE_ENV` is empty, ask for it with the filled-in token link from [the credentials page](../../../../wiki/stack/cloudflare-credentials.md#create-the-token), read from that page: open it, check the two rows, Create, copy. If the link fails, give the page's click path, calling out **Account Resources**, the field people miss. Say what it is for: *"This token stays on this computer. I use it to set up your hosting and to make a smaller token for automatic publishing."*
 
 They paste it into the durable file, or to you to write. Re-read `DURABLE_ENV`; export the value unprinted. **No token → setup stops here and writes nothing else**; pasting it later continues from this step.
 
@@ -112,7 +112,7 @@ P provision --repo <owner/name> --base <base> --owner-email <reachable-owner-ema
 
 Resolve a reachable owner email before provisioning; reject `.invalid` and GitHub noreply addresses. The git author email may remain private. Private setup reuses or creates Zero Trust/PIN and unavailable Workers, then gives each its own app before any content publishes. Review overlapping apps first; keep unrelated ones. Machine credentials go to ignored `.env`; public ids to `components.access`. See [Access](../../../../wiki/stack/cloudflare-access.md).
 
-**Open until the card.** When Cloudflare wants a card before it turns on Zero Trust, `--open-without-login` lets setup finish: the report's `access.mode` is `open`, no Access resources are made, and the config carries `WORKSPACE_LOGIN: "off"` ([open until the card](../../../../wiki/stack/cloudflare-access.md#open-until-the-card)). Say it plainly and go on: *"Cloudflare wants a card on file before it turns on the private email login, so for now anyone with your site's link can see it. Your memory stays private behind its own key until then. I'll show you how to add the card at the end."* Any other Access stop still stops setup; an already private site never opens.
+**Open until the card.** When Cloudflare wants a card before it turns on Zero Trust, `--open-without-login` lets setup finish: the report's `access.mode` is `open`, no Access resources are made, and the config carries `WORKSPACE_LOGIN: "off"` ([open until the card](../../../../wiki/stack/cloudflare-access.md#open-until-the-card)). Say: *"Cloudflare wants a card on file before it turns on the private email login, so for now anyone with your site's link can see it. Your memory stays private behind its own key until then. I'll show you how to add the card at the end."* Any other Access stop still stops setup; an already private site never opens.
 
 ### 4b. The memory store
 
@@ -200,7 +200,7 @@ Use `appUrl` for normal login. Check stored issuer/subject before claiming assoc
 
 ### The card list
 
-One list owns these steps; [without R2](../../../../wiki/development/memory.md#without-r2) and [open until the card](../../../../wiki/stack/cloudflare-access.md#open-until-the-card) link here. Fill in the account id, and show only the steps still missing: the storage step when `r2` is `false`, the login step when the site is open, and the card step with either.
+Fill in the account id, and show only the steps still missing: the storage step when `r2` is `false`, the login step when the site is open, and the card step with either.
 
 ```text
 Optional: add a card to Cloudflare
