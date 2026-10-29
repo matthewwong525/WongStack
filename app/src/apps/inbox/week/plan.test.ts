@@ -44,7 +44,7 @@ describe('the week board helpers', () => {
 
   it('reads the day and view from the address', () => {
     expect(scheduleView('week')).toBe('week')
-    expect(scheduleView(null)).toBe('day')
+    expect(scheduleView(null)).toBe('week')
     expect(scheduleDay('2026-10-28')).toBe('2026-10-28')
     expect(scheduleDay('bad')).toBe(localDay())
     expect(scheduleDay(null)).toBe(localDay())

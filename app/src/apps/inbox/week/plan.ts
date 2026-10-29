@@ -102,7 +102,7 @@ export const backlogAddInputId = (groupId: string) => `add-backlog-${groupId}`
 /* ── The day or week on screen, from the address: `?day=YYYY-MM-DD&view=day|week`. */
 
 export type ScheduleView = 'day' | 'week'
-export const scheduleView = (value: string | null): ScheduleView => value === 'week' ? 'week' : 'day'
+export const scheduleView = (value: string | null): ScheduleView => value === 'day' ? 'day' : 'week'
 export const scheduleDay = (value: string | null) => value && localDateFromIsoDate(value) ? value : localDay()
 export const scheduleWeek = (day: string) => weekStart(localDateFromIsoDate(day)!)
 

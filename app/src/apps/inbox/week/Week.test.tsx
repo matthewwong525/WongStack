@@ -82,9 +82,9 @@ it('moves by day and by week, opens today, and drops a slow answer for a week no
   expect(where(router)).toBe('?day=2026-10-27&view=week')
 })
 
-it('opens today in the Day view when the address names no day or a day that is not real', async () => {
+it('opens this week in the Week view when the address names no day or a day that is not real', async () => {
   const router = await open('/apps/inbox/?day=2026-02-30')
-  expect(screen.getByText('Wednesday, Oct 28')).toBeTruthy()
+  expect(screen.getByRole('radio', { name: 'Week' }).getAttribute('aria-checked')).toBe('true')
   expect(where(router)).toBe('?day=2026-02-30')
 })
 

@@ -10,7 +10,7 @@ it('opens the week at its own address, inside the page frame', async () => {
   await act(async () => { render(<RouterProvider router={router} />) })
   expect(await screen.findByTestId('backlog-grid')).toBeTruthy()
   expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Inbox')
-  expect(screen.getByRole('radio', { name: 'Day' }).getAttribute('aria-checked')).toBe('true')
+  expect(screen.getByRole('radio', { name: 'Week' }).getAttribute('aria-checked')).toBe('true')
   expect(calls('GET week')).toHaveLength(1)
 })
 

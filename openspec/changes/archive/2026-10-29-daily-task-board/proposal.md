@@ -84,5 +84,6 @@ Non-goals: no board for each teammate (the board is the app owner's); no notes, 
 - **2026-10-28** — Check: `app/src/apps/inbox/Schedules.test.tsx` is removed, because it tested the removed Schedules view.
 - **2026-10-28** — Check: `app/src/apps/inbox/cadence.test.ts` is removed, because it tested the removed Schedules view's cadence text.
 - **2026-10-28** — Check: `app/src/apps/access/Welcome.test.tsx` gets a 20 s limit for its seven-save test, because a busy full run took over the 5 s default.
+- **2026-10-29** — Fixed: the Inbox opens in the Week view when the address names no view, because the preview walk found it opened on the Day view, against "The inbox opens on the person's week".
 - **2026-10-29** — Assumed: archived and saved for release 45.0.0 by `/ship`, because Matthew chose to build and publish each part without stopping at the plan.
 - **2026-10-29** — Archive checkpoint: `/verify` kept `task-board/the-same-chat-twice` as a check. The preview walk found *Opening the inbox* failing: the Inbox opens on the Day view, not the week (PR comment on #473).
