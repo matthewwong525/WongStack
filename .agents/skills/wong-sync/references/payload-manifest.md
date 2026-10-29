@@ -92,7 +92,7 @@ The [welcome](../../../../wiki/stack/mini-apps.md) offers a first app/guide remo
 
 [Host schedules](../../../../wiki/stack/host-schedules.md) use the app's or a host's clock. Core ships `schedule`, its definition format/host/legacy references, Node helpers, and `openspec/schemas/scheduled-work/`; no cloud runner/bootstrap/model setup.
 
-An install owns its `schedules/<name>.json`, `.agents/daily/`, any old `daily/team.md` and `daily/people/`, business goals and progress. Never list or overwrite those live records here. Routines need no OpenSpec goal; finite goals stay open until verified closed. Save's record-only helper keeps the code gate, refusing code. Updates preserve deployed cloud resources and native host jobs. [Migration/teardown](../../../../wiki/stack/legacy-cloud-schedules.md) is explicit: no action runs twice.
+An install owns its `schedules/<name>.json`, `.agents/daily/`, old `daily/team.md`, `daily/people/`, business goals and progress. Never add those live records to this inventory or overwrite them. Routines need no OpenSpec goal; finite goals stay open until verified closed. Save's record-only helper keeps the code gate, refusing code. Updates preserve deployed cloud resources and native host jobs. [Migration/teardown](../../../../wiki/stack/legacy-cloud-schedules.md) is explicit: no action runs twice.
 
 ## OpenSpec integration and migration
 
