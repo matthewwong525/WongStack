@@ -37,7 +37,7 @@ A chat sometimes needs a button that something else taps, with no page and no ca
 - `app/worker/apps/inbox/item-put.ts` keeps `hidden`; `items.ts` lists no hidden item.
 - `schema/migrations/20261101120000_inbox_hidden_items.sql`: an additive `hidden` column; listed in `payload-files.json` and the `inbox` area.
 - `.claude/skills/ship/scripts/ship.mjs`: `openspec validate <name> --type change`.
-- Tests: `app/tests/employee-access/connections.ts` loads the new migration; `app/worker/apps/inbox/api.test.ts`, `scripts/tests/reply-link-inbox.test.mjs`.
+- Tests: `app/tests/employee-access/connections.ts` loads the new migration; `scripts/tests/live-line.test.mjs` expects `PROTOCOL` 9; `scripts/tests/ship-commands.test.mjs` expects `--type change`; `app/worker/apps/inbox/api.test.ts`, `scripts/tests/reply-link-inbox.test.mjs`.
 - `wiki/development/reply-links.md`: how to put an item with no page.
 - Installs get it by their next sync: a `CHANGELOG.md` `## Next (minor)` entry.
 
@@ -47,3 +47,4 @@ A chat sometimes needs a button that something else taps, with no page and no ca
 - **2026-10-28** — Assumed: the code comes over as WongOS has it, with the migration's comment made general, because WongOS has run it for days and the parity check needs the same files on both sides.
 - **2026-10-28** — Assumed: a `minor` release, because it adds a command and a column.
 - **2026-10-28** — Built: the full local pre-check could not get the shared check runner (other chats held it), so the touched parts ran alone: the Inbox worker tests (53 pass), `reply-link-inbox.test.mjs` (23 pass), payload links, retired names, memory areas and the context size all pass. The online checks decide.
+- **2026-10-29** — Fixed: `live-line.test.mjs` expected the helper's `PROTOCOL` 8 in its hello; a failed assert left the helper running, so the test hung instead of failing. It now expects 9.
