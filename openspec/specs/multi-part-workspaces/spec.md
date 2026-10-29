@@ -60,20 +60,6 @@ Each workspace the agent opens SHALL show its part's short title as its name in 
 - **WHEN** the workspace opens but Paseo refuses to rename it
 - **THEN** the agent still reports the opened workspace and its agent, with a warning that it kept Paseo's name
 
-### Requirement: A publish offers the next work or closing
-
-When `/ship` finishes and more work the person asked for remains, its closing question SHALL offer to open the next piece in a new workspace *(Recommended)*, or stop. When `/ship` merged from a Paseo worktree, the closing question SHALL also offer to close the workspace, recommended when no next work is waiting.
-
-#### Scenario: More work after a publish
-
-- **WHEN** `/ship` merges part A and the queued part B has no workspace yet
-- **THEN** the closing question offers to open B in a new workspace, first and recommended, and stopping
-
-#### Scenario: Nothing left after a publish
-
-- **WHEN** `/ship` merges from a Paseo worktree and no other work the person asked for is waiting
-- **THEN** the closing question offers *Close this workspace* first and recommended
-
 ### Requirement: Work that would displace unpublished work opens elsewhere
 
 When new or resumed work would displace another unpublished change in this workspace, the agent SHALL offer a new workspace first and SHALL switch nothing here until the person answers. A resumed change's workspace SHALL open on its recorded branch.
@@ -115,3 +101,18 @@ Opening a workspace SHALL pass its brief to the new agent as its first message w
 
 - **WHEN** /daily opens a workspace with a brief whose first line is `- **Goal**: …`
 - **THEN** the workspace opens and its agent's first message is that brief, unchanged
+
+### Requirement: A publish opens the next work, then closes
+When `/ship` finishes in a Paseo worktree, it SHALL open each asked-for part with no workspace yet in a new workspace, then run `/close`, with no closing question. Outside a Paseo worktree, its closing question SHALL offer the next part *(Recommended)* when one remains, a walk of the merged app, and stopping. A failed live look, or a `/ship` that `/close` invoked, SHALL NOT close.
+
+#### Scenario: More work after a publish
+- **WHEN** `/ship` merges part A from a Paseo worktree and the asked-for part B has no workspace yet
+- **THEN** it opens B in a new workspace, then runs `/close`
+
+#### Scenario: Nothing left after a publish
+- **WHEN** `/ship` merges from a Paseo worktree and no other asked-for work waits
+- **THEN** it runs `/close` with no question
+
+#### Scenario: Outside Paseo
+- **WHEN** `/ship` merges outside a Paseo worktree and part B remains
+- **THEN** the closing question offers B first and recommended

@@ -30,7 +30,7 @@ node "$M" search --branch "$BRANCH" --change "$CHANGE_NAME" --limit 200
 
 Use active/archived `CHANGE_NAME`; without one, omit show/--change. On main omit --branch. Deduplicate session facts; [place repeatable ones](../../../wiki/development/wiki-dream.md#placing-a-fact-on-a-page). Report [unreachable memory](../memory/SKILL.md#read) and continue.
 
-Publish the edits alone. After a merge, first `git fetch origin main`, `git switch -c "$BRANCH-wiki" origin/main`, and `git branch -D "$BRANCH"`. Then invoke `/ship`, minus its closing question. No edit → report `no repeatable fact`.
+Publish the edits alone. After a merge, first `git fetch origin main`, `git switch -c "$BRANCH-wiki" origin/main`, and `git branch -D "$BRANCH"`. Then invoke `/ship`, minus its closing step. No edit → report `no repeatable fact`.
 
 ## 3. Close
 
