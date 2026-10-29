@@ -138,7 +138,7 @@ Notes pasted from a plan's review page, under the current first line or the olde
 
 ### Requirement: Standalone explore asks in small groups
 
-Standalone `/explore` SHALL ask material questions in small groups of related questions that can be answered together, SHALL wait for answers before asking what depends on them, and MAY ask several groups as the thinking develops. It SHALL write no file. When the thinking is done, it SHALL end with a next-step question whose recommended option is to plan it, and SHALL NOT start `/plan` without that answer.
+Standalone `/explore` SHALL ask material questions in small groups of related questions that can be answered together, SHALL wait for answers before asking what depends on them, and MAY ask several groups as the thinking develops. It SHALL change no repo file; throwaway files in the git-ignored `.scratch/` folder are allowed. When the thinking is done, it SHALL end with a next-step question whose recommended option is to plan it, and SHALL NOT start `/plan` without that answer.
 
 #### Scenario: One answer shapes the next question
 
