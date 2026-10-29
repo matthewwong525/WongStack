@@ -1,0 +1,4 @@
+{
+  "title": "Daily",
+  "actions": ["inbox.daily-tasks", "inbox.daily-task-add", "inbox.daily-task-place", "inbox.daily-task-status", "inbox.daily-task-remove", "inbox.daily-task-link"]
+}

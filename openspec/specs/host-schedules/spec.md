@@ -202,20 +202,6 @@ Renaming the skill SHALL preserve existing cloud and host schedules, and SHALL p
 - **WHEN** the person explicitly moves a legacy follow-up to a host scheduler
 - **THEN** its original is paused before the replacement can act, and unrelated jobs and cloud resources are untouched
 
-### Requirement: The inbox lists and controls each owner's schedules
-
-The inbox SHALL offer a Schedules view, behind the company sign-in and the inbox's own access, listing the signed-in person's schedules with what each does, its state, its next run and its last run's time and result. It SHALL let the owner pause, resume, and run a schedule now, and SHALL show schedules still kept by another host, read-only, with where they run. It SHALL never show one person's schedule to another. Setting up or changing a schedule SHALL stay in the chat.
-
-#### Scenario: Pause from a phone
-
-- **WHEN** the owner taps *Pause* on a weekly schedule
-- **THEN** it shows *Paused* and no run starts until they resume it
-
-#### Scenario: Another person's schedule
-
-- **WHEN** a teammate opens the inbox's Schedules view
-- **THEN** they see only schedules they own
-
 ### Requirement: An app-clock run starts at most once, on the owner's computer
 
 At a schedule's due time the app SHALL wake the owner's computer the schedule is bound to, and that computer SHALL open the schedule's session from the instructions saved in its repo. A run SHALL start at most once. A run that comes due while the computer is away SHALL start once on its return when still within the schedule's allowed lateness, and SHALL otherwise show as missed. A run asked for now while the computer is away SHALL wait and offer *Cancel* until the computer takes it.

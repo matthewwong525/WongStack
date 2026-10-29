@@ -44,6 +44,27 @@
       }
     },
     {
+      // A folder inside a mini app's page keeps the same bounds, one level down.
+      "files": ["src/apps/*/*/**"],
+      "rules": {
+        "no-restricted-imports": ["error", { "patterns": [{
+          "group": ["../../**", "@/apps/**", "@/pages/**"],
+          "message": "A mini app imports only its own folder, src/lib/ and src/components/."
+        }] }]
+      }
+    },
+    {
+      // A folder inside a mini app's server side keeps the same bounds, one level down. The week board's Worker also
+      // reads the board's rules, which its screen shares.
+      "files": ["worker/apps/*/*/**"],
+      "rules": {
+        "no-restricted-imports": ["error", { "patterns": [{
+          "group": ["../../**", "!../../../api/contract.ts", "!../../../api/body.ts", "!../../../../src/lib/board.ts"],
+          "message": "A mini app's server side imports only its own folder, worker/api/contract.ts and src/lib/board.ts."
+        }] }]
+      }
+    },
+    {
       // A test opens its app inside the main app's router and Home, so the folder rule skips test files.
       "files": ["**/*.test.ts", "**/*.test.tsx"],
       "rules": { "no-restricted-imports": "off" }

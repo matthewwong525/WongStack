@@ -1,0 +1,111 @@
+{
+  "format": "verify-journey-1",
+  "id": "the-same-chat-twice",
+  "scenario": {
+    "capability": "task-board",
+    "requirement": "A skill adds a task one time by its key",
+    "scenario": "The same chat twice"
+  },
+  "thenDigest": "3b25d33d32477d61546f82706feefdb52a65887d0fda703547c892eb9aec0a36",
+  "probe": "request",
+  "writes": true,
+  "sourcePaths": [
+    ".agents/skills/daily/SKILL.md",
+    ".agents/skills/daily/actions.json",
+    ".agents/skills/daily/references/chief.md",
+    ".agents/skills/daily/references/example.json",
+    ".agents/skills/daily/scripts/addons.mjs",
+    ".agents/skills/daily/scripts/board.mjs",
+    ".agents/skills/daily/scripts/chief.mjs",
+    ".agents/skills/daily/scripts/config.mjs",
+    ".agents/skills/daily/scripts/daily.mjs",
+    ".agents/skills/daily/scripts/todos.mjs",
+    ".agents/skills/memory/references/areas.json",
+    ".agents/skills/wong-sync/references/payload-files.json",
+    ".agents/skills/wong-sync/references/payload-manifest.md",
+    "app/.oxlintrc.json",
+    "app/knip.jsonc",
+    "app/package.json",
+    "app/src/apps/inbox/AgentCard.tsx",
+    "app/src/apps/inbox/App.test.kit.tsx",
+    "app/src/apps/inbox/App.tsx",
+    "app/src/apps/inbox/Decision.tsx",
+    "app/src/apps/inbox/Header.tsx",
+    "app/src/apps/inbox/LinkRow.tsx",
+    "app/src/apps/inbox/List.tsx",
+    "app/src/apps/inbox/PlanCard.tsx",
+    "app/src/apps/inbox/PlanView.tsx",
+    "app/src/apps/inbox/Schedules.tsx",
+    "app/src/apps/inbox/SendBar.tsx",
+    "app/src/apps/inbox/StartCard.tsx",
+    "app/src/apps/inbox/Unready.tsx",
+    "app/src/apps/inbox/api.ts",
+    "app/src/apps/inbox/app.json",
+    "app/src/apps/inbox/cadence.ts",
+    "app/src/apps/inbox/desk.ts",
+    "app/src/apps/inbox/drafts.ts",
+    "app/src/apps/inbox/groups.ts",
+    "app/src/apps/inbox/keys.ts",
+    "app/src/apps/inbox/linkify.tsx",
+    "app/src/apps/inbox/week/Board.tsx",
+    "app/src/apps/inbox/week/Cells.tsx",
+    "app/src/apps/inbox/week/Parts.tsx",
+    "app/src/apps/inbox/week/Search.tsx",
+    "app/src/apps/inbox/week/TaskRow.tsx",
+    "app/src/apps/inbox/week/Week.tsx",
+    "app/src/apps/inbox/week/drag.ts",
+    "app/src/apps/inbox/week/edits.ts",
+    "app/src/apps/inbox/week/handlers.ts",
+    "app/src/apps/inbox/week/hooks.ts",
+    "app/src/apps/inbox/week/plan.ts",
+    "app/src/apps/inbox/week/week.test.kit.tsx",
+    "app/src/lib/board.ts",
+    "app/vitest.config.ts",
+    "app/worker/api/contract.ts",
+    "app/worker/apps/inbox/api.ts",
+    "app/worker/apps/inbox/tasks/board.ts",
+    "app/worker/apps/inbox/tasks/chat.ts",
+    "app/worker/apps/inbox/tasks/daily-routes.ts",
+    "app/worker/apps/inbox/tasks/groups.ts",
+    "app/worker/apps/inbox/tasks/positions.ts",
+    "app/worker/apps/inbox/tasks/sweep.ts",
+    "app/worker/apps/inbox/tasks/tasks.ts",
+    "app/worker/apps/inbox/tasks/week-routes.ts",
+    "schema/migrations/20261028120000_task_board.sql",
+    "scripts/retired-names.json"
+  ],
+  "recordedAt": "646b9b630d30d8c54f1ab93964a2b847313694e1",
+  "steps": [
+    [
+      "POST",
+      "/apps/inbox/api/daily-task-add",
+      "{\"importKey\":\"chat:flashy-crab\",\"title\":\"Finish the flashy-crab chat\",\"week\":\"2026-10-26\",\"slot\":\"thu\"}"
+    ],
+    [
+      "POST",
+      "/apps/inbox/api/daily-task-add",
+      "{\"importKey\":\"chat:flashy-crab\",\"title\":\"Finish the flashy-crab chat\",\"week\":\"2026-10-26\",\"slot\":\"thu\"}"
+    ],
+    [
+      "GET",
+      "/apps/inbox/api/daily-tasks?week=2026-10-26"
+    ]
+  ],
+  "expect": [
+    {
+      "step": 1,
+      "status": 200,
+      "includes": "chat"
+    },
+    {
+      "step": 2,
+      "status": 200,
+      "includes": "\"created\":false"
+    },
+    {
+      "step": 3,
+      "status": 200,
+      "includes": "chat:flashy-crab"
+    }
+  ]
+}

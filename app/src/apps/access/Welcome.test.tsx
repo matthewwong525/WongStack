@@ -144,4 +144,5 @@ it('carries the setup message, unchanged, for a person who may connect, so they 
   // Lee may not connect, so her page reads no setup message.
   cleanup(); fetchMock.mockClear(); open('people/lee@shop.com'); await panel('lee@shop.com')
   expect(fetchMock.mock.calls.filter(([url]) => url.endsWith('/setup'))).toHaveLength(0)
-})
+// Seven saves in one test, about 4.5 s alone, so a busy full run needs more than the 5 s default.
+}, 20_000)
