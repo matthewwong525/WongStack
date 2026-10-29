@@ -60,7 +60,6 @@
     "app/src/apps/inbox/week/plan.ts",
     "app/src/apps/inbox/week/week.test.kit.tsx",
     "app/src/lib/board.ts",
-    "app/vitest.config.browser.ts",
     "app/vitest.config.ts",
     "app/worker/api/contract.ts",
     "app/worker/apps/inbox/api.ts",
