@@ -30,7 +30,7 @@ Give the agent the logins you choose through a private link, so it logs in for y
 
   Once `wait` prints `HANDOVER_SAVED`, the agent logs in with it as with [any saved login](browsing.md#saved-browser-logins).
 
-  It then names the saved sites in the chat, looked up by name in `browse.mjs logins`, never a password. Only one [private link](browsing.md#how-private-links-work) is open at a time; a [key link](secrets.md#receive-a-key-through-a-private-link) nobody has opened gives way to this one.
+  It then names the saved sites in the chat, looked up by name in `browse.mjs logins`, never a password. Each chat has one [private link](browsing.md#how-private-links-work) open at a time; a [key link](secrets.md#receive-a-key-through-a-private-link) from the same chat that nobody has opened gives way to this one.
 
 The link has [every private link's safety](browsing.md#how-private-links-work): a new address and secret key each time, closed after successful completion, cancellation, or after 24 hours by default. Each password travels once, from your device to that file, and never lands in the chat, a log, a command line, or a file in the repo.
 
