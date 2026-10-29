@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (major) — A week board for your tasks, and a personal daily
+## 45.0.0 — A week board for your tasks, and a personal daily
 
 - **The Inbox opens on your week.** The app keeps the app owner's tasks by day and week, with a backlog. You tick, drag, move and delete them, and type a new one. Teammates get no board yet. A plan still opens from its link. The list of chat questions and the Schedules view are gone: a chat's question waits in that chat.
 - **Each chat you open gets one to-do on today.** It moves to today each new day while the chat lives, and leaves the board, or is marked done on proof, when the chat closes.
