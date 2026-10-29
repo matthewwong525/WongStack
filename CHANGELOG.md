@@ -13,6 +13,28 @@
 
 **Updating.** Your old daily steps files stop working. The update turns each line of `.claude/skills/daily/team.md` into a routine in `.agents/daily/team.json`, and each person's `people/<name>.md` into `.agents/daily/<name>.json`, then removes the old files. Reminders saved in memory are not moved: ask the Daily chat to add each one again. The app update adds the board's tables; tasks you already have stay.
 
+## 44.20.0 — Each chat gets its own private link
+
+- **Each chat has its own private link.** A key link, password link or private form from one chat stays open while another chat opens, waits on or closes its own. A chat's `/close` closes only its own link ([how private links work](wiki/development/browsing.md#how-private-links-work)).
+- **In one chat, an unopened key link still gives way** to that chat's newer link, as before. Another chat's link never blocks it.
+- **The computer still has one live view.** The browser has one screen, so a second view can't open. Its message names the chat that holds it, such as `A live view is already open in modest-toad.` ([live view](wiki/development/live-view.md#what-the-link-can-do)).
+- **`wait` reads a result that lands as the link closes**, so it no longer says *No private link is open* in that short gap.
+
+**Updating.** Nothing to do. A link open during the update keeps working until it closes.
+
+## 44.19.1 — Agents write in Simplified Technical English
+
+- **Agents write user-facing text in Simplified Technical English.** A new rule in `AGENTS.md` asks for ASD-STE100, best effort: one meaning per word, short sentences, active voice. Code, commands, names, quotations and prescribed text stay exact ([voice and tone](wiki/voice.md#voice-and-tone)).
+
+**Updating.** Nothing to do.
+
+## 44.19.0 — A saved login gets one try on a sibling subdomain
+
+- **A saved login can try a sibling subdomain once.** Some sites, such as Jane booking pages, give each clinic its own subdomain and may keep one account across them. With `--main-domain`, a login saved for `clinic.janeapp.com` also types on `myodetox.janeapp.com`, which shares the main domain `janeapp.com`. The agent tries it once, since a repeat can lock the account ([saved browser logins](wiki/development/browsing.md#saved-browser-logins)).
+- **Another main domain still gets nothing.** `janeapp.attacker.example` is not `janeapp.com`, so the login says `wrong-site` and types nothing. Without the flag, a login types only on its own site, as before.
+
+**Updating.** Nothing to do.
+
 ## 44.18.0 — Saved logins work in sign-in boxes from another site
 
 - **The page text says where a sign-in box from another site is.** Many sites put their sign-in box in a frame from another of their own sites, at the very end of the page text. The first line now says frame boxes are at the end and names each frame's site, and each frame's header names its site too ([saved browser logins](wiki/development/browsing.md#saved-browser-logins)).
