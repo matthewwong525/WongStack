@@ -4,7 +4,8 @@
   review:content marker, puts the app's look (look.mjs) at the look marker, the light and dark switch (theme.js) at the
   theme marker, and the change name in place of its token. The one script adds Note buttons, drawing fit and full screen, notes, drafts, and copy. It loads nothing from the network;
   opened through a reply link (reply-link.mjs), it sends the saved notes to the chat, and its footer
-  asks the chat to build, or to build and publish, with saved unsent notes.
+  asks the chat to build, or to build and publish, with saved unsent notes: each button shows when the link offers it.
+  A preview page (data-kind="preview", from apply's preview-review.mjs) names the finished build and offers Publish.
 -->
 <html lang="en">
 <head>
@@ -68,6 +69,11 @@
   .art.screen .gap { gap:.6em; } .art.screen .grow { flex:1 1 0; min-width:0; } .art.screen .muted { margin:0; color:var(--muted-foreground); font-size:inherit; } .art.screen .danger { color:var(--destructive); }
   .art.screen .sk-bar { display:block; height:.75em; border-radius:.375em; background:color-mix(in oklab, var(--muted-foreground) 25%, transparent); }
   .art.screen .tbl, .art.screen table { width:100%; border-collapse:collapse; } .art.screen :is(th, td) { padding:.35em .6em; text-align:left; border-bottom:1px solid var(--border); }
+  /* Picture files: a wrapping row of labelled figures in em, so the fit and zoom scale them like a drawing; two sit side by side when they fit. */
+  .art.photo { width:49.2em; display:flex; flex-wrap:wrap; align-items:flex-start; gap:.8em; white-space:normal; line-height:1.3; }
+  .art.photo figure { flex:1 1 18em; min-width:0; margin:0; text-align:center; }
+  .art.photo img { display:block; width:100%; height:auto; max-height:40em; object-fit:contain; border:1px solid var(--border); border-radius:.4em; background:var(--background); }
+  .art.photo figcaption { margin-top:.3em; color:var(--muted-foreground); font-size:.95em; }
   .item > .table { grid-column:1 / -1; margin:10px calc(-1 * var(--pad)) 0; overflow-x:auto; border-top:1px solid var(--border); }
   .item > .table:last-child { margin-bottom:calc(-1 * var(--pad)); }
   .tbl { width:100%; border-collapse:collapse; font-size:14px; }
@@ -107,6 +113,7 @@
   #editor .row { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
   .bar { position:fixed; left:0; right:0; bottom:0; z-index:4; display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); align-items:stretch; gap:8px; padding:8px 12px calc(8px + env(safe-area-inset-bottom)); background:var(--background); border-top:1px solid var(--border); }
   .bar:has(#ready[hidden]) { grid-template-columns:1fr; }
+  .bar:has(#ready:not([hidden]) > button[hidden]) { grid-template-columns:repeat(2, minmax(0, 1fr)); }
   .bar > button, #ready > button { min-width:0; height:64px; padding:6px; white-space:normal; line-height:1.3; }
   body.docked .bar, body.viewing .bar { display:none; }
   #ready { display:contents; }
@@ -133,6 +140,7 @@
     .entry { font-size:20px; }
     .bar { grid-template-columns:repeat(3, minmax(0, 1fr)); padding-left:max(12px, calc((100vw - 700px) / 2 + 12px)); padding-right:max(12px, calc((100vw - 700px) / 2 + 12px)); }
     .bar:has(#ready[hidden]) { grid-template-columns:1fr; }
+    .bar:has(#ready:not([hidden]) > button[hidden]) { grid-template-columns:repeat(2, minmax(0, 1fr)); }
     .bar > button, #ready > button { height:44px; }
     #ready-confirm, #ready-says { right:max(12px, calc((100vw - 700px) / 2 + 12px)); }
     #ready-confirm { width:320px; }
@@ -147,7 +155,7 @@
   <h1>CHANGE-NAME</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
-  <p class="hint">Tap + Note to comment. <span class="copies">Saving a note copies all your notes.</span> Open a drawing and tap it to see it full screen.</p>
+  <p class="hint"><span class="lead">Tap + Note to comment.</span> <span class="copies">Saving a note copies all your notes.</span> <span class="tail">Open a drawing and tap it to see it full screen.</span></p>
   <p id="script-error" role="alert" hidden></p>
 </header>
 <!-- review:content -->
@@ -192,6 +200,17 @@
   root.classList.add('js');
   const CHANGE = document.body.getAttribute('data-change');
   const KEY = 'wong-review3:' + CHANGE;
+  // A preview page shows a finished build: its words name the preview, and its one action publishes.
+  const PREVIEW = document.body.getAttribute('data-kind') === 'preview', NAME = PREVIEW ? CHANGE.replace(/-preview$/, '') : CHANGE;
+  if (PREVIEW) {
+    document.title = 'Preview · ' + NAME;
+    document.querySelector('.eyebrow').textContent = NAME;
+    document.querySelector('h1').textContent = 'Built: look, then publish?';
+    document.querySelector('.hint .lead').textContent = 'Tap a picture to see it full screen, then tap it to note it.';
+    document.querySelector('.hint .tail').textContent = '';
+    document.querySelector('[data-ready="publish"]').textContent = 'Publish';
+    $('ready-confirm').setAttribute('aria-label', 'Publish? This goes live and can\'t be undone.');
+  }
   const phone = window.matchMedia ? window.matchMedia('(max-width: 700px)') : { matches: false };
   const chip = $('chip'), editor = $('editor'), ta = editor.querySelector('textarea');
   const viewer = $('viewer'), vframe = viewer.querySelector('.vframe'), vbar = viewer.querySelector('.zoom'), vb = vbar.querySelectorAll('button');
@@ -229,9 +248,10 @@
     // A picture's labels are separate SVG text elements: join them with spaces so they read as words.
     // A table row's cells read joined with a dot.
     // A screen's words sit in many small boxes: join every piece of text with a space.
-    const row = el.tagName === 'TR', cells = row ? c.querySelectorAll('td') : el.classList.contains('screen') ? texts(c)
-      : el.classList.contains('pic') ? c.querySelectorAll('text') : [c];
-    const text = Array.prototype.map.call(cells, function (n) { return n.textContent.replace(/\s+/g, ' ').trim(); }).join(row ? ' · ' : ' ').replace(/\s+/g, ' ').trim();
+    // Picture files read as their labels, joined with a dot.
+    const row = el.tagName === 'TR', photo = el.classList.contains('photo'), cells = row ? c.querySelectorAll('td') : photo ? c.querySelectorAll('img')
+      : el.classList.contains('screen') ? texts(c) : el.classList.contains('pic') ? c.querySelectorAll('text') : [c];
+    const text = Array.prototype.map.call(cells, function (n) { return (photo ? n.alt : n.textContent).replace(/\s+/g, ' ').trim(); }).join(row || photo ? ' · ' : ' ').replace(/\s+/g, ' ').trim();
     return where(el.getAttribute('data-note')).kind + ' "' + (text.length > 60 ? text.slice(0, 59) + '…' : text) + '"';
   }
   function texts(c) {
@@ -545,7 +565,9 @@
     });
   }
   function notesText() {
-    return ['Notes on the plan ' + CHANGE + ' from the review page. Don\'t build yet.'].concat(bullets(unsent())).join('\n');
+    const header = PREVIEW ? 'Notes on the preview of ' + NAME + ' from its review page. Don\'t publish yet.'
+      : 'Notes on the plan ' + CHANGE + ' from the review page. Don\'t build yet.';
+    return [header].concat(bullets(unsent())).join('\n');
   }
   function toast(text) {
     $('toast').textContent = text; $('toast').classList.add('show');
@@ -682,9 +704,15 @@
     });
     if (el.offsetHeight) root.style.setProperty('--bar', el.offsetHeight + 19 + 'px');
   }
+  // Each of build and publish shows when the link offers it; the choices stay hidden when it offers neither.
   function offer(answer) {
     const names = answer && answer.actions;
-    if (!Array.isArray(names) || names.indexOf('build') < 0 || names.indexOf('publish') < 0 || typeof answer.version !== 'string') return;
+    if (!Array.isArray(names) || typeof answer.version !== 'string') return;
+    const shown = ['build', 'publish'].filter(function (name) {
+      $('ready').querySelector('[data-ready="' + name + '"]').hidden = names.indexOf(name) < 0;
+      return names.indexOf(name) >= 0;
+    });
+    if (!shown.length) return;
     version = answer.version;
     $('ready').hidden = false;
     bar();
@@ -700,7 +728,7 @@
       const r = await ask('act', live, body);
       if (r.status === 429) { says('Wait a few seconds, then tap again.'); return; }
       const a = await r.json() || {};
-      const line = r.status === 200 && a.sent === true ? 'Asked the chat to build' + (name === 'publish' ? ' and publish.' : '.')
+      const line = r.status === 200 && a.sent === true ? (PREVIEW ? 'Asked the chat to publish.' : 'Asked the chat to build' + (name === 'publish' ? ' and publish.' : '.'))
         : r.status === 409 && a.changed === true ? 'The plan changed. Reload to read it first.'
         : r.status === 409 && a.done === true ? 'The chat was already asked.' : '';
       if (r.status === 410 || r.status === 403) { closed(); return; }
