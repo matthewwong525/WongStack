@@ -30,7 +30,7 @@ Why and What Changes use [plain words](../explore/references/asking-the-user.md#
 
 ## Draw in the proposal, then build the page
 
-Draw as you write, with no second agent or browser: one drawing per What Changes bullet by default, plus a sketch of each new or restructured user-facing screen; more only where a bullet needs it. A drawing is a fence indented inside its bullet, by [the drawing guide](references/drawings.md): `mermaid` for a flow, `screen` for a screen, `svg` for arrows, a Markdown table for a table.
+Draw as you write, with no second agent: one drawing per What Changes bullet by default, plus a sketch of each new or restructured user-facing screen; more only where a bullet needs it. A drawing is a fence indented in its bullet, by [the drawing guide](references/drawings.md). A screen the person can open now also gets [a Before screenshot](../../../wiki/ux-principles.md#the-review-file).
 
     - **Save goes through one gate.** …
       ```mermaid
@@ -38,7 +38,7 @@ Draw as you write, with no second agent or browser: one drawing per What Changes
         apply["/apply"] --> archive --> save["one /save"] --> CI
       ```
 
-Build the page after drafting and after each later edit:
+Build the page after drafting and each later edit:
 
 ```bash
 node "$(git rev-parse --show-toplevel)/.claude/skills/plan/scripts/build-review.mjs" "<change-root>" --require-current --link
@@ -46,7 +46,7 @@ node "$(git rev-parse --show-toplevel)/.claude/skills/plan/scripts/build-review.
 
 Copy its status, plan copy, link, and review lines as printed; [print the plan's link](../explore/references/asking-the-user.md#print-the-plans-link) says when the last goes. `--link` makes the link [a reply link](../../../wiki/development/reply-links.md) where one opens. Fix warned drawings. Keep no other copy of the proposal's text: a second copy goes stale.
 
-A change that adds or restructures a screen gets [a `## UX` design section](../../../wiki/ux-principles.md#the--ux-section-in-designmd); sketch phone work phone-first. UI-less changes omit it.
+A change that adds or restructures a screen gets [a `## UX` design section](../../../wiki/ux-principles.md#the--ux-section-in-designmd); sketch phone work phone-first.
 
 ## Review notes
 

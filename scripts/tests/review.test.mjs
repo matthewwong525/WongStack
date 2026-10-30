@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
-import { assemble, buildReview, chatCopy, notesHeader, planActions, planLink, REVIEW_IN_CHAT, REVIEW_ON_PAGE } from '../../.agents/skills/plan/scripts/build-review.mjs';
+import { assemble, buildReview, chatCopy, notesHeader, planActions, planLink, previewActions, previewNotesHeader, REVIEW_IN_CHAT, REVIEW_ON_PAGE } from '../../.agents/skills/plan/scripts/build-review.mjs';
 import { fakePaseo, fakeTunnel, ORIGIN, TUNNEL_ENV } from './fixtures/fake-tunnel.mjs';
 import { needs } from './fixtures/needs.mjs';
 
@@ -583,4 +583,98 @@ test('in the inbox frame the page says which way the reader turns and when they 
   assert.deepEqual(tops().slice(-1), [false], 'a turn down leaves the top');
   assert.deepEqual(errors, []);
   window.close();
+}));
+
+// ── a preview page: the finished build's screens, with Send notes and Publish only ──
+function previewFixture(fn) {
+  const dir = mkdtempSync(join(tmpdir(), 'wong-review-'));
+  const root = join(dir, 'example-preview');
+  mkdirSync(root);
+  writeFileSync(join(root, 'shot.png'), Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0]));
+  writeFileSync(join(root, 'proposal.md'), `${proposal}\n`.replace('- **Third item**', `- **Inbox**\n  ${fence}picture\n  Live now: shot.png\n  Preview: shot.png\n  ${fence}\n- **Third item**`));
+  try { return fn(root); } finally { rmSync(dir, { recursive: true, force: true }); }
+}
+
+test('a preview page has no Decisions, its own notes key and kind, and fixed words for its line and its one button', () => previewFixture(root => {
+  assert.equal(buildReview(root, { requireCurrent: true, kind: 'preview' }).kind, 'current');
+  const html = page(root);
+  assert.match(html, /<body data-kind="preview" data-change="example-preview">/);
+  assert.doesNotMatch(html, /id="decisions"|href="#decisions"/);
+  assert.match(html, /class="art photo" data-note="item-3-picture-1"/);
+  assert.equal(previewNotesHeader('example'), "Notes on the preview of example from its review page. Don't publish yet.");
+  assert.deepEqual(previewActions('example'), {
+    publish: 'Publish: run /ship for the plan example. Chosen on its preview page. Apply any attached notes first, then continue without another publish choice.',
+  });
+  assert.ok(kit.includes("'Notes on the preview of ' + NAME + ' from its review page. Don\\'t publish yet.'"), 'the kit copies notes under the same line');
+  // A plan page keeps its Decisions and has no kind.
+  buildReview(root, { requireCurrent: true });
+  assert.match(page(root), /<body data-change="example-preview">[\s\S]*id="decisions"/);
+}));
+
+function hosted(window, actions) {
+  const port = { posted: [], postMessage: message => port.posted.push(JSON.parse(JSON.stringify(message))), onmessage: null };
+  const parent = { postMessage: () => {} };
+  Object.defineProperty(window, 'parent', { configurable: true, get: () => parent });
+  const event = new window.MessageEvent('message', { data: { type: 'inbox:hello', item: 'i1', version: 'v1', actions } });
+  Object.defineProperty(event, 'source', { value: parent });
+  Object.defineProperty(event, 'ports', { value: [port] });
+  window.dispatchEvent(event);
+  return port;
+}
+const shown = document => [...document.querySelectorAll('#ready > button')].filter(button => !button.hidden).map(button => button.textContent);
+
+test('in the inbox a preview page names the build, offers only Publish, and sends notes under the preview line', needsDom, () => previewFixture(async root => {
+  buildReview(root, { requireCurrent: true, kind: 'preview' });
+  const { window, document, errors } = dom(page(root));
+  window.document.execCommand = () => true;
+  await loaded(window);
+  assert.equal(document.querySelector('h1').textContent, 'Built: look, then publish?');
+  assert.equal(document.querySelector('.eyebrow').textContent, 'example');
+  assert.equal(document.title, 'Preview · example');
+  assert.match(document.querySelector('.hint').textContent, /^Tap a picture to see it full screen, then tap it to note it\./);
+  document.getElementById('copy').click();
+  const port = hosted(window, ['publish']);
+  assert.deepEqual(port.posted, [{ type: 'inbox:notes-get', key: 'wong-review3:example-preview' }]);
+  assert.equal(document.getElementById('ready').hidden, false);
+  assert.deepEqual(shown(document), ['Publish']);
+  assert.equal(document.getElementById('ready-confirm').getAttribute('aria-label'), 'Publish? This goes live and can\'t be undone.');
+  document.querySelector('[data-ready="publish"]').click();
+  assert.equal(document.getElementById('ready-confirm').hidden, false, 'Publish asks first');
+  assert.equal(port.posted.filter(message => message.type === 'inbox:tap').length, 0);
+  document.querySelector('[data-ready="yes"]').click();
+  assert.deepEqual(port.posted.at(-1), { type: 'inbox:tap', action: 'publish', text: '' });
+  port.onmessage({ data: { type: 'inbox:result', state: 'sent' } });
+  await new Promise(done => setTimeout(done, 0));
+  assert.equal(document.getElementById('ready-message').textContent, 'Asked the chat to publish.');
+  assert.deepEqual(errors, []);
+  window.close();
+}));
+
+test('a preview page opened from disk copies its notes under the preview line', needsDom, () => previewFixture(async root => {
+  buildReview(root, { requireCurrent: true, kind: 'preview' });
+  const { window, document, errors } = dom(page(root));
+  window.document.execCommand = () => true;
+  await loaded(window);
+  const why = document.querySelector('[data-note="why-1"]');
+  why.querySelector('.add').click();
+  document.querySelector('#editor textarea').value = 'Bigger, please.';
+  document.querySelector('#editor [data-act="save"]').click();
+  assert.equal(document.getElementById('copybuf').value.split('\n')[0], "Notes on the preview of example from its review page. Don't publish yet.");
+  assert.deepEqual(errors, []);
+  window.close();
+}));
+
+test('in the inbox a plan page shows each build choice it is offered', needsDom, () => fixture(async root => {
+  // The folder goes at the first await: read the page before it.
+  buildReview(root, { requireCurrent: true });
+  const html = page(root);
+  for (const [actions, want] of [[['build', 'publish'], ['Build it', 'Build and publish']], [['build'], ['Build it']], [['publish'], ['Build and publish']], [[], []]]) {
+    const { window, document, errors } = dom(html);
+    await loaded(window);
+    hosted(window, actions);
+    assert.deepEqual(shown(document).map(label => label.trim()), want, JSON.stringify(actions));
+    assert.equal(document.getElementById('ready').hidden, !want.length);
+    assert.deepEqual(errors, []);
+    window.close();
+  }
 }));

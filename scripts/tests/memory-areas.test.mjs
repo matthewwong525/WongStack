@@ -417,15 +417,17 @@ test('upkeep closes a thread unchecked for 30 days, keeping its tags and naming 
 test('upkeep adds the area a fact names and the verb a thread names, keeping body, date, session, and author', async t => {
   const env = await setup(t);
   const db = env.fake.db;
+  // Under 30 days old, so upkeep never closes the thread whatever today's date is.
+  const created = daysAgo(2);
   db.prepare("INSERT INTO sessions (id, agent, author, status, updated_at) VALUES ('claude:s', 'claude', 'matthew@example.com', 'captured', 'now')").run();
-  const insert = db.prepare("INSERT INTO facts (slug, type, body, session_id, source, created_at, author) VALUES ('routes', ?, ?, 'claude:s', 'save', '2026-09-30T10:00:00Z', 'matthew@example.com') RETURNING id");
-  const fact = insert.get('feedback', 'Test every route when `app/worker/index.ts` changes.').id;
-  const thread = insert.get('thread', 'Check on the next real /wong-sync whether the hook merges.').id;
-  const plain = insert.get('project', 'Nothing here names a folder, e.g. this one.').id;
+  const insert = db.prepare("INSERT INTO facts (slug, type, body, session_id, source, created_at, author) VALUES ('routes', ?, ?, 'claude:s', 'save', ?, 'matthew@example.com') RETURNING id");
+  const fact = insert.get('feedback', 'Test every route when `app/worker/index.ts` changes.', created).id;
+  const thread = insert.get('thread', 'Check on the next real /wong-sync whether the hook merges.', created).id;
+  const plain = insert.get('project', 'Nothing here names a folder, e.g. this one.', created).id;
   const result = await upkeep(env);
   assert.equal(result.stdout.trim(), 'upkeep: closed 0, retagged 2, tags 0');
   const restated = id => rows(env, 'SELECT id, type, body, session_id, created_at, author FROM facts WHERE id = (SELECT superseded_by FROM facts WHERE id = ?)', id)[0];
-  assert.deepEqual({ ...restated(fact), id: undefined }, { id: undefined, type: 'feedback', body: 'Test every route when `app/worker/index.ts` changes.', session_id: 'claude:s', created_at: '2026-09-30T10:00:00Z', author: 'matthew@example.com' });
+  assert.deepEqual({ ...restated(fact), id: undefined }, { id: undefined, type: 'feedback', body: 'Test every route when `app/worker/index.ts` changes.', session_id: 'claude:s', created_at: created, author: 'matthew@example.com' });
   assert.deepEqual(tagsOf(env, restated(fact).id), ['worker']);
   assert.deepEqual(tagsOf(env, restated(thread).id), ['sync']);
   assert.equal(rows(env, 'SELECT superseded_by FROM facts WHERE id = ?', plain)[0].superseded_by, null);

@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // Build a portable review page: parse proposal.md into static, escaped HTML inside the shared kit.
-import { existsSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { basename, dirname, join, resolve } from 'node:path';
+import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { isMain } from '../../memory/scripts/lib/cli.mjs';
@@ -37,6 +37,12 @@ const SCREEN_TYPES = new Set(['text', 'checkbox', 'radio']);
 const SCREEN_CLASSES = new Set(['card', 'btn', 'btn-primary', 'primary', 'btn-ghost', 'field', 'tag', 'tag-outline', 'skeleton',
   'row', 'col', 'grow', 'gap', 'phone', 'muted', 'danger', 'bar', 'sep']);
 const PHONE_WIDE = 360;
+// A `picture` fence: files from the page's own folder, checked by their first bytes, carried inside the page.
+const PHOTO_TYPES = [['image/png', [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]], ['image/jpeg', [0xff, 0xd8, 0xff]], ['image/webp', [0x52, 0x49, 0x46, 0x46]]];
+// The Inbox keeps at most 512 KB a page, and base64 makes a picture a third larger, so the built page is measured.
+const KB = 1024;
+const PHOTO_WARN = 150 * KB, PHOTO_MAX = 300 * KB, PAGE_MAX = 500 * KB;
+const SMALLER = 'take only the visible part at phone width';
 const ENTITIES = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
 const USAGE = `usage: build-review.mjs <change-root> [--require-current] [--link]
   Prints the plan as chat Markdown above the link line, for a reply that ends on the review line.
@@ -322,6 +328,32 @@ function refuser(fence, where, what, how) {
   };
 }
 
+// A `picture` fence: one `[label:] path` a line, each inside the folder, typed by its first bytes, under the limits.
+// The frame starts open and is built only from the checked data and escaped labels, so it skips the SVG check.
+function photos(item, fence, k, ctx, warnings) {
+  const id = `item-${item.n}-picture-${k}`, where = `item ${item.n}, picture ${k}`;
+  const figures = fence.lines.map((line, i) => [line.trim(), fence.at + 1 + i]).filter(([line]) => line).map(([line, at]) => {
+    const stop = why => { throw new Error(`proposal.md line ${at}: ${where}: ${why}`); };
+    const [, label = '', path] = /^(?:([^:]+?):\s+)?(.+)$/.exec(line);
+    if (/^[a-z][\w+.-]*:/i.test(path)) stop(`${path} is a web address; save the picture in the change's folder`);
+    // Checked by name, then again by the real file, so a link can not lead out of the folder either.
+    const outside = (from, to) => /^\.\.(?:[\\/]|$)/.test(relative(from, to)) || isAbsolute(relative(from, to));
+    if (isAbsolute(path) || outside(ctx.root, resolve(ctx.root, path))) stop(`${path} is outside the change's folder`);
+    let real, bytes;
+    try { real = realpathSync(resolve(ctx.root, path)); bytes = readFileSync(real); } catch { stop(`no picture at ${path}`); }
+    if (outside(realpathSync(ctx.root), real)) stop(`${path} is outside the change's folder`);
+    const type = PHOTO_TYPES.find(([, magic]) => magic.every((b, j) => bytes[j] === b))?.[0];
+    if (!type || (type === 'image/webp' && bytes.toString('latin1', 8, 12) !== 'WEBP')) stop(`${path} is not a PNG, JPEG, or WebP picture`);
+    if (bytes.length > PHOTO_MAX) stop(`${path} is ${Math.ceil(bytes.length / KB)} KB; keep a picture under 300 KB: ${SMALLER}`);
+    if (bytes.length > PHOTO_WARN) warnings.push(`proposal.md line ${at}: ${where}: ${path} is ${Math.ceil(bytes.length / KB)} KB; keep pictures under 150 KB: ${SMALLER}`);
+    const alt = esc(label.trim() || basename(path).replace(/\.[^.]*$/, ''));
+    return `<figure><img src="data:${type};base64,${bytes.toString('base64')}" alt="${alt}">${label ? `<figcaption>${alt}</figcaption>` : ''}</figure>`;
+  });
+  if (!figures.length) throw new Error(`proposal.md line ${fence.at}: ${where}: a picture fence names no file`);
+  return '<details class="drawing" open><summary><span class="show">Show picture</span><span class="hide">Hide picture</span><span class="count"></span></summary>'
+    + `<div class="frame"><div class="art photo" data-note="${id}" tabindex="0">${figures.join('')}</div></div></details>`;
+}
+
 // A Markdown table: a header, a separator, and body rows, each row a note target named by its number in the item.
 function table(item, fence, first) {
   const cells = line => line.slice(1, -1).split(/(?<!\\)\|/).map(cell => inline(cell.trim().replace(/\\\|/g, '|')));
@@ -332,16 +364,17 @@ function table(item, fence, first) {
     + '</tbody></table></div>';
 }
 
-function changes(section, warnings) {
+function changes(section, warnings, ctx) {
   let html = '', open = false;
   for (const block of blocks(section, 'item')) {
     if (!block.n) { html += `${open ? '</ol>\n' : ''}<p class="aside">${inline(block.text)}</p>\n`; open = false; continue; }
-    // Text drawings number lines across the item, tables their rows; Mermaid, SVG, and screen pictures share one count.
+    // Text drawings number lines across the item, tables their rows; Mermaid, SVG, screen, and picture share a count.
     let first = 1, pictures = 0, rows = 1;
     const art = block.drawings.map(fence => {
       if (fence.lang === 'mermaid') return picture(block, fence, ++pictures, warnings);
       if (fence.lang === 'svg') return sketch(block, fence, ++pictures, warnings);
       if (fence.lang === 'screen') return screen(block, fence, ++pictures, warnings);
+      if (fence.lang === 'picture') return photos(block, fence, ++pictures, ctx, warnings);
       if (fence.lang === 'table') { const out = table(block, fence, rows); rows += fence.lines.length - 2; return out; }
       const out = drawing(block, fence, first, warnings); first += fence.lines.length; return out;
     });
@@ -372,7 +405,7 @@ function technical(sectionsFound, warnings) {
   if (spans > TECHNICAL) warnings.push(`Why and What Changes name ${spans} files or commands; move them to the design and tasks`);
 }
 
-function render(markdown, warnings) {
+function render(markdown, warnings, root, kind) {
   const found = sections(markdown);
   if (!found.why) throw new Error('proposal.md: missing ## Why');
   if (!found['what changes']) throw new Error('proposal.md: missing ## What Changes');
@@ -382,8 +415,8 @@ function render(markdown, warnings) {
     return `<p data-note="why-${i + 1}" tabindex="0">${inline(block.text)}</p>`;
   });
   return `<section id="why" aria-labelledby="why-h"><h2 id="why-h">Why</h2>\n<div class="card">\n${why.join('\n')}\n</div></section>\n`
-    + `<section id="changes" aria-labelledby="changes-h"><h2 id="changes-h">What Changes</h2>\n${changes(found['what changes'], warnings)}\n</section>\n`
-    + `<section id="decisions" aria-labelledby="decisions-h"><h2 id="decisions-h">Decisions</h2>\n${decisions(found['decision log'])}\n</section>`;
+    + `<section id="changes" aria-labelledby="changes-h"><h2 id="changes-h">What Changes</h2>\n${changes(found['what changes'], warnings, { root })}\n</section>`
+    + (kind === 'preview' ? '' : `\n<section id="decisions" aria-labelledby="decisions-h"><h2 id="decisions-h">Decisions</h2>\n${decisions(found['decision log'])}\n</section>`);
 }
 
 function renderGoal(markdown, root) {
@@ -400,8 +433,8 @@ function renderGoal(markdown, root) {
 }
 
 // The plan as chat Markdown, from the same parse as the page: Why, each change numbered, and the assumed decisions.
-// A chat shows no pictures, so Mermaid, SVG, and screen drawings point to the page; tables and text fences print.
-const PICTURE_LANGS = new Set(['mermaid', 'svg', 'screen']);
+// A chat shows no pictures, so Mermaid, SVG, screen, and picture fences point to the page; tables and text print.
+const PICTURE_LANGS = new Set(['mermaid', 'svg', 'screen', 'picture']);
 export function chatCopy(name, markdown) {
   const found = sections(markdown);
   if (!found.why || !found['what changes']) return '';
@@ -441,7 +474,7 @@ function legacyRefresh(markup, markdown) {
   return markup.slice(0, a) + '\n' + text + '\n' + markup.slice(b);
 }
 
-export function assemble(name, content, kit = readFileSync(kitPath, 'utf8')) {
+export function assemble(name, content, kit = readFileSync(kitPath, 'utf8'), kind = 'plan') {
   one(kit, SLOT, 'review kit');
   if (!kit.includes('CHANGE-NAME')) throw new Error('review kit: missing CHANGE-NAME');
   if ((kit.match(/<script\b/g) || []).length !== 1 || (kit.match(/<style\b/g) || []).length !== 1) {
@@ -452,7 +485,9 @@ export function assemble(name, content, kit = readFileSync(kitPath, 'utf8')) {
   // The app's colours and parts go in the kit's one <style>, and the switch in <head>, so a saved dark choice applies
   // before the first paint; a function replacement keeps any `$` in them literal.
   const theme = `<script>\n${readFileSync(themePath, 'utf8').replace(/<\/script/gi, '<\\/script')}</script>`;
-  const [before, after] = kit.replace(LOOK, () => lookCss()).replace(THEME, () => theme).split(SLOT);
+  let [before, after] = kit.replace(LOOK, () => lookCss()).replace(THEME, () => theme).split(SLOT);
+  // A preview page has no Decisions; the kit reads its kind for its words and buttons.
+  if (kind === 'preview') before = before.replace('<body ', '<body data-kind="preview" ').replace('<li><a href="#decisions">Decisions</a></li>', '');
   return `${FORMAT}\n${before.split('CHANGE-NAME').join(esc(name))}${content}${after.split('CHANGE-NAME').join(esc(name))}`;
 }
 
@@ -476,6 +511,12 @@ export function planLink(page) {
 // The fixed first line of sent and copied notes; the kit writes the same words.
 export const notesHeader = name => `Notes on the plan ${name} from the review page. Don't build yet.`;
 
+// A preview page's line and its one button: the build is done, so only publishing or changing it is left.
+export const previewNotesHeader = name => `Notes on the preview of ${name} from its review page. Don't publish yet.`;
+export const previewActions = name => ({
+  publish: `Publish: run /ship for the plan ${name}. Chosen on its preview page. Apply any attached notes first, then continue without another publish choice.`,
+});
+
 // What each button on a live page tells the chat: the person's build choice, made on the page.
 export const planActions = name => ({
   build: `Build it now: run /apply for the plan ${name}. Chosen on its review page. Apply any attached review notes to this plan first, then continue without another build choice.`,
@@ -488,7 +529,7 @@ async function linked(page, name, goal = false) {
   return (await openReplyLink({ file: page, header: notesHeader(name), ...(goal ? {} : { actions: planActions(name) }) })) ?? page;
 }
 
-export function buildReview(changeRoot, { requireCurrent = false } = {}) {
+export function buildReview(changeRoot, { requireCurrent = false, kind = 'plan' } = {}) {
   const proposalPath = join(changeRoot, 'proposal.md');
   const reviewPath = join(changeRoot, 'review.html');
   if (!existsSync(proposalPath)) throw new Error(`missing ${proposalPath}`);
@@ -500,8 +541,10 @@ export function buildReview(changeRoot, { requireCurrent = false } = {}) {
     return { kind: 'proposal-only', changed: writeIfDifferent(reviewPath, legacyRefresh(page, markdown)), warnings: [] };
   }
   const warnings = [];
-  let next = assemble(basename(resolve(changeRoot)), goal ? renderGoal(markdown, changeRoot) : render(markdown, warnings));
+  let next = assemble(basename(resolve(changeRoot)), goal ? renderGoal(markdown, changeRoot) : render(markdown, warnings, changeRoot, kind), undefined, goal ? 'plan' : kind);
   if (goal) next = next.replace('href="#why">Why', 'href="#why">Goal').replace('href="#changes">Changes', 'href="#changes">Instructions');
+  const size = Buffer.byteLength(next);
+  if (size > PAGE_MAX) throw new Error(`the page is ${Math.ceil(size / KB)} KB; keep a page under 500 KB so the Inbox takes it: show fewer pictures, or ${SMALLER}`);
   return { kind: 'current', changed: writeIfDifferent(reviewPath, next), warnings };
 }
 

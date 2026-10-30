@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 45.1.0 — Real pictures in plans, and a review page for the built screens
+
+- **A plan can show real pictures.** A `picture` fence in a What Changes bullet shows PNG, JPEG or WebP files from the change's own folder, open at the start. Two sit side by side, each with its label, such as *Before* and *After*. The page carries each picture inside itself, so it still opens with no internet. A tap on a picture leaves a note on it. A web address or a file outside the folder stops the build. A picture over 150 KB warns. A picture over 300 KB, or a page over 500 KB, stops the build, so every page fits in the Inbox: take only the visible part at phone width ([the review file](wiki/ux-principles.md#the-review-file)).
+- **A plan that changes a screen you can open today shows a screenshot of it.** `/plan` opens the screen as you, takes a picture, and shows it as the *Before* above the sketch of the new screen. When the screen can not open, the plan says why.
+- **Sketches use real words.** A screen sketch uses real labels and the app's parts, not gray bars. The rule that asked for low detail is gone.
+- **After a build, one review page shows the changed screens.** Each screen shows *Live now* beside *Preview*, at phone width. You tap a picture to leave a note, then **Send notes**, or tap **Publish**, which asks *Goes live, can't be undone* first. This page takes the place of the pictures in chat ([the preview page](wiki/ux-principles.md#the-preview-page)).
+- **A page shows only the buttons its link offers.** Before, *Build it* and *Build and publish* showed only when the link offered both. A plan page still offers both, so it looks as before.
+
+**Updating.** Nothing to do. Plans you already have keep their pages until you change them.
+
 ## 45.0.0 — A week board for your tasks, and a personal daily
 
 - **The Inbox opens on your week.** The app keeps the app owner's tasks by day and week, with a backlog. You tick, drag, move and delete them, and type a new one. Teammates get no board yet. A plan still opens from its link. The list of chat questions and the Schedules view are gone: a chat's question waits in that chat.
