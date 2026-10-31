@@ -10,12 +10,13 @@ const Brand = () => (
   </a>
 );
 
-/** Two quiet text links, so the hero keeps the page's one filled button. */
+/** Quiet text links, so the hero keeps the page's one filled button. */
 export function SiteHeader() {
   return (
     <header className="site-header">
       <Brand />
       <nav>
+        <a href="/attachments">Attachments</a>
         <a href={REPO_URL}>GitHub</a>
         <a href="/#install">Install</a>
       </nav>

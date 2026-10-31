@@ -2,7 +2,7 @@
 
 The landing page is the public site in [`site/`](../../site/): it tells a visitor what WongStack is and how to install it, with no login. It is **meta-only**: no install or update receives it, and it stays apart from the starter app in `app/`, which sits behind a login and ships to every install.
 
-It is plain files, with no server code, database, or secret. Two pages exist: the landing page, and [the privacy page](#privacy-promises) at `/privacy`. Every other address shows the landing page, so an old link never lands on an error.
+It is plain files, with no server code, database, or secret. Three pages exist: the landing page, [the privacy page](#privacy-promises) at `/privacy`, and [the Attachments page](attachments.md) at `/attachments`, a card per paste-in fix. Every other address shows the landing page, so an old link never lands on an error.
 
 ## Change what it says about installing
 

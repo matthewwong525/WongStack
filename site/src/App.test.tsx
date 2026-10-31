@@ -1,5 +1,5 @@
 // The landing page top to bottom, the privacy page, the header and footer, and which address shows which page.
-// Landing.test.tsx covers the install section; Site.test.tsx covers the rules every page keeps.
+// Landing.test.tsx covers the install section, Attachments.test.tsx its page; Site.test.tsx the rules every page keeps.
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import App from "./App";
@@ -219,7 +219,7 @@ it("answers a team owner's questions, naming both ways to install and what each 
   expect(container.textContent).not.toMatch(/endorse|partner/i);
 });
 
-it("puts the logo and name, the GitHub link, and the install link in the header, and no star link", () => {
+it("puts the logo and name, the attachments link, the GitHub link, and the install link in the header, and no star link", () => {
   const { container } = renderAt("/somewhere-else");
   const header = container.querySelector("header") as HTMLElement;
 
@@ -233,6 +233,7 @@ it("puts the logo and name, the GitHub link, and the install link in the header,
       .map((link) => [link.textContent, link.getAttribute("href")]),
   ).toEqual([
     ["WongStack", "/"],
+    ["Attachments", "/attachments"],
     ["GitHub", REPO_URL],
     ["Install", "/#install"],
   ]);
@@ -279,7 +280,7 @@ it("serves the privacy page with a trailing slash, and only there", () => {
   screen.getByText(HEADLINE);
 });
 
-it.each(["/", "/privacy", "/pricing"])("ends %s with the license, the privacy page, and the contact, and no terms", (path) => {
+it.each(["/", "/privacy", "/attachments", "/pricing"])("ends %s with the license, the privacy page, and the contact, and no terms", (path) => {
   renderAt(path);
   expect(
     within(screen.getByRole("contentinfo"))
