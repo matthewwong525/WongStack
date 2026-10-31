@@ -56,6 +56,24 @@ Alternative rejected: free x/y coordinates per shape. More control, but every ag
 
 Alternatives rejected: python-pptx (Python is not a required tool); `pptxgenjs` (adds an npm dependency to every install); slides as images (not editable, and the past image-heavy deck failed in Google Slides).
 
+### Picture kinds
+
+`picture.kind` picks the drawing; no `kind` keeps today's grid (`steps`), so existing outlines still build. Each kind is a layout function returning the same shape list (boxes, ellipses, lines, connectors, text) that both the .pptx writer and the preview draw:
+
+| kind | Fields | Drawn as |
+|-|-|-|
+| `steps` | `nodes`, `arrows` (today's grid) | boxes on a grid joined by arrows |
+| `loop` | `items` (3–6), optional `center` | items evenly round a circle, curved-arrow arcs between them, the center label inside |
+| `compare` | `before` and `after`, each `{title, items}` | two cards side by side; *before* gray with struck-through items, *after* in color with check marks |
+| `hub` | `center`, `spokes` (3–8) | a circle in the middle, spokes as lines to pills placed round it |
+| `layers` | `items` (2–5), widest first | stacked bars narrowing downward, the last one highlighted, a down arrow at the side |
+| `timeline` | `items` of `{when, text}` (2–6) | a line with dots, `when` above each dot, `text` below |
+
+- Items in every kind take the same `text`, `color` and `style` as a grid node, so color and the crossed style mean one thing everywhere.
+- Curved arrows in `loop` are `a:arc`-free: each is a `p:cxnSp` with `prstGeom curvedConnector3` and a triangle head, which PowerPoint, Keynote, LibreOffice and Slides all draw; the preview draws the same quadratic curve.
+- Validation per kind: required fields present, counts in range, unknown fields refused, with the slide named.
+- Alternative rejected: free-drawn SVG pictures embedded as images: not editable, and Slides drops SVG.
+
 ### Where decks live and how they arrive
 
 - `~/.wong-stack/decks/<name>/` holds `deck.json`, `deck.pptx` and `preview.html`, outside every repo and worktree, so a later chat finds it and git never sees it.

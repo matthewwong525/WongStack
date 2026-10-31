@@ -19,9 +19,17 @@
 - [x] 3.1 Write `~/.wong-stack/decks/harness-problems/deck.json`: a title slide, the problem slides from the proposal's table (problem in words left, WongStack's answer as a picture right, detail in speaker notes, each claim checked against the owning wiki page), and a closing slide with wongstack.com.
 - [x] 3.2 Build it and fix every `DECK_WARN=`.
 
+## 5. Picture kinds and the 7-problem deck
+
+- [ ] 5.1 Add the `loop`, `compare`, `hub`, `layers` and `timeline` kinds to `lib/pptx.mjs`'s layout (one function each, same shape list), with curved connectors for `loop`, check marks and strike-through for `compare`; keep a slide with no `kind` as `steps`.
+- [ ] 5.2 Draw the new shapes in `lib/preview.mjs` from the same layout, and validate each kind's fields and counts in `deck.mjs`, naming the slide.
+- [ ] 5.3 Extend `scripts/tests/deck.test.mjs`: each kind builds and its text lands in the slide; counts out of range and unknown fields exit 2; an outline with no kind builds as before.
+- [ ] 5.4 Document the kinds in `wiki/development/decks.md`'s outline section, one short example each, and add "pick the kind that fits the idea; don't repeat one kind slide after slide" to how a good deck reads.
+- [ ] 5.5 Rewrite `~/.wong-stack/decks/harness-problems/deck.json` to the proposal's 7 slides, in plain words, each with its listed kind, plus the title and closing slides; build it and fix every `DECK_WARN=`.
+
 ## 4. Verification
 
-- [x] 4.1 Run `node --test scripts/tests/deck.test.mjs`, `node scripts/measure-context.mjs --check`, `node scripts/check-payload-links.mjs`, and `node .github/scripts/checks.mjs --worktree`.
-- [x] 4.2 Render the harness deck with LibreOffice (`soffice --headless --convert-to pdf`, then page images) and look at every slide: nothing overflows, arrows meet their boxes, the preview matches the file.
-- [x] 4.3 Open the deck's reply link and confirm the page shows every slide and the Download gives a file that opens.
+- [ ] 4.1 Run `node --test scripts/tests/deck.test.mjs`, `node scripts/measure-context.mjs --check`, `node scripts/check-payload-links.mjs`, and `node .github/scripts/checks.mjs --worktree`.
+- [ ] 4.2 Render the harness deck with LibreOffice (`soffice --headless --convert-to pdf`, then page images) and look at every slide: nothing overflows, arrows meet their boxes, the preview matches the file.
+- [ ] 4.3 Open the deck's reply link and confirm the page shows every slide and the Download gives a file that opens.
 - [ ] 4.4 Ask the person to import the downloaded file into Google Slides once and say whether it opens; record the answer.

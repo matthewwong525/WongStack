@@ -1,6 +1,6 @@
 # Make slide decks
 
-**Status:** parked
+**Status:** in-progress
 **Branch:** harness-problems-slide-deck
 **Open questions:** none
 
@@ -16,35 +16,45 @@ You want to ask for a slide deck and get a real PowerPoint file you can open, ed
     ask["you ask"] --> write[slides written] --> link[link: see, download]
     link -->|"changes"| write
   ```
-- **One problem per slide: words on the left, a picture on the right.** The picture is made of boxes and arrows the file keeps as shapes, so you can still move and retype them in PowerPoint, Keynote or Google Slides. Short labels on the slide; the detail goes in the speaker notes.
-  ```screen
-  <div class="card col gap">
-    <h3>Keys leak into chat</h3>
-    <div class="row gap">
-      <div class="col gap grow"><span class="muted">The agent needs your keys. Pasted in chat, they stay in its history.</span></div>
-      <div class="col gap grow">
-        <span class="bar">How WongStack solves it</span>
-        <div class="row gap"><span class="tag-outline">You</span><span>→</span><span class="tag-outline">Private link</span><span>→</span><span class="tag">Key file</span></div>
-      </div>
-    </div>
-  </div>
+- **One problem per slide: words on the left, a picture on the right.** Each picture is drawn as shapes the file keeps, so you can still move and retype them in PowerPoint, Keynote or Google Slides. Short labels on the slide; the detail goes in the speaker notes.
+- **Six kinds of picture, so slides don't all look the same.** The agent picks the kind that fits each idea:
+  ```svg
+  <svg viewBox="0 0 600 220">
+    <text x="10" y="18" fill="muted">steps</text>
+    <rect x="10" y="30" width="40" height="24" rx="4" fill="card" stroke="line"/><rect x="70" y="30" width="40" height="24" rx="4" fill="card" stroke="line"/><rect x="130" y="30" width="40" height="24" rx="4" fill="card" stroke="fg"/>
+    <path d="M50 42h18M110 42h18" stroke="fg"/>
+    <text x="210" y="18" fill="muted">loop</text>
+    <circle cx="260" cy="60" r="34" fill="none" stroke="line"/><circle cx="260" cy="26" r="9" fill="card" stroke="fg"/><circle cx="290" cy="77" r="9" fill="card" stroke="fg"/><circle cx="230" cy="77" r="9" fill="card" stroke="fg"/>
+    <text x="410" y="18" fill="muted">before / after</text>
+    <rect x="410" y="30" width="80" height="70" rx="4" fill="card" stroke="danger"/><rect x="505" y="30" width="80" height="70" rx="4" fill="card" stroke="fg"/>
+    <text x="420" y="70" fill="danger">without</text><text x="518" y="70" fill="fg">with</text>
+    <text x="10" y="130" fill="muted">hub</text>
+    <circle cx="90" cy="180" r="16" fill="card" stroke="fg"/><path d="M90 164v-18M90 196v18M74 180h-30M106 180h30" stroke="line"/>
+    <circle cx="90" cy="142" r="6" fill="subtle"/><circle cx="90" cy="216" r="6" fill="subtle"/><circle cx="40" cy="180" r="6" fill="subtle"/><circle cx="140" cy="180" r="6" fill="subtle"/>
+    <text x="210" y="130" fill="muted">layers</text>
+    <rect x="210" y="140" width="120" height="16" rx="3" fill="card" stroke="line"/><rect x="225" y="162" width="90" height="16" rx="3" fill="card" stroke="line"/><rect x="240" y="184" width="60" height="16" rx="3" fill="card" stroke="fg"/>
+    <text x="410" y="130" fill="muted">timeline</text>
+    <path d="M410 180h180" stroke="line"/><circle cx="430" cy="180" r="6" fill="fg"/><circle cx="490" cy="180" r="6" fill="fg"/><circle cx="550" cy="180" r="6" fill="fg"/>
+  </svg>
   ```
-- **The first deck: building an AI harness.** After the skill works, the agent uses it to make this deck and sends you its link. One slide per problem; change the list on this plan if you want others:
-  | Slide | The problem (words) | How WongStack solves it (picture) |
-  |-|-|-|
-  | Keys and logins | Pasted keys stay in chat history | A private link puts the key in a file on your computer; the app holds business keys |
-  | Memory | Each chat starts blank | Every chat leaves facts; the next chat starts with a digest |
-  | Context | Load everything and the agent drowns | Short start file, then a wiki read one link at a time; a word budget |
-  | Stale knowledge | The same fact in two places goes stale | Four places, one job each; one topic, one page |
-  | Building the wrong thing | Code starts before you agree | Explore, plan with a review page, build only on your go |
-  | Guesses and lost reasons | The agent guesses silently; later nobody knows why | The plan page lists each guess for you to fix; the decision log is kept |
-  | Breaking what works | A change goes live untested | Checks, then a preview, then publish on your yes |
-  | Git for people who don't code | Branches and merges get in the way | You ask in plain words; the steps run git |
-  | Websites without an API | The agent must log in as you | Saved logins, passwords through a private link, a live view at robot checks |
-  | A team on one brain | Everyone needs their own access | Each person signs in; roles decide what they see; one shared memory |
-  | Work that repeats | The agent works only while you chat | Schedules run it and report back |
-  | Tied to one AI | Your setup lives inside one chat app | One repo that Claude Code and Codex both read |
-  | Staying current | A copied template drifts | Updates arrive as a plan that keeps your edits |
+  | Kind | For an idea like |
+  |-|-|
+  | steps | one thing, then the next, with a stop where you say yes |
+  | loop | something that comes back around and gets better each time |
+  | before / after | the usual way, crossed out, beside the better way |
+  | hub | one shared thing in the middle, many people or tools around it |
+  | layers | start small and open only what you need |
+  | timeline | work that happens on its own, on a schedule |
+- **The first deck: the top 7 problems with an AI assistant, in plain words.** Each title names what is at stake for you, not a general idea. After the skill works, the agent uses it to make this deck and sends you its link. Generic problems anyone using AI meets, not how WongStack is built:
+  | Slide | The problem | How WongStack solves it | Picture |
+  |-|-|-|-|
+  | You explain your business again every day | Each new chat starts from zero. You explain your business again. | Each chat saves what it learned; the next one starts knowing it. | loop |
+  | It doesn't know how your business works | It gives generic answers, because it can't see how you do things. | Your company's know-how is written down once, in pages it reads before it works. | before / after |
+  | It builds something you never asked for | It guesses what you meant, and you find out at the end. | It shows you a plan, with its guesses listed, and waits for your go. | steps |
+  | One change takes down your live website | A change that looked fine goes live and breaks something. | Every change is checked, then you see a test copy, then you say publish. | steps (with a failure branch) |
+  | What one person teaches it, the team never gets | Each person's AI learns alone. A fix found on Monday is lost to everyone else. | One shared brain: what any chat learns, every teammate's AI can use. | hub |
+  | Everyone has access to your company secrets | To share the AI with your team, you share one login, and every secret with it. | Each person signs in as themselves and sees only their part. | before / after |
+  | Switch AI apps and you lose your whole setup | Your setup lives inside one AI app. Switch, and you start over. | Your business knowledge lives in your own folder; any AI can use it. | hub |
 
 Non-goals: no upload to Google Drive or other services in this change (download the file, then import it); no photos or charts from data; no editing of a deck someone made in another tool.
 
@@ -77,3 +87,9 @@ Non-goals: no upload to Google Drive or other services in this change (download 
 - **2026-10-29** — Assumed: about 270 bytes of wording cut from setup's Cloudflare runbook, with no rule removed, to fit the new skill under the skill-text budget.
 - **2026-10-29** — Assumed: `areas.json` names the `slide-decks` spec only at archive, because the area test fails on a spec file that does not exist yet.
 - **2026-10-29** — Saved for later, not published (the person's choice). Built and checked here; the deck is at `~/.wong-stack/decks/harness-problems/`. Open: task 4.4, the person imports the file into Google Slides once.
+- **2026-10-29** — Asked, after seeing the first deck, for more varied pictures, less technical wording, and only the top 8 problems → planned five more picture kinds (loop, before/after, hub, layers, timeline) beside steps, and replaced the 13 problem slides with 8 generic ones.
+- **2026-10-29** — Assumed: the 8 problems are the first three you named (logins, memory, context), then planning, safety, team access, schedules and being locked to one AI; stale knowledge, git, websites without an API, and template updates are cut as the most technical.
+- **2026-10-31** — Asked, in review, for slide titles less vague, like "Everyone has access to your company secrets" → rewrote all 8 titles to name what is at stake for you.
+- **2026-10-31** — Asked, in review, to drop the passwords slide (less important for someone starting out) and the schedules slide (not developed enough), to question the "too much to read" slide, and to add one on sharing with the team without sharing company secrets or losing what each person learned → dropped both; added "What one person teaches it, the team never gets"; kept the access slide as the secrets half.
+- **2026-10-31** — Assumed: the context slide becomes "It doesn't know how your business works", because generic answers are the context problem a business owner sees; "too much to read" was the builder's view of it.
+- **2026-10-31** — Assumed: 7 slides, not 8, because the two cuts and one addition leave seven, and padding one in would weaken the deck; timeline and layers stay in the skill but this deck doesn't use them.

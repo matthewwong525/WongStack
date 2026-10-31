@@ -19,6 +19,15 @@ When a person asks for a deck, the agent SHALL produce a .pptx file whose slide 
 - **WHEN** the person opens the file and clicks a box or an arrow in a slide's picture
 - **THEN** it selects as a shape they can move or retype
 
+### Requirement: Pictures fit the idea on each slide
+
+A deck SHALL offer several kinds of picture (steps, a loop, before and after, a hub, layers, a timeline), every kind drawn as editable shapes, so slides need not share one drawing. An outline that names no kind SHALL still build as steps.
+
+#### Scenario: A deck mixes picture kinds
+
+- **WHEN** an outline gives one slide a loop and another a before-and-after picture
+- **THEN** the file shows each slide with its own kind of picture, and each part of it selects as a shape
+
 ### Requirement: The person sees and downloads the deck from a link
 
 The agent SHALL send the finished deck as a reply link whose page shows every slide and offers the file to download. Changes the person sends from that page SHALL reach the chat, and the agent SHALL rebuild the deck from them. Where no reply link can open, the agent SHALL say where the file is on the computer.
