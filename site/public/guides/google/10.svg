@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="372" viewBox="0 0 640 372" font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif" role="img">
+<title>Drawing of the OAuth client created window: the Client ID and Client secret boxes with their Copy buttons marked. The values are hidden.</title>
+<rect width="640" height="372" rx="12" fill="#141414"/>
+<rect x="0.5" y="0.5" width="639" height="371" rx="12" fill="none" stroke="#333"/>
+<circle cx="24" cy="22" r="5" fill="#333"/><circle cx="42" cy="22" r="5" fill="#333"/><circle cx="60" cy="22" r="5" fill="#333"/>
+<text x="320" y="27" fill="#a3a3a3" font-size="13" text-anchor="middle">console.cloud.google.com</text>
+<text x="620" y="27" fill="#a3a3a3" font-size="12" text-anchor="end">Drawing</text>
+<line x1="0" y1="44" x2="640" y2="44" stroke="#333"/>
+<text x="32" y="80" fill="#f5f5f5" font-size="22" font-weight="600">OAuth client created</text>
+<text x="32" y="114" fill="#a3a3a3" font-size="15" font-weight="400">You can not see the client secret again after you close this window.</text>
+<text x="32" y="146" fill="#a3a3a3" font-size="13" font-weight="600">Client ID</text>
+<rect x="32" y="156" width="480" height="40" rx="8" fill="#1f1f1f" stroke="#333"/>
+<text x="46" y="182" fill="#a3a3a3" font-size="15" font-weight="400" font-family="ui-monospace, Menlo, monospace">••••••••••••••••••••••••</text>
+<rect x="524" y="157" width="66" height="38" rx="8" fill="#f5f5f5" stroke="#f5f5f5"/>
+<text x="557" y="181" fill="#0a0a0a" font-size="15" font-weight="600" text-anchor="middle">Copy</text>
+<rect x="518" y="151" width="78" height="50" rx="10" fill="none" stroke="#ff4830" stroke-width="4"/>
+<text x="32" y="226" fill="#a3a3a3" font-size="13" font-weight="600">Client secret</text>
+<rect x="32" y="236" width="480" height="40" rx="8" fill="#1f1f1f" stroke="#333"/>
+<text x="46" y="262" fill="#a3a3a3" font-size="15" font-weight="400" font-family="ui-monospace, Menlo, monospace">••••••••••••••••••••••••</text>
+<rect x="524" y="237" width="66" height="38" rx="8" fill="#f5f5f5" stroke="#f5f5f5"/>
+<text x="557" y="261" fill="#0a0a0a" font-size="15" font-weight="600" text-anchor="middle">Copy</text>
+<rect x="518" y="231" width="78" height="50" rx="10" fill="none" stroke="#ff4830" stroke-width="4"/>
+<rect x="406" y="298" width="141" height="38" rx="8" fill="none" stroke="#333"/>
+<text x="476.5" y="322" fill="#f5f5f5" font-size="15" font-weight="600" text-anchor="middle">Download JSON</text>
+<rect x="559" y="298" width="49" height="38" rx="8" fill="#f5f5f5" stroke="#f5f5f5"/>
+<text x="583.5" y="322" fill="#0a0a0a" font-size="15" font-weight="600" text-anchor="middle">OK</text>
+</svg>

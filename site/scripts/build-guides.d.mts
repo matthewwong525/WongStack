@@ -1,0 +1,20 @@
+// Types for build-guides.mjs, so the tests that import it pass the type check.
+export type Guide = { id: string; kind: "guide" | "page"; meta: Record<string, unknown>; body: string };
+export const SITE: string;
+export const SAFETY_ID: string;
+export const COPY_SCRIPT: string;
+export const HEADER_LINKS: string[][];
+export const FOOTER_LINKS: string[][];
+export const GUIDE_FIELDS: string[];
+export function slug(text: string): string;
+export function parseFrontMatter(text: string, file?: string): { meta: Record<string, unknown>; body: string };
+export function readGuides(dir?: string): Guide[];
+export function readAgentPart(dir?: string): string;
+export type Shot = { page: string; show: string; stop: string };
+export function readShotList(dir?: string): Record<string, Shot>;
+export function withoutPending(markdown: string, shots: Record<string, Shot>): string;
+export function longDate(iso: string): string;
+export function absoluteMarkdown(markdown: string): string;
+export function guideMarkdown(guide: Guide, agentPart: string): string;
+export function renderGuides(options: { dir?: string; cssHref: string; indexHtml: string }): Record<string, string>;
+export function builtCss(indexHtml: string): string;

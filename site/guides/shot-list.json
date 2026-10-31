@@ -1,0 +1,82 @@
+{
+  "/guides/shopify/01.webp": {
+    "page": "https://admin.shopify.com",
+    "show": "Settings, then Apps, then Develop apps: the page with the Build apps in Dev Dashboard button.",
+    "stop": "Take it before you tap the button."
+  },
+  "/guides/shopify/02.webp": {
+    "page": "https://dev.shopify.com",
+    "show": "The Create app form, with the name AI assistant typed in.",
+    "stop": "Take it before you tap Create."
+  },
+  "/guides/shopify/03.webp": {
+    "page": "https://dev.shopify.com",
+    "show": "The app's new version form, with read_orders, read_products and read_customers in the Scopes box.",
+    "stop": "Take it before you tap Release."
+  },
+  "/guides/shopify/04.webp": {
+    "page": "https://dev.shopify.com",
+    "show": "The app's Home page, with the Install app button.",
+    "stop": "Take it before you tap Install app."
+  },
+  "/guides/shopify-theme/02.webp": {
+    "page": "https://admin.shopify.com",
+    "show": "Apps, then Theme Access, then Create password: the form with a name and an email typed in.",
+    "stop": "Take it before you tap Create password."
+  },
+  "/guides/klaviyo/01.webp": {
+    "page": "https://www.klaviyo.com/settings/account/api-keys",
+    "show": "The API keys page, with the Create Private API Key button. Your existing keys may show; I blur them.",
+    "stop": "Take it before you tap the button."
+  },
+  "/guides/klaviyo/02.webp": {
+    "page": "https://www.klaviyo.com/settings/account/api-keys",
+    "show": "The Create private API key form, with AI assistant typed in and Read-only key chosen.",
+    "stop": "Take it before you tap Create. Do not make the key."
+  },
+  "/guides/meta-ads/02.webp": {
+    "page": "https://developers.facebook.com/apps/creation/",
+    "show": "The Use cases step, with Create & manage ads with Marketing API chosen.",
+    "stop": "Take it before you tap Next."
+  },
+  "/guides/meta-ads/03.webp": {
+    "page": "https://developers.facebook.com/apps/creation/",
+    "show": "The Business step, with your business portfolio chosen.",
+    "stop": "Take it before you tap Next."
+  },
+  "/guides/meta-ads/04.webp": {
+    "page": "https://business.facebook.com/settings/system-users",
+    "show": "Business settings, Users, System users: the page with the Add button.",
+    "stop": "Take it before you tap Add."
+  },
+  "/guides/meta-ads/05.webp": {
+    "page": "https://business.facebook.com/settings/system-users",
+    "show": "A system user's Assign assets window, with an ad account chosen and View performance turned on.",
+    "stop": "Take it before you tap Assign."
+  },
+  "/guides/meta-ads/06.webp": {
+    "page": "https://business.facebook.com/settings/system-users",
+    "show": "The Generate token window, with the app chosen and ads_read and business_management ticked.",
+    "stop": "Take it before you tap Generate token. Do not make the token."
+  },
+  "/guides/meta-ads/08.webp": {
+    "page": "https://business.facebook.com/settings/ad-accounts",
+    "show": "Accounts, then Ad accounts: one ad account open, with the number under its name.",
+    "stop": "Any time. The number is not secret, but I blur it."
+  },
+  "/guides/canva/01.webp": {
+    "page": "https://www.canva.com/developers/apps",
+    "show": "Canva's developer portal, with the Create an integration button.",
+    "stop": "Take it before you tap the button."
+  },
+  "/guides/canva/02.webp": {
+    "page": "https://www.canva.com/developers/apps",
+    "show": "An integration's Scopes page, with Read turned on for design:meta, asset and brandtemplate:meta.",
+    "stop": "Any time. Nothing secret shows here."
+  },
+  "/guides/canva/03.webp": {
+    "page": "https://www.canva.com/developers/apps",
+    "show": "An integration's Authentication page, with http://127.0.0.1:3001/oauth/redirect typed as a redirect address.",
+    "stop": "Any time. Do not open Configuration: it shows the secret."
+  }
+}

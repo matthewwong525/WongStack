@@ -219,7 +219,7 @@ it("answers a team owner's questions, naming both ways to install and what each 
   expect(container.textContent).not.toMatch(/endorse|partner/i);
 });
 
-it("puts the logo and name, the attachments link, the GitHub link, and the install link in the header, and no star link", () => {
+it("puts the logo and name, the attachments link, the GitHub link, the install link, and the guides link in the header, and no star link", () => {
   const { container } = renderAt("/somewhere-else");
   const header = container.querySelector("header") as HTMLElement;
 
@@ -236,6 +236,7 @@ it("puts the logo and name, the attachments link, the GitHub link, and the insta
     ["Attachments", "/attachments"],
     ["GitHub", REPO_URL],
     ["Install", "/#install"],
+    ["Guides", "/guides"],
   ]);
   expect(header.textContent).not.toContain("Star");
   screen.getByText(HEADLINE);
