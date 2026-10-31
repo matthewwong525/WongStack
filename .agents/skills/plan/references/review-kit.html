@@ -22,6 +22,8 @@
   code { background:var(--muted); border-radius:4px; padding:.1em .3em; font-size:.88em; }
   [hidden] { display:none !important; }
   header { padding:20px 48px 4px 0; }
+  .back { display:flex; align-items:center; gap:8px; min-width:0; margin:0 0 8px; }
+  .back .muted { margin:0; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .eyebrow { margin:0; color:var(--muted-foreground); font-size:14px; font-weight:500; }
   h1 { margin:2px 0 4px; font-size:22px; line-height:1.25; }
   .jump { display:flex; flex-wrap:wrap; gap:0 18px; margin:4px 0 0; padding:0; list-style:none; }
@@ -148,7 +150,7 @@
 </style>
 <!-- theme -->
 </head>
-<body data-change="CHANGE-NAME">
+<body data-change="CHANGE-NAME" data-own-back>
 <main>
 <header>
   <p class="eyebrow">Review</p>
@@ -785,18 +787,17 @@
     else if (m.type === 'inbox:notes' && (typeof m.value === 'string' || m.value === null)) { load(m.value); render(); }
     else if (hosted.reply && m.type === 'inbox:result') { const reply = hosted.reply; hosted.reply = null; reply(m.state); }
   }
-  // Tells the inbox when the reader turns, down past the top zone or 8 px back up, and when they are in that zone, so
-  // its bars tuck while they read on and its Back row returns only at the top.
-  // A resize moves the page too, as the bars tuck, so it only resets where the last turn was.
-  let down = false, top = true, turn = 0, tall = window.innerHeight;
-  function scrolled() {
-    const y = window.scrollY, was = down, high = top;
-    if (window.innerHeight !== tall) { tall = window.innerHeight; turn = y; }
-    else if (down ? y <= 48 || turn - y > 8 : y > 48 && y - turn > 8) { down = !down; turn = y; }
-    else if (down ? y > turn : y < turn) turn = y;
-    // The top zone ends only on a turn down, so creeping past it without one keeps Back and the plan's height.
-    top = y <= 48 || (top && !down);
-    if (down !== was || top !== high) post({ type: 'inbox:scroll', down: down, top: top });
+  // Back and the workspace sit first in the page, so they scroll away with its words; the inbox's own bar stays put.
+  function backRow(workspace) {
+    const row = document.createElement('div'), back = document.createElement('button');
+    row.className = 'back'; back.type = 'button'; back.className = 'btn-ghost'; back.textContent = 'Back';
+    back.addEventListener('click', function () { post({ type: 'inbox:back' }); });
+    row.appendChild(back);
+    if (typeof workspace === 'string' && workspace) {
+      const where = document.createElement('span');
+      where.className = 'muted'; where.textContent = workspace; row.appendChild(where);
+    }
+    document.querySelector('main > header').prepend(row);
   }
   window.addEventListener('message', function (e) {
     const m = e.data;
@@ -810,8 +811,8 @@
     // Notes live with the inbox page: this frame has no storage of its own.
     store = { setItem: function (key, value) { post({ type: 'inbox:notes-set', key: key, value: value }); } };
     post({ type: 'inbox:notes-get', key: KEY });
+    backRow(m.workspace);
     setLive('inbox'); offer(m); render();
-    window.addEventListener('scroll', scrolled, { passive: true });
   });
   // In a frame, a link opens its own tab and a # link scrolls in place: the frame never leaves this page.
   // A srcdoc page resolves #why against the inbox's address, so following it would load the inbox here.
