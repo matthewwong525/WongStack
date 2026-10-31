@@ -100,3 +100,4 @@ Non-goals: no guides beyond these 8; no mention of WongStack inside a guide; no 
 - **2026-10-31** — Asked for a copy button on each code box → added: one small site-served script adds *Copy* to each box; the page still reads in full without it, so an agent loses nothing.
 - **2026-10-31** — Asked whether to publish with 16 screenshots still on the shot list → chose publish now; the screenshots and the real-key check of each guide (task 2.4) follow after publish.
 - **2026-10-31** — Archived and saved for publish by /ship; the 16 shot-list screenshots and the real-key checks stay open after publish.
+- **2026-10-31** — Merged main (the Attachments page) into the branch: the header now links Attachments, GitHub, Install and Guides, which fit on one line at phone width, and the spec and wiki keep both sides.

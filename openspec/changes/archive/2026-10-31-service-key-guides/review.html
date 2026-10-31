@@ -186,6 +186,8 @@
   code { background:var(--muted); border-radius:4px; padding:.1em .3em; font-size:.88em; }
   [hidden] { display:none !important; }
   header { padding:20px 48px 4px 0; }
+  .back { display:flex; align-items:center; gap:8px; min-width:0; margin:0 0 8px; }
+  .back .muted { margin:0; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .eyebrow { margin:0; color:var(--muted-foreground); font-size:14px; font-weight:500; }
   h1 { margin:2px 0 4px; font-size:22px; line-height:1.25; }
   .jump { display:flex; flex-wrap:wrap; gap:0 18px; margin:4px 0 0; padding:0; list-style:none; }
@@ -368,7 +370,7 @@
 })();
 </script>
 </head>
-<body data-change="2026-10-31-service-key-guides">
+<body data-change="2026-10-31-service-key-guides" data-own-back>
 <main>
 <header>
   <p class="eyebrow">Review</p>
@@ -438,6 +440,7 @@
 <li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-31</p>Asked for a copy button on each code box → added: one small site-served script adds <i>Copy</i> to each box; the page still reads in full without it, so an agent loses nothing.</li>
 <li class="decision card" id="decision-14" data-note="decision-14" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-31</p>Asked whether to publish with 16 screenshots still on the shot list → chose publish now; the screenshots and the real-key check of each guide (task 2.4) follow after publish.</li>
 <li class="decision card" id="decision-15" data-note="decision-15" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-31</p>Archived and saved for publish by /ship; the 16 shot-list screenshots and the real-key checks stay open after publish.</li>
+<li class="decision card" id="decision-16" data-note="decision-16" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-31</p>Merged main (the Attachments page) into the branch: the header now links Attachments, GitHub, Install and Guides, which fit on one line at phone width, and the spec and wiki keep both sides.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
@@ -1066,18 +1069,17 @@
     else if (m.type === 'inbox:notes' && (typeof m.value === 'string' || m.value === null)) { load(m.value); render(); }
     else if (hosted.reply && m.type === 'inbox:result') { const reply = hosted.reply; hosted.reply = null; reply(m.state); }
   }
-  // Tells the inbox when the reader turns, down past the top zone or 8 px back up, and when they are in that zone, so
-  // its bars tuck while they read on and its Back row returns only at the top.
-  // A resize moves the page too, as the bars tuck, so it only resets where the last turn was.
-  let down = false, top = true, turn = 0, tall = window.innerHeight;
-  function scrolled() {
-    const y = window.scrollY, was = down, high = top;
-    if (window.innerHeight !== tall) { tall = window.innerHeight; turn = y; }
-    else if (down ? y <= 48 || turn - y > 8 : y > 48 && y - turn > 8) { down = !down; turn = y; }
-    else if (down ? y > turn : y < turn) turn = y;
-    // The top zone ends only on a turn down, so creeping past it without one keeps Back and the plan's height.
-    top = y <= 48 || (top && !down);
-    if (down !== was || top !== high) post({ type: 'inbox:scroll', down: down, top: top });
+  // Back and the workspace sit first in the page, so they scroll away with its words; the inbox's own bar stays put.
+  function backRow(workspace) {
+    const row = document.createElement('div'), back = document.createElement('button');
+    row.className = 'back'; back.type = 'button'; back.className = 'btn-ghost'; back.textContent = 'Back';
+    back.addEventListener('click', function () { post({ type: 'inbox:back' }); });
+    row.appendChild(back);
+    if (typeof workspace === 'string' && workspace) {
+      const where = document.createElement('span');
+      where.className = 'muted'; where.textContent = workspace; row.appendChild(where);
+    }
+    document.querySelector('main > header').prepend(row);
   }
   window.addEventListener('message', function (e) {
     const m = e.data;
@@ -1091,8 +1093,8 @@
     // Notes live with the inbox page: this frame has no storage of its own.
     store = { setItem: function (key, value) { post({ type: 'inbox:notes-set', key: key, value: value }); } };
     post({ type: 'inbox:notes-get', key: KEY });
+    backRow(m.workspace);
     setLive('inbox'); offer(m); render();
-    window.addEventListener('scroll', scrolled, { passive: true });
   });
   // In a frame, a link opens its own tab and a # link scrolls in place: the frame never leaves this page.
   // A srcdoc page resolves #why against the inbox's address, so following it would load the inbox here.
