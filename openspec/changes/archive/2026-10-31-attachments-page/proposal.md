@@ -92,3 +92,4 @@ Non-goals: no deck and no deck skill (dropped; a deck can point to these cards l
 - **2026-10-31** — Assumed: `scripts/check-attachments.mjs` always reads uncommitted work as well as the branch's commits, with no `--worktree` flag, because the local pre-check runs the same command as CI, and CI's working tree is clean.
 - **2026-10-31** — Assumed: on a phone (under 30rem, 480 px) the header shows the logo without the name, read aloud only, because the name and three links overflow a 400 px screen.
 - **2026-10-31** — Built. The second look found one bug: an empty field, such as a blank `title:`, read as a list and passed the check. Fixed: only `sources:` opens a list; any other empty value reads as missing, with tests for a blank title and a blank order.
+- **2026-10-31** — Archived for publishing. The preview's /attachments page passed at phone width: seven cards, a card link opens at its card, Copy gives the full text.

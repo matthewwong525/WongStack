@@ -23,4 +23,4 @@
 
 - [x] 4.1 Run `node .github/scripts/checks.mjs --worktree` and the site's lint, type check, tests and build.
 - [x] 4.2 Run the check with a scratch edit to `wiki/development/memory.md` alone and confirm it fails naming `site/attachments/memory.md`; undo the edit.
-- [ ] 4.3 `/save`, then open the landing preview's `/attachments` on a phone-width browser: seven cards, a card link opens at its card, Copy puts the full text on the clipboard.
+- [x] 4.3 `/save`, then open the landing preview's `/attachments` on a phone-width browser: seven cards, a card link opens at its card, Copy puts the full text on the clipboard.
