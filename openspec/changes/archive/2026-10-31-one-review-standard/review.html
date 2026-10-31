@@ -12,7 +12,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · one-review-standard</title>
+<title>Review · 2026-10-31-one-review-standard</title>
 <style>
   /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
    look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
@@ -186,6 +186,8 @@
   code { background:var(--muted); border-radius:4px; padding:.1em .3em; font-size:.88em; }
   [hidden] { display:none !important; }
   header { padding:20px 48px 4px 0; }
+  .back { display:flex; align-items:center; gap:8px; min-width:0; margin:0 0 8px; }
+  .back .muted { margin:0; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .eyebrow { margin:0; color:var(--muted-foreground); font-size:14px; font-weight:500; }
   h1 { margin:2px 0 4px; font-size:22px; line-height:1.25; }
   .jump { display:flex; flex-wrap:wrap; gap:0 18px; margin:4px 0 0; padding:0; list-style:none; }
@@ -380,11 +382,11 @@
 })();
 </script>
 </head>
-<body data-change="one-review-standard">
+<body data-change="2026-10-31-one-review-standard" data-own-back>
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>one-review-standard</h1>
+  <h1>2026-10-31-one-review-standard</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint"><span class="lead">Tap + Note to comment.</span> <span class="copies">Saving a note copies all your notes.</span> <span class="tail">Open a drawing and tap it to see it full screen.</span></p>
@@ -454,6 +456,7 @@
 <li class="decision card" id="decision-14" data-note="decision-14" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-31</p>Assumed: an ad card's picture is a file in the page's own folder, under the same size limits, because a page must open offline and fit the Inbox.</li>
 <li class="decision card" id="decision-15" data-note="decision-15" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-31</p>Asked whether to put links at the top of replies, after a long reply hid its link under <i>See more</i> → chose yes, for plans, previews and any web page, in this change.</li>
 <li class="decision card" id="decision-16" data-note="decision-16" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-31</p>Assumed: one change, not two, because the frame, OK and Change, and the prototype make one experience together.</li>
+<li class="decision card" id="decision-17" data-note="decision-17" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-31</p>Archive checkpoint: task 5.2 passed when the person tapped <i>Approve</i> on the ads sample in the Inbox; after main came in, the review-pages spec got its Purpose, a test expects the kit's new <code>data-own-back</code>, and the plan-first attachment names the prototype and OK / Change.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
@@ -1224,18 +1227,17 @@
     else if (m.type === 'inbox:notes' && (typeof m.value === 'string' || m.value === null)) { load(m.value); render(); }
     else if (hosted.reply && m.type === 'inbox:result') { const reply = hosted.reply; hosted.reply = null; reply(m.state); }
   }
-  // Tells the inbox when the reader turns, down past the top zone or 8 px back up, and when they are in that zone, so
-  // its bars tuck while they read on and its Back row returns only at the top.
-  // A resize moves the page too, as the bars tuck, so it only resets where the last turn was.
-  let down = false, top = true, turn = 0, tall = window.innerHeight;
-  function scrolled() {
-    const y = window.scrollY, was = down, high = top;
-    if (window.innerHeight !== tall) { tall = window.innerHeight; turn = y; }
-    else if (down ? y <= 48 || turn - y > 8 : y > 48 && y - turn > 8) { down = !down; turn = y; }
-    else if (down ? y > turn : y < turn) turn = y;
-    // The top zone ends only on a turn down, so creeping past it without one keeps Back and the plan's height.
-    top = y <= 48 || (top && !down);
-    if (down !== was || top !== high) post({ type: 'inbox:scroll', down: down, top: top });
+  // Back and the workspace sit first in the page, so they scroll away with its words; the inbox's own bar stays put.
+  function backRow(workspace) {
+    const row = document.createElement('div'), back = document.createElement('button');
+    row.className = 'back'; back.type = 'button'; back.className = 'btn-ghost'; back.textContent = 'Back';
+    back.addEventListener('click', function () { post({ type: 'inbox:back' }); });
+    row.appendChild(back);
+    if (typeof workspace === 'string' && workspace) {
+      const where = document.createElement('span');
+      where.className = 'muted'; where.textContent = workspace; row.appendChild(where);
+    }
+    document.querySelector('main > header').prepend(row);
   }
   window.addEventListener('message', function (e) {
     const m = e.data;
@@ -1249,8 +1251,8 @@
     // Notes live with the inbox page: this frame has no storage of its own.
     store = { setItem: function (key, value) { post({ type: 'inbox:notes-set', key: key, value: value }); } };
     post({ type: 'inbox:notes-get', key: KEY });
+    backRow(m.workspace);
     setLive('inbox'); offer(m); render();
-    window.addEventListener('scroll', scrolled, { passive: true });
   });
   // In a frame, a link opens its own tab and a # link scrolls in place: the frame never leaves this page.
   // A srcdoc page resolves #why against the inbox's address, so following it would load the inbox here.

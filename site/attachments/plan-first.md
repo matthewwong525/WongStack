@@ -18,6 +18,9 @@ Add a plan-first workflow to my AI setup. Build it in this project and ask me be
 > Write the why and what in plain words: what I will see or do, no file names
 > Add a simple drawing or screen sketch for each change, so I can check it at a glance
 > Turn the plan into one review page I can open on my phone
+> Show each change as close to the real result as you can, so my go means I know what I get
+> For a new or changed screen, build a quick throwaway copy with sample data and show a picture of each state beside today's screen
+> Give each item on the review page an OK and a Change button, and let me note any spot or any words
 > Before the tasks, ask whether a plain script could do the job instead of AI
 > Stop at the plan: change no code until I say build
 > Planning may change plans and notes only; building may change anything

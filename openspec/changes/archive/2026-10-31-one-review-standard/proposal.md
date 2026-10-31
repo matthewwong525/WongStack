@@ -1,6 +1,6 @@
 # Proposal
 
-**Status:** planned
+**Status:** ready-to-ship
 **Branch:** odd-lion
 **Open questions:** none
 
@@ -126,3 +126,4 @@ Non-goals: no email card yet (it comes next, as one more kind); no clickable pro
 - **2026-10-31** — Assumed: an ad card's picture is a file in the page's own folder, under the same size limits, because a page must open offline and fit the Inbox.
 - **2026-10-31** — Asked whether to put links at the top of replies, after a long reply hid its link under *See more* → chose yes, for plans, previews and any web page, in this change.
 - **2026-10-31** — Assumed: one change, not two, because the frame, OK and Change, and the prototype make one experience together.
+- **2026-10-31** — Archive checkpoint: task 5.2 passed when the person tapped *Approve* on the ads sample in the Inbox; after main came in, the review-pages spec got its Purpose, a test expects the kit's new `data-own-back`, and the plan-first attachment names the prototype and OK / Change.

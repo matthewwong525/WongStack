@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — One review standard
+## 45.2.0 — One review standard
 
 - **Every review page looks and works the same.** A plan, a finished build, and other work, such as ads to approve, all show the ask, why, numbered cards, decisions only when there are some, and one bar at the bottom. A page with no decisions shows no Decisions section ([review pages](wiki/review-pages.md)).
 - **Each card takes OK or Change.** *OK* marks the card accepted, and *Undo* takes it back. *Change* opens a note on the card. Each OK goes to the chat with your notes, such as *Card #2: OK*. An OK alone starts nothing.

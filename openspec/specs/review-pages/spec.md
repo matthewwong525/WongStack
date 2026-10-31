@@ -1,7 +1,7 @@
 # review-pages Specification
 
 ## Purpose
-TBD - created by archiving change one-review-standard. Update Purpose after archive.
+Every review page, for a plan or any other work, follows one frame and shows each item as close to the real result as possible, so a person's go gives a known result.
 
 ## Requirements
 

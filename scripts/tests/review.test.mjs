@@ -700,7 +700,7 @@ test('a review page asks its one line, lists its cards under To review, and carr
   const html = page(root);
   assert.match(html, /<title>Review · Approve these 2 ads\?<\/title>/);
   assert.match(html, /<h1>Approve these 2 ads\?<\/h1>/);
-  assert.match(html, /<body data-header="Notes on the review page &quot;Approve these 2 ads\?&quot;\. Don't go on yet\." data-kind="review" data-change="spring-ads">/);
+  assert.match(html, /<body data-header="Notes on the review page &quot;Approve these 2 ads\?&quot;\. Don't go on yet\." data-kind="review" data-change="spring-ads" data-own-back>/);
   assert.match(html, /href="#changes">To review<\/a>/);
   assert.match(html, /<h2 id="changes-h">To review<\/h2>/);
   assert.match(html, /<section id="decisions"[\s\S]*Assumed: two placements/);
