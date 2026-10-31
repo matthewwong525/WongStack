@@ -17,6 +17,7 @@ export function SiteHeader() {
     <header className="site-header">
       <Brand />
       <nav>
+        <a href="/attachments">Attachments</a>
         <a href={REPO_URL}>GitHub</a>
         <a href="/#install">Install</a>
         <a href="/guides">Guides</a>

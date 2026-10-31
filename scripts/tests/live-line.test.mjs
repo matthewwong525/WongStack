@@ -199,9 +199,12 @@ test('a flood of looks runs at most one round a gap, and keeps every checkout si
   const socket = new FakeSocket();
   const client = { target: () => 'https://app.example.com', http: async () => ({ value: null, status: 500 }), socket: async () => socket };
   const runs = [];
-  const rounds = async () => ({ runRound: async (_, options) => { runs.push({ ...options, at: Date.now() }); return 0; }, mirrorRound: async () => {} });
+  // A round starts at its first sign-in look: the folder reads after it take a varying time, so its run is late.
+  let started;
+  const rounds = async () => ({ runRound: async (_, options) => { runs.push({ ...options, at: started }); started = undefined; return 0; }, mirrorRound: async () => {} });
   const stop = new AbortController();
-  const serving = serveInbox({ service: true, env: at.env, clientFor: async () => client, rounds, computer: COMPUTER, signal: stop.signal,
+  const clientFor = async () => { started ??= Date.now(); return client; };
+  const serving = serveInbox({ service: true, env: at.env, clientFor, rounds, computer: COMPUTER, signal: stop.signal,
     log: () => {}, pollFor: () => 3_600_000, roundGap: 400 });
   t.after(() => stop.abort());
   await until(() => runs.length === 1);

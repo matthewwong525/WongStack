@@ -79,6 +79,18 @@ ol {
       gap: 0.75rem;
     }
   }
+  /* Three links and the name don't fit a phone: there the name is read aloud
+     only, beside the logo. */
+  @media (max-width: 30rem) {
+    > a span {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+  }
 }
 
 /* The license, the privacy page, and the contact: one muted row that wraps on a phone. */
@@ -92,6 +104,48 @@ ol {
 
   a:hover {
     color: var(--text);
+  }
+}
+
+/* The attachments page: one reading column of cards, each with its box to copy.
+   scroll-margin keeps a linked card's title clear of the screen's top edge. */
+.attachments {
+  max-width: 42rem;
+  margin: 0 auto;
+  padding: 3rem 0;
+
+  h1 {
+    font-size: clamp(2rem, 5vw, 3rem);
+    font-weight: 500;
+    letter-spacing: -0.02em;
+  }
+  .lede {
+    margin-top: 0.75rem;
+  }
+}
+
+.attachment {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 2rem;
+  padding: clamp(1rem, 4vw, 1.25rem);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  scroll-margin-top: 1rem;
+
+  h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+  }
+  h2 a:hover {
+    text-decoration: underline;
+  }
+  > p:first-of-type {
+    color: var(--muted);
+  }
+  .attachment-message {
+    max-width: none;
   }
 }
 
@@ -404,10 +458,10 @@ img[src^="/logos/"] {
   }
 }
 
-/* The install message: a box with the copy icon in its top-right corner.
-   Long words, such as the link, break inside the box instead of widening the
-   page. */
-.install-message {
+/* The install message and each attachment: a box with the copy icon in its
+   top-right corner. Long words break inside the box, not past the page. */
+.install-message,
+.attachment-message {
   width: 100%;
   max-width: 36rem;
   text-align: left;

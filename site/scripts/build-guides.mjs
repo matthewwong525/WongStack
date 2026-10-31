@@ -19,6 +19,7 @@ export const SAFETY_ID = "keep-keys-safe";
 
 /** The site header's links, as `SiteHeader.tsx` prints them. guides.test.ts fails when the two differ. */
 export const HEADER_LINKS = [
+  ["Attachments", "/attachments"],
   ["GitHub", REPO_URL],
   ["Install", "/#install"],
   ["Guides", "/guides"],

@@ -1,0 +1,77 @@
+{
+  "format": "verify-journey-1",
+  "id": "a-visitor-copies-an-attachment",
+  "scenario": {
+    "capability": "landing-site",
+    "requirement": "The site offers paste-in attachments",
+    "scenario": "A visitor copies an attachment"
+  },
+  "thenDigest": "fa6f40ad91623dd2a48a9a611489a822b059ed38f48bb82118f1e08a79132eb2",
+  "probe": "browser",
+  "site": "landing-preview",
+  "writes": false,
+  "sourcePaths": [
+    ".agents/skills/paste-this-into-your-ai/SKILL.md",
+    ".agents/skills/paste-this-into-your-ai/references/memory-example.md",
+    ".github/CONTRIBUTING.md",
+    ".github/workflows/payload.yml",
+    "scripts/check-attachments.mjs",
+    "scripts/payload-checks.mjs",
+    "site/attachments/know-how.md",
+    "site/attachments/memory.md",
+    "site/attachments/own-your-setup.md",
+    "site/attachments/parse.d.mts",
+    "site/attachments/parse.mjs",
+    "site/attachments/plan-first.md",
+    "site/attachments/safe-changes.md",
+    "site/attachments/team-access.md",
+    "site/attachments/team-learning.md",
+    "site/src/App.tsx",
+    "site/src/Attachments.tsx",
+    "site/src/SiteHeader.tsx",
+    "site/src/attachmentFiles.ts",
+    "site/src/index.css"
+  ],
+  "recordedAt": "dec3d97c222fee6b80d6273f8fc82968bceb18e8",
+  "steps": [
+    [
+      "set",
+      "viewport",
+      "390",
+      "844"
+    ],
+    [
+      "open",
+      "{url}/attachments"
+    ],
+    [
+      "wait",
+      "--load",
+      "networkidle"
+    ],
+    [
+      "eval",
+      "window.__copied=null; navigator.clipboard.writeText = t => { window.__copied = t; return Promise.resolve(); }; 'ready'"
+    ],
+    [
+      "eval",
+      "document.querySelector('#memory button').click(); 'clicked'"
+    ],
+    [
+      "wait",
+      "500"
+    ],
+    [
+      "eval",
+      "JSON.stringify({length: window.__copied && window.__copied.length, lastLine: window.__copied && window.__copied.trim().split('\\n').pop()})"
+    ]
+  ],
+  "expect": [
+    {
+      "text": "Copied"
+    },
+    {
+      "text": "You explain your business again every day"
+    }
+  ]
+}

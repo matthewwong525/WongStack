@@ -228,6 +228,7 @@ it("keeps one filled button above the fold: the header's links and the hero's Gi
       .map((link) => [link.textContent, link.getAttribute("href"), link.className]),
   ).toEqual([
     ["WongStack", "/", ""],
+    ["Attachments", "/attachments", ""],
     ["GitHub", REPO_URL, ""],
     ["Install", "/#install", ""],
     ["Guides", "/guides", ""],

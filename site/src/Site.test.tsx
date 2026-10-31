@@ -14,7 +14,7 @@ const html = readFileSync(site("index.html"), "utf8");
 const css = readFileSync(site("src/index.css"), "utf8");
 
 /** Every page the React app has. Any other address shows the first. */
-const PAGES = ["/", "/privacy"];
+const PAGES = ["/", "/privacy", "/attachments"];
 
 /** The guides: plain files scripts/build-guides.mjs writes, each page and its plain-text copy. The test stylesheet
  * address names a real file, so the outside-file read can check it exists. */
