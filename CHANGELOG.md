@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (patch) — The app's top bar stays put
+## 45.1.1 — The app's top bar stays put
 
 - **The app's bar stays at the top of every page.** It no longer hides when you read down a plan, and it no longer slides back over the plan when you scroll up. On the week board, Access and every other page, it stays at the top as you scroll, as before 44.15.0.
 - **_Back_ and the plan's name scroll away with the plan.** They sit at the top of the plan's own page, above its title, and go up with its words. The plan never changes size. Scroll back to the top to tap *Back*.

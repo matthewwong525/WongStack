@@ -25,4 +25,4 @@
 ## 5. Verification
 
 - [x] 5.1 Run the app's checks and `node .github/scripts/checks.mjs --worktree`; fix what fails
-- [ ] 5.2 `/save`, then on the preview at 390 px: the bar stays put on the week board, Access and a plan; *Back* scrolls off with a fresh plan and its tap opens the week board; an older plan shows *Back* pinned and nothing slides
+- [x] 5.2 `/save`, then on the preview at 390 px: the bar stays put on the week board, Access and a plan; *Back* scrolls off with a fresh plan and its tap opens the week board; an older plan shows *Back* pinned and nothing slides

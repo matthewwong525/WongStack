@@ -1,6 +1,6 @@
 # The app's top bar stays put
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** goofy-crab
 **Open questions:** none
 
@@ -75,3 +75,5 @@ Non-goals: the plan's own bottom bar, the line about a sent tap, the week board'
 - **2026-10-31** — Assumed: the bar returns to its old look, slightly see-through with a blur, because that was the pinned bar before 2026-10-25 and it keeps a long page readable under it.
 - **2026-10-31** — Assumed: no Before screenshot, because the problem is the bar's motion, which a still picture can't show.
 - **2026-10-31** — Built: every task but the preview check; the second look found nothing to fix. The plan's page now marks its `<body>` with `data-own-back`, so `scripts/tests/preview-review.test.mjs` changed one expected line. Saved to check on the preview (task 5.2).
+- **2026-10-31** — Checked on the preview at 390 px (saved 4be290b): the bar stays at the top on the week board, Access and a plan; *Back* and the workspace scroll away inside a fresh plan, which keeps its size, and *Back* opens the week board; an older plan keeps *Back* pinned and nothing slides. The plans were stand-ins served to the browser, because the preview's plan routes refuse the check's machine sign-in.
+- **2026-10-31** — Archived to publish as 45.1.1; every task done.

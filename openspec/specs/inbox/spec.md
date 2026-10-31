@@ -106,7 +106,7 @@ A plan opened in the inbox SHALL show the app's light or dark look and SHALL off
 
 ### Requirement: A plan fills the screen
 
-A plan opened in the inbox SHALL fill the screen below its top row, edge to edge and down to the bottom, with no border or corners of its own, and the page around it SHALL NOT scroll. The plan's own bar SHALL sit on the screen's bottom edge, and its notes and full-screen drawings SHALL work as on the page opened on its own. While the person scrolls down a plan, the app's bar and the plan's top row SHALL hide and the plan SHALL fill the whole screen. Scrolling up SHALL bring back only the app's bar, laid over the plan so the plan does not move; the top row SHALL return only when the plan reaches its top. A plan whose page does not say when it is at its top SHALL bring both back on scroll up.
+A plan opened in the inbox SHALL fill the screen below the app's bar, edge to edge and down to the bottom, with no border or corners of its own, and the page around it SHALL NOT scroll. The plan's own bar SHALL sit on the screen's bottom edge, and its notes and full-screen drawings SHALL work as on the page opened on its own. The app's bar SHALL stay at the top while the person reads, never hiding or sliding back, and the plan SHALL keep its size as they scroll. *Back* and the plan's workspace SHALL sit at the top of the plan's own page and scroll away with it. A plan whose page has no *Back* of its own SHALL show *Back* pinned above it.
 
 #### Scenario: Opening a plan
 
@@ -121,12 +121,12 @@ A plan opened in the inbox SHALL fill the screen below its top row, edge to edge
 #### Scenario: Reading down a plan
 
 - **WHEN** the person scrolls down a plan on a phone, then scrolls back up partway
-- **THEN** the app's bar and *Back* hide while they read down, with the plan's bar still on the bottom edge; on the way up only the app's bar returns, over the plan, which stays where it was
+- **THEN** the app's bar stays at the top the whole time, *Back* and the workspace scroll up and away with the plan's words, and the plan never moves or changes size on its own
 
 #### Scenario: Back at the top
 
-- **WHEN** the person scrolls a plan back to its top
-- **THEN** the app's bar and *Back* show above the plan, as when it opened
+- **WHEN** the person scrolls a plan back to its top and taps *Back*
+- **THEN** *Back* and the workspace show above the plan's title, and the tap opens the week board
 
 ### Requirement: The inbox opens on the person's week
 
@@ -141,3 +141,12 @@ The inbox mini app SHALL open on the signed-in person's week board, where they t
 
 - **WHEN** Jo opens a plan's link from a chat
 - **THEN** the plan opens in the inbox as before
+
+### Requirement: An older plan keeps its pinned Back
+
+A plan whose page was built before it carried its own *Back* SHALL show *Back* and its workspace pinned above the plan, with the app's bar above them, until its chat rebuilds it.
+
+#### Scenario: Opening an older plan
+
+- **WHEN** the person opens a plan built before this change
+- **THEN** *Back* and the workspace sit above the plan and stay there while it scrolls, and nothing hides or slides

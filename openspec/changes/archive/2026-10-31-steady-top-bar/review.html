@@ -12,7 +12,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · steady-top-bar</title>
+<title>Review · 2026-10-31-steady-top-bar</title>
 <style>
   /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
    look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
@@ -370,11 +370,11 @@
 })();
 </script>
 </head>
-<body data-change="steady-top-bar" data-own-back>
+<body data-change="2026-10-31-steady-top-bar" data-own-back>
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>steady-top-bar</h1>
+  <h1>2026-10-31-steady-top-bar</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint"><span class="lead">Tap + Note to comment.</span> <span class="copies">Saving a note copies all your notes.</span> <span class="tail">Open a drawing and tap it to see it full screen.</span></p>
@@ -429,6 +429,8 @@
 <li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-31</p>Assumed: the bar returns to its old look, slightly see-through with a blur, because that was the pinned bar before 2026-10-25 and it keeps a long page readable under it.</li>
 <li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-31</p>Assumed: no Before screenshot, because the problem is the bar's motion, which a still picture can't show.</li>
 <li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-31</p>Built: every task but the preview check; the second look found nothing to fix. The plan's page now marks its <code>&lt;body&gt;</code> with <code>data-own-back</code>, so <code>scripts/tests/preview-review.test.mjs</code> changed one expected line. Saved to check on the preview (task 5.2).</li>
+<li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-31</p>Checked on the preview at 390 px (saved 4be290b): the bar stays at the top on the week board, Access and a plan; <i>Back</i> and the workspace scroll away inside a fresh plan, which keeps its size, and <i>Back</i> opens the week board; an older plan keeps <i>Back</i> pinned and nothing slides. The plans were stand-ins served to the browser, because the preview's plan routes refuse the check's machine sign-in.</li>
+<li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-31</p>Archived to publish as 45.1.1; every task done.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
