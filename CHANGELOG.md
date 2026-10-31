@@ -15,6 +15,13 @@
 
 **Updating.** Nothing to do. Plans you already have keep their pages until you change them.
 
+## 45.1.1 — The app's top bar stays put
+
+- **The app's bar stays at the top of every page.** It no longer hides when you read down a plan, and it no longer slides back over the plan when you scroll up. On the week board, Access and every other page, it stays at the top as you scroll, as before 44.15.0.
+- **_Back_ and the plan's name scroll away with the plan.** They sit at the top of the plan's own page, above its title, and go up with its words. The plan never changes size. Scroll back to the top to tap *Back*.
+
+**Updating.** Nothing to do. A plan sent before this update keeps *Back* fixed above it until its chat builds the plan again.
+
 ## 45.1.0 — Real pictures in plans, and a review page for the built screens
 
 - **A plan can show real pictures.** A `picture` fence in a What Changes bullet shows PNG, JPEG or WebP files from the change's own folder, open at the start. Two sit side by side, each with its label, such as *Before* and *After*. The page carries each picture inside itself, so it still opens with no internet. A tap on a picture leaves a note on it. A web address or a file outside the folder stops the build. A picture over 150 KB warns. A picture over 300 KB, or a page over 500 KB, stops the build, so every page fits in the Inbox: take only the visible part at phone width ([the review file](wiki/ux-principles.md#the-review-file)).

@@ -46,6 +46,7 @@ export const STEPS = [
   { name: 'payload-links', when: 'always', command: 'node scripts/check-payload-links.mjs' },
   { name: 'openspec-config', when: 'always', command: 'node scripts/check-openspec-config.mjs' },
   { name: 'retired-names', when: 'always', command: 'node scripts/check-retired-names.mjs' },
+  { name: 'attachments', when: 'always', command: 'node scripts/check-attachments.mjs' },
   { name: 'specs', when: 'always', tool: 'openspec', command: 'openspec validate --specs --strict --no-interactive' },
   { name: 'context-budget', when: 'always', command: 'node scripts/measure-context.mjs --check' },
 ];

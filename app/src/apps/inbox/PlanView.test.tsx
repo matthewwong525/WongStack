@@ -79,7 +79,9 @@ it('seals the plan in a frame that can run its page but never reach the app, and
   expect(screen.getByRole('heading', { level: 1, name: 'One inbox' }).className).toBe('sr-only')
   expect(screen.getByText('lousy-dingo')).toBeTruthy()
   expect(screen.getByRole('link', { name: 'Back' }).getAttribute('href')).toBe('/apps/inbox/')
-  expect(posted).toHaveBeenCalledWith({ type: 'inbox:hello', item: PLAN, version: 'v1', actions: ['build', 'publish'], theme: 'light' }, '*', [port])
+  // The hello names the workspace, so a page that draws its own Back can show it there.
+  expect(posted).toHaveBeenCalledWith({ type: 'inbox:hello', item: PLAN, version: 'v1', actions: ['build', 'publish'], workspace: 'lousy-dingo',
+    theme: 'light' }, '*', [port])
 })
 
 it('fills the window below the Back row and the tap line, edge to edge with no border, so only the plan scrolls', async () => {
@@ -95,58 +97,40 @@ it('fills the window below the Back row and the tap line, edge to edge with no b
   expect(last).toBe(frame)
 })
 
-it('tucks the app bar and the Back row while the person reads down the plan, filling the screen, and leaves no page tucked', async () => {
+it("pins an older plan's Back above it, and nothing hides, slides or resizes as the plan scrolls", async () => {
   const { frame, say } = await open()
   const column = frame.parentElement!
   const top = screen.getByRole('link', { name: 'Back' }).parentElement!
+  expect(column.firstElementChild).toBe(top)
+  for (const data of [{ type: 'inbox:scroll', down: true, top: false }, { type: 'inbox:scroll', down: false, top: false }]) {
+    await say(data)
+    expect(top.className).not.toContain('hidden')
+    expect(column.className.split(' ')).toContain('h-[calc(100dvh-5.5rem)]')
+    expect(document.documentElement.dataset.bars).toBeUndefined()
+  }
+})
+
+it('leaves Back to a page that draws its own: none shows outside the frame, and the plan keeps its height as it scrolls', async () => {
+  answer = () => Response.json({ item: { ...plan(), body: BODY.replace('<body ', '<body data-own-back ') }, computerOnline: false })
+  const { frame, say } = await open()
+  const column = frame.parentElement!
+  expect(screen.queryByRole('link', { name: 'Back' })).toBeNull()
+  expect(screen.queryByText('lousy-dingo')).toBeNull()
+  expect(screen.getByRole('heading', { level: 1, name: 'One inbox' }).className).toBe('sr-only')
+  expect(column.className.split(' ')).toEqual(expect.arrayContaining(['flex', 'flex-col', 'h-[calc(100dvh-5.5rem)]', '-mb-8']))
   await say({ type: 'inbox:scroll', down: true, top: false })
-  expect(document.documentElement.dataset.bars).toBe('tucked')
-  expect(top.className.split(' ')).toContain('hidden')
-  expect(column.className.split(' ')).toEqual(expect.arrayContaining(['h-dvh', '-mt-8', '-mb-8']))
-  expect(column.className).not.toContain('5.5rem')
-  // A turn up mid-plan lays only the app's bar over the plan: the column keeps its size and Back stays hidden.
-  await say({ type: 'inbox:scroll', down: false, top: false })
-  expect(document.documentElement.dataset.bars).toBe('over')
-  expect(top.className.split(' ')).toContain('hidden')
-  expect(column.className.split(' ')).toEqual(expect.arrayContaining(['h-dvh', '-mt-8', '-mb-8']))
-  // At the top everything shows, in the flow.
-  await say({ type: 'inbox:scroll', down: false, top: true })
-  expect(document.documentElement.dataset.bars).toBeUndefined()
-  expect(top.className.split(' ')).not.toContain('hidden')
-  expect(column.className.split(' ')).toContain('h-[calc(100dvh-5.5rem)]')
-  // Leaving while tucked or over shows the bar in its place on the next page.
-  await say({ type: 'inbox:scroll', down: false, top: false })
-  cleanup()
+  expect(column.className.split(' ')).toEqual(expect.arrayContaining(['h-[calc(100dvh-5.5rem)]', '-mb-8']))
+  expect(column.className).not.toMatch(/h-dvh|-mt-8/)
   expect(document.documentElement.dataset.bars).toBeUndefined()
 })
 
-it("brings back the app's bar and Back together on a turn up when the plan's page was built before it said where its top is", async () => {
-  const { frame, say } = await open()
-  const column = frame.parentElement!
-  const top = screen.getByRole('link', { name: 'Back' }).parentElement!
-  await say({ type: 'inbox:scroll', down: true })
-  expect(document.documentElement.dataset.bars).toBe('tucked')
-  await say({ type: 'inbox:scroll', down: false })
-  expect(document.documentElement.dataset.bars).toBeUndefined()
-  expect(top.className.split(' ')).not.toContain('hidden')
-  expect(column.className.split(' ')).toContain('h-[calc(100dvh-5.5rem)]')
-  await say({ type: 'inbox:scroll', down: true })
-  expect(document.documentElement.dataset.bars).toBe('tucked')
-  cleanup()
-  expect(document.documentElement.dataset.bars).toBeUndefined()
-})
-
-it('shows the bars and Back again when a new version of the plan loads at its top', async () => {
-  answer = () => Response.json({ item: plan('v1', { ...waiting, state: 'changed' }), computerOnline: true })
-  const { say } = await open()
-  await say({ type: 'inbox:scroll', down: true })
-  expect(document.documentElement.dataset.bars).toBe('tucked')
-  answer = () => Response.json({ item: plan('v2'), computerOnline: true })
-  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Reload' })) })
-  await until(() => frameWindow.postMessage.mock.calls.length > 1)
-  expect(frameWindow.postMessage.mock.calls[1][0]).toMatchObject({ type: 'inbox:hello', version: 'v2' })
-  expect(document.documentElement.dataset.bars).toBeUndefined()
-  expect(screen.getByRole('link', { name: 'Back' }).parentElement!.className.split(' ')).not.toContain('hidden')
+it("opens the week board when the page's own Back is tapped", async () => {
+  const { port } = await open()
+  port.postMessage({ type: 'inbox:back' })
+  await until(() => screen.queryByTitle('One inbox') === null)
+  expect(screen.queryByTitle('One inbox')).toBeNull()
+  await until(() => calls.some(call => call.path === '/apps/inbox/api/items'))
+  expect(calls.some(call => call.path === '/apps/inbox/api/items')).toBe(true)
 })
 
 it("greets the page in the app's look and tells it each time the app's switch changes it, and nothing else", async () => {

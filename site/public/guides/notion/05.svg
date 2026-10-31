@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="302" viewBox="0 0 640 302" font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif" role="img">
+<title>Drawing of the Content access tab, with the Edit access button marked and two shared pages listed</title>
+<rect width="640" height="302" rx="12" fill="#141414"/>
+<rect x="0.5" y="0.5" width="639" height="301" rx="12" fill="none" stroke="#333"/>
+<circle cx="24" cy="22" r="5" fill="#333"/><circle cx="42" cy="22" r="5" fill="#333"/><circle cx="60" cy="22" r="5" fill="#333"/>
+<text x="320" y="27" fill="#a3a3a3" font-size="13" text-anchor="middle">app.notion.com/developers</text>
+<text x="620" y="27" fill="#a3a3a3" font-size="12" text-anchor="end">Drawing</text>
+<line x1="0" y1="44" x2="640" y2="44" stroke="#333"/>
+<text x="32" y="80" fill="#f5f5f5" font-size="22" font-weight="600">AI assistant</text>
+<text x="32" y="114" fill="#a3a3a3" font-size="15" font-weight="400">Configuration · Content access</text>
+<text x="32" y="154" fill="#f5f5f5" font-size="16" font-weight="600">Pages this connection can use</text>
+<text x="32" y="182" fill="#a3a3a3" font-size="15" font-weight="400">Product information</text>
+<text x="32" y="204" fill="#a3a3a3" font-size="15" font-weight="400">Weekly notes</text>
+<rect x="32" y="228" width="124" height="38" rx="8" fill="#f5f5f5" stroke="#f5f5f5"/>
+<text x="94" y="252" fill="#0a0a0a" font-size="15" font-weight="600" text-anchor="middle">Edit access</text>
+<rect x="26" y="222" width="136" height="50" rx="10" fill="none" stroke="#ff4830" stroke-width="4"/>
+</svg>

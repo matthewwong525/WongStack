@@ -35,7 +35,7 @@ test('pairs and a new screen build a preview page in .scratch/, and print its fi
     '- **Inbox**', '  ```picture', '  Live now: pictures/1-live.png', '  Preview: pictures/1-preview.png', '  ```',
     '- **New page**', '  ```picture', '  Preview: pictures/2-preview.png', '  ```', ''].join('\n'));
   const html = readFileSync(page, 'utf8');
-  assert.match(html, /<body data-kind="preview" data-change="demo-preview">/);
+  assert.match(html, /<body data-kind="preview" data-change="demo-preview" data-own-back>/);
   assert.equal((html.match(/<img src="data:image\/png;base64,/g) || []).length, 3);
   assert.match(html, /alt="Live now"><figcaption>Live now<\/figcaption><\/figure><figure><img [^>]*alt="Preview">/);
   assert.doesNotMatch(html, /id="decisions"/);
