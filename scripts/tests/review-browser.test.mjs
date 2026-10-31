@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { deflateSync } from 'node:zlib';
 import { pathToFileURL } from 'node:url';
-import { buildReview } from '../../.agents/skills/plan/scripts/build-review.mjs';
+import { buildReview, workActions } from '../../.agents/skills/plan/scripts/build-review.mjs';
 import { needs } from './fixtures/needs.mjs';
 
 // playwright-core carries no browser: CI launches the runner's Google Chrome,
@@ -104,7 +104,7 @@ async function copied(page) {
 
 after(async () => { if (browser) await browser.close(); temps.forEach(path => rmSync(path, { recursive: true, force: true })); });
 
-browserTest('a mouse click offers a note; a drag, a drawing control, and a link do not', async () => {
+browserTest('a mouse click offers a note, a drag offers a note on its words, and a drawing control and a link offer none', async () => {
   const { page, context, errors } = await open(fixture().url);
   const chip = page.locator('#chip');
   await tap(page, 'item-2');
@@ -112,11 +112,15 @@ browserTest('a mouse click offers a note; a drag, a drawing control, and a link 
   assert.equal(await chip.innerText(), 'Add note');
   await page.keyboard.press('Escape');
   assert.equal(await chip.isVisible(), false);
+  await at(page, 'item-4').scrollIntoViewIfNeeded();
   const box = await at(page, 'item-4').boundingBox();
   await page.mouse.move(box.x + 20, box.y + 10);
   await page.mouse.down();
   await page.mouse.move(box.x + 20, box.y + 60, { steps: 5 });
   await page.mouse.up();
+  await chip.waitFor();
+  assert.equal(await chip.innerText(), 'Note', 'selected words offer a note on just those words');
+  await page.keyboard.press('Escape');
   assert.equal(await chip.isVisible(), false);
   await page.locator('#item-3 summary').click();
   assert.equal(await chip.isVisible(), false);
@@ -1234,6 +1238,81 @@ browserTest('a preview page on a phone shows both pictures side by side, Send no
   await ready(page, 'yes').click();
   await saysIs(page, 'Asked the chat to publish.');
   assert.deepEqual(acts(), [posted('publish')]);
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+// ── a review page of other work: two ads to approve, with OK, Change, word and spot notes, and its own buttons ──
+function adsFixture() {
+  const temp = mkdtempSync(join(tmpdir(), 'wong-review-'));
+  const dir = join(temp, 'spring-ads');
+  mkdirSync(dir);
+  temps.push(temp);
+  writeFileSync(join(dir, 'feed.png'), solidPng(80, 100));
+  writeFileSync(join(dir, 'review.md'), `# Approve these 2 ads?\n\n## Why\n\nThe spring sale starts Monday.\n\n## To review\n\n`
+    + `- **Feed ad.** For people who follow the shop.\n  ${fence}ad\n  placement: feed\n  account: Corner Shop\n  picture: feed.png\n`
+    + `  text: Spring sale on all plants.\n  headline: Spring sale\n  button: Shop now\n  ${fence}\n- **Story ad.** Shop now in the story.\n`);
+  buildReview(dir, { kind: 'review', actions: workActions(['approve=Approve|Approved.', 'launch=Launch|Launch now.'], ['launch']) });
+  return { dir, url: pathToFileURL(join(dir, 'review.html')).href };
+}
+
+browserTest('on a phone a review page takes an OK, its undo, Change, a note on words, and a spot pin, then sends them with a confirmed Launch', async () => {
+  const { page, context, errors, acts } = await openLive({ make: adsFixture, actions: ['approve', 'launch'], width: 320, height: 664 });
+  await isLive(page);
+  await ready(page, 'approve').waitFor();
+  assert.equal(await page.locator('h1').innerText(), 'Approve these 2 ads?');
+  assert.deepEqual(await page.locator('.bar button:visible').allInnerTexts(), ['Send notes', 'Approve', 'Launch']);
+  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'no sideways scroll on a phone');
+  // OK, its undo, then OK again; Change opens the card's note.
+  const ok = page.locator('#item-1 [data-ok]');
+  await ok.click();
+  assert.equal(await page.locator('#item-1 .verdict .tag').innerText(), 'OK');
+  assert.equal(await page.locator('#item-1 .verdict [data-open]').isVisible(), false);
+  await ok.click();
+  assert.equal(await page.locator('#item-1 .verdict .tag').isVisible(), false);
+  await ok.click();
+  await page.locator('#item-2 .verdict [data-open]').click();
+  assert.equal(await page.locator('#editor-where').innerText(), '#/2 · item "Story ad. Shop now in the story."');
+  await page.locator('#editor [data-act="close"]').click();
+  // Selected words get their own note, kept with the quote.
+  await page.evaluate(() => {
+    const el = document.querySelector('[data-note="item-2"]'), walk = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    let node = walk.nextNode();
+    while (node && node.textContent.indexOf('Shop now') < 0) node = walk.nextNode();
+    const range = document.createRange(), from = node.textContent.indexOf('Shop now');
+    range.setStart(node, from); range.setEnd(node, from + 8);
+    getSelection().removeAllRanges(); getSelection().addRange(range);
+  });
+  await page.locator('#chip', { hasText: /^Note$/ }).waitFor();
+  await page.locator('#chip').click();
+  assert.equal(await page.locator('#editor-where').innerText(), '#/2 · words "Shop now"');
+  await page.locator('#editor textarea').fill('Say Buy now.');
+  await page.locator('#editor [data-act="save"]').click();
+  // A tap on the ad's picture in full screen notes that spot, drawn as a pin on the picture.
+  await page.locator('#item-1 .frame').click();
+  const img = page.locator('#viewer .art.photo img');
+  const box = await img.boundingBox();
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 4);
+  await page.locator('#chip').click();
+  assert.equal(await page.locator('#editor-where').innerText(), '#/1 · picture 1 "Spring sale"');
+  await page.locator('#editor textarea').fill('Brighter here.');
+  await page.locator('#editor [data-act="save"]').click();
+  const pin = await page.locator('#item-1 .shot .pin.spot').evaluate(el => ({ left: el.style.left, top: el.style.top, text: el.textContent }));
+  assert.deepEqual(pin, { left: '50%', top: '25%', text: '2' });
+  assert.deepEqual(await page.locator('#note-list .group').allInnerTexts(), ['Card 1', 'Card 2'], 'the notes list groups notes by card');
+  // Launch asks first, then sends the OK and both notes.
+  await ready(page, 'launch').click();
+  assert.equal(await page.locator('#ready-confirm').getAttribute('aria-label'), "Launch? This can't be undone.");
+  assert.equal(await ready(page, 'yes').innerText(), 'Yes, launch');
+  assert.deepEqual(acts(), [], 'nothing is sent before a yes');
+  await ready(page, 'yes').click();
+  await saysIs(page, 'Sent to the chat: Launch.');
+  assert.deepEqual(acts().map(request => request.body), [{ action: 'launch', version: VERSION, text: [
+    'Card #1: OK',
+    '- Card #2 ("Shop now"): Say Buy now.',
+    '- Card #1, picture 1, spot at 50% across and 25% down on "Spring sale" ("Spring sale"): Brighter here.',
+  ].join('\n') }]);
+  assert.equal(await page.locator('#item-1 .verdict .tag').innerText(), 'OK · Sent');
   assert.deepEqual(errors, []);
   await context.close();
 });

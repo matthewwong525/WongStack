@@ -76,6 +76,22 @@
   .art.photo figure { flex:1 1 18em; min-width:0; margin:0; text-align:center; }
   .art.photo img { display:block; width:100%; height:auto; max-height:40em; object-fit:contain; border:1px solid var(--border); border-radius:.4em; background:var(--background); }
   .art.photo figcaption { margin-top:.3em; color:var(--muted-foreground); font-size:.95em; }
+  .shot { position:relative; display:block; } .art .pin.spot { position:absolute; margin:0; transform:translate(-50%, -50%); }
+  /* An ad: the card a feed or a story shows, in em like a picture; several sit side by side when they fit. */
+  .art.ads { width:auto; max-width:49.2em; margin-right:1px; }
+  .ad { flex:1 1 15em; max-width:20em; min-width:0; overflow:hidden; border:1px solid var(--border); border-radius:.6em; background:var(--card); color:var(--card-foreground); text-align:left; }
+  .ad .ad-account { margin:0; padding:.5em .7em; } .ad .ad-account span { color:var(--muted-foreground); font-size:.85em; }
+  .art.photo .ad img { max-height:none; aspect-ratio:4 / 5; object-fit:cover; border:0; border-radius:0; }
+  .ad-words { display:flex; flex-wrap:wrap; align-items:center; gap:.3em .6em; padding:.6em .7em; }
+  .ad-words .ad-text { flex:1 1 100%; margin:0; } .ad-words .ad-headline { flex:1 1 0; min-width:0; }
+  .ad-button { padding:.3em .8em; border-radius:.4em; background:var(--primary); color:var(--primary-foreground); font-size:.9em; }
+  .ad.story { position:relative; } .art.photo .ad.story img { aspect-ratio:9 / 16; }
+  .ad.story .ad-account { position:absolute; top:0; left:0; right:0; z-index:1; background:color-mix(in oklab, var(--background) 70%, transparent); }
+  .ad.story .ad-words { position:absolute; left:0; right:0; bottom:0; background:color-mix(in oklab, var(--background) 80%, transparent); }
+  .try { margin:8px 0 0; padding:0 var(--pad); }
+  .item > .verdict { grid-column:1 / -1; display:flex; align-items:center; gap:8px; margin-top:10px; }
+  .verdict button { min-width:64px; }
+  .note-list .group { margin:12px 0 6px; color:var(--muted-foreground); font-size:14px; font-weight:500; }
   .item > .table { grid-column:1 / -1; margin:10px calc(-1 * var(--pad)) 0; overflow-x:auto; border-top:1px solid var(--border); }
   .item > .table:last-child { margin-bottom:calc(-1 * var(--pad)); }
   .tbl { width:100%; border-collapse:collapse; font-size:14px; }
@@ -113,9 +129,7 @@
   #editor .moved { margin:0 0 6px; font-size:13px; font-weight:600; }
   #editor textarea { display:block; width:100%; min-height:76px; padding:6px 8px; font:16px/1.4 system-ui, sans-serif; resize:vertical; }
   #editor .row { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
-  .bar { position:fixed; left:0; right:0; bottom:0; z-index:4; display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); align-items:stretch; gap:8px; padding:8px 12px calc(8px + env(safe-area-inset-bottom)); background:var(--background); border-top:1px solid var(--border); }
-  .bar:has(#ready[hidden]) { grid-template-columns:1fr; }
-  .bar:has(#ready:not([hidden]) > button[hidden]) { grid-template-columns:repeat(2, minmax(0, 1fr)); }
+  .bar { position:fixed; left:0; right:0; bottom:0; z-index:4; display:grid; grid-template-columns:repeat(var(--cols, 1), minmax(0, 1fr)); align-items:stretch; gap:8px; padding:8px 12px calc(8px + env(safe-area-inset-bottom)); background:var(--background); border-top:1px solid var(--border); }
   .bar > button, #ready > button { min-width:0; height:64px; padding:6px; white-space:normal; line-height:1.3; }
   body.docked .bar, body.viewing .bar { display:none; }
   #ready { display:contents; }
@@ -140,9 +154,7 @@
     .eyebrow, h2, .hint, .muted, .num, .drawing summary, .add, .meta, .entry .where, #editor .where, #editor .moved, .session, #editor .copies, #ready-confirm p, #ready-says { font-size:16px; }
     button { font-size:18px; }
     .entry { font-size:20px; }
-    .bar { grid-template-columns:repeat(3, minmax(0, 1fr)); padding-left:max(12px, calc((100vw - 700px) / 2 + 12px)); padding-right:max(12px, calc((100vw - 700px) / 2 + 12px)); }
-    .bar:has(#ready[hidden]) { grid-template-columns:1fr; }
-    .bar:has(#ready:not([hidden]) > button[hidden]) { grid-template-columns:repeat(2, minmax(0, 1fr)); }
+    .bar { padding-left:max(12px, calc((100vw - 700px) / 2 + 12px)); padding-right:max(12px, calc((100vw - 700px) / 2 + 12px)); }
     .bar > button, #ready > button { height:44px; }
     #ready-confirm, #ready-says { right:max(12px, calc((100vw - 700px) / 2 + 12px)); }
     #ready-confirm { width:320px; }
@@ -182,9 +194,7 @@
 </div>
 <div class="bar" data-busy="false"><button type="button" class="primary" id="copy"><span class="spinner" hidden aria-hidden="true"></span><span id="copy-label">Copy notes</span></button>
   <div id="ready" hidden>
-    <button type="button" data-ready="build"><span class="spinner" hidden aria-hidden="true"></span><span>Build it</span></button>
-    <button type="button" data-ready="publish" aria-expanded="false" aria-controls="ready-confirm">Build and publish</button>
-    <div id="ready-confirm" role="group" aria-label="Build and publish? This goes live and can't be undone." hidden><p>Goes live, can't be undone.</p><div class="row"><button type="button" class="primary" data-ready="yes"><span class="spinner" hidden aria-hidden="true"></span><span>Yes, publish</span></button><button type="button" data-ready="cancel">Cancel</button></div></div>
+    <div id="ready-confirm" role="group" hidden><p></p><div class="row"><button type="button" class="primary" data-ready="yes"><span class="spinner" hidden aria-hidden="true"></span><span></span></button><button type="button" data-ready="cancel">Cancel</button></div></div>
   </div>
   <p id="ready-says" role="status" aria-live="polite" hidden><span class="spinner" hidden aria-hidden="true"></span><span id="ready-message"></span></p>
 </div>
@@ -202,17 +212,17 @@
   root.classList.add('js');
   const CHANGE = document.body.getAttribute('data-change');
   const KEY = 'wong-review3:' + CHANGE;
-  // A preview page shows a finished build: its words name the preview, and its one action publishes.
+  // A preview page shows a finished build: its words name the preview. A review page of other work names its cards.
   const PREVIEW = document.body.getAttribute('data-kind') === 'preview', NAME = PREVIEW ? CHANGE.replace(/-preview$/, '') : CHANGE;
+  const REVIEW = document.body.getAttribute('data-kind') === 'review', NOUN = REVIEW ? 'Card' : 'Change', PAGE = REVIEW ? 'page' : 'plan';
   if (PREVIEW) {
     document.title = 'Preview · ' + NAME;
     document.querySelector('.eyebrow').textContent = NAME;
     document.querySelector('h1').textContent = 'Built: look, then publish?';
     document.querySelector('.hint .lead').textContent = 'Tap a picture to see it full screen, then tap it to note it.';
     document.querySelector('.hint .tail').textContent = '';
-    document.querySelector('[data-ready="publish"]').textContent = 'Publish';
-    $('ready-confirm').setAttribute('aria-label', 'Publish? This goes live and can\'t be undone.');
   }
+  if (REVIEW) document.querySelector('.hint .lead').textContent = 'Tap OK or Change on each card, or select words to note them.';
   const phone = window.matchMedia ? window.matchMedia('(max-width: 700px)') : { matches: false };
   const chip = $('chip'), editor = $('editor'), ta = editor.querySelector('textarea');
   const viewer = $('viewer'), vframe = viewer.querySelector('.vframe'), vbar = viewer.querySelector('.zoom'), vb = vbar.querySelectorAll('button');
@@ -220,14 +230,28 @@
   const esc = function (s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
 
   // ── storage: a refused store keeps notes for this session ──
-  let store = null, data = { notes: [], drafts: {} };
-  const ok = function (r, id) { return r && typeof r.label === 'string' && typeof r.text === 'string' && /^[\w-]+$/.test(id); };
+  let store = null, data = { notes: [], drafts: {}, ok: {} };
+  // A note on words keeps its quote; a note on a picture spot keeps the picture, the spot in percent, and its name.
+  const EXTRA = { quote: 'string', k: 'number', x: 'number', y: 'number', on: 'string' };
+  const ok = function (r, id) {
+    return r && typeof r.label === 'string' && typeof r.text === 'string' && /^[\w-]+$/.test(id)
+      && Object.keys(EXTRA).every(function (f) { return r[f] === undefined || typeof r[f] === EXTRA[f]; });
+  };
+  function extraOf(rec) {
+    const x = {};
+    Object.keys(EXTRA).forEach(function (f) { if (rec && rec[f] !== undefined) x[f] = rec[f]; });
+    return x;
+  }
   try { store = window.localStorage; store.getItem(KEY); } catch (e) { store = null; }
   function load(text) {
     try {
       const saved = JSON.parse(text || 'null');
       if (saved && Array.isArray(saved.notes)) data.notes = saved.notes.filter(function (n) { return ok(n, n && n.id); });
       if (saved && saved.drafts) Object.keys(saved.drafts).forEach(function (id) { if (ok(saved.drafts[id], id)) data.drafts[id] = saved.drafts[id]; });
+      if (saved && saved.ok && typeof saved.ok === 'object') {
+        data.ok = {};
+        Object.keys(saved.ok).forEach(function (id) { if (/^item-\d+$/.test(id) && (saved.ok[id] === true || saved.ok[id] === 'sent')) data.ok[id] = saved.ok[id]; });
+      }
     } catch (e) { /* unreadable notes start empty */ }
   }
   load(store ? store.getItem(KEY) : null);
@@ -238,10 +262,11 @@
 
   // ── targets: a data-note id names its location; the label pins a note to its text ──
   function where(id) {
-    const m = /^(why|item|decision)-(\d+)(?:-(line|picture|row)-(\d+))?$/.exec(id) || [];
+    const m = /^(why|item|decision)-(\d+)(?:-(line|picture|row)-(\d+))?(?:-(words|spot)-\d+)?$/.exec(id) || [];
+    if (m[5]) return Object.assign(where(id.replace(/-(words|spot)-\d+$/, '')), m[5] === 'words' ? { kind: 'words' } : {});
     if (m[1] === 'why') return { at: '#/why', kind: 'paragraph ' + m[2], spot: 'Why, paragraph ' + m[2] };
     const part = m[3] === 'line' ? 'drawing line ' + m[4] : m[3] ? m[3] + ' ' + m[4] : '';
-    if (m[1] === 'item') return { at: '#/' + m[2], kind: part || 'item', spot: 'Change #' + m[2] + (part ? ', ' + part : '') };
+    if (m[1] === 'item') return { at: '#/' + m[2], kind: part || 'item', spot: NOUN + ' #' + m[2] + (part ? ', ' + part : '') };
     return { at: '#/decisions/' + m[2], kind: 'decision', spot: 'Decision #' + m[2] };
   }
   function labelOf(el) {
@@ -261,9 +286,32 @@
     while (walk.nextNode()) found.push(walk.currentNode);
     return found;
   }
-  function find(id, label) {
-    const el = document.querySelector('[data-note="' + id + '"]');
-    return el && labelOf(el) === label ? el : null;
+  // A note on words or a spot sits on its base target: words are found again by their quote, a spot by the base's label.
+  function find(id, rec) {
+    const m = /^(.*)-(words|spot)-\d+$/.exec(id), el = document.querySelector('[data-note="' + (m ? m[1] : id) + '"]');
+    if (!el) return null;
+    if (m && m[2] === 'words') return textOf(el).indexOf(rec.quote) >= 0 ? el : null;
+    if (m && !el.querySelectorAll('.shot')[rec.k]) return null;
+    return labelOf(el) === rec.label ? el : null;
+  }
+  function textOf(el) {
+    const c = el.cloneNode(true);
+    Array.prototype.forEach.call(c.querySelectorAll('.pin, .add'), function (n) { n.parentNode.removeChild(n); });
+    return c.textContent.replace(/\s+/g, ' ');
+  }
+  // A new note on words or a spot takes the next free number on its target.
+  function nextId(base, kind) {
+    const pre = base + '-' + kind + '-';
+    let k = 1;
+    data.notes.map(function (n) { return n.id; }).concat(Object.keys(data.drafts)).forEach(function (id) {
+      if (id.indexOf(pre) === 0) k = Math.max(k, +id.slice(pre.length) + 1);
+    });
+    return pre + k;
+  }
+  // The notes list groups notes by Why, each card, and Decisions.
+  function groupOf(id) {
+    const m = /^(why|item|decision)-(\d+)/.exec(id) || [];
+    return m[1] === 'why' ? [0, 'Why'] : m[1] === 'item' ? [+m[2], NOUN + ' ' + m[2]] : [1e6, 'Decisions'];
   }
   // A row's pin and Note button go in its last cell: a table row holds only cells.
   function slot(el) { return el.tagName === 'TR' ? el.lastElementChild : el; }
@@ -276,17 +324,29 @@
     const count = plural(n) + (d ? ' · ' + d + (d === 1 ? ' draft' : ' drafts') : '');
     all('.note-count', function (el) { el.textContent = count; });
     all('.session', function (el) { el.hidden = !!store; });
-    const ids = data.notes.map(function (x) { return x.id; }).concat(Object.keys(data.drafts).filter(function (id) { return !noteOf(id); }));
+    const ids = data.notes.map(function (x) { return x.id; }).concat(Object.keys(data.drafts).filter(function (id) { return !noteOf(id); }))
+      .map(function (id, i) { return [groupOf(id)[0], i, id]; }).sort(function (a, b) { return a[0] - b[0] || a[1] - b[1]; })
+      .map(function (x) { return x[2]; });
     $('note-list').innerHTML = ids.length ? '' : '<li class="muted">No notes yet.</li>';
+    let group = null;
     ids.forEach(function (id) {
       const note = noteOf(id), draft = data.drafts[id], rec = note || draft, num = note ? data.notes.indexOf(note) + 1 : 0, sent = !!(note && note.sent);
-      const el = find(id, rec.label);
+      const el = find(id, rec);
+      if (groupOf(id)[1] !== group) {
+        group = groupOf(id)[1];
+        const head = document.createElement('li');
+        head.className = 'group'; head.textContent = group;
+        $('note-list').appendChild(head);
+      }
       if (el) {
         const pin = document.createElement('button');
         pin.type = 'button'; pin.className = draft ? 'pin draft' : sent ? 'pin sent' : 'pin'; pin.setAttribute('data-open', id);
         pin.textContent = (num || '') + (num && (draft || sent) ? ' · ' : '') + (draft ? 'Draft' : sent ? 'Sent' : '');
         pin.setAttribute('aria-label', (num ? 'Open note ' + num : 'Open draft') + (num && draft ? ' and its draft' : ''));
-        slot(el).appendChild(pin);
+        if (rec.x !== undefined) {
+          pin.className += ' spot'; pin.style.left = rec.x + '%'; pin.style.top = rec.y + '%';
+          el.querySelectorAll('.shot')[rec.k].appendChild(pin);
+        } else slot(el).appendChild(pin);
       }
       const li = document.createElement('li');
       li.innerHTML = '<button type="button" class="entry" data-open="' + id + '"><span class="where">' + (num ? num + '. ' : '')
@@ -295,11 +355,20 @@
       $('note-list').appendChild(li);
     });
     all('[data-note]', function (el) {
-      if (el.closest('.art') || el.querySelector('.pin')) return;
-      const id = el.getAttribute('data-note'), add = document.createElement('button');
+      const id = el.getAttribute('data-note');
+      if (el.closest('.art') || el.querySelector('.pin[data-open="' + id + '"]')) return;
+      const add = document.createElement('button');
       add.type = 'button'; add.className = 'add'; add.setAttribute('data-open', id);
       add.textContent = '+ Note'; add.setAttribute('aria-label', 'Note on ' + where(id).kind);
       slot(el).appendChild(add);
+    });
+    all('.verdict', function (v) {
+      const id = v.querySelector('[data-ok]').getAttribute('data-ok'), state = data.ok[id], n = id.slice(5);
+      v.querySelector('.tag').hidden = !state;
+      v.querySelector('.tag').textContent = state === 'sent' ? 'OK · Sent' : 'OK';
+      v.querySelector('[data-ok]').textContent = state ? 'Undo' : 'OK';
+      v.querySelector('[data-ok]').setAttribute('aria-label', (state ? 'Undo OK on ' : 'OK ') + NOUN.toLowerCase() + ' ' + n);
+      v.querySelector('[data-open]').hidden = !!state;
     });
     drawings.forEach(function (d) {
       const k = d.art.querySelectorAll('.pin').length;
@@ -310,19 +379,20 @@
   }
 
   // ── still-tap to note: a mouse on text, or any pointer on a full-screen drawing line, shows the chip ──
-  let chipFor = null, tap = null;
+  let chipFor = null, chipExtra = null, tap = null;
   const pointers = {};
-  function showChip(el, x, y, keyboard) {
+  // `extra` makes the chip start a new note on selected words or a picture spot.
+  function showChip(el, x, y, keyboard, extra) {
     const id = el.getAttribute('data-note');
-    chipFor = el;
-    chip.textContent = noteOf(id) || data.drafts[id] ? 'Edit note' : 'Add note';
+    chipFor = el; chipExtra = extra || null;
+    chip.textContent = extra && extra.quote ? 'Note' : !extra && (noteOf(id) || data.drafts[id]) ? 'Edit note' : 'Add note';
     chip.hidden = false;
     const w = chip.offsetWidth, vw = root.clientWidth;
     chip.style.left = Math.max(8, Math.min(x - w / 2, vw - w - 8)) + window.pageXOffset + 'px';
     chip.style.top = y + 12 + window.pageYOffset + 'px';
     if (keyboard) chip.focus({ preventScroll: true });
   }
-  function hideChip() { chip.hidden = true; chipFor = null; }
+  function hideChip() { chip.hidden = true; chipFor = null; chipExtra = null; }
   document.addEventListener('pointerdown', function (e) {
     if (e.isPrimary) Object.keys(pointers).forEach(function (k) { delete pointers[k]; });
     pointers[e.pointerId] = true;
@@ -339,20 +409,50 @@
     if (t.target.closest('a, button, input, textarea, select, label, summary, #editor')) return;
     const el = t.target.closest('[data-note]');
     const offer = el && (el.closest('#viewer') || (e.pointerType === 'mouse' && !el.closest('.frame')));
-    if (offer) showChip(el, e.clientX, e.clientY, false); else hideChip();
+    if (offer) showChip(el, e.clientX, e.clientY, false, spotAt(el, t.target, e)); else hideChip();
   });
-  chip.addEventListener('click', function () { if (chipFor) openEditor(chipFor.getAttribute('data-note'), chipFor); });
+  // A tap on a picture file in full screen notes that spot of it, kept in percent so it holds at any size.
+  function spotAt(el, target, e) {
+    if (!el.closest('#viewer') || !el.classList.contains('photo') || target.tagName !== 'IMG') return null;
+    const r = target.getBoundingClientRect(), pct = function (v, size) { return Math.max(0, Math.min(100, Math.round(v / Math.max(1, size) * 100))); };
+    return { k: Array.prototype.indexOf.call(el.querySelectorAll('img'), target), x: pct(e.clientX - r.left, r.width), y: pct(e.clientY - r.top, r.height), on: target.alt };
+  }
+  // Selected words in one note target offer a note on just those words.
+  let picking = 0;
+  document.addEventListener('selectionchange', function () {
+    clearTimeout(picking);
+    picking = setTimeout(function () {
+      const s = window.getSelection ? window.getSelection() : null;
+      if (!s || s.isCollapsed || !s.rangeCount || open) return;
+      const range = s.getRangeAt(0), at = range.commonAncestorContainer, host = (at.nodeType === 1 ? at : at.parentNode).closest('[data-note]');
+      const quote = s.toString().replace(/\s+/g, ' ').trim().slice(0, 200);
+      if (!host || !quote || host.closest('.art, #editor, #viewer') || textOf(host).indexOf(quote) < 0) return;
+      const r = range.getBoundingClientRect();
+      showChip(host, r.left + r.width / 2, r.bottom, false, { quote: quote });
+    }, 150);
+  });
+  chip.addEventListener('click', function () {
+    if (!chipFor) return;
+    const id = chipFor.getAttribute('data-note'), extra = chipExtra;
+    openEditor(extra ? nextId(id, extra.quote ? 'words' : 'spot') : id, chipFor, extra);
+  });
   document.addEventListener('click', function (e) {
     const t = e.target.closest ? e.target.closest('[data-open]') : null;
     if (!t) return;
-    const id = t.getAttribute('data-open'), rec = data.drafts[id] || noteOf(id), el = rec ? find(id, rec.label) : t.closest('[data-note]');
+    const id = t.getAttribute('data-open'), rec = data.drafts[id] || noteOf(id);
+    const el = rec ? find(id, rec) : t.closest('[data-note]') || document.querySelector('[data-note="' + id + '"]');
     if (el && t.classList.contains('entry')) { reveal(el); el.scrollIntoView({ block: 'center' }); }
     openEditor(id, el);
   });
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') {
       if (open) closeEditor(true);
-      else if (chipFor) { const el = chipFor; hideChip(); el.focus(); }
+      else if (chipFor) {
+        const el = chipFor, words = chipExtra && chipExtra.quote;
+        hideChip();
+        if (words && window.getSelection) window.getSelection().removeAllRanges();
+        el.focus();
+      }
       else if (view) closeViewer(true);
     } else if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('[data-note]')) {
       e.preventDefault();
@@ -363,12 +463,13 @@
 
   // ── the editor: beside its target on a desktop, docked at the bottom of the visible screen on a phone ──
   let open = null;
-  function openEditor(id, el) {
+  function openEditor(id, el, extra) {
     closeViewer(false); closeEditor(false); hideChip();
     if (el) reveal(el);
     const note = noteOf(id), draft = data.drafts[id];
-    const label = draft ? draft.label : note ? note.label : labelOf(el);
-    open = { id: id, label: label, el: el };
+    const quote = extra && extra.quote, clip = quote && quote.length > 60 ? quote.slice(0, 59) + '…' : quote;
+    const label = draft ? draft.label : note ? note.label : quote ? 'words "' + clip + '"' : labelOf(el);
+    open = { id: id, label: label, el: el, extra: extra || extraOf(draft || note) };
     $('editor-where').textContent = where(id).at + ' · ' + label;
     editor.querySelector('.moved').hidden = !!el;
     editor.querySelector('[data-act="delete"]').hidden = !note;
@@ -433,7 +534,7 @@
     if (!open) return;
     const note = noteOf(open.id), text = ta.value;
     if (!text.trim() || (note && text === note.text)) delete data.drafts[open.id];
-    else data.drafts[open.id] = { label: open.label, text: text };
+    else data.drafts[open.id] = Object.assign({ label: open.label, text: text }, open.extra);
     persist();
   });
   editor.addEventListener('click', function (e) {
@@ -442,7 +543,7 @@
     const id = open.id, note = noteOf(id), text = ta.value.trim();
     if (act === 'save') {
       if (!text) { ta.focus(); return; }
-      if (!note) data.notes.push({ id: id, label: open.label, text: text });
+      if (!note) data.notes.push(Object.assign({ id: id, label: open.label, text: text }, open.extra));
       else if (note.text !== text) { note.text = text; delete note.sent; }
     }
     if (act === 'delete') data.notes = data.notes.filter(function (n) { return n.id !== id; });
@@ -450,8 +551,8 @@
     closeEditor(true); persist();
     if (act === 'save' && live) toast('Saved. Tap Send notes to send it to the chat.');
     else if (act === 'save') {
-      const n = unsent().length;
-      copyNotes(function () { toast('Saved and copied ' + plural(n) + '. Paste them into chat.'); },
+      const n = unsent().length, k = oks().length;
+      copyNotes(function () { toast('Saved and copied ' + plural2(n, k) + '. Paste them into chat.'); },
         function () { toast('Saved. Tap Copy notes to copy them.'); });
     }
   });
@@ -551,31 +652,42 @@
   // ── copy: saved notes only, as notes on the plan: each asks or changes something ──
   // A note sent through a reply link is in the chat already, so it is never copied or sent again.
   function unsent() { return data.notes.filter(function (n) { return !n.sent; }); }
-  function snapshot() { return unsent().map(function (n) { return { id: n.id, label: n.label, text: n.text }; }); }
-  function acknowledge(notes) {
+  function snapshot() { return unsent().map(function (n) { return Object.assign({ id: n.id, label: n.label, text: n.text }, extraOf(n)); }); }
+  // An OK not yet in the chat, as its card's id, in card order.
+  function oks() {
+    return Object.keys(data.ok).filter(function (id) { return data.ok[id] === true; }).sort(function (a, b) { return a.slice(5) - b.slice(5); });
+  }
+  function acknowledge(notes, okd) {
     notes.forEach(function (submitted) {
       data.notes.forEach(function (current) {
         if (current.id === submitted.id && current.label === submitted.label && current.text === submitted.text) current.sent = true;
       });
     });
+    okd.forEach(function (id) { if (data.ok[id] === true) data.ok[id] = 'sent'; });
     persist();
   }
   function bullets(notes) {
     return notes.map(function (n) {
-      const w = where(n.id);
-      return '- ' + w.spot + ' (' + n.label.slice(w.kind.length + 1) + '): ' + n.text.replace(/\s*\n\s*/g, ' ');
+      const w = where(n.id), spot = n.x === undefined ? '' : ', spot at ' + n.x + '% across and ' + n.y + '% down on "' + n.on + '"';
+      return '- ' + w.spot + spot + ' (' + n.label.slice(w.kind.length + 1) + '): ' + n.text.replace(/\s*\n\s*/g, ' ');
     });
   }
+  // What goes to the chat: each OK on its own line, then the notes.
+  function lines(notes, okd) {
+    return okd.map(function (id) { return NOUN + ' #' + id.slice(5) + ': OK'; }).concat(bullets(notes)).join('\n');
+  }
   function notesText() {
-    const header = PREVIEW ? 'Notes on the preview of ' + NAME + ' from its review page. Don\'t publish yet.'
+    const header = REVIEW ? document.body.getAttribute('data-header')
+      : PREVIEW ? 'Notes on the preview of ' + NAME + ' from its review page. Don\'t publish yet.'
       : 'Notes on the plan ' + CHANGE + ' from the review page. Don\'t build yet.';
-    return [header].concat(bullets(unsent())).join('\n');
+    return header + '\n' + lines(unsent(), oks());
   }
   function toast(text) {
     $('toast').textContent = text; $('toast').classList.add('show');
     setTimeout(function () { $('toast').classList.remove('show'); }, 2000);
   }
   function plural(n) { return n + (n === 1 ? ' note' : ' notes'); }
+  function plural2(n, k) { return !k ? plural(n) : (n ? plural(n) + ' and ' : '') + k + (k === 1 ? ' OK' : ' OKs'); }
   // One routine for Copy notes and Save: the Clipboard API, else select #copybuf and execCommand, then hand focus back.
   function copyNotes(done, failed) {
     const buf = $('copybuf');
@@ -591,7 +703,7 @@
   }
   // Nothing to copy or send: say why. True when it spoke.
   function nothing(verb) {
-    if (unsent().length) return false;
+    if (unsent().length || oks().length) return false;
     toast(data.notes.length ? 'Every note is already sent.' : 'No saved notes yet. Drafts are not ' + verb + '.');
     return true;
   }
@@ -625,46 +737,86 @@
     return fetch(path, { method: body ? 'POST' : 'GET', cache: 'no-store', headers: headers, body: body ? JSON.stringify(body) : undefined });
   }
   async function sendNotes() {
-    const notes = snapshot(), n = notes.length;
+    const notes = snapshot(), okd = oks(), n = notes.length, k = okd.length;
     if (pending || connecting || nothing('sent')) return;
     busy('send'); says('Sending your notes…');
     // A closed link or an unreachable chat: the same tap copies, and the page goes back to Copy notes.
     const closed = function () {
       setLive(null); says('This link has closed. Copy your notes into chat.');
-      copyNotes(function () { toast('This link has closed. Copied ' + plural(n) + ': paste them into chat.'); },
+      copyNotes(function () { toast('This link has closed. Copied ' + plural2(n, k) + ': paste them into chat.'); },
         function () { toast('This link has closed. Tap Copy notes to copy them.'); });
     };
     try {
-      const r = await ask('send', live, { text: bullets(notes).join('\n') });
+      const r = await ask('send', live, { text: lines(notes, okd) });
+      const changed = 'The ' + PAGE + ' changed. Reload to read it first.';
       if (r.status === 429) { says('Wait a few seconds, then tap Send notes again.'); toast('Wait a few seconds, then tap Send notes again.'); return; }
-      if (r.status === 409) { says('The plan changed. Reload to read it first.'); toast('The plan changed. Reload to read it first.'); return; }
+      if (r.status === 409) { says(changed); toast(changed); return; }
       if (!r.ok) { closed(); return; }
       const answer = await r.json();
       if (!answer || answer.sent !== true) { closed(); return; }
-      acknowledge(notes);
-      says('Sent ' + plural(n) + ' to the chat.');
-      toast('Sent ' + plural(n) + ' to the chat.');
+      acknowledge(notes, okd);
+      says('Sent ' + plural2(n, k) + ' to the chat.');
+      toast('Sent ' + plural2(n, k) + ' to the chat.');
     } catch (e) { closed(); }
     finally { busy(null); }
   }
   $('copy').addEventListener('click', function () {
     if (pending || connecting) return;
     if (live) { sendNotes(); return; }
-    const n = unsent().length;
+    const n = unsent().length, k = oks().length;
     if (nothing('copied')) return;
-    copyNotes(function () { toast('Copied ' + plural(n) + '. Paste them into chat.'); },
+    copyNotes(function () { toast('Copied ' + plural2(n, k) + '. Paste them into chat.'); },
       function () { toast('Copy failed. Copy the notes list by hand.'); });
   });
 
-  // ── visible build choices, with publish confirmation above the footer ──
-  let version = null;
-  const publishButton = $('ready').querySelector('[data-ready="publish"]');
+  // ── OK and Change on each card: an OK is kept with the notes until undone, and goes to the chat with them ──
+  all('.items > .item', function (item) {
+    const v = document.createElement('div');
+    v.className = 'verdict';
+    v.innerHTML = '<span class="tag" hidden>OK</span><button type="button" class="btn-ghost" data-ok="' + item.id + '">OK</button>'
+      + '<button type="button" class="btn-ghost" data-open="' + item.id + '" aria-label="Change ' + NOUN.toLowerCase() + ' ' + item.id.slice(5) + '">Change</button>';
+    item.appendChild(v);
+  });
+  document.addEventListener('click', function (e) {
+    const b = e.target.closest ? e.target.closest('[data-ok]') : null;
+    if (!b) return;
+    const id = b.getAttribute('data-ok');
+    if (data.ok[id]) delete data.ok[id]; else data.ok[id] = true;
+    persist();
+  });
+  // A picture file's spot pins sit over the picture itself.
+  all('.art.photo img', function (img) {
+    const shot = document.createElement('span');
+    shot.className = 'shot';
+    img.parentNode.insertBefore(shot, img);
+    shot.appendChild(img);
+  });
+
+  // ── the page's own buttons, from the builder; one that can't be undone asks once more above the footer ──
+  let version = null, confirming = null;
+  const ACTIONS = JSON.parse($('ready').getAttribute('data-actions') || '[]');
+  const actionOf = function (name) { return ACTIONS.filter(function (a) { return a.name === name; })[0] || null; };
+  const choice = function (name) { return $('ready').querySelector('[data-ready="' + name + '"]'); };
+  ACTIONS.forEach(function (a) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.setAttribute('data-ready', a.name); b.setAttribute('data-label', a.label);
+    if (a.confirm) { b.textContent = a.label; b.setAttribute('aria-expanded', 'false'); b.setAttribute('aria-controls', 'ready-confirm'); }
+    else b.innerHTML = '<span class="spinner" hidden aria-hidden="true"></span><span></span>';
+    $('ready').insertBefore(b, $('ready-confirm'));
+  });
+  function fillConfirm(a) {
+    confirming = a;
+    $('ready-confirm').querySelector('p').textContent = a.confirm.say;
+    $('ready-confirm').setAttribute('aria-label', a.confirm.ask);
+    choice('yes').setAttribute('data-label', a.confirm.yes);
+  }
+  if (ACTIONS.filter(function (a) { return a.confirm; }).length) fillConfirm(ACTIONS.filter(function (a) { return a.confirm; })[0]);
   function says(text) { $('ready-message').textContent = text; $('ready-says').hidden = !text; }
   function closeActions(focus) {
     const wasOpen = !$('ready-confirm').hidden;
     $('ready-confirm').hidden = true;
-    publishButton.setAttribute('aria-expanded', 'false');
-    if (focus && wasOpen && !$('ready').hidden) publishButton.focus({ preventScroll: true });
+    all('#ready > [aria-controls]', function (b) { b.setAttribute('aria-expanded', 'false'); });
+    if (focus && wasOpen && !$('ready').hidden && confirming) choice(confirming.name).focus({ preventScroll: true });
     bar();
   }
   function hideActions() {
@@ -694,25 +846,26 @@
     root.style.setProperty('--choices', $('ready-confirm').offsetHeight + 'px');
     $('ready-says').querySelector('.spinner').hidden = !waiting;
     all('[data-ready]', function (b) {
-      const step = b.getAttribute('data-ready');
+      const step = b.getAttribute('data-ready'), spinner = b.querySelector('.spinner');
+      const active = !!spinner && pending === (step === 'yes' ? confirming && confirming.name : step);
       b.disabled = waiting;
-      b.setAttribute('aria-busy', String(pending === (step === 'yes' ? 'publish' : step) && step !== 'publish'));
-      const spinner = b.querySelector('.spinner');
+      b.setAttribute('aria-busy', String(active));
       if (spinner) {
-        const active = pending === (step === 'yes' ? 'publish' : step);
         spinner.hidden = !active;
-        b.querySelector('span:last-child').textContent = active ? 'Sending…' : step === 'yes' ? 'Yes, publish' : 'Build it';
+        b.querySelector('span:last-child').textContent = active ? 'Sending…' : b.getAttribute('data-label');
       }
     });
+    const shown = $('ready').hidden ? 0 : $('ready').querySelectorAll('#ready > button:not([hidden])').length;
+    el.style.setProperty('--cols', String(Math.min(3, 1 + shown)));
     if (el.offsetHeight) root.style.setProperty('--bar', el.offsetHeight + 19 + 'px');
   }
-  // Each of build and publish shows when the link offers it; the choices stay hidden when it offers neither.
+  // Each button shows when the link offers it; the choices stay hidden when it offers none.
   function offer(answer) {
     const names = answer && answer.actions;
     if (!Array.isArray(names) || typeof answer.version !== 'string') return;
-    const shown = ['build', 'publish'].filter(function (name) {
-      $('ready').querySelector('[data-ready="' + name + '"]').hidden = names.indexOf(name) < 0;
-      return names.indexOf(name) >= 0;
+    const shown = ACTIONS.filter(function (a) {
+      choice(a.name).hidden = names.indexOf(a.name) < 0;
+      return names.indexOf(a.name) >= 0;
     });
     if (!shown.length) return;
     version = answer.version;
@@ -721,21 +874,21 @@
   }
   async function act(name) {
     if (pending || connecting || !live) return;
-    const notes = snapshot();
+    const notes = snapshot(), okd = oks();
     busy(name); says('Sending your request…');
     const closed = function () { setLive(null); says('This link has closed. Copy your notes and choose in the chat.'); toast('This link has closed. Copy your notes and choose in the chat.'); };
     try {
       const body = { action: name, version: version };
-      if (notes.length) body.text = bullets(notes).join('\n');
+      if (notes.length || okd.length) body.text = lines(notes, okd);
       const r = await ask('act', live, body);
       if (r.status === 429) { says('Wait a few seconds, then tap again.'); return; }
       const a = await r.json() || {};
-      const line = r.status === 200 && a.sent === true ? (PREVIEW ? 'Asked the chat to publish.' : 'Asked the chat to build' + (name === 'publish' ? ' and publish.' : '.'))
-        : r.status === 409 && a.changed === true ? 'The plan changed. Reload to read it first.'
+      const line = r.status === 200 && a.sent === true ? actionOf(name).done
+        : r.status === 409 && a.changed === true ? 'The ' + PAGE + ' changed. Reload to read it first.'
         : r.status === 409 && a.done === true ? 'The chat was already asked.' : '';
       if (r.status === 410 || r.status === 403) { closed(); return; }
       if (!line) { says('The request was not confirmed. Your notes are saved. Try again.'); return; }
-      if (r.status === 200 && a.sent === true) acknowledge(notes);
+      if (r.status === 200 && a.sent === true) acknowledge(notes, okd);
       hideActions(); says(line);
     } catch (e) { says('The request was not confirmed. Your notes are saved. Try again.'); }
     finally { busy(null); }
@@ -743,15 +896,16 @@
   $('ready').addEventListener('click', function (e) {
     const button = e.target.closest('[data-ready]');
     if (!button || pending || connecting) return;
-    const step = button.getAttribute('data-ready');
-    if (step === 'build' || step === 'yes') act(step === 'yes' ? 'publish' : 'build');
-    else if (step === 'cancel' || step === 'publish') {
+    const step = button.getAttribute('data-ready'), a = actionOf(step);
+    if (step === 'yes') act(confirming.name);
+    else if (step === 'cancel' || a.confirm) {
       says('');
+      if (a) fillConfirm(a);
       $('ready-confirm').hidden = step === 'cancel';
-      publishButton.setAttribute('aria-expanded', String(step === 'publish'));
+      all('#ready > [aria-controls]', function (b) { b.setAttribute('aria-expanded', String(b === button)); });
       bar();
-      $('ready').querySelector('[data-ready="' + (step === 'cancel' ? 'publish' : 'cancel') + '"]').focus({ preventScroll: true });
-    }
+      choice(step === 'cancel' ? confirming.name : 'cancel').focus({ preventScroll: true });
+    } else act(step);
   });
 
   let width = root.clientWidth;

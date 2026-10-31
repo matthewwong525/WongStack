@@ -106,7 +106,8 @@
   },
   "ui": {
     "files": [
-      "wiki/ux-principles.md"
+      "wiki/ux-principles.md",
+      "wiki/review-pages.md"
     ]
   },
   "pack": {
