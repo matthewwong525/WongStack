@@ -527,60 +527,44 @@ test('in the inbox frame the page talks only on the port its first greeting carr
   window.close();
 }));
 
-test('in the inbox frame the page says which way the reader turns and when they reach its top, so the inbox can tuck its bars; alone it says nothing', needsDom, () => fixture(async root => {
+test('in the inbox frame the page draws Back and its workspace first, as text, posts inbox:back on a tap, and says nothing as it scrolls; alone it has no Back', needsDom, () => fixture(async root => {
   buildReview(root, { requireCurrent: true });
-  const { window, errors } = dom(page(root));
+  const { window, document, errors } = dom(page(root));
   const parent = { postMessage: () => {} };
   const port = { posted: [], postMessage: message => port.posted.push(JSON.parse(JSON.stringify(message))), onmessage: null };
   Object.defineProperty(window, 'parent', { configurable: true, get: () => parent });
-  let y = 0, tall = window.innerHeight;
-  Object.defineProperty(window, 'scrollY', { configurable: true, get: () => y });
-  Object.defineProperty(window, 'innerHeight', { configurable: true, get: () => tall });
-  const turns = () => port.posted.filter(message => message.type === 'inbox:scroll').map(message => message.down);
-  const tops = () => port.posted.filter(message => message.type === 'inbox:scroll').map(message => message.top);
-  const to = (...ys) => { for (const at of ys) { y = at; window.dispatchEvent(new window.Event('scroll')); } };
   await loaded(window);
-  to(300, 0);
-  const event = new window.MessageEvent('message', { data: { type: 'inbox:hello', item: 'i1', version: 'v1', actions: [] } });
+  assert.ok(document.body.hasAttribute('data-own-back'), 'the inbox knows this page draws its own Back');
+  assert.equal(document.querySelector('.back'), null, 'opened on its own, the page has no Back row');
+  const workspace = '<b>goofy-crab</b>';
+  const event = new window.MessageEvent('message', { data: { type: 'inbox:hello', item: 'i1', version: 'v1', actions: [], workspace } });
   Object.defineProperty(event, 'source', { value: parent });
   Object.defineProperty(event, 'ports', { value: [port] });
   window.dispatchEvent(event);
-  assert.deepEqual(turns(), [], 'before the greeting the page says nothing');
-  to(30, 40, 47);
-  assert.deepEqual(turns(), [], 'within the top zone the bars stay');
-  to(60, 200, 400);
-  assert.deepEqual(turns(), [true], 'reading down turns once');
-  to(395, 400, 393);
-  assert.deepEqual(turns(), [true], 'small jitter turns nothing');
-  to(380, 300);
-  assert.deepEqual(turns(), [true, false], 'scrolling 8 px back up turns');
-  assert.deepEqual(tops(), [false, false], 'a turn up mid-page is not the top');
-  to(310, 600);
-  assert.deepEqual(turns(), [true, false, true]);
-  // The bars tucking makes the frame taller, and the browser moves the page to fit: that is no turn.
-  tall += 100;
-  to(500);
-  assert.deepEqual(turns(), [true, false, true]);
-  to(30);
-  assert.deepEqual(turns(), [true, false, true, false], 'back at the top the bars return');
-  assert.deepEqual(tops(), [false, false, false, true]);
-  // Turned up mid-page, then on to the top: the page says it reached the top without turning again.
-  to(600, 300);
-  assert.deepEqual(turns(), [true, false, true, false, true, false]);
-  to(100, 40);
-  assert.deepEqual(turns(), [true, false, true, false, true, false, false], 'reaching the top says so once');
-  assert.deepEqual(tops().slice(-3), [false, false, true]);
-  to(20, 0);
-  assert.equal(turns().length, 7, 'within the top zone it says nothing more');
-  // Back up into the top zone, then a few px down past it without a turn: still the top.
-  to(600, 45);
-  assert.deepEqual(tops().slice(-1), [true]);
-  const said = turns().length;
-  to(52);
-  assert.equal(turns().length, said, 'creeping past the top zone says nothing');
-  to(60);
-  assert.deepEqual(turns().slice(-1), [true]);
-  assert.deepEqual(tops().slice(-1), [false], 'a turn down leaves the top');
+  const header = document.querySelector('main > header');
+  const row = header.firstElementChild;
+  assert.equal(row.className, 'back', 'Back sits first, above the title, so it scrolls away with the page');
+  const [back, where] = row.children;
+  assert.deepEqual([back.tagName, back.className, back.textContent], ['BUTTON', 'btn-ghost', 'Back']);
+  assert.deepEqual([where.textContent, where.children.length], [workspace, 0], 'markup in the workspace stays text');
+  for (const y of [0, 300, 900, 200, 0]) {
+    Object.defineProperty(window, 'scrollY', { configurable: true, get: () => y });
+    window.dispatchEvent(new window.Event('scroll'));
+  }
+  assert.deepEqual(port.posted.map(message => message.type), ['inbox:notes-get'], 'scrolling posts nothing');
+  back.click();
+  assert.deepEqual(port.posted.at(-1), { type: 'inbox:back' });
+  assert.deepEqual(errors, []);
+  window.close();
+}));
+
+test('in the inbox frame a greeting with no workspace shows Back alone', needsDom, () => fixture(async root => {
+  buildReview(root, { requireCurrent: true });
+  const { window, document, errors } = dom(page(root));
+  await loaded(window);
+  hosted(window, []);
+  const row = document.querySelector('main > header').firstElementChild;
+  assert.deepEqual([...row.children].map(child => child.textContent), ['Back']);
   assert.deepEqual(errors, []);
   window.close();
 }));
@@ -598,7 +582,7 @@ function previewFixture(fn) {
 test('a preview page has no Decisions, its own notes key and kind, and fixed words for its line and its one button', () => previewFixture(root => {
   assert.equal(buildReview(root, { requireCurrent: true, kind: 'preview' }).kind, 'current');
   const html = page(root);
-  assert.match(html, /<body data-kind="preview" data-change="example-preview">/);
+  assert.match(html, /<body data-kind="preview" data-change="example-preview" data-own-back>/);
   assert.doesNotMatch(html, /id="decisions"|href="#decisions"/);
   assert.match(html, /class="art photo" data-note="item-3-picture-1"/);
   assert.equal(previewNotesHeader('example'), "Notes on the preview of example from its review page. Don't publish yet.");
@@ -608,7 +592,7 @@ test('a preview page has no Decisions, its own notes key and kind, and fixed wor
   assert.ok(kit.includes("'Notes on the preview of ' + NAME + ' from its review page. Don\\'t publish yet.'"), 'the kit copies notes under the same line');
   // A plan page keeps its Decisions and has no kind.
   buildReview(root, { requireCurrent: true });
-  assert.match(page(root), /<body data-change="example-preview">[\s\S]*id="decisions"/);
+  assert.match(page(root), /<body data-change="example-preview" data-own-back>[\s\S]*id="decisions"/);
 }));
 
 function hosted(window, actions) {

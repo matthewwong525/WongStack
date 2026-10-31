@@ -1,0 +1,84 @@
+{
+  "format": "verify-journey-1",
+  "id": "reading-down-a-long-page",
+  "scenario": {
+    "capability": "mini-apps",
+    "requirement": "The top bar stays at the top",
+    "scenario": "Reading down a long page"
+  },
+  "thenDigest": "d4f07b51772742c4a21efb22c8eb8dcd3fb9b1cd08dff5990ab0e902aa896d11",
+  "probe": "browser",
+  "writes": false,
+  "sourcePaths": [
+    ".agents/skills/plan/references/review-kit.html",
+    "app/src/Layout.tsx",
+    "app/src/apps/inbox/PlanView.tsx",
+    "app/src/apps/inbox/frame.ts",
+    "app/src/lib/bars.ts",
+    "scripts/retired-names.json"
+  ],
+  "recordedAt": "08e62c92a0ab3b7a715d56261bc555052d12f1f8",
+  "steps": [
+    [
+      "set",
+      "viewport",
+      "390",
+      "844"
+    ],
+    [
+      "open",
+      "{url}/apps/inbox/"
+    ],
+    [
+      "wait",
+      "--text",
+      "Add task"
+    ],
+    [
+      "eval",
+      "window.scrollTo(0,document.documentElement.scrollHeight)"
+    ],
+    [
+      "wait",
+      "--fn",
+      "scrollY>100&&Math.abs(document.querySelector('header').getBoundingClientRect().top)<1&&document.querySelector('header').contains(document.elementFromPoint(20,28))"
+    ],
+    [
+      "eval",
+      "(()=>{const h=document.querySelector('header');return JSON.stringify({path:location.pathname,scrollY:Math.round(scrollY),pageHeight:document.documentElement.scrollHeight,barTop:h.getBoundingClientRect().top,position:getComputedStyle(h).position,barOnTop:h.contains(document.elementFromPoint(20,28))})})()"
+    ],
+    [
+      "open",
+      "{url}/apps/access/"
+    ],
+    [
+      "wait",
+      "--text",
+      "Can push on GitHub"
+    ],
+    [
+      "eval",
+      "window.scrollTo(0,document.documentElement.scrollHeight)"
+    ],
+    [
+      "wait",
+      "--fn",
+      "scrollY>100&&Math.abs(document.querySelector('header').getBoundingClientRect().top)<1&&document.querySelector('header').contains(document.elementFromPoint(20,28))"
+    ],
+    [
+      "eval",
+      "(()=>{const h=document.querySelector('header');return JSON.stringify({path:location.pathname,scrollY:Math.round(scrollY),pageHeight:document.documentElement.scrollHeight,barTop:h.getBoundingClientRect().top,position:getComputedStyle(h).position,barOnTop:h.contains(document.elementFromPoint(20,28))})})()"
+    ]
+  ],
+  "expect": [
+    {
+      "text": "WongStack"
+    },
+    {
+      "text": "Sign out"
+    },
+    {
+      "path": "/apps/access/"
+    }
+  ]
+}
