@@ -10,7 +10,8 @@ const Brand = () => (
   </a>
 );
 
-/** Two quiet text links, so the hero keeps the page's one filled button. */
+/** Quiet text links, so the hero keeps the page's one filled button. scripts/build-guides.mjs copies them into
+ * every static guide page, and guides.test.ts fails when the two lists differ. */
 export function SiteHeader() {
   return (
     <header className="site-header">
@@ -18,6 +19,7 @@ export function SiteHeader() {
       <nav>
         <a href={REPO_URL}>GitHub</a>
         <a href="/#install">Install</a>
+        <a href="/guides">Guides</a>
       </nav>
     </header>
   );

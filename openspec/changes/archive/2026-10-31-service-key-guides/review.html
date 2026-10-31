@@ -1,0 +1,1130 @@
+<!-- wong-review:3 -->
+<!doctype html>
+<!--
+  WongStack review kit. build-review.mjs writes the proposal as static HTML at the
+  review:content marker, puts the app's look (look.mjs) at the look marker, the light and dark switch (theme.js) at the
+  theme marker, and the change name in place of its token. The one script adds Note buttons, drawing fit and full screen, notes, drafts, and copy. It loads nothing from the network;
+  opened through a reply link (reply-link.mjs), it sends the saved notes to the chat, and its footer
+  asks the chat to build, or to build and publish, with saved unsent notes: each button shows when the link offers it.
+  A preview page (data-kind="preview", from apply's preview-review.mjs) names the finished build and offers Publish.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Review · 2026-10-31-service-key-guides</title>
+<style>
+  /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
+   look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
+   shadcn's neutral light and dark colours stays only for a colour it can't find. Every page starts light, even on a
+   dark device; theme.js adds `.dark` to the root element when the person switches, and draws the switch (.theme-toggle).
+   The parts below draw app/src/components/ui/ (button, input, card, badge, skeleton) in plain CSS. Each sits in
+   :where(), so a page's own rule always wins.
+   Nothing here loads a file: these pages fetch nothing from the network. */
+:root {
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+}
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+}
+
+/* Tailwind's shadow-xs, shadow-sm and shadow-lg; Radix's popover shadow, and its upward twin for a box docked at the
+   bottom, so a layer reads as above the page; and the 3px focus ring at half strength. */
+:root {
+  color-scheme: light;
+  --look-shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --look-shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --look-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --look-shadow-overlay: 0 10px 38px -10px rgb(0 0 0 / 0.35), 0 10px 20px -15px rgb(0 0 0 / 0.2);
+  --look-shadow-up: 0 -8px 24px rgb(0 0 0 / 0.12);
+  --look-ring: color-mix(in oklab, var(--ring) 50%, transparent);
+}
+.dark { color-scheme: dark; }
+
+:where(body) {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-feature-settings: "rlig" 1, "calt" 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+:where(h1, h2, h3) { font-weight: 600; letter-spacing: -0.025em; }
+:where(a) { color: inherit; text-underline-offset: 0.25rem; }
+::selection { background: var(--primary); color: var(--primary-foreground); }
+:where(:focus-visible) { outline: 3px solid var(--ring); outline-offset: 2px; }
+
+/* Button (button.tsx): outline by default; .btn-primary, and the pages' button.primary and button.main, filled. */
+:where(button, .btn) {
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
+  background: var(--background);
+  color: var(--foreground);
+  box-shadow: var(--look-shadow-xs);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+:where(button, .btn):where(:hover:not(:disabled)) { background: var(--accent); color: var(--accent-foreground); }
+:where(button.primary, button.main, .btn-primary) { border-color: var(--primary); background: var(--primary); color: var(--primary-foreground); box-shadow: none; }
+:where(button.primary, button.main, .btn-primary):where(:hover:not(:disabled)) { background: color-mix(in oklab, var(--primary) 90%, transparent); color: var(--primary-foreground); }
+:where(.btn-ghost) { border-color: transparent; background: transparent; box-shadow: none; }
+:where(button, .btn):where(:disabled) { opacity: 0.5; cursor: default; }
+
+/* Field (input.tsx): a thin border, a soft shadow, and the ring on focus. */
+:where(input:not([type=checkbox], [type=radio], [type=file], [type=range], [type=button], [type=submit]), select, textarea, .field) {
+  border: 1px solid var(--input);
+  border-radius: calc(var(--radius) - 2px);
+  background: transparent;
+  color: var(--foreground);
+  box-shadow: var(--look-shadow-xs);
+  font: inherit;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+:where(input, textarea)::placeholder { color: var(--muted-foreground); }
+:where(input, select, textarea, .field):where(:focus-visible) { outline: none; border-color: var(--ring); box-shadow: 0 0 0 3px var(--look-ring); }
+:where(input, select, textarea, .field):where([aria-invalid=true]) { border-color: var(--destructive); }
+:where(input[type=checkbox], input[type=radio]) { accent-color: var(--primary); }
+
+/* Card (card.tsx) and tag (badge.tsx, secondary). */
+:where(.card) {
+  background: var(--card);
+  color: var(--card-foreground);
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) + 4px);
+  box-shadow: var(--look-shadow-sm);
+}
+:where(.tag) {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.5rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.33;
+  white-space: nowrap;
+}
+:where(.tag-outline) { border-color: var(--border); background: transparent; color: var(--foreground); }
+
+/* Skeleton (skeleton.tsx): a grey block that pulses while what it stands for loads, and holds still when motion is
+   off. .sr-only keeps the words of a loading state for a screen reader alone. */
+:where(.skeleton) { display: block; border-radius: calc(var(--radius) - 2px); background: var(--accent); animation: look-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+@keyframes look-pulse { 50% { opacity: 0.5; } }
+@media (prefers-reduced-motion: reduce) { :where(.skeleton) { animation: none; } }
+:where(.sr-only) { position: absolute; max-width: 1px; max-height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+
+/* The light and dark switch (theme.js): a ghost icon button, 44px, in the page's top right corner, above the page and
+   below a note box or full-screen view. It scrolls away with the page's top, so it never sits over text read later.
+   In a page's [data-theme-toggle] slot it sits in line. The icon shows the look it switches to: moon on light. */
+.theme-toggle {
+  position: absolute;
+  top: calc(12px + env(safe-area-inset-top));
+  right: calc(12px + env(safe-area-inset-right));
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  min-width: 2.75rem;
+  height: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  color: var(--foreground);
+}
+@media (hover: hover) { .theme-toggle:hover { background: var(--accent); color: var(--accent-foreground); } }
+[data-theme-toggle] .theme-toggle { position: static; flex: none; }
+.theme-toggle svg { width: 1.25rem; height: 1.25rem; pointer-events: none; }
+
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; }
+  body { --pad:12px; margin:0; padding-bottom:var(--bar, 76px); font:16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; overflow-wrap:anywhere; }
+  main { max-width:700px; margin:0 auto; padding:0 12px; }
+  code, pre, .ln { font-family:ui-monospace, Menlo, Consolas, monospace; }
+  code { background:var(--muted); border-radius:4px; padding:.1em .3em; font-size:.88em; }
+  [hidden] { display:none !important; }
+  header { padding:20px 48px 4px 0; }
+  .eyebrow { margin:0; color:var(--muted-foreground); font-size:14px; font-weight:500; }
+  h1 { margin:2px 0 4px; font-size:22px; line-height:1.25; }
+  .jump { display:flex; flex-wrap:wrap; gap:0 18px; margin:4px 0 0; padding:0; list-style:none; }
+  .jump a { display:inline-block; padding:8px 0; }
+  .hint, .muted { color:var(--muted-foreground); font-size:14px; margin:4px 0 0; }
+  #script-error { color:var(--destructive); font-weight:600; }
+  section { margin:24px 0; scroll-margin-top:8px; }
+  h2 { margin:0 0 8px; color:var(--muted-foreground); font-size:14px; font-weight:500; letter-spacing:0; }
+  .card { padding:var(--pad); margin:0 0 10px; }
+  .card p { margin:0 0 10px; } .card p:last-child { margin-bottom:0; }
+  .items, .decisions, .note-list { list-style:none; margin:0; padding:0; }
+  .item { display:grid; grid-template-columns:26px minmax(0,1fr); gap:0 10px; overflow:hidden; }
+  .item, .decision { scroll-margin-top:8px; }
+  .num { flex:0 0 26px; height:26px; border-radius:50%; background:var(--secondary); color:var(--secondary-foreground); font-size:13px; font-weight:600; display:flex; align-items:center; justify-content:center; }
+  .body { flex:1; min-width:0; }
+  [data-note] { border-radius:4px; }
+  [data-note]:hover, .noting { background:var(--accent); }
+  .item > .drawing { position:relative; grid-column:1 / -1; margin:10px calc(-1 * var(--pad)) 0; }
+  .item > .drawing:last-child { margin-bottom:calc(-1 * var(--pad)); }
+  .drawing summary { display:flex; align-items:center; gap:6px; min-height:44px; padding:0 var(--pad); border-top:1px solid var(--border); color:var(--muted-foreground); font-size:14px; cursor:pointer; list-style:none; }
+  .drawing summary::-webkit-details-marker { display:none; }
+  .drawing summary::before { content:'\25B8'; display:inline-block; width:1em; }
+  .drawing[open] summary::before { transform:rotate(90deg); }
+  .drawing[open] .show, .drawing:not([open]) .hide { display:none; }
+  .drawing .count { color:var(--foreground); font-weight:600; }
+  .frame { overflow:auto; border-top:1px solid var(--border); background:var(--muted); touch-action:pan-y; }
+  .js .frame { overflow:hidden; cursor:zoom-in; }
+  .art { display:block; width:max-content; margin:0; padding:.6em .8em; font-size:13px; line-height:1.2; white-space:pre; overflow-wrap:normal; }
+  .art.pic { box-sizing:content-box; white-space:normal; --pele-bg:transparent; --pele-fg:var(--foreground); --pele-muted:var(--muted-foreground); --pele-line:var(--foreground); --pele-border:var(--ring); --pele-surface:var(--card); --pele-surface-alt:var(--muted); --pele-accent:var(--foreground); --pele-error:var(--destructive); --pele-critical:var(--destructive); }
+  .art.pic svg { display:block; width:100%; height:auto; }
+  /* A hand-drawn sketch: named colours become classes painted from the look; text inherits the page's ink and font at a fixed size. */
+  .art.sketch svg { fill:var(--foreground); font-family:system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-size:13px; }
+  .art.sketch .f-bg { fill:var(--background); } .art.sketch .f-fg { fill:var(--foreground); } .art.sketch .f-muted { fill:var(--muted); } .art.sketch .f-subtle { fill:var(--muted-foreground); }
+  .art.sketch .f-line { fill:var(--border); } .art.sketch .f-card { fill:var(--card); } .art.sketch .f-danger { fill:var(--destructive); }
+  .art.sketch .s-bg { stroke:var(--background); } .art.sketch .s-fg { stroke:var(--foreground); } .art.sketch .s-muted { stroke:var(--muted); } .art.sketch .s-subtle { stroke:var(--muted-foreground); }
+  .art.sketch .s-line { stroke:var(--border); } .art.sketch .s-card { stroke:var(--card); } .art.sketch .s-danger { stroke:var(--destructive); }
+  /* A screen: the look's parts in em, so the kit's fit and zoom scale it; its controls sit in an inert box and never take a tap. */
+  .art.screen { line-height:1.4; } .art.screen:not([style]) { width:auto; max-width:49.2em; margin-right:1px; }
+  .art.screen .sk { pointer-events:none; user-select:none; } .art.screen .sk > * + * { margin-top:.6em; }
+  .art.screen :is(h3, h4, p, ul, ol) { margin:0; } .art.screen h3 { font-size:1.15em; } .art.screen h4, .art.screen small { font-size:.9em; }
+  .art.screen .card { margin:0; padding:1em; } .art.screen :is(button, .btn) { min-width:0; min-height:0; padding:.45em 1em; font-size:1em; } .art.screen .tag { margin:0; font-size:.85em; }
+  .art.screen :is(input:not([type=checkbox], [type=radio]), textarea, select, .field) { display:block; box-sizing:border-box; width:100%; padding:.45em .7em; }
+  .art.screen .skeleton { animation:none; min-height:1em; } .art.screen hr, .art.screen .sep { border:0; border-top:1px solid var(--border); margin:.6em 0; }
+  .art.screen .row { display:flex; align-items:center; flex-wrap:wrap; } .art.screen .col { display:flex; flex-direction:column; }
+  .art.screen .gap { gap:.6em; } .art.screen .grow { flex:1 1 0; min-width:0; } .art.screen .muted { margin:0; color:var(--muted-foreground); font-size:inherit; } .art.screen .danger { color:var(--destructive); }
+  .art.screen .sk-bar { display:block; height:.75em; border-radius:.375em; background:color-mix(in oklab, var(--muted-foreground) 25%, transparent); }
+  .art.screen .tbl, .art.screen table { width:100%; border-collapse:collapse; } .art.screen :is(th, td) { padding:.35em .6em; text-align:left; border-bottom:1px solid var(--border); }
+  /* Picture files: a wrapping row of labelled figures in em, so the fit and zoom scale them like a drawing; two sit side by side when they fit. */
+  .art.photo { width:49.2em; display:flex; flex-wrap:wrap; align-items:flex-start; gap:.8em; white-space:normal; line-height:1.3; }
+  .art.photo figure { flex:1 1 18em; min-width:0; margin:0; text-align:center; }
+  .art.photo img { display:block; width:100%; height:auto; max-height:40em; object-fit:contain; border:1px solid var(--border); border-radius:.4em; background:var(--background); }
+  .art.photo figcaption { margin-top:.3em; color:var(--muted-foreground); font-size:.95em; }
+  .item > .table { grid-column:1 / -1; margin:10px calc(-1 * var(--pad)) 0; overflow-x:auto; border-top:1px solid var(--border); }
+  .item > .table:last-child { margin-bottom:calc(-1 * var(--pad)); }
+  .tbl { width:100%; border-collapse:collapse; font-size:14px; }
+  .tbl th, .tbl td { padding:6px var(--pad); text-align:left; vertical-align:top; border-bottom:1px solid var(--border); }
+  .tbl th { color:var(--muted-foreground); font-weight:500; background:var(--muted); }
+  .tbl tbody tr:last-child td { border-bottom:0; }
+  .art .pin { min-width:1.8em; min-height:1.6em; margin-left:.4em; padding:0 .5em; border-radius:.8em; font-size:.85em; line-height:1.5em; }
+  .enlarge { position:absolute; top:6px; right:var(--pad); min-height:32px; padding:2px 10px; font-size:13px; }
+  .add { min-width:0; min-height:34px; margin-left:6px; padding:0 12px; border-radius:17px; box-shadow:none; color:var(--muted-foreground); font-size:13px; vertical-align:middle; }
+  .zoom { display:flex; align-items:center; gap:6px; }
+  .zoom .level { margin-right:auto; color:var(--muted-foreground); font-size:13px; }
+  #viewer { position:fixed; top:0; left:0; right:0; bottom:0; z-index:8; display:flex; flex-direction:column; background:var(--background); }
+  #viewer .zoom { flex:none; padding:calc(6px + env(safe-area-inset-top)) 12px 6px; border-bottom:1px solid var(--border); }
+  #viewer .vframe { flex:1; min-height:0; overflow:auto; background:var(--muted); touch-action:pan-x pan-y; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
+  #viewer .vhint { flex:none; margin:0; padding:6px 12px calc(6px + env(safe-area-inset-bottom)); border-top:1px solid var(--border); color:var(--muted-foreground); font-size:13px; }
+  body.viewing { overflow:hidden; }
+  .meta { margin:0 0 4px !important; color:var(--muted-foreground); font-size:13px; }
+  .tag { margin-right:8px; vertical-align:1px; }
+  .tag.assumed { border-color:var(--border); border-style:dashed; background:transparent; color:var(--foreground); }
+  .tag.check { border-color:var(--foreground); border-style:dotted; background:transparent; color:var(--foreground); }
+  .hit { outline:3px solid var(--ring); outline-offset:3px; }
+  button { font-size:14px; min-width:40px; min-height:40px; padding:4px 12px; }
+  .pin { min-width:24px; min-height:24px; margin-left:6px; padding:0 7px; border-radius:12px; border-color:var(--primary); background:var(--primary); box-shadow:none; color:var(--primary-foreground); font:600 12px/22px system-ui, sans-serif; vertical-align:middle; }
+  .pin.draft { border-color:var(--foreground); border-style:dashed; background:var(--background); color:var(--foreground); }
+  .entry { display:block; width:100%; margin:0 0 8px; padding:8px 10px; text-align:left; font-weight:400; }
+  .entry .where { display:block; color:var(--muted-foreground); font-size:13px; }
+  .entry .tag { margin:0 0 0 6px; }
+  #chip { position:absolute; z-index:9; border-color:var(--input); box-shadow:var(--look-shadow-overlay); }
+  #editor { position:absolute; z-index:6; width:260px; padding:10px; background:var(--popover); color:var(--popover-foreground); border:1px solid var(--input); border-radius:calc(var(--radius) + 4px); box-shadow:var(--look-shadow-overlay); }
+  #editor.docked { position:fixed; left:0; right:0; bottom:0; width:auto; display:flex; flex-direction:column; overflow:auto; border-width:1px 0 0; border-radius:0; box-shadow:var(--look-shadow-up); padding:8px 12px max(8px, env(safe-area-inset-bottom)); }
+  #editor.docked .where { flex:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #editor.docked textarea { flex:1 1 auto; min-height:44px; }
+  #editor.docked .row { flex:none; }
+  #editor .where { margin:0 0 6px; color:var(--muted-foreground); font-size:13px; }
+  #editor .moved { margin:0 0 6px; font-size:13px; font-weight:600; }
+  #editor textarea { display:block; width:100%; min-height:76px; padding:6px 8px; font:16px/1.4 system-ui, sans-serif; resize:vertical; }
+  #editor .row { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .bar { position:fixed; left:0; right:0; bottom:0; z-index:4; display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); align-items:stretch; gap:8px; padding:8px 12px calc(8px + env(safe-area-inset-bottom)); background:var(--background); border-top:1px solid var(--border); }
+  .bar:has(#ready[hidden]) { grid-template-columns:1fr; }
+  .bar:has(#ready:not([hidden]) > button[hidden]) { grid-template-columns:repeat(2, minmax(0, 1fr)); }
+  .bar > button, #ready > button { min-width:0; height:64px; padding:6px; white-space:normal; line-height:1.3; }
+  body.docked .bar, body.viewing .bar { display:none; }
+  #ready { display:contents; }
+  #ready-confirm { position:absolute; right:12px; bottom:calc(100% + 8px); width:272px; max-width:calc(100vw - 24px); max-height:calc(100dvh - var(--bar, 76px) - 24px); overflow:auto; padding:12px; background:var(--popover); color:var(--popover-foreground); border:1px solid var(--border); border-radius:calc(var(--radius) + 4px); box-shadow:var(--look-shadow-lg); }
+  #ready-confirm .row { display:flex; gap:8px; margin-top:10px; }
+  #ready-confirm button { flex:1; min-height:44px; }
+  #ready-confirm p { margin:0; font-size:14px; }
+  #ready-says { position:absolute; right:12px; bottom:calc(100% + 8px); max-width:calc(100vw - 24px); margin:0; padding:8px 12px; background:var(--popover); color:var(--popover-foreground); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--look-shadow-lg); font-size:14px; font-weight:500; pointer-events:none; }
+  .bar:has(#ready-confirm:not([hidden])) #ready-says { bottom:calc(100% + 16px + var(--choices, 0px)); }
+  .spinner { display:inline-block; width:14px; height:14px; margin-right:6px; vertical-align:-2px; border:2px solid currentColor; border-right-color:transparent; border-radius:50%; animation:spin .8s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  @media (prefers-reduced-motion:reduce) { .spinner { animation:none; } }
+  .session, #editor .copies { color:var(--muted-foreground); font-size:13px; }
+  #editor .copies { flex:none; margin:6px 0 0; }
+  .pin.sent { background:var(--background); color:var(--foreground); }
+  #toast { position:fixed; left:50%; bottom:calc(var(--bar, 76px) - 4px); z-index:7; max-width:90vw; transform:translateX(-50%); padding:8px 14px; border-radius:var(--radius); background:var(--primary); color:var(--primary-foreground); box-shadow:var(--look-shadow-lg); font-size:14px; opacity:0; pointer-events:none; transition:opacity .2s; }
+  #toast.show { opacity:1; }
+  #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
+  @media (min-width:701px) {
+    body { --pad:16px; font-size:20px; }
+    h1 { font-size:30px; }
+    .eyebrow, h2, .hint, .muted, .num, .drawing summary, .add, .meta, .entry .where, #editor .where, #editor .moved, .session, #editor .copies, #ready-confirm p, #ready-says { font-size:16px; }
+    button { font-size:18px; }
+    .entry { font-size:20px; }
+    .bar { grid-template-columns:repeat(3, minmax(0, 1fr)); padding-left:max(12px, calc((100vw - 700px) / 2 + 12px)); padding-right:max(12px, calc((100vw - 700px) / 2 + 12px)); }
+    .bar:has(#ready[hidden]) { grid-template-columns:1fr; }
+    .bar:has(#ready:not([hidden]) > button[hidden]) { grid-template-columns:repeat(2, minmax(0, 1fr)); }
+    .bar > button, #ready > button { height:44px; }
+    #ready-confirm, #ready-says { right:max(12px, calc((100vw - 700px) / 2 + 12px)); }
+    #ready-confirm { width:320px; }
+  }
+</style>
+<script>
+// The light and dark switch outside the app: inlined in the review page's <head>, served to private pages as /theme.js.
+// It applies the saved choice before paint, then adds the button; storage that is off still switches, unremembered.
+(function () {
+  var KEY = 'wongstack-theme';
+  var SVG = 'http://www.w3.org/2000/svg';
+  // lucide's moon and sun. The icon shows the look a tap switches to.
+  var ICONS = {
+    moon: [['path', { d: 'M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z' }]],
+    sun: [['circle', { cx: '12', cy: '12', r: '4' }]].concat(['M12 2v2', 'M12 20v2', 'm4.93 4.93 1.41 1.41', 'm17.66 17.66 1.41 1.41', 'M2 12h2', 'M20 12h2', 'm6.34 17.66-1.41 1.41', 'm19.07 4.93-1.41 1.41'].map(function (d) { return ['path', { d: d }]; })),
+  };
+  var root = document.documentElement;
+  var saved = null;
+  try { saved = localStorage.getItem(KEY); } catch (e) { saved = null; }
+  root.classList.toggle('dark', saved === 'dark');
+
+  function icon(name) {
+    var svg = document.createElementNS(SVG, 'svg');
+    var attrs = { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' };
+    Object.keys(attrs).forEach(function (k) { svg.setAttribute(k, attrs[k]); });
+    ICONS[name].forEach(function (part) {
+      var el = document.createElementNS(SVG, part[0]);
+      Object.keys(part[1]).forEach(function (k) { el.setAttribute(k, part[1][k]); });
+      svg.appendChild(el);
+    });
+    return svg;
+  }
+
+  function draw(button) {
+    var dark = root.classList.contains('dark');
+    button.setAttribute('aria-label', dark ? 'Switch to light' : 'Switch to dark');
+    button.setAttribute('aria-pressed', dark ? 'true' : 'false');
+    button.textContent = '';
+    button.appendChild(icon(dark ? 'sun' : 'moon'));
+  }
+
+  function mount() {
+    if (!document.body || document.querySelector('.theme-toggle')) return;
+    var button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'theme-toggle';
+    draw(button);
+    button.addEventListener('click', function () {
+      var dark = !root.classList.contains('dark');
+      root.classList.toggle('dark', dark);
+      try { localStorage.setItem(KEY, dark ? 'dark' : 'light'); } catch (e) { /* switched, not remembered */ }
+      draw(button);
+    });
+    var slot = document.querySelector('[data-theme-toggle]');
+    if (slot) slot.appendChild(button);
+    else document.body.insertBefore(button, document.body.firstChild);
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount);
+  else mount();
+})();
+</script>
+</head>
+<body data-change="2026-10-31-service-key-guides">
+<main>
+<header>
+  <p class="eyebrow">Review</p>
+  <h1>2026-10-31-service-key-guides</h1>
+  <p class="muted"><span class="note-count">0 notes</span></p>
+  <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
+  <p class="hint"><span class="lead">Tap + Note to comment.</span> <span class="copies">Saving a note copies all your notes.</span> <span class="tail">Open a drawing and tap it to see it full screen.</span></p>
+  <p id="script-error" role="alert" hidden></p>
+</header>
+<section id="why" aria-labelledby="why-h"><h2 id="why-h">Why</h2>
+<div class="card">
+<p data-note="why-1" tabindex="0">Connecting a business tool to an AI agent starts with a key from that tool, and each tool hides it in a different place. Shopify, Meta, and Google are the hardest: a non-technical owner gets lost in developer screens and gives up. You want one public page per tool on wongstack.com. A person can follow it alone, or tell their agent <i>follow this page</i>, and finish with a working key that is kept safe.</p>
+</div></section>
+<section id="changes" aria-labelledby="changes-h"><h2 id="changes-h">What Changes</h2>
+<ol class="items">
+<li class="item card" id="item-1"><span class="num">1</span><div class="body"><div class="text" data-note="item-1" tabindex="0"><b>wongstack.com gets a Guides section with 8 guides.</b> A <i>Guides</i> link in the top bar opens a list, one row per tool. The guides speak to anyone, with or without WongStack.</div></div><details class="drawing" open><summary><span class="show">Show picture</span><span class="hide">Hide picture</span><span class="count"></span></summary><div class="frame"><div class="art photo" data-note="item-1-picture-1" tabindex="0"><figure><img src="data:image/webp;base64,UklGRmxaAABXRUJQVlA4IGBaAADwMAKdASrNBeYCPp1Ook2lpCcjIXEo0OATiWlu/CgAL0zlPUSjX7bmP7N10K0sdSFVt0M9m62b0AOlMyKvyx/WvyO9+Hgt+K/wH7j/470v8l/tz98/dD2WsdfX7qd/Ovvr+n/uf7t/5L5jfvP7H+JPyX/2P8n7Av5d/Qf9V/b/3c+D37//t9sHs/++/8PqC+6/23/sfc77+f0H/N9DvtN/zvuW+wD+d/2b/netP/L/aDydvxn+5/cP4Af6F/dP/D/pfy6+nX/G/93+4/3f7ke4b9h/3f/y/2vwHfsB+yft0f//3SfvB////B8Pf7xBoktfkCQEgJASAkBICQEgJASAkBICQEgJASAkBICQEgJASAkBICQEgJASAkBICQC6RbH3YcAOPz3Adqajm4lQYpWUSVW3757z2XIQT3DCijRwelgwBuzsDhdlWLDmsK1+QJASAkBICQEgJASAkBICQEgIxhedgec24sGjZHQQLFVKisQTg6r293sWHNYVr8gSAXP7iFQjiBDllIwBmfqTywCfbqpHzxAKKz55zeCipJvPIwXF/U4MH38VILj/fVhWFa/IEgJASAkBICQEgJASAkBICQEgJAMRJbxgUxehMx7MvAlVLfVahnMmUxAA1KjgBGZD6sK1+QJASAkBKsrSD/WFa/IEgJASAkBICQEgJASAkBICQEgJASAkBP3ioKKwrX5AkBICQEdnCFp8Yb9cpMtPjDfrlJlp8Yb9cpMtPjDfrlJlp8Yb9cpMtPjDfrlJlp8DmDHPSUgSAkBICQEgJASAkBICQEgJASAkBICQEgJASAkBICQEgJASAkBICQEgJASAkBICQEgJASAkBICQEgJASAkBICQEgJASAkBICQEgJASAkBICQEgJASAkBICQEgJASAkBICQEgJASAkBICQEgJASAkBICQEgJASAkBICQEgJASAkBICQEgJASAkBICQEgJASAkBICQEgKV1bO5xpPvurZ3ONJ991bO5xpPvurZ3OM9AxICQEgJASAkBICQEgJASAkBICQEgZSi7ZkIrCtfkCQEgJASAkBICQEgVk8BCKwrX5AkBICQEgJASAkBICQEgJASAkBICQEgJASAkBICQEgJASAkBIFOou2ZCKwrX5AkBICQEgJASAkBICQEgJASAkBICQEgJASAkBICQEg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hYxROQFtJEN8uqrgL+YhgFHYKLFdsyFod0rnkbLpZD2Si0jCXmtJMeXPE9Ocp0o9EI9s/HS8KxtgHBQeUIzixBQDmJeUAfdWzqCJURmaadoHnmskY/QEIrCtfkCQDDCtdeUH5WTYPwKRgPcriU8tKwoPAeMA+l+UGiW2xeprwQ9U0TlTh857+jMOvMxmKWxYwGuygfeRcn1cAeWywdkIi20yNLs4fdsZLPCuRGkC7NowiwZmSGnc4FLO3QvM347IpAkjf1YmV7ctEkV0UJYRPfiYPbI39DEXTsRna1br9Y4VcxPbBgZkKu5e3HUf3O92B/cVyOamJft7WGYkYA479cmMSKcEK1/SrGdK9apQ+1wzoPbx9FUlIEgJASAj8kyltqwj0/I83PVuI/Z/8iifYs7Q98YbloZCLBmZK2GtuEfiZa4xkWnxTsx9DzuNcN+uUeJhrhni8GbK2ZCKwrX5AkBInsou9QPmsK1+QJASGOeWAMCiO8FHZ9SS8tfQ1fYrtAOFKvzWNsKYs3HLyOeaZQWrVCtqiBCKwrX5AkBICQEgJASAkBICQEgJASAkBICQEgJASAkBIY55ca4A1Al8RChBUnW6B0ax8Hnxy2eAek+ey0Ivjnv3FOyS0HAXwH2bSWrqiEiUgHQH3QER0k5FLG2rtioQnkCOVxhSCwjEUBCKwrX5AkBICQEgJASAkBICQEgJASAkBICQEgJASAkCBdJSBPi1bdLoI9AxICQEgJASAjRMSAkBICQEgJASAkBICQEgJASAkBICQEyQK1+QJASAkBICQEgJASAkBICQEgJASAkBICQEgJASAkBICQEgJASAkBIY56SkCQEgJASAkBICQEgJASAkBICQEgJASAkBICQEgJASAkBICQEgJASAkMc9JSBICQEgJASAkBICQEgJASAkA0yqLtmQisK1+QJASAkBICQEgJASAkBH6UpeeVKTLT4w365SZafGG/XKTLT4w3zwEIrCtfkCQEgJASAkBICQEgJASAkBICQEgJASAkBICQEgJASAkBICQEgJASAkBICQEgJASAkBICQEgJASAkBICQEgJASAkBICQEgJASAkBICQEgJASAkBICQEgJASAkBICQEgJASAkBICQEgJASAkBICQEgJASAkBICQEgJASAkBICQEgJASAkBICQEgJASAkBICQEgJASAkBICQEgJAS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" alt="Before"><figcaption>Before</figcaption></figure></div></div></details><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><div class="art pic screen" data-note="item-1-picture-2" tabindex="0" style="width:27.692em"><div class="sk" inert><div class="card col gap phone">
+  <div class="row gap"><b>WongStack</b><span class="grow"></span><span>GitHub</span><span>Install</span><b>Guides</b></div>
+  <span class="sep"></span>
+  <h3>Connect your tools</h3>
+  <span class="muted">Get a key from each tool, so you or your AI agent can use it. Each guide takes 5 to 15 minutes.</span>
+  <div class="card row gap"><b>Shopify</b><span class="grow muted">Orders, products, customers</span><span class="tag-outline">10 min</span></div>
+  <div class="card row gap"><b>Shopify theme</b><span class="grow muted">Change your store's look</span><span class="tag-outline">10 min</span></div>
+  <div class="card row gap"><b>Klaviyo</b><span class="grow muted">Emails and lists</span><span class="tag-outline">5 min</span></div>
+  <div class="card row gap"><b>Meta ads</b><span class="grow muted">Facebook and Instagram ads</span><span class="tag-outline">15 min</span></div>
+  <div class="card row gap"><b>Google</b><span class="grow muted">Gmail, Drive, Sheets, Calendar</span><span class="tag-outline">15 min</span></div>
+  <div class="card row gap"><b>Canva</b><span class="grow muted">Designs and brand files</span><span class="tag-outline">10 min</span></div>
+  <div class="card row gap"><b>Slack</b><span class="grow muted">Messages and channels</span><span class="tag-outline">5 min</span></div>
+  <div class="card row gap"><b>Notion</b><span class="grow muted">Notes and docs</span><span class="tag-outline">5 min</span></div>
+  <span class="tag">Keep your keys safe</span>
+</div></div></div></div></details></li>
+<li class="item card" id="item-2"><span class="num">2</span><div class="body"><div class="text" data-note="item-2" tabindex="0"><b>Each guide has the same shape, with a real picture at every step.</b> It starts with what the key lets you do, how long it takes, and what you need first, such as an admin role. Each numbered step names the exact button and shows a picture of the screen, with the button marked. The guide asks only for the permissions the job needs, and suggests read-only first. It ends with the key names to save, a check that proves the key works, and what to do if the key leaks.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><div class="art pic screen" data-note="item-2-picture-1" tabindex="0" style="width:27.692em"><div class="sk" inert><div class="card col gap phone">
+  <span class="muted">Guides › Shopify</span>
+  <h3>Connect Shopify</h3>
+  <div class="row gap"><span class="tag-outline">10 min</span><span class="tag-outline">You need: store owner or staff with app rights</span></div>
+  <div class="card col gap"><b>If you are an AI agent</b><span class="muted">Ask before you make anything. The person signs in. Never show the key in the chat. Save it to .env.</span></div>
+  <b>3. Tap Create app</b>
+  <div class="skeleton"></div>
+  <span class="muted">Picture: the Apps screen, with Create app marked</span>
+  <b>Save it</b>
+  <span class="muted">SHOPIFY_STORE=your-store.myshopify.com</span>
+  <span class="muted">SHOPIFY_ADMIN_TOKEN=…</span>
+  <button class="btn-ghost">Copy the check</button>
+</div></div></div></div></details></li>
+<li class="item card" id="item-3"><span class="num">3</span><div class="body"><div class="text" data-note="item-3" tabindex="0"><b>An agent can read every guide as plain text.</b> Each guide is a real page that a reader can follow with no script, plus a plain-text copy at the same address with <code>.md</code> on the end. One list file names every guide, so an agent told <i>go to wongstack.com/guides</i> finds the right one. An agent with browser control, such as Claude Code or Codex with a browser, can do the steps with the person watching.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><div class="art pic" data-note="item-3-picture-1" tabindex="0" style="width:13.923em"><svg xmlns="http://www.w3.org/2000/svg" class="pele pele-flowchart" viewBox="0 0 181 448" width="181" height="448" style="max-width:100%;height:auto;--_bg:var(--pele-bg,#fff);--_fg:var(--pele-fg,#1f1f1f);--_m:var(--pele-muted,#6e6e6e);--_l:var(--pele-line,#1f1f1f);--_s:var(--pele-surface,#f3f3f3);--_a:var(--pele-surface-alt,#e6e6e6);--_b:var(--pele-border,#8a8a8a);--_c:var(--pele-accent,#5b7bd5);color:var(--_fg);--_r:var(--pele-radius,4px);--_fm:var(--pele-font-mono,monospace);font:16px sans-serif;letter-spacing:normal;word-spacing:normal;text-transform:none;direction:ltr;font-family:var(--pele-font,system-ui, -apple-system, &quot;Segoe UI&quot;, Roboto, sans-serif)" fill="var(--_fg)" role="graphics-document document" aria-roledescription="flowchart"><g class="pele-edges" fill="none" stroke="var(--_l)" stroke-linecap="round"><g class="pele-edge" data-id="L_ask_read_0"><path d="M90.04,56L90.04,97"/><path class="pele-marker" d="M90.04,104L86.68,96L93.4,96Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge" data-id="L_read_steps_0"><path d="M90.04,152L90.04,193"/><path class="pele-marker" d="M90.04,200L86.68,192L93.4,192Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge" data-id="L_steps_env_0"><path d="M90.04,248L90.04,289"/><path class="pele-marker" d="M90.04,296L86.68,288L93.4,288Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge" data-id="L_env_check_0"><path d="M90.04,344L90.04,385"/><path class="pele-marker" d="M90.04,392L86.68,384L93.4,384Z" fill="var(--_l)" stroke="none"/></g></g><g class="pele-nodes"><g class="pele-node pele-shape-rect" data-id="ask" transform="translate(90.04,32)"><rect x="-74.92" y="-24" width="149.84" height="48" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">connect Shopify</text></g><g class="pele-node pele-shape-rect" data-id="read" transform="translate(90.04,128)"><rect x="-82.04" y="-24" width="164.08" height="48" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">agent reads guide</text></g><g class="pele-node pele-shape-rect" data-id="steps" transform="translate(90.04,224)"><rect x="-71.8" y="-24" width="143.6" height="48" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">person signs in</text></g><g class="pele-node pele-shape-rect" data-id="env" transform="translate(90.04,320)"><rect x="-56.24" y="-24" width="112.48" height="48" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">key in .env</text></g><g class="pele-node pele-shape-rect" data-id="check" transform="translate(90.04,416)"><rect x="-62.01" y="-24" width="124.02" height="48" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">check works</text></g></g></svg></div></div></details></li>
+<li class="item card" id="item-4"><span class="num">4</span><div class="body"><div class="text" data-note="item-4" tabindex="0"><b>Each code box has a Copy button.</b> One tap copies the line to save or the check command, with nothing extra. If the browser refuses, the text is selected for you to copy by hand.</div></div></li>
+<li class="item card" id="item-5"><span class="num">5</span><div class="body"><div class="text" data-note="item-5" tabindex="0"><b>One page teaches how to keep keys safe, and every guide links it.</b> It says a key is like a password to your business. It goes in a file named <code>.env</code> that git ignores, never in a chat, an email, a screenshot, or a shared doc. Give each key the least it needs, keep a copy in a password manager, and replace it at once if it leaks.</div></div></li>
+<li class="item card" id="item-6"><span class="num">6</span><div class="body"><div class="text" data-note="item-6" tabindex="0"><b>The 8 guides:</b></div></div><div class="table"><table class="tbl"><thead><tr><th>Guide</th><th>What you make</th></tr></thead><tbody><tr data-note="item-6-row-1" tabindex="0"><td>Shopify</td><td>An app for your own store, with its access token</td></tr><tr data-note="item-6-row-2" tabindex="0"><td>Shopify theme</td><td>A Theme Access password, so Shopify CLI can change your theme</td></tr><tr data-note="item-6-row-3" tabindex="0"><td>Klaviyo</td><td>A private API key</td></tr><tr data-note="item-6-row-4" tabindex="0"><td>Meta ads</td><td>A Meta app and a system user token for your ad account</td></tr><tr data-note="item-6-row-5" tabindex="0"><td>Google</td><td>A service account (Google Workspace) or a sign-in app (any Gmail)</td></tr><tr data-note="item-6-row-6" tabindex="0"><td>Canva</td><td>A Canva integration, with its sign-in step</td></tr><tr data-note="item-6-row-7" tabindex="0"><td>Slack</td><td>A Slack app made from a ready setup text, with its bot token</td></tr><tr data-note="item-6-row-8" tabindex="0"><td>Notion</td><td>An internal integration, shared with your pages</td></tr></tbody></table></div></li>
+<li class="item card" id="item-7"><span class="num">7</span><div class="body"><div class="text" data-note="item-7" tabindex="0"><b>I take the pictures with your saved logins, and stop before any key shows.</b> The screen that shows the key gets a drawn picture. Store names, emails, and IDs are blurred or come from a test account. Where a sign-in does not work from my browser, you get a shot list: the page to open, what to show, and where to stop. The guides go live without those pictures; each one appears when you send it.</div></div></li>
+</ol>
+<p class="aside">Non-goals: no guides beyond these 8; no mention of WongStack inside a guide; no account or sign-in on the site; no change to how a WongStack install asks for a key.</p>
+
+</section>
+<section id="decisions" aria-labelledby="decisions-h"><h2 id="decisions-h">Decisions</h2>
+<ol class="decisions">
+<li class="decision card" id="decision-1" data-note="decision-1" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-31</p>Asked how the pictures are made → chose: the agent takes them with Matthew's saved logins and stops before any key shows; the key screen is drawn.</li>
+<li class="decision card" id="decision-2" data-note="decision-2" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-31</p>Asked where a guide puts the key → chose: the guides are for anyone, with or without WongStack, for a person alone or an agent with browser control; they never mention WongStack, and the key goes in <code>.env</code>.</li>
+<li class="decision card" id="decision-3" data-note="decision-3" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-31</p>Asked which services go first → chose the 8 named: Shopify, Shopify theme, Canva, Klaviyo, Meta ads, Google, Slack, Notion; later Matthew dropped the list of next services.</li>
+<li class="decision card" id="decision-4" data-note="decision-4" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-31</p>Assumed: guides are static HTML plus a <code>.md</code> copy and an <code>llms.txt</code>, because the site is a one-page React app and an agent that fetches a page gets an empty shell.</li>
+<li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-31</p>Assumed: Google is one guide with two paths, service account for Google Workspace and a sign-in app for a personal Gmail, because a service account can read Gmail only through a Workspace admin.</li>
+<li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-31</p>Assumed: Shopify theme changes use Shopify CLI with a Theme Access password, because that is Shopify's own way to change a theme without full admin access.</li>
+<li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-31</p>Assumed: taking setup-screen pictures needs no change to the key-page rule in <code>wiki/development/secrets.md</code>, because the agent never creates, shows, or copies a key; the meta-only guide page records the stop point.</li>
+<li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-31</p>Assumed: each guide shows a <i>Last checked</i> date and the wiki says how to recheck it, because these consoles change often and a stale step strands a reader.</li>
+<li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-31</p>Asked how to get the 17 pictures the saved logins could not reach (Shopify, Klaviyo, Meta, Canva) → chose: Matthew signs in through the live browser view, then the agent takes them.</li>
+<li class="decision card" id="decision-10" data-note="decision-10" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-31</p>Asked whether to keep the Notion pictures taken with Carol's saved login, her private pages cropped out → chose: keep them.</li>
+<li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-31</p>Asked how to finish the pictures after the Shopify and Klaviyo sign-ins failed from the VM → chose: publish the guides first, and Matthew takes the missing screenshots from a shot list with links, then the agent adds them.</li>
+<li class="decision card" id="decision-12" data-note="decision-12" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-31</p>Assumed: the guide rules join the existing <code>landing-site</code> spec, not a new <code>service-key-guides</code> spec, because the guides are pages of that site, and a new spec needs a shipped <code>areas.json</code> entry and a release for a meta-only change.</li>
+<li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-31</p>Asked for a copy button on each code box → added: one small site-served script adds <i>Copy</i> to each box; the page still reads in full without it, so an agent loses nothing.</li>
+<li class="decision card" id="decision-14" data-note="decision-14" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-31</p>Asked whether to publish with 16 screenshots still on the shot list → chose publish now; the screenshots and the real-key check of each guide (task 2.4) follow after publish.</li>
+<li class="decision card" id="decision-15" data-note="decision-15" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-31</p>Archived and saved for publish by /ship; the 16 shot-list screenshots and the real-key checks stay open after publish.</li>
+</ol>
+</section>
+<section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
+<p class="session" hidden>Storage is off. Notes and drafts last for this session only.</p>
+<ul class="note-list" id="note-list"></ul>
+</section>
+</main>
+<button type="button" id="chip" hidden>Add note</button>
+<div id="editor" role="dialog" aria-labelledby="editor-where" hidden>
+  <p class="where" id="editor-where"></p>
+  <p class="moved">Possibly moved: its text changed, so this note is not attached.</p>
+  <textarea aria-label="Note text" rows="3" placeholder="A question or a change"></textarea>
+  <div class="row"><button type="button" class="primary" data-act="save">Save</button><button type="button" data-act="discard">Discard</button><button type="button" data-act="delete">Delete note</button><button type="button" data-act="close">Close</button></div>
+  <p class="copies">Saving a note copies all your notes.</p>
+  <p class="session" hidden>Notes last for this session only.</p>
+</div>
+<div id="viewer" role="dialog" aria-modal="true" aria-label="Drawing, full screen" hidden>
+  <div class="zoom"><span class="level"></span><button type="button" aria-label="Zoom out">−</button><button type="button">Fit</button><button type="button" aria-label="Zoom in">+</button><button type="button" class="primary">Close</button></div>
+  <div class="vframe"></div>
+  <p class="vhint">Drag to move · pinch or + to zoom · tap a line or picture to note it</p>
+</div>
+<div class="bar" data-busy="false"><button type="button" class="primary" id="copy"><span class="spinner" hidden aria-hidden="true"></span><span id="copy-label">Copy notes</span></button>
+  <div id="ready" hidden>
+    <button type="button" data-ready="build"><span class="spinner" hidden aria-hidden="true"></span><span>Build it</span></button>
+    <button type="button" data-ready="publish" aria-expanded="false" aria-controls="ready-confirm">Build and publish</button>
+    <div id="ready-confirm" role="group" aria-label="Build and publish? This goes live and can't be undone." hidden><p>Goes live, can't be undone.</p><div class="row"><button type="button" class="primary" data-ready="yes"><span class="spinner" hidden aria-hidden="true"></span><span>Yes, publish</span></button><button type="button" data-ready="cancel">Cancel</button></div></div>
+  </div>
+  <p id="ready-says" role="status" aria-live="polite" hidden><span class="spinner" hidden aria-hidden="true"></span><span id="ready-message"></span></p>
+</div>
+<div id="toast" role="status"></div>
+<textarea id="copybuf" aria-hidden="true" tabindex="-1" readonly></textarea>
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  window.addEventListener('error', function (e) {
+    $('script-error').hidden = false;
+    $('script-error').textContent = 'Review script error: ' + e.message + ' (line ' + e.lineno + ')';
+  });
+  const root = document.documentElement;
+  root.classList.add('js');
+  const CHANGE = document.body.getAttribute('data-change');
+  const KEY = 'wong-review3:' + CHANGE;
+  // A preview page shows a finished build: its words name the preview, and its one action publishes.
+  const PREVIEW = document.body.getAttribute('data-kind') === 'preview', NAME = PREVIEW ? CHANGE.replace(/-preview$/, '') : CHANGE;
+  if (PREVIEW) {
+    document.title = 'Preview · ' + NAME;
+    document.querySelector('.eyebrow').textContent = NAME;
+    document.querySelector('h1').textContent = 'Built: look, then publish?';
+    document.querySelector('.hint .lead').textContent = 'Tap a picture to see it full screen, then tap it to note it.';
+    document.querySelector('.hint .tail').textContent = '';
+    document.querySelector('[data-ready="publish"]').textContent = 'Publish';
+    $('ready-confirm').setAttribute('aria-label', 'Publish? This goes live and can\'t be undone.');
+  }
+  const phone = window.matchMedia ? window.matchMedia('(max-width: 700px)') : { matches: false };
+  const chip = $('chip'), editor = $('editor'), ta = editor.querySelector('textarea');
+  const viewer = $('viewer'), vframe = viewer.querySelector('.vframe'), vbar = viewer.querySelector('.zoom'), vb = vbar.querySelectorAll('button');
+  const all = function (sel, fn) { Array.prototype.forEach.call(document.querySelectorAll(sel), fn); };
+  const esc = function (s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
+
+  // ── storage: a refused store keeps notes for this session ──
+  let store = null, data = { notes: [], drafts: {} };
+  const ok = function (r, id) { return r && typeof r.label === 'string' && typeof r.text === 'string' && /^[\w-]+$/.test(id); };
+  try { store = window.localStorage; store.getItem(KEY); } catch (e) { store = null; }
+  function load(text) {
+    try {
+      const saved = JSON.parse(text || 'null');
+      if (saved && Array.isArray(saved.notes)) data.notes = saved.notes.filter(function (n) { return ok(n, n && n.id); });
+      if (saved && saved.drafts) Object.keys(saved.drafts).forEach(function (id) { if (ok(saved.drafts[id], id)) data.drafts[id] = saved.drafts[id]; });
+    } catch (e) { /* unreadable notes start empty */ }
+  }
+  load(store ? store.getItem(KEY) : null);
+  function persist() {
+    if (store) { try { store.setItem(KEY, JSON.stringify(data)); } catch (e) { store = null; } }
+    render();
+  }
+
+  // ── targets: a data-note id names its location; the label pins a note to its text ──
+  function where(id) {
+    const m = /^(why|item|decision)-(\d+)(?:-(line|picture|row)-(\d+))?$/.exec(id) || [];
+    if (m[1] === 'why') return { at: '#/why', kind: 'paragraph ' + m[2], spot: 'Why, paragraph ' + m[2] };
+    const part = m[3] === 'line' ? 'drawing line ' + m[4] : m[3] ? m[3] + ' ' + m[4] : '';
+    if (m[1] === 'item') return { at: '#/' + m[2], kind: part || 'item', spot: 'Change #' + m[2] + (part ? ', ' + part : '') };
+    return { at: '#/decisions/' + m[2], kind: 'decision', spot: 'Decision #' + m[2] };
+  }
+  function labelOf(el) {
+    const c = el.cloneNode(true);
+    Array.prototype.forEach.call(c.querySelectorAll('.pin, .meta, .add, title, desc'), function (n) { n.parentNode.removeChild(n); });
+    // A picture's labels are separate SVG text elements: join them with spaces so they read as words.
+    // A table row's cells read joined with a dot.
+    // A screen's words sit in many small boxes: join every piece of text with a space.
+    // Picture files read as their labels, joined with a dot.
+    const row = el.tagName === 'TR', photo = el.classList.contains('photo'), cells = row ? c.querySelectorAll('td') : photo ? c.querySelectorAll('img')
+      : el.classList.contains('screen') ? texts(c) : el.classList.contains('pic') ? c.querySelectorAll('text') : [c];
+    const text = Array.prototype.map.call(cells, function (n) { return (photo ? n.alt : n.textContent).replace(/\s+/g, ' ').trim(); }).join(row || photo ? ' · ' : ' ').replace(/\s+/g, ' ').trim();
+    return where(el.getAttribute('data-note')).kind + ' "' + (text.length > 60 ? text.slice(0, 59) + '…' : text) + '"';
+  }
+  function texts(c) {
+    const found = [], walk = document.createTreeWalker(c, NodeFilter.SHOW_TEXT);
+    while (walk.nextNode()) found.push(walk.currentNode);
+    return found;
+  }
+  function find(id, label) {
+    const el = document.querySelector('[data-note="' + id + '"]');
+    return el && labelOf(el) === label ? el : null;
+  }
+  // A row's pin and Note button go in its last cell: a table row holds only cells.
+  function slot(el) { return el.tagName === 'TR' ? el.lastElementChild : el; }
+  function noteOf(id) { return data.notes.filter(function (n) { return n.id === id; })[0] || null; }
+
+  // ── render pins, Note buttons, counts, and the notes list ──
+  function render() {
+    all('.pin, .add', function (p) { p.parentNode.removeChild(p); });
+    const n = data.notes.length, d = Object.keys(data.drafts).length;
+    const count = plural(n) + (d ? ' · ' + d + (d === 1 ? ' draft' : ' drafts') : '');
+    all('.note-count', function (el) { el.textContent = count; });
+    all('.session', function (el) { el.hidden = !!store; });
+    const ids = data.notes.map(function (x) { return x.id; }).concat(Object.keys(data.drafts).filter(function (id) { return !noteOf(id); }));
+    $('note-list').innerHTML = ids.length ? '' : '<li class="muted">No notes yet.</li>';
+    ids.forEach(function (id) {
+      const note = noteOf(id), draft = data.drafts[id], rec = note || draft, num = note ? data.notes.indexOf(note) + 1 : 0, sent = !!(note && note.sent);
+      const el = find(id, rec.label);
+      if (el) {
+        const pin = document.createElement('button');
+        pin.type = 'button'; pin.className = draft ? 'pin draft' : sent ? 'pin sent' : 'pin'; pin.setAttribute('data-open', id);
+        pin.textContent = (num || '') + (num && (draft || sent) ? ' · ' : '') + (draft ? 'Draft' : sent ? 'Sent' : '');
+        pin.setAttribute('aria-label', (num ? 'Open note ' + num : 'Open draft') + (num && draft ? ' and its draft' : ''));
+        slot(el).appendChild(pin);
+      }
+      const li = document.createElement('li');
+      li.innerHTML = '<button type="button" class="entry" data-open="' + id + '"><span class="where">' + (num ? num + '. ' : '')
+        + esc(where(id).at + ' · ' + rec.label) + (draft ? '<span class="tag">Draft</span>' : '') + (sent ? '<span class="tag">Sent</span>' : '') + (el ? '' : '<span class="tag">possibly moved</span>')
+        + '</span>' + esc(draft ? draft.text : note.text) + '</button>';
+      $('note-list').appendChild(li);
+    });
+    all('[data-note]', function (el) {
+      if (el.closest('.art') || el.querySelector('.pin')) return;
+      const id = el.getAttribute('data-note'), add = document.createElement('button');
+      add.type = 'button'; add.className = 'add'; add.setAttribute('data-open', id);
+      add.textContent = '+ Note'; add.setAttribute('aria-label', 'Note on ' + where(id).kind);
+      slot(el).appendChild(add);
+    });
+    drawings.forEach(function (d) {
+      const k = d.art.querySelectorAll('.pin').length;
+      d.count.textContent = k ? ' · ' + k + (k === 1 ? ' note' : ' notes') : '';
+      fit(d);
+    });
+    bar();
+  }
+
+  // ── still-tap to note: a mouse on text, or any pointer on a full-screen drawing line, shows the chip ──
+  let chipFor = null, tap = null;
+  const pointers = {};
+  function showChip(el, x, y, keyboard) {
+    const id = el.getAttribute('data-note');
+    chipFor = el;
+    chip.textContent = noteOf(id) || data.drafts[id] ? 'Edit note' : 'Add note';
+    chip.hidden = false;
+    const w = chip.offsetWidth, vw = root.clientWidth;
+    chip.style.left = Math.max(8, Math.min(x - w / 2, vw - w - 8)) + window.pageXOffset + 'px';
+    chip.style.top = y + 12 + window.pageYOffset + 'px';
+    if (keyboard) chip.focus({ preventScroll: true });
+  }
+  function hideChip() { chip.hidden = true; chipFor = null; }
+  document.addEventListener('pointerdown', function (e) {
+    if (e.isPrimary) Object.keys(pointers).forEach(function (k) { delete pointers[k]; });
+    pointers[e.pointerId] = true;
+    tap = Object.keys(pointers).length === 1 && e.button === 0 ? { id: e.pointerId, x: e.clientX, y: e.clientY, t: Date.now(), target: e.target } : null;
+  });
+  document.addEventListener('pointermove', function (e) {
+    if (tap && e.pointerId === tap.id && Math.abs(e.clientX - tap.x) + Math.abs(e.clientY - tap.y) > 8) tap = null;
+  });
+  document.addEventListener('pointercancel', function (e) { delete pointers[e.pointerId]; tap = null; });
+  document.addEventListener('pointerup', function (e) {
+    const t = tap;
+    delete pointers[e.pointerId]; tap = null;
+    if (!t || t.id !== e.pointerId || Date.now() - t.t > 500) return;
+    if (t.target.closest('a, button, input, textarea, select, label, summary, #editor')) return;
+    const el = t.target.closest('[data-note]');
+    const offer = el && (el.closest('#viewer') || (e.pointerType === 'mouse' && !el.closest('.frame')));
+    if (offer) showChip(el, e.clientX, e.clientY, false); else hideChip();
+  });
+  chip.addEventListener('click', function () { if (chipFor) openEditor(chipFor.getAttribute('data-note'), chipFor); });
+  document.addEventListener('click', function (e) {
+    const t = e.target.closest ? e.target.closest('[data-open]') : null;
+    if (!t) return;
+    const id = t.getAttribute('data-open'), rec = data.drafts[id] || noteOf(id), el = rec ? find(id, rec.label) : t.closest('[data-note]');
+    if (el && t.classList.contains('entry')) { reveal(el); el.scrollIntoView({ block: 'center' }); }
+    openEditor(id, el);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      if (open) closeEditor(true);
+      else if (chipFor) { const el = chipFor; hideChip(); el.focus(); }
+      else if (view) closeViewer(true);
+    } else if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('[data-note]')) {
+      e.preventDefault();
+      const r = e.target.getBoundingClientRect();
+      showChip(e.target, r.left + 48, r.top + Math.min(r.height, 24), true);
+    }
+  });
+
+  // ── the editor: beside its target on a desktop, docked at the bottom of the visible screen on a phone ──
+  let open = null;
+  function openEditor(id, el) {
+    closeViewer(false); closeEditor(false); hideChip();
+    if (el) reveal(el);
+    const note = noteOf(id), draft = data.drafts[id];
+    const label = draft ? draft.label : note ? note.label : labelOf(el);
+    open = { id: id, label: label, el: el };
+    $('editor-where').textContent = where(id).at + ' · ' + label;
+    editor.querySelector('.moved').hidden = !!el;
+    editor.querySelector('[data-act="delete"]').hidden = !note;
+    ta.value = draft ? draft.text : note ? note.text : '';
+    editor.hidden = false;
+    if (el) el.classList.add('noting');
+    place();
+    ta.focus({ preventScroll: editor.classList.contains('docked') });
+  }
+  function closeEditor(restore) {
+    if (!open) return;
+    const el = open.el;
+    open = null; editor.hidden = true;
+    document.body.classList.remove('docked'); document.body.style.paddingBottom = '';
+    bar();
+    if (el) { el.classList.remove('noting'); if (restore) el.focus({ preventScroll: true }); }
+  }
+  function place() {
+    const docked = phone.matches || !open.el;
+    editor.classList.toggle('docked', docked);
+    document.body.classList.toggle('docked', docked);
+    editor.style.left = editor.style.top = editor.style.bottom = editor.style.maxHeight = '';
+    if (docked) {
+      dock();
+      document.body.style.paddingBottom = editor.offsetHeight + 24 + 'px';
+      keepVisible();
+      return;
+    }
+    const r = open.el.getBoundingClientRect(), w = editor.offsetWidth, vw = root.clientWidth;
+    let left = r.right + 12, top = r.top;
+    if (left + w > vw - 8) { left = Math.max(8, Math.min(r.left, vw - w - 8)); top = r.bottom + 8; }
+    editor.style.left = left + window.pageXOffset + 'px';
+    editor.style.top = top + window.pageYOffset + 'px';
+  }
+  // The visible screen: a phone keyboard shrinks it, and a host app may shrink the page too, so place from its top.
+  function screen() {
+    const vv = window.visualViewport;
+    return vv ? { top: vv.offsetTop, h: vv.height } : { top: 0, h: window.innerHeight };
+  }
+  function dock() {
+    if (!open || !editor.classList.contains('docked')) return;
+    const s = screen();
+    editor.style.maxHeight = s.h + 'px';
+    editor.style.bottom = 'auto';
+    editor.style.top = s.top + Math.max(0, s.h - editor.offsetHeight) + 'px';
+  }
+  function keepVisible() {
+    if (!open || !open.el) return;
+    const r = open.el.getBoundingClientRect(), s = screen(), limit = s.top + s.h - editor.offsetHeight - 8;
+    if (r.bottom > limit) window.scrollBy(0, Math.min(r.top - s.top - 8, r.bottom - limit));
+  }
+  let seen = screen().h;
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', function () {
+      const h = screen().h, keyboard = Math.abs(h - seen) > 100;
+      seen = h; dock();
+      if (keyboard) keepVisible();
+    });
+    window.visualViewport.addEventListener('scroll', dock);
+  }
+  ta.addEventListener('input', function () {
+    if (!open) return;
+    const note = noteOf(open.id), text = ta.value;
+    if (!text.trim() || (note && text === note.text)) delete data.drafts[open.id];
+    else data.drafts[open.id] = { label: open.label, text: text };
+    persist();
+  });
+  editor.addEventListener('click', function (e) {
+    const act = e.target.getAttribute('data-act');
+    if (!act || !open) return;
+    const id = open.id, note = noteOf(id), text = ta.value.trim();
+    if (act === 'save') {
+      if (!text) { ta.focus(); return; }
+      if (!note) data.notes.push({ id: id, label: open.label, text: text });
+      else if (note.text !== text) { note.text = text; delete note.sent; }
+    }
+    if (act === 'delete') data.notes = data.notes.filter(function (n) { return n.id !== id; });
+    if (act !== 'close') delete data.drafts[id];
+    closeEditor(true); persist();
+    if (act === 'save' && live) toast('Saved. Tap Send notes to send it to the chat.');
+    else if (act === 'save') {
+      const n = unsent().length;
+      copyNotes(function () { toast('Saved and copied ' + plural(n) + '. Paste them into chat.'); },
+        function () { toast('Saved. Tap Copy notes to copy them.'); });
+    }
+  });
+
+  // ── drawings: fitted by font size on the page; a tap shows one full screen, where it zooms and scrolls natively ──
+  const BASE = 13, drawings = [];
+  let view = null;
+  const V = { f: BASE, lo: BASE, hi: BASE };
+  function size(art, f, max) {
+    art.style.fontSize = f + 'px';
+    for (let i = 0; i < 3 && art.offsetWidth > max; i += 1) { f *= max / art.offsetWidth; art.style.fontSize = f + 'px'; }
+    return f;
+  }
+  function fit(d) {
+    if (!d.fig.open || view === d) return;
+    d.art.style.fontSize = BASE + 'px';
+    const w = d.art.offsetWidth, fw = d.frame.clientWidth - 1;
+    if (w > 0 && fw > 0) size(d.art, BASE * Math.min(1.25, fw / w), fw);
+  }
+  function reveal(el) {
+    const fig = el.closest('details');
+    if (fig && !fig.open) { fig.open = true; drawings.forEach(fit); }
+  }
+  function scale(f, cx, cy) {
+    f = Math.max(V.lo, Math.min(V.hi, f));
+    const k = f / V.f, x = (vframe.scrollLeft + cx) * k - cx, y = (vframe.scrollTop + cy) * k - cy;
+    V.f = f; view.art.style.fontSize = f + 'px';
+    vframe.scrollLeft = x; vframe.scrollTop = y;
+    const atFit = f <= V.lo * 1.001;
+    vbar.firstChild.textContent = (atFit ? 'Fit · ' : '') + Math.round(f / BASE * 100) + '%';
+    vb[0].disabled = atFit; vb[2].disabled = f >= V.hi * 0.999;
+  }
+  function openViewer(d) {
+    hideChip();
+    view = d; viewer.hidden = false; document.body.classList.add('viewing');
+    vframe.appendChild(d.art);
+    d.art.style.fontSize = BASE + 'px';
+    const fw = vframe.clientWidth - 1;
+    V.lo = size(d.art, BASE * fw / Math.max(1, d.art.offsetWidth), fw);
+    V.hi = Math.max(V.lo * 4, 40); V.f = V.lo;
+    vframe.scrollLeft = vframe.scrollTop = 0;
+    scale(V.lo, 0, 0);
+    vb[3].focus({ preventScroll: true });
+  }
+  function closeViewer(restore) {
+    if (!view) return;
+    const d = view;
+    view = null;
+    d.frame.insertBefore(d.art, d.frame.firstChild);
+    viewer.hidden = true; document.body.classList.remove('viewing');
+    fit(d); bar();
+    if (restore) d.enlarge.focus({ preventScroll: true });
+  }
+  vbar.addEventListener('click', function (e) {
+    const i = Array.prototype.indexOf.call(vb, e.target);
+    if (i === 3) closeViewer(true);
+    else if (i >= 0) scale([V.f / 1.25, V.lo, V.f * 1.25][i], vframe.clientWidth / 2, vframe.clientHeight / 2);
+  });
+  vframe.addEventListener('wheel', function (e) {
+    if (!e.ctrlKey && !e.metaKey) return;
+    e.preventDefault();
+    const r = vframe.getBoundingClientRect();
+    scale(V.f * (e.deltaY < 0 ? 1.1 : 1 / 1.1), e.clientX - r.left, e.clientY - r.top);
+  }, { passive: false });
+  // One finger scrolls natively; two fingers pinch around their midpoint.
+  let pinch = null;
+  const span = function (t) { return Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY) || 1; };
+  vframe.addEventListener('touchstart', function (e) { if (e.touches.length === 2) pinch = { f: V.f, dist: span(e.touches) }; }, { passive: true });
+  vframe.addEventListener('touchmove', function (e) {
+    if (!pinch || e.touches.length !== 2) return;
+    if (e.cancelable) e.preventDefault();
+    const r = vframe.getBoundingClientRect(), t = e.touches;
+    scale(pinch.f * span(t) / pinch.dist, (t[0].clientX + t[1].clientX) / 2 - r.left, (t[0].clientY + t[1].clientY) / 2 - r.top);
+  }, { passive: false });
+  vframe.addEventListener('touchend', function (e) { if (e.touches.length < 2) pinch = null; });
+  document.addEventListener('gesturestart', function (e) { if (view) e.preventDefault(); });
+  all('.drawing', function (fig) {
+    const frame = fig.querySelector('.frame'), enlarge = document.createElement('button');
+    enlarge.type = 'button'; enlarge.className = 'enlarge'; enlarge.textContent = 'Full screen';
+    frame.appendChild(enlarge);
+    const d = { fig: fig, frame: frame, art: fig.querySelector('.art'), count: fig.querySelector('.count'), enlarge: enlarge };
+    drawings.push(d);
+    fig.addEventListener('toggle', function () { fit(d); });
+    frame.addEventListener('click', function (e) { if (!e.target.closest('[data-open]')) openViewer(d); });
+  });
+
+  // ── direct links: #/why, #/<n>, #/decisions/<n> ──
+  function jump(hash) {
+    const m = /^#\/(?:decisions\/(\d+)|(\d+)|(why|changes|decisions))$/.exec(typeof hash === 'string' ? hash : location.hash);
+    const el = m ? $(m[1] ? 'decision-' + m[1] : m[2] ? 'item-' + m[2] : m[3]) : null;
+    if (!el) return;
+    all('.hit', function (n) { n.classList.remove('hit'); });
+    el.classList.add('hit');
+    el.scrollIntoView({ block: 'start' });
+  }
+
+  // ── copy: saved notes only, as notes on the plan: each asks or changes something ──
+  // A note sent through a reply link is in the chat already, so it is never copied or sent again.
+  function unsent() { return data.notes.filter(function (n) { return !n.sent; }); }
+  function snapshot() { return unsent().map(function (n) { return { id: n.id, label: n.label, text: n.text }; }); }
+  function acknowledge(notes) {
+    notes.forEach(function (submitted) {
+      data.notes.forEach(function (current) {
+        if (current.id === submitted.id && current.label === submitted.label && current.text === submitted.text) current.sent = true;
+      });
+    });
+    persist();
+  }
+  function bullets(notes) {
+    return notes.map(function (n) {
+      const w = where(n.id);
+      return '- ' + w.spot + ' (' + n.label.slice(w.kind.length + 1) + '): ' + n.text.replace(/\s*\n\s*/g, ' ');
+    });
+  }
+  function notesText() {
+    const header = PREVIEW ? 'Notes on the preview of ' + NAME + ' from its review page. Don\'t publish yet.'
+      : 'Notes on the plan ' + CHANGE + ' from the review page. Don\'t build yet.';
+    return [header].concat(bullets(unsent())).join('\n');
+  }
+  function toast(text) {
+    $('toast').textContent = text; $('toast').classList.add('show');
+    setTimeout(function () { $('toast').classList.remove('show'); }, 2000);
+  }
+  function plural(n) { return n + (n === 1 ? ' note' : ' notes'); }
+  // One routine for Copy notes and Save: the Clipboard API, else select #copybuf and execCommand, then hand focus back.
+  function copyNotes(done, failed) {
+    const buf = $('copybuf');
+    buf.value = notesText();
+    const fallback = function () {
+      const back = document.activeElement;
+      buf.select();
+      const ok = document.execCommand('copy');
+      if (back && back !== buf && back.focus) back.focus({ preventScroll: true });
+      if (ok) done(); else failed();
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(buf.value).then(done, fallback); else fallback();
+  }
+  // Nothing to copy or send: say why. True when it spoke.
+  function nothing(verb) {
+    if (unsent().length) return false;
+    toast(data.notes.length ? 'Every note is already sent.' : 'No saved notes yet. Drafts are not ' + verb + '.');
+    return true;
+  }
+
+  // ── reply link: at a web address with #key=, the bar's button sends unsent notes to the chat that made the plan ──
+  // `live` is the link's key while the link is open. The key stays in memory and this tab's session, never in a link.
+  let live = null, connecting = false, pending = null;
+  function setLive(key) {
+    live = key;
+    if (!key) hideActions();
+    all('.copies', function (el) { el.textContent = key ? 'Send notes sends your saved notes to the chat.' : 'Saving a note copies all your notes.'; });
+    bar();
+  }
+  // One request owns every reply control until the response body has been read.
+  function busy(kind) {
+    pending = kind;
+    bar();
+  }
+  function linkKey() {
+    if (!/^https?:$/.test(location.protocol) || !window.fetch) return null;
+    const m = /(?:^#|&)key=([0-9a-f]{64})(?:&|$)/.exec(location.hash), at = 'wong-reply-key:' + location.pathname;
+    try {
+      if (m) window.sessionStorage.setItem(at, m[1]);
+      return m ? m[1] : window.sessionStorage.getItem(at);
+    } catch (e) { return m ? m[1] : null; }
+  }
+  function ask(path, key, body) {
+    if (hosted) return hostedAsk(path, body);
+    const headers = { 'x-reply-key': key };
+    if (body) headers['content-type'] = 'application/json';
+    return fetch(path, { method: body ? 'POST' : 'GET', cache: 'no-store', headers: headers, body: body ? JSON.stringify(body) : undefined });
+  }
+  async function sendNotes() {
+    const notes = snapshot(), n = notes.length;
+    if (pending || connecting || nothing('sent')) return;
+    busy('send'); says('Sending your notes…');
+    // A closed link or an unreachable chat: the same tap copies, and the page goes back to Copy notes.
+    const closed = function () {
+      setLive(null); says('This link has closed. Copy your notes into chat.');
+      copyNotes(function () { toast('This link has closed. Copied ' + plural(n) + ': paste them into chat.'); },
+        function () { toast('This link has closed. Tap Copy notes to copy them.'); });
+    };
+    try {
+      const r = await ask('send', live, { text: bullets(notes).join('\n') });
+      if (r.status === 429) { says('Wait a few seconds, then tap Send notes again.'); toast('Wait a few seconds, then tap Send notes again.'); return; }
+      if (r.status === 409) { says('The plan changed. Reload to read it first.'); toast('The plan changed. Reload to read it first.'); return; }
+      if (!r.ok) { closed(); return; }
+      const answer = await r.json();
+      if (!answer || answer.sent !== true) { closed(); return; }
+      acknowledge(notes);
+      says('Sent ' + plural(n) + ' to the chat.');
+      toast('Sent ' + plural(n) + ' to the chat.');
+    } catch (e) { closed(); }
+    finally { busy(null); }
+  }
+  $('copy').addEventListener('click', function () {
+    if (pending || connecting) return;
+    if (live) { sendNotes(); return; }
+    const n = unsent().length;
+    if (nothing('copied')) return;
+    copyNotes(function () { toast('Copied ' + plural(n) + '. Paste them into chat.'); },
+      function () { toast('Copy failed. Copy the notes list by hand.'); });
+  });
+
+  // ── visible build choices, with publish confirmation above the footer ──
+  let version = null;
+  const publishButton = $('ready').querySelector('[data-ready="publish"]');
+  function says(text) { $('ready-message').textContent = text; $('ready-says').hidden = !text; }
+  function closeActions(focus) {
+    const wasOpen = !$('ready-confirm').hidden;
+    $('ready-confirm').hidden = true;
+    publishButton.setAttribute('aria-expanded', 'false');
+    if (focus && wasOpen && !$('ready').hidden) publishButton.focus({ preventScroll: true });
+    bar();
+  }
+  function hideActions() {
+    const focused = $('ready').contains(document.activeElement);
+    closeActions(false);
+    $('ready').hidden = true;
+    if (focused) $('copy').focus({ preventScroll: true });
+    bar();
+  }
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !$('ready-confirm').hidden) { e.preventDefault(); closeActions(true); }
+  });
+  document.addEventListener('pointerdown', function (e) {
+    if (!$('ready').contains(e.target)) closeActions(false);
+  });
+  $('ready').addEventListener('focusout', function (e) {
+    if (e.relatedTarget && !$('ready').contains(e.relatedTarget)) closeActions(false);
+  });
+  // Only the row contributes to page padding; popovers and status never increase its height.
+  function bar() {
+    const el = $('copy').parentNode, waiting = connecting || !!pending;
+    $('copy-label').textContent = connecting ? 'Connecting…' : pending === 'send' ? 'Sending…' : live ? 'Send notes' : 'Copy notes';
+    $('copy').disabled = waiting;
+    $('copy').querySelector('.spinner').hidden = !(connecting || pending === 'send');
+    el.setAttribute('data-busy', String(waiting));
+    $('copy').setAttribute('aria-busy', String(connecting || pending === 'send'));
+    root.style.setProperty('--choices', $('ready-confirm').offsetHeight + 'px');
+    $('ready-says').querySelector('.spinner').hidden = !waiting;
+    all('[data-ready]', function (b) {
+      const step = b.getAttribute('data-ready');
+      b.disabled = waiting;
+      b.setAttribute('aria-busy', String(pending === (step === 'yes' ? 'publish' : step) && step !== 'publish'));
+      const spinner = b.querySelector('.spinner');
+      if (spinner) {
+        const active = pending === (step === 'yes' ? 'publish' : step);
+        spinner.hidden = !active;
+        b.querySelector('span:last-child').textContent = active ? 'Sending…' : step === 'yes' ? 'Yes, publish' : 'Build it';
+      }
+    });
+    if (el.offsetHeight) root.style.setProperty('--bar', el.offsetHeight + 19 + 'px');
+  }
+  // Each of build and publish shows when the link offers it; the choices stay hidden when it offers neither.
+  function offer(answer) {
+    const names = answer && answer.actions;
+    if (!Array.isArray(names) || typeof answer.version !== 'string') return;
+    const shown = ['build', 'publish'].filter(function (name) {
+      $('ready').querySelector('[data-ready="' + name + '"]').hidden = names.indexOf(name) < 0;
+      return names.indexOf(name) >= 0;
+    });
+    if (!shown.length) return;
+    version = answer.version;
+    $('ready').hidden = false;
+    bar();
+  }
+  async function act(name) {
+    if (pending || connecting || !live) return;
+    const notes = snapshot();
+    busy(name); says('Sending your request…');
+    const closed = function () { setLive(null); says('This link has closed. Copy your notes and choose in the chat.'); toast('This link has closed. Copy your notes and choose in the chat.'); };
+    try {
+      const body = { action: name, version: version };
+      if (notes.length) body.text = bullets(notes).join('\n');
+      const r = await ask('act', live, body);
+      if (r.status === 429) { says('Wait a few seconds, then tap again.'); return; }
+      const a = await r.json() || {};
+      const line = r.status === 200 && a.sent === true ? (PREVIEW ? 'Asked the chat to publish.' : 'Asked the chat to build' + (name === 'publish' ? ' and publish.' : '.'))
+        : r.status === 409 && a.changed === true ? 'The plan changed. Reload to read it first.'
+        : r.status === 409 && a.done === true ? 'The chat was already asked.' : '';
+      if (r.status === 410 || r.status === 403) { closed(); return; }
+      if (!line) { says('The request was not confirmed. Your notes are saved. Try again.'); return; }
+      if (r.status === 200 && a.sent === true) acknowledge(notes);
+      hideActions(); says(line);
+    } catch (e) { says('The request was not confirmed. Your notes are saved. Try again.'); }
+    finally { busy(null); }
+  }
+  $('ready').addEventListener('click', function (e) {
+    const button = e.target.closest('[data-ready]');
+    if (!button || pending || connecting) return;
+    const step = button.getAttribute('data-ready');
+    if (step === 'build' || step === 'yes') act(step === 'yes' ? 'publish' : 'build');
+    else if (step === 'cancel' || step === 'publish') {
+      says('');
+      $('ready-confirm').hidden = step === 'cancel';
+      publishButton.setAttribute('aria-expanded', String(step === 'publish'));
+      bar();
+      $('ready').querySelector('[data-ready="' + (step === 'cancel' ? 'publish' : 'cancel') + '"]').focus({ preventScroll: true });
+    }
+  });
+
+  let width = root.clientWidth;
+  window.addEventListener('resize', function () {
+    if (root.clientWidth !== width) {
+      width = root.clientWidth; hideChip();
+      if (view) { const d = view; closeViewer(false); openViewer(d); }
+    }
+    drawings.forEach(fit);
+    if (open) place();
+    bar();
+  });
+  // ── hosted: in the live app's inbox, a sealed frame that reaches the inbox only through the port its first greeting carries ──
+  let hosted = null, port = null;
+  const CODES = { sent: 200, changed: 409, done: 409, soon: 429, closed: 410, expired: 410 };
+  function post(message) { port.postMessage(message); }
+  // The inbox answers a tap only once the chat has it, or once it is refused, cancelled or failed.
+  function hostedAsk(path, body) {
+    return new Promise(function (resolve) {
+      hosted.reply = function (state) {
+        const status = Object.prototype.hasOwnProperty.call(CODES, state) ? CODES[state] : 502;
+        const answer = status === 200 ? { sent: true } : state === 'changed' ? { changed: true } : state === 'done' ? { done: true } : { sent: false };
+        resolve({ ok: status === 200, status: status, json: function () { return Promise.resolve(answer); } });
+      };
+      post({ type: 'inbox:tap', action: path === 'send' ? 'send' : body.action, text: body.text || '' });
+    });
+  }
+  // The inbox's switch owns the look: this frame can't remember a choice, so its own switch goes. Unknown looks change nothing.
+  function look(theme) { if (theme === 'light' || theme === 'dark') document.documentElement.classList.toggle('dark', theme === 'dark'); }
+  function heard(m) {
+    if (!m || typeof m !== 'object') return;
+    if (m.type === 'inbox:theme') look(m.theme);
+    else if (m.type === 'inbox:notes' && (typeof m.value === 'string' || m.value === null)) { load(m.value); render(); }
+    else if (hosted.reply && m.type === 'inbox:result') { const reply = hosted.reply; hosted.reply = null; reply(m.state); }
+  }
+  // Tells the inbox when the reader turns, down past the top zone or 8 px back up, and when they are in that zone, so
+  // its bars tuck while they read on and its Back row returns only at the top.
+  // A resize moves the page too, as the bars tuck, so it only resets where the last turn was.
+  let down = false, top = true, turn = 0, tall = window.innerHeight;
+  function scrolled() {
+    const y = window.scrollY, was = down, high = top;
+    if (window.innerHeight !== tall) { tall = window.innerHeight; turn = y; }
+    else if (down ? y <= 48 || turn - y > 8 : y > 48 && y - turn > 8) { down = !down; turn = y; }
+    else if (down ? y > turn : y < turn) turn = y;
+    // The top zone ends only on a turn down, so creeping past it without one keeps Back and the plan's height.
+    top = y <= 48 || (top && !down);
+    if (down !== was || top !== high) post({ type: 'inbox:scroll', down: down, top: top });
+  }
+  window.addEventListener('message', function (e) {
+    const m = e.data;
+    if (hosted || window.parent === window || e.source !== window.parent || !e.ports || !e.ports[0] || !m || m.type !== 'inbox:hello'
+      || typeof m.version !== 'string' || !Array.isArray(m.actions)) return;
+    hosted = { reply: null };
+    port = e.ports[0];
+    port.onmessage = function (ev) { heard(ev.data); };
+    document.querySelectorAll('.theme-toggle').forEach(function (button) { button.remove(); });
+    look(m.theme);
+    // Notes live with the inbox page: this frame has no storage of its own.
+    store = { setItem: function (key, value) { post({ type: 'inbox:notes-set', key: key, value: value }); } };
+    post({ type: 'inbox:notes-get', key: KEY });
+    setLive('inbox'); offer(m); render();
+    window.addEventListener('scroll', scrolled, { passive: true });
+  });
+  // In a frame, a link opens its own tab and a # link scrolls in place: the frame never leaves this page.
+  // A srcdoc page resolves #why against the inbox's address, so following it would load the inbox here.
+  document.addEventListener('click', function (e) {
+    const a = window.parent !== window && e.target.closest ? e.target.closest('a[href]') : null;
+    if (!a) return;
+    const href = a.getAttribute('href');
+    if (href.charAt(0) !== '#') { a.target = '_blank'; a.rel = 'noopener noreferrer'; return; }
+    e.preventDefault();
+    if (href.charAt(1) === '/') { jump(href); return; }
+    let el = null;
+    try { el = document.getElementById(decodeURIComponent(href.slice(1))); } catch (err) { /* a bad escape names nothing */ }
+    if (el) el.scrollIntoView({ block: 'start' });
+  }, true);
+  window.addEventListener('hashchange', jump);
+  render();
+  jump();
+  const key = linkKey();
+  if (key) {
+    connecting = true; says('Connecting to the chat…'); bar();
+    (async function () {
+      try {
+        const r = await ask('alive', key);
+        if (!r.ok) return;
+        const answer = await r.json();
+        if (!answer || typeof answer !== 'object') return;
+        setLive(key); offer(answer);
+      } catch (e) { /* not live: the page copies */ }
+      finally { connecting = false; says(''); bar(); }
+    }());
+  }
+}());
+</script>
+</body>
+</html>

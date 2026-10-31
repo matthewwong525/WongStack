@@ -230,6 +230,7 @@ it("keeps one filled button above the fold: the header's links and the hero's Gi
     ["WongStack", "/", ""],
     ["GitHub", REPO_URL, ""],
     ["Install", "/#install", ""],
+    ["Guides", "/guides", ""],
   ]);
   expect([...hero.querySelectorAll(".button")].map((button) => button.textContent)).toEqual(["Install for free"]);
   expect(within(hero).getByRole("link", { name: "See it on GitHub →" }).className).toBe("more");

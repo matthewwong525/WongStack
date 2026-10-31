@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="234" viewBox="0 0 640 234" font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif" role="img">
+<title>Drawing of Google's warning that it has not verified the app, with Continue marked</title>
+<rect width="640" height="234" rx="12" fill="#141414"/>
+<rect x="0.5" y="0.5" width="639" height="233" rx="12" fill="none" stroke="#333"/>
+<circle cx="24" cy="22" r="5" fill="#333"/><circle cx="42" cy="22" r="5" fill="#333"/><circle cx="60" cy="22" r="5" fill="#333"/>
+<text x="320" y="27" fill="#a3a3a3" font-size="13" text-anchor="middle">accounts.google.com</text>
+<text x="620" y="27" fill="#a3a3a3" font-size="12" text-anchor="end">Drawing</text>
+<line x1="0" y1="44" x2="640" y2="44" stroke="#333"/>
+<text x="32" y="80" fill="#f5f5f5" font-size="22" font-weight="600">Google hasn't verified this app</text>
+<text x="32" y="114" fill="#a3a3a3" font-size="15" font-weight="400">The app is asking for access to your Google Account.</text>
+<text x="32" y="136" fill="#a3a3a3" font-size="15" font-weight="400">You made this app, so you can continue.</text>
+<rect x="32" y="160" width="150" height="38" rx="8" fill="none" stroke="#333"/>
+<text x="107" y="184" fill="#f5f5f5" font-size="15" font-weight="600" text-anchor="middle">Back to safety</text>
+<rect x="194" y="160" width="99" height="38" rx="8" fill="#f5f5f5" stroke="#f5f5f5"/>
+<text x="243.5" y="184" fill="#0a0a0a" font-size="15" font-weight="600" text-anchor="middle">Continue</text>
+<rect x="188" y="154" width="111" height="50" rx="10" fill="none" stroke="#ff4830" stroke-width="4"/>
+</svg>

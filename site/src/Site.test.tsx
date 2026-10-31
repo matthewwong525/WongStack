@@ -5,6 +5,7 @@ import { cleanup, fireEvent, render, screen, within } from "@testing-library/rea
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { COPY_SCRIPT, renderGuides } from "../scripts/build-guides.mjs";
 import App from "./App";
 import { COST_LINES, INSTALL_PROMPT } from "./install";
 
@@ -12,8 +13,13 @@ const site = (path: string) => resolve(import.meta.dirname, "..", path);
 const html = readFileSync(site("index.html"), "utf8");
 const css = readFileSync(site("src/index.css"), "utf8");
 
-/** Every page the site has. Any other address shows the first. */
+/** Every page the React app has. Any other address shows the first. */
 const PAGES = ["/", "/privacy"];
+
+/** The guides: plain files scripts/build-guides.mjs writes, each page and its plain-text copy. The test stylesheet
+ * address names a real file, so the outside-file read can check it exists. */
+const GUIDE_FILES = Object.entries(renderGuides({ cssHref: "/src/index.css", indexHtml: html }) as Record<string, string>);
+const guidePage = (text: string) => new DOMParser().parseFromString(text, "text/html");
 
 const fetchMock = vi.fn();
 
@@ -259,6 +265,21 @@ it("loads every file from the site itself: the pages, the styles, and the pictur
   }
 });
 
+it("reads every guide page and its plain-text copy for hosting words, prices, comparisons, and outside files", () => {
+  expect(GUIDE_FILES.length).toBeGreaterThan(10);
+  for (const [path, text] of GUIDE_FILES) {
+    const read = path.endsWith(".html") ? words(guidePage(text).documentElement) : text;
+    expect([path, found(read, HOSTING), found(read, MONEY), found(read, RIVALS)]).toEqual([path, null, null, null]);
+    if (!path.endsWith(".html")) continue;
+    const page = guidePage(text);
+    expect([path, page.querySelectorAll(`script:not([src="${COPY_SCRIPT}"]), form, input`).length]).toEqual([path, 0]);
+    expect(expectOwnFiles(path, page)).toBeGreaterThan(1);
+    for (const link of page.querySelectorAll("a[href]")) {
+      expect([path, found(link.getAttribute("href") as string, OLD_LINK)]).toEqual([path, null]);
+    }
+  }
+});
+
 // Anything that keeps data in the browser or sends it somewhere.
 const KEEPS_OR_SENDS = /document\.cookie|localStorage|sessionStorage|indexedDB|\bfetch\(|XMLHttpRequest|sendBeacon|WebSocket|EventSource/;
 
@@ -275,4 +296,5 @@ it("sets no cookie, stores nothing in the browser, and sends nothing anywhere", 
   for (const name of sources) {
     expect([name, found(readFileSync(site(join("src", name)), "utf8"), KEEPS_OR_SENDS)]).toEqual([name, null]);
   }
+  expect(found(readFileSync(site(`public${COPY_SCRIPT}`), "utf8"), KEEPS_OR_SENDS)).toBeNull();
 });
