@@ -426,3 +426,57 @@ test('a note on a picture frame names its picture and its labels', needsDom, () 
     assert.deepEqual(errors, []);
   } finally { window.close(); }
 }, ['Live now: live.png', 'Preview: preview.png'], { 'live.png': png(), 'preview.png': png() }));
+
+// ── an ad: the card a feed or story shows, from the change's own picture ──
+const feedAd = ['placement: feed', 'account: Corner Shop', 'picture: feed.png', 'text: Spring sale on <b>all</b> plants.', 'headline: Spring sale', 'button: Shop now'];
+const storyAd = ['placement: story', 'account: Corner Shop', 'picture: story.png', 'headline: Swipe up'];
+// The ads replace item 1's flow; the first ad's first line is proposal line 11.
+const withAds = (...ads) => proposal.replace(`${fence}mermaid\n  flowchart LR\n    A[apply] --> B[save]`,
+  ads.map(lines => `${fence}ad\n${lines.map(line => `  ${line}`).join('\n')}`).join(`\n  ${fence}\n  `));
+const advertised = (fn, ads, files = { 'feed.png': png(), 'story.png': png() }) => fixture(root => {
+  for (const [name, bytes] of Object.entries(files)) writeFileSync(join(root, name), bytes);
+  return fn(root);
+}, withAds(...ads));
+
+test('ad fences in one bullet draw a feed and a story card side by side in one frame, their words escaped and no link', () => advertised(root => {
+  assert.deepEqual(buildReview(root, { requireCurrent: true }).warnings, []);
+  const html = page(root);
+  const frame = /<div class="art photo ads" data-note="item-1-picture-1" tabindex="0">([\s\S]*?)<\/div><\/div><\/details>/.exec(html);
+  assert.ok(frame, 'both ads sit in one frame, the item\'s first picture');
+  assert.equal(frame[1], '<div class="ad feed"><p class="ad-account"><b>Corner Shop</b> <span>Sponsored</span></p>'
+    + `<img src="data:image/png;base64,${png().toString('base64')}" alt="Spring sale">`
+    + '<div class="ad-words"><p class="ad-text">Spring sale on &lt;b&gt;all&lt;/b&gt; plants.</p><b class="ad-headline">Spring sale</b><span class="ad-button">Shop now</span></div></div>'
+    + '<div class="ad story"><p class="ad-account"><b>Corner Shop</b> <span>Sponsored</span></p>'
+    + `<img src="data:image/png;base64,${png().toString('base64')}" alt="Swipe up">`
+    + '<div class="ad-words"><b class="ad-headline">Swipe up</b></div></div>');
+  assert.doesNotMatch(frame[1], /<a\b/);
+}, [feedAd, storyAd]));
+
+const refusedAds = [
+  ['a web address picture', [feedAd.map(line => line.replace('feed.png', 'https://example.com/a.png'))], 13, 'https://example.com/a.png is a web address; save the picture in the change\'s folder'],
+  ['an unknown placement', [feedAd.map(line => line.replace('feed', 'reel'))], 11, 'placement is feed or story, not reel'],
+  ['no picture line', [feedAd.filter(line => !line.startsWith('picture'))], 10, 'an ad needs a picture: line'],
+  ['an unknown line', [[...feedAd, 'price: 3']], 17, 'an ad takes one line each of placement, account, picture, text, headline, button'],
+  ['a line given twice', [[...feedAd, 'button: Buy']], 17, 'an ad takes one line each of placement, account, picture, text, headline, button'],
+];
+for (const [what, ads, line, why] of refusedAds) {
+  test(`an ad with ${what} stops the build on one line naming the item and line`, () => advertised(root => {
+    const result = build(root);
+    assert.equal(result.status, 1);
+    assert.equal(result.stderr, `review: proposal.md line ${line}: item 1, picture 1: ${why}\n`);
+  }, ads));
+}
+
+test('a Try it line draws a link that opens in a new tab, after the pictures', () => pictured(root => {
+  buildReview(root, { requireCurrent: true });
+  assert.match(page(root), /<div class="art photo" data-note="item-1-picture-1" tabindex="0"><figure>[\s\S]*?<\/figure><\/div><\/div><p class="try"><a href="https:\/\/demo\.example\.dev\/inbox\?state=empty" target="_blank" rel="noopener noreferrer">Try it<\/a><\/p><\/details>/);
+}, ['After: after.png', 'Try it: https://demo.example.dev/inbox?state=empty'], { 'after.png': png() }));
+
+for (const [what, address] of [['an http address', 'http://demo.example.dev/'], ['a script', 'javascript:alert(1)'], ['a second link', 'https://a.example.dev/\n  Try it: https://b.example.dev/']]) {
+  test(`a Try it line with ${what} stops the build`, () => pictured(root => {
+    const result = build(root);
+    assert.equal(result.status, 1);
+    const shown = what === 'a second link' ? 'https://b.example.dev/' : address;
+    assert.equal(result.stderr, `review: proposal.md line ${what === 'a second link' ? 13 : 12}: item 1, picture 1: Try it takes one https:// address, not ${shown}\n`);
+  }, ['After: after.png', `Try it: ${address}`], { 'after.png': png() }));
+}

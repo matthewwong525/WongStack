@@ -30,13 +30,7 @@ Why and What Changes use [plain words](../explore/references/asking-the-user.md#
 
 ## Draw in the proposal, then build the page
 
-Draw as you write, with no second agent: one drawing per What Changes bullet by default, plus a sketch of each new or restructured user-facing screen; more only where a bullet needs it. A drawing is a fence indented in its bullet, by [the drawing guide](references/drawings.md). A screen the person can open now also gets [a Before screenshot](../../../wiki/ux-principles.md#the-review-file).
-
-    - **Save goes through one gate.** …
-      ```mermaid
-      flowchart LR
-        apply["/apply"] --> archive --> save["one /save"] --> CI
-      ```
+Draw as you write, with no second agent: one drawing per What Changes bullet by default, as a fence indented in its bullet by [the drawing guide](references/drawings.md). A card shows [the closest real result](../../../wiki/review-pages.md#a-card-shows-the-closest-real-result). A bullet that adds or changes a screen gets [a prototype](../../../wiki/review-pages.md#the-prototype); notes update it too.
 
 Build the page after drafting and each later edit:
 

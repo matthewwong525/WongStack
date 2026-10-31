@@ -64,3 +64,21 @@ test('a bad pair, a missing picture, a bad name, or no checkout stops with one l
     assert.equal(existsSync(join(outside, '.scratch')), false);
   } finally { rmSync(outside, { recursive: true, force: true }); }
 }));
+
+test('--approved puts the plan\'s approved picture beside the built screen, first, and a page may have only those', () => checkout(dir => {
+  const result = run(dir, ['demo', '--approved', 'Inbox|shots/inbox-preview.png|shots/inbox-live.png', '--pair', 'New page||shots/new.png']);
+  assert.equal(result.status, 0, result.stderr);
+  const folder = join(dir, '.scratch', 'demo-preview');
+  assert.deepEqual(readdirSync(join(folder, 'pictures')).sort(), ['1-approved.png', '1-built.png', '2-preview.png']);
+  assert.equal(readFileSync(join(folder, 'proposal.md'), 'utf8'), [
+    '# Preview of demo', '', '## Why', '',
+    'Built: demo. Look at each changed screen, beside what you approved, then publish or send notes.', '',
+    '## What Changes', '',
+    '- **Inbox**', '  ```picture', '  Approved: pictures/1-approved.png', '  Built: pictures/1-built.png', '  ```',
+    '- **New page**', '  ```picture', '  Preview: pictures/2-preview.png', '  ```', ''].join('\n'));
+  assert.match(readFileSync(join(folder, 'review.html'), 'utf8'), /alt="Approved"><figcaption>Approved<\/figcaption><\/figure><figure><img [^>]*alt="Built">/);
+  assert.equal(run(dir, ['demo', '--approved', 'Inbox|shots/inbox-preview.png|shots/inbox-live.png']).status, 0, 'no --pair is fine');
+  const bad = run(dir, ['demo', '--approved', 'Inbox|shots/new.png']);
+  assert.equal(bad.status, 1);
+  assert.equal(bad.stderr, 'preview: --approved takes "<title>|<approved picture>|<built picture>": Inbox|shots/new.png\n');
+}));

@@ -6,7 +6,7 @@ It is not a [private link](browsing.md#how-private-links-work). A private link t
 
 ## A plan's link
 
-Each new or changed plan prints *Click here to see the plan:* with a reply link, when one can open ([print the plan's link](../../.agents/skills/explore/references/asking-the-user.md#print-the-plans-link)). A finished plan's reply prints the plan itself above the link, so you can read it in the chat, and ends there, with *Review the plan, then tap Build it or Build and publish on its page.* and no question.
+Each new or changed plan prints *Click here to see the plan:* with a reply link, when one can open ([print the plan's link](../../.agents/skills/explore/references/asking-the-user.md#print-the-plans-link)). A finished plan's reply puts the link first, so a chat that folds a long reply never hides it, then the plan itself, so you can read it in the chat, and ends with *Review the plan, then tap Build it or Build and publish on its page.* and no question.
 
 - **Send notes.** On the page, save your notes, then tap *Send notes*. Saving copies nothing there. One tap sends every note not yet sent, and each is marked *Sent*, so a second tap sends nothing twice. Change a sent note and it goes again.
 - **The chat takes them as pasted notes.** They arrive under the line *Notes on the plan … Don't build yet.* The chat [updates the plan](../../.agents/skills/plan/SKILL.md#review-notes) and builds nothing.
@@ -17,7 +17,7 @@ Each new or changed plan prints *Click here to see the plan:* with a reply link,
 
 ## In your inbox first
 
-When this computer is signed in to [your company app](../stack/company-api.md) and you can open its Inbox, a plan's link opens there, at `/apps/inbox/?item=<id>`, behind your company sign-in. No tunnel starts. Otherwise, it opens through a tunnel, as the rest of this page says. Only a plan's review page opens inside the inbox. Another page keeps its tunnel.
+When this computer is signed in to [your company app](../stack/company-api.md) and you can open its Inbox, a plan's link opens there, at `/apps/inbox/?item=<id>`, behind your company sign-in. No tunnel starts. Otherwise, it opens through a tunnel, as the rest of this page says. Only a [review page](../review-pages.md) opens inside the inbox: a plan's, a built preview's, or one for other work. Another page keeps its tunnel.
 
 - **The inbox opens on your week.** Without `?item=`, it shows your tasks by day and your backlog: you tick, drag, move and delete them, and add one by typing. A chat's question or approval waits in its own chat, not in the inbox. [The daily](daily.md) keeps one task on the board for each chat you open.
 - **A tap waits in the app until this computer takes it.** The app tells the computer at once down [the live line](../stack/live-line.md); the computer takes the taps on its own plans, wakes the chat, and reports back. With the line down, it checks every 10 seconds instead. The page shows *Waiting…*, or *Waiting for your computer* when it hasn't checked in for a minute, then *Sending…* once the computer has it, then *Sent* once the chat has it.
@@ -93,6 +93,8 @@ When `submit` is false, show the text for the person to copy: the page must neve
 One server and one tunnel serve every open page, and both stop once no page is open. Inbox items get their own small process, [`reply-link.mjs serve-inbox`](../../.agents/skills/hand-over/scripts/reply-link.mjs), which holds [the live line](../stack/live-line.md), delivers taps, and stops once no item it can reach is open; run as [the helper](../stack/live-line.md#the-helper), it never stops. Each serves every project on the computer, whichever [company app](../stack/company-api.md) it uses: an item, or a listed form, remembers the app it was put in, and is checked in, reported and closed there. An app the computer can't reach keeps its items waiting; the others' taps still go through. A copy that changes either process raises `PROTOCOL` in that file past every other copy's number on the computer, so the next open replaces the one running. The chat is woken through [`lib/wake.mjs`](../../.agents/skills/hand-over/scripts/lib/wake.mjs), the one place that names how: a host with another way to wake a chat adds it there.
 
 ### Give a page a button
+
+A [review page](../review-pages.md#a-page-for-other-work) gets labelled buttons from its builder; this section is for a page you write yourself.
 
 A button sends one message you fix when the link opens: *Send all* on a list of drafts, *Approve* on a quote.
 

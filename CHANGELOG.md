@@ -3,6 +3,18 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — One review standard
+
+- **Every review page looks and works the same.** A plan, a finished build, and other work, such as ads to approve, all show the ask, why, numbered cards, decisions only when there are some, and one bar at the bottom. A page with no decisions shows no Decisions section ([review pages](wiki/review-pages.md)).
+- **Each card takes OK or Change.** *OK* marks the card accepted, and *Undo* takes it back. *Change* opens a note on the card. Each OK goes to the chat with your notes, such as *Card #2: OK*. An OK alone starts nothing.
+- **Notes on words and on a spot of a picture.** Select words to note just those words. In the full-screen view, tap a point on a screenshot or an ad to pin a note there. The notes list groups notes by card.
+- **A review page for work that is not a plan.** An agent can make a page with its own question and up to 6 buttons, such as *Approve* and *Launch*. A button that can't be undone asks once more. The page opens in your Inbox, like a plan.
+- **Ads show as they run.** An ad card shows a feed or story ad with its account, picture, words, headline, and button. Several ads sit side by side where they fit.
+- **A plan that changes a screen shows the real new screen.** `/plan` makes a throwaway copy of the app with sample data and puts it on the preview address. The plan shows *Before*, *After* for each state, and a *Try it* link. When no copy can run, the plan shows a sketch and says why. Later notes keep the earlier edits, and the build starts from the copy. After the build, the preview page shows *Approved* beside *Built*.
+- **Links come first in the chat.** A reply with a plan, a preview, or any page to open puts the link near the top, so a chat that folds a long reply into *See more* no longer hides it.
+
+**Updating.** Nothing to do. Plans you already have keep their pages until you change them.
+
 ## 45.1.0 — Real pictures in plans, and a review page for the built screens
 
 - **A plan can show real pictures.** A `picture` fence in a What Changes bullet shows PNG, JPEG or WebP files from the change's own folder, open at the start. Two sit side by side, each with its label, such as *Before* and *After*. The page carries each picture inside itself, so it still opens with no internet. A tap on a picture leaves a note on it. A web address or a file outside the folder stops the build. A picture over 150 KB warns. A picture over 300 KB, or a page over 500 KB, stops the build, so every page fits in the Inbox: take only the visible part at phone width ([the review file](wiki/ux-principles.md#the-review-file)).
