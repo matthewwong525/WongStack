@@ -28,6 +28,7 @@ scripts/tests/node_modules/.bin/c8 --config scripts/tests/.c8rc.json node --test
 node scripts/check-payload-links.mjs
 node scripts/check-openspec-config.mjs
 node scripts/check-retired-names.mjs
+node scripts/check-attachments.mjs
 openspec validate --specs --strict --no-interactive
 node scripts/measure-context.mjs --check
 ```

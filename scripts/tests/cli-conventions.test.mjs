@@ -20,6 +20,7 @@ const scripts = {
   'scripts/check-app-keys.mjs': [],
   'scripts/check-app-checks.mjs': [],
   'scripts/check-skill-actions.mjs': [],
+  'scripts/check-attachments.mjs': [],
   'scripts/reset-staging-d1.mjs': [],
   'scripts/line-stand-in.mjs': [],
   'scripts/cf-secrets.mjs': [],

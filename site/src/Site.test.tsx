@@ -13,7 +13,7 @@ const html = readFileSync(site("index.html"), "utf8");
 const css = readFileSync(site("src/index.css"), "utf8");
 
 /** Every page the site has. Any other address shows the first. */
-const PAGES = ["/", "/privacy"];
+const PAGES = ["/", "/privacy", "/attachments"];
 
 const fetchMock = vi.fn();
 
