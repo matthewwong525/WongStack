@@ -74,3 +74,12 @@ it("says to try again when the network fails", async () => {
 
   expect(await screen.findByText("Something went wrong. Try again.")).toBeTruthy();
 });
+
+// The phone keyboard's Go key submits the form, with no tap on the button.
+it("submits from the name field with the phone keyboard", async () => {
+  const fetchMock = await open(async () => Response.json({ message: "Hello, Carol!" }));
+  fireEvent.change(screen.getByLabelText("Your name"), { target: { value: "Carol" } });
+  await act(async () => { fireEvent.submit(screen.getByLabelText("Your name").closest("form")!); });
+  expect(fetchMock).toHaveBeenCalledWith("/apps/hello/api/greeting?name=Carol");
+  expect(await screen.findByText("Hello, Carol!")).toBeTruthy();
+});

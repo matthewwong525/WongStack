@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import {
-  agentSettings, childEnv, parseCreated, renameArgs, runArgs, workspaceTitle,
+  agentSettings, childEnv, openWorkspace, parseCreated, renameArgs, runArgs, workspaceTitle,
 } from '../../.agents/skills/schedule/scripts/workspace.mjs';
 
 const cli = new URL('../../.agents/skills/schedule/scripts/workspace.mjs', import.meta.url).pathname;
@@ -153,6 +153,8 @@ test('builds branch-off and checkout arguments with the brief last', () => {
   assert.equal(flag(co, '--model'), 'm');
   assert.equal(flag(co, '--thinking'), 'x');
   assert.ok(!co.includes('--base'));
+  const tagged = runArgs({ primary: '/p', title: 'B', brief: '/plan B', settings, base: 'origin/main', label: 'job=42' });
+  assert.deepEqual(tagged.slice(tagged.indexOf('--label'), tagged.indexOf('--mode')), ['--label', 'job=42']);
 });
 
 test('builds the rename arguments with the title as one element', () => {
@@ -444,11 +446,24 @@ test('bad input is exit 2 and opens nothing', t => {
     ['open', '--title', 'B', '--brief', brief(t), '--checkout', 'nowhere'],
     ['open', '--title', 'B', '--brief', brief(t), '--checkout', 'feature', '--reviewed', 'not-a-commit'],
     ['open', '--title'],
+    ['open', '--title', 'B', '--brief', brief(t), '--label', 'job=42; rm -rf ~'],
+    ['open', '--title', 'B', '--brief', brief(t), '--label', 'Job=42'],
     ['close'],
   ];
   for (const args of cases) assert.equal(runCli(root, args, paseo.env).status, 2, args.join(' '));
   assert.equal(paseo.runs().length, 0);
   assert.match(runCli(root, ['--help']).json, /usage: workspace\.mjs open/);
+});
+
+test('a script opens a tagged workspace through the exported opener, and an unsafe tag opens nothing', async t => {
+  const { root } = repo(t);
+  const paseo = fakePaseo(t);
+  const env = { ...paseo.env, PASEO_AGENT_ID: undefined };
+  const dry = await openWorkspace({ title: 'B', brief: brief(t), agent: 'claude', label: 'job=42', dryRun: true }, env, { cwd: root });
+  assert.equal(flag(dry.command, '--label'), 'job=42');
+  await assert.rejects(openWorkspace({ title: 'B', brief: brief(t), agent: 'claude', label: 'job=42; rm -rf ~' }, env, { cwd: root }),
+    e => e.code === 2 && /label/.test(e.message));
+  assert.equal(paseo.runs().length, 0);
 });
 
 test('Paseo refusing the run is exit 2 with its message', t => {

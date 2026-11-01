@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -12,8 +12,12 @@ const SECRET = 'value-that-must-not-print';
 
 const git = (cwd, ...args) => execFileSync('git', ['-c', 'user.email=t@example.com', '-c', 'user.name=t', ...args], { cwd, stdio: 'ignore' });
 
-// A primary checkout with `.env` and `app/.dev.vars`, plus one linked worktree.
-function fixture(t, { env = `# tools\nA=1\nB=${SECRET}\n`, devVars = 'S=1\nOLD=1\n', ignore = '.env*\n!.env.example\n.dev.vars*\n!.dev.vars.example\n' } = {}) {
+// A primary checkout with `.env`, `app/.dev.vars`, and `.claude` linked to `.agents` as installs have it, plus one
+// linked worktree. `settings` is the primary's local chat settings, if any.
+function fixture(t, {
+  env = `# tools\nA=1\nB=${SECRET}\n`, devVars = 'S=1\nOLD=1\n', settings = null,
+  ignore = '.env*\n!.env.example\n.dev.vars*\n!.dev.vars.example\n.agents/settings.local.json\n',
+} = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'wong-test-worktree-secrets-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const primary = join(dir, 'primary');
@@ -21,10 +25,14 @@ function fixture(t, { env = `# tools\nA=1\nB=${SECRET}\n`, devVars = 'S=1\nOLD=1
   git(primary, 'init', '-q', '-b', 'main');
   writeFileSync(join(primary, '.gitignore'), ignore);
   writeFileSync(join(primary, 'app/.gitkeep'), '');
+  mkdirSync(join(primary, '.agents'));
+  writeFileSync(join(primary, '.agents/.gitkeep'), '');
+  symlinkSync('.agents', join(primary, '.claude'));
   git(primary, 'add', '.');
   git(primary, 'commit', '-qm', 'init');
   writeFileSync(join(primary, '.env'), env);
   writeFileSync(join(primary, 'app/.dev.vars'), devVars);
+  if (settings !== null) writeFileSync(join(primary, '.claude/settings.local.json'), settings);
   const worktree = join(dir, 'wt');
   git(primary, 'worktree', 'add', '-q', '-b', 'feature', worktree);
   return { primary, worktree };
@@ -65,6 +73,34 @@ test('seed skips a file the worktree does not ignore', t => {
   const result = run(worktree, 'seed');
   assert.deepEqual(result.skipped.map(s => s.path), ['app/.dev.vars']);
   assert.ok(!existsSync(join(worktree, 'app/.dev.vars')));
+});
+
+test('seed copies the local chat settings once, and status never lists them', t => {
+  const settings = '{"permissions":{"allow":["Bash(npm test)"]}}\n';
+  const { worktree } = fixture(t, { settings });
+  assert.equal(run(worktree, 'seed').settings, 'copied');
+  assert.equal(read(worktree, '.claude/settings.local.json'), settings);
+  assert.equal(statSync(join(worktree, '.claude/settings.local.json')).mode & 0o777, 0o600);
+  assert.equal(execFileSync('git', ['status', '--porcelain'], { cwd: worktree, encoding: 'utf8' }), '');
+  const status = run(worktree, 'status');
+  assert.deepEqual(status.seeded.sort(), ['.env', 'app/.dev.vars']);
+  assert.deepEqual(status.files, []);
+});
+
+test('seed keeps a workspace\'s own chat settings', t => {
+  const { worktree } = fixture(t, { settings: '{"from":"primary"}\n' });
+  write(worktree, '.claude/settings.local.json', '{"from":"mine"}\n');
+  assert.equal(run(worktree, 'seed').settings, 'kept');
+  assert.equal(read(worktree, '.claude/settings.local.json'), '{"from":"mine"}\n');
+});
+
+test('seed copies no chat settings when the primary has none, or git does not ignore them', t => {
+  const none = fixture(t);
+  assert.equal(run(none.worktree, 'seed').settings, 'none');
+  assert.ok(!existsSync(join(none.worktree, '.claude/settings.local.json')));
+  const shown = fixture(t, { settings: '{}\n', ignore: '.env*\n.dev.vars*\n' });
+  assert.equal(run(shown.worktree, 'seed').settings, 'not git-ignored');
+  assert.ok(!existsSync(join(shown.worktree, '.claude/settings.local.json')));
 });
 
 test('a deletion waits for promote, then leaves the primary', t => {

@@ -36,6 +36,12 @@ it("lists everyone who could already sign in with every built app, then turns pe
   // The import only reads the sign-in list; nothing on it changes.
   expect(fetch.mock.calls.every(([, init]) => init.method === "GET")).toBe(true);
   expect(cf.writes).toEqual([]);
+  // The first import writes no key grants and no role members.
+  for (const table of ["wong_access_key_grants", "wong_access_member_roles"]) {
+    expect(f.sql.prepare(`SELECT COUNT(*) count FROM ${table}`).get(), table).toEqual({ count: 0 });
+  }
+  // The built-in Admin role is the only role, and nobody holds it yet.
+  expect(f.sql.prepare("SELECT role_id, name FROM wong_access_roles").all()).toEqual([{ role_id: "admin", name: "Admin" }]);
   // Every built app is recorded, and Access itself is nobody's to give.
   const everything = ["orders", "payroll"];
   expect(await accessStatus(core)).toMatchObject({ started: true, imported: 2, key: "ready", environment: "live",
