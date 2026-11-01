@@ -49,11 +49,13 @@ function validateCheck(check, seen) {
   seen.add(check.id);
 }
 
+/** The AI tools a background run may use, from the settings' `runs.agent`; the first is the default. */
+export const RUN_AGENTS = ['claude', 'codex'];
 const checksOk = checks => Array.isArray(checks) && checks.length <= 50;
 
 /** A person's settings, checked; it throws a SettingsError naming the first problem. */
 export function validateConfig(config) {
-  const allowed = ['version', 'person', 'emails', 'timezone', 'profile', 'context', 'guide', 'sources', 'places', 'checks', 'addons'];
+  const allowed = ['version', 'person', 'emails', 'timezone', 'profile', 'context', 'guide', 'sources', 'places', 'checks', 'addons', 'sweeps', 'runs'];
   if (!keys(config, allowed) || config.version !== 1) fail('version 1 and known fields only');
   if (typeof config.person !== 'string' || !idPattern.test(config.person) || config.person === 'team') fail('person');
   if (!Array.isArray(config.emails) || !config.emails.length || config.emails.length > 20 || !config.emails.every(each => EMAIL.test(each))) fail('emails');
@@ -66,6 +68,8 @@ export function validateConfig(config) {
   if (config.addons !== undefined && (!keys(config.addons, ['morning', 'pass']) || !Object.values(config.addons).every(list => paths(list, 10)))) {
     fail('addons');
   }
+  if (config.sweeps !== undefined && !(safePath(config.sweeps) && config.sweeps.endsWith('.json'))) fail('sweeps');
+  if (config.runs !== undefined && !(keys(config.runs, ['agent']) && RUN_AGENTS.includes(config.runs.agent ?? 'claude'))) fail('runs');
   if (!checksOk(config.checks)) fail('checks');
   const seen = new Set();
   for (const check of config.checks) validateCheck(check, seen);
@@ -83,17 +87,20 @@ export function validateTeam(team) {
 
 const readSettings = file => { try { return JSON.parse(readFileSync(file, 'utf8')); } catch { fail(`${file} is not JSON`); } };
 
-/** Each person's settings file in the repo, `{file, emails}`; the team file is left out. */
+const isJobList = data => plain(data) && !Object.hasOwn(data, 'person') && (Object.hasOwn(data, 'events') || Object.hasOwn(data, 'sweeps'));
+
+/** Each person's settings file in the repo, `{file, emails}`. The team file and a job list (`events` or `sweeps`, no
+ * `person`) are left out; any other file stays, so a broken one fails on load and names its bad field. */
 export function settingsFiles(repo) {
   const dir = join(repo, SETTINGS_DIR);
   if (!existsSync(dir)) return [];
-  return readdirSync(dir).filter(name => name.endsWith('.json') && name !== TEAM_FILE).sort().map(name => {
+  return readdirSync(dir).filter(name => name.endsWith('.json') && name !== TEAM_FILE).sort().flatMap(name => {
     const file = join(dir, name);
-    let emails = [];
-    try {
-      emails = (JSON.parse(readFileSync(file, 'utf8')).emails ?? []).map(each => String(each).toLowerCase());
-    } catch { /* checked on load */ }
-    return { file, emails };
+    let data;
+    try { data = JSON.parse(readFileSync(file, 'utf8')); } catch { return [{ file, emails: [] }]; }
+    if (isJobList(data)) return [];
+    const emails = Array.isArray(data.emails) ? data.emails.map(each => String(each).toLowerCase()) : [];
+    return [{ file, emails }];
   });
 }
 

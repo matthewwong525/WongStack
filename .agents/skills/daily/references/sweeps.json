@@ -1,0 +1,11 @@
+{
+  "$comment": "The daily's default jobs: which watch event starts which background run. An install adds its own list: wiki/development/daily.md#your-own-jobs.",
+  "journalDays": 14,
+  "runLogDays": 7,
+  "maxRuns": 3,
+  "events": {
+    "stopped": { "brief": "judge.md", "title": "Judge {{title}}", "hold": true },
+    "asking": { "brief": "judge.md", "title": "Judge {{title}}", "hold": true }
+  },
+  "sweeps": []
+}

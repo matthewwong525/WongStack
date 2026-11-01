@@ -3,7 +3,7 @@
 // wiki/development/daily.md
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { closeSync, cpSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -14,8 +14,10 @@ import { loadConfig, memoryOrigin, repoContext, signIn, signInHelp } from '../..
 import { runAddons } from './addons.mjs';
 import { boardCalls, boardClient } from './board.mjs';
 import { BUCKETS, HAND_SOURCES, allow, answer, chiefDay, chiefEnv, close, doneAgent, hand, mark, noteEnd, paseoCli, readJson,
-  remind, reply, serve, status, todoLink, watch, watchStops, writeJson } from './chief.mjs';
+  remind, reply, status, todoLink, watch, watchStops, writeJson } from './chief.mjs';
 import { SettingsError, addDays, loadSettings, localDay, mondayOf, occurrence, placePath, settingsFiles, settingsFor, slotOf } from './config.mjs';
+import { addLine, format, hookOutput, newLines, readLines } from './journal.mjs';
+import { serveDaily } from './worker.mjs';
 
 const LAUNCHER = fileURLToPath(new URL('../../schedule/scripts/workspace.mjs', import.meta.url));
 const REPO = fileURLToPath(new URL('../../../../', import.meta.url));
@@ -366,16 +368,17 @@ export async function openDaily({ config, project, stateDir, now = new Date(), c
 
 const USAGE = `usage: daily.mjs who | start [--dry-run] [--report] | picture | open-daily [--dry-run]
        daily.mjs start-task --id <task id> [--note <words>] | remind --day <YYYY-MM-DD> --text <words>
-       daily.mjs watch [--seconds 60] [--hours 24] [--once] | serve [--seconds 60] [--once] | status
+       daily.mjs watch [--seconds 60] [--hours 24] [--once] | serve [--seconds 60] [--once] [--dry-run] | status
+       daily.mjs journal [--new] | journal --line <words> [--run <id>]
        daily.mjs hand --agent <id|title|workspace> [--source handed|asked] | close --agent <a>
        daily.mjs reply --agent <a> --file <text file> --bucket keep-going|pick|person --label <line> [--mark <mark>]
        daily.mjs answer --agent <a> --request <id> --file <text file> --bucket keep-going|pick|person --label <line>
        daily.mjs allow --agent <a> --request <id> --bucket keep-going|person --label <line>
        daily.mjs done-agent --agent <a> --proof <text> | todo link --agent <a> --url <https link> | note-end --line <words>
-       daily.mjs mark
-  each but mark takes --config <settings file>; mark takes nothing and prints nothing; chief-service is serve`;
+       daily.mjs mark | journal --hook
+  each but the two hooks takes --config <settings file>; a hook never fails; chief-service is serve`;
 const FLAGS = { who: [], start: ['dry-run', 'report'], picture: [], 'open-daily': ['dry-run'], 'start-task': ['id', 'note'], remind: ['day', 'text'],
-  watch: ['seconds', 'hours', 'once'], serve: ['seconds', 'once'], status: [], hand: ['agent', 'source'], close: ['agent'],
+  watch: ['seconds', 'hours', 'once'], serve: ['seconds', 'once', 'dry-run'], journal: ['new', 'line', 'run'], status: [], hand: ['agent', 'source'], close: ['agent'],
   reply: ['agent', 'file', 'bucket', 'label', 'mark'], answer: ['agent', 'request', 'file', 'bucket', 'label'], allow: ['agent', 'request', 'bucket', 'label'],
   'done-agent': ['agent', 'proof'], 'todo link': ['agent', 'url'], 'note-end': ['line'] };
 const NEEDS = { 'start-task': ['id'], remind: ['day', 'text'], hand: ['agent'], close: ['agent'], reply: ['agent', 'file', 'bucket', 'label'],
@@ -387,9 +390,9 @@ const REFUSED = new Set(['refused', 'unknown', 'ambiguous', 'failed', 'not confi
 /** The command line as `{command, values}`; a wrong one exits with the usage. */
 export function readArgs(args) {
   const { values, positionals } = parseCli({ usage: USAGE, allowPositionals: true, args, options: Object.fromEntries([
-    ...['config', 'seconds', 'hours', 'id', 'note', 'agent', 'source', 'file', 'bucket', 'label', 'request', 'day', 'text', 'mark', 'proof', 'url', 'line']
-      .map(name => [name, { type: 'string' }]),
-    ...['dry-run', 'once', 'report'].map(name => [name, { type: 'boolean' }])]) });
+    ...['config', 'seconds', 'hours', 'id', 'note', 'agent', 'source', 'file', 'bucket', 'label', 'request', 'day', 'text', 'mark', 'proof', 'url', 'line',
+      'run'].map(name => [name, { type: 'string' }]),
+    ...['dry-run', 'once', 'report', 'new'].map(name => [name, { type: 'boolean' }])]) });
   const [first, ...extra] = positionals;
   const named = first === 'todo' ? `${first} ${extra.shift()}` : first;
   const command = named === 'chief-service' ? 'serve' : named;
@@ -409,7 +412,8 @@ export function readArgs(args) {
 }
 
 /** Each command, over the settings, the checkout, the state folder and the injected calls. */
-export function commands({ config, project, stateDir, values, call, board, origin = () => board.origin(), env = process.env, addons = runAddons }) {
+export function commands({ config, project, stateDir, values, call, board, origin = () => board.origin(), env = process.env, addons = runAddons,
+  print = console.log }) {
   const started = () => startedRecord(stateDir).read();
   const daily = dailyRecord(stateDir);
   const at = { stateDir, started, timezone: config.timezone };
@@ -433,9 +437,23 @@ export function commands({ config, project, stateDir, values, call, board, origi
       const context = await chief();
       await watch({ ...context, ...watching, ignore: [context.dailyId].filter(Boolean), seconds: values.seconds, hours: values.hours, once: Boolean(values.once) });
     },
-    // Lines go to the Daily chat as they happen: no JSON at the end.
+    // A dry run works on a copy of the state, so the live service's watch and queue see nothing taken.
     serve: async () => {
-      await serve({ ...at, ...watching, daily, call, env, seconds: values.seconds, once: Boolean(values.once), log: text => console.error(text) });
+      const dryRun = Boolean(values['dry-run']);
+      const dir = dryRun ? mkdtempSync(join(tmpdir(), 'daily-serve-')) : stateDir;
+      if (dryRun && existsSync(stateDir)) cpSync(stateDir, dir, { recursive: true });
+      try {
+        await serveDaily({ config, project, stateDir: dir, call, env, seconds: values.seconds, once: Boolean(values.once), dryRun, print: item => print(JSON.stringify(item)),
+          started: () => startedRecord(dir).read(), daily: dailyRecord(dir),
+          watching: { board: board.tasks, ...(!dryRun && { todos: watching.todos, addons: passAddons }) } });
+      } finally { if (dryRun) rmSync(dir, { recursive: true, force: true }); }
+    },
+    journal: () => {
+      if (values.line) return addLine({ stateDir, timezone: config.timezone, line: values.line, run: values.run, kind: values.run ? 'end' : 'note' });
+      const text = values.new
+        ? newLines({ stateDir, timezone: config.timezone, agentId: env.PASEO_AGENT_ID, dailyId: daily.read().agentId, run: Boolean(env.WONG_DAILY_RUN) })
+        : readLines({ stateDir }).map(entry => format(entry, config.timezone)).join('\n');
+      if (text) print(text);
     },
     status: async () => status(await chief()),
     hand: async () => hand({ ...(await chief()), agent: values.agent, source: values.source }),
@@ -449,9 +467,27 @@ export function commands({ config, project, stateDir, values, call, board, origi
   };
 }
 
+/** The prompt hook: the Daily agent's new journal lines, found with no sign-in check; any other chat gets ''. */
+export function journalHook({ env = process.env, repo = REPO, root } = {}) {
+  const agentId = env.PASEO_AGENT_ID;
+  if (!agentId || env.WONG_DAILY_RUN) return '';
+  const base = stateDirectory(primaryRoot(repo).primary, '', root);
+  for (const person of readdirSync(base)) {
+    const stateDir = join(base, person);
+    if (dailyRecord(stateDir).read().agentId !== agentId) continue;
+    const file = settingsFiles(repo).find(entry => readJson(entry.file, {}).person === person)?.file;
+    return file ? hookOutput(newLines({ stateDir, timezone: loadSettings(file, repo).timezone, agentId, dailyId: agentId })) : '';
+  }
+  return '';
+}
+
 async function main(args = process.argv.slice(2)) {
-  // A hook runs mark: it never fails the chat, and prints nothing a hook could read as an answer.
+  // A hook runs mark and journal --hook: they never fail the chat, and print nothing but the hook's own answer.
   if (args[0] === 'mark') { mark(); return; }
+  if (args[0] === 'journal' && args.includes('--hook')) {
+    try { const out = journalHook(); if (out) console.log(out); } catch { /* nothing: the prompt goes on */ }
+    return;
+  }
   const { command, values } = readArgs(args);
   const me = who({ config: values.config });
   if (command === 'who') { console.log(JSON.stringify(me, null, 2)); return; }
