@@ -52,3 +52,4 @@ Non-goals: no Email app, linked tasks, calendar, notes or news; no WongOS name, 
 - **2026-11-01** — Assumed: the opener's tag is told in the release notes, not in `required-tools.md`, because that page is at its 3,000-word limit.
 - **2026-11-01** — Asked whether to keep the fork-preview fix, which does nothing because WongStack's deploy job runs only on a push → chose to drop it; WongOS's next sync drops its `deploy.yml` line as drift.
 - **2026-11-01** — Built the five remaining fixes after WongStack 45.3.0 came in; local checks pass, and a preview is up. Next: CI, then publish.
+- **2026-11-01** — Archived for release 45.4.0 after CI passed on the saved work.

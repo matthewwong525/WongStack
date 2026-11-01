@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Small fixes from WongOS
+## 45.4.0 — Small fixes from WongOS
 
 - **A script can open a tagged chat and find it again.** `workspace.mjs open` takes `--label key=value`, such as `--label job=42`, and your own script can import `openWorkspace` from it with the same checks. Find those chats later with `paseo ls --label job=42`. A tag of any other shape opens nothing ([`workspace.mjs`](.agents/skills/schedule/scripts/workspace.mjs)).
 - **A new workspace keeps your chat settings.** The worktree setup now also copies your `.claude/settings.local.json`, such as the commands you allowed, into a new workspace that has none. So a new chat does not ask for them again ([worktrees and branch copies](wiki/development/secrets.md#worktrees-and-branch-copies)).

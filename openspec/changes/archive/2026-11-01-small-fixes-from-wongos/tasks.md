@@ -20,4 +20,4 @@
 ## 4. Verification
 
 - [x] 4.1 Run `node .github/scripts/checks.mjs --worktree` and fix what it reports.
-- [ ] 4.2 `/save`; CI passes on the pull request.
+- [x] 4.2 `/save`; CI passes on the pull request.
