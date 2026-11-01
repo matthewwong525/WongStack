@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
+import { headlessCommand } from './lib/headless.mjs';
 import { isMain, repoContext, RUN_TALLY, SCRIPT, statePath } from './lib/store.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -44,15 +45,9 @@ export function withInputDir(fn) {
 const section = (text, heading) => text.match(new RegExp(`## ${heading}[\\s\\S]*?(?=\\n## |$)`))?.[0].trim() || '';
 
 export function agentCommand(agent, prompt, stateDir, inputDir, env = process.env) {
-  if (agent === 'codex') {
-    const model = env.WONG_MEMORY_CODEX_MODEL?.trim();
-    return ['codex', ['exec', '--ephemeral', '--skip-git-repo-check', ...(model ? ['-m', model] : []),
-      '--sandbox', 'workspace-write', '-c', 'sandbox_workspace_write.network_access=true',
-      '-c', `sandbox_workspace_write.writable_roots=[${JSON.stringify(stateDir)},${JSON.stringify(inputDir)}]`, '-c', 'approval_policy="never"', prompt]];
-  }
-  const model = env.WONG_MEMORY_MODEL?.trim();
-  return ['claude', ['-p', prompt, ...(model ? ['--model', model] : []), '--no-session-persistence',
-    '--permission-mode', 'dontAsk', '--allowedTools', `Bash(${SCRIPT}:*)`, `Edit(/${inputDir}/**)`, '--add-dir', inputDir]];
+  const model = (agent === 'codex' ? env.WONG_MEMORY_CODEX_MODEL : env.WONG_MEMORY_MODEL)?.trim();
+  return headlessCommand({ agent, prompt, model,
+    access: { tools: [`Bash(${SCRIPT}:*)`, `Edit(/${inputDir}/**)`], dir: inputDir, writable: [stateDir, inputDir] } });
 }
 
 // The model's whole instruction: the fixed lines, then the runbook sections of SKILL.md.

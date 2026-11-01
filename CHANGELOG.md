@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 45.3.0 — A quiet Daily chat
+
+- **The 15-minute wait holds.** A chat that stops soon after your own message waits 15 minutes from that message, even when it runs and stops again in between. A new message from you starts the wait again.
+- **The daily on a computer works in the background.** `daily.mjs serve` no longer sends the Daily chat a `Watch ·` message each pass. It starts one background run of your AI tool for each stop, at most 3 at one time and one per chat, and stops a run after 30 minutes ([the daily on a computer](wiki/development/daily.md#the-daily-on-a-computer)).
+- **A journal in place of messages.** Each run's end line, and each closed chat or source it could not read, goes to a private journal. The Daily chat gets its new lines with your next message, and you see none of them. Only a week board it can not read still sends one line per day ([the journal](wiki/development/daily.md#the-journal)).
+- **Your own jobs.** A `sweeps` file named in your settings adds event jobs and timed jobs, each with its own brief. `runs.agent` picks Claude Code or Codex for the runs ([your own jobs](wiki/development/daily.md#your-own-jobs)).
+
+**Updating.** Nothing to do if you do not run `daily.mjs serve`. If a service on your computer runs it, it gets the new way after the update with no change. An install with its own copy of the worker and journal (WongOS): set your settings file's `sweeps` to `.agents/daily/sweeps.json`, give its fill job `lane` and `ownPlace` fields, and change the service's `ExecStart` to `daily.mjs serve`. In your own `.agents/daily/briefs/header.md`, change the last command to `D journal --run {{run}} --line "<the line>"`, or delete that file to use the skill's header. In your guide, change `journal.mjs read` to `D journal`. Then delete your own `worker.mjs` and `journal.mjs` and the `.agents/settings.json` hook you added for them.
+
 ## 45.2.0 — One review standard
 
 - **Every review page looks and works the same.** A plan, a finished build, and other work, such as ads to approve, all show the ask, why, numbered cards, decisions only when there are some, and one bar at the bottom. A page with no decisions shows no Decisions section ([review pages](wiki/review-pages.md)).

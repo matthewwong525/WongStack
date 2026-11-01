@@ -388,6 +388,13 @@ test('background agent commands use the CLI default unless a memory model is exp
   assert.equal(argsFor('codex', { WONG_MEMORY_MODEL: 'claude-choice' }).includes('-m'), false);
 });
 
+test('the memory run keeps its exact narrow command lines for both AI tools', () => {
+  assert.deepEqual(agentCommand('claude', 'p', '/state', '/input', {}), ['claude', ['-p', 'p', '--no-session-persistence', '--permission-mode', 'dontAsk',
+    '--allowedTools', `Bash(${SCRIPT}:*)`, 'Edit(//input/**)', '--add-dir', '/input']]);
+  assert.deepEqual(agentCommand('codex', 'p', '/state', '/input', {}), ['codex', ['exec', '--ephemeral', '--skip-git-repo-check', '--sandbox', 'workspace-write',
+    '-c', 'sandbox_workspace_write.network_access=true', '-c', 'sandbox_workspace_write.writable_roots=["/state","/input"]', '-c', 'approval_policy="never"', 'p']]);
+});
+
 test('the input folder is outside the repo and is removed when the run fails', () => {
   let seen;
   assert.throws(() => withInputDir(dir => { seen = dir; writeFileSync(join(dir, 'put-1.json'), '{}'); throw new Error('run failed'); }), /run failed/);

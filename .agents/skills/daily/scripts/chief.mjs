@@ -34,7 +34,6 @@ export function writeJson(file, value) {
 const watchFile = (stateDir, day) => join(stateDir, `${day}.watch.json`);
 const handsFile = (stateDir, day) => join(stateDir, `${day}.hands.json`);
 const actionsFile = (stateDir, day) => join(stateDir, `${day}.actions.jsonl`);
-const outboxFile = (stateDir, day) => join(stateDir, `${day}.outbox.json`);
 const oneLine = value => String(value).split('\n')[0].slice(0, 200);
 const lowered = value => String(value ?? '').toLowerCase();
 const live = agent => agent && agent.status !== 'closed' && !agent.archivedAt;
@@ -211,8 +210,8 @@ function personWrote({ row, seen, turn, log, at }) {
   return seen.userMark !== undefined || row.source === 'own';
 }
 
-// One pass over the watched agents: `gone`, `asking` per new request, `stopped` once per idle spell. A stop right
-// after the person's own message waits 15 minutes, and goes when the agent runs, says something new, or its card goes.
+// One pass over the watched agents: `gone`, `asking` per new request, `stopped` once per idle spell. A stop after the
+// person's own message waits until 15 minutes after it, through the agent's later runs; their next message restarts it.
 async function notice({ rows, list, pending, state, log, record, call, line, now, typedAt }) {
   for (const row of rows) {
     const agent = list.find(entry => entry.id === row.agentId);
@@ -233,19 +232,25 @@ async function notice({ rows, list, pending, state, log, record, call, line, now
       const theirs = personWrote({ row, seen, turn, log, at });
       if (turn?.userMark !== undefined) seen.userMark = turn.userMark;
       if (at) seen.userAt = at;
-      if (!theirs) return say();
-      const user = at ?? turn?.userMark;
-      if (user !== undefined && !log.some(entry => entry.agent === row.agentId && entry.kind === 'own-chat' && entry.user === user)) {
-        log.push(record({ at: new Date(now()).toISOString(), ...describe(row), bucket: 'person', kind: 'own-chat', user }));
+      const holding = seen.hold && now() < seen.hold.until;
+      if (!theirs && !holding) return say();
+      let until = seen.hold?.until;
+      if (theirs) {
+        const user = at ?? turn?.userMark;
+        if (user !== undefined && !log.some(entry => entry.agent === row.agentId && entry.kind === 'own-chat' && entry.user === user)) {
+          log.push(record({ at: new Date(now()).toISOString(), ...describe(row), bucket: 'person', kind: 'own-chat', user }));
+        }
+        until = (at ? Date.parse(at) : now()) + HOLD_MS;
+        if (now() >= until) { delete seen.hold; return say(); }
       }
       const kept = requests.length ? seen.hold?.requests ?? [] : [];
-      seen.hold = { until: now() + HOLD_MS, requests: [...requests, ...kept] };
+      seen.hold = { until, requests: [...requests, ...kept] };
     };
     let turn;
     const read = async () => (turn === undefined ? (turn = await readTurn(call, row.agentId)) : turn);
     if (seen.hold?.requests.length) {
       const held = asks.filter(ask => seen.hold.requests.includes(ask.id));
-      if (!held.length) delete seen.hold;
+      if (!held.length) seen.hold.requests = [];
       else if (now() >= seen.hold.until) { const at = await read(); for (const ask of held) asking(ask, at); delete seen.hold; }
     }
     if (fresh.length) {
@@ -255,13 +260,12 @@ async function notice({ rows, list, pending, state, log, record, call, line, now
     seen.requests = asks.map(ask => ask.id);
     if (agent.status !== 'idle' && agent.status !== 'error') {
       seen.idle = false;
-      if (!seen.hold?.requests.length) delete seen.hold;
+      if (seen.hold && !seen.hold.requests.length && now() >= seen.hold.until) delete seen.hold;
     } else if (!asks.length) {
       const actedSince = log.some(entry => entry.agent === row.agentId && entry.kind !== 'own-chat' && seen.at && entry.at > seen.at);
       const at = await read(), mark = at?.mark ?? null;
       const said = mark !== null && seen.last && mark !== seen.last;
       if (!seen.idle || actedSince || said) {
-        delete seen.hold;
         stop(at, () => stopped(at));
         seen.idle = true;
         seen.at = new Date(now()).toISOString();
@@ -315,7 +319,7 @@ async function passAddons({ addons, state, line, missed }) {
 }
 
 // Notices, never acts on an agent: one JSON line per event, kept in `<day>.watch.json` so a restart repeats nothing.
-// It ends with nothing to watch, at the hour limit, or on a later Daily; a chat's own watch ends while `serve` runs.
+// It ends with nothing to watch, at the hour limit, or on a later Daily; a chat's own watch ends when the service runs.
 export async function watch({ stops = () => null, ...args }) {
   const wake = { heard: false, ids: new Set() };
   const watcher = stops(name => { if (!name || wake.ids.has(name)) wake.heard = true; });
@@ -425,52 +429,13 @@ async function pause({ seconds, sleep, heard }) {
   } while (waited < seconds * 1000 && !heard());
 }
 
-// `serve` writes this each pass: a chat's own watch runs only while it is stale.
+// The service writes this beat each pass: a chat's own watch runs only while it is stale.
 const beatFile = stateDir => join(stateDir, 'serve.json');
+export const beat = ({ stateDir, seconds, now = Date.now() }) => writeJson(beatFile(stateDir), { pid: process.pid, at: new Date(now).toISOString(), seconds });
 const serviceAlive = (stateDir, now) => {
-  const beat = readJson(beatFile(stateDir), null);
-  return Boolean(beat) && now - Date.parse(beat.at) < Math.max(3 * (beat.seconds ?? 60) * 1000, 5 * 60e3);
+  const last = readJson(beatFile(stateDir), null);
+  return Boolean(last) && now - Date.parse(last.at) < Math.max(3 * (last.seconds ?? 60) * 1000, 5 * 60e3);
 };
-
-/** The header of each batch `serve` sends to the Daily chat; one JSON event per line follows it. */
-export const BATCH = 'Watch ·';
-const OUTBOX_MAX = 500;
-
-// The watch on a computer: each pass is one watch; its events go to the Daily agent as one `Watch · <day>` message.
-// Events not sent wait in `<day>.outbox.json` for the next pass.
-export async function serve({ daily, call, stateDir, started, timezone, board, todos = null, addons = null, env = process.env, seconds = 60,
-  once = false, now = () => Date.now(), sleep = ms => new Promise(done => setTimeout(done, ms)), log = () => {}, stops = () => null, shell }) {
-  let heard = false;
-  const watcher = stops(() => { heard = true; });
-  try {
-    for (;;) {
-      heard = false;
-      writeJson(beatFile(stateDir), { pid: process.pid, at: new Date(now()).toISOString(), seconds });
-      const lines = [];
-      const ids = [daily.read().agentId].filter(Boolean);
-      const day = await watch({ stateDir, started, timezone, call, board, todos, addons, env, self: null, ignore: ids, service: true, once: true,
-        now, shell, print: text => lines.push(JSON.parse(text)) });
-      const events = lines.filter(event => event.event !== 'end' && event.event !== 'unsupported');
-      if (day) await sendBatch({ day, events });
-      if (once) return day;
-      await pause({ seconds, sleep, heard: () => heard });
-    }
-  } finally { watcher?.close?.(); }
-
-  async function sendBatch({ day, events }) {
-    const outbox = outboxFile(stateDir, day);
-    const batch = [...readJson(outbox, []), ...events].slice(-OUTBOX_MAX);
-    if (!batch.length) return;
-    try {
-      const agentId = await dailyAgent({ daily, call });
-      await sendText(call, agentId, `${BATCH} ${day}\n${batch.map(event => JSON.stringify(event)).join('\n')}`);
-      rmSync(outbox, { force: true });
-    } catch (error) {
-      log(`Not sent to the Daily chat: ${oneLine(error.message)}`);
-      writeJson(outbox, batch);
-    }
-  }
-}
 
 /** The live Daily agent: the saved one, else the newest live `daily-chat=1` agent, which is saved. It starts none. */
 export async function dailyAgent({ daily, call }) {
@@ -613,7 +578,7 @@ export async function allow({ request, ...args }) {
   return { status: 'allowed', ...log({ kind: 'allow', request: ask.id }, args.label) };
 }
 
-/** Each watched agent with its status, open cards and last action; lines waiting to send; the last 5 actions. */
+/** Each watched agent with its status, open cards and last action; the last 5 actions. */
 export async function status({ stateDir, day, started, timezone, call, env = process.env, dailyId = null }) {
   if (!env.PASEO_AGENT_ID) return unsupported;
   let read;
@@ -627,7 +592,6 @@ export async function status({ stateDir, day, started, timezone, call, env = pro
       asking: read.pending.filter(ask => ask.agentId === row.agentId).length,
       last: log.filter(entry => entry.agent === row.agentId).at(-1) ?? null,
     })),
-    outbox: readJson(outboxFile(stateDir, day), []).length,
     recent: log.filter(entry => entry.label).slice(-5).map(entry => entry.label),
   };
 }

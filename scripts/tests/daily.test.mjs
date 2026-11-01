@@ -52,9 +52,11 @@ function fakeBoard(tasks = []) {
 
 test('the example settings are valid, and each bad field is refused by name', () => {
   assert.equal(validateConfig(structuredClone(EXAMPLE)).person, 'alex');
+  assert.equal(validateConfig(settings({ sweeps: '.agents/daily/jobs.json', runs: { agent: 'codex' } })).runs.agent, 'codex');
   for (const [bad, field] of [[{ version: 2 }, 'version'], [{ person: 'team' }, 'person'], [{ emails: [] }, 'emails'], [{ timezone: 'Mars/Base' }, 'timezone'],
     [{ guide: '../out.md' }, 'guide'], [{ sources: { tasks: 'yes' } }, 'sources'], [{ places: { home: '/etc' } }, 'places'],
-    [{ addons: { morning: ['/bin/x'] } }, 'addons'], [{ checks: [routine({ place: 'work' })] }, "place"], [{ extra: 1 }, 'known fields']]) {
+    [{ addons: { morning: ['/bin/x'] } }, 'addons'], [{ checks: [routine({ place: 'work' })] }, "place"], [{ extra: 1 }, 'known fields'],
+    [{ sweeps: '../jobs.json' }, 'sweeps'], [{ sweeps: '.agents/daily/jobs.md' }, 'sweeps'], [{ runs: { agent: 'gemini' } }, 'runs'], [{ runs: { model: 'x' } }, 'runs']]) {
     assert.throws(() => validateConfig(settings(bad)), error => error instanceof SettingsError && error.message.includes(field), field);
   }
   for (const bad of [routine({ id: 'Bad Id' }), routine({ cadence: { kind: 'weekly' } }), routine({ start: 'maybe' }), routine({ inputs: { token: 'x' } }),
@@ -105,6 +107,19 @@ test('who names the settings, the team file and the guide; with no app it uses t
   assert.equal(who({ repo: root, ctx: { author: 'x@example.com' }, origin: null }).file, null);
   writeFileSync(join(root, '.agents/daily/sam.json'), '{"version":1}');
   assert.match(who({ repo: root, ctx: {}, origin: null, config: join(root, '.agents/daily/sam.json') }).error, /Invalid daily settings/);
+});
+
+test('a job list beside the one settings file is no settings file: who still takes the only one', () => {
+  const root = repo({ config: settings({ sweeps: '.agents/daily/sweeps.json' }) });
+  writeFileSync(join(root, '.agents/daily/sweeps.json'), JSON.stringify({ events: {}, sweeps: [] }));
+  const me = who({ repo: root, ctx: { author: 'x@example.com' }, origin: null });
+  assert.equal(me.file, join(root, '.agents/daily/alex.json'));
+  assert.equal(me.person, 'alex');
+});
+
+test('a settings file with a misspelled person still fails on its bad field, not as no settings', () => {
+  const root = repo({ config: { version: 1, Person: 'alex' } });
+  assert.match(who({ repo: root, ctx: { author: 'x@example.com' }, origin: null }).error, /Invalid daily settings/);
 });
 
 test('start opens each due routine once per day, with its first message; a missing skill fails and a dry run opens nothing', async () => {
@@ -267,8 +282,11 @@ test('readArgs takes each command with its flags, chief-service as serve, and re
   assert.deepEqual(readArgs(['todo', 'link', '--agent', 'a', '--url', 'https://x']).command, 'todo link');
   assert.equal(readArgs(['chief-service']).command, 'serve');
   assert.deepEqual(readArgs(['watch', '--seconds', '30']).values.seconds, 30);
+  assert.equal(readArgs(['serve', '--dry-run']).values['dry-run'], true);
+  assert.equal(readArgs(['journal', '--new']).values.new, true);
+  assert.deepEqual([readArgs(['journal', '--line', 'x', '--run', 'y']).values.line, readArgs(['journal', '--line', 'x', '--run', 'y']).values.run], ['x', 'y']);
   for (const bad of [['nope'], ['start', '--agent', 'a'], ['hand'], ['watch', '--hours', '30'], ['allow', '--agent', 'a', '--request', 'r', '--bucket', 'pick', '--label', 'x'],
-    ['hand', '--agent', 'a', '--source', 'stranger'], ['reply', '--agent', 'a', '--file', 'f', '--bucket', 'maybe', '--label', 'x']]) {
+    ['hand', '--agent', 'a', '--source', 'stranger'], ['journal', '--agent', 'a'], ['reply', '--agent', 'a', '--file', 'f', '--bucket', 'maybe', '--label', 'x']]) {
     const run = spawnSync(process.execPath, ['-e', `import(${JSON.stringify(join(SKILL, 'scripts/daily.mjs'))}).then(m => m.readArgs(${JSON.stringify(bad)}))`],
       { encoding: 'utf8' });
     assert.notEqual(run.status, 0, bad.join(' '));

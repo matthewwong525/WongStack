@@ -6,8 +6,8 @@ import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { EXIT, PaseoError } from '../../.agents/skills/schedule/scripts/lib/paseo.mjs';
-import { actions, agentEvents, allow, answer, chiefDay, chiefEnv, close, doneAgent, hand, linkAllowed, mark, messageMark, noteEnd, reply, remind,
-  remindKey, serve, status, streak, todoLink, userAt, watch, watchStops, watched } from '../../.agents/skills/daily/scripts/chief.mjs';
+import { actions, agentEvents, allow, answer, beat, chiefDay, chiefEnv, close, dailyAgent, doneAgent, hand, linkAllowed, mark, messageMark, noteEnd,
+  reply, remind, remindKey, status, streak, todoLink, userAt, watch, watchStops, watched } from '../../.agents/skills/daily/scripts/chief.mjs';
 
 const ZONE = 'America/New_York';
 const SELF = 'agent-self';
@@ -314,6 +314,47 @@ test("a stop right after the person's own message waits 15 minutes, and a stop h
   assert.equal(own().length, 3);
 });
 
+// The person types at 9:56 in their own chat; it stops at 10:01, runs, and stops at 10:05. `minutes` count from 10:00.
+async function heldChat() {
+  const t = day();
+  t.own('agent-mine', 'My own chat');
+  t.paseo.logs['agent-mine'] = '[User] Make the tiles blue.\nDone. Build it?';
+  t.typed['agent-mine'] = new Date(START - 4 * MIN).toISOString();
+  const status = value => { t.paseo.list.find(agent => agent.id === 'agent-mine').status = value; };
+  const pass = minutes => t.once(START + minutes * MIN);
+  await pass(1);
+  status('running');
+  await pass(3);
+  status('idle');
+  t.paseo.logs['agent-mine'] += '\nBuilt. Look at the preview?';
+  await pass(5);
+  const said = () => t.lines.splice(0).filter(line => line.agent === 'agent-mine').map(line => [line.event, line.last]);
+  return { t, status, pass, said };
+}
+
+test('the wait holds through later runs: typed 9:56, stop 10:01, it runs, stop 10:05; no stopped line before 10:11, one after', async () => {
+  const { pass, said } = await heldChat();
+  for (const minutes of [8, 10]) await pass(minutes);
+  assert.deepEqual(said(), []);
+  await pass(11);
+  assert.deepEqual(said(), [['stopped', 'Done. Build it? Built. Look at the preview?']]);
+  await pass(12);
+  assert.deepEqual(said(), []);
+});
+
+test('a new message at 10:08 inside the wait moves its end to 10:23', async () => {
+  const { t, status, pass, said } = await heldChat();
+  t.typed['agent-mine'] = new Date(START + 8 * MIN).toISOString();
+  status('running');
+  await pass(8);
+  status('idle');
+  t.paseo.logs['agent-mine'] += '\n[User] Smaller, please.\nMade them smaller. Build it?';
+  for (const minutes of [9, 11, 15, 22]) await pass(minutes);
+  assert.deepEqual(said(), []);
+  await pass(23);
+  assert.deepEqual(said(), [['stopped', 'Made them smaller. Build it?']]);
+});
+
 test("a launcher's first message is not the person's, the chief's own message is never theirs, and their word resets the streak", async () => {
   const t = day();
   t.paseo.logs['agent-job'] = '[User] Post the editor job.\nI made the draft.';
@@ -430,11 +471,6 @@ function dailyStore(saved = { workspaceId: 'wks_daily', agentId: SELF }) {
   store.daily = { read: () => ({ ...store.saved }), write: value => { store.saved = value; } };
   return store;
 }
-/** The events of each `Watch ·` batch sent to `to`. */
-const batches = (t, to = SELF) => t.paseo.sent.filter(([id, message]) => id === to && message.startsWith('Watch · '))
-  .map(([, message]) => message.trim().split('\n').slice(1).map(text => JSON.parse(text)));
-const served = (t, store, now, more = {}) => serve({ ...t.at, daily: store.daily, board: async week => ({ week, tasks: [] }),
-  env: {}, once: true, now: () => now, ...more });
 const todos = (t, value) => writeFileSync(join(t.stateDir, 'todos.json'), JSON.stringify(value));
 /** A fake board for one command: `calls` keeps each body; `fail` makes each call throw. */
 function oneBoard() {
@@ -490,7 +526,9 @@ test('done-agent marks the chat\'s to-do done with its proof, keeps a board task
 
 test("a chat's own watch ends with reason service while the service runs, and watches once the service stops", async () => {
   const t = day();
-  await served(t, dailyStore(), START);
+  await t.once(START);
+  t.taken();
+  beat({ stateDir: t.stateDir, seconds: 60, now: START });
   await t.once(START + MIN);
   assert.deepEqual(t.taken(), [['end', 'service']]);
   assert.equal(JSON.parse(readFileSync(join(t.stateDir, `${DAY}.watch.json`), 'utf8')).ended, undefined);
@@ -571,35 +609,6 @@ test("a chat's watch sees a watched chat's stop within a second; another chat's 
   assert.equal(watched[2] - watched[1], 60_000);
   const other = await stopTimes('z-unwatched');
   assert.equal(other[1] - other[0], 60_000);
-});
-
-// Runs the service for three passes, with `stops` given the first wait's report; returns each pass's clock time.
-async function servicePasses(stops) {
-  const t = day();
-  const store = dailyStore();
-  let clock = START, fired = false;
-  const times = [], done = new Error('three passes');
-  // A pass reads the store again to send its batch: count each pass's time once.
-  const daily = { ...store.daily, read: () => { if (times.at(-1) !== clock - START) times.push(clock - START); return store.daily.read(); } };
-  const sleep = async ms => {
-    if (times.length >= 3) throw done;
-    if (!fired) { fired = true; stops.notice?.('any-chat'); }
-    clock += ms;
-  };
-  // A null watcher could not watch the folder, so no report ever reaches the service.
-  const opened = listen => { if (stops.watcher) stops.notice = listen; return stops.watcher; };
-  await assert.rejects(served(t, { daily }, START, { once: false, now: () => clock, sleep, stops: opened }), error => error === done);
-  return times;
-}
-
-test("any chat's stop starts the service's next pass within a second; a null watcher keeps the minute pass", async () => {
-  let closed = false;
-  const heard = await servicePasses({ watcher: { close() { closed = true; } } });
-  assert.ok(heard[1] - heard[0] <= 1000, `second pass after ${heard[1] - heard[0]} ms`);
-  assert.equal(heard[2] - heard[1], 60_000);
-  assert.equal(closed, true);
-  const unwatched = await servicePasses({ watcher: null });
-  assert.deepEqual(unwatched, [0, 60_000, 120_000]);
 });
 
 test("userAt reads lastUserMessageAt from Paseo's agent record, and null for a missing record or a bad id", () => {
@@ -716,10 +725,9 @@ test('answer refuses a command card, so the deny loop can not start; the person\
   assert.equal((await go('person', 'Not approved; stop before that step.')).status, 'answered');
 });
 
-test("status shows the watched chats, the lines waiting in the outbox, and the chief's last 5 actions and end lines", async () => {
+test("status shows the watched chats and the chief's last 5 actions and end lines", async () => {
   const t = day();
-  const store = dailyStore();
-  await served(t, store, START);
+  await t.once(START);
   for (let n = 0; n < 5; n++) {
     await reply({ ...t.at, day: DAY, agent: 'agent-job', text: `Step ${n}.`, bucket: 'person', label: `Answered ${n}`, env, now: new Date(START + n * 1000) });
   }
@@ -727,28 +735,21 @@ test("status shows the watched chats, the lines waiting in the outbox, and the c
     { status: 'noted', line: 'Judge: kept going on Post the editor job' });
   for (const line of ['', 'a\nb', 'x'.repeat(301)]) assert.equal(noteEnd({ ...t.at, day: DAY, line }).status, 'refused');
   const read = await status({ ...t.at, day: DAY, env, dailyId: SELF });
-  assert.equal(read.worker, undefined);
-  assert.equal(read.outbox, 0);
+  assert.equal(read.outbox, undefined);
   assert.deepEqual(read.recent, ['Answered 1', 'Answered 2', 'Answered 3', 'Answered 4', 'Judge: kept going on Post the editor job']);
   assert.ok(!read.agents.some(row => row.agent === SELF));
 });
 
 
-test('serve sends each pass as one Watch message to the Daily chat; with none open it keeps the lines and starts none', async () => {
+test('dailyAgent gives the saved live Daily chat, else finds one by its label and saves it, else throws', async () => {
   const t = day();
+  assert.equal(await dailyAgent({ daily: dailyStore().daily, call: t.call }), SELF);
   const none = dailyStore({ workspaceId: 'wks_daily' });
   t.paseo.list = t.paseo.list.filter(agent => agent.id !== SELF);
-  const logged = [];
-  await served(t, none, START, { log: text => logged.push(text) });
-  assert.deepEqual(batches(t), []);
-  assert.match(logged[0], /No Daily chat is open/);
-  assert.ok(JSON.parse(readFileSync(join(t.stateDir, `${DAY}.outbox.json`), 'utf8')).length > 0);
+  await assert.rejects(dailyAgent({ daily: none.daily, call: t.call }), /No Daily chat is open/);
   t.paseo.list.push({ id: SELF, name: 'Daily', status: 'idle', cwd: '/w/daily', created: '2026-10-21T15:00:00Z', labels: { 'daily-chat': '1' } });
-  await served(t, none, START + MIN);
-  assert.equal(none.saved.agentId, SELF, 'the live Daily chat is found by its label and saved');
-  const [sent] = batches(t);
-  assert.ok(sent.some(event => event.event === 'stopped' && event.agent === 'agent-job'));
-  assert.equal(existsSync(join(t.stateDir, `${DAY}.outbox.json`)), false);
+  assert.equal(await dailyAgent({ daily: none.daily, call: t.call }), SELF);
+  assert.equal(none.saved.agentId, SELF);
 });
 
 test('pass add-ons post lines, pass events through, skip chats, and a failed one is one not-read', async () => {
