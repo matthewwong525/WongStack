@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — A quiet Daily chat
+## 45.3.0 — A quiet Daily chat
 
 - **The 15-minute wait holds.** A chat that stops soon after your own message waits 15 minutes from that message, even when it runs and stops again in between. A new message from you starts the wait again.
 - **The daily on a computer works in the background.** `daily.mjs serve` no longer sends the Daily chat a `Watch ·` message each pass. It starts one background run of your AI tool for each stop, at most 3 at one time and one per chat, and stops a run after 30 minutes ([the daily on a computer](wiki/development/daily.md#the-daily-on-a-computer)).

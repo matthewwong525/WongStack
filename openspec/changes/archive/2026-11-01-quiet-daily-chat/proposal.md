@@ -1,6 +1,6 @@
 # Your Daily chat holds only your talk
 
-**Status:** ready-to-ship
+**Status:** shipped
 **Branch:** pull-wongos-changes
 **Open questions:** none
 
@@ -92,3 +92,4 @@ None.
 - **2026-11-01** — Assumed: the wiki gives a service file example and nothing installs it, as today, because how a computer runs a service differs.
 - **2026-11-01** — Assumed: the wiki's service example drops the IS_SANDBOX line, because the worker sets it for a root Claude run.
 - **2026-11-01** — Assumed: after the second review, a settings file is skipped as a job list only when it has no `person` and has `events` or `sweeps`, because a settings file with a misspelled field must still fail on that field.
+- **2026-11-01** — Assumed: archived and saved by `/ship` as 45.3.0 after the gate passed, because Matthew ran /ship.

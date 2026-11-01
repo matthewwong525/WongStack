@@ -28,4 +28,4 @@
 ## 5. Verify
 
 - [x] 5.1 Run the daily and memory tests and the payload checks; run `daily.mjs serve --dry-run` once on this computer and read its output.
-- [ ] 5.2 `/save`, and check the gate passes.
+- [x] 5.2 `/save`, and check the gate passes.
