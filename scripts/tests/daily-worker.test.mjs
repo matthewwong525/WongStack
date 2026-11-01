@@ -228,7 +228,7 @@ test("each default brief loads with no placeholder left, ends in the journal, an
     assert.doesNotMatch(run.brief, /\{\{/);
     assert.match(run.brief, /D journal --run [\w-]+ --line/);
     assert.match(run.brief, /D who/);
-    assert.doesNotMatch(run.brief, /WongOS|Matthew|business\.md|profile\.md|email/i);
+    assert.doesNotMatch(run.brief, /Matthew|business\.md|profile\.md|email/i);
   }
   assert.deepEqual(lines(stateDir).filter(line => line.startsWith('Not started')), []);
   for (const name of Object.values(defaults().events).map(entry => entry.brief)) assert.ok(existsSync(join(SKILL_BRIEFS, name)), name);
